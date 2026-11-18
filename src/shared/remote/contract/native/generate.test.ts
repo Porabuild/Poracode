@@ -111,7 +111,8 @@ describe("remote v3 native binding generator", () => {
         // The additive device-adopt-session route (renderer adoption of an
         // agent-opened lease) does the same.
         // Memory sync and catalog management are additive operator routes.
-        sourceHash: "sha256:ab496ba0e3caa8f4b82c9ac7ec0850e6363b744887c3e541ff2b098a8b9279b9",
+        // Optional environment settings and MCP OAuth completion add six structural types.
+        sourceHash: "sha256:337b9896f466611bfaa5ef045f30f07e63efcde710ffa836ff335dd5d2ff204d",
         manifestHash: "sha256:b344d1b59078a545149fd8f2ff0e8416da8b99eb0464bfb98006661e67907712",
         counts: {
           routes: 125,
@@ -122,12 +123,12 @@ describe("remote v3 native binding generator", () => {
           // 11 shared + the desktop-internal `desktop-event` frame (V5 plan 2.5).
           webSocketServerVariants: 12,
           schemaRoots: 586,
-          structuralTypes: 1403,
+          structuralTypes: 1409,
           semanticValidators: 25,
           // Content-defined shards (emitterCommon.shardDeclarations) average
           // ~200 lines, so a contract change rewrites only nearby files.
           swiftFiles: 155,
-          kotlinFiles: 132,
+          kotlinFiles: 133,
           stateMachines: 5,
         },
       });
