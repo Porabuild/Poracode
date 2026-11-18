@@ -123,7 +123,8 @@ describe("forge and git poller coalescing", () => {
   it("coalesces concurrent GitHubService.forReviewRepository calls and avoids caching errors", async () => {
     let ghCalls = 0;
     let failNext = true;
-    execFileAsyncMock.mockImplementation(async (_file: string, args: readonly string[]) => {
+    execFileAsyncMock.mockImplementation(async (file: string, args: readonly string[]) => {
+      if (file === "direnv") return { stdout: "PATH=/usr/bin:/bin\0", stderr: "" };
       ghCalls += 1;
       await new Promise((resolve) => setTimeout(resolve, 10));
       if (failNext) {
