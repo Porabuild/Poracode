@@ -6,7 +6,7 @@ import { isChatVideoSource } from "@/shared/chatVideo";
 import { isChatFileSource } from "@/shared/chatFile";
 import { MarkdownFile } from "./MarkdownFile";
 import { MarkdownVideo } from "./MarkdownVideo";
-import { splitInlineVisuals } from "@/shared/inlineVisuals";
+import { splitInlineVisuals, type InlineVisualPart } from "@/shared/inlineVisuals";
 import { RUNTIME_STREAM_ELISION_NOTICE_PREFIX } from "@/shared/runtimeStreamRetentionPolicy";
 import { MAX_NATIVE_VISUALS_PER_MESSAGE } from "@/shared/nativeVisuals";
 import { MAX_HTML_VISUAL_PREVIEWS_PER_MESSAGE } from "@/shared/htmlVisuals";
@@ -28,6 +28,8 @@ import { CopyTextButton } from "./CopyTextButton";
 import { RemoteImageCard } from "./RemoteImageCard";
 import { imageViewSourceFromImageBlock } from "./imageViewSource";
 import { HtmlVisual } from "./HtmlVisual";
+import { HtmlVisualFile } from "./HtmlVisualFile";
+import type { HtmlVisualFilePart, SplitHtmlVisualFileReferences } from "./htmlVisualFileReference";
 import { NativeVisual } from "./NativeVisual";
 import { SmoothItemMarkdown } from "./ItemMarkdown";
 import { WindowedPlainText } from "./WindowedPlainText";
@@ -217,15 +219,15 @@ function AssistantTextBody({
   isTurnActive: boolean;
   initialRevealKey: string | undefined;
 }) {
+  const splitHtmlVisualFileReferences = useChatPaneActions()?.splitHtmlVisualFileReferences;
   // Retained head/tail text cannot prove a fenced source block is intact.
   // Hydrated history has no local offsets, so also recognize its prefix notice.
   const elided =
     (retention?.elidedChars ?? 0) > 0 ||
     text.slice(0, HYDRATED_STREAM_HEAD_CHARS).includes(RUNTIME_STREAM_ELISION_NOTICE_PREFIX);
-  const parts =
-    !elided && (text.includes("poracode-html-v") || text.includes("poracode-visual-v"))
-      ? splitInlineVisuals(text)
-      : undefined;
+  const parts = elided
+    ? undefined
+    : splitAssistantVisuals(text, isStreaming ? undefined : splitHtmlVisualFileReferences);
   let nativeCount = 0;
   let htmlCount = 0;
   if (parts?.some((part) => part.kind !== "markdown")) {
@@ -238,6 +240,13 @@ function AssistantTextBody({
           version={part.version}
           complete={part.complete && !isStreaming}
           isStreaming={isStreaming && isTurnActive}
+          limited={htmlCount++ >= MAX_HTML_VISUAL_PREVIEWS_PER_MESSAGE}
+        />
+      ) : part.kind === "html-file" ? (
+        <HtmlVisualFile
+          key={index}
+          path={part.path}
+          title={part.title}
           limited={htmlCount++ >= MAX_HTML_VISUAL_PREVIEWS_PER_MESSAGE}
         />
       ) : part.kind === "native" ? (
@@ -271,6 +280,21 @@ function AssistantTextBody({
       {...(retention ? { retention } : {})}
     />
   );
+}
+
+function splitAssistantVisuals(
+  text: string,
+  splitFileReferences: SplitHtmlVisualFileReferences | undefined,
+): (InlineVisualPart | HtmlVisualFilePart)[] | undefined {
+  if (!text.includes("poracode-html-v") && !text.includes("poracode-visual-v")) {
+    return splitFileReferences?.(text);
+  }
+  const parts = splitInlineVisuals(text);
+  return splitFileReferences
+    ? parts.flatMap<InlineVisualPart | HtmlVisualFilePart>((part) =>
+        part.kind === "markdown" ? splitFileReferences(part.text) : [part],
+      )
+    : parts;
 }
 
 function AssistantProseTextBody({

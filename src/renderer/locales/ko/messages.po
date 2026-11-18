@@ -11491,6 +11491,7 @@ msgid "Loading PR…"
 msgstr "PR 로드 중…"
 
 #: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisualFile.tsx
 msgid "Loading preview…"
 msgstr "미리 보기 로드 중…"
 

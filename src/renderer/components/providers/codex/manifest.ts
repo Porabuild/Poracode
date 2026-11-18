@@ -3,6 +3,7 @@ import { i18n } from "@/renderer/i18n/i18n";
 import { msg } from "@lingui/core/macro";
 import type { RendererProviderManifest } from "../providerManifest";
 import { formatFileCitationMarkdown } from "./fileCitationMarkdown";
+import { splitVisualizeReferences } from "./visualizeReferences";
 
 export default {
   kind: "codex",
@@ -16,4 +17,5 @@ export default {
     return i18n._(msg`${provider} ${profile}`);
   },
   formatTranscriptMarkdown: formatFileCitationMarkdown,
+  splitHtmlVisualFileReferences: splitVisualizeReferences,
 } satisfies RendererProviderManifest;

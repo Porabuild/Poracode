@@ -11490,6 +11490,7 @@ msgid "Loading PR…"
 msgstr "PRを読み込み中…"
 
 #: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisualFile.tsx
 msgid "Loading preview…"
 msgstr "プレビューを読み込み中…"
 

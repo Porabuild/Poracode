@@ -2,6 +2,7 @@ import { createContext, useContext } from "react";
 import type { ProjectLocation } from "@/shared/contracts";
 import type { RemoteImageRefValue } from "@/shared/remote";
 import type { RemoteImageReadiness } from "@/renderer/state/remoteServers/environmentSessions";
+import type { SplitHtmlVisualFileReferences } from "./parts/items/htmlVisualFileReference";
 
 export type ChatPaneActions = {
   /** Owning thread — lets inline images open the thread-wide gallery. */
@@ -51,6 +52,7 @@ export type ChatPaneActions = {
    * for providers whose transcripts need no rewriting.
    */
   formatTranscriptMarkdown?: ((text: string) => string) | undefined;
+  splitHtmlVisualFileReferences?: SplitHtmlVisualFileReferences | undefined;
   /** Resolve an image held on a remote project's host. */
   remoteLocalImageUrl?: ((url: string) => string) | undefined;
   /**
