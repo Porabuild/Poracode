@@ -1,0 +1,80 @@
+pub(super) mod _impl {
+    use gix_error::Result;
+
+    /// Hash implementations that can be used once.
+    #[derive(Clone)]
+    pub enum Hasher {
+        /// An implementation of the SHA1 hash.
+        ///
+        /// We use [`sha1dc`] to implement the same collision detection algorithm as Git.
+        #[cfg(feature = "sha1")]
+        Sha1(sha1dc::Hasher),
+        /// An implementation of the SHA256 hash.
+        #[cfg(feature = "sha256")]
+        Sha256(sha2::Sha256),
+    }
+
+    impl Hasher {
+        /// Let's not make this public to force people to go through [`hasher()`].
+        #[cfg(feature = "sha1")]
+        fn new_sha1() -> Self {
+            // This matches the configuration used by Git, which only uses
+            // the collision detection to bail out, rather than computing
+            // alternate “safe hashes” for inputs where a collision attack
+            // was detected.
+            Self::Sha1(sha1dc::Hasher::new())
+        }
+
+        /// Let's not make this public to force people to go through [`hasher()`].
+        #[cfg(feature = "sha256")]
+        fn new_sha256() -> Self {
+            Self::Sha256(sha2::Sha256::default())
+        }
+    }
+
+    impl Hasher {
+        /// Digest the given `bytes`.
+        pub fn update(&mut self, bytes: &[u8]) {
+            match self {
+                #[cfg(feature = "sha1")]
+                Hasher::Sha1(sha1) => sha1.update(bytes),
+                #[cfg(feature = "sha256")]
+                Hasher::Sha256(sha256) => sha2::Digest::update(sha256, bytes),
+            }
+        }
+
+        /// Finalize the hash and produce an object id.
+        ///
+        /// Returns an error classified as [`gix_error::Class::Corruption`] if a collision attack is detected.
+        // TODO: Since SHA-256 has an infallible `finalize`, it might be worth investigating
+        //       turning the return type into `Result<crate::ObjectId, Infallible>` when this crate is
+        //       compiled with SHA-256 support only.
+        #[inline]
+        pub fn try_finalize(self) -> Result<crate::ObjectId> {
+            match self {
+                #[cfg(feature = "sha1")]
+                Hasher::Sha1(sha1) => match sha1.finalize() {
+                    Ok(digest) => Ok(crate::ObjectId::Sha1(digest.into())),
+                    Err(collision) => Err(gix_error::message!(
+                        "Detected SHA-1 collision attack with digest {}",
+                        crate::ObjectId::Sha1(collision.digest().into())
+                    )
+                    .corrupted_error()),
+                },
+                #[cfg(feature = "sha256")]
+                Hasher::Sha256(sha256) => Ok(crate::ObjectId::Sha256(sha2::Digest::finalize(sha256).into())),
+            }
+        }
+    }
+
+    /// Produce a hasher suitable for the given `kind` of hash.
+    #[inline]
+    pub fn hasher(kind: crate::Kind) -> Hasher {
+        match kind {
+            #[cfg(feature = "sha1")]
+            crate::Kind::Sha1 => Hasher::new_sha1(),
+            #[cfg(feature = "sha256")]
+            crate::Kind::Sha256 => Hasher::new_sha256(),
+        }
+    }
+}

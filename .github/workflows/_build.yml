@@ -247,7 +247,7 @@ jobs:
         uses: actions/cache@v5
         with:
           path: resources/wsl-helpers/git-helper
-          key: git-helper-v1-${{ runner.os }}-${{ matrix.platform }}-${{ matrix.rust-version }}-${{ matrix.helper-targets }}-${{ hashFiles('native/git-helper/src/**', 'native/git-helper/Cargo.toml', 'native/git-helper/Cargo.lock', 'native/git-helper/.cargo/config.toml', 'native/git-helper/rust-toolchain.toml', 'scripts/prepare-git-helper.mjs', 'scripts/lib/native-helper-prepare.mjs', 'src/supervisor/git/gitNativeHelperProtocol.ts') }}
+          key: git-helper-v1-${{ runner.os }}-${{ matrix.platform }}-${{ matrix.rust-version }}-${{ matrix.helper-targets }}-${{ hashFiles('native/git-helper/src/**', 'native/git-helper/vendor/**', 'native/git-helper/Cargo.toml', 'native/git-helper/Cargo.lock', 'native/git-helper/.cargo/config.toml', 'native/git-helper/rust-toolchain.toml', 'scripts/prepare-git-helper.mjs', 'scripts/lib/native-helper-prepare.mjs', 'src/supervisor/git/gitNativeHelperProtocol.ts') }}
 
       - name: Mark restored Git helper current
         if: steps.git-helper-artifact.outputs.cache-hit == 'true'
