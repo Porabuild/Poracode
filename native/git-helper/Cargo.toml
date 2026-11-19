@@ -29,6 +29,11 @@ serde_json = "1"
 # Unicode 17 matches Node 26 / ICU 78; 0.1.26 uses Unicode 18 tables.
 unicode-normalization = "=0.1.25"
 
+[patch.crates-io]
+# Backport the upstream faster-hex upgrade to drop heapless 0.8.
+# Remove once the released gitoxide stack includes the fix.
+gix-hash = { path = "vendor/gix-hash" }
+
 [profile.release]
 opt-level = "s"
 lto = true
