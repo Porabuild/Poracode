@@ -1052,6 +1052,9 @@ export function ThreadDraftComposerArea(props: {
           segments: currentSegments,
           intent: "launch",
           configuration: launchInput,
+          onCheckpoint: (id, checkpoint) => {
+            releaseActiveLaunch = retainActiveProjectDraftLaunch(id, checkpoint);
+          },
         });
         launchInput.threadId = submission.id;
         launchInput.clientSubmissionId = submission.id;
@@ -1072,7 +1075,6 @@ export function ThreadDraftComposerArea(props: {
       submittedRef.current = true;
       const launch = () => Promise.resolve(props.onStart(launchInput));
       if (submission) {
-        releaseActiveLaunch = retainActiveProjectDraftLaunch(submission.id, submission.checkpoint);
         const outcome = await dispatchDraftSubmission(submission, launch);
         const record = await readClientSubmission(submission.id);
         if (outcome === "accepted" || record?.state === "accepted") {

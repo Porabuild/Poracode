@@ -124,6 +124,46 @@ it("restores text and attachments without inventing a new draft revision", async
   second.unmount();
 });
 
+it.each(["accepted", "rejected"] as const)(
+  "defers a draft reopened before launch preparation finishes (%s)",
+  async (outcome) => {
+    const report = vi.spyOn(toast, "danger").mockReturnValue("test-toast");
+    const capture = Promise.withResolvers<Awaited<ReturnType<TurnClientContextCapture>>>();
+    const onStart = vi.fn<() => Promise<"accepted">>(async () => {
+      if (outcome === "rejected") {
+        throw new RemoteClientError("Invalid params", 422, "thread_launch_failed");
+      }
+      return "accepted";
+    });
+    try {
+      const first = form(onStart, () => capture.promise);
+      fireEvent.click(screen.getByRole("button", { name: "Send fixture" }));
+      expect(onStart).not.toHaveBeenCalled();
+      first.unmount();
+
+      const reopened = form(onStart);
+      const editor = screen.getByRole("textbox");
+      expect(editor).toHaveTextContent(/^$/);
+      expect(screen.queryByText("notes.txt")).toBeNull();
+
+      await act(async () => capture.resolve(undefined));
+      await waitFor(() => expect(onStart).toHaveBeenCalledOnce());
+      await waitFor(async () => expect(await listClientSubmissions()).toEqual([]));
+      expect(editor).toHaveTextContent(outcome === "accepted" ? /^$/ : "Preserve this prompt");
+      expect(screen.queryAllByText("notes.txt")).toHaveLength(outcome === "accepted" ? 0 : 1);
+      expect(screen.queryByRole("button", { name: "Restore a copy" })).toBeNull();
+      expect(report.mock.calls).toEqual(outcome === "accepted" ? [] : [["Invalid params"]]);
+      reopened.unmount();
+      expect(useAppStore.getState().draftContents[project.id]).toEqual(
+        outcome === "accepted" ? undefined : draft,
+      );
+    } finally {
+      capture.resolve(undefined);
+      report.mockRestore();
+    }
+  },
+);
+
 it.each([false, true])(
   "leaves a reopened draft free of the submitted prompt during launch (new edit: %s)",
   async (edit) => {

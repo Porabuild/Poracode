@@ -204,6 +204,7 @@ export async function preserveDraftSubmission(input: {
   segments: readonly PromptSegment[];
   intent: string;
   configuration: unknown;
+  onCheckpoint?: (id: string, checkpoint: DraftCheckpoint) => void;
 }): Promise<DraftSubmission> {
   const capturedOwner = entityHost(input.target);
   const capturedBridge = capturedOwner ? null : getRemoteBridgeClient();
@@ -215,9 +216,16 @@ export async function preserveDraftSubmission(input: {
         getRemoteBridgeClient() === capturedBridge;
   const storage = composerDraftStorage();
   if (!storage) throw storageError();
+  const id = crypto.randomUUID();
+  const { onCheckpoint } = input;
   let checkpoint: DraftCheckpoint;
   try {
-    checkpoint = await storage.checkpoint(input.kind, input.ownerId, input.content);
+    checkpoint = await storage.checkpoint(
+      input.kind,
+      input.ownerId,
+      input.content,
+      onCheckpoint && ((captured) => onCheckpoint(id, captured)),
+    );
   } catch (error) {
     console.error("[poracode] draft submission persistence failed", error);
     throw storageError(error);
@@ -230,7 +238,6 @@ export async function preserveDraftSubmission(input: {
     intent: input.intent,
     configuration: input.configuration,
   });
-  const id = crypto.randomUUID();
   const originalPaths = new Map(
     input.content.attachments.map((attachment) => [attachment.path, attachment]),
   );

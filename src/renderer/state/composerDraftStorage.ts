@@ -533,12 +533,15 @@ export function createComposerDraftStorage(storage: Storage, lifecycle: Window) 
       kind: DraftKind,
       ownerId: string,
       content: DraftContent,
+      onCapture?: (checkpoint: DraftCheckpoint) => void,
     ): Promise<DraftCheckpoint> {
       save(kind, ownerId, content);
       const record = readRecord(kind, ownerId);
-      await flushScope(kind, ownerId);
       if (!record) throw new Error("Composer draft could not be saved.");
-      return { ...record, kind, ownerId };
+      const checkpoint = { ...record, kind, ownerId };
+      onCapture?.(checkpoint);
+      await flushScope(kind, ownerId);
+      return checkpoint;
     },
     async acknowledge(checkpoint: DraftCheckpoint, onRetire?: () => void): Promise<boolean> {
       await flushScope(checkpoint.kind, checkpoint.ownerId);

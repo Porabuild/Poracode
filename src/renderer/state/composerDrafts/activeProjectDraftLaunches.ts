@@ -1,8 +1,8 @@
 import { composerDraftStorage, type DraftCheckpoint } from "../composerDraftStorage";
 import { notifyClientDraftSubmissions } from "./clientDraftSubmissions";
 
-// A claimed submission can outlive its composer as the user navigates to the
-// new thread. IndexedDB also retains claims from interrupted renderer sessions.
+// A submission can outlive its composer even before it is claimed in IndexedDB.
+// Track the exact draft revision from capture through launch settlement.
 const activeLaunches = new Map<string, DraftCheckpoint>();
 
 export function retainActiveProjectDraftLaunch(id: string, checkpoint: DraftCheckpoint) {
