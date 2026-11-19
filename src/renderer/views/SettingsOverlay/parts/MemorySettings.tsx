@@ -2,8 +2,19 @@ import { startTransition, useEffect, useState, type ReactNode } from "react";
 import { NumberField } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { isRemoteSession, readBridge } from "@/renderer/bridge";
-import { Button, ProviderModelMenu, Select, ToggleSwitch } from "@/renderer/components/common";
-import { buildProviderModelMenuProviders } from "@/renderer/components/thread/buildModelPickerControls";
+import {
+  Button,
+  EffortContextMenu,
+  ProviderModelMenu,
+  Select,
+  ToggleSwitch,
+} from "@/renderer/components/common";
+import { formatEffortLabel } from "@/renderer/components/common/effortLabel";
+import {
+  buildProviderModelMenuProviders,
+  resolveModelSelectionEdit,
+} from "@/renderer/components/thread/buildModelPickerControls";
+import { EffortIcon } from "@/renderer/components/providers/EffortIcon";
 import { getProviderUtilityRank } from "@/renderer/components/providers/providerManifest";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import { useAppStore } from "@/renderer/state/appStore";
@@ -14,6 +25,7 @@ import { remoteConnectionKey } from "@/renderer/state/remoteServers/types";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { useSettingsHostServer, useSettingsHostStore } from "@/renderer/state/settingsHostStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
+import type { AgentStatus } from "@/shared/contracts";
 import type {
   MemoryCaptureTiming,
   MemoryDeletePolicy,
@@ -21,9 +33,16 @@ import type {
   MemoryStatus,
 } from "@/shared/memory";
 import { pickMemoryModel, type MemoryModelCandidate } from "@/shared/memoryModelChoice";
+import {
+  modelFamilyDisplayConfig,
+  modelFamilyEfforts,
+  modelFamilyForModel,
+} from "@/shared/modelFamilySelection";
 import type { ProviderModelMenuProvider } from "@/renderer/components/common/ProviderModelMenu/parts/buildItems";
 import { MemoryCatalogDialog } from "./MemoryCatalogDialog";
 import { SettingRow, SettingsPage } from "./SettingsForm";
+
+const DEFAULT_EFFORT = "__memory_default__";
 
 function memoryModelCandidates(
   providers: readonly ProviderModelMenuProvider[],
@@ -45,11 +64,15 @@ function MemoryModelPicker(props: {
   purpose: "capture" | "dream";
   provider: string;
   model: string;
+  effort: string;
+  fast: boolean;
+  agents: readonly AgentStatus[];
   providers: readonly ProviderModelMenuProvider[];
   isDisabled?: boolean;
-  onChange: (agentKind: string, model: string) => void;
+  onChange: (agentKind: string, model: string, effort: string, fast: boolean) => void;
   onReset: () => void;
 }) {
+  const { t } = useLingui();
   const candidates = memoryModelCandidates(props.providers);
   const scoped =
     props.provider === "auto"
@@ -60,6 +83,18 @@ function MemoryModelPicker(props: {
   const model = props.model || fallback?.model;
   const customized = props.provider !== "auto" || props.model !== "";
   if (!agentKind || !model || props.providers.length === 0) return null;
+
+  const capabilities = props.agents.find(
+    (agent) =>
+      agent.kind === agentKind && agent.capabilities.models.some((item) => item.id === model),
+  )?.capabilities;
+  const config = { model, effort: props.effort, fast: props.fast };
+  const efforts = capabilities ? modelFamilyEfforts(capabilities, config) : [];
+  const family = capabilities && modelFamilyForModel(capabilities, model);
+  const effortBoundToModel = family?.bindings.effort === "model";
+  const shownEffort =
+    (capabilities && modelFamilyDisplayConfig(capabilities, config)?.effort) ?? props.effort;
+
   return (
     <SettingRow
       anchorId={props.anchorId}
@@ -67,7 +102,11 @@ function MemoryModelPicker(props: {
       description={props.description}
       className={props.isDisabled ? "opacity-55 transition-opacity" : "transition-opacity"}
     >
-      <div className="flex items-center gap-2">
+      <div
+        role="group"
+        aria-label={props.title}
+        className="flex min-w-0 max-w-[65%] shrink-0 items-center gap-2"
+      >
         {customized ? (
           <Button
             size="sm"
@@ -78,15 +117,65 @@ function MemoryModelPicker(props: {
             <Trans>Reset</Trans>
           </Button>
         ) : null}
-        <ProviderModelMenu
-          triggerAppearance="field"
-          menuLabel={props.title}
-          providers={[...props.providers]}
-          currentAgentKind={agentKind}
-          currentModel={model}
-          isDisabled={props.isDisabled ?? false}
-          onChange={(next) => props.onChange(next.agentKind, next.model)}
-        />
+        <div className="min-w-0">
+          <ProviderModelMenu
+            triggerAppearance="field"
+            menuLabel={props.title}
+            providers={[...props.providers]}
+            currentAgentKind={agentKind}
+            currentModel={model}
+            isDisabled={props.isDisabled ?? false}
+            onChange={(next) => {
+              const nextModel =
+                next.selectionIntent === "family" &&
+                next.agentKind === agentKind &&
+                next.model === family?.model
+                  ? model
+                  : next.model;
+              const sameModel = next.agentKind === agentKind && nextModel === model;
+              props.onChange(
+                next.agentKind,
+                nextModel,
+                sameModel ? props.effort : "",
+                sameModel && props.fast,
+              );
+            }}
+          />
+        </div>
+        {capabilities && efforts.length > 1 ? (
+          <div className="min-w-0">
+            <EffortContextMenu
+              triggerAppearance="field"
+              label={t`Reasoning`}
+              efforts={[
+                ...(effortBoundToModel ? [] : [{ id: DEFAULT_EFFORT, label: t`Default` }]),
+                ...efforts.map((id) => ({ id, label: formatEffortLabel(id) })),
+              ]}
+              effortValue={shownEffort || (effortBoundToModel ? "" : DEFAULT_EFFORT)}
+              icon={
+                <EffortIcon className="size-4 shrink-0" effort={shownEffort} efforts={efforts} />
+              }
+              contextSizes={[]}
+              isDisabled={props.isDisabled ?? false}
+              onEffortChange={(value) => {
+                const effort = value === DEFAULT_EFFORT ? "" : value;
+                if (effort === shownEffort) return;
+                const patch = resolveModelSelectionEdit(capabilities, config, {
+                  kind: "effort",
+                  value: effort,
+                });
+                if (!patch) return;
+                // Keep the override attached to the model that advertised it, even in Auto.
+                props.onChange(
+                  agentKind,
+                  patch.model ?? model,
+                  patch.effort ?? props.effort,
+                  patch.fast ?? props.fast,
+                );
+              }}
+            />
+          </div>
+        ) : null}
       </div>
     </SettingRow>
   );
@@ -292,15 +381,18 @@ function MemorySettingsView(
             purpose="capture"
             provider={memory.captureProvider}
             model={memory.captureModel}
+            effort={memory.captureEffort}
+            fast={memory.captureFast}
+            agents={oneShotAgents}
             providers={modelProviders}
             isDisabled={childDisabled}
-            onChange={(agentKind, model) =>
+            onChange={(agentKind, model, effort, fast) =>
               startTransition(() =>
                 setMemorySettings({
                   captureProvider: agentKind,
                   captureModel: model,
-                  captureEffort: "",
-                  captureFast: false,
+                  captureEffort: effort,
+                  captureFast: fast,
                 }),
               )
             }
@@ -327,15 +419,18 @@ function MemorySettingsView(
             purpose="dream"
             provider={memory.dreamProvider}
             model={memory.dreamModel}
+            effort={memory.dreamEffort}
+            fast={memory.dreamFast}
+            agents={oneShotAgents}
             providers={modelProviders}
             isDisabled={childDisabled}
-            onChange={(agentKind, model) =>
+            onChange={(agentKind, model, effort, fast) =>
               startTransition(() =>
                 setMemorySettings({
                   dreamProvider: agentKind,
                   dreamModel: model,
-                  dreamEffort: "",
-                  dreamFast: false,
+                  dreamEffort: effort,
+                  dreamFast: fast,
                 }),
               )
             }
