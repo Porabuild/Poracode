@@ -1883,6 +1883,29 @@ describe("SubagentRunManager", () => {
     });
   });
 
+  it("preserves a newer child request with the same id when a previous reply finishes", async () => {
+    const h = makeHarness();
+    const { runId } = h.manager.spawn(PARENT, { agent: "codex", prompt: "go" });
+    await flush();
+    const handle = h.handles[0]!;
+    handle.openRequest("perm-1");
+    const acknowledged = Promise.withResolvers<void>();
+    vi.spyOn(handle, "resolveServerRequest").mockReturnValueOnce(acknowledged.promise);
+    const submitting = h.manager.resolveChildServerRequest(
+      `${runId}::perm-1`,
+      { optionId: "once" },
+      PARENT,
+    );
+    handle.openRequest("perm-1");
+    acknowledged.resolve();
+    await expect(submitting).resolves.toBe(true);
+    expect(h.manager.getStatus(runId, PARENT).pending_requests).toBe(1);
+    await expect(
+      h.manager.resolveChildServerRequest(`${runId}::perm-1`, { optionId: "deny" }, PARENT),
+    ).resolves.toBe(true);
+    expect(h.manager.getStatus(runId, PARENT).pending_requests).toBeUndefined();
+  });
+
   it("round-trips a request id that itself contains the delimiter", async () => {
     const h = makeHarness();
     const { runId } = h.manager.spawn(PARENT, { agent: "codex", prompt: "go" });
@@ -1942,6 +1965,9 @@ describe("SubagentRunManager", () => {
     // The run record still exists, so the id is recognized, but its pending set
     // was cleared on settle — the resolve is a no-op on the (already torn-down) handle.
     expect(await h.manager.resolveChildServerRequest(`${runId}::perm-1`, {}, PARENT)).toBe(true);
+    await expect(
+      h.manager.resolveChildServerRequest(`${runId}::perm-1`, {}, PARENT, true),
+    ).rejects.toThrow(/no longer pending/u);
     expect(h.handles[0]!.resolvedRequests).toEqual([]);
   });
 

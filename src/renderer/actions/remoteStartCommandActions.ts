@@ -30,6 +30,9 @@ export function applyRemoteThreadStartCommand(command: RemoteStartCommand): void
     if (!command.providerSwitch) return;
     store.applyProviderSwitch(command.threadId, {
       agentKind: command.agentKind,
+      ...(command.agentInstanceId !== undefined
+        ? { agentInstanceId: command.agentInstanceId }
+        : {}),
       config: command.config,
       presentationMode: command.presentationMode ?? existing.presentationMode ?? "terminal",
     });
@@ -73,6 +76,7 @@ export function applyRemoteThreadStartCommand(command: RemoteStartCommand): void
     threadId: command.threadId,
     projectId: project.id,
     agentKind: command.agentKind,
+    ...(command.agentInstanceId !== undefined ? { agentInstanceId: command.agentInstanceId } : {}),
     ...(command.agentInstanceId ? { agentInstanceId: command.agentInstanceId } : {}),
     config: command.config,
     prompt: titlePrompt,

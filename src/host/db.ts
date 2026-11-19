@@ -52,7 +52,12 @@ export type {
   DbThreadReorderOutcome,
 } from "./db/catalogIntents";
 
-export { dbGetProjectNotes, dbSetProjectNotes } from "./db/notes";
+export {
+  dbGetProjectNotes,
+  dbSetProjectNotes,
+  dbCompareAndSetProjectNotes,
+  ProjectNotesConflictError,
+} from "./db/notes";
 export { dbBeginWorktreeObservation, dbReconcileProjectWorktrees } from "./db/worktreeLinks";
 
 export {
@@ -76,6 +81,7 @@ export {
   dbGetLatestThreadGoalItem,
   dbGetThreadPromptIndex,
   dbGetThreadRuntimeItems,
+  dbGetThreadOpenRequestItems,
   dbGetThreadRuntimeItemCursor,
   dbGetThreadRuntimeItemsAfter,
   dbGetThreadRuntimeItemsPage,

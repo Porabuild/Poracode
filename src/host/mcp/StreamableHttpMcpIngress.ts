@@ -5,6 +5,7 @@ import { decodeThreadIdentity, type McpThreadIdentity } from "@/shared/browserMc
 import { isLocalhostOrigin, readBoundedNodeRequestBody, writeJsonResponse } from "@/shared/http";
 import { AsyncWorkTracker } from "@/shared/asyncWorkTracker";
 import { HttpServerConnections } from "@/shared/httpServerConnections";
+import type { McpToolAnnotations } from "@/shared/contracts/mcpServer";
 
 export interface StreamableHttpMcpIngressInfo {
   url: string;
@@ -16,6 +17,7 @@ export interface StreamableHttpMcpToolSpec {
   name: string;
   description: string;
   inputSchema: Record<string, unknown>;
+  annotations?: McpToolAnnotations;
 }
 
 export interface StreamableHttpMcpContent {

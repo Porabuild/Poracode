@@ -11422,6 +11422,10 @@ msgstr "Load installed fonts"
 msgid "Load older results"
 msgstr "Load older results"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesPanel.tsx
+msgid "Load saved notes"
+msgstr "Load saved notes"
+
 #: src/renderer/components/common/PixelLoader.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentMessageList.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/RemoteBrowserMirror.tsx
@@ -16207,6 +16211,10 @@ msgstr "Project not found."
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesEditor.tsx
 msgid "Project notes"
 msgstr "Project notes"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesPanel.tsx
+msgid "Project Notes changed elsewhere. Your draft is still here."
+msgstr "Project Notes changed elsewhere. Your draft is still here."
 
 #: src/renderer/components/thread/MoveThreadDialog.tsx
 #~ msgid "Project on {targetLabel}"

@@ -1,16 +1,98 @@
 import {
-  automationJsonSchema,
   createScheduleArgsSchema as createArgsSchema,
   updateScheduleArgsSchema as updateArgsSchema,
   idArgsSchema,
   idJsonSchema,
-  recurrenceJsonSchema,
   scheduleRunInboxArgsSchema,
   scheduleRunsArgsSchema,
 } from "./scheduleSchemas";
 import { isHomeProjectId } from "@/shared/homeScope";
 import { type ScheduledTask, type ScheduledTaskInput } from "@/shared/contracts";
-import { assertNotSelf, type AppControlsToolContext, type ToolDomain } from "./types";
+import { appControlToolDomain, defineAppControlTool } from "../defineTools";
+import {
+  assertNotSelf,
+  requireProject,
+  type AppControlsToolContext,
+  type ToolDomain,
+} from "./types";
+
+const createSchedule = defineAppControlTool({
+  name: "create_schedule",
+  description:
+    "Create a schedule with the app's model config and recurrence. Pass projectId to choose its project, or null for Home. When omitted, the caller's project, agent and model supply the defaults. Legacy model and effort inputs are also accepted.",
+  input: createArgsSchema,
+  run: ({ projectId, config, model, effort, agentKind, ...fields }, ctx) => {
+    rejectMixedConfig(config, model, effort);
+    const source = ctx.identity.threadId ? ctx.getThread(ctx.identity.threadId) : null;
+    const resolvedAgent = agentKind ?? source?.agentKind;
+    const resolvedModel = model ?? source?.config.model;
+    if (!resolvedAgent || (!config && !resolvedModel))
+      throw new Error(
+        "Provide agentKind and config or model when the calling thread has no defaults.",
+      );
+    const inheritedEffort = effort ?? source?.config.effort;
+    return ctx.scheduleService.create({
+      ...fields,
+      agentKind: resolvedAgent,
+      projectId:
+        projectId === undefined
+          ? source && !isHomeProjectId(source.projectId)
+            ? source.projectId
+            : null
+          : scheduleProject(ctx, projectId),
+      config: config ?? {
+        model: resolvedModel!,
+        ...(inheritedEffort !== undefined ? { effort: inheritedEffort } : {}),
+        ...(source?.config.fast !== undefined ? { fast: source.config.fast } : {}),
+      },
+    });
+  },
+});
+
+const updateSchedule = defineAppControlTool({
+  name: "update_schedule",
+  description:
+    "Update selected schedule fields. Pass projectId: null to move it to Home, or config to set the complete model selection. Omitted fields retain their saved values.",
+  input: updateArgsSchema,
+  run: ({ id, projectId, config, model, effort, ...patch }, ctx) => {
+    rejectMixedConfig(config, model, effort);
+    const current = requireSchedule(ctx, id);
+    const { effort: previousEffort, ...baseConfig } = current.config;
+    const nextEffort = effort === undefined ? previousEffort : effort;
+    return ctx.scheduleService.update(id, {
+      name: patch.name ?? current.name,
+      prompt: patch.prompt ?? current.prompt,
+      recurrence: patch.recurrence ?? current.recurrence,
+      enabled: patch.enabled ?? current.enabled,
+      agentKind: patch.agentKind ?? current.agentKind,
+      projectId:
+        projectId === undefined ? (current.projectId ?? null) : scheduleProject(ctx, projectId),
+      ...((patch.automation ?? current.automation)
+        ? { automation: patch.automation ?? current.automation }
+        : {}),
+      config: config ?? {
+        ...baseConfig,
+        model: model ?? baseConfig.model,
+        ...(nextEffort != null ? { effort: nextEffort } : {}),
+      },
+    });
+  },
+});
+
+function rejectMixedConfig(
+  config: ScheduledTaskInput["config"] | undefined,
+  model: string | undefined,
+  effort: string | null | undefined,
+): void {
+  if (config && (model !== undefined || effort !== undefined))
+    throw new Error("Pass config or the legacy model and effort fields.");
+}
+
+function scheduleProject(ctx: AppControlsToolContext, projectId: string | null | undefined) {
+  return !projectId || isHomeProjectId(projectId) ? null : requireProject(ctx, projectId).id;
+}
+
+const generatedScheduleTools = appControlToolDomain(createSchedule, updateSchedule);
 
 export const scheduleTools: ToolDomain = {
   specs: [
@@ -19,46 +101,7 @@ export const scheduleTools: ToolDomain = {
       description: "List the user's Poracode schedules and their current status.",
       inputSchema: { type: "object", properties: {}, additionalProperties: false },
     },
-    {
-      name: "create_schedule",
-      description:
-        "Create a device schedule. The current agent and model are used unless overridden.",
-      inputSchema: {
-        type: "object",
-        additionalProperties: false,
-        required: ["name", "prompt", "recurrence"],
-        properties: {
-          name: { type: "string", minLength: 1, maxLength: 120 },
-          prompt: { type: "string", minLength: 1, maxLength: 50000 },
-          recurrence: recurrenceJsonSchema(),
-          enabled: { type: "boolean" },
-          agentKind: { type: "string", minLength: 1 },
-          model: { type: "string", minLength: 1 },
-          effort: { type: "string", minLength: 1 },
-          automation: automationJsonSchema(),
-        },
-      },
-    },
-    {
-      name: "update_schedule",
-      description: "Update selected fields on an existing Poracode schedule.",
-      inputSchema: {
-        type: "object",
-        additionalProperties: false,
-        required: ["id"],
-        properties: {
-          id: { type: "string", format: "uuid" },
-          name: { type: "string", minLength: 1, maxLength: 120 },
-          prompt: { type: "string", minLength: 1, maxLength: 50000 },
-          recurrence: recurrenceJsonSchema(),
-          enabled: { type: "boolean" },
-          agentKind: { type: "string", minLength: 1 },
-          model: { type: "string", minLength: 1 },
-          effort: { type: ["string", "null"], minLength: 1 },
-          automation: automationJsonSchema(),
-        },
-      },
-    },
+    ...generatedScheduleTools.specs,
     {
       name: "run_schedule",
       description: "Run an existing schedule now without changing its next scheduled run.",
@@ -117,65 +160,7 @@ export const scheduleTools: ToolDomain = {
   ],
   handlers: {
     list_schedules: (_args, ctx) => ctx.scheduleService.list(),
-    create_schedule: (args, ctx) => {
-      const parsed = createArgsSchema.parse(args);
-      const sourceThread = ctx.identity.threadId ? ctx.getThread(ctx.identity.threadId) : null;
-      const agentKind = parsed.agentKind ?? sourceThread?.agentKind;
-      const model = parsed.model ?? sourceThread?.config.model;
-      if (!agentKind || !model) {
-        throw new Error("agentKind and model are required when the calling thread is unavailable.");
-      }
-      // Default the run's project to the calling thread's project (so a schedule
-      // created from inside a project runs there). Home-scope threads leave it
-      // null, which the coordinator resolves to the built-in Home project.
-      const projectId =
-        sourceThread && !isHomeProjectId(sourceThread.projectId) ? sourceThread.projectId : null;
-      const input: ScheduledTaskInput = {
-        name: parsed.name,
-        prompt: parsed.prompt,
-        recurrence: parsed.recurrence,
-        enabled: parsed.enabled,
-        agentKind,
-        ...(projectId ? { projectId } : {}),
-        ...(parsed.automation ? { automation: parsed.automation } : {}),
-        config: {
-          model,
-          ...((parsed.effort ?? sourceThread?.config.effort)
-            ? { effort: parsed.effort ?? sourceThread?.config.effort }
-            : {}),
-          ...(sourceThread?.config.fast !== undefined ? { fast: sourceThread.config.fast } : {}),
-        },
-      };
-      return ctx.scheduleService.create(input);
-    },
-    update_schedule: (args, ctx) => {
-      const parsed = updateArgsSchema.parse(args);
-      const current = requireSchedule(ctx, parsed.id);
-      const { effort: _currentEffort, ...baseConfig } = current.config;
-      return ctx.scheduleService.update(parsed.id, {
-        name: parsed.name ?? current.name,
-        prompt: parsed.prompt ?? current.prompt,
-        recurrence: parsed.recurrence ?? current.recurrence,
-        enabled: parsed.enabled ?? current.enabled,
-        agentKind: parsed.agentKind ?? current.agentKind,
-        projectId: current.projectId ?? null,
-        ...((parsed.automation ?? current.automation)
-          ? { automation: parsed.automation ?? current.automation }
-          : {}),
-        config: {
-          ...baseConfig,
-          model: parsed.model ?? current.config.model,
-          ...(parsed.effort === null
-            ? {}
-            : parsed.effort !== undefined
-              ? { effort: parsed.effort }
-              : current.config.effort
-                ? { effort: current.config.effort }
-                : {}),
-          ...(current.config.fast !== undefined ? { fast: current.config.fast } : {}),
-        },
-      });
-    },
+    ...generatedScheduleTools.handlers,
     run_schedule: (args, ctx) => ctx.scheduleService.runNow(idArgsSchema.parse(args).id),
     list_schedule_runs: (args, ctx) =>
       ctx.scheduleService.runs(scheduleRunsArgsSchema.parse(args).scheduleId),

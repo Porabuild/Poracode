@@ -27,6 +27,7 @@ import type {
 } from "@/shared/contracts";
 import { DEFAULT_TERMINAL_SIZE, resolveMcpLaunchSnapshot } from "@/shared/contracts";
 import { isHomeProject, isHomeProjectId } from "@/shared/homeScope";
+import { threadWorktreeCreationOptions } from "@/shared/threadWorktreeLaunch";
 import { resolveProjectLocation } from "@/shared/worktree";
 import { friendlyError } from "@/shared/messages";
 import { hasSendablePromptContent } from "@/shared/promptContent";
@@ -538,13 +539,13 @@ async function startThreadFromDraftPending(
   }
   if (!isHomeScope && !worktreePath && worktreeBranch) {
     try {
-      const transferUncommitted = worktreeTransferUncommitted ?? false;
       const result = await createWorktree(project, {
+        ...threadWorktreeCreationOptions({
+          ...(worktreeBaseBranch ? { startPoint: worktreeBaseBranch } : {}),
+          createBranch: worktreeIsNewBranch ?? false,
+          transferUncommitted: worktreeTransferUncommitted ?? false,
+        }),
         branch: worktreeBranch,
-        ...(worktreeBaseBranch ? { startPoint: worktreeBaseBranch } : {}),
-        createBranch: worktreeIsNewBranch ?? false,
-        transferUncommitted,
-        keepChangesInSource: transferUncommitted,
       });
       worktreePath = result.path;
       isNewWorktree = true;

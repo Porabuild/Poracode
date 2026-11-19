@@ -211,12 +211,16 @@ export class GenerationService {
   }
 
   async extractContext(payload: ExtractContextPayload): Promise<ExtractContextResult> {
+    if (this.extractionAbortControllers.has(payload.threadId)) {
+      throw new Error("Context extraction is already running for this thread.");
+    }
     const adapter = this.requireAdapter(payload.agentKind);
     const abortController = new AbortController();
     this.extractionAbortControllers.set(payload.threadId, abortController);
 
     try {
-      return await this.withHelperLease("extract-context", async () => {
+      const result = await this.withHelperLease("extract-context", async () => {
+        abortController.signal.throwIfAborted();
         try {
           return await extractContextFn(
             payload.projectLocation,
@@ -227,6 +231,7 @@ export class GenerationService {
             abortController.signal,
           );
         } catch {
+          abortController.signal.throwIfAborted();
           const scrollback = this.deps.readTerminalScrollback(payload.threadId);
           if (scrollback) {
             return extractContextFromScrollback(
@@ -245,6 +250,8 @@ export class GenerationService {
           );
         }
       });
+      abortController.signal.throwIfAborted();
+      return result;
     } finally {
       this.extractionAbortControllers.delete(payload.threadId);
     }
@@ -254,7 +261,6 @@ export class GenerationService {
     const controller = this.extractionAbortControllers.get(threadId);
     if (controller) {
       controller.abort();
-      this.extractionAbortControllers.delete(threadId);
     }
   }
 

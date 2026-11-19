@@ -68,6 +68,11 @@ actor ProjectControllerGatewayFake: ProjectSessionGateway {
   var detectionResponses: [ProjectControllerTestResponse<DetectSetupScriptResult>] = []
   var notesLoadResponses: [ProjectControllerTestResponse<ProjectNotesResponse>] = []
   var notesWriteResponses: [ProjectControllerTestResponse<Void>] = []
+  var guardedNotesWriteResponses: [ProjectNotesSaveResult] = []
+
+  func enqueueGuardedNotesWrite(_ result: ProjectNotesSaveResult) {
+    guardedNotesWriteResponses.append(result)
+  }
 
   var commandBarriers: [ProjectControllerTestBarrier] = []
   var settingsBarriers: [ProjectControllerTestBarrier] = []
@@ -177,15 +182,19 @@ actor ProjectControllerGatewayFake: ProjectSessionGateway {
     _ body: ProjectNotesWriteBody,
     for identity: ProjectIdentity,
     lease: ProjectControllerHostLease
-  ) async throws {
+  ) async throws -> ProjectNotesSaveResult? {
     let index = notesWriteCalls.count
     notesWriteCalls.append((identity, body))
+    if body.guarded && !guardedNotesWriteResponses.isEmpty {
+      return guardedNotesWriteResponses.removeFirst()
+    }
     guard !notesWriteResponses.isEmpty else {
       throw ProjectSessionGatewayError.invalidResponse
     }
     let response = notesWriteResponses.removeFirst()
     if index < notesWriteBarriers.count { await notesWriteBarriers[index].suspend() }
     try response.get()
+    return nil
   }
 }
 

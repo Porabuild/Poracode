@@ -7,6 +7,7 @@ import { join } from "node:path";
 import { agentCapabilitySchema, loadedPluginSchema, threadConfigSchema } from "@/shared/contracts";
 import type { Project, RemoteThreadCommand, StartThreadPayload, Thread } from "@/shared/contracts";
 import { defaultSharedSettings } from "@/shared/settings";
+import { ThreadLaunchFailedRefusalError } from "@/shared/threadLaunchRefusal";
 import type { AppThreadLauncherDeps, CreateAppThreadRequest } from "./appThreadLauncher";
 import { createAppThread } from "./appThreadLauncher";
 
@@ -56,6 +57,7 @@ function setup(overrides: Partial<AppThreadLauncherDeps> = {}): {
     },
     getAgentStatuses: async () => ({ fromCache: true, windows: [], wsl: [] }),
     getPlugins: async () => [],
+    listWorktrees: async () => [],
     addWorktree: async ({ branch }) => {
       events.push("addWorktree");
       return { path: `/work/alpha/.worktrees/${branch}` };
@@ -476,11 +478,11 @@ describe("createAppThread launch admission", () => {
     expect(commands).toEqual([]);
   });
 
-  it("keeps the launch rollback when the supervisor start fails", async () => {
+  it("rolls back after the supervisor confirms the launch failed before effects", async () => {
     const { deps, threads, commands, events } = setup({
       startThread: async () => {
         events.push("startThread");
-        throw new Error("supervisor down");
+        throw new ThreadLaunchFailedRefusalError("supervisor down");
       },
     });
 
@@ -497,6 +499,26 @@ describe("createAppThread launch admission", () => {
     ]);
     expect(threads.size).toBe(0);
     expect(commands.map((command) => command.kind)).toEqual(["start", "delete"]);
+  });
+
+  it("preserves and publishes the thread and checkout when launch acknowledgement is lost", async () => {
+    const onUncertainLaunch = vi.fn<(threadId: string) => void>();
+    const { deps, threads, commands, events } = setup({
+      onUncertainLaunch,
+      startThread: async () => {
+        events.push("startThread");
+        throw new Error("Supervisor response timed out");
+      },
+    });
+
+    await expect(
+      createAppThread(deps, { ...fullSelectionRequest, worktree: { branch: "pr-42" } }),
+    ).rejects.toThrow(/Launch outcome is uncertain.*Check get_thread/u);
+    const [thread] = threads.values();
+    expect(thread?.worktreePath).toBe("/work/alpha/.worktrees/pr-42");
+    expect(onUncertainLaunch).toHaveBeenCalledExactlyOnceWith(thread?.id);
+    expect(events).toEqual(["addWorktree", "upsertThread", "startThread"]);
+    expect(commands.map((command) => command.kind)).toEqual(["start"]);
   });
 
   it("keeps a pre-existing row when the start fails", async () => {
@@ -653,5 +675,137 @@ describe("createAppThread project scope", () => {
     expect(events).not.toContain("upsertThread");
     expect(threads.size).toBe(0);
     expect(commands).toEqual([]);
+  });
+});
+
+describe("new-thread checkout and composer parity", () => {
+  it("uses the composer fallback for a terminal-only provider and preserves legacy launch mode", async () => {
+    const { deps, startPayloads } = setup({
+      getAgentStatuses: async () => ({
+        fromCache: true,
+        wsl: [],
+        windows: [
+          {
+            kind: fullSelectionRequest.agentKind,
+            label: "Fixture agent",
+            installed: true,
+            authState: "unknown",
+            capabilities: agentCapabilitySchema.parse({
+              presentationModes: ["terminal"],
+              presentationMode: "terminal",
+            }),
+          },
+        ],
+      }),
+    });
+    await createAppThread(deps, {
+      ...fullSelectionRequest,
+      config: { model: fullSelectionRequest.model },
+    });
+    await createAppThread(deps, fullSelectionRequest);
+    expect(startPayloads.map(({ presentationMode }) => presentationMode)).toEqual([
+      "terminal",
+      "gui",
+    ]);
+  });
+
+  it("uses the registered path and terminal settings when opening an existing worktree", async () => {
+    const addWorktree = vi.fn<AppThreadLauncherDeps["addWorktree"]>();
+    const prepareWorktree = vi.fn<NonNullable<AppThreadLauncherDeps["prepareWorktree"]>>();
+    const path = "/work/alpha/.worktrees/feature";
+    const listWorktrees = vi.fn<AppThreadLauncherDeps["listWorktrees"]>(async () => [
+      { path, branch: "feature", commit: "abc", isMain: false },
+    ]);
+    const { deps, threads, commands, startPayloads } = setup({
+      addWorktree,
+      prepareWorktree,
+      listWorktrees,
+    });
+    const config = { model: "member-1", thinking: false, fast: true, mode: "plan" as const };
+    const request = {
+      ...fullSelectionRequest,
+      config,
+      presentationMode: "terminal" as const,
+      initialSize: { cols: 122, rows: 37 },
+      existingWorktreePath: path,
+    };
+
+    await expect(
+      createAppThread(deps, { ...request, expectedWorktreeBranch: "stale" }),
+    ).rejects.toThrow("not registered");
+    expect(threads.size).toBe(0);
+    const result = await createAppThread(deps, { ...request, expectedWorktreeBranch: "feature" });
+    expect(result).toMatchObject({ worktreePath: path, branch: "feature" });
+    expect(startPayloads[0]).toMatchObject({
+      presentationMode: "terminal",
+      initialSize: request.initialSize,
+      config,
+      projectLocation: { kind: "posix", path },
+    });
+    expect(threads.get(result.threadId)).toMatchObject({
+      presentationMode: "terminal",
+      worktreePath: path,
+      config,
+    });
+    expect(commands[0]).toMatchObject({
+      kind: "start",
+      presentationMode: "terminal",
+      worktreePath: path,
+    });
+    expect(addWorktree).not.toHaveBeenCalled();
+    expect(prepareWorktree).not.toHaveBeenCalled();
+  });
+
+  it("copies changes and ignored patterns into a new branch, then runs the host setup once", async () => {
+    const path = "/work/alpha/.worktrees/feature";
+    const current = { ...project, scripts: { worktreeCopyPatterns: [".env.local"], actions: [] } };
+    const addWorktree = vi.fn<AppThreadLauncherDeps["addWorktree"]>(async () => ({
+      path,
+      changesTransferred: false,
+    }));
+    const prepareWorktree = vi.fn<NonNullable<AppThreadLauncherDeps["prepareWorktree"]>>(
+      async () => undefined,
+    );
+    const { deps } = setup({ getProject: () => current, addWorktree, prepareWorktree });
+    const result = await createAppThread(deps, {
+      ...fullSelectionRequest,
+      worktree: {
+        branch: "feature",
+        startPoint: "origin/main",
+        createBranch: true,
+        transferUncommitted: true,
+      },
+    });
+
+    expect(result).toMatchObject({ worktreePath: path, changesTransferred: false });
+    expect(addWorktree).toHaveBeenCalledExactlyOnceWith({
+      projectLocation: current.location,
+      branch: "feature",
+      startPoint: "origin/main",
+      createBranch: true,
+      transferUncommitted: true,
+      keepChangesInSource: true,
+      copyIgnoredPatterns: [".env.local"],
+    });
+    expect(prepareWorktree).toHaveBeenCalledExactlyOnceWith(current.id, path, result.threadId);
+  });
+
+  it("keeps a pre-existing branch when rolling back its newly linked checkout", async () => {
+    const removeWorktree = vi.fn<AppThreadLauncherDeps["removeWorktree"]>(async () => undefined);
+    const { deps } = setup({
+      removeWorktree,
+      startThread: async () => {
+        throw new ThreadLaunchFailedRefusalError("launch failed");
+      },
+    });
+    await expect(
+      createAppThread(deps, {
+        ...fullSelectionRequest,
+        worktree: { branch: "existing", createBranch: false },
+      }),
+    ).rejects.toThrow("launch failed");
+    expect(removeWorktree).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ deleteBranch: false }),
+    );
   });
 });

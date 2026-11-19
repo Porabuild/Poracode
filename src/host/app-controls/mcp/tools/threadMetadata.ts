@@ -11,10 +11,11 @@ import {
   threadMetadataClosesSession,
   type ThreadMetadataCommand,
 } from "@/host/remote/server/threadMetadataCommands";
+import { defineAppControlTool } from "../defineTools";
 import { requireThread, type AppControlsToolContext } from "./types";
 import { requireWorkspace } from "./workspaceLookup";
 
-const updateArgsSchema = z.object({
+const updateArgsSchema = z.strictObject({
   threadId: z.string().min(1),
   rename: z.string().trim().min(1).max(200).optional(),
   group: z.string().trim().min(1).max(200).optional(),
@@ -44,15 +45,22 @@ function mirrorCommittedCommand(
   return undefined;
 }
 
+export const updateThreadMetadataTool = defineAppControlTool({
+  name: "update_thread",
+  description:
+    "Update thread metadata. Rename, group, ungroup, ungroupAll, file a Home thread into a workspace (null unfiles it), mark done, pin, archive, or acknowledge completion. The host applies the same lifecycle effects as the sidebar.",
+  input: updateArgsSchema,
+  run: updateThreadMetadata,
+});
+
 /**
  * The host owns the durable mutation and lifecycle effect. Renderer delivery
  * is a best-effort mirror after commit, including on a headless host.
  */
-export async function updateThreadMetadata(
-  args: Record<string, unknown>,
+async function updateThreadMetadata(
+  parsed: z.output<typeof updateArgsSchema>,
   ctx: AppControlsToolContext,
 ): Promise<unknown> {
-  const parsed = updateArgsSchema.parse(args);
   const current = requireThread(ctx, parsed.threadId);
   if (
     parsed.rename === undefined &&

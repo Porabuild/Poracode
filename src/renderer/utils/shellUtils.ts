@@ -1,6 +1,7 @@
 import { toast } from "@heroui/react";
 import { msg } from "@lingui/core/macro";
 import type { ProjectLocation, StartShellPayload } from "@/shared/contracts";
+import { normalizeShellScriptLines } from "@/shared/projectActionScript";
 import { readBridge } from "@/renderer/bridge";
 import { i18n } from "@/renderer/i18n/i18n";
 import { waitForPendingSharedSettings } from "@/renderer/state/sharedSettingsStore";
@@ -134,13 +135,6 @@ export function startShellWithToast(payload: StartShellPayload, label: string): 
 
 export function normalizeShellScript(script: string): string {
   return normalizeShellScriptLines(script).join(" && ");
-}
-
-function normalizeShellScriptLines(script: string): string[] {
-  return script
-    .split(/\r?\n/)
-    .map((l) => l.trim())
-    .filter((l) => l !== "" && !l.startsWith("#"));
 }
 
 function buildPowerShellExitOnSuccess(lines: string[]): string {

@@ -5,6 +5,7 @@ import {
   type RemoteProjectCommandResult,
   remoteProjectCommandResultSchema,
 } from "@/shared/remote";
+import { resolveImplicitThreadWorktreeBase } from "@/shared/threadWorktreeLaunch";
 import type { SharedSettings } from "@/shared/settings";
 import { HOME_PROJECT_ID } from "@/shared/homeScope";
 import {
@@ -32,7 +33,7 @@ import { sortOrderForThread } from "@/host/remote/server/snapshots";
 import { ensureHomeProjectRow } from "@/host/schedules";
 import {
   createAppThread,
-  resolveAddWorktreeArgs,
+  type AppThreadLauncherDeps,
   type CreateAppThreadLaunchOptions,
   type CreateAppThreadRequest,
   type CreateAppThreadResult,
@@ -50,6 +51,7 @@ export interface AppControlsIngressDepsParams {
   getSharedSettings: () => SharedSettings;
   /** Notify listeners that the project list changed (desktop vs headless surfaces). */
   publishProjectsChanged: () => void;
+  prepareWorktree?: AppThreadLauncherDeps["prepareWorktree"];
   /**
    * Publish a bounded thread invalidation for host-local writes the renderer
    * funnel never sees (MCP create_thread and, through the returned deps, MCP
@@ -175,17 +177,28 @@ export function buildSharedAppControlsIngressDeps(
           getAgentStatuses: (wslDistros) => call("getAgentStatuses", { wslDistros }),
           getPlugins: (projectLocation) =>
             call("listPlugins", { projectLocation }).then((inventory) => inventory.plugins),
-          addWorktree: ({ location, branch, settings }) =>
-            call("gitAddWorktree", {
-              projectLocation: location,
-              ...resolveAddWorktreeArgs(settings, location, branch),
-            }),
-          removeWorktree: ({ location, path }) =>
+          addWorktree: (payload) => call("gitAddWorktree", payload),
+          listWorktrees: (projectLocation) =>
+            call("gitListWorktrees", { projectLocation }).then(({ worktrees }) => worktrees),
+          resolveWorktreeBase: async (project) => {
+            const snapshot = await call("gitProjectSnapshot", {
+              projectLocation: project.location,
+              includeGhCheck: false,
+            }).catch(() => null);
+            return resolveImplicitThreadWorktreeBase(
+              project.worktreeBaseBranch,
+              snapshot?.branches?.branches ?? [],
+              snapshot?.branches?.defaultBranch,
+              snapshot?.status?.tracking || undefined,
+            );
+          },
+          ...(params.prepareWorktree ? { prepareWorktree: params.prepareWorktree } : {}),
+          removeWorktree: ({ location, path, deleteBranch }) =>
             call("gitRemoveWorktree", {
               projectLocation: location,
               path,
               force: true,
-              deleteBranch: true,
+              deleteBranch,
             }).then(() => undefined),
           sendThreadCommand,
           ensureHomeProject: () => ensureHomeProjectWithPublish(publishProjectsChanged),
@@ -194,6 +207,7 @@ export function buildSharedAppControlsIngressDeps(
           upsertThread: dbUpsertThread,
           deleteThread: dbDeleteThread,
           threadExists: (threadId) => dbGetThread(threadId) != null,
+          onUncertainLaunch: (threadId) => publishThreadsChanged?.([threadId]),
         },
         request,
         options,

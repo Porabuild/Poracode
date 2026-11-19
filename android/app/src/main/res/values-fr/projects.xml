@@ -123,4 +123,6 @@
     <string name="projects_request_failed">L’ordinateur n’a pas pu terminer la requête.</string>
     <string name="projects_request_uncertain">La connexion s’est interrompue avant la confirmation du changement. Actualisez avant de réessayer.</string>
     <string name="projects_setup_detection_failed">Le projet a été ajouté, mais Poracode n’a pas pu détecter son script de configuration.</string>
+    <string name="projects_notes_conflict">Les notes du projet ont été modifiées ailleurs. Votre brouillon est conservé.</string>
+    <string name="projects_notes_load_saved">Charger les notes enregistrées</string>
 </resources>

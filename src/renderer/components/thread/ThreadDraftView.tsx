@@ -31,6 +31,7 @@ import { dispatchProjectDraftConfig } from "@/renderer/state/managedRootCatalog/
 import {
   capabilitiesForPresentation,
   filterHiddenModels,
+  resolveComposerPresentationMode,
   supportsWorkflowMode,
 } from "@/shared/agentSelection";
 import { normalizeProviderModelConfig } from "@/renderer/components/providers/modelConfig";
@@ -54,7 +55,6 @@ import {
   resolveContextSizeValue,
   resolveEffortValue,
   resolveFastValue,
-  resolveInitialPresentationMode,
   resolveModelValue,
   resolveApprovalPolicyValue,
   resolvePreferredAgentKind,
@@ -516,7 +516,7 @@ export function ThreadDraftView(props: {
   const [presentationMode, setPresentationMode] = useState<ThreadPresentationMode>(() =>
     props.chatOnly
       ? "gui"
-      : resolveInitialPresentationMode(selectedAgent, lastPresentationModeByAgent),
+      : resolveComposerPresentationMode(selectedAgent, lastPresentationModeByAgent),
   );
   const selectedAgentForConfig = useMemo(
     () => (selectedAgent ? agentWithCapabilities(selectedAgent, presentationMode) : undefined),
@@ -548,12 +548,14 @@ export function ThreadDraftView(props: {
     }
     if (!previousAgentKind) {
       setPresentationMode(
-        resolveInitialPresentationMode(selectedAgent, lastPresentationModeByAgent),
+        resolveComposerPresentationMode(selectedAgent, lastPresentationModeByAgent),
       );
       return;
     }
     if (supportedPresentationModes.includes(presentationMode)) return;
-    setPresentationMode(resolveInitialPresentationMode(selectedAgent, lastPresentationModeByAgent));
+    setPresentationMode(
+      resolveComposerPresentationMode(selectedAgent, lastPresentationModeByAgent),
+    );
     // eslint-disable-next-line react-hooks/exhaustive-deps -- only re-run on provider change
   }, [effectiveAgentKind]);
 
@@ -1168,7 +1170,7 @@ export function ThreadDraftView(props: {
           ];
           return supported.includes(presentationMode)
             ? presentationMode
-            : resolveInitialPresentationMode(agent, lastPresentationModeByAgent);
+            : resolveComposerPresentationMode(agent, lastPresentationModeByAgent);
         },
         hiddenModelsByAgent: allHiddenModels,
       }),

@@ -1,3 +1,4 @@
+import { z } from "zod";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -53,10 +54,12 @@ import {
   APP_CONTROLS_MCP_INSTRUCTIONS,
   TOOLS,
   dispatchTool,
+  formatToolResult,
   type AppControlsSupervisorCaller,
   type AppControlsToolContext,
 } from "./toolRegistry";
 
+import { mergeManagedSharedSettings } from "../../sharedSettingsFile";
 import { dbGetState } from "../../db";
 import { readPersistedExperiments } from "../../remote/experimentOwnership";
 import { persistedGroupExperiment } from "@/shared/test/threadGroups";
@@ -254,6 +257,10 @@ function context(
       message: payload.message,
     })),
     gitListBranches: vi.fn<SC["gitListBranches"]>(async () => ({ current: "main", branches: [] })),
+    gitInit: vi.fn<SC["gitInit"]>(async () => undefined),
+    gitAddRemote: vi.fn<SC["gitAddRemote"]>(async () => undefined),
+    gitDeleteBranch: vi.fn<SC["gitDeleteBranch"]>(async () => undefined),
+    gitAddWorktree: vi.fn<SC["gitAddWorktree"]>(async () => ({ path: "/fixture/checkout" })),
     gitSwitchBranch: vi.fn<SC["gitSwitchBranch"]>(async (payload) => ({
       branch: payload.branch,
       created: payload.createNew ?? false,
@@ -265,6 +272,8 @@ function context(
     gitPull: vi.fn<SC["gitPull"]>(async () => undefined),
     gitPullRebase: vi.fn<SC["gitPullRebase"]>(async () => undefined),
     gitPush: vi.fn<SC["gitPush"]>(async () => undefined),
+    gitSync: vi.fn<SC["gitSync"]>(async () => ({ pulled: true, pushed: false })),
+    gitSyncRebase: vi.fn<SC["gitSyncRebase"]>(async () => ({ pulled: false, pushed: true })),
     gitListWorktrees: vi.fn<SC["gitListWorktrees"]>(async () => ({
       worktrees: options.worktrees ?? [],
     })),
@@ -371,6 +380,21 @@ function context(
       authenticatedUrls: options.authenticatedUrls ?? [],
     })),
     beginMcpServerOauth: vi.fn<SC["beginMcpServerOauth"]>(async () => ({ status: "authorized" })),
+    pluginCatalog: vi.fn<SC["pluginCatalog"]>(async () => ({ catalogs: [], installations: [] })),
+    pluginAccounts: vi.fn<SC["pluginAccounts"]>(async () => ({ accounts: [] })),
+    listSkillMarketplace: vi.fn<SC["listSkillMarketplace"]>(async () => ({
+      marketplace: "skills-sh",
+      skills: [],
+      total: 0,
+    })),
+    installMarketplaceSkill: vi.fn<SC["installMarketplaceSkill"]>(async () => ({
+      installed: "/skills/test",
+    })),
+    importSkills: vi.fn<SC["importSkills"]>(async () => ({ imported: [] })),
+    deleteSkill: vi.fn<SC["deleteSkill"]>(async () => undefined),
+    discoverExternalMcpServers: vi.fn<SC["discoverExternalMcpServers"]>(async () => ({
+      groups: [],
+    })),
     listPlugins: vi.fn<SC["listPlugins"]>(async () => ({
       plugins: options.plugins ?? [],
       userPluginsDir: "/plugins",
@@ -437,7 +461,30 @@ function context(
     directoryExists: options.directoryExists ?? (() => true),
     applyProjectCommand,
     updateProject,
-    settings: { read: () => settingsValue, write: settingsWrite },
+    settings: {
+      read: () => settingsValue,
+      editField: async (field, compute) => {
+        settingsWrite({ ...settingsValue, [field]: compute(settingsValue) });
+        return {
+          status: "committed",
+          authorityId: "fixture",
+          sequence: 1,
+          changes: [],
+          revisions: {},
+        };
+      },
+      editPreferences: async (compute) => {
+        settingsWrite(mergeManagedSharedSettings(settingsValue, compute(settingsValue)));
+        return {
+          status: "committed",
+          authorityId: "fixture",
+          sequence: 1,
+          changes: [],
+          revisions: {},
+        };
+      },
+    },
+    assertCanPersistSecrets: () => undefined,
     getAppInfo: () =>
       options.appInfo ?? { version: "9.9.9", platform: "darwin", hasRendererWindow: true },
     supervisor,
@@ -489,6 +536,58 @@ describe("Poracode app control tools — schedules", () => {
       projectId: "project-1",
       config: { model: "gpt-5.6", effort: "high", fast: true },
     });
+  });
+
+  it("preserves explicit schedule model settings and allows retargeting to Home", async () => {
+    const projectId = "target-project";
+    const task = {
+      id: "d2ac39e9-14ac-4776-9279-37a1e455a5db",
+      name: "Existing",
+      prompt: "Summarize",
+      agentKind: "codex",
+      config: { model: "gpt-5.6" },
+      recurrence: { kind: "hourly", minute: 0 },
+      enabled: true,
+      projectId,
+    } as ScheduledTask;
+    const { ctx, service } = context({ projects: [{ id: projectId } as Project], tasks: [task] });
+    const config = {
+      model: "gpt-5.6",
+      effort: "",
+      fast: false,
+      thinking: false,
+      contextSize: "default",
+    };
+    await dispatchTool(
+      "create_schedule",
+      {
+        name: task.name,
+        prompt: task.prompt,
+        recurrence: task.recurrence,
+        projectId,
+        config,
+      },
+      ctx,
+    );
+    expect(service.create).toHaveBeenCalledWith(expect.objectContaining({ projectId, config }));
+    await dispatchTool("update_schedule", { id: task.id, projectId: null, config }, ctx);
+    expect(service.update).toHaveBeenCalledWith(
+      task.id,
+      expect.objectContaining({ projectId: null, config }),
+    );
+    await expect(
+      dispatchTool(
+        "create_schedule",
+        {
+          name: task.name,
+          prompt: task.prompt,
+          recurrence: task.recurrence,
+          projectId: "unknown",
+          config,
+        },
+        ctx,
+      ),
+    ).rejects.toThrow("Project not found");
   });
 
   it("updates only the requested schedule fields", async () => {
@@ -595,6 +694,12 @@ describe("Poracode app control tools — threads", () => {
     };
 
     expect(result.threads.map((entry) => entry.threadId)).toEqual([thread.id, "same"]);
+    await expect(
+      dispatchTool("list_threads", { currentWorktree: true, limit: 1 }, ctx),
+    ).resolves.toMatchObject({ count: 2, nextOffset: 1, threads: [{ threadId: thread.id }] });
+    expect(
+      await dispatchTool("list_threads", { currentWorktree: true, limit: 1, offset: 1 }, ctx),
+    ).toMatchObject({ count: 2, threads: [{ threadId: "same" }] });
   });
 
   it("normalizes Windows worktree paths when filtering the calling worktree", async () => {
@@ -678,7 +783,7 @@ describe("Poracode app control tools — threads", () => {
   });
 
   it("create_thread carries explicit tool choices and attachments without changing app defaults", async () => {
-    const { ctx, createThread } = context();
+    const { ctx, createThread, settingsWrite } = context();
     const choices = {
       browserMcp: true,
       crossagentMcp: false,
@@ -690,7 +795,7 @@ describe("Poracode app control tools — threads", () => {
     };
     await dispatchTool("create_thread", { projectId: "p", prompt: "Read these", ...choices }, ctx);
     expect(createThread).toHaveBeenCalledWith(expect.objectContaining(choices));
-    expect(ctx.settings.write).not.toHaveBeenCalled();
+    expect(settingsWrite).not.toHaveBeenCalled();
     const spec = TOOLS.find((tool) => tool.name === "create_thread")!;
     expect(spec.inputSchema.properties).toMatchObject({
       browserMcp: { type: "boolean" },
@@ -700,6 +805,139 @@ describe("Poracode app control tools — threads", () => {
       plugins: { type: "object" },
       mcpServers: { type: "object" },
       attachments: { type: "array" },
+    });
+  });
+
+  it("advertises and validates the composer-shaped thread launch", async () => {
+    const { ctx, createThread } = context();
+    const config = { model: "gpt-5.6", effort: "", fast: false, mode: "plan" };
+    const input = {
+      projectId: "project-1",
+      prompt: "Check the fix",
+      config,
+      presentationMode: "terminal",
+      existingWorktreePath: "/worktrees/fix",
+      worktreeBranch: "fix",
+    };
+    expect(TOOLS.find(({ name }) => name === "create_thread")?.inputSchema).toMatchObject({
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        config: { type: "object", properties: { fast: { type: "boolean" } } },
+        existingWorktreePath: { type: "string" },
+        worktreeTransferUncommitted: { type: "boolean" },
+        presentationMode: { enum: ["terminal", "gui"] },
+      },
+    });
+    await expect(dispatchTool("create_thread", { ...input, typo: true }, ctx)).rejects.toThrow(
+      "typo",
+    );
+    await expect(
+      dispatchTool("create_thread", { ...input, worktreeIsNewBranch: true }, ctx),
+    ).rejects.toThrow("one checkout mode");
+    expect(createThread).not.toHaveBeenCalled();
+    await dispatchTool("create_thread", input, ctx);
+    expect(createThread).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({
+        existingWorktreePath: input.existingWorktreePath,
+        expectedWorktreeBranch: input.worktreeBranch,
+        model: config.model,
+        config,
+        presentationMode: input.presentationMode,
+      }),
+    );
+  });
+
+  it.each([undefined, false])(
+    "uses the composer's existing-branch default with worktreeIsNewBranch=%s",
+    async (createBranch) => {
+      const { ctx, createThread } = context();
+      await dispatchTool(
+        "create_thread",
+        {
+          projectId: "project-1",
+          prompt: "Review the branch",
+          worktreeBranch: "feature",
+          ...(createBranch !== undefined ? { worktreeIsNewBranch: createBranch } : {}),
+        },
+        ctx,
+      );
+      expect(createThread).toHaveBeenCalledExactlyOnceWith(
+        expect.objectContaining({ worktree: { branch: "feature", createBranch: false } }),
+      );
+    },
+  );
+
+  it("routes fork and delete through the existing host thread commands", async () => {
+    const path = "/worktrees/fix";
+    const project = { id: "project-1", location: { kind: "posix", path: "/work" } } as Project;
+    const { ctx } = context({
+      projects: [project],
+      threads: [
+        makeThread({ id: thread.id, worktreePath: path }),
+        makeThread({ id: "sibling", worktreePath: path }),
+        makeThread({ id: "last", worktreePath: "/worktrees/last" }),
+      ],
+    });
+    const lifecycle = vi.fn<NonNullable<AppControlsToolContext["applyThreadLifecycle"]>>(
+      async () => undefined,
+    );
+    ctx.applyThreadLifecycle = lifecycle;
+    await dispatchTool(
+      "fork_thread",
+      { sourceThreadId: "sibling", title: "Fork", throughItemId: "turn-1" },
+      ctx,
+    );
+    expect(lifecycle).toHaveBeenLastCalledWith({
+      kind: "fork",
+      sourceThreadId: "sibling",
+      threadId: expect.any(String),
+      title: "Fork",
+      throughItemId: "turn-1",
+    });
+    await expect(dispatchTool("delete_thread", { threadId: thread.id }, ctx)).rejects.toThrow(
+      "own thread",
+    );
+    await dispatchTool("delete_thread", { threadId: "sibling" }, ctx);
+    expect(lifecycle).toHaveBeenLastCalledWith({ kind: "delete", threadId: "sibling" });
+    await dispatchTool("delete_thread", { threadId: "last" }, ctx);
+    expect(lifecycle).toHaveBeenLastCalledWith({
+      kind: "delete-worktree-group",
+      threadId: "last",
+      threadIds: ["last"],
+      projectId: "project-1",
+      worktreePath: "/worktrees/last",
+    });
+  });
+
+  it("forwards a structured reply and retains text alongside composer segments", async () => {
+    const target = makeThread({ id: "target" });
+    const { ctx, supervisor } = context({ threads: [target] });
+    const questionAnswer = {
+      sourceItemId: "message-3",
+      questions: [
+        { header: "Root", question: "Which root?", selected: [], customAnswer: "Project" },
+      ],
+    };
+    await dispatchTool(
+      "send_to_thread",
+      {
+        threadId: target.id,
+        prompt: "Use the project root.",
+        segments: [{ kind: "file", path: "README.md" }],
+        questionAnswer,
+      },
+      ctx,
+    );
+    expect(supervisor.sendThreadInput).toHaveBeenCalledExactlyOnceWith({
+      threadId: target.id,
+      prompt: "Use the project root.",
+      config: target.config,
+      questionAnswer,
+      segments: [
+        { kind: "file", path: "README.md" },
+        { kind: "text", content: "Use the project root." },
+      ],
     });
   });
 
@@ -1230,6 +1468,11 @@ describe("Poracode app control tools — projects", () => {
     expect(alpha?.path).toBe("/work/alpha");
     expect(alpha?.threadCount).toBe(2);
     expect(alpha?.openThreadCount).toBe(1);
+    await expect(dispatchTool("list_projects", { limit: 1 }, ctx)).resolves.toMatchObject({
+      count: 2,
+      nextOffset: 1,
+      projects: [{ id: "p1", threadCount: 2, openThreadCount: 1 }],
+    });
   });
 
   it("create_project rejects a directory that does not exist", async () => {
@@ -1663,16 +1906,18 @@ describe("Poracode app control tools — settings", () => {
     expect(settingsWrite).not.toHaveBeenCalled();
   });
 
-  it.each(["computerUseLockedUse", "computerUseLockedUseDimDisplay"])(
-    "update_settings protects %s user opt-in",
-    async (key) => {
-      const { ctx, settingsWrite } = context({ settings: settingsWithSecret() });
-      await expect(
-        dispatchTool("update_settings", { patch: { [key]: true } }, ctx),
-      ).rejects.toThrow(key);
-      expect(settingsWrite).not.toHaveBeenCalled();
-    },
-  );
+  it.each([
+    "computerUseLockedUse",
+    "computerUseLockedUseDimDisplay",
+    "disabledBuiltInMcpServers",
+    "disabledBuiltInMcpTools",
+  ])("update_settings protects %s user opt-in", async (key) => {
+    const { ctx, settingsWrite } = context({ settings: settingsWithSecret() });
+    await expect(dispatchTool("update_settings", { patch: { [key]: true } }, ctx)).rejects.toThrow(
+      key,
+    );
+    expect(settingsWrite).not.toHaveBeenCalled();
+  });
 
   it("update_settings refuses sensitive agent settings", async () => {
     const { ctx, settingsWrite } = context({ settings: settingsWithSecret() });
@@ -1956,12 +2201,15 @@ describe("Poracode app control tools — terminal / steer / rollback", () => {
     );
 
     expect(TOOLS.find((tool) => tool.name === "git_sync")?.description).toContain(
-      "that request is authorization; call push after the normal checks without asking for another confirmation",
+      "An explicit user request to push or publish the named work authorizes that publication after its normal checks",
     );
   });
 
-  it("advertises workspace and ungroup tools", () => {
-    expect(APP_CONTROLS_MCP_INSTRUCTIONS).toContain("workspaces (list/create/update)");
+  it("explains checkout scope and advertises workspace and ungroup tools", () => {
+    expect(APP_CONTROLS_MCP_INSTRUCTIONS).toContain("Reuse the same scope across calls");
+    expect(APP_CONTROLS_MCP_INSTRUCTIONS).toContain(
+      "omitting worktreePath targets the project root",
+    );
     expect(TOOLS.find((tool) => tool.name === "list_workspaces")?.description).toContain(
       "Distinct from git worktrees",
     );
@@ -1971,6 +2219,23 @@ describe("Poracode app control tools — terminal / steer / rollback", () => {
     expect(TOOLS.find((tool) => tool.name === "update_project")?.description).toContain(
       "file it into a workspace",
     );
+  });
+
+  it("uses compact JSON for tool results without altering the payload", () => {
+    const payload = {
+      projectId: "project-1",
+      entries: [{ path: "src/a.ts", type: "file" }],
+      content: "line one\nline two",
+    };
+    const result = formatToolResult("list_project_files", payload);
+    expect(result).toEqual({ content: [{ type: "text", text: JSON.stringify(payload) }] });
+    expect(JSON.parse(result.content[0]!.text!)).toEqual(payload);
+  });
+
+  it("keeps void acknowledgements valid MCP text content", () => {
+    expect(formatToolResult("fixture_void", undefined)).toEqual({
+      content: [{ type: "text", text: "null" }],
+    });
   });
 
   it("lists only running terminal panes attached to the calling worktree", async () => {
@@ -2161,6 +2426,66 @@ describe("Poracode app control tools — terminal / steer / rollback", () => {
 });
 
 describe("Poracode app control tools — agents", () => {
+  it("projects the chosen WSL environment and Chat capabilities without settings defaults", async () => {
+    const project = {
+      id: "p1",
+      name: "Alpha",
+      location: { kind: "wsl", distro: "Ubuntu" },
+    } as Project;
+    const status = {
+      kind: "codex",
+      label: "Codex",
+      installed: true,
+      envKind: "wsl",
+      envDistro: "Ubuntu",
+      authState: "authenticated",
+      presentationAuthStates: { gui: "missing" },
+      capabilities: {
+        models: [{ id: "terminal-model", label: "Terminal Model" }],
+        presentationMode: "terminal",
+        presentationModes: ["terminal", "gui"],
+        presentationCapabilities: {
+          gui: {
+            models: [{ id: "chat-model", label: "Chat Model" }],
+            modelEfforts: { "chat-model": ["low", "high"] },
+          },
+        },
+        agentSettingsDefaults: { credential: "fixture-private-value" },
+      },
+    } as const;
+    const agentStatuses = {
+      windows: [{ ...status, envKind: "native" }],
+      wsl: [status, { ...status, envDistro: "Debian" }, { ...status, kind: "other" }],
+      fromCache: true,
+    } as unknown as AgentStatusesResponse;
+    const { ctx, supervisor } = context({ projects: [project], agentStatuses });
+    const result = await dispatchTool(
+      "list_installed_agents",
+      { projectId: project.id, agentKind: "codex", presentationMode: "gui" },
+      ctx,
+    );
+    expect(supervisor.getAgentStatuses).toHaveBeenCalledExactlyOnceWith({ wslDistros: ["Ubuntu"] });
+    expect(result).toMatchObject({
+      projectId: project.id,
+      wsl: [
+        {
+          kind: "codex",
+          distro: "Ubuntu",
+          authState: "missing",
+          presentationMode: "gui",
+          presentationModes: ["terminal", "gui"],
+          defaultModel: "chat-model",
+          composerOptions: {
+            models: [{ id: "chat-model" }],
+            modelEfforts: { "chat-model": ["low", "high"] },
+          },
+        },
+      ],
+    });
+    expect(result).not.toHaveProperty("native");
+    expect(JSON.stringify(result)).not.toContain("fixture-private-value");
+  });
+
   it("list_installed_agents projects native + WSL inventory and passes project distros", async () => {
     const projects = [
       { id: "p1", name: "Alpha", location: { kind: "wsl", distro: "Ubuntu" } } as Project,
@@ -2238,6 +2563,29 @@ describe("Poracode app control tools — files", () => {
     expect(result.entries[0]?.path).toBe("src/a.ts");
   });
 
+  it("list_project_files pages entries while keeping the full count", async () => {
+    const { ctx } = context({
+      projects,
+      projectTree: {
+        directoryPath: "",
+        entries: [
+          { path: "src", name: "src", type: "directory" },
+          { path: "a.txt", name: "a.txt", type: "file" },
+        ],
+      },
+    });
+    await expect(
+      dispatchTool("list_project_files", { projectId: "p1", limit: 1 }, ctx),
+    ).resolves.toMatchObject({ count: 2, nextOffset: 1, entries: [{ path: "src" }] });
+    const last = await dispatchTool(
+      "list_project_files",
+      { projectId: "p1", limit: 1, offset: 1 },
+      ctx,
+    );
+    expect(last).toMatchObject({ count: 2, entries: [{ path: "a.txt" }] });
+    expect(last).not.toHaveProperty("nextOffset");
+  });
+
   it("read_project_file truncates long content and flags it", async () => {
     const readFile: ReadProjectFileResult = {
       path: "big.txt",
@@ -2267,6 +2615,74 @@ describe("Poracode app control tools — files", () => {
     expect(result.content).toBeUndefined();
     expect(result.note).toMatch(/binary/);
   });
+
+  it("pages a line range without splitting a character and checks its modification time", async () => {
+    const { ctx } = context({
+      projects,
+      readFile: {
+        path: "a.txt",
+        status: "ready",
+        modifiedAtMs: 42.5,
+        content: "first\r\nA😀B\r\nlast",
+      },
+    });
+    const range = { projectId: "p1", path: "a.txt", startLine: 2, endLine: 2 };
+    const first = await dispatchTool("read_project_file", { ...range, maxChars: 2 }, ctx);
+    expect(first).toMatchObject({ content: "A", nextOffset: 1, modifiedAtMs: 42.5 });
+    const rest = await dispatchTool(
+      "read_project_file",
+      { ...range, offset: 1, expectedModifiedAtMs: 42.5 },
+      ctx,
+    );
+    expect(rest).toMatchObject({ content: "😀B\r\n", offset: 1 });
+    expect(rest).not.toHaveProperty("nextOffset");
+    await expect(
+      dispatchTool("read_project_file", { ...range, offset: 1, expectedModifiedAtMs: 42 }, ctx),
+    ).rejects.toThrow(/modification time changed/);
+    await expect(
+      dispatchTool("read_project_file", { ...range, startLine: 3 }, ctx),
+    ).rejects.toThrow(/endLine must be at least startLine/);
+  });
+
+  it.each([true, false])(
+    "pages both Git comparison sides in the selected worktree (staged=%s)",
+    async (staged) => {
+      const worktreePath = "/work/alpha/.poracode/worktrees/wt";
+      const { ctx } = context({
+        projects,
+        worktrees: [
+          { path: worktreePath, branch: "feature/x", commit: "a".repeat(40), isMain: false },
+        ],
+      });
+      const call = vi.fn<NonNullable<AppControlsToolContext["runtime"]>["call"]>(
+        async () => ({ oldContent: "abcde", newContent: "uvwxyz" }) as never,
+      );
+      ctx.runtime = { call };
+      expect(
+        await dispatchTool(
+          "git_file_content",
+          {
+            projectId: "p1",
+            worktreePath,
+            filePath: "a.txt",
+            staged,
+            oldOffset: 1,
+            newOffset: 4,
+            maxChars: 2,
+          },
+          ctx,
+        ),
+      ).toMatchObject({
+        old: { content: "bc", offset: 1, nextOffset: 3 },
+        new: { content: "yz", offset: 4 },
+      });
+      expect(call).toHaveBeenCalledWith("getGitFileContent", {
+        projectLocation: { kind: "posix", path: worktreePath },
+        filePath: "a.txt",
+        staged,
+      });
+    },
+  );
 
   it("read_project_file reads from a worktree when worktreePath is given", async () => {
     const readFile: ReadProjectFileResult = {
@@ -2334,6 +2750,154 @@ describe("Poracode app control tools — git", () => {
   const projects = [
     { id: "p1", name: "Alpha", location: { kind: "posix", path: "/work/alpha" } } as Project,
   ];
+
+  it("tries available Git text providers in the target environment's rank order", async () => {
+    const project = {
+      ...projects[0]!,
+      location: {
+        kind: "wsl",
+        distro: "Ubuntu",
+        linuxPath: "/repo",
+        uncPath: "\\\\wsl.localhost\\Ubuntu\\repo",
+      },
+    } as Project;
+    const status = (
+      kind: string,
+      utilityRank: number,
+      envDistro: string,
+      supportsOneShot: boolean,
+    ) => ({
+      kind,
+      label: kind,
+      installed: true,
+      authState: "authenticated",
+      envDistro,
+      capabilities: { supportsOneShot, utilityRank, models: [{ id: "model", label: "Model" }] },
+    });
+    const agentStatuses = {
+      fromCache: true,
+      windows: [],
+      wsl: [
+        status("next", 20, "Ubuntu", true),
+        status("elsewhere", 0, "Debian", true),
+        status("interactive-only", 1, "Ubuntu", false),
+        status("first", 10, "Ubuntu", true),
+      ],
+    } as unknown as AgentStatusesResponse;
+    const { ctx, supervisor } = context({ projects: [project], agentStatuses });
+    const call = vi.fn<NonNullable<AppControlsToolContext["runtime"]>["call"]>(
+      async (_name, payload) => {
+        if ("agentKind" in payload && payload.agentKind === "first")
+          throw new Error("Fixture unavailable");
+        return { message: "fix: draft" } as never;
+      },
+    );
+    ctx.runtime = { call };
+    await expect(
+      dispatchTool("generate_commit_message", { projectId: project.id, agentKind: "auto" }, ctx),
+    ).resolves.toEqual({ message: "fix: draft", provider: "next" });
+    expect(supervisor.getAgentStatuses).toHaveBeenCalledExactlyOnceWith({ wslDistros: ["Ubuntu"] });
+    expect(call.mock.calls).toEqual([
+      ["generateCommitMessage", { projectLocation: project.location, agentKind: "first" }],
+      ["generateCommitMessage", { projectLocation: project.location, agentKind: "next" }],
+    ]);
+  });
+
+  it("initializes an existing project and adds its named remote via the Git owner", async () => {
+    const { ctx, supervisor } = context({ projects });
+    const projectLocation = projects[0]!.location;
+    await expect(
+      dispatchTool("git_repository", { projectId: "p1", action: "init" }, ctx),
+    ).resolves.toMatchObject({ initialized: true });
+    const url = "ssh://git@example.test/repository";
+    await expect(
+      dispatchTool(
+        "git_repository",
+        { projectId: "p1", action: "add_remote", remote: "upstream", url },
+        ctx,
+      ),
+    ).resolves.toEqual({ projectId: "p1", action: "add_remote", remote: "upstream", added: true });
+    expect(supervisor.gitInit).toHaveBeenCalledExactlyOnceWith({ projectLocation });
+    expect(supervisor.gitAddRemote).toHaveBeenCalledExactlyOnceWith({
+      projectLocation,
+      remote: "upstream",
+      url,
+    });
+  });
+
+  it("preserves branch listing defaults and dispatches both local and remote delete", async () => {
+    const { ctx, supervisor } = context({ projects });
+    const projectLocation = projects[0]!.location;
+    await dispatchTool("git_branch", { projectId: "p1", action: "list" }, ctx);
+    await dispatchTool(
+      "git_branch",
+      { projectId: "p1", action: "list", includeRemote: false },
+      ctx,
+    );
+    expect(supervisor.gitListBranches).toHaveBeenNthCalledWith(1, {
+      projectLocation,
+      includeRemote: true,
+    });
+    expect(supervisor.gitListBranches).toHaveBeenNthCalledWith(2, {
+      projectLocation,
+      includeRemote: false,
+    });
+    await expect(
+      dispatchTool("git_branch", { projectId: "p1", action: "delete", branch: "one" }, ctx),
+    ).resolves.toMatchObject({ deleted: true, branch: "one" });
+    await dispatchTool(
+      "git_branch",
+      { projectId: "p1", action: "delete", branch: "two", force: true, remote: "origin" },
+      ctx,
+    );
+    expect(supervisor.gitDeleteBranch).toHaveBeenNthCalledWith(1, {
+      projectLocation,
+      branch: "one",
+      force: false,
+    });
+    expect(supervisor.gitDeleteBranch).toHaveBeenNthCalledWith(2, {
+      projectLocation,
+      branch: "two",
+      force: true,
+      remote: "origin",
+    });
+  });
+
+  it("uses the host's saved worktree placement and ignored file policy by default", async () => {
+    const project: Project = {
+      ...projects[0]!,
+      worktreeLocation: { mode: "project-relative" },
+      scripts: { actions: [], worktreeCopyPatterns: [".local-env"] },
+    };
+    const { ctx, supervisor } = context({ projects: [project] });
+    await dispatchTool("create_worktree", { projectId: "p1", branch: "feature" }, ctx);
+    expect(supervisor.gitAddWorktree).toHaveBeenCalledExactlyOnceWith({
+      projectLocation: project.location,
+      branch: "feature",
+      createBranch: false,
+      transferUncommitted: false,
+      keepChangesInSource: false,
+      worktreeRoot: "/work/alpha/.poracode/worktrees",
+      worktreeOmitRepoDir: true,
+      copyIgnoredPatterns: [".local-env"],
+    });
+    await dispatchTool(
+      "create_worktree",
+      { projectId: "p1", branch: "second", copyIgnoredPatterns: [] },
+      ctx,
+    );
+    expect(supervisor.gitAddWorktree).toHaveBeenLastCalledWith(
+      expect.objectContaining({ copyIgnoredPatterns: [] }),
+    );
+    await expect(
+      dispatchTool(
+        "create_worktree",
+        { projectId: "p1", branch: "feature", keepChangesInSource: true },
+        ctx,
+      ),
+    ).rejects.toThrow("requires transferUncommitted");
+    expect(supervisor.gitAddWorktree).toHaveBeenCalledTimes(2);
+  });
 
   it("git_status returns the combined project snapshot", async () => {
     const gitSnapshot: GitProjectSnapshotResult = {
@@ -2413,8 +2977,11 @@ describe("Poracode app control tools — git", () => {
 
   it("remove_worktree refuses while an open thread references it, listing the blockers", async () => {
     const worktreePath = "/work/alpha/.poracode/worktrees/wt";
-    const threads = [makeThread({ id: "blk", worktreePath, archived: false })];
-    const { ctx, supervisor } = context({ projects, threads });
+    const threads = [makeThread({ id: "blk", projectId: "p1", worktreePath, archived: false })];
+    const worktrees = [
+      { path: worktreePath, branch: "feature", commit: "a".repeat(40), isMain: false },
+    ];
+    const { ctx, supervisor } = context({ projects, threads, worktrees });
     await expect(
       dispatchTool("remove_worktree", { projectId: "p1", worktreePath }, ctx),
     ).rejects.toThrow(/blk/);
@@ -2423,14 +2990,116 @@ describe("Poracode app control tools — git", () => {
 
   it("remove_worktree proceeds when only archived threads reference it", async () => {
     const worktreePath = "/work/alpha/.poracode/worktrees/wt";
-    const threads = [makeThread({ id: "old", worktreePath, archived: true })];
-    const { ctx, supervisor } = context({ projects, threads });
+    const threads = [makeThread({ id: "old", projectId: "p1", worktreePath, archived: true })];
+    const worktrees = [
+      { path: worktreePath, branch: "feature", commit: "a".repeat(40), isMain: false },
+    ];
+    const { ctx, supervisor } = context({ projects, threads, worktrees });
     await dispatchTool("remove_worktree", { projectId: "p1", worktreePath }, ctx);
     expect(supervisor.gitRemoveWorktree).toHaveBeenCalledWith({
       projectLocation: { kind: "posix", path: "/work/alpha" },
       path: worktreePath,
       force: false,
       deleteBranch: false,
+      expectedBranch: "feature",
+    });
+  });
+
+  it("protects a Windows checkout registered separately as another project's root", async () => {
+    const worktreePath = "C:\\Worktrees\\Feature";
+    const windowsProjects = [
+      { ...projects[0]!, location: { kind: "windows", path: "C:\\Repo" } },
+      { ...projects[0]!, id: "alias", location: { kind: "windows", path: "c:/worktrees/feature" } },
+    ] as const;
+    const worktrees = [
+      { path: worktreePath, branch: "feature", commit: "a".repeat(40), isMain: false },
+    ];
+    const { ctx, supervisor } = context({
+      projects: [...windowsProjects],
+      worktrees,
+      threads: [makeThread({ id: "alias-thread", projectId: "alias" })],
+    });
+    await expect(
+      dispatchTool("remove_worktree", { projectId: "p1", worktreePath, force: true }, ctx),
+    ).rejects.toThrow("alias-thread");
+    expect(supervisor.gitRemoveWorktree).not.toHaveBeenCalled();
+  });
+
+  it("rejects main, unregistered and changed checkout selections before removal", async () => {
+    const path = "/worktrees/feature";
+    const main = "/work/alpha";
+    const worktrees = [
+      { path: main, branch: "main", commit: "a".repeat(40), isMain: true },
+      { path, branch: "feature", commit: "a".repeat(40), isMain: false },
+    ];
+    const { ctx, supervisor } = context({ projects, worktrees, threads: [] });
+    for (const [worktreePath, expectedBranch, error] of [
+      [main, "main", "Cannot remove the main worktree"],
+      ["/unregistered", "feature", "No worktree found"],
+      [path, "changed", 'Expected worktree branch "changed", found "feature"'],
+    ] as const) {
+      await expect(
+        dispatchTool(
+          "remove_worktree",
+          { projectId: "p1", worktreePath, expectedBranch, force: true },
+          ctx,
+        ),
+      ).rejects.toThrow(error);
+    }
+    expect(supervisor.gitRemoveWorktree).not.toHaveBeenCalled();
+  });
+
+  it("removes the named checkout and reports a branch that Git retained", async () => {
+    const path = "/worktrees/feature";
+    const branch = { name: "feature", current: false, commit: "a".repeat(40), isRemote: false };
+    const worktrees = [{ path, branch: branch.name, commit: branch.commit, isMain: false }];
+    const { ctx, supervisor } = context({ projects, worktrees, threads: [] });
+    supervisor.gitListBranches.mockResolvedValue({ current: "main", branches: [branch] });
+    await expect(
+      dispatchTool(
+        "remove_worktree",
+        {
+          projectId: "p1",
+          worktreePath: path,
+          expectedBranch: "feature",
+          force: true,
+          deleteBranch: true,
+        },
+        ctx,
+      ),
+    ).resolves.toMatchObject({ removed: true, branch: "feature", branchDeleted: false });
+    expect(supervisor.gitRemoveWorktree).toHaveBeenCalledExactlyOnceWith({
+      projectLocation: projects[0]!.location,
+      path,
+      expectedBranch: "feature",
+      force: true,
+      deleteBranch: true,
+    });
+    expect(supervisor.gitRemoveWorktree.mock.invocationCallOrder[0]).toBeLessThan(
+      supervisor.gitListBranches.mock.invocationCallOrder[0]!,
+    );
+  });
+
+  it("passes a pull stash into the commit owner and returns the recovery outcome", async () => {
+    const { ctx, supervisor } = context({ projects });
+    const reapplyStashCommit = "f".repeat(40);
+    supervisor.gitCommit.mockResolvedValue({
+      hash: "abc",
+      message: "Merge source",
+      stashReapplied: true,
+    });
+    await expect(
+      dispatchTool(
+        "git_commit",
+        { projectId: "p1", message: "Merge source", addAll: false, reapplyStashCommit },
+        ctx,
+      ),
+    ).resolves.toMatchObject({ committed: true, stashReapplied: true });
+    expect(supervisor.gitCommit).toHaveBeenCalledExactlyOnceWith({
+      projectLocation: projects[0]!.location,
+      message: "Merge source",
+      addAll: false,
+      reapplyStashCommit,
     });
   });
 
@@ -2454,14 +3123,115 @@ describe("Poracode app control tools — git", () => {
     });
   });
 
-  it("merge_worktree abort skips source-branch resolution", async () => {
+  it.each(["abort", "finish"] as const)(
+    "merge_worktree %s forwards the preserved stash",
+    async (action) => {
+      const worktreePath = "/work/alpha/.poracode/worktrees/wt";
+      const worktrees = [
+        { path: worktreePath, branch: "feature", commit: "a".repeat(40), isMain: false },
+      ];
+      const { ctx, supervisor } = context({ projects, worktrees });
+      const reapplyStashCommit = "b".repeat(40);
+      await dispatchTool(
+        "merge_worktree",
+        { projectId: "p1", worktreePath, action, reapplyStashCommit },
+        ctx,
+      );
+      const apply = action === "abort" ? supervisor.gitAbortMerge : supervisor.gitFinishMerge;
+      expect(apply).toHaveBeenCalledExactlyOnceWith({
+        worktreeLocation: { kind: "posix", path: worktreePath },
+        reapplyStashCommit,
+      });
+      expect(supervisor.gitGetWorktreeSourceBranch).not.toHaveBeenCalled();
+    },
+  );
+
+  it("validates merge recovery against the project's linked worktrees", async () => {
+    const { ctx, supervisor } = context({ projects, worktrees: [] });
+    await expect(
+      dispatchTool(
+        "merge_worktree",
+        { projectId: "p1", worktreePath: "/unlinked", action: "abort" },
+        ctx,
+      ),
+    ).rejects.toThrow("No worktree found");
+    expect(supervisor.gitAbortMerge).not.toHaveBeenCalled();
+  });
+
+  it("uses the chosen source branch and local-change handling for a source pull", async () => {
     const worktreePath = "/work/alpha/.poracode/worktrees/wt";
-    const { ctx, supervisor } = context({ projects });
-    await dispatchTool("merge_worktree", { projectId: "p1", worktreePath, action: "abort" }, ctx);
-    expect(supervisor.gitAbortMerge).toHaveBeenCalledWith({
+    const worktrees = [
+      { path: worktreePath, branch: "feature", commit: "a".repeat(40), isMain: false },
+    ];
+    const { ctx, supervisor } = context({ projects, worktrees });
+    await dispatchTool(
+      "merge_worktree",
+      {
+        projectId: "p1",
+        worktreePath,
+        action: "pull_from_source",
+        sourceBranch: "develop",
+        preserveLocalChanges: true,
+      },
+      ctx,
+    );
+    expect(supervisor.gitPullFromSource).toHaveBeenCalledExactlyOnceWith({
       worktreeLocation: { kind: "posix", path: worktreePath },
+      sourceBranch: "develop",
+      preserveLocalChanges: true,
     });
     expect(supervisor.gitGetWorktreeSourceBranch).not.toHaveBeenCalled();
+  });
+
+  it("keeps legacy sync defaults and forwards the selected pull and fetch options", async () => {
+    const { ctx, supervisor } = context({ projects });
+    const projectLocation = projects[0]!.location;
+    await dispatchTool("git_sync", { projectId: "p1", action: "pull" }, ctx);
+    await dispatchTool(
+      "git_sync",
+      { projectId: "p1", action: "pull_rebase", remote: "upstream", preserveLocalChanges: true },
+      ctx,
+    );
+    await dispatchTool("git_sync", { projectId: "p1", action: "fetch", prune: true }, ctx);
+    expect(supervisor.gitPull).toHaveBeenCalledExactlyOnceWith({
+      projectLocation,
+      preserveLocalChanges: false,
+    });
+    expect(supervisor.gitPullRebase).toHaveBeenCalledExactlyOnceWith({
+      projectLocation,
+      remote: "upstream",
+      preserveLocalChanges: true,
+    });
+    expect(supervisor.gitFetch).toHaveBeenCalledExactlyOnceWith({
+      projectLocation,
+      remote: "origin",
+      prune: true,
+    });
+  });
+
+  it.each([
+    { action: "sync", pulled: true, pushed: false },
+    { action: "sync_rebase", pulled: false, pushed: true },
+  ] as const)("runs $action through the owning supervisor as a single command", async (result) => {
+    const worktreePath = "/work/alpha/.poracode/worktrees/wt";
+    const worktrees = [
+      { path: worktreePath, branch: "feature", commit: "a".repeat(40), isMain: false },
+    ];
+    const { ctx, supervisor } = context({ projects, worktrees });
+    await expect(
+      dispatchTool(
+        "git_sync",
+        { projectId: "p1", worktreePath, action: result.action, remote: "upstream" },
+        ctx,
+      ),
+    ).resolves.toMatchObject({ projectId: "p1", done: true, ...result });
+    const sync = result.action === "sync" ? supervisor.gitSync : supervisor.gitSyncRebase;
+    expect(sync).toHaveBeenCalledExactlyOnceWith({
+      projectLocation: { kind: "posix", path: worktreePath },
+      remote: "upstream",
+    });
+    expect(supervisor.gitPush).not.toHaveBeenCalled();
+    expect(supervisor.gitFetch).not.toHaveBeenCalled();
   });
 });
 
@@ -2502,6 +3272,14 @@ describe("Poracode app control tools — github", () => {
     expect(supervisor.gitPush.mock.invocationCallOrder[0]).toBeLessThan(
       vi.mocked(ctx.gitState.refreshTarget).mock.invocationCallOrder[0]!,
     );
+  });
+
+  it("lists branches without forcing a second Git refresh", async () => {
+    const { ctx, supervisor } = context({ projects });
+    ctx.gitState = gitState();
+    await dispatchTool("git_branch", { projectId: "p1", action: "list" }, ctx);
+    expect(supervisor.gitListBranches).toHaveBeenCalledOnce();
+    expect(ctx.gitState.refreshTarget).not.toHaveBeenCalled();
   });
 
   it("does not turn a successful push into a failed publication when refresh fails", async () => {
@@ -3289,5 +4067,163 @@ describe("Poracode app control tools — skills", () => {
     } finally {
       await rm(directory, { recursive: true, force: true });
     }
+  });
+});
+
+describe("Poracode app control tools — management", () => {
+  it("imports only the reviewed external MCP server into the requested project", async () => {
+    const location = { kind: "posix" as const, path: "/repo" };
+    const project = { id: "project-1", name: "Work", location } as Project;
+    const { ctx, supervisor, updateProject, settingsWrite } = context({ projects: [project] });
+    const candidate = {
+      id: "fixture-candidate",
+      name: "calendar",
+      enabled: true,
+      timeoutMs: 12_000,
+      transport: {
+        type: "http" as const,
+        url: "https://fixture.invalid",
+        headers: { "x-tenant": "tenant-value" },
+      },
+    };
+    const snapshot = {
+      groups: [
+        {
+          providerId: "external",
+          providerLabel: "External",
+          sourcePath: "/repo/.mcp.json",
+          servers: [
+            candidate,
+            { ...candidate, id: "unsupported", unsupportedReason: "authentication" as const },
+          ],
+        },
+      ],
+    };
+    supervisor.discoverExternalMcpServers.mockResolvedValue(snapshot);
+    const source = { sourceScope: "workspace", sourceProjectId: project.id };
+    const found = await dispatchTool("discover_mcp_servers", source, ctx);
+    expect(JSON.stringify(found)).not.toContain("tenant-value");
+    const view = z
+      .object({
+        groups: z.array(
+          z.object({
+            servers: z.array(
+              z.object({
+                candidateId: z.string(),
+                reviewDigest: z.string().optional(),
+              }),
+            ),
+          }),
+        ),
+      })
+      .parse(found);
+    const [reviewed, unsupported] = view.groups[0]!.servers;
+    expect(unsupported?.reviewDigest).toBeUndefined();
+    expect(supervisor.discoverExternalMcpServers).toHaveBeenCalledWith({
+      sourceScope: "workspace",
+      projectLocation: location,
+    });
+    const target = { ...source, projectId: project.id, ...reviewed };
+    supervisor.discoverExternalMcpServers.mockResolvedValueOnce({
+      groups: [{ ...snapshot.groups[0]!, servers: [{ ...candidate, enabled: false }] }],
+    });
+    await expect(dispatchTool("import_mcp_server", target, ctx)).rejects.toThrow("has changed");
+    expect(updateProject).not.toHaveBeenCalled();
+    await expect(dispatchTool("import_mcp_server", target, ctx)).resolves.toMatchObject({
+      imported: true,
+      server: { name: "calendar", scope: "project", projectId: project.id },
+    });
+    expect(updateProject).toHaveBeenCalledWith(
+      expect.objectContaining({
+        mcpServers: [expect.objectContaining({ name: "calendar", transport: candidate.transport })],
+      }),
+    );
+    expect(settingsWrite).not.toHaveBeenCalled();
+  });
+
+  it("binds a plugin OAuth wait to the plugin and thread that began the flow", async () => {
+    const { ctx, supervisor } = context();
+    supervisor.pluginAccounts.mockResolvedValueOnce({
+      accounts: [],
+      authorization: {
+        status: "redirect",
+        flowId: "fixture-plugin-flow",
+        authorizationUrl: "https://fixture.invalid/authorize",
+      },
+    });
+    supervisor.waitMcpServerOauth.mockResolvedValueOnce({ status: "authorized" });
+    await dispatchTool(
+      "manage_plugin_accounts",
+      {
+        action: "begin",
+        pluginName: "notes",
+        serverName: "notes-api",
+        label: "Work",
+      },
+      ctx,
+    );
+
+    const wait = { action: "wait", pluginName: "notes", flowId: "fixture-plugin-flow" };
+    await expect(
+      dispatchTool("manage_plugin_accounts", wait, {
+        ...ctx,
+        identity: { threadId: "different-thread" },
+      }),
+    ).resolves.toMatchObject({ status: "error" });
+    await expect(
+      dispatchTool("manage_plugin_accounts", { ...wait, pluginName: "calendar" }, ctx),
+    ).resolves.toMatchObject({ status: "error" });
+    await expect(dispatchTool("manage_plugin_accounts", wait, ctx)).resolves.toMatchObject({
+      status: "authorized",
+      accounts: [],
+    });
+    expect(supervisor.waitMcpServerOauth).toHaveBeenCalledExactlyOnceWith({
+      flowId: "fixture-plugin-flow",
+    });
+  });
+
+  it("passes existing scope and operation contracts to project and skill owners", async () => {
+    const location = { kind: "wsl" as const, distro: "Ubuntu", linuxPath: "/work" };
+    const project = { id: "wsl-project", name: "Work", location } as Project;
+    const { ctx, applyProjectCommand, supervisor } = context({ projects: [project] });
+    await dispatchTool(
+      "install_marketplace_skill",
+      {
+        marketplace: "skills-sh",
+        marketplaceSkillId: "fixture/notes",
+        destinationScope: "project",
+        projectId: project.id,
+      },
+      ctx,
+    );
+    expect(supervisor.installMarketplaceSkill).toHaveBeenCalledExactlyOnceWith({
+      marketplace: "skills-sh",
+      marketplaceSkillId: "fixture/notes",
+      destinationScope: "project",
+      projectLocation: location,
+      wslDistro: "Ubuntu",
+      replace: false,
+    });
+
+    await expect(
+      dispatchTool(
+        "remove_project",
+        {
+          projectId: project.id,
+          confirmProjectName: "Other",
+        },
+        ctx,
+      ),
+    ).rejects.toThrow("name does not match");
+    expect(applyProjectCommand).not.toHaveBeenCalled();
+    await dispatchTool(
+      "remove_project",
+      { projectId: project.id, confirmProjectName: project.name },
+      ctx,
+    );
+    expect(applyProjectCommand).toHaveBeenCalledExactlyOnceWith({
+      kind: "remove",
+      projectId: project.id,
+    });
   });
 });

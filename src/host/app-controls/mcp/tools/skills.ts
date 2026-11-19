@@ -141,16 +141,7 @@ function projectScope(
 }
 
 /** A compact, read-friendly view of one skill entry. */
-function summarizeSkill(skill: SkillEntry): {
-  id: string;
-  name: string;
-  description: string;
-  scope: SkillEntry["scope"];
-  enabled: boolean;
-  valid: boolean;
-  provider: string;
-  absolutePath: string;
-} {
+function summarizeSkill(skill: SkillEntry) {
   return {
     id: skill.id,
     name: skill.name,
@@ -158,6 +149,10 @@ function summarizeSkill(skill: SkillEntry): {
     scope: skill.scope,
     enabled: skill.enabled,
     valid: skill.valid,
+    origin: skill.origin,
+    mutable: skill.mutable,
+    linked: skill.linked,
+    ...(skill.importState ? { importState: skill.importState } : {}),
     provider: skill.providerLabel,
     absolutePath: skill.absolutePath,
   };

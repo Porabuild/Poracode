@@ -140,12 +140,29 @@ import { isRemoteProcedure } from "../remote/procedures";
 // Poracode memory adds `memoryCommand` (main-local, not on the remote
 // allowlist) and `generateMemoryText` (supervisor-local). Older peers reject
 // both names before any effect. Existing payloads stay valid, so hop 19 stays.
-const HOP_PIN = `${IPC_PROCEDURE_MAP_VERSION}:33c7cbfa7f7f3db692bbce4db2377b5a50f1beec400f2d4a93d12cada6eb5f23`;
+// Workspace terminal control adds one scoped supervisor-only name. Older peers
+// reject it before accessing a shell. Existing terminal transports stay valid.
+const HOP_PIN = `${IPC_PROCEDURE_MAP_VERSION}:b4a9a57b82b86a0801cb6bf28a7ba992bc58bd00b3c98d9cbfa6af8d7394710c`;
+
+const preWorkspaceTerminalMap = (line: string) =>
+  !/^(controlWorkspaceTerminal|appThreadRequests):/u.test(line);
 
 describe("IPC procedure map versioning", () => {
+  it("preserves earlier procedures and keeps live request reply custody on the supervisor", () => {
+    const prior = ipcProcedureMapFingerprint()
+      .split("\n")
+      .filter((line) => !line.startsWith("appThreadRequests:"))
+      .join("\n");
+    expect(createHash("sha256").update(prior).digest("hex")).toBe(
+      "2baa89a686dc74f6a2f2dd2acf8cd4a778a958590e754969eb8e014cdb62dad9",
+    );
+    expect(ipcProcedureMap.appThreadRequests.transport).toBe("supervisor");
+    expect(isRemoteProcedure("appThreadRequests")).toBe(false);
+  });
   it("preserves the pre-ports map while keeping port termination off remote transports", () => {
     const previous = ipcProcedureMapFingerprint()
       .split("\n")
+      .filter(preWorkspaceTerminalMap)
       .filter(
         (line) => !/^(listLocalPorts|closeLocalPort|memoryCommand|generateMemoryText):/.test(line),
       )
@@ -172,6 +189,7 @@ describe("IPC procedure map versioning", () => {
   it("preserves the pre-memory map while keeping memory procedures off remote transports", () => {
     const previous = ipcProcedureMapFingerprint()
       .split("\n")
+      .filter(preWorkspaceTerminalMap)
       .filter((line) => !/^(memoryCommand|generateMemoryText):/.test(line))
       .join("\n");
     expect(createHash("sha256").update(previous).digest("hex")).toBe(
@@ -181,6 +199,30 @@ describe("IPC procedure map versioning", () => {
     expect(ipcProcedureMap.generateMemoryText.transport).toBe("supervisor");
     expect(isRemoteProcedure("memoryCommand")).toBe(false);
     expect(isRemoteProcedure("generateMemoryText")).toBe(false);
+  });
+
+  it("preserves the previous map and keeps scoped terminal control supervisor-only", () => {
+    const previous = ipcProcedureMapFingerprint()
+      .split("\n")
+      .filter(preWorkspaceTerminalMap)
+      .join("\n");
+    expect(createHash("sha256").update(previous).digest("hex")).toBe(
+      "33c7cbfa7f7f3db692bbce4db2377b5a50f1beec400f2d4a93d12cada6eb5f23",
+    );
+    const procedure = ipcProcedureMap.controlWorkspaceTerminal;
+    const payload = {
+      version: 1,
+      projectLocation: { kind: "posix", path: "/fixture" },
+      terminalId: "shell:one",
+      command: { action: "write", data: "pwd\r" },
+    };
+    expect(procedure.transport).toBe("supervisor");
+    expect(isRemoteProcedure("controlWorkspaceTerminal")).toBe(false);
+    expect(procedure.payloadSchema.parse(payload)).toEqual(payload);
+    expect(procedure.payloadSchema.safeParse({ ...payload, version: 2 }).success).toBe(false);
+    expect(
+      procedure.payloadSchema.safeParse({ ...payload, command: { action: "start" } }).success,
+    ).toBe(false);
   });
   it("routes Hex voice through the supervisor as an additive procedure", () => {
     expect(ipcProcedureMap.hexVoice.transport).toBe("supervisor");

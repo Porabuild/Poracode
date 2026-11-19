@@ -57,6 +57,7 @@ export interface DesktopRemoteAccessControllerOptions {
   /** Backend-owned compound checkpoint revert (WS2), refusal-mapped to 409. */
   readonly revertCheckpoint?: RemoteAccessServerOptions["revertCheckpoint"];
   readonly runThreadMutation?: RemoteAccessServerOptions["runThreadMutation"];
+  readonly captureThreadControlState?: RemoteAccessServerOptions["captureThreadControlState"];
   /**
    * Embedded-desktop experiment authority (custody + confirmed retirement).
    * Present only on the desktop composition; its presence is what advertises

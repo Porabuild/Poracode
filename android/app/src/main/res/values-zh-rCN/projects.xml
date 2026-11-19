@@ -123,4 +123,6 @@
     <string name="projects_request_failed">桌面设备无法完成请求。</string>
     <string name="projects_request_uncertain">桌面设备确认更改前连接已结束。请刷新后再试。</string>
     <string name="projects_setup_detection_failed">项目已添加，但 Poracode 无法检测其设置脚本。</string>
+    <string name="projects_notes_conflict">项目笔记已在其他地方修改。你的草稿仍保留在此。</string>
+    <string name="projects_notes_load_saved">加载已保存的笔记</string>
 </resources>

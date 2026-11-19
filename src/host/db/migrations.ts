@@ -1275,6 +1275,13 @@ export const DATABASE_MIGRATIONS = [
       `);
     },
   },
+  {
+    version: 78,
+    name: "guarded project notes",
+    // A rollback to an unguarded writer could overwrite newer notes.
+    rollback: "forward-only",
+    migrate: (sqlite) => addColumnIfMissing(sqlite, "project_notes", "revision", "TEXT"),
+  },
 ] as const satisfies readonly DatabaseMigration[];
 
 // Worktree link reconciliation refreshes existing path/branch columns from Git;

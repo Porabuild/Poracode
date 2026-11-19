@@ -11413,6 +11413,10 @@ msgstr "설치된 글꼴 불러오기"
 msgid "Load older results"
 msgstr "이전 결과 불러오기"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesPanel.tsx
+msgid "Load saved notes"
+msgstr "저장된 노트 불러오기"
+
 #: src/renderer/components/common/PixelLoader.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentMessageList.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/RemoteBrowserMirror.tsx
@@ -16198,6 +16202,10 @@ msgstr "프로젝트를 찾을 수 없습니다."
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesEditor.tsx
 msgid "Project notes"
 msgstr "프로젝트 노트"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesPanel.tsx
+msgid "Project Notes changed elsewhere. Your draft is still here."
+msgstr "다른 곳에서 프로젝트 노트가 변경되었습니다. 초안은 그대로 남아 있습니다."
 
 #: src/renderer/components/thread/MoveThreadDialog.tsx
 #~ msgid "Project on {targetLabel}"

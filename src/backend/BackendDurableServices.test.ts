@@ -61,6 +61,7 @@ vi.mock("@/shared/processTree", () => ({ terminateChildProcessTree: vi.fn<() => 
 vi.mock("@/host/db", () => ({
   dbAdmitScheduleExecution: vi.fn<(task: ScheduledTask) => void>(),
   dbArchiveDoneThreads: vi.fn<() => string[]>(() => []),
+  dbCompareAndSetProjectNotes: vi.fn<typeof import("@/host/db").dbCompareAndSetProjectNotes>(),
   dbDeleteThread: vi.fn<(threadId: string) => void>(),
   dbGetProject: vi.fn<(id: string) => Project | null>((id) =>
     id === "fixture-home"
@@ -202,7 +203,8 @@ function createDurable(
       call: vi.fn<(name: string, payload: unknown) => Promise<null>>(async () => null),
     },
     getSharedSettings: () => ({}),
-    writeSharedSettings: () => {},
+    editPreferences: async () => committedEdit,
+    assertCanPersistSecrets: () => undefined,
     editSettingsField: async () => committedEdit,
     sendThreadCommand: () => true,
     publishProjectsChanged: () => {},

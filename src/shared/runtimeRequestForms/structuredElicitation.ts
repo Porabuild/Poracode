@@ -1,3 +1,4 @@
+import { z } from "zod";
 import {
   emptyStructuredValue,
   structuredFieldVisible,
@@ -149,4 +150,43 @@ export function buildStructuredElicitationResponse(
 
 export function buildStructuredElicitationDismissResponse() {
   return { action: "decline" };
+}
+
+const choices = z.object({
+  enum: z.array(z.string()).optional(),
+  enumNames: z.array(z.string()).optional(),
+  oneOf: z.array(z.object({ const: z.string(), title: z.string().optional() })).optional(),
+  anyOf: z.array(z.object({ const: z.string(), title: z.string().optional() })).optional(),
+});
+export const structuredRequestFieldSchema = choices.extend({
+  type: z.enum(["string", "integer", "number", "boolean", "array"]),
+  title: z.string().optional(),
+  description: z.string().optional(),
+  items: choices.optional(),
+  allowCustom: z.boolean().optional(),
+  minimum: z.number().optional(),
+  maximum: z.number().optional(),
+  minLength: z.number().optional(),
+  maxLength: z.number().optional(),
+  minItems: z.number().optional(),
+  maxItems: z.number().optional(),
+  pattern: z.string().optional(),
+  format: z.string().optional(),
+  writeOnly: z.boolean().optional(),
+  isSecret: z.boolean().optional(),
+  visibleWhen: z
+    .array(
+      z.object({
+        field: z.string(),
+        equals: z.union([z.string(), z.number(), z.boolean()]).optional(),
+        notEquals: z.union([z.string(), z.number(), z.boolean()]).optional(),
+      }),
+    )
+    .optional(),
+});
+
+export function structuredFieldIsSecret(
+  field: z.output<typeof structuredRequestFieldSchema>,
+): boolean {
+  return field.isSecret === true || field.writeOnly === true || field.format === "password";
 }

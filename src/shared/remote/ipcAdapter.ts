@@ -1,6 +1,6 @@
 import type {
   ControlThreadGoalPayload,
-  ProjectNotes,
+  ProjectNotesWrite,
   PrWatchAgentSync,
   PrWatchInput,
   ForgePrWatchInput,
@@ -116,7 +116,7 @@ export function invokeRemoteIpcProcedure(
     case "dbGetProjectNotes":
       return client.projectNotes(String((payload as { readonly projectId: string }).projectId));
     case "dbSetProjectNotes":
-      return client.setProjectNotes(payload as ProjectNotes);
+      return client.setProjectNotes(payload as ProjectNotesWrite);
     case "getPrWatch":
       return client.getPrWatch(payload as PrWatchKey);
     case "checkPrWatch":

@@ -1,7 +1,8 @@
 import { randomUUID } from "node:crypto";
-import type { ProjectLocation } from "@/shared/contracts";
+import type { Project, ProjectLocation } from "@/shared/contracts";
 import type { GitStateSnapshot } from "@/shared/gitState";
 import { createShellPromptGate } from "@/shared/shellPromptReady";
+import { normalizeShellScriptLines } from "@/shared/projectActionScript";
 import { worktreeScriptShellId } from "@/shared/worktreeScriptShell";
 import {
   buildWorktreeLocation,
@@ -18,21 +19,14 @@ const HOST_SCRIPT_TIMEOUT_MS = 30_000;
 const HOST_PROMPT_WAIT_MS = 20_000;
 
 export function normalizeHostShellScript(script: string): string {
-  return script
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter((line) => line !== "" && !line.startsWith("#"))
-    .join(" && ");
+  return normalizeShellScriptLines(script).join(" && ");
 }
 
 export function buildHostScriptWithExitOnSuccess(
   script: string,
   locationKind: ProjectLocation["kind"],
 ): string {
-  const lines = script
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter((line) => line !== "" && !line.startsWith("#"));
+  const lines = normalizeShellScriptLines(script);
   if (lines.length === 0) return "";
   if (locationKind === "windows") {
     return lines.reduceRight((tail, line) => `${line}; if ($?) { ${tail} }`, "exit");
@@ -220,6 +214,36 @@ export async function prepareHostWorktree(
   });
 }
 
+/** Compare the full approved membership against the current host rows. */
+export function requireHostWorktreeGroup(
+  project: Project,
+  paths: Iterable<string>,
+  threadIds: readonly string[],
+) {
+  const pathKey = (path: string) =>
+    normalizeWorktreePathForComparison(path, project.location.kind === "windows");
+  const pathKeys = new Set(Array.from(paths, pathKey));
+  const expected = new Set(threadIds);
+  const linked = dbGetThreads().filter(
+    (thread) =>
+      thread.projectId === project.id &&
+      thread.worktreePath &&
+      pathKeys.has(pathKey(thread.worktreePath)),
+  );
+  if (
+    linked.length !== threadIds.length ||
+    expected.size !== threadIds.length ||
+    linked.some((thread) => !expected.has(thread.id))
+  ) {
+    throw new RemoteHttpError(
+      "worktree_threads_changed",
+      msg("remote.worktree.threadsChanged"),
+      409,
+    );
+  }
+  return linked;
+}
+
 export async function removeHostWorktree(
   ctx: RemoteServerContext,
   input: {
@@ -250,22 +274,8 @@ export async function removeHostWorktree(
   };
   const assertRemovalSafe = (path: string, branch: string | undefined) => {
     observedPaths.set(pathKey(path), path);
-    if (input.expectedThreadIds) {
-      const linked = dbGetThreads().filter(
-        (thread) =>
-          thread.projectId === input.projectId &&
-          thread.worktreePath &&
-          observedPaths.has(pathKey(thread.worktreePath)),
-      );
-      const expected = new Set(input.expectedThreadIds);
-      if (linked.length !== expected.size || linked.some((thread) => !expected.has(thread.id))) {
-        throw new RemoteHttpError(
-          "worktree_threads_changed",
-          msg("remote.worktree.threadsChanged"),
-          409,
-        );
-      }
-    }
+    if (input.expectedThreadIds)
+      requireHostWorktreeGroup(project, observedPaths.values(), input.expectedThreadIds);
     assertRemoteGitMutationExperimentSafe("gitRemoveWorktree", {
       projectLocation: project.location,
       path,

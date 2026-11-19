@@ -323,6 +323,9 @@ export async function performDesktopRemoteAccessStart(
       ...(options.runtimeHistoryGap ? { runtimeHistoryGap: options.runtimeHistoryGap } : {}),
       ...(options.revertCheckpoint ? { revertCheckpoint: options.revertCheckpoint } : {}),
       ...(options.runThreadMutation ? { runThreadMutation: options.runThreadMutation } : {}),
+      ...(options.captureThreadControlState
+        ? { captureThreadControlState: options.captureThreadControlState }
+        : {}),
       ...(options.experimentAuthority ? { experimentAuthority: options.experimentAuthority } : {}),
       dispatchThreadCommand: options.dispatchThreadCommand,
       resolveMcpLaunchSnapshot: (projectId, overrides) => {

@@ -11413,6 +11413,10 @@ msgstr "Cargar fuentes instaladas"
 msgid "Load older results"
 msgstr "Cargar resultados anteriores"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesPanel.tsx
+msgid "Load saved notes"
+msgstr "Cargar las notas guardadas"
+
 #: src/renderer/components/common/PixelLoader.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentMessageList.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/RemoteBrowserMirror.tsx
@@ -16198,6 +16202,10 @@ msgstr "No se encontró el proyecto."
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesEditor.tsx
 msgid "Project notes"
 msgstr "Notas del proyecto"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesPanel.tsx
+msgid "Project Notes changed elsewhere. Your draft is still here."
+msgstr "Las notas del proyecto se modificaron en otro lugar. Tu borrador se conserva."
 
 #: src/renderer/components/thread/MoveThreadDialog.tsx
 #~ msgid "Project on {targetLabel}"

@@ -32,7 +32,7 @@ import {
 import { PixelLoader } from "../../PixelLoader";
 import { useResponsiveMenu } from "../../ResponsiveMenuSurface";
 import type { BranchListItem } from "./useBranchList";
-import { localBranchNameFromRef } from "./worktreeBaseRef";
+import { localBranchNameFromRef } from "@/shared/worktreeBaseRef";
 
 const STATUS_DOT_CLASS: Record<StatusTone, string> = {
   inactive: "bg-muted/40",

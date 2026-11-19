@@ -15,6 +15,16 @@ import {
 } from "./exec";
 import { GitWorktreeService } from "./worktreeService";
 
+/** Git writes merge and stash conflict diagnostics to stdout. */
+function gitMergeOutput(error: unknown): string {
+  const detail = errorDetail(error);
+  const cause: unknown = error instanceof Error ? error.cause : undefined;
+  if (cause && typeof cause === "object" && "stdout" in cause && typeof cause.stdout === "string") {
+    return `${detail}\n${cause.stdout}`;
+  }
+  return detail;
+}
+
 export class GitMergeService {
   constructor(private readonly worktreeService: GitWorktreeService) {}
 
@@ -170,7 +180,7 @@ export class GitMergeService {
         timeout: GIT_HOOK_TIMEOUT,
       });
     } catch (mergeError: unknown) {
-      const detail = errorDetail(mergeError);
+      const detail = gitMergeOutput(mergeError);
       if (detail.includes("CONFLICT") || detail.includes("Merge conflict")) {
         return {
           merged: false,
@@ -183,7 +193,7 @@ export class GitMergeService {
       return {
         merged: false,
         fastForward: false,
-        error: detail,
+        error: errorDetail(mergeError),
       };
     }
 
@@ -226,7 +236,7 @@ export class GitMergeService {
         stashPreserved: true,
         stashCommit,
         error: msg("git.pull.reapplyConflicts"),
-        conflictFiles: this.extractConflictFiles(errorDetail(stashPopError)),
+        conflictFiles: this.extractConflictFiles(gitMergeOutput(stashPopError)),
       };
     }
 
@@ -252,7 +262,7 @@ export class GitMergeService {
     try {
       await execGit(location, ["stash", "pop", `stash@{${index}}`], { timeout: GIT_HOOK_TIMEOUT });
     } catch (stashPopError: unknown) {
-      const detail = errorDetail(stashPopError);
+      const detail = gitMergeOutput(stashPopError);
       if (detail.includes("CONFLICT") || detail.includes("Merge conflict")) {
         return { outcome: "conflict", conflictFiles: this.extractConflictFiles(detail) };
       }
@@ -406,7 +416,7 @@ export class GitMergeService {
         timeout: GIT_HOOK_TIMEOUT,
       });
     } catch (mergeError: unknown) {
-      const detail = errorDetail(mergeError);
+      const detail = gitMergeOutput(mergeError);
       if (detail.includes("CONFLICT") || detail.includes("Merge conflict")) {
         await execGit(location, ["merge", "--abort"]).catch((abortErr) => {
           console.warn("[git] merge --abort failed:", abortErr);

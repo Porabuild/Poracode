@@ -94,12 +94,14 @@ describe("read_thread", () => {
       nextCursor: 12,
       items: [
         {
+          itemId: "user-1",
           role: "user",
           type: "user_message",
           state: "completed",
           text: "Compare @Source",
         },
         {
+          itemId: "assistant-1",
           role: "assistant",
           type: "assistant_message",
           state: "completed",
@@ -132,6 +134,7 @@ describe("read_thread", () => {
       ctx,
     )) as { items: Array<{ text: string; truncated?: true }> };
     expect(result.items[0]).toEqual({
+      itemId: "assistant-1",
       role: "assistant",
       type: "assistant_message",
       state: "completed",

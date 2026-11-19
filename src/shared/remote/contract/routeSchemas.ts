@@ -78,7 +78,11 @@ import {
   decodedThreadHistoryItemsQuerySchema,
   decodedThreadHistoryQuerySchema,
 } from "./queryCodecs";
-import { projectNotesReadResultSchema, projectNotesWriteBodySchema } from "./routeBodies";
+import {
+  projectNotesReadResultSchema,
+  projectNotesWriteBodySchema,
+  projectNotesWriteResultSchema,
+} from "./routeBodies";
 
 export const remoteEnvironmentQuerySchema = z.object({});
 
@@ -143,7 +147,7 @@ export const attachmentUploadResultSchema = z.object({
   path: z.string().min(1),
 });
 
-export { projectNotesReadResultSchema, projectNotesWriteBodySchema };
+export { projectNotesReadResultSchema, projectNotesWriteBodySchema, projectNotesWriteResultSchema };
 
 export const settingsReadResultSchema = z.object({
   settings: remoteSettingsSchema,

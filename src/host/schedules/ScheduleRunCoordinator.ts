@@ -1,7 +1,7 @@
 import { resolveProjectLocation } from "@/shared/worktree";
 import { isDeepStrictEqual } from "node:util";
 import { isThreadSessionAbsenceRefusal } from "@/shared/threadSessionRefusal";
-import { resolveHostThreadLaunchConfig } from "../threads/threadLaunchConfig";
+import { resolveHostThreadLaunchDefaults } from "../threads/threadLaunchConfig";
 import { randomUUID } from "node:crypto";
 import type {
   AgentStatusesResponse,
@@ -890,11 +890,9 @@ export class ScheduleRunCoordinator {
   ): Promise<ThreadConfig> {
     return {
       ...task.config,
-      ...(await resolveHostThreadLaunchConfig(
-        this.deps.getAgentStatuses,
-        task.agentKind,
-        location,
-      )),
+      ...(
+        await resolveHostThreadLaunchDefaults(this.deps.getAgentStatuses, task.agentKind, location)
+      ).config,
     };
   }
 

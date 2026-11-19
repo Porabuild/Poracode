@@ -123,4 +123,6 @@
     <string name="projects_request_failed">Der Computer konnte die Anfrage nicht abschließen.</string>
     <string name="projects_request_uncertain">Die Verbindung wurde beendet, bevor der Computer die Änderung bestätigt hat. Aktualisiere vor einem erneuten Versuch.</string>
     <string name="projects_setup_detection_failed">Das Projekt wurde hinzugefügt, aber Poracode konnte sein Einrichtungsskript nicht erkennen.</string>
+    <string name="projects_notes_conflict">Die Projektnotizen wurden an anderer Stelle geändert. Dein Entwurf ist noch da.</string>
+    <string name="projects_notes_load_saved">Gespeicherte Notizen laden</string>
 </resources>

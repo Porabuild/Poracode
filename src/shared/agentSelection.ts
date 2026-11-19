@@ -19,6 +19,19 @@ export interface AgentModelSelection {
   };
 }
 
+/** New Thread uses the last supported mode for the selected agent, then Chat when available. */
+export function resolveComposerPresentationMode(
+  agent: AgentStatus | undefined,
+  lastByAgent: Readonly<Record<string, ThreadPresentationMode>>,
+): ThreadPresentationMode {
+  if (!agent) return "gui";
+  const supported = agent.capabilities.presentationModes ?? [agent.capabilities.presentationMode];
+  const last = lastByAgent[agent.kind];
+  if (last && supported.includes(last)) return last;
+  if (supported.includes("gui")) return "gui";
+  return supported[0] ?? agent.capabilities.presentationMode ?? "gui";
+}
+
 export function authStateForPresentation(
   status: Pick<AgentStatus, "authState" | "presentationAuthStates">,
   presentationMode: ThreadPresentationMode,

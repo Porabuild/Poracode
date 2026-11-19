@@ -590,8 +590,13 @@ export class SupervisorRuntime {
         unregister: (threadId) => this.crossagentMcpIngress.unregisterThread(threadId),
         cancelForeground: (threadId) => this.subagentRunManager.cancelForegroundForThread(threadId),
         cancelAll: (threadId) => this.subagentRunManager.cancelAllForThread(threadId),
-        resolveChildRequest: (requestId, response, parentThreadId) =>
-          this.subagentRunManager.resolveChildServerRequest(requestId, response, parentThreadId),
+        resolveChildRequest: (requestId, response, parentThreadId, requirePending) =>
+          this.subagentRunManager.resolveChildServerRequest(
+            requestId,
+            response,
+            parentThreadId,
+            requirePending,
+          ),
         memberRunActivity: (threadId) => this.subagentRunManager.memberRunActivity(threadId),
       },
       readDirtySetSnapshot: (location) => readDirtySetSnapshot(location, this.wslBridgeClient),

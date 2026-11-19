@@ -1,7 +1,7 @@
 import { msg } from "@lingui/core/macro";
 import { i18n } from "@/renderer/i18n/i18n";
 import type { OpenRuntimeRequest } from "@/renderer/state/slices/runtimeEventSlice";
-import { findApprovalDenyOption } from "@/shared/runtimeRequestForms";
+import { DEFAULT_APPROVAL_OPTION_IDS, findApprovalDenyOption } from "@/shared/runtimeRequestForms";
 import type { UserInputOption } from "@/shared/contracts";
 
 export {
@@ -27,8 +27,8 @@ export type { OpenCodePermissionDetails } from "@/shared/runtimeRequestForms";
  */
 export function getDefaultApprovalOptions(): UserInputOption[] {
   return [
-    { optionId: "allow", label: i18n._(msg`Allow`) },
-    { optionId: "deny", label: i18n._(msg`Deny`) },
+    { optionId: DEFAULT_APPROVAL_OPTION_IDS.allow, label: i18n._(msg`Allow`) },
+    { optionId: DEFAULT_APPROVAL_OPTION_IDS.deny, label: i18n._(msg`Deny`) },
   ];
 }
 

@@ -538,7 +538,11 @@ describe("SupervisorClient.call", () => {
 
     const first = client.call("startThread", { threadId: "thread-a" } as never);
     const queued = client.call("sendThreadInput", { threadId: "thread-a" } as never);
+    const sameControl = client.captureThreadControlState("thread-a");
+    const afterOneControl = client.captureThreadControlState("thread-a", 1);
     const interrupt = client.call("interruptThread", { threadId: "thread-a" } as never);
+    expect(sameControl()).toBe(false);
+    expect(afterOneControl()).toBe(true);
     await vi.waitFor(() => expect(requests).toHaveLength(2));
     expect(requests.map((request) => request.type)).toEqual(["startThread", "interruptThread"]);
 

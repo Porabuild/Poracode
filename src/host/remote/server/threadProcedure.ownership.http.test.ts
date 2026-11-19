@@ -215,6 +215,48 @@ describe.skipIf(!sqliteAvailable)("procedure passthrough ownership", () => {
     },
   );
 
+  it("checks the complete worktree group before closing threads through App Controls", async () => {
+    const worktreePath = "/fixture/wt";
+    dbUpsertThread({ ...testThread(), id: "selected", worktreePath }, 0);
+    dbUpsertThread({ ...testThread(), id: "archived", worktreePath, archived: true }, 1);
+    dbUpsertThread({ ...testThread(), id: "main" }, 2);
+    const server = servers[0]!;
+    const command = {
+      kind: "delete-worktree-group" as const,
+      projectId: "project-1",
+      threadId: "selected",
+      worktreePath,
+      threadIds: ["selected"],
+    };
+    await expect(server.applyAppThreadLifecycle(command)).rejects.toMatchObject({
+      code: "worktree_threads_changed",
+    });
+    await expect(
+      server.applyAppThreadLifecycle({ ...command, threadIds: ["selected", "selected"] }),
+    ).rejects.toMatchObject({ code: "worktree_threads_changed" });
+    expect(callSupervisor).not.toHaveBeenCalled();
+    expect(dbGetThread("selected")).not.toBeNull();
+    expect(dbGetThread("archived")).not.toBeNull();
+
+    callSupervisor.mockImplementation(async (name) =>
+      name === "gitListWorktrees"
+        ? ({
+            worktrees: [{ path: worktreePath, branch: "feature", commit: "abc123", isMain: false }],
+          } as never)
+        : (undefined as never),
+    );
+    await server.applyAppThreadLifecycle({ ...command, threadIds: ["selected", "archived"] });
+    expect(callSupervisor).toHaveBeenCalledWith("closeThread", { threadId: "selected" });
+    expect(callSupervisor).toHaveBeenCalledWith("closeThread", { threadId: "archived" });
+    expect(callSupervisor).toHaveBeenCalledWith(
+      "gitRemoveWorktree",
+      expect.objectContaining({ path: worktreePath, expectedBranch: "feature" }),
+    );
+    expect(dbGetThread("selected")).toBeNull();
+    expect(dbGetThread("archived")).toBeNull();
+    expect(dbGetThread("main")).not.toBeNull();
+  });
+
   it("retains all thread rows when a moved worktree has an unrequested sibling", async () => {
     dbUpsertThread(
       {

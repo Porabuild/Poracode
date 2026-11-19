@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { RemoteAccessServer } from "@/host/remote/RemoteAccessServer";
 
 const mocks = vi.hoisted(() => ({
   onProjectThreadDataChanged: vi.fn<() => () => void>(() => () => {}),
@@ -14,12 +15,19 @@ const mocks = vi.hoisted(() => ({
     call: ReturnType<typeof vi.fn>;
     editSettingsField: ReturnType<typeof vi.fn>;
     commitCompatPatch: ReturnType<typeof vi.fn>;
-    writeSharedSettingsCompat: ReturnType<typeof vi.fn<(next: never) => void>>;
+    editPreferences: ReturnType<
+      typeof vi.fn<
+        (compute: (settings: SharedSettings) => SharedSettings) => Promise<{ status: "committed" }>
+      >
+    >;
     dispose: ReturnType<typeof vi.fn<() => Promise<void>>>;
   }>,
   createDesktopRemoteAccessController: vi.fn<
     (options: unknown) => {
-      getServer: () => null;
+      getServer: () => Pick<
+        RemoteAccessServer,
+        "moveAppThreadToWorktree" | "handoffAppThread" | "editAppCatalog"
+      > | null;
       handleSupervisorEvent: () => void;
       handleSupervisorReset: () => void;
       updateGitSummaries: () => void;
@@ -100,7 +108,9 @@ vi.mock("./BackendSettingsService", () => ({
       call: vi.fn<() => Promise<null>>(async () => null),
       editSettingsField: vi.fn<() => Promise<null>>(async () => null),
       commitCompatPatch: vi.fn<() => Promise<null>>(async () => null),
-      writeSharedSettingsCompat: vi.fn<() => void>(() => {}),
+      editPreferences: vi.fn<
+        (compute: (settings: SharedSettings) => SharedSettings) => Promise<{ status: "committed" }>
+      >(async () => ({ status: "committed" })),
       dispose: vi.fn<() => Promise<void>>(async () => {}),
     };
     mocks.settingsAccesses.push(access);
@@ -181,6 +191,26 @@ function options(desktop: boolean) {
 }
 
 describe("BackendDesktopServices settings custody wiring", () => {
+  it("forwards manual memory sync only to the owning desktop client", async () => {
+    const desktop = options(true);
+    desktop.requestNative
+      .mockResolvedValueOnce({ syncedHosts: 2, changed: true })
+      .mockResolvedValueOnce({ type: "not-started", message: "Open the main window." });
+    void new BackendDesktopServices(desktop);
+    const syncMemory = mocks.durableOptions.at(-1)?.syncMemory as () => Promise<unknown>;
+    await expect(syncMemory()).resolves.toEqual({ syncedHosts: 2, changed: true });
+    expect(desktop.requestNative).toHaveBeenCalledExactlyOnceWith({
+      operation: "memory-sync",
+      payload: { version: 1 },
+    });
+    await expect(syncMemory()).rejects.toThrow("Open the main window.");
+
+    const standalone = options(false);
+    void new BackendDesktopServices(standalone);
+    expect(mocks.durableOptions.at(-1)).not.toHaveProperty("syncMemory");
+    expect(standalone.requestNative).not.toHaveBeenCalled();
+  });
+
   it("forwards the real fence generation and invokes the live Core assertion", () => {
     const opts = options(true);
     const assertActive = vi.fn<(generation?: string) => void>();
@@ -244,7 +274,25 @@ describe("BackendDesktopServices projection invalidation", () => {
 });
 
 describe("BackendDesktopServices settings notifications", () => {
-  it("keeps a committed routing write successful when notifying main fails", async () => {
+  it("invalidates plugin inventory even when package changes keep the same manifest version", () => {
+    const serviceOptions = options(true);
+    void new BackendDesktopServices(serviceOptions);
+    const accessOptions = mocks.settingsAccessOptions.at(-1)!;
+    const { onChanged } = accessOptions as {
+      onChanged(settings: SharedSettings, change: unknown): void;
+    };
+    onChanged(defaultSharedSettings, {
+      status: "committed",
+      changes: [{ subject: { kind: "field", field: "installedPlugins" } }],
+    });
+    expect(serviceOptions.emitNativeEvent).toHaveBeenCalledWith({
+      type: "shared-settings-changed",
+      settings: defaultSharedSettings,
+      pluginInventoryChanged: true,
+    });
+  });
+
+  it("keeps an acknowledged app-controls preference edit successful when notifying main fails", async () => {
     const serviceOptions = options(true);
     const error = new Error("Fixture main disconnected");
     serviceOptions.emitNativeEvent.mockImplementationOnce(() => {
@@ -252,24 +300,27 @@ describe("BackendDesktopServices settings notifications", () => {
     });
     void new BackendDesktopServices(serviceOptions);
     const durable = mocks.durableOptions.at(-1) as unknown as {
-      writeSharedSettings(settings: SharedSettings): void;
+      editPreferences(compute: (settings: SharedSettings) => SharedSettings): Promise<unknown>;
     };
     const access = mocks.settingsAccesses.at(-1)!;
     const accessOptions = mocks.settingsAccessOptions.at(-1)!;
     // Mirror the real access contract: the committed broadcast is
     // fire-and-forget and reports failures instead of throwing into the
     // durable event path.
-    access.writeSharedSettingsCompat.mockImplementation((next) => {
+    access.editPreferences.mockImplementation(async (compute) => {
       const { onChanged, reportError } = accessOptions as {
         onChanged: (settings: SharedSettings) => void;
         reportError?: (error: unknown) => void;
       };
       void Promise.resolve()
-        .then(() => onChanged(next))
+        .then(() => onChanged(compute(defaultSharedSettings)))
         .catch((notifyError: unknown) => reportError?.(notifyError));
+      return { status: "committed" };
     });
 
-    expect(() => durable.writeSharedSettings(defaultSharedSettings)).not.toThrow();
+    await expect(durable.editPreferences((current) => current)).resolves.toEqual({
+      status: "committed",
+    });
     // The settings authority owns the document; no direct file patch remains.
     expect(writeSharedSettingsFile).not.toHaveBeenCalled();
     await new Promise((resolve) => setImmediate(resolve));
@@ -505,6 +556,74 @@ describe("BackendDesktopServices project membership publication", () => {
     expect(publishCatalogChanged).not.toHaveBeenCalled();
     // The removed full-Project[] native relay is never emitted again.
     expect(serviceOptions.emitNativeEvent).not.toHaveBeenCalled();
+  });
+
+  it("runs App Controls catalog and lifecycle mutations without desktop navigation", async () => {
+    const moveAppThreadToWorktree = vi.fn<RemoteAccessServer["moveAppThreadToWorktree"]>(
+      async () => ({
+        threadId: "thread",
+        branch: "poracode/moved",
+        worktreePath: "/fixture/moved",
+        outcome: "moved",
+        runtime: "not_reopened",
+      }),
+    );
+    const handoffAppThread = vi.fn<RemoteAccessServer["handoffAppThread"]>(
+      async ({ sourceThreadId }) => ({
+        threadId: sourceThreadId,
+        sourceThreadId,
+        mode: "in_place",
+        context: "thread-transcript",
+        sourceDisposition: "continued",
+      }),
+    );
+    const editAppCatalog = vi.fn<RemoteAccessServer["editAppCatalog"]>(async () => ({
+      changed: true,
+    }));
+    mocks.createDesktopRemoteAccessController.mockImplementationOnce(() => ({
+      getServer: () => ({ moveAppThreadToWorktree, handoffAppThread, editAppCatalog }),
+      handleSupervisorEvent: () => {},
+      handleSupervisorReset: () => {},
+      updateGitSummaries: () => {},
+      startIfEnabled: () => Promise.resolve(),
+      dispose: () => Promise.resolve(),
+    }));
+    const serviceOptions = options(true);
+    void new BackendDesktopServices(serviceOptions);
+    const durable = mocks.durableOptions.at(-1) as unknown as {
+      moveThreadToWorktree: RemoteAccessServer["moveAppThreadToWorktree"];
+      editCatalog: RemoteAccessServer["editAppCatalog"];
+      handoffThread(
+        input: Parameters<RemoteAccessServer["handoffAppThread"]>[0],
+      ): ReturnType<RemoteAccessServer["handoffAppThread"]>;
+    };
+    const input = { threadId: "thread", withChanges: true, operationKey: "move-1234" };
+    await expect(durable.moveThreadToWorktree(input)).resolves.toMatchObject({
+      worktreePath: "/fixture/moved",
+    });
+    expect(moveAppThreadToWorktree).toHaveBeenCalledExactlyOnceWith(input);
+    const handoff = {
+      sourceThreadId: "thread",
+      agentKind: "fixture-target",
+      config: { model: "target-model" },
+      presentationMode: "gui",
+      intent: "switch",
+      withoutContext: false,
+      operationKey: "handoff-1234",
+    } as const;
+    await expect(durable.handoffThread(handoff)).resolves.toMatchObject({ mode: "in_place" });
+    expect(handoffAppThread).toHaveBeenCalledExactlyOnceWith(handoff, expect.any(String));
+    const reorder = {
+      kind: "reorder",
+      projectId: "project-a",
+      targetProjectId: "project-b",
+      placement: "after",
+    } as const;
+    await expect(durable.editCatalog(reorder, "reorder-1234")).resolves.toEqual({
+      changed: true,
+    });
+    expect(editAppCatalog).toHaveBeenCalledExactlyOnceWith(reorder, "reorder-1234");
+    expect(serviceOptions.requestNative).not.toHaveBeenCalled();
   });
 });
 

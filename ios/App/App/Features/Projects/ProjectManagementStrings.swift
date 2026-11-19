@@ -40,6 +40,12 @@ enum ProjectManagementStrings {
   static var save: String {
     String(localized: "projects.save.action", defaultValue: "Save")
   }
+  static var notesConflict: String {
+    String(localized: "projects.notes.conflict", defaultValue: "Project Notes changed elsewhere. Your draft is still here.")
+  }
+  static var loadSavedNotes: String {
+    String(localized: "projects.notes.loadSaved", defaultValue: "Load saved notes")
+  }
   static var cancel: String {
     String(localized: "projects.cancel", defaultValue: "Cancel")
   }

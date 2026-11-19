@@ -33,11 +33,13 @@ data class ProjectNotes(
     /** Wire order is presentation order and must be retained. */
     val todos: List<ProjectTodo>,
     val updatedAt: String,
+    val revision: String? = null,
 )
 
 @Serializable
 data class ProjectNotesReadResult(
     val notes: ProjectNotes?,
+    val guardedWrites: Int? = null,
 )
 
 @Serializable(with = ProjectNotesWriteBodySerializer::class)
@@ -46,7 +48,15 @@ data class ProjectNotesWriteBody(
     /** The path owns project identity; this body intentionally has no projectId. */
     val todos: List<ProjectTodo>,
     val updatedAt: String,
+    val guarded: Boolean = false,
+    val baseRevision: String? = null,
 )
+
+@Serializable
+data class ProjectNotesSaveResult(val status: String, val notes: ProjectNotes?)
+
+@Serializable
+data class ProjectNotesWriteResponse(val result: ProjectNotesSaveResult? = null)
 
 object ProjectNotesWriteBodySerializer : KSerializer<ProjectNotesWriteBody> {
     override val descriptor = buildClassSerialDescriptor("ProjectNotesWriteBody")
@@ -55,21 +65,25 @@ object ProjectNotesWriteBodySerializer : KSerializer<ProjectNotesWriteBody> {
         val jsonDecoder = decoder as? JsonDecoder
             ?: throw SerializationException("ProjectNotesWriteBody is JSON-only")
         val value = jsonDecoder.decodeJsonElement().jsonObject
-        if ("doc" !in value) throw SerializationException("doc is required")
+        val guarded = "replacement" in value
+        val content = if (guarded) value.getValue("replacement").jsonObject else value
+        if ("doc" !in content) throw SerializationException("doc is required")
         return ProjectNotesWriteBody(
-            doc = value.getValue("doc").takeUnless { it is JsonNull },
+            doc = content.getValue("doc").takeUnless { it is JsonNull },
             todos = jsonDecoder.json.decodeFromJsonElement(
                 ListSerializer(ProjectTodo.serializer()),
-                value.getValue("todos"),
+                content.getValue("todos"),
             ),
-            updatedAt = value.getValue("updatedAt").jsonPrimitive.content,
+            updatedAt = if (guarded) "" else value.getValue("updatedAt").jsonPrimitive.content,
+            guarded = guarded,
+            baseRevision = value["baseRevision"]?.takeUnless { it is JsonNull }?.jsonPrimitive?.content,
         )
     }
 
     override fun serialize(encoder: Encoder, value: ProjectNotesWriteBody) {
         val jsonEncoder = encoder as? JsonEncoder
             ?: throw SerializationException("ProjectNotesWriteBody is JSON-only")
-        jsonEncoder.encodeJsonElement(buildJsonObject {
+        val content = buildJsonObject {
             put("doc", value.doc ?: JsonNull)
             put(
                 "todos",
@@ -78,7 +92,11 @@ object ProjectNotesWriteBodySerializer : KSerializer<ProjectNotesWriteBody> {
                     value.todos,
                 ),
             )
-            put("updatedAt", jsonEncoder.json.encodeToJsonElement(String.serializer(), value.updatedAt))
-        })
+            if (!value.guarded) put("updatedAt", jsonEncoder.json.encodeToJsonElement(String.serializer(), value.updatedAt))
+        }
+        jsonEncoder.encodeJsonElement(if (value.guarded) buildJsonObject {
+            put("replacement", content)
+            put("baseRevision", value.baseRevision?.let { jsonEncoder.json.encodeToJsonElement(String.serializer(), it) } ?: JsonNull)
+        } else content)
     }
 }

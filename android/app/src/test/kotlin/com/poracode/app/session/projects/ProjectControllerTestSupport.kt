@@ -118,8 +118,11 @@ internal class FakeProjectGateway : ProjectSessionGateway {
         lease: ProjectHostLease,
         identity: ProjectIdentity,
         body: ProjectNotesWriteBody,
-    ) {
+    ): com.poracode.app.model.ProjectNotesSaveResult? {
         notesWrites += Triple(lease, identity, body)
         notesWriteHandler(lease, identity, body)
+        return notesSaveResult
     }
+
+    var notesSaveResult: com.poracode.app.model.ProjectNotesSaveResult? = null
 }

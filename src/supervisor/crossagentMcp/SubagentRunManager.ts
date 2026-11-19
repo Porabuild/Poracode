@@ -95,11 +95,11 @@ interface RunRecord extends AttemptExecutionState, ContinuableRun {
   /** Direct child items started under the synthetic Agent row. */
   stepCount: number;
   /**
-   * Child-side ids of forwarded `request.opened` events still awaiting a
+   * Child-side ids and incarnation markers for forwarded `request.opened` events awaiting a
    * resolution. Drained on settle/cancel via synthetic `request.resolved`
    * events so the parent's request panel doesn't show a stale prompt.
    */
-  pendingRequestIds: Set<string>;
+  pendingRequestIds: Map<string, symbol>;
   forwardedRuntimeItems: ForwardedRuntimeItemTracker;
   cancelRequested: boolean;
   turnStarted: boolean;
@@ -376,7 +376,7 @@ export class SubagentRunManager {
       stepCount: 0,
       handle: undefined,
       oneShot: undefined,
-      pendingRequestIds: new Set<string>(),
+      pendingRequestIds: new Map<string, symbol>(),
       forwardedRuntimeItems: new ForwardedRuntimeItemTracker(),
       cancelRequested: false,
       turnStarted: false,
@@ -815,6 +815,7 @@ export class SubagentRunManager {
     requestId: ThreadServerRequestId,
     response: unknown,
     parentThreadId: string,
+    requirePending = false,
   ): Promise<boolean> {
     const parsed = parseNamespacedRequestId(requestId);
     if (!parsed) return false;
@@ -822,11 +823,20 @@ export class SubagentRunManager {
     if (!record) return false;
     if (record.parentThreadId !== parentThreadId)
       throw new SubagentSpawnError("This request belongs to another parent thread.");
-    if (record.handle?.resolveServerRequest) {
-      await record.handle.resolveServerRequest(parsed.requestId, response);
+    const handle = record.handle;
+    const pending = record.pendingRequestIds.get(parsed.requestId);
+    if (!pending || !handle?.resolveServerRequest) {
+      if (requirePending)
+        throw new SubagentSpawnError("The forwarded request is no longer pending.");
+      return true;
     }
-    record.pendingRequestIds.delete(parsed.requestId);
-    this.lifecycle.emit(record.parentThreadId, "changed");
+    await handle.resolveServerRequest(parsed.requestId, response);
+    // An adapter can open a new request under the same id before the
+    // acknowledgement for this reply comes back.
+    if (record.handle === handle && record.pendingRequestIds.get(parsed.requestId) === pending) {
+      record.pendingRequestIds.delete(parsed.requestId);
+      this.lifecycle.emit(record.parentThreadId, "changed");
+    }
     return true;
   }
 
@@ -1061,7 +1071,7 @@ export class SubagentRunManager {
         return;
       }
       case "request.opened":
-        record.pendingRequestIds.add(event.requestId);
+        record.pendingRequestIds.set(event.requestId, Symbol());
         this.lifecycle.emit(record.parentThreadId, "changed");
         this.deps.host.appendRuntimeEvent(
           record.parentThreadId,
@@ -1212,7 +1222,7 @@ export class SubagentRunManager {
   }
 
   private drainPendingRequests(record: RunRecord): void {
-    for (const requestId of record.pendingRequestIds) {
+    for (const requestId of record.pendingRequestIds.keys()) {
       this.deps.host.appendRuntimeEvent(record.parentThreadId, {
         type: "request.resolved",
         threadId: record.parentThreadId,

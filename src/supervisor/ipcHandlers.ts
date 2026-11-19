@@ -103,6 +103,7 @@ export function createSupervisorIpcHandlers(runtime: SupervisorRuntime): Supervi
     controlThreadExecution: (payload) => threads.controlThreadExecution(payload),
     reserveThreadExecution: (payload) => threads.reserveThreadExecution(payload),
     controlledThreadRequest: (payload) => threads.controlledThreadRequest(payload),
+    appThreadRequests: (payload) => threads.appThreadRequests(payload),
     ensureThreadRunning: (payload) => threads.ensureThreadRunning(payload),
     sendThreadInput: (payload) =>
       threads.sendThreadInput(sendThreadInputPayloadSchema.parse(payload)),
@@ -137,6 +138,7 @@ export function createSupervisorIpcHandlers(runtime: SupervisorRuntime): Supervi
     closeThread: (payload) => threads.closeThread(payload),
     closeThreadConfirmed: (payload) => threads.closeThreadConfirmed(payload),
     startShell: (payload) => threads.startShell(payload),
+    controlWorkspaceTerminal: (payload) => threads.controlWorkspaceTerminal(payload),
     extractContext: (payload) => generation.extractContext(payload),
     cancelExtractContext: ({ threadId }) => generation.cancelExtractContext(threadId),
     cancelCrossagentRun: ({ threadId, runId }) => runtime.cancelCrossagentRun(runId, threadId),

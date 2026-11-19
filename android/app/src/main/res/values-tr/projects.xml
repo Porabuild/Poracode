@@ -123,4 +123,6 @@
     <string name="projects_request_failed">Masaüstü isteği tamamlayamadı.</string>
     <string name="projects_request_uncertain">Masaüstü değişikliği onaylamadan bağlantı sona erdi. Yeniden denemeden önce yenileyin.</string>
     <string name="projects_setup_detection_failed">Proje eklendi ancak Poracode kurulum betiğini algılayamadı.</string>
+    <string name="projects_notes_conflict">Proje notları başka bir yerde değiştirildi. Taslağınız hâlâ burada.</string>
+    <string name="projects_notes_load_saved">Kaydedilen notları yükle</string>
 </resources>

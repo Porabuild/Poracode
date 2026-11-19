@@ -9,6 +9,7 @@ import com.poracode.app.model.ProjectIdentity
 import com.poracode.app.model.ProjectLocation
 import com.poracode.app.model.ProjectNotesReadResult
 import com.poracode.app.model.ProjectNotesWriteBody
+import com.poracode.app.model.ProjectNotesSaveResult
 import com.poracode.app.model.ProjectSettings
 import com.poracode.app.model.RemoteEnvironmentDescriptor
 import kotlinx.coroutines.flow.StateFlow
@@ -124,7 +125,7 @@ interface ProjectSessionGateway {
         lease: ProjectHostLease,
         identity: ProjectIdentity,
         body: ProjectNotesWriteBody,
-    )
+    ): ProjectNotesSaveResult?
 }
 
 fun interface ProjectRefreshScheduler {

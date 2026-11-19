@@ -7,6 +7,8 @@ import com.poracode.app.model.ProjectCommandResult
 import com.poracode.app.model.ProjectLocation
 import com.poracode.app.model.ProjectNotesReadResult
 import com.poracode.app.model.ProjectNotesWriteBody
+import com.poracode.app.model.ProjectNotesSaveResult
+import com.poracode.app.model.ProjectNotesWriteResponse
 import com.poracode.app.model.ProjectSettings
 import com.poracode.app.model.RemoteJson
 import com.poracode.app.protocol.GeneratedRemoteV3ProjectContract
@@ -86,7 +88,7 @@ class ProjectRemoteApiClient private constructor(
         )
     }
 
-    override suspend fun writeProjectNotes(projectId: String, body: ProjectNotesWriteBody) {
+    override suspend fun writeProjectNotes(projectId: String, body: ProjectNotesWriteBody): ProjectNotesSaveResult? {
         val canonicalId = GeneratedRemoteV3ProjectContract.projectNotesWritePath(projectId)
         val rawBody = RemoteJson.encodeToString(ProjectNotesWriteBody.serializer(), body)
         val response = http.requestText(
@@ -94,7 +96,10 @@ class ProjectRemoteApiClient private constructor(
             method = "POST",
             jsonBody = GeneratedRemoteV3ProjectContract.projectNotesWriteRequest(rawBody),
         )
-        GeneratedRemoteV3ProjectContract.projectNotesWriteResponse(response)
+        val canonical = GeneratedRemoteV3ProjectContract.projectNotesWriteResponse(response)
+        val result = RemoteJson.decodeFromString<ProjectNotesWriteResponse>(canonical).result
+        check(!body.guarded || result != null) { "The host did not confirm the guarded Notes save." }
+        return result
     }
 
     override suspend fun browseHostDirectory(path: String): BrowseHostDirectoryResult {

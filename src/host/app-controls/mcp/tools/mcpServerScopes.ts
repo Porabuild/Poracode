@@ -1,7 +1,5 @@
 import type { McpServer, ProjectLocation } from "@/shared/contracts";
 import { isHomeProjectId } from "@/shared/homeScope";
-import type { SharedSettings } from "@/shared/settings";
-import { mergeManagedSharedSettings } from "../../../sharedSettingsFile";
 import { requireProject, type AppControlsToolContext } from "./types";
 
 /**
@@ -100,18 +98,25 @@ export function readScope(ctx: AppControlsToolContext, scope: McpScope): McpServ
   return requireProject(ctx, scope.projectId).mcpServers ?? [];
 }
 
-export function writeScope(
+/** Mutate the latest scoped list and await the owner's commit. */
+export async function editScope(
   ctx: AppControlsToolContext,
   scope: McpScope,
-  servers: McpServer[],
-): void {
+  compute: (servers: McpServer[]) => McpServer[],
+): Promise<void> {
   if (scope.kind === "global") {
-    writeMcpServers(ctx, ctx.settings.read(), servers);
+    const result = await ctx.settings.editField("mcpServers", (current) =>
+      compute(current.mcpServers),
+    );
+    if (result.status !== "committed") {
+      throw new Error(
+        `MCP server settings were not saved (${result.status}). Check list_mcp_servers before retrying.`,
+      );
+    }
     return;
   }
-  // Re-read the row so only `mcpServers` changes on top of the freshest state.
   const project = requireProject(ctx, scope.projectId);
-  ctx.updateProject({ ...project, mcpServers: servers });
+  ctx.updateProject({ ...project, mcpServers: compute(project.mcpServers ?? []) });
 }
 
 export function scopeLocation(ctx: AppControlsToolContext, scope: McpScope) {
@@ -141,15 +146,4 @@ export function scopeView(scope: McpScope): Record<string, unknown> {
   return scope.kind === "global"
     ? { scope: "global" }
     : { scope: "project", projectId: scope.projectId, projectName: scope.projectName };
-}
-
-/** Persist a new global server list through the guarded settings write gateway. */
-function writeMcpServers(
-  ctx: AppControlsToolContext,
-  onDisk: SharedSettings,
-  mcpServers: McpServer[],
-): void {
-  // Defense in depth: re-pin supervisor-managed fields exactly like update_settings.
-  const merged = mergeManagedSharedSettings(onDisk, { ...onDisk, mcpServers });
-  ctx.settings.write(merged);
 }

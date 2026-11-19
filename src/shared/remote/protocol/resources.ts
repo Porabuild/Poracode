@@ -33,6 +33,22 @@ import {
 import { remoteRuntimeHistoryNoticeSchema } from "./runtimeHistoryNotice";
 import { remoteEventEpochSchema } from "./eventEpoch";
 
+export const remoteProjectUpdatePatchSchema = z.object({
+  name: projectSchema.shape.name.optional(),
+  icon: projectSchema.shape.icon.unwrap().nullable().optional(),
+  scripts: projectSchema.shape.scripts.unwrap().nullable().optional(),
+  searchSettings: projectSchema.shape.searchSettings.unwrap().nullable().optional(),
+  worktreeLocation: projectSchema.shape.worktreeLocation.unwrap().nullable().optional(),
+  // Project values default an omitted list to [], but a patch must
+  // distinguish "not supplied" from an explicit empty list.
+  mcpServers: projectSchema.shape.mcpServers.unwrap().removeDefault().nullable().optional(),
+  ghAccount: projectSchema.shape.ghAccount.unwrap().nullable().optional(),
+  worktreeBaseBranch: projectSchema.shape.worktreeBaseBranch.unwrap().nullable().optional(),
+  pinnedBranches: projectSchema.shape.pinnedBranches.unwrap().nullable().optional(),
+  pluginOverrides: projectSchema.shape.pluginOverrides.unwrap().nullable().optional(),
+  disabled: projectSchema.shape.disabled,
+});
+
 /**
  * Remote project management. Lets a paired client add/clone/remove projects on
  * the desktop or a headless server. Locations are referenced by an absolute
@@ -42,6 +58,19 @@ import { remoteEventEpochSchema } from "./eventEpoch";
  * exposing the server's directory tree is a separate security decision (see
  * docs/REMOTE_ARCHITECTURE.md, Phase 3). All commands require `projects:manage`.
  */
+export const reorderProjectCommandSchema = z.object({
+  kind: z.literal("reorder"),
+  projectId: z.string().min(1),
+  targetProjectId: z.string().min(1),
+  placement: catalogReorderPlacementSchema,
+});
+
+export const setProjectDraftConfigCommandSchema = z.object({
+  kind: z.literal("set-draft-config"),
+  projectId: z.string().min(1),
+  lastDraftConfig: projectDraftConfigSchema.nullable(),
+});
+
 export const remoteProjectCommandSchema = z.discriminatedUnion("kind", [
   // Register an existing folder on the server as a project.
   z.object({
@@ -66,21 +95,7 @@ export const remoteProjectCommandSchema = z.discriminatedUnion("kind", [
   z.object({
     kind: z.literal("update"),
     projectId: z.string().min(1),
-    patch: z.object({
-      name: projectSchema.shape.name.optional(),
-      icon: projectSchema.shape.icon.unwrap().nullable().optional(),
-      scripts: projectSchema.shape.scripts.unwrap().nullable().optional(),
-      searchSettings: projectSchema.shape.searchSettings.unwrap().nullable().optional(),
-      worktreeLocation: projectSchema.shape.worktreeLocation.unwrap().nullable().optional(),
-      // Project values default an omitted list to [], but a patch must
-      // distinguish "not supplied" from an explicit empty list.
-      mcpServers: projectSchema.shape.mcpServers.unwrap().removeDefault().nullable().optional(),
-      ghAccount: projectSchema.shape.ghAccount.unwrap().nullable().optional(),
-      worktreeBaseBranch: projectSchema.shape.worktreeBaseBranch.unwrap().nullable().optional(),
-      pinnedBranches: projectSchema.shape.pinnedBranches.unwrap().nullable().optional(),
-      pluginOverrides: projectSchema.shape.pluginOverrides.unwrap().nullable().optional(),
-      disabled: projectSchema.shape.disabled,
-    }),
+    patch: remoteProjectUpdatePatchSchema,
   }),
   z.object({
     kind: z.literal("relocate"),
@@ -96,12 +111,7 @@ export const remoteProjectCommandSchema = z.discriminatedUnion("kind", [
   // Relative move of one project over the host's complete `(sort_order, id)`
   // project order. Every project the caller did not name keeps its relative
   // order, so a partial client projection can never reindex the catalog.
-  z.object({
-    kind: z.literal("reorder"),
-    projectId: z.string().min(1),
-    targetProjectId: z.string().min(1),
-    placement: catalogReorderPlacementSchema,
-  }),
+  reorderProjectCommandSchema,
   // Single-column nullable workspace assignment (`null` clears).
   z.object({
     kind: z.literal("set-workspace"),
@@ -112,11 +122,7 @@ export const remoteProjectCommandSchema = z.discriminatedUnion("kind", [
   // dedicated kind instead of an `update.patch` key: an older host strips
   // unknown patch keys silently, which would report success without
   // persisting; the unknown kind fails loudly instead.
-  z.object({
-    kind: z.literal("set-draft-config"),
-    projectId: z.string().min(1),
-    lastDraftConfig: projectDraftConfigSchema.nullable(),
-  }),
+  setProjectDraftConfigCommandSchema,
 ]);
 export type RemoteProjectCommand = z.infer<typeof remoteProjectCommandSchema>;
 

@@ -13,12 +13,13 @@ export interface ProjectNotesEntry {
   /** TipTap (ProseMirror) JSON document, or null when the editor is empty. */
   doc: unknown | null;
   todos: NotesTodoItem[];
+  conflict?: true;
 }
 
 interface NotesStore {
   byProject: Record<string, ProjectNotesEntry>;
-  /** Lazily load a project's notes from the DB (no-op once loading/ready). */
-  ensureLoaded: (projectId: string) => void;
+  /** Refresh saved notes on open when clean, or discard a conflicted draft on explicit reload. */
+  refresh: (projectId: string, discardDraft?: boolean) => void;
   setDoc: (projectId: string, doc: unknown | null) => void;
   addTodo: (projectId: string, text: string) => void;
   toggleTodo: (projectId: string, todoId: string) => void;
@@ -35,7 +36,9 @@ interface NotesStore {
 
 const PERSIST_DEBOUNCE_MS = 600;
 const persistTimers = new Map<string, ReturnType<typeof setTimeout>>();
-const persistedEntries = new Map<string, ProjectNotesEntry>();
+const persistedEntries = new Map<string, { entry: ProjectNotesEntry; revision: string | null }>();
+const activeWrites = new Map<string, object>();
+const queuedWrites = new Set<string>();
 let sessionGeneration = 0;
 
 function hasBridge(): boolean {
@@ -49,46 +52,65 @@ function makeTodoId(): string {
   return `todo-${Date.now().toString(36)}-${Math.floor(Math.random() * 1e9).toString(36)}`;
 }
 
-function persistNow(projectId: string, entry: ProjectNotesEntry, attempt = 0): void {
+function persistNow(projectId: string, entry: ProjectNotesEntry): void {
   if (!hasBridge()) return;
+  const confirmed = persistedEntries.get(projectId);
+  if (entry.conflict || entry === confirmed?.entry) return;
+  if (activeWrites.has(projectId)) {
+    queuedWrites.add(projectId);
+    return;
+  }
+  const write = {};
+  activeWrites.set(projectId, write);
   const persistGeneration = sessionGeneration;
-  void readBridge()
-    .dbSetProjectNotes({
+  const request = () =>
+    readBridge().dbSetProjectNotes({
       projectId,
-      doc: entry.doc ?? null,
-      todos: entry.todos,
-      updatedAt: new Date().toISOString(),
-    })
-    .then(() => {
-      if (persistGeneration === sessionGeneration) {
-        persistedEntries.set(projectId, entry);
-      }
-    })
-    .catch((error) => {
-      if (
-        attempt === 0 &&
-        persistGeneration === sessionGeneration &&
-        isRemoteTransportFailure(error)
-      ) {
-        setTimeout(() => persistNow(projectId, entry, 1), 500);
-        return;
-      }
-      console.error("[notes] failed to persist project notes", error);
-      toast.danger(friendlyError(error));
-      if (persistGeneration !== sessionGeneration) return;
+      baseRevision: confirmed?.revision ?? null,
+      replacement: { doc: entry.doc ?? null, todos: entry.todos },
+    });
+  const currentSession = () => persistGeneration === sessionGeneration;
+  const persist = async () => {
+    let result;
+    try {
+      result = await request();
+    } catch (error) {
+      if (!isRemoteTransportFailure(error) || !currentSession()) throw error;
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      if (!currentSession()) return;
+      result = await request();
+    }
+    if (!currentSession()) return;
+    if (result?.status === "conflict") {
+      clearTimer(projectId);
+      queuedWrites.delete(projectId);
       useNotesStore.setState((state) => {
-        if (state.byProject[projectId] !== entry) return state;
-        return {
-          byProject: {
-            ...state.byProject,
-            [projectId]: persistedEntries.get(projectId) ?? {
-              status: "ready",
-              doc: null,
-              todos: [],
-            },
-          },
-        };
+        const draft = state.byProject[projectId];
+        return draft
+          ? {
+              byProject: { ...state.byProject, [projectId]: { ...draft, conflict: true } },
+            }
+          : state;
       });
+      return;
+    }
+    if (result?.status !== "saved" || result.notes.projectId !== projectId) {
+      throw new Error("The host did not confirm the guarded Notes save.");
+    }
+    persistedEntries.set(projectId, { entry, revision: result.notes.revision ?? null });
+  };
+  void persist()
+    .catch((error: unknown) => {
+      if (currentSession()) {
+        console.error("[notes] failed to persist project notes", error);
+        toast.danger(friendlyError(error));
+        // Keep the draft. A later save still uses the last confirmed revision.
+      }
+    })
+    .finally(() => {
+      if (activeWrites.get(projectId) !== write) return;
+      activeWrites.delete(projectId);
+      if (queuedWrites.delete(projectId)) useNotesStore.getState().flush(projectId);
     });
 }
 
@@ -130,46 +152,56 @@ export const useNotesStore = create<NotesStore>((set, get) => {
   return {
     byProject: {},
 
-    ensureLoaded: (projectId) => {
+    refresh: (projectId, discardDraft = false) => {
       const entry = get().byProject[projectId];
-      if (entry && entry.status !== "unloaded") return;
+      if (activeWrites.has(projectId) || entry?.status === "loading") return;
+      if (
+        !discardDraft &&
+        entry?.status === "ready" &&
+        entry !== persistedEntries.get(projectId)?.entry
+      )
+        return;
       const loadGeneration = sessionGeneration;
-      const setReady = (doc: unknown | null, todos: NotesTodoItem[]) => {
-        if (loadGeneration !== sessionGeneration) return;
+      const loading: ProjectNotesEntry = {
+        status: "loading",
+        doc: entry?.doc ?? null,
+        todos: entry?.todos ?? [],
+      };
+      const isCurrentLoad = () =>
+        loadGeneration === sessionGeneration && get().byProject[projectId] === loading;
+      const setReady = (doc: unknown | null, todos: NotesTodoItem[], revision: string | null) => {
+        if (!isCurrentLoad()) return;
         const ready: ProjectNotesEntry = { status: "ready", doc, todos };
-        persistedEntries.set(projectId, ready);
+        persistedEntries.set(projectId, { entry: ready, revision });
         set((state) => ({ byProject: { ...state.byProject, [projectId]: ready } }));
       };
+      clearTimer(projectId);
       set((state) => ({
-        byProject: {
-          ...state.byProject,
-          [projectId]: {
-            status: "loading",
-            doc: entry?.doc ?? null,
-            todos: entry?.todos ?? [],
-          },
-        },
+        byProject: { ...state.byProject, [projectId]: loading },
       }));
       if (!hasBridge()) {
-        setReady(null, []);
+        setReady(null, [], null);
         return;
       }
       const load = (attempt: number) => {
         void readBridge()
           .dbGetProjectNotes(projectId)
-          .then((data) => setReady(data?.doc ?? null, data?.todos ?? []))
+          .then((data) => setReady(data?.doc ?? null, data?.todos ?? [], data?.revision ?? null))
           .catch((error) => {
-            if (
-              attempt === 0 &&
-              loadGeneration === sessionGeneration &&
-              isRemoteTransportFailure(error)
-            ) {
-              setTimeout(() => load(1), 500);
+            if (attempt === 0 && isCurrentLoad() && isRemoteTransportFailure(error)) {
+              setTimeout(() => {
+                if (isCurrentLoad()) load(1);
+              }, 500);
               return;
             }
             console.error("[notes] failed to load project notes", error);
             toast.danger(friendlyError(error));
-            setReady(null, []);
+            if (!isCurrentLoad()) return;
+            if (entry) {
+              set((state) => ({ byProject: { ...state.byProject, [projectId]: entry } }));
+            } else {
+              setReady(null, [], null);
+            }
           });
       };
       load(0);
@@ -246,6 +278,8 @@ export const useNotesStore = create<NotesStore>((set, get) => {
       get().flushAll();
       sessionGeneration += 1;
       persistedEntries.clear();
+      activeWrites.clear();
+      queuedWrites.clear();
       set({ byProject: {} });
     },
   };

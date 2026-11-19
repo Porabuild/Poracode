@@ -33,6 +33,8 @@ interface PluginsState {
   load: (options?: { projectLocation?: ProjectLocation; rescan?: boolean }) => Promise<void>;
 }
 
+let inventoryGeneration = 0;
+
 export const usePlugins = create<PluginsState>()((set, get) => ({
   pluginsByScope: {},
   userPluginsDir: "",
@@ -42,6 +44,7 @@ export const usePlugins = create<PluginsState>()((set, get) => ({
   error: undefined,
   load: async (options = {}) => {
     const scope = pluginScopeKey(options.projectLocation);
+    const generation = inventoryGeneration;
     if (get().loading[scope]) return;
     set((state) => ({ loading: { ...state.loading, [scope]: true }, error: undefined }));
     try {
@@ -50,6 +53,7 @@ export const usePlugins = create<PluginsState>()((set, get) => ({
       const result = options.rescan
         ? await bridge.refreshPlugins(payload)
         : await bridge.listPlugins(payload);
+      if (generation !== inventoryGeneration) return;
       set((state) => {
         const loading = { ...state.loading };
         delete loading[scope];
@@ -68,14 +72,30 @@ export const usePlugins = create<PluginsState>()((set, get) => ({
         };
       });
     } catch (error) {
+      if (generation !== inventoryGeneration) return;
       set((state) => {
         const loading = { ...state.loading };
         delete loading[scope];
         return { error, loading, loadedScopes: { ...state.loadedScopes, [scope]: true as const } };
       });
+    } finally {
+      if (generation !== inventoryGeneration) {
+        set((state) => {
+          const loading = { ...state.loading };
+          delete loading[scope];
+          return { loading };
+        });
+        await get().load(options);
+      }
     }
   },
 }));
+
+/** An owner edit can install, update or remove a package outside the renderer. */
+export function invalidatePluginInventory(): void {
+  inventoryGeneration++;
+  usePlugins.setState({ pluginsByScope: {}, loadedScopes: {} });
+}
 
 /**
  * Packages visible to a project. Falls back to the app-global list until the

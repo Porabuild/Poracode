@@ -157,6 +157,31 @@ const memorySaveEntrySchema = memoryEntrySchema
     quote: z.string().nullable().optional(),
   });
 const memoryDeleteCommandSchema = z.object({ action: z.literal("delete"), id: z.string().min(1) });
+export const memoryThreadModeCommandSchema = z.object({
+  action: z.literal("thread-mode"),
+  threadId: z.string().min(1),
+  mode: memoryThreadModeSchema,
+});
+export const memoryDreamCommandSchema = z.object({ action: z.literal("dream") });
+export const memoryUndoCommandSchema = z.object({
+  action: z.literal("undo"),
+  runId: z.string().min(1),
+});
+export const memorySuggestionsCommandSchema = z.object({
+  action: z.literal("suggestions"),
+  projectId: z.string().min(1).optional(),
+});
+export const memorySuggestionCommandSchema = z.object({
+  action: z.literal("suggestion"),
+  id: z.string().min(1),
+  decision: z.enum(["approve", "dismiss"]),
+  name: z.string().min(1).optional(),
+  description: z.string().optional(),
+  body: z.string().optional(),
+  scope: memoryScopeSchema.optional(),
+  availability: z.enum(["shared", "poracode"]).optional(),
+  projectId: z.string().min(1).nullable().optional(),
+});
 
 export const memoryCommandPayloadSchema = z.discriminatedUnion("action", [
   z.object({
@@ -167,25 +192,11 @@ export const memoryCommandPayloadSchema = z.discriminatedUnion("action", [
   memoryListCommandSchema,
   z.object({ action: z.literal("save"), entry: memorySaveEntrySchema }),
   memoryDeleteCommandSchema,
-  z.object({
-    action: z.literal("thread-mode"),
-    threadId: z.string().min(1),
-    mode: memoryThreadModeSchema,
-  }),
-  z.object({ action: z.literal("dream") }),
-  z.object({ action: z.literal("undo"), runId: z.string().min(1) }),
-  z.object({ action: z.literal("suggestions"), projectId: z.string().min(1).optional() }),
-  z.object({
-    action: z.literal("suggestion"),
-    id: z.string().min(1),
-    decision: z.enum(["approve", "dismiss"]),
-    name: z.string().min(1).optional(),
-    description: z.string().optional(),
-    body: z.string().optional(),
-    scope: memoryScopeSchema.optional(),
-    availability: z.enum(["shared", "poracode"]).optional(),
-    projectId: z.string().min(1).nullable().optional(),
-  }),
+  memoryThreadModeCommandSchema,
+  memoryDreamCommandSchema,
+  memoryUndoCommandSchema,
+  memorySuggestionsCommandSchema,
+  memorySuggestionCommandSchema,
   z.object({
     action: z.literal("sync-export"),
     projectRepoKeys: z.record(z.string(), z.string()).optional(),

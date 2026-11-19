@@ -1,7 +1,14 @@
 import { z } from "zod";
 import { memoryCommandPayloadSchema, type MemoryCommandPayload } from "../../memory";
 import { projectSchema, threadContextUsageSchema } from "../../contracts";
-import type { Project, ProjectNotes, Thread, ThreadContextUsage } from "../../contracts";
+import type {
+  Project,
+  ProjectNotes,
+  ProjectNotesWrite,
+  ProjectNotesSaveResult,
+  Thread,
+  ThreadContextUsage,
+} from "../../contracts";
 import { threadTokenUsageSchema, type ThreadTokenUsage } from "../../contracts/threadTokenUsage";
 import {
   defineIpcProcedure,
@@ -230,11 +237,11 @@ export const dbProcedures = {
   >("dbGetProjectNotes", "main-local", dbGetProjectNotesPayloadSchema, (projectId) =>
     dbGetProjectNotesPayloadSchema.parse({ projectId }),
   ),
-  dbSetProjectNotes: definePayloadProcedure<ProjectNotes, void, "main-local">(
-    "dbSetProjectNotes",
-    "main-local",
-    dbSetProjectNotesPayloadSchema,
-  ),
+  dbSetProjectNotes: definePayloadProcedure<
+    ProjectNotesWrite,
+    ProjectNotesSaveResult | void,
+    "main-local"
+  >("dbSetProjectNotes", "main-local", dbSetProjectNotesPayloadSchema),
   memoryCommand: definePayloadProcedure<MemoryCommandPayload, unknown, "main-local">(
     "memoryCommand",
     "main-local",

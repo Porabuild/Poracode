@@ -14,6 +14,7 @@ export type RuntimeRequestFormRequest = {
 };
 
 export const NEGATIVE_OPTION_PATTERN = /(deny|denied|decline|reject|abort|cancel)/i;
+export const DEFAULT_APPROVAL_OPTION_IDS = { allow: "allow", deny: "deny" } as const;
 
 export function isNegativeOption(option: UserInputOption): boolean {
   return (

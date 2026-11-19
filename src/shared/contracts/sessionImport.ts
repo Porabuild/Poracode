@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { ImportSessionThreadCommand, Thread } from "./thread";
 
 /**
  * Importing an existing CLI conversation into a Poracode thread. Agents that
@@ -77,6 +78,27 @@ export type ImportSessionTranscriptPayload = z.infer<typeof importSessionTranscr
 
 export interface ImportSessionTranscriptResult {
   messageCount: number;
+}
+
+/** Tool input omits the host-assigned identity and transport discriminator. */
+export type AppSessionImportInput = Omit<ImportSessionThreadCommand, "kind" | "threadId">;
+
+export interface AppSessionImportResult {
+  threadId: string;
+  projectId: string;
+  outcome: "imported" | "existing";
+}
+
+/** A CLI session may already be attached to a thread through launch or import. */
+export function matchesImportedSession(
+  session: Pick<ImportableSession, "path" | "agentKind" | "providerSessionId">,
+  thread: Pick<Thread, "config" | "agentKind" | "sessionRef">,
+): boolean {
+  return (
+    thread.config.importedFrom?.path === session.path ||
+    (thread.agentKind === session.agentKind &&
+      thread.sessionRef?.providerSessionId === session.providerSessionId)
+  );
 }
 
 /**

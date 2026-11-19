@@ -12,7 +12,12 @@ import {
   writeTerminalPayloadSchema,
 } from "../../contracts";
 import { dbTruncateRuntimeItemsPayloadSchema } from "../../ipc/schemas";
-import { projectNotesSchema } from "../../contracts/notes";
+import {
+  projectNotesSchema,
+  projectNotesLegacyWriteSchema,
+  projectNotesGuardedWriteSchema,
+  projectNotesSaveResultSchema,
+} from "../../contracts/notes";
 import { emptyJsonObjectSchema } from "./helpers";
 
 /** Path-scoped bodies omit the path-injected `threadId`. */
@@ -86,10 +91,17 @@ export const startExistingThreadBodySchema = z.object({
 
 export const projectNotesReadResultSchema = z.object({
   notes: projectNotesSchema.nullable(),
+  guardedWrites: z.literal(1).optional(),
 });
 
 /** Project identity is authoritative from `/api/projects/{projectId}/notes`. */
-export const projectNotesWriteBodySchema = projectNotesSchema.omit({ projectId: true });
+export const projectNotesWriteBodySchema = z.union([
+  projectNotesLegacyWriteSchema.omit({ projectId: true }),
+  projectNotesGuardedWriteSchema.omit({ projectId: true }),
+]);
+export const projectNotesWriteResultSchema = z.object({
+  result: projectNotesSaveResultSchema.optional(),
+});
 
 /**
  * B1 runtime-gap recovery bodies/results (canonical definitions live in the

@@ -5,7 +5,7 @@ import {
   isThreadTurnActive,
   type RuntimeEvent,
 } from "@/shared/contracts";
-import type { StructuredSessionUpdate } from "../../agents/base";
+import type { StructuredSessionHandle, StructuredSessionUpdate } from "../../agents/base";
 import { captureSupervisorException } from "../../diagnostics/sentry";
 import type { CrewLeadEditMonitor } from "../crewLeadEditMonitor";
 import type { SessionRuntime } from "../sessionTypes";
@@ -28,6 +28,7 @@ export interface SessionRuntimeLifecycleContext {
     "emitState" | "updateState" | "noteTurnFailed" | "handlePtyData" | "clearSessionTimers"
   >;
   runtimeEventRouter: Pick<RuntimeEventRouter, "flush" | "append">;
+  observeLiveRequest?(handle: StructuredSessionHandle, event: RuntimeEvent): void;
   steerCoordinator: Pick<SteerCoordinator, "maybeDrainPendingSteer"> &
     Partial<Pick<SteerCoordinator, "noteSteerTurnStarted">>;
   /** Optional for compatibility with focused lifecycle harnesses. */
@@ -106,7 +107,8 @@ export class SessionRuntimeLifecycle {
 
   private bindStructuredSession(session: SessionRuntime): void {
     const actualAdapter = session.adapter;
-    session.structuredSession?.setListener({
+    const handle = session.structuredSession;
+    handle?.setListener({
       onClose: () => {
         // Transport close is the structured side's confirmed retirement.
         session.structuredRetired = true;
@@ -131,6 +133,7 @@ export class SessionRuntimeLifecycle {
       },
       onRuntimeEvent: (event) => {
         if (!this.canHandleStructuredEvent(session)) return;
+        if (session.structuredSession === handle) this.context.observeLiveRequest?.(handle, event);
         this.handleStructuredRuntimeEvent(
           session,
           captureRuntimePayloadOrigin(event, actualAdapter.runtimePayloadFormatOwnerKey),

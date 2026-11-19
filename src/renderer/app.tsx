@@ -33,6 +33,7 @@ import { onRemoteTerminalExited } from "./state/remoteTerminalFeed";
 import { installRemoteGitSummaryPublisher } from "./remoteGitSummaries";
 import { installRemoteProjectWorkspaceSync } from "./state/remoteServers/appRows";
 import { applyExternalSharedSettings } from "./state/sharedSettingsStore";
+import { invalidatePluginInventory } from "./state/pluginsStore";
 import { normalizeSharedSettings } from "@/shared/settings";
 import { useDevTerminalStore } from "./state/devTerminalStore";
 import { useThreadOutputStore } from "./state/threadOutputStore";
@@ -321,8 +322,9 @@ const runtimeWindowCleanups: Array<() => void> =
           : []),
         // Settings rewritten outside this renderer (remote clients editing desktop
         // settings over the remote API) — apply without echoing a persist.
-        readBridge().onSharedSettingsChanged((settings) => {
+        readBridge().onSharedSettingsChanged((settings, pluginInventoryChanged) => {
           applyExternalSharedSettings(normalizeSharedSettings(settings));
+          if (pluginInventoryChanged) invalidatePluginInventory();
         }),
         supervisorReducer.installScheduling(),
       ]
@@ -339,8 +341,37 @@ const gitStateCleanups: Array<() => void> =
         }),
       ]
     : [];
+const unsubscribeAppThreadTransfer = isMainWindow
+  ? readBridge().onAppThreadTransfer?.(async (request, begin) => {
+      const { runAppThreadTransfer } = await import("./actions/appThreadTransferActions");
+      return runAppThreadTransfer(request, begin);
+    })
+  : undefined;
+const unsubscribeAppMemorySync = isMainWindow
+  ? readBridge().onAppMemorySync?.(async (_request, begin) => {
+      const { syncMemoryAcrossEnvironments } = await import("./state/memorySync");
+      await begin();
+      return syncMemoryAcrossEnvironments({ force: true });
+    })
+  : undefined;
+const unsubscribeAppExperiment = isMainWindow
+  ? readBridge().onAppExperiment?.(async (request, begin) => {
+      const { runAppExperiment } = await import("./actions/appExperimentActions");
+      return runAppExperiment(request, begin);
+    })
+  : undefined;
+const unsubscribeAppProviderLogin = isMainWindow
+  ? readBridge().onAppProviderLogin?.(async (request, begin) => {
+      const { runAppProviderLogin } = await import("./actions/appProviderLoginActions");
+      return runAppProviderLogin(request, begin);
+    })
+  : undefined;
 const mainWindowCleanups: Array<() => void> = isMainWindow
   ? [
+      ...(unsubscribeAppThreadTransfer ? [unsubscribeAppThreadTransfer] : []),
+      ...(unsubscribeAppMemorySync ? [unsubscribeAppMemorySync] : []),
+      ...(unsubscribeAppExperiment ? [unsubscribeAppExperiment] : []),
+      ...(unsubscribeAppProviderLogin ? [unsubscribeAppProviderLogin] : []),
       installThreadWindowTracking(),
       onRemoteTerminalExited((terminalId) => {
         if (terminalId.startsWith("shell:")) closeExitedShell(terminalId);

@@ -1,7 +1,8 @@
 import type { SharedSettings } from "@/shared/settings";
+import type { SettingsMutationResult } from "@/shared/settingsTransactions";
 
 export interface BackendSettingsNotifications {
-  onChanged(settings: SharedSettings): void;
+  onChanged(settings: SharedSettings, change?: SettingsMutationResult): void;
   reportError?(error: unknown): void;
 }
 
@@ -19,9 +20,10 @@ export function reportSettingsError(error: unknown, reportError?: (error: unknow
 export function notifySettingsChanged(
   settings: SharedSettings,
   options: BackendSettingsNotifications,
+  change?: SettingsMutationResult,
 ): void {
   try {
-    options.onChanged(settings);
+    options.onChanged(settings, change);
   } catch (error) {
     reportSettingsError(error, options.reportError);
   }

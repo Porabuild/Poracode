@@ -7,6 +7,7 @@ import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { useGitStore } from "@/renderer/state/gitStore";
 import { useProjectGroupStore } from "@/renderer/state/projectGroups/projectGroupStore";
 import { getProjectGroupIndex } from "@/renderer/state/projectGroups/useProjectGroups";
+import { runAppThreadTransfer } from "./appThreadTransferActions";
 import {
   loadThreadTransferPreview,
   moveThreadToHost,
@@ -90,6 +91,7 @@ function fakeHost(
     agentStatuses: vi.fn<(input?: unknown) => Promise<{ windows: AgentStatus[] }>>(async () => ({
       windows: options?.agentStatuses?.windows ?? [],
     })),
+    threadHistory: vi.fn<(id: string) => Promise<{ thread: Thread }>>(),
     threadTransfer: vi.fn<(command: ThreadTransferCommand) => Promise<unknown>>(async (command) => {
       const handler = handlers[command.kind];
       if (!handler) throw new Error(`unexpected ${command.kind}`);
@@ -107,6 +109,7 @@ function fakeHost(
     kind: "paired",
     connectionKey: "key",
     hostId: "host-thread-1",
+    isCurrent: vi.fn<() => boolean>(() => true),
     withClient: <T>(run: (value: typeof client) => T) => run(client),
     adoptThreadRow: (row: Thread) => ({ ...row, id: `view:${row.id}` }),
   };
@@ -339,6 +342,48 @@ describe("moveThreadToHost", () => {
     expect(commit.mock.calls[1]![0]).toEqual(commit.mock.calls[0]![0]);
   });
 
+  it("uses the host's transfer identities without changing panes or archiving from the client", async () => {
+    const from = source();
+    const commit = vi.fn<(command: never) => unknown>(() => committed);
+    const to = destination(commit);
+    hosts.source = from.host;
+    hosts.target = to.host;
+    await expect(
+      moveThreadToHost({
+        thread,
+        target,
+        projectId: "project-b",
+        transferIds: { transferId: "fixture-transfer", targetThreadId: "moved-1" },
+        withoutNavigation: true,
+      }),
+    ).resolves.toMatchObject({ thread: { id: "view:moved-1" } });
+    expect(commit).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({
+        transferId: "fixture-transfer",
+        threadId: "moved-1",
+      }),
+    );
+    expect(actions.archiveThread).not.toHaveBeenCalled();
+    expect(actions.openThread).not.toHaveBeenCalled();
+  });
+
+  it("refuses another upload when the target pairing changes", async () => {
+    const from = source();
+    const to = destination(() => committed);
+    to.client.uploadThreadTransferChunk.mockImplementationOnce(async ({ offset, data }) => {
+      to.host.isCurrent.mockReturnValue(false);
+      return offset + data.length;
+    });
+    hosts.source = from.host;
+    hosts.target = to.host;
+    await expect(moveThreadToHost({ thread, target, projectId: "project-b" })).rejects.toThrow(
+      "That machine is not available.",
+    );
+    expect(to.client.uploadThreadTransferChunk).toHaveBeenCalledTimes(1);
+    expect(to.kinds()).toEqual(["plan"]);
+    expect(actions.archiveThread).not.toHaveBeenCalled();
+  });
+
   it("stops a working agent, waits for it to settle, then resumes on the new host", async () => {
     let describes = 0;
     const from = fakeHost({
@@ -488,7 +533,7 @@ describe("moveThreadToHost", () => {
     expect(actions.archiveThread).not.toHaveBeenCalled();
   });
 
-  it("offers the project's other environments as members and resolves their transfer targets", () => {
+  it("offers the same paired project members to the dialog and App Controls", async () => {
     hosts.entityHost = undefined;
     const stamp = "2026-11-01T10:00:00.000Z";
     const local = {
@@ -575,6 +620,121 @@ describe("moveThreadToHost", () => {
         hostProjectId: "app",
       },
     ]);
+    const begin = vi.fn<() => Promise<void>>(async () => {});
+    await expect(
+      runAppThreadTransfer(
+        {
+          version: 1,
+          input: { action: "destinations", threadId: thread.id },
+        },
+        begin,
+      ),
+    ).resolves.toMatchObject({
+      action: "destinations",
+      destinations: [
+        { destinationProjectId: "remote:mac:project:app", hostLabel: "MacBook", online: true },
+        { destinationProjectId: "remote:mini:project:app", hostLabel: "Mac mini", online: false },
+        { destinationProjectId: "remote:env-1:project:app", hostLabel: "GPU box", online: true },
+      ],
+    });
+    await expect(
+      runAppThreadTransfer(
+        {
+          version: 1,
+          input: {
+            action: "preview",
+            threadId: thread.id,
+            destinationProjectId: "unpaired-project",
+          },
+        },
+        begin,
+      ),
+    ).rejects.toThrow("Choose an online destination");
+    expect(begin).toHaveBeenCalledTimes(1);
+    const receiver = destination(() => committed);
+    hosts.target = receiver.host;
+    const receiverInput = {
+      version: 1,
+      reconcile: true,
+      input: {
+        action: "move",
+        threadId: thread.id,
+        destinationProjectId: "remote:mac:project:app",
+        operationKey: "fixture-transfer",
+        stopFirst: false,
+      },
+      ids: {
+        transferId: "fixture-transfer",
+        targetThreadId: "moved-1",
+        sourceHostId: "local-host",
+      },
+    } as const;
+    receiver.client.threadHistory.mockResolvedValue({
+      thread: {
+        ...moved,
+        projectId: "app",
+        forkedFrom: {
+          version: 1,
+          threadId: thread.id,
+          title: thread.title,
+          throughItemId: "fixture-item",
+          inheritedTurnCount: 1,
+          contextStrategy: "transcript",
+          transfer: {
+            version: 1,
+            transferId: "fixture-transfer",
+            sourceHostId: "local-host",
+            sourceHostLabel: "Local",
+            transferredAt: stamp,
+          },
+        },
+      },
+    });
+    await expect(runAppThreadTransfer(receiverInput, begin)).resolves.toMatchObject({
+      threadId: "moved-1",
+      recovered: true,
+      targetLabel: "MacBook",
+    });
+    expect(receiver.client.threadHistory).toHaveBeenCalledExactlyOnceWith(
+      "moved-1",
+      expect.objectContaining({ omitScrollback: true }),
+    );
+    expect(receiver.client.threadTransfer).not.toHaveBeenCalled();
+    const sourceConnection = fakeHost(
+      {
+        describe: () => ({ kind: "describe", source: { git: null } }),
+      },
+      { desktopId: "source-host" },
+    );
+    const memberHost = hosts.entityHost;
+    hosts.entityHost = (entity) =>
+      entity.id === thread.id
+        ? { ...sourceConnection.host, kind: "managed", connectionKey: undefined, hostId: thread.id }
+        : memberHost?.(entity);
+    receiver.client.agentStatuses.mockResolvedValue({
+      windows: [readyAgent("fixture-agent", "Fixture agent", "known-model")],
+    });
+    receiver.client.threadTransfer.mockResolvedValue({
+      kind: "plan",
+      projects: [{ projectId: "app", name: "App", matched: true, git: true }],
+      haves: [],
+    });
+    const admitMove = vi.fn<() => Promise<void>>(async () => {});
+    await expect(
+      runAppThreadTransfer(
+        {
+          version: 1,
+          ids: receiverInput.ids,
+          input: {
+            ...receiverInput.input,
+            agent: { kind: "fixture-agent", config: { model: "missing-model" } },
+          },
+        },
+        admitMove,
+      ),
+    ).rejects.toThrow("Unknown model: missing-model");
+    expect(admitMove).not.toHaveBeenCalled();
+    expect(receiver.kinds()).toEqual(["plan"]);
     hosts.entityHost = undefined;
   });
 

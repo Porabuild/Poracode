@@ -99,12 +99,16 @@ export const NON_ROUTER_PROJECT_PROCEDURES = {
   // Host-owned destructive-retirement check (housekeeping purge)
   closeThreadConfirmed:
     "local-shell: host-owned confirmed-retirement close for destructive housekeeping; the renderer never issues it and no remote route exists",
+  controlWorkspaceTerminal:
+    "local-shell: app-controls checks checkout scope on its own supervisor; renderers use the existing terminal routes",
   controlThreadExecution:
     "local-shell: local administration owns provider execution and confirmed retirement on this supervisor",
   reserveThreadExecution:
     "local-shell: local administration reserves execution custody on this supervisor before launching",
   controlledThreadRequest:
     "local-shell: local administration binds answers to this supervisor's exact pending request incarnation",
+  appThreadRequests:
+    "local-shell: App Controls binds replies to the owning supervisor's live requests",
   ghMergePrAtHead:
     "local-shell: app-controls invokes this host's guarded merge directly; older supervisors reject its distinct name and no remote route exists",
 

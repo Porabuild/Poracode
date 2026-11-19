@@ -1,6 +1,9 @@
+import { createHash } from "node:crypto";
+import type { AppExperimentEdit } from "@/shared/contracts/appExperiment";
 import {
   experimentSchema,
   remoteExperimentCommandResultSchema,
+  remoteExperimentCommandSchema,
   type ExperimentCandidateThreadCreation,
   type RemoteExperimentCommand,
   type RemoteExperimentCommandResult,
@@ -181,6 +184,56 @@ export function readRemoteExperimentState(ctx: RemoteServerContext): RemoteExper
   }
 }
 
+/** Maps the app's narrow rename and manual selection intents onto its record CAS. */
+export async function editAppExperiment(
+  ctx: RemoteServerContext,
+  edit: AppExperimentEdit,
+): Promise<RemoteExperimentCommandResult> {
+  const { experiments } = readRemoteExperimentState(ctx);
+  const stored = Object.hasOwn(experiments, edit.experimentId)
+    ? experiments[edit.experimentId]
+    : undefined;
+  if (!stored) throw refusal("experiment_not_found", "Experiment not found.", 404);
+  const current = experimentSchema.parse(stored);
+  const now = new Date().toISOString();
+  if (
+    edit.action === "select_winner" &&
+    !current.candidates.some(({ threadId }) => threadId === edit.threadId)
+  ) {
+    throw refusal("invalid_experiment_candidate", "Choose a candidate from this experiment.", 400);
+  }
+  let record = current;
+  if (edit.action === "rename") {
+    if (current.title !== edit.title) record = { ...current, title: edit.title, updatedAt: now };
+  } else if (current.crown?.source !== "user" || current.crown.threadId !== edit.threadId) {
+    record = {
+      ...current,
+      crown: { source: "user", threadId: edit.threadId, createdAt: now },
+      updatedAt: now,
+    };
+  }
+  const wire = remoteExperimentCommandSchema.parse({
+    kind: "replace",
+    experimentId: edit.experimentId,
+    revision: edit.revision,
+    record,
+    ...(edit.action === "rename"
+      ? {
+          rows: current.candidates.map(({ threadId }) => ({ threadId, groupName: edit.title })),
+        }
+      : {}),
+  });
+  const canonical = canonicalizeExperimentCommand(wire);
+  const fingerprint = createHash("sha256").update(JSON.stringify(edit)).digest("hex");
+  return applyRemoteExperimentCommand(ctx, canonical, {
+    commandId: `app-controls:experiment:${fingerprint}`,
+    route: "app-controls:manage_experiment",
+    principalId: "app-controls",
+    requestPayload: edit,
+    publishExperimentCatalog: true,
+  });
+}
+
 type RefusedOutcome = Exclude<DbExperimentIntentOutcome, { status: "applied" }>;
 
 function outcomeError(outcome: RefusedOutcome): RemoteHttpError {
@@ -314,6 +367,7 @@ export interface ExperimentCommandReceiptContext {
   readonly route: string;
   readonly principalId: string | null;
   readonly requestPayload: unknown;
+  readonly publishExperimentCatalog?: boolean;
 }
 
 /** Applies one canonical experiment command under the command-id receipt. */
@@ -356,6 +410,9 @@ export async function applyRemoteExperimentCommand(
       // re-enters the operation.
       if (outcome.touchedThreadIds.length > 0) {
         ctx.publishThreadsChanged(outcome.touchedThreadIds);
+      }
+      if (receipt.publishExperimentCatalog && outcome.stage !== "unchanged") {
+        ctx.publishCatalogChanged();
       }
       return { ok: true as const, revision: outcome.revision };
     },
