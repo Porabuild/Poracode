@@ -7,23 +7,46 @@ import type {
   StreamableHttpMcpToolSpec,
 } from "../../mcp/StreamableHttpMcpIngress";
 import { agentTools } from "./tools/agents";
+import { providerSettingsTools } from "./tools/providerSettings";
+import { appControlAnnotations } from "./toolAnnotations";
+import { providerAuthTools } from "./tools/providerAuth";
+import { providerLifecycleTools } from "./tools/providerLifecycle";
+import { providerProfileTools } from "./tools/providerProfiles";
 import { deviceTools } from "./tools/devices";
 import { deviceFrameSchema } from "@/shared/deviceWorkspace";
 import { appTools } from "./tools/app";
+import { localPortTools } from "./tools/localPorts";
+import { projectFileActionTools } from "./tools/projectFileActions";
 import { fileTools } from "./tools/files";
 import { gitTools } from "./tools/git";
+import { gitTextTools } from "./tools/gitText";
+import { githubActionsTools } from "./tools/githubActions";
 import { githubTools } from "./tools/github";
 import { reviewTools } from "./tools/reviews";
+import { reviewActionTools } from "./tools/reviewActions";
+import { externalMcpServerTools } from "./tools/externalMcpServers";
 import { mcpServerTools } from "./tools/mcpServers";
+import { pluginCatalogTools } from "./tools/pluginCatalog";
+import { pluginTools } from "./tools/plugins";
+import { projectNotesTools } from "./tools/projectNotes";
 import { projectTools } from "./tools/projects";
+import { prWatchTools } from "./tools/prWatches";
 import { scheduleTools } from "./tools/schedules";
 import { searchTools } from "./tools/search";
 import { settingsTools } from "./tools/settings";
+import { skillManagementTools } from "./tools/skillManagement";
 import { skillTools } from "./tools/skills";
 import { memoryTools } from "./tools/memory";
+import { experimentTools } from "./tools/experiments";
+import { threadRuntimeTools } from "./tools/threadRuntime";
+import { threadContextTools } from "./tools/threadContext";
+import { sessionImportTools } from "./tools/sessionImport";
 import { threadTools } from "./tools/threads";
 import { usageTools } from "./tools/usage";
 import { workspaceTools } from "./tools/workspaces";
+import { workspaceTerminalTools } from "./tools/workspaceTerminals";
+import { projectActionTools } from "./tools/projectActions";
+import { catalogEditTools } from "./tools/catalogOrder";
 import type { AppControlsToolContext, ToolDomain, ToolHandler } from "./tools/types";
 
 export { APP_CONTROLS_MCP_SERVER_INFO } from "./tools/serverInfo";
@@ -55,27 +78,13 @@ if (!APP_CONTROLS_CORE_SKILL || !TERMINAL_CORE_SKILL || !DEVICES_CORE_SKILL) {
 
 export const APP_CONTROLS_MCP_INSTRUCTIONS =
   "Poracode app controls. " +
-  `For threads, git, pull requests, and schedules, ${loadPluginCoreSkillPhrase(APP_CONTROLS_CORE_SKILL)}. ` +
+  `For threads, git, pull requests, schedules, and plugin management, ${loadPluginCoreSkillPhrase(APP_CONTROLS_CORE_SKILL)}. ` +
   "Keep your thread's assigned worktree for task changes and checks unless the user explicitly requests a different task checkout. " +
-  "See the app-controls skill for worktree creation and delegation guidance. " +
   `When reading the Terminal panel, ${loadPluginCoreSkillPhrase(TERMINAL_CORE_SKILL)}. ` +
   `For simulator and emulator work, ${loadPluginCoreSkillPhrase(DEVICES_CORE_SKILL)}. ` +
-  "Read and control the running app: device schedules " +
-  "(list/create/update/run/delete), app threads (current/list/get/read/create/send/interrupt/stop/wait/" +
-  "update/open, including sidebar ungroup and Home-thread workspace filing), projects " +
-  "(list/get/create/update, including workspace assignment), workspaces (list/create/update), " +
-  "app settings (get/update), provider usage " +
-  "(get_usage), cross-app search (search), and app info (get_app_info). You can also read a " +
-  "running workspace terminal panes and their scrollback, queue steer guidance, stage composer " +
-  "input, or roll back turns; " +
-  "read project files (list/read/find); list installed CLI agents; search shared memory " +
-  "(search_memory); and notify the user or check " +
-  "for app updates. You can also drive a project's git (status/diff/stage/commit/branch/sync and " +
-  "worktree list/merge/remove), its GitHub pull requests via the gh CLI (list/get/create/comment/" +
-  "merge/update), the user's configured MCP servers (list/probe/add/update/remove — MCP servers " +
-  "are managed with these dedicated tools, not update_settings), and installed skills (list/" +
-  "read/enable). Threads, projects, and workspaces are " +
-  "the user's own work, visible in their sidebar; treat them as shared state. Explain " +
+  "Use get_current_thread when you need the caller's projectId and worktreePath. Reuse the same scope across calls. " +
+  "For tools that require projectId, omitting worktreePath targets the project root unless the tool says otherwise. " +
+  "Use the dedicated MCP server tools for server configuration. Threads, projects, and workspaces are the user's shared state. Explain " +
   "consequential or destructive actions — stopping or interrupting another thread, archiving, " +
   "marking done, creating a project or workspace, or changing settings — to the user before doing them, and " +
   "never delete their work without asking. When the user explicitly asks in this thread to " +
@@ -116,33 +125,59 @@ export const APP_CONTROLS_MCP_INSTRUCTIONS =
   "Read HTML pages in the app-controls core skill for theme variables and sizing. Configured MCP Apps servers can supply interactive cards in GUI chat through declared ui:// resources and the host-managed sandbox. " +
   "Do not promise app tools or host actions from authored HTML or native visual fences. Keep ordinary HTML examples in html fences." +
   " For source-host PR/MR workflows, discover review_repository, then pass its public forgeAccount and full forgeRepository to review_* tools. " +
-  "Honor the reported capabilities and host policies. A successful merge request can remain queued; read the observed state and retry refresh without repeating a successful mutation.";
+  "Honor the reported capabilities and host policies. A successful merge request can remain queued; read the observed state and retry refresh without repeating a successful mutation." +
+  " Use review_manage for labels, reviewers, viewed files, comment edits, reactions, draft conversion, commit diffs and inline reviews." +
+  " For Agent Plugins, use list_plugins to see packages on this host and list_plugin_catalogs to search the marketplace. " +
+  "Refresh uninitialized catalogs with manage_plugin_catalog before concluding a package is missing. Inspect packages and obtain the user’s authorization before passing a reviewDigest to install_plugin. " +
+  "Use configure_plugin for activation and contributions and manage_plugin_accounts for service account sign-in.";
 
 const DOMAINS: readonly ToolDomain[] = [
   deviceTools,
   scheduleTools,
+  prWatchTools,
   threadTools,
+  threadRuntimeTools,
+  threadContextTools,
+  sessionImportTools,
+  workspaceTerminalTools,
+  projectActionTools,
   projectTools,
+  catalogEditTools,
+  projectNotesTools,
   workspaceTools,
   settingsTools,
   usageTools,
   searchTools,
   appTools,
+  localPortTools,
   fileTools,
+  projectFileActionTools,
   agentTools,
+  providerSettingsTools,
+  providerAuthTools,
+  providerLifecycleTools,
+  providerProfileTools,
   gitTools,
+  gitTextTools,
   githubTools,
+  githubActionsTools,
   reviewTools,
+  reviewActionTools,
   mcpServerTools,
+  externalMcpServerTools,
+  pluginTools,
+  pluginCatalogTools,
   skillTools,
+  skillManagementTools,
   memoryTools,
+  experimentTools,
 ];
 
-export const TOOLS: readonly StreamableHttpMcpToolSpec[] = DOMAINS.flatMap(
-  (domain) => domain.specs,
+export const TOOLS: readonly StreamableHttpMcpToolSpec[] = DOMAINS.flatMap(({ specs }) =>
+  specs.map((spec) => ({ ...spec, annotations: appControlAnnotations(spec.name) })),
 );
 
-const HANDLERS: Record<string, ToolHandler> = Object.fromEntries(
+const HANDLERS = new Map<string, ToolHandler>(
   DOMAINS.flatMap((domain) => Object.entries(domain.handlers)),
 );
 
@@ -153,10 +188,14 @@ const GIT_REFRESH_TOOLS = new Set([
   "git_stage",
   "git_commit",
   "git_discard",
+  "git_repository",
   "git_branch",
   "git_sync",
+  "create_worktree",
+  "manage_project_file",
   "merge_worktree",
   "remove_worktree",
+  "delete_worktree_group",
 ]);
 
 export function isKnownToolName(name: string): boolean {
@@ -168,14 +207,21 @@ export async function dispatchTool(
   args: Record<string, unknown>,
   ctx: AppControlsToolContext,
 ): Promise<unknown> {
-  const handler = HANDLERS[name];
+  const handler = HANDLERS.get(name);
   if (!handler) throw new Error(`Unknown tool: ${name}`);
   const result = await handler(args, ctx);
-  if (ctx.gitState && GIT_REFRESH_TOOLS.has(name) && typeof args.projectId === "string") {
+  if (
+    ctx.gitState &&
+    GIT_REFRESH_TOOLS.has(name) &&
+    !(name === "git_branch" && args.action === "list") &&
+    typeof args.projectId === "string"
+  ) {
     try {
       await ctx.gitState.refreshTarget({
         projectId: args.projectId,
-        ...(typeof args.worktreePath === "string" && name !== "remove_worktree"
+        ...(typeof args.worktreePath === "string" &&
+        name !== "remove_worktree" &&
+        name !== "delete_worktree_group"
           ? { worktreePath: args.worktreePath }
           : {}),
         includePrDetails: true,
@@ -203,5 +249,5 @@ export function formatToolResult(name: string, result: unknown): StreamableHttpM
       ],
     };
   }
-  return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
+  return { content: [{ type: "text", text: JSON.stringify(result) ?? "null" }] };
 }

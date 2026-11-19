@@ -5,7 +5,6 @@ import { ConversationSearchCursorError } from "@/host/db/conversationSearchReads
 import {
   profileIdentitySchema,
   profileStatsRequestSchema,
-  projectNotesSchema,
   type McpServer,
 } from "@/shared/contracts";
 import {
@@ -19,16 +18,19 @@ import {
   remoteMcpSettingsCommandSchema,
   remoteMcpSettingsOperationSchema,
 } from "@/shared/remote/contract/routeSchemas";
-import { dbGetProject, dbGetProjectNotes, dbSetProjectNotes } from "@/host/db";
-import { dbGetMemoryEntry } from "@/host/db/memoryStore";
-import { listScopedMemoryEntriesForProject } from "@/host/memory/apply";
+import {
+  dbCompareAndSetProjectNotes,
+  dbGetProject,
+  dbGetProjectNotes,
+  dbSetProjectNotes,
+  ProjectNotesConflictError,
+} from "@/host/db";
+import { MemoryCatalogError, runMemoryCatalogCommand } from "@/host/memory/catalog";
 import { handleMemoryCommand } from "@/host/memory/runtime";
-import { isHomeProjectId } from "@/shared/homeScope";
 import {
   memorySyncResponseSchema,
   memorySyncStateSchema,
   remoteMemoryCatalogCommandSchema,
-  remoteMemoryCatalogResultSchema,
 } from "@/shared/memory";
 import {
   getProfileCoreStats,
@@ -267,7 +269,7 @@ export const SESSION_ROUTE_HANDLERS: Pick<HttpRouteHandlerTable, SessionRouteId>
     if (!dbGetProject(notesProjectId)) {
       throw new RemoteHttpError("project_not_found", msg("remote.project.notFound"), 404);
     }
-    writeJson(res, 200, { notes: dbGetProjectNotes(notesProjectId) });
+    writeJson(res, 200, { notes: dbGetProjectNotes(notesProjectId), guardedWrites: 1 });
   },
 
   "project-notes-write": async ({ req, res, params }) => {
@@ -276,7 +278,23 @@ export const SESSION_ROUTE_HANDLERS: Pick<HttpRouteHandlerTable, SessionRouteId>
       throw new RemoteHttpError("project_not_found", msg("remote.project.notFound"), 404);
     }
     const notes = projectNotesWriteBodySchema.parse(await readJsonBody(req));
-    dbSetProjectNotes(projectNotesSchema.parse({ ...notes, projectId: notesProjectId }));
+    if (!dbGetProject(notesProjectId)) {
+      throw new RemoteHttpError("project_not_found", msg("remote.project.notFound"), 404);
+    }
+    if ("replacement" in notes) {
+      writeJson(res, 200, {
+        result: dbCompareAndSetProjectNotes({ ...notes, projectId: notesProjectId }),
+      });
+      return;
+    }
+    try {
+      dbSetProjectNotes({ ...notes, projectId: notesProjectId });
+    } catch (error) {
+      if (error instanceof ProjectNotesConflictError) {
+        throw new RemoteHttpError(error.code, error.message, 409);
+      }
+      throw error;
+    }
     writeJson(res, 200, {});
   },
 
@@ -414,44 +432,14 @@ export const SESSION_ROUTE_HANDLERS: Pick<HttpRouteHandlerTable, SessionRouteId>
 
   "memory-catalog": async ({ req, res }) => {
     const command = remoteMemoryCatalogCommandSchema.parse(await readJsonBody(req));
-    const projectId =
-      command.action === "save"
-        ? command.entry.projectId
-        : "projectId" in command
-          ? command.projectId
-          : undefined;
-    if (projectId && !dbGetProject(projectId)) {
-      throw new RemoteHttpError("project_not_found", msg("remote.project.notFound"), 404);
-    }
-    if (command.action === "save") {
-      const { entry } = command;
-      const current = entry.id ? dbGetMemoryEntry(entry.id) : undefined;
-      if (entry.id && !current) {
-        throw new RemoteHttpError("memory_not_found", "Memory not found.", 404);
+    try {
+      writeJson(res, 200, await runMemoryCatalogCommand(command));
+    } catch (error) {
+      if (error instanceof MemoryCatalogError) {
+        throw new RemoteHttpError(error.code, error.message, error.status);
       }
-      if (current && (current.scope !== entry.scope || current.projectId !== (projectId ?? null))) {
-        throw new RemoteHttpError("memory_scope_conflict", "The memory scope has changed.", 409);
-      }
-      if (
-        (entry.scope === "global" && (projectId || entry.category === "project")) ||
-        (entry.scope === "project" && !current && (!projectId || isHomeProjectId(projectId)))
-      ) {
-        throw new RemoteHttpError("invalid_memory_scope", "Choose a valid memory scope.", 400);
-      }
+      throw error;
     }
-    if (
-      command.action === "delete" &&
-      projectId &&
-      dbGetMemoryEntry(command.id) &&
-      !listScopedMemoryEntriesForProject(projectId).some((entry) => entry.id === command.id)
-    ) {
-      throw new RemoteHttpError("memory_not_found", "Memory not found.", 404);
-    }
-    const result = remoteMemoryCatalogResultSchema.parse({
-      action: command.action,
-      result: await handleMemoryCommand(command),
-    });
-    writeJson(res, 200, result);
   },
 
   "memory-sync": async ({ req, res }) => {

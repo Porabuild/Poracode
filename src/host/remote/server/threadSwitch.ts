@@ -1,8 +1,10 @@
+import { isDeepStrictEqual } from "node:util";
 import { isHostResourceAdmissionRefusal } from "@/shared/hostResourceAdmission";
 import {
   THREAD_LAUNCH_FAILED_REFUSAL_CODE,
   isThreadLaunchFailedRefusal,
 } from "@/shared/threadLaunchRefusal";
+import { WorkspaceLaunchUnavailableError } from "@/shared/threadWorkspaceRefusal";
 import type {
   RemoteThreadCommand,
   StartThreadPayload,
@@ -57,13 +59,23 @@ export async function applyRemoteThreadSwitch(
   ctx: RemoteServerContext,
   supervisorPayload: StartThreadPayload & { threadId: string },
   markDispatched: () => void,
+  prepared?: {
+    admit: () => void;
+    assertCheckoutCurrent: () => void;
+  },
 ): Promise<StartThreadResult> {
-  return serializeRemoteThreadSwitch(supervisorPayload.threadId, async () => {
+  const { threadId } = supervisorPayload;
+  const run = async () => {
+    prepared?.admit();
+    const controlIsCurrent = ctx.options.captureThreadControlState?.(threadId, 0);
     const current = dbGetThreads().find((thread) => thread.id === supervisorPayload.threadId);
     if (!current) {
       throw new RemoteHttpError("thread_not_found", "Thread not found.", 404);
     }
-    if (current.presentationMode !== "gui") {
+    if (
+      current.presentationMode !== "gui" &&
+      !(prepared && current.presentationMode === undefined)
+    ) {
       throw new RemoteHttpError(
         "provider_switch_requires_gui",
         "Only GUI threads can switch provider in place.",
@@ -83,55 +95,156 @@ export async function applyRemoteThreadSwitch(
     // row retarget below. The caller's receipt then records a rejected
     // validation as a definite failure instead of an uncertain dispatch.
     markDispatched();
-    const { previous } = retargetRemoteThreadForSwitch(supervisorPayload.threadId, {
+    const { previous, switched } = retargetRemoteThreadForSwitch(supervisorPayload.threadId, {
       agentKind: supervisorPayload.agentKind,
+      ...(supervisorPayload.agentInstanceId !== undefined
+        ? { agentInstanceId: supervisorPayload.agentInstanceId }
+        : {}),
       config: supervisorPayload.config,
       ...(supervisorPayload.presentationMode
         ? { presentationMode: supervisorPayload.presentationMode }
         : {}),
     });
-    await ctx.options.dispatchThreadCommand?.(
-      switchRetargetCommand(supervisorPayload, previous.projectId),
-    );
-    try {
-      const result = await ctx.options.callSupervisor("startThread", supervisorPayload);
-      ctx.publishThreadsChanged([supervisorPayload.threadId]);
-      return result;
-    } catch (error) {
-      const previousWasLive = previous.status === "working" || previous.status === "launching";
-      const {
-        sessionRef: _closedSessionRef,
-        agentInstanceId: _closedAgentInstanceId,
-        slashCommands: _closedSlashCommands,
-        errorMessage: _closedErrorMessage,
-        doneAt: _closedDoneAt,
-        activeTurnStartedAt: _closedTurn,
-        ...previousBase
-      } = previous;
-      const restored: Thread = {
-        ...previousBase,
-        status: previousWasLive ? "inactive" : previous.status,
-        attention: "none",
-        canResumeWithConfig: false,
-        done: false,
-      };
-      dbUpsertThread(restored, sortOrderForThread(dbGetThreads(), restored.id));
-      await ctx.options.dispatchThreadCommand?.({
-        kind: "start",
-        threadId: restored.id,
-        projectId: restored.projectId,
-        agentKind: restored.agentKind,
-        config: restored.config,
-        prompt: supervisorPayload.prompt,
-        ...(restored.presentationMode ? { presentationMode: restored.presentationMode } : {}),
-        launchRuntime: false,
-        providerSwitch: {
-          fromAgentKind: supervisorPayload.agentKind,
-          previousStatus: restored.status,
-        },
+    await Promise.resolve()
+      .then(() =>
+        ctx.options.dispatchThreadCommand?.(
+          switchRetargetCommand(supervisorPayload, previous.projectId),
+        ),
+      )
+      .catch((error: unknown) => {
+        console.warn("[remote] provider switch projection failed:", error);
       });
+    let result: StartThreadResult;
+    let refusedBeforeLaunch = false;
+    const admitLaunch = () => {
+      try {
+        prepared?.assertCheckoutCurrent();
+        if (controlIsCurrent && !controlIsCurrent()) {
+          throw new Error("A newer thread control cancelled the switch.");
+        }
+      } catch (error) {
+        refusedBeforeLaunch = true;
+        throw error;
+      }
+    };
+    try {
+      const launch = prepared
+        ? {
+            ...supervisorPayload,
+            ...ctx.options.resolveMcpLaunchSnapshot?.(
+              previous.projectId,
+              supervisorPayload.config.mcpServerOverrides,
+            ),
+          }
+        : supervisorPayload;
+      if (ctx.options.runThreadMutation) {
+        result = await ctx.options.callSupervisor("startThread", launch, {
+          skipThreadMutation: true,
+          assertLaunchCurrent: admitLaunch,
+        });
+      } else {
+        admitLaunch();
+        result = await ctx.options.callSupervisor("startThread", launch);
+      }
+    } catch (error) {
+      // The MCP receipt must retain the target row when the supervisor could
+      // have accepted the launch before its reply was lost.
+      if (
+        prepared &&
+        !refusedBeforeLaunch &&
+        !(error instanceof WorkspaceLaunchUnavailableError) &&
+        !isPlainThreadStartPreEffectFailure(error)
+      ) {
+        try {
+          ctx.publishThreadsChanged([threadId]);
+        } catch (publishError) {
+          console.warn(
+            "[remote] uncertain provider switch catalog publication failed:",
+            publishError,
+          );
+        }
+        throw error;
+      }
+      await restoreFailedSwitch(ctx, previous, switched, supervisorPayload.prompt).catch(
+        (restoreError: unknown) =>
+          console.warn("[remote] provider switch restore failed:", restoreError),
+      );
       throw error;
     }
+    try {
+      ctx.publishThreadsChanged([threadId]);
+    } catch (error) {
+      console.warn("[remote] provider switch committed but catalog publication failed:", error);
+    }
+    return result;
+  };
+  return ctx.options.runThreadMutation
+    ? ctx.options.runThreadMutation(threadId, run)
+    : serializeRemoteThreadSwitch(threadId, run);
+}
+
+async function restoreFailedSwitch(
+  ctx: RemoteServerContext,
+  previous: Thread,
+  switched: Thread,
+  prompt: string,
+): Promise<void> {
+  const threads = dbGetThreads();
+  const current = threads.find((thread) => thread.id === switched.id);
+  if (
+    !current ||
+    current.createdAt !== switched.createdAt ||
+    current.agentKind !== switched.agentKind ||
+    current.agentInstanceId !== switched.agentInstanceId ||
+    current.presentationMode !== switched.presentationMode ||
+    !isDeepStrictEqual(current.config, switched.config)
+  )
+    return;
+  const {
+    sessionRef: _closedSessionRef,
+    agentInstanceId: _discardedInstance,
+    slashCommands: _discardedCommands,
+    sessionConfigOptions: _discardedOptions,
+    errorMessage: _discardedError,
+    threadStatusSource: _discardedStatusSource,
+    presentationMode: _discardedPresentation,
+    activeTurnStartedAt: _closedTurn,
+    ...metadata
+  } = current;
+  const restored: Thread = {
+    ...metadata,
+    agentKind: previous.agentKind,
+    ...(previous.agentInstanceId !== undefined
+      ? { agentInstanceId: previous.agentInstanceId }
+      : {}),
+    config: previous.config,
+    ...(previous.threadStatusSource ? { threadStatusSource: previous.threadStatusSource } : {}),
+    ...(previous.presentationMode ? { presentationMode: previous.presentationMode } : {}),
+    status:
+      current.archived ||
+      current.status === "inactive" ||
+      previous.status === "working" ||
+      previous.status === "launching"
+        ? "inactive"
+        : previous.status,
+    attention: "none",
+    canResumeWithConfig: false,
+  };
+  dbUpsertThread(restored, sortOrderForThread(threads, restored.id));
+  ctx.publishThreadsChanged([restored.id]);
+  await ctx.options.dispatchThreadCommand?.({
+    kind: "start",
+    threadId: restored.id,
+    projectId: restored.projectId,
+    agentKind: restored.agentKind,
+    ...(restored.agentInstanceId !== undefined
+      ? { agentInstanceId: restored.agentInstanceId }
+      : {}),
+    config: restored.config,
+    prompt,
+    ...(restored.presentationMode ? { presentationMode: restored.presentationMode } : {}),
+    launchRuntime: false,
+    providerSwitch: { fromAgentKind: switched.agentKind, previousStatus: restored.status },
   });
 }
 
@@ -144,6 +257,7 @@ function switchRetargetCommand(
     threadId: payload.threadId,
     projectId,
     agentKind: payload.agentKind,
+    ...(payload.agentInstanceId !== undefined ? { agentInstanceId: payload.agentInstanceId } : {}),
     config: payload.config,
     prompt: payload.prompt,
     ...(payload.presentationMode ? { presentationMode: payload.presentationMode } : {}),
@@ -165,6 +279,7 @@ export function retargetRemoteThreadForSwitch(
   threadId: string,
   input: {
     agentKind: string;
+    agentInstanceId?: string;
     config: ThreadConfig;
     presentationMode?: ThreadPresentationMode;
   },
@@ -178,6 +293,7 @@ export function retargetRemoteThreadForSwitch(
     sessionRef: _droppedSessionRef,
     agentInstanceId: _droppedInstanceId,
     slashCommands: _droppedSlashCommands,
+    sessionConfigOptions: _droppedSessionOptions,
     errorMessage: _droppedError,
     doneAt: _droppedDoneAt,
     threadStatusSource: _droppedStatusSource,
@@ -188,6 +304,7 @@ export function retargetRemoteThreadForSwitch(
   const switched: Thread = {
     ...rest,
     agentKind: input.agentKind,
+    ...(input.agentInstanceId !== undefined ? { agentInstanceId: input.agentInstanceId } : {}),
     config: input.config,
     presentationMode,
     ...(presentationMode !== "terminal"

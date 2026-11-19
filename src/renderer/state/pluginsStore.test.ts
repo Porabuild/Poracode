@@ -1,7 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ListPluginsPayload, LoadedPlugin, ProjectLocation } from "@/shared/contracts";
 import { AGENT_PLUGINS_MANIFEST_SCHEMA_URL } from "@/shared/plugins/spec";
-import { pluginScopeKey, selectPluginsForScope, usePlugins } from "./pluginsStore";
+import {
+  invalidatePluginInventory,
+  pluginScopeKey,
+  selectPluginsForScope,
+  usePlugins,
+} from "./pluginsStore";
 
 const PROJECT: ProjectLocation = { kind: "windows", path: "C:\\repo" };
 
@@ -96,6 +101,21 @@ describe("plugins store scopes", () => {
     await usePlugins.getState().load({ projectLocation: PROJECT, rescan: true });
 
     expect(Object.keys(usePlugins.getState().pluginsByScope)).toEqual([pluginScopeKey(PROJECT)]);
+  });
+
+  it("re-reads an inventory load that started before an owner installed a plugin", async () => {
+    const pending = Promise.withResolvers<unknown>();
+    listPlugins.mockReturnValueOnce(pending.promise);
+    listPlugins.mockResolvedValueOnce({
+      plugins: [plugin("notes", "user")],
+      userPluginsDir: "/plugins",
+    });
+    const first = usePlugins.getState().load();
+    invalidatePluginInventory();
+    pending.resolve({ plugins: [], userPluginsDir: "/plugins" });
+    await first;
+    expect(listPlugins).toHaveBeenCalledTimes(2);
+    expect(selectPluginsForScope(usePlugins.getState()).map(({ name }) => name)).toEqual(["notes"]);
   });
 
   it("ignores a second load for a scope already in flight", async () => {

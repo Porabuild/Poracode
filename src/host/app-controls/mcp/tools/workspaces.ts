@@ -1,11 +1,11 @@
 import { z } from "zod";
-import { WORKSPACE_ICON_IDS, workspaceIconIdSchema } from "@/shared/contracts";
+import { nextWorkspaceIconId, WORKSPACE_ICON_IDS, workspaceIconIdSchema } from "@/shared/contracts";
 import type { ToolDomain } from "./types";
 import {
   createWorkspaceRecord,
   getWorkspaces,
-  persistWorkspaces,
-  requireWorkspace,
+  editWorkspaces,
+  resolveWorkspace,
   workspaceView,
 } from "./workspaceLookup";
 
@@ -18,6 +18,8 @@ const updateArgsSchema = z.object({
   name: z.string().trim().min(1).max(120).optional(),
   icon: workspaceIconIdSchema.optional(),
 });
+
+const removeArgsSchema = z.strictObject({ workspaceId: z.string().min(1) });
 
 const workspaceIdProp = { type: "string", minLength: 1 };
 const workspaceIconProp = { type: "string", enum: [...WORKSPACE_ICON_IDS] };
@@ -59,38 +61,60 @@ export const workspaceTools: ToolDomain = {
         },
       },
     },
+    {
+      name: "remove_workspace",
+      description:
+        "Remove a workspace grouping by exact id from list_workspaces. Its projects and Home threads remain available as unfiled items. The last workspace cannot be removed. Requires explicit user authorization.",
+      inputSchema: z.toJSONSchema(removeArgsSchema, { io: "input" }),
+    },
   ],
   handlers: {
     list_workspaces: (_args, ctx) => {
       const workspaces = getWorkspaces(ctx).map((workspace) => workspaceView(workspace, ctx));
       return { count: workspaces.length, workspaces };
     },
-    create_workspace: (args, ctx) => {
+    create_workspace: async (args, ctx) => {
       const { name, icon } = createArgsSchema.parse(args);
-      const current = getWorkspaces(ctx);
-      const created = createWorkspaceRecord(current, name, icon);
-      const workspaces = persistWorkspaces(ctx, [...current, created]);
-      const workspace = workspaces.find((entry) => entry.id === created.id) ?? created;
+      const created = createWorkspaceRecord(getWorkspaces(ctx), name, icon);
+      await editWorkspaces(ctx, (current) => [
+        ...current,
+        { ...created, icon: icon ?? nextWorkspaceIconId(current) },
+      ]);
+      const workspace = resolveWorkspace(getWorkspaces(ctx), created.id);
       return { created: true, workspace: workspaceView(workspace, ctx) };
     },
-    update_workspace: (args, ctx) => {
-      const parsed = updateArgsSchema.parse(args);
-      if (parsed.name === undefined && parsed.icon === undefined) {
+    update_workspace: async (args, ctx) => {
+      const { workspaceId, name, icon } = updateArgsSchema.parse(args);
+      if (name === undefined && icon === undefined) {
         throw new Error("Provide at least one field to update (name or icon).");
       }
-      const current = getWorkspaces(ctx);
-      const target = requireWorkspace(ctx, parsed.workspaceId);
-      const next = current.map((workspace) => {
-        if (workspace.id !== target.id) return workspace;
-        return {
-          ...workspace,
-          ...(parsed.name ? { name: parsed.name } : {}),
-          ...(parsed.icon ? { icon: parsed.icon } : {}),
-        };
+      const id = resolveWorkspace(getWorkspaces(ctx), workspaceId).id;
+      await editWorkspaces(ctx, (current) => {
+        if (!current.some((entry) => entry.id === id)) throw new Error("Workspace was removed.");
+        return current.map((workspace) =>
+          workspace.id !== id
+            ? workspace
+            : {
+                ...workspace,
+                ...(name !== undefined ? { name } : {}),
+                ...(icon !== undefined ? { icon } : {}),
+              },
+        );
       });
-      const workspaces = persistWorkspaces(ctx, next);
-      const workspace = workspaces.find((entry) => entry.id === target.id) ?? target;
-      return { updated: true, workspace: workspaceView(workspace, ctx) };
+      return {
+        updated: true,
+        workspace: workspaceView(resolveWorkspace(getWorkspaces(ctx), id), ctx),
+      };
+    },
+    remove_workspace: async (args, ctx) => {
+      const { workspaceId } = removeArgsSchema.parse(args);
+      await editWorkspaces(ctx, (current) => {
+        if (!current.some((workspace) => workspace.id === workspaceId))
+          throw new Error("Workspace not found. Pass the exact id from list_workspaces.");
+        if (current.length <= 1) throw new Error("Cannot remove the last workspace.");
+        return current.filter((workspace) => workspace.id !== workspaceId);
+      });
+      return { removed: true, workspaceId };
     },
   },
 };

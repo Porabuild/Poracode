@@ -71,6 +71,7 @@ import { DelegatedAgentSettlementRecovery } from "@/backend/delegatedAgentSettle
 import type { SupervisorEvent } from "@/shared/ipc";
 import { stripRuntimePayloadOriginMetadata } from "@/shared/runtimePayloadOriginProtocol";
 import type { ProjectLocation } from "@/shared/contracts/common";
+import { resolveProjectLocation } from "@/shared/worktree";
 import type { ThreadConfig } from "@/shared/contracts/config";
 import type { ProviderRevertAnchor } from "@/shared/contracts";
 
@@ -651,7 +652,10 @@ export class BackendHostCore {
     if (!thread) return false;
     const project = dbGetProject(thread.projectId);
     if (!project?.location) return false;
-    return JSON.stringify(project.location) === JSON.stringify(frozenLocation);
+    return (
+      JSON.stringify(resolveProjectLocation(project.location, thread.worktreePath)) ===
+      JSON.stringify(frozenLocation)
+    );
   }
 
   /** Single DB mutation + canonical event; callers own the entry guards. */
@@ -809,8 +813,10 @@ export class BackendHostCore {
     // path) and frozen into the journal at claim time either way. Only an
     // explicitly supplied location participates in same-ID conflict detection;
     // server-resolved drift never invalidates a legitimate replay.
+    const project = thread ? dbGetProject(thread.projectId) : null;
     const resolvedLocation =
-      input.projectLocation ?? (thread ? dbGetProject(thread.projectId)?.location : undefined);
+      input.projectLocation ??
+      (project ? resolveProjectLocation(project.location, thread?.worktreePath) : undefined);
     const claim = dbClaimCheckpointRevertOperation({
       operationKey: input.operationKey,
       threadId: input.threadId,

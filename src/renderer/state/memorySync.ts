@@ -5,9 +5,11 @@ import { remoteConnectionKey } from "@/renderer/state/remoteServers/types";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import type { MemorySyncResponse, MemorySyncState } from "@/shared/memory";
+import type { AppMemorySyncResult } from "@/shared/contracts/appMemorySync";
 import { repoIdentityKey } from "@/shared/repoIdentity";
 
-let inFlight: Promise<{ syncedHosts: number; changed: boolean }> | null = null;
+type MemorySyncOutcome = AppMemorySyncResult & { failure?: { error: unknown } };
+let inFlight: Promise<MemorySyncOutcome> | null = null;
 
 export function collectProjectRepoKeys(): Record<string, string> {
   const index = getProjectGroupIndex();
@@ -31,17 +33,19 @@ export function collectProjectRepoKeys(): Record<string, string> {
  */
 export async function syncMemoryAcrossEnvironments(options?: {
   force?: boolean;
-}): Promise<{ syncedHosts: number; changed: boolean }> {
-  if (inFlight) return inFlight;
-  inFlight = runSync(options).finally(() => {
+}): Promise<AppMemorySyncResult> {
+  const { syncedHosts, changed, failure } = await (inFlight ??= runSync().finally(() => {
     inFlight = null;
-  });
-  return inFlight;
+  }));
+  if (options?.force && failure && syncedHosts === 0) {
+    throw failure.error instanceof Error
+      ? failure.error
+      : new Error("Failed to sync with paired hosts.");
+  }
+  return { syncedHosts, changed };
 }
 
-async function runSync(options?: {
-  force?: boolean;
-}): Promise<{ syncedHosts: number; changed: boolean }> {
+async function runSync(): Promise<MemorySyncOutcome> {
   if (isRemoteSession()) return { syncedHosts: 0, changed: false };
   const memory = useSharedSettings.getState().memory;
   if (!memory.enabled || !memory.syncEnabled) {
@@ -63,8 +67,7 @@ async function runSync(options?: {
 
   let syncedHosts = 0;
   let changed = false;
-  let failedHosts = 0;
-  let lastError: unknown;
+  let failure: MemorySyncOutcome["failure"];
   const syncedKeys: string[] = [];
 
   for (const key of onlineKeys) {
@@ -85,13 +88,8 @@ async function runSync(options?: {
         localState = merged.state;
       }
     } catch (error) {
-      failedHosts += 1;
-      lastError = error;
+      failure = { error };
     }
-  }
-
-  if (options?.force && failedHosts > 0 && syncedHosts === 0) {
-    throw lastError instanceof Error ? lastError : new Error("Failed to sync with paired hosts.");
   }
 
   if (changed && syncedKeys.length > 1) {
@@ -104,7 +102,7 @@ async function runSync(options?: {
     }
   }
 
-  return { syncedHosts, changed };
+  return { syncedHosts, changed, ...(failure ? { failure } : {}) };
 }
 
 export function installMemoryEnvironmentAutoSync(): () => void {

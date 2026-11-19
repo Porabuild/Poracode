@@ -1,6 +1,6 @@
 ---
 name: app-controls
-description: Inspect and drive Poracode itself — the Terminal panel, other threads, projects, workspaces, git, pull requests, and schedules — through the poracode MCP. Use when the request is about the user's workspace state or app-side actions rather than editing files in the repository.
+description: Inspect and drive Poracode itself — the Terminal panel, other threads, projects, workspaces, Git, pull requests, schedules, plugins, skills, and MCP servers — through the poracode MCP. Use when the request is about the user's workspace state or app-side actions rather than editing files in the repository.
 ---
 
 # Poracode
@@ -14,7 +14,11 @@ and `restore_schedule_run` to triage them. `cancel_schedule_run` also cancels
 pending retry delays; a thread cannot cancel its own active run.
 `create_schedule` and `update_schedule` accept `automation` for heartbeat mode,
 bounded retries, missed-run handling, run limits, and an optional completion
-condition. Heartbeats require a same-project, same-agent GUI conversation.
+condition. Pass `projectId` to choose the target or `null` for Home and pass
+`config` for the complete model selection. Heartbeats require a same-project,
+same-agent GUI conversation. Use `pr_watch` for PR-watch configuration and
+`github_actions` for workflows and runs. Confirm with the user before enabling
+automated fixes or merging, or changing a workflow run.
 
 `create_thread` inherits the New thread page's plugin/MCP defaults. Override
 `browserMcp`, `crossagentMcp`, `chromeMcp`, and `computerUse` with booleans;
@@ -22,7 +26,8 @@ condition. Heartbeats require a same-project, same-agent GUI conversation.
 manifest names to booleans. These choices are per thread and survive resume;
 global hard disables and provider/platform restrictions still apply. Discover
 custom server ids with `list_mcp_servers` (pass the target `projectId`) and installed plugin names
-with `get_settings` (`section: "installedPlugins"`). Attach files or images to
+with `list_plugins` on hosts that advertise it. On older hosts, use
+`get_settings` (`section: "installedPlugins"`). Attach files or images to
 the first message with `attachments: [{path, mimeType?}]`; paths must be absolute
 files on this host, and image MIME types are inferred from their extension.
 
@@ -38,12 +43,203 @@ an HTTP/SSE server: give the user the returned `authorizationUrl`, then poll wit
 with `update_project` `plugins` (`null` follows the global state); the thread's
 own `plugins` choices still win.
 
-With `worktree: {enabled: true}`, `create_thread` creates and assigns the child's
-checkout before launching the agent there. The caller provisions it through
-this option; do not also tell the child to create its own worktree. Delegate
-with: "Your worktree is already created and is your current working directory.
-Use it for all task changes and checks; do not create another task worktree."
-Use the returned `worktreePath` for follow-up Git tools.
+For a marketplace request, use `list_plugins` to check packages already on the
+host and `list_plugin_catalogs` with a query to search available packages by
+name, description, or category. If any relevant catalog appears in
+`unrefreshedCatalogIds`, refresh it with `manage_plugin_catalog` and search
+again. Pass the catalog ID and exact entry name to `inspect_plugin_package`.
+Describe the source and the included skills and MCP servers to the user, then
+pass the reviewed digest to `install_plugin` once they authorize that package.
+Use `action: "update"` for an upgrade and inspect again if the digest changes.
+
+Use `configure_plugin` for plugin and contribution switches on this host, and
+`update_project` for a project-wide override. For a plugin's OAuth connection,
+call `manage_plugin_accounts` with `action: "begin"`, the declared server name,
+and the user’s account label. Give the user the authorization URL and poll
+with `action: "wait"`. Use `remove_plugin_package` only with authorization to
+remove both its files and service accounts. On older hosts, check the live
+MCP tool list before offering marketplace actions.
+
+Use `list_skill_marketplace` and `install_marketplace_skill` for marketplace
+skills. Use `import_skill` to copy or link a skill from disk, and
+`remove_skill` only for mutable skills the user authorized removing.
+Use `discover_mcp_servers` to find external editor or agent configurations and
+`import_mcp_server` to import a reviewed candidate into Poracode. Continue to
+use `list_mcp_servers` for configurations already saved in Poracode.
+
+`create_project` registers an existing folder. The separate
+`create_project_directory` and `clone_project` tools create a folder or checkout.
+`relocate_project` retargets an existing project. `remove_project` removes saved
+project data, including threads, and must run from another project or Home.
+`remove_workspace` removes a grouping, leaving the projects and threads unfiled.
+
+To launch in the same worktree as the caller, call `get_current_thread` and pass
+its `projectId` and `worktreePath` as `existingWorktreePath`. Use
+`list_worktrees` to choose another registered checkout. If you pass
+`worktreeBranch` with an existing path, the host verifies that the branch
+still matches.
+
+For a new worktree pass `worktreeIsNewBranch: true`. You may choose
+`worktreeBranch`, `worktreeBaseBranch`, and `worktreeTransferUncommitted`.
+The transfer option copies changes and keeps them in the source checkout.
+Check `changesTransferred` when the user requests a copy. Older hosts use
+`worktree: {enabled: true, branch?}`. The launcher assigns the checkout
+before the agent starts. Use the returned `worktreePath` for Git operations
+and tell the agent to work in its assigned checkout.
+
+Use `presentationMode` and `config` for the same launch choices as the
+composer. A composer config with no mode uses the host's saved preference or
+a supported mode. Legacy flat choices are also accepted. Use `send_to_thread`
+with `prompt`, `segments`, and optional `config` for structured input. Pass
+`questionAnswer` when relaying the user's reply to a form.
+`get_thread` reports the saved composer config, the live runtime config,
+and any session options or slash commands advertised by the provider.
+`get_project` reports `lastDraftConfig`. Use `set_project_draft_config`
+to replace or clear the project’s saved composer choices. Use
+`list_installed_agents` with `projectId` and `includeComposerOptions: true`
+to discover supported models and options for that project's environment.
+Pass `presentationMode` to inspect Chat or Terminal specifically.
+`read_thread` returns message `itemId` values for `fork_thread`'s optional
+`throughItemId`. A fork starts inactive in the source checkout. Before
+`delete_thread`, confirm which thread and whether to remove its last-owned
+worktree. Use `removeOwnedWorktree: false` to keep the checkout.
+
+Use `delete_worktree_group` for the sidebar action that removes the checkout
+and every linked conversation. List the project's threads and confirm the
+exact checkout and complete set of thread IDs with the user. Include archived
+threads. If the host reports a membership change, refresh the list and get
+authorization for the updated set before retrying.
+
+Use `move_thread_to_worktree` for a saved thread in its project's main
+checkout. Confirm the move with the user and set `withChanges: true` only if
+they want its uncommitted changes moved out of the source checkout. Use a
+unique `operationKey` and reuse it to reconcile a missing response. A
+`checkout_created` result gives the path of a checkout kept for recovery.
+If `changesTransferred` is false, inspect the checkout and git stash before
+working there. If reopening is unconfirmed, inspect `get_thread` before
+reopening again.
+
+Use `handoff_thread` for Continue in another provider. Pass the target
+provider, presentation and composer `config`. Choose `intent: "fork"` to
+keep the source open or `intent: "switch"` to continue it. A Chat-to-Chat
+switch keeps the same thread. A switch involving Terminal opens a replacement
+and marks the source done after the new launch and source exit are confirmed.
+The host chooses transcript access or transfers context using the app's
+handoff rules. If context preparation fails, ask before continuing with
+`withoutContext: true`. Reuse the same `operationKey` after a lost response.
+
+Use `thread_transfer` for Move to another machine from the desktop that owns
+the source thread. List `destinations` for its paired projects, then
+`preview` the selected project. Confirm the destination and any interruption
+with the user before `move`. Choose a provider and model from the preview and
+pass the target provider's composer settings
+and an optional `continuePrompt`. Use `stopFirst: true` only when the user
+authorized interrupting the current run. Reuse the same `operationKey` after
+a lost response. The retry checks the original destination for the saved
+thread and returns its ID when confirmed. A recovered result reports
+whether the source is archived. Check the destination conversation before
+repeating any follow-up prompt.
+
+Use `reorder_project` and `reorder_thread` for the sidebar's manual order.
+Pass the row to move, the reference row and where to place it, `before` or
+`after`. For a group or worktree block, pass its thread IDs and use the first
+as `threadId`. Use `scope: "catalog"` to place one thread in the flat list
+across projects. Reuse the same `operationKey` after a lost response so a
+completed move is replayed from its receipt.
+
+Use `reopen_thread` to resume a thread with an empty initial prompt.
+`thread_follow_ups` manages the composer queue and `thread_goal` reports or
+changes the provider's latest goal. Use `thread_session_actions` to discover
+provider-advertised actions and `thread_background_tasks` for live work.
+Use `read_thread_history` to inspect structured transcript rows and turn
+timings. For older pages, reuse the returned item cursor as `beforePosition`
+or the completed-turn cursor as `cursor`. Use `action: "detail"` and the
+row's `itemId` for stored bodies and streams. Report any `runtimeNotice`
+when relying on the history.
+
+Use `thread_context` for saved context or token usage, a handoff transcript,
+or provider extraction from the thread’s saved session. Pass the source
+model selection when the user chooses it. `cancel` requests cancellation.
+`requests` reports pending approval or reply prompts so you can relay them
+to the user.
+
+Use `list_importable_sessions` for the app's CLI conversation discovery.
+Filter by provider, original folder, or text. Confirm the chosen session and
+destination with the user, then pass the exact path, provider ID and session
+ID to `import_session` with a supported model, title, and registered project
+ID. When the session's original folder still exists, use its project or
+register it first. When the folder is missing, use the user's fallback
+project. An imported conversation opens as an inactive Chat thread and an
+already saved conversation returns its existing thread ID.
+
+To restore files and conversation together, list
+`list_thread_checkpoints`, confirm the checkpoint with the user, and reuse the
+same `operationKey` on retries of `restore_thread_checkpoint`.
+
+Use `review_manage` with the exact account and repository from
+`review_repository` for the app’s review controls. List eligible labels and
+reviewers before changing them. Use viewed-file fingerprints from
+`viewed_files`, the original body for comment edits, and the reviewed head
+commit for inline reviews. Carry the same operation key across retries of
+one authorized mutation.
+Use `review_list_prs` with `state` to find open, closed, or merged reviews
+through the same source account.
+
+Use `git_repository` to initialize Git or add a remote to a registered
+project. Use `git_branch` with `delete` to remove an exact local or remote
+branch after authorization. A local deletion uses Git's non-forcing
+behavior unless the user chooses `force: true`.
+
+Use `project_action` to list or invoke a project's saved scripts. Select the
+checkout and action ID, and reuse the run's operation key after an uncertain
+reply. Use the returned terminal ID to inspect status or output, or to stop
+the run. An exit code of zero means the script succeeded. The owning host
+tracks these runs without depending on an open terminal panel.
+
+Use `create_worktree` to create a checkout before starting a thread. An
+explicit `path` overrides the host's placement. Confirm with the user
+before moving uncommitted changes and pass `keepChangesInSource: true` to
+copy the edits instead. If `changesTransferred` is false, inspect the
+checkout and stash before retrying. Use the returned path as
+`existingWorktreePath` in `create_thread`.
+
+Use `remove_worktree` for a registered checkout without open threads.
+Confirm its path and branch, then pass `expectedBranch` from `list_worktrees`.
+Choose `force` and `deleteBranch` only when the user requests those effects.
+`branchDeleted` reports the observed branch outcome when deletion was requested.
+
+Use `git_sync` with `sync` or `sync_rebase` for the Git panel's combined
+operation. Both can publish commits. Inspect `pulled` and `pushed` in the
+result. For a pull or pull with rebase, `preserveLocalChanges: true` uses
+the app's Stash & Pull behavior.
+
+Use `generate_commit_message` and `generate_pr_summary` to draft text from
+Git changes using the host's saved Git-text preset. Pass `agentKind`,
+`selection`, or `language` to choose those inputs explicitly. Automatic
+selection tries available one-shot providers in the checkout's environment.
+Review the resulting text before using it in a commit or pull request.
+
+Use `merge_worktree` with `pull_from_source` and `preserveLocalChanges: true`
+to carry local edits through a pull from the source branch. If a conflict
+leaves a `stashCommit`, carry it as `reapplyStashCommit` when finishing or
+aborting the merge after the user selects the outcome. Pass the same value
+to `git_commit` when committing the merge with an explicit message.
+
+The app's built-in MCP server and tool permission switches are user-managed
+Settings controls. Use `list_mcp_servers` and `update_mcp_server` for ordinary
+custom-server configuration.
+
+Use `get_project_notes` for the full Notes document, to-dos, and revision.
+Use that revision as `baseRevision` in `update_project_notes`. Keep unrelated
+content in the replacement. A conflict returns the latest notes. Reconcile
+the requested edit with the saved content before trying again. For a file
+write, use `read_project_file` and pass its `modifiedAtMs` as
+`baseModifiedAtMs` to `manage_project_file`. To inspect a small section, pass
+`startLine` and `endLine` to `read_project_file`. Continue with `nextOffset`,
+the same range, and the first page's `modifiedAtMs` as `expectedModifiedAtMs`.
+Use `git_file_content` to read both sides of the Git panel's text comparison.
+Each side has its own offset. Keep file actions in the intended project or
+worktree.
 
 For an already assigned worktree, confirm it with `get_current_thread` and
 `git rev-parse --show-toplevel` before edits. Check or update a stale base in
@@ -67,6 +263,85 @@ completed but the UI refresh needs retrying; do not repeat the mutation.
 3. Read before you write. Check `git_status` before staging, the PR before commenting, the schedule before updating it.
 4. State what you are about to do when the action changes the user's workspace, then do it in one step rather than a chain of partial edits.
 5. Report what the tool actually returned. When output is long, quote the part that carries the answer and say where it came from.
+
+For large lists, pass `limit` to `list_threads`, `list_projects`, or
+`list_project_files`. Continue with `nextOffset` as `offset` and keep the
+same filters. Each page reflects the host's current list order.
+
+Use `search_memory` to find a saved memory by text. Use `manage_memory` to
+check status, browse saved memories, or save, edit, and delete an entry at the
+user's request. A project entry defaults to the calling thread's project.
+Use `includeBody: true` only when the summary is insufficient, and pass the
+exact saved ID for edits or deletions.
+
+Use `thread-mode` to change the calling thread's memory mode at the user's
+request. Incognito threads stay private. Dream consolidates across the host.
+Run `dream` at the user's request and pass the latest `runId` to `undo`.
+Use `suggestions` with `includeBody: true` to review a proposed skill before
+using `suggestion` to approve it. Approval writes the skill to disk.
+Use `manage_memory` with `action: "sync"` for the desktop's **Sync now**.
+It requires the owning desktop window and enabled memory sync, and uses the
+desktop's existing permissions for its online paired hosts.
+
+Use `manage_experiment` on the experiment's owning desktop. List by
+`projectId` or get an exact `experimentId` to see candidates and the current
+`revision`. Pass that revision to `rename` or `select_winner`. Winner
+selection records a manual crown for review. Use `candidate_stats` with a
+candidate's thread ID to compare its owned checkout against the experiment base.
+Use `launch` with the composer prompt, local base branch and candidate
+configurations. Use `judge` to compare changes or responses, and
+`cancel_judge` to stop a judge. `merge_winner`, `create_pr`,
+`retry_cleanup`, and `discard` mirror the desktop's actions. Obtain the
+user's authorization before publishing, merging, or discarding. Supply a fresh
+`operationKey` for each workflow and reuse it for a retry. If a workflow
+reports failure or uncertainty, check the experiment and its Git state before
+starting another operation.
+
+Use `list_local_ports` for the desktop's listening sockets. Pass the row's
+address and port to `open_local_port`. At the user's request,
+`close_local_port` takes the exact address, port, PID, and process start token
+from a fresh row with `canClose: true`. Stopping the process can close its
+other listeners too.
+
+Use `manage_model_providers` for a supported agent's model routes. Pass its
+exact `agentKind` and `env`. List first and reuse the returned `revision`
+when saving or removing a route. Omit the endpoint and API key when an edit
+should preserve those values. Use `manage_provider_credentials` to list
+connected accounts and sign out by exact credential ID at the user's request.
+Use `manage_provider_plugins` to manage packages installed in an agent's
+native plugin system.
+Use `manage_provider_auth` to discover sign-in methods, start sign-in, or
+sign out at the user's request. Complete desktop terminal sign-in in the
+app's private login panel. Use `status` to check the result.
+Use `manage_provider_installation` to search the ACP Registry, inspect saved
+installations, or use the app's provider updater. Registry removal applies
+across environments and stops the provider's threads. Use
+`manage_provider_hooks` to inspect the bundled hooks or install or uninstall
+them in a specific native or WSL environment.
+Use `manage_provider_profiles` to manage saved profiles. List or get a
+profile before making changes and pass its current revision. Environment
+edits take only changed values and names to remove.
+
+For a pending prompt, use `thread_context` with `action: "requests"`. Pass
+the exact `requestId` and `includeDetails: true` to inspect its questions,
+form fields or plan preview. Complete browser and secret prompts in the app.
+To relay a user's explicit answer, read `live_requests` first. Pass that
+request's `requestId` and `requestToken` to `reply`, along with the user's
+option choices, question answers or form values. Inspect the live request
+again after a stale-token refusal.
+Forwarded subagent prompts appear on their parent thread and use the same
+single-use reply tokens.
+
+Use `manage_terminal` when the user asks to start or operate a workspace
+shell, or inspect a shell in a different checkout. Omit the target to use the
+calling thread's checkout. Set `projectId` to select another project's root,
+or pass a registered `worktreePath` to select a worktree. Set
+`worktreePath: null` to use the calling project's root. Use the shell ID from
+`start` or `list` for `read`, `write`, `resize`, and `close`. Writing
+sends input verbatim. Include Enter only when submitting input on the user's
+behalf. Obtain authorization before submitting commands to or closing
+their shell. A started shell runs on the host and can be controlled through
+MCP. The user’s client manages its own Terminal tabs.
 
 ## Boundaries
 

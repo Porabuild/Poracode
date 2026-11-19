@@ -3,6 +3,7 @@ import { readDatabaseAsync } from "@/host/db/asyncReads";
 import { getSqlite } from "@/host/db/connection";
 import { readHistoryCacheRevision } from "@/host/db/historyCacheRevision";
 import {
+  readBoundedCompletedTurnPage,
   readBoundedHistorySnapshotData,
   readBoundedHistoryItems,
 } from "./boundedHistoryDatabaseReads";
@@ -308,4 +309,15 @@ export async function buildBoundedThreadHistoryItems(
  * the cursor is exclusive (`idx < cursor`), so continuation has no holes.
  * Read committed-only like the other completed-turn projections.
  */
-export { readBoundedCompletedTurnPage as buildBoundedCompletedTurnPage } from "./boundedHistoryDatabaseReads";
+export { readBoundedCompletedTurnPage as buildBoundedCompletedTurnPage };
+
+export async function readCompletedTurnHistory(
+  input: Parameters<typeof readBoundedCompletedTurnPage>[0],
+  readNotice: () => RemoteRuntimeHistoryNotice | undefined,
+): Promise<{ body: string; runtimeNotice: RemoteRuntimeHistoryNotice | undefined }> {
+  const body = await readDatabaseAsync("completedTurnPage", [input], () =>
+    readBoundedCompletedTurnPage(input),
+  );
+  // An acknowledgement can create a notice during the worker read.
+  return { body, runtimeNotice: readNotice() };
+}

@@ -45,7 +45,7 @@ Let one agent delegate work to another across providers. Subagent output streams
 
 ### Built-in MCP & App Controls
 
-Poracode ships its own MCP servers. Point any agent at them to create and steer threads, organize projects, list and merge Git worktrees, commit and sync, open and merge pull requests, schedule runs, manage skills, and change settings — or add your own MCP servers over stdio, HTTP, or SSE.
+Poracode ships its own MCP servers. Point any agent at them to create and steer threads, organize projects, list and merge Git worktrees, commit and sync, open and merge pull requests, schedule runs, and change settings. Agents can browse plugin and skill marketplaces, install reviewed packages, and manage MCP server configurations.
 
 ### Agent Experiments
 

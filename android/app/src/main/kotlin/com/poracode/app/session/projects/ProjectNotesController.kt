@@ -40,11 +40,16 @@ class ProjectNotesController(
     private val mutableState = MutableStateFlow(ProjectNotesState())
     val state: StateFlow<ProjectNotesState> = mutableState.asStateFlow()
 
-    suspend fun load(identity: ProjectIdentity): ProjectOperationResult<ProjectNotes?> {
+    suspend fun load(identity: ProjectIdentity, discardDraft: Boolean = false): ProjectOperationResult<ProjectNotes?> {
         val (captured, gateFailure) = session.currentLease(ProjectCapability.Read)
         if (captured == null) return ProjectOperationResult.Failed(requireNotNull(gateFailure))
         val lease = captured
         if (identity.connectionId != lease.connectionId) return invalidIdentity()
+        val current = state.value.entries[identity]
+        val dirty = current?.guardedWrites == true && current.notes != current.lastConfirmed
+        if (current?.saving == true || (!discardDraft && (dirty || current?.pendingSave == true || current?.conflict == true))) {
+            return ProjectOperationResult.Success(current?.notes)
+        }
         cancelDebounce(identity)
         val changeEpoch = nextChangeEpoch(identity)
         val revision = nextRevision(identity)
@@ -58,7 +63,8 @@ class ProjectNotesController(
             )
         }
         try {
-            val notes = gateway.readProjectNotes(lease, identity).notes
+            val response = gateway.readProjectNotes(lease, identity)
+            val notes = response.notes
             if (notes != null && notes.projectId != identity.projectId) {
                 if (isCurrent(lease, identity, changeEpoch, revision)) {
                     return failed(identity, ProjectOperationFailure.InvalidResponse)
@@ -72,6 +78,7 @@ class ProjectNotesController(
                 ProjectNotesEntry(
                     notes = notes,
                     lastConfirmed = notes,
+                    guardedWrites = response.guardedWrites == 1,
                     localRevision = revision,
                     confirmedRevision = revision,
                     changeEpoch = changeEpoch,
@@ -113,13 +120,15 @@ class ProjectNotesController(
             it.copy(
                 notes = notes,
                 loading = false,
-                pendingSave = true,
+                pendingSave = !it.conflict,
                 localRevision = revision,
                 changeEpoch = changeEpoch,
                 failure = null,
             )
         }
-        scheduleWrite(lease, identity, changeEpoch, revision, notes)
+        if (state.value.entries[identity]?.conflict != true) {
+            scheduleWrite(lease, identity, changeEpoch, revision, notes)
+        }
         return ProjectOperationResult.Success(notes)
     }
 
@@ -175,9 +184,15 @@ class ProjectNotesController(
         notes: ProjectNotes,
     ) {
         if (!isCurrent(lease, identity, changeEpoch, revision)) return
+        val entry = state.value.entries[identity] ?: return
+        if (entry.conflict) return
         update(identity) { it.copy(pendingSave = false, saving = true) }
-        val body = ProjectNotesWriteBody(notes.doc, notes.todos, notes.updatedAt)
-        try {
+        val body = ProjectNotesWriteBody(
+            notes.doc, notes.todos, notes.updatedAt,
+            guarded = entry.guardedWrites,
+            baseRevision = entry.lastConfirmed?.revision,
+        )
+        val result = try {
             gateway.writeProjectNotes(lease, identity, body)
         } catch (error: CancellationException) {
             if (isCurrent(lease, identity, changeEpoch, revision)) {
@@ -187,24 +202,34 @@ class ProjectNotesController(
         } catch (error: Throwable) {
             if (isCurrent(lease, identity, changeEpoch, revision)) {
                 val failure = error.asProjectFailure(ProjectCapability.Operate, true)
+                val conflict = failure is ProjectOperationFailure.Remote && failure.code == "project_notes_conflict"
                 update(identity) {
                     it.copy(
-                        notes = it.lastConfirmed,
+                        notes = if (it.guardedWrites || conflict) it.notes else it.lastConfirmed,
                         pendingSave = false,
                         saving = false,
-                        failure = failure,
+                        conflict = conflict,
+                        failure = if (conflict) null else failure,
                     )
                 }
             }
             return
         }
         if (!session.isCurrent(lease) || currentChangeEpoch(identity) != changeEpoch) return
+        if (result?.status == "conflict") {
+            cancelDebounce(identity)
+            updateExisting(identity, changeEpoch) {
+                it.copy(conflict = true, pendingSave = false, saving = false)
+            }
+            return
+        }
+        val confirmed = result?.notes ?: notes
         updateExisting(identity, changeEpoch) { current ->
             if (revision < current.confirmedRevision) return@updateExisting current
             val isLatest = revisions[identity]?.get() == revision
             current.copy(
-                notes = if (isLatest) notes else current.notes,
-                lastConfirmed = notes,
+                notes = if (isLatest) confirmed else current.notes,
+                lastConfirmed = confirmed,
                 pendingSave = if (isLatest) false else current.pendingSave,
                 saving = if (isLatest) false else current.saving,
                 confirmedRevision = revision,

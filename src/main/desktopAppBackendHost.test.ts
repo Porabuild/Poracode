@@ -2,11 +2,15 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { IPC_EVENT_CHANNELS } from "@/shared/ipc";
 import type { RemoteThreadCommand } from "@/shared/contracts";
 import type { BackendNativeRequest } from "@/shared/backendHostProtocol";
+import type { closeLocalPort, listLocalPorts } from "@/host/localPorts";
 
 const hoisted = vi.hoisted(() => ({
   clientOptions: null as Record<string, unknown> | null,
   ensureMainWindow: vi.fn<() => void>(),
   openThreadFromTray: vi.fn<() => void>(),
+  listLocalPorts: vi.fn<typeof listLocalPorts>(),
+  closeLocalPort: vi.fn<typeof closeLocalPort>(),
+  openExternal: vi.fn<(url: string) => Promise<void>>(),
 }));
 
 vi.mock("electron", () => ({
@@ -15,6 +19,11 @@ vi.mock("electron", () => ({
     isPackaged: false,
   },
   ipcMain: { handle: vi.fn<() => void>() },
+  shell: { openExternal: hoisted.openExternal },
+}));
+vi.mock("@/host/localPorts", () => ({
+  listLocalPorts: hoisted.listLocalPorts,
+  closeLocalPort: hoisted.closeLocalPort,
 }));
 
 vi.mock("./sleepInhibitor", () => ({
@@ -96,6 +105,59 @@ function dispatchThreadCommand(): unknown {
   ) => unknown;
   return handler({ operation: "dispatch-thread-command", payload: PAYLOAD });
 }
+
+it("opens URLs from live port rows and forwards the exact identity for close", async () => {
+  createHost();
+  const nativeRequest = hoisted.clientOptions?.handleNativeRequest as (
+    request: BackendNativeRequest,
+  ) => unknown;
+  const identity = { port: 4173, address: "*", pid: 401, processStartedAt: "start-token" };
+  const url = "http://127.0.0.1:4173";
+  hoisted.listLocalPorts.mockResolvedValue({
+    ports: [{ ...identity, url, canClose: true, processName: "node" }],
+  });
+  hoisted.closeLocalPort.mockResolvedValue({ closed: false });
+  const ports = (
+    command: Extract<BackendNativeRequest, { operation: "local-ports" }>["payload"]["command"],
+  ) => nativeRequest({ operation: "local-ports", payload: { version: 1, command } });
+  await expect(
+    ports({ action: "open", port: 4173, address: "127.0.0.1", target: "system" }),
+  ).resolves.toEqual({
+    action: "open",
+    opened: false,
+  });
+  expect(hoisted.openExternal).not.toHaveBeenCalled();
+  await expect(
+    ports({ action: "open", port: 4173, address: "*", target: "system" }),
+  ).resolves.toEqual({
+    action: "open",
+    opened: true,
+    url,
+    target: "system",
+  });
+  expect(hoisted.openExternal).toHaveBeenCalledExactlyOnceWith(url);
+  const createTab = vi.fn<NonNullable<typeof desktopApp.browserPanelManager>["createTab"]>();
+  const previousPanel = desktopApp.browserPanelManager;
+  desktopApp.browserPanelManager = { createTab } as unknown as NonNullable<typeof previousPanel>;
+  try {
+    await expect(
+      ports({ action: "open", port: 4173, address: "*", target: "app" }),
+    ).resolves.toEqual({
+      action: "open",
+      opened: true,
+      url,
+      target: "app",
+    });
+    expect(createTab).toHaveBeenCalledExactlyOnceWith({ url, activate: true, reveal: true });
+  } finally {
+    desktopApp.browserPanelManager = previousPanel;
+  }
+  await expect(ports({ action: "close", ...identity })).resolves.toEqual({
+    action: "close",
+    closed: false,
+  });
+  expect(hoisted.closeLocalPort).toHaveBeenCalledExactlyOnceWith(identity);
+});
 
 describe("dispatch-thread-command", () => {
   beforeEach(() => {

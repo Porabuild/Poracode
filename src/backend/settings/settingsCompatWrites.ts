@@ -65,15 +65,26 @@ export class SettingsCompatWriter {
 
   /**
    * Compat translation of a whole-settings write (renderer `setSharedSettings`
-   * flush, app-controls `update_settings`). Protected subjects are pinned to
+   * flush). Protected subjects are pinned to
    * the committed state exactly like the former `mergeManagedSharedSettings`
    * file merge, so a stale snapshot can neither clobber secrets, owner-managed
    * records, nor concurrent edits to fields it did not change.
    */
   async commitCompatSnapshot(incoming: SharedSettingsInput): Promise<SharedSettings> {
-    const result = await withSettingsRebase(() => this.attemptCompatSnapshot(incoming));
+    const result = await this.editPreferences(() => incoming);
     if (result.status === "committed") return this.authority.readSettings();
     return this.uncommitted("settings snapshot", result);
+  }
+
+  /** Compute a preference edit against the same snapshot used for authorization and CAS. */
+  editPreferences(
+    compute: (current: SharedSettings) => SharedSettingsInput,
+  ): Promise<SettingsMutationResult> {
+    return withSettingsRebase(() => {
+      const snapshot = this.authority.snapshot();
+      const merged = mergeManagedSharedSettings(snapshot.settings, compute(snapshot.settings));
+      return this.commitFieldDiffs(snapshot, snapshot.settings, merged);
+    });
   }
 
   /**
@@ -152,16 +163,6 @@ export class SettingsCompatWriter {
       );
     });
     if (result.status !== "committed") this.uncommitted("owner settings edit", result);
-  }
-
-  private async attemptCompatSnapshot(
-    incoming: SharedSettingsInput,
-  ): Promise<SettingsMutationResult> {
-    const snapshot = this.authority.snapshot();
-    // The merge pins protected subjects to the committed values, so the field
-    // diff below can never emit an edit for them.
-    const merged = mergeManagedSharedSettings(snapshot.settings, incoming);
-    return this.commitFieldDiffs(snapshot, snapshot.settings, merged);
   }
 
   private async attemptCompatPatch(patch: {

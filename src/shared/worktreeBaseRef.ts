@@ -1,5 +1,5 @@
-import type { GitBranchInfo } from "@/shared/contracts";
-import { branchNameFromRemoteRef } from "@/shared/gitUtils";
+import type { GitBranchInfo } from "./contracts";
+import { branchNameFromRemoteRef } from "./gitUtils";
 
 export function qualifiedRemoteName(branch: GitBranchInfo): string | undefined {
   if (!branch.isRemote || !branch.remote) return undefined;

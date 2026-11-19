@@ -105,10 +105,36 @@ export type PoracodeBridge = PoracodeInvokeBridge & {
   onBrowserEvent(listener: (event: BrowserEvent) => void): () => void;
   /** Thread-metadata mutations issued by paired browser clients. */
   onRemoteThreadCommand(listener: (command: RemoteThreadCommand) => void): () => void;
+  onAppThreadTransfer?(
+    listener: (
+      request: import("../contracts/appThreadTransfer").AppThreadTransferRequest,
+      begin: () => Promise<void>,
+    ) => Promise<import("../contracts/appThreadTransfer").AppThreadTransferResult>,
+  ): () => void;
+  onAppMemorySync?(
+    listener: (
+      request: import("../contracts/appMemorySync").AppMemorySyncRequest,
+      begin: () => Promise<void>,
+    ) => Promise<import("../contracts/appMemorySync").AppMemorySyncResult>,
+  ): () => void;
+  onAppExperiment?(
+    listener: (
+      request: import("../contracts/appExperiment").AppExperimentRequest,
+      begin: () => Promise<void>,
+    ) => Promise<import("../contracts/appExperiment").AppExperimentResult>,
+  ): () => void;
+  onAppProviderLogin?(
+    listener: (
+      request: import("../contracts/appProviderAuth").AppProviderLoginRequest,
+      begin: () => Promise<void>,
+    ) => Promise<import("../contracts/appProviderAuth").AppProviderLoginResult>,
+  ): () => void;
   /** Active remote-access code or paired-device state changed in main. */
   onRemoteAccessPairingChanged(listener: (info: RemoteAccessPairingInfo) => void): () => void;
   /** Shared settings rewritten outside this renderer (e.g. by a remote client). */
-  onSharedSettingsChanged(listener: (settings: SharedSettings) => void): () => void;
+  onSharedSettingsChanged(
+    listener: (settings: SharedSettings, pluginInventoryChanged?: true) => void,
+  ): () => void;
   onGitStateChanged(listener: (patch: GitStatePatch) => void): () => void;
   onUserNotification(listener: (notification: UserNotification) => void): () => void;
   onPrWatchMerged(listener: (event: PrWatchMergedEvent) => void): () => void;

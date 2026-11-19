@@ -6139,6 +6139,7 @@ describe("RemoteAccessServer", () => {
   });
 
   it("rejects deleting a worktree when its linked thread set changed", async () => {
+    vi.mocked(dbGetProjects).mockReturnValue([createTestProject()]);
     const threads = [
       createTestThread({ worktreePath: "/repo/wt" }),
       createTestThread({ id: "thread-2", worktreePath: "/repo/wt" }),
@@ -7866,7 +7867,7 @@ describe("RemoteAccessServer", () => {
       { headers: readHeaders },
     );
     expect(getResponse.status).toBe(200);
-    await expect(getResponse.json()).resolves.toEqual({ notes });
+    await expect(getResponse.json()).resolves.toEqual({ notes, guardedWrites: 1 });
 
     const deniedWrite = await fetch(
       new URL(`/api/projects/${project.id}/notes`, info.httpBaseUrl),

@@ -875,6 +875,7 @@
         "id": "project-notes-read",
         "scopes": ["session:read"],
         "batch": "projects",
+        "note": "Updated clients negotiate guarded Notes saves from guardedWrites and retain the opaque revision for the next edit. Older clients can still read the existing notes shape.",
         "ios": {
           "wire": {
             "disposition": "implemented",
@@ -906,6 +907,7 @@
         "id": "project-notes-write",
         "scopes": ["session:operate"],
         "batch": "projects",
+        "note": "Updated clients preserve their draft after a revision conflict and offer an explicit reload. The host rejects legacy changes to protected notes. Older clients may discard the rejected draft through their existing failure handling.",
         "ios": {
           "wire": {
             "disposition": "implemented",

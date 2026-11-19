@@ -71,6 +71,7 @@ export interface MemoryModelCaller {
 }
 
 let modelCaller: MemoryModelCaller | undefined;
+let dreamFlight: ReturnType<typeof runDream> | null = null;
 
 export function setMemoryModelCaller(caller: MemoryModelCaller | undefined): void {
   modelCaller = caller;
@@ -155,8 +156,11 @@ export async function handleMemoryCommand(payload: MemoryCommandPayload): Promis
       dbSetMemoryThreadState({ threadId: command.threadId, mode: command.mode, updatedAt: now });
       return { mode: command.mode };
     case "dream":
-      return runDream(now, true);
+      return (dreamFlight ??= runDream(now, true).finally(() => {
+        dreamFlight = null;
+      }));
     case "undo":
+      if (dreamFlight) throw new Error("Wait for the current Dream run to finish before undoing.");
       return undoDream(command.runId);
     case "suggestions":
       return dbListMemorySuggestions(command.projectId);

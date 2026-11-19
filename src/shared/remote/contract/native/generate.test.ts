@@ -22,7 +22,7 @@ import {
   collectNativeSchemaRoots,
   resolveLocalSchemaReferences,
 } from "./schemaGraph";
-import type { JsonSchema, NativeBindingIr } from "./types";
+import type { JsonSchema, NativeBindingIr, NativeBindingOutput } from "./types";
 import { parseNativeBindingIr, supportedPortableSemanticValidatorIds } from "./validate";
 import { zodToJsonSchema } from "../jsonSchema";
 import { emitSwiftBindings } from "./emitSwift";
@@ -30,8 +30,22 @@ import { emitSwiftBindings } from "./emitSwift";
 const here = dirname(fileURLToPath(import.meta.url));
 const generatedDirectory = join(here, "../../../../../protocol/remote/v3/generated/native");
 
-function input(): { readonly ir: Record<string, unknown>; readonly manifest: unknown } {
-  return { ir: buildRemoteV3IrDocument(), manifest: buildRemoteProtocolManifest() };
+type AuthorityInput = { readonly ir: Record<string, unknown>; readonly manifest: unknown };
+let authorityInput: AuthorityInput | undefined;
+let authoritativeOutput: NativeBindingOutput | undefined;
+
+function input(): AuthorityInput {
+  return (authorityInput ??= {
+    ir: buildRemoteV3IrDocument(),
+    manifest: buildRemoteProtocolManifest(),
+  });
+}
+
+// The determinism test still emits twice more. Assertions about the same
+// unmodified authority can inspect its first immutable output.
+function outputForAuthority(): NativeBindingOutput {
+  const { ir, manifest } = input();
+  return (authoritativeOutput ??= buildNativeBindingOutput(ir, manifest));
 }
 
 function resign(ir: Record<string, unknown>, manifest: unknown): void {
@@ -47,7 +61,7 @@ describe("remote v3 native binding generator", () => {
     { timeout: 120_000 },
     () => {
       const { ir, manifest } = input();
-      const first = buildNativeBindingOutput(ir, manifest);
+      const first = outputForAuthority();
       const second = buildNativeBindingOutput(ir, manifest);
       const third = buildNativeBindingOutput(ir, manifest);
       expect(first).toEqual(second);
@@ -112,7 +126,8 @@ describe("remote v3 native binding generator", () => {
         // agent-opened lease) does the same.
         // Memory sync and catalog management are additive operator routes.
         // Optional environment settings and MCP OAuth completion add six structural types.
-        sourceHash: "sha256:337b9896f466611bfaa5ef045f30f07e63efcde710ffa836ff335dd5d2ff204d",
+        // Guarded Notes saves add revision metadata and typed save outcomes.
+        sourceHash: "sha256:bebf9be6f4253616e2501b15bd204d739bc6419ee62b128666b14b148618bc6c",
         manifestHash: "sha256:b344d1b59078a545149fd8f2ff0e8416da8b99eb0464bfb98006661e67907712",
         counts: {
           routes: 125,
@@ -123,12 +138,12 @@ describe("remote v3 native binding generator", () => {
           // 11 shared + the desktop-internal `desktop-event` frame (V5 plan 2.5).
           webSocketServerVariants: 12,
           schemaRoots: 586,
-          structuralTypes: 1409,
+          structuralTypes: 1419,
           semanticValidators: 25,
           // Content-defined shards (emitterCommon.shardDeclarations) average
           // ~200 lines, so a contract change rewrites only nearby files.
-          swiftFiles: 155,
-          kotlinFiles: 133,
+          swiftFiles: 157,
+          kotlinFiles: 134,
           stateMachines: 5,
         },
       });
@@ -136,8 +151,7 @@ describe("remote v3 native binding generator", () => {
   );
 
   it("escapes the authoritative search archived flag Swift enum identifiers", () => {
-    const { ir, manifest } = input();
-    const output = buildNativeBindingOutput(ir, manifest).files;
+    const output = outputForAuthority().files;
     const models = Object.entries(output)
       .filter(([path]) => path.startsWith("swift/Models"))
       .map(([, contents]) => contents)
@@ -171,8 +185,7 @@ describe("remote v3 native binding generator", () => {
   });
 
   it("ships the background-task reduce and follow-up queue in both native bundles", () => {
-    const { ir, manifest } = input();
-    const output = buildNativeBindingOutput(ir, manifest).files;
+    const output = outputForAuthority().files;
     expect(output["swift/BackgroundTaskReduce.swift"]).toContain(
       "public enum RemoteBackgroundTaskReduce",
     );
@@ -184,8 +197,7 @@ describe("remote v3 native binding generator", () => {
   });
 
   it("ships the terminal hardware-key encoder in both native bundles", () => {
-    const { ir, manifest } = input();
-    const output = buildNativeBindingOutput(ir, manifest).files;
+    const output = outputForAuthority().files;
     const swift = output["swift/TerminalKeyEncoding.swift"];
     const kotlin = output["kotlin/TerminalKeyEncoding.kt"];
     expect(swift).toContain("public enum TerminalRawKeyEncoder");
@@ -297,8 +309,7 @@ describe("remote v3 native binding generator", () => {
   });
 
   it("emits three-state fields, strict/strip policies, strict unit envelopes, and safe integers", () => {
-    const { ir, manifest } = input();
-    const output = buildNativeBindingOutput(ir, manifest).files;
+    const output = outputForAuthority().files;
     const swift = Object.entries(output)
       .filter(([path]) => path.startsWith("swift/"))
       .map(([, contents]) => contents)
@@ -353,7 +364,7 @@ describe("remote v3 native binding generator", () => {
   it("covers every transport descriptor and permits only portable semantic validators", () => {
     const { ir, manifest } = input();
     const parsed = parseNativeBindingIr(ir, manifest);
-    const output = buildNativeBindingOutput(ir, manifest).files;
+    const output = outputForAuthority().files;
     const swiftMetadata = Object.entries(output)
       .filter(([path]) => path.startsWith("swift/Metadata"))
       .map(([, contents]) => contents)
@@ -399,7 +410,7 @@ describe("remote v3 native binding generator", () => {
       const { ir, manifest } = input();
       const parsed = parseNativeBindingIr(ir, manifest);
       const graph = buildNativeSchemaGraph(collectNativeSchemaRoots(parsed));
-      const output = buildNativeBindingOutput(ir, manifest).files;
+      const output = outputForAuthority().files;
       for (const language of ["swift", "kotlin"] as const) {
         const adapters = rootAdapters(graph, language);
         expect(adapters).toHaveLength(586);

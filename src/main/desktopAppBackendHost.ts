@@ -5,9 +5,10 @@
 // injected controls: the auto-update controller (created later in startup)
 // and the browser-panel native control (owned by the host-services module).
 
-import { ipcMain } from "electron";
+import { ipcMain, shell } from "electron";
 import type { Project, Thread } from "@/shared/contracts";
 import { IPC_EVENT_CHANNELS, IPC_WINDOW_CHANNELS } from "@/shared/ipc";
+import { closeLocalPort, listLocalPorts } from "@/host/localPorts";
 import type {
   BackendBrowserEvent,
   BackendNativeEvent,
@@ -19,6 +20,12 @@ import { showOsNotification, showUserNotificationFallback } from "./osNotificati
 import { PENDING_THREAD_COMMAND_LIMIT, desktopApp } from "./desktopAppState";
 import type { AutoUpdaterController } from "./updates/autoUpdater";
 import { BackendHostClient } from "./backend/BackendHostClient";
+import { requestDesktopThreadTransfer } from "./backend/desktopThreadTransferBroker";
+import {
+  requestDesktopExperiment,
+  requestDesktopMemorySync,
+  requestDesktopProviderLogin,
+} from "./backend/desktopActionBroker";
 import { buildDesktopBackendInitialize } from "./backend/desktopBackendInitialize";
 import { BackendStateStore } from "./backend/BackendStateStore";
 import { ensureMainWindow, openThreadFromTray } from "./desktopAppWindows";
@@ -74,6 +81,14 @@ function createNativeRequestHandler(
 ): (request: BackendNativeRequest) => Promise<unknown> | unknown {
   return (request) => {
     switch (request.operation) {
+      case "thread-transfer":
+        return requestDesktopThreadTransfer(desktopApp.mainWindow, request.payload);
+      case "memory-sync":
+        return requestDesktopMemorySync(desktopApp.mainWindow, request.payload);
+      case "experiment-workflow":
+        return requestDesktopExperiment(desktopApp.mainWindow, request.payload);
+      case "provider-login":
+        return requestDesktopProviderLogin(desktopApp.mainWindow, request.payload);
       case "dispatch-thread-command": {
         const window = desktopApp.mainWindow;
         if (!window || window.isDestroyed() || desktopApp.pendingThreadCommands.length > 0) {
@@ -110,6 +125,30 @@ function createNativeRequestHandler(
       case "install-update":
         deps.getAutoUpdater().installUpdate();
         return null;
+      case "local-ports": {
+        const command = request.payload.command;
+        if (command.action === "list") {
+          return listLocalPorts().then((result) => ({ action: command.action, ...result }));
+        }
+        if (command.action === "open") {
+          return listLocalPorts().then(async ({ ports }) => {
+            const url = ports.find(
+              ({ port, address }) => port === command.port && address === command.address,
+            )?.url;
+            const action = command.action;
+            if (!url) return { action, opened: false };
+            const panel = desktopApp.browserPanelManager;
+            if (command.target === "app" && panel) {
+              await panel.createTab({ url, activate: true, reveal: true });
+              return { action, opened: true, url, target: "app" };
+            }
+            await shell.openExternal(url);
+            return { action, opened: true, url, target: "system" };
+          });
+        }
+        const { action, ...target } = command;
+        return closeLocalPort(target).then((result) => ({ action, ...result }));
+      }
       case "browser-state":
         return deps.browser.state();
       case "agent-vision":
@@ -153,7 +192,11 @@ function createNativeEventHandler(trayFeed: DesktopTrayFeed): (event: BackendNat
           ...getThreadWindows(),
         ]) {
           if (window && !window.isDestroyed())
-            window.webContents.send(IPC_EVENT_CHANNELS.sharedSettingsChanged, event.settings);
+            window.webContents.send(
+              IPC_EVENT_CHANNELS.sharedSettingsChanged,
+              event.settings,
+              event.pluginInventoryChanged,
+            );
         }
         return;
       case "remote-access-pairing-changed":

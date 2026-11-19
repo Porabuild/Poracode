@@ -136,4 +136,15 @@ describe("authoritative workspace launch selection", () => {
       })?.scope.primaryLocation,
     ).toEqual({ kind: "posix", path: "/primary/tree" });
   });
+
+  it("rejects a queued pre-move checkout for an unscoped thread", () => {
+    dbUpsertThread({ ...testThread(), worktreePath: "/primary/moved" }, 0);
+    expect(() => readWorkspaceLaunchSelection(payload())).toThrow(WorkspaceLaunchUnavailableError);
+    expect(
+      readWorkspaceLaunchSelection({
+        ...payload(),
+        projectLocation: { kind: "posix", path: "/primary/moved" },
+      }),
+    ).toBeUndefined();
+  });
 });

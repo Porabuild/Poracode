@@ -240,18 +240,6 @@ export function resolveSandboxModeValue(agent: AgentStatus, preferred?: string):
   return modes[0]?.id ?? "";
 }
 
-export function resolveInitialPresentationMode(
-  agent: AgentStatus | undefined,
-  lastByAgent: Record<string, ThreadPresentationMode>,
-): ThreadPresentationMode {
-  if (!agent) return "gui";
-  const supported = agent.capabilities.presentationModes ?? [agent.capabilities.presentationMode];
-  const last = lastByAgent[agent.kind];
-  if (last && supported.includes(last)) return last;
-  if (supported.includes("gui")) return "gui";
-  return supported[0] ?? agent.capabilities.presentationMode ?? "gui";
-}
-
 function normalizeCursorPreferredDraft(
   agent: AgentStatus,
   preferred?: Partial<ProviderDraftConfig>,

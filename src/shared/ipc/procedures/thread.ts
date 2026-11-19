@@ -1,5 +1,17 @@
 import { z } from "zod";
 import {
+  appThreadRequestsPayloadSchema,
+  appThreadRequestsResultSchema,
+  type AppThreadRequestsPayload,
+  type AppThreadRequestsResult,
+} from "../../contracts/appThreadRequests";
+import {
+  controlWorkspaceTerminalPayloadSchema,
+  controlWorkspaceTerminalResultSchema,
+  type ControlWorkspaceTerminalPayload,
+  type ControlWorkspaceTerminalResult,
+} from "../../contracts/workspaceTerminal";
+import {
   controlThreadExecutionPayloadSchema,
   controlThreadExecutionResultSchema,
   threadExecutionReservationPayloadSchema,
@@ -157,6 +169,16 @@ import {
 } from "../schemas";
 
 export const threadProcedures = {
+  appThreadRequests: definePayloadProcedure<
+    AppThreadRequestsPayload,
+    AppThreadRequestsResult,
+    "supervisor"
+  >(
+    "appThreadRequests",
+    "supervisor",
+    appThreadRequestsPayloadSchema,
+    appThreadRequestsResultSchema,
+  ),
   controlledThreadRequest: definePayloadProcedure<
     ControlledThreadRequestPayload,
     ControlledThreadRequestResult,
@@ -557,6 +579,16 @@ export const threadProcedures = {
     "startShell",
     "supervisor",
     startShellPayloadSchema,
+  ),
+  controlWorkspaceTerminal: definePayloadProcedure<
+    ControlWorkspaceTerminalPayload,
+    ControlWorkspaceTerminalResult,
+    "supervisor"
+  >(
+    "controlWorkspaceTerminal",
+    "supervisor",
+    controlWorkspaceTerminalPayloadSchema,
+    controlWorkspaceTerminalResultSchema,
   ),
   extractContext: definePayloadProcedure<ExtractContextPayload, ExtractContextResult, "supervisor">(
     "extractContext",

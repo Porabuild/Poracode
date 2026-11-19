@@ -1,3 +1,4 @@
+import { settingsSubjectField } from "@/shared/settingsTransactions";
 import { dbGetProject, dbGetThread, dbGetThreads, onProjectThreadDataChanged } from "@/host/db";
 import { callDatabaseRpc } from "@/host/db/databaseRpc";
 import { persistedThreadPageSchema } from "@/shared/ipc/schemas";
@@ -62,6 +63,12 @@ import { joinRuntimeShutdown } from "./joinRuntimeShutdown";
 import { createBackendSettingsAccess, type BackendSettingsAccess } from "./BackendSettingsService";
 import { type BackendSettingsNotifications } from "./BackendSettingsNotifications";
 import type { EnvironmentRuntimeService } from "@/host/environments/environmentRuntimeService";
+import { archiveTransferredThread, runDesktopAppThreadTransfer } from "./desktopAppThreadTransfer";
+import { appDesktopActionNotStartedSchema } from "@/shared/contracts/appDesktopAction";
+import { appMemorySyncResultSchema } from "@/shared/contracts/appMemorySync";
+import { appLocalPortsResultSchema } from "@/shared/contracts/appLocalPorts";
+import { appProviderLoginResultSchema } from "@/shared/contracts/appProviderAuth";
+import { runDesktopAppExperiment } from "./desktopAppExperiment";
 
 export interface BackendDesktopServicesOptions {
   initialize: BackendHostInitializePayload;
@@ -148,9 +155,18 @@ export class BackendDesktopServices {
         }
       : undefined;
     const settingsNotifications: BackendSettingsNotifications = {
-      onChanged: (settings) => {
+      onChanged: (settings, change) => {
         this.durable.observeMemorySettings(settings);
-        options.emitNativeEvent({ type: "shared-settings-changed", settings });
+        const pluginInventoryChanged =
+          change?.status === "committed" &&
+          change.changes.some(
+            ({ subject }) => settingsSubjectField(subject) === "installedPlugins",
+          );
+        options.emitNativeEvent({
+          type: "shared-settings-changed",
+          settings,
+          ...(pluginInventoryChanged ? { pluginInventoryChanged: true } : {}),
+        });
       },
       reportError: options.reportError,
     };
@@ -196,9 +212,108 @@ export class BackendDesktopServices {
       this.remote?.getServer()?.publishCatalogChanged();
     };
 
+    const hostId = readOrCreateRemoteAccessIdentity(initialize.baseDir).desktopId;
     this.durable = new BackendDurableServices({
+      editCatalog: async (command, operationKey) => {
+        const server = this.remote?.getServer();
+        if (!server) throw new Error("The owning host is not ready to edit its catalog.");
+        return server.editAppCatalog(command, operationKey);
+      },
+      ...(desktop
+        ? {
+            experiments: {
+              read: () => {
+                const server = this.remote?.getServer();
+                if (!server) throw new Error("The owning host is not ready to read experiments.");
+                return server.readAppExperiments();
+              },
+              edit: (edit) => {
+                const server = this.remote?.getServer();
+                if (!server) throw new Error("The owning host is not ready to edit experiments.");
+                return server.editAppExperiment(edit);
+              },
+              run: (input, callerThreadId) =>
+                runDesktopAppExperiment(
+                  input,
+                  callerThreadId,
+                  () => {
+                    const server = this.remote?.getServer();
+                    if (!server)
+                      throw new Error("The owning host is not ready to run experiments.");
+                    return server.readAppExperiments();
+                  },
+                  options.requestNative,
+                ),
+            },
+            localPorts: async (command) => {
+              const reply = appLocalPortsResultSchema.parse(
+                await options.requestNative({
+                  operation: "local-ports",
+                  payload: { version: 1, command },
+                }),
+              );
+              if (reply.action !== command.action)
+                throw new Error("The desktop returned a different port action.");
+              return reply;
+            },
+            openProviderLogin: async (input) => {
+              const response = await options.requestNative({
+                operation: "provider-login",
+                payload: { version: 1, input },
+              });
+              const refusal = appDesktopActionNotStartedSchema.safeParse(response);
+              if (refusal.success) throw new Error(refusal.data.message);
+              return appProviderLoginResultSchema.parse(response);
+            },
+            syncMemory: async () => {
+              const response = await options.requestNative({
+                operation: "memory-sync",
+                payload: { version: 1 },
+              });
+              const refusal = appDesktopActionNotStartedSchema.safeParse(response);
+              if (refusal.success) throw new Error(refusal.data.message);
+              return appMemorySyncResultSchema.parse(response);
+            },
+            transferThread: (input) =>
+              runDesktopAppThreadTransfer(hostId, input, options.requestNative, (source) =>
+                archiveTransferredThread(supervisor, source, (threadId) =>
+                  this.remote?.getServer()?.publishThreadsChanged([threadId]),
+                ),
+              ),
+          }
+        : {}),
+      handoffThread: async (input) => {
+        const server = this.remote?.getServer();
+        if (!server) throw new Error("The owning host is not ready to hand off threads.");
+        return server.handoffAppThread(
+          input,
+          resolvePoracodePaths(initialize.baseDir).attachmentsDir,
+        );
+      },
+      moveThreadToWorktree: async (input) => {
+        const server = this.remote?.getServer();
+        if (!server) throw new Error("The owning host is not ready to move threads.");
+        return server.moveAppThreadToWorktree(input);
+      },
+      reopenThread: async (threadId, initialSize) => {
+        const server = this.remote?.getServer();
+        if (!server) throw new Error("The owning host is not ready to reopen threads.");
+        return server.reopenAppThread(threadId, initialSize);
+      },
+      importSession: async (input) => {
+        const server = this.remote?.getServer();
+        if (!server) throw new Error("The owning host is not ready to import sessions.");
+        return server.importAppSession(input);
+      },
+      revertCheckpoint: (payload) => host.revertCheckpoint(payload),
+      beginQueueActivity: (threadId) => this.remote?.getServer()?.beginAppQueueActivity(threadId),
+      applyThreadLifecycle: async (command) => {
+        const server = this.remote?.getServer();
+        if (!server) throw new Error("The owning host is not ready to apply thread actions.");
+        await server.applyAppThreadLifecycle(command);
+      },
       appVersion: initialize.supervisor.appVersion,
-      hostId: readOrCreateRemoteAccessIdentity(initialize.baseDir).desktopId,
+      hostId,
       supervisor,
       // The local attachments root this backend child owns (the same promoted
       // root main writes into on managed): its durable services run the one
@@ -217,14 +332,15 @@ export class BackendDesktopServices {
         // even an all-id host-local projection cannot emit an over-cap event.
         this.remote?.getServer()?.publishThreadsChanged(threadIds);
       },
-      writeSharedSettings: (next) => {
-        if (!desktop) return;
-        // Routed through the settings authority as scoped CAS edits; the
-        // committed broadcast happens from the authority's onCommitted hook.
-        this.settings.writeSharedSettingsCompat(next);
-      },
       editSettingsField: (field, compute) => this.settings.editSettingsField(field, compute),
+      editSettingsFields: (fields, compute) => this.settings.editSettingsFields(fields, compute),
+      editPreferences: (compute) => this.settings.editPreferences(compute),
       commitOwnerSettingsEdits: (edits) => this.settings.commitOwnerEdits(edits),
+      assertCanPersistSecrets: () => {
+        const custody = host.getDataCustody();
+        if (!custody) throw new Error("Plugin credentials require active desktop data custody.");
+        custody.assertActive();
+      },
       // TODO(Gates 2-3 Batch 1, Lane 1B — S2.1): this is hardcoded `true`, so
       // app-controls reports a renderer window even in tray/hidden mode and
       // callers believe zero-window thread-command mirrors were delivered.
@@ -316,7 +432,7 @@ export class BackendDesktopServices {
               }
             : {}),
           ...(options.environments ? { environments: options.environments } : {}),
-          callSupervisor: (name, payload) => supervisor.call(name, payload),
+          callSupervisor: (...args) => supervisor.call(...args),
           peekResourceAdmissionStatus: () => supervisor.peekResourceAdmissionStatus(),
           truncateThreadRuntime: (threadId, itemId) => {
             host.truncateThreadRuntime(threadId, itemId);
@@ -326,6 +442,8 @@ export class BackendDesktopServices {
           runtimeHistoryGap: createRuntimeHistoryGapPort(host),
           runThreadMutation: (threadId, operation) =>
             supervisor.runThreadMutation(threadId, operation),
+          captureThreadControlState: (threadId, expectedControls) =>
+            supervisor.captureThreadControlState(threadId, expectedControls),
           revertCheckpoint: async (input) => {
             try {
               return await host.revertCheckpoint(input);

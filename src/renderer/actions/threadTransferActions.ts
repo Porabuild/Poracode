@@ -1,7 +1,8 @@
 import { msg } from "@lingui/core/macro";
 import { base64ToUint8Array } from "@/shared/base64";
 import type { AgentStatus, Project, Thread, ThreadConfig } from "@/shared/contracts";
-import { remoteMutationMayHaveCommitted } from "@/shared/remote/client";
+import type { AppThreadTransferRequest } from "@/shared/contracts/appThreadTransfer";
+import { remoteMutationMayHaveCommitted, type RemoteDesktopClient } from "@/shared/remote/client";
 import { desktopTitle } from "@/shared/remote/desktopLabel";
 import {
   authStateForPresentation,
@@ -15,7 +16,7 @@ import {
   type ThreadTransferPlanProject,
   type ThreadTransferSource,
 } from "@/shared/threadTransfer";
-import { friendlyError } from "@/shared/messages";
+import { friendlyError, msg as sharedMsg } from "@/shared/messages";
 import { i18n } from "@/renderer/i18n/i18n";
 import { useAppStore } from "@/renderer/state/appStore";
 import { entityHost, hostHandle, type EntityHost } from "@/renderer/state/entityHost";
@@ -81,6 +82,17 @@ function requireHost(host: EntityHost | undefined): EntityHost {
   return host;
 }
 
+/** Credential restoration can await, so check again inside the client callback. */
+function withCurrentHost<T>(
+  host: EntityHost,
+  run: (client: RemoteDesktopClient) => Promise<T>,
+): Promise<T> {
+  return host.withClient((client) => {
+    if (!host.isCurrent()) throw new Error(i18n._(msg`That machine is not available.`));
+    return run(client);
+  });
+}
+
 /**
  * Member project rows of the thread's logical project that can receive the
  * move: a different host than the thread's, not WSL, and not disabled. The
@@ -142,7 +154,7 @@ export function transferTargetOnline(
 }
 
 async function requireTransferCapability(host: EntityHost) {
-  const environment = await host.withClient((client) => client.environment());
+  const environment = await withCurrentHost(host, (client) => client.environment());
   if (!environment.capabilities?.threadTransfer?.versions.includes(THREAD_TRANSFER_VERSION)) {
     const label = hostLabel(host);
     throw new Error(i18n._(msg`Update ${label} to move threads between machines.`));
@@ -171,11 +183,11 @@ export async function loadThreadTransferPreview(
     const label = target.label;
     throw new Error(i18n._(msg`This thread is already on ${label}.`));
   }
-  const described = await source.withClient((client) =>
+  const described = await withCurrentHost(source, (client) =>
     client.threadTransfer({ kind: "describe", threadId: source.hostId }),
   );
   const [plan, agents] = await Promise.all([
-    destination.withClient((client) =>
+    withCurrentHost(destination, (client) =>
       client.threadTransfer({
         kind: "plan",
         projectId,
@@ -204,9 +216,9 @@ async function readyChatAgents(
   destination: EntityHost,
   thread: Thread,
 ): Promise<AgentStatus[] | undefined> {
-  const statuses = await destination
-    .withClient((client) => client.agentStatuses({ omitSlashCommands: true }))
-    .catch(() => undefined);
+  const statuses = await withCurrentHost(destination, (client) =>
+    client.agentStatuses({ omitSlashCommands: true }),
+  ).catch(() => undefined);
   if (!statuses) return undefined;
   const agents = statuses.windows.filter((status) => {
     if (!status.installed || !supportsPresentation(status, "gui")) return false;
@@ -234,14 +246,14 @@ const STOP_SETTLE_POLL_MS = 500;
  * settled, so a turn that ended on its own is not disturbed.
  */
 async function stopAndSettle(source: EntityHost): Promise<boolean> {
-  const described = await source.withClient((client) =>
+  const described = await withCurrentHost(source, (client) =>
     client.threadTransfer({ kind: "describe", threadId: source.hostId }),
   );
   if (described.source.blocker !== "busy") return false;
-  await source.withClient((client) => client.interruptThread(source.hostId));
+  await withCurrentHost(source, (client) => client.interruptThread(source.hostId));
   const deadline = Date.now() + STOP_SETTLE_TIMEOUT_MS;
   for (;;) {
-    const poll = await source.withClient((client) =>
+    const poll = await withCurrentHost(source, (client) =>
       client.threadTransfer({ kind: "describe", threadId: source.hostId }),
     );
     if (poll.source.blocker !== "busy") return true;
@@ -261,7 +273,7 @@ export interface ThreadTransferOutcome {
   readonly continueFailed: boolean;
 }
 
-export async function moveThreadToHost(input: {
+type MoveThreadToHostInput = {
   readonly thread: Thread;
   readonly target: ThreadTransferTarget;
   /** The target host's own project id. */
@@ -276,10 +288,43 @@ export async function moveThreadToHost(input: {
   /** Stop a working agent here first, then resume the work on the target. */
   readonly stopFirst?: boolean;
   readonly onProgress?: (progress: ThreadTransferProgress) => void;
-}): Promise<ThreadTransferOutcome> {
+  /** Brokered requests reuse the ids assigned by the originating host. */
+  readonly transferIds?: Pick<
+    NonNullable<AppThreadTransferRequest["ids"]>,
+    "transferId" | "targetThreadId"
+  >;
+  /** MCP requests transfer without changing the desktop's navigation. */
+  readonly withoutNavigation?: boolean;
+};
+
+const movingThreads = new Set<string>();
+
+export async function moveThreadToHost(
+  input: MoveThreadToHostInput,
+): Promise<ThreadTransferOutcome> {
+  if (movingThreads.has(input.thread.id)) throw new Error(sharedMsg("thread.transferLimit"));
+  movingThreads.add(input.thread.id);
+  try {
+    return await transferThread(input);
+  } finally {
+    movingThreads.delete(input.thread.id);
+  }
+}
+
+async function transferThread(input: MoveThreadToHostInput): Promise<ThreadTransferOutcome> {
   const source = requireHost(entityHost(input.thread));
   const destination = requireHost(hostHandle(input.target.key));
-  const transferId = crypto.randomUUID();
+  const transferId = input.transferIds?.transferId ?? crypto.randomUUID();
+  const targetThreadId = input.transferIds?.targetThreadId ?? crypto.randomUUID();
+  // Do not let a transfer switch credentials or machines halfway through.
+  const withCurrent = <T>(host: EntityHost, run: (client: RemoteDesktopClient) => Promise<T>) => {
+    return withCurrentHost(host, (client) => {
+      if (!source.isCurrent() || !destination.isCurrent()) {
+        throw new Error(i18n._(msg`That machine is not available.`));
+      }
+      return run(client);
+    });
+  };
   let interrupted = false;
   if (input.stopFirst) {
     input.onProgress?.({ phase: "stopping" });
@@ -288,11 +333,11 @@ export async function moveThreadToHost(input: {
   let committed;
   // Only a failure before the target saved means the move didn't finish.
   try {
-    const plan = await destination.withClient((client) =>
+    const plan = await withCurrent(destination, (client) =>
       client.threadTransfer({ kind: "plan", projectId: input.projectId, repoIdentities: [] }),
     );
     input.onProgress?.({ phase: "packaging" });
-    const exported = await source.withClient((client) =>
+    const exported = await withCurrent(source, (client) =>
       client.threadTransfer({
         kind: "export",
         transferId,
@@ -300,6 +345,7 @@ export async function moveThreadToHost(input: {
         haves: plan.haves,
       }),
     );
+    let preserveImport = false;
     try {
       if (exported.summary.git && exported.summary.git.basisCount === 0 && plan.haves.length > 0) {
         const label = input.target.label;
@@ -308,7 +354,7 @@ export async function moveThreadToHost(input: {
         );
       }
       for (let offset = 0; offset < exported.byteLength;) {
-        const read = await source.withClient((client) =>
+        const read = await withCurrent(source, (client) =>
           client.threadTransfer({
             kind: "read",
             transferId,
@@ -317,8 +363,13 @@ export async function moveThreadToHost(input: {
           }),
         );
         const data = base64ToUint8Array(read.data);
-        if (data.length === 0) throw new Error(i18n._(msg`The transfer ended early. Try again.`));
-        await destination.withClient((client) =>
+        if (
+          read.offset !== offset ||
+          data.length === 0 ||
+          offset + data.length > exported.byteLength
+        )
+          throw new Error(i18n._(msg`The transfer ended early. Try again.`));
+        const received = await withCurrent(destination, (client) =>
           client.uploadThreadTransferChunk({
             transferId,
             offset,
@@ -327,6 +378,8 @@ export async function moveThreadToHost(input: {
             data,
           }),
         );
+        if (received !== offset + data.length)
+          throw new Error(i18n._(msg`The transfer ended early. Try again.`));
         offset += data.length;
         input.onProgress?.({
           phase: "transferring",
@@ -338,28 +391,33 @@ export async function moveThreadToHost(input: {
       const commit = {
         kind: "commit" as const,
         transferId,
-        threadId: crypto.randomUUID(),
+        threadId: targetThreadId,
         projectId: input.projectId,
         byteLength: exported.byteLength,
         sha256: exported.sha256,
         ...(input.agent ? { agent: { kind: input.agent.kind, config: input.agent.config } } : {}),
       };
-      committed = await destination
-        .withClient((client) => client.threadTransfer(commit))
-        .catch((error: unknown) => {
+      committed = await withCurrent(destination, (client) => client.threadTransfer(commit)).catch(
+        (error: unknown) => {
           // A commit is idempotent per transfer, so an uncertain one is asked again.
           if (!remoteMutationMayHaveCommitted(error)) throw error;
-          return destination.withClient((client) => client.threadTransfer(commit));
-        });
+          preserveImport = true;
+          return withCurrent(destination, (client) => client.threadTransfer(commit));
+        },
+      );
     } catch (error) {
-      void destination
-        .withClient((client) => client.threadTransfer({ kind: "abort", transferId }))
-        .catch(() => undefined);
+      if (!preserveImport && destination.isCurrent()) {
+        void withCurrentHost(destination, (client) =>
+          client.threadTransfer({ kind: "abort", transferId }),
+        ).catch(() => undefined);
+      }
       throw error;
     } finally {
-      void source
-        .withClient((client) => client.threadTransfer({ kind: "release", transferId }))
-        .catch(() => undefined);
+      if (source.isCurrent()) {
+        void withCurrentHost(source, (client) =>
+          client.threadTransfer({ kind: "release", transferId }),
+        ).catch(() => undefined);
+      }
     }
   } catch (error) {
     // The run was already stopped on the source; say so instead of implying nothing happened.
@@ -370,23 +428,38 @@ export async function moveThreadToHost(input: {
       { cause: error },
     );
   }
+  if (
+    input.transferIds &&
+    (committed.thread.id !== targetThreadId || committed.thread.projectId !== input.projectId)
+  ) {
+    throw new Error("The destination confirmed a different thread or project.");
+  }
   input.onProgress?.({ phase: "finishing" });
   // The work continues on the target, so the original is archived — but only when
   // the source host, the authority on its own runs, still reports it settled. A
   // turn another client started during the move keeps it open, and so does a
   // source that cannot be asked: the move already succeeded.
-  let sourceSettled = false;
-  try {
-    const described = await source.withClient((client) =>
-      client.threadTransfer({ kind: "describe", threadId: source.hostId }),
-    );
-    sourceSettled = described.source.blocker !== "busy";
-  } catch {
-    // Leave the source open rather than risk archiving a live run.
+  if (!input.withoutNavigation) {
+    try {
+      const described = await withCurrent(source, (client) =>
+        client.threadTransfer({ kind: "describe", threadId: source.hostId }),
+      );
+      if (described.source.blocker !== "busy") archiveThread(input.thread.id);
+    } catch {
+      // Leave the source open rather than risk archiving a live run.
+    }
   }
-  if (sourceSettled) archiveThread(input.thread.id);
+  if (!destination.isCurrent()) {
+    return {
+      thread: committed.thread,
+      targetLabel: input.target.label,
+      branch: committed.branch,
+      branchRenamed: committed.branchRenamed,
+      continueFailed: Boolean(input.continuePrompt?.trim() || interrupted),
+    };
+  }
   const moved = destination.adoptThreadRow(committed.thread);
-  openThread(moved.id, { reopenRuntime: false });
+  if (!input.withoutNavigation) openThread(moved.id, { reopenRuntime: false });
   // Work stopped for the move resumes on the target without waiting for the user.
   const prompt =
     input.continuePrompt?.trim() ||
@@ -396,7 +469,7 @@ export async function moveThreadToHost(input: {
     await submitThreadInput(moved.id, prompt).catch(() => {
       continueFailed = true;
     });
-  } else {
+  } else if (!input.withoutNavigation) {
     useAppStore.getState().requestComposerFocus(moved.id);
   }
   return {

@@ -523,7 +523,7 @@ function boundedResult(response: RemoteProjectCommandResponse): RemoteProjectCom
  * patch semantics (name/icon validation, explicit-null removal, and the
  * masked-MCP-marker round trip).
  */
-function applyProjectPatch(
+export function applyProjectPatch(
   project: Project,
   patch: Extract<RemoteProjectCommand, { kind: "update" }>["patch"],
 ): Project {

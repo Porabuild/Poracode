@@ -342,6 +342,36 @@ export function dbTouchThreadUpdatedAt(threadId: string, updatedAt: string): boo
   return false;
 }
 
+/** Assign a checkout without rewriting status, runtime identity or catalog order. */
+export function dbAssignMainThreadWorktree(input: {
+  threadId: string;
+  projectId: string;
+  worktreePath: string;
+  worktreeBranch?: string;
+}): boolean {
+  const result = getSqlite()
+    .prepare(
+      `UPDATE threads SET worktree_path = ?, worktree_branch = ?, updated_at = ?
+       WHERE id = ? AND project_id = ? AND archived = 0
+         AND (worktree_path IS NULL OR worktree_path = '')`,
+    )
+    .run(
+      input.worktreePath,
+      input.worktreeBranch ?? null,
+      new Date().toISOString(),
+      input.threadId,
+      input.projectId,
+    );
+  if (result.changes > 0) {
+    try {
+      notifyProjectThreadDataChanged();
+    } catch (error) {
+      console.warn("[db] thread worktree assignment committed but notification failed:", error);
+    }
+  }
+  return result.changes > 0;
+}
+
 /** Compute against the current row; never replace runtime/configuration or catalog order. */
 export function dbUpdateThreadMetadata(
   threadId: string,

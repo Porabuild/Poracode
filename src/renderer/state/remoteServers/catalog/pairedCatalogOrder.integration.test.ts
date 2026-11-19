@@ -242,7 +242,7 @@ describe("paired bounded catalog manual order over the real fixture", () => {
     await delay(0);
   });
 
-  it("converges external reorders, prepended rows, and real drag dispatches", async () => {
+  it("converges App Controls reorders, prepended rows, and real drag dispatches", async () => {
     const server = await startFixtureServer();
     const info = server.getInfo();
     if (!info) throw new Error("fixture server not started");
@@ -277,8 +277,8 @@ describe("paired bounded catalog manual order over the real fixture", () => {
 
     const external = await externalClientFor(server);
 
-    // ── External reorder, same id set (threads) ─────────────────────────────
-    await external.sendThreadCommand(
+    // ── App Controls reorder, same id set (threads) ─────────────────────────
+    await server.editAppCatalog(
       {
         kind: "reorder",
         threadId: "t-c",
@@ -287,22 +287,22 @@ describe("paired bounded catalog manual order over the real fixture", () => {
         targetThreadId: "t-a",
         placement: "before",
       },
-      { commandId: crypto.randomUUID() },
+      "app-thread-order",
     );
     expect(hostManualThreadOrder()).toEqual(["t-c", "t-a", "t-b"]);
     await vi.waitFor(() => expect(localThreadIds()).toEqual(hostManualThreadOrder()), {
       timeout: 20_000,
     });
 
-    // ── External reorder, same id set (projects) ────────────────────────────
-    await external.projectCommand(
+    // ── App Controls reorder, same id set (projects) ─────────────────────────
+    await server.editAppCatalog(
       {
         kind: "reorder",
         projectId: "p-c",
         targetProjectId: "p-a",
         placement: "before",
       },
-      { commandId: crypto.randomUUID() },
+      "app-project-order",
     );
     expect(hostManualProjectOrder()).toEqual(["p-c", "p-a", "p-b"]);
     await vi.waitFor(() => expect(localProjectIds()).toEqual(hostManualProjectOrder()), {

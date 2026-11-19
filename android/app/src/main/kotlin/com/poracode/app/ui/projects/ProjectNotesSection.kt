@@ -19,6 +19,7 @@ import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -36,6 +37,7 @@ import com.poracode.app.ui.theme.PoracodeIcons
 import java.time.Instant
 import java.util.UUID
 import androidx.compose.material3.FilledTonalButton
+import kotlinx.coroutines.launch
 
 @Composable
 internal fun ProjectNotesSection(
@@ -45,6 +47,7 @@ internal fun ProjectNotesSection(
 ) {
     val state by runtime.notes.state.collectAsStateWithLifecycle()
     val entry = state.entries[identity]
+    val scope = rememberCoroutineScope()
     var noteText by remember(identity) { mutableStateOf("") }
     var todos by remember(identity) { mutableStateOf(emptyList<ProjectTodo>()) }
     var initializedEpoch by remember(identity) { mutableLongStateOf(-1L) }
@@ -92,6 +95,15 @@ internal fun ProjectNotesSection(
             }
             ProjectFailureText(entry?.failure)
             return@ProjectSection
+        }
+        if (entry.conflict) {
+            Text(
+                stringResource(R.string.projects_notes_conflict),
+                style = MaterialTheme.typography.bodySmall,
+            )
+            FilledTonalButton(onClick = { scope.launch { runtime.notes.load(identity, discardDraft = true) } }) {
+                Text(stringResource(R.string.projects_notes_load_saved))
+            }
         }
         PoracodeTextField(
             value = noteText,

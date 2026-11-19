@@ -19,5 +19,33 @@ export const projectNotesSchema = z.object({
   doc: z.unknown().nullable(),
   todos: z.array(notesTodoItemSchema),
   updatedAt: z.string().min(1),
+  /** Opaque revision of the stored document and to-do list. */
+  revision: z.string().min(1).optional(),
 });
 export type ProjectNotes = z.infer<typeof projectNotesSchema>;
+
+export const projectNotesLegacyWriteSchema = projectNotesSchema.omit({ revision: true });
+export const projectNotesReplacementSchema = projectNotesSchema
+  .pick({ doc: true, todos: true })
+  .strict();
+
+export const projectNotesGuardedWriteSchema = z.strictObject({
+  projectId: projectNotesSchema.shape.projectId,
+  /** Null means the project had no saved notes when the editor loaded. */
+  baseRevision: z.string().min(1).max(128).nullable(),
+  replacement: projectNotesReplacementSchema,
+});
+export type ProjectNotesGuardedWrite = z.infer<typeof projectNotesGuardedWriteSchema>;
+export const projectNotesWriteSchema = z.union([
+  projectNotesLegacyWriteSchema,
+  projectNotesGuardedWriteSchema,
+]);
+export type ProjectNotesWrite = z.infer<typeof projectNotesWriteSchema>;
+
+export const PROJECT_NOTES_CONFLICT = "project_notes_conflict";
+
+export const projectNotesSaveResultSchema = z.discriminatedUnion("status", [
+  z.object({ status: z.literal("saved"), notes: projectNotesSchema }),
+  z.object({ status: z.literal("conflict"), notes: projectNotesSchema.nullable() }),
+]);
+export type ProjectNotesSaveResult = z.infer<typeof projectNotesSaveResultSchema>;

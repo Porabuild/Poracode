@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AgentKind, PromptSegment, SessionRef } from "@/shared/contracts";
+import type { AppThreadRequestsPayload } from "@/shared/contracts/appThreadRequests";
 import { crewFingerprint } from "@/shared/crew";
 import { decodeThreadIdentity } from "@/shared/browserMcpThread";
 import * as browserMcp from "../agents/browserMcp";
@@ -576,6 +577,51 @@ describe("forwarded child request resolution", () => {
     resolveChildRequest.mockResolvedValueOnce(false);
     await manager.resolveThreadServerRequest(request);
     expect(parentResolve).toHaveBeenCalledWith(request.requestId, request.response);
+
+    manager.appendSubagentRuntimeEvent(THREAD_ID, {
+      type: "request.opened",
+      threadId: THREAD_ID,
+      requestId: request.requestId,
+      requestType: "tool_call_approval",
+      payload: { summary: "Confirm", options: [{ optionId: "deny", label: "Deny" }] },
+    });
+    const listed = await manager.appThreadRequests({
+      version: 1,
+      input: { action: "list", threadId: THREAD_ID },
+    });
+    if (listed.action !== "list") throw new Error("Expected live child requests.");
+    const requestToken = listed.requests[0]?.requestToken;
+    if (!requestToken) throw new Error("Expected a reply token for the forwarded request.");
+    const childTarget = {
+      version: 1,
+      input: {
+        action: "reply",
+        threadId: THREAD_ID,
+        requestId: request.requestId,
+        requestToken,
+        reply: { kind: "options", optionIds: ["deny"] },
+      },
+    } satisfies AppThreadRequestsPayload;
+    resolveChildRequest.mockClear();
+    await expect(
+      manager.appThreadRequests({
+        ...childTarget,
+        input: { ...childTarget.input, threadId: "another-parent" },
+      }),
+    ).rejects.toThrow(/no longer pending/u);
+    expect(resolveChildRequest).not.toHaveBeenCalled();
+    resolveChildRequest.mockResolvedValueOnce(true);
+    await expect(manager.appThreadRequests(childTarget)).resolves.toEqual({
+      action: "reply",
+      submitted: true,
+    });
+    expect(resolveChildRequest).toHaveBeenCalledExactlyOnceWith(
+      request.requestId,
+      { optionId: "deny" },
+      THREAD_ID,
+      true,
+    );
+    await expect(manager.appThreadRequests(childTarget)).rejects.toThrow(/no longer pending/u);
   });
 });
 

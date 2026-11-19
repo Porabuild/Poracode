@@ -147,9 +147,12 @@ import { useDraftLiveVoice } from "./useDraftLiveVoice";
 import {
   isCurrentCheckoutRef,
   localBranchNameFromRef,
-  qualifiedRemoteName,
   resolveWorktreeOriginRef,
-} from "@/renderer/components/common/BranchSelector/parts/worktreeBaseRef";
+} from "@/shared/worktreeBaseRef";
+import {
+  resolveImplicitThreadWorktreeBase,
+  type ThreadWorktreeDraftFields,
+} from "@/shared/threadWorktreeLaunch";
 
 const EMPTY_BRANCHES: GitBranchInfo[] = [];
 
@@ -158,7 +161,7 @@ const EMPTY_BRANCHES: GitBranchInfo[] = [];
 // pass through without field-by-field copying.
 export type DraftStartOutcome = "accepted" | "cancelled";
 export type DraftStartResult = DraftStartOutcome | void;
-export type DraftStartInput = {
+export type DraftStartInput = ThreadWorktreeDraftFields & {
   /** Optional caller-owned identity for features that attach after launch. */
   threadId?: string | undefined;
   /** Client-only outbox identity; stripped before provider/host dispatch. */
@@ -167,11 +170,6 @@ export type DraftStartInput = {
   config: ThreadConfig;
   prompt: string;
   segments?: PromptSegment[] | undefined;
-  existingWorktreePath?: string | undefined;
-  worktreeBranch?: string | undefined;
-  worktreeBaseBranch?: string | undefined;
-  worktreeIsNewBranch?: boolean | undefined;
-  worktreeTransferUncommitted?: boolean | undefined;
   presentationMode?: ThreadPresentationMode | undefined;
   /** Per-turn context the launching surface captured for the initial prompt. */
   clientContext?: TurnClientContext | undefined;
@@ -634,17 +632,12 @@ export function ThreadDraftComposerArea(props: {
   // the main checkout is on. Fall back to the checkout only when neither is
   // known. A pin whose branch no longer exists is ignored.
   const pinnedWorktreeBranch = props.project.worktreeBaseBranch;
-  const pinnedWorktreeBase =
-    pinnedWorktreeBranch &&
-    (projectBranches.length === 0 ||
-      projectBranches.some(
-        (branch) =>
-          branch.name === pinnedWorktreeBranch ||
-          qualifiedRemoteName(branch) === pinnedWorktreeBranch,
-      ))
-      ? resolveWorktreeOriginRef(pinnedWorktreeBranch, projectBranches, projectStatus?.tracking)
-      : undefined;
-  const implicitWorktreeBase = pinnedWorktreeBase ?? projectDefaultBranch ?? trackingWorktreeBase;
+  const implicitWorktreeBase = resolveImplicitThreadWorktreeBase(
+    pinnedWorktreeBranch,
+    projectBranches,
+    projectDefaultBranch,
+    trackingWorktreeBase,
+  );
   const defaultWorktreeBase = implicitWorktreeBase ?? props.gitBranch;
   // Experiments launch from a local branch, so they keep the checkout's base.
   const experimentDefaultBase = trackingWorktreeBase ?? props.gitBranch;

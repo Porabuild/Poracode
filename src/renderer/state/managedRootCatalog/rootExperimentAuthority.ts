@@ -282,6 +282,10 @@ async function refreshHostState(session: AuthoritySession): Promise<HostExperime
   throw new ManagedExperimentConflictError();
 }
 
+export async function refreshAppExperimentSnapshot(): Promise<HostExperimentState> {
+  return refreshHostState(await resolveSession());
+}
+
 /**
  * Read + project the canonical state once per activation. Returns false when
  * the authority is unsupported/offline or the read fails; the refusal is

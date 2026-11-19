@@ -20,8 +20,8 @@ export function supportsPresentation(agent: AgentStatus, mode: ThreadPresentatio
 }
 
 /**
- * Unlike the 2-argument `resolveInitialPresentationMode` in
- * `threadDraftViewHelpers.ts` (draft view, "gui" fallback, no source), this
+ * Unlike `resolveComposerPresentationMode` in
+ * `agentSelection.ts` (draft view, "gui" fallback, no source), this
  * handoff variant carries the source thread's mode over when the target
  * supports it and falls back to "terminal".
  */

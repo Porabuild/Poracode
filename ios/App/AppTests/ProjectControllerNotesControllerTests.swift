@@ -69,6 +69,33 @@ final class ProjectControllerNotesControllerTests: XCTestCase {
     XCTAssertFalse(state.isSaving)
   }
 
+  func testGuardedConflictPreservesDraftUntilSavedNotesAreExplicitlyReloaded() async {
+    let gateway = ProjectControllerGatewayFake()
+    let scheduler = ProjectControllerManualDebounceScheduler()
+    let identity = identity(for: ProjectControllerTestValues.hostA)
+    var initial = ProjectControllerTestValues.notes(identity.projectId, text: "initial")
+    initial.revision = "base"
+    var newer = ProjectControllerTestValues.notes(identity.projectId, text: "other edit")
+    newer.revision = "newer"
+    await gateway.enqueueNotesLoad(.value(.init(notes: initial, guardedWrites: 1)))
+    await gateway.enqueueGuardedNotesWrite(.init(status: .conflict, notes: newer))
+    let controller = ProjectControllerNotesController(gateway: gateway, scheduler: scheduler)
+    controller.activate(ProjectControllerTestValues.session(identity.connectionId))
+    await controller.load(identity)
+    controller.edit(identity, doc: .string("draft"), todos: [], updatedAt: "draft")
+    await scheduler.runNext()
+    let calls = await gateway.notesWriteCalls
+    XCTAssertEqual(calls.first?.1.baseRevision, "base")
+    XCTAssertEqual(controller.state(for: identity).draft?.doc, .string("draft"))
+    XCTAssertTrue(controller.state(for: identity).conflict)
+    await controller.load(identity)
+    XCTAssertEqual(controller.state(for: identity).draft?.doc, .string("draft"))
+    await gateway.enqueueNotesLoad(.value(.init(notes: newer, guardedWrites: 1)))
+    await controller.load(identity, discardDraft: true)
+    XCTAssertEqual(controller.state(for: identity).draft, newer)
+    XCTAssertFalse(controller.state(for: identity).conflict)
+  }
+
   func testOlderFailedWriteCannotRollbackNewerSuccessfulRevision() async {
     let gateway = ProjectControllerGatewayFake()
     let scheduler = ProjectControllerManualDebounceScheduler()

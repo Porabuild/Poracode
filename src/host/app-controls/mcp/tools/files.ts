@@ -1,141 +1,182 @@
 import { z } from "zod";
+import { fileMtimeMsSchema, getGitFileContentPayloadSchema } from "@/shared/contracts";
 import type { ProjectFileReadStatus } from "@/shared/contracts";
-import {
-  projectIdProp,
-  requireProject,
-  resolveLocation,
-  worktreePathProp,
-  type ToolDomain,
-} from "./types";
+import { appControlToolDomain, defineAppControlTool } from "../defineTools";
+import { requireAppRuntime, resolveLocation } from "./types";
+import { catalogPageFields, pageCatalog } from "./catalogPage";
 
-/** Cap on file content returned by `read_project_file`. */
 const READ_FILE_MAX_CHARS = 100_000;
+const GIT_SIDE_DEFAULT_CHARS = 8_000;
 /** Default / max results for `find_files`. */
 const FIND_DEFAULT_LIMIT = 30;
 const FIND_MAX_LIMIT = 100;
 
-const listArgsSchema = z.object({
+const fileScope = {
   projectId: z.string().min(1),
-  directoryPath: z.string().optional(),
-});
-const readArgsSchema = z.object({
-  projectId: z.string().min(1),
-  path: z.string().min(1),
   worktreePath: z.string().min(1).optional(),
-});
-const findArgsSchema = z.object({
-  projectId: z.string().min(1),
-  query: z.string().trim().min(1).max(500),
-  limit: z.number().int().min(1).max(FIND_MAX_LIMIT).optional(),
+};
+const maxPageChars = z.number().int().min(2).max(READ_FILE_MAX_CHARS);
+const pageFields = {
+  offset: z.number().int().nonnegative().default(0),
+  maxChars: maxPageChars.default(READ_FILE_MAX_CHARS),
+};
+const readFileTool = defineAppControlTool({
+  name: "read_project_file",
+  description:
+    "Read text from a project-relative path in the project root or a registered worktree. Optionally select a 1-based inclusive line range with startLine and endLine. Continue with nextOffset and the same line range. Offsets count UTF-16 code units within the selected text. Pass expectedModifiedAtMs from the first page to detect a changed file during continuation. Binary, oversized, or missing files return a status note.",
+  input: z.strictObject({
+    ...fileScope,
+    ...pageFields,
+    path: z.string().min(1),
+    startLine: z.number().int().positive().optional(),
+    endLine: z.number().int().positive().optional(),
+    expectedModifiedAtMs: fileMtimeMsSchema.optional(),
+  }),
+  run: async (args, ctx) => {
+    const {
+      projectId,
+      path,
+      worktreePath,
+      offset,
+      maxChars,
+      startLine,
+      endLine,
+      expectedModifiedAtMs,
+    } = args;
+    if (endLine !== undefined && endLine < (startLine ?? 1)) {
+      throw new Error("endLine must be at least startLine.");
+    }
+    const projectLocation = await resolveLocation(ctx, projectId, worktreePath);
+    const result = await ctx.supervisor.readProjectFile({ projectLocation, path });
+    if (expectedModifiedAtMs !== undefined && result.modifiedAtMs !== expectedModifiedAtMs) {
+      throw new Error(
+        "The file modification time changed. Read the range again from the beginning.",
+      );
+    }
+    if (result.status !== "ready" || result.content === undefined) {
+      return { projectId, path, status: result.status, note: statusNote(result.status) };
+    }
+    return {
+      projectId,
+      path,
+      status: result.status,
+      modifiedAtMs: result.modifiedAtMs,
+      ...(startLine !== undefined ? { startLine } : {}),
+      ...(endLine !== undefined ? { endLine } : {}),
+      ...pageText(selectLines(result.content, startLine, endLine), offset, maxChars),
+    };
+  },
 });
 
-export const fileTools: ToolDomain = {
-  specs: [
-    {
-      name: "list_project_files",
-      description:
-        "List one directory level of a project's file tree (directories first). Omit directoryPath to list the project root; pass a project-relative path to list a subdirectory. Read-only.",
-      inputSchema: {
-        type: "object",
-        additionalProperties: false,
-        required: ["projectId"],
-        properties: {
-          projectId: projectIdProp,
-          directoryPath: { type: "string" },
-        },
-      },
-    },
-    {
-      name: "read_project_file",
-      description:
-        "Read a text file in a project by its project-relative path. Pass worktreePath to read the file from one of the project's git worktrees instead of the main checkout. Only the first 100000 characters are returned (truncation is flagged); binary, too-large, or missing files return a status note instead of content.",
-      inputSchema: {
-        type: "object",
-        additionalProperties: false,
-        required: ["projectId", "path"],
-        properties: {
-          projectId: projectIdProp,
-          path: { type: "string", minLength: 1 },
-          worktreePath: worktreePathProp,
-        },
-      },
-    },
-    {
-      name: "find_files",
-      description:
-        "Fuzzy filename search within a project (matches paths/names, not file contents). Returns up to `limit` matches (default 30, max 100). Read-only.",
-      inputSchema: {
-        type: "object",
-        additionalProperties: false,
-        required: ["projectId", "query"],
-        properties: {
-          projectId: projectIdProp,
-          query: { type: "string", minLength: 1, maxLength: 500 },
-          limit: { type: "integer", minimum: 1, maximum: FIND_MAX_LIMIT },
-        },
-      },
-    },
-  ],
-  handlers: {
-    list_project_files: async (args, ctx) => {
-      const { projectId, directoryPath } = listArgsSchema.parse(args);
-      const project = requireProject(ctx, projectId);
-      const result = await ctx.supervisor.listProjectTree({
-        projectLocation: project.location,
-        directoryPath: directoryPath ?? "",
-      });
-      return {
-        projectId,
-        directoryPath: result.directoryPath,
-        count: result.entries.length,
-        entries: result.entries.map((entry) => ({
-          path: entry.path,
-          name: entry.name,
-          type: entry.type,
-        })),
-      };
-    },
-    read_project_file: async (args, ctx) => {
-      const { projectId, path, worktreePath } = readArgsSchema.parse(args);
-      // Validates worktreePath against the project's worktree set before use.
-      const projectLocation = await resolveLocation(ctx, projectId, worktreePath);
-      const result = await ctx.supervisor.readProjectFile({ projectLocation, path });
-      if (result.status !== "ready" || result.content === undefined) {
-        return { projectId, path, status: result.status, note: statusNote(result.status) };
-      }
-      const truncated = result.content.length > READ_FILE_MAX_CHARS;
-      const content = truncated ? result.content.slice(0, READ_FILE_MAX_CHARS) : result.content;
-      return {
-        projectId,
-        path,
-        status: result.status,
-        ...(truncated
-          ? { truncated: true, note: `Showing the first ${READ_FILE_MAX_CHARS} characters.` }
-          : {}),
-        content,
-      };
-    },
-    find_files: async (args, ctx) => {
-      const { projectId, query, limit } = findArgsSchema.parse(args);
-      const project = requireProject(ctx, projectId);
-      const result = await ctx.supervisor.searchProjectTree({
-        projectLocation: project.location,
-        query,
-        limit: limit ?? FIND_DEFAULT_LIMIT,
-      });
-      return {
-        projectId,
-        query,
-        count: result.entries.length,
-        entries: result.entries.map((entry) => ({
-          path: entry.path,
-          name: entry.name,
-          type: entry.type,
-        })),
-      };
-    },
+const gitFileTool = defineAppControlTool({
+  name: "git_file_content",
+  description:
+    "Read both text sides of the app’s Git file comparison in a project or registered worktree. staged:true compares HEAD with the index. staged:false compares the index with the working tree. maxChars applies to each side. Pass each side's nextOffset as oldOffset or newOffset to continue.",
+  input: getGitFileContentPayloadSchema
+    .omit({ projectLocation: true })
+    .extend({
+      ...fileScope,
+      oldOffset: pageFields.offset,
+      newOffset: pageFields.offset,
+      maxChars: maxPageChars.default(GIT_SIDE_DEFAULT_CHARS),
+    })
+    .strict(),
+  run: async (
+    { projectId, worktreePath, filePath, staged, oldOffset, newOffset, maxChars },
+    ctx,
+  ) => {
+    const projectLocation = await resolveLocation(ctx, projectId, worktreePath);
+    const { oldContent, newContent } = await requireAppRuntime(ctx).call("getGitFileContent", {
+      projectLocation,
+      filePath,
+      staged,
+    });
+    return {
+      projectId,
+      filePath,
+      staged,
+      old: pageText(oldContent, oldOffset, maxChars),
+      new: pageText(newContent, newOffset, maxChars),
+    };
   },
-};
+});
+
+function selectLines(text: string, startLine = 1, endLine?: number): string {
+  if (startLine === 1 && endLine === undefined) return text;
+  let line = 1;
+  let start = 0;
+  for (const newline of text.matchAll(/\r\n|[\r\n]/gu)) {
+    const offset = newline.index + newline[0].length;
+    if (line === endLine) return text.slice(start, offset);
+    if (++line === startLine) start = offset;
+  }
+  return line < startLine ? "" : text.slice(start);
+}
+
+function pageText(text: string, offset: number, maxChars: number) {
+  let end = Math.min(offset + maxChars, text.length);
+  if (
+    end < text.length &&
+    /[\uD800-\uDBFF]/u.test(text.charAt(end - 1)) &&
+    /[\uDC00-\uDFFF]/u.test(text.charAt(end))
+  )
+    end -= 1;
+  return {
+    ...(offset > 0 ? { offset } : {}),
+    ...(end < text.length
+      ? { truncated: true, nextOffset: end, note: "Use nextOffset for the next page." }
+      : {}),
+    content: text.slice(offset, end),
+  };
+}
+const listFilesTool = defineAppControlTool({
+  name: "list_project_files",
+  description:
+    "List one directory level, directories first. Omit directoryPath for the project root or pass a project-relative directory. Set limit to page large directories and pass nextOffset as offset with the same scope. count is the total number of entries.",
+  input: z.strictObject({
+    ...fileScope,
+    ...catalogPageFields,
+    directoryPath: z.string().default(""),
+  }),
+  run: async ({ projectId, directoryPath, worktreePath, offset, limit }, ctx) => {
+    const projectLocation = await resolveLocation(ctx, projectId, worktreePath);
+    const result = await ctx.supervisor.listProjectTree({ projectLocation, directoryPath });
+    const { rows, ...page } = pageCatalog(result.entries, offset, limit);
+    return {
+      projectId,
+      directoryPath: result.directoryPath,
+      ...page,
+      entries: rows.map(({ path, name, type }) => ({ path, name, type })),
+    };
+  },
+});
+
+const findFilesTool = defineAppControlTool({
+  name: "find_files",
+  description: "Fuzzy-search project file paths and names. Use limit to cap the number of matches.",
+  input: z.strictObject({
+    ...fileScope,
+    query: z.string().trim().min(1).max(500),
+    limit: z.number().int().min(1).max(FIND_MAX_LIMIT).default(FIND_DEFAULT_LIMIT),
+  }),
+  run: async ({ projectId, query, limit, worktreePath }, ctx) => {
+    const projectLocation = await resolveLocation(ctx, projectId, worktreePath);
+    const result = await ctx.supervisor.searchProjectTree({ projectLocation, query, limit });
+    return {
+      projectId,
+      query,
+      count: result.entries.length,
+      entries: result.entries.map(({ path, name, type }) => ({ path, name, type })),
+    };
+  },
+});
+
+export const fileTools = appControlToolDomain(
+  listFilesTool,
+  readFileTool,
+  gitFileTool,
+  findFilesTool,
+);
 
 /** Human-readable explanation for a non-`ready` file read result. */
 function statusNote(status: ProjectFileReadStatus): string {

@@ -29,13 +29,16 @@ export function getThreadAttachmentDirName(threadId: string): string {
   return pathPart === "." || pathPart === ".." ? "--" : pathPart;
 }
 
-export function getThreadAttachmentDir(paths: PoracodePaths, threadId: string): string {
+export function getThreadAttachmentDir(
+  paths: Pick<PoracodePaths, "attachmentsDir">,
+  threadId: string,
+): string {
   return join(paths.attachmentsDir, getThreadAttachmentDirName(threadId));
 }
 
 /** Persist a browser-selected file under the host's attachment root. */
 export async function saveUploadedAttachmentFile(
-  paths: PoracodePaths,
+  paths: Pick<PoracodePaths, "attachmentsDir">,
   payload: { threadId: string; data: Uint8Array; fileName: string },
 ): Promise<string> {
   const release = retainThreadAttachmentDirectory(payload.threadId);

@@ -156,6 +156,29 @@ describe.skipIf(!sqliteAvailable)("BackendHostCore.revertCheckpoint", () => {
     }
   };
 
+  it("restores files in the persisted worktree when no path is supplied by the caller", async () => {
+    const worktreePath = "/tmp/revert-worktree";
+    seedThread({ worktreePath, status: "idle" });
+    seedTranscript(1);
+
+    await host!.revertCheckpoint({
+      threadId: "thread-1",
+      checkpointItemId: "checkpoint",
+      operationKey: "worktree-checkpoint",
+    });
+
+    expect(supervisorHarness.calls.filter((call) => call.type === "restoreFileCheckpoint")).toEqual(
+      [
+        {
+          type: "restoreFileCheckpoint",
+          payload: expect.objectContaining({
+            projectLocation: { kind: "posix", path: worktreePath },
+          }),
+        },
+      ],
+    );
+  });
+
   it("restores to a journaled absolute anchor: provider, files, and truncate complete as one operation", async () => {
     seedThread({ status: "idle" });
     seedTranscript(2);

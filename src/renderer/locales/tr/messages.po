@@ -11413,6 +11413,10 @@ msgstr "Yüklü yazı tiplerini yükle"
 msgid "Load older results"
 msgstr "Eski sonuçları yükle"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesPanel.tsx
+msgid "Load saved notes"
+msgstr "Kaydedilen notları yükle"
+
 #: src/renderer/components/common/PixelLoader.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentMessageList.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/RemoteBrowserMirror.tsx
@@ -16198,6 +16202,10 @@ msgstr "Proje bulunamadı."
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesEditor.tsx
 msgid "Project notes"
 msgstr "Proje notları"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesPanel.tsx
+msgid "Project Notes changed elsewhere. Your draft is still here."
+msgstr "Proje notları başka bir yerde değiştirildi. Taslağınız hâlâ burada."
 
 #: src/renderer/components/thread/MoveThreadDialog.tsx
 #~ msgid "Project on {targetLabel}"

@@ -1,17 +1,15 @@
 import { z } from "zod";
-import { normalizeWorktreePathForComparison, resolveProjectLocation } from "@/shared/worktree";
 import {
   capDiff,
   projectIdProp,
   requireProject,
   resolveLocation,
-  resolveWorktreeInfo,
   worktreePathProp,
   type ToolDomain,
 } from "./types";
-
-/** Matches a full git object id (SHA-1 or SHA-256), the only value git accepts as an expected commit. */
-const FULL_COMMIT_OID = /^(?:[0-9a-f]{40}|[0-9a-f]{64})$/i;
+import { gitCommitTool, gitSyncTool, mergeWorktreeTool } from "./gitSync";
+import { removeWorktreeTool } from "./worktreeRemoval";
+import { createWorktreeTool, gitBranchTool, gitRepositoryTool } from "./gitRepository";
 
 const projectArgs = {
   projectId: z.string().min(1),
@@ -30,40 +28,12 @@ const stageArgsSchema = z.object({
   all: z.boolean().optional(),
   unstage: z.boolean().optional(),
 });
-const commitArgsSchema = z.object({
-  ...projectArgs,
-  message: z.string().min(1),
-  addAll: z.boolean().optional(),
-});
 const discardArgsSchema = z.object({
   ...projectArgs,
   paths: z.array(z.string().min(1)).min(1).optional(),
   all: z.boolean().optional(),
 });
-const branchArgsSchema = z.object({
-  ...projectArgs,
-  action: z.enum(["list", "switch", "create"]),
-  branch: z.string().min(1).optional(),
-  includeRemote: z.boolean().optional(),
-});
-const syncArgsSchema = z.object({
-  ...projectArgs,
-  action: z.enum(["fetch", "pull", "pull_rebase", "push"]),
-  remote: z.string().min(1).optional(),
-  branch: z.string().min(1).optional(),
-  setUpstream: z.boolean().optional(),
-});
 const listWorktreesArgsSchema = z.object({ projectId: z.string().min(1) });
-const removeWorktreeArgsSchema = z.object({
-  projectId: z.string().min(1),
-  worktreePath: z.string().min(1),
-});
-const mergeWorktreeArgsSchema = z.object({
-  projectId: z.string().min(1),
-  worktreePath: z.string().min(1),
-  action: z.enum(["merge", "pull_from_source", "abort", "finish"]),
-});
-
 export const gitTools: ToolDomain = {
   specs: [
     {
@@ -113,22 +83,7 @@ export const gitTools: ToolDomain = {
         },
       },
     },
-    {
-      name: "git_commit",
-      description:
-        "Create a git commit with the given message. Set addAll: true to stage every change first; otherwise only already-staged changes are committed. Consequential — explain the commit to the user first.",
-      inputSchema: {
-        type: "object",
-        additionalProperties: false,
-        required: ["projectId", "message"],
-        properties: {
-          projectId: projectIdProp,
-          worktreePath: worktreePathProp,
-          message: { type: "string", minLength: 1 },
-          addAll: { type: "boolean" },
-        },
-      },
-    },
+    gitCommitTool.spec,
     {
       name: "git_discard",
       description:
@@ -145,41 +100,9 @@ export const gitTools: ToolDomain = {
         },
       },
     },
-    {
-      name: "git_branch",
-      description:
-        "List branches (action: list, includeRemote to include remotes), switch to an existing branch (action: switch), or create and switch to a new branch (action: create). branch is required for switch/create.",
-      inputSchema: {
-        type: "object",
-        additionalProperties: false,
-        required: ["projectId", "action"],
-        properties: {
-          projectId: projectIdProp,
-          worktreePath: worktreePathProp,
-          action: { type: "string", enum: ["list", "switch", "create"] },
-          branch: { type: "string", minLength: 1 },
-          includeRemote: { type: "boolean" },
-        },
-      },
-    },
-    {
-      name: "git_sync",
-      description:
-        "Exchange commits with a remote: fetch, pull (merge), pull_rebase, or push. push is consequential — it publishes local commits to the remote. When the user explicitly asked in this thread to push or publish the named fix, that request is authorization; call push after the normal checks without asking for another confirmation. If they only asked to inspect or fix work, do not push. Pass remote/branch/setUpstream as needed (remote defaults to origin).",
-      inputSchema: {
-        type: "object",
-        additionalProperties: false,
-        required: ["projectId", "action"],
-        properties: {
-          projectId: projectIdProp,
-          worktreePath: worktreePathProp,
-          action: { type: "string", enum: ["fetch", "pull", "pull_rebase", "push"] },
-          remote: { type: "string", minLength: 1 },
-          branch: { type: "string", minLength: 1 },
-          setUpstream: { type: "boolean" },
-        },
-      },
-    },
+    gitRepositoryTool.spec,
+    gitBranchTool.spec,
+    gitSyncTool.spec,
     {
       name: "list_worktrees",
       description:
@@ -191,35 +114,9 @@ export const gitTools: ToolDomain = {
         properties: { projectId: projectIdProp },
       },
     },
-    {
-      name: "remove_worktree",
-      description:
-        "DESTRUCTIVE: delete a worktree directory from disk. Refuses when an open (non-archived) thread still references the worktree — archive or move those threads first. Confirm with the user before calling.",
-      inputSchema: {
-        type: "object",
-        additionalProperties: false,
-        required: ["projectId", "worktreePath"],
-        properties: {
-          projectId: projectIdProp,
-          worktreePath: worktreePathProp,
-        },
-      },
-    },
-    {
-      name: "merge_worktree",
-      description:
-        "Drive a worktree's merge flow against its source branch: merge (merge the worktree branch into its source), pull_from_source (bring source changes into the worktree), abort (abandon an in-progress merge), or finish (commit a resolved merge). The source branch and expected commit are resolved automatically. merge/pull_from_source change git history — explain them to the user first.",
-      inputSchema: {
-        type: "object",
-        additionalProperties: false,
-        required: ["projectId", "worktreePath", "action"],
-        properties: {
-          projectId: projectIdProp,
-          worktreePath: worktreePathProp,
-          action: { type: "string", enum: ["merge", "pull_from_source", "abort", "finish"] },
-        },
-      },
-    },
+    createWorktreeTool.spec,
+    removeWorktreeTool.spec,
+    mergeWorktreeTool.spec,
   ],
   handlers: {
     git_status: async (args, ctx) => {
@@ -271,16 +168,7 @@ export const gitTools: ToolDomain = {
       }
       return { projectId, action: unstage ? "unstage" : "stage", paths };
     },
-    git_commit: async (args, ctx) => {
-      const { projectId, worktreePath, message, addAll } = commitArgsSchema.parse(args);
-      const projectLocation = await resolveLocation(ctx, projectId, worktreePath);
-      const result = await ctx.supervisor.gitCommit({
-        projectLocation,
-        message,
-        addAll: addAll ?? false,
-      });
-      return { projectId, committed: true, ...result };
-    },
+    [gitCommitTool.spec.name]: gitCommitTool.handler,
     git_discard: async (args, ctx) => {
       const { projectId, worktreePath, paths, all } = discardArgsSchema.parse(args);
       const hasPaths = (paths?.length ?? 0) > 0;
@@ -299,55 +187,9 @@ export const gitTools: ToolDomain = {
       }
       return { projectId, discardedPaths: paths };
     },
-    git_branch: async (args, ctx) => {
-      const { projectId, worktreePath, action, branch, includeRemote } =
-        branchArgsSchema.parse(args);
-      const projectLocation = await resolveLocation(ctx, projectId, worktreePath);
-      if (action === "list") {
-        const result = await ctx.supervisor.gitListBranches({
-          projectLocation,
-          includeRemote: includeRemote ?? true,
-        });
-        return { projectId, ...result };
-      }
-      if (!branch) throw new Error(`branch is required for action "${action}".`);
-      const result = await ctx.supervisor.gitSwitchBranch({
-        projectLocation,
-        branch,
-        createNew: action === "create",
-      });
-      return { projectId, switched: true, ...result };
-    },
-    git_sync: async (args, ctx) => {
-      const { projectId, worktreePath, action, remote, branch, setUpstream } =
-        syncArgsSchema.parse(args);
-      const projectLocation = await resolveLocation(ctx, projectId, worktreePath);
-      const remoteArg = remote ? { remote } : {};
-      switch (action) {
-        case "fetch":
-          await ctx.supervisor.gitFetch({
-            projectLocation,
-            remote: remote ?? "origin",
-            prune: false,
-          });
-          break;
-        case "pull":
-          await ctx.supervisor.gitPull({ projectLocation, ...remoteArg });
-          break;
-        case "pull_rebase":
-          await ctx.supervisor.gitPullRebase({ projectLocation, ...remoteArg });
-          break;
-        case "push":
-          await ctx.supervisor.gitPush({
-            projectLocation,
-            ...remoteArg,
-            ...(branch ? { branch } : {}),
-            ...(setUpstream === undefined ? {} : { setUpstream }),
-          });
-          break;
-      }
-      return { projectId, action, done: true };
-    },
+    [gitRepositoryTool.spec.name]: gitRepositoryTool.handler,
+    [gitBranchTool.spec.name]: gitBranchTool.handler,
+    [gitSyncTool.spec.name]: gitSyncTool.handler,
     list_worktrees: async (args, ctx) => {
       const { projectId } = listWorktreesArgsSchema.parse(args);
       const project = requireProject(ctx, projectId);
@@ -392,73 +234,8 @@ export const gitTools: ToolDomain = {
         })),
       };
     },
-    remove_worktree: async (args, ctx) => {
-      const { projectId, worktreePath } = removeWorktreeArgsSchema.parse(args);
-      const project = requireProject(ctx, projectId);
-      const target = normalizeWorktreePathForComparison(worktreePath, false);
-      const blocking = ctx
-        .getThreads()
-        .filter(
-          (thread) =>
-            !thread.archived &&
-            thread.worktreePath &&
-            normalizeWorktreePathForComparison(thread.worktreePath, false) === target,
-        )
-        .map((thread) => thread.id);
-      if (blocking.length > 0) {
-        throw new Error(
-          `Cannot remove this worktree: it is still referenced by open thread(s): ${blocking.join(
-            ", ",
-          )}. Archive or move them first, then retry.`,
-        );
-      }
-      await ctx.supervisor.gitRemoveWorktree({
-        projectLocation: project.location,
-        path: worktreePath,
-        force: false,
-        deleteBranch: false,
-      });
-      return { projectId, worktreePath, removed: true };
-    },
-    merge_worktree: async (args, ctx) => {
-      const { projectId, worktreePath, action } = mergeWorktreeArgsSchema.parse(args);
-      const project = requireProject(ctx, projectId);
-      const worktreeLocation = resolveProjectLocation(project.location, worktreePath);
-      if (action === "abort") {
-        const result = await ctx.supervisor.gitAbortMerge({ worktreeLocation });
-        return { projectId, worktreePath, action, ...result };
-      }
-      if (action === "finish") {
-        const result = await ctx.supervisor.gitFinishMerge({ worktreeLocation });
-        return { projectId, worktreePath, action, ...result };
-      }
-      // merge / pull_from_source both need the worktree branch + its source branch.
-      const info = await resolveWorktreeInfo(ctx, project.location, worktreePath);
-      const { sourceBranch } = await ctx.supervisor.gitGetWorktreeSourceBranch({
-        projectLocation: project.location,
-        branch: info.branch,
-      });
-      if (!sourceBranch) {
-        throw new Error(
-          `Could not determine a source branch for worktree branch "${info.branch}". It may have no upstream/parent to merge with.`,
-        );
-      }
-      if (action === "pull_from_source") {
-        const result = await ctx.supervisor.gitPullFromSource({
-          worktreeLocation,
-          sourceBranch,
-          preserveLocalChanges: false,
-        });
-        return { projectId, worktreePath, action, sourceBranch, ...result };
-      }
-      const result = await ctx.supervisor.gitMergeToSource({
-        projectLocation: project.location,
-        worktreeLocation,
-        worktreeBranch: info.branch,
-        sourceBranch,
-        ...(FULL_COMMIT_OID.test(info.commit) ? { expectedWorktreeCommit: info.commit } : {}),
-      });
-      return { projectId, worktreePath, action, sourceBranch, ...result };
-    },
+    [createWorktreeTool.spec.name]: createWorktreeTool.handler,
+    [removeWorktreeTool.spec.name]: removeWorktreeTool.handler,
+    [mergeWorktreeTool.spec.name]: mergeWorktreeTool.handler,
   },
 };

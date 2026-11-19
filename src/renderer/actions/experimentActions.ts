@@ -50,6 +50,8 @@ export interface ExperimentCandidateSpec {
 }
 
 export interface LaunchExperimentInput {
+  /** App Controls reserves its identity before invoking the desktop workflow. */
+  experimentId?: string;
   projectId: string;
   prompt: string;
   segments?: PromptSegment[];
@@ -211,7 +213,7 @@ export async function launchExperiment(input: LaunchExperimentInput): Promise<st
   const agentForKind = (agentKind: string) =>
     projectAgentStatuses.find((agent) => agent.kind === agentKind);
 
-  const experimentId = crypto.randomUUID();
+  const experimentId = input.experimentId ?? crypto.randomUUID();
   const title = makeThreadTitle(prompt) || i18n._(msg`Experiment`);
   const promptSlug = sanitizeWorktreeBranchName(title).slice(0, 24);
   const shortId = experimentId.slice(0, 6);

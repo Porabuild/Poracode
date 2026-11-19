@@ -26,7 +26,7 @@ import {
   scopeLocation,
   scopeOwner,
   scopeView,
-  writeScope,
+  editScope,
   type McpScope,
 } from "./mcpServerScopes";
 import { redactMcpServer, restoreRedactedTransport } from "./settings";
@@ -59,6 +59,7 @@ const updateArgsSchema = z.object({
     description: z.string().optional(),
     enabled: z.boolean().optional(),
     timeoutMs: z.number().optional(),
+    disabledTools: mcpServerSchema.shape.disabledTools,
     transport: z.unknown().optional(),
   }),
   reloadCallingThread: z.boolean().optional(),
@@ -143,7 +144,7 @@ export const mcpServerTools: ToolDomain = {
     {
       name: "update_mcp_server",
       description:
-        "Update one configured MCP server by id, shallow-patching name/description/enabled/timeoutMs/transport. The server is found in the given scope, or else in global settings and then the calling thread's project. To toggle a server on or off, patch only `enabled`. When a transport value read from list_mcp_servers/get_settings is still redacted (the «redacted» marker), the existing stored secret is preserved instead of being overwritten, so you can safely echo back a redacted read. The merged result is validated before saving. Returns the redacted server summary.",
+        "Update one configured MCP server by id, shallow-patching name/description/enabled/timeoutMs/disabledTools/transport. The server is found in the given scope, or else in global settings and then the calling thread's project. To toggle a server on or off, patch only `enabled`. When a transport value read from list_mcp_servers/get_settings is still redacted (the «redacted» marker), the existing stored secret is preserved instead of being overwritten, so you can safely echo back a redacted read. The merged result is validated before saving. Returns the redacted server summary.",
       inputSchema: {
         type: "object",
         additionalProperties: false,
@@ -270,17 +271,7 @@ export const mcpServerTools: ToolDomain = {
         );
       }
 
-      const existing = readScope(ctx, scope);
-      const idTaken =
-        existing.some((entry) => entry.id === server.id) ||
-        (scope.kind === "project" &&
-          ctx.settings.read().mcpServers.some((entry) => entry.id === server.id));
-      if (idTaken) throw new Error(`An MCP server with id "${server.id}" already exists.`);
-      if (existing.some((entry) => sameMcpServerName(entry.name, server.name))) {
-        throw new Error(`An MCP server named "${server.name}" already exists in ${label(scope)}.`);
-      }
-
-      writeScope(ctx, scope, [...existing, server]);
+      await addMcpServerToScope(ctx, scope, server);
       const reloadedCallingThread = await maybeReloadCallingThread(ctx, reloadCallingThread);
       return {
         added: true,
@@ -291,44 +282,48 @@ export const mcpServerTools: ToolDomain = {
     },
     update_mcp_server: async (args, ctx) => {
       const { id, patch, reloadCallingThread, ...scopeInput } = updateArgsSchema.parse(args);
-      const { server: existing, scope } = locateServer(ctx, id, scopeInput);
+      const { scope } = locateServer(ctx, id, scopeInput);
       if (patch.name !== undefined && !isValidMcpServerName(patch.name)) {
         throw new Error(nameError(patch.name));
       }
+      const transportPatch =
+        patch.transport === undefined ? undefined : mcpTransportSchema.safeParse(patch.transport);
+      if (transportPatch && !transportPatch.success)
+        throw new Error(formatSchemaError("Invalid MCP transport", transportPatch.error));
 
-      let transport = existing.transport;
-      if (patch.transport !== undefined) {
-        const parsedTransport = mcpTransportSchema.safeParse(patch.transport);
-        if (!parsedTransport.success) {
-          throw new Error(formatSchemaError("Invalid MCP transport", parsedTransport.error));
-        }
-        // Preserve any real stored secret the agent echoed back as «redacted».
-        transport = restoreRedactedTransport(parsedTransport.data, existing.transport);
-      }
-
-      const merged: McpServer = {
-        ...existing,
-        ...(patch.name !== undefined ? { name: patch.name } : {}),
-        ...(patch.description !== undefined ? { description: patch.description } : {}),
-        ...(patch.enabled !== undefined ? { enabled: patch.enabled } : {}),
-        ...(patch.timeoutMs !== undefined ? { timeoutMs: patch.timeoutMs } : {}),
-        transport,
-      };
-      const server = parseServer(merged, "Invalid MCP server config");
-      const servers = readScope(ctx, scope);
-      if (
-        servers.some(
-          (entry) => entry.id !== server.id && sameMcpServerName(entry.name, server.name),
-        )
-      ) {
-        throw new Error(`An MCP server named "${server.name}" already exists in ${label(scope)}.`);
-      }
-
-      writeScope(
-        ctx,
-        scope,
-        servers.map((entry) => (entry.id === server.id ? server : entry)),
-      );
+      await editScope(ctx, scope, (servers) => {
+        if (!servers.some((entry) => entry.id === id))
+          throw new Error("The MCP server was removed. Check list_mcp_servers.");
+        return servers.map((existing) => {
+          if (existing.id !== id) return existing;
+          const server = parseServer(
+            {
+              ...existing,
+              ...(patch.name !== undefined ? { name: patch.name } : {}),
+              ...(patch.description !== undefined ? { description: patch.description } : {}),
+              ...(patch.enabled !== undefined ? { enabled: patch.enabled } : {}),
+              ...(patch.timeoutMs !== undefined ? { timeoutMs: patch.timeoutMs } : {}),
+              ...(patch.disabledTools !== undefined ? { disabledTools: patch.disabledTools } : {}),
+              transport: transportPatch
+                ? restoreRedactedTransport(transportPatch.data, existing.transport)
+                : existing.transport,
+            },
+            "Invalid MCP server config",
+          );
+          if (containsMcpRedaction(server.transport))
+            throw new Error(
+              "The MCP transport contains a redacted value with no matching saved value.",
+            );
+          if (
+            servers.some((entry) => entry.id !== id && sameMcpServerName(entry.name, server.name))
+          )
+            throw new Error(
+              `An MCP server named "${server.name}" already exists in ${label(scope)}.`,
+            );
+          return server;
+        });
+      });
+      const { server } = locateServer(ctx, id, scopeInput);
       const reloadedCallingThread = await maybeReloadCallingThread(ctx, reloadCallingThread);
       return {
         updated: true,
@@ -340,11 +335,7 @@ export const mcpServerTools: ToolDomain = {
     remove_mcp_server: async (args, ctx) => {
       const { id, reloadCallingThread, ...scopeInput } = removeArgsSchema.parse(args);
       const { scope } = locateServer(ctx, id, scopeInput);
-      writeScope(
-        ctx,
-        scope,
-        readScope(ctx, scope).filter((entry) => entry.id !== id),
-      );
+      await editScope(ctx, scope, (servers) => servers.filter((entry) => entry.id !== id));
       const reloadedCallingThread = await maybeReloadCallingThread(ctx, reloadCallingThread);
       return {
         removed: true,
@@ -365,32 +356,31 @@ export const mcpServerTools: ToolDomain = {
       if (sameScope(source.scope, destination)) {
         throw new Error(`The MCP server is already in ${label(destination)}.`);
       }
-      const destinationServers = readScope(ctx, destination);
-      if (
-        destinationServers.some(
-          (entry) =>
-            entry.id !== source.server.id && sameMcpServerName(entry.name, source.server.name),
-        )
-      ) {
-        throw new Error(
-          `${label(destination)} already has an MCP server named "${source.server.name}".`,
-        );
-      }
-      // Destination first: an interrupted move can duplicate a server, but never
-      // lose its credential-bearing configuration. A retry sees the matching id
-      // and completes the source removal.
-      const sameId = destinationServers.find((entry) => entry.id === source.server.id);
-      if (sameId && JSON.stringify(sameId) !== JSON.stringify(source.server)) {
-        throw new Error(
-          `${label(destination)} already has a different MCP server with id "${source.server.id}"; nothing was moved.`,
-        );
-      }
-      if (!sameId) writeScope(ctx, destination, [...destinationServers, source.server]);
-      writeScope(
-        ctx,
-        source.scope,
-        readScope(ctx, source.scope).filter((entry) => entry.id !== source.server.id),
-      );
+      // Commit the destination first so a failed source edit cannot lose the
+      // definition. Retrying with explicit fromScope can remove a matching copy.
+      await editScope(ctx, destination, (servers) => {
+        const sameId = servers.find((entry) => entry.id === source.server.id);
+        if (sameId) {
+          if (JSON.stringify(sameId) !== JSON.stringify(source.server))
+            throw new Error(
+              `${label(destination)} has a different MCP server with id "${source.server.id}".`,
+            );
+          return servers;
+        }
+        if (servers.some((entry) => sameMcpServerName(entry.name, source.server.name)))
+          throw new Error(
+            `${label(destination)} already has an MCP server named "${source.server.name}".`,
+          );
+        return [...servers, source.server];
+      });
+      await editScope(ctx, source.scope, (servers) => {
+        const current = servers.find((entry) => entry.id === source.server.id);
+        if (current && JSON.stringify(current) !== JSON.stringify(source.server))
+          throw new Error(
+            "The source changed during the move. Both definitions remain. Inspect them with list_mcp_servers.",
+          );
+        return servers.filter((entry) => entry.id !== source.server.id);
+      });
       const reloadedCallingThread = await maybeReloadCallingThread(ctx, parsed.reloadCallingThread);
       const runtimeChanged =
         scopeLocation(ctx, source.scope)?.kind === "wsl" ||
@@ -450,6 +440,23 @@ export const mcpServerTools: ToolDomain = {
 
 /* --------------------------------------------------------------- helpers -- */
 
+export async function addMcpServerToScope(
+  ctx: AppControlsToolContext,
+  scope: McpScope,
+  server: McpServer,
+): Promise<void> {
+  await editScope(ctx, scope, (servers) => {
+    const idTaken =
+      servers.some((entry) => entry.id === server.id) ||
+      (scope.kind === "project" &&
+        ctx.settings.read().mcpServers.some((entry) => entry.id === server.id));
+    if (idTaken) throw new Error(`An MCP server with id "${server.id}" already exists.`);
+    if (servers.some((entry) => sameMcpServerName(entry.name, server.name)))
+      throw new Error(`An MCP server named "${server.name}" already exists in ${label(scope)}.`);
+    return [...servers, server];
+  });
+}
+
 /** Validate an untrusted server config, throwing a readable aggregate error. */
 function parseServer(value: unknown, prefix: string): McpServer {
   const parsed = mcpServerSchema.safeParse(value);
@@ -486,12 +493,17 @@ async function maybeReloadCallingThread(
   if (!threadId) return false;
   const thread = ctx.getThread(threadId);
   if (!thread) return false;
-  await ctx.supervisor.reloadAgentMcpServers({ agentKind: thread.agentKind });
-  return true;
+  try {
+    await ctx.supervisor.reloadAgentMcpServers({ agentKind: thread.agentKind });
+    return true;
+  } catch (error) {
+    ctx.reportError?.(error);
+    return false;
+  }
 }
 
 /** A secret-free view of one MCP server (transport values masked, key names kept). */
-function summarizeServer(
+export function summarizeServer(
   server: McpServer,
   scope: McpScope,
   authenticated?: Set<string>,
@@ -504,6 +516,7 @@ function summarizeServer(
     name: redacted.name,
     description: redacted.description,
     enabled: redacted.enabled,
+    ...(redacted.disabledTools !== undefined ? { disabledTools: redacted.disabledTools } : {}),
     ...scopeView(scope),
     transport: redacted.transport,
     ...(url !== undefined && authenticated ? { authenticated: authenticated.has(url) } : {}),

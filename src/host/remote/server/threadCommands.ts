@@ -37,17 +37,23 @@ import {
   dbUpsertThread,
   type CatalogIntentCommittedSignal,
 } from "@/host/db";
+import { dbAssignMainThreadWorktree } from "@/host/db/projectsThreads";
 import { RemoteHttpError } from "../auth";
-import { buildWorktreeLocation } from "@/shared/worktree";
+import { buildWorktreeLocation, normalizeWorktreePathForComparison } from "@/shared/worktree";
 import { makeThreadTitle, titlePromptFromSegments } from "@/shared/threadTitle";
 import { resolveHostThreadTitlePrompt } from "@/host/threads/threadLaunchConfig";
 import {
   assertPersistedThreadGroupChangeSafe,
+  assertRemoteThreadStartExperimentSafe,
   discardPersistedProjectExperiments,
 } from "../experimentOwnership";
 import { applyRemoteProjectCommand } from "../projectCommands";
 import type { RemoteServerContext } from "./context";
-import { prepareHostWorktree, removeHostWorktree } from "./hostWorktreeLifecycle";
+import {
+  prepareHostWorktree,
+  removeHostWorktree,
+  requireHostWorktreeGroup,
+} from "./hostWorktreeLifecycle";
 import { sortOrderForThread } from "./snapshots";
 import { applyThreadMetadataCommand, threadMetadataClosesSession } from "./threadMetadataCommands";
 import { createRemoteThread } from "./threadCreation";
@@ -177,9 +183,27 @@ export async function applyRemoteThreadCommand(
         worktreePath: command.worktreePath,
       });
       return false;
-    case "start":
-      await startPersistedThread(ctx.options, command);
+    case "start": {
+      if (!ctx.options.runThreadMutation) {
+        await startPersistedThread(ctx.options, command);
+        return false;
+      }
+      await ctx.options.runThreadMutation(command.threadId, () => {
+        const current = ctx.options.captureThreadControlState?.(command.threadId, 0);
+        const admit = () => {
+          assertRemoteThreadStartExperimentSafe(command.threadId);
+          if (current && !current())
+            throw new Error("A newer thread control cancelled the launch.");
+        };
+        return startPersistedThread(ctx.options, command, admit, (payload) =>
+          ctx.options.callSupervisor("startThread", payload, {
+            skipThreadMutation: true,
+            assertLaunchCurrent: admit,
+          }),
+        );
+      });
       return false;
+    }
     case "rename":
       updateRemoteThread(command.threadId, (thread) => applyThreadMetadataCommand(thread, command));
       return false;
@@ -196,19 +220,55 @@ export async function applyRemoteThreadCommand(
       updateRemoteThread(command.threadId, (thread) => applyThreadMetadataCommand(thread, command));
       return false;
     case "set-worktree": {
-      const previous = dbGetThreads().find((thread) => thread.id === command.threadId);
-      updateRemoteThread(command.threadId, (thread) => ({
-        ...thread,
-        worktreePath: command.worktreePath,
-        ...(command.worktreeBranch ? { worktreeBranch: command.worktreeBranch } : {}),
-        updatedAt: new Date().toISOString(),
-      }));
-      if (command.isNewWorktree && previous) {
-        await prepareHostWorktree(ctx, {
-          projectId: previous.projectId,
-          worktreePath: command.worktreePath,
-        });
-      }
+      const assign = async () => {
+        assertRemoteThreadStartExperimentSafe(command.threadId);
+        const previous = dbGetThread(command.threadId);
+        if (!previous) throw new RemoteHttpError("thread_not_found", "Thread not found.", 404);
+        const project = dbGetProject(previous.projectId);
+        if (previous.worktreePath) {
+          const key = (path: string) =>
+            normalizeWorktreePathForComparison(path, project?.location.kind === "windows");
+          if (key(previous.worktreePath) === key(command.worktreePath)) {
+            const branch = command.worktreeBranch;
+            if (branch && branch !== previous.worktreeBranch) {
+              updateRemoteThread(command.threadId, (thread) => ({
+                ...thread,
+                worktreeBranch: branch,
+                updatedAt: new Date().toISOString(),
+              }));
+            }
+            return;
+          }
+          throw new RemoteHttpError(
+            "thread_checkout_conflict",
+            "The thread is already linked to another worktree.",
+            409,
+          );
+        }
+        if (
+          !dbAssignMainThreadWorktree({
+            threadId: command.threadId,
+            projectId: previous.projectId,
+            worktreePath: command.worktreePath,
+            ...(command.worktreeBranch ? { worktreeBranch: command.worktreeBranch } : {}),
+          })
+        ) {
+          throw new RemoteHttpError(
+            "thread_checkout_conflict",
+            "The thread changed before its worktree was assigned.",
+            409,
+          );
+        }
+        if (command.isNewWorktree) {
+          await prepareHostWorktree(ctx, {
+            projectId: previous.projectId,
+            worktreePath: command.worktreePath,
+          });
+        }
+      };
+      if (ctx.options.runThreadMutation)
+        await ctx.options.runThreadMutation(command.threadId, assign);
+      else await assign();
       return false;
     }
     case "set-group": {
@@ -306,12 +366,17 @@ export async function applyRemoteThreadCommand(
     }
     case "delete-worktree-group": {
       const remove = async () => {
+        const project = dbGetProject(command.projectId);
+        if (!project)
+          throw new RemoteHttpError("project_not_found", msg("remote.project.notFound"), 404);
+        const groupThreads = requireHostWorktreeGroup(
+          project,
+          [command.worktreePath],
+          command.threadIds,
+        );
         // Preserve dbDeleteThread's refusal before any files are removed. The
         // owning host lock prevents a new revert starting while cleanup awaits.
         dbAssertNoRunningCheckpointRevert(command.threadIds);
-        const groupThreads = dbGetThreads().filter((thread) =>
-          command.threadIds.includes(thread.id),
-        );
         const worktreeBranch = groupThreads.find((thread) => thread.worktreeBranch)?.worktreeBranch;
         await Promise.all(
           command.threadIds.map((threadId) => closeThreadBestEffort(ctx, threadId)),
@@ -337,6 +402,7 @@ export async function ensureRemoteThreadRunning(
   ctx: RemoteServerContext,
   threadId: string,
   initialSize: StartThreadPayload["initialSize"],
+  callOptions?: import("@/host/supervisor/SupervisorClient").SupervisorCallOptions,
 ): Promise<StartThreadResult> {
   const thread = dbGetThread(threadId);
   if (!thread) throw new RemoteHttpError("thread_not_found", "Thread not found.", 404);
@@ -345,7 +411,7 @@ export async function ensureRemoteThreadRunning(
   const mcpSnapshot =
     ctx.options.resolveMcpLaunchSnapshot?.(thread.projectId, thread.config.mcpServerOverrides) ??
     emptyMcpLaunchSnapshot();
-  return ctx.options.callSupervisor("ensureThreadRunning", {
+  const launch: StartThreadPayload = {
     threadId,
     projectLocation: thread.worktreePath
       ? buildWorktreeLocation(project.location, thread.worktreePath)
@@ -358,7 +424,10 @@ export async function ensureRemoteThreadRunning(
     ...(thread.sessionRef ? { sessionRef: thread.sessionRef } : {}),
     ...(thread.presentationMode ? { presentationMode: thread.presentationMode } : {}),
     ...mcpSnapshot,
-  });
+  };
+  return callOptions
+    ? ctx.options.callSupervisor("ensureThreadRunning", launch, callOptions)
+    : ctx.options.callSupervisor("ensureThreadRunning", launch);
 }
 
 /** Host-local admission does not replace the caller's runtime retirement ownership. */
@@ -387,6 +456,23 @@ export async function startPersistedThread(
           project.location,
           titlePromptFromSegments(command.prompt, command.segments),
         );
+  const saved = dbGetThread(command.threadId);
+  const worktreePath = saved?.worktreePath ?? command.worktreePath;
+  if (saved?.worktreePath) {
+    const key = (path: string) =>
+      normalizeWorktreePathForComparison(path, project.location.kind === "windows");
+    if (
+      saved.projectId !== command.projectId ||
+      (command.worktreePath && key(command.worktreePath) !== key(saved.worktreePath))
+    ) {
+      throw new RemoteHttpError(
+        "thread_checkout_conflict",
+        "The saved thread checkout changed before launch.",
+        409,
+      );
+    }
+  }
+  const worktreeBranch = saved?.worktreeBranch ?? command.worktreeBranch;
   const thread: Thread = {
     id: command.threadId,
     projectId: command.projectId,
@@ -410,8 +496,8 @@ export async function startPersistedThread(
     ...(presentationMode !== "terminal" ? { threadStatusSource: "server" } : {}),
     ...(command.groupId ? { groupId: command.groupId } : {}),
     ...(command.groupName ? { groupName: command.groupName } : {}),
-    ...(command.worktreePath ? { worktreePath: command.worktreePath } : {}),
-    ...(command.worktreeBranch ? { worktreeBranch: command.worktreeBranch } : {}),
+    ...(worktreePath ? { worktreePath } : {}),
+    ...(worktreeBranch ? { worktreeBranch } : {}),
     ...(command.parentThreadId ? { parentThreadId: command.parentThreadId } : {}),
     ...(command.prNumber ? { prNumber: command.prNumber } : {}),
     ...(command.workspaceId ? { workspaceId: command.workspaceId } : {}),
@@ -422,8 +508,8 @@ export async function startPersistedThread(
   admitLaunch?.();
   dbUpsertThread(thread, sortOrderForThread(threads, command.threadId));
 
-  const projectLocation = command.worktreePath
-    ? buildWorktreeLocation(project.location, command.worktreePath)
+  const projectLocation = worktreePath
+    ? buildWorktreeLocation(project.location, worktreePath)
     : project.location;
   const mcpSnapshot =
     host.resolveMcpLaunchSnapshot?.(command.projectId, command.config.mcpServerOverrides) ??

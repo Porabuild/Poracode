@@ -246,6 +246,24 @@ export function dbGetThreadRuntimeItems(threadId: string): Promise<PersistedRunt
   ).then((items) => items.map(projectSavedCrossagentRoute));
 }
 
+/** Request previews need only the open request rows in the committed prefix. */
+export function dbGetThreadOpenRequestItems(threadId: string): Promise<PersistedRuntimeItem[]> {
+  return readThreadWithFence(threadId, () => {
+    const sqlite = getSqlite();
+    return readRuntimeSnapshot(sqlite, () => {
+      const rows = sqlite
+        .prepare(
+          `SELECT item_id, type, state, payload, streams, parent_item_id
+         FROM thread_runtime_items
+         WHERE thread_id = ? AND type GLOB '*request*' AND state <> 'completed'
+         ORDER BY position ASC`,
+        )
+        .all(threadId) as PersistedRuntimeItemRow[];
+      return mapRuntimeItemRows(sqlite, threadId, rows);
+    });
+  });
+}
+
 /** Synchronous committed-prefix read. Only call behind a held fence. */
 export function dbReadThreadRuntimeItems(threadId: string): PersistedRuntimeItem[] {
   const sqlite = getSqlite();

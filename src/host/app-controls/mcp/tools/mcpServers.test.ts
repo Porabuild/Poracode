@@ -77,7 +77,13 @@ function harness(options: {
     getThread: (id: string) => (id === thread.id ? thread : null),
     getProject: (id: string) => projects.get(id) ?? null,
     updateProject,
-    settings: { read: () => settings, write: settingsWrite },
+    settings: {
+      read: () => settings,
+      editField: async (field: "mcpServers", compute: (current: SharedSettings) => McpServer[]) => {
+        settingsWrite({ ...settings, [field]: compute(settings) });
+        return { status: "committed" };
+      },
+    },
     supervisor,
   } as unknown as AppControlsToolContext;
   const call = (name: string, args: Record<string, unknown> = {}) =>

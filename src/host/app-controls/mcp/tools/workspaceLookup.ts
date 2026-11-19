@@ -1,8 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { nextWorkspaceIconId, type Workspace, type WorkspaceIconId } from "@/shared/contracts";
 import { isHomeProjectId } from "@/shared/homeScope";
-import { normalizeSharedSettings } from "@/shared/settings";
-import { mergeManagedSharedSettings } from "../../../sharedSettingsFile";
 import type { AppControlsToolContext } from "./types";
 
 /** Workspaces currently persisted in shared settings. */
@@ -15,7 +13,10 @@ export function getWorkspaces(ctx: AppControlsToolContext): Workspace[] {
  * collisions must be disambiguated with an id from `list_workspaces`.
  */
 export function requireWorkspace(ctx: AppControlsToolContext, idOrName: string): Workspace {
-  const workspaces = getWorkspaces(ctx);
+  return resolveWorkspace(getWorkspaces(ctx), idOrName);
+}
+
+export function resolveWorkspace(workspaces: readonly Workspace[], idOrName: string): Workspace {
   const byId = workspaces.find((workspace) => workspace.id === idOrName);
   if (byId) return byId;
   const needle = idOrName.trim().toLowerCase();
@@ -31,16 +32,17 @@ export function requireWorkspace(ctx: AppControlsToolContext, idOrName: string):
   );
 }
 
-/** Persist a replacement workspace list through the same guarded settings write as update_settings. */
-export function persistWorkspaces(
+export async function editWorkspaces(
   ctx: AppControlsToolContext,
-  workspaces: Workspace[],
-): Workspace[] {
-  const onDisk = ctx.settings.read();
-  const normalized = normalizeSharedSettings({ ...onDisk, workspaces });
-  const merged = mergeManagedSharedSettings(onDisk, normalized);
-  ctx.settings.write(merged);
-  return merged.workspaces;
+  compute: (workspaces: Workspace[]) => Workspace[],
+): Promise<void> {
+  const result = await ctx.settings.editField("workspaces", (current) =>
+    compute(current.workspaces),
+  );
+  if (result.status !== "committed")
+    throw new Error(
+      `Workspace settings were not saved (${result.status}). Check list_workspaces before retrying.`,
+    );
 }
 
 export function createWorkspaceRecord(

@@ -123,4 +123,6 @@
     <string name="projects_request_failed">Komputer nie mógł wykonać żądania.</string>
     <string name="projects_request_uncertain">Połączenie zakończyło się przed potwierdzeniem zmiany przez komputer. Odśwież dane przed ponowną próbą.</string>
     <string name="projects_setup_detection_failed">Projekt został dodany, ale Poracode nie wykrył jego skryptu konfiguracji.</string>
+    <string name="projects_notes_conflict">Notatki projektu zmieniono w innym miejscu. Twój szkic został zachowany.</string>
+    <string name="projects_notes_load_saved">Wczytaj zapisane notatki</string>
 </resources>

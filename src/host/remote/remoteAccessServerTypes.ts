@@ -18,6 +18,7 @@ import type { GitStateInterest, GitStateSnapshot } from "@/shared/gitState";
 import type { ResourceAdmissionPeek } from "@/shared/hostResourceAdmission";
 import type { LiveEventInterests } from "@/shared/liveEventInterests";
 import type { WorktreePlacement } from "@/shared/worktree";
+import type { SupervisorCallOptions } from "@/host/supervisor/SupervisorClient";
 import type {
   RuntimeHistoryGapAcknowledgeResult,
   RuntimeHistoryGapDescriptor,
@@ -484,6 +485,7 @@ export interface RemoteAccessServerOptions {
   callSupervisor<Name extends SupervisorProcedureName>(
     name: Name,
     payload: IpcProcedurePayload<Name>,
+    options?: SupervisorCallOptions,
   ): Promise<IpcProcedureResult<Name>>;
   /**
    * On-demand supervisor admission snapshot for the loopback `/metrics`
@@ -516,6 +518,7 @@ export interface RemoteAccessServerOptions {
   }): Promise<CheckpointRevertResult>;
   /** Keep compound removal ordered against launches and checkpoint reverts. */
   runThreadMutation?: import("@/host/supervisor/threadMutationCustody").RunThreadMutation;
+  captureThreadControlState?(threadId: string, expectedControls: number): () => boolean;
   /**
    * Forwards a thread-metadata command to the desktop renderer, which owns
    * thread metadata and persists it. Returns false when no renderer window is

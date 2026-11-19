@@ -1,6 +1,10 @@
 // GENERATED FILE. Do not edit by hand.
 import Foundation
 public extension RemoteSchemas {
+  static let schema_8fa99a81fa4d20fb = RemoteSchema(type: "object", required: Set(["id", "state", "streams", "type"]), properties: ["detailsDeferred": RemoteSchemas.schema_d2dd3595e1b5e5dc, "id": RemoteSchemas.schema_36fea325bf1aca70, "parentItemId": RemoteSchemas.schema_bf0b727f7b1c6d07, "payload": RemoteSchemas.schema_ca3d163bab055381, "state": RemoteSchemas.schema_2472eab79ad4b307, "streams": RemoteSchemas.schema_e51d77fd6734b53a, "type": RemoteSchemas.schema_36fea325bf1aca70], additionalAllowed: true, unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
   static let schema_902ee7904a410968 = RemoteSchema(type: "string", literals: [.string("page"), .string("inventory")], unknownPolicy: .strip)
 }
 
@@ -194,6 +198,10 @@ public extension RemoteSchemas {
 
 public extension RemoteSchemas {
   static let schema_96967a6998f6cab7 = RemoteSchema(type: "string", minLength: 8, maxLength: 110, pattern: "^[A-Za-z0-9._:-]+$", unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
+  static let schema_96b8d7dbded67d2c = RemoteSchema(type: "object", required: Set(["notes", "status"]), properties: ["notes": RemoteSchemas.schema_7e83671a2aefecff, "status": RemoteSchemas.schema_d653b34c4449e1c3], additionalAllowed: true, unknownPolicy: .strip)
 }
 
 public extension RemoteSchemas {

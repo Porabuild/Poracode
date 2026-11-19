@@ -4,8 +4,13 @@ import type {
   AgentStatusesResponse,
   ProjectLocation,
   ThreadConfig,
+  ThreadPresentationMode,
 } from "@/shared/contracts";
 import type { SharedSettings } from "@/shared/settings";
+import {
+  capabilitiesForPresentation,
+  resolveComposerPresentationMode,
+} from "@/shared/agentSelection";
 import { getProjectAgentStatuses } from "@/shared/agentStatus";
 import { isSlashCommandPrompt, resolveThreadTitlePrompt } from "@/shared/threadTitle";
 import { resolveUnrestrictedPermissionConfig } from "@/shared/agents/unrestrictedPermissions";
@@ -20,24 +25,44 @@ import { resolveUnrestrictedPermissionConfig } from "@/shared/agents/unrestricte
  * defaults rather than failing the launch. App-created threads also apply the
  * composer's standing MCP defaults when settings are supplied.
  */
-export async function resolveHostThreadLaunchConfig(
+export async function resolveHostThreadLaunchDefaults(
   getAgentStatuses: (wslDistros: string[]) => Promise<AgentStatusesResponse>,
   agentKind: AgentKind,
   location: ProjectLocation,
-  settings?: Pick<SharedSettings, "enabledMcpServers" | "disabledBuiltInMcpServers">,
-): Promise<Partial<ThreadConfig>> {
+  settings?: Pick<
+    SharedSettings,
+    "enabledMcpServers" | "disabledBuiltInMcpServers" | "lastPresentationModeByAgent"
+  >,
+  options: { presentationMode?: ThreadPresentationMode; unattended?: boolean } = {},
+): Promise<{ presentationMode: ThreadPresentationMode; config: Partial<ThreadConfig> }> {
+  let agent;
   try {
     const statuses = await getAgentStatuses(location.kind === "wsl" ? [location.distro] : []);
-    const agents = getProjectAgentStatuses(location, statuses.windows, statuses.wsl);
-    const agent = agents.find((status) => status.kind === agentKind);
-    if (!agent) return {};
-    return {
-      ...resolveUnrestrictedPermissionConfig(agent.capabilities),
-      ...(settings ? resolveNewThreadMcpConfig(settings, agent.capabilities, "gui", location) : {}),
-    };
+    agent = getProjectAgentStatuses(location, statuses.windows, statuses.wsl).find(
+      (status) => status.kind === agentKind,
+    );
   } catch {
-    return {};
+    // A status lookup failure must not block the same launch the UI can attempt.
   }
+  const presentationMode =
+    options.presentationMode ??
+    (options.unattended === false
+      ? resolveComposerPresentationMode(agent, settings?.lastPresentationModeByAgent ?? {})
+      : "gui");
+  if (!agent) return { presentationMode, config: {} };
+  const capabilities =
+    options.presentationMode || options.unattended === false
+      ? capabilitiesForPresentation(agent.capabilities, presentationMode)
+      : agent.capabilities;
+  return {
+    presentationMode,
+    config: {
+      ...(options.unattended !== false ? resolveUnrestrictedPermissionConfig(capabilities) : {}),
+      ...(settings
+        ? resolveNewThreadMcpConfig(settings, capabilities, presentationMode, location)
+        : {}),
+    },
+  };
 }
 
 /**

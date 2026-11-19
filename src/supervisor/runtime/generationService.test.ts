@@ -148,4 +148,42 @@ describe("GenerationService selection wiring", () => {
     expect(mocks.judgeExperiment.mock.calls[0]?.[4]).toBe(tuple);
     expect(mocks.generateCommitMessage.mock.calls[1]?.[2]).toBeUndefined();
   });
+
+  it("keeps a cancelled extraction in custody until it settles and skips scrollback fallback", async () => {
+    const adapter = { kind: "fixture", label: "Fixture" } as AgentAdapter;
+    const service = new GenerationService({
+      adapters: new Map([[adapter.kind, adapter]]),
+      readTerminalScrollback: () => "Saved scrollback",
+      wslBridgeClient: undefined,
+    });
+    const input = {
+      threadId: "thread-1",
+      agentKind: adapter.kind,
+      sessionRef: { providerSessionId: "session", discoveredAt: "2026-01-01" },
+      projectLocation: { kind: "posix", path: "/fixture" },
+    } as const;
+    const admitted = Promise.withResolvers<AbortSignal>();
+    const finish = Promise.withResolvers<unknown>();
+    mocks.extractContext.mockImplementation(async (...args) => {
+      admitted.resolve(args[5] as AbortSignal);
+      return finish.promise;
+    });
+    const first = service.extractContext(input).catch((error: unknown) => error);
+    const signal = await admitted.promise;
+    await expect(service.extractContext(input)).rejects.toThrow("already running");
+    service.cancelExtractContext(input.threadId);
+    expect(signal.aborted).toBe(true);
+    await expect(service.extractContext(input)).rejects.toThrow("already running");
+    finish.reject(new Error("provider settled after cancellation"));
+    await expect(first).resolves.toMatchObject({ name: "AbortError" });
+    expect(mocks.extractContextFromScrollback).not.toHaveBeenCalled();
+    const result = {
+      summary: "Recovered",
+      sourceProvider: adapter.kind,
+      sourceSessionId: "session",
+      extractedAt: "2026-01-01",
+    };
+    mocks.extractContext.mockResolvedValue(result);
+    await expect(service.extractContext(input)).resolves.toEqual(result);
+  });
 });

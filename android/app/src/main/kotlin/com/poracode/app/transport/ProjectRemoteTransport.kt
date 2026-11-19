@@ -8,6 +8,7 @@ import com.poracode.app.model.ProjectIdentity
 import com.poracode.app.model.ProjectLocation
 import com.poracode.app.model.ProjectNotesReadResult
 import com.poracode.app.model.ProjectNotesWriteBody
+import com.poracode.app.model.ProjectNotesSaveResult
 import com.poracode.app.model.ProjectSettings
 import com.poracode.app.session.projects.ProjectHostLease
 
@@ -53,7 +54,7 @@ interface ProjectRemoteGateway {
 
     suspend fun projectNotes(projectId: String): ProjectNotesReadResult
 
-    suspend fun writeProjectNotes(projectId: String, body: ProjectNotesWriteBody)
+    suspend fun writeProjectNotes(projectId: String, body: ProjectNotesWriteBody): ProjectNotesSaveResult?
 
     suspend fun browseHostDirectory(path: String): BrowseHostDirectoryResult
 

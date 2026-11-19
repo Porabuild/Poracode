@@ -14,6 +14,7 @@ import {
   preflightConversationSearchGeneration,
 } from "./conversationSearchSchema";
 import { reclaimOrphanInlineImageBlobs } from "./runtimeInlineImages";
+import { recoverInterruptedSessionImports } from "./sessionImportJournal";
 
 let _sqlite: InstanceType<typeof Database> | undefined;
 
@@ -235,7 +236,8 @@ export function initDatabase(
       project_id TEXT PRIMARY KEY,
       doc TEXT,
       todos TEXT NOT NULL DEFAULT '[]',
-      updated_at TEXT NOT NULL
+      updated_at TEXT NOT NULL,
+      revision TEXT
     );
     CREATE TABLE IF NOT EXISTS usage_events (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -335,6 +337,7 @@ export function initDatabase(
   assertRequiredDatabaseSchema(sqlite);
   try {
     ensureConversationSearchGeneration(sqlite);
+    recoverInterruptedSessionImports(sqlite);
   } catch (error) {
     sqlite.close();
     _sqlite = previousSqlite;

@@ -131,5 +131,13 @@ describe("syncMemoryAcrossEnvironments", () => {
     expect(bridgeMock.memoryCommand).toHaveBeenCalledWith(
       expect.objectContaining({ action: "sync-merge" }),
     );
+
+    peerSync.mockRejectedValueOnce(new Error("Peer disconnected"));
+    const background = syncMemoryAcrossEnvironments();
+    await expect(syncMemoryAcrossEnvironments({ force: true })).rejects.toThrow(
+      "Peer disconnected",
+    );
+    await expect(background).resolves.toEqual({ syncedHosts: 0, changed: false });
+    expect(peerSync).toHaveBeenCalledTimes(2);
   });
 });

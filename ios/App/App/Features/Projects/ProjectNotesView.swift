@@ -77,7 +77,7 @@ struct ProjectNotesView: View {
     }
     .onChange(of: state.failure) { _, failure in
       guard failure != nil else { return }
-      noteDocument = state.lastConfirmed?.doc
+      noteDocument = state.draft?.doc
     }
     .overlay(alignment: .bottom) {
       if state.isSaving {
@@ -85,6 +85,16 @@ struct ProjectNotesView: View {
           .padding(10)
           .poracodeGlassBackground(in: Capsule())
           .padding()
+      } else if state.conflict {
+        VStack(alignment: .leading, spacing: 8) {
+          Text(ProjectManagementStrings.notesConflict).font(.caption)
+          Button(ProjectManagementStrings.loadSavedNotes) {
+            Task { await controller.load(identity, discardDraft: true) }
+          }
+        }
+        .padding(10)
+        .poracodeGlassBackground(in: RoundedRectangle(cornerRadius: 12))
+        .padding()
       } else if let failure = state.failure {
         ProjectFailureBanner(failure: failure)
           .padding()

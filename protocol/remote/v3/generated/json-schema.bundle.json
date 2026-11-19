@@ -59622,6 +59622,10 @@
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "additionalProperties": true,
       "properties": {
+        "guardedWrites": {
+          "const": 1,
+          "type": "number"
+        },
         "notes": {
           "anyOf": [
             {
@@ -59636,6 +59640,10 @@
                   ]
                 },
                 "projectId": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "revision": {
                   "minLength": 1,
                   "type": "string"
                 },
@@ -59711,10 +59719,8 @@
       "x-poracode-unknownFields": "strip"
     },
     "route.project-notes-write.request": {
-      "$schema": "https://json-schema.org/draft/2020-12/schema",
-      "additionalProperties": true,
-      "properties": {
-        "doc": {
+      "$defs": {
+        "__schema0": {
           "anyOf": [
             {},
             {
@@ -59722,7 +59728,7 @@
             }
           ]
         },
-        "todos": {
+        "__schema1": {
           "items": {
             "additionalProperties": true,
             "properties": {
@@ -59751,24 +59757,191 @@
             "x-poracode-unknownFields": "strip"
           },
           "type": "array"
-        },
-        "updatedAt": {
-          "minLength": 1,
-          "type": "string"
         }
       },
-      "required": [
-        "doc",
-        "todos",
-        "updatedAt"
-      ],
-      "type": "object",
-      "x-poracode-unknownFields": "strip"
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "anyOf": [
+        {
+          "additionalProperties": true,
+          "properties": {
+            "doc": {
+              "$ref": "#/$defs/__schema0"
+            },
+            "todos": {
+              "$ref": "#/$defs/__schema1"
+            },
+            "updatedAt": {
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "doc",
+            "todos",
+            "updatedAt"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "baseRevision": {
+              "anyOf": [
+                {
+                  "maxLength": 128,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "replacement": {
+              "additionalProperties": false,
+              "properties": {
+                "doc": {
+                  "$ref": "#/$defs/__schema0"
+                },
+                "todos": {
+                  "$ref": "#/$defs/__schema1"
+                }
+              },
+              "required": [
+                "doc",
+                "todos"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "reject"
+            }
+          },
+          "required": [
+            "baseRevision",
+            "replacement"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "reject"
+        }
+      ]
     },
     "route.project-notes-write.response": {
+      "$defs": {
+        "__schema0": {
+          "additionalProperties": true,
+          "properties": {
+            "doc": {
+              "anyOf": [
+                {},
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "projectId": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "revision": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "todos": {
+              "items": {
+                "additionalProperties": true,
+                "properties": {
+                  "createdAt": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "done": {
+                    "type": "boolean"
+                  },
+                  "id": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "text": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "text",
+                  "done",
+                  "createdAt"
+                ],
+                "type": "object",
+                "x-poracode-unknownFields": "strip"
+              },
+              "type": "array"
+            },
+            "updatedAt": {
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "projectId",
+            "doc",
+            "todos",
+            "updatedAt"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        }
+      },
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "additionalProperties": true,
-      "properties": {},
+      "properties": {
+        "result": {
+          "oneOf": [
+            {
+              "additionalProperties": true,
+              "properties": {
+                "notes": {
+                  "$ref": "#/$defs/__schema0"
+                },
+                "status": {
+                  "const": "saved",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "status",
+                "notes"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
+            },
+            {
+              "additionalProperties": true,
+              "properties": {
+                "notes": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/__schema0"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "status": {
+                  "const": "conflict",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "status",
+                "notes"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
+            }
+          ]
+        }
+      },
       "type": "object",
       "x-poracode-unknownFields": "strip"
     },
@@ -83511,5 +83684,5 @@
   },
   "manifestHash": "sha256:b344d1b59078a545149fd8f2ff0e8416da8b99eb0464bfb98006661e67907712",
   "protocolVersion": 14,
-  "sourceHash": "sha256:337b9896f466611bfaa5ef045f30f07e63efcde710ffa836ff335dd5d2ff204d"
+  "sourceHash": "sha256:bebf9be6f4253616e2501b15bd204d739bc6419ee62b128666b14b148618bc6c"
 }

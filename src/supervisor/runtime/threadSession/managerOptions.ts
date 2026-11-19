@@ -103,6 +103,7 @@ export interface ThreadSessionManagerOptions {
       requestId: ThreadServerRequestId,
       response: unknown,
       parentThreadId: string,
+      requirePending?: boolean,
     ): Promise<boolean>;
     /**
      * Member runs of a lead thread: how many hold work now and how many ever

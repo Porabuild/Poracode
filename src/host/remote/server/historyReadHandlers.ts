@@ -9,12 +9,11 @@ import {
   remoteTimelineEntryCountSchema,
 } from "@/shared/remote";
 import { RemoteHttpError } from "../auth";
-import { readDatabaseAsync } from "@/host/db/asyncReads";
 import { writeNegotiatedJson } from "./httpCompression";
 import { requirePathParam, type HttpRouteCall } from "./httpRouteHandlers.shared";
 import { writeJson, writeNegotiatedJsonResponse } from "./httpResponses";
 import {
-  buildBoundedCompletedTurnPage,
+  readCompletedTurnHistory,
   buildBoundedThreadHistoryItems,
   buildBoundedThreadSnapshot,
 } from "./historyReadBuilders";
@@ -186,7 +185,7 @@ export async function handleBoundedThreadHistoryItems(call: HttpRouteCall): Prom
  * Only declared clients learn the route, so an undeclared request is a
  * protocol error exactly like `project-list`. */
 export async function handleBoundedThreadTurns(call: HttpRouteCall): Promise<void> {
-  const { ctx, res, url } = call;
+  const { ctx, url } = call;
   const threadId = requirePathParam(call.params, "threadId");
   const negotiation = parseHistoryReadNegotiation(url);
   if (!negotiation.declared) {
@@ -211,25 +210,16 @@ export async function handleBoundedThreadTurns(call: HttpRouteCall): Promise<voi
     throw error;
   }
   const limit = parseTurnsLimit(url, negotiation);
-  let body: string;
-  try {
+  await writeBoundedHistoryResponse(call, async () => {
     const input = {
       threadId,
       limit,
       caps: negotiation.caps,
       ...(cursorIdx !== undefined ? { cursorIdx } : {}),
     };
-    body = await readDatabaseAsync("completedTurnPage", [input], () =>
-      buildBoundedCompletedTurnPage(input),
+    const { body } = await readCompletedTurnHistory(input, () =>
+      readRuntimeHistoryNoticeForRead(ctx, threadId, negotiation.noticesDeclared),
     );
-    // An acknowledgement can create a notice during the worker read.
-    readRuntimeHistoryNoticeForRead(ctx, threadId, negotiation.noticesDeclared);
-  } catch (error) {
-    if (error instanceof HistoryItemTooLargeError) {
-      writeJson(res, 422, historyItemTooLargeBodySchema.parse(error.body));
-      return;
-    }
-    throw mapHistoryPersistenceRefusal(error);
-  }
-  await writeNegotiatedJson(call.req, call.res, 200, body);
+    return body;
+  });
 }

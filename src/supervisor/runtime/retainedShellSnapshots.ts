@@ -1,4 +1,4 @@
-import type { TerminalSize, TerminalSnapshot } from "@/shared/contracts";
+import type { ProjectLocation, TerminalSize, TerminalSnapshot } from "@/shared/contracts";
 import type { SessionRuntime, ShellSessionRuntime } from "./sessionTypes";
 
 /** Bounded in-memory snapshots for naturally-exited dev shells (not DB-persisted). */
@@ -14,6 +14,10 @@ export interface RetainedShellSnapshot {
   readonly toCursor: number;
   readonly terminalSize: TerminalSize | null;
   readonly retainedAt: number;
+  readonly workspaceClose?: {
+    projectLocation: ProjectLocation;
+    worktreePath?: string;
+  };
 }
 
 export function isRetainedShellExpired(snapshot: RetainedShellSnapshot, now = Date.now()): boolean {
@@ -48,8 +52,9 @@ export function snapshotFromLiveSession(
 export function snapshotFromLiveShell(
   shell: ShellSessionRuntime,
   processState: "running" | "exited",
+  maxChars = RETAINED_SHELL_SNAPSHOT_MAX_CHARS,
 ): TerminalSnapshot {
-  const data = shell.outputTranscript.readTail(RETAINED_SHELL_SNAPSHOT_MAX_CHARS);
+  const data = shell.outputTranscript.readTail(maxChars);
   const toCursor = shell.outputLength;
   return {
     generation: shell.instanceId,

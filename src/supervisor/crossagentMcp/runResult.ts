@@ -12,7 +12,7 @@ interface RunResultRecord {
   cursorOutputEdits: Array<{ start: number; end: number; key: string; replacement: string }>;
   attemptResults: SubagentAttemptResult[];
   attemptIndex: number;
-  pendingRequestIds: Set<string>;
+  pendingRequestIds: { readonly size: number };
   report: ReturnType<typeof parseCompactResult> | undefined;
   error: SubagentWaitResult["error"];
   plan: PreparedSubagentRun;

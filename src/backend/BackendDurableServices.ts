@@ -1,3 +1,4 @@
+import { assertRemoteGitMutationExperimentSafe } from "@/host/remote/experimentOwnership";
 import { msg } from "@/shared/messages";
 import { joinRuntimeShutdown } from "./joinRuntimeShutdown";
 import { DeviceWorkspaceService } from "@/host/devices/DeviceWorkspaceService";
@@ -7,6 +8,7 @@ import {
   dbDeleteThread,
   dbGetProject,
   dbGetProjectNotes,
+  dbCompareAndSetProjectNotes,
   dbGetProjects,
   dbGetThread,
   dbGetThreadRuntimeItemCursor,
@@ -31,6 +33,8 @@ import {
 } from "@/host/app-controls";
 import type { AppControlsMcpIngressDeps } from "@/host/app-controls/AppControlsMcpIngress";
 import { ensureHomeProjectWithPublish } from "@/host/app-controls/ingressDeps";
+import type { SupervisorCall } from "@/host/app-controls/supervisorCaller";
+import { ProjectActionService } from "@/host/app-controls/projectActions";
 import { createGitStateExecutor, GitStateService, ProjectWatchLeases } from "@/host/gitState";
 import { ForgeActivityService } from "@/host/forgeActivity";
 import {
@@ -79,24 +83,37 @@ import {
 
 export interface BackendDurableServicesOptions {
   appVersion: string;
+  reopenThread?: NonNullable<AppControlsMcpIngressDeps["reopenThread"]>;
+  revertCheckpoint?: NonNullable<AppControlsMcpIngressDeps["revertCheckpoint"]>;
+  beginQueueActivity?(threadId: string): (() => void) | undefined;
+  applyThreadLifecycle?: NonNullable<AppControlsMcpIngressDeps["applyThreadLifecycle"]>;
+  importSession?: NonNullable<AppControlsMcpIngressDeps["importSession"]>;
+  editCatalog?: NonNullable<AppControlsMcpIngressDeps["editCatalog"]>;
+  experiments?: NonNullable<AppControlsMcpIngressDeps["experiments"]>;
+  moveThreadToWorktree?: NonNullable<AppControlsMcpIngressDeps["moveThreadToWorktree"]>;
+  handoffThread?: NonNullable<AppControlsMcpIngressDeps["handoffThread"]>;
+  transferThread?: NonNullable<AppControlsMcpIngressDeps["transferThread"]>;
+  syncMemory?: NonNullable<AppControlsMcpIngressDeps["syncMemory"]>;
+  localPorts?: NonNullable<AppControlsMcpIngressDeps["localPorts"]>;
+  openProviderLogin?: NonNullable<AppControlsMcpIngressDeps["openProviderLogin"]>;
   hostId: string;
   supervisor: SupervisorClient;
   getSharedSettings(): SharedSettings;
-  /** Compat whole-snapshot write (app-controls `update_settings`). Routed
-   * through the composition's settings authority as scoped CAS edits; a
-   * rejection is reported instead of thrown, so fire-and-forget callers cannot
-   * turn a durable event into an unhandled rejection. */
-  writeSharedSettings(settings: SharedSettings): void;
   /** Trusted single-field CAS edit for owner-managed records (learned routing
    * usage, overrides). Backed by the composition's settings authority. */
   editSettingsField<F extends keyof SharedSettings>(
     field: F,
     compute: (current: SharedSettings) => SharedSettings[F] | undefined,
   ): Promise<SettingsMutationResult>;
+  editSettingsFields?: NonNullable<AppControlsMcpIngressDeps["settings"]["editFields"]>;
+  editPreferences(
+    compute: (current: SharedSettings) => SharedSettings,
+  ): Promise<SettingsMutationResult>;
   /** Supervisor-owned records (ACP registry installs, hook verdicts) committed
    * through the composition's settings authority; the supervisor never writes
    * settings.json itself. */
   commitOwnerSettingsEdits(edits: readonly SettingsOwnerEdit[]): Promise<void>;
+  assertCanPersistSecrets(): void;
   sendThreadCommand(command: RemoteThreadCommand): boolean;
   emitRemoteThreadCommand?(command: RemoteThreadCommand): boolean | Promise<boolean>;
   publishProjectsChanged(): void;
@@ -147,6 +164,7 @@ export class BackendDurableServices {
    * every client's watch interest. */
   readonly projectWatchLeases: ProjectWatchLeases;
   readonly appControls: AppControlsMcpIngress;
+  private readonly projectActions: ProjectActionService;
   readonly deviceWorkspace: DeviceWorkspaceService;
   /** Settled or in-flight shared ingress start; cleared on failure so it can retry. */
   private ingressStart: Promise<void> | null = null;
@@ -249,6 +267,17 @@ export class BackendDurableServices {
       sendThreadCommand: options.sendThreadCommand,
       getSharedSettings: options.getSharedSettings,
       publishProjectsChanged: options.publishProjectsChanged,
+      ...(options.applyThreadLifecycle
+        ? {
+            prepareWorktree: (projectId: string, worktreePath: string, threadId: string) =>
+              options.applyThreadLifecycle!({
+                kind: "prepare-worktree",
+                threadId,
+                projectId,
+                worktreePath,
+              }),
+          }
+        : {}),
       ...(options.publishThreadsChanged
         ? { publishThreadsChanged: options.publishThreadsChanged }
         : {}),
@@ -374,33 +403,77 @@ export class BackendDurableServices {
         getSharedSettings: options.getSharedSettings,
       }),
     });
+    const callAppControlsSupervisor: SupervisorCall = (name, payload) => {
+      assertRemoteGitMutationExperimentSafe(name, payload);
+      return supervisor.call(name, payload);
+    };
+    this.projectActions = new ProjectActionService(callAppControlsSupervisor, dbGetProject);
     this.appControls = new AppControlsMcpIngress({
+      projectActions: this.projectActions,
       gitState: this.gitStateService,
       scheduleService: this.scheduleService,
+      prWatches: this.prWatchService,
       getThread: dbGetThread,
       getThreads: dbGetThreads,
       getProjects: dbGetProjects,
       getProject: dbGetProject,
       getProjectNotes: dbGetProjectNotes,
+      compareAndSetProjectNotes: dbCompareAndSetProjectNotes,
+      ...(options.reopenThread ? { reopenThread: options.reopenThread } : {}),
+      ...(options.importSession ? { importSession: options.importSession } : {}),
+      ...(options.editCatalog ? { editCatalog: options.editCatalog } : {}),
+      ...(options.experiments ? { experiments: options.experiments } : {}),
+      ...(options.handoffThread ? { handoffThread: options.handoffThread } : {}),
+      ...(options.transferThread ? { transferThread: options.transferThread } : {}),
+      ...(options.syncMemory ? { syncMemory: options.syncMemory } : {}),
+      ...(options.localPorts ? { localPorts: options.localPorts } : {}),
+      ...(options.openProviderLogin ? { openProviderLogin: options.openProviderLogin } : {}),
+      ...(options.moveThreadToWorktree
+        ? { moveThreadToWorktree: options.moveThreadToWorktree }
+        : {}),
+      ...(options.revertCheckpoint ? { revertCheckpoint: options.revertCheckpoint } : {}),
+      runtime: {
+        call: async (name, payload) => {
+          const finishActivity =
+            name === "queueThreadFollowUp" &&
+            "threadId" in payload &&
+            typeof payload.threadId === "string"
+              ? options.beginQueueActivity?.(payload.threadId)
+              : undefined;
+          const result = await callAppControlsSupervisor(name, payload);
+          if (finishActivity) {
+            try {
+              finishActivity();
+            } catch (error) {
+              options.reportError?.(error);
+            }
+          }
+          return result;
+        },
+      },
       ...sharedAppControlsDeps,
       ...(options.reportError ? { reportError: options.reportError } : {}),
       settings: {
         read: options.getSharedSettings,
-        write: options.writeSharedSettings,
+        editField: options.editSettingsField,
+        ...(options.editSettingsFields ? { editFields: options.editSettingsFields } : {}),
+        editPreferences: options.editPreferences,
       },
+      assertCanPersistSecrets: options.assertCanPersistSecrets,
       getAppInfo: () => ({
         version: options.appVersion,
         platform: process.platform,
         hasRendererWindow: options.hasRendererWindow,
       }),
-      supervisor: createAppControlsSupervisorCaller((name, payload) =>
-        supervisor.call(name, payload),
-      ),
+      supervisor: createAppControlsSupervisorCaller(callAppControlsSupervisor),
       emitRemoteThreadCommand: options.emitRemoteThreadCommand ?? options.sendThreadCommand,
       openThreadInUi: options.openThreadInUi,
       notifyUser: options.notifyUser,
       checkForUpdate: options.checkForUpdate,
       deviceWorkspace: this.deviceWorkspace,
+      ...(options.applyThreadLifecycle
+        ? { applyThreadLifecycle: options.applyThreadLifecycle }
+        : {}),
     });
     if (options.attachmentsDir) {
       this.attachmentReclaim = new AttachmentReclaimService({
@@ -644,6 +717,7 @@ export class BackendDurableServices {
   }
 
   handleSupervisorReset(): void {
+    this.projectActions.reset();
     this.scheduleCoordinator.handleSupervisorReset();
     this.projectWatchLeases.handleSupervisorReset();
   }
@@ -665,6 +739,7 @@ export class BackendDurableServices {
   }
 
   observeSupervisorEvent(event: SupervisorEvent): boolean {
+    this.projectActions.observe(event);
     if (this.disposed) return true;
     if (observeRoutingSettingsEvent(this.options, event)) return true;
     if (observeSupervisorSettingsEditsEvent(this.options, event)) return true;
@@ -728,7 +803,10 @@ export class BackendDurableServices {
         () => Promise.resolve(this.forgeActivityService.dispose()),
         () => this.gitStateService.dispose(),
         () => this.projectWatchLeases.dispose(),
-        () => this.appControls.dispose(),
+        () => {
+          this.projectActions.reset();
+          return this.appControls.dispose();
+        },
         () => this.deviceWorkspace.dispose(),
       ],
       "Backend durable services did not shut down cleanly.",

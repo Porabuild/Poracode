@@ -52,6 +52,14 @@ when a boundary is added, removed, or moved. The pre-2026-10-14 narrative log is
 archived in [`docs/versioning-history.md`](../../docs/versioning-history.md); it is
 unmaintained and not needed for routine work.
 
+### Bundled plugin versions
+
+When a PR changes a bundled plugin's skills, prompts, or tool catalog, compare
+its manifest with the PR's target branch. Choose one semver increment for the
+combined change. Reuse that version for subsequent edits in the same PR. If the
+PR's scope changes the required semver level, recalculate the version from the
+target branch.
+
 ## Boundary rules
 
 - **Mirrored layers move together.** Some state has several durable copies, such
@@ -112,6 +120,14 @@ numbers in prose. Paths are relative to the repository root; a bare file name si
 beside the file named earlier in the same row.
 
 ### Persisted state
+
+CLI session replay records a provisional thread in the
+`host-session-import-pending:v1:` namespace of `app_state`. The writer clears
+that record after flushing replay. A new writer can discard a marked replay
+row that has no later conversation items. Imports saved by older builds have
+no marker and keep their existing meaning. Validate-only and read-only opens
+preserve the marker. The journal uses the existing SQLite tables and has no
+wire representation.
 
 | Boundary                             | Version constant                                                                                                                                                                                                                                                                                                          | Mirrored copies / consumers                                                                                                                                                          | Old artifacts                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -231,6 +247,46 @@ Android paths above are relative to `android/app/src/main/kotlin/com/poracode/ap
 
 ### Wire and IPC protocols
 
+Project Notes advertises `guardedWrites: 1` in the read response. A guarded
+save uses a distinct body envelope and returns the committed revision or a
+conflict. An older host rejects the envelope before writing. Schema 78 adds
+the durable Notes protection column. Legacy clients retain read access, and
+the host refuses any unguarded replacement of protected notes. Older editor
+versions may discard an unsaved draft when that rejection arrives. Schema 78 is
+forward-only to preserve that write boundary after restart.
+
+App Controls thread transfer uses the version-1 `appThreadTransferRequestSchema`
+and `appThreadTransferReplySchema` over a desktop window's private message port.
+The distinct backend-native operation is additive. Older clients time out
+before admitting the request, and the remote transfer contract stays v1.
+
+Desktop Memory Sync uses its own version-1 `appMemorySyncRequestSchema`
+and `appMemorySyncReplySchema` on the same private-port admission handshake.
+The backend-native operation is additive. An older renderer has no listener
+and cannot admit it. The paired memory sync protocol stays unchanged.
+
+App Controls experiment workflows use a version-1 private-port request and
+reply on a distinct desktop channel. Admission precedes renderer effects.
+The backend stores workflow receipts under separate command IDs, preserving
+existing experiment records, HTTP contracts, and older desktop channels.
+
+App Controls port actions add a version-1 backend-native command envelope.
+They reuse the desktop Ports panel's listener and process identity schemas.
+
+Provider terminal sign-in uses a version-1 desktop admission request. The
+renderer resolves the installed provider's command and opens its private
+login overlay. Requests carry provider identifiers and environment only.
+
+App Controls live request replies use the additive supervisor-only
+`appThreadRequests` v1 procedure. Tokens are kept with one structured
+session handle in memory. Older supervisors reject the new name before
+handling any reply. Native and paired request protocols keep their payloads.
+
+Workspace terminal control uses `WORKSPACE_TERMINAL_CONTROL_VERSION` in
+`src/shared/contracts/workspaceTerminal.ts`. The scoped request is
+supervisor-only. Older supervisors reject its procedure name before accessing
+the PTY. The remote allowlist and existing terminal payloads stay compatible.
+
 Local project administration uses closed inner admin v14, with project inventory JSON format1 (`src/shared/contracts/hostProjects.ts`). Prior admin1–13 shapes and echoes remain unchanged; old/future owners refuse before writes. Project pages reuse the existing versioned catalog inventory cursor. No outer operation, public remote protocol, persisted schema or credential format changes.
 
 Selected native provider reads use supervisor-only probeSelectedAgent with closed version1 request/result (src/shared/contracts/agent.ts). Old supervisors reject the distinct procedure name; future versions and unknown fields refuse before probing. Replies echo the exact provider and native environment. This read never writes or publishes discovery cache state or schedules automatic installation; existing cache versions and full discovery behavior are unchanged. The additive local procedure refreshes the hop18 fingerprint only; public remote allowlists and schemas remain unchanged.
@@ -297,7 +353,7 @@ Custom native ACP registration uses closed local admin v16 (HOST_ADMIN_V16_VERSI
 | Computer-use helper         | `src/shared/contracts/computerUse.ts` `COMPUTER_USE_HELPER_PROTOCOL_VERSION`                                                                                                                                                                     | `native/computer-use-helper/src/protocol/version.rs` `PROTOCOL_VERSION`; `resources/plugins/computer-use/plugin.json`                                                  | Keep both constants equal; bump the plugin semver when helper behavior changes.                                                                                                                                                                                                                                                                                                                                                                                                   |
 | Chrome native host          | `src/host/browser/external/chromeNativeHost.ts` `CHROME_NATIVE_HOST_ARTIFACT_VERSION`                                                                                                                                                            | Installed native-host manifest                                                                                                                                         | Bump when the installed artifact changes.                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | Provider hook plugins       | `src/supervisor/agents/*/plugin/plugin.json` `version`                                                                                                                                                                                           | Shared forward runtime                                                                                                                                                 | Bump the semver whenever installed files or behavior change.                                                                                                                                                                                                                                                                                                                                                                                                                      |
-| Bundled app plugins         | `resources/plugins/*/plugin.json` `version` (app-controls 1.7.6)                                                                                                                                                                                 | Connected MCP clients cache tool catalogs and skills                                                                                                                   | Bump on skill, prompt, or tool changes; keep old-host guidance until clients refresh.                                                                                                                                                                                                                                                                                                                                                                                             |
+| Bundled app plugins         | `resources/plugins/*/plugin.json` `version`                                                                                                                                                                                                      | Connected MCP clients cache tool catalogs and skills                                                                                                                   | Follow the [bundled plugin versions](#bundled-plugin-versions) rule. Keep old-host guidance until clients refresh.                                                                                                                                                                                                                                                                                                                                                                |
 | Patched dependencies        | `patches/*.patch` (for example the ACP SDK `dispatchObserverVersion` marker)                                                                                                                                                                     | Every bundle that inlines the dependency                                                                                                                               | Requalify patches on upgrade; check capability markers before relying on patched behavior.                                                                                                                                                                                                                                                                                                                                                                                        |
 | macOS service query         | `src/server/macosServiceManager.ts` `MACOS_SERVICE_QUERY_VERSION`                                                                                                                                                                                | Bundled scripting-bridge query and strict local reader                                                                                                                 | Closed reply version 1; unsupported API responses refuse before effects. No independent helper is deployed. Existing registration-v1 launchd fields remain unchanged; older CLIs refuse darwin before effects.                                                                                                                                                                                                                                                                    |
 | Windows server launcher     | `src/shared/contracts/serverServiceLauncher.ts` `SERVICE_LAUNCHER_VERSION`, `SERVICE_LAUNCHER_PROTOCOL_VERSION`, `SERVICE_LAUNCHER_MANIFEST_VERSION`                                                                                             | `native/server-service-launcher/main.rs` `HELPER_VERSION` and `--run-v1`; builder, tarball staging and local service artifact reader                                   | Future versions, changed hashes and native-target substitutions refuse without repair. Service registration-v1 remains unchanged; registration-v2 pins the Windows launcher at a stable prefix-relative path.                                                                                                                                                                                                                                                                     |

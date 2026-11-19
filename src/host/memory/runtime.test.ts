@@ -196,10 +196,16 @@ describe("memory store", () => {
           createdAt: "2026-11-16T00:00:00.000Z",
         });
       }
-      const result = (await handleMemoryCommand({ action: "dream" })) as {
-        report: string;
-        runId: string;
-      };
+      const first = handleMemoryCommand({ action: "dream" });
+      const repeated = handleMemoryCommand({ action: "dream" });
+      await expect(handleMemoryCommand({ action: "undo", runId: "earlier-run" })).rejects.toThrow(
+        "current Dream run",
+      );
+      const [result, repeatedResult] = (await Promise.all([first, repeated])) as [
+        { report: string; runId: string },
+        unknown,
+      ];
+      expect(repeatedResult).toEqual(result);
       expect(calls).toEqual(["dream"]);
       expect(
         ((await handleMemoryCommand({ action: "list" })) as Array<{ summary: string }>).some(

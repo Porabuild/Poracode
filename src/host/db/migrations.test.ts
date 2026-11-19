@@ -85,8 +85,9 @@ describe("database migration registry", () => {
       [75, "clear Antigravity prompt-consumption context snapshots"],
       [76, "poracode memory"],
       [77, "memory cross-env sync"],
+      [78, "guarded project notes"],
     ]);
-    expect(LATEST_SCHEMA_VERSION).toBe(77);
+    expect(LATEST_SCHEMA_VERSION).toBe(78);
     expect(() => validateMigrationRegistry()).not.toThrow();
   });
 
@@ -124,9 +125,9 @@ describe("database migration registry", () => {
     // instead of silently defaulting to rollback-compatible.
     expect(MIGRATION_ROLLBACK_CLASSIFICATION_REQUIRED_FROM).toBe(48);
     expect(describeMigrationRollbackPolicy().at(-1)).toEqual({
-      version: 77,
-      name: "memory cross-env sync",
-      rollback: "rollback-compatible",
+      version: 78,
+      name: "guarded project notes",
+      rollback: "forward-only",
     });
     // Migrations below the floor keep their reviewed defaults.
     expect(() =>

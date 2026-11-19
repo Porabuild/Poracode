@@ -286,6 +286,11 @@ export class PrWatchService {
     }
   }
 
+  list(): PrWatch[] {
+    this.assertOpen();
+    return this.options.store.list();
+  }
+
   get(projectId: string, prNumber: number): PrWatch | null {
     this.assertOpen();
     return this.options.store.get(projectId, prNumber);
