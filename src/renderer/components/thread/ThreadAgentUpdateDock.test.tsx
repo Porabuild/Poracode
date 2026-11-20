@@ -246,6 +246,19 @@ describe("ThreadAgentUpdateDock", () => {
     expect(toastMock.success).not.toHaveBeenCalled();
   });
 
+  it("reports a Cursor SDK background update that exits non-zero", async () => {
+    render(<ThreadAgentUpdateDock agentStatus={sdkStatus} project={project} />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Update" }));
+    await act(async () => {
+      runAgentInstallCommandMock.mock.calls[0]?.[0].onCommandComplete?.(1);
+    });
+
+    expect(toastMock.danger).toHaveBeenCalledWith("Unable to update Cursor SDK.");
+    expect(toastMock.success).not.toHaveBeenCalled();
+    expect(bridgeMock.refreshAgentStatuses).not.toHaveBeenCalled();
+  });
+
   it("keeps the provider binary updater for the selected Cursor ACP runtime", async () => {
     bridgeMock.getLatestAgentVersion.mockResolvedValue({
       version: "2026.07.23-e383d2b",

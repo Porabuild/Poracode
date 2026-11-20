@@ -913,6 +913,102 @@ describe("ModelOrderSection provider updates", () => {
     expect(screen.getByRole("button", { name: "Update Multi Runtime" })).toBeTruthy();
   });
 
+  it("rechecks lagging inventory during Update all without repeating either installer", async () => {
+    const sdk = cursorWorkStatus();
+    const multi = combinedStatus("1.4.5", "1.4.5");
+    statusesState.agentStatuses = [sdk, multi];
+    mockCombinedLatest();
+    bridge.getLatestAgentVersion.mockImplementation(async ({ npmPackage }) => ({
+      source: "npm",
+      version: npmPackage ? "1.4.1" : "1.5.3",
+    }));
+    const reads = new Set<string>();
+    bridge.refreshAgentStatuses.mockImplementation(async (_distros, scope) => {
+      const {
+        agentKinds: [kind],
+      } = scope as { agentKinds: string[] };
+      const fresh = reads.has(kind!);
+      reads.add(kind!);
+      return {
+        windows:
+          kind === sdk.kind
+            ? [fresh ? cursorWorkStatus("1.4.1") : sdk]
+            : [fresh ? combinedStatus("1.5.3", "1.4.5") : multi],
+        wsl: [],
+        fromCache: false,
+      };
+    });
+    render(<ModelOrderSection />);
+    fireEvent.click(await screen.findByRole("button", { name: "Update all (2)" }));
+    await waitFor(() => expect(toastMock.success).toHaveBeenCalledTimes(2));
+    expect(runAgentInstallCommand).toHaveBeenCalledOnce();
+    expect(bridge.updateAgentBinary).toHaveBeenCalledOnce();
+    expect(toastMock.danger).not.toHaveBeenCalled();
+    expect(screen.queryByRole("button", { name: /^Update all/u })).toBeNull();
+  });
+
+  it("verifies a sibling profile joining an in-flight shared SDK update after statuses re-render", async () => {
+    const initialWork = cursorWorkStatus();
+    const initialCursor = makeStatus({
+      ...initialWork,
+      kind: "cursor",
+      label: "Cursor",
+      version: "2026.11.13-eacade1",
+      runtimeVariants: {
+        ...initialWork.runtimeVariants,
+        acp: {
+          presentationMode: "gui",
+          installed: true,
+          version: "2026.11.13-eacade1",
+          authState: "authenticated",
+          authUsesProviderLogin: true,
+          capabilities: initialWork.capabilities,
+        },
+      },
+    });
+    statusesState.agentStatuses = [initialCursor, initialWork];
+    bridge.getLatestAgentVersion.mockImplementation(async ({ npmPackage }) =>
+      npmPackage
+        ? { source: "npm", version: "1.4.1" }
+        : { source: "unknown", version: initialCursor.version! },
+    );
+    let completeCommand!: (code: number) => void;
+    runAgentInstallCommand.mockImplementationOnce(({ onCommandComplete }) => {
+      completeCommand = onCommandComplete;
+      return true;
+    });
+    bridge.refreshAgentStatuses.mockResolvedValue({
+      windows: [
+        {
+          ...initialCursor,
+          runtimeVariants: {
+            ...initialCursor.runtimeVariants,
+            ...cursorWorkStatus("1.4.1").runtimeVariants,
+          },
+        },
+        cursorWorkStatus("1.4.1"),
+      ],
+      wsl: [],
+      fromCache: false,
+    });
+
+    const view = render(<ModelOrderSection />);
+    fireEvent.click(await screen.findByRole("button", { name: "Update Cursor work" }));
+    await waitFor(() => expect(runAgentInstallCommand).toHaveBeenCalledOnce());
+
+    // A status refresh replaces the Cursor object reference while the SDK update is in flight.
+    statusesState.agentStatuses = [{ ...initialCursor }, initialWork];
+    view.rerender(<ModelOrderSection />);
+    fireEvent.click(screen.getByRole("button", { name: "Update Cursor" }));
+    await Promise.resolve();
+
+    await act(async () => completeCommand(0));
+
+    await waitFor(() => expect(toastMock.success).toHaveBeenCalledTimes(2));
+    expect(runAgentInstallCommand).toHaveBeenCalledOnce();
+    expect(toastMock.danger).not.toHaveBeenCalled();
+  });
+
   it("updates combined runtimes on the paired host and keeps verified versions host-scoped", async () => {
     session.remote = true;
     statusesState.agentStatuses = [combinedStatus()];

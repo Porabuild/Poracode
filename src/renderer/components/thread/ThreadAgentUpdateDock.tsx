@@ -230,7 +230,10 @@ export function ThreadAgentUpdateDock(props: {
           });
           if (!opened) resolve(-1);
         });
-        if (exitCode !== 0) return;
+        if (exitCode !== 0) {
+          toast.danger(t`Unable to update ${updateLabel}.`);
+          return;
+        }
       } else {
         const result = await readBridge().updateAgentBinary({
           agentKind: agentStatus.kind,
