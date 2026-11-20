@@ -101,7 +101,7 @@ export function ThreadDockHeader({
   const placement = useThreadDockPlacement();
   const sortable = useIsSortableThreadDock();
   const detailsId = useId();
-  const hasDetails = Boolean(countLabel || children);
+  const hasDescribedDetails = Boolean(collapse && (countLabel || children));
   const isRightCard = placement === "right";
   const content = (
     <>
@@ -129,22 +129,31 @@ export function ThreadDockHeader({
         >
           {title}
         </span>
-        {hasDetails ? (
-          <span id={detailsId} className="contents">
-            {countLabel && (
-              <span
-                className={
-                  isRightCard
-                    ? "inline-flex shrink-0 items-center gap-1 text-[0.85em] leading-4 text-[color:var(--muted)]"
-                    : "inline-flex items-baseline gap-1 text-[0.85em] leading-none text-[color:var(--muted)]"
-                }
-              >
-                {countLabel}
-              </span>
-            )}
-            {children}
-          </span>
-        ) : null}
+        {(() => {
+          const details = (
+            <>
+              {countLabel && (
+                <span
+                  className={
+                    isRightCard
+                      ? "inline-flex shrink-0 items-center gap-1 text-[0.85em] leading-4 text-[color:var(--muted)]"
+                      : "inline-flex items-baseline gap-1 text-[0.85em] leading-none text-[color:var(--muted)]"
+                  }
+                >
+                  {countLabel}
+                </span>
+              )}
+              {children}
+            </>
+          );
+          return hasDescribedDetails ? (
+            <span id={detailsId} className="contents">
+              {details}
+            </span>
+          ) : (
+            details
+          );
+        })()}
       </span>
     </>
   );
@@ -162,7 +171,7 @@ export function ThreadDockHeader({
           className="flex h-full min-w-0 flex-1 cursor-pointer items-center gap-2 bg-transparent p-0 text-left text-xs font-normal outline-none focus-visible:focus-ring"
           aria-label={title}
           aria-expanded={!collapse.collapsed}
-          {...(hasDetails ? { "aria-describedby": detailsId } : {})}
+          {...(hasDescribedDetails ? { "aria-describedby": detailsId } : {})}
           onClick={collapse.onToggle}
         >
           {content}
