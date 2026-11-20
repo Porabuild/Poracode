@@ -129,8 +129,7 @@ struct PoracodeThemePreset: Identifiable, Sendable {
     preset(
       "default", "Poracode",
       light: ("#f1f1f4", "#fafafb", "#18181b", "#5f6cd9", "#cacace", "#ececef", "#f6f6f9", "#ececee", "#e1e1e2", "#5c5c5f"),
-      dark: ("#070709", "#0e0e14", "#fafafa", "#8892ef", "#24242e", "#0e0e14", "#0b0b11", "#1b1b20", "#232329", "#939396"),
-      lightTertiary: "#ebebed", darkTertiary: "#17171d"
+      dark: ("#070709", "#0e0e14", "#fafafa", "#8892ef", "#24242e", "#0e0e14", "#0b0b11", "#1b1b20", "#232329", "#939396")
     ),
     preset(
       "poracode-legacy", "Poracode Legacy",

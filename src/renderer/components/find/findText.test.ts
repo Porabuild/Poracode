@@ -74,22 +74,27 @@ it("reveals a match inside horizontal overflow when requested", () => {
   cell.textContent = "Needle Far";
   tableScroller.append(cell);
   transcript.append(tableScroller);
-  Object.defineProperties(tableScroller, {
-    clientWidth: { value: 100 },
-    scrollWidth: { value: 300 },
-  });
-  tableScroller.getBoundingClientRect = () => new DOMRect(0, 0, 100, 50);
-  transcript.getBoundingClientRect = () => new DOMRect(0, 0, 100, 300);
-  const range = document.createRange();
-  range.selectNodeContents(cell);
-  range.getBoundingClientRect = () => new DOMRect(200 - tableScroller.scrollLeft, 100, 40, 12);
+  document.body.append(transcript);
+  try {
+    Object.defineProperties(tableScroller, {
+      clientWidth: { value: 100 },
+      scrollWidth: { value: 300 },
+    });
+    tableScroller.getBoundingClientRect = () => new DOMRect(0, 0, 100, 50);
+    transcript.getBoundingClientRect = () => new DOMRect(0, 0, 100, 300);
+    const range = document.createRange();
+    range.selectNodeContents(cell);
+    range.getBoundingClientRect = () => new DOMRect(200 - tableScroller.scrollLeft, 100, 40, 12);
 
-  scrollRangeIntoView(transcript, range);
-  expect(tableScroller.scrollLeft).toBe(0);
-  scrollRangeIntoView(transcript, range, { horizontally: true });
-  expect(tableScroller.scrollLeft).toBe(140);
-  expect(transcript.scrollLeft).toBe(0);
-  tableScroller.scrollLeft = 220;
-  scrollRangeIntoView(transcript, range, { horizontally: true });
-  expect(tableScroller.scrollLeft).toBe(200);
+    scrollRangeIntoView(transcript, range);
+    expect(tableScroller.scrollLeft).toBe(0);
+    scrollRangeIntoView(transcript, range, { horizontally: true });
+    expect(tableScroller.scrollLeft).toBe(140);
+    expect(transcript.scrollLeft).toBe(0);
+    tableScroller.scrollLeft = 220;
+    scrollRangeIntoView(transcript, range, { horizontally: true });
+    expect(tableScroller.scrollLeft).toBe(200);
+  } finally {
+    transcript.remove();
+  }
 });

@@ -25,11 +25,16 @@ const fixture = JSON.parse(
 describe("remote Settings shortcut catalog shared with native iOS", () => {
   it("matches the complete remote PWA catalog with remote-environment management", () => {
     const { result } = renderHook(useSettingsShortcutDestinations, { wrapper: I18nTestWrapper });
-    expect(result.current.map((destination) => destination.id)).toEqual(fixture.remoteSettings);
+    const nativeSharedDestinations = result.current.filter(
+      (destination) => destination.id !== "memory",
+    );
+    expect(nativeSharedDestinations.map((destination) => destination.id)).toEqual(
+      fixture.remoteSettings,
+    );
     expect(SIDEBAR_SHORTCUT_IDS).toEqual(fixture.core);
     expect([
       ...SIDEBAR_SHORTCUT_IDS,
-      ...result.current.map((destination) => `settings:${destination.id}`),
+      ...nativeSharedDestinations.map((destination) => `settings:${destination.id}`),
     ]).toEqual(fixture.expectedIDs);
   });
 });

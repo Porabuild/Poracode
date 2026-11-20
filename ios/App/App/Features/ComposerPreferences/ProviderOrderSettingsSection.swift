@@ -39,7 +39,7 @@ struct ProviderOrderSettingsSection: View {
 
   var body: some View {
     Section {
-      Toggle(ProviderOrderStrings.sameOrder, isOn: Binding(get: { preferences.isSynced }, set: setSynced))
+      Toggle(ProviderOrderStrings.sameOrder, isOn: Binding(get: { preferences.isSynced }, set: { setSynced($0) }))
         .poracodeSwitchStyle()
         .disabled(!canEdit || (!preferences.isSynced
           && (!preferences.canLockToHostOrder || (effectiveOrder != hostOrder && composition.gate(.sessionOperate) != nil))))
@@ -61,7 +61,7 @@ struct ProviderOrderSettingsSection: View {
         Label(agent.label, systemImage: "line.3.horizontal")
           .accessibilityIdentifier("native-e2e.settings.provider-order.row.\(agent.kind)")
       }
-      .onMove(perform: moveAgents)
+      .onMove { moveAgents(from: $0, to: $1) }
       .moveDisabled(!canReorder)
       if !preferences.isSynced, let machine, preferences.hasOverride(for: machine) {
         Button(ProviderOrderStrings.reset) {

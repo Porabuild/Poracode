@@ -22,8 +22,15 @@ enum CustomThemeColorMath {
   }
 
   static func muted(_ palette: CustomThemePalette) -> String? {
-    let targets: [(String, Double)] = [(palette.bg, 4.5), (palette.content ?? palette.bg, 4.5),
-      (palette.surface, 4), (palette.sidebar ?? palette.surface, 4)]
+    let tintedPanel = mix(palette.fg, palette.surface, fraction: 0.06) ?? palette.surface
+    let panel = (contrast(palette.fg, tintedPanel) ?? 0) >= 9 ? tintedPanel : palette.surface
+    let targets: [(String, Double)] = [
+      (palette.bg, 4.5),
+      (palette.content ?? palette.bg, 4.5),
+      (palette.surface, 4),
+      (panel, 4.5),
+      (palette.sidebar ?? palette.surface, 4),
+    ]
     var fraction = 0.3
     while fraction <= 0.85 + 1e-9 {
       guard let color = mix(palette.fg, palette.bg, fraction: fraction) else { return nil }

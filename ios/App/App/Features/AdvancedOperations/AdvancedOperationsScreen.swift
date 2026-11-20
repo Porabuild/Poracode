@@ -37,18 +37,28 @@ struct AdvancedOperationsScreen: View {
       .padding(20)
     }
     .navigationTitle(AdvancedOperationsStrings.title)
+    #if os(iOS)
     .navigationBarTitleDisplayMode(.inline)
+    #endif
     .task(id: AdvancedOperationsActivationID(composition)) { model.invalidate() }
     .onChange(of: scenePhase) { _, phase in
       if phase == .active { model.leaveBackground() } else { model.enterBackground() }
     }
     .sheet(item: $presented) { procedure in
+      #if os(iOS)
       AdvancedOperationFormView(
         descriptor: AdvancedOperationsPresentation.descriptor(for: procedure),
         owner: model.access(for: procedure)?.lease.owner,
         submit: { draft in await model.submit(draft) }
       )
       .poracodeFormSheetSizing()
+      #else
+      AdvancedOperationFormView(
+        descriptor: AdvancedOperationsPresentation.descriptor(for: procedure),
+        owner: model.access(for: procedure)?.lease.owner,
+        submit: { draft in await model.submit(draft) }
+      )
+      #endif
     }
     .confirmationDialog(
       model.pendingMutation?.title ?? AdvancedOperationsStrings.confirm,

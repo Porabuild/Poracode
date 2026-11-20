@@ -517,12 +517,12 @@
         "content": 16.42494594101076,
         "surface": 16.984513026014458,
         "sidebar": 15.026477235267151,
-        "muted": 4.781525190789695,
+        "muted": 4.998053338244722,
         "composer": null,
         "sidebarRowActive": null,
         "accent": 4.532157405294753
       },
-      "muted": "#6d6d70"
+      "muted": "#6a6a6d"
     },
     {
       "id": "base-dark",
@@ -540,12 +540,12 @@
         "content": 18.799857975036502,
         "surface": 18.431357959801133,
         "sidebar": 18.431357959801133,
-        "muted": 4.512241076185959,
+        "muted": 5.3229364646539,
         "composer": null,
         "sidebarRowActive": null,
         "accent": 6.952492613739522
       },
-      "muted": "#79797a"
+      "muted": "#858586"
     },
     {
       "id": "short-colors",
@@ -566,12 +566,12 @@
         "content": 18.733663902900595,
         "surface": 7.640971952917436,
         "sidebar": 15.909984431773273,
-        "muted": 9.898614846862296,
+        "muted": 11.133853376886647,
         "composer": 12.943071238385983,
         "sidebarRowActive": 7.672493037060059,
         "accent": 5.434911440927868
       },
-      "muted": "#b8bdc2"
+      "muted": "#c4c8cc"
     },
     {
       "id": "low-contrast",
