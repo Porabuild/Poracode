@@ -621,7 +621,10 @@ describe("ModelOrderSection provider updates", () => {
     const statuses = remoteStatuses();
     remoteCalls.callRemoteProcedure.mockImplementation(async (procedure) => {
       if (procedure === "getLatestAgentVersion") return { version: "1.3.0" };
-      if (procedure === "updateAgentBinary") return { ok: true };
+      if (procedure === "updateAgentBinary") {
+        remoteCalls.agentStatuses.mockResolvedValue(remoteStatuses("1.3.0"));
+        return { ok: true };
+      }
       if (procedure === "listAcpRegistry") return { version: "1", agents: [] };
       throw new Error(`unexpected procedure: ${procedure}`);
     });
@@ -1242,6 +1245,31 @@ describe("ModelOrderSection provider updates", () => {
     await waitFor(() =>
       expect(toastMock.danger).toHaveBeenCalledWith(
         "Unable to update Claude Code: npm ERR! EACCES",
+      ),
+    );
+    expect(toastMock.success).not.toHaveBeenCalled();
+  });
+
+  it("reports a no-op exit-0 binary update instead of claiming success", async () => {
+    const geminiStatus = makeStatus({ kind: "gemini", label: "Gemini", version: "0.69.0" });
+    statusesState.agentStatuses = [geminiStatus];
+    bridge.getLatestAgentVersion.mockResolvedValue({ source: "npm", version: "0.70.0" });
+    bridge.updateAgentBinary.mockResolvedValue({
+      ok: true,
+      output: "Warning: gemini-cli 0.69.0 already installed",
+    });
+    bridge.refreshAgentStatuses.mockResolvedValue({
+      windows: [geminiStatus],
+      wsl: [],
+    } as unknown as AgentStatusesResponse);
+
+    render(<ModelOrderSection />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Update Gemini to v0.70.0" }));
+
+    await waitFor(() =>
+      expect(toastMock.danger).toHaveBeenCalledWith(
+        "Unable to update Gemini: Warning: gemini-cli 0.69.0 already installed",
       ),
     );
     expect(toastMock.success).not.toHaveBeenCalled();

@@ -271,15 +271,16 @@ export async function probeCursorSdkRuntime(
     assertAgentLaunchAllowed("session-probe");
     worker = await (dependencies.spawnWorker ?? spawnCursorSdkWorker)({
       projectLocation,
-      ...(recordedInstall ? { pinnedRoot: recordedInstall } : {}),
+      ...(recordedInstall ? { pinnedRoot: recordedInstall, pinFallbackOnly: true } : {}),
     });
     ctx?.signal?.throwIfAborted();
     const result = await worker.probe(configuredApiKey || undefined);
-    // Recording where this resolved to is what stops the next detection pass
-    // from having to re-derive the location from this process' PATH. Only the
-    // PATH-dependent sources are recorded: anything re-derivable for free
-    // would just freeze a stale copy ahead of fresher installs. A WSL probe
-    // never records — its root is not a path this host can use.
+    // Recording where this resolved to lets session launches skip subprocess
+    // package-manager probes and gives later detection passes a fallback if
+    // `npm`/`pnpm` disappear from PATH. Only PATH-dependent sources are
+    // recorded: anything re-derivable for free would freeze a stale copy ahead
+    // of fresher installs. A WSL probe never records — its root is not a path
+    // this host can use.
     if (pinsApply && result.packageRoot && shouldRecordCursorSdkInstall(result.source)) {
       recordCursorSdkInstallPin({
         packageRoot: result.packageRoot,
@@ -304,6 +305,29 @@ export async function probeCursorSdkRuntime(
         installed: false,
         authState: "unknown",
         models: [],
+        ...(code ? { diagnosticCode: code } : {}),
+        diagnosticMessage: cursorSdkProbeErrorMessage(error),
+      };
+    }
+    const resolvedSdk = error instanceof CursorSdkWorkerRpcError ? error.sdk : undefined;
+    if (resolvedSdk) {
+      if (
+        pinsApply &&
+        resolvedSdk.packageRoot &&
+        shouldRecordCursorSdkInstall(resolvedSdk.source)
+      ) {
+        recordCursorSdkInstallPin({
+          packageRoot: resolvedSdk.packageRoot,
+          source: resolvedSdk.source,
+          version: resolvedSdk.sdkVersion,
+        });
+      }
+      return {
+        installed: true,
+        authState: normalizedCode && MISSING_AUTH_CODES.has(normalizedCode) ? "missing" : "unknown",
+        models: [],
+        version: resolvedSdk.sdkVersion,
+        source: resolvedSdk.source,
         ...(code ? { diagnosticCode: code } : {}),
         diagnosticMessage: cursorSdkProbeErrorMessage(error),
       };

@@ -102,6 +102,12 @@ export class CursorSdkWorkerRuntime {
     return this.sdkMetadata ?? { sdkVersion: "unknown", source: "explicit-entry" };
   }
 
+  get resolvedMetadata():
+    | Pick<CursorSdkWorkerProbeResult, "sdkVersion" | "source" | "packageRoot">
+    | undefined {
+    return this.sdkMetadata;
+  }
+
   setModelCatalog(models: readonly CursorSdkWorkerModel[]): void {
     this.maxMode.setCatalog(models);
   }
@@ -226,6 +232,7 @@ export class CursorSdkWorkerRuntime {
         {
           ...(discovery.configuredPath ? { configuredPath: discovery.configuredPath } : {}),
           ...(discovery.pinnedRoot ? { pinnedRoot: discovery.pinnedRoot } : {}),
+          ...(discovery.pinFallbackOnly ? { pinFallbackOnly: true } : {}),
           projectCwd,
           ...(apiKey ? { apiKey } : {}),
           env: process.env,
@@ -234,7 +241,13 @@ export class CursorSdkWorkerRuntime {
         { importModule: (specifier) => this.importModule(specifier) },
       );
       if (!result.ok) {
-        throw new WorkerDiagnosticError(result.diagnostic.code, result.diagnostic.message);
+        const resolved = extractResolvedSdkMetadata(result.diagnostic.details);
+        if (resolved) this.sdkMetadata = resolved;
+        throw new WorkerDiagnosticError(
+          result.diagnostic.code,
+          result.diagnostic.message,
+          resolved,
+        );
       }
       anchorProcessArgvAtSdk(result.value.entryPath);
       imported = result.value.module;
@@ -448,4 +461,19 @@ function validateRuntimeModule(imported: unknown): RuntimeSdkModule | undefined 
     }
   }
   return undefined;
+}
+
+function extractResolvedSdkMetadata(
+  details: Readonly<Record<string, unknown>> | undefined,
+): Pick<CursorSdkWorkerProbeResult, "sdkVersion" | "source" | "packageRoot"> | undefined {
+  if (!details) return undefined;
+  const sdkVersion = details["sdkVersion"];
+  const source = details["source"];
+  const packageRoot = details["packageRoot"];
+  if (typeof sdkVersion !== "string" || typeof source !== "string") return undefined;
+  return {
+    sdkVersion,
+    source: source as CursorSdkWorkerProbeResult["source"],
+    ...(typeof packageRoot === "string" ? { packageRoot } : {}),
+  };
 }

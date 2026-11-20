@@ -54,6 +54,13 @@ export interface CursorSdkLoadOptions {
    * instead of failing the load.
    */
   pinnedRoot?: CursorSdkPinHint;
+  /**
+   * When true, probe active global package managers (`npm root -g`,
+   * `pnpm root -g`) before falling back to `pinnedRoot`. Used by detection
+   * passes so an update installed under a different active Node/npm prefix
+   * supersedes a stale recorded root instead of staying pinned to it forever.
+   */
+  pinFallbackOnly?: boolean;
   /** Disable NODE_PATH and global npm/pnpm discovery. Primarily useful in tests. */
   includeGlobal?: boolean;
   /** Runtime probes default to the current process values. */
@@ -157,11 +164,13 @@ export async function discoverCursorSdkPackage(
       dependencies.executablePath ?? process.execPath,
     );
     // A recorded root sits behind every candidate that re-derives for free —
-    // a fresh observable install must outrank the pin — and ahead of the
-    // subprocess probes it exists to replace, so a previously-working
-    // installation survives the PATH changing under us. It is a soft
-    // candidate: a stale root falls through instead of failing the load.
-    if (options.pinnedRoot) {
+    // a fresh observable install must outrank the pin — and normally ahead of
+    // the subprocess probes it exists to replace, so session startup skips
+    // `npm root -g` / `pnpm root -g`. Detection passes set `pinFallbackOnly`
+    // so an update installed into the active global package manager replaces
+    // a stale pin while still falling back to the pin if no package manager
+    // has `@cursor/sdk` or is reachable on PATH.
+    if (options.pinnedRoot && !options.pinFallbackOnly) {
       freeCandidates.push({
         path: options.pinnedRoot.packageRoot,
         source: options.pinnedRoot.source,
@@ -179,9 +188,29 @@ export async function discoverCursorSdkPackage(
     const roots = await (
       dependencies.resolvePackageManagerRoots ?? resolveDefaultPackageManagerRoots
     )({ platform, env });
+    const orderedRoots = orderRootsForPinnedSource(roots, options.pinnedRoot?.source);
     const managerCandidates: PackageCandidate[] = [];
-    for (const root of roots) addModuleRootCandidates(managerCandidates, root.root, root.source);
+    for (const root of orderedRoots) {
+      addModuleRootCandidates(managerCandidates, root.root, root.source);
+    }
     const managed = await inspectCandidates(managerCandidates, seenCandidates, checkedPaths);
+    if (managed && !("diagnostic" in managed)) return managed;
+
+    if (options.pinnedRoot && options.pinFallbackOnly) {
+      const pinned = await inspectCandidates(
+        [
+          {
+            path: options.pinnedRoot.packageRoot,
+            source: options.pinnedRoot.source,
+            soft: true,
+          },
+        ],
+        seenCandidates,
+        checkedPaths,
+      );
+      if (pinned) return pinned;
+    }
+
     if (managed) return managed;
   }
 
@@ -453,6 +482,21 @@ async function inspectCandidates(
 
 function dedupePaths(paths: readonly string[]): string[] {
   return [...new Set(paths)];
+}
+
+/**
+ * When a previous install came from a specific global package manager (for
+ * example `global-pnpm`), inspect that manager's root first so an update run
+ * with that manager is not shadowed by an older install in another manager.
+ */
+function orderRootsForPinnedSource(
+  roots: readonly CursorSdkGlobalPackageRoot[],
+  pinnedSource: CursorSdkPackageSource | undefined,
+): readonly CursorSdkGlobalPackageRoot[] {
+  if (pinnedSource !== "global-npm" && pinnedSource !== "global-pnpm") return roots;
+  const preferred = roots.filter((root) => root.source === pinnedSource);
+  if (preferred.length === 0) return roots;
+  return [...preferred, ...roots.filter((root) => root.source !== pinnedSource)];
 }
 
 async function inspectPackageRoot(

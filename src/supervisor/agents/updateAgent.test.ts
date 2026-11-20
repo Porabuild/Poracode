@@ -4,10 +4,18 @@ import type { AgentAdapter, AgentEnvContext } from "./base";
 const readAgentCommandOutputMock = vi.hoisted(() =>
   vi.fn<typeof import("./base").readAgentCommandOutput>(),
 );
+const resolveAgentBinaryPathMock = vi.hoisted(() =>
+  vi.fn<typeof import("./binaryResolver").resolveAgentBinaryPath>(),
+);
 
 vi.mock("./base", async (importOriginal) => {
   const actual = await importOriginal<typeof import("./base")>();
   return { ...actual, readAgentCommandOutput: readAgentCommandOutputMock };
+});
+
+vi.mock("./binaryResolver", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("./binaryResolver")>();
+  return { ...actual, resolveAgentBinaryPath: resolveAgentBinaryPathMock };
 });
 
 import {
@@ -212,6 +220,65 @@ describe("resolveUpdateCommand", () => {
     expect(command?.strategy).toBe("npm-global");
     expect(command?.binary).toBe("npm");
     expect(command?.args).toEqual(["install", "-g", "@google/gemini-cli@latest"]);
+  });
+
+  it("distinguishes Homebrew Cellar from Homebrew global npm via installPath", () => {
+    const adapter = makeAdapter("gemini");
+    const status = makeStatus({
+      kind: "gemini",
+      executablePath: "/opt/homebrew/bin/gemini",
+    });
+
+    expect(
+      resolveUpdateCommand(adapter, status, NATIVE_POSIX, {
+        installPath:
+          "/opt/homebrew/Cellar/gemini-cli/0.69.0/libexec/lib/node_modules/@google/gemini-cli/bundle/gemini.js",
+      }),
+    ).toEqual({
+      binary: "brew",
+      args: ["upgrade", "gemini-cli"],
+      strategy: "brew",
+    });
+
+    expect(
+      resolveUpdateCommand(adapter, status, NATIVE_POSIX, {
+        installPath: "/opt/homebrew/lib/node_modules/@google/gemini-cli/bundle/gemini.js",
+      }),
+    ).toEqual({
+      binary: "npm",
+      args: ["install", "-g", "@google/gemini-cli@latest"],
+      strategy: "npm-global",
+    });
+
+    const intelStatus = makeStatus({
+      kind: "gemini",
+      executablePath: "/usr/local/bin/gemini",
+    });
+    expect(
+      resolveUpdateCommand(adapter, intelStatus, NATIVE_POSIX, {
+        installPath: "/usr/local/Cellar/gemini-cli/0.69.0/bin/gemini",
+      }),
+    ).toEqual({
+      binary: "brew",
+      args: ["upgrade", "gemini-cli"],
+      strategy: "brew",
+    });
+
+    const caskAdapter = makeAdapter("cursor");
+    const caskStatus = makeStatus({
+      kind: "cursor",
+      executablePath: "/opt/homebrew/bin/cursor-agent",
+    });
+    expect(
+      resolveUpdateCommand(caskAdapter, caskStatus, NATIVE_POSIX, {
+        skipBuiltIn: true,
+        installPath: "/Applications/Cursor.app/Contents/Resources/app/bin/cursor-agent",
+      }),
+    ).toEqual({
+      binary: "brew",
+      args: ["upgrade", "--cask", "cursor-cli"],
+      strategy: "brew",
+    });
   });
 
   it("uses Qwen's built-in command before its package-manager fallback", () => {
@@ -837,6 +904,124 @@ describe("getLatestVersionForAdapter", () => {
     const callUrl = fetchSpy.mock.calls[0]?.[0] as string;
     expect(callUrl).toContain("raw.githubusercontent.com/Homebrew/homebrew-cask");
     expect(callUrl).toContain("Casks/c/cursor-cli.rb");
+  });
+
+  it("fetches the Homebrew formula stable version when preferHomebrewFormula is set", async () => {
+    const fetchSpy = vi.fn<typeof fetch>().mockImplementation(async (input) => {
+      const url = String(input);
+      if (url.includes("formulae.brew.sh/api/formula/gemini-cli.json")) {
+        return {
+          ok: true,
+          json: async () => ({ name: "gemini-cli", versions: { stable: "0.69.0" } }),
+        } as Response;
+      }
+      return {
+        ok: true,
+        json: async () => ({ version: "0.70.0" }),
+      } as Response;
+    });
+    globalThis.fetch = fetchSpy as unknown as typeof fetch;
+
+    const brewResult = await getLatestVersionForAdapter(makeAdapter("gemini"), {
+      preferHomebrewFormula: true,
+    });
+    const npmResult = await getLatestVersionForAdapter(makeAdapter("gemini"));
+
+    expect(brewResult).toEqual({ version: "0.69.0", source: "version-url" });
+    expect(npmResult).toEqual({ version: "0.70.0", source: "npm" });
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+    expect(String(fetchSpy.mock.calls[0]?.[0])).toBe(
+      "https://formulae.brew.sh/api/formula/gemini-cli.json",
+    );
+  });
+
+  it("does not fall back to npm when the Homebrew formula probe fails", async () => {
+    const fetchSpy = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue({ ok: false, status: 503 } as Response);
+    globalThis.fetch = fetchSpy as unknown as typeof fetch;
+
+    const result = await getLatestVersionForAdapter(makeAdapter("gemini"), {
+      preferHomebrewFormula: true,
+    });
+
+    expect(result).toEqual({ source: "unknown" });
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it("auto-selects Homebrew formula vs npm channel from cached native status", async () => {
+    const fetchSpy = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ versions: { stable: "0.69.0" } }),
+      } as Response)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ version: "0.70.0" }),
+      } as Response);
+    globalThis.fetch = fetchSpy as unknown as typeof fetch;
+
+    const brewResult = await getLatestVersionForAdapter(makeAdapter("gemini"), {
+      getNativeStatus: () =>
+        makeStatus({
+          kind: "gemini",
+          executablePath: "/opt/homebrew/Cellar/gemini-cli/0.69.0/bin/gemini",
+          envKind: "posix",
+        }),
+    });
+    expect(brewResult).toEqual({ version: "0.69.0", source: "version-url" });
+    expect(fetchSpy.mock.calls[0]?.[0]).toBe(
+      "https://formulae.brew.sh/api/formula/gemini-cli.json",
+    );
+
+    const npmResult = await getLatestVersionForAdapter(makeAdapter("gemini"), {
+      getNativeStatus: () =>
+        makeStatus({
+          kind: "gemini",
+          executablePath: "/opt/homebrew/lib/node_modules/@google/gemini-cli/bundle/gemini.js",
+          envKind: "posix",
+        }),
+    });
+    expect(npmResult).toEqual({ version: "0.70.0", source: "npm" });
+    expect(fetchSpy.mock.calls[1]?.[0]).toBe(
+      "https://registry.npmjs.org/%40google%2Fgemini-cli/latest",
+    );
+  });
+
+  it("resolves Homebrew channel from PATH when the native status cache is cold", async () => {
+    resolveAgentBinaryPathMock
+      .mockReset()
+      .mockReturnValue("/opt/homebrew/Cellar/gemini-cli/0.69.0/bin/gemini");
+    const fetchSpy = vi.fn<typeof fetch>().mockResolvedValue({
+      ok: true,
+      json: async () => ({ versions: { stable: "0.69.0" } }),
+    } as Response);
+    globalThis.fetch = fetchSpy as unknown as typeof fetch;
+
+    const geminiWithBinary = { ...makeAdapter("gemini"), binary: "gemini" };
+    const result = await getLatestVersionForAdapter(geminiWithBinary, {
+      getNativeStatus: () => undefined,
+    });
+
+    expect(result).toEqual({ version: "0.69.0", source: "version-url" });
+    expect(fetchSpy.mock.calls[0]?.[0]).toBe(
+      "https://formulae.brew.sh/api/formula/gemini-cli.json",
+    );
+  });
+
+  it("skips native status lookup when a built-in updater outranks Homebrew", async () => {
+    const getNativeStatus = vi.fn<() => AgentStatus | undefined>();
+    const fetchSpy = vi.fn<typeof fetch>().mockResolvedValue({
+      ok: true,
+      json: async () => ({ version: "2.1.0" }),
+    } as Response);
+    globalThis.fetch = fetchSpy as unknown as typeof fetch;
+
+    const result = await getLatestVersionForAdapter(makeAdapter("claude"), { getNativeStatus });
+
+    expect(result).toEqual({ version: "2.1.0", source: "npm" });
+    expect(getNativeStatus).not.toHaveBeenCalled();
   });
 
   it("fetches the latest version from provider version URLs", async () => {
