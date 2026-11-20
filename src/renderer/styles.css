@@ -1018,15 +1018,36 @@ html[data-app-unfocused] .poracode-welcome-ring::after {
   --button-bg-pressed: var(--button-bg-hover);
 }
 
+/* Field-styled picker buttons (e.g. Location folder pickers alongside text
+   inputs) share the translucent --field-background wash so adjacent fields
+   never split into two different greys. Placed unlayered after the light
+   .button--tertiary override above so it wins in both dark and light modes. */
+.button.form-field,
+.light .button.form-field,
+[data-theme="light"] .button.form-field {
+  --button-bg: var(--field-background);
+  --button-bg-hover: color-mix(in oklab, var(--foreground) 9%, transparent);
+  --button-bg-pressed: color-mix(in oklab, var(--foreground) 12%, transparent);
+  --button-fg: var(--field-foreground);
+}
+
 /* Secondary text fields share the editable fill, including on panels and in dialogs.
    Keep this in the component layer so explicit inline/transparent controls still win. */
 @layer components {
-  :is(.input, .textarea, .select__trigger, .input-group, .form-field) {
+  :is(
+    .input,
+    .textarea,
+    .select__trigger,
+    .input-group,
+    .search-field__group,
+    .number-field__group,
+    .form-field
+  ) {
     --field-hover: var(--field-background);
     --field-focus: var(--field-background);
   }
 
-  .form-field {
+  .form-field:not(.button) {
     background-color: var(--field-background);
   }
 
@@ -1475,9 +1496,9 @@ html[data-compact-layout] [data-sticky-windowed-header] .poracode-model-menu-hea
     --project-icon-blue: oklch(0.53 0.16 255);
     --project-icon-violet: oklch(0.53 0.19 292);
     --project-icon-pink: oklch(0.56 0.19 345);
-    --content-surface-fill: #ececee;
-    --field-background: #e1e1e2;
-    --field-placeholder: #5c5c5f;
+    --content-surface-fill: #e7e7e9;
+    --field-background: color-mix(in oklab, var(--foreground) 7.5%, transparent);
+    --field-placeholder: #565659;
     --field-border: oklch(0.84 0.006 286 / 0.7);
     --segment: oklch(0.975 0.002 286);
     --border: oklch(0.84 0.006 286 / 0.7);
@@ -1487,7 +1508,7 @@ html[data-compact-layout] [data-sticky-windowed-header] .poracode-model-menu-hea
     --sidebar-background: oklch(0.945 0.004 286);
     --content-background: oklch(0.975 0.003 286);
     --window-header-background: var(--sidebar-background);
-    --composer-surface: var(--field-background);
+    --composer-surface: var(--content-surface-fill);
   }
 
   .dark,
@@ -1528,8 +1549,8 @@ html[data-compact-layout] [data-sticky-windowed-header] .poracode-model-menu-hea
     --project-icon-violet: oklch(0.71 0.16 292);
     --project-icon-pink: oklch(0.74 0.16 345);
     --content-surface-fill: #1b1b20;
-    --field-background: #232329;
-    --field-placeholder: #939396;
+    --field-background: color-mix(in oklab, var(--foreground) 6.5%, transparent);
+    --field-placeholder: #99999c;
     --field-border: oklch(0.34 0.006 286 / 0.85);
     --segment: #2e2f33;
     --border: oklch(0.31 0.006 286 / 0.9);
@@ -1547,7 +1568,7 @@ html[data-compact-layout] [data-sticky-windowed-header] .poracode-model-menu-hea
        color (higher alpha = less transparent) than the light default above. */
     --sidebar-glass-tint: color-mix(in oklab, var(--content-background) 65%, transparent);
     --window-header-background: var(--sidebar-background);
-    --composer-surface: var(--field-background);
+    --composer-surface: var(--content-surface-fill);
   }
 
   * {
@@ -5138,17 +5159,21 @@ html[data-app-unfocused] .poracode-provider-icon--finished {
 .poracode-composer-send {
   height: 2.25rem;
   width: 2.25rem;
-  background: color-mix(in oklab, var(--accent) 18%, var(--surface));
-  color: var(--foreground);
+  background: var(--accent);
+  color: var(--accent-foreground);
 }
 
-.poracode-composer-send:hover,
-.poracode-composer-send[data-hovered="true"] {
-  background: color-mix(in oklab, var(--accent) 28%, var(--surface));
+.poracode-composer-send:not(:disabled, [aria-disabled="true"], [data-disabled="true"]):is(
+    :hover,
+    [data-hovered="true"]
+  ) {
+  background: color-mix(in oklab, var(--accent) 88%, var(--foreground));
 }
 
-.poracode-composer-send[aria-disabled="true"] {
-  background: color-mix(in oklab, var(--surface) 88%, transparent);
+.poracode-composer-send:is(:disabled, [aria-disabled="true"], [data-disabled="true"]) {
+  background: color-mix(in oklab, var(--foreground) 10%, transparent);
+  color: var(--muted);
+  opacity: 1;
 }
 
 .poracode-composer-shell--preserve-disabled-controls

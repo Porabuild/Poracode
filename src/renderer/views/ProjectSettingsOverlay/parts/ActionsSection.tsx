@@ -127,13 +127,7 @@ export function ActionsSection(props: { projectId: string }) {
             </div>
           ))}
 
-          <div
-            className={
-              compactLayout
-                ? "m-project-actions__card"
-                : "rounded-lg border border-dashed border-[var(--hairline-strong)] p-3"
-            }
-          >
+          <div className={compactLayout ? "m-project-actions__card" : "content-surface p-3"}>
             <div
               className={
                 compactLayout ? "mb-1.5 flex items-center gap-2" : "mb-2.5 flex items-center gap-2"

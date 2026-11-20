@@ -378,7 +378,7 @@ export function MoveThreadDialog({ sourceThreadId }: { sourceThreadId: string })
                 {targetMember && target ? (
                   <div>
                     <div className="mb-1 flex items-center gap-2">
-                      <span className="inline-flex min-w-0 items-center gap-1 px-1 py-0.5 text-sm leading-tight text-muted/60">
+                      <span className="inline-flex min-w-0 items-center gap-1 px-1 py-0.5 text-sm leading-tight text-foreground">
                         <ProjectSelectorIcon
                           project={targetMember}
                           remote={remoteServerFor(targetMember)}
@@ -391,7 +391,7 @@ export function MoveThreadDialog({ sourceThreadId }: { sourceThreadId: string })
                         // One destination reads as a plain label, like the
                         // environment menu's single-machine row — never dimmed.
                         <span
-                          className="inline-flex min-w-0 shrink items-center gap-1 px-1 py-0.5 text-sm leading-tight text-muted/60"
+                          className="inline-flex min-w-0 shrink items-center gap-1 px-1 py-0.5 text-sm leading-tight text-foreground"
                           data-project-environment=""
                         >
                           {targetEnvironment?.machine ? (
