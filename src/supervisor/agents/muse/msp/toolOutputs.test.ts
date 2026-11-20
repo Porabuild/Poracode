@@ -273,4 +273,20 @@ describe("Muse tool outputs", () => {
     await new Promise<void>((resolve) => setTimeout(resolve, 50));
     expect(events).toEqual([]);
   });
+
+  it("skips publishing images when read_file inspects a Poracode user attachment", async () => {
+    const attachmentPath =
+      "/Users/me/.poracode-nightly.host-v1/attachments/draft-6c9670/Image 1.png";
+    await writeFile(path, `${JSON.stringify(frame())}\n`);
+    await media.observe(
+      "session-1",
+      "read-attachment",
+      tool({
+        tool: "read_file",
+        args: { path: attachmentPath },
+        visibleOutput: `Read image file \`${attachmentPath}\` as model-visible image output.`,
+      }),
+    );
+    expect(events).toEqual([]);
+  });
 });

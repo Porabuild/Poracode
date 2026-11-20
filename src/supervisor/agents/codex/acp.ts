@@ -81,6 +81,7 @@ import { forkCodexThread, resumeCodexThread } from "./threadResume";
 import { readCodexTurnSummaries } from "./threadTurnSummaries";
 import { isStaleCodexTurnCompletion, nextCodexInterruptTurnId } from "./turnInterrupt";
 import { readRecord } from "./canonicalMapping/readers";
+import { isPoracodeAttachmentPath } from "@/shared/inlineImagePayload";
 import { readCodexImageViewPreview } from "./canonicalMapping/toolExtraction";
 import { CodexAsyncQuestionAttention } from "./asyncQuestionAttention";
 
@@ -386,11 +387,18 @@ export class CodexStructuredSession implements StructuredSessionHandle {
         this.clearPendingSystemErrorFallback();
       }
       if (event.type === "item.started" && event.itemType === "image_view") {
-        const path = readRecord(readRecord(event.payload)?.args)?.path;
-        (this.imageViewPaths ??= new Map()).set(
-          event.itemId,
-          typeof path === "string" ? path : undefined,
-        );
+        const startedPayload = readRecord(event.payload);
+        const path = readRecord(startedPayload?.args)?.path;
+        const isUserAttachmentView =
+          typeof path === "string" &&
+          startedPayload?.name !== "imageGeneration" &&
+          isPoracodeAttachmentPath(path);
+        if (!isUserAttachmentView) {
+          (this.imageViewPaths ??= new Map()).set(
+            event.itemId,
+            typeof path === "string" ? path : undefined,
+          );
+        }
       } else if (event.type === "item.completed") {
         const payload = readRecord(event.payload);
         const fallbackPath =

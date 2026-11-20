@@ -43,7 +43,207 @@ export interface InlineImageLocation extends InlineImageCandidate {
   path: InlineImagePath;
 }
 
-export function inlineImagePayloadRenders(payload: unknown): boolean {
+const PORACODE_ATTACHMENT_PATH_RE = /(?:^|\/)\.poracode(?:[-.][a-z0-9._-]+)?\/attachments\/[^/]/i;
+
+const READ_OR_VIEW_IMAGE_TOOL_NAMES = new Set([
+  "read",
+  "readfile",
+  "view",
+  "viewfile",
+  "viewimage",
+  "imageview",
+  "readimage",
+  "openimage",
+  "notebookread",
+  "mcpporacodereadprojectfile",
+]);
+
+const NON_READ_IMAGE_TOOL_RE =
+  /generate|screenshot|capture|render|create|edit|crop|resize|convert|draw|paint/;
+
+const READ_VERB_TITLE_RE = /^(?:viewing|reading|view|read)(?:\s+image|\s+file)?(?:\s*:\s*|\s+)/i;
+
+const READ_IMAGE_RESULT_PATH_RE = /^Read image file `([^`]+)`/;
+
+const TARGET_PATH_ARG_KEYS = [
+  "path",
+  "file_path",
+  "filePath",
+  "image_path",
+  "imagePath",
+  "absolute_path",
+  "absolutePath",
+  "filename",
+  "file",
+] as const;
+
+const TARGET_PATH_FALLBACK_ARG_KEYS = ["source", "target", "uri"] as const;
+
+const TARGET_PATH_ARRAY_ARG_KEYS = ["paths", "files"] as const;
+
+function looksLikePath(value: string): boolean {
+  if (/^file:\/\//i.test(value) || /^poracode-local:\/\//i.test(value)) return true;
+  if (/^[a-z][a-z0-9+.-]*:\/\//i.test(value)) return false;
+  return value.includes("/") || value.includes("\\");
+}
+
+function isAbsoluteNormalizedPath(normalized: string): boolean {
+  return normalized.startsWith("/") || /^[a-z]:\//i.test(normalized) || normalized.startsWith("~/");
+}
+
+/**
+ * Normalize a filesystem path or local file URI for attachment matching across
+ * macOS, Linux, Windows, and WSL.
+ */
+export function normalizeAttachmentImagePath(rawPath: string): string | null {
+  let value = rawPath.trim();
+  if (value.length === 0) return null;
+  if (/^poracode-local:\/\/local(?=\/)/i.test(value)) {
+    value = decodeUriComponentSafe(value.slice("poracode-local://local".length));
+  } else if (/^file:\/\//i.test(value)) {
+    value = value.replace(/^file:\/\//i, "");
+    if (/^localhost\//i.test(value)) value = value.slice("localhost".length);
+    value = decodeUriComponentSafe(value);
+    value = value.replace(/^\/([A-Za-z]:[\\/])/, "$1");
+  } else if (/^[a-z][a-z0-9+.-]*:\/\//i.test(value)) {
+    return null;
+  }
+  value = value.replace(/\\/g, "/");
+  if (value.startsWith("//?/UNC/")) {
+    value = `//${value.slice("//?/UNC/".length)}`;
+  } else if (value.startsWith("//?/")) {
+    value = value.slice("//?/".length);
+  }
+  value = value.replace(/^\/\/wsl(?:\.localhost|\$)\/[^/]+(?=\/)/i, "");
+  value = value.replace(/\/+/g, "/");
+  if (value.length > 1 && value.endsWith("/")) value = value.slice(0, -1);
+  if (/^[A-Za-z]:\//.test(value)) value = value.toLowerCase();
+  return value.length > 0 ? value : null;
+}
+
+function decodeUriComponentSafe(value: string): string {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
+}
+
+/** True when `rawPath` points inside Poracode's managed user-attachment folder. */
+export function isPoracodeAttachmentPath(rawPath: string): boolean {
+  const normalized = normalizeAttachmentImagePath(rawPath);
+  return normalized !== null && PORACODE_ATTACHMENT_PATH_RE.test(normalized);
+}
+
+/**
+ * True when a tool-call payload represents reading/viewing an existing file or
+ * image rather than generating, editing, or capturing a new image.
+ */
+export function isReadOrViewImageToolPayload(payload: unknown): boolean {
+  if (!payload || typeof payload !== "object") return false;
+  const record = payload as Record<string, unknown>;
+  const name = typeof record.name === "string" ? record.name.trim() : "";
+  const title = typeof record.title === "string" ? record.title.trim() : "";
+  const normalizedName = name.toLowerCase().replace(/[^a-z0-9]/g, "");
+  if (normalizedName && NON_READ_IMAGE_TOOL_RE.test(normalizedName)) return false;
+  const kind = typeof record.kind === "string" ? record.kind.trim().toLowerCase() : "";
+  if (kind === "read") return true;
+  if (normalizedName && READ_OR_VIEW_IMAGE_TOOL_NAMES.has(normalizedName)) return true;
+  if (name && READ_VERB_TITLE_RE.test(name)) return true;
+  if (title && READ_VERB_TITLE_RE.test(title)) return true;
+  return false;
+}
+
+/** Extract candidate filesystem paths targeted by a tool-call payload. */
+export function extractToolCallTargetPaths(payload: unknown): string[] {
+  if (!payload || typeof payload !== "object") return [];
+  const record = payload as Record<string, unknown>;
+  const paths: string[] = [];
+  const seen = new Set<string>();
+  const push = (value: unknown): void => {
+    if (typeof value !== "string") return;
+    const trimmed = value.trim();
+    if (trimmed.length === 0 || seen.has(trimmed)) return;
+    seen.add(trimmed);
+    paths.push(trimmed);
+  };
+  const args = record.args;
+  if (args && typeof args === "object" && !Array.isArray(args)) {
+    const argsRecord = args as Record<string, unknown>;
+    for (const key of TARGET_PATH_ARG_KEYS) push(argsRecord[key]);
+    for (const key of TARGET_PATH_FALLBACK_ARG_KEYS) {
+      const candidate = argsRecord[key];
+      if (typeof candidate === "string" && looksLikePath(candidate.trim())) push(candidate);
+    }
+    for (const key of TARGET_PATH_ARRAY_ARG_KEYS) {
+      const list = argsRecord[key];
+      if (Array.isArray(list)) {
+        for (const entry of list) push(entry);
+      }
+    }
+  }
+  if (Array.isArray(record.locations)) {
+    for (const entry of record.locations) {
+      if (entry && typeof entry === "object") {
+        push((entry as Record<string, unknown>).path);
+      }
+    }
+  }
+  push(record.path);
+  // Title/result text are fallbacks only when structured args/locations carry
+  // no path — otherwise a relative display title like "Viewing image ./a.png"
+  // would shadow the authoritative absolute path in `locations`.
+  if (paths.length === 0) {
+    if (typeof record.title === "string") {
+      const stripped = record.title.trim().replace(READ_VERB_TITLE_RE, "").trim();
+      if (looksLikePath(stripped)) push(stripped);
+    }
+    if (typeof record.result === "string") {
+      const match = READ_IMAGE_RESULT_PATH_RE.exec(record.result);
+      if (match?.[1]) push(match[1]);
+    }
+  }
+  return paths;
+}
+
+/**
+ * True when a tool call is only reading/viewing image(s) that the user already
+ * attached to the conversation. Such calls stay as normal collapsed tool rows
+ * instead of echoing the user's own attachment back as an inline image card or
+ * duplicating it in the Media gallery.
+ */
+export function isUserAttachmentImageReadPayload(
+  payload: unknown,
+  userAttachmentPaths?: ReadonlySet<string>,
+): boolean {
+  if (!isReadOrViewImageToolPayload(payload)) return false;
+  const targets = extractToolCallTargetPaths(payload);
+  if (targets.length === 0) return false;
+  const normalizedTargets: string[] = [];
+  for (const target of targets) {
+    const normalized = normalizeAttachmentImagePath(target);
+    if (!normalized) return false;
+    normalizedTargets.push(normalized);
+  }
+  // When both absolute paths (e.g. `locations`) and relative aliases (e.g.
+  // `args.path = "./Image 1.png"`) appear on the same call, judge by the
+  // authoritative absolute paths.
+  const absoluteTargets = normalizedTargets.filter(isAbsoluteNormalizedPath);
+  const candidates = absoluteTargets.length > 0 ? absoluteTargets : normalizedTargets;
+  for (const normalized of candidates) {
+    const isAttachment =
+      PORACODE_ATTACHMENT_PATH_RE.test(normalized) ||
+      (userAttachmentPaths !== undefined && userAttachmentPaths.has(normalized));
+    if (!isAttachment) return false;
+  }
+  return candidates.length > 0;
+}
+
+export function inlineImagePayloadRenders(
+  payload: unknown,
+  userAttachmentPaths?: ReadonlySet<string>,
+): boolean {
+  if (isUserAttachmentImageReadPayload(payload, userAttachmentPaths)) return false;
   return readStatus(payload) !== "error" && findRenderableInlineImageCandidate(payload) !== null;
 }
 

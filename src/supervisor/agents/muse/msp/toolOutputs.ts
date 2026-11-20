@@ -1,4 +1,5 @@
 import type { ProjectLocation, RuntimeEvent } from "@/shared/contracts";
+import { isUserAttachmentImageReadPayload } from "@/shared/inlineImagePayload";
 import { open, realpath } from "node:fs/promises";
 import { dirname, isAbsolute, join, relative, sep, toNamespacedPath } from "node:path";
 import { toWslUncPath } from "@/shared/wsl";
@@ -52,6 +53,10 @@ export class MuseMspToolOutputs {
       this.reading = this.reading.then(() => this.publishStdout(itemId, path, stdoutPath, output));
     }
     if (item["status"] !== "completed") return this.reading;
+    const toolArgs = museJsonRecord(item["args"] ?? item["input"]);
+    if (isUserAttachmentImageReadPayload({ name: tool, args: toolArgs, result: output })) {
+      return this.reading;
+    }
     const hasMedia =
       Array.isArray(item["modelVisibleContent"]) ||
       /image/i.test(tool) ||

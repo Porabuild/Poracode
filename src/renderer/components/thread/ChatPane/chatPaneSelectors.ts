@@ -11,14 +11,19 @@ import {
 import { readRuntimeItemChanges } from "@/renderer/state/runtimeItemChanges";
 import { isVisibleRuntimeItem } from "@/shared/runtimeItemVisibility";
 import { clearThreadTodoDockStateCache } from "../threadTodoState";
-import { isToolGroupItem } from "./chatToolGroupItem";
+import { isStandaloneImageItem, isToolGroupItem } from "./chatToolGroupItem";
+import {
+  addUserMessageAttachmentImagePaths,
+  EMPTY_USER_ATTACHMENT_PATHS,
+} from "./parts/items/imageViewSource";
 
 export const EMPTY_THREAD_ITEM_IDS = Object.freeze([]) as readonly string[];
 export const EMPTY_THREAD_TIMELINE_ENTRIES = Object.freeze([]) as readonly ChatTimelineEntry[];
 
 export type ChatTimelineEntry =
   | { kind: "item"; id: string }
-  | { kind: "tool_call_group"; id: string; itemIds: readonly string[] };
+  | { kind: "tool_call_group"; id: string; itemIds: readonly string[] }
+  | { kind: "image_group"; id: string; itemIds: readonly string[] };
 
 const MAX_INCREMENTAL_TAIL_ITEMS = 128;
 
@@ -43,8 +48,47 @@ const timelineEntryCache = new Map<
     entries: readonly ChatTimelineEntry[];
     entryStartIndices: readonly number[];
     childParentIds: ReadonlySet<string>;
+    userAttachmentPaths: ReadonlySet<string>;
   }
 >();
+
+const userAttachmentPathsCache = new Map<
+  string,
+  {
+    itemIds: readonly string[];
+    structuralVersion: number;
+    paths: ReadonlySet<string>;
+  }
+>();
+
+/**
+ * Normalized image attachment paths sent by the user in this thread. Cached
+ * per `(threadId, itemIds, structuralVersion)` so rows and grouping selectors
+ * stay O(1) on streaming ticks while suppressing redundant read/view echoes.
+ */
+export function selectThreadUserAttachmentImagePaths(
+  state: AppStoreState,
+  threadId: string,
+): ReadonlySet<string> {
+  const itemIds = state.runtimeItemIdsByThread[threadId];
+  if (!itemIds?.length) return EMPTY_USER_ATTACHMENT_PATHS;
+  const structuralVersion = state.runtimeStructuralVersionByThread?.[threadId] ?? 0;
+  const cached = userAttachmentPathsCache.get(threadId);
+  if (cached && cached.itemIds === itemIds && cached.structuralVersion === structuralVersion) {
+    return cached.paths;
+  }
+  const items = state.runtimeItemsByIdByThread[threadId];
+  const hint = readRuntimeStructuralChangeHint(threadId, structuralVersion);
+  let paths: ReadonlySet<string>;
+  if (cached && cached.structuralVersion + 1 === structuralVersion && hint?.itemIds) {
+    paths = updateUserAttachmentPaths(cached.paths, state, threadId, items, hint.itemIds);
+  } else {
+    paths = collectUserAttachmentPaths(state, threadId);
+  }
+  if (userAttachmentPathsCache.size > 500) userAttachmentPathsCache.clear();
+  userAttachmentPathsCache.set(threadId, { itemIds, structuralVersion, paths });
+  return paths;
+}
 
 /**
  * Cache for `selectVisibleThreadRuntimeItemIds`. The base `itemIds` array is
@@ -198,9 +242,15 @@ export function selectVisibleThreadTimelineEntries(
   if (itemIds.length === 0) return EMPTY_THREAD_TIMELINE_ENTRIES;
 
   const structuralVersion = state.runtimeStructuralVersionByThread?.[threadId] ?? 0;
+  const userAttachmentPaths = selectThreadUserAttachmentImagePaths(state, threadId);
   const cacheKey = `${threadId}\0${hiddenItemId ?? ""}`;
   const cached = timelineEntryCache.get(cacheKey);
-  if (cached && cached.itemIds === itemIds && cached.structuralVersion === structuralVersion) {
+  if (
+    cached &&
+    cached.itemIds === itemIds &&
+    cached.structuralVersion === structuralVersion &&
+    cached.userAttachmentPaths === userAttachmentPaths
+  ) {
     return cached.entries;
   }
 
@@ -212,6 +262,7 @@ export function selectVisibleThreadTimelineEntries(
   if (
     cached &&
     cached.structuralVersion + 1 === structuralVersion &&
+    cached.userAttachmentPaths === userAttachmentPaths &&
     visibleProjection &&
     visibleProjection.structuralVersion === structuralVersion &&
     hint?.itemIds
@@ -233,6 +284,7 @@ export function selectVisibleThreadTimelineEntries(
         state.runtimeItemsByIdByThread[threadId],
         itemIds.slice(itemStartIndex),
         childParentIds,
+        userAttachmentPaths,
       );
       entries = [...cached.entries.slice(0, firstChangedEntry), ...tail.entries];
       entryStartIndices = [
@@ -246,6 +298,7 @@ export function selectVisibleThreadTimelineEntries(
       state.runtimeItemsByIdByThread[threadId],
       itemIds,
       childParentIds,
+      userAttachmentPaths,
     );
     entries = projection.entries;
     entryStartIndices = projection.entryStartIndices;
@@ -257,8 +310,48 @@ export function selectVisibleThreadTimelineEntries(
     entries,
     entryStartIndices,
     childParentIds,
+    userAttachmentPaths,
   });
   return entries;
+}
+
+function collectUserAttachmentPaths(state: AppStoreState, threadId: string): ReadonlySet<string> {
+  const items = state.runtimeItemsByIdByThread[threadId];
+  const paths = new Set<string>();
+  for (const itemId of state.runtimeItemIdsByThread[threadId] ?? EMPTY_THREAD_ITEM_IDS) {
+    addUserMessageAttachmentImagePaths(paths, items?.[itemId]);
+  }
+  return paths.size > 0 ? paths : EMPTY_USER_ATTACHMENT_PATHS;
+}
+
+function updateUserAttachmentPaths(
+  previous: ReadonlySet<string>,
+  state: AppStoreState,
+  threadId: string,
+  items: Record<string, RuntimeChatItem> | undefined,
+  changedItemIds: readonly string[],
+): ReadonlySet<string> {
+  let touchesUserMessageOrRemoval = false;
+  for (const itemId of changedItemIds) {
+    const item = items?.[itemId];
+    if (!item || (!item.parentItemId && item.type === "user_message")) {
+      touchesUserMessageOrRemoval = true;
+      break;
+    }
+  }
+  if (!touchesUserMessageOrRemoval) return previous;
+  const rebuilt = collectUserAttachmentPaths(state, threadId);
+  if (rebuilt.size === previous.size) {
+    let same = true;
+    for (const path of rebuilt) {
+      if (!previous.has(path)) {
+        same = false;
+        break;
+      }
+    }
+    if (same) return previous;
+  }
+  return rebuilt;
 }
 
 function collectChildParentIds(state: AppStoreState, threadId: string): ReadonlySet<string> {
@@ -293,17 +386,19 @@ function buildTimelineEntries(
 ): readonly ChatTimelineEntry[] {
   const items = state.runtimeItemsByIdByThread[threadId];
   const childParentIds = collectChildParentIds(state, threadId);
+  const userAttachmentPaths = selectThreadUserAttachmentImagePaths(state, threadId);
   const itemIds = sourceItemIds.filter((itemId) => {
     const item = items?.[itemId];
     return !item || isVisibleRuntimeItem(item);
   });
-  return buildTimelineEntryProjection(items, itemIds, childParentIds).entries;
+  return buildTimelineEntryProjection(items, itemIds, childParentIds, userAttachmentPaths).entries;
 }
 
 function buildTimelineEntryProjection(
   items: Record<string, RuntimeChatItem> | undefined,
   itemIds: readonly string[],
   childParentIds: ReadonlySet<string>,
+  userAttachmentPaths: ReadonlySet<string>,
 ): { entries: readonly ChatTimelineEntry[]; entryStartIndices: readonly number[] } {
   const entries: ChatTimelineEntry[] = [];
   const entryStartIndices: number[] = [];
@@ -312,7 +407,39 @@ function buildTimelineEntryProjection(
     entryStartIndices.push(idx);
     const itemId = itemIds[idx]!;
     const item = items?.[itemId];
-    if (!item || !isToolGroupItem(item) || childParentIds.has(itemId)) {
+    if (!item || childParentIds.has(itemId)) {
+      entries.push({ kind: "item", id: itemId });
+      idx += 1;
+      continue;
+    }
+    if (isStandaloneImageItem(item, userAttachmentPaths)) {
+      const imageIds: string[] = [itemId];
+      idx += 1;
+      while (idx < itemIds.length) {
+        const nextId = itemIds[idx]!;
+        const next = items?.[nextId];
+        if (
+          !next ||
+          childParentIds.has(nextId) ||
+          !isStandaloneImageItem(next, userAttachmentPaths)
+        ) {
+          break;
+        }
+        imageIds.push(nextId);
+        idx += 1;
+      }
+      if (imageIds.length === 1) {
+        entries.push({ kind: "item", id: itemId });
+      } else {
+        entries.push({
+          kind: "image_group",
+          id: `image-group:${imageIds[0]}`,
+          itemIds: imageIds,
+        });
+      }
+      continue;
+    }
+    if (!isToolGroupItem(item, userAttachmentPaths)) {
       entries.push({ kind: "item", id: itemId });
       idx += 1;
       continue;
@@ -322,7 +449,7 @@ function buildTimelineEntryProjection(
     while (idx < itemIds.length) {
       const nextId = itemIds[idx]!;
       const next = items?.[nextId];
-      if (!next || !isToolGroupItem(next) || childParentIds.has(nextId)) {
+      if (!next || !isToolGroupItem(next, userAttachmentPaths) || childParentIds.has(nextId)) {
         break;
       }
       groupIds.push(nextId);
@@ -492,6 +619,7 @@ const childTimelineEntryCache = new Map<
   {
     itemIds: readonly string[];
     structuralVersion: number;
+    userAttachmentPaths: ReadonlySet<string>;
     entries: readonly ChatTimelineEntry[];
   }
 >();
@@ -504,9 +632,15 @@ export function selectChildTimelineEntries(
   const itemIds = selectChildItemIds(state, threadId, parentItemId);
   if (itemIds.length === 0) return EMPTY_THREAD_TIMELINE_ENTRIES;
   const structuralVersion = state.runtimeStructuralVersionByThread?.[threadId] ?? 0;
+  const userAttachmentPaths = selectThreadUserAttachmentImagePaths(state, threadId);
   const cacheKey = `${threadId}\0${parentItemId}`;
   const cached = childTimelineEntryCache.get(cacheKey);
-  if (cached && cached.itemIds === itemIds && cached.structuralVersion === structuralVersion) {
+  if (
+    cached &&
+    cached.itemIds === itemIds &&
+    cached.structuralVersion === structuralVersion &&
+    cached.userAttachmentPaths === userAttachmentPaths
+  ) {
     return cached.entries;
   }
   const nextEntries = buildTimelineEntries(state, threadId, itemIds);
@@ -518,7 +652,7 @@ export function selectChildTimelineEntries(
         previous?.kind === entry.kind &&
         previous.id === entry.id &&
         (entry.kind === "item" ||
-          (previous.kind === "tool_call_group" &&
+          (previous.kind === entry.kind &&
             previous.itemIds.length === entry.itemIds.length &&
             entry.itemIds.every((id, childIndex) => previous.itemIds[childIndex] === id)))
       );
@@ -526,7 +660,12 @@ export function selectChildTimelineEntries(
       ? cached.entries
       : nextEntries;
   if (childTimelineEntryCache.size > 500) childTimelineEntryCache.clear();
-  childTimelineEntryCache.set(cacheKey, { itemIds, structuralVersion, entries });
+  childTimelineEntryCache.set(cacheKey, {
+    itemIds,
+    structuralVersion,
+    userAttachmentPaths,
+    entries,
+  });
   return entries;
 }
 
@@ -898,6 +1037,7 @@ export function selectAssistantTurnRowState(
 
 export function clearRuntimeItemStoreSelectorCacheForThread(threadId: string): void {
   assistantTurnProjectionCache.delete(threadId);
+  userAttachmentPathsCache.delete(threadId);
   clearRuntimeStructuralChangeHint(threadId);
   clearThreadTodoDockStateCache(threadId);
   const prefix = `${threadId}\0`;

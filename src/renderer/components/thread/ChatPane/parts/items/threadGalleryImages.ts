@@ -34,7 +34,11 @@ import {
   threadHostHomeDir,
 } from "@/renderer/components/thread/threadMarkdownImageRoots";
 import { resolveThreadImageAuthority } from "@/renderer/components/thread/threadImageAuthority";
-import { imageViewSourceFromImageBlock, resolveImageViewSources } from "./imageViewSource";
+import {
+  collectUserAttachmentImagePaths,
+  imageViewSourceFromImageBlock,
+  resolveImageViewSources,
+} from "./imageViewSource";
 
 /** Renderable thread image for galleries, mosaics, and the fullscreen lightbox. */
 export type ThreadGalleryImage = LightboxImage;
@@ -90,6 +94,7 @@ export function collectThreadGallery(
   const gallery: ThreadGalleryImage[] = [];
   const readiness = new GalleryImageReadiness();
   const seen = new Set<string>();
+  const userAttachmentPaths = collectUserAttachmentImagePaths(items);
 
   const push = (image: ThreadGalleryImage | null | undefined) => {
     if (!image || (!image.src && !image.resource)) return;
@@ -164,7 +169,7 @@ export function collectThreadGallery(
       const sources = resolveImageViewSources(
         item.payload as ToolCallPayload | undefined,
         resolvers.remoteImageRefUrl,
-        { pendingAsPlaceholder: true },
+        { pendingAsPlaceholder: true, userAttachmentPaths },
       );
       for (let index = sources.length - 1; index >= 0; index--) {
         const source = sources[index];

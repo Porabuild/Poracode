@@ -14540,6 +14540,10 @@ msgstr "Mở hình ảnh {0}/{1}"
 msgid "Open image preview"
 msgstr "Mở xem trước hình ảnh"
 
+#: src/renderer/components/thread/ChatPane/parts/items/ImageCard.tsx
+msgid "Open image preview (+{overflowCount} more)"
+msgstr "Mở xem trước hình ảnh (+{overflowCount} ảnh nữa)"
+
 #: src/renderer/components/mcp/RemoteMcpOauthDialog.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorBody.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx

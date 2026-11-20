@@ -4,6 +4,7 @@
  */
 
 import type { CanonicalItemType, RuntimeEvent, ToolCallPayload } from "@/shared/contracts";
+import { isUserAttachmentImageReadPayload } from "@/shared/inlineImagePayload";
 import {
   extractAcpFileChangesFromContent,
   hasSubstantialAcpRawOutput,
@@ -79,13 +80,23 @@ export function buildAcpToolCallPayload(
       : undefined;
   // Images may be inline base64, a `uri`-only reference, or — for a completed
   // read-kind call — only named by `locations`; the session-injected resolver
-  // is what turns the latter two into renderable data URLs.
-  const images = extractToolCallContentImages(toolCall.content, {
-    kind,
-    status,
-    locations,
-    resolveLocalImage,
+  // is what turns the latter two into renderable data URLs. Skip echoing back
+  // images the user already attached to the conversation.
+  const isUserAttachmentRead = isUserAttachmentImageReadPayload({
+    ...(name ? { name } : {}),
+    ...(title ? { title } : {}),
+    ...(kind ? { kind } : {}),
+    args: toolCall.rawInput,
+    ...(locations.length > 0 ? { locations } : {}),
   });
+  const images = isUserAttachmentRead
+    ? []
+    : extractToolCallContentImages(toolCall.content, {
+        kind,
+        status,
+        locations,
+        resolveLocalImage,
+      });
   const subAgentModel = isSubAgent ? readStringField(toolCall.rawInput, "model") : undefined;
   const commandStatus =
     itemType === "command_execution" ? readAcpCommandStatus(toolCall._meta) : undefined;
@@ -219,14 +230,25 @@ export function buildAcpToolCallUpdatePayload(
       contentResult = `${attributedOutput}${attributedOutput.endsWith("\n") ? "" : "\n"}${text}`;
     }
   }
-  const images = extractToolCallContentImages(toolCall.content, {
-    // A `tool_call_update` often repeats neither `kind` nor `locations` — both
-    // arrived on the opening `tool_call` — so fall back to the tracked payload.
-    kind: kind ?? readPayloadString(item.payload, "kind"),
-    status,
-    locations: locations.length > 0 ? locations : readPayloadLocations(item.payload),
-    resolveLocalImage,
+  const effectiveKind = kind ?? readPayloadString(item.payload, "kind");
+  const effectiveLocations = locations.length > 0 ? locations : readPayloadLocations(item.payload);
+  const isUserAttachmentRead = isUserAttachmentImageReadPayload({
+    name: title ?? readPayloadString(item.payload, "name") ?? effectiveKind,
+    title: title ?? readPayloadString(item.payload, "title"),
+    kind: effectiveKind,
+    args: toolCall.rawInput ?? item.payload.args,
+    locations: effectiveLocations,
   });
+  const images = isUserAttachmentRead
+    ? []
+    : extractToolCallContentImages(toolCall.content, {
+        // A `tool_call_update` often repeats neither `kind` nor `locations` — both
+        // arrived on the opening `tool_call` — so fall back to the tracked payload.
+        kind: effectiveKind,
+        status,
+        locations: effectiveLocations,
+        resolveLocalImage,
+      });
   const isFileChange = item.itemType === "file_change";
   const contentDiffs = isFileChange ? extractAcpFileChangesFromContent(toolCall.content) : [];
   const contentDiffText = isFileChange ? joinAcpContentFileChangeDiffs(contentDiffs) : undefined;

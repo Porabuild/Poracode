@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import sharp from "sharp";
@@ -261,6 +261,45 @@ describe("Codex image view admission", () => {
       // Await the decoder independently to let its earlier queued work settle.
       await readCodexImageViewPreview(path);
       expect(disposed.events.some((event) => event.type === "item.completed")).toBe(false);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("skips decoding inline previews when imageView targets a Poracode user attachment", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "poracode-codex-att-"));
+    try {
+      const attachmentDir = join(dir, ".poracode-nightly.host-v1", "attachments", "draft-1");
+      await mkdir(attachmentDir, { recursive: true });
+      const path = join(attachmentDir, "Image 1.png");
+      await writeFile(
+        path,
+        await sharp({
+          create: { width: 16, height: 16, channels: 3, background: { r: 120, g: 40, b: 200 } },
+        })
+          .png()
+          .toBuffer(),
+      );
+
+      const harness = setupCodexStructuredSession();
+      const item = { id: "att-image", type: "imageView", path };
+      harness.notify("item/started", { threadId: "provider-thread", item });
+      harness.notify("item/completed", { threadId: "provider-thread", item });
+      await new Promise<void>((resolve) => setTimeout(resolve, 25));
+
+      const completed = harness.events.find((event) => event.type === "item.completed") as
+        | { payload?: Record<string, unknown> }
+        | undefined;
+      expect(completed).toBeDefined();
+      expect(completed?.payload?.images).toBeUndefined();
+      expect(
+        harness.events.some(
+          (event) =>
+            "payload" in event &&
+            Array.isArray((event.payload as { images?: unknown })?.images) &&
+            ((event.payload as { images?: unknown[] }).images?.length ?? 0) > 0,
+        ),
+      ).toBe(false);
     } finally {
       await rm(dir, { recursive: true, force: true });
     }

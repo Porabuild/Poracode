@@ -10,10 +10,36 @@ import {
 } from "./parts/items/toolCallCategorization";
 
 /**
+ * Whether a timeline item renders as a standalone inline image card (and can
+ * join a consecutive `image_group` mosaic). Excludes sub-agent parents, tool
+ * videos, and MCP App interactive cards so those keep their own dedicated rows.
+ */
+export function isStandaloneImageItem(
+  item: RuntimeChatItem,
+  userAttachmentPaths?: ReadonlySet<string>,
+): boolean {
+  if (!isToolLikeItem(item)) return false;
+  const payload = item.payload as ToolCallPayload | undefined;
+  if (item.type === "tool_call" && isDelegatedAgentTool(payload)) return false;
+  if (completedToolVideoSources(item).length > 0) return false;
+  if (
+    item.state === "completed" &&
+    payload?.status === "success" &&
+    readMcpAppResource(payload.result)
+  ) {
+    return false;
+  }
+  return imageViewRendersInline(payload, userAttachmentPaths);
+}
+
+/**
  * Whether a timeline item joins a tool-call group on the desktop chat pane.
  * React-free so the TUI transcript groups rows identically.
  */
-export function isToolGroupItem(item: RuntimeChatItem): boolean {
+export function isToolGroupItem(
+  item: RuntimeChatItem,
+  userAttachmentPaths?: ReadonlySet<string>,
+): boolean {
   // Sub-agent parents render as their own pill (with overlay) — never fold
   // them into a tool-call group.
   if (
@@ -31,7 +57,7 @@ export function isToolGroupItem(item: RuntimeChatItem): boolean {
   if (completedToolVideoSources(item).length > 0) return false;
   if (
     isToolLikeItem(item) &&
-    (imageViewRendersInline(payload) ||
+    (imageViewRendersInline(payload, userAttachmentPaths) ||
       (item.state === "completed" &&
         payload?.status === "success" &&
         readMcpAppResource(payload.result)))

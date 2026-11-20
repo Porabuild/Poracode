@@ -1,12 +1,16 @@
 import type { CommandExecutionPayload, ToolCallPayload } from "@/shared/contracts";
 import { isDelegatedAgentTool } from "@/shared/toolCallClassification";
-import { imageViewRendersInline } from "../components/thread/ChatPane/parts/items/imageViewSource";
+import {
+  collectUserAttachmentImagePaths,
+  imageViewRendersInline,
+} from "../components/thread/ChatPane/parts/items/imageViewSource";
 import type { RuntimeChatItem } from "./slices/runtimeEventSlice";
 import { recordRuntimeSummarySource } from "./runtimeHistoryBoundary";
 
 export function compactRuntimeItemsForHydration(
   items: readonly RuntimeChatItem[],
 ): RuntimeChatItem[] {
+  const userAttachmentPaths = collectUserAttachmentImagePaths(items);
   const compacted: RuntimeChatItem[] = [];
   let idx = 0;
   while (idx < items.length) {
@@ -18,7 +22,11 @@ export function compactRuntimeItemsForHydration(
       idx += 1;
       continue;
     }
-    if (!isToolGroupItem(item) || item.state !== "completed" || item.detailsDeferred) {
+    if (
+      !isToolGroupItem(item, userAttachmentPaths) ||
+      item.state !== "completed" ||
+      item.detailsDeferred
+    ) {
       compacted.push(item);
       idx += 1;
       continue;
@@ -27,7 +35,12 @@ export function compactRuntimeItemsForHydration(
     idx += 1;
     while (idx < items.length) {
       const next = items[idx]!;
-      if (!isToolGroupItem(next) || next.state !== "completed" || next.detailsDeferred) break;
+      if (
+        !isToolGroupItem(next, userAttachmentPaths) ||
+        next.state !== "completed" ||
+        next.detailsDeferred
+      )
+        break;
       run.push(next);
       idx += 1;
     }
@@ -103,7 +116,7 @@ function summarizeToolCallNames(items: readonly RuntimeChatItem[]): string {
   return parts.length > 0 ? parts.join(", ") : `${items.length} tools`;
 }
 
-function isToolGroupItem(item: RuntimeChatItem): boolean {
+function isToolGroupItem(item: RuntimeChatItem, userAttachmentPaths: ReadonlySet<string>): boolean {
   const payload = item.payload as Partial<ToolCallPayload & CommandExecutionPayload> | undefined;
   // Failed rows need their original identity and details instead of a success summary.
   if (
@@ -131,7 +144,7 @@ function isToolGroupItem(item: RuntimeChatItem): boolean {
       item.type === "mcp_tool_call" ||
       item.type === "image_view" ||
       item.type === "dynamic_tool_call") &&
-    imageViewRendersInline(item.payload)
+    imageViewRendersInline(item.payload, userAttachmentPaths)
   ) {
     return false;
   }
