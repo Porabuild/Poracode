@@ -2,7 +2,11 @@ import { WebglAddon } from "@xterm/addon-webgl";
 import { Terminal } from "@xterm/xterm";
 
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
-import { loadTerminalFonts, resolveTerminalFontFamily } from "./terminalFonts";
+import {
+  ensureCanvasFontWhitespaceSupport,
+  loadTerminalFonts,
+  resolveTerminalFontFamily,
+} from "./terminalFonts";
 
 /** Matches XTermSurface's default `baseFontSize`; the warm-up renders at it. */
 const PREWARM_FONT_SIZE = 12;
@@ -58,6 +62,7 @@ async function runPrewarm(): Promise<void> {
     });
     terminal.open(host);
     try {
+      ensureCanvasFontWhitespaceSupport();
       webglAddon = new WebglAddon();
       webglAddon.onContextLoss(() => webglAddon?.dispose());
       terminal.loadAddon(webglAddon);
