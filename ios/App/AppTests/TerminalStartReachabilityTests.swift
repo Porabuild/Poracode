@@ -249,7 +249,11 @@ final class TerminalStartReachabilityTests: XCTestCase {
       pageState.contains("ThreadPresentationFilter.isTerminalPresentation(thread.presentationMode)")
     )
     XCTAssertTrue(thread.contains("suite.terminal.state.cursor?.transcript"))
-    XCTAssertTrue(pageState.contains("await suite.terminal.watch(terminalID: threadID)"))
+    XCTAssertTrue(pageState.contains("await suite.terminal.ensureWatching(terminalID: threadID)"))
+    let terminalController = try Self.source(
+      "App/Features/RichChat/Controllers/RichChatTerminalController.swift"
+    )
+    XCTAssertTrue(terminalController.contains("await watch(terminalID: terminalID)"))
 
     let defaults = try Self.source("App/Features/Home/HomeComposerSupport.swift")
     XCTAssertTrue(defaults.contains("ThreadPresentationFilter.matches("))

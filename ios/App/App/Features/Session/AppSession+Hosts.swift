@@ -137,6 +137,7 @@ extension AppSession {
             await EnvironmentParentAuthorityStore.shared.invalidate(parentConnectionId: connectionId)
         }
         richChatComposerDrafts.clear(connectionID: connectionId)
+        checkpointRevertAttempts.clear(connectionID: connectionId)
         let snapshot: HostCatalogSnapshot
         do {
             snapshot = try await deps.hostCatalog.snapshot()
@@ -216,11 +217,9 @@ extension AppSession {
 
     /// Connect-time capability metadata refresh (C1 F2 / C1-B).
     ///
-    /// After a successful handshake on the selected host, a strict describe
-    /// commits the live capability set to the durable record through the same
-    /// journaled metadata path as rename — so a host that gained host-owned
-    /// environments after it was paired surfaces them without re-pairing.
-    /// A failed/stale read changes nothing (false absence is never persisted).
+    /// Refresh the selected host's cached capabilities from the handshake and
+    /// service describe so an existing pairing can discover newly available features.
+    /// Each source retains its last known values when its read fails.
     ///
     /// An in-place same-identity environment re-pair keeps the record's
     /// connection/identity triple but replaces its grant, so identity equality
@@ -229,7 +228,11 @@ extension AppSession {
     /// metadata operation that begins while the response is in flight (pair,
     /// remove, rename) advances `operationId`, and the refresh aborts instead
     /// of committing across the incarnation boundary.
-    func refreshStoredHostCapabilities(generation gen: Int, ownerEpoch: Int? = nil) async {
+    func refreshStoredHostCapabilities(
+        generation gen: Int,
+        ownerEpoch: Int? = nil,
+        descriptor: RemoteEnvironmentDescriptor? = nil
+    ) async {
         guard !state.liveLifecycle.isInBackground,
               let api = state.api,
               let connectionId = state.selectedConnectionId,
@@ -239,8 +242,12 @@ extension AppSession {
         let expectedDesktopId = record.desktopId
         let expectedEnvironment = record.environment
         let expectedOwnership = state.operationOwner.operationId
-        guard let capabilities = try? await api.fetchHostCapabilities() else { return }
-        guard state.workGeneration == gen,
+        if let descriptor, descriptor.desktopId != expectedDesktopId { return }
+        let services = try? await api.fetchHostCapabilities()
+        guard services != nil || descriptor != nil else { return }
+        guard !Task.isCancelled,
+              state.api === api,
+              state.workGeneration == gen,
               state.operationOwner.operationId == expectedOwnership,
               state.selectedConnectionId == connectionId,
               let current = state.hosts.first(where: { $0.connectionId == connectionId }),
@@ -248,6 +255,14 @@ extension AppSession {
               current.environment == expectedEnvironment
         else { return }
         if let ownerEpoch, !state.operationOwner.isCurrent(ownerEpoch) { return }
+
+        let previous = current.hostCapabilities ?? .unknown
+        var capabilities = services ?? previous
+        capabilities.sshEnvironments = previous.sshEnvironments
+        if let descriptor {
+            capabilities = capabilities.applyingEnvironmentAdvertisement(descriptor)
+        }
+        guard current.hostCapabilities != capabilities else { return }
 
         let began = state.operationOwner.beginMetadata(.refreshCapabilities)
         do {
@@ -323,23 +338,53 @@ extension AppSession {
     /// for every other paired host. Failures retain the last successful entry,
     /// so an offline machine's threads remain visible instead of disappearing.
     func refreshUnifiedThreadList() async {
-        await refreshSnapshot()
-        for record in state.hosts where record.connectionId != state.selectedConnectionId {
-            guard record.scopes.contains("session:read"),
-                  let token = try? await deps.hostCatalog.token(for: record.connectionId),
-                  !token.isEmpty
-            else { continue }
-            let api = deps.makeAPI(record.httpBaseURL, token)
-            guard let snapshot = try? await api.snapshot(),
-                  state.hosts.contains(where: { $0.connectionId == record.connectionId })
-            else { continue }
-            state.hostSnapshots[record.connectionId] = snapshot
-            var cache = sessionPool.cache(for: .host(record.connectionId))
-            cache.snapshot = snapshot
-            cache.projectsLoadState = snapshot.projects.isEmpty && snapshot.threads.isEmpty
-                ? .empty : .loaded
-            sessionPool.updateCache(cache, for: .host(record.connectionId))
+        let secondaryHosts = state.hosts.filter { $0.connectionId != state.selectedConnectionId }
+        await withTaskGroup(of: Void.self) { group in
+            group.addTask { await self.refreshSnapshot() }
+            for record in secondaryHosts {
+                group.addTask { await self.refreshSecondaryCatalog(for: record) }
+            }
         }
+    }
+
+    private func refreshSecondaryCatalog(for record: HostRecord) async {
+        let id = record.connectionId
+        guard !Task.isCancelled, !sessionPool.isBackgroundGated, id != state.selectedConnectionId else { return }
+        let key = SessionPoolKey.host(id)
+        if let refresh = sessionPool.refreshSecondaryCatalog(for: key) {
+            await refresh.join()
+            return
+        }
+        let lease = sessionPool.lease(for: key)
+        let backgroundGeneration = sessionPool.backgroundGeneration
+        let workGeneration = state.workGeneration
+        guard record.scopes.contains("session:read"),
+              let token = try? await deps.hostCatalog.token(for: id), !token.isEmpty
+        else { return }
+        let api = deps.makeAPI(record.httpBaseURL, token)
+        guard let snapshot = try? await api.snapshot(), !Task.isCancelled,
+              sessionPool.lease(for: key) == lease, sessionPool.backgroundGeneration == backgroundGeneration,
+              state.workGeneration == workGeneration, state.hosts.contains(record)
+        else { return }
+        installSecondaryCatalog(snapshot, for: id)
+    }
+
+    func installSecondaryCatalog(
+        _ snapshot: RemoteShellSnapshot, for id: ClientConnectionID, replacingBaseline: Bool = false
+    ) {
+        guard id != state.selectedConnectionId, state.hosts.contains(where: { $0.connectionId == id }) else { return }
+        if !replacingBaseline, let existing = state.hostSnapshots[id],
+           existing.snapshotEpoch == snapshot.snapshotEpoch, existing.snapshotSeq > snapshot.snapshotSeq
+        { return }
+        state.hostSnapshots[id] = snapshot
+        let key = SessionPoolKey.host(id)
+        var cache = sessionPool.cache(for: key)
+        cache.snapshot = snapshot
+        if let prepared = try? HostSnapshotInstall.prepare(shell: snapshot, existing: cache.replay) {
+            cache.replay = prepared.replay
+        }
+        cache.projectsLoadState = snapshot.projects.isEmpty && snapshot.threads.isEmpty ? .empty : .loaded
+        sessionPool.updateCache(cache, for: key)
     }
 
     func applyCatalogSelection(
@@ -391,7 +436,8 @@ extension AppSession {
         // FIRST socket, exactly like a fresh pairing. A failed read leaves the
         // authority unknown (the Online descriptor reconciles).
         reconcileAttemptedSocketID = nil
-        if let descriptor = try? await api.environment() {
+        let descriptor = try? await api.environment()
+        if let descriptor {
             guard state.operationOwner.isCurrent(ownerEpoch), state.workGeneration == gen,
                   state.selectedConnectionId == record.connectionId, state.api === api else { return }
             await noteEnvironmentCapabilities(descriptor)
@@ -406,6 +452,6 @@ extension AppSession {
         }
         state.phase = .connecting
         await live.connectAndStart(generation: gen, ownerEpoch: ownerEpoch)
-        await refreshStoredHostCapabilities(generation: gen, ownerEpoch: ownerEpoch)
+        await refreshStoredHostCapabilities(generation: gen, ownerEpoch: ownerEpoch, descriptor: descriptor)
     }
 }

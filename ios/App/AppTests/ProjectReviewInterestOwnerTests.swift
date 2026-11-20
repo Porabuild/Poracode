@@ -20,12 +20,16 @@ final class ProjectReviewInterestOwnerTests: XCTestCase {
 
   func testTheReviewSurfaceIsReachableFromTheProjectGitWorkspace() throws {
     let sidebar = try Self.source("App/Features/Projects/ProjectGitWorkspaceViews.swift")
-    XCTAssertTrue(sidebar.contains("if let reviewDestination {"))
-    XCTAssertTrue(sidebar.contains("NavigationLink {"))
+    XCTAssertTrue(sidebar.contains("if canOpenReview {"))
+    XCTAssertTrue(sidebar.contains("onOpenDestination(.review)"))
     XCTAssertTrue(sidebar.contains("ProjectReviewStrings.open"))
 
     let workspace = try Self.source("App/Features/Projects/ProjectWorkspaceView.swift")
-    XCTAssertTrue(workspace.contains("reviewDestination: reviewDestination,"))
+    XCTAssertTrue(workspace.contains(".sheet(item: $gitDestination)"))
+    XCTAssertTrue(workspace.contains("reviewDestination: reviewDestination"))
+    let destination = try Self.source("App/Features/Projects/ProjectGitDetailView.swift")
+    XCTAssertTrue(destination.contains("case .review:"))
+    XCTAssertTrue(destination.contains("if let reviewDestination { reviewDestination }"))
 
     // The composition root builds the owner and releases it on every teardown.
     let composition = try Self.source(

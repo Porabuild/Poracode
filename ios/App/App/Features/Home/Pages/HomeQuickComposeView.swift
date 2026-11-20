@@ -3,6 +3,10 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 struct HomeQuickComposeView: View {
+  enum NewsPlacement {
+    case composer, listFooter, hidden
+  }
+
   @Environment(\.homeWorkspace) var workspace
   @Environment(\.verticalSizeClass) var verticalSizeClass
   @Environment(\.poracodeSplitDetailContext) var splitDetailContext
@@ -11,6 +15,7 @@ struct HomeQuickComposeView: View {
   let showsContextHeader: Bool
   let onStarted: (String) -> Void
   let onNewsAction: ((HomeNewsCardAction) -> Void)?
+  let newsPlacement: NewsPlacement
   @Environment(\.locale) var newsLocale
   @AppStorage(HomeNewsPreferences.enabledKey) var newsEnabled = true
   @AppStorage(HomeNewsPreferences.activityKey) var newsActivity = true
@@ -24,12 +29,14 @@ struct HomeQuickComposeView: View {
   @State private var restorePromptAfterSelector = false
 
   init(session: AppSession, isExpanded: Binding<Bool>, draft: HomeQuickComposeState, showsContextHeader: Bool = true,
-    onNewsAction: ((HomeNewsCardAction) -> Void)?, onStarted: @escaping (String) -> Void
+    newsPlacement: NewsPlacement = .composer, onNewsAction: ((HomeNewsCardAction) -> Void)?,
+    onStarted: @escaping (String) -> Void
   ) {
     self.session = session
     _isExpanded = isExpanded
     _draft = Bindable(wrappedValue: draft)
     self.showsContextHeader = showsContextHeader
+    self.newsPlacement = newsPlacement
     self.onStarted = onStarted
     self.onNewsAction = onNewsAction
   }
@@ -83,6 +90,17 @@ struct HomeQuickComposeView: View {
   }
 
   var body: some View {
+    if newsPlacement == .listFooter {
+      if showsNews {
+        newsLine
+          .task(id: newsRefreshKey) { await refreshNews() }
+      }
+    } else {
+      composer
+    }
+  }
+
+  private var composer: some View {
     composerSurface
       .modifier(NativeComposerCommands(ownerID: presentationID, configuration: composerControlsBinding, catalog: composerControlsCatalog,
         enabled: ownsCurrentConnection && isCurrentPresentation && session.canOperate && selectedAgent != nil
@@ -101,7 +119,9 @@ struct HomeQuickComposeView: View {
         synchronizeFileMentions()
       }
       .task(id: settingsRefreshKey) { await reloadComposerSettings() }
-      .task(id: newsRefreshKey) { await refreshNews() }
+      .task(id: newsRefreshKey) {
+        if newsPlacement == .composer { await refreshNews() }
+      }
       .onChange(of: draft.prompt) { _, _ in newsVisit.noteTyping() }
       .onChange(of: canStart) { _, ready in
         if ready, launchSeed?.autoStart == true, !draft.didAutoStart {
@@ -221,10 +241,19 @@ struct HomeQuickComposeView: View {
   }
 
   var canStart: Bool {
-    guard ownsCurrentConnection, !draft.lifecycle.isBusy, !draft.preparingWorktree, hasSendableContent, selectedProject != nil,
+    guard ownsCurrentConnection, !draft.starting, !draft.importing, !draft.lifecycle.isBusy,
+      !draft.preparingWorktree, hasSendableContent, selectedProject != nil,
       effectiveConfiguration != nil, draft.tools.document.document != nil, !draft.tools.isMutating,
       let access = session.currentThreadSessionAccess
     else { return false }
+    if launchSeed?.providerSwitchSource != nil,
+      draft.lifecycle.lastOutcome == .failed(.start, .ambiguousOutcome) { return false }
+    if let source = draft.providerSwitch {
+      guard source.target.lease == access.lease,
+        let thread = session.richChatThread(id: source.target.threadID),
+        thread.agentKind == source.agentKind, thread.presentationMode == "gui"
+      else { return false }
+    }
     return access.isOnline && access.isReady && access.isForeground
       && access.scopes.contains("session:operate")
   }

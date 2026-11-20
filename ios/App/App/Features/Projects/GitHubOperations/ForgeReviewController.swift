@@ -2,6 +2,12 @@ import CryptoKit
 import Foundation
 import Observation
 
+struct ForgeReviewTarget: Equatable, Sendable {
+  let lease: GitHubProjectLease
+  let source: GitHubDocument
+  let number: Int64
+}
+
 /// One selected review, with the account from its list row carried through every call.
 @MainActor @Observable
 final class ForgeReviewController {
@@ -54,9 +60,11 @@ final class ForgeReviewController {
     context = value
   }
 
-  /// False until `select` has loaded this exact pull request, so a reused controller never
-  /// shows or writes the previous review.
-  func isSelected(number value: Int64) -> Bool { number == value }
+  /// UI drafts hold this selection across refreshes and display transitions.
+  var reviewTarget: ForgeReviewTarget? {
+    guard let context, let source, number > 0 else { return nil }
+    return ForgeReviewTarget(lease: context.lease, source: source, number: number)
+  }
 
   func deactivate() {
     revision &+= 1
@@ -135,8 +143,9 @@ final class ForgeReviewController {
     }
   }
 
-  func refreshGuide() async {
-    guard !loading, !mutating, let context, context.isUsable, context.permits(.read), let gateway,
+  func refreshGuide(expectedTarget: ForgeReviewTarget? = nil) async {
+    guard expectedTarget == nil || expectedTarget == reviewTarget,
+      !loading, !mutating, let context, context.isUsable, context.permits(.read), let gateway,
       let payload = payload() else { return }
     let owner = revision
     do {
@@ -152,8 +161,13 @@ final class ForgeReviewController {
 
   /// Failed or uncertain writes are never automatically sent again.
   @discardableResult
-  func mutate(_ operation: ForgeReviewOperation, fields: [String: GitHubJSONValue]) async -> Bool {
-    guard canMutate, operation.scope == .operate, let gateway, let context,
+  func mutate(
+    _ operation: ForgeReviewOperation,
+    fields: [String: GitHubJSONValue],
+    expectedTarget: ForgeReviewTarget? = nil
+  ) async -> Bool {
+    guard expectedTarget == nil || expectedTarget == reviewTarget,
+      canMutate, operation.scope == .operate, let gateway, let context,
       let payload = payload(fields)
     else { return false }
     revision &+= 1
@@ -179,8 +193,13 @@ final class ForgeReviewController {
 
   /// Candidate lookups are live reads: the result never enters `documents`, so it is never cached
   /// or shown offline. Nil when the lookup could not run, was superseded, or failed.
-  func candidates(_ operation: ForgeReviewOperation, fields: [String: GitHubJSONValue] = [:]) async -> GitHubDocument? {
-    guard operation == .forgeListPrLabelCandidates || operation == .forgeListPrReviewerCandidates,
+  func candidates(
+    _ operation: ForgeReviewOperation,
+    fields: [String: GitHubJSONValue] = [:],
+    expectedTarget: ForgeReviewTarget? = nil
+  ) async -> GitHubDocument? {
+    guard expectedTarget == nil || expectedTarget == reviewTarget,
+      operation == .forgeListPrLabelCandidates || operation == .forgeListPrReviewerCandidates,
       let context, context.isUsable, context.permits(.read), !isCached, let gateway, let payload = payload(fields)
     else { return nil }
     let owner = revision
@@ -196,19 +215,21 @@ final class ForgeReviewController {
   }
 
   @discardableResult
-  func setLabels(add: [String], remove: [String]) async -> Bool {
+  func setLabels(add: [String], remove: [String], expectedTarget: ForgeReviewTarget? = nil) async -> Bool {
     guard offers("labels"), !add.isEmpty || !remove.isEmpty else { return false }
     return await mutate(.forgeSetPrLabels, fields: [
       "add": .array(add.map(GitHubJSONValue.string)), "remove": .array(remove.map(GitHubJSONValue.string)),
-    ])
+    ], expectedTarget: expectedTarget)
   }
 
   @discardableResult
-  func requestReviewers(add: [GitHubReviewerSummary], remove: [GitHubReviewerSummary]) async -> Bool {
+  func requestReviewers(
+    add: [GitHubReviewerSummary], remove: [GitHubReviewerSummary], expectedTarget: ForgeReviewTarget? = nil
+  ) async -> Bool {
     guard offers("reviewRequests"), !add.isEmpty || !remove.isEmpty else { return false }
     return await mutate(.forgeRequestPrReviewers, fields: [
       "add": .array(add.map(\.reference)), "remove": .array(remove.map(\.reference)),
-    ])
+    ], expectedTarget: expectedTarget)
   }
 
   @discardableResult

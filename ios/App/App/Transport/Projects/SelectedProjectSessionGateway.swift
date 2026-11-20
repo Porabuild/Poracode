@@ -70,9 +70,9 @@ actor SelectedProjectSessionGateway: ProjectSessionGateway {
     _ body: ProjectNotesWriteBody,
     for identity: ProjectIdentity,
     lease: ProjectControllerHostLease
-  ) async throws {
+  ) async throws -> ProjectNotesSaveResult? {
     try require(identity: identity, lease: lease)
-    try await execute(lease: lease, scope: .sessionOperate) { api in
+    return try await execute(lease: lease, scope: .sessionOperate) { api in
       try await api.remoteWriteProjectNotes(body, projectId: identity.projectId)
     }
   }

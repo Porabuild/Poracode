@@ -58,6 +58,22 @@ final class NotificationRoutingTests: XCTestCase {
     XCTAssertNil(NotificationPayloadParser.parse(userInfo: ["poracode": ["threadId": "legacy"]]))
   }
 
+  func testSystemPayloadKeepsJSONNumbersDistinctFromBooleans() throws {
+    func payload(version: String) throws -> [AnyHashable: Any] {
+      let json = """
+        {"poracode":{"version":\(version),"clientConnectionId":"\(connectionA.rawValue)",
+        "desktopId":"desktop","threadId":"thread"}}
+        """
+      return try XCTUnwrap(
+        JSONSerialization.jsonObject(with: Data(json.utf8)) as? [AnyHashable: Any])
+    }
+
+    XCTAssertEqual(NotificationPayloadParser.parse(userInfo: try payload(version: "1"))?.threadId, "thread")
+    XCTAssertNil(NotificationPayloadParser.parse(userInfo: try payload(version: "true")))
+    XCTAssertNil(NotificationPayloadParser.parse(userInfo: try payload(version: "1.5")))
+    XCTAssertNil(NotificationPayloadParser.parse(userInfo: try payload(version: "9223372036854775808")))
+  }
+
   func testSameDesktopAndThreadRemainBoundToDistinctConnections() {
     let common: [String: Any] = ["version": 1, "desktopId": "desktop", "threadId": "thread"]
     let a = NotificationPayloadParser.parse(
@@ -124,12 +140,14 @@ final class NotificationRoutingTests: XCTestCase {
     let routedA = NotificationRoute(
       version: 1, clientConnectionId: connectionA, desktopId: "d", threadId: "t")
     func options(
-      _ route: NotificationRoute?, _ envelope: Bool, _ selected: ClientConnectionID?
+      _ route: NotificationRoute?, _ envelope: Bool, _ selected: ClientConnectionID?,
+      deliveryEnabled: Bool = true
     ) -> UNNotificationPresentationOptions {
       NotificationForegroundPresentation.options(
         route: route,
         hasRoutingEnvelope: envelope,
         selectedConnectionId: selected,
+        deliveryEnabled: deliveryEnabled,
         preference: NotificationAlertPreference(
           soundEnabled: true,
           foregroundMode: .always,
@@ -152,6 +170,8 @@ final class NotificationRoutingTests: XCTestCase {
     // A routed envelope that fails to parse cannot be host-verified, so it is suppressed.
     XCTAssertEqual(options(nil, true, connectionA), [])
     XCTAssertEqual(options(nil, true, nil), [])
+    XCTAssertEqual(options(routedA, true, connectionA, deliveryEnabled: false), [])
+    XCTAssertEqual(options(nil, false, connectionA, deliveryEnabled: false), [])
   }
 
   func testAlertPreferencesDefaultOnPersistAndControlForegroundPresentation() throws {
@@ -174,6 +194,7 @@ final class NotificationRoutingTests: XCTestCase {
         route: nil,
         hasRoutingEnvelope: false,
         selectedConnectionId: nil,
+        deliveryEnabled: true,
         preference: preference
       ),
       []

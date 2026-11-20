@@ -2,6 +2,77 @@ import UIKit
 import XCTest
 
 extension NativeFamilyJourneyUITests {
+  func testThemeAndShortcutToolbarActionsPreserveDraftsAcrossDisplays() async throws {
+    app.launchArguments.append("-native-e2e-keybindings-fresh-preferences")
+    try await prepareCustomThemeJourney()
+    try openCustomThemes()
+    let create = app.buttons["native-e2e.theme.create"]
+    assertNativeDuoToolbarRail(create)
+    assertNativeDuoToolbarRail(app.buttons["native-e2e.theme.import"])
+    create.tap()
+    let name = app.textFields["native-e2e.theme.name"]
+    replaceThemeField(name, with: "Fold Theme Check")
+    let dark = app.buttons["Dark"].firstMatch
+    XCTAssertTrue(dark.waitForExistence(timeout: 5)); dark.tap()
+    let background = app.textFields["native-e2e.theme.hex.dark.bg"]
+    try revealThemeElement(background)
+    replaceThemeField(background, with: "#20232a")
+    try await assertDraftSurvivesDisplayTransitions("theme", field: background, value: "#20232a")
+    let save = app.buttons["native-e2e.theme.save"]
+    XCTAssertTrue(save.isEnabled)
+    if app.keyboards.firstMatch.exists {
+      XCTAssertLessThanOrEqual(save.frame.maxY, app.keyboards.firstMatch.frame.minY)
+    }
+    save.tap()
+    XCTAssertTrue(themeRow("Fold Theme Check").waitForExistence(timeout: 10))
+    XCTAssertTrue(themeRow("Fold Theme Check").isSelected)
+    tapNativeSettingsBack(from: "Custom theme", to: "Appearance")
+    tapNativeSettingsBack(from: "Appearance", to: "Settings")
+
+    let shortcuts = app.buttons["native-e2e.settings.shortcuts"]
+    for _ in 0..<5 where !shortcuts.isHittable { app.swipeDown() }
+    XCTAssertTrue(shortcuts.waitForExistence(timeout: 5)); shortcuts.tap()
+    let catalog = app.descendants(matching: .any)
+      .matching(identifier: "native-e2e.keyboard.catalog").firstMatch
+    XCTAssertTrue(catalog.waitForExistence(timeout: 5))
+    let search = app.searchFields.firstMatch
+    let command = app.buttons["native-e2e.keyboard.command.thread.new"]
+    if search.exists, search.isHittable {
+      search.tap()
+      search.typeText("New Thread")
+    } else {
+      for _ in 0..<5 where !command.isHittable { catalog.swipeUp() }
+    }
+    XCTAssertTrue(command.waitForExistence(timeout: 5)); command.tap()
+    let add = app.buttons["native-e2e.keyboard.add"]
+    XCTAssertTrue(add.waitForExistence(timeout: 5))
+    assertNativeDuoToolbarRail(add)
+    add.tap()
+    let record = app.buttons["native-e2e.keyboard.record"]
+    XCTAssertTrue(record.waitForExistence(timeout: 5)); record.tap()
+    let stop = app.descendants(matching: .any)
+      .matching(identifier: "native-e2e.keyboard.cancel-recording").firstMatch
+    XCTAssertTrue(stop.waitForExistence(timeout: 5))
+    assertNativeDuoToolbarRail(stop)
+    XCTAssertFalse(app.buttons["native-e2e.keyboard.save"].isEnabled)
+    stop.tap()
+    let keys = app.textFields["native-e2e.keyboard.keys"]
+    XCTAssertTrue(keys.waitForExistence(timeout: 5)); keys.tap()
+    keys.typeText("Command+Shift+J")
+    try await assertDraftSurvivesDisplayTransitions("shortcut", field: keys, value: "Command+Shift+J")
+    let shortcutSave = app.buttons["native-e2e.keyboard.save"]
+    XCTAssertTrue(shortcutSave.isEnabled)
+    if app.keyboards.firstMatch.exists {
+      XCTAssertLessThanOrEqual(shortcutSave.frame.maxY, app.keyboards.firstMatch.frame.minY)
+    }
+    shortcutSave.tap()
+    let added = app.buttons.matching(NSPredicate(
+      format: "identifier BEGINSWITH %@ AND label CONTAINS %@", "native-e2e.keyboard.binding.thread.new.", "⇧⌘J"
+    )).firstMatch
+    XCTAssertTrue(added.waitForExistence(timeout: 5))
+    customThemeProof("native-shortcut-saved")
+  }
+
   func testCustomThemeActiveFieldStaysVisibleWhenTheEditorRotates() async throws {
     try await prepareCustomThemeJourney()
     try openCustomThemes()
@@ -15,7 +86,7 @@ extension NativeFamilyJourneyUITests {
       let list = try themeEditorList(containing: name)
       try await poll {
         self.app.keyboards.firstMatch.exists
-          && self.app.navigationBars.matching(identifier: "Custom theme").containing(.button, identifier: "Cancel").count == 1
+          && self.app.navigationBars.matching(identifier: "Custom theme").containing(.any, identifier: "native-e2e.theme.cancel").count == 1
           && self.themeEditorViewport(list).contains(name.frame)
       }
       XCTAssertEqual(name.value as? String, "RetainedThemeName")
@@ -36,7 +107,7 @@ extension NativeFamilyJourneyUITests {
     let list = try themeEditorList(containing: background)
     try await poll {
       self.app.keyboards.firstMatch.exists
-        && self.app.navigationBars.matching(identifier: "Custom theme").containing(.button, identifier: "Cancel").count == 1
+        && self.app.navigationBars.matching(identifier: "Custom theme").containing(.any, identifier: "native-e2e.theme.cancel").count == 1
         && self.themeEditorViewport(list).contains(background.frame)
     }
     XCTAssertEqual(background.value as? String, "#abcdef")
@@ -44,7 +115,7 @@ extension NativeFamilyJourneyUITests {
     XCTAssertTrue(themeEditorViewport(try themeEditorList(containing: background)).contains(background.frame),
       "Rotation must also keep the active color field visible")
     customThemeProof("focused-color-retained")
-    app.navigationBars["Custom theme"].buttons["Cancel"].tap()
+    app.descendants(matching: .any).matching(identifier: "native-e2e.theme.cancel").firstMatch.tap()
   }
 
   func testCustomThemePortableFileExportsAndImportsThroughNativeFiles() async throws {
@@ -62,7 +133,7 @@ extension NativeFamilyJourneyUITests {
     let replace = app.alerts.buttons["Replace"]
     if replace.waitForExistence(timeout: 2) { replace.tap() }
     XCTAssertTrue(app.buttons["native-e2e.theme.save"].waitForExistence(timeout: 10))
-    app.navigationBars["Custom theme"].buttons["Cancel"].tap()
+    app.descendants(matching: .any).matching(identifier: "native-e2e.theme.cancel").firstMatch.tap()
     XCTAssertFalse(themeRow("Portable Theme Check").exists, "Export must not save or apply a draft")
     app.buttons["native-e2e.theme.import"].tap()
     customThemeLayout("file-import")
@@ -114,7 +185,7 @@ extension NativeFamilyJourneyUITests {
     let name = app.textFields["native-e2e.theme.name"]
     XCTAssertTrue(name.waitForExistence(timeout: 10))
     replaceThemeField(name, with: "Cancelled theme")
-    app.navigationBars["Custom theme"].buttons["Cancel"].tap()
+    app.descendants(matching: .any).matching(identifier: "native-e2e.theme.cancel").firstMatch.tap()
     XCTAssertFalse(app.buttons.containing(.staticText, identifier: "Cancelled theme").firstMatch.exists)
 
     app.buttons["native-e2e.theme.create"].tap()
@@ -154,7 +225,7 @@ extension NativeFamilyJourneyUITests {
     try revealThemeElement(background)
     XCTAssertEqual(background.value as? String, "#f0e8dd")
     customThemeProof("restored-editor")
-    app.navigationBars["Custom theme"].buttons["Cancel"].tap()
+    app.descendants(matching: .any).matching(identifier: "native-e2e.theme.cancel").firstMatch.tap()
     row.press(forDuration: 1.1)
     app.buttons["Delete theme"].firstMatch.tap()
     let delete = app.buttons["Delete"].firstMatch
@@ -216,19 +287,29 @@ extension NativeFamilyJourneyUITests {
 
   private func themeEditorViewport(_ list: XCUIElement) -> CGRect {
     var viewport = list.frame.intersection(app.frame)
-    let bars = app.navigationBars.matching(identifier: "Custom theme").containing(.button, identifier: "Cancel")
-    XCTAssertEqual(bars.count, 1, "Use the editor's cancellation bar, not the gallery's same-titled bar")
-    let bar = bars.element.frame
-    if bar.width > bar.height, bar.intersects(viewport) {
-      let bottom = viewport.maxY
-      viewport.origin.y = max(viewport.minY, bar.maxY)
-      viewport.size.height = max(0, bottom - viewport.minY)
+    let bars = app.navigationBars.matching(identifier: "Custom theme").containing(.any, identifier: "native-e2e.theme.cancel")
+    if bars.count == 1 {
+      let bar = bars.element.frame
+      if bar.width > bar.height, bar.intersects(viewport) {
+        let bottom = viewport.maxY
+        viewport.origin.y = max(viewport.minY, bar.maxY)
+        viewport.size.height = max(0, bottom - viewport.minY)
+      }
+    } else {
+      let cancel = app.descendants(matching: .any)
+        .matching(identifier: "native-e2e.theme.cancel").firstMatch
+      XCTAssertEqual(bars.count, 0)
+      XCTAssertTrue(cancel.exists && ProcessInfo.processInfo.environment["NATIVE_E2E_EXPECT_VERTICAL_TOOLBAR"] == "1")
+      XCTAssertGreaterThan(cancel.frame.midX, app.frame.minX + app.frame.width * 0.84)
     }
     if app.keyboards.firstMatch.exists {
       viewport.size.height = min(viewport.maxY, app.keyboards.firstMatch.frame.minY) - viewport.minY
     }
-    let save = app.buttons["native-e2e.theme.save"]
-    if save.exists { viewport.size.height = min(viewport.maxY, save.frame.minY - 8) - viewport.minY }
+    let export = app.buttons["native-e2e.theme.export"]
+    if export.exists, export.frame.midY > viewport.midY,
+      (viewport.minX...viewport.maxX).contains(export.frame.midX) {
+      viewport.size.height = min(viewport.maxY, export.frame.minY - 8) - viewport.minY
+    }
     return viewport
   }
 

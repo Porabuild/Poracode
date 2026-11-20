@@ -21,6 +21,7 @@ struct AppearanceSettingsView: View {
         }
         .pickerStyle(.segmented)
         .labelsHidden()
+        .settingsSearchAnchor(.appearanceMode)
       }
       .listRowBackground(activeTheme.variant(for: colorScheme).surface)
 
@@ -37,6 +38,7 @@ struct AppearanceSettingsView: View {
           }
         }
         .accessibilityIdentifier("native-e2e.settings.custom-themes")
+        .settingsSearchAnchor(.customTheme)
       }
       .listRowBackground(activeTheme.variant(for: colorScheme).surface)
 
@@ -49,6 +51,7 @@ struct AppearanceSettingsView: View {
           }
           .buttonStyle(.plain)
           .accessibilityAddTraits(theme.id == selectedThemeID ? .isSelected : [])
+          .settingsSearchAnchor(theme.id == PoracodeThemePreset.defaultID ? .theme : nil)
         }
       } header: {
         Text(SettingsUIStrings.theme)
@@ -76,6 +79,7 @@ struct AppearanceSettingsView: View {
             .foregroundStyle(.secondary)
             .frame(minWidth: 24, alignment: .trailing)
         }
+        .settingsSearchAnchor(.chatTextSize)
       } header: {
         Text(SettingsUIStrings.chatTextSize)
       } footer: {
@@ -84,6 +88,7 @@ struct AppearanceSettingsView: View {
       .listRowBackground(activeTheme.variant(for: colorScheme).surface)
     }
     .poracodeReadableListMargins(740)
+    .settingsSearchScroll()
     .scrollContentBackground(.hidden)
     .background(activeTheme.variant(for: colorScheme).background)
     .navigationTitle(SettingsUIStrings.appearanceTitle)

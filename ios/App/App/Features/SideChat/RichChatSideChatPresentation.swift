@@ -32,7 +32,9 @@ extension RichChatThreadView {
       // Validate conversion before replacing any retained auxiliary draft.
       _ = try currentComposerDraft.segments.map { try $0.lifecyclePromptSegment() }
       let entry = try session.sideChats.open(session: session, source: thread, owner: owner, question: question, fresh: true)
-      entry.draft.attachments = currentComposerDraft.attachments
+      entry.draft.attachments = currentComposerDraft.attachments.map {
+        HomeComposerAttachment(name: $0.name, mimeType: $0.mimeType, remotePath: $0.remotePath)
+      }
       entry.draft.skills = currentComposerDraft.skills
       entry.draft.mentionedMCPs = currentComposerDraft.mcps
       entry.draft.additionalSegments = currentComposerDraft.segments

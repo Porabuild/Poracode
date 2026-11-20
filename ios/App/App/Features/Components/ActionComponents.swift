@@ -14,12 +14,13 @@ struct PoracodeToolbarIconButton: View {
   let title: String
   let systemImage: String
   var color: Color = .secondary
+  var sharesBackground = false
   let action: () -> Void
 
   var body: some View {
     Button(title, systemImage: systemImage, action: action)
       .labelStyle(.iconOnly)
-      .buttonBorderShape(.circle)
+      .buttonBorderShape(sharesBackground ? .automatic : .circle)
       .foregroundStyle(color)
       .tint(color)
   }
@@ -122,7 +123,7 @@ struct PoracodeComposerBar<Leading: View, Content: View, Trailing: View>: View {
         .frame(width: trailingWidth, height: 40)
     }
     .padding(2)
-    .poracodeNativeComposerSurface(in: Capsule(), borderOpacity: 0.1, borderWidth: 0.5, interactive: true)
+    .poracodeNativeComposerSurface(in: Capsule(), interactive: true)
   }
 }
 
@@ -162,7 +163,7 @@ struct PoracodeExpandedComposerSurface<Editor: View, Toolbar: View>: View {
     }
     .padding(.horizontal, 10)
     .padding(.vertical, 8)
-    .poracodeNativeComposerSurface(in: shape, borderOpacity: 0.2, borderWidth: 0.75)
+    .poracodeNativeComposerSurface(in: shape)
   }
 
   private var shape: RoundedRectangle {
@@ -171,17 +172,11 @@ struct PoracodeExpandedComposerSurface<Editor: View, Toolbar: View>: View {
 }
 
 extension View {
-  /// Collapsed controls use Liquid Glass. Expanded text editors use standard
-  /// material, keeping UIKit text and controls in the foreground instead of
-  /// sending an empty background shape to a glass container above them.
-  func poracodeNativeComposerSurface<S: InsettableShape>(
-    in shape: S,
-    borderOpacity: Double = 0.1,
-    borderWidth: CGFloat = 0.5,
+  func poracodeNativeComposerSurface(
+    in shape: some InsettableShape,
     interactive: Bool = false
   ) -> some View {
-    modifier(PoracodeNativeComposerThemeSurface(shape: shape, borderOpacity: borderOpacity,
-      borderWidth: borderWidth, interactive: interactive))
+    modifier(PoracodeNativeComposerThemeSurface(shape: shape, interactive: interactive))
   }
 
   /// Native Liquid Glass for floating bubbles on iOS 26, with a material
@@ -210,8 +205,6 @@ private struct PoracodeNativeComposerThemeSurface<S: InsettableShape>: ViewModif
   @Environment(\.poracodeTheme) private var theme
   @Environment(\.colorScheme) private var colorScheme
   let shape: S
-  let borderOpacity: Double
-  let borderWidth: CGFloat
   let interactive: Bool
 
   private var authoredFill: Color? { theme.variant(for: colorScheme).composerHex.map { Color(poracodeHex: $0) } }
@@ -225,8 +218,7 @@ private struct PoracodeNativeComposerThemeSurface<S: InsettableShape>: ViewModif
     if #available(iOS 26.0, *), interactive {
       content.glassEffect(glass.interactive(), in: shape)
     } else {
-      content.background(authoredFill.map(AnyShapeStyle.init) ?? AnyShapeStyle(.regularMaterial), in: shape)
-        .overlay(shape.stroke(Color.primary.opacity(borderOpacity), lineWidth: borderWidth))
+      content.poracodeInputSurface(in: shape, fill: authoredFill.map(AnyShapeStyle.init) ?? AnyShapeStyle(.regularMaterial))
         .shadow(color: .black.opacity(0.18), radius: 12, y: 5)
     }
   }

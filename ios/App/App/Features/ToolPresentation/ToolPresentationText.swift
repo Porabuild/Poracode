@@ -13,15 +13,29 @@ enum RichToolTextProjection {
     let descriptor: RichToolSection
     let part: RichToolTextPart
   }
+
+  /// A collapsed row only needs the first visible section. Avoid formatting
+  /// the remaining output until the user opens it.
+  static func hasSections(_ presentation: RichToolPresentation, item: RichRuntimeItem) -> Bool {
+    presentation.sections.contains { visiblePart($0, item: item) != nil }
+  }
+
   static func sections(_ presentation: RichToolPresentation, item: RichRuntimeItem) -> [Section] {
     var sections: [Section] = []
     for (index, section) in presentation.sections.enumerated() {
-      let part = resolve(section.source, payload: item.payload, streams: item.streams)
-      guard !part.text.isEmpty, section.onlyLanguage == nil || section.onlyLanguage == part.language else { continue }
+      guard let part = visiblePart(section, item: item) else { continue }
       sections.append(.init(id: index, descriptor: section, part: part))
       if section.replaceFollowing { break }
     }
     return sections
+  }
+
+  private static func visiblePart(_ section: RichToolSection, item: RichRuntimeItem) -> RichToolTextPart? {
+    let part = resolve(section.source, payload: item.payload, streams: item.streams)
+    guard !part.text.isEmpty, section.onlyLanguage == nil || section.onlyLanguage == part.language else {
+      return nil
+    }
+    return part
   }
   static func resolve(_ source: RichToolTextSource, payload: RichJSON?, streams: [String: String]) -> RichToolTextPart {
     switch source {

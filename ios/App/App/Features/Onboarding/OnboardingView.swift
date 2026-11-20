@@ -18,6 +18,7 @@ struct OnboardingView: View {
   @State private var isSubmitting = false
   @State private var isShowingScanner = false
   @State private var isShowingOtherWays = false
+  @State private var showOtherWaysAfterScanner = false
   @FocusState private var focusedField: OnboardingField?
 
   var body: some View {
@@ -105,70 +106,68 @@ struct OnboardingView: View {
         }
       }
       .toolbar(showsMinimalChrome ? .hidden : .visible, for: .navigationBar)
-      .fullScreenCover(isPresented: $isShowingScanner) {
+      .fullScreenCover(isPresented: $isShowingScanner, onDismiss: {
+        if showOtherWaysAfterScanner {
+          showOtherWaysAfterScanner = false
+          isShowingOtherWays = true
+        }
+      }) {
         PairingScannerView(
           onCandidate: { candidate in
             applyScannedCandidate(candidate)
           },
-          // Focus set while the cover dismisses does not survive the transition, so
-          // both fallbacks just reveal the section and let the user tap a field.
           onUsePairingLink: {
-            isShowingOtherWays = true
+            showOtherWaysAfterScanner = true
           },
           onUseManualEntry: {
-            isShowingOtherWays = true
+            showOtherWaysAfterScanner = true
           }
         )
       }
       .sheet(isPresented: $isShowingOtherWays) {
         NavigationStack {
-          GeometryReader { viewport in
-            // A short keyboard viewport cannot fit a separate action bar plus
-            // the focused field and validation. Keep Pair in the form's flow.
-            let actionIsInline = viewport.size.height < 260
-            ScrollViewReader { scroll in
-              ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
-                  OnboardingOtherWaysForm(
-                    pairingLink: $pairingLink,
-                    baseURL: $baseURL,
-                    token: $token,
-                    focusedField: $focusedField,
-                    showsCleartextHint: looksLikeCleartextLan
-                  )
-                  if let error = session.globalError {
-                    pairingError(error)
-                      .id("pairing-error")
-                      .accessibilityIdentifier("native-e2e.pair.error")
-                  }
-                  if actionIsInline {
-                    connectButton.id("pairing-submit")
-                  }
-                }
-                .padding(20)
-              }
-              .scrollDismissesKeyboard(.interactively)
-              .poracodeBottomBar {
-                if !actionIsInline { otherWaysActionBar }
-              }
-              .onChange(of: session.globalError, initial: true) { _, error in
-                if error != nil {
-                  withAnimation(.snappy) {
-                    scroll.scrollTo(actionIsInline ? "pairing-submit" : "pairing-error", anchor: .bottom)
-                  }
+          ScrollViewReader { scroll in
+            ScrollView {
+              VStack(alignment: .leading, spacing: 20) {
+                OnboardingOtherWaysForm(
+                  pairingLink: $pairingLink,
+                  baseURL: $baseURL,
+                  token: $token,
+                  focusedField: $focusedField,
+                  showsCleartextHint: looksLikeCleartextLan
+                )
+                if let error = session.globalError {
+                  pairingError(error)
+                    .id("pairing-error")
+                    .accessibilityIdentifier("native-e2e.pair.error")
                 }
               }
-              .onChange(of: viewport.size) {
-                if session.globalError != nil {
-                  scroll.scrollTo(actionIsInline ? "pairing-submit" : "pairing-error", anchor: .bottom)
+              .padding(20)
+            }
+            .scrollDismissesKeyboard(.interactively)
+            .onChange(of: session.globalError, initial: true) { _, error in
+              if error != nil {
+                withAnimation(.snappy) {
+                  scroll.scrollTo("pairing-error", anchor: .bottom)
                 }
               }
             }
           }
           .navigationTitle(OnboardingStrings.otherWays)
           .navigationBarTitleDisplayMode(.inline)
+          .toolbar {
+            ToolbarItem(placement: .cancellationAction) {
+              Button(HostStrings.cancel, systemImage: "xmark") { isShowingOtherWays = false }
+                .disabled(isSubmitting)
+                .accessibilityIdentifier("native-e2e.pair.other-ways.close")
+            }
+            ToolbarItem(placement: .confirmationAction) { connectButton }
+          }
         }
         .poracodeFormSheetSizing()
+        .foregroundStyle(.white, .white.opacity(0.7))
+        .tint(.white)
+        .environment(\.colorScheme, .dark)
         .preferredColorScheme(.dark)
         .presentationDetents([.fraction(0.7), .large])
         .presentationDragIndicator(.visible)
@@ -282,32 +281,12 @@ struct OnboardingView: View {
   }
 
   private var connectButton: some View {
-    Button {
+    Button(connectButtonTitle, systemImage: isSubmitting ? "hourglass" : "checkmark") {
       Task { await submit() }
-    } label: {
-      if isSubmitting || session.phase == .connecting {
-        ProgressView()
-          .frame(maxWidth: .infinity)
-      } else {
-        Text(connectButtonTitle)
-          .frame(maxWidth: .infinity)
-      }
     }
-    .poracodeProminentButtonStyle()
-    .controlSize(.large)
     .disabled(isSubmitting || session.phase == .connecting)
     .accessibilityLabel(connectButtonAccessibilityLabel)
     .accessibilityIdentifier("native-e2e.pair.submit")
-  }
-
-  /// Keeps the primary action reachable while long pairing links, validation
-  /// hints, and the software keyboard reduce the sheet's available height.
-  private var otherWaysActionBar: some View {
-    connectButton
-    .padding(.horizontal, 20)
-    .padding(.top, 20)
-    .padding(.bottom, 12)
-    .poracodeBarBackground(divider: .top)
   }
 
   private func pairingError(_ error: String) -> some View {
@@ -396,6 +375,7 @@ struct OnboardingView: View {
   }
 
   private func performPair() async {
+    guard !isSubmitting, session.phase != .connecting else { return }
     isSubmitting = true
     defer { isSubmitting = false }
     await session.pair(

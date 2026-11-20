@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 /// Platform spelling belongs here; the portable document preserves authored keys.
 extension NativeKeyChord {
@@ -36,6 +37,16 @@ extension NativeKeyChord {
     if modifiers.contains("alt") { flags.insert(.option) }
     if modifiers.contains("shift") { flags.insert(.shift) }
     return KeyboardShortcut(key, modifiers: flags)
+  }
+
+  func uiKeyCommand(action: Selector) -> UIKeyCommand? {
+    guard let shortcut = keyboardShortcut else { return nil }
+    var flags: UIKeyModifierFlags = []
+    if modifiers.contains("meta") { flags.insert(.command) }
+    if modifiers.contains("ctrl") { flags.insert(.control) }
+    if modifiers.contains("alt") { flags.insert(.alternate) }
+    if modifiers.contains("shift") { flags.insert(.shift) }
+    return UIKeyCommand(input: String(shortcut.key.character), modifierFlags: flags, action: action)
   }
 
   private func keyEquivalent(_ key: String) -> KeyEquivalent? {

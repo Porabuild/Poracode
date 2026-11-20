@@ -42,6 +42,35 @@ struct SettingsProfileQuery: Equatable, Hashable, Sendable {
   }
 }
 
+/// Device and account identifiers belong to a desktop. Range and scope describe
+/// how the user wants to explore activity and can carry over between desktops.
+struct SettingsProfileQuerySelection {
+  private struct HostFilters {
+    let deviceID: String?
+    let provider: String?
+  }
+
+  private var scope = SettingsProfileScope.device
+  private var window = SettingsProfileWindow.all
+  private var filters: [ClientConnectionID: HostFilters] = [:]
+
+  subscript(connectionID: ClientConnectionID?) -> SettingsProfileQuery {
+    get {
+      let selected = connectionID.flatMap { filters[$0] }
+      return SettingsProfileQuery(
+        scope: scope, deviceID: selected?.deviceID, provider: selected?.provider, window: window
+      )
+    }
+    set {
+      scope = newValue.scope
+      window = newValue.window
+      if let connectionID {
+        filters[connectionID] = HostFilters(deviceID: newValue.deviceID, provider: newValue.provider)
+      }
+    }
+  }
+}
+
 struct SettingsRefreshIdentity: Hashable, Sendable {
   let connectionID: ClientConnectionID?
   let generation: UInt64?

@@ -2,6 +2,24 @@ import UIKit
 import XCTest
 
 extension NativeFamilyJourneyUITests {
+  func testHomePromotionFollowsTheCompactThreadList() async throws {
+    try XCTSkipIf(UIDevice.current.userInterfaceIdiom == .pad, "This placement belongs to compact Home.")
+    try await prepareNewsJourney()
+
+    let composer = app.buttons["native-e2e.new-thread"]
+    let thread = app.buttons["native-e2e.thread.thread-fixture-001"]
+    let controls = app.buttons["native-e2e.news.controls"]
+    try await poll { composer.isHittable && thread.isHittable && controls.isHittable }
+    selectNewsControl("Pause news")
+    let promotion = try findNewsItem(prefix: "native-e2e.news.item.promotion:github-star")
+    XCTAssertEqual(app.buttons.matching(identifier: "native-e2e.news.controls").count, 1)
+    for element in [promotion, controls] {
+      XCTAssertGreaterThanOrEqual(element.frame.minY, thread.frame.maxY)
+      XCTAssertLessThanOrEqual(element.frame.maxY, composer.frame.minY)
+    }
+    newsProof("compact-list-footer")
+  }
+
   func testNewsReleaseDetailsKeepNavigationAtTheBottom() async throws {
     try await prepareNewsJourney()
     openNewsDraft()

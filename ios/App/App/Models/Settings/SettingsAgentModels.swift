@@ -73,8 +73,39 @@ struct SettingsAgentStatus: Codable, Equatable, Sendable {
     stringArray("efforts")
   }
 
+  func efforts(forModel model: String) -> [String] {
+    let scoped = payload.objectValue?["capabilities"]?.objectValue?["modelEfforts"]?
+      .objectValue?[model]?.arrayValue
+    return scoped?.compactMap(\.stringValue).filter { !$0.isEmpty } ?? efforts
+  }
+
+  var defaultEffort: String? {
+    payload.objectValue?["capabilities"]?.objectValue?["defaultEffort"]?.stringValue
+  }
+
   var fastModels: Set<String> {
     Set(stringArray("fastModels"))
+  }
+
+  func supportsFast(forModel model: String) -> Bool {
+    fastModels.contains(model)
+      && payload.objectValue?["capabilities"]?.objectValue?["fastDisabledReason"]?.stringValue == nil
+  }
+
+  func supportsThinking(forModel model: String) -> Bool {
+    stringArray("thinkingModels").contains(model)
+  }
+
+  func contextOptions(forModel model: String) -> [SettingsAgentModel] {
+    let capabilities = payload.objectValue?["capabilities"]?.objectValue
+    let allOptions = capabilities?["contextSizes"]?.arrayValue?.compactMap { value -> SettingsAgentModel? in
+      guard let id = value.objectValue?["id"]?.stringValue,
+        let label = value.objectValue?["label"]?.stringValue else { return nil }
+      return SettingsAgentModel(id: id, label: label)
+    } ?? []
+    guard let scoped = capabilities?["modelContextSizes"]?.objectValue?[model]?.arrayValue
+    else { return allOptions }
+    return scoped.compactMap { value in allOptions.first { $0.id == value.stringValue } }
   }
 
   private func stringArray(_ key: String) -> [String] {

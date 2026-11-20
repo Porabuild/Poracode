@@ -4,6 +4,29 @@ import XCTest
 
 final class GitOperationsControllerTests: XCTestCase {
   @MainActor
+  func testQueuedActionsCannotUseReplacementHostWithTheSameRepositoryPath() async {
+    let original = makeGitOperationsContext()
+    let replacement = makeGitOperationsContext(connectionID: ClientConnectionID(), generation: 2)
+    XCTAssertEqual(original.lease.location, replacement.lease.location)
+    let gateway = QueuedGitOperationsGateway(outcomes: [.value(.omitted)])
+    let controller = GitOperationsController(gateway: gateway)
+    controller.activate(replacement)
+    let fetch = GitOperationRequest.gitFetch(.init(projectLocation: original.lease.location))
+    let revert = GitOperationRequest.gitRevertAll(.init(projectLocation: original.lease.location))
+
+    await controller.read(.gitListBranches(.init(projectLocation: original.lease.location)), expectedLease: original.lease)
+    await controller.submit(fetch, expectedLease: original.lease)
+    await controller.submit(revert, expectedLease: original.lease)
+    let staleRequests = await gateway.requests
+    XCTAssertTrue(staleRequests.isEmpty)
+    XCTAssertNil(controller.state.pendingConfirmation)
+
+    await controller.submit(fetch, expectedLease: replacement.lease)
+    let currentRequests = await gateway.requests
+    XCTAssertEqual(currentRequests, [fetch])
+  }
+
+  @MainActor
   func testDestructiveMutationRequiresCapturedConfirmation() async {
     let context = makeGitOperationsContext()
     let gateway = QueuedGitOperationsGateway(outcomes: [.value(.omitted)])

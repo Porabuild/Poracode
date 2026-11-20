@@ -114,8 +114,9 @@ final class AppSession {
     /// The owning screen explicitly attaches and detaches this suite.
     var activeRichChatSuite: RichChatControllerSuite?
     var auxiliaryRichChatSuites: [ObjectIdentifier: RichChatControllerSuite] = [:]
-    var auxiliaryRichChatOwners: [ObjectIdentifier: Set<UUID>] = [:]
+    var richChatPresentationOwners: [ObjectIdentifier: Set<UUID>] = [:]
     let sideChats = SideChatStore()
+    let checkpointRevertAttempts = RichChatCheckpointRevertAttempts()
 
     // Tracked foreground tasks — cancelled on background / unpair / host swap.
     // Explicit unpair durable clear is NOT cancelled (runs as direct await).
@@ -203,6 +204,10 @@ final class AppSession {
     }
 
     func pair(with input: PairingInput) async {
+        _ = await submitPairing(with: input)
+    }
+
+    func submitPairing(with input: PairingInput) async -> PairAttemptOutcome {
         await pairing.pair(with: input)
     }
 
@@ -607,7 +612,13 @@ extension AppSession: RemoteWebSocketClientDelegate {
     ) async {
         await MainActor.run {
             guard let key = self.socketKey(wrapping: client) else { return }
+            let isSecondary = key != self.sessionPool.currentKey()
+            guard isSecondary || self.sessionPool.acceptsSelectedEvents(for: key) else { return }
+            let wasOnline = key.connectionId.flatMap { self.state.hostSocketStates[$0] } == .online
             self.recordSocketState(state, for: key)
+            if isSecondary, state == .online, !wasOnline {
+                self.sessionPool.refreshSecondaryCatalog(for: key)
+            }
         }
         // Every fresh Online of the selected socket re-evaluates the actual
         // upgrade declarations against the current advertisement (one barrier
@@ -636,8 +647,11 @@ extension AppSession: RemoteWebSocketClientDelegate {
         event: JSONValue
     ) async -> Bool {
         await MainActor.run {
-            guard self.socketWraps(client) else { return false }
-            return self.events.applySequencedEvent(seq: seq, event: event)
+            guard let key = self.socketKey(wrapping: client) else { return false }
+            if self.sessionPool.acceptsSelectedEvents(for: key) {
+                return self.events.applySequencedEvent(seq: seq, event: event)
+            }
+            return self.sessionPool.acceptSecondaryEvent(event, seq: seq, for: key)
         }
     }
 
@@ -659,7 +673,11 @@ extension AppSession: RemoteWebSocketClientDelegate {
 
     nonisolated func webSocketNeedsResync(_ client: RemoteWebSocketClient, reason: String) async {
         await MainActor.run {
-            guard self.socketWraps(client) else { return }
+            guard let key = self.socketKey(wrapping: client) else { return }
+            guard self.sessionPool.acceptsSelectedEvents(for: key) else {
+                self.sessionPool.refreshSecondaryCatalog(for: key, resync: true)
+                return
+            }
             if self.state.isResyncing {
                 _ = self.state.resyncCoordinator.noteNeedsResync()
                 return

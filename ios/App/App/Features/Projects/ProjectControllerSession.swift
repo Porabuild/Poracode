@@ -105,7 +105,7 @@ protocol ProjectSessionGateway: Sendable {
     _ body: ProjectNotesWriteBody,
     for identity: ProjectIdentity,
     lease: ProjectControllerHostLease
-  ) async throws
+  ) async throws -> ProjectNotesSaveResult?
 }
 
 protocol ProjectControllerRefreshScheduling: Sendable {

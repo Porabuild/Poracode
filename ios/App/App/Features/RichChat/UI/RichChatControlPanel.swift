@@ -65,7 +65,10 @@ struct RichChatControlPanel: View {
             refresh: refreshAuthenticationStatus
           )
         }
-        RichChatRequestsView(requests: transcript.openRequests, controller: suite.requests, canResolve: canResolveRequests)
+        RichChatRequestsView(
+          requests: transcript.openRequests, controller: suite.requests,
+          canResolve: canResolveRequests, surface: .inspector
+        )
         let errors = RichChatPresentation.visibleRecentErrors(recentErrors, agentStatus: agentStatus)
         if !errors.isEmpty { RichChatErrorsView(errors: errors) }
       }

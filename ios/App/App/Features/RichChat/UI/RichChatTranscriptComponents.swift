@@ -8,6 +8,7 @@ struct RichChatTranscriptItemView: View {
   let item: RichRuntimeItem
   let mediaController: RichChatMediaController
   let actions: RichChatTimelineActions
+  @Environment(\.richChatFindHighlight) private var find
 
   private var text: String { RichChatPresentation.text(for: item) }
   private var bodyText: String { RichChatPresentation.messageBody(for: item) }
@@ -48,6 +49,8 @@ struct RichChatTranscriptItemView: View {
         }
       case RichItemType.reasoning:
         RichChatReasoningRow(text: bodyText, isWorking: isWorking, disclosureID: "item:\(item.id)")
+      case RichItemType.providerHandoff:
+        RichChatProviderHandoffRow(item: item)
       case "question_answer":
         RichChatQuestionAnswerView(
           entries: RichQuestionAnswerPresentation.entries(for: item),
@@ -58,6 +61,7 @@ struct RichChatTranscriptItemView: View {
       }
       }
     }
+    .environment(\.richChatFindHighlight, RichChatFindHighlight(query: find.query, active: find.active, itemID: item.id))
     .accessibilityElement(children: .contain)
     .contextMenu { messageActions }
     .accessibilityActions { messageActions }
@@ -283,8 +287,9 @@ private struct RichChatMessageContent: View {
           )
         }
       }
-      ForEach(Array(supplements.enumerated()), id: \.offset) { _, supplement in
-        RichChatMessageSupplementView(supplement: supplement, isAssistant: isAssistant)
+      ForEach(Array(supplements.enumerated()), id: \.offset) { index, supplement in
+        RichChatMessageSupplementView(supplement: supplement, isAssistant: isAssistant,
+          findPart: isAssistant ? nil : .supplement(index))
       }
       ForEach(images) { source in
         RichChatImageView(source: source, controller: mediaController)

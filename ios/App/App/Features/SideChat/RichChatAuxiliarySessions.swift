@@ -21,21 +21,25 @@ extension AppSession {
 
   func attachRichChatSuite(_ suite: RichChatControllerSuite, auxiliary: Bool = false, owner: UUID? = nil) {
     guard let target = suite.scope.target, currentRichChatAccess?.lease == target.lease else { return }
+    let key = ObjectIdentifier(suite)
     if auxiliary {
       guard activeRichChatSuite !== suite else { return }
-      auxiliaryRichChatSuites[ObjectIdentifier(suite)] = suite
-      if let owner { auxiliaryRichChatOwners[ObjectIdentifier(suite), default: []].insert(owner) }
+      auxiliaryRichChatSuites[key] = suite
     } else if activeRichChatSuite !== suite {
       let previous = activeRichChatSuite
       let previousID = previous?.scope.threadID
-      auxiliaryRichChatSuites.removeValue(forKey: ObjectIdentifier(suite))
-      auxiliaryRichChatOwners.removeValue(forKey: ObjectIdentifier(suite))
+      auxiliaryRichChatSuites.removeValue(forKey: key)
+      richChatPresentationOwners.removeValue(forKey: key)
       activeRichChatSuite = suite
-      previous?.deselect()
+      if let previous {
+        richChatPresentationOwners.removeValue(forKey: ObjectIdentifier(previous))
+        previous.deselect()
+      }
       if let previousID, !attachedRichChatSuites.contains(where: { $0.scope.threadID == previousID }) {
         catalog.releaseOpenPin(previousID)
       }
     }
+    if let owner { richChatPresentationOwners[key, default: []].insert(owner) }
     catalog.pinThread(target.threadID, owner: .open)
     catalog.releaseNavigationPin(target.threadID)
     synchronizeRichChatInterests()
@@ -43,12 +47,14 @@ extension AppSession {
 
   func detachRichChatSuite(_ suite: RichChatControllerSuite, owner: UUID? = nil, preservingState: Bool = false) {
     let key = ObjectIdentifier(suite)
-    if let owner, var owners = auxiliaryRichChatOwners[key] {
-      owners.remove(owner)
-      auxiliaryRichChatOwners[key] = owners
-      if !owners.isEmpty { return }
+    if let owner {
+      guard var owners = richChatPresentationOwners[key], owners.remove(owner) != nil else { return }
+      if !owners.isEmpty {
+        richChatPresentationOwners[key] = owners
+        return
+      }
     }
-    auxiliaryRichChatOwners.removeValue(forKey: key)
+    richChatPresentationOwners.removeValue(forKey: key)
     let wasPrimary = activeRichChatSuite === suite
     let wasAuxiliary = auxiliaryRichChatSuites.removeValue(forKey: ObjectIdentifier(suite)) != nil
     guard wasPrimary || wasAuxiliary else { return }

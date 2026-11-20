@@ -13,7 +13,7 @@ import AVFAudio
     let recorder = VoiceRecorderDouble()
     let controller = VoiceInputController(owner: owner, options: .init(), recorder: recorder,
       transcriber: VoiceTranscriberDouble(), currentOwner: { state.owns(owner) ? owner : nil })
-    let request = ComposerVoiceRequest(controller: controller, commit: { _ in XCTFail("Hidden capture committed") })
+    let request = ComposerVoiceRequest(owner: owner, controller: controller, commit: { _ in XCTFail("Hidden capture committed") })
     state.request = request
     let old = UUID(), replacement = UUID()
     state.presenterAppeared(old)
@@ -46,10 +46,10 @@ import AVFAudio
     let secondRecorder = VoiceRecorderDouble()
     let second = VoiceInputController(owner: owner, options: .init(), recorder: secondRecorder,
       transcriber: VoiceTranscriberDouble(), currentOwner: { owner })
-    let retired = ComposerVoiceRequest(controller: first, commit: { _ in })
+    let retired = ComposerVoiceRequest(owner: owner, controller: first, commit: { _ in })
     state.request = retired
     state.close(retired)
-    let replacement = ComposerVoiceRequest(controller: second, commit: { _ in })
+    let replacement = ComposerVoiceRequest(owner: owner, controller: second, commit: { _ in })
     state.request = replacement
     state.close(retired)
     XCTAssertTrue(state.request === replacement)
@@ -67,7 +67,7 @@ import AVFAudio
     let controller = VoiceInputController(owner: owner, options: .init(), recorder: recorder,
       transcriber: VoiceTranscriberDouble(), currentOwner: { owner })
     state.updateOwners([owner])
-    state.request = ComposerVoiceRequest(controller: controller, commit: { _ in XCTFail("Cancelled recording committed") })
+    state.request = ComposerVoiceRequest(owner: owner, controller: controller, commit: { _ in XCTFail("Cancelled recording committed") })
     controller.begin()
     await settle { controller.phase == .recording }
     state.updateOwners([])
@@ -225,6 +225,12 @@ import AVFAudio
     await Task.yield()
     XCTAssertEqual(controller.phase, .cancelled)
     XCTAssertTrue(controller.transcript.isEmpty)
+  }
+
+  func testOnDevicePreviewCanSelectItsEngineWithoutAHostLease() async throws {
+    let (session, _, _) = try await makeSession(apiFactory: { FakeRemoteAPI(endpoint: $0, accessToken: $1) })
+    XCTAssertTrue(session.makeVoiceTranscriber(for: .onDevice, lease: nil) is WhisperVoiceTranscriber)
+    XCTAssertNil(session.makeVoiceTranscriber(for: .hex, lease: nil))
   }
 
   func testAudioInterruptionFinishesIntoReviewWithoutCommittingADraft() async {

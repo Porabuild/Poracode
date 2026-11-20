@@ -316,7 +316,7 @@ extension GeneratedRemoteV3Contract {
     return object
   }
 
-  private static func queryItems<Value: Codable & Sendable>(
+  static func queryItems<Value: Codable & Sendable>(
     _ object: [String: Any],
     codec: RemoteRootCodec<Value>,
     boundary: String,
@@ -352,7 +352,7 @@ extension GeneratedRemoteV3Contract {
     }
   }
 
-  private static func jsonObjectData(_ object: [String: Any]) throws -> Data {
+  static func jsonObjectData(_ object: [String: Any]) throws -> Data {
     try JSONSerialization.data(withJSONObject: object)
   }
 }

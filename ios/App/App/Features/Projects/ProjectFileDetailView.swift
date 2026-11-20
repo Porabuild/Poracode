@@ -1,16 +1,19 @@
 import SwiftUI
 
 struct ProjectFileDetailView: View {
+  @Environment(\.colorScheme) private var colorScheme
+  @Environment(\.poracodeEmbeddedInInspector) private var embeddedInInspector
+  @Environment(\.richChatInspectorVisible) private var inspectorVisible
   @Bindable var controller: ProjectFileWorkspaceController
   @Binding var editor: ProjectWorkspaceEditorState
 
   let selectedEntry: ProjectWorkspaceEntry?
+  var selectedLine: Int? = nil
+  var showsEmptyTitle = true
   let access: ProjectWorkspaceAccessState
   let onDiscard: () -> Void
   let onSave: () -> Void
   let onReload: () -> Void
-
-  @State private var showsMarkdownPreview = false
 
   var body: some View {
     Group {
@@ -24,12 +27,19 @@ struct ProjectFileDetailView: View {
         }
       }
     }
-    .navigationTitle(selectedEntry?.name ?? ProjectWorkspaceStrings.files)
+    .navigationTitle(selectedEntry?.name ?? (showsEmptyTitle ? ProjectWorkspaceStrings.files : ""))
     .navigationBarTitleDisplayMode(.inline)
     .toolbar { editorToolbar }
-    .onChange(of: selectedEntry?.path) { _, _ in showsMarkdownPreview = false }
-    .poracodeBottomBar {
-      if case .failed(let failure) = controller.fileWrite.loadState,
+    .nativeCommands(identity: selectedEntry?.path ?? "files", context: [
+      "editorSurfaceOpen": .bool(isSurfaceActive && selectedEntry != nil),
+      "markdownActive": .bool(isSurfaceActive && canPreviewMarkdown),
+    ], actions: [
+      "editor.save": .init(enabled: isSurfaceActive && canSave) { _ in onSave() },
+      "editor.toggle-markdown-preview": .init(enabled: isSurfaceActive && canPreviewMarkdown) { _ in editor.showsMarkdownPreview.toggle() },
+    ])
+    .poracodeTopBar {
+      if controller.fileWritePath == selectedEntry?.path,
+        case .failed(let failure) = controller.fileWrite.loadState,
         ProjectWorkspaceSaveRecovery.classify(failure) == .none
       {
         saveFailure(failure)
@@ -57,10 +67,12 @@ struct ProjectFileDetailView: View {
   private func fileContent(_ result: ProjectFileReadResult) -> some View {
     switch result.status {
     case .ready:
-      if isMarkdown, showsMarkdownPreview {
-        markdownPreview(editor.draft.isEmpty ? result.content ?? "" : editor.draft)
+      if isMarkdown, editor.showsMarkdownPreview {
+        markdownPreview(editor.previewContent(for: result))
       } else if access.permitsWrite {
         editableContent
+      } else if let selectedLine {
+        ProjectLinkedTextEditor(text: .constant(result.content ?? ""), line: selectedLine, isEditable: false)
       } else {
         readOnlyContent(result.content ?? "")
       }
@@ -86,13 +98,20 @@ struct ProjectFileDetailView: View {
   }
 
   private var editableContent: some View {
-    TextEditor(text: $editor.draft)
+    Group {
+      if let selectedLine {
+        ProjectLinkedTextEditor(text: $editor.draft, line: selectedLine, isEditable: true)
+      } else {
+        TextEditor(text: $editor.draft)
+          .font(.system(.body, design: .monospaced))
+          .textInputAutocapitalization(.never)
+          .autocorrectionDisabled()
+      }
+    }
       .focusedValue(\.nativeCommandFocus, .init(role: .editor, isTextInput: true))
-      .font(.system(.body, design: .monospaced))
-      .textInputAutocapitalization(.never)
-      .autocorrectionDisabled()
       .padding(.horizontal, 8)
       .accessibilityLabel(ProjectWorkspaceStrings.editorLabel)
+      .accessibilityIdentifier("native-e2e.project-file-editor")
   }
 
   private func readOnlyContent(_ content: String) -> some View {
@@ -139,40 +158,46 @@ struct ProjectFileDetailView: View {
   private var editorToolbar: some ToolbarContent {
     if selectedEntry != nil {
       ToolbarItemGroup(placement: .topBarTrailing) {
-        if canPreviewMarkdown {
-          Button {
-            showsMarkdownPreview.toggle()
-          } label: {
-            Image(
-              systemName: showsMarkdownPreview ? "chevron.left.forwardslash.chevron.right" : "eye")
-          }
-          .accessibilityLabel(
-            showsMarkdownPreview
-              ? ProjectWorkspaceStrings.editorLabel : ProjectWorkspaceStrings.fileContentsLabel
-          )
-        }
         if access.permitsWrite {
-          if editor.isDirty {
-            Button(ProjectWorkspaceStrings.discard, action: onDiscard)
-          }
-          Button {
-            onSave()
-          } label: {
-            if controller.fileWrite.loadState == .loading {
-              ProgressView()
-                .accessibilityLabel(ProjectWorkspaceStrings.saving)
-            } else {
-              Label(ProjectWorkspaceStrings.save, systemImage: "square.and.arrow.down")
-            }
-          }
-          .disabled(!editor.canSave || controller.fileWrite.loadState == .loading)
-          .accessibilityLabel(
-            controller.fileWrite.loadState == .loading
-              ? ProjectWorkspaceStrings.saving : ProjectWorkspaceStrings.save
+          let title = isSavingSelectedFile ? ProjectWorkspaceStrings.saving : ProjectWorkspaceStrings.save
+          editorToolbarButton(
+            title,
+            systemImage: isSavingSelectedFile ? "hourglass" : "square.and.arrow.down",
+            isEnabled: canSave,
+            action: onSave
           )
+          .accessibilityLabel(title)
+          .accessibilityIdentifier("native-e2e.project-file.save")
+        }
+        if canPreviewMarkdown {
+          editorToolbarButton(
+            editor.showsMarkdownPreview ? ProjectWorkspaceStrings.editorLabel : ProjectWorkspaceStrings.fileContentsLabel,
+            systemImage: editor.showsMarkdownPreview ? "chevron.left.forwardslash.chevron.right" : "eye"
+          ) {
+            editor.showsMarkdownPreview.toggle()
+          }
+          .accessibilityIdentifier("native-e2e.project-file.preview")
+        }
+        if access.permitsWrite && editor.isDirty {
+          editorToolbarButton(ProjectWorkspaceStrings.discard, systemImage: "arrow.uturn.backward",
+            isEnabled: !isSavingSelectedFile, action: onDiscard)
+          .accessibilityIdentifier("native-e2e.project-file.discard")
         }
       }
     }
+  }
+
+  private func editorToolbarButton(
+    _ title: String, systemImage: String, isEnabled: Bool = true, action: @escaping () -> Void
+  ) -> some View {
+    Button(action: action) {
+      Label {
+        Text(title)
+      } icon: {
+        Image.poracodeToolbarSymbol(systemImage, colorScheme: colorScheme, isEnabled: isEnabled)
+      }
+    }
+    .disabled(!isEnabled)
   }
 
   private var isMarkdown: Bool {
@@ -182,8 +207,20 @@ struct ProjectFileDetailView: View {
   }
 
   private var canPreviewMarkdown: Bool {
-    isMarkdown && controller.fileRead.value?.status == .ready
+    isMarkdown && controller.fileRead.value?.path == selectedEntry?.path && controller.fileRead.value?.status == .ready
   }
+
+  private var canSave: Bool {
+    access.permitsWrite && selectedEntry?.path == editor.path && editor.canSave
+      && controller.fileRead.loadState == .loaded && controller.fileWrite.loadState != .loading
+      && controller.fileRead.value?.path == editor.path && controller.fileRead.value?.status == .ready
+  }
+
+  private var isSavingSelectedFile: Bool {
+    controller.fileWritePath == selectedEntry?.path && controller.fileWrite.loadState == .loading
+  }
+
+  private var isSurfaceActive: Bool { !embeddedInInspector || inspectorVisible }
 
   private func saveFailure(_ failure: ProjectOperationFailure) -> some View {
     HStack(spacing: 10) {
@@ -192,8 +229,8 @@ struct ProjectFileDetailView: View {
       Text(ProjectWorkspaceStrings.failureMessage(failure))
         .font(.footnote)
       Spacer(minLength: 8)
-      Button(ProjectWorkspaceStrings.retry, action: onSave)
-        .disabled(!access.permitsWrite)
+      Button(ProjectWorkspaceStrings.retry, systemImage: "arrow.clockwise", action: onSave)
+        .disabled(!canSave)
     }
     .padding(12)
     .frame(maxWidth: .infinity)

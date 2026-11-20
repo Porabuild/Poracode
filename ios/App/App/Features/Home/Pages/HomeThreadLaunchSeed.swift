@@ -1,3 +1,8 @@
+struct HomeProviderSwitchSource {
+  let target: ThreadLifecycleTarget
+  let agentKind: String
+}
+
 struct HomeThreadLaunchSeed {
   let fixedProjectID: String
   let initialWorktree: HomeComposerBranchSelection?
@@ -20,6 +25,7 @@ struct HomeThreadLaunchSeed {
   let locksPresentationMode: Bool
   let autoStart: Bool
   let failureMessage: (@MainActor (ThreadLifecycleFailure) -> String)?
+  let providerSwitchSource: HomeProviderSwitchSource?
 
   init(
     fixedProjectID: String,
@@ -42,7 +48,8 @@ struct HomeThreadLaunchSeed {
     parentThreadID: String? = nil,
     locksPresentationMode: Bool = false,
     autoStart: Bool = false,
-    failureMessage: (@MainActor (ThreadLifecycleFailure) -> String)? = nil
+    failureMessage: (@MainActor (ThreadLifecycleFailure) -> String)? = nil,
+    providerSwitchSource: HomeProviderSwitchSource? = nil
   ) {
     self.fixedProjectID = fixedProjectID
     self.initialWorktree = initialWorktree
@@ -65,5 +72,6 @@ struct HomeThreadLaunchSeed {
     self.locksPresentationMode = locksPresentationMode
     self.autoStart = autoStart
     self.failureMessage = failureMessage
+    self.providerSwitchSource = providerSwitchSource
   }
 }

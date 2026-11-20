@@ -319,9 +319,26 @@ extension RemoteAPIClient: SessionBoundedReadAPI {
 
   func interactiveHistoryItems(threadId: String, beforePosition: Int?, limit: Int,
     targetTimelineEntryCount: Int?) async throws -> RemoteBoundedReadOutcome<RemoteBoundedHistoryItemsPage, RemoteRuntimeItemsPage> {
-    try await readBoundedHistoryItems(threadId: threadId, beforePosition: beforePosition, limit: limit,
-      targetTimelineEntryCount: targetTimelineEntryCount, maxBytes: RemoteBoundedReads.defaultMaxWireBytes,
-      maxDecodeBytes: RemoteBoundedReads.defaultMaxDecodeBytes, compactDetails: true)
+    let context = try await beginRecentHistoryRead(threadID: threadId, includeCandidate: false)
+    var attempt = 0
+    while true {
+      try await validateRecentHistoryRead(context)
+      do {
+        let outcome = try await readBoundedHistoryItems(threadId: threadId, beforePosition: beforePosition, limit: limit,
+          targetTimelineEntryCount: targetTimelineEntryCount, maxBytes: RemoteBoundedReads.defaultMaxWireBytes,
+          maxDecodeBytes: RemoteBoundedReads.defaultMaxDecodeBytes, compactDetails: true)
+        try await validateRecentHistoryRead(context)
+        return outcome
+      } catch {
+        try Task.checkCancellation()
+        guard attempt < NativeHistoryReadRetry.delays.count,
+          NativeHistoryReadRetry.isRetryable(error)
+        else { throw error }
+        try await validateRecentHistoryRead(context)
+        try await Task.sleep(for: NativeHistoryReadRetry.delays[attempt])
+        attempt += 1
+      }
+    }
   }
 
   private func readBoundedHistoryItems(

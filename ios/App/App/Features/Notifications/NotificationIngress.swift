@@ -57,6 +57,7 @@ final class NotificationIngress {
       route: route,
       hasRoutingEnvelope: NotificationPayloadParser.hasRoutingEnvelope(userInfo: userInfo),
       selectedConnectionId: routes.selectedConnectionId,
+      deliveryEnabled: NotificationDeliveryPreference.isEnabled(),
       preference: NotificationAlertPreference.current()
     )
     guard !options.isEmpty, let route else { return options }

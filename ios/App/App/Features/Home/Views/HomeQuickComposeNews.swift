@@ -1,7 +1,7 @@
 import SwiftUI
 
 extension HomeQuickComposeView {
-  var showsNews: Bool { newsEnabled && launchSeed == nil && onNewsAction != nil }
+  var showsNews: Bool { newsPlacement != .hidden && newsEnabled && launchSeed == nil && onNewsAction != nil }
 
   struct NewsRefreshKey: Equatable {
     let lease: SettingsHostLease?

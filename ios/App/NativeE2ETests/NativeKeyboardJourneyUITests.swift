@@ -2,6 +2,461 @@ import UIKit
 import XCTest
 
 extension NativeFamilyJourneyUITests {
+  func testJumpToBottomAdaptsAcrossDisplaysAndReturnsToLatestReply() async throws {
+    let (input, jump) = try await prepareFindAtAnEarlierReply()
+    try await assertNativeDuoDisplayTransitions("jump-bottom", content: input, availableAction: jump) { pose in
+      XCTAssertTrue(jump.exists)
+      if pose == "outer" { self.assertNativeDuoToolbarRail(jump) }
+    }
+    try await jumpToLatestReply(jump)
+    XCTAssertTrue(input.exists)
+    for frame in ["runtime-live-turn-started", "runtime-live-item-started", "runtime-live-content-delta"] {
+      _ = try await control(path: "/v1/frames/\(frame)", method: "POST")
+    }
+    try await poll { try self.renderedScreenText().localizedCaseInsensitiveContains("Native live update") }
+  }
+
+  func testJumpToBottomKeepsLatestAcrossDisplaysWithFindOpen() async throws {
+    let (input, jump) = try await prepareFindAtAnEarlierReply()
+    try await jumpToLatestReply(jump)
+    try await assertNativeDuoDisplayTransitions("jump-bottom-latest", content: input, availableAction: nil) { _ in
+      XCTAssertEqual(input.value as? String, "NEEDLEALPHA")
+    }
+    try await poll { try self.renderedScreenText().localizedCaseInsensitiveContains("NEEDLEOMEGA") && !jump.exists }
+    XCTAssertTrue(input.exists)
+    app.buttons["native-e2e.chat-find-next"].firstMatch.tap()
+    try await poll { try self.renderedScreenText().localizedCaseInsensitiveContains("begins the reply") }
+    keyboardProof("jump-bottom-find-revisited")
+  }
+
+  private func prepareFindAtAnEarlierReply() async throws -> (input: XCUIElement, jump: XCUIElement) {
+    try XCTSkipIf(ProcessInfo.processInfo.environment["NATIVE_E2E_PEER_MODE"] == "real",
+      "This journey uses the long conversation fixture.")
+    XCUIDevice.shared.orientation = UIDevice.current.userInterfaceIdiom == .pad ? .landscapeLeft : .portrait
+    _ = try await control(path: "/v1/reset", method: "POST")
+    _ = try await control(path: "/v1/checkpoints/chat-find-long-reply", method: "POST")
+    try await pairUntilHome()
+    let thread = app.buttons["native-e2e.thread.thread-fixture-001"].firstMatch
+    let sidebar = app.buttons["native-e2e.sidebar-toggle"].firstMatch
+    if !thread.isHittable && sidebar.exists { sidebar.tap() }
+    XCTAssertTrue(thread.waitForExistence(timeout: 10)); thread.tap()
+    let jump = app.descendants(matching: .any)["native-e2e.timeline-jump-bottom"].firstMatch
+    try await poll { try self.renderedScreenText().localizedCaseInsensitiveContains("NEEDLEOMEGA") }
+    XCTAssertFalse(jump.exists)
+
+    app.buttons["native-e2e.thread.actions"].firstMatch.tap()
+    app.buttons["Find in chat"].firstMatch.tap()
+    let input = app.textFields["native-e2e.chat-find-query"]
+    XCTAssertTrue(input.waitForExistence(timeout: 5))
+    input.typeText("NEEDLEALPHA")
+    try await poll { try self.renderedScreenText().localizedCaseInsensitiveContains("begins the reply") }
+    try await poll { jump.isHittable }
+    assertNativeDuoToolbarRail(jump)
+    keyboardProof("jump-bottom-before")
+    return (input, jump)
+  }
+
+  private func jumpToLatestReply(_ jump: XCUIElement) async throws {
+    try await poll { jump.isHittable }
+    try await tapNativeToolbarActionAfterDisplayTransition(jump)
+    try await poll { try self.renderedScreenText().localizedCaseInsensitiveContains("NEEDLEOMEGA") }
+    try await poll { !jump.exists }
+    keyboardProof("jump-bottom-returned-to-latest")
+  }
+
+  func testActiveFindSurvivesDuoFoldFromProjectThread() async throws {
+    let transitionURL = try duoTransitionURL()
+    struct FoldState: Decodable {
+      let query: String?
+      let matchCount: String?
+      let transcriptVisible: Bool
+      let controlsInline: Bool?
+    }
+    XCUIDevice.shared.orientation = .portrait
+    _ = try await control(path: "/v1/reset", method: "POST")
+    try await openDuoFixtureProjectThread(transitionURL)
+    XCTAssertTrue(app.staticTexts["Fixture response"].waitForExistence(timeout: 10))
+
+    try await driveDuo("open-find", transitionURL)
+    let field = app.textFields["native-e2e.chat-find-query"]
+    XCTAssertTrue(field.waitForExistence(timeout: 5)); field.typeText("e")
+    let count = app.staticTexts["native-e2e.chat-find-count"]
+    let next = app.buttons["native-e2e.chat-find-next"]
+    try await poll { count.label == "1 of 3" }
+    app.buttons["Match case"].tap()
+    next.tap()
+    try await poll { count.label == "2 of 3" }
+
+    for stage in ["unfold", "partial", "fold"] {
+      // XCTest can hold the outer display's hierarchy while Duo is open.
+      // The transition driver reads the active display after the hinge settles.
+      let state = try JSONDecoder().decode(FoldState.self, from: try await driveDuo(stage, transitionURL))
+      XCTAssertEqual(state.query, "e", stage)
+      XCTAssertEqual(state.matchCount, "2 of 3", stage)
+      XCTAssertTrue(state.transcriptVisible, stage)
+      XCTAssertEqual(state.controlsInline, stage != "fold", stage)
+    }
+
+    try await poll { field.exists && field.value as? String == "e" && count.exists && count.label == "2 of 3" }
+    XCTAssertTrue(app.buttons["Match case"].isSelected)
+    next.tap()
+    try await poll { count.label == "3 of 3" }
+    app.buttons["native-e2e.chat-find-close"].tap()
+    // The outer display puts Back in Duo's vertical system bar.
+    try await driveDuo("return-project", transitionURL)
+    XCTAssertTrue(app.navigationBars["Fixture Project"].waitForExistence(timeout: 5))
+  }
+
+  func testLongFindSurvivesDuoFoldWithKeyboardOpen() async throws {
+    let transitionURL = try duoTransitionURL()
+    XCUIDevice.shared.orientation = .portrait
+    _ = try await control(path: "/v1/reset", method: "POST")
+    _ = try await control(path: "/v1/checkpoints/chat-find-long-reply", method: "POST")
+    try await openDuoFixtureProjectThread(transitionURL)
+    try await driveDuo("open-find", transitionURL)
+
+    let field = app.textFields["native-e2e.chat-find-query"]
+    XCTAssertTrue(field.waitForExistence(timeout: 5)); field.typeText("needle")
+    let count = app.staticTexts["native-e2e.chat-find-count"]
+    try await poll { count.label == "1 of 2" }
+    app.buttons["native-e2e.chat-find-next"].tap()
+    try await poll { count.label == "2 of 2" }
+
+    struct LongFindState: Decodable {
+      let query: String?
+      let matchCount: String?
+      let matchVisible: Bool
+      let keyboardVisible: Bool
+    }
+
+    func check(_ state: LongFindState, stage: String, count: String) {
+      XCTAssertEqual(state.query, "needle", stage)
+      XCTAssertEqual(state.matchCount, count, stage)
+      XCTAssertTrue(state.keyboardVisible, "\(stage) must show the software keyboard")
+      XCTAssertTrue(state.matchVisible, "\(stage) must show the selected match above the keyboard")
+    }
+
+    var observed: [(String, LongFindState)] = []
+    for stage in ["outer", "unfold", "partial", "fold"] {
+      let state = try JSONDecoder().decode(LongFindState.self, from: try await driveDuo(stage, transitionURL))
+      observed.append((stage, state))
+    }
+    for (stage, state) in observed {
+      check(state, stage: stage, count: "2 of 2")
+    }
+
+    app.buttons["native-e2e.chat-find-previous"].tap()
+    try await poll { count.label == "1 of 2" }
+    let first = try JSONDecoder().decode(LongFindState.self, from: try await driveDuo("outer-first", transitionURL))
+    check(first, stage: "outer-first", count: "1 of 2")
+  }
+
+  private func duoTransitionURL() throws -> URL {
+    let address = ProcessInfo.processInfo.environment["NATIVE_E2E_DUO_TRANSITION_URL"]
+    try XCTSkipUnless(address != nil, "This journey requires the Duo transition driver.")
+    return try XCTUnwrap(address.flatMap { URL(string: $0) })
+  }
+
+  @discardableResult
+  private func driveDuo(_ action: String, _ transitionURL: URL) async throws -> Data {
+    let (data, response) = try await URLSession.shared.data(from: transitionURL.appendingPathComponent(action))
+    XCTAssertEqual((response as? HTTPURLResponse)?.statusCode, 200, action)
+    return data
+  }
+
+  private func openDuoFixtureProjectThread(_ transitionURL: URL) async throws {
+    try await pairUntilHome()
+    let thread = app.buttons["native-e2e.thread.thread-fixture-001"]
+    XCTAssertTrue(thread.waitForExistence(timeout: 10))
+    thread.press(forDuration: 0.65)
+    let project = app.buttons["Project"]
+    XCTAssertTrue(project.waitForExistence(timeout: 5))
+    try await driveDuo("open-project", transitionURL)
+    XCTAssertTrue(app.navigationBars["Fixture Project"].waitForExistence(timeout: 5))
+    thread.tap()
+  }
+
+  func testHardwareFindInChatNavigatesMatchesAndCloses() async throws {
+    try XCTSkipIf(ProcessInfo.processInfo.environment["NATIVE_E2E_PEER_MODE"] == "real",
+      "This journey uses the conversation fixture.")
+    XCUIDevice.shared.orientation = UIDevice.current.userInterfaceIdiom == .pad ? .landscapeLeft : .portrait
+    app.launchArguments.append("-native-e2e-keybindings-fresh-preferences")
+    _ = try await control(path: "/v1/reset", method: "POST")
+    try await pairAndOpenFixtureThread()
+
+    let field = app.textFields["native-e2e.chat-find-query"]
+    func openFindByKeyboard() async throws {
+      // The simulator's XCTest event can bypass the native Find command.
+      if let address = ProcessInfo.processInfo.environment["NATIVE_E2E_FIND_KEY_URL"] {
+        let url = try XCTUnwrap(URL(string: address))
+        XCTAssertEqual(url.host, "127.0.0.1")
+        let (_, response) = try await URLSession.shared.data(from: url)
+        XCTAssertEqual((response as? HTTPURLResponse)?.statusCode, 200)
+      } else {
+        app.typeKey("f", modifierFlags: .command)
+      }
+    }
+    try await openFindByKeyboard()
+    let openedInitially = field.waitForExistence(timeout: 5)
+    keyboardProof("transcript-find-before-touch")
+    XCTAssertTrue(openedInitially, "Command-F must open Find from the transcript")
+    app.buttons["native-e2e.chat-find-close"].tap()
+    try await poll { !field.exists }
+    app.buttons["native-e2e.thread.actions"].tap()
+    let openFind = app.buttons["Find in chat"]
+    XCTAssertTrue(openFind.waitForExistence(timeout: 5)); openFind.tap()
+    let touchOpened = field.waitForExistence(timeout: 5)
+    keyboardProof("transcript-find-after-menu")
+    XCTAssertTrue(touchOpened)
+    app.buttons["native-e2e.chat-find-close"].tap()
+    try await poll { !field.exists }
+    try await openFindByKeyboard()
+    let keyOpened = field.waitForExistence(timeout: 5)
+    keyboardProof("transcript-find-after-command-f")
+    XCTAssertTrue(keyOpened)
+    field.typeText("e")
+    let count = app.staticTexts["native-e2e.chat-find-count"]
+    try await poll { count.label == "1 of 3" }
+    app.buttons["native-e2e.chat-find-next"].tap()
+    try await poll { count.label == "2 of 3" }
+    app.buttons["native-e2e.chat-find-previous"].tap()
+    try await poll { count.label == "1 of 3" }
+    keyboardProof("transcript-find-highlight")
+
+    app.buttons["Clear search"].tap()
+    field.typeText("FIXTURE")
+    try await poll { count.label == "1 of 1" }
+    app.buttons["Match case"].tap()
+    try await poll { count.label == "No results" }
+    app.buttons["native-e2e.chat-find-close"].tap()
+    XCTAssertFalse(field.exists)
+    XCTAssertTrue(app.staticTexts["Fixture response"].exists)
+  }
+
+  func testFindScrollsToEachMatchWithinOneLongReply() async throws {
+    try XCTSkipIf(ProcessInfo.processInfo.environment["NATIVE_E2E_PEER_MODE"] == "real",
+      "This journey uses a long conversation fixture.")
+    XCUIDevice.shared.orientation = .portrait
+    app.launchArguments.append("-native-e2e-keybindings-fresh-preferences")
+    _ = try await control(path: "/v1/reset", method: "POST")
+    _ = try await control(path: "/v1/checkpoints/chat-find-long-reply", method: "POST")
+    try await pairUntilHome()
+    let thread = app.buttons["native-e2e.thread.thread-fixture-001"]
+    let sidebar = app.buttons["native-e2e.sidebar-toggle"]
+    if !thread.isHittable && sidebar.exists { sidebar.tap() }
+    XCTAssertTrue(thread.waitForExistence(timeout: 15)); thread.tap()
+
+    let actions = app.buttons["native-e2e.thread.actions"]
+    XCTAssertTrue(actions.waitForExistence(timeout: 10)); actions.tap()
+    let openFind = app.buttons["Find in chat"]
+    XCTAssertTrue(openFind.waitForExistence(timeout: 5)); openFind.tap()
+    let field = app.textFields["native-e2e.chat-find-query"]
+    XCTAssertTrue(field.waitForExistence(timeout: 5)); field.typeText("needle")
+    let count = app.staticTexts["native-e2e.chat-find-count"]
+    try await poll { count.label == "1 of 2" }
+    keyboardProof("long-find-first-position")
+    try await poll { try self.renderedScreenText().localizedCaseInsensitiveContains("NEEDLEALPHA") }
+    keyboardProof("long-find-first-visible")
+
+    app.buttons["native-e2e.chat-find-next"].tap()
+    try await poll { count.label == "2 of 2" }
+    keyboardProof("long-find-last-position")
+    try await poll { try self.renderedScreenText().localizedCaseInsensitiveContains("NEEDLEOMEGA") }
+    keyboardProof("long-find-last-visible")
+
+    app.buttons["native-e2e.chat-find-previous"].tap()
+    try await poll { count.label == "1 of 2" }
+    try await poll { try self.renderedScreenText().localizedCaseInsensitiveContains("NEEDLEALPHA") }
+  }
+
+  func testHardwareSearchWorkspaceAndEditorCommands() async throws {
+    try XCTSkipIf(ProcessInfo.processInfo.environment["NATIVE_E2E_PEER_MODE"] == "real",
+      "This journey uses the controlled workspace fixture.")
+    XCUIDevice.shared.orientation = UIDevice.current.userInterfaceIdiom == .pad ? .landscapeLeft : .portrait
+    app.launchArguments.append("-native-e2e-keybindings-fresh-preferences")
+    _ = try await control(path: "/v1/reset", method: "POST")
+    _ = try await control(path: "/v1/checkpoints/keyboard-workspace-ready", method: "POST")
+    try await pairUntilHome()
+
+    app.typeKey("k", modifierFlags: .command)
+    let search = app.searchFields.firstMatch
+    XCTAssertTrue(search.waitForExistence(timeout: 5))
+    search.typeText("Open Settings")
+    let settingsCommand = app.buttons["native-e2e.search-command.settings.open"]
+    XCTAssertTrue(settingsCommand.waitForExistence(timeout: 5)); settingsCommand.tap()
+    let closeSettings = app.buttons["native-e2e.settings.close"]
+    XCTAssertTrue(closeSettings.waitForExistence(timeout: 5)); closeSettings.tap()
+    app.typeKey("k", modifierFlags: .command)
+    XCTAssertTrue(search.waitForExistence(timeout: 5))
+    search.typeText("Fixture")
+    let result = app.buttons["native-e2e.search-thread.thread-fixture-001"]
+    XCTAssertTrue(result.waitForExistence(timeout: 5)); result.tap()
+    XCTAssertTrue(app.staticTexts["Fixture response"].waitForExistence(timeout: 10))
+    keyboardProof("search-result-opened")
+
+    app.typeKey("e", modifierFlags: [.command, .shift])
+    let file = app.descendants(matching: .any)["native-e2e.project-file.README.md"].firstMatch
+    let openedFiles = file.waitForExistence(timeout: 10)
+    keyboardProof("workspace-after-files-shortcut")
+    XCTAssertTrue(openedFiles)
+    let searchFiles = app.buttons["Search files"]
+    XCTAssertTrue(searchFiles.waitForExistence(timeout: 5)); searchFiles.tap()
+    let fileQuery = app.textFields["Search files"]
+    XCTAssertTrue(fileQuery.waitForExistence(timeout: 5))
+    fileQuery.typeText("README")
+    XCTAssertEqual(fileQuery.value as? String, "README")
+    try await waitForObservedOperation(hostID: "primary", operationID: "procedure:searchProjectFiles")
+    let cancelFileSearch = app.buttons["Cancel"].firstMatch
+    XCTAssertTrue(fileQuery.isHittable)
+    XCTAssertTrue(cancelFileSearch.isHittable)
+    keyboardProof("workspace-files-search")
+    cancelFileSearch.tap()
+    XCTAssertTrue(file.waitForExistence(timeout: 5))
+    func tapFile() { file.coordinate(withNormalizedOffset: CGVector(dx: 0.22, dy: 0.5)).tap() }
+    tapFile()
+    try await waitForObservedOperation(hostID: "primary", operationID: "procedure:readProjectFile")
+    let editor = app.textViews["native-e2e.project-file-editor"]
+    let openedEditor = editor.waitForExistence(timeout: 10)
+    keyboardProof("file-after-row-tap")
+    XCTAssertTrue(openedEditor)
+    // The sheet's text view extends beneath its chrome. Focus the text line.
+    if UIDevice.current.userInterfaceIdiom == .pad {
+      editor.coordinate(withNormalizedOffset: CGVector(dx: 0.05, dy: 0.12)).tap()
+    } else {
+      editor.tap()
+    }
+    editor.typeText(" Keyboard save proof")
+    let closeDetail = app.buttons["native-e2e.project-workspace.close-detail"]
+    if !closeDetail.exists {
+      closeKeyboardEditorPage()
+      XCTAssertTrue(file.waitForExistence(timeout: 5))
+      app.typeKey("e", modifierFlags: [.command, .shift])
+      let confirmDiscard = app.alerts["Discard unsaved changes?"]
+      XCTAssertTrue(confirmDiscard.waitForExistence(timeout: 5))
+      confirmDiscard.buttons["Cancel"].tap()
+      tapFile()
+      XCTAssertTrue(editor.waitForExistence(timeout: 5))
+      XCTAssertTrue((editor.value as? String)?.contains("Keyboard save proof") == true)
+      editor.tap()
+    }
+    app.typeKey("s", modifierFlags: .command)
+    try await waitForObservedOperation(hostID: "primary", operationID: "procedure:writeProjectFile")
+    app.typeKey("v", modifierFlags: [.control, .shift])
+    XCTAssertTrue(app.staticTexts["File contents"].waitForExistence(timeout: 5))
+    XCTAssertFalse(editor.isHittable)
+    keyboardProof("markdown-preview-after-keyboard-save")
+
+    if closeDetail.exists {
+      closeDetail.tap()
+    } else {
+      closeKeyboardEditorPage()
+    }
+    XCTAssertTrue(file.waitForExistence(timeout: 5))
+    app.typeKey("p", modifierFlags: .command)
+    try await poll { !file.isHittable && self.app.staticTexts["Fixture response"].isHittable }
+    app.typeKey("g", modifierFlags: [.command, .shift])
+    try await waitForObservedOperation(hostID: "primary", operationID: "procedure:getGitStatus")
+    keyboardProof("git-opened-with-shortcut")
+  }
+
+  private func closeKeyboardEditorPage() {
+    let back = app.navigationBars["README.md"].buttons.matching(NSPredicate(format: "label IN %@", ["Files", "Back"])).firstMatch
+    XCTAssertTrue(back.waitForExistence(timeout: 5))
+    back.tap()
+  }
+
+  func testHardwareTerminalShortcutOpensTheThreadWorkspace() async throws {
+    try XCTSkipIf(ProcessInfo.processInfo.environment["NATIVE_E2E_PEER_MODE"] == "real",
+      "This journey uses the terminal fixture and its operation journal.")
+    XCUIDevice.shared.orientation = UIDevice.current.userInterfaceIdiom == .pad ? .landscapeLeft : .portrait
+    app.launchArguments.append("-native-e2e-keybindings-fresh-preferences")
+    _ = try await control(path: "/v1/reset", method: "POST")
+    try await pairAndOpenFixtureThread()
+
+    app.typeKey("`", modifierFlags: .control)
+    let send = app.buttons["native-e2e.terminal.send"]
+    XCTAssertTrue(send.waitForExistence(timeout: 15))
+    let input = app.descendants(matching: .any)["native-e2e.terminal.input"].firstMatch
+    XCTAssertTrue(input.waitForExistence(timeout: 5))
+    input.tap()
+    input.typeText("echo keyboard-terminal")
+    keyboardProof("terminal-shortcut-before-send")
+    try await poll { send.isHittable && send.isEnabled }
+    if UIDevice.current.userInterfaceIdiom == .pad {
+      let keyboard = app.keyboards.firstMatch
+      XCTAssertTrue(keyboard.waitForExistence(timeout: 5))
+      XCTAssertLessThanOrEqual(send.frame.maxY, keyboard.frame.minY + 1)
+    }
+    keyboardProof("terminal-shortcut-keyboard")
+    send.tap()
+    try await waitForJournal(hostID: "primary", operationID: "route:terminal-write", count: 1)
+    keyboardProof("terminal-shortcut")
+  }
+
+  func testHardwareBrowserTabCommandReachesTheSelectedHost() async throws {
+    try XCTSkipIf(ProcessInfo.processInfo.environment["NATIVE_E2E_PEER_MODE"] == "real",
+      "This journey uses the browser fixture and its operation journal.")
+    app.launchArguments.append("-native-e2e-keybindings-fresh-preferences")
+    _ = try await control(path: "/v1/reset", method: "POST")
+    try await pairUntilHome()
+
+    try await pressNativeE2EShortcut("b", modifiers: [.command, .shift])
+    let address = app.textFields["Address"].firstMatch
+    XCTAssertTrue(address.waitForExistence(timeout: 10))
+    let browserInput = app.descendants(matching: .any)["Type in Browser"].firstMatch
+    XCTAssertTrue(browserInput.waitForExistence(timeout: 5)); browserInput.tap()
+    let firstCount = try await journalCount(hostID: "primary", operationID: "route:browser-command")
+    try await pressNativeE2EShortcut("l", modifiers: .command)
+    address.typeText("x")
+    XCTAssertTrue((address.value as? String)?.hasSuffix("x") == true)
+    keyboardProof("browser-address-focused")
+    try await pressNativeE2EShortcut("t", modifiers: .command)
+    try await waitForJournal(hostID: "primary", operationID: "route:browser-command", count: firstCount + 1)
+    try await poll { address.value as? String == "https://duckduckgo.com" }
+    keyboardProof("browser-tab-created-from-address")
+    browserInput.tap()
+    try await pressNativeE2EShortcut("t", modifiers: .command)
+    try await waitForJournal(hostID: "primary", operationID: "route:browser-command", count: firstCount + 2)
+    keyboardProof("browser-tab-created-with-shortcut")
+  }
+
+  func testBrowserMirrorKeepsAddressAndTabActionsInTheIPadInspector() async throws {
+    try XCTSkipIf(ProcessInfo.processInfo.environment["NATIVE_E2E_PEER_MODE"] == "real"
+      || UIDevice.current.userInterfaceIdiom != .pad,
+      "This journey uses the iPad project inspector with a disposable host.")
+    XCUIDevice.shared.orientation = .landscapeLeft
+    app.launchArguments.append("-native-e2e-keybindings-fresh-preferences")
+    _ = try await control(path: "/v1/reset", method: "POST")
+    try await pairAndOpenFixtureThread()
+
+    try await pressNativeE2EShortcut("b", modifiers: [.command, .shift])
+    let address = app.textFields["Address"].firstMatch
+    let localNewTab = app.buttons["native-e2e.browser.inspector-new-tab"].firstMatch
+    XCTAssertTrue(address.waitForExistence(timeout: 10))
+    XCTAssertTrue(localNewTab.waitForExistence(timeout: 5))
+    XCTAssertFalse(app.buttons["native-e2e.browser.new-tab"].exists)
+    XCTAssertTrue(app.staticTexts["Fixture response"].exists)
+    let browserCommand = "route:browser-command"
+    let initialCount = try await journalCount(hostID: "primary", operationID: browserCommand)
+    address.tap()
+    address.typeKey("a", modifierFlags: .command)
+    let destination = "https://example.test/inspector"
+    address.typeText(destination)
+    let go = app.buttons["native-e2e.browser.go"].firstMatch
+    XCTAssertEqual(address.value as? String, destination)
+    XCTAssertTrue(go.isHittable)
+    keyboardProof("browser-inspector-address")
+    go.tap()
+    try await waitForJournal(hostID: "primary", operationID: browserCommand, count: initialCount + 1)
+    let back = app.buttons["native-e2e.browser.back"].firstMatch
+    try await poll { address.value as? String == destination && back.isEnabled }
+    XCTAssertTrue(localNewTab.isHittable)
+    localNewTab.tap()
+    try await waitForJournal(hostID: "primary", operationID: browserCommand, count: initialCount + 2)
+    try await poll { address.value as? String == "https://duckduckgo.com" }
+    keyboardProof("browser-inspector-new-tab")
+  }
+
   func testKeyboardBindingsEditPersistAndRouteThroughTheActiveScene() async throws {
     try XCTSkipIf(ProcessInfo.processInfo.environment["NATIVE_E2E_PEER_MODE"] == "real",
       "This journey uses the controlled workspace fixture.")
@@ -96,6 +551,7 @@ extension NativeFamilyJourneyUITests {
       "This journey uses the controlled capability catalog and audio capture.")
     XCUIDevice.shared.orientation = UIDevice.current.userInterfaceIdiom == .pad ? .landscapeLeft : .portrait
     app.launchArguments.append("-native-e2e-keybindings-fresh-preferences")
+    app.launchArguments.append("-native-e2e-voice-fresh-preferences")
     app.launchEnvironment["NATIVE_E2E_VOICE_FILE"] = "1"
     app.launchEnvironment["NATIVE_E2E_VOICE_WAV"] = Data([82,73,70,70,38,0,0,0,87,65,86,69,102,109,116,32,16,0,0,0,
       1,0,1,0,128,62,0,0,0,125,0,0,2,0,16,0,100,97,116,97,2,0,0,0,0,0]).base64EncodedString()
@@ -135,10 +591,11 @@ extension NativeFamilyJourneyUITests {
     prompt.typeText(" preserved")
     try await keyboardKey(0x07, command: true, shift: true)
     let stop = app.buttons["native-e2e.voice.stop"]
-    XCTAssertTrue(stop.waitForExistence(timeout: 10), "Dictation uses the existing recorder and native review sheet")
+    let canStop = stop.waitForExistence(timeout: 10)
+    keyboardProof("composer-shortcut-starts-dictation")
+    XCTAssertTrue(canStop, "Dictation uses the existing recorder and native review sheet")
     try await keyboardKey(0x11, command: true)
     XCTAssertTrue(stop.exists, "The voice sheet must block actions behind it")
-    keyboardProof("composer-shortcut-starts-dictation")
     app.buttons["native-e2e.voice.cancel"].tap()
     XCTAssertTrue(prompt.waitForExistence(timeout: 5))
     XCTAssertEqual(prompt.value as? String, "Keep this focused draft preserved")

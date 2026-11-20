@@ -48,9 +48,11 @@ final class RichChatMessageActionsTests: XCTestCase {
   }
 
   func testRevertPlanFallsBackToLaterAssistantCountAndRequiresAPriorAnswer() {
+    var visibleAnswer = item("answer-1", RichItemType.assistantMessage)
+    visibleAnswer.streams["assistant_text"] = "A visible response"
     let items = [
       item("user-1", RichItemType.userMessage),
-      item("answer-1", RichItemType.assistantMessage),
+      visibleAnswer,
       item("user-2", RichItemType.userMessage),
       item("answer-2", RichItemType.assistantMessage),
       item("user-3", RichItemType.userMessage),
@@ -73,6 +75,27 @@ final class RichChatMessageActionsTests: XCTestCase {
         checkpoints: RichChatCheckpointCollection(checkpoints: [], turns: [])
       )
     )
+  }
+
+  func testRevertPlanUsesTheRecordedToolBoundaryWithinThePriorTurn() {
+    let items = [
+      item("user-1", RichItemType.userMessage),
+      item("answer-1", RichItemType.assistantMessage),
+      item("tool-1", "command_execution"),
+      item("child", "command_execution", parentItemID: "tool-1"),
+      item("user-2", RichItemType.userMessage),
+      item("answer-2", RichItemType.assistantMessage),
+    ]
+    let turns = [
+      RichCompletedTurn(startedAtMilliseconds: 1, endedAtMilliseconds: 2, anchorItemID: "tool-1"),
+      RichCompletedTurn(startedAtMilliseconds: 3, endedAtMilliseconds: 4, anchorItemID: "answer-2"),
+    ]
+    let plan = RichChatMessageRevertPlanner.plan(
+      userItemID: "user-2", items: items, completedTurns: turns,
+      checkpoints: RichChatCheckpointCollection(checkpoints: [], turns: [])
+    )
+    XCTAssertEqual(plan?.checkpointItemID, "tool-1")
+    XCTAssertEqual(plan?.rollbackTurnCount, 1)
   }
 
   func testCopyMatchesUserAndFinalAssistantMessageBehavior() {
@@ -147,6 +170,7 @@ final class RichChatMessageActionsTests: XCTestCase {
     )
 
     XCTAssertLessThan(timeline.split(separator: "\n").count, 300)
+    XCTAssertLessThan(entries.split(separator: "\n").count, 300)
     XCTAssertTrue(timeline.contains("RichChatTimelineEntryView("))
     XCTAssertTrue(entries.contains("RichChatTranscriptItemView("))
     XCTAssertTrue(components.contains("case RichItemType.userMessage:"))
@@ -166,10 +190,11 @@ final class RichChatMessageActionsTests: XCTestCase {
 
   func testNativeImagesExposePreviewZoomCopyAndSystemShare() throws {
     let source = try Self.source("App/Features/RichChat/UI/RichChatImageView.swift")
+    let zoom = try Self.source("App/Features/RichChat/UI/RichChatZoomableImageView.swift")
 
     XCTAssertTrue(source.contains(".fullScreenCover(item: $preview)"))
     XCTAssertTrue(source.contains("RichChatZoomableImageView"))
-    XCTAssertTrue(source.contains("maximumZoomScale = 5"))
+    XCTAssertTrue(zoom.contains("maximumZoomScale = 5"))
     XCTAssertTrue(source.contains("UIPasteboard.general.image = image"))
     XCTAssertTrue(source.contains("UIActivityViewController(activityItems: [image]"))
     XCTAssertFalse(RichChatMessageActionStrings.copyImage.isEmpty)
@@ -296,7 +321,8 @@ final class RichChatMessageActionsTests: XCTestCase {
       JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any]
     )
     let strings = try XCTUnwrap(root["strings"] as? [String: Any])
-    XCTAssertEqual(strings.count, 24)
+    XCTAssertEqual(strings.count, 31)
+    XCTAssertNotNil(strings["rich.fork.defaultName"])
 
     for (key, raw) in strings {
       let entry = try XCTUnwrap(raw as? [String: Any], key)
@@ -314,6 +340,9 @@ final class RichChatMessageActionsTests: XCTestCase {
             ?? true,
           "\(key):\(locale)"
         )
+        if key == "rich.fork.defaultName" {
+          XCTAssertTrue((unit["value"] as? String)?.contains("%@") == true, locale)
+        }
       }
     }
   }

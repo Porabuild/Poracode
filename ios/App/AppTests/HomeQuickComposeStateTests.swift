@@ -42,6 +42,42 @@ final class HomeQuickComposeStateTests: XCTestCase {
     XCTAssertEqual(replacement.worktreeBranchName, "feature/draft")
   }
 
+  func testProviderHandoffKeepsDraftAttachmentsScopedToTheFinalThread() async throws {
+    let app = try await session(), host = ClientConnectionID()
+    app.state.selectedConnectionId = host
+    let original = ThreadLifecycleTarget(
+      lease: ThreadHostLease(identity: .init(clientConnectionID: host, desktopID: "desktop", host: "https://example.test"), generation: 1),
+      threadID: "existing"
+    )
+    let seed = HomeThreadLaunchSeed(fixedProjectID: "project",
+      providerSwitchSource: HomeProviderSwitchSource(target: original, agentKind: "source"))
+    let draft = HomeQuickComposeState(session: app, launchSeed: seed)
+    let attachment = HomeComposerAttachment(name: "proof.txt", mimeType: "text/plain", data: Data("proof".utf8))
+    draft.attachments = [attachment]
+    var uploads: [String] = []
+    func uploadForSelectedThread() async throws -> [ThreadPromptSegment] {
+      let threadID = draft.launchThreadID
+      return try await draft.materializeAttachments(draft.attachments, for: threadID) { item in
+        XCTAssertEqual(item.data, Data("proof".utf8))
+        uploads.append(threadID)
+        return "/attachments/\(threadID)/\(item.name)"
+      }
+    }
+    XCTAssertEqual(draft.launchThreadID, original.threadID)
+    let inPlace = try await uploadForSelectedThread()
+    XCTAssertEqual(inPlace, [.attachment(path: "/attachments/existing/proof.txt", mimeType: "text/plain")])
+    draft.presentationMode = .terminal
+    XCTAssertEqual(draft.launchThreadID, draft.threadID)
+    XCTAssertNil(draft.providerSwitch)
+    XCTAssertNil(draft.attachments[0].path(for: draft.launchThreadID))
+    let replacement = try await uploadForSelectedThread()
+    XCTAssertEqual(replacement, [.attachment(path: "/attachments/\(draft.threadID)/proof.txt", mimeType: "text/plain")])
+    draft.presentationMode = .gui
+    let retry = try await uploadForSelectedThread()
+    XCTAssertEqual(retry, inPlace)
+    XCTAssertEqual(uploads, [original.threadID, draft.threadID])
+  }
+
   func testEqualRawProjectIDsOnDifferentHostsAndWorkspacesNeverShareDrafts() async throws {
     let session = try await session(), a = ClientConnectionID(), b = ClientConnectionID()
     let store = HomeQuickComposeStore()

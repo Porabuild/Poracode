@@ -47,6 +47,7 @@ final class RichChatControllerSuite {
     gateway: any RichChatSessionGateway,
     refreshRequester: any RichChatAuthoritativeRefreshRequesting =
       RichChatNoopRefreshRequester(),
+    checkpointRevertAttempts: RichChatCheckpointRevertAttempts = RichChatCheckpointRevertAttempts(),
     watchIDGenerator: any RichChatWatchIDGenerating = RichChatUUIDWatchIDGenerator()
   ) {
     let noticeController = RichChatNoticeController(
@@ -61,7 +62,8 @@ final class RichChatControllerSuite {
     )
     conversation = RichChatConversationController(
       gateway: gateway,
-      refreshRequester: refreshRequester
+      refreshRequester: refreshRequester,
+      checkpointRevertAttempts: checkpointRevertAttempts
     )
     requests = RichChatRequestController(
       gateway: gateway,

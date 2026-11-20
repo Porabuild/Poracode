@@ -5,6 +5,35 @@ import XCTest
 
 @MainActor
 final class RichChatTerminalControllerTests: XCTestCase {
+  func testEnsuringTheSameWatchRetainsTheCursorAcrossAdaptiveRemounts() async {
+    let gateway = TerminalControllerGateway()
+    let controller = RichChatTerminalController(
+      gateway: gateway,
+      watchIDGenerator: TerminalSequenceWatchIDGenerator(["watch-1", "watch-2"])
+    )
+    let access = Self.access()
+    let target = RichChatThreadTarget(lease: access.lease, threadID: "thread-1")
+    controller.activate(access: access, threadID: target.threadID)
+    await controller.ensureWatching(terminalID: target.threadID)
+    await controller.receive(
+      .cursor(TerminalCursorFrame(
+        kind: .baseline, terminalID: target.threadID, watchID: "watch-1",
+        generation: "generation-1", fromCursor: 0, toCursor: 3, data: "abc"
+      )),
+      target: target
+    )
+
+    await controller.ensureWatching(terminalID: target.threadID)
+    await controller.ensureWatching(terminalID: target.threadID)
+    let activeWatches = await gateway.watchIDs()
+    XCTAssertEqual(activeWatches, ["watch-1"])
+    XCTAssertEqual(controller.state.cursor?.transcript, "abc")
+
+    await controller.watch(terminalID: target.threadID)
+    let restartedWatches = await gateway.watchIDs()
+    XCTAssertEqual(restartedWatches, ["watch-1", "watch-2"])
+  }
+
   func testLatestViewportWaitsForAnInFlightCommandInsteadOfBeingDroppedAsBusy() async {
     let write = RichChatControllerTestBarrier()
     let resized = expectation(description: "Latest viewport reaches the host after input")

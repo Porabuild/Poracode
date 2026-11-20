@@ -223,6 +223,7 @@ struct RichChatRightPanelView<InfoContent: View>: View {
         case .browser:
           BrowserMirrorSessionView(session: session)
             .poracodePageSheetSizing()
+            .nativeCommands(identity: "expanded-browser", blocksParentActions: true)
         case .ports(let lease):
           PortForwardingSessionView(session: session, lease: lease)
             .poracodePageSheetSizing()
@@ -270,7 +271,7 @@ struct RichChatRightPanelView<InfoContent: View>: View {
     } label: {
       Image(systemName: tab.systemImage)
         .font(.subheadline.weight(isSelected ? .semibold : .regular))
-        .foregroundStyle(isSelected ? Color.primary : Color.secondary)
+        .foregroundStyle(isSelected ? Color.primary : Color.poracodeSecondaryLabel)
         .frame(minWidth: 44, maxWidth: .infinity, minHeight: 44)
         .background {
           if isSelected {
@@ -306,7 +307,7 @@ struct RichChatRightPanelView<InfoContent: View>: View {
     } label: {
       Image(systemName: isSelected ? activeTab.systemImage : "ellipsis")
         .font(.subheadline.weight(isSelected ? .semibold : .regular))
-        .foregroundStyle(isSelected ? Color.primary : Color.secondary)
+        .foregroundStyle(isSelected ? Color.primary : Color.poracodeSecondaryLabel)
         .frame(minWidth: 44, maxWidth: .infinity, minHeight: 44)
         .background {
           if isSelected {
@@ -345,6 +346,7 @@ struct RichChatRightPanelView<InfoContent: View>: View {
           externalMode: $workspaceMode
         )
         .environment(\.horizontalSizeClass, .compact)
+        .environment(\.richChatInspectorVisible, isVisible && isWorkspaceTabActive)
         .opacity(isWorkspaceTabActive ? 1 : 0)
         .allowsHitTesting(isWorkspaceTabActive)
         .accessibilityHidden(!isWorkspaceTabActive)

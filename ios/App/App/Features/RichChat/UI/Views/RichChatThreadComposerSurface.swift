@@ -74,8 +74,28 @@ struct RichChatThreadComposerSurface: View {
       crewContext: crewContext,
       controlsDestination: $state.composerControlDestination,
       stateOwnerID: ObjectIdentifier(state),
-      isConnectingHost: isConnectingHost
+      isConnectingHost: isConnectingHost,
+      restoredPromptOrder: state.restoredPromptOrder,
+      draftRestoration: state.alternateDraftIsRevertedPrompt.map { isRevertedPrompt in
+        .init(isRevertedPrompt: isRevertedPrompt, activate: state.switchRestoredDraft)
+      }
     )
+    .onChange(of: restorablePromptID, initial: true) { _, id in
+      guard id != nil else { return }
+      let catalog = RichChatComposerControlCatalog(
+        agentStatus: agentStatus, presentationMode: .gui, configuration: configuration.wrappedValue,
+        threadSlashCommands: threadSlashCommands, sessionConfigOptions: sessionConfigOptions,
+        agentInstanceID: agentInstanceID
+      )
+      if state.restoreRevertedPrompt(availableSkills: catalog.slashCommands.compactMap(\.skill)) {
+        isExpanded = true
+      }
+    }
+  }
+
+  private var restorablePromptID: UUID? {
+    guard canOperate, controller.state.activeMutation == nil, !controller.state.isSending else { return nil }
+    return state.pendingRevertedPromptID
   }
 
   private var configuration: Binding<ThreadConfig> {

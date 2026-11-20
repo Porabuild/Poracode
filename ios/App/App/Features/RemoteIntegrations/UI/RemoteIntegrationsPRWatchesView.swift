@@ -41,6 +41,14 @@ struct RemoteIntegrationsPRWatchesView: View {
       guard isPresentationActive else { return }
       composition.activate(selection)
     }
+    .onChange(of: selection?.lease.connectionID) { _, _ in
+      projectID = projects.first?.id ?? ""
+    }
+    .onChange(of: projects, initial: true) { _, updated in
+      if !updated.isEmpty, !updated.contains(where: { $0.id == projectID }) {
+        projectID = updated.first?.id ?? ""
+      }
+    }
     .sheet(item: $editor) { target in
       RemoteIntegrationsPRWatchEditor(
         target: target,
@@ -50,9 +58,32 @@ struct RemoteIntegrationsPRWatchesView: View {
       )
       .poracodeFormSheetSizing()
     }
-    .alert(item: $confirmation) { confirmation in
-      alert(confirmation)
+    .confirmationDialog(
+      confirmationTitle,
+      isPresented: Binding(
+        get: { confirmation != nil },
+        set: { if !$0 { confirmation = nil } }
+      ),
+      titleVisibility: .visible,
+      presenting: confirmation
+    ) { item in
+      switch item {
+      case .check:
+        Button(RemoteIntegrationsStrings.checkNow) {
+          Task { await composition.prWatch.check() }
+        }
+      case .delete:
+        Button(RemoteIntegrationsStrings.delete, role: .destructive) {
+          Task { await composition.prWatch.delete() }
+        }
+      }
+      Button(RemoteIntegrationsStrings.cancel, role: .cancel) {}
+    } message: { item in
+      if item == .delete {
+        Text(RemoteIntegrationsStrings.deletePRWatchMessage)
+      }
     }
+    .ignoresSafeArea(.keyboard, edges: .bottom)
     .overlay(alignment: .bottom) {
       RemoteIntegrationsMutationBanner(
         notice: composition.prWatch.notice,
@@ -65,7 +96,7 @@ struct RemoteIntegrationsPRWatchesView: View {
 
   private var loadIdentity: RemoteIntegrationsLoadIdentity {
     RemoteIntegrationsLoadIdentity(
-      lease: selection?.lease,
+      access: selection?.access,
       lifecycleGeneration: composition.lifecycleGeneration,
       isPresentationActive: isPresentationActive
     )
@@ -150,6 +181,7 @@ struct RemoteIntegrationsPRWatchesView: View {
         loadTarget()
       }
       .disabled(targetKey == nil)
+      .accessibilityIdentifier("native-e2e.pr-watches.lookup")
     }
   }
 
@@ -218,31 +250,17 @@ struct RemoteIntegrationsPRWatchesView: View {
     Task { await composition.prWatch.load(targetKey) }
   }
 
-  private func alert(_ confirmation: RemoteIntegrationsPRWatchConfirmation) -> Alert {
+  private var confirmationTitle: String {
     switch confirmation {
-    case .check:
-      Alert(
-        title: Text(RemoteIntegrationsStrings.confirmCheckPRWatch),
-        primaryButton: .default(Text(RemoteIntegrationsStrings.checkNow)) {
-          Task { await composition.prWatch.check() }
-        },
-        secondaryButton: .cancel(Text(RemoteIntegrationsStrings.cancel))
-      )
-    case .delete:
-      Alert(
-        title: Text(RemoteIntegrationsStrings.confirmDeletePRWatch),
-        message: Text(RemoteIntegrationsStrings.deletePRWatchMessage),
-        primaryButton: .destructive(Text(RemoteIntegrationsStrings.delete)) {
-          Task { await composition.prWatch.delete() }
-        },
-        secondaryButton: .cancel(Text(RemoteIntegrationsStrings.cancel))
-      )
+    case .check: RemoteIntegrationsStrings.confirmCheckPRWatch
+    case .delete: RemoteIntegrationsStrings.confirmDeletePRWatch
+    case nil: ""
     }
   }
 }
 
 struct RemoteIntegrationsLoadIdentity: Hashable {
-  let lease: RemoteIntegrationsHostLease?
+  let access: RemoteIntegrationsHostAccess?
   let lifecycleGeneration: UInt64
   let isPresentationActive: Bool
 }

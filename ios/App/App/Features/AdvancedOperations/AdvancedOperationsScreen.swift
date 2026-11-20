@@ -37,6 +37,7 @@ struct AdvancedOperationsScreen: View {
       .padding(20)
     }
     .navigationTitle(AdvancedOperationsStrings.title)
+    .navigationBarTitleDisplayMode(.inline)
     .task(id: AdvancedOperationsActivationID(composition)) { model.invalidate() }
     .onChange(of: scenePhase) { _, phase in
       if phase == .active { model.leaveBackground() } else { model.enterBackground() }
@@ -47,6 +48,7 @@ struct AdvancedOperationsScreen: View {
         owner: model.access(for: procedure)?.lease.owner,
         submit: { draft in await model.submit(draft) }
       )
+      .poracodeFormSheetSizing()
     }
     .confirmationDialog(
       model.pendingMutation?.title ?? AdvancedOperationsStrings.confirm,

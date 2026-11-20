@@ -46,6 +46,9 @@ struct HomeWorkspacePreferences: Equatable {
   private var projectWorkspaceIDs: [String: String] = [:]
   private var explicitProjectIDs: Set<String> = []
   private var threadWorkspaceIDs: [String: String] = [:]
+  // Additive v1 field. A pre-link profile still imports by name on first
+  // refresh, then keeps the exact relationship even if either name changes.
+  private var importedWorkspaceIDs: [String: String] = [:]
   private var futureData: String?
   var canEdit: Bool { futureData == nil }
 
@@ -63,13 +66,14 @@ struct HomeWorkspacePreferences: Equatable {
     projectWorkspaceIDs = payload.projectWorkspaceIDs ?? [:]
     explicitProjectIDs = Set(payload.explicitProjectIDs ?? [])
     threadWorkspaceIDs = payload.threadWorkspaceIDs ?? [:]
+    importedWorkspaceIDs = payload.importedWorkspaceIDs ?? [:]
   }
 
   var encoded: String {
     if let futureData { return futureData }
     let payload = Payload(version: 1, workspaces: workspaces,
       projectWorkspaceIDs: projectWorkspaceIDs, explicitProjectIDs: explicitProjectIDs.sorted(),
-      threadWorkspaceIDs: threadWorkspaceIDs)
+      threadWorkspaceIDs: threadWorkspaceIDs, importedWorkspaceIDs: importedWorkspaceIDs)
     let encoder = JSONEncoder()
     encoder.outputFormatting = [.sortedKeys]
     return (try? encoder.encode(payload)).flatMap { String(data: $0, encoding: .utf8) } ?? ""
@@ -98,14 +102,17 @@ struct HomeWorkspacePreferences: Equatable {
   mutating func importHosts(_ hosts: [HomeWorkspaceHostInput], activeID: String?) {
     guard canEdit else { return }
     for host in hosts {
-      var names: [String: String] = [:]
+      var localIDs: [String: String] = [:]
       for workspace in host.workspaces ?? [] {
-        if let id = findOrCreate(name: workspace.name) { names[workspace.id] = id }
+        let key = CompositeRemoteID(connectionId: host.connectionID, remoteId: workspace.id).rawValue
+        let localID = validAssignment(importedWorkspaceIDs[key]) ?? findOrCreate(name: workspace.name)
+        importedWorkspaceIDs[key] = localID
+        localIDs[workspace.id] = localID
       }
       for project in host.projects where project.id != RemoteProject.homeScopeID {
         let key = project.identity(on: host.connectionID).id.rawValue
         guard !explicitProjectIDs.contains(key) else { continue }
-        if let hostWorkspace = project.workspaceId, let localID = names[hostWorkspace] {
+        if let hostWorkspace = project.workspaceId, let localID = localIDs[hostWorkspace] {
           projectWorkspaceIDs[key] = localID
         } else if projectWorkspaceIDs[key] == nil {
           projectWorkspaceIDs[key] = activeID ?? workspaces.first?.id
@@ -135,6 +142,7 @@ struct HomeWorkspacePreferences: Equatable {
     let replacement = workspaces[0].id
     projectWorkspaceIDs = projectWorkspaceIDs.mapValues { $0 == id ? replacement : $0 }
     threadWorkspaceIDs = threadWorkspaceIDs.mapValues { $0 == id ? replacement : $0 }
+    importedWorkspaceIDs = importedWorkspaceIDs.mapValues { $0 == id ? replacement : $0 }
   }
 
   mutating func assignProject(_ id: String, to workspaceID: String?) {
@@ -171,6 +179,7 @@ struct HomeWorkspacePreferences: Equatable {
     let projectWorkspaceIDs: [String: String]?
     let explicitProjectIDs: [String]?
     let threadWorkspaceIDs: [String: String]?
+    let importedWorkspaceIDs: [String: String]?
   }
 }
 

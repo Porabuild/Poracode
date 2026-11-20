@@ -1,10 +1,12 @@
 import SwiftUI
+import UIKit
 
 struct SettingsModelVisibilityView: View {
   @Environment(\.dismiss) private var dismiss
   let catalog: ModelVisibilityCatalog
   @State var controller: SettingsModelVisibilityController
   @State private var search = ""
+  @FocusState private var searchFocused: Bool
   @State private var selectedSurfaces: [String: String] = [:]
 
   var body: some View {
@@ -44,24 +46,26 @@ struct SettingsModelVisibilityView: View {
       .poracodeReadableListMargins(740)
       .searchable(text: $search, placement: .navigationBarDrawer(displayMode: .always),
         prompt: Text(ModelVisibilityStrings.search))
+      .modifier(ModelVisibilitySearchFocus(focus: $searchFocused))
       .navigationTitle(SettingsUIStrings.visibleModels)
       .navigationBarTitleDisplayMode(.inline)
       .toolbar {
         ToolbarItem(placement: .confirmationAction) {
-          Button(SettingsUIStrings.done) { dismiss() }
+          Button(SettingsUIStrings.done, systemImage: "checkmark") { dismiss() }
+            .accessibilityIdentifier("native-e2e.settings.models.done")
         }
-      }
-      .poracodeBottomBar {
-        PoracodeBottomActionBar {
-          PoracodeCircleMenu {
+        // The centered iPad sheet's bottom bar can be covered by the keyboard.
+        ToolbarItem(placement: searchFocused && UIDevice.current.userInterfaceIdiom == .pad
+          ? .topBarLeading : .bottomBar) {
+          PoracodeToolbarMenu(
+            title: controller.isSaving ? SettingsUIStrings.saving : ModelVisibilityStrings.actions,
+            systemImage: controller.isSaving ? "hourglass" : "eye"
+          ) {
             Button(ModelVisibilityStrings.showAll, systemImage: "eye") { setAll(visible: true) }
             Button(ModelVisibilityStrings.hideAll, systemImage: "eye.slash") { setAll(visible: false) }
-          } label: { Image(systemName: "ellipsis") }
-          .accessibilityLabel(ModelVisibilityStrings.actions)
+          }
           .disabled(!controller.canEdit)
           .accessibilityIdentifier("native-e2e.settings.models.actions")
-        } trailing: {
-          if controller.isSaving { ProgressView().padding() }
         }
       }
       .poracodeUseKeyboardLayoutGuide()
@@ -69,7 +73,7 @@ struct SettingsModelVisibilityView: View {
         if controller.composition.mutationFailure != nil || controller.composition.mutationNotice == .ambiguousRefreshFailed {
           SettingsMutationBanner(notice: controller.composition.mutationNotice,
             failure: controller.composition.mutationFailure, dismiss: controller.composition.clearMutationFeedback)
-            .padding().padding(.bottom, 76)
+            .padding()
         }
       }
       .onChange(of: controller.isCurrent) { _, current in if !current { dismiss() } }
@@ -97,6 +101,8 @@ struct SettingsModelVisibilityView: View {
           Text(ModelVisibilityStrings.allSurfaces).tag("")
           ForEach(group.surfaces) { Text($0.label).tag($0.id) }
         }
+        // Present the choices in the sheet's navigation stack while search is active.
+        .pickerStyle(.navigationLink)
         .accessibilityIdentifier("native-e2e.settings.models.surface.\(group.id)")
       }
       ForEach(rows) { row in
@@ -145,4 +151,16 @@ struct SettingsModelVisibilityView: View {
   }
 
   private func setAll(visible: Bool) { controller.setHidden(catalog.settingAll(visible: visible)) }
+}
+
+private struct ModelVisibilitySearchFocus: ViewModifier {
+  let focus: FocusState<Bool>.Binding
+
+  func body(content: Content) -> some View {
+    if #available(iOS 18.0, *) {
+      content.searchFocused(focus)
+    } else {
+      content
+    }
+  }
 }

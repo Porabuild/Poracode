@@ -11,6 +11,11 @@ import UIKit
 /// no longer on. Browser handoff goes through the system opener with the safe
 /// entry URL built by the transport; the URL is never rendered or logged.
 struct PortForwardingSessionView: View {
+  private struct Activation: Equatable {
+    let lease: PortForwardingHostLease?
+    let isReady: Bool
+  }
+
   @Environment(\.dismiss) private var dismiss
   @Environment(\.scenePhase) private var scenePhase
   @Environment(\.poracodeEmbeddedInInspector) private var embeddedInInspector
@@ -50,7 +55,7 @@ struct PortForwardingSessionView: View {
         }
       }
     }
-    .task(id: session.currentPortForwardingAccess?.lease) {
+    .task(id: activation) {
       guard scenePhase != .background else { return }
       composition.scheduleActivation()
     }
@@ -62,6 +67,11 @@ struct PortForwardingSessionView: View {
       }
     }
     .onDisappear { composition.suspend() }
+  }
+
+  private var activation: Activation {
+    let access = session.currentPortForwardingAccess
+    return Activation(lease: access?.lease, isReady: access?.isReady == true)
   }
 
   @ViewBuilder

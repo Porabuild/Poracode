@@ -1,51 +1,33 @@
 import SwiftUI
 
 struct HomeProjectFilterMenu: View {
-  @Bindable var session: AppSession
-  let options: [HomeProjectFilterOption]
-  @Binding var selectedProjectIDs: Set<String>
+  let title: String
+  let isFiltered: Bool
   var usesCircleButton: Bool = false
   var circleButtonSize: CGFloat = 30
-
-  @State private var presentation: HomeProjectFilterPresentation?
+  let open: () -> Void
 
   var body: some View {
     trigger
       .accessibilityIdentifier("native-e2e.project-filter")
-      .sheet(item: $presentation) { _ in
-        HomeProjectFilterDrawer(
-          session: session,
-          options: options,
-          selectedProjectIDs: $selectedProjectIDs
-        )
-      }
   }
 
   @ViewBuilder
   private var trigger: some View {
-    let color: Color = selectedProjectIDs.isEmpty ? .secondary : .primary
+    let color: Color = isFiltered ? .primary : .secondary
     if usesCircleButton {
-      PoracodeCircleButton(color: color, size: circleButtonSize) {
-        presentation = .filter
-      } label: {
+      PoracodeCircleButton(color: color, size: circleButtonSize, action: open) {
         Image(systemName: "line.3.horizontal.decrease")
           .font(circleButtonSize < 28 ? .footnote : .subheadline)
       }
-      .accessibilityLabel(HomeStrings.filterProjects)
+      .accessibilityLabel(title)
     } else {
       PoracodeToolbarIconButton(
-        title: HomeStrings.filterProjects,
+        title: title,
         systemImage: "line.3.horizontal.decrease",
-        color: color
-      ) {
-        presentation = .filter
-      }
+        color: color,
+        action: open
+      )
     }
   }
-}
-
-private enum HomeProjectFilterPresentation: String, Identifiable {
-  case filter
-
-  var id: String { rawValue }
 }

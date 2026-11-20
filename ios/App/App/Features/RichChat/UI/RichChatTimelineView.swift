@@ -27,19 +27,30 @@ struct RichChatTimelineView: View {
   var forkBoundaryItemID: String? = nil
   var fallbackCompletedTurn: RichCompletedTurn? = nil
   var askInSideChat: ((String) -> Void)? = nil
+  var recordRevertedPrompt: (@MainActor @Sendable (RichChatRevertedPrompt, RichChatThreadTarget) -> Void)? = nil
+  let find: RichChatFindState
+  let allowsThreadToolbar: Bool
 
   @Environment(\.richChatCompactOverlayClearance) private var compactOverlayClearance
+  @Environment(\.richChatProjectLinkLocation) private var projectLinkLocation
   @Environment(\.transcriptDisclosures) private var disclosures
+  @Environment(\.poracodeComposerAvailableHeight) private var keyboardTop
 
   @State var truncateIntent: RichChatTruncateIntent?
-  @State var revertIntent: RichChatMessageRevertPlan?
+  @State var revertIntent: RichChatRevertIntent?
+  @State var showsLocalOnlyRevert = false
   @State private var followsBottom = true
   @State private var bottomIsVisible = false
   @State private var completedInitialScroll = false
+  @State private var hasVerticalBar = false
+  @State private var viewportBottom: CGFloat = 0
+  @State private var pendingFindReveal: RichChatFindTarget?
+  @State private var keepsFindSelectionVisible = false
   @ScaledMetric(relativeTo: .body) private var newUserMessageSpacing = 16
 
   var body: some View {
     let projection = controller.timeline
+    let activityTailID = projection?.activityTailID
     let actions = timelineActions(for: projection)
     let displayedTurns = controller.state.displayedCompletedTurns(in: projection)
     let boundaryIndex = controller.state.completedTurns.firstIndex { $0.anchorItemID == forkBoundaryItemID }
@@ -50,27 +61,21 @@ struct RichChatTimelineView: View {
           if controller.state.olderCursor != nil || controller.state.olderTurnsCursor != nil
             || controller.state.isLoadingOlder
           {
-            Button {
+            RichChatLoadOlderButton(isLoading: controller.state.isLoadingOlder) {
               Task { await controller.loadOlder() }
-            } label: {
-              if controller.state.isLoadingOlder {
-                ProgressView(RichChatStrings.loadingOlder).frame(maxWidth: .infinity)
-              } else {
-                Text(RichChatStrings.loadOlder).frame(maxWidth: .infinity)
-              }
             }
-            .poracodeGlassButtonStyle()
-            .disabled(controller.state.isLoadingOlder)
           }
           if let entries = projection?.visibleEntries {
             ForEach(entries, id: \.stableID) { entry in
               RichChatTimelineEntryView(
                 entry: entry,
                 mediaController: mediaController,
-                actions: actions
+                actions: actions,
+                isActivityTail: entry.stableID == activityTailID
               )
               .padding(.top, entry.stableID != entries.first?.stableID
                 && entry.runtimeItems.first?.type == RichItemType.userMessage ? newUserMessageSpacing : 0)
+              .modifier(RichChatFindReveal(rowID: entry.stableID, pending: $pendingFindReveal))
               .id(entry.stableID)
               // The inline assistant action row already offers fork for a
               // completed reply; keep this per-entry button only for entries
@@ -92,13 +97,7 @@ struct RichChatTimelineView: View {
                 .help(RichChatMessageActionStrings.forkAction)
               }
               if let displayedBoundary, entry.rootItemIDs.contains(displayedBoundary) {
-                HStack {
-                  Rectangle().frame(height: 1)
-                  Text(RichChatMessageActionStrings.forkBoundary).font(.caption)
-                  Rectangle().frame(height: 1)
-                }
-                .foregroundStyle(.secondary)
-                .padding(.vertical, 8)
+                RichChatForkBoundaryDivider()
               }
             }
             if displayedBoundary.map({ entries.last?.rootItemIDs.contains($0) != true }) ?? true,
@@ -113,7 +112,7 @@ struct RichChatTimelineView: View {
             }
           }
           Color.clear
-            .frame(height: compactOverlayClearance)
+            .frame(height: bottomClearance)
             .accessibilityHidden(true)
           Color.clear
             .frame(height: 1)
@@ -134,11 +133,18 @@ struct RichChatTimelineView: View {
       .scrollContentBackground(.hidden)
       .frame(maxWidth: 900)
       .frame(maxWidth: .infinity)
+      .environment(\.richChatCompactOverlayClearance, bottomClearance)
+      .richChatActivityPreview(coveredHeight: bottomClearance)
+      .onGeometryChange(for: CGFloat.self) { $0.frame(in: .global).maxY } action: { viewportBottom = $0 }
       .scrollDismissesKeyboard(.interactively)
       .simultaneousGesture(
         DragGesture(minimumDistance: 8)
           .onChanged { value in
-            if value.translation.height > 8 { followsBottom = false }
+            stopKeepingFindSelectionVisible()
+            if value.translation.height > 8 {
+              followsBottom = false
+              find.forgetLatestPosition()
+            }
           }
           .onEnded { _ in
             if bottomIsVisible { followsBottom = true }
@@ -146,15 +152,38 @@ struct RichChatTimelineView: View {
       )
       .accessibilityLabel(RichChatStrings.timeline)
       .accessibilityIdentifier("native-e2e.timeline")
+      .environment(\.richChatFindHighlight, RichChatFindHighlight(query: find.isPresented ? find.query : .init(), active: find.selection))
+      .onChange(of: find.isPresented ? RichChatFindInput(query: find.query,
+        timelineRevision: controller.timelineProjectionRebuildCount,
+        projectLocation: projectLinkLocation) : nil, initial: true) { _, input in
+        if let input {
+          find.update(entries: projection?.visibleEntries ?? [], projectLocation: input.projectLocation)
+        }
+      }
+      .onChange(of: find.revealTarget) { _, _ in
+        if let target = find.viewportRevealTarget { revealFindMatch(target, proxy: proxy) }
+        else { stopKeepingFindSelectionVisible() }
+      }
+      .onChange(of: find.repeatRevealRequest) { _, _ in
+        if let target = find.viewportRevealTarget { revealFindMatch(target, proxy: proxy) }
+      }
+      .onChange(of: activityTailID, initial: true) { _, groupID in
+        if projection != nil { disclosures?.updateActivityTail(groupID) }
+      }
       .onAppear {
         DispatchQueue.main.async {
           restoreInitialScroll(proxy)
         }
       }
-      .onChange(of: compactOverlayClearance) { _, _ in
-        guard followsBottom else { return }
-        proxy.scrollTo(RichChatTimelineScrollAnchor.bottom, anchor: .bottom)
+      .onChange(of: bottomClearance) { _, _ in
+        if let target = maintainedFindTarget { pendingFindReveal = target }
+        else if find.isPresented && find.followsLatestOnRestore { keepLatestVisibleAfterResize(proxy) }
+        else if followsBottom { proxy.scrollTo(RichChatTimelineScrollAnchor.bottom, anchor: .bottom) }
       }
+      .modifier(RichChatFindViewportObserver(
+        widthChanged: { findViewportWidthChanged(proxy) },
+        heightChanged: { findViewportHeightChanged(proxy) }
+      ))
       .onChange(of: projection?.rawItems.last) { _, item in
         if !completedInitialScroll {
           DispatchQueue.main.async { restoreInitialScroll(proxy) }
@@ -162,7 +191,7 @@ struct RichChatTimelineView: View {
         }
         if item?.type == RichItemType.userMessage { disclosures?.clearFocus() }
         guard
-          RichChatTimelineScrollPolicy.shouldFollowBottom(
+          maintainedFindTarget == nil, RichChatTimelineScrollPolicy.shouldFollowBottom(
             isFollowingBottom: followsBottom,
             latestItemType: item?.type
           )
@@ -172,26 +201,12 @@ struct RichChatTimelineView: View {
           proxy.scrollTo(RichChatTimelineScrollAnchor.bottom, anchor: .bottom)
         }
       }
-      .overlay(alignment: .bottom) {
-        Group {
-          if completedInitialScroll && !bottomIsVisible {
-            PoracodeCircleButton {
-              disclosures?.clearFocus()
-              followsBottom = true
-              withAnimation(.easeOut(duration: 0.2)) {
-                proxy.scrollTo(RichChatTimelineScrollAnchor.bottom, anchor: .bottom)
-              }
-            } label: {
-              RichChatIcon(.arrowDown)
-                .font(.subheadline.weight(.semibold))
-            }
-            .accessibilityLabel(RichChatStrings.scrollToBottom)
-            .padding(.bottom, compactOverlayClearance + 12)
-            .transition(.scale.combined(with: .opacity))
-          }
-        }
-        .animation(.snappy(duration: 0.2), value: bottomIsVisible)
-      }
+      .modifier(RichChatTimelineJumpControl(
+        allowsThreadToolbar: allowsThreadToolbar, showsJumpToBottom: showsJumpToBottom,
+        bottomIsVisible: bottomIsVisible, bottomClearance: bottomClearance,
+        isFinding: find.isPresented, hasVerticalBar: $hasVerticalBar,
+        jumpToBottom: { jumpToBottom(proxy) }
+      ))
       .confirmationDialog(
         RichChatStrings.truncateConfirmationTitle,
         isPresented: Binding(
@@ -206,22 +221,29 @@ struct RichChatTimelineView: View {
       } message: { _ in
         Text(RichChatStrings.truncateConfirmationMessage)
       }
-      .confirmationDialog(
-        RichChatMessageActionStrings.revertTitle,
-        isPresented: Binding(
-          get: { revertIntent != nil },
-          set: { if !$0 { revertIntent = nil } }
-        ),
-        titleVisibility: .visible,
-        presenting: revertIntent
-      ) { plan in
-        Button(RichChatMessageActionStrings.revert, role: .destructive) {
-          confirmRevert(plan)
-        }
-        Button(RichChatStrings.cancel, role: .cancel) { revertIntent = nil }
-      } message: { plan in
-        Text(revertMessage(plan))
-      }
+      .modifier(RichChatCheckpointRevertPresentation(
+        intent: $revertIntent, showsLocalOnly: $showsLocalOnlyRevert,
+        target: conversation.state.target, confirm: confirmRevert, message: revertMessage
+      ))
+    }
+  }
+
+  private var showsJumpToBottom: Bool { completedInitialScroll && !bottomIsVisible }
+
+  private var bottomClearance: CGFloat {
+    guard find.isPresented, keyboardTop > 0 else { return compactOverlayClearance }
+    // While Find owns the keyboard, the composer is behind it. Reserve only
+    // the occluded part of the viewport that still needs to scroll into view.
+    return max(0, ceil(viewportBottom - keyboardTop))
+  }
+
+  private func jumpToBottom(_ proxy: ScrollViewProxy) {
+    find.rememberLatestPosition()
+    stopKeepingFindSelectionVisible()
+    disclosures?.clearFocus()
+    followsBottom = true
+    withAnimation(.easeOut(duration: 0.2)) {
+      proxy.scrollTo(RichChatTimelineScrollAnchor.bottom, anchor: .bottom)
     }
   }
 
@@ -231,41 +253,52 @@ struct RichChatTimelineView: View {
     // store. Let the scroll view place them before the next user gesture;
     // forcing a large lazy group to its top while it is being measured can
     // leave the lazy layout in a placement loop after rotation.
-    if disclosures?.focusID != nil {
+    if let target = find.viewportRevealTarget {
+      revealFindMatch(target, proxy: proxy)
+    } else if disclosures?.focusID != nil {
       followsBottom = false
     } else {
       proxy.scrollTo(RichChatTimelineScrollAnchor.bottom, anchor: .bottom)
     }
     completedInitialScroll = true
   }
-}
 
-extension RichTimelineEntry {
-  fileprivate var rootItemIDs: [String] {
-    switch self {
-    case .item(let node): [node.item.id]
-    case .group(_, let members): members.map { $0.item.id }
-    }
-  }
-  var stableID: String {
-    switch self {
-    case .item(let node): node.item.id
-    case .group(let stableID, _): stableID
-    }
+  private func revealFindMatch(_ target: RichChatFindTarget, proxy: ScrollViewProxy) {
+    followsBottom = false
+    keepsFindSelectionVisible = true
+    pendingFindReveal = target
+    proxy.scrollTo(target.match.rowID, anchor: .center)
   }
 
-  /// Last addressable runtime item inside this entry, or `nil` when the entry
-  /// carries none. Group stable ids are presentation-only and never sent.
-  var lastItemID: String? {
-    switch self {
-    case .item(let node): node.lastItemID
-    case .group(_, let members): members.last?.lastItemID
+  private var maintainedFindTarget: RichChatFindTarget? {
+    keepsFindSelectionVisible ? find.viewportRevealTarget : nil
+  }
+
+  private func findViewportWidthChanged(_ proxy: ScrollViewProxy) {
+    guard completedInitialScroll else { return }
+    if let target = maintainedFindTarget { revealFindMatch(target, proxy: proxy) }
+    else { keepLatestVisibleAfterResize(proxy) }
+  }
+
+  private func findViewportHeightChanged(_ proxy: ScrollViewProxy) {
+    // The keyboard can resize the viewport after a button has already
+    // revealed the match. Keep that line clear of the new viewport edge.
+    if let target = maintainedFindTarget { pendingFindReveal = target }
+    else { keepLatestVisibleAfterResize(proxy) }
+  }
+
+  private func keepLatestVisibleAfterResize(_ proxy: ScrollViewProxy) {
+    guard completedInitialScroll, followsBottom, find.isPresented, find.followsLatestOnRestore else { return }
+    // The keyboard and transcript can settle at different times during a
+    // display change. Pin against the final layout on the next main-loop turn.
+    DispatchQueue.main.async {
+      guard followsBottom, find.isPresented, find.followsLatestOnRestore else { return }
+      proxy.scrollTo(RichChatTimelineScrollAnchor.bottom, anchor: .bottom)
     }
   }
-}
 
-extension RichVisibleTimelineNode {
-  var lastItemID: String? {
-    children.last?.lastItemID ?? item.id
+  private func stopKeepingFindSelectionVisible() {
+    keepsFindSelectionVisible = false
+    pendingFindReveal = nil
   }
 }

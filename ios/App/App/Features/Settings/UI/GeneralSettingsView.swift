@@ -10,6 +10,7 @@ struct GeneralSettingsView: View {
     List {
       Section {
         LabeledContent(SettingsUIStrings.language, value: currentLanguage)
+          .settingsSearchAnchor(.language)
       } footer: {
         Text(SettingsUIStrings.generalDescription)
       }
@@ -20,6 +21,7 @@ struct GeneralSettingsView: View {
             Text(language.displayName).tag(language.rawValue)
           }
         }
+        .settingsSearchAnchor(.contentLanguage)
 
         NavigationLink {
           HomeShortcutSettingsView()
@@ -27,6 +29,7 @@ struct GeneralSettingsView: View {
           Label(SettingsUIStrings.homeShortcuts, systemImage: "square.grid.2x2")
         }
         .accessibilityIdentifier("native-e2e.settings.shortcuts")
+        .settingsSearchAnchor(.homeShortcuts)
       }
 
       HomeNewsSettingsSection()
@@ -42,6 +45,7 @@ struct GeneralSettingsView: View {
     }
     .listStyle(.insetGrouped)
     .poracodeReadableListMargins(740)
+    .settingsSearchScroll()
     .navigationTitle(SettingsUIStrings.generalTitle)
     .navigationBarTitleDisplayMode(.inline)
   }

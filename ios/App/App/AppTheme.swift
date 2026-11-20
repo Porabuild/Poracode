@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 enum PoracodeAppearanceMode: String, CaseIterable, Identifiable, Sendable {
   case system
@@ -228,6 +229,34 @@ extension EnvironmentValues {
   }
 }
 
+extension Color {
+  /// Opaque label colors keep small metadata readable on grouped and layered
+  /// surfaces. UIKit resolves both the appearance and Increase Contrast setting.
+  static let poracodeSecondaryLabel = adaptiveLabel(
+    light: 0x626268, dark: 0xB2B2BB, increasedLight: 0x414147, increasedDark: 0xD2D2DA
+  )
+  static let poracodeTertiaryLabel = adaptiveLabel(
+    light: 0x6A6A72, dark: 0x9A9AA5, increasedLight: 0x53535A, increasedDark: 0xB6B6C0
+  )
+
+  private static func adaptiveLabel(
+    light: UInt32, dark: UInt32, increasedLight: UInt32, increasedDark: UInt32
+  ) -> Color {
+    Color(uiColor: UIColor { traits in
+      let increased = traits.accessibilityContrast == .high
+      let rgb = traits.userInterfaceStyle == .dark
+        ? (increased ? increasedDark : dark)
+        : (increased ? increasedLight : light)
+      return UIColor(
+        red: CGFloat((rgb >> 16) & 255) / 255,
+        green: CGFloat((rgb >> 8) & 255) / 255,
+        blue: CGFloat(rgb & 255) / 255,
+        alpha: 1
+      )
+    })
+  }
+}
+
 struct PoracodeThemeRoot<Content: View>: View {
   @State private var customThemes = CustomThemeStore.shared
   @AppStorage(PoracodeThemePreset.storageKey) private var selectedThemeID =
@@ -243,6 +272,8 @@ struct PoracodeThemeRoot<Content: View>: View {
     let authored = customThemes.themes.first { $0.id == selectedThemeID }
     let theme = authored?.nativePreset ?? PoracodeThemePreset.resolve(selectedThemeID)
     let resolvedColorScheme = mode.preferredColorScheme ?? systemColorScheme
+    let palette = theme.variant(for: resolvedColorScheme)
+    let authoredMuted = authored.flatMap { _ in palette.mutedHex }.map { Color(poracodeHex: $0) }
 
     ZStack {
       theme.variant(for: resolvedColorScheme).background
@@ -255,8 +286,11 @@ struct PoracodeThemeRoot<Content: View>: View {
     .environment(\.poracodeAccentForeground, authored.flatMap { _ in
       theme.variant(for: resolvedColorScheme).accentForegroundHex.map { Color(poracodeHex: $0) }
     })
-    .foregroundStyle(authored == nil ? Color.primary : theme.variant(for: resolvedColorScheme).foreground,
-      authored.flatMap { _ in theme.variant(for: resolvedColorScheme).mutedHex }.map { Color(poracodeHex: $0) } ?? Color.secondary)
+    .foregroundStyle(
+      authored == nil ? Color.primary : palette.foreground,
+      authoredMuted ?? .poracodeSecondaryLabel,
+      authoredMuted ?? .poracodeTertiaryLabel
+    )
     .tint(Color.primary)
     .preferredColorScheme(mode.preferredColorScheme)
   }

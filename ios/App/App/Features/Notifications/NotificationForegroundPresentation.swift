@@ -15,9 +15,10 @@ enum NotificationForegroundPresentation {
     route: NotificationRoute?,
     hasRoutingEnvelope: Bool,
     selectedConnectionId: ClientConnectionID?,
+    deliveryEnabled: Bool,
     preference: NotificationAlertPreference = .current()
   ) -> UNNotificationPresentationOptions {
-    guard preference.foregroundMode == .always else { return [] }
+    guard deliveryEnabled, preference.foregroundMode == .always else { return [] }
     let presented: UNNotificationPresentationOptions =
       preference.soundEnabled
       ? [.banner, .list, .sound]

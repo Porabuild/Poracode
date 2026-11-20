@@ -1,14 +1,16 @@
 import SwiftUI
 
-/// Native counterpart to the PWA Archived Threads settings page. The selected
-/// desktop remains authoritative; this view only projects its snapshot and
-/// routes restore/delete through the exact-host lifecycle controller.
+/// The selected desktop owns the archive. A presented row keeps the lease of
+/// the desktop that supplied it, including while a system menu is open.
 struct ArchivedThreadsView: View {
   @Bindable var session: AppSession
+  @Environment(\.calendar) private var calendar
+  @Environment(\.locale) private var locale
+  @Environment(\.timeZone) private var timeZone
 
   @State private var lifecycle: ThreadLifecycleController
-  @State private var mutatingThreadID: String?
-  @State private var mutatingDraftKey: RichChatComposerDraftKey?
+  @State private var actionRow: ArchivedThreadAction?
+  @State private var mutatingTarget: ThreadLifecycleTarget?
   @State private var failureMessage: String?
 
   init(session: AppSession) {
@@ -17,66 +19,80 @@ struct ArchivedThreadsView: View {
   }
 
   var body: some View {
-    Group {
-      if archivedThreads.isEmpty {
-        ContentUnavailableView {
-          Label(ArchivedThreadsStrings.empty, systemImage: "archivebox")
-        } description: {
-          Text(ArchivedThreadsStrings.description)
+    archive
+      .navigationTitle(ArchivedThreadsStrings.title)
+      .navigationBarTitleDisplayMode(.inline)
+      .toolbar {
+        ToolbarItem(placement: .topBarTrailing) {
+          HostSelectionMenu(session: session)
         }
-      } else {
-        List(archivedThreads) { thread in
-          row(thread)
-        }
-        .listStyle(.insetGrouped)
-        .poracodeReadableListMargins(760)
-        .refreshable { await session.refreshSnapshot() }
       }
-    }
-    .navigationTitle(ArchivedThreadsStrings.title)
-    .navigationBarTitleDisplayMode(.inline)
-    .toolbar {
-      ToolbarItem(placement: .topBarTrailing) {
-        HostSelectionMenu(session: session)
+      .threadLifecycleDestructiveConfirmation(controller: lifecycle) { intent in
+        guard canOperate(intent.target) else { return }
+        mutatingTarget = intent.target
+        Task { await lifecycle.confirmDestructiveIntent(intent) }
       }
-    }
-    .threadLifecycleDestructiveConfirmation(controller: lifecycle) {
-      Task { await lifecycle.confirmDestructiveIntent() }
-    }
-    .threadLifecycleFailureAlert(message: $failureMessage) {
-      clearFailure()
-    }
-    .onChange(of: lifecycle.lastOutcome) { _, outcome in
-      consume(outcome)
-    }
-    .onDisappear { lifecycle.deactivate() }
-    .confirmationDialog(
-      actionThread?.title ?? ArchivedThreadsStrings.title,
-      isPresented: Binding(
-        get: { actionThread != nil },
-        set: { if !$0 { actionThread = nil } }
-      ),
-      titleVisibility: .visible
-    ) {
-      if let thread = actionThread {
-        Button(ThreadLifecycleStrings.unarchive) {
-          actionThread = nil
-          restore(thread)
-        }
-        .disabled(!canOperate || lifecycle.isBusy)
-        Button(ThreadLifecycleStrings.delete, role: .destructive) {
-          actionThread = nil
-          requestDelete(thread)
-        }
-        .disabled(!canOperate || lifecycle.isBusy)
+      .threadLifecycleFailureAlert(message: $failureMessage) {
+        failureMessage = nil
+        lifecycle.clearLastOutcome()
       }
+      .onChange(of: lifecycle.lastOutcome) { _, outcome in consume(outcome) }
+      .onChange(of: session.currentThreadHostLease) { resetActions() }
+      .onDisappear { resetActions() }
+      .confirmationDialog(
+        actionRow?.thread.title ?? ArchivedThreadsStrings.title,
+        isPresented: Binding(
+          get: { actionRow != nil },
+          set: { if !$0 { actionRow = nil } }
+        ),
+        titleVisibility: .visible,
+        presenting: actionRow
+      ) { row in
+        Button(ThreadLifecycleStrings.unarchive) { restore(row.target) }
+          .disabled(!canOperate(row.target))
+        Button(ThreadLifecycleStrings.delete, role: .destructive) { requestDelete(row.target) }
+          .disabled(!canOperate(row.target))
+      }
+  }
+
+  @ViewBuilder private var archive: some View {
+    let days = archiveDays
+    if session.snapshot == nil && session.phase == .connecting {
+      SettingsLoadingView()
+    } else if let lease = session.currentThreadHostLease, !days.isEmpty {
+      List {
+        ForEach(days) { section in
+          Section {
+            ForEach(section.entries) { entry in
+              row(entry, lease: lease)
+            }
+          } header: {
+            if let day = section.day {
+              Text(day, format: .dateTime.weekday(.wide).year().month(.wide).day())
+                .accessibilityIdentifier("native-e2e.archived.date")
+            }
+          }
+        }
+      }
+      .listStyle(.insetGrouped)
+      .poracodeReadableListMargins(760)
+      .refreshable { await session.refreshSnapshot() }
+    } else if session.snapshot != nil {
+      ContentUnavailableView {
+        Label(ArchivedThreadsStrings.empty, systemImage: "archivebox")
+      } description: {
+        Text(ArchivedThreadsStrings.description)
+      }
+      .accessibilityIdentifier("native-e2e.archived.empty")
+    } else {
+      ContentUnavailableView(SettingsUIStrings.unavailable, systemImage: "desktopcomputer.trianglebadge.exclamationmark")
     }
   }
 
-  private var archivedThreads: [RemoteThread] {
-    (session.snapshot?.threads ?? [])
-      .filter(\.isArchived)
-      .sorted { $0.updatedAt > $1.updatedAt }
+  private var archiveDays: [ArchivedThreadDay] {
+    var localCalendar = calendar
+    localCalendar.timeZone = timeZone
+    return ArchivedThreadDay.group(session.snapshot?.threads ?? [], calendar: localCalendar)
   }
 
   private var projectsByID: [String: RemoteProject] {
@@ -87,127 +103,140 @@ struct ArchivedThreadsView: View {
     )
   }
 
-  private var canOperate: Bool {
-    session.currentThreadSessionAccess?.isReady == true
-      && session.currentThreadSessionAccess?.isOnline == true
-      && session.currentThreadSessionAccess?.isForeground == true
-      && session.currentThreadSessionAccess?.scopes.contains("session:operate") == true
+  private func canOperate(_ target: ThreadLifecycleTarget) -> Bool {
+    ArchivedThreadAction.canOperate(target, access: session.currentThreadSessionAccess,
+      threads: session.snapshot?.threads ?? []) && mutatingTarget == nil && !lifecycle.isBusy
   }
 
-  @State private var actionThread: RemoteThread?
-
-  private func row(_ thread: RemoteThread) -> some View {
-    HStack(spacing: 8) {
-      Button {
-        actionThread = thread
-      } label: {
-        PoracodeThreadRow(
-          thread: thread,
-          projectName: projectsByID[thread.projectId]?.name,
-          showsRelativeTime: true,
-          isOpening: lifecycle.isBusy && mutatingThreadID == thread.id,
-          hasBackgroundActivity: session.workflowActivity.isLive(connectionID: session.selectedConnectionId, threadID: thread.id)
-        )
-      }
-      .buttonStyle(.plain)
+  private func row(_ entry: ArchivedThreadDay.Entry, lease: ThreadHostLease) -> some View {
+    let thread = entry.thread
+    let target = ThreadLifecycleTarget(lease: lease, threadID: thread.id)
+    return Button { actionRow = ArchivedThreadAction(thread: thread, target: target) } label: {
+      PoracodeThreadRow(
+        thread: thread,
+        projectName: projectsByID[thread.projectId]?.name,
+        showsRelativeTime: false,
+        timeLabel: entry.timestamp?.formatted(
+          Date.FormatStyle(locale: locale, calendar: calendar, timeZone: timeZone).hour().minute()
+        ),
+        isOpening: lifecycle.isBusy && mutatingTarget == target,
+        hasBackgroundActivity: session.workflowActivity.isLive(connectionID: lease.identity.clientConnectionID, threadID: thread.id)
+      )
     }
+    .buttonStyle(.plain)
+    .accessibilityIdentifier("native-e2e.archived.thread.\(thread.id)")
     .padding(.vertical, 2)
     .swipeActions(edge: .leading, allowsFullSwipe: true) {
-      Button {
-        restore(thread)
-      } label: {
+      Button { restore(target) } label: {
         Label(ThreadLifecycleStrings.unarchive, systemImage: "arrow.uturn.backward")
       }
       .tint(.gray)
-      .disabled(!canOperate || lifecycle.isBusy)
+      .disabled(!canOperate(target))
     }
     .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-      Button(role: .destructive) {
-        requestDelete(thread)
-      } label: {
+      Button(role: .destructive) { requestDelete(target) } label: {
         Label(ThreadLifecycleStrings.delete, systemImage: "trash")
       }
-      .disabled(!canOperate || lifecycle.isBusy)
+      .disabled(!canOperate(target))
     }
-    .contextMenu {
-      archivedActions(thread)
-    }
-    .accessibilityActions {
-      archivedActions(thread)
-    }
+    .contextMenu { archivedActions(target) }
+    .accessibilityActions { archivedActions(target) }
   }
 
-  @ViewBuilder
-  private func archivedActions(_ thread: RemoteThread) -> some View {
-    Button {
-      restore(thread)
-    } label: {
-      PoracodeActionLabel(
-        ThreadLifecycleStrings.unarchive,
-        systemImage: "arrow.uturn.backward"
-      )
+  @ViewBuilder private func archivedActions(_ target: ThreadLifecycleTarget) -> some View {
+    Button { restore(target) } label: {
+      PoracodeActionLabel(ThreadLifecycleStrings.unarchive, systemImage: "arrow.uturn.backward")
     }
     .buttonStyle(.plain)
-    .disabled(!canOperate || lifecycle.isBusy)
-    Button(role: .destructive) {
-      requestDelete(thread)
-    } label: {
-      PoracodeActionLabel(
-        ThreadLifecycleStrings.delete,
-        systemImage: "trash",
-        tone: .destructive
-      )
+    .disabled(!canOperate(target))
+    Button(role: .destructive) { requestDelete(target) } label: {
+      PoracodeActionLabel(ThreadLifecycleStrings.delete, systemImage: "trash", tone: .destructive)
     }
     .buttonStyle(.plain)
-    .disabled(!canOperate || lifecycle.isBusy)
+    .disabled(!canOperate(target))
   }
 
-  private func restore(_ thread: RemoteThread) {
-    guard canOperate, let target = session.threadLifecycleTarget(threadID: thread.id) else {
-      return
-    }
-    mutatingThreadID = thread.id
-    mutatingDraftKey = RichChatComposerDraftKey(
-      connectionID: target.lease.identity.clientConnectionID,
-      threadID: thread.id
-    )
+  private func restore(_ target: ThreadLifecycleTarget) {
+    actionRow = nil
+    guard canOperate(target) else { return }
+    mutatingTarget = target
     lifecycle.activate(target)
     Task { await lifecycle.unarchive(target: target) }
   }
 
-  private func requestDelete(_ thread: RemoteThread) {
-    guard canOperate, let target = session.threadLifecycleTarget(threadID: thread.id) else {
-      return
-    }
-    mutatingThreadID = thread.id
-    mutatingDraftKey = RichChatComposerDraftKey(
-      connectionID: target.lease.identity.clientConnectionID,
-      threadID: thread.id
-    )
+  private func requestDelete(_ target: ThreadLifecycleTarget) {
+    actionRow = nil
+    guard canOperate(target) else { return }
     lifecycle.activate(target)
     lifecycle.delete()
   }
 
   private func consume(_ outcome: ThreadLifecycleOutcome?) {
+    guard let target = mutatingTarget, target.lease == session.currentThreadHostLease else { return }
     switch outcome {
     case .succeeded(let action):
-      if action == .delete, let key = mutatingDraftKey {
-        session.richChatComposerDrafts.clear(key)
+      if action == .delete {
+        session.richChatComposerDrafts.clear(RichChatComposerDraftKey(
+          connectionID: target.lease.identity.clientConnectionID, threadID: target.threadID
+        ))
       }
-      mutatingThreadID = nil
-      mutatingDraftKey = nil
-      Task { await session.refreshSnapshot() }
+      mutatingTarget = nil
+      Task {
+        guard target.lease == session.currentThreadHostLease else { return }
+        await session.refreshSnapshot()
+      }
     case .failed(_, let failure):
-      mutatingThreadID = nil
-      mutatingDraftKey = nil
+      mutatingTarget = nil
       failureMessage = ThreadLifecycleStrings.failureMessage(failure)
     case nil:
       break
     }
   }
 
-  private func clearFailure() {
+  private func resetActions() {
+    actionRow = nil
+    mutatingTarget = nil
     failureMessage = nil
-    lifecycle.clearLastOutcome()
+    lifecycle.deactivate()
+  }
+}
+
+struct ArchivedThreadAction {
+  let thread: RemoteThread
+  let target: ThreadLifecycleTarget
+
+  static func canOperate(_ target: ThreadLifecycleTarget, access: ThreadSessionAccess?, threads: [RemoteThread]) -> Bool {
+    guard let access, access.lease == target.lease, access.isOnline, access.isReady,
+      access.isForeground, access.scopes.contains("session:operate") else { return false }
+    return threads.contains { $0.id == target.threadID && $0.isArchived }
+  }
+}
+
+struct ArchivedThreadDay: Identifiable {
+  struct Entry: Identifiable {
+    let thread: RemoteThread
+    let timestamp: Date?
+    var id: String { thread.id }
+  }
+
+  let day: Date?
+  let entries: [Entry]
+  var id: Date? { day }
+
+  @MainActor
+  static func group(_ threads: [RemoteThread], calendar: Calendar) -> [Self] {
+    let entries = threads.filter(\.isArchived).map { thread in
+      Entry(thread: thread, timestamp: thread.archivedAt.flatMap(PoracodeThreadRelativeDate.parse)
+        ?? PoracodeThreadRelativeDate.parse(thread.updatedAt))
+    }.sorted {
+      let first = $0.timestamp ?? .distantPast
+      let second = $1.timestamp ?? .distantPast
+      return first == second ? $0.id < $1.id : first > second
+    }
+    let sections = Dictionary(grouping: entries) { entry in
+      entry.timestamp.map { calendar.startOfDay(for: $0) }
+    }
+    return sections.map { Self(day: $0.key, entries: $0.value) }
+      .sorted { ($0.day ?? .distantPast) > ($1.day ?? .distantPast) }
   }
 }

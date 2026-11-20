@@ -8,6 +8,8 @@ struct ProjectControllerNotesState: Equatable, Sendable {
   var latestWriteRequest: UInt64 = 0
   var loadState: ProjectControllerLoadState = .idle
   var isSaving = false
+  var guardedWrites = false
+  var conflict = false
   var failure: ProjectOperationFailure?
 }
 
@@ -75,8 +77,14 @@ final class ProjectControllerNotesController {
     notesByProject[identity] ?? ProjectControllerNotesState()
   }
 
-  func load(_ identity: ProjectIdentity) async {
+  func load(_ identity: ProjectIdentity, discardDraft: Bool = false) async {
     guard let session, session.lease.connectionId == identity.connectionId else { return }
+    let current = state(for: identity)
+    let dirty = current.guardedWrites && current.draft != current.lastConfirmed
+    guard !current.isSaving,
+      discardDraft || (!dirty && !current.conflict && scheduledWriteByProject[identity] == nil)
+    else { return }
+    if discardDraft { scheduledWriteByProject.removeValue(forKey: identity)?.cancel() }
     if let failure = session.gate(.sessionRead) {
       mutate(identity) { $0.loadState = .failed(failure) }
       return
@@ -107,6 +115,8 @@ final class ProjectControllerNotesController {
       mutate(identity) { state in
         state.draft = response.notes
         state.lastConfirmed = response.notes
+        state.guardedWrites = response.guardedWrites == 1
+        state.conflict = false
         state.loadState = response.notes == nil ? .empty : .loaded
         state.failure = nil
       }
@@ -161,6 +171,8 @@ final class ProjectControllerNotesController {
     state.failure = nil
     notesByProject[identity] = state
 
+    if state.conflict { return }
+
     scheduledWriteByProject[identity]?.cancel()
     scheduledWriteByProject[identity] = scheduler.schedule(after: Self.debounceDelay) {
       [weak self] in
@@ -171,6 +183,15 @@ final class ProjectControllerNotesController {
         lease: lease
       )
     }
+  }
+
+  func flushPendingEdit(for identity: ProjectIdentity) async {
+    guard let lease = session?.lease, identity.connectionId == lease.connectionId,
+      let revision = notesByProject[identity]?.revision,
+      let operation = scheduledWriteByProject.removeValue(forKey: identity)
+    else { return }
+    operation.cancel()
+    await flush(identity, revision: revision, activation: activationRevision, lease: lease)
   }
 
   private func flush(
@@ -187,6 +208,7 @@ final class ProjectControllerNotesController {
       let draft = state.draft
     else { return }
     scheduledWriteByProject.removeValue(forKey: identity)
+    if state.isSaving || state.conflict { return }
 
     if let failure = session?.gate(.sessionOperate) {
       state.draft = state.lastConfirmed
@@ -203,11 +225,13 @@ final class ProjectControllerNotesController {
     let body = ProjectNotesWriteBody(
       doc: draft.doc,
       todos: draft.todos,
-      updatedAt: draft.updatedAt
+      updatedAt: draft.updatedAt,
+      guarded: state.guardedWrites,
+      baseRevision: state.lastConfirmed?.revision
     )
 
     do {
-      try await gateway.writeProjectNotes(body, for: identity, lease: lease)
+      let result = try await gateway.writeProjectNotes(body, for: identity, lease: lease)
       guard
         var current = currentWriteState(
           identity,
@@ -218,8 +242,15 @@ final class ProjectControllerNotesController {
       else {
         return
       }
-      current.lastConfirmed = draft
       current.isSaving = false
+      if result?.status == .conflict {
+        current.conflict = true
+        scheduledWriteByProject.removeValue(forKey: identity)?.cancel()
+      } else {
+        let confirmed = result?.notes ?? draft
+        current.lastConfirmed = confirmed
+        if current.revision == revision { current.draft = confirmed }
+      }
       current.failure = nil
       notesByProject[identity] = current
     } catch is CancellationError {
@@ -248,10 +279,21 @@ final class ProjectControllerNotesController {
       }
       current.isSaving = false
       if current.revision == revision {
-        current.draft = current.lastConfirmed
-        current.failure = .map(error)
+        let failure = ProjectOperationFailure.map(error)
+        if case .rejected(_, "project_notes_conflict") = failure {
+          current.conflict = true
+        } else {
+          if !current.guardedWrites { current.draft = current.lastConfirmed }
+          current.failure = failure
+        }
       }
       notesByProject[identity] = current
+    }
+    if let latest = notesByProject[identity],
+      latest.revision != revision, scheduledWriteByProject[identity] == nil,
+      !latest.conflict, !latest.isSaving
+    {
+      await flush(identity, revision: latest.revision, activation: activation, lease: lease)
     }
   }
 

@@ -1,89 +1,5 @@
 import SwiftUI
 
-enum NativeUnifiedDiffLineKind: Equatable {
-  case metadata
-  case hunk
-  case addition
-  case deletion
-  case context
-}
-
-struct NativeUnifiedDiffLine: Identifiable, Equatable {
-  let id: Int
-  let text: String
-  let kind: NativeUnifiedDiffLineKind
-  let oldLineNumber: Int64?
-  let newLineNumber: Int64?
-
-  var annotationTarget: (lineNumber: Int64, side: RichDiffSide)? {
-    switch kind {
-    case .addition:
-      newLineNumber.map { ($0, .new) }
-    case .deletion:
-      oldLineNumber.map { ($0, .old) }
-    case .context:
-      newLineNumber.map { ($0, .new) }
-    case .metadata, .hunk:
-      nil
-    }
-  }
-
-  static func parse(_ diff: String) -> [NativeUnifiedDiffLine] {
-    var oldLine: Int64?
-    var newLine: Int64?
-    return diff.split(separator: "\n", omittingEmptySubsequences: false)
-      .enumerated()
-      .map { offset, rawLine in
-        let text = String(rawLine)
-        let kind = classify(text)
-        if kind == .hunk {
-          let starts = hunkStarts(text)
-          oldLine = starts?.old
-          newLine = starts?.new
-        }
-
-        let line = NativeUnifiedDiffLine(
-          id: offset,
-          text: text,
-          kind: kind,
-          oldLineNumber: kind == .deletion || kind == .context ? oldLine : nil,
-          newLineNumber: kind == .addition || kind == .context ? newLine : nil
-        )
-        if kind == .deletion || kind == .context, let number = oldLine { oldLine = number == .max ? nil : number + 1 }
-        if kind == .addition || kind == .context, let number = newLine { newLine = number == .max ? nil : number + 1 }
-        return line
-      }
-  }
-
-  private static func classify(_ line: String) -> NativeUnifiedDiffLineKind {
-    if line.hasPrefix("@@") { return .hunk }
-    if line.hasPrefix("diff ") || line.hasPrefix("index ")
-      || line.hasPrefix("---") || line.hasPrefix("+++")
-      || line.hasPrefix("\\ No newline")
-    {
-      return .metadata
-    }
-    if line.hasPrefix("+") { return .addition }
-    if line.hasPrefix("-") { return .deletion }
-    return .context
-  }
-
-  private static func hunkStarts(_ line: String) -> (old: Int64, new: Int64)? {
-    let fields = line.split(separator: " ")
-    guard fields.count >= 3,
-      let old = start(from: fields[1], prefix: "-"),
-      let new = start(from: fields[2], prefix: "+")
-    else { return nil }
-    return (old, new)
-  }
-
-  private static func start(from field: Substring, prefix: Character) -> Int64? {
-    guard field.first == prefix,
-      let number = field.dropFirst().split(separator: ",", maxSplits: 1).first else { return nil }
-    return Int64(number)
-  }
-}
-
 struct NativeDiffAnnotationContext {
   let path: String
   let staged: Bool
@@ -108,34 +24,47 @@ struct NativeUnifiedDiffView: View {
 
   @State private var annotationTarget: NativeDiffAnnotationTarget?
 
-  private let lines: [NativeUnifiedDiffLine]
-  private let inferredFilePath: String?
+  private let files: [NativeUnifiedDiffFile]
 
   init(diff: String, filePath: String? = nil, annotationContext: NativeDiffAnnotationContext? = nil) {
-    self.filePath = filePath
-    self.annotationContext = annotationContext
-    // Syntax lookup runs for every visible row. Keep the input projection
-    // immutable instead of reparsing the complete patch from each lookup.
-    let parsed = NativeUnifiedDiffLine.parse(diff)
-    lines = parsed
-    inferredFilePath = parsed.lazy.compactMap { line -> String? in
-      guard line.text.hasPrefix("+++ ") else { return nil }
-      let path = String(line.text.dropFirst(4))
-      return path.hasPrefix("b/") ? String(path.dropFirst(2)) : path
-    }.first
+    self.init(files: NativeUnifiedDiffFile.parse(diff), filePath: filePath, annotationContext: annotationContext)
   }
 
-  var lineCount: Int { lines.count }
+  init(files parsed: [NativeUnifiedDiffFile], filePath: String? = nil, annotationContext: NativeDiffAnnotationContext? = nil) {
+    self.filePath = filePath
+    self.annotationContext = annotationContext
+    files = parsed.count > 1 ? parsed.map { file in
+      guard file.path != nil else { return file }
+      return NativeUnifiedDiffFile(id: file.id, path: file.path, lines: file.lines.filter { !$0.isStructuralFileHeader })
+    } : parsed
+  }
 
-  private var syntaxLanguage: String? {
-    NativeDiffSyntaxLanguage.resolve(path: filePath ?? inferredFilePath)
+  var lineCount: Int {
+    files.reduce(0) { $0 + $1.lines.count + (files.count > 1 && $1.path != nil ? 1 : 0) }
   }
 
   var body: some View {
     ScrollView([.horizontal, .vertical]) {
       LazyVStack(alignment: .leading, spacing: 0) {
-        ForEach(lines) { line in
-          contextualizedLine(line)
+        ForEach(files) { file in
+          let path = files.count == 1 ? filePath ?? file.path : file.path
+          let language = NativeDiffSyntaxLanguage.resolve(path: path)
+          let context = annotationContext.flatMap { context in
+            files.count == 1 || file.path == context.path ? context : nil
+          }
+          if files.count > 1, let path {
+            Text(path)
+              .font(.caption.weight(.semibold))
+              .lineLimit(1)
+              .fixedSize(horizontal: true, vertical: false)
+              .padding(.horizontal, 8)
+              .padding(.vertical, 6)
+              .accessibilityAddTraits(.isHeader)
+              .accessibilityIdentifier("native-e2e.diff-file.\(file.id)")
+          }
+          ForEach(file.lines) { line in
+            contextualizedLine(line, language: language, annotationContext: context)
+          }
         }
       }
       .padding(.vertical, 8)
@@ -149,9 +78,11 @@ struct NativeUnifiedDiffView: View {
   }
 
   @ViewBuilder
-  private func contextualizedLine(_ line: NativeUnifiedDiffLine) -> some View {
+  private func contextualizedLine(
+    _ line: NativeUnifiedDiffLine, language: String?, annotationContext: NativeDiffAnnotationContext?
+  ) -> some View {
     if let annotationContext, let target = line.annotationTarget {
-      lineContent(line)
+      lineContent(line, language: language)
         .contextMenu {
           Button(ProjectWorkspaceStrings.reviewComment, systemImage: "text.bubble") {
             selectAnnotation(
@@ -170,16 +101,16 @@ struct NativeUnifiedDiffView: View {
         }
         .accessibilityValue("\(annotationContext.path):\(target.lineNumber)")
     } else {
-      lineContent(line)
+      lineContent(line, language: language)
     }
   }
 
-  private func lineContent(_ line: NativeUnifiedDiffLine) -> some View {
+  private func lineContent(_ line: NativeUnifiedDiffLine, language: String?) -> some View {
     HStack(spacing: 6) {
       Text(lineNumber(line))
         .foregroundStyle(.tertiary)
         .frame(width: 34, alignment: .trailing)
-      highlightedText(line)
+      highlightedText(line, language: language)
     }
     .font(.caption.monospaced())
     .padding(.horizontal, 8)
@@ -204,14 +135,14 @@ struct NativeUnifiedDiffView: View {
     )
   }
 
-  private func highlightedText(_ line: NativeUnifiedDiffLine) -> Text {
+  private func highlightedText(_ line: NativeUnifiedDiffLine, language: String?) -> Text {
     switch line.kind {
     case .addition:
-      changeText(line, marker: "+", color: .green)
+      changeText(line, marker: "+", color: .green, language: language)
     case .deletion:
-      changeText(line, marker: "−", color: .red)
+      changeText(line, marker: "−", color: .red, language: language)
     case .context:
-      Text(highlightedSource(codeContent(line.text)))
+      Text(highlightedSource(codeContent(line.text), language: language))
     case .metadata:
       Text(line.text.isEmpty ? " " : line.text)
         .foregroundColor(.secondary)
@@ -221,14 +152,14 @@ struct NativeUnifiedDiffView: View {
     }
   }
 
-  private func changeText(_ line: NativeUnifiedDiffLine, marker: String, color: Color) -> Text {
-    Text(marker).foregroundColor(color) + Text(highlightedSource(codeContent(line.text)))
+  private func changeText(_ line: NativeUnifiedDiffLine, marker: String, color: Color, language: String?) -> Text {
+    Text(marker).foregroundColor(color) + Text(highlightedSource(codeContent(line.text), language: language))
   }
 
-  private func highlightedSource(_ source: String) -> AttributedString {
+  private func highlightedSource(_ source: String, language: String?) -> AttributedString {
     RichChatSyntaxHighlighter.attributed(
       source: source.isEmpty ? " " : source,
-      language: syntaxLanguage,
+      language: language,
       colorScheme: colorScheme
     )
   }

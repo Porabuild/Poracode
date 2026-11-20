@@ -53,9 +53,10 @@ enum StreamingHTTPBody {
         session: URLSession,
         request: URLRequest,
         maxBytes: Int,
-        resourceTimeout: TimeInterval? = nil
+        resourceTimeout: TimeInterval? = nil,
+        usesPairingPins: Bool = true
     ) async throws -> (Data, URLResponse) {
-        let box = StreamingBodyBox(maxBytes: maxBytes)
+        let box = StreamingBodyBox(maxBytes: maxBytes, usesPairingPins: usesPairingPins)
         return try await withTaskCancellationHandler {
             try await withCheckedThrowingContinuation { (cont: CheckedContinuation<(Data, URLResponse), Error>) in
                 // Preserve the caller's configuration (URLProtocol test fakes, timeouts).
@@ -72,6 +73,7 @@ enum StreamingHTTPBody {
 /// Retains the URLSession task + delegate for the lifetime of one streaming request.
 private final class StreamingBodyBox: NSObject, URLSessionDataDelegate, @unchecked Sendable {
     private let maxBytes: Int
+    private let usesPairingPins: Bool
     private let lock = NSLock()
     private var data = Data()
     private var response: URLResponse?
@@ -80,8 +82,9 @@ private final class StreamingBodyBox: NSObject, URLSessionDataDelegate, @uncheck
     private var privateSession: URLSession?
     private var finished = false
 
-    init(maxBytes: Int) {
+    init(maxBytes: Int, usesPairingPins: Bool) {
         self.maxBytes = maxBytes
+        self.usesPairingPins = usesPairingPins
     }
 
     func start(
@@ -133,7 +136,7 @@ private final class StreamingBodyBox: NSObject, URLSessionDataDelegate, @uncheck
         didReceive challenge: URLAuthenticationChallenge,
         completionHandler: @escaping (URLSession.AuthChallengeDisposition, URLCredential?) -> Void
     ) {
-        TlsServerTrustEvaluator.handle(challenge, completionHandler: completionHandler)
+        respond(to: challenge, completionHandler: completionHandler)
     }
 
     func urlSession(
@@ -142,7 +145,18 @@ private final class StreamingBodyBox: NSObject, URLSessionDataDelegate, @uncheck
         didReceive challenge: URLAuthenticationChallenge,
         completionHandler: @escaping (URLSession.AuthChallengeDisposition, URLCredential?) -> Void
     ) {
-        TlsServerTrustEvaluator.handle(challenge, completionHandler: completionHandler)
+        respond(to: challenge, completionHandler: completionHandler)
+    }
+
+    private func respond(
+        to challenge: URLAuthenticationChallenge,
+        completionHandler: @escaping (URLSession.AuthChallengeDisposition, URLCredential?) -> Void
+    ) {
+        if usesPairingPins {
+            TlsServerTrustEvaluator.handle(challenge, completionHandler: completionHandler)
+        } else {
+            completionHandler(.performDefaultHandling, nil)
+        }
     }
 
     func cancel() {

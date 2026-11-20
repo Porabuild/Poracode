@@ -15,13 +15,17 @@ extension RichChatTimelineView {
       lastVisibleItemID: projection?.visibleEntries.last?.lastItemID,
       rawItems: projection?.rawItems ?? [],
       completedTurns: controller.state.displayedCompletedTurns(in: projection),
+      rawCompletedTurns: controller.state.completedTurns,
       userMessageStarts: RichChatTurnTiming.userMessageStarts(items: rawItems,
         turns: controller.state.displayedCompletedTurns(in: projection)),
       checkpoints: checkpointController.state.collection,
       isTurnActive: controller.state.transcript?.openTurn == true,
       inheritedItemIDs: inheritedIDs,
       requestRevert: allowsActions && allowsCheckpointRevert
-        ? { plan in revertIntent = plan } : nil,
+        ? { plan in
+          guard let target = conversation.state.target, controller.state.target == target else { return }
+          revertIntent = RichChatRevertIntent(plan: plan, target: target)
+        } : nil,
       requestTruncate: allowsActions
         ? { itemID in
           let eligible = RichChatTruncateEligibility.isEligible(
@@ -63,18 +67,26 @@ extension RichChatTimelineView {
     Task { await conversation.truncate(after: intent.id) }
   }
 
-  func confirmRevert(_ selectedPlan: RichChatMessageRevertPlan) {
+  func confirmRevert(_ intent: RichChatRevertIntent) {
     revertIntent = nil
     guard canOperate, !isRefreshing, !isBusy,
+      conversation.state.target == intent.target, controller.state.target == intent.target,
       let currentPlan = timelineActions(for: controller.timeline).revertPlan(
-        itemID: selectedPlan.userItemID),
-      currentPlan == selectedPlan
+        itemID: intent.plan.userItemID),
+      currentPlan == intent.plan
     else { return }
+    let prompt = controller.timeline?.rawItems.first { $0.id == currentPlan.userItemID }
+      .flatMap(RichChatRevertedPrompt.init(item:))
+    let target = intent.target
+    let recordPrompt = recordRevertedPrompt
     Task {
-      let succeeded = await conversation.revertToCheckpoint(
-        RichChatCheckpointRevertInput(checkpointItemID: currentPlan.checkpointItemID)
+      let outcome = await conversation.revertToCheckpoint(
+        RichChatCheckpointRevertInput(checkpointItemID: currentPlan.checkpointItemID, expectedTarget: target),
+        onConfirmed: { if let prompt { recordPrompt?(prompt, target) } }
       )
-      if succeeded, let projectLocation {
+      guard conversation.state.target == target else { return }
+      if outcome == .completedLocalOnly { showsLocalOnlyRevert = true }
+      if outcome != nil, let projectLocation {
         await checkpointController.load(projectLocation: projectLocation)
       }
     }
@@ -89,5 +101,40 @@ extension RichChatTimelineView {
       parts.append(RichChatMessageActionStrings.sharedTreeWarning(sharedTreeThreadCount))
     }
     return parts.joined(separator: "\n\n")
+  }
+}
+
+struct RichChatCheckpointRevertPresentation: ViewModifier {
+  @Binding var intent: RichChatRevertIntent?
+  @Binding var showsLocalOnly: Bool
+  let target: RichChatThreadTarget?
+  let confirm: (RichChatRevertIntent) -> Void
+  let message: (RichChatMessageRevertPlan) -> String
+
+  func body(content: Content) -> some View {
+    content
+      .alert(
+        RichChatMessageActionStrings.revertTitle,
+        isPresented: Binding(
+          get: { intent != nil },
+          set: { if !$0 { intent = nil } }
+        ),
+        presenting: intent
+      ) { confirmation in
+        Button(RichChatMessageActionStrings.revert, role: .destructive) { confirm(confirmation) }
+        Button(RichChatStrings.cancel, role: .cancel) { intent = nil }
+      } message: { confirmation in
+        Text(message(confirmation.plan))
+      }
+      .alert(RichChatMessageActionStrings.revertLocalOnlyTitle, isPresented: $showsLocalOnly) {
+        Button(SettingsUIStrings.done, role: .cancel) {}
+      } message: {
+        Text(RichChatMessageActionStrings.revertLocalOnlyMessage)
+      }
+      .onChange(of: target) { _, target in
+        if intent?.target != target { intent = nil }
+        showsLocalOnly = false
+      }
+      .modifier(PoracodeRetainNavigationWhilePresented(isPresented: intent != nil || showsLocalOnly))
   }
 }

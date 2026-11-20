@@ -7,8 +7,8 @@ struct NotificationSettingsView: View {
   var body: some View {
     List {
       Section {
-        Toggle(
-          String(localized: "notifications.enable"),
+        NotificationSettingSwitch(
+          title: String(localized: "notifications.enable"),
           isOn: Binding(
             get: { delivery.isEnabled },
             set: { enabled in
@@ -16,7 +16,7 @@ struct NotificationSettingsView: View {
             }
           )
         )
-        .poracodeSwitchStyle()
+        .settingsSearchAnchor(.notificationsEnabled)
         if delivery.isEnabled {
           NotificationPermissionControl()
         }
@@ -25,11 +25,11 @@ struct NotificationSettingsView: View {
       }
 
       Section {
-        Toggle(
-          SettingsUIStrings.notificationSound,
+        NotificationSettingSwitch(
+          title: SettingsUIStrings.notificationSound,
           isOn: alertBinding(\.soundEnabled, update: delivery.setSoundEnabled)
         )
-        .poracodeSwitchStyle()
+        .settingsSearchAnchor(.notificationSound)
         Picker(
           SettingsUIStrings.notificationPresentation,
           selection: Binding(
@@ -41,30 +41,33 @@ struct NotificationSettingsView: View {
             .tag(NotificationForegroundMode.backgroundOnly)
           Text(SettingsUIStrings.notificationAlways).tag(NotificationForegroundMode.always)
         }
+        .accessibilityIdentifier("native-e2e.notifications.presentation")
+        .settingsSearchAnchor(.notificationPresentation)
       }
       .disabled(!delivery.isEnabled)
 
       Section(SettingsUIStrings.notifyAbout) {
-        Toggle(
-          SettingsUIStrings.notificationDone,
+        NotificationSettingSwitch(
+          title: SettingsUIStrings.notificationDone,
           isOn: alertBinding(\.doneEnabled, update: delivery.setDoneEnabled)
         )
-        .poracodeSwitchStyle()
-        Toggle(
-          SettingsUIStrings.notificationNeedsAttention,
+        .settingsSearchAnchor(.notificationDone)
+        NotificationSettingSwitch(
+          title: SettingsUIStrings.notificationNeedsAttention,
           isOn: alertBinding(\.needsAttentionEnabled, update: delivery.setNeedsAttentionEnabled)
         )
-        .poracodeSwitchStyle()
-        Toggle(
-          SettingsUIStrings.notificationError,
+        .settingsSearchAnchor(.notificationAttention)
+        NotificationSettingSwitch(
+          title: SettingsUIStrings.notificationError,
           isOn: alertBinding(\.errorEnabled, update: delivery.setErrorEnabled)
         )
-        .poracodeSwitchStyle()
+        .settingsSearchAnchor(.notificationError)
       }
       .disabled(!delivery.isEnabled)
     }
     .listStyle(.insetGrouped)
     .poracodeReadableListMargins(740)
+    .settingsSearchScroll()
     .navigationTitle(SettingsUIStrings.notificationsTitle)
     .navigationBarTitleDisplayMode(.inline)
     .task {
@@ -80,5 +83,24 @@ struct NotificationSettingsView: View {
       get: { delivery.alertPreference[keyPath: keyPath] },
       set: { enabled in Task { await update(enabled) } }
     )
+  }
+}
+
+private struct NotificationSettingSwitch: View {
+  let title: String
+  @Binding var isOn: Bool
+  @Environment(\.isEnabled) private var isEnabled
+
+  var body: some View {
+    Toggle(isOn: $isOn) {
+      Text(title)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .contentShape(Rectangle())
+        .onTapGesture {
+          if isEnabled { isOn.toggle() }
+        }
+    }
+    .accessibilityLabel(title)
+    .poracodeSwitchStyle()
   }
 }

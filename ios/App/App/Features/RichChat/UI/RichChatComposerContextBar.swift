@@ -1,5 +1,37 @@
 import SwiftUI
 
+struct RichChatUploadedAttachment: Identifiable, Equatable {
+  let id = UUID()
+  let name: String
+  let mimeType: String
+  let remotePath: String
+
+  var segment: RichPromptSegment { .attachment(path: remotePath, mimeType: mimeType) }
+}
+
+struct RichChatDraftRestorationAction: View {
+  let isRevertedPrompt: Bool
+  let activate: () -> Void
+
+  var body: some View {
+    Button(action: activate) {
+      Label(
+        isRevertedPrompt ? RichChatStrings.restoreRevertedPrompt : RichChatStrings.restorePreviousDraft,
+        systemImage: isRevertedPrompt ? "arrow.uturn.forward" : "arrow.uturn.backward"
+      )
+      .poracodeChatText(.metadata, weight: .medium)
+      .padding(.horizontal, 10)
+      .padding(.vertical, 5)
+      .background(Color.primary.opacity(0.09), in: Capsule())
+      .frame(minHeight: 44)
+      .contentShape(Rectangle())
+    }
+    .buttonStyle(.plain)
+    .accessibilityIdentifier("native-e2e.composer-alternate-draft")
+    .frame(maxWidth: .infinity, alignment: .leading)
+  }
+}
+
 enum RichChatComposerControlsPresentation: String, Identifiable {
   case controls
   case crew

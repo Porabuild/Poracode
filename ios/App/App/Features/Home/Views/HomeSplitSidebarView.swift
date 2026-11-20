@@ -1,8 +1,12 @@
 import SwiftUI
 
+enum HomeSidebarHeaderControls {
+  static func iconContentSize(compact: Bool) -> CGFloat { compact ? 24 : 30 }
+}
+
 /// Left-hand navigation sidebar shown docked in landscape / wide layouts and
 /// as a leading overlay drawer in wide portrait layouts.
-struct HomeSplitSidebarView<ThreadContent: View, FilterControl: View, MoreControl: View, WorkspaceControl: View>: View {
+struct HomeSplitSidebarView<ThreadContent: View, FilterControl: View, MoreControl: View, WorkspaceControl: View, UsageRail: View>: View {
   let glassNamespace: Namespace.ID
   let isCompactHeight: Bool
   let isSearchDisabled: Bool
@@ -17,9 +21,12 @@ struct HomeSplitSidebarView<ThreadContent: View, FilterControl: View, MoreContro
   @ViewBuilder let workspaceControl: () -> WorkspaceControl
   @ViewBuilder let filterControl: () -> FilterControl
   @ViewBuilder let moreControl: () -> MoreControl
+  @ViewBuilder let usageRail: () -> UsageRail
   @ViewBuilder let threadContent: () -> ThreadContent
 
   @AppStorage(HomeShortcutPreferences.storageKey) private var shortcutStorage = HomeShortcutPreferences.defaultStorageValue
+
+  private let headerControlHeight: CGFloat = 44
 
   var body: some View {
     VStack(spacing: 0) {
@@ -33,7 +40,10 @@ struct HomeSplitSidebarView<ThreadContent: View, FilterControl: View, MoreContro
         .refreshable {
           await refresh()
         }
-      if !isCompactHeight { footer }
+      if !isCompactHeight {
+        usageRail()
+        footer
+      }
     }
     .frame(maxWidth: .infinity, maxHeight: .infinity)
     .ignoresSafeArea(.keyboard, edges: .bottom)
@@ -48,12 +58,12 @@ struct HomeSplitSidebarView<ThreadContent: View, FilterControl: View, MoreContro
       PoracodeGlassGroup(spacing: isCompactHeight ? 4 : 6) {
         HStack(spacing: isCompactHeight ? 4 : 6) {
           filterControl()
-            .frame(width: 44, height: 44)
-          if isCompactHeight { moreControl().frame(width: 44, height: 44) }
+            .frame(width: headerControlHeight, height: headerControlHeight)
+          if isCompactHeight { moreControl().frame(width: headerControlHeight, height: headerControlHeight) }
         }
       }
     }
-    .frame(minHeight: 44)
+    .frame(minHeight: headerControlHeight)
     .padding(.horizontal, 12)
     .padding(.bottom, 4)
   }
@@ -72,7 +82,7 @@ struct HomeSplitSidebarView<ThreadContent: View, FilterControl: View, MoreContro
           Spacer(minLength: 0)
         }
         .padding(.horizontal, 12)
-        .frame(minHeight: isCompactHeight ? 36 : 40)
+        .frame(minHeight: isCompactHeight ? 36 : headerControlHeight)
         .poracodeGlassBackground(in: Capsule(), interactive: true)
         .contentShape(Capsule())
       }
@@ -83,11 +93,11 @@ struct HomeSplitSidebarView<ThreadContent: View, FilterControl: View, MoreContro
       .poracodeGlassID("home.search", in: glassNamespace)
       .poracodeZoomSource(id: "home.search", in: glassNamespace)
 
-      PoracodeCircleButton(size: isCompactHeight ? 24 : 28, action: startNewThread) {
+      PoracodeCircleButton(size: HomeSidebarHeaderControls.iconContentSize(compact: isCompactHeight), action: startNewThread) {
         Image(systemName: "square.and.pencil")
           .font(.subheadline)
       }
-      .frame(width: 44, height: 44)
+      .frame(width: headerControlHeight, height: headerControlHeight)
       .disabled(!canStartThread)
       .accessibilityLabel(HomeStrings.newThread)
       .accessibilityIdentifier("native-e2e.sidebar.new-thread")

@@ -41,12 +41,12 @@
       }
       .task { await composition.activate() }
       .onDisappear { Task { [composition] in await composition.deactivate() } }
-      .onChange(of: session.currentBrowserMirrorAccess) { _, access in
-        Task { await composition.synchronizeAccess(access) }
+      .onChange(of: session.currentBrowserMirrorAccess) { _, _ in
+        Task { await composition.synchronizeAccess(session.currentBrowserMirrorAccess) }
       }
-      .onChange(of: session.socketState) { _, state in
+      .onChange(of: session.socketState) { _, _ in
         Task {
-          if state == .online {
+          if session.socketState == .online {
             await composition.synchronizeSocket()
           } else {
             composition.socketDisconnected()
@@ -77,7 +77,7 @@
           .toolbar {
             if !embeddedInNavigationStack {
               ToolbarItem(placement: .cancellationAction) {
-                Button(BrowserMirrorStrings.dismiss) { dismiss() }
+                Button(BrowserMirrorStrings.dismiss, systemImage: "xmark") { dismiss() }
               }
             }
             ToolbarItemGroup(placement: .primaryAction) {
@@ -88,6 +88,7 @@
                 composition.controller.watchIntent
                   ? BrowserMirrorStrings.stopMirroring
                   : BrowserMirrorStrings.startMirroring,
+                systemImage: composition.controller.watchIntent ? "stop.circle" : "play.circle",
                 action: toggleMirroring
               )
             }

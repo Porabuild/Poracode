@@ -4,8 +4,10 @@ struct RichChatThreadView: View {
   @Bindable var session: AppSession
   let threadID: String
   let title: String
+  let openLinkedThread: ((RemoteThread) -> Bool)?
+  let returnToForkSource: ((String) -> Bool)?
+  private let openWorkspaceTools: (() -> Void)?
 
-  @Environment(\.scenePhase) private var scenePhase
   @Environment(\.colorScheme) private var inheritedColorScheme
   @Environment(\.poracodeTheme) private var theme
   @Environment(\.dismiss) private var dismiss
@@ -21,14 +23,25 @@ struct RichChatThreadView: View {
   @State var showsSideChatSheet = false
   @State var sideChatFailure: String?
   @State private var actionDestination: ThreadDetailDestination?
+  @State private var sourceFileDestination: RichChatSourceFileDestination?
   @State var fork = RichChatForkState()
   @State var resumeState = RichChatThreadResumeState()
 
-  init(session: AppSession, threadID: String, title: String, auxiliary: Bool = false, retainedSuite: RichChatControllerSuite? = nil) {
+  init(
+    session: AppSession, threadID: String, title: String, auxiliary: Bool = false,
+    retainedSuite: RichChatControllerSuite? = nil, chatWindow: RichChatWindowSession? = nil,
+    openLinkedThread: ((RemoteThread) -> Bool)? = nil,
+    returnToForkSource: ((String) -> Bool)? = nil,
+    openWorkspaceTools: (() -> Void)? = nil
+  ) {
     self.session = session
     self.threadID = threadID
     self.title = title
-    _pageState = State(initialValue: RichChatThreadPageState(session: session, threadID: threadID, auxiliary: auxiliary, retainedSuite: retainedSuite))
+    self.openLinkedThread = openLinkedThread
+    self.returnToForkSource = returnToForkSource
+    self.openWorkspaceTools = openWorkspaceTools
+    _pageState = State(initialValue: RichChatThreadPageState(session: session, threadID: threadID,
+      auxiliary: auxiliary, retainedSuite: retainedSuite, chatWindow: chatWindow))
   }
 
   var body: some View {
@@ -39,69 +52,76 @@ struct RichChatThreadView: View {
         guiContent
       }
     }
-    .poracodeThemeBackground(isTerminal ? .black : theme.variant(for: inheritedColorScheme).background)
+    .environment(\.richChatImageSources) { pageState.galleryImages }
+    .modifier(RichChatRequestFormPresentation(suite: suite, canResolve: pageState.canResolveRequests))
+    .poracodeThemeBackground(theme.variant(for: inheritedColorScheme).background)
     .trackWorkflowActivity(session: session, controller: suite.transcript, headings: suite.runtimeItemHeadings, location: pageState.projectLocation)
     .modifier(RichChatNavigationChrome(title: thread?.title ?? title, auxiliary: pageState.isAuxiliary))
     .toolbar {
       if !pageState.isAuxiliary {
-      if let thread, let project = pageState.project {
-        PoracodeToolbarTitle {
-          ThreadDetailTitleView(
-            session: session, thread: thread, project: project,
-            hasBackgroundActivity: suite.transcript.state.transcript?.openTurn == true || session.workflowActivity.isLive(for: suite.transcript.state.target),
-            foregroundIsOpen: suite.transcript.state.transcript?.openTurn,
-            showsProviderBadge: false
-          )
-        }
-      }
-      if inspectorCapability.supportsInspector {
-        ToolbarItem(placement: .topBarTrailing) {
-          PoracodeToolbarIconButton(
-            title: HomeStrings.toggleInspector,
-            systemImage: "sidebar.right",
-            color: isInspectorCurrentlyOpen ? .primary : .secondary
-          ) { toggleInspector() }
-          .accessibilityIdentifier("native-e2e.inspector-toggle")
-        }
-      }
-      if isTerminal && !inspectorCapability.supportsInspector {
-        ToolbarItem(placement: .topBarTrailing) {
-          PoracodeToolbarIconButton(title: HomeStrings.threadInfo, systemImage: "info.circle") {
-            showsCompactThreadInfo = true
-          }
-        }
-      }
-      if !pageState.isAuxiliary, let thread, let project = pageState.project, let projectLocation = pageState.projectLocation {
-        ToolbarItem(placement: .topBarTrailing) {
-          ThreadDetailActionMenu(
-            session: session,
-            thread: thread,
-            project: project,
-            workspaceLocation: projectLocation,
-            handoffItems: suite.transcript.state.transcript?.itemsInOrder ?? [],
-            terminalScrollback: isTerminal
-              ? suite.terminal.state.cursor?.transcript
-              : suite.transcript.state.terminalScrollback,
-            canRefresh: !isTerminal && suite.transcript.state.loadState != .loading,
-            canClose: pageState.canCloseThread,
-            externalDestination: $actionDestination,
-            externalHandoffRequest: crewHandoffBinding,
-            refresh: { Task { await suite.refreshAuthoritativeHistory() } },
-            requestClose: { isConfirmingClose = true },
-            onThreadRemoved: closeAndDismiss
-          ) {
-            RichChatThreadInformationMenu(
-              showsResourceDetails: !isTerminal,
-              hasContext: suite.transcript.state.contextUsage != nil,
-              showInfo: { showsCompactThreadInfo = true },
-              select: { compactControlDestination = $0 }
+        if let thread, let project = pageState.project {
+          PoracodeToolbarTitle {
+            ThreadDetailTitleView(
+              session: session, thread: thread, project: project,
+              hasBackgroundActivity: suite.transcript.state.transcript?.openTurn == true || session.workflowActivity.isLive(for: suite.transcript.state.target),
+              foregroundIsOpen: suite.transcript.state.transcript?.openTurn,
+              showsProviderBadge: false
             )
           }
         }
-      }
+        ToolbarItemGroup(placement: .topBarTrailing) {
+          if inspectorCapability.supportsInspector {
+            PoracodeToolbarIconButton(
+              title: HomeStrings.toggleInspector,
+              systemImage: "sidebar.right",
+              color: isInspectorCurrentlyOpen ? .primary : .secondary,
+              sharesBackground: true
+            ) { toggleInspector() }
+            .accessibilityIdentifier("native-e2e.inspector-toggle")
+          } else if isTerminal {
+            PoracodeToolbarIconButton(
+              title: HomeStrings.threadInfo,
+              systemImage: "info.circle",
+              sharesBackground: true
+            ) { showsCompactThreadInfo = true }
+          }
+          if let thread, let project = pageState.project, let projectLocation = pageState.projectLocation {
+            ThreadDetailActionMenu(
+              session: session,
+              owningConnectionID: pageState.owningConnectionID,
+              thread: thread,
+              project: project,
+              workspaceLocation: projectLocation,
+              handoffItems: suite.transcript.state.transcript?.itemsInOrder ?? [],
+              terminalScrollback: isTerminal
+                ? suite.terminal.state.cursor?.transcript
+                : suite.transcript.state.terminalScrollback,
+              canRefresh: !isTerminal && suite.transcript.state.loadState != .loading,
+              canClose: pageState.canCloseThread,
+              selectDestination: { actionDestination = $0 },
+              externalHandoffRequest: crewHandoffBinding,
+              refresh: { Task { await suite.refreshAuthoritativeHistory() } },
+              requestClose: { isConfirmingClose = true },
+              onThreadRemoved: closeAndDismiss
+            ) {
+              if let openWorkspaceTools {
+                Section {
+                  Button(action: openWorkspaceTools) {
+                    PoracodeActionLabel(HomeStrings.workspace, systemImage: "briefcase")
+                  }
+                }
+              }
+              RichChatThreadInformationMenu(
+                showsResourceDetails: !isTerminal,
+                hasContext: suite.transcript.state.contextUsage != nil, find: pageState.canDisplayHistory ? pageState.find : nil,
+                showInfo: { showsCompactThreadInfo = true },
+                select: { compactControlDestination = $0 }
+              )
+            }
+          }
+        }
       }
     }
-    .environment(\.colorScheme, isTerminal ? .dark : inheritedColorScheme)
     .modifier(RichChatSideChatPresentation(page: self))
     .modifier(ComposerVoiceHost(session: session))
     .environment(\.composerPreferences, session.composerPreferences)
@@ -118,6 +138,7 @@ struct RichChatThreadView: View {
       }
     }
     .modifier(RichChatForkPresentation(page: self))
+    .modifier(RichChatSourceFilePresentation(session: session, threadID: threadID, destination: $sourceFileDestination))
     .confirmationDialog(
       RichChatStrings.closeThreadConfirmationTitle,
       isPresented: $isConfirmingClose,
@@ -133,39 +154,14 @@ struct RichChatThreadView: View {
       guard operation == .close else { return }
       closeAndDismiss()
     }
-    .task(id: pageState.activationID) { await pageState.activate() }
-    .task(id: pageState.settingsRefreshKey) {
-      await pageState.refreshProviderUsage()
-      await pageState.loadVisibilityOverrides()
+    .onChange(of: thread?.isDone) { previous, current in
+      // Home owns selection across layout changes. Standalone destinations
+      // dismiss their own page and let departure park the unsent draft.
+      if pageState.dismissesOnCompletion, previous == false, current == true { dismiss() }
     }
-    // Session-action inventory tracks live owner changes; ambiguous refreshes below.
-    .task(id: pageState.sessionActionRefreshKey) {
-      suite.sessionActions.updateOwner(pageState.sessionActionOwner)
-      await suite.sessionActions.refreshInventory()
-    }
-    .onChange(of: session.phase) { pageState.updateAccess() }
-    .onChange(of: session.socketState) { pageState.updateAccess() }
-    .onChange(of: thread?.config) { previous, current in
-      pageState.draft.synchronizeConfiguration(previous: previous, current: current)
-    }
-    .onChange(of: suite.transcript.state.transcript?.itemsInOrder, initial: true) { _, items in
-      pageState.updateGallery(items ?? [])
-    }
-    .onChange(of: suite.sessionActions.state.requiresAuthoritativeRefresh) { _, needs in
-      guard needs else { return }
-      Task {
-        await suite.refreshAuthoritativeHistory()
-        suite.sessionActions.acknowledgeAuthoritativeRefresh()
-        await suite.sessionActions.refreshInventory()
-      }
-    }
-    .onAppear { if pageState.draft.consumeQueuedSegments() { composerExpanded = true } }
-    .onChange(of: session.richChatComposerDrafts.revision) { _, _ in
-      if pageState.draft.consumeQueuedSegments() { composerExpanded = true }
-    }
-    .onChange(of: pageState.composerFocusRevision) { _, _ in composerExpanded = true }
-    .onChange(of: scenePhase) { _, phase in pageState.handleScenePhase(phase) }
-    .onDisappear { pageState.detach() }
+    .modifier(RichChatThreadLifecycle(pageState: pageState, composerExpanded: $composerExpanded))
+    .modifier(NativeThreadPanelCommands(page: pageState, capability: $inspectorCapability,
+      isVisible: $isInspectorVisible, activeTab: $rightPanelTab, destination: $actionDestination))
   }
 
   var suite: RichChatControllerSuite { pageState.suite }
@@ -178,10 +174,6 @@ struct RichChatThreadView: View {
   var activationID: String { pageState.activationID }
   var canOperate: Bool { pageState.canOperate }
   private var isTerminal: Bool { pageState.isTerminal }
-
-  private func updateInspectorCapability(_ updated: RichChatInspectorCapability) {
-    inspectorCapability = updated
-  }
 
   private var guiContent: some View {
     VStack(spacing: 0) {
@@ -197,7 +189,7 @@ struct RichChatThreadView: View {
       RichChatResponsiveLayout(
         breakpoint: pageState.isAuxiliary ? .infinity : 960,
         isInspectorVisible: isInspectorVisible,
-        onCapabilityChange: updateInspectorCapability
+        onCapabilityChange: { inspectorCapability = $0 }
       ) {
         EmptyView()
       } transcript: {
@@ -234,7 +226,7 @@ struct RichChatThreadView: View {
     RichChatResponsiveLayout(
       showsComposer: false,
       isInspectorVisible: isInspectorVisible,
-      onCapabilityChange: updateInspectorCapability
+      onCapabilityChange: { inspectorCapability = $0 }
     ) {
       EmptyView()
     } transcript: {
@@ -290,10 +282,14 @@ struct RichChatThreadView: View {
       sharedTreeThreadCount: pageState.sharedTreeThreadCount,
       allowsCheckpointRevert: thread?.projectId != RemoteProject.homeScopeID,
       canOperate: canOperate, retry: { Task { await suite.refreshAuthoritativeHistory() } },
-      requestFork: forkRequest, forkBoundaryItemID: forkBoundaryID,
+      requestFork: forkRequest, forkBoundaryItemID: forkBoundaryID, forkSource: forkSourceLink,
       fallbackCompletedTurn: RichChatTurnTiming.completedFallback(thread: thread),
       askInSideChat: offersSideChat ? { addMessageToSideChat($0) } : nil,
-      isConnectingHost: session.phase == .connecting
+      recordRevertedPrompt: pageState.recordRevertedPrompt,
+      openProjectFile: pageState.projectFileOpener { sourceFileDestination = $0 },
+      resolveAttachmentBasename: pageState.attachmentBasenameResolver,
+      isConnectingHost: session.phase == .connecting, find: pageState.find,
+      showsHistory: pageState.canDisplayHistory, allowsThreadToolbar: !pageState.isAuxiliary
     )
   }
 

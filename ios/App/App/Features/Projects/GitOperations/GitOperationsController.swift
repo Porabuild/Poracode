@@ -55,8 +55,9 @@ final class GitOperationsController {
     isBackgrounded = false
   }
 
-  func read(_ request: GitOperationRequest) async {
-    guard request.procedure.metadata.scope == .read,
+  func read(_ request: GitOperationRequest, expectedLease: ProjectWorkspaceLease? = nil) async {
+    guard expectedLease == nil || expectedLease == state.context?.lease,
+      request.procedure.metadata.scope == .read,
       let capture = capture(capability: .sessionRead, request: request)
     else { return }
     state.loadState = .loading(request.procedure)
@@ -82,8 +83,10 @@ final class GitOperationsController {
     await readTask.wait()
   }
 
-  func submit(_ request: GitOperationRequest) async {
-    guard request.procedure.metadata.scope == .operate else { return }
+  func submit(_ request: GitOperationRequest, expectedLease: ProjectWorkspaceLease? = nil) async {
+    guard expectedLease == nil || expectedLease == state.context?.lease,
+      request.procedure.metadata.scope == .operate
+    else { return }
     if request.procedure.requiresConfirmation {
       guard let context = state.context, ownsLease(context.lease) else { return }
       state.pendingConfirmation = GitOperationsPendingConfirmation(

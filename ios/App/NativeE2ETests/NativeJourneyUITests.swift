@@ -60,24 +60,25 @@ final class NativeJourneyUITests: XCTestCase {
 
     let projectFilter = app.buttons["native-e2e.project-filter"]
     XCTAssertTrue(projectFilter.waitForExistence(timeout: 5))
+    let filterSheet = app.navigationBars.matching(NSPredicate(format: "identifier IN %@",
+      ["Filter projects", "Filter threads"])).firstMatch
     // Probe the physical target: native toolbar AX frames can describe only chrome.
     var filterTargetResults: [Bool] = []
     for offset in [CGVector(dx: -21, dy: 0), CGVector(dx: 21, dy: 0),
                    CGVector(dx: 0, dy: -21), CGVector(dx: 0, dy: 21)] {
       projectFilter.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
         .withOffset(offset).tap()
-      let sheet = app.navigationBars["Filter projects"]
-      let opened = sheet.waitForExistence(timeout: 3)
+      let opened = filterSheet.waitForExistence(timeout: 3)
       filterTargetResults.append(opened)
       print("FILTER_TARGET_PROBE dx=\(offset.dx) dy=\(offset.dy) opened=\(opened)")
       if opened {
         app.buttons["native-e2e.project-filter.done"].tap()
         await fulfillment(of: [XCTNSPredicateExpectation(
-          predicate: NSPredicate(format: "exists == false"), object: sheet)], timeout: 5)
+          predicate: NSPredicate(format: "exists == false"), object: filterSheet)], timeout: 5)
       }
     }
     projectFilter.tap()
-    XCTAssertTrue(app.navigationBars["Filter projects"].waitForExistence(timeout: 5))
+    XCTAssertTrue(filterSheet.waitForExistence(timeout: 5))
     let projectFilterDone = app.buttons["native-e2e.project-filter.done"]
     XCTAssertTrue(projectFilterDone.waitForExistence(timeout: 5))
     projectFilterDone.tap()

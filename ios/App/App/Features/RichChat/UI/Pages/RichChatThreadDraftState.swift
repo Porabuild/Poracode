@@ -1,3 +1,4 @@
+import Foundation
 import Observation
 
 /// Owns the navigation-scoped composer state for one thread page. Keeping this
@@ -18,6 +19,7 @@ final class RichChatThreadDraftState {
   var composerControlDestination: RichChatComposerControlsPresentation?
   var providerHandoffRequest: ThreadProviderHandoffRequest?
   var connectionID: ClientConnectionID? { activeKey?.connectionID }
+  private(set) var restoredPromptOrder: RichChatRestoredPromptOrder?
 
   private let store: RichChatComposerDraftStore
   private var activeKey: RichChatComposerDraftKey?
@@ -74,17 +76,50 @@ final class RichChatThreadDraftState {
   func beginSubmission() {
     guard let activeKey else { return }
     submittingKey = activeKey
-    store.clear(activeKey)
+    store.clearInput(activeKey)
   }
 
   func finishSubmission(succeeded: Bool) {
     guard let submittingKey else { return }
     self.submittingKey = nil
     if succeeded {
-      store.clear(submittingKey)
+      store.clearInput(submittingKey)
+      store.setAlternateDraft(nil, for: submittingKey)
+      restoredPromptOrder = nil
     } else {
       store.save(draft, for: submittingKey)
     }
+  }
+
+  var pendingRevertedPromptID: UUID? {
+    guard submittingKey == nil, !discardsOnDisappear, let activeKey else { return nil }
+    return store.revertedPromptID(for: activeKey)
+  }
+
+  var alternateDraftIsRevertedPrompt: Bool? {
+    guard let activeKey else { return nil }
+    return store.alternateDraft(for: activeKey)?.isRevertedPrompt
+  }
+
+  @discardableResult
+  func restoreRevertedPrompt(availableSkills: [RichChatSelectedSkill]) -> Bool {
+    guard submittingKey == nil, !discardsOnDisappear, let activeKey,
+      let prompt = store.takeRevertedPrompt(for: activeKey)
+    else { return false }
+    let restored = prompt.draft(availableSkills: availableSkills)
+    guard !restored.isEmpty else { return false }
+    consumeQueuedSegments()
+    let previous = draft
+    store.setAlternateDraft(previous.isEmpty ? nil : .init(draft: previous, isRevertedPrompt: false), for: activeKey)
+    restoreContent(restored)
+    return true
+  }
+
+  func switchRestoredDraft() {
+    guard submittingKey == nil, let activeKey, let alternate = store.alternateDraft(for: activeKey)
+    else { return }
+    store.setAlternateDraft(.init(draft: draft, isRevertedPrompt: !alternate.isRevertedPrompt), for: activeKey)
+    restoreContent(alternate.draft)
   }
 
   func discard() {
@@ -103,7 +138,8 @@ final class RichChatThreadDraftState {
       skills: skills,
       mcps: mcps,
       segments: segments,
-      configuration: configuration
+      configuration: configuration,
+      restoredOrder: restoredPromptOrder
     )
   }
 
@@ -111,12 +147,17 @@ final class RichChatThreadDraftState {
     _ saved: RichChatComposerDraft,
     baseConfiguration: ThreadConfig?
   ) {
+    restoreContent(saved)
+    configuration = saved.configuration ?? baseConfiguration
+  }
+
+  private func restoreContent(_ saved: RichChatComposerDraft) {
     text = saved.text
     attachments = saved.attachments
     skills = saved.skills
     mcps = saved.mcps
     segments = saved.segments
-    configuration = saved.configuration ?? baseConfiguration
+    restoredPromptOrder = saved.restoredOrder
   }
 
   private func reset(configuration: ThreadConfig?) {
@@ -125,6 +166,7 @@ final class RichChatThreadDraftState {
     skills = []
     mcps = []
     segments = []
+    restoredPromptOrder = nil
     self.configuration = configuration
   }
 }

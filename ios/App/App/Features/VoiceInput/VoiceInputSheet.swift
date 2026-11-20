@@ -9,7 +9,6 @@ struct VoiceInputSheet: View {
   let insert: () -> Void
   @Environment(\.dismiss) private var dismiss
   @Environment(\.openURL) private var openURL
-  @State private var started = Date()
   @State private var path: [Destination] = []
 
   var body: some View {
@@ -24,25 +23,12 @@ struct VoiceInputSheet: View {
         }
         Section {
           switch controller.phase {
-          case .idle, .starting:
-            ProgressView(VoiceStrings.starting)
+          case .idle, .starting, .transcribing:
+            VoiceInputActivity(controller: controller)
           case .recording:
-            TimelineView(.periodic(from: started, by: 0.15)) { time in
-              VStack(alignment: .leading, spacing: 12) {
-                Label(VoiceStrings.recording, systemImage: "record.circle.fill").foregroundStyle(.red)
-                Text(controller.recordingStartedAt ?? started, style: .timer).monospacedDigit().font(.title2)
-                ProgressView(value: Double(controller.inputLevel))
-                  .accessibilityLabel(VoiceStrings.microphone)
-                Text(VoiceStrings.recordingLimit).font(.footnote).foregroundStyle(.secondary)
-              }
-            }
+            VoiceInputActivity(controller: controller)
             Button(VoiceStrings.stop, systemImage: "stop.fill") { controller.finishRecording() }
               .accessibilityIdentifier("native-e2e.voice.stop")
-          case .transcribing:
-            ProgressView(value: controller.progress?.fraction) {
-              Text(controller.progress.map { VoiceStrings.phase($0.phase) } ?? VoiceStrings.transcribing)
-            }
-            if !controller.transcript.isEmpty { Text(controller.transcript).foregroundStyle(.secondary) }
           case .ready:
             TextEditor(text: $controller.transcript).frame(minHeight: 150)
               .accessibilityLabel(VoiceStrings.review)
@@ -56,7 +42,7 @@ struct VoiceInputSheet: View {
                 if let url = URL(string: UIApplication.openSettingsURLString) { openURL(url) }
               }
             }
-            Button(VoiceStrings.retry) { started = Date(); controller.retry() }.disabled(!controller.canRetry)
+            Button(VoiceStrings.retry) { controller.retry() }.disabled(!controller.canRetry)
           case .cancelled:
             EmptyView()
           }
@@ -92,5 +78,33 @@ struct VoiceInputSheet: View {
       }
     }
     .accessibilityIdentifier("native-e2e.voice.sheet")
+  }
+}
+
+struct VoiceInputActivity: View {
+  let controller: VoiceInputController
+
+  var body: some View {
+    switch controller.phase {
+    case .idle, .starting:
+      ProgressView(VoiceStrings.starting)
+    case .recording:
+      let started = controller.recordingStartedAt ?? Date()
+      TimelineView(.periodic(from: started, by: 0.15)) { _ in
+        VStack(alignment: .leading, spacing: 12) {
+          Label(VoiceStrings.recording, systemImage: "record.circle.fill").foregroundStyle(.red)
+          Text(started, style: .timer).monospacedDigit().font(.title2)
+          ProgressView(value: Double(controller.inputLevel)).accessibilityLabel(VoiceStrings.microphone)
+          Text(VoiceStrings.recordingLimit).font(.footnote).foregroundStyle(.secondary)
+        }
+      }
+    case .transcribing:
+      ProgressView(value: controller.progress?.fraction) {
+        Text(controller.progress.map { VoiceStrings.phase($0.phase) } ?? VoiceStrings.transcribing)
+      }
+      if !controller.transcript.isEmpty { Text(controller.transcript).foregroundStyle(.secondary) }
+    case .ready, .failed, .cancelled:
+      EmptyView()
+    }
   }
 }

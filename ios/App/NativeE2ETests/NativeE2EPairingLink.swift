@@ -49,6 +49,22 @@ enum PairingLinkEntry {
     into app: XCUIApplication,
     revealTimeout: TimeInterval = 10
   ) throws {
+    try populate(pairingURL, into: app, revealTimeout: revealTimeout)
+    let submit = app.buttons["native-e2e.pair.submit"]
+    XCTAssertTrue(submit.waitForExistence(timeout: 5))
+    if !submit.isHittable {
+      let form = app.scrollViews.containing(.button, identifier: "native-e2e.pair.submit").firstMatch
+      for _ in 0..<3 where !submit.isHittable && form.exists { form.swipeUp() }
+    }
+    XCTAssertTrue(submit.isHittable, "Connect must remain visible after entering a pairing link")
+    submit.tap()
+  }
+
+  static func populate(
+    _ pairingURL: URL,
+    into app: XCUIApplication,
+    revealTimeout: TimeInterval = 10
+  ) throws {
     let expected = pairingURL.absoluteString
     UIPasteboard.general.setItems(
       [[UTType.plainText.identifier: expected]],
@@ -81,15 +97,6 @@ enum PairingLinkEntry {
     guard entered == expected else {
       throw Failure.urlNotEntered(expected: expected, actual: entered, attempts: attempt)
     }
-
-    let submit = app.buttons["native-e2e.pair.submit"]
-    XCTAssertTrue(submit.waitForExistence(timeout: 5))
-    if !submit.isHittable {
-      let form = app.scrollViews.containing(.button, identifier: "native-e2e.pair.submit").firstMatch
-      for _ in 0..<3 where !submit.isHittable && form.exists { form.swipeUp() }
-    }
-    XCTAssertTrue(submit.isHittable, "Connect must remain visible after entering a pairing link")
-    submit.tap()
   }
 
   /// The pairing-link field lives inside the "Other ways to connect" sheet. It

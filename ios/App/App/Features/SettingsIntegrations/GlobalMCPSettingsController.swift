@@ -78,8 +78,9 @@ final class GlobalMCPSettingsController {
     await pending.value
   }
 
-  func perform(_ command: GlobalMCPSettingsCommand) async {
+  func perform(_ command: GlobalMCPSettingsCommand, expectedLease: SettingsHostLease? = nil) async {
     guard !isMutating, let selection, selection.gate(.projectsManage) == nil else { return }
+    if let expectedLease, selection.lease != expectedLease { return }
     replaceTask()
     let captured = revision
     let lease = selection.lease

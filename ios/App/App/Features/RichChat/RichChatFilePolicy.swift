@@ -216,6 +216,14 @@ enum RichChatFilePolicy {
     return String(last.reversed())
   }
 
+  static func isEditableTextAttachment(_ path: String) -> Bool {
+    ["txt", "csv", "tsv"].contains((basename(path) as NSString).pathExtension.lowercased())
+  }
+
+  static func usesWorkspaceBasenameLookup(_ path: String) -> Bool {
+    path == basename(path) && (isEditableTextAttachment(path) || (path as NSString).pathExtension.lowercased() == "pdf")
+  }
+
   /// Parses text that is entirely one `[label](dest)` or `[label](<dest>)`
   /// markdown link. Returns the label and the RAW (still-escaped) destination;
   /// decoding happens once in `markdownFileRef`/`decodedMarkdownDestination`.

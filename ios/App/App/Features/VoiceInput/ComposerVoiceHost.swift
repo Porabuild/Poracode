@@ -3,10 +3,11 @@ import SwiftUI
 
 @MainActor final class ComposerVoiceRequest: Identifiable {
   let id = UUID()
+  let owner: VoiceInputOwner
   let controller: VoiceInputController
   let commit: (String) -> Void
-  init(controller: VoiceInputController, commit: @escaping (String) -> Void) {
-    self.controller = controller; self.commit = commit
+  init(owner: VoiceInputOwner, controller: VoiceInputController, commit: @escaping (String) -> Void) {
+    self.owner = owner; self.controller = controller; self.commit = commit
   }
 }
 
@@ -22,10 +23,10 @@ import SwiftUI
   private var retainsOwner: Bool { ownerIsPresented?() == true }
   func owns(_ owner: VoiceInputOwner) -> Bool {
     guard ownerIsPresented?() != false else { return false }
-    return visibleOwners.contains(owner) || (retainsOwner && request?.controller.owner == owner)
+    return visibleOwners.contains(owner) || (retainsOwner && request?.owner == owner)
   }
   func refreshOwnership() {
-    if let request, !owns(request.controller.owner) { close(request) }
+    if let request, !owns(request.owner) { close(request) }
   }
   func presenterAppeared(_ id: UUID) { presenterID = id }
   func presenterDisappeared(_ id: UUID) {
@@ -47,7 +48,7 @@ import SwiftUI
     Task { @MainActor [weak self] in
       await Task.yield()
       guard let self, let request = self.request,
-        !self.owns(request.controller.owner) else { return }
+        !self.owns(request.owner) else { return }
       self.close(request)
     }
   }
@@ -98,14 +99,14 @@ struct ComposerVoiceHost: ViewModifier {
           state.presenterAppeared(presenterID)
           if let request = state.request {
             let access = state.session?.currentRichChatAccess
-            if access?.lease != request.controller.owner.lease || access?.controllerGate(.sessionOperate) != nil {
+            if access?.lease != request.owner.lease || access?.controllerGate(.sessionOperate) != nil {
               state.close(request)
             }
           }
         }
         .onChange(of: state.session?.currentRichChatAccess) { _, access in
           guard let request = state.request else { return }
-          if access?.lease != request.controller.owner.lease || access?.controllerGate(.sessionOperate) != nil {
+          if access?.lease != request.owner.lease || access?.controllerGate(.sessionOperate) != nil {
             state.close(request)
           }
         }
@@ -131,8 +132,8 @@ private struct ComposerVoicePresentation: View {
         Group {
           if let session = state.session {
             VoiceInputSheet(session: session, controller: request.controller) {
-              guard state.presenterID == presenterID, state.request === request, state.owns(request.controller.owner),
-                session.currentRichChatAccess?.lease == request.controller.owner.lease else { return }
+              guard state.presenterID == presenterID, state.request === request, state.owns(request.owner),
+                session.currentRichChatAccess?.lease == request.owner.lease else { return }
               request.commit(request.controller.transcript)
               state.close(request)
             }
@@ -185,18 +186,18 @@ struct ComposerVoiceButton: View {
   private func startRecording(owner: VoiceInputOwner, host: ComposerVoiceState, session: AppSession) {
     guard isEnabled, preferences.value.showButton, !preferences.incompatible, host.request == nil,
       session.currentRichChatAccess?.lease == owner.lease else { return }
+    let options = preferences.value
+    guard let transcriber = session.makeVoiceTranscriber(for: options.backend, lease: owner.lease) else { return }
     prepareToRecord()
     let snapshot = VoiceDraftSnapshot(text: text, selection: selection)
-    let hex = VoiceHexTranscriber(gateway: session.makeVoiceHexGateway(lease: owner.lease))
-    let transcriber = ComposerVoiceTranscriber(local: WhisperVoiceTranscriber(), hex: hex)
-    let controller = VoiceInputController(owner: owner, options: preferences.value, recorder: VoiceCaptureFactory.make(),
+    let controller = VoiceInputController(owner: owner, options: options, recorder: VoiceCaptureFactory.make(),
       transcriber: transcriber, currentOwner: { [weak host, weak session] in
         guard let host, let session, let access = session.currentRichChatAccess, access.controllerGate(.sessionOperate) == nil,
           host.owns(owner) else { return nil }
         return .init(lease: access.lease, conversationID: owner.conversationID)
       })
     let textBinding = $text, selectionBinding = $selection, didInsert = inserted
-    host.request = ComposerVoiceRequest(controller: controller) { spoken in
+    host.request = ComposerVoiceRequest(owner: owner, controller: controller) { spoken in
       let result = snapshot.inserting(spoken, into: textBinding.wrappedValue)
       textBinding.wrappedValue = result.text; selectionBinding.wrappedValue = result.selection
       didInsert()

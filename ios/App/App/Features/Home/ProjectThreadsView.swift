@@ -143,7 +143,7 @@ struct ProjectThreadsView: View {
         break
       }
     }
-    .threadRenameAlert(intent: $renameIntent) {
+    .threadRenameSheet(intent: $renameIntent) {
       submitRename()
     }
     .alert(
@@ -176,8 +176,8 @@ struct ProjectThreadsView: View {
         submit: { submitRelaunch(intent: intent, prompt: $0) }
       )
     }
-    .threadLifecycleDestructiveConfirmation(controller: lifecycle) {
-      Task { await lifecycle.confirmDestructiveIntent() }
+    .threadLifecycleDestructiveConfirmation(controller: lifecycle) { intent in
+      Task { await lifecycle.confirmDestructiveIntent(intent) }
     }
     .threadLifecycleFailureAlert(message: $failureMessage) {
       failureMessage = nil

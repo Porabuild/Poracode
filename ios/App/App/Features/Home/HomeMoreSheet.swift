@@ -91,11 +91,13 @@ struct HomeMoreSheet: View {
             HomeMoreLabel(BrowserMirrorStrings.title, systemImage: "globe")
           }
           .disabled(session.currentBrowserMirrorAccess == nil)
+          .accessibilityIdentifier("native-e2e.more.browser-mirror")
           NavigationLink {
             SettingsMoreIndexView(session: session)
           } label: {
             HomeMoreLabel(SettingsUIStrings.title, systemImage: "slider.horizontal.3")
           }
+          .accessibilityIdentifier("native-e2e.more.settings")
         }
 
         Section {
@@ -114,6 +116,7 @@ struct HomeMoreSheet: View {
           .buttonStyle(.plain)
         }
       }
+      .accessibilityIdentifier("native-e2e.more.list")
       .poracodeDrawerListStyle()
       .poracodeReadableListMargins(680)
       .navigationTitle(HomeStrings.more)

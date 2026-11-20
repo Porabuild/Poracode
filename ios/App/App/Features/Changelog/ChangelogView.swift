@@ -49,13 +49,12 @@ struct ChangelogView: View {
     .accessibilityIdentifier("native-e2e.changelog.list")
     .navigationTitle(ChangelogStrings.title)
     .navigationBarTitleDisplayMode(.inline)
-    .poracodeBottomBar {
-      PoracodeBottomActionDock {
-        PoracodeCircleButton(action: { Task { await store.refresh() } }) {
-          if store.isLoading { ProgressView() }
-          else { Image(systemName: "arrow.clockwise") }
-        }
-        .accessibilityLabel(HomeStrings.refresh)
+    .toolbar {
+      ToolbarItem(placement: .bottomBar) {
+        Button(
+          store.isLoading ? ChangelogStrings.loading : HomeStrings.refresh,
+          systemImage: store.isLoading ? "hourglass" : "arrow.clockwise"
+        ) { Task { await store.refresh() } }
         .accessibilityIdentifier("native-e2e.changelog.refresh")
         .disabled(store.isLoading)
       }

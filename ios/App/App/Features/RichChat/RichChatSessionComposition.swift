@@ -61,7 +61,8 @@ extension AppSession {
       else { return }
       await suite.refreshAuthoritativeHistory()
     }
-    return RichChatControllerSuite(gateway: gateway, refreshRequester: requester)
+    return RichChatControllerSuite(gateway: gateway, refreshRequester: requester,
+      checkpointRevertAttempts: checkpointRevertAttempts)
   }
 
   func richChatThread(id: String) -> RemoteThread? {

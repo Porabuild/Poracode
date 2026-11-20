@@ -29,6 +29,33 @@ extension View {
   }
 }
 
+private struct PoracodeInputSurface<FieldShape: InsettableShape, Fill: ShapeStyle>: ViewModifier {
+  let shape: FieldShape
+  let fill: Fill
+  @Environment(\.colorSchemeContrast) private var contrast
+  @Environment(\.pixelLength) private var pixelLength
+
+  func body(content: Content) -> some View {
+    content.background(fill, in: shape)
+      .overlay {
+        shape.strokeBorder(
+          Color.primary.opacity(contrast == .increased ? 0.24 : 0.035),
+          lineWidth: contrast == .increased ? 1 : pixelLength
+        )
+          .allowsHitTesting(false)
+      }
+  }
+}
+
+extension View {
+  func poracodeInputSurface(
+    in shape: some InsettableShape = PoracodeShapes.content,
+    fill: some ShapeStyle = Color.primary.opacity(0.06)
+  ) -> some View {
+    modifier(PoracodeInputSurface(shape: shape, fill: fill))
+  }
+}
+
 /// The shared geometry for panel navigation and shortcut controls.
 struct PoracodePanelControlStrip<Content: View>: View {
   @ViewBuilder let content: () -> Content
@@ -210,7 +237,7 @@ struct PoracodeBottomSearchField: View {
       .focused($isFocused)
       .padding(.horizontal, 16)
       .frame(height: 44)
-      .poracodeGlassBackground(in: Capsule(), interactive: true)
+      .poracodeInputSurface(in: Capsule(), fill: Material.regular)
       .onAppear { isFocused = true }
   }
 }

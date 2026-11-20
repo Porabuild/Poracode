@@ -4,6 +4,7 @@ enum PairAttemptOutcome: Sendable, Equatable {
     case installedLive
     case durableAppliedNotInstalled
     case notApplied
+    case failed(String)
 }
 
 /// Reconciles the live surface with the crash-recovered multihost catalog.

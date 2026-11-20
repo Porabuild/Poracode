@@ -106,8 +106,10 @@ import Observation
   }
 
   var availableCommands: Set<String> {
-    Set(actions(focus: focus).compactMap { $0.value.enabled ? $0.key : nil })
+    Set(enabledActions.keys)
   }
+
+  var enabledActions: [String: Action] { actions(focus: focus).filter { $0.value.enabled } }
 
   private func actions(focus: NativeCommandFocus) -> [String: Action] {
     var result: [String: Action] = [:]
@@ -143,7 +145,7 @@ struct NativeCommandFocus: Equatable, Sendable {
     switch probed.role {
     case .composer, .terminal, .browser, .shortcutCapture: return probed
     default:
-      if probed.isTextInput, declared?.role != .editor { return probed }
+      if probed.isTextInput, declared?.role != .editor, declared?.role != .browser { return probed }
       return declared ?? probed
     }
   }

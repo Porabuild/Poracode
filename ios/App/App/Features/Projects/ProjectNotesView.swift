@@ -1,14 +1,23 @@
 import SwiftUI
 
 /// Project notes and to-dos, mirroring the mobile web Notes panel: a free-form
-/// notes editor above a to-do list, with the add row at the bottom.
+/// notes editor followed by a checklist with an inline add row.
 struct ProjectNotesView: View {
+  private struct LoadTarget: Hashable {
+    let identity: ProjectIdentity
+    let lease: ProjectControllerHostLease?
+  }
+
   @Bindable var session: AppSession
   let identity: ProjectIdentity
   @Bindable var controller: ProjectControllerNotesController
 
   @Environment(\.poracodeEmbeddedInInspector) private var embeddedInInspector
-  @State private var noteDocument: JSONValue?
+  @Environment(\.colorScheme) private var colorScheme
+  @Environment(\.poracodeTheme) private var theme
+  @ScaledMetric(relativeTo: .body) private var compactEditorHeight: CGFloat = 82
+  @ScaledMetric(relativeTo: .body) private var wideEditorHeight: CGFloat = 120
+  @FocusState private var todoEntryFocused: Bool
   @State private var selectedNoteText = ""
   @State private var noteEditorIsActive = false
   @State private var activeNoteFormats = Set<ProjectNoteFormat>()
@@ -35,49 +44,45 @@ struct ProjectNotesView: View {
         noteList
       }
     }
+    .poracodeThemeBackground(theme.variant(for: colorScheme).background)
     .poracodeNavigationTitle(ProjectManagementStrings.notes, suppressed: embeddedInInspector)
     .toolbar {
-      ToolbarItemGroup(placement: .keyboard) {
-        Button {
-          noteEditorCommand = ProjectNoteEditorCommand(format: .bold)
-        } label: {
-          Image(systemName: "bold")
-            .foregroundStyle(activeNoteFormats.contains(.bold) ? Color.primary : Color.secondary)
-        }
-        .disabled(!noteEditorIsActive)
-        .accessibilityLabel(ProjectManagementStrings.bold)
+      if noteEditorIsActive {
+        ToolbarItemGroup(placement: .keyboard) {
+          Button {
+            noteEditorCommand = ProjectNoteEditorCommand(format: .bold)
+          } label: {
+            Image(systemName: "bold")
+              .foregroundStyle(activeNoteFormats.contains(.bold) ? Color.primary : Color.secondary)
+          }
+          .accessibilityLabel(ProjectManagementStrings.bold)
 
-        Button {
-          noteEditorCommand = ProjectNoteEditorCommand(format: .italic)
-        } label: {
-          Image(systemName: "italic")
-            .foregroundStyle(
-              activeNoteFormats.contains(.italic) ? Color.primary : Color.secondary
-            )
-        }
-        .disabled(!noteEditorIsActive)
-        .accessibilityLabel(ProjectManagementStrings.italic)
+          Button {
+            noteEditorCommand = ProjectNoteEditorCommand(format: .italic)
+          } label: {
+            Image(systemName: "italic")
+              .foregroundStyle(
+                activeNoteFormats.contains(.italic) ? Color.primary : Color.secondary
+              )
+          }
+          .accessibilityLabel(ProjectManagementStrings.italic)
 
-        Spacer()
-        Button {
-          startThread(with: selectedNoteText)
-        } label: {
-          Label(HomeStrings.newThread, systemImage: "plus.bubble")
+          Spacer()
+          Button {
+            startThread(with: selectedNoteText)
+          } label: {
+            Label(HomeStrings.newThread, systemImage: "plus.bubble")
+          }
+          .disabled(cleanSelectedNoteText.isEmpty)
         }
-        .disabled(!noteEditorIsActive || cleanSelectedNoteText.isEmpty)
       }
     }
-    .task(id: identity) {
+    .task(id: LoadTarget(identity: identity, lease: controller.session?.lease)) {
       await controller.load(identity)
     }
     .refreshable { await controller.load(identity) }
-    .onChange(of: state.loadState) { _, loadState in
-      if case .loaded = loadState { noteDocument = state.draft?.doc }
-      if case .empty = loadState { noteDocument = nil }
-    }
-    .onChange(of: state.failure) { _, failure in
-      guard failure != nil else { return }
-      noteDocument = state.lastConfirmed?.doc
+    .onDisappear {
+      Task { await controller.flushPendingEdit(for: identity) }
     }
     .overlay(alignment: .bottom) {
       if state.isSaving {
@@ -85,6 +90,18 @@ struct ProjectNotesView: View {
           .padding(10)
           .poracodeGlassBackground(in: Capsule())
           .padding()
+          .allowsHitTesting(false)
+      } else if state.conflict {
+        VStack(alignment: .leading, spacing: 8) {
+          Text(ProjectManagementStrings.notesConflict).font(.caption)
+          Button(ProjectManagementStrings.loadSavedNotes) {
+            Task { await controller.load(identity, discardDraft: true) }
+          }
+          .accessibilityIdentifier("native-e2e.notes.load-saved")
+        }
+        .padding(10)
+        .poracodeGlassBackground(in: RoundedRectangle(cornerRadius: 12))
+        .padding()
       } else if let failure = state.failure {
         ProjectFailureBanner(failure: failure)
           .padding()
@@ -120,12 +137,39 @@ struct ProjectNotesView: View {
   }
 
   private var noteList: some View {
-    GeometryReader { geometry in
-      let editorHeight = embeddedInInspector
-        ? min(220, max(140, geometry.size.height * 0.25))
-        : max(220, geometry.size.height * 0.42)
-      noteList(editorHeight: editorHeight)
+    ScrollViewReader { scroll in
+      GeometryReader { geometry in
+        // The keyboard changes the scroll viewport while the note keeps its reading height.
+        noteList(editorHeight: geometry.size.width < 480 ? compactEditorHeight : wideEditorHeight)
+          .onChange(of: todoEntryFocused) {
+            if todoEntryFocused { scroll.scrollTo(EntryAnchor.todo) }
+          }
+          .onChange(of: geometry.size) {
+            if todoEntryFocused { scroll.scrollTo(EntryAnchor.todo) }
+          }
+          .onChange(of: todos.count) {
+            if todoEntryFocused { scroll.scrollTo(EntryAnchor.todo) }
+          }
+      }
     }
+    .poracodeUseKeyboardLayoutGuide()
+  }
+
+  private enum EntryAnchor: Hashable {
+    case todo
+  }
+
+  private let cardInsets = EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16)
+
+  private var cardColor: Color {
+    let palette = theme.variant(for: colorScheme)
+    if colorScheme == .dark {
+      // Keep grouped rows gently elevated even when a custom theme uses dark panels.
+      return Color(poracodeHex: PoracodeThemeColorMix.mix(
+        palette.backgroundHex, palette.foregroundHex, amount: 0.09
+      ))
+    }
+    return palette.surface
   }
 
   private func noteList(editorHeight: CGFloat) -> some View {
@@ -133,31 +177,31 @@ struct ProjectNotesView: View {
       Section {
         ZStack(alignment: .topLeading) {
           ProjectNoteTextEditor(
-            document: $noteDocument,
+            document: Binding(get: { state.draft?.doc }, set: { edit(doc: $0) }),
             selectedText: $selectedNoteText,
             isEditing: $noteEditorIsActive,
             activeFormats: $activeNoteFormats,
             command: noteEditorCommand
           )
-          .frame(minHeight: editorHeight)
+          .frame(height: editorHeight)
           .accessibilityIdentifier("native-e2e.notes.editor")
           .privacySensitive()
-          .onChange(of: noteDocument) { _, document in
-            edit(doc: document)
-          }
           if notePlainText.isEmpty {
             Text(ProjectManagementStrings.notesPlaceholder)
-              .foregroundStyle(.tertiary)
-              .padding(.top, 10)
-              .padding(.leading, 6)
+              .foregroundStyle(Color.poracodeSecondaryLabel)
+              .padding(.top, 8)
               .allowsHitTesting(false)
           }
         }
+        .listRowInsets(cardInsets)
+        .listRowBackground(cardColor)
       }
 
       Section {
         ForEach(todos) { todo in
           todoRow(todo)
+            .listRowInsets(cardInsets)
+            .listRowBackground(cardColor)
             .contextMenu {
               Button(ProjectManagementStrings.renameTodoAction, systemImage: "pencil") {
                 beginRename(todo)
@@ -189,42 +233,72 @@ struct ProjectNotesView: View {
           updated.move(fromOffsets: source, toOffset: destination)
           edit(todos: updated)
         }
-
-        HStack {
-          TextField(ProjectManagementStrings.newTodo, text: $newTodo)
-          Button(ProjectManagementStrings.addTodo, systemImage: "plus.circle.fill") {
-            addTodo()
-          }
-          .labelStyle(.iconOnly)
-          .disabled(ProjectValidation.jsTrim(newTodo).isEmpty)
-        }
+        todoEntry
+          .listRowInsets(cardInsets)
+          .listRowBackground(cardColor)
+          .id(EntryAnchor.todo)
       } header: {
-        HStack {
+        HStack(alignment: .firstTextBaseline) {
           Text(ProjectManagementStrings.todos)
+            .font(.headline)
+            .foregroundStyle(.primary)
           Spacer()
-          Text(ProjectManagementStrings.openTodos(openCount))
-            .font(.caption.weight(.regular))
-            .foregroundStyle(.secondary)
+          if !todos.isEmpty {
+            Text(ProjectManagementStrings.openTodos(openCount))
+              .font(.subheadline)
+              .foregroundStyle(Color.poracodeSecondaryLabel)
+          }
         }
+        .textCase(nil)
       }
     }
     .listStyle(.insetGrouped)
-    .poracodeReadableListMargins(760)
+    .listSectionSpacing(.compact)
+    .scrollContentBackground(.hidden)
+    .contentMargins(.top, 4, for: .scrollContent)
+    .contentMargins(.bottom, 16, for: .scrollContent)
+    .environment(\.defaultMinListRowHeight, 44)
+    .poracodeReadableWidth(680)
     .scrollDismissesKeyboard(.interactively)
+  }
+
+  private var todoEntry: some View {
+    HStack(spacing: 12) {
+      TextField(
+        ProjectManagementStrings.newTodo, text: $newTodo,
+        prompt: Text(ProjectManagementStrings.newTodo).foregroundStyle(Color.poracodeSecondaryLabel)
+      )
+      .focused($todoEntryFocused)
+      .submitLabel(.done)
+      .onSubmit(addTodo)
+      .accessibilityLabel(ProjectManagementStrings.newTodo)
+      .accessibilityIdentifier("native-e2e.notes.new-todo")
+      .frame(minHeight: 44)
+
+      Button(ProjectManagementStrings.addTodo, systemImage: "plus", action: addTodo)
+        .labelStyle(.iconOnly)
+        .buttonBorderShape(.circle)
+        .controlSize(.large)
+        .poracodeGlassButtonStyle(tint: canAddTodo ? .primary : .poracodeSecondaryLabel)
+        .disabled(!canAddTodo)
+    }
   }
 
   private func todoRow(_ todo: ProjectNoteTodo) -> some View {
     Button {
       edit(todos: ProjectNoteEditing.toggling(todo, in: todos))
     } label: {
-      HStack(alignment: .firstTextBaseline, spacing: 12) {
+      HStack(spacing: 12) {
         Image(systemName: todo.done ? "checkmark.circle.fill" : "circle")
-          .foregroundStyle(todo.done ? .green : .secondary)
+          .foregroundStyle(todo.done ? Color.primary : .poracodeSecondaryLabel)
+          .accessibilityHidden(true)
         Text(todo.text)
-          .foregroundStyle(.primary)
+          .foregroundStyle(todo.done ? Color.poracodeSecondaryLabel : .primary)
           .strikethrough(todo.done)
         Spacer()
       }
+      .frame(minHeight: 44)
+      .contentShape(Rectangle())
     }
     .accessibilityLabel(
       todo.done
@@ -241,7 +315,7 @@ struct ProjectNotesView: View {
   }
 
   private var notePlainText: String {
-    ProjectNoteDocument.text(noteDocument)
+    ProjectNoteDocument.text(state.draft?.doc)
   }
 
   private var state: ProjectControllerNotesState {
@@ -256,7 +330,13 @@ struct ProjectNotesView: View {
     todos.filter { !$0.done }.count
   }
 
+  private var canAddTodo: Bool {
+    !ProjectValidation.jsTrim(newTodo).isEmpty
+  }
+
   private func addTodo() {
+    todoEntryFocused = false
+    guard canAddTodo else { return }
     let timestamp = ISO8601DateFormatter().string(from: Date())
     let updated = ProjectNoteEditing.adding(
       text: newTodo,
@@ -296,7 +376,7 @@ struct ProjectNotesView: View {
   }
 
   private func edit(todos: [ProjectNoteTodo], updatedAt: String? = nil) {
-    edit(doc: noteDocument, todos: todos, updatedAt: updatedAt)
+    edit(doc: state.draft?.doc, todos: todos, updatedAt: updatedAt)
   }
 
   private func edit(doc: JSONValue?, updatedAt: String? = nil) {

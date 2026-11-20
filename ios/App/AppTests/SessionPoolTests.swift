@@ -156,6 +156,9 @@ final class SessionPoolTests: XCTestCase {
             key: .host(ClientConnectionID()), api: api0, workGeneration: gen, lastSeenSeq: 0
         )
         XCTAssertNil(unpaired)
+        let key = SessionPoolKey.host(ids[1])
+        XCTAssertTrue(session.sessionPool.acceptSecondaryEvent(.object([:]), seq: 1, for: key))
+        XCTAssertEqual(session.sessionPool.cache(for: key).lastSeenSeq, 0)
 
         session.sessionPool.noteBackgroundGate()
         await session.sessionPool.stopAll()
@@ -163,6 +166,7 @@ final class SessionPoolTests: XCTestCase {
         session.state.liveLifecycle = LiveSessionLifecycle()
         await session.sessionPool.handleForeground(startLiveSession: true, workGeneration: gen)
         XCTAssertEqual(session.sessionPool.liveSocketCount(), 3)
+        XCTAssertEqual((session.sessionPool.socket(for: key) as? FakeLiveSocket)?.startedWithSeq, 1)
         let removedLease = try XCTUnwrap(session.sessionPool.lease(for: .host(ids[0])))
         session.state.hosts.removeAll { $0.connectionId == ids[0] }
         await session.sessionPool.evictToPolicy()
@@ -202,6 +206,75 @@ final class SessionPoolTests: XCTestCase {
         XCTAssertNotNil(second)
         XCTAssertFalse(session.sessionPool.isValid(first!))
         XCTAssertTrue(session.sessionPool.isValid(second!))
+    }
+
+    func testSecondaryCatalogsRefreshIndependentlyAndPromotionReplacesTheSocket() async throws {
+        let repo = SessionCredentialRepository(
+            suiteName: "poracode.tests.pool.catalog.\(UUID().uuidString)", keychain: InMemoryKeychainIO()
+        )
+        let session = AppSession(dependencies: .testing(
+            credentialStore: repo,
+            makeAPI: { endpoint, token in self.makeAPI(endpoint: endpoint, token: token) },
+            makeSocket: { _ in FakeLiveSocket() }
+        ))
+        let selected = ClientConnectionID(), slow = ClientConnectionID(), fast = ClientConnectionID()
+        let records = [selected, slow, fast].enumerated().map { index, id in
+            HostRecord(connectionId: id, profile: makeProfile(
+                desktopId: "desktop-\(index)", endpoint: "https://host-\(index).test"
+            ))
+        }
+        session.state.hosts = records
+        session.state.selectedConnectionId = selected
+        let original = makeShell(seq: 10, threads: [makeThread(id: "colliding-thread")])
+        session.state.snapshot = original
+        session.state.lastSeenSeq = original.snapshotSeq
+        let clients = records.map { makeAPI(endpoint: $0.httpBaseURL, token: "test") }
+        let gate = AsyncGate()
+        clients[1].snapshotGate = gate
+        clients[1].snapshotGateSkipCount = 0
+        clients[1].snapshotResult = .success(makeShell(seq: 11, threads: [makeThread(id: "colliding-thread")]))
+        var updated = makeThread(id: "colliding-thread")
+        updated.status = "working"
+        let fastSnapshot = makeShell(seq: 12, threads: [updated])
+        clients[2].snapshotResult = .failure(RemoteClientError.invalidResponse("offline"))
+        let generation = session.state.workGeneration
+        for (record, api) in zip(records, clients) {
+            _ = await session.sessionPool.startSocket(
+                key: .host(record.connectionId), api: api, workGeneration: generation, lastSeenSeq: 0
+            )
+        }
+        let slowKey = SessionPoolKey.host(slow), fastKey = SessionPoolKey.host(fast)
+        let fastSocket = try XCTUnwrap(session.sessionPool.socket(for: fastKey) as? FakeLiveSocket)
+        let change = JSONValue.object(["type": .string("thread-state"), "threadId": .string("colliding-thread")])
+        XCTAssertTrue(session.sessionPool.acceptSecondaryEvent(change, seq: 1, for: slowKey))
+        XCTAssertTrue(session.sessionPool.acceptSecondaryEvent(change, seq: 2, for: slowKey))
+        XCTAssertTrue(session.sessionPool.acceptSecondaryEvent(change, seq: 1, for: fastKey))
+        session.sessionPool.refreshSecondaryCatalog(for: fastKey, resync: true)
+        try await gate.waitUntilWaiting()
+        try await waitUntil(timeoutNanoseconds: 2_000_000_000) { clients[2].snapshotCalls == 1 }
+        XCTAssertTrue(fastSocket.resumeAfterResyncSeqs.isEmpty)
+        clients[2].snapshotResult = .success(fastSnapshot)
+        try await waitUntil(timeoutNanoseconds: 2_000_000_000) { fastSocket.resumeAfterResyncSeqs == [12] }
+        XCTAssertEqual(clients[2].snapshotCalls, 2)
+        XCTAssertEqual(session.state.hostSnapshots[fast], fastSnapshot)
+        XCTAssertNil(session.state.hostSnapshots[slow])
+        XCTAssertEqual(session.state.snapshot, original)
+        XCTAssertEqual(session.state.lastSeenSeq, 10)
+
+        session.state.selectedConnectionId = fast
+        session.sessionPool.installCache(fastKey)
+        XCTAssertNil(session.state.webSocket)
+        XCTAssertFalse(session.sessionPool.acceptsSelectedEvents(for: fastKey))
+        await session.sessionPool.startForCurrentHost(api: clients[2], workGeneration: generation)
+        XCTAssertEqual(fastSocket.stopCount, 1)
+        XCTAssertTrue(session.sessionPool.acceptsSelectedEvents(for: fastKey))
+
+        session.sessionPool.noteBackgroundGate()
+        await gate.resume()
+        try await waitUntil(timeoutNanoseconds: 2_000_000_000) { clients[1].snapshotCalls == 1 }
+        XCTAssertNil(session.state.hostSnapshots[slow])
+        XCTAssertFalse(session.sessionPool.acceptSecondaryEvent(change, seq: 3, for: slowKey))
+        await session.sessionPool.stopAll()
     }
 
     func testBackgroundStopsAllForegroundResumesPairedHosts() async throws {

@@ -29,7 +29,7 @@ import Observation
       let merged = document.hiddenModels.merging(changes) { _, changed in changed }
       await composition.writeSettings(.init(values: [.hiddenModels: .object(
         merged.mapValues { .array($0.map(SettingsJSON.string)) }
-      )]))
+      )]), lease: lease)
     }
   }
 }

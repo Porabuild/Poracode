@@ -17,15 +17,20 @@ final class GitHubOperationsQualityGatesTests: XCTestCase {
       encoding: .utf8
     )
     XCTAssertTrue(workspace.contains("project.git.createPullRequest"))
-    XCTAssertTrue(workspace.contains("initialBranch: controller.status.value?.branch"))
-    XCTAssertTrue(workspace.contains("authoritative.sourceBranch?.sourceBranch ?? \"main\""))
+    XCTAssertTrue(workspace.contains("ToolbarItem(placement: .bottomBar) { createPullRequestAction }"))
+    XCTAssertTrue(workspace.contains("ProjectGitPullRequestDraft(lease: lease, branch: branch, baseBranch: baseBranch)"))
+    XCTAssertTrue(workspace.contains("operationsController.state.authoritative.sourceBranch?.sourceBranch"))
     XCTAssertTrue(workspace.contains("status.ahead == 0"))
     XCTAssertTrue(workspace.contains("!status.tracking.isEmpty"))
     XCTAssertTrue(workspace.contains("hasActivePullRequest"))
-    XCTAssertTrue(workspace.contains("await gitHubControllers.pullRequestMutations.submit"))
+    XCTAssertTrue(workspace.contains("await creation.submit"))
     XCTAssertTrue(workspace.contains("runCreationMode(currentCreationMode)"))
     XCTAssertTrue(workspace.contains("createPullRequestAutomatically"))
-    XCTAssertTrue(workspace.contains("generatePullRequestSummary(status.branch, baseBranch)"))
+    XCTAssertTrue(workspace.contains("generatePullRequestSummary(branch, baseBranch, lease)"))
+    let owner = try String(contentsOf: root.appendingPathComponent(
+      "ios/App/App/Features/Projects/ProjectWorkspaceView.swift"
+    ), encoding: .utf8)
+    XCTAssertTrue(owner.contains(".sheet(item: $gitDestination)"))
 
     let form = try String(
       contentsOf: root.appendingPathComponent(

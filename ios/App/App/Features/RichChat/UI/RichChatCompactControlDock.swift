@@ -35,7 +35,8 @@ struct RichChatCompactControlDock: View {
         RichChatRequestsView(
           requests: requests,
           controller: suite.requests,
-          canResolve: canResolveRequests
+          canResolve: canResolveRequests,
+          surface: .dock
         )
         .padding(.horizontal, 12)
       }
@@ -45,8 +46,9 @@ struct RichChatCompactControlDock: View {
       if let followUpQueue, !followUpQueue.items.isEmpty || followUpQueue.paused {
         RichFollowUpQueueStrip(
           queue: followUpQueue,
-          canOperate: canOperate,
-          open: { destination = .followUpQueue }
+          canSteer: canOperate && suite.conversation.state.activeMutation == nil,
+          open: { destination = .followUpQueue },
+          steer: { id in Task { await suite.conversation.steerQueuedFollowUp(id: id) } }
         )
       }
 
@@ -73,6 +75,9 @@ struct RichChatCompactControlDock: View {
       destinationSheet(destination)
         .poracodeZoomTransition(sourceID: destination.id, in: glassNamespace)
     }
+    .modifier(PoracodeRetainNavigationWhilePresented(
+      isPresented: destination?.id == RichChatCompactControlDestination.followUpQueue.id
+    ))
   }
 
   private var transcript: RichTranscriptState? {
@@ -328,13 +333,12 @@ struct RichChatCompactControlDock: View {
           .id(galleryIdentity)
       }
     case .followUpQueue:
-      if let followUpQueue {
-        RichFollowUpQueueSheet(
-          queue: followUpQueue,
-          conversation: suite.conversation,
-          canOperate: canOperate
-        )
-      }
+      RichFollowUpQueueSheet(
+        transcript: suite.transcript,
+        conversation: suite.conversation,
+        canOperate: canOperate
+      )
+      .modifier(PoracodeRetainNavigationWhilePresented())
     case .git(let location):
       if let thread, let project {
         ThreadDetailDestinationView(

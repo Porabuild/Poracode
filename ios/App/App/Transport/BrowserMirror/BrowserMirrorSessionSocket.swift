@@ -74,13 +74,14 @@ final class BrowserMirrorSessionSocket: BrowserMirrorRawSocket {
 /// frame from a superseded connection or a switched host is dropped without being applied.
 final class BrowserMirrorControllerSink: BrowserMirrorSocketInboundSink {
   private let controller: BrowserMirrorController
+  private let lease: BrowserMirrorHostLease
 
-  init(controller: BrowserMirrorController) {
+  init(controller: BrowserMirrorController, lease: BrowserMirrorHostLease) {
     self.controller = controller
+    self.lease = lease
   }
 
   func receiveBrowserMirrorMessage(_ data: Data, socketGeneration: UInt64) async {
-    guard let lease = await controller.currentLease else { return }
     await controller.receive(
       data: data,
       lease: lease,

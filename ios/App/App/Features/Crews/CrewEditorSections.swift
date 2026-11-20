@@ -1,5 +1,23 @@
 import SwiftUI
 
+struct CrewTemplateMenu: View {
+  let title: String
+  let systemImage: String
+  let select: (CrewTemplate) -> Void
+
+  var body: some View {
+    Menu(title, systemImage: systemImage) {
+      ForEach(CrewTemplates.all) { template in
+        Button { select(template) } label: {
+          Label(template.name, systemImage: "person.2")
+          Text(template.description)
+        }
+        .accessibilityIdentifier("native-e2e.crews.template.\(template.id)")
+      }
+    }
+  }
+}
+
 /// Shared native form sections: settings edit a saved record; the composer
 /// edits a staged binding without rebuilding its other configuration fields.
 struct CrewEditorSections: View {
@@ -76,7 +94,8 @@ struct CrewRoleEditor: View {
           TextField(CrewStrings.roleName, text: $role.label)
             .accessibilityIdentifier("native-e2e.crew.role-name")
           Text(role.label.utf16.count.formatted() + "/" + 24.formatted())
-            .font(.caption).foregroundStyle(role.label.utf16.count > 24 ? Color.red : Color.secondary)
+            .font(.caption)
+            .foregroundStyle(role.label.utf16.count > 24 ? Color.red : Color.poracodeSecondaryLabel)
         }
         TextField(CrewStrings.brief, text: Binding(get: { role.brief ?? "" }, set: { role.brief = $0.isEmpty ? nil : $0 }), axis: .vertical)
           .lineLimit(2...5)
@@ -84,7 +103,8 @@ struct CrewRoleEditor: View {
         HStack {
           Spacer()
           Text((role.brief?.utf16.count ?? 0).formatted() + "/" + 160.formatted())
-            .font(.caption).foregroundStyle((role.brief?.utf16.count ?? 0) > 160 ? Color.red : Color.secondary)
+            .font(.caption)
+            .foregroundStyle((role.brief?.utf16.count ?? 0) > 160 ? Color.red : Color.poracodeSecondaryLabel)
         }
         Toggle(CrewStrings.noEdits, isOn: $role.noEdits).poracodeSwitchStyle()
           .accessibilityIdentifier("native-e2e.crew.role-no-edits")

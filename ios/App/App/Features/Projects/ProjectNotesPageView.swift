@@ -71,8 +71,6 @@ struct ProjectNotesPageView: View {
       notesContent
     } else {
       notesContent
-        .navigationTitle(ProjectManagementStrings.notes)
-        .navigationBarTitleDisplayMode(.inline)
         .toolbar {
           if initialProjectID == nil {
             ToolbarItem(placement: .topBarTrailing) {
@@ -91,17 +89,20 @@ struct ProjectNotesPageView: View {
   @ViewBuilder
   private var notesContent: some View {
     if let project, let connectionId = session.selectedConnectionId {
+      let identity = project.identity(on: connectionId)
       ProjectNotesView(
         session: session,
-        identity: project.identity(on: connectionId),
+        identity: identity,
         controller: controller
       )
+      .id(identity)
     } else {
       ContentUnavailableView(
         ProjectManagementStrings.noProjects,
         systemImage: "note.text",
         description: Text(ProjectManagementStrings.notesEmptyProject)
       )
+      .poracodeNavigationTitle(ProjectManagementStrings.notes, suppressed: embeddedInInspector)
     }
   }
 

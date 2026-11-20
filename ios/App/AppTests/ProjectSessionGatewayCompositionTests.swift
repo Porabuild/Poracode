@@ -43,10 +43,13 @@ private actor ProjectRemoteAPIFake: ProjectRemoteAPI {
     return .init(notes: nil)
   }
 
-  func remoteWriteProjectNotes(_ body: ProjectNotesWriteBody, projectId: String) async throws {
+  func remoteWriteProjectNotes(
+    _ body: ProjectNotesWriteBody, projectId: String
+  ) async throws -> ProjectNotesSaveResult? {
     _ = body
     _ = projectId
     if let error { throw error }
+    return nil
   }
 }
 

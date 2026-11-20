@@ -46,8 +46,8 @@ final class TerminalCommandFieldTests: XCTestCase {
     let view = TerminalCommandTextView()
 
     XCTAssertEqual(view.backgroundColor, .clear)
-    XCTAssertEqual(view.overrideUserInterfaceStyle, .dark)
-    XCTAssertEqual(view.keyboardAppearance, .dark)
+    XCTAssertEqual(view.overrideUserInterfaceStyle, .unspecified)
+    XCTAssertEqual(view.keyboardAppearance, .default)
     XCTAssertEqual(view.textContainer.lineFragmentPadding, 0)
     XCTAssertEqual(
       view.textContainerInset.top,

@@ -10,52 +10,75 @@ struct DeviceSettingsView: View {
   @Bindable var session: AppSession
   let selection: SettingsHostSelection?
   let gateway: any SettingsSessionGateway
+  @State private var settingsQuery = ""
+  @AppStorage(GitHubPullRequestCreationMode.storageKey) private var createPRMode =
+    GitHubPullRequestCreationMode.dialog.rawValue
 
   var body: some View {
     List {
-      Section(SettingsUIStrings.personalSection) {
-        ForEach(DeviceSettingsDestination.personal, id: \.self) { destination in
-          DeviceSettingsDestinationLink(session: session, destination: destination)
+      if NativeSettingsSearch.isActive(settingsQuery) {
+        SettingsSearchResults(session: session, selection: selection, gateway: gateway, query: settingsQuery) {
+          createPRPicker
         }
-      }
-      Section {
-        ForEach(DeviceSettingsDestination.workspace, id: \.self) { destination in
-          DeviceSettingsDestinationLink(session: session, destination: destination)
-        }
-      } header: {
-        Text(SettingsUIStrings.workspaceTitle)
-      } footer: {
-        Text(SettingsUIStrings.deviceSettingsSummary)
-      }
-      Section(SettingsUIStrings.agentsTitle) {
-        ForEach(DeviceSettingsDestination.agents, id: \.self) { destination in
-          DeviceSettingsDestinationLink(session: session, destination: destination)
-        }
-      }
-      Section {
-        DeviceSettingsDestinationLink(session: session, destination: .connections)
-        NavigationLink {
-          SettingsHostView(session: session, selection: selection, gateway: gateway, usesStackNavigation: true)
-        } label: {
-          DeviceSettingsLabel(title: SettingsUIStrings.desktopSettingsTitle,
-            description: SettingsUIStrings.desktopSettingsDescription, systemImage: "desktopcomputer")
-        }
-        .disabled(selection == nil)
-      } header: {
-        Text(HomeStrings.connections)
-      } footer: {
-        Text(SettingsUIStrings.desktopSettingsSummary)
-      }
-      Section {
-        DeviceSettingsDestinationLink(session: session, destination: .changelog)
-        externalLink(SettingsUIStrings.privacyPolicy, systemImage: "hand.raised", urlString: "https://poracode.com/privacy")
-        externalLink(SettingsUIStrings.support, systemImage: "questionmark.circle", urlString: "https://poracode.com/support")
+      } else {
+        sections
       }
     }
     .listStyle(.insetGrouped)
     .poracodeReadableListMargins(740)
     .navigationTitle(SettingsUIStrings.title)
     .navigationBarTitleDisplayMode(.inline)
+    .searchable(text: $settingsQuery, placement: .navigationBarDrawer(displayMode: .always), prompt: SettingsUIStrings.search)
+  }
+
+  @ViewBuilder private var sections: some View {
+    Section(SettingsUIStrings.personalSection) {
+      ForEach(DeviceSettingsDestination.personal, id: \.self) { destination in
+        DeviceSettingsDestinationLink(session: session, destination: destination)
+      }
+    }
+    Section {
+      DeviceSettingsDestinationLink(session: session, destination: .terminal)
+      createPRPicker
+      DeviceSettingsDestinationLink(session: session, destination: .worktrees)
+    } header: {
+      Text(SettingsUIStrings.workspaceTitle)
+    } footer: {
+      Text(SettingsUIStrings.deviceSettingsSummary)
+    }
+    Section(SettingsUIStrings.agentsTitle) {
+      ForEach(DeviceSettingsDestination.agents, id: \.self) { destination in
+        DeviceSettingsDestinationLink(session: session, destination: destination)
+      }
+    }
+    Section {
+      DeviceSettingsDestinationLink(session: session, destination: .connections)
+      NavigationLink {
+        SettingsHostView(session: session, selection: selection, gateway: gateway, usesStackNavigation: true)
+      } label: {
+        DeviceSettingsLabel(title: SettingsUIStrings.desktopSettingsTitle,
+          description: SettingsUIStrings.desktopSettingsDescription, systemImage: "desktopcomputer")
+      }
+      .disabled(selection == nil)
+      .accessibilityIdentifier("native-e2e.settings.desktop")
+    } header: {
+      Text(HomeStrings.connections)
+    } footer: {
+      Text(SettingsUIStrings.desktopSettingsSummary)
+    }
+    Section {
+      DeviceSettingsDestinationLink(session: session, destination: .changelog)
+      externalLink(SettingsUIStrings.privacyPolicy, systemImage: "hand.raised", urlString: "https://poracode.com/privacy")
+      externalLink(SettingsUIStrings.support, systemImage: "questionmark.circle", urlString: "https://poracode.com/support")
+    }
+  }
+
+  private var createPRPicker: some View {
+    Picker(SettingsUIStrings.defaultCreatePRAction, selection: $createPRMode) {
+      Text(SettingsUIStrings.openDialog).tag(GitHubPullRequestCreationMode.dialog.rawValue)
+      Text(SettingsUIStrings.autoGenerate).tag(GitHubPullRequestCreationMode.auto.rawValue)
+    }
+    .accessibilityIdentifier("native-e2e.settings.git.create-pr-mode")
   }
 
   private func externalLink(

@@ -19,11 +19,13 @@ extension NativeFamilyJourneyUITests {
 
     try await setChangelogMode("hold")
     refresh.tap()
-    try await poll { !refresh.isEnabled }
+    try await poll { !refresh.isEnabled && refresh.label == "Loading release notes" }
     try await poll {
       try await self.control(path: "/v1/fixtures/changelog/state")["heldReads"] as? Int == 1
     }
-    app.navigationBars["Changelog"].buttons["Settings"].tap()
+    assertNativeDuoToolbarRail(refresh)
+    changelogProof("refresh-loading-toolbar")
+    tapNativeSettingsBack(from: "Changelog", to: "Settings")
     try await setChangelogMode("updated")
     let entry = app.buttons["native-e2e.settings.changelog"]
     XCTAssertTrue(entry.isHittable); entry.tap()

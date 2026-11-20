@@ -3,26 +3,20 @@ import SwiftUI
 struct NativeShortcutBindingEditor: View {
   @Environment(\.dismiss) private var dismiss
   @Bindable var store: NativeKeybindingStore
-  let target: NativeShortcutEditTarget
-  @State private var rawKey: String
+  @Bindable var target: NativeShortcutEditTarget
   @State private var recording = false
   @State private var failure: String?
-
-  init(store: NativeKeybindingStore, target: NativeShortcutEditTarget) {
-    self.store = store; self.target = target
-    _rawKey = State(initialValue: target.original?.chord?.editableDisplay ?? target.original?.rawChord ?? "")
-  }
 
   var body: some View {
     NavigationStack {
       Form {
         Section {
-          TextField(NativeShortcutStrings.keys, text: $rawKey, prompt: Text(NativeShortcutStrings.keyHint))
+          TextField(NativeShortcutStrings.keys, text: $target.rawKey, prompt: Text(NativeShortcutStrings.keyHint))
             .textInputAutocapitalization(.never).autocorrectionDisabled()
             .accessibilityIdentifier("native-e2e.keyboard.keys")
           if recording {
             NativeShortcutCaptureView(chords: store.entries.compactMap(\.chord), captured: { chord in
-              rawKey = chord.editableDisplay; recording = false
+              target.rawKey = chord.editableDisplay; recording = false
             }, cancelled: { recording = false })
               .frame(minHeight: 64)
               .accessibilityIdentifier("native-e2e.keyboard.capture")
@@ -34,7 +28,7 @@ struct NativeShortcutBindingEditor: View {
           if let chord, chord.keyboardShortcut != nil {
             Text(chord.nativeDisplay).font(.title3.monospaced())
             if !chord.isAvailableAppShortcut { Text(NativeShortcutStrings.systemReserved).font(.footnote).foregroundStyle(.secondary) }
-          } else if !rawKey.isEmpty { Text(NativeShortcutStrings.invalidKey).font(.footnote).foregroundStyle(.secondary) }
+          } else if !target.rawKey.isEmpty { Text(NativeShortcutStrings.invalidKey).font(.footnote).foregroundStyle(.secondary) }
         }
         if let conflict {
           Section {
@@ -54,20 +48,17 @@ struct NativeShortcutBindingEditor: View {
       .navigationBarTitleDisplayMode(.inline)
       .toolbar {
         ToolbarItem(placement: .cancellationAction) {
-          Button(NativeShortcutStrings.cancel) { dismiss() }
+          Button(NativeShortcutStrings.cancel, systemImage: "xmark") { dismiss() }
         }
-      }
-      .poracodeBottomBar {
-        PoracodeBottomActionBar {
-          if recording {
-            PoracodeCircleButton { recording = false } label: { Image(systemName: "xmark") }
-              .accessibilityLabel(NativeShortcutStrings.cancel)
+        if recording {
+          ToolbarItem(placement: .bottomBar) {
+            Button(NativeShortcutStrings.cancel, systemImage: "xmark") { recording = false }
               .accessibilityIdentifier("native-e2e.keyboard.cancel-recording")
           }
-        } trailing: {
-          PoracodeCircleButton(action: save) { Image(systemName: "checkmark") }
+        }
+        ToolbarItem(placement: .confirmationAction) {
+          Button(NativeShortcutStrings.save, systemImage: "checkmark", action: save)
             .disabled(chord?.isAvailableAppShortcut != true || recording || !store.canEdit)
-            .accessibilityLabel(NativeShortcutStrings.save)
             .accessibilityIdentifier("native-e2e.keyboard.save")
         }
       }
@@ -76,7 +67,7 @@ struct NativeShortcutBindingEditor: View {
     .nativeCommands(identity: target.id.uuidString, blocksParentActions: true)
   }
 
-  private var chord: NativeKeyChord? { NativeKeyChord(rawKey) }
+  private var chord: NativeKeyChord? { NativeKeyChord(target.rawKey) }
   private var conflict: String? { chord.flatMap { store.conflict(for: $0, excluding: target.command) } }
 
   private func save() {

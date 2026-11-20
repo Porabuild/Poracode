@@ -13,10 +13,16 @@ struct RichChatComposerDraft: Equatable {
   var mcps: [RichChatSelectedMCP] = []
   var segments: [RichPromptSegment] = []
   var configuration: ThreadConfig? = nil
+  var restoredOrder: RichChatRestoredPromptOrder? = nil
 
   var isEmpty: Bool {
     text.isEmpty && attachments.isEmpty && skills.isEmpty && mcps.isEmpty && segments.isEmpty
   }
+}
+
+struct RichChatAlternateDraft {
+  let draft: RichChatComposerDraft
+  let isRevertedPrompt: Bool
 }
 
 /// In-memory parking for launched-thread composer content, matching the PWA's
@@ -36,6 +42,8 @@ final class RichChatComposerDraftStore {
 
   private var drafts: [RichChatComposerDraftKey: RichChatComposerDraft] = [:]
   private var queuedSegments: [RichChatComposerDraftKey: [RichPromptSegment]] = [:]
+  private var revertedPrompts: [RichChatComposerDraftKey: RichChatRevertedPrompt] = [:]
+  private var alternateDrafts: [RichChatComposerDraftKey: RichChatAlternateDraft] = [:]
   private var activeDrafts: [RichChatComposerDraftKey: ActiveDraft] = [:]
   private(set) var revision: UInt64 = 0
 
@@ -79,6 +87,12 @@ final class RichChatComposerDraftStore {
   }
 
   func clear(_ key: RichChatComposerDraftKey) {
+    clearInput(key)
+    revertedPrompts.removeValue(forKey: key)
+    alternateDrafts.removeValue(forKey: key)
+  }
+
+  func clearInput(_ key: RichChatComposerDraftKey) {
     drafts.removeValue(forKey: key)
     queuedSegments.removeValue(forKey: key)
   }
@@ -86,12 +100,16 @@ final class RichChatComposerDraftStore {
   func clear(connectionID: ClientConnectionID) {
     drafts = drafts.filter { $0.key.connectionID != connectionID }
     queuedSegments = queuedSegments.filter { $0.key.connectionID != connectionID }
+    revertedPrompts = revertedPrompts.filter { $0.key.connectionID != connectionID }
+    alternateDrafts = alternateDrafts.filter { $0.key.connectionID != connectionID }
     activeDrafts = activeDrafts.filter { $0.key.connectionID != connectionID }
   }
 
   func clearAll() {
     drafts.removeAll()
     queuedSegments.removeAll()
+    revertedPrompts.removeAll()
+    alternateDrafts.removeAll()
     activeDrafts.removeAll()
   }
 
@@ -102,9 +120,26 @@ final class RichChatComposerDraftStore {
 
   func hasDraft(for key: RichChatComposerDraftKey) -> Bool {
     drafts[key]?.isEmpty == false || queuedSegments[key]?.isEmpty == false
+      || revertedPrompts[key] != nil || alternateDrafts[key]?.draft.isEmpty == false
   }
 
   func takeQueuedSegments(for key: RichChatComposerDraftKey) -> [RichPromptSegment] {
     queuedSegments.removeValue(forKey: key) ?? []
+  }
+
+  func enqueueRevertedPrompt(_ prompt: RichChatRevertedPrompt, for key: RichChatComposerDraftKey) {
+    revertedPrompts[key] = prompt
+  }
+
+  func revertedPromptID(for key: RichChatComposerDraftKey) -> UUID? { revertedPrompts[key]?.id }
+
+  func takeRevertedPrompt(for key: RichChatComposerDraftKey) -> RichChatRevertedPrompt? {
+    revertedPrompts.removeValue(forKey: key)
+  }
+
+  func alternateDraft(for key: RichChatComposerDraftKey) -> RichChatAlternateDraft? { alternateDrafts[key] }
+
+  func setAlternateDraft(_ alternate: RichChatAlternateDraft?, for key: RichChatComposerDraftKey) {
+    alternateDrafts[key] = alternate
   }
 }

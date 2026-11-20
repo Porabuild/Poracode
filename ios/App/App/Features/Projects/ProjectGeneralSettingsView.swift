@@ -84,12 +84,20 @@ struct ProjectGeneralSettingsView: View {
       }
     }
     .poracodeReadableListMargins(760)
+    .scrollDismissesKeyboard(.interactively)
     .navigationTitle(ProjectSettingsStrings.general)
     .navigationBarTitleDisplayMode(.inline)
     .toolbar {
       ToolbarItem(placement: .confirmationAction) {
-        Button(ProjectManagementStrings.save) { save() }
-          .disabled(commandController.state.isExecuting || !hasValidChanges)
+        Button(ProjectManagementStrings.save, systemImage: "checkmark") { save() }
+          .disabled(commandController.state.isExecuting || !hasValidChanges || currentLease == nil)
+          .accessibilityIdentifier("native-e2e.projects.general.save")
+      }
+    }
+    .overlay(alignment: .bottom) {
+      if let failure = commandController.state.failure {
+        ProjectFailureBanner(failure: failure)
+          .padding()
       }
     }
     .sheet(isPresented: $showingBrowser) {
@@ -115,8 +123,12 @@ struct ProjectGeneralSettingsView: View {
     }
   }
 
+  private var currentLease: ProjectControllerHostLease? {
+    commandController.state.session?.lease
+  }
+
   private var identity: ProjectIdentity? {
-    guard let connectionID = commandController.state.session?.lease.connectionId else { return nil }
+    guard let connectionID = currentLease?.connectionId else { return nil }
     return ProjectIdentity(connectionId: connectionID, projectId: project.id)
   }
 
@@ -126,13 +138,18 @@ struct ProjectGeneralSettingsView: View {
   }
 
   private func save() {
+    guard let lease = currentLease else { return }
     do {
       let commands = try draft.commands()
       draftError = nil
       Task {
         for command in commands {
-          await commandController.perform(command, detectSetup: false)
-          if commandController.state.failure != nil { return }
+          let succeeded = await commandController.perform(
+            command,
+            detectSetup: false,
+            expectedLease: lease
+          )
+          if !succeeded || commandController.state.failure != nil { return }
         }
         dismiss()
       }

@@ -1,3 +1,4 @@
+import Observation
 import SwiftUI
 
 struct NativeShortcutSettingsView: View {
@@ -42,6 +43,7 @@ struct NativeShortcutSettingsView: View {
       }
       Section { Text(NativeShortcutStrings.localOnly).font(.footnote).foregroundStyle(.secondary) }
     }
+    .accessibilityIdentifier("native-e2e.keyboard.catalog")
     .listStyle(.insetGrouped)
     .poracodeReadableListMargins(740)
     .navigationTitle(NativeShortcutStrings.title)
@@ -135,13 +137,12 @@ struct NativeShortcutCommandView: View {
     .poracodeReadableListMargins(740)
     .navigationTitle(NativeShortcutStrings.commandTitle(command))
     .navigationBarTitleDisplayMode(.inline)
-    .poracodeBottomBar {
-      PoracodeBottomActionDock {
-        PoracodeCircleButton {
+    .toolbar {
+      ToolbarItem(placement: .bottomBar) {
+        Button(NativeShortcutStrings.add, systemImage: "plus") {
           editing = NativeShortcutEditTarget(command: command, condition: store.defaults.entries.first { $0.command == command }?.condition)
-        } label: { Image(systemName: "plus") }
+        }
         .disabled(!store.canEdit)
-        .accessibilityLabel(NativeShortcutStrings.add)
         .accessibilityIdentifier("native-e2e.keyboard.add")
       }
     }
@@ -168,10 +169,20 @@ struct NativeShortcutCommandView: View {
   }
 }
 
-struct NativeShortcutEditTarget: Identifiable {
+@Observable
+final class NativeShortcutEditTarget: Identifiable {
   let id = UUID()
   let command: String
-  var index: Int? = nil
-  var original: NativeKeybindingEntry? = nil
+  let index: Int?
+  let original: NativeKeybindingEntry?
   let condition: String?
+  var rawKey: String
+
+  init(command: String, index: Int? = nil, original: NativeKeybindingEntry? = nil, condition: String?) {
+    self.command = command
+    self.index = index
+    self.original = original
+    self.condition = condition
+    rawKey = original?.chord?.editableDisplay ?? original?.rawChord ?? ""
+  }
 }

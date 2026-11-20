@@ -8,6 +8,7 @@ struct SettingsProfileDashboard: View {
   @Environment(\.poracodeTheme) private var theme
 
   let information: SettingsProfileInformation
+  let identity: SettingsProfileIdentity
   @Binding var query: SettingsProfileQuery
   let canEdit: Bool
   let edit: () -> Void
@@ -36,8 +37,6 @@ struct SettingsProfileDashboard: View {
     .refreshable { refresh() }
   }
 
-  private var identity: SettingsProfileIdentity { information.core.identity }
-
   private var activeMetric: SettingsProfileHeatmapMetric {
     if selectedMetric == .tokens, !information.tokens.available { return .prompts }
     return selectedMetric ?? (information.tokens.available ? .tokens : .prompts)
@@ -65,7 +64,7 @@ struct SettingsProfileDashboard: View {
               Image(systemName: "pencil")
                 .font(.system(size: 13, weight: .medium))
                 .foregroundStyle(.secondary)
-                .frame(width: 28, height: 28)
+                .frame(width: 44, height: 44)
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)

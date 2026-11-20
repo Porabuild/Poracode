@@ -258,6 +258,7 @@ protocol SessionLiveSocket: AnyObject {
     // `any SessionLiveSocket` dispatch to the conformer, with defaults below keeping
     // every existing conformance source-compatible.
     func attachBrowserMirrorSink(_ sink: (any BrowserMirrorSocketInboundSink)?) async
+    func detachBrowserMirrorSink(_ sink: any BrowserMirrorSocketInboundSink) async
     func sendBrowserMirrorMessage(_ data: Data, socketGeneration: UInt64) async throws
     func browserMirrorSocketGeneration() async -> UInt64
 }
@@ -275,6 +276,7 @@ extension SessionLiveSocket {
     func setGitStateInterests(_: [GitStateInterest]) async {}
 
     func attachBrowserMirrorSink(_: (any BrowserMirrorSocketInboundSink)?) async {}
+    func detachBrowserMirrorSink(_: any BrowserMirrorSocketInboundSink) async {}
 
     func sendBrowserMirrorMessage(_: Data, socketGeneration _: UInt64) async throws {
         throw BrowserMirrorFailure.transport
@@ -338,6 +340,10 @@ final class RemoteWebSocketClientBox: SessionLiveSocket {
 
     func attachBrowserMirrorSink(_ sink: (any BrowserMirrorSocketInboundSink)?) async {
         await client.setBrowserMirrorSink(sink)
+    }
+
+    func detachBrowserMirrorSink(_ sink: any BrowserMirrorSocketInboundSink) async {
+        await client.removeBrowserMirrorSink(sink)
     }
 
     func sendBrowserMirrorMessage(_ data: Data, socketGeneration: UInt64) async throws {

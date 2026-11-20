@@ -76,6 +76,7 @@ enum RichItemType {
   static let reasoning = "reasoning"
   static let plan = "plan"
   static let goal = "goal"
+  static let providerHandoff = "provider_handoff"
   static let error = "error"
   static let pendingRequest = "pending_request"
 

@@ -77,7 +77,7 @@ struct RichChatComposerTrailingAction: View {
     Button(action: send) {
       Image(systemName: "arrow.up")
         .font(.system(size: 13, weight: .semibold))
-        .foregroundStyle(hasPrompt ? Color.primary : Color.secondary)
+        .foregroundStyle(hasPrompt ? Color.primary : Color.poracodeSecondaryLabel)
         .frame(width: 32, height: 32)
         .background(
           hasPrompt ? accent.opacity(0.2) : Color.secondary.opacity(0.12),

@@ -3,6 +3,31 @@ import Observation
 import PhotosUI
 import SwiftUI
 
+struct HomeComposerAttachment: Identifiable {
+  let id = UUID()
+  let name: String
+  let mimeType: String
+  let remotePath: String?
+  let data: Data?
+  var uploadedPaths: [String: String] = [:]
+
+  init(name: String, mimeType: String, remotePath: String) {
+    self.name = name
+    self.mimeType = mimeType
+    self.remotePath = remotePath
+    data = nil
+  }
+
+  init(name: String, mimeType: String, data: Data) {
+    self.name = name
+    self.mimeType = mimeType
+    remotePath = nil
+    self.data = data
+  }
+
+  func path(for threadID: String) -> String? { remotePath ?? uploadedPaths[threadID] }
+}
+
 /// Window-owned UI state. Layout changes may replace an editor without replacing
 /// its draft, upload owner, command identity or control selections.
 @MainActor @Observable
@@ -44,7 +69,7 @@ final class HomeQuickComposeState {
   var photoItem: PhotosPickerItem?
   var screenshotItem: PhotosPickerItem?
   var showingCamera = false
-  var attachments: [RichChatUploadedAttachment] = []
+  var attachments: [HomeComposerAttachment] = []
   var skills: [RichChatSelectedSkill] = []
   var fileMentions: [String] = []
   var mentionedMCPs: [RichChatSelectedMCP] = []
@@ -68,6 +93,7 @@ final class HomeQuickComposeState {
   var crewRoster: CrewRosterDraft?
   var showingImporter = false
   var importing = false
+  var starting = false
   var preparingWorktree = false
   var failureMessage: String?
   var promptFocused = false
@@ -204,7 +230,32 @@ final class HomeQuickComposeState {
       mediaSuite.deselect()
       return
     }
-    mediaSuite.select(access: access, threadID: threadID)
+    mediaSuite.select(access: access, threadID: launchThreadID)
+  }
+
+  var providerSwitch: HomeProviderSwitchSource? {
+    presentationMode == .gui ? launchSeed?.providerSwitchSource : nil
+  }
+
+  var launchThreadID: String { providerSwitch?.target.threadID ?? threadID }
+
+  func materializeAttachments(_ selection: [HomeComposerAttachment], for threadID: String,
+    upload: (HomeComposerAttachment) async throws -> String) async throws -> [ThreadPromptSegment] {
+    var segments: [ThreadPromptSegment] = []
+    for attachment in selection {
+      let path: String
+      if let existing = attachment.path(for: threadID) {
+        path = existing
+      } else {
+        path = try await upload(attachment)
+        guard let index = attachments.firstIndex(where: { $0.id == attachment.id }) else {
+          throw CancellationError()
+        }
+        attachments[index].uploadedPaths[threadID] = path
+      }
+      segments.append(.attachment(path: path, mimeType: attachment.mimeType))
+    }
+    return segments
   }
 }
 

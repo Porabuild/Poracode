@@ -8,19 +8,24 @@ import Observation
   private(set) var failure: VoiceInputFailure?
   private(set) var recordingStartedAt: Date?
   var transcript = ""
-  let owner: VoiceInputOwner
   let options: VoiceInputPreferences
   private let recorder: any VoiceAudioRecording
   private let transcriber: any VoiceTranscribing
-  private let currentOwner: @MainActor () -> VoiceInputOwner?
+  private let isCurrent: @MainActor () -> Bool
   private var work: Task<Void, Never>?
   private var revision: UInt64 = 0
   private var recorded: URL?
 
-  init(owner: VoiceInputOwner, options: VoiceInputPreferences, recorder: any VoiceAudioRecording,
+  convenience init(owner: VoiceInputOwner, options: VoiceInputPreferences, recorder: any VoiceAudioRecording,
     transcriber: any VoiceTranscribing, currentOwner: @escaping @MainActor () -> VoiceInputOwner?) {
-    self.owner = owner; self.options = options; self.recorder = recorder
-    self.transcriber = transcriber; self.currentOwner = currentOwner
+    self.init(options: options, recorder: recorder, transcriber: transcriber,
+      isCurrent: { currentOwner() == owner })
+  }
+
+  init(options: VoiceInputPreferences, recorder: any VoiceAudioRecording,
+    transcriber: any VoiceTranscribing, isCurrent: @escaping @MainActor () -> Bool) {
+    self.options = options; self.recorder = recorder
+    self.transcriber = transcriber; self.isCurrent = isCurrent
     recorder.finished = { [weak self] succeeded in
       guard let self, self.phase == .recording else { return }
       if succeeded { self.finishRecording() }
@@ -29,10 +34,10 @@ import Observation
   }
 
   var inputLevel: Float { recorder.level }
-  var canRetry: Bool { work == nil && phase == .failed && currentOwner() == owner }
+  var canRetry: Bool { work == nil && phase == .failed && isCurrent() }
 
   func begin() {
-    guard work == nil, phase == .idle, currentOwner() == owner else { return }
+    guard work == nil, phase == .idle, isCurrent() else { return }
     phase = .starting; failure = nil
     let epoch = revision
     work = Task { [weak self] in
@@ -41,10 +46,10 @@ import Observation
       do {
         try await self.transcriber.checkReady(self.options)
         try Task.checkCancellation()
-        guard self.currentOwner() == self.owner else { throw VoiceInputFailure.hostUnavailable }
+        guard self.isCurrent() else { throw VoiceInputFailure.hostUnavailable }
         try await self.recorder.start(microphoneID: self.options.microphoneID)
         try Task.checkCancellation()
-        guard self.revision == epoch, self.currentOwner() == self.owner else { throw CancellationError() }
+        guard self.revision == epoch, self.isCurrent() else { throw CancellationError() }
         self.recordingStartedAt = Date()
         self.phase = .recording
       } catch {
@@ -76,7 +81,7 @@ import Observation
   }
 
   private func transcribe() {
-    guard let recorded, work == nil, currentOwner() == owner else { return }
+    guard let recorded, work == nil, isCurrent() else { return }
     phase = .transcribing; failure = nil; transcript = ""
     let epoch = revision
     work = Task { [weak self] in
@@ -85,13 +90,13 @@ import Observation
       do {
         let rawText = try await self.transcriber.transcribe(file: recorded, options: self.options) { [weak self] update in
           Task { @MainActor in
-            guard let self, self.revision == epoch, self.phase == .transcribing, self.currentOwner() == self.owner else { return }
+            guard let self, self.revision == epoch, self.phase == .transcribing, self.isCurrent() else { return }
             self.progress = update
             if let partial = update.partial { self.transcript = partial }
           }
         }
         try Task.checkCancellation()
-        guard self.revision == epoch, self.currentOwner() == self.owner else { throw CancellationError() }
+        guard self.revision == epoch, self.isCurrent() else { throw CancellationError() }
         let text = rawText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty else { throw VoiceInputFailure.noSpeech }
         self.transcript = text; self.phase = .ready

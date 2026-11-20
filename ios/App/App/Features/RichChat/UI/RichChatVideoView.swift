@@ -1,4 +1,5 @@
 import AVKit
+import Combine
 import SwiftUI
 
 struct RichChatInlineVideo: View {
@@ -28,6 +29,43 @@ private final class RichChatVideoPlayback: Identifiable {
   }
 }
 
+private struct RichChatVideoPlayerSheet: View {
+  let playback: RichChatVideoPlayback
+  let title: String
+  let close: () -> Void
+  @State private var status = AVPlayer.TimeControlStatus.paused
+
+  var body: some View {
+    let player = playback.player
+    NavigationStack {
+      VideoPlayer(player: player)
+        .navigationTitle(title)
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+          ToolbarItem(placement: .cancellationAction) {
+            Button(RichChatStrings.done, action: close)
+          }
+          ToolbarItem(placement: .topBarTrailing) {
+            PoracodeToolbarIconButton(
+              title: status == .paused ? RichChatStrings.playVideo : RichChatStrings.pauseVideo,
+              systemImage: status == .paused ? "play.fill" : "pause.fill",
+              color: .primary
+            ) {
+              if player.timeControlStatus == .paused { player.play() }
+              else { player.pause() }
+            }
+            .accessibilityIdentifier("native-e2e.transcript-video.toggle-playback")
+          }
+        }
+        .onReceive(player.publisher(for: \.timeControlStatus).receive(on: RunLoop.main)) {
+          status = $0
+        }
+        .onDisappear { player.pause() }
+    }
+    .poracodePageSheetSizing()
+  }
+}
+
 struct RichChatVideoView: View {
   let video: RichVideoPresentation
   let controller: RichChatMediaController
@@ -35,9 +73,10 @@ struct RichChatVideoView: View {
 
   @Environment(\.scenePhase) private var scenePhase
   @State private var playback: RichChatVideoPlayback?
-  @State private var loading = false
   @State private var failed = false
-  @State private var task: Task<Void, Never>?
+  @State private var downloadTask = OwnedTaskSlot()
+
+  private var loading: Bool { downloadTask.current != nil }
 
   var body: some View {
     Button(action: open) {
@@ -55,24 +94,17 @@ struct RichChatVideoView: View {
     .disabled(loading)
     .accessibilityLabel("\(RichChatStrings.playVideo): \(video.name)")
     .sheet(item: $playback) { owner in
-      NavigationStack {
-        VideoPlayer(player: owner.player)
-          .navigationTitle(video.name)
-          .navigationBarTitleDisplayMode(.inline)
-          .toolbar {
-            ToolbarItem(placement: .cancellationAction) {
-              Button(RichChatStrings.done) { playback = nil }
-            }
-          }
-          .onDisappear { owner.player.pause() }
+      RichChatVideoPlayerSheet(playback: owner, title: video.name) {
+        if playback?.id == owner.id { playback = nil }
       }
-      .poracodePageSheetSizing()
     }
     .alert(RichChatStrings.downloadFailed(video.name), isPresented: $failed) {
       Button(RichChatStrings.retry, action: open)
       Button(RichChatStrings.cancel, role: .cancel) {}
     }
+    .modifier(PoracodeRetainNavigationWhilePresented(isPresented: loading || playback != nil))
     .onDisappear(perform: cancel)
+    .onChange(of: ObjectIdentifier(controller)) { cancel() }
     .onChange(of: controller.state.target) { cancel() }
     .onChange(of: projectLocation) { cancel() }
     .onChange(of: video) { cancel() }
@@ -82,7 +114,8 @@ struct RichChatVideoView: View {
   }
 
   private func open() {
-    guard !loading else { return }
+    guard !loading, playback == nil else { return }
+    failed = false
     if let url = video.externalURL {
       playback = RichChatVideoPlayback(url: url)
       return
@@ -90,24 +123,26 @@ struct RichChatVideoView: View {
     guard let location = projectLocation,
       let request = try? RichChatFilePolicy.resolve(video.target, location: location)
     else { failed = true; return }
-    loading = true
-    task = Task { @MainActor in
-      defer { loading = false }
+    var token: UInt64 = 0
+    let task = Task { @MainActor in
+      defer { downloadTask.clearIfCurrent(token) }
       if let file = await controller.fetchFileDownload(request: request, projectLocation: location, suggestedName: video.name) {
-        guard !Task.isCancelled else {
+        guard !Task.isCancelled, downloadTask.isCurrent(token) else {
           try? FileManager.default.removeItem(at: file.directory)
           return
         }
         playback = RichChatVideoPlayback(url: file.fileURL, directory: file.directory)
-      } else if !Task.isCancelled { failed = true }
+      } else if !Task.isCancelled, downloadTask.isCurrent(token) {
+        failed = true
+      }
     }
+    token = downloadTask.install(task)
   }
 
   private func cancel() {
-    task?.cancel()
-    task = nil
+    downloadTask.cancelCurrent()
     playback?.player.pause()
     playback = nil
-    loading = false
+    failed = false
   }
 }

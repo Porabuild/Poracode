@@ -70,6 +70,8 @@ struct TerminalTextSurface: UIViewRepresentable {
   /// Hardware-keyboard passthrough. When nil the surface stays a purely
   /// read-only transcript and never claims first responder.
   var onRawKeyInput: ((String) -> Void)?
+  @Environment(\.poracodeTheme) private var theme
+  @Environment(\.colorScheme) private var colorScheme
 
   func makeCoordinator() -> Coordinator { Coordinator() }
 
@@ -96,7 +98,11 @@ struct TerminalTextSurface: UIViewRepresentable {
     let transcriptView = view as? TerminalTranscriptView
     transcriptView?.onRawKeyInput = onRawKeyInput
     view.accessibilityLabel = accessibilityLabel
+    let palette = theme.variant(for: colorScheme)
+    let foreground = UIColor(palette.foreground)
+    let background = UIColor(palette.background)
     guard context.coordinator.transcript != transcript || context.coordinator.font != font
+      || context.coordinator.foreground != foreground || context.coordinator.background != background
     else { return }
     let unchangedText = context.coordinator.transcript == transcript
     let selection = view.selectedRange
@@ -104,11 +110,14 @@ struct TerminalTextSurface: UIViewRepresentable {
     let shouldFollowOutput = context.coordinator.transcript.isEmpty || distanceFromBottom < 72
     let rendered = TerminalANSIParser.render(transcript)
     view.font = font
-    view.attributedText = TerminalTextAttributes.attributed(rendered, font: font)
+    view.attributedText = TerminalTextAttributes.attributed(rendered, font: font,
+      defaultForeground: foreground, defaultBackground: background)
     if unchangedText, NSMaxRange(selection) <= view.attributedText.length { view.selectedRange = selection }
     view.accessibilityValue = rendered.plainText
     context.coordinator.transcript = transcript
     context.coordinator.font = font
+    context.coordinator.foreground = foreground
+    context.coordinator.background = background
     if shouldFollowOutput, !rendered.plainText.isEmpty {
       view.scrollRangeToVisible(NSRange(location: view.attributedText.length, length: 0))
     }
@@ -117,6 +126,8 @@ struct TerminalTextSurface: UIViewRepresentable {
   final class Coordinator {
     var transcript = ""
     var font: UIFont?
+    var foreground: UIColor?
+    var background: UIColor?
   }
 }
 
@@ -132,11 +143,12 @@ enum TerminalTextAttributes {
     attributed(rendered, font: font(pointSize: pointSize))
   }
 
-  static func attributed(_ rendered: TerminalRenderedText, font: UIFont) -> NSAttributedString {
+  static func attributed(_ rendered: TerminalRenderedText, font: UIFont,
+    defaultForeground: UIColor = .label, defaultBackground: UIColor = .systemBackground) -> NSAttributedString {
     let result = NSMutableAttributedString()
     for run in rendered.runs {
-      var foreground = color(run.style.foreground) ?? UIColor(white: 0.86, alpha: 1)
-      var background = color(run.style.background) ?? .clear
+      var foreground = color(run.style.foreground) ?? defaultForeground
+      var background = color(run.style.background) ?? (run.style.inverse ? defaultBackground : .clear)
       if run.style.inverse { swap(&foreground, &background) }
       let base = font
       var traits: UIFontDescriptor.SymbolicTraits = []

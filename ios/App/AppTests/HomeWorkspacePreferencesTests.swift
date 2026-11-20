@@ -93,6 +93,43 @@ final class HomeWorkspacePreferencesTests: XCTestCase {
     XCTAssertEqual(preferences.workspaces.count, 1)
   }
 
+  func testVersionOneCatalogLinksKeepLocalRenameAcrossBothHostsAndRelaunch() throws {
+    let old = #"{"version":1,"workspaces":[{"id":"work","name":"Work","icon":"briefcase"}]}"#
+    let a = ClientConnectionID(), b = ClientConnectionID()
+    let project = try project(id: "same-project", workspace: "same-workspace")
+    func snapshots(hostName: String) -> [HomeWorkspaceHostInput] {
+      [a, b].map { connection in
+        .init(connectionID: connection, workspaces: [.init(id: "same-workspace", name: hostName)],
+          projects: [project], homeThreadIDs: [])
+      }
+    }
+    var preferences = HomeWorkspacePreferences(stored: old)
+    preferences.importHosts(snapshots(hostName: "Work"), activeID: "work")
+    preferences.rename("work", to: "Studio")
+    preferences = HomeWorkspacePreferences(stored: preferences.encoded)
+    preferences.importHosts(snapshots(hostName: "Work on desktop"), activeID: "work")
+    XCTAssertEqual(preferences.workspaces.map(\.name), ["Studio"])
+    for connection in [a, b] {
+      let key = project.identity(on: connection).id.rawValue
+      XCTAssertEqual(preferences.workspace(forProject: key), "work")
+    }
+  }
+
+  func testDeletedImportedWorkspaceStaysInItsFallbackAfterHostRefresh() throws {
+    let connection = ClientConnectionID()
+    let project = try project(id: "p", workspace: "remote")
+    let snapshot = HomeWorkspaceHostInput(connectionID: connection,
+      workspaces: [.init(id: "remote", name: "Research")], projects: [project], homeThreadIDs: [])
+    var preferences = HomeWorkspacePreferences()
+    preferences.importHosts([snapshot], activeID: "work")
+    let research = try XCTUnwrap(preferences.workspaces.first { $0.name == "Research" })
+    preferences.remove(research.id)
+    preferences = HomeWorkspacePreferences(stored: preferences.encoded)
+    preferences.importHosts([snapshot], activeID: "side-hustle")
+    XCTAssertEqual(preferences.workspaces.map(\.name), ["Work", "Side Hustle"])
+    XCTAssertEqual(preferences.workspace(forProject: project.identity(on: connection).id.rawValue), "work")
+  }
+
   func testVersionOneWithoutFilingFieldsAndFutureDataArePreserved() {
     let old = #"{"version":1,"workspaces":[{"id":"old","name":"Existing","icon":"briefcase"}]}"#
     var restored = HomeWorkspacePreferences(stored: old)

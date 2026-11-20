@@ -125,7 +125,7 @@ struct SettingsMoreRouteView: View {
   let title: String?
 
   @State private var composition: SettingsComposition
-  @State private var query = SettingsProfileQuery()
+  @State private var query = SettingsProfileQuerySelection()
 
   init(session: AppSession, route: SettingsScreenRoute, title: String? = nil) {
     self.session = session

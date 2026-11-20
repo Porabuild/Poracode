@@ -34,7 +34,12 @@ final class GitHubPullRequestController {
     if runtime.leaveBackground(context) { reset() }
   }
 
-  func load(_ request: GitHubOperationRequest) async {
+  func hasCatalog(for lease: GitHubProjectLease) -> Bool {
+    documents[.ghListPullRequests] != nil && runtime.context?.lease == lease
+  }
+
+  func load(_ request: GitHubOperationRequest, expectedLease: GitHubProjectLease? = nil) async {
+    if let expectedLease, runtime.context?.lease != expectedLease { return }
     guard Self.supported.contains(request.procedure),
       request.procedure.metadata.scope == .read
     else { return }
@@ -74,13 +79,13 @@ final class GitHubPullRequestController {
     guard Self.supported.contains(result.procedure), let document = result.document else {
       throw GitHubOperationsFailure.invalidResponse
     }
-    documents[result.procedure] = document
     if result.procedure == .ghListPrs || result.procedure == .ghListPullRequests {
       guard let value = GitHubResultProjection.pullRequests(result) else {
         throw GitHubOperationsFailure.invalidResponse
       }
       pullRequests = value
     }
+    documents[result.procedure] = document
   }
 
   private func reset() {

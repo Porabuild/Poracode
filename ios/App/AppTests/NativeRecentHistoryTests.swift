@@ -355,6 +355,265 @@ final class NativeRecentHistoryTests: XCTestCase {
     attachment.name = "native-thread-history-open-metrics"; attachment.lifetime = .keepAlways; add(attachment)
   }
 
+  func testConditionalETagRevalidationReusesCachedBodyOn304AndClearsOnTokenChange() async throws {
+    var cache = RemoteReadCache()
+    let url = "https://a.test/api/snapshot"
+    let firstRead = cache.capture(url: url)
+    XCTAssertNil(firstRead.entry)
+    let okResponse = HTTPURLResponse(
+      url: URL(string: url)!,
+      statusCode: 200,
+      httpVersion: "HTTP/1.1",
+      headerFields: [
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"boot1-abc123\"",
+        "Cache-Control": "private, no-cache",
+        "Vary": "Accept-Encoding, Authorization",
+      ]
+    )!
+    let payload = Data("{\"ok\":true}".utf8)
+    cache.store(read: firstRead, response: okResponse, body: payload)
+
+    let secondRead = cache.capture(url: url)
+    XCTAssertEqual(secondRead.entry?.etag, "\"boot1-abc123\"")
+    XCTAssertEqual(cache.body(for: secondRead), payload)
+
+    let noStoreResponse = HTTPURLResponse(
+      url: URL(string: "https://a.test/api/devices")!,
+      statusCode: 200,
+      httpVersion: "HTTP/1.1",
+      headerFields: [
+        "Content-Type": "application/json",
+        "ETag": "\"boot1-nostore\"",
+        "Cache-Control": "no-store",
+      ]
+    )!
+    let noStoreRead = cache.capture(url: "https://a.test/api/devices")
+    cache.store(read: noStoreRead, response: noStoreResponse, body: payload)
+    XCTAssertNil(cache.capture(url: "https://a.test/api/devices").entry)
+
+    cache.clear()
+    XCTAssertNil(cache.body(for: secondRead))
+    XCTAssertNil(cache.capture(url: url).entry)
+  }
+
+  func testThreadHistoryChangesRequestEncodesCompactParamsAndDecodesEvents() throws {
+    let request = try GeneratedRemoteV3Contract.threadHistoryChangesRequest(
+      threadID: "thread-1",
+      cursor: "hr1.cursor",
+      afterSeq: 12,
+      targetTimelineEntryCount: 20,
+      omitScrollback: true
+    )
+    XCTAssertEqual(request.path, "/api/threads/thread-1/history/changes")
+    let queryMap = Dictionary(uniqueKeysWithValues: request.query.map { ($0.name, $0.value ?? "") })
+    XCTAssertEqual(queryMap["reads"], "bounded-v1")
+    XCTAssertEqual(queryMap["notices"], "v1")
+    XCTAssertEqual(queryMap["cursor"], "hr1.cursor")
+    XCTAssertEqual(queryMap["afterSeq"], "12")
+    XCTAssertEqual(queryMap["projection"], "details-v1")
+    XCTAssertEqual(queryMap["deferBodies"], "file_change")
+    XCTAssertEqual(queryMap["targetTimelineEntryCount"], "20")
+    XCTAssertEqual(queryMap["omitScrollback"], "1")
+
+    let eventsJSON: [String: Any] = [
+      "kind": "events",
+      "snapshotSeq": 15,
+      "runtimeResumeCursor": "hr1.next",
+      "thread": [
+        "id": "thread-1",
+        "projectId": "p1",
+        "title": "Warm Thread",
+        "agentKind": "codex",
+        "config": ["model": "default"],
+        "status": "idle",
+        "attention": "none",
+        "canResumeWithConfig": true,
+        "createdAt": "2026-11-17T00:00:00Z",
+        "updatedAt": "2026-11-17T00:00:01Z",
+      ],
+      "completedTurns": [],
+      "completedTurnsNextCursor": NSNull(),
+      "contextUsage": NSNull(),
+      "backgroundTasks": [],
+      "followUpQueue": NSNull(),
+      "batches": [
+        [
+          "seq": 14,
+          "events": [
+            [
+              "type": "content.delta",
+              "threadId": "thread-1",
+              "itemId": "msg-2",
+              "stream": "assistant_text",
+              "delta": "Incremental update",
+            ]
+          ],
+        ]
+      ],
+    ]
+    let outcome = try GeneratedRemoteV3Contract.threadHistoryChangesResponse(
+      try JSONSerialization.data(withJSONObject: eventsJSON),
+      expectedThreadID: "thread-1"
+    )
+    guard case .events(let resumed) = outcome else {
+      return XCTFail("Expected events resume outcome")
+    }
+    XCTAssertEqual(resumed.snapshotSeq, 15)
+    XCTAssertEqual(resumed.runtimeResumeCursor, "hr1.next")
+    XCTAssertEqual(resumed.batches.count, 1)
+    XCTAssertEqual(resumed.batches[0].seq, 14)
+
+    XCTAssertThrowsError(
+      try GeneratedRemoteV3Contract.threadHistoryChangesResponse(
+        try JSONSerialization.data(withJSONObject: eventsJSON),
+        expectedThreadID: "other-thread"
+      )
+    )
+  }
+
+  func testRichImageContractEncodesCardVariantAndOmitsForFullResolution() throws {
+    let cardLocal = try GeneratedRemoteV3Contract.richLocalImage(path: "/tmp/a.png", variant: .card)
+    XCTAssertEqual(
+      cardLocal.queryItems.first(where: { $0.name == "variant" })?.value,
+      "card"
+    )
+    let fullLocal = try GeneratedRemoteV3Contract.richLocalImage(path: "/tmp/a.png", variant: nil)
+    XCTAssertNil(fullLocal.queryItems.first(where: { $0.name == "variant" }))
+
+    let ref = RichRemoteImageReference(
+      threadID: "t1",
+      itemID: "i1",
+      path: [.key("images"), .index(0)],
+      mimeType: "image/png",
+      bytes: 4,
+      width: 1,
+      height: 1,
+      preview: nil
+    )
+    let cardRuntime = try GeneratedRemoteV3Contract.richRuntimeImage(ref, variant: .card)
+    XCTAssertEqual(
+      cardRuntime.queryItems.first(where: { $0.name == "variant" })?.value,
+      "card"
+    )
+    let fullRuntime = try GeneratedRemoteV3Contract.richRuntimeImage(ref, variant: nil)
+    XCTAssertNil(fullRuntime.queryItems.first(where: { $0.name == "variant" }))
+  }
+
+  @MainActor
+  func testRichChatTranscriptControllerUsesWarmResumeAndCachesCoalescedImages() async throws {
+    let gateway = WarmResumeAndImageTestGateway()
+    let lease = RichChatHostLease(connectionID: ClientConnectionID(), generation: 1)
+    let access = RichChatSessionAccess(
+      lease: lease,
+      isOnline: true,
+      isReady: true,
+      capabilities: [.sessionRead],
+      runtimeHistoryNotices: true
+    )
+
+    let transcript = RichChatTranscriptController(gateway: gateway)
+    transcript.activate(access: access, threadID: "t1")
+    await transcript.loadHistory()
+    XCTAssertEqual(transcript.state.snapshotSequence, 10)
+    XCTAssertEqual(transcript.state.runtimeResumeCursor, "hr1.initial")
+    let initialHistoryCount = await gateway.historyReadCount
+    let initialChangesCount = await gateway.changesReadCount
+    XCTAssertEqual(initialHistoryCount, 1)
+    XCTAssertEqual(initialChangesCount, 0)
+
+    // Second loadHistory on warm transcript uses thread-history-changes instead of full history!
+    await transcript.loadHistory()
+    let warmHistoryCount = await gateway.historyReadCount
+    let warmChangesCount = await gateway.changesReadCount
+    XCTAssertEqual(warmHistoryCount, 1)
+    XCTAssertEqual(warmChangesCount, 1)
+    XCTAssertEqual(transcript.state.snapshotSequence, 12)
+    XCTAssertEqual(transcript.state.runtimeResumeCursor, "hr1.resumed")
+    XCTAssertEqual(transcript.state.transcript?.itemsInOrder.count, 2)
+
+    // Media controller caches + coalesces concurrent card fetches and serves cached full for card
+    let media = RichChatMediaController(
+      historyGateway: gateway,
+      conversationGateway: WarmResumeNoopConversationGateway()
+    )
+    media.activate(access: access, threadID: "t1")
+    async let firstCard = media.fetchImagePayload(.local(path: "/tmp/shot.png"), variant: .card)
+    async let secondCard = media.fetchImagePayload(.local(path: "/tmp/shot.png"), variant: .card)
+    let (a, b) = await (firstCard, secondCard)
+    XCTAssertEqual(a, b)
+    let afterCoalesced = await gateway.localImageRequests
+    XCTAssertEqual(afterCoalesced.count, 1)
+    XCTAssertEqual(afterCoalesced.first?.variant, .card)
+
+    // Full fetch hits network once; subsequent card fetch reuses cached payload without network
+    let full = await media.fetchImagePayload(.local(path: "/tmp/shot.png"), variant: nil)
+    XCTAssertNotNil(full)
+    let afterFull = await gateway.localImageRequests
+    XCTAssertEqual(afterFull.count, 2)
+    XCTAssertNil(afterFull.last?.variant)
+    _ = await media.fetchImagePayload(.local(path: "/tmp/shot.png"), variant: .card)
+    let afterCachedCard = await gateway.localImageRequests
+    XCTAssertEqual(afterCachedCard.count, 2)
+
+    // Switching lease clears image cache
+    let nextAccess = RichChatSessionAccess(
+      lease: RichChatHostLease(connectionID: ClientConnectionID(), generation: 2),
+      isOnline: true,
+      isReady: true,
+      capabilities: [.sessionRead]
+    )
+    media.activate(access: nextAccess, threadID: "t1")
+    _ = await media.fetchImagePayload(.local(path: "/tmp/shot.png"), variant: .card)
+    let afterLeaseSwitch = await gateway.localImageRequests
+    XCTAssertEqual(afterLeaseSwitch.count, 3)
+
+    // Memory warning clears the media cache immediately
+    NotificationCenter.default.post(name: UIApplication.didReceiveMemoryWarningNotification, object: nil)
+    try? await Task.sleep(for: .milliseconds(30))
+    _ = await media.fetchImagePayload(.local(path: "/tmp/shot.png"), variant: .card)
+    let afterMemoryWarning = await gateway.localImageRequests
+    XCTAssertEqual(afterMemoryWarning.count, 4)
+  }
+
+  func testImageDecoderDownsamplesInlineCardsAndStreamFastPathMatchesFullProjection() throws {
+    // 1. ImageIO downsampler caps inline card bitmaps to maxPixelSize
+    let format = UIGraphicsImageRendererFormat()
+    format.scale = 1
+    let renderer = UIGraphicsImageRenderer(size: CGSize(width: 2400, height: 1200), format: format)
+    let pngData = renderer.pngData { ctx in
+      UIColor.systemBlue.setFill()
+      ctx.fill(CGRect(x: 0, y: 0, width: 2400, height: 1200))
+    }
+    let downsampled = try XCTUnwrap(RichChatImageDecoder.decode(data: pngData, maxPixelSize: 640))
+    XCTAssertLessThanOrEqual(max(downsampled.size.width, downsampled.size.height), 640)
+    let full = try XCTUnwrap(RichChatImageDecoder.decode(data: pngData, maxPixelSize: nil))
+    XCTAssertEqual(max(full.size.width, full.size.height), 2400)
+
+    // 2. O(1) streaming projection patch matches full RichTimeline.project exactly
+    let initialItems = [
+      RichRuntimeItem(id: "u1", type: RichItemType.userMessage, state: .completed, payload: .object(["text": .string("Hi")]), streams: [:], parentItemID: nil),
+      RichRuntimeItem(id: "a1", type: RichItemType.assistantMessage, state: .updated, payload: .object([:]), streams: ["assistant_text": "Hello"], parentItemID: nil),
+    ]
+    let nextItems = [
+      initialItems[0],
+      RichRuntimeItem(id: "a1", type: RichItemType.assistantMessage, state: .updated, payload: .object([:]), streams: ["assistant_text": "Hello world!"], parentItemID: nil),
+    ]
+    let baseProjection = RichTimeline.project(initialItems)
+    let patched = try XCTUnwrap(
+      RichTimeline.updatingStreamOnly(in: baseProjection, previousItems: initialItems, newItems: nextItems)
+    )
+    let fullRebuild = RichTimeline.project(nextItems)
+    XCTAssertEqual(patched, fullRebuild)
+
+    // Structural change (state change) returns nil so cache falls back to full rebuild
+    let completedItems = [
+      initialItems[0],
+      RichRuntimeItem(id: "a1", type: RichItemType.assistantMessage, state: .completed, payload: .object([:]), streams: ["assistant_text": "Hello world!"], parentItemID: nil),
+    ]
+    XCTAssertNil(RichTimeline.updatingStreamOnly(in: patched, previousItems: nextItems, newItems: completedItems))
+  }
+
   private func makeClient(endpoint: String = "https://a.test", token: String = "grant-a", cursorVersions: [Int]? = nil,
     historyCache: NativeRecentHistoryCache? = nil, environment: RemoteEnvironmentContext? = nil) async throws -> RemoteAPIClient {
     let client = RemoteAPIClient(endpoint: endpoint, accessToken: token, session: BoundedCatalogURLProtocol.makeSession(),
@@ -437,4 +696,124 @@ private final class ValidatedHistoryHost: BoundedCatalogHostFixture, @unchecked 
     byteLock.lock(); byteCounts.append(encoded.count); byteLock.unlock()
     return Response(status: 200, body: encoded)
   }
+}
+
+private actor WarmResumeAndImageTestGateway: RichChatHistoryGateway {
+  struct ImageRequest: Equatable, Sendable {
+    let path: String
+    let variant: RichImageVariant?
+  }
+
+  private(set) var historyReadCount = 0
+  private(set) var changesReadCount = 0
+  private(set) var localImageRequests: [ImageRequest] = []
+
+  private static let thread = RemoteThread(
+    id: "t1",
+    projectId: "p1",
+    title: "Warm Thread",
+    agentKind: "codex",
+    config: ThreadConfig(model: "default"),
+    status: "idle",
+    attention: "none",
+    canResumeWithConfig: true,
+    createdAt: "2026-11-17T00:00:00Z",
+    updatedAt: "2026-11-17T00:00:00Z"
+  )
+
+  func loadRichHistory(target _: RichChatThreadTarget, targetEntryCount _: Int?) async throws -> RemoteThreadSnapshot {
+    historyReadCount += 1
+    let item = PersistedRuntimeItem(
+      id: "m1",
+      type: "assistant_message",
+      state: "completed",
+      payload: .object(["text": .string("Initial reply")]),
+      streams: [:]
+    )
+    return RemoteThreadSnapshot(
+      snapshotSeq: 10,
+      thread: Self.thread,
+      runtimeItems: [item],
+      completedTurns: [],
+      updatedAt: "2026-11-17T00:00:00Z",
+      runtimeResumeCursor: "hr1.initial"
+    )
+  }
+
+  func loadRichHistoryChanges(
+    target _: RichChatThreadTarget,
+    cursor _: String,
+    afterSeq _: Int?,
+    targetEntryCount _: Int?
+  ) async throws -> RemoteHistoryResumeOutcome {
+    changesReadCount += 1
+    let events: [RichRuntimeEvent] = [
+      .itemStarted(threadID: "t1", itemID: "m2", itemType: "assistant_message", payload: .value(.object([:])), parentItemID: nil),
+      .contentDelta(threadID: "t1", itemID: "m2", stream: "assistant_text", delta: "Resumed delta"),
+      .itemCompleted(threadID: "t1", itemID: "m2", payload: .omitted),
+    ]
+    return .events(
+      RemoteHistoryResumeEvents(
+        snapshotSeq: 12,
+        runtimeResumeCursor: "hr1.resumed",
+        thread: Self.thread,
+        completedTurns: [],
+        completedTurnsNextCursor: nil,
+        contextUsage: nil,
+        backgroundTasks: [],
+        backgroundTasksPresent: true,
+        followUpQueue: nil,
+        followUpQueuePresent: true,
+        runtimeNotice: nil,
+        batches: [RemoteHistoryResumeBatch(seq: 11, events: events)]
+      )
+    )
+  }
+
+  func loadRichHistoryPage(target _: RichChatThreadTarget, beforePosition _: Int?, limit _: Int, targetEntryCount _: Int?) async throws -> RemoteRuntimeItemsPage {
+    RemoteRuntimeItemsPage(items: [], nextCursor: nil)
+  }
+
+  func loadLocalRichImage(target _: RichChatThreadTarget, path: String) async throws -> RichChatBinaryPayload {
+    try await loadLocalRichImage(target: RichChatThreadTarget(lease: RichChatHostLease(connectionID: ClientConnectionID(), generation: 1), threadID: "t1"), path: path, variant: nil)
+  }
+
+  func loadLocalRichImage(target _: RichChatThreadTarget, path: String, variant: RichImageVariant?) async throws -> RichChatBinaryPayload {
+    localImageRequests.append(ImageRequest(path: path, variant: variant))
+    try? await Task.sleep(for: .milliseconds(25))
+    return RichChatBinaryPayload(data: Data([0x89, 0x50, 0x4E, 0x47]), mimeType: "image/png")
+  }
+
+  func loadRuntimeRichImage(target _: RichChatThreadTarget, reference _: RichRemoteImageReference) async throws -> RichChatBinaryPayload {
+    RichChatBinaryPayload(data: Data([0x89, 0x50, 0x4E, 0x47]), mimeType: "image/png")
+  }
+
+  func listRichCheckpoints(target _: RichChatThreadTarget, projectLocation _: ProjectLocation) async throws -> RichChatCheckpointCollection {
+    RichChatCheckpointCollection(checkpoints: [], turns: [])
+  }
+}
+
+private struct WarmResumeNoopConversationGateway: RichChatConversationGateway {
+  func sendRichInput(target _: RichChatThreadTarget, input _: RichChatSendInput) async throws {}
+  func interruptRichThread(target _: RichChatThreadTarget) async throws {}
+  func closeRichThread(target _: RichChatThreadTarget) async throws {}
+  func truncateRichRuntime(target _: RichChatThreadTarget, after _: String) async throws {}
+  func runRichThreadCommand(target _: RichChatThreadTarget, command _: RichChatThreadCommand) async throws {}
+  func updateRichGoal(target _: RichChatThreadTarget, update _: RichChatGoalUpdate) async throws {}
+  func setRichSteer(target _: RichChatThreadTarget, input _: RichSetPendingSteerInput) async throws {}
+  func clearRichSteer(target _: RichChatThreadTarget) async throws {}
+  func queueRichFollowUp(target _: RichChatThreadTarget, input _: RichSetPendingSteerInput) async throws {}
+  func removeRichQueuedFollowUp(target _: RichChatThreadTarget, id _: String) async throws {}
+  func reorderRichQueuedFollowUp(target _: RichChatThreadTarget, id _: String, beforeID _: String?) async throws {}
+  func editRichQueuedFollowUp(target _: RichChatThreadTarget, edit _: RichQueuedFollowUpEdit) async throws {}
+  func steerRichQueuedFollowUp(target _: RichChatThreadTarget, id _: String) async throws {}
+  func pauseRichFollowUps(target _: RichChatThreadTarget, id _: String) async throws {}
+  func resumeRichFollowUps(target _: RichChatThreadTarget) async throws {}
+  func uploadRichAttachment(target _: RichChatThreadTarget, attachment _: RichChatAttachment) async throws -> String { "" }
+  func stageRichInput(target _: RichChatThreadTarget, prompt _: String, segments _: [RichPromptSegment]?) async throws {}
+  func rollbackRichConversation(target _: RichChatThreadTarget, turnCount _: Int, config _: [String: RichJSON]?) async throws {}
+  func createRichCheckpoint(target _: RichChatThreadTarget, itemID _: String, projectLocation _: ProjectLocation) async throws -> RichCheckpoint { throw RichChatGatewayError.unavailable }
+  func finalizeRichCheckpoint(target _: RichChatThreadTarget, itemID _: String, baseItemID _: String, projectLocation _: ProjectLocation) async throws -> RichCheckpoint { throw RichChatGatewayError.unavailable }
+  func restoreRichCheckpoint(target _: RichChatThreadTarget, itemID _: String, projectLocation _: ProjectLocation) async throws {}
+  func checkpointRevert(target _: RichChatThreadTarget, itemID _: String, operationKey _: String) async throws -> RichChatCheckpointRevertOutcome { throw RichChatGatewayError.unavailable }
 }

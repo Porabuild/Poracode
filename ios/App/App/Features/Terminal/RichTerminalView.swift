@@ -5,9 +5,13 @@ struct RichTerminalView: View {
   let controller: RichChatTerminalController
   let terminalID: String
   let canOperate: Bool
-  private let terminalBackground = Color(red: 0.035, green: 0.04, blue: 0.055)
+  @Environment(\.poracodeEmbeddedInInspector) private var embeddedInInspector
+  @Environment(\.poracodeTheme) private var theme
+  @Environment(\.colorScheme) private var colorScheme
+  private var terminalBackground: Color { theme.variant(for: colorScheme).background }
 
   @State private var input = ""
+  @State private var inputFocused = false
   @State private var viewportSize: TerminalViewportSize?
   @State private var resizeTask: Task<Void, Never>?
   @State private var showsCloseConfirmation = false
@@ -49,7 +53,7 @@ struct RichTerminalView: View {
         if controller.state.cursor?.transcript.isEmpty != false {
           Text(TerminalStrings.empty)
             .font(Font(font))
-            .foregroundStyle(.secondary)
+            .foregroundStyle(Color.poracodeSecondaryLabel)
             .allowsHitTesting(false)
         }
       }
@@ -57,15 +61,15 @@ struct RichTerminalView: View {
         outputBounds = size
         scheduleResize(for: size, font: font)
       }
-      Divider().overlay(Color.white.opacity(0.12))
+      Divider()
       inputBar(font: font)
     }
+    .poracodeAvoidKeyboard(isActive: embeddedInInspector && inputFocused)
     .onChange(of: font) { scheduleResize(for: outputBounds, font: font) }
     .onChange(of: controller.state.lifecycle) { _, lifecycle in
       if lifecycle == .watching { scheduleResize(for: outputBounds, font: font, force: true) }
     }
     .background(terminalBackground.ignoresSafeArea())
-    .environment(\.colorScheme, .dark)
     .confirmationDialog(
       TerminalStrings.closeTitle,
       isPresented: $showsCloseConfirmation,
@@ -119,7 +123,7 @@ struct RichTerminalView: View {
     }
     .padding(.horizontal, 12)
     .padding(.vertical, 8)
-    .foregroundStyle(.white)
+    .foregroundStyle(.primary)
     .poracodeGlassBackground(in: RoundedRectangle(cornerRadius: 14, style: .continuous))
   }
 
@@ -140,13 +144,14 @@ struct RichTerminalView: View {
           font: font,
           isDisabled: availability != .operable,
           accessibilityLabel: TerminalStrings.input,
+          onFocusChanged: { inputFocused = $0 },
           onSubmit: sendCommand
         )
         .overlay(alignment: .topLeading) {
           if input.isEmpty {
             Text(TerminalStrings.inputPlaceholder)
               .font(Font(font))
-              .foregroundStyle(.tertiary)
+              .foregroundStyle(Color.poracodeSecondaryLabel)
               .padding(.top, TerminalCommandFieldLayout.verticalInset)
               .allowsHitTesting(false)
           }

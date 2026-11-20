@@ -4,7 +4,7 @@ struct CustomThemeSettingsView: View {
   @Bindable var store: CustomThemeStore
   @AppStorage(PoracodeThemePreset.storageKey) private var selectedID = PoracodeThemePreset.defaultID
   @Environment(\.colorScheme) private var colorScheme
-  @State private var editing: NativeCustomTheme?
+  @State private var editing: CustomThemeEditSession?
   @State private var deleting: NativeCustomTheme?
   @State private var importing = false
   @State private var importFailed = false
@@ -46,21 +46,22 @@ struct CustomThemeSettingsView: View {
     .poracodeReadableListMargins(740)
     .navigationTitle(CustomThemeStrings.text("Custom theme"))
     .navigationBarTitleDisplayMode(.inline)
-    .poracodeBottomBar {
-      PoracodeBottomActionBar {
-        PoracodeCircleButton { importing = true } label: { Image(systemName: "square.and.arrow.down") }
+    .toolbar {
+      ToolbarItemGroup(placement: .bottomBar) {
+        Button { importing = true } label: {
+          Label { CustomThemeStrings.text("Import theme") } icon: { Image(systemName: "square.and.arrow.down") }
+        }
           .disabled(!store.canEdit)
-          .accessibilityLabel(CustomThemeStrings.text("Import theme"))
           .accessibilityIdentifier("native-e2e.theme.import")
-      } trailing: {
-        PoracodeCircleButton(action: create) { Image(systemName: "plus") }
+        Button(action: create) {
+          Label { CustomThemeStrings.text("Create custom theme") } icon: { Image(systemName: "plus") }
+        }
           .disabled(!store.canEdit || CustomThemeCatalog.bundled.presets.isEmpty)
-          .accessibilityLabel(CustomThemeStrings.text("Create custom theme"))
           .accessibilityIdentifier("native-e2e.theme.create")
       }
     }
     .poracodeUseKeyboardLayoutGuide()
-    .sheet(item: $editing) { theme in CustomThemeEditorView(initial: theme, store: store) }
+    .sheet(item: $editing) { session in CustomThemeEditorView(store: store, session: session) }
     .confirmationDialog(CustomThemeStrings.text("Delete theme"), isPresented: Binding(
       get: { deleting != nil }, set: { if !$0 { deleting = nil } }
     ), titleVisibility: .visible) {
@@ -73,7 +74,7 @@ struct CustomThemeSettingsView: View {
     .fileImporter(isPresented: $importing, allowedContentTypes: [.json]) { result in
       switch result {
       case .success(let url):
-        do { editing = NativeCustomTheme(document: try CustomThemeFile.imported(from: url)); importFailed = false }
+        do { beginEditing(NativeCustomTheme(document: try CustomThemeFile.imported(from: url))); importFailed = false }
         catch { importFailed = true }
       case .failure(let error):
         if (error as NSError).code != NSUserCancelledError { importFailed = true }
@@ -96,7 +97,7 @@ struct CustomThemeSettingsView: View {
   }
 
   @ViewBuilder private func actions(_ theme: NativeCustomTheme) -> some View {
-    Button { editing = theme } label: { CustomThemeStrings.text("Edit theme") }.disabled(!store.canEdit)
+    Button { beginEditing(theme) } label: { CustomThemeStrings.text("Edit theme") }.disabled(!store.canEdit)
     Button { beginExport(theme) } label: { CustomThemeStrings.text("Export theme") }
     Button(role: .destructive) { deleting = theme } label: { CustomThemeStrings.text("Delete theme") }.disabled(!store.canEdit)
   }
@@ -104,7 +105,11 @@ struct CustomThemeSettingsView: View {
   private func create() {
     guard var document = CustomThemeCatalog.bundled.source(for: selectedID, custom: store.themes) else { return }
     document.label = CustomThemeStrings.initialName
-    editing = NativeCustomTheme(document: document)
+    beginEditing(NativeCustomTheme(document: document))
+  }
+
+  private func beginEditing(_ theme: NativeCustomTheme) {
+    editing = CustomThemeEditSession(theme: theme, mode: colorScheme == .dark ? "dark" : "light")
   }
 
   private func beginExport(_ theme: NativeCustomTheme) {

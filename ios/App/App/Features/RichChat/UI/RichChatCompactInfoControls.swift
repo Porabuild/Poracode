@@ -71,6 +71,7 @@ struct RichChatGitChanges: Equatable {
 struct RichChatThreadInformationMenu: View {
   let showsResourceDetails: Bool
   let hasContext: Bool
+  let find: RichChatFindState?
   let showInfo: () -> Void
   let select: (RichChatCompactControlDestination) -> Void
 
@@ -78,6 +79,9 @@ struct RichChatThreadInformationMenu: View {
     Section {
       Button(HomeStrings.threadInfo, systemImage: "info.circle", action: showInfo)
       if showsResourceDetails {
+        if let find {
+          Button(RichChatStrings.findInChat, systemImage: "magnifyingglass") { find.open() }
+        }
         if hasContext {
           Button(RichChatStrings.contextWindow, systemImage: "circle.dashed.inset.filled") {
             select(.context)

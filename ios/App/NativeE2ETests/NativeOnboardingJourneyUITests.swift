@@ -1,7 +1,7 @@
 import XCTest
 
 extension NativeFamilyJourneyUITests {
-  func testPairingValidationHasSpaceAfterInputsAndBeforeTheAction() throws {
+  func testPairingValidationHasSpaceAfterInputsAndKeepsConnectReachable() throws {
     defer { XCUIDevice.shared.orientation = .portrait }
     XCUIDevice.shared.orientation = .portrait
     app.launch()
@@ -24,20 +24,27 @@ extension NativeFamilyJourneyUITests {
       XCTAssertTrue(error.isHittable, "Validation must remain visible in the scrolling form")
       XCTAssertGreaterThanOrEqual(error.frame.minY - token.frame.maxY, 16,
         "The error needs clear separation from the last input")
-      XCTAssertGreaterThanOrEqual(submit.frame.minY - error.frame.maxY, 16,
-        "The floating action must not cover or touch validation text")
+      XCTAssertFalse(submit.frame.insetBy(dx: -16, dy: -16).intersects(error.frame),
+        "Connect needs clear separation from validation text")
       let proof = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
       proof.name = orientation == .portrait ? "pairing-error-portrait" : "pairing-error-landscape"
       proof.lifetime = .keepAlways; add(proof)
 
-      token.tap()
+      XCTAssertTrue(token.isHittable)
+      token.coordinate(withNormalizedOffset: CGVector(dx: 0.15, dy: 0.5)).tap()
+      let fixtureToken = "fixture-token"
+      token.typeText(fixtureToken)
+      let maskedToken = try XCTUnwrap(token.value as? String)
+      XCTAssertEqual(maskedToken.count, fixtureToken.count)
+      XCTAssertNotEqual(maskedToken, fixtureToken)
       let keyboard = app.keyboards.firstMatch
-      XCTAssertTrue(keyboard.waitForExistence(timeout: 5))
       let clearOfKeyboard = NSPredicate { _, _ in
-        error.isHittable && submit.isHittable
+        let keyboardFrame = keyboard.exists ? keyboard.frame.intersection(self.app.frame) : .null
+        return error.isHittable && submit.isHittable
           && error.frame.minY - token.frame.maxY >= 16
-          && submit.frame.minY - error.frame.maxY >= 16
-          && submit.frame.maxY <= keyboard.frame.minY
+          && !submit.frame.insetBy(dx: -16, dy: -16).intersects(error.frame)
+          && !submit.frame.intersects(keyboardFrame)
+          && !error.frame.intersects(keyboardFrame)
       }
       let keyboardResult = XCTWaiter.wait(for: [XCTNSPredicateExpectation(
         predicate: clearOfKeyboard, object: app)], timeout: 5)
@@ -45,7 +52,8 @@ extension NativeFamilyJourneyUITests {
       keyboardProof.name = orientation == .portrait
         ? "pairing-error-keyboard-portrait" : "pairing-error-keyboard-landscape"
       keyboardProof.lifetime = .keepAlways; add(keyboardProof)
-      let geometry = XCTAttachment(string: "token: \(token.frame)\nerror: \(error.frame)\nPair: \(submit.frame)\nkeyboard: \(keyboard.frame)")
+      let keyboardFrame = keyboard.exists ? keyboard.frame : .zero
+      let geometry = XCTAttachment(string: "token: \(token.frame)\nerror: \(error.frame)\nPair: \(submit.frame)\nkeyboard: \(keyboardFrame)")
       geometry.name = "pairing-error-geometry"; geometry.lifetime = .keepAlways; add(geometry)
       XCTAssertEqual(keyboardResult, .completed)
       app.terminate()

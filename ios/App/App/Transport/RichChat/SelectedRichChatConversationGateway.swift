@@ -215,9 +215,9 @@ extension SelectedRichChatSessionGateway: RichChatConversationGateway {
 
   func checkpointRevert(
     target: RichChatThreadTarget, itemID: String, operationKey: String
-  ) async throws {
+  ) async throws -> RichChatCheckpointRevertOutcome {
     try await executeMutation(target: target, capability: .sessionOperate) { api in
-      _ = try await api.richCheckpointRevert(
+      try await api.richCheckpointRevert(
         threadID: target.threadID,
         checkpointItemID: itemID,
         operationKey: operationKey

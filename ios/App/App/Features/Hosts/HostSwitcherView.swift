@@ -80,13 +80,10 @@ struct HostSwitcherView: View {
         }
         .listStyle(.insetGrouped)
         .poracodeReadableListMargins(720)
-        .poracodeBottomBar {
-            PoracodeBottomActionDock(placement: .trailing) {
-                PoracodeCircleButton {
+        .toolbar {
+            ToolbarItem(placement: .bottomBar) {
+                Button(HostStrings.addHost, systemImage: "plus") {
                     showAddHost = true
-                } label: {
-                    Label(HostStrings.addHost, systemImage: "plus")
-                        .labelStyle(.iconOnly)
                 }
                 .accessibilityLabel(HostStrings.addHostAccessibility)
                 .accessibilityIdentifier("native-e2e.connections.add")

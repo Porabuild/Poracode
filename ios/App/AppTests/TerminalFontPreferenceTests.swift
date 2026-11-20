@@ -110,6 +110,58 @@ final class TerminalFontPreferenceTests: XCTestCase {
     XCTAssertEqual(grid.rows, Int(floor((bounds.height - 24) / font.lineHeight)))
   }
 
+  func testChangingAppearanceRefreshesExistingOutputAndTheCommandKeyboard() async throws {
+    let model = TerminalTypographyHarnessState(font: TerminalTextAttributes.font(pointSize: 13))
+    let appeared = expectation(description: "Light terminal mounted")
+    let changed = expectation(description: "Terminal appearance changed")
+    let host = UIHostingController(rootView: TerminalTypographyHarness(model: model,
+      appeared: { appeared.fulfill() }, changed: { changed.fulfill() }))
+    let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 640, height: 480))
+    window.windowScene = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first
+    window.rootViewController = host
+    window.isHidden = false
+    defer { window.isHidden = true; window.rootViewController = nil }
+    await fulfillment(of: [appeared], timeout: 5)
+    host.view.layoutIfNeeded()
+    let views = descendants(host.view)
+    let output = try XCTUnwrap(views.compactMap { $0 as? TerminalTranscriptView }.first)
+    let input = try XCTUnwrap(views.compactMap { $0 as? TerminalCommandTextView }.first)
+    let theme = PoracodeThemePreset.resolve(PoracodeThemePreset.defaultID)
+    XCTAssertEqual(input.keyboardAppearance, .light)
+    XCTAssertEqual(output.attributedText.attribute(.foregroundColor, at: 0, effectiveRange: nil) as? UIColor,
+      UIColor(theme.variant(for: .light).foreground))
+    model.appearance = .dark
+    await fulfillment(of: [changed], timeout: 5)
+    await Task.yield()
+    host.view.layoutIfNeeded()
+    XCTAssertEqual(input.keyboardAppearance, .dark)
+    XCTAssertEqual(output.attributedText.attribute(.foregroundColor, at: 0, effectiveRange: nil) as? UIColor,
+      UIColor(theme.variant(for: .dark).foreground))
+    XCTAssertEqual(input.text, model.input)
+    XCTAssertEqual(output.attributedText.string, "plain red")
+  }
+
+  func testDefaultAndInverseTerminalTextUseTheSelectedThemeAcrossAppearances() throws {
+    let theme = PoracodeThemePreset.resolve(PoracodeThemePreset.defaultID)
+    let transcript = TerminalANSIParser.render("plain \u{1B}[7mreverse\u{1B}[0m \u{1B}[31mred")
+    let font = TerminalTextAttributes.font(pointSize: 13)
+    var explicitRed: UIColor?
+    for appearance in [ColorScheme.light, .dark] {
+      let variant = theme.variant(for: appearance)
+      let foreground = UIColor(variant.foreground)
+      let background = UIColor(variant.background)
+      let text = TerminalTextAttributes.attributed(transcript, font: font,
+        defaultForeground: foreground, defaultBackground: background)
+      XCTAssertEqual(text.attribute(.foregroundColor, at: 0, effectiveRange: nil) as? UIColor, foreground)
+      XCTAssertEqual(text.attribute(.foregroundColor, at: 6, effectiveRange: nil) as? UIColor, background)
+      XCTAssertEqual(text.attribute(.backgroundColor, at: 6, effectiveRange: nil) as? UIColor, foreground)
+      let red = try XCTUnwrap(text.attribute(.foregroundColor, at: 14, effectiveRange: nil) as? UIColor)
+      XCTAssertNotEqual(red, foreground)
+      if let explicitRed { XCTAssertEqual(red, explicitRed) }
+      explicitRed = red
+    }
+  }
+
   private func descendants(_ view: UIView) -> [UIView] {
     [view] + view.subviews.flatMap(descendants)
   }
@@ -119,6 +171,7 @@ final class TerminalFontPreferenceTests: XCTestCase {
 @Observable
 private final class TerminalTypographyHarnessState {
   var font: UIFont
+  var appearance: ColorScheme = .light
   var input = "echo 'keep 漢字'"
   init(font: UIFont) { self.font = font }
 }
@@ -134,7 +187,9 @@ private struct TerminalTypographyHarness: View {
       TerminalCommandField(text: Binding(get: { model.input }, set: { model.input = $0 }),
         font: model.font, isDisabled: false, accessibilityLabel: "Input", onSubmit: {})
     }
+    .environment(\.colorScheme, model.appearance)
     .onAppear(perform: appeared)
     .onChange(of: model.font) { changed() }
+    .onChange(of: model.appearance) { changed() }
   }
 }

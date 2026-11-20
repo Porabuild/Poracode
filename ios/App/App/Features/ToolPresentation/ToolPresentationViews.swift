@@ -60,10 +60,12 @@ struct RichChatPresentedTool: View {
   let presentation: RichToolPresentation
   let mediaController: RichChatMediaController
   let expansion: Binding<Bool>
+  @Environment(\.toolPresentationCatalog) private var catalog
   @Environment(\.runtimeItemHeadings) private var headings
   @Environment(\.runtimeItemHeadingSnapshot) private var snapshot
   @Environment(\.workflowViewerContext) private var viewerContext
   @Environment(\.workflowViewerPresentation) private var viewerPresenter
+  @Environment(\.richChatActivityGrouped) private var isGrouped
   private var heading: RichRuntimeItemHeading? {
     snapshot[item.id]?.displayHeading(for: item, projection: presentation.headerProjection)
       ?? headings?.heading(item, projection: presentation.headerProjection)
@@ -76,10 +78,11 @@ struct RichChatPresentedTool: View {
   private var images: [RichImagePresentation] { RichToolMediaProjection.images(presentation, item: item) }
   private func detailsAvailable(for body: RichResolvedToolBody?) -> Bool {
     if item.detailsDeferred || !images.isEmpty { return true }
-    guard body?.replacesCanonicalSections == true else { return !presentation.sections.isEmpty }
-    guard viewerContext?.owner != nil, viewerPresenter != nil else { return false }
-    return WorkflowRunReference(metadata: item.payload?.objectValue?["workflow"]) != nil
-      || presentation.workflowViewProjection?.matches(item) == true
+    if body?.replacesCanonicalSections != true,
+      RichToolTextProjection.hasSections(presentation, item: item) {
+      return true
+    }
+    return viewerPresenter != nil && viewerContext?.input(for: item, catalog: catalog) != nil
   }
   private var title: String {
     if let heading { return heading.displayTitle }
@@ -108,7 +111,7 @@ struct RichChatPresentedTool: View {
           .lineLimit(1).truncationMode(.middle)
         if components.count > 1 {
           Text(components.dropLast().joined(separator: "/"))
-            .foregroundStyle(.tertiary).lineLimit(1).truncationMode(.head)
+            .foregroundStyle(Color.poracodeTertiaryLabel).lineLimit(1).truncationMode(.head)
         }
       }
       .accessibilityElement(children: .ignore).accessibilityLabel(title)
@@ -119,38 +122,24 @@ struct RichChatPresentedTool: View {
 
   var body: some View {
     RichRuntimeToolBodyRead(item: item, projection: presentation.bodyProjection) { resolvedBody in
-      let showsDetails = detailsAvailable(for: resolvedBody)
+      let showsDetails = expanded || detailsAvailable(for: resolvedBody)
       VStack(alignment: .leading, spacing: 4) {
-        Button {
-          withAnimation(.snappy(duration: 0.22)) { expansion.wrappedValue = !expanded }
-        } label: {
-          HStack(spacing: 7) {
-            Group {
-              if failed { Image(systemName: "exclamationmark.circle") }
-              else { RichChatIcon(heading?.icon ?? .init(category: RichChatActivityGroupSummary.category(for: item))) }
-            }
-              .font(.system(size: 14)).frame(width: 18)
-              .foregroundStyle(failed ? Color.red : Color.secondary)
-            titleView.fontWeight(.medium)
-            Spacer(minLength: 0)
-            if item.state == .completed, let text = heading?.durationText {
-              Text(text).foregroundStyle(failed ? Color.red : Color.secondary)
-            }
-            if item.state != .completed { ProgressView().controlSize(.mini) }
-            if showsDetails {
-              Image(systemName: "chevron.down").font(.system(size: 10, weight: .semibold))
-                .rotationEffect(.degrees(expanded ? 180 : 0))
-            }
+        if showsDetails {
+          Button {
+            withAnimation(.snappy(duration: 0.22)) { expansion.wrappedValue = !expanded }
+          } label: {
+            header(showsDetails: true)
           }
-          .poracodeChatText(.metadata)
-          .foregroundStyle(.secondary)
-          .richChatActivityHeaderLayout()
+          .buttonStyle(.plain)
+          .accessibilityIdentifier("native-e2e.tool-details.\(item.id)")
+          .accessibilityValue((failed ? ToolPresentationStrings.label("error") + ", " : "")
+            + (expanded ? ToolPresentationStrings.expanded : ToolPresentationStrings.collapsed))
+        } else {
+          header(showsDetails: false)
+            .accessibilityElement(children: .combine)
+            .accessibilityIdentifier("native-e2e.tool-details.\(item.id)")
+            .accessibilityValue(failed ? ToolPresentationStrings.label("error") : "")
         }
-        .buttonStyle(.plain)
-        .disabled(!showsDetails)
-        .accessibilityIdentifier("native-e2e.tool-details.\(item.id)")
-        .accessibilityValue((failed ? ToolPresentationStrings.label("error") + ", " : "")
-          + (showsDetails ? (expanded ? ToolPresentationStrings.expanded : ToolPresentationStrings.collapsed) : ""))
 
         if expanded {
           RichWorkflowViewerAccessory(item: item)
@@ -167,6 +156,33 @@ struct RichChatPresentedTool: View {
       .modifier(RuntimeItemHeadingRequests(items: [item]))
     }
   }
+
+  private func header(showsDetails: Bool) -> some View {
+    HStack(spacing: isGrouped ? 4 : 7) {
+      Group {
+        if failed { Image(systemName: "exclamationmark.circle") }
+        else { RichChatIcon(heading?.icon ?? .init(category: RichChatActivityGroupSummary.category(for: item))) }
+      }
+      .font(.system(size: 14))
+      .frame(minWidth: isGrouped ? 14 : 18)
+      .foregroundStyle(failed ? Color.red : Color.poracodeSecondaryLabel)
+      .accessibilityHidden(true)
+      titleView.fontWeight(.medium)
+      Spacer(minLength: 0)
+      if item.state == .completed, let text = heading?.durationText {
+        Text(text).foregroundStyle(failed ? Color.red : Color.poracodeSecondaryLabel)
+      }
+      if item.state != .completed { ProgressView().controlSize(.mini) }
+      if showsDetails {
+        Image(systemName: "chevron.down").font(.system(size: 10, weight: .semibold))
+          .rotationEffect(.degrees(expanded ? 180 : 0))
+          .accessibilityHidden(true)
+      }
+    }
+    .poracodeChatText(.metadata)
+    .foregroundStyle(.secondary)
+    .richChatActivityHeaderLayout()
+  }
 }
 
 private struct RichToolSectionView: View {
@@ -174,7 +190,6 @@ private struct RichToolSectionView: View {
   let section: RichToolSection
   let part: RichToolTextPart
   let index: Int
-  @ScaledMetric(relativeTo: .caption) private var diffTextLineHeight: CGFloat = 15
 
   var body: some View {
     if !part.text.isEmpty {
@@ -186,9 +201,8 @@ private struct RichToolSectionView: View {
         if section.kind == .markdown && part.language == "plain" {
           RichChatMarkdownView(source: section.prefix + part.text)
         } else if part.language == "diff" {
-          let patch = NativeUnifiedDiffView(diff: part.text)
-          patch.frame(height: min(340, max(44, 16 + CGFloat(patch.lineCount) * (diffTextLineHeight + 6))))
-            .accessibilityIdentifier("native-e2e.tool-section.\(item.id).\(index)")
+          RichToolDiffBlock(patch: NativeUnifiedDiffView(diff: part.text),
+            identifier: "native-e2e.tool-section.\(item.id).\(index)")
         } else {
           RichToolCodeBlock(text: section.prefix + part.text,
             identifier: "native-e2e.tool-section.\(item.id).\(index)")
@@ -199,4 +213,16 @@ private struct RichToolSectionView: View {
     }
   }
 
+}
+
+struct RichToolDiffBlock: View {
+  let patch: NativeUnifiedDiffView
+  let identifier: String
+  @ScaledMetric(relativeTo: .caption) private var lineHeight: CGFloat = 15
+
+  var body: some View {
+    patch
+      .frame(height: min(340, max(44, 16 + CGFloat(patch.lineCount) * (lineHeight + 6))))
+      .accessibilityIdentifier(identifier)
+  }
 }

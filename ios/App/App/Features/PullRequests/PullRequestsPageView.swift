@@ -20,14 +20,18 @@ struct PullRequestsPageView: View {
     _controller = State(initialValue: PullRequestsController(session: session))
   }
 
+  private var scope: PullRequestsScope {
+    let projects = session.activeWorkspaceProjects.filter {
+      workspace.includes(projectID: $0.id, connectionID: session.selectedConnectionId)
+    }.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+    return PullRequestsScope(host: session.currentProjectControllerSession, projects: projects)
+  }
+
   private var filtered: [PullRequestsEntry] {
     PullRequestsPresentation.sorted(
       PullRequestsPresentation.deduplicated(
         controller.entries.filter { entry in
-          (workspace.activeID == nil || session.selectedConnectionId.map { connection in
-            workspace.preferences.includes(projectID: entry.project.identity(on: connection).id.rawValue, activeID: workspace.activeID)
-          } == true)
-            && PullRequestsPresentation.matches(entry, category: category)
+          PullRequestsPresentation.matches(entry, category: category)
             && !hiddenProjectIDs.contains(entry.project.id)
             && !(entry.viewerLogin.map(hiddenAccounts.contains) ?? false)
             && PullRequestsPresentation.matches(entry, query: query)
@@ -37,11 +41,12 @@ struct PullRequestsPageView: View {
   }
 
   var body: some View {
+    let scope = scope
     List {
-      if controller.isCached {
+      if controller.scope == scope, controller.isCached {
         Text(PullRequestsStrings.guideText("Offline")).foregroundStyle(.secondary)
       }
-      if controller.isLoading && !controller.didLoad {
+      if controller.scope != scope || (controller.isLoading && !controller.didLoad) {
         HStack(spacing: 10) {
           ProgressView()
           Text(PullRequestsStrings.loading)
@@ -49,7 +54,7 @@ struct PullRequestsPageView: View {
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 24)
-      } else if !controller.hasProjects {
+      } else if scope.projects.isEmpty {
         ContentUnavailableView(
           PullRequestsStrings.empty,
           systemImage: "arrow.triangle.pull",
@@ -92,22 +97,16 @@ struct PullRequestsPageView: View {
       ToolbarItem(placement: .topBarTrailing) {
         HostSelectionMenu(session: session)
       }
-    }
-    .poracodeBottomBar {
-      PoracodeBottomActionBar {
-        filtersMenu
-      } trailing: {
-        PoracodeCircleButton {
-          Task { await controller.load() }
-        } label: {
-          if controller.isLoading {
-            ProgressView().accessibilityLabel(PullRequestsStrings.refresh)
-          } else {
-            Label(PullRequestsStrings.refresh, systemImage: "arrow.clockwise")
-              .labelStyle(.iconOnly)
-          }
+      ToolbarItemGroup(placement: .bottomBar) {
+        filtersMenu(projects: scope.projects)
+          .disabled(controller.scope != scope)
+        Button(
+          controller.isLoading ? PullRequestsStrings.loading : PullRequestsStrings.refresh,
+          systemImage: controller.isLoading ? "hourglass" : "arrow.clockwise"
+        ) {
+          Task { await controller.load(scope) }
         }
-        .disabled(controller.isLoading)
+        .disabled(controller.isLoading || controller.scope != scope)
         .accessibilityIdentifier("native-e2e.pull-requests.refresh")
       }
     }
@@ -124,19 +123,19 @@ struct PullRequestsPageView: View {
       .poracodeReadableWidth(760)
       .poracodeBarBackground()
     }
-    .task(id: session.currentProjectControllerLease) {
-      await controller.load()
+    .task(id: scope) {
+      await controller.load(scope)
     }
     .onChange(of: session.selectedConnectionId) {
       resetHostScopedPresentation()
     }
-    .refreshable { await controller.load() }
+    .refreshable { await controller.load(scope) }
   }
 
-  private var filtersMenu: some View {
-    PoracodeCircleMenu {
+  private func filtersMenu(projects: [RemoteProject]) -> some View {
+    Menu {
       Section(PullRequestsStrings.projects) {
-        ForEach(controller.projects) { project in
+        ForEach(projects) { project in
           Button {
             hiddenProjectIDs = toggled(project.id, in: hiddenProjectIDs)
           } label: {
@@ -170,10 +169,14 @@ struct PullRequestsPageView: View {
         }
       }
     } label: {
-      Label(PullRequestsStrings.filter, systemImage: "line.3.horizontal.decrease.circle")
-        .labelStyle(.iconOnly)
-        .symbolVariant(hasHiddenFilters ? .fill : .none)
+      Label(
+        PullRequestsStrings.filter,
+        systemImage: hasHiddenFilters
+          ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease.circle"
+      )
+      .symbolRenderingMode(.monochrome)
     }
+    .tint(.primary)
     .accessibilityLabel(PullRequestsStrings.filter)
     .accessibilityIdentifier("native-e2e.pull-requests.filter")
   }

@@ -14,6 +14,11 @@ struct ProjectWorkspaceLease: Equatable, Hashable, Sendable {
   var isConsistent: Bool {
     project.connectionId == hostLease.connectionId
   }
+
+  func hasSameEditorOwner(as previous: Self) -> Bool {
+    project == previous.project && location == previous.location
+      && projectGeneration == previous.projectGeneration
+  }
 }
 
 struct ProjectWorkspaceContext: Equatable, Sendable {
@@ -106,4 +111,37 @@ protocol ProjectWorkspaceGateway: Sendable {
     includeGhCheck: Bool,
     lease: ProjectWorkspaceLease
   ) async throws -> ProjectGitSnapshot
+}
+
+extension ProjectWorkspaceGateway {
+  /// Prefer an exact root entry, then look for the basename in the project index.
+  /// The literal root path remains usable when the listing or index is unavailable.
+  func resolveBareFilename(_ filename: String, lease: ProjectWorkspaceLease) async throws -> String {
+    do {
+      let root = try await listProjectTree(directoryPath: "", lease: lease)
+      if root.entries.contains(where: { $0.path == filename && $0.type == .file }) {
+        return filename
+      }
+    } catch is CancellationError {
+      throw CancellationError()
+    } catch {
+      // A failed root listing does not prevent searching the workspace index.
+    }
+
+    do {
+      let matches = try await searchProjectFiles(query: filename, limit: 5, searchConfig: nil, lease: lease)
+      for entry in matches.entries where entry.type == .file && entry.name.caseInsensitiveCompare(filename) == .orderedSame {
+        if RichChatFilePolicy.isSafeFileSource(entry.path),
+          case .project(let path) = try? RichChatFilePolicy.resolve(entry.path, location: lease.location)
+        {
+          return path
+        }
+      }
+    } catch is CancellationError {
+      throw CancellationError()
+    } catch {
+      // Offer the exact root path when the index cannot supply a match.
+    }
+    return filename
+  }
 }

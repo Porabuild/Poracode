@@ -11,7 +11,9 @@ final class PoracodeNavigationRetention {
   var isActive: Bool { !presentations.isEmpty }
 
   func retain(_ presentation: UUID) { presentations.insert(presentation) }
-  func release(_ presentation: UUID) { presentations.remove(presentation) }
+  func release(_ presentation: UUID) {
+    if presentations.contains(presentation) { presentations.remove(presentation) }
+  }
 }
 
 private struct PoracodeNavigationRetentionKey: EnvironmentKey {
@@ -25,15 +27,22 @@ extension EnvironmentValues {
   }
 }
 
-/// Apply to a sheet's content, rather than its presenting page, so closing the
-/// sheet restores normal adaptation after its dismissal transition finishes.
+/// Keeps the current navigation container until a presented tool closes.
+/// The tool still receives the current viewport and safe areas.
 struct PoracodeRetainNavigationWhilePresented: ViewModifier {
+  var isPresented = true
   @Environment(\.poracodeNavigationRetention) private var retention
   @State private var presentation = UUID()
 
   func body(content: Content) -> some View {
     content
-      .onAppear { retention?.retain(presentation) }
+      .onAppear {
+        if isPresented { retention?.retain(presentation) }
+      }
+      .onChange(of: isPresented) { _, presented in
+        if presented { retention?.retain(presentation) }
+        else { retention?.release(presentation) }
+      }
       .onDisappear { retention?.release(presentation) }
   }
 }

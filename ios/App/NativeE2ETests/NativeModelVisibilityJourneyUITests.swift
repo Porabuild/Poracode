@@ -27,7 +27,7 @@ extension NativeFamilyJourneyUITests {
       pageID: "native-e2e.settings.models.list", name: "models-initial")
     searchModels("pro-fast")
     let keyboard = app.keyboards.firstMatch
-    XCTAssertTrue(keyboard.waitForExistence(timeout: 5), "Exercise avoidance with the software keyboard visible")
+    try await poll { keyboard.exists && !keyboard.frame.intersection(self.app.frame).isEmpty }
     let family = app.buttons["native-e2e.settings.models.row.family-fixture:pro"]
     XCTAssertTrue(family.waitForExistence(timeout: 5))
     do {
@@ -43,9 +43,9 @@ extension NativeFamilyJourneyUITests {
     XCTAssertTrue(family.isHittable)
     XCTAssertGreaterThanOrEqual(family.frame.height, 44)
     XCTAssertLessThanOrEqual(family.frame.maxY, keyboard.frame.minY)
+    modelVisibilityProof("keyboard-search-results")
     try assertNativePageActionAtLowerEdge(app.buttons["native-e2e.settings.models.actions"],
       pageID: "native-e2e.settings.models.list", name: "models-keyboard")
-    modelVisibilityProof("keyboard-search-results")
     family.tap()
     try await poll { family.value as? String == "Hidden" && family.isEnabled }
     modelVisibilityProof("family-search-hidden")
@@ -94,7 +94,7 @@ extension NativeFamilyJourneyUITests {
     revealModelVisibility(terminal)
     XCTAssertTrue(terminal.isHittable)
     try dismissModelVisibilitySearch()
-    app.navigationBars["Visible models"].buttons["Done"].tap()
+    app.descendants(matching: .any).matching(identifier: "native-e2e.settings.models.done").firstMatch.tap()
     XCTAssertTrue(open.waitForExistence(timeout: 5))
     open.tap()
     XCTAssertTrue(app.searchFields.firstMatch.waitForExistence(timeout: 5))

@@ -26,17 +26,6 @@ enum OnboardingBrand {
   }
 }
 
-extension View {
-  /// Inset surface shared by the pairing text inputs.
-  fileprivate func onboardingFieldSurface() -> some View {
-    let shape = RoundedRectangle(cornerRadius: 14, style: .continuous)
-    return background(.fill.quinary, in: shape)
-      .overlay {
-        shape.strokeBorder(.quaternary, lineWidth: 1)
-      }
-  }
-}
-
 /// What the hero puts in its title slot.
 ///
 /// The normal connect phase shows the brand wordmark — there is nothing wrong to
@@ -239,7 +228,7 @@ struct OnboardingOtherWaysForm: View {
         .font(.callout)
         .lineLimit(2...4)
         .padding(12)
-        .onboardingFieldSurface()
+        .poracodeInputSurface()
         .focused($focusedField, equals: .link)
         .accessibilityLabel(HostStrings.pairingLink)
         .accessibilityIdentifier("native-e2e.pairing-link")
@@ -255,16 +244,19 @@ struct OnboardingOtherWaysForm: View {
         .autocorrectionDisabled()
         .keyboardType(.URL)
         .padding(12)
-        .onboardingFieldSurface()
+        .poracodeInputSurface()
         .focused($focusedField, equals: .base)
         .accessibilityLabel(HostStrings.serverURL)
         .accessibilityIdentifier("native-e2e.pair.base-url")
       SecureField(HostStrings.oneTimeToken, text: $token)
+        .textContentType(.oneTimeCode)
         .textInputAutocapitalization(.never)
         .autocorrectionDisabled()
         .padding(12)
-        .onboardingFieldSurface()
+        .poracodeInputSurface()
         .focused($focusedField, equals: .token)
+        .contentShape(.rect)
+        .simultaneousGesture(TapGesture().onEnded { focusedField = .token })
         .accessibilityLabel(HostStrings.oneTimeToken)
         .accessibilityIdentifier("native-e2e.pair.token")
     }

@@ -51,20 +51,19 @@ struct SettingsAgentsView: View {
         await composition.refreshAgentSettings(request, lease: lease)
       }
     }
-    .poracodeBottomBar {
-      PoracodeBottomActionDock {
-        PoracodeCircleButton(action: { beginDiscovery() }) { Image(systemName: "arrow.clockwise") }
-        .accessibilityLabel(SettingsUIStrings.refreshDetectedAgents)
-        .disabled(controller.isDiscoveringAgents || composition.isMutating || composition.gate(.sessionOperate) != nil)
-        .accessibilityIdentifier("native-e2e.settings.agents.discover")
-      }
-    }
     .poracodeUseKeyboardLayoutGuide()
     .toolbar {
+      ToolbarItem(placement: .bottomBar) {
+        Button(SettingsUIStrings.refreshDetectedAgents, systemImage: "arrow.clockwise") { beginDiscovery() }
+          .disabled(controller.isDiscoveringAgents || composition.isMutating || composition.gate(.sessionOperate) != nil)
+          .accessibilityIdentifier("native-e2e.settings.agents.discover")
+      }
       if installedAgents.count > 1 {
-        EditButton().disabled(composition.isMutating || session.composerPreferences.incompatible
-          || !session.composerPreferences.machineProviderOrder.canEdit
-          || (session.composerPreferences.machineProviderOrder.isSynced && composition.gate(.sessionOperate) != nil))
+        ToolbarItem {
+          EditButton().disabled(composition.isMutating || session.composerPreferences.incompatible
+            || !session.composerPreferences.machineProviderOrder.canEdit
+            || (session.composerPreferences.machineProviderOrder.isSynced && composition.gate(.sessionOperate) != nil))
+        }
       }
     }
     .sheet(isPresented: $visibilityPresented) {
@@ -85,7 +84,6 @@ struct SettingsAgentsView: View {
       if case .failed(let failure) = controller.agentsState {
         SettingsRefreshFailureBanner(failure: failure, retry: refresh)
           .padding()
-          .padding(.bottom, 68)
       }
     }
   }
@@ -119,14 +117,17 @@ struct SettingsAgentsView: View {
   }
 
   private func setAgentEnabled(_ enabled: Bool, kind: String) {
-    guard composition.document.document != nil, !composition.isMutating,
+    guard let lease = composition.document.lease, lease.connectionID == connectionID,
+      composition.document.document != nil, !composition.isMutating,
       composition.gate(.sessionOperate) == nil else { return }
     if enabled { disabledAgents.removeAll { $0 == kind } }
     else if !disabledAgents.contains(kind) { disabledAgents.append(kind) }
     let patch = SettingsPatch(values: [.disabledAgents: .array(disabledAgents.map(SettingsJSON.string))])
     Task {
-      await composition.writeSettings(patch)
-      if let authoritative = composition.document.document { disabledAgents = authoritative.disabledAgents }
+      await composition.writeSettings(patch, lease: lease)
+      if composition.document.lease == lease, let authoritative = composition.document.document {
+        disabledAgents = authoritative.disabledAgents
+      }
     }
   }
 

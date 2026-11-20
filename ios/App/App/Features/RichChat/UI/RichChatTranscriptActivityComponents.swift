@@ -22,13 +22,15 @@ struct RichChatReasoningRow: View {
 
   @State private var localExpanded = false
   @Environment(\.transcriptDisclosures) private var disclosures
+  @Environment(\.richChatFindHighlight) private var find
+  @Environment(\.richChatActivityGrouped) private var isGrouped
   private var expansion: Binding<Bool> { TranscriptDisclosureContext.binding(disclosures, id: disclosureID, fallback: $localExpanded) }
-  private var expanded: Bool { expansion.wrappedValue }
+  private var expanded: Bool { expansion.wrappedValue || find.revealsItem }
 
   var body: some View {
     VStack(alignment: .leading, spacing: 7) {
       Button(action: toggleExpanded) {
-        HStack(spacing: 6) {
+        HStack(spacing: isGrouped ? 4 : 6) {
           RichChatIcon(.thought)
             .font(.caption)
             .symbolEffect(.pulse, options: .repeating, isActive: isWorking)
@@ -51,7 +53,7 @@ struct RichChatReasoningRow: View {
       .buttonStyle(.plain)
 
       if expanded && !text.isEmpty {
-        Text(RichChatAttributedText.presentation(text))
+        find.text(RichChatAttributedText.presentation(text), part: .body)
           .poracodeChatText(.command)
           .italic()
           .foregroundStyle(.secondary)
@@ -99,6 +101,7 @@ struct RichChatActivityRow: View {
 
   @State private var localExpanded = false
   @Environment(\.transcriptDisclosures) private var disclosures
+  @Environment(\.richChatActivityGrouped) private var isGrouped
   private var expansion: Binding<Bool> {
     expandedBinding ?? TranscriptDisclosureContext.binding(disclosures, id: disclosureID, fallback: $localExpanded)
   }
@@ -107,11 +110,11 @@ struct RichChatActivityRow: View {
   var body: some View {
     VStack(alignment: .leading, spacing: 4) {
       Button(action: toggleExpanded) {
-        HStack(spacing: 6) {
+        HStack(spacing: isGrouped ? 4 : 6) {
           RichChatIcon(icon)
             .font(.caption)
             .foregroundStyle(.secondary)
-            .frame(width: 14)
+            .frame(minWidth: isGrouped ? 13 : 14)
           Text(title)
             .fontWeight(.medium)
             .foregroundStyle(.secondary)

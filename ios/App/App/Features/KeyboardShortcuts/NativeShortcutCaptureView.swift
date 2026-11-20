@@ -98,13 +98,7 @@ struct NativeShortcutCaptureView: UIViewRepresentable {
       let editing = ["Meta+A", "Meta+B", "Meta+C", "Meta+I", "Meta+U", "Meta+V", "Meta+X", "Meta+Z",
         "Meta+Shift+Z", "Meta+Shift+V", "Meta+Alt+Shift+V", "Esc"].compactMap(NativeKeyChord.init)
       return Set(chords + editing).compactMap { chord in
-        guard let shortcut = chord.keyboardShortcut else { return nil }
-        var flags: UIKeyModifierFlags = []
-        if chord.modifiers.contains("meta") { flags.insert(.command) }
-        if chord.modifiers.contains("ctrl") { flags.insert(.control) }
-        if chord.modifiers.contains("alt") { flags.insert(.alternate) }
-        if chord.modifiers.contains("shift") { flags.insert(.shift) }
-        let command = UIKeyCommand(input: String(shortcut.key.character), modifierFlags: flags, action: #selector(recordCommand(_:)))
+        guard let command = chord.uiKeyCommand(action: #selector(recordCommand(_:))) else { return nil }
         command.wantsPriorityOverSystemBehavior = true
         return command
       }

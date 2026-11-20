@@ -44,7 +44,8 @@ struct RichRuntimeItemHeadingLabel: View {
         HStack(spacing: 4) {
           Text(heading.viewPrefix + (components.last.map(String.init) ?? path)).lineLimit(1).truncationMode(.middle)
           if components.count > 1 {
-            Text(components.dropLast().joined(separator: "/")).foregroundStyle(.tertiary).lineLimit(1).truncationMode(.head)
+            Text(components.dropLast().joined(separator: "/"))
+              .foregroundStyle(Color.poracodeTertiaryLabel).lineLimit(1).truncationMode(.head)
           }
           if heading.additionalActions > 0 { Text("+\(heading.additionalActions)") }
         }

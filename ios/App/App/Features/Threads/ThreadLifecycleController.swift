@@ -86,8 +86,8 @@ final class ThreadLifecycleController {
     )
   }
 
-  func setGroup(id: String, name: String) async {
-    await run(.setGroup(groupID: id, groupName: name), action: .setGroup)
+  func setGroup(id: String, name: String, target: ThreadLifecycleTarget? = nil) async {
+    await run(.setGroup(groupID: id, groupName: name), action: .setGroup, capturedTarget: target)
   }
 
   func clearGroup(target: ThreadLifecycleTarget? = nil) async {
@@ -153,9 +153,18 @@ final class ThreadLifecycleController {
     lastOutcome = nil
   }
 
-  func confirmDestructiveIntent() async {
-    guard let intent = pendingDestructiveIntent else { return }
+  func takePendingDestructiveIntent() -> ThreadLifecycleDestructiveIntent? {
+    let intent = pendingDestructiveIntent
     pendingDestructiveIntent = nil
+    return intent
+  }
+
+  func confirmDestructiveIntent() async {
+    guard let intent = takePendingDestructiveIntent() else { return }
+    await confirmDestructiveIntent(intent)
+  }
+
+  func confirmDestructiveIntent(_ intent: ThreadLifecycleDestructiveIntent) async {
     guard target == intent.target else { return }
     switch intent {
     case .archive(let target):

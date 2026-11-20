@@ -114,7 +114,9 @@ struct ProviderOrderSettingsSection: View {
     let token = UUID()
     pendingID = token; pendingOrder = order; saveFailed = false
     Task {
-      await composition.writeSettings(.init(values: [.providerOrder: .array(order.map(SettingsJSON.string))]))
+      await composition.writeSettings(
+        .init(values: [.providerOrder: .array(order.map(SettingsJSON.string))]), lease: lease
+      )
       guard pendingID == token else { return }
       defer { pendingID = nil; pendingOrder = nil }
       guard composition.selection?.lease == lease, composition.document.state == .loaded,

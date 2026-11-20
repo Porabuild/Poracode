@@ -43,7 +43,7 @@ struct RemoteIntegrationsUpdateView: View {
 
   private var loadIdentity: RemoteIntegrationsLoadIdentity {
     RemoteIntegrationsLoadIdentity(
-      lease: selection?.lease,
+      access: selection?.access,
       lifecycleGeneration: composition.lifecycleGeneration,
       isPresentationActive: isPresentationActive
     )

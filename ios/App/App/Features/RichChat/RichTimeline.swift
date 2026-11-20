@@ -33,6 +33,19 @@ extension RichTimelineEntry {
     case .group(_, let members): members.map { $0.item }
     }
   }
+
+  func contains(itemID: String) -> Bool {
+    switch self {
+    case .item(let node): node.contains(itemID: itemID)
+    case .group(_, let members): members.contains { $0.contains(itemID: itemID) }
+    }
+  }
+}
+
+extension RichVisibleTimelineNode {
+  func contains(itemID: String) -> Bool {
+    item.id == itemID || children.contains { $0.contains(itemID: itemID) }
+  }
 }
 
 struct RichTimelineProjection: Sendable, Equatable {
@@ -42,6 +55,20 @@ struct RichTimelineProjection: Sendable, Equatable {
   let rawRoots: [RichRawTimelineNode]
   let visibleEntries: [RichTimelineEntry]
   let hiddenItemIDs: Set<String>
+
+  var activityTailID: String? {
+    for entry in visibleEntries.reversed() {
+      switch entry {
+      case .group(let stableID, _):
+        return stableID
+      case .item(let node):
+        if node.item.type == RichItemType.reasoning,
+          (node.item.streams["reasoning_text"] ?? "").allSatisfy(\.isWhitespace) { continue }
+        return nil
+      }
+    }
+    return nil
+  }
 }
 
 enum RichTimeline {
@@ -85,6 +112,117 @@ enum RichTimeline {
       rawRoots: rawRoots,
       visibleEntries: groupSiblings(nodes),
       hiddenItemIDs: hidden
+    )
+  }
+
+  /// O(1) fast-path for high-frequency live streaming deltas: when only a single
+  /// existing item's `streams` changed without altering hierarchy, type, state,
+  /// payload, or visibility, patch that node in place instead of rebuilding the
+  /// full dictionary/parent/grouping projection on every token.
+  static func updatingStreamOnly(
+    in projection: RichTimelineProjection,
+    previousItems: [RichRuntimeItem],
+    newItems: [RichRuntimeItem]
+  ) -> RichTimelineProjection? {
+    guard previousItems.count == newItems.count, !newItems.isEmpty else { return nil }
+    var changedIndex: Int?
+    for index in newItems.indices {
+      if previousItems[index] != newItems[index] {
+        guard changedIndex == nil else { return nil }
+        changedIndex = index
+      }
+    }
+    guard let index = changedIndex else { return projection }
+    let oldItem = previousItems[index]
+    let newItem = newItems[index]
+    guard oldItem.id == newItem.id,
+      oldItem.type == newItem.type,
+      oldItem.state == newItem.state,
+      oldItem.parentItemID == newItem.parentItemID,
+      oldItem.payload == newItem.payload,
+      oldItem.detailsDeferred == newItem.detailsDeferred,
+      oldItem.type != RichItemType.reasoning,
+      oldItem.type != RichItemType.userMessage,
+      !projection.hiddenItemIDs.contains(newItem.id)
+    else { return nil }
+
+    var rawItems = projection.rawItems
+    if index < rawItems.count, rawItems[index].id == newItem.id {
+      rawItems[index] = newItem
+    } else if let rawIdx = rawItems.firstIndex(where: { $0.id == newItem.id }) {
+      rawItems[rawIdx] = newItem
+    } else {
+      return nil
+    }
+
+    func replaceRaw(_ nodes: [RichRawTimelineNode]) -> ([RichRawTimelineNode], Bool) {
+      var updated = nodes
+      for i in updated.indices.reversed() {
+        if updated[i].item.id == newItem.id {
+          updated[i] = RichRawTimelineNode(item: newItem, children: updated[i].children)
+          return (updated, true)
+        }
+        if !updated[i].children.isEmpty {
+          let (children, hit) = replaceRaw(updated[i].children)
+          if hit {
+            updated[i] = RichRawTimelineNode(item: updated[i].item, children: children)
+            return (updated, true)
+          }
+        }
+      }
+      return (nodes, false)
+    }
+
+    func replaceVisible(_ entries: [RichTimelineEntry]) -> ([RichTimelineEntry], Bool) {
+      var updated = entries
+      for i in updated.indices.reversed() {
+        switch updated[i] {
+        case .item(let node):
+          if node.item.id == newItem.id {
+            updated[i] = .item(RichVisibleTimelineNode(item: newItem, children: node.children))
+            return (updated, true)
+          }
+          if !node.children.isEmpty {
+            let (children, hit) = replaceVisible(node.children)
+            if hit {
+              updated[i] = .item(RichVisibleTimelineNode(item: node.item, children: children))
+              return (updated, true)
+            }
+          }
+        case .group(let stableID, let members):
+          var updatedMembers = members
+          for m in updatedMembers.indices.reversed() {
+            if updatedMembers[m].item.id == newItem.id {
+              updatedMembers[m] = RichVisibleTimelineNode(
+                item: newItem, children: updatedMembers[m].children
+              )
+              updated[i] = .group(stableID: stableID, members: updatedMembers)
+              return (updated, true)
+            }
+            if !updatedMembers[m].children.isEmpty {
+              let (children, hit) = replaceVisible(updatedMembers[m].children)
+              if hit {
+                updatedMembers[m] = RichVisibleTimelineNode(
+                  item: updatedMembers[m].item, children: children
+                )
+                updated[i] = .group(stableID: stableID, members: updatedMembers)
+                return (updated, true)
+              }
+            }
+          }
+        }
+      }
+      return (entries, false)
+    }
+
+    let (rawRoots, rawHit) = replaceRaw(projection.rawRoots)
+    let (visibleEntries, visibleHit) = replaceVisible(projection.visibleEntries)
+    guard rawHit, visibleHit else { return nil }
+    return RichTimelineProjection(
+      rawItems: rawItems,
+      rawRoots: rawRoots,
+      visibleEntries: visibleEntries,
+      hiddenItemIDs: projection.hiddenItemIDs
     )
   }
 

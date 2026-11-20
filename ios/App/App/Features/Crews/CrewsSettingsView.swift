@@ -19,39 +19,48 @@ struct CrewsSettingsView: View {
     _controller = State(initialValue: SavedCrewsController(gateway: session.makeSettingsSessionGateway()))
   }
 
+  private var selection: SettingsHostSelection? { session.currentSettingsHostSelection }
+
+  private var readableLease: SettingsHostLease? {
+    guard let selection, selection.gate(.sessionRead) == nil,
+      controller.selection?.lease == selection.lease else { return nil }
+    return selection.lease
+  }
+
+  private var crews: [SavedCrew] { readableLease == nil ? [] : controller.crews }
+
+  private var canWrite: Bool {
+    readableLease != nil && selection?.gate(.sessionOperate) == nil && controller.canWrite
+  }
+
   private var catalog: CrewModelCatalog {
-    CrewModelCatalog(statuses: controller.selection?.lease.connectionID == session.selectedConnectionId
-      ? session.state.replay.agentStatuses.ordered : [], document: controller.document,
-      providerOrder: session.composerPreferences.providerOrder(connectionID: controller.selection?.lease.connectionID,
-        location: nil, fallback: controller.document?.providerOrder ?? []))
+    let owner = readableLease?.connectionID
+    let document = owner == nil ? nil : controller.document
+    return CrewModelCatalog(
+      statuses: owner == nil ? [] : session.state.replay.agentStatuses.ordered,
+      document: document,
+      providerOrder: session.composerPreferences.providerOrder(
+        connectionID: owner, location: nil, fallback: document?.providerOrder ?? []
+      )
+    )
   }
 
   private var newLead: CrewMemberSelection? { catalog.leads.first.flatMap(catalog.defaultLeadSelection) }
   private var canCreate: Bool {
-    controller.canWrite && controller.state == .loaded && controller.crews.count < 24
+    canWrite && controller.state == .loaded && crews.count < 24
       && newLead.flatMap(catalog.defaultHelper) != nil
   }
 
   var body: some View {
     List {
-      if let failure = controller.failure {
-        Section {
-          Text(CrewStrings.failure(failure)).foregroundStyle(.secondary)
-          Button(RichChatStrings.retry) { Task { await controller.load() } }
-        }
-      }
-      if controller.state == .loading && controller.document == nil { ProgressView() }
-      if controller.crews.isEmpty, controller.state == .loaded {
-        ContentUnavailableView(CrewStrings.empty, systemImage: "person.2", description: Text(CrewStrings.emptyBody))
-      }
-      Section {
-        ForEach(controller.crews) { crew in crewRow(crew) }
-      } footer: {
-        VStack(alignment: .leading, spacing: 4) {
-          Text(CrewStrings.description)
-          if controller.crews.count >= 24 { Text(CrewStrings.limit) }
-          else if controller.state == .loaded && catalog.helpers.isEmpty { Text(CrewStrings.noHelpers) }
-        }
+      if let failure = unavailableFailure {
+        SettingsUnavailableView(failure: failure, retry: nil)
+      } else if readableLease == nil
+        || (controller.document == nil && (controller.state == .idle || controller.state == .loading))
+      {
+        SettingsLoadingView()
+      } else {
+        crewSections
       }
     }
     .listStyle(.insetGrouped)
@@ -60,37 +69,67 @@ struct CrewsSettingsView: View {
     .navigationBarTitleDisplayMode(.inline)
     .toolbar {
       ToolbarItem(placement: .topBarTrailing) {
-        Menu(CrewStrings.newCrew, systemImage: "plus") {
-          ForEach(CrewTemplates.all) { template in
-            Button { create(template) } label: { Label(template.name, systemImage: "person.2") }
-              .accessibilityIdentifier("native-e2e.crews.template.\(template.id)")
-          }
-        }
-        .disabled(!canCreate)
-        .accessibilityIdentifier("native-e2e.crews.new")
+        CrewTemplateMenu(title: CrewStrings.newCrew, systemImage: "plus", select: create)
+          .disabled(!canCreate)
+          .accessibilityIdentifier("native-e2e.crews.new")
       }
       ToolbarItem(placement: .topBarTrailing) { HostSelectionMenu(session: session) }
     }
-    .refreshable { await controller.load() }
-    .task(id: session.currentSettingsHostSelection) {
-      controller.activate(session.currentSettingsHostSelection)
+    .refreshable {
+      guard readableLease != nil else { return }
+      await controller.load()
+    }
+    .task(id: selection) {
+      controller.activate(selection)
       await controller.load()
     }
     .sheet(item: $editor) { target in
-      SavedCrewEditorSheet(target: target, controller: controller).poracodeFormSheetSizing()
+      SavedCrewEditorSheet(target: target, controller: controller, session: session)
+        .poracodeFormSheetSizing()
     }
     .confirmationDialog(CrewStrings.deleteTitle, isPresented: Binding(
       get: { deletion != nil }, set: { if !$0 { deletion = nil } }
     ), titleVisibility: .visible) {
       if let deletion {
         Button(ThreadLifecycleStrings.delete, role: .destructive) {
+          guard readableLease == deletion.lease, canWrite else { return }
           self.deletion = nil
           Task { await controller.apply(.delete(deletion.crew), lease: deletion.lease) }
         }
-        .disabled(controller.selection?.lease != deletion.lease || !controller.canWrite)
+        .disabled(readableLease != deletion.lease || !canWrite)
       }
       Button(RichChatStrings.cancel, role: .cancel) { deletion = nil }
     } message: { Text(CrewStrings.deleteBody) }
+  }
+
+  private var unavailableFailure: SettingsOperationFailure? {
+    guard let selection else { return .offline }
+    // Connection handshakes temporarily remove readiness while the next
+    // desktop is installing. Show the loading row until that owner is ready.
+    let failure = selection.gate(.sessionRead)
+    return failure == .notReady ? nil : failure
+  }
+
+  @ViewBuilder
+  private var crewSections: some View {
+    if let failure = controller.failure {
+      Section {
+        Text(CrewStrings.failure(failure)).foregroundStyle(.secondary)
+        Button(RichChatStrings.retry) { Task { await controller.load() } }
+      }
+    }
+    if crews.isEmpty, controller.state == .loaded {
+      ContentUnavailableView(CrewStrings.empty, systemImage: "person.2", description: Text(CrewStrings.emptyBody))
+    }
+    Section {
+      ForEach(crews) { crew in crewRow(crew) }
+    } footer: {
+      VStack(alignment: .leading, spacing: 4) {
+        Text(CrewStrings.description)
+        if crews.count >= 24 { Text(CrewStrings.limit) }
+        else if controller.state == .loaded && catalog.helpers.isEmpty { Text(CrewStrings.noHelpers) }
+      }
+    }
   }
 
   private func crewRow(_ crew: SavedCrew) -> some View {
@@ -112,12 +151,14 @@ struct CrewsSettingsView: View {
     .accessibilityIdentifier("native-e2e.crews.saved.\(crew.id)")
     .contextMenu {
       Button(CrewStrings.edit, systemImage: "pencil") { edit(crew) }
-      Button(CrewStrings.duplicate, systemImage: "doc.on.doc") { duplicate(crew) }
-      Button(ThreadLifecycleStrings.delete, systemImage: "trash", role: .destructive) { requestDeletion(crew) }
+      Button(CrewStrings.duplicate, systemImage: "doc.on.doc") { duplicate(crew) }.disabled(!canWrite)
+      Button(ThreadLifecycleStrings.delete, systemImage: "trash", role: .destructive) { requestDeletion(crew) }.disabled(!canWrite)
     }
     .swipeActions {
-      Button(ThreadLifecycleStrings.delete, role: .destructive) { requestDeletion(crew) }
-      Button(CrewStrings.duplicate) { duplicate(crew) }
+      if canWrite {
+        Button(ThreadLifecycleStrings.delete, role: .destructive) { requestDeletion(crew) }
+        Button(CrewStrings.duplicate) { duplicate(crew) }
+      }
     }
   }
 
@@ -126,17 +167,17 @@ struct CrewsSettingsView: View {
   }
 
   private func edit(_ crew: SavedCrew) {
-    guard let lease = controller.selection?.lease else { return }
+    guard let lease = readableLease else { return }
     editor = .init(value: crew, baseline: crew, lease: lease, catalog: catalog)
   }
 
   private func requestDeletion(_ crew: SavedCrew) {
-    guard let lease = controller.selection?.lease else { return }
+    guard canWrite, let lease = readableLease else { return }
     deletion = (crew, lease)
   }
 
   private func create(_ template: CrewTemplate) {
-    guard canCreate, let lease = controller.selection?.lease, let lead = newLead,
+    guard canCreate, let lease = readableLease, let lead = newLead,
       let helper = catalog.defaultHelper(for: lead) else { return }
     let other = catalog.helpers.first { $0.agent.kind != helper.agentKind }.map(catalog.defaultSelection)
     let binding = template.binding { $0.noEdits ? other ?? helper : helper }
@@ -146,8 +187,8 @@ struct CrewsSettingsView: View {
   }
 
   private func duplicate(_ source: SavedCrew) {
-    guard controller.canWrite, controller.state == .loaded, controller.crews.count < 24,
-      let lease = controller.selection?.lease else { return }
+    guard canWrite, controller.state == .loaded, crews.count < 24,
+      let lease = readableLease else { return }
     var base = source.name
     while CrewStrings.copyName(base).utf16.count > 40 && !base.isEmpty { base.removeLast() }
     let copy = SavedCrew(id: "crew-" + UUID().uuidString.lowercased(),

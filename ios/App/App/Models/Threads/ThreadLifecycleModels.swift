@@ -332,6 +332,16 @@ enum ThreadPromptSegment: Encodable, Hashable, Sendable {
   }
 }
 
+struct ThreadProviderSwitch: Encodable, Hashable, Sendable {
+  enum ContextStrategy: String, Encodable, Sendable {
+    case threadTranscript = "thread-transcript"
+    case contextFile = "context-file"
+  }
+
+  let fromAgentKind: String
+  let contextStrategy: ContextStrategy
+}
+
 struct ThreadStartExistingRequest: Encodable, Hashable, Sendable {
   var threadID: String
   var projectLocation: ThreadProjectLocation
@@ -349,6 +359,8 @@ struct ThreadStartExistingRequest: Encodable, Hashable, Sendable {
   var invariantDisabledBuiltInMCPServerIDs: [ThreadBuiltInMCPServerID]?
   var disabledBuiltInMCPTools: [String: [String]]?
   var clientContext: TurnClientContext? = nil
+  // The existing wire codec accepts this optional field. Old relaunches omit it.
+  var providerSwitch: ThreadProviderSwitch? = nil
 
   private enum CodingKeys: String, CodingKey {
     case threadID = "threadId"
@@ -367,6 +379,7 @@ struct ThreadStartExistingRequest: Encodable, Hashable, Sendable {
     case invariantDisabledBuiltInMCPServerIDs = "invariantDisabledBuiltInMcpServerIds"
     case disabledBuiltInMCPTools = "disabledBuiltInMcpTools"
     case clientContext
+    case providerSwitch
   }
 }
 

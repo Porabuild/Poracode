@@ -1,10 +1,8 @@
 import Foundation
 
-/// Host-declared service capabilities from `GET /api/host/describe` (V6 C.2).
-/// Fail closed: every flag is false until a successful describe. Every flag
-/// is optional-with-default-false on the wire (round 2), so payloads that
-/// omit a flag decode to the fail-closed default — both here and through the
-/// generated describe codec that governs the canonical boundary.
+/// Paired host capability cache. Service flags come from `GET /api/host/describe`
+/// and the environment capability comes from the versioned handshake descriptor.
+/// The optional cached advertisement keeps older connection profiles readable.
 struct HostServiceCapabilities: Codable, Sendable, Equatable {
     /// Advertised versions for one additive capability object.
     struct VersionedCapability: Codable, Sendable, Equatable {
@@ -60,6 +58,14 @@ struct HostServiceCapabilities: Codable, Sendable, Equatable {
     /// True when the host advertises host-owned environment support v1.
     var offersHostOwnedEnvironments: Bool {
         sshEnvironments?.versions.contains(1) == true
+    }
+
+    func applyingEnvironmentAdvertisement(_ descriptor: RemoteEnvironmentDescriptor) -> Self {
+        var result = self
+        result.sshEnvironments = descriptor.capabilities?.sshEnvironments.map {
+            VersionedCapability(versions: $0.versions)
+        }
+        return result
     }
 
     init(from decoder: Decoder) throws {

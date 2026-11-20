@@ -112,24 +112,43 @@ struct ProjectSearchSettingsView: View {
       }
 
       Section(ProjectSettingsStrings.addPattern) {
-        TextField(ProjectSettingsStrings.addPattern, text: $newPattern)
-          .font(.body.monospaced())
-          .textInputAutocapitalization(.never)
-          .autocorrectionDisabled()
-          .onSubmit(addPattern)
-        Button(ProjectSettingsStrings.addPattern, systemImage: "plus") {
-          addPattern()
+        HStack(spacing: 12) {
+          TextField(ProjectSettingsStrings.addPattern, text: $newPattern)
+            .font(.body.monospaced())
+            .textInputAutocapitalization(.never)
+            .autocorrectionDisabled()
+            .submitLabel(.done)
+            .onSubmit(addPattern)
+          Button(action: addPattern) {
+            Image(systemName: "plus.circle.fill")
+              .font(.title3)
+          }
+          .buttonStyle(.borderless)
+          .frame(minWidth: 44, minHeight: 44)
+          .disabled(normalizedNewPattern == nil)
+          .accessibilityLabel(ProjectSettingsStrings.addPattern)
+          .accessibilityIdentifier("native-e2e.projects.search.add-pattern")
         }
-        .disabled(normalizedNewPattern == nil)
       }
     }
     .poracodeReadableListMargins(760)
+    .scrollDismissesKeyboard(.interactively)
     .navigationTitle(ProjectSettingsStrings.search)
     .navigationBarTitleDisplayMode(.inline)
     .toolbar {
       ToolbarItem(placement: .confirmationAction) {
-        Button(ProjectManagementStrings.save) { save() }
-          .disabled(commandController.state.isExecuting || !hasChanges)
+        Button(ProjectManagementStrings.save, systemImage: "checkmark") { save() }
+          .disabled(
+            commandController.state.isExecuting || !hasChanges
+              || commandController.state.session?.lease == nil
+          )
+          .accessibilityIdentifier("native-e2e.projects.search.save")
+      }
+    }
+    .overlay(alignment: .bottom) {
+      if let failure = commandController.state.failure {
+        ProjectFailureBanner(failure: failure)
+          .padding()
       }
     }
     .refreshable { await settingsComposition.document.load() }
@@ -191,16 +210,18 @@ struct ProjectSearchSettingsView: View {
   }
 
   private func save() {
+    guard let lease = commandController.state.session?.lease else { return }
     let patch: PatchValue<ProjectSearchSettings> = nextSettings.map(PatchValue.set) ?? .clear
     Task {
-      await commandController.perform(
+      let succeeded = await commandController.perform(
         .update(
           projectId: project.id,
           patch: ProjectPatch(searchSettings: patch)
         ),
-        detectSetup: false
+        detectSetup: false,
+        expectedLease: lease
       )
-      if commandController.state.failure == nil { dismiss() }
+      if succeeded, commandController.state.failure == nil { dismiss() }
     }
   }
 }

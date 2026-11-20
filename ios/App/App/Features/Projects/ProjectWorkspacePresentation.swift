@@ -47,13 +47,15 @@ struct ProjectWorkspaceActivationID: Hashable, Sendable {
   let isConsistent: Bool
   let isOnline: Bool
   let isReady: Bool
+  let linkedSocketOnline: Bool?
   let capabilities: [String]
 
-  init(_ context: ProjectWorkspaceContext?) {
+  init(_ context: ProjectWorkspaceContext?, linkedSocketOnline: Bool? = nil) {
     lease = context?.lease
     isConsistent = context?.isConsistent == true
     isOnline = context?.session.isOnline == true
     isReady = context?.session.isReady == true
+    self.linkedSocketOnline = linkedSocketOnline
     capabilities = (context?.session.capabilities ?? [])
       .map(\.rawValue)
       .sorted()
@@ -61,24 +63,37 @@ struct ProjectWorkspaceActivationID: Hashable, Sendable {
 }
 
 struct ProjectWorkspaceEditorState: Equatable, Sendable {
+  struct Save: Sendable {
+    let path: String
+    let content: String
+    let modifiedAtMs: Double
+    fileprivate let readID: UUID
+  }
+
   private(set) var path: String?
   private(set) var originalContent = ""
   var draft = ""
   private(set) var modifiedAtMs: Double?
+  var showsMarkdownPreview = false
+  private(set) var requiresReload = false
+  private var readID: UUID?
 
   var isDirty: Bool {
     path != nil && draft != originalContent
   }
 
   var canSave: Bool {
-    isDirty && modifiedAtMs != nil
+    isDirty && modifiedAtMs != nil && readID != nil
+  }
+
+  var saveRequest: Save? {
+    guard canSave, !requiresReload, let path, let modifiedAtMs, let readID else { return nil }
+    return Save(path: path, content: draft, modifiedAtMs: modifiedAtMs, readID: readID)
   }
 
   mutating func beginLoading(path: String) {
+    self = .init()
     self.path = path
-    originalContent = ""
-    draft = ""
-    modifiedAtMs = nil
   }
 
   @discardableResult
@@ -89,12 +104,44 @@ struct ProjectWorkspaceEditorState: Equatable, Sendable {
     originalContent = content
     draft = content
     modifiedAtMs = result.modifiedAtMs
+    readID = UUID()
+    requiresReload = false
     return true
   }
 
-  mutating func markSaved(modifiedAtMs: Double) {
-    originalContent = draft
+  /// Reconcile a fresh host read after a connection interruption. Retain the
+  /// draft, and only advance its write base when the returned bytes establish
+  /// the old base, the current draft, or the exact interrupted save.
+  @discardableResult
+  mutating func reconcileAfterReconnect(_ result: ProjectFileReadResult, interruptedSave: Save?) -> Bool {
+    guard result.path == path, result.status == .ready, let content = result.content else {
+      return false
+    }
+    if !isDirty { return install(result) }
+    let wasSent = interruptedSave.map { owns($0) && $0.content == content } ?? false
+    readID = UUID()
+    if content == originalContent || content == draft || wasSent {
+      originalContent = content
+      modifiedAtMs = result.modifiedAtMs
+      requiresReload = false
+    } else {
+      requiresReload = true
+    }
+    return true
+  }
+
+  func owns(_ request: Save) -> Bool {
+    path == request.path && readID == request.readID && modifiedAtMs == request.modifiedAtMs
+  }
+
+  mutating func markSaved(_ request: Save, modifiedAtMs: Double) {
+    guard owns(request) else { return }
+    originalContent = request.content
     self.modifiedAtMs = modifiedAtMs
+  }
+
+  func previewContent(for result: ProjectFileReadResult) -> String {
+    path == result.path && readID != nil ? draft : result.content ?? ""
   }
 
   mutating func discardChanges() {

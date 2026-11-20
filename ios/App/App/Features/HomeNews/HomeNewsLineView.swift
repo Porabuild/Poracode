@@ -57,10 +57,17 @@ struct HomeNewsLineView: View {
           .buttonStyle(.plain)
           .focused($focusedControl, equals: .item)
           .accessibilityIdentifier("native-e2e.news.item.\(current.id)")
-          PoracodeCircleButton { controlsPresented = true } label: { Image(systemName: "ellipsis") }
-            .focused($focusedControl, equals: .menu)
-            .accessibilityLabel(copy("News"))
-            .accessibilityIdentifier("native-e2e.news.controls")
+          Button { controlsPresented = true } label: {
+            Image(systemName: "ellipsis")
+              .font(.subheadline.weight(.semibold))
+              .foregroundStyle(.secondary)
+              .frame(width: 44, height: 44)
+              .contentShape(Rectangle())
+          }
+          .buttonStyle(.plain)
+          .focused($focusedControl, equals: .menu)
+          .accessibilityLabel(copy("News"))
+          .accessibilityIdentifier("native-e2e.news.controls")
         }
         .padding(.horizontal, 10)
         .onHover { hovered = $0 }

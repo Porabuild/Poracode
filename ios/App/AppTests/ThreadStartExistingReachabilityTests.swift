@@ -18,6 +18,22 @@ final class ThreadStartExistingReachabilityTests: XCTestCase {
 
   // MARK: - Route contract
 
+  func testProviderHandoffKeepsTheSourceLeaseWhenThreadIDsCollide() {
+    let original = ThreadHostIdentity(clientConnectionID: connectionID, desktopID: "a", host: "https://a.test")
+    let other = ThreadHostIdentity(clientConnectionID: ClientConnectionID(), desktopID: "b", host: "https://b.test")
+    func target(_ identity: ThreadHostIdentity, generation: UInt64) -> ThreadLifecycleTarget {
+      ThreadLifecycleTarget(lease: ThreadHostLease(identity: identity, generation: generation), threadID: "same-thread")
+    }
+    for mode in [ThreadProviderHandoffMode.fork, .move] {
+      let source = target(original, generation: 2)
+      let intent = ThreadProviderHandoffIntent(mode: mode, source: source, groupID: nil, groupName: nil)
+      XCTAssertTrue(intent.owns(source))
+      XCTAssertFalse(intent.owns(target(other, generation: 2)))
+      XCTAssertFalse(intent.owns(target(original, generation: 3)))
+      XCTAssertFalse(intent.owns(nil))
+    }
+  }
+
   func testTheGeneratedRouteIsTheOneTheDesktopExposes() throws {
     let route = try GeneratedRemoteV3Contract.threadLifecycleRouteContract(
       id: "thread-start-existing"
@@ -39,6 +55,25 @@ final class ThreadStartExistingReachabilityTests: XCTestCase {
       prepared.headers[ProtocolConstants.commandIdHeader],
       "11111111-2222-4333-8444-555555555555"
     )
+  }
+
+  func testProviderSwitchUsesTheExistingThreadCodecWhileOrdinaryRelaunchesOmitIt() throws {
+    var request = ThreadLifecycleTestValues.startExisting()
+    request.presentationMode = .gui
+    let commandID = "11111111-2222-4333-8444-555555555555"
+    func body(_ request: ThreadStartExistingRequest) throws -> [String: Any] {
+      let prepared = try GeneratedRemoteV3Contract.threadStartExistingRequest(request, commandID: commandID)
+      return try XCTUnwrap(JSONSerialization.jsonObject(with: prepared.body) as? [String: Any])
+    }
+    XCTAssertNil(try body(request)["providerSwitch"])
+    request.providerSwitch = .init(fromAgentKind: "source", contextStrategy: .contextFile)
+    request.segments = [.attachment(path: "/attachments/thread-1/fixture.txt", mimeType: "text/plain")]
+    let encoded = try body(request)
+    XCTAssertEqual(encoded["threadId"] as? String, "thread-1")
+    XCTAssertNil(encoded["sessionRef"])
+    XCTAssertEqual(encoded["providerSwitch"] as? [String: String], ["fromAgentKind": "source", "contextStrategy": "context-file"])
+    XCTAssertEqual((encoded["segments"] as? [[String: String]])?.first?["path"], "/attachments/thread-1/fixture.txt")
+    XCTAssertEqual(encoded["presentationMode"] as? String, "gui")
   }
 
   // MARK: - Request derived from the authoritative snapshot
@@ -248,7 +283,7 @@ final class ThreadStartExistingReachabilityTests: XCTestCase {
     let presentation = try Self.source(
       "App/Features/Threads/Components/ThreadLifecyclePresentation.swift"
     )
-    XCTAssertTrue(presentation.contains("threadRenameAlert"))
+    XCTAssertTrue(presentation.contains("threadRenameSheet"))
     XCTAssertTrue(presentation.contains("threadLifecycleDestructiveConfirmation"))
     XCTAssertTrue(presentation.contains("threadLifecycleFailureAlert"))
 
@@ -258,7 +293,7 @@ final class ThreadStartExistingReachabilityTests: XCTestCase {
       "App/Features/Threads/ThreadDetailActionMenu.swift",
     ] {
       let source = try Self.source(path)
-      XCTAssertTrue(source.contains(".threadRenameAlert("), path)
+      XCTAssertTrue(source.contains(".threadRenameSheet("), path)
       XCTAssertTrue(source.contains(".threadLifecycleDestructiveConfirmation("), path)
       XCTAssertTrue(source.contains(".threadLifecycleFailureAlert("), path)
     }

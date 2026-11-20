@@ -7,52 +7,31 @@ struct ProjectGitSidebarView: View {
   let gitHubContext: GitHubControllerContext?
   let gitHubControllers: GitHubOperationsControllerSuite
   /// Absent until the host/project lease is consistent enough to review.
-  let reviewDestination: ProjectReviewDetailsView?
+  let canOpenReview: Bool
+  let onOpenDestination: (ProjectGitDestination) -> Void
+  let creation: ProjectGitPullRequestCreation
+  let usesCompactLayout: Bool
 
   let selectedChange: ProjectGitFileChange?
   let onSelect: (ProjectGitFileChange) -> Void
   let onOpenInEditor: (ProjectGitFileChange) -> Void
   let onRefresh: () async -> Void
   let generatePullRequestSummary:
-    @MainActor (_ branch: String, _ baseBranch: String) async throws
+    @MainActor (_ branch: String, _ baseBranch: String, _ lease: GitHubProjectLease) async throws
       -> AdvancedGeneratedPrSummary
 
   @Environment(\.poracodeEmbeddedInInspector) private var embeddedInInspector
-  @State private var createPullRequestPresented = false
-  @State private var isGeneratingPullRequest = false
-  @State private var creationFailure: GitHubOperationsFailure?
-  @State private var embeddedDestination: ProjectGitSheetDestination?
   @AppStorage(GitHubPullRequestCreationMode.storageKey) private var creationMode =
     GitHubPullRequestCreationMode.dialog.rawValue
 
   var body: some View {
     navigationWrappedList
-      .refreshable { await onRefresh() }
+      .refreshable { await refreshPullRequestContext() }
       .task(id: GitHubOperationsActivationID(gitHubContext)) { await loadPullRequestContext() }
-      .poracodeBottomBar { createPullRequestBar }
-      .sheet(isPresented: $createPullRequestPresented) {
-        GitHubOperationFormView(
-          procedure: .ghCreatePr,
-          location: gitHubContext?.lease.location ?? .posix(path: "", remoteServerId: nil),
-          accounts: gitHubControllers.availability.accounts,
-          pullRequests: gitHubControllers.pullRequests.pullRequests,
-          workflows: [],
-          initialBranch: controller.status.value?.branch ?? "",
-          initialBaseBranch:
-            operationsController.state.authoritative.sourceBranch?.sourceBranch ?? "main",
-          submit: submitPullRequest
-        )
-      }
-      .sheet(item: $embeddedDestination) { destination in
-        ProjectGitEmbeddedSheet(
-          destination: destination,
-          context: context,
-          operationsController: operationsController,
-          gitHubContext: gitHubContext,
-          gitHubControllers: gitHubControllers,
-          reviewDestination: reviewDestination
-        )
-      }
+  }
+
+  private var usesSystemCreateToolbar: Bool {
+    !embeddedInInspector && usesCompactLayout
   }
 
   @ViewBuilder
@@ -68,9 +47,13 @@ struct ProjectGitSidebarView: View {
         .navigationTitle(ProjectWorkspaceStrings.git)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
+          if usesSystemCreateToolbar && shouldOfferCreatePullRequest {
+            ToolbarItem(placement: .bottomBar) { createPullRequestAction }
+          }
           ToolbarItemGroup(placement: .topBarTrailing) {
-            gitMenu(usesSheetLinks: false) {
+            gitMenu {
               Label(ProjectWorkspaceStrings.git, systemImage: "ellipsis")
+                .symbolRenderingMode(.monochrome)
             }
           }
         }
@@ -78,45 +61,19 @@ struct ProjectGitSidebarView: View {
   }
 
   private func gitMenu<MenuLabel: View>(
-    usesSheetLinks: Bool,
     @ViewBuilder label: @escaping () -> MenuLabel
   ) -> some View {
     Menu {
-      if usesSheetLinks {
-        Button(GitOperationsStrings.title, systemImage: "arrow.triangle.branch") {
-          embeddedDestination = .gitOperations
-        }
-        Button(
-          GitHubOperationsStrings.title,
-          systemImage: "point.3.connected.trianglepath.dotted"
-        ) {
-          embeddedDestination = .gitHubOperations
-        }
-        if reviewDestination != nil {
-          Button(ProjectReviewStrings.open, systemImage: "checklist") {
-            embeddedDestination = .review
-          }
-        }
-      } else {
-        NavigationLink {
-          GitOperationsPanel(context: context, controller: operationsController)
-        } label: {
-          Label(GitOperationsStrings.title, systemImage: "arrow.triangle.branch")
-        }
-        NavigationLink {
-          GitHubOperationsPanel(context: gitHubContext, controllers: gitHubControllers)
-        } label: {
-          Label(
-            GitHubOperationsStrings.title,
-            systemImage: "point.3.connected.trianglepath.dotted"
-          )
-        }
-        if let reviewDestination {
-          NavigationLink {
-            reviewDestination
-          } label: {
-            Label(ProjectReviewStrings.open, systemImage: "checklist")
-          }
+      Button(GitOperationsStrings.title, systemImage: "arrow.triangle.branch") {
+        onOpenDestination(.gitOperations)
+      }
+      .accessibilityIdentifier("native-e2e.git.open-operations")
+      Button(GitHubOperationsStrings.title, systemImage: "point.3.connected.trianglepath.dotted") {
+        onOpenDestination(.gitHubOperations)
+      }
+      if canOpenReview {
+        Button(ProjectReviewStrings.open, systemImage: "checklist") {
+          onOpenDestination(.review)
         }
       }
     } label: {
@@ -124,52 +81,26 @@ struct ProjectGitSidebarView: View {
     }
     .accessibilityLabel(ProjectWorkspaceStrings.git)
     .accessibilityIdentifier("native-e2e.git.panel-menu")
+    .tint(.primary)
   }
 
-  @ViewBuilder
-  private var createPullRequestBar: some View {
-    if shouldOfferCreatePullRequest {
-      VStack(spacing: 6) {
-        if let creationFailure {
-          Label(
-            GitHubOperationsStrings.failure(creationFailure),
-            systemImage: "exclamationmark.triangle"
-          )
-          .font(.caption)
-          .foregroundStyle(.secondary)
-          .frame(maxWidth: .infinity, alignment: .leading)
-        }
-        Menu {
-          Button(alternateModeTitle, systemImage: alternateModeSymbol) {
-            let alternate =
-              currentCreationMode == .auto
-              ? GitHubPullRequestCreationMode.dialog
-              : .auto
-            creationMode = alternate.rawValue
-            runCreationMode(alternate)
-          }
-        } label: {
-          if isCreatingPullRequest {
-            ProgressView()
-              .frame(maxWidth: .infinity)
-          } else {
-            Label(
-              GitHubOperationsStrings.action(.ghCreatePr),
-              systemImage: "arrow.triangle.pull"
-            )
-            .frame(maxWidth: .infinity)
-          }
-        } primaryAction: {
-          runCreationMode(currentCreationMode)
-        }
-        .poracodeGlassButtonStyle()
-        .disabled(!canCreatePullRequest)
-        .accessibilityIdentifier("project.git.createPullRequest")
+  private var createPullRequestAction: some View {
+    Menu {
+      Button(alternateModeTitle, systemImage: alternateModeSymbol) {
+        let alternate: GitHubPullRequestCreationMode =
+          currentCreationMode == .auto ? .dialog : .auto
+        if runCreationMode(alternate) { creationMode = alternate.rawValue }
       }
-      .padding(.horizontal)
-      .padding(.vertical, 8)
-      .poracodeBarBackground()
+      .accessibilityIdentifier("native-e2e.git.create-pr-alternate")
+    } label: {
+      Label(GitHubOperationsStrings.action(.ghCreatePr), systemImage: "arrow.triangle.pull")
+        .symbolRenderingMode(.monochrome)
+    } primaryAction: {
+      runCreationMode(currentCreationMode)
     }
+    .tint(.primary)
+    .disabled(!canCreatePullRequest)
+    .accessibilityIdentifier("project.git.createPullRequest")
   }
 
   private var currentCreationMode: GitHubPullRequestCreationMode {
@@ -186,46 +117,54 @@ struct ProjectGitSidebarView: View {
     currentCreationMode == .auto ? "square.and.pencil" : "sparkles"
   }
 
-  private var isCreatingPullRequest: Bool {
-    isGeneratingPullRequest
-      || gitHubControllers.pullRequestMutations.state.activeMutation == .ghCreatePr
-  }
-
-  private func runCreationMode(_ mode: GitHubPullRequestCreationMode) {
-    creationFailure = nil
+  @discardableResult
+  private func runCreationMode(_ mode: GitHubPullRequestCreationMode) -> Bool {
+    guard canCreatePullRequest, let lease = gitHubContext?.lease,
+      let branch = controller.status.value?.branch
+    else { return false }
+    let baseBranch = contextForGitOperations.flatMap { _ in
+      operationsController.state.authoritative.sourceBranch?.sourceBranch
+    } ?? "main"
+    creation.failure = nil
     if mode == .dialog {
-      createPullRequestPresented = true
+      onOpenDestination(.createPullRequest(ProjectGitPullRequestDraft(lease: lease, branch: branch, baseBranch: baseBranch)))
     } else {
-      Task { await createPullRequestAutomatically() }
+      creation.generationLease = lease
+      Task { await createPullRequestAutomatically(branch: branch, baseBranch: baseBranch, lease: lease) }
     }
+    return true
   }
 
-  private func createPullRequestAutomatically() async {
-    guard let status = controller.status.value, let creationContext = gitHubContext else { return }
-    let baseBranch = operationsController.state.authoritative.sourceBranch?.sourceBranch ?? "main"
-    isGeneratingPullRequest = true
-    defer { isGeneratingPullRequest = false }
+  private func createPullRequestAutomatically(
+    branch: String, baseBranch: String, lease: GitHubProjectLease
+  ) async {
+    defer {
+      if creation.generationLease == lease { creation.generationLease = nil }
+    }
     do {
-      let summary = try await generatePullRequestSummary(status.branch, baseBranch)
-      guard gitHubContext?.lease == creationContext.lease,
-        controller.status.value?.branch == status.branch,
-        canCreatePullRequest
-      else { throw CancellationError() }
+      let summary = try await generatePullRequestSummary(branch, baseBranch, lease)
+      guard controller.status.value?.branch == branch, eligibleForCreation,
+        creation.generationLease == lease
+      else { return }
       let request = GitHubOperationRequest.ghCreatePr(
         .init(
-          projectLocation: creationContext.lease.location,
-          branch: status.branch,
+          projectLocation: lease.location,
+          branch: branch,
           baseBranch: baseBranch,
           title: summary.title,
           body: summary.description,
           isDraft: false
         )
       )
-      await submitPullRequest(request)
+      if let failure = await creation.submit(
+        request, lease: lease, controllers: gitHubControllers, refreshGit: onRefresh
+      ), creation.generationLease == lease {
+        creation.failure = (lease, failure)
+      }
     } catch is CancellationError {
       return
     } catch {
-      creationFailure = .transport
+      if creation.generationLease == lease { creation.failure = (lease, .transport) }
     }
   }
 
@@ -234,18 +173,25 @@ struct ProjectGitSidebarView: View {
     return status.isRepo && status.hasRemote && !status.branch.isEmpty && !hasActivePullRequest
   }
 
-  private var canCreatePullRequest: Bool {
+  private var eligibleForCreation: Bool {
     guard shouldOfferCreatePullRequest,
       let status = controller.status.value,
       let context = gitHubContext,
       context.isUsable,
-      context.grantedScopes.contains(GitHubProcedureScope.operate.rawValue),
+      context.permits(.operate),
       gitHubControllers.availability.availability == true,
+      gitHubControllers.pullRequests.hasCatalog(for: context.lease),
       !status.tracking.isEmpty,
       status.ahead == 0,
-      !isCreatingPullRequest
+      !gitHubControllers.pullRequestMutations.state.isBusy
     else { return false }
     return true
+  }
+
+  private var canCreatePullRequest: Bool {
+    guard let lease = gitHubContext?.lease else { return false }
+    return eligibleForCreation && creation.generationLease != lease
+      && !creation.hasUncertainOutcome(for: lease)
   }
 
   private var hasActivePullRequest: Bool {
@@ -260,11 +206,12 @@ struct ProjectGitSidebarView: View {
     guard let context = gitHubContext, context.isUsable else { return }
     let location = context.lease.location
     await gitHubControllers.availability.load(
-      .ghCheckAvailable(.init(projectLocation: location, detail: .summary))
+      .ghCheckAvailable(.init(projectLocation: location, detail: .summary)),
+      expectedLease: context.lease
     )
     guard gitHubControllers.availability.availability == true else { return }
     await gitHubControllers.pullRequests.load(
-      .ghListPullRequests(.init(projectLocation: location))
+      .ghListPullRequests(.init(projectLocation: location)), expectedLease: context.lease
     )
     if let workspace = contextForGitOperations,
       let branch = controller.status.value?.branch,
@@ -273,27 +220,24 @@ struct ProjectGitSidebarView: View {
       await operationsController.read(
         .gitGetWorktreeSourceBranch(
           .init(projectLocation: workspace.lease.location, branch: branch)
-        )
+        ), expectedLease: workspace.lease
       )
+    }
+  }
+
+  private func refreshPullRequestContext() async {
+    await onRefresh()
+    await loadPullRequestContext()
+    if let lease = gitHubContext?.lease, gitHubControllers.pullRequests.loadState == .loaded,
+      gitHubControllers.pullRequests.hasCatalog(for: lease)
+    {
+      creation.acknowledgeRefresh(for: lease)
     }
   }
 
   private var contextForGitOperations: ProjectWorkspaceContext? {
     guard context?.lease == operationsController.state.context?.lease else { return nil }
     return context
-  }
-
-  private func submitPullRequest(_ request: GitHubOperationRequest) async {
-    guard request.procedure == .ghCreatePr,
-      request.ownerLocation == gitHubContext?.lease.location
-    else { return }
-    await gitHubControllers.pullRequestMutations.submit(request)
-    if let failure = gitHubControllers.pullRequestMutations.state.failure {
-      creationFailure = failure
-      return
-    }
-    await loadPullRequestContext()
-    await onRefresh()
   }
 
   @ViewBuilder
@@ -338,7 +282,7 @@ struct ProjectGitSidebarView: View {
           Text(ProjectWorkspaceStrings.branchName(status.branch))
           Spacer(minLength: 8)
           if embeddedInInspector {
-            gitMenu(usesSheetLinks: true) {
+            gitMenu {
               Image(systemName: "ellipsis.circle")
                 .foregroundStyle(.secondary)
             }
@@ -355,6 +299,19 @@ struct ProjectGitSidebarView: View {
         )
         .font(.caption.monospacedDigit())
         .foregroundStyle(.secondary)
+        if !usesSystemCreateToolbar && shouldOfferCreatePullRequest { createPullRequestAction }
+        if let failure = creation.failure, failure.lease == gitHubContext?.lease {
+          Label(GitHubOperationsStrings.failure(failure.value), systemImage: "exclamationmark.triangle")
+            .foregroundStyle(.secondary)
+          if failure.value == .ambiguousOutcome {
+            Button(ProjectWorkspaceStrings.refresh, systemImage: "arrow.clockwise") {
+              Task { await refreshPullRequestContext() }
+            }
+          }
+        }
+        if creation.generationLease != nil && creation.generationLease == gitHubContext?.lease {
+          ProgressView(GitHubOperationsStrings.autoGenerate)
+        }
         if status.mergeInProgress == true {
           Label(ProjectWorkspaceStrings.mergeInProgress, systemImage: "arrow.triangle.merge")
             .foregroundStyle(.orange)

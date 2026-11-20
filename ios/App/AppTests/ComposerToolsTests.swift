@@ -84,6 +84,24 @@ final class ComposerToolsTests: XCTestCase {
     XCTAssertEqual(finalWriteCount, 1)
   }
 
+  func testGlobalMCPEditorCannotSaveOnAReplacementDesktop() async throws {
+    let gateway = ComposerToolsGatewayFake(document: try settings())
+    let controller = GlobalMCPSettingsController(gateway: gateway)
+    let original = host(ClientConnectionID())
+    let replacement = host(ClientConnectionID())
+    controller.activate(replacement)
+    let server = ProjectMCPServer(id: "fixture", name: "Fixture", enabled: false,
+      transport: .http(url: "https://fixture.invalid/mcp", headers: .init([:])))
+
+    await controller.perform(.upsert(scope: .global, server: server), expectedLease: original.lease)
+    let rejected = await gateway.commands
+    XCTAssertTrue(rejected.isEmpty)
+    await controller.perform(.upsert(scope: .global, server: server), expectedLease: replacement.lease)
+    let applied = await gateway.commands
+    XCTAssertEqual(applied.count, 1)
+    XCTAssertEqual(applied.first?.1, replacement.lease)
+  }
+
   func testWorkspaceOperationOwnerNeverFallsBackToGlobalOAuth() async throws {
     let gateway = ComposerToolsGatewayFake(document: try settings())
     let controller = GlobalMCPSettingsController(gateway: gateway, operationScope: .project("p1"))

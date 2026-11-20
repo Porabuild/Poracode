@@ -62,7 +62,61 @@ enum HomeThreadListEntry: Identifiable, Sendable, Equatable {
   }
 }
 
+enum HomeThreadListStatus: String {
+  case active
+  case done
+}
+
+struct HomeThreadListScope {
+  let active: [UnifiedThreadListItem]
+  let done: [UnifiedThreadListItem]
+  let isProjectFiltered: Bool
+
+  init(workspaceThreads: [UnifiedThreadListItem], projectIDs: Set<String>) {
+    let scoped = HomeThreadListPresentation.filter(workspaceThreads, searchText: "", projectIDs: projectIDs)
+    active = scoped.filter { !$0.thread.isDone }
+    done = scoped.filter { $0.thread.isDone }.sorted {
+      $0.thread.updatedAt == $1.thread.updatedAt ? $0.id < $1.id : $0.thread.updatedAt > $1.thread.updatedAt
+    }
+    isProjectFiltered = !projectIDs.isEmpty
+  }
+
+  subscript(status: HomeThreadListStatus) -> [UnifiedThreadListItem] {
+    status == .done ? done : active
+  }
+
+  func emptyMessage(status: HomeThreadListStatus, isSplit: Bool) -> (title: String, detail: String?) {
+    if !isSplit && status == .done {
+      return (HomeStrings.noDoneThreads, isProjectFiltered ? HomeStrings.adjustProjectFilter : nil)
+    }
+    if isProjectFiltered {
+      return (HomeStrings.noMatchingThreads, HomeStrings.adjustProjectFilter)
+    }
+    if !isSplit && !done.isEmpty {
+      return (HomeStrings.noActiveThreads, HomeStrings.showDoneThreadsHint)
+    }
+    return (HomeStrings.emptyThreadsTitle, HomeStrings.emptyThreadsDescription)
+  }
+}
+
 enum HomeThreadListPresentation {
+  static func keyboardOrder(
+    from items: [UnifiedThreadListItem], currentID: String, groupsDone: Bool = true
+  ) -> [String] {
+    guard let current = items.first(where: { $0.id == currentID }) else { return [] }
+    let project = items.filter { $0.connectionID == current.connectionID && $0.project.id == current.project.id }
+    let active = entries(from: project.filter { !$0.thread.isDone })
+    let doneThreads = project.filter { $0.thread.isDone }
+    let done = groupsDone ? entries(from: doneThreads) : doneThreads.map(HomeThreadListEntry.thread)
+    return (active + done).flatMap { entry in
+      switch entry {
+      case .thread(let item): [item.id]
+      case .worktree(let group): group.threads.map(\.id)
+      case .conversation(let group): group.threads.map(\.id)
+      }
+    }
+  }
+
   /// Mirrors the compact PWA's two-pass grouping: multi-thread worktrees win,
   /// then provider-handoff groups collect the remaining threads. Composite
   /// keys prevent a path or group id from crossing a host/project boundary.

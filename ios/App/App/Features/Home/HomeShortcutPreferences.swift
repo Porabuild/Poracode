@@ -110,6 +110,12 @@ struct HomeShortcutPreferences: Equatable {
     else { storedHidden.insert(shortcut.rawValue) }
   }
 
+  mutating func setAllVisible(_ visible: Bool) {
+    let knownIDs = order.map(\.rawValue)
+    if visible { storedHidden.subtract(knownIDs) }
+    else { storedHidden.formUnion(knownIDs) }
+  }
+
   mutating func move(fromOffsets: IndexSet, toOffset: Int) {
     var knownOrder = order
     knownOrder.move(fromOffsets: fromOffsets, toOffset: toOffset)

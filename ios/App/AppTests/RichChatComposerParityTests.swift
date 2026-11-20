@@ -684,7 +684,8 @@ final class RichChatComposerParityTests: XCTestCase {
     XCTAssertTrue(composer.contains("guard !text.isEmpty || !attachmentSegments.isEmpty"))
     XCTAssertTrue(home.contains("|| !draft.attachments.isEmpty"))
     XCTAssertTrue(home.contains("draft.attachments.map(\\.name).joined(separator: \" \")"))
-    XCTAssertTrue(actions.contains("guard ownsCurrentConnection, RichPromptSegment.isSendable(prompt: text, segments: draft.additionalSegments) || !draft.attachments.isEmpty"))
+    XCTAssertTrue(home.contains("guard ownsCurrentConnection, !draft.starting, !draft.importing"))
+    XCTAssertTrue(actions.contains("guard canStart, RichPromptSegment.isSendable(prompt: text, segments: draft.additionalSegments) || !draft.attachments.isEmpty"))
     XCTAssertTrue(
       pendingSteer.contains(
         "static func isSendable(prompt: String, segments: [RichPromptSegment]?) -> Bool"
@@ -735,6 +736,7 @@ final class RichChatComposerParityTests: XCTestCase {
       "App/Features/RichChat/UI/Views/RichChatTranscriptSurface.swift"
     )
     let timeline = try Self.source("App/Features/RichChat/UI/RichChatTimelineView.swift")
+    let jumpControl = try Self.source("App/Features/RichChat/UI/RichChatTimelineJumpControl.swift")
     let pageState = try Self.source(
       "App/Features/RichChat/UI/Pages/RichChatThreadPageState.swift"
     )
@@ -763,7 +765,9 @@ final class RichChatComposerParityTests: XCTestCase {
     XCTAssertTrue(layout.contains("\\.richChatCompactOverlayClearance"))
     XCTAssertFalse(layout.contains("showsInspector ? 0 : compactOverlayHeight"))
     XCTAssertTrue(timeline.contains("@Environment(\\.richChatCompactOverlayClearance)"))
-    XCTAssertTrue(timeline.contains(".padding(.bottom, compactOverlayClearance + 12)"))
+    XCTAssertTrue(timeline.contains("guard find.isPresented, keyboardTop > 0 else { return compactOverlayClearance }"))
+    XCTAssertTrue(timeline.contains("bottomClearance: bottomClearance"))
+    XCTAssertTrue(jumpControl.contains(".padding(.bottom, bottomClearance + 12)"))
     XCTAssertTrue(thread.contains("RichChatCompactControlDock("))
     XCTAssertFalse(thread.contains(".frame(maxHeight: 250)"))
     XCTAssertTrue(thread.contains("RichChatThreadInspector("))
@@ -847,12 +851,8 @@ final class RichChatComposerParityTests: XCTestCase {
     XCTAssertTrue(actions.contains("glassEffect(.regular.interactive(), in: shape)"))
     XCTAssertTrue(actions.contains("glassEffect(.regular, in: shape)"))
     XCTAssertTrue(actions.contains("func poracodeNativeComposerSurface"))
-    XCTAssertTrue(
-      actions.contains("glassEffect(.regular.interactive(), in: shape)")
-    )
     XCTAssertTrue(actions.contains("if #available(iOS 26.0, *), interactive"))
-    XCTAssertTrue(actions.contains("interactive: Bool = false"))
-    XCTAssertTrue(actions.contains("interactive: true"))
+    XCTAssertTrue(actions.contains("content.poracodeInputSurface(in: shape, fill:"))
     XCTAssertTrue(
       actions.contains(".poracodeNativeBubbleSurface(in: Capsule(), interactive: true)")
     )
@@ -1013,6 +1013,87 @@ final class RichChatComposerParityTests: XCTestCase {
     store.clear(connectionID: hostA)
     XCTAssertNil(store.take(for: keyA))
     XCTAssertEqual(store.take(for: keyB)?.text, "other")
+  }
+
+  @MainActor
+  func testRevertRestoresRichContentAndKeepsThePreviousDraftThroughReopening() throws {
+    let key = RichChatComposerDraftKey(connectionID: ClientConnectionID(), threadID: "same")
+    let other = RichChatComposerDraftKey(connectionID: ClientConnectionID(), threadID: "same")
+    let store = RichChatComposerDraftStore()
+    let origin = RichChatThreadDraftState(store: store)
+    origin.prepare(for: key, baseConfiguration: nil)
+    origin.text = "Unsent work"
+    let attachment = RichChatUploadedAttachment(name: "draft.pdf", mimeType: "application/pdf", remotePath: "/draft.pdf")
+    origin.attachments = [attachment]
+    let review = RichChatSelectedSkill(name: "review", path: "/skills/review/SKILL.md", invocation: "/review",
+      provider: "fixture", scope: .project, pluginID: "reviewer", pluginName: "Reviewer")
+    let content: [RichJSON] = [
+      .object(["kind": .string("text"), "text": .string("Please ")]),
+      .object(["kind": .string("skill"), "name": .string("review"), "invocation": .string("/review"),
+        "pluginId": .string("reviewer")]),
+      .object(["kind": .string("text"), "text": .string(" here ")]),
+      .object(["kind": .string("file"), "path": .string("Sources/App.swift"), "source": .string("mention")]),
+      .object(["kind": .string("mcp"), "name": .string("docs")]),
+      .object(["kind": .string("image"), "dataUrl": .string(""), "path": .string("/captures/shot"),
+        "name": .string("shot.png"), "mimeType": .string("image/png"), "source": .string("attachment")]),
+      .object(["kind": .string("skill"), "name": .string("review"), "invocation": .string("/other-review"),
+        "pluginId": .string("different")]),
+    ]
+    let prompt = try XCTUnwrap(RichChatRevertedPrompt(item: .init(id: "message", type: RichItemType.userMessage,
+      state: .completed, payload: .object(["content": .array(content)]), streams: [:], parentItemID: nil)))
+    store.enqueueRevertedPrompt(prompt, for: key)
+
+    let foreign = RichChatThreadDraftState(store: store)
+    foreign.prepare(for: other, baseConfiguration: nil)
+    XCTAssertFalse(foreign.restoreRevertedPrompt(availableSkills: [review]))
+    XCTAssertTrue(origin.restoreRevertedPrompt(availableSkills: [review]))
+    XCTAssertNil(origin.pendingRevertedPromptID)
+    XCTAssertEqual(origin.text, "Please  here `/other-review`")
+    XCTAssertEqual(origin.attachments.map(\.name), ["shot.png"])
+    XCTAssertEqual(origin.skills, [review])
+    XCTAssertEqual(origin.mcps, [.init(id: "docs", name: "docs")])
+    let context = origin.segments + origin.skills.map(\.segment) + origin.mcps.map(\.segment)
+    XCTAssertEqual(origin.restoredPromptOrder?.unchangedSegments(text: origin.text,
+      context: context, attachments: origin.attachments.map(\.segment)), [
+        .text(content: "Please "), review.segment, .text(content: " here "),
+        .file(path: "Sources/App.swift"), .mcp(id: "docs", name: "docs"),
+        .attachment(path: "/captures/shot", mimeType: "image/png"), .text(content: "`/other-review`"),
+      ])
+    XCTAssertNil(origin.restoredPromptOrder?.unchangedSegments(text: "Edited",
+      context: context, attachments: origin.attachments.map(\.segment)))
+    origin.park()
+
+    let reopened = RichChatThreadDraftState(store: store)
+    reopened.prepare(for: key, baseConfiguration: nil)
+    XCTAssertEqual(reopened.alternateDraftIsRevertedPrompt, false)
+    reopened.switchRestoredDraft()
+    XCTAssertEqual(reopened.text, "Unsent work")
+    XCTAssertEqual(reopened.attachments, [attachment])
+    XCTAssertEqual(reopened.alternateDraftIsRevertedPrompt, true)
+    reopened.switchRestoredDraft()
+    XCTAssertEqual(reopened.attachments.map(\.name), ["shot.png"])
+    XCTAssertNotNil(reopened.restoredPromptOrder)
+    store.clear(connectionID: key.connectionID)
+    XCTAssertNil(reopened.alternateDraftIsRevertedPrompt)
+  }
+
+  @MainActor
+  func testRevertWaitsForInFlightSubmissionAndAcceptsLegacyPrompt() throws {
+    let key = RichChatComposerDraftKey(connectionID: ClientConnectionID(), threadID: "thread")
+    let store = RichChatComposerDraftStore()
+    let draft = RichChatThreadDraftState(store: store)
+    draft.prepare(for: key, baseConfiguration: nil)
+    draft.beginSubmission()
+    let prompt = try XCTUnwrap(RichChatRevertedPrompt(item: .init(id: "legacy", type: RichItemType.userMessage,
+      state: .completed, payload: .object(["prompt": .string("Earlier message")]), streams: [:], parentItemID: nil)))
+    store.enqueueRevertedPrompt(prompt, for: key)
+    XCTAssertNil(draft.pendingRevertedPromptID)
+    XCTAssertFalse(draft.restoreRevertedPrompt(availableSkills: []))
+    draft.finishSubmission(succeeded: true)
+    XCTAssertNotNil(draft.pendingRevertedPromptID)
+    XCTAssertTrue(draft.restoreRevertedPrompt(availableSkills: []))
+    XCTAssertEqual(draft.text, "Earlier message")
+    XCTAssertNil(draft.alternateDraftIsRevertedPrompt)
   }
 
   @MainActor

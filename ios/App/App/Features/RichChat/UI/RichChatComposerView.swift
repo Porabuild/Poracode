@@ -1,12 +1,5 @@
 import SwiftUI
 
-struct RichChatUploadedAttachment: Identifiable, Equatable {
-  let id = UUID()
-  let name: String
-  let mimeType: String
-  let remotePath: String
-}
-
 struct RichChatComposerView: View {
   @Environment(\.composerVoiceHost) private var voiceHost
   @Environment(\.composerPreferences) var preferences
@@ -46,6 +39,8 @@ struct RichChatComposerView: View {
   var controlsDestination: Binding<RichChatComposerControlsPresentation?>?
   var stateOwnerID: ObjectIdentifier? = nil
   var isConnectingHost = false
+  var restoredPromptOrder: RichChatRestoredPromptOrder? = nil
+  var draftRestoration: RichChatDraftRestorationAction? = nil
 
   @State private var importing = false
   @State var transferringSideQuestion = false
@@ -59,6 +54,10 @@ struct RichChatComposerView: View {
 
   var body: some View {
     VStack(spacing: 6) {
+      if let draftRestoration, canOperate {
+        draftRestoration
+          .disabled(controller.state.isSending || controller.state.activeMutation != nil)
+      }
       if !attachments.isEmpty || !skills.isEmpty || !mcps.isEmpty || !queuedSegments.isEmpty {
         RichChatComposerContextBar(
           attachments: $attachments,
@@ -105,6 +104,7 @@ struct RichChatComposerView: View {
     }
     .onAppear { fileMentionController.update(draft: draft) }
     .onChange(of: draft) { _, value in fileMentionController.update(draft: value) }
+    .onChange(of: restoredPromptOrder) { _, _ in draftSelection = NSRange(location: draft.utf16.count, length: 0) }
   }
 
   private var composerRow: some View {
@@ -118,7 +118,7 @@ struct RichChatComposerView: View {
     return RichChatAdaptiveComposer(
       text: $draft,
       selection: $draftSelection,
-      isExpanded: $composerExpanded, controlsVisible: controlsPresented != nil || voiceHost?.request?.controller.owner == voiceOwner,
+      isExpanded: $composerExpanded, controlsVisible: controlsPresented != nil || voiceHost?.request?.owner == voiceOwner,
       keyboardOwnerID: keyboardOwnerID,
       keyboardFocusRequest: keyboardFocusRequest,
       hasPrompt: hasPrompt,
@@ -259,26 +259,27 @@ struct RichChatComposerView: View {
     let text =
       typedText.isEmpty
       ? structuredPrompt.joined(separator: " ") : typedText
-    let attachmentSegments = attachments.map {
-      RichPromptSegment.attachment(path: $0.remotePath, mimeType: $0.mimeType)
-    }
+    let attachmentSegments = attachments.map(\.segment)
     guard !text.isEmpty || !attachmentSegments.isEmpty else { return }
     let textSegments: [RichPromptSegment] = typedText.isEmpty ? [] : [.text(content: draft)]
-    let contextSegments = (queuedSegments + skills.map(\.segment) + mcps.map(\.segment))
-      .flatMap { [$0, RichPromptSegment.text(content: " ")] }
+    let context = queuedSegments + skills.map(\.segment) + mcps.map(\.segment)
+    let contextSegments = context.flatMap { [$0, RichPromptSegment.text(content: " ")] }
     let segments = contextSegments + textSegments + attachmentSegments
+    let ordered = restoredPromptOrder?.unchangedSegments(text: draft, context: context, attachments: attachmentSegments)
+      ?? segments
+    let outgoingSegments = ordered.isEmpty ? nil : ordered
     let turnActive = isTurnActive && !controller.state.isSending
     let queuesSteer = turnActive && !queueInsteadOfSteer
     let queuesFollowUp = turnActive && queueInsteadOfSteer
     onSubmissionStarted()
     let steerInput = RichSetPendingSteerInput(
       prompt: text,
-      segments: segments.isEmpty ? nil : segments,
+      segments: outgoingSegments,
       config: configuration.richChatObject
     )
     let sentConfiguration = configuration
     let input = RichChatSendInput(prompt: text, config: sentConfiguration.richChatObject,
-      segments: segments.isEmpty ? nil : segments, userMessageItemID: "user-\(UUID().uuidString.lowercased())")
+      segments: outgoingSegments, userMessageItemID: "user-\(UUID().uuidString.lowercased())")
     let resume = resumeContext
     Task {
       guard await declinePendingApproval() else {

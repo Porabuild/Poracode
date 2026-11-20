@@ -75,6 +75,15 @@ enum HomeStrings {
     String(localized: "home.action.filterProjects", defaultValue: "Filter projects")
   }
 
+  static var filterThreads: String { homeText("home.threadFilter.title", "Filter threads") }
+  static var activeThreads: String { homeText("home.threadFilter.active", "Active") }
+  static var doneThreads: String { homeText("home.threadFilter.done", "Done") }
+  static var noActiveThreads: String { homeText("home.threadFilter.emptyActive", "No active threads") }
+  static var noDoneThreads: String { homeText("home.threadFilter.emptyDone", "No done threads") }
+  static var noMatchingThreads: String { homeText("home.threadFilter.emptyMatches", "No matching threads") }
+  static var adjustProjectFilter: String { homeText("home.threadFilter.adjustProjects", "Adjust your project filter.") }
+  static var showDoneThreadsHint: String { homeText("home.threadFilter.showDoneHint", "Select Done in the filter to see finished threads.") }
+
   static var allProjects: String {
     String(localized: "home.project.all", defaultValue: "All projects")
   }

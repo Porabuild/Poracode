@@ -10,15 +10,39 @@ import SwiftUI
     let disclosureID: String
   }
   struct Scope: Hashable { let connectionID: ClientConnectionID; let threadID: String }
+  private struct TailChoice {
+    let groupID: String
+    let isExpanded: Bool
+  }
   private var expanded: Set<Key> = []
   private var focused: [Scope: String] = [:]
+  private var tailChoices: [Scope: TailChoice] = [:]
   func contains(_ key: Key) -> Bool { expanded.contains(key) }
-  func set(_ value: Bool, for key: Key) {
+  func set(_ value: Bool, for key: Key, focuses: Bool = true) {
+    if value { expanded.insert(key) } else { expanded.remove(key) }
+    if focuses { applyFocus(value, for: key) }
+  }
+  private func applyFocus(_ value: Bool, for key: Key) {
     let scope = Scope(connectionID: key.connectionID, threadID: key.threadID)
-    if value { expanded.insert(key); focused[scope] = key.disclosureID }
-    else {
-      expanded.remove(key)
-      if focused[scope] == key.disclosureID { focused.removeValue(forKey: scope) }
+    if value { focused[scope] = key.disclosureID }
+    else if focused[scope] == key.disclosureID { focused.removeValue(forKey: scope) }
+  }
+  func tailChoice(for key: Key) -> Bool? {
+    let scope = Scope(connectionID: key.connectionID, threadID: key.threadID)
+    guard let choice = tailChoices[scope], choice.groupID == key.disclosureID else { return nil }
+    return choice.isExpanded
+  }
+  func setTailChoice(_ isExpanded: Bool, for key: Key) {
+    let scope = Scope(connectionID: key.connectionID, threadID: key.threadID)
+    expanded.remove(key)
+    tailChoices[scope] = TailChoice(groupID: key.disclosureID, isExpanded: isExpanded)
+    applyFocus(isExpanded, for: key)
+  }
+  func updateActivityTail(_ groupID: String?, connectionID: ClientConnectionID, threadID: String) {
+    let scope = Scope(connectionID: connectionID, threadID: threadID)
+    if let choice = tailChoices[scope], choice.groupID != groupID {
+      tailChoices.removeValue(forKey: scope)
+      if focused[scope] == choice.groupID { focused.removeValue(forKey: scope) }
     }
   }
   func focus(connectionID: ClientConnectionID, threadID: String) -> String? {
@@ -30,6 +54,7 @@ import SwiftUI
   func retainConnections(_ connections: Set<ClientConnectionID>) {
     expanded = expanded.filter { connections.contains($0.connectionID) }
     focused = focused.filter { connections.contains($0.key.connectionID) }
+    tailChoices = tailChoices.filter { connections.contains($0.key.connectionID) }
   }
 }
 
@@ -39,11 +64,26 @@ struct TranscriptDisclosureContext: Sendable {
   let threadID: String
   @MainActor var focusID: String? { store.focus(connectionID: connectionID, threadID: threadID) }
   @MainActor func clearFocus() { store.clearFocus(connectionID: connectionID, threadID: threadID) }
-  @MainActor static func binding(_ context: Self?, id: String?, fallback: Binding<Bool>) -> Binding<Bool> {
+  @MainActor func updateActivityTail(_ groupID: String?) {
+    store.updateActivityTail(groupID, connectionID: connectionID, threadID: threadID)
+  }
+  @MainActor func tailBinding(id: String, opensByDefault: Bool) -> Binding<Bool> {
+    let key = TranscriptDisclosureStore.Key(connectionID: connectionID, threadID: threadID, disclosureID: id)
+    return Binding(
+      get: { store.tailChoice(for: key) ?? opensByDefault },
+      set: { store.setTailChoice($0, for: key) }
+    )
+  }
+  @MainActor static func binding(
+    _ context: Self?, id: String?, fallback: Binding<Bool>, focuses: Bool = true
+  ) -> Binding<Bool> {
     guard let context, let id else { return fallback }
     let key = TranscriptDisclosureStore.Key(connectionID: context.connectionID,
       threadID: context.threadID, disclosureID: id)
-    return Binding(get: { context.store.contains(key) }, set: { context.store.set($0, for: key) })
+    return Binding(
+      get: { context.store.contains(key) },
+      set: { context.store.set($0, for: key, focuses: focuses) }
+    )
   }
 }
 
@@ -68,7 +108,10 @@ struct ToolPresentationEnvironment: ViewModifier {
       TranscriptDisclosureContext(store: session.transcriptDisclosures, connectionID: $0, threadID: threadID)
     } : nil
     let catalog = owned ? session.state.toolPresentationCatalog : nil
+    let providers = owned ? session.state.replay.agentStatuses.ordered : []
     content
+      .environment(\.richChatProviderLabels, Dictionary(providers.map { ($0.kind, $0.label) },
+        uniquingKeysWith: { first, _ in first }))
       .environment(\.toolPresentationCatalog, catalog)
       .environment(\.transcriptDisclosures, disclosures)
       .environment(\.runtimeItemHeadings, owned ? headings : nil)

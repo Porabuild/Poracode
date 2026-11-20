@@ -116,4 +116,86 @@
     @objc private func arrowRight() { onKey?(.arrowRight) }
     @objc private func escape() { onKey?(.escape) }
   }
+
+  struct BrowserMirrorAddressField: UIViewRepresentable {
+    @Binding var text: String
+    @Binding var isFocused: Bool
+    let onSubmit: () -> Void
+    @Environment(\.nativeCommandRegistry) private var registry
+
+    func makeCoordinator() -> Coordinator { Coordinator(parent: self) }
+
+    func makeUIView(context: Context) -> AddressTextField {
+      let field = AddressTextField()
+      field.font = .preferredFont(forTextStyle: .body)
+      field.adjustsFontForContentSizeCategory = true
+      field.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+      field.autocapitalizationType = .none
+      field.autocorrectionType = .no
+      field.keyboardType = .URL
+      field.returnKeyType = .go
+      field.delegate = context.coordinator
+      field.addTarget(context.coordinator, action: #selector(Coordinator.editingChanged(_:)), for: .editingChanged)
+      return field
+    }
+
+    func updateUIView(_ field: AddressTextField, context: Context) {
+      context.coordinator.parent = self
+      field.registry = registry
+      field.placeholder = BrowserMirrorStrings.address
+      field.accessibilityLabel = BrowserMirrorStrings.address
+      if field.text != text { field.text = text }
+      if isFocused != field.isFirstResponder {
+        Task { @MainActor [weak field, weak coordinator = context.coordinator] in
+          guard let field, let coordinator, field.window != nil else { return }
+          if coordinator.parent.isFocused { field.becomeFirstResponder() }
+          else { field.resignFirstResponder() }
+        }
+      }
+    }
+
+    func sizeThatFits(_ proposal: ProposedViewSize, uiView field: AddressTextField, context: Context) -> CGSize? {
+      guard let width = proposal.width, width.isFinite else { return nil }
+      let height = max(44, field.intrinsicContentSize.height, field.font?.lineHeight ?? 0)
+      return CGSize(width: width, height: height)
+    }
+
+    final class Coordinator: NSObject, UITextFieldDelegate {
+      var parent: BrowserMirrorAddressField
+      init(parent: BrowserMirrorAddressField) { self.parent = parent }
+
+      @objc func editingChanged(_ field: UITextField) { parent.text = field.text ?? "" }
+      func textFieldDidBeginEditing(_ field: UITextField) { parent.isFocused = true }
+      func textFieldDidEndEditing(_ field: UITextField) { parent.isFocused = false }
+      func textFieldShouldReturn(_ field: UITextField) -> Bool {
+        if field.markedTextRange == nil { parent.onSubmit() }
+        return false
+      }
+    }
+
+    final class AddressTextField: UITextField, NativeCommandFocusProviding {
+      weak var registry: NativeCommandRegistry?
+      var nativeCommandFocus: NativeCommandFocus { .init(role: .browser, isTextInput: true) }
+
+      override var keyCommands: [UIKeyCommand]? {
+        guard isFirstResponder, markedTextRange == nil, let registry else { return super.keyCommands }
+        let commands = registry.activeBindings(focus: nativeCommandFocus).compactMap { binding -> UIKeyCommand? in
+          guard binding.command == "browser.tab.new",
+            let command = binding.chord.uiKeyCommand(action: #selector(createTab(_:))) else { return nil }
+          command.discoverabilityTitle = NativeShortcutStrings.commandTitle(binding.command)
+          command.wantsPriorityOverSystemBehavior = true
+          return command
+        }
+        return commands + (super.keyCommands ?? [])
+      }
+
+      @objc private func createTab(_ command: UIKeyCommand) {
+        guard isFirstResponder, markedTextRange == nil, let registry, let input = command.input,
+          let chord = NativeShortcutEvent.chord(keyCode: 0, characters: input, flags: command.modifierFlags),
+          registry.activeBindings(focus: nativeCommandFocus).contains(where: { $0.chord == chord && $0.command == "browser.tab.new" })
+        else { return }
+        registry.perform(chord: chord, focusOverride: nativeCommandFocus)
+      }
+    }
+  }
 #endif

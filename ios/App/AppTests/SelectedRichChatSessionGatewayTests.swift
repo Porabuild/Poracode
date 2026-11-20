@@ -457,7 +457,7 @@ extension RichChatRemoteAPI {
   ) async throws { throw RichChatTransportFailure.invalidResponse }
   fileprivate func richCheckpointRevert(
     threadID _: String, checkpointItemID _: String, operationKey _: String
-  ) async throws -> String { throw RichChatTransportFailure.invalidResponse }
+  ) async throws -> RichChatCheckpointRevertOutcome { throw RichChatTransportFailure.invalidResponse }
   fileprivate func richStageInput(
     threadID _: String, prompt _: String, segments _: [RichPromptSegment]?
   ) async throws { throw RichChatTransportFailure.invalidResponse }

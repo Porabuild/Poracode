@@ -18,6 +18,7 @@ struct TerminalSettingsView: View {
           value: $agentTerminalTextSize,
           accessibilityLabel: SettingsUIStrings.agentTerminalTextSize
         )
+        .settingsSearchAnchor(.agentTerminalTextSize)
       } header: {
         Text(SettingsUIStrings.agentTerminalTextSize)
       }
@@ -27,6 +28,7 @@ struct TerminalSettingsView: View {
           value: $projectTerminalTextSize,
           accessibilityLabel: SettingsUIStrings.projectTerminalTextSize
         )
+        .settingsSearchAnchor(.projectTerminalTextSize)
       } header: {
         Text(SettingsUIStrings.projectTerminalTextSize)
       } footer: {
@@ -35,6 +37,7 @@ struct TerminalSettingsView: View {
     }
     .listStyle(.insetGrouped)
     .poracodeReadableListMargins(740)
+    .settingsSearchScroll()
     .navigationTitle(SettingsUIStrings.terminalTitle)
     .navigationBarTitleDisplayMode(.inline)
     .sheet(isPresented: $showsFontPicker) {
@@ -74,6 +77,7 @@ struct TerminalSettingsView: View {
       .buttonStyle(.plain)
       .accessibilityAddTraits(fontName.isEmpty ? [] : .isSelected)
       .accessibilityIdentifier("native-e2e.terminal.font.choose")
+      .settingsSearchAnchor(.terminalFont)
       Text(verbatim: "Aa Bb 0123456789")
         .font(Font(TerminalFontPreference.font(named: fontName,
           pointSize: fontPreviewSize)))

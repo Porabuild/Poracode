@@ -4,7 +4,7 @@ import SwiftUI
 enum DeviceSettingsDestination: String, CaseIterable, Hashable, Sendable {
   case profile, workspaces, general, appearance, audio, notifications
   case shortcuts
-  case terminal, git, worktrees
+  case terminal, git, worktrees, archived
   case models = "agentsGeneral"
   case aiHelpers = "ai"
   case crews, usage
@@ -13,8 +13,7 @@ enum DeviceSettingsDestination: String, CaseIterable, Hashable, Sendable {
   case changelog
 
   static let personal: [Self] = [.profile, .workspaces, .general, .shortcuts, .appearance, .audio, .notifications]
-  static let workspace: [Self] = [.terminal, .git, .worktrees]
-  static let agents: [Self] = [.models, .aiHelpers, .crews, .usage, .sessionImport]
+  static let agents: [Self] = [.models, .aiHelpers, .crews, .usage]
 
   var title: String {
     switch self {
@@ -28,11 +27,12 @@ enum DeviceSettingsDestination: String, CaseIterable, Hashable, Sendable {
     case .terminal: SettingsUIStrings.terminalTitle
     case .git: SettingsUIStrings.gitTitle
     case .worktrees: SettingsUIStrings.worktreeSection
+    case .archived: ArchivedThreadsStrings.title
     case .models: SettingsUIStrings.models
     case .aiHelpers: SettingsUIStrings.aiHelpers
     case .crews: CrewStrings.title
     case .usage: SettingsUIStrings.usageTitle
-    case .sessionImport: SessionImportStrings.title
+    case .sessionImport: SessionImportStrings.navigationTitle
     case .connections: HomeStrings.connections
     case .changelog: ChangelogStrings.title
     }
@@ -50,6 +50,7 @@ enum DeviceSettingsDestination: String, CaseIterable, Hashable, Sendable {
     case .terminal: "terminal"
     case .git: "arrow.triangle.branch"
     case .worktrees: "folder.badge.gearshape"
+    case .archived: "archivebox"
     case .models: "cpu"
     case .aiHelpers: "sparkles"
     case .crews: "person.2"
@@ -75,7 +76,7 @@ enum DeviceSettingsDestination: String, CaseIterable, Hashable, Sendable {
 
   var requiresSelectedHost: Bool {
     switch self {
-    case .worktrees, .models, .aiHelpers, .crews, .usage, .sessionImport: true
+    case .git, .worktrees, .archived, .models, .aiHelpers, .crews, .usage, .sessionImport: true
     default: false
     }
   }
@@ -98,6 +99,7 @@ struct DeviceSettingsDestinationView: View {
     case .terminal: TerminalSettingsView()
     case .git: GitSettingsView(session: session)
     case .worktrees: SettingsMoreRouteView(session: session, route: .workspace, title: destination.title)
+    case .archived: ArchivedThreadsView(session: session)
     case .models: SettingsMoreRouteView(session: session, route: .agents, title: destination.title)
     case .aiHelpers: SettingsMoreRouteView(session: session, route: .generation, title: destination.title)
     case .crews: CrewsSettingsView(session: session)

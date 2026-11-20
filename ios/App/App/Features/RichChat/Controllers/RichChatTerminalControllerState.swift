@@ -92,11 +92,26 @@ struct RichChatTerminalControllerState: Equatable, Sendable {
       failure = .transport
     }
   }
+
+  mutating func applyWatchFailure(_ failure: RichChatControllerFailure, retryable: Bool? = nil) {
+    let canRetry = retryable ?? RichChatTerminalWatchPolicy.isRetryableWatchFailure(failure)
+    lifecycle = .watchFailed(retryable: canRetry)
+    connectionState = .failed(retryable: canRetry)
+    self.failure = failure
+  }
 }
 
 /// Request validation and retry classification shared by the terminal controller
 /// and its replay bridge.
 enum RichChatTerminalWatchPolicy {
+  static func failure(forWatchErrorCode code: RichChatTerminalWatchErrorCode) -> RichChatControllerFailure {
+    switch code {
+    case .forbidden: .authorizationDenied
+    case .notFound: .rejected(statusCode: 404, code: "terminal_not_found")
+    case .unavailable: .unavailable
+    }
+  }
+
   static func isValidSize(_ size: RichChatTerminalSize) -> Bool {
     (1...1_000).contains(size.columns) && (1...1_000).contains(size.rows)
   }

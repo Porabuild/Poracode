@@ -193,6 +193,7 @@ struct ProjectFileBrowserView: View {
           }
           .buttonStyle(.plain)
           .accessibilityLabel(ProjectWorkspaceStrings.openEntry(entry.name))
+          .accessibilityIdentifier("native-e2e.project-file.\(entry.path)")
           .contextMenu { entryActions(entry) }
           .swipeActions(edge: .trailing, allowsFullSwipe: false) {
             Button(role: .destructive) {

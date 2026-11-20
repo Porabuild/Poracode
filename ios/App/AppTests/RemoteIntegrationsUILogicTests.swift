@@ -254,7 +254,7 @@ final class RemoteIntegrationsUILogicTests: XCTestCase {
     XCTAssertFalse(RemoteIntegrationsSchedulePollingIdentity(lease: remoteIntegrationsLease(), isPresentationActive: false, hasRunningSchedule: true, isMutating: false).shouldPoll)
   }
 
-  func testSchedulePrimaryActionUsesTheSharedTrailingCircleMenu() throws {
+  func testSchedulePrimaryActionUsesTheSystemBottomToolbar() throws {
     let source = try String(
       contentsOf: URL(fileURLWithPath: #filePath)
         .deletingLastPathComponent()
@@ -265,8 +265,8 @@ final class RemoteIntegrationsUILogicTests: XCTestCase {
       encoding: .utf8
     )
 
-    XCTAssertTrue(source.contains("PoracodeBottomActionDock(placement: .trailing)"))
-    XCTAssertTrue(source.contains("PoracodeCircleMenu"))
+    XCTAssertTrue(source.contains("ToolbarItem(placement: .bottomBar)"))
+    XCTAssertTrue(source.contains("Menu {"))
     XCTAssertTrue(source.contains("native-e2e.schedules.create"))
     XCTAssertTrue(source.contains("native-e2e.schedules.results"))
   }

@@ -4,7 +4,7 @@ struct HomeProjectFilterOption: Identifiable, Sendable, Hashable {
   let project: RemoteProject
   let host: String
   let online: Bool
-  let threadCount: Int
+  var threadCount: Int
 
   var identity: ProjectIdentity { project.identity(on: connectionID) }
 }

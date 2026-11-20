@@ -3,6 +3,82 @@ import XCTest
 @testable import App
 
 final class RichChatPresentationTests: XCTestCase {
+  func testEditRunsPreserveFindAndLimitTheRenderedRows() {
+    func node(_ id: String, _ type: String, path: String? = nil) -> RichVisibleTimelineNode {
+      RichVisibleTimelineNode(item: RichRuntimeItem(id: id, type: type, state: .completed,
+        payload: path.map { .object(["path": .string($0)]) }, streams: [:], parentItemID: nil), children: [])
+    }
+    let first = node("first", "file_change", path: " ./src//main.swift ")
+    let reasoning = node("middle-thought", RichItemType.reasoning)
+    let second = node("second", "file_change", path: "src\\main.swift")
+    let trailing = node("trailing", RichItemType.reasoning)
+    let different = node("different", "file_change", path: "docs/main.md")
+    let command = node("command", "command_execution")
+    let last = node("after-command", "file_change", path: "src/main.swift")
+    let members = [first, reasoning, second, trailing, different, command, last]
+    let rows = RichChatActivityRows(members: members, selectedItemID: nil, previewLimit: 4)
+    XCTAssertTrue(rows.hasOverflow)
+    XCTAssertNil(rows.wholeFile)
+    XCTAssertEqual(rows.visible(showingAll: false).map(\.id), ["trailing", "different", "command", "after-command"])
+    let selected = RichChatActivityRows(members: members, selectedItemID: reasoning.item.id, previewLimit: 4)
+    XCTAssertTrue(selected.containsSelection)
+    let run = selected.visible(showingAll: false).first
+    guard case .editRun(let edits)? = run else { return XCTFail("Find must retain the combined row") }
+    XCTAssertEqual(edits.members.map(\.item.id), ["first", "middle-thought", "second"])
+    XCTAssertEqual(selected.visible(showingAll: true).map(\.id), ["first", "trailing", "different", "command", "after-command"])
+
+    let sameFile = RichChatActivityRows(members: [trailing, first, reasoning, second],
+      selectedItemID: trailing.item.id, previewLimit: 1)
+    XCTAssertNotNil(sameFile.wholeFile)
+    XCTAssertTrue(sameFile.containsSelection)
+    XCTAssertFalse(sameFile.hasOverflow)
+  }
+
+  func testActivityPreviewAdaptsToTheViewportAndKeepsAnEarlierFindMatchInView() {
+    func node(_ id: String, children: [RichTimelineEntry] = []) -> RichVisibleTimelineNode {
+      RichVisibleTimelineNode(item: RichRuntimeItem(id: id, type: "reasoning", state: .completed,
+        payload: nil, streams: [:], parentItemID: nil), children: children)
+    }
+    let first = node("1", children: [.item(node("nested-match"))])
+    let members = [first] + (2...10).map { node(String($0)) }
+    let preview = RichChatActivityRows(members: members, selectedItemID: nil)
+    XCTAssertTrue(preview.hasOverflow)
+    XCTAssertEqual(preview.visible(showingAll: false).map(\.item.id), (3...10).map(String.init))
+    XCTAssertEqual(preview.visible(showingAll: true).count, 10)
+    let compact = RichChatActivityRows.previewLimit(availableHeight: 500)
+    XCTAssertEqual(compact, 4)
+    XCTAssertEqual(RichChatActivityRows.previewLimit(availableHeight: 650), 8)
+    let compactPreview = RichChatActivityRows(members: members, selectedItemID: nil, previewLimit: compact)
+    XCTAssertEqual(compactPreview.visible(showingAll: false).map(\.item.id), ["7", "8", "9", "10"])
+    XCTAssertEqual(compactPreview.visible(showingAll: true).count, 10)
+    let earlier = RichChatActivityRows(members: members, selectedItemID: "nested-match", previewLimit: compact)
+    XCTAssertTrue(earlier.containsSelection)
+    XCTAssertEqual(earlier.visible(showingAll: false).map(\.item.id), ["1", "2", "3", "4"])
+    let latest = RichChatActivityRows(members: members, selectedItemID: "10")
+    XCTAssertTrue(latest.containsSelection)
+    XCTAssertEqual(latest.visible(showingAll: false).count, 8)
+  }
+
+  func testOnlyTheTrailingActivityGroupDefaultsToExpandedAndEditsStayCollapsed() throws {
+    func node(_ id: String, type: String, text: String = "") -> RichVisibleTimelineNode {
+      RichVisibleTimelineNode(item: RichRuntimeItem(id: id, type: type, state: .started, payload: nil,
+        streams: type == RichItemType.reasoning ? ["reasoning_text": text] : [:], parentItemID: nil), children: [])
+    }
+    let command = node("run", type: "command_execution")
+    let edit = node("edit", type: "file_change")
+    let thought = node("thought", type: RichItemType.reasoning)
+    let group = RichTimelineEntry.group(stableID: "tools", members: [command, edit])
+    let beforeReply = RichTimelineProjection(rawItems: [], rawRoots: [],
+      visibleEntries: [group, .item(thought)], hiddenItemIDs: [])
+    XCTAssertEqual(beforeReply.activityTailID, "tools")
+    let reply = RichTimelineProjection(rawItems: [], rawRoots: [],
+      visibleEntries: [group, .item(node("reply", type: RichItemType.assistantMessage))], hiddenItemIDs: [])
+    XCTAssertNil(reply.activityTailID)
+    XCTAssertFalse(RichChatActivityGroupSummary(members: [command, edit]).isEditOnly)
+    XCTAssertTrue(RichChatActivityGroupSummary(members: [edit, thought]).isEditOnly)
+    XCTAssertFalse(RichChatActivityGroupSummary(members: [thought]).isEditOnly)
+  }
+
   func testCompletedVideoToolLeavesTheCollapsedActivityGroup() {
     let first = RichRuntimeItem(id: "first", type: "tool_call", state: .completed,
       payload: .object(["name": .string("inspect"), "status": .string("success")]), streams: [:], parentItemID: nil)
@@ -1110,5 +1186,113 @@ final class RichChatPresentationTests: XCTestCase {
         "authState": .string("authenticated"),
         "capabilities": .object(capabilities),
       ]))
+  }
+}
+
+@MainActor
+final class RichChatRequestFormTests: XCTestCase {
+  func testAgentQuestionRequiresEveryAnswerAndKeepsChoiceIdentifiers() throws {
+    let request = try question("""
+      {"userInputForm":{"questions":[
+        {"id":"color","question":"Choose a color","options":[{"optionId":"green","label":"Green"}]},
+        {"id":"caption","question":"Caption"}
+      ]}}
+      """)
+    let form = try XCTUnwrap(RichChatRequestForm(request: request))
+    XCTAssertEqual(form.fields.map(\.id), ["color", "caption"])
+    XCTAssertNil(form.submit(["color": .string("green"), "caption": .string("   ")]))
+    XCTAssertEqual(form.submit(["color": .string("green"), "caption": .string("Gallery draft")]),
+      .object(["answers": .object(["color": .string("green"), "caption": .string("Gallery draft")])]))
+    XCTAssertEqual(form.cancelResponse, .object(["action": .string("cancel")]))
+  }
+
+  func testLegacyPendingQuestionKeepsArrayEnvelopeAndSecureInput() throws {
+    let formRequest = try question("""
+      {"codexUserInput":{"questions":[{"id":"secret","question":"Code","isSecret":true}]}}
+      """)
+    let form = try XCTUnwrap(RichChatRequestForm(request: formRequest))
+    XCTAssertTrue(form.fields[0].secret)
+    XCTAssertEqual(form.submit(["secret": .string("test-only")]),
+      .object(["answers": .object(["secret": .object(["answers": .array([.string("test-only")])])])]))
+  }
+
+  func testCustomMultiAnswerUsesTheCanonicalScalarShape() throws {
+    let formRequest = try question("""
+      {"userInputForm":{"questions":[
+        {"id":"kit","question":"Choose components","multiSelect":true,"options":[{"label":"Motor"}]}
+      ]}}
+      """)
+    let form = try XCTUnwrap(RichChatRequestForm(request: formRequest))
+    let draft = RichChatRequestFormDraft(request: formRequest, form: form)
+    let field = try XCTUnwrap(form.fields.first)
+    draft.choose("Motor", in: field)
+    XCTAssertEqual(draft.response, .object(["answers": .object(["kit": .array([.string("Motor")])])]))
+    draft.editCustom("  My kit  ", in: field)
+    XCTAssertEqual(draft.response, .object(["answers": .object(["kit": .string("My kit")])]))
+  }
+
+  func testElicitationValidatesOnlyVisibleFieldsAndPreservesMetadata() throws {
+    let formRequest = try question("""
+      {"structuredElicitation":{
+        "mode":"form","sourceText":"Fixture MCP","message":"Preferences","_meta":null,
+        "requestedSchema":{"type":"object","required":["mode","limit","accepted"],"properties":{
+          "mode":{"type":"string","enum":["brief","detailed"]},
+          "limit":{"type":"integer","minimum":1,"maximum":3,"visibleWhen":[{"field":"mode","equals":"detailed"}]},
+          "accepted":{"type":"boolean","default":false},
+          "items":{"type":"array","items":{"oneOf":[{"const":"a","title":"Option A"}]},"minItems":1}
+        }}
+      }}
+      """)
+    let form = try XCTUnwrap(RichChatRequestForm(request: formRequest))
+    let draft = RichChatRequestFormDraft(request: formRequest, form: form)
+    let limit = try XCTUnwrap(form.fields.first { $0.id == "limit" })
+    draft.values["mode"] = .string("detailed")
+    XCTAssertNil(draft.response)
+    draft.editNumber("2x", in: limit)
+    XCTAssertNil(draft.response)
+    draft.values["limit"] = .number(4)
+    XCTAssertNil(draft.response)
+    draft.values["limit"] = .number(2)
+    draft.values["items"] = .array([.string("a")])
+    XCTAssertEqual(draft.response, .object([
+      "action": .string("accept"),
+      "content": .object(["mode": .string("detailed"), "limit": .number(2),
+        "accepted": .bool(false), "items": .array([.string("a")])]),
+      "_meta": .null,
+    ]))
+    draft.values["mode"] = .string("brief")
+    XCTAssertNil(draft.response?.objectValue?["content"]?.objectValue?["limit"])
+    XCTAssertEqual(form.cancelResponse, .object(["action": .string("decline")]))
+  }
+
+  func testURLRequestRequiresAWebLinkAndOffersExplicitDecline() throws {
+    let allowed = try question("""
+      {"mcpElicitation":{"mode":"url","message":"Open the connector","serverName":"Fixture",
+        "url":"https://example.com/authorize","elicitationId":"one"}}
+      """)
+    let form = try XCTUnwrap(RichChatRequestForm(request: allowed))
+    XCTAssertEqual(form.links.first?.url.host, "example.com")
+    XCTAssertEqual(form.links.first?.description, "example.com")
+    XCTAssertEqual(form.links.first?.title, RichChatStrings.openRequiredURL)
+    XCTAssertNil(form.submit([:]))
+    XCTAssertEqual(form.cancelResponse, .object(["action": .string("decline")]))
+    let malformed = try question("""
+      {"mcpElicitation":{"mode":"url","message":"Open","serverName":"Fixture","url":"file:///tmp/path"}}
+      """)
+    XCTAssertTrue(RichChatRequestForm.recognizesPayload(malformed))
+    XCTAssertNil(RichChatRequestForm(request: malformed))
+    let missingID = try question("""
+      {"mcpElicitation":{"mode":"url","message":"Open","serverName":"Fixture","url":"https://example.com/authorize"}}
+      """)
+    XCTAssertNil(RichChatRequestForm(request: missingID))
+  }
+
+  private func question(_ json: String) throws -> RichOpenRequest {
+    RichOpenRequest(
+      requestID: .text("form"), threadID: "thread", type: .toolUserInput,
+      payload: .init(summary: "Input requested", details: try RichJSON.decode(Data(json.utf8)),
+        options: nil, multiSelect: nil),
+      receivedAtMilliseconds: 0
+    )
   }
 }

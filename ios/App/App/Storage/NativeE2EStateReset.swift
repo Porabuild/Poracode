@@ -32,8 +32,20 @@ import Foundation
       if ProcessInfo.processInfo.arguments.contains("-native-e2e-keybindings-fresh-preferences") {
         UserDefaults.standard.removeObject(forKey: NativeKeybindingStore.storageKey)
       }
+      if ProcessInfo.processInfo.arguments.contains("-native-e2e-voice-fresh-preferences") {
+        UserDefaults.standard.removeObject(forKey: VoicePreferencesStore.key)
+      }
       if ProcessInfo.processInfo.arguments.contains("-native-e2e-terminal-font-fresh-preferences") {
         UserDefaults.standard.removeObject(forKey: TerminalFontPreference.storageKey)
+      }
+      if ProcessInfo.processInfo.arguments.contains("-native-e2e-notifications-fresh-preferences") {
+        for key in [
+          NotificationDeliveryPreference.storageKey, NotificationAlertPreference.soundStorageKey,
+          NotificationAlertPreference.foregroundStorageKey, NotificationAlertPreference.doneStorageKey,
+          NotificationAlertPreference.needsAttentionStorageKey, NotificationAlertPreference.errorStorageKey,
+        ] {
+          UserDefaults.standard.removeObject(forKey: key)
+        }
       }
       if ProcessInfo.processInfo.arguments.contains("-native-e2e-changelog-fresh-cache") {
         try? FileManager.default.removeItem(at: ChangelogDiskCache.defaultDirectory)

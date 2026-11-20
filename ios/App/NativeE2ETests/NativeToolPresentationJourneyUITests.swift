@@ -1,6 +1,192 @@
 import XCTest
 
 extension NativeFamilyJourneyUITests {
+  func testSameFileEditsCombineAndFindRevealsInterleavedReasoning() async throws {
+    try XCTSkipIf(ProcessInfo.processInfo.environment["NATIVE_E2E_PEER_MODE"] == "real",
+      "This journey uses controlled edits.")
+    XCUIDevice.shared.orientation = UIDevice.current.userInterfaceIdiom == .pad ? .landscapeLeft : .portrait
+    _ = try await control(path: "/v1/reset", method: "POST")
+    _ = try await control(path: "/v1/checkpoints/tool-same-file-edits-ready", method: "POST")
+    try await pairUntilHome()
+    openToolFixtureThread()
+    let group = app.buttons["native-e2e.activity-group.same-file-first"].firstMatch
+    let run = app.buttons["native-e2e.edit-run.same-file-first"].firstMatch
+    let other = app.buttons["native-e2e.tool-details.separate-file-edit"].firstMatch
+    let patch = app.descendants(matching: .any)["native-e2e.edit-run-diff.same-file-first"].firstMatch
+    XCTAssertTrue(group.waitForExistence(timeout: 10))
+    group.tap()
+    XCTAssertTrue(run.waitForExistence(timeout: 5))
+    XCTAssertTrue(run.label.contains("2 edits"))
+    XCTAssertTrue(run.label.contains("src/layout.ts"))
+    XCTAssertTrue(other.exists)
+    run.tap()
+    XCTAssertTrue(patch.waitForExistence(timeout: 5))
+    XCTAssertTrue(patch.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "keep focus")).firstMatch.exists)
+    XCTAssertTrue(patch.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "keep footer")).firstMatch.exists)
+    toolPresentationProof("same-file-edit-patch")
+    try await assertNativeDuoDisplayTransitions("same-file-edit-patch", content: patch, availableAction: nil) { _ in
+      try await self.poll { run.exists && patch.exists && other.exists }
+    }
+    try await poll { run.isHittable }
+    run.tap()
+    try await poll { group.isHittable && !patch.exists }
+    group.tap()
+    for openBeforeFind in [false, true] {
+      if openBeforeFind {
+        group.tap()
+        XCTAssertTrue(run.waitForExistence(timeout: 5))
+        run.tap()
+        XCTAssertTrue(patch.waitForExistence(timeout: 5))
+      }
+      app.buttons["native-e2e.thread.actions"].firstMatch.tap()
+      app.buttons["Find in chat"].firstMatch.tap()
+      let query = app.textFields["native-e2e.chat-find-query"]
+      XCTAssertTrue(query.waitForExistence(timeout: 5))
+      if query.value as? String != "Interleaved review note" { query.typeText("Interleaved review note") }
+      try await poll {
+        self.app.staticTexts["native-e2e.chat-find-count"].label == "1 of 1"
+          && self.app.staticTexts["Interleaved review note."].firstMatch.isHittable
+      }
+      toolPresentationProof(openBeforeFind ? "same-file-open-reasoning-find" : "same-file-reasoning-find")
+      app.buttons["native-e2e.chat-find-close"].tap()
+      try await poll { group.exists && run.exists == openBeforeFind && patch.exists == openBeforeFind }
+    }
+  }
+
+  func testToolPatchShowsEachFileAndRetainsItAcrossDisplays() async throws {
+    try XCTSkipIf(ProcessInfo.processInfo.environment["NATIVE_E2E_PEER_MODE"] == "real",
+      "This journey uses a controlled multi-file patch.")
+    XCUIDevice.shared.orientation = UIDevice.current.userInterfaceIdiom == .pad ? .landscapeLeft : .portrait
+    _ = try await control(path: "/v1/reset", method: "POST")
+    _ = try await control(path: "/v1/checkpoints/tool-multi-file-patch-ready", method: "POST")
+    try await pairUntilHome()
+    openToolFixtureThread()
+    let group = app.buttons["native-e2e.activity-group.tool-command"].firstMatch
+    XCTAssertTrue(group.waitForExistence(timeout: 10))
+    group.tap()
+    let file = app.buttons["native-e2e.tool-details.tool-file"].firstMatch
+    XCTAssertTrue(file.waitForExistence(timeout: 5))
+    tapVisibleToolHeader("native-e2e.tool-details.tool-file")
+    let diff = app.descendants(matching: .any)["native-e2e.tool-section.tool-file.1"].firstMatch
+    let first = diff.staticTexts["native-e2e.diff-file.0"].firstMatch
+    let second = diff.staticTexts["native-e2e.diff-file.1"].firstMatch
+    XCTAssertTrue(first.waitForExistence(timeout: 5))
+    XCTAssertEqual(first.label, "src/layout.ts")
+    XCTAssertTrue(second.waitForExistence(timeout: 5))
+    XCTAssertEqual(second.label, "docs/layout.md")
+    let change = diff.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "Second file review")).firstMatch
+    if !change.isHittable { diff.swipeUp() }
+    try await poll { second.isHittable && change.isHittable }
+    toolPresentationProof("multi-file-tool-patch")
+    try await assertNativeDuoDisplayTransitions("multi-file-tool-patch", content: diff, availableAction: nil) { pose in
+      XCTAssertEqual(first.label, "src/layout.ts", pose)
+      XCTAssertEqual(second.label, "docs/layout.md", pose)
+    }
+  }
+
+  func testLongToolActivityShowsRecentCallsAndRevealsEarlierHistory() async throws {
+    try XCTSkipIf(ProcessInfo.processInfo.environment["NATIVE_E2E_PEER_MODE"] == "real",
+      "This journey uses controlled live transcript events.")
+    XCUIDevice.shared.orientation = UIDevice.current.userInterfaceIdiom == .pad ? .landscapeLeft : .portrait
+    _ = try await control(path: "/v1/reset", method: "POST")
+    _ = try await control(path: "/v1/checkpoints/tool-presentation-ready", method: "POST")
+    try await pairUntilHome()
+    openToolFixtureThread()
+    XCTAssertTrue(app.staticTexts["Tool presentation review is ready."].waitForExistence(timeout: 10))
+    _ = try await control(path: "/v1/checkpoints/tool-activity-burst", method: "POST")
+
+    let group = app.buttons["native-e2e.activity-group.burst-reasoning"].firstMatch
+    let reveal = app.buttons["native-e2e.activity-reveal.burst-reasoning"].firstMatch
+    let oldest = app.buttons["native-e2e.tool-details.burst-command-1"].firstMatch
+    let third = app.buttons["native-e2e.tool-details.burst-command-3"].firstMatch
+    let sixth = app.buttons["native-e2e.tool-details.burst-command-6"].firstMatch
+    let seventh = app.buttons["native-e2e.tool-details.burst-command-7"].firstMatch
+    let newest = app.buttons["native-e2e.tool-details.burst-command-10"].firstMatch
+    XCTAssertTrue(reveal.waitForExistence(timeout: 10))
+    let usesShortViewport = ProcessInfo.processInfo.environment["NATIVE_E2E_EXPECT_VERTICAL_TOOLBAR"] == "1"
+    try await poll { third.exists != usesShortViewport && seventh.exists && newest.exists }
+    toolPresentationProof("activity-window-latest")
+    XCTAssertEqual(third.exists, !usesShortViewport)
+    XCTAssertEqual(sixth.exists, !usesShortViewport)
+    XCTAssertTrue(seventh.exists)
+    XCTAssertTrue(newest.exists)
+    XCTAssertFalse(oldest.exists)
+
+    reveal.tap()
+    try await poll { reveal.label == "Show less" && oldest.exists }
+    toolPresentationProof("activity-window-show-all")
+    try await assertNativeDuoDisplayTransitions("activity-window", content: reveal, availableAction: nil) { _ in
+      XCTAssertEqual(reveal.label, "Show less")
+      XCTAssertTrue(oldest.exists)
+    }
+    try await poll { reveal.isHittable }
+    reveal.tap()
+    try await poll { !oldest.exists && reveal.label == "Show all" }
+    _ = try await control(path: "/v1/checkpoints/tool-activity-append", method: "POST")
+    XCTAssertTrue(app.buttons["native-e2e.tool-details.activity-append"].waitForExistence(timeout: 5))
+    XCTAssertFalse(third.exists)
+    if usesShortViewport { XCTAssertFalse(seventh.exists) }
+    _ = try await control(path: "/v1/checkpoints/tool-activity-burst-finish", method: "POST")
+    XCTAssertTrue(app.staticTexts["The activity review is complete."].waitForExistence(timeout: 8))
+    try await poll { !reveal.exists && group.exists }
+    group.tap()
+    XCTAssertTrue(reveal.waitForExistence(timeout: 5))
+    XCTAssertFalse(oldest.exists)
+
+    app.buttons["native-e2e.thread.actions"].firstMatch.tap()
+    app.buttons["Find in chat"].firstMatch.tap()
+    let field = app.textFields["native-e2e.chat-find-query"]
+    XCTAssertTrue(field.waitForExistence(timeout: 5))
+    field.typeText("Earliest audit detail")
+    let count = app.staticTexts["native-e2e.chat-find-count"]
+    try await poll { count.label == "1 of 1" && oldest.exists }
+    XCTAssertTrue(app.staticTexts["Earliest audit detail before the command sequence."].firstMatch.isHittable)
+    XCTAssertFalse(newest.exists)
+    toolPresentationProof("activity-window-find-earlier")
+    app.buttons["native-e2e.chat-find-close"].tap()
+    try await poll { reveal.exists && !oldest.exists }
+  }
+
+  func testLiveToolGroupTracksTheTailAndPreservesManualCollapse() async throws {
+    try XCTSkipIf(ProcessInfo.processInfo.environment["NATIVE_E2E_PEER_MODE"] == "real",
+      "This journey uses controlled live transcript events.")
+    XCUIDevice.shared.orientation = UIDevice.current.userInterfaceIdiom == .pad ? .landscapeLeft : .portrait
+    _ = try await control(path: "/v1/reset", method: "POST")
+    _ = try await control(path: "/v1/checkpoints/tool-presentation-ready", method: "POST")
+    try await pairUntilHome()
+    openToolFixtureThread()
+    XCTAssertTrue(app.staticTexts["Tool presentation review is ready."].waitForExistence(timeout: 10))
+    let history = app.buttons["native-e2e.activity-group.tool-command"].firstMatch
+    XCTAssertTrue(history.exists)
+    XCTAssertFalse(app.buttons["native-e2e.tool-details.tool-command"].exists)
+
+    _ = try await control(path: "/v1/checkpoints/tool-activity-start", method: "POST")
+    let live = app.buttons["native-e2e.activity-group.activity-read"].firstMatch
+    let search = app.buttons["native-e2e.tool-details.activity-search"].firstMatch
+    XCTAssertTrue(live.waitForExistence(timeout: 8))
+    XCTAssertTrue(search.waitForExistence(timeout: 4), "The live tool group should open automatically")
+    toolPresentationProof("activity-live-open")
+    live.tap()
+    try await poll { !search.exists }
+    _ = try await control(path: "/v1/checkpoints/tool-activity-append", method: "POST")
+    try await poll { live.label.contains("2") }
+    XCTAssertFalse(search.exists)
+    try await assertNativeDuoDisplayTransitions("activity-collapsed", content: live, availableAction: nil) { _ in
+      XCTAssertFalse(search.exists)
+    }
+    live.tap()
+    XCTAssertTrue(search.waitForExistence(timeout: 5))
+    _ = try await control(path: "/v1/checkpoints/tool-activity-finish", method: "POST")
+    XCTAssertTrue(app.staticTexts["The activity review is complete."].waitForExistence(timeout: 8))
+    try await poll { !search.exists }
+    toolPresentationProof("activity-history-collapsed")
+    live.tap()
+    XCTAssertTrue(search.waitForExistence(timeout: 5))
+    search.tap()
+    XCTAssertEqual(search.value as? String, "Expanded")
+    toolPresentationProof("activity-history-reopened")
+  }
+
   func testCollapsedToolRowsKeepCompactSpacingAndUsableDisclosures() async throws {
     try XCTSkipIf(ProcessInfo.processInfo.environment["NATIVE_E2E_PEER_MODE"] == "real",
       "This journey measures controlled transcript rows.")
@@ -30,6 +216,40 @@ extension NativeFamilyJourneyUITests {
     toolPresentationProof("tool-compact-expanded-result")
     result.tap()
     XCTAssertFalse(body.exists)
+  }
+
+  func testToolDisclosureAppearsWhenTheLiveResultArrives() async throws {
+    try XCTSkipIf(ProcessInfo.processInfo.environment["NATIVE_E2E_PEER_MODE"] == "real",
+      "This journey stages a tool result on a fixture desktop.")
+    applyFixtureAppearance()
+    XCUIDevice.shared.orientation = UIDevice.current.userInterfaceIdiom == .pad ? .landscapeLeft : .portrait
+    _ = try await control(path: "/v1/reset", method: "POST")
+    _ = try await control(path: "/v1/checkpoints/tool-disclosure-ready", method: "POST")
+    try await pairUntilHome()
+    openToolFixtureThread()
+    let group = app.buttons["native-e2e.activity-group.tool-command"].firstMatch
+    XCTAssertTrue(group.waitForExistence(timeout: 10)); group.tap()
+    let result = app.buttons["native-e2e.tool-details.tool-result"].firstMatch
+    let body = app.textViews["native-e2e.tool-section.tool-result.1"].firstMatch
+    let information = app.descendants(matching: .any).matching(identifier: "native-e2e.tool-details.tool-result").firstMatch
+    XCTAssertTrue(information.waitForExistence(timeout: 5))
+    XCTAssertTrue(information.label.contains("search"))
+    XCTAssertFalse(result.exists)
+    XCTAssertFalse(body.exists)
+    toolPresentationProof("tool-row-without-details")
+
+    _ = try await control(path: "/v1/checkpoints/tool-presentation-live", method: "POST")
+    try await poll { result.exists && result.isEnabled }
+    XCTAssertEqual(result.value as? String, "Collapsed")
+    tapVisibleToolHeader("native-e2e.tool-details.tool-result")
+    let output = "Live finding: all three layouts verified."
+    try await waitForToolResult(body, text: output)
+    try await assertNativeDuoDisplayTransitions("tool-disclosure", content: body, availableAction: nil) { pose in
+      XCTAssertEqual(body.value as? String, output, pose)
+    }
+    toolPresentationProof("tool-row-with-live-details")
+    tapVisibleToolHeader("native-e2e.tool-details.tool-result")
+    try await poll { !body.exists && result.isEnabled }
   }
 
   func testHostToolCatalogRendersCompleteLiveAndReopenedDetails() async throws {

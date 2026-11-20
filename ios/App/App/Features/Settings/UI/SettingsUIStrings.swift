@@ -7,6 +7,7 @@ enum SettingsUIStrings {
   static var models: String { text("settings.route.models", "Models") }
   static var aiHelpers: String { text("settings.route.aiHelpers", "AI Helpers") }
   static var title: String { text("settings.title", "Settings") }
+  static var search: String { text("settings.search", "Search settings") }
   static var selectSection: String { text("settings.routes.section", "Host Information") }
   static var configurationSection: String { text("settings.routes.configuration", "Configuration") }
   static var selectedHost: String { text("settings.host.selected", "Selected desktop") }
@@ -18,6 +19,7 @@ enum SettingsUIStrings {
   static var edit: String { text("settings.action.edit", "Edit") }
   static var done: String { text("settings.action.done", "Done") }
   static var loading: String { text("settings.state.loading", "Loading…") }
+  static var saving: String { text("settings.state.saving", "Saving…") }
   static var noData: String { text("settings.state.noData", "No information available") }
   static var unavailable: String { text("settings.state.unavailable", "Settings unavailable") }
 
@@ -42,6 +44,9 @@ enum SettingsUIStrings {
       "Choose which shortcuts appear in the sidebar footer."
     )
   }
+  static var shortcutVisibility: String { text("settings.general.homeShortcuts.visibility", "Shortcut visibility") }
+  static var showAllShortcuts: String { text("settings.general.homeShortcuts.showAll", "Show all") }
+  static var hideAllShortcuts: String { text("settings.general.homeShortcuts.hideAll", "Hide all") }
 
   static var deviceSettingsSummary: String {
     text(
@@ -54,6 +59,9 @@ enum SettingsUIStrings {
   }
   static var notificationsDescription: String {
     text("settings.notifications.description", "Alerts when threads need you")
+  }
+  static var notificationSystemPermission: String {
+    text("settings.notifications.systemPermission", "Allow system notifications")
   }
   static var notificationSound: String {
     text("settings.notifications.sound", "Play notification sound")

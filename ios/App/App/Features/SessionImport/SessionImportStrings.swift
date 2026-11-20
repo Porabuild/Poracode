@@ -5,6 +5,7 @@ enum SessionImportStrings {
     Bundle.main.localizedString(forKey: "session_import.\(key)", value: value, table: "SessionImport")
   }
   static let title = text("title", "Import")
+  static let navigationTitle = text("navigation_title", "Import sessions")
   static let explanation = text("explanation", "The thread keeps its provider session, so your next message continues where you left off.")
   static let search = text("search", "Search sessions")
   static let allAgents = text("all_agents", "All agents")

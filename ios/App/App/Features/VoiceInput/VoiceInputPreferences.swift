@@ -19,7 +19,7 @@ struct VoiceInputPreferences: Codable, Equatable, Sendable {
 /// preferences. Unknown versions stay intact until an explicit Reset.
 @MainActor @Observable final class VoicePreferencesStore {
   static let shared = VoicePreferencesStore()
-  static let key = "ios.voiceInput.preferences.v1"
+  nonisolated static let key = "ios.voiceInput.preferences.v1"
   var value = VoiceInputPreferences() { didSet { save() } }
   private(set) var incompatible = false
   private let defaults: UserDefaults

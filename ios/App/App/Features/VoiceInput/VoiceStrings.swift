@@ -11,6 +11,10 @@ enum VoiceStrings {
   static var systemDefault: String { value("System default") }
   static var showButton: String { value("Show voice input button") }
   static var testMicrophone: String { value("Test microphone") }
+  static var testDictation: String { value("Test dictation") }
+  static var testDictationHint: String { value("Use the microphone to try your selected engine and model.") }
+  static var testTranscriptHint: String { value("Your test transcript will appear here. It is not sent to a conversation.") }
+  static var clearTranscript: String { value("Clear transcript") }
   static var language: String { value("Voice input language") }
   static var backend: String { value("Transcription backend") }
   static var local: String { value("Built-in · This device") }

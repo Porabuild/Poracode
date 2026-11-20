@@ -718,6 +718,7 @@ final class AppSessionCompositionTests: XCTestCase {
 
   func testPairBFailureLeavesPairACoherent() async throws {
     var apis: [FakeRemoteAPI] = []
+    let failure = RemoteClientError(message: "down", status: 502, code: "network")
     let (session, repo, _) = try await makeSession(
       seedProfile: makeProfile(),
       seedToken: "token-a"
@@ -725,9 +726,7 @@ final class AppSessionCompositionTests: XCTestCase {
       let api = FakeRemoteAPI(endpoint: endpoint, accessToken: token)
       apis.append(api)
       if endpoint.contains("b.test") {
-        api.environmentResult = .failure(
-          RemoteClientError(message: "down", status: 502, code: "network")
-        )
+        api.environmentResult = .failure(failure)
       } else {
         api.environmentResult = .success(makeEnvironment())
         api.snapshotResult = .success(makeShell(seq: 10, threads: [makeThread(id: "t1")]))
@@ -741,7 +740,10 @@ final class AppSessionCompositionTests: XCTestCase {
     XCTAssertEqual(session.profile?.desktopId, "desk-a")
     let before = try await repo.v2RawData()
 
-    await session.pair(with: .init(manualBaseURL: "https://b.test", manualToken: "pair-b"))
+    let rejected = await session.submitPairing(
+      with: .init(manualBaseURL: "https://b.test", manualToken: "pair-b")
+    )
+    XCTAssertEqual(rejected, .failed(failure.localizedDescription))
     XCTAssertEqual(session.profile?.desktopId, "desk-a")
     let after = try await repo.v2RawData()
     XCTAssertEqual(after, before, "pair B network failure leaves A bytes identical")
@@ -805,7 +807,10 @@ final class AppSessionCompositionTests: XCTestCase {
     XCTAssertEqual(socketA.stopCount, 0)
     XCTAssertNotNil(socketA.startedWithSeq)
 
-    await session.pair(with: .init(manualBaseURL: "https://b.test", manualToken: "pair-b"))
+    let paired = await session.submitPairing(
+      with: .init(manualBaseURL: "https://b.test", manualToken: "pair-b")
+    )
+    XCTAssertEqual(paired, .installedLive)
 
     // UI + live host are B only — no mixed A token/profile.
     XCTAssertEqual(session.phase, .ready)

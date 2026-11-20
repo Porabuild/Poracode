@@ -3,6 +3,36 @@ import XCTest
 
 @MainActor
 final class SideChatAuxiliarySessionTests: XCTestCase {
+  func testPrimarySuiteStaysLiveUntilTheLastPresentationDetaches() async throws {
+    let (session, repository, _) = try await makeSession(seedProfile: makeProfile(), seedToken: "fixture") { endpoint, token in
+      let api = FakeRemoteAPI(endpoint: endpoint, accessToken: token)
+      api.environmentResult = .success(makeEnvironment())
+      api.snapshotResult = .success(makeShell(seq: 1, threads: [makeThread(id: "parent")]))
+      return api
+    }
+    defer { Task { await repository.wipeSuiteForTests() } }
+    await session.bootstrap()
+    session.state.socketState = .online
+    let access = try XCTUnwrap(session.currentRichChatAccess)
+    let gateway = RichChatControllerGatewayFake()
+    await gateway.configureHistory(.value(RichChatControllerTestValues.history(threadID: "parent", nextCursor: nil)))
+    let suite = RichChatControllerSuite(gateway: gateway)
+    suite.select(access: access, threadID: "parent")
+    await suite.refreshAuthoritativeHistory()
+    let first = UUID(), second = UUID()
+    session.attachRichChatSuite(suite, owner: first)
+    session.attachRichChatSuite(suite, owner: second)
+    session.detachRichChatSuite(suite, owner: first, preservingState: true)
+    session.detachRichChatSuite(suite, owner: first)
+    XCTAssertTrue(session.activeRichChatSuite === suite)
+    XCTAssertFalse(suite.scope.isBackgrounded)
+    XCTAssertEqual(suite.transcript.state.loadState, .loaded)
+    session.detachRichChatSuite(suite, owner: second, preservingState: true)
+    XCTAssertNil(session.activeRichChatSuite)
+    XCTAssertTrue(suite.scope.isBackgrounded)
+    XCTAssertEqual(suite.transcript.state.loadState, .loaded)
+  }
+
   func testLiveFramesReachBothReducersWithoutMixingTheirTurns() async throws {
     let (session, repository, _) = try await makeSession(seedProfile: makeProfile(), seedToken: "fixture") { endpoint, token in
       let api = FakeRemoteAPI(endpoint: endpoint, accessToken: token)

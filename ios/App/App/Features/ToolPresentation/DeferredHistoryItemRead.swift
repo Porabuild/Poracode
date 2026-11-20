@@ -6,18 +6,28 @@ struct RichDeferredHistoryItemRead<Content: View>: View {
   let item: RichRuntimeItem
   let expanded: Bool
   let content: (RichRuntimeItem) -> Content
+
+  var body: some View {
+    RichDeferredHistoryRead(items: [item], expanded: expanded) { content($0[0]) }
+  }
+}
+
+struct RichDeferredHistoryRead<Content: View>: View {
+  let items: [RichRuntimeItem]
+  let expanded: Bool
+  @ViewBuilder let content: ([RichRuntimeItem]) -> Content
   @Environment(\.runtimeItemHeadings) private var reader
   @State private var loaded: Loaded?
   @State private var failure: RichChatControllerFailure?
   @State private var attempt = 0
 
   private struct Loaded {
-    let source: RichRuntimeItem
+    let source: [RichRuntimeItem]
     let target: RichChatThreadTarget
-    let item: RichRuntimeItem
+    let items: [String: RichRuntimeItem]
   }
   private struct Work: Equatable {
-    let source: RichRuntimeItem?
+    let source: [RichRuntimeItem]
     let target: RichChatThreadTarget?
     let readable: Bool
     let expanded: Bool
@@ -25,10 +35,11 @@ struct RichDeferredHistoryItemRead<Content: View>: View {
   }
 
   var body: some View {
-    let accepted = expanded && loaded?.source == item && loaded?.target == reader?.target ? loaded?.item : nil
+    let deferred = items.filter(\.detailsDeferred)
+    let accepted = expanded && loaded?.source == deferred && loaded?.target == reader?.target ? loaded?.items : nil
     VStack(alignment: .leading, spacing: 4) {
-      content(accepted ?? item)
-      if expanded, item.detailsDeferred, accepted == nil {
+      content(items.map { accepted?[$0.id] ?? $0 })
+      if expanded, let item = deferred.first, accepted == nil {
         if let failure {
           HStack(alignment: .center, spacing: 8) {
             Text(RichChatStrings.failure(failure)).foregroundStyle(.secondary)
@@ -46,17 +57,20 @@ struct RichDeferredHistoryItemRead<Content: View>: View {
         }
       }
     }
-    .task(id: Work(source: item.detailsDeferred ? item : nil, target: reader?.target, readable: reader?.canReadAdvisory == true,
+    .task(id: Work(source: deferred, target: reader?.target, readable: reader?.canReadAdvisory == true,
       expanded: expanded, attempt: attempt)) {
       loaded = nil; failure = nil
-      guard expanded, item.detailsDeferred else { return }
+      guard expanded, !deferred.isEmpty else { return }
       guard let reader, reader.canReadAdvisory, let target = reader.target else {
         failure = .unavailable; return
       }
       do {
-        let complete = try await reader.readHistoryItem(item)
-        try Task.checkCancellation()
-        loaded = .init(source: item, target: target, item: complete)
+        var complete: [String: RichRuntimeItem] = [:]
+        for item in deferred {
+          complete[item.id] = try await reader.readHistoryItem(item)
+          try Task.checkCancellation()
+        }
+        loaded = .init(source: deferred, target: target, items: complete)
       } catch is CancellationError {
         // An authority fence may retire a read without cancelling this view's
         // task. Keep an explicit retry instead of leaving a permanent spinner.

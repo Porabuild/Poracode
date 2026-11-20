@@ -2,6 +2,85 @@ import UIKit
 import XCTest
 
 extension NativeFamilyJourneyUITests {
+  func testHomeShortcutBulkVisibilityAndReorderFollowTheDeviceAcrossDisplays() async throws {
+    try XCTSkipUnless(ProcessInfo.processInfo.environment["NATIVE_E2E_SHORTCUT_VISIBILITY"] == "1",
+      "This journey checks device-local customization with two disposable desktops.")
+    app.launchArguments.append("-native-e2e-shortcuts-fresh-preferences")
+    XCUIDevice.shared.orientation = .portrait
+    _ = try await control(path: "/v1/reset", method: "POST")
+    _ = try await control(path: "/v1/scenario/actions", method: "POST", body: ["type": "seed-multihost-collision"])
+    try await pairBothFixtureHosts()
+    try await prepareShortcutLayout()
+    try openShortcutPreferences()
+
+    let edit = app.buttons.matching(NSPredicate(format: "identifier == %@ OR label == %@",
+      "native-e2e.shortcuts.edit", "Edit")).firstMatch
+    let visibility = app.buttons["native-e2e.shortcuts.visibility"].firstMatch
+    let appearance = app.switches["native-e2e.shortcuts.toggle.settings:appearance"]
+    let pullRequests = app.switches["native-e2e.shortcuts.toggle.pullRequests"]
+    let actions = app.switches["native-e2e.shortcuts.toggle.githubActions"]
+    XCTAssertTrue(edit.waitForExistence(timeout: 5) && edit.isHittable)
+    shortcutProof("device-edit-placement")
+    assertNativeDuoToolbarRail(edit)
+    XCTAssertTrue(visibility.waitForExistence(timeout: 5) && visibility.isHittable)
+    assertNativeDuoToolbarRail(visibility)
+    XCTAssertEqual(pullRequests.value as? String, "1")
+    XCTAssertEqual(actions.value as? String, "0")
+
+    try await tapNativeToolbarActionAfterDisplayTransition(visibility)
+    let hide = app.buttons["Hide all"].firstMatch
+    try await poll { hide.exists && hide.isHittable }
+    try await tapNativeToolbarActionAfterDisplayTransition(hide)
+    try await poll { pullRequests.value as? String == "0" }
+    try await tapNativeToolbarActionAfterDisplayTransition(visibility)
+    let show = app.buttons["Show all"].firstMatch
+    try await poll { show.exists && show.isHittable }
+    try await tapNativeToolbarActionAfterDisplayTransition(show)
+    try await poll { appearance.value as? String == "1" && actions.value as? String == "1" }
+    shortcutProof("bulk-visible")
+
+    try revealShortcut(appearance, scrollingUp: false)
+    try revealShortcut(pullRequests, scrollingUp: false)
+    try await tapNativeToolbarActionAfterDisplayTransition(edit)
+    let reorder = app.buttons["Reorder Appearance"]
+    let first = app.buttons["Reorder Pull requests"]
+    XCTAssertTrue(reorder.waitForExistence(timeout: 5) && first.isHittable)
+    reorder.press(forDuration: 0.6, thenDragTo: first)
+    try await poll { appearance.frame.minY < pullRequests.frame.minY }
+    let done = app.buttons["native-e2e.shortcuts.edit"].firstMatch
+    try await assertNativeDuoDisplayTransitions("home-shortcut-edit", content: appearance, availableAction: done) { pose in
+      try await self.poll {
+        appearance.exists && pullRequests.exists && reorder.exists && done.label == "Done"
+          && appearance.frame.minY < pullRequests.frame.minY
+          && appearance.value as? String == "1"
+      }
+      if pose == "outer" { self.assertNativeDuoToolbarRail(done) }
+    }
+    try await tapNativeToolbarActionAfterDisplayTransition(done)
+
+    app.terminate()
+    app.launchArguments.removeAll {
+      $0 == "-native-e2e-fresh-state" || $0 == "-native-e2e-shortcuts-fresh-preferences"
+    }
+    app.launch()
+    try await prepareShortcutLayout()
+    try await poll {
+      self.app.buttons["native-e2e.session-menu"].firstMatch.exists
+        || self.app.buttons["native-e2e.sidebar.more-tools"].firstMatch.exists
+        || self.app.buttons["native-e2e.sidebar-toggle"].firstMatch.exists
+    }
+    try openShortcutPreferences()
+    try await poll {
+      appearance.value as? String == "1" && actions.value as? String == "1"
+        && appearance.frame.minY < pullRequests.frame.minY
+    }
+    shortcutProof("device-shortcuts-relaunched")
+    for host in ["primary", "collision-b"] {
+      let writes = try await journalCount(hostID: host, operationID: "route:settings-write")
+      XCTAssertEqual(writes, 0, host)
+    }
+  }
+
   func testSettingsShortcutsCanBePinnedReorderedOpenedAndRestoredAfterRelaunch() async throws {
     let environment = ProcessInfo.processInfo.environment
     try XCTSkipIf(environment["NATIVE_E2E_PEER_MODE"] == "real", "This journey uses the controlled workspace fixture.")
@@ -21,7 +100,7 @@ extension NativeFamilyJourneyUITests {
     let appearance = app.switches["native-e2e.shortcuts.toggle.settings:appearance"]
     try revealShortcut(appearance)
     XCTAssertEqual(appearance.value as? String, "0")
-    let pins = ["appearance", "audio", "notifications", "terminal", "git", "worktrees", "agentsGeneral", "changelog"]
+    let pins = ["appearance", "audio", "notifications", "terminal", "git", "worktrees", "archived", "agentsGeneral", "changelog"]
     for pin in pins {
       let toggle = app.switches["native-e2e.shortcuts.toggle.settings:\(pin)"]
       try revealShortcut(toggle)
@@ -33,7 +112,8 @@ extension NativeFamilyJourneyUITests {
     }
     try revealShortcut(appearance, scrollingUp: false)
     try revealShortcut(app.switches["native-e2e.shortcuts.toggle.pullRequests"], scrollingUp: false)
-    app.navigationBars["Home shortcuts"].buttons["Edit"].tap()
+    let edit = app.buttons["native-e2e.shortcuts.edit"].firstMatch
+    try await tapNativeToolbarActionAfterDisplayTransition(edit)
     let reorder = app.buttons["Reorder Appearance"]
     let first = app.buttons["Reorder Pull requests"]
     XCTAssertTrue(reorder.waitForExistence(timeout: 5))
@@ -41,6 +121,7 @@ extension NativeFamilyJourneyUITests {
     reorder.press(forDuration: 0.6, thenDragTo: first)
     XCTAssertLessThan(appearance.frame.minY, app.switches["native-e2e.shortcuts.toggle.pullRequests"].frame.minY)
     shortcutProof("reordered-native-list")
+    try await tapNativeToolbarActionAfterDisplayTransition(edit)
     app.navigationBars["Home shortcuts"].buttons["General"].tap()
     app.navigationBars["General"].buttons["Settings"].tap()
     app.navigationBars["Settings"].buttons["More"].tap()
@@ -73,6 +154,12 @@ extension NativeFamilyJourneyUITests {
     }
 
     try openShortcutMore()
+    let archive = app.buttons["native-e2e.more.shortcut.settings:archived"]
+    try revealShortcut(archive)
+    archive.tap()
+    XCTAssertTrue(app.navigationBars["Archived Threads"].waitForExistence(timeout: 5))
+    shortcutProof("archive-shortcut")
+    tapNativeSettingsBack(from: "Archived Threads", to: "More")
     let overflow = app.buttons["native-e2e.more.shortcut.settings:changelog"]
     try revealShortcut(overflow)
     overflow.tap()
@@ -127,11 +214,30 @@ extension NativeFamilyJourneyUITests {
   }
 
   private func revealShortcut(_ element: XCUIElement, scrollingUp: Bool = true) throws {
+    let bar = app.navigationBars["Home shortcuts"].firstMatch
+    let isEditor = bar.exists
+    let listID = isEditor ? "native-e2e.shortcuts.list" : "native-e2e.more.list"
+    let list = app.descendants(matching: .any).matching(identifier: listID).firstMatch
+    let edit = app.buttons["native-e2e.shortcuts.edit"].firstMatch
+    XCTAssertTrue(list.exists)
     for _ in 0..<8 {
-      if element.isHittable { break }
-      if scrollingUp { app.swipeUp() } else { app.swipeDown() }
+      if element.isHittable {
+        // A partially covered switch can be hittable even when its trailing
+        // center is behind a translucent toolbar. Expose the whole row first.
+        if !isEditor { return }
+        let row = element.frame
+        let behindTitle = row.minY < bar.frame.maxY
+        let behindToolbar = row.maxY > edit.frame.minY && edit.frame.midY > list.frame.midY
+        if !behindTitle && !behindToolbar { return }
+        let above = list.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.35))
+        let below = list.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.55))
+        let (start, end) = behindTitle ? (above, below) : (below, above)
+        start.press(forDuration: 0.05, thenDragTo: end)
+        continue
+      }
+      if scrollingUp { list.swipeUp() } else { list.swipeDown() }
     }
-    XCTAssertTrue(element.isHittable)
+    XCTFail("Could not scroll \(element.identifier) into view")
   }
 
   private func shortcutProof(_ name: String) {

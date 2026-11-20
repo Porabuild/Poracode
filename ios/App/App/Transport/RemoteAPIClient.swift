@@ -13,6 +13,8 @@ actor RemoteAPIClient: PushRemoteAPI {
     private let environment: RemoteEnvironmentContext?
     private let responseEvidenceHeaders: [String]
     private let recentHistoryCache: NativeRecentHistoryCache
+    private var readCache = RemoteReadCache()
+    private var memoryWarningSubscription: MemoryWarningSubscription?
     private var recentHistoryEpoch: UInt64 = 0
     private var historyDesktopID: String?
     private(set) var terminalCursorSyncV2Advertised = false
@@ -65,7 +67,10 @@ actor RemoteAPIClient: PushRemoteAPI {
     /// version list is "not advertised here"; nothing is inferred from a
     /// failed read (the caller simply never reaches this).
     func observeEnvironmentCapabilities(_ descriptor: RemoteEnvironmentDescriptor) {
-        if historyDesktopID != descriptor.desktopId { recentHistoryEpoch &+= 1 }
+        if historyDesktopID != descriptor.desktopId {
+            recentHistoryEpoch &+= 1
+            readCache.clear()
+        }
         historyDesktopID = descriptor.desktopId
         terminalCursorSyncV2Advertised = descriptor.capabilities?.terminalCursorSync?.versions.contains(2) == true
         noticesAdvertised = descriptor.advertisesRuntimeHistoryNotices
@@ -108,13 +113,32 @@ actor RemoteAPIClient: PushRemoteAPI {
         self.responseEvidenceHeaders = environment == nil
             ? []
             : [ProtocolConstants.environmentAuthAuthorityHeader]
+        let register: @Sendable (RemoteAPIClient) -> Void = { client in
+            Task { await client.installMemoryWarningSubscription() }
+        }
+        register(self)
+    }
+
+    private func installMemoryWarningSubscription() {
+        guard memoryWarningSubscription == nil else { return }
+        memoryWarningSubscription = MemoryWarningSubscription { [weak self] in
+            guard let self else { return }
+            Task { await self.clearReadCache() }
+        }
+    }
+
+    func clearReadCache() {
+        readCache.clear()
     }
 
     /// Normalized HTTP endpoint the client was constructed with (user-reached, including relay prefix).
     var httpEndpoint: String { endpoint }
 
     func setAccessToken(_ token: String?) {
-        if accessToken != token { recentHistoryEpoch &+= 1 }
+        if accessToken != token {
+            recentHistoryEpoch &+= 1
+            readCache.clear()
+        }
         accessToken = token
     }
 
@@ -557,10 +581,31 @@ actor RemoteAPIClient: PushRemoteAPI {
             )
         }
 
+        let isCacheableGet = method == "GET" && jsonBody == nil && extraHeaders.isEmpty
+        let cachedRead = isCacheableGet ? readCache.capture(url: url.absoluteString) : nil
+        if let etag = cachedRead?.entry?.etag {
+            request.setValue(etag, forHTTPHeaderField: "If-None-Match")
+        }
+
         let data: Data
         let response: URLResponse
         do {
-            (data, response) = try await performBoundedRequest(request, resourceTimeout: timeout)
+            let initial = try await performBoundedRequest(request, resourceTimeout: timeout)
+            if let initialHttp = initial.1 as? HTTPURLResponse,
+               initialHttp.statusCode == 304,
+               let cachedRead
+            {
+                if let cachedBody = readCache.body(for: cachedRead) {
+                    return cachedBody
+                }
+                var uncachedRequest = request
+                uncachedRequest.setValue(nil, forHTTPHeaderField: "If-None-Match")
+                (data, response) = try await performBoundedRequest(
+                    uncachedRequest, resourceTimeout: timeout
+                )
+            } else {
+                (data, response) = initial
+            }
         } catch is CancellationError {
             try Self.rethrowTransportFailure(error: CancellationError(), endpoint: endpoint)
         } catch let error as RemoteClientError {
@@ -610,6 +655,9 @@ actor RemoteAPIClient: PushRemoteAPI {
             )
         }
 
+        if let cachedRead {
+            readCache.store(read: cachedRead, response: http, body: data)
+        }
         return data
     }
 

@@ -163,6 +163,17 @@ final class RichChatTerminalController {
     }
   }
 
+  /// Adaptive remounts and repeated foreground/access callbacks share the
+  /// current watch. Explicit retries and PTY resets can still replace it.
+  func ensureWatching(terminalID: String) async {
+    if state.terminalID == terminalID,
+      state.lifecycle == .starting || state.lifecycle == .watching
+    {
+      return
+    }
+    await watch(terminalID: terminalID)
+  }
+
   func watch(terminalID: String) async {
     guard !terminalID.isEmpty else {
       state.failure = .invalidRequest
@@ -184,11 +195,7 @@ final class RichChatTerminalController {
       return
     } catch {
       guard owns(context) else { return }
-      let failure = RichChatControllerFailure.map(error)
-      let retryable = RichChatTerminalWatchPolicy.isRetryableWatchFailure(failure)
-      state.lifecycle = .watchFailed(retryable: retryable)
-      state.connectionState = .failed(retryable: retryable)
-      state.failure = failure
+      state.applyWatchFailure(RichChatControllerFailure.map(error))
       return
     }
     watchTask.launch { [weak self] in
@@ -212,11 +219,7 @@ final class RichChatTerminalController {
         return
       } catch {
         guard self.owns(context), self.state.watchID == watchID else { return }
-        let failure = RichChatControllerFailure.map(error)
-        let retryable = RichChatTerminalWatchPolicy.isRetryableWatchFailure(failure)
-        self.state.lifecycle = .watchFailed(retryable: retryable)
-        self.state.connectionState = .failed(retryable: retryable)
-        self.state.failure = failure
+        self.state.applyWatchFailure(RichChatControllerFailure.map(error))
       }
     }
     await watchTask.wait()
@@ -280,16 +283,10 @@ final class RichChatTerminalController {
       return
     case .watchError(let error):
       guard error.terminalID == state.terminalID, error.watchID == state.watchID else { return }
-      state.lifecycle = .watchFailed(retryable: error.retryable)
-      state.connectionState = .failed(retryable: error.retryable)
-      switch error.code {
-      case .forbidden:
-        state.failure = .authorizationDenied
-      case .notFound:
-        state.failure = .rejected(statusCode: 404, code: "terminal_not_found")
-      case .unavailable:
-        state.failure = .unavailable
-      }
+      state.applyWatchFailure(
+        RichChatTerminalWatchPolicy.failure(forWatchErrorCode: error.code),
+        retryable: error.retryable
+      )
       if error.retryable {
         scheduleFreshBaseline(terminalID: error.terminalID, target: target)
       }

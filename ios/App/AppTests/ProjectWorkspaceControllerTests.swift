@@ -8,6 +8,7 @@ private actor ProjectWorkspaceGatewayFake: ProjectWorkspaceGateway {
   private(set) var writeLeases: [ProjectWorkspaceLease] = []
   private(set) var mutations: [ProjectWorkspaceEntryMutation] = []
   var searchResult = ProjectFileSearchResult(entries: [], totalIndexed: 0)
+  var rootResult: ProjectTreeResult?
   var writeResult = ProjectFileWriteResult(modifiedAtMs: 2)
   var writeError: ProjectSessionGatewayError?
   var slowSearchGate: ProjectWorkspaceTestGate<ProjectFileSearchResult>?
@@ -22,6 +23,15 @@ private actor ProjectWorkspaceGatewayFake: ProjectWorkspaceGateway {
 
   func configureSearchResult(_ value: ProjectFileSearchResult) {
     searchResult = value
+  }
+
+  func configureRoot(_ entries: [ProjectWorkspaceEntry]) {
+    rootResult = ProjectTreeResult(directoryPath: "", entries: entries)
+  }
+
+  func listProjectTree(directoryPath: String, lease: ProjectWorkspaceLease) async throws -> ProjectTreeResult {
+    guard let rootResult else { throw ProjectWorkspaceTestError.unimplemented }
+    return rootResult
   }
 
   func configureSlowSearchGate(_ gate: ProjectWorkspaceTestGate<ProjectFileSearchResult>?) {
@@ -123,6 +133,51 @@ private actor ProjectWorkspaceGatewayFake: ProjectWorkspaceGateway {
 
 @MainActor
 final class ProjectWorkspaceControllerTests: XCTestCase {
+  func testBareFilenamePrefersRootAndAcceptsOnlyContainedExactIndexMatches() async throws {
+    let lease = makeProjectWorkspaceContext().lease
+    let gateway = ProjectWorkspaceGatewayFake()
+    await gateway.configureRoot([.init(path: "notes.txt", name: "notes.txt", type: .file)])
+    let root = try await gateway.resolveBareFilename("notes.txt", lease: lease)
+    XCTAssertEqual(root, "notes.txt")
+    let rootSearches = await gateway.searchLeases
+    XCTAssertTrue(rootSearches.isEmpty)
+
+    await gateway.configureRoot([])
+    await gateway.configureSearchResult(.init(entries: [
+      .init(path: "reports/other-notes.txt", name: "other-notes.txt", type: .file),
+      .init(path: "../notes.txt", name: "notes.txt", type: .file),
+      .init(path: "reports/NOTES.txt", name: "NOTES.txt", type: .file),
+    ], totalIndexed: 3))
+    let nested = try await gateway.resolveBareFilename("notes.txt", lease: lease)
+    XCTAssertEqual(nested, "reports/NOTES.txt")
+    let nestedSearches = await gateway.searchLeases
+    XCTAssertEqual(nestedSearches, [lease])
+  }
+
+  func testSaveCannotStartOnAReplacementDesktopWithTheSamePath() async {
+    let first = makeProjectWorkspaceContext()
+    let replacement = makeProjectWorkspaceContext()
+    let gateway = ProjectWorkspaceGatewayFake()
+    let controller = ProjectFileWorkspaceController(gateway: gateway)
+    controller.activate(replacement)
+
+    let refused = await controller.writeFile(
+      path: "README.md", content: "old desktop draft", baseModifiedAtMs: 1,
+      expectedLease: first.lease
+    )
+    XCTAssertNil(refused)
+    XCTAssertNil(controller.fileWritePath)
+    let staleCalls = await gateway.writeLeases
+    XCTAssertTrue(staleCalls.isEmpty)
+
+    let accepted = await controller.writeFile(
+      path: "README.md", content: "current desktop draft", baseModifiedAtMs: 1,
+      expectedLease: replacement.lease
+    )
+    XCTAssertEqual(try? accepted?.get().modifiedAtMs, 2)
+    XCTAssertEqual(controller.fileWritePath, "README.md")
+  }
+
   func testFileControllerGatesReadAndWriteWithExactScopes() async throws {
     let gateway = ProjectWorkspaceGatewayFake()
     let controller = ProjectFileWorkspaceController(gateway: gateway)
@@ -312,5 +367,46 @@ final class ProjectWorkspaceControllerTests: XCTestCase {
     XCTAssertEqual(lines[2].kind, .addition)
     XCTAssertEqual(lines[1].text.dropFirst(), "const oldValue = 1")
     XCTAssertEqual(lines[2].text.dropFirst(), "const newValue = 2")
+  }
+
+  func testNativeUnifiedDiffKeepsFileSectionsAndHunkContentAcrossCRLF() {
+    let patch = [
+      "diff --git a/src/layout.ts b/src/layout.ts",
+      "--- a/src/layout.ts", "+++ b/src/layout.ts", "@@ -18,2 +18,2 @@",
+      "--- counter", "+++ counter", " return counter;", "\\ No newline at end of file",
+      "diff --git a/docs/layout.md b/docs/layout.md",
+      "deleted file mode 100644", "--- a/docs/layout.md", "+++ /dev/null",
+      "@@ -7 +0,0 @@", "-Old layout notes", "",
+    ].joined(separator: "\r\n")
+    let files = NativeUnifiedDiffFile.parse(patch)
+    XCTAssertEqual(files.map(\.path), ["src/layout.ts", "docs/layout.md"])
+    XCTAssertEqual(files.flatMap(\.lines).map(\.id), Array(0..<15))
+    XCTAssertEqual(files[0].lines[4].kind, .deletion)
+    XCTAssertEqual(files[0].lines[4].oldLineNumber, 18)
+    XCTAssertEqual(files[0].lines[5].kind, .addition)
+    XCTAssertEqual(files[0].lines[5].newLineNumber, 18)
+    XCTAssertEqual(files[0].lines[6].newLineNumber, 19)
+    XCTAssertNil(files[0].lines[7].annotationTarget)
+    XCTAssertNil(files[1].lines[2].annotationTarget)
+    XCTAssertEqual(files[1].lines[5].oldLineNumber, 7)
+    XCTAssertEqual(NativeUnifiedDiffView(diff: patch).lineCount, 11)
+  }
+
+  func testNativeUnifiedDiffSupportsPlainUnifiedHeadersAndGitQuotedPaths() {
+    let plain = [
+      "--- docs/one.md\t2026-08-12", "+++ docs/one.md\t2026-08-13", "@@ -1 +1 @@",
+      "-old", "+new", "--- /dev/null", "+++ docs/second draft.md", "@@ -0,0 +1 @@",
+      "+second file",
+    ].joined(separator: "\n")
+    XCTAssertEqual(NativeUnifiedDiffFile.parse(plain).map(\.path), ["docs/one.md", "docs/second draft.md"])
+
+    let quoted = #"""
+      diff --git "a/caf\303\251.swift" "b/caf\303\251.swift"
+      old mode 100644
+      new mode 100755
+      diff --git a/design screenshot.png b/design screenshot.png
+      Binary files a/design screenshot.png and b/design screenshot.png differ
+      """#
+    XCTAssertEqual(NativeUnifiedDiffFile.parse(quoted).map(\.path), ["café.swift", "design screenshot.png"])
   }
 }

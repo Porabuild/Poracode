@@ -14,7 +14,9 @@ struct GitSettingsView: View {
 
   var body: some View {
     Group {
-      if let failure = composition.gate(.sessionRead) {
+      if composition.selection != activeSelection {
+        SettingsLoadingView()
+      } else if let failure = composition.gate(.sessionRead) {
         SettingsUnavailableView(failure: failure)
       } else {
         SettingsGitView(composition: composition, refresh: refresh)
@@ -23,6 +25,7 @@ struct GitSettingsView: View {
     .navigationTitle(SettingsUIStrings.gitTitle)
     .navigationBarTitleDisplayMode(.inline)
     .task(id: refreshIdentity) {
+      guard !Task.isCancelled else { return }
       composition.activate(activeSelection)
       await composition.refresh(route: .workspace, query: SettingsProfileQuery())
     }
@@ -54,6 +57,10 @@ struct GitSettingsView: View {
   }
 
   private func refresh() {
-    Task { await composition.refresh(route: .workspace, query: SettingsProfileQuery()) }
+    let lease = activeSelection?.lease
+    Task {
+      guard composition.selection?.lease == lease else { return }
+      await composition.refresh(route: .workspace, query: SettingsProfileQuery())
+    }
   }
 }

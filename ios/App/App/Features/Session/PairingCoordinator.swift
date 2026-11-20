@@ -50,7 +50,7 @@ struct PairingCoordinator {
         host.state.pendingCertFingerprint = nil
         host.state.pairingTracker.markInFlight(digest)
         let began = host.state.operationOwner.begin(.pair)
-        await pair(
+        _ = await pair(
             with: input,
             generation: began.workGeneration,
             ownerEpoch: began.epoch,
@@ -59,13 +59,13 @@ struct PairingCoordinator {
         )
     }
 
-    func pair(with input: AppSession.PairingInput) async {
+    func pair(with input: AppSession.PairingInput) async -> PairAttemptOutcome {
         // Pair while backgrounded: park without network or UI error mutation.
         if host.state.liveLifecycle.isInBackground {
-            return
+            return .notApplied
         }
         let began = host.state.operationOwner.begin(.pair)
-        await pair(
+        return await pair(
             with: input,
             generation: began.workGeneration,
             ownerEpoch: began.epoch,
@@ -80,7 +80,7 @@ struct PairingCoordinator {
         ownerEpoch: Int,
         operationId: UInt64,
         pairingDigest: String?
-    ) async {
+    ) async -> PairAttemptOutcome {
         host.state.globalError = nil
         let hadLiveHost = host.state.selectedConnectionId != nil
         if !hadLiveHost { host.state.phase = .connecting }
@@ -92,20 +92,21 @@ struct PairingCoordinator {
             activated = try await host.deps.hostCatalog.activate(id: operationId, kind: .add)
         } catch {
             if let pairingDigest { host.state.pairingTracker.markFailed(pairingDigest) }
+            guard isCurrent(ownerEpoch: ownerEpoch, generation: gen) else { return .notApplied }
+            let message = "Local credentials could not be updated. Disconnect to retry, then pair again."
             host.state.phase = .localStoreInconsistent
-            host.state.globalError =
-                "Local credentials could not be updated. Disconnect to retry, then pair again."
-            return
+            host.state.globalError = message
+            return .failed(message)
         }
         guard activated, isCurrent(ownerEpoch: ownerEpoch, generation: gen) else {
             if let pairingDigest { host.state.pairingTracker.markFailed(pairingDigest) }
-            return
+            return .notApplied
         }
 
         await host.cancelStaleSessionWork(invalidateSocket: false)
         guard isCurrent(ownerEpoch: ownerEpoch, generation: gen) else {
             if let pairingDigest { host.state.pairingTracker.markFailed(pairingDigest) }
-            return
+            return .notApplied
         }
 
         // Background arrived after pair started — cancel network path without error UI.
@@ -116,7 +117,7 @@ struct PairingCoordinator {
                 ownerEpoch: ownerEpoch,
                 generation: gen
             )
-            return
+            return .notApplied
         }
 
         // Install before first await so bulk cancel can exclude this exact pair install
@@ -136,27 +137,28 @@ struct PairingCoordinator {
         pairInstallToken = host.pairTask.install(pairTask)
         do {
             let outcome = try await pairTask.value
-            switch outcome {
-            case .installedLive, .durableAppliedNotInstalled:
-                return
-            case .notApplied:
-                guard isCurrent(ownerEpoch: ownerEpoch, generation: gen) else { return }
+            if outcome == .installedLive, !isCurrent(ownerEpoch: ownerEpoch, generation: gen) {
+                return .durableAppliedNotInstalled
+            }
+            if outcome == .notApplied, isCurrent(ownerEpoch: ownerEpoch, generation: gen) {
                 await SessionDurableReconcile.reconcileFromCatalog(
                     host: host,
                     ownerEpoch: ownerEpoch,
                     generation: gen
                 )
             }
+            return outcome
         } catch is CancellationError {
             if let pairingDigest { host.state.pairingTracker.markFailed(pairingDigest) }
-            guard isCurrent(ownerEpoch: ownerEpoch, generation: gen) else { return }
+            guard isCurrent(ownerEpoch: ownerEpoch, generation: gen) else { return .notApplied }
             await SessionDurableReconcile.reconcileFromCatalog(
                 host: host,
                 ownerEpoch: ownerEpoch,
                 generation: gen
             )
+            return .notApplied
         } catch {
-            guard isCurrent(ownerEpoch: ownerEpoch, generation: gen) else { return }
+            guard isCurrent(ownerEpoch: ownerEpoch, generation: gen) else { return .notApplied }
             if let pairingDigest { host.state.pairingTracker.markFailed(pairingDigest) }
             host.state.globalError = error.localizedDescription
             await SessionDurableReconcile.reconcileFromCatalog(
@@ -168,9 +170,10 @@ struct PairingCoordinator {
             // globalError. Keep this attempt's validation/network failure
             // visible, without replacing a more specific storage repair error
             // or the result of a newer operation.
-            if isCurrent(ownerEpoch: ownerEpoch, generation: gen), host.state.globalError == nil {
-                host.state.globalError = error.localizedDescription
-            }
+            guard isCurrent(ownerEpoch: ownerEpoch, generation: gen) else { return .notApplied }
+            let message = host.state.globalError ?? error.localizedDescription
+            host.state.globalError = message
+            return .failed(message)
         }
     }
 
@@ -256,7 +259,7 @@ struct PairingCoordinator {
             pairedAt: Date(),
             protocolVersion: ProtocolConstants.remoteProtocolVersion,
             certFingerprint: certFingerprint,
-            hostCapabilities: hostCapabilities
+            hostCapabilities: hostCapabilities.applyingEnvironmentAdvertisement(environment)
         )
         let connectionId = ClientConnectionID()
         let record = HostRecord(
@@ -396,6 +399,7 @@ struct PairingCoordinator {
         guard host.state.operationOwner.isCurrent(began.epoch) else { return }
         // Re-assert after await: never resurrect UI from a stale pair.
         host.richChatComposerDrafts.clearAll()
+        host.checkpointRevertAttempts.clearAll()
         host.state.resetForUnpair()
     }
 

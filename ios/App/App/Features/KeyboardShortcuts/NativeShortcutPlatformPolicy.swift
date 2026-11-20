@@ -10,6 +10,10 @@ enum NativeShortcutPlatformPolicy {
     "settings.open", "sidebar.toggle", "thread.new", "composer.open-model-picker",
     "composer.toggle-work-plan", "composer.cycle-effort", "composer.toggle-fast",
     "composer.cycle-permission", "composer.start-dictation",
+    "palette.open", "find.open", "thread.next", "thread.previous", "thread.recent.next", "thread.recent.previous",
+    "files.open", "files.toggle", "git.open", "terminal.toggle", "browser.toggle",
+    "browser.focus-address-bar", "browser.tab.new",
+    "editor.save", "editor.toggle-markdown-preview",
   ]
 
   static func accepts(_ chord: NativeKeyChord) -> Bool {

@@ -25,7 +25,7 @@ enum RichChatSandboxWebView {
       return view
     }
     let escaped = script.replacingOccurrences(of: "</script", with: "<\\/script", options: .caseInsensitive)
-    view.loadHTMLString("<!doctype html><html><head><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"></head><body><script>\(escaped)</script></body></html>", baseURL: URL(string: "http://localhost/"))
+    view.loadHTMLString("<!doctype html><html><head><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><style>:root{color-scheme:light dark}</style></head><body><script>\(escaped)</script></body></html>", baseURL: URL(string: "http://localhost/"))
     return view
   }
 
@@ -66,10 +66,12 @@ struct RichChatMcpAppView: View {
         McpAppContentView(
           app: app, actions: actions, theme: colorScheme == .dark ? "dark" : "light",
           onHeight: { height = $0 }, onUnavailable: { unavailable = true }
-        ).frame(height: height)
+        )
+        .frame(height: height)
+        .clipShape(PoracodeShapes.content)
       }
     }
-    .clipShape(PoracodeShapes.content)
+    .accessibilityIdentifier("native-e2e.mcp-app.card")
   }
 }
 

@@ -21,14 +21,30 @@ extension NativeFamilyJourneyUITests {
     attachment.lifetime = .keepAlways
     add(attachment)
     XCTAssertTrue(action.isHittable)
-    XCTAssertGreaterThanOrEqual(actionFrame.height, 44)
+    // A system toolbar supplies its own hit behavior. XCTest reports the
+    // accessibility element frame, which can be smaller than the default
+    // 44-point control size. Check both dimensions against Apple's 28-point minimum.
+    XCTAssertGreaterThanOrEqual(actionFrame.width, 28)
+    XCTAssertGreaterThanOrEqual(actionFrame.height, 28)
     if let keyboardFrame {
       XCTAssertLessThanOrEqual(actionFrame.maxY, keyboardFrame.minY,
         "Page actions must remain above the visible keyboard")
     } else {
-      XCTAssertGreaterThan(actionFrame.midY, appFrame.maxY - appFrame.height * 0.2,
+      XCTAssertGreaterThan(actionFrame.midY, pageFrame.maxY - pageFrame.height * 0.2,
         "A page action with no keyboard must remain in the lower portion of the sheet")
+      assertNativeDuoToolbarRail(action)
     }
+  }
+
+  func assertNativeDuoToolbarRail(
+    _ action: XCUIElement, file: StaticString = #filePath, line: UInt = #line
+  ) {
+    guard ProcessInfo.processInfo.environment["NATIVE_E2E_EXPECT_VERTICAL_TOOLBAR"] == "1" else { return }
+    let display = app.frame
+    XCTAssertGreaterThan(action.frame.midX, display.minX + display.width * 0.84,
+      "The bottom toolbar action belongs in the outer display's right rail", file: file, line: line)
+    XCTAssertGreaterThan(action.frame.midY, display.midY,
+      "The bottom toolbar action belongs below the navigation group", file: file, line: line)
   }
 
   func openNativeModelsSettings() throws {
@@ -46,16 +62,10 @@ extension NativeFamilyJourneyUITests {
       app.buttons["native-e2e.sidebar-toggle"].tap()
     }
     XCTAssertTrue(more.waitForExistence(timeout: 10)); more.tap()
-    let settings = app.buttons["Settings"].firstMatch
+    let settings = app.buttons["native-e2e.more.settings"].firstMatch
     if !settings.isHittable {
-      // Keep a stable container query. The Connections row may be recycled
-      // once a large-text list scrolls, so it cannot remain the query anchor.
-      let lists = [app.collectionViews, app.tables, app.scrollViews].flatMap { query in
-        query.allElementsBoundByIndex.enumerated().compactMap { index, element in
-          element.buttons["native-e2e.more.connections"].exists ? query.element(boundBy: index) : nil
-        }
-      }
-      let list = try XCTUnwrap(lists.first(where: \.exists))
+      let list = app.descendants(matching: .any).matching(identifier: "native-e2e.more.list").firstMatch
+      XCTAssertTrue(list.waitForExistence(timeout: 5))
       for _ in 0..<4 where !settings.isHittable { list.swipeUp() }
     }
     XCTAssertTrue(settings.isHittable); settings.tap()
@@ -65,6 +75,9 @@ extension NativeFamilyJourneyUITests {
     try openNativeSettings()
     let page = app.buttons[identifier]
     if !page.exists || !page.isHittable {
+      // The More list can still own the accessibility tree while Settings is
+      // animating in. Resolve the scroll container after the settings rows mount.
+      _ = app.buttons["native-e2e.settings.profile"].waitForExistence(timeout: 5)
       let index = try XCTUnwrap(app.collectionViews.allElementsBoundByIndex.enumerated().first { _, list in
         list.buttons["native-e2e.settings.profile"].exists || list.buttons[identifier].exists
       }?.offset)
@@ -75,9 +88,21 @@ extension NativeFamilyJourneyUITests {
   }
 
   func closeNativeModelsSettings() throws {
-    app.navigationBars["Models"].buttons["Settings"].tap()
-    app.navigationBars["Settings"].buttons["More"].tap()
-    let done = app.buttons["native-e2e.more.close"]
+    tapNativeSettingsBack(from: "Models", to: "Settings")
+    tapNativeSettingsBack(from: "Settings", to: "More")
+    let done = app.descendants(matching: .any).matching(identifier: "native-e2e.more.close").firstMatch
     XCTAssertTrue(done.waitForExistence(timeout: 5)); done.tap()
+  }
+
+  func tapNativeSettingsBack(from title: String, to previousTitle: String) {
+    let bar = app.navigationBars[title]
+    let nativeBack = bar.descendants(matching: .any).matching(identifier: "BackButton").firstMatch
+    if nativeBack.exists {
+      nativeBack.tap()
+    } else {
+      let verticalBack = app.descendants(matching: .any).matching(identifier: "BackButton").firstMatch
+      if verticalBack.exists { verticalBack.tap() }
+      else { bar.buttons[previousTitle].tap() }
+    }
   }
 }

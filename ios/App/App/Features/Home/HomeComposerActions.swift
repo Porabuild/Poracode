@@ -54,27 +54,35 @@ extension HomeQuickComposeView {
   }
 
   func start() {
+    let providerSwitch = draft.providerSwitch
+    let presentationMode = draft.presentationMode
     let typedText = draft.prompt.trimmingCharacters(in: .whitespacesAndNewlines)
     let mentionPrompt =
       (draft.fileMentions.map { "@\($0)" } + draft.mentionedMCPs.map { "@\($0.name)" } + draft.skills.map(\.invocation)
         + draft.additionalSegments.compactMap(\.promptText))
       .joined(separator: " ")
-    let text = typedText.isEmpty ? launchSeed?.defaultPrompt ?? mentionPrompt : typedText
-    guard ownsCurrentConnection, RichPromptSegment.isSendable(prompt: text, segments: draft.additionalSegments) || !draft.attachments.isEmpty,
+    let defaultPrompt = providerSwitch != nil && launchSeed?.promptPrefix == nil
+      ? "Continue where the previous provider left off." : launchSeed?.defaultPrompt
+    let text = typedText.isEmpty ? defaultPrompt ?? mentionPrompt : typedText
+    guard canStart, RichPromptSegment.isSendable(prompt: text, segments: draft.additionalSegments) || !draft.attachments.isEmpty,
       let project = selectedProject, let launchAgent = selectedAgent,
       let configuration = effectiveConfiguration,
       let settings = draft.tools.document.document,
-      let target = session.threadLifecycleTarget(threadID: draft.threadID)
+      let target = session.threadLifecycleTarget(threadID: draft.launchThreadID)
     else { return }
     let launchConfiguration = ComposerPluginCatalog.launchConfiguration(configuration, document: settings,
       capabilities: selectedAgent.map { HomeComposerCatalog.capabilities(for: $0, presentationMode: draft.presentationMode) } ?? [:],
       presentation: draft.presentationMode, location: project.location,
       mentionedIDs: Set(draft.mentionedMCPs.map(\.id)))
     draft.failureMessage = nil
-    let attachmentSegments = draft.attachments.map {
-      ThreadPromptSegment.attachment(path: $0.remotePath, mimeType: $0.mimeType)
+    let attachments = draft.attachments
+    let textSegments: [ThreadPromptSegment] = if !typedText.isEmpty {
+      [.text(content: draft.prompt)]
+    } else if defaultPrompt != nil {
+      [.text(content: text)]
+    } else {
+      []
     }
-    let textSegments: [ThreadPromptSegment] = typedText.isEmpty ? [] : [.text(content: draft.prompt)]
     let additional: [ThreadPromptSegment]
     do { additional = try draft.additionalSegments.map { try $0.lifecyclePromptSegment() } }
     catch { draft.failureMessage = ThreadLifecycleStrings.failureMessage(.invalidRequest); return }
@@ -84,10 +92,38 @@ extension HomeQuickComposeView {
       + draft.skills.map(\.threadSegment)
       + additional
     let separatedContext = contextSegments.flatMap { [$0, ThreadPromptSegment.text(content: " ")] }
-    let segments = separatedContext + textSegments + attachmentSegments
     let launchAgentKind = launchAgent.kind
     let launchAgentInstanceID = composerAgentInstanceID
+    draft.starting = true
     Task {
+      defer { draft.starting = false }
+      guard let attachmentSegments = await launchAttachments(attachments, target: target),
+        session.currentThreadHostLease == target.lease, draft.presentationMode == presentationMode
+      else { return }
+      let segments = separatedContext + textSegments + attachmentSegments
+      let launchPrompt = (launchSeed?.promptPrefix ?? "") + text
+      let launchSegments = launchSeed?.promptPrefix.map {
+        [.text(content: $0), .text(content: text), .text(content: " ")]
+          + separatedContext + attachmentSegments
+      } ?? (segments.isEmpty ? nil : segments)
+      if let providerSwitch {
+        guard isCurrentPresentation, providerSwitch.target == target,
+          var request = session.threadStartExistingRequest(threadID: target.threadID, prompt: launchPrompt),
+          request.agentKind == providerSwitch.agentKind, request.presentationMode == .gui
+        else { return }
+        request.agentKind = launchAgentKind
+        request.agentInstanceID = launchAgentInstanceID
+        request.config = launchConfiguration
+        request.presentationMode = .gui
+        request.sessionReference = nil
+        request.segments = launchSegments
+        request.providerSwitch = ThreadProviderSwitch(fromAgentKind: providerSwitch.agentKind,
+          contextStrategy: launchSeed?.promptPrefix == nil ? .threadTranscript : .contextFile)
+        draft.lifecycle.activate(target)
+        await draft.lifecycle.start(request, target: target)
+        await finishLaunch(target: target)
+        return
+      }
       let worktree: (path: String, branch: String, isNew: Bool)?
       if let selection = draft.branchSelection, let path = selection.worktreePath {
         worktree = (path, selection.branch, false)
@@ -103,8 +139,8 @@ extension HomeQuickComposeView {
         guard let prepared else { return }
         worktree = (prepared.path, prepared.branch, true)
       }
+      guard session.currentThreadHostLease == target.lease else { return }
       draft.lifecycle.activate(target)
-      let launchPrompt = (launchSeed?.promptPrefix ?? "") + text
       await draft.lifecycle.relaunch(
         ThreadRelaunchRequest(
           projectID: project.id,
@@ -117,30 +153,57 @@ extension HomeQuickComposeView {
           groupName: launchSeed?.groupName,
           isNewWorktree: worktree?.isNew == true ? true : nil,
           parentThreadID: launchSeed?.parentThreadID,
-          presentationMode: draft.presentationMode,
-          segments: launchSeed?.promptPrefix.map {
-            [.text(content: $0), .text(content: text), .text(content: " ")]
-              + separatedContext + attachmentSegments
-          } ?? (segments.isEmpty ? nil : segments),
+          presentationMode: presentationMode,
+          segments: launchSegments,
           title: launchSeed?.title,
           worktreeBranch: worktree?.branch ?? launchSeed?.worktreeBranch,
           worktreePath: worktree?.path ?? launchSeed?.worktreePath
         ),
         target: target
       )
-      switch draft.lifecycle.lastOutcome {
-      case .succeeded:
-        await session.refreshSnapshot()
-        draft.clearSubmittedContent()
-        if isCurrentPresentation && ownsCurrentConnection { collapseComposer(animated: false) }
+      await finishLaunch(target: target)
+    }
+  }
+
+  private func finishLaunch(target: ThreadLifecycleTarget) async {
+    switch draft.lifecycle.lastOutcome {
+    case .succeeded:
+      if session.currentThreadHostLease == target.lease { await session.refreshSnapshot() }
+      draft.clearSubmittedContent()
+      if session.currentThreadHostLease == target.lease {
+        if isCurrentPresentation { collapseComposer(animated: false) }
         onStarted(target.threadID)
-        draft.threadID = UUID().uuidString.lowercased()
-        activateMedia()
-      case .failed(_, let failure):
-        draft.failureMessage = launchSeed?.failureMessage?(failure) ?? ThreadLifecycleStrings.failureMessage(failure)
-      case nil:
-        break
       }
+      draft.threadID = UUID().uuidString.lowercased()
+      activateMedia()
+    case .failed(_, let failure):
+      draft.failureMessage = launchSeed?.failureMessage?(failure) ?? ThreadLifecycleStrings.failureMessage(failure)
+    case nil:
+      break
+    }
+  }
+
+  private func launchAttachments(_ attachments: [HomeComposerAttachment], target: ThreadLifecycleTarget) async -> [ThreadPromptSegment]? {
+    do {
+      return try await draft.materializeAttachments(attachments, for: target.threadID) { attachment in
+        guard session.currentThreadHostLease == target.lease,
+          let access = session.currentRichChatAccess, let data = attachment.data else { throw CancellationError() }
+        let media = draft.mediaSuite.media
+        draft.mediaSuite.select(access: access, threadID: target.threadID)
+        await media.upload(RichChatMediaController.attachmentPlan(
+          name: attachment.name, contentType: attachment.mimeType, data: data
+        ))
+        guard session.currentThreadHostLease == target.lease else { throw CancellationError() }
+        guard media.state.failure == nil, let uploaded = media.state.uploadedAttachmentPath else {
+          throw media.state.failure ?? RichChatControllerFailure.invalidResponse
+        }
+        return uploaded
+      }
+    } catch is CancellationError {
+      return nil
+    } catch {
+      draft.failureMessage = (error as? RichChatControllerFailure).map(RichChatStrings.failure) ?? RichChatStrings.uploadFailed
+      return nil
     }
   }
 
@@ -331,7 +394,7 @@ extension HomeQuickComposeView {
         draft.failureMessage = RichChatStrings.invalidAttachment
         return
       }
-      let data = try Data(contentsOf: url, options: [.mappedIfSafe])
+      let data = try Data(contentsOf: url, options: launchSeed?.providerSwitchSource == nil ? [.mappedIfSafe] : [])
       let name = values.name ?? url.lastPathComponent
       let mime = values.contentType?.preferredMIMEType ?? "application/octet-stream"
       await uploadAttachment(data: data, name: name, mimeType: mime)
@@ -374,13 +437,17 @@ extension HomeQuickComposeView {
   }
 
   private func uploadAttachment(data: Data, name: String, mimeType: String) async {
-    guard RichAttachmentPolicy.evaluate(name: name, byteCount: Int64(data.count)).accepted else {
+    guard !draft.starting, ownsCurrentConnection else { return }
+    let plan = RichChatMediaController.attachmentPlan(name: name, contentType: mimeType, data: data)
+    guard plan.decision.accepted else {
       draft.failureMessage = RichChatStrings.invalidAttachment
       return
     }
-    await draft.mediaSuite.media.upload(
-      RichChatMediaController.attachmentPlan(name: name, contentType: mimeType, data: data)
-    )
+    if launchSeed?.providerSwitchSource != nil {
+      draft.attachments.append(HomeComposerAttachment(name: name, mimeType: mimeType, data: data))
+      return
+    }
+    await draft.mediaSuite.media.upload(plan)
     guard draft.mediaSuite.media.state.failure == nil,
       let path = draft.mediaSuite.media.state.uploadedAttachmentPath
     else {
@@ -390,7 +457,7 @@ extension HomeQuickComposeView {
       return
     }
     draft.attachments.append(
-      RichChatUploadedAttachment(name: name, mimeType: mimeType, remotePath: path)
+      HomeComposerAttachment(name: name, mimeType: mimeType, remotePath: path)
     )
   }
 }

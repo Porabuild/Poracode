@@ -158,7 +158,11 @@ import XCTest
     let scan = Task { await composition.discoverAgents(.init(wslDistros: []), lease: selection.lease) }
     await gateway.waitForScan()
     let refresh = Task { await composition.refresh(route: .agents, query: .init()) }
-    let write = Task { await composition.writeSettings(.init(values: [.disabledAgents: .array([.string("user-choice")])])) }
+    let write = Task {
+      await composition.writeSettings(
+        .init(values: [.disabledAgents: .array([.string("user-choice")])]), lease: selection.lease
+      )
+    }
     await gateway.waitForWrite()
     await gateway.releaseScan(); await scan.value; await refresh.value
     XCTAssertTrue(composition.document.isWriting)
@@ -178,7 +182,11 @@ import XCTest
     let scan = Task { await composition.discoverAgents(.init(wslDistros: []), lease: selection.lease) }
     await gateway.waitForScan()
     let refresh = Task { await composition.refresh(route: .agents, query: .init()) }
-    let write = Task { await composition.writeSettings(.init(values: [.disabledAgents: .array([.string("choice")])])) }
+    let write = Task {
+      await composition.writeSettings(
+        .init(values: [.disabledAgents: .array([.string("choice")])]), lease: selection.lease
+      )
+    }
     await gateway.waitForReconciliation()
     XCTAssertTrue(composition.isMutating)
     XCTAssertFalse(composition.document.isWriting)

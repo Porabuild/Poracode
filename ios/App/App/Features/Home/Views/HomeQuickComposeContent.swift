@@ -6,7 +6,7 @@ extension HomeQuickComposeView {
     HomeComposerSurface(isExpanded: isExpanded) {
       if isExpanded { expandedSurface } else { compactSurface }
     }
-      if showsNews, !isCompactHeight || !draft.promptFocused {
+      if newsPlacement == .composer, showsNews, !isCompactHeight || !draft.promptFocused {
         newsLine
       }
     }

@@ -1,7 +1,10 @@
 import SwiftUI
 
-struct HomeThreadListView: View {
+struct HomeThreadListView<Footer: View>: View {
   let entries: [HomeThreadListEntry]
+  let completedEntries: [HomeThreadListEntry]
+  let completedCount: Int
+  @Binding var isCompletedSectionExpanded: Bool
   let openingThreadID: String?
   var selectedThreadID: String? = nil
   var selectedConnectionID: ClientConnectionID? = nil
@@ -14,6 +17,7 @@ struct HomeThreadListView: View {
   let lifecycle: HomeThreadLifecycleCoordinator
   let drafts: RichChatComposerDraftStore
   var hasBackgroundActivity: (UnifiedThreadListItem) -> Bool = { _ in false }
+  @ViewBuilder let footer: () -> Footer
 
   @Environment(\.colorScheme) private var colorScheme
   @Environment(\.poracodeTheme) private var theme
@@ -22,22 +26,40 @@ struct HomeThreadListView: View {
   var body: some View {
     ScrollView {
       LazyVStack(spacing: 7) {
-        ForEach(entries) { entry in
-          switch entry {
-          case .thread(let item):
-            threadButton(item, grouped: false)
-          case .worktree(let group):
-            worktreeSection(group)
-          case .conversation(let group):
-            conversationSection(group)
+        threadRows(entries)
+        if completedCount > 0 {
+          DisclosureGroup(isExpanded: $isCompletedSectionExpanded) {
+            threadRows(completedEntries)
+              .padding(.top, 6)
+          } label: {
+            HStack {
+              Text(HomeStrings.doneThreads)
+                .font(.subheadline.weight(.semibold))
+              Text(completedCount, format: .number)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            }
+            .accessibilityIdentifier("native-e2e.home.done-section")
           }
+          .tint(.secondary)
         }
+        footer()
       }
       .padding(.horizontal, 12)
       .padding(.top, 8)
       .padding(.bottom, 12)
     }
     .background(listBackground ?? palette.background)
+  }
+
+  private func threadRows(_ entries: [HomeThreadListEntry]) -> some View {
+    ForEach(entries) { entry in
+      switch entry {
+      case .thread(let item): threadButton(item, grouped: false)
+      case .worktree(let group): worktreeSection(group)
+      case .conversation(let group): conversationSection(group)
+      }
+    }
   }
 
   private func conversationSection(_ group: HomeConversationThreadGroup) -> some View {
@@ -178,6 +200,7 @@ struct HomeThreadListView: View {
       HomeDeviceName.display(item.hostName),
     ]
     if item.thread.isStarred { values.append(HomeStrings.starred) }
+    if item.thread.isDone { values.append(HomeStrings.doneThreads) }
     if hasDraft(item) { values.append(HomeStrings.unsentDraft) }
     let git = ThreadGitSummaryPresentation(summary: gitSummary(item))
     if let changes = git.changes { values.append(changes) }

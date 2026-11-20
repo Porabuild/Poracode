@@ -53,15 +53,13 @@ actor WhisperVoiceTranscriber: VoiceTranscribing {
   }
 }
 
-struct ComposerVoiceTranscriber: VoiceTranscribing {
-  let local: any VoiceTranscribing
-  let hex: any VoiceTranscribing
-  func checkReady(_ options: VoiceInputPreferences) async throws {
-    try await (options.backend == .onDevice ? local : hex).checkReady(options)
+extension AppSession {
+  func makeVoiceTranscriber(for backend: VoiceInputBackend, lease: RichChatHostLease?) -> (any VoiceTranscribing)? {
+    switch backend {
+    case .onDevice: return WhisperVoiceTranscriber()
+    case .hex:
+      guard let lease else { return nil }
+      return VoiceHexTranscriber(gateway: makeVoiceHexGateway(lease: lease))
+    }
   }
-  func transcribe(file: URL, options: VoiceInputPreferences,
-    progress: @escaping @Sendable (VoiceInputProgress) -> Void) async throws -> String {
-    try await (options.backend == .onDevice ? local : hex).transcribe(file: file, options: options, progress: progress)
-  }
-  func cancel() async { await local.cancel(); await hex.cancel() }
 }

@@ -50,23 +50,6 @@ struct SettingsUsagePreferences: Codable, Equatable, Sendable {
   var providerOrder: [String]
   var collapsedProviders: [String]
   var selectedRingGroups: [String: String]
-
-  var settingsJSON: SettingsJSON {
-    .object([
-      "autoRefresh": .bool(autoRefresh),
-      "refreshIntervalMinutes": .integer(Int64(refreshIntervalMinutes)),
-      "providerRefreshIntervals": .object(
-        providerRefreshIntervals.mapValues { .integer(Int64($0)) }
-      ),
-      "showEstimatedCost": .bool(showEstimatedCost),
-      "showInSidebar": .bool(showInSidebar),
-      "sidebarHiddenProviders": .array(sidebarHiddenProviders.map(SettingsJSON.string)),
-      "disabledProviders": .array(disabledProviders.map(SettingsJSON.string)),
-      "providerOrder": .array(providerOrder.map(SettingsJSON.string)),
-      "collapsedProviders": .array(collapsedProviders.map(SettingsJSON.string)),
-      "selectedRingGroups": .object(selectedRingGroups.mapValues(SettingsJSON.string)),
-    ])
-  }
 }
 
 struct SettingsDocument: Codable, Equatable, Sendable {
@@ -86,27 +69,34 @@ struct SettingsDocument: Codable, Equatable, Sendable {
   let titleGenModel: String
   let titleGenEffort: String
   let titleGenFast: Bool
+  // Optional remote-v3 selections take precedence over their legacy scalar mirrors.
+  var titleGenSelection: ThreadConfig? = nil
   let commitGenProvider: String
   let commitGenModel: String
   let commitGenEffort: String
   let commitGenFast: Bool
+  var commitGenSelection: ThreadConfig? = nil
   let conflictResolverProvider: String
   let conflictResolverModel: String
   let conflictResolverEffort: String
   let conflictResolverFast: Bool
+  var conflictResolverSelection: ThreadConfig? = nil
   let conflictResolverPresentationMode: SettingsPresentationMode
   let wslTitleGenProvider: String
   let wslTitleGenModel: String
   let wslTitleGenEffort: String
   let wslTitleGenFast: Bool
+  var wslTitleGenSelection: ThreadConfig? = nil
   let wslCommitGenProvider: String
   let wslCommitGenModel: String
   let wslCommitGenEffort: String
   let wslCommitGenFast: Bool
+  var wslCommitGenSelection: ThreadConfig? = nil
   let wslConflictResolverProvider: String
   let wslConflictResolverModel: String
   let wslConflictResolverEffort: String
   let wslConflictResolverFast: Bool
+  var wslConflictResolverSelection: ThreadConfig? = nil
   let wslConflictResolverPresentationMode: SettingsPresentationMode
   let worktreeStorageMode: SettingsWorktreeStorageMode
   let worktreeBasePath: String
@@ -126,6 +116,8 @@ enum SettingsPatchKey: String, Codable, CaseIterable, Sendable {
   case crews
   case enabledMcpServers, disabledBuiltInMcpServers
   case titleGenProvider, titleGenModel, titleGenEffort, titleGenFast
+  case titleGenSelection, commitGenSelection, conflictResolverSelection
+  case wslTitleGenSelection, wslCommitGenSelection, wslConflictResolverSelection
   case commitGenProvider, commitGenModel, commitGenEffort, commitGenFast
   case conflictResolverProvider, conflictResolverModel, conflictResolverEffort
   case conflictResolverFast, conflictResolverPresentationMode

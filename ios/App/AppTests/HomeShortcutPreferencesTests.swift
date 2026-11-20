@@ -56,6 +56,28 @@ final class HomeShortcutPreferencesTests: XCTestCase {
     XCTAssertEqual(HomeShortcutPreferences(storageValue: preferences.encoded), preferences)
   }
 
+  func testBulkVisibilityPreservesOrderAndFutureIDs() throws {
+    let storedFixture = try fixture()
+    var preferences = try preferences(storedFixture.futureV1)
+    let originalOrder = preferences.order
+    let encodedOrder = try JSONDecoder().decode(Payload.self, from: Data(preferences.encoded.utf8)).order
+
+    preferences.setAllVisible(false)
+    XCTAssertTrue(preferences.visible.isEmpty)
+    XCTAssertEqual(preferences.moreEntries, originalOrder.filter { HomeShortcutID.core.contains($0) })
+    let hidden = try JSONDecoder().decode(Payload.self, from: Data(preferences.encoded.utf8))
+    XCTAssertEqual(hidden.order, encodedOrder)
+    XCTAssertTrue(Set(hidden.hidden).isSuperset(of: storedFixture.futureV1.hidden))
+    XCTAssertEqual(HomeShortcutPreferences(storageValue: preferences.encoded), preferences)
+
+    preferences.setAllVisible(true)
+    XCTAssertEqual(preferences.visible, originalOrder)
+    let shown = try JSONDecoder().decode(Payload.self, from: Data(preferences.encoded.utf8))
+    XCTAssertEqual(shown.order, encodedOrder)
+    XCTAssertEqual(shown.hidden, ["future-action", "settings:future-panel"])
+    XCTAssertEqual(HomeShortcutPreferences(storageValue: preferences.encoded), preferences)
+  }
+
   func testHiddenCoreActionsRemainReachableInMoreAndSettingsPinsKeepTheirOrder() {
     var preferences = HomeShortcutPreferences.default
     for shortcut in HomeShortcutID.core { preferences.setVisible(false, for: shortcut) }
@@ -83,6 +105,18 @@ final class HomeShortcutPreferencesTests: XCTestCase {
     XCTAssertFalse(oldReader.hidden.contains("settings:shortcuts"))
     let oldWritten = try JSONEncoder().encode(oldReader)
     XCTAssertTrue(HomeShortcutPreferences(storageValue: String(decoding: oldWritten, as: UTF8.self)).visible.contains(.settings(.shortcuts)))
+  }
+
+  func testArchivePinStartsHiddenInV1PreferencesAndRoundTrips() throws {
+    let original = try fixture()
+    var preferences = try preferences(original.previousV1)
+    XCTAssertTrue(preferences.hidden.contains(.settings(.archived)))
+    preferences.setVisible(true, for: .settings(.archived))
+    XCTAssertTrue(preferences.moreEntries.contains(.settings(.archived)))
+    let written = try JSONDecoder().decode(Payload.self, from: Data(preferences.encoded.utf8))
+    XCTAssertTrue(written.order.contains("settings:archived"))
+    XCTAssertTrue(written.hidden.contains("future"))
+    XCTAssertEqual(HomeShortcutPreferences(storageValue: preferences.encoded), preferences)
   }
 
   func testMalformedV1DataRecoversWithoutChangingTheDefaultPins() {

@@ -64,6 +64,7 @@ struct WorkflowViewerAgentDetail: View {
     .listStyle(.plain)
     .environment(\.defaultMinListRowHeight, 0)
     .listRowSpacing(6)
+    .richChatActivityPreview()
     .environment(\.transcriptDisclosures, .init(store: disclosures, connectionID: owner.thread.connectionID, threadID: threadID))
     .environment(\.runtimeItemHeadings, nil)
     .environment(\.runtimeItemHeadingSnapshot, controller.headings)

@@ -104,9 +104,7 @@ struct RemoteIntegrationsSessionView: View {
     RemoteIntegrationsScreen(
       session: session,
       selection: session.currentRemoteIntegrationsHostSelection,
-      projects: session.currentRemoteIntegrationsProjects.filter {
-        workspace.includes(projectID: $0.id, connectionID: session.selectedConnectionId)
-      },
+      projects: workspaceProjects,
       scheduleAgents: session.currentRemoteIntegrationsScheduleAgents,
       gateway: gateway,
       singleRoute: initialRoute,
@@ -172,10 +170,14 @@ struct RemoteIntegrationsSessionView: View {
     }
   }
 
-  private var scheduleComposerProject: RemoteProject? {
-    let projectIDs = Set(session.currentRemoteIntegrationsProjects.map(\.id))
-    return session.activeWorkspaceProjects.first {
-      $0.id != RemoteProject.homeScopeID && projectIDs.contains($0.id)
+  private var workspaceProjects: [RemoteIntegrationsProjectOption] {
+    session.currentRemoteIntegrationsProjects.filter {
+      workspace.includes(projectID: $0.id, connectionID: session.selectedConnectionId)
     }
+  }
+
+  private var scheduleComposerProject: RemoteProject? {
+    let projectIDs = Set(workspaceProjects.map(\.id))
+    return session.activeWorkspaceProjects.first { projectIDs.contains($0.id) }
   }
 }

@@ -8,6 +8,11 @@ struct RichChatTruncateIntent: Identifiable, Equatable, Sendable {
   let id: String
 }
 
+struct RichChatRevertIntent {
+  let plan: RichChatMessageRevertPlan
+  let target: RichChatThreadTarget
+}
+
 /// Which timeline items may be truncated after.
 enum RichChatTruncateEligibility {
   /// `thread-runtime-truncate` removes everything *after* the chosen item, so
@@ -32,6 +37,7 @@ struct RichChatTimelineActions {
   let lastVisibleItemID: String?
   var rawItems: [RichRuntimeItem] = []
   var completedTurns: [RichCompletedTurn] = []
+  var rawCompletedTurns: [RichCompletedTurn] = []
   var userMessageStarts: [String: Int64] = [:]
   var checkpoints = RichChatCheckpointCollection(checkpoints: [], turns: [])
   var isTurnActive = false
@@ -80,7 +86,7 @@ struct RichChatTimelineActions {
     let plan = RichChatMessageRevertPlanner.plan(
       userItemID: itemID,
       items: rawItems,
-      completedTurns: completedTurns,
+      completedTurns: rawCompletedTurns,
       checkpoints: checkpoints
     )
     guard let plan, !inheritedItemIDs.contains(plan.checkpointItemID) else { return nil }

@@ -166,7 +166,6 @@ actor SelectedRichChatSessionGateway {
     case .invalidResponse: .invalidResponse
     case .rawTransportUnavailable: .rawTransportUnavailable
     case .ambiguousOutcome: .ambiguousOutcome
-    case .revertFailed: .transport
     }
   }
 

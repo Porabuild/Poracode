@@ -1,9 +1,11 @@
 import SwiftUI
+import UIKit
 
 /// A native list, filter menus and selection toolbar over the same host import
 /// operations used by desktop/PWA. Import does not start a provider turn.
 struct SessionImportView: View {
   @Bindable var session: AppSession
+  @Environment(\.colorScheme) private var colorScheme
   @Environment(\.scenePhase) private var scenePhase
   @State private var controller: SessionImportController
   @State private var query = ""
@@ -11,6 +13,7 @@ struct SessionImportView: View {
   @State private var folder = ""
   @State private var projectID = ""
   @State private var refreshID = 0
+  @State private var keyboardVisible = false
 
   init(session: AppSession) {
     self.session = session
@@ -31,13 +34,30 @@ struct SessionImportView: View {
   private var importable: [ImportableCLISession] { rows.filter { importedID($0) == nil } }
   private var allSelected: Bool { !importable.isEmpty && importable.allSatisfy { controller.selected.contains($0.id) } }
   private var isActive: Bool { scenePhase == .active }
+  private var importPlacement: ToolbarItemPlacement {
+    keyboardVisible && UIDevice.current.userInterfaceIdiom == .pad ? .topBarLeading : .bottomBar
+  }
+  private var ownsSelectedHost: Bool {
+    guard let lease = access?.lease else { return false }
+    return controller.lease == lease
+  }
+  private var loadIdentity: LoadIdentity {
+    let loadAccess = isActive ? access : nil
+    return LoadIdentity(lease: loadAccess?.lease, filter: filter, refresh: refreshID,
+      canList: loadAccess.map { $0.gate(.projectsManage) == nil } ?? false)
+  }
 
   var body: some View {
+    let load = loadIdentity
+    let canImport = load.canList && ownsSelectedHost && !controller.selected.isEmpty
+      && !controller.isImporting && !controller.isLoading && access?.gate(.sessionOperate) == nil
     Group {
       if let access, let failure = access.gate(.projectsManage) {
         ErrorStateView(message: SettingsUIStrings.failure(failure))
       } else if access == nil {
         ErrorStateView(message: RichChatStrings.noSession)
+      } else if !ownsSelectedHost {
+        SettingsLoadingView()
       } else {
         content
       }
@@ -48,27 +68,35 @@ struct SessionImportView: View {
     .textInputAutocapitalization(.never)
     .autocorrectionDisabled()
     .toolbar {
-      ToolbarItem(placement: .topBarTrailing) {
+      ToolbarItemGroup(placement: .topBarTrailing) {
+        HostSelectionMenu(session: session)
         Button(allSelected ? SessionImportStrings.deselectAll : SessionImportStrings.selectAll) {
           if allSelected { controller.selected.subtract(importable.map(\.id)) }
           else { controller.selected.formUnion(importable.map(\.id)) }
         }
-        .disabled(controller.isImporting || importable.isEmpty)
+        .disabled(!load.canList || !ownsSelectedHost || controller.isImporting || importable.isEmpty)
       }
-      ToolbarItem(placement: .bottomBar) {
-        Button(SessionImportStrings.importSelected, systemImage: "tray.and.arrow.down") { startImport() }
-          .disabled(controller.selected.isEmpty || controller.isImporting || controller.isLoading
-            || access == nil || access?.gate(.sessionOperate) != nil)
-          .accessibilityValue(String(controller.selected.count))
-          .accessibilityIdentifier("native-e2e.session-import.run")
+      ToolbarItem(placement: importPlacement) {
+        Button(action: startImport) {
+          Label {
+            Text(SessionImportStrings.importSelected)
+          } icon: {
+            Image.poracodeToolbarSymbol("tray.and.arrow.down", colorScheme: colorScheme, isEnabled: canImport)
+          }
+        }
+        .disabled(!canImport)
+        .accessibilityValue(String(controller.selected.count))
+        .accessibilityIdentifier("native-e2e.session-import.run")
       }
     }
-    .task(id: LoadIdentity(lease: access?.lease, filter: filter, refresh: refreshID, active: isActive)) {
-      controller.activate(isActive ? access?.lease : nil)
-      guard isActive, access?.gate(.projectsManage) == nil else { return }
-      if !query.isEmpty { try? await Task.sleep(for: .milliseconds(400)) }
+    .poracodeAvoidKeyboard(isActive: false) { keyboardVisible = $0 > 0 }
+    .task(id: load) {
       guard !Task.isCancelled else { return }
-      await controller.load(filter)
+      controller.activate(load.lease)
+      guard load.canList else { return }
+      if load.filter.query != nil { try? await Task.sleep(for: .milliseconds(400)) }
+      guard !Task.isCancelled, controller.lease == load.lease else { return }
+      await controller.load(load.filter)
     }
     .onChange(of: projects.map(\.id), initial: true) { _, ids in
       if !ids.contains(projectID) { projectID = ids.first ?? "" }
@@ -83,8 +111,9 @@ struct SessionImportView: View {
   private var content: some View {
     List {
       Section {
-        LabeledContent(SettingsUIStrings.selectedHost) {
-          HostSelectionMenu(session: session, showsSelectedHost: true)
+        if let selectedHost = session.currentSettingsHostSelection {
+          LabeledContent(SettingsUIStrings.selectedHost, value: selectedHost.name)
+            .accessibilityIdentifier("native-e2e.session-import.desktop")
         }
         Picker(HomeStrings.agent, selection: $agentKind) {
           Text(SessionImportStrings.allAgents).tag("")
@@ -92,6 +121,7 @@ struct SessionImportView: View {
             Text(agentLabel(kind)).tag(kind)
           }
         }
+        .accessibilityIdentifier("native-e2e.session-import.agent-filter")
         Picker(SessionImportStrings.folder, selection: $folder) {
           Text(SessionImportStrings.allFolders).tag("")
           ForEach(controller.listing?.facets.folders ?? [], id: \.self) { path in Text(path).tag(path) }
@@ -129,7 +159,10 @@ struct SessionImportView: View {
     }
     .listStyle(.insetGrouped)
     .poracodeReadableListMargins(760)
-    .refreshable { await controller.load(filter) }
+    .refreshable {
+      guard ownsSelectedHost else { return }
+      await controller.load(filter)
+    }
   }
 
   @ViewBuilder
@@ -157,7 +190,7 @@ struct SessionImportView: View {
   private func rowContent(_ item: ImportableCLISession, imported: Bool, selected: Bool) -> some View {
     HStack(spacing: 12) {
         Image(systemName: imported || selected ? "checkmark.circle.fill" : "circle")
-          .foregroundStyle(imported ? Color.secondary : Color.primary)
+          .foregroundStyle(imported ? Color.poracodeSecondaryLabel : Color.primary)
           .accessibilityHidden(true)
         VStack(alignment: .leading, spacing: 4) {
           Text(item.displayTitle).font(.body).lineLimit(2).foregroundStyle(.primary)
@@ -189,7 +222,9 @@ struct SessionImportView: View {
   }
 
   private func startImport() {
+    guard let lease = access?.lease, controller.lease == lease else { return }
     Task {
+      guard self.access?.lease == lease, controller.lease == lease else { return }
       await controller.importSelected(projects: projects, fallbackProjectID: projectID,
         threads: hostThreads, agents: session.state.replay.agentStatuses.ordered,
         refresh: { await session.refreshUnifiedThreadList() })
@@ -200,6 +235,6 @@ struct SessionImportView: View {
     let lease: SettingsHostLease?
     let filter: SessionImportFilter
     let refresh: Int
-    let active: Bool
+    let canList: Bool
   }
 }

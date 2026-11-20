@@ -10,7 +10,7 @@ protocol ProjectRemoteAPI: Sendable {
   func remoteBrowseHostDirectory(path: String) async throws -> BrowseHostDirectoryResult
   func remoteDetectSetupScript(location: ProjectLocation) async throws -> DetectSetupScriptResult
   func remoteLoadProjectNotes(projectId: String) async throws -> ProjectNotesResponse
-  func remoteWriteProjectNotes(_ body: ProjectNotesWriteBody, projectId: String) async throws
+  func remoteWriteProjectNotes(_ body: ProjectNotesWriteBody, projectId: String) async throws -> ProjectNotesSaveResult?
 }
 
 /// A mutation reached the transport but no authoritative response established its outcome.
@@ -115,7 +115,7 @@ extension RemoteAPIClient: ProjectRemoteAPI {
   func remoteWriteProjectNotes(
     _ body: ProjectNotesWriteBody,
     projectId: String
-  ) async throws {
+  ) async throws -> ProjectNotesSaveResult? {
     let validated = try GeneratedRemoteV3Contract.projectNotesWritePath(projectId: projectId)
     let request = try GeneratedRemoteV3Contract.projectNotesWriteRequest(
       JSONDecoding.encoder.encode(body)
@@ -125,7 +125,10 @@ extension RemoteAPIClient: ProjectRemoteAPI {
       jsonBody: request
     )
     do {
-      _ = try GeneratedRemoteV3Contract.projectNotesWriteResponse(response)
+      let canonical = try GeneratedRemoteV3Contract.projectNotesWriteResponse(response)
+      let result = try JSONDecoding.decode(ProjectNotesWriteResponse.self, from: canonical).result
+      if body.guarded && result == nil { throw ProjectRemoteMutationError.ambiguousOutcome }
+      return result
     } catch is CancellationError {
       throw CancellationError()
     } catch {

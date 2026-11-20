@@ -5,6 +5,21 @@ enum RichChatStrings {
     NSLocalizedString(key, tableName: nil, bundle: .main, value: fallback, comment: "")
   }
 
+  static let findInChat = value("rich_chat_find", "Find in chat")
+  static let restorePreviousDraft = value("rich_chat_restore_previous_draft", "Restore previous draft")
+  static let restoreRevertedPrompt = value("rich_chat_restore_reverted_prompt", "Restore reverted prompt")
+  static let clearFind = value("rich_chat_find_clear", "Clear search")
+  static let findNoResults = value("rich_chat_find_empty", "No results")
+  static let findMatchCase = value("rich_chat_find_case", "Match case")
+  static let findPrevious = value("rich_chat_find_previous", "Previous match")
+  static let findNext = value("rich_chat_find_next", "Next match")
+  static let findClose = value("rich_chat_find_close", "Close find")
+
+  static func findPosition(_ current: Int, _ total: Int) -> String {
+    String(format: value("rich_chat_find_position", "%1$lld of %2$lld"),
+      locale: .current, Int64(current), Int64(total))
+  }
+
   static func permissionOption(_ label: String) -> String {
     switch label {
     case "Ask When Needed": value("rich_chat_ask_when_needed", label)
@@ -18,6 +33,8 @@ enum RichChatStrings {
   }
 
   static let refreshTranscript = value("rich_chat_refresh_transcript", "Refresh transcript")
+  static let openRequiredURL = value("rich_chat_open_required_url", "Open required URL")
+  static let decline = value("rich_chat_request_decline", "Decline")
   static let usageStale = value("rich_chat_usage_stale", "Usage is stale. Refresh to update.")
   static let refreshRequired = value(
     "rich_chat_refresh_required",
@@ -82,6 +99,7 @@ enum RichChatStrings {
   static let noMCPServersReported = value("rich_chat_no_mcp_servers_reported", "No enabled custom MCP servers reported")
   static let sessionBindingsReadOnly = value("rich_chat_session_bindings_read_only", "Bindings reported for this thread. Start a new thread to change them.")
   static let playVideo = value("rich_chat_play_video", "Play video")
+  static let pauseVideo = value("rich_chat_pause_video", "Pause video")
   static let delegatedAgents = value("rich_chat_agents", "Agents")
   static let moveSectionUp = value("rich_chat_section_move_up", "Move up")
   static let moveSectionDown = value("rich_chat_section_move_down", "Move down")
@@ -127,6 +145,8 @@ enum RichChatStrings {
   static let allow = value("rich_chat_allow", "Allow")
   static let deny = value("rich_chat_deny", "Deny")
   static let showDetails = value("rich_chat_show_details", "Show details")
+  static let showAllActivity = value("rich_chat_activity_show_all", "Show all")
+  static let showLessActivity = value("rich_chat_activity_show_less", "Show less")
   static let hideDetails = value("rich_chat_hide_details", "Hide details")
 
   static let goal = value("rich_chat_goal", "Goal")
@@ -235,6 +255,10 @@ enum RichChatStrings {
     "rich_chat_queue_edit_footer",
     "The queue is paused while editing. Saving keeps any attachments and mentions."
   )
+  static let queueEditChanged = value(
+    "rich_chat_queue_edit_changed",
+    "The queued message changed. You can copy your draft before closing this editor."
+  )
   static let queueEmpty = value("rich_chat_queue_empty", "No queued follow-ups.")
   static func queueSegmentCount(_ count: Int) -> String {
     let format = value("rich_chat_queue_segment_count", "%lld attachments & mentions")
@@ -326,6 +350,7 @@ enum RichChatStrings {
   static let htmlVisualTitle = value("rich_chat_html_visual_title", "HTML preview")
   static let htmlVisualSource = value("rich_chat_html_visual_source", "Source")
   static let htmlVisualPreview = value("rich_chat_html_visual_preview", "Preview")
+  static let htmlVisualExpand = value("rich_chat_html_visual_expand", "Expand visual")
   static let htmlVisualCopySource = value("rich_chat_html_visual_copy_source", "Copy source")
   static let htmlVisualLoading = value("rich_chat_html_visual_loading", "Loading preview…")
   static let htmlVisualIncomplete = value(
@@ -356,6 +381,10 @@ enum RichChatStrings {
     )
   }
 
+  static func previewFile(_ fileName: String) -> String {
+    String(format: value("rich_chat_preview_file", "Preview %@"), fileName)
+  }
+
   static func downloadFailed(_ fileName: String) -> String {
     String(
       format: value("rich_chat_download_failed", "Unable to download %@."),
@@ -383,6 +412,10 @@ enum RichChatStrings {
     "rich_chat_continue_in_provider", "Continue in another provider"
   )
   static let handoffFork = value("rich_chat_handoff_fork", "Fork Conversation")
+  static let handoffSwitch = value("rich_chat_handoff_switch", "Switch")
+  static func providerSwitched(from: String, to: String) -> String {
+    String(format: value("rich_chat_provider_switched", "Switched from %1$@ to %2$@"), locale: .current, from, to)
+  }
   static let handoffPrompt = value(
     "rich_chat_handoff_prompt", "Tell the new provider what to do next…"
   )

@@ -1,5 +1,35 @@
 import SwiftUI
 
+private struct RichChatProviderLabelsKey: EnvironmentKey {
+  static let defaultValue: [String: String] = [:]
+}
+
+extension EnvironmentValues {
+  var richChatProviderLabels: [String: String] {
+    get { self[RichChatProviderLabelsKey.self] }
+    set { self[RichChatProviderLabelsKey.self] = newValue }
+  }
+}
+
+struct RichChatProviderHandoffRow: View {
+  let item: RichRuntimeItem
+  @Environment(\.richChatProviderLabels) private var providerLabels
+
+  var body: some View {
+    if let payload = item.payload?.objectValue,
+      let from = RichDecoding.requiredString(payload, "fromAgentKind", allowEmpty: false),
+      let to = RichDecoding.requiredString(payload, "toAgentKind", allowEmpty: false) {
+      let title = RichChatStrings.providerSwitched(from: providerLabels[from] ?? from, to: providerLabels[to] ?? to)
+      Label(title, systemImage: "arrow.left.arrow.right")
+        .poracodeChatText(.metadata)
+        .foregroundStyle(.secondary)
+        .padding(.horizontal, 12)
+        .accessibilityLabel(title)
+        .accessibilityIdentifier("native-e2e.transcript.provider-handoff")
+    }
+  }
+}
+
 /// A window-owned shortcut into the existing handoff flow. Both the host
 /// lease and provider session must still be the ones the roster displayed.
 struct ThreadProviderHandoffRequest: Equatable {
@@ -17,10 +47,13 @@ enum ThreadProviderHandoffMode: String, Identifiable {
 
 struct ThreadProviderHandoffIntent: Identifiable {
   let mode: ThreadProviderHandoffMode
+  let source: ThreadLifecycleTarget
   let groupID: String?
   let groupName: String?
 
   var id: String { mode.rawValue }
+
+  func owns(_ target: ThreadLifecycleTarget?) -> Bool { target == source }
 }
 
 struct ThreadProviderHandoffTarget: Equatable {
@@ -199,6 +232,7 @@ struct ThreadProviderHandoffSheet: View {
     }
     .presentationDetents([.large])
     .presentationDragIndicator(.visible)
+    .modifier(PoracodeRetainNavigationWhilePresented())
   }
 
   private var launchSeed: HomeThreadLaunchSeed {
@@ -220,7 +254,10 @@ struct ThreadProviderHandoffSheet: View {
       groupID: intent.groupID,
       groupName: intent.groupName,
       title: thread.title,
-      excludedAgentKind: thread.agentKind
+      excludedAgentKind: thread.agentKind,
+      providerSwitchSource: intent.mode == .move && thread.presentationMode == "gui"
+        ? HomeProviderSwitchSource(target: intent.source, agentKind: thread.agentKind)
+        : nil
     )
   }
 

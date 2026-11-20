@@ -70,7 +70,7 @@ struct ProjectShellTerminalView: View {
           ToolbarItem(placement: .principal) {
             Text(title ?? TerminalStrings.shellTitle)
               .font(.headline)
-              .foregroundStyle(shell.phase == .live ? .white : .primary)
+              .foregroundStyle(.primary)
               .accessibilityAddTraits(.isHeader)
           }
         }

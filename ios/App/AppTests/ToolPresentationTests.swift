@@ -421,6 +421,25 @@ import SwiftUI
     XCTAssertEqual(presentation.header?.labelChoice?.values["create"], "create")
   }
 
+  func testToolDisclosureFollowsVisibleSectionContent() throws {
+    let catalog = try catalog()
+    let generic = try XCTUnwrap(catalog.itemTypes["mcp_tool_call"])
+    var item = RichRuntimeItem(id: "empty", type: "mcp_tool_call", state: .completed,
+      payload: .object(["name": .string("status"), "args": .null, "result": .string("")]),
+      streams: [:], parentItemID: nil)
+    XCTAssertFalse(RichToolTextProjection.hasSections(generic, item: item))
+    XCTAssertTrue(RichToolTextProjection.sections(generic, item: item).isEmpty)
+
+    item.payload = .object(["name": .string("status"), "result": .object(["detailedContent": .string("Ready")])])
+    XCTAssertTrue(RichToolTextProjection.hasSections(generic, item: item))
+    XCTAssertEqual(RichToolTextProjection.sections(generic, item: item).first?.part.text, "Ready")
+
+    let command = try XCTUnwrap(catalog.itemTypes["command_execution"])
+    item.payload = .object([:])
+    item.streams = ["command_output": "\u{001B}[0m"]
+    XCTAssertFalse(RichToolTextProjection.hasSections(command, item: item))
+  }
+
   func testHostDeclaredMediaReferencesUseTheExistingImagePolicy() throws {
     let catalog = try catalog()
     let inline = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+j3V0AAAAASUVORK5CYII="
@@ -443,6 +462,31 @@ import SwiftUI
     let lines = NativeUnifiedDiffLine.parse(text)
     XCTAssertEqual(lines[2].oldLineNumber, Int64.max)
     XCTAssertNil(lines[3].oldLineNumber)
+  }
+
+  func testSameFileEditRunCombinesHunksAndRetainsFallbackContent() throws {
+    func edit(_ id: String, path: String, patchPath: String, line: Int, deferred: Bool = false, type: String = "file_change") -> RichVisibleTimelineNode {
+      let patch = "diff --git a/\(patchPath) b/\(patchPath)\n--- a/\(patchPath)\n+++ b/\(patchPath)\n@@ -\(line) +\(line) @@\n-old\n+\(id)"
+      let item = RichRuntimeItem(id: id, type: type, state: .completed,
+        payload: .object(["path": .string(path), "kind": .string("edit"), "name": .string("fixture-edit"),
+          "locations": .array([.object(["path": .string(path)])]), "result": .string(patch)]),
+        streams: [:], parentItemID: nil,
+        detailsDeferred: deferred)
+      return .init(item: item, children: [])
+    }
+    let members = [
+      edit("keep focus", path: "src/layout.ts", patchPath: "src/layout.ts", line: 18),
+      edit("keep footer", path: "src/layout.ts", patchPath: "src/layout.ts", line: 25, type: "tool_call"),
+      edit("different patch", path: "src/layout.ts", patchPath: "other.ts", line: 50),
+      edit("load later", path: "src/layout.ts", patchPath: "src/layout.ts", line: 70, deferred: true),
+    ]
+    let merged = RichChatEditRunPatch(members: members, path: "src/layout.ts", presentations: try catalog().itemTypes)
+    let file = try XCTUnwrap(merged.file)
+    XCTAssertEqual(file.lines.filter { $0.kind == .addition }.compactMap(\.newLineNumber), [18, 25])
+    XCTAssertEqual(Set(file.lines.map(\.id)).count, file.lines.count)
+    XCTAssertFalse(file.lines.contains(where: \.isStructuralFileHeader))
+    XCTAssertEqual(merged.edits.map(\.id), ["keep focus", "keep footer"])
+    XCTAssertEqual(merged.fallback.map(\.item.id), ["different patch", "load later"])
   }
 
   func testLargeDiffProjectionRetainsAllRowsAcrossNewInputs() {
@@ -504,6 +548,28 @@ import SwiftUI
     store.retainConnections([b])
     XCTAssertFalse(binding(a).wrappedValue)
     XCTAssertTrue(binding(b).wrappedValue)
+  }
+
+  func testLiveActivityChoicesAreHostScopedAndExpireWhenTheGroupLeavesTheTail() {
+    let store = TranscriptDisclosureStore()
+    let a = TranscriptDisclosureContext(store: store, connectionID: ClientConnectionID(), threadID: "same")
+    let b = TranscriptDisclosureContext(store: store, connectionID: ClientConnectionID(), threadID: "same")
+    let group = "tool-call-group:run"
+    XCTAssertTrue(a.tailBinding(id: group, opensByDefault: true).wrappedValue)
+    XCTAssertNil(a.focusID, "Automatic expansion must not move the reader's scroll anchor")
+    a.tailBinding(id: group, opensByDefault: true).wrappedValue = false
+    a.updateActivityTail(group)
+    XCTAssertFalse(a.tailBinding(id: group, opensByDefault: true).wrappedValue)
+    XCTAssertTrue(b.tailBinding(id: group, opensByDefault: true).wrappedValue)
+    a.tailBinding(id: group, opensByDefault: false).wrappedValue = true
+    XCTAssertEqual(a.focusID, group)
+    TranscriptDisclosureContext.binding(a, id: "activity-history:group", fallback: .constant(false),
+      focuses: false).wrappedValue = true
+    XCTAssertEqual(a.focusID, group)
+    a.updateActivityTail(nil)
+    XCTAssertNil(a.focusID)
+    XCTAssertFalse(TranscriptDisclosureContext.binding(a, id: group, fallback: .constant(false)).wrappedValue)
+    XCTAssertFalse(a.tailBinding(id: group, opensByDefault: false).wrappedValue)
   }
 }
 

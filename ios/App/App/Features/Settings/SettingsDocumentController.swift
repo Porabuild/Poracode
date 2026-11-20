@@ -26,12 +26,18 @@ final class SettingsDocumentController {
   private(set) var state: SettingsLoadState = .idle
   private(set) var document: SettingsDocument?
   private(set) var isWriting = false
+  private var lastRequestWasWrite = false
 
   @ObservationIgnored private let gateway: any SettingsSessionGateway
   @ObservationIgnored private var requestOrdinal: UInt64 = 0
   @ObservationIgnored private var task: Task<Void, Never>?
 
   init(gateway: any SettingsSessionGateway) { self.gateway = gateway }
+
+  var refreshFailure: SettingsOperationFailure? {
+    guard !lastRequestWasWrite, case .failed(let failure) = state else { return nil }
+    return failure
+  }
 
   func activate(_ lease: SettingsHostLease?) {
     guard self.lease != lease else { return }
@@ -43,13 +49,6 @@ final class SettingsDocumentController {
 
   func load() async {
     await run(isWrite: false) { gateway, lease in try await gateway.readSettings(lease: lease) }
-  }
-
-  /// Deferred page/pull refreshes must not cancel an explicit preference write
-  /// or start a read for a host selected after the refresh began.
-  func loadIfNotWriting(lease expected: SettingsHostLease) async {
-    guard lease == expected, !isWriting else { return }
-    await load()
   }
 
   /// Performs exactly one remote settings-write attempt. Ambiguous outcomes are surfaced in
@@ -68,6 +67,7 @@ final class SettingsDocumentController {
     guard let lease else { return }
     replaceRequest()
     isWriting = isWrite
+    lastRequestWasWrite = isWrite
     let ordinal = requestOrdinal
     state = .loading
     let gateway = self.gateway

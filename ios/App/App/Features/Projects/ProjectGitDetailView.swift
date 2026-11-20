@@ -1,32 +1,71 @@
 import SwiftUI
 
-enum ProjectGitSheetDestination: String, Identifiable {
+enum ProjectGitDestination: Identifiable {
   case gitOperations
   case gitHubOperations
   case review
-  var id: String { rawValue }
+  case createPullRequest(ProjectGitPullRequestDraft)
+
+  var id: String {
+    switch self {
+    case .gitOperations: "gitOperations"
+    case .gitHubOperations: "gitHubOperations"
+    case .review: "review"
+    case .createPullRequest(let draft): draft.id.uuidString
+    }
+  }
+
+  var ownsGitConfirmation: Bool {
+    if case .gitOperations = self { return true }
+    return false
+  }
 }
 
-struct ProjectGitEmbeddedSheet: View {
-  let destination: ProjectGitSheetDestination
+struct ProjectGitDestinationSheet: View {
+  @Environment(\.dismiss) private var dismiss
+  let destination: ProjectGitDestination
   let context: ProjectWorkspaceContext?
   @Bindable var operationsController: GitOperationsController
   let gitHubContext: GitHubControllerContext?
   let gitHubControllers: GitHubOperationsControllerSuite
   let reviewDestination: ProjectReviewDetailsView?
+  let creation: ProjectGitPullRequestCreation
+  let refreshGit: () async -> Void
 
+  @ViewBuilder
   var body: some View {
-    NavigationStack {
-      switch destination {
-      case .gitOperations:
-        GitOperationsPanel(context: context, controller: operationsController)
-      case .gitHubOperations:
-        GitHubOperationsPanel(context: gitHubContext, controllers: gitHubControllers)
-      case .review:
-        if let reviewDestination { reviewDestination }
+    if case .createPullRequest(let draft) = destination {
+      ProjectGitPullRequestSheet(
+        draft: draft, creation: creation, context: gitHubContext,
+        controllers: gitHubControllers, refreshGit: refreshGit
+      )
+    } else {
+      NavigationStack {
+        pane.toolbar {
+          ToolbarItem(placement: .cancellationAction) {
+            Button(AdvancedOperationsStrings.close, systemImage: "xmark") { dismiss() }
+              .accessibilityIdentifier("native-e2e.git.destination.close")
+          }
+        }
       }
+      .poracodePageSheetSizing()
+      .modifier(PoracodeRetainNavigationWhilePresented())
+      .nativeCommands(identity: "workspace.git-destination", blocksParentActions: true)
     }
-    .poracodePageSheetSizing()
+  }
+
+  @ViewBuilder
+  private var pane: some View {
+    switch destination {
+    case .gitOperations:
+      GitOperationsPanel(context: context, controller: operationsController)
+    case .gitHubOperations:
+      GitHubOperationsPanel(context: gitHubContext, controllers: gitHubControllers)
+    case .review:
+      if let reviewDestination { reviewDestination }
+    case .createPullRequest:
+      EmptyView()
+    }
   }
 }
 
@@ -62,7 +101,7 @@ enum ProjectGitOperationDispatcher {
     default:
       return
     }
-    Task { await operationsController.submit(request) }
+    Task { await operationsController.submit(request, expectedLease: context.lease) }
   }
 
   @MainActor
@@ -83,7 +122,7 @@ enum ProjectGitOperationDispatcher {
     default:
       return
     }
-    Task { await operationsController.submit(request) }
+    Task { await operationsController.submit(request, expectedLease: context.lease) }
   }
 }
 
@@ -131,8 +170,8 @@ struct ProjectGitDetailView: View {
   }
 
   private func submit(_ request: GitOperationRequest) {
-    guard context?.lease.location == request.ownerLocation else { return }
-    Task { await operationsController.submit(request) }
+    guard let lease = context?.lease, lease.location == request.ownerLocation else { return }
+    Task { await operationsController.submit(request, expectedLease: lease) }
   }
 
   @ViewBuilder

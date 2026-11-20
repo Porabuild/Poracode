@@ -4,6 +4,8 @@ import UIKit
 
 struct AudioSettingsView: View {
   @Environment(\.scenePhase) private var scenePhase
+  @Environment(\.settingsSearchField) private var settingsSearchField
+  @Environment(\.horizontalSizeClass) private var horizontalSizeClass
   @Bindable var session: AppSession
   @Bindable private var preferences = VoicePreferencesStore.shared
   @State private var microphoneTest = MicrophoneTestController()
@@ -11,73 +13,34 @@ struct AudioSettingsView: View {
   @State private var hex: HexVoiceSettingsController?
   @State private var confirmsRemoval = false
   @State private var routeFailure: VoiceInputFailure?
+  @State private var dictationTest: VoiceInputController?
   @Environment(\.openURL) private var openURL
 
+  private enum PreviewAnchor { case end, idleStart }
+
   var body: some View {
-    Form {
-      if preferences.incompatible {
-        Section {
-          Text(VoiceStrings.settingsIncompatible)
-          Button(VoiceStrings.reset) { preferences.reset() }
+    ScrollViewReader { scroll in
+      settingsForm
+        .task(id: settingsSearchField) { await scroll.scrollToSetting(settingsSearchField) }
+        .onGeometryChange(for: CGSize.self) { $0.size } action: { _ in
+          if dictationInProgress || dictationTest?.phase == .ready {
+            scroll.scrollTo(PreviewAnchor.end, anchor: .bottom)
+          }
+        }
+        .onChange(of: dictationTest?.phase) { _, phase in
+          if phase == .recording || phase == .ready {
+            scroll.scrollTo(PreviewAnchor.end, anchor: .bottom)
+          }
+        }
+    }
+    .toolbar {
+      if let test = dictationTest, dictationInProgress {
+        if horizontalSizeClass == .regular {
+          ToolbarItemGroup(placement: .topBarTrailing) { dictationControls(test) }
+        } else {
+          ToolbarItemGroup(placement: .bottomBar) { dictationControls(test) }
         }
       }
-      Group {
-        Section {
-          Toggle(VoiceStrings.showButton, isOn: $preferences.value.showButton).poracodeSwitchStyle()
-          if #available(iOS 26.0, *) {
-            VoiceSystemInputPicker(selection: $preferences.value.microphoneID, failure: $routeFailure)
-              .frame(minHeight: 44)
-          } else {
-            Picker(VoiceStrings.microphone, selection: $preferences.value.microphoneID) {
-              Text(VoiceStrings.systemDefault).tag("")
-              ForEach(microphones, id: \.uid) { port in Text(port.portName).tag(port.uid) }
-              if !preferences.value.microphoneID.isEmpty, !microphones.contains(where: { $0.uid == preferences.value.microphoneID }) {
-                Text(VoiceStrings.microphoneUnavailable).tag(preferences.value.microphoneID)
-              }
-            }
-          }
-          if microphoneTest.active {
-            TimelineView(.periodic(from: .now, by: 0.15)) { _ in
-              ProgressView(value: Double(microphoneTest.level)).accessibilityLabel(VoiceStrings.microphone)
-            }
-            Button(VoiceStrings.stop) { microphoneTest.stop() }
-          } else {
-            Button(VoiceStrings.testMicrophone) { microphoneTest.start(preferences.value.microphoneID) }
-              .disabled(microphoneTest.starting)
-              .accessibilityIdentifier("native-e2e.audio.test")
-          }
-          if let failure = microphoneTest.failure { Text(VoiceStrings.failure(failure)).foregroundStyle(.secondary) }
-          if let routeFailure { Text(VoiceStrings.failure(routeFailure)).foregroundStyle(.secondary) }
-          if microphoneTest.failure == .microphoneDenied || routeFailure == .microphoneDenied {
-            Button(VoiceStrings.openSettings) {
-              if let url = URL(string: UIApplication.openSettingsURLString) { openURL(url) }
-            }
-          }
-        } header: { Text(VoiceStrings.microphone) }
-        Section {
-          Picker(VoiceStrings.language, selection: $preferences.value.language) {
-            ForEach(VoiceInputPreferences.languages, id: \.self) { code in
-              Text(Locale.current.localizedString(forLanguageCode: code) ?? code).tag(code)
-            }
-          }
-          Picker(VoiceStrings.backend, selection: $preferences.value.backend) {
-            Text(VoiceStrings.local).tag(VoiceInputBackend.onDevice)
-            Text(VoiceStrings.host).tag(VoiceInputBackend.hex)
-          }
-          .accessibilityIdentifier("native-e2e.audio.backend")
-          if preferences.value.backend == .onDevice {
-            Picker(VoiceStrings.model, selection: $preferences.value.model) {
-              Text(VoiceStrings.tiny).tag(VoiceWhisperModel.tiny)
-              Text(VoiceStrings.base).tag(VoiceWhisperModel.base)
-            }
-            .accessibilityIdentifier("native-e2e.audio.local-model")
-            Toggle(VoiceStrings.acceleration, isOn: $preferences.value.hardwareAcceleration).poracodeSwitchStyle()
-            Text(VoiceStrings.localHint).font(.footnote).foregroundStyle(.secondary)
-          }
-        } header: { Text(VoiceStrings.transcribing) }
-        if preferences.value.backend == .hex { hostSettings }
-      }
-      .disabled(preferences.incompatible)
     }
     .poracodeDrawerListStyle()
     .navigationTitle(VoiceStrings.audio).navigationBarTitleDisplayMode(.inline)
@@ -101,13 +64,183 @@ struct AudioSettingsView: View {
     .onReceive(NotificationCenter.default.publisher(for: AVAudioSession.routeChangeNotification)) { _ in refreshMicrophones() }
     .onReceive(NotificationCenter.default.publisher(for: AVAudioSession.interruptionNotification)) { _ in microphoneTest.stop() }
     .onAppear { refreshMicrophones() }
-    .onDisappear { microphoneTest.stop() }
-    .onChange(of: scenePhase) { _, phase in if phase == .background { microphoneTest.stop() } }
+    .onChange(of: dictationScope) { clearDictationTest() }
+    .onDisappear { stopAudioTests() }
+    .onChange(of: scenePhase) { _, phase in if phase == .background { stopAudioTests() } }
     .confirmationDialog(VoiceStrings.removeTitle, isPresented: $confirmsRemoval, titleVisibility: .visible) {
       Button(VoiceStrings.remove, role: .destructive) { perform("remove_engine") }
       Button(RichChatStrings.cancel, role: .cancel) {}
     } message: { Text(VoiceStrings.removeBody) }
     .accessibilityIdentifier("native-e2e.audio.settings")
+  }
+
+  private var settingsForm: some View {
+    Form {
+      if preferences.incompatible {
+        Section {
+          Text(VoiceStrings.settingsIncompatible)
+          Button(VoiceStrings.reset) { preferences.reset() }
+        }
+      }
+      Group {
+        Section {
+          Toggle(VoiceStrings.showButton, isOn: $preferences.value.showButton).poracodeSwitchStyle()
+            .settingsSearchAnchor(.dictationButton)
+          if #available(iOS 26.0, *) {
+            VoiceSystemInputPicker(selection: $preferences.value.microphoneID, failure: $routeFailure)
+              .frame(minHeight: 44)
+              .settingsSearchAnchor(.microphone)
+          } else {
+            Picker(VoiceStrings.microphone, selection: $preferences.value.microphoneID) {
+              Text(VoiceStrings.systemDefault).tag("")
+              ForEach(microphones, id: \.uid) { port in Text(port.portName).tag(port.uid) }
+              if !preferences.value.microphoneID.isEmpty, !microphones.contains(where: { $0.uid == preferences.value.microphoneID }) {
+                Text(VoiceStrings.microphoneUnavailable).tag(preferences.value.microphoneID)
+              }
+            }
+            .settingsSearchAnchor(.microphone)
+          }
+          if microphoneTest.active {
+            TimelineView(.periodic(from: .now, by: 0.15)) { _ in
+              ProgressView(value: Double(microphoneTest.level)).accessibilityLabel(VoiceStrings.microphone)
+            }
+            Button(VoiceStrings.stop) { microphoneTest.stop() }
+          } else {
+            Button(VoiceStrings.testMicrophone) { microphoneTest.start(preferences.value.microphoneID) }
+              .disabled(microphoneTest.starting || dictationInProgress)
+              .accessibilityIdentifier("native-e2e.audio.test")
+          }
+          if let failure = microphoneTest.failure { Text(VoiceStrings.failure(failure)).foregroundStyle(.secondary) }
+          if let routeFailure { Text(VoiceStrings.failure(routeFailure)).foregroundStyle(.secondary) }
+          if microphoneTest.failure == .microphoneDenied || routeFailure == .microphoneDenied {
+            Button(VoiceStrings.openSettings) {
+              if let url = URL(string: UIApplication.openSettingsURLString) { openURL(url) }
+            }
+          }
+        } header: { Text(VoiceStrings.microphone) }
+        Section {
+          Picker(VoiceStrings.language, selection: $preferences.value.language) {
+            ForEach(VoiceInputPreferences.languages, id: \.self) { code in
+              Text(Locale.current.localizedString(forLanguageCode: code) ?? code).tag(code)
+            }
+          }
+          .settingsSearchAnchor(.dictationLanguage)
+          Picker(VoiceStrings.backend, selection: $preferences.value.backend) {
+            Text(VoiceStrings.local).tag(VoiceInputBackend.onDevice)
+            Text(VoiceStrings.host).tag(VoiceInputBackend.hex)
+          }
+          .accessibilityIdentifier("native-e2e.audio.backend")
+          .settingsSearchAnchor(.dictationBackend)
+          if preferences.value.backend == .onDevice {
+            Picker(VoiceStrings.model, selection: $preferences.value.model) {
+              Text(VoiceStrings.tiny).tag(VoiceWhisperModel.tiny)
+              Text(VoiceStrings.base).tag(VoiceWhisperModel.base)
+            }
+            .accessibilityIdentifier("native-e2e.audio.local-model")
+            Toggle(VoiceStrings.acceleration, isOn: $preferences.value.hardwareAcceleration).poracodeSwitchStyle()
+            Text(VoiceStrings.localHint).font(.footnote).foregroundStyle(.secondary)
+          }
+        } header: { Text(VoiceStrings.transcribing) }
+        if preferences.value.backend == .hex { hostSettings }
+        dictationTestSection
+      }
+      .disabled(preferences.incompatible)
+    }
+  }
+
+  private struct DictationScope: Equatable {
+    let options: VoiceInputPreferences
+    let lease: RichChatHostLease?
+
+    @MainActor init?(preferences: VoicePreferencesStore, session: AppSession) {
+      guard !preferences.incompatible else { return nil }
+      var options = preferences.value
+      // Composer button visibility does not change how the test records.
+      options.showButton = true
+      self.options = options
+      if options.backend == .hex {
+        guard let access = session.currentRichChatAccess, access.controllerGate(.sessionOperate) == nil else { return nil }
+        lease = access.lease
+      } else {
+        lease = nil
+      }
+    }
+  }
+
+  private var dictationScope: DictationScope? { DictationScope(preferences: preferences, session: session) }
+
+  private var dictationInProgress: Bool {
+    switch dictationTest?.phase {
+    case .starting, .recording, .transcribing: true
+    default: false
+    }
+  }
+
+  private var dictationTestSection: some View {
+    Section(VoiceStrings.testDictation) {
+      Text(VoiceStrings.testDictationHint).font(.footnote).foregroundStyle(.secondary)
+      if let test = dictationTest, dictationInProgress {
+        VoiceInputActivity(controller: test).id(PreviewAnchor.end)
+      } else {
+        if let test = dictationTest, test.phase == .ready {
+          Text(test.transcript)
+            .textSelection(.enabled)
+            .accessibilityIdentifier("native-e2e.audio.dictation.transcript")
+          Button(VoiceStrings.clearTranscript) { clearDictationTest() }
+        } else {
+          Text(VoiceStrings.testTranscriptHint).font(.footnote).foregroundStyle(.secondary)
+        }
+        if let test = dictationTest, test.phase == .failed, let failure = test.failure {
+          Text(VoiceStrings.failure(failure)).foregroundStyle(.secondary)
+          if failure == .microphoneDenied {
+            Button(VoiceStrings.openSettings) {
+              if let url = URL(string: UIApplication.openSettingsURLString) { openURL(url) }
+            }
+          }
+          Button(VoiceStrings.retry) { test.retry() }
+            .disabled(!test.canRetry || microphoneTest.active || microphoneTest.starting)
+        }
+        Button(VoiceStrings.start, systemImage: "mic") { startDictationTest() }
+          .disabled(dictationScope == nil || microphoneTest.active || microphoneTest.starting)
+          .accessibilityIdentifier("native-e2e.audio.dictation.start")
+          .id(dictationTest?.phase == .ready ? PreviewAnchor.end : PreviewAnchor.idleStart)
+      }
+    }
+  }
+
+  @ViewBuilder
+  private func dictationControls(_ test: VoiceInputController) -> some View {
+    if test.phase == .recording {
+      Button(VoiceStrings.stop, systemImage: "stop.fill") { test.finishRecording() }
+        .accessibilityIdentifier("native-e2e.audio.dictation.stop")
+    }
+    Button(RichChatStrings.cancel, systemImage: "xmark") { clearDictationTest() }
+      .accessibilityIdentifier("native-e2e.audio.dictation.cancel")
+  }
+
+  private func startDictationTest() {
+    guard !microphoneTest.active, !microphoneTest.starting, !dictationInProgress,
+      let scope = dictationScope,
+      let transcriber = session.makeVoiceTranscriber(for: scope.options.backend, lease: scope.lease)
+    else { return }
+    clearDictationTest()
+    let test = VoiceInputController(options: scope.options, recorder: VoiceCaptureFactory.make(),
+      transcriber: transcriber, isCurrent: { [weak session, preferences] in
+        guard let session else { return false }
+        return DictationScope(preferences: preferences, session: session) == scope
+      })
+    dictationTest = test
+    test.begin()
+  }
+
+  private func clearDictationTest() {
+    dictationTest?.cancel()
+    dictationTest = nil
+  }
+
+  private func stopAudioTests() {
+    microphoneTest.stop()
+    clearDictationTest()
   }
 
   @ViewBuilder private var hostSettings: some View {

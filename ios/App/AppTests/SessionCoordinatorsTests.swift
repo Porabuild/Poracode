@@ -456,6 +456,28 @@ final class UnifiedThreadPresentationTests: XCTestCase {
     XCTAssertEqual(group.threads.map(\.thread.id), ["one", "two"])
   }
 
+  func testKeyboardThreadOrderExpandsGroupsWithinTheCurrentHostAndProject() {
+    let first = ClientConnectionID(), second = ClientConnectionID()
+    let currentProject = project(id: "project", name: "Poracode")
+    let otherProject = project(id: "elsewhere", name: "Poracode")
+    let current = item(connection: first, hostName: "MacBook", project: currentProject,
+      thread: thread(id: "current", title: "Current", worktreePath: "/repo/worktree"))
+    let grouped = item(connection: first, hostName: "MacBook", project: currentProject,
+      thread: thread(id: "grouped", title: "Grouped", worktreePath: "/repo/worktree"))
+    let ungrouped = item(connection: first, hostName: "MacBook", project: currentProject,
+      thread: thread(id: "ungrouped", title: "Ungrouped", worktreePath: nil))
+    let differentHost = item(connection: second, hostName: "Studio", project: currentProject, thread: current.thread)
+    let differentProject = item(connection: first, hostName: "MacBook", project: otherProject,
+      thread: thread(id: "different-project", title: "Other project", worktreePath: "/repo/worktree"))
+
+    let order = HomeThreadListPresentation.keyboardOrder(
+      from: [current, ungrouped, differentHost, differentProject, grouped], currentID: current.id)
+    XCTAssertEqual(order, [current.id, grouped.id, ungrouped.id])
+    XCTAssertEqual(HomeThreadStep.next.target(in: order, from: ungrouped.id), current.id)
+    XCTAssertEqual(HomeThreadStep.previous.target(in: order, from: current.id), ungrouped.id)
+    XCTAssertNil(HomeThreadStep.next.target(in: order, from: differentHost.id))
+  }
+
   func testHomeWorktreeCollapsedStatusPrefersFinishedThenWorking() {
     let connection = ClientConnectionID()
     let project = project(id: "project", name: "Poracode")
@@ -623,6 +645,29 @@ final class UnifiedThreadPresentationTests: XCTestCase {
       ).map(\.thread.id),
       ["two"]
     )
+  }
+
+  func testHomeStatusViewsUseTheChosenDesktopProjectAndKeepCompletedRecency() {
+    let a = ClientConnectionID()
+    let b = ClientConnectionID()
+    let sharedProject = project(id: "shared", name: "Poracode")
+    let active = item(connection: a, hostName: "MacBook", project: sharedProject,
+      thread: thread(id: "same", title: "Still active", worktreePath: nil))
+    let old = item(connection: a, hostName: "MacBook", project: sharedProject,
+      thread: thread(id: "old", title: "Older", worktreePath: nil, done: true, starred: true))
+    let done = item(connection: a, hostName: "MacBook", project: sharedProject,
+      thread: thread(id: "recent", title: "Recent", worktreePath: nil, done: true, updatedAt: "2026-04-01T00:00:00Z"))
+    let other = item(connection: b, hostName: "Studio", project: sharedProject,
+      thread: thread(id: "same", title: "Completed on Studio", worktreePath: nil, done: true))
+    let visible = HomeThreadListScope(workspaceThreads: [old, active, other, done],
+      projectIDs: [HomeThreadListPresentation.projectIdentity(active)])
+    XCTAssertEqual(visible[.active], [active])
+    XCTAssertEqual(visible[.done], [done, old])
+    let otherProject = HomeThreadListScope(workspaceThreads: [old, active, other, done],
+      projectIDs: [HomeThreadListPresentation.projectIdentity(other)])
+    XCTAssertTrue(otherProject[.active].isEmpty)
+    XCTAssertEqual(otherProject[.done], [other])
+    XCTAssertEqual(otherProject.emptyMessage(status: .active, isSplit: false).title, HomeStrings.noMatchingThreads)
   }
 
   func testHomeThreadSearchMatchesPWAStarredRecencyTitleAndLimitRules() {

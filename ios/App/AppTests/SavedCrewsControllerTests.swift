@@ -84,6 +84,29 @@ import XCTest
     XCTAssertTrue(writes.isEmpty)
   }
 
+  func testLateCrewLoadCannotReplaceTheSelectedDesktopSnapshot() async throws {
+    let original = crew("host-a")
+    let current = crew("host-b")
+    let gateway = try gateway([original.wire])
+    let first = selection(), second = selection()
+    let controller = SavedCrewsController(gateway: gateway)
+    controller.activate(first)
+    await gateway.blockNextRead()
+    let stale = Task { await controller.load() }
+    await gateway.waitForRead()
+
+    controller.activate(second)
+    XCTAssertTrue(controller.crews.isEmpty)
+    await gateway.replace([current.wire])
+    await controller.load()
+    await gateway.releaseRead()
+    await stale.value
+
+    XCTAssertEqual(controller.selection, second)
+    XCTAssertEqual(controller.crews.map(\.wire), [current.wire])
+    XCTAssertEqual(controller.state, .loaded)
+  }
+
   func testConcurrentTapDoesNotCancelAnAcceptedMutation() async throws {
     let gateway = try gateway(), selection = selection()
     await gateway.blockNextRead()
@@ -152,12 +175,13 @@ private actor CrewsSettingsGatewayDouble: SettingsSessionGateway {
 
   func readSettings(lease: SettingsHostLease) async throws -> SettingsReadResponse {
     readCount += 1
+    let captured = document
     if block {
       block = false; blocked = true
       blockedWaiters.forEach { $0.resume() }; blockedWaiters = []
       await withCheckedContinuation { release = $0 }
     }
-    return .init(settings: document)
+    return .init(settings: captured)
   }
 
   func writeSettings(_ patch: SettingsPatch, lease: SettingsHostLease) async throws -> SettingsReadResponse {

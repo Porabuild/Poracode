@@ -54,6 +54,7 @@ struct RemoteIntegrationsSchedulesView: View {
     .task(id: loadIdentity) {
       guard isPresentationActive else { return }
       composition.activate(selection)
+      guard composition.gate(.sessionRead) == nil else { return }
       await composition.schedules.load()
       await composition.automations.load()
     }
@@ -79,9 +80,9 @@ struct RemoteIntegrationsSchedulesView: View {
       .poracodeReadableWidth(760)
       .poracodeBarBackground()
     }
-    .poracodeBottomBar {
-      PoracodeBottomActionDock(placement: .trailing) {
-        PoracodeCircleMenu {
+    .toolbar {
+      ToolbarItem(placement: .bottomBar) {
+        Menu {
           if let createWithAgent {
             Button(RemoteIntegrationsStrings.createWithAgent, systemImage: "sparkles") {
               createWithAgent()
@@ -92,13 +93,10 @@ struct RemoteIntegrationsSchedulesView: View {
           }
         } label: {
           Label(RemoteIntegrationsStrings.create, systemImage: "plus")
-            .labelStyle(.iconOnly)
         }
         .disabled(mutationDisabled || agents.isEmpty)
         .accessibilityIdentifier("native-e2e.schedules.create")
       }
-    }
-    .toolbar {
       ToolbarItem(placement: .topBarTrailing) {
         Button { showResults = true } label: {
           Label("\(RemoteAutomationsStrings.results) (\(composition.automations.unreadCount))", systemImage: "tray")
@@ -145,7 +143,7 @@ struct RemoteIntegrationsSchedulesView: View {
 
   private var loadIdentity: RemoteIntegrationsLoadIdentity {
     RemoteIntegrationsLoadIdentity(
-      lease: selection?.lease,
+      access: selection?.access,
       lifecycleGeneration: composition.lifecycleGeneration,
       isPresentationActive: isPresentationActive
     )
@@ -274,7 +272,7 @@ struct RemoteIntegrationsSchedulesView: View {
 
   private var pollingIdentity: RemoteIntegrationsSchedulePollingIdentity {
     RemoteIntegrationsSchedulePollingIdentity(
-      lease: selection?.lease,
+      lease: selection?.access.gate(.sessionRead) == nil ? selection?.lease : nil,
       isPresentationActive: isPresentationActive,
       hasRunningSchedule: hasRunningSchedule,
       isMutating: composition.schedules.isMutating

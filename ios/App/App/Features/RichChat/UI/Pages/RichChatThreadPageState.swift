@@ -10,6 +10,7 @@ final class RichChatThreadPageState {
   let suite: RichChatControllerSuite
   let providerUsageController: SettingsHostInformationController
   let fileMentionController: RichChatFileMentionController
+  let find: RichChatFindState
   private(set) var draft: RichChatThreadDraftState
   /// User-saved per-agent visibility lists from the host settings document —
   /// the model picker's show/hide override. Empty until loaded; a failed load
@@ -21,6 +22,8 @@ final class RichChatThreadPageState {
 
   let session: AppSession
   private let threadID: String
+  private let chatWindow: RichChatWindowSession?
+  private let windowThread: RichChatWindowSession.Thread?
   let isAuxiliary: Bool
   let owningConnectionID: ClientConnectionID?
   private let retainsAuxiliaryState: Bool
@@ -28,15 +31,25 @@ final class RichChatThreadPageState {
   private let visibilityDocument: SettingsDocumentController
   private var ownedGitInterest: GitStateInterest?
   private var heldDraftKey: RichChatComposerDraftKey?
+  private var isMounted = false
   @ObservationIgnored private var mediaIndex = RichChatMediaIndex()
 
-  init(session: AppSession, threadID: String, auxiliary: Bool = false, retainedSuite: RichChatControllerSuite? = nil) {
+  init(session: AppSession, threadID: String, auxiliary: Bool = false, retainedSuite: RichChatControllerSuite? = nil,
+       chatWindow: RichChatWindowSession? = nil) {
     self.session = session
     self.threadID = threadID
     isAuxiliary = auxiliary
     owningConnectionID = session.selectedConnectionId
+    self.chatWindow = chatWindow
+    let windowThread = session.selectedConnectionId.flatMap { connectionID in
+      chatWindow?.acquire(thread: CompositeRemoteID(connectionId: connectionID, remoteId: threadID)) {
+        session.makeRichChatControllerSuite()
+      }
+    }
+    self.windowThread = windowThread
+    find = windowThread?.find ?? RichChatFindState()
     retainsAuxiliaryState = auxiliary && retainedSuite != nil
-    suite = retainedSuite ?? session.makeRichChatControllerSuite()
+    suite = retainedSuite ?? windowThread?.suite ?? session.makeRichChatControllerSuite()
     providerUsageController = SettingsHostInformationController(
       gateway: session.makeSettingsSessionGateway()
     )
@@ -63,9 +76,11 @@ final class RichChatThreadPageState {
   }
 
   func activate() async {
+    guard !Task.isCancelled else { return }
+    isMounted = true
     guard let access = session.currentRichChatAccess else { return }
     guard access.lease.connectionID == owningConnectionID else {
-      session.detachRichChatSuite(suite)
+      session.detachRichChatSuite(suite, owner: presentationOwner)
       return
     }
     let key = RichChatComposerDraftKey(
@@ -81,27 +96,45 @@ final class RichChatThreadPageState {
     if draft.crews == nil { draft.crews = SavedCrewsController(gateway: session.makeSettingsSessionGateway()) }
     draft.crews?.activate(session.currentSettingsHostSelection)
     if draft.consumeQueuedSegments() { composerFocusRevision &+= 1 }
+    let target = RichChatThreadTarget(lease: access.lease, threadID: threadID)
+    let wasLive = chatWindow != nil && session.activeRichChatSuite === suite
+      && suite.scope.target == target && !suite.scope.isBackgrounded
     suite.select(access: access, threadID: threadID)
     updateGallery(suite.transcript.state.transcript?.itemsInOrder ?? [])
-    if retainsAuxiliaryState, suite.scope.isBackgrounded { suite.leaveBackground(access: access) }
-    session.attachRichChatSuite(suite, auxiliary: isAuxiliary, owner: isAuxiliary ? presentationOwner : nil)
+    if (retainsAuxiliaryState || chatWindow != nil), suite.scope.isBackgrounded { suite.leaveBackground(access: access) }
+    session.attachRichChatSuite(suite, auxiliary: isAuxiliary, owner: presentationOwner)
+    if let chatWindow, let windowThread { chatWindow.retain(windowThread) }
     if !isAuxiliary { activateGitInterest() }
     if isTerminal {
-      await suite.terminal.watch(terminalID: threadID)
+      await suite.terminal.ensureWatching(terminalID: threadID)
       return
     }
-    if access.controllerGate(.sessionRead) != nil, suite.transcript.state.transcript != nil { return }
-    await suite.refreshAuthoritativeHistory()
+    switch (wasLive, suite.transcript.state.loadState) {
+    case (true, .loaded), (true, .empty): return
+    case (true, .loading): await suite.transcript.waitForCurrentHistoryRead()
+    default:
+      if access.controllerGate(.sessionRead) != nil, suite.transcript.state.transcript != nil { return }
+      await suite.refreshAuthoritativeHistory()
+    }
+    if !Task.isCancelled, isMounted, suite.scope.target == target, !suite.scope.isBackgrounded,
+      suite.transcript.state.loadState == .idle, let latest = session.currentRichChatAccess,
+      latest.lease == target.lease, latest.controllerGate(.sessionRead) == nil {
+      await suite.refreshAuthoritativeHistory()
+    }
     if !Task.isCancelled, suite.scope.target == nil, let latestAccess = session.currentRichChatAccess,
       latestAccess.lease.connectionID == owningConnectionID {
       suite.select(access: latestAccess, threadID: threadID)
-      session.attachRichChatSuite(suite, auxiliary: isAuxiliary, owner: isAuxiliary ? presentationOwner : nil)
+      session.attachRichChatSuite(suite, auxiliary: isAuxiliary, owner: presentationOwner)
       await suite.refreshAuthoritativeHistory()
     }
     guard !Task.isCancelled, suite.scope.target != nil else { return }
     if let projectLocation {
       await suite.checkpoints.load(projectLocation: projectLocation)
     }
+  }
+
+  var canDisplayHistory: Bool {
+    session.phase != .connecting && suite.transcript.state.canDisplayHistory(for: session.currentRichChatAccess?.lease)
   }
 
   func refreshProviderUsage() async {
@@ -119,25 +152,26 @@ final class RichChatThreadPageState {
   }
 
   func updateAccess() {
+    guard isMounted else { return }
     guard ownsSelection, let access = session.currentRichChatAccess else {
       suite.deselect()
       return
     }
     if suite.scope.access?.lease == access.lease {
-      let becameOnline = suite.scope.access?.isOnline != true && access.isOnline
+      let previouslyCouldRead = suite.scope.access.map { $0.controllerGate(.sessionRead) == nil } ?? false
       suite.updateAccess(access)
       if isTerminal {
         updateTerminalAccess(access)
-      } else if becameOnline, access.controllerGate(.sessionRead) == nil {
+      } else if !previouslyCouldRead, !suite.scope.isBackgrounded, access.controllerGate(.sessionRead) == nil {
         refreshAuthoritativeState()
       }
     } else {
-      Task { await activate() }
+      Task { if isMounted { await activate() } }
     }
   }
 
   func handleScenePhase(_ phase: ScenePhase) {
-    guard ownsSelection, let access = session.currentRichChatAccess else { return }
+    guard isMounted, ownsSelection, let access = session.currentRichChatAccess else { return }
     if phase == .background {
       suite.enterBackground()
       Task { await suite.terminal.suspendTransport() }
@@ -145,7 +179,7 @@ final class RichChatThreadPageState {
       suite.leaveBackground(access: access)
       Task { await refreshProviderUsage() }
       if isTerminal {
-        Task { await suite.terminal.watch(terminalID: threadID) }
+        Task { await suite.terminal.ensureWatching(terminalID: threadID) }
       } else {
         Task { await suite.refreshAuthoritativeHistory() }
       }
@@ -153,9 +187,15 @@ final class RichChatThreadPageState {
   }
 
   func detach() {
+    isMounted = false
     releaseDraft()
-    releaseGitInterest()
-    session.detachRichChatSuite(suite, owner: isAuxiliary ? presentationOwner : nil, preservingState: retainsAuxiliaryState)
+    session.detachRichChatSuite(suite, owner: presentationOwner,
+      preservingState: retainsAuxiliaryState || chatWindow?.retains(windowThread) == true)
+    if session.activeRichChatSuite === suite {
+      ownedGitInterest = nil
+    } else {
+      releaseGitInterest()
+    }
   }
 
   private func releaseDraft() {
@@ -166,6 +206,10 @@ final class RichChatThreadPageState {
 
   var thread: RemoteThread? {
     ownsSelection ? session.richChatThread(id: threadID) : nil
+  }
+
+  var dismissesOnCompletion: Bool {
+    isMounted && ownsSelection && !isAuxiliary && chatWindow == nil
   }
 
   var project: RemoteProject? {
@@ -291,7 +335,7 @@ final class RichChatThreadPageState {
   private func updateTerminalAccess(_ access: RichChatSessionAccess) {
     if access.controllerGate(.terminalRead) == nil {
       if suite.terminal.state.lifecycle == .inactive {
-        Task { await suite.terminal.watch(terminalID: threadID) }
+        Task { await suite.terminal.ensureWatching(terminalID: threadID) }
       }
     } else {
       Task { await suite.terminal.suspendTransport() }
@@ -300,6 +344,7 @@ final class RichChatThreadPageState {
 
   private func refreshAuthoritativeState() {
     Task {
+      guard isMounted else { return }
       await suite.refreshAuthoritativeHistory()
       guard !Task.isCancelled, suite.scope.target != nil else { return }
       if let projectLocation {
@@ -312,6 +357,15 @@ final class RichChatThreadPageState {
   func insertIntoComposerDraft(_ text: String) {
     let current = draft.text.trimmingCharacters(in: .whitespacesAndNewlines)
     draft.text = current.isEmpty ? text : current + "\n" + text
+  }
+
+  func recordRevertedPrompt(_ prompt: RichChatRevertedPrompt, target: RichChatThreadTarget) {
+    let connectionID = target.lease.connectionID
+    guard connectionID == owningConnectionID, target.threadID == threadID,
+      session.state.hosts.contains(where: { $0.connectionId == connectionID })
+    else { return }
+    let key = RichChatComposerDraftKey(connectionID: connectionID, threadID: threadID)
+    session.richChatComposerDrafts.enqueueRevertedPrompt(prompt, for: key)
   }
 
   var activationID: String {
@@ -340,4 +394,53 @@ final class RichChatThreadPageState {
       owner?.executionIdentity ?? "",
     ].joined(separator: "|")
   }
+}
+
+/// One retained primary conversation per Home window. Adaptive navigation can
+/// mount several pages for it before the old pages have finished disappearing.
+@MainActor final class RichChatWindowSession {
+  @MainActor final class Thread {
+    let id: CompositeRemoteID
+    let find = RichChatFindState()
+    let suite: RichChatControllerSuite
+
+    init(id: CompositeRemoteID, suite: RichChatControllerSuite) {
+      self.id = id
+      self.suite = suite
+    }
+  }
+
+  private final class StagedThread {
+    weak var thread: Thread?
+
+    init(_ thread: Thread) { self.thread = thread }
+  }
+
+  private var retained: Thread?
+  private var staged: [CompositeRemoteID: StagedThread] = [:]
+
+  func acquire(thread id: CompositeRemoteID, makeSuite: () -> RichChatControllerSuite) -> Thread {
+    if let retained, retained.id == id { return retained }
+    if let thread = staged[id]?.thread { return thread }
+    staged = staged.filter { $0.value.thread != nil }
+    let thread = Thread(id: id, suite: makeSuite())
+    staged[id] = StagedThread(thread)
+    return thread
+  }
+
+  func retain(_ thread: Thread) {
+    if let retained, retained !== thread { retained.find.close() }
+    retained = thread
+  }
+
+  func retire(_ id: CompositeRemoteID, presentedBy suite: RichChatControllerSuite?) -> Bool {
+    // A fork or provider handoff can be displayed above the Home detail.
+    guard let retained, retained.id == id, retained.suite === suite else { return false }
+    staged.removeValue(forKey: id)
+    retained.find.close()
+    self.retained = nil
+    return true
+  }
+
+  func retains(_ thread: Thread?) -> Bool { thread != nil && retained === thread }
 }

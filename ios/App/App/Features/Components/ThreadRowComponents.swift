@@ -12,6 +12,7 @@ struct PoracodeThreadRow: View {
   var agentLabel: String?
   var hasDraft = false
   var showsRelativeTime = true
+  var timeLabel: String?
   var isOpening = false
   var showsGitBranch = false
   var hasBackgroundActivity = false
@@ -76,10 +77,10 @@ struct PoracodeThreadRow: View {
       Spacer(minLength: 8)
       if isOpening {
         ProgressView().controlSize(.mini)
-      } else if showsRelativeTime, let relativeTime {
-        Text(relativeTime)
+      } else if let timestamp = timeLabel ?? (showsRelativeTime ? relativeTime : nil) {
+        Text(timestamp)
           .font(.caption2.monospacedDigit())
-          .foregroundStyle(.tertiary)
+          .foregroundStyle(timeLabel == nil ? .tertiary : .secondary)
           .lineLimit(1)
       }
     }
@@ -317,8 +318,12 @@ enum PoracodeThreadRelativeDate {
   private static let day = formatter(unit: .day)
   private static let year = formatter(unit: .year)
 
+  static func parse(_ value: String) -> Date? {
+    fractional.date(from: value) ?? standard.date(from: value)
+  }
+
   static func format(_ value: String) -> String? {
-    guard let date = fractional.date(from: value) ?? standard.date(from: value) else { return nil }
+    guard let date = parse(value) else { return nil }
     let seconds = max(60, abs(date.timeIntervalSinceNow))
     let formatter =
       seconds < 3_600

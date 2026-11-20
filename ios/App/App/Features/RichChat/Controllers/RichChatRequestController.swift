@@ -10,10 +10,22 @@ struct RichChatRequestControllerState: Equatable, Sendable {
   var requiresAuthoritativeRefresh = false
 }
 
+struct RichChatRequestCardID: Hashable {
+  enum Surface: Hashable { case dock, inspector }
+
+  let requestID: RichRequestID
+  let surface: Surface
+}
+
 @MainActor
 @Observable
 final class RichChatRequestController {
   private(set) var state = RichChatRequestControllerState()
+  var expandedDetails: Set<RichChatRequestCardID> = []
+  // Scroll updates only feed the initial anchor when a card is recreated.
+  @ObservationIgnored var readingProgress: [RichChatRequestCardID: CGFloat] = [:]
+  var editingForm: RichChatRequestFormDraft?
+  private var formDrafts: [RichRequestID: RichChatRequestFormDraft] = [:]
 
   private let gateway: any RichChatRequestGateway
   private let refreshRequester: any RichChatAuthoritativeRefreshRequesting
@@ -34,6 +46,7 @@ final class RichChatRequestController {
     task.cancel()
     revision &+= 1
     isBackgrounded = false
+    retainRequestPresentation(for: [])
     state = RichChatRequestControllerState(
       access: access,
       target: RichChatThreadTarget(lease: access.lease, threadID: threadID)
@@ -52,7 +65,48 @@ final class RichChatRequestController {
     task.cancel()
     revision &+= 1
     isBackgrounded = false
+    retainRequestPresentation(for: [])
     state = RichChatRequestControllerState()
+  }
+
+  func retainRequestPresentation(for openRequests: Set<RichRequestID>) {
+    expandedDetails = expandedDetails.filter { openRequests.contains($0.requestID) }
+    readingProgress = readingProgress.filter { openRequests.contains($0.key.requestID) }
+    formDrafts = formDrafts.filter { openRequests.contains($0.key) }
+    if let editingForm, !openRequests.contains(editingForm.id) { self.editingForm = nil }
+  }
+
+  func reconcileRequestForms(with requests: [RichOpenRequest]) {
+    retainRequestPresentation(for: Set(requests.map(\.id)))
+    for request in requests {
+      guard let draft = formDrafts[request.id], draft.form.requiresExternalVisit,
+        RichChatRequestForm(request: request) != draft.form else { continue }
+      formDrafts[request.id] = nil
+      if editingForm === draft { editingForm = nil }
+    }
+  }
+
+  func resolveForm(_ draft: RichChatRequestFormDraft, response: RichJSON) async -> Bool {
+    guard editingForm === draft, !draft.submitted else { return false }
+    let resolution = RichChatRequestResolution(requestID: draft.id, method: "requestPermission", response: response)
+    guard await resolve(resolution, request: draft.request) else { return false }
+    draft.submitted = true
+    return true
+  }
+
+  func canEditForm(_ request: RichOpenRequest) -> Bool {
+    state.target?.threadID == request.threadID && formDrafts[request.id]?.submitted != true
+  }
+
+  func editForm(_ form: RichChatRequestForm, request: RichOpenRequest) {
+    guard !isBackgrounded, canEditForm(request) else { return }
+    if let draft = formDrafts[request.id], draft.form == form {
+      editingForm = draft
+    } else {
+      let draft = RichChatRequestFormDraft(request: request, form: form)
+      formDrafts[request.id] = draft
+      editingForm = draft
+    }
   }
 
   func enterBackground() {
@@ -107,6 +161,7 @@ final class RichChatRequestController {
 
     let owner = revision
     state.resolvingRequestID = resolution.requestID
+    state.lastResolvedRequestID = nil
     state.failure = nil
     task.launch { [weak self] in
       guard let self else { return }
@@ -135,7 +190,8 @@ final class RichChatRequestController {
       }
     }
     await task.wait()
-    return state.lastResolvedRequestID == resolution.requestID && state.failure == nil
+    return owns(target: target, revision: owner)
+      && state.lastResolvedRequestID == resolution.requestID && state.failure == nil
   }
 
   private func owns(target: RichChatThreadTarget, revision: UInt64) -> Bool {

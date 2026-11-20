@@ -5,11 +5,13 @@ struct HomeView: View {
   @Environment(\.horizontalSizeClass) private var horizontalSizeClass
   @Environment(\.dynamicTypeSize) private var dynamicTypeSize
   @Environment(\.poracodeTheme) private var theme
+  @Environment(\.nativeCommandRegistry) private var commandRegistry
   @Bindable var session: AppSession
   @State private var path = NavigationPath()
   @State private var detailPath = NavigationPath()
   @State private var selectedThread: ThreadRoute?
   @State private var selectedProject: ProjectRoute?
+  @State private var nestedThread: ThreadRoute?
   @State private var isDockedSidebarVisible = true
   @State private var isOverlaySidebarVisible = false
   @AppStorage("ios.layout.sidebarWidth.v1") private var storedSidebarWidth: Double = 0
@@ -23,10 +25,14 @@ struct HomeView: View {
   @State private var sheetReturnConnectionID: ClientConnectionID?
   @State private var isRestoringSheetHost = false
   @State private var sheetDestination: HomeSheetDestination?
+  @State private var commandSearch: NativeHomeCommandSearch?
   @State private var navigationSelection = HomeNavigationSelection()
+  @State private var chatWindow = RichChatWindowSession()
   @State private var navigationRetention = PoracodeNavigationRetention()
   private var openingThreadID: String? { navigationSelection.openingID }
   @State private var selectedProjectIDs = Set<String>()
+  @State private var compactThreadStatus = HomeThreadListStatus.active
+  @State private var showsCompletedThreads = false
   @AppStorage(HomeWorkspacePreferences.storageKey) private var workspaceStorage = ""
   @SceneStorage(HomeWorkspacePreferences.selectionKey) private var storedWorkspaceID = ""
   @State private var composerExpanded = false
@@ -62,16 +68,20 @@ struct HomeView: View {
     }
   }
 
-  private var visibleThreads: [UnifiedThreadListItem] {
-    HomeThreadListPresentation.filter(
-      unifiedThreads.filter { workspacePreferences.includes($0, activeID: activeWorkspaceID) },
-      searchText: "",
-      projectIDs: selectedProjectIDs
-    )
+  private var workspaceThreads: [UnifiedThreadListItem] {
+    let preferences = workspacePreferences
+    let workspaceID = preferences.activeID(stored: storedWorkspaceID)
+    return unifiedThreads.filter { preferences.includes($0, activeID: workspaceID) }
   }
 
-  private var threadEntries: [HomeThreadListEntry] {
-    HomeThreadListPresentation.entries(from: visibleThreads)
+  private var threadListScope: HomeThreadListScope {
+    HomeThreadListScope(workspaceThreads: workspaceThreads, projectIDs: selectedProjectIDs)
+  }
+
+  private var visibleThreads: [UnifiedThreadListItem] {
+    let scope = threadListScope
+    if !currentLayout.isSplit { return scope[compactThreadStatus] }
+    return showsCompletedThreads ? scope.active + scope.done : scope.active
   }
 
   private var palette: PoracodeThemeVariant {
@@ -150,6 +160,14 @@ struct HomeView: View {
         }
     }
     .onDisappear { navigationSelection.invalidate() }
+    .onChange(of: keyboardThread?.id, initial: true) { _, id in
+      navigationSelection.viewThread(id?.rawValue)
+    }
+    .onChange(of: selectedThreadCompletion) { previous, current in
+      if let current, current.becameDone(after: previous) {
+        dismissCompletedThread(current.id)
+      }
+    }
     .ignoresSafeArea(.keyboard, edges: .bottom)
     .poracodeObserveKeyboardUnobstructedSize { keyboardUnobstructedSize = $0 }
     .onChange(of: workspaceInputs, initial: true) { _, inputs in
@@ -159,6 +177,9 @@ struct HomeView: View {
     }
     .onChange(of: projectFilterOptions.map(\.id), initial: true) {
       selectedProjectIDs.formIntersection(projectFilterOptions.map(\.id))
+    }
+    .onChange(of: compactThreadStatus) { _, status in
+      if status == .done { showsCompletedThreads = true }
     }
     .task {
       await session.refreshUnifiedThreadList()
@@ -173,7 +194,7 @@ struct HomeView: View {
     .onChange(of: session.snapshot?.threads.map(\.id)) { _, _ in
       Task { await session.sideChats.reconcileParents(session: session) }
     }
-    .sheet(item: $sheetDestination, onDismiss: restoreSheetHost) { destination in
+    .sheet(item: $sheetDestination, onDismiss: finishSheet) { destination in
       sizedSheetContent(for: destination)
         .modifier(PoracodeRetainNavigationWhilePresented())
         .nativeCommands(identity: "home-sheet:\(destination.id)", priority: 1000, blocksParentActions: true)
@@ -206,6 +227,7 @@ struct HomeView: View {
           },
           dismiss: { remoteNotifications.dismiss() }
         )
+        .frame(maxWidth: 440)
         .padding(.horizontal, 12)
         .safeAreaPadding(.top, 8)
         .transition(.move(edge: .top).combined(with: .opacity))
@@ -218,14 +240,7 @@ struct HomeView: View {
     .modifier(WorkflowViewerPresentationHost())
     .modifier(ComposerVoiceHost(session: session))
     .environment(\.homeWorkspaceSelection, $storedWorkspaceID)
-    .modifier(NativeHomeCommands(
-      identity: selectedThread?.id.rawValue ?? selectedProject?.id.rawValue ?? "home",
-      allowsActions: sheetDestination == nil, hasProject: !projectFilterOptions.isEmpty,
-      hasThread: selectedThread != nil, draftView: composerExpanded,
-      canStartThread: session.canOperate && !composerExpanded,
-      openSettings: { openSidebarSheet(.settings) }, toggleSidebar: toggleHomeSidebar,
-      newThread: { startSplitComposer(initialProjectID: keyboardProjectID) }
-    ))
+    .modifier(keyboardCommands)
     .homeThreadLifecyclePresentation(threadLifecycle)
     .overlay(alignment: .bottom) {
       if let error = session.globalError {
@@ -267,11 +282,12 @@ struct HomeView: View {
         .navigationDestination(for: ProjectRoute.self) { route in
           if !currentLayout.isSplit {
             projectDestinationView(for: route)
+              .onAppear { selectedThread = nil }
           }
         }
         .navigationDestination(for: ThreadRoute.self) { route in
           if !currentLayout.isSplit {
-            threadDestinationView(for: route)
+            threadDestinationView(for: route, openWorkspaceTools: { openSidebarSheet(.more) })
               .onAppear { selectedThread = route }
           }
         }
@@ -299,8 +315,9 @@ struct HomeView: View {
   }
 
   private func splitRoot(layout: HomeAdaptiveLayoutPolicy) -> some View {
+    let compactSidebarVisible = horizontalSizeClass == .compact && preferredCompactColumn == .sidebar
     let dockedVisible = layout.usesDockedSidebar && isDockedSidebarVisible
-      && (horizontalSizeClass != .compact || preferredCompactColumn == .sidebar)
+      && (horizontalSizeClass != .compact || compactSidebarVisible)
     let visibility = Binding<NavigationSplitViewVisibility>(
       get: { (layout.usesOverlaySidebar ? isOverlaySidebarVisible : isDockedSidebarVisible) ? .all : .detailOnly },
       set: { value in
@@ -311,7 +328,10 @@ struct HomeView: View {
     // Native split navigation lets iPadOS and Duo own column safe areas,
     // overlays and fold symmetry. Keep selection/drafts above the container.
     return NavigationSplitView(columnVisibility: visibility, preferredCompactColumn: $preferredCompactColumn) {
-      splitSidebar(layout: layout)
+      splitSidebar(
+        layout: layout,
+        showsUsage: compactSidebarVisible || dockedVisible || (layout.usesOverlaySidebar && isOverlaySidebarVisible)
+      )
         .navigationSplitViewColumnWidth(min: 220, ideal: layout.sidebarWidth, max: 440)
         .toolbar(.hidden, for: .navigationBar)
         // The sidebar owns the default item, including its collapsed variant.
@@ -324,15 +344,15 @@ struct HomeView: View {
     .animation(.snappy(duration: 0.25), value: composerExpanded)
   }
 
-  private func splitSidebar(layout: HomeAdaptiveLayoutPolicy) -> some View {
-    let headerControlSize: CGFloat = layout.isCompactHeight ? 24 : 28
+  private func splitSidebar(layout: HomeAdaptiveLayoutPolicy, showsUsage: Bool) -> some View {
+    let headerControlSize = HomeSidebarHeaderControls.iconContentSize(compact: layout.isCompactHeight)
     return HomeSplitSidebarView(
       glassNamespace: glassNamespace,
       isCompactHeight: layout.isCompactHeight,
       isSearchDisabled: unifiedThreads.isEmpty,
       canStartThread: session.canOperate,
       isProjectsAvailable: !projectFilterOptions.isEmpty,
-      openSearch: { openSidebarSheet(.search) },
+      openSearch: { openSidebarSheet(.search(commands: nil)) },
       startNewThread: { startSplitComposer() },
       openMore: { openSidebarSheet(.more) },
       openShortcut: { shortcut in
@@ -356,9 +376,23 @@ struct HomeView: View {
         projectFilterButton(usesCircleButton: true, circleButtonSize: headerControlSize)
       },
       moreControl: { sessionMenu(buttonSize: headerControlSize) },
+      usageRail: {
+        if showsUsage {
+          HomeSidebarUsageRail(session: session) { lease, providerID in
+            guard let selection = session.currentSettingsHostSelection,
+              selection.lease == lease, selection.gate(.sessionRead) == nil
+            else { return }
+            if let providerID {
+              openSidebarSheet(.providerUsage(SettingsUsageSidebarFocus(lease: lease, providerID: providerID)))
+            } else {
+              openSidebarSheet(.usage)
+            }
+          }
+        }
+      },
       threadContent: {
         threadsLoadView(
-          selectedThreadID: selectedThread?.id.rawValue,
+          selectedThreadID: presentedThread?.id.rawValue,
           background: .clear,
           isSplit: true
         )
@@ -415,7 +449,11 @@ struct HomeView: View {
         }
         .navigationDestination(for: ThreadRoute.self) { route in
           threadDestinationView(for: route)
+            .onAppear { nestedThread = route }
         }
+    }
+    .onChange(of: detailPath.isEmpty) { _, isEmpty in
+      if isEmpty { nestedThread = nil }
     }
     .frame(maxWidth: .infinity, maxHeight: .infinity)
     .background(palette.background.ignoresSafeArea())
@@ -435,11 +473,7 @@ struct HomeView: View {
       let parts = route.id.decode(),
       parts.connectionId == session.selectedConnectionId
     {
-      RichChatThreadView(
-        session: session,
-        threadID: parts.remoteId,
-        title: route.title
-      )
+      threadDestinationView(for: route)
       .id(route.id.rawValue)
       .environment(\.poracodeCloseThreadDetail) {
         if selectedThread?.id == route.id {
@@ -459,7 +493,7 @@ struct HomeView: View {
         isCompactHeight: layout.isCompactHeight,
         workspace: workspacePreferences.workspaces.first { $0.id == activeWorkspaceID },
         projects: projectFilterOptions,
-        recentThreads: visibleThreads,
+        recentThreads: threadListScope.active,
         gitSummary: gitSummary,
         agentLabel: agentLabel,
         isOnline: hostIsOnline,
@@ -489,7 +523,9 @@ struct HomeView: View {
     case .search, .connections, .workspaces:
       sheetContent(for: destination)
         .poracodeFormSheetSizing()
-    case .more, .projectManagement, .terminal, .usage, .settings, .settingsDestination, .newsProjectGit, .pullRequests, .githubActions, .schedules,
+    case .threadFilters:
+      sheetContent(for: destination)
+    case .more, .projectManagement, .terminal, .usage, .providerUsage, .settings, .settingsDestination, .newsProjectGit, .pullRequests, .githubActions, .schedules,
       .remoteIntegrations, .browserMirror, .portForwarding:
       sheetContent(for: destination)
         .poracodePageSheetSizing()
@@ -499,15 +535,28 @@ struct HomeView: View {
   @ViewBuilder
   private func sheetContent(for destination: HomeSheetDestination) -> some View {
     switch destination {
-    case .search:
+    case .search(let commands):
       HomeThreadSearchView(
         items: unifiedThreads,
-        open: { item in open(item) },
+        open: { item in open(item, replacingThread: keyboardThread != nil) },
         drafts: session.richChatComposerDrafts,
         lifecycle: threadLifecycle,
-        hasBackgroundActivity: workflowIsLive
+        hasBackgroundActivity: workflowIsLive,
+        commands: commands,
+        runCommand: { command in
+          commandSearch?.selection = command
+          sheetDestination = nil
+        }
       )
       .poracodeZoomTransition(sourceID: "home.search", in: glassNamespace)
+    case .threadFilters(let showsStatus):
+      HomeProjectFilterDrawer(
+        session: session,
+        options: threadFilterOptions(showsStatus: showsStatus),
+        selectedProjectIDs: $selectedProjectIDs,
+        status: $compactThreadStatus,
+        doneCount: showsStatus ? threadListScope.done.count : nil
+      )
     case .more:
       HomeMoreSheet(session: session, isRefreshing: $isRefreshing)
         .poracodeZoomTransition(sourceID: "home.more", in: glassNamespace)
@@ -553,6 +602,9 @@ struct HomeView: View {
       }
     case .usage:
       SettingsSessionView(session: session, initialRoute: .usage)
+    case .providerUsage(let focus):
+      SettingsSessionView(session: session, initialRoute: .usage)
+        .environment(\.settingsUsageSidebarFocus, focus)
     case .settings:
       SettingsSessionView(session: session)
     case .settingsDestination(let destination):
@@ -582,15 +634,23 @@ struct HomeView: View {
   }
 
   @ViewBuilder
-  private func threadDestinationView(for route: ThreadRoute) -> some View {
+  private func threadDestinationView(
+    for route: ThreadRoute,
+    openWorkspaceTools: (() -> Void)? = nil
+  ) -> some View {
     if let parts = route.id.decode(),
       parts.connectionId == session.selectedConnectionId
     {
       RichChatThreadView(
         session: session,
         threadID: parts.remoteId,
-        title: route.title
+        title: route.title,
+        chatWindow: chatWindow,
+        openLinkedThread: { thread in pushLinkedThread(thread, from: route) },
+        returnToForkSource: { id in popToLinkedThread(id, from: route) },
+        openWorkspaceTools: openWorkspaceTools
       )
+      .modifier(PoracodeRetainNavigationWhilePresented(isPresented: route.linkedFrom != nil))
     }
   }
 
@@ -605,11 +665,8 @@ struct HomeView: View {
       case .idle where unifiedThreads.isEmpty, .loading where unifiedThreads.isEmpty:
         LoadingStateView(message: HomeStrings.loadingThreads)
       case .empty where unifiedThreads.isEmpty:
-        EmptyStateView(
-          title: HomeStrings.emptyThreadsTitle,
-          systemImage: "bubble.left.and.bubble.right",
-          description: HomeStrings.emptyThreadsDescription
-        )
+        emptyThreadList(title: HomeStrings.emptyThreadsTitle, description: HomeStrings.emptyThreadsDescription,
+          systemImage: "bubble.left.and.bubble.right", isSplit: isSplit)
       case .failed(let message) where unifiedThreads.isEmpty:
         ErrorStateView(message: message) {
           Task { await session.refreshUnifiedThreadList() }
@@ -625,27 +682,61 @@ struct HomeView: View {
     .frame(maxWidth: .infinity, maxHeight: .infinity)
   }
 
+  @ViewBuilder
   private func threadList(
     selectedThreadID: String?,
     background: Color,
     isSplit: Bool
   ) -> some View {
-    HomeThreadListView(
-      entries: threadEntries,
-      openingThreadID: openingThreadID,
-      selectedThreadID: selectedThreadID,
-      selectedConnectionID: session.selectedConnectionId,
-      listBackground: background,
-      gitSummary: gitSummary,
-      agentLabel: agentLabel,
-      hostIsOnline: hostIsOnline,
-      open: { open($0, isSplit: isSplit) },
-      openProject: { openProject($0, isSplit: isSplit) },
-      lifecycle: threadLifecycle,
-      drafts: session.richChatComposerDrafts,
-      hasBackgroundActivity: workflowIsLive
-    )
-    .background(background)
+    let scope = threadListScope
+    let threads = isSplit ? scope.active : scope[compactThreadStatus]
+    if threads.isEmpty && (!isSplit || scope.done.isEmpty) {
+      let message = scope.emptyMessage(status: compactThreadStatus, isSplit: isSplit)
+      emptyThreadList(title: message.title, description: message.detail, isSplit: isSplit)
+        .background(background)
+    } else {
+      HomeThreadListView(
+        entries: !isSplit && compactThreadStatus == .done
+          ? threads.map(HomeThreadListEntry.thread) : HomeThreadListPresentation.entries(from: threads),
+        completedEntries: isSplit && showsCompletedThreads ? HomeThreadListPresentation.entries(from: scope.done) : [],
+        completedCount: isSplit ? scope.done.count : 0,
+        isCompletedSectionExpanded: $showsCompletedThreads,
+        openingThreadID: openingThreadID,
+        selectedThreadID: selectedThreadID,
+        selectedConnectionID: session.selectedConnectionId,
+        listBackground: background,
+        gitSummary: gitSummary,
+        agentLabel: agentLabel,
+        hostIsOnline: hostIsOnline,
+        open: { open($0, isSplit: isSplit) },
+        openProject: { openProject($0, isSplit: isSplit) },
+        lifecycle: threadLifecycle,
+        drafts: session.richChatComposerDrafts,
+        hasBackgroundActivity: workflowIsLive
+      ) {
+        if !isSplit && !composerExpanded {
+          homeQuickComposer(newsPlacement: .listFooter)
+        }
+      }
+      .background(background)
+    }
+  }
+
+  @ViewBuilder
+  private func emptyThreadList(title: String, description: String?, systemImage: String = "tray", isSplit: Bool) -> some View {
+    let empty = EmptyStateView(title: title, systemImage: systemImage, description: description)
+    if isSplit {
+      empty
+    } else {
+      ScrollView {
+        VStack(spacing: 7) {
+          empty
+          if !composerExpanded { homeQuickComposer(newsPlacement: .listFooter) }
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+      }
+    }
   }
 
   private func projectFilterButton(
@@ -653,12 +744,13 @@ struct HomeView: View {
     circleButtonSize: CGFloat = 30
   ) -> some View {
     HomeProjectFilterMenu(
-      session: session,
-      options: projectFilterOptions,
-      selectedProjectIDs: $selectedProjectIDs,
+      title: usesCircleButton ? HomeStrings.filterProjects : HomeStrings.filterThreads,
+      isFiltered: !selectedProjectIDs.isEmpty || (!usesCircleButton && compactThreadStatus == .done),
       usesCircleButton: usesCircleButton,
       circleButtonSize: circleButtonSize
-    )
+    ) {
+      openSidebarSheet(.threadFilters(showsStatus: !usesCircleButton), keepingSidebar: true)
+    }
   }
 
   private func workflowIsLive(_ item: UnifiedThreadListItem) -> Bool {
@@ -669,12 +761,22 @@ struct HomeView: View {
     session.homeProjectOptions.filter(workspaceContext.includes)
   }
 
+  private func threadFilterOptions(showsStatus: Bool) -> [HomeProjectFilterOption] {
+    let displayed = workspaceThreads.filter { !showsStatus || $0.thread.isDone == (compactThreadStatus == .done) }
+    let counts = Dictionary(grouping: displayed, by: HomeThreadListPresentation.projectIdentity).mapValues(\.count)
+    return projectFilterOptions.map {
+      var option = $0
+      option.threadCount = counts[option.id, default: 0]
+      return option
+    }
+  }
+
   private var homeActionDock: some View {
     PoracodeGlassGroup(spacing: 8) {
       HStack(alignment: .bottom, spacing: 12) {
         if !composerExpanded {
           PoracodeCircleButton {
-            sheetDestination = .search
+            openSidebarSheet(.search(commands: nil))
           } label: {
             Image(systemName: "magnifyingglass")
           }
@@ -683,7 +785,7 @@ struct HomeView: View {
           .poracodeZoomSource(id: "home.search", in: glassNamespace)
         }
 
-        homeQuickComposer()
+        homeQuickComposer(newsPlacement: composerExpanded ? .composer : .hidden)
 
         if !composerExpanded { sessionMenu(buttonSize: 30) }
       }
@@ -695,7 +797,7 @@ struct HomeView: View {
     .init(connectionID: session.selectedConnectionId, workspaceID: activeWorkspaceID)
   }
 
-  private func homeQuickComposer() -> some View {
+  private func homeQuickComposer(newsPlacement: HomeQuickComposeView.NewsPlacement = .composer) -> some View {
     let context = homeComposeContext
     let draft = quickComposeStore.state(for: context, session: session,
       initialProjectID: composerInitialProjectID)
@@ -707,7 +809,7 @@ struct HomeView: View {
       }
     })
     return HomeQuickComposeView(session: session, isExpanded: expansion,
-      draft: draft, onNewsAction: { action in
+      draft: draft, newsPlacement: newsPlacement, onNewsAction: { action in
         guard context == homeComposeContext else { return }
         let project = projectFilterOptions.first { $0.connectionID == context.connectionID && $0.project.id == draft.projectID }
         guard let destination = HomeNewsNavigation.destination(action, project: project) else { return }
@@ -776,7 +878,7 @@ struct HomeView: View {
       || (connectionID == session.state.selectedConnectionId && session.socketState == .online)
   }
 
-  private func open(_ item: UnifiedThreadListItem, isSplit: Bool? = nil) {
+  private func open(_ item: UnifiedThreadListItem, isSplit: Bool? = nil, replacingThread: Bool = false) {
     sheetReturnConnectionID = nil
     dismissComposer(animated: false)
     dismissOverlaySidebar()
@@ -785,7 +887,9 @@ struct HomeView: View {
         id: CompositeRemoteID(connectionId: item.connectionID, remoteId: item.thread.id),
         title: item.thread.title
       )
-      presentThread(route, isSplit: isSplit ?? currentLayout.isSplit)
+      let keepsProjectPath = keyboardProjectID == item.project.id
+      presentThread(route, isSplit: isSplit ?? currentLayout.isSplit,
+        replacingThread: replacingThread, keepsProjectPath: keepsProjectPath)
     }
   }
 
@@ -837,16 +941,76 @@ struct HomeView: View {
     }
   }
 
-  private func presentThread(_ route: ThreadRoute, isSplit: Bool) {
-    selectedProject = nil
+  private func presentThread(
+    _ route: ThreadRoute, isSplit: Bool, replacingThread: Bool = false, keepsProjectPath: Bool = false
+  ) {
+    let previous = keyboardThread
+    let keepsPath = keepsProjectPath && previous?.id.decode()?.connectionId == route.id.decode()?.connectionId
+    if replacingThread, isSplit, !detailPath.isEmpty,
+      keepsPath {
+      var replacement = detailPath
+      replacement.removeLast()
+      replacement.append(route)
+      detailPath = replacement
+      nestedThread = route
+      dismissOverlaySidebar()
+      return
+    }
+    if isSplit || !replacingThread || !keepsPath { selectedProject = nil }
     selectedThread = route
     detailPath = NavigationPath()
     dismissOverlaySidebar()
     if isSplit {
       path = NavigationPath()
     } else {
-      path.append(route)
+      var replacement = path
+      if replacingThread, !replacement.isEmpty {
+        if keepsPath {
+          replacement.removeLast()
+        } else {
+          replacement = NavigationPath()
+        }
+      }
+      replacement.append(route)
+      path = replacement
     }
+  }
+
+  private func pushLinkedThread(_ thread: RemoteThread, from source: ThreadRoute) -> Bool {
+    guard openingThreadID == nil, presentedThread?.id == source.id,
+      let parts = source.id.decode(), parts.connectionId == session.selectedConnectionId,
+      parts.remoteId != thread.id
+    else { return false }
+    let route = ThreadRoute(
+      id: CompositeRemoteID(connectionId: parts.connectionId, remoteId: thread.id),
+      title: thread.title,
+      linkedFrom: source.id
+    )
+    if currentLayout.isSplit {
+      detailPath.append(route)
+      nestedThread = route
+    } else {
+      path.append(route)
+      selectedThread = route
+    }
+    dismissOverlaySidebar()
+    return true
+  }
+
+  private func popToLinkedThread(_ id: String, from route: ThreadRoute) -> Bool {
+    guard presentedThread?.id == route.id,
+      let source = route.linkedFrom?.decode(), source.connectionId == session.selectedConnectionId,
+      source.remoteId == id
+    else { return false }
+    if currentLayout.isSplit {
+      guard !detailPath.isEmpty else { return false }
+      detailPath.removeLast()
+      nestedThread = nil
+    } else {
+      guard path.count > 1 else { return false }
+      path.removeLast()
+    }
+    return true
   }
 
   private func presentProject(_ route: ProjectRoute, isSplit: Bool) {
@@ -863,8 +1027,18 @@ struct HomeView: View {
 
   private func synchronizeLayoutTransition(isSplit: Bool) {
     if isSplit {
+      if selectedProject != nil, let selectedThread {
+        self.selectedThread = nil
+        nestedThread = selectedThread
+        var restored = NavigationPath()
+        restored.append(selectedThread)
+        detailPath = restored
+      }
       return
     }
+    if !detailPath.isEmpty, let nestedThread { selectedThread = nestedThread }
+    detailPath = NavigationPath()
+    nestedThread = nil
     preferredCompactColumn = .detail
     isOverlaySidebarVisible = false
     if composerExpanded {
@@ -903,11 +1077,33 @@ struct HomeView: View {
     presentThread(route, isSplit: isSplit)
   }
 
-  private func openSidebarSheet(_ destination: HomeSheetDestination) {
+  private func openSidebarSheet(_ destination: HomeSheetDestination, keepingSidebar: Bool = false) {
     navigationSelection.invalidate()
     sheetReturnConnectionID = selectedThread?.id.decode()?.connectionId ?? selectedProject?.id.decode()?.connectionId
-    dismissOverlaySidebar(animated: false)
+    if !keepingSidebar { dismissOverlaySidebar(animated: false) }
     sheetDestination = destination
+  }
+
+  private func openCommandSearch() {
+    let actions = (commandRegistry?.enabledActions ?? [:]).filter {
+      $0.key != "palette.open" && !$0.key.hasPrefix("composer.")
+    }
+    commandSearch = NativeHomeCommandSearch(actions: actions, connection: session.selectedConnectionId,
+      destination: keyboardThread?.id ?? selectedProject?.id)
+    let commands = actions.keys.sorted {
+      NativeShortcutStrings.commandTitle($0).localizedStandardCompare(NativeShortcutStrings.commandTitle($1)) == .orderedAscending
+    }
+    openSidebarSheet(.search(commands: commands))
+  }
+
+  private func finishSheet() {
+    let search = commandSearch
+    commandSearch = nil
+    restoreSheetHost()
+    guard let search, let command = search.selection, sheetDestination == nil,
+      search.connection == session.selectedConnectionId,
+      search.destination == (keyboardThread?.id ?? selectedProject?.id), !isRestoringSheetHost else { return }
+    search.actions[command]?.perform(nil)
   }
 
   /// Secondary pages may inspect another connection. Closing them returns to
@@ -989,11 +1185,78 @@ struct HomeView: View {
   }
 
   private var keyboardProjectID: String? {
-    if let parts = selectedProject?.id.decode(), parts.connectionId == session.selectedConnectionId { return parts.remoteId }
-    if let parts = selectedThread?.id.decode(), parts.connectionId == session.selectedConnectionId {
+    if let parts = keyboardThread?.id.decode(), parts.connectionId == session.selectedConnectionId {
       return session.richChatThread(id: parts.remoteId)?.projectId
     }
+    if let parts = selectedProject?.id.decode(), parts.connectionId == session.selectedConnectionId { return parts.remoteId }
     return nil
+  }
+
+  private var keyboardThread: ThreadRoute? {
+    composerExpanded ? nil : presentedThread
+  }
+
+  private var presentedThread: ThreadRoute? {
+    currentLayout.isSplit && !detailPath.isEmpty ? nestedThread ?? selectedThread : selectedThread
+  }
+
+  private var selectedThreadCompletion: HomeThreadCompletion? {
+    guard let id = keyboardThread?.id, let parts = id.decode(),
+      parts.connectionId == session.selectedConnectionId,
+      let thread = session.richChatThread(id: parts.remoteId)
+    else { return nil }
+    return HomeThreadCompletion(id: id, isDone: thread.isDone)
+  }
+
+  private func dismissCompletedThread(_ id: CompositeRemoteID) {
+    guard keyboardThread?.id == id, navigationSelection.openingID == nil,
+      chatWindow.retire(id, presentedBy: session.activeRichChatSuite)
+    else { return }
+    if currentLayout.isSplit && !detailPath.isEmpty {
+      detailPath.removeLast()
+      nestedThread = nil
+    } else {
+      selectedThread = nil
+      if !currentLayout.isSplit && !path.isEmpty { path.removeLast() }
+    }
+  }
+
+  private var keyboardCommands: NativeHomeCommands {
+    let current = keyboardThread?.id.rawValue
+    let items = current == nil ? [] : visibleThreads
+    let visible = Set(items.map(\.id))
+    let order = current.map {
+      HomeThreadListPresentation.keyboardOrder(from: items, currentID: $0, groupsDone: currentLayout.isSplit)
+    } ?? []
+    return NativeHomeCommands(
+      identity: current ?? selectedProject?.id.rawValue ?? "home",
+      navigation: .init(visible: visible, adjacent: order),
+      allowsActions: sheetDestination == nil, hasProject: !projectFilterOptions.isEmpty,
+      hasThread: current != nil, draftView: composerExpanded,
+      canStartThread: session.canOperate && !composerExpanded,
+      canOpenBrowser: session.currentBrowserMirrorAccess != nil,
+      canStepThread: order.count > 1,
+      canCycleRecentThreads: current.map { navigationSelection.hasRecentThread(otherThan: $0, visible: visible) } ?? false,
+      openSettings: { openSidebarSheet(.settings) }, toggleSidebar: toggleHomeSidebar,
+      newThread: { startSplitComposer(initialProjectID: keyboardProjectID) },
+      openSearch: openCommandSearch,
+      openBrowser: { openSidebarSheet(.browserMirror) },
+      stepThread: { direction in
+        guard let current else { return }
+        openKeyboardThread(direction.target(in: order, from: current), replacing: current)
+      },
+      cycleRecentThread: { direction in
+        guard let current, keyboardThread?.id.rawValue == current else { return }
+        let target = navigationSelection.cycleRecentThread(from: current, visible: visible, direction: direction)
+        openKeyboardThread(target, replacing: current)
+      }
+    )
+  }
+
+  private func openKeyboardThread(_ target: String?, replacing current: String) {
+    guard let target, keyboardThread?.id.rawValue == current,
+      let item = visibleThreads.first(where: { $0.id == target }) else { return }
+    open(item, replacingThread: true)
   }
 
   private func toggleHomeSidebar() {
@@ -1012,4 +1275,5 @@ struct ProjectRoute: Hashable {
 struct ThreadRoute: Hashable {
   var id: CompositeRemoteID
   var title: String
+  var linkedFrom: CompositeRemoteID? = nil
 }

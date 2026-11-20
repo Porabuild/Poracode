@@ -158,7 +158,14 @@ final class BrowserMirrorIntegrationTests: XCTestCase {
     XCTAssertEqual(afterEvent, 1)
     XCTAssertEqual(seqAfterEvent, 0)
 
-    await client.setBrowserMirrorSink(nil)
+    let replacement = BrowserMirrorSinkSpy()
+    await client.setBrowserMirrorSink(replacement)
+    await client.removeBrowserMirrorSink(sink)
+    let replacementConsumed = await client.routeBrowserMirrorMessage(frame)
+    XCTAssertTrue(replacementConsumed)
+    let replacementCount = await replacement.count()
+    XCTAssertEqual(replacementCount, 1)
+    await client.removeBrowserMirrorSink(replacement)
     let detachedConsumed = await client.routeBrowserMirrorMessage(frame)
     let afterDetach = await sink.count()
     XCTAssertFalse(detachedConsumed)
@@ -206,7 +213,7 @@ final class BrowserMirrorIntegrationTests: XCTestCase {
   }
 
   @MainActor
-  func testCompositionBindsAndReleasesTheSharedSocketSink() async {
+  func testCompositionBindsAndReleasesTheSharedSocketSink() async throws {
     let session = AppSession(dependencies: .live)
     let socket = BrowserMirrorLiveSocketSpy()
     let connection = ClientConnectionID()
@@ -225,6 +232,27 @@ final class BrowserMirrorIntegrationTests: XCTestCase {
     XCTAssertTrue(composition.controller.watchIntent)
     XCTAssertEqual(socket.attachments, 1)
 
+    let previousSink = try XCTUnwrap(socket.sink)
+    let newSocket = BrowserMirrorLiveSocketSpy()
+    let newConnection = ClientConnectionID()
+    let newProfile = Self.testProfile(desktopId: "desktop-b")
+    session.state.selectedConnectionId = newConnection
+    session.state.hosts = [host(connection: newConnection, profile: newProfile)]
+    session.state.profile = newProfile
+    session.state.api = RemoteAPIClientBox(
+      RemoteAPIClient(endpoint: newProfile.httpBaseURL, accessToken: "memory-only")
+    )
+    session.state.webSocket = newSocket
+    await composition.synchronizeAccess(session.currentBrowserMirrorAccess)
+    XCTAssertEqual(socket.detachments, 1)
+    XCTAssertEqual(newSocket.attachments, 1)
+    let newSink = try XCTUnwrap(newSocket.sink)
+    let state = try BrowserMirrorFixtures.serverMessage(id: "state")
+    await previousSink.receiveBrowserMirrorMessage(state, socketGeneration: newSocket.generation)
+    XCTAssertEqual(composition.controller.browserState, .empty)
+    await newSink.receiveBrowserMirrorMessage(state, socketGeneration: newSocket.generation)
+    XCTAssertNotNil(composition.controller.browserState.activeTabId)
+
     // Backgrounding gates sends before any asynchronous teardown runs.
     composition.suspend()
     XCTAssertNil(composition.controller.frame)
@@ -232,7 +260,7 @@ final class BrowserMirrorIntegrationTests: XCTestCase {
 
     await composition.deactivate()
     XCTAssertFalse(composition.controller.watchIntent)
-    XCTAssertEqual(socket.detachments, 1)
+    XCTAssertEqual(newSocket.detachments, 1)
   }
 
   // MARK: - Helpers

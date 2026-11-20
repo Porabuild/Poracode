@@ -97,15 +97,11 @@ struct CrewRosterSheet: View {
 
   private var actions: some View {
     Menu {
-      Menu(CrewStrings.template, systemImage: "square.grid.2x2") {
-        ForEach(CrewTemplates.all) { template in
-          Button(template.name) {
-            guard let helper = catalog.defaultHelper(for: state.lead) else { return }
-            let selected = template.binding { _ in helper }
-            state.binding.roles = selected.roles; state.binding.policy = selected.policy
-            state.navigation = []
-          }
-        }
+      CrewTemplateMenu(title: CrewStrings.template, systemImage: "square.grid.2x2") { template in
+        guard let helper = catalog.defaultHelper(for: state.lead) else { return }
+        let selected = template.binding { _ in helper }
+        state.binding.roles = selected.roles; state.binding.policy = selected.policy
+        state.navigation = []
       }
       .disabled(catalog.defaultHelper(for: state.lead) == nil)
       if let saved {

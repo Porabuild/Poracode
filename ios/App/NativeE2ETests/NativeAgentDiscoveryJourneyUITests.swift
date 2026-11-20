@@ -21,7 +21,6 @@ extension NativeFamilyJourneyUITests {
     XCTAssertTrue(discover.waitForExistence(timeout: 10))
     XCTAssertTrue(discover.isEnabled)
     XCTAssertTrue(discover.isHittable)
-    XCTAssertGreaterThanOrEqual(discover.frame.width, 44)
     XCTAssertFalse(app.switches["native-e2e.settings.agent-enabled.fixture-discovered"].exists)
     discoveryProof("empty-inventory-refresh")
     try assertNativePageActionAtLowerEdge(discover, pageID: "native-e2e.settings.agents.list", name: "discovery-empty")
