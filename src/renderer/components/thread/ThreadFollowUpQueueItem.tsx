@@ -73,10 +73,7 @@ export function ThreadFollowUpQueueItem({
   const preview = item.prompt.trim();
   return (
     <li
-      ref={(element) => {
-        rowRef.current = element;
-        ref(element);
-      }}
+      ref={rowRef}
       tabIndex={-1}
       onFocusCapture={() => {
         focusedRef.current = true;
@@ -107,7 +104,9 @@ export function ThreadFollowUpQueueItem({
           }
         />
       ) : (
-        <div className="flex min-h-8 items-center gap-2 px-2">
+        // When the handle is absent, dnd-kit uses the sortable element as
+        // the activator and sets aria-disabled on it. Keep the editor outside it.
+        <div ref={ref} className="flex min-h-8 items-center gap-2 px-2">
           <Button
             ref={handleRef}
             isIconOnly

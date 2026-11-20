@@ -5,14 +5,21 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Project, Thread } from "@/shared/contracts";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import { useAppStore } from "@/renderer/state/appStore";
+import { bumpRemoteServerGeneration } from "@/renderer/state/remoteServers/eventSocketRegistry";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 
 const actions = vi.hoisted(() => ({
+  deleteThreadRecord: vi.fn<(thread: Thread) => Promise<void>>(),
   deleteThreadsAndOwnedWorktrees: vi.fn<(threads: readonly Thread[]) => void>(),
   unarchiveThread: vi.fn<(threadId: string) => void>(),
 }));
+const runtime = vi.hoisted(() => ({ paired: false }));
 
 vi.mock("@/renderer/actions/threadActions", () => actions);
+vi.mock("@/renderer/bridge", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/renderer/bridge")>()),
+  isRemoteSession: () => runtime.paired,
+}));
 vi.mock("@/renderer/components/providers/ThreadProviderIcon", () => ({
   ThreadProviderIcon: () => <span data-testid="provider-icon" />,
 }));
@@ -67,6 +74,8 @@ function thread(
 
 describe("ArchivedThreadsSettings", () => {
   beforeEach(() => {
+    runtime.paired = false;
+    actions.deleteThreadRecord.mockReset().mockResolvedValue(undefined);
     actions.deleteThreadsAndOwnedWorktrees.mockReset();
     actions.unarchiveThread.mockReset();
     useAppStore.setState({
@@ -215,5 +224,69 @@ describe("ArchivedThreadsSettings", () => {
     expect(screen.getByRole("button", { name: "Clear all" })).toBeEnabled();
     expect(screen.getByRole("button", { name: "Restore thread" })).toBeEnabled();
     expect(screen.getByRole("button", { name: "Delete thread" })).toBeEnabled();
+  });
+
+  it("offers paired archive actions on the selected desktop without worktree cleanup", () => {
+    runtime.paired = true;
+    useRemoteServersStore.setState((state) => ({
+      servers: state.servers.map((server) => ({
+        ...server,
+        scopes: ["session:read", "session:operate"],
+      })),
+    }));
+    useAppStore.setState((state) => ({
+      threads: state.threads.map((row) =>
+        row.id === "remote-row" ? { ...row, worktreePath: "/work/feature" } : row,
+      ),
+    }));
+    render(<ArchiveSettings />);
+
+    expect(screen.getByText("Remote archive")).toBeInTheDocument();
+    expect(screen.queryByText("Local newer")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Machine: / })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Clear all" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /Clear archived threads from/ }),
+    ).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Restore thread" }));
+    expect(actions.unarchiveThread).toHaveBeenCalledWith("remote-row");
+
+    fireEvent.click(screen.getByRole("button", { name: "Delete thread" }));
+    expect(screen.queryByText(/Associated worktrees/)).not.toBeInTheDocument();
+    expect(actions.deleteThreadRecord).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Delete" }));
+    expect(actions.deleteThreadRecord).toHaveBeenCalledWith(
+      expect.objectContaining({ remoteServerId: "d1", id: "remote-row" }),
+    );
+    expect(actions.deleteThreadsAndOwnedWorktrees).not.toHaveBeenCalled();
+  });
+
+  it("keeps the paired archive read-only with a read grant", () => {
+    runtime.paired = true;
+    useRemoteServersStore.setState((state) => ({
+      servers: state.servers.map((server) => ({ ...server, scopes: ["session:read"] })),
+    }));
+    render(<ArchiveSettings />);
+
+    expect(screen.getByText("Remote archive")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Restore thread" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Delete thread" })).toBeDisabled();
+  });
+
+  it("drops a paired archive confirmation when the owner pairing is replaced", () => {
+    runtime.paired = true;
+    useRemoteServersStore.setState((state) => ({
+      servers: state.servers.map((server) => ({
+        ...server,
+        scopes: ["session:read", "session:operate"],
+      })),
+    }));
+    render(<ArchiveSettings />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Delete thread" }));
+    bumpRemoteServerGeneration("d1");
+    fireEvent.click(screen.getByRole("button", { name: "Delete" }));
+    expect(actions.deleteThreadRecord).not.toHaveBeenCalled();
+    expect(actions.deleteThreadsAndOwnedWorktrees).not.toHaveBeenCalled();
   });
 });

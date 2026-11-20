@@ -100,6 +100,7 @@ const SECTION_VIEWS: Partial<Record<SettingsSection, () => ReactNode>> = {
 };
 
 const MACHINE_BACKED_SECTIONS = new Set<SettingsSection>([
+  "archived",
   "profile",
   "git",
   "worktrees",
@@ -153,7 +154,9 @@ function renderSection(
   }
 
   return MACHINE_BACKED_SECTIONS.has(activeSection) || activeSection.startsWith("agents:") ? (
-    <BrowserRemoteConnectionGate allowOffline={activeSection === "profile"}>
+    <BrowserRemoteConnectionGate
+      allowOffline={activeSection === "profile" || activeSection === "archived"}
+    >
       {section}
     </BrowserRemoteConnectionGate>
   ) : (
@@ -204,10 +207,16 @@ export function SettingsOverlay(props: { onClose: () => void; onBack?: () => voi
   );
   const [mobileDesktopParent, setMobileDesktopParent] = useState<"root" | "connections">("root");
   const [archiveMachineId, setArchiveMachineId] = useState(LOCAL_ARCHIVE_MACHINE_ID);
-  const archiveScope = { machineId: archiveMachineId, onMachineChange: setArchiveMachineId };
+  const remoteSession = isRemoteSession();
   const firstServer = useRemoteServersStore((state) => state.servers[0]);
   const chooseSettingsHost = useSettingsHostStore((state) => state.choose);
   const selectedDesktop = useSettingsHostServer() ?? firstServer;
+  const archiveScope = remoteSession
+    ? {
+        machineId: selectedDesktop ? remoteConnectionKey(selectedDesktop) : "",
+        onMachineChange: chooseSettingsHost,
+      }
+    : { machineId: archiveMachineId, onMachineChange: setArchiveMachineId };
   useProductViewTracking(
     {
       ...settingsSectionProductProperties(activeSection),
@@ -311,7 +320,6 @@ export function SettingsOverlay(props: { onClose: () => void; onBack?: () => voi
       .filter(agentStatusNeedsAuthAttention)
       .map((status) => status.kind),
   );
-  const remoteSession = isRemoteSession();
   const isMachineScopedSection =
     activeSection === "agentsGeneral" || activeSection.startsWith("agents:");
   const scopeBar =
@@ -367,7 +375,7 @@ export function SettingsOverlay(props: { onClose: () => void; onBack?: () => voi
     <MobileSettingsIndex
       screen={mobileScreen === "desktop" ? "desktop" : "device"}
       hasDesktop={!remoteSession || selectedDesktop !== undefined}
-      showArchived={!remoteSession}
+      showArchived={!remoteSession || selectedDesktop !== undefined}
       onOpenDesktop={() => setMobileScreen("desktop")}
       onOpenSchedules={() => {
         onClose();

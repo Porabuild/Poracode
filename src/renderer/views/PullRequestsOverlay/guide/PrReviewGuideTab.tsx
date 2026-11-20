@@ -9,14 +9,13 @@ import {
 import { Button } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { ForgeGetPrReviewGuidePayload, ForgePrReviewGuideResult } from "@/shared/contracts";
-import { getProjectAgentStatuses } from "@/shared/agentStatus";
 import { resolveAiLanguageName } from "@/shared/locale";
 import { friendlyError } from "@/shared/messages";
 import { sha256Hex } from "@/shared/remote/contract/sha256";
 import { readBridge } from "@/renderer/bridge";
 import { Select, TextArea } from "@/renderer/components/common";
 import { ItemMarkdown } from "@/renderer/components/thread/ChatPane/parts/items/ItemMarkdown";
-import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
+import { useHostAgentStatuses } from "@/renderer/hooks/useHostAgentStatuses";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import {
   getCommitGenCandidates,
@@ -31,6 +30,7 @@ export function PrReviewGuideTab(props: {
   input: ForgeGetPrReviewGuidePayload;
   disabled: boolean;
   readOnly?: boolean;
+  reserveAskButtonSpace?: boolean;
   rawDiff: string | undefined;
   onSelectFile: (path: string) => void;
   onAskAgent?: (context: string) => void;
@@ -56,12 +56,10 @@ export function PrReviewGuideTab(props: {
     };
   }, []);
 
-  const nativeStatuses = useAgentStatusesStore((s) => s.agentStatuses);
-  const wslStatuses = useAgentStatusesStore((s) => s.wslAgentStatuses);
+  const projectLocation = input.projectLocation;
+  const agentStatuses = useHostAgentStatuses(projectLocation.remoteServerId, projectLocation);
   const candidates = getCommitGenCandidates(
-    getProjectAgentStatuses(input.projectLocation, nativeStatuses, wslStatuses).filter(
-      (candidate) => candidate.capabilities.supportsReadOnlyOneShotWorkspace,
-    ),
+    agentStatuses.filter((candidate) => candidate.capabilities.supportsReadOnlyOneShotWorkspace),
     "auto",
   );
   const wsl = input.projectLocation.kind === "wsl";
@@ -154,6 +152,11 @@ export function PrReviewGuideTab(props: {
   const stale = result?.stale || !result?.diffHash || displayedDiffHash !== result.diffHash;
   const index = Math.min(stopIndex, Math.max(0, (guide?.stops.length ?? 1) - 1));
   const stop = guide?.stops[index];
+  const stopPadding = flow
+    ? "px-[var(--m-page-inline)]"
+    : props.reserveAskButtonSpace
+      ? "pl-6 pr-16"
+      : "px-6";
   return (
     <div className={flow ? "flex flex-col" : "flex h-full min-h-0 flex-col"}>
       <div
@@ -365,9 +368,7 @@ export function PrReviewGuideTab(props: {
       {stop && (
         <nav
           aria-label={t`Guide stops`}
-          className={`flex shrink-0 items-center justify-between gap-2 border-t border-border py-3 ${
-            flow ? "px-[var(--m-page-inline)]" : "px-6"
-          }`}
+          className={`flex shrink-0 items-center justify-between gap-2 border-t border-border py-3 ${stopPadding}`}
         >
           <Button
             size="sm"

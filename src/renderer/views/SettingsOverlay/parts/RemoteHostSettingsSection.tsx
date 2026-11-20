@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { Loader2, Monitor, RefreshCw } from "lucide-react";
 import { ToggleButton, ToggleButtonGroup } from "@heroui/react";
@@ -19,7 +19,18 @@ import {
   getTitleGenCandidates,
   resolveTitleGenConfig,
 } from "@/renderer/components/providers/titleGen";
+import {
+  ONE_SHOT_UTILITY_PRESENTATION,
+  type UtilityPresetEdit,
+} from "@/renderer/utils/utilitySelection";
 import { GenConfigSection, PresentationModeToggle } from "./AISettings";
+import {
+  editUtilityPreset,
+  readUtilityPreset,
+  utilityPresetFields,
+  utilitySettingsKeys,
+  type UtilityDomain,
+} from "./utilityPreset";
 
 /**
  * WS8 parity: the remote host's AI-helper settings, edited in place through
@@ -30,171 +41,64 @@ import { GenConfigSection, PresentationModeToggle } from "./AISettings";
  */
 
 type EnvKind = "windows" | "wsl";
-type GenGroup = "title" | "commit" | "conflict";
+const domains = ["titleGen", "commitGen", "conflictResolver"] as const;
 
-interface GenConfigValue {
-  readonly provider: string;
-  readonly model: string;
-  readonly effort: string;
-  readonly fast: boolean;
+function presentationKey(wsl: boolean) {
+  return wsl ? "wslConflictResolverPresentationMode" : "conflictResolverPresentationMode";
 }
 
-function genConfigValue(doc: RemoteSettings, env: EnvKind, group: GenGroup): GenConfigValue {
-  if (env === "windows") {
-    if (group === "title") {
-      return {
-        provider: doc.titleGenProvider,
-        model: doc.titleGenModel,
-        effort: doc.titleGenEffort,
-        fast: doc.titleGenFast,
-      };
-    }
-    if (group === "commit") {
-      return {
-        provider: doc.commitGenProvider,
-        model: doc.commitGenModel,
-        effort: doc.commitGenEffort,
-        fast: doc.commitGenFast,
-      };
-    }
-    return {
-      provider: doc.conflictResolverProvider,
-      model: doc.conflictResolverModel,
-      effort: doc.conflictResolverEffort,
-      fast: doc.conflictResolverFast,
-    };
-  }
-  if (group === "title") {
-    return {
-      provider: doc.wslTitleGenProvider,
-      model: doc.wslTitleGenModel,
-      effort: doc.wslTitleGenEffort,
-      fast: doc.wslTitleGenFast,
-    };
-  }
-  if (group === "commit") {
-    return {
-      provider: doc.wslCommitGenProvider,
-      model: doc.wslCommitGenModel,
-      effort: doc.wslCommitGenEffort,
-      fast: doc.wslCommitGenFast,
-    };
-  }
-  return {
-    provider: doc.wslConflictResolverProvider,
-    model: doc.wslConflictResolverModel,
-    effort: doc.wslConflictResolverEffort,
-    fast: doc.wslConflictResolverFast,
-  };
+function presentationMode(doc: RemoteSettings, wsl: boolean) {
+  return doc[presentationKey(wsl)] ?? "gui";
 }
 
-function withGenConfig(
-  doc: RemoteSettings,
-  env: EnvKind,
-  group: GenGroup,
-  value: GenConfigValue,
-): RemoteSettings {
-  if (env === "windows") {
-    if (group === "title") {
-      return {
-        ...doc,
-        titleGenProvider: value.provider,
-        titleGenModel: value.model,
-        titleGenEffort: value.effort,
-        titleGenFast: value.fast,
-      };
-    }
-    if (group === "commit") {
-      return {
-        ...doc,
-        commitGenProvider: value.provider,
-        commitGenModel: value.model,
-        commitGenEffort: value.effort,
-        commitGenFast: value.fast,
-      };
-    }
-    return {
-      ...doc,
-      conflictResolverProvider: value.provider,
-      conflictResolverModel: value.model,
-      conflictResolverEffort: value.effort,
-      conflictResolverFast: value.fast,
-    };
-  }
-  if (group === "title") {
-    return {
-      ...doc,
-      wslTitleGenProvider: value.provider,
-      wslTitleGenModel: value.model,
-      wslTitleGenEffort: value.effort,
-      wslTitleGenFast: value.fast,
-    };
-  }
-  if (group === "commit") {
-    return {
-      ...doc,
-      wslCommitGenProvider: value.provider,
-      wslCommitGenModel: value.model,
-      wslCommitGenEffort: value.effort,
-      wslCommitGenFast: value.fast,
-    };
-  }
-  return {
-    ...doc,
-    wslConflictResolverProvider: value.provider,
-    wslConflictResolverModel: value.model,
-    wslConflictResolverEffort: value.effort,
-    wslConflictResolverFast: value.fast,
-  };
-}
-
-function presentationMode(doc: RemoteSettings, env: EnvKind): "gui" | "terminal" {
-  return env === "windows"
-    ? (doc.conflictResolverPresentationMode ?? "gui")
-    : (doc.wslConflictResolverPresentationMode ?? "gui");
-}
-
-/** Ships only the keys that actually changed, mirroring the PWA diff push. */
+/** Commit each changed preset and its scalar mirrors in one host patch. */
 function buildPatch(baseline: RemoteSettings, draft: RemoteSettings): RemoteSettingsPatch {
-  const patch: Record<string, unknown> = {};
-  for (const env of ["windows", "wsl"] as const) {
-    for (const group of ["title", "commit", "conflict"] as const) {
-      const before = genConfigValue(baseline, env, group);
-      const after = genConfigValue(draft, env, group);
+  const patch: RemoteSettingsPatch = {};
+  for (const wsl of [false, true]) {
+    for (const domain of domains) {
+      const keys = utilitySettingsKeys(domain, wsl);
+      const before = readUtilityPreset(baseline, keys);
+      const after = readUtilityPreset(draft, keys);
       if (JSON.stringify(before) === JSON.stringify(after)) continue;
-      const base =
-        group === "title" ? "TitleGen" : group === "commit" ? "CommitGen" : "ConflictResolver";
-      const key = env === "wsl" ? `wsl${base}` : `${base.charAt(0).toLowerCase()}${base.slice(1)}`;
-      patch[`${key}Provider`] = after.provider;
-      patch[`${key}Model`] = after.model;
-      patch[`${key}Effort`] = after.effort;
-      patch[`${key}Fast`] = after.fast;
+      patch[keys.provider] = after.provider;
+      patch[keys.model] = after.model;
+      patch[keys.effort] = after.effort;
+      patch[keys.fast] = after.fast;
+      if (after.selection !== undefined) patch[keys.canonical] = after.selection;
     }
-    const modeBefore = presentationMode(baseline, env);
-    const modeAfter = presentationMode(draft, env);
-    if (modeBefore !== modeAfter) {
-      const modeKey =
-        env === "wsl" ? "wslConflictResolverPresentationMode" : "conflictResolverPresentationMode";
-      patch[modeKey] = modeAfter;
-    }
+    const mode = presentationMode(draft, wsl);
+    if (mode !== presentationMode(baseline, wsl)) patch[presentationKey(wsl)] = mode;
   }
-  return patch as RemoteSettingsPatch;
+  return patch;
 }
 
-export function RemoteHostSettingsSection(props: {
+interface RemoteHostSettingsProps {
   readonly desktopId: string;
   readonly isOnline: boolean;
   readonly canRead: boolean;
   readonly canWrite: boolean;
-}) {
+}
+
+export function RemoteHostSettingsSection(props: RemoteHostSettingsProps) {
+  if (!props.isOnline || !props.canRead) return null;
+  return (
+    <ConnectedHostSettings
+      key={props.desktopId}
+      desktopId={props.desktopId}
+      canWrite={props.canWrite}
+    />
+  );
+}
+
+function ConnectedHostSettings({
+  desktopId,
+  canWrite,
+}: Pick<RemoteHostSettingsProps, "desktopId" | "canWrite">) {
   const { t } = useLingui();
-  const { desktopId, isOnline, canRead, canWrite } = props;
   const withClient = useRemoteServersStore((s) => s.withClient);
   const agentStatuses = useRemoteServersStore((s) => s.runtime[desktopId]?.agentStatuses);
 
   const [baseline, setBaseline] = useState<RemoteSettings | null>(null);
-  /** Which host the loaded baseline belongs to — a stale one renders as loading. */
-  const [baselineKey, setBaselineKey] = useState<string | null>(null);
   const [draft, setDraft] = useState<RemoteSettings | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [reloading, setReloading] = useState(false);
@@ -202,60 +106,94 @@ export function RemoteHostSettingsSection(props: {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [envKind, setEnvKind] = useState<EnvKind>("windows");
 
+  const readRevision = useRef(0);
+  const invalidateReads = useCallback(() => {
+    readRevision.current++;
+  }, []);
   const load = useCallback(() => {
+    const revision = ++readRevision.current;
     void withClient(desktopId, (client) => client.settings())
       .then((document) => {
+        if (revision !== readRevision.current) return;
         setBaseline(document);
-        setBaselineKey(desktopId);
         setDraft(document);
         setSaveError(null);
         setLoadError(null);
       })
       .catch((error: unknown) => {
-        setLoadError(friendlyError(error));
+        if (revision === readRevision.current) setLoadError(friendlyError(error));
       })
-      .finally(() => setReloading(false));
+      .finally(() => {
+        if (revision === readRevision.current) setReloading(false);
+      });
   }, [desktopId, withClient]);
 
   useEffect(() => {
-    if (!isOnline || !canRead) return;
     load();
-  }, [isOnline, canRead, load]);
-
-  if (!isOnline || !canRead) return null;
+    return invalidateReads;
+  }, [invalidateReads, load]);
 
   const windowsStatuses = agentStatuses?.windows ?? [];
   const wslStatuses = agentStatuses?.wsl ?? [];
   const hasWsl = wslStatuses.length > 0;
-  const activeStatuses = envKind === "wsl" ? wslStatuses : windowsStatuses;
-  const documentReady = baselineKey === desktopId && baseline !== null && draft !== null;
+  const wsl = envKind === "wsl";
+  const activeStatuses = wsl ? wslStatuses : windowsStatuses;
+  const documentReady = baseline !== null && draft !== null;
   const dirty =
     baseline !== null && draft !== null && Object.keys(buildPatch(baseline, draft)).length > 0;
+  const canEdit = canWrite && !saving;
 
   function setConfig(
-    env: EnvKind,
-    group: GenGroup,
+    domain: UtilityDomain,
     provider: string,
     model: string,
     effort: string,
     fast: boolean,
+    edit: UtilityPresetEdit,
   ): void {
-    setDraft((current) =>
-      current === null
-        ? current
-        : withGenConfig(current, env, group, { provider, model, effort, fast }),
-    );
+    if (!canEdit) return;
+    const keys = utilitySettingsKeys(domain, wsl);
+    setDraft((current) => {
+      if (!current) return current;
+      const stored = readUtilityPreset(current, keys);
+      const mode =
+        domain === "conflictResolver"
+          ? presentationMode(current, wsl)
+          : ONE_SHOT_UTILITY_PRESENTATION;
+      const selection = editUtilityPreset(stored, { provider, model, effort, fast }, edit, mode);
+      if (!selection) return current;
+      return { ...current, ...utilityPresetFields(keys, provider, selection) };
+    });
+  }
+
+  function setPresentation(mode: "gui" | "terminal"): void {
+    if (!canEdit) return;
+    const keys = utilitySettingsKeys("conflictResolver", wsl);
+    setDraft((current) => {
+      if (!current || presentationMode(current, wsl) === mode) return current;
+      const stored = readUtilityPreset(current, keys);
+      const selection = editUtilityPreset(stored, stored, { kind: "presentation" }, mode);
+      if (!selection) return current;
+      return {
+        ...current,
+        ...utilityPresetFields(keys, stored.provider, selection),
+        [presentationKey(wsl)]: mode,
+      };
+    });
   }
 
   function save(): void {
-    if (baseline === null || draft === null || !dirty || saving) return;
+    if (baseline === null || draft === null || !dirty || !canEdit) return;
     const patch = buildPatch(baseline, draft);
     setSaving(true);
     setSaveError(null);
     void withClient(desktopId, (client) => client.updateSettings(patch))
       .then((document) => {
+        invalidateReads();
         setBaseline(document);
         setDraft(document);
+        setLoadError(null);
+        setReloading(false);
       })
       .catch((error: unknown) => {
         setSaveError(friendlyError(error));
@@ -339,14 +277,12 @@ export function RemoteHostSettingsSection(props: {
             requireOneShot
             description={t`Generates short titles for new threads.`}
             agentStatuses={activeStatuses}
-            provider={genConfigValue(draft, envKind, "title").provider}
-            model={genConfigValue(draft, envKind, "title").model}
-            effort={genConfigValue(draft, envKind, "title").effort}
-            fast={genConfigValue(draft, envKind, "title").fast}
+            {...readUtilityPreset(draft, utilitySettingsKeys("titleGen", wsl))}
+            isReadOnly={!canEdit}
             resolve={resolveTitleGenConfig}
             getCandidates={getTitleGenCandidates}
-            onConfigChange={(provider, model, effort, fast) =>
-              setConfig(envKind, "title", provider, model, effort, fast)
+            onConfigChange={(provider, model, effort, fast, edit) =>
+              setConfig("titleGen", provider, model, effort, fast, edit)
             }
           />
           <GenConfigSection
@@ -354,44 +290,33 @@ export function RemoteHostSettingsSection(props: {
             requireOneShot
             description={t`Generates commit messages from staged changes.`}
             agentStatuses={activeStatuses}
-            provider={genConfigValue(draft, envKind, "commit").provider}
-            model={genConfigValue(draft, envKind, "commit").model}
-            effort={genConfigValue(draft, envKind, "commit").effort}
-            fast={genConfigValue(draft, envKind, "commit").fast}
+            {...readUtilityPreset(draft, utilitySettingsKeys("commitGen", wsl))}
+            isReadOnly={!canEdit}
             resolve={resolveCommitGenConfig}
             getCandidates={getCommitGenCandidates}
-            onConfigChange={(provider, model, effort, fast) =>
-              setConfig(envKind, "commit", provider, model, effort, fast)
+            onConfigChange={(provider, model, effort, fast, edit) =>
+              setConfig("commitGen", provider, model, effort, fast, edit)
             }
           />
           <GenConfigSection
             heading={t`Conflict Resolver`}
             description={t`Resolves merge conflicts during rebase or merge.`}
             agentStatuses={activeStatuses}
-            provider={genConfigValue(draft, envKind, "conflict").provider}
-            model={genConfigValue(draft, envKind, "conflict").model}
-            effort={genConfigValue(draft, envKind, "conflict").effort}
-            fast={genConfigValue(draft, envKind, "conflict").fast}
+            {...readUtilityPreset(draft, utilitySettingsKeys("conflictResolver", wsl))}
+            isReadOnly={!canEdit}
             resolve={resolveConflictResolverConfig}
             getCandidates={getConflictResolverCandidates}
-            onConfigChange={(provider, model, effort, fast) =>
-              setConfig(envKind, "conflict", provider, model, effort, fast)
+            onConfigChange={(provider, model, effort, fast, edit) =>
+              setConfig("conflictResolver", provider, model, effort, fast, edit)
             }
-            presentationMode={presentationMode(draft, envKind)}
+            presentationMode={presentationMode(draft, wsl)}
             extraControls={
               canWrite ? (
                 <PresentationModeToggle
                   ariaLabel={t`Open conflict resolver in`}
-                  value={presentationMode(draft, envKind)}
-                  onChange={(value) =>
-                    setDraft((current) =>
-                      current === null
-                        ? current
-                        : envKind === "windows"
-                          ? { ...current, conflictResolverPresentationMode: value }
-                          : { ...current, wslConflictResolverPresentationMode: value },
-                    )
-                  }
+                  value={presentationMode(draft, wsl)}
+                  isDisabled={!canEdit}
+                  onChange={setPresentation}
                 />
               ) : null
             }

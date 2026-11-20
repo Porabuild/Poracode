@@ -382,7 +382,11 @@ export function resumeHostThreadHistory(
   const fence = host.session.resumeFence;
   const followUpQueueSnapshotGuard = captureThreadFollowUpQueueSnapshot(viewThreadId);
   return (async (): Promise<HostThreadHistoryResume | null> => {
-    const resumeOptions = { afterSeq: captured.appliedSeq };
+    const resumeOptions = {
+      afterSeq: captured.appliedSeq,
+      targetTimelineEntryCount: INITIAL_HISTORY_TIMELINE_ENTRIES,
+      ...(host.omitsHistoryScrollback ? { omitScrollback: true as const } : {}),
+    };
     const result = await (options.client
       ? options.client.resumeThreadHistory(host.hostId, captured.cursor, resumeOptions)
       : host.withClient((client) =>

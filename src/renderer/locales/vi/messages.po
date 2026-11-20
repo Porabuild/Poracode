@@ -9787,6 +9787,7 @@ msgid "Import selected"
 msgstr "Nhập mục đã chọn"
 
 #: src/renderer/views/SettingsOverlay/parts/ImportSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 msgid "Import sessions"
 msgstr "Nhập phiên"
 
@@ -10953,6 +10954,10 @@ msgstr "Tải phông chữ đã cài đặt"
 #: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
 msgid "Load older results"
 msgstr "Tải kết quả cũ hơn"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesPanel.tsx
+msgid "Load saved notes"
+msgstr "Tải ghi chú đã lưu"
 
 #: src/renderer/components/common/PixelLoader.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentMessageList.tsx
@@ -15577,6 +15582,10 @@ msgstr "Không tìm thấy dự án."
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesEditor.tsx
 msgid "Project notes"
 msgstr "ghi chú dự án"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesPanel.tsx
+msgid "Project Notes changed elsewhere. Your draft is still here."
+msgstr "Ghi chú dự án đã được thay đổi ở nơi khác. Bản nháp của bạn vẫn còn."
 
 #: src/renderer/components/thread/MoveThreadDialog.tsx
 #~ msgid "Project on {targetLabel}"
@@ -21343,8 +21352,8 @@ msgid "This desktop"
 msgstr "Máy tính này"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
-msgid "This desktop's Poracode version doesn't support browser forwarding. Update Poracode on your desktop."
-msgstr "Phiên bản Poracode trên máy tính này không hỗ trợ chuyển tiếp qua trình duyệt. Hãy cập nhật Poracode trên máy tính của bạn."
+#~ msgid "This desktop's Poracode version doesn't support browser forwarding. Update Poracode on your desktop."
+#~ msgstr "Phiên bản Poracode trên máy tính này không hỗ trợ chuyển tiếp qua trình duyệt. Hãy cập nhật Poracode trên máy tính của bạn."
 
 #: src/mobile/QrScanner.tsx
 #~ msgid "This device has no usable camera. Enter the endpoint and token below to pair instead."

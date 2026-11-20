@@ -676,6 +676,28 @@ describe("MessageList", () => {
     expect(props.getItemType(entries[1]!, 1)).toBe("assistant_message:long");
   });
 
+  it("estimates a prompt-only history row without rewriting its payload", () => {
+    const legacyPayload = { prompt: "Continue the conversation" };
+    useAppStore.getState().applyRuntimeEvents("thread-1", [
+      {
+        type: "item.started",
+        threadId: "thread-1",
+        itemId: "legacy",
+        itemType: "user_message",
+        payload: legacyPayload,
+      },
+      { type: "item.completed", threadId: "thread-1", itemId: "legacy" },
+    ]);
+    const entries = makeEntries(["legacy"]);
+    render(<MessageList threadId="thread-1" entries={entries} />);
+
+    const props = latestLegendProps.current as MockLegendProps;
+    expect(props.getItemType(entries[0]!, 0)).toBe("user_message:short");
+    expect(useAppStore.getState().runtimeItemsByIdByThread["thread-1"]?.legacy?.payload).toEqual(
+      legacyPayload,
+    );
+  });
+
   it("marks only the current empty thought as live while the turn is active", () => {
     const threadId = "thread-1";
     seedStartedItem(threadId, "old-thought", "reasoning");

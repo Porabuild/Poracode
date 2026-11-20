@@ -14,8 +14,6 @@ import { Button, ButtonGroup, Dropdown, Label, Modal, Separator } from "@heroui/
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { GitBranchInfo, GitStatusResult, PrCreateMode, Project } from "@/shared/contracts";
 import { branchNameFromRemoteRef } from "@/shared/gitUtils";
-import { getProjectAgentStatuses } from "@/shared/agentStatus";
-import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import { findExperimentByWorktree } from "@/renderer/state/experimentStore";
 import { gitReviewActionStoreKey } from "@/renderer/state/gitReviewActionStore";
 import { useGitStore } from "@/renderer/state/gitStore";
@@ -35,7 +33,6 @@ import { PixelLoader, SidebarButton } from "@/renderer/components/common";
 import { useScrollFade } from "@/renderer/hooks/useScrollFade";
 import { isPrActive } from "@/renderer/utils/prStatus";
 import { useSidebar } from "@/renderer/views/MainView/parts/AppShell/AppShell";
-import { getCommitGenCandidates } from "@/renderer/components/providers/commitGen";
 import {
   gitReviewColumnClass,
   gitReviewSidebarListScrollClass,
@@ -120,12 +117,6 @@ export function GitReviewSidebar(props: {
     contentRef: scrollContentRef,
     maxFadePx: 10,
   });
-  const agentStatuses = useAgentStatusesStore((s) => s.agentStatuses);
-  const wslAgentStatuses = useAgentStatusesStore((s) => s.wslAgentStatuses);
-  const isWsl = project.location.kind === "wsl";
-  const commitGenProvider = useSharedSettings((s) =>
-    isWsl ? s.wslCommitGenProvider : s.commitGenProvider,
-  );
   const prCreateMode = useSharedSettings((s) => s.prCreateMode);
   const setPrCreateMode = useSharedSettings((s) => s.setPrCreateMode);
   const commitDefaultAction = useSharedSettings((s) => s.commitDefaultAction);
@@ -165,6 +156,7 @@ export function GitReviewSidebar(props: {
   const {
     commitMessage,
     setCommitMessage,
+    canGenerateMessage,
     isCommitting,
     isGenerating,
     isSyncing,
@@ -225,13 +217,6 @@ export function GitReviewSidebar(props: {
     onLaunchResolverThread: onLaunchConflictResolverThread,
   });
 
-  const projectAgentStatuses = getProjectAgentStatuses(
-    project.location,
-    agentStatuses,
-    wslAgentStatuses,
-  );
-  const canGenerateMessage =
-    getCommitGenCandidates(projectAgentStatuses, commitGenProvider).length > 0;
   const hasStagedChanges = (gitStatus?.staged.length ?? 0) > 0;
   const hasAnyChanges = hasStagedChanges || (gitStatus?.unstaged.length ?? 0) > 0;
   const canCommitStaged = hasAnyChanges && !isCommitting && !isGenerating;

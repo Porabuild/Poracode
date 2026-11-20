@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ArrowUpDown } from "lucide-react";
+import { Button } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { overlaySidebarSurfaceClass } from "@/renderer/components/layout/sidebarChrome";
 import { useCompactLayout } from "@/renderer/adaptiveLayout";
@@ -30,9 +31,10 @@ export function NotesPanel(props: { projectId: string }) {
   const { projectId } = props;
   const { t } = useLingui();
   const compact = useCompactLayout();
-  const ensureLoaded = useNotesStore((s) => s.ensureLoaded);
+  const refresh = useNotesStore((s) => s.refresh);
   const flush = useNotesStore((s) => s.flush);
   const status = useNotesStore((s) => s.byProject[projectId]?.status ?? "unloaded");
+  const conflict = useNotesStore((s) => s.byProject[projectId]?.conflict);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const [topRatio, setTopRatio] = useState(() =>
@@ -41,9 +43,9 @@ export function NotesPanel(props: { projectId: string }) {
   const [notesFirst, setNotesFirst] = useState(() => readStoredBoolean(ORDER_KEY, true));
 
   useEffect(() => {
-    ensureLoaded(projectId);
+    refresh(projectId);
     return () => flush(projectId);
-  }, [projectId, ensureLoaded, flush]);
+  }, [projectId, refresh, flush]);
 
   const onResizePointerDown = useCallback(
     (e: React.PointerEvent) => {
@@ -92,6 +94,19 @@ export function NotesPanel(props: { projectId: string }) {
       ref={containerRef}
       className={`flex h-full min-h-0 flex-col ${overlaySidebarSurfaceClass}`}
     >
+      {conflict && (
+        <div
+          role="status"
+          className="order-first flex shrink-0 items-center gap-2 border-b border-[color:var(--border)] px-3 py-2 text-xs text-muted"
+        >
+          <span>
+            <Trans>Project Notes changed elsewhere. Your draft is still here.</Trans>
+          </span>
+          <Button size="sm" variant="secondary" onPress={() => refresh(projectId, true)}>
+            <Trans>Load saved notes</Trans>
+          </Button>
+        </div>
+      )}
       <div className="min-h-0 overflow-hidden" style={sectionStyle(notesFirst)}>
         <NotesEditor projectId={projectId} />
       </div>

@@ -129,7 +129,9 @@ describe("ThreadFollowUpQueue", () => {
     fireEvent.click(screen.getByRole("button", { name: "Edit queued follow-up" }));
     expect(await screen.findByText("screenshot.png")).toBeInTheDocument();
     expect(screen.queryByText("@/tmp/screenshot.png")).not.toBeInTheDocument();
-    fireEvent.change(await screen.findByRole("textbox", { name: "Edit queued follow-up" }), {
+    const editor = await screen.findByRole("textbox", { name: "Edit queued follow-up" });
+    expect(editor.closest('[aria-disabled="true"]')).toBeNull();
+    fireEvent.change(editor, {
       target: { value: "Updated task" },
     });
     fireEvent.click(screen.getByRole("button", { name: "Save" }));

@@ -219,7 +219,10 @@ describe("readHostThreadHistory", () => {
       },
     );
     expect(outcome).toMatchObject({ kind: "applied", applied: true });
-    expect(resume).toHaveBeenCalledExactlyOnceWith(HOST_ID, "hr1.cursor", { afterSeq: 5 });
+    expect(resume).toHaveBeenCalledExactlyOnceWith(HOST_ID, "hr1.cursor", {
+      afterSeq: 5,
+      targetTimelineEntryCount: 20,
+    });
     expect(read).toHaveBeenCalledOnce();
     expect(useAppStore.getState().runtimeItemsByIdByThread[VIEW]).toBe(items);
   });

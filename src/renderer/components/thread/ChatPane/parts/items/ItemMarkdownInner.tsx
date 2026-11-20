@@ -469,10 +469,14 @@ function MdCodeBlockFrame({ text, children }: { text: string; children?: ReactNo
   if (text.length === 0) return <>{children}</>;
   return (
     <div className="group/codeblock relative">
-      {children}
-      <div className="absolute right-1 top-1 z-10 opacity-0 transition-opacity focus-within:opacity-100 group-hover/codeblock:opacity-100">
-        <CopyTextButton text={text} label={t`Copy code`} />
+      <div className="flex justify-end [@media(pointer:fine)_and_(hover:hover)]:absolute [@media(pointer:fine)_and_(hover:hover)]:right-1 [@media(pointer:fine)_and_(hover:hover)]:top-1 z-10 opacity-100 transition-opacity [@media(pointer:fine)_and_(hover:hover)]:opacity-0 focus-within:opacity-100 group-hover/codeblock:opacity-100">
+        <CopyTextButton
+          text={text}
+          label={t`Copy code`}
+          className="[@media(pointer:coarse)]:size-11 [@media(pointer:coarse)]:min-w-11"
+        />
       </div>
+      {children}
     </div>
   );
 }

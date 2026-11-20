@@ -57,7 +57,6 @@ const DESKTOP_ONLY_SECTIONS = new Set<SettingsSection>([
   "mcpServers",
   "plugins",
   "browser",
-  "archived",
   "about",
 ]);
 

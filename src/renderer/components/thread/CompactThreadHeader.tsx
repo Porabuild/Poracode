@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useLingui } from "@lingui/react/macro";
 import {
   Archive,
+  ArrowRightLeft,
   CircleCheck,
   Ellipsis,
   GitFork,
@@ -12,14 +13,14 @@ import {
   Star,
   Trash2,
 } from "lucide-react";
-import type { AgentStatus, Project, Thread } from "@/shared/contracts";
+import type { Project, Thread } from "@/shared/contracts";
 import { openNotesPanel } from "@/renderer/actions/panelActions";
 import { moveThreadToWorktree } from "@/renderer/actions/moveThreadToWorktreeActions";
 import {
   archiveThread,
-  deleteThread,
   openNewThreadInWorktree,
   renameThread,
+  requestDeleteThread,
   toggleMarkThreadDone,
   toggleStarThread,
 } from "@/renderer/actions/threadActions";
@@ -32,9 +33,18 @@ import {
 import { SidebarButton } from "@/renderer/components/common/SidebarButton";
 import { MobileCircleButton } from "@/renderer/components/mobileComposer/MobileCircleButton";
 import { InlineRenameInput } from "@/renderer/views/MainView/parts/Sidebar/parts/InlineRenameInput";
+import { useThreadAgentStatuses } from "@/renderer/hooks/uiSelectors";
+import { useContinueInProviderStore } from "@/renderer/state/continueInProviderStore";
+import { findExperimentByThreadId } from "@/renderer/state/experimentStore";
+import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
+import { remoteConnectionKey } from "@/renderer/state/remoteServers/types";
 import { resolveWorktreeBranch } from "@/renderer/utils/gitHelpers";
 
-function CompactThreadActions(props: { thread: Thread; onRename: () => void }) {
+function CompactThreadActions(props: {
+  thread: Thread;
+  canContinue: boolean;
+  onRename: () => void;
+}) {
   const { t } = useLingui();
   const [open, setOpen] = useState(false);
   const { thread } = props;
@@ -66,6 +76,13 @@ function CompactThreadActions(props: { thread: Thread; onRename: () => void }) {
               label={t`Rename`}
               onPress={() => run(props.onRename)}
             />
+            {props.canContinue ? (
+              <SidebarButton
+                icon={<ArrowRightLeft className="size-4" />}
+                label={t`Continue in another provider`}
+                onPress={() => run(() => useContinueInProviderStore.getState().request(thread.id))}
+              />
+            ) : null}
             <SidebarButton
               icon={<NotebookPen className="size-4" />}
               label={t`Notes & to-dos`}
@@ -133,7 +150,7 @@ function CompactThreadActions(props: { thread: Thread; onRename: () => void }) {
               label={t`Delete Thread`}
               className="text-danger"
               onPress={() =>
-                run(() => deleteThread(thread.id, thread.worktreePath, thread.projectId))
+                run(() => requestDeleteThread(thread.id, thread.worktreePath, thread.projectId))
               }
             />
           </div>
@@ -143,14 +160,27 @@ function CompactThreadActions(props: { thread: Thread; onRename: () => void }) {
   );
 }
 
-export function CompactThreadHeader(props: {
-  thread: Thread;
-  project: Project;
-  agentStatus: AgentStatus | undefined;
-}) {
+export function CompactThreadHeader(props: { thread: Thread; project: Project }) {
   const { thread } = props;
   const [renaming, setRenaming] = useState(false);
   const remote = useProjectRemoteServer(props.project);
+  const installedAgents = useThreadAgentStatuses({
+    remoteServerId: thread.remoteServerId,
+    projectLocation: props.project.location,
+  });
+  const canOperate = useRemoteServersStore(
+    (state) =>
+      thread.remoteServerId === undefined ||
+      state.servers.some(
+        (server) =>
+          remoteConnectionKey(server) === thread.remoteServerId &&
+          server.scopes.includes("session:operate"),
+      ),
+  );
+  const canContinue =
+    canOperate &&
+    !findExperimentByThreadId(thread.id) &&
+    installedAgents.some((agent) => agent.kind !== thread.agentKind);
   return (
     <div className="m-topbar__thread-row">
       <span className="m-topbar__thread">
@@ -175,7 +205,11 @@ export function CompactThreadHeader(props: {
           </>
         )}
       </span>
-      <CompactThreadActions thread={thread} onRename={() => setRenaming(true)} />
+      <CompactThreadActions
+        thread={thread}
+        canContinue={canContinue}
+        onRename={() => setRenaming(true)}
+      />
     </div>
   );
 }
