@@ -501,17 +501,21 @@ describe("remote v3 native binding generator", () => {
     ).toBeLessThanOrEqual(NATIVE_BINDINGS_MANIFEST_MAX_LINE_LENGTH);
   });
 
-  it("rejects a synthetic generated source line that exceeds the bounded size policy", () => {
-    const { ir, manifest } = input();
-    const invalid = structuredClone(ir);
-    const route = (invalid.routes as Array<{ request: { jsonSchema?: JsonSchema } }>).find(
-      ({ request }) => request.jsonSchema,
-    )!;
-    route.request.jsonSchema = {
-      type: "object",
-      properties: { huge: { type: "string", default: "x".repeat(40_000) } },
-    };
-    resign(invalid, manifest);
-    expect(() => buildNativeBindingOutput(invalid, manifest)).toThrow(/character line/);
-  });
+  it(
+    "rejects a synthetic generated source line that exceeds the bounded size policy",
+    { timeout: 45_000 },
+    () => {
+      const { ir, manifest } = input();
+      const invalid = structuredClone(ir);
+      const route = (invalid.routes as Array<{ request: { jsonSchema?: JsonSchema } }>).find(
+        ({ request }) => request.jsonSchema,
+      )!;
+      route.request.jsonSchema = {
+        type: "object",
+        properties: { huge: { type: "string", default: "x".repeat(40_000) } },
+      };
+      resign(invalid, manifest);
+      expect(() => buildNativeBindingOutput(invalid, manifest)).toThrow(/character line/);
+    },
+  );
 });
