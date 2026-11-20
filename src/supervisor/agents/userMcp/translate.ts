@@ -300,12 +300,15 @@ function toNamedValues(record: Record<string, string>): AcpNamedValue[] {
   return Object.entries(record).map(([name, value]) => ({ name, value }));
 }
 
+export const acpMcpServerName = mcpSettingsServerName;
+
 export function buildAcpMcpServers(servers: readonly ResolvedMcpServer[]): AcpMcpServerConfig[] {
   return servers.map((server) => {
+    const name = acpMcpServerName(server);
     const transport = server.transport;
     if (transport.type === "stdio") {
       return {
-        name: server.name,
+        name,
         command: transport.command,
         args: transport.args,
         env: toNamedValues(transport.env),
@@ -313,7 +316,7 @@ export function buildAcpMcpServers(servers: readonly ResolvedMcpServer[]): AcpMc
     }
     return {
       type: transport.type,
-      name: server.name,
+      name,
       url: transport.url,
       headers: toNamedValues(transport.headers),
     };

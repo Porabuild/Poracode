@@ -17,6 +17,7 @@ import { join } from "node:path";
 import type { ProjectLocation, ResolvedMcpServer } from "@/shared/contracts";
 import type { AcpSharedProcessPrepare } from "../acp";
 import { quotePosixShellArg, readAgentCommandOutput } from "../base";
+import { acpMcpServerName } from "../userMcp";
 import { prepareDevinWindowsHome } from "./accountRoots";
 
 /**
@@ -53,10 +54,11 @@ export function mergeDevinMcpConfig(
   }
   const injected = Object.fromEntries(
     servers.map((server) => {
+      const wireName = acpMcpServerName(server);
       const transport = server.transport;
       if (transport.type === "http") {
         return [
-          server.name,
+          wireName,
           {
             url: transport.url,
             transport: "http",
@@ -67,7 +69,7 @@ export function mergeDevinMcpConfig(
       if (transport.type !== "stdio")
         throw new Error(`Devin session MCP does not support the ${transport.type} transport`);
       const { command, args, env } = transport;
-      return [server.name, { command, ...(args ? { args } : {}), ...(env ? { env } : {}) }];
+      return [wireName, { command, ...(args ? { args } : {}), ...(env ? { env } : {}) }];
     }),
   );
   return JSON.stringify({ ...config, mcpServers: { ...current, ...injected } });

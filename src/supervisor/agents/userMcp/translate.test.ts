@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { McpServer } from "@/shared/contracts";
 import {
+  acpMcpServerName,
   buildAcpMcpServers,
   buildClaudeMcpServers,
   buildCodexMcp,
@@ -88,7 +89,7 @@ describe("custom MCP translators", () => {
     });
     expect(buildAcpMcpServers(servers)).toEqual([
       {
-        name: "local.tools",
+        name: acpMcpServerName(servers[0]!),
         command: "node",
         args: ["server.js"],
         env: [{ name: "MODE", value: "test" }],
@@ -104,6 +105,55 @@ describe("custom MCP translators", () => {
       },
       { type: "sse", name: "events", url: "https://example.test/sse", headers: [] },
     ]);
+  });
+
+  it("normalizes ACP MCP server names to match ^[A-Za-z0-9_-]+$ without collisions", () => {
+    const pluginHttp: McpServer = {
+      id: "plugin:atlassian:atlassian",
+      name: "atlassian.atlassian",
+      description: "",
+      enabled: true,
+      timeoutMs: 30_000,
+      transport: {
+        type: "http",
+        url: "https://mcp.atlassian.com/v1/mcp",
+        headers: { Authorization: "Bearer token" },
+      },
+    };
+    const underscored: McpServer = {
+      id: "custom-underscored",
+      name: "atlassian_atlassian",
+      description: "",
+      enabled: true,
+      timeoutMs: 30_000,
+      transport: {
+        type: "stdio",
+        command: "node",
+        args: [],
+        env: {},
+      },
+    };
+    const emptyName: McpServer = {
+      id: "empty-id",
+      name: "",
+      description: "",
+      enabled: true,
+      timeoutMs: 30_000,
+      transport: {
+        type: "sse",
+        url: "https://example.test/sse",
+        headers: {},
+      },
+    };
+
+    const built = buildAcpMcpServers([pluginHttp, underscored, emptyName]);
+    for (const entry of built) {
+      expect(entry.name).toMatch(/^[A-Za-z0-9_-]+$/u);
+    }
+    expect(built[0]?.name).toMatch(/^atlassian_atlassian_[a-f0-9]{8}$/u);
+    expect(built[1]?.name).toBe("atlassian_atlassian");
+    expect(built[2]?.name).toMatch(/^server_[a-f0-9]{8}$/u);
+    expect(new Set(built.map((entry) => entry.name)).size).toBe(3);
   });
 
   it("builds safe Codex overrides and carries bearer tokens through env", () => {

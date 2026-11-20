@@ -8,6 +8,7 @@ import {
   prepareDevinMcpConfig,
   prepareDevinMcpConfigForRoots,
 } from "./mcpConfig";
+import { acpMcpServerName } from "../userMcp";
 import { prepareDevinWindowsHome } from "./accountRoots";
 const roots: string[] = [];
 afterEach(async () => {
@@ -275,4 +276,26 @@ it("plans a shared-process overlay once and materializes the private root per pr
   expect(differentPlan.key).not.toBe(plan.key);
   await first.cleanup();
   await second.cleanup();
+});
+
+it("keys dotted server names by acpMcpServerName so overlays match ACP session/new", () => {
+  const pluginServer = {
+    id: "plugin:atlassian:atlassian",
+    timeoutMs: 30_000,
+    name: "atlassian.atlassian",
+    transport: {
+      type: "http" as const,
+      url: "https://mcp.atlassian.com/v1/mcp",
+      headers: { Authorization: "Bearer token" },
+    },
+  };
+  const merged = JSON.parse(mergeDevinMcpConfig('{"mcpServers":{}}', [pluginServer]));
+  const expectedKey = acpMcpServerName(pluginServer);
+  expect(expectedKey).toMatch(/^atlassian_atlassian_[a-f0-9]{8}$/u);
+  expect(merged.mcpServers).not.toHaveProperty("atlassian.atlassian");
+  expect(merged.mcpServers[expectedKey]).toEqual({
+    url: "https://mcp.atlassian.com/v1/mcp",
+    transport: "http",
+    headers: { Authorization: "Bearer token" },
+  });
 });
