@@ -11,7 +11,7 @@ class ProjectUiResourceTest {
     fun projectResourcesAreCompleteInEverySupportedLocale() {
         val root = projectFile("app/src/main/res")
         val source = names(root.resolve("values/projects.xml"))
-        assertEquals(123, source.size)
+        assertEquals(125, source.size)
         val locales = listOf(
             "de", "es", "fr", "ja", "ko", "pl", "pt-rBR", "ru", "tr", "uk", "vi", "zh-rCN",
         )

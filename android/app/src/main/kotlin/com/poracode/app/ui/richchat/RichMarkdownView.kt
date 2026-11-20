@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -17,9 +18,12 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -29,7 +33,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.poracode.app.R
+import com.poracode.app.ui.components.PoracodeIconButton
 import com.poracode.app.ui.theme.LocalChatTextSizeSp
+import com.poracode.app.ui.theme.PoracodeIcons
 import com.poracode.app.ui.theme.PoracodeTheme
 
 @Composable
@@ -135,22 +142,43 @@ private fun MarkdownList(items: List<String>, ordered: Boolean) {
 }
 
 @Composable
-internal fun MarkdownCodeBlock(block: RichMarkdownBlock.Code) {
+internal fun MarkdownCodeBlock(block: RichMarkdownBlock.Code, showsCopyAction: Boolean = true) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(8.dp))
-            .background(MaterialTheme.colorScheme.surfaceContainerHighest)
-            .horizontalScroll(rememberScrollState())
-            .padding(horizontal = 10.dp, vertical = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(4.dp),
+            .background(MaterialTheme.colorScheme.surfaceContainerHighest),
     ) {
-        block.language?.let {
-            Text(
-                text = it,
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+        val canCopy = showsCopyAction && block.source.isNotEmpty()
+        if (block.language != null || canCopy) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(start = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Box(Modifier.weight(1f)) {
+                    block.language?.let {
+                        Text(
+                            text = it,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            modifier = Modifier.padding(top = if (canCopy) 0.dp else 8.dp),
+                        )
+                    }
+                }
+                if (canCopy) {
+                    val context = LocalContext.current
+                    val label = stringResource(R.string.rich_chat_copy_code)
+                    PoracodeIconButton(
+                        icon = PoracodeIcons.ContentCopy,
+                        contentDescription = label,
+                        onClick = { copyToClipboard(context, label, block.source) },
+                        iconSize = 16.dp,
+                        tint = PoracodeTheme.colors.muted,
+                        modifier = Modifier.size(48.dp),
+                    )
+                }
+            }
         }
         Text(
             text = block.source,
@@ -158,6 +186,9 @@ internal fun MarkdownCodeBlock(block: RichMarkdownBlock.Code) {
             fontFamily = FontFamily.Monospace,
             fontSize = 12.sp,
             lineHeight = 17.sp,
+            modifier = Modifier
+                .horizontalScroll(rememberScrollState())
+                .padding(horizontal = 10.dp, vertical = 8.dp),
         )
     }
 }

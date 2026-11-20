@@ -123,4 +123,6 @@
     <string name="projects_request_failed">デスクトップでリクエストを完了できませんでした。</string>
     <string name="projects_request_uncertain">デスクトップが変更を確認する前に接続が終了しました。更新してからもう一度お試しください。</string>
     <string name="projects_setup_detection_failed">プロジェクトは追加されましたが、Poracode はセットアップスクリプトを検出できませんでした。</string>
+    <string name="projects_notes_conflict">プロジェクトノートが別の場所で変更されました。下書きは残っています。</string>
+    <string name="projects_notes_load_saved">保存済みのノートを読み込む</string>
 </resources>

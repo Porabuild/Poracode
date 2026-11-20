@@ -37,7 +37,7 @@ internal class FakeProjectRemoteGateway : ProjectRemoteGateway {
     override suspend fun projectNotes(projectId: String): ProjectNotesReadResult =
         ProjectNotesReadResult(null)
 
-    override suspend fun writeProjectNotes(projectId: String, body: ProjectNotesWriteBody) = Unit
+    override suspend fun writeProjectNotes(projectId: String, body: ProjectNotesWriteBody): com.poracode.app.model.ProjectNotesSaveResult? = null
 
     override suspend fun browseHostDirectory(path: String): BrowseHostDirectoryResult =
         BrowseHostDirectoryResult(path, null, path, emptyList(), false)

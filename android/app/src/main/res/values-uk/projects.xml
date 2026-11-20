@@ -123,4 +123,6 @@
     <string name="projects_request_failed">Комп’ютер не зміг виконати запит.</string>
     <string name="projects_request_uncertain">З’єднання перервалося до підтвердження зміни комп’ютером. Оновіть дані перед повторною спробою.</string>
     <string name="projects_setup_detection_failed">Проєкт додано, але Poracode не зміг визначити його скрипт налаштування.</string>
+    <string name="projects_notes_conflict">Нотатки проєкту змінено в іншому місці. Ваша чернетка збережена.</string>
+    <string name="projects_notes_load_saved">Завантажити збережені нотатки</string>
 </resources>

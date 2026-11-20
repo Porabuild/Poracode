@@ -169,14 +169,22 @@ object GeneratedRemoteV3RichChatContract {
         canonical(RemoteRootCodecs.routeU2EAttachmentU2DUploadU2EResponse, raw),
     )
 
-    fun localImage(path: String): QueryRoute = QueryRoute(
+    fun localImage(path: String, variant: String? = null): QueryRoute = QueryRoute(
         query = query(
             RemoteRootCodecs.routeU2ELocalU2DImageU2EQuery,
-            buildJsonObject { put("path", path) },
+            buildJsonObject {
+                put("path", path)
+                variant?.let { put("variant", it) }
+            },
         ),
     )
 
-    fun runtimeImage(threadId: String, itemId: String, path: List<JsonPrimitive>): QueryRoute {
+    fun runtimeImage(
+        threadId: String,
+        itemId: String,
+        path: List<JsonPrimitive>,
+        variant: String? = null,
+    ): QueryRoute {
         val pathValues = objectOf(
             canonical(
                 RemoteRootCodecs.routeU2ERuntimeU2DImageU2EPath,
@@ -188,7 +196,10 @@ object GeneratedRemoteV3RichChatContract {
         ).stringValues("threadId", "itemId")
         val query = query(
             RemoteRootCodecs.routeU2ERuntimeU2DImageU2EQuery,
-            buildJsonObject { put("path", JsonArray(path)) },
+            buildJsonObject {
+                put("path", JsonArray(path))
+                variant?.let { put("variant", it) }
+            },
         )
         return QueryRoute(pathValues, query)
     }

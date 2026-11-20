@@ -123,4 +123,6 @@
     <string name="projects_request_failed">El ordenador no pudo completar la solicitud.</string>
     <string name="projects_request_uncertain">La conexión terminó antes de que el ordenador confirmara el cambio. Actualiza antes de volver a intentarlo.</string>
     <string name="projects_setup_detection_failed">El proyecto se añadió, pero Poracode no pudo detectar su script de configuración.</string>
+    <string name="projects_notes_conflict">Las notas del proyecto se modificaron en otro lugar. Tu borrador se conserva.</string>
+    <string name="projects_notes_load_saved">Cargar las notas guardadas</string>
 </resources>

@@ -13,6 +13,8 @@ data class ProjectNotesEntry(
     val loading: Boolean = false,
     val pendingSave: Boolean = false,
     val saving: Boolean = false,
+    val guardedWrites: Boolean = false,
+    val conflict: Boolean = false,
     val localRevision: Long = 0,
     val confirmedRevision: Long = 0,
     val changeEpoch: Long = 0,

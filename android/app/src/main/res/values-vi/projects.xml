@@ -123,4 +123,6 @@
     <string name="projects_request_failed">Máy tính không thể hoàn tất yêu cầu.</string>
     <string name="projects_request_uncertain">Kết nối kết thúc trước khi máy tính xác nhận thay đổi. Hãy làm mới trước khi thử lại.</string>
     <string name="projects_setup_detection_failed">Dự án đã được thêm nhưng Poracode không thể phát hiện tập lệnh thiết lập.</string>
+    <string name="projects_notes_conflict">Ghi chú dự án đã được thay đổi ở nơi khác. Bản nháp của bạn vẫn còn.</string>
+    <string name="projects_notes_load_saved">Tải ghi chú đã lưu</string>
 </resources>

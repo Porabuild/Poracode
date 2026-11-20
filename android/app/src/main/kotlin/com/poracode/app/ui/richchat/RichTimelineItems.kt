@@ -451,7 +451,7 @@ internal fun MessageActionButton(icon: ImageVector, label: String, onClick: () -
     )
 }
 
-private fun copyToClipboard(context: Context, label: String, text: String) {
+internal fun copyToClipboard(context: Context, label: String, text: String) {
     val manager = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager ?: return
     manager.setPrimaryClip(ClipData.newPlainText(label, text))
 }

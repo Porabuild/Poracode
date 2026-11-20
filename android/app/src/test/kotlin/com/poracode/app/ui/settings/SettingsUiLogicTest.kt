@@ -10,6 +10,7 @@ import com.poracode.app.session.AppSession
 import com.poracode.app.session.HostUiCatalog
 import com.poracode.app.session.settings.SettingsHostLease
 import com.poracode.app.transport.RemoteWebSocketClient
+import kotlinx.serialization.json.add
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
@@ -108,6 +109,46 @@ class SettingsUiLogicTest {
             },
         )
         assertFalse(projectPreferences(settings).toString().contains("never-display"))
+    }
+
+    @Test
+    fun generationModelPickUsesTheAdvertisedEffortAndFastAvailability() {
+        val statuses = AgentStatusesSnapshot(buildJsonObject {
+            put("updatedAt", "now")
+            put("wsl", buildJsonArray {})
+            put("windows", buildJsonArray {
+                add(buildJsonObject {
+                    put("kind", "fixture")
+                    put("label", "Fixture")
+                    put("installed", true)
+                    put("capabilities", buildJsonObject {
+                        put("supportsOneShot", true)
+                        put("efforts", buildJsonArray {
+                            add("low")
+                            add("high")
+                        })
+                        put("defaultEffort", "low")
+                        put("modelEfforts", buildJsonObject {
+                            put("quick", buildJsonArray { add("low") })
+                            put("no-effort", buildJsonArray {})
+                        })
+                        put("fastModels", buildJsonArray { add("thorough") })
+                    })
+                })
+            })
+        })
+        val agent = projectGenerationAgents(statuses, wsl = false, requireOneShot = true).single()
+        val draft = SettingsGenerationSlotDraft("fixture", "thorough", "high", fast = true)
+        assertEquals(listOf("low", "high"), agent.effortsFor(draft.model))
+        assertEquals(draft, draft.selectModel("thorough", agent))
+        assertEquals(
+            draft.copy(model = "quick", effort = "low", fast = false),
+            draft.selectModel("quick", agent),
+        )
+        assertEquals(
+            draft.copy(model = "no-effort", effort = "", fast = false),
+            draft.selectModel("no-effort", agent),
+        )
     }
 
     @Test

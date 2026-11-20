@@ -123,4 +123,6 @@
     <string name="projects_request_failed">The desktop could not complete the request.</string>
     <string name="projects_request_uncertain">The connection ended before the desktop confirmed the change. Refresh before trying again.</string>
     <string name="projects_setup_detection_failed">The project was added, but Poracode could not detect its setup script.</string>
+    <string name="projects_notes_conflict">Project Notes changed elsewhere. Your draft is still here.</string>
+    <string name="projects_notes_load_saved">Load saved notes</string>
 </resources>

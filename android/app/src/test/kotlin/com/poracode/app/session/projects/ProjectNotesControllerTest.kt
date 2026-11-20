@@ -2,6 +2,7 @@ package com.poracode.app.session.projects
 
 import com.poracode.app.model.ProjectIdentity
 import com.poracode.app.model.ProjectNotesReadResult
+import com.poracode.app.model.ProjectNotesSaveResult
 import com.poracode.app.model.ProjectTodo
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
@@ -68,6 +69,28 @@ class ProjectNotesControllerTest {
         assertEquals(confirmed, state.lastConfirmed)
         assertTrue(state.failure is ProjectOperationFailure.Remote)
         assertTrue(!state.pendingSave && !state.saving)
+    }
+
+    @Test
+    fun guardedConflictPreservesDraftUntilSavedNotesAreExplicitlyReloaded() = runTest {
+        val fixture = fixture(this, listOf("2026-08-12T00:00:02Z"))
+        val identity = ProjectIdentity(connectionA, "project")
+        val initial = notes("project", "initial", "2026-08-12T00:00:01Z").copy(revision = "base")
+        val newer = initial.copy(revision = "newer", todos = listOf(todo("other edit")))
+        fixture.gateway.notesReadHandler = { _, _ -> ProjectNotesReadResult(initial, guardedWrites = 1) }
+        fixture.gateway.notesSaveResult = ProjectNotesSaveResult("conflict", newer)
+        fixture.controller.load(identity)
+        fixture.controller.edit(identity, null, listOf(todo("draft")))
+        advanceTimeBy(600)
+        runCurrent()
+        assertEquals("base", fixture.gateway.notesWrites.single().third.baseRevision)
+        assertTrue(fixture.controller.state.value.entries.getValue(identity).conflict)
+        fixture.controller.load(identity)
+        assertEquals("draft", fixture.controller.state.value.entries.getValue(identity).notes?.todos?.single()?.text)
+        fixture.gateway.notesReadHandler = { _, _ -> ProjectNotesReadResult(newer, guardedWrites = 1) }
+        fixture.controller.load(identity, discardDraft = true)
+        assertEquals(newer, fixture.controller.state.value.entries.getValue(identity).notes)
+        assertTrue(!fixture.controller.state.value.entries.getValue(identity).conflict)
     }
 
     @Test
