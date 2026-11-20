@@ -1,10 +1,6 @@
 // GENERATED FILE. Do not edit by hand.
 import Foundation
 public extension RemoteSchemas {
-  static let schema_c5a10234205e6cd2 = RemoteSchema(type: "array", items: RemoteSchemas.schema_20d7b1e748f886c3, unknownPolicy: .strip)
-}
-
-public extension RemoteSchemas {
   static let schema_c5a25a432208abbf = RemoteSchema(type: "string", literals: [.string("appearance")], unknownPolicy: .strip)
 }
 
@@ -241,6 +237,10 @@ public extension RemoteSchemas {
 }
 
 public extension RemoteSchemas {
+  static let schema_cd99091cb82e8280 = RemoteSchema(type: "object", required: Set(["doc", "todos"]), properties: ["doc": RemoteSchemas.schema_6e4ad578250cef79, "todos": RemoteSchemas.schema_e7c244bd461f7229], additionalAllowed: false, unknownPolicy: .reject)
+}
+
+public extension RemoteSchemas {
   static let schema_cd9a361e554145c9 = RemoteSchema(type: "object", required: Set(["kind", "threadId"]), properties: ["kind": RemoteSchemas.schema_7a2cd8ece40e9e4d, "threadId": RemoteSchemas.schema_36fea325bf1aca70], additionalAllowed: true, unknownPolicy: .strip)
 }
 
@@ -338,10 +338,6 @@ public extension RemoteSchemas {
 
 public extension RemoteSchemas {
   static let schema_d1df243f455504fc = RemoteSchema(type: "object", required: Set(["type"]), properties: ["message": RemoteSchemas.schema_bf0b727f7b1c6d07, "messageKey": RemoteSchemas.schema_bf0b727f7b1c6d07, "type": RemoteSchemas.schema_c086073e61ba1068], additionalAllowed: true, unknownPolicy: .strip)
-}
-
-public extension RemoteSchemas {
-  static let schema_d1eba06c8a5dc0a7 = RemoteSchema(type: "object", required: Set(["notes"]), properties: ["notes": RemoteSchemas.schema_6df40201d8c95128], additionalAllowed: true, unknownPolicy: .strip)
 }
 
 public extension RemoteSchemas {
@@ -446,4 +442,8 @@ public extension RemoteSchemas {
 
 public extension RemoteSchemas {
   static let schema_d585eadabc094972 = RemoteSchema(type: "string", literals: [.string("powerOff")], unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
+  static let schema_d598182dcda51b91 = RemoteSchema(type: "array", maxItems: 4, items: RemoteSchemas.schema_ddfc75c448050e22, unknownPolicy: .strip)
 }

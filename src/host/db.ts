@@ -50,7 +50,12 @@ export type {
   DbThreadReorderOutcome,
 } from "./db/catalogIntents";
 
-export { dbGetProjectNotes, dbSetProjectNotes } from "./db/notes";
+export {
+  dbCompareAndSetProjectNotes,
+  dbGetProjectNotes,
+  dbSetProjectNotes,
+  ProjectNotesConflictError,
+} from "./db/notes";
 export { dbBeginWorktreeObservation, dbReconcileProjectWorktrees } from "./db/worktreeLinks";
 
 export {

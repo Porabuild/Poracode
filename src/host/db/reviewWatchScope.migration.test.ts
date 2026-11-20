@@ -9,7 +9,7 @@ import {
   dbAdmitPrWatchExecution,
   dbReadPrWatchExecutionSnapshot,
 } from "./prWatchExecutionAdmission";
-import { DATABASE_MIGRATIONS } from "./migrations";
+import { DATABASE_MIGRATIONS, LATEST_SCHEMA_VERSION } from "./migrations";
 import { nativeBindingEnv, sqliteAvailable } from "./runtimeItems.testFixtures";
 import {
   captureSchema53PayloadOriginEvidence,
@@ -105,7 +105,7 @@ describe.skipIf(!sqliteAvailable)("persisted review watch scope schema65", () =>
     expect(rawScope()).toBeNull();
     expect(
       upgraded.prepare("SELECT value FROM app_state WHERE key='schema_version'").get(),
-    ).toEqual({ value: "73" });
+    ).toEqual({ value: String(LATEST_SCHEMA_VERSION) });
   });
 
   it.each(["account", "repository"])(

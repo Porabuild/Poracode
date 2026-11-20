@@ -97,6 +97,10 @@ public extension RemoteSchemas {
 }
 
 public extension RemoteSchemas {
+  static let schema_72ec391b7e8b8ce0 = RemoteSchema(type: "object", properties: ["result": RemoteSchemas.schema_9f521c8da83e5984], additionalAllowed: true, unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
   static let schema_7324613e41acced2 = RemoteSchema(type: "object", required: Set(["id", "label"]), properties: ["argumentHint": RemoteSchemas.schema_bf0b727f7b1c6d07, "description": RemoteSchemas.schema_bf0b727f7b1c6d07, "id": RemoteSchemas.schema_36fea325bf1aca70, "label": RemoteSchemas.schema_36fea325bf1aca70, "pluginId": RemoteSchemas.schema_36fea325bf1aca70, "pluginName": RemoteSchemas.schema_36fea325bf1aca70, "section": RemoteSchemas.schema_f4cab1817a71aa36, "skillInvocation": RemoteSchemas.schema_36fea325bf1aca70, "skillName": RemoteSchemas.schema_36fea325bf1aca70, "skillPath": RemoteSchemas.schema_36fea325bf1aca70, "skillProvider": RemoteSchemas.schema_36fea325bf1aca70, "skillScope": RemoteSchemas.schema_ac6ea0fc110d7efb], additionalAllowed: true, unknownPolicy: .strip)
 }
 
@@ -222,6 +226,10 @@ public extension RemoteSchemas {
 
 public extension RemoteSchemas {
   static let schema_776626d20373881d = RemoteSchema(type: "string", literals: [.string("today"), .string("7d"), .string("30d"), .string("cycle")], unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
+  static let schema_778f1573af71115b = RemoteSchema(type: "object", required: Set(["baseRevision", "replacement"]), properties: ["baseRevision": RemoteSchemas.schema_13c8eaff6d71d8fe, "replacement": RemoteSchemas.schema_cd99091cb82e8280], additionalAllowed: false, unknownPolicy: .reject)
 }
 
 public extension RemoteSchemas {

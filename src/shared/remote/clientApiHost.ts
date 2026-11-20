@@ -59,7 +59,6 @@ import {
   profileTokenStatsSchema,
   providerUsageResponseSchema,
   prWatchSchema,
-  projectNotesSchema,
   type ProfileCoreStats,
   type ProfileDevicesResponse,
   type ProfileIdentity,
@@ -71,7 +70,10 @@ import {
   type PrWatchInput,
   type ForgePrWatchInput,
   type PrWatchKey,
+  PROJECT_NOTES_CONFLICT,
   type ProjectNotes,
+  type ProjectNotesSaveResult,
+  type ProjectNotesWrite,
   type ProviderUsageResponse,
   type ScheduledTask,
   type ScheduledTaskInput,
@@ -92,14 +94,19 @@ import {
 } from "../deviceWorkspace";
 import { RemoteClientError } from "./clientErrors";
 import { parseExactOptionalResponse, parseResponse } from "./clientParse";
+import {
+  projectNotesReadResultSchema,
+  projectNotesWriteResultSchema,
+} from "./contract/routeBodies";
 
 const settingsResponseSchema = z.object({ settings: remoteSettingsSchema });
 const browserStateResponseSchema = z.object({ state: remoteBrowserStateSchema });
 const attachmentUploadResponseSchema = z.object({ path: z.string().min(1) });
-const projectNotesResponseSchema = z.object({ notes: projectNotesSchema.nullable() });
 const prWatchResponseSchema = z.object({ watch: prWatchSchema.nullable() });
 
 export abstract class RemoteClientHostApi extends RemoteClientDevicePreviewApi {
+  private readonly legacyNotesProjects = new Set<string>();
+
   async deviceInventory(signal?: AbortSignal) {
     return parseResponse(
       deviceInventorySchema,
@@ -415,19 +422,40 @@ export abstract class RemoteClientHostApi extends RemoteClientDevicePreviewApi {
 
   async projectNotes(projectId: string): Promise<ProjectNotes | null> {
     const result = parseResponse(
-      projectNotesResponseSchema,
+      projectNotesReadResultSchema,
       await this.requestJson(`/api/projects/${encodeURIComponent(projectId)}/notes`),
       "project notes",
     );
+    if (result.guardedWrites === 1) this.legacyNotesProjects.delete(projectId);
+    else this.legacyNotesProjects.add(projectId);
     return result.notes;
   }
 
-  async setProjectNotes(notes: ProjectNotes): Promise<void> {
+  async setProjectNotes(notes: ProjectNotesWrite): Promise<ProjectNotesSaveResult | void> {
     const { projectId, ...body } = notes;
-    await this.requestJson(`/api/projects/${encodeURIComponent(projectId)}/notes`, {
+    const path = `/api/projects/${encodeURIComponent(projectId)}/notes`;
+    if ("replacement" in notes && this.legacyNotesProjects.has(projectId)) {
+      const legacy = { ...notes.replacement, updatedAt: new Date().toISOString() };
+      try {
+        await this.requestJson(path, { method: "POST", body: legacy });
+      } catch (error) {
+        if (error instanceof RemoteClientError && error.code === PROJECT_NOTES_CONFLICT) {
+          return { status: "conflict", notes: await this.projectNotes(projectId) };
+        }
+        throw error;
+      }
+      return { status: "saved", notes: { projectId, ...legacy } };
+    }
+    const raw = await this.requestJson(path, {
       method: "POST",
       body,
     });
+    if (!("replacement" in notes)) return;
+    const result = parseResponse(projectNotesWriteResultSchema, raw, "project notes save").result;
+    if (!result || (result.notes && result.notes.projectId !== projectId)) {
+      throw new Error("The host did not confirm the guarded Notes save.");
+    }
+    return result;
   }
 
   /** Remote-editable desktop settings (the AI helpers). */

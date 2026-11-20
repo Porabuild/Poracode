@@ -5,7 +5,7 @@ import {
   hasSendableInput,
   promptSegmentSchema,
   projectLocationSchema,
-  projectNotesSchema,
+  projectNotesWriteSchema,
   projectSchema,
   runtimeEventSchema,
   sendableInput,
@@ -325,7 +325,7 @@ export const dbGetThreadTokenUsagePayloadSchema = z.object({
 export const dbGetProjectNotesPayloadSchema = z.object({
   projectId: z.string().min(1),
 });
-export const dbSetProjectNotesPayloadSchema = projectNotesSchema;
+export const dbSetProjectNotesPayloadSchema = projectNotesWriteSchema;
 
 export const openExternalPayloadSchema = z.string().min(1);
 

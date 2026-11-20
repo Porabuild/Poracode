@@ -381,6 +381,10 @@ public extension RemoteSchemas {
 }
 
 public extension RemoteSchemas {
+  static let schema_8ef813ab5215cc4a = RemoteSchema(unionKind: "anyOf", options: [RemoteSchemas.schema_7b212bbb531a3d31, RemoteSchemas.schema_778f1573af71115b], unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
   static let schema_8f483f0889171da1 = RemoteSchema(type: "string", literals: [.string("session:read"), .string("session:operate"), .string("terminal:read"), .string("terminal:operate"), .string("requests:resolve"), .string("projects:manage"), .string("ports:forward")], unknownPolicy: .strip)
 }
 
@@ -442,8 +446,4 @@ public extension RemoteSchemas {
 
 public extension RemoteSchemas {
   static let schema_91766049dfdea029 = RemoteSchema(type: "string", literals: [.string("managed"), .string("external"), .string("built-in"), .string("plugin")], unknownPolicy: .strip)
-}
-
-public extension RemoteSchemas {
-  static let schema_9189c3f251645aa9 = RemoteSchema(type: "string", literals: [.string("item.updated")], unknownPolicy: .strip)
 }

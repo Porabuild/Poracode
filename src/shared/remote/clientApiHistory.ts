@@ -1,5 +1,9 @@
 import { RemoteClientExperimentsApi } from "./clientApiExperiments";
-import { HISTORY_DETAILS_PROJECTION, historyItemDetailSchema } from "./historyPresentation";
+import {
+  HISTORY_DEFER_FILE_CHANGE_BODIES,
+  HISTORY_DETAILS_PROJECTION,
+  historyItemDetailSchema,
+} from "./historyPresentation";
 import { persistedPromptIndexSchema } from "../ipc/schemas";
 import { parseResponse } from "./clientParse";
 import { REMOTE_BOUNDED_READ_DEFAULT_MAX_DECODE_BYTES } from "./clientBoundedReads";
@@ -41,19 +45,32 @@ export abstract class RemoteClientHistoryApi extends RemoteClientExperimentsApi 
   async resumeThreadHistory(
     threadId: string,
     cursor: string,
-    options: { readonly afterSeq?: number; readonly signal?: AbortSignal } = {},
+    options: {
+      readonly afterSeq?: number;
+      readonly targetTimelineEntryCount?: number;
+      readonly omitScrollback?: boolean;
+      readonly signal?: AbortSignal;
+    } = {},
   ) {
     const query = historyResumeQuerySchema.parse({
       reads: "bounded-v1",
       notices: "v1",
       cursor,
       projection: HISTORY_DETAILS_PROJECTION,
+      deferBodies: HISTORY_DEFER_FILE_CHANGE_BODIES,
       maxBytes: this.maxResponseBodyBytes,
       maxDecodeBytes: REMOTE_BOUNDED_READ_DEFAULT_MAX_DECODE_BYTES,
       ...(options.afterSeq !== undefined ? { afterSeq: options.afterSeq } : {}),
+      ...(options.targetTimelineEntryCount !== undefined
+        ? { targetTimelineEntryCount: options.targetTimelineEntryCount }
+        : {}),
+      ...(options.omitScrollback ? { omitScrollback: true } : {}),
     });
     const search = new URLSearchParams(
-      Object.entries(query).map(([key, value]) => [key, String(value)]),
+      Object.entries(query).map(([key, value]) => [
+        key,
+        typeof value === "boolean" ? (value ? "1" : "0") : String(value),
+      ]),
     );
     const body = await this.requestJson(
       `/api/threads/${encodeURIComponent(threadId)}/history/changes?${search}`,

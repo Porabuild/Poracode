@@ -5,10 +5,6 @@ public extension RemoteSchemas {
 }
 
 public extension RemoteSchemas {
-  static let schema_095b77a7c83a814a = RemoteSchema(type: "object", required: Set(["cursor", "notices", "reads"]), properties: ["afterSeq": RemoteSchemas.schema_56aa0e45cbdce0d0, "cursor": RemoteSchemas.schema_bd85a52dd25effae, "maxBytes": RemoteSchemas.schema_23e05d248383ea40, "maxDecodeBytes": RemoteSchemas.schema_23e05d248383ea40, "notices": RemoteSchemas.schema_f67f6cbe63879b24, "projection": RemoteSchemas.schema_72a4409660da2b12, "reads": RemoteSchemas.schema_4659e6d395f41e16], additionalAllowed: true, unknownPolicy: .strip)
-}
-
-public extension RemoteSchemas {
   static let schema_095caa15231b6058 = RemoteSchema(type: "object", required: Set(["numTurns", "threadId"]), properties: ["config": RemoteSchemas.schema_281d24bbbaa46745, "numTurns": RemoteSchemas.schema_56aa0e45cbdce0d0, "threadId": RemoteSchemas.schema_36fea325bf1aca70], additionalAllowed: true, unknownPolicy: .strip)
 }
 

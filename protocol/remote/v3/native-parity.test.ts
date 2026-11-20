@@ -267,7 +267,6 @@ const PLANNED_ABSENCE_TOKENS: Record<
       "conversation-search",
       "thread-history-item",
       "thread-history-prompts",
-      "thread-history-changes",
       "thread-transfer-command",
       "thread-transfer-upload",
     ].map((id) => [

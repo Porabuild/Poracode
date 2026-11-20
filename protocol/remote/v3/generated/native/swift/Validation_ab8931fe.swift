@@ -1,10 +1,6 @@
 // GENERATED FILE. Do not edit by hand.
 import Foundation
 public extension RemoteSchemas {
-  static let schema_d598182dcda51b91 = RemoteSchema(type: "array", maxItems: 4, items: RemoteSchemas.schema_ddfc75c448050e22, unknownPolicy: .strip)
-}
-
-public extension RemoteSchemas {
   static let schema_d59ce91ef6d00c30 = RemoteSchema(type: "object", required: Set(["items", "version"]), properties: ["items": RemoteSchemas.schema_7d8b97db21aa7eb7, "version": RemoteSchemas.schema_7f9f5a0d72de0d9a], additionalAllowed: true, unknownPolicy: .strip)
 }
 
@@ -18,6 +14,10 @@ public extension RemoteSchemas {
 
 public extension RemoteSchemas {
   static let schema_d61b01c8cb5f5718 = RemoteSchema(type: "string", literals: [.string("portrait"), .string("landscapeLeft"), .string("upsideDown"), .string("landscapeRight")], unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
+  static let schema_d653b34c4449e1c3 = RemoteSchema(type: "string", literals: [.string("saved")], unknownPolicy: .strip)
 }
 
 public extension RemoteSchemas {
@@ -130,6 +130,10 @@ public extension RemoteSchemas {
 
 public extension RemoteSchemas {
   static let schema_da66851500474562 = RemoteSchema(type: "object", required: Set(["kind", "name", "parentPath", "source"]), properties: ["kind": RemoteSchemas.schema_8793e380887b215f, "name": RemoteSchemas.schema_36fea325bf1aca70, "parentPath": RemoteSchemas.schema_36fea325bf1aca70, "source": RemoteSchemas.schema_76b2c94b29aad9b1], additionalAllowed: true, unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
+  static let schema_da74e89ba01e20fc = RemoteSchema(type: "object", required: Set(["notes"]), properties: ["guardedWrites": RemoteSchemas.schema_7f9f5a0d72de0d9a, "notes": RemoteSchemas.schema_48c9126ae761103f], additionalAllowed: true, unknownPolicy: .strip)
 }
 
 public extension RemoteSchemas {

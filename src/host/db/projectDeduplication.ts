@@ -46,11 +46,18 @@ export function rehomeProjectReferences(
   const rehomeSchedules = sqlite.prepare(
     "UPDATE scheduled_tasks SET project_id = ? WHERE project_id = ?",
   );
+  // This repair also runs in a migration that predates guarded notes.
+  const guardedNotes = (sqlite.pragma("table_info(project_notes)") as { name: string }[]).some(
+    (column) => column.name === "revision",
+  );
   const selectNotes = sqlite.prepare(
-    "SELECT doc, todos, updated_at FROM project_notes WHERE project_id = ?",
+    `SELECT doc, todos, updated_at${guardedNotes ? ", revision" : ""} FROM project_notes WHERE project_id = ?`,
   );
   const saveNotes = sqlite.prepare(
-    "INSERT INTO project_notes (project_id, doc, todos, updated_at) VALUES (?, ?, ?, ?) ON CONFLICT(project_id) DO UPDATE SET doc = excluded.doc, todos = excluded.todos, updated_at = excluded.updated_at",
+    `INSERT INTO project_notes (project_id, doc, todos, updated_at${guardedNotes ? ", revision" : ""})
+     VALUES (?, ?, ?, ?${guardedNotes ? ", ?" : ""})
+     ON CONFLICT(project_id) DO UPDATE SET doc = excluded.doc, todos = excluded.todos,
+       updated_at = excluded.updated_at${guardedNotes ? ", revision = excluded.revision" : ""}`,
   );
   const deleteNotes = sqlite.prepare("DELETE FROM project_notes WHERE project_id = ?");
   for (const [duplicateId, canonicalId] of duplicateIds) {
@@ -65,7 +72,13 @@ export function rehomeProjectReferences(
       const notes = canonicalNotes
         ? mergeNotes(canonicalNotes, duplicateNotes, duplicateId)
         : duplicateNotes;
-      saveNotes.run(canonicalId, notes.doc, notes.todos, notes.updated_at);
+      saveNotes.run(
+        canonicalId,
+        notes.doc,
+        notes.todos,
+        notes.updated_at,
+        ...(guardedNotes ? [canonicalNotes?.revision ?? duplicateNotes.revision ?? null] : []),
+      );
     }
     deleteNotes.run(duplicateId);
   }
@@ -90,6 +103,7 @@ export function rehomeProjectReferences(
 }
 
 interface StoredNotes {
+  revision?: string | null;
   doc: string | null;
   todos: string;
   updated_at: string;

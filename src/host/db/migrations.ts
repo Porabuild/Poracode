@@ -8,7 +8,11 @@ import { migrateScheduleAutomation } from "./scheduleAutomationMigration";
 import { createConversationSearchSchema } from "./conversationSearchSchema";
 import { randomUUID } from "node:crypto";
 import Database from "better-sqlite3";
-import { normalizePersistedAntigravityModelSelection } from "@/shared/agents/antigravity";
+import {
+  isAntigravityAgentKind,
+  normalizePersistedAntigravityModelSelection,
+  sanitizePersistedAntigravityContextUsage,
+} from "@/shared/agents/antigravity";
 import { repairDuplicateProjects } from "./projectDeduplication";
 import { HEAD_CHARS } from "./runtimeStreamCap";
 import { createRuntimeStreamHeadSchema } from "./runtimeStreamHeadSchema";
@@ -105,6 +109,27 @@ function foldContextSuffix(sqlite: SqliteDatabase, table: string, column: string
       config.contextSize = match[1]!.toLowerCase();
     }
     update.run(JSON.stringify(config), row.rowid);
+  }
+}
+
+function clearAntigravityPromptConsumptionContextUsage(sqlite: SqliteDatabase): void {
+  const rows = sqlite
+    .prepare(
+      `SELECT u.thread_id, u.usage, t.agent_kind
+       FROM thread_context_usage AS u
+       JOIN threads AS t ON t.id = u.thread_id`,
+    )
+    .all() as { thread_id: string; usage: string; agent_kind: string }[];
+  const update = sqlite.prepare("UPDATE thread_context_usage SET usage = ? WHERE thread_id = ?");
+  const remove = sqlite.prepare("DELETE FROM thread_context_usage WHERE thread_id = ?");
+  for (const row of rows) {
+    if (!isAntigravityAgentKind(row.agent_kind)) continue;
+    const sanitized = sanitizePersistedAntigravityContextUsage(row.usage);
+    if (sanitized.action === "update") {
+      update.run(sanitized.usage, row.thread_id);
+    } else if (sanitized.action === "delete") {
+      remove.run(row.thread_id);
+    }
   }
 }
 
@@ -1125,6 +1150,138 @@ export const DATABASE_MIGRATIONS = [
     rollback: "rollback-compatible",
     migrate: createHistoryCacheRevisionSchema,
   },
+  {
+    version: 74,
+    name: "retain thread failure explanations",
+    // Additive to schema73: old rows keep an unknown explanation (NULL).
+    // The existing optional errorMessage wire field needs no protocol/cache
+    // bump; catalog and history reads project the newly durable value.
+    rollback: "rollback-compatible",
+    migrate: (sqlite) => addColumnIfMissing(sqlite, "threads", "error_message", "TEXT"),
+  },
+  {
+    version: 75,
+    name: "clear Antigravity prompt-consumption context snapshots",
+    // Drops per-turn PromptResponse consumption that previously overwrote
+    // Antigravity thread_context_usage while retaining any valid window limit;
+    // remaining rows keep threadContextUsageSchema and bump history revisions.
+    rollback: "rollback-compatible",
+    migrate: clearAntigravityPromptConsumptionContextUsage,
+  },
+  {
+    version: 76,
+    name: "poracode memory",
+    // Additive tables. Older builds refuse this schema version, so they never
+    // read the tables. Dropping them on a code rollback loses only memory rows,
+    // which that older build did not own.
+    rollback: "rollback-compatible",
+    migrate: (sqlite) => {
+      sqlite.exec(`
+        CREATE TABLE IF NOT EXISTS memory_entries (
+          id TEXT PRIMARY KEY,
+          scope TEXT NOT NULL,
+          project_id TEXT,
+          category TEXT NOT NULL,
+          summary TEXT NOT NULL,
+          body TEXT NOT NULL,
+          confidence REAL NOT NULL,
+          polarity TEXT NOT NULL,
+          quote TEXT,
+          locked_by_user INTEGER NOT NULL DEFAULT 0,
+          pinned INTEGER NOT NULL DEFAULT 0,
+          archived INTEGER NOT NULL DEFAULT 0,
+          usage_count INTEGER NOT NULL DEFAULT 0,
+          last_used_at TEXT,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL,
+          source TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_memory_entries_scope
+          ON memory_entries (scope, project_id, archived);
+        CREATE TABLE IF NOT EXISTS memory_candidates (
+          id TEXT PRIMARY KEY,
+          thread_id TEXT,
+          project_id TEXT,
+          scope TEXT NOT NULL,
+          category TEXT NOT NULL,
+          statement TEXT NOT NULL,
+          quote TEXT,
+          polarity TEXT NOT NULL,
+          confidence REAL NOT NULL,
+          explicit INTEGER NOT NULL DEFAULT 0,
+          status TEXT NOT NULL,
+          created_at TEXT NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS memory_capture_spool (
+          id TEXT PRIMARY KEY,
+          thread_id TEXT NOT NULL,
+          project_id TEXT,
+          text TEXT NOT NULL,
+          created_at TEXT NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS memory_thread_state (
+          thread_id TEXT PRIMARY KEY,
+          mode TEXT NOT NULL DEFAULT 'learn',
+          last_item_position INTEGER NOT NULL DEFAULT -1,
+          next_attempt_at TEXT,
+          updated_at TEXT NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS memory_dream_runs (
+          id TEXT PRIMARY KEY,
+          scope_key TEXT NOT NULL,
+          started_at TEXT NOT NULL,
+          finished_at TEXT,
+          report_json TEXT NOT NULL,
+          undo_json TEXT,
+          undone INTEGER NOT NULL DEFAULT 0
+        );
+        CREATE TABLE IF NOT EXISTS memory_skill_suggestions (
+          id TEXT PRIMARY KEY,
+          project_id TEXT,
+          name TEXT NOT NULL,
+          description TEXT NOT NULL,
+          body TEXT NOT NULL,
+          scope TEXT NOT NULL,
+          availability TEXT NOT NULL,
+          why TEXT NOT NULL,
+          status TEXT NOT NULL,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS memory_meta (
+          key TEXT PRIMARY KEY,
+          value TEXT NOT NULL
+        );
+      `);
+    },
+  },
+  {
+    version: 77,
+    name: "memory cross-env sync",
+    // Additive column and tombstone table for cross-environment memory sync.
+    rollback: "rollback-compatible",
+    migrate: (sqlite) => {
+      addColumnIfMissing(sqlite, "memory_entries", "repo_key", "TEXT");
+      sqlite.exec(`
+        CREATE INDEX IF NOT EXISTS idx_memory_entries_repo
+          ON memory_entries (scope, repo_key, archived);
+        CREATE TABLE IF NOT EXISTS memory_tombstones (
+          id TEXT PRIMARY KEY,
+          scope TEXT NOT NULL,
+          project_id TEXT,
+          repo_key TEXT,
+          deleted_at TEXT NOT NULL
+        );
+      `);
+    },
+  },
+  {
+    version: 78,
+    name: "guarded project notes",
+    // A rollback to an unguarded writer could overwrite newer notes.
+    rollback: "forward-only",
+    migrate: (sqlite) => addColumnIfMissing(sqlite, "project_notes", "revision", "TEXT"),
+  },
 ] as const satisfies readonly DatabaseMigration[];
 
 // Worktree link reconciliation refreshes existing path/branch columns from Git;
@@ -1298,6 +1455,9 @@ export function repairSafeSchemaDrift(sqlite: SqliteDatabase): void {
     if (Number(schema?.value) >= 70) {
       addColumnIfMissing(sqlite, "threads", "interrupted_turn", "TEXT");
     }
+    if (Number(schema?.value) >= 74) {
+      addColumnIfMissing(sqlite, "threads", "error_message", "TEXT");
+    }
     sqlite.exec(
       "UPDATE threads SET archived_at = updated_at WHERE archived = 1 AND archived_at IS NULL",
     );
@@ -1322,6 +1482,18 @@ const REQUIRED_COLUMNS = {
     "candidate_json",
     "state",
   ],
+  memory_entries: [
+    "id",
+    "scope",
+    "repo_key",
+    "summary",
+    "confidence",
+    "locked_by_user",
+    "archived",
+  ],
+  memory_capture_spool: ["id", "thread_id", "text"],
+  memory_thread_state: ["thread_id", "mode", "last_item_position"],
+  memory_tombstones: ["id", "scope", "deleted_at"],
   projects: [
     "id",
     "name",
@@ -1382,6 +1554,7 @@ const REQUIRED_COLUMNS = {
     "last_turn_started_at",
     "last_turn_ended_at",
     "interrupted_turn",
+    "error_message",
   ],
   thread_history_revisions: ["thread_id", "incarnation", "revision"],
   thread_runtime_items: [

@@ -22,7 +22,7 @@ import {
   collectNativeSchemaRoots,
   resolveLocalSchemaReferences,
 } from "./schemaGraph";
-import type { JsonSchema, NativeBindingIr } from "./types";
+import type { JsonSchema, NativeBindingIr, NativeBindingOutput } from "./types";
 import { parseNativeBindingIr, supportedPortableSemanticValidatorIds } from "./validate";
 import { zodToJsonSchema } from "../jsonSchema";
 import { emitSwiftBindings } from "./emitSwift";
@@ -30,8 +30,20 @@ import { emitSwiftBindings } from "./emitSwift";
 const here = dirname(fileURLToPath(import.meta.url));
 const generatedDirectory = join(here, "../../../../../protocol/remote/v3/generated/native");
 
-function input(): { readonly ir: Record<string, unknown>; readonly manifest: unknown } {
-  return { ir: buildRemoteV3IrDocument(), manifest: buildRemoteProtocolManifest() };
+type AuthorityInput = { readonly ir: Record<string, unknown>; readonly manifest: unknown };
+let authorityInput: AuthorityInput | undefined;
+let authoritativeOutput: NativeBindingOutput | undefined;
+
+function input(): AuthorityInput {
+  return (authorityInput ??= {
+    ir: buildRemoteV3IrDocument(),
+    manifest: buildRemoteProtocolManifest(),
+  });
+}
+
+function outputForAuthority(): NativeBindingOutput {
+  const { ir, manifest } = input();
+  return (authoritativeOutput ??= buildNativeBindingOutput(ir, manifest));
 }
 
 function resign(ir: Record<string, unknown>, manifest: unknown): void {
@@ -47,7 +59,7 @@ describe("remote v3 native binding generator", () => {
     { timeout: 120_000 },
     () => {
       const { ir, manifest } = input();
-      const first = buildNativeBindingOutput(ir, manifest);
+      const first = outputForAuthority();
       const second = buildNativeBindingOutput(ir, manifest);
       const third = buildNativeBindingOutput(ir, manifest);
       expect(first).toEqual(second);
@@ -108,7 +120,8 @@ describe("remote v3 native binding generator", () => {
         // Opt-in V3 workflow registration hints extend schemas; V1/V2 reads and wire V14 remain compatible.
         // Opt-in V4 workflow viewer metadata extends schemas; V1/V2/V3 and wire V14 stay compatible.
         // Optional V5 resolved bodies extend advisory reads; V1–V4 and canonical events remain compatible.
-        sourceHash: "sha256:627747ed06cf53a610a031f52ebe40e1a99deb73ab91799a92b1fb9a1d99899f",
+        // Guarded Notes adds optional revision metadata and typed save outcomes.
+        sourceHash: "sha256:037d18861ac0cf823ee899b69f4fb9317f521b45bad77e3f7235f25bbc0a4bf6",
         manifestHash: "sha256:15b2a0f001c6f7b6b83efb5184813418a2fb7536e65907b24382383f51ab9916",
         counts: {
           routes: 122,
@@ -119,12 +132,12 @@ describe("remote v3 native binding generator", () => {
           // 11 shared + the desktop-internal `desktop-event` frame (V5 plan 2.5).
           webSocketServerVariants: 12,
           schemaRoots: 573,
-          structuralTypes: 1449,
+          structuralTypes: 1459,
           semanticValidators: 25,
           // Content-defined shards (emitterCommon.shardDeclarations) average
           // ~200 lines, so a contract change rewrites only nearby files.
-          swiftFiles: 160,
-          kotlinFiles: 137,
+          swiftFiles: 162,
+          kotlinFiles: 138,
           stateMachines: 5,
         },
       });
@@ -132,8 +145,7 @@ describe("remote v3 native binding generator", () => {
   );
 
   it("escapes the authoritative search archived flag Swift enum identifiers", () => {
-    const { ir, manifest } = input();
-    const output = buildNativeBindingOutput(ir, manifest).files;
+    const output = outputForAuthority().files;
     const models = Object.entries(output)
       .filter(([path]) => path.startsWith("swift/Models"))
       .map(([, contents]) => contents)
@@ -167,8 +179,7 @@ describe("remote v3 native binding generator", () => {
   });
 
   it("ships the background-task reduce and follow-up queue in both native bundles", () => {
-    const { ir, manifest } = input();
-    const output = buildNativeBindingOutput(ir, manifest).files;
+    const output = outputForAuthority().files;
     expect(output["swift/BackgroundTaskReduce.swift"]).toContain(
       "public enum RemoteBackgroundTaskReduce",
     );
@@ -180,8 +191,7 @@ describe("remote v3 native binding generator", () => {
   });
 
   it("ships the terminal hardware-key encoder in both native bundles", () => {
-    const { ir, manifest } = input();
-    const output = buildNativeBindingOutput(ir, manifest).files;
+    const output = outputForAuthority().files;
     const swift = output["swift/TerminalKeyEncoding.swift"];
     const kotlin = output["kotlin/TerminalKeyEncoding.kt"];
     expect(swift).toContain("public enum TerminalRawKeyEncoder");
@@ -293,8 +303,7 @@ describe("remote v3 native binding generator", () => {
   });
 
   it("emits three-state fields, strict/strip policies, strict unit envelopes, and safe integers", () => {
-    const { ir, manifest } = input();
-    const output = buildNativeBindingOutput(ir, manifest).files;
+    const output = outputForAuthority().files;
     const swift = Object.entries(output)
       .filter(([path]) => path.startsWith("swift/"))
       .map(([, contents]) => contents)
@@ -349,7 +358,7 @@ describe("remote v3 native binding generator", () => {
   it("covers every transport descriptor and permits only portable semantic validators", () => {
     const { ir, manifest } = input();
     const parsed = parseNativeBindingIr(ir, manifest);
-    const output = buildNativeBindingOutput(ir, manifest).files;
+    const output = outputForAuthority().files;
     const swiftMetadata = Object.entries(output)
       .filter(([path]) => path.startsWith("swift/Metadata"))
       .map(([, contents]) => contents)
@@ -395,7 +404,7 @@ describe("remote v3 native binding generator", () => {
       const { ir, manifest } = input();
       const parsed = parseNativeBindingIr(ir, manifest);
       const graph = buildNativeSchemaGraph(collectNativeSchemaRoots(parsed));
-      const output = buildNativeBindingOutput(ir, manifest).files;
+      const output = outputForAuthority().files;
       for (const language of ["swift", "kotlin"] as const) {
         const adapters = rootAdapters(graph, language);
         expect(adapters).toHaveLength(573);

@@ -924,6 +924,9 @@
         "cursor",
         "afterSeq",
         "projection",
+        "deferBodies",
+        "targetTimelineEntryCount",
+        "omitScrollback",
         "maxBytes",
         "maxDecodeBytes"
       ],

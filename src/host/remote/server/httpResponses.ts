@@ -11,7 +11,7 @@ import {
   isHostResourceBusyError,
 } from "@/shared/hostResourceAdmission";
 import { RemoteHttpError } from "../auth";
-import { writeNegotiatedJson } from "./httpCompression";
+import { computeEtag, etagMatches, writeNegotiatedJson } from "./httpCompression";
 import {
   gitProcessAdmissionRetryAfterMsOf,
   isGitProcessAdmissionRefusal,
@@ -111,6 +111,7 @@ export function inlineContentDisposition(
 export function writeHardenedImageResponse(
   res: ServerResponse,
   input: {
+    readonly req?: IncomingMessage;
     readonly contentType: string;
     readonly data: Uint8Array;
     readonly cacheControl: string;
@@ -118,11 +119,21 @@ export function writeHardenedImageResponse(
 ): void {
   const filename = IMAGE_RESPONSE_FILENAMES[input.contentType] ?? "image";
   const disposition = input.contentType === "image/svg+xml" ? "attachment" : "inline";
+  const etag = computeEtag(input.data);
   res.appendHeader("Vary", "Authorization");
+  if (input.req && etagMatches(input.req, etag)) {
+    res.writeHead(304, {
+      "cache-control": input.cacheControl,
+      etag,
+    });
+    res.end();
+    return;
+  }
   res.writeHead(200, {
     "content-type": input.contentType,
     "content-length": input.data.length,
     "cache-control": input.cacheControl,
+    etag,
     "content-security-policy": "sandbox",
     "x-content-type-options": "nosniff",
     "content-disposition": `${disposition}; filename="${filename}"`,

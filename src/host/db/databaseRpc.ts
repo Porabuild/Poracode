@@ -18,6 +18,7 @@ import {
   dbReplaceThreadCompletedTurns,
   dbReplaceThreadRuntimeItems,
   dbReplaceThreadRuntimeSnapshot,
+  dbCompareAndSetProjectNotes,
   dbSetProjectNotes,
   dbSetState,
   dbSyncAll,
@@ -119,7 +120,9 @@ export async function callDatabaseRpc(call: BackendDatabaseCall): Promise<unknow
         dbGetProjectNotes(call.payload.projectId),
       );
     case "dbSetProjectNotes":
-      return dbSetProjectNotes(call.payload);
+      return "replacement" in call.payload
+        ? dbCompareAndSetProjectNotes(call.payload)
+        : dbSetProjectNotes(call.payload);
     case "getScheduleRuns":
       return readDatabaseAsync("scheduleRuns", [call.payload.id], () =>
         dbListScheduleRuns(call.payload.id),

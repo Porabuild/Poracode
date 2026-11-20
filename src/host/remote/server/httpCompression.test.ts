@@ -4,6 +4,7 @@ import type { AddressInfo } from "node:net";
 import { gunzipSync } from "node:zlib";
 import { afterEach, describe, expect, it } from "vitest";
 import { computeEtag, etagMatches, writeNegotiatedJson } from "./httpCompression";
+import { writeHardenedImageResponse } from "./httpResponses";
 
 const servers: Server[] = [];
 
@@ -163,5 +164,31 @@ describe("writeNegotiatedJson", () => {
       request.end();
     });
     expect(gunzipSync(raw).toString()).toBe(bigBody);
+  });
+
+  it("revalidates hardened image responses with ETag and 304", async () => {
+    const bytes = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+    const server = createServer((req, res) => {
+      writeHardenedImageResponse(res, {
+        req,
+        contentType: "image/png",
+        data: bytes,
+        cacheControl: "private, max-age=300",
+      });
+    });
+    servers.push(server);
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const { port } = server.address() as AddressInfo;
+    const url = `http://127.0.0.1:${port}/`;
+
+    const first = await fetch(url);
+    expect(first.status).toBe(200);
+    const etag = first.headers.get("etag");
+    expect(etag).toBeTruthy();
+    expect(Buffer.from(await first.arrayBuffer())).toEqual(bytes);
+
+    const second = await fetch(url, { headers: { "if-none-match": etag! } });
+    expect(second.status).toBe(304);
+    expect(await second.text()).toBe("");
   });
 });

@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import type Database from "better-sqlite3";
 import { afterEach, beforeEach, expect, it } from "vitest";
-import { runDatabaseMigrations } from "./migrations";
+import { LATEST_SCHEMA_VERSION, runDatabaseMigrations } from "./migrations";
 import {
   createSchema53PayloadOriginDatabase,
   migrateSchema53FixtureThrough,
@@ -62,6 +62,6 @@ it("repairs schema60 thoughts only inside recorded completed turns without chang
     before.map((row) => (repaired.has(row.item_id) ? { ...row, state: "completed" } : row)),
   );
   expect(db.prepare("SELECT value FROM app_state WHERE key = 'schema_version'").get()).toEqual({
-    value: "73",
+    value: String(LATEST_SCHEMA_VERSION),
   });
 });

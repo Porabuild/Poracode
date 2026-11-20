@@ -3,7 +3,7 @@ import { join } from "node:path";
 import type Database from "better-sqlite3";
 import { expect, it } from "vitest";
 import { closeDatabase, initDatabase } from "./connection";
-import { runDatabaseMigrations } from "./migrations";
+import { LATEST_SCHEMA_VERSION, runDatabaseMigrations } from "./migrations";
 import { dbGetProjects, dbGetThreads } from "./projectsThreads";
 import {
   createSchema53PayloadOriginDatabase,
@@ -24,14 +24,18 @@ it("upgrades schema65 without rewriting rows and seeks both manual catalog order
     ).toEqual([]);
     runDatabaseMigrations(db, 65);
     expect(db.prepare("SELECT value FROM app_state WHERE key='schema_version'").get()).toEqual({
-      value: "73",
+      value: String(LATEST_SCHEMA_VERSION),
     });
     expect(
       ["threads", "projects", "thread_runtime_items"].map((table) =>
         db!.prepare(`SELECT * FROM ${table} ORDER BY rowid`).all(),
       ),
     ).toEqual([
-      before[0]!.map((row) => ({ ...(row as object), interrupted_turn: null })),
+      before[0]!.map((row) => ({
+        ...(row as object),
+        interrupted_turn: null,
+        error_message: null,
+      })),
       ...before.slice(1),
     ]);
     for (const table of ["threads", "projects"]) {

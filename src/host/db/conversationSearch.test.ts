@@ -804,7 +804,7 @@ describe.skipIf(!sqliteAvailable)("saved conversation search", () => {
       previous.close();
       const refusal =
         schemaVersion === 64
-          ? "Database schema is incomplete; missing: threads.interrupted_turn, thread_history_revisions.thread_id, thread_history_revisions.incarnation, thread_history_revisions.revision, pr_watches.review_scope, runtime_inline_image_blobs.blob_hash, runtime_inline_image_blobs.encoding, runtime_inline_image_blobs.header, runtime_inline_image_blobs.mime, runtime_inline_image_blobs.raw_bytes, runtime_inline_image_blobs.inline_utf8_bytes, runtime_inline_image_blobs.width, runtime_inline_image_blobs.height, thread_runtime_item_image_refs.thread_id, thread_runtime_item_image_refs.item_id, thread_runtime_item_image_refs.path_json, thread_runtime_item_image_refs.blob_hash."
+          ? "Database schema is incomplete; missing: memory_entries.id, memory_entries.scope, memory_entries.repo_key, memory_entries.summary, memory_entries.confidence, memory_entries.locked_by_user, memory_entries.archived, memory_capture_spool.id, memory_capture_spool.thread_id, memory_capture_spool.text, memory_thread_state.thread_id, memory_thread_state.mode, memory_thread_state.last_item_position, memory_tombstones.id, memory_tombstones.scope, memory_tombstones.deleted_at, threads.interrupted_turn, threads.error_message, thread_history_revisions.thread_id, thread_history_revisions.incarnation, thread_history_revisions.revision, pr_watches.review_scope, runtime_inline_image_blobs.blob_hash, runtime_inline_image_blobs.encoding, runtime_inline_image_blobs.header, runtime_inline_image_blobs.mime, runtime_inline_image_blobs.raw_bytes, runtime_inline_image_blobs.inline_utf8_bytes, runtime_inline_image_blobs.width, runtime_inline_image_blobs.height, thread_runtime_item_image_refs.thread_id, thread_runtime_item_image_refs.item_id, thread_runtime_item_image_refs.path_json, thread_runtime_item_image_refs.blob_hash."
           : "owning startup upgrade";
       expect(() => initReadOnlyDatabase(path)).toThrow(refusal);
       expect(() => initDatabase(path, { schemaMode: "validate" })).toThrow(refusal);
@@ -838,6 +838,7 @@ describe.skipIf(!sqliteAvailable)("saved conversation search", () => {
                     ...table,
                     rows: table.rows.map((row) => ({
                       interrupted_turn: null,
+                      error_message: null,
                       ...(row as object),
                     })),
                   }
@@ -868,6 +869,19 @@ describe.skipIf(!sqliteAvailable)("saved conversation search", () => {
                   })),
               },
             ]),
+        // Schema 76-77 add Poracode memory tables, empty on upgrade.
+        ...[
+          "memory_candidates",
+          "memory_capture_spool",
+          "memory_dream_runs",
+          "memory_entries",
+          "memory_meta",
+          "memory_skill_suggestions",
+          "memory_thread_state",
+          "memory_tombstones",
+        ].flatMap((name) =>
+          before.some((table) => table.name === name) ? [] : [{ name, rows: [] }],
+        ),
       ].sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
       expect(canonicalEvidence(sqlite)).toEqual(expected);
       expect(

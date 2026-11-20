@@ -81,8 +81,13 @@ describe("database migration registry", () => {
       [71, "project plugin overrides"],
       [72, "externalize inline runtime images"],
       [73, "durable thread history cache revisions"],
+      [74, "retain thread failure explanations"],
+      [75, "clear Antigravity prompt-consumption context snapshots"],
+      [76, "poracode memory"],
+      [77, "memory cross-env sync"],
+      [78, "guarded project notes"],
     ]);
-    expect(LATEST_SCHEMA_VERSION).toBe(73);
+    expect(LATEST_SCHEMA_VERSION).toBe(78);
     expect(() => validateMigrationRegistry()).not.toThrow();
   });
 
@@ -120,9 +125,9 @@ describe("database migration registry", () => {
     // instead of silently defaulting to rollback-compatible.
     expect(MIGRATION_ROLLBACK_CLASSIFICATION_REQUIRED_FROM).toBe(48);
     expect(describeMigrationRollbackPolicy().at(-1)).toEqual({
-      version: 73,
-      name: "durable thread history cache revisions",
-      rollback: "rollback-compatible",
+      version: 78,
+      name: "guarded project notes",
+      rollback: "forward-only",
     });
     // Migrations below the floor keep their reviewed defaults.
     expect(() =>

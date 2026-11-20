@@ -17,7 +17,7 @@ public extension RemoteRootCodecs {
 }
 
 public extension RemoteRootCodecs {
-  static let routeU2EProjectU2DNotesU2DReadU2EResponse: RemoteRootCodec<RouteprojectU2DNotesU2DReadResponse_d1eba06c8a> = .init(id: "route.project-notes-read.response", schema: RemoteSchemas.schema_d1eba06c8a5dc0a7)
+  static let routeU2EProjectU2DNotesU2DReadU2EResponse: RemoteRootCodec<RouteprojectU2DNotesU2DReadResponse_da74e89ba0> = .init(id: "route.project-notes-read.response", schema: RemoteSchemas.schema_da74e89ba01e20fc)
 }
 
 public extension RemoteRootCodecs {
@@ -25,11 +25,11 @@ public extension RemoteRootCodecs {
 }
 
 public extension RemoteRootCodecs {
-  static let routeU2EProjectU2DNotesU2DWriteU2ERequest: RemoteRootCodec<RouteprojectU2DNotesU2DWriteRequest_7b212bbb53> = .init(id: "route.project-notes-write.request", schema: RemoteSchemas.schema_7b212bbb531a3d31)
+  static let routeU2EProjectU2DNotesU2DWriteU2ERequest: RemoteRootCodec<RouteprojectU2DNotesU2DWriteRequest_8ef813ab52> = .init(id: "route.project-notes-write.request", schema: RemoteSchemas.schema_8ef813ab5215cc4a)
 }
 
 public extension RemoteRootCodecs {
-  static let routeU2EProjectU2DNotesU2DWriteU2EResponse: RemoteRootCodec<ProcedurelistAcpRegistryRequest_81055c9199> = .init(id: "route.project-notes-write.response", schema: RemoteSchemas.schema_81055c9199569630)
+  static let routeU2EProjectU2DNotesU2DWriteU2EResponse: RemoteRootCodec<RouteprojectU2DNotesU2DWriteResponse_72ec391b7e> = .init(id: "route.project-notes-write.response", schema: RemoteSchemas.schema_72ec391b7e8b8ce0)
 }
 
 public extension RemoteRootCodecs {
@@ -249,7 +249,7 @@ public extension RemoteRootCodecs {
 }
 
 public extension RemoteRootCodecs {
-  static let routeU2EThreadU2DHistoryU2DChangesU2EQuery: RemoteRootCodec<RoutethreadU2DHistoryU2DChangesQuery_095b77a7c8> = .init(id: "route.thread-history-changes.query", schema: RemoteSchemas.schema_095b77a7c83a814a)
+  static let routeU2EThreadU2DHistoryU2DChangesU2EQuery: RemoteRootCodec<RoutethreadU2DHistoryU2DChangesQuery_e52b25f4a0> = .init(id: "route.thread-history-changes.query", schema: RemoteSchemas.schema_e52b25f4a021269e)
 }
 
 public extension RemoteRootCodecs {

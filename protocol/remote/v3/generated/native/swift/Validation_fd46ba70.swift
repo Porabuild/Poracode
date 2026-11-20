@@ -1,6 +1,10 @@
 // GENERATED FILE. Do not edit by hand.
 import Foundation
 public extension RemoteSchemas {
+  static let schema_9189c3f251645aa9 = RemoteSchema(type: "string", literals: [.string("item.updated")], unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
   static let schema_91a5d2d349991a6a = RemoteSchema(type: "string", literals: [.string("cumulative"), .string("per-call")], unknownPolicy: .strip)
 }
 
@@ -158,6 +162,10 @@ public extension RemoteSchemas {
 
 public extension RemoteSchemas {
   static let schema_96967a6998f6cab7 = RemoteSchema(type: "string", minLength: 8, maxLength: 110, pattern: "^[A-Za-z0-9._:-]+$", unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
+  static let schema_96b8d7dbded67d2c = RemoteSchema(type: "object", required: Set(["notes", "status"]), properties: ["notes": RemoteSchemas.schema_7e83671a2aefecff, "status": RemoteSchemas.schema_d653b34c4449e1c3], additionalAllowed: true, unknownPolicy: .strip)
 }
 
 public extension RemoteSchemas {

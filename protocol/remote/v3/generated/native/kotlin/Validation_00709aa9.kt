@@ -5,10 +5,6 @@ import kotlinx.serialization.*
 import kotlinx.serialization.descriptors.*
 import kotlinx.serialization.encoding.*
 import kotlinx.serialization.json.*
-internal val schema_d576db41e56d6d9a: RemoteSchema by lazy {
-    RemoteSchema(type = "string", literals = listOf(JsonPrimitive("run"), JsonPrimitive("edit"), JsonPrimitive("create"), JsonPrimitive("delete"), JsonPrimitive("search"), JsonPrimitive("view")), unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
-}
-
 internal val schema_d581274b5086148c: RemoteSchema by lazy {
     RemoteSchema(type = "object", required = setOf("branches", "ghAvailable", "status", "worktrees"), properties = mapOf("branches" to schema_86a79adde4b9578a, "ghAvailable" to schema_78c0e367e5120eb3, "status" to schema_98139abfca5e2eda, "worktrees" to schema_694e88722e472029), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
@@ -35,6 +31,10 @@ internal val schema_d5e402f736e2ff98: RemoteSchema by lazy {
 
 internal val schema_d61b01c8cb5f5718: RemoteSchema by lazy {
     RemoteSchema(type = "string", literals = listOf(JsonPrimitive("portrait"), JsonPrimitive("landscapeLeft"), JsonPrimitive("upsideDown"), JsonPrimitive("landscapeRight")), unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
+}
+
+internal val schema_d653b34c4449e1c3: RemoteSchema by lazy {
+    RemoteSchema(type = "string", literals = listOf(JsonPrimitive("saved")), unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
 
 internal val schema_d66267c393bb4ec4: RemoteSchema by lazy {
@@ -147,6 +147,10 @@ internal val schema_da6565103c15b143: RemoteSchema by lazy {
 
 internal val schema_da66851500474562: RemoteSchema by lazy {
     RemoteSchema(type = "object", required = setOf("kind", "name", "parentPath", "source"), properties = mapOf("kind" to schema_8793e380887b215f, "name" to schema_36fea325bf1aca70, "parentPath" to schema_36fea325bf1aca70, "source" to schema_76b2c94b29aad9b1), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
+}
+
+internal val schema_da74e89ba01e20fc: RemoteSchema by lazy {
+    RemoteSchema(type = "object", required = setOf("notes"), properties = mapOf("guardedWrites" to schema_7f9f5a0d72de0d9a, "notes" to schema_48c9126ae761103f), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
 
 internal val schema_da76232259cbe6bb: RemoteSchema by lazy {

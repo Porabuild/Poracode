@@ -21,6 +21,7 @@ import {
   projectListQuerySchema,
   projectNotesReadResultSchema,
   projectNotesWriteBodySchema,
+  projectNotesWriteResultSchema,
   providerUsageResponseSchema,
   remoteAccessTokenResultSchema,
   remoteAgentSlashCommandsSchema,
@@ -289,7 +290,7 @@ export const sessionRoutes: readonly RemoteHttpRouteContract[] = [
     response: {
       wireKind: "json",
       status: 200,
-      jsonSchema: emptyJsonObjectSchema,
+      jsonSchema: projectNotesWriteResultSchema,
     },
   }),
   defineRoute({

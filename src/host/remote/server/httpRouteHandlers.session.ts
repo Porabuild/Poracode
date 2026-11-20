@@ -5,7 +5,6 @@ import { ConversationSearchCursorError } from "@/host/db/conversationSearchReads
 import {
   profileIdentitySchema,
   profileStatsRequestSchema,
-  projectNotesSchema,
   type McpServer,
 } from "@/shared/contracts";
 import {
@@ -19,7 +18,13 @@ import {
   remoteMcpSettingsCommandSchema,
   remoteMcpSettingsOperationSchema,
 } from "@/shared/remote/contract/routeSchemas";
-import { dbGetProject, dbGetProjectNotes, dbSetProjectNotes } from "@/host/db";
+import {
+  dbCompareAndSetProjectNotes,
+  dbGetProject,
+  dbGetProjectNotes,
+  dbSetProjectNotes,
+  ProjectNotesConflictError,
+} from "@/host/db";
 import {
   getProfileCoreStats,
   getProfileDevicesResponse,
@@ -255,7 +260,7 @@ export const SESSION_ROUTE_HANDLERS: Pick<HttpRouteHandlerTable, SessionRouteId>
     if (!dbGetProject(notesProjectId)) {
       throw new RemoteHttpError("project_not_found", msg("remote.project.notFound"), 404);
     }
-    writeJson(res, 200, { notes: dbGetProjectNotes(notesProjectId) });
+    writeJson(res, 200, { notes: dbGetProjectNotes(notesProjectId), guardedWrites: 1 });
   },
 
   "project-notes-write": async ({ req, res, params }) => {
@@ -264,7 +269,23 @@ export const SESSION_ROUTE_HANDLERS: Pick<HttpRouteHandlerTable, SessionRouteId>
       throw new RemoteHttpError("project_not_found", msg("remote.project.notFound"), 404);
     }
     const notes = projectNotesWriteBodySchema.parse(await readJsonBody(req));
-    dbSetProjectNotes(projectNotesSchema.parse({ ...notes, projectId: notesProjectId }));
+    if (!dbGetProject(notesProjectId)) {
+      throw new RemoteHttpError("project_not_found", msg("remote.project.notFound"), 404);
+    }
+    if ("replacement" in notes) {
+      writeJson(res, 200, {
+        result: dbCompareAndSetProjectNotes({ ...notes, projectId: notesProjectId }),
+      });
+      return;
+    }
+    try {
+      dbSetProjectNotes({ ...notes, projectId: notesProjectId });
+    } catch (error) {
+      if (error instanceof ProjectNotesConflictError) {
+        throw new RemoteHttpError(error.code, error.message, 409);
+      }
+      throw error;
+    }
     writeJson(res, 200, {});
   },
 

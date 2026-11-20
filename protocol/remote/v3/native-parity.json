@@ -934,6 +934,7 @@
         "id": "project-notes-read",
         "scopes": ["session:read"],
         "batch": "projects",
+        "note": "Updated clients negotiate guarded Notes saves from guardedWrites and retain the opaque revision for the next edit. Older clients can still read the existing notes shape.",
         "ios": {
           "wire": {
             "disposition": "implemented",
@@ -965,6 +966,7 @@
         "id": "project-notes-write",
         "scopes": ["session:operate"],
         "batch": "projects",
+        "note": "Updated clients preserve their draft after a revision conflict and offer an explicit reload. The host rejects legacy changes to protected notes. Older clients may discard the rejected draft through their existing failure handling.",
         "ios": {
           "wire": {
             "disposition": "implemented",
@@ -3637,24 +3639,36 @@
         "batch": "thread-lifecycle",
         "ios": {
           "wire": {
-            "disposition": "planned",
-            "evidence": ["src/shared/remote/contract/routes/threads.ts"]
+            "disposition": "implemented",
+            "evidence": [
+              "ios/App/App/Features/BoundedCatalog/Transport/RemoteHistoryItemTransport.swift",
+              "ios/App/App/Transport/RichChat/RichChatRemoteAPI.swift",
+              "ios/App/App/Transport/RichChat/SelectedRichChatHistoryGateway.swift"
+            ]
           },
           "ui": {
-            "disposition": "planned",
-            "evidence": [],
-            "note": "Desktop thread-opening optimization. Native adoption of this opt-in history route is pending; native clients retain complete compatible history responses."
+            "disposition": "implemented",
+            "evidence": [
+              "ios/App/App/Features/RichChat/Controllers/RichChatTranscriptController.swift",
+              "ios/App/App/Features/RichChat/UI/Pages/RichChatThreadView.swift",
+              "screen:ios.thread-history-changes"
+            ],
+            "note": "Warm native iOS transcripts resume incrementally via thread-history-changes using runtimeResumeCursor and fall back seamlessly to bounded thread-history on 404 or snapshot fallback."
           }
         },
         "android": {
           "wire": {
-            "disposition": "planned",
-            "evidence": ["src/shared/remote/contract/routes/threads.ts"]
+            "disposition": "implemented",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/transport/RemoteHistoryChangesContract.kt"
+            ]
           },
           "ui": {
-            "disposition": "planned",
-            "evidence": [],
-            "note": "Desktop thread-opening optimization. Native adoption of this opt-in history route is pending; native clients retain complete compatible history responses."
+            "disposition": "partial",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/session/history/ThreadHistoryReads.kt"
+            ],
+            "note": "Wire query/path contract is implemented in RemoteHistoryChangesContract; Android transcript controller currently uses bounded thread-history tail reads until warm-resume controller wiring lands."
           }
         }
       },

@@ -425,17 +425,17 @@ val RemoteRootCodecs.routeU2EProjectU2DListU2EResponse: RemoteRootCodec<Routepro
 val RemoteRootCodecs.routeU2EProjectU2DNotesU2DReadU2EPath: RemoteRootCodec<RouteprojectU2DNotesU2DReadPath_05812a27bb>
     get() = RemoteRootCodec("route.project-notes-read.path", serializer<RouteprojectU2DNotesU2DReadPath_05812a27bb>(), schema_05812a27bb4846c1)
 
-val RemoteRootCodecs.routeU2EProjectU2DNotesU2DReadU2EResponse: RemoteRootCodec<RouteprojectU2DNotesU2DReadResponse_d1eba06c8a>
-    get() = RemoteRootCodec("route.project-notes-read.response", serializer<RouteprojectU2DNotesU2DReadResponse_d1eba06c8a>(), schema_d1eba06c8a5dc0a7)
+val RemoteRootCodecs.routeU2EProjectU2DNotesU2DReadU2EResponse: RemoteRootCodec<RouteprojectU2DNotesU2DReadResponse_da74e89ba0>
+    get() = RemoteRootCodec("route.project-notes-read.response", serializer<RouteprojectU2DNotesU2DReadResponse_da74e89ba0>(), schema_da74e89ba01e20fc)
 
 val RemoteRootCodecs.routeU2EProjectU2DNotesU2DWriteU2EPath: RemoteRootCodec<RouteprojectU2DNotesU2DReadPath_05812a27bb>
     get() = RemoteRootCodec("route.project-notes-write.path", serializer<RouteprojectU2DNotesU2DReadPath_05812a27bb>(), schema_05812a27bb4846c1)
 
-val RemoteRootCodecs.routeU2EProjectU2DNotesU2DWriteU2ERequest: RemoteRootCodec<RouteprojectU2DNotesU2DWriteRequest_7b212bbb53>
-    get() = RemoteRootCodec("route.project-notes-write.request", serializer<RouteprojectU2DNotesU2DWriteRequest_7b212bbb53>(), schema_7b212bbb531a3d31)
+val RemoteRootCodecs.routeU2EProjectU2DNotesU2DWriteU2ERequest: RemoteRootCodec<RouteprojectU2DNotesU2DWriteRequest_8ef813ab52>
+    get() = RemoteRootCodec("route.project-notes-write.request", serializer<RouteprojectU2DNotesU2DWriteRequest_8ef813ab52>(), schema_8ef813ab5215cc4a)
 
-val RemoteRootCodecs.routeU2EProjectU2DNotesU2DWriteU2EResponse: RemoteRootCodec<ProcedurelistAcpRegistryRequest_81055c9199>
-    get() = RemoteRootCodec("route.project-notes-write.response", serializer<ProcedurelistAcpRegistryRequest_81055c9199>(), schema_81055c9199569630)
+val RemoteRootCodecs.routeU2EProjectU2DNotesU2DWriteU2EResponse: RemoteRootCodec<RouteprojectU2DNotesU2DWriteResponse_72ec391b7e>
+    get() = RemoteRootCodec("route.project-notes-write.response", serializer<RouteprojectU2DNotesU2DWriteResponse_72ec391b7e>(), schema_72ec391b7e8b8ce0)
 
 val RemoteRootCodecs.routeU2EProjectU2DSettingsU2EPath: RemoteRootCodec<RouteprojectU2DNotesU2DReadPath_05812a27bb>
     get() = RemoteRootCodec("route.project-settings.path", serializer<RouteprojectU2DNotesU2DReadPath_05812a27bb>(), schema_05812a27bb4846c1)
