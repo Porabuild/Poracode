@@ -182,8 +182,10 @@ export function makeConfigSyncSession(
   session["currentStatus"] = "idle";
   session["currentAttention"] = "none";
   session["bufferedRuntimeEvents"] = [];
+  session["sessionGeneration"] = 0;
   session["isReplayingHistory"] = false;
   session["isDisposed"] = false;
+  session["transportClosed"] = false;
   session["promptInFlight"] = false;
   session["pendingSteers"] = [];
   session["promptSteering"] = overrides.promptSteering;

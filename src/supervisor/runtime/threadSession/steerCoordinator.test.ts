@@ -7,6 +7,7 @@ import type {
   StructuredTurnResult,
 } from "../../agents/base";
 import type { SupervisorEvent } from "@/shared/ipc";
+import { msg } from "@/shared/messages";
 import { crewFingerprint, threadCrewBinding, type ThreadCrewBinding } from "@/shared/crew";
 import type { QueuedStructuredTurn, SessionRuntime } from "../sessionTypes";
 import { SteerCoordinator } from "./steerCoordinator";
@@ -509,4 +510,43 @@ describe("SteerCoordinator interrupt-backed steering", () => {
       );
     },
   );
+
+  it("clears staged steers and settles pending replacement admissions when a session closes", async () => {
+    const harness = createHarness();
+    const neverResolvedStart = new Promise<void>(() => undefined);
+    harness.startStructuredTurn.mockReturnValueOnce(neverResolvedStart);
+
+    const queued = harness.coordinator.setPendingSteer(
+      harness.session,
+      {
+        threadId: harness.session.threadId,
+        prompt: "queued fallback",
+        config: { model: "model-2" },
+      },
+      {
+        awaitReplacement: true,
+        awaitCanonicalStart: true,
+      },
+    );
+    await vi.waitFor(() => expect(harness.interruptStructuredTurn).toHaveBeenCalledTimes(1));
+
+    harness.session.status = "idle";
+    void harness.coordinator.maybeDrainPendingSteer(harness.session);
+    expect(harness.coordinator.hasPendingSteerAdmission(harness.session.threadId)).toBe(true);
+
+    let admissionWaitSettled = false;
+    const waitPromise = harness.coordinator
+      .waitForPendingSteerAdmission(harness.session.threadId)
+      .then(() => {
+        admissionWaitSettled = true;
+      });
+
+    harness.coordinator.onSessionClosing(harness.session);
+
+    await expect(queued).rejects.toBe(msg("supervisor.steer.cleared"));
+    await waitPromise;
+    expect(admissionWaitSettled).toBe(true);
+    expect(harness.coordinator.hasPendingSteerAdmission(harness.session.threadId)).toBe(false);
+    expect(harness.session.pendingSteer).toBeUndefined();
+  });
 });

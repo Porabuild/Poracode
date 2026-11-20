@@ -840,6 +840,9 @@ export class AcpStructuredSession implements StructuredSessionHandle {
         this.currentConfig = reported;
       }
     } catch (error) {
+      if (this.isDisposed || this.transportClosed) {
+        throw new Error("ACP session is closed.", { cause: error });
+      }
       assertCurrent();
       if (error instanceof AcpConfigSelectionError && error.confirmedConfig) {
         this.commitAgentConfigChange(error.confirmedConfig);
@@ -1875,6 +1878,9 @@ export class AcpStructuredSession implements StructuredSessionHandle {
     if (!this.sessionId) {
       throw new Error("ACP session not opened yet.");
     }
+    if (this.isDisposed || this.transportClosed) {
+      throw new Error("ACP session is closed.");
+    }
     // Serialize turns. A prompt held open for background work (see
     // `stderrTurnSignalParser`) leaves the thread idle while `session/prompt`
     // is still pending, so a follow-up message queues behind it here instead
@@ -1889,7 +1895,7 @@ export class AcpStructuredSession implements StructuredSessionHandle {
       // start synchronously so interrupt staging keeps its existing timing.
       if (this.promptInFlight) {
         await previousTurn;
-        if (this.isDisposed) return;
+        this.assertSessionReadyForTurn();
       }
       await this.runStartTurn(prompt, config, segments, options);
     } finally {
@@ -1943,15 +1949,23 @@ export class AcpStructuredSession implements StructuredSessionHandle {
     );
   }
 
+  private assertSessionReadyForTurn(): string {
+    if (!this.sessionId) {
+      throw new Error("ACP session not opened yet.");
+    }
+    if (this.isDisposed || this.transportClosed) {
+      throw new Error("ACP session is closed.");
+    }
+    return this.sessionId;
+  }
+
   private async runStartTurn(
     prompt: string,
     config: ThreadConfig,
     segments?: PromptSegment[],
     options?: StartTurnOptions,
   ): Promise<void> {
-    if (!this.sessionId) {
-      throw new Error("ACP session not opened yet.");
-    }
+    const sessionId = this.assertSessionReadyForTurn();
     this.currentTurnInterruptRequested = false;
     this.terminalCreationInterrupted = false;
     // A fresh turn ends the previous turn's output suppression. An idle
@@ -2018,7 +2032,7 @@ export class AcpStructuredSession implements StructuredSessionHandle {
       this.promptInFlight = true;
       this.pendingPromptAdmission = options?.onPromptSubmitted;
       const result = await this.connection.prompt({
-        sessionId: this.sessionId,
+        sessionId,
         prompt: contentBlocks,
       });
       this.pendingPromptAdmission?.();
@@ -2169,9 +2183,7 @@ export class AcpStructuredSession implements StructuredSessionHandle {
     segments?: PromptSegment[],
     options?: StartTurnOptions,
   ): Promise<void> {
-    if (!this.sessionId) {
-      throw new Error("ACP session not opened yet.");
-    }
+    this.assertSessionReadyForTurn();
     if (
       !this.promptSteering ||
       !this.promptInFlight ||
@@ -2192,7 +2204,7 @@ export class AcpStructuredSession implements StructuredSessionHandle {
     ]);
 
     const blocks = await this.outboundPromptBlocks(prompt, segments, options);
-    if (this.isDisposed) return;
+    const sessionId = this.assertSessionReadyForTurn();
     // The turn may have ended while the content blocks were prepared; a steer
     // then belongs to the next turn, keeping the same painted user row.
     if (!this.promptInFlight || this.currentTurnInterruptRequested) {
@@ -2204,7 +2216,7 @@ export class AcpStructuredSession implements StructuredSessionHandle {
 
     if (isTextOnlyPrompt(blocks)) {
       const response = this.connection.prompt({
-        sessionId: this.sessionId,
+        sessionId,
         prompt: blocks,
         _meta: this.promptSteering.requestMeta,
       });

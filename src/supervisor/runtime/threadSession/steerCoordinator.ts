@@ -223,6 +223,12 @@ export class SteerCoordinator {
     clearPendingSteerSlot(session, this.ctx.emit);
   }
 
+  /** Settle any staged steer or in-flight replacement admission when a session closes. */
+  onSessionClosing(session: SessionRuntime): void {
+    clearPendingSteerSlot(session, this.ctx.emit);
+    this.rejectPendingReplacement(session, msg("supervisor.steer.cleared"));
+  }
+
   /**
    * Detach a staged steer for the forced-restart path without rejecting a
    * queue promotion that is waiting for replacement admission. The caller

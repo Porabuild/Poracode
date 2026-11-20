@@ -617,13 +617,15 @@ export class FollowUpQueueCoordinator {
     lifecycle: ThreadLifecycle,
   ): void {
     if (record) {
-      if (record.active) {
+      if (record.active && !record.restarting) {
         this.resolveAdmission(record.active);
         if (!record.active.turnId) this.restoreActive(record, record.active, false);
         else delete record.active;
       }
-      record.paused = true;
-      this.pausedThreads.add(threadId);
+      if (!record.replacing) {
+        record.paused = true;
+        this.pausedThreads.add(threadId);
+      }
       this.emitQueueState(threadId);
     }
     lifecycle.direct = false;

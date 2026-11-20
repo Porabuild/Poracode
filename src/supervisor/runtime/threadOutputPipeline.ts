@@ -282,6 +282,7 @@ export class ThreadOutputPipeline {
     session: SessionRuntime,
     change: { status: ThreadStatus; attention: ThreadAttention },
   ): void {
+    if (session.ignoreExit) return;
     if (isPoracodeOscDebugEnabled()) {
       console.log(
         `[poracode-osc] L1 hook thread=${session.threadId} kind=${session.agentKind} ` +

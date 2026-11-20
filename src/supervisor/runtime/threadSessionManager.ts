@@ -110,7 +110,11 @@ import {
 } from "./threadSession/userInterrupt";
 import { writeSubmittedPrompt } from "./threadSession/promptWrite";
 import { resolveTerminalColorEnv } from "./threadSession/terminalEnv";
-import { requireSessionPty } from "./threadSession/helpers";
+import {
+  fenceSessionForRetirement,
+  requireSessionPty,
+  stopSessionRefWatcher,
+} from "./threadSession/helpers";
 import { resolveThreadMentionSegments } from "./threadMentionResolver";
 import { formatTurnClientContext } from "./turnClientContext";
 import { RuntimeEventRouter } from "./threadSession/runtimeEventRouter";
@@ -403,6 +407,7 @@ export class ThreadSessionManager {
       // A released lease cannot be protected by a retired generation, so its
       // retained custody entry is dropped on the same observation that freed
       // capacity (the retention stays bounded by live reservations).
+      retireAgentSession: (session) => this.sessionRetirement.retireAgentSession(session),
       onResourceLeaseRelease: (session) => {
         this.retiringSessions.delete(session.threadId);
       },
@@ -725,8 +730,20 @@ export class ThreadSessionManager {
     this.canonicalOverflowStopped.add(threadId);
     const message = `Agent output stopped: ${detail}.`;
     console.error(`[supervisor] ${message} (thread ${threadId})`);
+    // Fence late provider/PTY callbacks and timers before retiring so the dying
+    // process cannot overwrite the explicit error state, and retire the
+    // negotiated session controls with the handle.
+    session.structuredTurnInterruptRequested = false;
+    session.structuredSession?.forceCompleteTurn?.();
+    fenceSessionForRetirement(session, this.outputPipeline);
+    session.sessionConfigOptions = null;
+    if (session.sessionRef?.providerSessionId) {
+      this.sessionsBySessionId.delete(session.sessionRef.providerSessionId);
+    }
     this.outputPipeline.updateState(session, "error", "error", message);
+    this.steerCoordinator.onSessionClosing(session);
     this.followUpQueue.onStructuredUpdate(session, "error");
+    this.followUpQueue.onSessionClosing(threadId, session);
     // Release the retained batch first (capacity-aware), then queue the stop
     // marker behind it: the marker goes out as its own control-class envelope
     // once the content ahead of it is fully out.
@@ -736,8 +753,9 @@ export class ThreadSessionManager {
       threadId,
       event: { type: "error", threadId, message },
     });
-    // One retirement path: a rejecting dispose never skips PTY termination,
-    // and an unconfirmed exit retains the slot instead of freeing it.
+    // One retirement path: takes custody of any structured handle and detaches
+    // it from `session.structuredSession` immediately so a later submit
+    // relaunches via `sessionRef` instead of calling into the disposed handle.
     void this.sessionRetirement.retireAgentSession(session);
   }
 
@@ -1454,12 +1472,15 @@ export class ThreadSessionManager {
         // paths and existing clients' message matchers.
         throw new ThreadSessionAbsenceRefusalError(`Unknown thread session: ${payload.threadId}`);
       }
-      if (session.status === "inactive" && !session.sessionRef) {
-        throw new Error("This thread exited before a resumable session id was discovered.");
-      }
       const usesStructuredFlow =
         session.adapter.capabilities.liveInputMode === "server" ||
         session.presentationMode === "gui";
+      if (
+        !session.sessionRef &&
+        (session.status === "inactive" || (usesStructuredFlow && !session.structuredSession))
+      ) {
+        throw new Error("This thread exited before a resumable session id was discovered.");
+      }
       requireThreadMentionTools(session, payload.segments);
       const mentionSegments = payload.segments
         ? resolveThreadMentionSegments(payload.segments)
@@ -1500,6 +1521,12 @@ export class ThreadSessionManager {
         return this.sendThreadInput(payload);
       }
       this.executionControl.assertUnowned(payload.threadId);
+      if (
+        !session.sessionRef &&
+        (session.status === "inactive" || (usesStructuredFlow && !session.structuredSession))
+      ) {
+        throw new Error("This thread exited before a resumable session id was discovered.");
+      }
       if (session.status !== "inactive" && session.structuredSession) {
         assertWorkspaceLiveConfig(session, effectiveConfig);
       }
@@ -2200,12 +2227,10 @@ export class ThreadSessionManager {
       return { confirmed };
     }
 
-    existing.ignoreExit = true;
+    fenceSessionForRetirement(existing, this.outputPipeline);
     this.rememberRemovedThread(payload.threadId);
-    this.outputPipeline.clearSessionTimers(existing);
+    this.steerCoordinator.onSessionClosing(existing);
     this.followUpQueue.onSessionClosing(payload.threadId, existing);
-    existing.stopSessionRefWatcher?.();
-    existing.stopSessionRefWatcher = undefined;
     // Final state before the session disappears: without it a working thread
     // freezes at `working` in the DB and in every renderer, with nothing left
     // running to ever move it.
@@ -2693,8 +2718,7 @@ export class ThreadSessionManager {
           session.sessionRef = ref;
           session.canResumeWithConfig = true;
           this.indexSessionRef(session, undefined);
-          session.stopSessionRefWatcher?.();
-          session.stopSessionRefWatcher = undefined;
+          stopSessionRefWatcher(session);
           this.outputPipeline.emitState(session);
           return;
         }
