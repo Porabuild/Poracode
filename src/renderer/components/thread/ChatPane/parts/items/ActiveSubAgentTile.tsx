@@ -1,4 +1,4 @@
-import { Fragment, useEffect, type ReactNode } from "react";
+import { Fragment, useEffect, useState, type ReactNode } from "react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { Bot, Check, CornerDownRight, GitBranch, X } from "lucide-react";
 import { useShallow } from "zustand/shallow";
@@ -32,10 +32,13 @@ import { PixelLoader } from "@/renderer/components/common/PixelLoader";
 import { formatTokenCount } from "@/renderer/components/thread/formatTokenCount";
 import {
   ThreadDockActionRow,
+  ThreadDockCollapseButton,
+  ThreadDockCountBadge,
   ThreadDockHeader,
   ThreadDockIconButton,
   ThreadDockList,
   ThreadDockSection,
+  ThreadDockSortableScope,
 } from "../../../ThreadDockUI";
 import { CrewDockSection } from "../../../CrewDockSection";
 import { parseWorkflowInfo } from "./workflowDisplay";
@@ -135,8 +138,8 @@ export function ActiveSubAgentTile({
     <>
       {sectionKinds.map((kind, index) => {
         const sectionIds = visibleIds.filter((_, itemIndex) => kinds[itemIndex] === kind);
-        if (kind === "crossagent" && showCrewDock && thread && crewBinding) {
-          return (
+        const section =
+          kind === "crossagent" && showCrewDock && thread && crewBinding ? (
             <CrewDockSection
               key={kind}
               threadId={threadId}
@@ -155,20 +158,25 @@ export function ActiveSubAgentTile({
                 />
               )}
             />
+          ) : (
+            <ActiveAgentSection
+              key={kind}
+              kind={kind}
+              threadId={threadId}
+              ids={sectionIds}
+              {...(crewBinding ? { crewBinding } : {})}
+              dismissMany={dismissMany}
+              placement={placement}
+              showPlacementToggle={showPlacementToggle && index === 0}
+              {...(projectLocation ? { projectLocation } : {})}
+            />
           );
-        }
-        return (
-          <ActiveAgentSection
-            key={kind}
-            kind={kind}
-            threadId={threadId}
-            ids={sectionIds}
-            {...(crewBinding ? { crewBinding } : {})}
-            dismissMany={dismissMany}
-            placement={placement}
-            showPlacementToggle={showPlacementToggle && index === 0}
-            {...(projectLocation ? { projectLocation } : {})}
-          />
+        return index > 0 ? (
+          <ThreadDockSortableScope key={kind} sortable={false}>
+            {section}
+          </ThreadDockSortableScope>
+        ) : (
+          section
         );
       })}
     </>
@@ -195,6 +203,9 @@ function ActiveAgentSection({
   projectLocation?: ProjectLocation;
 }) {
   const { t } = useLingui();
+  const [collapsed, setCollapsed] = useState(false);
+  const isRightCard = placement === "right";
+  const isCollapsed = isRightCard && collapsed;
   const completedCount = useAppStore(
     (s) =>
       ids.filter((id) => {
@@ -204,7 +215,7 @@ function ActiveAgentSection({
         return item.state === "completed" && payload?.status !== "running";
       }).length,
   );
-  const title =
+  const label =
     kind === "workflow"
       ? t`Workflows`
       : kind === "crossagent"
@@ -224,13 +235,16 @@ function ActiveAgentSection({
       : kind === "crossagent"
         ? t`Close Crossagents`
         : t`Close subagents`;
+  const countFraction = <AnimatedFraction value={completedCount} total={ids.length} />;
 
   return (
-    <ThreadDockSection placement={placement} collapsed={false}>
+    <ThreadDockSection placement={placement} collapsed={isCollapsed}>
       <ThreadDockHeader
         icon={kind === "workflow" ? GitBranch : Bot}
-        title={title}
-        countLabel={<AnimatedFraction value={completedCount} total={ids.length} />}
+        title={label}
+        {...(isRightCard
+          ? { collapse: { collapsed: isCollapsed, onToggle: () => setCollapsed(!collapsed) } }
+          : { countLabel: countFraction })}
         actions={
           <>
             {showPlacementToggle ? <ThreadDocksPlacementToggle placement="composer" /> : null}
@@ -242,21 +256,32 @@ function ActiveAgentSection({
             >
               <X className="size-3.5" />
             </ThreadDockIconButton>
+            {isRightCard ? (
+              <ThreadDockCollapseButton
+                collapsed={isCollapsed}
+                label={isCollapsed ? t`Expand ${label}` : t`Collapse ${label}`}
+                onPress={() => setCollapsed(!collapsed)}
+              />
+            ) : null}
           </>
         }
-      />
-      <ThreadDockList placement={placement} collapsed={false} gap="1">
-        {ids.map((id) => (
-          <ActiveSubAgentRow
-            key={id}
-            threadId={threadId}
-            itemId={id}
-            placement={placement}
-            {...(crewBinding ? { crewBinding } : {})}
-            {...(projectLocation ? { projectLocation } : {})}
-          />
-        ))}
-      </ThreadDockList>
+      >
+        {isRightCard ? <ThreadDockCountBadge>{countFraction}</ThreadDockCountBadge> : null}
+      </ThreadDockHeader>
+      {!isCollapsed ? (
+        <ThreadDockList placement={placement} collapsed={false} gap="1">
+          {ids.map((id) => (
+            <ActiveSubAgentRow
+              key={id}
+              threadId={threadId}
+              itemId={id}
+              placement={placement}
+              {...(crewBinding ? { crewBinding } : {})}
+              {...(projectLocation ? { projectLocation } : {})}
+            />
+          ))}
+        </ThreadDockList>
+      ) : null}
     </ThreadDockSection>
   );
 }

@@ -1,6 +1,7 @@
 import { Tooltip } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import type { ThreadContextUsageSummary } from "./threadContextUsage";
+import { ThreadDockProgressRing } from "./ThreadDockUI";
 
 export function ThreadContextIndicator({
   summary,
@@ -77,7 +78,37 @@ export function ThreadContextIndicator({
   );
 }
 
-function resolveContextTone(
+export function ContextUsageRing({
+  percent,
+  size = 16,
+  className = "",
+}: {
+  percent: number | undefined;
+  size?: number;
+  className?: string;
+}) {
+  const tone = resolveContextTone(percent);
+  const progressStroke =
+    tone === "danger"
+      ? "var(--danger)"
+      : tone === "warning"
+        ? "var(--warning)"
+        : "var(--foreground)";
+
+  return (
+    <ThreadDockProgressRing
+      percent={percent}
+      size={size}
+      progressStroke={progressStroke}
+      showZeroProgress
+      className={className}
+      data-context-ring="true"
+      data-tone={tone}
+    />
+  );
+}
+
+export function resolveContextTone(
   percent: number | undefined,
 ): "unknown" | "normal" | "warning" | "danger" {
   if (percent === undefined) return "unknown";

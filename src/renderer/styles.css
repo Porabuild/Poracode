@@ -762,8 +762,8 @@ html[data-app-unfocused] .poracode-welcome-ring::after {
   background: conic-gradient(
     from 0deg,
     transparent 0deg,
-    var(--snow, white) 60deg,
-    var(--snow, white) 90deg,
+    var(--foreground) 60deg,
+    var(--foreground) 90deg,
     transparent 140deg,
     transparent 360deg
   );
@@ -782,8 +782,8 @@ html[data-app-unfocused] .poracode-welcome-ring::after {
   border-radius: 50%;
   background: radial-gradient(
     closest-side,
-    color-mix(in oklab, var(--snow, white) 70%, transparent) 0%,
-    color-mix(in oklab, var(--snow, white) 35%, transparent) 45%,
+    color-mix(in oklab, var(--foreground) 32%, transparent) 0%,
+    color-mix(in oklab, var(--foreground) 16%, transparent) 45%,
     transparent 80%
   );
   z-index: -1;
@@ -5075,10 +5075,10 @@ html[data-app-unfocused] .poracode-provider-icon--finished {
 }
 
 .poracode-context-dock__bar {
-  height: 0.45rem;
+  height: 0.375rem;
   overflow: hidden;
   border-radius: 999px;
-  background: color-mix(in oklab, var(--muted) 24%, transparent);
+  background: var(--separator);
 }
 
 .poracode-context-dock__bar-fill {

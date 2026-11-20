@@ -1,18 +1,14 @@
 import type { ReactNode } from "react";
-import { Tooltip } from "@heroui/react";
 import { Activity, Bot, ListChecks } from "lucide-react";
 import { useLingui } from "@lingui/react/macro";
 import type { ThreadDockKind, ThreadDocksPlacement } from "@/shared/settings";
 import { toggleThreadDocksPanel } from "@/renderer/actions/panelActions";
-import {
-  floatingBubbleActiveClass,
-  floatingBubblePillClass,
-} from "@/renderer/components/layout/floatingGlass";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import { useThreadBackgroundTasksDockStore } from "@/renderer/state/threadBackgroundTasksDockStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { formatElapsed } from "@/renderer/utils/formatTime";
 import type { ThreadGoalDockState } from "./threadGoalState";
+import { ThreadDockBubble } from "./ThreadDockUI";
 import { ThreadGoalStatusIcon } from "./ThreadGoalStatusIcon";
 import { ThreadArtifactsBubble } from "./ThreadArtifactsBubble";
 import { ThreadImagesBubble } from "./ThreadImagesBubble";
@@ -84,6 +80,7 @@ export function ThreadDockBubbles({
       />
     ),
     images: <ThreadImagesBubble key="images" threadId={threadId} />,
+    files: null,
     artifacts: <ThreadArtifactsBubble key="artifacts" threadId={threadId} />,
     info: null,
     context: null,
@@ -167,26 +164,16 @@ function DockBubble({
   children?: ReactNode;
   onPress?: () => void;
 }) {
-  const { t } = useLingui();
-  const bubble = (
-    <button
-      type="button"
-      aria-label={active ? t`Hide ${label}` : t`Show ${label}`}
-      aria-pressed={active}
-      data-dock-bubble={kind}
-      className={`${floatingBubblePillClass} px-2.5 ${active ? floatingBubbleActiveClass : ""}`}
-      onClick={onPress ?? (() => toggleThreadDocksPanel(kind))}
-    >
-      {icon}
-      {children}
-    </button>
-  );
   return (
-    <Tooltip delay={0}>
-      <Tooltip.Trigger>{bubble}</Tooltip.Trigger>
-      <Tooltip.Content placement="top" className="max-w-[28rem] text-xs">
-        {tooltip ? `${label} · ${tooltip}` : label}
-      </Tooltip.Content>
-    </Tooltip>
+    <ThreadDockBubble
+      dataValue={kind}
+      label={label}
+      {...(tooltip ? { tooltip } : {})}
+      active={active}
+      icon={icon}
+      onPress={onPress ?? (() => toggleThreadDocksPanel(kind))}
+    >
+      {children}
+    </ThreadDockBubble>
   );
 }

@@ -120,7 +120,15 @@ describe("ThreadDocksPanel", () => {
     });
     useSharedSettings.setState({
       threadDocksPlacement: "right",
-      threadDocksOrder: ["backgroundTasks", "images", "artifacts", "plan", "goal", "agents"],
+      threadDocksOrder: [
+        "backgroundTasks",
+        "images",
+        "files",
+        "artifacts",
+        "plan",
+        "goal",
+        "agents",
+      ],
     });
     useAppStore.setState({
       threads: [],
@@ -306,11 +314,15 @@ describe("ThreadDocksPanel", () => {
 
     expect(screen.getByRole("button", { name: "Reorder Background tasks" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Reorder Background tasks" })).toHaveClass(
-      "top-0",
-      "h-8",
+      "top-[7px]",
+      "h-6",
+      "rounded-2xl",
     );
     expect(screen.getByRole("button", { name: "Reorder Plan" })).toBeInTheDocument();
     expect(screen.queryByTitle("Show docks above the composer")).not.toBeInTheDocument();
+    for (const section of container.querySelectorAll<HTMLElement>('[data-placement="right"]')) {
+      expect(section).toHaveClass("content-surface");
+    }
     expect(
       [...container.querySelectorAll("[data-dock-kind]")].map((element) =>
         element.getAttribute("data-dock-kind"),
@@ -334,9 +346,11 @@ describe("ThreadDocksPanel", () => {
     expect(screen.getByText("New background update")).toBeInTheDocument();
   });
 
-  it("renders Media (images + videos) and Files & artifacts as separate sections in persisted order", () => {
+  it("renders Media (images + videos), Files, and Artifacts as separate sections in persisted order", () => {
     useAppStore.setState({
-      runtimeItemIdsByThread: { "thread-1": ["plan-1", "image-1", "video-1", "doc-1"] },
+      runtimeItemIdsByThread: {
+        "thread-1": ["plan-1", "image-1", "video-1", "doc-1", "ref-1"],
+      },
       runtimeItemsByIdByThread: {
         "thread-1": {
           ...useAppStore.getState().runtimeItemsByIdByThread["thread-1"],
@@ -371,6 +385,15 @@ describe("ThreadDocksPanel", () => {
             },
             streams: {},
           },
+          "ref-1": {
+            id: "ref-1",
+            type: "assistant_message",
+            state: "completed",
+            payload: {
+              content: [{ kind: "text", text: "[App.tsx](src/App.tsx)" }],
+            },
+            streams: {},
+          },
         },
       },
       runtimeStructuralVersionByThread: { "thread-1": 1 },
@@ -383,12 +406,13 @@ describe("ThreadDocksPanel", () => {
     );
 
     expect(screen.getByRole("button", { name: "Reorder Media" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Reorder Files & artifacts" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Reorder Files" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Reorder Artifacts" })).toBeInTheDocument();
     expect(
       [...container.querySelectorAll("[data-dock-kind]")].map((element) =>
         element.getAttribute("data-dock-kind"),
       ),
-    ).toEqual(["backgroundTasks", "images", "artifacts", "plan"]);
+    ).toEqual(["backgroundTasks", "images", "files", "artifacts", "plan"]);
 
     // Media starts expanded with both the image and video tiles, and collapses independently.
     const mediaRegion = screen.getByRole("region", { name: "Media" });
@@ -397,12 +421,16 @@ describe("ThreadDocksPanel", () => {
     expect(mediaHeader).toHaveAttribute("aria-expanded", "true");
     expect(screen.getByRole("button", { name: "Open image 1 of 1" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Open video 1 of 1: demo.mp4" })).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Files" })).toHaveTextContent("report.pdf");
+    expect(screen.getByRole("region", { name: "Artifacts" })).toHaveTextContent("App.tsx");
     expect(screen.getByRole("button", { name: /report\.pdf/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /App\.tsx/ })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Collapse media" }));
     expect(mediaHeader).toHaveAttribute("aria-expanded", "false");
     expect(screen.queryByRole("button", { name: "Open image 1 of 1" })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /report\.pdf/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /App\.tsx/ })).toBeInTheDocument();
 
     fireEvent.click(mediaHeader);
     expect(mediaHeader).toHaveAttribute("aria-expanded", "true");
@@ -474,6 +502,7 @@ describe("ThreadDocksPanel", () => {
         "plan",
         "backgroundTasks",
         "images",
+        "files",
         "artifacts",
         "goal",
         "agents",

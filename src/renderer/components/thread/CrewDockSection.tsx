@@ -1,3 +1,4 @@
+import { useState, type ReactNode } from "react";
 import { Lock, LockOpen, Pencil, PencilOff, Square, UsersRound, Zap } from "lucide-react";
 import { useLingui } from "@lingui/react/macro";
 import { useShallow } from "zustand/shallow";
@@ -15,6 +16,7 @@ import {
 import { ProviderIcon } from "@/renderer/components/providers/ProviderIcon";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import { useAppStore } from "@/renderer/state/appStore";
+import { useProject } from "@/renderer/state/useThread";
 import { getRuntimeItemPayload } from "@/renderer/state/slices/runtimeEventSlice";
 import { getRuntimeItemStoreSelector } from "./ChatPane/chatPaneSelectors";
 import { readSubAgentType } from "./ChatPane/parts/items/toolDisplay";
@@ -26,12 +28,12 @@ import { formatEffortLabel } from "@/renderer/components/thread/threadDraftViewH
 import { ThreadDocksPlacementToggle } from "./ThreadDocksPlacementToggle";
 import { isRemoteSession, readBridge } from "@/renderer/bridge";
 import {
+  ThreadDockCollapseButton,
   ThreadDockHeader,
   ThreadDockIconButton,
   ThreadDockList,
   ThreadDockSection,
 } from "./ThreadDockUI";
-import type { ReactNode } from "react";
 import { CrewRolePill } from "@/renderer/components/crew/CrewRolePill";
 
 export function CrewDockSection(props: {
@@ -46,9 +48,7 @@ export function CrewDockSection(props: {
   const statuses = useAgentStatusesStore(
     useShallow((state) => [...state.agentStatuses, ...state.wslAgentStatuses]),
   );
-  const location = useAppStore(
-    (s) => s.projects.find((project) => project.id === props.thread.projectId)?.location,
-  );
+  const location = useProject(props.thread.projectId)?.location;
   const { crews } = useCrewLibrary(
     machineKeyForLocation({
       ...(location ?? { kind: "native" }),
@@ -82,16 +82,14 @@ export function CrewDockSection(props: {
   const matchedIds = new Set(roleGroups.flatMap((group) => group.ids));
   const otherIds = props.runIds.filter((id) => !matchedIds.has(id));
   const completedCount = useAppStore(
-    useShallow(
-      (state) =>
-        props.runIds.filter((id) => {
-          const item = getRuntimeItemStoreSelector(props.threadId, id)(state);
-          const payload = item
-            ? getRuntimeItemPayload<ToolCallPayload>(item, "tool_call")
-            : undefined;
-          return item?.state === "completed" && payload?.status !== "running";
-        }).length,
-    ),
+    (state) =>
+      props.runIds.filter((id) => {
+        const item = getRuntimeItemStoreSelector(props.threadId, id)(state);
+        const payload = item
+          ? getRuntimeItemPayload<ToolCallPayload>(item, "tool_call")
+          : undefined;
+        return item?.state === "completed" && payload?.status !== "running";
+      }).length,
   );
   const requestOpenControl = useThreadComposerControlStore((state) => state.requestOpenControl);
   const leadEdited = Boolean(saved && isLeadEdited(lead, saved));
@@ -107,28 +105,15 @@ export function CrewDockSection(props: {
     ),
   );
   const canStopRuns = !isRemoteSession();
+  const [collapsed, setCollapsed] = useState(false);
+  const label = props.binding.name ?? t`Crew`;
 
   return (
-    <ThreadDockSection placement="right" collapsed={false}>
+    <ThreadDockSection placement="right" collapsed={collapsed}>
       <ThreadDockHeader
         icon={UsersRound}
-        title={props.binding.name ?? t`Crew`}
-        countLabel={
-          <span className="inline-flex items-center gap-1 text-xs text-muted">
-            {props.binding.policy === "crew-only" ? (
-              <Lock className="size-3" />
-            ) : (
-              <LockOpen className="size-3" />
-            )}
-            <span>{props.binding.policy === "crew-only" ? t`Crew only` : t`Crew first`}</span>
-            {props.runIds.length > 0 ? (
-              <>
-                <span aria-hidden="true">·</span>
-                <AnimatedFraction value={completedCount} total={props.runIds.length} />
-              </>
-            ) : null}
-          </span>
-        }
+        title={label}
+        collapse={{ collapsed, onToggle: () => setCollapsed(!collapsed) }}
         actions={
           <>
             {props.showPlacementToggle ? <ThreadDocksPlacementToggle placement="right" /> : null}
@@ -139,62 +124,84 @@ export function CrewDockSection(props: {
             >
               <Pencil className="size-3.5" />
             </ThreadDockIconButton>
+            <ThreadDockCollapseButton
+              collapsed={collapsed}
+              label={collapsed ? t`Expand ${label}` : t`Collapse ${label}`}
+              onPress={() => setCollapsed(!collapsed)}
+            />
           </>
         }
-      />
-      <ThreadDockList placement="right" collapsed={false} gap="1">
-        <CrewMemberInfo
-          label={t`Lead`}
-          selection={lead}
-          statuses={statuses}
-          changed={leadEdited}
-          fast={lead.fast === true}
-          pill={<CrewRolePill isLead leadLabel={t`Lead`} />}
-        />
-        {roleGroups.map(({ role, ids }) => (
-          <div key={role.id}>
-            <CrewMemberInfo
-              label={role.label}
-              selection={role.selection}
-              statuses={statuses}
-              changed={Boolean(saved && isRoleEdited(role, saved))}
-              fast={role.selection.fast === true}
-              {...(role.noEdits !== undefined ? { noEdits: role.noEdits } : {})}
-              stop={
-                canStopRuns && ids.some((id) => runningIds.includes(id))
-                  ? () =>
-                      runningIds
-                        .filter((id) => ids.includes(id))
-                        .forEach((id) => {
-                          const runId = id.startsWith("sub:") ? id.slice(4) : id;
-                          void readBridge().cancelCrossagentRun({
-                            threadId: props.threadId,
-                            runId,
-                          });
-                        })
-                  : undefined
-              }
-              stopLabel={t`Stop ${role.label} runs`}
-              pill={<CrewRolePill role={role} isLead={false} leadLabel={t`Lead`} />}
-            />
-            {ids.length > 0 ? (
-              <div data-crew-role-runs={role.id} className="ml-[22px] min-w-0">
-                {ids.map((id) => props.renderRun(id, true))}
+      >
+        <span className="ml-auto inline-flex shrink-0 items-center gap-1 text-[11px] text-muted">
+          {props.binding.policy === "crew-only" ? (
+            <Lock className="size-3" />
+          ) : (
+            <LockOpen className="size-3" />
+          )}
+          <span>{props.binding.policy === "crew-only" ? t`Crew only` : t`Crew first`}</span>
+          {props.runIds.length > 0 ? (
+            <>
+              <span aria-hidden="true">·</span>
+              <AnimatedFraction value={completedCount} total={props.runIds.length} />
+            </>
+          ) : null}
+        </span>
+      </ThreadDockHeader>
+      {!collapsed ? (
+        <ThreadDockList placement="right" collapsed={false} gap="1">
+          <CrewMemberInfo
+            label={t`Lead`}
+            selection={lead}
+            statuses={statuses}
+            changed={leadEdited}
+            fast={lead.fast === true}
+            pill={<CrewRolePill isLead leadLabel={t`Lead`} />}
+          />
+          {roleGroups.map(({ role, ids }) => (
+            <div key={role.id}>
+              <CrewMemberInfo
+                label={role.label}
+                selection={role.selection}
+                statuses={statuses}
+                changed={Boolean(saved && isRoleEdited(role, saved))}
+                fast={role.selection.fast === true}
+                {...(role.noEdits !== undefined ? { noEdits: role.noEdits } : {})}
+                stop={
+                  canStopRuns && ids.some((id) => runningIds.includes(id))
+                    ? () =>
+                        runningIds
+                          .filter((id) => ids.includes(id))
+                          .forEach((id) => {
+                            const runId = id.startsWith("sub:") ? id.slice(4) : id;
+                            void readBridge().cancelCrossagentRun({
+                              threadId: props.threadId,
+                              runId,
+                            });
+                          })
+                    : undefined
+                }
+                stopLabel={t`Stop ${role.label} runs`}
+                pill={<CrewRolePill role={role} isLead={false} leadLabel={t`Lead`} />}
+              />
+              {ids.length > 0 ? (
+                <div data-crew-role-runs={role.id} className="ml-[22px] min-w-0">
+                  {ids.map((id) => props.renderRun(id, true))}
+                </div>
+              ) : null}
+            </div>
+          ))}
+          {otherIds.length > 0 ? (
+            <div>
+              <div className="px-2 pb-0.5 pt-2 text-[11px] font-medium text-muted">
+                {t`Other agents`}
               </div>
-            ) : null}
-          </div>
-        ))}
-        {otherIds.length > 0 ? (
-          <div>
-            <div className="px-2 pb-0.5 pt-2 text-[11px] font-medium text-muted">
-              {t`Other agents`}
+              <div data-crew-role-runs="other" className="ml-[22px] min-w-0">
+                {otherIds.map((id) => props.renderRun(id, false))}
+              </div>
             </div>
-            <div data-crew-role-runs="other" className="ml-[22px] min-w-0">
-              {otherIds.map((id) => props.renderRun(id, false))}
-            </div>
-          </div>
-        ) : null}
-      </ThreadDockList>
+          ) : null}
+        </ThreadDockList>
+      ) : null}
     </ThreadDockSection>
   );
 }

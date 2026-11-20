@@ -6,7 +6,13 @@ import { useImageViewportPriority } from "@/renderer/components/common/useImageV
 import { useRenderOnNotify } from "@/renderer/state/remoteServers/useRemoteImageReadiness";
 import type { ThreadGalleryImage } from "./ChatPane/parts/items/threadGalleryImages";
 import { DownsampledThumb } from "./DownsampledThumb";
-import { ThreadDockCollapseButton, ThreadDockHeader, ThreadDockSection } from "./ThreadDockUI";
+import {
+  ThreadDockBody,
+  ThreadDockCollapseButton,
+  ThreadDockCountBadge,
+  ThreadDockHeader,
+  ThreadDockSection,
+} from "./ThreadDockUI";
 import { threadVideosForLightbox, type ThreadVideo } from "./threadVideos";
 
 const EMPTY_VIDEOS: readonly ThreadVideo[] = [];
@@ -51,14 +57,13 @@ export function ThreadImagesDock({
       placement="right"
       collapsed={collapsed}
       ariaLabel={label}
-      className="min-w-0 [&[data-placement='right']]:h-auto"
+      className="min-w-0"
     >
       <div data-images-dock="true" className="min-w-0">
         <ThreadDockHeader
           icon={Images}
           title={label}
           collapse={{ collapsed, onToggle: () => setCollapsed(!collapsed) }}
-          countLabel={<span className="[font-variant-numeric:tabular-nums]">{totalCount}</span>}
           actions={
             <ThreadDockCollapseButton
               collapsed={collapsed}
@@ -66,9 +71,11 @@ export function ThreadImagesDock({
               onPress={() => setCollapsed(!collapsed)}
             />
           }
-        />
+        >
+          <ThreadDockCountBadge>{totalCount}</ThreadDockCountBadge>
+        </ThreadDockHeader>
         {!collapsed ? (
-          <div className="px-1 pb-1">
+          <ThreadDockBody padding="media">
             <div
               className="grid auto-cols-max grid-flow-col grid-rows-2 gap-1.5 overflow-x-auto pb-1 [scrollbar-gutter:stable]"
               role="list"
@@ -115,7 +122,7 @@ export function ThreadImagesDock({
                 </div>
               ))}
             </div>
-          </div>
+          </ThreadDockBody>
         ) : null}
       </div>
     </ThreadDockSection>

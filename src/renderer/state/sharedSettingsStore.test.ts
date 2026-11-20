@@ -301,6 +301,7 @@ describe("sharedSettingsStore", () => {
       "goal",
       "agents",
       "images",
+      "files",
       "artifacts",
       "info",
       "context",

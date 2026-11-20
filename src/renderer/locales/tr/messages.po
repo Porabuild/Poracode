@@ -2551,6 +2551,12 @@ msgstr "Aşamalandırılmamış tüm değişiklikleri geri almak istediğinizden
 msgid "Arguments"
 msgstr "Bağımsız değişkenler"
 
+#: src/renderer/components/thread/ThreadArtifactsBubble.tsx
+#: src/renderer/components/thread/ThreadArtifactsDock.tsx
+#: src/renderer/components/thread/ThreadDocksPanel.tsx
+msgid "Artifacts"
+msgstr "Çıktılar"
+
 #. placeholder {0}: effectiveAgentStatus?.label ?? agentFallbackLabel
 #. placeholder {0}: project.name
 #: src/renderer/components/thread/ThreadComposerSection.tsx
@@ -4701,6 +4707,10 @@ msgstr "Daralt"
 
 #: src/renderer/components/providers/settings/UsageProviderRow.tsx
 #: src/renderer/components/providers/UsageProviderCardView.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/ActiveSubAgentTile.tsx
+#: src/renderer/components/thread/CrewDockSection.tsx
+#: src/renderer/components/thread/ThreadArtifactsDock.tsx
+#: src/renderer/components/thread/ThreadGoalDock.tsx
 msgid "Collapse {label}"
 msgstr "{label} daralt"
 
@@ -4753,8 +4763,8 @@ msgstr "Hatayı daralt"
 #~ msgstr "Deneyi daralt"
 
 #: src/renderer/components/thread/ThreadArtifactsDock.tsx
-msgid "Collapse files & artifacts"
-msgstr "Dosyaları ve çıktıları daralt"
+#~ msgid "Collapse files & artifacts"
+#~ msgstr "Dosyaları ve çıktıları daralt"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarFooterNav.tsx
 msgid "Collapse footer"
@@ -5517,6 +5527,7 @@ msgstr "Çerezler"
 #: src/renderer/components/thread/ChatPane/parts/items/CopyTextButton.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/ImageCard.tsx
 #: src/renderer/components/thread/ChatPane/UserMessageActionsSheet.tsx
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
 #: src/renderer/RendererCrashScreen.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/LocalPortsPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
@@ -5537,6 +5548,7 @@ msgstr "Panoya kopyalandı"
 
 #: src/renderer/components/common/EditContextMenuHost.tsx
 #: src/renderer/components/terminal/XTermSurface.tsx
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Copy"
 msgstr "Kopyala"
@@ -8267,6 +8279,10 @@ msgstr "Genişlet"
 
 #: src/renderer/components/providers/settings/UsageProviderRow.tsx
 #: src/renderer/components/providers/UsageProviderCardView.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/ActiveSubAgentTile.tsx
+#: src/renderer/components/thread/CrewDockSection.tsx
+#: src/renderer/components/thread/ThreadArtifactsDock.tsx
+#: src/renderer/components/thread/ThreadGoalDock.tsx
 msgid "Expand {label}"
 msgstr "{label} genişlet"
 
@@ -8306,8 +8322,8 @@ msgstr "Hatayı genişlet"
 #~ msgstr "Deneyi genişlet"
 
 #: src/renderer/components/thread/ThreadArtifactsDock.tsx
-msgid "Expand files & artifacts"
-msgstr "Dosyaları ve çıktıları genişlet"
+#~ msgid "Expand files & artifacts"
+#~ msgstr "Dosyaları ve çıktıları genişlet"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarFooterNav.tsx
 msgid "Expand footer"
@@ -8733,6 +8749,9 @@ msgstr "Dosya desteklenmeyen bir kodlama kullanıyor."
 #: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/components/composer/MentionPopover.tsx
 #: src/renderer/components/layout/PanelDock/panelTabMeta.ts
+#: src/renderer/components/thread/ThreadArtifactsBubble.tsx
+#: src/renderer/components/thread/ThreadArtifactsDock.tsx
+#: src/renderer/components/thread/ThreadDocksPanel.tsx
 #: src/renderer/components/thread/ThreadToolRail.tsx
 #: src/renderer/views/MainView/parts/MobileWorkspacePage.tsx
 #: src/renderer/views/PullRequestsOverlay/changes/ChangesTab.tsx
@@ -8740,8 +8759,6 @@ msgid "Files"
 msgstr "Dosyalar"
 
 #: src/renderer/components/thread/ThreadArtifactsBubble.tsx
-#: src/renderer/components/thread/ThreadArtifactsDock.tsx
-#: src/renderer/components/thread/ThreadDocksPanel.tsx
 msgid "Files & artifacts"
 msgstr "Dosyalar ve çıktılar"
 
@@ -9799,9 +9816,7 @@ msgstr "Gizli devam ettirilebilir konular her 5 dakikada bir taranır ve bu boş
 msgid "Hide"
 msgstr "Gizle"
 
-#: src/renderer/components/thread/ThreadArtifactsBubble.tsx
-#: src/renderer/components/thread/ThreadDockBubbles.tsx
-#: src/renderer/components/thread/ThreadImagesBubble.tsx
+#: src/renderer/components/thread/ThreadDockUI.tsx
 msgid "Hide {label}"
 msgstr "{label} gizle"
 
@@ -19471,7 +19486,7 @@ msgstr "Kısayollar"
 msgid "Show {0}"
 msgstr "{0} öğesini göster"
 
-#: src/renderer/components/thread/ThreadDockBubbles.tsx
+#: src/renderer/components/thread/ThreadDockUI.tsx
 msgid "Show {label}"
 msgstr "{label} göster"
 
@@ -23665,6 +23680,7 @@ msgstr "Bilinmeyen işlem"
 
 #: src/renderer/components/providers/usageFormat.ts
 #: src/renderer/components/providers/UsageProviderCardView.tsx
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
 msgid "Unlimited"
 msgstr "Sınırsız"
 

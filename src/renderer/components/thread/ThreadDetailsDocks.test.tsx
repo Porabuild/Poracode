@@ -6,6 +6,7 @@ import { useAppStore } from "@/renderer/state/appStore";
 import { useProviderUsageStore } from "@/renderer/state/providerUsageStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
+import { ContextUsageRing } from "./ThreadContextIndicator";
 import { ThreadContextWindowDock } from "./ThreadContextWindowDock";
 import {
   ThreadAgentUsageDock as AgentUsageDock,
@@ -373,27 +374,32 @@ describe("Thread details", () => {
     expect(screen.queryByText("session-one")).not.toBeInTheDocument();
   });
 
-  it("does not highlight a hovered section header", () => {
+  it("renders a plain header button with no hover highlight or HeroUI press effect", () => {
     render(
       <AppProvider>
         <ThreadWorkspaceDock threadId="t1" />
       </AppProvider>,
     );
     const header = screen.getByRole("button", { name: "Thread info" });
-    expect(header).toHaveClass(
-      "[--button-bg-hover:transparent]",
-      "[--button-bg-pressed:transparent]",
-    );
+    expect(header).toHaveClass("bg-transparent");
+    expect(header.className).not.toContain("hover:");
+    expect(header.className).not.toContain("button");
     expect(within(header).getByText("Thread info").className).not.toContain("hover:");
   });
 
-  it("cancels the button icon margin so collapsible headers align with static ones", () => {
+  it("wraps header icons in a fixed centered slot so collapsible headers align with static ones", () => {
     render(
       <AppProvider>
         <ThreadWorkspaceDock threadId="t1" />
       </AppProvider>,
     );
-    expect(screen.getByRole("button", { name: "Thread info" })).toHaveClass("[&_svg]:mx-0");
+    const header = screen.getByRole("button", { name: "Thread info" });
+    expect(header.querySelector("svg")?.parentElement).toHaveClass(
+      "inline-flex",
+      "size-4",
+      "items-center",
+      "justify-center",
+    );
   });
 
   it("shows the provider icon and compact usage, then expands account details", () => {
@@ -479,6 +485,82 @@ describe("Thread details", () => {
     expect(screen.queryByText(/limit|Unknown|account usage/)).not.toBeInTheDocument();
   });
 
+  it("shows a circular usage meter when collapsed and provider plan + bars when expanded", () => {
+    useProviderUsageStore.getState().setSnapshots([
+      {
+        ...snapshot("codex", 12.34),
+        plan: "Pro",
+        windows: [
+          { id: "session-5h", label: "Session (5h)", usedPercent: 19 },
+          { id: "weekly", label: "Weekly", usedPercent: 6 },
+        ],
+      },
+    ]);
+    render(
+      <AppProvider>
+        <ThreadAgentUsageDock threadId="t1" />
+      </AppProvider>,
+    );
+    const region = screen.getByRole("region", { name: "Agent usage" });
+    expect(region).toHaveClass("content-surface");
+    const header = within(region).getByRole("button", { name: "Usage" });
+    expect(header.querySelectorAll("svg circle").length).toBeGreaterThanOrEqual(4);
+    expect(header).toHaveTextContent("19% · 6%");
+
+    fireEvent.click(header);
+    expect(within(region).getByText("Codex")).toBeInTheDocument();
+    expect(within(region).getByText("Pro")).toBeInTheDocument();
+    expect(within(region).getByRole("progressbar", { name: "Session (5h)" })).toBeInTheDocument();
+  });
+
+  it("shows a circular context ring and percentage when collapsed and expanded", () => {
+    useAppStore.setState({
+      runtimeContextByThread: {
+        t1: {
+          usedTokens: 20000,
+          maxTokens: 100000,
+          breakdown: [{ id: "messages", label: "Messages", tokens: 20000 }],
+        },
+      },
+    });
+    render(
+      <AppProvider>
+        <ThreadContextWindowDock threadId="t1" />
+      </AppProvider>,
+    );
+    const region = screen.getByRole("region", { name: "Context window" });
+    expect(region).toHaveClass("content-surface");
+    const header = within(region).getByRole("button", { name: "Context window" });
+    expect(header.querySelector('[data-context-ring="true"]')).not.toBeNull();
+    expect(header).toHaveTextContent("20%");
+    expect(header).toHaveAccessibleDescription(/20K \/ 100K tokens/);
+
+    fireEvent.click(header);
+    expect(within(region).getByText("20%")).toBeInTheDocument();
+  });
+
+  it("copies thread metadata values from the expanded thread info card", async () => {
+    const writeText = vi.fn<(text: string) => Promise<void>>().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: { writeText },
+    });
+    render(
+      <AppProvider>
+        <ThreadWorkspaceDock threadId="t1" />
+      </AppProvider>,
+    );
+    const region = screen.getByRole("region", { name: "Thread info" });
+    expect(region).toHaveClass("content-surface");
+    fireEvent.click(within(region).getByRole("button", { name: "Thread info" }));
+    const copyButtons = within(region).getAllByRole("button", { name: "Copy" });
+    expect(copyButtons.length).toBeGreaterThanOrEqual(4);
+    await act(async () => {
+      fireEvent.click(copyButtons[0]!);
+    });
+    expect(writeText).toHaveBeenCalledWith("feature");
+  });
+
   it("does not use local account usage for a remote thread or a different agent profile", () => {
     useProviderUsageStore.getState().setSnapshots([snapshot("codex", 12.34)]);
     useAppStore.setState({
@@ -499,5 +581,26 @@ describe("Thread details", () => {
       </AppProvider>,
     );
     expect(screen.queryByLabelText("Agent usage")).not.toBeInTheDocument();
+  });
+
+  it("renders ContextUsageRing tones for normal, warning, danger, unknown, and clamps values >100%", () => {
+    const { container, rerender } = render(<ContextUsageRing percent={undefined} />);
+    const ring = () => container.querySelector('[data-context-ring="true"]')!;
+    expect(ring()).toHaveAttribute("data-tone", "unknown");
+    expect(ring().querySelectorAll("circle")).toHaveLength(1);
+
+    rerender(<ContextUsageRing percent={45} />);
+    expect(ring()).toHaveAttribute("data-tone", "normal");
+
+    rerender(<ContextUsageRing percent={75} />);
+    expect(ring()).toHaveAttribute("data-tone", "warning");
+
+    rerender(<ContextUsageRing percent={125} />);
+    expect(ring()).toHaveAttribute("data-tone", "danger");
+    const circles = ring().querySelectorAll("circle");
+    expect(circles).toHaveLength(2);
+    const dasharray = circles[1]!.getAttribute("stroke-dasharray") ?? "";
+    const [progress, circumference] = dasharray.split(" ").map(Number);
+    expect(progress).toBeCloseTo(circumference!, 5);
   });
 });

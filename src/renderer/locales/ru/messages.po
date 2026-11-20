@@ -2551,6 +2551,12 @@ msgstr "Вы уверены, что хотите откатить все неп�
 msgid "Arguments"
 msgstr "Аргументы"
 
+#: src/renderer/components/thread/ThreadArtifactsBubble.tsx
+#: src/renderer/components/thread/ThreadArtifactsDock.tsx
+#: src/renderer/components/thread/ThreadDocksPanel.tsx
+msgid "Artifacts"
+msgstr "Артефакты"
+
 #. placeholder {0}: effectiveAgentStatus?.label ?? agentFallbackLabel
 #. placeholder {0}: project.name
 #: src/renderer/components/thread/ThreadComposerSection.tsx
@@ -4701,6 +4707,10 @@ msgstr "Свернуть"
 
 #: src/renderer/components/providers/settings/UsageProviderRow.tsx
 #: src/renderer/components/providers/UsageProviderCardView.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/ActiveSubAgentTile.tsx
+#: src/renderer/components/thread/CrewDockSection.tsx
+#: src/renderer/components/thread/ThreadArtifactsDock.tsx
+#: src/renderer/components/thread/ThreadGoalDock.tsx
 msgid "Collapse {label}"
 msgstr "Свернуть {label}"
 
@@ -4753,8 +4763,8 @@ msgstr "Свернуть ошибку"
 #~ msgstr "Свернуть эксперимент"
 
 #: src/renderer/components/thread/ThreadArtifactsDock.tsx
-msgid "Collapse files & artifacts"
-msgstr "Свернуть файлы и артефакты"
+#~ msgid "Collapse files & artifacts"
+#~ msgstr "Свернуть файлы и артефакты"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarFooterNav.tsx
 msgid "Collapse footer"
@@ -5517,6 +5527,7 @@ msgstr "Cookie"
 #: src/renderer/components/thread/ChatPane/parts/items/CopyTextButton.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/ImageCard.tsx
 #: src/renderer/components/thread/ChatPane/UserMessageActionsSheet.tsx
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
 #: src/renderer/RendererCrashScreen.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/LocalPortsPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
@@ -5537,6 +5548,7 @@ msgstr "Скопировано в буфер обмена"
 
 #: src/renderer/components/common/EditContextMenuHost.tsx
 #: src/renderer/components/terminal/XTermSurface.tsx
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Copy"
 msgstr "Копировать"
@@ -8267,6 +8279,10 @@ msgstr "Развернуть"
 
 #: src/renderer/components/providers/settings/UsageProviderRow.tsx
 #: src/renderer/components/providers/UsageProviderCardView.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/ActiveSubAgentTile.tsx
+#: src/renderer/components/thread/CrewDockSection.tsx
+#: src/renderer/components/thread/ThreadArtifactsDock.tsx
+#: src/renderer/components/thread/ThreadGoalDock.tsx
 msgid "Expand {label}"
 msgstr "Развернуть {label}"
 
@@ -8306,8 +8322,8 @@ msgstr "Развернуть ошибку"
 #~ msgstr "Развернуть эксперимент"
 
 #: src/renderer/components/thread/ThreadArtifactsDock.tsx
-msgid "Expand files & artifacts"
-msgstr "Развернуть файлы и артефакты"
+#~ msgid "Expand files & artifacts"
+#~ msgstr "Развернуть файлы и артефакты"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarFooterNav.tsx
 msgid "Expand footer"
@@ -8733,6 +8749,9 @@ msgstr "Файл использует неподдерживаемую коди�
 #: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/components/composer/MentionPopover.tsx
 #: src/renderer/components/layout/PanelDock/panelTabMeta.ts
+#: src/renderer/components/thread/ThreadArtifactsBubble.tsx
+#: src/renderer/components/thread/ThreadArtifactsDock.tsx
+#: src/renderer/components/thread/ThreadDocksPanel.tsx
 #: src/renderer/components/thread/ThreadToolRail.tsx
 #: src/renderer/views/MainView/parts/MobileWorkspacePage.tsx
 #: src/renderer/views/PullRequestsOverlay/changes/ChangesTab.tsx
@@ -8740,8 +8759,6 @@ msgid "Files"
 msgstr "Файлы"
 
 #: src/renderer/components/thread/ThreadArtifactsBubble.tsx
-#: src/renderer/components/thread/ThreadArtifactsDock.tsx
-#: src/renderer/components/thread/ThreadDocksPanel.tsx
 msgid "Files & artifacts"
 msgstr "Файлы и артефакты"
 
@@ -9799,9 +9816,7 @@ msgstr "Скрытые возобновляемые треды проверяю�
 msgid "Hide"
 msgstr "Скрыть"
 
-#: src/renderer/components/thread/ThreadArtifactsBubble.tsx
-#: src/renderer/components/thread/ThreadDockBubbles.tsx
-#: src/renderer/components/thread/ThreadImagesBubble.tsx
+#: src/renderer/components/thread/ThreadDockUI.tsx
 msgid "Hide {label}"
 msgstr "Скрыть {label}"
 
@@ -19471,7 +19486,7 @@ msgstr "Сочетания клавиш"
 msgid "Show {0}"
 msgstr "Показать {0}"
 
-#: src/renderer/components/thread/ThreadDockBubbles.tsx
+#: src/renderer/components/thread/ThreadDockUI.tsx
 msgid "Show {label}"
 msgstr "Показать {label}"
 
@@ -23665,6 +23680,7 @@ msgstr "Неизвестный процесс"
 
 #: src/renderer/components/providers/usageFormat.ts
 #: src/renderer/components/providers/UsageProviderCardView.tsx
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
 msgid "Unlimited"
 msgstr "Без ограничений"
 

@@ -2556,6 +2556,12 @@ msgstr "Are you sure you want to revert all unstaged changes? This cannot be und
 msgid "Arguments"
 msgstr "Arguments"
 
+#: src/renderer/components/thread/ThreadArtifactsBubble.tsx
+#: src/renderer/components/thread/ThreadArtifactsDock.tsx
+#: src/renderer/components/thread/ThreadDocksPanel.tsx
+msgid "Artifacts"
+msgstr "Artifacts"
+
 #. placeholder {0}: effectiveAgentStatus?.label ?? agentFallbackLabel
 #. placeholder {0}: project.name
 #: src/renderer/components/thread/ThreadComposerSection.tsx
@@ -4710,6 +4716,10 @@ msgstr "Collapse"
 
 #: src/renderer/components/providers/settings/UsageProviderRow.tsx
 #: src/renderer/components/providers/UsageProviderCardView.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/ActiveSubAgentTile.tsx
+#: src/renderer/components/thread/CrewDockSection.tsx
+#: src/renderer/components/thread/ThreadArtifactsDock.tsx
+#: src/renderer/components/thread/ThreadGoalDock.tsx
 msgid "Collapse {label}"
 msgstr "Collapse {label}"
 
@@ -4762,8 +4772,8 @@ msgstr "Collapse error"
 #~ msgstr "Collapse experiment"
 
 #: src/renderer/components/thread/ThreadArtifactsDock.tsx
-msgid "Collapse files & artifacts"
-msgstr "Collapse files & artifacts"
+#~ msgid "Collapse files & artifacts"
+#~ msgstr "Collapse files & artifacts"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarFooterNav.tsx
 msgid "Collapse footer"
@@ -5526,6 +5536,7 @@ msgstr "Cookies"
 #: src/renderer/components/thread/ChatPane/parts/items/CopyTextButton.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/ImageCard.tsx
 #: src/renderer/components/thread/ChatPane/UserMessageActionsSheet.tsx
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
 #: src/renderer/RendererCrashScreen.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/LocalPortsPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
@@ -5546,6 +5557,7 @@ msgstr "Copied to clipboard"
 
 #: src/renderer/components/common/EditContextMenuHost.tsx
 #: src/renderer/components/terminal/XTermSurface.tsx
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Copy"
 msgstr "Copy"
@@ -8276,6 +8288,10 @@ msgstr "Expand"
 
 #: src/renderer/components/providers/settings/UsageProviderRow.tsx
 #: src/renderer/components/providers/UsageProviderCardView.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/ActiveSubAgentTile.tsx
+#: src/renderer/components/thread/CrewDockSection.tsx
+#: src/renderer/components/thread/ThreadArtifactsDock.tsx
+#: src/renderer/components/thread/ThreadGoalDock.tsx
 msgid "Expand {label}"
 msgstr "Expand {label}"
 
@@ -8315,8 +8331,8 @@ msgstr "Expand error"
 #~ msgstr "Expand experiment"
 
 #: src/renderer/components/thread/ThreadArtifactsDock.tsx
-msgid "Expand files & artifacts"
-msgstr "Expand files & artifacts"
+#~ msgid "Expand files & artifacts"
+#~ msgstr "Expand files & artifacts"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarFooterNav.tsx
 msgid "Expand footer"
@@ -8742,6 +8758,9 @@ msgstr "File uses an unsupported encoding."
 #: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/components/composer/MentionPopover.tsx
 #: src/renderer/components/layout/PanelDock/panelTabMeta.ts
+#: src/renderer/components/thread/ThreadArtifactsBubble.tsx
+#: src/renderer/components/thread/ThreadArtifactsDock.tsx
+#: src/renderer/components/thread/ThreadDocksPanel.tsx
 #: src/renderer/components/thread/ThreadToolRail.tsx
 #: src/renderer/views/MainView/parts/MobileWorkspacePage.tsx
 #: src/renderer/views/PullRequestsOverlay/changes/ChangesTab.tsx
@@ -8749,8 +8768,6 @@ msgid "Files"
 msgstr "Files"
 
 #: src/renderer/components/thread/ThreadArtifactsBubble.tsx
-#: src/renderer/components/thread/ThreadArtifactsDock.tsx
-#: src/renderer/components/thread/ThreadDocksPanel.tsx
 msgid "Files & artifacts"
 msgstr "Files & artifacts"
 
@@ -9808,9 +9825,7 @@ msgstr "Hidden resumable threads are swept every 5 minutes and unloaded after th
 msgid "Hide"
 msgstr "Hide"
 
-#: src/renderer/components/thread/ThreadArtifactsBubble.tsx
-#: src/renderer/components/thread/ThreadDockBubbles.tsx
-#: src/renderer/components/thread/ThreadImagesBubble.tsx
+#: src/renderer/components/thread/ThreadDockUI.tsx
 msgid "Hide {label}"
 msgstr "Hide {label}"
 
@@ -19480,7 +19495,7 @@ msgstr "Shortcuts"
 msgid "Show {0}"
 msgstr "Show {0}"
 
-#: src/renderer/components/thread/ThreadDockBubbles.tsx
+#: src/renderer/components/thread/ThreadDockUI.tsx
 msgid "Show {label}"
 msgstr "Show {label}"
 
@@ -23674,6 +23689,7 @@ msgstr "Unknown process"
 
 #: src/renderer/components/providers/usageFormat.ts
 #: src/renderer/components/providers/UsageProviderCardView.tsx
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
 msgid "Unlimited"
 msgstr "Unlimited"
 

@@ -2551,6 +2551,12 @@ msgstr "Bạn có chắc chắn muốn hoàn nguyên tất cả các thay đổi
 msgid "Arguments"
 msgstr "Đối số"
 
+#: src/renderer/components/thread/ThreadArtifactsBubble.tsx
+#: src/renderer/components/thread/ThreadArtifactsDock.tsx
+#: src/renderer/components/thread/ThreadDocksPanel.tsx
+msgid "Artifacts"
+msgstr "Sản phẩm"
+
 #. placeholder {0}: effectiveAgentStatus?.label ?? agentFallbackLabel
 #. placeholder {0}: project.name
 #: src/renderer/components/thread/ThreadComposerSection.tsx
@@ -4701,6 +4707,10 @@ msgstr "Thu gọn"
 
 #: src/renderer/components/providers/settings/UsageProviderRow.tsx
 #: src/renderer/components/providers/UsageProviderCardView.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/ActiveSubAgentTile.tsx
+#: src/renderer/components/thread/CrewDockSection.tsx
+#: src/renderer/components/thread/ThreadArtifactsDock.tsx
+#: src/renderer/components/thread/ThreadGoalDock.tsx
 msgid "Collapse {label}"
 msgstr "Thu gọn {label}"
 
@@ -4753,8 +4763,8 @@ msgstr "Thu gọn lỗi"
 #~ msgstr "Thu gọn thí nghiệm"
 
 #: src/renderer/components/thread/ThreadArtifactsDock.tsx
-msgid "Collapse files & artifacts"
-msgstr "Thu gọn tệp và sản phẩm"
+#~ msgid "Collapse files & artifacts"
+#~ msgstr "Thu gọn tệp và sản phẩm"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarFooterNav.tsx
 msgid "Collapse footer"
@@ -5517,6 +5527,7 @@ msgstr "Cookie"
 #: src/renderer/components/thread/ChatPane/parts/items/CopyTextButton.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/ImageCard.tsx
 #: src/renderer/components/thread/ChatPane/UserMessageActionsSheet.tsx
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
 #: src/renderer/RendererCrashScreen.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/LocalPortsPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
@@ -5537,6 +5548,7 @@ msgstr "Đã sao chép vào bộ nhớ tạm"
 
 #: src/renderer/components/common/EditContextMenuHost.tsx
 #: src/renderer/components/terminal/XTermSurface.tsx
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Copy"
 msgstr "Sao chép"
@@ -8267,6 +8279,10 @@ msgstr "Mở rộng"
 
 #: src/renderer/components/providers/settings/UsageProviderRow.tsx
 #: src/renderer/components/providers/UsageProviderCardView.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/ActiveSubAgentTile.tsx
+#: src/renderer/components/thread/CrewDockSection.tsx
+#: src/renderer/components/thread/ThreadArtifactsDock.tsx
+#: src/renderer/components/thread/ThreadGoalDock.tsx
 msgid "Expand {label}"
 msgstr "Mở rộng {label}"
 
@@ -8306,8 +8322,8 @@ msgstr "Mở rộng lỗi"
 #~ msgstr "Mở rộng thí nghiệm"
 
 #: src/renderer/components/thread/ThreadArtifactsDock.tsx
-msgid "Expand files & artifacts"
-msgstr "Mở rộng tệp và sản phẩm"
+#~ msgid "Expand files & artifacts"
+#~ msgstr "Mở rộng tệp và sản phẩm"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarFooterNav.tsx
 msgid "Expand footer"
@@ -8733,6 +8749,9 @@ msgstr "Tệp sử dụng mã hóa không được hỗ trợ."
 #: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/components/composer/MentionPopover.tsx
 #: src/renderer/components/layout/PanelDock/panelTabMeta.ts
+#: src/renderer/components/thread/ThreadArtifactsBubble.tsx
+#: src/renderer/components/thread/ThreadArtifactsDock.tsx
+#: src/renderer/components/thread/ThreadDocksPanel.tsx
 #: src/renderer/components/thread/ThreadToolRail.tsx
 #: src/renderer/views/MainView/parts/MobileWorkspacePage.tsx
 #: src/renderer/views/PullRequestsOverlay/changes/ChangesTab.tsx
@@ -8740,8 +8759,6 @@ msgid "Files"
 msgstr "Tập tin"
 
 #: src/renderer/components/thread/ThreadArtifactsBubble.tsx
-#: src/renderer/components/thread/ThreadArtifactsDock.tsx
-#: src/renderer/components/thread/ThreadDocksPanel.tsx
 msgid "Files & artifacts"
 msgstr "Tệp và sản phẩm"
 
@@ -9799,9 +9816,7 @@ msgstr "Các chủ đề tiếp tục ẩn sẽ được quét 5 phút một l�
 msgid "Hide"
 msgstr "Ẩn"
 
-#: src/renderer/components/thread/ThreadArtifactsBubble.tsx
-#: src/renderer/components/thread/ThreadDockBubbles.tsx
-#: src/renderer/components/thread/ThreadImagesBubble.tsx
+#: src/renderer/components/thread/ThreadDockUI.tsx
 msgid "Hide {label}"
 msgstr "Ẩn {label}"
 
@@ -19471,7 +19486,7 @@ msgstr "Phím tắt"
 msgid "Show {0}"
 msgstr "Hiển thị {0}"
 
-#: src/renderer/components/thread/ThreadDockBubbles.tsx
+#: src/renderer/components/thread/ThreadDockUI.tsx
 msgid "Show {label}"
 msgstr "Hiện {label}"
 
@@ -23665,6 +23680,7 @@ msgstr "Tiến trình không xác định"
 
 #: src/renderer/components/providers/usageFormat.ts
 #: src/renderer/components/providers/UsageProviderCardView.tsx
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
 msgid "Unlimited"
 msgstr "Không giới hạn"
 

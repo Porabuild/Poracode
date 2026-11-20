@@ -13,7 +13,7 @@ import {
   ImageLightboxHost,
 } from "@/renderer/components/composer/ImageLightbox";
 import { ThreadArtifactsBubble } from "./ThreadArtifactsBubble";
-import { ThreadArtifactsDock } from "./ThreadArtifactsDock";
+import { ThreadArtifactsDock, ThreadFilesDock } from "./ThreadArtifactsDock";
 import { ThreadImagesBubble } from "./ThreadImagesBubble";
 import { ThreadDockBubbles } from "./ThreadDockBubbles";
 import { ThreadImagesDock } from "./ThreadImagesDock";
@@ -394,7 +394,15 @@ describe("ThreadImagesBubble", () => {
       },
     });
     useSharedSettings.setState({
-      threadDocksOrder: ["images", "backgroundTasks", "artifacts", "goal", "plan", "agents"],
+      threadDocksOrder: [
+        "images",
+        "backgroundTasks",
+        "files",
+        "artifacts",
+        "goal",
+        "plan",
+        "agents",
+      ],
     });
     const { container } = render(
       <ThreadDockBubbles
@@ -670,7 +678,7 @@ describe("ThreadImagesDock", () => {
   });
 });
 
-describe("ThreadArtifactsBubble and ThreadArtifactsDock", () => {
+describe("ThreadArtifactsBubble, ThreadFilesDock, and ThreadArtifactsDock", () => {
   beforeEach(() => {
     useAppStore.setState({
       threads: [],
@@ -690,7 +698,7 @@ describe("ThreadArtifactsBubble and ThreadArtifactsDock", () => {
     cleanup();
   });
 
-  it("opens files-only thread info and resolves bare output names through the transcript file actions", async () => {
+  it("opens files-focused thread info and resolves bare output names through the transcript file actions", async () => {
     seedThreadWithImages("t-files");
     useAppStore.setState({
       runtimeItemIdsByThread: { "t-files": ["output"] },
@@ -718,16 +726,17 @@ describe("ThreadArtifactsBubble and ThreadArtifactsDock", () => {
     render(
       <>
         <ThreadArtifactsBubble threadId="t-files" />
-        <ThreadArtifactsDock
+        <ThreadFilesDock
           threadId="t-files"
-          artifacts={[{ target: "report.pdf", name: "report.pdf", external: false }]}
+          files={[{ target: "report.pdf", name: "report.pdf", external: false, category: "file" }]}
         />
       </>,
     );
-    fireEvent.click(screen.getByRole("button", { name: "Show files & artifacts" }));
+    expect(screen.getByRole("region", { name: "Files" })).toHaveTextContent("1");
+    fireEvent.click(screen.getByRole("button", { name: "Show Files" }));
     expect(usePanelStore.getState()).toMatchObject({
       threadDocksPanelOpen: true,
-      threadDocksFocus: "artifacts",
+      threadDocksFocus: "files",
     });
     fireEvent.click(screen.getByRole("button", { name: /report\.pdf/ }));
     await vi.waitFor(() =>
@@ -746,22 +755,47 @@ describe("ThreadArtifactsBubble and ThreadArtifactsDock", () => {
     });
   });
 
-  it("shows the first 5 files and artifacts with a Show more toggle when more exist", () => {
+  it("focuses artifacts when only workspace artifacts exist", () => {
+    seedThreadWithImages("t-artifacts");
+    useAppStore.setState({
+      runtimeItemIdsByThread: { "t-artifacts": ["ref"] },
+      runtimeItemsByIdByThread: {
+        "t-artifacts": {
+          ref: {
+            id: "ref",
+            type: "assistant_message",
+            state: "completed",
+            streams: {},
+            payload: { content: [{ kind: "text", text: "[App.tsx](src/App.tsx)" }] },
+          },
+        },
+      },
+    });
+    render(<ThreadArtifactsBubble threadId="t-artifacts" />);
+    fireEvent.click(screen.getByRole("button", { name: "Show Artifacts" }));
+    expect(usePanelStore.getState()).toMatchObject({
+      threadDocksPanelOpen: true,
+      threadDocksFocus: "artifacts",
+    });
+  });
+
+  it("shows the first 5 artifacts with a Show more toggle when more exist", () => {
     const artifacts = Array.from({ length: 7 }, (_, index) => ({
       target: `src/file-${index + 1}.ts`,
       name: `file-${index + 1}.ts`,
       external: false,
+      category: "artifact" as const,
     }));
 
     const { rerender } = render(
       <ThreadArtifactsDock threadId="t-files" artifacts={artifacts.slice(0, 5)} />,
     );
-    expect(screen.getByRole("region", { name: "Files & artifacts" })).toHaveTextContent("5");
+    expect(screen.getByRole("region", { name: "Artifacts" })).toHaveTextContent("5");
     expect(screen.getByText("file-5.ts")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Show/ })).not.toBeInTheDocument();
 
     rerender(<ThreadArtifactsDock threadId="t-files" artifacts={artifacts} />);
-    expect(screen.getByRole("region", { name: "Files & artifacts" })).toHaveTextContent("7");
+    expect(screen.getByRole("region", { name: "Artifacts" })).toHaveTextContent("7");
     expect(screen.getByText("file-5.ts")).toBeInTheDocument();
     expect(screen.queryByText("file-6.ts")).not.toBeInTheDocument();
 
@@ -783,7 +817,39 @@ describe("ThreadArtifactsBubble and ThreadArtifactsDock", () => {
   });
 
   it("stays hidden when the thread holds no files or artifacts", () => {
-    render(<ThreadArtifactsDock artifacts={[]} />);
-    expect(screen.queryByRole("region", { name: "Files & artifacts" })).not.toBeInTheDocument();
+    render(
+      <>
+        <ThreadFilesDock files={[]} />
+        <ThreadArtifactsDock artifacts={[]} />
+      </>,
+    );
+    expect(screen.queryByRole("region", { name: "Files" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Artifacts" })).not.toBeInTheDocument();
+  });
+
+  it("uses the combined Files & artifacts label when both exist", () => {
+    seedThreadWithImages("t-both");
+    useAppStore.setState({
+      runtimeItemIdsByThread: { "t-both": ["out"] },
+      runtimeItemsByIdByThread: {
+        "t-both": {
+          out: {
+            id: "out",
+            type: "assistant_message",
+            state: "completed",
+            streams: {},
+            payload: {
+              content: [{ kind: "text", text: "[Report](report.pdf) [App.tsx](src/App.tsx)" }],
+            },
+          },
+        },
+      },
+    });
+    render(<ThreadArtifactsBubble threadId="t-both" />);
+    fireEvent.click(screen.getByRole("button", { name: "Show files & artifacts" }));
+    expect(usePanelStore.getState()).toMatchObject({
+      threadDocksPanelOpen: true,
+      threadDocksFocus: "files",
+    });
   });
 });

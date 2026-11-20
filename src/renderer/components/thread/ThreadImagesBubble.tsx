@@ -1,12 +1,8 @@
-import { Tooltip } from "@heroui/react";
 import { Images } from "lucide-react";
 import { useLingui } from "@lingui/react/macro";
 import { toggleThreadDocksPanel } from "@/renderer/actions/panelActions";
-import {
-  floatingBubbleActiveClass,
-  floatingBubblePillClass,
-} from "@/renderer/components/layout/floatingGlass";
 import { usePanelStore } from "@/renderer/state/panelStore";
+import { ThreadDockBubble } from "./ThreadDockUI";
 import { useThreadGalleryImages } from "./useThreadGalleryImages";
 import { useThreadVideos } from "./threadVideos";
 
@@ -29,27 +25,18 @@ export function ThreadImagesBubble({ threadId }: { threadId: string }) {
   const panelShowing = usePanelStore((s) => s.threadDocksPanelOpen && s.rightPanelTab === "docks");
   if (mediaCount === 0) return null;
   const label = t`Media`;
-  const bubble = (
-    <button
-      type="button"
-      aria-label={panelShowing ? t`Hide ${label}` : t`Show media`}
-      aria-pressed={panelShowing}
-      data-images-bubble="true"
-      className={`${floatingBubblePillClass} px-2.5 ${
-        panelShowing ? floatingBubbleActiveClass : ""
-      }`}
-      onClick={() => toggleThreadDocksPanel("images")}
-    >
-      <Images className="size-3.5 shrink-0 text-muted" />
-      <span className="[font-variant-numeric:tabular-nums]">{mediaCount}</span>
-    </button>
-  );
+
   return (
-    <Tooltip delay={0}>
-      <Tooltip.Trigger>{bubble}</Tooltip.Trigger>
-      <Tooltip.Content placement="top" className="max-w-[28rem] text-xs">
-        {label}
-      </Tooltip.Content>
-    </Tooltip>
+    <ThreadDockBubble
+      dataAttr="data-images-bubble"
+      dataValue="true"
+      label={label}
+      showLabel={t`Show media`}
+      active={panelShowing}
+      icon={<Images className="size-3.5 shrink-0 text-muted" />}
+      onPress={() => toggleThreadDocksPanel("images")}
+    >
+      <span className="[font-variant-numeric:tabular-nums]">{mediaCount}</span>
+    </ThreadDockBubble>
   );
 }

@@ -66,7 +66,7 @@ describe("ThreadGoalDock", () => {
     expect(onDismiss).toHaveBeenCalledTimes(1);
   });
 
-  it("puts the right-panel objective on a second line", () => {
+  it("renders the right-panel goal as a collapsible card with readable objective body", () => {
     render(
       <AppProvider>
         <ThreadGoalDock
@@ -78,15 +78,23 @@ describe("ThreadGoalDock", () => {
             status: "active",
             action: "set",
             tokensUsed: 120,
+            lastReason: "Waiting for checks",
           }}
           placement="right"
         />
       </AppProvider>,
     );
 
-    const objective = screen.getByText("Ship goal dock");
-    expect(screen.getByLabelText("Thread goal dock")).toHaveAttribute("data-placement", "right");
-    expect(objective.parentElement?.parentElement).toHaveClass("basis-full", "pl-[22px]");
+    const section = screen.getByLabelText("Thread goal dock");
+    expect(section).toHaveAttribute("data-placement", "right");
+    expect(section).toHaveClass("content-surface");
+    expect(screen.getByText("Ship goal dock")).toBeInTheDocument();
+    expect(screen.getByText(/Waiting for checks/)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Collapse Goal" }));
+    expect(section).toHaveAttribute("data-collapsed", "true");
+    expect(screen.queryByText(/Waiting for checks/)).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Goal" })).toHaveTextContent("Ship goal dock");
   });
 
   it("offers Codex edit, pause, and clear controls and sends direct goal actions", async () => {
