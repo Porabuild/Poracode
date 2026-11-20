@@ -12,7 +12,12 @@ import { TerminalWriteQueue } from "./terminalWriteQueue";
 import { TerminalInputQueue, registerTerminalInputQueue } from "./terminalInputQueue";
 import { readManagedLoopbackProcedureHost } from "@/renderer/remoteProcedureRouter";
 import { TerminalFeedStatus } from "./TerminalFeedStatus";
-import { applyTerminalFont, loadTerminalFonts, resolveTerminalFontFamily } from "./terminalFonts";
+import {
+  applyTerminalFont,
+  ensureCanvasFontWhitespaceSupport,
+  loadTerminalFonts,
+  resolveTerminalFontFamily,
+} from "./terminalFonts";
 import { Terminal } from "@xterm/xterm";
 import { Button } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
@@ -859,6 +864,7 @@ export const XTermSurface = forwardRef<
       }
       if (webglAddon || webglUnavailable) return;
       try {
+        ensureCanvasFontWhitespaceSupport();
         webglAddon = new WebglAddon();
         webglContextLossDisposable = webglAddon.onContextLoss(() => {
           webglUnavailable = true;
