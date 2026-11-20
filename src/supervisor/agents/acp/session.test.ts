@@ -29,6 +29,7 @@ import {
 } from "./sessionErrors";
 import * as textFileRead from "./sessionTextFileRead";
 import { withAcpCommandStatus } from "./canonicalMapping/commandStatus";
+import { acpMcpServerName } from "../userMcp";
 
 function makeInput(
   overrides: Partial<CreateStructuredSessionInput> = {},
@@ -3051,6 +3052,65 @@ describe("ACP client protocol helpers", () => {
           headers: [{ name: "Authorization", value: "Bearer crossagent-token" }],
         },
       ],
+    });
+  });
+
+  it("sanitizes dotted plugin MCP server names in session/new, session/resume, and session/load", async () => {
+    const pluginServer = {
+      id: "plugin:atlassian:atlassian",
+      name: "atlassian.atlassian",
+      timeoutMs: 30_000,
+      transport: {
+        type: "http" as const,
+        url: "https://mcp.atlassian.com/v1/mcp",
+        headers: { Authorization: "Bearer secret-token" },
+      },
+    };
+    const expectedName = acpMcpServerName(pluginServer);
+    expect(expectedName).toMatch(/^[A-Za-z0-9_-]+$/u);
+    const expectedWire = [
+      {
+        type: "http",
+        name: expectedName,
+        url: "https://mcp.atlassian.com/v1/mcp",
+        headers: [{ name: "Authorization", value: "Bearer secret-token" }],
+      },
+    ];
+
+    const newCase = makeConfigSyncSession({ mcpServers: [pluginServer] });
+    await expect(newCase.session.openThread({ model: "model-a" })).resolves.toBe("session-1");
+    expect(newCase.connection.newSession).toHaveBeenCalledWith({
+      cwd: "C:\\repo",
+      mcpServers: expectedWire,
+    });
+
+    const resumeCase = makeConfigSyncSession({ mcpServers: [pluginServer] });
+    (resumeCase.session as unknown as Record<string, unknown>)["agentSessionCapabilities"] = {
+      resume: {},
+    };
+    await expect(
+      resumeCase.session.openThread(
+        { model: "model-a" },
+        { providerSessionId: "session-resume", discoveredAt: new Date().toISOString() },
+      ),
+    ).resolves.toBe("session-resume");
+    expect(resumeCase.connection.resumeSession).toHaveBeenCalledWith({
+      sessionId: "session-resume",
+      cwd: "C:\\repo",
+      mcpServers: expectedWire,
+    });
+
+    const loadCase = makeConfigSyncSession({ mcpServers: [pluginServer] });
+    await expect(
+      loadCase.session.openThread(
+        { model: "model-a" },
+        { providerSessionId: "session-load", discoveredAt: new Date().toISOString() },
+      ),
+    ).resolves.toBe("session-load");
+    expect(loadCase.connection.loadSession).toHaveBeenCalledWith({
+      sessionId: "session-load",
+      cwd: "C:\\repo",
+      mcpServers: expectedWire,
     });
   });
 });

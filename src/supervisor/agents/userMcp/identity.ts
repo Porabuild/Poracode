@@ -23,6 +23,6 @@ export function envLabel(value: string, fallback: string): string {
 /** A readable, stable name for settings paths that require one key segment. */
 export function mcpSettingsServerName(server: Pick<ResolvedMcpServer, "id" | "name">): string {
   const normalized = server.name.replace(/[^A-Za-z0-9_-]/gu, "_").replace(/^_+|_+$/gu, "");
-  if (normalized === server.name) return normalized;
+  if (normalized.length > 0 && normalized === server.name) return normalized;
   return `${normalized || "server"}_${envIdentityHash(server.name, server.id).slice(0, 8).toLowerCase()}`;
 }
