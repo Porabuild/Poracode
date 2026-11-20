@@ -924,6 +924,7 @@ describe("CursorProviderSettings", () => {
 
     const button = screen.getByRole("button", { name: "Update Cursor SDK to v1.0.40" });
     expect(button).not.toHaveAttribute("data-pending");
+    expect(toastMock.danger).toHaveBeenCalledWith("Unable to update Cursor SDK.");
     expect(useCursorSdkPackageOperations.getState().pendingEnvKeys.size).toBe(0);
   });
 

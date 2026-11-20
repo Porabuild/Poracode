@@ -591,6 +591,35 @@ describe("AcpRegistrySettings", () => {
     ).toContain("npm install -g '@cursor/sdk@1.0.40'");
   });
 
+  it("reports a Cursor SDK background update failure when the command exits non-zero", async () => {
+    statusesState.agentStatuses = [
+      makeCursorStatus({
+        acpInstalled: true,
+        sdkInstalled: true,
+        acpVersion: "2026.07.23",
+        sdkVersion: "1.0.31",
+        sdkInstallationSource: "global-npm",
+      }),
+    ];
+    bridge.getLatestAgentVersion.mockResolvedValue({ source: "npm", version: "1.0.40" });
+
+    render(<AcpRegistrySettings />);
+
+    await screen.findByRole("heading", { name: "Agent Registry" });
+    const cursorCard = screen
+      .getByText(/First-class Cursor integration/u)
+      .closest('[data-slot="card"]');
+    fireEvent.click(within(cursorCard as HTMLElement).getByRole("button", { name: "Update SDK" }));
+
+    await waitFor(() => expect(runAgentInstallCommandMock).toHaveBeenCalledOnce());
+    const updateInput = runAgentInstallCommandMock.mock.calls.at(-1)?.[0] as
+      | { onCommandComplete: (exitCode: number) => void }
+      | undefined;
+    await act(async () => updateInput?.onCommandComplete(1));
+
+    expect(await screen.findByText("Unable to update Cursor.")).toBeInTheDocument();
+  });
+
   it("shows externally managed SDK versions without a misleading update action", async () => {
     statusesState.agentStatuses = [
       makeCursorStatus({

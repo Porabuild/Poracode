@@ -1030,6 +1030,7 @@ export function AcpRegistrySettings(props: { onOpenAgentSettings?: (kind: string
         ...(action.project ? { project: action.project } : {}),
         onCommandComplete: (exitCode) => {
           if (exitCode !== 0) {
+            setMachineError(t`Unable to update ${agentLabel}.`, targetMachine.id);
             clearPending();
             return;
           }

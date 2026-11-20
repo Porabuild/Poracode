@@ -171,6 +171,7 @@ function SdkPackageRow(props: {
       onCommandComplete: (exitCode) => {
         if (exitCode !== 0) {
           releasePackage();
+          if (purpose === "update") toast.danger(t`Unable to update Cursor SDK.`);
           return;
         }
         const previousVersion = installState.sdkVersion;

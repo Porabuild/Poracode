@@ -6,18 +6,14 @@ import type { AcpRegistryListResult, AgentStatus, Project } from "@/shared/contr
 import { agentEnvKey } from "@/shared/machines";
 import { localizeCatalogMessage } from "@/shared/messages";
 import { runAgentInstallCommand } from "@/renderer/actions/agentLoginActions";
-import {
-  currentWslDistros,
-  findStatusForTarget,
-  scopeEnvForStatus,
-  statusUpdateScope,
-} from "@/renderer/utils/acpRegistryAuth";
+import { scopeEnvForStatus, statusUpdateScope } from "@/renderer/utils/acpRegistryAuth";
 import {
   hostScopedKey,
   LOCAL_AGENT_MANAGEMENT_HOST,
   type AgentManagementHost,
 } from "./settings/agentManagementHost";
 import { getCombinedRuntimeUpdates, type CombinedRuntimeUpdate } from "./providerComposer";
+import { verifyRuntimeUpdates, type RuntimeUpdateTarget } from "./verifyRuntimeUpdates";
 
 export interface CombinedProviderRuntimeVersion {
   id: string;
@@ -39,28 +35,17 @@ interface UpdateOptions {
   toast?: boolean;
 }
 
-let packageUpdateTail: Promise<void> = Promise.resolve();
-
-/** Package installers share one terminal overlay, so different jobs must take turns. */
 function runPackageCommand(project: Project, label: string, command: string): Promise<boolean> {
-  const result = packageUpdateTail.then(
-    () =>
-      new Promise<boolean>((resolve) => {
-        const opened = runAgentInstallCommand({
-          label,
-          project,
-          command,
-          purpose: "update",
-          onCommandComplete: (exitCode) => resolve(exitCode === 0),
-        });
-        if (!opened) resolve(false);
-      }),
-  );
-  packageUpdateTail = result.then(
-    () => undefined,
-    () => undefined,
-  );
-  return result;
+  return new Promise((resolve) => {
+    const started = runAgentInstallCommand({
+      label,
+      project,
+      command,
+      purpose: "update",
+      onCommandComplete: (exitCode) => resolve(exitCode === 0),
+    });
+    if (!started) resolve(false);
+  });
 }
 
 function statusKey(status: AgentStatus): string {
@@ -160,12 +145,16 @@ export function useCombinedProviderRuntimeUpdates(
     Readonly<Record<string, { version: string; snapshot?: AgentStatus }>>
   >({});
   const [pendingStatusKeys, setPendingStatusKeys] = useState<ReadonlySet<string>>(() => new Set());
-  const packageJobs = useRef(new Map<string, Promise<void>>());
+  const packageJobs = useRef(new Map<string, Promise<Map<string, string>>>());
   // Bulk workers can hold status snapshots from before a sibling updated the same package.
   const verifiedPackageSnapshots = useRef(new WeakMap<AgentStatus, Map<string, string>>());
 
   function resolveRuntimes(status: AgentStatus) {
     return getCombinedRuntimeUpdates(status.kind, providerList ? "provider-list" : undefined);
+  }
+
+  function runtimesFor(status: AgentStatus) {
+    return resolveRuntimes(status)?.({ agentStatus: status }) ?? [];
   }
 
   function installedVersionFor(status: AgentStatus, runtime: CombinedRuntimeUpdate) {
@@ -276,7 +265,13 @@ export function useCombinedProviderRuntimeUpdates(
       return verified !== undefined && !isNewerVersion(version, verified);
     }
 
-    async function installAndRediscover() {
+    function recordVerifiedSnapshot(targetStatus: AgentStatus, detectedVersion: string) {
+      const versions = verifiedPackageSnapshots.current.get(targetStatus) ?? new Map();
+      versions.set(jobKey, detectedVersion);
+      verifiedPackageSnapshots.current.set(targetStatus, versions);
+    }
+
+    async function installAndRediscover(): Promise<Map<string, string>> {
       const project = providerList?.resolveProject(status);
       if (!project) throw new Error(t`Add a project before updating an agent.`);
       const command = commandForVersion?.(project, version);
@@ -285,60 +280,58 @@ export function useCombinedProviderRuntimeUpdates(
       }
 
       const related = statuses.flatMap((candidate) =>
-        (resolveRuntimes(candidate)?.({ agentStatus: candidate }) ?? [])
+        runtimesFor(candidate)
           .filter(
             (entry) =>
               entry.channel.kind === "npm-package" &&
+              entry.installed &&
+              entry.channel.commandForVersion &&
               entry.channel.query.name === query.name &&
               agentEnvKey(scopeEnvForStatus(candidate)) === envKey,
           )
-          .map((entry) => ({ status: candidate, runtimeId: entry.id })),
+          .map((entry) => ({ status: candidate, runtime: entry, version })),
       );
-      const refreshed = await host.rediscoverAgents(env.kind === "wsl" ? [env.distro] : [], {
-        agentKinds: [...new Set(related.map((entry) => entry.status.kind))],
-        envs: [env],
-      });
+      if (!related.some((entry) => entry.status === status && entry.runtime.id === runtime.id)) {
+        related.push({ status, runtime, version });
+      }
       const verifiedUpdates: Record<string, { version: string; snapshot: AgentStatus }> = {};
-      for (const entry of related) {
-        const detected = findStatusForTarget(refreshed, entry.status.kind, env);
-        const detectedRuntime = detected
-          ? resolveRuntimes(detected)?.({ agentStatus: detected }).find(
-              (candidate) => candidate.id === entry.runtimeId,
-            )
-          : undefined;
-        const detectedVersion = detectedRuntime?.installedVersion;
-        if (
-          !detectedRuntime?.installed ||
-          !detectedVersion ||
-          isNewerVersion(version, detectedVersion)
-        ) {
-          continue;
-        }
-        const key = hostScopedKey(host.key, statusKey(entry.status));
-        verifiedUpdates[`${key}:${entry.runtimeId}`] = {
+      const verifiedByKey = new Map<string, string>();
+      for (const [entry, detectedVersion] of await verifyRuntimeUpdates(
+        host,
+        related,
+        runtimesFor,
+      )) {
+        const entryStatusKey = statusKey(entry.status);
+        const key = hostScopedKey(host.key, entryStatusKey);
+        verifiedUpdates[`${key}:${entry.runtime.id}`] = {
           version: detectedVersion,
           snapshot: entry.status,
         };
-        const versions = verifiedPackageSnapshots.current.get(entry.status) ?? new Map();
-        versions.set(jobKey, detectedVersion);
-        verifiedPackageSnapshots.current.set(entry.status, versions);
+        verifiedByKey.set(`${entryStatusKey}:${entry.runtime.id}`, detectedVersion);
+        recordVerifiedSnapshot(entry.status, detectedVersion);
       }
       setVerifiedVersions((current) => ({ ...current, ...verifiedUpdates }));
+      return verifiedByKey;
     }
     if (versionVerified()) return;
     const pending = packageJobs.current.get(jobKey);
+    let verifiedByKey: Map<string, string>;
     if (pending) {
-      await pending;
+      verifiedByKey = await pending;
     } else {
       const releasePackage = reservePackage?.(host.key);
       if (reservePackage && !releasePackage) throw new Error(t`Unable to update ${updateLabel}.`);
       const job = installAndRediscover().finally(releasePackage);
       packageJobs.current.set(jobKey, job);
       try {
-        await job;
+        verifiedByKey = await job;
       } finally {
         packageJobs.current.delete(jobKey);
       }
+    }
+    const verifiedForStatus = verifiedByKey.get(`${statusKey(status)}:${runtime.id}`);
+    if (verifiedForStatus && !isNewerVersion(version, verifiedForStatus)) {
+      recordVerifiedSnapshot(status, verifiedForStatus);
     }
     if (!versionVerified()) throw new Error(t`Unable to update ${updateLabel}.`);
   }
@@ -374,14 +367,7 @@ export function useCombinedProviderRuntimeUpdates(
 
       setPendingStatusKeys((current) => new Set(current).add(key));
       let failure: Error | undefined;
-      const expected = new Map<
-        string,
-        {
-          version: string;
-          channel: CombinedRuntimeUpdate["channel"]["kind"];
-          probe: string;
-        }
-      >();
+      const expected: RuntimeUpdateTarget[] = [];
       try {
         for (const { runtime, latestVersion } of outdated) {
           if (!latestVersion) continue;
@@ -421,44 +407,27 @@ export function useCombinedProviderRuntimeUpdates(
                 record?.version ??
                 latestVersion;
             }
-            expected.set(runtime.id, {
-              version: expectedVersion,
-              channel: runtime.channel.kind,
-              probe: probeKey(status, runtime, host.key),
-            });
+            expected.push({ status, runtime, version: expectedVersion });
           } catch (error) {
             failure ??=
               error instanceof Error ? error : new Error(t`Unable to update ${status.label}.`);
           }
         }
 
-        const response = outdated.some(({ runtime }) => runtime.channel.kind !== "npm-package")
-          ? await host.refreshAgentStatuses(currentWslDistros(), {
-              agentKinds: [status.kind],
-              envs: [scopeEnvForStatus(status)],
-            })
-          : undefined;
-        const refreshed = findStatusForTarget(response, status.kind, scopeEnvForStatus(status));
-        const refreshedRuntimes = refreshed ? resolver({ agentStatus: refreshed }) : [];
-        for (const [runtimeId, expectedRuntime] of expected) {
-          const detected = refreshedRuntimes.find((runtime) => runtime.id === runtimeId);
-          const detectedVersion = detected?.installedVersion;
-          const versionMatches =
-            detectedVersion !== undefined &&
-            (expectedRuntime.channel === "agent-binary"
-              ? !isNewerVersion(expectedRuntime.version, detectedVersion)
-              : detectedVersion === expectedRuntime.version);
-          if (!detected?.installed || !versionMatches) {
+        const verified = await verifyRuntimeUpdates(host, expected, runtimesFor);
+        for (const target of expected) {
+          const detectedVersion = verified.get(target);
+          if (!detectedVersion) {
             failure ??= new Error(t`Unable to refresh ${status.label} status.`);
             continue;
           }
           setVerifiedVersions((current) => ({
             ...current,
-            [`${key}:${runtimeId}`]: { version: detectedVersion },
+            [`${key}:${target.runtime.id}`]: { version: detectedVersion },
           }));
           setLatestByProbe((current) => ({
             ...current,
-            [expectedRuntime.probe]: detectedVersion,
+            [probeKey(status, target.runtime, host.key)]: detectedVersion,
           }));
         }
         if (failure) throw failure;

@@ -194,12 +194,8 @@ export function runAgentLoginCommand(input: {
 }
 
 /**
- * Run an agent installer inside the transient terminal overlay (the same
- * surface as {@link runAgentLoginCommand}) rather than a dev-terminal tab.
- *
- * Shows no success toast: progress is visible in the overlay, which auto-closes
- * on success and stays open on failure. Callers drive their own pending UI via
- * `onCommandComplete`.
+ * Interactive installs own the terminal overlay. Updates run independently:
+ * the initiating control owns their pending state and reports their result.
  */
 export function runAgentInstallCommand(input: {
   label: string;
@@ -220,7 +216,8 @@ export function runAgentInstallCommand(input: {
   }
 
   // Replace any active overlay session — only one terminal overlay at a time.
-  const previous = useLoginTerminalStore.getState().active;
+  const background = input.purpose === "update";
+  const previous = !background && useLoginTerminalStore.getState().active;
   if (previous) {
     previous.onForceClose?.();
     disposeRoutedShellSession(previous.shellId);
@@ -237,6 +234,11 @@ export function runAgentInstallCommand(input: {
   });
   const completionToken = createCompletionToken();
   const script = appendCompletionSignal(command, project, completionToken);
+  const remoteServerId = project.location.remoteServerId ?? project.remoteServerId;
+  const projectLocation = remoteServerId
+    ? { ...project.location, remoteServerId }
+    : project.location;
+  let started: Promise<void> = Promise.resolve();
 
   let fired = false;
   const fireOnce = (exitCode: number) => {
@@ -250,6 +252,13 @@ export function runAgentInstallCommand(input: {
     completionToken,
     (exitCode) => {
       fireOnce(exitCode);
+      if (background) {
+        disposeRoutedShellSession(shellId);
+        void started
+          .then(() => readBridge().closeThread({ threadId: shellId }))
+          .catch(() => undefined);
+        return;
+      }
       if (exitCode === 0) {
         // Let the user read the final success line before the overlay slides away.
         window.setTimeout(() => {
@@ -260,38 +269,43 @@ export function runAgentInstallCommand(input: {
         useLoginTerminalStore.getState().markFailed(shellId, exitCode);
       }
     },
-    project.remoteServerId,
+    remoteServerId,
     { reportMissingCompletion: true },
   );
 
-  useLoginTerminalStore.getState().open({
-    shellId,
-    label: input.label,
-    projectLocation: project.location,
-    purpose: input.purpose ?? "install",
-    onForceClose: () => {
-      stopWatching();
-      fireOnce(-1);
-    },
-  });
+  if (!background) {
+    useLoginTerminalStore.getState().open({
+      shellId,
+      label: input.label,
+      projectLocation,
+      purpose: "install",
+      onForceClose: () => {
+        stopWatching();
+        fireOnce(-1);
+      },
+    });
+  }
 
-  void startShellWithCurrentSettings({
+  writeScriptToShell(shellId, script, remoteServerId);
+  started = startShellWithCurrentSettings({
     // Installers shouldn't run inside the (possibly ephemeral) project
     // worktree — launch the shell in the user's home directory instead.
     shellId,
-    projectLocation: project.location,
+    projectLocation,
     startInHome: true,
     ...(project.location.kind === "windows" ? { windowsShellRuntime: "powershell" as const } : {}),
-  }).catch((error) => {
+  });
+  void started.catch((error) => {
     stopWatching();
+    disposeRoutedShellSession(shellId);
     fireOnce(-1);
+    if (background) return;
     if (useLoginTerminalStore.getState().active?.shellId !== shellId) return;
     toast.danger(
       error instanceof Error ? error.message : i18n._(msg`Unable to install ${input.label}.`),
     );
     useLoginTerminalStore.getState().close();
   });
-  writeScriptToShell(shellId, script, project.remoteServerId);
   return true;
 }
 

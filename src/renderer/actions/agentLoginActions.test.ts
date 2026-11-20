@@ -276,12 +276,11 @@ describe("runAgentLoginCommand", () => {
     expect(loginTerminalStore.close).not.toHaveBeenCalled();
   });
 
-  it("keeps a second update open when the previous installer's close timer fires", () => {
+  it("keeps a second install open when the previous installer's close timer fires", () => {
     runAgentInstallCommand({
       label: "First agent",
-      command: "first-agent update",
+      command: "first-agent install",
       project: posixProject,
-      purpose: "update",
     });
     const shellId = loginTerminalStore.active!.shellId;
     const token = /poracode-login-complete=([^:]+):/u.exec(
@@ -297,9 +296,8 @@ describe("runAgentLoginCommand", () => {
     });
     runAgentInstallCommand({
       label: "Second agent",
-      command: "second-agent update",
+      command: "second-agent install",
       project: posixProject,
-      purpose: "update",
     });
     vi.advanceTimersByTime(1200);
     expect(loginTerminalStore.close).not.toHaveBeenCalled();
@@ -685,30 +683,96 @@ describe("runAgentLoginCommand", () => {
     expect(script).toContain("$lcExit");
   });
 
-  it("opens update commands with update-specific terminal state", () => {
+  it.each([0, 1])(
+    "reports a background update completing with exit %i without disturbing a login",
+    async (code) => {
+      const login = { shellId: "login:existing", onForceClose: vi.fn<() => void>() };
+      loginTerminalStore.active = login;
+      const onCommandComplete = vi.fn<(exitCode: number) => void>();
+      runAgentInstallCommand({
+        label: "Update Cursor SDK",
+        command: "npm install -g '@cursor/sdk@1.4.1'",
+        project: posixProject,
+        purpose: "update",
+        onCommandComplete,
+      });
+      const [shellId, script] = writeScriptToShellMock.mock.calls[0]!;
+      expect(script).toMatch(/^command bash -lc '/u);
+      const token = /poracode-login-complete=([^:]+):/u.exec(script)?.[1];
+      expect(token).toBeTruthy();
+      emit({
+        type: "thread-output",
+        threadId: shellId,
+        data: `\u001B]777;poracode-login-complete=${token}:${code}\u0007`,
+        outputLength: 0,
+        terminalInstanceId: "gen-test",
+      });
+      await vi.advanceTimersByTimeAsync(1200);
+      expect(onCommandComplete).toHaveBeenCalledExactlyOnceWith(code);
+      expect(loginTerminalStore.active).toBe(login);
+      expect(login.onForceClose).not.toHaveBeenCalled();
+      expect(loginTerminalStore.open).not.toHaveBeenCalled();
+      expect(loginTerminalStore.close).not.toHaveBeenCalled();
+      expect(bridge.closeThread).toHaveBeenCalledExactlyOnceWith({ threadId: shellId });
+      expect(startShellWithCurrentSettingsMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          projectLocation: posixProject.location,
+          startInHome: true,
+        }),
+      );
+      expect(startShellWithCurrentSettingsMock.mock.calls[0]?.[0]).not.toHaveProperty(
+        "windowsShellRuntime",
+      );
+    },
+  );
+
+  it.each(["exit", "timeout"] as const)(
+    "reports a background update %s without a completion marker as a failure",
+    async (ending) => {
+      const login = { shellId: "login:existing", onForceClose: vi.fn<() => void>() };
+      loginTerminalStore.active = login;
+      const onCommandComplete = vi.fn<(exitCode: number) => void>();
+      runAgentInstallCommand({
+        label: "Update Cursor SDK",
+        command: "npm install -g '@cursor/sdk@1.4.1'",
+        project: posixProject,
+        purpose: "update",
+        onCommandComplete,
+      });
+      const [shellId] = writeScriptToShellMock.mock.calls[0]!;
+
+      if (ending === "exit") {
+        emit({ type: "thread-exited", threadId: shellId, exitCode: 0 });
+      } else {
+        vi.advanceTimersByTime(10 * 60_000);
+      }
+      await Promise.resolve();
+
+      expect(onCommandComplete).toHaveBeenCalledExactlyOnceWith(-1);
+      expect(loginTerminalStore.active).toBe(login);
+      expect(loginTerminalStore.markFailed).not.toHaveBeenCalled();
+      expect(bridge.closeThread).toHaveBeenCalledExactlyOnceWith({ threadId: shellId });
+    },
+  );
+
+  it("reports a background update start failure without disturbing an active login", async () => {
+    const login = { shellId: "login:existing", onForceClose: vi.fn<() => void>() };
+    loginTerminalStore.active = login;
+    startShellWithCurrentSettingsMock.mockRejectedValueOnce(new Error("spawn failed"));
+    const onCommandComplete = vi.fn<(exitCode: number) => void>();
     runAgentInstallCommand({
       label: "Update Cursor SDK",
-      command: "npm install -g '@cursor/sdk@^1.0.38'",
+      command: "npm install -g '@cursor/sdk@1.4.1'",
       project: posixProject,
       purpose: "update",
+      onCommandComplete,
     });
+    await Promise.resolve();
 
-    expect(loginTerminalStore.open).toHaveBeenCalledWith(
-      expect.objectContaining({
-        label: "Update Cursor SDK",
-        purpose: "update",
-        shellId: expect.stringMatching(/^update:/u),
-      }),
-    );
-    expect(startShellWithCurrentSettingsMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        projectLocation: posixProject.location,
-        startInHome: true,
-      }),
-    );
-    expect(startShellWithCurrentSettingsMock.mock.calls[0]?.[0]).not.toHaveProperty(
-      "windowsShellRuntime",
-    );
+    expect(onCommandComplete).toHaveBeenCalledExactlyOnceWith(-1);
+    expect(loginTerminalStore.active).toBe(login);
+    expect(loginTerminalStore.close).not.toHaveBeenCalled();
+    expect(toast.danger).not.toHaveBeenCalled();
   });
 
   it.each(["exit", "timeout"] as const)(
@@ -717,9 +781,8 @@ describe("runAgentLoginCommand", () => {
       const onCommandComplete = vi.fn<(exitCode: number) => void>();
       runAgentInstallCommand({
         label: "SDK",
-        command: "sdk update",
+        command: "sdk install",
         project: posixProject,
-        purpose: "update",
         onCommandComplete,
       });
       const shellId = loginTerminalStore.active!.shellId;
