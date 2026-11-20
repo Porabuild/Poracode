@@ -2003,4 +2003,25 @@ describe("Cursor SDK canonical mapping — terminal outcomes and cleanup", () =>
       ),
     ).toEqual([]);
   });
+
+  it("omits inline images when read targets a Poracode user attachment", () => {
+    const state = createCursorSdkMapperState("cursor-att-read");
+    const events = mapCursorSdkMessage(
+      toolMessage({
+        call_id: "read-att",
+        name: "read",
+        status: "completed",
+        args: { path: "/Users/me/.poracode/attachments/draft-1/Image 1.png" },
+        result: {
+          status: "success",
+          value: { dataUrl: "data:image/png;base64,iVBORw0KGgo=" },
+        },
+      }),
+      state,
+    );
+    const startedOrUpdated = events.find(
+      (event) => event.type === "item.started" || event.type === "item.updated",
+    ) as { payload?: Record<string, unknown> } | undefined;
+    expect(startedOrUpdated?.payload?.images).toBeUndefined();
+  });
 });

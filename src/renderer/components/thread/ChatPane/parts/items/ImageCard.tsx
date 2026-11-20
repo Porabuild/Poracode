@@ -39,6 +39,12 @@ interface ImageCardProps {
   className?: string;
   imageClassName?: string;
   isBlock?: boolean;
+  /** `"tile"` fills a mosaic grid cell with `object-cover`; `"inline"` keeps intrinsic sizing. */
+  layout?: "inline" | "tile";
+  /** Optional non-interactive overlay rendered inside the preview button (e.g. `+N` overflow). */
+  overlay?: ReactNode;
+  /** Number of additional hidden images represented by this overflow tile, for screen readers. */
+  overflowCount?: number;
   viewportRef?: Ref<HTMLSpanElement>;
   /**
    * Called when the user signals they may open the preview: the pointer
@@ -86,10 +92,14 @@ export const ImageCard = memo(function ImageCard({
   className,
   imageClassName,
   isBlock = false,
+  layout = "inline",
+  overlay,
+  overflowCount,
   viewportRef,
   resolveFullSrc,
   onPreviewIntent,
 }: ImageCardProps) {
+  const isTile = layout === "tile";
   const { t } = useLingui();
   const imageAlt = source.alt || t`Image`;
   // Thread-wide gallery: opening any transcript image offers prev/next across
@@ -257,10 +267,11 @@ export const ImageCard = memo(function ImageCard({
   );
   // Reserve the final box up front so the transcript never reflows when a
   // fetched image lands. Inline `data:` images paint immediately and keep the
-  // natural `w-auto` sizing.
-  const reservedSlot = isInline
-    ? undefined
-    : reserveInlineImageSlot(slotDimensions?.width, slotDimensions?.height);
+  // natural `w-auto` sizing; mosaic tiles fill their fixed grid cell directly.
+  const reservedSlot =
+    isInline || isTile
+      ? undefined
+      : reserveInlineImageSlot(slotDimensions?.width, slotDimensions?.height);
   const clearIntentTimer = () => {
     if (intentTimer.current === undefined) return;
     clearTimeout(intentTimer.current);
@@ -291,13 +302,25 @@ export const ImageCard = memo(function ImageCard({
     <span
       ref={viewportRef}
       {...previewIntentHandlers}
-      className={`poracode-image-card relative self-start ${isBlock ? "flex w-fit" : "inline-flex"} max-w-full overflow-hidden content-surface${className ? ` ${className}` : ""}`}
+      className={
+        isTile
+          ? `poracode-image-card relative block size-full overflow-hidden content-surface${className ? ` ${className}` : ""}`
+          : `poracode-image-card relative self-start ${isBlock ? "flex w-fit" : "inline-flex"} max-w-full overflow-hidden content-surface${className ? ` ${className}` : ""}`
+      }
       data-poracode-image-card="true"
     >
       <button
         type="button"
-        className="relative block min-w-0 max-w-full cursor-zoom-in bg-black/20"
-        aria-label={t`Open image preview`}
+        className={
+          isTile
+            ? "relative block size-full cursor-zoom-in bg-black/20"
+            : "relative block min-w-0 max-w-full cursor-zoom-in bg-black/20"
+        }
+        aria-label={
+          overflowCount && overflowCount > 0
+            ? t`Open image preview (+${overflowCount} more)`
+            : t`Open image preview`
+        }
         disabled={!hasSource}
         onClick={openPreview}
       >
@@ -346,21 +369,22 @@ export const ImageCard = memo(function ImageCard({
                 naturalHeight: prev.naturalHeight,
               }))
             }
-            {...(slotDimensions
+            {...(slotDimensions && !isTile
               ? { width: slotDimensions.width, height: slotDimensions.height }
               : {})}
             {...(reservedSlot ? { style: reservedSlot } : {})}
-            className={`${chatInlineImageClass} relative${imageClassName ? ` ${imageClassName}` : ""}`}
+            className={`${isTile ? "block size-full object-cover" : chatInlineImageClass} relative${imageClassName ? ` ${imageClassName}` : ""}`}
           />
         ) : (
           <span
             aria-hidden="true"
-            className="block max-w-full bg-black/10"
+            className={isTile ? "block size-full bg-black/10" : "block max-w-full bg-black/10"}
             {...(reservedSlot ? { style: reservedSlot } : {})}
           />
         )}
+        {overlay}
       </button>
-      {hasSource ? (
+      {hasSource && !overlay ? (
         <span className="poracode-image-action-toolbar absolute right-1.5 top-1.5 flex items-center gap-0.5 rounded-lg bg-black/50 p-0.5 backdrop-blur-sm transition-opacity duration-150">
           <CopyImageButton resolveFullSource={fullSource} />
           <DownloadImageButton fileName={source.fileName} resolveFullSource={fullSource} />

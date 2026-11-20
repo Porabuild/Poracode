@@ -10,6 +10,7 @@ import type { ChatTimelineEntry } from "../../chatPaneSelectors";
 import { AssistantMessage } from "./AssistantMessage";
 import { CommandExecution } from "./CommandExecution";
 import { FileChange } from "./FileChange";
+import { ImageGroup } from "./ImageGroup";
 import { ImageView } from "./ImageView";
 import { PlanItem } from "./PlanItem";
 import { ProviderHandoffRow } from "./ProviderHandoffRow";
@@ -66,6 +67,9 @@ export const ChatItemRow = memo(function ChatItemRow({
         {...(onVirtualizerLayoutChange ? { onVirtualizerLayoutChange } : {})}
       />
     );
+  }
+  if (entry.kind === "image_group") {
+    return <ImageGroup threadId={threadId} itemIds={entry.itemIds} />;
   }
   return (
     <SingleChatItemRow

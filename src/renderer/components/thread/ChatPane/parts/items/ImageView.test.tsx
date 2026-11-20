@@ -551,4 +551,53 @@ describe("RemoteImageCard preview intent", () => {
     fireEvent.pointerDown(view.container.querySelector("[data-poracode-image-card]")!);
     expect(requestRef).not.toHaveBeenCalled();
   });
+
+  it("falls back to ToolCall instead of echoing a user-attached image read", () => {
+    render(
+      <AppProvider>
+        <ImageView
+          item={{
+            id: "read-attached",
+            type: "tool_call",
+            state: "completed",
+            payload: {
+              name: "read_file",
+              kind: "read",
+              args: {
+                path: "/Users/me/.poracode-nightly.host-v1/attachments/draft-6c9670/Image 1.png",
+              },
+              status: "success",
+              result:
+                "Read image file `/Users/me/.poracode-nightly.host-v1/attachments/draft-6c9670/Image 1.png` as model-visible image output.",
+              images: [`data:image/png;base64,${PNG_BASE64}`],
+            },
+            streams: {},
+          }}
+        />
+      </AppProvider>,
+    );
+    expect(screen.queryByRole("img")).toBeNull();
+    expect(screen.getByText(/Image 1\.png/)).toBeInTheDocument();
+  });
+
+  it("renders multi-image tool calls as a mosaic", () => {
+    const { container } = render(
+      <AppProvider>
+        <ImageView
+          item={imageItem({
+            name: "mcp__browser__screenshots",
+            status: "success",
+            images: [
+              `data:image/png;base64,${PNG_BASE64}`,
+              `data:image/png;base64,${PNG_BASE64}`,
+              `data:image/png;base64,${PNG_BASE64}`,
+            ],
+          })}
+        />
+      </AppProvider>,
+    );
+    const mosaic = container.querySelector("[data-poracode-image-mosaic='true']");
+    expect(mosaic).toHaveAttribute("data-mosaic-count", "3");
+    expect(screen.getAllByRole("img")).toHaveLength(3);
+  });
 });

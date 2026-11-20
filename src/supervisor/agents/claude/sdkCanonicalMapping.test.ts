@@ -2579,6 +2579,58 @@ describe("sdkCanonicalMapping — tool use", () => {
     expect(updated?.payload.images).toEqual(["data:image/png;base64,iVBORw0KGgo="]);
   });
 
+  it("omits payload.images when Read inspects a Poracode user attachment", () => {
+    const state = createClaudeMapperState("thread-1");
+    mapClaudeSdkMessage(
+      {
+        type: "assistant",
+        session_id: "claude-session",
+        parent_tool_use_id: null,
+        message: {
+          role: "assistant",
+          content: [
+            {
+              type: "tool_use",
+              id: "toolu_read_att",
+              name: "Read",
+              input: {
+                file_path: "/Users/me/.poracode-nightly.host-v1/attachments/draft-1/Image 1.png",
+              },
+            },
+          ],
+        },
+      } as unknown as SDKMessage,
+      state,
+    );
+    const events = mapClaudeSdkMessage(
+      {
+        type: "user",
+        session_id: "claude-session",
+        parent_tool_use_id: null,
+        message: {
+          role: "user",
+          content: [
+            {
+              type: "tool_result",
+              tool_use_id: "toolu_read_att",
+              content: [
+                {
+                  type: "image",
+                  source: { type: "base64", media_type: "image/png", data: "iVBORw0KGgo=" },
+                },
+              ],
+            },
+          ],
+        },
+      } as unknown as SDKMessage,
+      state,
+    );
+    const updated = events.find((e) => e.type === "item.updated") as
+      | { payload: Record<string, unknown> }
+      | undefined;
+    expect(updated?.payload.images).toBeUndefined();
+  });
+
   it("maps Edit tool results as ACP-shaped file changes", () => {
     const state = createClaudeMapperState("thread-1");
     const args = {

@@ -3795,3 +3795,32 @@ describe("extension lifecycle hooks", () => {
     expect(events.some((event) => event.type === "item.started")).toBe(true);
   });
 });
+
+describe("user-attachment read image suppression", () => {
+  it("omits payload.images for ACP read calls targeting Poracode attachments", () => {
+    const state = createAcpMapperState("t-att-read");
+    const attachmentPath = "/Users/me/.poracode/attachments/draft-abc/Image 1.png";
+    state.resolveLocalImage = () => "data:image/png;base64,iVBORw0KGgo=";
+    const events = mapAcpSessionUpdate(
+      note({
+        sessionUpdate: "tool_call",
+        toolCallId: "read-att",
+        title: "Read Image 1.png",
+        kind: "read",
+        status: "completed",
+        locations: [{ path: attachmentPath }],
+        content: [
+          {
+            type: "content",
+            content: { type: "image", data: "iVBORw0KGgo=", mimeType: "image/png" },
+          },
+        ],
+      }),
+      state,
+    );
+    const started = events.find((e) => e.type === "item.started") as
+      | { payload: Record<string, unknown> }
+      | undefined;
+    expect(started?.payload.images).toBeUndefined();
+  });
+});

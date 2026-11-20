@@ -12,6 +12,7 @@
 
 import type { EventSubscribeResponse, Part } from "../legacySdk";
 import type { RuntimeEvent } from "@/shared/contracts";
+import { isUserAttachmentImageReadPayload } from "@/shared/inlineImagePayload";
 import { msg } from "@/shared/messages";
 import { isVideoPath } from "@/shared/chatVideo";
 import { newItemId } from "../../contextUsage";
@@ -156,9 +157,17 @@ function handlePart(state: OpenCodeMapperState, part: Part, events: RuntimeEvent
         ? resolveOpenCodeAttachments(part.state.attachments, part.messageID, state.location)
         : { images: [], locations: [], videoResources: undefined };
     const baseLocations = Array.isArray(basePayload.locations) ? basePayload.locations : [];
+    const suppressUserAttachmentImages = isUserAttachmentImageReadPayload({
+      ...basePayload,
+      ...(attachments.locations.length > 0
+        ? { locations: [...baseLocations, ...attachments.locations] }
+        : {}),
+    });
     const enrichedBase = {
       ...basePayload,
-      ...(attachments.images.length > 0 ? { images: attachments.images } : {}),
+      ...(!suppressUserAttachmentImages && attachments.images.length > 0
+        ? { images: attachments.images }
+        : {}),
       ...(attachments.videoResources
         ? {
             result: {

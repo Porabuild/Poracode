@@ -37,11 +37,13 @@ import {
   growingStreamLength,
   selectCompletedTurnForEntry,
   selectRuntimeItemById,
+  selectThreadUserAttachmentImagePaths,
   type ChatTimelineEntry,
 } from "../chatPaneSelectors";
 import { useRevertedPromptStore } from "../../revertedPrompt";
 import { ThreadForkBoundary, ThreadForkTurnAction } from "../../ThreadForkControls";
 import { ChatItemRow } from "./items/ChatItemRow";
+import { estimateImageMosaicHeightPx } from "./items/ImageMosaic";
 import { ToolCallEntranceScope } from "./items/toolCallEntrance";
 import {
   getCachedInlineImageDimensions,
@@ -49,7 +51,7 @@ import {
   resolveInlineImageDimensions,
 } from "./items/chatImageClass";
 import { chatMessageSurfaceClass } from "./items/chatMessageSurface";
-import { imageViewRendersInline, resolveImageViewSource } from "./items/imageViewSource";
+import { imageViewRendersInline, resolveImageViewSources } from "./items/imageViewSource";
 import { isToolLikeItem } from "./items/toolCallCategorization";
 import { useTimelineMeasurements } from "./useTimelineMeasurements";
 import { useNewPromptScroll } from "./useNewPromptScroll";
@@ -197,7 +199,7 @@ export function MessageList({
   } = useUnderfilledHistory({
     threadId,
     oldestVisibleEntryId: entries[0]?.id,
-    ...(entries[0]?.kind === "tool_call_group"
+    ...(entries[0]?.kind === "tool_call_group" || entries[0]?.kind === "image_group"
       ? {
           oldestVisibleGroup: {
             headId: entries[0].itemIds[0]!,
@@ -761,7 +763,7 @@ function computeLiveTailIndex(
   const items = state.runtimeItemsByIdByThread[threadId];
   for (let i = entries.length - 1; i >= 0; i -= 1) {
     const entry = entries[i]!;
-    if (entry.kind === "tool_call_group") return i;
+    if (entry.kind !== "item") return i;
     const item = items?.[entry.id];
     if (item?.type === "reasoning" && !(item.streams.reasoning_text ?? "").trim()) continue;
     return i;
@@ -795,6 +797,9 @@ function getTimelineEntryType(
   const rowSuffix = hasInlineTurn ? ":turn" : "";
   if (entry.kind === "tool_call_group") {
     return `${isLiveTail ? "tool_call_group:live" : entry.kind}${rowSuffix}`;
+  }
+  if (entry.kind === "image_group") {
+    return `${entry.kind}${rowSuffix}`;
   }
   const item = selectRuntimeItemById(state, threadId, entry.id);
   if (!item) return "unknown";
@@ -833,9 +838,41 @@ function getFixedTimelineEntrySize(
   readListWidth: () => number | undefined,
   reservesPendingRemoteImages: boolean,
 ): number | undefined {
+  if (entry.kind === "image_group") {
+    const state = useAppStore.getState();
+    const userAttachmentPaths = selectThreadUserAttachmentImagePaths(state, threadId);
+    let totalSources = 0;
+    for (const id of entry.itemIds) {
+      const item = selectRuntimeItemById(state, threadId, id);
+      if (!item || !isToolLikeItem(item)) continue;
+      const itemSources = resolveImageViewSources(
+        item.payload as ToolCallPayload | undefined,
+        unresolvedImageRefUrl,
+        { pendingAsPlaceholder: reservesPendingRemoteImages, userAttachmentPaths },
+      );
+      totalSources += itemSources.length;
+    }
+    const rootFontSize = Number.parseFloat(getComputedStyle(document.documentElement).fontSize);
+    const mosaicHeight = estimateImageMosaicHeightPx(
+      totalSources,
+      window.innerWidth,
+      Number.isFinite(rootFontSize) ? rootFontSize : 16,
+    );
+    return mosaicHeight !== undefined
+      ? Math.round(mosaicHeight + INLINE_IMAGE_ROW_CHROME_PX)
+      : undefined;
+  }
   if (entry.kind !== "item") return undefined;
-  const item = selectRuntimeItemById(useAppStore.getState(), threadId, entry.id);
-  if (!item || !isToolLikeItem(item) || !imageViewRendersInline(item.payload)) return undefined;
+  const state = useAppStore.getState();
+  const item = selectRuntimeItemById(state, threadId, entry.id);
+  const userAttachmentPaths = selectThreadUserAttachmentImagePaths(state, threadId);
+  if (
+    !item ||
+    !isToolLikeItem(item) ||
+    !imageViewRendersInline(item.payload, userAttachmentPaths)
+  ) {
+    return undefined;
+  }
   // Legend's single fallback estimate is intentionally message-sized. Inline
   // images are the large outlier during prepend, so reserve their intrinsic
   // responsive height before the row mounts and MVCP never anchors to 59px.
@@ -843,11 +880,26 @@ function getFixedTimelineEntrySize(
   // them without a resolver. Falling through to the global bridge resolver
   // would mint an image ticket, and on a client paired to several hosts it
   // would mint it on the bound host rather than the thread's owner.
-  const source = resolveImageViewSource(
+  const sources = resolveImageViewSources(
     item.payload as ToolCallPayload | undefined,
     unresolvedImageRefUrl,
-    { pendingAsPlaceholder: true },
+    { pendingAsPlaceholder: true, userAttachmentPaths },
   );
+  if (sources.length > 1) {
+    if (!reservesPendingRemoteImages && sources.some((source) => source.remoteRef !== undefined)) {
+      return undefined;
+    }
+    const rootFontSize = Number.parseFloat(getComputedStyle(document.documentElement).fontSize);
+    const mosaicHeight = estimateImageMosaicHeightPx(
+      sources.length,
+      window.innerWidth,
+      Number.isFinite(rootFontSize) ? rootFontSize : 16,
+    );
+    return mosaicHeight !== undefined
+      ? Math.round(mosaicHeight + INLINE_IMAGE_ROW_CHROME_PX)
+      : undefined;
+  }
+  const source = sources[0];
   if (!source) return undefined;
   const dimensionKey = inlineImageDimensionCacheKey(source);
   const cached = dimensionKey ? getCachedInlineImageDimensions(dimensionKey) : undefined;

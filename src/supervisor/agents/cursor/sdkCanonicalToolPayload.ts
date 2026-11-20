@@ -8,7 +8,10 @@
 
 import type { CanonicalItemType, ToolCallProgress } from "@/shared/contracts";
 import type { UsageTokenCategories } from "@/shared/contracts/costHistory";
-import { normalizeInlineImageDataUrl } from "@/shared/inlineImagePayload";
+import {
+  isUserAttachmentImageReadPayload,
+  normalizeInlineImageDataUrl,
+} from "@/shared/inlineImagePayload";
 import {
   classifyFileChangeKind,
   normalizeDiffSummaryForKind,
@@ -132,7 +135,16 @@ export function cursorSdkToolPayload(tool: CursorSdkToolItem): Record<string, un
   // transport, so those bytes are a partial image. Painting them shows the
   // corrupt half of a picture, which is worse than the accordion this returns
   // the row to.
-  const images = tool.resultTruncated ? [] : readToolImages(tool.classificationName, result);
+  const suppressUserAttachmentImages = isUserAttachmentImageReadPayload({
+    name: tool.name,
+    ...(kind ? { kind } : {}),
+    ...(path ? { locations: [{ path }] } : {}),
+    args: mcpArgs,
+  });
+  const images =
+    tool.resultTruncated || suppressUserAttachmentImages
+      ? []
+      : readToolImages(tool.classificationName, result);
   return {
     name: tool.name,
     ...(kind ? { kind } : {}),

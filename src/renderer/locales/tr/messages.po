@@ -14540,6 +14540,10 @@ msgstr "{0}/{1} görselini aç"
 msgid "Open image preview"
 msgstr "Görsel önizlemesini aç"
 
+#: src/renderer/components/thread/ChatPane/parts/items/ImageCard.tsx
+msgid "Open image preview (+{overflowCount} more)"
+msgstr "Görsel önizlemesini aç (+{overflowCount} tane daha)"
+
 #: src/renderer/components/mcp/RemoteMcpOauthDialog.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorBody.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx

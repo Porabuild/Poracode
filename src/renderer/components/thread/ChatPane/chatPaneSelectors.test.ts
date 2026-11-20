@@ -2,7 +2,10 @@ import { describe, expect, it } from "vitest";
 import type { Thread } from "@/shared/contracts";
 import type { AppStoreState } from "@/renderer/state/appStore";
 import { applyRuntimeEventsToState } from "@/renderer/state/slices/runtimeEventReducer";
-import { readRuntimeStructuralChangeHint } from "@/renderer/state/runtimeStructuralChanges";
+import {
+  readRuntimeStructuralChangeHint,
+  recordRuntimeStructuralChangeHint,
+} from "@/renderer/state/runtimeStructuralChanges";
 import {
   selectActiveNativeSubAgentThreadIds,
   selectActiveSubAgentParentItemIds,
@@ -16,6 +19,7 @@ import {
   selectChildTimelineEntries,
   selectCompletedTurnsByAnchorItem,
   selectMostRecentDisplayableCompletedTurn,
+  selectThreadUserAttachmentImagePaths,
   selectVisibleThreadRuntimeItemIds,
   selectVisibleThreadTimelineEntries,
 } from "./chatPaneSelectors";
@@ -1919,6 +1923,239 @@ describe("chatPaneSelectors", () => {
       clearRuntimeItemStoreSelectorCacheForThread(threadId);
       rowState(secondDelta, answer);
       expect(counts.gets).toBeGreaterThan(beforeClearedRead);
+    });
+  });
+
+  describe("user-attachment read grouping and sequential image mosaics", () => {
+    const PNG_DATA =
+      "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
+
+    it("keeps tool calls reading user-attached images inside the tool group", () => {
+      const threadId = "user-attachment-read-group";
+      const attachedPath = "/Users/me/Desktop/bug.png";
+      const managedPath =
+        "/Users/me/.poracode-nightly.host-v1/attachments/draft-6c9670/Image 1.png";
+      const state = {
+        runtimeItemIdsByThread: {
+          [threadId]: ["u1", "t1", "read-managed", "read-desktop", "t2"],
+        },
+        runtimeItemsByIdByThread: {
+          [threadId]: {
+            u1: {
+              id: "u1",
+              type: "user_message",
+              state: "completed",
+              payload: {
+                content: [
+                  { kind: "image", source: "attachment", path: attachedPath, name: "bug.png" },
+                  { kind: "text", text: "investigate" },
+                ],
+              },
+              streams: {},
+            },
+            t1: {
+              id: "t1",
+              type: "tool_call",
+              state: "completed",
+              payload: { name: "search", kind: "search", status: "success" },
+              streams: {},
+            },
+            "read-managed": {
+              id: "read-managed",
+              type: "tool_call",
+              state: "completed",
+              payload: {
+                name: "read_file",
+                kind: "read",
+                args: { path: managedPath },
+                status: "success",
+                images: [PNG_DATA],
+              },
+              streams: {},
+            },
+            "read-desktop": {
+              id: "read-desktop",
+              type: "tool_call",
+              state: "completed",
+              payload: {
+                name: "Read",
+                args: { file_path: attachedPath },
+                status: "success",
+                images: [PNG_DATA],
+              },
+              streams: {},
+            },
+            t2: {
+              id: "t2",
+              type: "command_execution",
+              state: "completed",
+              payload: { command: "git status", status: "success" },
+              streams: {},
+            },
+          },
+        },
+        runtimeStructuralVersionByThread: { [threadId]: 1 },
+      } as unknown as AppStoreState;
+
+      expect(selectVisibleThreadTimelineEntries(state, threadId)).toEqual([
+        { kind: "item", id: "u1" },
+        {
+          kind: "tool_call_group",
+          id: "tool-call-group:t1",
+          itemIds: ["t1", "read-managed", "read-desktop", "t2"],
+        },
+      ]);
+    });
+
+    it("groups consecutive standalone image tool calls into an image_group mosaic", () => {
+      const threadId = "sequential-image-mosaic";
+      const imageTool = (id: string, path: string): RuntimeChatItem => ({
+        id,
+        type: "tool_call",
+        state: "completed",
+        payload: {
+          name: "read_file",
+          kind: "read",
+          args: { path },
+          status: "success",
+          images: [PNG_DATA],
+        },
+        streams: {},
+      });
+      const state = {
+        runtimeItemIdsByThread: {
+          [threadId]: ["t1", "img1", "img2", "img3", "a1", "img4"],
+        },
+        runtimeItemsByIdByThread: {
+          [threadId]: {
+            t1: {
+              id: "t1",
+              type: "command_execution",
+              state: "completed",
+              payload: { command: "take screenshots", status: "success" },
+              streams: {},
+            },
+            img1: imageTool("img1", "/tmp/step-1.png"),
+            img2: imageTool("img2", "/tmp/step-2.png"),
+            img3: imageTool("img3", "/tmp/step-3.png"),
+            a1: {
+              id: "a1",
+              type: "assistant_message",
+              state: "completed",
+              payload: { content: [{ kind: "text", text: "Looks good" }] },
+              streams: {},
+            },
+            img4: imageTool("img4", "/tmp/final.png"),
+          },
+        },
+        runtimeStructuralVersionByThread: { [threadId]: 1 },
+      } as unknown as AppStoreState;
+
+      expect(selectVisibleThreadTimelineEntries(state, threadId)).toEqual([
+        { kind: "item", id: "t1" },
+        {
+          kind: "image_group",
+          id: "image-group:img1",
+          itemIds: ["img1", "img2", "img3"],
+        },
+        { kind: "item", id: "a1" },
+        { kind: "item", id: "img4" },
+      ]);
+    });
+
+    it("regroups into image_group on incremental tail updates and drops removed user attachments", () => {
+      const threadId = "incremental-image-group-and-attachment-removal";
+      const attachedPath = "/Users/me/Desktop/bug.png";
+      let state = {
+        runtimeItemIdsByThread: { [threadId]: ["u1", "img1"] },
+        runtimeItemsByIdByThread: {
+          [threadId]: {
+            u1: {
+              id: "u1",
+              type: "user_message",
+              state: "completed",
+              payload: {
+                content: [
+                  { kind: "image", source: "attachment", path: attachedPath, name: "bug.png" },
+                ],
+              },
+              streams: {},
+            },
+            img1: {
+              id: "img1",
+              type: "tool_call",
+              state: "completed",
+              payload: {
+                name: "read_file",
+                kind: "read",
+                args: { path: "/tmp/shot-1.png" },
+                status: "success",
+                images: [PNG_DATA],
+              },
+              streams: {},
+            },
+          },
+        },
+        runtimeStructuralVersionByThread: { [threadId]: 1 },
+      } as unknown as AppStoreState;
+
+      expect(selectVisibleThreadTimelineEntries(state, threadId)).toEqual([
+        { kind: "item", id: "u1" },
+        { kind: "item", id: "img1" },
+      ]);
+
+      // Incremental structural update +1 appending a 2nd standalone image regroups into image_group
+      const nextIds = ["u1", "img1", "img2"];
+      state = {
+        ...state,
+        runtimeItemIdsByThread: { [threadId]: nextIds },
+        runtimeItemsByIdByThread: {
+          [threadId]: {
+            ...state.runtimeItemsByIdByThread[threadId],
+            img2: {
+              id: "img2",
+              type: "tool_call",
+              state: "completed",
+              payload: {
+                name: "read_file",
+                kind: "read",
+                args: { path: "/tmp/shot-2.png" },
+                status: "success",
+                images: [PNG_DATA],
+              },
+              streams: {},
+            },
+          },
+        },
+        runtimeStructuralVersionByThread: { [threadId]: 2 },
+      } as unknown as AppStoreState;
+      recordRuntimeStructuralChangeHint(threadId, 2, new Set(["img2"]));
+
+      expect(selectVisibleThreadTimelineEntries(state, threadId)).toEqual([
+        { kind: "item", id: "u1" },
+        { kind: "image_group", id: "image-group:img1", itemIds: ["img1", "img2"] },
+      ]);
+
+      // Removing the attachment from u1 under an incremental hint drops the path from the set
+      state = {
+        ...state,
+        runtimeItemsByIdByThread: {
+          [threadId]: {
+            ...state.runtimeItemsByIdByThread[threadId],
+            u1: {
+              id: "u1",
+              type: "user_message",
+              state: "completed",
+              payload: { content: [{ kind: "text", text: "text only" }] },
+              streams: {},
+            },
+          },
+        },
+        runtimeStructuralVersionByThread: { [threadId]: 3 },
+      } as unknown as AppStoreState;
+      recordRuntimeStructuralChangeHint(threadId, 3, new Set(["u1"]));
+
+      expect(selectThreadUserAttachmentImagePaths(state, threadId).size).toBe(0);
     });
   });
 });

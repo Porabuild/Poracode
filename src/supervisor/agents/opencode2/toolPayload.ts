@@ -10,6 +10,7 @@
 
 import type { CanonicalItemType } from "@/shared/contracts";
 import { isChatVideoSource } from "@/shared/chatVideo";
+import { isUserAttachmentImageReadPayload } from "@/shared/inlineImagePayload";
 import { readNonNegativeInteger } from "../contextUsage";
 import { readDiffSummary } from "../fileChangeSummary";
 import { readOpenCode2Number, readOpenCode2Record, readOpenCode2String } from "./readers";
@@ -68,6 +69,13 @@ export function openCode2ToolPayload(tool: OpenCode2ToolItemState): Record<strin
   const title = openCode2ToolTitle(tool.name, input);
   const kind = openCode2ToolKind(tool.name);
   const locations = openCode2ToolLocations(tool.name, input);
+  const suppressUserAttachmentImages = isUserAttachmentImageReadPayload({
+    name: tool.name,
+    ...(title !== tool.name ? { title } : {}),
+    ...(kind ? { kind } : {}),
+    ...(locations ? { locations } : {}),
+    ...(input !== undefined ? { args: input } : {}),
+  });
   const base: Record<string, unknown> = {
     name: title,
     status: tool.status,
@@ -76,7 +84,9 @@ export function openCode2ToolPayload(tool: OpenCode2ToolItemState): Record<strin
     ...(locations ? { locations } : {}),
     ...(input !== undefined ? { args: input } : {}),
     ...(tool.result !== undefined ? { result: tool.result } : {}),
-    ...(tool.images && tool.images.length > 0 ? { images: tool.images } : {}),
+    ...(!suppressUserAttachmentImages && tool.images && tool.images.length > 0
+      ? { images: tool.images }
+      : {}),
     ...(tool.errorMessage ? { errorMessage: tool.errorMessage } : {}),
     ...(Object.keys(tool.progress).length > 0 ? { progress: tool.progress } : {}),
   };

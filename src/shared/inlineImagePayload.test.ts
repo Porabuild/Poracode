@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { normalizeInlineImageDataUrl } from "./inlineImagePayload";
+import {
+  inlineImagePayloadRenders,
+  isPoracodeAttachmentPath,
+  isUserAttachmentImageReadPayload,
+  normalizeAttachmentImagePath,
+  normalizeInlineImageDataUrl,
+} from "./inlineImagePayload";
 
 // Real 2x1 PNG / JPEG emitted by sharp, so every case carries bytes an image
 // decoder actually accepts rather than a tolerated placeholder.
@@ -84,5 +90,123 @@ describe("normalizeInlineImageDataUrl", () => {
     const once = normalizeInlineImageDataUrl(toBase64Url(PNG_B64))!.dataUrl;
     const twice = normalizeInlineImageDataUrl(once)!.dataUrl;
     expect(twice).toBe(once);
+  });
+});
+
+describe("user-attachment image read suppression", () => {
+  const inlinePng = `data:image/png;base64,${PNG_B64}`;
+
+  it("normalizes POSIX, Windows, file URL, local protocol, and WSL UNC paths", () => {
+    expect(
+      normalizeAttachmentImagePath(
+        "file:///Users/me/.poracode-nightly.host-v1/attachments/draft-1/Image%201.png",
+      ),
+    ).toBe("/Users/me/.poracode-nightly.host-v1/attachments/draft-1/Image 1.png");
+    expect(
+      normalizeAttachmentImagePath(
+        "poracode-local://local/Users/me/.poracode/attachments/draft-1/Image%201.png",
+      ),
+    ).toBe("/Users/me/.poracode/attachments/draft-1/Image 1.png");
+    expect(normalizeAttachmentImagePath("C:\\Users\\Me\\.poracode\\attachments\\a.png")).toBe(
+      "c:/users/me/.poracode/attachments/a.png",
+    );
+    expect(
+      normalizeAttachmentImagePath(
+        "\\\\wsl.localhost\\Ubuntu\\home\\me\\.poracode\\attachments\\a.png",
+      ),
+    ).toBe("/home/me/.poracode/attachments/a.png");
+  });
+
+  it("matches managed Poracode attachment directories without matching worktrees", () => {
+    expect(
+      isPoracodeAttachmentPath(
+        "/Users/me/.poracode-nightly.host-v1/attachments/draft-6c9670/Image 1.png",
+      ),
+    ).toBe(true);
+    expect(isPoracodeAttachmentPath("/repo/worktree/.poracode/attachments/shot.png")).toBe(true);
+    expect(isPoracodeAttachmentPath("C:\\Users\\me\\.poracode\\attachments\\draft-1\\a.png")).toBe(
+      true,
+    );
+    expect(
+      isPoracodeAttachmentPath("/Users/me/Poracode/.poracode/worktrees/branch/screenshot.png"),
+    ).toBe(false);
+    expect(isPoracodeAttachmentPath("/tmp/agent-screenshot.png")).toBe(false);
+  });
+
+  it("suppresses read/view tools targeting Poracode attachments or thread user attachments", () => {
+    const museRead = {
+      name: "read_file",
+      kind: "read",
+      args: { path: "/Users/me/.poracode-nightly.host-v1/attachments/draft-6c9670/Image 1.png" },
+      status: "success",
+      images: [inlinePng],
+    };
+    expect(isUserAttachmentImageReadPayload(museRead)).toBe(true);
+    expect(inlineImagePayloadRenders(museRead)).toBe(false);
+
+    const claudeDesktopDrop = {
+      name: "Read",
+      args: { file_path: "/Users/me/Desktop/bug.png" },
+      status: "success",
+      images: [inlinePng],
+    };
+    expect(isUserAttachmentImageReadPayload(claudeDesktopDrop)).toBe(false);
+    expect(inlineImagePayloadRenders(claudeDesktopDrop)).toBe(true);
+    const attached = new Set(["/Users/me/Desktop/bug.png"]);
+    expect(isUserAttachmentImageReadPayload(claudeDesktopDrop, attached)).toBe(true);
+    expect(inlineImagePayloadRenders(claudeDesktopDrop, attached)).toBe(false);
+
+    // ACP call with a relative display title and authoritative absolute location.
+    const acpRead = {
+      name: "Viewing image ./Image 1.png",
+      title: "Viewing image ./Image 1.png",
+      kind: "read",
+      args: { path: "./Image 1.png" },
+      locations: [{ path: "/Users/me/.poracode/attachments/draft-1/Image 1.png" }],
+      status: "success",
+      images: [inlinePng],
+    };
+    expect(isUserAttachmentImageReadPayload(acpRead)).toBe(true);
+    expect(inlineImagePayloadRenders(acpRead)).toBe(false);
+  });
+
+  it("keeps non-attachment image views and generated/captured images renderable", () => {
+    const agentScreenshotRead = {
+      name: "read_file",
+      kind: "read",
+      args: { path: "/tmp/playwright-verify.png" },
+      status: "success",
+      images: [inlinePng],
+    };
+    expect(isUserAttachmentImageReadPayload(agentScreenshotRead)).toBe(false);
+    expect(inlineImagePayloadRenders(agentScreenshotRead)).toBe(true);
+
+    const generatedFromAttachment = {
+      name: "imageGeneration",
+      args: { path: "/Users/me/.poracode/attachments/draft-1/Image 1.png", prompt: "edit" },
+      status: "success",
+      images: [inlinePng],
+    };
+    expect(isUserAttachmentImageReadPayload(generatedFromAttachment)).toBe(false);
+    expect(inlineImagePayloadRenders(generatedFromAttachment)).toBe(true);
+  });
+
+  it("ignores non-filesystem uri fields when a valid attachment path is present", () => {
+    expect(
+      isUserAttachmentImageReadPayload({
+        name: "read_file",
+        kind: "read",
+        args: {
+          path: "/Users/me/.poracode/attachments/draft-1/Image 1.png",
+          uri: "https://example.com/reference",
+        },
+      }),
+    ).toBe(true);
+    expect(
+      isUserAttachmentImageReadPayload({
+        name: "image",
+        args: { path: "/Users/me/.poracode/attachments/draft-1/Image 1.png" },
+      }),
+    ).toBe(false);
   });
 });

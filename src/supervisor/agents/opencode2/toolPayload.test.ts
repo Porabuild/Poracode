@@ -51,4 +51,26 @@ describe("OpenCode 2 plugin tool classification", () => {
       diffSummary: { added: 2, removed: 1 },
     });
   });
+
+  it("omits inline images when read targets a Poracode user attachment", () => {
+    const attachmentItem = createOpenCode2ToolItem("read-att", "read");
+    attachmentItem.input = {
+      filePath: "/Users/me/.poracode-nightly/attachments/draft-1/Image 1.png",
+    };
+    attachmentItem.status = "success";
+    applyOpenCode2ToolContent(attachmentItem, [
+      { type: "file", uri: "data:image/png;base64,iVBORw0KGgo=", mime: "image/png" },
+    ]);
+    expect(openCode2ToolPayload(attachmentItem).images).toBeUndefined();
+
+    const regularItem = createOpenCode2ToolItem("read-regular", "read");
+    regularItem.input = { filePath: "/tmp/screenshot.png" };
+    regularItem.status = "success";
+    applyOpenCode2ToolContent(regularItem, [
+      { type: "file", uri: "data:image/png;base64,iVBORw0KGgo=", mime: "image/png" },
+    ]);
+    expect(openCode2ToolPayload(regularItem).images).toEqual([
+      "data:image/png;base64,iVBORw0KGgo=",
+    ]);
+  });
 });

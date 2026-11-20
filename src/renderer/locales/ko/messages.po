@@ -14540,6 +14540,10 @@ msgstr "이미지 {0}/{1} 열기"
 msgid "Open image preview"
 msgstr "이미지 미리보기 열기"
 
+#: src/renderer/components/thread/ChatPane/parts/items/ImageCard.tsx
+msgid "Open image preview (+{overflowCount} more)"
+msgstr "이미지 미리보기 열기 (+{overflowCount}개 더)"
+
 #: src/renderer/components/mcp/RemoteMcpOauthDialog.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorBody.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx

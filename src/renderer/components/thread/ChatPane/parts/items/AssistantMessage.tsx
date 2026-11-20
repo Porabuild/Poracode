@@ -25,7 +25,7 @@ import { chatMessageSurfaceClass } from "./chatMessageSurface";
 import { useChatPaneActions } from "../../chatPaneActionsContext";
 import { ChatReaderFollowContext } from "../../chatReaderFollow";
 import { CopyTextButton } from "./CopyTextButton";
-import { RemoteImageCard } from "./RemoteImageCard";
+import { ImageMosaic } from "./ImageMosaic";
 import { imageViewSourceFromImageBlock } from "./imageViewSource";
 import { HtmlVisual } from "./HtmlVisual";
 import { HtmlVisualFile } from "./HtmlVisualFile";
@@ -149,13 +149,8 @@ export const AssistantMessage = memo(function AssistantMessage({
           ) : null,
         )}
         {imageSources.length > 0 ? (
-          <div className="mt-1 flex flex-col gap-2">
-            {imageSources.map((source, index) => (
-              <RemoteImageCard
-                key={`${source.remoteRef ? JSON.stringify(source.remoteRef.path) : source.src.slice(0, 64)}:${index}`}
-                source={source}
-              />
-            ))}
+          <div className="mt-1">
+            <ImageMosaic sources={imageSources} />
           </div>
         ) : null}
         {isStreaming &&
