@@ -1,14 +1,47 @@
 import {
+  createContext,
   forwardRef,
   isValidElement,
+  useContext,
+  useId,
   type MouseEventHandler,
   type ReactElement,
   type ReactNode,
+  type SVGProps,
 } from "react";
 import { Tooltip } from "@heroui/react";
 import { ChevronDown } from "lucide-react";
 import { useLingui } from "@lingui/react/macro";
 import { Button } from "@/renderer/components/common";
+import {
+  floatingBubbleActiveClass,
+  floatingBubblePillClass,
+} from "@/renderer/components/layout/floatingGlass";
+
+const ThreadDockPlacementContext = createContext<"composer" | "right">("composer");
+const ThreadDockSortableContext = createContext(false);
+
+export function ThreadDockSortableScope({
+  sortable = true,
+  children,
+}: {
+  sortable?: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <ThreadDockSortableContext.Provider value={sortable}>
+      {children}
+    </ThreadDockSortableContext.Provider>
+  );
+}
+
+export function useThreadDockPlacement(): "composer" | "right" {
+  return useContext(ThreadDockPlacementContext);
+}
+
+export function useIsSortableThreadDock(): boolean {
+  return useContext(ThreadDockSortableContext);
+}
 
 export function ThreadDockSection({
   children,
@@ -25,24 +58,24 @@ export function ThreadDockSection({
 }) {
   const { t } = useLingui();
   const resolvedAriaLabel = ariaLabel ?? t`Thread dock`;
-  // In the right panel the docks tab lays the sections out flush; composer
-  // sections carry the bordered strip chrome.
+  // Right-panel docks render as distinct Soft hairline cards; composer
+  // sections keep the bordered strip chrome.
   const baseClass =
     placement === "composer"
       ? "flex flex-col border-b border-[var(--hairline-soft)] bg-transparent text-xs"
-      : collapsed
-        ? "flex flex-col rounded-none border-0 bg-[var(--content-background)] text-xs"
-        : "flex h-full min-h-0 flex-col rounded-none border-0 bg-[var(--content-background)] text-xs";
+      : "content-surface flex flex-col overflow-hidden text-xs";
 
   return (
-    <section
-      aria-label={resolvedAriaLabel}
-      className={`${baseClass} ${className}`}
-      data-collapsed={collapsed ? "true" : "false"}
-      data-placement={placement}
-    >
-      {children}
-    </section>
+    <ThreadDockPlacementContext.Provider value={placement}>
+      <section
+        aria-label={resolvedAriaLabel}
+        className={className ? `${baseClass} ${className}` : baseClass}
+        data-collapsed={collapsed ? "true" : "false"}
+        data-placement={placement}
+      >
+        {children}
+      </section>
+    </ThreadDockPlacementContext.Provider>
   );
 }
 
@@ -65,43 +98,224 @@ export function ThreadDockHeader({
   stackedContent?: boolean;
   children?: ReactNode;
 }) {
+  const placement = useThreadDockPlacement();
+  const sortable = useIsSortableThreadDock();
+  const detailsId = useId();
+  const hasDetails = Boolean(countLabel || children);
+  const isRightCard = placement === "right";
   const content = (
     <>
-      {isValidElement(Icon) ? Icon : <Icon className={`size-3.5 shrink-0 ${iconClassName}`} />}
+      <span className="inline-flex size-4 shrink-0 items-center justify-center">
+        {isValidElement(Icon) ? Icon : <Icon className={`size-3.5 shrink-0 ${iconClassName}`} />}
+      </span>
       <span
-        className={`flex min-w-0 flex-1 leading-none ${
-          stackedContent ? "flex-col items-start gap-0.5" : "items-baseline gap-2"
+        className={`flex min-w-0 flex-1 ${
+          stackedContent
+            ? isRightCard
+              ? "flex-col items-start gap-0.5 leading-tight"
+              : "flex-col items-start gap-0.5 leading-none"
+            : isRightCard
+              ? "items-center gap-2 leading-4"
+              : "items-baseline gap-2 leading-none"
         }`}
         data-stacked={stackedContent ? "true" : undefined}
       >
-        <span className="font-semibold text-foreground">{title}</span>
-        {countLabel && (
-          <span className="inline-flex items-baseline gap-1 text-[0.85em] leading-none text-[color:var(--muted)]">
-            {countLabel}
+        <span
+          className={
+            isRightCard
+              ? "shrink-0 font-semibold leading-4 text-foreground"
+              : "font-semibold text-foreground"
+          }
+        >
+          {title}
+        </span>
+        {hasDetails ? (
+          <span id={detailsId} className="contents">
+            {countLabel && (
+              <span
+                className={
+                  isRightCard
+                    ? "inline-flex shrink-0 items-center gap-1 text-[0.85em] leading-4 text-[color:var(--muted)]"
+                    : "inline-flex items-baseline gap-1 text-[0.85em] leading-none text-[color:var(--muted)]"
+                }
+              >
+                {countLabel}
+              </span>
+            )}
+            {children}
           </span>
-        )}
-        {children}
+        ) : null}
       </span>
     </>
   );
   return (
-    <div className="flex h-8 items-center gap-2 px-2 leading-none">
+    <div
+      className={
+        isRightCard
+          ? `flex h-9 items-center gap-2 ${sortable ? "pl-[30px] pr-1.5" : "pl-3 pr-1.5"}`
+          : "flex h-8 items-center gap-2 px-2 leading-none"
+      }
+    >
       {collapse ? (
-        <Button
-          variant="ghost"
-          className="h-full min-w-0 flex-1 justify-start gap-2 rounded-none px-0 text-left text-xs font-normal [--button-bg-hover:transparent] [--button-bg-pressed:transparent] [&_svg]:mx-0"
+        <button
+          type="button"
+          className="flex h-full min-w-0 flex-1 cursor-pointer items-center gap-2 bg-transparent p-0 text-left text-xs font-normal outline-none focus-visible:focus-ring"
           aria-label={title}
           aria-expanded={!collapse.collapsed}
-          onPress={collapse.onToggle}
+          {...(hasDetails ? { "aria-describedby": detailsId } : {})}
+          onClick={collapse.onToggle}
         >
           {content}
-        </Button>
+        </button>
       ) : (
-        content
+        <div className="flex h-full min-w-0 flex-1 items-center gap-2">{content}</div>
       )}
-      {actions}
+      {actions ? <div className="flex shrink-0 items-center gap-0.5">{actions}</div> : null}
     </div>
   );
+}
+
+export function ThreadDockCountBadge({
+  children,
+  className = "",
+}: {
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <span
+      className={`ml-auto shrink-0 rounded-2xl border border-[var(--hairline-soft)] bg-foreground/[0.04] px-1.5 py-0.5 text-[11px] leading-none tabular-nums text-muted${
+        className ? ` ${className}` : ""
+      }`}
+    >
+      {children}
+    </span>
+  );
+}
+
+export function ThreadDockProgressRing({
+  percent,
+  size = 16,
+  radius = 6,
+  progressStroke = "var(--foreground)",
+  showZeroProgress = false,
+  className = "",
+  ...rest
+}: {
+  percent: number | undefined;
+  size?: number;
+  radius?: number;
+  progressStroke?: string;
+  showZeroProgress?: boolean;
+  className?: string;
+} & Omit<SVGProps<SVGSVGElement>, "width" | "height" | "viewBox">) {
+  const circumference = 2 * Math.PI * radius;
+  const clamped = percent === undefined ? undefined : Math.max(0, Math.min(100, percent));
+  const progress = clamped === undefined ? 0 : (clamped / 100) * circumference;
+  const showProgress = clamped !== undefined && (showZeroProgress || clamped > 0);
+  return (
+    <svg
+      className={className ? `shrink-0 ${className}` : "shrink-0"}
+      width={size}
+      height={size}
+      viewBox="0 0 16 16"
+      aria-hidden="true"
+      {...rest}
+    >
+      <circle
+        cx="8"
+        cy="8"
+        r={radius}
+        fill="none"
+        stroke="color-mix(in oklab, var(--foreground) 18%, transparent)"
+        strokeWidth="1.65"
+      />
+      {showProgress ? (
+        <circle
+          cx="8"
+          cy="8"
+          r={radius}
+          fill="none"
+          stroke={progressStroke}
+          strokeWidth="1.65"
+          strokeLinecap="round"
+          strokeDasharray={`${progress} ${circumference}`}
+          transform="rotate(-90 8 8)"
+        />
+      ) : null}
+    </svg>
+  );
+}
+
+export function ThreadDockBubble({
+  dataAttr = "data-dock-bubble",
+  dataValue,
+  label,
+  showLabel,
+  tooltip,
+  active,
+  icon,
+  onPress,
+  children,
+}: {
+  dataAttr?: "data-dock-bubble" | "data-images-bubble";
+  dataValue: string;
+  label: string;
+  showLabel?: string;
+  tooltip?: string;
+  active: boolean;
+  icon: ReactNode;
+  onPress: () => void;
+  children?: ReactNode;
+}) {
+  const { t } = useLingui();
+  const dataProps = { [dataAttr]: dataValue };
+  const bubble = (
+    <button
+      type="button"
+      aria-label={active ? t`Hide ${label}` : (showLabel ?? t`Show ${label}`)}
+      aria-pressed={active}
+      {...dataProps}
+      className={`${floatingBubblePillClass} px-2.5 ${active ? floatingBubbleActiveClass : ""}`}
+      onClick={onPress}
+    >
+      {icon}
+      {children}
+    </button>
+  );
+  return (
+    <Tooltip delay={0}>
+      <Tooltip.Trigger tabIndex={-1} role="none">
+        {bubble}
+      </Tooltip.Trigger>
+      <Tooltip.Content placement="top" className="max-w-[28rem] text-xs">
+        {tooltip ? `${label} · ${tooltip}` : label}
+      </Tooltip.Content>
+    </Tooltip>
+  );
+}
+
+export function ThreadDockBody({
+  children,
+  padding = "default",
+  className = "",
+}: {
+  children: ReactNode;
+  padding?: "default" | "compact" | "media";
+  className?: string;
+}) {
+  const placement = useThreadDockPlacement();
+  const paddingClass =
+    padding === "compact"
+      ? "px-1.5 py-2"
+      : padding === "media"
+        ? "p-2.5"
+        : placement === "right"
+          ? "px-3 py-2.5"
+          : "px-3 pb-2";
+  const dividerClass = placement === "right" ? "border-t border-[var(--hairline-soft)] " : "";
+  const baseClass = `${dividerClass}${paddingClass}`;
+  return <div className={className ? `${baseClass} ${className}` : baseClass}>{children}</div>;
 }
 
 export function ThreadDockIconButton({
@@ -133,7 +347,7 @@ export function ThreadDockIconButton({
 }) {
   return (
     <Tooltip delay={0}>
-      <Tooltip.Trigger>
+      <Tooltip.Trigger tabIndex={-1} role="none">
         <Button
           isIconOnly
           size="sm"
@@ -173,17 +387,23 @@ export function ThreadDockCollapseButton({
 }) {
   const { t } = useLingui();
   return (
-    <ThreadDockIconButton
-      label={label}
-      tooltip={collapsed ? t`Expand` : t`Collapse`}
-      ariaExpanded={!collapsed}
-      {...(controlsId ? { ariaControls: controlsId } : {})}
-      onPress={onPress}
-    >
-      <ChevronDown
-        className={`size-3.5 transition-transform ${collapsed ? "-rotate-90" : "rotate-0"}`}
-      />
-    </ThreadDockIconButton>
+    <Tooltip delay={0}>
+      <Tooltip.Trigger tabIndex={-1} role="none">
+        <button
+          type="button"
+          aria-label={label}
+          aria-expanded={!collapsed}
+          {...(controlsId ? { "aria-controls": controlsId } : {})}
+          className="inline-flex h-6 w-6 min-w-0 shrink-0 cursor-pointer items-center justify-center rounded-3xl text-muted/70 transition-colors hover:bg-foreground/5 hover:text-foreground outline-none focus-visible:focus-ring"
+          onClick={onPress}
+        >
+          <ChevronDown
+            className={`size-3.5 transition-transform ${collapsed ? "-rotate-90" : "rotate-0"}`}
+          />
+        </button>
+      </Tooltip.Trigger>
+      <Tooltip.Content>{collapsed ? t`Expand` : t`Collapse`}</Tooltip.Content>
+    </Tooltip>
   );
 }
 
@@ -207,14 +427,18 @@ export function ThreadDockList({
           ? "space-y-1"
           : "space-y-0";
   return (
-    <div className={placement === "right" && !collapsed ? "min-h-0 flex-1 px-1 pb-1" : "px-1 pb-1"}>
+    <div
+      className={
+        placement === "right" ? "border-t border-[var(--hairline-soft)] px-1.5 py-2" : "px-1 pb-1"
+      }
+    >
       <ul
         className={
           collapsed
             ? spacingClass
             : placement === "composer"
               ? `max-h-[min(12rem,32vh)] ${spacingClass} overflow-y-auto [scrollbar-gutter:stable]`
-              : `min-h-0 h-full ${spacingClass} overflow-y-auto [scrollbar-gutter:stable]`
+              : spacingClass
         }
       >
         {children}
@@ -239,9 +463,10 @@ export const ThreadDockRow = forwardRef<
     rowKey?: string;
   }
 >(function ThreadDockRow({ children, isActive, isDone, title, onClick, rowKey }, ref) {
-  const innerClass = `flex items-center gap-2 rounded px-2 py-1 leading-5 ${
-    isDone ? "opacity-60" : ""
-  } ${isActive && !isDone ? "bg-accent/10" : ""}`;
+  const placement = useThreadDockPlacement();
+  const innerClass = `flex items-center gap-2 rounded-3xl ${
+    placement === "right" ? "px-1.5 py-1.5" : "px-2 py-1"
+  } leading-5 ${isDone ? "opacity-60" : ""} ${isActive && !isDone ? "bg-accent/10" : ""}`;
   const rowKeyAttrs = rowKey ? { "data-row-key": rowKey } : {};
 
   if (onClick) {
@@ -294,7 +519,7 @@ export function ThreadDockActionRow({
   onAction: () => void;
   isActionDisabled?: boolean;
 }) {
-  const contentClass = `poracode-subagent-dock-row flex min-w-0 flex-1 items-center gap-2 rounded px-2 py-1 text-left leading-5 transition-[padding,background-color] duration-150 hover:bg-foreground/5 group-hover:pr-8 ${className}`;
+  const contentClass = `poracode-subagent-dock-row flex min-w-0 flex-1 items-center gap-2 rounded-3xl px-2 py-1 text-left leading-5 transition-[padding,background-color] duration-150 hover:bg-foreground/5 group-hover:pr-8 ${className}`;
 
   return (
     <li className="group relative flex">

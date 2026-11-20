@@ -11,23 +11,25 @@ import {
   type ThreadDockKind,
 } from "@/shared/settings";
 import { useAppStore } from "@/renderer/state/appStore";
+import { useThread } from "@/renderer/state/useThread";
 import { usePanelStore, type ThreadDockFocus } from "@/renderer/state/panelStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useThreadGoalDockStore } from "@/renderer/state/threadGoalDockStore";
 import { useThreadTodoDockStore } from "@/renderer/state/threadTodoDockStore";
 import { ActiveSubAgentTile } from "./ChatPane/parts/items/ActiveSubAgentTile";
-import { ThreadArtifactsDock } from "./ThreadArtifactsDock";
+import { ThreadArtifactsDock, ThreadFilesDock } from "./ThreadArtifactsDock";
 import { ThreadBackgroundTasksDock } from "./ThreadBackgroundTasksDock";
 import { ThreadGoalDock } from "./ThreadGoalDock";
 import { ThreadImagesDock } from "./ThreadImagesDock";
 import { ThreadAgentVisionDock, useThreadAgentVision } from "./ThreadAgentVisionDock";
 import { ThreadContextWindowDock } from "./ThreadContextWindowDock";
+import { ThreadDockSortableScope } from "./ThreadDockUI";
 import {
   ThreadAgentUsageDock,
   ThreadWorkspaceDock,
   useThreadAgentUsage,
 } from "./ThreadDetailsDocks";
-import { useThreadArtifacts } from "./threadArtifacts";
+import { useThreadFilesAndArtifacts } from "./threadArtifacts";
 import { ThreadTodoDock } from "./ThreadTodoDock";
 import { PanelActivity } from "@/renderer/components/layout/panelMotion";
 import { useThreadVideos } from "./threadVideos";
@@ -81,49 +83,14 @@ function ThreadDocksContent({
   const vision = useThreadAgentVision(threadId, visible, !visionCollapsed);
   const gallery = useThreadGalleryImages(threadId, { lightbox: true, requestPending: visible });
   const videos = useThreadVideos(threadId);
-  const artifacts = useThreadArtifacts(threadId);
-  const thread = useAppStore((state) =>
-    state.threads.find((candidate) => candidate.id === threadId),
-  );
+  const { files, artifacts } = useThreadFilesAndArtifacts(threadId);
+  const thread = useThread(threadId);
   const crewBinding = threadCrewBinding(thread?.config);
   const threadExists = thread !== undefined;
   const usage = useThreadAgentUsage(threadId);
   const focus = usePanelStore((s) => s.threadDocksFocus);
   const containerRef = useRef<HTMLDivElement>(null);
   const lastScrolledFocusRef = useRef<ThreadDockFocus | null>(null);
-
-  // The layer stays mounted while another right-panel tab shows; forgetting
-  // the last scroll target when hidden lets the same bubble scroll again on
-  // reopen.
-  useEffect(() => {
-    if (!docksShowing) lastScrolledFocusRef.current = null;
-  }, [docksShowing]);
-
-  // Whether the focused dock is currently mounted, derived from the same
-  // membership states as the section map below. A bubble click can name a dock
-  // whose members are still mounting, so the scroll re-arms on every
-  // membership change and bails until the focused dock exists.
-  const focusedDockMounted =
-    (focus === "goal" && goalDockState !== null) ||
-    (focus === "plan" && todoDockState !== null) ||
-    (focus === "agents" && (summary.agentCount > 0 || crewBinding !== undefined)) ||
-    (focus === "backgroundTasks" && summary.backgroundTaskCount > 0) ||
-    (focus === "images" && (gallery.length > 0 || videos.length > 0)) ||
-    (focus === "artifacts" && artifacts.length > 0) ||
-    (focus === "info" && threadExists) ||
-    (focus === "context" && threadExists) ||
-    (focus === "usage" && usage !== null);
-
-  // A bubble click names the active section. Scroll only when that selection
-  // changes so later content updates do not fight the user's own scrolling.
-  useEffect(() => {
-    if (!focus || !focusedDockMounted || lastScrolledFocusRef.current === focus) return;
-    const target = containerRef.current?.querySelector<HTMLElement>(`[data-dock-kind="${focus}"]`);
-    if (typeof target?.scrollIntoView === "function") {
-      target.scrollIntoView({ block: "start" });
-      lastScrolledFocusRef.current = focus;
-    }
-  }, [focus, focusedDockMounted]);
 
   const content: Record<ThreadDockKind, ReactNode> = {
     vision: vision ? (
@@ -181,6 +148,10 @@ function ThreadDocksContent({
           visible={visible}
         />
       ) : null,
+    files:
+      files.length > 0 ? (
+        <ThreadFilesDock key={threadId} files={files} threadId={threadId} />
+      ) : null,
     artifacts:
       artifacts.length > 0 ? (
         <ThreadArtifactsDock key={threadId} artifacts={artifacts} threadId={threadId} />
@@ -189,6 +160,26 @@ function ThreadDocksContent({
     context: threadExists ? <ThreadContextWindowDock key={threadId} threadId={threadId} /> : null,
     usage: usage ? <ThreadAgentUsageDock key={threadId} usage={usage} /> : null,
   };
+
+  // The layer stays mounted while another right-panel tab shows; forgetting
+  // the last scroll target when hidden lets the same bubble scroll again on
+  // reopen.
+  useEffect(() => {
+    if (!docksShowing) lastScrolledFocusRef.current = null;
+  }, [docksShowing]);
+
+  // A bubble click names the active section. Scroll only when that selection
+  // changes (once its members mount) so later updates do not fight scrolling.
+  const focusedDockMounted = focus !== null && content[focus] !== null;
+  useEffect(() => {
+    if (!focus || !focusedDockMounted || lastScrolledFocusRef.current === focus) return;
+    const target = containerRef.current?.querySelector<HTMLElement>(`[data-dock-kind="${focus}"]`);
+    if (typeof target?.scrollIntoView === "function") {
+      target.scrollIntoView({ block: "start" });
+      lastScrolledFocusRef.current = focus;
+    }
+  }, [focus, focusedDockMounted]);
+
   const labels: Record<ThreadDockKind, string> = {
     vision: t`Agent vision`,
     goal: t`Goal`,
@@ -196,7 +187,8 @@ function ThreadDocksContent({
     agents: t`Agents`,
     backgroundTasks: t`Background tasks`,
     images: t`Media`,
-    artifacts: t`Files & artifacts`,
+    files: t`Files`,
+    artifacts: t`Artifacts`,
     info: t`Thread info`,
     context: t`Context window`,
     usage: t`Usage`,
@@ -212,19 +204,28 @@ function ThreadDocksContent({
   }
 
   return (
-    <div role="region" aria-label={t`Thread docks`} className="flex h-full min-h-0 flex-col">
-      <div ref={containerRef} className="min-h-0 flex-1 overflow-y-auto [scrollbar-gutter:stable]">
+    <div
+      role="region"
+      aria-label={t`Thread docks`}
+      className="flex h-full min-h-0 flex-col bg-[var(--content-background)]"
+    >
+      <div
+        ref={containerRef}
+        className="min-h-0 flex-1 overflow-y-auto p-2.5 [scrollbar-gutter:stable]"
+      >
         {visibleOrder.length === 0 && !threadExists ? (
-          <p className="px-3 py-3 text-xs text-foreground-muted">
+          <p className="px-1 py-2 text-xs text-foreground-muted">
             <Trans>No active tasks.</Trans>
           </p>
         ) : null}
         <DragDropProvider onDragEnd={handleDragEnd}>
-          {visibleOrder.map((kind, index) => (
-            <DockSection key={kind} kind={kind} index={index} label={labels[kind]}>
-              {content[kind]}
-            </DockSection>
-          ))}
+          <div className="flex flex-col gap-2">
+            {visibleOrder.map((kind, index) => (
+              <DockSection key={kind} kind={kind} index={index} label={labels[kind]}>
+                {content[kind]}
+              </DockSection>
+            ))}
+          </div>
         </DragDropProvider>
       </div>
     </div>
@@ -255,17 +256,19 @@ function DockSection({
     <div
       ref={ref}
       data-dock-kind={kind}
-      className={`group/dock relative scroll-mt-1 pl-4 ${isDragging ? "opacity-40" : ""}`}
+      className={`group/dock relative scroll-mt-2 ${isDragging ? "opacity-40" : ""}`}
     >
       <button
         ref={handleRef}
         type="button"
         aria-label={t`Reorder ${label}`}
-        className="absolute left-0 top-0 z-10 flex h-8 w-4 cursor-grab items-center justify-center text-muted/30 transition-colors hover:text-foreground active:cursor-grabbing"
+        className="absolute left-2 top-[7px] z-10 flex h-6 w-4 cursor-grab items-center justify-center rounded-2xl text-muted/40 transition-colors hover:text-foreground outline-none focus-visible:focus-ring active:cursor-grabbing"
       >
         <GripVertical className="size-3.5" />
       </button>
-      <div className="min-w-0">{children}</div>
+      <ThreadDockSortableScope>
+        <div className="flex min-w-0 flex-col gap-2">{children}</div>
+      </ThreadDockSortableScope>
     </div>
   );
 }

@@ -263,6 +263,7 @@ describe("shared settings defaults", () => {
       "agents",
       "backgroundTasks",
       "images",
+      "files",
       "artifacts",
       "info",
       "context",
@@ -283,6 +284,7 @@ describe("shared settings defaults", () => {
     const upgraded = normalizeSharedSettings({ threadDocksOrder: priorOrder });
     expect(upgraded.threadDocksOrder).toEqual([
       "images",
+      "files",
       "artifacts",
       "plan",
       "agents",
@@ -302,6 +304,7 @@ describe("shared settings defaults", () => {
       ),
     ).toEqual([
       "usage",
+      "files",
       "artifacts",
       "images",
       "agents",
@@ -334,16 +337,18 @@ describe("shared settings defaults", () => {
       "agents",
       "backgroundTasks",
       "images",
+      "files",
       "artifacts",
       "info",
       "context",
       "usage",
     ]);
     // A legacy order without context/usage keeps its relative order and inserts
-    // artifacts right after images while appending remaining defaults.
+    // files and artifacts right after images while appending remaining defaults.
     expect(normalizeThreadDocksOrder(["usage", "images", "plan"])).toEqual([
       "usage",
       "images",
+      "files",
       "artifacts",
       "plan",
       "vision",
@@ -353,10 +358,25 @@ describe("shared settings defaults", () => {
       "info",
       "context",
     ]);
-    // Explicitly saved info and artifacts positions are never rewritten.
+    // Orders saved with artifacts before the files split insert files right before artifacts.
     expect(normalizeThreadDocksOrder(["artifacts", "info", "context", "images"])).toEqual([
+      "files",
       "artifacts",
       "info",
+      "context",
+      "images",
+      "vision",
+      "goal",
+      "plan",
+      "agents",
+      "backgroundTasks",
+      "usage",
+    ]);
+    // Explicitly saved files and artifacts positions are never rewritten.
+    expect(normalizeThreadDocksOrder(["artifacts", "info", "files", "context", "images"])).toEqual([
+      "artifacts",
+      "info",
+      "files",
       "context",
       "images",
       "vision",

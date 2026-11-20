@@ -6,7 +6,7 @@ export function ThreadGoalStatusIcon({ status }: { status: GoalStatus }) {
     return (
       <span className="poracode-goal-active-icon shrink-0" aria-hidden="true">
         <span className="poracode-goal-active-icon__ring" />
-        <Target className="size-3.5 text-white" />
+        <Target className="size-3.5 text-foreground" />
       </span>
     );
   }

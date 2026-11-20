@@ -290,6 +290,7 @@ export const THREAD_DOCK_KINDS = [
   "agents",
   "backgroundTasks",
   "images",
+  "files",
   "artifacts",
   "info",
   "context",
@@ -352,6 +353,12 @@ export function normalizeThreadDocksOrder(order: readonly ThreadDockKind[]): Thr
   // of appending it at the end. No settings version bump needed.
   if (!normalized.includes("artifacts") && normalized.includes("images")) {
     normalized.splice(normalized.indexOf("images") + 1, 0, "artifacts");
+  }
+  // Compatibility: orders saved before the unversioned "files" dock split out
+  // of "artifacts" stay valid; insert it beside "artifacts" instead of
+  // appending it at the end. No settings version bump needed.
+  if (!normalized.includes("files") && normalized.includes("artifacts")) {
+    normalized.splice(normalized.indexOf("artifacts"), 0, "files");
   }
   // Compatibility: orders saved before the unversioned "info" dock existed
   // stay valid; insert it beside the old combined "context" section instead

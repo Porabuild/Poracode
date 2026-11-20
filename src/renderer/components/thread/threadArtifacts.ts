@@ -6,6 +6,7 @@ import { fileNameFromPath, isImagePath } from "@/shared/promptContent";
 import { normalizeWindowsDrivePath } from "@/shared/pathUtils";
 import type { MessageItemPayload } from "@/shared/contracts";
 import { useAppStore } from "@/renderer/state/appStore";
+import { getThreadMap } from "@/renderer/state/useThread";
 import {
   getRuntimeItemPayload,
   type RuntimeChatItem,
@@ -20,10 +21,18 @@ import { resolveThreadTranscriptMarkdownFormatter } from "./threadTranscriptMark
 
 type MarkdownFormatter = ((text: string) => string) | undefined;
 
+export type ThreadArtifactCategory = "file" | "artifact";
+
 export interface ThreadArtifact {
   target: string;
   name: string;
   external: boolean;
+  category: ThreadArtifactCategory;
+}
+
+export interface ThreadFilesAndArtifacts {
+  files: readonly ThreadArtifact[];
+  artifacts: readonly ThreadArtifact[];
 }
 
 interface MarkdownNode {
@@ -34,12 +43,23 @@ interface MarkdownNode {
   children?: MarkdownNode[];
 }
 
+/** Non-code deliverable/document/archive/audio files linked by the agent count as Files. */
+const DELIVERABLE_FILE_EXT_RE =
+  /\.(?:pdf|docx?|xlsx?|pptx?|csv|tsv|zip|gz|tar|7z|rar|mp3|wav|ogg|m4a|flac|epub|rtf)$/i;
+const EXTERNAL_EXTRA_FILE_EXT_RE = /\.(?:json|txt|md|html?)$/i;
+
 const parser = unified().use(remarkParse).freeze();
 const itemCache = new WeakMap<RuntimeChatItem, Map<MarkdownFormatter, readonly ThreadArtifact[]>>();
 const EMPTY_ARTIFACTS: readonly ThreadArtifact[] = [];
+const EMPTY_SPLIT: ThreadFilesAndArtifacts = { files: EMPTY_ARTIFACTS, artifacts: EMPTY_ARTIFACTS };
 const collectionCache = new WeakMap<
   readonly string[],
-  { revision: number; formatter: MarkdownFormatter; artifacts: readonly ThreadArtifact[] }
+  {
+    revision: number;
+    formatter: MarkdownFormatter;
+    all: readonly ThreadArtifact[];
+    split: ThreadFilesAndArtifacts;
+  }
 >();
 
 function itemArtifacts(
@@ -63,6 +83,7 @@ function itemArtifacts(
         target: normalizeWindowsDrivePath(block.path),
         name: block.name || fileNameFromPath(block.path),
         external: false,
+        category: "file",
       });
   }
   if (item.type === "assistant_message") {
@@ -116,15 +137,15 @@ function artifactFromHref(href: string): ThreadArtifact | undefined {
     try {
       const url = new URL(href);
       if (
-        !/\.(?:pdf|docx?|xlsx?|pptx?|csv|tsv|zip|gz|tar|7z|mp3|wav|json|txt|md|html?)$/i.test(
-          url.pathname,
-        )
+        !DELIVERABLE_FILE_EXT_RE.test(url.pathname) &&
+        !EXTERNAL_EXTRA_FILE_EXT_RE.test(url.pathname)
       )
         return undefined;
       return {
         target: href,
         name: fileNameFromPath(decodeURIComponent(url.pathname)),
         external: true,
+        category: "file",
       };
     } catch {
       return undefined;
@@ -153,10 +174,14 @@ function artifactFromHref(href: string): ThreadArtifact | undefined {
   const filePath =
     ref?.kind === "file" ? ref.path : /\.[a-z\d]{1,12}$/i.test(path) ? path : undefined;
   if (!filePath || isImagePath(filePath) || isVideoPath(filePath)) return undefined;
+  const hasLineRef = ref?.kind === "file" && ref.line !== undefined;
+  const category: ThreadArtifactCategory =
+    !hasLineRef && DELIVERABLE_FILE_EXT_RE.test(filePath) ? "file" : "artifact";
   return {
     target: normalizeWindowsDrivePath(filePath),
     name: fileNameFromPath(filePath),
     external: false,
+    category,
   };
 }
 
@@ -164,36 +189,81 @@ export function collectThreadArtifacts(
   items: readonly RuntimeChatItem[],
   formatter?: MarkdownFormatter,
 ): readonly ThreadArtifact[] {
-  const seen = new Set<string>();
+  const indexByTarget = new Map<string, number>();
   const artifacts: ThreadArtifact[] = [];
   for (let index = items.length - 1; index >= 0; index--) {
     for (const artifact of itemArtifacts(items[index]!, formatter)) {
-      if (seen.has(artifact.target)) continue;
-      seen.add(artifact.target);
+      const existingIndex = indexByTarget.get(artifact.target);
+      if (existingIndex !== undefined) {
+        const existing = artifacts[existingIndex]!;
+        const category =
+          existing.category !== "file" && artifact.category === "file" ? "file" : existing.category;
+        const existingIsDefaultName = existing.name === fileNameFromPath(existing.target);
+        const incomingHasCustomName =
+          artifact.category === "file" && artifact.name !== fileNameFromPath(artifact.target);
+        const name = existingIsDefaultName && incomingHasCustomName ? artifact.name : existing.name;
+        if (category !== existing.category || name !== existing.name) {
+          artifacts[existingIndex] = { ...existing, category, name };
+        }
+        continue;
+      }
+      indexByTarget.set(artifact.target, artifacts.length);
       artifacts.push(artifact);
     }
   }
   return artifacts;
 }
 
+export function splitThreadArtifacts(items: readonly ThreadArtifact[]): ThreadFilesAndArtifacts {
+  const files: ThreadArtifact[] = [];
+  const artifacts: ThreadArtifact[] = [];
+  for (const item of items) {
+    if (item.category === "file") files.push(item);
+    else artifacts.push(item);
+  }
+  return { files, artifacts };
+}
+
+export function collectThreadFilesAndArtifacts(
+  items: readonly RuntimeChatItem[],
+  formatter?: MarkdownFormatter,
+): ThreadFilesAndArtifacts {
+  return splitThreadArtifacts(collectThreadArtifacts(items, formatter));
+}
+
+function selectCachedArtifacts(
+  state: ReturnType<typeof useAppStore.getState>,
+  threadId: string | undefined,
+): { all: readonly ThreadArtifact[]; split: ThreadFilesAndArtifacts } | undefined {
+  if (!threadId) return undefined;
+  const ids = state.runtimeItemIdsByThread[threadId];
+  const byId = state.runtimeItemsByIdByThread[threadId];
+  if (!ids || !byId) return undefined;
+  // Like the image gallery, only completed message structure can add outputs;
+  // streaming text must not rescan the loaded history for every subscriber.
+  const revision = state.runtimeStructuralVersionByThread[threadId] ?? 0;
+  const agentKind = getThreadMap(state.threads).get(threadId)?.agentKind;
+  const formatter = agentKind ? resolveThreadTranscriptMarkdownFormatter(agentKind) : undefined;
+  const cached = collectionCache.get(ids);
+  if (cached?.revision === revision && cached.formatter === formatter) {
+    return cached;
+  }
+  const resolvedItems: RuntimeChatItem[] = [];
+  for (const id of ids) {
+    const item = byId[id];
+    if (item) resolvedItems.push(item);
+  }
+  const all = collectThreadArtifacts(resolvedItems, formatter);
+  const split = splitThreadArtifacts(all);
+  const entry = { revision, formatter, all, split };
+  collectionCache.set(ids, entry);
+  return entry;
+}
+
 export function useThreadArtifacts(threadId: string | undefined): readonly ThreadArtifact[] {
-  return useAppStore((state) => {
-    if (!threadId) return EMPTY_ARTIFACTS;
-    const ids = state.runtimeItemIdsByThread[threadId];
-    const byId = state.runtimeItemsByIdByThread[threadId];
-    if (!ids || !byId) return EMPTY_ARTIFACTS;
-    // Like the image gallery, only completed message structure can add outputs;
-    // streaming text must not rescan the loaded history for every subscriber.
-    const revision = state.runtimeStructuralVersionByThread[threadId] ?? 0;
-    const agentKind = state.threads.find((thread) => thread.id === threadId)?.agentKind;
-    const formatter = agentKind ? resolveThreadTranscriptMarkdownFormatter(agentKind) : undefined;
-    const cached = collectionCache.get(ids);
-    if (cached?.revision === revision && cached.formatter === formatter) return cached.artifacts;
-    const artifacts = collectThreadArtifacts(
-      ids.flatMap((id) => (byId[id] ? [byId[id]] : [])),
-      formatter,
-    );
-    collectionCache.set(ids, { revision, formatter, artifacts });
-    return artifacts;
-  });
+  return useAppStore((state) => selectCachedArtifacts(state, threadId)?.all ?? EMPTY_ARTIFACTS);
+}
+
+export function useThreadFilesAndArtifacts(threadId: string | undefined): ThreadFilesAndArtifacts {
+  return useAppStore((state) => selectCachedArtifacts(state, threadId)?.split ?? EMPTY_SPLIT);
 }

@@ -6,6 +6,7 @@ import type { AgentVision } from "@/shared/agentVision";
 import { useThread } from "@/renderer/state/useThread";
 import { entityHost } from "@/renderer/state/entityHost";
 import {
+  ThreadDockBody,
   ThreadDockCollapseButton,
   ThreadDockHeader,
   ThreadDockSection,
@@ -144,11 +145,16 @@ export function ThreadAgentVisionDock({
       placement="right"
       collapsed={collapsed}
       ariaLabel={t`Agent vision`}
-      className="min-w-0 [&[data-placement='right']]:h-auto"
+      className="min-w-0"
     >
       <ThreadDockHeader
         icon={
-          <span role="img" aria-label={source} title={source}>
+          <span
+            role="img"
+            aria-label={source}
+            title={source}
+            className="inline-flex size-4 shrink-0 items-center justify-center"
+          >
             <SourceIcon className="size-3.5 shrink-0 text-foreground-muted" />
           </span>
         }
@@ -158,7 +164,7 @@ export function ThreadAgentVisionDock({
           <>
             <span
               role="status"
-              className="flex shrink-0 items-center gap-1.5 text-[0.85em] text-muted"
+              className="flex shrink-0 items-center gap-1.5 text-[11px] text-muted"
             >
               <span className="sr-only">{source}: </span>
               {vision.status === "running" ? (
@@ -176,8 +182,8 @@ export function ThreadAgentVisionDock({
         }
       />
       {!collapsed ? (
-        <div className="space-y-2 px-3 pb-3">
-          <div className="flex aspect-video items-center justify-center overflow-hidden rounded-md border border-default bg-background">
+        <ThreadDockBody padding="media" className="space-y-2">
+          <div className="flex aspect-video items-center justify-center overflow-hidden rounded-3xl border border-[var(--hairline-soft)] bg-background">
             <Modal>
               <Button
                 variant="ghost"
@@ -219,7 +225,7 @@ export function ThreadAgentVisionDock({
               </Modal.Backdrop>
             </Modal>
           </div>
-        </div>
+        </ThreadDockBody>
       ) : null}
     </ThreadDockSection>
   );

@@ -5,6 +5,7 @@ import { useHostAgentStatuses } from "@/renderer/hooks/useHostAgentStatuses";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useProject, useThread } from "@/renderer/state/useThread";
 import { ThreadContextUsageDetails } from "./ThreadContextDock";
+import { ContextUsageRing, resolveContextTone } from "./ThreadContextIndicator";
 import { resolveThreadContextUsageSummary } from "./threadContextUsage";
 import { ThreadDockCollapseButton, ThreadDockHeader, ThreadDockSection } from "./ThreadDockUI";
 
@@ -31,6 +32,13 @@ export function ThreadContextWindowDock({ threadId }: { threadId: string }) {
     agentStatus,
     reportedUsage: context,
   });
+  const tone = resolveContextTone(summary.percent);
+  const percentClassName =
+    tone === "danger"
+      ? "font-medium text-danger"
+      : tone === "warning"
+        ? "font-medium text-warning"
+        : "text-foreground";
   return (
     <ThreadDockSection placement="right" collapsed={collapsed} ariaLabel={t`Context window`}>
       <ThreadDockHeader
@@ -46,9 +54,33 @@ export function ThreadContextWindowDock({ threadId }: { threadId: string }) {
         }
       >
         {collapsed ? (
-          <span className="ml-auto min-w-0 truncate text-right text-[0.85em] tabular-nums text-muted">
-            {summary.detail}
-          </span>
+          summary.percent !== undefined ? (
+            <span
+              className="ml-auto inline-flex shrink-0 items-center gap-1.5 text-[11px] tabular-nums"
+              title={summary.detail}
+            >
+              <ContextUsageRing percent={summary.percent} size={16} />
+              <span className={percentClassName}>{summary.percent}%</span>
+              <span className="sr-only">{summary.detail}</span>
+            </span>
+          ) : summary.usedTokens !== undefined ? (
+            <span
+              className="ml-auto inline-flex min-w-0 items-center gap-1.5 text-[11px] tabular-nums text-muted"
+              title={summary.detail}
+            >
+              <ContextUsageRing percent={undefined} size={16} />
+              <span className="truncate">{summary.detail}</span>
+            </span>
+          ) : (
+            <span
+              className="ml-auto inline-flex shrink-0 items-center gap-1.5 text-[11px] text-muted"
+              title={summary.detail}
+            >
+              <ContextUsageRing percent={undefined} size={16} />
+              <span aria-hidden="true">—</span>
+              <span className="sr-only">{summary.detail}</span>
+            </span>
+          )
         ) : null}
       </ThreadDockHeader>
       {!collapsed ? <ThreadContextUsageDetails summary={summary} /> : null}
