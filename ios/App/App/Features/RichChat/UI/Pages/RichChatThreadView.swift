@@ -251,26 +251,32 @@ struct RichChatThreadView: View {
   }
 
   private var composerSurface: some View {
-    RichChatThreadComposerSurface(
+    let baseConfiguration: ThreadConfig = thread?.config ?? .empty
+    let activeRequest: RichOpenRequest? = suite.transcript.state.transcript?.openRequests.first
+    let agentKind: String = thread?.agentKind ?? ""
+    let hasStartedSession: Bool = thread?.sessionRef != nil
+    let insertIntoComposer: (String) -> Void = { pageState.insertIntoComposerDraft($0) }
+    let openSideChatHandler: (() -> Void)? = offersSideChat ? { openSideChat() } : nil
+    let sideQuestionHandler: ((String) async -> Bool)? = offersSideChat
+      ? { await openSideQuestion($0) }
+      : nil
+    let isConnectingHost: Bool = session.phase == .connecting
+    return RichChatThreadComposerSurface(
       state: pageState.draft, isExpanded: $composerExpanded,
-      baseConfiguration: thread?.config ?? .empty, canOperate: canOperate,
+      baseConfiguration: baseConfiguration, canOperate: canOperate,
       isTurnActive: isComposerTurnActive, controller: suite.conversation,
-      requestController: suite.requests,
-      activeRequest: suite.transcript.state.transcript?.openRequests.first,
+      requestController: suite.requests, activeRequest: activeRequest,
       canResolveRequests: pageState.canResolveRequests, mediaController: suite.media,
-      agentKind: thread?.agentKind ?? "", agentInstanceID: thread?.agentInstanceId,
-      agentStatus: pageState.agentStatus,
-      threadSlashCommands: thread?.slashCommands,
+      agentKind: agentKind, agentInstanceID: thread?.agentInstanceId,
+      agentStatus: pageState.agentStatus, threadSlashCommands: thread?.slashCommands,
       sessionConfigOptions: thread?.sessionConfigOptions,
-      canConfigure: pageState.canConfigureComposer, hasStartedSession: thread?.sessionRef != nil,
+      canConfigure: pageState.canConfigureComposer, hasStartedSession: hasStartedSession,
       hiddenModels: pageState.hiddenModels,
       fileMentionController: pageState.fileMentionController,
       skillPickerContext: pageState.skillPickerContext, sessionActions: suite.sessionActions,
-      onInsertIntoComposer: pageState.insertIntoComposerDraft, resumeContext: composerResume,
-      openSideChat: offersSideChat ? { openSideChat() } : nil,
-      sideQuestion: offersSideChat ? { await openSideQuestion($0) } : nil,
-      crewContext: richCrewContext,
-      isConnectingHost: session.phase == .connecting
+      onInsertIntoComposer: insertIntoComposer, resumeContext: composerResume,
+      openSideChat: openSideChatHandler, sideQuestion: sideQuestionHandler,
+      crewContext: richCrewContext, isConnectingHost: isConnectingHost
     )
   }
 
