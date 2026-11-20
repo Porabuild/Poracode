@@ -339,7 +339,7 @@ function SearchPaletteContent() {
               setSelectedKey(null);
             }}
             onKeyDown={handleKeyDown}
-            className="min-w-0 flex-1 border-0 bg-transparent px-0 text-sm shadow-none"
+            className="poracode-borderless-field min-w-0 flex-1 border-0 bg-transparent px-0 text-sm shadow-none"
             spellCheck={false}
             autoComplete="off"
           />

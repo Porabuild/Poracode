@@ -15,16 +15,16 @@ export function questionRowClassName(active: boolean): string {
 
 /** A row whose body is an inline text input (custom answers and entries). */
 export function questionInputRowClassName(active: boolean, dimmed: boolean): string {
-  return `${questionRowClassName(active)} cursor-text focus-within:bg-[var(--row-hover)] ${dimmed ? "opacity-60" : ""}`;
+  return `${questionRowClassName(active)} cursor-text focus-within:bg-[var(--row-hover)] focus-within:focus-ring ${dimmed ? "opacity-60" : ""}`;
 }
 
 /** Borderless text input that sits inside a row like a label. */
 export const questionRowInputClassName =
-  "h-4 min-w-0 flex-1 rounded-none border-0 bg-transparent p-0 text-xs leading-4 font-medium text-foreground shadow-none placeholder:font-normal placeholder:text-[color:var(--muted)] hover:bg-transparent focus:bg-transparent focus:shadow-none focus:ring-0 sm:text-xs";
+  "poracode-borderless-field h-4 min-w-0 flex-1 rounded-none border-0 bg-transparent p-0 text-xs leading-4 font-medium text-foreground shadow-none placeholder:font-normal placeholder:text-[color:var(--muted)] hover:bg-transparent focus:bg-transparent focus:shadow-none focus:ring-0 sm:text-xs";
 
 /** Filled field for free-text answers, shaped like the answer rows. */
 export const questionTextFieldClassName =
-  "rounded-2xl border-0 bg-[var(--row-hover)] px-3 py-1.5 text-xs text-foreground shadow-none placeholder:text-[color:var(--muted)] hover:bg-[var(--row-active)] focus:bg-[var(--row-active)] focus:shadow-none focus:ring-1 focus:ring-[color:var(--border)] sm:text-xs [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none";
+  "rounded-2xl border-0 bg-[var(--row-hover)] px-3 py-1.5 text-xs text-foreground shadow-none placeholder:text-[color:var(--muted)] hover:bg-[var(--row-active)] focus:bg-[var(--row-active)] focus:shadow-none sm:text-xs [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none";
 
 /** Number badge that turns into a check once its row is chosen. */
 export function QuestionRowMarker(props: { active: boolean; children: ReactNode }) {

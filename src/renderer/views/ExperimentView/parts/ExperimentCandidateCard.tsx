@@ -112,7 +112,7 @@ export function ExperimentCandidateCard(props: {
       {typeof stats === "object" && stats.files > 0 ? (
         <button
           type="button"
-          className="flex shrink-0 cursor-pointer flex-col items-end gap-0.5 rounded px-1.5 py-1 text-right text-[11px] transition-colors hover:bg-[var(--row-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+          className="flex shrink-0 cursor-pointer flex-col items-end gap-0.5 rounded px-1.5 py-1 text-right text-[11px] transition-colors hover:bg-[var(--row-hover)] focus-visible:focus-ring"
           aria-label={t`Review candidate ${props.candidateNumber} (${label}) changes`}
           onClick={() => {
             if (projectId && worktreePath) showGitReviewPanel(projectId, worktreePath);

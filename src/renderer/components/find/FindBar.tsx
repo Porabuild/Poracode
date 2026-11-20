@@ -131,7 +131,7 @@ function FindBarButton({
       {...(pressed === undefined ? {} : { "aria-pressed": pressed })}
       disabled={disabled}
       onClick={onPress}
-      className={`flex size-7 shrink-0 items-center justify-center rounded-2xl transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus disabled:pointer-events-none disabled:opacity-40 ${
+      className={`flex size-7 shrink-0 items-center justify-center rounded-2xl transition-colors focus-visible:focus-ring disabled:pointer-events-none disabled:opacity-40 ${
         pressed
           ? "bg-accent/15 text-accent"
           : "text-muted hover:bg-[var(--row-hover)] hover:text-foreground"

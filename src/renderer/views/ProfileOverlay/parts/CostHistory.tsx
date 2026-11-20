@@ -361,7 +361,7 @@ export function CostHistory({
           aria-label={rowHeading}
           // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- keyboard focus enables native scrolling
           tabIndex={0}
-          className="max-h-[480px] overflow-y-auto px-3 outline-none focus-visible:ring-2 focus-visible:ring-focus/50"
+          className="max-h-[480px] overflow-y-auto px-3 outline-none focus-visible:focus-ring"
         >
           <table className="block w-full text-left text-xs @min-[640px]:table">
             <caption className="sr-only">

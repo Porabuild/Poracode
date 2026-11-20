@@ -80,7 +80,7 @@ export function ThreadImagesDock({
                     type="button"
                     aria-label={t`Open image ${index + 1} of ${gallery.length}`}
                     title={img.alt || t`Open image preview`}
-                    className="group relative block h-24 w-40 overflow-hidden content-surface focus-visible:outline-2 focus-visible:outline-accent"
+                    className="group relative block h-24 w-40 overflow-hidden content-surface focus-visible:outline-1 focus-visible:outline-offset-[-1px] focus-visible:outline-focus"
                     onClick={() => openMediaAt(index)}
                   >
                     <ThreadImageThumbnail image={img} visible={visible} />
@@ -97,7 +97,7 @@ export function ThreadImagesDock({
                     type="button"
                     aria-label={t`Open video ${index + 1} of ${videos.length}: ${video.name}`}
                     title={video.name || t`Open video preview`}
-                    className="group relative flex h-24 w-40 items-center justify-center overflow-hidden content-surface focus-visible:outline-2 focus-visible:outline-accent"
+                    className="group relative flex h-24 w-40 items-center justify-center overflow-hidden content-surface focus-visible:outline-1 focus-visible:outline-offset-[-1px] focus-visible:outline-focus"
                     onClick={() => openMediaAt(gallery.length + index)}
                   >
                     <span className="flex size-8 items-center justify-center rounded-full border border-foreground/15 bg-background/80 text-foreground shadow-sm backdrop-blur-sm transition-transform duration-150 group-hover:scale-105">

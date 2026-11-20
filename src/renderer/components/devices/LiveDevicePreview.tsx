@@ -91,7 +91,7 @@ function Screen({
       data-frame={framed ? "framed" : "flat"}
       data-hinge-angle={hingeAngle}
       data-folding={folding ? "true" : undefined}
-      className={`relative max-h-full w-full max-w-full transition-[max-width,aspect-ratio] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none [&_[role=application]:focus-visible]:ring-2 [&_[role=application]:focus-visible]:ring-inset [&_[role=application]:focus-visible]:ring-accent ${
+      className={`relative max-h-full w-full max-w-full transition-[max-width,aspect-ratio] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none [&_[role=application]:focus-visible]:ring-1 [&_[role=application]:focus-visible]:ring-inset [&_[role=application]:focus-visible]:ring-focus ${
         bookOpen
           ? "overflow-visible bg-transparent"
           : framed
