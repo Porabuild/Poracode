@@ -110,6 +110,7 @@ export function applyRootCatalogThreadRows(
 ): void {
   if (rows.length === 0) return;
   const archivedNow = new Set<string>();
+  const rejectedPreSwitchIds = new Set<string>();
   useAppStore.setState((state) => {
     const incomingById = new Map<string, Thread>();
     for (const row of rows) {
@@ -136,6 +137,9 @@ export function applyRootCatalogThreadRows(
         incoming,
         state.pendingThreadConfigByThreadId[existing.id],
       );
+      if (merged === existing && existing.agentKind !== incoming.agentKind) {
+        rejectedPreSwitchIds.add(existing.id);
+      }
       if (merged !== existing) changed = true;
       return merged;
     });
@@ -157,7 +161,7 @@ export function applyRootCatalogThreadRows(
       pendingThreadConfigByThreadId,
     };
   });
-  syncRootRuntimeConfigs(rows, preserveThreadIds);
+  syncRootRuntimeConfigs(rows, preserveThreadIds, rejectedPreSwitchIds);
   closePanesForHostArchivedRows(archivedNow);
 }
 
@@ -252,12 +256,13 @@ export function removeRootCatalogProjects(projectIds: readonly string[]): void {
 function syncRootRuntimeConfigs(
   rows: readonly Thread[],
   preserveThreadIds: ReadonlySet<string>,
+  skipThreadIds: ReadonlySet<string>,
 ): void {
   useAppStore.setState((state) => {
     let changed = false;
     const next = { ...state.lastRuntimeConfigByThreadId };
     for (const thread of rows) {
-      if (preserveThreadIds.has(thread.id)) continue;
+      if (preserveThreadIds.has(thread.id) || skipThreadIds.has(thread.id)) continue;
       if (next[thread.id] === thread.config) continue;
       next[thread.id] = thread.config;
       changed = true;

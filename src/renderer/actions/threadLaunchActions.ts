@@ -46,6 +46,7 @@ import { i18n } from "@/renderer/i18n/i18n";
 import { useAppStore } from "@/renderer/state/appStore";
 import {
   notePendingThreadInputMessage,
+  retainPendingProviderSwitch,
   retainPendingThreadInput,
 } from "@/renderer/state/pendingThreadInput";
 import { captureFileCheckpoint } from "@/renderer/state/fileCheckpointActions";
@@ -95,36 +96,43 @@ export async function performInitialThreadLaunch(input: {
   clientContext?: TurnClientContext;
   initialSize: TerminalSize;
 }): Promise<void> {
-  if (
-    input.segments?.some(
-      (segment) => segment.kind === "attachment" && isClientDraftAsset(segment.path),
-    )
-  ) {
-    input = {
-      ...input,
-      segments: await materializeDraftSegments(
-        input.thread,
-        input.segments,
-        entityHost(input.thread)?.hostId ?? input.thread.id,
-      ),
-    };
-  }
   const releasePendingInput =
     input.thread.presentationMode === "gui" &&
     hasSendablePromptContent(input.prompt, input.segments)
       ? retainPendingThreadInput(input.thread.id)
       : undefined;
+  const releasePendingSwitch =
+    input.thread.presentationMode === "gui" && input.providerSwitch
+      ? retainPendingProviderSwitch(input.thread.id, input.providerSwitch.fromAgentKind)
+      : undefined;
   try {
-    await performInitialThreadLaunchPending(input, releasePendingInput);
+    if (
+      input.segments?.some(
+        (segment) => segment.kind === "attachment" && isClientDraftAsset(segment.path),
+      )
+    ) {
+      input = {
+        ...input,
+        segments: await materializeDraftSegments(
+          input.thread,
+          input.segments,
+          entityHost(input.thread)?.hostId ?? input.thread.id,
+        ),
+      };
+    }
+    await performInitialThreadLaunchPending(input, releasePendingInput, releasePendingSwitch);
   } catch (error) {
     releasePendingInput?.();
     throw error;
+  } finally {
+    releasePendingSwitch?.();
   }
 }
 
 async function performInitialThreadLaunchPending(
   input: Parameters<typeof performInitialThreadLaunch>[0],
   releasePendingInput: (() => void) | undefined,
+  releasePendingSwitch: (() => void) | undefined,
 ): Promise<void> {
   const { thread, projectLocation, prompt, segments, userMessageItemId, initialSize } = input;
   const clientContext = input.clientContext;
@@ -396,6 +404,7 @@ async function performInitialThreadLaunchPending(
     // definite failure directly instead of claiming the outcome is unknown.
     if (isRemoteCommandOutcomeUncertainError(error)) {
       releasePendingInput?.();
+      releasePendingSwitch?.();
       const didReconcile = await reconcileThreadCommandOutcome(thread);
       const reconciled = useAppStore.getState().threads.find((row) => row.id === thread.id);
       if (

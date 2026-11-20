@@ -20,6 +20,7 @@ import {
   type RemoteAccessServerInfo,
   type RemoteAccessServerOptions,
 } from "../RemoteAccessServer";
+import { SupervisorClient } from "@/host/supervisor/SupervisorClient";
 
 /**
  * B2 correctness for the provider-switch variant of `/api/threads/start`: the
@@ -305,6 +306,155 @@ describe.skipIf(!sqliteAvailable).each(["/api/threads/start", "/api/git/call"])(
       expect(callSupervisor).toHaveBeenCalledTimes(1);
       expect(dispatched).toHaveBeenCalledTimes(2);
       expect(receiptState(commandId)).toBe("uncertain");
+    });
+  },
+);
+
+describe.skipIf(!sqliteAvailable)(
+  "RemoteAccessServer callSupervisor options forwarding under per-thread mutation serialization",
+  () => {
+    let dir: string;
+    let info: RemoteAccessServerInfo;
+    let token: string;
+    let server: RemoteAccessServer;
+    let coordinator: SupervisorClient;
+    let callSupervisor: ReturnType<typeof vi.fn<RemoteAccessServerOptions["callSupervisor"]>>;
+
+    beforeEach(async () => {
+      if (nativeBindingEnv) process.env.PORACODE_BETTER_SQLITE3_NATIVE_BINDING = nativeBindingEnv;
+      dir = mkdtempSync(join(tmpdir(), "poracode-switch-deadlock-"));
+      initDatabase(join(dir, "state.sqlite"));
+      dbUpsertProject(
+        {
+          id: "project-1",
+          name: "Switch project",
+          location: { kind: "posix", path: "/tmp/project" },
+          createdAt: "2026-01-01T00:00:00.000Z",
+        },
+        0,
+      );
+      dbUpsertThread({ ...testThread(), id: GUI, presentationMode: "gui" }, 0);
+
+      // Reuse SupervisorClient's real per-thread mutation queue: if RemoteAccessServer's
+      // wrapper drops `options.skipThreadMutation`, calling `startThread` from inside
+      // `runThreadMutation` re-enters the same thread tail and deadlocks.
+      coordinator = new SupervisorClient({
+        appVersion: "1.0.0",
+        isDev: false,
+        baseDir: dir,
+        supervisorPath: join(dir, "unused.cjs"),
+        wslHelpersDir: dir,
+        secretStorageKey: "fixture",
+        onEvent: () => {},
+        onReset: () => {},
+      });
+
+      callSupervisor = vi.fn<RemoteAccessServerOptions["callSupervisor"]>(
+        async (name, payload, options) => {
+          const threadId =
+            payload && typeof payload === "object" && "threadId" in payload
+              ? (payload as { threadId?: string }).threadId
+              : undefined;
+          const execute = async () => {
+            options?.assertLaunchCurrent?.();
+            return { threadId: threadId ?? GUI } as never;
+          };
+          if (name === "startThread" && threadId && !options?.skipThreadMutation) {
+            return await coordinator.runThreadMutation(threadId, execute);
+          }
+          return await execute();
+        },
+      );
+
+      server = new RemoteAccessServer({
+        truncateThreadRuntime: () => {},
+        appVersion: "1.0.0",
+        identity: { desktopId: "desktop-test", label: "Test Desktop" },
+        host: "127.0.0.1",
+        port: 0,
+        callSupervisor,
+        runThreadMutation: (threadId, operation) =>
+          coordinator.runThreadMutation(threadId, operation),
+      } satisfies RemoteAccessServerOptions);
+      info = await server.start();
+      token = await exchangePairingUrl(info.pairingUrl);
+      callSupervisor.mockClear();
+    });
+
+    afterEach(async () => {
+      await server.dispose();
+      await coordinator.dispose();
+      closeDatabase();
+      rmSync(dir, { recursive: true, force: true });
+      delete process.env.PORACODE_BETTER_SQLITE3_NATIVE_BINDING;
+    });
+
+    it("forwards skipThreadMutation and assertLaunchCurrent on provider switch without self-deadlocking", async () => {
+      const response = await fetch(new URL("/api/threads/start", info.httpBaseUrl), {
+        method: "POST",
+        headers: {
+          authorization: `Bearer ${token}`,
+          "content-type": "application/json",
+          [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
+          "x-poracode-command-id": "switch-with-mutation-lock",
+        },
+        body: JSON.stringify({
+          threadId: GUI,
+          projectLocation: { kind: "posix", path: "/tmp/project" },
+          agentKind: "cursor:work",
+          config: { model: "cursor-model" },
+          prompt: "Continue where the previous provider left off.",
+          initialSize: { cols: 120, rows: 30 },
+          presentationMode: "gui",
+          providerSwitch: { fromAgentKind: "codex" },
+        }),
+      });
+      expect(response.status).toBe(200);
+      await expect(response.json()).resolves.toEqual({ threadId: GUI });
+      expect(receiptState("switch-with-mutation-lock")).toBe("completed");
+      expect(dbGetThread(GUI)).toMatchObject({ agentKind: "cursor:work", status: "launching" });
+      expect(callSupervisor).toHaveBeenCalledWith(
+        "startThread",
+        expect.objectContaining({ threadId: GUI, agentKind: "cursor:work" }),
+        expect.objectContaining({
+          skipThreadMutation: true,
+          assertLaunchCurrent: expect.any(Function),
+        }),
+      );
+    });
+
+    it("forwards skipThreadMutation and assertLaunchCurrent on thread start command without self-deadlocking", async () => {
+      const newThreadId = "thread-start-cmd-with-lock";
+      const response = await fetch(
+        new URL(`/api/threads/${newThreadId}/command`, info.httpBaseUrl),
+        {
+          method: "POST",
+          headers: {
+            authorization: `Bearer ${token}`,
+            "content-type": "application/json",
+            [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
+            "x-poracode-command-id": "start-cmd-with-mutation-lock",
+          },
+          body: JSON.stringify({
+            kind: "start",
+            projectId: "project-1",
+            agentKind: "cursor:work",
+            config: { model: "cursor-model" },
+            prompt: "hello",
+            initialSize: { cols: 120, rows: 30 },
+            presentationMode: "gui",
+          }),
+        },
+      );
+      expect(response.status).toBe(200);
+      expect(callSupervisor).toHaveBeenCalledWith(
+        "startThread",
+        expect.objectContaining({ threadId: newThreadId, agentKind: "cursor:work" }),
+        expect.objectContaining({
+          skipThreadMutation: true,
+          assertLaunchCurrent: expect.any(Function),
+        }),
+      );
     });
   },
 );
