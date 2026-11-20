@@ -14,6 +14,7 @@ import {
 import type { AgentAdapter, AgentEnvContext, AgentUpdaterCommand } from "./base";
 import { decodePowerShellClixml, detectProbeLocation, readAgentCommandOutput } from "./base";
 import { AGENT_UPDATE_COMMAND_TIMEOUT_MS } from "@/shared/agents/updatePolicy";
+import { resolveAgentBinaryPath } from "./binaryResolver";
 import { runSerializedAgentUpdate, runSerializedUpdateCommand } from "./updateSerialization";
 import { resolveUpdateInstallPath } from "./updateInstallPath";
 
@@ -39,14 +40,40 @@ export function resolveUpdateCommand(
     return fromAdapter;
   }
 
-  const command = resolveSharedUpdateCommand({
-    update: status.update ?? adapter.update,
+  const update = status.update ?? adapter.update;
+  // When `installPath` (realpath) differs from `status.executablePath` and
+  // unambiguously identifies a package manager — for example
+  // `/opt/homebrew/lib/node_modules/...` (Homebrew's npm) vs
+  // `/opt/homebrew/Cellar/...` (Homebrew formula) vs `/usr/local/Cellar/...`
+  // (Intel Homebrew) — prefer it over the symlink path. Fall back to
+  // `status.executablePath` when the symlink target sits outside standard
+  // package-manager trees (e.g. a Homebrew cask pointing into `/Applications`).
+  const installPath = options?.installPath;
+  if (installPath && installPath !== status.executablePath) {
+    const installPathManager = resolveSharedUpdateCommand({
+      update,
+      executablePath: installPath,
+      envKind: envContext.envKind,
+      installedPackageManagerOnly: true,
+    });
+    if (installPathManager) {
+      if (options?.skipBuiltIn || !update?.builtIn) {
+        return installPathManager;
+      }
+      return resolveSharedUpdateCommand({
+        update,
+        executablePath: installPath,
+        envKind: envContext.envKind,
+      });
+    }
+  }
+
+  return resolveSharedUpdateCommand({
+    update,
     executablePath: status.executablePath,
     envKind: envContext.envKind,
     ...(options?.skipBuiltIn ? { skipBuiltIn: true } : {}),
   });
-  if (!command) return undefined;
-  return command;
 }
 
 /**
@@ -298,27 +325,28 @@ interface LatestVersionCacheEntry {
 const latestVersionCache = new Map<string, LatestVersionCacheEntry>();
 
 /**
- * GET a JSON document from the npm registry. Best-effort: HTTP errors, aborts
- * and malformed responses are logged and resolve to undefined so no caller has
- * to handle a rejection.
+ * GET a JSON document from an upstream package registry. Best-effort: HTTP
+ * errors, aborts and malformed responses are logged and resolve to undefined
+ * so no caller has to handle a rejection.
  */
-async function fetchNpmRegistryJson(
+async function fetchRegistryJson(
   url: string,
   accept: string,
-  pkg: string,
+  probeKind: string,
+  target: string,
 ): Promise<unknown | undefined> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 8000);
   try {
     const response = await fetch(url, { signal: controller.signal, headers: { accept } });
     if (!response.ok) {
-      console.warn(`[updateAgent] npm registry probe failed for ${pkg}: HTTP ${response.status}`);
+      console.warn(`[updateAgent] ${probeKind} failed for ${target}: HTTP ${response.status}`);
       return undefined;
     }
     return await response.json();
   } catch (error) {
     console.warn(
-      `[updateAgent] npm registry probe for ${pkg} threw: ${error instanceof Error ? error.message : String(error)}`,
+      `[updateAgent] ${probeKind} for ${target} threw: ${error instanceof Error ? error.message : String(error)}`,
     );
     return undefined;
   } finally {
@@ -327,9 +355,10 @@ async function fetchNpmRegistryJson(
 }
 
 async function fetchNpmLatestVersion(pkg: string): Promise<string | undefined> {
-  const data = (await fetchNpmRegistryJson(
+  const data = (await fetchRegistryJson(
     `https://registry.npmjs.org/${encodeURIComponent(pkg)}/latest`,
     "application/json",
+    "npm registry probe",
     pkg,
   )) as { version?: unknown } | undefined;
   if (!data) return undefined;
@@ -347,9 +376,10 @@ async function fetchNpmLatestVersion(pkg: string): Promise<string | undefined> {
 const NPM_ABBREVIATED_DOCUMENT_ACCEPT = "application/vnd.npm.install-v1+json";
 
 async function fetchNpmPublishedVersions(pkg: string): Promise<string[] | undefined> {
-  const data = (await fetchNpmRegistryJson(
+  const data = (await fetchRegistryJson(
     `https://registry.npmjs.org/${encodeURIComponent(pkg)}`,
     NPM_ABBREVIATED_DOCUMENT_ACCEPT,
+    "npm registry probe",
     pkg,
   )) as { versions?: unknown } | undefined;
   if (!data) return undefined;
@@ -364,6 +394,22 @@ async function fetchNpmPublishedVersions(pkg: string): Promise<string[] | undefi
 function parseHomebrewCaskVersion(source: string): string | undefined {
   const match = /^\s*version\s+"([^"]+)"/m.exec(source);
   return match?.[1];
+}
+
+async function fetchHomebrewFormulaLatestVersion(formula: string): Promise<string | undefined> {
+  const data = (await fetchRegistryJson(
+    `https://formulae.brew.sh/api/formula/${encodeURIComponent(formula)}.json`,
+    "application/json",
+    "Homebrew formula probe",
+    formula,
+  )) as { versions?: { stable?: unknown } } | undefined;
+  if (!data) return undefined;
+  const stable = data.versions?.stable;
+  if (typeof stable === "string" && stable.trim().length > 0) {
+    return stable.trim();
+  }
+  console.warn(`[updateAgent] Homebrew formula probe for ${formula} returned no stable version`);
+  return undefined;
 }
 
 async function fetchHomebrewCaskLatestVersion(cask: string): Promise<string | undefined> {
@@ -439,6 +485,56 @@ async function fetchLatestVersionFromUrls(urls: readonly string[]): Promise<stri
   return undefined;
 }
 
+export interface LatestVersionAdapterOptions {
+  /** Explicitly force or skip the Homebrew formula channel probe. */
+  preferHomebrewFormula?: boolean;
+  /** Lazily read the cached native status so Homebrew installs match their bottle channel. */
+  getNativeStatus?: () => AgentStatus | undefined;
+  /** Supervisor base dir for resolving symlinked native install paths. */
+  baseDir?: string;
+}
+
+async function shouldUseHomebrewFormulaChannel(
+  adapter: AgentAdapter,
+  options?: LatestVersionAdapterOptions,
+): Promise<boolean> {
+  if (!adapter.update?.brew) return false;
+  if (options?.preferHomebrewFormula !== undefined) return options.preferHomebrewFormula;
+  if (!options?.getNativeStatus) return false;
+  // Built-in updaters always outrank Homebrew unless an adapter supplies a custom builder.
+  if (adapter.update.builtIn && !adapter.buildUpdateCommand) return false;
+
+  const nativeStatus = options.getNativeStatus();
+  const envKind = nativeStatus?.envKind ?? (process.platform === "win32" ? "windows" : "posix");
+  if (envKind === "windows") return false;
+
+  // Fall back to resolving the binary on PATH / well-known POSIX dirs when the
+  // disk status cache is cold or invalidated while the renderer shows persisted statuses.
+  const executablePath =
+    nativeStatus?.executablePath ??
+    (adapter.binary
+      ? resolveAgentBinaryPath({ kind: "posix", path: "." }, adapter.binary)
+      : undefined);
+  if (!executablePath) return false;
+
+  const envContext: AgentEnvContext = {
+    envKind,
+    ...(options?.baseDir ? { baseDir: options.baseDir } : {}),
+  };
+  const statusForResolve: AgentStatus = nativeStatus ?? {
+    kind: adapter.kind,
+    label: adapter.label,
+    installed: true,
+    authState: "unknown",
+    executablePath,
+    capabilities: adapter.capabilities,
+    ...(adapter.update ? { update: adapter.update } : {}),
+  };
+  const installPath = await resolveUpdateInstallPath(executablePath, envContext);
+  const command = resolveUpdateCommand(adapter, statusForResolve, envContext, { installPath });
+  return command?.strategy === "brew";
+}
+
 /**
  * Resolve the latest published version for an agent kind. Used by the UI to
  * decide whether to surface the update button. Cached for `LATEST_VERSION_TTL_MS`
@@ -450,16 +546,32 @@ async function fetchLatestVersionFromUrls(urls: readonly string[]): Promise<stri
  */
 export async function getLatestVersionForAdapter(
   adapter: AgentAdapter,
+  options?: LatestVersionAdapterOptions,
 ): Promise<GetLatestAgentVersionResult> {
   const agentKind = adapter.kind;
-  const cached = latestVersionCache.get(agentKind);
+  const brewFormula = (await shouldUseHomebrewFormulaChannel(adapter, options))
+    ? adapter.update?.brew
+    : undefined;
+  const cacheKey = brewFormula ? `${agentKind}:brew` : agentKind;
+  const cached = latestVersionCache.get(cacheKey);
   if (cached && Date.now() - cached.ts < LATEST_VERSION_TTL_MS) {
     return cached.result;
   }
 
   const npmName = getNpmPackageNameForUpdate(adapter.update);
   let result: GetLatestAgentVersionResult = { source: "unknown" };
-  if (adapter.update?.latestVersionUrls?.length) {
+  if (brewFormula) {
+    // Homebrew bottles can trail npm by hours/days. When the native install is
+    // managed by `brew`, report Homebrew's own formula version (without falling
+    // back to npm on transient errors) so Poracode never advertises an npm
+    // release that `brew upgrade` cannot install yet.
+    const version = await fetchHomebrewFormulaLatestVersion(brewFormula);
+    if (version) {
+      // Reuse the existing `"version-url"` source tag so older remote clients
+      // with strict `GetLatestAgentVersionResult` schemas accept the payload.
+      result = { version, source: "version-url" };
+    }
+  } else if (adapter.update?.latestVersionUrls?.length) {
     const version = await fetchLatestVersionFromUrls(adapter.update.latestVersionUrls);
     if (version) {
       result = { version, source: "version-url" };
@@ -475,7 +587,7 @@ export async function getLatestVersionForAdapter(
       result = { version, source: "npm" };
     }
   }
-  latestVersionCache.set(agentKind, { ts: Date.now(), result });
+  latestVersionCache.set(cacheKey, { ts: Date.now(), result });
   return result;
 }
 

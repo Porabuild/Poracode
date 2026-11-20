@@ -6,6 +6,13 @@ import type {
 import type { CursorSdkPackageSource, CursorSdkPinHint } from "./sdkLoaderSupport";
 
 /**
+ * Version 8 adds `sdk.pinFallbackOnly` (so detection probes query active global
+ * package managers before falling back to a recorded `pinnedRoot`) and optional
+ * `CursorSdkWorkerError.sdk` metadata (so post-discovery auth/catalog errors
+ * still report the newly discovered package version and root). A stale staged
+ * worker would ignore `pinFallbackOnly` and omit `error.sdk`, staying pinned to
+ * an outdated prefix after an update installs into a different active root.
+ *
  * Version 7 adds `InitializeResult.sdkVersion` (reported from both discovered
  * and explicit-entry manifests) so the host knows whether the loaded SDK uses
  * inclusive `inputTokens` (`@cursor/sdk` 1.1.0–1.4.0+: `totalTokens = input +
@@ -44,7 +51,7 @@ import type { CursorSdkPackageSource, CursorSdkPinHint } from "./sdkLoaderSuppor
  * gets it re-staged from current source (the SSH runtime bundle re-installs
  * whenever the built worker bytes change).
  */
-export const CURSOR_SDK_WORKER_PROTOCOL_VERSION = 7;
+export const CURSOR_SDK_WORKER_PROTOCOL_VERSION = 8;
 
 export interface CursorSdkWorkerModelParameter {
   id: string;
@@ -210,10 +217,20 @@ export interface CursorSdkWorkerAgentMessage {
   message: unknown;
 }
 
+export type CursorSdkWorkerResolvedMetadata = Pick<
+  CursorSdkWorkerProbeResult,
+  "sdkVersion" | "source" | "packageRoot"
+>;
+
 export interface CursorSdkWorkerError {
   name: string;
   message: string;
   code?: string;
+  /**
+   * Resolved package metadata when discovery and validation already succeeded
+   * before an auth or catalog error occurred.
+   */
+  sdk?: CursorSdkWorkerResolvedMetadata;
 }
 
 export type CursorSdkWorkerEvent =
@@ -251,6 +268,12 @@ export interface CursorSdkWorkerDiscovery {
    * reachable from this process' `PATH`.
    */
   pinnedRoot?: CursorSdkPinHint;
+  /**
+   * Try `pinnedRoot` only after global package-manager probes find nothing, so
+   * detection/rediscovery picks up an install or update written to a different
+   * active `npm`/`pnpm` global root.
+   */
+  pinFallbackOnly?: boolean;
   /**
    * Test/fast-path only. Normal callers let the worker discover the package
    * inside its own execution environment.

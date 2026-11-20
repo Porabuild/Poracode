@@ -63,11 +63,14 @@ function looksLikeBrewPath(executablePath: string | undefined): boolean {
   if (!executablePath) return false;
   const normalized = normalizeCommandPath(executablePath);
   return (
-    normalized.includes("/opt/homebrew/cellar/") ||
-    normalized.includes("/usr/local/cellar/") ||
     normalized.includes("/homebrew/cellar/") ||
+    normalized.includes("/homebrew/caskroom/") ||
+    normalized.includes("/usr/local/cellar/") ||
+    normalized.includes("/usr/local/caskroom/") ||
+    normalized.includes("/.linuxbrew/cellar/") ||
+    normalized.includes("/.linuxbrew/caskroom/") ||
     normalized.startsWith("/opt/homebrew/bin/") ||
-    normalized.startsWith("/home/linuxbrew/.linuxbrew/")
+    normalized.startsWith("/home/linuxbrew/.linuxbrew/bin/")
   );
 }
 

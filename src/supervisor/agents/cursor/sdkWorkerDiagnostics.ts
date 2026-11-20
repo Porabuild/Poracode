@@ -1,14 +1,20 @@
 import { classifyCursorSdkRuntimeError } from "./sdkLoaderSupport";
 import type { CursorSdkRunResult } from "./sdkProtocol";
-import type { CursorSdkWorkerError, CursorSdkWorkerMcpServer } from "./sdkWorkerProtocol";
+import type {
+  CursorSdkWorkerError,
+  CursorSdkWorkerMcpServer,
+  CursorSdkWorkerResolvedMetadata,
+} from "./sdkWorkerProtocol";
 
 export class WorkerDiagnosticError extends Error {
   readonly code: string;
+  readonly sdk: CursorSdkWorkerResolvedMetadata | undefined;
 
-  constructor(code: string, message: string) {
+  constructor(code: string, message: string, sdk?: CursorSdkWorkerResolvedMetadata) {
     super(message);
     this.name = "CursorSdkWorkerError";
     this.code = code;
+    this.sdk = sdk;
   }
 }
 
@@ -76,15 +82,22 @@ export class CursorSdkWorkerDiagnostics {
     }
   }
 
-  serializeError(error: unknown): CursorSdkWorkerError {
+  serializeError(
+    error: unknown,
+    fallbackSdk?: CursorSdkWorkerResolvedMetadata,
+  ): CursorSdkWorkerError {
     const record = asWorkerRecord(error);
     const rawMessage = error instanceof Error ? error.message : String(error);
+    const resolvedSdk =
+      error instanceof WorkerDiagnosticError && error.sdk ? error.sdk : fallbackSdk;
+    const sdk = resolvedSdk ? this.sanitizePayload(resolvedSdk) : undefined;
     const classified = classifyCursorSdkRuntimeError(error);
     if (classified) {
       return {
         name: error instanceof Error ? error.name : "CursorSdkWorkerError",
         message: classified.message,
         code: classified.code,
+        ...(sdk ? { sdk } : {}),
       };
     }
     const message = this.redact(rawMessage);
@@ -104,6 +117,7 @@ export class CursorSdkWorkerDiagnostics {
       name,
       message,
       ...(code ? { code } : {}),
+      ...(sdk ? { sdk } : {}),
     };
   }
 

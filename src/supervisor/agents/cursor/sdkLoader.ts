@@ -9,6 +9,7 @@ import {
   resolveCursorSdkPlatformHelper,
   type CursorSdkLoaderDependencies,
   type CursorSdkLoadOptions,
+  type DiscoveredCursorSdkPackage,
 } from "./sdkPackageDiscovery";
 import {
   classifyCursorSdkRuntimeError,
@@ -65,8 +66,56 @@ export async function loadCursorSdk(
 
   const discovery = await discoverCursorSdkPackage(options, dependencies);
   if ("diagnostic" in discovery) return { ok: false, diagnostic: discovery.diagnostic };
-  const pkg = discovery;
 
+  const primary = await loadDiscoveredCursorSdk(
+    discovery,
+    options,
+    dependencies,
+    platformHelperName,
+  );
+  if (primary.ok || primary.diagnostic.code === "auth_missing") return primary;
+
+  // Under `pinFallbackOnly`, a broken or incompatible active global copy must
+  // not hide a still-valid recorded installation in a different prefix.
+  if (
+    options.pinFallbackOnly &&
+    options.pinnedRoot &&
+    !options.configuredPath &&
+    options.includeGlobal !== false
+  ) {
+    const pinnedDiscovery = await discoverCursorSdkPackage(
+      {
+        ...options,
+        pinFallbackOnly: false,
+      },
+      {
+        ...dependencies,
+        resolvePackageManagerRoots: async () => [],
+      },
+    );
+    if (
+      !("diagnostic" in pinnedDiscovery) &&
+      pinnedDiscovery.packageRoot !== discovery.packageRoot
+    ) {
+      const fallback = await loadDiscoveredCursorSdk(
+        pinnedDiscovery,
+        options,
+        dependencies,
+        platformHelperName,
+      );
+      if (fallback.ok || fallback.diagnostic.code === "auth_missing") return fallback;
+    }
+  }
+
+  return primary;
+}
+
+async function loadDiscoveredCursorSdk(
+  pkg: DiscoveredCursorSdkPackage,
+  options: CursorSdkLoadOptions,
+  dependencies: CursorSdkLoaderDependencies,
+  platformHelperName: string,
+): Promise<CursorSdkLoadResult> {
   if (!isSupportedCursorSdkVersion(pkg.version)) {
     return cursorSdkFailure(
       "version_incompatible",
@@ -123,7 +172,12 @@ export async function loadCursorSdk(
       "auth_missing",
       "The Cursor SDK requires an API key; the installed cursor-agent login cannot be reused.",
       true,
-      { environmentVariable: "CURSOR_API_KEY" },
+      {
+        environmentVariable: "CURSOR_API_KEY",
+        packageRoot: pkg.packageRoot,
+        sdkVersion: pkg.version,
+        source: pkg.source,
+      },
     );
   }
 

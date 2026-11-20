@@ -481,7 +481,12 @@ function respondOk(id: string, result: unknown): void {
 }
 
 function respondError(id: string, error: unknown): void {
-  emit({ type: "response", id, ok: false, error: diagnostics.serializeError(error) });
+  emit({
+    type: "response",
+    id,
+    ok: false,
+    error: diagnostics.serializeError(error, sdkRuntime.resolvedMetadata),
+  });
 }
 
 function emitRunEvent(event: CursorSdkWorkerEvent): void {

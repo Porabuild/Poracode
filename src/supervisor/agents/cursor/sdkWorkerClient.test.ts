@@ -64,6 +64,23 @@ describe("spawnCursorSdkWorker", () => {
     await client.dispose();
   });
 
+  it("forwards pinFallbackOnly to a native worker when requested alongside a pin", async () => {
+    const fixture = makeDiscoveryEchoFixture();
+    const client = await spawnCursorSdkWorker({
+      projectLocation: nativeProjectLocation(fixture.directory),
+      workerPath: fixture.path,
+      pinnedRoot: { packageRoot: "/opt/pinned/sdk", source: "global-npm" },
+      pinFallbackOnly: true,
+    });
+
+    const probeResult = await client.probe();
+    expect(discoveryEchoOf(probeResult)).toEqual({
+      pinnedRoot: { packageRoot: "/opt/pinned/sdk", source: "global-npm" },
+      pinFallbackOnly: true,
+    });
+    await client.dispose();
+  });
+
   it("keeps an explicitly configured location authoritative over the record", async () => {
     const fixture = makeDiscoveryEchoFixture();
     const client = await spawnCursorSdkWorker({

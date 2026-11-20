@@ -709,7 +709,10 @@ export class AgentRegistryService {
     }
     const adapter = this.deps.adapters.get(payload.agentKind);
     if (!adapter) return { source: "unknown" };
-    return getLatestVersionForAdapter(adapter);
+    return getLatestVersionForAdapter(adapter, {
+      getNativeStatus: () => this.agentStatusService.getCachedNativeStatus?.(payload.agentKind),
+      baseDir: this.deps.baseDir,
+    });
   }
 
   async getAgentConfigDefaults(

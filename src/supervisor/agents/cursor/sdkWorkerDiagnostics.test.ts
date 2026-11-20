@@ -1,5 +1,14 @@
-import { describe, expect, it } from "vitest";
-import { CursorSdkWorkerDiagnostics } from "./sdkWorkerDiagnostics";
+import { describe, expect, it, vi } from "vitest";
+import { CursorSdkWorkerDiagnostics, WorkerDiagnosticError } from "./sdkWorkerDiagnostics";
+
+const loadCursorSdkMock = vi.hoisted(() => vi.fn<typeof import("./sdkLoader").loadCursorSdk>());
+
+vi.mock("./sdkLoader", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("./sdkLoader")>();
+  return { ...actual, loadCursorSdk: loadCursorSdkMock };
+});
+
+import { CursorSdkWorkerRuntime } from "./sdkWorkerRuntime";
 
 describe("Cursor SDK worker diagnostics", () => {
   it("redacts credential-shaped MCP configuration without corrupting ordinary values", () => {
@@ -97,5 +106,85 @@ describe("Cursor SDK worker diagnostics", () => {
       /remote-user|remote(?:%20| )password|remote(?:%2F|\/)token/u,
     );
     expect(sanitized.text.match(/\[REDACTED\]/gu)).toHaveLength(23);
+  });
+
+  it("attaches resolved SDK metadata to serialized post-discovery errors", () => {
+    const diagnostics = new CursorSdkWorkerDiagnostics();
+    const resolved = {
+      sdkVersion: "1.4.2",
+      source: "global-npm" as const,
+      packageRoot: "/opt/homebrew/lib/node_modules/@cursor/sdk",
+    };
+
+    const fromDiagnostic = diagnostics.serializeError(
+      new WorkerDiagnosticError("auth_missing", "Cursor API key required", resolved),
+    );
+    expect(fromDiagnostic).toMatchObject({
+      code: "auth_missing",
+      sdk: resolved,
+    });
+
+    const fromCatalogError = diagnostics.serializeError(
+      Object.assign(new Error("Unauthorized"), { name: "AuthenticationError", status: 401 }),
+      resolved,
+    );
+    expect(fromCatalogError).toMatchObject({
+      code: "auth_invalid",
+      sdk: resolved,
+    });
+  });
+
+  it("forwards discovery.pinFallbackOnly and preserves resolved SDK metadata on auth_missing", async () => {
+    loadCursorSdkMock.mockReset().mockResolvedValue({
+      ok: false,
+      diagnostic: {
+        code: "auth_missing",
+        message: "Cursor API key required",
+        recoverable: true,
+        details: {
+          environmentVariable: "CURSOR_API_KEY",
+          packageRoot: "/opt/homebrew/lib/node_modules/@cursor/sdk",
+          sdkVersion: "1.4.2",
+          source: "global-npm",
+        },
+      },
+    });
+    const runtime = new CursorSdkWorkerRuntime();
+
+    await expect(
+      runtime.load(
+        {
+          pinnedRoot: {
+            packageRoot: "/Users/me/.local/share/fnm/node_modules/@cursor/sdk",
+            source: "global-npm",
+          },
+          pinFallbackOnly: true,
+        },
+        "/workspace",
+      ),
+    ).rejects.toMatchObject({
+      code: "auth_missing",
+      sdk: {
+        sdkVersion: "1.4.2",
+        source: "global-npm",
+        packageRoot: "/opt/homebrew/lib/node_modules/@cursor/sdk",
+      },
+    });
+
+    expect(loadCursorSdkMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        pinnedRoot: {
+          packageRoot: "/Users/me/.local/share/fnm/node_modules/@cursor/sdk",
+          source: "global-npm",
+        },
+        pinFallbackOnly: true,
+      }),
+      expect.objectContaining({ importModule: expect.any(Function) }),
+    );
+    expect(runtime.resolvedMetadata).toEqual({
+      sdkVersion: "1.4.2",
+      source: "global-npm",
+      packageRoot: "/opt/homebrew/lib/node_modules/@cursor/sdk",
+    });
   });
 });

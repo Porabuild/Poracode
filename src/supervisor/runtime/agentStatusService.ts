@@ -420,14 +420,20 @@ export class AgentStatusService {
 
   /** Return the last detected installed version for one native or WSL provider. */
   getCachedVersion(kind: AgentKind, wslDistro?: string): string | undefined {
-    const cached = this.readAcceptedStatuses();
-    const statuses = wslDistro ? cached.wsl : cached.windows;
-    return statuses.find(
+    if (!wslDistro) return this.getCachedNativeStatus(kind)?.version;
+    return this.readAcceptedStatuses().wsl.find(
       (status) =>
         status.kind === kind &&
         status.installed &&
-        (wslDistro === undefined || status.envDistro?.toLowerCase() === wslDistro.toLowerCase()),
+        status.envDistro?.toLowerCase() === wslDistro.toLowerCase(),
     )?.version;
+  }
+
+  /** Return the last detected installed native status for one provider, if known. */
+  getCachedNativeStatus(kind: AgentKind): AgentStatus | undefined {
+    return this.readAcceptedStatuses([]).windows.find(
+      (status) => status.kind === kind && status.installed,
+    );
   }
 
   /** Registry changes retire both active probes and the previously ready view. */

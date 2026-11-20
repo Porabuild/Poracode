@@ -218,6 +218,7 @@ export function ThreadAgentUpdateDock(props: {
         toast.danger(t`Unable to update ${updateLabel}.`);
         return;
       }
+      let binaryOutput: string | undefined;
       if (runtimeCommand) {
         const exitCode = await new Promise<number>((resolve) => {
           const opened = runAgentInstallCommand({
@@ -236,6 +237,7 @@ export function ThreadAgentUpdateDock(props: {
           envKind: scope.envKind,
           ...(scope.wslDistro ? { wslDistro: scope.wslDistro } : {}),
         });
+        binaryOutput = result.output;
         if (!result.ok) {
           const detail = localizeCatalogMessage(result.output?.trim() ?? "");
           toast.danger(
@@ -246,16 +248,17 @@ export function ThreadAgentUpdateDock(props: {
           return;
         }
       }
-      const response = await readBridge().refreshAgentStatuses(currentWslDistros(), {
+      const env = scopeEnvForStatus(agentStatus);
+      const wslDistros =
+        env.kind === "wsl"
+          ? [...new Set([...currentWslDistros(), env.distro])]
+          : currentWslDistros();
+      const response = await readBridge().refreshAgentStatuses(wslDistros, {
         agentKinds: [agentStatus.kind],
-        envs: [scopeEnvForStatus(agentStatus)],
+        envs: [env],
       });
       if (runtimeUpdate?.commandForVersion) {
-        const refreshed = findStatusForTarget(
-          response,
-          agentStatus.kind,
-          scopeEnvForStatus(agentStatus),
-        );
+        const refreshed = findStatusForTarget(response, agentStatus.kind, env);
         const detected = refreshed
           ? getComposerRuntimeUpdate(agentStatus.kind)?.({
               agentStatus: refreshed,
@@ -266,6 +269,24 @@ export function ThreadAgentUpdateDock(props: {
         // detected package is still the old release.
         if (!detected || isNewerVersion(resolvedLatest, detected)) {
           toast.danger(t`Unable to update ${updateLabel}.`);
+          return;
+        }
+      } else if (!runtimeCommand) {
+        const refreshed = findStatusForTarget(response, agentStatus.kind, env);
+        // Exit 0 alone does not guarantee the binary advanced (e.g. a package
+        // manager cache lag or `already installed` warning). Surface the output
+        // instead of claiming success when the re-probed binary is still behind.
+        if (
+          refreshed &&
+          (!refreshed.installed ||
+            (refreshed.version !== undefined && isNewerVersion(resolvedLatest, refreshed.version)))
+        ) {
+          const detail = localizeCatalogMessage(binaryOutput?.trim() ?? "");
+          toast.danger(
+            detail
+              ? t`Unable to update ${agentStatus.label}: ${detail.slice(0, 240)}`
+              : t`Unable to update ${agentStatus.label}.`,
+          );
           return;
         }
       }
