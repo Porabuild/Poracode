@@ -90,7 +90,7 @@ export function BrowserTabGroupMenu(props: {
         }}
         onBlur={commitTitle}
         placeholder={t`Group name`}
-        className="mb-1.5 w-full rounded-md border border-border bg-transparent px-2 py-1 text-[12px] text-foreground outline-none focus:border-accent"
+        className="mb-1.5 w-full rounded-md border border-border bg-transparent px-2 py-1 text-[12px] text-foreground outline-none focus-visible:outline-1 focus-visible:outline-offset-[-1px] focus-visible:outline-focus"
       />
       <div className="mb-1.5 flex items-center justify-between px-1 py-1">
         {GROUP_COLOR_ORDER.map((c: BrowserTabGroupColor) => (

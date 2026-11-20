@@ -114,7 +114,7 @@ export function ReviewThreadRow(props: {
             type="button"
             aria-label={t`Open ${location} in changes`}
             onClick={() => nav.openFile(path, thread.line, thread.side)}
-            className="break-all font-mono text-left text-foreground underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
+            className="break-all font-mono text-left text-foreground underline-offset-2 hover:underline focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-focus"
           >
             {location}
           </button>

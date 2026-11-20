@@ -203,7 +203,7 @@ export function PlanReviewModal(props: {
                               tabIndex={lineNumber === tabLine ? 0 : -1}
                               disabled={isDisabled}
                               data-plan-line={lineNumber}
-                              className={`relative flex w-12 shrink-0 cursor-pointer items-start justify-end rounded-xl pt-[3px] pr-3 font-mono text-[11px] tabular-nums outline-none select-none focus-visible:ring-2 focus-visible:ring-focus/50 ${
+                              className={`relative flex w-12 shrink-0 cursor-pointer items-start justify-end rounded-xl pt-[3px] pr-3 font-mono text-[11px] tabular-nums outline-none select-none focus-visible:focus-ring ${
                                 selected
                                   ? "text-foreground"
                                   : noted

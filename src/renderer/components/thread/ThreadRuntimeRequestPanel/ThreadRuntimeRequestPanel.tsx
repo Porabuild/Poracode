@@ -324,7 +324,7 @@ export function ThreadRuntimeRequestPanel(props: ThreadRuntimeRequestPanelProps)
                 aria-label={t`Request details`}
                 // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- keyboard focus enables native scrolling
                 tabIndex={0}
-                className="mt-0.5 max-h-[min(12rem,35vh)] overflow-y-auto pr-1 [scrollbar-gutter:stable] [overflow-wrap:anywhere] outline-none focus-visible:ring-2 focus-visible:ring-focus/50"
+                className="mt-0.5 max-h-[min(12rem,35vh)] overflow-y-auto pr-1 [scrollbar-gutter:stable] [overflow-wrap:anywhere] outline-none focus-visible:focus-ring"
               >
                 {approvalSummaryScrolls ? (
                   <div className="font-semibold whitespace-pre-wrap text-foreground [overflow-wrap:anywhere]">

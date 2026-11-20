@@ -25,7 +25,7 @@ export function CursorRuntimeCard(props: {
       }`}
     >
       <Radio
-        className="group w-full cursor-pointer focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-accent"
+        className="group w-full cursor-pointer focus-within:outline-1 focus-within:outline-offset-2 focus-within:outline-focus"
         value={props.value}
         isDisabled={!props.isSelectable}
       >

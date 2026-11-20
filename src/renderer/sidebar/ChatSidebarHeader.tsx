@@ -64,7 +64,7 @@ export function ChatSidebarHeader(props: {
               variant="secondary"
               className="shrink-0 border-b border-border/50 px-1 pt-1"
             >
-              <SearchField.Group className="!h-7 !min-h-7 !rounded-none !bg-transparent !shadow-none">
+              <SearchField.Group className="poracode-borderless-field !h-7 !min-h-7 !rounded-none !bg-transparent">
                 <SearchField.SearchIcon className="size-3 text-muted" />
                 <SearchField.Input
                   autoFocus // eslint-disable-line jsx-a11y/no-autofocus -- user-opened chat picker, expected search focus

@@ -34,7 +34,7 @@ export function DevicePreviewStage({ children, depth }: { children: ReactNode; d
           aria-valuemin={-40}
           aria-valuemax={40}
           aria-valuenow={angle.y}
-          className="absolute inset-0 cursor-grab touch-none rounded-lg focus-visible:ring-2 focus-visible:ring-accent active:cursor-grabbing"
+          className="absolute inset-0 cursor-grab touch-none rounded-lg focus-visible:focus-ring active:cursor-grabbing"
           onKeyDown={(event) => {
             if (!["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home"].includes(event.key))
               return;

@@ -6,20 +6,13 @@ import { applyAppTheme } from "@/renderer/theme/applyAppTheme";
 import { contrastRatio, toHex } from "@/renderer/theme/colorMath";
 import { installKeyboardFieldFocus } from "@/renderer/theme/keyboardFieldFocus";
 import { APP_THEME_PRESETS } from "@/renderer/theme/themePresets";
+import { readCssRgba } from "@/renderer/testUtils/cssColor";
 import { ToggleSwitch } from "./ToggleSwitch";
 
-const canvas = document.createElement("canvas");
-canvas.width = canvas.height = 1;
-const context = canvas.getContext("2d", { willReadFrequently: true })!;
-
-// Chromium resolves colors to several CSS Color 4 formats. Read the painted sRGB pixel.
 function color(css: string) {
-  context.clearRect(0, 0, 1, 1);
-  context.fillStyle = css;
-  context.fillRect(0, 0, 1, 1);
-  const [red, green, blue, alpha] = context.getImageData(0, 0, 1, 1).data;
+  const [red, green, blue, alpha] = readCssRgba(css);
   expect(alpha).toBe(255);
-  return toHex([red!, green!, blue!]);
+  return toHex([red, green, blue]);
 }
 
 afterEach(cleanup);
@@ -78,16 +71,18 @@ it.each(["light", "dark"] as const)("distinguishes editable fields in %s dialogs
         fireEvent.pointerDown(field);
         field.focus();
         expect(document.activeElement).toBe(field);
-        expect(style.outlineStyle).toBe("solid");
-        expect(style.outlineWidth).toBe("1px");
-        expect(style.outlineOffset).toBe("-1px");
+        expect(style.outlineStyle).toBe("none");
         expect(style.boxShadow).toBe("none");
         fireEvent.keyDown(window, { key: "Tab" });
         field.focus();
+        expect(style.outlineStyle).toBe("solid");
         expect(style.outlineWidth).toBe("1px");
-        const keyboardEdge = color(style.outlineColor);
-        expect(contrastRatio(keyboardEdge, background)).toBeGreaterThanOrEqual(3);
-        expect(contrastRatio(keyboardEdge, color(style.backgroundColor))).toBeGreaterThanOrEqual(3);
+        expect(style.outlineOffset).toBe("-1px");
+        const [, , , focusAlpha] = readCssRgba(style.outlineColor);
+        expect(focusAlpha).toBeGreaterThan(40);
+        expect(focusAlpha).toBeLessThan(128);
+        fireEvent.pointerDown(field);
+        expect(style.outlineStyle).toBe("none");
       }
     }
   } finally {

@@ -361,12 +361,12 @@ export function SettingsSidebar(props: {
               anywhere (incl. icon/padding) focus the input natively. */}
           <label
             data-poracode-find-scope="settings"
-            className="mb-1 flex cursor-text items-center gap-2 rounded-3xl px-2 py-1.5 text-muted transition-colors hover:bg-[var(--row-hover)] hover:text-foreground focus-within:bg-[var(--row-active)] focus-within:text-foreground"
+            className="mb-1 flex cursor-text items-center gap-2 rounded-3xl px-2 py-1.5 text-muted transition-colors hover:bg-[var(--row-hover)] hover:text-foreground focus-within:bg-[var(--row-active)] focus-within:text-foreground focus-within:focus-ring"
           >
             <Search className="size-4 shrink-0" />
             <input
               ref={sectionFilterRef}
-              className="min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted"
+              className="poracode-borderless-field min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted"
               placeholder={t`Search settings`}
               value={sectionFilter}
               onChange={(event) => setSectionFilter(event.target.value)}
