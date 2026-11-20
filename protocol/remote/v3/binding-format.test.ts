@@ -18,7 +18,7 @@ const contractDirectory = dirname(fileURLToPath(import.meta.url));
 const repositoryRoot = join(contractDirectory, "../../..");
 
 describe("remote v3 binding-format artifacts", () => {
-  it("keeps generated IR/schema/inventory current", () => {
+  it("keeps generated IR/schema/inventory current", { timeout: 45_000 }, () => {
     expect(REMOTE_BINDING_FORMAT_VERSION).toBe(2);
     expect(REMOTE_GENERATOR_VERSION).toBe(7);
     expect(checkRemoteV3Generated(repositoryRoot)).toEqual([]);

@@ -34,7 +34,7 @@ struct RichChatComposerView: View {
   var onInsertIntoComposer: (String) -> Void = { _ in }
   var resumeContext = RichChatComposerResumeContext()
   var openSideChat: (() -> Void)?
-  var sideQuestion: ((String) async -> Bool)?
+  var sideQuestion: (@MainActor (String) async -> Bool)?
   var crewContext: RichChatCrewComposerContext?
   var controlsDestination: Binding<RichChatComposerControlsPresentation?>?
   var stateOwnerID: ObjectIdentifier? = nil

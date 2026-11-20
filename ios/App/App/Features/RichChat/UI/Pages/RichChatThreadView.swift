@@ -257,9 +257,14 @@ struct RichChatThreadView: View {
     let hasStartedSession: Bool = thread?.sessionRef != nil
     let insertIntoComposer: (String) -> Void = { pageState.insertIntoComposerDraft($0) }
     let openSideChatHandler: (() -> Void)? = offersSideChat ? { openSideChat() } : nil
-    let sideQuestionHandler: ((String) async -> Bool)? = offersSideChat
-      ? { await openSideQuestion($0) }
-      : nil
+    let sideQuestionHandler: (@MainActor (String) async -> Bool)?
+    if offersSideChat {
+      sideQuestionHandler = { @MainActor question in
+        await openSideQuestion(question)
+      }
+    } else {
+      sideQuestionHandler = nil
+    }
     let isConnectingHost: Bool = session.phase == .connecting
     return RichChatThreadComposerSurface(
       state: pageState.draft, isExpanded: $composerExpanded,

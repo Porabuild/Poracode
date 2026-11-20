@@ -33,7 +33,7 @@ struct RichChatThreadComposerSurface: View {
   /// Resume for a cut-off turn, gated on the thread and transcript by the page.
   var resumeContext = RichChatComposerResumeContext()
   var openSideChat: (() -> Void)?
-  var sideQuestion: ((String) async -> Bool)?
+  var sideQuestion: (@MainActor (String) async -> Bool)?
   var crewContext: RichChatCrewComposerContext?
   var isConnectingHost = false
 
