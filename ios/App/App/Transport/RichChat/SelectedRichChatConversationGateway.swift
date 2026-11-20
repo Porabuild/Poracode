@@ -11,6 +11,9 @@ extension SelectedRichChatSessionGateway: RichChatConversationGateway {
   }
 
   func sendRichInput(target: RichChatThreadTarget, input: RichChatSendInput) async throws {
+    var prepared = input
+    if prepared.clientContext == nil { prepared.clientContext = try await prepareTurnContext(target: target) }
+    let input = prepared
     try await executeMutation(target: target, capability: .sessionOperate) { api in
       try await api.richSend(threadID: target.threadID, input: input)
     }
@@ -56,6 +59,9 @@ extension SelectedRichChatSessionGateway: RichChatConversationGateway {
     target: RichChatThreadTarget,
     input: RichSetPendingSteerInput
   ) async throws {
+    var prepared = input
+    if prepared.clientContext == nil { prepared.clientContext = try await prepareTurnContext(target: target) }
+    let input = prepared
     try await executeMutation(target: target, capability: .sessionOperate) { api in
       try await api.richSetSteer(threadID: target.threadID, input: input)
     }
@@ -71,6 +77,9 @@ extension SelectedRichChatSessionGateway: RichChatConversationGateway {
     target: RichChatThreadTarget,
     input: RichSetPendingSteerInput
   ) async throws {
+    var prepared = input
+    if prepared.clientContext == nil { prepared.clientContext = try await prepareTurnContext(target: target) }
+    let input = prepared
     try await executeMutation(target: target, capability: .sessionOperate) { api in
       try await api.richQueueFollowUp(threadID: target.threadID, input: input)
     }
@@ -206,9 +215,9 @@ extension SelectedRichChatSessionGateway: RichChatConversationGateway {
 
   func checkpointRevert(
     target: RichChatThreadTarget, itemID: String, operationKey: String
-  ) async throws {
+  ) async throws -> RichChatCheckpointRevertOutcome {
     try await executeMutation(target: target, capability: .sessionOperate) { api in
-      _ = try await api.richCheckpointRevert(
+      try await api.richCheckpointRevert(
         threadID: target.threadID,
         checkpointItemID: itemID,
         operationKey: operationKey

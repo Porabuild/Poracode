@@ -1,5 +1,5 @@
 import { readFile, stat } from "node:fs/promises";
-import type { ServerResponse } from "node:http";
+import type { IncomingMessage, ServerResponse } from "node:http";
 import { extname, resolve } from "node:path";
 import { RemoteHttpError } from "../auth";
 import { writeHardenedImageResponse } from "./httpResponses";
@@ -36,6 +36,7 @@ export async function writeLocalImageFile(
   res: ServerResponse,
   rawPath: string | null,
   variant?: string | null,
+  req?: IncomingMessage,
 ): Promise<void> {
   if (!rawPath || rawPath.trim().length === 0 || rawPath.includes("\0")) {
     throw new RemoteHttpError("invalid_path", "An absolute image path is required.", 400);
@@ -73,6 +74,7 @@ export async function writeLocalImageFile(
   // header set (CSP sandbox, nosniff, fixed-filename disposition; SVG as
   // attachment) instead of bare image bytes.
   writeHardenedImageResponse(res, {
+    ...(req ? { req } : {}),
     contentType: served?.mime ?? contentType,
     data: served?.data ?? data,
     cacheControl: "private, max-age=300",

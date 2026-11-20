@@ -7,37 +7,57 @@ import SwiftUI
 /// Disconnect action because the app keeps multiple desktops connected.
 struct HomeMoreSheet: View {
   @Environment(\.dismiss) private var dismiss
+  @Environment(\.homeWorkspace) private var workspace
+  @Environment(\.homeWorkspaceSelection) private var workspaceSelection
   @AppStorage(HomeShortcutPreferences.storageKey) private var shortcutStorageValue =
     HomeShortcutPreferences.defaultStorageValue
   @Bindable var session: AppSession
   @Binding var isRefreshing: Bool
 
   var body: some View {
+    let preferences = shortcutPreferences
+    let visibleShortcuts = Set(preferences.visible)
     NavigationStack {
       List {
         Section {
-          NavigationLink {
-            SettingsMoreRouteView(session: session, route: .profile)
-          } label: {
-            HomeMoreLabel(SettingsUIStrings.profileTitle, systemImage: "person.crop.circle")
+          if let workspaceSelection {
+            Picker(HomeStrings.workspace, selection: Binding(
+              get: { workspace.preferences.activeID(stored: workspaceSelection.wrappedValue) ?? "" },
+              set: { workspaceSelection.wrappedValue = $0 }
+            )) {
+              ForEach(workspace.preferences.workspaces) { item in Text(item.name).tag(item.id) }
+            }
+            .pickerStyle(.menu)
+            .accessibilityIdentifier("native-e2e.more.workspace")
+          }
+          if !visibleShortcuts.contains(.settings(.profile)) {
+            NavigationLink {
+              DeviceSettingsDestinationView(session: session, destination: .profile)
+            } label: {
+              HomeMoreLabel(SettingsUIStrings.profileTitle, systemImage: "person.crop.circle")
+            }
+          }
+          if !visibleShortcuts.contains(.settings(.usage)) {
+            NavigationLink {
+              DeviceSettingsDestinationView(session: session, destination: .usage)
+            } label: {
+              HomeMoreLabel(SettingsUIStrings.usageTitle, systemImage: "chart.bar.xaxis")
+            }
+          }
+          if !visibleShortcuts.contains(.settings(.connections)) {
+            NavigationLink {
+              DeviceSettingsDestinationView(session: session, destination: .connections)
+            } label: {
+              HomeMoreLabel(HomeStrings.connections, systemImage: "server.rack")
+            }
+            .accessibilityIdentifier("native-e2e.more.connections")
           }
           NavigationLink {
-            SettingsMoreRouteView(session: session, route: .usage)
-          } label: {
-            HomeMoreLabel(SettingsUIStrings.usageTitle, systemImage: "chart.bar.xaxis")
-          }
-          NavigationLink {
-            HostSwitcherView(session: session)
-          } label: {
-            HomeMoreLabel(HomeStrings.connections, systemImage: "server.rack")
-          }
-          .accessibilityIdentifier("native-e2e.more.connections")
-          NavigationLink {
-            ProjectManagementView(session: session, embeddedInNavigationStack: true)
+            HomeProjectsView(session: session)
           } label: {
             HomeMoreLabel(ProjectManagementStrings.title, systemImage: "folder")
           }
-          .disabled(session.currentProjectControllerSession == nil)
+          .disabled(session.homeProjectOptions.isEmpty)
           .accessibilityIdentifier("native-e2e.more.projects")
           if let lease = session.currentPortForwardingAccess?.lease {
             NavigationLink {
@@ -55,8 +75,9 @@ struct HomeMoreSheet: View {
           } label: {
             HomeMoreLabel(ProjectManagementStrings.notes, systemImage: "note.text")
           }
-          ForEach(shortcutPreferences.visible) { shortcut in
+          ForEach(preferences.moreEntries) { shortcut in
             shortcutDestination(shortcut)
+              .accessibilityIdentifier("native-e2e.more.shortcut.\(shortcut.rawValue)")
           }
           NavigationLink {
             HomeTerminalProjectsView(session: session)
@@ -70,11 +91,13 @@ struct HomeMoreSheet: View {
             HomeMoreLabel(BrowserMirrorStrings.title, systemImage: "globe")
           }
           .disabled(session.currentBrowserMirrorAccess == nil)
+          .accessibilityIdentifier("native-e2e.more.browser-mirror")
           NavigationLink {
             SettingsMoreIndexView(session: session)
           } label: {
             HomeMoreLabel(SettingsUIStrings.title, systemImage: "slider.horizontal.3")
           }
+          .accessibilityIdentifier("native-e2e.more.settings")
         }
 
         Section {
@@ -93,9 +116,17 @@ struct HomeMoreSheet: View {
           .buttonStyle(.plain)
         }
       }
+      .accessibilityIdentifier("native-e2e.more.list")
       .poracodeDrawerListStyle()
+      .poracodeReadableListMargins(680)
       .navigationTitle(HomeStrings.more)
       .navigationBarTitleDisplayMode(.inline)
+      .toolbar {
+        ToolbarItem(placement: .confirmationAction) {
+          Button(SettingsUIStrings.done) { dismiss() }
+            .accessibilityIdentifier("native-e2e.more.close")
+        }
+      }
     }
     .presentationDetents([.large])
     .presentationDragIndicator(.visible)
@@ -131,11 +162,19 @@ struct HomeMoreSheet: View {
       } label: {
         HomeMoreLabel(shortcut.title, systemImage: shortcut.systemImage)
       }
+    case .settings(let destination):
+      NavigationLink {
+        DeviceSettingsDestinationView(session: session, destination: destination)
+      } label: {
+        HomeMoreLabel(shortcut.title, systemImage: shortcut.systemImage)
+      }
+      .disabled(destination.requiresSelectedHost && session.currentSettingsHostSelection == nil)
     }
   }
 }
 
-private struct HomeTerminalProjectsView: View {
+struct HomeTerminalProjectsView: View {
+  @Environment(\.homeWorkspace) private var workspace
   @Bindable var session: AppSession
 
   var body: some View {
@@ -162,6 +201,7 @@ private struct HomeTerminalProjectsView: View {
           .accessibilityIdentifier("native-e2e.terminal.project.\(option.project.id)")
         }
         .listStyle(.insetGrouped)
+        .poracodeReadableListMargins(760)
       }
     }
     .navigationTitle(TerminalStrings.title)
@@ -169,22 +209,7 @@ private struct HomeTerminalProjectsView: View {
   }
 
   private var options: [HomeProjectFilterOption] {
-    HomeProjectOptionsPresentation.options(
-      hosts: session.state.hosts,
-      selectedConnectionID: session.state.selectedConnectionId,
-      selectedSnapshot: session.state.snapshot,
-      hostSnapshots: session.state.hostSnapshots,
-      isSynced: { connectionID, projectID in
-        session.projectSyncPreferences.isSynced(
-          connectionID: connectionID,
-          projectID: projectID
-        )
-      },
-      isOnline: { connectionID in
-        session.state.hostSocketStates[connectionID] == .online
-          || (connectionID == session.selectedConnectionId && session.socketState == .online)
-      }
-    )
+    session.homeProjectOptions.filter(workspace.includes)
   }
 }
 

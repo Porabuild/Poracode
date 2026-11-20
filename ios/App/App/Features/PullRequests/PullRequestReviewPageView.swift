@@ -19,8 +19,10 @@ struct PullRequestReviewPageView: View {
   @Bindable var mutations: GitHubPullRequestMutationController
   @Bindable var forge: ForgeReviewController
   let guideWriters: [AgentStatusRecord]
+  private let forgeSource: GitHubDocument?
 
   @State private var section = PullRequestReviewSection.overview
+  @State private var guideDraft = PullRequestGuideDraft()
   @State private var sheet: PullRequestReviewSheet?
   @State private var metadataSheet: PullRequestMetadataSheet?
   @State private var presentedState: String
@@ -41,6 +43,9 @@ struct PullRequestReviewPageView: View {
     self.mutations = mutations
     self.forge = forge
     self.guideWriters = guideWriters
+    forgeSource = route.forgeSourceData.flatMap { data in
+      (try? JSONDecoder().decode(GitHubJSONValue.self, from: data)).map(GitHubDocument.init(value:))
+    }
     _presentedState = State(initialValue: route.state)
     _presentedAsDraft = State(initialValue: route.isDraft)
   }
@@ -62,13 +67,21 @@ struct PullRequestReviewPageView: View {
   }
 
   private var isScoped: Bool { route.forgeSourceData != nil }
+  private var forgeTarget: ForgeReviewTarget? {
+    guard let target = forge.reviewTarget, target.lease == context?.lease,
+      target.number == route.number, target.source == forgeSource
+    else { return nil }
+    return target
+  }
   private var forgeDocuments: [ForgeReviewOperation: GitHubDocument] {
-    forge.isSelected(number: route.number) ? forge.documents : [:]
+    forgeTarget != nil ? forge.documents : [:]
   }
   private var isLoading: Bool { isScoped ? forge.loading : controller.loadState.isLoading }
   private var failure: GitHubOperationsFailure? { isScoped ? forge.failure : controller.failure }
   private var sections: [PullRequestReviewSection] {
-    PullRequestReviewSection.allCases.filter { $0 != .guide || (isScoped && forge.capabilities["reviewGuides"]?.boolValue == true) }
+    PullRequestReviewSection.allCases.filter {
+      $0 != .guide || forgeSource?["capabilities"]?.objectValue?["reviewGuides"]?.boolValue == true
+    }
   }
 
   var body: some View {
@@ -76,27 +89,16 @@ struct PullRequestReviewPageView: View {
       .navigationTitle(details?.title ?? route.title)
       .navigationBarTitleDisplayMode(.inline)
       .poracodeTopBar {
-        ScrollView(.horizontal, showsIndicators: false) {
-        Picker(PullRequestsStrings.title, selection: $section) {
-          ForEach(sections) { value in
-            Text(PullRequestsStrings.reviewSection(value)).tag(value)
-          }
-        }
-        .pickerStyle(.segmented)
-        .fixedSize(horizontal: true, vertical: false)
-        .padding(.horizontal)
-        .padding(.vertical, 8)
-        }
-        .poracodeBarBackground()
+        PullRequestSectionNavigator(sections: sections, selection: $section)
       }
       .toolbar { toolbarContent }
       .task(id: loadIdentity) { await load() }
       .sheet(item: $metadataSheet) { sheet in
         switch sheet {
-        case .labels:
-          PullRequestLabelsSheet(forge: forge, current: details?.labels ?? [])
-        case .reviewers:
-          PullRequestReviewersSheet(forge: forge, requested: details?.requestedReviewers ?? [])
+        case .labels(let draft):
+          PullRequestLabelsSheet(forge: forge, draft: draft)
+        case .reviewers(let draft):
+          PullRequestReviewersSheet(forge: forge, draft: draft)
         }
       }
       .sheet(item: $sheet) { sheet in
@@ -186,7 +188,11 @@ struct PullRequestReviewPageView: View {
           timeline: details?.timeline ?? []
         )
       case .guide:
-        PullRequestGuideView(forge: forge, writers: guideWriters) { sheet = .review }
+        if let target = forgeTarget {
+          PullRequestGuideView(forge: forge, target: target, draft: guideDraft, writers: guideWriters) {
+            sheet = .review
+          }
+        }
       }
     }
   }
@@ -263,19 +269,21 @@ struct PullRequestReviewPageView: View {
         }
 
         if isScoped, presentedState == "open" || presentedState == "draft" {
-          if forge.offers("labels") {
+          if let target = forgeTarget, forge.offers("labels") {
             Button {
-              metadataSheet = .labels
+              metadataSheet = .labels(PullRequestLabelsDraft(target: target, current: details?.labels ?? []))
             } label: {
               Label(PullRequestsStrings.editLabels, systemImage: "tag")
             }
+            .accessibilityIdentifier("native-e2e.pull-requests.open-labels")
           }
-          if forge.offers("reviewRequests") {
+          if let target = forgeTarget, forge.offers("reviewRequests") {
             Button {
-              metadataSheet = .reviewers
+              metadataSheet = .reviewers(PullRequestReviewersDraft(target: target, requested: details?.requestedReviewers ?? []))
             } label: {
               Label(PullRequestsStrings.requestReview, systemImage: "person.crop.circle.badge.plus")
             }
+            .accessibilityIdentifier("native-e2e.pull-requests.open-reviewers")
           }
         }
 
@@ -309,7 +317,7 @@ struct PullRequestReviewPageView: View {
           .disabled(isScoped && forge.capabilities["reopen"]?.boolValue != true)
         }
         }
-        .disabled(isScoped ? !forge.canMutate : context?.permits(.operate) != true || mutations.state.activeMutation != nil)
+        .disabled(isScoped ? forgeTarget == nil || !forge.canMutate : context?.permits(.operate) != true || mutations.state.activeMutation != nil)
 
         if let url = route.url.flatMap(URL.init(string:)) {
           Divider()
@@ -321,7 +329,10 @@ struct PullRequestReviewPageView: View {
         }
       } label: {
         Label(PullRequestsStrings.actions, systemImage: "ellipsis")
+          .symbolRenderingMode(.monochrome)
       }
+      .tint(.primary)
+      .accessibilityIdentifier("native-e2e.pull-requests.review-actions")
       .disabled(context == nil)
     }
   }
@@ -389,7 +400,8 @@ struct PullRequestReviewPageView: View {
 
   @discardableResult
   private func submitScoped(_ request: GitHubOperationRequest) async -> Bool {
-    guard let envelope = try? JSONDecoder().decode(GitHubJSONValue.self, from: GitHubOperationsRemoteV3Contract.request(request)),
+    guard let forgeTarget,
+      let envelope = try? JSONDecoder().decode(GitHubJSONValue.self, from: GitHubOperationsRemoteV3Contract.request(request)),
       var fields = envelope.objectValue?["payload"]?.objectValue,
       var operation = ForgeReviewOperation(rawValue: "forge" + request.procedure.rawValue.dropFirst(2))
     else { return false }
@@ -398,7 +410,7 @@ struct PullRequestReviewPageView: View {
       operation = .forgeMergePrAtHead
       fields["expectedHeadSha"] = .string(sha)
     }
-    let accepted = await forge.mutate(operation, fields: fields)
+    let accepted = await forge.mutate(operation, fields: fields, expectedTarget: forgeTarget)
     if accepted { applyMutationPresentation(request) }
     return accepted
   }

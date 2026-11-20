@@ -4,6 +4,8 @@ import { runtimePayloadProjectionPlugin } from "./runtimePayloadProjectionPlugin
 import {
   RUNTIME_PAYLOAD_PROJECTION_FILE,
   RUNTIME_PAYLOAD_PROJECTION_MODULE,
+  TOOL_PRESENTATION_ADAPTER_FILE,
+  TOOL_PRESENTATION_ADAPTER_MODULE,
   runtimePayloadProjectionDirectory,
 } from "./runtimePayloadProjectionSource.mjs";
 
@@ -19,14 +21,14 @@ export function runtimePayloadProjectionVitePlugin(root: string): Plugin {
           parts.length !== 2 ||
           !parts[0] ||
           parts[0].startsWith(".") ||
-          parts[1] !== RUNTIME_PAYLOAD_PROJECTION_FILE
+          ![RUNTIME_PAYLOAD_PROJECTION_FILE, TOOL_PRESENTATION_ADAPTER_FILE].includes(parts[1]!)
         )
           return;
         for (const environment of Object.values(server.environments)) {
-          const module = environment.moduleGraph.getModuleById(
-            "\0" + RUNTIME_PAYLOAD_PROJECTION_MODULE,
-          );
-          if (module) environment.moduleGraph.invalidateModule(module);
+          for (const id of [RUNTIME_PAYLOAD_PROJECTION_MODULE, TOOL_PRESENTATION_ADAPTER_MODULE]) {
+            const module = environment.moduleGraph.getModuleById("\0" + id);
+            if (module) environment.moduleGraph.invalidateModule(module);
+          }
         }
         server.ws.send({ type: "full-reload" });
       };

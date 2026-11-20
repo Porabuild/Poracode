@@ -1,0 +1,329 @@
+{
+  "version": 1,
+  "capabilities": {
+    "models": [
+      {
+        "id": "plain",
+        "label": "Plain"
+      },
+      {
+        "id": "other",
+        "label": "Other"
+      },
+      {
+        "id": "fusion-a-b",
+        "label": "Fusion"
+      },
+      {
+        "id": "fusion-a-b-fast",
+        "label": "Fusion Fast"
+      }
+    ],
+    "modelFamilies": [
+      {
+        "model": "fusion-a-b",
+        "label": "Fusion",
+        "selectors": [
+          {
+            "id": "lead",
+            "labelKey": "modelSelection.lead",
+            "options": [
+              {
+                "id": "a",
+                "label": "A"
+              }
+            ]
+          },
+          {
+            "id": "sidekick",
+            "labelKey": "modelSelection.sidekick",
+            "options": [
+              {
+                "id": "b",
+                "label": "B"
+              }
+            ]
+          }
+        ],
+        "bindings": {
+          "effort": "model",
+          "fast": "model"
+        },
+        "members": [
+          {
+            "model": "fusion-a-b",
+            "selections": {
+              "lead": "a",
+              "sidekick": "b"
+            },
+            "effort": "low",
+            "fast": false
+          },
+          {
+            "model": "fusion-a-b-fast",
+            "selections": {
+              "lead": "a",
+              "sidekick": "b"
+            },
+            "effort": "low",
+            "fast": true
+          }
+        ]
+      }
+    ]
+  },
+  "cases": [
+    {
+      "id": "ordinary-project-uses-client-model-choices",
+      "project": {
+        "agentKind": "fixture",
+        "model": "plain",
+        "effort": "low",
+        "fast": false,
+        "mode": "plan",
+        "approvalPolicy": "review"
+      },
+      "provider": {
+        "model": "plain",
+        "contextSize": "256k",
+        "effort": "low",
+        "fast": false
+      },
+      "preferences": {
+        "plain": {
+          "effort": "high",
+          "fast": true
+        }
+      },
+      "expected": {
+        "agentKind": "fixture",
+        "model": "plain",
+        "effort": "high",
+        "fast": true,
+        "mode": "agent",
+        "approvalPolicy": "review",
+        "contextSize": "256k"
+      }
+    },
+    {
+      "id": "ordinary-project-does-not-inherit-other-project-carriers",
+      "project": {
+        "agentKind": "fixture",
+        "model": "plain",
+        "effort": "high",
+        "fast": true,
+        "thinking": false
+      },
+      "provider": {
+        "model": "other",
+        "contextSize": "256k",
+        "effort": "low",
+        "fast": true
+      },
+      "preferences": {},
+      "expected": {
+        "agentKind": "fixture",
+        "model": "plain",
+        "thinking": false,
+        "contextSize": "256k"
+      }
+    },
+    {
+      "id": "explicit-fast-off-survives",
+      "project": {
+        "agentKind": "fixture",
+        "model": "plain",
+        "fast": true
+      },
+      "provider": {
+        "model": "plain",
+        "effort": "high",
+        "fast": true
+      },
+      "preferences": {
+        "plain": {
+          "fast": false
+        }
+      },
+      "expected": {
+        "agentKind": "fixture",
+        "model": "plain",
+        "fast": false
+      }
+    },
+    {
+      "id": "legacy-provider-preset-remains-readable",
+      "project": {
+        "agentKind": "fixture",
+        "model": "plain",
+        "effort": "low"
+      },
+      "provider": {
+        "model": "plain",
+        "effort": "high",
+        "fast": false
+      },
+      "preferences": {},
+      "expected": {
+        "agentKind": "fixture",
+        "model": "plain",
+        "effort": "high",
+        "fast": false
+      }
+    },
+    {
+      "id": "empty-model-preference-keeps-provider-preset-fields",
+      "provider": {
+        "model": "plain",
+        "effort": "high",
+        "fast": true,
+        "mode": "plan"
+      },
+      "preferences": {
+        "plain": {}
+      },
+      "expected": {
+        "model": "plain",
+        "effort": "high",
+        "fast": true,
+        "mode": "agent"
+      }
+    },
+    {
+      "id": "family-project-retains-empty-carriers-and-binding",
+      "project": {
+        "agentKind": "fixture",
+        "model": "fusion-a-b",
+        "effort": "",
+        "fast": false,
+        "thinking": false,
+        "contextSize": "",
+        "selectionBinding": {
+          "version": 1,
+          "kind": "family-member",
+          "owner": {
+            "agentKind": "fixture",
+            "presentationMode": "terminal"
+          },
+          "model": "fusion-a-b",
+          "inertValues": {
+            "effort": "",
+            "fast": false,
+            "contextSize": ""
+          }
+        },
+        "mode": "plan"
+      },
+      "provider": {
+        "model": "fusion-a-b",
+        "effort": "high",
+        "fast": true,
+        "contextSize": "256k"
+      },
+      "preferences": {
+        "fusion-a-b": {
+          "effort": "high",
+          "fast": true
+        }
+      },
+      "expected": {
+        "agentKind": "fixture",
+        "model": "fusion-a-b",
+        "effort": "",
+        "fast": false,
+        "thinking": false,
+        "contextSize": "",
+        "selectionBinding": {
+          "version": 1,
+          "kind": "family-member",
+          "owner": {
+            "agentKind": "fixture",
+            "presentationMode": "terminal"
+          },
+          "model": "fusion-a-b",
+          "inertValues": {
+            "effort": "",
+            "fast": false,
+            "contextSize": ""
+          }
+        },
+        "mode": "agent"
+      }
+    },
+    {
+      "id": "family-absent-context-inherits-only-missing-field",
+      "project": {
+        "agentKind": "fixture",
+        "model": "fusion-a-b",
+        "effort": "",
+        "fast": false
+      },
+      "provider": {
+        "model": "fusion-a-b",
+        "contextSize": "256k"
+      },
+      "preferences": {
+        "fusion-a-b": {
+          "effort": "high",
+          "fast": true
+        }
+      },
+      "expected": {
+        "agentKind": "fixture",
+        "model": "fusion-a-b",
+        "effort": "",
+        "fast": false,
+        "contextSize": "256k"
+      }
+    },
+    {
+      "id": "family-provider-retains-own-carriers",
+      "provider": {
+        "model": "fusion-a-b",
+        "effort": "",
+        "fast": false,
+        "contextSize": "",
+        "selectionBinding": {
+          "version": 1,
+          "kind": "family-member",
+          "owner": {
+            "agentKind": "fixture",
+            "presentationMode": "terminal"
+          },
+          "model": "fusion-a-b",
+          "inertValues": {
+            "effort": "",
+            "fast": false,
+            "contextSize": ""
+          }
+        }
+      },
+      "preferences": {
+        "fusion-a-b": {
+          "effort": "high",
+          "fast": true
+        }
+      },
+      "expected": {
+        "model": "fusion-a-b",
+        "effort": "",
+        "fast": false,
+        "contextSize": "",
+        "selectionBinding": {
+          "version": 1,
+          "kind": "family-member",
+          "owner": {
+            "agentKind": "fixture",
+            "presentationMode": "terminal"
+          },
+          "model": "fusion-a-b",
+          "inertValues": {
+            "effort": "",
+            "fast": false,
+            "contextSize": ""
+          }
+        }
+      }
+    }
+  ]
+}

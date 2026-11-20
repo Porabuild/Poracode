@@ -1,5 +1,6 @@
 import type {
   ProjectLocation,
+  ProjectNotesSaveResult,
   StartShellPayload,
   ThreadFollowUpQueueState,
 } from "@/shared/contracts";
@@ -336,6 +337,12 @@ function projectOwnedResult(
   }
   if (!result || typeof result !== "object" || Array.isArray(result)) {
     return result;
+  }
+  if (procedure === "dbSetProjectNotes" && projectedProjectId) {
+    const outcome = result as ProjectNotesSaveResult;
+    return outcome.notes
+      ? { ...outcome, notes: { ...outcome.notes, projectId: projectedProjectId } }
+      : outcome;
   }
   const record = result as Record<string, unknown>;
   const output =

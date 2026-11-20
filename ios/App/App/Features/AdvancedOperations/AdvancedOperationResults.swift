@@ -60,6 +60,7 @@ struct AdvancedSubagentSubscribeResult: Codable, Equatable, Sendable {
 
 struct AdvancedWorkflowAgentChatResult: Codable, Equatable, Sendable {
   let events: [AdvancedRuntimeEvent]
+  var itemPresentations: AdvancedJSONValue? = nil
 }
 
 enum AdvancedWorkflowChatRole: String, Codable, Sendable {

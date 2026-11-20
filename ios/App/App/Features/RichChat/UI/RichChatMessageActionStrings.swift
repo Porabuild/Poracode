@@ -1,11 +1,17 @@
 import Foundation
 
 enum RichChatMessageActionStrings {
+  static let revertLocalOnlyTitle = localized("rich.message.revert.localOnly.title", "Local history reverted")
+  static let revertLocalOnlyMessage = localized("rich.message.revert.localOnly.message", "The provider may still use the removed messages.")
   static let forkAction = localized("rich.fork.action", "Fork from here")
   static let forkTitle = localized("rich.fork.title", "Fork thread")
   static let forkCreate = localized("rich.fork.create", "Create fork")
   static let forkExplanation = localized("rich.fork.explanation", "Creates an independent conversation through a completed turn. Files stay in the same checkout.")
   static let forkName = localized("rich.fork.name", "Thread name")
+  private static let forkDefaultNameFormat = localized("rich.fork.defaultName", "%@ (fork)")
+  static func forkDefaultName(_ title: String) -> String {
+    String(format: forkDefaultNameFormat, locale: .current, title)
+  }
   static let forkBoundary = localized("rich.fork.boundary", "Inherited history ends here")
   static let sourceUnavailable = localized("rich.fork.sourceUnavailable", "The source conversation is unavailable.")
   private static let forkSourceFormat = localized("rich.fork.source", "Forked from %@")
@@ -13,9 +19,18 @@ enum RichChatMessageActionStrings {
     String(format: forkSourceFormat, locale: .current, title)
   }
   static let copy = localized("rich.message.copy", "Copy Message")
+  static let copyCode = localized("rich.code.copy", "Copy code")
   static let copyImage = localized("rich.image.copy", "Copy Image")
   static let shareImage = localized("rich.image.share", "Share Image")
   static let imagePreview = localized("rich.image.preview", "Image Preview")
+  static let previousImage = localized("rich.image.previous", "Previous image")
+  static let nextImage = localized("rich.image.next", "Next image")
+  private static let imagePositionFormat = localized("rich.image.position", "Image %1$lld of %2$lld")
+
+  static func imagePosition(_ position: Int, of count: Int) -> String {
+    String(format: imagePositionFormat, locale: .current, Int64(position), Int64(count))
+  }
+
   static let openImagePreview = localized(
     "rich.image.preview.open",
     "Open Image Preview"

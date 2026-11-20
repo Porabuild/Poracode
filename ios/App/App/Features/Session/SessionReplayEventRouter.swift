@@ -61,7 +61,8 @@ struct SessionReplayEventRouter {
       // transcript's retained older-turn level and continuations are no longer
       // provable. Invalidate through the RichChat suite the session already
       // owns and demand one authoritative refresh on the existing requester.
-      if let suite = host.activeRichChatSuite, suite.scope.threadID == threadId {
+      for suite in host.attachedRichChatSuites where suite.scope.threadID == threadId {
+        suite.runtimeLaunch.clear(through: seq)
         suite.transcript.invalidateForDeliveredReplacement(requiresRefresh: true)
         // The invalidation clears the roster but resets its watermark; pin the
         // reset's sequence so an older in-flight history cannot reintroduce it.
@@ -73,7 +74,8 @@ struct SessionReplayEventRouter {
       host.catalog.applyThreadExitedEvent(threadId: threadId, seq: seq)
       // A committed exit ends the session-scoped background roster even when
       // the host never publishes a trailing drained `background_tasks.changed`.
-      if let suite = host.activeRichChatSuite, suite.scope.threadID == threadId {
+      for suite in host.attachedRichChatSuites where suite.scope.threadID == threadId {
+        suite.runtimeLaunch.clear(through: seq)
         suite.transcript.drainBackgroundTasks(sequence: seq)
       }
       // Marked exited only — the authority never re-opens an exited terminal.

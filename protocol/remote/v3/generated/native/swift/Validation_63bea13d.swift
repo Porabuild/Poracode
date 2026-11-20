@@ -5,6 +5,10 @@ public extension RemoteSchemas {
 }
 
 public extension RemoteSchemas {
+  static let schema_6a18d2072710cec2 = RemoteSchema(type: "string", literals: [.string("view")], unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
   static let schema_6a2600edfb55d776 = RemoteSchema(type: "string", literals: [.string("user")], unknownPolicy: .strip)
 }
 
@@ -34,6 +38,10 @@ public extension RemoteSchemas {
 
 public extension RemoteSchemas {
   static let schema_6bb6e13415c8cbba = RemoteSchema(type: "string", format: "uri", unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
+  static let schema_6beecd6e512e8794 = RemoteSchema(type: "object", required: Set(["label"]), properties: ["label": RemoteSchemas.schema_dfc3f3726c991dbe, "model": RemoteSchemas.schema_3cdb2ff0de916278, "phaseTitle": RemoteSchemas.schema_3cdb2ff0de916278], additionalAllowed: true, unknownPolicy: .strip)
 }
 
 public extension RemoteSchemas {

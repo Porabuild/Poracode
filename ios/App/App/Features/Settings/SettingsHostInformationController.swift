@@ -17,10 +17,13 @@ final class SettingsHostInformationController {
   private(set) var agentsState: SettingsLoadState = .idle
   private(set) var usageState: SettingsLoadState = .idle
   private(set) var devicesState: SettingsLoadState = .idle
+  var isDiscoveringAgents: Bool { discoveryID != nil }
 
   @ObservationIgnored private let gateway: any SettingsSessionGateway
   @ObservationIgnored private var requestOrdinal: UInt64 = 0
   @ObservationIgnored private var task: Task<Void, Never>?
+  @ObservationIgnored private var discoveryTask: Task<Void, Never>?
+  private var discoveryID: UUID?
 
   init(gateway: any SettingsSessionGateway) { self.gateway = gateway }
 
@@ -29,6 +32,10 @@ final class SettingsHostInformationController {
     requestOrdinal &+= 1
     task?.cancel()
     task = nil
+    // A discovery POST can already be running on the host. Stop projecting
+    // it into this page, but do not cancel or replay that host-owned work.
+    discoveryTask = nil
+    discoveryID = nil
     self.lease = lease
     agentStatuses = nil
     providerUsage = nil
@@ -39,6 +46,10 @@ final class SettingsHostInformationController {
   }
 
   func refresh(_ kind: SettingsHostInformationKind) async {
+    if kind == .agents, let discoveryTask {
+      await discoveryTask.value
+      return
+    }
     guard let lease else { return }
     requestOrdinal &+= 1
     let ordinal = requestOrdinal
@@ -73,6 +84,50 @@ final class SettingsHostInformationController {
       if self.requestOrdinal == ordinal { self.task = nil }
     }
     task = pending
+    await pending.value
+  }
+
+  /// One explicit probe, then an authoritative read. This unstructured task
+  /// can settle after the Settings view leaves; page loads remain read-only.
+  func discoverAgents(_ request: SettingsAgentDiscoveryRequest, lease expected: SettingsHostLease) async {
+    guard lease == expected else { return }
+    if let discoveryTask { await discoveryTask.value; return }
+    requestOrdinal &+= 1
+    task?.cancel(); task = nil
+    let id = UUID(), previous = agentStatuses, gateway = self.gateway
+    discoveryID = id
+    agentsState = .loading
+    let pending = Task {
+      defer {
+        if self.discoveryID == id {
+          self.discoveryTask = nil; self.discoveryID = nil
+        }
+      }
+      do {
+        guard self.lease == expected, self.discoveryID == id else { return }
+        let discovered = try await gateway.discoverAgents(request, lease: expected)
+        guard self.lease == expected, self.discoveryID == id else { return }
+        let fetched = try await gateway.agentStatuses(lease: expected)
+        guard self.lease == expected, self.discoveryID == id else { return }
+        self.agentStatuses = fetched.mergingDiscovery(discovered,
+          requestedDistros: request.wslDistros, previous: previous)
+        self.agentsState = .loaded
+      } catch {
+        guard self.lease == expected, self.discoveryID == id else { return }
+        let failure = SettingsOperationFailure.map(error)
+        if failure == .ambiguousOutcome {
+          // Reconcile once without repeating the probe or claiming it completed.
+          // An uncertain scan supplies no complete manually targeted WSL list.
+          if let fetched = try? await gateway.agentStatuses(lease: expected) {
+            guard self.lease == expected, self.discoveryID == id else { return }
+            self.agentStatuses = fetched.mergingDiscovery(nil, requestedDistros: [], previous: previous)
+          }
+        }
+        guard self.lease == expected, self.discoveryID == id else { return }
+        self.agentsState = .failed(failure)
+      }
+    }
+    discoveryTask = pending
     await pending.value
   }
 

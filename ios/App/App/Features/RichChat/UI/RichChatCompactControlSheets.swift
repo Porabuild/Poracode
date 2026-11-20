@@ -24,6 +24,7 @@ struct RichChatAuthenticationSheet: View {
         }
       }
     }
+    .poracodeFormSheetSizing()
     .presentationDetents([.medium])
   }
 
@@ -53,11 +54,12 @@ struct RichChatInfoSheet<Content: View>: View {
         .navigationTitle(title)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-          ToolbarItem(placement: .cancellationAction) {
-            Button(RichChatStrings.cancel) { dismiss() }
+          ToolbarItem(placement: .confirmationAction) {
+            Button(RichChatStrings.done) { dismiss() }
           }
         }
     }
+    .poracodeFormSheetSizing()
     .presentationDetents([.medium, .large])
   }
 }
@@ -83,6 +85,7 @@ struct RichChatContextControlSheet: View {
         }
       }
     }
+    .poracodeFormSheetSizing()
     .presentationDetents([.medium])
   }
 }
@@ -137,6 +140,7 @@ struct RichChatBackgroundTasksSheet: View {
           canOperate: canOperate,
           reader: reader
         )
+        .poracodeFormSheetSizing()
       }
       .toolbar {
         ToolbarItem(placement: .cancellationAction) {
@@ -150,6 +154,7 @@ struct RichChatBackgroundTasksSheet: View {
         if let selected = selection, !ids.contains(selected.taskID) { selection = nil }
       }
     }
+    .poracodeFormSheetSizing()
     .presentationDetents([.medium, .large])
   }
 }
@@ -182,6 +187,7 @@ struct RichChatGoalControlSheet: View {
         }
       }
     }
+    .poracodeFormSheetSizing()
     .presentationDetents([.medium, .large])
   }
 }

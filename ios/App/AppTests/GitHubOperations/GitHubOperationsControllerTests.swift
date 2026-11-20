@@ -182,7 +182,60 @@ private actor ForgeControllerGateway: ForgeReviewGateway {
 
 @MainActor
 final class GitHubOperationsControllerTests: XCTestCase {
-  func testWorkflowProjectionsPreservePageAndRunDetailFields() throws {
+  #if canImport(App)
+  func testWorkspaceBlocksAnotherCreateWhileTheFirstOutcomeIsUncertain() async {
+    let recorder = GitHubCallRecorder()
+    let controllers = GitHubOperationsControllerSuite(gateway: GitHubStubGateway { request, _ in
+      await recorder.append(request)
+      if request.procedure == .ghCreatePr { throw GitHubOperationsFailure.ambiguousOutcome }
+      return GitHubOperationsSamples.result(.ghListPullRequests)
+    })
+    controllers.activate(GitHubOperationsSamples.context)
+    let lease = GitHubOperationsSamples.lease
+    let creation = ProjectGitPullRequestCreation()
+    let request = GitHubOperationRequest.ghCreatePr(
+      .init(projectLocation: lease.location, branch: "fixture", baseBranch: "main", title: "Fixture", body: nil, isDraft: true)
+    )
+    let first = await creation.submit(request, lease: lease, controllers: controllers, refreshGit: {})
+    XCTAssertEqual(first, .ambiguousOutcome)
+    XCTAssertTrue(creation.hasUncertainOutcome(for: lease))
+    let afterReconciliation = await recorder.count
+    let second = await creation.submit(request, lease: lease, controllers: controllers, refreshGit: {})
+    XCTAssertEqual(second, .ambiguousOutcome)
+    let afterBlockedRetry = await recorder.count
+    XCTAssertEqual(afterBlockedRetry, afterReconciliation)
+    creation.acknowledgeRefresh(for: lease)
+    XCTAssertFalse(creation.hasUncertainOutcome(for: lease))
+  }
+  #endif
+
+  func testCreatePullRequestRejectsAnEarlierLeaseAtTheSameProjectLocation() async {
+    let recorder = GitHubCallRecorder()
+    let controller = GitHubPullRequestMutationController(gateway: GitHubStubGateway { request, _ in
+      await recorder.append(request)
+      return GitHubOperationsSamples.result(.ghCreatePr)
+    })
+    let original = GitHubOperationsSamples.lease
+    let replacement = GitHubProjectLease(
+      clientConnectionId: UUID(), desktopId: "other-desktop",
+      hostGeneration: original.hostGeneration, project: original.project,
+      projectGeneration: original.projectGeneration
+    )
+    controller.activate(.init(lease: replacement, grantedScopes: GitHubOperationsSamples.context.grantedScopes))
+    let request = GitHubOperationRequest.ghCreatePr(
+      .init(projectLocation: original.location, branch: "fixture", baseBranch: "main", title: "Fixture", body: nil, isDraft: true)
+    )
+    let refusal = await controller.submit(request, expectedLease: original)
+    XCTAssertEqual(refusal, .notReady)
+    let rejectedCount = await recorder.count
+    XCTAssertEqual(rejectedCount, 0)
+    let outcome = await controller.submit(request, expectedLease: replacement)
+    XCTAssertNil(outcome)
+    let acceptedCount = await recorder.count
+    XCTAssertEqual(acceptedCount, 1)
+  }
+
+  func testWorkflowRunsFollowTheRequestedWorkflowAndPreserveDetailFields() async throws {
     let step: GitHubJSONValue = .object([
       "number": .integer(1),
       "name": .string("Checkout"),
@@ -199,7 +252,8 @@ final class GitHubOperationsControllerTests: XCTestCase {
     ])
     let run: GitHubJSONValue = .object([
       "id": .integer(22),
-      "workflowId": .integer(11),
+      // Older GitHub CLI versions can omit the workflow field on a valid run.
+      "workflowId": .integer(0),
       "workflowName": .string("CI"),
       "name": .string("CI"),
       "number": .integer(7),
@@ -217,16 +271,25 @@ final class GitHubOperationsControllerTests: XCTestCase {
       "jobs": .array([job]),
     ])
 
-    let runs = try XCTUnwrap(
-      GitHubResultProjection.workflowRuns(
-        GitHubOperationsSamples.result(
-          .ghListWorkflowRuns,
-          object: ["runs": .array([run])]
-        )
-      )
+    let runList = GitHubOperationsSamples.result(
+      .ghListWorkflowRuns,
+      object: ["runs": .array([run])]
     )
+    let gateway = GitHubStubGateway { _, _ in runList }
+    let workflows = GitHubWorkflowController(gateway: gateway)
+    workflows.activate(GitHubOperationsSamples.context)
+    await workflows.load(.ghListWorkflowRuns(.init(
+      projectLocation: GitHubOperationsSamples.wsl, workflowId: 11
+    )))
+    let runs = workflows.runs(for: 11)
     XCTAssertEqual(runs.first?.id, 22)
     XCTAssertEqual(runs.first?.jobs.first?.steps.first?.name, "Checkout")
+    XCTAssertTrue(workflows.runs(for: 12).isEmpty)
+
+    await workflows.load(.ghListWorkflowRuns(.init(
+      projectLocation: GitHubOperationsSamples.wsl
+    )))
+    XCTAssertTrue(workflows.runs(for: 11).isEmpty)
 
     let definition = try XCTUnwrap(
       GitHubResultProjection.workflowDefinition(
@@ -365,6 +428,33 @@ final class GitHubOperationsControllerTests: XCTestCase {
     XCTAssertEqual(countAfterConfirmation, 1)
     XCTAssertNil(controller.state.pendingConfirmation)
     XCTAssertEqual(controller.state.lastResult, .omitted(procedure: .ghClosePr))
+  }
+
+  func testWorkflowDispatchRejectsAnEarlierLeaseAtTheSameProjectLocation() async {
+    let recorder = GitHubCallRecorder()
+    let controller = GitHubWorkflowMutationController(gateway: GitHubStubGateway { request, _ in
+      await recorder.append(request)
+      return .omitted(procedure: request.procedure)
+    })
+    let original = GitHubOperationsSamples.lease
+    let replacement = GitHubProjectLease(
+      clientConnectionId: UUID(), desktopId: "other-desktop",
+      hostGeneration: original.hostGeneration, project: original.project,
+      projectGeneration: original.projectGeneration
+    )
+    controller.activate(.init(lease: replacement, grantedScopes: GitHubOperationsSamples.context.grantedScopes))
+    let request = GitHubOperationRequest.ghDispatchWorkflow(
+      .init(projectLocation: original.location, workflowId: 11, ref: "main")
+    )
+
+    let refusal = await controller.submit(request, expectedLease: original)
+    XCTAssertEqual(refusal, .notReady)
+    let rejectedCount = await recorder.count
+    XCTAssertEqual(rejectedCount, 0)
+    let outcome = await controller.submit(request, expectedLease: replacement)
+    XCTAssertNil(outcome)
+    let acceptedCount = await recorder.count
+    XCTAssertEqual(acceptedCount, 1)
   }
 
   func testWorkflowAmbiguityUsesOneRelevantRunRead() async {

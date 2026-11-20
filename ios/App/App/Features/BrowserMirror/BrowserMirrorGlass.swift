@@ -2,11 +2,12 @@
   import SwiftUI
 
   struct BrowserMirrorControlSurface<Content: View>: View {
+    @Environment(\.poracodeEmbeddedInInspector) private var embeddedInInspector
     @ViewBuilder let content: () -> Content
 
     var body: some View {
       content()
-        .padding(8)
+        .padding(embeddedInInspector ? 6 : 8)
         .poracodeGlassBackground(in: RoundedRectangle(cornerRadius: 14, style: .continuous))
     }
   }

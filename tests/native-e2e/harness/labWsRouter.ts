@@ -82,6 +82,7 @@ export function handleLabConnection(
     interests:
       initialInterests && session.scopes.includes("session:read") ? initialInterests : null,
     terminalWatches: new Set(),
+    pendingTerminalBaseline: new Map(),
     browserWatching: false,
     gitStateInterests: [],
     desktopInternal,
@@ -201,7 +202,14 @@ export function handleClientMessage(
   if (parsed.type === "browser-watch") {
     if (!connection.session.scopes.includes("session:read")) return;
     connection.browserWatching = true;
-    for (const message of BROWSER_SERVER_FIXTURES) runtime.send(connection.ws, message);
+    const [initial, status, frame] = BROWSER_SERVER_FIXTURES;
+    const state = runtime.routes.browserStateForWatch(initial.state);
+    runtime.send(connection.ws, { ...initial, state });
+    const tabId = state.activeTabId;
+    if (tabId !== null) {
+      runtime.send(connection.ws, { ...status, status: { ...status.status, tabId } });
+      runtime.send(connection.ws, { ...frame, tabId });
+    }
     return;
   }
   if (parsed.type === "browser-unwatch") {
@@ -231,10 +239,11 @@ export function handleClientMessage(
     const id = parsed.id;
     if (connection.session.scopes.includes("terminal:read")) {
       connection.terminalWatches.add(id);
+      connection.pendingTerminalBaseline.delete(id);
       const cursorSync = parsed.cursorSync;
       if (cursorSync && cursorSync.version === 2) {
-        // v2 framing: the same fixture window travels as one chunk (11 units
-        // fit any accepted chunk budget); the client acks its cursor.
+        // Release the second chunk of this baseline after the first ACK.
+        connection.pendingTerminalBaseline.set(id, cursorSync.watchId);
         runtime.send(connection.ws, {
           type: "terminal-watch-baseline-chunk",
           id,
@@ -243,7 +252,7 @@ export function handleClientMessage(
             watchId: cursorSync.watchId,
             generation: "instance-fixture-aaa",
             chunkIndex: 0,
-            chunkCount: 1,
+            chunkCount: 2,
             fromCursor: 0,
             toCursor: 11,
             data: "hello world",
@@ -277,22 +286,24 @@ export function handleClientMessage(
     return;
   }
   if (parsed.type === "terminal-watch-baseline-ack") {
-    // Cursor-sync v2 credit release: the acked baseline cursor lets the next
-    // window travel. The fixture continuation is one deterministic window
-    // continuing at the acked cursor (11 UTF-16 units fit any chunk budget).
-    const { id } = parsed;
-    if (!connection.terminalWatches.has(id)) return;
+    const { id, cursorSync } = parsed;
+    if (
+      cursorSync.throughCursor !== 11 ||
+      connection.pendingTerminalBaseline.get(id) !== cursorSync.watchId
+    )
+      return;
+    connection.pendingTerminalBaseline.delete(id);
     runtime.send(connection.ws, {
       type: "terminal-watch-baseline-chunk",
       id,
       cursorSync: {
         version: 2,
-        watchId: parsed.cursorSync.watchId,
+        watchId: cursorSync.watchId,
         generation: "instance-fixture-aaa",
-        chunkIndex: 0,
-        chunkCount: 1,
-        fromCursor: parsed.cursorSync.throughCursor,
-        toCursor: parsed.cursorSync.throughCursor + 11,
+        chunkIndex: 1,
+        chunkCount: 2,
+        fromCursor: 11,
+        toCursor: 22,
         data: "live window",
         processState: "running",
         terminalSize: { cols: 120, rows: 30 },
@@ -303,6 +314,7 @@ export function handleClientMessage(
   }
   if (parsed.type === "terminal-unwatch") {
     connection.terminalWatches.delete(parsed.id);
+    connection.pendingTerminalBaseline.delete(parsed.id);
   }
 }
 

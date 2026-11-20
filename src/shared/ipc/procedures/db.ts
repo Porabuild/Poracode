@@ -4,8 +4,8 @@ import { projectSchema, threadContextUsageSchema } from "../../contracts";
 import type {
   Project,
   ProjectNotes,
-  ProjectNotesWrite,
   ProjectNotesSaveResult,
+  ProjectNotesWrite,
   Thread,
   ThreadContextUsage,
 } from "../../contracts";

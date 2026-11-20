@@ -72,6 +72,7 @@ data class RemoteEnvironmentDescriptor(
          * declaration.
          */
         val boundedCatalogChanges: VersionedCapability? = null,
+        val terminalCursorSync: VersionedCapability? = null,
         /**
          * Bounded project-command results (`versions` contains
          * [PROJECT_COMMAND_RESULTS_VERSION]). Emitted only when the host can
@@ -106,6 +107,7 @@ data class RemoteEnvironmentDescriptor(
 
         /** App-side pin of the host's `REMOTE_PROJECT_COMMAND_RESULTS_VERSION`. */
         const val PROJECT_COMMAND_RESULTS_VERSION = 1
+        const val TERMINAL_CURSOR_SYNC_V2 = 2
     }
 }
 
@@ -329,6 +331,7 @@ data class RemoteThreadSnapshot(
      * later page never clears an already-projected notice.
      */
     val runtimeNotice: RemoteRuntimeHistoryNotice? = null,
+    val runtimeResumeCursor: String? = null,
     val updatedAt: String,
 )
 

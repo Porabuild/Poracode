@@ -1,41 +1,69 @@
 import SwiftUI
 
-enum PullRequestMetadataSheet: String, Identifiable {
-  case labels
-  case reviewers
+enum PullRequestMetadataSheet: Identifiable {
+  case labels(PullRequestLabelsDraft)
+  case reviewers(PullRequestReviewersDraft)
 
-  var id: Self { self }
+  var id: UUID {
+    switch self {
+    case .labels(let draft): draft.id
+    case .reviewers(let draft): draft.id
+    }
+  }
 }
 
-/// Multi-select of the host's label candidates. Applying sends only the add/remove difference
-/// from the labels the review had when the sheet opened.
+@MainActor @Observable
+final class PullRequestLabelsDraft {
+  let id = UUID()
+  let target: ForgeReviewTarget
+  let current: [GitHubReviewLabel]
+  var candidates: [GitHubReviewLabel] = []
+  var truncated = false
+  var didLoad = false
+  var selected: Set<String>
+  var isApplying = false
+
+  init(target: ForgeReviewTarget, current: [GitHubReviewLabel]) {
+    self.target = target
+    self.current = current
+    selected = Set(current.map(\.name))
+  }
+}
+
+@MainActor @Observable
+final class PullRequestReviewersDraft {
+  let id = UUID()
+  let target: ForgeReviewTarget
+  let requested: [GitHubReviewerSummary]
+  var query = ""
+  var results: [GitHubReviewerSummary] = []
+  var truncated = false
+  var didLoad = false
+  var edit = PullRequestReviewerEdit()
+  var isApplying = false
+
+  init(target: ForgeReviewTarget, requested: [GitHubReviewerSummary]) {
+    self.target = target
+    self.requested = requested
+  }
+}
+
+/// Multi-select of the host's label candidates. Applying sends the delta from
+/// the labels the review had when the workspace opened the sheet.
 struct PullRequestLabelsSheet: View {
   @Environment(\.dismiss) private var dismiss
-
   let forge: ForgeReviewController
-  let current: [GitHubReviewLabel]
-
-  @State private var candidates: [GitHubReviewLabel] = []
-  @State private var truncated = false
-  @State private var didLoad = false
-  @State private var selected: Set<String>
-  @State private var isApplying = false
-
-  init(forge: ForgeReviewController, current: [GitHubReviewLabel]) {
-    self.forge = forge
-    self.current = current
-    _selected = State(initialValue: Set(current.map(\.name)))
-  }
+  @Bindable var draft: PullRequestLabelsDraft
 
   /// Labels already on the review stay listed even when a truncated candidate list omits them.
   private var rows: [GitHubReviewLabel] {
-    let names = Set(current.map(\.name))
-    return current + candidates.filter { !names.contains($0.name) }
+    let names = Set(draft.current.map(\.name))
+    return draft.current + draft.candidates.filter { !names.contains($0.name) }
   }
 
   private var canApply: Bool {
-    let change = PullRequestLabelEdit.delta(current: current.map(\.name), selected: selected)
-    return forge.canMutate && !isApplying && (!change.add.isEmpty || !change.remove.isEmpty)
+    let change = PullRequestLabelEdit.delta(current: draft.current.map(\.name), selected: draft.selected)
+    return forge.reviewTarget == draft.target && forge.canMutate && !draft.isApplying && (!change.add.isEmpty || !change.remove.isEmpty)
       && change.add.count <= PullRequestLabelEdit.maximumChanges
       && change.remove.count <= PullRequestLabelEdit.maximumChanges
   }
@@ -51,7 +79,7 @@ struct PullRequestLabelsSheet: View {
           }
         }
         Section {
-          if !didLoad {
+          if !draft.didLoad {
             ProgressView()
               .frame(maxWidth: .infinity)
               .poracodeDrawerRowSurface()
@@ -65,48 +93,48 @@ struct PullRequestLabelsSheet: View {
             }
           }
         } footer: {
-          if truncated { Text(PullRequestsStrings.labelsTruncated) }
+          if draft.truncated { Text(PullRequestsStrings.labelsTruncated) }
         }
       }
       .poracodeDrawerListStyle()
+      .disabled(draft.isApplying)
       .navigationTitle(PullRequestsStrings.editLabels)
       .navigationBarTitleDisplayMode(.inline)
       .toolbar {
         ToolbarItem(placement: .cancellationAction) {
-          Button(GitHubOperationsStrings.cancel) { dismiss() }
+          Button(GitHubOperationsStrings.cancel, systemImage: "xmark") { dismiss() }
+            .disabled(draft.isApplying)
         }
-      }
-      .poracodeBottomBar {
-        PoracodeBottomActionDock(placement: .trailing) {
-          PoracodeCircleButton {
+        ToolbarItem(placement: .bottomBar) {
+          Button(
+            draft.isApplying ? PullRequestsStrings.loading : PullRequestsStrings.apply,
+            systemImage: draft.isApplying ? "hourglass" : "checkmark"
+          ) {
             Task { await apply() }
-          } label: {
-            if isApplying {
-              ProgressView()
-            } else {
-              Label(PullRequestsStrings.apply, systemImage: "checkmark")
-                .labelStyle(.iconOnly)
-            }
           }
           .disabled(!canApply)
-          .accessibilityLabel(PullRequestsStrings.apply)
           .accessibilityIdentifier("native-e2e.pull-requests.labels.apply")
         }
       }
       .task { await load() }
     }
-    .tint(.secondary)
+    .tint(.primary)
+    .interactiveDismissDisabled(draft.isApplying)
+    .modifier(PoracodeRetainNavigationWhilePresented())
+    .onChange(of: forge.reviewTarget) { _, target in
+      if target != draft.target { dismiss() }
+    }
     .presentationDetents([.medium, .large])
     .presentationDragIndicator(.visible)
   }
 
   private func row(_ label: GitHubReviewLabel) -> some View {
-    let isSelected = selected.contains(label.name)
+    let isSelected = draft.selected.contains(label.name)
     return Button {
       if isSelected {
-        selected.remove(label.name)
+        draft.selected.remove(label.name)
       } else {
-        selected.insert(label.name)
+        draft.selected.insert(label.name)
       }
     } label: {
       HStack(spacing: 10) {
@@ -129,55 +157,63 @@ struct PullRequestLabelsSheet: View {
     }
     .buttonStyle(.plain)
     .accessibilityAddTraits(isSelected ? .isSelected : [])
+    .accessibilityIdentifier("native-e2e.pull-requests.label.\(label.name)")
     .poracodeDrawerRowSurface()
   }
 
   private func load() async {
-    let result = await forge.candidates(.forgeListPrLabelCandidates)
+    let result = await forge.candidates(.forgeListPrLabelCandidates, expectedTarget: draft.target)
     guard !Task.isCancelled else { return }
-    didLoad = true
+    draft.didLoad = true
     guard let result else { return }
-    candidates = GitHubResultProjection.labels(result["labels"])
-    truncated = result["truncated"]?.boolValue == true
+    draft.candidates = GitHubResultProjection.labels(result["labels"])
+    draft.truncated = result["truncated"]?.boolValue == true
   }
 
   private func apply() async {
-    let change = PullRequestLabelEdit.delta(current: current.map(\.name), selected: selected)
-    isApplying = true
-    let accepted = await forge.setLabels(add: change.add, remove: change.remove)
-    isApplying = false
+    guard canApply else { return }
+    let change = PullRequestLabelEdit.delta(current: draft.current.map(\.name), selected: draft.selected)
+    draft.isApplying = true
+    let accepted = await forge.setLabels(add: change.add, remove: change.remove, expectedTarget: draft.target)
+    draft.isApplying = false
     if accepted { dismiss() }
   }
 }
 
-/// Reviewer search plus the review's outstanding requests. Adds and removals are staged and
-/// sent together when applied.
+/// Reviewer search plus the review's outstanding requests. Adds and removals are
+/// staged in the workspace draft and sent together when applied.
 struct PullRequestReviewersSheet: View {
   @Environment(\.dismiss) private var dismiss
-
   let forge: ForgeReviewController
-  let requested: [GitHubReviewerSummary]
-
-  @State private var query = ""
-  @State private var results: [GitHubReviewerSummary] = []
-  @State private var truncated = false
-  @State private var didLoad = false
-  @State private var edit = PullRequestReviewerEdit()
-  @State private var isApplying = false
+  @Bindable var draft: PullRequestReviewersDraft
 
   /// Staged additions stay listed while the search text changes underneath them.
   private var suggestions: [GitHubReviewerSummary] {
-    let known = Set(requested.map(\.id)).union(edit.added.map(\.id))
-    return edit.added + results.filter { !known.contains($0.id) }
+    let known = Set(draft.requested.map(\.id)).union(draft.edit.added.map(\.id))
+    return draft.edit.added + draft.results.filter { !known.contains($0.id) }
   }
 
   private var canApply: Bool {
-    forge.canMutate && !isApplying && !edit.isEmpty && edit.isWithinLimits
+    forge.reviewTarget == draft.target && forge.canMutate && !draft.isApplying
+      && !draft.edit.isEmpty && draft.edit.isWithinLimits
   }
 
   var body: some View {
     NavigationStack {
       List {
+        Section {
+          HStack(spacing: 10) {
+            Image(systemName: "magnifyingglass")
+              .foregroundStyle(.secondary)
+              .accessibilityHidden(true)
+            TextField(PullRequestsStrings.searchReviewers, text: $draft.query)
+              .textInputAutocapitalization(.never)
+              .autocorrectionDisabled()
+              .submitLabel(.search)
+              .accessibilityIdentifier("native-e2e.pull-requests.reviewers.search")
+          }
+          .poracodeDrawerRowSurface()
+        }
         if let failure = forge.failure {
           Section {
             Text(GitHubOperationsStrings.failure(failure))
@@ -185,15 +221,15 @@ struct PullRequestReviewersSheet: View {
               .foregroundStyle(.secondary)
           }
         }
-        if !requested.isEmpty {
+        if !draft.requested.isEmpty {
           Section(PullRequestsStrings.requestedReviewers) {
-            ForEach(requested) { reviewer in
+            ForEach(draft.requested) { reviewer in
               requestedRow(reviewer)
             }
           }
         }
         Section {
-          if !didLoad {
+          if !draft.didLoad {
             ProgressView()
               .frame(maxWidth: .infinity)
               .poracodeDrawerRowSurface()
@@ -209,46 +245,44 @@ struct PullRequestReviewersSheet: View {
         } header: {
           Text(PullRequestsStrings.suggestedReviewers)
         } footer: {
-          if truncated { Text(PullRequestsStrings.reviewersTruncated) }
+          if draft.truncated { Text(PullRequestsStrings.reviewersTruncated) }
         }
       }
       .poracodeDrawerListStyle()
+      .disabled(draft.isApplying)
       .navigationTitle(PullRequestsStrings.requestReview)
       .navigationBarTitleDisplayMode(.inline)
-      .searchable(text: $query, prompt: PullRequestsStrings.searchReviewers)
       .toolbar {
         ToolbarItem(placement: .cancellationAction) {
-          Button(GitHubOperationsStrings.cancel) { dismiss() }
+          Button(GitHubOperationsStrings.cancel, systemImage: "xmark") { dismiss() }
+            .disabled(draft.isApplying)
         }
-      }
-      .poracodeBottomBar {
-        PoracodeBottomActionDock(placement: .trailing) {
-          PoracodeCircleButton {
+        ToolbarItem(placement: .confirmationAction) {
+          Button(
+            draft.isApplying ? PullRequestsStrings.loading : PullRequestsStrings.apply,
+            systemImage: draft.isApplying ? "hourglass" : "checkmark"
+          ) {
             Task { await apply() }
-          } label: {
-            if isApplying {
-              ProgressView()
-            } else {
-              Label(PullRequestsStrings.apply, systemImage: "checkmark")
-                .labelStyle(.iconOnly)
-            }
           }
           .disabled(!canApply)
-          .accessibilityLabel(PullRequestsStrings.apply)
           .accessibilityIdentifier("native-e2e.pull-requests.reviewers.apply")
         }
       }
-      .task(id: query) { await search() }
+      .task(id: draft.query) { await search() }
     }
-    .tint(.secondary)
-    .presentationDetents([.medium, .large])
-    .presentationDragIndicator(.visible)
+    .tint(.primary)
+    .interactiveDismissDisabled(draft.isApplying)
+    .modifier(PoracodeRetainNavigationWhilePresented())
+    .onChange(of: forge.reviewTarget) { _, target in
+      if target != draft.target { dismiss() }
+    }
+    .poracodeFormSheetSizing()
   }
 
   private func requestedRow(_ reviewer: GitHubReviewerSummary) -> some View {
-    let isRemoving = edit.isRemoved(reviewer)
+    let isRemoving = draft.edit.isRemoved(reviewer)
     return Button {
-      edit.toggleRemoved(reviewer)
+      draft.edit.toggleRemoved(reviewer)
     } label: {
       HStack(spacing: 10) {
         PullRequestReviewerRow(reviewer: reviewer)
@@ -265,13 +299,14 @@ struct PullRequestReviewersSheet: View {
         ? PullRequestsStrings.keepReviewer(reviewer.displayName)
         : PullRequestsStrings.removeReviewer(reviewer.displayName)
     )
+    .accessibilityIdentifier("native-e2e.pull-requests.reviewer.requested.\(reviewer.id)")
     .poracodeDrawerRowSurface()
   }
 
   private func suggestionRow(_ reviewer: GitHubReviewerSummary) -> some View {
-    let isAdding = edit.isAdded(reviewer)
+    let isAdding = draft.edit.isAdded(reviewer)
     return Button {
-      edit.toggleAdded(reviewer)
+      draft.edit.toggleAdded(reviewer)
     } label: {
       HStack(spacing: 10) {
         PullRequestReviewerRow(reviewer: reviewer)
@@ -292,30 +327,32 @@ struct PullRequestReviewersSheet: View {
         ? PullRequestsStrings.removeReviewer(reviewer.displayName)
         : PullRequestsStrings.addReviewer(reviewer.displayName)
     )
+    .accessibilityIdentifier("native-e2e.pull-requests.reviewer.suggested.\(reviewer.id)")
     .poracodeDrawerRowSurface()
   }
 
   /// The first lookup runs at once; later ones wait briefly so typing sends one search.
   private func search() async {
-    if didLoad {
+    if draft.didLoad {
       try? await Task.sleep(for: .milliseconds(300))
       guard !Task.isCancelled else { return }
     }
     var fields: [String: GitHubJSONValue] = [:]
-    let text = PullRequestReviewerEdit.boundedQuery(query)
+    let text = PullRequestReviewerEdit.boundedQuery(draft.query)
     if !text.isEmpty { fields["query"] = .string(text) }
-    let result = await forge.candidates(.forgeListPrReviewerCandidates, fields: fields)
+    let result = await forge.candidates(.forgeListPrReviewerCandidates, fields: fields, expectedTarget: draft.target)
     guard !Task.isCancelled else { return }
-    didLoad = true
+    draft.didLoad = true
     guard let result else { return }
-    results = GitHubResultProjection.reviewers(result["reviewers"])
-    truncated = result["truncated"]?.boolValue == true
+    draft.results = GitHubResultProjection.reviewers(result["reviewers"])
+    draft.truncated = result["truncated"]?.boolValue == true
   }
 
   private func apply() async {
-    isApplying = true
-    let accepted = await forge.requestReviewers(add: edit.added, remove: edit.removed)
-    isApplying = false
+    guard canApply else { return }
+    draft.isApplying = true
+    let accepted = await forge.requestReviewers(add: draft.edit.added, remove: draft.edit.removed, expectedTarget: draft.target)
+    draft.isApplying = false
     if accepted { dismiss() }
   }
 }

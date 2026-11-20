@@ -59,6 +59,7 @@ struct ModelFamilySelection: Equatable {
   let selectors: [ModelFamilySelector]
   let bindings: ModelFamilyBindings
   let members: [ModelFamilyMember]
+  var redundantValues: ModelSelectionRedundancy? = nil
 }
 
 /// One user edit at the event-handler boundary. Relationship resolution
@@ -107,9 +108,9 @@ struct ModelFamilyDisplay: Equatable {
 /// stays labeled and resumable. No provider identifier and no id-shape
 /// assumption appear here.
 enum ModelVisibility {
-  /// Only a declared, selected GUI runtime variant owns a scoped key. Plain
-  /// provider settings (including explicit empty lists) remain the fallback.
-  static func declaredGUIVariant(
+  /// A declared GUI runtime owns its scoped key. Provider-owned compatibility
+  /// metadata preserves the key used before named runtimes were advertised.
+  static func guiRuntimeVariant(
     for agent: AgentStatusRecord?, presentationMode: ThreadPresentationMode
   ) -> String? {
     guard presentationMode == .gui, let agent else { return nil }
@@ -118,7 +119,7 @@ enum ModelVisibility {
       .stringValue?.lowercased(),
       let variant = agent.raw["runtimeVariants"]?.objectValue?[label]?.objectValue,
       variant["presentationMode"]?.stringValue == presentationMode.rawValue
-    else { return nil }
+    else { return ProviderUIRegistry.bundled?.guiRuntimeVariant(for: agent.kind) }
     return label
   }
 
@@ -153,6 +154,28 @@ enum ModelVisibility {
 
 enum ModelFamilies {
   // MARK: - Projection
+
+  /// Reuse the projection's intrinsic graph validation before minting a
+  /// binding, including for a caller-constructed relation. No nearest member
+  /// or repaired declaration can become evidence.
+  static func isValid(_ relation: ModelFamilySelection) -> Bool {
+    var object: [String: JSONValue] = [
+      "model": .string(relation.model), "label": .string(relation.label),
+      "bindings": .object(["effort": .string(relation.bindings.effort.rawValue), "fast": .string(relation.bindings.fast.rawValue)]),
+      "selectors": .array(relation.selectors.map { selector in .object([
+        "id": .string(selector.id), "labelKey": .string(selector.labelKey),
+        "options": .array(selector.options.map { .object(["id": .string($0.id), "label": .string($0.label)]) }),
+      ]) }),
+      "members": .array(relation.members.map { member in
+        var values: [String: JSONValue] = ["model": .string(member.model), "selections": .object(member.selections.mapValues(JSONValue.string))]
+        if let effort = member.effort { values["effort"] = .string(effort) }
+        if let fast = member.fast { values["fast"] = .bool(fast) }
+        return .object(values)
+      }),
+    ]
+    if let redundancy = relation.redundantValues { object["redundantValues"] = redundancy.wireValue }
+    return family(from: .object(object), accepted: Set(relation.members.map(\.model)), seen: []) != nil
+  }
 
   /// Valid, inventory-intersected descriptors for one capability surface.
   /// Invalid descriptors are dropped (safe fallback), not repaired;
@@ -549,15 +572,22 @@ enum ModelFamilies {
     guard let object = value.objectValue,
       let model = object["model"]?.stringValue, !model.isEmpty,
       let label = object["label"]?.stringValue, !label.isEmpty,
+      let rawSelectors = object["selectors"]?.arrayValue,
+      let rawMembers = object["members"]?.arrayValue,
       let bindingsObject = object["bindings"]?.objectValue,
       let effortCarrier = carrier(bindingsObject["effort"]),
       let fastCarrier = carrier(bindingsObject["fast"])
     else { return nil }
     let bindings = ModelFamilyBindings(effort: effortCarrier, fast: fastCarrier)
+    let redundancy: ModelSelectionRedundancy?
+    if let raw = object["redundantValues"] {
+      guard let parsed = ModelSelectionRedundancy(wireValue: raw) else { return nil }
+      redundancy = parsed
+    } else { redundancy = nil }
 
     var selectorOptions: [(selector: ModelFamilySelector, optionIDs: Set<String>)] = []
     var selectorIDs = Set<String>()
-    for selectorValue in object["selectors"]?.arrayValue ?? [] {
+    for selectorValue in rawSelectors {
       guard let selectorObject = selectorValue.objectValue,
         let selectorID = selectorObject["id"]?.stringValue, !selectorID.isEmpty,
         !selectorIDs.contains(selectorID),
@@ -584,7 +614,7 @@ enum ModelFamilies {
     var membersByTuple: [String: String] = [:]
     var memberIDs = Set<String>()
     var members: [ModelFamilyMember] = []
-    for memberValue in object["members"]?.arrayValue ?? [] {
+    for memberValue in rawMembers {
       guard let memberObject = memberValue.objectValue,
         let memberModel = memberObject["model"]?.stringValue, !memberModel.isEmpty,
         !memberIDs.contains(memberModel),
@@ -598,8 +628,10 @@ enum ModelFamilies {
       }
       if rawSelections.count != selectorOptions.count { return nil }
       let memberEffort = memberObject["effort"]?.stringValue
+      if memberObject["effort"] != nil, memberEffort == nil { return nil }
       if bindings.effort == .model, (memberEffort ?? "").isEmpty { return nil }
       let memberFast = memberObject["fast"]?.boolValue
+      if memberObject["fast"] != nil, memberFast == nil { return nil }
       if bindings.fast == .model, memberFast == nil { return nil }
       // Coordinates a binding does not own are display-independent noise for
       // this family; the projection drops them instead of letting them leak.
@@ -638,7 +670,8 @@ enum ModelFamilies {
       label: label,
       selectors: selectorOptions.map(\.selector),
       bindings: bindings,
-      members: present
+      members: present,
+      redundantValues: redundancy
     )
   }
 

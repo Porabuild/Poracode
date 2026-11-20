@@ -59,9 +59,47 @@ actor RichChatRawHTTPClient: RichChatRawHTTPExecuting {
     self.authorization = EnvironmentParentAuthority(
       parentTokenProvider: environmentAuthority
     )
+    let register: @Sendable (RichChatRawHTTPClient) -> Void = { client in
+      Task { await client.installMemoryWarningSubscription() }
+    }
+    register(self)
   }
 
+  private var memoryWarningSubscription: MemoryWarningSubscription?
+
+  private func installMemoryWarningSubscription() {
+    guard memoryWarningSubscription == nil else { return }
+    memoryWarningSubscription = MemoryWarningSubscription { [weak self] in
+      guard let self else { return }
+      Task { await self.clearImageEtagCache() }
+    }
+  }
+
+  func clearImageEtagCache() {
+    imageCacheGeneration &+= 1
+    imageEtagCache.removeAll(keepingCapacity: false)
+    imageEtagOrder.removeAll(keepingCapacity: false)
+    imageEtagBytes = 0
+  }
+
+  private struct CachedImage: Sendable {
+    let etag: String
+    let payload: RichChatBinaryPayload
+  }
+  private var imageEtagCache: [String: CachedImage] = [:]
+  private var imageEtagOrder: [String] = []
+  private var imageEtagBytes = 0
+  private var imageCacheGeneration: UInt64 = 0
+  private static let maxImageEtagEntries = 32
+  private static let maxImageEtagBytes = 16 * 1_024 * 1_024
+
   func setAccessToken(_ token: String) {
+    if accessToken != token {
+      imageCacheGeneration &+= 1
+      imageEtagCache.removeAll(keepingCapacity: false)
+      imageEtagOrder.removeAll(keepingCapacity: false)
+      imageEtagBytes = 0
+    }
     accessToken = token
   }
 
@@ -92,11 +130,28 @@ actor RichChatRawHTTPClient: RichChatRawHTTPExecuting {
     queryItems: [URLQueryItem]
   ) async throws -> RichChatBinaryPayload {
     try Task.checkCancellation()
-    let request = try await makeRequest(path: path, queryItems: queryItems, method: "GET")
-    let (data, response) = try await perform(
-      request, maximumResponseBytes: Self.maximumImageBytes
-    )
+    var request = try await makeRequest(path: path, queryItems: queryItems, method: "GET")
+    let cacheKey = request.url?.absoluteString ?? ""
+    let capturedGeneration = imageCacheGeneration
+    let cached = imageEtagCache[cacheKey]
+    if let cached {
+      request.setValue(cached.etag, forHTTPHeaderField: "If-None-Match")
+    }
+    let data: Data
+    let response: URLResponse
+    let initial = try await perform(request, maximumResponseBytes: Self.maximumImageBytes)
     try Task.checkCancellation()
+    if let http = initial.1 as? HTTPURLResponse, http.statusCode == 304 {
+      if let cached, capturedGeneration == imageCacheGeneration {
+        return cached.payload
+      }
+      var uncached = request
+      uncached.setValue(nil, forHTTPHeaderField: "If-None-Match")
+      (data, response) = try await perform(uncached, maximumResponseBytes: Self.maximumImageBytes)
+      try Task.checkCancellation()
+    } else {
+      (data, response) = initial
+    }
     try validateStatus(response, data: data)
     guard let http = response as? HTTPURLResponse,
       let rawType = http.value(forHTTPHeaderField: "Content-Type")
@@ -107,7 +162,44 @@ actor RichChatRawHTTPClient: RichChatRawHTTPExecuting {
     guard mimeType.hasPrefix("image/"), mimeType.utf8.count <= 127 else {
       throw RichChatTransportFailure.invalidResponse
     }
-    return RichChatBinaryPayload(data: data, mimeType: mimeType)
+    let payload = RichChatBinaryPayload(data: data, mimeType: mimeType)
+    storeImageEtag(
+      key: cacheKey,
+      generation: capturedGeneration,
+      response: http,
+      payload: payload
+    )
+    return payload
+  }
+
+  private func storeImageEtag(
+    key: String,
+    generation: UInt64,
+    response: HTTPURLResponse,
+    payload: RichChatBinaryPayload
+  ) {
+    guard generation == imageCacheGeneration, !key.isEmpty,
+      let etag = response.value(forHTTPHeaderField: "ETag")?.trimmingCharacters(in: .whitespacesAndNewlines),
+      !etag.isEmpty, etag.utf8.count <= 1024,
+      etag.unicodeScalars.allSatisfy({ $0.value >= 0x20 && $0.value <= 0x7E }),
+      payload.data.count <= Self.maxImageEtagBytes
+    else { return }
+    if let existing = imageEtagCache.removeValue(forKey: key) {
+      imageEtagBytes -= existing.payload.data.count
+      if let idx = imageEtagOrder.firstIndex(of: key) { imageEtagOrder.remove(at: idx) }
+    }
+    while !imageEtagOrder.isEmpty
+      && (imageEtagBytes + payload.data.count > Self.maxImageEtagBytes
+        || imageEtagCache.count >= Self.maxImageEtagEntries)
+    {
+      let oldest = imageEtagOrder.removeFirst()
+      if let removed = imageEtagCache.removeValue(forKey: oldest) {
+        imageEtagBytes -= removed.payload.data.count
+      }
+    }
+    imageEtagCache[key] = CachedImage(etag: etag, payload: payload)
+    imageEtagOrder.append(key)
+    imageEtagBytes += payload.data.count
   }
 
   /// Authenticated attachment download streamed to disk via the download

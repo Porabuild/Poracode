@@ -209,13 +209,75 @@ extension RemoteAPIClient: SessionBoundedReadAPI {
     maxBytes: Int = RemoteBoundedReads.defaultMaxWireBytes,
     maxDecodeBytes: Int = RemoteBoundedReads.defaultMaxDecodeBytes
   ) async throws -> RemoteBoundedReadOutcome<RemoteBoundedHistoryPage, RemoteThreadSnapshot> {
+    try await readBoundedThreadHistory(threadId: threadId, completedTurnsLimit: completedTurnsLimit,
+      targetTimelineEntryCount: targetTimelineEntryCount, maxBytes: maxBytes, maxDecodeBytes: maxDecodeBytes)
+  }
+
+  /// The interactive GUI path validates a recent durable tail. The general
+  /// bounded API above retains its existing options for legacy callers.
+  func interactiveThreadHistory(
+    threadId: String,
+    targetTimelineEntryCount: Int?
+  ) async throws -> RemoteBoundedReadOutcome<RemoteBoundedHistoryPage, RemoteThreadSnapshot> {
+    let context = try await beginRecentHistoryRead(threadID: threadId)
+    let outcome: RemoteBoundedReadOutcome<RemoteBoundedHistoryPage, RemoteThreadSnapshot>
+    var attempt = 0
+    while true {
+      try await validateRecentHistoryRead(context)
+      do {
+        outcome = try await readBoundedThreadHistory(threadId: threadId,
+          completedTurnsLimit: RemoteBoundedReads.defaultCompletedTurnsLimit,
+          targetTimelineEntryCount: targetTimelineEntryCount,
+          maxBytes: RemoteBoundedReads.defaultMaxWireBytes,
+          maxDecodeBytes: RemoteBoundedReads.defaultMaxDecodeBytes,
+          historyCache: context.namespace != nil, historyRevision: context.candidate?.revision,
+          omitScrollback: terminalCursorSyncV2Advertised, compactDetails: true)
+        break
+      } catch {
+        try Task.checkCancellation()
+        guard attempt < NativeHistoryReadRetry.delays.count, NativeHistoryReadRetry.isRetryable(error) else { throw error }
+        try await validateRecentHistoryRead(context)
+        try await Task.sleep(for: NativeHistoryReadRetry.delays[attempt])
+        attempt += 1
+      }
+    }
+    try Task.checkCancellation()
+    switch outcome {
+    case .bounded(var page):
+      guard page.snapshot.thread.id == threadId else {
+        throw RemoteBoundedReadProtocolError(violation: .boundedResponseInvalid, detail: "History response names another thread.")
+      }
+      if page.snapshot.historyCache?["unchanged"]?.boolValue == true {
+        guard let candidate = context.candidate else {
+          throw RemoteBoundedReadProtocolError(violation: .boundedResponseInvalid, detail: "History cache match has no local candidate.")
+        }
+        page.snapshot = try candidate.mergingValidated(page.snapshot, expectedThreadID: threadId)
+        page.completedTurnsNextCursor = page.snapshot.completedTurnsNextCursor
+      }
+      try await finishRecentHistoryRead(context, snapshot: page.snapshot)
+      return .bounded(page)
+    case .legacy(let snapshot):
+      guard snapshot.historyCache?["unchanged"]?.boolValue != true, snapshot.thread.id == threadId else {
+        throw RemoteBoundedReadProtocolError(violation: .boundedResponseInvalid, detail: "Legacy history cannot validate a cached tail.")
+      }
+      try await finishRecentHistoryRead(context, snapshot: snapshot)
+      return .legacy(snapshot)
+    }
+  }
+
+  private func readBoundedThreadHistory(
+    threadId: String, completedTurnsLimit: Int, targetTimelineEntryCount: Int?, maxBytes: Int, maxDecodeBytes: Int,
+    historyCache: Bool = false, historyRevision: String? = nil, omitScrollback: Bool = false,
+    compactDetails: Bool = false
+  ) async throws -> RemoteBoundedReadOutcome<RemoteBoundedHistoryPage, RemoteThreadSnapshot> {
     let validatedThreadId = try GeneratedRemoteV3Contract.threadHistoryPath(threadId: threadId)
     let query = try GeneratedRemoteV3Contract.boundedThreadHistoryQuery(
       completedTurnsLimit: completedTurnsLimit,
       targetTimelineEntryCount: targetTimelineEntryCount,
       maxBytes: maxBytes,
       maxDecodeBytes: maxDecodeBytes,
-      notices: effectiveNoticesDeclaration
+      notices: effectiveNoticesDeclaration,
+      historyCache: historyCache, historyRevision: historyRevision, omitScrollback: omitScrollback, compactDetails: compactDetails
     )
     let path = "/api/threads/\(Self.encodePathSegment(validatedThreadId))/history"
     let data = try await boundedRequestData(path: path, queryItems: query)
@@ -250,6 +312,44 @@ extension RemoteAPIClient: SessionBoundedReadAPI {
     maxBytes: Int = RemoteBoundedReads.defaultMaxWireBytes,
     maxDecodeBytes: Int = RemoteBoundedReads.defaultMaxDecodeBytes
   ) async throws -> RemoteBoundedReadOutcome<RemoteBoundedHistoryItemsPage, RemoteRuntimeItemsPage> {
+    try await readBoundedHistoryItems(threadId: threadId, beforePosition: beforePosition, limit: limit,
+      targetTimelineEntryCount: targetTimelineEntryCount, maxBytes: maxBytes, maxDecodeBytes: maxDecodeBytes,
+      compactDetails: false)
+  }
+
+  func interactiveHistoryItems(threadId: String, beforePosition: Int?, limit: Int,
+    targetTimelineEntryCount: Int?) async throws -> RemoteBoundedReadOutcome<RemoteBoundedHistoryItemsPage, RemoteRuntimeItemsPage> {
+    let context = try await beginRecentHistoryRead(threadID: threadId, includeCandidate: false)
+    var attempt = 0
+    while true {
+      try await validateRecentHistoryRead(context)
+      do {
+        let outcome = try await readBoundedHistoryItems(threadId: threadId, beforePosition: beforePosition, limit: limit,
+          targetTimelineEntryCount: targetTimelineEntryCount, maxBytes: RemoteBoundedReads.defaultMaxWireBytes,
+          maxDecodeBytes: RemoteBoundedReads.defaultMaxDecodeBytes, compactDetails: true)
+        try await validateRecentHistoryRead(context)
+        return outcome
+      } catch {
+        try Task.checkCancellation()
+        guard attempt < NativeHistoryReadRetry.delays.count,
+          NativeHistoryReadRetry.isRetryable(error)
+        else { throw error }
+        try await validateRecentHistoryRead(context)
+        try await Task.sleep(for: NativeHistoryReadRetry.delays[attempt])
+        attempt += 1
+      }
+    }
+  }
+
+  private func readBoundedHistoryItems(
+    threadId: String,
+    beforePosition: Int? = nil,
+    limit: Int = RemoteBoundedReads.defaultHistoryItemsLimit,
+    targetTimelineEntryCount: Int? = RemoteBoundedReads.defaultTargetTimelineEntryCount,
+    maxBytes: Int = RemoteBoundedReads.defaultMaxWireBytes,
+    maxDecodeBytes: Int = RemoteBoundedReads.defaultMaxDecodeBytes,
+    compactDetails: Bool = false
+  ) async throws -> RemoteBoundedReadOutcome<RemoteBoundedHistoryItemsPage, RemoteRuntimeItemsPage> {
     let validatedThreadId = try GeneratedRemoteV3Contract.historyItemsPath(threadId: threadId)
     let query = try GeneratedRemoteV3Contract.boundedHistoryItemsQuery(
       beforePosition: beforePosition,
@@ -257,7 +357,8 @@ extension RemoteAPIClient: SessionBoundedReadAPI {
       targetTimelineEntryCount: targetTimelineEntryCount,
       maxBytes: maxBytes,
       maxDecodeBytes: maxDecodeBytes,
-      notices: effectiveNoticesDeclaration
+      notices: effectiveNoticesDeclaration,
+      compactDetails: compactDetails
     )
     let path = "/api/threads/\(Self.encodePathSegment(validatedThreadId))/history/items"
     let data = try await boundedRequestData(path: path, queryItems: query)

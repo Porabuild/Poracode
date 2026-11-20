@@ -90,8 +90,8 @@ enum PortForwardingFailure: Error, Equatable, Sendable {
   /// forward itself was created and stays listed.
   case forwardingUnavailable
   /// This host does not advertise browser entry at the supported version
-  /// (older desktop build or unknown versions), so opening is refused locally
-  /// before any request. Raw forwarding stays available; update the desktop.
+  /// on this connection, so opening is refused locally before any request.
+  /// Raw forwarding stays available.
   case browserEntryUnsupported
   /// The OS browser refused to open an already-composed entry URL — distinct
   /// from `.forwardingUnavailable` (server-side configuration) and from

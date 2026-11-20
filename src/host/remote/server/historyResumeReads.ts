@@ -55,14 +55,24 @@ async function readThreadHistoryResume(call: HttpRouteCall): Promise<string> {
   const negotiation = parseHistoryReadNegotiation(url);
   const fallback = async () => {
     // Reserve the additive wrapper inside the same negotiated hard budget.
-    const snapshot = await buildBoundedThreadSnapshot(ctx, threadId, {
-      ...negotiation,
-      caps: {
-        ...negotiation.caps,
-        maxWireBytes: Math.max(1, negotiation.caps.maxWireBytes - 64),
-        maxDecodeBytes: Math.max(1, negotiation.caps.maxDecodeBytes - 128),
+    const snapshot = await buildBoundedThreadSnapshot(
+      ctx,
+      threadId,
+      {
+        ...negotiation,
+        caps: {
+          ...negotiation.caps,
+          maxWireBytes: Math.max(1, negotiation.caps.maxWireBytes - 64),
+          maxDecodeBytes: Math.max(1, negotiation.caps.maxDecodeBytes - 128),
+        },
       },
-    });
+      {
+        ...(parsed.data.omitScrollback ? { omitScrollback: true } : {}),
+        ...(parsed.data.targetTimelineEntryCount !== undefined
+          ? { targetTimelineEntryCount: parsed.data.targetTimelineEntryCount }
+          : {}),
+      },
+    );
     return `{"kind":"snapshot","snapshot":${snapshot.trim()}}`;
   };
   if (!dbGetThread(threadId))

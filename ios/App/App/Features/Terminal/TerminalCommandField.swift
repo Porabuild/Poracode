@@ -29,10 +29,13 @@ enum TerminalInputAvailability: Equatable, Sendable {
 /// on Return instead of inserting, and grows to four lines before scrolling.
 struct TerminalCommandField: UIViewRepresentable {
   @Binding var text: String
-  let pointSize: CGFloat
+  let font: UIFont
   let isDisabled: Bool
   let accessibilityLabel: String
+  var onFocusChanged: (Bool) -> Void = { _ in }
   let onSubmit: () -> Void
+  @Environment(\.colorScheme) private var colorScheme
+  @Environment(\.poracodeTheme) private var theme
 
   func makeCoordinator() -> Coordinator {
     Coordinator(parent: self)
@@ -40,9 +43,10 @@ struct TerminalCommandField: UIViewRepresentable {
 
   func makeUIView(context: Context) -> TerminalCommandTextView {
     let view = TerminalCommandTextView()
+    applyAppearance(to: view)
     view.accessibilityLabel = accessibilityLabel
     view.accessibilityIdentifier = "native-e2e.terminal.input"
-    view.font = TerminalTextAttributes.font(pointSize: pointSize)
+    view.font = font
     view.isEditable = !isDisabled
     view.alpha = isDisabled ? 0.55 : 1
     view.text = text
@@ -52,9 +56,10 @@ struct TerminalCommandField: UIViewRepresentable {
 
   func updateUIView(_ view: TerminalCommandTextView, context: Context) {
     context.coordinator.parent = self
+    applyAppearance(to: view)
     view.accessibilityLabel = accessibilityLabel
-    if view.font?.pointSize != pointSize {
-      view.font = TerminalTextAttributes.font(pointSize: pointSize)
+    if view.font != font {
+      view.font = font
       view.invalidateIntrinsicContentSize()
     }
     let editable = !isDisabled
@@ -68,6 +73,16 @@ struct TerminalCommandField: UIViewRepresentable {
     if view.text != text {
       view.text = text
       view.invalidateIntrinsicContentSize()
+    }
+  }
+
+  private func applyAppearance(to view: TerminalCommandTextView) {
+    view.overrideUserInterfaceStyle = colorScheme == .dark ? .dark : .light
+    view.textColor = UIColor(theme.variant(for: colorScheme).foreground)
+    let appearance: UIKeyboardAppearance = colorScheme == .dark ? .dark : .light
+    if view.keyboardAppearance != appearance {
+      view.keyboardAppearance = appearance
+      if view.isFirstResponder { view.reloadInputViews() }
     }
   }
 
@@ -101,6 +116,17 @@ struct TerminalCommandField: UIViewRepresentable {
       parent.text = textView.text ?? ""
     }
 
+    func textViewDidBeginEditing(_ textView: UITextView) { publishFocus(for: textView) }
+    func textViewDidEndEditing(_ textView: UITextView) { publishFocus(for: textView) }
+
+    private func publishFocus(for textView: UITextView) {
+      // Disabling input may resign the field during a SwiftUI update.
+      Task { @MainActor [weak self, weak textView] in
+        guard let self, let textView else { return }
+        parent.onFocusChanged(textView.isFirstResponder)
+      }
+    }
+
     func textView(
       _ textView: UITextView,
       shouldChangeTextIn range: NSRange,
@@ -124,14 +150,13 @@ struct TerminalCommandField: UIViewRepresentable {
 /// keypress and a paste reach the delegate as a `"\n"` replacement — only
 /// the flag tells them apart), and an intrinsic height that follows wrapped
 /// content.
-final class TerminalCommandTextView: UITextView {
+final class TerminalCommandTextView: NativeFocusReportingTextView {
   var isPasting = false
+
 
   override init(frame: CGRect, textContainer: NSTextContainer?) {
     super.init(frame: frame, textContainer: textContainer)
     backgroundColor = .clear
-    overrideUserInterfaceStyle = .dark
-    keyboardAppearance = .dark
     textColor = .label
     isSelectable = true
     alwaysBounceVertical = false

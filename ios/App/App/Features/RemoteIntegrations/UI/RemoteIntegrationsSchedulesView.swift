@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct RemoteIntegrationsSchedulesView: View {
+  @Environment(\.homeWorkspace) private var workspace
   @Bindable var session: AppSession
   let selection: RemoteIntegrationsHostSelection?
   let projects: [RemoteIntegrationsProjectOption]
@@ -53,6 +54,7 @@ struct RemoteIntegrationsSchedulesView: View {
     .task(id: loadIdentity) {
       guard isPresentationActive else { return }
       composition.activate(selection)
+      guard composition.gate(.sessionRead) == nil else { return }
       await composition.schedules.load()
       await composition.automations.load()
     }
@@ -75,11 +77,12 @@ struct RemoteIntegrationsSchedulesView: View {
       .pickerStyle(.segmented)
       .padding(.horizontal)
       .padding(.vertical, 8)
+      .poracodeReadableWidth(760)
       .poracodeBarBackground()
     }
-    .poracodeBottomBar {
-      PoracodeBottomActionDock(placement: .trailing) {
-        PoracodeCircleMenu {
+    .toolbar {
+      ToolbarItem(placement: .bottomBar) {
+        Menu {
           if let createWithAgent {
             Button(RemoteIntegrationsStrings.createWithAgent, systemImage: "sparkles") {
               createWithAgent()
@@ -90,13 +93,10 @@ struct RemoteIntegrationsSchedulesView: View {
           }
         } label: {
           Label(RemoteIntegrationsStrings.create, systemImage: "plus")
-            .labelStyle(.iconOnly)
         }
         .disabled(mutationDisabled || agents.isEmpty)
         .accessibilityIdentifier("native-e2e.schedules.create")
       }
-    }
-    .toolbar {
       ToolbarItem(placement: .topBarTrailing) {
         Button { showResults = true } label: {
           Label("\(RemoteAutomationsStrings.results) (\(composition.automations.unreadCount))", systemImage: "tray")
@@ -108,6 +108,7 @@ struct RemoteIntegrationsSchedulesView: View {
     }
     .sheet(isPresented: $showResults) {
       RemoteIntegrationsResultsView(session: session, controller: composition.automations, canOperate: composition.gate(.sessionOperate) == nil)
+        .poracodePageSheetSizing()
     }
     .sheet(item: $editor) { target in
       RemoteIntegrationsScheduleEditor(
@@ -117,6 +118,7 @@ struct RemoteIntegrationsSchedulesView: View {
         controller: composition.schedules,
         threads: session.snapshot?.threads ?? []
       )
+      .poracodeFormSheetSizing()
     }
     .sheet(item: $runsSchedule) { schedule in
       RemoteIntegrationsScheduleRunsView(
@@ -124,6 +126,7 @@ struct RemoteIntegrationsSchedulesView: View {
         schedule: schedule,
         controller: composition.scheduleRuns
       )
+      .poracodePageSheetSizing()
     }
     .alert(item: $confirmation) { confirmation in
       alert(confirmation)
@@ -140,7 +143,7 @@ struct RemoteIntegrationsSchedulesView: View {
 
   private var loadIdentity: RemoteIntegrationsLoadIdentity {
     RemoteIntegrationsLoadIdentity(
-      lease: selection?.lease,
+      access: selection?.access,
       lifecycleGeneration: composition.lifecycleGeneration,
       isPresentationActive: isPresentationActive
     )
@@ -163,7 +166,8 @@ struct RemoteIntegrationsSchedulesView: View {
   private var scheduleList: some View {
     List {
       let filtered = composition.schedules.schedules.filter {
-        RemoteIntegrationsScheduleListFilter.matches(
+        workspace.includes(projectID: $0.projectId, connectionID: selection?.lease.connectionID)
+        && RemoteIntegrationsScheduleListFilter.matches(
           $0,
           status: statusFilter,
           query: query
@@ -255,6 +259,7 @@ struct RemoteIntegrationsSchedulesView: View {
       }
     }
     .listStyle(.insetGrouped)
+    .poracodeReadableListMargins(760)
   }
 
   private var mutationDisabled: Bool {
@@ -267,7 +272,7 @@ struct RemoteIntegrationsSchedulesView: View {
 
   private var pollingIdentity: RemoteIntegrationsSchedulePollingIdentity {
     RemoteIntegrationsSchedulePollingIdentity(
-      lease: selection?.lease,
+      lease: selection?.access.gate(.sessionRead) == nil ? selection?.lease : nil,
       isPresentationActive: isPresentationActive,
       hasRunningSchedule: hasRunningSchedule,
       isMutating: composition.schedules.isMutating

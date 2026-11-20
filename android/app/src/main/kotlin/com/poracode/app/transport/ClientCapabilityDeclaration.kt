@@ -35,16 +35,24 @@ internal class ClientCapabilityDeclaration {
     @Volatile
     private var catalogDeclared: Boolean = false
 
+    @Volatile
+    private var cursorSyncV2: Boolean = false
+
     /** Records the authoritative host answer once per `environment()` read. */
     fun observe(descriptor: RemoteEnvironmentDescriptor) {
         notices = descriptor.capabilities?.runtimeHistoryNotices?.versions
             ?.contains(RemoteEnvironmentDescriptor.RUNTIME_HISTORY_NOTICES_VERSION) == true
         catalogAdvertised = descriptor.capabilities?.boundedCatalogChanges?.versions
             ?.contains(RemoteEnvironmentDescriptor.BOUNDED_CATALOG_CHANGES_VERSION) == true
+        cursorSyncV2 = descriptor.capabilities?.terminalCursorSync?.versions
+            ?.contains(RemoteEnvironmentDescriptor.TERMINAL_CURSOR_SYNC_V2) == true
     }
 
     val noticesDeclared: Boolean
         get() = notices
+
+    val terminalCursorSyncV2Advertised: Boolean
+        get() = cursorSyncV2
 
     fun declareNotices(enabled: Boolean) {
         notices = enabled

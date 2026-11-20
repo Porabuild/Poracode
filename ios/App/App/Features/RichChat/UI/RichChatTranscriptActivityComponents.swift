@@ -1,15 +1,36 @@
 import SwiftUI
 
+private struct RichChatActivityHeaderLayout: ViewModifier {
+  @Environment(\.horizontalSizeClass) private var sizeClass
+  @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
+  func body(content: Content) -> some View {
+    content
+      .frame(minHeight: dynamicTypeSize.isAccessibilitySize ? 44 : (sizeClass == .regular ? 28 : 32))
+      .contentShape(Rectangle())
+  }
+}
+
+extension View {
+  func richChatActivityHeaderLayout() -> some View { modifier(RichChatActivityHeaderLayout()) }
+}
+
 struct RichChatReasoningRow: View {
   let text: String
   let isWorking: Bool
+  var disclosureID: String? = nil
 
-  @State private var expanded = false
+  @State private var localExpanded = false
+  @Environment(\.transcriptDisclosures) private var disclosures
+  @Environment(\.richChatFindHighlight) private var find
+  @Environment(\.richChatActivityGrouped) private var isGrouped
+  private var expansion: Binding<Bool> { TranscriptDisclosureContext.binding(disclosures, id: disclosureID, fallback: $localExpanded) }
+  private var expanded: Bool { expansion.wrappedValue || find.revealsItem }
 
   var body: some View {
     VStack(alignment: .leading, spacing: 7) {
       Button(action: toggleExpanded) {
-        HStack(spacing: 6) {
+        HStack(spacing: isGrouped ? 4 : 6) {
           RichChatIcon(.thought)
             .font(.caption)
             .symbolEffect(.pulse, options: .repeating, isActive: isWorking)
@@ -27,12 +48,12 @@ struct RichChatReasoningRow: View {
         }
         .poracodeChatText(.metadata)
         .foregroundStyle(.secondary)
-        .contentShape(Rectangle())
+        .richChatActivityHeaderLayout()
       }
       .buttonStyle(.plain)
 
       if expanded && !text.isEmpty {
-        Text(RichChatAttributedText.presentation(text))
+        find.text(RichChatAttributedText.presentation(text), part: .body)
           .poracodeChatText(.command)
           .italic()
           .foregroundStyle(.secondary)
@@ -48,7 +69,6 @@ struct RichChatReasoningRow: View {
       }
     }
     .padding(.horizontal, 12)
-    .padding(.vertical, 6)
   }
 
   private static let previewMaxLength = 500
@@ -64,7 +84,7 @@ struct RichChatReasoningRow: View {
 
   private func toggleExpanded() {
     guard !text.isEmpty else { return }
-    withAnimation(.snappy(duration: 0.22)) { expanded.toggle() }
+    withAnimation(.snappy(duration: 0.22)) { expansion.wrappedValue = !expanded }
   }
 }
 
@@ -74,17 +94,27 @@ struct RichChatActivityRow: View {
   let icon: RichChatIcon.Kind
   let duration: String?
   let isWorking: Bool
+  var disclosureID: String? = nil
+  var expandedBinding: Binding<Bool>? = nil
+  var detailsAvailable = false
+  var accessibilityID: String? = nil
 
-  @State private var expanded = false
+  @State private var localExpanded = false
+  @Environment(\.transcriptDisclosures) private var disclosures
+  @Environment(\.richChatActivityGrouped) private var isGrouped
+  private var expansion: Binding<Bool> {
+    expandedBinding ?? TranscriptDisclosureContext.binding(disclosures, id: disclosureID, fallback: $localExpanded)
+  }
+  private var expanded: Bool { expansion.wrappedValue }
 
   var body: some View {
-    VStack(alignment: .leading, spacing: 6) {
+    VStack(alignment: .leading, spacing: 4) {
       Button(action: toggleExpanded) {
-        HStack(spacing: 6) {
+        HStack(spacing: isGrouped ? 4 : 6) {
           RichChatIcon(icon)
             .font(.caption)
             .foregroundStyle(.secondary)
-            .frame(width: 14)
+            .frame(minWidth: isGrouped ? 13 : 14)
           Text(title)
             .fontWeight(.medium)
             .foregroundStyle(.secondary)
@@ -100,17 +130,21 @@ struct RichChatActivityRow: View {
               .controlSize(.mini)
               .tint(.secondary)
           }
-          if !text.isEmpty {
+          if detailsAvailable || !text.isEmpty {
             Image(systemName: "chevron.down")
               .font(.system(size: 9, weight: .semibold))
               .foregroundStyle(.tertiary)
               .rotationEffect(.degrees(expanded ? 180 : 0))
+              .accessibilityHidden(true)
           }
         }
         .poracodeChatText(.metadata)
-        .contentShape(Rectangle())
+        .richChatActivityHeaderLayout()
       }
       .buttonStyle(.plain)
+      .accessibilityIdentifier(accessibilityID ?? "native-e2e.activity-row")
+      .accessibilityValue(detailsAvailable || !text.isEmpty
+        ? (expanded ? ToolPresentationStrings.expanded : ToolPresentationStrings.collapsed) : "")
 
       if expanded && !text.isEmpty {
         Text(RichChatAttributedText.presentation(text))
@@ -125,12 +159,11 @@ struct RichChatActivityRow: View {
       }
     }
     .padding(.leading, 16)
-    .padding(.vertical, 4)
   }
 
   private func toggleExpanded() {
-    guard !text.isEmpty else { return }
-    withAnimation(.snappy(duration: 0.22)) { expanded.toggle() }
+    guard detailsAvailable || !text.isEmpty else { return }
+    withAnimation(.snappy(duration: 0.22)) { expansion.wrappedValue = !expanded }
   }
 }
 
@@ -145,6 +178,9 @@ struct RichChatIcon: View {
     case search = "ChatSearch"
     case edit = "ChatEdit"
     case command = "ChatCommand"
+    case check = "ChatCheck"
+    case package = "ChatPackage"
+    case list = "ChatList"
     case mcp = "ChatMcp"
     case tool = "ChatTool"
     case thought = "ChatThought"

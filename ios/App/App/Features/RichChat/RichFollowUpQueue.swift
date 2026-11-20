@@ -5,6 +5,13 @@ import Foundation
 struct RichFollowUpQueue: Sendable, Equatable {
   let items: [RichPendingSteer]
   let paused: Bool
+
+  func containsEditableRevision(_ item: RichPendingSteer) -> Bool {
+    paused
+      && items.contains {
+        $0.id == item.id && $0.stagedAtMilliseconds == item.stagedAtMilliseconds
+      }
+  }
 }
 
 /// Replayable `thread-follow-up-queue` broadcast; `queue: nil` means no queue.
@@ -33,6 +40,48 @@ struct RichQueuedFollowUpEdit: Sendable, Equatable {
       payload["segments"] = .array(segments.map(\.richChatWireValue))
     }
     return payload
+  }
+}
+
+/// One draft owns its original revision and the ordered structured content.
+struct RichQueuedFollowUpDraft {
+  let item: RichPendingSteer
+  private(set) var segments: [RichPromptSegment]
+
+  init(item: RichPendingSteer) {
+    self.item = item
+    segments = item.segments.flatMap { $0.isEmpty ? nil : $0 } ?? [.text(content: item.prompt)]
+    if !segments.contains(where: {
+      if case .text = $0 { return true }
+      return false
+    }) {
+      segments.append(.text(content: ""))
+    }
+  }
+
+  func text(at index: Int) -> String? {
+    guard case .text(let content) = segments[index] else { return nil }
+    return content
+  }
+
+  mutating func updateText(at index: Int, to content: String) {
+    guard text(at: index) != nil else { return }
+    segments[index] = .text(content: content)
+  }
+
+  func edit() -> RichQueuedFollowUpEdit? {
+    guard let revision = Int64(exactly: item.stagedAtMilliseconds) else { return nil }
+    let editedText = segments.indices.compactMap { text(at: $0) }.joined(separator: " ")
+      .trimmingCharacters(in: .whitespacesAndNewlines)
+    let prompt =
+      editedText.isEmpty
+      ? segments.compactMap(\.promptText).joined(separator: " ").trimmingCharacters(
+        in: .whitespacesAndNewlines)
+      : editedText
+    guard RichPromptSegment.isSendable(prompt: prompt, segments: segments) else { return nil }
+    return RichQueuedFollowUpEdit(
+      id: item.id, expectedStagedAtMilliseconds: revision,
+      prompt: prompt, segments: item.segments == nil ? nil : segments)
   }
 }
 

@@ -66,44 +66,18 @@ struct SettingsMCPView: View {
       )
       .listRowBackground(Color.clear)
     }
+    .poracodeReadableListMargins(740)
     .navigationTitle(SettingsIntegrationsStrings.mcpServers)
     .toolbar { refreshButton }
     .task(id: discoveryTaskIdentity) { await discover() }
     .sheet(item: $toolServer) { server in
       toolSheet(server)
+        .poracodeFormSheetSizing()
     }
   }
 
-  @ViewBuilder private var oauthStatus: some View {
-    switch oauth.lifecycle {
-    case .waiting, .openingBrowser, .starting:
-      Section {
-        HStack {
-          ProgressView()
-          Text(SettingsIntegrationsStrings.waitingForAuthorization)
-          Spacer()
-          Button(SettingsIntegrationsStrings.cancel) { oauth.cancel() }
-        }
-      }
-    case .paused:
-      Section {
-        Label(SettingsIntegrationsStrings.authorizationPaused, systemImage: "pause.circle")
-      }
-    case .timedOut:
-      Section {
-        Label(
-          SettingsIntegrationsStrings.authorizationTimedOut,
-          systemImage: "clock.badge.exclamationmark")
-      }
-    case .authorized:
-      Section { Label(SettingsIntegrationsStrings.authorized, systemImage: "checkmark.shield") }
-    case .failed(let failure):
-      Section {
-        Label(SettingsIntegrationsStrings.failure(failure), systemImage: "exclamationmark.triangle")
-      }
-    default:
-      EmptyView()
-    }
+  private var oauthStatus: some View {
+    SettingsMCPOAuthStatusView(lifecycle: oauth.lifecycle, cancel: oauth.cancel)
   }
 
   private func candidateRow(_ candidate: SettingsExternalMCPServer) -> some View {
@@ -226,6 +200,7 @@ struct SettingsMCPView: View {
         .disabled(onUpdateConfigured == nil || currentConfiguredServer(for: server) == nil)
         .poracodeSwitchStyle()
       }
+      .poracodeReadableListMargins(740)
       .navigationTitle(server.name)
       .navigationBarTitleDisplayMode(.inline)
       .toolbar {
@@ -313,4 +288,45 @@ extension SettingsMCPServer {
       transport: transport
     )
   }
+}
+
+/// Shared authorization feedback for configured and discovered MCP tools.
+struct SettingsMCPOAuthStatusView: View {
+  let lifecycle: SettingsMCPOAuthLifecycle
+  let cancel: () -> Void
+
+  @ViewBuilder var body: some View {
+    switch lifecycle {
+    case .waiting, .openingBrowser, .starting:
+      Section {
+        HStack {
+          ProgressView()
+          Text(SettingsIntegrationsStrings.waitingForAuthorization)
+          Spacer()
+          Button(SettingsIntegrationsStrings.cancel) { cancel() }
+        }
+      }
+    case .authorized:
+      Section {
+        Label(SettingsIntegrationsStrings.authorized, systemImage: "checkmark.shield")
+      }
+    case .paused:
+      Section {
+        Label(SettingsIntegrationsStrings.authorizationPaused, systemImage: "pause.circle")
+      }
+    case .timedOut:
+      Section {
+        Label(
+          SettingsIntegrationsStrings.authorizationTimedOut,
+          systemImage: "clock.badge.exclamationmark")
+      }
+    case .failed(let failure):
+      Section {
+        Label(SettingsIntegrationsStrings.failure(failure), systemImage: "exclamationmark.triangle")
+      }
+    default:
+      EmptyView()
+    }
+  }
+
 }

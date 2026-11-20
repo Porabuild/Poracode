@@ -9,7 +9,15 @@ public extension RemoteSchemas {
 }
 
 public extension RemoteSchemas {
+  static let schema_f6cdfe506c1e5468 = RemoteSchema(type: "object", required: Set(["kind", "label"]), properties: ["kind": RemoteSchemas.schema_32519102603d95d6, "label": RemoteSchemas.schema_2963caa14efb9573, "text": RemoteSchemas.schema_dfc3f3726c991dbe], additionalAllowed: true, unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
   static let schema_f6dd22a2a9de3244 = RemoteSchema(type: "string", literals: [.string("camera"), .string("microphone"), .string("photos"), .string("contacts"), .string("calendar"), .string("location"), .string("notifications"), .string("motion")], unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
+  static let schema_f6e7e7b61d75b459 = RemoteSchema(type: "object", required: Set(["items", "version"]), properties: ["items": RemoteSchemas.schema_f3e06411e2a7b1ac, "version": RemoteSchemas.schema_f8ba039a2f32fad1], additionalAllowed: true, unknownPolicy: .strip)
 }
 
 public extension RemoteSchemas {
@@ -74,10 +82,6 @@ public extension RemoteSchemas {
 
 public extension RemoteSchemas {
   static let schema_f96ab4911dae8c83 = RemoteSchema(type: "object", required: Set(["control", "kind", "version"]), properties: ["control": RemoteSchemas.schema_c3a191d9ad55837f, "kind": RemoteSchemas.schema_6eed5e1fa2ae0e54, "version": RemoteSchemas.schema_7f9f5a0d72de0d9a], additionalAllowed: false, unknownPolicy: .reject)
-}
-
-public extension RemoteSchemas {
-  static let schema_f975b14607ae3f63 = RemoteSchema(type: "object", required: Set(["events"]), properties: ["events": RemoteSchemas.schema_23b45e35f743c6ce], additionalAllowed: true, unknownPolicy: .strip)
 }
 
 public extension RemoteSchemas {

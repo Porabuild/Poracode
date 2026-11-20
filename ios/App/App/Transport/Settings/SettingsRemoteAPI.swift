@@ -2,6 +2,7 @@ import Foundation
 
 protocol SettingsRemoteAPI: Sendable {
   func settingsAgentStatuses() async throws -> SettingsAgentStatuses
+  func settingsDiscoverAgents(_ request: SettingsAgentDiscoveryRequest) async throws -> SettingsAgentDiscoveryResult
   func settingsProviderUsage() async throws -> SettingsProviderUsage
   func settingsProfileDevices() async throws -> SettingsProfileDevices
   func settingsProfileCoreStats(
@@ -23,6 +24,10 @@ protocol SettingsRemoteAPI: Sendable {
 }
 
 extension SettingsRemoteAPI {
+  func settingsDiscoverAgents(_ request: SettingsAgentDiscoveryRequest) async throws -> SettingsAgentDiscoveryResult {
+    throw RemoteClientError.invalidResponse("Agent discovery is unavailable.")
+  }
+
   func globalMCPSettingsRead() async throws -> GlobalMCPSettingsResponse {
     throw RemoteClientError.invalidResponse("MCP settings are unavailable.")
   }
@@ -47,6 +52,13 @@ enum SettingsRemoteMutationError: Error, Sendable {
 }
 
 extension RemoteAPIClient: SettingsRemoteAPI {
+  func settingsDiscoverAgents(_ request: SettingsAgentDiscoveryRequest) async throws -> SettingsAgentDiscoveryResult {
+    let body = try SettingsRemoteV3Contract.agentDiscoveryRequest(JSONDecoding.encoder.encode(request))
+    return try await mutate(path: SettingsRemoteV3Contract.agentDiscoveryPath, body: body,
+      timeout: SettingsRemoteV3Contract.agentDiscoveryTimeout,
+      canonicalize: SettingsRemoteV3Contract.agentDiscoveryResponse)
+  }
+
   func settingsAgentStatuses() async throws -> SettingsAgentStatuses {
     try await get(
       route: "agent-statuses",
@@ -101,7 +113,7 @@ extension RemoteAPIClient: SettingsRemoteAPI {
       JSONDecoding.encoder.encode(identity)
     )
     return try await mutate(
-      route: "profile-identity", body: body,
+      path: path(for: "profile-identity"), body: body,
       canonicalize: SettingsRemoteV3Contract.profileIdentityResponse
     )
   }
@@ -116,7 +128,7 @@ extension RemoteAPIClient: SettingsRemoteAPI {
       JSONDecoding.encoder.encode(patch)
     )
     return try await mutate(
-      route: "settings-write", body: body,
+      path: path(for: "settings-write"), body: body,
       canonicalize: SettingsRemoteV3Contract.settingsWriteResponse
     )
   }
@@ -135,7 +147,7 @@ extension RemoteAPIClient: SettingsRemoteAPI {
       JSONDecoding.encoder.encode(command)
     )
     return try await mutate(
-      route: "mcp-settings-command",
+      path: path(for: "mcp-settings-command"),
       body: body,
       canonicalize: SettingsRemoteV3Contract.mcpSettingsCommandResponse
     )
@@ -148,7 +160,7 @@ extension RemoteAPIClient: SettingsRemoteAPI {
       JSONDecoding.encoder.encode(operation)
     )
     return try await mutate(
-      route: "mcp-settings-operation",
+      path: path(for: "mcp-settings-operation"),
       body: body,
       canonicalize: SettingsRemoteV3Contract.mcpSettingsOperationResponse
     )
@@ -163,13 +175,14 @@ extension RemoteAPIClient: SettingsRemoteAPI {
   }
 
   private func mutate<Value: Decodable & Sendable>(
-    route: String,
+    path: String,
     body: Data,
+    timeout: TimeInterval? = nil,
     canonicalize: @Sendable (Data) throws -> Data
   ) async throws -> Value {
     let response: Data
     do {
-      response = try await requestData(path: path(for: route), method: "POST", jsonBody: body)
+      response = try await requestData(path: path, method: "POST", jsonBody: body, timeout: timeout)
     } catch is CancellationError {
       throw CancellationError()
     } catch let error as RemoteClientError

@@ -19,18 +19,21 @@ final class EnvironmentManagementGatingTests: XCTestCase {
         XCTAssertEqual(with.capabilities?.sshEnvironments?.versions, [1])
     }
 
-    func testHostDescribeCapabilityGatesMenu() throws {
-        let payload = Data(
-            #"{"capabilities":{"ssh":false,"sshEnvironments":{"versions":[1]}}}"#.utf8
-        )
-        let capabilities = try JSONDecoding.decode(HostDescribeResponse.self, from: payload)
-        XCTAssertTrue(capabilities.capabilities.offersHostOwnedEnvironments)
-
-        let absent = try JSONDecoding.decode(
+    func testEnvironmentDescriptorSuppliesMenuCapabilityAlongsideServiceDescribe() throws {
+        let services = try JSONDecoding.decode(
             HostDescribeResponse.self,
-            from: Data(#"{"capabilities":{}}"#.utf8)
+            from: GeneratedRemoteV3Contract.hostDescribeResponse(Data(#"{"capabilities":{"ssh":true}}"#.utf8))
+        ).capabilities
+        let descriptor = try JSONDecoding.decode(
+            RemoteEnvironmentDescriptor.self,
+            from: GeneratedRemoteV3Contract.environmentResponse(
+                environmentDescriptorJSON(sshEnvironments: true), legacy: false
+            )
         )
-        XCTAssertFalse(absent.capabilities.offersHostOwnedEnvironments)
+        XCTAssertFalse(services.offersHostOwnedEnvironments)
+        let capabilities = services.applyingEnvironmentAdvertisement(descriptor)
+        XCTAssertTrue(capabilities.ssh)
+        XCTAssertTrue(capabilities.offersHostOwnedEnvironments)
     }
 
     func testUnknownCapabilityFailsClosed() {

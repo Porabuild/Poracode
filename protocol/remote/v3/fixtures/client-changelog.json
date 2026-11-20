@@ -1,0 +1,79 @@
+{
+  "formatVersion": 1,
+  "document": {
+    "releases": [
+      {
+        "version": "1.9.0",
+        "date": "2026-02-01",
+        "title": "Earlier improvements",
+        "summary": "Earlier release details.",
+        "changes": [
+          {
+            "kind": "fixed",
+            "label": "Navigation",
+            "text": "Keep the selected project visible."
+          }
+        ]
+      },
+      {
+        "version": "1.10.0",
+        "date": "2026-03-10",
+        "title": "Workspace improvements",
+        "tagline": "Workspace Flow",
+        "summary": "Keep related work together across devices.",
+        "changes": [
+          {
+            "kind": "fixed",
+            "label": "Files",
+            "text": "Preserve paths such as 東京 / notes.md."
+          },
+          {
+            "kind": "added",
+            "label": "Workspaces",
+            "text": "Group projects for the task at hand.",
+            "headline": "Group related projects",
+            "feature": "future-unknown-feature"
+          },
+          {
+            "kind": "improved",
+            "text": "Keep every release detail available when the window changes."
+          }
+        ]
+      },
+      {
+        "version": "v1.10.0-preview.3",
+        "date": "unknown",
+        "title": "Equal numeric version",
+        "summary": "Input order breaks equal-version ties.",
+        "changes": []
+      }
+    ]
+  },
+  "expectedVersions": ["1.10.0", "v1.10.0-preview.3", "1.9.0"],
+  "expectedGroupKinds": ["added", "improved", "fixed"],
+  "legacyDocument": {
+    "releases": [
+      {
+        "version": "1.0.0",
+        "date": "2025-01-02",
+        "title": "First release",
+        "summary": "Older notes stay readable.",
+        "changes": [
+          {
+            "kind": "fixed",
+            "text": "Preserve the original text."
+          }
+        ]
+      }
+    ]
+  },
+  "compareCases": [
+    ["1.10.0", "1.9.9", 1],
+    ["v1.3", "1.3.0", 0],
+    ["1.3.0-nightly.4", "1.3.0", 0],
+    ["1.2+build", "1.2", 0],
+    ["  V2. 3x.4 ", "2.3.4", 0],
+    ["1.2.3", "1.2.4", -1],
+    ["", "0.0", 0]
+  ]
+}

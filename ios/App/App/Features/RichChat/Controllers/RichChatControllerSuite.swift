@@ -34,23 +34,27 @@ final class RichChatControllerSuite {
   let requests: RichChatRequestController
   let checkpoints: RichChatCheckpointController
   let media: RichChatMediaController
+  let runtimeItemHeadings: RichRuntimeItemHeadingController
   let terminal: RichChatTerminalController
   /// B1 durable history notices: an owner of its own so the transcript never
   /// grows the notice's retention/recovery state.
   let notice: RichChatNoticeController
   /// Neutral live session actions (inventory + single-attempt invokes).
   let sessionActions: RichChatSessionActionsController
+  let runtimeLaunch = CrewRuntimeLaunchState()
 
   init(
     gateway: any RichChatSessionGateway,
     refreshRequester: any RichChatAuthoritativeRefreshRequesting =
       RichChatNoopRefreshRequester(),
+    checkpointRevertAttempts: RichChatCheckpointRevertAttempts = RichChatCheckpointRevertAttempts(),
     watchIDGenerator: any RichChatWatchIDGenerating = RichChatUUIDWatchIDGenerator()
   ) {
     let noticeController = RichChatNoticeController(
       gateway: gateway, refreshRequester: refreshRequester
     )
     notice = noticeController
+    runtimeItemHeadings = RichRuntimeItemHeadingController(gateway: gateway)
     transcript = RichChatTranscriptController(
       gateway: gateway,
       refreshRequester: refreshRequester,
@@ -58,7 +62,8 @@ final class RichChatControllerSuite {
     )
     conversation = RichChatConversationController(
       gateway: gateway,
-      refreshRequester: refreshRequester
+      refreshRequester: refreshRequester,
+      checkpointRevertAttempts: checkpointRevertAttempts
     )
     requests = RichChatRequestController(
       gateway: gateway,
@@ -93,7 +98,9 @@ final class RichChatControllerSuite {
       return
     }
     scope = RichChatControllerScope(access: access, threadID: threadID)
+    runtimeLaunch.reset()
     transcript.activate(access: access, threadID: threadID)
+    runtimeItemHeadings.activate(access: access, threadID: threadID)
     notice.activate(access: access, threadID: threadID)
     conversation.activate(access: access, threadID: threadID)
     requests.activate(access: access, threadID: threadID)
@@ -109,7 +116,9 @@ final class RichChatControllerSuite {
       return
     }
     scope.access = access
+    if !access.isOnline || !access.isReady { runtimeLaunch.clear() }
     transcript.updateAccess(access)
+    runtimeItemHeadings.updateAccess(access)
     notice.updateAccess(access)
     conversation.updateAccess(access)
     requests.updateAccess(access)
@@ -120,8 +129,10 @@ final class RichChatControllerSuite {
   }
 
   func deselect() {
+    runtimeLaunch.reset()
     scope = RichChatControllerScope()
     transcript.deactivate()
+    runtimeItemHeadings.deactivate()
     notice.deactivate()
     conversation.deactivate()
     requests.deactivate()
@@ -134,7 +145,9 @@ final class RichChatControllerSuite {
   func enterBackground() {
     guard !scope.isBackgrounded else { return }
     scope.isBackgrounded = true
+    runtimeLaunch.clear()
     transcript.enterBackground()
+    runtimeItemHeadings.enterBackground()
     notice.enterBackground()
     conversation.enterBackground()
     requests.enterBackground()
@@ -154,6 +167,7 @@ final class RichChatControllerSuite {
     scope.access = access
     scope.isBackgrounded = false
     transcript.leaveBackground(access: access)
+    runtimeItemHeadings.leaveBackground(access: access)
     notice.leaveBackground(access: access)
     conversation.leaveBackground(access: access)
     requests.leaveBackground(access: access)
@@ -200,7 +214,9 @@ final class RichChatControllerSuite {
     )
   }
 
-  func refreshAuthoritativeHistory(targetEntryCount: Int? = 40) async {
+  /// Match the remote PWA's first visible viewport; older paging keeps its
+  /// normal window and explicit user control.
+  func refreshAuthoritativeHistory(targetEntryCount: Int? = RemoteBoundedReads.interactiveTargetTimelineEntryCount) async {
     guard let target = transcript.state.target else { return }
     await transcript.loadHistory(targetEntryCount: targetEntryCount)
     // A retired read may finish after selection or connectivity changed.

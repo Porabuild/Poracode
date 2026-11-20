@@ -13,8 +13,16 @@ internal val schema_f6c555fb5f1777c9: RemoteSchema by lazy {
     RemoteSchema(type = "string", literals = listOf(JsonPrimitive("observed")), unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
 
+internal val schema_f6cdfe506c1e5468: RemoteSchema by lazy {
+    RemoteSchema(type = "object", required = setOf("kind", "label"), properties = mapOf("kind" to schema_32519102603d95d6, "label" to schema_2963caa14efb9573, "text" to schema_dfc3f3726c991dbe), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
+}
+
 internal val schema_f6dd22a2a9de3244: RemoteSchema by lazy {
     RemoteSchema(type = "string", literals = listOf(JsonPrimitive("camera"), JsonPrimitive("microphone"), JsonPrimitive("photos"), JsonPrimitive("contacts"), JsonPrimitive("calendar"), JsonPrimitive("location"), JsonPrimitive("notifications"), JsonPrimitive("motion")), unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
+}
+
+internal val schema_f6e7e7b61d75b459: RemoteSchema by lazy {
+    RemoteSchema(type = "object", required = setOf("items", "version"), properties = mapOf("items" to schema_f3e06411e2a7b1ac, "version" to schema_f8ba039a2f32fad1), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
 
 internal val schema_f6f6c60cfab9884a: RemoteSchema by lazy {
@@ -79,10 +87,6 @@ internal val schema_f958c6e1fa6d616c: RemoteSchema by lazy {
 
 internal val schema_f96ab4911dae8c83: RemoteSchema by lazy {
     RemoteSchema(type = "object", required = setOf("control", "kind", "version"), properties = mapOf("control" to schema_c3a191d9ad55837f, "kind" to schema_6eed5e1fa2ae0e54, "version" to schema_7f9f5a0d72de0d9a), additionalAllowed = false, unknownPolicy = RemoteUnknownFieldPolicy.REJECT)
-}
-
-internal val schema_f975b14607ae3f63: RemoteSchema by lazy {
-    RemoteSchema(type = "object", required = setOf("events"), properties = mapOf("events" to schema_23b45e35f743c6ce), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
 
 internal val schema_f97770a7e3ba8e29: RemoteSchema by lazy {

@@ -124,6 +124,10 @@ async function requestGeneratedRoute(
 ): Promise<Response> {
   const route = generatedRoute(routeId);
   const queryValues = schemaExample(route.request.querySchema) as Record<string, unknown>;
+  if (routeId === "thread-item-presentations") {
+    queryValues.maxBytes = 1_048_576;
+    queryValues.maxDecodeBytes = 2_097_152;
+  }
   if (routeId === "local-image") queryValues.path = "/tmp/image one.png";
   if (routeId === "runtime-image") queryValues.path = ["payload", 0, "image key"];
   if (routeId === "thread-transfer-upload") {
@@ -136,9 +140,11 @@ async function requestGeneratedRoute(
   let path = route.path;
   for (const name of route.pathParameters ?? []) {
     const value =
-      routeId === "thread-transfer-upload" && name === "transferId"
-        ? "11111111-1111-4111-8111-111111111111"
-        : `${name} fixture/encoded`;
+      routeId === "thread-item-presentations" && name === "threadId"
+        ? "thread-fixture-001"
+        : routeId === "thread-transfer-upload" && name === "transferId"
+          ? "11111111-1111-4111-8111-111111111111"
+          : `${name} fixture/encoded`;
     path = path.replace(`{${name}}`, encodeURIComponent(String(value)));
   }
   const url = new URL(path, harness.httpBaseUrl);

@@ -56,6 +56,7 @@ import {
   dbAppendThreadCompletedTurn,
   dbApplyThreadRuntimeEvents,
   dbClaimRemoteCommand,
+  dbCompareAndSetProjectNotes,
   dbCompleteRemoteCommand,
   dbDeleteProject,
   dbDeleteThread,
@@ -181,6 +182,7 @@ vi.mock("@/host/db", () => {
     ),
     dbFindProjectByLocation: vi.fn<() => Project | null>(() => null),
     dbGetProjectNotes: vi.fn<(projectId: string) => unknown>(() => null),
+    dbCompareAndSetProjectNotes: vi.fn<typeof dbCompareAndSetProjectNotes>(),
     dbGetProjects: getProjects,
     dbGetThreadCompletedTurns: vi.fn<() => unknown[]>(() => []),
     dbGetThreadContextUsage: vi.fn<() => null>(() => null),
@@ -365,6 +367,7 @@ afterEach(async () => {
       (projectId) => dbGetProjects().find((project) => project.id === projectId) ?? null,
     );
   vi.mocked(dbGetProjectNotes).mockReset().mockReturnValue(null);
+  vi.mocked(dbCompareAndSetProjectNotes).mockReset();
   vi.mocked(dbGetProjects).mockReset().mockReturnValue([]);
   vi.mocked(dbGetThreadContextUsage).mockReset().mockReturnValue(null);
   vi.mocked(dbReadLatestThreadGoalItem).mockReset().mockReturnValue(null);
@@ -7896,6 +7899,27 @@ describe("RemoteAccessServer", () => {
     );
     expect(writeResponse.status).toBe(200);
     expect(dbSetProjectNotes).toHaveBeenCalledWith(notes);
+
+    const replacement = { doc: notes.doc, todos: notes.todos };
+    const saved = { ...notes, revision: "next" };
+    vi.mocked(dbCompareAndSetProjectNotes)
+      .mockReturnValueOnce({ status: "saved", notes: saved })
+      .mockReturnValueOnce({ status: "conflict", notes: saved });
+    for (const status of ["saved", "conflict"]) {
+      const response = await fetch(new URL(`/api/projects/${project.id}/notes`, info.httpBaseUrl), {
+        method: "POST",
+        headers: { ...readHeaders, authorization: `Bearer ${operateToken}` },
+        body: JSON.stringify({ baseRevision: null, replacement }),
+      });
+      expect(response.status).toBe(200);
+      await expect(response.json()).resolves.toEqual({ result: { status, notes: saved } });
+    }
+    expect(dbCompareAndSetProjectNotes).toHaveBeenCalledWith({
+      projectId: project.id,
+      baseRevision: null,
+      replacement,
+    });
+    expect(dbSetProjectNotes).toHaveBeenCalledTimes(1);
   });
 
   it("lists and modifies device schedules with read and operate scopes", async () => {

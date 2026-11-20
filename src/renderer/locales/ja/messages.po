@@ -10223,6 +10223,7 @@ msgid "Import selected"
 msgstr "選択項目をインポート"
 
 #: src/renderer/views/SettingsOverlay/parts/ImportSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 msgid "Import sessions"
 msgstr "セッションをインポート"
 
@@ -11347,7 +11348,6 @@ msgstr "リンク済み"
 msgid "Linux"
 msgstr "Linux"
 
-#: src/renderer/components/thread/ChatPane/parts/items/commandActionsDisplay.ts
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "List"
@@ -18797,7 +18797,6 @@ msgstr "SDK 未インストール"
 
 #: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/commands/registry.ts
-#: src/renderer/components/thread/ChatPane/parts/items/commandActionsDisplay.ts
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 #: src/renderer/views/MainView/parts/Sidebar/parts/MobileHomeActions.tsx
@@ -18992,7 +18991,6 @@ msgstr "スレッド、コマンド、設定、ファイルを検索…"
 msgid "Search titles, messages and folders"
 msgstr "タイトル、メッセージ、フォルダーを検索"
 
-#: src/renderer/components/thread/ChatPane/parts/items/commandActionsDisplay.ts
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 msgid "Search: \"{query}\" in {scope}"
 msgstr "検索: 「{query}」({scope} 内)"
@@ -22186,8 +22184,8 @@ msgid "This desktop"
 msgstr "このデスクトップ"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
-msgid "This desktop's Poracode version doesn't support browser forwarding. Update Poracode on your desktop."
-msgstr "このデスクトップのPoracodeのバージョンはブラウザー転送に対応していません。デスクトップでPoracodeを更新してください。"
+#~ msgid "This desktop's Poracode version doesn't support browser forwarding. Update Poracode on your desktop."
+#~ msgstr "このデスクトップのPoracodeのバージョンはブラウザー転送に対応していません。デスクトップでPoracodeを更新してください。"
 
 #: src/renderer/views/ProfileOverlay/parts/ProfileHeader.tsx
 msgid "This device"

@@ -6,11 +6,13 @@ import UIKit
 /// manual "Forward a port" entry for ports the desktop has not detected.
 struct PortForwardingView: View {
   @Environment(\.scenePhase) private var scenePhase
+  @Environment(\.poracodeEmbeddedInInspector) private var embeddedInInspector
   @State private var controller: PortForwardingController
   private let access: PortForwardingHostAccess?
   private let copyAddress: ((String) async -> URL?)?
   @State private var actionTask: Task<Void, Never>?
   @State private var manualPresented = false
+  @State private var manualLease: PortForwardingHostLease?
   @State private var manualPort = ""
   @State private var copiedForwardID: String?
 
@@ -109,31 +111,48 @@ struct PortForwardingView: View {
         }
       }
     }
-    .navigationTitle(PortForwardingStrings.title)
-    .navigationBarTitleDisplayMode(.inline)
+    .poracodeReadableListMargins(760)
+    .poracodeNavigationTitle(PortForwardingStrings.title, suppressed: embeddedInInspector)
+    .toolbar {
+      if !embeddedInInspector {
+        ToolbarItemGroup(placement: .bottomBar) {
+          Button(
+            projection.isScanning ? PortForwardingStrings.scanning : PortForwardingStrings.scan,
+            systemImage: projection.isScanning ? "hourglass" : "arrow.clockwise"
+          ) {
+            run { await controller.scan() }
+          }
+          .disabled(projection.isScanning || controller.operation != .none)
+          .accessibilityIdentifier("port-forwarding.scan")
+          Button(PortForwardingStrings.manualForward, systemImage: "plus", action: presentManualForward)
+            .disabled(!canUse)
+            .accessibilityIdentifier("port-forwarding.manual")
+        }
+      }
+    }
     .poracodeBottomBar {
-      PoracodeBottomActionBar {
-        PoracodeCircleButton {
-          run { await controller.scan() }
-        } label: {
-          if projection.isScanning {
-            ProgressView().accessibilityLabel(PortForwardingStrings.scanning)
-          } else {
-            Label(PortForwardingStrings.scan, systemImage: "arrow.clockwise")
+      if embeddedInInspector {
+        PoracodeBottomActionBar {
+          PoracodeCircleButton {
+            run { await controller.scan() }
+          } label: {
+            if projection.isScanning {
+              ProgressView().accessibilityLabel(PortForwardingStrings.scanning)
+            } else {
+              Label(PortForwardingStrings.scan, systemImage: "arrow.clockwise")
+                .labelStyle(.iconOnly)
+            }
+          }
+          .disabled(projection.isScanning || controller.operation != .none)
+          .accessibilityIdentifier("port-forwarding.scan")
+        } trailing: {
+          PoracodeCircleButton(action: presentManualForward) {
+            Label(PortForwardingStrings.manualForward, systemImage: "plus")
               .labelStyle(.iconOnly)
           }
+          .disabled(!canUse)
+          .accessibilityIdentifier("port-forwarding.manual")
         }
-        .disabled(projection.isScanning || controller.operation != .none)
-        .accessibilityIdentifier("port-forwarding.scan")
-      } trailing: {
-        PoracodeCircleButton {
-          manualPresented = true
-        } label: {
-          Label(PortForwardingStrings.manualForward, systemImage: "plus")
-            .labelStyle(.iconOnly)
-        }
-        .disabled(!canUse)
-        .accessibilityIdentifier("port-forwarding.manual")
       }
     }
     .alert(
@@ -143,16 +162,19 @@ struct PortForwardingView: View {
       TextField(PortForwardingStrings.portField, text: $manualPort)
         .keyboardType(.numberPad)
       Button(PortForwardingStrings.forward) {
-        if let port = Int(manualPort.trimmingCharacters(in: .whitespaces)),
+        if let lease = manualLease, lease == access?.lease,
+          let port = Int(manualPort.trimmingCharacters(in: .whitespaces)),
           (1...65_535).contains(port)
         {
-          run { await controller.start(port: port) }
+          run { await controller.start(port: port, expectedLease: lease) }
         }
         manualPort = ""
+        manualLease = nil
       }
-      .disabled(!manualPortValid)
+      .disabled(!manualPortValid || manualLease != controller.lease || !canUse)
       Button(PortForwardingStrings.close, role: .cancel) {
         manualPort = ""
+        manualLease = nil
       }
     } message: {
       Text(PortForwardingStrings.manualForwardHint)
@@ -170,15 +192,25 @@ struct PortForwardingView: View {
           }
       }
     }
-    .task { await controller.scan() }
     .onDisappear { cancelAction() }
+    .onChange(of: access?.lease) {
+      manualPresented = false
+      manualPort = ""
+      manualLease = nil
+    }
     .onChange(of: scenePhase) { _, phase in
       if phase != .active { cancelAction() }
     }
   }
 
   private var canUse: Bool {
-    access?.capabilities.contains(.forward) == true
+    access?.lease == controller.lease && access?.capabilities.contains(.forward) == true
+  }
+
+  private func presentManualForward() {
+    guard canUse else { return }
+    manualLease = access?.lease
+    manualPresented = true
   }
 
   /// Menu-level pre-disable for the browser actions. The row tap and the
@@ -286,13 +318,21 @@ struct PortForwardingView: View {
       .accessibilityLabel(PortForwardingStrings.open)
       .accessibilityValue(row.title)
       .accessibilityIdentifier("port-forwarding.open.\(row.id)")
-    }
-    .accessibilityIdentifier("port-forwarding.row.\(row.id)")
-    .contextMenu {
-      portForwardActions(row)
-    }
-    .accessibilityActions {
-      portForwardActions(row)
+      .contextMenu { portForwardActions(row) }
+      .accessibilityActions { portForwardActions(row) }
+
+      Menu {
+        portForwardActions(row)
+      } label: {
+        Label(PortForwardingStrings.actions, systemImage: "ellipsis")
+          .labelStyle(.iconOnly)
+          .foregroundStyle(.secondary)
+          .frame(minWidth: 44, minHeight: 44)
+          .contentShape(Rectangle())
+      }
+      .buttonStyle(.borderless)
+      .accessibilityLabel(PortForwardingStrings.actions)
+      .accessibilityIdentifier("port-forwarding.actions.\(row.id)")
     }
   }
 
@@ -323,7 +363,7 @@ struct PortForwardingView: View {
     actionTask?.cancel()
     actionTask = Task {
       if let url = await copyAddress(row.id) {
-        UIPasteboard.general.url = url
+        UIPasteboard.general.string = url.absoluteString
         copiedForwardID = row.id
       }
     }

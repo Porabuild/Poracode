@@ -2,302 +2,195 @@ import SwiftUI
 
 struct RichChatControlPanel: View {
   let suite: RichChatControllerSuite
+  var thread: RemoteThread? = nil
+  var project: RemoteProject? = nil
   let projectLocation: ProjectLocation?
+  var gitSummary: GitThreadSummary? = nil
   let agentStatus: AgentStatusRecord?
   let config: [String: RichJSON]
   let canOperate: Bool
   let canResolveRequests: Bool
   let refreshAuthentication: @MainActor () async -> Void
+  var providerUsage: RichChatProviderUsagePresentation? = nil
+  var providerUsageState: SettingsLoadState = .idle
+  var refreshProviderUsage: (@MainActor () async -> Void)? = nil
+  var galleryImages: [RichImagePresentation] = []
+  var galleryVideos: [RichVideoPresentation] = []
+  var galleryIdentity: String = ""
+  var crewStatuses: [AgentStatusRecord] = []
+  var savedCrews: [SavedCrew] = []
+  var openCrew: (() -> Void)?
 
+  @AppStorage("ios.layout.inspectorCards.v1") private var storedPreferences = ""
   @State private var isRefreshingAuthentication = false
 
+  private var items: [RichRuntimeItem] { suite.transcript.state.transcript?.itemsInOrder ?? [] }
+  private var goal: RichGoalPresentation? { RichChatPresentation.latestGoal(in: items) }
+  private var plan: RichPlanPresentation? { RichChatPresentation.latestActivePlan(in: items) }
+  private var agents: [RichDelegatedAgentPresentation] { RichChatPresentation.activeDelegatedAgents(in: items) }
+  private var crew: ThreadCrewBinding? { ThreadCrewBinding(wire: config["crew"]?.jsonValue) }
+  private var tasks: [RichBackgroundTaskPresentation] {
+    (suite.transcript.state.backgroundTasks ?? []).map(RichBackgroundTaskPresentation.init)
+  }
+  private var preferences: Binding<RichChatInspectorPreferences> {
+    Binding(get: { RichChatInspectorPreferences(stored: storedPreferences) }, set: { storedPreferences = $0.encoded })
+  }
+
+  private var visibleOrder: [RichChatInspectorSectionID] {
+    preferences.wrappedValue.order.filter { id in
+      switch id {
+      case .goal: goal != nil
+      case .steer: suite.transcript.state.pendingSteer != nil
+      case .plan: plan != nil
+      case .crew: crew != nil
+      case .agents: !agents.isEmpty
+      case .backgroundTasks: !tasks.isEmpty
+      case .info: thread != nil || project != nil
+      case .context: suite.transcript.state.contextUsage != nil
+      case .usage: providerUsage != nil
+      case .media: !galleryImages.isEmpty || !galleryVideos.isEmpty
+      case .checkpoints: projectLocation != nil
+      }
+    }
+  }
+
   var body: some View {
-    VStack(alignment: .leading, spacing: 9) {
-      RichChatContextIndicator(usage: suite.transcript.state.contextUsage)
+    VStack(alignment: .leading, spacing: 10) {
       if let transcript = suite.transcript.state.transcript {
-        let delegatedAgents = RichChatPresentation.activeDelegatedAgents(
-          in: transcript.itemsInOrder
-        )
-        if !delegatedAgents.isEmpty {
-          RichChatDelegatedAgentsView(agents: delegatedAgents)
-        }
-        let backgroundTasks = (suite.transcript.state.backgroundTasks ?? [])
-          .map(RichBackgroundTaskPresentation.init)
-        if !backgroundTasks.isEmpty {
-          RichChatBackgroundTasksPanel(
-            suite: suite,
-            tasks: backgroundTasks,
-            canOperate: canOperate
-          )
-        }
         let recentErrors = RichChatPresentation.recentErrors(in: transcript.itemsInOrder)
-        if RichChatPresentation.authenticationRequired(
-          agentStatus: agentStatus,
-          recentErrors: recentErrors
-        ), let agentStatus {
+        if RichChatPresentation.authenticationRequired(agentStatus: agentStatus, recentErrors: recentErrors),
+          let agentStatus {
           RichChatAuthenticationRequiredView(
-            agentStatus: agentStatus,
-            isRefreshing: isRefreshingAuthentication,
+            agentStatus: agentStatus, isRefreshing: isRefreshingAuthentication,
             refresh: refreshAuthenticationStatus
           )
         }
         RichChatRequestsView(
-          requests: transcript.openRequests,
-          controller: suite.requests,
-          canResolve: canResolveRequests
+          requests: transcript.openRequests, controller: suite.requests,
+          canResolve: canResolveRequests, surface: .inspector
         )
-        if let plan = RichChatPresentation.latestActivePlan(in: transcript.itemsInOrder) {
-          RichChatPlanView(plan: plan)
-        }
-        let errors = RichChatPresentation.visibleRecentErrors(
-          recentErrors,
-          agentStatus: agentStatus
-        )
+        let errors = RichChatPresentation.visibleRecentErrors(recentErrors, agentStatus: agentStatus)
         if !errors.isEmpty { RichChatErrorsView(errors: errors) }
-        RichChatGoalSteerView(
-          items: transcript.itemsInOrder,
-          pendingSteer: suite.transcript.state.pendingSteer,
-          config: config,
-          controller: suite.conversation,
-          canOperate: canOperate
-        )
       }
-      if let projectLocation {
-        RichChatCheckpointView(
-          projectLocation: projectLocation,
-          config: config,
-          controller: suite.checkpoints,
-          conversation: suite.conversation,
-          canOperate: canOperate
-        )
+      ForEach(visibleOrder) { id in
+        RichChatInspectorSection(
+          id: id, title: title(for: id), summary: summary(for: id),
+          preferences: preferences, visibleOrder: visibleOrder
+        ) {
+          if id == .goal, let goal { RichChatGoalStatusIcon(status: goal.status) }
+          else { Image(systemName: icon(for: id)).font(.caption).foregroundStyle(.secondary) }
+        } content: {
+          sectionContent(id)
+        }
       }
     }
+    .frame(maxWidth: .infinity, alignment: .leading)
+  }
+
+  @ViewBuilder
+  private func sectionContent(_ id: RichChatInspectorSectionID) -> some View {
+    switch id {
+    case .goal, .steer:
+      RichChatGoalSteerView(
+        items: id == .goal ? items : [],
+        pendingSteer: id == .steer ? suite.transcript.state.pendingSteer : nil,
+        config: config, controller: suite.conversation, canOperate: canOperate, embedded: true
+      )
+    case .plan:
+      if let plan { RichChatPlanView(plan: plan, embedded: true) }
+    case .crew:
+      if let crew {
+        CrewInspectorCard(binding: crew,
+          lead: .init(agentKind: thread?.agentKind ?? agentStatus?.kind ?? "", model: config["model"]?.stringValue ?? "",
+            effort: config["effort"]?.stringValue, fast: config["fast"]?.boolValue, contextSize: config["contextSize"]?.stringValue),
+          statuses: crewStatuses.isEmpty ? [agentStatus].compactMap { $0 } : crewStatuses,
+          saved: savedCrews.first { $0.id == crew.crewID }, items: items, openCrew: openCrew)
+      }
+    case .agents:
+      RichChatDelegatedAgentsView(agents: agents, embedded: true)
+    case .backgroundTasks:
+      RichChatBackgroundTasksPanel(suite: suite, tasks: tasks, canOperate: canOperate, embedded: true)
+    case .info:
+      RichChatThreadInfoCard(
+        thread: thread, project: project, projectLocation: projectLocation, gitSummary: gitSummary, embedded: true
+      )
+    case .context:
+      RichChatContextIndicator(usage: suite.transcript.state.contextUsage, showsHeader: false).padding(12)
+    case .usage:
+      if let providerUsage {
+        RichChatProviderUsageCard(presentation: providerUsage, state: providerUsageState, refresh: refreshProviderUsage)
+      }
+    case .media:
+      RichChatMediaGallery(
+        images: galleryImages, videos: galleryVideos, controller: suite.media,
+        projectLocation: projectLocation, embedded: true
+      ).id(galleryIdentity)
+    case .checkpoints:
+      if let projectLocation {
+        RichChatCheckpointView(
+          projectLocation: projectLocation, config: config, controller: suite.checkpoints,
+          conversation: suite.conversation, canOperate: canOperate, embedded: true
+        ).padding(8)
+      }
+    }
+  }
+
+  private func title(for id: RichChatInspectorSectionID) -> String {
+    switch id {
+    case .goal: RichChatStrings.goal
+    case .steer: RichChatStrings.pendingSteer
+    case .plan: RichChatStrings.plan
+    case .crew: crew?.name ?? RichChatStrings.crew
+    case .agents: RichChatStrings.delegatedAgents
+    case .backgroundTasks: RichChatStrings.backgroundTasks
+    case .info: HomeStrings.threadInfo
+    case .context: RichChatStrings.contextWindow
+    case .usage: SettingsUIStrings.usageTitle
+    case .media: RichChatStrings.media
+    case .checkpoints: RichChatStrings.checkpoints
+    }
+  }
+
+  private func icon(for id: RichChatInspectorSectionID) -> String {
+    switch id {
+    case .goal: "scope"
+    case .steer: "arrow.triangle.branch"
+    case .plan: "list.bullet.clipboard"
+    case .crew: "person.2"
+    case .agents: "person.2"
+    case .backgroundTasks: "gearshape.2"
+    case .info: "folder"
+    case .context: "gauge.with.dots.needle.50percent"
+    case .usage: "chart.bar"
+    case .media: "photo.on.rectangle"
+    case .checkpoints: "clock.arrow.circlepath"
+    }
+  }
+
+  private func summary(for id: RichChatInspectorSectionID) -> String? {
+    switch id {
+    case .goal: goal.map { RichChatStrings.goalStatus($0.status) }
+    case .plan: plan.map { "\($0.completedCount)/\($0.steps.count)" }
+    case .crew: crewRunsSummary
+    case .agents: agents.count.formatted()
+    case .backgroundTasks: tasks.count.formatted()
+    case .info: gitSummary?.branch ?? project?.name
+    case .context: RichChatPresentation.contextUsage(suite.transcript.state.contextUsage)?.percent.map { (Double($0) / 100).formatted(.percent.precision(.fractionLength(0))) }
+    case .usage: providerUsage?.label
+    case .media: (galleryImages.count + galleryVideos.count).formatted()
+    case .steer, .checkpoints: nil
+    }
+  }
+
+  private var crewRunsSummary: String? {
+    let runs = CrewRunPresentation.project(items)
+    return runs.isEmpty ? nil : "\(runs.count { !$0.isRunning })/\(runs.count)"
   }
 
   private func refreshAuthenticationStatus() {
     guard !isRefreshingAuthentication else { return }
     isRefreshingAuthentication = true
-    Task {
-      await refreshAuthentication()
-      isRefreshingAuthentication = false
-    }
-  }
-}
-
-struct RichChatDelegatedAgentsView: View {
-  let agents: [RichDelegatedAgentPresentation]
-
-  var body: some View {
-    VStack(alignment: .leading, spacing: 8) {
-      ForEach(agents) { agent in
-        HStack(spacing: 9) {
-          Image(systemName: icon(agent.kind))
-            .foregroundStyle(.tint)
-            .symbolEffect(.pulse)
-            .frame(width: 18)
-          VStack(alignment: .leading, spacing: 2) {
-            Text(agent.title)
-              .poracodeChatText(.metadata, weight: .semibold)
-              .lineLimit(2)
-            if agent.stepCount > 0 {
-              Text(RichChatStrings.activityCount(agent.stepCount))
-                .poracodeChatText(.metadata)
-                .foregroundStyle(.secondary)
-            }
-          }
-          Spacer(minLength: 4)
-          ProgressView().controlSize(.small)
-        }
-      }
-    }
-    .padding(12)
-    .poracodeGlassBackground(in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+    Task { await refreshAuthentication(); isRefreshingAuthentication = false }
   }
 
-  private func icon(_ kind: RichDelegatedAgentKind) -> String {
-    switch kind {
-    case .subagent: "cpu"
-    case .crossagent: "person.2"
-    case .workflow: "point.3.connected.trianglepath.dotted"
-    }
-  }
-}
-
-struct RichChatAuthenticationRequiredView: View {
-  let agentStatus: AgentStatusRecord
-  let isRefreshing: Bool
-  let refresh: () -> Void
-
-  var body: some View {
-    HStack(spacing: 12) {
-      Image(systemName: "key.fill")
-        .foregroundStyle(.orange)
-        .font(.title3)
-      VStack(alignment: .leading, spacing: 3) {
-        Text(SettingsUIStrings.authenticationMissing)
-          .poracodeChatText(.body, weight: .semibold)
-        Text(agentStatus.label)
-          .poracodeChatText(.metadata)
-          .foregroundStyle(.secondary)
-      }
-      Spacer(minLength: 4)
-      Button(action: refresh) {
-        if isRefreshing {
-          ProgressView().controlSize(.small)
-        } else {
-          Label(SettingsUIStrings.refresh, systemImage: "arrow.clockwise")
-            .labelStyle(.iconOnly)
-        }
-      }
-      .poracodeGlassButtonStyle()
-      .disabled(isRefreshing)
-      .accessibilityLabel(SettingsUIStrings.refresh)
-    }
-    .padding(12)
-    .background(.orange.opacity(0.08), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-    .overlay {
-      RoundedRectangle(cornerRadius: 14, style: .continuous)
-        .stroke(.orange.opacity(0.22), lineWidth: 1)
-    }
-  }
-}
-
-struct RichChatPlanView: View {
-  let plan: RichPlanPresentation
-
-  var body: some View {
-    VStack(alignment: .leading, spacing: 8) {
-      Label(RichChatStrings.plan, systemImage: "list.bullet.clipboard")
-        .poracodeChatText(.body, weight: .semibold)
-      ForEach(plan.steps) { step in
-        HStack(alignment: .firstTextBaseline, spacing: 8) {
-          Image(systemName: icon(step.status))
-            .font(.caption.weight(.semibold))
-            .foregroundStyle(step.status == .inProgress ? Color.primary : .secondary)
-            .symbolEffect(.pulse, isActive: step.status == .inProgress)
-            .frame(width: 16)
-          Text(step.text)
-            .poracodeChatText(.metadata)
-            .foregroundStyle(step.status == .completed ? .secondary : .primary)
-            .strikethrough(step.status == .completed)
-            .frame(maxWidth: .infinity, alignment: .leading)
-        }
-      }
-    }
-    .padding(12)
-    .poracodeGlassBackground(in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-  }
-
-  private func icon(_ status: RichPlanStepStatus) -> String {
-    switch status {
-    case .pending: "circle"
-    case .inProgress: "circle.dotted"
-    case .completed: "checkmark.circle.fill"
-    }
-  }
-}
-
-struct RichChatErrorsView: View {
-  let errors: [RichRuntimeErrorPresentation]
-
-  var body: some View {
-    VStack(alignment: .leading, spacing: 8) {
-      Label(RichChatStrings.errors, systemImage: "exclamationmark.triangle.fill")
-        .poracodeChatText(.body, weight: .semibold)
-        .foregroundStyle(.red)
-      ForEach(errors) { error in
-        Text(error.message)
-          .poracodeChatText(.metadata)
-          .textSelection(.enabled)
-          .frame(maxWidth: .infinity, alignment: .leading)
-      }
-    }
-    .padding(12)
-    .background(.red.opacity(0.08), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-    .overlay {
-      RoundedRectangle(cornerRadius: 14, style: .continuous)
-        .stroke(.red.opacity(0.22), lineWidth: 1)
-    }
-  }
-}
-
-/// Authoritative context-window occupancy for the selected thread. Renders only
-/// when the desktop reported a usable window; it never estimates token counts.
-struct RichChatContextIndicator: View {
-  let usage: RichContextUsage?
-
-  var body: some View {
-    if let summary = RichChatPresentation.contextUsage(usage) {
-      VStack(alignment: .leading, spacing: 4) {
-        HStack(spacing: 8) {
-          Text(RichChatStrings.contextWindow).font(.footnote)
-          Spacer(minLength: 0)
-          Text(headline(summary))
-            .font(.footnote.monospacedDigit())
-            .foregroundStyle(.secondary)
-        }
-        if let percent = summary.percent {
-          ProgressView(value: Double(percent), total: 100)
-            .progressViewStyle(.linear)
-        }
-      }
-      .accessibilityElement(children: .ignore)
-      .accessibilityLabel(RichChatStrings.contextWindow)
-      .accessibilityValue(accessibilityValue(summary))
-    }
-  }
-
-  private func headline(_ summary: RichContextUsagePresentation) -> String {
-    guard let percent = summary.percent else { return RichChatStrings.contextUsageUnknown }
-    return RichChatStrings.contextPercent(percent)
-  }
-
-  private func accessibilityValue(_ summary: RichContextUsagePresentation) -> String {
-    guard let percent = summary.percent, let used = summary.usedTokens else {
-      return RichChatStrings.contextUsageUnknown
-    }
-    let tokens = RichChatStrings.contextTokens(used: used, maxTokens: summary.maxTokens)
-    return "\(RichChatStrings.contextPercent(percent)), \(tokens)"
-  }
-}
-
-struct RichChatStatusView: View {
-  let suite: RichChatControllerSuite
-
-  var body: some View {
-    VStack(spacing: 0) {
-      if let failure = displayedFailure {
-        Label(RichChatStrings.failure(failure), systemImage: "exclamationmark.triangle")
-          .font(.footnote)
-          .foregroundStyle(.red)
-          .padding(.horizontal, 16)
-          .padding(.vertical, 6)
-          .frame(maxWidth: .infinity, alignment: .leading)
-      }
-      if needsRefresh {
-        HStack {
-          Text(RichChatStrings.refreshRequired).font(.footnote)
-          Spacer()
-          Button(RichChatStrings.retry) {
-            Task { await suite.refreshAuthoritativeHistory() }
-          }
-          .poracodeGlassButtonStyle()
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 6)
-      }
-    }
-  }
-
-  private var displayedFailure: RichChatControllerFailure? {
-    suite.conversation.state.failure
-      ?? suite.requests.state.failure
-      ?? suite.media.state.failure
-      ?? suite.checkpoints.state.failure
-      ?? suite.transcript.state.pageFailure
-  }
-
-  private var needsRefresh: Bool {
-    suite.requiresAuthoritativeRefresh
-  }
 }

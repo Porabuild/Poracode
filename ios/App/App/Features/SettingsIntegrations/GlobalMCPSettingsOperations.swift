@@ -11,7 +11,7 @@ extension GlobalMCPSettingsController {
     let pending = Task {
       do {
         let response = try await gateway.operateGlobalMCPSettings(
-          .oauthStatus(scope: .global), lease: lease)
+          .oauthStatus(scope: self.operationScope), lease: lease)
         try Task.checkCancellation()
         guard self.ownsOperation(captured, lease) else { return }
         guard case .oauthStatus(let serverIDs) = response else {
@@ -41,7 +41,7 @@ extension GlobalMCPSettingsController {
     let pending = Task {
       do {
         let response = try await gateway.operateGlobalMCPSettings(
-          .probe(scope: .global, serverID: server.id), lease: lease)
+          .probe(scope: self.operationScope, serverID: server.id), lease: lease)
         try Task.checkCancellation()
         guard self.ownsOperation(captured, lease) else { return }
         guard case .probe(let result) = response else { throw SettingsGatewayError.transport }
@@ -71,7 +71,7 @@ extension GlobalMCPSettingsController {
     let pending = Task {
       do {
         let response = try await gateway.operateGlobalMCPSettings(
-          .oauthBegin(scope: .global, serverID: server.id), lease: lease)
+          .oauthBegin(scope: self.operationScope, serverID: server.id), lease: lease)
         try Task.checkCancellation()
         guard self.ownsOperation(captured, lease) else { return }
         guard case .oauthBegin(let result) = response else {
@@ -121,7 +121,7 @@ extension GlobalMCPSettingsController {
     let pending = Task {
       do {
         let response = try await gateway.operateGlobalMCPSettings(
-          .oauthClear(scope: .global, serverID: server.id), lease: lease)
+          .oauthClear(scope: self.operationScope, serverID: server.id), lease: lease)
         try Task.checkCancellation()
         guard self.ownsOperation(captured, lease), case .oauthClear = response else { return }
         await self.reconcileOAuth(captured: captured, lease: lease)
@@ -190,7 +190,7 @@ extension GlobalMCPSettingsController {
   ) async throws {
     oauthLifecycle = .waiting
     let response = try await gateway.operateGlobalMCPSettings(
-      .oauthWait(scope: .global, flowID: flowID), lease: lease)
+      .oauthWait(scope: self.operationScope, flowID: flowID), lease: lease)
     try Task.checkCancellation()
     guard ownsOperation(captured, lease), oauthFlowID == flowID else {
       throw CancellationError()
@@ -209,7 +209,7 @@ extension GlobalMCPSettingsController {
   private func reconcileOAuth(captured: UInt64, lease: SettingsHostLease) async {
     do {
       let response = try await gateway.operateGlobalMCPSettings(
-        .oauthStatus(scope: .global), lease: lease)
+        .oauthStatus(scope: self.operationScope), lease: lease)
       try Task.checkCancellation()
       guard ownsOperation(captured, lease), case .oauthStatus(let serverIDs) = response else {
         return

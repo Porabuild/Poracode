@@ -5,17 +5,24 @@ import UIKit
 extension HomeQuickComposeView {
   @ViewBuilder
   func selectorSheet(_ destination: HomeComposerSelector) -> some View {
-    NavigationStack {
-      if destination == .model {
-        selectorList(destination)
-          .searchable(
-            text: $modelSearch,
-            placement: .navigationBarDrawer(displayMode: .always),
-            prompt: Text(HomeStrings.searchModels)
-          )
-      } else {
-        selectorList(destination)
+    if destination == .crew {
+      crewRosterSheet
+    } else {
+    NavigationStack(path: $draft.selectorPath) {
+      Group {
+        if destination == .model {
+          selectorList(destination)
+            .searchable(
+              text: $draft.modelSearch,
+              placement: .navigationBarDrawer(displayMode: .always),
+              prompt: Text(HomeStrings.searchModels)
+            )
+        } else {
+          selectorList(destination)
+        }
       }
+      .navigationDestination(for: HomeComposerDestination.self, destination: selectorDestination)
+    }
     }
   }
 
@@ -25,20 +32,27 @@ extension HomeQuickComposeView {
       case .project: projectRows
       case .model: modelRows
       case .add: addRows
+      case .controls: configurationRows
+      case .crew: EmptyView()
       }
     }
     .poracodeDrawerListStyle()
     .environment(\.defaultMinListRowHeight, 56)
     .navigationTitle(destination.title)
     .navigationBarTitleDisplayMode(.inline)
+    .toolbar {
+      ToolbarItem(placement: .confirmationAction) {
+        Button(RichChatStrings.done) { draft.selector = nil }
+      }
+    }
   }
 
   @ViewBuilder
   var projectRows: some View {
     ForEach(projects) { project in
       Button {
-        projectID = project.id
-        selector = nil
+        draft.projectID = project.id
+        draft.selector = nil
       } label: {
         HStack(spacing: 12) {
           HomeServerStatusIcon(online: session.socketState == .online)
@@ -60,8 +74,11 @@ extension HomeQuickComposeView {
 
   @ViewBuilder
   var modelRows: some View {
-    let models = availableAgents.flatMap { agent in modelOptions(for: agent) }.filter {
-      $0.matches(modelSearch)
+    crewPickerRows
+    let agents = ComposerProviderCatalog.ordered(availableAgents,
+      providerOrder: effectiveProviderOrder(draft.visibilityDocument.document?.providerOrder ?? []))
+    let models = agents.flatMap { agent in modelOptions(for: agent) }.filter {
+      $0.matches(draft.modelSearch)
     }
     if models.isEmpty, let defaults,
       defaults.agentKind != launchSeed?.excludedAgentKind
@@ -80,28 +97,17 @@ extension HomeQuickComposeView {
       )
     } else {
       ForEach(models) { model in modelRow(model) }
+      if models.isEmpty {
+        ContentUnavailableView(ProviderSelectionStrings.noAgents, systemImage: "person.crop.circle.badge.exclamationmark",
+          description: Text(ProviderSelectionStrings.manageAgentsHint))
+          .accessibilityIdentifier("native-e2e.new-thread-no-agents")
+      }
     }
   }
 
   func modelRow(_ model: HomeComposerModel) -> some View {
     Button {
-      guard let agent = availableAgents.first(where: { $0.kind == model.agentKind }) else {
-        return
-      }
-      selectedAgentKind = agent.kind
-      // Clicking the family row while already inside the family preserves the
-      // actual selected member — the exact UID, its carriers, and any tuned
-      // controls stay untouched.
-      if effectiveModelIsRepresentedByRow(model) {
-        selector = nil
-        return
-      }
-      selectedModel = model.modelID
-      selectedEffort = defaultEffort(for: agent, modelID: model.modelID)
-      fast = false
-      workflows = false
-      configuredConfiguration = nil
-      selector = nil
+      selectModel(model)
     } label: {
       HStack(spacing: 12) {
         HomeProviderIcon(kind: model.agentKind)
@@ -119,7 +125,7 @@ extension HomeQuickComposeView {
           }
         }
         Spacer()
-        if (selectedAgentKind ?? defaults?.agentKind) == model.agentKind,
+        if (draft.selectedAgentKind ?? defaults?.agentKind) == model.agentKind,
           effectiveModelIsRepresentedByRow(model)
         {
           Image(systemName: "checkmark").foregroundStyle(.tint)
@@ -129,6 +135,50 @@ extension HomeQuickComposeView {
     }
     .buttonStyle(.plain)
     .poracodeDrawerRowSurface()
+    .accessibilityIdentifier("native-e2e.new-thread-model.\(model.agentKind).\(model.modelID)")
+  }
+
+  func selectModel(_ model: HomeComposerModel, preservingCrew: Bool = false, persist: Bool = true, dismiss: Bool = true) {
+    let previousCrew = effectiveConfiguration?.crew ?? draft.configuredConfiguration?.crew
+      ?? draft.restoredSelection?.configuration.crew
+    let clearsCrew = !preservingCrew && ThreadCrewBinding(wire: previousCrew) != nil
+    guard ownsCurrentConnection,
+      let agent = availableAgents.first(where: { $0.kind == model.agentKind }) else { return }
+    if selectedAgent?.kind == agent.kind, let current = effectiveConfiguration {
+      var next = ThreadConfig(current)
+      let catalog = composerControlsCatalog
+      // Pinning an implicit default provider is not a provider change. A
+      // same-provider model edit must retain permissions, context and skills.
+      catalog.applyModelRowSelection(model.modelID, to: &next)
+      draft.selectAgent(agent.kind, preservingContext: true)
+      applyComposerControls(next, persist: false)
+    } else {
+      let instanceID = agent.kind == defaults?.agentKind ? defaults?.agentInstanceID : nil
+      let owner = ModelSelectionOwner(agentKind: agent.kind, agentInstanceID: instanceID, presentationMode: draft.presentationMode)
+      let preferences = draft.preferences.modelPreferences(for: owner)
+      let capabilities = HomeComposerCatalog.capabilities(for: agent, presentationMode: draft.presentationMode)
+      let provider = draft.projectID == RemoteProject.homeScopeID ? nil : draft.preferences.providerConfiguration(for: owner)
+      let saved = ComposerPreferenceResolution.saved(project: nil, provider: provider,
+        preferences: preferences, capabilities: capabilities)
+      let base = saved.map(ThreadLaunchConfiguration.init) ?? ThreadLaunchConfiguration(model: "")
+      var configuration = ThreadConfig(HomeQuickComposePermissionDefaults.resolve(base, saved: saved != nil,
+        capabilities: capabilities))
+      let catalog = RichChatComposerControlCatalog(agentStatus: agent, presentationMode: draft.presentationMode,
+        configuration: configuration, hiddenModels: draft.hiddenModels,
+        agentInstanceID: instanceID,
+        modelPreferences: preferences)
+      catalog.applyModelRowSelection(model.modelID, to: &configuration)
+      guard !configuration.model.isEmpty else { return }
+      draft.selectAgent(agent.kind)
+      draft.configuredConfiguration = ThreadLaunchConfiguration(configuration)
+    }
+    if clearsCrew, let current = draft.configuredConfiguration {
+      var next = current
+      next.crew = .null
+      draft.configuredConfiguration = next
+    }
+    if persist && !preservingCrew { rememberComposerSelection() }
+    if dismiss { draft.selector = nil }
   }
 
   /// Whether the effective model is the row's own id or a member the row
@@ -140,79 +190,64 @@ extension HomeQuickComposeView {
       return false
     }
     let capabilities = HomeComposerCatalog.capabilities(
-      for: agent, presentationMode: presentationMode)
+      for: agent, presentationMode: draft.presentationMode)
     return ModelFamilies.family(for: effectiveModel, in: capabilities)?.model == model.modelID
   }
 
   @ViewBuilder
   var addRows: some View {
     Section(HomeStrings.add) {
-      PhotosPicker(selection: $photoItem, matching: .images) {
+      Button {
+        draft.selector = nil
+        DispatchQueue.main.async { draft.showingImporter = true }
+      } label: {
+        HomeComposerContextRow(title: HomeStrings.files, icon: "paperclip")
+      }
+      .buttonStyle(.plain)
+      .poracodeDrawerRowSurface()
+
+      NavigationLink(value: HomeComposerDestination.photos) {
         HomeComposerContextRow(title: HomeStrings.photos, icon: "photo")
       }
-      .buttonStyle(.plain)
       .poracodeDrawerRowSurface()
+      .accessibilityIdentifier("native-e2e.new-thread-photos")
+    }
 
-      PhotosPicker(selection: $screenshotItem, matching: .screenshots) {
-        HomeComposerContextRow(title: HomeStrings.screenshots, icon: "viewfinder")
-      }
-      .buttonStyle(.plain)
-      .poracodeDrawerRowSurface()
-
-      Button {
-        guard HomeComposerCameraPicker.isAvailable else {
-          failureMessage = HomeStrings.cameraUnavailable
-          return
+    if canTogglePlan {
+      Section {
+        Button { togglePlan() } label: {
+          selectorRow(RichChatStrings.plan, icon: "list.bullet.clipboard",
+            selected: composerControlsBinding.wrappedValue.mode == "plan")
         }
-        selector = nil
-        DispatchQueue.main.async { showingCamera = true }
-      } label: {
-        HomeComposerContextRow(title: HomeStrings.camera, icon: "camera")
+        .buttonStyle(.plain)
+        .poracodeDrawerRowSurface()
+        .accessibilityAddTraits(composerControlsBinding.wrappedValue.mode == "plan" ? .isSelected : [])
+        .accessibilityIdentifier("native-e2e.new-thread-plan")
       }
-      .buttonStyle(.plain)
-      .poracodeDrawerRowSurface()
+    }
 
-      Button {
-        selector = nil
-        DispatchQueue.main.async { showingImporter = true }
-      } label: {
-        HomeComposerContextRow(title: HomeStrings.files, icon: "folder")
-      }
-      .buttonStyle(.plain)
-      .poracodeDrawerRowSurface()
-
-      NavigationLink {
-        mcpPicker
-      } label: {
-        HStack(spacing: 12) {
-          Image(systemName: "paperclip.badge.ellipsis")
-            .frame(width: 18)
-            .foregroundStyle(.secondary)
-          Text(HomeStrings.mcpServers).foregroundStyle(.primary)
-          Spacer()
-          if enabledMcpCount > 0 {
-            Text("\(enabledMcpCount)").foregroundStyle(.secondary)
-          }
-        }
+    Section(HomeStrings.context) {
+      NavigationLink(value: HomeComposerDestination.plugins) {
+        toolsRow(title: RichChatStrings.plugins, icon: "puzzlepiece.extension", count: enabledPluginCount)
       }
       .poracodeDrawerRowSurface()
+      .accessibilityIdentifier("native-e2e.new-thread-plugins")
+      NavigationLink(value: HomeComposerDestination.mcp) {
+        toolsRow(title: HomeStrings.mcpServers, icon: "server.rack", count: draft.tools.rows.filter(\.server.enabled).count)
+      }
+      .poracodeDrawerRowSurface()
+      .accessibilityIdentifier("native-e2e.new-thread-mcp")
 
-      if let skillPickerContext {
-        NavigationLink {
-          RichChatComposerSkillPicker(
-            context: skillPickerContext,
-            selection: $skills,
-            embeddedInNavigationStack: true
-          )
-        } label: {
+      if skillPickerContext != nil {
+        NavigationLink(value: HomeComposerDestination.skills) {
           HStack(spacing: 12) {
             Image(systemName: "wand.and.stars")
               .frame(width: 18)
               .foregroundStyle(.secondary)
             Text(SettingsIntegrationsStrings.skills).foregroundStyle(.primary)
             Spacer()
-            if !skills.isEmpty {
-              Text("\(skills.count)").foregroundStyle(.secondary)
+            if !draft.skills.isEmpty {
+              Text("\(draft.skills.count)").foregroundStyle(.secondary)
             }
           }
         }
@@ -235,23 +270,22 @@ extension HomeQuickComposeView {
       Section(HomeStrings.worktreeMode) {
         ForEach(HomeComposerWorktree.allCases) { option in
           Button {
-            worktreeSelection = option
-            if option == .branch, branchSelection?.reusesWorktree == true {
-              branchSelection = nil
+            draft.worktreeSelection = option
+            if option == .branch, draft.branchSelection?.reusesWorktree == true {
+              draft.branchSelection = nil
             }
+            rememberComposerSelection()
           } label: {
-            selectorRow(option.label, icon: option.icon, selected: worktreeSelection == option)
+            selectorRow(option.label, icon: option.icon, selected: draft.worktreeSelection == option)
           }
           .buttonStyle(.plain)
           .poracodeDrawerRowSurface()
         }
 
-        NavigationLink {
-          branchPicker
-        } label: {
+        NavigationLink(value: HomeComposerDestination.branches) {
           HStack(spacing: 12) {
             Image(
-              systemName: branchSelection?.reusesWorktree == true
+              systemName: draft.branchSelection?.reusesWorktree == true
                 ? "arrow.triangle.branch" : "point.3.connected.trianglepath.dotted"
             )
             .foregroundStyle(.secondary)
@@ -263,8 +297,8 @@ extension HomeQuickComposeView {
         }
         .poracodeDrawerRowSurface()
 
-        if worktreeSelection != .branch, branchSelection?.reusesWorktree != true {
-          TextField(GitOperationsStrings.branchName, text: $worktreeBranchName)
+        if draft.worktreeSelection != .branch, draft.branchSelection?.reusesWorktree != true {
+          TextField(GitOperationsStrings.branchName, text: $draft.worktreeBranchName)
             .textInputAutocapitalization(.never)
             .autocorrectionDisabled()
             .poracodeDrawerRowSurface()
@@ -272,55 +306,66 @@ extension HomeQuickComposeView {
       }
     }
 
-    Section(HomeStrings.mode) {
+    if launchSeed?.locksPresentationMode != true { Section(HomeStrings.mode) {
       Button {
-        presentationMode = .gui
-        selector = nil
+        choosePresentation(.gui)
+        draft.selector = nil
       } label: {
-        selectorRow(HomeStrings.chat, icon: "bubble.left", selected: presentationMode == .gui)
+        selectorRow(HomeStrings.chat, icon: "bubble.left", selected: draft.presentationMode == .gui)
       }
       .buttonStyle(.plain)
       .poracodeDrawerRowSurface()
       .disabled(!supportsPresentationMode(.gui))
 
       Button {
-        presentationMode = .terminal
-        selector = nil
+        choosePresentation(.terminal)
+        draft.selector = nil
       } label: {
-        selectorRow(HomeStrings.cli, icon: "terminal", selected: presentationMode == .terminal)
+        selectorRow(HomeStrings.cli, icon: "terminal", selected: draft.presentationMode == .terminal)
       }
       .buttonStyle(.plain)
       .poracodeDrawerRowSurface()
       .disabled(!supportsPresentationMode(.terminal))
     }
+    }
   }
 
-  var mcpPicker: some View {
-    List {
-      Section {
-        ForEach(HomeComposerMCP.allCases) { option in
-          Toggle(isOn: mcpBinding(option)) {
-            Label {
-              Text(option.label).foregroundStyle(.primary)
-            } icon: {
-              Image(systemName: option.icon).foregroundStyle(.secondary)
-            }
-          }
-          .tint(.green)
-          .poracodeDrawerRowSurface()
-          .poracodeSwitchStyle()
-        }
-      }
+  @ViewBuilder
+  var photoRows: some View {
+    PhotosPicker(selection: $draft.photoItem, matching: .images) {
+      HomeComposerContextRow(title: HomeStrings.photos, icon: "photo")
     }
-    .poracodeDrawerListStyle()
-    .environment(\.defaultMinListRowHeight, 56)
-    .navigationTitle(HomeStrings.mcpServers)
-    .navigationBarTitleDisplayMode(.inline)
+    .buttonStyle(.plain)
+    .poracodeDrawerRowSurface()
+    .accessibilityIdentifier("native-e2e.new-thread-photo-picker")
+
+    PhotosPicker(selection: $draft.screenshotItem, matching: .screenshots) {
+      HomeComposerContextRow(title: HomeStrings.screenshots, icon: "viewfinder")
+    }
+    .buttonStyle(.plain)
+    .poracodeDrawerRowSurface()
+    .accessibilityIdentifier("native-e2e.new-thread-screenshot-picker")
+
+    Button {
+      guard HomeComposerCameraPicker.isAvailable else {
+        draft.failureMessage = HomeStrings.cameraUnavailable
+        return
+      }
+      draft.selector = nil
+      DispatchQueue.main.async { draft.showingCamera = true }
+    } label: {
+      HomeComposerContextRow(title: HomeStrings.camera, icon: "camera")
+    }
+    .buttonStyle(.plain)
+    .poracodeDrawerRowSurface()
+    .disabled(!HomeComposerCameraPicker.isAvailable)
+    .accessibilityIdentifier("native-e2e.new-thread-camera")
   }
+
 
   var branchPicker: some View {
     List {
-      if loadingBranches {
+      if draft.loadingBranches {
         HStack {
           Spacer()
           ProgressView()
@@ -332,40 +377,40 @@ extension HomeQuickComposeView {
       if !filteredBranchOptions.isEmpty {
         Section(GitOperationsStrings.branches) {
           ForEach(filteredBranchOptions) { branch in
-            branchRow(branch, worktree: worktreeOptions.first { $0.branch == branch.name })
+            branchRow(branch, worktree: draft.worktreeOptions.first { $0.branch == branch.name })
           }
         }
       }
-      if branchOptions.isEmpty, !worktreeOptions.isEmpty {
+      if draft.branchOptions.isEmpty, !draft.worktreeOptions.isEmpty {
         Section(GitOperationsStrings.worktrees) {
-          ForEach(worktreeOptions) { worktree in worktreeRow(worktree) }
+          ForEach(draft.worktreeOptions) { worktree in worktreeRow(worktree) }
         }
       }
 
-      if let failureMessage {
-        Text(failureMessage)
+      if let failure = draft.failureMessage {
+        Text(failure)
           .font(.caption)
           .foregroundStyle(.red)
           .poracodeDrawerRowSurface()
       }
 
-      if worktreeSelection == .branch {
+      if draft.worktreeSelection == .branch {
         Section {
-          if creatingBranch {
+          if draft.creatingBranch {
             HStack {
-              TextField(GitOperationsStrings.branchName, text: $newBranchName)
+              TextField(GitOperationsStrings.branchName, text: $draft.newBranchName)
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
                 .onSubmit { Task { await createBranch() } }
               Button(GitOperationsStrings.createBranch) {
                 Task { await createBranch() }
               }
-              .disabled(newBranchName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+              .disabled(draft.newBranchName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
             .poracodeDrawerRowSurface()
           } else {
             Button {
-              creatingBranch = true
+              draft.creatingBranch = true
             } label: {
               Label(GitOperationsStrings.createBranch, systemImage: "plus")
                 .foregroundStyle(.primary)
@@ -380,8 +425,8 @@ extension HomeQuickComposeView {
     .environment(\.defaultMinListRowHeight, 56)
     .navigationTitle(HomeStrings.branch)
     .navigationBarTitleDisplayMode(.inline)
-    .searchable(text: $branchSearch)
-    .task(id: projectID) { await loadBranches() }
+    .searchable(text: $draft.branchSearch)
+    .task(id: draft.projectID) { await loadBranches() }
   }
 
   func branchRow(_ branch: ProjectGitBranchInfo, worktree: ProjectGitWorktreeInfo?) -> some View {
@@ -389,7 +434,7 @@ extension HomeQuickComposeView {
       Task { await selectBranch(branch, worktree: worktree) }
     } label: {
       HStack(spacing: 12) {
-        if switchingBranch == branch.name {
+        if draft.switchingBranch == branch.name {
           ProgressView().controlSize(.small).frame(width: 18, height: 18)
         } else {
           Image(
@@ -409,7 +454,7 @@ extension HomeQuickComposeView {
       .contentShape(Rectangle())
     }
     .buttonStyle(.plain)
-    .disabled(switchingBranch != nil)
+    .disabled(draft.switchingBranch != nil)
     .poracodeDrawerRowSurface()
   }
 
@@ -423,7 +468,7 @@ extension HomeQuickComposeView {
           .foregroundStyle(.secondary)
         Text(worktree.branch).foregroundStyle(.primary).lineLimit(1)
         Spacer()
-        if branchSelection?.worktreePath == worktree.path {
+        if draft.branchSelection?.worktreePath == worktree.path {
           Image(systemName: "checkmark").foregroundStyle(.tint)
         }
       }
@@ -447,40 +492,62 @@ extension HomeQuickComposeView {
     HomeComposerMCP.allCases.filter(mcpEnabled).count
   }
 
+  private var enabledPluginCount: Int {
+    guard let agent = selectedAgent, let project = selectedProject else { return 0 }
+    return ComposerPluginCatalog.rows(document: draft.tools.document.document, agentKind: agent.kind,
+      capabilities: HomeComposerCatalog.capabilities(for: agent, presentationMode: draft.presentationMode),
+      presentation: draft.presentationMode, location: project.location).filter(\.enabled).count
+  }
+
+  private func toolsRow(title: String, icon: String, count: Int) -> some View {
+    HStack(spacing: 12) {
+      Image(systemName: icon).frame(width: 18).foregroundStyle(.secondary)
+      Text(title).foregroundStyle(.primary)
+      Spacer()
+      if count > 0 { Text("\(count)").foregroundStyle(.secondary) }
+    }
+  }
+
   func mcpBinding(_ option: HomeComposerMCP) -> Binding<Bool> {
     Binding(
       get: { mcpEnabled(option) },
-      set: { enabled in
-        switch option {
-        case .browser: browserMcp = enabled
-        case .crossagents: crossagentMcp = enabled
-        case .chrome: chromeMcp = enabled
-        case .computerUse: computerUse = enabled
-        }
-      }
+      set: { setMCP(option, enabled: $0) }
     )
   }
 
-  func mcpEnabled(_ option: HomeComposerMCP) -> Bool {
+  func setMCP(_ option: HomeComposerMCP, enabled: Bool) {
+    guard ownsCurrentConnection, effectiveConfiguration != nil else { return }
+    var configuration = composerControlsBinding.wrappedValue
     switch option {
-    case .browser: browserMcp ?? defaults?.configuration.browserMcp ?? false
-    case .crossagents: crossagentMcp ?? defaults?.configuration.crossagentMcp ?? false
-    case .chrome: chromeMcp ?? defaults?.configuration.chromeMcp ?? false
-    case .computerUse: computerUse ?? defaults?.configuration.computerUse ?? false
+    case .browser: configuration.browserMcp = enabled
+    case .crossagents: configuration.crossagentMcp = enabled
+    case .chrome: configuration.chromeMcp = enabled
+    case .computerUse: configuration.computerUse = enabled
+    }
+    composerControlsBinding.wrappedValue = configuration
+  }
+
+  func mcpEnabled(_ option: HomeComposerMCP) -> Bool {
+    let configuration = effectiveConfiguration
+    return switch option {
+    case .browser: configuration?.browserMcp ?? false
+    case .crossagents: configuration?.crossagentMcp ?? false
+    case .chrome: configuration?.chromeMcp ?? false
+    case .computerUse: configuration?.computerUse ?? false
     }
   }
 
   var selectedBranchLabel: String {
-    branchSelection?.branch
-      ?? branchOptions.first(where: \.current)?.name
+    draft.branchSelection?.branch
+      ?? draft.branchOptions.first(where: \.current)?.name
       ?? currentBranch
       ?? HomeStrings.branch
   }
 
   var filteredBranchOptions: [ProjectGitBranchInfo] {
-    let query = branchSearch.trimmingCharacters(in: .whitespacesAndNewlines)
-    guard !query.isEmpty else { return branchOptions }
-    return branchOptions.filter { $0.name.localizedCaseInsensitiveContains(query) }
+    let query = draft.branchSearch.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !query.isEmpty else { return draft.branchOptions }
+    return draft.branchOptions.filter { $0.name.localizedCaseInsensitiveContains(query) }
   }
 }
 
@@ -488,7 +555,7 @@ extension HomeComposerSelector {
   var detents: Set<PresentationDetent> {
     switch self {
     case .project: [.fraction(0.56), .large]
-    case .add, .model: [.large]
+    case .add, .model, .controls, .crew: [.large]
     }
   }
 }

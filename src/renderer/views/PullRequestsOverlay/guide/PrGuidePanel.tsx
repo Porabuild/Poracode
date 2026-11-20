@@ -31,6 +31,7 @@ export function PrGuidePanel() {
       }}
       disabled={!scope.contentReady}
       readOnly={scope.readOnly}
+      reserveAskButtonSpace={chat.available && !chat.open}
       rawDiff={rawDiff}
       onAskAgent={(context) => {
         if (scope.readOnly || !chat.available) return;

@@ -1,0 +1,620 @@
+{
+  "formatVersion": 1,
+  "maximumBytes": 32768,
+  "maximumThemes": 100,
+  "documents": [
+    {
+      "id": "released-minimal",
+      "json": "{\"version\":1,\"label\":\"Shared palette\",\"light\":{\"bg\":\"#123\",\"surface\":\"#345678\",\"fg\":\"#fFf\",\"accent\":\"#46B\",\"accentFg\":\"#fff\",\"border\":\"#234\"},\"dark\":{\"bg\":\"#123\",\"surface\":\"#345678\",\"fg\":\"#fFf\",\"accent\":\"#46B\",\"accentFg\":\"#fff\",\"border\":\"#234\"}}",
+      "expected": {
+        "version": 1,
+        "label": "Shared palette",
+        "light": {
+          "bg": "#123",
+          "surface": "#345678",
+          "fg": "#fFf",
+          "accent": "#46B",
+          "accentFg": "#fff",
+          "border": "#234"
+        },
+        "dark": {
+          "bg": "#123",
+          "surface": "#345678",
+          "fg": "#fFf",
+          "accent": "#46B",
+          "accentFg": "#fff",
+          "border": "#234"
+        }
+      }
+    },
+    {
+      "id": "all-optional",
+      "json": "{\"version\":1,\"label\":\"Shared palette\",\"light\":{\"bg\":\"#123\",\"surface\":\"#345678\",\"fg\":\"#fFf\",\"accent\":\"#46B\",\"accentFg\":\"#fff\",\"border\":\"#234\"},\"dark\":{\"bg\":\"#123\",\"surface\":\"#345678\",\"fg\":\"#fFf\",\"accent\":\"#46B\",\"accentFg\":\"#fff\",\"border\":\"#234\",\"sidebar\":\"#222\",\"content\":\"#121212\",\"composer\":\"#303040\",\"sidebarRowActive\":\"#456\",\"sidebarFill\":true}}",
+      "expected": {
+        "version": 1,
+        "label": "Shared palette",
+        "light": {
+          "bg": "#123",
+          "surface": "#345678",
+          "fg": "#fFf",
+          "accent": "#46B",
+          "accentFg": "#fff",
+          "border": "#234"
+        },
+        "dark": {
+          "bg": "#123",
+          "surface": "#345678",
+          "fg": "#fFf",
+          "accent": "#46B",
+          "accentFg": "#fff",
+          "border": "#234",
+          "sidebar": "#222",
+          "content": "#121212",
+          "composer": "#303040",
+          "sidebarFill": true,
+          "sidebarRowActive": "#456"
+        }
+      }
+    },
+    {
+      "id": "trim-name",
+      "json": "{\"version\":1,\"label\":\"﻿  Name \\n\",\"light\":{\"bg\":\"#123\",\"surface\":\"#345678\",\"fg\":\"#fFf\",\"accent\":\"#46B\",\"accentFg\":\"#fff\",\"border\":\"#234\"},\"dark\":{\"bg\":\"#123\",\"surface\":\"#345678\",\"fg\":\"#fFf\",\"accent\":\"#46B\",\"accentFg\":\"#fff\",\"border\":\"#234\",\"sidebar\":\"#222\",\"content\":\"#121212\",\"composer\":\"#303040\",\"sidebarRowActive\":\"#456\",\"sidebarFill\":true}}",
+      "expected": {
+        "version": 1,
+        "label": "Name",
+        "light": {
+          "bg": "#123",
+          "surface": "#345678",
+          "fg": "#fFf",
+          "accent": "#46B",
+          "accentFg": "#fff",
+          "border": "#234"
+        },
+        "dark": {
+          "bg": "#123",
+          "surface": "#345678",
+          "fg": "#fFf",
+          "accent": "#46B",
+          "accentFg": "#fff",
+          "border": "#234",
+          "sidebar": "#222",
+          "content": "#121212",
+          "composer": "#303040",
+          "sidebarFill": true,
+          "sidebarRowActive": "#456"
+        }
+      }
+    },
+    {
+      "id": "eighty-codepoints",
+      "json": "{\"version\":1,\"label\":\"😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀\",\"light\":{\"bg\":\"#123\",\"surface\":\"#345678\",\"fg\":\"#fFf\",\"accent\":\"#46B\",\"accentFg\":\"#fff\",\"border\":\"#234\"},\"dark\":{\"bg\":\"#123\",\"surface\":\"#345678\",\"fg\":\"#fFf\",\"accent\":\"#46B\",\"accentFg\":\"#fff\",\"border\":\"#234\",\"sidebar\":\"#222\",\"content\":\"#121212\",\"composer\":\"#303040\",\"sidebarRowActive\":\"#456\",\"sidebarFill\":true}}",
+      "expected": {
+        "version": 1,
+        "label": "😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀",
+        "light": {
+          "bg": "#123",
+          "surface": "#345678",
+          "fg": "#fFf",
+          "accent": "#46B",
+          "accentFg": "#fff",
+          "border": "#234"
+        },
+        "dark": {
+          "bg": "#123",
+          "surface": "#345678",
+          "fg": "#fFf",
+          "accent": "#46B",
+          "accentFg": "#fff",
+          "border": "#234",
+          "sidebar": "#222",
+          "content": "#121212",
+          "composer": "#303040",
+          "sidebarFill": true,
+          "sidebarRowActive": "#456"
+        }
+      }
+    },
+    {
+      "id": "too-long-name",
+      "json": "{\"version\":1,\"label\":\"😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀\",\"light\":{\"bg\":\"#123\",\"surface\":\"#345678\",\"fg\":\"#fFf\",\"accent\":\"#46B\",\"accentFg\":\"#fff\",\"border\":\"#234\"},\"dark\":{\"bg\":\"#123\",\"surface\":\"#345678\",\"fg\":\"#fFf\",\"accent\":\"#46B\",\"accentFg\":\"#fff\",\"border\":\"#234\",\"sidebar\":\"#222\",\"content\":\"#121212\",\"composer\":\"#303040\",\"sidebarRowActive\":\"#456\",\"sidebarFill\":true}}",
+      "expected": null
+    },
+    {
+      "id": "combining-codepoints",
+      "json": "{\"version\":1,\"label\":\"éééééééééééééééééééééééééééééééééééééééé\",\"light\":{\"bg\":\"#123\",\"surface\":\"#345678\",\"fg\":\"#fFf\",\"accent\":\"#46B\",\"accentFg\":\"#fff\",\"border\":\"#234\"},\"dark\":{\"bg\":\"#123\",\"surface\":\"#345678\",\"fg\":\"#fFf\",\"accent\":\"#46B\",\"accentFg\":\"#fff\",\"border\":\"#234\",\"sidebar\":\"#222\",\"content\":\"#121212\",\"composer\":\"#303040\",\"sidebarRowActive\":\"#456\",\"sidebarFill\":true}}",
+      "expected": {
+        "version": 1,
+        "label": "éééééééééééééééééééééééééééééééééééééééé",
+        "light": {
+          "bg": "#123",
+          "surface": "#345678",
+          "fg": "#fFf",
+          "accent": "#46B",
+          "accentFg": "#fff",
+          "border": "#234"
+        },
+        "dark": {
+          "bg": "#123",
+          "surface": "#345678",
+          "fg": "#fFf",
+          "accent": "#46B",
+          "accentFg": "#fff",
+          "border": "#234",
+          "sidebar": "#222",
+          "content": "#121212",
+          "composer": "#303040",
+          "sidebarFill": true,
+          "sidebarRowActive": "#456"
+        }
+      }
+    },
+    {
+      "id": "too-many-combining-codepoints",
+      "json": "{\"version\":1,\"label\":\"ééééééééééééééééééééééééééééééééééééééééé\",\"light\":{\"bg\":\"#123\",\"surface\":\"#345678\",\"fg\":\"#fFf\",\"accent\":\"#46B\",\"accentFg\":\"#fff\",\"border\":\"#234\"},\"dark\":{\"bg\":\"#123\",\"surface\":\"#345678\",\"fg\":\"#fFf\",\"accent\":\"#46B\",\"accentFg\":\"#fff\",\"border\":\"#234\",\"sidebar\":\"#222\",\"content\":\"#121212\",\"composer\":\"#303040\",\"sidebarRowActive\":\"#456\",\"sidebarFill\":true}}",
+      "expected": null
+    },
+    {
+      "id": "empty-name",
+      "json": "{\"version\":1,\"label\":\" \\n\",\"light\":{\"bg\":\"#123\",\"surface\":\"#345678\",\"fg\":\"#fFf\",\"accent\":\"#46B\",\"accentFg\":\"#fff\",\"border\":\"#234\"},\"dark\":{\"bg\":\"#123\",\"surface\":\"#345678\",\"fg\":\"#fFf\",\"accent\":\"#46B\",\"accentFg\":\"#fff\",\"border\":\"#234\",\"sidebar\":\"#222\",\"content\":\"#121212\",\"composer\":\"#303040\",\"sidebarRowActive\":\"#456\",\"sidebarFill\":true}}",
+      "expected": null
+    },
+    {
+      "id": "future",
+      "json": "{\"version\":2,\"label\":\"Shared palette\",\"light\":{\"bg\":\"#123\",\"surface\":\"#345678\",\"fg\":\"#fFf\",\"accent\":\"#46B\",\"accentFg\":\"#fff\",\"border\":\"#234\"},\"dark\":{\"bg\":\"#123\",\"surface\":\"#345678\",\"fg\":\"#fFf\",\"accent\":\"#46B\",\"accentFg\":\"#fff\",\"border\":\"#234\",\"sidebar\":\"#222\",\"content\":\"#121212\",\"composer\":\"#303040\",\"sidebarRowActive\":\"#456\",\"sidebarFill\":true}}",
+      "expected": null
+    },
+    {
+      "id": "boolean-version",
+      "json": "{\"version\":true,\"label\":\"Shared palette\",\"light\":{\"bg\":\"#123\",\"surface\":\"#345678\",\"fg\":\"#fFf\",\"accent\":\"#46B\",\"accentFg\":\"#fff\",\"border\":\"#234\"},\"dark\":{\"bg\":\"#123\",\"surface\":\"#345678\",\"fg\":\"#fFf\",\"accent\":\"#46B\",\"accentFg\":\"#fff\",\"border\":\"#234\",\"sidebar\":\"#222\",\"content\":\"#121212\",\"composer\":\"#303040\",\"sidebarRowActive\":\"#456\",\"sidebarFill\":true}}",
+      "expected": null
+    },
+    {
+      "id": "null-light",
+      "json": "{\"version\":1,\"label\":\"Shared palette\",\"light\":null,\"dark\":{\"bg\":\"#123\",\"surface\":\"#345678\",\"fg\":\"#fFf\",\"accent\":\"#46B\",\"accentFg\":\"#fff\",\"border\":\"#234\",\"sidebar\":\"#222\",\"content\":\"#121212\",\"composer\":\"#303040\",\"sidebarRowActive\":\"#456\",\"sidebarFill\":true}}",
+      "expected": null
+    },
+    {
+      "id": "additive-keys",
+      "json": "{\"version\":1,\"label\":\"Shared palette\",\"light\":{\"bg\":\"#123\",\"surface\":\"#345678\",\"fg\":\"#fFf\",\"accent\":\"#46B\",\"accentFg\":\"#fff\",\"border\":\"#234\",\"future\":null},\"dark\":{\"bg\":\"#123\",\"surface\":\"#345678\",\"fg\":\"#fFf\",\"accent\":\"#46B\",\"accentFg\":\"#fff\",\"border\":\"#234\",\"sidebar\":\"#222\",\"content\":\"#121212\",\"composer\":\"#303040\",\"sidebarRowActive\":\"#456\",\"sidebarFill\":true},\"id\":\"custom:not-exported\",\"future\":{\"keep\":true}}",
+      "expected": {
+        "version": 1,
+        "label": "Shared palette",
+        "light": {
+          "bg": "#123",
+          "surface": "#345678",
+          "fg": "#fFf",
+          "accent": "#46B",
+          "accentFg": "#fff",
+          "border": "#234"
+        },
+        "dark": {
+          "bg": "#123",
+          "surface": "#345678",
+          "fg": "#fFf",
+          "accent": "#46B",
+          "accentFg": "#fff",
+          "border": "#234",
+          "sidebar": "#222",
+          "content": "#121212",
+          "composer": "#303040",
+          "sidebarFill": true,
+          "sidebarRowActive": "#456"
+        }
+      }
+    },
+    {
+      "id": "hex-\"red\"",
+      "json": "{\"version\":1,\"label\":\"Shared palette\",\"light\":{\"bg\":\"red\",\"surface\":\"#345678\",\"fg\":\"#fFf\",\"accent\":\"#46B\",\"accentFg\":\"#fff\",\"border\":\"#234\"},\"dark\":{\"bg\":\"#123\",\"surface\":\"#345678\",\"fg\":\"#fFf\",\"accent\":\"#46B\",\"accentFg\":\"#fff\",\"border\":\"#234\",\"sidebar\":\"#222\",\"content\":\"#121212\",\"composer\":\"#303040\",\"sidebarRowActive\":\"#456\",\"sidebarFill\":true}}",
+      "expected": null
+    },
+    {
+      "id": "hex-\"#12\"",
+      "json": "{\"version\":1,\"label\":\"Shared palette\",\"light\":{\"bg\":\"#12\",\"surface\":\"#345678\",\"fg\":\"#fFf\",\"accent\":\"#46B\",\"accentFg\":\"#fff\",\"border\":\"#234\"},\"dark\":{\"bg\":\"#123\",\"surface\":\"#345678\",\"fg\":\"#fFf\",\"accent\":\"#46B\",\"accentFg\":\"#fff\",\"border\":\"#234\",\"sidebar\":\"#222\",\"content\":\"#121212\",\"composer\":\"#303040\",\"sidebarRowActive\":\"#456\",\"sidebarFill\":true}}",
+      "expected": null
+    },
+    {
+      "id": "hex-\"#1234\"",
+      "json": "{\"version\":1,\"label\":\"Shared palette\",\"light\":{\"bg\":\"#1234\",\"surface\":\"#345678\",\"fg\":\"#fFf\",\"accent\":\"#46B\",\"accentFg\":\"#fff\",\"border\":\"#234\"},\"dark\":{\"bg\":\"#123\",\"surface\":\"#345678\",\"fg\":\"#fFf\",\"accent\":\"#46B\",\"accentFg\":\"#fff\",\"border\":\"#234\",\"sidebar\":\"#222\",\"content\":\"#121212\",\"composer\":\"#303040\",\"sidebarRowActive\":\"#456\",\"sidebarFill\":true}}",
+      "expected": null
+    },
+    {
+      "id": "hex-\"#ggg\"",
+      "json": "{\"version\":1,\"label\":\"Shared palette\",\"light\":{\"bg\":\"#ggg\",\"surface\":\"#345678\",\"fg\":\"#fFf\",\"accent\":\"#46B\",\"accentFg\":\"#fff\",\"border\":\"#234\"},\"dark\":{\"bg\":\"#123\",\"surface\":\"#345678\",\"fg\":\"#fFf\",\"accent\":\"#46B\",\"accentFg\":\"#fff\",\"border\":\"#234\",\"sidebar\":\"#222\",\"content\":\"#121212\",\"composer\":\"#303040\",\"sidebarRowActive\":\"#456\",\"sidebarFill\":true}}",
+      "expected": null
+    },
+    {
+      "id": "hex-\"#fff \"",
+      "json": "{\"version\":1,\"label\":\"Shared palette\",\"light\":{\"bg\":\"#fff \",\"surface\":\"#345678\",\"fg\":\"#fFf\",\"accent\":\"#46B\",\"accentFg\":\"#fff\",\"border\":\"#234\"},\"dark\":{\"bg\":\"#123\",\"surface\":\"#345678\",\"fg\":\"#fFf\",\"accent\":\"#46B\",\"accentFg\":\"#fff\",\"border\":\"#234\",\"sidebar\":\"#222\",\"content\":\"#121212\",\"composer\":\"#303040\",\"sidebarRowActive\":\"#456\",\"sidebarFill\":true}}",
+      "expected": null
+    },
+    {
+      "id": "hex-\"#fff\\n\"",
+      "json": "{\"version\":1,\"label\":\"Shared palette\",\"light\":{\"bg\":\"#fff\\n\",\"surface\":\"#345678\",\"fg\":\"#fFf\",\"accent\":\"#46B\",\"accentFg\":\"#fff\",\"border\":\"#234\"},\"dark\":{\"bg\":\"#123\",\"surface\":\"#345678\",\"fg\":\"#fFf\",\"accent\":\"#46B\",\"accentFg\":\"#fff\",\"border\":\"#234\",\"sidebar\":\"#222\",\"content\":\"#121212\",\"composer\":\"#303040\",\"sidebarRowActive\":\"#456\",\"sidebarFill\":true}}",
+      "expected": null
+    },
+    {
+      "id": "hex-\"#123456\\r\\n\"",
+      "json": "{\"version\":1,\"label\":\"Shared palette\",\"light\":{\"bg\":\"#123456\\r\\n\",\"surface\":\"#345678\",\"fg\":\"#fFf\",\"accent\":\"#46B\",\"accentFg\":\"#fff\",\"border\":\"#234\"},\"dark\":{\"bg\":\"#123\",\"surface\":\"#345678\",\"fg\":\"#fFf\",\"accent\":\"#46B\",\"accentFg\":\"#fff\",\"border\":\"#234\",\"sidebar\":\"#222\",\"content\":\"#121212\",\"composer\":\"#303040\",\"sidebarRowActive\":\"#456\",\"sidebarFill\":true}}",
+      "expected": null
+    },
+    {
+      "id": "fill-null",
+      "json": "{\"version\":1,\"label\":\"Shared palette\",\"light\":{\"bg\":\"#123\",\"surface\":\"#345678\",\"fg\":\"#fFf\",\"accent\":\"#46B\",\"accentFg\":\"#fff\",\"border\":\"#234\",\"sidebarFill\":null},\"dark\":{\"bg\":\"#123\",\"surface\":\"#345678\",\"fg\":\"#fFf\",\"accent\":\"#46B\",\"accentFg\":\"#fff\",\"border\":\"#234\",\"sidebar\":\"#222\",\"content\":\"#121212\",\"composer\":\"#303040\",\"sidebarRowActive\":\"#456\",\"sidebarFill\":true}}",
+      "expected": null
+    },
+    {
+      "id": "fill-\"true\"",
+      "json": "{\"version\":1,\"label\":\"Shared palette\",\"light\":{\"bg\":\"#123\",\"surface\":\"#345678\",\"fg\":\"#fFf\",\"accent\":\"#46B\",\"accentFg\":\"#fff\",\"border\":\"#234\",\"sidebarFill\":\"true\"},\"dark\":{\"bg\":\"#123\",\"surface\":\"#345678\",\"fg\":\"#fFf\",\"accent\":\"#46B\",\"accentFg\":\"#fff\",\"border\":\"#234\",\"sidebar\":\"#222\",\"content\":\"#121212\",\"composer\":\"#303040\",\"sidebarRowActive\":\"#456\",\"sidebarFill\":true}}",
+      "expected": null
+    },
+    {
+      "id": "fill-1",
+      "json": "{\"version\":1,\"label\":\"Shared palette\",\"light\":{\"bg\":\"#123\",\"surface\":\"#345678\",\"fg\":\"#fFf\",\"accent\":\"#46B\",\"accentFg\":\"#fff\",\"border\":\"#234\",\"sidebarFill\":1},\"dark\":{\"bg\":\"#123\",\"surface\":\"#345678\",\"fg\":\"#fFf\",\"accent\":\"#46B\",\"accentFg\":\"#fff\",\"border\":\"#234\",\"sidebar\":\"#222\",\"content\":\"#121212\",\"composer\":\"#303040\",\"sidebarRowActive\":\"#456\",\"sidebarFill\":true}}",
+      "expected": null
+    },
+    {
+      "id": "null-optional",
+      "json": "{\"version\":1,\"label\":\"Shared palette\",\"light\":{\"bg\":\"#123\",\"surface\":\"#345678\",\"fg\":\"#fFf\",\"accent\":\"#46B\",\"accentFg\":\"#fff\",\"border\":\"#234\",\"composer\":null},\"dark\":{\"bg\":\"#123\",\"surface\":\"#345678\",\"fg\":\"#fFf\",\"accent\":\"#46B\",\"accentFg\":\"#fff\",\"border\":\"#234\",\"sidebar\":\"#222\",\"content\":\"#121212\",\"composer\":\"#303040\",\"sidebarRowActive\":\"#456\",\"sidebarFill\":true}}",
+      "expected": null
+    }
+  ],
+  "hex": [
+    {
+      "value": "#123",
+      "valid": true
+    },
+    {
+      "value": "#AbCdEf",
+      "valid": true
+    },
+    {
+      "value": "#FFF",
+      "valid": true
+    },
+    {
+      "value": "#fff\n",
+      "valid": false
+    },
+    {
+      "value": "#123456\r\n",
+      "valid": false
+    },
+    {
+      "value": "#000 ",
+      "valid": false
+    },
+    {
+      "value": "red",
+      "valid": false
+    }
+  ],
+  "records": [
+    {
+      "version": 1,
+      "label": "Shared palette",
+      "light": {
+        "bg": "#123",
+        "surface": "#345678",
+        "fg": "#fFf",
+        "accent": "#46B",
+        "accentFg": "#fff",
+        "border": "#234"
+      },
+      "dark": {
+        "bg": "#123",
+        "surface": "#345678",
+        "fg": "#fFf",
+        "accent": "#46B",
+        "accentFg": "#fff",
+        "border": "#234",
+        "sidebar": "#222",
+        "content": "#121212",
+        "composer": "#303040",
+        "sidebarRowActive": "#456",
+        "sidebarFill": true
+      },
+      "id": "custom:released"
+    },
+    {
+      "version": 2,
+      "label": "Shared palette",
+      "light": {
+        "bg": "#123",
+        "surface": "#345678",
+        "fg": "#fFf",
+        "accent": "#46B",
+        "accentFg": "#fff",
+        "border": "#234"
+      },
+      "dark": {
+        "bg": "#123",
+        "surface": "#345678",
+        "fg": "#fFf",
+        "accent": "#46B",
+        "accentFg": "#fff",
+        "border": "#234",
+        "sidebar": "#222",
+        "content": "#121212",
+        "composer": "#303040",
+        "sidebarRowActive": "#456",
+        "sidebarFill": true
+      },
+      "id": "custom:future"
+    },
+    {
+      "version": 1,
+      "label": "Shared palette",
+      "light": {
+        "bg": "#123",
+        "surface": "#345678",
+        "fg": "#fFf",
+        "accent": "#46B",
+        "accentFg": "#fff",
+        "border": "#234"
+      },
+      "dark": {
+        "bg": "#123",
+        "surface": "#345678",
+        "fg": "#fFf",
+        "accent": "#46B",
+        "accentFg": "#fff",
+        "border": "#234",
+        "sidebar": "#222",
+        "content": "#121212",
+        "composer": "#303040",
+        "sidebarRowActive": "#456",
+        "sidebarFill": true
+      },
+      "id": "github"
+    },
+    {
+      "version": 1,
+      "label": "Duplicate",
+      "light": {
+        "bg": "#123",
+        "surface": "#345678",
+        "fg": "#fFf",
+        "accent": "#46B",
+        "accentFg": "#fff",
+        "border": "#234"
+      },
+      "dark": {
+        "bg": "#123",
+        "surface": "#345678",
+        "fg": "#fFf",
+        "accent": "#46B",
+        "accentFg": "#fff",
+        "border": "#234",
+        "sidebar": "#222",
+        "content": "#121212",
+        "composer": "#303040",
+        "sidebarRowActive": "#456",
+        "sidebarFill": true
+      },
+      "id": "custom:released"
+    },
+    {
+      "version": 1,
+      "label": "Another",
+      "light": {
+        "bg": "#123",
+        "surface": "#345678",
+        "fg": "#fFf",
+        "accent": "#46B",
+        "accentFg": "#fff",
+        "border": "#234"
+      },
+      "dark": {
+        "bg": "#123",
+        "surface": "#345678",
+        "fg": "#fFf",
+        "accent": "#46B",
+        "accentFg": "#fff",
+        "border": "#234",
+        "sidebar": "#222",
+        "content": "#121212",
+        "composer": "#303040",
+        "sidebarRowActive": "#456",
+        "sidebarFill": true
+      },
+      "id": "custom:second"
+    },
+    {
+      "version": 1,
+      "label": "Invalid ID",
+      "light": {
+        "bg": "#123",
+        "surface": "#345678",
+        "fg": "#fFf",
+        "accent": "#46B",
+        "accentFg": "#fff",
+        "border": "#234"
+      },
+      "dark": {
+        "bg": "#123",
+        "surface": "#345678",
+        "fg": "#fFf",
+        "accent": "#46B",
+        "accentFg": "#fff",
+        "border": "#234",
+        "sidebar": "#222",
+        "content": "#121212",
+        "composer": "#303040",
+        "sidebarRowActive": "#456",
+        "sidebarFill": true
+      },
+      "id": "custom:line\n"
+    }
+  ],
+  "expectedKnownRecords": [
+    {
+      "version": 1,
+      "label": "Shared palette",
+      "light": {
+        "bg": "#123",
+        "surface": "#345678",
+        "fg": "#fFf",
+        "accent": "#46B",
+        "accentFg": "#fff",
+        "border": "#234"
+      },
+      "dark": {
+        "bg": "#123",
+        "surface": "#345678",
+        "fg": "#fFf",
+        "accent": "#46B",
+        "accentFg": "#fff",
+        "border": "#234",
+        "sidebar": "#222",
+        "content": "#121212",
+        "composer": "#303040",
+        "sidebarFill": true,
+        "sidebarRowActive": "#456"
+      },
+      "id": "custom:released"
+    },
+    {
+      "version": 1,
+      "label": "Another",
+      "light": {
+        "bg": "#123",
+        "surface": "#345678",
+        "fg": "#fFf",
+        "accent": "#46B",
+        "accentFg": "#fff",
+        "border": "#234"
+      },
+      "dark": {
+        "bg": "#123",
+        "surface": "#345678",
+        "fg": "#fFf",
+        "accent": "#46B",
+        "accentFg": "#fff",
+        "border": "#234",
+        "sidebar": "#222",
+        "content": "#121212",
+        "composer": "#303040",
+        "sidebarFill": true,
+        "sidebarRowActive": "#456"
+      },
+      "id": "custom:second"
+    }
+  ],
+  "palettes": [
+    {
+      "id": "base-light",
+      "palette": {
+        "bg": "#f1f1f4",
+        "surface": "#fafafb",
+        "fg": "#18181b",
+        "accent": "#5f6cd9",
+        "accentFg": "#ffffff",
+        "border": "#cacace",
+        "sidebar": "#ececef",
+        "content": "#f6f6f9"
+      },
+      "ratios": {
+        "content": 16.42494594101076,
+        "surface": 16.984513026014458,
+        "sidebar": 15.026477235267151,
+        "muted": 4.998053338244722,
+        "composer": null,
+        "sidebarRowActive": null,
+        "accent": 4.532157405294753
+      },
+      "muted": "#6a6a6d"
+    },
+    {
+      "id": "base-dark",
+      "palette": {
+        "bg": "#070709",
+        "surface": "#0e0e14",
+        "fg": "#fafafa",
+        "accent": "#8892ef",
+        "accentFg": "#0a0a12",
+        "border": "#24242e",
+        "sidebar": "#0e0e14",
+        "content": "#0b0b11"
+      },
+      "ratios": {
+        "content": 18.799857975036502,
+        "surface": 18.431357959801133,
+        "sidebar": 18.431357959801133,
+        "muted": 5.3229364646539,
+        "composer": null,
+        "sidebarRowActive": null,
+        "accent": 6.952492613739522
+      },
+      "muted": "#858586"
+    },
+    {
+      "id": "short-colors",
+      "palette": {
+        "bg": "#123",
+        "surface": "#345678",
+        "fg": "#fFf",
+        "accent": "#46B",
+        "accentFg": "#fff",
+        "border": "#234",
+        "sidebar": "#222",
+        "content": "#121212",
+        "composer": "#303040",
+        "sidebarRowActive": "#456",
+        "sidebarFill": true
+      },
+      "ratios": {
+        "content": 18.733663902900595,
+        "surface": 7.640971952917436,
+        "sidebar": 15.909984431773273,
+        "muted": 11.133853376886647,
+        "composer": 12.943071238385983,
+        "sidebarRowActive": 7.672493037060059,
+        "accent": 5.434911440927868
+      },
+      "muted": "#c4c8cc"
+    },
+    {
+      "id": "low-contrast",
+      "palette": {
+        "bg": "#123",
+        "surface": "#345678",
+        "fg": "#123",
+        "accent": "#46B",
+        "accentFg": "#fff",
+        "border": "#234"
+      },
+      "ratios": {
+        "content": 1,
+        "surface": 2.1133798794291376,
+        "sidebar": 2.1133798794291376,
+        "muted": 1,
+        "composer": null,
+        "sidebarRowActive": null,
+        "accent": 5.434911440927868
+      },
+      "muted": "#112233"
+    },
+    {
+      "id": "bad-optional",
+      "palette": {
+        "bg": "#123",
+        "surface": "#345678",
+        "fg": "#fFf",
+        "accent": "#46B",
+        "accentFg": "#fff",
+        "border": "#234",
+        "composer": "invalid"
+      },
+      "ratios": {
+        "content": 16.148276384578075,
+        "surface": 7.640971952917436,
+        "sidebar": 7.640971952917436,
+        "muted": null,
+        "composer": null,
+        "sidebarRowActive": null,
+        "accent": 5.434911440927868
+      },
+      "muted": null
+    }
+  ]
+}

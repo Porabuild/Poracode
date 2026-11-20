@@ -9,14 +9,14 @@ struct RichChatInlineVisualBlocksView: View {
 
   var body: some View {
     VStack(alignment: .leading, spacing: 8) {
-      ForEach(Array(blocks.enumerated()), id: \.offset) { _, block in
+      ForEach(Array(blocks.enumerated()), id: \.offset) { index, block in
         switch block {
         case .markdown(let text):
-          RichChatMarkdownView(source: text)
+          RichChatMarkdownView(source: text, visualIndex: index)
         case .html(let visual):
           RichChatHtmlVisualView(visual: visual).id(visual)
         case .source(let language, let source):
-          RichChatMarkdownCodeBlock(language: language, source: source)
+          RichChatMarkdownCodeBlock(language: language, source: source, findPart: .visualSource(index))
         }
       }
     }
@@ -65,11 +65,9 @@ struct RichChatHtmlVisualView: View {
   let visual: RichHtmlVisualPresentation
   @Environment(\.colorScheme) private var colorScheme
   @Environment(\.poracodeTheme) private var theme
-  @State private var height: CGFloat = CGFloat(RichInlineVisualParser.minHeight)
-  @State private var ready = false
   @State private var unavailable = false
   @State private var showSource = false
-  @State private var pendingLink: URL?
+  @State private var expanded = false
 
   private var palette: PoracodeThemeVariant { theme.variant(for: colorScheme) }
   private var title: String { visual.title.isEmpty ? RichChatStrings.htmlVisualTitle : visual.title }
@@ -99,45 +97,19 @@ struct RichChatHtmlVisualView: View {
       } else if showSource {
         source
       } else {
-        if !ready {
-          Text(RichChatStrings.htmlVisualLoading)
-            .poracodeChatText(.metadata)
-            .foregroundStyle(.secondary)
-            .padding(.horizontal, 10)
-            .padding(.vertical, 6)
-        }
-        RichChatHtmlVisualContentView(
-          html: visual.html,
-          theme: RichHtmlVisualTheme.value(palette: palette, dark: colorScheme == .dark),
-          onReady: { ready = true },
-          onHeight: { height = $0 },
-          onUnavailable: { unavailable = true },
-          onOpenLink: { url in
-            if pendingLink == nil { pendingLink = url }
-          }
-        )
-        .frame(height: height)
-        .opacity(ready ? 1 : 0)
-        .accessibilityLabel(title)
+        RichChatHtmlVisualDocument(html: visual.html, title: title) { unavailable = true }
       }
     }
     .background(palette.surface)
-    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+    .clipShape(PoracodeShapes.content)
     .overlay {
-      RoundedRectangle(cornerRadius: 10, style: .continuous)
+      PoracodeShapes.content
         .stroke(palette.border.opacity(0.7), lineWidth: 0.5)
     }
-    .confirmationDialog(
-      RichChatStrings.htmlVisualOpenLinkTitle,
-      isPresented: Binding(get: { pendingLink != nil }, set: { if !$0 { pendingLink = nil } }),
-      titleVisibility: .visible,
-      presenting: pendingLink
-    ) { url in
-      Button(RichChatStrings.htmlVisualOpenLink) { UIApplication.shared.open(url) }
-      Button(RichChatStrings.cancel, role: .cancel) {}
-    } message: { url in
-      Text(url.absoluteString)
+    .sheet(isPresented: $expanded) {
+      RichChatExpandedHtmlVisual(html: visual.html, title: title)
     }
+    .modifier(PoracodeRetainNavigationWhilePresented(isPresented: expanded))
   }
 
   private var header: some View {
@@ -154,7 +126,6 @@ struct RichChatHtmlVisualView: View {
       if sourceOnlyStatus == nil {
         Button {
           showSource.toggle()
-          ready = false
         } label: {
           Label(
             showSource ? RichChatStrings.htmlVisualPreview : RichChatStrings.htmlVisualSource,
@@ -163,6 +134,13 @@ struct RichChatHtmlVisualView: View {
           .font(.caption)
         }
         .buttonStyle(.borderless)
+        Button(RichChatStrings.htmlVisualExpand, systemImage: "arrow.up.left.and.arrow.down.right") {
+          expanded = true
+        }
+        .labelStyle(.iconOnly)
+        .font(.caption)
+        .buttonStyle(.borderless)
+        .accessibilityIdentifier("native-e2e.html-visual.expand")
       }
       Button {
         UIPasteboard.general.string = visual.html
@@ -179,8 +157,94 @@ struct RichChatHtmlVisualView: View {
   }
 
   private var source: some View {
-    RichChatMarkdownCodeBlock(language: "html", source: visual.html)
+    RichChatMarkdownCodeBlock(language: "html", source: visual.html, showsCopyAction: false)
       .padding(8)
+  }
+}
+
+private struct RichChatExpandedHtmlVisual: View {
+  let html: String
+  let title: String
+  @Environment(\.colorScheme) private var colorScheme
+  @Environment(\.dismiss) private var dismiss
+  @State private var unavailable = false
+
+  var body: some View {
+    NavigationStack {
+      ScrollView {
+        VStack(alignment: .leading, spacing: 8) {
+          if unavailable {
+            Text(RichChatStrings.htmlVisualUnavailable).foregroundStyle(.secondary)
+            RichChatMarkdownCodeBlock(language: "html", source: html)
+          } else {
+            RichChatHtmlVisualDocument(html: html, title: title) { unavailable = true }
+          }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(16)
+      }
+      .navigationTitle(title)
+      .navigationBarTitleDisplayMode(.inline)
+      .toolbar {
+        ToolbarItem(placement: .cancellationAction) {
+          PoracodeToolbarIconButton(
+            title: RichChatStrings.done,
+            systemImage: "xmark",
+            color: colorScheme == .dark ? .white : .black
+          ) { dismiss() }
+          .accessibilityIdentifier("native-e2e.html-visual.done")
+        }
+      }
+    }
+    .poracodePageSheetSizing()
+  }
+}
+
+private struct RichChatHtmlVisualDocument: View {
+  let html: String
+  let title: String
+  let onUnavailable: () -> Void
+  @Environment(\.colorScheme) private var colorScheme
+  @Environment(\.poracodeTheme) private var theme
+  @State private var height: CGFloat = CGFloat(RichInlineVisualParser.minHeight)
+  @State private var ready = false
+  @State private var pendingLink: URL?
+
+  var body: some View {
+    VStack(alignment: .leading, spacing: 0) {
+      if !ready {
+        Text(RichChatStrings.htmlVisualLoading)
+          .poracodeChatText(.metadata)
+          .foregroundStyle(.secondary)
+          .padding(.horizontal, 10)
+          .padding(.vertical, 6)
+      }
+      RichChatHtmlVisualContentView(
+        html: html,
+        theme: RichHtmlVisualTheme.value(palette: theme.variant(for: colorScheme), dark: colorScheme == .dark),
+        onReady: { ready = true },
+        onHeight: { height = $0 },
+        onUnavailable: onUnavailable,
+        onOpenLink: { url in
+          if pendingLink == nil { pendingLink = url }
+        }
+      )
+      .frame(height: height)
+      .opacity(ready ? 1 : 0)
+      .accessibilityLabel(title)
+    }
+    .confirmationDialog(
+      RichChatStrings.htmlVisualOpenLinkTitle,
+      isPresented: Binding(get: { pendingLink != nil }, set: { if !$0 { pendingLink = nil } }),
+      titleVisibility: .visible,
+      presenting: pendingLink
+    ) { url in
+      Button(RichChatStrings.htmlVisualOpenLink) { UIApplication.shared.open(url) }
+      Button(RichChatStrings.cancel, role: .cancel) {}
+    } message: { url in
+      Text(url.absoluteString)
+    }
+    .modifier(PoracodeRetainNavigationWhilePresented(isPresented: pendingLink != nil))
   }
 }
 

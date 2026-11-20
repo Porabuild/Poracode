@@ -32,8 +32,12 @@ internal class RemoteHttpExecutor(
 ) {
     private val responseDecoder = RemoteResponseDecoder(maxResponseBytes)
     private val readCache = RemoteReadCache()
+    private val binaryReadCache = RemoteBinaryReadCache()
 
-    fun clearReadCache() = synchronized(readCache) { readCache.clear() }
+    fun clearReadCache() {
+        synchronized(readCache) { readCache.clear() }
+        synchronized(binaryReadCache) { binaryReadCache.clear() }
+    }
 
     internal suspend fun requestText(
         path: String,
@@ -160,16 +164,46 @@ internal class RemoteHttpExecutor(
             url = builder.build()
         }
         CleartextPolicy.enforce(url.toString())
+        val canRevalidate = authorized && (expectedStatus == null || expectedStatus == 200)
+        val cachedRead = if (canRevalidate) binaryReadCache.capture(url.toString()) else null
         val requestBuilder = Request.Builder().url(url).get()
         if (authorized) {
             accessToken()?.takeIf(String::isNotBlank)?.let {
                 requestBuilder.header("Authorization", "Bearer $it")
             }
         }
+        cachedRead?.entry?.let { requestBuilder.header("If-None-Match", it.etag) }
         environment.applyAuthority(requestBuilder)
+        val request = requestBuilder.build()
         return try {
-            executeRemoteRequest(clientForRequest(), networkGate, requestBuilder.build(), retryableRead = retryableRead) {
-                responseDecoder.binary(it, expectedStatus)
+            val outcome = executeRemoteRequest(
+                clientForRequest(),
+                networkGate,
+                request,
+                retryableRead = retryableRead,
+            ) { response ->
+                if (response.code == 304 && cachedRead != null) {
+                    val cached = binaryReadCache.value(cachedRead)
+                    response.close()
+                    return@executeRemoteRequest cached
+                }
+                val decoded = responseDecoder.binary(response, expectedStatus)
+                if (cachedRead != null) {
+                    binaryReadCache.store(cachedRead, response, decoded)
+                }
+                decoded
+            }
+            outcome ?: executeRemoteRequest(
+                clientForRequest(),
+                networkGate,
+                request.newBuilder().removeHeader("If-None-Match").build(),
+                retryableRead = retryableRead,
+            ) { response ->
+                val decoded = responseDecoder.binary(response, expectedStatus)
+                if (cachedRead != null) {
+                    binaryReadCache.store(cachedRead, response, decoded)
+                }
+                decoded
             }
         } catch (error: RemoteClientException) {
             throw environment.normalizeFailure(error)

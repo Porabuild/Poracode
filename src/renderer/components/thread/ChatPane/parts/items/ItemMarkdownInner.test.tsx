@@ -593,6 +593,7 @@ describe("ItemMarkdownInner", () => {
     );
 
     expect(screen.getByTestId("code-block")).toHaveAttribute("data-lang", "css");
+    expect(screen.getByRole("button", { name: "Copy code" })).toBeTruthy();
     expect(codeBlockSpy).toHaveBeenCalledWith(
       expect.objectContaining({
         text: ".animate-tool-call-enter {\n  animation: fade-in;\n}",

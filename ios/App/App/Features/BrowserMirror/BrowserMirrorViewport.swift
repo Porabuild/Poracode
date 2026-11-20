@@ -50,6 +50,7 @@
           .gesture(gesture(in: BrowserMirrorRect(container: container)))
           .accessibilityLabel(BrowserMirrorStrings.browserContent)
           .accessibilityHint(BrowserMirrorStrings.viewportHint)
+          .accessibilityIdentifier("native-e2e.browser.frame")
       case .actual:
         let size = Self.intrinsicSize(frame.metadata)
         ScrollView([.horizontal, .vertical]) {
@@ -68,6 +69,7 @@
             )
             .accessibilityLabel(BrowserMirrorStrings.browserContent)
             .accessibilityHint(BrowserMirrorStrings.viewportHint)
+            .accessibilityIdentifier("native-e2e.browser.frame")
         }
       }
     }

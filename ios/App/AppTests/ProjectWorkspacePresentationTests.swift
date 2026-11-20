@@ -20,9 +20,34 @@ final class ProjectWorkspacePresentationTests: XCTestCase {
     editor.draft = "# Native\n"
     XCTAssertTrue(editor.isDirty)
     XCTAssertTrue(editor.canSave)
-    editor.markSaved(modifiedAtMs: 1_786_543_212.875)
+    editor.markSaved(try XCTUnwrap(editor.saveRequest), modifiedAtMs: 1_786_543_212.875)
     XCTAssertFalse(editor.isDirty)
     XCTAssertEqual(editor.modifiedAtMs, 1_786_543_212.875)
+  }
+
+  func testAcknowledgingASaveKeepsNewerEditsAndTheirUpdatedBase() throws {
+    let fixture = try fixtureCase(id: "read-text-fractional-mtime")
+    let read = try ProjectWorkspaceFixtures.decode(ProjectFileReadResult.self, payload: fixture.result)
+    var editor = ProjectWorkspaceEditorState()
+    editor.beginLoading(path: read.path)
+    XCTAssertTrue(editor.install(read))
+    editor.draft = "Sent content"
+    let sent = try XCTUnwrap(editor.saveRequest)
+    editor.draft = "Sent content and later keystrokes"
+    editor.markSaved(sent, modifiedAtMs: 23.75)
+    XCTAssertEqual(editor.originalContent, "Sent content")
+    XCTAssertEqual(editor.draft, "Sent content and later keystrokes")
+    XCTAssertEqual(editor.saveRequest?.modifiedAtMs, 23.75)
+
+    let stale = try XCTUnwrap(editor.saveRequest)
+    editor.beginLoading(path: read.path)
+    XCTAssertTrue(editor.install(read))
+    editor.markSaved(stale, modifiedAtMs: 24)
+    XCTAssertEqual(editor.originalContent, read.content)
+    XCTAssertEqual(editor.modifiedAtMs, read.modifiedAtMs)
+
+    editor.draft = ""
+    XCTAssertEqual(editor.previewContent(for: read), "")
   }
 
   func testAccessRequiresExactContextAndReadScope() {
@@ -65,6 +90,46 @@ final class ProjectWorkspacePresentationTests: XCTestCase {
       ),
       .missingReadScope
     )
+  }
+
+  func testReconnectRetainsADraftAndRebasesOnlyFromMatchingBytes() {
+    let original = ProjectFileReadResult(path: "README.md", status: .ready, modifiedAtMs: 1, content: "Original")
+    var editor = ProjectWorkspaceEditorState()
+    editor.beginLoading(path: original.path)
+    XCTAssertTrue(editor.install(original))
+    editor.draft = "Pending write"
+    let sent = editor.saveRequest
+    editor.draft = "Pending write plus later edits"
+    let acknowledged = ProjectFileReadResult(path: original.path, status: .ready,
+      modifiedAtMs: 2, content: "Pending write")
+    XCTAssertTrue(editor.reconcileAfterReconnect(acknowledged, interruptedSave: sent))
+    XCTAssertEqual(editor.draft, "Pending write plus later edits")
+    XCTAssertEqual(editor.saveRequest?.modifiedAtMs, 2)
+    XCTAssertFalse(editor.requiresReload)
+    if let sent { XCTAssertFalse(editor.owns(sent)) }
+
+    let concurrent = ProjectFileReadResult(path: original.path, status: .ready,
+      modifiedAtMs: 2, content: "Someone else's changes")
+    XCTAssertTrue(editor.reconcileAfterReconnect(concurrent, interruptedSave: nil))
+    XCTAssertEqual(editor.draft, "Pending write plus later edits")
+    XCTAssertNil(editor.saveRequest)
+    XCTAssertTrue(editor.requiresReload)
+    XCTAssertTrue(editor.canSave)
+    XCTAssertTrue(editor.install(concurrent))
+    XCTAssertFalse(editor.requiresReload)
+    XCTAssertEqual(editor.draft, "Someone else's changes")
+  }
+
+  func testReconnectCannotCarryTheEditorAcrossProjectOwners() {
+    let original = makeProjectWorkspaceContext(hostGeneration: 1, projectGeneration: 3)
+    let resumed = makeProjectWorkspaceContext(connectionID: original.lease.project.connectionId,
+      hostGeneration: 2, projectID: original.lease.project.projectId,
+      location: original.lease.location, projectGeneration: 3)
+    XCTAssertTrue(resumed.lease.hasSameEditorOwner(as: original.lease))
+    let replaced = makeProjectWorkspaceContext(connectionID: original.lease.project.connectionId,
+      hostGeneration: 2, projectID: original.lease.project.projectId,
+      location: original.lease.location, projectGeneration: 4)
+    XCTAssertFalse(replaced.lease.hasSameEditorOwner(as: original.lease))
   }
 
   func testSaveRecoveryReconcilesConflictAndAmbiguousOutcomesOnly() {

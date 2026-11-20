@@ -198,7 +198,7 @@ describe("finite normalized taxonomy declarations", () => {
     );
     expect(ranges).toEqual([[...READ_START_KEYS], [...READ_END_KEYS], ["limit"]]);
     const checks = /CHECK_SCRIPTS = new Set\(\[([\s\S]*?)\]/.exec(
-      source("renderer/components/thread/ChatPane/parts/items/commandSummary.ts"),
+      source("shared/commandPresentation/interpret.ts"),
     )?.[1];
     expect(checks).toBeDefined();
     expect(

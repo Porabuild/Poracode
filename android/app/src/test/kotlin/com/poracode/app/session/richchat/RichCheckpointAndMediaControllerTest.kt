@@ -2,6 +2,7 @@ package com.poracode.app.session.richchat
 
 import com.poracode.app.chat.RichImagePolicy
 import com.poracode.app.transport.richchat.AttachmentUploadBody
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
@@ -241,5 +242,46 @@ class RichCheckpointAndMediaControllerTest {
         assertTrue(controller.isReadyForUpload)
         lifecycle.enterBackground()
         assertFalse(controller.isReadyForUpload)
+    }
+
+    @Test
+    fun localImageLoadsCoalesceCacheAndClearOnMemoryTrim() = runTest {
+        val host = richLease()
+        val session = MutableStateFlow<RichChatHostLease?>(host)
+        val selection = MutableStateFlow<RichChatThreadLease?>(RichChatThreadLease(host, "thread-a", 1))
+        val calls = java.util.concurrent.atomic.AtomicInteger(0)
+        val base = FakeRichChatSessionGateway()
+        val gateway = object : RichChatSessionGateway by base {
+            override suspend fun loadLocalImage(
+                lease: RichChatHostLease,
+                path: String,
+                variant: String?,
+            ): com.poracode.app.transport.RemoteBinaryResponse {
+                calls.incrementAndGet()
+                kotlinx.coroutines.delay(20)
+                return com.poracode.app.transport.RemoteBinaryResponse(
+                    byteArrayOf(0x89.toByte(), 0x50, 0x4E, 0x47),
+                    "image/png",
+                )
+            }
+        }
+        val controller = RichChatMediaController(
+            session,
+            selection,
+            gateway,
+            ForegroundOperationRegistry(),
+        )
+        val d1 = async { controller.loadLocalImage("/tmp/a.png", variant = "card") }
+        val d2 = async { controller.loadLocalImage("/tmp/a.png", variant = "card") }
+        assertTrue(d1.await() is RichChatOperationResult.Success)
+        assertTrue(d2.await() is RichChatOperationResult.Success)
+        assertEquals(1, calls.get())
+
+        assertTrue(controller.loadLocalImage("/tmp/a.png", variant = "card") is RichChatOperationResult.Success)
+        assertEquals(1, calls.get())
+
+        controller.clearImageCache()
+        assertTrue(controller.loadLocalImage("/tmp/a.png", variant = "card") is RichChatOperationResult.Success)
+        assertEquals(2, calls.get())
     }
 }

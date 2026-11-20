@@ -96,6 +96,7 @@ describe("remote procedure routing registry", () => {
     todos: [],
     updatedAt: "2026-08-02T00:00:00.000Z",
   }));
+  const setProjectNotes = vi.fn<RemoteDesktopClient["setProjectNotes"]>(async () => {});
   const getPrWatch = vi.fn<RemoteDesktopClient["getPrWatch"]>(async () => ({
     projectId: "remote-project",
     prNumber: 465,
@@ -159,6 +160,7 @@ describe("remote procedure routing registry", () => {
     threadCompletedTurns,
     threadContextUsage,
     projectNotes,
+    setProjectNotes,
     getPrWatch,
     upsertPrWatch,
     syncPrWatchAgent,
@@ -925,6 +927,26 @@ describe("remote procedure routing registry", () => {
       config: { model: "gpt-5.6" },
     });
   });
+
+  it.each(["saved", "conflict"] as const)(
+    "projects the guarded Notes %s result",
+    async (status) => {
+      const rawProjectId = "remote-project";
+      const projectId = "projected-project";
+      const replacement = { doc: null, todos: [] };
+      const notes = { projectId: rawProjectId, ...replacement, updatedAt: "now", revision: "next" };
+      setProjectNotes.mockResolvedValueOnce({ status, notes });
+      const body = { baseRevision: "base", replacement };
+
+      await expect(
+        remoteResult(decide("dbSetProjectNotes", { projectId, ...body })),
+      ).resolves.toEqual({
+        status,
+        notes: { ...notes, projectId },
+      });
+      expect(setProjectNotes).toHaveBeenCalledExactlyOnceWith({ projectId: rawProjectId, ...body });
+    },
+  );
 
   it("sends the host's project id with a location-owned project watch", async () => {
     await remoteResult(

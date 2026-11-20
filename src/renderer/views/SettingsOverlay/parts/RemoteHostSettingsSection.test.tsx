@@ -1,4 +1,4 @@
-import { fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { AgentStatus } from "@/shared/contracts";
 import type { RemoteSettings, RemoteSettingsPatch } from "@/shared/remote";
@@ -19,6 +19,11 @@ function makeAgent(kind: string): AgentStatus {
       modelEfforts: { [`${kind}-model`]: ["low", "medium", "high"] },
       efforts: ["low", "medium", "high"],
       defaultEffort: "medium",
+      contextSizes: [
+        { id: "standard", label: "Standard" },
+        { id: "wide", label: "Wide" },
+      ],
+      modelContextSizes: { [`${kind}-model`]: ["standard", "wide"] },
       supportsOneShot: true,
       supportsTextOnlyOneShot: true,
     },
@@ -76,6 +81,25 @@ describe("RemoteHostSettingsSection", () => {
         },
       },
     });
+  }
+
+  function installTwoClients(
+    first: Partial<RemoteDesktopClient>,
+    second: Partial<RemoteDesktopClient>,
+  ): void {
+    installClient(first);
+    const { runtime } = useRemoteServersStore.getState();
+    const withClient: RemoteServersState["withClient"] = async (desktopId, invoke) =>
+      invoke((desktopId === "desktop-1" ? first : second) as RemoteDesktopClient);
+    useRemoteServersStore.setState({
+      withClient,
+      runtime: { ...runtime, "desktop-2": runtime["desktop-1"]! },
+    });
+  }
+
+  async function titleSection() {
+    const heading = await screen.findByRole("heading", { name: "Title Generation" });
+    return within(heading.closest("section")!);
   }
 
   beforeEach(() => {
@@ -181,6 +205,167 @@ describe("RemoteHostSettingsSection", () => {
     expect(patch.wslConflictResolverModel).toBeTruthy();
     expect(patch.conflictResolverProvider).toBeUndefined();
     expect(patch.wslTitleGenProvider).toBeUndefined();
+  });
+
+  it("loads the canonical preset and saves a context edit with the original binding", async () => {
+    const selection = {
+      model: "codex-model",
+      effort: "",
+      thinking: false,
+      contextSize: "wide",
+      selectionBinding: {
+        version: 1 as const,
+        kind: "family-member" as const,
+        owner: { agentKind: "codex", presentationMode: "terminal" as const },
+        model: "codex-model",
+        inertValues: { thinking: false },
+      },
+    };
+    const document = makeDocument({
+      titleGenProvider: "codex",
+      titleGenModel: "old-model",
+      titleGenEffort: "high",
+      titleGenFast: true,
+      titleGenSelection: selection,
+    });
+    const settings = vi.fn<RemoteDesktopClient["settings"]>(async () => document);
+    const updateSettings = vi.fn<RemoteDesktopClient["updateSettings"]>(
+      async (patch: RemoteSettingsPatch) => makeDocument({ ...document, ...patch }),
+    );
+    installClient({ settings, updateSettings });
+
+    render(<RemoteHostSettingsSection desktopId="desktop-1" isOnline canRead canWrite />);
+    const title = await titleSection();
+    expect(title.getAllByText("codex model").length).toBeGreaterThan(0);
+    expect(title.queryByText("old-model")).toBeNull();
+    fireEvent.click(title.getByRole("button", { name: "Effort and context" }));
+    fireEvent.click(await screen.findByRole("option", { name: "Standard" }));
+    fireEvent.click(screen.getAllByRole("button", { name: "Dismiss" })[0]!);
+    expect(updateSettings).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
+    await waitFor(() =>
+      expect(updateSettings).toHaveBeenCalledExactlyOnceWith({
+        titleGenProvider: "codex",
+        titleGenModel: "codex-model",
+        titleGenEffort: "",
+        titleGenFast: false,
+        titleGenSelection: { ...selection, contextSize: "standard" },
+      }),
+    );
+  });
+
+  it("keeps the second desktop's draft when the first desktop answers a late read", async () => {
+    const firstRead = Promise.withResolvers<RemoteSettings>();
+    const second = makeDocument();
+    const saveSecond = vi.fn<RemoteDesktopClient["updateSettings"]>(
+      async (patch: RemoteSettingsPatch) => makeDocument({ ...second, ...patch }),
+    );
+    installTwoClients(
+      { settings: () => firstRead.promise },
+      {
+        settings: async () => second,
+        updateSettings: saveSecond,
+      },
+    );
+    const view = render(
+      <RemoteHostSettingsSection desktopId="desktop-1" isOnline canRead canWrite />,
+    );
+    expect(screen.getByText("Loading host settings…")).toBeTruthy();
+    view.rerender(<RemoteHostSettingsSection desktopId="desktop-2" isOnline canRead canWrite />);
+
+    fireEvent.click((await titleSection()).getByRole("radio", { name: "Disabled" }));
+    await act(async () => {
+      firstRead.resolve(makeDocument({ titleGenProvider: "codex" }));
+      await firstRead.promise;
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
+    await waitFor(() =>
+      expect(saveSecond).toHaveBeenCalledExactlyOnceWith({
+        titleGenProvider: "disabled",
+        titleGenModel: "",
+        titleGenEffort: "",
+        titleGenFast: false,
+        titleGenSelection: { model: "", effort: "", fast: false },
+      }),
+    );
+  });
+
+  it("retargets only the WSL conflict preset when changing its presentation", async () => {
+    const bound = {
+      model: "codex-model",
+      contextSize: "wide",
+      fast: false,
+      selectionBinding: {
+        version: 1 as const,
+        kind: "family-member" as const,
+        owner: { agentKind: "codex", presentationMode: "terminal" as const },
+        model: "codex-model",
+        inertValues: { fast: false },
+      },
+    };
+    const document = makeDocument({
+      wslConflictResolverProvider: "codex",
+      wslConflictResolverPresentationMode: "terminal",
+      wslConflictResolverSelection: bound,
+      conflictResolverSelection: bound,
+    });
+    const updateSettings = vi.fn<RemoteDesktopClient["updateSettings"]>(
+      async (patch: RemoteSettingsPatch) => makeDocument({ ...document, ...patch }),
+    );
+    installClient({ settings: async () => document, updateSettings });
+
+    render(<RemoteHostSettingsSection desktopId="desktop-1" isOnline canRead canWrite />);
+    await screen.findByText("Conflict Resolver");
+    fireEvent.click(screen.getByRole("radio", { name: "WSL" }));
+    fireEvent.click(screen.getByRole("radio", { name: "Chat" }));
+    expect(updateSettings).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
+    await waitFor(() =>
+      expect(updateSettings).toHaveBeenCalledExactlyOnceWith({
+        wslConflictResolverPresentationMode: "gui",
+        wslConflictResolverProvider: "codex",
+        wslConflictResolverModel: "codex-model",
+        wslConflictResolverEffort: "",
+        wslConflictResolverFast: false,
+        wslConflictResolverSelection: { model: "codex-model", contextSize: "wide", fast: false },
+      }),
+    );
+  });
+
+  it("keeps a second desktop's edits when the first desktop completes a pending save", async () => {
+    const savedFirst = Promise.withResolvers<RemoteSettings>();
+    const saveFirst = vi.fn<RemoteDesktopClient["updateSettings"]>(() => savedFirst.promise);
+    const second = makeDocument();
+    const saveSecond = vi.fn<RemoteDesktopClient["updateSettings"]>(
+      async (patch: RemoteSettingsPatch) => makeDocument({ ...second, ...patch }),
+    );
+    installTwoClients(
+      { settings: async () => makeDocument(), updateSettings: saveFirst },
+      { settings: async () => second, updateSettings: saveSecond },
+    );
+    const view = render(
+      <RemoteHostSettingsSection desktopId="desktop-1" isOnline canRead canWrite />,
+    );
+    fireEvent.click((await titleSection()).getByRole("radio", { name: "Custom" }));
+    fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
+    await waitFor(() => expect(saveFirst).toHaveBeenCalledTimes(1));
+    expect((await titleSection()).getByRole("radio", { name: "Disabled" })).toHaveAttribute(
+      "disabled",
+    );
+
+    view.rerender(<RemoteHostSettingsSection desktopId="desktop-2" isOnline canRead canWrite />);
+    fireEvent.click((await titleSection()).getByRole("radio", { name: "Disabled" }));
+    await act(async () => {
+      savedFirst.resolve(makeDocument({ titleGenProvider: "codex" }));
+      await savedFirst.promise;
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
+    await waitFor(() =>
+      expect(saveSecond).toHaveBeenCalledExactlyOnceWith(
+        expect.objectContaining({ titleGenProvider: "disabled" }),
+      ),
+    );
+    expect(saveFirst).toHaveBeenCalledTimes(1);
   });
 
   it("surfaces load failures with a working retry", async () => {

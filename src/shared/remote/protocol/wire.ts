@@ -132,6 +132,12 @@ export const remoteSettingsSchema = sharedSettingsSchema
     agentSettings: remoteAgentSettingsSchema,
     // Optional for older hosts; remote edits must keep the field sparse.
     crews: sharedSettingsSchema.shape.crews.removeDefault().optional(),
+    crossagentPausedProviders: sharedSettingsSchema.shape.crossagentPausedProviders
+      .removeDefault()
+      .optional(),
+    crossagentHiddenModels: sharedSettingsSchema.shape.crossagentHiddenModels
+      .removeDefault()
+      .optional(),
     wslCrews: sharedSettingsSchema.shape.wslCrews.removeDefault().optional(),
     autoArchiveDoneAfterDays: sharedSettingsSchema.shape.autoArchiveDoneAfterDays.optional(),
     prCreateMode: sharedSettingsSchema.shape.prCreateMode.optional(),

@@ -1,6 +1,21 @@
 import Foundation
 
 extension SelectedRichChatSessionGateway: RichChatHistoryGateway {
+  func loadRichHistoryItem(target: RichChatThreadTarget, itemID: String) async throws -> PersistedRuntimeItem {
+    try await executeRead(target: target, capability: .sessionRead) { api in
+      try await api.richHistoryItem(threadID: target.threadID, itemID: itemID)
+    }
+  }
+  func loadRichRuntimeToolBodies(target: RichChatThreadTarget, requests: [RichRuntimeItemHeadingRequest]) async throws -> [RichResolvedToolBodyRecord] {
+    try await executeRead(target: target, capability: .sessionRead) { api in
+      try await api.richRuntimeToolBodies(threadID: target.threadID, requests: requests)
+    }
+  }
+  func loadRichRuntimeItemHeadings(target: RichChatThreadTarget, requests: [RichRuntimeItemHeadingRequest]) async throws -> [RichRuntimeItemHeadingRecord] {
+    try await executeRead(target: target, capability: .sessionRead) { api in
+      try await api.richRuntimeItemHeadings(threadID: target.threadID, requests: requests)
+    }
+  }
   func loadRichHistory(
     target: RichChatThreadTarget,
     targetEntryCount: Int?
@@ -61,12 +76,42 @@ extension SelectedRichChatSessionGateway: RichChatHistoryGateway {
     }
   }
 
+  func loadRichHistoryChanges(
+    target: RichChatThreadTarget,
+    cursor: String,
+    afterSeq: Int?,
+    targetEntryCount: Int?
+  ) async throws -> RemoteHistoryResumeOutcome {
+    try await executeRead(target: target, capability: .sessionRead) { api in
+      try await api.richHistoryChanges(
+        threadID: target.threadID,
+        cursor: cursor,
+        afterSeq: afterSeq,
+        targetEntryCount: targetEntryCount
+      )
+    }
+  }
+
+  func refreshRichHistoryCache(target: RichChatThreadTarget, targetEntryCount: Int?) async {
+    _ = try? await executeRead(target: target, capability: .sessionRead) { api in
+      try await api.richHistory(threadID: target.threadID, targetEntryCount: targetEntryCount)
+    }
+  }
+
   func loadLocalRichImage(
     target: RichChatThreadTarget,
     path: String
   ) async throws -> RichChatBinaryPayload {
+    try await loadLocalRichImage(target: target, path: path, variant: nil)
+  }
+
+  func loadLocalRichImage(
+    target: RichChatThreadTarget,
+    path: String,
+    variant: RichImageVariant?
+  ) async throws -> RichChatBinaryPayload {
     try await executeRead(target: target, capability: .sessionRead) { api in
-      try await api.richLocalImage(path: path)
+      try await api.richLocalImage(path: path, variant: variant)
     }
   }
 
@@ -74,11 +119,19 @@ extension SelectedRichChatSessionGateway: RichChatHistoryGateway {
     target: RichChatThreadTarget,
     reference: RichRemoteImageReference
   ) async throws -> RichChatBinaryPayload {
+    try await loadRuntimeRichImage(target: target, reference: reference, variant: nil)
+  }
+
+  func loadRuntimeRichImage(
+    target: RichChatThreadTarget,
+    reference: RichRemoteImageReference,
+    variant: RichImageVariant?
+  ) async throws -> RichChatBinaryPayload {
     guard reference.threadID == target.threadID else {
       throw RichChatGatewayError.invalidRequest
     }
     return try await executeRead(target: target, capability: .sessionRead) { api in
-      try await api.richRuntimeImage(reference)
+      try await api.richRuntimeImage(reference, variant: variant)
     }
   }
 

@@ -23,6 +23,7 @@ final class ProjectFileWorkspaceController {
   private(set) var treeSearch = ProjectWorkspaceValueState<ProjectTreeSearchResult>()
   private(set) var fileRead = ProjectWorkspaceValueState<ProjectFileReadResult>()
   private(set) var fileWrite = ProjectWorkspaceValueState<ProjectFileWriteResult>()
+  private(set) var fileWritePath: String?
   private(set) var entryMutation = ProjectWorkspaceValueState<Bool>()
 
   private let gateway: any ProjectWorkspaceGateway
@@ -49,6 +50,14 @@ final class ProjectFileWorkspaceController {
     invalidateOperations()
     context = nil
     resetValues()
+  }
+
+  func resolveBareFilename(_ filename: String, lease: ProjectWorkspaceLease) async throws -> String {
+    guard context?.lease == lease else { throw CancellationError() }
+    let path = try await gateway.resolveBareFilename(filename, lease: lease)
+    try Task.checkCancellation()
+    guard context?.lease == lease else { throw CancellationError() }
+    return path
   }
 
   func searchFiles(
@@ -143,13 +152,18 @@ final class ProjectFileWorkspaceController {
     }
   }
 
+  @discardableResult
   func writeFile(
     path: String,
     content: String,
-    baseModifiedAtMs: Double
-  ) async {
-    guard fileWrite.loadState != .loading else { return }
-    guard let capture = begin(.fileWrite, scope: .sessionOperate) else { return }
+    baseModifiedAtMs: Double,
+    expectedLease: ProjectWorkspaceLease? = nil
+  ) async -> Result<ProjectFileWriteResult, ProjectOperationFailure>? {
+    guard expectedLease == nil || expectedLease == context?.lease,
+      fileWrite.loadState != .loading
+    else { return nil }
+    fileWritePath = path
+    guard let capture = begin(.fileWrite, scope: .sessionOperate) else { return nil }
     fileWrite.loadState = .loading
     do {
       let value = try await gateway.writeProjectFile(
@@ -158,15 +172,19 @@ final class ProjectFileWorkspaceController {
         baseModifiedAtMs: baseModifiedAtMs,
         lease: capture.context.lease
       )
-      guard owns(capture) else { return }
+      guard owns(capture) else { return nil }
       fileWrite.value = value
       fileWrite.loadState = .loaded
+      return .success(value)
     } catch is CancellationError {
-      guard owns(capture) else { return }
+      guard owns(capture) else { return nil }
       fileWrite.loadState = .idle
+      return nil
     } catch {
-      guard owns(capture) else { return }
-      fileWrite.loadState = .failed(.map(error))
+      guard owns(capture) else { return nil }
+      let failure = ProjectOperationFailure.map(error)
+      fileWrite.loadState = .failed(failure)
+      return .failure(failure)
     }
   }
 
@@ -244,6 +262,7 @@ final class ProjectFileWorkspaceController {
     treeSearch = .init()
     fileRead = .init()
     fileWrite = .init()
+    fileWritePath = nil
     entryMutation = .init()
   }
 

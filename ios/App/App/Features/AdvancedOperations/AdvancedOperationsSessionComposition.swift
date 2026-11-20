@@ -114,8 +114,7 @@ extension AppSession {
     await refreshSnapshot()
     guard source.isCurrent(lease), !state.liveLifecycle.isInBackground else { return }
     guard let threadID = lease.owner.threadID,
-      let suite = activeRichChatSuite,
-      suite.scope.target?.threadID == threadID
+      let suite = attachedRichChatSuite(threadID: threadID)
     else { return }
     await suite.refreshAuthoritativeHistory()
   }

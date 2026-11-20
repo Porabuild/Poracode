@@ -20,29 +20,14 @@ struct RichChatCrewPresentation: Equatable, Sendable {
   var helperCount: Int { roles.reduce(0) { $0 + $1.parallel } }
 
   init?(opaqueValue: JSONValue?) {
-    guard let crew = opaqueValue?.objectValue,
-      case .array(let rawRoles)? = crew["roles"]
-    else { return nil }
-    name = crew["name"]?.stringValue ?? ""
-    policy = crew["policy"]?.stringValue ?? "crew-only"
-    roles = rawRoles.compactMap { value in
-      guard let role = value.objectValue,
-        let id = role["id"]?.stringValue,
-        let label = role["label"]?.stringValue,
-        let selection = role["selection"]?.objectValue,
-        let agentKind = selection["agentKind"]?.stringValue,
-        let model = selection["model"]?.stringValue
-      else { return nil }
-      return RichChatCrewRole(
-        id: id,
-        label: label,
-        agentKind: agentKind,
-        model: model,
-        effort: selection["effort"]?.stringValue,
-        fast: selection["fast"]?.boolValue ?? false,
-        noEdits: role["noEdits"]?.boolValue ?? false,
-        parallel: max(1, role["parallel"]?.numberInt ?? 1)
-      )
+    guard let binding = ThreadCrewBinding(wire: opaqueValue) else { return nil }
+    name = binding.name ?? ""
+    policy = binding.policy.rawValue
+    roles = binding.roles.map { role in
+      RichChatCrewRole(id: role.id, label: role.label,
+        agentKind: role.selection.agentKind, model: role.selection.model,
+        effort: role.selection.effort, fast: role.selection.fast == true,
+        noEdits: role.noEdits, parallel: role.parallelCount)
     }
   }
 }
@@ -146,7 +131,9 @@ extension RichChatComposerView {
   /// The crew roster sheet; empty when the binding cannot be presented.
   @ViewBuilder
   var crewRosterSheet: some View {
-    if let crewPresentation {
+    if crewContext?.roster.wrappedValue != nil {
+      editableCrewRoster
+    } else if let crewPresentation {
       RichChatCrewRosterSheet(
         crew: crewPresentation,
         leadAgentKind: agentKind,

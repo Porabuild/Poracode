@@ -130,6 +130,13 @@ final class RichChatControllerTaskSlot {
     }
   }
 
+  /// Observe an independently owned operation without letting cancellation of
+  /// the observer cancel that operation (for example a resize waiting on input).
+  func join() async {
+    let current = task
+    await current?.value
+  }
+
   private func clear(owner: UInt64) {
     guard owner == generation else { return }
     task = nil

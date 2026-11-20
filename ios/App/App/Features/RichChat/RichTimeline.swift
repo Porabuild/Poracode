@@ -33,6 +33,19 @@ extension RichTimelineEntry {
     case .group(_, let members): members.map { $0.item }
     }
   }
+
+  func contains(itemID: String) -> Bool {
+    switch self {
+    case .item(let node): node.contains(itemID: itemID)
+    case .group(_, let members): members.contains { $0.contains(itemID: itemID) }
+    }
+  }
+}
+
+extension RichVisibleTimelineNode {
+  func contains(itemID: String) -> Bool {
+    item.id == itemID || children.contains { $0.contains(itemID: itemID) }
+  }
 }
 
 struct RichTimelineProjection: Sendable, Equatable {
@@ -42,6 +55,20 @@ struct RichTimelineProjection: Sendable, Equatable {
   let rawRoots: [RichRawTimelineNode]
   let visibleEntries: [RichTimelineEntry]
   let hiddenItemIDs: Set<String>
+
+  var activityTailID: String? {
+    for entry in visibleEntries.reversed() {
+      switch entry {
+      case .group(let stableID, _):
+        return stableID
+      case .item(let node):
+        if node.item.type == RichItemType.reasoning,
+          (node.item.streams["reasoning_text"] ?? "").allSatisfy(\.isWhitespace) { continue }
+        return nil
+      }
+    }
+    return nil
+  }
 }
 
 enum RichTimeline {
@@ -85,6 +112,117 @@ enum RichTimeline {
       rawRoots: rawRoots,
       visibleEntries: groupSiblings(nodes),
       hiddenItemIDs: hidden
+    )
+  }
+
+  /// O(1) fast-path for high-frequency live streaming deltas: when only a single
+  /// existing item's `streams` changed without altering hierarchy, type, state,
+  /// payload, or visibility, patch that node in place instead of rebuilding the
+  /// full dictionary/parent/grouping projection on every token.
+  static func updatingStreamOnly(
+    in projection: RichTimelineProjection,
+    previousItems: [RichRuntimeItem],
+    newItems: [RichRuntimeItem]
+  ) -> RichTimelineProjection? {
+    guard previousItems.count == newItems.count, !newItems.isEmpty else { return nil }
+    var changedIndex: Int?
+    for index in newItems.indices {
+      if previousItems[index] != newItems[index] {
+        guard changedIndex == nil else { return nil }
+        changedIndex = index
+      }
+    }
+    guard let index = changedIndex else { return projection }
+    let oldItem = previousItems[index]
+    let newItem = newItems[index]
+    guard oldItem.id == newItem.id,
+      oldItem.type == newItem.type,
+      oldItem.state == newItem.state,
+      oldItem.parentItemID == newItem.parentItemID,
+      oldItem.payload == newItem.payload,
+      oldItem.detailsDeferred == newItem.detailsDeferred,
+      oldItem.type != RichItemType.reasoning,
+      oldItem.type != RichItemType.userMessage,
+      !projection.hiddenItemIDs.contains(newItem.id)
+    else { return nil }
+
+    var rawItems = projection.rawItems
+    if index < rawItems.count, rawItems[index].id == newItem.id {
+      rawItems[index] = newItem
+    } else if let rawIdx = rawItems.firstIndex(where: { $0.id == newItem.id }) {
+      rawItems[rawIdx] = newItem
+    } else {
+      return nil
+    }
+
+    func replaceRaw(_ nodes: [RichRawTimelineNode]) -> ([RichRawTimelineNode], Bool) {
+      var updated = nodes
+      for i in updated.indices.reversed() {
+        if updated[i].item.id == newItem.id {
+          updated[i] = RichRawTimelineNode(item: newItem, children: updated[i].children)
+          return (updated, true)
+        }
+        if !updated[i].children.isEmpty {
+          let (children, hit) = replaceRaw(updated[i].children)
+          if hit {
+            updated[i] = RichRawTimelineNode(item: updated[i].item, children: children)
+            return (updated, true)
+          }
+        }
+      }
+      return (nodes, false)
+    }
+
+    func replaceVisible(_ entries: [RichTimelineEntry]) -> ([RichTimelineEntry], Bool) {
+      var updated = entries
+      for i in updated.indices.reversed() {
+        switch updated[i] {
+        case .item(let node):
+          if node.item.id == newItem.id {
+            updated[i] = .item(RichVisibleTimelineNode(item: newItem, children: node.children))
+            return (updated, true)
+          }
+          if !node.children.isEmpty {
+            let (children, hit) = replaceVisible(node.children)
+            if hit {
+              updated[i] = .item(RichVisibleTimelineNode(item: node.item, children: children))
+              return (updated, true)
+            }
+          }
+        case .group(let stableID, let members):
+          var updatedMembers = members
+          for m in updatedMembers.indices.reversed() {
+            if updatedMembers[m].item.id == newItem.id {
+              updatedMembers[m] = RichVisibleTimelineNode(
+                item: newItem, children: updatedMembers[m].children
+              )
+              updated[i] = .group(stableID: stableID, members: updatedMembers)
+              return (updated, true)
+            }
+            if !updatedMembers[m].children.isEmpty {
+              let (children, hit) = replaceVisible(updatedMembers[m].children)
+              if hit {
+                updatedMembers[m] = RichVisibleTimelineNode(
+                  item: updatedMembers[m].item, children: children
+                )
+                updated[i] = .group(stableID: stableID, members: updatedMembers)
+                return (updated, true)
+              }
+            }
+          }
+        }
+      }
+      return (entries, false)
+    }
+
+    let (rawRoots, rawHit) = replaceRaw(projection.rawRoots)
+    let (visibleEntries, visibleHit) = replaceVisible(projection.visibleEntries)
+    guard rawHit, visibleHit else { return nil }
+    return RichTimelineProjection(
+      rawItems: rawItems,
+      rawRoots: rawRoots,
+      visibleEntries: visibleEntries,
+      hiddenItemIDs: projection.hiddenItemIDs
     )
   }
 
@@ -220,48 +358,26 @@ enum RichTimeline {
     return entries
   }
 
-  /// WS7 P1-19: per-item visibility memo. Projections run per transcript
-  /// change; completed assistant payloads were JSON-decoded on every pass.
-  /// Keyed by item identity + stream length — streaming appends change the
-  /// key, a completed item's key is stable. Lock-guarded because projections
-  /// are Sendable-reachable; production callers are Main-serialized.
-  private static let visibilityLock = NSLock()
-  nonisolated(unsafe) private static var visibilityMemo: [String: Bool] = [:]
-
   static func isVisible(_ item: RichRuntimeItem) -> Bool {
-    let memoKey =
-      "\(item.id)|\(item.state)|\(item.streams["assistant_text"]?.count ?? -1)"
-    visibilityLock.lock()
-    let memoed = visibilityMemo[memoKey]
-    visibilityLock.unlock()
-    if let memoed { return memoed }
-    let visible = computeVisibility(item)
-    visibilityLock.lock()
-    if visibilityMemo.count > 4_096 { visibilityMemo.removeAll(keepingCapacity: true) }
-    visibilityMemo[memoKey] = visible
-    visibilityLock.unlock()
-    return visible
-  }
-
-  private static func computeVisibility(_ item: RichRuntimeItem) -> Bool {
+    // Payload updates can change visibility without changing a stream length.
+    // Read the current immutable item, avoiding stale cross-thread memo entries.
     if [RichItemType.plan, RichItemType.goal, RichItemType.pendingRequest, RichItemType.error]
       .contains(item.type)
     {
       return false
     }
     if item.type == RichItemType.assistantMessage, item.state == .completed {
-      let stream = item.streams["assistant_text", default: ""]
+      let text = RichAssistantDisplayText.text(for: item)
+      if text.contains(where: { !$0.isWhitespace }) { return true }
       let hasBlock =
         RichContentDecoder.decodeMessageContent(item.payload)?.contains {
           switch $0 {
           case .image: true
-          case .text(let text): !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+          case .file(let path, _, let mimeType, _): RichVideoPresentation.resolve(path, mimeType: mimeType) != nil
           default: false
           }
         } == true
-      if stream.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !hasBlock {
-        return false
-      }
+      return hasBlock
     }
     if RichItemType.toolLike.contains(item.type) {
       let name = item.payload?.objectValue?["name"]?.stringValue
@@ -273,12 +389,18 @@ enum RichTimeline {
   private static func isGroupable(_ node: RichVisibleTimelineNode) -> Bool {
     node.children.isEmpty && RichItemType.groupable.contains(node.item.type)
       && RichMcpAppPresentation(item: node.item) == nil
+      && RichChatVideoPresentation.videos(for: node.item).isEmpty
   }
 
   static func epochMilliseconds(_ text: String) -> Int64? {
     let parser = ISO8601DateFormatter()
     parser.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-    guard let date = parser.date(from: text) else { return nil }
+    var date = parser.date(from: text)
+    if date == nil {
+      parser.formatOptions = [.withInternetDateTime]
+      date = parser.date(from: text)
+    }
+    guard let date else { return nil }
     return Int64((date.timeIntervalSince1970 * 1_000).rounded())
   }
 }

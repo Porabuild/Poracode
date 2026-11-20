@@ -520,6 +520,25 @@ final class BoundedCatalogSessionTests: XCTestCase {
     XCTAssertEqual(fixture.requestCount("/api/catalog/membership"), 0)
   }
 
+  func testLegacyThreadStateRefreshesPersistedTurnMetadataWithoutCatalogReads() async throws {
+    let fixture = BoundedCatalogHostFixture()
+    fixture.declared = false
+    let harness = try await BoundedCatalogSessionHarness.make(fixture: fixture, threadCount: 1, projectCount: 1)
+    XCTAssertTrue(harness.session.catalog.isLegacyHost)
+    let snapshots = fixture.requestCount("/api/snapshot")
+    fixture.mutateThread(id: "t00000", status: "working", attention: "working")
+    harness.session.handleServerMessageForTests(.event(seq: 10, event: .object([
+      "type": .string("thread-state"), "threadId": .string("t00000"),
+      "status": .string("working"), "attention": .string("working"),
+    ])))
+    await harness.waitUntil("legacy live status refresh") {
+      harness.session.snapshot?.threads.first?.status == "working"
+    }
+    XCTAssertGreaterThan(fixture.requestCount("/api/snapshot"), snapshots)
+    XCTAssertEqual(fixture.requestCount("/api/threads"), 0)
+    XCTAssertEqual(fixture.requestCount("/api/catalog/membership"), 0)
+  }
+
   func testProjectDeletionIsConfirmedAndSchedulesCascade() async throws {
     let fixture = BoundedCatalogHostFixture()
     var threads: [BoundedCatalogHostFixture.ThreadSeed] = []

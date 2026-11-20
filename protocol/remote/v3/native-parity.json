@@ -5,6 +5,47 @@
   "entries": {
     "httpRoutes": [
       {
+        "id": "thread-item-presentations",
+        "scopes": ["session:read"],
+        "batch": "thread-lifecycle",
+        "ios": {
+          "wire": {
+            "disposition": "implemented",
+            "evidence": [
+              "ios/App/App/Features/ToolPresentation/CommandHeadingContract.swift",
+              "ios/App/App/Transport/RichChat/SelectedRichChatHistoryGateway.swift",
+              "ios/App/App/Transport/RichChat/RichChatRemoteAPI.swift",
+              "ios/App/App/Features/ToolPresentation/ResolvedToolBodyContract.swift",
+              "ios/App/App/Features/ToolPresentation/RuntimeItemPresentationEnvelope.swift"
+            ]
+          },
+          "ui": {
+            "disposition": "implemented",
+            "evidence": [
+              "ios/App/App/Features/ToolPresentation/CommandHeadingViews.swift",
+              "ios/App/App/Features/ToolPresentation/ToolPresentationViews.swift",
+              "ios/App/NativeE2ETests/NativeToolPresentationJourneyUITests.swift",
+              "ios/App/App/Features/WorkflowLiveness/WorkflowViewerAccessory.swift",
+              "ios/App/App/Features/WorkflowLiveness/WorkflowViewerScreen.swift",
+              "ios/App/App/Features/ToolPresentation/ResolvedToolBodyViews.swift",
+              "ios/App/NativeE2ETests/NativeWorkflowResultJourneyUITests.swift"
+            ],
+            "note": "Command/MCP headings and on-demand shared structured workflow results are exercised on owned iPad Air 11-inch (M4) and iPhone 17 simulators, iOS 27.2. Result disclosures retain expansion across rotation; large accessibility text keeps complete titles selectable, and empty interpreted results retain canonical rejection details. Physical Duo qualification remains separate."
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": []
+          }
+        },
+        "note": "Opt-in advisory V1 command, V2 MCP, V3 legacy workflow registration and V4 workflow viewer plan reads. Old peers retain base headers/bodies; Android UI adoption is outside the current native iOS scope."
+      },
+      {
         "id": "thread-agent-vision",
         "scopes": ["session:read"],
         "batch": "explicitly-desktop-only",
@@ -89,12 +130,21 @@
         "ios": {
           "wire": {
             "disposition": "implemented",
-            "evidence": ["ios/App/App/Transport/RemoteAPIClient.swift"]
+            "evidence": [
+              "ios/App/App/Transport/RemoteAPIClient.swift",
+              "ios/App/App/Features/ToolPresentation/ToolPresentationModels.swift",
+              "ios/App/App/Features/ToolPresentation/ToolPresentationViews.swift"
+            ]
           },
           "ui": {
             "disposition": "partial",
-            "evidence": ["ios/App/App/Transport/RemoteAPIClient.swift"],
-            "note": "No dedicated native screen and no device journey: the operation is reached through the shared RemoteAPIClient.swift plumbing cited here."
+            "evidence": [
+              "ios/App/App/Transport/RemoteAPIClient.swift",
+              "ios/App/App/Features/ToolPresentation/ToolPresentationModels.swift",
+              "ios/App/App/Features/ToolPresentation/ToolPresentationViews.swift",
+              "ios/App/NativeE2ETests/NativeToolPresentationJourneyUITests.swift"
+            ],
+            "note": "Optional v1 host-provided tool presentation catalog is scoped to the owning connection and rendered with generic native widgets. Unknown or absent catalogs retain legacy rendering. Canonical command/args/results, direct unified diffs, media references and live/history continuity have a checked-in device journey; provider-specific wrapper/diff normalization remains in the active parity audit."
           }
         },
         "android": {
@@ -120,12 +170,21 @@
         "ios": {
           "wire": {
             "disposition": "implemented",
-            "evidence": ["ios/App/App/Transport/RemoteAPIClient.swift"]
+            "evidence": [
+              "ios/App/App/Transport/RemoteAPIClient.swift",
+              "ios/App/App/Features/ToolPresentation/ToolPresentationModels.swift",
+              "ios/App/App/Features/ToolPresentation/ToolPresentationViews.swift"
+            ]
           },
           "ui": {
             "disposition": "partial",
-            "evidence": ["ios/App/App/Transport/RemoteAPIClient.swift"],
-            "note": "No dedicated native screen and no device journey: the operation is reached through the shared RemoteAPIClient.swift plumbing cited here."
+            "evidence": [
+              "ios/App/App/Transport/RemoteAPIClient.swift",
+              "ios/App/App/Features/ToolPresentation/ToolPresentationModels.swift",
+              "ios/App/App/Features/ToolPresentation/ToolPresentationViews.swift",
+              "ios/App/NativeE2ETests/NativeToolPresentationJourneyUITests.swift"
+            ],
+            "note": "Optional v1 host-provided tool presentation catalog is scoped to the owning connection and rendered with generic native widgets. Unknown or absent catalogs retain legacy rendering. Canonical command/args/results, direct unified diffs, media references and live/history continuity have a checked-in device journey; provider-specific wrapper/diff normalization remains in the active parity audit."
           }
         },
         "android": {
@@ -986,7 +1045,9 @@
             "evidence": [
               "ios/App/App/Features/BoundedCatalog/Transport/RemoteBoundedTransport.swift",
               "ios/App/App/Features/BoundedCatalog/Transport/RemoteBoundedSessionAPI.swift",
-              "ios/App/App/Features/BoundedCatalog/Transport/RemoteBoundedContract.swift"
+              "ios/App/App/Features/BoundedCatalog/Transport/RemoteBoundedContract.swift",
+              "ios/App/App/Features/SideChat/SideChatContextGateway.swift",
+              "ios/App/App/Features/SideChat/SideChatStore.swift"
             ]
           },
           "ui": {
@@ -1278,9 +1339,15 @@
             "evidence": [
               "ios/App/App/Features/Settings/UI/SettingsDocumentViews.swift",
               "ios/App/App/Features/Settings/UI/SettingsHostInformationViews.swift",
-              "ios/App/App/Features/Projects/ProjectSearchSettingsView.swift"
+              "ios/App/App/Features/Projects/ProjectSearchSettingsView.swift",
+              "ios/App/App/Features/ComposerTools/ComposerToolsView.swift",
+              "ios/App/App/Features/Crews/CrewsSettingsView.swift",
+              "ios/App/App/Features/Crews/SavedCrewEditorSheet.swift",
+              "ios/App/App/Features/Crews/SavedCrewsController.swift",
+              "ios/App/App/Features/Crews/HomeCrewComposer.swift",
+              "ios/App/App/Features/Crews/CrewRosterSheet.swift"
             ],
-            "note": "No checked-in device journey exercises this surface yet (no screen-registry entry, no device-test evidence); the ui story is asserted from the cited production source only."
+            "note": "Native composer Plugins/MCP and saved Crew CRUD/roster flows have checked-in simulator journeys. Broader settings and OAuth device coverage remains incomplete."
           }
         },
         "android": {
@@ -1315,9 +1382,15 @@
             "disposition": "partial",
             "evidence": [
               "ios/App/App/Features/Settings/UI/SettingsDocumentViews.swift",
-              "ios/App/App/Features/Settings/UI/SettingsHostInformationViews.swift"
+              "ios/App/App/Features/Settings/UI/SettingsHostInformationViews.swift",
+              "ios/App/App/Features/ComposerTools/ComposerToolsView.swift",
+              "ios/App/App/Features/Crews/CrewsSettingsView.swift",
+              "ios/App/App/Features/Crews/SavedCrewEditorSheet.swift",
+              "ios/App/App/Features/Crews/SavedCrewsController.swift",
+              "ios/App/App/Features/Crews/HomeCrewComposer.swift",
+              "ios/App/App/Features/Crews/CrewRosterSheet.swift"
             ],
-            "note": "No checked-in device journey exercises this surface yet (no screen-registry entry, no device-test evidence); the ui story is asserted from the cited production source only."
+            "note": "Native composer Plugins/MCP and saved Crew CRUD/roster flows have checked-in simulator journeys. Broader settings and OAuth device coverage remains incomplete."
           }
         },
         "android": {
@@ -1353,9 +1426,10 @@
           "ui": {
             "disposition": "partial",
             "evidence": [
-              "ios/App/App/Features/SettingsIntegrations/UI/GlobalMCPSettingsView.swift"
+              "ios/App/App/Features/SettingsIntegrations/UI/GlobalMCPSettingsView.swift",
+              "ios/App/App/Features/ComposerTools/ComposerToolsView.swift"
             ],
-            "note": "No checked-in device journey exercises this surface yet (no screen-registry entry, no device-test evidence); the ui story is asserted from the cited production source only."
+            "note": "The native composer has a checked-in device journey for Plugins and scoped MCP inventory/selection. Broader settings management and OAuth device coverage remains incomplete."
           }
         },
         "android": {
@@ -1394,9 +1468,10 @@
             "disposition": "partial",
             "evidence": [
               "ios/App/App/Features/SettingsIntegrations/UI/GlobalMCPSettingsView.swift",
-              "ios/App/App/Features/Projects/ProjectMCPSettingsView.swift"
+              "ios/App/App/Features/Projects/ProjectMCPSettingsView.swift",
+              "ios/App/App/Features/ComposerTools/ComposerToolsView.swift"
             ],
-            "note": "No checked-in device journey exercises this surface yet (no screen-registry entry, no device-test evidence); the ui story is asserted from the cited production source only."
+            "note": "The native composer has a checked-in device journey for Plugins and scoped MCP inventory/selection. Broader settings management and OAuth device coverage remains incomplete."
           }
         },
         "android": {
@@ -1435,9 +1510,10 @@
           "ui": {
             "disposition": "partial",
             "evidence": [
-              "ios/App/App/Features/SettingsIntegrations/UI/GlobalMCPSettingsView.swift"
+              "ios/App/App/Features/SettingsIntegrations/UI/GlobalMCPSettingsView.swift",
+              "ios/App/App/Features/ComposerTools/ComposerToolsView.swift"
             ],
-            "note": "No checked-in device journey exercises this surface yet (no screen-registry entry, no device-test evidence); the ui story is asserted from the cited production source only."
+            "note": "The native composer has a checked-in device journey for Plugins and scoped MCP inventory/selection. Broader settings management and OAuth device coverage remains incomplete."
           }
         },
         "android": {
@@ -2098,7 +2174,7 @@
         "id": "project-command",
         "scopes": ["projects:manage"],
         "batch": "projects",
-        "note": "The additive catalogMutations v1 kinds (relative reorder, nullable workspace, draft-config persistence) are host-authority source evidence only: neither native transport has been taught the new discriminators yet, so the platform dispositions below describe the pre-existing kinds and make no claim about them.",
+        "note": "iOS supports catalogMutations v1 set-draft-config for explicit composer edits, requiring the advertised version, projects:manage, a per-operation command id and a bounded acknowledgement. Relative reorder and nullable workspace remain outside native catalog-mutation coverage; Android still supports only the pre-existing project commands.",
         "ios": {
           "wire": {
             "disposition": "implemented",
@@ -2114,9 +2190,11 @@
               "ios/App/App/Features/Projects/ProjectWorktreeSettingsView.swift",
               "ios/App/App/Features/Projects/ProjectActionsSettingsView.swift",
               "ios/App/App/Features/Projects/ProjectSearchSettingsView.swift",
-              "ios/App/App/Features/Projects/ProjectMCPSettingsView.swift"
+              "ios/App/App/Features/Projects/ProjectMCPSettingsView.swift",
+              "ios/App/App/Features/ComposerPreferences/ComposerProjectPreferenceWriter.swift",
+              "ios/App/NativeE2ETests/NativeComposerPreferencesJourneyUITests.swift"
             ],
-            "note": "No checked-in device journey exercises this surface yet (no screen-registry entry, no device-test evidence); the ui story is asserted from the cited production source only."
+            "note": "The composer preference journey covers advertised narrow draft-config writes and local-only behavior on legacy hosts. The other project-settings screens still lack checked-in device journeys."
           }
         },
         "android": {
@@ -2337,7 +2415,9 @@
             "disposition": "implemented",
             "evidence": [
               "ios/App/App/Transport/RemoteAPIClient.swift",
-              "ios/App/App/Features/RichChat/UI/RichChatComposerConfiguration.swift"
+              "ios/App/App/Features/RichChat/UI/RichChatComposerConfiguration.swift",
+              "ios/App/App/Features/SideChat/SideChatContextGateway.swift",
+              "ios/App/App/Features/SideChat/SideChatSessionComposition.swift"
             ]
           },
           "ui": {
@@ -2377,7 +2457,12 @@
           },
           "ui": {
             "disposition": "implemented",
-            "evidence": ["ios/App/App/Transport/RemoteAPIClient.swift", "screen:ios.thread-history"]
+            "evidence": [
+              "ios/App/App/Transport/RemoteAPIClient.swift",
+              "screen:ios.thread-history",
+              "ios/App/App/Features/RichChat/UI/RichChatTimelineView.swift",
+              "ios/App/App/Features/RichChat/UI/RichChatTurnTiming.swift"
+            ]
           }
         },
         "android": {
@@ -2445,7 +2530,12 @@
               "ios/App/App/Transport/Threads/ThreadLifecycleRemoteAPI.swift",
               "ios/App/App/Features/Threads/ThreadWorktreeMoveController.swift",
               "ios/App/App/Features/Threads/ThreadDetailDestinations.swift",
-              "ios/App/App/Transport/RemoteWriterProtocol.swift"
+              "ios/App/App/Transport/RemoteWriterProtocol.swift",
+              "ios/App/App/Shared/ModelSelectionBinding.swift",
+              "ios/App/App/Shared/ModelSelectionMutation.swift",
+              "ios/App/App/Models/Threads/ThreadConfigurationConversions.swift",
+              "ios/App/App/Shared/TurnClientContext.swift",
+              "ios/App/App/Features/SideChat/SideChatSessionComposition.swift"
             ]
           },
           "ui": {
@@ -2453,7 +2543,8 @@
             "evidence": [
               "ios/App/App/Features/Home/ProjectThreadsView.swift",
               "ios/App/App/Features/Threads/ArchivedThreadsView.swift",
-              "ios/App/App/Features/Threads/ThreadDetailActionMenu.swift"
+              "ios/App/App/Features/Threads/ThreadDetailActionMenu.swift",
+              "ios/App/App/Features/SideChat/SideChatContentView.swift"
             ],
             "note": "No checked-in device journey exercises this surface yet (no screen-registry entry, no device-test evidence); the ui story is asserted from the cited production source only."
           }
@@ -2477,7 +2568,7 @@
             "note": "No checked-in device journey exercises this surface yet (no screen-registry entry, no device-test evidence); the ui story is asserted from the cited production source only."
           }
         },
-        "note": "Generated codecs accept optional question-answer sourceItemId on resumed input. Native async reply-form UI is not implemented; ordinary thread input remains supported. Native runtime start/resume uses a 600-second request deadline on iOS and Android; other thread commands keep their normal deadlines. Request/response schemas and wire versions are unchanged."
+        "note": "Generated codecs accept optional question-answer sourceItemId on resumed input. Native async reply-form UI is not implemented; ordinary thread input remains supported. Native runtime start/resume uses a 600-second request deadline on iOS and Android; other thread commands keep their normal deadlines. Request/response schemas and wire versions are unchanged. iOS preserves recognized selectionBinding v1 through thread decoding, draft edits, send and lifecycle config conversion. Native owner matching and deliberate family/raw/carrier edit semantics are covered by ModelSelectionBindingTests. Android domain configs do not yet forward the binding; its existing route disposition covers the earlier supported fields."
       },
       {
         "id": "terminal-start",
@@ -2603,7 +2694,7 @@
         "id": "thread-command",
         "scopes": ["session:operate"],
         "batch": "thread-lifecycle",
-        "note": "iOS exposes the additive clear-group command from Home, project, and thread-detail actions; the host also clears a one-member remainder. Kotlin bindings include the variant, while Android's native action UI does not yet expose ungrouping. The additive catalogMutations v1 kinds (relative thread reorder, nullable workspace) are host-authority source evidence only: neither native transport has been taught the new discriminators yet, so the platform dispositions below describe the pre-existing kinds and make no claim about them. Metadata-only create is used by the managed desktop before worktree preparation; native and paired clients retain their existing start flow. Generated create codecs do not claim native UI adoption. Fork v1 is negotiated through environment.threadForks; both native rich-chat clients send an idempotent command to the new thread id, retain the selected source boundary, show a source link and open the created thread. UI evidence remains source-only until device journeys run. Fork v1 is negotiated through environment.threadForks; both native rich-chat clients send an idempotent command to the new thread id, retain the selected source boundary, show a source link and open the created thread. UI evidence remains source-only until device journeys run. Native runtime start/resume uses a 600-second request deadline on iOS and Android; other thread commands keep their normal deadlines. Request/response schemas and wire versions are unchanged.",
+        "note": "iOS exposes the additive clear-group command from Home, project, and thread-detail actions; the host also clears a one-member remainder. Kotlin bindings include the variant, while Android's native action UI does not yet expose ungrouping. The additive catalogMutations v1 kinds (relative thread reorder, nullable workspace) are host-authority source evidence only: neither native transport has been taught the new discriminators yet, so the platform dispositions below describe the pre-existing kinds and make no claim about them. Metadata-only create is used by the managed desktop before worktree preparation; native and paired clients retain their existing start flow. Generated create codecs do not claim native UI adoption. Fork v1 is negotiated through environment.threadForks; both native rich-chat clients send an idempotent command to the new thread id, retain the selected source boundary, show a source link and open the created thread. UI evidence remains source-only until device journeys run. Fork v1 is negotiated through environment.threadForks; both native rich-chat clients send an idempotent command to the new thread id, retain the selected source boundary, show a source link and open the created thread. UI evidence remains source-only until device journeys run. Native runtime start/resume uses a 600-second request deadline on iOS and Android; other thread commands keep their normal deadlines. Request/response schemas and wire versions are unchanged. iOS preserves recognized selectionBinding v1 through thread decoding, draft edits, send and lifecycle config conversion. Native owner matching and deliberate family/raw/carrier edit semantics are covered by ModelSelectionBindingTests. Android domain configs do not yet forward the binding; its existing route disposition covers the earlier supported fields.",
         "ios": {
           "wire": {
             "disposition": "implemented",
@@ -2616,7 +2707,13 @@
               "ios/App/App/Features/Threads/ThreadWorktreeMoveController.swift",
               "ios/App/App/Features/Threads/ThreadDetailDestinations.swift",
               "ios/App/App/Transport/RemoteWriterProtocol.swift",
-              "ios/App/App/Transport/RichChat/SelectedRichChatConversationGateway.swift"
+              "ios/App/App/Transport/RichChat/SelectedRichChatConversationGateway.swift",
+              "ios/App/App/Shared/ModelSelectionBinding.swift",
+              "ios/App/App/Shared/ModelSelectionMutation.swift",
+              "ios/App/App/Models/Threads/ThreadConfigurationConversions.swift",
+              "ios/App/App/Features/SideChat/SideChatStore.swift",
+              "ios/App/App/Shared/TurnClientContext.swift",
+              "ios/App/App/Transport/Threads/SelectedThreadSessionGateway.swift"
             ]
           },
           "ui": {
@@ -2624,7 +2721,8 @@
             "evidence": [
               "ios/App/App/Features/Home/ProjectThreadsView.swift",
               "ios/App/App/Features/Threads/ThreadDetailActionMenu.swift",
-              "ios/App/App/Features/RichChat/UI/Pages/RichChatThreadView.swift"
+              "ios/App/App/Features/RichChat/UI/Pages/RichChatThreadView.swift",
+              "ios/App/App/Features/SideChat/SideChatContentView.swift"
             ],
             "note": "No checked-in device journey exercises this surface yet (no screen-registry entry, no device-test evidence); the ui story is asserted from the cited production source only."
           }
@@ -2658,12 +2756,24 @@
             "disposition": "implemented",
             "evidence": [
               "ios/App/App/Transport/RemoteAPIClient.swift",
-              "ios/App/App/Transport/RemoteWriterProtocol.swift"
+              "ios/App/App/Transport/RemoteWriterProtocol.swift",
+              "ios/App/App/Shared/ModelSelectionBinding.swift",
+              "ios/App/App/Shared/ModelSelectionMutation.swift",
+              "ios/App/App/Models/Threads/ThreadConfigurationConversions.swift",
+              "ios/App/App/Shared/TurnClientContext.swift",
+              "ios/App/App/Features/SideChat/SideChatStore.swift",
+              "ios/App/App/Transport/RichChat/SelectedRichChatConversationGateway.swift",
+              "ios/App/App/Features/Crews/CrewBindings.swift"
             ]
           },
           "ui": {
             "disposition": "implemented",
-            "evidence": ["ios/App/App/Transport/RemoteAPIClient.swift", "screen:ios.thread-send"]
+            "evidence": [
+              "ios/App/App/Transport/RemoteAPIClient.swift",
+              "screen:ios.thread-send",
+              "ios/App/App/Features/SideChat/SideChatContentView.swift",
+              "ios/App/App/Features/Crews/RichChatCrewComposer.swift"
+            ]
           }
         },
         "android": {
@@ -2682,7 +2792,7 @@
             ]
           }
         },
-        "note": "Generated codecs accept optional question-answer sourceItemId. Native async reply-form UI is not implemented; ordinary thread input remains supported."
+        "note": "Generated codecs accept optional question-answer sourceItemId. Native async reply-form UI is not implemented; ordinary thread input remains supported. iOS preserves recognized selectionBinding v1 through thread decoding, draft edits, send and lifecycle config conversion. Native owner matching and deliberate family/raw/carrier edit semantics are covered by ModelSelectionBindingTests. Android domain configs do not yet forward the binding; its existing route disposition covers the earlier supported fields."
       },
       {
         "id": "thread-interrupt",
@@ -2806,14 +2916,17 @@
               "ios/App/App/Transport/RichChat/RichChatRemoteAPI.swift",
               "ios/App/App/Features/RichChat/UI/RichChatGoalSteerView.swift",
               "ios/App/App/Features/RichChat/UI/RichChatCompactControlDock.swift",
-              "ios/App/App/Transport/RemoteWriterProtocol.swift"
+              "ios/App/App/Transport/RemoteWriterProtocol.swift",
+              "ios/App/App/Shared/TurnClientContext.swift",
+              "ios/App/App/Transport/RichChat/SelectedRichChatConversationGateway.swift"
             ]
           },
           "ui": {
             "disposition": "implemented",
             "evidence": [
               "ios/App/App/Features/RichChat/UI/RichChatGoalSteerView.swift",
-              "screen:ios.thread-steer-set"
+              "screen:ios.thread-steer-set",
+              "ios/App/App/Features/SideChat/SideChatContentView.swift"
             ]
           }
         },
@@ -3176,12 +3289,24 @@
         "scopes": ["session:operate"],
         "batch": "thread-lifecycle",
         "ios": {
-          "wire": { "disposition": "planned", "evidence": [] },
-          "ui": { "disposition": "planned", "evidence": [] }
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": []
+          }
         },
         "android": {
-          "wire": { "disposition": "planned", "evidence": [] },
-          "ui": { "disposition": "planned", "evidence": [] }
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": []
+          }
         },
         "note": "Thread transfer (Move to another machine) is driven by the shared browser renderer (Electron and web/PWA), which holds grants for both hosts. Native clients can open and continue a moved thread on its new host but have no move surface yet."
       },
@@ -3190,12 +3315,24 @@
         "scopes": ["session:operate"],
         "batch": "thread-lifecycle",
         "ios": {
-          "wire": { "disposition": "planned", "evidence": [] },
-          "ui": { "disposition": "planned", "evidence": [] }
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": []
+          }
         },
         "android": {
-          "wire": { "disposition": "planned", "evidence": [] },
-          "ui": { "disposition": "planned", "evidence": [] }
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": []
+          }
         },
         "note": "Thread transfer (Move to another machine) is driven by the shared browser renderer (Electron and web/PWA), which holds grants for both hosts. Native clients can open and continue a moved thread on its new host but have no move surface yet."
       },
@@ -3493,13 +3630,20 @@
         "batch": "thread-lifecycle",
         "ios": {
           "wire": {
-            "disposition": "planned",
-            "evidence": ["src/shared/remote/contract/routes/threads.ts"]
+            "disposition": "implemented",
+            "evidence": [
+              "ios/App/App/Features/BoundedCatalog/Transport/RemoteHistoryItemTransport.swift",
+              "ios/App/App/Features/BoundedCatalog/Transport/RemoteBoundedContract.swift"
+            ]
           },
           "ui": {
-            "disposition": "planned",
-            "evidence": [],
-            "note": "Desktop thread-opening optimization. Native adoption of this opt-in history route is pending; native clients retain complete compatible history responses."
+            "disposition": "implemented",
+            "evidence": [
+              "ios/App/App/Features/ToolPresentation/DeferredHistoryItemRead.swift",
+              "ios/App/App/Features/ToolPresentation/ToolPresentationViews.swift",
+              "screen:ios.thread-history-item"
+            ],
+            "note": "Expanded native transcript rows fetch complete canonical tool bodies through the selected conversation read fence. The registered device journey verifies lazy command output, large diffs and relaunch; a companion case verifies missing-catalog fallback and explicit Retry."
           }
         },
         "android": {
@@ -3510,7 +3654,7 @@
           "ui": {
             "disposition": "planned",
             "evidence": [],
-            "note": "Desktop thread-opening optimization. Native adoption of this opt-in history route is pending; native clients retain complete compatible history responses."
+            "note": "Android adoption of this opt-in history detail route remains planned. Android keeps complete compatible history responses; the current adoption is scoped to Apple clients."
           }
         }
       },
@@ -3547,24 +3691,36 @@
         "batch": "thread-lifecycle",
         "ios": {
           "wire": {
-            "disposition": "planned",
-            "evidence": ["src/shared/remote/contract/routes/threads.ts"]
+            "disposition": "implemented",
+            "evidence": [
+              "ios/App/App/Features/BoundedCatalog/Transport/RemoteHistoryItemTransport.swift",
+              "ios/App/App/Transport/RichChat/RichChatRemoteAPI.swift",
+              "ios/App/App/Transport/RichChat/SelectedRichChatHistoryGateway.swift"
+            ]
           },
           "ui": {
-            "disposition": "planned",
-            "evidence": [],
-            "note": "Desktop thread-opening optimization. Native adoption of this opt-in history route is pending; native clients retain complete compatible history responses."
+            "disposition": "implemented",
+            "evidence": [
+              "ios/App/App/Features/RichChat/Controllers/RichChatTranscriptController.swift",
+              "ios/App/App/Features/RichChat/UI/Pages/RichChatThreadView.swift",
+              "screen:ios.thread-history-changes"
+            ],
+            "note": "Warm native iOS transcripts resume incrementally via thread-history-changes using runtimeResumeCursor and fall back seamlessly to bounded thread-history on 404 or snapshot fallback."
           }
         },
         "android": {
           "wire": {
-            "disposition": "planned",
-            "evidence": ["src/shared/remote/contract/routes/threads.ts"]
+            "disposition": "implemented",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/transport/RemoteHistoryChangesContract.kt"
+            ]
           },
           "ui": {
-            "disposition": "planned",
-            "evidence": [],
-            "note": "Desktop thread-opening optimization. Native adoption of this opt-in history route is pending; native clients retain complete compatible history responses."
+            "disposition": "partial",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/session/history/ThreadHistoryReads.kt"
+            ],
+            "note": "Wire query/path contract is implemented in RemoteHistoryChangesContract; Android transcript controller currently uses bounded thread-history tail reads until warm-resume controller wiring lands."
           }
         }
       },
@@ -5214,13 +5370,20 @@
         "batch": "settings-integrations",
         "ios": {
           "wire": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "implemented",
+            "evidence": [
+              "ios/App/App/Features/VoiceInput/VoiceHexGateway.swift",
+              "ios/App/App/Features/VoiceInput/VoiceHexTranscriber.swift"
+            ]
           },
           "ui": {
-            "disposition": "planned",
-            "evidence": [],
-            "note": "Native iOS voice capture and Hex transport are outside the current scope."
+            "disposition": "partial",
+            "evidence": [
+              "ios/App/App/Features/VoiceInput/AudioSettingsView.swift",
+              "ios/App/App/Features/VoiceInput/ComposerVoiceHost.swift",
+              "ios/App/NativeE2ETests/NativeVoiceJourneyUITests.swift"
+            ],
+            "note": "Native setup/install/prepare/cancel/remove controls and lease-fenced host dictation are wired; simulator journeys cover setup and draft insertion. Physical microphone/input-route and actual Hex engine qualification remain open."
           }
         },
         "android": {
@@ -5292,7 +5455,10 @@
         "id": "resolveLinkMetadata",
         "batch": "rich-chat-requests",
         "ios": {
-          "wire": { "disposition": "planned", "evidence": [] },
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
           "ui": {
             "disposition": "planned",
             "evidence": [],
@@ -5300,7 +5466,10 @@
           }
         },
         "android": {
-          "wire": { "disposition": "planned", "evidence": [] },
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
           "ui": {
             "disposition": "planned",
             "evidence": [],
@@ -5312,19 +5481,32 @@
         "id": "listImportableSessions",
         "batch": "projects",
         "ios": {
-          "wire": { "disposition": "planned", "evidence": [] },
+          "wire": {
+            "disposition": "implemented",
+            "evidence": [
+              "ios/App/App/Transport/SessionImport/SessionImportRemoteAPI.swift",
+              "ios/App/App/Transport/SessionImport/SelectedSessionImportGateway.swift"
+            ]
+          },
           "ui": {
-            "disposition": "planned",
-            "evidence": [],
-            "note": "Remote import is served to the shared browser renderer (PWA) through the procedure passthrough and the import-session thread command; native clients have no import surface yet."
+            "disposition": "implemented",
+            "evidence": [
+              "ios/App/App/Features/SessionImport/SessionImportView.swift",
+              "ios/App/App/Features/Settings/UI/DeviceSettingsView.swift",
+              "ios/App/NativeE2ETests/NativeFamilyJourneyUITests.swift"
+            ],
+            "note": "Native Import settings lists and filters the selected host\u2019s CLI sessions; generated-contract-backed import-session commands create resumable inactive threads. Exact-host claims join overlapping imports and retain thread IDs after ambiguous delivery. Android remains outside the explicit iPad/Duo scope."
           }
         },
         "android": {
-          "wire": { "disposition": "planned", "evidence": [] },
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
           "ui": {
             "disposition": "planned",
             "evidence": [],
-            "note": "Remote import is served to the shared browser renderer (PWA) through the procedure passthrough and the import-session thread command; native clients have no import surface yet."
+            "note": "Remote import is served to the shared browser renderer (PWA) through the procedure passthrough and the import-session thread command; Android has no import surface yet."
           }
         }
       },
@@ -5332,7 +5514,10 @@
         "id": "getLatestAgentVersion",
         "batch": "settings-integrations",
         "ios": {
-          "wire": { "disposition": "planned", "evidence": [] },
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
           "ui": {
             "disposition": "planned",
             "evidence": [],
@@ -5340,7 +5525,10 @@
           }
         },
         "android": {
-          "wire": { "disposition": "planned", "evidence": [] },
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
           "ui": {
             "disposition": "planned",
             "evidence": [],
@@ -5352,7 +5540,10 @@
         "id": "listAcpRegistry",
         "batch": "settings-integrations",
         "ios": {
-          "wire": { "disposition": "planned", "evidence": [] },
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
           "ui": {
             "disposition": "planned",
             "evidence": [],
@@ -5360,7 +5551,10 @@
           }
         },
         "android": {
-          "wire": { "disposition": "planned", "evidence": [] },
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
           "ui": {
             "disposition": "planned",
             "evidence": [],
@@ -5372,15 +5566,29 @@
         "id": "refreshAgentStatuses",
         "batch": "settings-integrations",
         "ios": {
-          "wire": { "disposition": "planned", "evidence": [] },
+          "wire": {
+            "disposition": "implemented",
+            "evidence": [
+              "ios/App/App/Transport/Settings/SettingsRemoteV3Contract.swift",
+              "ios/App/App/Transport/Settings/SettingsRemoteAPI.swift",
+              "ios/App/App/Transport/Settings/SelectedSettingsSessionGateway.swift"
+            ]
+          },
           "ui": {
-            "disposition": "planned",
-            "evidence": [],
-            "note": "Manual host discovery is available in the shared desktop and PWA Agents General page; native clients have no agent management surface yet."
+            "disposition": "implemented",
+            "evidence": [
+              "ios/App/App/Features/Settings/UI/SettingsAgentsView.swift",
+              "ios/App/App/Features/Settings/UI/SettingsComposition.swift",
+              "ios/App/NativeE2ETests/NativeAgentDiscoveryJourneyUITests.swift"
+            ],
+            "note": "Explicit native Models discovery and pull refresh; read-only page loads do not probe. Phone/light and iPad/landscape/dark discovery and model regression journeys passed."
           }
         },
         "android": {
-          "wire": { "disposition": "planned", "evidence": [] },
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
           "ui": {
             "disposition": "planned",
             "evidence": [],
@@ -5392,7 +5600,10 @@
         "id": "updateAgentBinary",
         "batch": "settings-integrations",
         "ios": {
-          "wire": { "disposition": "planned", "evidence": [] },
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
           "ui": {
             "disposition": "planned",
             "evidence": [],
@@ -5400,7 +5611,10 @@
           }
         },
         "android": {
-          "wire": { "disposition": "planned", "evidence": [] },
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
           "ui": {
             "disposition": "planned",
             "evidence": [],
@@ -5412,7 +5626,10 @@
         "id": "updateAcpRegistryAgent",
         "batch": "settings-integrations",
         "ios": {
-          "wire": { "disposition": "planned", "evidence": [] },
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
           "ui": {
             "disposition": "planned",
             "evidence": [],
@@ -5420,7 +5637,10 @@
           }
         },
         "android": {
-          "wire": { "disposition": "planned", "evidence": [] },
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
           "ui": {
             "disposition": "planned",
             "evidence": [],
@@ -5590,7 +5810,9 @@
             "disposition": "implemented",
             "evidence": [
               "ios/App/App/Transport/RichChat/GeneratedRichChatProcedureContract.swift",
-              "ios/App/App/Transport/RichChat/RichChatRemoteAPI.swift"
+              "ios/App/App/Transport/RichChat/RichChatRemoteAPI.swift",
+              "ios/App/App/Shared/TurnClientContext.swift",
+              "ios/App/App/Transport/RichChat/SelectedRichChatConversationGateway.swift"
             ]
           },
           "ui": {
@@ -6143,15 +6365,21 @@
             "disposition": "implemented",
             "evidence": [
               "ios/App/App/Transport/AdvancedOperations/AdvancedOperationsRemoteV3Contract.swift",
-              "ios/App/App/Features/AdvancedOperations/AdvancedOperationsSelectionSource.swift"
+              "ios/App/App/Features/AdvancedOperations/AdvancedOperationsSelectionSource.swift",
+              "ios/App/App/Features/WorkflowLiveness/WorkflowActivityGateway.swift"
             ]
           },
           "ui": {
             "disposition": "partial",
             "evidence": [
-              "ios/App/App/Features/AdvancedOperations/AdvancedOperationsSessionView.swift"
+              "ios/App/App/Features/AdvancedOperations/AdvancedOperationsSessionView.swift",
+              "ios/App/App/Features/WorkflowLiveness/WorkflowActivityStore.swift",
+              "ios/App/App/Features/WorkflowLiveness/WorkflowActivityRegistration.swift",
+              "ios/App/NativeE2ETests/NativeWorkflowJourneyUITests.swift",
+              "ios/App/App/Features/WorkflowLiveness/WorkflowViewerScreen.swift",
+              "ios/App/App/Features/WorkflowLiveness/WorkflowViewerPresentation.swift"
             ],
-            "note": "No checked-in device journey exercises this surface yet (no screen-registry entry, no device-test evidence); the ui story is asserted from the cited production source only."
+            "note": "Native iPad/iPhone journeys cover phase and agent navigation, late reference discovery, roster entry, rotation with retained selections/disclosures, and manifest completion after leaving the transcript. Complete specialized tool-result presentation remains an open parity task. Actual Duo qualification is separate."
           }
         },
         "android": {
@@ -6186,9 +6414,17 @@
           "ui": {
             "disposition": "partial",
             "evidence": [
-              "ios/App/App/Features/AdvancedOperations/AdvancedOperationsSessionView.swift"
+              "ios/App/App/Features/AdvancedOperations/AdvancedOperationsSessionView.swift",
+              "ios/App/App/Features/WorkflowLiveness/WorkflowViewerAgentDetail.swift",
+              "ios/App/App/Features/WorkflowLiveness/WorkflowViewerController.swift",
+              "ios/App/NativeE2ETests/NativeWorkflowJourneyUITests.swift",
+              "ios/App/App/Features/ToolPresentation/RuntimeItemHeadingSnapshot.swift",
+              "ios/App/AppTests/TransientToolPresentationTests.swift",
+              "ios/App/App/Features/ToolPresentation/ResolvedToolBodyViews.swift",
+              "ios/App/AppTests/ResolvedToolBodyTests.swift",
+              "ios/App/NativeE2ETests/NativeWorkflowResultJourneyUITests.swift"
             ],
-            "note": "No checked-in device journey exercises this surface yet (no screen-registry entry, no device-test evidence); the ui story is asserted from the cited production source only."
+            "note": "Native iPad/iPhone journeys render complete canonical agent conversations, command/MCP output and shared structured workflow result lists. Digest-checked optional hints preserve canonical fallback for old/future peers and empty/suppressed results; expansion survives rotation. Rejection details and complete finding titles are covered at accessibility text sizes. Further specialized non-command title/body semantics remain open."
           }
         },
         "android": {

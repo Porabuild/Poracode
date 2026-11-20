@@ -5,4 +5,6 @@ export default {
   kind: "cursor",
   label: msg`Cursor`,
   order: 80,
+  legacyTerminalRuntimeLabel: "CLI",
+  legacyGuiRuntimeVariant: "acp",
 } satisfies RendererProviderManifest;

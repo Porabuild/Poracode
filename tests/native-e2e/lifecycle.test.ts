@@ -1,5 +1,7 @@
+import { readFile } from "node:fs/promises";
 import { afterEach, describe, expect, it } from "vitest";
 import { FIXTURE_PROJECT_ID } from "./harness/labFixtures.ts";
+import { applyLabCheckpoint } from "./harness/wireLabCheckpoints.ts";
 import { pairAndAuth, startLab } from "./helpers/testClient.ts";
 
 const MCP_SERVER = {
@@ -113,3 +115,61 @@ describe("project configuration and lifecycle tri-state fixtures", () => {
     );
   });
 });
+
+it.each([
+  { disposition: undefined, contentType: "video/mp4", attachment: null },
+  {
+    disposition: "attachment",
+    contentType: "application/octet-stream",
+    attachment: 'attachment; filename="transcript-video.mp4"',
+  },
+])(
+  "serves the exact transcript video with $contentType",
+  async ({ disposition, contentType, attachment }) => {
+    const harness = await startLab();
+    try {
+      applyLabCheckpoint(harness.lab, "transcript-video-ready");
+      const { accessToken } = await pairAndAuth(harness, ["session:read"]);
+      const headers = {
+        authorization: `Bearer ${accessToken}`,
+        "content-type": "application/json",
+      };
+      const response = await fetch(new URL("/api/files/media-ticket", harness.httpBaseUrl), {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          access: "project",
+          projectLocation: { kind: "posix", path: "/Users/fixture/project" },
+          path: "reports/transcript-video.mp4",
+          disposition,
+        }),
+      });
+      expect(response.status).toBe(200);
+      const { ticket, expiresAt } = (await response.json()) as {
+        ticket: string;
+        expiresAt: string;
+      };
+      const remaining = Date.parse(expiresAt) - Date.now();
+      expect(remaining).toBeGreaterThan(0);
+      expect(remaining).toBeLessThan(180_000);
+      const mediaUrl = new URL("/api/files/media", harness.httpBaseUrl);
+      mediaUrl.searchParams.set("ticket", ticket);
+      const media = await fetch(mediaUrl);
+      expect(media.status).toBe(200);
+      expect(media.headers.get("content-type")).toBe(contentType);
+      expect(media.headers.get("content-disposition")).toBe(attachment);
+      expect(Buffer.from(await media.arrayBuffer())).toEqual(
+        await readFile(new URL("./fixtures/transcript-video.mp4", import.meta.url)),
+      );
+      const release = await fetch(new URL("/api/files/media-release", harness.httpBaseUrl), {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ ticket }),
+      });
+      expect(release.status).toBe(200);
+      expect((await fetch(mediaUrl)).status).toBe(401);
+    } finally {
+      await harness.stop();
+    }
+  },
+);

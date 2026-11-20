@@ -40,7 +40,7 @@ export function acceptsGzip(req: IncomingMessage): boolean {
   return /\bgzip\b/i.test(value);
 }
 
-export function computeEtag(body: string): string {
+export function computeEtag(body: string | Uint8Array): string {
   const hash = createHash("sha1").update(body).digest("base64url").slice(0, 22);
   return `"${BOOT_ID}-${hash}"`;
 }

@@ -11,7 +11,7 @@ struct EnvironmentsView: View {
     let boundConnectionId: ClientConnectionID
 
     @State private var controller: EnvironmentManagementController
-    @State private var showAdd = false
+    @State private var addDraft: AddEnvironmentDraft?
     @State private var pendingDelete: RemoteEnvironmentProjection?
 
     init(session: AppSession, boundConnectionId: ClientConnectionID) {
@@ -57,8 +57,9 @@ struct EnvironmentsView: View {
         .task(id: boundConnectionId) {
             await controller.activate()
         }
-        .sheet(isPresented: $showAdd) {
-            AddEnvironmentSheet(controller: controller)
+        .sheet(item: $addDraft) { draft in
+            AddEnvironmentSheet(controller: controller, draft: draft)
+                .poracodeFormSheetSizing()
         }
         .confirmationDialog(
             EnvironmentStrings.deleteConfirmTitle,
@@ -87,14 +88,16 @@ struct EnvironmentsView: View {
                 } label: {
                     Label(EnvironmentStrings.refresh, systemImage: "arrow.clockwise")
                 }
+                .disabled(controller.availability != .available)
             }
-            if controller.capabilities.canManage {
-                ToolbarItem(placement: .primaryAction) {
+            if controller.canCreate {
+                ToolbarItem(placement: .bottomBar) {
                     Button {
-                        showAdd = true
+                        addDraft = AddEnvironmentDraft()
                     } label: {
                         Label(EnvironmentStrings.addTitle, systemImage: "plus")
                     }
+                    .accessibilityIdentifier("native-e2e.environments.add")
                 }
             }
         }
@@ -151,21 +154,9 @@ struct EnvironmentsView: View {
             }
         }
         .listStyle(.insetGrouped)
+        .poracodeReadableListMargins(760)
         .refreshable {
             await controller.refresh()
-        }
-        .poracodeBottomBar {
-            if controller.capabilities.canManage {
-                PoracodeBottomActionDock(placement: .trailing) {
-                    PoracodeCircleButton {
-                        showAdd = true
-                    } label: {
-                        Label(EnvironmentStrings.addTitle, systemImage: "plus")
-                            .labelStyle(.iconOnly)
-                    }
-                    .accessibilityLabel(EnvironmentStrings.addTitle)
-                }
-            }
         }
         .overlay(alignment: .bottom) {
             if let failure = controller.failure {

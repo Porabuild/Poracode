@@ -211,11 +211,16 @@ final class EnvironmentCapabilityRefreshTests: XCTestCase {
     func testConnectTimeRefreshPersistsLiveCapabilities() async throws {
         let record = makeDirectRecord()
         let api = FakeRemoteAPI(endpoint: record.httpBaseURL)
-        api.hostCapabilitiesResult = .success(capabilities(environments: true))
+        api.hostCapabilitiesResult = .success(capabilities(environments: false))
         let session = try await makeRefreshingSession(api: api, record: record)
+        let descriptor = try JSONDecoder().decode(
+            RemoteEnvironmentDescriptor.self,
+            from: environmentDescriptorJSON(desktopId: record.desktopId, sshEnvironments: true)
+        )
 
         await session.refreshStoredHostCapabilities(
-            generation: session.state.workGeneration
+            generation: session.state.workGeneration,
+            descriptor: descriptor
         )
 
         XCTAssertEqual(api.hostCapabilitiesCalls, 1)
@@ -230,6 +235,44 @@ final class EnvironmentCapabilityRefreshTests: XCTestCase {
         XCTAssertTrue(
             session.state.profile?.hostCapabilities?.offersHostOwnedEnvironments == true
         )
+    }
+
+    func testDescriptorAbsenceClearsEnvironmentSupportEvenWhenServiceDescribeFails() async throws {
+        var record = makeDirectRecord()
+        record.hostCapabilities = capabilities(environments: true)
+        let api = FakeRemoteAPI(endpoint: record.httpBaseURL)
+        api.hostCapabilitiesResult = .failure(
+            RemoteClientError(message: "boom", status: 500, code: "internal")
+        )
+        let session = try await makeRefreshingSession(api: api, record: record)
+        let descriptor = try JSONDecoder().decode(
+            RemoteEnvironmentDescriptor.self,
+            from: environmentDescriptorJSON(desktopId: record.desktopId, sshEnvironments: false)
+        )
+
+        await session.refreshStoredHostCapabilities(
+            generation: session.state.workGeneration,
+            descriptor: descriptor
+        )
+
+        let durable = try await session.deps.hostCatalog.snapshot()
+        XCTAssertEqual(durable.selected?.hostCapabilities, capabilities(environments: false))
+    }
+
+    func testServiceDescribeDoesNotClearEnvironmentSupportWithoutADescriptor() async throws {
+        var record = makeDirectRecord()
+        record.hostCapabilities = capabilities(environments: true)
+        let api = FakeRemoteAPI(endpoint: record.httpBaseURL)
+        api.hostCapabilitiesResult = .success(.init(portForward: true))
+        let session = try await makeRefreshingSession(api: api, record: record)
+
+        await session.refreshStoredHostCapabilities(generation: session.state.workGeneration)
+
+        let durable = try await session.deps.hostCatalog.snapshot()
+        XCTAssertEqual(durable.selected?.hostCapabilities, .init(
+            portForward: true,
+            sshEnvironments: .init(versions: [1])
+        ))
     }
 
     func testFailedDescribeKeepsPreviouslyKnownCapabilities() async throws {
@@ -284,7 +327,7 @@ final class EnvironmentCapabilityRefreshTests: XCTestCase {
     /// stays authoritative.
     func testDelayedDescribeCannotOverwriteInPlaceRepairedEnvironment() async throws {
         let api = FakeRemoteAPI(endpoint: parentEndpoint)
-        api.hostCapabilitiesResult = .success(capabilities(environments: true))
+        api.hostCapabilitiesResult = .success(capabilities(environments: false))
         let (session, _, _) = try await makeSession(apiFactory: { _, _ in api })
         let catalog = session.deps.hostCatalog
 
@@ -317,9 +360,14 @@ final class EnvironmentCapabilityRefreshTests: XCTestCase {
         repaired.hostCapabilities = declaredAfterRepair
         let gate = AsyncGate()
         api.hostCapabilitiesGate = gate
+        let staleDescriptor = try JSONDecoder().decode(
+            RemoteEnvironmentDescriptor.self,
+            from: environmentDescriptorJSON(desktopId: original.desktopId, sshEnvironments: true)
+        )
         let refresh = Task { @MainActor in
             await session.refreshStoredHostCapabilities(
-                generation: session.state.workGeneration
+                generation: session.state.workGeneration,
+                descriptor: staleDescriptor
             )
         }
         try await gate.waitUntilWaiting()
@@ -390,7 +438,10 @@ final class EnvironmentCapabilityRefreshTests: XCTestCase {
         return record
     }
 
-    private func seedPairingRoutes(describe: EnvironmentURLProtocol.Response) {
+    private func seedPairingRoutes(
+        describe: EnvironmentURLProtocol.Response,
+        sshEnvironments: Bool = false
+    ) {
         EnvironmentURLProtocol.setRoute(
             "/api/environments/\(environmentId)/pairing",
             response: .json([
@@ -407,7 +458,7 @@ final class EnvironmentCapabilityRefreshTests: XCTestCase {
             response: .init(
                 status: 200,
                 headers: ["Content-Type": "application/json"],
-                body: environmentDescriptorJSON(desktopId: "child-desktop")
+                body: environmentDescriptorJSON(desktopId: "child-desktop", sshEnvironments: sshEnvironments)
             )
         )
         EnvironmentURLProtocol.setRoute(
@@ -446,7 +497,8 @@ final class EnvironmentCapabilityRefreshTests: XCTestCase {
                 status: 500,
                 headers: ["Content-Type": "application/json"],
                 body: Data(#"{"error":{"code":"internal","message":"boom"}}"#.utf8)
-            )
+            ),
+            sshEnvironments: true
         )
 
         let connectionId = try await session.pairEnvironmentOnDevice(

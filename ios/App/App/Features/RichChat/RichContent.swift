@@ -1,5 +1,22 @@
 import Foundation
 
+/// Matches shared/assistantMessageText.ts: legacy messages prefer their stream;
+/// only an explicitly authoritative, completed payload may replace or suppress it.
+enum RichAssistantDisplayText {
+  static func text(for item: RichRuntimeItem) -> String {
+    let payload = item.payload?.objectValue
+    let texts = payload?["content"]?.arrayValue?.compactMap { block -> String? in
+      guard block.objectValue?["kind"]?.stringValue == "text" else { return nil }
+      return block.objectValue?["text"]?.stringValue
+    } ?? []
+    let authoritative = item.state == .completed && payload?["displayAuthoritative"]?.boolValue == true && !texts.isEmpty
+    let stream = item.streams["assistant_text", default: ""]
+    if !authoritative && !stream.isEmpty { return stream }
+    let text = texts.filter { !$0.isEmpty }.joined(separator: "\n")
+    return authoritative && text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "" : text
+  }
+}
+
 enum RichDiffSide: String, Sendable, Equatable, Codable {
   case old
   case new
@@ -39,6 +56,7 @@ struct RichRuntimeItem: Sendable, Equatable, Identifiable {
   var payload: RichJSON?
   var streams: [String: String]
   let parentItemID: String?
+  var detailsDeferred = false
 }
 
 enum RichPayloadPatch: Sendable, Equatable {
@@ -58,6 +76,7 @@ enum RichItemType {
   static let reasoning = "reasoning"
   static let plan = "plan"
   static let goal = "goal"
+  static let providerHandoff = "provider_handoff"
   static let error = "error"
   static let pendingRequest = "pending_request"
 

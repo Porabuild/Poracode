@@ -18,18 +18,21 @@ struct OnboardingView: View {
   @State private var isSubmitting = false
   @State private var isShowingScanner = false
   @State private var isShowingOtherWays = false
+  @State private var showOtherWaysAfterScanner = false
   @FocusState private var focusedField: OnboardingField?
 
   var body: some View {
     NavigationStack {
       GeometryReader { geometry in
+        let isCompactHeight = geometry.size.height <= HomeAdaptiveLayoutPolicy.compactHeightThreshold
         ScrollView {
-          VStack(spacing: 12) {
+          VStack(spacing: isCompactHeight ? 8 : 12) {
             Spacer(minLength: 0)
             OnboardingHeroView(
               title: heroTitle,
               subtitle: headerSubtitle,
-              pairedLabel: pairedLabel
+              pairedLabel: pairedLabel,
+              isCompactHeight: isCompactHeight
             )
             Spacer(minLength: 0)
             if session.phase == .sessionExpired {
@@ -42,10 +45,10 @@ struct OnboardingView: View {
               localStoreInconsistentBanner
             }
             if let pending = session.pendingPairing {
-              pendingPairingCard(pending)
+              pendingPairingCard(pending, isCompactHeight: isCompactHeight)
             }
-            OnboardingScanCard { isShowingScanner = true }
-            OnboardingOtherWaysButton { isShowingOtherWays = true }
+            OnboardingScanCard(isCompactHeight: isCompactHeight) { isShowingScanner = true }
+            OnboardingOtherWaysButton(isCompactHeight: isCompactHeight) { isShowingOtherWays = true }
             if let error = session.globalError {
               pairingError(error)
             }
@@ -57,14 +60,13 @@ struct OnboardingView: View {
             {
               disconnectButton
             }
-            // The compact web surface reserves roughly one control-row below
-            // its actions. Mirror that breathing room on first launch so the
-            // scan routes sit at the same visual height without affecting the
-            // taller repair flows.
+            // Reserve breathing room below actions on tall portrait screens while
+            // keeping landscape phones and compact foldables centered without extra scroll.
             Spacer()
-              .frame(height: showsMinimalChrome ? 112 : 0)
+              .frame(height: geometry.size.height >= 640 && showsMinimalChrome ? 112 : 0)
           }
-          .padding(20)
+          .padding(.horizontal, 20)
+          .padding(.vertical, isCompactHeight ? 10 : 20)
           .frame(maxWidth: 560)
           .frame(maxWidth: .infinity)
           // Equal flexible space around the hero keeps it visually centered in
@@ -104,44 +106,74 @@ struct OnboardingView: View {
         }
       }
       .toolbar(showsMinimalChrome ? .hidden : .visible, for: .navigationBar)
-      .fullScreenCover(isPresented: $isShowingScanner) {
+      .fullScreenCover(isPresented: $isShowingScanner, onDismiss: {
+        if showOtherWaysAfterScanner {
+          showOtherWaysAfterScanner = false
+          isShowingOtherWays = true
+        }
+      }) {
         PairingScannerView(
           onCandidate: { candidate in
             applyScannedCandidate(candidate)
           },
-          // Focus set while the cover dismisses does not survive the transition, so
-          // both fallbacks just reveal the section and let the user tap a field.
           onUsePairingLink: {
-            isShowingOtherWays = true
+            showOtherWaysAfterScanner = true
           },
           onUseManualEntry: {
-            isShowingOtherWays = true
+            showOtherWaysAfterScanner = true
           }
         )
       }
       .sheet(isPresented: $isShowingOtherWays) {
         NavigationStack {
-          ScrollView {
-            OnboardingOtherWaysForm(
-              pairingLink: $pairingLink,
-              baseURL: $baseURL,
-              token: $token,
-              focusedField: $focusedField,
-              showsCleartextHint: looksLikeCleartextLan
-            )
-            .padding(20)
-          }
-          .scrollDismissesKeyboard(.interactively)
-          .poracodeBottomBar {
-            otherWaysActionBar
+          ScrollViewReader { scroll in
+            ScrollView {
+              VStack(alignment: .leading, spacing: 20) {
+                OnboardingOtherWaysForm(
+                  pairingLink: $pairingLink,
+                  baseURL: $baseURL,
+                  token: $token,
+                  focusedField: $focusedField,
+                  showsCleartextHint: looksLikeCleartextLan
+                )
+                if let error = session.globalError {
+                  pairingError(error)
+                    .id("pairing-error")
+                    .accessibilityIdentifier("native-e2e.pair.error")
+                }
+              }
+              .padding(20)
+            }
+            .scrollDismissesKeyboard(.interactively)
+            .onChange(of: session.globalError, initial: true) { _, error in
+              if error != nil {
+                withAnimation(.snappy) {
+                  scroll.scrollTo("pairing-error", anchor: .bottom)
+                }
+              }
+            }
           }
           .navigationTitle(OnboardingStrings.otherWays)
           .navigationBarTitleDisplayMode(.inline)
+          .toolbar {
+            ToolbarItem(placement: .cancellationAction) {
+              Button(HostStrings.cancel, systemImage: "xmark") { isShowingOtherWays = false }
+                .disabled(isSubmitting)
+                .accessibilityIdentifier("native-e2e.pair.other-ways.close")
+            }
+            ToolbarItem(placement: .confirmationAction) { connectButton }
+          }
         }
+        .poracodeFormSheetSizing()
+        .foregroundStyle(.white, .white.opacity(0.7))
+        .tint(.white)
+        .environment(\.colorScheme, .dark)
+        .preferredColorScheme(.dark)
         .presentationDetents([.fraction(0.7), .large])
         .presentationDragIndicator(.visible)
       }
     }
+    .environment(\.colorScheme, .dark)
     .preferredColorScheme(.dark)
   }
 
@@ -216,9 +248,13 @@ struct OnboardingView: View {
     )
   }
 
-  private func pendingPairingCard(_ pending: RemotePairingPending) -> some View {
+  private func pendingPairingCard(
+    _ pending: RemotePairingPending,
+    isCompactHeight: Bool
+  ) -> some View {
     OnboardingPendingPairingCard(
       pending: pending,
+      isCompactHeight: isCompactHeight,
       onCancel: { session.cancelPendingPairing() },
       onConfirm: { Task { await session.confirmPendingPairing() } }
     )
@@ -245,36 +281,12 @@ struct OnboardingView: View {
   }
 
   private var connectButton: some View {
-    Button {
+    Button(connectButtonTitle, systemImage: isSubmitting ? "hourglass" : "checkmark") {
       Task { await submit() }
-    } label: {
-      if isSubmitting || session.phase == .connecting {
-        ProgressView()
-          .frame(maxWidth: .infinity)
-      } else {
-        Text(connectButtonTitle)
-          .frame(maxWidth: .infinity)
-      }
     }
-    .poracodeProminentButtonStyle()
-    .controlSize(.large)
     .disabled(isSubmitting || session.phase == .connecting)
     .accessibilityLabel(connectButtonAccessibilityLabel)
     .accessibilityIdentifier("native-e2e.pair.submit")
-  }
-
-  /// Keeps the primary action reachable while long pairing links, validation
-  /// hints, and the software keyboard reduce the sheet's available height.
-  private var otherWaysActionBar: some View {
-    VStack(spacing: 12) {
-      if let error = session.globalError {
-        pairingError(error)
-      }
-      connectButton
-    }
-    .padding(.horizontal, 20)
-    .padding(.vertical, 12)
-    .poracodeBarBackground(divider: .top)
   }
 
   private func pairingError(_ error: String) -> some View {
@@ -363,6 +375,7 @@ struct OnboardingView: View {
   }
 
   private func performPair() async {
+    guard !isSubmitting, session.phase != .connecting else { return }
     isSubmitting = true
     defer { isSubmitting = false }
     await session.pair(

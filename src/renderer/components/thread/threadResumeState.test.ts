@@ -42,6 +42,11 @@ describe("selectThreadResumePlan", () => {
     });
   });
 
+  it("continues a prompt-only history row without resending its text", () => {
+    const { state, threadId } = stateWith([userMessage("old-prompt", { prompt: "Old prompt" })]);
+    expect(selectThreadResumePlan(state, threadId)).toEqual({ kind: "continue" });
+  });
+
   it.each([
     [{ action: "cleared" }, false],
     [{ action: "cleared", providerThreadId: "provider-thread" }, false],

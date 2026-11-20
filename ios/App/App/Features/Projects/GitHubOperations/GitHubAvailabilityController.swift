@@ -36,7 +36,8 @@ final class GitHubAvailabilityController {
     if runtime.leaveBackground(context) { reset() }
   }
 
-  func load(_ request: GitHubOperationRequest) async {
+  func load(_ request: GitHubOperationRequest, expectedLease: GitHubProjectLease? = nil) async {
+    if let expectedLease, runtime.context?.lease != expectedLease { return }
     guard [.ghCheckAvailable, .ghListAccounts, .ghListRepos].contains(request.procedure),
       request.procedure.metadata.scope == .read
     else { return }

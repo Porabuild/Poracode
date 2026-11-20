@@ -1,6 +1,8 @@
 // @vitest-environment node
 
 import { describe, expect, it } from "vitest";
+import preferenceFixtures from "../../../../protocol/remote/v3/fixtures/client-composer-preferences.json";
+import { projectDraftConfigSchema, providerDraftConfigSchema } from "@/shared/contracts/config";
 import type { AgentCapability, AgentStatus } from "@/shared/contracts";
 import {
   launchSelectionFields,
@@ -82,6 +84,22 @@ function agentWith(overrides?: Partial<AgentCapability>): AgentStatus {
     capabilities: { ...capabilities, ...overrides },
   } as unknown as AgentStatus;
 }
+
+describe("shared native/client preference restoration fixtures", () => {
+  it.each(preferenceFixtures.cases)("$id", (entry) => {
+    const project = "project" in entry ? projectDraftConfigSchema.parse(entry.project) : undefined;
+    const provider =
+      "provider" in entry ? providerDraftConfigSchema.parse(entry.provider) : undefined;
+    const result = resolveSavedProviderDraftConfig(
+      "fixture",
+      project,
+      provider ? { fixture: provider } : {},
+      { fixture: entry.preferences },
+      { ...capabilities, ...preferenceFixtures.capabilities } as unknown as AgentCapability,
+    );
+    expect(result).toStrictEqual(entry.expected);
+  });
+});
 
 describe("resolveProviderDraftConfig fast mode", () => {
   it.each([false, true])("ignores legacy saved Plan mode (family: %s)", (family) => {

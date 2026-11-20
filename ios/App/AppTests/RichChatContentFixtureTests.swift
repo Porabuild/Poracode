@@ -7,6 +7,24 @@ import XCTest
 #endif
 
 final class RichChatContentFixtureTests: XCTestCase {
+  func testCompletedTurnsAcceptWholeAndFractionalSecondISOTimestamps() throws {
+    func turn(_ start: String, _ end: String) -> RichJSON {
+      .object(["startedAt": .string(start), "endedAt": .string(end), "anchorItemId": .string("reply")])
+    }
+    let fractional = try RichTimeline.decodeCompletedTurns(.array([
+      turn("2026-11-17T00:00:00.000Z", "2026-11-17T00:00:02.000Z"),
+    ]))
+    let whole = try RichTimeline.decodeCompletedTurns(.array([
+      turn("2026-11-17T00:00:00Z", "2026-11-17T00:00:02Z"),
+    ]))
+    let offset = try RichTimeline.decodeCompletedTurns(.array([
+      turn("2026-11-17T02:00:00+02:00", "2026-11-17T02:00:02+02:00"),
+    ]))
+    XCTAssertEqual(whole, fractional); XCTAssertEqual(offset, fractional)
+    XCTAssertEqual(whole.first?.endedAtMilliseconds, whole.first.map { $0.startedAtMilliseconds + 2_000 })
+    XCTAssertThrowsError(try RichTimeline.decodeCompletedTurns(.array([turn("not a timestamp", "2026-11-17T00:00:02Z")])))
+  }
+
   func testMcpAppsStayStandaloneAndOnlyCurrentHostReferencesAreActive() throws {
     let fixture = try loadRichChatFixture("rich-mcp-apps.json")
     let items = try RichContentDecoder.decodeRuntimeItems(try XCTUnwrap(fixture["runtimeItems"]))

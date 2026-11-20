@@ -21,11 +21,16 @@ import { FaultEngine } from "./faultEngine.ts";
 import { assertEventFixtures, validateReplayableEvent } from "./eventValidation.ts";
 import { joinBasePath } from "./httpIo.ts";
 import { LabAuthStore, LabHttpError, type AuthenticatedSession } from "./labAuth.ts";
-import { buildReplayableEvent, FIXTURE_THREAD_ID } from "./labFixtures.ts";
+import { FIXTURE_THREAD_ID } from "./labFixtures.ts";
 import { bearerToken, handleLabHttp } from "./labHttpDispatch.ts";
 import { handleLabUpgrade } from "./labWsRouter.ts";
 import { loadProtocolManifest, type ProtocolManifest } from "./manifest.ts";
-import { appendScriptEntry, loadScriptJournal, type DurableScriptDraft } from "./durableScripts.ts";
+import { appendScriptEntry, type DurableScriptDraft } from "./durableScripts.ts";
+import {
+  normalizeLabBasePath,
+  pairingTokenFromUrl,
+  replayDurableScriptEntries,
+} from "./wireLabHelpers.ts";
 import { assertGeneratedSchemaDefinitions } from "./generatedContract.ts";
 import { LabLifecycleState } from "./lifecycleState.ts";
 import { assertLoopbackHost } from "./loopback.ts";
@@ -43,6 +48,8 @@ import { assertWebSocketFixtures, parseServerMessage } from "./wsFixtures.ts";
 import { createWireLabRuntime } from "./wireLabRuntime.ts";
 import { publishWireEvent, type WirePublishOptions } from "./wireLabPublish.ts";
 import { emitLabRequest } from "./frameEmit.ts";
+import { applyLabCheckpoint } from "./wireLabCheckpoints.ts";
+import { NewsFixture } from "./newsFixture.ts";
 
 export class WireLab {
   readonly auth = new LabAuthStore();
@@ -54,7 +61,8 @@ export class WireLab {
   readonly backgroundTasks = new BackgroundTaskLab();
   readonly workspace = new LabProcedureWorkspace(this.backgroundTasks);
   readonly lifecycle = new LabLifecycleState();
-  readonly routes = new LabRouteWorkspace();
+  readonly news = new NewsFixture();
+  readonly routes = new LabRouteWorkspace(this.workspace.agentDiscovery, this.news);
   readonly basePath: string;
 
   private readonly desktopId: string;
@@ -88,6 +96,8 @@ export class WireLab {
     this.ledger = ledger ?? new CoverageLedger(() => this.manifest);
     this.ring = new ReplayRing(options.replayLimit);
     this.backgroundTasks.onChanged = (tasks) => this.installBackgroundTaskRoster(tasks);
+    this.workspace.agentDiscovery.onStatus = (status) =>
+      this.publishEvent({ type: "agent-status-updated", status });
     this.basePath = normalizeLabBasePath(options.basePath);
     this.desktopId = options.desktopId ?? "native-e2e-lab";
     this.hostId = options.hostId ?? "primary";
@@ -138,7 +148,7 @@ export class WireLab {
   }
 
   get wireAppVersion(): string {
-    return this.appVersion;
+    return this.news.enabled ? "1.10.0" : this.appVersion;
   }
 
   get connectionSet(): Set<LabConnection> {
@@ -174,6 +184,22 @@ export class WireLab {
     }
     const wss = new WebSocketServer({ noServer: true, maxPayload: MAX_JSON_BODY_BYTES });
     const server = createServer((req, res) => {
+      const origin = req.headers.origin;
+      if (origin && this.options.browserOrigins?.includes(origin)) {
+        res.setHeader("Access-Control-Allow-Origin", origin);
+        res.setHeader("Vary", "Origin");
+        res.setHeader("Access-Control-Allow-Credentials", "true");
+        if (req.method === "OPTIONS") {
+          res.setHeader("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS");
+          res.setHeader(
+            "Access-Control-Allow-Headers",
+            req.headers["access-control-request-headers"] ?? "authorization,content-type",
+          );
+          res.writeHead(204);
+          res.end();
+          return;
+        }
+      }
       void handleLabHttp(this.runtime(), req, res);
     });
     server.on("upgrade", (req, socket, head) => {
@@ -226,6 +252,9 @@ export class WireLab {
   }
 
   async stop(): Promise<void> {
+    this.routes.releaseAttachment();
+    // Abort a checkpoint-held request before waiting for HTTP sockets to drain.
+    this.workspace.agentDiscovery.reset();
     for (const connection of this.connections) {
       connection.ws.close(1001, "wire lab stopping");
     }
@@ -245,6 +274,12 @@ export class WireLab {
     this.wss = null;
     this.info = null;
     this.observationLedger.dispose();
+  }
+
+  disconnectFixtureSockets(): void {
+    for (const connection of this.connections) {
+      connection.ws.terminate();
+    }
   }
 
   reset(): void {
@@ -324,22 +359,7 @@ export class WireLab {
 
   applyCheckpoint(id: CheckpointFixtureId, options?: { readonly persist?: boolean }): void {
     if (options?.persist !== false) this.persistScript({ kind: "checkpoint", id });
-    if (id === "seed-replay-two-events") {
-      this.publishEvent(buildReplayableEvent("thread-state"));
-      this.publishEvent(buildReplayableEvent("thread-state"));
-      return;
-    }
-    if (id === "seed-pairing") {
-      this.issuePairingCredential();
-      return;
-    }
-    if (id === "expire-pairing") {
-      this.auth.expireAllPairing();
-      this.activePairing = null;
-      if (this.secretsDir) consumePairingSecretIfPresent(this.secretsDir);
-      return;
-    }
-    this.auth.expireAllTickets();
+    applyLabCheckpoint(this, id);
   }
 
   emit(request: EmitRequest): void {
@@ -348,6 +368,14 @@ export class WireLab {
 
   publishEvent(event: Record<string, unknown>, options?: WirePublishOptions): number {
     validateReplayableEvent(event);
+    if (
+      event.type === "agent-status-updated" &&
+      event.status &&
+      typeof event.status === "object" &&
+      !Array.isArray(event.status)
+    ) {
+      this.routes.noteAgentStatus(event.status as Record<string, unknown>);
+    }
     return publishWireEvent(this, event, options);
   }
 
@@ -383,17 +411,11 @@ export class WireLab {
     if (!this.journalPath) return;
     this.replayingScripts = true;
     try {
-      for (const entry of loadScriptJournal(this.journalPath).entries) {
-        if (entry.kind === "clear") {
-          this.faults.clear();
-          continue;
-        }
-        if (entry.kind === "fault") {
-          this.activateFaultFixture(entry.id, { persist: false });
-          continue;
-        }
-        this.applyCheckpoint(entry.id, { persist: false });
-      }
+      replayDurableScriptEntries(this.journalPath, {
+        clearFaults: () => this.faults.clear(),
+        activateFault: (id) => this.activateFaultFixture(id, { persist: false }),
+        applyCheckpoint: (id) => this.applyCheckpoint(id, { persist: false }),
+      });
     } finally {
       this.replayingScripts = false;
     }
@@ -458,19 +480,4 @@ export class WireLab {
   }
 }
 
-function normalizeLabBasePath(value: string | undefined): string {
-  if (!value) return "";
-  const trimmed = value.trim();
-  if (!trimmed || trimmed === "/") return "";
-  const withLead = trimmed.startsWith("/") ? trimmed : `/${trimmed}`;
-  return withLead.replace(/\/+$/, "");
-}
-
-export function pairingTokenFromUrl(pairingUrl: string): string {
-  const url = new URL(pairingUrl);
-  const token = new URLSearchParams(url.hash.replace(/^#/, "")).get("token");
-  if (!token) throw new Error("Pairing URL is missing a token fragment.");
-  return token;
-}
-
-export { joinBasePath };
+export { joinBasePath, pairingTokenFromUrl };

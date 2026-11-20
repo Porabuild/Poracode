@@ -73,6 +73,7 @@ const pendingClientResolvers = new Set<(client: RemoteDesktopClient) => void>();
 const remoteTerminals = new RemoteTerminalOwnership<true>();
 /** Host OS of the paired desktop (`win32`/`darwin`/`linux`), when known. */
 let hostPlatform: NodeJS.Platform | null = null;
+let hostAppVersion = "0.0.0";
 const BROWSER_KEYBINDINGS_STORAGE_KEY = "poracode.browser.keybindings.v1";
 
 function getBrowserKeybindings(): KeybindingsConfig {
@@ -107,6 +108,7 @@ export function setRemoteBridgeClient(
   client: RemoteDesktopClient | null,
   platform?: NodeJS.Platform | null,
   reviewOwnerKey?: string,
+  appVersion?: string | null,
 ): void {
   const clientChanged = activeClient !== client;
   if (clientChanged) {
@@ -125,6 +127,8 @@ export function setRemoteBridgeClient(
     for (const listener of browserImageListeners) listener();
   }
   activeClient = client;
+  hostPlatform = client ? (platform ?? null) : null;
+  hostAppVersion = client ? (appVersion ?? "0.0.0") : "0.0.0";
   if (clientChanged) {
     for (const listener of remoteBridgeClientListeners) listener();
   }
@@ -134,7 +138,6 @@ export function setRemoteBridgeClient(
     pendingClientResolvers.clear();
   }
   remoteTerminals.clear();
-  hostPlatform = client ? (platform ?? null) : null;
   // poracode-local <img> sources load only inside the desktop's Electron
   // shell; in the PWA, swap them for the desktop's authenticated HTTP image
   // endpoint at render time (see shared/localImageDisplay.ts).
@@ -267,7 +270,9 @@ const remoteBridgeOverrides = {
   get platform(): NodeJS.Platform {
     return resolveBridgePlatform();
   },
-  appVersion: "remote",
+  get appVersion(): string {
+    return hostAppVersion;
+  },
   arch: "web",
   chromeVersion: "",
   isDev: false,

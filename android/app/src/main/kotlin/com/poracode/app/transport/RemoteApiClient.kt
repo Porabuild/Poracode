@@ -93,6 +93,7 @@ class RemoteApiClient(
     private val historyNotices: RemoteHistoryNoticeGateway = RemoteHistoryNoticeClient(this)
 
     override val runtimeHistoryNoticesSupported: Boolean get() = declarations.noticesDeclared
+    internal val terminalCursorSyncV2Advertised: Boolean get() = declarations.terminalCursorSyncV2Advertised
 
     override fun declareRuntimeHistoryNotices(enabled: Boolean) = declarations.declareNotices(enabled)
 

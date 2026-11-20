@@ -1,0 +1,954 @@
+{
+  "formatVersion": 1,
+  "features": [
+    {
+      "id": "crews",
+      "icon": "Users",
+      "pitch": {
+        "en": "Let several agents split one task with a crew",
+        "es": "Deja que varios agentes se repartan una tarea con un equipo",
+        "ru": "Пусть несколько агентов разделят задачу в команде",
+        "uk": "Нехай кілька агентів розділять завдання в команді",
+        "zh-CN": "用团队让多个代理分担同一个任务",
+        "ja": "クルーで複数のエージェントに 1 つのタスクを分担させましょう",
+        "pt-BR": "Deixe vários agentes dividirem uma tarefa em equipe",
+        "de": "Lassen Sie mehrere Agenten eine Aufgabe als Crew aufteilen",
+        "fr": "Laissez plusieurs agents se partager une tâche en équipe",
+        "ko": "크루로 여러 에이전트가 한 작업을 나눠 맡게 하세요",
+        "pl": "Pozwól kilku agentom podzielić zadanie w ekipie",
+        "vi": "Để nhiều tác nhân chia nhau một tác vụ theo nhóm",
+        "tr": "Birden çok aracı bir görevi ekip olarak paylaşsın"
+      },
+      "action": {
+        "en": "Try a crew",
+        "es": "Probar un equipo",
+        "ru": "Попробовать команду",
+        "uk": "Спробувати команду",
+        "zh-CN": "试试团队",
+        "ja": "クルーを試す",
+        "pt-BR": "Experimentar uma equipe",
+        "de": "Crew ausprobieren",
+        "fr": "Essayer une équipe",
+        "ko": "크루 사용해 보기",
+        "pl": "Wypróbuj ekipę",
+        "vi": "Thử một nhóm",
+        "tr": "Bir ekip deneyin"
+      }
+    },
+    {
+      "id": "chrome-extension",
+      "icon": "Globe",
+      "pitch": {
+        "en": "Let agents work in your real Chrome with the Poracode extension",
+        "es": "Deja que los agentes trabajen en tu Chrome real con la extensión de Poracode",
+        "ru": "Пусть агенты работают в вашем настоящем Chrome с расширением Poracode",
+        "uk": "Нехай агенти працюють у вашому справжньому Chrome з розширенням Poracode",
+        "zh-CN": "借助 Poracode 扩展，让代理在你真实的 Chrome 中工作",
+        "ja": "Poracode 拡張機能で、エージェントに実際の Chrome で作業させましょう",
+        "pt-BR": "Deixe os agentes trabalharem no seu Chrome real com a extensão do Poracode",
+        "de": "Lassen Sie Agenten mit der Poracode-Erweiterung in Ihrem echten Chrome arbeiten",
+        "fr": "Laissez les agents travailler dans votre vrai Chrome avec l'extension Poracode",
+        "ko": "Poracode 확장 프로그램으로 에이전트가 실제 Chrome에서 작업하게 하세요",
+        "pl": "Pozwól agentom pracować w Twoim prawdziwym Chrome z rozszerzeniem Poracode",
+        "vi": "Để tác nhân làm việc trong Chrome thật của bạn với tiện ích Poracode",
+        "tr": "Poracode uzantısıyla aracıların gerçek Chrome'unuzda çalışmasına izin verin"
+      },
+      "action": {
+        "en": "Get the extension",
+        "es": "Obtener la extensión",
+        "ru": "Установить расширение",
+        "uk": "Отримати розширення",
+        "zh-CN": "获取扩展",
+        "ja": "拡張機能を入手",
+        "pt-BR": "Obter a extensão",
+        "de": "Erweiterung holen",
+        "fr": "Obtenir l'extension",
+        "ko": "확장 프로그램 받기",
+        "pl": "Pobierz rozszerzenie",
+        "vi": "Tải tiện ích",
+        "tr": "Uzantıyı edinin"
+      }
+    },
+    {
+      "id": "computer-use",
+      "icon": "MonitorCog",
+      "pitch": {
+        "en": "Let agents use desktop apps in the background with Computer Use",
+        "es": "Deja que los agentes usen apps de escritorio en segundo plano con Computer Use",
+        "ru": "Пусть агенты работают с приложениями в фоне через Computer Use",
+        "uk": "Нехай агенти працюють із застосунками у фоні через Computer Use",
+        "zh-CN": "用 Computer Use 让代理在后台操作桌面应用",
+        "ja": "Computer Use でエージェントにデスクトップアプリをバックグラウンド操作させましょう",
+        "pt-BR": "Deixe os agentes usarem apps de desktop em segundo plano com o Computer Use",
+        "de": "Lassen Sie Agenten mit Computer Use Desktop-Apps im Hintergrund bedienen",
+        "fr": "Laissez les agents utiliser des apps de bureau en arrière-plan avec Computer Use",
+        "ko": "Computer Use로 에이전트가 백그라운드에서 데스크톱 앱을 사용하게 하세요",
+        "pl": "Pozwól agentom obsługiwać aplikacje desktopowe w tle dzięki Computer Use",
+        "vi": "Để tác nhân dùng ứng dụng máy tính ở chế độ nền với Computer Use",
+        "tr": "Computer Use ile aracıların masaüstü uygulamalarını arka planda kullanmasına izin verin"
+      },
+      "action": {
+        "en": "Set it up",
+        "es": "Configurar",
+        "ru": "Настроить",
+        "uk": "Налаштувати",
+        "zh-CN": "去设置",
+        "ja": "設定する",
+        "pt-BR": "Configurar",
+        "de": "Einrichten",
+        "fr": "Configurer",
+        "ko": "설정하기",
+        "pl": "Skonfiguruj",
+        "vi": "Thiết lập",
+        "tr": "Kurun"
+      }
+    },
+    {
+      "id": "browser",
+      "icon": "AppWindow",
+      "pitch": {
+        "en": "Test web apps with agents in the built-in browser",
+        "es": "Prueba aplicaciones web con agentes en el navegador integrado",
+        "ru": "Тестируйте веб-приложения с агентами во встроенном браузере",
+        "uk": "Тестуйте вебзастосунки з агентами у вбудованому браузері",
+        "zh-CN": "在内置浏览器中与代理一起测试 Web 应用",
+        "ja": "組み込みブラウザーでエージェントと Web アプリをテストしましょう",
+        "pt-BR": "Teste apps web com agentes no navegador integrado",
+        "de": "Testen Sie Web-Apps mit Agenten im integrierten Browser",
+        "fr": "Testez des applications web avec les agents dans le navigateur intégré",
+        "ko": "기본 제공 브라우저에서 에이전트와 웹 앱을 테스트하세요",
+        "pl": "Testuj aplikacje webowe z agentami we wbudowanej przeglądarce",
+        "vi": "Kiểm thử ứng dụng web với tác nhân trong trình duyệt tích hợp",
+        "tr": "Web uygulamalarını yerleşik tarayıcıda aracılarla test edin"
+      },
+      "action": {
+        "en": "Open the browser",
+        "es": "Abrir el navegador",
+        "ru": "Открыть браузер",
+        "uk": "Відкрити браузер",
+        "zh-CN": "打开浏览器",
+        "ja": "ブラウザーを開く",
+        "pt-BR": "Abrir o navegador",
+        "de": "Browser öffnen",
+        "fr": "Ouvrir le navigateur",
+        "ko": "브라우저 열기",
+        "pl": "Otwórz przeglądarkę",
+        "vi": "Mở trình duyệt",
+        "tr": "Tarayıcıyı aç"
+      }
+    },
+    {
+      "id": "crossagents",
+      "icon": "Network",
+      "pitch": {
+        "en": "Have one agent hand work to another with Crossagents",
+        "es": "Haz que un agente pase trabajo a otro con Crossagents",
+        "ru": "Пусть один агент передаёт работу другому с Crossagents",
+        "uk": "Нехай один агент передає роботу іншому з Crossagents",
+        "zh-CN": "用 Crossagents 让一个代理把工作交给另一个代理",
+        "ja": "Crossagents でエージェント間で作業を引き継げます",
+        "pt-BR": "Faça um agente passar trabalho para outro com o Crossagents",
+        "de": "Lassen Sie mit Crossagents einen Agenten Arbeit an einen anderen übergeben",
+        "fr": "Laissez un agent confier du travail à un autre avec Crossagents",
+        "ko": "Crossagents로 한 에이전트가 다른 에이전트에게 작업을 넘기게 하세요",
+        "pl": "Niech jeden agent przekazuje pracę drugiemu dzięki Crossagents",
+        "vi": "Để một tác nhân chuyển việc cho tác nhân khác bằng Crossagents",
+        "tr": "Crossagents ile bir aracının işi diğerine devretmesini sağlayın"
+      },
+      "action": {
+        "en": "See how",
+        "es": "Ver cómo",
+        "ru": "Как это работает",
+        "uk": "Як це працює",
+        "zh-CN": "了解用法",
+        "ja": "使い方を見る",
+        "pt-BR": "Ver como",
+        "de": "So geht's",
+        "fr": "Voir comment",
+        "ko": "방법 보기",
+        "pl": "Zobacz jak",
+        "vi": "Xem cách làm",
+        "tr": "Nasıl olduğunu görün"
+      }
+    },
+    {
+      "id": "worktrees",
+      "icon": "GitBranch",
+      "pitch": {
+        "en": "Give each thread its own worktree so agents never collide",
+        "es": "Da a cada hilo su propio worktree para que los agentes no choquen",
+        "ru": "Дайте каждому треду свой worktree, чтобы агенты не мешали друг другу",
+        "uk": "Дайте кожному треду власний worktree, щоб агенти не заважали одне одному",
+        "zh-CN": "为每个线程分配独立工作树，避免代理互相冲突",
+        "ja": "スレッドごとにワークツリーを分けて、エージェント同士の衝突を防ぎましょう",
+        "pt-BR": "Dê a cada tópico sua própria árvore de trabalho para os agentes não colidirem",
+        "de": "Geben Sie jedem Thread einen eigenen Worktree, damit Agenten sich nicht in die Quere kommen",
+        "fr": "Donnez à chaque fil son propre arbre de travail pour que les agents ne se gênent pas",
+        "ko": "에이전트가 충돌하지 않도록 스레드마다 작업 트리를 따로 주세요",
+        "pl": "Daj każdemu wątkowi własne drzewo robocze, by agenci sobie nie przeszkadzali",
+        "vi": "Cho mỗi luồng một cây làm việc riêng để các tác nhân không xung đột",
+        "tr": "Aracılar çakışmasın diye her konuya kendi çalışma ağacını verin"
+      },
+      "action": {
+        "en": "Set it up",
+        "es": "Configurar",
+        "ru": "Настроить",
+        "uk": "Налаштувати",
+        "zh-CN": "去设置",
+        "ja": "設定する",
+        "pt-BR": "Configurar",
+        "de": "Einrichten",
+        "fr": "Configurer",
+        "ko": "설정하기",
+        "pl": "Skonfiguruj",
+        "vi": "Thiết lập",
+        "tr": "Kurun"
+      }
+    },
+    {
+      "id": "schedules",
+      "icon": "CalendarClock",
+      "pitch": {
+        "en": "Run agents on a schedule, like a nightly test fix",
+        "es": "Ejecuta agentes según una programación, como una corrección nocturna de pruebas",
+        "ru": "Запускайте агентов по расписанию, например ночное исправление тестов",
+        "uk": "Запускайте агентів за розкладом, наприклад нічне виправлення тестів",
+        "zh-CN": "按计划运行代理，比如每晚修复测试",
+        "ja": "夜間のテスト修正など、スケジュールでエージェントを実行しましょう",
+        "pt-BR": "Execute agentes em um agendamento, como uma correção de testes noturna",
+        "de": "Führen Sie Agenten nach Zeitplan aus, etwa für nächtliche Testkorrekturen",
+        "fr": "Exécutez des agents selon une planification, comme une correction de tests nocturne",
+        "ko": "야간 테스트 수정처럼 일정에 따라 에이전트를 실행하세요",
+        "pl": "Uruchamiaj agentów według harmonogramu, np. nocne poprawki testów",
+        "vi": "Chạy tác nhân theo lịch, như sửa kiểm thử hằng đêm",
+        "tr": "Aracıları her gece test düzeltme gibi bir zamanlamayla çalıştırın"
+      },
+      "action": {
+        "en": "Create a schedule",
+        "es": "Crear una programación",
+        "ru": "Создать расписание",
+        "uk": "Створити розклад",
+        "zh-CN": "创建计划",
+        "ja": "スケジュールを作成",
+        "pt-BR": "Criar um agendamento",
+        "de": "Zeitplan erstellen",
+        "fr": "Créer une planification",
+        "ko": "일정 만들기",
+        "pl": "Utwórz harmonogram",
+        "vi": "Tạo lịch biểu",
+        "tr": "Zamanlama oluştur"
+      }
+    },
+    {
+      "id": "pull-requests",
+      "icon": "GitPullRequest",
+      "pitch": {
+        "en": "Review and merge pull requests without leaving Poracode",
+        "es": "Revisa y fusiona pull requests sin salir de Poracode",
+        "ru": "Проверяйте и сливайте pull request, не выходя из Poracode",
+        "uk": "Переглядайте й об'єднуйте pull request, не виходячи з Poracode",
+        "zh-CN": "无需离开 Poracode 即可审查并合并拉取请求",
+        "ja": "Poracode から離れずにプルリクエストをレビュー、マージできます",
+        "pt-BR": "Revise e mescle pull requests sem sair do Poracode",
+        "de": "Prüfen und mergen Sie Pull Requests, ohne Poracode zu verlassen",
+        "fr": "Examinez et fusionnez les pull requests sans quitter Poracode",
+        "ko": "Poracode를 떠나지 않고 풀 리퀘스트를 검토하고 병합하세요",
+        "pl": "Przeglądaj i scalaj pull requesty bez wychodzenia z Poracode",
+        "vi": "Xem xét và hợp nhất pull request mà không rời Poracode",
+        "tr": "Poracode'dan çıkmadan çekme isteklerini inceleyin ve birleştirin"
+      },
+      "action": {
+        "en": "Open pull requests",
+        "es": "Solicitudes de extracción abiertas",
+        "ru": "Открытые pull request",
+        "uk": "Відкриті pull request",
+        "zh-CN": "未关闭的拉取请求",
+        "ja": "オープンなプルリクエスト",
+        "pt-BR": "Pull requests abertos",
+        "de": "Offene Pull Requests",
+        "fr": "Pull requests ouvertes",
+        "ko": "열린 풀 리퀘스트",
+        "pl": "Otwarte żądania ściągnięcia",
+        "vi": "Pull request đang mở",
+        "tr": "Açık çekme istekleri"
+      }
+    },
+    {
+      "id": "skills",
+      "icon": "Sparkles",
+      "pitch": {
+        "en": "Teach your agents reusable procedures with skills",
+        "es": "Enseña a tus agentes procedimientos reutilizables con skills",
+        "ru": "Научите агентов повторяемым процедурам с помощью навыков",
+        "uk": "Навчіть агентів повторюваних процедур за допомогою навичок",
+        "zh-CN": "用技能教会代理可复用的流程",
+        "ja": "スキルでエージェントに再利用できる手順を教えましょう",
+        "pt-BR": "Ensine procedimentos reutilizáveis aos seus agentes com skills",
+        "de": "Bringen Sie Ihren Agenten mit Skills wiederverwendbare Abläufe bei",
+        "fr": "Apprenez à vos agents des procédures réutilisables avec les compétences",
+        "ko": "스킬로 에이전트에게 재사용 가능한 절차를 가르치세요",
+        "pl": "Naucz agentów powtarzalnych procedur dzięki umiejętnościom",
+        "vi": "Dạy tác nhân các quy trình tái sử dụng bằng skill",
+        "tr": "Becerilerle aracılarınıza yeniden kullanılabilir yordamlar öğretin"
+      },
+      "action": {
+        "en": "Browse skills",
+        "es": "Explorar skills",
+        "ru": "Обзор навыков",
+        "uk": "Переглянути навички",
+        "zh-CN": "浏览技能",
+        "ja": "スキルを見る",
+        "pt-BR": "Explorar skills",
+        "de": "Skills durchsuchen",
+        "fr": "Parcourir les compétences",
+        "ko": "스킬 둘러보기",
+        "pl": "Przeglądaj umiejętności",
+        "vi": "Duyệt skill",
+        "tr": "Becerilere göz atın"
+      }
+    },
+    {
+      "id": "mcp-servers",
+      "icon": "Plug",
+      "pitch": {
+        "en": "Connect agents to your own tools with MCP servers",
+        "es": "Conecta los agentes a tus propias herramientas con servidores MCP",
+        "ru": "Подключите агентов к своим инструментам через серверы MCP",
+        "uk": "Під'єднайте агентів до власних інструментів через сервери MCP",
+        "zh-CN": "通过 MCP 服务器把代理连接到你的工具",
+        "ja": "MCPサーバーでエージェントを手持ちのツールにつなぎましょう",
+        "pt-BR": "Conecte os agentes às suas próprias ferramentas com servidores MCP",
+        "de": "Verbinden Sie Agenten über MCP-Server mit Ihren eigenen Tools",
+        "fr": "Connectez les agents à vos propres outils avec des serveurs MCP",
+        "ko": "MCP 서버로 에이전트를 내 도구에 연결하세요",
+        "pl": "Połącz agentów z własnymi narzędziami przez serwery MCP",
+        "vi": "Kết nối tác nhân với công cụ của bạn qua máy chủ MCP",
+        "tr": "Aracıları MCP sunucularıyla kendi araçlarınıza bağlayın"
+      },
+      "action": {
+        "en": "Add a server",
+        "es": "Añadir un servidor",
+        "ru": "Добавить сервер",
+        "uk": "Додати сервер",
+        "zh-CN": "添加服务器",
+        "ja": "サーバーを追加",
+        "pt-BR": "Adicionar um servidor",
+        "de": "Server hinzufügen",
+        "fr": "Ajouter un serveur",
+        "ko": "서버 추가",
+        "pl": "Dodaj serwer",
+        "vi": "Thêm máy chủ",
+        "tr": "Sunucu ekle"
+      }
+    },
+    {
+      "id": "plugins",
+      "icon": "Puzzle",
+      "pitch": {
+        "en": "Extend Poracode with plugins",
+        "es": "Amplía Poracode con plugins",
+        "ru": "Расширьте Poracode плагинами",
+        "uk": "Розширте Poracode плагінами",
+        "zh-CN": "用插件扩展 Poracode",
+        "ja": "プラグインで Poracode を拡張しましょう",
+        "pt-BR": "Amplie o Poracode com plugins",
+        "de": "Erweitern Sie Poracode mit Plugins",
+        "fr": "Étendez Poracode avec des plugins",
+        "ko": "플러그인으로 Poracode를 확장하세요",
+        "pl": "Rozszerz Poracode wtyczkami",
+        "vi": "Mở rộng Poracode bằng plugin",
+        "tr": "Poracode'u eklentilerle genişletin"
+      },
+      "action": {
+        "en": "Browse plugins",
+        "es": "Explorar plugins",
+        "ru": "Обзор плагинов",
+        "uk": "Огляд плагінів",
+        "zh-CN": "浏览插件",
+        "ja": "プラグインを見る",
+        "pt-BR": "Explorar plugins",
+        "de": "Plugins durchsuchen",
+        "fr": "Parcourir les plugins",
+        "ko": "플러그인 둘러보기",
+        "pl": "Przeglądaj wtyczki",
+        "vi": "Duyệt plugin",
+        "tr": "Eklentilere göz at"
+      }
+    },
+    {
+      "id": "custom-themes",
+      "icon": "Palette",
+      "pitch": {
+        "en": "Make Poracode yours with a custom theme",
+        "es": "Haz tuyo Poracode con un tema personalizado",
+        "ru": "Сделайте Poracode своим с собственной темой",
+        "uk": "Зробіть Poracode своїм із власною темою",
+        "zh-CN": "用自定义主题打造你的 Poracode",
+        "ja": "カスタムテーマで Poracode を自分好みに",
+        "pt-BR": "Deixe o Poracode com a sua cara com um tema personalizado",
+        "de": "Gestalten Sie Poracode mit einem eigenen Design",
+        "fr": "Personnalisez Poracode avec votre propre thème",
+        "ko": "사용자 지정 테마로 Poracode를 나만의 것으로 만드세요",
+        "pl": "Dopasuj Poracode do siebie własnym motywem",
+        "vi": "Biến Poracode thành của riêng bạn với chủ đề tùy chỉnh",
+        "tr": "Özel bir temayla Poracode'u kendinize göre yapın"
+      },
+      "action": {
+        "en": "Create a theme",
+        "es": "Crear un tema",
+        "ru": "Создать тему",
+        "uk": "Створити тему",
+        "zh-CN": "创建主题",
+        "ja": "テーマを作成",
+        "pt-BR": "Criar um tema",
+        "de": "Design erstellen",
+        "fr": "Créer un thème",
+        "ko": "테마 만들기",
+        "pl": "Utwórz motyw",
+        "vi": "Tạo chủ đề",
+        "tr": "Tema oluştur"
+      }
+    },
+    {
+      "id": "remote-access",
+      "icon": "Smartphone",
+      "pitch": {
+        "en": "Check on your agents from your phone",
+        "es": "Revisa tus agentes desde el teléfono",
+        "ru": "Следите за агентами с телефона",
+        "uk": "Стежте за агентами з телефона",
+        "zh-CN": "在手机上查看你的代理",
+        "ja": "スマートフォンからエージェントを確認しましょう",
+        "pt-BR": "Acompanhe seus agentes pelo celular",
+        "de": "Behalten Sie Ihre Agenten vom Smartphone aus im Blick",
+        "fr": "Suivez vos agents depuis votre téléphone",
+        "ko": "휴대폰에서 에이전트를 확인하세요",
+        "pl": "Sprawdzaj swoich agentów z telefonu",
+        "vi": "Theo dõi các tác nhân từ điện thoại",
+        "tr": "Aracılarınızı telefonunuzdan takip edin"
+      },
+      "action": {
+        "en": "Pair a phone",
+        "es": "Emparejar un teléfono",
+        "ru": "Подключить телефон",
+        "uk": "Під'єднати телефон",
+        "zh-CN": "配对手机",
+        "ja": "スマートフォンをペアリング",
+        "pt-BR": "Parear um celular",
+        "de": "Smartphone koppeln",
+        "fr": "Associer un téléphone",
+        "ko": "휴대폰 페어링",
+        "pl": "Sparuj telefon",
+        "vi": "Ghép nối điện thoại",
+        "tr": "Telefon eşleştir"
+      }
+    },
+    {
+      "id": "session-import",
+      "icon": "Import",
+      "pitch": {
+        "en": "Bring your existing CLI agent conversations into Poracode",
+        "es": "Trae tus conversaciones con agentes de CLI a Poracode",
+        "ru": "Перенесите свои беседы с CLI-агентами в Poracode",
+        "uk": "Перенесіть свої розмови з CLI-агентами до Poracode",
+        "zh-CN": "把你现有的 CLI 代理对话带进 Poracode",
+        "ja": "既存の CLI エージェントとの会話を Poracode に取り込みましょう",
+        "pt-BR": "Traga suas conversas existentes com agentes de CLI para o Poracode",
+        "de": "Übernehmen Sie Ihre bestehenden Unterhaltungen mit CLI-Agenten in Poracode",
+        "fr": "Importez vos conversations existantes avec des agents CLI dans Poracode",
+        "ko": "기존 CLI 에이전트 대화를 Poracode로 가져오세요",
+        "pl": "Przenieś swoje rozmowy z agentami CLI do Poracode",
+        "vi": "Đưa các cuộc trò chuyện với tác nhân CLI hiện có vào Poracode",
+        "tr": "Mevcut CLI aracı konuşmalarınızı Poracode'a taşıyın"
+      },
+      "action": {
+        "en": "Import",
+        "es": "Importar",
+        "ru": "Импорт",
+        "uk": "Імпорт",
+        "zh-CN": "导入",
+        "ja": "インポート",
+        "pt-BR": "Importar",
+        "de": "Import",
+        "fr": "Importer",
+        "ko": "가져오기",
+        "pl": "Import",
+        "vi": "Nhập",
+        "tr": "İçe aktar"
+      }
+    },
+    {
+      "id": "workspaces",
+      "icon": "Layers",
+      "pitch": {
+        "en": "Group projects into workspaces, like work and side projects",
+        "es": "Agrupa proyectos en espacios de trabajo, como trabajo y proyectos personales",
+        "ru": "Группируйте проекты в рабочие области, например работа и личные проекты",
+        "uk": "Групуйте проєкти в робочі області, як-от робота й особисті проєкти",
+        "zh-CN": "把项目分组到工作区，比如工作和个人项目",
+        "ja": "仕事や個人プロジェクトなど、プロジェクトをワークスペースにまとめましょう",
+        "pt-BR": "Agrupe projetos em espaços de trabalho, como trabalho e projetos pessoais",
+        "de": "Gruppieren Sie Projekte in Arbeitsbereiche, etwa Arbeit und Nebenprojekte",
+        "fr": "Regroupez vos projets en espaces de travail, comme travail et projets perso",
+        "ko": "업무와 개인 프로젝트처럼 프로젝트를 작업 영역으로 묶으세요",
+        "pl": "Grupuj projekty w obszary robocze, np. praca i projekty poboczne",
+        "vi": "Nhóm dự án vào không gian làm việc, như công việc và dự án cá nhân",
+        "tr": "Projeleri iş ve yan projeler gibi çalışma alanlarında gruplayın"
+      },
+      "action": {
+        "en": "Create a workspace",
+        "es": "Crear un espacio de trabajo",
+        "ru": "Создать рабочую область",
+        "uk": "Створити робочу область",
+        "zh-CN": "创建工作区",
+        "ja": "ワークスペースを作成",
+        "pt-BR": "Criar um espaço de trabalho",
+        "de": "Arbeitsbereich erstellen",
+        "fr": "Créer un espace de travail",
+        "ko": "작업 영역 만들기",
+        "pl": "Utwórz obszar roboczy",
+        "vi": "Tạo không gian làm việc",
+        "tr": "Çalışma alanı oluştur"
+      }
+    },
+    {
+      "id": "ai-git",
+      "icon": "GitCommitHorizontal",
+      "pitch": {
+        "en": "Let an agent write your commit message and pull request",
+        "es": "Deja que un agente escriba tu mensaje de commit y tu pull request",
+        "ru": "Пусть агент напишет сообщение коммита и pull request",
+        "uk": "Нехай агент напише повідомлення коміту й pull request",
+        "zh-CN": "让代理为你撰写提交信息和拉取请求",
+        "ja": "コミットメッセージとプルリクエストをエージェントに書かせましょう",
+        "pt-BR": "Deixe um agente escrever sua mensagem de commit e seu pull request",
+        "de": "Lassen Sie einen Agenten Commit-Nachricht und Pull Request schreiben",
+        "fr": "Laissez un agent rédiger votre message de commit et votre pull request",
+        "ko": "에이전트가 커밋 메시지와 풀 리퀘스트를 작성하게 하세요",
+        "pl": "Pozwól agentowi napisać wiadomość commita i pull request",
+        "vi": "Để tác nhân viết thông điệp commit và pull request cho bạn",
+        "tr": "Commit mesajınızı ve çekme isteğinizi bir aracı yazsın"
+      },
+      "action": {
+        "en": "Open Git",
+        "es": "Abrir Git",
+        "ru": "Открыть Git",
+        "uk": "Відкрити Git",
+        "zh-CN": "打开 Git",
+        "ja": "Git を開く",
+        "pt-BR": "Abrir o Git",
+        "de": "Git öffnen",
+        "fr": "Ouvrir Git",
+        "ko": "Git 열기",
+        "pl": "Otwórz Git",
+        "vi": "Mở Git",
+        "tr": "Git'i aç"
+      }
+    },
+    {
+      "id": "voice-input",
+      "icon": "Mic",
+      "pitch": {
+        "en": "Dictate prompts instead of typing them",
+        "es": "Dicta los prompts en lugar de escribirlos",
+        "ru": "Диктуйте запросы вместо того, чтобы печатать",
+        "uk": "Диктуйте запити замість того, щоб друкувати",
+        "zh-CN": "用语音输入提示，无需打字",
+        "ja": "プロンプトは入力せずに音声入力できます",
+        "pt-BR": "Dite prompts em vez de digitá-los",
+        "de": "Diktieren Sie Prompts, statt sie zu tippen",
+        "fr": "Dictez vos prompts au lieu de les taper",
+        "ko": "입력하는 대신 프롬프트를 받아쓰세요",
+        "pl": "Dyktuj prompty zamiast je pisać",
+        "vi": "Đọc prompt thay vì gõ",
+        "tr": "İstemleri yazmak yerine dikte edin"
+      },
+      "action": {
+        "en": "Set up voice",
+        "es": "Configurar la voz",
+        "ru": "Настроить голос",
+        "uk": "Налаштувати голос",
+        "zh-CN": "设置语音",
+        "ja": "音声を設定",
+        "pt-BR": "Configurar voz",
+        "de": "Sprache einrichten",
+        "fr": "Configurer la voix",
+        "ko": "음성 설정",
+        "pl": "Skonfiguruj głos",
+        "vi": "Thiết lập giọng nói",
+        "tr": "Sesi ayarla"
+      }
+    }
+  ],
+  "promotions": [
+    {
+      "id": "github-star",
+      "url": "https://github.com/Porabuild/Poracode"
+    },
+    {
+      "id": "x-poracode",
+      "url": "https://x.com/poracode"
+    },
+    {
+      "id": "x-creator",
+      "url": "https://x.com/serg_vecher"
+    }
+  ],
+  "usageProviders": [
+    {
+      "id": "claude",
+      "label": "Claude"
+    },
+    {
+      "id": "codex",
+      "label": "Codex"
+    },
+    {
+      "id": "copilot",
+      "label": "GitHub Copilot"
+    },
+    {
+      "id": "cursor",
+      "label": "Cursor"
+    },
+    {
+      "id": "grok",
+      "label": "Grok"
+    },
+    {
+      "id": "gemini",
+      "label": "Gemini"
+    },
+    {
+      "id": "commandcode",
+      "label": "Command Code"
+    },
+    {
+      "id": "muse",
+      "label": "Muse Code"
+    },
+    {
+      "id": "factory",
+      "label": "Droid"
+    },
+    {
+      "id": "zai",
+      "label": "z.ai"
+    },
+    {
+      "id": "devin",
+      "label": "Devin"
+    },
+    {
+      "id": "kimi",
+      "label": "Kimi Code"
+    },
+    {
+      "id": "qwen",
+      "label": "Alibaba Token Plan"
+    },
+    {
+      "id": "qoder",
+      "label": "Qoder"
+    },
+    {
+      "id": "antigravity",
+      "label": "Antigravity"
+    },
+    {
+      "id": "opencode",
+      "label": "OpenCode"
+    },
+    {
+      "id": "fx",
+      "label": "fx"
+    }
+  ],
+  "messages": {
+    "News": {
+      "en": "News",
+      "es": "Novedades",
+      "ru": "Новости",
+      "uk": "Новини",
+      "zh-CN": "新闻",
+      "ja": "ニュース",
+      "pt-BR": "Novidades",
+      "de": "Neuigkeiten",
+      "fr": "Actualités",
+      "ko": "뉴스",
+      "pl": "Wiadomości",
+      "vi": "Tin tức",
+      "tr": "Haberler"
+    },
+    "News line": {
+      "en": "News line",
+      "es": "Línea de novedades",
+      "ru": "Строка новостей",
+      "uk": "Рядок новин",
+      "zh-CN": "新闻栏",
+      "ja": "ニュースライン",
+      "pt-BR": "Linha de novidades",
+      "de": "Neuigkeitenzeile",
+      "fr": "Ligne d'actualités",
+      "ko": "뉴스 라인",
+      "pl": "Pasek wiadomości",
+      "vi": "Dòng tin tức",
+      "tr": "Haber satırı"
+    },
+    "Activity highlights": {
+      "en": "Activity highlights",
+      "es": "Resumen de actividad",
+      "ru": "Сводка активности",
+      "uk": "Підсумок активності",
+      "zh-CN": "活动亮点",
+      "ja": "アクティビティのハイライト",
+      "pt-BR": "Destaques de atividade",
+      "de": "Aktivitäts-Highlights",
+      "fr": "Faits marquants d'activité",
+      "ko": "활동 하이라이트",
+      "pl": "Podsumowanie aktywności",
+      "vi": "Điểm nổi bật về hoạt động",
+      "tr": "Etkinlik öne çıkanları"
+    },
+    "Previous": {
+      "en": "Previous",
+      "es": "Anterior",
+      "ru": "Назад",
+      "uk": "Назад",
+      "zh-CN": "上一条",
+      "ja": "前へ",
+      "pt-BR": "Anterior",
+      "de": "Zurück",
+      "fr": "Précédent",
+      "ko": "이전",
+      "pl": "Poprzedni",
+      "vi": "Trước",
+      "tr": "Önceki"
+    },
+    "Next": {
+      "en": "Next",
+      "es": "Siguiente",
+      "ru": "Далее",
+      "uk": "Далі",
+      "zh-CN": "下一步",
+      "ja": "次へ",
+      "pt-BR": "Próximo",
+      "de": "Weiter",
+      "fr": "Suivant",
+      "ko": "다음",
+      "pl": "Dalej",
+      "vi": "Tiếp",
+      "tr": "İleri"
+    },
+    "Pause news": {
+      "en": "Pause news",
+      "es": "Pausar novedades",
+      "ru": "Приостановить новости",
+      "uk": "Призупинити новини",
+      "zh-CN": "暂停新闻",
+      "ja": "ニュースを一時停止",
+      "pt-BR": "Pausar novidades",
+      "de": "Neuigkeiten pausieren",
+      "fr": "Mettre en pause les actualités",
+      "ko": "뉴스 일시 정지",
+      "pl": "Wstrzymaj wiadomości",
+      "vi": "Tạm dừng tin tức",
+      "tr": "Haberleri duraklat"
+    },
+    "Resume news": {
+      "en": "Resume news",
+      "es": "Reanudar novedades",
+      "ru": "Возобновить новости",
+      "uk": "Відновити новини",
+      "zh-CN": "继续播放新闻",
+      "ja": "ニュースを再開",
+      "pt-BR": "Retomar novidades",
+      "de": "Neuigkeiten fortsetzen",
+      "fr": "Reprendre les actualités",
+      "ko": "뉴스 다시 재생",
+      "pl": "Wznów wiadomości",
+      "vi": "Tiếp tục tin tức",
+      "tr": "Haberleri sürdür"
+    },
+    "Hide this": {
+      "en": "Hide this",
+      "es": "Ocultar",
+      "ru": "Скрыть",
+      "uk": "Приховати",
+      "zh-CN": "隐藏",
+      "ja": "非表示",
+      "pt-BR": "Ocultar",
+      "de": "Ausblenden",
+      "fr": "Masquer",
+      "ko": "숨기기",
+      "pl": "Ukryj",
+      "vi": "Ẩn mục này",
+      "tr": "Gizle"
+    },
+    "Show me": {
+      "en": "Show me",
+      "es": "Ver",
+      "ru": "Показать",
+      "uk": "Показати",
+      "zh-CN": "查看",
+      "ja": "表示",
+      "pt-BR": "Ver",
+      "de": "Zeigen",
+      "fr": "Voir",
+      "ko": "보기",
+      "pl": "Pokaż",
+      "vi": "Xem",
+      "tr": "Göster"
+    },
+    "View profile": {
+      "en": "View profile",
+      "es": "Ver perfil",
+      "ru": "Открыть профиль",
+      "uk": "Відкрити профіль",
+      "zh-CN": "查看个人资料",
+      "ja": "プロフィールを表示",
+      "pt-BR": "Ver perfil",
+      "de": "Profil anzeigen",
+      "fr": "Voir le profil",
+      "ko": "프로필 보기",
+      "pl": "Zobacz profil",
+      "vi": "Xem hồ sơ",
+      "tr": "Profili görüntüle"
+    },
+    "Usage": {
+      "en": "Usage",
+      "es": "Uso",
+      "ru": "Использование",
+      "uk": "Використання",
+      "zh-CN": "用量",
+      "ja": "使用量",
+      "pt-BR": "Uso",
+      "de": "Nutzung",
+      "fr": "Utilisation",
+      "ko": "사용량",
+      "pl": "Użycie",
+      "vi": "Mức sử dụng",
+      "tr": "Kullanım"
+    },
+    "Open": {
+      "en": "Open",
+      "es": "Abrir",
+      "ru": "Открыть",
+      "uk": "Відкрити",
+      "zh-CN": "打开",
+      "ja": "開く",
+      "pt-BR": "Abrir",
+      "de": "Offen",
+      "fr": "Ouvrir",
+      "ko": "열기",
+      "pl": "Otwórz",
+      "vi": "Mở",
+      "tr": "Açık"
+    },
+    "What's New": {
+      "en": "What's New",
+      "es": "Novedades",
+      "ru": "Что нового",
+      "uk": "Що нового",
+      "zh-CN": "新功能",
+      "ja": "新着情報",
+      "pt-BR": "Novidades",
+      "de": "Neuigkeiten",
+      "fr": "Nouveautés",
+      "ko": "새 소식",
+      "pl": "Nowości",
+      "vi": "Có gì mới",
+      "tr": "Yenilikler"
+    },
+    "Close": {
+      "en": "Close",
+      "es": "Cerrar",
+      "ru": "Закрыть",
+      "uk": "Закрити",
+      "zh-CN": "关闭",
+      "ja": "閉じる",
+      "pt-BR": "Fechar",
+      "de": "Schließen",
+      "fr": "Fermer",
+      "ko": "닫기",
+      "pl": "Zamknij",
+      "vi": "Đóng",
+      "tr": "Kapat"
+    },
+    "Include your streaks, prompt counts, and usage limits in the news line.": {
+      "en": "Include your streaks, prompt counts, and usage limits in the news line.",
+      "es": "Incluye tus rachas, cantidad de prompts y límites de uso en la línea de novedades.",
+      "ru": "Показывать ваши серии, число запросов и лимиты использования в строке новостей.",
+      "uk": "Показувати ваші серії, кількість запитів і ліміти використання в рядку новин.",
+      "zh-CN": "在新闻栏中显示你的连续记录、提示数量和用量限制。",
+      "ja": "連続記録、プロンプト数、使用量の上限をニュースラインに表示します。",
+      "pt-BR": "Inclua suas sequências, contagens de prompts e limites de uso na linha de novidades.",
+      "de": "Ihre Serien, Prompt-Anzahlen und Nutzungslimits in der Neuigkeitenzeile anzeigen.",
+      "fr": "Inclure vos séries, nombres de prompts et limites d'utilisation dans la ligne d'actualités.",
+      "ko": "연속 기록, 프롬프트 수, 사용량 한도를 뉴스 라인에 표시합니다.",
+      "pl": "Pokazuj swoje serie, liczbę promptów i limity użycia na pasku wiadomości.",
+      "vi": "Hiển thị chuỗi ngày, số prompt và giới hạn sử dụng của bạn trong dòng tin tức.",
+      "tr": "Serilerinizi, istem sayılarınızı ve kullanım sınırlarınızı haber satırında gösterin."
+    },
+    "Enjoying Poracode? A star helps others find it": {
+      "en": "Enjoying Poracode? A star helps others find it",
+      "es": "¿Te gusta Poracode? Una estrella ayuda a que otros lo encuentren",
+      "ru": "Нравится Poracode? Звезда помогает другим его найти",
+      "uk": "Подобається Poracode? Зірка допомагає іншим його знайти",
+      "zh-CN": "喜欢 Poracode？点个星标能帮助更多人发现它",
+      "ja": "Poracode を気に入っていただけましたか？スターは他の人が見つける助けになります",
+      "pt-BR": "Gostando do Poracode? Uma estrela ajuda outras pessoas a encontrá-lo",
+      "de": "Gefällt Ihnen Poracode? Ein Stern hilft anderen, es zu finden",
+      "fr": "Vous aimez Poracode ? Une étoile aide d'autres personnes à le trouver",
+      "ko": "Poracode가 마음에 드시나요? 별표를 누르면 다른 사람들이 찾기 쉬워집니다",
+      "pl": "Podoba ci się Poracode? Gwiazdka pomaga innym go znaleźć",
+      "vi": "Bạn thích Poracode? Một ngôi sao giúp người khác tìm thấy nó",
+      "tr": "Poracode'u beğendiniz mi? Bir yıldız başkalarının onu bulmasına yardımcı olur"
+    },
+    "Star on GitHub": {
+      "en": "Star on GitHub",
+      "es": "Dar estrella en GitHub",
+      "ru": "Поставить звезду на GitHub",
+      "uk": "Поставити зірку на GitHub",
+      "zh-CN": "在 GitHub 上加星标",
+      "ja": "GitHub でスターを付ける",
+      "pt-BR": "Dar estrela no GitHub",
+      "de": "Auf GitHub mit Stern markieren",
+      "fr": "Ajouter une étoile sur GitHub",
+      "ko": "GitHub에서 별표 누르기",
+      "pl": "Daj gwiazdkę na GitHubie",
+      "vi": "Gắn sao trên GitHub",
+      "tr": "GitHub'da yıldız verin"
+    },
+    "Release notes and tips, first on X": {
+      "en": "Release notes and tips, first on X",
+      "es": "Notas de versión y consejos, primero en X",
+      "ru": "Примечания к выпускам и советы — сначала в X",
+      "uk": "Примітки до випусків і поради — спершу в X",
+      "zh-CN": "发布说明和技巧，X 上抢先看",
+      "ja": "リリースノートとヒントは X でいち早く",
+      "pt-BR": "Notas de versão e dicas, primeiro no X",
+      "de": "Versionshinweise und Tipps – zuerst auf X",
+      "fr": "Notes de version et astuces, d'abord sur X",
+      "ko": "릴리스 노트와 팁을 X에서 가장 먼저",
+      "pl": "Informacje o wersjach i porady, najpierw na X",
+      "vi": "Ghi chú phát hành và mẹo, có trước trên X",
+      "tr": "Sürüm notları ve ipuçları önce X'te"
+    },
+    "Behind the scenes from the person building Poracode": {
+      "en": "Behind the scenes from the person building Poracode",
+      "es": "Detrás de escena con la persona que crea Poracode",
+      "ru": "Закулисье от человека, который создаёт Poracode",
+      "uk": "Закулісся від людини, яка створює Poracode",
+      "zh-CN": "来自 Poracode 开发者的幕后故事",
+      "ja": "Poracode を作っている本人による舞台裏",
+      "pt-BR": "Bastidores com a pessoa que cria o Poracode",
+      "de": "Blick hinter die Kulissen von der Person, die Poracode entwickelt",
+      "fr": "Les coulisses, par la personne qui développe Poracode",
+      "ko": "Poracode를 만드는 사람의 비하인드 스토리",
+      "pl": "Kulisy od osoby, która tworzy Poracode",
+      "vi": "Hậu trường từ người xây dựng Poracode",
+      "tr": "Poracode'u geliştiren kişiden perde arkası"
+    }
+  }
+}

@@ -4,6 +4,7 @@ import { beforeEach, expect, it, vi } from "vitest";
 import type { AgentStatus, ForgePrReviewGuideResult } from "@/shared/contracts";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
+import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 
 const bridge = vi.hoisted(() => ({
@@ -89,6 +90,49 @@ beforeEach(() => {
     commitGenFast: false,
     commitGenSelection: undefined,
   });
+});
+
+it("uses the review's desktop to choose its guide writer", async () => {
+  const { runtime } = useRemoteServersStore.getState();
+  const remoteServerId = "review-desktop";
+  const remoteInput = {
+    ...input,
+    projectLocation: { ...input.projectLocation, remoteServerId },
+  };
+  useAgentStatusesStore.setState({
+    agentStatuses: [{ ...writer, kind: "other-writer", label: "Other desktop writer" }],
+  });
+  useRemoteServersStore.setState({
+    runtime: {
+      ...runtime,
+      [remoteServerId]: {
+        status: "online",
+        projects: [],
+        threads: [],
+        agentStatuses: { windows: [writer], wsl: [], updatedAt: "2026-10-20T00:00:00Z" },
+      },
+    },
+  });
+  try {
+    render(
+      <PrReviewGuideTab
+        input={remoteInput}
+        rawDiff={rawDiff}
+        disabled={false}
+        onSelectFile={() => {}}
+        finishReview={null}
+      />,
+    );
+    expect(await screen.findByText("First stop")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Rewrite guide" }));
+    await waitFor(() =>
+      expect(bridge.forgeWritePrReviewGuide).toHaveBeenCalledExactlyOnceWith(
+        expect.objectContaining({ ...remoteInput, agentKind: writer.kind }),
+      ),
+    );
+  } finally {
+    useRemoteServersStore.setState({ runtime });
+  }
 });
 
 it("navigates stops, opens files and offers the finish action on the last stop", async () => {

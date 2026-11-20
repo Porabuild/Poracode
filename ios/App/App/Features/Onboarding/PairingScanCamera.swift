@@ -2,20 +2,6 @@ import AVFoundation
 import SwiftUI
 import UIKit
 
-/// Whether the scan route can work at all on this device, decided without ever
-/// prompting: no capture device (the iOS Simulator), or access already refused.
-/// `AVCaptureDevice.requestAccess` is deliberately *not* called here — asking for
-/// the camera must stay a consequence of tapping Scan.
-enum OnboardingScanAvailability {
-  static var isScanningUnavailable: Bool {
-    if AVCaptureDevice.default(for: .video) == nil { return true }
-    switch AVCaptureDevice.authorizationStatus(for: .video) {
-    case .denied, .restricted: return true
-    default: return false
-    }
-  }
-}
-
 /// Camera plumbing for the pairing-code scanner.
 ///
 /// The `AVCaptureSession` is confined to `queue`: device discovery, configuration,

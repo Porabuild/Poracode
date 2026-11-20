@@ -69,7 +69,13 @@ final class BrowserMirrorComposition {
   private let gate: BrowserMirrorForegroundGate
   private let rawSocket: BrowserMirrorSessionSocket
   private let socketProvider: @MainActor () -> (any SessionLiveSocket)?
-  private var sink: BrowserMirrorControllerSink?
+  private struct Attachment {
+    let socket: any SessionLiveSocket
+    let lease: BrowserMirrorHostLease
+    let sink: BrowserMirrorControllerSink
+    var isReady = false
+  }
+  private var attachment: Attachment?
   private var boundGeneration: UInt64?
   private var boundLease: BrowserMirrorHostLease?
 
@@ -116,9 +122,6 @@ final class BrowserMirrorComposition {
 
   func activate() async {
     gate.isForeground = true
-    let value = BrowserMirrorControllerSink(controller: controller)
-    sink = value
-    await socketProvider()?.attachBrowserMirrorSink(value)
     await controller.beginWatching()
     await synchronizeSocket()
   }
@@ -126,11 +129,12 @@ final class BrowserMirrorComposition {
   /// Invalidates all feature-owned work: the sink is detached, the watch is released, and
   /// frame bytes are dropped. A later activation starts from a fresh authoritative read.
   func deactivate() async {
-    sink = nil
+    let previous = attachment
+    attachment = nil
     boundGeneration = nil
     boundLease = nil
-    await socketProvider()?.attachBrowserMirrorSink(nil)
     await controller.endWatching()
+    if let previous { await previous.socket.detachBrowserMirrorSink(previous.sink) }
   }
 
   func suspend() {
@@ -152,6 +156,10 @@ final class BrowserMirrorComposition {
       boundLease = nil
     }
     await controller.updateAccess(access)
+    if let previous = attachment, previous.lease != controller.currentLease {
+      attachment = nil
+      await previous.socket.detachBrowserMirrorSink(previous.sink)
+    }
     await synchronizeSocket()
   }
 
@@ -159,8 +167,11 @@ final class BrowserMirrorComposition {
   /// already bound are ignored, so the intent stays idempotent across reconnects.
   func synchronizeSocket() async {
     guard controller.watchIntent, let lease = controller.currentLease,
+      controller.access?.isReady == true, let socket = socketProvider(),
       let generation = await rawSocket.currentSocketGeneration(lease: lease),
-      controller.currentLease == lease
+      controller.currentLease == lease, socketProvider()?.matchesIdentity(socket) == true,
+      await attachSink(to: socket, lease: lease),
+      controller.currentLease == lease, socketProvider()?.matchesIdentity(socket) == true
     else { return }
     guard boundGeneration != generation || boundLease != lease else { return }
     if let previous = boundGeneration, let previousLease = boundLease {
@@ -169,6 +180,31 @@ final class BrowserMirrorComposition {
     boundGeneration = generation
     boundLease = lease
     await controller.socketReady(lease: lease, socketGeneration: generation)
+  }
+
+  private func attachSink(to socket: any SessionLiveSocket, lease: BrowserMirrorHostLease) async -> Bool {
+    if let attachment, attachment.lease == lease, attachment.socket.matchesIdentity(socket) {
+      return attachment.isReady
+    }
+    let previous = attachment
+    if let generation = boundGeneration, let previousLease = boundLease {
+      controller.socketClosed(lease: previousLease, socketGeneration: generation)
+    }
+    boundGeneration = nil
+    boundLease = nil
+    let sink = BrowserMirrorControllerSink(controller: controller, lease: lease)
+    attachment = Attachment(socket: socket, lease: lease, sink: sink)
+    await socket.attachBrowserMirrorSink(sink)
+    if let previous { await previous.socket.detachBrowserMirrorSink(previous.sink) }
+    guard attachment?.sink === sink, controller.watchIntent,
+      controller.currentLease == lease, socketProvider()?.matchesIdentity(socket) == true
+    else {
+      if attachment?.sink === sink { attachment = nil }
+      await socket.detachBrowserMirrorSink(sink)
+      return false
+    }
+    attachment?.isReady = true
+    return true
   }
 
   func socketDisconnected() {
