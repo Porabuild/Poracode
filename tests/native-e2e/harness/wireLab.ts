@@ -25,7 +25,12 @@ import { FIXTURE_THREAD_ID } from "./labFixtures.ts";
 import { bearerToken, handleLabHttp } from "./labHttpDispatch.ts";
 import { handleLabUpgrade } from "./labWsRouter.ts";
 import { loadProtocolManifest, type ProtocolManifest } from "./manifest.ts";
-import { appendScriptEntry, loadScriptJournal, type DurableScriptDraft } from "./durableScripts.ts";
+import { appendScriptEntry, type DurableScriptDraft } from "./durableScripts.ts";
+import {
+  normalizeLabBasePath,
+  pairingTokenFromUrl,
+  replayDurableScriptEntries,
+} from "./wireLabHelpers.ts";
 import { assertGeneratedSchemaDefinitions } from "./generatedContract.ts";
 import { LabLifecycleState } from "./lifecycleState.ts";
 import { assertLoopbackHost } from "./loopback.ts";
@@ -247,6 +252,7 @@ export class WireLab {
   }
 
   async stop(): Promise<void> {
+    this.routes.releaseAttachment();
     // Abort a checkpoint-held request before waiting for HTTP sockets to drain.
     this.workspace.agentDiscovery.reset();
     for (const connection of this.connections) {
@@ -268,6 +274,12 @@ export class WireLab {
     this.wss = null;
     this.info = null;
     this.observationLedger.dispose();
+  }
+
+  disconnectFixtureSockets(): void {
+    for (const connection of this.connections) {
+      connection.ws.terminate();
+    }
   }
 
   reset(): void {
@@ -399,17 +411,11 @@ export class WireLab {
     if (!this.journalPath) return;
     this.replayingScripts = true;
     try {
-      for (const entry of loadScriptJournal(this.journalPath).entries) {
-        if (entry.kind === "clear") {
-          this.faults.clear();
-          continue;
-        }
-        if (entry.kind === "fault") {
-          this.activateFaultFixture(entry.id, { persist: false });
-          continue;
-        }
-        this.applyCheckpoint(entry.id, { persist: false });
-      }
+      replayDurableScriptEntries(this.journalPath, {
+        clearFaults: () => this.faults.clear(),
+        activateFault: (id) => this.activateFaultFixture(id, { persist: false }),
+        applyCheckpoint: (id) => this.applyCheckpoint(id, { persist: false }),
+      });
     } finally {
       this.replayingScripts = false;
     }
@@ -474,19 +480,4 @@ export class WireLab {
   }
 }
 
-function normalizeLabBasePath(value: string | undefined): string {
-  if (!value) return "";
-  const trimmed = value.trim();
-  if (!trimmed || trimmed === "/") return "";
-  const withLead = trimmed.startsWith("/") ? trimmed : `/${trimmed}`;
-  return withLead.replace(/\/+$/, "");
-}
-
-export function pairingTokenFromUrl(pairingUrl: string): string {
-  const url = new URL(pairingUrl);
-  const token = new URLSearchParams(url.hash.replace(/^#/, "")).get("token");
-  if (!token) throw new Error("Pairing URL is missing a token fragment.");
-  return token;
-}
-
-export { joinBasePath };
+export { joinBasePath, pairingTokenFromUrl };

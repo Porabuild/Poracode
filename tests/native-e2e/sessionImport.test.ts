@@ -29,9 +29,13 @@ it("imports a listed CLI session as an inactive resumable thread and reconciles 
     capabilities: { sessionImport: { versions: [1] } },
   });
   const listing = await (
-    await call("/api/git/call", { procedure: "listImportableSessions", payload: {} })
+    await call("/api/git/call", {
+      procedure: "listImportableSessions",
+      payload: { query: " CLI LAYOUT REVIEW " },
+    })
   ).json();
   const session = listing.result.sessions[0];
+  expect(session.title).toBe("CLI layout review");
   expect(session.model).toBe("gpt-5");
   const registration = { kind: "add-existing", path: session.cwd };
   const first = await (await call("/api/projects/command", registration)).json();

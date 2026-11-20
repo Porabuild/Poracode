@@ -18,6 +18,7 @@ export interface LabConnection {
   readonly session: AuthenticatedSession;
   interests: ReadonlySet<string> | null;
   readonly terminalWatches: Set<string>;
+  readonly pendingTerminalBaseline: Map<string, string>;
   browserWatching: boolean;
   gitStateInterests: readonly Record<string, unknown>[];
   /** True when the `/ws` upgrade opted into the desktop-internal stream

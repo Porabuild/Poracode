@@ -141,8 +141,9 @@ export async function exerciseCoreWebSocket(
   harness: StartedMockHarness,
   accessToken: string,
 ): Promise<void> {
+  const expectedSeq = harness.lab.ring.seq;
   const first = await openReadySocket(harness, accessToken);
-  assert.deepEqual(first.ready, { type: "ready", seq: 0 });
+  assert.deepEqual(first.ready, { type: "ready", seq: expectedSeq });
   first.ws.send(JSON.stringify(CLIENT_WS_FIXTURES["agent-vision-watch"]));
   assert.equal(((await first.next()) as { type: string }).type, "agent-vision-frame");
   first.ws.send(JSON.stringify(CLIENT_WS_FIXTURES["agent-vision-unwatch"]));

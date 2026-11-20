@@ -58,6 +58,18 @@ export function machineProviderOrderAgentEvents(): Record<string, unknown>[] {
   return [...native, ...wsl];
 }
 
+export function providerHandoffAgentEvents(): Record<string, unknown>[] {
+  return composerControlAgentEvents().map((event) => {
+    const status = event.status as Record<string, unknown>;
+    if (status.kind !== "fixture-reviewer") return event;
+    const capabilities = status.capabilities as Record<string, unknown>;
+    return {
+      ...event,
+      status: { ...status, capabilities: { ...capabilities, presentationModes: ["terminal"] } },
+    };
+  });
+}
+
 /** Encoded toy relation for native adaptive family selectors; no provider payload. */
 export function composerFamilyAgentEvent(): Record<string, unknown> {
   const members = [

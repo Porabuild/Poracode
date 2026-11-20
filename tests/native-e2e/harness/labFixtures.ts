@@ -23,6 +23,8 @@ export function buildEnvironmentDescriptor(input: {
   readonly conversationSnapshots?: boolean;
   readonly catalogMutations?: boolean;
   readonly toolPresentation?: boolean;
+  readonly threadForks?: boolean;
+  readonly environmentManagement?: boolean;
 }): Record<string, unknown> {
   const platform =
     process.platform === "darwin" || process.platform === "linux" ? process.platform : undefined;
@@ -48,6 +50,8 @@ export function buildEnvironmentDescriptor(input: {
     capabilities: {
       ...(input.conversationSnapshots ? { conversationSnapshots: { versions: [1] } } : {}),
       ...(input.catalogMutations ? { catalogMutations: { versions: [1] } } : {}),
+      ...(input.threadForks ? { threadForks: { versions: [1] } } : {}),
+      ...(input.environmentManagement ? { sshEnvironments: { versions: [1] } } : {}),
       sessionImport: { versions: [1] },
       terminalCursorSync: {
         versions: [1],
@@ -204,3 +208,7 @@ export function allReplayableEventFixtures(): Record<string, unknown>[] {
 export function defaultGrantedScopes(scopes: readonly string[]): readonly RemoteScope[] {
   return scopes as readonly RemoteScope[];
 }
+export const TRANSCRIPT_CODE_COPY_BLOCKS = [
+  "  first value = café\n\n```\n  first marker",
+  "second value = 東京\n\tsecond marker",
+] as const;

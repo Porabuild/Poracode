@@ -27,6 +27,7 @@ const LIFECYCLE_ROUTE_IDS = new Set([
   "project-notes-write",
   "attachment-upload",
   "thread-history",
+  "thread-history-changes",
   "thread-item-presentations",
   "thread-history-items",
   "thread-start-existing",
@@ -52,13 +53,27 @@ export async function handleLifecycleHttp(
   if (!LIFECYCLE_ROUTE_IDS.has(routeId)) return false;
   if (routeId.startsWith("mcp-settings-") && !runtime.lifecycle.composerTools.enabled) return false;
   if (routeId === "catalog-membership" && !runtime.lifecycle.sideChats.enabled) return false;
+  if (routeId === "thread-history-changes" && !runtime.lifecycle.threadHistoryChangesEnabled) {
+    return false;
+  }
   const input = await validateRouteRequest(req, url, routeId, params);
   const body = input.body as Record<string, unknown>;
   const threadId = String(input.params.threadId ?? "");
+  const startsProviderHandoff =
+    routeId === "thread-command" &&
+    body.kind === "start" &&
+    body.parentThreadId === undefined &&
+    runtime.lifecycle.providerHandoffEnabled;
   if (
     routeId.startsWith("thread-") &&
     routeId !== "thread-start-existing" &&
     !(routeId === "thread-command" && body.kind === "import-session") &&
+    !startsProviderHandoff &&
+    !(
+      routeId === "thread-command" &&
+      body.kind === "fork" &&
+      runtime.lifecycle.threadForks.enabled
+    ) &&
     !(
       routeId === "thread-command" &&
       body.kind === "start" &&
@@ -164,11 +179,12 @@ export async function handleLifecycleHttp(
       );
       recordRouteFollowUps(runtime, routeId);
       return true;
-    case "project-notes-write":
-      runtime.lifecycle.writeNotes(String(input.params.projectId), body);
-      markMutation(runtime, routeId);
-      writeValidatedRoute(runtime, res, routeId, {});
+    case "project-notes-write": {
+      const result = runtime.lifecycle.writeNotes(String(input.params.projectId), body);
+      if (result?.status !== "conflict") markMutation(runtime, routeId);
+      writeValidatedRoute(runtime, res, routeId, result ? { result } : {});
       return true;
+    }
     case "attachment-upload": {
       const path = runtime.lifecycle.saveAttachment(
         String(input.query.threadId),
@@ -181,19 +197,78 @@ export async function handleLifecycleHttp(
     }
     case "thread-history": {
       const history = runtime.lifecycle.history(runtime.ring.seq, threadId);
+      const bounded =
+        (runtime.lifecycle.sideChats.enabled || runtime.lifecycle.threadHistoryChangesEnabled) &&
+        input.query.reads === "bounded-v1";
       writeValidatedRoute(
         runtime,
         res,
         routeId,
-        runtime.lifecycle.sideChats.enabled && input.query.reads === "bounded-v1"
+        bounded
           ? {
               ...history,
               reads: "bounded-v1",
               runtimeNextCursor: null,
               completedTurnsNextCursor: null,
+              ...(runtime.lifecycle.threadHistoryChangesEnabled
+                ? { runtimeResumeCursor: "hr1.fixture" }
+                : {}),
             }
           : history,
       );
+      recordRouteFollowUps(runtime, routeId);
+      return true;
+    }
+    case "thread-history-changes": {
+      const history = runtime.lifecycle.history(runtime.ring.seq, threadId);
+      const afterSeq = typeof input.query.afterSeq === "number" ? input.query.afterSeq : 0;
+      const baseSeq = Math.max(
+        runtime.ring.seq,
+        typeof history.snapshotSeq === "number" ? history.snapshotSeq : 0,
+        afterSeq,
+      );
+      const nextSeq = baseSeq + 1;
+      const alreadyResumed = input.query.cursor === "hr1.fixture.resumed";
+      const deltaText = "Warm resume delta delivered";
+      writeValidatedRoute(runtime, res, routeId, {
+        kind: "events",
+        snapshotSeq: alreadyResumed ? baseSeq : nextSeq,
+        runtimeResumeCursor: "hr1.fixture.resumed",
+        thread: history.thread,
+        completedTurns: history.completedTurns ?? [],
+        completedTurnsNextCursor: null,
+        contextUsage: history.contextUsage ?? null,
+        backgroundTasks: history.backgroundTasks ?? [],
+        followUpQueue: history.followUpQueue ?? null,
+        batches: alreadyResumed
+          ? []
+          : [
+              {
+                seq: nextSeq,
+                events: [
+                  {
+                    type: "item.started",
+                    threadId,
+                    itemId: "item-warm-resume-delta",
+                    itemType: "assistant_message",
+                    payload: {},
+                  },
+                  {
+                    type: "content.delta",
+                    threadId,
+                    itemId: "item-warm-resume-delta",
+                    stream: "assistant_text",
+                    delta: deltaText,
+                  },
+                  {
+                    type: "item.completed",
+                    threadId,
+                    itemId: "item-warm-resume-delta",
+                  },
+                ],
+              },
+            ],
+      });
       recordRouteFollowUps(runtime, routeId);
       return true;
     }
@@ -222,6 +297,12 @@ export async function handleLifecycleHttp(
     case "thread-start-existing":
       markMutation(runtime, routeId);
       writeValidatedRoute(runtime, res, routeId, runtime.lifecycle.start(body));
+      if (body.providerSwitch) {
+        runtime.publishEvent({
+          type: "remote-threads-changed",
+          threadIds: [String(body.threadId)],
+        });
+      }
       return true;
     case "thread-runtime-truncate":
       runtime.lifecycle.truncate(String(body.itemId));
@@ -236,7 +317,10 @@ export async function handleLifecycleHttp(
       );
       return true;
     case "thread-command":
-      if (body.kind === "start" && runtime.lifecycle.sideChats.enabled) {
+      if (startsProviderHandoff) {
+        runtime.lifecycle.startProviderHandoff(threadId, body);
+        runtime.publishEvent({ type: "remote-threads-changed", threadIds: [threadId] });
+      } else if (body.kind === "start" && runtime.lifecycle.sideChats.enabled) {
         runtime.lifecycle.startSideChat(
           threadId,
           body,
@@ -246,8 +330,27 @@ export async function handleLifecycleHttp(
       } else if (body.kind === "delete" && runtime.lifecycle.sideChats.has(threadId)) {
         runtime.lifecycle.sideChats.remove(threadId);
         runtime.publishEvent({ type: "remote-threads-changed", threadIds: [threadId] });
+      } else if (body.kind === "fork" && runtime.lifecycle.threadForks.enabled) {
+        const sourceId = String(body.sourceThreadId);
+        if (!runtime.lifecycle.hasThread(sourceId)) {
+          throw new LabHttpError("not_found", "Source thread not found.", 404);
+        }
+        runtime.lifecycle.threadForks.create(
+          threadId,
+          headerValue(req, REMOTE_COMMAND_ID_HEADER) ?? "",
+          { ...body, threadId },
+          runtime.lifecycle.history(runtime.ring.seq, sourceId),
+        );
+        runtime.publishEvent({ type: "remote-threads-changed", threadIds: [threadId] });
       } else if (body.kind === "import-session") runtime.lifecycle.importSession(threadId, body);
-      else runtime.lifecycle.command(body);
+      else {
+        runtime.lifecycle.command(body);
+        if (
+          ["rename", "set-done", "set-starred", "archive", "unarchive"].includes(String(body.kind))
+        ) {
+          runtime.publishEvent({ type: "remote-threads-changed", threadIds: [threadId] });
+        }
+      }
       return writeOkMutation(runtime, res, routeId);
     case "thread-send":
       if (runtime.lifecycle.sideChats.has(threadId)) {

@@ -32,6 +32,8 @@ export function createWireLabRuntime(lab: WireLab): LabRuntime {
         conversationSnapshots: lab.lifecycle.sideChats.enabled,
         catalogMutations: lab.lifecycle.composerPreferencesEnabled,
         toolPresentation: lab.lifecycle.toolPresentationEnabled,
+        threadForks: lab.lifecycle.threadForks.enabled,
+        environmentManagement: lab.routes.environmentManagementEnabled,
       }),
     publishEvent: (event) => lab.publishEvent(event),
     send: (ws, message) => lab.sendMessage(ws, message),
