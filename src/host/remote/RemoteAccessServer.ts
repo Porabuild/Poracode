@@ -18,6 +18,7 @@ import { performance } from "node:perf_hooks";
 import { WebSocket, WebSocketServer } from "ws";
 import { recordHandlerTiming } from "@/shared/diagnostics/handlerTimingObservations";
 import type { IpcProcedurePayload, SupervisorProcedureName } from "@/shared/ipc";
+import type { SupervisorCallOptions } from "@/host/supervisor/SupervisorClient";
 import { AsyncWorkTracker } from "@/shared/asyncWorkTracker";
 import {
   toWebSocketUrl,
@@ -437,10 +438,13 @@ export class RemoteAccessServer {
         callSupervisor: async <Name extends SupervisorProcedureName>(
           name: Name,
           payload: IpcProcedurePayload<Name>,
+          callOptions?: SupervisorCallOptions,
         ) => {
           const startedAt = performance.now();
           try {
-            return await this.options.callSupervisor(name, payload);
+            return await (callOptions === undefined
+              ? this.options.callSupervisor(name, payload)
+              : this.options.callSupervisor(name, payload, callOptions));
           } finally {
             recordHandlerTiming(`supervisor:${name}`, performance.now() - startedAt);
           }

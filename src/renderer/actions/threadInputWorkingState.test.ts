@@ -47,7 +47,9 @@ import {
   confirmPendingThreadInput,
   hasPendingThreadInput,
   retainPendingThreadInput,
+  retirePendingProviderSwitch,
 } from "@/renderer/state/pendingThreadInput";
+import { applyRemoteThreadStartCommand } from "./remoteStartCommandActions";
 import { performInitialThreadLaunch } from "./threadLaunchActions";
 import { performThreadInputSubmit } from "./threadRuntimeActions";
 import { useThreadIsWaitingForBackground } from "@/renderer/hooks/uiSelectors";
@@ -132,6 +134,8 @@ describe("working state during prompt admission", () => {
     __resetManagedRootCatalogStoreForTest();
     confirmPendingThreadInput(idle.id);
     confirmPendingThreadInput(projectRemoteThread("desktop", idle).id);
+    retirePendingProviderSwitch(idle.id);
+    retirePendingProviderSwitch(projectRemoteThread("desktop", idle).id);
     resetClientRuntimeForTest();
     useAppStore.setState({ threads: [], projects: [], view: { kind: "home" } });
   });
@@ -858,5 +862,249 @@ describe("working state during prompt admission", () => {
     sendGate.resolve();
     await sending;
     vi.useRealTimers();
+  });
+
+  it("keeps an optimistic provider switch across pre-switch catalog, snapshot, desktop echo, and untagged events", async () => {
+    const startGate = deferred();
+    mocks.startThread.mockReturnValueOnce(startGate.promise.then(() => ({ threadId: idle.id })));
+
+    useAppStore.getState().applyProviderSwitch(idle.id, {
+      agentKind: "cursor:work",
+      config: { model: "cursor-model" },
+      presentationMode: "gui",
+    });
+    useAppStore.getState().applyRuntimeEvent(idle.id, {
+      type: "item.started",
+      threadId: idle.id,
+      itemId: "handoff-1",
+      itemType: "provider_handoff",
+      payload: {
+        fromAgentKind: idle.agentKind,
+        toAgentKind: "cursor:work",
+        at: "2026-05-10T14:00:00.000Z",
+      },
+    });
+    useAppStore.getState().queueThreadLaunch(idle.id, "Continue", undefined, "msg-switch", {
+      providerSwitch: { fromAgentKind: idle.agentKind, handoffItemId: "handoff-1" },
+    });
+
+    const preSwitchSnapshot: RemoteThreadSnapshot = {
+      ...snapshot({ ...idle, status: "needs_approval", attention: "needs_approval" }),
+      contextUsage: { usedTokens: 42_000, maxTokens: 100_000 },
+      backgroundTasks: [
+        {
+          taskId: "bg-old",
+          description: "old task",
+          kind: "command",
+          startedAt: 1_715_349_540_000,
+        },
+      ],
+      runtimeItems: [
+        {
+          id: "old-item-1",
+          type: "assistant_message",
+          state: "completed",
+          streams: { text: "old reply" },
+        },
+        {
+          id: "old-req-1",
+          type: "approval_request",
+          state: "started",
+          streams: {},
+          payload: { requestId: "req-old", title: "Old approval" },
+        },
+      ],
+    };
+
+    // Pre-switch catalog and snapshot reads arriving before ThreadView consumes
+    // the launch must keep the target provider, its config tracking, and not
+    // resurrect abandoned-provider runtime state or erase the handoff divider.
+    applyRootCatalogThreadRows([idle], new Set());
+    applyThreadSnapshot(preSwitchSnapshot);
+    expect(currentThread()).toMatchObject({
+      agentKind: "cursor:work",
+      config: { model: "cursor-model" },
+      status: "launching",
+    });
+    expect(useAppStore.getState().lastRuntimeConfigByThreadId[idle.id]).toEqual({
+      model: "cursor-model",
+    });
+    expect(useAppStore.getState().runtimeContextByThread[idle.id]).toBeUndefined();
+    expect(useAppStore.getState().runtimeBackgroundTasksByThread[idle.id]).toBeUndefined();
+    expect(useAppStore.getState().runtimeRequestsByThread[idle.id] ?? []).toHaveLength(0);
+    expect(useAppStore.getState().runtimeItemIdsByThread[idle.id]).toContain("handoff-1");
+
+    const switched = currentThread();
+    useAppStore.getState().consumeThreadLaunch(idle.id);
+    const launching = performInitialThreadLaunch({
+      thread: switched,
+      prompt: "Continue",
+      userMessageItemId: "msg-switch",
+      providerSwitch: { fromAgentKind: idle.agentKind, handoffItemId: "handoff-1" },
+      projectLocation: project.location,
+      initialSize: { cols: 80, rows: 24 },
+    });
+
+    // Desktop loopback's same-provider retarget echo and untagged idle state
+    // events must not tear down the active pre-switch guard while startThread is in flight.
+    applyRemoteThreadStartCommand({
+      kind: "start",
+      threadId: idle.id,
+      projectId: project.id,
+      agentKind: "cursor:work",
+      config: { model: "cursor-model" },
+      prompt: "Continue",
+      initialSize: { cols: 80, rows: 24 },
+      presentationMode: "gui",
+      providerSwitch: { fromAgentKind: idle.agentKind, handoffItemId: "handoff-1" },
+    });
+    dispatchRemoteSupervisorEvent({
+      type: "thread-state",
+      threadId: idle.id,
+      status: "idle",
+      attention: "none",
+      canResumeWithConfig: false,
+    });
+
+    applyRootCatalogThreadRows([idle], new Set());
+    applyThreadSnapshot(preSwitchSnapshot);
+    expect(currentThread()).toMatchObject({
+      agentKind: "cursor:work",
+      config: { model: "cursor-model" },
+    });
+    expect(useAppStore.getState().runtimeContextByThread[idle.id]).toBeUndefined();
+    expect(useAppStore.getState().runtimeRequestsByThread[idle.id] ?? []).toHaveLength(0);
+
+    // Once the host serves the target provider as working, pending input is confirmed
+    // so a subsequent idle refresh settles cleanly to idle.
+    const hostSwitched: Thread = {
+      ...switched,
+      status: "working",
+      attention: "working",
+    };
+    applyRootCatalogThreadRows([hostSwitched], new Set());
+    expect(currentThread()).toMatchObject({
+      agentKind: "cursor:work",
+      status: "working",
+    });
+    expect(hasPendingThreadInput(idle.id)).toBe(false);
+    applyRootCatalogThreadRows([{ ...hostSwitched, status: "idle", attention: "none" }], new Set());
+    expect(currentThread().status).toBe("idle");
+
+    startGate.resolve();
+    await launching;
+  });
+
+  it("allows another provider, archive, prompt-less settle, and later switch-back to take over", async () => {
+    const startGate = deferred();
+    mocks.startThread.mockReturnValueOnce(startGate.promise.then(() => ({ threadId: idle.id })));
+
+    useAppStore.getState().applyProviderSwitch(idle.id, {
+      agentKind: "cursor:work",
+      config: { model: "cursor-model" },
+      presentationMode: "gui",
+    });
+    const switched = currentThread();
+    const launching = performInitialThreadLaunch({
+      thread: switched,
+      prompt: "",
+      providerSwitch: { fromAgentKind: idle.agentKind, handoffItemId: "handoff-promptless" },
+      projectLocation: project.location,
+      initialSize: { cols: 80, rows: 24 },
+    });
+
+    // A third provider switched concurrently by another client wins immediately.
+    const thirdProvider: Thread = {
+      ...idle,
+      agentKind: "claude",
+      config: { model: "claude-model" },
+      status: "working",
+      attention: "working",
+    };
+    applyRootCatalogThreadRows([thirdProvider], new Set());
+    expect(currentThread().agentKind).toBe("claude");
+
+    // Re-apply target to test archived pre-switch row taking over too.
+    useAppStore.getState().applyProviderSwitch(idle.id, {
+      agentKind: "cursor:work",
+      config: { model: "cursor-model" },
+      presentationMode: "gui",
+    });
+    applyRootCatalogThreadRows([{ ...idle, archived: true }], new Set());
+    expect(currentThread()).toMatchObject({ agentKind: idle.agentKind, archived: true });
+
+    startGate.resolve();
+    await launching;
+    expect(hasPendingThreadInput(idle.id)).toBe(false);
+
+    // After a switch resolves (even without an intermediate target catalog row),
+    // a later multi-client switch back to the original provider is adopted cleanly.
+    useAppStore.getState().applyProviderSwitch(idle.id, {
+      agentKind: "cursor:work",
+      config: { model: "cursor-model" },
+      presentationMode: "gui",
+    });
+    mocks.startThread.mockResolvedValueOnce({ threadId: idle.id });
+    await performInitialThreadLaunch({
+      thread: currentThread(),
+      prompt: "",
+      providerSwitch: { fromAgentKind: idle.agentKind, handoffItemId: "handoff-back" },
+      projectLocation: project.location,
+      initialSize: { cols: 80, rows: 24 },
+    });
+    expect(hasPendingThreadInput(idle.id)).toBe(false);
+    applyRootCatalogThreadRows([idle], new Set());
+    expect(currentThread().agentKind).toBe(idle.agentKind);
+  });
+
+  it("releases the pre-switch catalog guard when a provider switch launch fails", async () => {
+    mocks.startThread.mockRejectedValueOnce(new Error("switch rejected"));
+
+    useAppStore.getState().applyProviderSwitch(idle.id, {
+      agentKind: "cursor:work",
+      config: { model: "cursor-model" },
+      presentationMode: "gui",
+    });
+    const switched = currentThread();
+    await expect(
+      performInitialThreadLaunch({
+        thread: switched,
+        prompt: "Continue",
+        providerSwitch: { fromAgentKind: idle.agentKind, handoffItemId: "handoff-2" },
+        projectLocation: project.location,
+        initialSize: { cols: 80, rows: 24 },
+      }),
+    ).rejects.toThrow("switch rejected");
+
+    // After failure, a catalog refresh restores the host's authoritative provider.
+    applyRootCatalogThreadRows([idle], new Set());
+    expect(currentThread().agentKind).toBe(idle.agentKind);
+  });
+
+  it("releases the pre-switch guard before uncertain-outcome reconciliation", async () => {
+    const uncertain = new RemoteClientError("unknown outcome", 409, "command_outcome_uncertain");
+    mocks.startThread.mockRejectedValueOnce(uncertain);
+    mocks.reconcile.mockImplementationOnce(async () => {
+      applyRootCatalogThreadRows([idle], new Set());
+      return true;
+    });
+
+    useAppStore.getState().applyProviderSwitch(idle.id, {
+      agentKind: "cursor:work",
+      config: { model: "cursor-model" },
+      presentationMode: "gui",
+    });
+    await expect(
+      performInitialThreadLaunch({
+        thread: currentThread(),
+        prompt: "Continue",
+        providerSwitch: { fromAgentKind: idle.agentKind, handoffItemId: "handoff-uncertain" },
+        projectLocation: project.location,
+        initialSize: { cols: 80, rows: 24 },
+      }),
+    ).rejects.toBe(uncertain);
+
+    expect(mocks.reconcile).toHaveBeenCalledTimes(1);
+    expect(currentThread().agentKind).toBe(idle.agentKind);
   });
 });

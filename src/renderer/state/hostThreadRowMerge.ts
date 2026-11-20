@@ -3,7 +3,7 @@ import type { AppView } from "@/shared/contracts/appView";
 import { useAppStore } from "./appStore";
 import { carryActiveTurnTiming } from "./activeTurnTiming";
 import { carryPendingRootLaunchRuntime } from "./hostLaunchRuntime";
-import { carryPendingThreadInput } from "./pendingThreadInput";
+import { carryPendingThreadInput, isPendingProviderSwitchStaleRow } from "./pendingThreadInput";
 import { preservePendingThreadConfig, type PendingThreadConfig } from "./pendingThreadConfig";
 import { removePaneFromView } from "./slices/helpers";
 import { carryVolatileSessionConfigOptions } from "./volatileSessionConfigOptions";
@@ -30,6 +30,13 @@ export function mergeHostThreadRow(
   pendingConfig: PendingThreadConfig | undefined,
 ): Thread {
   if (!resident) return incoming;
+  if (resident.presentationMode === "gui" && resident.agentKind !== incoming.agentKind) {
+    const queuedSwitchFrom =
+      useAppStore.getState().pendingLaunchProviderSwitches[resident.id]?.fromAgentKind;
+    if (isPendingProviderSwitchStaleRow(resident, incoming, queuedSwitchFrom)) {
+      return resident;
+    }
+  }
   const withInput =
     resident.presentationMode === "gui"
       ? carryPendingThreadInput(resident, incoming)

@@ -13,6 +13,11 @@ interface PendingInput {
 }
 const pendingInputs = new Map<string, Set<PendingInput>>();
 
+interface PendingProviderSwitch {
+  readonly fromAgentKind: string;
+}
+const pendingProviderSwitches = new Map<string, Set<PendingProviderSwitch>>();
+
 // How often the host has stated each thread's cut-off marker. A send that
 // fails restores the marker only when the host stayed silent meanwhile: a
 // Stop, or a turn that did start, already decided it.
@@ -41,6 +46,48 @@ export function retainPendingThreadInput(threadId: string): () => void {
     inputs.delete(token);
     if (inputs.size === 0) pendingInputs.delete(threadId);
   };
+}
+
+export function retainPendingProviderSwitch(threadId: string, fromAgentKind: string): () => void {
+  const token: PendingProviderSwitch = { fromAgentKind };
+  const switches = pendingProviderSwitches.get(threadId) ?? new Set<PendingProviderSwitch>();
+  switches.add(token);
+  pendingProviderSwitches.set(threadId, switches);
+  return () => {
+    if (pendingProviderSwitches.get(threadId) !== switches) return;
+    switches.delete(token);
+    if (switches.size === 0) pendingProviderSwitches.delete(threadId);
+  };
+}
+
+export function retirePendingProviderSwitch(threadId: string): void {
+  pendingProviderSwitches.delete(threadId);
+}
+
+/** True when a host row still carries the abandoned provider during an in-flight switch. */
+export function isPendingProviderSwitchStaleRow(
+  resident: Thread | undefined,
+  incoming: Thread,
+  queuedSwitchFromAgentKind?: string,
+): boolean {
+  if (
+    !resident ||
+    resident.id !== incoming.id ||
+    resident.presentationMode !== "gui" ||
+    incoming.presentationMode !== "gui" ||
+    resident.remoteServerId !== incoming.remoteServerId ||
+    resident.agentKind === incoming.agentKind ||
+    incoming.archived
+  ) {
+    return false;
+  }
+  if (queuedSwitchFromAgentKind === incoming.agentKind) return true;
+  const switches = pendingProviderSwitches.get(resident.id);
+  if (!switches) return false;
+  for (const entry of switches) {
+    if (entry.fromAgentKind === incoming.agentKind) return true;
+  }
+  return false;
 }
 
 export function notePendingThreadInputMessage(threadId: string, userMessageItemId: string): void {
@@ -116,7 +163,18 @@ export function carryPendingThreadInput(
     return incoming;
   }
   if (resident.presentationMode !== "gui") return incoming;
-  if (!pendingInputs.has(resident.id) || resident.status !== "working") {
+  const inputs = pendingInputs.get(resident.id);
+  const hostConfirmedOrTerminal =
+    incoming.status === "working" ||
+    incoming.status === "needs_approval" ||
+    incoming.status === "needs_reply" ||
+    incoming.status === "error" ||
+    incoming.archived;
+  if (inputs && hostConfirmedOrTerminal) {
+    confirmPendingThreadInput(resident.id);
+    return incoming;
+  }
+  if (!inputs || resident.status !== "working") {
     const prepared = history?.runtimeStateCurrent
       ? incoming
       : carryPendingRootLaunchRuntime(resident, incoming);
@@ -124,7 +182,6 @@ export function carryPendingThreadInput(
   }
   if (history && (history.runtimeStateCurrent || history.completedTurns.length > 0)) {
     const positions = new Map(history.runtimeItems.map((item, index) => [item.id, index]));
-    const inputs = pendingInputs.get(resident.id)!;
     for (const input of inputs) {
       const position = input.userMessageItemId ? positions.get(input.userMessageItemId) : undefined;
       const confirmedRuntime =
@@ -148,16 +205,6 @@ export function carryPendingThreadInput(
       pendingInputs.delete(resident.id);
       return incoming;
     }
-  }
-  if (
-    incoming.status === "working" ||
-    incoming.status === "needs_approval" ||
-    incoming.status === "needs_reply" ||
-    incoming.status === "error" ||
-    incoming.archived
-  ) {
-    confirmPendingThreadInput(resident.id);
-    return incoming;
   }
   if (
     incoming.status !== "idle" &&

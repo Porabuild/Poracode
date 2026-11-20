@@ -23,7 +23,11 @@ import {
 import { applyAgentStatusSupervisorEvent } from "@/renderer/state/agentStatusesStore";
 import { preservePendingThreadConfig, retainPendingThreadConfigs } from "../pendingThreadConfig";
 import { carryActiveTurnTiming } from "../activeTurnTiming";
-import { carryPendingThreadInput, pendingThreadInputItems } from "../pendingThreadInput";
+import {
+  carryPendingThreadInput,
+  isPendingProviderSwitchStaleRow,
+  pendingThreadInputItems,
+} from "../pendingThreadInput";
 import { projectPendingCatalogEdit } from "../pendingCatalogEdits";
 import { carryVolatileSessionConfigOptions } from "@/renderer/state/volatileSessionConfigOptions";
 import { showUserNotification } from "@/renderer/notifications";
@@ -211,6 +215,17 @@ export function applyThreadSnapshot(
         proof.lastSeenEventSeq() ?? -Infinity,
       ),
     };
+  }
+  const preSnapshotState = useAppStore.getState();
+  const preSnapshotResident = preSnapshotState.threads.find((thread) => thread.id === threadId);
+  if (
+    isPendingProviderSwitchStaleRow(
+      preSnapshotResident,
+      snapshot.thread,
+      preSnapshotState.pendingLaunchProviderSwitches[threadId]?.fromAgentKind,
+    )
+  ) {
+    return { installedAuthoritativeHistory: false };
   }
   // Arbitrate after the flush, before any snapshot write (including metadata
   // and offline caching). A flush can synchronously advance the applied seq.
