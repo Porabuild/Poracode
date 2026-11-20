@@ -5,7 +5,7 @@ import { acquireOrHandoff, type HostResourceAdmission } from "../hostResourceAdm
 import type { SessionRuntime } from "../sessionTypes";
 import { applyLaunchArgsConfigRewrite, mergeCliHookExtraArgs } from "./cliHookArgs";
 import type { CliHookSessionCoordinator } from "./cliHookPlugin";
-import { shouldPrimeNativeProjectShellEnv } from "./helpers";
+import { fenceSessionForRetirement, shouldPrimeNativeProjectShellEnv } from "./helpers";
 import type { PtyLifecycle } from "./ptyLifecycle";
 import type { SessionRetirement } from "./sessionRetirement";
 import { workspaceLaunchConfig, resolveThreadExecution, type SpawnPipeline } from "./spawnPipeline";
@@ -91,10 +91,7 @@ export class InvalidSessionRecoveryCoordinator {
       : undefined;
     const mcpLaunchSnapshot = session.mcpLaunchSnapshot;
 
-    session.ignoreExit = true;
-    context.outputPipeline.clearSessionTimers(session);
-    session.stopSessionRefWatcher?.();
-    session.stopSessionRefWatcher = undefined;
+    fenceSessionForRetirement(session, context.outputPipeline);
     const retirement = await context.retirement.retireAgentSession(session);
     if (retirement.error) {
       lease?.cancel();

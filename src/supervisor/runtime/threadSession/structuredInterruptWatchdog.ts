@@ -1,5 +1,6 @@
 import type { StructuredSessionHandle } from "../../agents/base";
 import type { SessionRuntime } from "../sessionTypes";
+import { retireStructuredSessionState } from "./helpers";
 import { STRUCTURED_INTERRUPT_FORCE_STOP_MS } from "./userInterrupt";
 
 const NO_ACTIVE_TURN_TO_INTERRUPT = "no active turn to interrupt";
@@ -94,7 +95,7 @@ export class StructuredInterruptWatchdog {
     const interruptedSession = session.structuredSession;
     interruptedSession?.forceCompleteTurn?.();
     session.ignoreExit = true;
-    session.structuredSession = undefined;
+    retireStructuredSessionState(session);
     if (interruptedSession) {
       this.ctx.disposeForceStoppedSession(session, interruptedSession);
     }

@@ -108,6 +108,8 @@ function createHarness(
     vi.fn<
       NonNullable<SessionRuntimeLifecycleContext["steerCoordinator"]["noteSteerTurnStarted"]>
     >();
+  const onSessionClosing =
+    vi.fn<NonNullable<SessionRuntimeLifecycleContext["steerCoordinator"]["onSessionClosing"]>>();
   const clearStructuredInterruptWatchdog =
     vi.fn<
       SessionRuntimeLifecycleContext["structuredInterruptWatchdog"]["clearStructuredInterruptWatchdog"]
@@ -126,7 +128,7 @@ function createHarness(
     ptyLifecycle: { track, resolveExit, kill },
     outputPipeline: { emitState, updateState, noteTurnFailed, handlePtyData, clearSessionTimers },
     runtimeEventRouter: { flush, append },
-    steerCoordinator: { maybeDrainPendingSteer, noteSteerTurnStarted },
+    steerCoordinator: { maybeDrainPendingSteer, noteSteerTurnStarted, onSessionClosing },
     ...(options.followUpQueue ? { followUpQueue: options.followUpQueue } : {}),
     ...(options.crewLeadEdits ? { crewLeadEdits: options.crewLeadEdits } : {}),
     structuredInterruptWatchdog: {
@@ -168,6 +170,7 @@ function createHarness(
       append,
       maybeDrainPendingSteer,
       noteSteerTurnStarted,
+      onSessionClosing,
       clearStructuredInterruptWatchdog,
       emit,
       failStructuredSession,
@@ -599,6 +602,7 @@ describe("SessionRuntimeLifecycle", () => {
 
       harness.structuredListener?.onClose();
       expect(harness.session.structuredSession).toBeUndefined();
+      expect(harness.mocks.onSessionClosing).toHaveBeenCalledExactlyOnceWith(harness.session);
       expect(harness.mocks.updateState).toHaveBeenCalledWith(harness.session, "inactive", "none");
       expect(harness.mocks.emit).toHaveBeenCalledWith({
         type: "thread-exited",
@@ -714,6 +718,22 @@ describe("SessionRuntimeLifecycle", () => {
     expect(ignored.mocks.resolveExit).toHaveBeenCalledTimes(1);
     expect(ignored.mocks.updateState).not.toHaveBeenCalled();
     expect(ignored.mocks.emit).not.toHaveBeenCalled();
+  });
+
+  it("releases a mixed session lease on structured onClose after the PTY already exited", () => {
+    const confirmExit = vi.fn<() => void>();
+    const harness = createHarness({
+      session: {
+        ptyExited: true,
+        resourceLease: { confirmExit } as unknown as NonNullable<SessionRuntime["resourceLease"]>,
+      },
+    });
+    harness.lifecycle.attach(harness.session);
+
+    harness.structuredListener?.onClose();
+
+    expect(confirmExit).toHaveBeenCalledOnce();
+    expect(harness.mocks.onSessionClosing).toHaveBeenCalledExactlyOnceWith(harness.session);
   });
 });
 

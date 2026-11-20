@@ -1302,4 +1302,34 @@ describe("ThreadSessionManager shell admission", () => {
     expect(manager.shellSessions.has("shell:close-retry")).toBe(true);
     expect(manager.hostResourceAdmission.usage().terminalShells.active).toBe(1);
   });
+
+  it("releases a mixed session slot only once structured disposal confirms after an earlier PTY exit", async () => {
+    const adapter = createAdapter({ presentationMode: "terminal" });
+    const manager = createManager(adapter, policy({ maxActiveAgentSessions: 1 }));
+    await manager.startThread(terminalPayload("thread-mixed-pty-first"));
+    const session = manager.sessions.get("thread-mixed-pty-first")!;
+    let finishDispose!: () => void;
+    session.structuredSession = createHandle({
+      dispose: () =>
+        new Promise<void>((resolve) => {
+          finishDispose = resolve;
+        }),
+    });
+
+    // Natural PTY exit routes through structured retirement: while structured
+    // disposal is still pending, the slot remains counted.
+    (session.pty as unknown as FakePty).emitExit(0);
+    await vi.waitFor(() => expect(finishDispose).toBeTypeOf("function"));
+    expect(session.structuredSession).toBeUndefined();
+    expect(session.pendingStructuredDisposal).toBeDefined();
+    expect(manager.hostResourceAdmission.usage()).toMatchObject({
+      total: 1,
+      agentSessions: { retiring: 1 },
+    });
+
+    // Once structured disposal settles after the already-completed PTY exit,
+    // custody releases the lease without requiring a second close/exit.
+    finishDispose();
+    await vi.waitFor(() => expect(manager.hostResourceAdmission.usage().total).toBe(0));
+  });
 });

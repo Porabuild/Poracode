@@ -54,6 +54,36 @@ export function shouldReleaseInitialStructuredIdleSuppression(event: RuntimeEven
   );
 }
 
+export function stopSessionRefWatcher(
+  session: Pick<SessionRuntime, "stopSessionRefWatcher">,
+): void {
+  session.stopSessionRefWatcher?.();
+  session.stopSessionRefWatcher = undefined;
+}
+
+/**
+ * Detach any live structured handle and clear negotiated config inventory when
+ * the backing structured transport has closed or is being retired.
+ */
+export function retireStructuredSessionState(
+  session: Pick<SessionRuntime, "structuredSession" | "sessionConfigOptions">,
+): boolean {
+  const inventoryRetired = session.sessionConfigOptions !== null;
+  session.structuredSession = undefined;
+  session.sessionConfigOptions = null;
+  return inventoryRetired;
+}
+
+/** Fence late callbacks/timers/ref-watchers before tearing down or replacing a session. */
+export function fenceSessionForRetirement(
+  session: SessionRuntime,
+  outputPipeline: Pick<ThreadOutputPipeline, "clearSessionTimers">,
+): void {
+  session.ignoreExit = true;
+  outputPipeline.clearSessionTimers(session);
+  stopSessionRefWatcher(session);
+}
+
 export function requireSessionPty(session: SessionRuntime): IPty {
   if (!session.pty) {
     throw new Error(`Thread ${session.threadId} does not have a terminal PTY.`);

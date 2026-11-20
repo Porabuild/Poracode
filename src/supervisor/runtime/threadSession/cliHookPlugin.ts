@@ -10,7 +10,7 @@ import { createKnownSessionRef } from "../../agents/base";
 import { hookDebugSpawn } from "../hookDebug";
 import type { ThreadOutputPipeline } from "../threadOutputPipeline";
 import type { SessionRuntime } from "../sessionTypes";
-import { hookDebugProjectLabel } from "./helpers";
+import { hookDebugProjectLabel, stopSessionRefWatcher } from "./helpers";
 import type { ThreadSessionManagerOptions } from "./managerOptions";
 
 export interface CliHookPluginContext {
@@ -78,8 +78,7 @@ export class CliHookSessionCoordinator {
       session.sessionRef = createKnownSessionRef(nextId);
       session.canResumeWithConfig = true;
       this.ctx.indexSessionRef(session, undefined);
-      session.stopSessionRefWatcher?.();
-      session.stopSessionRefWatcher = undefined;
+      stopSessionRefWatcher(session);
       this.ctx.outputPipeline.emitState(session);
     }
     this.ctx.outputPipeline.noteCliHookPluginActivity(session);
