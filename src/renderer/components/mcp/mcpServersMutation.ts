@@ -26,7 +26,9 @@ export interface McpServersSink {
 }
 
 /** The source's current list — authoritative when it exposes a fresh read. */
-export async function readCurrentServers(sink: McpServersSink): Promise<McpServer[]> {
+export async function readCurrentServers(
+  sink: Pick<McpServersSink, "servers" | "loadServers">,
+): Promise<McpServer[]> {
   return sink.loadServers ? sink.loadServers() : sink.servers;
 }
 

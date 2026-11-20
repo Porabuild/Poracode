@@ -503,7 +503,10 @@ export async function composeHeadlessRemoteHost(
       readProject: dbGetProject,
       writeProject: dbUpdateProject,
       projectsChanged: publishHeadlessProjectsChanged,
-      settingsCommitted: (settings) => hostServices.applyBrowserAllowFlags(settings),
+      settingsCommitted: (settings) => {
+        durableServices?.observeMemorySettings(settings);
+        hostServices.applyBrowserAllowFlags(settings);
+      },
       ...(options.reportError ? { reportError: options.reportError } : {}),
     });
     const settings = settingsAuthority;
@@ -536,6 +539,35 @@ export async function composeHeadlessRemoteHost(
     });
 
     durableServices = new BackendDurableServices({
+      editCatalog: async (command, operationKey) => {
+        if (!serverRef) throw new Error("The owning host is not ready to edit its catalog.");
+        return serverRef.editAppCatalog(command, operationKey);
+      },
+      handoffThread: async (input) => {
+        if (!serverRef) throw new Error("The owning host is not ready to hand off threads.");
+        return serverRef.handoffAppThread(input, paths.attachmentsDir);
+      },
+      moveThreadToWorktree: async (input) => {
+        if (!serverRef) throw new Error("The owning host is not ready to move threads.");
+        return serverRef.moveAppThreadToWorktree(input);
+      },
+      reopenThread: async (threadId, initialSize) => {
+        const server = serverRef;
+        if (!server) throw new Error("The owning host is not ready to reopen threads.");
+        return server.reopenAppThread(threadId, initialSize);
+      },
+      importSession: async (input) => {
+        const server = serverRef;
+        if (!server) throw new Error("The owning host is not ready to import sessions.");
+        return server.importAppSession(input);
+      },
+      revertCheckpoint: (payload) => backendHost.revertCheckpoint(payload),
+      beginQueueActivity: (threadId) => serverRef?.beginAppQueueActivity(threadId),
+      applyThreadLifecycle: async (command) => {
+        const server = serverRef;
+        if (!server) throw new Error("The owning host is not ready to apply thread actions.");
+        await server.applyAppThreadLifecycle(command);
+      },
       appVersion: options.appVersion,
       hostId: identity.desktopId,
       supervisor: supervisorClient,
@@ -547,9 +579,11 @@ export async function composeHeadlessRemoteHost(
         ? { deviceHubRoot: join(dirname(options.bundledPluginsDir), "device-hub") }
         : {}),
       ...(options.reportError ? { reportError: options.reportError } : {}),
-      writeSharedSettings: (next) => settings.writeSharedSettings(next),
       editSettingsField: (field, compute) => settings.editSettingsField(field, compute),
+      editSettingsFields: (fields, compute) => settings.editSettingsFields(fields, compute),
+      editPreferences: (compute) => settings.editPreferences(compute),
       commitOwnerSettingsEdits: (edits) => settings.commitOwnerEdits(edits),
+      assertCanPersistSecrets: () => runtime.credentialCapabilities.assertCanPersistSecrets(),
       // Durable auto-done effect the desktop renderer performs from `pr-watch-merged`.
       onPrMerged: createHeadlessPrMergeEffect({
         getSharedSettings,
@@ -655,11 +689,11 @@ export async function composeHeadlessRemoteHost(
       advertisedHost,
       ...(localOnly ? { tls: null } : {}),
       ...(pairingAppUrl ? { pairingAppUrl } : {}),
-      callSupervisor: (name, payload) => {
+      callSupervisor: (name, payload, ...callOptions) => {
         // Listener attachment seeds existing runtimes; a cold host has none.
         if (name === "getThreadSnapshots" && supervisorClient.isSupervisorProvenAbsent())
           return Promise.resolve([] as never);
-        return supervisorClient.call(name, payload);
+        return supervisorClient.call(name, payload, ...callOptions);
       },
       peekResourceAdmissionStatus: () => supervisorClient.peekResourceAdmissionStatus(),
       // B1: the durable gap/notice store is this composition's own backend
@@ -667,6 +701,8 @@ export async function composeHeadlessRemoteHost(
       runtimeHistoryGap: createRuntimeHistoryGapPort(backendHost),
       runThreadMutation: (threadId, operation) =>
         supervisorClient.runThreadMutation(threadId, operation),
+      captureThreadControlState: (threadId, expectedControls) =>
+        supervisorClient.captureThreadControlState(threadId, expectedControls),
       truncateThreadRuntime: (threadId, itemId) => {
         backendHost.truncateThreadRuntime(threadId, itemId);
       },

@@ -9,6 +9,7 @@ import {
   type AcpSharedProcessPrepare,
 } from "../acp";
 import { prepareAgentLocationEnvironment } from "../base";
+import { acpMcpServerName } from "../userMcp";
 import { prepareMcpToolFilters } from "../../mcp/McpToolFilterService";
 import { resolveAgentBinaryPath } from "../binaryResolver";
 import {
@@ -185,9 +186,13 @@ export function createDevinStructuredSessionLauncher(
     const sharedRelayedServers = mcpServers.filter(
       (server) => server.directTransport === undefined,
     );
-    const sharedHostedNames = mcpServers
-      .filter((server) => server.directTransport !== undefined)
-      .map((server) => server.name);
+    const sharedHostedNames = [
+      ...new Set(
+        mcpServers
+          .filter((server) => server.directTransport !== undefined)
+          .flatMap((server) => [server.name, acpMcpServerName(server)]),
+      ),
+    ];
     const sharedMcpPrepare = !useSharedProcess
       ? undefined
       : context?.env && (context.env.XDG_CONFIG_HOME || context.env.APPDATA)

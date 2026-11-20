@@ -1,11 +1,13 @@
 import { memo, useMemo } from "react";
 import { Surface } from "@heroui/react";
 import type { ToolCallPayload } from "@/shared/contracts";
+import { useAppStore } from "@/renderer/state/appStore";
 import type { RuntimeChatItem } from "@/renderer/state/slices/runtimeEventSlice";
 import { useChatPaneActions } from "../../chatPaneActionsContext";
+import { selectThreadUserAttachmentImagePaths } from "../../chatPaneSelectors";
 import { chatMessageSurfaceClass } from "./chatMessageSurface";
-import { RemoteImageCard } from "./RemoteImageCard";
-import { resolveImageViewSource } from "./imageViewSource";
+import { ImageMosaic } from "./ImageMosaic";
+import { EMPTY_USER_ATTACHMENT_PATHS, resolveImageViewSources } from "./imageViewSource";
 import { ToolCall } from "./ToolCall";
 import { readMcpAppResource } from "@/shared/mcpAppResources";
 import { InlineVisual } from "./InlineVisual";
@@ -20,27 +22,37 @@ const EMPTY_APP_ARGUMENTS: Record<string, unknown> = {};
 
 /**
  * Renders an `image_view` tool call (e.g. Codex's `imageGeneration`) as an
- * inline picture in the chat — with copy / download actions and a click-to-zoom
- * lightbox — instead of dumping the raw base64 into a tool-call accordion.
+ * inline picture (or mosaic when the call returns multiple images) in the chat
+ * — with copy / download actions and a click-to-zoom lightbox — instead of
+ * dumping the raw base64 into a tool-call accordion.
  *
  * Host-held images under an environment connection render a reserved slot while
  * the authenticated blob fetch is pending, then resolve through the keyed
  * subscription (`RemoteImageCard`) without waiting for unrelated store events.
  *
  * Falls back to the generic {@link ToolCall} row whenever the payload has no
- * renderable image (still running, errored, or a non-image "image" tool), so
- * progress and error states still surface normally.
+ * renderable image (still running, errored, a user-attachment read, or a
+ * non-image "image" tool), so progress and error states still surface normally.
  */
 export const ImageView = memo(function ImageView({ item }: ImageViewProps) {
   const payload = item.payload as ToolCallPayload | undefined;
   const actions = useChatPaneActions();
+  const threadId = actions?.threadId;
   const readiness = actions?.remoteImageReadiness;
-  const source = useMemo(
+  const userAttachmentPaths = useAppStore((state) =>
+    threadId ? selectThreadUserAttachmentImagePaths(state, threadId) : EMPTY_USER_ATTACHMENT_PATHS,
+  );
+  // Keep `sources` referentially stable so `RemoteImageCard` does not resubscribe
+  // its host-held image readiness listener on unrelated renders.
+  const refUrl = readiness?.resolveRef ?? actions?.remoteImageRefUrl;
+  const pendingAsPlaceholder = readiness !== undefined;
+  const sources = useMemo(
     () =>
-      resolveImageViewSource(payload, readiness?.resolveRef ?? actions?.remoteImageRefUrl, {
-        pendingAsPlaceholder: readiness !== undefined,
+      resolveImageViewSources(payload, refUrl, {
+        pendingAsPlaceholder,
+        userAttachmentPaths,
       }),
-    [actions?.remoteImageRefUrl, readiness, payload],
+    [payload, refUrl, pendingAsPlaceholder, userAttachmentPaths],
   );
 
   const appResource =
@@ -48,9 +60,9 @@ export const ImageView = memo(function ImageView({ item }: ImageViewProps) {
       ? readMcpAppResource(payload.result)
       : undefined;
   const image =
-    source && payload?.status !== "error" ? (
+    sources.length > 0 && payload?.status !== "error" ? (
       <Surface variant="transparent" className={chatMessageSurfaceClass}>
-        <RemoteImageCard source={source} />
+        <ImageMosaic sources={sources} />
       </Surface>
     ) : null;
   if (appResource) {

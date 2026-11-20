@@ -19,6 +19,10 @@ import { getSqlite } from "@/host/db/connection";
 import { dbUpsertProject, dbUpsertThread } from "@/host/db/projectsThreads";
 import { nativeBindingEnv, sqliteAvailable } from "@/host/db/runtimeItems.testFixtures";
 import type { RemoteServerContext } from "./context";
+import {
+  notePendingInterruptedTurn,
+  resetPendingInterruptedTurnsForTests,
+} from "./pendingInterruptedTurns";
 import { SessionConfigInventory } from "./sessionConfigInventory";
 import { ThreadLiveReadState } from "./threadLiveReadState";
 import { handleCatalogMembership } from "./catalogMembership";
@@ -28,8 +32,12 @@ import {
   buildCatalogThreadListPage,
   boundedShellSnapshotSchema,
   boundedThreadListPageSchema,
+  captureCatalogReadProjection,
   catalogProjectListPageSchema,
+  readCatalogShellSnapshotPage,
+  restoreCatalogReadProjection,
 } from "./catalogPageBuilders";
+import { serializeCatalogShellPageBody } from "./catalogShellBody";
 import { CatalogItemTooLargeError } from "./catalogPageBudget";
 import {
   handleCatalogProjectList,
@@ -200,6 +208,7 @@ describe.skipIf(!sqliteAvailable)("catalogPages", () => {
   let dir: string;
 
   beforeEach(() => {
+    resetPendingInterruptedTurnsForTests();
     if (nativeBindingEnv) process.env.PORACODE_BETTER_SQLITE3_NATIVE_BINDING = nativeBindingEnv;
     dir = mkdtempSync(join(tmpdir(), "poracode-catalog-pages-"));
     initDatabase(join(dir, "state.sqlite"));
@@ -207,6 +216,7 @@ describe.skipIf(!sqliteAvailable)("catalogPages", () => {
   });
 
   afterEach(() => {
+    resetPendingInterruptedTurnsForTests();
     closeDatabase();
     rmSync(dir, { recursive: true, force: true });
     delete process.env.PORACODE_BETTER_SQLITE3_NATIVE_BINDING;
@@ -438,6 +448,71 @@ describe.skipIf(!sqliteAvailable)("catalogPages", () => {
     );
     const parsedSummaries = boundedShellSnapshotSchema.parse(JSON.parse(withSummaries));
     expect(Object.keys(parsedSummaries.runtimeSummariesByThread)).toHaveLength(5);
+  });
+
+  it("preserves sessionConfigOptions and pendingInterruptedTurn across worker-projected bounded catalog reads", () => {
+    insertThreads(2);
+    const controls = [
+      {
+        type: "select" as const,
+        id: "model",
+        name: "Model",
+        role: "model" as const,
+        values: [{ value: "claude-sonnet", name: "Sonnet" }],
+        groups: [{ id: "main", name: "Main" }],
+      },
+    ];
+    const ctx = context();
+    ctx.sessionConfigInventory.observeThreadState({
+      threadId: "thread-00000",
+      agentKind: "claude",
+      sessionConfigOptions: controls,
+    });
+    ctx.sessionConfigInventory.observeThreadState({
+      threadId: "thread-00001",
+      agentKind: "claude",
+      sessionConfigOptions: null,
+    });
+    notePendingInterruptedTurn({ id: "thread-00000", agentKind: "claude" }, "restart");
+
+    const shellProjection = JSON.parse(
+      JSON.stringify(captureCatalogReadProjection(ctx, true)),
+    ) as ReturnType<typeof captureCatalogReadProjection>;
+    const listProjection = JSON.parse(
+      JSON.stringify(captureCatalogReadProjection(ctx)),
+    ) as ReturnType<typeof captureCatalogReadProjection>;
+    // Simulate a forked worker process where the module-level pending map is empty.
+    resetPendingInterruptedTurnsForTests();
+
+    const shellPage = readCatalogShellSnapshotPage(shellProjection, negotiation("shell-snapshot"));
+    const shellParsed = boundedShellSnapshotSchema.parse(
+      JSON.parse(serializeCatalogShellPageBody(shellPage, "2026-09-01T00:00:00.000Z")),
+    );
+    expect(shellParsed.threads.find((t) => t.id === "thread-00000")?.sessionConfigOptions).toEqual(
+      controls,
+    );
+    expect(shellParsed.threads.find((t) => t.id === "thread-00000")?.interruptedTurn).toBe(
+      "restart",
+    );
+    expect(
+      shellParsed.threads.find((t) => t.id === "thread-00001")?.sessionConfigOptions,
+    ).toBeNull();
+
+    const listBody = buildCatalogThreadListPage(
+      restoreCatalogReadProjection(listProjection),
+      negotiation("thread-list"),
+      undefined,
+    );
+    const listParsed = boundedThreadListPageSchema.parse(JSON.parse(listBody));
+    expect(listParsed.threads.find((t) => t.id === "thread-00000")?.sessionConfigOptions).toEqual(
+      controls,
+    );
+    expect(listParsed.threads.find((t) => t.id === "thread-00000")?.interruptedTurn).toBe(
+      "restart",
+    );
+    expect(
+      listParsed.threads.find((t) => t.id === "thread-00001")?.sessionConfigOptions,
+    ).toBeNull();
   });
 
   it("serves an empty bounded snapshot and empty pages without special cases", () => {

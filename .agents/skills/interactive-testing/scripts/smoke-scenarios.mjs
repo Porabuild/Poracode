@@ -23,6 +23,16 @@ export const functionalAreas = [
     manual: [],
   },
   {
+    id: "shared-memory",
+    title: "Opt-in memory capture, recall, settings, and environment sync",
+    patterns: [
+      /^src\/host\/memory\//,
+      /memory(Store|DeleteHook|Sync|Settings|CatalogDialog|AddMenu|SkillSuggestions|ModelChoice)/i,
+    ],
+    automated: ["baseline", "settings"],
+    manual: ["changed-surface", "ipc-roundtrip", "provider-live", "remote-client"],
+  },
+  {
     id: "local-ports",
     title: "Local listening ports and desktop port action menus",
     patterns: [/localPorts/i, /PortsPanel/],

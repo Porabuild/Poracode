@@ -1,3 +1,4 @@
+import { ContentSurface } from "@/renderer/components/common/ContentSurface";
 import { useLingui } from "@lingui/react/macro";
 import type { ProjectLocation } from "@/shared/contracts";
 import {
@@ -308,11 +309,11 @@ const MD_COMPONENTS: StreamdownComponents = {
   // elements so `<thead>`, `<tr>`, etc. compose correctly.
   table({ children }) {
     return (
-      <div className="not-prose my-4 min-w-0 max-w-full overflow-x-auto rounded-2xl border border-border bg-[var(--surface-secondary)]/50">
+      <ContentSurface className="not-prose my-4 min-w-0 max-w-full overflow-x-auto">
         <table className="w-full border-collapse text-[length:var(--lc-chat-font-size)] leading-snug">
           {children}
         </table>
-      </div>
+      </ContentSurface>
     );
   },
   thead({ children }) {

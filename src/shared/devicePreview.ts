@@ -87,6 +87,12 @@ export const devicePreviewIosConfigSchema = devicePreviewSizeSchema.extend({
     .enum(["portrait", "landscape_left", "portrait_upside_down", "landscape_right"])
     .optional(),
   inputUnavailable: z.boolean().optional(),
+  // Foldable helper fields, passed through when the helper reports them.
+  screenId: z.int().min(0).max(64).optional(),
+  supportsHingeAngle: z.boolean().optional(),
+  // The helper may report fractional angles mid-animation; the fold channel
+  // rounds them at its boundary (a schema transform is not portable here).
+  hingeAngle: z.number().finite().min(0).max(180).optional(),
 });
 export const devicePreviewAndroidApiSchema = z.object({
   size: devicePreviewSizeSchema,

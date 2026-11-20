@@ -240,3 +240,21 @@ struct PoracodeCompactControlGroup<Content: View>: View {
     .frame(minHeight: 44)
   }
 }
+
+private struct NativeComposerMaterial<S: InsettableShape>: ViewModifier {
+  let shape: S
+  let interactive: Bool
+  @Environment(\.poracodePalette) private var palette
+
+  func body(content: Content) -> some View {
+    let fill = palette.inputSurface
+    if #available(iOS 26.0, *) {
+      content.background(fill.opacity(0.65), in: shape)
+        .glassEffect(.regular.interactive(interactive), in: shape)
+    } else {
+      content.background(fill, in: shape)
+        .overlay(shape.strokeBorder(Color.primary.opacity(0.03), lineWidth: 1))
+        .shadow(color: .black.opacity(0.18), radius: 12, y: 5)
+    }
+  }
+}

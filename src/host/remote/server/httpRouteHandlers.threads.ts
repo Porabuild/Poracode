@@ -1,3 +1,4 @@
+import { reorderedThreadIds } from "./appCatalogOrder";
 import {
   checkpointRevertPayloadSchema,
   closeThreadPayloadSchema,
@@ -31,7 +32,7 @@ import {
   isThreadSessionAbsenceRefusal,
 } from "@/shared/threadSessionRefusal";
 import { msg } from "@/shared/messages";
-import { dbGetProject, dbGetThread, dbGetThreads } from "@/host/db";
+import { dbGetProject, dbGetThread } from "@/host/db";
 import { RemoteHttpError } from "../auth";
 import {
   assertRemoteThreadCommandExperimentSafe,
@@ -69,6 +70,7 @@ import {
   applyRemoteThreadSwitch,
   ensureRemoteThreadRunning,
 } from "./threadCommands";
+import { beginHostThreadActivityTouch } from "./touchThreadActivity";
 import { isPlainThreadStartPreEffectFailure, rethrowPlainThreadStartRefusal } from "./threadSwitch";
 
 /**
@@ -333,26 +335,6 @@ export const THREAD_ROUTE_HANDLERS: Pick<HttpRouteHandlerTable, ThreadRouteId> =
       ctx.security.requireBearer(req, ["projects:manage"]);
     }
     const dispatch = async (markDispatched?: () => void) => {
-      if (command.kind === "delete-worktree-group") {
-        const linkedThreadIds = dbGetThreads()
-          .filter(
-            (thread) =>
-              thread.projectId === command.projectId &&
-              thread.worktreePath === command.worktreePath,
-          )
-          .map((thread) => thread.id);
-        const requestedThreadIds = new Set(command.threadIds);
-        if (
-          requestedThreadIds.size !== linkedThreadIds.length ||
-          linkedThreadIds.some((threadId) => !requestedThreadIds.has(threadId))
-        ) {
-          throw new RemoteHttpError(
-            "worktree_threads_changed",
-            msg("remote.worktree.threadsChanged"),
-            409,
-          );
-        }
-      }
       // A `start`'s genuinely pre-effect validation runs BEFORE the mark: a
       // missing project means no row and no provider call can exist, so the
       // receipt is a definite failure and the client may create a new attempt
@@ -426,14 +408,14 @@ export const THREAD_ROUTE_HANDLERS: Pick<HttpRouteHandlerTable, ThreadRouteId> =
               threadIds: [command.threadId],
               viewedThreadIds: [command.threadId],
             });
-          } else if (command.kind === "reorder") {
+          } else if (command.kind === "reorder" || command.kind === "reorder-flat") {
             // Every moved thread is named so a client can re-sort without a
             // catalog-wide response.
-            ctx.publishThreadsChanged([...command.threadIds, command.targetThreadId]);
-          } else if (command.kind === "reorder-flat") {
-            ctx.publishThreadsChanged([command.threadId, command.targetThreadId]);
+            ctx.publishThreadsChanged(reorderedThreadIds(command));
           } else {
-            ctx.publishThreadsChanged([command.threadId]);
+            ctx.publishThreadsChanged(
+              command.kind === "delete-worktree-group" ? command.threadIds : [command.threadId],
+            );
           }
         }
       } catch (error) {
@@ -486,8 +468,10 @@ export const THREAD_ROUTE_HANDLERS: Pick<HttpRouteHandlerTable, ThreadRouteId> =
         // uncertain), so the predicate is scoped to the absence refusal only.
         isPreEffectFailure: isThreadSessionAbsenceRefusal,
         operation: async (markDispatched) => {
+          const finishActivityTouch = beginHostThreadActivityTouch(ctx, threadId);
           markDispatched();
           await ctx.options.callSupervisor("sendThreadInput", payload);
+          finishActivityTouch();
           return { ok: true };
         },
       });
@@ -531,9 +515,15 @@ export const THREAD_ROUTE_HANDLERS: Pick<HttpRouteHandlerTable, ThreadRouteId> =
   },
 
   "thread-steer-set": (call) =>
-    forwardThreadBodyPost(call, (callSupervisor, body) =>
-      callSupervisor("setPendingSteer", setPendingSteerPayloadSchema.parse(body)),
-    ),
+    forwardThreadBodyPost(call, async (callSupervisor, body) => {
+      const finishActivityTouch = beginHostThreadActivityTouch(
+        call.ctx,
+        requirePathParam(call.params, "threadId"),
+        { forceBroadcast: true },
+      );
+      await callSupervisor("setPendingSteer", setPendingSteerPayloadSchema.parse(body));
+      finishActivityTouch();
+    }),
 
   "thread-steer-clear": (call) =>
     forwardThreadBodyPost(call, (callSupervisor, body) =>
@@ -551,12 +541,18 @@ export const THREAD_ROUTE_HANDLERS: Pick<HttpRouteHandlerTable, ThreadRouteId> =
     ),
 
   "request-resolve": (call) =>
-    forwardThreadBodyPost(call, (callSupervisor, body) =>
-      callSupervisor(
+    forwardThreadBodyPost(call, async (callSupervisor, body) => {
+      const finishActivityTouch = beginHostThreadActivityTouch(
+        call.ctx,
+        requirePathParam(call.params, "threadId"),
+        { forceBroadcast: true },
+      );
+      await callSupervisor(
         "resolveThreadServerRequest",
         resolveThreadServerRequestPayloadSchema.parse(body),
-      ),
-    ),
+      );
+      finishActivityTouch();
+    }),
 
   "terminal-close": (call) =>
     // Closes a terminal by id. `closeThread` is shell-aware on the supervisor,

@@ -4,7 +4,8 @@
 import { open } from "node:fs/promises";
 import type { ContentBlock, PromptCapabilities } from "@agentclientprotocol/sdk";
 import type { ProjectLocation, PromptSegment } from "@/shared/contracts";
-import { isAudioPath, isImagePath } from "@/shared/promptContent";
+import { isAudioPath, isImagePath, isSvgPath } from "@/shared/promptContent";
+import { wslLinuxToHostFsPath } from "@/shared/wsl";
 import {
   basenameForProjectPath,
   guessMimeType,
@@ -25,14 +26,18 @@ function isTextMimeType(mimeType: string): boolean {
   );
 }
 
-function resolveReadablePromptPath(
+export function resolveReadablePromptPath(
   location: ProjectLocation,
   segment: Extract<PromptSegment, { kind: "attachment" | "file" }>,
 ): string {
   if (segment.kind === "file") return resolveAcpHostFsPath(location, segment.path);
   const resourcePath = resolveAcpResourcePath(location, segment.path);
   if (location.kind !== "wsl" || isWindowsAbsolutePath(resourcePath)) return resourcePath;
-  return resolveAcpHostFsPath(location, segment.path);
+  try {
+    return resolveAcpHostFsPath(location, segment.path);
+  } catch {
+    return wslLinuxToHostFsPath(location.distro, resourcePath);
+  }
 }
 
 async function readInlineContent(path: string, maxBytes: number): Promise<Buffer | undefined> {
@@ -90,7 +95,9 @@ export async function segmentsToContentBlocks(
           if (data) remainingInlineBytes -= data.byteLength;
           return data;
         };
-        if (isImagePath(seg.path, mimeType)) {
+        // SVG is XML text rather than a raster image; inline it as embedded
+        // text context below instead of sending `image/svg+xml` as raster data.
+        if (isImagePath(seg.path, mimeType) && !isSvgPath(seg.path, mimeType)) {
           if (promptCapabilities?.image) {
             const imageMimeType = mimeType.startsWith("image/")
               ? mimeType

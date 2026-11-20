@@ -13,13 +13,23 @@ import type {
   CreateProfilePayload,
   Project,
 } from "@/shared/contracts";
-import { isMac, isWindows, readBridge } from "@/renderer/bridge";
+import { isMac, isWindows } from "@/renderer/bridge";
+import { remoteConnectionKey } from "@/renderer/state/remoteServers/types";
+import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
+import {
+  LOCAL_AGENT_MANAGEMENT_HOST,
+  type AgentManagementHost,
+} from "../../../components/providers/settings/agentManagementHost";
 import { claudeProfileSupport } from "../../../components/providers/settings/ClaudeProfileSettings";
 import { ClaudeAgentSettingsPanel } from "@/renderer/components/providers/claude/AgentSettingsPanel";
 import {
   CodexAgentSettingsPanel,
   codexProfileSupport,
 } from "@/renderer/components/providers/codex/profileSettings";
+import {
+  GeminiAgentSettingsPanel,
+  geminiProfileSupport,
+} from "@/renderer/components/providers/gemini/profileSettings";
 import { cursorProfileSupport } from "./CursorProfileSettings";
 import { CursorProviderSettings } from "../../../components/providers/settings/CursorProviderSettings";
 import { OPENCODE2_INSTALL_COMMANDS } from "@/renderer/components/providers/opencode2/installCommands";
@@ -83,7 +93,7 @@ export interface NativeAgentProfileSupport {
   driver: string;
   /** Copy under the shared "Profiles" heading. */
   description: ReactNode;
-  field: NativeAgentProfileField;
+  field?: NativeAgentProfileField;
   /**
    * Secondary line under a profile's name in the list. A component, not a
    * plain render function, so a provider can subscribe to its own settings
@@ -155,7 +165,10 @@ export interface NativeAgentRegistryEntry {
    * behind its language server). Called when the agent's settings page opens;
    * resolving `undefined` hides the account line.
    */
-  accountResolver?: (wslDistros: string[]) => Promise<AgentProviderMetadata | undefined>;
+  accountResolver?: (
+    wslDistros: string[],
+    host?: AgentManagementHost,
+  ) => Promise<AgentProviderMetadata | undefined>;
   /**
    * The provider keeps several profiles (extra accounts or configurations),
    * listed on its base settings page and reachable as `<driver>:<id>` agent
@@ -168,6 +181,8 @@ const POSIX_MISSING_CURL_NPM_MESSAGE =
   "printf 'No supported installer found. Install curl or Node.js/npm first, then refresh detected agents.\\n'";
 const MAC_MISSING_CURL_BREW_NPM_MESSAGE =
   "printf 'No supported installer found. Install curl, Homebrew, or Node.js/npm first, then refresh detected agents.\\n'";
+const MAC_MISSING_BREW_NPM_MESSAGE =
+  "printf 'No supported installer found. Install Homebrew or Node.js/npm first, then refresh detected agents.\\n'";
 const MAC_MISSING_CURL_BREW_MESSAGE =
   "printf 'No supported installer found. Install curl or Homebrew first, then refresh detected agents.\\n'";
 const POSIX_MISSING_CURL_MESSAGE =
@@ -179,8 +194,21 @@ function isWslProject(project: Project): boolean {
   return project.location.kind === "wsl";
 }
 
+function resolveProjectPlatform(project: Project): "win32" | "darwin" | "linux" {
+  if (project.location.kind === "wsl") return "linux";
+  if (project.location.kind === "windows") return "win32";
+  const serverId = project.remoteServerId ?? project.location.remoteServerId;
+  if (serverId) {
+    const serverPlatform = useRemoteServersStore
+      .getState()
+      .servers.find((server) => remoteConnectionKey(server) === serverId)?.platform;
+    return serverPlatform ?? "linux";
+  }
+  return isWindows() ? "win32" : isMac() ? "darwin" : "linux";
+}
+
 function posixOrWindows(project: Project, posix: string, windows: string): string {
-  return isWslProject(project) || !isWindows() ? posix : windows;
+  return isWslProject(project) || resolveProjectPlatform(project) !== "win32" ? posix : windows;
 }
 
 function nativeInstallCommand(
@@ -188,8 +216,9 @@ function nativeInstallCommand(
   commands: { mac: string; posix: string; windows: string },
 ): string {
   if (isWslProject(project)) return commands.posix;
-  if (isWindows()) return commands.windows;
-  return isMac() ? commands.mac : commands.posix;
+  const platform = resolveProjectPlatform(project);
+  if (platform === "win32") return commands.windows;
+  return platform === "darwin" ? commands.mac : commands.posix;
 }
 
 export const NATIVE_AGENT_REGISTRY_ENTRIES: NativeAgentRegistryEntry[] = [
@@ -377,8 +406,8 @@ export const NATIVE_AGENT_REGISTRY_ENTRIES: NativeAgentRegistryEntry[] = [
     runtimeSlots: antigravityRuntimeSlots,
     // Antigravity's signed-in account lives behind its language server (the
     // credential sits in the OS keyring), so it isn't in the detected status.
-    accountResolver: (wslDistros) =>
-      readBridge()
+    accountResolver: (wslDistros, host = LOCAL_AGENT_MANAGEMENT_HOST) =>
+      host
         .resolveAgentAccount({ agentKind: "antigravity", wslDistros })
         .then((result) => result.account),
   },
@@ -418,13 +447,21 @@ export const NATIVE_AGENT_REGISTRY_ENTRIES: NativeAgentRegistryEntry[] = [
     description: msg`First-class Gemini CLI integration using Poracode's native runtime.`,
     docsUrl: "https://github.com/google-gemini/gemini-cli",
     installCommand: (project) =>
-      posixOrWindows(
-        project,
-        "if command -v npm >/dev/null 2>&1; then npm install -g @google/gemini-cli; else " +
+      nativeInstallCommand(project, {
+        mac:
+          "if command -v npm >/dev/null 2>&1; then npm install -g @google/gemini-cli; " +
+          "elif command -v brew >/dev/null 2>&1; then brew install gemini-cli; else " +
+          MAC_MISSING_BREW_NPM_MESSAGE +
+          "; fi",
+        posix:
+          "if command -v npm >/dev/null 2>&1; then npm install -g @google/gemini-cli; else " +
           POSIX_MISSING_NPM_MESSAGE +
           "; fi",
-        "if (Get-Command npm -ErrorAction SilentlyContinue) { npm install -g @google/gemini-cli } else { Write-Host 'No supported installer found. Install Node.js/npm first, then refresh detected agents.' }",
-      ),
+        windows:
+          "if (Get-Command npm -ErrorAction SilentlyContinue) { npm install -g @google/gemini-cli } else { Write-Host 'No supported installer found. Install Node.js/npm first, then refresh detected agents.' }",
+      }),
+    settingsPanel: GeminiAgentSettingsPanel,
+    profiles: geminiProfileSupport,
   },
   {
     id: "qwen",

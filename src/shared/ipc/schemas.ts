@@ -18,6 +18,8 @@ import {
   type WorkflowRun,
 } from "../contracts";
 
+import { threadWorktreeDraftFieldsSchema } from "../threadWorktreeLaunch";
+
 export const pickFilesOptionsSchema = z
   .object({
     title: z.string().optional(),
@@ -48,11 +50,7 @@ export const quickComposerSubmissionSchema = z.object({
       config: threadConfigSchema,
       prompt: z.string(),
       segments: z.array(promptSegmentSchema).optional(),
-      existingWorktreePath: z.string().min(1).optional(),
-      worktreeBranch: z.string().min(1).optional(),
-      worktreeBaseBranch: z.string().min(1).optional(),
-      worktreeIsNewBranch: z.boolean().optional(),
-      worktreeTransferUncommitted: z.boolean().optional(),
+      ...threadWorktreeDraftFieldsSchema.shape,
       presentationMode: threadPresentationModeSchema.optional(),
     })
     .refine(hasSendableInput, sendableInput),
@@ -368,33 +366,13 @@ export interface WindowChromeResult {
   nativeCapable: boolean;
 }
 
-export const localPortInfoSchema = z.object({
-  port: z.number().int().min(1).max(65535),
-  address: z.string().min(1),
-  url: z.string().url().nullable(),
-  pid: z.number().int().positive().nullable(),
-  processName: z.string().min(1).nullable(),
-  processStartedAt: z.string().min(1).nullable(),
-  canClose: z.boolean(),
-});
-export type LocalPortInfo = z.infer<typeof localPortInfoSchema>;
-
-export const listLocalPortsResultSchema = z.object({
-  ports: z.array(localPortInfoSchema),
-});
-export type ListLocalPortsResult = z.infer<typeof listLocalPortsResultSchema>;
-
-export const closeLocalPortPayloadSchema = z
-  .object({
-    port: z.number().int().min(1).max(65535),
-    address: z.string().min(1),
-    pid: z.number().int().min(5),
-    processStartedAt: z.string().min(1),
-  })
-  .strict();
-export type CloseLocalPortPayload = z.infer<typeof closeLocalPortPayloadSchema>;
-
-export const closeLocalPortResultSchema = z.object({
-  closed: z.boolean(),
-});
-export type CloseLocalPortResult = z.infer<typeof closeLocalPortResultSchema>;
+export {
+  closeLocalPortPayloadSchema,
+  closeLocalPortResultSchema,
+  listLocalPortsResultSchema,
+  localPortInfoSchema,
+  type CloseLocalPortPayload,
+  type CloseLocalPortResult,
+  type ListLocalPortsResult,
+  type LocalPortInfo,
+} from "../contracts/appLocalPorts";

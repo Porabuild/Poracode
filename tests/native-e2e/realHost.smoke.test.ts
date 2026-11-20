@@ -143,6 +143,7 @@ describe("real production host smoke", () => {
       const pairing = await host.pair();
       const token = await exchangeToken(host.httpBaseUrl, pairingTokenFromUrl(pairing.pairingUrl), [
         "session:read",
+        "session:operate",
         "projects:manage",
       ]);
       expect(token.status).toBe(200);
@@ -183,6 +184,41 @@ describe("real production host smoke", () => {
       const admitted = await rename("current-writer-rename", currentClientProtocolHeaders("POST"));
       expect(admitted.status).toBe(200);
       expect(await seededName()).toBe("current-writer-rename");
+
+      const catalog = async (command: unknown) => {
+        const response = await fetch(new URL("/api/memory/catalog", host.httpBaseUrl), {
+          method: "POST",
+          headers: {
+            ...auth,
+            "content-type": "application/json",
+            ...currentClientProtocolHeaders("POST"),
+          },
+          body: JSON.stringify(command),
+        });
+        expect(response.status).toBe(200);
+        return response.json();
+      };
+      const saved = (await catalog({
+        action: "save",
+        entry: {
+          scope: "project",
+          projectId: seeded.id,
+          category: "project",
+          summary: "Use the fixture ledger",
+          body: "Use the fixture ledger",
+          polarity: "fact",
+          pinned: false,
+        },
+      })) as { action: string; result: { id: string } };
+      expect(saved.action).toBe("save");
+      expect(await catalog({ action: "list", projectId: seeded.id })).toEqual({
+        action: "list",
+        result: [saved.result],
+      });
+      expect(await catalog({ action: "delete", id: saved.result.id })).toEqual({
+        action: "delete",
+        result: { ok: true },
+      });
     },
     90_000,
   );

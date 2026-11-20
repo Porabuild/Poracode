@@ -33,6 +33,7 @@ import {
   clearThreadPendingSteer,
 } from "@/renderer/actions/threadRuntimeActions";
 import { openMcpServersSettings } from "@/renderer/actions/panelActions";
+import { trackThreadAttachmentImport } from "@/renderer/actions/threadWindowActions";
 import { modelVisibilityKey } from "@/renderer/components/common/ProviderModelMenu/parts/providerIdentity";
 import { AttachmentBar } from "../composer/AttachmentBar";
 import { ComposerAddMenu } from "../composer/ComposerAddMenu";
@@ -69,6 +70,7 @@ import { useAttachmentImageAuthority } from "@/renderer/components/thread/thread
 import { threadProductProperties } from "@/renderer/analytics/posthog";
 import { captureProductEvent } from "@/renderer/analytics/productAnalytics";
 import { useAppStore } from "@/renderer/state/appStore";
+import { peekPendingThreadLaunch } from "@/renderer/state/threadLaunchIntents";
 import { useThreadComposerControlStore } from "@/renderer/state/threadComposerControlStore";
 import { useAgentSlashCommandCatalog } from "@/renderer/hooks/useAgentSlashCommandCatalog";
 import { useBrowserAttachInboxDrain } from "./useBrowserAttachInboxDrain";
@@ -94,6 +96,8 @@ import { ProviderSessionControls } from "../providers/providerSessionControls";
 import { useThreadInterrupt } from "./useThreadInterrupt";
 import { supportsUsableFastMode } from "./threadDraftViewHelpers";
 import { applyCrewComposerControls } from "@/renderer/components/crew/applyCrewComposerControls";
+import { useCrewLibrary } from "@/renderer/state/crewLibrary";
+import { useHostSetting } from "@/renderer/state/pairedHostSettings";
 import { CREW_ROLE_TEMPLATE_DESCRIPTORS } from "@/renderer/components/crew/crewRoleTemplates";
 import {
   crewPickerEntry,
@@ -300,7 +304,13 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
   const threadOnThisMachine = hostRunsOnThisMachine(thread);
   const hostIsLocalToClient = threadOnThisMachine && !isBrowserClient;
   const { importFiles } = props;
-  const docksPlacement = compactLayout ? requestedDocksPlacement : "right";
+  // Thread windows have no right panel to host the docks.
+  const docksPlacement =
+    readBridge().windowKind === "thread"
+      ? "composer"
+      : compactLayout
+        ? requestedDocksPlacement
+        : "right";
   const docksInComposer = docksPlacement === "composer";
   const voiceInputEnabled = useSharedSettings((s) => s.audio.showVoiceInputButton);
   const showVoiceInputButton = voiceInputEnabled;
@@ -573,9 +583,13 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
     !usesTerminalPresentation &&
     thread.sessionRef !== undefined &&
     thread.status === "working";
+  const hasPendingInitialLaunch =
+    !usesTerminalPresentation &&
+    thread.sessionRef === undefined &&
+    peekPendingThreadLaunch(thread.id) !== undefined;
   const canRecoverGuiInput =
     !usesTerminalPresentation &&
-    (thread.sessionRef !== undefined || thread.canResumeWithConfig) &&
+    (thread.sessionRef !== undefined || thread.canResumeWithConfig || hasPendingInitialLaunch) &&
     (thread.status === "inactive" || thread.status === "error");
   const canSubmitServerInput =
     isServerControlled &&
@@ -659,9 +673,9 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
   );
   const modelPreferences = useSharedSettings((s) => s.providerModelPreferences[thread.agentKind]);
   const setProviderModelPreference = useSharedSettings((s) => s.setProviderModelPreference);
-  const savedCrews = useSharedSettings((state) => state.crews);
-  const upsertCrew = useSharedSettings((state) => state.upsertCrew);
-  const helperOptions = useCrewHelperOptions();
+  const crewMachineKey = machineKeyForLocation(projectLocation);
+  const { crews: savedCrews, upsertCrew } = useCrewLibrary(crewMachineKey);
+  const helperOptions = useCrewHelperOptions(crewMachineKey);
   const binding = threadCrewBinding(thread.config);
   const lead = leadSelectionOf(thread.agentKind, thread.config);
   const canLeadCurrentCrew = Boolean(
@@ -681,7 +695,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
     (config) => changeThreadConfig(thread.id, config),
     modelPreferences,
     (model, preference) => setProviderModelPreference(thread.agentKind, model, preference),
-    machineKeyForLocation(projectLocation),
+    crewMachineKey,
     (handlers) => {
       crewHandlers = handlers;
     },
@@ -827,7 +841,8 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
   // A turn cut off by an error or a restart is picked back up from an empty
   // composer, so nobody has to type "continue".
   const resumePlan = useAppStore((s) =>
-    thread.interruptedTurn && !usesTerminalPresentation
+    (thread.interruptedTurn || (thread.status === "error" && hasPendingInitialLaunch)) &&
+    !usesTerminalPresentation
       ? selectThreadResumePlan(s, thread.id)
       : null,
   );
@@ -838,7 +853,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
     !hasContent &&
     attachments.attachments.length === 0 &&
     !threadVoiceActive;
-  const followUpBehavior = useSharedSettings((state) => state.followUpBehavior);
+  const followUpBehavior = useHostSetting(remoteDesktopId, "followUpBehavior");
   const visiblePendingSteer = useDelayedPendingSteer(pendingSteer);
   const usesPendingSteerPath =
     !isConnecting && !usesTerminalPresentation && thread.status === "working";
@@ -1650,6 +1665,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                               onManageMcpServers={openMcpServersSettings}
                               pluginLabels={composerPluginLabels}
                               readOnly
+                              {...(thread.id ? { threadId: thread.id } : {})}
                               computerUse={{
                                 enabled: effectiveMcpConfig?.computerUse === true,
                                 visible:
@@ -1660,15 +1676,15 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                               showFileOption={hostIsLocalToClient || props.pickFiles !== undefined}
                               onPickFiles={() => {
                                 const originThreadId = thread.id;
-                                void (
-                                  props.pickFiles
+                                void trackThreadAttachmentImport(
+                                  originThreadId,
+                                  (props.pickFiles
                                     ? props.pickFiles()
                                     : readBridge().pickFiles({ attachmentThreadId: thread.id })
-                                )
-                                  .then((paths) => {
+                                  ).then((paths) => {
                                     if (paths) attachPickedFiles(originThreadId, paths);
-                                  })
-                                  .catch((error: unknown) => toast.danger(friendlyError(error)));
+                                  }),
+                                ).catch((error: unknown) => toast.danger(friendlyError(error)));
                               }}
                             />
                           )}
@@ -1718,9 +1734,12 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                       ? {
                           onImportFiles: (files: File[]) => {
                             const originThreadId = thread.id;
-                            void importFiles(files)
-                              .then((paths) => attachPickedFiles(originThreadId, paths))
-                              .catch((error: unknown) => toast.danger(friendlyError(error)));
+                            void trackThreadAttachmentImport(
+                              originThreadId,
+                              importFiles(files).then((paths) =>
+                                attachPickedFiles(originThreadId, paths),
+                              ),
+                            ).catch((error: unknown) => toast.danger(friendlyError(error)));
                           },
                         }
                       : {})}

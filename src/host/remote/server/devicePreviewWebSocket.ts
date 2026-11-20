@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { IncomingMessage } from "node:http";
 import type { Duplex } from "node:stream";
-import { WebSocket, WebSocketServer, type RawData } from "ws";
+import { WebSocket, WebSocketServer } from "ws";
 import { z } from "zod";
 import {
   DEVICE_PREVIEW_MAX_BUFFER_BYTES,
@@ -17,6 +17,7 @@ import {
 import {
   DevicePreviewInputState,
   filterDevicePreviewInput,
+  rawDataBytes,
 } from "@/host/devices/DevicePreviewProtocol";
 import { DevicePreviewCredits } from "@/host/devices/DevicePreviewCredits";
 import { DeviceWorkspaceError } from "@/host/devices/deviceProcess";
@@ -44,13 +45,6 @@ function previewServer(ctx: RemoteServerContext): WebSocketServer {
   return server;
 }
 
-function bytesOf(data: RawData): Buffer {
-  return Buffer.isBuffer(data)
-    ? data
-    : Array.isArray(data)
-      ? Buffer.concat(data)
-      : Buffer.from(data);
-}
 function closed(ws: WebSocket | undefined): Promise<void> {
   if (!ws || ws.readyState === WebSocket.CLOSED) return Promise.resolve();
   return new Promise((resolve) => ws.once("close", resolve));
@@ -157,7 +151,7 @@ export async function handleDevicePreviewUpgrade(
       let resetAt = 0;
       let geometry = initial ? JSON.stringify(initial.size) : null;
       let announcedVideoSession = false;
-      const epoch = randomUUID();
+      let epoch = randomUUID();
       const input = new DevicePreviewInputState(preview.descriptor.platform);
       const mediaAbort = new AbortController();
       const credits = new DevicePreviewCredits(mediaAbort.signal);
@@ -242,6 +236,12 @@ export async function handleDevicePreviewUpgrade(
         });
       };
       const resetIdle = () => {
+        // The iOS input channel is sparse by design: the helper speaks only
+        // on config changes, so a media-idle abort would kill every healthy
+        // input socket 30s after its last config packet. Revocation there is
+        // enforced by the per-second assert and preview.signal. The Android
+        // channel multiplexes media and keeps its idle bound.
+        if (ios) return;
         clearTimeout(idle);
         idle = setTimeout(abort, 30_000);
         idle.unref();
@@ -325,7 +325,7 @@ export async function handleDevicePreviewUpgrade(
             try {
               if (stopping) return;
               preview.assert();
-              const bytes = bytesOf(data);
+              const bytes = rawDataBytes(data);
               if (ios) {
                 if (!binary) throw new Error("unsupported helper packet");
                 if (bytes.length === 1 && bytes[0] === 0x83) {
@@ -343,8 +343,22 @@ export async function handleDevicePreviewUpgrade(
                   orientation: config.orientation,
                 });
                 if (geometry !== null && geometry !== next) {
-                  abort();
-                  return;
+                  // Release any active presses on the old surface and rotate
+                  // epoch in-place so fold/orientation transitions keep the
+                  // live stream and input channel open without a reconnect lag.
+                  if (helper.readyState === WebSocket.OPEN) {
+                    for (const packet of input.release())
+                      helper.send(packet, { binary: Buffer.isBuffer(packet) }, () => undefined);
+                  }
+                  epoch = randomUUID();
+                  queueMedia(
+                    JSON.stringify({
+                      type: "device-preview-geometry",
+                      version: DEVICE_PREVIEW_VERSION,
+                      epoch,
+                    }),
+                    false,
+                  );
                 }
                 geometry = next;
                 queueMedia(
@@ -373,14 +387,14 @@ export async function handleDevicePreviewUpgrade(
               preview.assert();
               if (stopping || binary || helper.readyState !== WebSocket.OPEN)
                 throw new Error("invalid preview input");
-              const rawMessage: unknown = JSON.parse(bytesOf(data).toString("utf8"));
+              const rawMessage: unknown = JSON.parse(rawDataBytes(data).toString("utf8"));
               if (
                 typeof rawMessage === "object" &&
                 rawMessage !== null &&
                 "type" in rawMessage &&
                 rawMessage.type === "device-preview-credit"
               ) {
-                if (bytesOf(data).length > 512) throw new Error("invalid preview credit");
+                if (rawDataBytes(data).length > 512) throw new Error("invalid preview credit");
                 credits.grant(devicePreviewCreditSchema.parse(rawMessage));
                 return;
               }

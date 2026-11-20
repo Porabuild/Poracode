@@ -63,7 +63,10 @@ import { ChatPromptOverlays } from "./ChatPromptOverlays";
 import { promptAnchorScrollTop } from "./promptAnchorScrollTop";
 import { usePromptJump } from "./usePromptJump";
 import { resolveThreadMarkdownImageRoots, threadHostHomeDir } from "../threadMarkdownImageRoots";
-import { resolveThreadTranscriptMarkdownFormatter } from "../threadTranscriptMarkdown";
+import {
+  resolveThreadHtmlVisualFileReferences,
+  resolveThreadTranscriptMarkdownFormatter,
+} from "../threadTranscriptMarkdown";
 
 interface ChatPaneProps {
   thread: Thread;
@@ -210,6 +213,7 @@ export function ChatPane(props: ChatPaneProps) {
     });
   }, [homeDir, thread.agentKind, providerSessionId, targetContext?.projectLocation]);
   const formatTranscriptMarkdown = resolveThreadTranscriptMarkdownFormatter(thread.agentKind);
+  const splitHtmlVisualFileReferences = resolveThreadHtmlVisualFileReferences(thread.agentKind);
 
   // `onOpenThread` arrives as an inline arrow whose identity churns per parent
   // render (mobile re-renders on every streaming tick). Route it through a ref
@@ -250,6 +254,7 @@ export function ChatPane(props: ChatPaneProps) {
       }),
       ...(hasOpenThread ? { openThread } : {}),
       ...(formatTranscriptMarkdown ? { formatTranscriptMarkdown } : {}),
+      ...(splitHtmlVisualFileReferences ? { splitHtmlVisualFileReferences } : {}),
     };
     if (!project || !targetContext) return contentActions;
     const fileActions = createChatPaneFileActions({
@@ -289,6 +294,7 @@ export function ChatPane(props: ChatPaneProps) {
     projectRootNames,
     markdownImageRoots,
     formatTranscriptMarkdown,
+    splitHtmlVisualFileReferences,
     onOpenProjectRelativePath,
     hasOpenThread,
     onRevealProjectFolderInTree,

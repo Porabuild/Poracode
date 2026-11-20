@@ -1,11 +1,8 @@
 import { useEffect, useRef } from "react";
 import { useShallow } from "zustand/shallow";
 import { useAppStore } from "@/renderer/state/appStore";
-import { isManagedRootDesktopRuntime } from "@/renderer/state/managedRootCatalog/rootCatalogCommands";
 import { startThreadImagePrefetch } from "@/renderer/state/runningThreadImagePrefetch";
 import { runningThreadIds } from "./useRunningThreadRuntime";
-
-const EMPTY_IDS: readonly string[] = [];
 
 /**
  * Starts bounded image prefetch for every running thread, including one already
@@ -13,11 +10,7 @@ const EMPTY_IDS: readonly string[] = [];
  * when the thread leaves the running set.
  */
 export function useRunningThreadImagePrefetch(enabled: boolean): void {
-  const runningIds = useAppStore(
-    useShallow((state) =>
-      isManagedRootDesktopRuntime() ? runningThreadIds(state.threads) : EMPTY_IDS,
-    ),
-  );
+  const runningIds = useAppStore(useShallow((state) => runningThreadIds(state.threads)));
   const stops = useRef(new Map<string, () => void>());
 
   useEffect(() => {

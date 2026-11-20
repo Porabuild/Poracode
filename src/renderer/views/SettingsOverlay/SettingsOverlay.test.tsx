@@ -1,9 +1,16 @@
 import { act, cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
-import type { ReactNode } from "react";
+import type { ReactNode, Ref } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AgentStatus, Project } from "@/shared/contracts";
 import type { PoracodeBridge } from "@/shared/ipc";
+import {
+  defaultMemorySettings,
+  type MemoryCommandPayload,
+  type RemoteMemoryCatalogCommand,
+} from "@/shared/memory";
+import type { RemoteDesktopClient } from "@/shared/remote/client";
+import { MemorySettings } from "./parts/MemorySettings";
 import { installBrowserClientRuntime, resetClientRuntimeForTest } from "@/renderer/clientRuntime";
 import { resetAdaptiveLayoutForTest } from "@/renderer/adaptiveLayout";
 
@@ -20,6 +27,15 @@ const appState = {
 
 const bridgeState = {
   remote: false,
+  memoryCommand: vi.fn<(command: MemoryCommandPayload) => Promise<unknown>>(async (command) =>
+    command.action === "list" ? [] : undefined,
+  ),
+};
+
+const sharedSettingsState = {
+  disabledAgents: [] as string[],
+  hiddenModels: {},
+  memory: defaultMemorySettings,
 };
 
 vi.mock("@/renderer/state/agentStatusesStore", () => ({
@@ -32,8 +48,8 @@ vi.mock("@/renderer/state/appStore", () => ({
 }));
 
 vi.mock("@/renderer/state/sharedSettingsStore", () => ({
-  useSharedSettings: (selector: (state: { disabledAgents: string[] }) => unknown) =>
-    selector({ disabledAgents: [] }),
+  useSharedSettings: (selector: (state: typeof sharedSettingsState) => unknown) =>
+    selector(sharedSettingsState),
 }));
 
 vi.mock("@/renderer/components/layout/PageLayout", () => ({
@@ -57,9 +73,31 @@ vi.mock("@/renderer/components/layout/PageLayout", () => ({
 }));
 
 vi.mock("@/renderer/components/common", () => ({
+  Button: (props: { children: ReactNode; onPress?: () => void; ref?: Ref<HTMLButtonElement> }) => (
+    <button type="button" onClick={props.onPress} ref={props.ref}>
+      {props.children}
+    </button>
+  ),
   PixelLoader: () => <span />,
+  ToggleSwitch: () => <span />,
   TuxIcon: () => <span />,
-  Select: () => <span data-testid="machine-select" />,
+  Select: (props: {
+    options?: { id: string; label: string; isDisabled?: boolean }[];
+    onChange?: (id: string) => void;
+  }) => (
+    <span data-testid="machine-select">
+      {props.options?.map((option) => (
+        <button
+          key={option.id}
+          type="button"
+          disabled={option.isDisabled}
+          onClick={() => props.onChange?.(option.id)}
+        >
+          {option.label}
+        </button>
+      ))}
+    </span>
+  ),
   SidebarButton: (props: {
     icon?: ReactNode;
     label: string;
@@ -94,6 +132,7 @@ vi.mock("@/renderer/bridge", () => ({
   isWindows: () => false,
   readBridge: () => ({
     openExternal: vi.fn<() => Promise<void>>(async () => undefined),
+    memoryCommand: bridgeState.memoryCommand,
   }),
 }));
 
@@ -164,6 +203,18 @@ vi.mock("./parts/UsageSettings", () => ({
 
 vi.mock("./parts/ArchivedThreadsSettings", () => ({
   ArchivedThreadsSettings: () => <div>Archived</div>,
+}));
+
+vi.mock("./parts/McpServersSettings", () => ({
+  McpServersSettings: ({ connectionKey, local }: { connectionKey?: string; local: boolean }) => (
+    <span>
+      {connectionKey
+        ? `MCP settings for ${connectionKey}`
+        : local
+          ? "Local MCP settings"
+          : "Offline MCP settings"}
+    </span>
+  ),
 }));
 
 vi.mock("./parts/AboutSettings", () => ({
@@ -246,10 +297,133 @@ describe("SettingsOverlay", () => {
     appState.projects = [];
     appState.openSchedules.mockReset();
     bridgeState.remote = false;
+    bridgeState.memoryCommand.mockClear();
     useRemoteServersStore.setState({ servers: [], runtime: {} });
     useSettingsHostStore.setState({ desktopId: null });
     __resetBrowserBridgeForTest();
     usePanelStore.setState({ settingsSection: null, settingsAnchor: null });
+  });
+
+  it("opens memory list management in a dialog and loads entries only when opened", async () => {
+    usePanelStore.getState().openSettingsSection("memory");
+    render(<SettingsOverlay onClose={() => undefined} />);
+
+    expect(screen.getByRole("button", { name: "Dream now" })).toBeInTheDocument();
+    expect(screen.queryByRole("textbox", { name: "Add a memory" })).toBeNull();
+    expect(bridgeState.memoryCommand).not.toHaveBeenCalledWith({ action: "list" });
+
+    fireEvent.click(screen.getByRole("button", { name: "Manage memories" }));
+    const dialog = await screen.findByRole("dialog", { name: "Memories" });
+    expect(within(dialog).getByRole("textbox", { name: "Add a memory" })).toBeInTheDocument();
+    expect(await within(dialog).findByText("No memories yet.")).toBeInTheDocument();
+    expect(bridgeState.memoryCommand).toHaveBeenCalledWith({ action: "list" });
+  });
+
+  it("focuses the memory editor and returns focus to its row when editing is cancelled", async () => {
+    bridgeState.memoryCommand
+      .mockResolvedValueOnce(undefined)
+      .mockResolvedValueOnce([{ id: "memory-1", scope: "global", summary: "Always use bun" }]);
+    usePanelStore.getState().openSettingsSection("memory");
+    render(<SettingsOverlay onClose={() => undefined} />);
+    fireEvent.click(screen.getByRole("button", { name: "Manage memories" }));
+
+    const dialog = await screen.findByRole("dialog", { name: "Memories" });
+    fireEvent.click(await within(dialog).findByRole("button", { name: "Edit" }));
+    const editor = within(dialog).getByRole("textbox", { name: "Edit" });
+    expect(editor).toHaveFocus();
+    fireEvent.keyDown(editor, { key: "Escape" });
+    expect(within(dialog).getByRole("button", { name: "Edit" })).toHaveFocus();
+  });
+
+  it("filters the memory catalog by summary and body", async () => {
+    bridgeState.memoryCommand.mockResolvedValueOnce(undefined).mockResolvedValueOnce([
+      { id: "memory-1", scope: "global", summary: "Use bun", body: "Use bun for checks" },
+      { id: "memory-2", scope: "project", summary: "Use SQLite", body: "Keep a local ledger" },
+    ]);
+    render(<MemorySettings />);
+    fireEvent.click(screen.getByRole("button", { name: "Manage memories" }));
+    const dialog = within(await screen.findByRole("dialog", { name: "Memories" }));
+    expect(await dialog.findByText("Use bun")).toBeInTheDocument();
+    const search = dialog.getByRole("searchbox", { name: "Search memories" });
+    fireEvent.change(search, { target: { value: "LEDGER" } });
+    expect(dialog.getByText("Use SQLite")).toBeInTheDocument();
+    expect(dialog.queryByText("Use bun")).toBeNull();
+    fireEvent.change(search, { target: { value: "something else" } });
+    expect(dialog.getByText("No results")).toBeInTheDocument();
+  });
+
+  it("manages a projected project's catalog on its owning connection", async () => {
+    const projectId = "remote:owner-b:project:project-b";
+    appState.projects = [
+      {
+        id: projectId,
+        remoteServerId: "owner-b",
+        remoteId: "project-b",
+        name: "Remote project",
+        location: { kind: "posix", path: "/remote/project" },
+        createdAt: "2026-01-01T00:00:00.000Z",
+      },
+    ];
+    const ownerConnections: string[] = [];
+    const memoryCatalog = vi.fn<(command: RemoteMemoryCatalogCommand) => Promise<unknown>>(
+      async (command) => ({
+        action: command.action,
+        result: command.action === "list" ? [] : undefined,
+      }),
+    );
+    const client = { memoryCatalog } as unknown as RemoteDesktopClient;
+    const previousWithClient = useRemoteServersStore.getState().withClient;
+    useRemoteServersStore.setState({
+      servers: ["owner-a", "owner-b"].map((id) => ({
+        desktopId: id,
+        label: id,
+        endpoint: `https://${id}.test`,
+        accessToken: "fixture",
+        scopes: ["session:operate"],
+        memoryCatalogAvailable: true,
+      })),
+      withClient: async (connectionKey, invoke) => {
+        ownerConnections.push(connectionKey);
+        return invoke(client);
+      },
+    });
+    try {
+      render(<MemorySettings projectId={projectId} />);
+      fireEvent.click(screen.getByRole("button", { name: "Manage memories" }));
+      const dialog = await screen.findByRole("dialog", { name: "Memories" });
+      expect(await within(dialog).findByText("No memories yet.")).toBeInTheDocument();
+      expect(ownerConnections).toEqual(["owner-b", "owner-b"]);
+      expect(memoryCatalog).toHaveBeenNthCalledWith(1, {
+        action: "status",
+        projectId: "project-b",
+      });
+      expect(memoryCatalog).toHaveBeenNthCalledWith(2, { action: "list", projectId: "project-b" });
+      expect(bridgeState.memoryCommand).not.toHaveBeenCalled();
+    } finally {
+      useRemoteServersStore.setState({ withClient: previousWithClient });
+    }
+  });
+
+  it("keeps catalog commands off a connection whose older host omitted the capability", () => {
+    bridgeState.remote = true;
+    useRemoteServersStore.setState({
+      servers: [
+        {
+          desktopId: "legacy-host",
+          label: "Legacy host",
+          endpoint: "https://legacy.example.test",
+          accessToken: "fixture",
+          scopes: ["session:operate"],
+        },
+      ],
+      runtime: { "legacy-host": { status: "online", projects: [], threads: [] } },
+    });
+    render(<MemorySettings />);
+    expect(screen.queryByRole("button", { name: "Manage memories" })).toBeNull();
+    expect(
+      screen.getByText("Memory catalog management is unavailable on this connection."),
+    ).toBeInTheDocument();
+    expect(bridgeState.memoryCommand).not.toHaveBeenCalled();
   });
 
   it("scrolls to an initially requested setting anchor and consumes the request", async () => {
@@ -411,6 +585,8 @@ describe("SettingsOverlay", () => {
       "Provider UsageTracking and display",
       "SchedulesScheduled tasks on this desktop",
       "AI HelpersTitle, commit, and conflict models",
+      "MemoryShared notes across providers",
+      "MCP ServersConfigured MCP servers",
       "AgentsEnabled agents, model visibility and order",
       "CrewsSaved crews for the model picker",
       "Import sessions",
@@ -542,6 +718,56 @@ describe("SettingsOverlay", () => {
     expect(scrollArea).toHaveClass("pb-20");
     expect(scrollArea).not.toContainElement(screen.getByTestId("machine-select"));
     expect(screen.getByRole("main")).toContainElement(screen.getByTestId("machine-select"));
+  });
+
+  it("switches MCP settings to a paired host from the bottom machine selector", () => {
+    useRemoteServersStore.setState({
+      servers: [
+        {
+          desktopId: "remote-id",
+          connectionId: "paired",
+          label: "Studio Mac",
+          endpoint: "https://mac.example.test",
+          accessToken: "token",
+          scopes: ["projects:manage"],
+        },
+      ],
+      runtime: { paired: { status: "online", projects: [], threads: [] } },
+    });
+    usePanelStore.getState().openSettingsSection("mcpServers");
+    render(<SettingsOverlay onClose={() => undefined} />);
+
+    const scrollArea = screen
+      .getByText("Local MCP settings")
+      .closest("[data-settings-scroll-area]");
+    const selector = screen.getByTestId("machine-select");
+    expect(scrollArea).toHaveClass("pb-20");
+    expect(scrollArea).not.toContainElement(selector);
+    fireEvent.click(within(selector).getByRole("button", { name: "Studio Mac" }));
+    expect(screen.getByText("MCP settings for paired")).toBeInTheDocument();
+  });
+
+  it("shows the floating machine selector for Agent Registry when multiple machines exist", () => {
+    useRemoteServersStore.setState({
+      servers: [
+        {
+          desktopId: "mac",
+          label: "Studio Mac",
+          endpoint: "https://mac.example.test",
+          accessToken: "token",
+          scopes: [],
+        },
+      ],
+    });
+    usePanelStore.getState().openSettingsSection("acpRegistry");
+    render(<SettingsOverlay onClose={() => undefined} />);
+
+    const main = screen.getByRole("main");
+    expect(within(main).getByText("Agent Registry Settings")).toBeInTheDocument();
+    expect(within(main).getByTestId("machine-select")).toBeInTheDocument();
+    expect(
+      screen.getByText("Agent Registry Settings").closest(".min-h-0.flex-1"),
+    ).not.toContainElement(screen.getByTestId("machine-select"));
   });
 
   it("opens Schedules from the compact Desktop Settings index", () => {

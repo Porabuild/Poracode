@@ -13,8 +13,6 @@ import { captureAcpConfigApplicationOwner } from "./sessionConfigOwnership";
 import { spawn as spawnChild, type ChildProcess } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { writeFile } from "node:fs/promises";
-import { basename, join } from "node:path";
-import { homedir } from "node:os";
 import { isDeepStrictEqual } from "node:util";
 import { Readable, Writable } from "node:stream";
 import {
@@ -842,6 +840,9 @@ export class AcpStructuredSession implements StructuredSessionHandle {
         this.currentConfig = reported;
       }
     } catch (error) {
+      if (this.isDisposed || this.transportClosed) {
+        throw new Error("ACP session is closed.", { cause: error });
+      }
       assertCurrent();
       if (error instanceof AcpConfigSelectionError && error.confirmedConfig) {
         this.commitAgentConfigChange(error.confirmedConfig);
@@ -1877,6 +1878,9 @@ export class AcpStructuredSession implements StructuredSessionHandle {
     if (!this.sessionId) {
       throw new Error("ACP session not opened yet.");
     }
+    if (this.isDisposed || this.transportClosed) {
+      throw new Error("ACP session is closed.");
+    }
     // Serialize turns. A prompt held open for background work (see
     // `stderrTurnSignalParser`) leaves the thread idle while `session/prompt`
     // is still pending, so a follow-up message queues behind it here instead
@@ -1891,7 +1895,7 @@ export class AcpStructuredSession implements StructuredSessionHandle {
       // start synchronously so interrupt staging keeps its existing timing.
       if (this.promptInFlight) {
         await previousTurn;
-        if (this.isDisposed) return;
+        this.assertSessionReadyForTurn();
       }
       await this.runStartTurn(prompt, config, segments, options);
     } finally {
@@ -1945,15 +1949,23 @@ export class AcpStructuredSession implements StructuredSessionHandle {
     );
   }
 
+  private assertSessionReadyForTurn(): string {
+    if (!this.sessionId) {
+      throw new Error("ACP session not opened yet.");
+    }
+    if (this.isDisposed || this.transportClosed) {
+      throw new Error("ACP session is closed.");
+    }
+    return this.sessionId;
+  }
+
   private async runStartTurn(
     prompt: string,
     config: ThreadConfig,
     segments?: PromptSegment[],
     options?: StartTurnOptions,
   ): Promise<void> {
-    if (!this.sessionId) {
-      throw new Error("ACP session not opened yet.");
-    }
+    const sessionId = this.assertSessionReadyForTurn();
     this.currentTurnInterruptRequested = false;
     this.terminalCreationInterrupted = false;
     // A fresh turn ends the previous turn's output suppression. An idle
@@ -2020,7 +2032,7 @@ export class AcpStructuredSession implements StructuredSessionHandle {
       this.promptInFlight = true;
       this.pendingPromptAdmission = options?.onPromptSubmitted;
       const result = await this.connection.prompt({
-        sessionId: this.sessionId,
+        sessionId,
         prompt: contentBlocks,
       });
       this.pendingPromptAdmission?.();
@@ -2171,9 +2183,7 @@ export class AcpStructuredSession implements StructuredSessionHandle {
     segments?: PromptSegment[],
     options?: StartTurnOptions,
   ): Promise<void> {
-    if (!this.sessionId) {
-      throw new Error("ACP session not opened yet.");
-    }
+    this.assertSessionReadyForTurn();
     if (
       !this.promptSteering ||
       !this.promptInFlight ||
@@ -2194,7 +2204,7 @@ export class AcpStructuredSession implements StructuredSessionHandle {
     ]);
 
     const blocks = await this.outboundPromptBlocks(prompt, segments, options);
-    if (this.isDisposed) return;
+    const sessionId = this.assertSessionReadyForTurn();
     // The turn may have ended while the content blocks were prepared; a steer
     // then belongs to the next turn, keeping the same painted user row.
     if (!this.promptInFlight || this.currentTurnInterruptRequested) {
@@ -2206,7 +2216,7 @@ export class AcpStructuredSession implements StructuredSessionHandle {
 
     if (isTextOnlyPrompt(blocks)) {
       const response = this.connection.prompt({
-        sessionId: this.sessionId,
+        sessionId,
         prompt: blocks,
         _meta: this.promptSteering.requestMeta,
       });
@@ -2429,44 +2439,6 @@ export class AcpStructuredSession implements StructuredSessionHandle {
 
   private isExpectedTransportExit(code: number | null): boolean {
     return this.isDisposed || code === 0;
-  }
-
-  // ── Resume artifacts ──────────────────────────────────────────
-
-  /**
-   * Wait for the session file to appear on disk.
-   *
-   * Called by the runtime AFTER `startTurn` fires the initial prompt.
-   * Gemini's ACP mode persists the session to disk during prompt processing.
-   * The TUI needs this file to exist before `--resume <id>` will work.
-   *
-   * Polls `~/.gemini/tmp/<project>/chats/` for a file containing the session UUID.
-   */
-  async ensureResumeArtifacts(): Promise<void> {
-    if (!this.sessionId) return;
-
-    const projectName = basename(this.cwd);
-    const chatsDir = join(homedir(), ".gemini", "tmp", projectName, "chats");
-    const uuid8 = this.sessionId.split("-")[0] ?? this.sessionId.slice(0, 8);
-
-    console.log("[acp] waiting for session file (uuid prefix: %s)...", uuid8);
-
-    const deadline = Date.now() + 15_000;
-    while (Date.now() < deadline) {
-      try {
-        const { readdirSync } = await import("node:fs");
-        const files = readdirSync(chatsDir);
-        const match = files.find((f) => f.includes(uuid8) && f.endsWith(".json"));
-        if (match) {
-          console.log("[acp] session file found:", join(chatsDir, match));
-          return;
-        }
-      } catch {
-        // Directory may not exist yet
-      }
-      await new Promise((resolve) => setTimeout(resolve, 300));
-    }
-    console.log("[acp] session file not found after timeout, proceeding anyway");
   }
 
   // ── Internal handlers ────────────────────────────────────────

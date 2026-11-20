@@ -1,3 +1,4 @@
+import type { PrWatchService } from "@/host/prWatch";
 import type { IpcProcedurePayload, IpcProcedureResult } from "@/shared/ipc";
 import type { McpThreadIdentity } from "@/shared/browserMcpThread";
 import { normalizeWorktreePathForComparison, resolveProjectLocation } from "@/shared/worktree";
@@ -29,11 +30,15 @@ import type {
   GhPostPrCommentPayload,
   GhReopenPrPayload,
   GhUpdatePrBranchPayload,
+  GitAddRemotePayload,
+  GitAddWorktreePayload,
+  GitAddWorktreeResult,
   GitAbortMergePayload,
   GitAbortMergeResult,
   GitBranchListResult,
   GitCommitPayload,
   GitCommitResult,
+  GitDeleteBranchPayload,
   GitDiffBatchResult,
   GitDiffResult,
   GitFetchPayload,
@@ -41,6 +46,7 @@ import type {
   GitFinishMergeResult,
   GitGetWorktreeSourceBranchPayload,
   GitGetWorktreeSourceBranchResult,
+  GitInitPayload,
   GitListWorktreesPayload,
   GitMergeToSourcePayload,
   GitMergeToSourceResult,
@@ -57,6 +63,8 @@ import type {
   GitStagePayload,
   GitSwitchBranchPayload,
   GitSwitchBranchResult,
+  GitSyncPayload,
+  GitSyncResult,
   GitUnstageAllPayload,
   GitUnstagePayload,
   GitWorktreeInfo,
@@ -107,6 +115,7 @@ import type {
 } from "@/shared/contracts";
 import type { RemoteProjectCommand, RemoteProjectCommandResult } from "@/shared/remote";
 import type { SharedSettings } from "@/shared/settings";
+import type { SettingsMutationResult } from "@/shared/settingsTransactions";
 import type { StreamableHttpMcpToolSpec } from "../../../mcp/StreamableHttpMcpIngress";
 import type { ScheduleService } from "../../../schedules/ScheduleService";
 import type {
@@ -226,10 +235,13 @@ export interface AppControlsSupervisorCaller {
   gitRevertAll(payload: GitRevertAllPayload): Promise<void>;
   /** Create a commit. */
   gitCommit(payload: GitCommitPayload): Promise<GitCommitResult>;
+  gitInit(payload: GitInitPayload): Promise<void>;
+  gitAddRemote(payload: GitAddRemotePayload): Promise<void>;
   /** List local (and optionally remote) branches. */
   gitListBranches(payload: GetGitBranchesPayload): Promise<GitBranchListResult>;
   /** Switch to (or create) a branch. */
   gitSwitchBranch(payload: GitSwitchBranchPayload): Promise<GitSwitchBranchResult>;
+  gitDeleteBranch(payload: GitDeleteBranchPayload): Promise<void>;
   /** Fetch from a remote. */
   gitFetch(payload: GitFetchPayload): Promise<void>;
   /** Pull (merge) from the tracking remote. */
@@ -238,8 +250,11 @@ export interface AppControlsSupervisorCaller {
   gitPullRebase(payload: GitPullPayload): Promise<void>;
   /** Push commits to a remote (publishes work). */
   gitPush(payload: GitPushPayload): Promise<void>;
+  gitSync(payload: GitSyncPayload): Promise<GitSyncResult>;
+  gitSyncRebase(payload: GitSyncPayload): Promise<GitSyncResult>;
   /** List a project's git worktrees. */
   gitListWorktrees(payload: GitListWorktreesPayload): Promise<GitWorktreeListResult>;
+  gitAddWorktree(payload: GitAddWorktreePayload): Promise<GitAddWorktreeResult>;
   /** Remove a worktree directory (destructive). */
   gitRemoveWorktree(payload: GitRemoveWorktreePayload): Promise<void>;
   /** Batch status for several worktree paths. */
@@ -299,6 +314,27 @@ export interface AppControlsSupervisorCaller {
   clearMcpServerOauth(payload: McpOauthClearPayload): Promise<void>;
   /** Agent Plugin packages visible to a project (bundled, user, and its own). */
   listPlugins(payload: ListPluginsPayload): Promise<ListPluginsResult>;
+  pluginCatalog(
+    payload: IpcProcedurePayload<"pluginCatalog">,
+  ): Promise<IpcProcedureResult<"pluginCatalog">>;
+  pluginAccounts(
+    payload: IpcProcedurePayload<"pluginAccounts">,
+  ): Promise<IpcProcedureResult<"pluginAccounts">>;
+  listSkillMarketplace(
+    payload: IpcProcedurePayload<"listSkillMarketplace">,
+  ): Promise<IpcProcedureResult<"listSkillMarketplace">>;
+  installMarketplaceSkill(
+    payload: IpcProcedurePayload<"installMarketplaceSkill">,
+  ): Promise<IpcProcedureResult<"installMarketplaceSkill">>;
+  importSkills(
+    payload: IpcProcedurePayload<"importSkills">,
+  ): Promise<IpcProcedureResult<"importSkills">>;
+  deleteSkill(
+    payload: IpcProcedurePayload<"deleteSkill">,
+  ): Promise<IpcProcedureResult<"deleteSkill">>;
+  discoverExternalMcpServers(
+    payload: IpcProcedurePayload<"discoverExternalMcpServers">,
+  ): Promise<IpcProcedureResult<"discoverExternalMcpServers">>;
   /** Scan installed skills (global + optional project scope). */
   scanSkills(payload: ScanSkillsPayload): Promise<SkillScanResult>;
   /** Enable or disable one skill. */
@@ -340,17 +376,148 @@ export interface AppControlsAppInfo {
 export interface AppControlsSettingsGateway {
   /** Full, normalized settings from disk. */
   read(): SharedSettings;
-  /**
-   * Persist a full settings object and broadcast the change the same way a
-   * normal settings save does (renderer IPC + power-save refresh on desktop).
-   * The caller has already applied `mergeManagedSharedSettings` guards.
-   */
-  write(next: SharedSettings): void;
+  /** Recompute a field edit on the current committed settings and await its outcome. */
+  editField<F extends keyof SharedSettings>(
+    field: F,
+    compute: (current: SharedSettings) => SharedSettings[F] | undefined,
+  ): Promise<SettingsMutationResult>;
+  editPreferences(
+    compute: (current: SharedSettings) => SharedSettings,
+  ): Promise<SettingsMutationResult>;
+  editFields?<F extends keyof SharedSettings>(
+    fields: readonly F[],
+    compute: (current: SharedSettings) => Pick<SharedSettings, F>,
+  ): Promise<SettingsMutationResult>;
 }
 
 /** Everything a tool handler needs to act on the app on the caller's behalf. */
+export type AppThreadLifecycleCommand = Extract<
+  RemoteThreadCommand,
+  { kind: "fork" | "delete" | "delete-worktree-group" | "prepare-worktree" }
+>;
+
+/** Fixed procedures used by typed host-runtime tools. Never selected by a raw client string. */
+export type AppRuntimeProcedure =
+  | "startShell"
+  | "controlWorkspaceTerminal"
+  | "queueThreadFollowUp"
+  | "getThreadFollowUpQueue"
+  | "editQueuedThreadFollowUp"
+  | "removeQueuedThreadFollowUp"
+  | "reorderQueuedThreadFollowUp"
+  | "steerQueuedThreadFollowUp"
+  | "pauseThreadFollowUps"
+  | "resumeThreadFollowUps"
+  | "controlThreadGoal"
+  | "listFileCheckpoints"
+  | "listThreadSessionActions"
+  | "invokeThreadSessionAction"
+  | "readThreadBackgroundTasks"
+  | "listImportableSessions"
+  | "generateCommitMessage"
+  | "generatePrSummary"
+  | "getGitFileContent"
+  | "getExperimentCandidateStats"
+  | "cancelJudgeExperiment"
+  | "manageModelProviders"
+  | "manageAgentCredentials"
+  | "manageAgentPlugins"
+  | "authenticateAcpAgent"
+  | "logoutAcpAgent"
+  | "listAcpRegistry"
+  | "installAcpRegistryAgent"
+  | "updateAcpRegistryAgent"
+  | "removeAcpRegistryAgent"
+  | "getLatestAgentVersion"
+  | "updateAgentBinary"
+  | "getAgentHookPluginStatuses"
+  | "installAgentHookPlugin"
+  | "uninstallAgentHookPlugin"
+  | "extractContext"
+  | "cancelExtractContext"
+  | "appThreadRequests"
+  | "forgeListPrLabelCandidates"
+  | "forgeListPullRequestsInState"
+  | "forgeListPrReviewerCandidates"
+  | "forgeGetPrViewedFiles"
+  | "forgeGetPrCommitDiff"
+  | "forgeSetPrLabels"
+  | "forgeRequestPrReviewers"
+  | "forgeConvertPrToDraft"
+  | "forgeSetPrFileViewed"
+  | "forgeEditPrComment"
+  | "forgeSetPrReaction"
+  | "forgeSubmitPrReviewDraft"
+  | "writeProjectFile"
+  | "createProjectEntry"
+  | "renameProjectEntry"
+  | "moveProjectEntry"
+  | "deleteProjectEntry"
+  | "ghListWorkflows"
+  | "ghListWorkflowRuns"
+  | "ghGetWorkflowRun"
+  | "ghGetWorkflowDefinition"
+  | "ghDispatchWorkflow"
+  | "ghRerunWorkflowRun"
+  | "ghCancelWorkflowRun"
+  | "ghDeleteWorkflowRun";
+
+export interface AppControlsRuntime {
+  call<Name extends AppRuntimeProcedure>(
+    name: Name,
+    payload: IpcProcedurePayload<Name>,
+  ): Promise<IpcProcedureResult<Name>>;
+}
+
 export interface AppControlsToolContext {
+  openProviderLogin?(
+    input: import("@/shared/contracts/appProviderAuth").AppProviderSignIn,
+  ): Promise<import("@/shared/contracts/appProviderAuth").AppProviderLoginResult>;
+  experiments?: {
+    read(): import("@/shared/contracts/experiment").RemoteExperimentState;
+    edit(
+      edit: import("@/shared/contracts/appExperiment").AppExperimentEdit,
+    ): Promise<import("@/shared/contracts/experiment").RemoteExperimentCommandResult>;
+    run?(
+      input: import("@/shared/contracts/appExperiment").AppExperimentWorkflow,
+      callerThreadId: string | undefined,
+    ): Promise<import("@/shared/contracts/appExperiment").AppExperimentResult>;
+  };
+  syncMemory?(): Promise<import("@/shared/contracts/appMemorySync").AppMemorySyncResult>;
+  localPorts?(
+    command: import("@/shared/contracts/appLocalPorts").AppLocalPortsCommand,
+  ): Promise<import("@/shared/contracts/appLocalPorts").AppLocalPortsResult>;
+  projectActions?: Pick<import("../../projectActions").ProjectActionService, "execute">;
+  importSession?(
+    input: import("@/shared/contracts/sessionImport").AppSessionImportInput,
+  ): Promise<import("@/shared/contracts/sessionImport").AppSessionImportResult>;
   deviceWorkspace?: DeviceWorkspaceService;
+  runtime?: AppControlsRuntime;
+  prWatches?: Pick<
+    PrWatchService,
+    "list" | "get" | "requestCheck" | "upsert" | "upsertScoped" | "delete" | "syncAgent"
+  >;
+  reopenThread?(
+    threadId: string,
+    initialSize: import("@/shared/contracts").TerminalSize,
+  ): Promise<StartThreadResult>;
+  revertCheckpoint?(
+    payload: IpcProcedurePayload<"revertCheckpoint">,
+  ): Promise<IpcProcedureResult<"revertCheckpoint">>;
+  applyThreadLifecycle?(command: AppThreadLifecycleCommand): Promise<void>;
+  editCatalog?(
+    command: import("@/shared/contracts/appCatalogOrder").AppCatalogEditCommand,
+    operationKey: string,
+  ): Promise<import("@/shared/contracts/appCatalogOrder").AppCatalogEditResult>;
+  moveThreadToWorktree?(
+    input: import("@/shared/contracts/threadWorktreeMove").MoveThreadToWorktreeInput,
+  ): Promise<import("@/shared/contracts/threadWorktreeMove").MoveThreadToWorktreeResult>;
+  handoffThread?(
+    input: import("@/shared/contracts/threadHandoff").ThreadHandoffInput,
+  ): Promise<import("@/shared/contracts/threadHandoff").ThreadHandoffResult>;
+  transferThread?(
+    input: import("@/shared/contracts/appThreadTransfer").AppThreadTransferInput,
+  ): Promise<import("@/shared/contracts/appThreadTransfer").AppThreadTransferResult>;
   /** Calling thread + its task title, decoded from the MCP endpoint URL. */
   identity: McpThreadIdentity;
   scheduleService: ScheduleService;
@@ -360,6 +527,9 @@ export interface AppControlsToolContext {
   getProject(projectId: string): Project | null;
   /** Per-project notes (doc + todos), or null when none are recorded. */
   getProjectNotes(projectId: string): ProjectNotes | null;
+  compareAndSetProjectNotes?(
+    input: import("@/shared/contracts").ProjectNotesGuardedWrite,
+  ): import("@/shared/contracts").ProjectNotesSaveResult;
   /** True when `path` resolves to an existing directory on disk. */
   directoryExists(path: string): boolean;
   /**
@@ -372,6 +542,7 @@ export interface AppControlsToolContext {
   updateProject(project: Project): void;
   /** Shared settings read + guarded write (used by get_settings / update_settings). */
   settings: AppControlsSettingsGateway;
+  assertCanPersistSecrets(): void;
   /** Read-only app facts for `get_app_info`. */
   getAppInfo(): AppControlsAppInfo;
   supervisor: AppControlsSupervisorCaller;
@@ -445,6 +616,11 @@ export interface ToolDomain {
   handlers: Record<string, ToolHandler>;
 }
 
+export function requireAppRuntime(ctx: AppControlsToolContext): AppControlsRuntime {
+  if (!ctx.runtime) throw new Error("The owning host is not ready for this action.");
+  return ctx.runtime;
+}
+
 /** Resolve a threadId arg to a DB row, or throw a clear not-found error. */
 export function requireThread(ctx: AppControlsToolContext, threadId: string): Thread {
   const thread = ctx.getThread(threadId);
@@ -502,9 +678,10 @@ export async function resolveWorktreeInfo(
   worktreePath: string,
 ): Promise<GitWorktreeInfo> {
   const { worktrees } = await ctx.supervisor.gitListWorktrees({ projectLocation: location });
-  const target = normalizeWorktreePathForComparison(worktreePath, false);
+  const caseInsensitive = location.kind === "windows";
+  const target = normalizeWorktreePathForComparison(worktreePath, caseInsensitive);
   const match = worktrees.find(
-    (worktree) => normalizeWorktreePathForComparison(worktree.path, false) === target,
+    (worktree) => normalizeWorktreePathForComparison(worktree.path, caseInsensitive) === target,
   );
   if (!match) {
     throw new Error(

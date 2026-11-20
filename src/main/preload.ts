@@ -2,6 +2,11 @@ import { contextBridge, ipcRenderer, webUtils } from "electron";
 import { installSmokeNativePreload } from "./testing/smokeNativeControls";
 import { type PoracodeChannel, normalizeChannel } from "@/shared/channel";
 import type { RemoteThreadCommand } from "@/shared/contracts";
+import { appThreadTransferRequestSchema } from "@/shared/contracts/appThreadTransfer";
+import { appDesktopActionStartSchema } from "@/shared/contracts/appDesktopAction";
+import { appMemorySyncRequestSchema } from "@/shared/contracts/appMemorySync";
+import { appExperimentRequestSchema } from "@/shared/contracts/appExperiment";
+import { appProviderLoginRequestSchema } from "@/shared/contracts/appProviderAuth";
 import type { RemoteAccessPairingInfo } from "@/shared/remote";
 import type { SharedSettings } from "@/shared/settings";
 import type { GitStatePatch } from "@/shared/gitState";
@@ -32,6 +37,59 @@ import {
   type ThreadOpenRequestedEvent,
   type UpdateStatus,
 } from "@/shared/ipc";
+
+function onDesktopAction<Request, Result>(
+  channel: string,
+  parseRequest: (input: unknown) => { success: true; data: Request } | { success: false },
+  listener: (request: Request, begin: () => Promise<void>) => Promise<Result>,
+): () => void {
+  const handler = (event: Electron.IpcRendererEvent, payload: unknown) => {
+    const port = event.ports[0];
+    if (!port) return;
+    const parsed = parseRequest(payload);
+    if (!parsed.success) {
+      port.postMessage({
+        version: 1,
+        type: "error",
+        message: "Invalid desktop action request.",
+      });
+      return;
+    }
+    const admitted = Promise.withResolvers<void>();
+    port.onmessage = (message) => {
+      if (!appDesktopActionStartSchema.safeParse(message.data).success) return;
+      port.onmessage = null;
+      admitted.resolve();
+    };
+    const begin = async () => {
+      port.postMessage({ version: 1, type: "accepted" });
+      const timer = setTimeout(
+        () => admitted.reject(new Error("The desktop action request expired.")),
+        5_000,
+      );
+      try {
+        await admitted.promise;
+      } finally {
+        clearTimeout(timer);
+      }
+    };
+    port.postMessage({ version: 1, type: "attached" });
+    void Promise.resolve()
+      .then(() => listener(parsed.data, begin))
+      .then(
+        (result) => port.postMessage({ version: 1, type: "result", result }),
+        (error: unknown) =>
+          port.postMessage({
+            version: 1,
+            type: "error",
+            message: error instanceof Error ? error.message : "The desktop action failed.",
+          }),
+      )
+      .catch(() => undefined);
+  };
+  ipcRenderer.on(channel, handler);
+  return () => ipcRenderer.removeListener(channel, handler);
+}
 
 /**
  * Host home dir without `node:os` — sandboxed preload must not import Node
@@ -156,6 +214,21 @@ const bridge: ElectronHostBridge = {
     ipcRenderer.on(IPC_EVENT_CHANNELS.sideChatWindowsChanged, handler);
     return () => ipcRenderer.removeListener(IPC_EVENT_CHANNELS.sideChatWindowsChanged, handler);
   },
+  openThreadWindow: (input) => ipcRenderer.invoke(IPC_WINDOW_CHANNELS.threadWindowOpen, input),
+  closeThreadWindow: (threadId, options) =>
+    ipcRenderer.invoke(IPC_WINDOW_CHANNELS.threadWindowClose, threadId, options),
+  navigateFromThreadWindow: (navigation) =>
+    ipcRenderer.invoke(IPC_WINDOW_CHANNELS.threadWindowNavigate, navigation),
+  getThreadWindowInfo: () => ipcRenderer.invoke(IPC_WINDOW_CHANNELS.threadWindowInfo),
+  getThreadWindowIds: () => ipcRenderer.invoke(IPC_WINDOW_CHANNELS.threadWindowIds),
+  onThreadWindowsChanged: (listener) => {
+    const handler = (
+      _event: Electron.IpcRendererEvent,
+      payload: import("@/shared/ipc/threadWindow").ThreadWindowsChanged,
+    ) => listener(payload);
+    ipcRenderer.on(IPC_EVENT_CHANNELS.threadWindowsChanged, handler);
+    return () => ipcRenderer.removeListener(IPC_EVENT_CHANNELS.threadWindowsChanged, handler);
+  },
   channel: resolveChannel(),
   hostCapabilities: resolveHostCapabilities(),
   ...(homeDir ? { homeDir } : {}),
@@ -237,6 +310,34 @@ const bridge: ElectronHostBridge = {
       ipcRenderer.removeListener(IPC_EVENT_CHANNELS.remoteThreadCommand, handler);
     };
   },
+  onAppThreadTransfer(listener) {
+    return onDesktopAction(
+      IPC_EVENT_CHANNELS.appThreadTransfer,
+      (payload) => appThreadTransferRequestSchema.safeParse(payload),
+      listener,
+    );
+  },
+  onAppMemorySync(listener) {
+    return onDesktopAction(
+      IPC_EVENT_CHANNELS.appMemorySync,
+      (payload) => appMemorySyncRequestSchema.safeParse(payload),
+      listener,
+    );
+  },
+  onAppExperiment(listener) {
+    return onDesktopAction(
+      IPC_EVENT_CHANNELS.appExperiment,
+      (payload) => appExperimentRequestSchema.safeParse(payload),
+      listener,
+    );
+  },
+  onAppProviderLogin(listener) {
+    return onDesktopAction(
+      IPC_EVENT_CHANNELS.appProviderLogin,
+      (payload) => appProviderLoginRequestSchema.safeParse(payload),
+      listener,
+    );
+  },
   onRemoteAccessPairingChanged(listener) {
     const handler = (_event: Electron.IpcRendererEvent, info: RemoteAccessPairingInfo) => {
       listener(info);
@@ -247,8 +348,12 @@ const bridge: ElectronHostBridge = {
     };
   },
   onSharedSettingsChanged(listener) {
-    const handler = (_event: Electron.IpcRendererEvent, settings: SharedSettings) => {
-      listener(settings);
+    const handler = (
+      _event: Electron.IpcRendererEvent,
+      settings: SharedSettings,
+      pluginInventoryChanged?: true,
+    ) => {
+      listener(settings, pluginInventoryChanged);
     };
     ipcRenderer.on(IPC_EVENT_CHANNELS.sharedSettingsChanged, handler);
     return () => {

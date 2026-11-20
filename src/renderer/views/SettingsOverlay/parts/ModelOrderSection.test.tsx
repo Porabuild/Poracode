@@ -7,6 +7,7 @@ import type {
   AgentStatus,
   AgentStatusesResponse,
   InstalledAcpRegistryAgent,
+  NpmPackageVersionQuery,
   Project,
 } from "@/shared/contracts";
 import { agentCapabilitySchema } from "@/shared/contracts";
@@ -49,7 +50,12 @@ const session = { remote: false };
 
 const bridge = {
   getLatestAgentVersion:
-    vi.fn<(payload: { agentKind: string }) => Promise<{ source: string; version?: string }>>(),
+    vi.fn<
+      (payload: {
+        agentKind: string;
+        npmPackage?: NpmPackageVersionQuery;
+      }) => Promise<{ source: string; version?: string }>
+    >(),
   updateAgentBinary: vi.fn<
     (payload: { agentKind: string; envKind: string; wslDistro?: string }) => Promise<{
       ok: boolean;
@@ -58,7 +64,7 @@ const bridge = {
   >(),
   updateAcpRegistryAgent:
     vi.fn<(payload: { agentId: string }) => Promise<{ installed: InstalledAcpRegistryAgent[] }>>(),
-  refreshAgentStatuses: vi.fn<() => Promise<AgentStatusesResponse>>(),
+  refreshAgentStatuses: vi.fn<(...args: unknown[]) => Promise<AgentStatusesResponse>>(),
   listAcpRegistry: vi.fn<() => Promise<AcpRegistryListResult>>(),
 };
 
@@ -170,6 +176,18 @@ vi.mock("@/renderer/bridge", () => ({
   readBridge: () => bridge,
 }));
 
+const runAgentInstallCommand = vi.hoisted(() =>
+  vi.fn<
+    (input: {
+      command: string;
+      project: Project;
+      onCommandComplete: (exitCode: number) => void;
+    }) => boolean
+  >(),
+);
+
+vi.mock("@/renderer/actions/agentLoginActions", () => ({ runAgentInstallCommand }));
+
 vi.mock("@/renderer/state/remoteServersStore", async () => {
   const { create } = await import("zustand");
   return {
@@ -221,11 +239,18 @@ vi.mock("@/renderer/components/common", () => ({
 
 vi.mock("@/renderer/components/providers/ProviderIcon", () => ({
   ProviderIcon: (props: { fallbackLabel?: string }) => <span>{props.fallbackLabel}</span>,
+  registerProviderIcon: () => undefined,
 }));
 
 import { registerCombinedRuntimeUpdates } from "@/renderer/components/providers/providerComposer";
+import "@/renderer/components/providers/cursor";
+import { reserveCursorSdkPackage } from "@/renderer/components/providers/cursor/sdkPackageOperation";
 import { resetAcpRegistryListingCache } from "@/renderer/components/providers/useCombinedProviderRuntimeUpdates";
-import { ModelOrderSection } from "./ModelOrderSection";
+import { ModelOrderSection as ModelOrderSectionView } from "./ModelOrderSection";
+
+function ModelOrderSection() {
+  return <ModelOrderSectionView onOpenAgentSettings={() => undefined} />;
+}
 
 /** Lingui descriptors without the macro, so extraction never sees test-only ids. */
 function runtimeLabel(id: string): MessageDescriptor {
@@ -240,6 +265,29 @@ function makeStatus(overrides: Partial<AgentStatus> & { kind: string }): AgentSt
     capabilities: {},
     ...overrides,
   } as AgentStatus;
+}
+
+function cursorWorkStatus(version = "1.4.0", installationSource = "global-inferred"): AgentStatus {
+  const capabilities = agentCapabilitySchema.parse({});
+  return makeStatus({
+    kind: "cursor:work",
+    label: "Cursor work",
+    version,
+    envKind: "windows",
+    authState: "authenticated",
+    capabilities,
+    runtimeVariants: {
+      sdk: {
+        presentationMode: "gui",
+        installed: true,
+        version,
+        installationSource,
+        authState: "authenticated",
+        authUsesProviderLogin: false,
+        capabilities,
+      },
+    },
+  });
 }
 
 describe("ModelOrderSection provider updates", () => {
@@ -280,6 +328,10 @@ describe("ModelOrderSection provider updates", () => {
       .mockReset()
       .mockResolvedValue({ windows: [], wsl: [] } as unknown as AgentStatusesResponse);
     bridge.listAcpRegistry.mockReset().mockResolvedValue({ version: "1", agents: [] });
+    runAgentInstallCommand.mockReset().mockImplementation(({ onCommandComplete }) => {
+      onCommandComplete(0);
+      return true;
+    });
     remoteCalls.callRemoteProcedure.mockReset();
     remoteCalls.agentStatuses.mockReset().mockResolvedValue(remoteStatuses());
     remoteCalls.agentSlashCommands.mockReset();
@@ -303,13 +355,210 @@ describe("ModelOrderSection provider updates", () => {
     expect(screen.getByText("—")).toBeTruthy();
   });
 
+  it("opens the selected machine's provider profile from its name", () => {
+    const profile = cursorWorkStatus();
+    selectRemoteMachine({ ...remoteStatuses(), windows: [profile] });
+    const onOpenAgentSettings = vi.fn<(kind: string) => void>();
+    render(<ModelOrderSectionView onOpenAgentSettings={onOpenAgentSettings} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Reorder Cursor work" }));
+    expect(onOpenAgentSettings).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Cursor work" }));
+    expect(onOpenAgentSettings).toHaveBeenCalledExactlyOnceWith("cursor:work");
+    expect(useMachineSelectionStore.getState().selectedMachineId).toBe(REMOTE_MACHINE_ID);
+  });
+
+  it("offers and verifies the Cursor Work SDK update on Windows without a project", async () => {
+    statusesState.agentStatuses = [cursorWorkStatus()];
+    bridge.getLatestAgentVersion.mockResolvedValue({ source: "npm", version: "1.4.1" });
+    bridge.refreshAgentStatuses.mockResolvedValue({
+      windows: [cursorWorkStatus("1.4.1")],
+      wsl: [],
+      fromCache: false,
+    });
+    render(<ModelOrderSection />);
+
+    expect(await screen.findByText("Cursor SDK v1.4.0 → v1.4.1")).toBeVisible();
+    expect(bridge.getLatestAgentVersion.mock.calls).toEqual([
+      [
+        {
+          agentKind: "cursor:work",
+          npmPackage: { name: "@cursor/sdk", minVersion: "1.0.38", maxExclusiveMajor: 2 },
+        },
+      ],
+    ]);
+    fireEvent.click(screen.getByRole("button", { name: "Update Cursor work" }));
+
+    await screen.findByText("Cursor SDK v1.4.1");
+    expect(runAgentInstallCommand).toHaveBeenCalledWith(
+      expect.objectContaining({
+        command: expect.stringContaining("npm install -g '@cursor/sdk@1.4.1'"),
+        project: expect.objectContaining({ location: { kind: "windows", path: "." } }),
+      }),
+    );
+    expect(bridge.refreshAgentStatuses).toHaveBeenCalledWith([], {
+      agentKinds: ["cursor:work"],
+      envs: [{ kind: "native" }],
+    });
+    expect(bridge.updateAgentBinary).not.toHaveBeenCalled();
+    expect(screen.queryByRole("button", { name: "Update Cursor work" })).toBeNull();
+  });
+
+  it("keeps offering the SDK update if the package remains on the old version", async () => {
+    const status = cursorWorkStatus();
+    statusesState.agentStatuses = [status];
+    bridge.getLatestAgentVersion.mockResolvedValue({ source: "npm", version: "1.4.1" });
+    bridge.refreshAgentStatuses.mockResolvedValue({ windows: [status], wsl: [], fromCache: false });
+    render(<ModelOrderSection />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Update Cursor work" }));
+
+    await waitFor(() =>
+      expect(toastMock.danger).toHaveBeenCalledWith("Unable to update Cursor SDK."),
+    );
+    expect(screen.getByRole("button", { name: "Update Cursor work" })).toBeEnabled();
+    expect(toastMock.success).not.toHaveBeenCalled();
+  });
+
+  it("leaves an SDK operation started on another screen running", async () => {
+    const status = cursorWorkStatus();
+    statusesState.agentStatuses = [status];
+    bridge.getLatestAgentVersion.mockResolvedValue({ source: "npm", version: "1.4.1" });
+    const release = reserveCursorSdkPackage(status);
+    expect(release).toBeDefined();
+    try {
+      render(<ModelOrderSection />);
+      fireEvent.click(await screen.findByRole("button", { name: "Update Cursor work" }));
+      await waitFor(() =>
+        expect(toastMock.danger).toHaveBeenCalledWith("Unable to update Cursor SDK."),
+      );
+      expect(runAgentInstallCommand).not.toHaveBeenCalled();
+      expect(reserveCursorSdkPackage(status, "local")).toBeUndefined();
+    } finally {
+      release?.();
+    }
+  });
+
+  it("still offers the CLI update for older Cursor inventory without runtime variants", async () => {
+    statusesState.agentStatuses = [
+      makeStatus({ kind: "cursor", label: "Cursor", version: "2026.11.10-abcdef" }),
+      cursorWorkStatus("1.4.0", "project"),
+    ];
+    bridge.getLatestAgentVersion.mockResolvedValue({
+      source: "unknown",
+      version: "2026.11.13-eacade1",
+    });
+    render(<ModelOrderSection />);
+
+    expect(await screen.findByText("ACP v2026.11.10-abcdef → v2026.11.13-eacade1")).toBeVisible();
+    expect(screen.getByText("Cursor SDK v1.4.0")).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Update Cursor work" })).toBeNull();
+    expect(bridge.getLatestAgentVersion.mock.calls).toEqual([[{ agentKind: "cursor" }]]);
+  });
+
+  it("updates the package shared by Cursor and Cursor Work only once during Update all", async () => {
+    const sdk = cursorWorkStatus();
+    const cursor = makeStatus({
+      ...sdk,
+      kind: "cursor",
+      label: "Cursor",
+      version: "2026.11.13-eacade1",
+      runtimeVariants: {
+        ...sdk.runtimeVariants,
+        acp: {
+          presentationMode: "gui",
+          installed: true,
+          version: "2026.11.13-eacade1",
+          authState: "authenticated",
+          authUsesProviderLogin: true,
+          capabilities: sdk.capabilities,
+        },
+      },
+    });
+    statusesState.agentStatuses = [cursor, sdk];
+    bridge.getLatestAgentVersion.mockImplementation(async ({ npmPackage }) =>
+      npmPackage
+        ? { source: "npm", version: "1.4.1" }
+        : { source: "unknown", version: cursor.version! },
+    );
+    bridge.refreshAgentStatuses.mockResolvedValue({
+      windows: [
+        {
+          ...cursor,
+          runtimeVariants: {
+            ...cursor.runtimeVariants,
+            ...cursorWorkStatus("1.4.1").runtimeVariants,
+          },
+        },
+        cursorWorkStatus("1.4.1"),
+      ],
+      wsl: [],
+      fromCache: false,
+    });
+    render(<ModelOrderSection />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Update all (2)" }));
+
+    await screen.findByText("Cursor SDK v1.4.1");
+    expect(runAgentInstallCommand).toHaveBeenCalledOnce();
+    expect(bridge.updateAgentBinary).not.toHaveBeenCalled();
+    expect(bridge.refreshAgentStatuses).toHaveBeenCalledExactlyOnceWith([], {
+      agentKinds: expect.arrayContaining(["cursor", "cursor:work"]),
+      envs: [{ kind: "native" }],
+    });
+    expect(toastMock.danger).not.toHaveBeenCalled();
+  });
+
+  it("runs a paired host's SDK update in the selected WSL distro and verifies on that host", async () => {
+    const inWsl = (version: string): AgentStatus => ({
+      ...cursorWorkStatus(version, "global-pnpm"),
+      envKind: "wsl",
+      envDistro: "Ubuntu",
+    });
+    const statuses = { ...remoteStatuses(), windows: [], wsl: [inWsl("1.4.0")] };
+    selectRemoteMachine(statuses);
+    useMachineSelectionStore.setState({ selectedMachineId: `${REMOTE_MACHINE_ID}/wsl:Ubuntu` });
+    remoteCalls.callRemoteProcedure.mockImplementation(async (procedure) => {
+      if (procedure === "getLatestAgentVersion") return { source: "npm", version: "1.4.1" };
+      if (procedure === "refreshAgentStatuses") {
+        return { windows: [], wsl: [inWsl("1.4.1")], fromCache: false };
+      }
+      throw new Error(`unexpected procedure: ${procedure}`);
+    });
+    remoteCalls.agentStatuses.mockResolvedValue({ ...statuses, wsl: [inWsl("1.4.1")] });
+    render(<ModelOrderSection />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Update Cursor work" }));
+
+    await screen.findByText("Cursor SDK v1.4.1");
+    expect(runAgentInstallCommand).toHaveBeenCalledWith(
+      expect.objectContaining({
+        command: expect.stringContaining("pnpm add -g '@cursor/sdk@1.4.1'"),
+        project: expect.objectContaining({
+          remoteServerId: "conn-1",
+          location: expect.objectContaining({
+            kind: "wsl",
+            distro: "Ubuntu",
+            remoteServerId: "conn-1",
+          }),
+        }),
+      }),
+    );
+    expect(remoteCalls.callRemoteProcedure).toHaveBeenCalledWith("refreshAgentStatuses", {
+      wslDistros: ["Ubuntu"],
+      scope: { agentKinds: ["cursor:work"], envs: [{ kind: "wsl", distro: "Ubuntu" }] },
+    });
+    expect(bridge.getLatestAgentVersion).not.toHaveBeenCalled();
+    expect(bridge.refreshAgentStatuses).not.toHaveBeenCalled();
+  });
+
   it("probes the bridge host's providers from a remote client", async () => {
     // A remote client labels its bridge host as the local machine; that host
     // runs the agents, so its providers are probed and updated over the same
     // connection as any paired machine.
     session.remote = true;
     const statuses = remoteStatuses("1.2.3");
-    statusesState.agentStatuses = statuses.windows;
     const bridgeCall = vi.fn<(procedure: string, payload: unknown) => Promise<unknown>>(
       async (procedure) => {
         if (procedure === "getLatestAgentVersion") return { version: "1.3.0" };
@@ -372,7 +621,10 @@ describe("ModelOrderSection provider updates", () => {
     const statuses = remoteStatuses();
     remoteCalls.callRemoteProcedure.mockImplementation(async (procedure) => {
       if (procedure === "getLatestAgentVersion") return { version: "1.3.0" };
-      if (procedure === "updateAgentBinary") return { ok: true };
+      if (procedure === "updateAgentBinary") {
+        remoteCalls.agentStatuses.mockResolvedValue(remoteStatuses("1.3.0"));
+        return { ok: true };
+      }
       if (procedure === "listAcpRegistry") return { version: "1", agents: [] };
       throw new Error(`unexpected procedure: ${procedure}`);
     });
@@ -659,6 +911,102 @@ describe("ModelOrderSection provider updates", () => {
     );
     expect(toastMock.success).not.toHaveBeenCalled();
     expect(screen.getByRole("button", { name: "Update Multi Runtime" })).toBeTruthy();
+  });
+
+  it("rechecks lagging inventory during Update all without repeating either installer", async () => {
+    const sdk = cursorWorkStatus();
+    const multi = combinedStatus("1.4.5", "1.4.5");
+    statusesState.agentStatuses = [sdk, multi];
+    mockCombinedLatest();
+    bridge.getLatestAgentVersion.mockImplementation(async ({ npmPackage }) => ({
+      source: "npm",
+      version: npmPackage ? "1.4.1" : "1.5.3",
+    }));
+    const reads = new Set<string>();
+    bridge.refreshAgentStatuses.mockImplementation(async (_distros, scope) => {
+      const {
+        agentKinds: [kind],
+      } = scope as { agentKinds: string[] };
+      const fresh = reads.has(kind!);
+      reads.add(kind!);
+      return {
+        windows:
+          kind === sdk.kind
+            ? [fresh ? cursorWorkStatus("1.4.1") : sdk]
+            : [fresh ? combinedStatus("1.5.3", "1.4.5") : multi],
+        wsl: [],
+        fromCache: false,
+      };
+    });
+    render(<ModelOrderSection />);
+    fireEvent.click(await screen.findByRole("button", { name: "Update all (2)" }));
+    await waitFor(() => expect(toastMock.success).toHaveBeenCalledTimes(2));
+    expect(runAgentInstallCommand).toHaveBeenCalledOnce();
+    expect(bridge.updateAgentBinary).toHaveBeenCalledOnce();
+    expect(toastMock.danger).not.toHaveBeenCalled();
+    expect(screen.queryByRole("button", { name: /^Update all/u })).toBeNull();
+  });
+
+  it("verifies a sibling profile joining an in-flight shared SDK update after statuses re-render", async () => {
+    const initialWork = cursorWorkStatus();
+    const initialCursor = makeStatus({
+      ...initialWork,
+      kind: "cursor",
+      label: "Cursor",
+      version: "2026.11.13-eacade1",
+      runtimeVariants: {
+        ...initialWork.runtimeVariants,
+        acp: {
+          presentationMode: "gui",
+          installed: true,
+          version: "2026.11.13-eacade1",
+          authState: "authenticated",
+          authUsesProviderLogin: true,
+          capabilities: initialWork.capabilities,
+        },
+      },
+    });
+    statusesState.agentStatuses = [initialCursor, initialWork];
+    bridge.getLatestAgentVersion.mockImplementation(async ({ npmPackage }) =>
+      npmPackage
+        ? { source: "npm", version: "1.4.1" }
+        : { source: "unknown", version: initialCursor.version! },
+    );
+    let completeCommand!: (code: number) => void;
+    runAgentInstallCommand.mockImplementationOnce(({ onCommandComplete }) => {
+      completeCommand = onCommandComplete;
+      return true;
+    });
+    bridge.refreshAgentStatuses.mockResolvedValue({
+      windows: [
+        {
+          ...initialCursor,
+          runtimeVariants: {
+            ...initialCursor.runtimeVariants,
+            ...cursorWorkStatus("1.4.1").runtimeVariants,
+          },
+        },
+        cursorWorkStatus("1.4.1"),
+      ],
+      wsl: [],
+      fromCache: false,
+    });
+
+    const view = render(<ModelOrderSection />);
+    fireEvent.click(await screen.findByRole("button", { name: "Update Cursor work" }));
+    await waitFor(() => expect(runAgentInstallCommand).toHaveBeenCalledOnce());
+
+    // A status refresh replaces the Cursor object reference while the SDK update is in flight.
+    statusesState.agentStatuses = [{ ...initialCursor }, initialWork];
+    view.rerender(<ModelOrderSection />);
+    fireEvent.click(screen.getByRole("button", { name: "Update Cursor" }));
+    await Promise.resolve();
+
+    await act(async () => completeCommand(0));
+
+    await waitFor(() => expect(toastMock.success).toHaveBeenCalledTimes(2));
+    expect(runAgentInstallCommand).toHaveBeenCalledOnce();
+    expect(toastMock.danger).not.toHaveBeenCalled();
   });
 
   it("updates combined runtimes on the paired host and keeps verified versions host-scoped", async () => {
@@ -993,6 +1341,31 @@ describe("ModelOrderSection provider updates", () => {
     await waitFor(() =>
       expect(toastMock.danger).toHaveBeenCalledWith(
         "Unable to update Claude Code: npm ERR! EACCES",
+      ),
+    );
+    expect(toastMock.success).not.toHaveBeenCalled();
+  });
+
+  it("reports a no-op exit-0 binary update instead of claiming success", async () => {
+    const geminiStatus = makeStatus({ kind: "gemini", label: "Gemini", version: "0.69.0" });
+    statusesState.agentStatuses = [geminiStatus];
+    bridge.getLatestAgentVersion.mockResolvedValue({ source: "npm", version: "0.70.0" });
+    bridge.updateAgentBinary.mockResolvedValue({
+      ok: true,
+      output: "Warning: gemini-cli 0.69.0 already installed",
+    });
+    bridge.refreshAgentStatuses.mockResolvedValue({
+      windows: [geminiStatus],
+      wsl: [],
+    } as unknown as AgentStatusesResponse);
+
+    render(<ModelOrderSection />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Update Gemini to v0.70.0" }));
+
+    await waitFor(() =>
+      expect(toastMock.danger).toHaveBeenCalledWith(
+        "Unable to update Gemini: Warning: gemini-cli 0.69.0 already installed",
       ),
     );
     expect(toastMock.success).not.toHaveBeenCalled();

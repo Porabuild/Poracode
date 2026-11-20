@@ -24,6 +24,7 @@ export function sideChatAvailable(
 }
 
 const opening = new Map<string, Promise<boolean>>();
+const snapshotCapableClients = new WeakSet<object>();
 
 /** The + menu reopens a retained conversation; /btw starts a fresh one. */
 export async function showSideChat(sourceThreadId: string): Promise<boolean> {
@@ -72,12 +73,19 @@ async function performOpen(
   // snapshots; the same environment descriptor answers for both.
   const host = entityHost(source);
   if (host) {
-    const supported = await host.withClient(
-      async (client) =>
+    const supported = await host.withClient(async (client) => {
+      if (typeof client === "object" && client !== null && snapshotCapableClients.has(client)) {
+        return true;
+      }
+      const ok =
         (await client.environment()).capabilities?.conversationSnapshots?.versions.includes(
           REMOTE_CONVERSATION_SNAPSHOTS_VERSION,
-        ) === true,
-    );
+        ) === true;
+      if (ok && typeof client === "object" && client !== null) {
+        snapshotCapableClients.add(client);
+      }
+      return ok;
+    });
     if (!supported)
       throw new Error(i18n._(msg`Update the remote host to use side chat with hidden context.`));
   }

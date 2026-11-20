@@ -10,14 +10,23 @@ import {
   acpRegistryMutationResultSchema,
   agentStatusesResponseSchema,
   getLatestAgentVersionResultSchema,
+  resolveAgentAccountResultSchema,
   updateAgentBinaryResultSchema,
   type AcpRegistryListResult,
   type AcpRegistryMutationResult,
   type AgentStatus,
+  type AuthenticateAcpAgentPayload,
   type GetLatestAgentVersionPayload,
   type GetLatestAgentVersionResult,
+  type InstallAcpRegistryAgentPayload,
   type InstalledAcpRegistryAgent,
+  type LogoutAcpAgentPayload,
   type RefreshAgentScope,
+  type RefreshAgentScopeEnv,
+  type RemoveAcpRegistryAgentPayload,
+  type ResolveAgentAccountPayload,
+  type ResolveAgentAccountResult,
+  type SetAcpRegistryAgentAuthPayload,
   type UpdateAcpRegistryAgentPayload,
   type UpdateAgentBinaryPayload,
   type UpdateAgentBinaryResult,
@@ -48,11 +57,24 @@ export interface AgentManagementHost {
   getLatestAgentVersion(
     payload: GetLatestAgentVersionPayload,
   ): Promise<GetLatestAgentVersionResult>;
+  resolveAgentAccount(payload: ResolveAgentAccountPayload): Promise<ResolveAgentAccountResult>;
   listAcpRegistry(): Promise<AcpRegistryListResult>;
+  installAcpRegistryAgent(
+    payload: InstallAcpRegistryAgentPayload,
+  ): Promise<AcpRegistryMutationResult>;
+  removeAcpRegistryAgent(
+    payload: RemoveAcpRegistryAgentPayload,
+  ): Promise<AcpRegistryMutationResult>;
   updateAgentBinary(payload: UpdateAgentBinaryPayload): Promise<UpdateAgentBinaryResult>;
   updateAcpRegistryAgent(
     payload: UpdateAcpRegistryAgentPayload,
   ): Promise<AcpRegistryMutationResult>;
+  setAcpRegistryAgentAuth(
+    payload: SetAcpRegistryAgentAuthPayload,
+  ): Promise<AcpRegistryMutationResult>;
+  authenticateAcpAgent(payload: AuthenticateAcpAgentPayload): Promise<void>;
+  logoutAcpAgent(payload: LogoutAcpAgentPayload): Promise<void>;
+  focusAfterAuth(): Promise<void>;
   /** Records registry installs this host reported; only the local host's live in this client's settings. */
   recordRegistryInstalls(
     installed: InstalledAcpRegistryAgent[],
@@ -69,7 +91,7 @@ export interface AgentManagementHost {
     scope?: RefreshAgentScope,
   ): Promise<HostAgentStatusPools>;
   /** Starts fresh host discovery, including when no agents have been found yet. */
-  rediscoverAgents(wslDistros: string[]): Promise<HostAgentStatusPools>;
+  rediscoverAgents(wslDistros: string[], scope?: RefreshAgentScope): Promise<HostAgentStatusPools>;
 }
 
 export const LOCAL_AGENT_MANAGEMENT_HOST: AgentManagementHost = {
@@ -77,16 +99,26 @@ export const LOCAL_AGENT_MANAGEMENT_HOST: AgentManagementHost = {
   connectionKey: undefined,
   isRemote: false,
   getLatestAgentVersion: (payload) => readBridge().getLatestAgentVersion(payload),
+  resolveAgentAccount: (payload) => readBridge().resolveAgentAccount(payload),
   listAcpRegistry: () => readBridge().listAcpRegistry(),
+  installAcpRegistryAgent: (payload) => readBridge().installAcpRegistryAgent(payload),
+  removeAcpRegistryAgent: (payload) => readBridge().removeAcpRegistryAgent(payload),
   updateAgentBinary: (payload) => readBridge().updateAgentBinary(payload),
   updateAcpRegistryAgent: (payload) => readBridge().updateAcpRegistryAgent(payload),
+  setAcpRegistryAgentAuth: (payload) => readBridge().setAcpRegistryAgentAuth(payload),
+  authenticateAcpAgent: (payload) => readBridge().authenticateAcpAgent(payload),
+  logoutAcpAgent: (payload) => readBridge().logoutAcpAgent(payload),
+  focusAfterAuth: () => readBridge().focusWindow(),
   recordRegistryInstalls: (installed, agentIds) =>
-    useSharedSettings.getState().syncAcpRegistryInstalledAgents(installed, agentIds),
+    useSharedSettings
+      .getState()
+      .syncAcpRegistryInstalledAgents(installed, ...(agentIds !== undefined ? [agentIds] : [])),
   refreshAgentStatuses: async (wslDistros, scope) => {
     const response = await readBridge().refreshAgentStatuses(wslDistros, scope);
     return { windows: response.windows, wsl: response.wsl };
   },
-  rediscoverAgents: (wslDistros) => LOCAL_AGENT_MANAGEMENT_HOST.refreshAgentStatuses(wslDistros),
+  rediscoverAgents: (wslDistros, scope) =>
+    LOCAL_AGENT_MANAGEMENT_HOST.refreshAgentStatuses(wslDistros, scope),
 };
 
 function readRuntimeStatuses(connectionKey: string) {
@@ -143,18 +175,33 @@ function createRemoteAgentManagementHost(connectionKey: string): AgentManagement
     isRemote: true,
     getLatestAgentVersion: async (payload) =>
       getLatestAgentVersionResultSchema.parse(await call("getLatestAgentVersion", payload)),
+    resolveAgentAccount: async (payload) =>
+      resolveAgentAccountResultSchema.parse(await call("resolveAgentAccount", payload)),
     listAcpRegistry: async () =>
       acpRegistryListResultSchema.parse(await call("listAcpRegistry", {})),
+    installAcpRegistryAgent: async (payload) =>
+      acpRegistryMutationResultSchema.parse(await call("installAcpRegistryAgent", payload)),
+    removeAcpRegistryAgent: async (payload) =>
+      acpRegistryMutationResultSchema.parse(await call("removeAcpRegistryAgent", payload)),
     updateAgentBinary: async (payload) =>
       updateAgentBinaryResultSchema.parse(await call("updateAgentBinary", payload)),
     updateAcpRegistryAgent: async (payload) =>
       acpRegistryMutationResultSchema.parse(await call("updateAcpRegistryAgent", payload)),
+    setAcpRegistryAgentAuth: async (payload) =>
+      acpRegistryMutationResultSchema.parse(await call("setAcpRegistryAgentAuth", payload)),
+    authenticateAcpAgent: async (payload) => {
+      await call("authenticateAcpAgent", payload);
+    },
+    logoutAcpAgent: async (payload) => {
+      await call("logoutAcpAgent", payload);
+    },
+    focusAfterAuth: () => Promise.resolve(),
     recordRegistryInstalls: () => undefined,
     refreshAgentStatuses: () => refreshRemoteAgentStatuses(connectionKey),
-    rediscoverAgents: async (wslDistros) => {
+    rediscoverAgents: async (wslDistros, scope) => {
       const generation = currentRemoteServerGeneration(connectionKey);
       const response = agentStatusesResponseSchema.parse(
-        await call("refreshAgentStatuses", { wslDistros }),
+        await call("refreshAgentStatuses", { wslDistros, ...(scope ? { scope } : {}) }),
       );
       return refreshRemoteAgentStatuses(connectionKey, {
         generation,
@@ -191,4 +238,14 @@ export function useHostRegistryInstalledAgents(
 ): Readonly<Record<string, InstalledAcpRegistryAgent>> {
   const local = useSharedSettings((s) => s.acpRegistryInstalledAgents);
   return host.isRemote ? EMPTY_REGISTRY_RECORDS : local;
+}
+
+/** Resolves the WSL distro list for a scoped status refresh on `host`. */
+export function distrosForAgentHost(
+  host: AgentManagementHost,
+  env: RefreshAgentScopeEnv,
+  localWslDistros: readonly string[],
+): string[] {
+  if (!host.isRemote) return [...localWslDistros];
+  return env.kind === "wsl" ? [env.distro] : [];
 }

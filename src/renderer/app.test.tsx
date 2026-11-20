@@ -1,4 +1,6 @@
 import * as clientDraftSubmission from "./actions/clientDraftSubmission";
+import * as gitHelpers from "./utils/gitHelpers";
+import * as gitRefresh from "./state/gitRefresh";
 import {
   __resetRemoteServersStoreForTest,
   useRemoteServersStore,
@@ -31,12 +33,17 @@ import { useExperimentStore } from "./state/experimentStore";
 import { useWorkspaceStore } from "./state/workspaceStore";
 import { resetDevTerminalStore, useDevTerminalStore } from "./state/devTerminalStore";
 import { useThreadOutputStore } from "./state/threadOutputStore";
+import {
+  hasHydratedThreadRuntimeItems,
+  invalidateThreadRuntimeHydration,
+} from "./state/chatRuntimePersister";
 import { useUpdateStore } from "./state/updateStore";
 import { gitMergeAndRemove } from "@/renderer/actions/gitActions";
 import { openThread, unloadThread } from "@/renderer/actions/threadActions";
 
 const {
   bridge,
+  draftLaunches,
   gitStateChangedListeners,
   quickComposerSubmitListeners,
   remoteThreadCommandListeners,
@@ -51,6 +58,7 @@ const {
   const supervisorListeners: Array<(event: SupervisorEvent) => void> = [];
   const threadOpenListeners: Array<(event: ThreadOpenRequestedEvent) => void> = [];
   return {
+    draftLaunches: [] as Promise<unknown>[],
     gitStateChangedListeners: gitListeners,
     remoteThreadCommandListeners: listeners,
     runWorktreeSetupScript: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
@@ -62,6 +70,8 @@ const {
         worktreeStorageMode: "global",
         worktreeBasePath: "",
         wslWorktreeBasePath: "",
+        titleGenProvider: "disabled",
+        wslTitleGenProvider: "disabled",
         workspaces: [] as Workspace[],
         mcpServers: [],
         disabledBuiltInMcpServers: {},
@@ -410,20 +420,22 @@ vi.mock("@/renderer/components/thread/ThreadDraftView", () => ({
       worktreeBranch?: string;
       worktreeBaseBranch?: string;
       worktreeIsNewBranch?: boolean;
-    }) => void;
+    }) => Promise<unknown>;
   }) => (
     <div>
       draft
       <button
         onClick={() =>
-          props.onStart({
-            agentKind: "codex",
-            config: { model: "gpt-5.4" },
-            prompt: "start worktree",
-            worktreeBranch: "feature/x",
-            worktreeBaseBranch: "main",
-            worktreeIsNewBranch: true,
-          })
+          draftLaunches.push(
+            props.onStart({
+              agentKind: "codex",
+              config: { model: "gpt-5.4" },
+              prompt: "start worktree",
+              worktreeBranch: "feature/x",
+              worktreeBaseBranch: "main",
+              worktreeIsNewBranch: true,
+            }),
+          )
         }
         type="button"
       >
@@ -431,13 +443,16 @@ vi.mock("@/renderer/components/thread/ThreadDraftView", () => ({
       </button>
       <button
         onClick={() =>
-          props.onStart({
-            agentKind: "codex",
-            config: { model: "gpt-5.4" },
-            prompt: "attach worktree",
-            existingWorktreePath: "C:\\Users\\demo\\.poracode\\worktrees\\repo-12345678\\feature-x",
-            worktreeBranch: "feature/x",
-          })
+          draftLaunches.push(
+            props.onStart({
+              agentKind: "codex",
+              config: { model: "gpt-5.4" },
+              prompt: "attach worktree",
+              existingWorktreePath:
+                "C:\\Users\\demo\\.poracode\\worktrees\\repo-12345678\\feature-x",
+              worktreeBranch: "feature/x",
+            }),
+          )
         }
         type="button"
       >
@@ -577,7 +592,14 @@ describe("App", () => {
     });
   });
 
-  afterEach(() => {
+  afterEach(async () => {
+    // Draft rows appear optimistically before their host launch finishes.
+    // Join that work before resetting stores for the next test or tearing down
+    // the worker, then drain the usage recorder's delayed flush.
+    await act(async () => {
+      await Promise.all(draftLaunches.splice(0));
+    });
+    window.dispatchEvent(new Event("pagehide"));
     vi.useRealTimers();
   });
 
@@ -818,6 +840,55 @@ describe("App", () => {
 
     expect(useAppStore.getState().view).toEqual({ kind: "thread", panes: [thread.id] });
     expect(useAppStore.getState().pendingComposerFocusThreadId).toBe(thread.id);
+  });
+
+  it("opens detached-window file and review links in their source worktree", async () => {
+    const project = {
+      id: "link-project",
+      name: "Links",
+      location: { kind: "windows" as const, path: "C:/repo" },
+      createdAt: "2026-11-13T00:00:00Z",
+    };
+    const thread: Thread = {
+      id: "link-thread",
+      projectId: project.id,
+      title: "Links",
+      agentKind: "codex",
+      config: { model: "test-model" },
+      status: "idle",
+      attention: "none",
+      canResumeWithConfig: false,
+      archived: false,
+      done: false,
+      starred: false,
+      createdAt: "2026-11-13T00:00:00Z",
+      updatedAt: "2026-11-13T00:00:00Z",
+      worktreePath: "C:/repo-worktree",
+    };
+    useAppStore.setState({ projects: [project], threads: [thread] });
+    const openFile = vi.spyOn(gitHelpers, "openFileInEditor").mockResolvedValue(undefined);
+    threadOpenRequestedListeners.at(-1)?.({
+      threadId: thread.id,
+      navigation: { kind: "file", path: "src/app.ts", lineNumber: 12 },
+    });
+    await waitFor(() =>
+      expect(openFile).toHaveBeenCalledExactlyOnceWith(
+        project,
+        thread.worktreePath,
+        undefined,
+        "src/app.ts",
+        12,
+      ),
+    );
+
+    threadOpenRequestedListeners.at(-1)?.({ threadId: thread.id, navigation: { kind: "review" } });
+    expect(usePanelStore.getState()).toMatchObject({
+      gitOverlayOpen: true,
+      gitReviewAsPanel: false,
+      gitReviewContext: { projectId: project.id, worktreePath: thread.worktreePath },
+    });
+    expect(useAppStore.getState().view).toEqual({ kind: "home" });
+    usePanelStore.getState().setGitOverlayOpen(false);
   });
 
   it("switches workspaces when a notification requests a thread in another workspace", async () => {
@@ -1498,6 +1569,7 @@ describe("App", () => {
   });
 
   it("requests the selected GUI thread transcript while showing the persisted thread", async () => {
+    invalidateThreadRuntimeHydration("thread-visible-gui");
     useAppStore.persist.hasHydrated = vi.fn<() => boolean>().mockReturnValue(true);
     useAppStore.persist.onHydrate = vi.fn<() => () => void>(() => () => undefined);
     useAppStore.persist.onFinishHydration = vi.fn<() => () => void>(() => () => undefined);
@@ -1561,6 +1633,9 @@ describe("App", () => {
     });
 
     resolveRuntimeItems({ items: [], nextCursor: null });
+    await waitFor(() => {
+      expect(hasHydratedThreadRuntimeItems("thread-visible-gui")).toBe(true);
+    });
   });
 
   it("queues launch for the selected terminal thread after persisted state hydrates", async () => {
@@ -2014,6 +2089,7 @@ describe("App", () => {
   });
 
   it("uses the resolved worktree path returned by the supervisor when starting from a draft", async () => {
+    const refresh = vi.spyOn(gitRefresh, "refreshGitProject");
     useAppStore.persist.hasHydrated = vi.fn<() => boolean>().mockReturnValue(true);
     useAppStore.persist.onHydrate = vi.fn<() => () => void>(() => () => undefined);
     useAppStore.persist.onFinishHydration = vi.fn<() => () => void>(() => () => undefined);
@@ -2068,9 +2144,20 @@ describe("App", () => {
         path: "C:\\Users\\demo\\.poracode\\worktrees\\repo-12345678\\feature-x",
       },
     });
+    await waitFor(() => {
+      expect(refresh).toHaveBeenCalledWith(
+        expect.objectContaining({ id: "project-1" }),
+        "manual",
+        "full",
+      );
+    });
+    await act(async () => {
+      await Promise.all(refresh.mock.results.map(({ value }) => value));
+    });
   });
 
   it("keeps existing thread worktrees watched when creating another worktree", async () => {
+    const refresh = vi.spyOn(gitRefresh, "refreshGitProject");
     useAppStore.persist.hasHydrated = vi.fn<() => boolean>().mockReturnValue(true);
     useAppStore.persist.onHydrate = vi.fn<() => () => void>(() => () => undefined);
     useAppStore.persist.onFinishHydration = vi.fn<() => () => void>(() => () => undefined);
@@ -2121,6 +2208,16 @@ describe("App", () => {
           "C:\\Users\\demo\\.poracode\\worktrees\\repo-12345678\\feature-y",
         ],
       });
+    });
+    await waitFor(() => {
+      expect(refresh).toHaveBeenCalledWith(
+        expect.objectContaining({ id: "project-1" }),
+        "manual",
+        "full",
+      );
+    });
+    await act(async () => {
+      await Promise.all(refresh.mock.results.map(({ value }) => value));
     });
   });
 

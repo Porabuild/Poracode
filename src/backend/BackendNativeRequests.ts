@@ -6,6 +6,15 @@ import {
   type BackendNativeRequest,
 } from "@/shared/backendHostProtocol";
 import { AsyncWorkTracker } from "@/shared/asyncWorkTracker";
+import { APP_THREAD_TRANSFER_CLIENT_TIMEOUT_MS } from "@/shared/contracts/appThreadTransfer";
+import { APP_MEMORY_SYNC_CLIENT_TIMEOUT_MS } from "@/shared/contracts/appMemorySync";
+import { APP_EXPERIMENT_CLIENT_TIMEOUT_MS } from "@/shared/contracts/appExperiment";
+
+const DESKTOP_ACTION_TIMEOUTS: Partial<Record<BackendNativeRequest["operation"], number>> = {
+  "thread-transfer": APP_THREAD_TRANSFER_CLIENT_TIMEOUT_MS,
+  "memory-sync": APP_MEMORY_SYNC_CLIENT_TIMEOUT_MS,
+  "experiment-workflow": APP_EXPERIMENT_CLIENT_TIMEOUT_MS,
+};
 
 /** Reverse IPC remains alive while admitted backend work drains. */
 export class BackendNativeRequests {
@@ -28,10 +37,12 @@ export class BackendNativeRequests {
       () =>
         new Promise((resolve, reject) => {
           const id = randomUUID();
+          const actionTimeout = DESKTOP_ACTION_TIMEOUTS[request.operation];
+          const deadline = actionTimeout === undefined ? 60_000 : actionTimeout + 5_000;
           const timeout = setTimeout(() => {
             this.pending.delete(id);
             reject(new Error(`Native request "${request.operation}" timed out.`));
-          }, 60_000);
+          }, deadline);
           timeout.unref?.();
           this.pending.set(id, { resolve, reject, timeout });
           try {

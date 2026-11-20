@@ -1,7 +1,10 @@
 import { z } from "zod";
 import { isSensitiveAgentSetting, sensitiveAgentSettingKeys } from "@/shared/agentSecrets";
-import { normalizeSharedSettings, type SharedSettings } from "@/shared/settings";
-import { mergeManagedSharedSettings } from "../../../sharedSettingsFile";
+import {
+  normalizeSharedSettings,
+  sharedSettingsSchema,
+  type SharedSettings,
+} from "@/shared/settings";
 import { REDACTED_VALUE, redactMcpServer, restoreRedactedTransport } from "@/host/mcpSettings";
 import type { ToolDomain } from "./types";
 
@@ -28,8 +31,12 @@ const PROTECTED_SETTINGS_KEYS: ReadonlySet<string> = new Set([
   "crossagentSelectionUsage",
   "crossagentRoutingOverrides",
   "mcpServers",
+  "installedPlugins",
+  "disabledBuiltInMcpServers",
+  "disabledBuiltInMcpTools",
 ]);
 
+const settingsFieldSchema = sharedSettingsSchema.keyof();
 const getArgsSchema = z.object({ section: z.string().min(1).optional() });
 const updateArgsSchema = z.object({
   patch: z.record(z.string(), z.unknown()),
@@ -50,7 +57,7 @@ export const settingsTools: ToolDomain = {
     {
       name: "update_settings",
       description:
-        "Deep-merge a partial patch into the app's shared settings. Changes apply immediately app-wide. Cannot modify secret-bearing or supervisor-managed fields (agent profiles/instances, installed ACP agents, hook support). MCP servers are managed with the dedicated add_mcp_server/update_mcp_server/remove_mcp_server tools, not this one.",
+        "Deep-merge a partial patch into the app's shared settings. Changes apply app-wide. Secret-bearing and supervisor-managed fields are protected. Use the dedicated MCP server and plugin tools to manage those integrations.",
       inputSchema: {
         type: "object",
         additionalProperties: false,
@@ -73,14 +80,30 @@ export const settingsTools: ToolDomain = {
       }
       return { section, value: (redacted as Record<string, unknown>)[section] };
     },
-    update_settings: (args, ctx) => {
+    update_settings: async (args, ctx) => {
       const { patch } = updateArgsSchema.parse(args);
       const rejected = Object.keys(patch).filter((key) => PROTECTED_SETTINGS_KEYS.has(key));
-      const rejectedAgentSecrets = findPatchedAgentSecrets(patch.agentSettings);
+      const rejectedAgentSecrets = [
+        ...findPatchedAgentSecrets(patch.agentSettings),
+        ...(isPlainObject(patch.machineSettings)
+          ? Object.entries(patch.machineSettings).flatMap(([machine, value]) =>
+              isPlainObject(value)
+                ? findPatchedAgentSecrets(value.agentSettings).map(
+                    (key) => `machineSettings.${machine}.agentSettings.${key}`,
+                  )
+                : [],
+            )
+          : []),
+      ];
       if (rejected.length > 0) {
-        const hint = rejected.includes("mcpServers")
-          ? " Manage MCP servers with add_mcp_server, update_mcp_server, and remove_mcp_server."
-          : "";
+        const hint = [
+          rejected.includes("mcpServers")
+            ? " Manage MCP servers with add_mcp_server, update_mcp_server, and remove_mcp_server."
+            : "",
+          rejected.includes("installedPlugins")
+            ? " Manage plugins with configure_plugin and the catalog tools."
+            : "",
+        ].join("");
         throw new Error(
           `These settings are managed elsewhere and cannot be changed with this tool: ${rejected.join(
             ", ",
@@ -94,14 +117,17 @@ export const settingsTools: ToolDomain = {
           )}.`,
         );
       }
-      const onDisk = ctx.settings.read();
-      const candidate = deepMerge(onDisk as Record<string, unknown>, patch);
-      const normalized = normalizeSharedSettings(candidate);
-      // Defense in depth: re-pin supervisor-managed fields and encrypted
-      // profile environments regardless of what the patch attempted.
-      const merged = mergeManagedSharedSettings(onDisk, normalized);
-      ctx.settings.write(merged);
-      return { updated: true, appliedKeys: Object.keys(patch).sort() };
+      const fields = Object.keys(patch).map((key) => settingsFieldSchema.parse(key));
+      if (fields.length === 0) return { updated: true, appliedKeys: [] };
+      const result = await ctx.settings.editPreferences((current) => {
+        const candidate = deepMerge(current as Record<string, unknown>, patch);
+        return normalizeSharedSettings(candidate);
+      });
+      if (result.status !== "committed")
+        throw new Error(
+          `Settings were not saved (${result.status}). Check get_settings before retrying.`,
+        );
+      return { updated: true, appliedKeys: fields.sort() };
     },
   },
 };
@@ -118,6 +144,7 @@ function deepMerge(
 ): Record<string, unknown> {
   const result: Record<string, unknown> = { ...base };
   for (const [key, value] of Object.entries(patch)) {
+    if (key === "__proto__" || key === "prototype" || key === "constructor") continue;
     const current = result[key];
     result[key] =
       isPlainObject(current) && isPlainObject(value) ? deepMerge(current, value) : value;
@@ -138,14 +165,14 @@ function deepMerge(
  * An agent can therefore see what is configured without ever reading a secret.
  */
 export function redactSharedSettings(settings: SharedSettings): Record<string, unknown> {
-  const agentSettings = Object.fromEntries(
-    Object.entries(settings.agentSettings).map(([agentKind, values]) => {
-      const next = { ...values };
-      for (const key of sensitiveAgentSettingKeys(agentKind)) {
-        if (key in next) next[key] = REDACTED_VALUE;
-      }
-      return [agentKind, next];
-    }),
+  const agentSettings = redactAgentSettings(settings.agentSettings);
+  const machineSettings = Object.fromEntries(
+    Object.entries(settings.machineSettings).map(([machine, values]) => [
+      machine,
+      values.agentSettings
+        ? { ...values, agentSettings: redactAgentSettings(values.agentSettings) }
+        : values,
+    ]),
   );
   const agentInstances = Object.fromEntries(
     Object.entries(settings.agentInstances).map(([id, instance]) => {
@@ -160,7 +187,19 @@ export function redactSharedSettings(settings: SharedSettings): Record<string, u
     }),
   );
   const mcpServers = settings.mcpServers.map(redactMcpServer);
-  return { ...settings, agentSettings, agentInstances, mcpServers };
+  return { ...settings, agentSettings, machineSettings, agentInstances, mcpServers };
+}
+
+function redactAgentSettings(settings: SharedSettings["agentSettings"]) {
+  return Object.fromEntries(
+    Object.entries(settings).map(([agentKind, values]) => {
+      const next = { ...values };
+      for (const key of sensitiveAgentSettingKeys(agentKind)) {
+        if (key in next) next[key] = REDACTED_VALUE;
+      }
+      return [agentKind, next];
+    }),
+  );
 }
 
 function findPatchedAgentSecrets(value: unknown): string[] {

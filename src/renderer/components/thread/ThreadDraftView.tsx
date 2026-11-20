@@ -21,6 +21,8 @@ import { PixelLoader } from "@/renderer/components/common/PixelLoader";
 import { modelVisibilityKey } from "@/renderer/components/common/ProviderModelMenu/parts/providerIdentity";
 import type { ProviderModelSelectionIntent } from "@/renderer/components/common/ProviderModelMenu/parts/types";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
+import { useCrewLibrary } from "@/renderer/state/crewLibrary";
+import type { DraftContent } from "@/renderer/state/slices/types";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { useAgentSlashCommandCatalog } from "@/renderer/hooks/useAgentSlashCommandCatalog";
@@ -29,6 +31,7 @@ import { dispatchProjectDraftConfig } from "@/renderer/state/managedRootCatalog/
 import {
   capabilitiesForPresentation,
   filterHiddenModels,
+  resolveComposerPresentationMode,
   supportsWorkflowMode,
 } from "@/shared/agentSelection";
 import { normalizeProviderModelConfig } from "@/renderer/components/providers/modelConfig";
@@ -52,7 +55,6 @@ import {
   resolveContextSizeValue,
   resolveEffortValue,
   resolveFastValue,
-  resolveInitialPresentationMode,
   resolveModelValue,
   resolveApprovalPolicyValue,
   resolvePreferredAgentKind,
@@ -261,6 +263,27 @@ export function ThreadDraftView(props: {
    */
   isDetectingAgents?: boolean;
   lastDraftConfig?: ProjectDraftConfig;
+  /** Isolated selection state (e.g. Side Chat) that does not mutate project/global defaults. */
+  draftSelection?: {
+    initial: {
+      agentKind: AgentStatus["kind"];
+      agentInstanceId?: string | undefined;
+      config: ThreadConfig;
+    };
+    onChange?: (selection: {
+      agentKind: AgentStatus["kind"];
+      agentInstanceId?: string | undefined;
+      config: ThreadConfig;
+    }) => void;
+  };
+  isolatedDraft?: {
+    composerId: string;
+    initialContent?: DraftContent;
+    onChange?: (content: DraftContent) => void;
+  };
+  composerVariant?: "draft" | "active";
+  submitLabel?: string;
+  hideHero?: boolean;
   compact?: boolean;
   /** Bottom-anchored embedded chat draft: structured providers, no workspace controls. */
   chatOnly?: boolean;
@@ -311,14 +334,30 @@ export function ThreadDraftView(props: {
     onStart,
     headerNeedsTrafficLightPad = false,
   } = props;
-  const lastDraftConfig =
-    composerDraftStorage()?.selection("project", project.id) ?? suppliedLastDraftConfig;
+  const isIsolatedSelection = props.draftSelection !== undefined;
+  const isolatedSelectionRef = useRef(props.draftSelection);
+  isolatedSelectionRef.current = props.draftSelection;
+  const initialIsolatedSelection = props.draftSelection?.initial;
+  const isolatedLastDraftConfig = useMemo<ProjectDraftConfig | undefined>(
+    () =>
+      initialIsolatedSelection
+        ? {
+            ...initialIsolatedSelection.config,
+            agentKind: initialIsolatedSelection.agentKind,
+            worktreeMode: false,
+          }
+        : undefined,
+    [initialIsolatedSelection],
+  );
+  const lastDraftConfig: ProjectDraftConfig | undefined = isIsolatedSelection
+    ? isolatedLastDraftConfig
+    : (composerDraftStorage()?.selection("project", project.id) ?? suppliedLastDraftConfig);
   const implicitMcpServers = useImplicitMcpServers();
   const gitBranch = useGitStore((s) => s.statuses[project.id]?.branch);
   const disabledAgents = useSharedSettings((s) => s.disabledAgents);
-  const savedCrews = useSharedSettings((s) => s.crews);
-  const upsertCrew = useSharedSettings((s) => s.upsertCrew);
-  const helperOptions = useCrewHelperOptions();
+  const crewMachineKey = machineKeyForLocation(project.location);
+  const { crews: savedCrews, upsertCrew } = useCrewLibrary(crewMachineKey);
+  const helperOptions = useCrewHelperOptions(crewMachineKey);
   const sharedSettingsHydrated = useSharedSettings((s) => s.sharedSettingsHydrated);
   const newsLineEnabled = useSharedSettings((s) => s.newsLineEnabled);
   const draftVisit = useAppStore((s) => s.draftVisit);
@@ -370,6 +409,27 @@ export function ThreadDraftView(props: {
   // selection binding survive restore, edits, persistence, and launch. The
   // scalar reads below are display projections only.
   const [draftConfig, setDraftConfig] = useState<ProviderDraftConfig>(() => {
+    if (initialIsolatedSelection) {
+      const { crew: _crew, ...initialProviderConfig } = initialIsolatedSelection.config;
+      return {
+        model: initialProviderConfig.model ?? "",
+        effort: initialProviderConfig.effort ?? "",
+        ...(initialProviderConfig.contextSize !== undefined
+          ? { contextSize: initialProviderConfig.contextSize }
+          : {}),
+        ...(initialProviderConfig.fast !== undefined ? { fast: initialProviderConfig.fast } : {}),
+        ...(initialProviderConfig.thinking !== undefined
+          ? { thinking: initialProviderConfig.thinking }
+          : {}),
+        mode: initialProviderConfig.mode ?? "agent",
+        approvalPolicy: initialProviderConfig.approvalPolicy ?? "",
+        approvalsReviewer: initialProviderConfig.approvalsReviewer ?? "",
+        sandboxMode: initialProviderConfig.sandboxMode ?? "",
+        ...(initialProviderConfig.selectionBinding
+          ? { selectionBinding: initialProviderConfig.selectionBinding }
+          : {}),
+      };
+    }
     const initialContext =
       lastDraftConfig &&
       lastDraftConfig.agentKind === preferredAgentKind &&
@@ -389,7 +449,7 @@ export function ThreadDraftView(props: {
     };
   });
   const [draftCrew, setDraftCrew] = useState<ThreadCrewBinding | undefined>(() =>
-    draftCrewFromConfig(lastDraftConfig?.crew, useSharedSettings.getState().crews),
+    draftCrewFromConfig(lastDraftConfig?.crew, savedCrews),
   );
   const [draftCrewExplicitlyCleared, setDraftCrewExplicitlyCleared] = useState(
     () => lastDraftConfig?.crew === null,
@@ -456,7 +516,7 @@ export function ThreadDraftView(props: {
   const [presentationMode, setPresentationMode] = useState<ThreadPresentationMode>(() =>
     props.chatOnly
       ? "gui"
-      : resolveInitialPresentationMode(selectedAgent, lastPresentationModeByAgent),
+      : resolveComposerPresentationMode(selectedAgent, lastPresentationModeByAgent),
   );
   const selectedAgentForConfig = useMemo(
     () => (selectedAgent ? agentWithCapabilities(selectedAgent, presentationMode) : undefined),
@@ -488,12 +548,14 @@ export function ThreadDraftView(props: {
     }
     if (!previousAgentKind) {
       setPresentationMode(
-        resolveInitialPresentationMode(selectedAgent, lastPresentationModeByAgent),
+        resolveComposerPresentationMode(selectedAgent, lastPresentationModeByAgent),
       );
       return;
     }
     if (supportedPresentationModes.includes(presentationMode)) return;
-    setPresentationMode(resolveInitialPresentationMode(selectedAgent, lastPresentationModeByAgent));
+    setPresentationMode(
+      resolveComposerPresentationMode(selectedAgent, lastPresentationModeByAgent),
+    );
     // eslint-disable-next-line react-hooks/exhaustive-deps -- only re-run on provider change
   }, [effectiveAgentKind]);
 
@@ -527,15 +589,19 @@ export function ThreadDraftView(props: {
   // Spread is required: the effects below mutate `providerConfigsRef.current[kind]`
   // in place to keep effort/model selections in sync mid-render. Assigning the
   // store reference directly would mutate Zustand state and skip subscribers.
-  providerConfigsRef.current = Object.fromEntries(
-    Object.entries(useSharedSettings.getState().providerConfigs).map(([kind, config]) => [
-      kind,
-      withoutDraftCrew(config),
-    ]),
-  );
-  providerModelPreferencesRef.current = {
-    ...useSharedSettings.getState().providerModelPreferences,
-  };
+  providerConfigsRef.current = isIsolatedSelection
+    ? {}
+    : Object.fromEntries(
+        Object.entries(useSharedSettings.getState().providerConfigs).map(([kind, config]) => [
+          kind,
+          withoutDraftCrew(config),
+        ]),
+      );
+  providerModelPreferencesRef.current = isIsolatedSelection
+    ? {}
+    : {
+        ...useSharedSettings.getState().providerModelPreferences,
+      };
 
   function persistProviderModelPreference(providerKind: string, config: ProviderDraftConfig) {
     const preference: ProviderModelPreference = {
@@ -555,6 +621,7 @@ export function ThreadDraftView(props: {
   function persistProviderConfig(providerKind: string, config: ProviderDraftConfig) {
     const providerConfig = withoutDraftCrew(config);
     providerConfigsRef.current[providerKind] = providerConfig;
+    if (isIsolatedSelection) return;
     if (!isHomeScope) {
       setProviderConfig(
         providerKind,
@@ -571,6 +638,24 @@ export function ThreadDraftView(props: {
     persistClientSelection = false,
   ) {
     const selection = projectDraftWithCrew(nextDraftConfig, crew, explicitlyCleared);
+    if (props.draftSelection) {
+      const current = props.draftSelection;
+      const { agentKind: selectedKind, worktreeMode: _worktreeMode, ...configFields } = selection;
+      if (
+        (persistClientSelection || !current.initial.config.model) &&
+        (selectedKind !== current.initial.agentKind ||
+          !isThreadConfigEqual(configFields, current.initial.config))
+      ) {
+        current.onChange?.({
+          agentKind: selectedKind,
+          ...(selectedKind === current.initial.agentKind && current.initial.agentInstanceId
+            ? { agentInstanceId: current.initial.agentInstanceId }
+            : {}),
+          config: configFields,
+        });
+      }
+      return;
+    }
     if (persistClientSelection) {
       composerDraftStorage()?.saveSelection("project", project.id, selection);
       pendingClientSelectionRef.current = undefined;
@@ -628,7 +713,7 @@ export function ThreadDraftView(props: {
   }
 
   useEffect(() => {
-    if (hasLocalConfigEditRef.current) return;
+    if (isIsolatedSelection || hasLocalConfigEditRef.current) return;
     const restoredCrew = draftCrewFromConfig(lastDraftConfig?.crew, savedCrews);
     const explicitlyCleared = lastDraftConfig?.crew === null;
     if (
@@ -639,7 +724,13 @@ export function ThreadDraftView(props: {
     }
     setDraftCrew(restoredCrew);
     setDraftCrewExplicitlyCleared(explicitlyCleared);
-  }, [draftCrew, draftCrewExplicitlyCleared, lastDraftConfig?.crew, savedCrews]);
+  }, [
+    draftCrew,
+    draftCrewExplicitlyCleared,
+    isIsolatedSelection,
+    lastDraftConfig?.crew,
+    savedCrews,
+  ]);
 
   const persistProviderConfigRef = useRef(persistProviderConfig);
   const persistProjectDraftConfigRef = useRef(persistProjectDraftConfig);
@@ -698,18 +789,23 @@ export function ThreadDraftView(props: {
       return;
     }
 
+    const initialIsolated = isolatedSelectionRef.current?.initial;
     const saved =
       explicitSelection && lastAppliedAgentKindRef.current === effectiveAgentKind
         ? draftConfig
-        : resolveSavedProviderDraftConfig(
-            effectiveAgentKind,
-            lastDraftConfig,
-            isHomeScope ? {} : providerConfigsRef.current,
-            providerModelPreferencesRef.current,
-            // Surface-aware restoration: a saved family member keeps its own
-            // carriers; unscoped per-model preferences are never replayed onto it.
-            selectedAgentForConfig.capabilities,
-          );
+        : isIsolatedSelection
+          ? effectiveAgentKind === initialIsolated?.agentKind && initialIsolated
+            ? withoutDraftCrew(initialIsolated.config)
+            : providerConfigsRef.current[effectiveAgentKind]
+          : resolveSavedProviderDraftConfig(
+              effectiveAgentKind,
+              lastDraftConfig,
+              isHomeScope ? {} : providerConfigsRef.current,
+              providerModelPreferencesRef.current,
+              // Surface-aware restoration: a saved family member keeps its own
+              // carriers; unscoped per-model preferences are never replayed onto it.
+              selectedAgentForConfig.capabilities,
+            );
     // Persist per-provider config app-wide, last-used provider per project.
     commitDraftConfigRef.current(
       effectiveAgentKind,
@@ -720,6 +816,7 @@ export function ThreadDraftView(props: {
   }, [
     draftConfig,
     effectiveAgentKind,
+    isIsolatedSelection,
     selectedAgentForConfig,
     project.id,
     lastDraftConfig,
@@ -817,7 +914,13 @@ export function ThreadDraftView(props: {
   ]);
 
   useEffect(() => {
-    if (!sharedSettingsHydrated || !selectedAgentForConfig || !effectiveAgentKind || !model) {
+    if (
+      isIsolatedSelection ||
+      !sharedSettingsHydrated ||
+      !selectedAgentForConfig ||
+      !effectiveAgentKind ||
+      !model
+    ) {
       return;
     }
     if (selectedAgentForConfig.capabilities.models.length === 0) return;
@@ -877,6 +980,7 @@ export function ThreadDraftView(props: {
       worktreeMode: effectiveWorktreeMode,
     });
   }, [
+    isIsolatedSelection,
     sharedSettingsHydrated,
     selectedAgentForConfig,
     effectiveAgentKind,
@@ -893,7 +997,7 @@ export function ThreadDraftView(props: {
   ]);
 
   useEffect(() => {
-    if (isHomeScope || !sharedSettingsHydrated) {
+    if (isIsolatedSelection || isHomeScope || !sharedSettingsHydrated) {
       return;
     }
     if (!selectedAgentForConfig || !effectiveAgentKind) {
@@ -1016,6 +1120,7 @@ export function ThreadDraftView(props: {
       worktreeMode: effectiveWorktreeMode,
     });
   }, [
+    isIsolatedSelection,
     sharedSettingsHydrated,
     selectedAgentForConfig,
     effectiveAgentKind,
@@ -1065,7 +1170,7 @@ export function ThreadDraftView(props: {
           ];
           return supported.includes(presentationMode)
             ? presentationMode
-            : resolveInitialPresentationMode(agent, lastPresentationModeByAgent);
+            : resolveComposerPresentationMode(agent, lastPresentationModeByAgent);
         },
         hiddenModelsByAgent: allHiddenModels,
       }),
@@ -1603,7 +1708,7 @@ export function ThreadDraftView(props: {
       includeWorkflowsToggle: true,
       capabilities: filteredCaps,
       presentationMode,
-      machineKey: machineKeyForLocation(project.location),
+      machineKey: crewMachineKey,
       onProviderModelChange: (next) =>
         latestProviderModelChangeRef.current(next, draftCrew ? { crew: null } : undefined),
       onConfigPatch: (patch, origin) => latestConfigPatchRef.current(patch, origin),
@@ -1620,7 +1725,7 @@ export function ThreadDraftView(props: {
     thinking,
     workflows,
     presentationMode,
-    project.location,
+    crewMachineKey,
     draftCrew,
   ]);
 
@@ -1734,7 +1839,11 @@ export function ThreadDraftView(props: {
   const bodyPaddingClass = props.quickComposer
     ? ""
     : `${paddingClass} px-3 pb-2 ${props.compact ? "" : "pt-2"}`;
-  const blockMaxWidthClass = props.quickComposer ? "" : "max-w-[720px]";
+  const blockMaxWidthClass = props.quickComposer
+    ? ""
+    : props.hideHero
+      ? "max-w-[920px]"
+      : "max-w-[720px]";
   // Wait for authoritative settings so an opted-out user never mounts (or fetches
   // for) the line on defaults, and leave compact layouts to the composer alone.
   const showNewsLine =
@@ -1842,9 +1951,13 @@ export function ThreadDraftView(props: {
         className={`${compactComposer ? alignClass : "mx-auto"} relative flex ${bodySizeClass} flex-col ${bodyPaddingClass}`}
       >
         {props.chatOnly ? (
-          <div className="flex min-h-0 flex-1 text-muted opacity-40">
-            <ThreadDraftHero compact />
-          </div>
+          props.hideHero ? (
+            <div className="min-h-0 flex-1" />
+          ) : (
+            <div className="flex min-h-0 flex-1 text-muted opacity-40">
+              <ThreadDraftHero compact />
+            </div>
+          )
         ) : props.quickComposer ? null : props.compact ? (
           <ThreadDraftHero compact={props.compact} />
         ) : (
@@ -1883,6 +1996,9 @@ export function ThreadDraftView(props: {
           <ThreadDraftComposerArea
             project={project}
             {...(props.paneId ? { paneId: props.paneId } : {})}
+            {...(props.isolatedDraft ? { isolatedDraft: props.isolatedDraft } : {})}
+            {...(props.composerVariant ? { composerVariant: props.composerVariant } : {})}
+            {...(props.submitLabel ? { submitLabel: props.submitLabel } : {})}
             {...(props.restoreWorktreeSelectionToken !== undefined
               ? { restoreWorktreeSelectionToken: props.restoreWorktreeSelectionToken }
               : {})}

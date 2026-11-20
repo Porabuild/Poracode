@@ -293,7 +293,9 @@ describe("SplitPaneContainer", () => {
         expect(ticks.mock.calls.some(([id]) => id === "b")).toBe(false);
         await act(async () => useAppStore.getState().openHome());
         expect(subscriptions.size).toBe(0);
-        expect(vi.getTimerCount()).toBe(0);
+        ticks.mockClear();
+        vi.advanceTimersByTime(1000);
+        expect(ticks).not.toHaveBeenCalled();
       } finally {
         unmount();
         errors.mockRestore();

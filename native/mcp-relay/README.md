@@ -1,6 +1,6 @@
 # poracode-mcp-relay
 
-Native Rust MCP helper (`0.2.0`) replacing per-server Node launch wrappers across:
+Native Rust MCP helper (`0.2.1`) replacing per-server Node launch wrappers across:
 
 - `PORACODE_MCP_HTTP_RELAY_CONFIG` (`src/supervisor/mcp/mcpHttpRelay.ts` — stdio↔Streamable HTTP relay, version 1),
 - `PORACODE_MCP_STDIO_CONFIG` (`src/supervisor/mcp/mcpStdioWorker.ts` — protocol-transparent cwd/env stdio launcher, version 1), and

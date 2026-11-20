@@ -134,4 +134,16 @@
     <string name="settings_profile_tokens_by_provider">Токены по провайдерам</string>
     <string name="settings_profile_tokens_by_provider_empty">Данные об использовании токенов по провайдерам недоступны.</string>
     <string name="settings_profile_provider_cost">Примерная стоимость</string>
+    <string name="settings_profile_trends">Недавнее и тренды</string>
+    <string name="settings_profile_yesterday">Вчера</string>
+    <string name="settings_profile_last_7d">Последние 7 дней</string>
+    <string name="settings_profile_avg_task_duration">Средняя длительность задачи</string>
+    <string name="settings_profile_prompt_cache_hit">Попадания в кэш</string>
+    <string name="settings_profile_weekend_share">Доля выходных</string>
+    <string name="settings_profile_switched_provider">Смена провайдера</string>
+    <string name="settings_profile_switched_model">Смена модели</string>
+    <string name="settings_profile_provider_less">%1$s на %2$d%% меньше за неделю</string>
+    <string name="settings_profile_provider_more">%1$s на %2$d%% больше за неделю</string>
+    <string name="settings_profile_switched_from_to">%1$s → %2$s</string>
+    <string name="settings_profile_prompts_count">%1$s запросов</string>
 </resources>

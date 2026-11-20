@@ -174,6 +174,7 @@ function PlainText({
  * before handing the text to Streamdown so the table renders.
  */
 export function normalizeGfmTableSeparators(text: string): string {
+  if (!text.includes("|")) return text;
   const lineParts = text.match(/[^\r\n]*(?:\r\n|\n|\r|$)/g);
   if (!lineParts) return text;
   let inFence = false;
@@ -237,6 +238,7 @@ function buildSeparatorRow(cellCount: number, sourceCells: string[]): string {
 }
 
 export function normalizeShortCodeFenceClosers(text: string): string {
+  if (!text.includes("``")) return text;
   let inBacktickFence = false;
   let changed = false;
   const out = text.match(/[^\r\n]*(?:\r\n|\n|\r|$)/g)?.map((line) => {

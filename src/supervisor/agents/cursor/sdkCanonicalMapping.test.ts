@@ -701,6 +701,77 @@ describe("Cursor SDK canonical mapping — tool lifecycle and payloads", () => {
     );
   });
 
+  it("extracts diffSummary for Cursor SDK edit without diffString, multi-edit, write, and omits on error", () => {
+    const state = createCursorSdkMapperState("thread-1");
+    const linesOnly = mapCursorSdkInteractionUpdate(
+      {
+        type: "tool-call-completed",
+        callId: "edit-lines-only",
+        modelCallId: "model-1",
+        toolCall: {
+          type: "edit",
+          args: { path: "src/shared/settings.ts", oldText: "a\n", newText: "b\n" },
+          result: { status: "success", value: { linesAdded: 4, linesRemoved: 2 } },
+        },
+      },
+      state,
+    );
+    expect(linesOnly).toContainEqual(
+      expect.objectContaining({
+        type: "item.completed",
+        payload: expect.objectContaining({
+          status: "success",
+          diffSummary: { added: 4, removed: 2 },
+        }),
+      }),
+    );
+
+    const writeEvents = mapCursorSdkInteractionUpdate(
+      {
+        type: "tool-call-completed",
+        callId: "write-1",
+        modelCallId: "model-1",
+        toolCall: {
+          type: "write",
+          args: { path: "src/new.ts", fileText: "export const a = 1;\nexport const b = 2;\n" },
+          result: {
+            status: "success",
+            value: { path: "src/new.ts", linesCreated: 2, fileSize: 40 },
+          },
+        },
+      },
+      state,
+    );
+    expect(writeEvents).toContainEqual(
+      expect.objectContaining({
+        type: "item.completed",
+        payload: expect.objectContaining({
+          changeKind: "create",
+          diffSummary: { added: 2, removed: 0 },
+        }),
+      }),
+    );
+
+    const errorEvents = mapCursorSdkInteractionUpdate(
+      {
+        type: "tool-call-completed",
+        callId: "edit-err",
+        modelCallId: "model-1",
+        toolCall: {
+          type: "edit",
+          args: { path: "src/shared/settings.ts", oldText: "a\n", newText: "b\n" },
+          result: { status: "error", error: { message: "Edit failed" } },
+        },
+      },
+      state,
+    );
+    const completedError = errorEvents.find((event) => event.type === "item.completed") as
+      | { payload?: Record<string, unknown> }
+      | undefined;
+    expect(completedError?.payload?.status).toBe("error");
+    expect(completedError?.payload?.diffSummary).toBeUndefined();
+  });
+
   it("normalizes updateTodos and createPlan into canonical plan steps", () => {
     const todos = createCursorSdkMapperState("thread-1");
     const todoEvents = mapCursorSdkInteractionUpdate(
@@ -1611,6 +1682,127 @@ describe("Cursor SDK canonical mapping — auxiliary updates and usage", () => {
       usage: { counter: 10, sampleId: "run-2:turn-1", turnId: "turn-2" },
     });
   });
+
+  it("treats 1.4.0 model-call-completed as non-billing telemetry and preserves thinking duration", () => {
+    const state = createCursorSdkMapperState("thread-1");
+    state.inclusiveInputTokens = true;
+    startCursorSdkTurn(state, "turn-1");
+    const events = [
+      ...mapCursorSdkInteractionUpdate({ type: "thinking-delta", text: "Checking" }, state),
+      ...mapCursorSdkInteractionUpdate(
+        {
+          type: "model-call-completed",
+          modelCallId: "mc-1",
+          usage: {
+            inputTokens: 1_000,
+            outputTokens: 40,
+            cacheReadTokens: 800,
+            cacheWriteTokens: 100,
+            reasoningTokens: 15,
+          },
+        },
+        state,
+      ),
+      ...mapCursorSdkInteractionUpdate(
+        { type: "thinking-completed", thinkingDurationMs: 210 },
+        state,
+      ),
+    ];
+    expect(events.filter((event) => event.type === "usage.spent")).toEqual([]);
+    expect(events.filter((event) => event.type === "context.updated")).toEqual([]);
+    expect(events).toContainEqual(
+      expect.objectContaining({
+        type: "item.updated",
+        payload: { summary: "Checking", durationMs: 210 },
+      }),
+    );
+  });
+
+  it("dedupes 1.1.0–1.4.0 inclusive-input turn-ended and usage events with reconciled categories", () => {
+    const usage = {
+      inputTokens: 1_000,
+      outputTokens: 50,
+      cacheReadTokens: 800,
+      cacheWriteTokens: 100,
+      reasoningTokens: 20,
+    };
+
+    const rawFirst = createCursorSdkMapperState("thread-1");
+    rawFirst.inclusiveInputTokens = true;
+    startCursorSdkTurn(rawFirst, "turn-1");
+    const rawEvents = mapCursorSdkInteractionUpdate({ type: "turn-ended", usage }, rawFirst);
+    expect(rawEvents).toMatchObject([
+      {
+        type: "usage.spent",
+        usage: {
+          counterKind: "per-call",
+          counter: 1_050,
+          tokens: { input: 100, output: 50, cacheRead: 800, cacheWrite: 100 },
+          sampleId: "turn-1:turn-1",
+        },
+      },
+    ]);
+    expect(
+      mapCursorSdkMessage(
+        { type: "usage", ...envelope, usage: { ...usage, totalTokens: 1_050 } },
+        rawFirst,
+      ),
+    ).toEqual([]);
+    expectCanonical(rawEvents);
+
+    const normalizedFirst = createCursorSdkMapperState("thread-2");
+    normalizedFirst.inclusiveInputTokens = true;
+    startCursorSdkTurn(normalizedFirst, "turn-1");
+    const normalizedEvents = mapCursorSdkMessage(
+      { type: "usage", ...envelope, usage: { ...usage, totalTokens: 1_050 } },
+      normalizedFirst,
+    );
+    expect(normalizedEvents).toMatchObject([
+      {
+        type: "usage.spent",
+        usage: {
+          counterKind: "per-call",
+          counter: 1_050,
+          tokens: { input: 100, output: 50, cacheRead: 800, cacheWrite: 100 },
+        },
+      },
+    ]);
+    expect(mapCursorSdkInteractionUpdate({ type: "turn-ended", usage }, normalizedFirst)).toEqual(
+      [],
+    );
+
+    // Pre-1.1.0 SDKs (1.0.38–1.0.40) keep uncached inputTokens accounting.
+    const legacy = createCursorSdkMapperState("thread-3");
+    legacy.inclusiveInputTokens = false;
+    startCursorSdkTurn(legacy, "turn-1");
+    const legacyEvents = mapCursorSdkInteractionUpdate({ type: "turn-ended", usage }, legacy);
+    expect(legacyEvents).toMatchObject([
+      {
+        type: "usage.spent",
+        usage: {
+          counter: 1_950,
+          tokens: { input: 1_000, output: 50, cacheRead: 800, cacheWrite: 100 },
+        },
+      },
+    ]);
+    expect(
+      mapCursorSdkMessage(
+        { type: "usage", ...envelope, usage: { ...usage, totalTokens: 1_950 } },
+        legacy,
+      ),
+    ).toEqual([]);
+
+    // Even when SDK version is unknown, raw and normalized echoes never double-count.
+    const unknown = createCursorSdkMapperState("thread-4");
+    startCursorSdkTurn(unknown, "turn-1");
+    expect(mapCursorSdkInteractionUpdate({ type: "turn-ended", usage }, unknown)).toHaveLength(1);
+    expect(
+      mapCursorSdkMessage(
+        { type: "usage", ...envelope, usage: { ...usage, totalTokens: 1_050 } },
+        unknown,
+      ),
+    ).toEqual([]);
+  });
 });
 
 describe("Cursor SDK canonical mapping — terminal outcomes and cleanup", () => {
@@ -1810,5 +2002,26 @@ describe("Cursor SDK canonical mapping — terminal outcomes and cleanup", () =>
         state,
       ),
     ).toEqual([]);
+  });
+
+  it("omits inline images when read targets a Poracode user attachment", () => {
+    const state = createCursorSdkMapperState("cursor-att-read");
+    const events = mapCursorSdkMessage(
+      toolMessage({
+        call_id: "read-att",
+        name: "read",
+        status: "completed",
+        args: { path: "/Users/me/.poracode/attachments/draft-1/Image 1.png" },
+        result: {
+          status: "success",
+          value: { dataUrl: "data:image/png;base64,iVBORw0KGgo=" },
+        },
+      }),
+      state,
+    );
+    const startedOrUpdated = events.find(
+      (event) => event.type === "item.started" || event.type === "item.updated",
+    ) as { payload?: Record<string, unknown> } | undefined;
+    expect(startedOrUpdated?.payload?.images).toBeUndefined();
   });
 });

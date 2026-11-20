@@ -157,7 +157,7 @@ export async function dbForkThread(
               createdAt: now,
               updatedAt: now,
             };
-            const options = { writeThreadStatusSource: true } as const;
+            const options = { writeThreadStatusSource: true, writeErrorMessage: true } as const;
             runThreadUpsert(
               prepareThreadUpsertStatement(sqlite, options),
               fork,
@@ -232,7 +232,7 @@ export async function dbCreateTransferredThread(input: {
         if (dbGetThread(thread.id)) throw new Error(msg("thread.alreadyExists"));
         if (!dbGetProject(thread.projectId))
           throw new Error(msg("thread.transferProjectUnavailable"));
-        const options = { writeThreadStatusSource: true } as const;
+        const options = { writeThreadStatusSource: true, writeErrorMessage: true } as const;
         runThreadUpsert(
           prepareThreadUpsertStatement(sqlite, options),
           thread,

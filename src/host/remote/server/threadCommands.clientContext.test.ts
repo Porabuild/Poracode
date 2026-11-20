@@ -7,6 +7,7 @@ import { applyRemoteThreadCommand } from "./threadCommands";
 
 vi.mock("@/host/db", () => ({
   dbGetProjects: vi.fn<() => Project[]>(() => []),
+  dbGetThread: vi.fn<(threadId: string) => Thread | null>(() => null),
   dbGetThreads: vi.fn<() => Thread[]>(() => []),
   dbUpsertThread: vi.fn<(thread: Thread) => void>(),
 }));

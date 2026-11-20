@@ -26,7 +26,7 @@ import { createCursorAdapter, createCursorProfileAdapter } from "./cursor";
 import { createDeepSeekAdapter } from "./deepseek";
 import { createFactoryAdapter, createFactoryAcpRegistryAdapter } from "./factory";
 import { createFxAdapter } from "./fx";
-import { createGeminiAdapter } from "./gemini";
+import { createGeminiAdapter, createGeminiProfileAdapter } from "./gemini";
 import { createGrokAdapter } from "./grok";
 import { createKimiAdapter } from "./kimi";
 import { createMuseAdapter } from "./muse";
@@ -138,6 +138,7 @@ export function buildAgentRegistryEntries(
     codex: createCodexProfileAdapter,
     cursor: createCursorProfileAdapter,
     devin: createDevinProfileAdapter,
+    gemini: createGeminiProfileAdapter,
   };
   const profileAdapters = userInstances
     .filter((inst) => inst.enabled !== false && profileAdapterFactories[inst.driver] !== undefined)

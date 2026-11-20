@@ -1,15 +1,16 @@
 /**
  * Hand-written TypeScript for the MSP (Muse Session Protocol) wire subset
  * Poracode speaks. Derived from the `muse schema generate-json-schema`
- * export of Muse Code 1.4.14 (1.4.14-R7309.1):
+ * export of Muse Code 1.4.23 (1.4.23-R8977.1):
  *
  *   muse schema generate-json-schema --out DIR   (offline, instant)
  *
  * Pinned bundle: schema version 1, fingerprint
- * `sha256:c94c3d1f2f51e6424074b9ec43eac3eedcf532d3dcd77351ec1383a87d3049c6`.
- * To regenerate: re-run the export against the installed binary, copy both
- * `msp.schema.json` and `manifest.json` into `msp/fixtures/`, update the
- * version/fingerprint constants below from that manifest, and format the
+ * `sha256:b7fb9137267aa35c92424df37a5ac56287006a0e546b197bf0930d593fecbdb1`.
+ * To regenerate: re-run the export against the installed binary, copy
+ * `msp.schema.json` into `msp/fixtures/`, retain the schema version from the
+ * export manifest and fingerprint from `initialize.schema` in our manifest
+ * (1.4.23's export omits the fingerprint), update the constants, and format the
  * fixtures with `bun run fmt msp/fixtures/` (fixtures are format-checked),
  * and run `msp/schemaFixture.test.ts` — it fails on method/enum drift against
  * the names used below. The schema is additive-open by design: the client and
@@ -37,7 +38,7 @@
 // Stable launch ids preserve v1 persisted rows; no protocol or storage bump is needed.
 export const MSP_SCHEMA_VERSION = 1;
 export const MSP_SCHEMA_FINGERPRINT =
-  "sha256:c94c3d1f2f51e6424074b9ec43eac3eedcf532d3dcd77351ec1383a87d3049c6";
+  "sha256:b7fb9137267aa35c92424df37a5ac56287006a0e546b197bf0930d593fecbdb1";
 
 export function assertMspSchemaVersion(version: number): void {
   if (version !== MSP_SCHEMA_VERSION) {

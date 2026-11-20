@@ -1,3 +1,4 @@
+import { ContentSurface } from "@/renderer/components/common/ContentSurface";
 import { startTransition, useEffect, useRef, useState } from "react";
 import { Skeleton, Surface } from "@heroui/react";
 import { Plural, Trans, useLingui } from "@lingui/react/macro";
@@ -233,7 +234,7 @@ function WorkflowOverlayHeader({
 }) {
   if (workflow.phases.length === 0 && !workflow.description && !workflow.runId) return null;
   return (
-    <div className="flex flex-col gap-2 rounded-md border border-[color:var(--border)] bg-[var(--composer-surface)] px-3 py-2 text-[length:var(--lc-chat-font-size-meta)]">
+    <ContentSurface className="flex flex-col gap-2 px-3 py-2 text-[length:var(--lc-chat-font-size-meta)]">
       {workflow.description ? (
         <p className="text-foreground leading-snug">{workflow.description}</p>
       ) : null}
@@ -259,7 +260,7 @@ function WorkflowOverlayHeader({
           <Trans>Run {workflow.runId}</Trans>
         </p>
       ) : null}
-    </div>
+    </ContentSurface>
   );
 }
 

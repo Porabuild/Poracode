@@ -135,8 +135,7 @@ export class SessionRetirement {
     });
     lease.beginRetirement();
     const outcome = await record.custody.settle();
-    if (outcome === "confirmed") return;
-    throw toError(record.custody.error ?? this.abandonmentError(lease));
+    this.assertAbandonedSettled(record, outcome);
   }
 
   /**
@@ -178,8 +177,7 @@ export class SessionRetirement {
     const record = this.abandoned.get(abandonedKey(resourceClass, key));
     if (!record) return;
     const outcome = await record.custody.settle();
-    if (outcome === "confirmed" || record.lease.state === "released") return;
-    throw toError(record.custody.error ?? this.abandonmentError(record.lease));
+    this.assertAbandonedSettled(record, outcome);
   }
 
   /** True while a retained abandonment still holds an unreleased reservation. */
@@ -225,10 +223,10 @@ export class SessionRetirement {
         if (session.pendingStructuredDisposal?.custody === custody) {
           session.pendingStructuredDisposal = undefined;
         }
-        // A structured-only session frees its slot at confirmed disposal. A
-        // PTY-backed (unexpected mixed) session still owes its exit to the
-        // retirement gate, which requires both effects.
-        if (!session.pty) this.releaseLease(session.resourceLease);
+        // A structured-only session (or a mixed session whose PTY already
+        // exited) frees its slot at confirmed disposal. A live PTY still
+        // holds the slot until its exit callback runs.
+        if (!session.pty || session.ptyExited === true) this.releaseLease(session.resourceLease);
       },
       onFailure: (disposeError) => {
         console.warn(
@@ -256,6 +254,10 @@ export class SessionRetirement {
       if (!pending && session.structuredSession) {
         pending = this.ensureDisposal(session, session.structuredSession);
       }
+      // Once retirement holds custody in `pendingStructuredDisposal`, detach
+      // the handle from the live slot immediately so no later submit or control
+      // request can route into a retiring/disposed handle.
+      session.structuredSession = undefined;
       if (pending) {
         const outcome = await pending.custody.settle();
         structuredRetired = outcome === "confirmed";
@@ -266,6 +268,8 @@ export class SessionRetirement {
       } else {
         structuredRetired = true;
       }
+    } else {
+      session.structuredSession = undefined;
     }
     if (confirmedDuringCall) {
       await this.settleAfterStructuredDispose();
@@ -333,9 +337,17 @@ export class SessionRetirement {
 
   /** Single release path for leases this instance confirmed, plus owner prune. */
   private releaseLease(lease: HostResourceLease | undefined): void {
-    if (!lease) return;
+    if (!lease || lease.state === "released") return;
     lease.confirmExit();
     this.onLeaseReleased?.(lease);
+  }
+
+  private assertAbandonedSettled(
+    record: AbandonedCleanup,
+    outcome: "confirmed" | "failed" | "unconfirmed",
+  ): void {
+    if (outcome === "confirmed" || record.lease.state === "released") return;
+    throw toError(record.custody.error ?? this.abandonmentError(record.lease));
   }
 
   private pruneReleasedAbandoned(): void {

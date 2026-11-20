@@ -121,15 +121,15 @@ public extension RemoteRootCodecs {
 }
 
 public extension RemoteRootCodecs {
-  static let routeU2ESettingsU2DReadU2EResponse: RemoteRootCodec<RoutesettingsU2DReadResponse_86225a3f98> = .init(id: "route.settings-read.response", schema: RemoteSchemas.schema_86225a3f98cdec6b)
+  static let routeU2ESettingsU2DReadU2EResponse: RemoteRootCodec<RoutesettingsU2DReadResponse_cb9d238b82> = .init(id: "route.settings-read.response", schema: RemoteSchemas.schema_cb9d238b823e69cb)
 }
 
 public extension RemoteRootCodecs {
-  static let routeU2ESettingsU2DWriteU2ERequest: RemoteRootCodec<RoutesettingsU2DWriteRequest_67a39357cf> = .init(id: "route.settings-write.request", schema: RemoteSchemas.schema_67a39357cfe7cf90)
+  static let routeU2ESettingsU2DWriteU2ERequest: RemoteRootCodec<RoutesettingsU2DWriteRequest_b009c5487e> = .init(id: "route.settings-write.request", schema: RemoteSchemas.schema_b009c5487e0d88b5)
 }
 
 public extension RemoteRootCodecs {
-  static let routeU2ESettingsU2DWriteU2EResponse: RemoteRootCodec<RoutesettingsU2DReadResponse_86225a3f98> = .init(id: "route.settings-write.response", schema: RemoteSchemas.schema_86225a3f98cdec6b)
+  static let routeU2ESettingsU2DWriteU2EResponse: RemoteRootCodec<RoutesettingsU2DReadResponse_cb9d238b82> = .init(id: "route.settings-write.response", schema: RemoteSchemas.schema_cb9d238b823e69cb)
 }
 
 public extension RemoteRootCodecs {

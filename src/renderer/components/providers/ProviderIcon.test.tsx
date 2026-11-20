@@ -38,4 +38,13 @@ describe("ProviderIcon", () => {
     expect(screen.getByText("Р")).toBeInTheDocument();
     expect(screen.queryByText("?")).not.toBeInTheDocument();
   });
+
+  it("mounts the shared shine band only while an external provider is working", () => {
+    const view = render(
+      <ProviderIcon kind="acp-generic:example" tone="working" icon="/icon.svg" />,
+    );
+    expect(view.container.querySelector(".poracode-provider-icon__mask-scan-band")).not.toBeNull();
+    view.rerender(<ProviderIcon kind="acp-generic:example" tone="active" icon="/icon.svg" />);
+    expect(view.container.querySelector(".poracode-provider-icon__mask-scan-band")).toBeNull();
+  });
 });

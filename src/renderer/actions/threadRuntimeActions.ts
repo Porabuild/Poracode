@@ -39,7 +39,12 @@ import {
   notifyThreadCommandOutcomeUncertain,
   reconcileThreadCommandOutcome,
 } from "./threadCommandOutcomeActions";
+import { peekPendingThreadLaunch } from "@/renderer/state/threadLaunchIntents";
 import { performInitialThreadLaunch } from "./threadLaunchActions";
+import {
+  takePreparedOptimisticThreadInput,
+  type PreparedOptimisticThreadInput,
+} from "./optimisticThreadInput";
 import type { ThreadInputDelivery } from "@/renderer/state/threadInputDelivery";
 
 /** Resolve a thread and its on-disk project location from the store. */
@@ -81,6 +86,8 @@ export async function performThreadInputSubmit(input: {
   questionAnswer?: QuestionAnswerItemPayload;
   /** Per-turn context the submitting surface captured (never painted). */
   clientContext?: TurnClientContext;
+  /** Pre-painted optimistic input created synchronously when the user hit Send. */
+  optimisticInput?: PreparedOptimisticThreadInput;
   transport: ThreadInputTransport;
   /** Desktop-only: capture a file checkpoint keyed to the optimistic user message. */
   captureCheckpoint?: (checkpointItemId: string) => Promise<void>;
@@ -97,9 +104,10 @@ export async function performThreadInputSubmit(input: {
     clientContext?: TurnClientContext;
   }) => Promise<void>;
 }): Promise<void> {
-  const releasePendingInput =
-    input.thread.presentationMode === "gui" &&
-    hasSendablePromptContent(input.prompt, input.segments)
+  const releasePendingInput = input.optimisticInput
+    ? input.optimisticInput.releasePendingInput
+    : input.thread.presentationMode === "gui" &&
+        hasSendablePromptContent(input.prompt, input.segments)
       ? retainPendingThreadInput(input.thread.id)
       : undefined;
   try {
@@ -122,11 +130,26 @@ async function performThreadInputSubmitPending(
   // supervisor reuses the same item id end-to-end so duplicates are
   // dropped by the renderer's per-id dedupe in `applyRuntimeEvent`.
   const presentation = thread.presentationMode ?? "terminal";
-  let optimisticUserMessageItemId: string | undefined;
-  let markedWorking = false;
-  const interruptedTurnStatementsAtSend = threadInterruptedTurnStatements(thread.id);
+  let optimisticUserMessageItemId = input.optimisticInput?.userMessageItemId;
+  let markedWorking = input.optimisticInput !== undefined;
+  const interruptedTurnStatementsAtSend =
+    input.optimisticInput?.interruptedTurnStatementsAtSend ??
+    threadInterruptedTurnStatements(thread.id);
   const store = useAppStore.getState();
-  if (presentation === "gui" && hasSendablePromptContent(prompt, segments)) {
+  if (input.optimisticInput) {
+    if (segments !== undefined) {
+      store.applyRuntimeEvent(thread.id, {
+        type: "item.updated",
+        threadId: thread.id,
+        itemId: input.optimisticInput.userMessageItemId,
+        payload: {
+          content: buildPromptContentBlocks(prompt, segments),
+          ...(questionAnswer ? { questionAnswer } : {}),
+          clientInputDelivery: "pending",
+        },
+      });
+    }
+  } else if (presentation === "gui" && hasSendablePromptContent(prompt, segments)) {
     optimisticUserMessageItemId = `user-${crypto.randomUUID()}`;
     notePendingThreadInputMessage(thread.id, optimisticUserMessageItemId);
     store.applyRuntimeEvent(thread.id, {
@@ -181,6 +204,42 @@ async function performThreadInputSubmitPending(
       ...(thread.sessionRef ? { sessionRef: thread.sessionRef } : {}),
     });
   };
+  const updatedAtBeforeSend =
+    useAppStore.getState().threads.find((row) => row.id === thread.id)?.updatedAt ??
+    thread.updatedAt;
+  const pendingInitialLaunch =
+    input.resumeLaunch !== undefined &&
+    thread.sessionRef === undefined &&
+    peekPendingThreadLaunch(thread.id) !== undefined;
+  if (pendingInitialLaunch && input.resumeLaunch) {
+    const connectionToken =
+      presentation === "gui" ? store.beginThreadConnecting(thread.id) : undefined;
+    try {
+      releasePendingInput?.();
+      await input.resumeLaunch({
+        prompt,
+        ...(segments ? { segments } : {}),
+        ...(optimisticUserMessageItemId ? { userMessageItemId: optimisticUserMessageItemId } : {}),
+        ...(clientContext ? { clientContext } : {}),
+        ...(questionAnswer ? { questionAnswer } : {}),
+      });
+    } catch (resumeError) {
+      if (isRemoteCommandOutcomeUncertainError(resumeError)) {
+        markDelivery("uncertain");
+        throw resumeError;
+      }
+      rollbackOptimisticWorking(true);
+      throw resumeError;
+    } finally {
+      if (connectionToken) store.finishThreadConnecting(thread.id, connectionToken);
+    }
+    markDelivery("accepted");
+    const currentAfterResume = useAppStore.getState().threads.find((row) => row.id === thread.id);
+    if ((currentAfterResume?.updatedAt ?? thread.updatedAt) === updatedAtBeforeSend) {
+      store.touchThread(thread.id);
+    }
+    return;
+  }
   try {
     if (optimisticUserMessageItemId && input.captureCheckpoint) {
       await input.captureCheckpoint(optimisticUserMessageItemId);
@@ -246,7 +305,10 @@ async function performThreadInputSubmitPending(
       }
       // The relaunch captures its own prompt-submitted event.
       markDelivery("accepted");
-      store.touchThread(thread.id);
+      const currentAfterResume = useAppStore.getState().threads.find((row) => row.id === thread.id);
+      if ((currentAfterResume?.updatedAt ?? thread.updatedAt) === updatedAtBeforeSend) {
+        store.touchThread(thread.id);
+      }
       return;
     }
     // Admission must settle before the rollback notifies store subscribers.
@@ -263,7 +325,10 @@ async function performThreadInputSubmitPending(
     await reconcileThreadCommandOutcome(thread);
   }
   captureThreadPromptSubmitted(thread, prompt, segments);
-  store.touchThread(thread.id);
+  const currentAfterSend = useAppStore.getState().threads.find((row) => row.id === thread.id);
+  if ((currentAfterSend?.updatedAt ?? thread.updatedAt) === updatedAtBeforeSend) {
+    store.touchThread(thread.id);
+  }
 }
 
 /**
@@ -282,8 +347,12 @@ export async function submitThreadInput(
     questionAnswer?: QuestionAnswerItemPayload;
   } = {},
 ): Promise<void> {
+  const optimisticInput = takePreparedOptimisticThreadInput(threadId);
   const resolved = resolveThreadProjectLocation(threadId);
-  if (!resolved) throw new Error(i18n._(msg`Thread not found.`));
+  if (!resolved) {
+    optimisticInput?.abortBeforeDispatch();
+    throw new Error(i18n._(msg`Thread not found.`));
+  }
   const { thread, projectLocation } = resolved;
   await performThreadInputSubmit({
     thread,
@@ -291,6 +360,7 @@ export async function submitThreadInput(
     ...(segments ? { segments } : {}),
     ...(options.clientContext ? { clientContext: options.clientContext } : {}),
     ...(options.questionAnswer ? { questionAnswer: options.questionAnswer } : {}),
+    ...(optimisticInput ? { optimisticInput } : {}),
     transport: readBridge(),
     resumeLaunch: async (resume) => {
       // Re-resolve the thread: the pre-send snapshot can miss a sessionRef

@@ -368,6 +368,18 @@ describe("remote project snapshots", () => {
 });
 
 describe("remote settings", () => {
+  it("keeps new host preferences optional for older settings documents and sparse updates", () => {
+    const legacy = { ...defaultSharedSettings } as Record<string, unknown>;
+    for (const key of ["wslCrews", "autoArchiveDoneAfterDays", "prCreateMode"]) delete legacy[key];
+    const settings = pickRemoteSettings(legacy);
+    expect(settings.wslCrews).toBeUndefined();
+    expect(settings.autoArchiveDoneAfterDays).toBeUndefined();
+    expect(settings.prCreateMode).toBeUndefined();
+    expect(remoteSettingsPatchSchema.parse({ prCreateMode: "dialog" })).toEqual({
+      prCreateMode: "dialog",
+    });
+  });
+
   it("defaults follow-up behavior for older v9 settings responses", () => {
     const legacySettings = { ...defaultSharedSettings } as Record<string, unknown>;
     delete legacySettings.followUpBehavior;

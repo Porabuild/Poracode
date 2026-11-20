@@ -22,6 +22,7 @@ import { ProviderIcon } from "@/renderer/components/providers/ProviderIcon";
 import { PoracodeGlyph } from "@/renderer/components/common/PoracodeGlyph";
 import { ResponsiveMenuSurface, useResponsiveMenu } from "../ResponsiveMenuSurface";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
+import { useCrewLibrary } from "@/renderer/state/crewLibrary";
 import { effectiveProviderOrder } from "@/shared/machineSettings";
 import { LOCAL_NATIVE_MACHINE_KEY } from "@/shared/machines";
 import { baseAgentKind, type ThreadPresentationMode } from "@/shared/contracts";
@@ -160,13 +161,14 @@ export function ProviderModelMenu(props: ProviderModelMenuProps) {
     undefined,
   );
   const [sessionRecents, setSessionRecents] = useState<readonly ModelRef[] | undefined>(undefined);
-  const [sessionCrews, setSessionCrews] = useState<readonly SavedCrew[] | undefined>(undefined);
+  const [sessionCrews, setSessionCrews] = useState<{ key: string; crews: readonly SavedCrew[] }>();
   const deferredSearch = useDeferredValue(search);
   const searchRef = useRef<HTMLInputElement>(null);
   const windowedListRef = useRef<WindowedProviderModelListHandle>(null);
   const listboxDomIdPrefix = useId();
 
-  const crews = useSharedSettings((s) => s.crews);
+  const crewKey = props.machineKey ?? LOCAL_NATIVE_MACHINE_KEY;
+  const { crews, setCrewFavorite, setCrewLastUsedAt } = useCrewLibrary(crewKey);
   const favorites = useSharedSettings((s) => s.favoriteModels);
   const recents = useSharedSettings((s) => s.recentModels);
   const providerOrder = useSharedSettings((s) =>
@@ -229,7 +231,7 @@ export function ProviderModelMenu(props: ProviderModelMenuProps) {
       setSearch("");
       setSessionFavorites(favorites);
       setSessionRecents(recents);
-      setSessionCrews(crews);
+      if (crewKey === LOCAL_NATIVE_MACHINE_KEY) setSessionCrews({ key: crewKey, crews });
     } else {
       setSessionFavorites(undefined);
       setSessionRecents(undefined);
@@ -316,7 +318,12 @@ export function ProviderModelMenu(props: ProviderModelMenuProps) {
             },
           ]
         : [];
-    return withCrewPickerItems(modelItems, crewRows, newCrewRow, sessionCrews ?? crews);
+    return withCrewPickerItems(
+      modelItems,
+      crewRows,
+      newCrewRow,
+      sessionCrews?.key === crewKey ? sessionCrews.crews : crews,
+    );
   }
 
   const items = isOpen ? buildItemsForSearch(deferredSearch) : [];
@@ -567,18 +574,22 @@ export function ProviderModelMenu(props: ProviderModelMenuProps) {
             setSessionFavorites((current) => reorderModelPickerRefs(current ?? favorites, ordered));
           }}
           onToggleCrewFavorite={(crewId) => {
-            const settings = useSharedSettings.getState();
-            const crew = settings.crews.find((entry) => entry.id === crewId);
-            if (crew) settings.setCrewFavorite(crewId, !crew.favorite);
+            const crew = crews.find((entry) => entry.id === crewId);
+            if (crew) setCrewFavorite(crewId, !crew.favorite);
           }}
           onRemoveRecentCrew={(crewId) => {
-            useSharedSettings.getState().setCrewLastUsedAt(crewId, null);
+            setCrewLastUsedAt(crewId, null);
             setSessionCrews((current) =>
-              (current ?? crews).map((crew) => {
-                if (crew.id !== crewId) return crew;
-                const { lastUsedAt: _lastUsedAt, ...rest } = crew;
-                return rest;
-              }),
+              current?.key === crewKey
+                ? {
+                    key: current.key,
+                    crews: current.crews.map((crew) => {
+                      if (crew.id !== crewId) return crew;
+                      const { lastUsedAt: _lastUsedAt, ...rest } = crew;
+                      return rest;
+                    }),
+                  }
+                : current,
             );
             if (!mobile) searchRef.current?.focus();
           }}

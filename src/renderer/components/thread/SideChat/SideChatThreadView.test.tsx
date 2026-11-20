@@ -54,6 +54,7 @@ it("retains history interest and draft while hidden, then reveals the latest str
   ]);
   const view = render(<SideChatThreadView threadId={threadId} source={source} visible />);
   const input = screen.getByRole("textbox", { name: "Side draft" });
+  expect(screen.getByText("Before hide")).toBeVisible();
   fireEvent.change(input, { target: { value: "Unsent draft" } });
   view.rerender(<SideChatThreadView threadId={threadId} source={source} visible={false} />);
   await waitFor(() => expect(input).not.toBeVisible());
@@ -67,7 +68,8 @@ it("retains history interest and draft while hidden, then reveals the latest str
       delta: " and after hide",
     }),
   );
-  expect(screen.queryByText(/and after hide/)).toBeNull();
+  // Activity may update the retained DOM in the background without revealing it.
+  expect(screen.getByText(/^Before hide/)).not.toBeVisible();
   view.rerender(<SideChatThreadView threadId={threadId} source={source} visible />);
   expect(screen.getByText("Before hide and after hide")).toBeVisible();
   expect(screen.getByRole("textbox", { name: "Side draft" })).toBe(input);

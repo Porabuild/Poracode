@@ -192,6 +192,7 @@ async function initialize(
   agentCwd = cwd;
   agentApiKey = params.apiKey;
   agentModel = agent.model ?? params.createOptions.model;
+  const loadedVersion = sdkRuntime.metadata.sdkVersion;
   return {
     agentId: agent.agentId,
     ...(agent.model ? { model: agent.model } : {}),
@@ -200,6 +201,7 @@ async function initialize(
       : {}),
     ...(opened.recoveredExisting ? { recoveredExisting: true } : {}),
     ...(typeof agent.summarize === "function" ? { supportsSummarize: true } : {}),
+    ...(loadedVersion && loadedVersion !== "unknown" ? { sdkVersion: loadedVersion } : {}),
   };
 }
 
@@ -359,6 +361,10 @@ async function pumpRun(active: ActiveRun): Promise<void> {
 async function steerRun(runId: string, text: string): Promise<CursorSdkWorkerSteerResult> {
   const run = activeRun?.run;
   if (!run || run.id !== runId || typeof run.steer !== "function") return "revert_to_followup";
+  // 1.4.0 widened `SteerAckOutcome` with `{ outcome: "queued", run? }` for cloud
+  // runs; local `LocalRun.steer` only resolves `"complete_delivered"` or
+  // `"revert_to_followup"`, so reject unexpected object shapes rather than
+  // silently resending a server-queued turn.
   const result = await run.steer(text);
   if (result !== "complete_delivered" && result !== "revert_to_followup") {
     throw new WorkerDiagnosticError(
@@ -475,7 +481,12 @@ function respondOk(id: string, result: unknown): void {
 }
 
 function respondError(id: string, error: unknown): void {
-  emit({ type: "response", id, ok: false, error: diagnostics.serializeError(error) });
+  emit({
+    type: "response",
+    id,
+    ok: false,
+    error: diagnostics.serializeError(error, sdkRuntime.resolvedMetadata),
+  });
 }
 
 function emitRunEvent(event: CursorSdkWorkerEvent): void {

@@ -1,6 +1,4 @@
 import { randomUUID } from "node:crypto";
-import { stat } from "node:fs/promises";
-import { isAbsolute } from "node:path";
 import {
   DEFAULT_TERMINAL_SIZE,
   resolveMcpLaunchSnapshot,
@@ -17,21 +15,39 @@ import {
   type StartThreadPayload,
   type Thread,
   type ThreadConfig,
+  type ThreadPresentationMode,
+  type TerminalSize,
+  type GitAddWorktreePayload,
+  type GitAddWorktreeResult,
+  type GitWorktreeInfo,
 } from "@/shared/contracts";
 import type { SelectionBinding } from "@/shared/selectionBinding.schemas";
 import type { SharedSettings } from "@/shared/settings";
 import { isHomeProjectId } from "@/shared/homeScope";
-import { msg } from "@/shared/messages";
-import { mimeForPath } from "@/shared/promptContent";
+import { errorDetail, msg } from "@/shared/messages";
+import { isHostResourceAdmissionRefusal } from "@/shared/hostResourceAdmission";
+import { isThreadLaunchFailedRefusal } from "@/shared/threadLaunchRefusal";
 import { isBuiltInToolPlugin, resolveInstalledPluginState } from "@/shared/plugins/catalog";
 import {
   captureProjectExecutionScope,
   hasSameProjectExecutionScope,
 } from "./projectExecutionScope";
-import { makeThreadTitle } from "@/shared/threadTitle";
-import { buildWorktreeLocation, resolveWorktreePlacement } from "@/shared/worktree";
+import { resolveThreadInputSegments } from "./threadInputSegments";
+import { makeThreadTitle, titlePromptFromSegments } from "@/shared/threadTitle";
+import {
+  threadWorktreeCreationOptions,
+  type ThreadWorktreeCreation,
+} from "@/shared/threadWorktreeLaunch";
+import {
+  buildWorktreeLocation,
+  normalizeWorktreePathForComparison,
+  resolveWorktreePlacement,
+} from "@/shared/worktree";
 import { generateWorktreeBranch } from "@/shared/worktreeBranch";
-import { resolveHostThreadTitlePrompt, resolveHostThreadLaunchConfig } from "./threadLaunchConfig";
+import {
+  resolveHostThreadTitlePrompt,
+  resolveHostThreadLaunchDefaults,
+} from "./threadLaunchConfig";
 
 /** Host surface the launcher needs — the same main-side seams schedules use. */
 export interface AppThreadLauncherDeps {
@@ -40,17 +56,17 @@ export interface AppThreadLauncherDeps {
   /** Cached agent detection for the given WSL distros (supervisor request). */
   getAgentStatuses(wslDistros: string[]): Promise<AgentStatusesResponse>;
   getPlugins(location: ProjectLocation): Promise<LoadedPlugin[]>;
-  /**
-   * Create a git worktree (new branch) in the project's repo; returns its path.
-   * Receives the already-read shared settings so a single launch reads them once.
-   */
-  addWorktree(input: {
-    location: ProjectLocation;
-    branch: string;
-    settings: SharedSettings;
-  }): Promise<{ path: string }>;
+  /** Create a linked checkout using the owning project's settings. */
+  addWorktree(input: GitAddWorktreePayload): Promise<GitAddWorktreeResult>;
+  listWorktrees(location: ProjectLocation): Promise<readonly GitWorktreeInfo[]>;
+  resolveWorktreeBase?(project: Project): Promise<string | undefined>;
+  prepareWorktree?(projectId: string, path: string, threadId: string): Promise<void>;
   /** Roll back a worktree created by a launch that then failed (best effort). */
-  removeWorktree(input: { location: ProjectLocation; path: string }): Promise<void>;
+  removeWorktree(input: {
+    location: ProjectLocation;
+    path: string;
+    deleteBranch: boolean;
+  }): Promise<void>;
   /** Mirror the new thread to the renderer store; false when no window is up. */
   sendThreadCommand(command: RemoteThreadCommand): boolean;
   /** Resolve (creating if absent) the persisted home-scope project row. */
@@ -62,6 +78,7 @@ export interface AppThreadLauncherDeps {
   upsertThread(thread: Thread, sortOrder: number): void;
   deleteThread(threadId: string): void;
   threadExists(threadId: string): boolean;
+  onUncertainLaunch?(threadId: string): void;
   now?: () => number;
   newId?: () => string;
 }
@@ -71,6 +88,12 @@ export interface CreateAppThreadRequest {
   projectId: string;
   prompt: string;
   agentKind: AgentKind;
+  agentInstanceId?: string;
+  /** Exact config from the composer. Legacy automation can send selection fields instead. */
+  config?: ThreadConfig;
+  presentationMode?: ThreadPresentationMode;
+  initialSize?: TerminalSize;
+  segments?: PromptSegment[];
   model: string;
   effort?: string;
   fast?: boolean;
@@ -80,7 +103,9 @@ export interface CreateAppThreadRequest {
   /** Recognized selection binding riding along with the actual controls. */
   selectionBinding?: SelectionBinding;
   title?: string;
-  worktree?: { branch?: string };
+  worktree?: ThreadWorktreeCreation;
+  existingWorktreePath?: string;
+  expectedWorktreeBranch?: string;
   existingWorktree?: { path: string; branch: string };
   prNumber?: number;
   /** Home-thread workspace tag; ignored for real projects. */
@@ -112,6 +137,7 @@ export interface CreateAppThreadResult {
   projectId: string;
   worktreePath?: string;
   branch?: string;
+  changesTransferred?: boolean;
 }
 
 /**
@@ -138,7 +164,7 @@ export async function createAppThread(
   // row creation — so a mistyped control, unknown metadata, or a future
   // binding is refused instead of stripped and launched. The canonical
   // schema is strict on purpose and keeps empty/false carriers exact.
-  const selection = parseLaunchSelection(request);
+  const selection = parseLaunchSelection(request.config ?? request);
   const project = resolveProject(deps, request.projectId);
   const threadId = (deps.newId ?? randomUUID)();
   const nowIso = new Date((deps.now ?? Date.now)()).toISOString();
@@ -146,14 +172,16 @@ export async function createAppThread(
   // (worktree placement + the launch MCP snapshot).
   const settings = deps.getSharedSettings();
   const customServers = mergeMcpServers(settings.mcpServers, project.mcpServers ?? []);
-  for (const id of Object.keys(request.mcpServers ?? {})) {
+  const mcpOverrides = request.config?.mcpServerOverrides ?? request.mcpServers;
+  const pluginOverrides = request.config?.pluginOverrides ?? request.plugins;
+  for (const id of Object.keys(mcpOverrides ?? {})) {
     if (!customServers.some((server) => server.id === id)) {
       throw new Error(`Unknown MCP server id: ${id}`);
     }
   }
-  const plugins = request.plugins ? await deps.getPlugins(project.location) : [];
+  const plugins = pluginOverrides ? await deps.getPlugins(project.location) : [];
   const pluginMcpDefaults: Record<string, boolean> = {};
-  for (const [name, enabled] of Object.entries(request.plugins ?? {})) {
+  for (const [name, enabled] of Object.entries(pluginOverrides ?? {})) {
     const plugin = plugins.find((entry) => entry.name === name);
     if (!plugin || !resolveInstalledPluginState(plugin, settings.installedPlugins)) {
       throw new Error(`Plugin is not installed: ${name}`);
@@ -162,17 +190,11 @@ export async function createAppThread(
       for (const id of plugin.poracode.builtInMcpServerIds) pluginMcpDefaults[id] = enabled;
     }
   }
-  const segments: PromptSegment[] = [];
-  for (const attachment of request.attachments ?? []) {
-    if (!isAbsolute(attachment.path) || !(await stat(attachment.path)).isFile()) {
-      throw new Error(
-        `Attachment must be an absolute path to a file on this host: ${attachment.path}`,
-      );
-    }
-    const mimeType = attachment.mimeType ?? mimeForPath(attachment.path);
-    segments.push({ kind: "attachment", path: attachment.path, ...(mimeType ? { mimeType } : {}) });
-  }
-  if (segments.length > 0) segments.push({ kind: "text", content: request.prompt });
+  const suppliedSegments =
+    request.segments ??
+    request.attachments?.map((attachment) => ({ kind: "attachment" as const, ...attachment })) ??
+    [];
+  const segments = await resolveThreadInputSegments(suppliedSegments, request.prompt);
   const launchSettings = {
     ...settings,
     enabledMcpServers: {
@@ -200,14 +222,61 @@ export async function createAppThread(
   let worktreePath = request.existingWorktree?.path;
   let branch = request.existingWorktree?.branch;
   let createdWorktree = false;
+  let changesTransferred: boolean | undefined;
+  let createdBranch = false;
   const existed = deps.threadExists(threadId);
   let persistedRow = false;
+  let startDispatched = false;
 
   try {
-    if (!request.existingWorktree && request.worktree) {
-      branch = request.worktree.branch?.trim() || generateWorktreeBranch();
-      const created = await deps.addWorktree({ location: project.location, branch, settings });
+    if (request.existingWorktreePath) {
+      const caseInsensitive = project.location.kind === "windows";
+      const expectedPath = normalizeWorktreePathForComparison(
+        request.existingWorktreePath,
+        caseInsensitive,
+      );
+      const registered = (await deps.listWorktrees(project.location)).find(
+        (entry) =>
+          !entry.isMain &&
+          normalizeWorktreePathForComparison(entry.path, caseInsensitive) === expectedPath,
+      );
+      if (
+        !registered ||
+        (request.expectedWorktreeBranch && registered.branch !== request.expectedWorktreeBranch)
+      ) {
+        throw new Error(
+          "The selected worktree or branch is not registered for this project. Check list_worktrees.",
+        );
+      }
+      worktreePath = registered.path;
+      branch = registered.branch === "detached" ? undefined : registered.branch;
+    } else if (!request.existingWorktree && request.worktree) {
+      const optionsForCheckout = request.worktree;
+      createdBranch = optionsForCheckout.createBranch ?? true;
+      branch = optionsForCheckout.branch?.trim();
+      if (!branch && !createdBranch)
+        throw new Error("A checkout of an existing branch needs a branch name.");
+      branch ??= generateWorktreeBranch();
+      let startPoint = optionsForCheckout.startPoint;
+      if (
+        startPoint === undefined &&
+        createdBranch &&
+        !optionsForCheckout.transferUncommitted &&
+        deps.resolveWorktreeBase
+      ) {
+        startPoint = await deps.resolveWorktreeBase(project);
+        options.admitLaunch?.();
+      }
+      assertProjectScope();
+      const created = await deps.addWorktree(
+        resolveAddWorktreeArgs(settings, project, {
+          ...optionsForCheckout,
+          branch,
+          ...(startPoint ? { startPoint } : {}),
+        }),
+      );
       worktreePath = created.path;
+      changesTransferred = created.changesTransferred;
       createdWorktree = true;
     }
     assertProjectScope();
@@ -217,6 +286,18 @@ export async function createAppThread(
       ? buildWorktreeLocation(project.location, worktreePath)
       : project.location;
 
+    const { presentationMode, config: launchDefaults } = await resolveHostThreadLaunchDefaults(
+      deps.getAgentStatuses,
+      request.agentKind,
+      threadLocation,
+      launchSettings,
+      {
+        ...(request.presentationMode !== undefined
+          ? { presentationMode: request.presentationMode }
+          : {}),
+        unattended: !request.config,
+      },
+    );
     const config: ThreadConfig = {
       model: selection.model,
       // Presence is exact: an empty effort, a false flag, and a recognized
@@ -228,12 +309,8 @@ export async function createAppThread(
       ...(selection.selectionBinding !== undefined
         ? { selectionBinding: selection.selectionBinding }
         : {}),
-      ...(await resolveHostThreadLaunchConfig(
-        deps.getAgentStatuses,
-        request.agentKind,
-        threadLocation,
-        launchSettings,
-      )),
+      ...launchDefaults,
+      ...request.config,
       ...(request.mcpServers !== undefined ? { mcpServerOverrides: request.mcpServers } : {}),
       ...(request.plugins !== undefined ? { pluginOverrides: request.plugins } : {}),
       ...(request.browserMcp === false ? { browserMcp: false } : {}),
@@ -252,7 +329,7 @@ export async function createAppThread(
           deps.getAgentStatuses,
           request.agentKind,
           threadLocation,
-          request.prompt,
+          titlePromptFromSegments(request.prompt, segments),
         ),
       ) ||
       "New thread";
@@ -267,6 +344,7 @@ export async function createAppThread(
       ...(homeWorkspaceId ? { workspaceId: homeWorkspaceId } : {}),
       title,
       agentKind: request.agentKind,
+      ...(request.agentInstanceId ? { agentInstanceId: request.agentInstanceId } : {}),
       config,
       status: "launching",
       attention: "none",
@@ -274,7 +352,7 @@ export async function createAppThread(
       archived: false,
       done: false,
       starred: false,
-      presentationMode: "gui",
+      presentationMode,
       threadStatusSource: "server",
       ...(worktreePath ? { worktreePath } : {}),
       ...(branch ? { worktreeBranch: branch } : {}),
@@ -294,11 +372,12 @@ export async function createAppThread(
       threadId,
       projectId: project.id,
       agentKind: request.agentKind,
+      ...(request.agentInstanceId ? { agentInstanceId: request.agentInstanceId } : {}),
       config,
       prompt: request.prompt,
       ...(segments.length > 0 ? { segments } : {}),
       ...(customTitle ? { title: customTitle } : {}),
-      presentationMode: "gui",
+      presentationMode,
       launchRuntime: false,
       focus: false,
       ...(worktreePath ? { worktreePath } : {}),
@@ -312,15 +391,20 @@ export async function createAppThread(
       threadId,
       projectLocation: threadLocation,
       agentKind: request.agentKind,
+      ...(request.agentInstanceId ? { agentInstanceId: request.agentInstanceId } : {}),
       config,
       prompt: request.prompt,
       ...(segments.length > 0 ? { segments } : {}),
-      initialSize: DEFAULT_TERMINAL_SIZE,
-      presentationMode: "gui",
+      initialSize: request.initialSize ?? DEFAULT_TERMINAL_SIZE,
+      presentationMode,
       ...resolveMcpLaunchSnapshot(settings, project, config.mcpServerOverrides),
     };
 
+    startDispatched = true;
     await deps.startThread(startPayload);
+    if (createdWorktree && worktreePath && deps.prepareWorktree) {
+      await deps.prepareWorktree(project.id, worktreePath, threadId).catch(() => undefined);
+    }
 
     return {
       threadId,
@@ -328,8 +412,22 @@ export async function createAppThread(
       projectId: project.id,
       ...(worktreePath ? { worktreePath } : {}),
       ...(branch ? { branch } : {}),
+      ...(changesTransferred !== undefined ? { changesTransferred } : {}),
     };
   } catch (error) {
+    if (
+      startDispatched &&
+      !isThreadLaunchFailedRefusal(error) &&
+      !isHostResourceAdmissionRefusal(error)
+    ) {
+      // Losing the IPC reply can leave a running provider in this checkout.
+      // Keep its durable identity and publish it even to clients with no renderer.
+      deps.onUncertainLaunch?.(threadId);
+      throw new Error(
+        `Launch outcome is uncertain for thread ${threadId}. Check get_thread before retrying. ${errorDetail(error)}`,
+        { cause: error },
+      );
+    }
     // Roll back this call's effects (follow the orchestrator/schedule bridge):
     // drop the fresh row and tell the renderer to forget it, but keep a
     // pre-existing row. Also remove a worktree WE created this call so a
@@ -341,39 +439,31 @@ export async function createAppThread(
     }
     if (createdWorktree && worktreePath) {
       await deps
-        .removeWorktree({ location: project.location, path: worktreePath })
+        .removeWorktree({
+          location: project.location,
+          path: worktreePath,
+          deleteBranch: createdBranch,
+        })
         .catch(() => undefined);
     }
     throw error instanceof Error ? error : new Error(String(error));
   }
 }
 
-/**
- * Worktree placement resolved from global settings, matching the supervisor's
- * `createWorktree` pipeline (per-project overrides live in the renderer DB and
- * aren't visible here). Callers pass the returned fields straight to the
- * `gitAddWorktree` supervisor RPC.
- */
-export function resolveAddWorktreeArgs(
+/** Apply the same copy policy and host/project placement as the composer. */
+function resolveAddWorktreeArgs(
   settings: SharedSettings,
-  location: ProjectLocation,
-  branch: string,
-): {
-  branch: string;
-  createBranch: true;
-  transferUncommitted: false;
-  keepChangesInSource: false;
-  worktreeRoot?: string;
-  worktreeOmitRepoDir?: true;
-} {
-  const placement = resolveWorktreePlacement(settings, undefined, location);
+  project: Project,
+  input: ThreadWorktreeCreation,
+): GitAddWorktreePayload {
+  const placement = resolveWorktreePlacement(settings, project.worktreeLocation, project.location);
+  const copyIgnoredPatterns = project.scripts?.worktreeCopyPatterns;
   return {
-    branch,
-    createBranch: true,
-    transferUncommitted: false,
-    keepChangesInSource: false,
+    projectLocation: project.location,
+    ...threadWorktreeCreationOptions(input),
     ...(placement.root ? { worktreeRoot: placement.root } : {}),
-    ...(placement.omitRepoDir ? { worktreeOmitRepoDir: true as const } : {}),
+    ...(placement.omitRepoDir ? { worktreeOmitRepoDir: true } : {}),
+    ...(copyIgnoredPatterns?.length ? { copyIgnoredPatterns } : {}),
   };
 }
 
@@ -395,7 +485,7 @@ function resolveProject(deps: AppThreadLauncherDeps, projectId: string): Project
  * refused — never stripped and launched — while own empty/false carriers stay
  * exact. Reuses the existing localized unsupported-selection-data refusal.
  */
-function parseLaunchSelection(request: CreateAppThreadRequest): ScheduledTaskConfig {
+function parseLaunchSelection(request: ScheduledTaskConfig): ScheduledTaskConfig {
   const parsed = scheduledTaskConfigSchema.safeParse({
     model: request.model,
     ...(request.effort !== undefined ? { effort: request.effort } : {}),

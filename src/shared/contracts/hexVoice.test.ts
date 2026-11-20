@@ -21,6 +21,7 @@ describe("Hex voice contracts", () => {
       { action: "append", id, offset: 0, audioBase64: "AA==" },
       { action: "finish", id },
       { action: "status", id },
+      { action: "wait", id },
       { action: "cancel", id },
     ]) {
       expect(hexVoiceRequestSchema.safeParse(request).success).toBe(true);
@@ -77,5 +78,19 @@ describe("Hex voice contracts", () => {
         job: { id, phase: "loading", progress: 50 },
       }).success,
     ).toBe(true);
+  });
+
+  it("keeps released job responses valid and negotiates completion waits per host", () => {
+    const released = { kind: "job", job: { id, phase: "loading", progress: 0 } } as const;
+    expect(hexVoiceResponseSchema.parse(released)).toEqual(released);
+    expect(
+      hexVoiceResponseSchema.parse({ ...released, job: { ...released.job, supportsWait: true } }),
+    ).toEqual({ ...released, job: { ...released.job, supportsWait: true } });
+    expect(
+      hexVoiceResponseSchema.safeParse({
+        ...released,
+        job: { ...released.job, supportsWait: false },
+      }).success,
+    ).toBe(false);
   });
 });

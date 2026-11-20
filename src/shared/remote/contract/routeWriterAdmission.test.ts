@@ -15,6 +15,8 @@ import { REMOTE_HTTP_ROUTES } from "./routes";
  */
 const DECLARED_WRITER_ROUTES = [
   "device-action",
+  "device-adopt-session",
+  "device-create-duo",
   "automations-snapshot",
   "schedule-runs-read",
   "schedule-run-inbox",
@@ -37,6 +39,8 @@ const DECLARED_WRITER_ROUTES = [
   "host-update-install",
   "mcp-settings-command",
   "mcp-settings-operation",
+  "memory-catalog",
+  "memory-sync",
   "port-enter",
   "port-forward",
   "port-unforward",
@@ -96,7 +100,7 @@ const READ_CLASS_POST_ROUTES = [
 describe("route writer-generation admission declarations", () => {
   it("declares the direct writers and reads with new closed schedule variants", () => {
     const declared = REMOTE_HTTP_ROUTES.filter((route) => route.requiresCurrentProtocol);
-    expect(declared).toHaveLength(56);
+    expect(declared).toHaveLength(60);
     expect(declared.map((route) => route.id).sort()).toEqual([...DECLARED_WRITER_ROUTES].sort());
   });
 

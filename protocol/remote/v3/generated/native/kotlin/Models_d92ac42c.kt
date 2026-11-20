@@ -69,10 +69,11 @@ enum class ProcedurehexVoiceResultU2DOptionU2D3U2DJobU2DPhase_38efdc386b {
 }
 
 @Serializable
-data class ProcedurehexVoiceResultU2DOptionU2D3U2DJob_398001902e(
+data class ProcedurehexVoiceResultU2DOptionU2D3U2DJob_e8296209cb(
     @SerialName("id") val id: String,
     @SerialName("phase") val phase: ProcedurehexVoiceResultU2DOptionU2D3U2DJobU2DPhase_38efdc386b,
     @SerialName("progress") val progress: RemoteField<Double> = RemoteField.Missing,
+    @SerialName("supportsWait") val supportsWait: RemoteField<ProcedureconnectThreadVoiceRequestU2DConfigU2DCrewU2DOptionU2D1U2DOptionU2D1U2DRolesU2DItemU2DNoEdits_d2dd3595e1> = RemoteField.Missing,
     @SerialName("transcript") val transcript: RemoteField<ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b> = RemoteField.Missing,
 ) {
     companion object {
@@ -80,6 +81,7 @@ data class ProcedurehexVoiceResultU2DOptionU2D3U2DJob_398001902e(
             RemoteFieldDescriptor("id", "String", true, false, null, null, null, null, null, null, "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$", "uuid", listOf()),
             RemoteFieldDescriptor("phase", "ProcedurehexVoiceResultU2DOptionU2D3U2DJobU2DPhase_38efdc386b", true, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("progress", "Double", false, false, 0.0, 100.0, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("supportsWait", "ProcedureconnectThreadVoiceRequestU2DConfigU2DCrewU2DOptionU2D1U2DOptionU2D1U2DRolesU2DItemU2DNoEdits_d2dd3595e1", false, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("transcript", "ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b", false, false, null, null, null, null, null, null, null, null, listOf()),
         ), listOf())
     }
@@ -91,13 +93,13 @@ enum class ProcedurehexVoiceResultU2DOptionU2D3U2DKind_c297cb4b3f {
 }
 
 @Serializable
-data class ProcedurehexVoiceResultU2DOptionU2D3_e6b4674777(
-    @SerialName("job") val job: ProcedurehexVoiceResultU2DOptionU2D3U2DJob_398001902e,
+data class ProcedurehexVoiceResultU2DOptionU2D3_d129d1b0ee(
+    @SerialName("job") val job: ProcedurehexVoiceResultU2DOptionU2D3U2DJob_e8296209cb,
     @SerialName("kind") val kind: ProcedurehexVoiceResultU2DOptionU2D3U2DKind_c297cb4b3f,
 ) {
     companion object {
         val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
-            RemoteFieldDescriptor("job", "ProcedurehexVoiceResultU2DOptionU2D3U2DJob_398001902e", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("job", "ProcedurehexVoiceResultU2DOptionU2D3U2DJob_e8296209cb", true, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("kind", "ProcedurehexVoiceResultU2DOptionU2D3U2DKind_c297cb4b3f", true, false, null, null, null, null, null, null, null, null, listOf()),
         ), listOf())
     }

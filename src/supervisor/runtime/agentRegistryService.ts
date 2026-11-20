@@ -226,7 +226,7 @@ export class AgentRegistryService {
   }
 
   /** Run the reconciliation off the request path; it must never reject a status query. */
-  private scheduleFirstClassAcpAutoInstall(response: AgentStatusesResponse): void {
+  scheduleFirstClassAcpAutoInstall(response: Pick<AgentStatusesResponse, "windows" | "wsl">): void {
     void this.autoInstallFirstClassAcpRuntimes(response).catch((error) => {
       console.warn("[supervisor] first-class ACP auto-install failed", error);
     });
@@ -239,7 +239,10 @@ export class AgentRegistryService {
    * the terminal runtime, and an agent the user explicitly removed stays
    * removed (`acpRegistryAutoInstallOptOuts`).
    */
-  private async autoInstallFirstClassAcpRuntimes(response: AgentStatusesResponse): Promise<void> {
+  private async autoInstallFirstClassAcpRuntimes({
+    windows,
+    wsl,
+  }: Pick<AgentStatusesResponse, "windows" | "wsl">): Promise<void> {
     // The sweep verifies each installed artifact with an ACP capability probe —
     // a `session-probe` lane launch. Under an enforced mock session that lane is
     // refused unconditionally, so the probe can never succeed and every attempt
@@ -256,15 +259,9 @@ export class AgentRegistryService {
       }
       return;
     }
-    const now = Date.now();
     const candidates = collectFirstClassAcpAutoInstalls({
-      statuses: [...response.windows, ...response.wsl],
+      statuses: [...windows, ...wsl],
       firstClassRegistryIds: this.firstClassRegistryIdsByKind(),
-    }).filter((task) => {
-      const sweep = this.acpAutoInstallSweeps.get(acpAutoInstallKey(task));
-      if (!sweep) return true;
-      if (sweep.installed || sweep.abandoned) return false;
-      return now - sweep.at >= firstClassAutoInstallRetryDelayMs(sweep.failures);
     });
     if (candidates.length === 0) return;
 
@@ -274,10 +271,22 @@ export class AgentRegistryService {
     const installedKinds = new Set<AgentKind>();
     for (const task of candidates) {
       const sweepKey = acpAutoInstallKey(task);
+      const previous = this.acpAutoInstallSweeps.get(sweepKey);
+      const now = Date.now();
+      // A different discovery request can start this target while an earlier
+      // target is installing. Check again immediately before claiming it.
+      if (
+        previous &&
+        (previous.installed ||
+          previous.abandoned ||
+          now - previous.at < firstClassAutoInstallRetryDelayMs(previous.failures))
+      ) {
+        continue;
+      }
       const sweep = {
-        at: Date.now(),
+        at: now,
         installed: false,
-        failures: this.acpAutoInstallSweeps.get(sweepKey)?.failures ?? 0,
+        failures: previous?.failures ?? 0,
         abandoned: false,
       };
       this.acpAutoInstallSweeps.set(sweepKey, sweep);
@@ -670,7 +679,14 @@ export class AgentRegistryService {
             },
           })
         : await runUpdateCommandWithFallback(adapter, status, envContext);
-    if (result.ok) {
+    // A failed update of an adapter that verifies its install may still have
+    // changed it on disk (a launcher that no longer starts), and the result does
+    // not say which failure it was, so re-detect instead of serving the status
+    // from before the update.
+    const installMayHaveChanged =
+      result.ok ||
+      (adapter.postUpdateHealthArgs !== undefined && result.strategy !== "unsupported");
+    if (installMayHaveChanged) {
       // Drop the cached executable path so the next detection probe runs a
       // fresh `command -v` / `where.exe`. Without this we keep returning the
       // old path; for most package managers the path doesn't change after
@@ -693,7 +709,10 @@ export class AgentRegistryService {
     }
     const adapter = this.deps.adapters.get(payload.agentKind);
     if (!adapter) return { source: "unknown" };
-    return getLatestVersionForAdapter(adapter);
+    return getLatestVersionForAdapter(adapter, {
+      getNativeStatus: () => this.agentStatusService.getCachedNativeStatus?.(payload.agentKind),
+      baseDir: this.deps.baseDir,
+    });
   }
 
   async getAgentConfigDefaults(

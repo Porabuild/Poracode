@@ -24,6 +24,7 @@ export const deepSeekDefaultCapabilities: AgentCapability = {
   sandboxModes: [],
   supportsResume: true,
   supportsOneShot: true,
+  utilityRank: 49,
   supportsDirectInput: true,
   // ACP fixes its image admission capability from the profile's initial
   // route. Later model choices can differ, so let the selected model read

@@ -1,8 +1,13 @@
 import { z } from "zod";
-import { forgeAccountRefSchema } from "@/shared/contracts";
+import {
+  forgeAccountRefSchema,
+  forgeListPullRequestsInStatePayloadSchema,
+} from "@/shared/contracts";
+import { defineAppControlTool } from "../defineTools";
 import { githubTools, syncPullRequest } from "./github";
 import {
   projectIdProp,
+  requireAppRuntime,
   requireProject,
   type AppControlsToolContext,
   type ToolDomain,
@@ -38,7 +43,6 @@ const repositoryProperty = {
 };
 const prSchema = scopeSchema.extend({ prNumber: z.number().int().positive() });
 const aliases = {
-  review_list_prs: "gh_list_prs",
   review_get_pr: "gh_get_pr",
   review_create_pr: "gh_create_pr",
   review_comment: "gh_pr_comment",
@@ -47,7 +51,10 @@ const aliases = {
 } as const;
 
 /** Reuse the existing mutation/readback flow with an explicitly scoped RPC client. */
-function scopedContext(ctx: AppControlsToolContext, raw: unknown): AppControlsToolContext {
+export function scopedReviewContext(
+  ctx: AppControlsToolContext,
+  raw: unknown,
+): AppControlsToolContext {
   const { forgeAccount, forgeRepository } = scopeSchema.parse(raw);
   const account = {
     ...(forgeAccount ? { forgeAccount } : {}),
@@ -100,8 +107,34 @@ const properties = {
   prNumber: { type: "integer", minimum: 1 },
 };
 
+const listReviewTool = defineAppControlTool({
+  name: "review_list_prs",
+  description:
+    "List a project’s reviews by state. The default open list also refreshes Poracode’s open review list. Set state to closed, merged, or all where supported. Use the public account and repository from review_repository to select a source explicitly.",
+  input: scopeSchema
+    .extend({
+      state: z
+        .enum(["open", ...forgeListPullRequestsInStatePayloadSchema.shape.state.options])
+        .default("open"),
+    })
+    .strict(),
+  run: async ({ state, ...scope }, ctx) => {
+    if (state === "open")
+      return githubTools.handlers.gh_list_prs!(scope, scopedReviewContext(ctx, scope));
+    const { projectId, forgeAccount, forgeRepository } = scope;
+    const result = await requireAppRuntime(ctx).call("forgeListPullRequestsInState", {
+      projectLocation: requireProject(ctx, projectId).location,
+      state,
+      ...(forgeAccount === undefined ? {} : { forgeAccount }),
+      ...(forgeRepository === undefined ? {} : { forgeRepository }),
+    });
+    return { projectId, state, count: result.pullRequests.length, ...result };
+  },
+});
+
 export const reviewTools: ToolDomain = {
   specs: [
+    listReviewTool.spec,
     ...Object.entries(aliases).map(([name, legacy]) => {
       const spec = githubTools.specs.find((s) => s.name === legacy)!;
       return {
@@ -180,11 +213,12 @@ export const reviewTools: ToolDomain = {
     },
   ],
   handlers: {
+    [listReviewTool.spec.name]: listReviewTool.handler,
     ...Object.fromEntries(
       Object.entries(aliases).map(([name, legacy]) => [
         name,
         async (args: Record<string, unknown>, ctx: AppControlsToolContext) =>
-          githubTools.handlers[legacy]!(args, scopedContext(ctx, args)),
+          githubTools.handlers[legacy]!(args, scopedReviewContext(ctx, args)),
       ]),
     ),
     review_repository: async (args, ctx) => {
@@ -209,7 +243,7 @@ export const reviewTools: ToolDomain = {
       });
       return {
         submitted: true,
-        ...(await syncPullRequest(scopedContext(ctx, args), projectId, input.prNumber)),
+        ...(await syncPullRequest(scopedReviewContext(ctx, args), projectId, input.prNumber)),
       };
     },
     review_edit: async (args, ctx) => {
@@ -220,7 +254,7 @@ export const reviewTools: ToolDomain = {
       });
       return {
         updated: true,
-        ...(await syncPullRequest(scopedContext(ctx, args), projectId, input.prNumber)),
+        ...(await syncPullRequest(scopedReviewContext(ctx, args), projectId, input.prNumber)),
       };
     },
   },

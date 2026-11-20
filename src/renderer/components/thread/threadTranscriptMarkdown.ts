@@ -1,5 +1,9 @@
 import { getProviderManifest } from "@/renderer/components/providers/providerManifest";
 
+export function resolveThreadHtmlVisualFileReferences(agentKind: string) {
+  return getProviderManifest(agentKind)?.splitHtmlVisualFileReferences;
+}
+
 /**
  * Provider-supplied rewrite for transcript markdown that can still carry
  * provider-native blocks. Shared chat code only consumes the generic

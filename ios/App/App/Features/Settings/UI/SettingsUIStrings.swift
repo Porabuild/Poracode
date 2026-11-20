@@ -314,6 +314,42 @@ enum SettingsUIStrings {
   static var activityInsights: String {
     text("settings.profile.activityInsights", "Activity insights")
   }
+  static var trendsTitle: String { text("settings.profile.trends", "Recent & trends") }
+  static var yesterdayLabel: String { text("settings.profile.yesterday", "Yesterday") }
+  static var lastSevenDaysLabel: String { text("settings.profile.last7d", "Last 7 days") }
+  static var lastThirtyDaysLabel: String { text("settings.profile.last30d", "Last 30 days") }
+  static var avgTaskDuration: String { text("settings.profile.avgTaskDuration", "Avg task duration") }
+  static var promptCacheHit: String { text("settings.profile.promptCacheHit", "Prompt cache hit") }
+  static var weekendShare: String { text("settings.profile.weekendShare", "Weekend share") }
+  static var switchedProvider: String { text("settings.profile.switchedProvider", "Provider shift") }
+  static var switchedModel: String { text("settings.profile.switchedModel", "Model shift") }
+  static func providerUsedLess(_ provider: String, percent: Int) -> String {
+    String(
+      format: text("settings.profile.providerLess", "%@ down %d%% this week"),
+      provider,
+      percent
+    )
+  }
+  static func providerUsedMore(_ provider: String, percent: Int) -> String {
+    String(
+      format: text("settings.profile.providerMore", "%@ up %d%% this week"),
+      provider,
+      percent
+    )
+  }
+  static func switchedFromTo(_ from: String, to: String) -> String {
+    String(
+      format: text("settings.profile.switchedFromTo", "%@ → %@"),
+      from,
+      to
+    )
+  }
+  static func promptsCount(_ count: Int64) -> String {
+    String(
+      format: text("settings.profile.promptsCount", "%@ prompts"),
+      count.formatted()
+    )
+  }
   static var mostUsedProvider: String {
     text("settings.profile.mostUsedProvider", "Most used provider")
   }

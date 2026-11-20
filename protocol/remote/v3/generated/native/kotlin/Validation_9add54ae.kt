@@ -9,6 +9,10 @@ internal val schema_000753aa3ed87d21: RemoteSchema by lazy {
     RemoteSchema(type = "string", literals = listOf(JsonPrimitive("session.exited")), unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
 
+internal val schema_0013f55d4acc3d55: RemoteSchema by lazy {
+    RemoteSchema(type = "integer", defaultValue = JsonPrimitive(3), minimum = 2.0, maximum = 20.0, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
+}
+
 internal val schema_003a95dd16c24c10: RemoteSchema by lazy {
     RemoteSchema(type = "string", literals = listOf(JsonPrimitive("true"), JsonPrimitive("false")), unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
@@ -29,6 +33,10 @@ internal val schema_00ebeb8fef40c2a6: RemoteSchema by lazy {
     RemoteSchema(type = "string", literals = listOf(JsonPrimitive("scroll")), unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
 
+internal val schema_00f4768be29103a9: RemoteSchema by lazy {
+    RemoteSchema(type = "object", required = setOf("authState", "authUsesProviderLogin", "capabilities", "installed", "presentationMode"), properties = mapOf("authLogoutSupported" to schema_feeb8bb50144d96d, "authMethods" to schema_cd0a57f27ae4fccb, "authState" to schema_2363c4dd0a78ce9d, "authUsesProviderLogin" to schema_feeb8bb50144d96d, "capabilities" to schema_de2055b6e4e71688, "installationSource" to schema_36fea325bf1aca70, "installed" to schema_feeb8bb50144d96d, "loginCommand" to schema_36fea325bf1aca70, "loginCommandDisplay" to schema_36fea325bf1aca70, "preferTerminalLogin" to schema_feeb8bb50144d96d, "presentationMode" to schema_6508684ba659826b, "providerMetadata" to schema_197c2b8c01d7f4ed, "version" to schema_36fea325bf1aca70), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
+}
+
 internal val schema_010485e0a27ea254: RemoteSchema by lazy {
     RemoteSchema(type = "object", required = setOf("kind", "path"), properties = mapOf("kind" to schema_5465dd986b32b774, "path" to schema_36fea325bf1aca70, "remoteServerId" to schema_36fea325bf1aca70), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
@@ -43,6 +51,10 @@ internal val schema_0138c350a16e9103: RemoteSchema by lazy {
 
 internal val schema_014d2dfae880067a: RemoteSchema by lazy {
     RemoteSchema(type = "object", required = setOf("agentFinished", "agentId", "location", "threadId", "transcriptDir"), properties = mapOf("agentFinished" to schema_feeb8bb50144d96d, "agentId" to schema_36fea325bf1aca70, "location" to schema_080f9cc154af9e27, "threadId" to schema_36fea325bf1aca70, "transcriptDir" to schema_36fea325bf1aca70), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
+}
+
+internal val schema_0170ad7cfc4d502b: RemoteSchema by lazy {
+    RemoteSchema(type = "object", required = setOf("updatedAt", "windows", "wsl"), properties = mapOf("detecting" to schema_feeb8bb50144d96d, "updatedAt" to schema_36fea325bf1aca70, "windows" to schema_6b6133f7ff53b2a8, "wsl" to schema_6b6133f7ff53b2a8), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
 
 internal val schema_0174a8d738e73980: RemoteSchema by lazy {
@@ -167,6 +179,10 @@ internal val schema_054db9731372b70d: RemoteSchema by lazy {
 
 internal val schema_056e1da676eab3d9: RemoteSchema by lazy {
     RemoteSchema(type = "object", required = setOf("description", "distribution", "id", "name", "version"), properties = mapOf("authors" to schema_0f732b9fceb2c6ac, "description" to schema_36fea325bf1aca70, "distribution" to schema_97a8dc6944322187, "icon" to schema_bf0b727f7b1c6d07, "id" to schema_36fea325bf1aca70, "license" to schema_bf0b727f7b1c6d07, "name" to schema_36fea325bf1aca70, "repository" to schema_6bb6e13415c8cbba, "version" to schema_36fea325bf1aca70, "website" to schema_6bb6e13415c8cbba), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
+}
+
+internal val schema_0579a31094a2b8a7: RemoteSchema by lazy {
+    RemoteSchema(type = "integer", defaultValue = JsonPrimitive(2000), minimum = 200.0, maximum = 8000.0, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
 
 internal val schema_05812a27bb4846c1: RemoteSchema by lazy {

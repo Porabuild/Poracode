@@ -29,7 +29,7 @@ export function QuestionFormHeader(props: {
   return (
     <>
       {eyebrow ? (
-        <div className="flex items-start gap-2 border-b border-[color:var(--border)] p-2 leading-snug">
+        <div className="flex items-start gap-2 border-b border-[var(--hairline-soft)] p-2 leading-snug">
           {icon}
           <p className="min-w-0 flex-1 break-words text-[11px] text-[color:var(--muted)]">
             {eyebrow}

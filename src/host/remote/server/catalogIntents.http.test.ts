@@ -562,6 +562,101 @@ describe.skipIf(!sqliteAvailable)("managed catalog host intents over real HTTP",
     }
   });
 
+  it("publishes a host-local reorder to both paired clients and serves the new order after reconnect", async () => {
+    const viewerToken = await exchangePairingUrl(server.issuePairingUrl("Catalog viewer"), [
+      "session:read",
+    ]);
+    const operator = await openPairedSocket(info, operatorToken);
+    const viewer = await openPairedSocket(info, viewerToken);
+    try {
+      await Promise.all([operator.read(), viewer.read()]);
+      await expect(
+        server.editAppCatalog(
+          {
+            kind: "reorder-flat",
+            threadId: "t5",
+            projectId: "p1",
+            targetThreadId: "q1",
+            placement: "before",
+          },
+          "local-reorder-1",
+        ),
+      ).resolves.toMatchObject({ changed: true });
+      const moved = await Promise.all([
+        waitForEventType(operator.read, "remote-threads-changed"),
+        waitForEventType(viewer.read, "remote-threads-changed"),
+      ]);
+      expect(moved.map((event) => event.threadIds)).toEqual([
+        ["t5", "q1"],
+        ["t5", "q1"],
+      ]);
+      expect(dispatchThreadCommand).not.toHaveBeenCalled();
+
+      viewer.ws.close();
+      const reconnected = await openPairedSocket(info, viewerToken);
+      try {
+        await reconnected.read();
+        const response = await fetch(new URL("/api/threads?limit=20", info.httpBaseUrl), {
+          headers: { authorization: `Bearer ${viewerToken}` },
+        });
+        expect(response.status).toBe(200);
+        const { threads } = (await response.json()) as {
+          threads: { id: string; projectId: string }[];
+        };
+        expect(threads.map((thread) => thread.id).indexOf("t5")).toBeLessThan(
+          threads.map((thread) => thread.id).indexOf("q1"),
+        );
+        expect(threads.find((thread) => thread.id === "t5")?.projectId).toBe("p1");
+      } finally {
+        reconnected.ws.close();
+      }
+    } finally {
+      operator.ws.close();
+      viewer.ws.close();
+    }
+  });
+
+  it("shares guarded Notes saves across paired sessions and refuses a legacy overwrite", async () => {
+    const other = await exchangePairingUrl(server.issuePairingUrl("Notes editor"), [
+      "session:read",
+      "session:operate",
+    ]);
+    const path = "/api/projects/p1/notes";
+    const old = { doc: { type: "doc" }, todos: [], updatedAt: "legacy-timestamp" };
+    expect(await postCommand(info, operatorToken, path, old)).toEqual({ status: 200, body: {} });
+    const loaded = await fetch(new URL(path, info.httpBaseUrl), {
+      headers: { authorization: `Bearer ${operatorToken}` },
+    });
+    const base = (await loaded.json()) as { guardedWrites: number; notes: { revision: string } };
+    expect(base.guardedWrites).toBe(1);
+    const saves = await Promise.all([
+      postCommand(info, operatorToken, path, {
+        baseRevision: base.notes.revision,
+        replacement: { doc: "first editor", todos: [] },
+      }),
+      postCommand(info, other, path, {
+        baseRevision: base.notes.revision,
+        replacement: { doc: "second editor", todos: [] },
+      }),
+    ]);
+    const results = saves.map((save) => {
+      expect(save.status).toBe(200);
+      return save.body.result as { status: string; notes: { doc: unknown; revision: string } };
+    });
+    expect(results.map(({ status }) => status).sort()).toEqual(["conflict", "saved"]);
+    const saved = results.find(({ status }) => status === "saved")!;
+    const conflict = results.find(({ status }) => status === "conflict")!;
+    expect(conflict.notes).toEqual(saved.notes);
+    expect(saved.notes.revision).not.toBe(base.notes.revision);
+    const stale = await postCommand(info, other, path, old);
+    expect(stale.status).toBe(409);
+    expect(stale.body).toMatchObject({ error: { code: "project_notes_conflict" } });
+    const after = await fetch(new URL(path, info.httpBaseUrl), {
+      headers: { authorization: `Bearer ${other}` },
+    });
+    await expect(after.json()).resolves.toEqual({ notes: saved.notes, guardedWrites: 1 });
+  });
+
   it("requires flat command receipts and refuses wrong source projects or missing targets before writes", async () => {
     const before = getSqlite().prepare("SELECT * FROM threads ORDER BY id").all();
     const command = {

@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
 import type { RuntimeChatItem } from "@/renderer/state/slices/runtimeEventSlice";
 import { pathRefUrl } from "./ChatPane/parts/items/markdownPathRefs";
-import { collectThreadArtifacts } from "./threadArtifacts";
+import {
+  collectThreadArtifacts,
+  collectThreadFilesAndArtifacts,
+  splitThreadArtifacts,
+} from "./threadArtifacts";
 import { resolveThreadTranscriptMarkdownFormatter } from "./threadTranscriptMarkdown";
 
 function message(id: string, text: string): RuntimeChatItem {
@@ -25,10 +29,15 @@ describe("collectThreadArtifacts", () => {
         ),
       ]),
     ).toEqual([
-      { target: "E:/work/report.md", name: "report.md", external: false },
-      { target: "e:/My Files/notes.txt", name: "notes.txt", external: false },
-      { target: "/tmp/notes.txt", name: "notes.txt", external: false },
-      { target: "//server/share/notes.txt", name: "notes.txt", external: false },
+      { target: "E:/work/report.md", name: "report.md", external: false, category: "artifact" },
+      { target: "e:/My Files/notes.txt", name: "notes.txt", external: false, category: "artifact" },
+      { target: "/tmp/notes.txt", name: "notes.txt", external: false, category: "artifact" },
+      {
+        target: "//server/share/notes.txt",
+        name: "notes.txt",
+        external: false,
+        category: "artifact",
+      },
     ]);
   });
 
@@ -41,7 +50,7 @@ describe("collectThreadArtifacts", () => {
       streams: {},
     };
     expect(collectThreadArtifacts([item])).toEqual([
-      { target: "E:/work/input.csv", name: "Input data", external: false },
+      { target: "E:/work/input.csv", name: "Input data", external: false, category: "file" },
     ]);
   });
 
@@ -53,7 +62,14 @@ describe("collectThreadArtifacts", () => {
     expect(collectThreadArtifacts([item])).toEqual([]);
     expect(
       collectThreadArtifacts([item], resolveThreadTranscriptMarkdownFormatter("codex")),
-    ).toEqual([{ target: "D:/Output files/report.pdf", name: "report.pdf", external: false }]);
+    ).toEqual([
+      {
+        target: "D:/Output files/report.pdf",
+        name: "report.pdf",
+        external: false,
+        category: "file",
+      },
+    ]);
     expect(collectThreadArtifacts([item])).toEqual([]);
   });
 
@@ -81,9 +97,49 @@ describe("collectThreadArtifacts", () => {
         ),
       ]),
     ).toEqual([
-      { target: "report.pdf", name: "report.pdf", external: false },
-      { target: "https://example.com/results.zip?token=abc", name: "results.zip", external: true },
-      { target: "/tmp/input.csv", name: "Input data", external: false },
+      { target: "report.pdf", name: "report.pdf", external: false, category: "file" },
+      {
+        target: "https://example.com/results.zip?token=abc",
+        name: "results.zip",
+        external: true,
+        category: "file",
+      },
+      { target: "/tmp/input.csv", name: "Input data", external: false, category: "file" },
+    ]);
+  });
+
+  it("preserves custom file attachment names and matches all deliverable extensions for external URLs", () => {
+    const attached: RuntimeChatItem = {
+      id: "user-custom",
+      type: "user_message",
+      state: "completed",
+      payload: {
+        content: [{ kind: "file", path: "/repo/doc.pdf", name: "Custom Report" }],
+      },
+      streams: {},
+    };
+    expect(
+      collectThreadArtifacts([
+        attached,
+        message(
+          "later",
+          "[doc.pdf](/repo/doc.pdf) [Book](https://example.com/guide.epub) [Audio](https://example.com/note.m4a)",
+        ),
+      ]),
+    ).toEqual([
+      { target: "/repo/doc.pdf", name: "Custom Report", external: false, category: "file" },
+      {
+        target: "https://example.com/guide.epub",
+        name: "guide.epub",
+        external: true,
+        category: "file",
+      },
+      {
+        target: "https://example.com/note.m4a",
+        name: "note.m4a",
+        external: true,
+        category: "file",
+      },
     ]);
   });
 
@@ -121,5 +177,46 @@ describe("collectThreadArtifacts", () => {
     };
     item.streams = { assistant_text: "[Draft](draft.pdf)" };
     expect(collectThreadArtifacts([item]).map((entry) => entry.target)).toEqual(["final.pdf"]);
+  });
+
+  it("splits user attachments and generated deliverables into Files and workspace references into Artifacts", () => {
+    const attached: RuntimeChatItem = {
+      id: "user",
+      type: "user_message",
+      state: "completed",
+      payload: {
+        content: [{ kind: "file", path: "/repo/src/App.tsx", name: "App.tsx" }],
+      },
+      streams: {},
+    };
+    const work = message(
+      "work",
+      "[App.tsx](src/App.tsx:12) [Panel](src/Panel.tsx) [Data](./data.csv:5) [Summary](summary.pdf)",
+    );
+    const followUp = message("later", "[App](/repo/src/App.tsx)");
+
+    expect(collectThreadFilesAndArtifacts([attached, work, followUp])).toEqual({
+      files: [
+        { target: "/repo/src/App.tsx", name: "App.tsx", external: false, category: "file" },
+        { target: "summary.pdf", name: "summary.pdf", external: false, category: "file" },
+      ],
+      artifacts: [
+        { target: "src/App.tsx", name: "App.tsx", external: false, category: "artifact" },
+        { target: "src/Panel.tsx", name: "Panel.tsx", external: false, category: "artifact" },
+        { target: "./data.csv", name: "data.csv", external: false, category: "artifact" },
+      ],
+    });
+
+    expect(
+      splitThreadArtifacts([
+        { target: "report.pdf", name: "report.pdf", external: false, category: "file" },
+        { target: "src/index.ts", name: "index.ts", external: false, category: "artifact" },
+      ]),
+    ).toEqual({
+      files: [{ target: "report.pdf", name: "report.pdf", external: false, category: "file" }],
+      artifacts: [
+        { target: "src/index.ts", name: "index.ts", external: false, category: "artifact" },
+      ],
+    });
   });
 });

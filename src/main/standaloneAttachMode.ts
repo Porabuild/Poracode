@@ -24,8 +24,11 @@ import { channel, desktopApp, isDev } from "./desktopAppState";
 import {
   createQuickComposerLifecycleHost,
   ensureMainWindow,
+  flushTrayThreadOpen,
+  openThreadFromTray,
   toggleQuickComposerWindow,
   createSideChatAppWindow,
+  createThreadAppWindow,
 } from "./desktopAppWindows";
 
 /**
@@ -99,6 +102,11 @@ export async function startStandaloneAttachMode(): Promise<void> {
   const attachQuickComposer = desktopApp.quickComposerLifecycle;
   registerStandaloneAttachIpc({
     createSideChatWindow: createSideChatAppWindow,
+    createThreadWindow: createThreadAppWindow,
+    // Same queued handoff as managed mode, recreating main on the attach shell.
+    showThreadInMain: (threadId, navigation) =>
+      openThreadFromTray(threadId, shellState, navigation),
+    flushMainThreadOpen: flushTrayThreadOpen,
     getMainWindow: () => desktopApp.mainWindow,
     getQuickComposerWindow: () => desktopApp.quickComposerWindow,
     profileNamespace: standaloneAttachInfo.profileNamespace,
@@ -108,6 +116,7 @@ export async function startStandaloneAttachMode(): Promise<void> {
     markQuitting: () => {
       desktopApp.isQuitting = true;
     },
+    isQuitting: () => desktopApp.isQuitting,
     quickComposer: attachQuickComposer,
     onKeybindingsChanged: (file) => desktopApp.quickComposerShortcutManager?.apply(file),
     setShortcutsSuspended: (suspended) => globalShortcut.setSuspended(suspended),

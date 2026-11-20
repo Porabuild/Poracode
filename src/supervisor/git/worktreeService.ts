@@ -21,12 +21,15 @@ import {
   computeDefaultWorktreePath,
   ensureWorktreeParentExists,
   execGit,
+  execGitWithCheckoutReservation,
   GIT_HOOK_TIMEOUT,
   GIT_NETWORK_TIMEOUT,
   GIT_STATUS_TIMEOUT,
+  GIT_WORKTREE_ADD_TIMEOUT,
   GIT_WORKTREE_REMOVE_TIMEOUT,
   normalizeWorktreePath,
   removeWslPathViaBridge,
+  reserveWorktreeCheckout,
   resolveBuiltInWorktreeRoot,
   type WorktreePathOptions,
 } from "./exec";
@@ -572,157 +575,167 @@ export class GitWorktreeService {
     const validatedSourceBranch = sourceBranchOverride
       ? await this.validateFrozenSourceBranch(location, sourceBranchOverride, resolvedStartPoint)
       : undefined;
-    const ownedBranchPrepared = Boolean(ownerToken);
-    if (ownerToken) {
-      if (!branch || !createBranch || !resolvedStartPoint || !validatedSourceBranch) {
-        throw new Error(msg("experiment.worktree.ownerNeedsFrozenSource"));
-      }
-      await this.prepareOwnedBranch(
-        location,
-        branch,
-        resolvedStartPoint,
-        validatedSourceBranch,
-        ownerToken,
-      );
-    }
-
-    // Optionally bring the main checkout's uncommitted changes into the new
-    // worktree: stash (including untracked files), create the worktree, then
-    // apply the stash into it. With `keepChangesInSource` we also re-apply the
-    // stash in the source (a COPY); otherwise the source is left clean (a MOVE).
-    // The stash list is shared across a repository's worktrees, so we pin the
-    // exact stash commit by SHA rather than trusting `stash@{0}`.
-    const carryChanges =
-      transferUncommitted === true && (await this.hasUncommittedChanges(location));
-    const stashSha = carryChanges
-      ? await this.pushTransferStash(
-          location,
-          `Poracode: ${keepChangesInSource ? "copy" : "move"} changes to ${branch ?? resolvedPath}`,
-        )
-      : undefined;
-
-    const args = ["worktree", "add"];
-    if (createBranch && branch && !ownedBranchPrepared) {
-      // `--no-track` is required when the start-point is a remote-tracking
-      // ref (`origin/master`). Without it git's default autoSetupMerge wires
-      // the new branch's upstream to that start-point, so the worktree
-      // `poracode/clever-falcon-…` reports as tracking origin/master and
-      // shows "behind" whenever master moves. The fork base is recorded
-      // separately in `branch.<name>.poracodeSource`.
-      args.push(
-        "--no-track",
-        "-b",
-        branch,
-        resolvedPath,
-        ...(resolvedStartPoint ? [resolvedStartPoint] : []),
-      );
-    } else {
-      args.push(resolvedPath, ...(branch ? [branch] : []));
-    }
+    // Do not move source changes until this checkout has capacity to start.
+    const checkout = await reserveWorktreeCheckout(location);
     try {
-      await execGit(location, args);
-    } catch (error) {
-      // Creation failed — put the changes back on the source before bailing out.
-      if (stashSha) await this.restoreSourceStash(location, stashSha);
-      if (ownedBranchPrepared && branch) {
-        try {
-          await this.deleteBranchWithPruneRetry(location, branch, true);
-        } catch (rollbackError) {
-          throw new Error(
-            msg("experiment.worktree.creationRollbackFailed", {
-              detail: errorDetail(error),
-              branch,
-              rollback: errorDetail(rollbackError),
-            }),
-            { cause: rollbackError },
-          );
+      const ownedBranchPrepared = Boolean(ownerToken);
+      if (ownerToken) {
+        if (!branch || !createBranch || !resolvedStartPoint || !validatedSourceBranch) {
+          throw new Error(msg("experiment.worktree.ownerNeedsFrozenSource"));
         }
+        await this.prepareOwnedBranch(
+          location,
+          branch,
+          resolvedStartPoint,
+          validatedSourceBranch,
+          ownerToken,
+        );
       }
-      throw error;
-    }
 
-    let changesTransferred: boolean | undefined;
-    if (stashSha) {
-      changesTransferred = await this.applyStashInto(
-        buildWorktreeLocation(location, resolvedPath),
-        stashSha,
-      );
-      if (keepChangesInSource) {
-        // Copy: restore the source working tree (then drop the stash). This is
-        // independent of the worktree apply, so the source keeps its changes
-        // even if the worktree apply conflicted.
-        await this.restoreSourceStash(location, stashSha);
-      } else if (changesTransferred) {
-        // Move: drop the stash on success; a conflicting apply keeps it so the
-        // work stays recoverable (reported via `changesTransferred: false`).
-        await this.dropStashBySha(location, stashSha);
+      // Optionally bring the main checkout's uncommitted changes into the new
+      // worktree: stash (including untracked files), create the worktree, then
+      // apply the stash into it. With `keepChangesInSource` we also re-apply the
+      // stash in the source (a COPY); otherwise the source is left clean (a MOVE).
+      // The stash list is shared across a repository's worktrees, so we pin the
+      // exact stash commit by SHA rather than trusting `stash@{0}`.
+      const carryChanges =
+        transferUncommitted === true && (await this.hasUncommittedChanges(location));
+      const stashSha = carryChanges
+        ? await this.pushTransferStash(
+            location,
+            `Poracode: ${keepChangesInSource ? "copy" : "move"} changes to ${branch ?? resolvedPath}`,
+          )
+        : undefined;
+
+      const args = ["worktree", "add"];
+      if (createBranch && branch && !ownedBranchPrepared) {
+        // `--no-track` is required when the start-point is a remote-tracking
+        // ref (`origin/master`). Without it git's default autoSetupMerge wires
+        // the new branch's upstream to that start-point, so the worktree
+        // `poracode/clever-falcon-…` reports as tracking origin/master and
+        // shows "behind" whenever master moves. The fork base is recorded
+        // separately in `branch.<name>.poracodeSource`.
+        args.push(
+          "--no-track",
+          "-b",
+          branch,
+          resolvedPath,
+          ...(resolvedStartPoint ? [resolvedStartPoint] : []),
+        );
+      } else {
+        args.push(resolvedPath, ...(branch ? [branch] : []));
       }
-    }
-
-    if (branch && createBranch && !ownedBranchPrepared) {
-      // Record the resolved (qualified) start-point so the diff base matches
-      // what we actually forked from — e.g. "origin/feature/x", not "feature/x".
-      const sourceBranch =
-        validatedSourceBranch ?? resolvedStartPoint ?? (await this.getCurrentBranch(location));
-      if (sourceBranch && sourceBranch !== branch) {
-        if (validatedSourceBranch) {
-          try {
-            await this.writeWorktreeSourceBranchStrict(location, branch, sourceBranch);
-          } catch (metadataError) {
-            const rollbackFailures: string[] = [];
-            try {
-              await execGit(location, ["worktree", "remove", "--force", resolvedPath]);
-            } catch (rollbackError) {
-              rollbackFailures.push(
-                msg("experiment.worktree.rollbackWorktree", {
-                  path: resolvedPath,
-                  detail: errorDetail(rollbackError),
-                }),
-              );
-            }
-            try {
-              await this.deleteBranchWithPruneRetry(location, branch, true);
-            } catch (rollbackError) {
-              rollbackFailures.push(
-                msg("experiment.worktree.rollbackBranch", {
-                  branch,
-                  detail: errorDetail(rollbackError),
-                }),
-              );
-            }
-            if (rollbackFailures.length > 0) {
-              throw new Error(
-                msg("experiment.worktree.sourceMetadataRollbackFailed", {
-                  detail: errorDetail(metadataError),
-                  rollback: rollbackFailures.join("; "),
-                }),
-                { cause: metadataError },
-              );
-            }
-            throw metadataError;
-          }
-        } else {
-          await this.writeWorktreeSourceBranch(location, branch, sourceBranch);
-        }
-      }
-      // `--no-track` covers current git; unset in case an older git still
-      // wired the remote-tracking start-point as upstream.
-      await execGit(location, ["branch", "--unset-upstream", branch]).catch(() => undefined);
-    }
-
-    if (copyIgnoredPatterns?.length) {
       try {
-        await copyIgnoredFilesIntoWorktree(location, resolvedPath, copyIgnoredPatterns);
-      } catch (err) {
-        // Non-fatal: the worktree itself was created successfully.
-        console.warn("[supervisor] failed to copy ignored files into worktree:", err);
+        try {
+          await execGitWithCheckoutReservation(location, args, checkout, GIT_WORKTREE_ADD_TIMEOUT);
+        } finally {
+          checkout.release();
+        }
+      } catch (error) {
+        // Creation failed — put the changes back on the source before bailing out.
+        if (stashSha) await this.restoreSourceStash(location, stashSha);
+        if (ownedBranchPrepared && branch) {
+          try {
+            await this.deleteBranchWithPruneRetry(location, branch, true);
+          } catch (rollbackError) {
+            throw new Error(
+              msg("experiment.worktree.creationRollbackFailed", {
+                detail: errorDetail(error),
+                branch,
+                rollback: errorDetail(rollbackError),
+              }),
+              { cause: rollbackError },
+            );
+          }
+        }
+        throw error;
       }
-    }
 
-    return {
-      path: resolvedPath,
-      ...(changesTransferred !== undefined ? { changesTransferred } : {}),
-    };
+      let changesTransferred: boolean | undefined;
+      if (stashSha) {
+        changesTransferred = await this.applyStashInto(
+          buildWorktreeLocation(location, resolvedPath),
+          stashSha,
+        );
+        if (keepChangesInSource) {
+          // Copy: restore the source working tree (then drop the stash). This is
+          // independent of the worktree apply, so the source keeps its changes
+          // even if the worktree apply conflicted.
+          await this.restoreSourceStash(location, stashSha);
+        } else if (changesTransferred) {
+          // Move: drop the stash on success; a conflicting apply keeps it so the
+          // work stays recoverable (reported via `changesTransferred: false`).
+          await this.dropStashBySha(location, stashSha);
+        }
+      }
+
+      if (branch && createBranch && !ownedBranchPrepared) {
+        // Record the resolved (qualified) start-point so the diff base matches
+        // what we actually forked from — e.g. "origin/feature/x", not "feature/x".
+        const sourceBranch =
+          validatedSourceBranch ?? resolvedStartPoint ?? (await this.getCurrentBranch(location));
+        if (sourceBranch && sourceBranch !== branch) {
+          if (validatedSourceBranch) {
+            try {
+              await this.writeWorktreeSourceBranchStrict(location, branch, sourceBranch);
+            } catch (metadataError) {
+              const rollbackFailures: string[] = [];
+              try {
+                await execGit(location, ["worktree", "remove", "--force", resolvedPath]);
+              } catch (rollbackError) {
+                rollbackFailures.push(
+                  msg("experiment.worktree.rollbackWorktree", {
+                    path: resolvedPath,
+                    detail: errorDetail(rollbackError),
+                  }),
+                );
+              }
+              try {
+                await this.deleteBranchWithPruneRetry(location, branch, true);
+              } catch (rollbackError) {
+                rollbackFailures.push(
+                  msg("experiment.worktree.rollbackBranch", {
+                    branch,
+                    detail: errorDetail(rollbackError),
+                  }),
+                );
+              }
+              if (rollbackFailures.length > 0) {
+                throw new Error(
+                  msg("experiment.worktree.sourceMetadataRollbackFailed", {
+                    detail: errorDetail(metadataError),
+                    rollback: rollbackFailures.join("; "),
+                  }),
+                  { cause: metadataError },
+                );
+              }
+              throw metadataError;
+            }
+          } else {
+            await this.writeWorktreeSourceBranch(location, branch, sourceBranch);
+          }
+        }
+        // `--no-track` covers current git; unset in case an older git still
+        // wired the remote-tracking start-point as upstream.
+        await execGit(location, ["branch", "--unset-upstream", branch]).catch(() => undefined);
+      }
+
+      if (copyIgnoredPatterns?.length) {
+        try {
+          await copyIgnoredFilesIntoWorktree(location, resolvedPath, copyIgnoredPatterns);
+        } catch (err) {
+          // Non-fatal: the worktree itself was created successfully.
+          console.warn("[supervisor] failed to copy ignored files into worktree:", err);
+        }
+      }
+
+      return {
+        path: resolvedPath,
+        ...(changesTransferred !== undefined ? { changesTransferred } : {}),
+      };
+    } finally {
+      checkout.release();
+    }
   }
 
   async removeWorktree(

@@ -23,6 +23,10 @@ const {
     listWslDistros: vi.fn<() => Promise<string[]>>().mockResolvedValue(["Ubuntu"]),
     setSkillEnabled: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
     deleteSkill: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+    memoryCommand: vi.fn<() => Promise<unknown>>().mockResolvedValue([]),
+    writeExternalFile: vi.fn<() => Promise<{ modifiedAtMs: number }>>().mockResolvedValue({
+      modifiedAtMs: 2,
+    }),
     readExternalFile: vi
       .fn<(payload: ReadExternalFilePayload) => Promise<ReadExternalFileResult>>()
       .mockResolvedValue({
@@ -360,6 +364,26 @@ describe("SkillsManager", () => {
       },
       absolutePath: "C:\\Users\\me\\.agents\\skills\\review\\SKILL.md",
     });
+
+    fireEvent.click(within(dialog).getByRole("button", { name: "Edit" }));
+    const editor = within(dialog).getByRole("textbox", { name: /review/i });
+    fireEvent.change(editor, {
+      target: {
+        value: "---\nname: review\ndescription: Review changes\n---\n\n# Updated\n",
+      },
+    });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Save" }));
+    await waitFor(() =>
+      expect(bridge.writeExternalFile).toHaveBeenCalledWith({
+        projectLocation: {
+          kind: "windows",
+          path: "C:\\Users\\me\\.agents\\skills\\review",
+        },
+        absolutePath: "C:\\Users\\me\\.agents\\skills\\review\\SKILL.md",
+        content: "---\nname: review\ndescription: Review changes\n---\n\n# Updated\n",
+        baseModifiedAtMs: 1,
+      }),
+    );
   });
 
   it("reads a WSL skill through its Linux path", async () => {

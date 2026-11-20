@@ -4,10 +4,18 @@ import type { AgentAdapter, AgentEnvContext } from "./base";
 const readAgentCommandOutputMock = vi.hoisted(() =>
   vi.fn<typeof import("./base").readAgentCommandOutput>(),
 );
+const resolveAgentBinaryPathMock = vi.hoisted(() =>
+  vi.fn<typeof import("./binaryResolver").resolveAgentBinaryPath>(),
+);
 
 vi.mock("./base", async (importOriginal) => {
   const actual = await importOriginal<typeof import("./base")>();
   return { ...actual, readAgentCommandOutput: readAgentCommandOutputMock };
+});
+
+vi.mock("./binaryResolver", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("./binaryResolver")>();
+  return { ...actual, resolveAgentBinaryPath: resolveAgentBinaryPathMock };
 });
 
 import {
@@ -212,6 +220,65 @@ describe("resolveUpdateCommand", () => {
     expect(command?.strategy).toBe("npm-global");
     expect(command?.binary).toBe("npm");
     expect(command?.args).toEqual(["install", "-g", "@google/gemini-cli@latest"]);
+  });
+
+  it("distinguishes Homebrew Cellar from Homebrew global npm via installPath", () => {
+    const adapter = makeAdapter("gemini");
+    const status = makeStatus({
+      kind: "gemini",
+      executablePath: "/opt/homebrew/bin/gemini",
+    });
+
+    expect(
+      resolveUpdateCommand(adapter, status, NATIVE_POSIX, {
+        installPath:
+          "/opt/homebrew/Cellar/gemini-cli/0.69.0/libexec/lib/node_modules/@google/gemini-cli/bundle/gemini.js",
+      }),
+    ).toEqual({
+      binary: "brew",
+      args: ["upgrade", "gemini-cli"],
+      strategy: "brew",
+    });
+
+    expect(
+      resolveUpdateCommand(adapter, status, NATIVE_POSIX, {
+        installPath: "/opt/homebrew/lib/node_modules/@google/gemini-cli/bundle/gemini.js",
+      }),
+    ).toEqual({
+      binary: "npm",
+      args: ["install", "-g", "@google/gemini-cli@latest"],
+      strategy: "npm-global",
+    });
+
+    const intelStatus = makeStatus({
+      kind: "gemini",
+      executablePath: "/usr/local/bin/gemini",
+    });
+    expect(
+      resolveUpdateCommand(adapter, intelStatus, NATIVE_POSIX, {
+        installPath: "/usr/local/Cellar/gemini-cli/0.69.0/bin/gemini",
+      }),
+    ).toEqual({
+      binary: "brew",
+      args: ["upgrade", "gemini-cli"],
+      strategy: "brew",
+    });
+
+    const caskAdapter = makeAdapter("cursor");
+    const caskStatus = makeStatus({
+      kind: "cursor",
+      executablePath: "/opt/homebrew/bin/cursor-agent",
+    });
+    expect(
+      resolveUpdateCommand(caskAdapter, caskStatus, NATIVE_POSIX, {
+        skipBuiltIn: true,
+        installPath: "/Applications/Cursor.app/Contents/Resources/app/bin/cursor-agent",
+      }),
+    ).toEqual({
+      binary: "brew",
+      args: ["upgrade", "--cask", "cursor-cli"],
+      strategy: "brew",
+    });
   });
 
   it("uses Qwen's built-in command before its package-manager fallback", () => {
@@ -489,6 +556,281 @@ describe("runUpdateCommandWithFallback", () => {
     );
   });
 
+  describe("post-update health check", () => {
+    const EXECUTABLE = "/usr/local/lib/node_modules/test-agent/bin.js";
+    const NPM_INSTALL = ["install", "-g", "test-agent@latest"];
+    const MISSING_NATIVE =
+      "Error: Missing optional dependency test-agent-native. Reinstall: npm install -g test-agent@latest";
+
+    function healthAdapter(update: AgentAdapter["update"] = { npm: "test-agent" }): AgentAdapter {
+      return { ...makeAdapter("test-agent"), update, postUpdateHealthArgs: ["--version"] };
+    }
+
+    function runHealthUpdate(adapter: AgentAdapter = healthAdapter()) {
+      return runUpdateCommandWithFallback(
+        adapter,
+        makeStatus({ kind: "test-agent", version: "1.0.0", executablePath: EXECUTABLE }),
+        NATIVE_POSIX,
+      );
+    }
+
+    /** Scripts npm and the health probe: each probe result is consumed in order. */
+    function scriptCommands(options: { npm: boolean[]; health: boolean[] }) {
+      const npmResults = [...options.npm];
+      const healthResults = [...options.health];
+      readAgentCommandOutputMock.mockReset();
+      readAgentCommandOutputMock.mockImplementation(async (_location, binary) => {
+        if (binary === "npm") {
+          const ok = npmResults.shift() ?? true;
+          return { ok, stdout: ok ? "npm ran" : "npm failed: EBUSY", stderr: "" };
+        }
+        const ok = healthResults.shift() ?? true;
+        return ok
+          ? { ok, stdout: "test-agent 2.0.0", stderr: "" }
+          : { ok, stdout: "", stderr: MISSING_NATIVE };
+      });
+      const calls = () =>
+        readAgentCommandOutputMock.mock.calls.map(
+          ([, binary, args]) => `${binary} ${args.join(" ")}`,
+        );
+      return { calls };
+    }
+
+    it("runs the declared health check once after a successful update", async () => {
+      const { calls } = scriptCommands({ npm: [true], health: [true] });
+
+      expect(await runHealthUpdate()).toEqual({
+        ok: true,
+        strategy: "npm-global",
+        output: "npm ran",
+      });
+      expect(calls()).toEqual([`npm ${NPM_INSTALL.join(" ")}`, `${EXECUTABLE} --version`]);
+    });
+
+    it("re-runs the update once when the CLI does not start afterwards", async () => {
+      const { calls } = scriptCommands({ npm: [true, true], health: [false, true] });
+
+      expect(await runHealthUpdate()).toEqual({
+        ok: true,
+        strategy: "npm-global",
+        output: "npm ran",
+      });
+      expect(calls()).toEqual([
+        `npm ${NPM_INSTALL.join(" ")}`,
+        `${EXECUTABLE} --version`,
+        `npm ${NPM_INSTALL.join(" ")}`,
+        `${EXECUTABLE} --version`,
+      ]);
+    });
+
+    it("reports a failure with the CLI error when the repair does not help", async () => {
+      const { calls } = scriptCommands({ npm: [true, true], health: [false, false] });
+
+      const result = await runHealthUpdate();
+
+      expect(result).toMatchObject({ ok: false, strategy: "npm-global" });
+      expect(result.output).toContain(`${EXECUTABLE} --version`);
+      expect(result.output).toContain(MISSING_NATIVE);
+      expect(result.output).toContain("did not repair it");
+      expect(calls()).toHaveLength(4);
+    });
+
+    it("shows PowerShell CLIXML errors from the check as plain text", async () => {
+      const clixml =
+        '#< CLIXML\n<Objs Version="1.1.0.1" xmlns="http://schemas.microsoft.com/powershell/2004/04">' +
+        '<S S="Error">The term &apos;test-agent&apos; is not recognized_x000D__x000A_</S></Objs>';
+      readAgentCommandOutputMock.mockReset();
+      readAgentCommandOutputMock.mockImplementation(async (_location, binary) =>
+        binary === "npm"
+          ? { ok: true, stdout: "npm ran", stderr: "" }
+          : { ok: false, stdout: "", stderr: clixml },
+      );
+
+      const result = await runHealthUpdate();
+
+      expect(result.ok).toBe(false);
+      expect(result.output).toContain("The term 'test-agent' is not recognized");
+      expect(result.output).not.toContain("CLIXML");
+    });
+
+    it("leads with the reason so a truncated message still names it", async () => {
+      // A Node launcher's uncaught error opens with source-line noise, and the
+      // renderer shows only the first 240 characters of the update output.
+      const nodeStack = [
+        "file:///C:/Users/me/AppData/Roaming/npm/node_modules/test-agent/bin/launcher.js:108",
+        "  throw new Error(",
+        "        ^",
+        "",
+        MISSING_NATIVE,
+        "    at findExecutable (file:///launcher.js:108:9)",
+        "Node.js v26.13.0",
+      ].join("\n");
+      readAgentCommandOutputMock.mockReset();
+      readAgentCommandOutputMock.mockImplementation(async (_location, binary) =>
+        binary === "npm"
+          ? { ok: true, stdout: "npm ran", stderr: "" }
+          : { ok: false, stdout: "", stderr: nodeStack },
+      );
+
+      const { output = "" } = await runHealthUpdate();
+
+      expect(output.slice(0, 240)).toContain("Missing optional dependency test-agent-native");
+      expect(output.slice(0, 240)).not.toContain("throw new Error(");
+      expect(output).toContain("did not repair it");
+      expect(output).toContain("at findExecutable");
+    });
+
+    it("keeps the lead visible when a failing repair prints a very long log", async () => {
+      const longLog = Array.from({ length: 400 }, (_, i) => `npm warn cleanup line ${i}`).join(
+        "\n",
+      );
+      readAgentCommandOutputMock.mockReset();
+      readAgentCommandOutputMock.mockImplementation(async (_location, binary) =>
+        binary === "npm"
+          ? { ok: readAgentCommandOutputMock.mock.calls.length < 2, stdout: longLog, stderr: "" }
+          : { ok: false, stdout: "", stderr: MISSING_NATIVE },
+      );
+
+      const { output = "" } = await runHealthUpdate();
+
+      expect(output.startsWith("The update finished but the installed CLI does not start")).toBe(
+        true,
+      );
+      expect(output.slice(0, 240)).toContain("Missing optional dependency test-agent-native");
+      expect(output.length).toBeLessThan(4_096);
+    });
+
+    it("keeps the repair command's own error when the repair fails", async () => {
+      scriptCommands({ npm: [true, false], health: [false] });
+
+      const { output = "" } = await runHealthUpdate();
+
+      expect(output).toContain("failed:\nnpm failed: EBUSY");
+      expect(output).toContain(MISSING_NATIVE);
+    });
+
+    it("keeps the diagnosis when the queue deadline lapsed during a long update", async () => {
+      vi.useFakeTimers({ toFake: ["Date"] });
+      try {
+        let installs = 0;
+        readAgentCommandOutputMock.mockReset();
+        readAgentCommandOutputMock.mockImplementation(async (_location, binary) => {
+          if (binary !== "npm") return { ok: false, stdout: "", stderr: MISSING_NATIVE };
+          installs += 1;
+          // The first install outlasts the 20 minute queue-admission deadline.
+          vi.setSystemTime(Date.now() + 21 * 60_000);
+          return { ok: true, stdout: "npm ran", stderr: "" };
+        });
+
+        const result = await runHealthUpdate();
+
+        expect(installs).toBe(1);
+        expect(result).toMatchObject({ ok: false, strategy: "npm-global" });
+        expect(result.output).toContain("could not run: The update waited too long");
+        expect(result.output).toContain(MISSING_NATIVE);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("checks the install after a built-in update fails and the package manager fallback runs", async () => {
+      const { calls } = scriptCommands({ npm: [true, true], health: [false, true] });
+      readAgentCommandOutputMock.mockImplementationOnce(async () => ({
+        ok: false,
+        stdout: "",
+        stderr: "update failed",
+      }));
+      const adapter = healthAdapter({
+        builtIn: { binary: "test-agent", args: ["update"] },
+        npm: "test-agent",
+      });
+
+      const result = await runUpdateCommandWithFallback(
+        adapter,
+        makeStatus({ kind: "test-agent", version: "1.0.0", executablePath: EXECUTABLE }),
+        NATIVE_POSIX,
+      );
+
+      expect(result).toMatchObject({ ok: true, strategy: "npm-global" });
+      expect(calls()).toEqual([
+        "test-agent update",
+        `npm ${NPM_INSTALL.join(" ")}`,
+        `${EXECUTABLE} --version`,
+        `npm ${NPM_INSTALL.join(" ")}`,
+        `${EXECUTABLE} --version`,
+      ]);
+    });
+
+    it("cannot check an install whose executable path is unknown", async () => {
+      const { calls } = scriptCommands({ npm: [true], health: [] });
+
+      const result = await runUpdateCommandWithFallback(
+        healthAdapter(),
+        makeStatus({ kind: "test-agent", version: "1.0.0" }),
+        NATIVE_POSIX,
+      );
+
+      expect(result).toMatchObject({ ok: true, strategy: "npm-global" });
+      expect(calls()).toEqual([`npm ${NPM_INSTALL.join(" ")}`]);
+    });
+
+    it("reports a failure when the repair command itself fails", async () => {
+      const { calls } = scriptCommands({ npm: [true, false], health: [false] });
+
+      const result = await runHealthUpdate();
+
+      expect(result).toMatchObject({ ok: false, strategy: "npm-global" });
+      expect(result.output).toContain(MISSING_NATIVE);
+      expect(calls()).toEqual([
+        `npm ${NPM_INSTALL.join(" ")}`,
+        `${EXECUTABLE} --version`,
+        `npm ${NPM_INSTALL.join(" ")}`,
+      ]);
+    });
+
+    it("skips the health check when the update itself failed", async () => {
+      const { calls } = scriptCommands({ npm: [false], health: [] });
+
+      expect(await runHealthUpdate()).toMatchObject({ ok: false, strategy: "npm-global" });
+      expect(calls()).toEqual([`npm ${NPM_INSTALL.join(" ")}`]);
+    });
+
+    it("does not run any check for adapters that declare none", async () => {
+      const { calls } = scriptCommands({ npm: [true], health: [] });
+      const adapter: AgentAdapter = { ...makeAdapter("test-agent"), update: { npm: "test-agent" } };
+
+      expect(await runHealthUpdate(adapter)).toMatchObject({ ok: true });
+      expect(calls()).toEqual([`npm ${NPM_INSTALL.join(" ")}`]);
+    });
+
+    it("never re-runs a self-updater that leaves a broken CLI", async () => {
+      readAgentCommandOutputMock.mockReset();
+      readAgentCommandOutputMock.mockImplementation(async (_location, _binary, args) =>
+        args[0] === "update"
+          ? { ok: true, stdout: "self-updated", stderr: "" }
+          : { ok: false, stdout: "", stderr: MISSING_NATIVE },
+      );
+      const adapter = healthAdapter({
+        builtIn: { binary: "test-agent", args: ["update"] },
+        npm: "test-agent",
+      });
+
+      const result = await runUpdateCommandWithFallback(
+        adapter,
+        makeStatus({ kind: "test-agent", executablePath: "/Users/me/.local/bin/test-agent" }),
+        NATIVE_POSIX,
+      );
+
+      expect(result).toMatchObject({ ok: false, strategy: "built-in" });
+      expect(result.output).toContain(MISSING_NATIVE);
+      expect(result.output).not.toContain("did not repair it");
+      expect(readAgentCommandOutputMock.mock.calls.map(([, , args]) => args.join(" "))).toEqual([
+        "update",
+        "--version",
+      ]);
+    });
+  });
+
   it("does not apply adapter baseSpawnEnv to the explicit update spawn", async () => {
     readAgentCommandOutputMock.mockResolvedValue({ ok: true, stdout: "updated", stderr: "" });
     const adapter = {
@@ -562,6 +904,124 @@ describe("getLatestVersionForAdapter", () => {
     const callUrl = fetchSpy.mock.calls[0]?.[0] as string;
     expect(callUrl).toContain("raw.githubusercontent.com/Homebrew/homebrew-cask");
     expect(callUrl).toContain("Casks/c/cursor-cli.rb");
+  });
+
+  it("fetches the Homebrew formula stable version when preferHomebrewFormula is set", async () => {
+    const fetchSpy = vi.fn<typeof fetch>().mockImplementation(async (input) => {
+      const url = String(input);
+      if (url.includes("formulae.brew.sh/api/formula/gemini-cli.json")) {
+        return {
+          ok: true,
+          json: async () => ({ name: "gemini-cli", versions: { stable: "0.69.0" } }),
+        } as Response;
+      }
+      return {
+        ok: true,
+        json: async () => ({ version: "0.70.0" }),
+      } as Response;
+    });
+    globalThis.fetch = fetchSpy as unknown as typeof fetch;
+
+    const brewResult = await getLatestVersionForAdapter(makeAdapter("gemini"), {
+      preferHomebrewFormula: true,
+    });
+    const npmResult = await getLatestVersionForAdapter(makeAdapter("gemini"));
+
+    expect(brewResult).toEqual({ version: "0.69.0", source: "version-url" });
+    expect(npmResult).toEqual({ version: "0.70.0", source: "npm" });
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+    expect(String(fetchSpy.mock.calls[0]?.[0])).toBe(
+      "https://formulae.brew.sh/api/formula/gemini-cli.json",
+    );
+  });
+
+  it("does not fall back to npm when the Homebrew formula probe fails", async () => {
+    const fetchSpy = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue({ ok: false, status: 503 } as Response);
+    globalThis.fetch = fetchSpy as unknown as typeof fetch;
+
+    const result = await getLatestVersionForAdapter(makeAdapter("gemini"), {
+      preferHomebrewFormula: true,
+    });
+
+    expect(result).toEqual({ source: "unknown" });
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it("auto-selects Homebrew formula vs npm channel from cached native status", async () => {
+    const fetchSpy = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ versions: { stable: "0.69.0" } }),
+      } as Response)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ version: "0.70.0" }),
+      } as Response);
+    globalThis.fetch = fetchSpy as unknown as typeof fetch;
+
+    const brewResult = await getLatestVersionForAdapter(makeAdapter("gemini"), {
+      getNativeStatus: () =>
+        makeStatus({
+          kind: "gemini",
+          executablePath: "/opt/homebrew/Cellar/gemini-cli/0.69.0/bin/gemini",
+          envKind: "posix",
+        }),
+    });
+    expect(brewResult).toEqual({ version: "0.69.0", source: "version-url" });
+    expect(fetchSpy.mock.calls[0]?.[0]).toBe(
+      "https://formulae.brew.sh/api/formula/gemini-cli.json",
+    );
+
+    const npmResult = await getLatestVersionForAdapter(makeAdapter("gemini"), {
+      getNativeStatus: () =>
+        makeStatus({
+          kind: "gemini",
+          executablePath: "/opt/homebrew/lib/node_modules/@google/gemini-cli/bundle/gemini.js",
+          envKind: "posix",
+        }),
+    });
+    expect(npmResult).toEqual({ version: "0.70.0", source: "npm" });
+    expect(fetchSpy.mock.calls[1]?.[0]).toBe(
+      "https://registry.npmjs.org/%40google%2Fgemini-cli/latest",
+    );
+  });
+
+  it("resolves Homebrew channel from PATH when the native status cache is cold", async () => {
+    resolveAgentBinaryPathMock
+      .mockReset()
+      .mockReturnValue("/opt/homebrew/Cellar/gemini-cli/0.69.0/bin/gemini");
+    const fetchSpy = vi.fn<typeof fetch>().mockResolvedValue({
+      ok: true,
+      json: async () => ({ versions: { stable: "0.69.0" } }),
+    } as Response);
+    globalThis.fetch = fetchSpy as unknown as typeof fetch;
+
+    const geminiWithBinary = { ...makeAdapter("gemini"), binary: "gemini" };
+    const result = await getLatestVersionForAdapter(geminiWithBinary, {
+      getNativeStatus: () => undefined,
+    });
+
+    expect(result).toEqual({ version: "0.69.0", source: "version-url" });
+    expect(fetchSpy.mock.calls[0]?.[0]).toBe(
+      "https://formulae.brew.sh/api/formula/gemini-cli.json",
+    );
+  });
+
+  it("skips native status lookup when a built-in updater outranks Homebrew", async () => {
+    const getNativeStatus = vi.fn<() => AgentStatus | undefined>();
+    const fetchSpy = vi.fn<typeof fetch>().mockResolvedValue({
+      ok: true,
+      json: async () => ({ version: "2.1.0" }),
+    } as Response);
+    globalThis.fetch = fetchSpy as unknown as typeof fetch;
+
+    const result = await getLatestVersionForAdapter(makeAdapter("claude"), { getNativeStatus });
+
+    expect(result).toEqual({ version: "2.1.0", source: "npm" });
+    expect(getNativeStatus).not.toHaveBeenCalled();
   });
 
   it("fetches the latest version from provider version URLs", async () => {

@@ -89,6 +89,11 @@ msgstr "{0, plural, one {#個のファイルを内容なしで一覧表示} othe
 msgid "{0, plural, one {# file} other {# files}}"
 msgstr "{0, plural, one {#ファイル} other {#ファイル}}"
 
+#. placeholder {0}: facts.length
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "{0, plural, one {# highlight} other {# highlights}}"
+msgstr "{0, plural, one {# 件のハイライト} other {# 件のハイライト}}"
+
 #. placeholder {0}: groupRows.length
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "{0, plural, one {# MCP server} other {# MCP servers}}"
@@ -269,6 +274,11 @@ msgstr "{0}資格情報が保存されました。"
 msgid "{0} devices"
 msgstr "{0}台のデバイス"
 
+#. placeholder {0}: summary.failed
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrChecksIndicator.tsx
+msgid "{0} failed"
+msgstr "{0} 件失敗"
+
 #. placeholder {0}: props.agentLabel
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
 msgid "{0} hooks installed for {envName}."
@@ -319,8 +329,11 @@ msgstr "{0} が匿名化された差分を比較しています…"
 msgid "{0} is offline. Showing last known status."
 msgstr "{0} はオフラインです。最後に確認したステータスを表示しています。"
 
+#. placeholder {0}: provider?.label ?? installedAgents.find((agent) => agent.kind === agentKind)?.label ?? agentKind
 #. placeholder {0}: target?.label ?? saved.lead.agentKind
 #. placeholder {1}: modelLabelOf(draftLead)
+#. placeholder {1}: modelLabelOf(targetLead)
+#: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/components/thread/ThreadDraftView.tsx
 msgid "{0} isn't available, so {1} stays the lead."
 msgstr "{0} は利用できないため、{1} がリードのままです。"
@@ -339,6 +352,13 @@ msgstr "{0}がログアウトしました。"
 #: src/renderer/views/SettingsOverlay/parts/HexSetupDialog.tsx
 msgid "{0} MB download"
 msgstr "{0} MB ダウンロード"
+
+#. placeholder {0}: status.entryCount
+#. placeholder {1}: status.pendingCandidates
+#. placeholder {2}: status.suggestionCount
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "{0} memories · {1} waiting · {2} skill suggestions"
+msgstr "{0} 件のメモリ · {1} 件待機 · スキル提案 {2}"
 
 #. placeholder {0}: capabilities.models.length
 #: src/renderer/components/providers/settings/CursorProviderSettings.tsx
@@ -419,10 +439,15 @@ msgstr "{0}回の実行"
 msgid "{0} share this profile's isolated login and will lose their sign-in until they pick another owner."
 msgstr "{0} はこのプロファイルの分離ログインを共有しており、別のオーナーを選ぶまでサインインできません。"
 
-#. placeholder {0}: loginDependents.map((dependent) => dependent.displayName ?? dependent.id).join(", ")
+#. placeholder {0}: loginDependents .map((dependent) => dependent.displayName ?? dependent.id) .join(", ")
 #: src/renderer/components/providers/devin/profileSettings.tsx
 msgid "{0} share this profile's isolated login. Move them to another owner first — the host refuses changes that leave them without a login."
 msgstr "{0} はこのプロファイルの分離ログインを共有しています。先に別のオーナーへ移行してください — ホストはログインを失う変更を拒否します。"
+
+#. placeholder {0}: summary.skipped
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrChecksIndicator.tsx
+msgid "{0} skipped"
+msgstr "{0} 件スキップ"
 
 #. placeholder {0}: threads.length
 #: src/mobile/views/ThreadsView.tsx
@@ -515,6 +540,12 @@ msgstr "{0}、実行中"
 msgid "{0}: {stateLabel}"
 msgstr "{0}: {stateLabel}"
 
+#. placeholder {0}: currentPeriod.activeDays
+#. placeholder {1}: currentPeriod.days
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "{0}/{1} active days"
+msgstr "{0}/{1} 稼働日"
+
 #. placeholder {0}: selectedRows.length
 #. placeholder {0}: selectedSkills.length
 #. placeholder {1}: importableRows.length
@@ -523,6 +554,11 @@ msgstr "{0}: {stateLabel}"
 #: src/renderer/components/skills/SkillImportModal.tsx
 msgid "{0}/{1} selected"
 msgstr "{0}/{1} 件を選択済み"
+
+#. placeholder {0}: insights.fastModePercent
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "{0}% fast"
+msgstr "{0}% 高速"
 
 #. placeholder {0}: summary.percent
 #: src/renderer/components/thread/ThreadContextDock.tsx
@@ -558,6 +594,10 @@ msgstr "{agentLead}が続行するには入力が必要です。"
 msgid "{commentCount, plural, one {# comment} other {# comments}}"
 msgstr "{commentCount, plural, other {# 件のコメント}}"
 
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "{commits} commits"
+msgstr "{commits} 件のコミット"
+
 #: src/mobile/views/pr/PrOverviewPage.tsx
 #~ msgid "{commitsCount, plural, one {# commit} other {# commits}}"
 #~ msgstr "{commitsCount, plural, one {# 件のコミット} other {# 件のコミット}}"
@@ -567,6 +607,10 @@ msgstr "{commentCount, plural, other {# 件のコメント}}"
 #~ msgid "{completedSteps} of {0} steps"
 #~ msgstr "{completedSteps}/{0} ステップ完了"
 
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "{conflicts} conflicts"
+msgstr "{conflicts} 件の競合"
+
 #: src/mobile/views/pr/PrOverviewPage.tsx
 #~ msgid "{conversationCount, plural, one {# comment or review} other {# comments & reviews}}"
 #~ msgstr "{conversationCount, plural, one {# 件のコメントまたはレビュー} other {# 件のコメントとレビュー}}"
@@ -575,11 +619,35 @@ msgstr "{commentCount, plural, other {# 件のコメント}}"
 #~ msgid "{count, plural, one {# agent found} other {# agents found}}"
 #~ msgstr "{count, plural, one {#エージェントが見つかりました} other {#エージェントが見つかりました}}"
 
-#: src/renderer/components/newsLine/useInsightItems.tsx
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "{count, plural, one {# subagent run} other {# subagent runs}} this week"
+msgstr "今週のサブエージェント実行 {count, plural, one {# 回} other {# 回}}"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "{count, plural, one {# subagent run} other {# subagent runs}} this week (-{deltaPercent}%)"
+msgstr "今週のサブエージェント実行 {count, plural, one {# 回} other {# 回}} (-{deltaPercent}%)"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "{count, plural, one {# subagent run} other {# subagent runs}} this week (+{deltaPercent}%)"
+msgstr "今週のサブエージェント実行 {count, plural, one {# 回} other {# 回}} (+{deltaPercent}%)"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "{count, plural, one {# workflow run} other {# workflow runs}} this week"
+msgstr "今週のワークフロー実行 {count, plural, one {# 回} other {# 回}}"
+
+#: src/renderer/components/composer/MemoryAddMenu.tsx
+msgid "{count} saved"
+msgstr "{count} 件保存"
+
+#: src/renderer/components/composer/MemoryAddMenu.tsx
+msgid "{count} waiting"
+msgstr "{count} 件待機"
+
+#: src/renderer/components/newsLine/insightContent.tsx
 msgid "{current, plural, one {# day} other {# days}} in a row · your best is {longest}"
 msgstr "{current, plural, other {#日}}連続 · 最長記録は{longest}日"
 
-#: src/renderer/components/newsLine/useInsightItems.tsx
+#: src/renderer/components/newsLine/insightContent.tsx
 msgid "{current, plural, one {# day} other {# days}} in a row · your best streak yet"
 msgstr "{current, plural, other {#日}}連続 · これまでの最長記録"
 
@@ -685,6 +753,7 @@ msgstr "{label} APIキー"
 msgid "{label} auto-refresh interval in minutes"
 msgstr "{label} の自動更新間隔 (分単位)"
 
+#: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 msgid "{label} can't lead a crew. Pick another model first."
 msgstr "{label} は Crew を率いられません。先に別のモデルを選んでください。"
@@ -771,6 +840,10 @@ msgstr "{0} 件中 {passed} 件が成功"
 msgid "{percent}% full"
 msgstr "{percent}% 使用"
 
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "{percent}% of your threads this week used {modeLabel} mode"
+msgstr "今週のスレッドの {percent}% が {modeLabel} モードでした"
+
 #: src/renderer/components/newsLine/useNewsLineItems.tsx
 msgid "{percent}% used"
 msgstr "{percent}% 使用済み"
@@ -796,13 +869,17 @@ msgstr "{targetLabel} 上の {projectName} は Git リポジトリではない�
 msgid "{projectName} Settings"
 msgstr "{projectName}設定"
 
-#: src/renderer/components/newsLine/useInsightItems.tsx
+#: src/renderer/components/newsLine/insightContent.tsx
 msgid "{prompts, plural, one {# prompt} other {# prompts}} this week"
 msgstr "今週のプロンプト {prompts, plural, other {#件}}"
 
-#: src/renderer/components/newsLine/useInsightItems.tsx
+#: src/renderer/components/newsLine/insightContent.tsx
 msgid "{prompts, plural, one {# prompt} other {# prompts}} this week · busiest on {weekday}"
 msgstr "今週のプロンプト {prompts, plural, other {#件}} · 最も多いのは{weekday}"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "{promptsText} total prompts across {threadsText} threads"
+msgstr "{threadsText} スレッドで合計 {promptsText} プロンプト"
 
 #: src/renderer/components/providers/codex/manifest.ts
 #: src/renderer/components/providers/usageProviders.ts
@@ -820,6 +897,10 @@ msgstr "{provider} はワンショット生成をサポートしていません"
 #: src/renderer/i18n/sharedMessages.ts
 #~ msgid "{provider} does not support text-only one-shot generation"
 #~ msgstr "{provider} はテキストのみのワンショット生成をサポートしていません"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "{prs} PRs"
+msgstr "{prs} 件の PR"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/TodoList.tsx
 msgid "{remaining, plural, one {# open} other {# open}}"
@@ -922,6 +1003,7 @@ msgstr "{visibleCount}/{totalCount}が使用可能"
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProviderModelVisibilityPopover.tsx
 #: src/renderer/views/SettingsOverlay/parts/SidebarShortcutsSelector.tsx
+#: src/renderer/views/SettingsOverlay/parts/SidebarUsageVisibilityPopover.tsx
 msgid "{visibleCount} of {totalCount} visible"
 msgstr "{visibleCount}/{totalCount}が表示されます"
 
@@ -929,6 +1011,10 @@ msgstr "{visibleCount}/{totalCount}が表示されます"
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #~ msgid "{visibleSidebarShortcutCount}/{0} selected"
 #~ msgstr "{visibleSidebarShortcutCount}/{0} 件を選択"
+
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "{weekdayPct}% Mon–Fri"
+msgstr "{weekdayPct}% 月–金"
 
 #: src/renderer/views/SettingsOverlay/parts/CursorSdkRuntimeSetup.tsx
 msgid "@cursor/sdk is not installed."
@@ -1065,7 +1151,15 @@ msgstr "<0/> がレビュースレッドを開始しました"
 msgid "<0/>% Full"
 msgstr "<0/>% 使用"
 
-#: src/renderer/components/newsLine/useInsightItems.tsx
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "<0>{envA}</0> leaned {providerA} while <1>{envB}</1> leaned {providerB} this week"
+msgstr "今週は <0>{envA}</0> が {providerA}、<1>{envB}</1> が {providerB} 中心でした"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "<0>{envLabel}</0> ran {percent}% of your prompts this week"
+msgstr "今週のプロンプトの {percent}% が <0>{envLabel}</0> で実行されました"
+
+#: src/renderer/components/newsLine/insightContent.tsx
 msgid "<0>{label}</0> handles {percent}% of your prompts"
 msgstr "プロンプトの {percent}% を <0>{label}</0> が処理"
 
@@ -1156,6 +1250,11 @@ msgstr "候補が実験ブランチ上にありません。"
 #: src/renderer/components/providers/settings/CursorProfileIdentity.tsx
 msgid "A Cursor profile with this name already exists."
 msgstr "この名前のCursorプロファイルはすでに存在します。"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "A delete never waits on a model. Text is saved first, then read later."
+msgstr "削除はモデルを待ちません。テキストを先に保存し、あとで読みます。"
 
 #: src/renderer/components/devices/DeviceWorkspace.tsx
 msgid "A device failed to start."
@@ -1308,6 +1407,10 @@ msgstr "{0} のアカウント名"
 msgid "Account options"
 msgstr "アカウントオプション"
 
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Account sharing and launch defaults."
+msgstr "アカウントの共有と起動時のデフォルト設定。"
+
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 #: src/renderer/views/PullRequestsOverlay/list/PrListMenuSections.tsx
 #: src/renderer/views/PullRequestsOverlay/list/prListSheetSections.ts
@@ -1319,6 +1422,7 @@ msgstr "アカウント"
 msgid "Accounts belong to this plugin and service. Account labels are yours; the service may not report a verified identity. Provider logins are separate."
 msgstr "アカウントはこのプラグインとサービスに属します。名前は自分で設定するものであり、サービスから確認済みの本人情報が提供されない場合があります。プロバイダーへのログインとは別です。"
 
+#: src/renderer/components/providers/cursor/index.tsx
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "ACP"
@@ -1402,9 +1506,21 @@ msgstr "ポート {0} の操作"
 msgid "Active"
 msgstr "アクティブ"
 
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Active {activeDays} of the last {totalDays} days"
+msgstr "過去 {totalDays} 日間で {activeDays} 日稼働"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 msgid "Active forwards"
 msgstr "アクティブな転送"
+
+#: src/renderer/views/ProfileOverlay/parts/ProfileHeader.tsx
+msgid "Active today"
+msgstr "今日アクティブ"
+
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "Active yesterday"
+msgstr "昨日アクティブ"
 
 #: src/renderer/views/ProfileOverlay/parts/ActivitySection.tsx
 #: src/renderer/views/PullRequestsOverlay/summary/ActivityFeed.tsx
@@ -1421,15 +1537,30 @@ msgstr "アクティビティのハイライト"
 msgid "Activity insights"
 msgstr "アクティビティの分析"
 
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Activity is down {percent}% this week · {current} vs {previous} prompts"
+msgstr "今週のアクティビティは {percent}% 減 · {current} 対 {previous} プロンプト"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Activity is up {percent}% this week · {current} vs {previous} prompts"
+msgstr "今週のアクティビティは {percent}% 増 · {current} 対 {previous} プロンプト"
+
 #: src/renderer/views/ProfileOverlay/parts/ActivitySection.tsx
 msgid "Activity metric"
 msgstr "アクティビティ指標"
+
+#. placeholder {0}: f.envLabel
+#. placeholder {1}: f.percent
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Activity on <0>{0}</0> jumped {1}% this week"
+msgstr "<0>{0}</0> でのアクティビティが今週 {1}% 増加しました"
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 #: src/renderer/components/providers/settings/ProviderContextWindowSettings.tsx
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/StructuredCustomValues.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/ProjectTreeCreateMenu.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SearchExcludeBody.tsx
@@ -1444,6 +1575,10 @@ msgstr "{0} を追加"
 #: src/renderer/commands/registry.ts
 msgid "Add a local project"
 msgstr "ローカルプロジェクトを追加"
+
+#: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
+msgid "Add a memory"
+msgstr "メモリを追加"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
 msgid "Add a password or import one from another browser."
@@ -1467,6 +1602,7 @@ msgid "Add a project before signing in."
 msgstr "サインインする前にプロジェクトを追加してください。"
 
 #: src/renderer/actions/agentLoginActions.ts
+#: src/renderer/components/providers/useCombinedProviderRuntimeUpdates.ts
 msgid "Add a project before updating an agent."
 msgstr "エージェントを更新する前にプロジェクトを追加してください。"
 
@@ -1528,6 +1664,10 @@ msgstr "アクションの追加"
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
 msgid "Add an existing folder"
 msgstr "既存のフォルダーを追加"
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Add another Devin account with its own sign-in."
+msgstr "個別にログインする別のDevinアカウントを追加します。"
 
 #: src/renderer/components/composer/ComposerAddMenu.tsx
 msgid "Add attachment or capability"
@@ -1731,6 +1871,7 @@ msgstr "旧接続を引き継ぐ"
 msgid "Advanced"
 msgstr "詳細設定"
 
+#: src/renderer/components/providers/devin/profileSettings.tsx
 #: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
 msgid "Advanced settings"
 msgstr "詳細設定"
@@ -1738,6 +1879,18 @@ msgstr "詳細設定"
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Advertise a custom base URL, e.g. a reverse proxy or tunnel. Leave empty for automatic."
 msgstr "カスタムのベースURLを通知します（例: リバースプロキシやトンネル）。空欄の場合は自動的に設定されます。"
+
+#: src/renderer/components/mcp/RemoteMcpOauthDialog.tsx
+msgid "After authorizing, copy the full URL from the browser address bar and paste it here, even if the page fails to load."
+msgstr "認証後、ページが表示されなくても、ブラウザーのアドレスバーから URL 全体をコピーしてここに貼り付けてください。"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "After the turn settles (2 min)"
+msgstr "ターンが落ち着いてから (2 分)"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "After the turn settles (90 sec)"
+msgstr "ターンが落ち着いてから (90 秒)"
 
 #: src/renderer/components/providers/devin/cloudProfileSettings.tsx
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
@@ -1867,6 +2020,10 @@ msgstr "エージェントはタスクタグで委任された作業を分類し
 #: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
 #~ msgid "Agents classify delegated work with task tags. Matching learned routes rank first, followed by global Crossagents usage, favorites, normal agent usage, and built-in order."
 #~ msgstr "エージェントは委任された作業をタスクタグで分類します。一致する学習済みルートが最優先され、その後に Crossagents 全体の使用状況、お気に入り、通常のエージェント使用状況、組み込み順序が続きます。"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Agents shipped {summary} this week"
+msgstr "今週エージェントは {summary} を完了しました"
 
 #: src/renderer/components/providers/antigravity/index.tsx
 msgid "agy CLI"
@@ -2018,6 +2175,7 @@ msgid "All threads in Done will be permanently deleted."
 msgstr "「完了」のすべてのスレッドが完全に削除されます。"
 
 #: src/renderer/components/workspace/workspaceMenuItems.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectFilter.tsx
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 msgid "All workspaces"
 msgstr "すべてのワークスペース"
@@ -2089,6 +2247,10 @@ msgstr "常に適用"
 #: src/renderer/views/SettingsOverlay/parts/SearchExcludeBody.tsx
 msgid "Always excluded"
 msgstr "常に除外される"
+
+#: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
+msgid "Always use bun"
+msgstr "常に bun を使う"
 
 #: src/renderer/utils/projectIconColors.ts
 msgid "Amber"
@@ -2255,8 +2417,8 @@ msgstr "外観モード"
 #~ msgstr "新規または保留中のクラウドチャットの最初のメッセージの前に適用されます — すでにワークスペースを持つクラウドチャットはそれを維持します。選択を「Devin に現在の選択を任せる」のままにすると、決定は Devin に委ねられ、以前の設定に戻るわけではありません。"
 
 #: src/renderer/components/providers/devin/profileSettings.tsx
-msgid "Applied to this profile's config view (devin.org_id). Poracode cannot list the organizations a login belongs to; Devin validates the id at launch and an unauthorized org fails visibly."
-msgstr "このプロファイルの設定ビュー（devin.org_id）に適用されます。Poracode はログインが属する組織を一覧できません。Devin が起動時に ID を検証し、未認可の組織は目に見える形で失敗します。"
+#~ msgid "Applied to this profile's config view (devin.org_id). Poracode cannot list the organizations a login belongs to; Devin validates the id at launch and an unauthorized org fails visibly."
+#~ msgstr "このプロファイルの設定ビュー（devin.org_id）に適用されます。Poracode はログインが属する組織を一覧できません。Devin が起動時に ID を検証し、未認可の組織は目に見える形で失敗します。"
 
 #: src/renderer/components/common/ProviderModelMenu/ModelConfigurationPanel.tsx
 msgid "Applies to both models"
@@ -2271,6 +2433,7 @@ msgstr "プロバイダープリセットを適用"
 msgid "Approval or reply required from you."
 msgstr "あなたからの承認または返信が必要です。"
 
+#: src/renderer/components/skills/MemorySkillSuggestions.tsx
 #: src/renderer/views/PullRequestsOverlay/parts/SubmitReviewPopover.tsx
 msgid "Approve"
 msgstr "承認する"
@@ -2387,6 +2550,12 @@ msgstr "ステージングされていない変更をすべて元に戻しても
 msgid "Arguments"
 msgstr "引数"
 
+#: src/renderer/components/thread/ThreadArtifactsBubble.tsx
+#: src/renderer/components/thread/ThreadArtifactsDock.tsx
+#: src/renderer/components/thread/ThreadDocksPanel.tsx
+msgid "Artifacts"
+msgstr "成果物"
+
 #. placeholder {0}: effectiveAgentStatus?.label ?? agentFallbackLabel
 #. placeholder {0}: project.name
 #: src/renderer/components/thread/ThreadComposerSection.tsx
@@ -2437,6 +2606,11 @@ msgstr "質問できません。このプロジェクトでチャットを開始
 #: src/renderer/views/WelcomeOverlay.tsx
 msgid "Ask Question"
 msgstr "質問する"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Ask sessions not to write a separate provider memory on top of this one."
+msgstr "このメモリに加えて、プロバイダ独自のメモリを書かないようセッションに頼みます。"
 
 #: src/renderer/components/providers/kimi/index.tsx
 msgid "Ask When Needed"
@@ -2727,6 +2901,15 @@ msgstr "アバターの色"
 msgid "Avatar color {color}"
 msgstr "アバターの色：{color}"
 
+#. placeholder {0}: formatDuration(avgTurnMs)
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "avg {0}"
+msgstr "平均 {0}"
+
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "Avg task duration"
+msgstr "平均タスク時間"
+
 #: src/renderer/views/PullRequestsOverlay/summary/RailMergeStatus.tsx
 msgid "Awaiting a required review."
 msgstr "必須のレビューを待っています。"
@@ -2740,6 +2923,7 @@ msgstr "レビュー保留中"
 #: src/renderer/components/composer/ComposerAddMenu.tsx
 #: src/renderer/components/composer/ComposerMcpServersMenu.tsx
 #: src/renderer/components/composer/ComposerSessionActionsMenu.tsx
+#: src/renderer/components/composer/MemoryAddMenu.tsx
 #: src/renderer/components/devices/DeviceWorkspace.tsx
 #: src/renderer/components/layout/MobilePageHeader.tsx
 #: src/renderer/views/FileEditorOverlay/FileEditorOverlay.tsx
@@ -3002,6 +3186,10 @@ msgstr "ブランチ保護ルールにより、このマージがブロックさ
 msgid "Branches"
 msgstr "ブランチ"
 
+#: src/renderer/views/MainView/parts/AppContent/parts/ThreadWindowPlaceholder.tsx
+msgid "Bring back to main window"
+msgstr "メインウィンドウに戻す"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserDockSlot.tsx
 msgid "Bring back to panel"
 msgstr "パネルに戻す"
@@ -3200,6 +3388,10 @@ msgstr "ビジネスと金融"
 msgid "Business and operations"
 msgstr "ビジネスと運用"
 
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Busy day yesterday · {prompts} prompts ({multiplier}x your daily average)"
+msgstr "昨日は好調 · {prompts} プロンプト（日平均の {multiplier} 倍）"
+
 #: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
 #~ msgid "by <0>{author}</0>"
 #~ msgstr "<0>{author}</0> によって"
@@ -3250,6 +3442,10 @@ msgstr "保存後にデスクトップで計算されます"
 msgid "Calendar"
 msgstr "カレンダー"
 
+#: src/renderer/components/mcp/RemoteMcpOauthDialog.tsx
+msgid "Callback URL"
+msgstr "コールバック URL"
+
 #: src/renderer/components/devices/DeviceTools.tsx
 msgid "Camera"
 msgstr "カメラ"
@@ -3277,8 +3473,11 @@ msgstr "この画面ではこのモデル設定を使用できません"
 #: src/renderer/components/common/FeedbackDialog.tsx
 #: src/renderer/components/experiment/ExperimentDraftTargets.tsx
 #: src/renderer/components/mcp/McpServerEditor.tsx
+#: src/renderer/components/mcp/RemoteMcpOauthDialog.tsx
 #: src/renderer/components/plugins/PluginCatalogDetail.tsx
 #: src/renderer/components/providers/settings/ModelProviderEditor.tsx
+#: src/renderer/components/skills/MemorySkillSuggestions.tsx
+#: src/renderer/components/skills/SkillViewModal.tsx
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 #: src/renderer/components/thread/ChatPane/ConversationSearchJump.tsx
 #: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
@@ -3316,6 +3515,7 @@ msgstr "この画面ではこのモデル設定を使用できません"
 #: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/HexSetupDialog.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
@@ -3415,6 +3615,16 @@ msgstr "キャプチャと表示のコントロール"
 msgid "Capture audio from this device."
 msgstr "このデバイスからオーディオをキャプチャします。"
 
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Capture model"
+msgstr "記録モデル"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Capture new notes after turns finish."
+msgstr "ターン終了後に新しいメモを取り込む。"
+
 #: src/renderer/components/newsLine/NewsLine.tsx
 msgid "carousel"
 msgstr "カルーセル"
@@ -3440,6 +3650,7 @@ msgid "Change context size to {contextLabel}?"
 msgstr "コンテキストサイズを {contextLabel} に変更しますか?"
 
 #: src/renderer/components/providers/codex/profileSettings.tsx
+#: src/renderer/components/providers/gemini/profileSettings.tsx
 msgid "Change home"
 msgstr "ホームを変更"
 
@@ -3448,6 +3659,7 @@ msgid "Change order"
 msgstr "並び順を変更"
 
 #: src/renderer/components/providers/codex/profileSettings.tsx
+#: src/renderer/components/providers/gemini/profileSettings.tsx
 msgid "Change profile home?"
 msgstr "プロファイルのホームを変更しますか？"
 
@@ -3694,7 +3906,7 @@ msgstr "確認中…"
 msgid "Checkout is unavailable while this review is read-only"
 msgstr "このレビューは読み取り専用のため、チェックアウトできません"
 
-#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrChecksIndicator.tsx
 #: src/renderer/views/PullRequestsOverlay/list/PrListMenuSections.tsx
 #: src/renderer/views/PullRequestsOverlay/list/prListSheetSections.ts
 #: src/renderer/views/PullRequestsOverlay/summary/RailChecks.tsx
@@ -3719,6 +3931,34 @@ msgstr "チェック保留中"
 #: src/renderer/views/PullRequestsOverlay/list/PrListRow.tsx
 msgid "Checks running"
 msgstr "チェック実行中"
+
+#. placeholder {0}: summary.passed
+#. placeholder {1}: summary.relevantTotal
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrChecksIndicator.tsx
+msgid "Checks: {0} of {1} passed"
+msgstr "チェック: {1} 件中 {0} 件が成功"
+
+#. placeholder {0}: summary.passed
+#. placeholder {1}: summary.relevantTotal
+#. placeholder {2}: summary.failed
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrChecksIndicator.tsx
+msgid "Checks: {0} of {1} passed, {2} failed"
+msgstr "チェック: {1} 件中 {0} 件が成功、{2} 件失敗"
+
+#. placeholder {0}: summary.passed
+#. placeholder {1}: summary.relevantTotal
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrChecksIndicator.tsx
+msgid "Checks: {0} of {1} passed, estimated end {endTimeText}"
+msgstr "チェック: {1} 件中 {0} 件が成功、終了予定 {endTimeText}"
+
+#. placeholder {0}: summary.skipped
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrChecksIndicator.tsx
+msgid "Checks: {0} skipped"
+msgstr "チェック: {0} 件スキップ"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrChecksIndicator.tsx
+msgid "Checks: none reported"
+msgstr "チェック: 報告なし"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Choose a completed turn to fork from."
@@ -3893,6 +4133,10 @@ msgstr "新しいプルリクエストに対するPoracodeの動作を選択し�
 #~ msgid "Choose when this machine stays awake."
 #~ msgstr "このマシンをスリープさせないタイミングを選びます。"
 
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Choose where new sessions start. Use /handoff in chat to transfer an existing session."
+msgstr "新しいセッションの実行場所を選びます。既存のセッションを移すには、チャットで /handoff を使ってください。"
+
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
 msgid "Choose whether chat messages sent while an agent is working steer the current response or queue for the next response. {followUpShortcut} uses the opposite action."
 msgstr "エージェントの作業中に送信したチャットメッセージを、現在の応答に反映するか、次の応答のためにキューに入れるかを選択します。{followUpShortcut} では逆の操作になります。"
@@ -3901,6 +4145,11 @@ msgstr "エージェントの作業中に送信したチャットメッセージ
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Choose whether links from Poracode and browser popups stay in Poracode or open externally."
 msgstr "Poracode とブラウザのポップアップからのリンクを Poracode 内に残すか、外部で開くかを選択します。"
+
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/UsageDisplaySettings.tsx
+msgid "Choose which providers show usage rings in the sidebar."
+msgstr "サイドバーに使用状況リングを表示するプロバイダーを選択します。"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Choose which shortcuts appear in the sidebar footer."
@@ -4031,6 +4280,8 @@ msgstr "目標をクリア"
 #: src/renderer/sidebar/ChatSidebarHeader.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProviderModelVisibilityPopover.tsx
+#: src/renderer/views/SettingsOverlay/parts/SidebarUsageVisibilityPopover.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Clear search"
 msgstr "検索をクリア"
 
@@ -4051,6 +4302,10 @@ msgstr "CLI"
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
 msgid "CLI hooks"
 msgstr "CLIフック"
+
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
+msgid "CLI MCP setup"
+msgstr "CLI の MCP 設定"
 
 #: src/renderer/components/thread/ThreadAgentVisionDock.tsx
 msgid "Click"
@@ -4244,6 +4499,7 @@ msgstr "オーバーレイを閉じる"
 
 #: src/renderer/components/thread/ThreadDraftChrome.tsx
 #: src/renderer/components/thread/ThreadView.tsx
+#: src/renderer/views/MainView/parts/AppContent/parts/ThreadWindowPlaceholder.tsx
 msgid "Close pane"
 msgstr "ペインを閉じる"
 
@@ -4363,6 +4619,7 @@ msgstr "ワークフローを閉じる"
 msgid "Close workflows panel"
 msgstr "ワークフローパネルを閉じる"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
 #: src/renderer/utils/prStatus.ts
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 #: src/renderer/views/PullRequestsOverlay/list/PrListMenuSections.tsx
@@ -4447,7 +4704,12 @@ msgstr "Codex はこのプロファイルを、CODEX_HOME を下記のディレ�
 msgid "Collapse"
 msgstr "折りたたむ"
 
+#: src/renderer/components/providers/settings/UsageProviderRow.tsx
 #: src/renderer/components/providers/UsageProviderCardView.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/ActiveSubAgentTile.tsx
+#: src/renderer/components/thread/CrewDockSection.tsx
+#: src/renderer/components/thread/ThreadArtifactsDock.tsx
+#: src/renderer/components/thread/ThreadGoalDock.tsx
 msgid "Collapse {label}"
 msgstr "{label}を折りたたむ"
 
@@ -4466,6 +4728,7 @@ msgstr "エージェントの視覚を折りたたむ"
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsagePanelHeaderActions.tsx
 #: src/renderer/views/PullRequestsOverlay/changes/ChangesToolbar.tsx
 #: src/renderer/views/PullRequestsOverlay/changes/ChangesToolbarCompact.tsx
+#: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
 msgid "Collapse all"
 msgstr "すべて折りたたむ"
 
@@ -4499,8 +4762,8 @@ msgstr "エラーを折りたたむ"
 #~ msgstr "実験を折りたたむ"
 
 #: src/renderer/components/thread/ThreadArtifactsDock.tsx
-msgid "Collapse files & artifacts"
-msgstr "ファイルと成果物を折りたたむ"
+#~ msgid "Collapse files & artifacts"
+#~ msgstr "ファイルと成果物を折りたたむ"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarFooterNav.tsx
 msgid "Collapse footer"
@@ -4882,8 +5145,8 @@ msgid "Config file (optional)"
 msgstr "設定ファイル（省略可）"
 
 #: src/renderer/components/providers/devin/profileSettings.tsx
-msgid "Config file path (optional)"
-msgstr "設定ファイルのパス（省略可）"
+#~ msgid "Config file path (optional)"
+#~ msgstr "設定ファイルのパス（省略可）"
 
 #: src/renderer/components/providers/devin/profileSettings.tsx
 msgid "Configuration from a newer Poracode"
@@ -4907,6 +5170,7 @@ msgstr "設定済み"
 
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/providers/settings/ProviderMcpServersSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 msgid "Configured MCP servers"
 msgstr "設定済みのMCPサーバー"
 
@@ -5048,7 +5312,9 @@ msgstr "接続中..."
 
 #: src/renderer/components/common/RemoteServerStatusDot.tsx
 #: src/renderer/components/machineScope/MachineSelect.tsx
+#: src/renderer/components/mcp/RemoteMcpServersManager.tsx
 #: src/renderer/components/providers/HostUsageView.tsx
+#: src/renderer/views/ProfileOverlay/parts/ProfileHeader.tsx
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Connecting…"
@@ -5072,6 +5338,9 @@ msgstr "接続エラー"
 #~ msgstr "接続エラーです。"
 
 #: src/renderer/components/mcp/McpServersManager.tsx
+#: src/renderer/components/mcp/RemoteMcpOauthDialog.tsx
+#: src/renderer/components/mcp/RemoteMcpServersManager.tsx
+#: src/renderer/state/pairedHostSettings.ts
 #: src/renderer/state/remoteServers/snapshotProjection.ts
 msgid "Connection failed."
 msgstr "接続に失敗しました。"
@@ -5156,6 +5425,7 @@ msgstr "コンテキストウィンドウ"
 msgid "Context windows"
 msgstr "コンテキストウィンドウ"
 
+#: src/renderer/components/mcp/RemoteMcpOauthDialog.tsx
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/QuestionFormActions.tsx
 msgid "Continue"
 msgstr "続ける"
@@ -5256,6 +5526,7 @@ msgstr "Cookie"
 #: src/renderer/components/thread/ChatPane/parts/items/CopyTextButton.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/ImageCard.tsx
 #: src/renderer/components/thread/ChatPane/UserMessageActionsSheet.tsx
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
 #: src/renderer/RendererCrashScreen.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/LocalPortsPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
@@ -5276,6 +5547,7 @@ msgstr "クリップボードにコピーしました"
 
 #: src/renderer/components/common/EditContextMenuHost.tsx
 #: src/renderer/components/terminal/XTermSurface.tsx
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Copy"
 msgstr "コピー"
@@ -5487,6 +5759,11 @@ msgstr "このマーケットプレイスまたはプラグインを管理でき
 #~ msgid "Could not open this PDF."
 #~ msgstr "このPDFを開けませんでした。"
 
+#: src/renderer/app.tsx
+#: src/renderer/windowApps/ThreadWindowApp.tsx
+msgid "Could not open this thread. Try again."
+msgstr "このスレッドを開けませんでした。もう一度お試しください。"
+
 #: src/renderer/components/thread/ChatPane/parts/items/useReadAbsoluteFile.tsx
 msgid "Could not read file."
 msgstr "ファイルを読み取れませんでした。"
@@ -5497,6 +5774,8 @@ msgid "Could not read the thread context for side chat. Try again."
 msgstr "サイドチャット用のスレッドコンテキストを読み取れませんでした。もう一度お試しください。"
 
 #. placeholder {0}: account.serverName
+#. placeholder {0}: server.name
+#: src/renderer/components/mcp/RemoteMcpServersManager.tsx
 #: src/renderer/components/plugins/usePluginOauth.ts
 msgid "Could not sign in to {0}."
 msgstr "{0} にログインできませんでした。"
@@ -5571,6 +5850,11 @@ msgstr "{0} をインストールできませんでした。"
 msgid "Couldn't list repositories."
 msgstr "リポジトリを一覧表示できませんでした。"
 
+#: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Couldn't load memory."
+msgstr "メモリを読み込めませんでした。"
+
 #: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
 #: src/renderer/views/SettingsOverlay/parts/PluginsSettings.tsx
 msgid "Couldn't load plugins."
@@ -5632,7 +5916,13 @@ msgstr "MCP サーバー設定をスキャンできませんでした。"
 msgid "Couldn't start the camera"
 msgstr "カメラを開始できませんでした"
 
+#: src/renderer/components/composer/MemoryAddMenu.tsx
+msgid "Couldn't update memory mode for this thread."
+msgstr "このスレッドのメモリモードを変更できませんでした。"
+
+#: src/renderer/components/skills/MemorySkillSuggestions.tsx
 #: src/renderer/components/skills/SkillsManager.tsx
+#: src/renderer/components/skills/SkillViewModal.tsx
 msgid "Couldn't update the skill."
 msgstr "スキルを更新できませんでした。"
 
@@ -5692,6 +5982,10 @@ msgstr "ファイルの作成"
 #: src/renderer/components/thread/ThreadForkDialog.tsx
 msgid "Create fork"
 msgstr "分岐を作成"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Create iPhone Duo"
+msgstr "iPhone Duoを作成"
 
 #: src/renderer/components/common/BranchSelector/parts/BranchFooterActions.tsx
 msgid "Create new branch"
@@ -6109,6 +6403,7 @@ msgstr "Cursorプロファイル名"
 msgid "Cursor profile renamed."
 msgstr "Cursorプロファイルの名前を変更しました。"
 
+#: src/renderer/components/providers/cursor/index.tsx
 #: src/renderer/components/providers/settings/CursorProviderSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/CursorProfileSettings.tsx
 msgid "Cursor SDK"
@@ -6152,6 +6447,10 @@ msgstr "Cursor SDK を v{nextVersion} に更新しました。"
 msgid "Custom"
 msgstr "カスタム"
 
+#: src/renderer/components/providers/settings/UsageProviderRow.tsx
+msgid "Custom auto-refresh interval in minutes. Clear to use default."
+msgstr "カスタム自動更新間隔（分）。デフォルトを使う場合は空にします。"
+
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
 msgid "Custom color"
 msgstr "カスタムカラー"
@@ -6167,6 +6466,15 @@ msgstr "カスタムコンテキストウィンドウ"
 #: src/renderer/components/providers/settings/ModelProviderEditor.tsx
 msgid "Custom endpoint"
 msgstr "カスタムエンドポイント"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Custom idle delay"
+msgstr "カスタムの待機"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Custom idle minutes"
+msgstr "カスタムの待機分数"
 
 #: src/renderer/views/SettingsOverlay/parts/cursorRuntimeInstall.ts
 msgid "custom path"
@@ -6267,6 +6575,7 @@ msgstr "永続セッション、推論設定、MCPツールに対応したDeepSe
 #: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/TerminalFontPicker.tsx
 #: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
 msgid "Default"
@@ -6344,6 +6653,7 @@ msgstr "他の AI エージェントに作業を委任します。"
 #: src/renderer/views/SettingsOverlay/parts/CrewsSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/CustomThemes.tsx
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 msgid "Delete"
@@ -6555,6 +6865,7 @@ msgid "Describe what the agent should do"
 msgstr "エージェントに実行してほしい内容を説明してください"
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
+#: src/renderer/components/skills/MemorySkillSuggestions.tsx
 #: src/renderer/views/PullRequestsOverlay/summary/DescriptionCard.tsx
 msgid "Description"
 msgstr "説明"
@@ -6630,22 +6941,23 @@ msgstr "このマシンでエージェントを検出"
 #~ msgstr "プロジェクトファイルから検出"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
+#: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Detected"
 msgstr "検出済み"
 
 #. placeholder {0}: detectionScopeLabel(status)
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
-msgid "Detected <0>({0})</0>"
-msgstr "<0>({0})</0> を検出しました"
+#~ msgid "Detected <0>({0})</0>"
+#~ msgstr "<0>({0})</0> を検出しました"
 
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
-msgid "Detected <0>(local)</0>"
-msgstr "<0>(ローカル)</0>が検出されました"
+#~ msgid "Detected <0>(local)</0>"
+#~ msgstr "<0>(ローカル)</0>が検出されました"
 
 #. placeholder {0}: status.envDistro ? `WSL (${status.envDistro})` : "WSL"
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
-msgid "Detected <0>{0}</0>"
-msgstr "<0>{0}</0> を検出しました"
+#~ msgid "Detected <0>{0}</0>"
+#~ msgstr "<0>{0}</0> を検出しました"
 
 #: src/renderer/components/thread/ThreadDraftView.tsx
 #: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
@@ -6820,8 +7132,8 @@ msgstr "Devin が修正案を提案します。実行前に内容を確認でき
 #~ msgstr "Devin が Poracode が解釈できない設定リストを返しました。"
 
 #: src/renderer/components/providers/devin/profileSettings.tsx
-msgid "Devin's own login (default)"
-msgstr "Devin 自身のログイン（デフォルト）"
+#~ msgid "Devin's own login (default)"
+#~ msgstr "Devin 自身のログイン（デフォルト）"
 
 #: src/renderer/components/newsLine/featureCatalog.ts
 msgid "Dictate prompts instead of typing them"
@@ -7026,6 +7338,7 @@ msgid "Discovery complete"
 msgstr "発見が完了しました"
 
 #: src/renderer/components/composer/VoiceInputFeedback.tsx
+#: src/renderer/components/skills/MemorySkillSuggestions.tsx
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 #: src/renderer/components/thread/ThreadErrorDock.tsx
 #: src/renderer/components/thread/ThreadHistoryNoticeDock.tsx
@@ -7048,6 +7361,10 @@ msgstr "却下済み"
 #: src/renderer/views/PullRequestsOverlay/summary/ActivityRows.tsx
 msgid "dismissed review"
 msgstr "却下されたレビュー"
+
+#: src/renderer/views/SettingsOverlay/parts/UsageDisplaySettings.tsx
+msgid "Display"
+msgstr "表示"
 
 #: src/renderer/components/providers/settings/ModelProviderEditor.tsx
 #: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
@@ -7132,6 +7449,11 @@ msgstr "完了 ({doneCount})"
 #: src/renderer/components/thread/AgentDiscoveryDoneButton.tsx
 msgid "Done ({remainingSeconds}s)"
 msgstr "完了 ({remainingSeconds}秒)"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Done, archive, unload, and delete still capture immediately when allowed."
+msgstr "完了、アーカイブ、アンロード、削除は、許可されていればすぐ取り込みます。"
 
 #: src/renderer/components/thread/ChatPane/parts/items/InlineFilePathChip.tsx
 #: src/renderer/views/SettingsOverlay/parts/HexSetupDialog.tsx
@@ -7271,6 +7593,20 @@ msgstr "ドラッグして並べ替えます。ダブルクリックして編集
 msgid "Draggable model"
 msgstr "ドラッグ可能なモデル"
 
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Dream model"
+msgstr "整理モデル"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Dream now"
+msgstr "今すぐ整理"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Dream schedule"
+msgstr "整理の間隔"
+
 #: src/renderer/views/SettingsOverlay/parts/MobileHostFolderPicker.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
 msgid "Drives"
@@ -7342,13 +7678,20 @@ msgstr "各リポジトリエントリは 1〜512 文字で、制御文字を含
 msgid "Earlier text"
 msgstr "前のテキスト"
 
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Early bird: {percent}% of your recent prompts started before 10 AM"
+msgstr "朝型: 最近の {percent}% のプロンプトは午前10時前でした"
+
 #: src/renderer/components/providers/settings/ModelProviderManager.tsx
+#: src/renderer/components/skills/MemorySkillSuggestions.tsx
+#: src/renderer/components/skills/SkillViewModal.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/FileChange.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 #: src/renderer/views/PullRequestsOverlay/changes/inlineComments.tsx
 #: src/renderer/views/PullRequestsOverlay/parts/PrCommentBody.tsx
 #: src/renderer/views/PullRequestsOverlay/summary/DescriptionCard.tsx
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "Edit"
 msgstr "編集"
@@ -7450,6 +7793,10 @@ msgstr "タイトルを編集"
 #: src/renderer/components/thread/ChatPane/parts/items/FileChange.tsx
 #~ msgid "Edit:"
 #~ msgstr "編集:"
+
+#: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
+msgid "Edited by you"
+msgstr "あなたが編集"
 
 #: src/renderer/commands/registry.ts
 #: src/renderer/commands/shortcutCatalog.ts
@@ -7802,6 +8149,10 @@ msgstr "エラー · エージェントでエラーが発生しました"
 msgid "Errors"
 msgstr "エラー"
 
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrChecksIndicator.tsx
+msgid "Est. end {endTimeText} (~{remainingText} left)"
+msgstr "終了予定 {endTimeText} (残り約 {remainingText})"
+
 #: src/renderer/components/thread/ThreadSpendDetails.tsx
 msgid "Estimated at list prices."
 msgstr "定価で見積もり。"
@@ -7821,6 +8172,10 @@ msgstr "推定には、正確なモデルIDに対応する標準API速度の保�
 #: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
 msgid "Evaluate the result after every iteration."
 msgstr "各反復の後に結果を評価します。"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Evening builder: {percent}% of your recent prompts ran 6–10 PM"
+msgstr "夕方〜夜型: 最近の {percent}% のプロンプトは18〜22時でした"
 
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
 msgid "Event"
@@ -7845,6 +8200,10 @@ msgstr "{every} 時間ごと"
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Every {every} minutes"
 msgstr "{every} 分ごと"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Every 3 days"
+msgstr "3 日ごと"
 
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Every day at {time}"
@@ -7917,7 +8276,12 @@ msgstr "コード{0}で終了しました。閉じて再試行してください
 msgid "Expand"
 msgstr "拡大する"
 
+#: src/renderer/components/providers/settings/UsageProviderRow.tsx
 #: src/renderer/components/providers/UsageProviderCardView.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/ActiveSubAgentTile.tsx
+#: src/renderer/components/thread/CrewDockSection.tsx
+#: src/renderer/components/thread/ThreadArtifactsDock.tsx
+#: src/renderer/components/thread/ThreadGoalDock.tsx
 msgid "Expand {label}"
 msgstr "{label}を展開する"
 
@@ -7936,6 +8300,7 @@ msgstr "エージェントの視覚を展開"
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsagePanelHeaderActions.tsx
 #: src/renderer/views/PullRequestsOverlay/changes/ChangesToolbar.tsx
 #: src/renderer/views/PullRequestsOverlay/changes/ChangesToolbarCompact.tsx
+#: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
 msgid "Expand all"
 msgstr "すべて展開"
 
@@ -7956,8 +8321,8 @@ msgstr "エラーを展開"
 #~ msgstr "実験を展開する"
 
 #: src/renderer/components/thread/ThreadArtifactsDock.tsx
-msgid "Expand files & artifacts"
-msgstr "ファイルと成果物を展開"
+#~ msgid "Expand files & artifacts"
+#~ msgstr "ファイルと成果物を展開"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarFooterNav.tsx
 msgid "Expand footer"
@@ -8126,6 +8491,10 @@ msgstr "指数バックオフ"
 msgid "Export MCP servers"
 msgstr "MCPサーバーをエクスポート"
 
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Export MCP servers without secrets"
+msgstr "シークレットを除いて MCP サーバーをエクスポート"
+
 #: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
 msgid "Export theme"
 msgstr "テーマをエクスポート"
@@ -8280,6 +8649,14 @@ msgstr "この組み合わせでは高速モードを利用できません"
 msgid "Fast mode"
 msgstr "高速モード"
 
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Fast mode powered {percent}% of your turns this week"
+msgstr "今週のターンの {percent}% で高速モードを使用しました"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Fast mode ran on {percent}% of turns this week (was {prevPercent}%)"
+msgstr "今週の高速モード使用率は {percent}%（先週 {prevPercent}%）"
+
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 msgid "Fastest (Whisper tiny)"
 msgstr "最速（Whisper tiny）"
@@ -8371,6 +8748,9 @@ msgstr "ファイルはサポートされていないエンコーディングを
 #: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/components/composer/MentionPopover.tsx
 #: src/renderer/components/layout/PanelDock/panelTabMeta.ts
+#: src/renderer/components/thread/ThreadArtifactsBubble.tsx
+#: src/renderer/components/thread/ThreadArtifactsDock.tsx
+#: src/renderer/components/thread/ThreadDocksPanel.tsx
 #: src/renderer/components/thread/ThreadToolRail.tsx
 #: src/renderer/views/MainView/parts/MobileWorkspacePage.tsx
 #: src/renderer/views/PullRequestsOverlay/changes/ChangesTab.tsx
@@ -8378,8 +8758,6 @@ msgid "Files"
 msgstr "ファイル"
 
 #: src/renderer/components/thread/ThreadArtifactsBubble.tsx
-#: src/renderer/components/thread/ThreadArtifactsDock.tsx
-#: src/renderer/components/thread/ThreadDocksPanel.tsx
 msgid "Files & artifacts"
 msgstr "ファイルと成果物"
 
@@ -8685,9 +9063,19 @@ msgstr "ブラウザのアドレスバーをフォーカス"
 msgid "Focus the in-app browser address bar"
 msgstr "組み込みブラウザのアドレスバーをフォーカス"
 
+#: src/renderer/views/MainView/parts/AppContent/parts/ThreadWindowPlaceholder.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserDockSlot.tsx
 msgid "Focus window"
 msgstr "ウィンドウに切り替え"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Fold controls"
+msgstr "折りたたみ操作"
+
+#: src/renderer/components/devices/DeviceListItem.tsx
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Foldable"
+msgstr "折りたたみ式"
 
 #: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/InlineFolderPathChip.tsx
@@ -8719,6 +9107,10 @@ msgstr "すべてのワークツリーを格納するフォルダー。ヒント
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectWorktreeLocation.tsx
 msgid "Folder that holds this project's worktrees. Reset to use the global setting."
 msgstr "このプロジェクトのワークツリーを格納するフォルダー。リセットするとグローバル設定が使用されます。"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Folding is unavailable on this host."
+msgstr "このホストでは折りたたみを利用できません。"
 
 #. placeholder {0}: "@poracode"
 #. placeholder {0}: "@serg_vecher"
@@ -8916,6 +9308,43 @@ msgstr "ゲームと遊び"
 #: src/renderer/components/providers/gemini/manifest.ts
 msgid "Gemini"
 msgstr "Gemini"
+
+#. placeholder {0}: trimmedName || displayLabel
+#: src/renderer/components/providers/gemini/profileSettings.tsx
+msgid "Gemini {0} profile saved."
+msgstr "Gemini {0} プロファイルが保存されました。"
+
+#: src/renderer/components/providers/gemini/manifest.ts
+msgid "Gemini {profile}"
+msgstr "Gemini {profile}"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Gemini authentication failed. Sign in again or verify your API key in settings."
+msgstr "Gemini の認証に失敗しました。再度サインインするか、設定で API キーを確認してください。"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Gemini did not return a response because the output was filtered or blocked."
+msgstr "出力がフィルタリングまたはブロックされたため、Gemini は応答を返しませんでした。"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Gemini ended the turn without returning a response. Check authentication or quota and try again."
+msgstr "Gemini は応答を返さずにターンを終了しました。認証またはクォータを確認して再試行してください。"
+
+#: src/renderer/components/providers/gemini/profileSettings.tsx
+msgid "Gemini profile home directory"
+msgstr "Gemini プロファイルのホームディレクトリ"
+
+#: src/renderer/components/providers/gemini/profileSettings.tsx
+msgid "Gemini profile name"
+msgstr "Gemini プロファイル名"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Gemini quota or rate limit was exceeded. Wait and try again, or switch models."
+msgstr "Gemini のクォータまたはレート制限を超過しました。しばらく待ってから再試行するか、モデルを切り替えてください。"
+
+#: src/renderer/components/providers/gemini/profileSettings.tsx
+msgid "Gemini runs this profile with GEMINI_CLI_HOME set to the directory below. Use Login above to sign this profile in to its own account."
+msgstr "Gemini はこのプロファイルを、GEMINI_CLI_HOME を下記のディレクトリに設定して実行します。上の「ログイン」で、このプロファイルを専用のアカウントにサインインさせてください。"
 
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
@@ -9237,6 +9666,10 @@ msgstr "ガイドのステップ"
 msgid "Guide writer"
 msgstr "ガイド作成エージェント"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Half open"
+msgstr "半開き"
+
 #: src/renderer/components/crew/CrewMemberRow.tsx
 msgid "Hand off to another lead…"
 msgstr "別のリードに引き継ぐ…"
@@ -9382,19 +9815,18 @@ msgstr "非表示の再開可能なスレッドは 5 分ごとにスイープさ
 msgid "Hide"
 msgstr "隠す"
 
-#: src/renderer/components/thread/ThreadArtifactsBubble.tsx
-#: src/renderer/components/thread/ThreadDockBubbles.tsx
-#: src/renderer/components/thread/ThreadImagesBubble.tsx
+#: src/renderer/components/thread/ThreadDockUI.tsx
 msgid "Hide {label}"
 msgstr "{label}を隠す"
 
 #: src/renderer/components/providers/settings/UsageProviderRow.tsx
-msgid "Hide {label} circle in sidebar"
-msgstr "サイドバーで {label} のリングを非表示にする"
+#~ msgid "Hide {label} circle in sidebar"
+#~ msgstr "サイドバーで {label} のリングを非表示にする"
 
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProviderModelVisibilityPopover.tsx
 #: src/renderer/views/SettingsOverlay/parts/SidebarShortcutsSelector.tsx
+#: src/renderer/views/SettingsOverlay/parts/SidebarUsageVisibilityPopover.tsx
 msgid "Hide all"
 msgstr "すべて隠す"
 
@@ -9483,6 +9915,10 @@ msgstr "空白の変更を非表示"
 msgid "High"
 msgstr "高"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Hinge angle"
+msgstr "ヒンジ角度"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
 msgid "History"
 msgstr "履歴"
@@ -9496,6 +9932,7 @@ msgid "Home"
 msgstr "ホーム"
 
 #: src/renderer/components/providers/codex/profileSettings.tsx
+#: src/renderer/components/providers/gemini/profileSettings.tsx
 msgid "Home directory"
 msgstr "ホームディレクトリ"
 
@@ -9898,6 +10335,11 @@ msgstr "非アクティブ"
 msgid "Include in sync"
 msgstr "同期に追加"
 
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Include memory when a thread starts."
+msgstr "スレッド開始時にメモリを含める。"
+
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Include your streaks, prompt counts, and usage limits in the news line."
@@ -9977,6 +10419,10 @@ msgstr "初回の再試行遅延（秒）"
 msgid "Initialize Repository"
 msgstr "リポジトリの初期化"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Inner display"
+msgstr "内側ディスプレイ"
+
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 msgid "Input"
 msgstr "入力"
@@ -10030,8 +10476,8 @@ msgid "Inspect"
 msgstr "検査"
 
 #: src/renderer/components/plugins/pluginCopy.ts
-msgid "Inspect and control the simulator or emulator attached to this thread."
-msgstr "このスレッドに接続されたシミュレーターまたはエミュレーターを検査・操作します。"
+#~ msgid "Inspect and control the simulator or emulator attached to this thread."
+#~ msgstr "このスレッドに接続されたシミュレーターまたはエミュレーターを検査・操作します。"
 
 #: src/renderer/components/thread/ThreadView.tsx
 msgid "Inspect canonical runtime items"
@@ -10126,8 +10572,8 @@ msgid "Install and restart"
 msgstr "インストールして再起動"
 
 #: src/renderer/views/SettingsOverlay/parts/machineScope/MachineScopeRows.tsx
-msgid "Install and sign-in are not yet available on remote machines."
-msgstr "リモートマシンでのインストールとサインインはまだ利用できません。"
+#~ msgid "Install and sign-in are not yet available on remote machines."
+#~ msgstr "リモートマシンでのインストールとサインインはまだ利用できません。"
 
 #: src/renderer/components/devices/DeviceWorkspace.tsx
 msgid "Install Android SDK Emulator and platform-tools, then create an AVD."
@@ -10221,8 +10667,8 @@ msgstr "{executionHost} に GitHub CLI (gh) をインストールしてから再
 
 #. placeholder {0}: target.label
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
-msgid "Install in {0}"
-msgstr "{0} にインストール"
+#~ msgid "Install in {0}"
+#~ msgstr "{0} にインストール"
 
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #~ msgid "Install in WSL: {distro}"
@@ -10246,8 +10692,8 @@ msgstr "最初にネイティブプロバイダーをインストールします
 #~ msgstr "{env} にインストール"
 
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
-msgid "Install on Windows"
-msgstr "Windows にインストールする"
+#~ msgid "Install on Windows"
+#~ msgstr "Windows にインストールする"
 
 #: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
 msgid "Install OpenCode 2 to manage its plugins."
@@ -10459,6 +10905,10 @@ msgstr "iPhone 15 Pro"
 msgid "iPhone 15 Pro Max"
 msgstr "iPhone 15 Pro Max"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "iPhone Duo is unavailable on this host."
+msgstr "このホストでは iPhone Duo を利用できません。"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
 msgid "iPhone SE"
 msgstr "iPhone SE"
@@ -10659,6 +11109,14 @@ msgstr "大"
 msgid "Largest"
 msgstr "サイズが大きい順"
 
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "Last 30 days"
+msgstr "過去 30 日間"
+
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "Last 7 days"
+msgstr "過去 7 日間"
+
 #. placeholder {0}: formatSessionTime(session.lastConnectedAt)
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Last connected: {0}"
@@ -10681,6 +11139,7 @@ msgstr "最後の進捗報告は{elapsed}前"
 msgid "Last tool: <0>{0}</0>"
 msgstr "最後のツール: <0>{0}</0>"
 
+#: src/renderer/components/providers/settings/UsageProviderRow.tsx
 #: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
 msgid "Last updated: {fetchedAt}"
 msgstr "最終更新：{fetchedAt}"
@@ -10721,6 +11180,7 @@ msgstr "スレッドを起動する"
 
 #: src/renderer/components/crew/CrewMemberRow.tsx
 #: src/renderer/components/providers/devin/modelPricing.ts
+#: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/components/thread/CrewDockSection.tsx
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 #: src/renderer/components/thread/ThreadDraftView.tsx
@@ -10745,6 +11205,16 @@ msgstr "主モデル + 補助モデル"
 #: src/renderer/components/providers/devin/modelPricing.ts
 #~ msgid "Lead and Sidekick prices are per 1M tokens for each model. Ranges cover model variants."
 #~ msgstr "主モデルと補助モデルの料金は、それぞれの100万トークンあたりの価格です。範囲はモデルの各バリエーションを含みます。"
+
+#: src/renderer/components/composer/MemoryAddMenu.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Learn from chats"
+msgstr "チャットから学ぶ"
+
+#: src/renderer/components/composer/MemoryAddMenu.tsx
+msgid "Learn from this thread"
+msgstr "このスレッドから学ぶ"
 
 #: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentMemorySection.tsx
 #~ msgid "Learned routing memory"
@@ -10776,6 +11246,10 @@ msgstr "空欄の場合、既存の認証情報を保持するか、環境変数
 #: src/renderer/components/providers/settings/ModelProviderEditor.tsx
 msgid "Leave blank to use the installed model catalog."
 msgstr "空欄の場合、インストール済みのモデルカタログを使用します。"
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Leave empty to use the organization selected by Devin. Set this only to choose a different organization for this account."
+msgstr "空欄にすると、Devinが選択した組織を使用します。このアカウントで別の組織を使う場合のみ設定してください。"
 
 #: src/renderer/views/GitHubActionsView/GitHubActionsDispatchDialog.tsx
 #~ msgid "Leave empty to use the repository default branch."
@@ -10961,7 +11435,9 @@ msgstr "保存済みのノートを読み込む"
 #: src/renderer/components/common/PixelLoader.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentMessageList.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/RemoteBrowserMirror.tsx
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Loading"
@@ -11058,6 +11534,7 @@ msgid "Loading PR…"
 msgstr "PRを読み込み中…"
 
 #: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisualFile.tsx
 msgid "Loading preview…"
 msgstr "プレビューを読み込み中…"
 
@@ -11124,20 +11601,22 @@ msgstr "読み込み中:"
 #: src/renderer/app.tsx
 #: src/renderer/components/composer/ImageLightbox.tsx
 #: src/renderer/components/devices/DeviceWorkspace.tsx
+#: src/renderer/components/mcp/RemoteMcpServersManager.tsx
 #: src/renderer/components/providers/settings/ModelProviderManager.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/useHistoryItemDetails.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/TreeEntryRow.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
 #: src/renderer/views/PullRequestsOverlay/detail/PrReadOnlyNotice.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileHostFolderPicker.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
 msgid "Loading…"
 msgstr "読み込み中…"
 
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
-msgid "local"
-msgstr "ローカル"
+#~ msgid "local"
+#~ msgstr "ローカル"
 
 #: src/renderer/components/common/BranchSelector/parts/useBranchList.ts
 #: src/renderer/components/common/RemoteServerPicker.tsx
@@ -11234,8 +11713,8 @@ msgstr "ログイン"
 
 #. placeholder {0}: detectionScopeLabel(entry.status)
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
-msgid "Login {0}"
-msgstr "ログイン{0}"
+#~ msgid "Login {0}"
+#~ msgstr "ログイン{0}"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
@@ -11247,8 +11726,8 @@ msgid "Login source"
 msgstr "ログインソース"
 
 #: src/renderer/components/providers/devin/profileSettings.tsx
-msgid "Login source, config file, organization, and runtime for this configuration. Thread knobs like model and approvals stay on the composer."
-msgstr "この設定のログインソース、設定ファイル、組織、ランタイムです。モデルや承認などのスレッド設定はコンポーザーにあります。"
+#~ msgid "Login source, config file, organization, and runtime for this configuration. Thread knobs like model and approvals stay on the composer."
+#~ msgstr "この設定のログインソース、設定ファイル、組織、ランタイムです。モデルや承認などのスレッド設定はコンポーザーにあります。"
 
 #: src/renderer/components/providers/settings/ProviderAccountsSection.tsx
 #: src/renderer/components/providers/settings/ProviderCredentialAccounts.tsx
@@ -11360,6 +11839,10 @@ msgstr "管理"
 msgid "Manage MCP servers"
 msgstr "MCPサーバーを管理"
 
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Manage memories"
+msgstr "メモリを管理"
+
 #: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
 #~ msgid "Manage packages with OpenCode's native plugin manager. Changes apply globally in the selected environment, including terminal plugins."
 #~ msgstr "OpenCode のネイティブプラグインマネージャーでパッケージを管理します。変更はターミナルプラグインを含め、選択した環境全体に適用されます。"
@@ -11404,6 +11887,10 @@ msgstr "グローバルおよびプロジェクトスコープの共有スキル
 #: src/renderer/views/SettingsOverlay/parts/SkillsSettings.tsx
 #~ msgid "Manage shared skills across Windows, WSL, and projects."
 #~ msgstr "Windows、WSL、プロジェクト間の共有スキルを管理します。"
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Manage the Devin account used by this profile."
+msgstr "このプロファイルで使用するDevinアカウントを管理します。"
 
 #: src/renderer/views/SettingsOverlay/parts/McpServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -11467,6 +11954,10 @@ msgstr "管理対象 Hex インストールは、このホストでは使用で�
 msgid "Managed installation is not available on this host. Use a compatible external Hex engine or the built-in engine."
 msgstr "このホストでは管理インストールを利用できません。互換性のある外部 Hex エンジンまたは内蔵エンジンを使用してください。"
 
+#: src/renderer/components/composer/MemoryAddMenu.tsx
+msgid "Managed on this host"
+msgstr "このホストで管理"
+
 #: src/renderer/components/skills/SkillsManager.tsx
 #~ msgid "Managed skills"
 #~ msgstr "管理対象スキル"
@@ -11475,6 +11966,10 @@ msgstr "このホストでは管理インストールを利用できません。
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 msgid "Manual connection"
 msgstr "手動接続"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Manual only"
+msgstr "手動のみ"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/sortMode.ts
 msgid "Manual order"
@@ -11742,6 +12237,7 @@ msgstr "MCPサーバー"
 #: src/renderer/views/ProjectSettingsOverlay/parts/SettingsSidebar.tsx
 #: src/renderer/views/ProjectSettingsOverlay/ProjectSettingsOverlay.tsx
 #: src/renderer/views/SettingsOverlay/parts/McpServersSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "MCP Servers"
@@ -11777,6 +12273,34 @@ msgstr "メディア"
 msgid "Medium"
 msgstr "中"
 
+#: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
+msgid "Memories"
+msgstr "メモリ"
+
+#: src/renderer/components/composer/MemoryAddMenu.tsx
+#: src/renderer/views/ProjectSettingsOverlay/parts/MobileProjectSettingsIndex.tsx
+#: src/renderer/views/ProjectSettingsOverlay/parts/SettingsSidebar.tsx
+#: src/renderer/views/ProjectSettingsOverlay/ProjectSettingsOverlay.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
+msgid "Memory"
+msgstr "メモリ"
+
+#: src/renderer/components/composer/MemoryAddMenu.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
+msgid "Memory actions"
+msgstr "メモリ操作"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Memory catalog management is unavailable on this connection."
+msgstr "この接続ではメモリカタログを管理できません。"
+
+#: src/renderer/components/composer/MemoryAddMenu.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Memory settings"
+msgstr "メモリ設定"
+
 #: src/renderer/views/PullRequestsOverlay/compact/PrCompactMergeAction.tsx
 #: src/renderer/views/PullRequestsOverlay/detail/header/PrMergeControls.tsx
 msgid "Merge"
@@ -11789,6 +12313,11 @@ msgstr "{crownedLabel} の変更を {mergeTarget} にマージしますか？"
 #: src/renderer/views/MainView/parts/Sidebar/parts/useWorktreeActions.ts
 msgid "Merge & Remove"
 msgstr "マージして削除"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Merge and retire notes. Skipped when nothing new was captured."
+msgstr "メモを統合し、不要なものを外します。新しい取り込みがなければスキップします。"
 
 #. placeholder {0}: props.candidateNumber
 #: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
@@ -12199,6 +12728,7 @@ msgid "More PR options"
 msgstr "その他の PR オプション"
 
 #: src/renderer/components/providers/UsageOverflowChip.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "More providers"
 msgstr "その他のプロバイダー"
 
@@ -12258,6 +12788,10 @@ msgstr "よく使うプロバイダー"
 msgid "Most used reasoning"
 msgstr "よく使う推論レベル"
 
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Most-used MCP this week: <0>{name}</0> ({count, plural, one {# call} other {# calls}})"
+msgstr "今週最も使われた MCP: <0>{name}</0>（{count, plural, one {# 回} other {# 回}}）"
+
 #: src/renderer/components/devices/DeviceTools.tsx
 msgid "Motion"
 msgstr "モーション"
@@ -12271,6 +12805,10 @@ msgstr "移動"
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 msgid "Move an existing device-local SSH connection onto this environment by its connection id. Keys are never uploaded."
 msgstr "接続 ID を指定して、既存のデバイスローカル SSH 接続をこの環境へ移行します。キーはアップロードされません。"
+
+#: src/renderer/components/thread/ThreadView.tsx
+msgid "Move back to main window"
+msgstr "メインウィンドウに戻す"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 msgid "Move browser back to main window"
@@ -12393,8 +12931,8 @@ msgid "Multilingual speech recognition."
 msgstr "多言語音声認識。"
 
 #: src/renderer/components/providers/devin/profileSettings.tsx
-msgid "Multiple Devin configurations under one login — different config files, organizations, or approval defaults — or an isolated second login. Native credentials are never copied."
-msgstr "1 つのログイン配下に複数の Devin 設定 — 異なる設定ファイル、組織、承認デフォルト — または分離された第 2 ログイン。ネイティブの資格情報は決してコピーされません。"
+#~ msgid "Multiple Devin configurations under one login — different config files, organizations, or approval defaults — or an isolated second login. Native credentials are never copied."
+#~ msgstr "1 つのログイン配下に複数の Devin 設定 — 異なる設定ファイル、組織、承認デフォルト — または分離された第 2 ログイン。ネイティブの資格情報は決してコピーされません。"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Multiple source remotes are configured. Set the branch upstream before reviewing."
@@ -12427,8 +12965,10 @@ msgstr "my-mcp-server"
 #: src/renderer/components/mcp/McpServerEditor.tsx
 #: src/renderer/components/providers/codex/profileSettings.tsx
 #: src/renderer/components/providers/devin/profileSettings.tsx
+#: src/renderer/components/providers/gemini/profileSettings.tsx
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 #: src/renderer/components/providers/settings/CursorProfileIdentity.tsx
+#: src/renderer/components/skills/MemorySkillSuggestions.tsx
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 #: src/renderer/components/workspace/WorkspaceNameDialog.tsx
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
@@ -12452,10 +12992,6 @@ msgstr "ネイティブ"
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
 msgid "Native MCP configuration updated. Start a new CLI session to use it."
 msgstr "ネイティブMCP設定を更新しました。新しいCLIセッションを開始して使用してください。"
-
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
-msgid "Native MCP setup"
-msgstr "ネイティブMCP設定"
 
 #: src/renderer/components/providers/devin/sessionPersonas.tsx
 #~ msgid "Native persona files are listed read-only; Poracode never edits Devin's own definitions."
@@ -12542,6 +13078,10 @@ msgstr "しない"
 msgid "Never Ask"
 msgstr "確認しない"
 
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Never capture deleted threads"
+msgstr "削除したスレッドは取り込まない"
+
 #: src/renderer/components/changelog/ChangelogView.tsx
 msgid "New"
 msgstr "新機能"
@@ -12596,8 +13136,8 @@ msgstr "新しいCursorプロファイルのAPIキー"
 #~ msgstr "新しいCursorプロファイル名"
 
 #: src/renderer/components/providers/devin/profileSettings.tsx
-msgid "New Devin profile config file (optional)"
-msgstr "新しい Devin プロファイルの設定ファイル（省略可）"
+#~ msgid "New Devin profile config file (optional)"
+#~ msgstr "新しい Devin プロファイルの設定ファイル（省略可）"
 
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 msgid "New environment"
@@ -12634,6 +13174,10 @@ msgstr "新しいフォルダー"
 #: src/mobile/views/useFileTree.ts
 #~ msgid "New folder name"
 #~ msgstr "新規フォルダー名"
+
+#: src/renderer/components/providers/gemini/profileSettings.tsx
+msgid "New Gemini profile home directory"
+msgstr "新しい Gemini プロファイルのホームディレクトリ"
 
 #: src/renderer/components/newsLine/useDiscoveryItems.tsx
 #: src/renderer/components/newsLine/useNewsLineItems.tsx
@@ -12809,6 +13353,10 @@ msgstr "次の送信済みメッセージ"
 msgid "Next tab"
 msgstr "次のタブ"
 
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Night owl: {percent}% of your recent prompts ran after 10 PM"
+msgstr "夜型: 最近の {percent}% のプロンプトは22時以降でした"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/hooks/useElementPicker.ts
 msgid "No active browser tab"
 msgstr "アクティブなブラウザタブがありません"
@@ -12927,7 +13475,7 @@ msgstr "まだ変更はありません"
 msgid "No chat response is available for experiment candidate {threadId}."
 msgstr "実験候補 {threadId} のチャット回答がありません。"
 
-#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrChecksIndicator.tsx
 msgid "No checks reported for this PR."
 msgstr "この PR についてはチェックが報告されていません。"
 
@@ -13177,6 +13725,10 @@ msgstr "検索条件に一致するMCPサーバーはありません。"
 msgid "No MCP tools used yet."
 msgstr "MCPツールはまだ使用されていません。"
 
+#: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
+msgid "No memories yet."
+msgstr "メモリはまだありません。"
+
 #: src/renderer/components/thread/ChatPane/ChatPane.tsx
 msgid "No messages yet"
 msgstr "まだメッセージはありません"
@@ -13282,14 +13834,27 @@ msgstr "プロジェクトはまだありません。"
 msgid "No prompts"
 msgstr "プロンプトはありません"
 
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "No prompts yesterday"
+msgstr "昨日はプロンプトなし"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/UsagePanel.tsx
 msgid "No providers are being tracked."
 msgstr "追跡されているプロバイダーはありません。"
+
+#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+msgid "No providers are being tracked. Enable providers below to monitor quotas and cost."
+msgstr "追跡されているプロバイダーはありません。下からプロバイダーを有効にして割り当て量とコストを監視してください。"
 
 #: src/renderer/components/providers/settings/ModelProviderManager.tsx
 #: src/renderer/components/providers/settings/ProviderAccountsSection.tsx
 msgid "No providers connected yet."
 msgstr "接続されているプロバイダーはまだありません。"
+
+#: src/renderer/views/SettingsOverlay/parts/SidebarUsageVisibilityPopover.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+msgid "No providers found"
+msgstr "プロバイダーが見つかりません"
 
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 #~ msgid "No providers ready yet"
@@ -13319,6 +13884,7 @@ msgstr "リポジトリが見つかりません。"
 #: src/renderer/commands/EverythingSearchResults.tsx
 #: src/renderer/components/find/FindBar.tsx
 #: src/renderer/sidebar/ChatSidebarHeader.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "No results"
 msgstr "結果なし"
@@ -13633,6 +14199,7 @@ msgstr "観測済み"
 msgid "off"
 msgstr "オフ"
 
+#: src/renderer/components/composer/MemoryAddMenu.tsx
 #: src/renderer/components/git/PrAutomationSlider.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/RemoteAccessSidebarIcon.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/PluginsSection.tsx
@@ -13649,7 +14216,10 @@ msgid "Official sources only"
 msgstr "公式ソースのみ"
 
 #: src/renderer/components/common/RemoteServerStatusDot.tsx
+#: src/renderer/components/mcp/RemoteMcpServersManager.tsx
+#: src/renderer/views/ProfileOverlay/parts/ProfileHeader.tsx
 #: src/renderer/views/PullRequestsOverlay/list/PrListPanel.tsx
+#: src/renderer/views/SettingsOverlay/parts/McpServersSettings.tsx
 msgid "Offline"
 msgstr "オフライン"
 
@@ -13678,6 +14248,7 @@ msgstr "古い順"
 msgid "on"
 msgstr "オン"
 
+#: src/renderer/components/composer/MemoryAddMenu.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/PluginsSection.tsx
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "On"
@@ -13696,6 +14267,10 @@ msgstr "毎正時"
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Once on {0}"
 msgstr "{0}に1回"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Once per day"
+msgstr "1 日 1 回"
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "One Header: value pair per line"
@@ -13720,6 +14295,7 @@ msgstr "ワンタイムペアリングトークン"
 
 #: src/renderer/components/common/RemoteServerStatusDot.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/RemoteAccessSidebarIcon.tsx
+#: src/renderer/views/ProfileOverlay/parts/ProfileHeader.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Online"
 msgstr "オンライン"
@@ -13729,6 +14305,10 @@ msgstr "オンライン"
 msgid "Only chat threads can move to another machine."
 msgstr "別のマシンに移動できるのはチャットスレッドだけです。"
 
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Only on archive or done"
+msgstr "アーカイブまたは完了のときだけ"
+
 #: src/renderer/components/thread/MoveThreadDialog.tsx
 msgid "Only the conversation moves: this folder isn't a Git repository."
 msgstr "会話だけが移動します。このフォルダーは Git リポジトリではありません。"
@@ -13737,6 +14317,10 @@ msgstr "会話だけが移動します。このフォルダーは Git リポジ�
 #: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
 msgid "Only the end of the output is shown ({0} bytes)."
 msgstr "出力の最後のみを表示しています（{0} バイト）。"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Only when a thread is done or archived"
+msgstr "スレッドが完了またはアーカイブされたときだけ"
 
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
 msgid "Only when unfocused"
@@ -13759,6 +14343,7 @@ msgid "Only your own comments on this pull request can be edited."
 msgstr "このプルリクエストでは自分のコメントのみ編集できます。"
 
 #: src/renderer/commands/CommandPalette.tsx
+#: src/renderer/components/devices/DeviceWorkspace.tsx
 #: src/renderer/components/newsLine/useAnnouncementItems.tsx
 #: src/renderer/components/thread/ThreadUsageBubble.tsx
 #: src/renderer/notifications.ts
@@ -13968,6 +14553,11 @@ msgstr "画像 {0}/{1} を開く"
 msgid "Open image preview"
 msgstr "画像のプレビューを開く"
 
+#: src/renderer/components/thread/ChatPane/parts/items/ImageCard.tsx
+msgid "Open image preview (+{overflowCount} more)"
+msgstr "画像のプレビューを開く（ほか{overflowCount}件）"
+
+#: src/renderer/components/mcp/RemoteMcpOauthDialog.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorBody.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 msgid "Open in browser"
@@ -13980,6 +14570,14 @@ msgstr "ブラウザで開く"
 #: src/renderer/views/GitReviewOverlay/parts/GitStackedDiff.tsx
 msgid "Open in editor"
 msgstr "エディタで開く"
+
+#: src/renderer/components/thread/ThreadView.tsx
+msgid "Open in new window"
+msgstr "新しいウィンドウで開く"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
+msgid "Open in New Window"
+msgstr "新しいウィンドウで開く"
 
 #: src/renderer/components/common/EditContextMenuHost.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/LocalPortsPanel.tsx
@@ -14206,6 +14804,10 @@ msgstr "閲覧のみで開く"
 msgid "Open with control"
 msgstr "操作して開く"
 
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Open, inspect, and control iOS Simulators (including foldable iPhone Duo) and Android Emulators in the panel."
+msgstr "パネルで iOS シミュレータ（折りたたみ式 iPhone Duo を含む）と Android エミュレータを開き、確認し、操作します。"
+
 #: src/renderer/components/providers/opencode/manifest.ts
 msgid "OpenCode"
 msgstr "OpenCode"
@@ -14352,6 +14954,10 @@ msgstr "古い内容"
 msgid "Outdated: the pull request changed after this was drafted."
 msgstr "古い内容: この下書きの作成後にプルリクエストが変更されました。"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Outer display"
+msgstr "外側ディスプレイ"
+
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "Outlook"
 msgstr "Outlook"
@@ -14367,6 +14973,18 @@ msgstr "このタスクの出力は利用できません。"
 #: src/renderer/components/providers/usageFormat.ts
 msgid "Over pace — runs out early"
 msgstr "オーバーペース — 早めに力尽きてしまう"
+
+#. placeholder {0}: f.provider
+#. placeholder {1}: f.percent
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Over the last 30 days you used <0>{0}</0> {1}% less"
+msgstr "過去30日間で <0>{0}</0> の利用が {1}% 減りました"
+
+#. placeholder {0}: f.provider
+#. placeholder {1}: f.percent
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Over the last 30 days you used <0>{0}</0> {1}% more"
+msgstr "過去30日間で <0>{0}</0> の利用が {1}% 増えました"
 
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PlanReviewModal.tsx
 msgid "Overall feedback"
@@ -14738,6 +15356,11 @@ msgstr "この Mac を手動でロック解除するまで一時停止中"
 msgid "PDF preview opens in the browser."
 msgstr "PDFプレビューはブラウザで開きます。"
 
+#. placeholder {0}: insights.mostActiveHour.label
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "Peak {0}"
+msgstr "ピーク {0}"
+
 #: src/renderer/views/ProfileOverlay/parts/ShareCard.tsx
 msgid "peak day"
 msgstr "ピークの日"
@@ -14882,6 +15505,7 @@ msgstr "{0} を上部に固定"
 #: src/renderer/components/common/BranchSelector/parts/BranchListBox.tsx
 #: src/renderer/components/thread/CompactThreadHeader.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
 msgid "Pin to top"
 msgstr "トップにピン留めする"
 
@@ -14897,6 +15521,7 @@ msgstr "ピンク"
 #: src/renderer/components/common/BranchSelector/parts/useBranchList.ts
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/parts/ThreadItemSuffix.tsx
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
 msgid "Pinned"
 msgstr "固定された"
 
@@ -15129,6 +15754,10 @@ msgstr "X の Poracode"
 msgid "Poracode only"
 msgstr "Poracode のみ"
 
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Poracode remembers preferences and corrections across providers. Capture runs after a turn finishes. A daily pass merges them. Skills learned from repeated work stay as suggestions until you approve them."
+msgstr "Poracode はプロバイダをまたいで好みと修正を覚えます。取り込みはターン終了後に始まります。1 日 1 回の処理でまとめます。繰り返した作業から学んだスキルは、承認するまで提案のままです。"
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Poracode SSH runtime manifest is missing or invalid: {path}"
 msgstr "Poracode SSH ランタイムマニフェストが見つからないか、無効です: {path}"
@@ -15240,6 +15869,10 @@ msgstr "PR の自動化: 自動修正"
 msgid "PR automation: Auto Merge"
 msgstr "PR の自動化: 自動マージ"
 
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrChecksIndicator.tsx
+msgid "PR checks"
+msgstr "PR チェック"
+
 #: src/renderer/components/common/GithubPollingNotice.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/GitBadge.tsx
 msgid "PR data is unavailable; cached results may be stale."
@@ -15264,6 +15897,11 @@ msgstr "PR タイトル (自動生成するには空のままにしてくださ�
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Pre-commit hook failed"
 msgstr "コミット前のフックが失敗しました"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Prefer Poracode memory"
+msgstr "Poracode のメモリを優先"
 
 #: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
 #~ msgid "Preferred routing order"
@@ -15488,6 +16126,7 @@ msgstr "プロファイル {displayName} を追加しました。"
 #~ msgstr "プロファイルのAPIキー"
 
 #: src/renderer/components/providers/codex/profileSettings.tsx
+#: src/renderer/components/providers/gemini/profileSettings.tsx
 msgid "Profile home"
 msgstr "プロファイルのホーム"
 
@@ -15573,6 +16212,7 @@ msgstr "プロジェクト名"
 msgid "Project no longer exists."
 msgstr "プロジェクトは存在しません。"
 
+#: src/renderer/components/mcp/RemoteMcpServersManager.tsx
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Project not found."
 msgstr "プロジェクトが見つかりません。"
@@ -15630,9 +16270,17 @@ msgstr "{0} のプロジェクトは {1} に移動します。プロジェクト
 #~ msgid "Projects live on the connected desktop. Add one before starting a thread."
 #~ msgstr "プロジェクトは接続されたデスクトップにあります。スレッドを開始する前に追加してください。"
 
+#: src/renderer/components/composer/MemoryAddMenu.tsx
+msgid "Promoted {promoted}. Suggested {suggested} skills."
+msgstr "{promoted} 件を採用し、{suggested} 件のスキルを提案しました。"
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Promoting this profile into the owned data root…"
 msgstr "このプロフィールを専用データルートへ移行しています…"
+
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "prompt"
+msgstr "件のプロンプト"
 
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 #: src/renderer/components/thread/ChatPane/StickyPrompt.tsx
@@ -15640,14 +16288,34 @@ msgstr "このプロフィールを専用データルートへ移行していま
 msgid "Prompt"
 msgstr "プロンプト"
 
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "Prompt cache hit"
+msgstr "プロンプトキャッシュ率"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Prompt caching covered {percent}% of your input tokens this week"
+msgstr "今週の入力トークンの {percent}% がキャッシュから提供されました"
+
 #: src/renderer/components/thread/ChatPane/ChatPromptRail.tsx
 msgid "Prompt navigation"
 msgstr "プロンプトナビゲーション"
+
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "prompts"
+msgstr "件のプロンプト"
 
 #: src/renderer/components/providers/codex/index.tsx
 #: src/renderer/views/ProfileOverlay/parts/ActivitySection.tsx
 msgid "Prompts"
 msgstr "プロンプト"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Prompts dipped {percent}% over the last 30 days"
+msgstr "過去30日間でプロンプトが {percent}% 減少しました"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Prompts rose {percent}% over the last 30 days"
+msgstr "過去30日間でプロンプトが {percent}% 増加しました"
 
 #: src/renderer/components/thread/ChatPane/parts/items/PlanProposal.tsx
 #: src/renderer/i18n/sharedMessages.ts
@@ -15721,7 +16389,6 @@ msgstr "プロバイダー"
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProviderModelVisibilityPopover.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Providers"
 msgstr "プロバイダー"
 
@@ -15945,6 +16612,10 @@ msgstr "終了"
 msgid "Quota reached"
 msgstr "クォータに達しました"
 
+#: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
+msgid "Quotas"
+msgstr "割り当て量"
+
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettingsModel.ts
 #~ msgid "Qwen"
 #~ msgstr "Qwen"
@@ -16033,6 +16704,7 @@ msgstr "このワークツリーのターミナルパネルを読み、表示内
 #~ msgstr "読み取り専用"
 
 #: src/renderer/components/crew/CrewRoleDetails.tsx
+#: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 #: src/renderer/components/thread/ThreadDraftView.tsx
 msgid "Read-only"
@@ -16086,6 +16758,7 @@ msgstr "準備完了。オンにすると、新しいペアリングコードで
 
 #: src/renderer/components/common/EffortContextMenu/EffortContextMenu.tsx
 #: src/renderer/components/common/ProviderModelMenu/ModelConfigurationPanel.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
 msgid "Reasoning"
 msgstr "推論"
 
@@ -16182,8 +16855,8 @@ msgid "Recording"
 msgstr "録音"
 
 #: src/renderer/components/composer/VoiceInputButton.tsx
-msgid "Recording stops automatically at five minutes."
-msgstr "録画は 5 分で自動的に停止します。"
+#~ msgid "Recording stops automatically at five minutes."
+#~ msgstr "録画は 5 分で自動的に停止します。"
 
 #: src/renderer/components/composer/VoiceInputButton.tsx
 msgid "Recording will stop in less than fifteen seconds."
@@ -16217,6 +16890,7 @@ msgstr "参照"
 
 #. Button: re-fetch provider usage now
 #: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
+#: src/renderer/components/providers/settings/UsageProviderRow.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
 #: src/renderer/views/GitReviewOverlay/GitReviewOverlay.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewPanel.tsx
@@ -16247,6 +16921,7 @@ msgstr "{0}を更新"
 msgid "Refresh {0} authentication"
 msgstr "{0}認証を更新します"
 
+#: src/renderer/components/providers/settings/UsageProviderRow.tsx
 #: src/renderer/components/providers/UsageProviderCardView.tsx
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 msgid "Refresh {label}"
@@ -16255,6 +16930,10 @@ msgstr "{label} を更新する"
 #: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
 #~ msgid "Refresh {label} usage"
 #~ msgstr "{label} の使用量を更新"
+
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
+msgid "Refresh agent"
+msgstr "エージェントを更新"
 
 #: src/renderer/views/SettingsOverlay/parts/AgentsGeneralSettings.tsx
 msgid "Refresh detected agents"
@@ -16431,7 +17110,6 @@ msgstr "リモートURL"
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
 #: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
 #: src/renderer/components/providers/settings/ModelProviderManager.tsx
-#: src/renderer/components/thread/SideChat/SideChatBody.tsx
 #: src/renderer/views/SettingsOverlay/parts/AgentProfileList.tsx
 #: src/renderer/views/SettingsOverlay/parts/HexSetupDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
@@ -16677,6 +17355,10 @@ msgstr "{profileName} を削除すると、保存されたAPIキーも削除さ�
 msgid "Removing {profileName} drops it from Poracode. Its home directory and the Codex credentials inside it stay on disk."
 msgstr "{profileName} を削除すると Poracode から取り除かれます。ホームディレクトリとその中の Codex 認証情報はディスクに残ります。"
 
+#: src/renderer/components/providers/gemini/profileSettings.tsx
+msgid "Removing {profileName} drops it from Poracode. Its home directory and the Gemini credentials inside it stay on disk."
+msgstr "{profileName} を削除すると Poracode から取り除かれます。ホームディレクトリとその中の Gemini 認証情報はディスクに残ります。"
+
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Removing {profileName} drops its Poracode settings — env vars, models, and effort. Its config directory and the Claude credentials inside it stay on disk."
 msgstr "{profileName} を削除すると、Poracodeの設定（環境変数、モデル、Effort）が失われます。設定ディレクトリとその中のClaude認証情報はディスクに残ります。"
@@ -16807,6 +17489,15 @@ msgstr "修復"
 msgid "Repeat"
 msgstr "繰り返し"
 
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Repeated workflows appear in Settings → Skills for you to edit and approve."
+msgstr "繰り返される手順は設定 → スキルに表示され、編集して承認できます。"
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Replace redacted values in the file before importing."
+msgstr "インポートする前に、ファイル内の伏せ字の値を置き換えてください。"
+
 #: src/renderer/components/common/FeedbackDialog.tsx
 msgid "Report a bug or suggest an idea."
 msgstr "バグを報告するか、アイデアを提案してください。"
@@ -16897,6 +17588,7 @@ msgstr "リセット"
 
 #: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
 #: src/renderer/components/providers/settings/ProviderContextWindowSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
 msgid "Reset"
 msgstr "リセット"
 
@@ -17120,13 +17812,13 @@ msgstr "このホストに保存された使用量のみです。"
 #: src/renderer/components/common/GithubPollingNotice.tsx
 #: src/renderer/components/composer/ImageLightbox.tsx
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
+#: src/renderer/components/mcp/RemoteMcpServersManager.tsx
 #: src/renderer/components/plugins/PluginMarketplace.tsx
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
 #: src/renderer/components/skills/SkillsManager.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/MarkdownVideo.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/useHistoryItemDetails.tsx
 #: src/renderer/components/thread/MoveThreadDialog.tsx
-#: src/renderer/components/thread/SideChat/SideChatBody.tsx
 #: src/renderer/components/thread/SideChat/SideChatThreadView.tsx
 #: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
 #: src/renderer/components/thread/ThreadHistoryLoadFailureDock.tsx
@@ -17144,8 +17836,10 @@ msgstr "このホストに保存された使用量のみです。"
 #: src/renderer/views/SettingsOverlay/parts/ManagedHostEnvironmentsSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileHostFolderPicker.tsx
 #: src/renderer/views/SettingsOverlay/parts/PluginsSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
+#: src/renderer/windowApps/ThreadWindowApp.tsx
 msgid "Retry"
 msgstr "再試行"
 
@@ -17569,6 +18263,10 @@ msgstr "スケジュールを実行すると、ここに結果が表示されま
 msgid "Run a second Codex account from its own CODEX_HOME. Each profile signs in separately and keeps its own sessions."
 msgstr "独自の CODEX_HOME から 2 つ目の Codex アカウントを実行します。各プロファイルは個別にサインインし、独自のセッションを保持します。"
 
+#: src/renderer/components/providers/gemini/profileSettings.tsx
+msgid "Run a second Gemini account from its own GEMINI_CLI_HOME. Each profile signs in separately and keeps its own sessions."
+msgstr "独自の GEMINI_CLI_HOME から 2 つ目の Gemini アカウントを実行します。各プロファイルは個別にサインインし、独自のセッションを保持します。"
+
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
 msgid "Run actions"
@@ -17766,9 +18464,11 @@ msgstr "彩度と明度"
 #: src/renderer/components/mcp/McpServerEditor.tsx
 #: src/renderer/components/providers/codex/profileSettings.tsx
 #: src/renderer/components/providers/devin/profileSettings.tsx
+#: src/renderer/components/providers/gemini/profileSettings.tsx
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 #: src/renderer/components/providers/settings/ModelProviderEditor.tsx
 #: src/renderer/components/providers/settings/ProviderMcpServersSection.tsx
+#: src/renderer/components/skills/SkillViewModal.tsx
 #: src/renderer/components/thread/ThreadFollowUpEditor.tsx
 #: src/renderer/components/thread/ThreadGoalControls.tsx
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PlanCommentCard.tsx
@@ -17784,6 +18484,7 @@ msgstr "彩度と明度"
 #: src/renderer/views/PullRequestsOverlay/parts/PrEditSheet.tsx
 #: src/renderer/views/PullRequestsOverlay/summary/DescriptionCard.tsx
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Save"
@@ -17847,9 +18548,17 @@ msgstr "Devin プロファイルを保存"
 msgid "Save File"
 msgstr "ファイルの保存"
 
+#: src/renderer/components/providers/gemini/profileSettings.tsx
+msgid "Save Gemini profile"
+msgstr "Gemini プロファイルを保存"
+
 #: src/renderer/components/composer/ImageLightboxActions.tsx
 msgid "Save image"
 msgstr "画像を保存"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Save learnings before deleting"
+msgstr "削除前に学びを保存"
 
 #: src/renderer/components/providers/settings/ProviderMcpServersSection.tsx
 msgid "Save MCP servers"
@@ -17863,6 +18572,10 @@ msgstr "ショートカットを保存"
 #: src/renderer/components/crew/CrewRosterPanel.tsx
 msgid "Save to {0}"
 msgstr "{0} に保存"
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Save your edits before moving this MCP server."
+msgstr "このMCPサーバーを移動する前に、変更を保存してください。"
 
 #: src/renderer/views/SettingsOverlay/parts/CursorSdkRuntimeSetup.tsx
 #~ msgid "Saved API key"
@@ -18142,6 +18855,10 @@ msgstr "MCPサーバーを検索"
 msgid "Search MCP servers..."
 msgstr "MCPサーバーを検索..."
 
+#: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
+msgid "Search memories"
+msgstr "メモリを検索"
+
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProviderModelVisibilityPopover.tsx
 msgid "Search models"
@@ -18152,6 +18869,10 @@ msgstr "モデルを検索する"
 #: src/renderer/views/SettingsOverlay/parts/ProviderModelVisibilityPopover.tsx
 msgid "Search models..."
 msgstr "モデルを検索..."
+
+#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+msgid "Search more providers"
+msgstr "その他のプロバイダーを検索"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserOmnibox.tsx
 msgid "Search or enter address"
@@ -18184,6 +18905,15 @@ msgstr "プラグインを検索"
 #: src/renderer/components/plugins/PluginMarketplace.tsx
 msgid "Search plugins, skills, and servers..."
 msgstr "プラグイン・スキル・サーバーを検索..."
+
+#: src/renderer/views/SettingsOverlay/parts/SidebarUsageVisibilityPopover.tsx
+msgid "Search providers"
+msgstr "プロバイダーを検索"
+
+#: src/renderer/views/SettingsOverlay/parts/SidebarUsageVisibilityPopover.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+msgid "Search providers…"
+msgstr "プロバイダーを検索…"
 
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 #~ msgid "Search pull requests"
@@ -18322,6 +19052,10 @@ msgstr "{1} から {0} を選択"
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Select {serverName} from {providerLabel}"
 msgstr "{providerLabel} から {serverName} を選択"
+
+#: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
+msgid "Select a device to view these details."
+msgstr "これらの詳細を表示するにはデバイスを選択してください。"
 
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorModal.tsx
 msgid "Select a file from the tree"
@@ -18657,6 +19391,13 @@ msgstr "設定"
 msgid "Settings aren't available yet, so your changes couldn't be saved. Please try again."
 msgstr "設定はまだ利用できないため、変更を保存できませんでした。もう一度お試しください。"
 
+#: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SearchSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
+msgid "Settings unavailable"
+msgstr "設定を利用できません"
+
 #: src/renderer/actions/worktreeLaunchActions.ts
 msgid "setup"
 msgstr "セットアップ"
@@ -18679,8 +19420,13 @@ msgid "Share"
 msgstr "共有"
 
 #: src/renderer/components/providers/devin/profileSettings.tsx
-msgid "Share another profile's isolated login"
-msgstr "他のプロファイルの分離ログインを共有"
+#~ msgid "Share another profile's isolated login"
+#~ msgstr "他のプロファイルの分離ログインを共有"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Share global and linked-project notes with paired computers and WSL. Unlinked folders stay separate."
+msgstr "グローバルメモと関連付けたプロジェクトメモをペア済み端末や WSL と共有します。関連付けられていないフォルダーは分離されます。"
 
 #: src/renderer/views/ProfileOverlay/parts/ShareDialog.tsx
 msgid "Share your activity"
@@ -18693,6 +19439,10 @@ msgstr "共有"
 #: src/renderer/components/providers/devin/profileSettings.tsx
 msgid "Shared login owner"
 msgstr "共有ログインのオーナー"
+
+#: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
+msgid "Shared notes across providers"
+msgstr "プロバイダ共通のメモ"
 
 #. placeholder {0}: owner.displayName ?? owner.id
 #: src/renderer/components/providers/devin/profileSettings.tsx
@@ -18732,13 +19482,13 @@ msgstr "ショートカット"
 msgid "Show {0}"
 msgstr "{0}を表示"
 
-#: src/renderer/components/thread/ThreadDockBubbles.tsx
+#: src/renderer/components/thread/ThreadDockUI.tsx
 msgid "Show {label}"
 msgstr "{label}を表示"
 
 #: src/renderer/components/providers/settings/UsageProviderRow.tsx
-msgid "Show {label} circle in sidebar"
-msgstr "サイドバーで {label} のリングを表示する"
+#~ msgid "Show {label} circle in sidebar"
+#~ msgstr "サイドバーで {label} のリングを表示する"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/useProjectEnvironmentMenuItems.tsx
 msgid "Show {machine} as its own project"
@@ -18767,8 +19517,14 @@ msgstr "エージェントの検出を表示"
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProviderModelVisibilityPopover.tsx
 #: src/renderer/views/SettingsOverlay/parts/SidebarShortcutsSelector.tsx
+#: src/renderer/views/SettingsOverlay/parts/SidebarUsageVisibilityPopover.tsx
 msgid "Show all"
 msgstr "すべて表示"
+
+#. placeholder {0}: facts.length
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "Show all {0} insights"
+msgstr "{0} 件のインサイトをすべて表示"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
 msgid "Show bookmark bar"
@@ -18793,8 +19549,13 @@ msgstr "サイドバーにリングを表示"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/UsageDisplaySettings.tsx
-msgid "Show compact per-provider usage rings in the sidebar. Hide individual providers' circles in the list below."
-msgstr "サイドバーにプロバイダーごとのコンパクトな使用状況リングを表示します。個々のプロバイダーのリングは下の一覧で非表示にできます。"
+msgid "Show compact per-provider usage rings in the sidebar."
+msgstr "サイドバーにプロバイダーごとのコンパクトな使用状況リングを表示します。"
+
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/UsageDisplaySettings.tsx
+#~ msgid "Show compact per-provider usage rings in the sidebar. Hide individual providers' circles in the list below."
+#~ msgstr "サイドバーにプロバイダーごとのコンパクトな使用状況リングを表示します。個々のプロバイダーのリングは下の一覧で非表示にできます。"
 
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 msgid "Show composer"
@@ -18830,6 +19591,10 @@ msgstr "推定コストを表示"
 #: src/renderer/views/PullRequestsOverlay/summary/RailChecks.tsx
 msgid "Show fewer"
 msgstr "表示を減らす"
+
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "Show fewer insights"
+msgstr "インサイトを折りたたむ"
 
 #: src/renderer/views/PullRequestsOverlay/changes/ChangesToolbar.tsx
 msgid "Show file tree"
@@ -19026,9 +19791,13 @@ msgstr "サイドチャット: {0}"
 msgid "Sidebar background"
 msgstr "サイドバーの背景"
 
+#: src/renderer/views/SettingsOverlay/parts/SidebarUsageVisibilityPopover.tsx
+msgid "Sidebar circles are currently turned off."
+msgstr "サイドバーのリングは現在オフになっています。"
+
 #: src/renderer/components/providers/settings/UsageProviderRow.tsx
-msgid "Sidebar circles are turned off globally above"
-msgstr "サイドバーのリングは上で全体的にオフになっています"
+#~ msgid "Sidebar circles are turned off globally above"
+#~ msgstr "サイドバーのリングは上で全体的にオフになっています"
 
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -19073,9 +19842,11 @@ msgstr "ペアリング済みのデスクトップでサインインしてから
 msgid "Sign in required"
 msgstr "サインインが必要です"
 
+#. placeholder {0}: props.name
 #. placeholder {0}: signIn.name
 #. placeholder {0}: status.label
 #: src/renderer/components/composer/ComposerMcpServersMenu.tsx
+#: src/renderer/components/mcp/RemoteMcpOauthDialog.tsx
 #: src/renderer/components/providers/devin/profileSettings.tsx
 msgid "Sign in to {0}"
 msgstr "{0} にサインイン"
@@ -19179,6 +19950,10 @@ msgstr "スキル"
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "Skill availability"
 msgstr "スキルの利用範囲"
+
+#: src/renderer/components/skills/MemorySkillSuggestions.tsx
+msgid "Skill instructions"
+msgstr "スキルの手順"
 
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "Skill marketplace source"
@@ -19284,6 +20059,14 @@ msgstr "サイズが小さい順"
 #: src/renderer/components/devices/DeviceWorkspace.tsx
 msgid "Snapshots"
 msgstr "スナップショット"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "So far today: {prompts, plural, one {# prompt} other {# prompts}}"
+msgstr "今日のこれまで: {prompts, plural, one {# プロンプト} other {# プロンプト}}"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "So far today: {prompts, plural, one {# prompt} other {# prompts}} · mostly {topProvider}"
+msgstr "今日のこれまで: {prompts, plural, one {# プロンプト} other {# プロンプト}} · 主に {topProvider}"
 
 #. placeholder {0}: index + 1
 #. placeholder {0}: winnerOrdinal + 1
@@ -19945,6 +20728,11 @@ msgstr "サブスクリプションの請求額"
 msgid "Succeeded"
 msgstr "成功"
 
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Suggest skills"
+msgstr "スキルを提案"
+
 #: src/renderer/components/providers/devin/sessionActionDialog.tsx
 msgid "Suggested command — review before use"
 msgstr "提案されたコマンド — 使用前に確認"
@@ -19953,6 +20741,7 @@ msgstr "提案されたコマンド — 使用前に確認"
 msgid "Suggested command inserted into the composer."
 msgstr "提案されたコマンドをコンポーザーに挿入しました。"
 
+#: src/renderer/components/skills/MemorySkillSuggestions.tsx
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Suggestions"
 msgstr "提案"
@@ -20109,9 +20898,18 @@ msgstr "同期（リベース）"
 msgid "Sync ↓{behind} ↑{ahead}"
 msgstr "同期 ↓{behind}↑{ahead}"
 
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Sync across environments"
+msgstr "環境間で同期"
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Sync failed: {detail}"
 msgstr "同期に失敗しました:{detail}"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Sync now"
+msgstr "今すぐ同期"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CommitSyncPanel.tsx
 msgid "Sync options"
@@ -20122,12 +20920,13 @@ msgstr "同期オプション"
 #~ msgstr "デスクトップと同期"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ActionPhaseLabel.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
 msgid "Syncing…"
 msgstr "同期中…"
 
 #: src/renderer/views/ProfileOverlay/parts/ProfileHeader.tsx
-msgid "Syncs with Cloud"
-msgstr "Cloudと同期"
+#~ msgid "Syncs with Cloud"
+#~ msgstr "Cloudと同期"
 
 #: src/renderer/components/devices/DeviceTools.tsx
 #: src/renderer/i18n/locales.ts
@@ -20184,6 +20983,10 @@ msgstr "主モデルから渡された実作業を何でも引き受けます。
 #~ msgid "Takes over the desktop while the agent clicks or types"
 #~ msgstr "エージェントがクリックや入力をしている間、デスクトップを占有します"
 
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrChecksIndicator.tsx
+msgid "Taking longer than average"
+msgstr "平均より時間がかかっています"
+
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
 msgid "Tap + to add a folder or clone a repository on your desktop."
 msgstr "+ をタップしてデスクトップでフォルダーを追加するか、リポジトリをクローンしてください。"
@@ -20229,6 +21032,18 @@ msgstr "タスクの出力"
 #: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentMemorySection.tsx
 msgid "Task tags"
 msgstr "タスクタグ"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Tasks averaged {duration} this week"
+msgstr "今週のタスク平均時間は {duration} でした"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Tasks averaged {duration} this week · {deltaPercent}% faster than last week"
+msgstr "今週のタスク平均 {duration} · 先週より {deltaPercent}% 高速"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Tasks averaged {duration} this week · {deltaPercent}% longer than last week"
+msgstr "今週のタスク平均 {duration} · 先週より {deltaPercent}% 長め"
 
 #: src/renderer/components/newsLine/featureCatalog.ts
 msgid "Teach your agents reusable procedures with skills"
@@ -20536,6 +21351,11 @@ msgstr "候補はまだ変更を加えていません。"
 msgid "The changes are too large to move ({size}). Commit or ignore large files first."
 msgstr "変更が大きすぎて移動できません ({size})。先に大きなファイルをコミットするか無視してください。"
 
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "The cheapest model from the highest-rated provider reads a finished turn. You can choose any model."
+msgstr "評価が最も高いプロバイダーの最安モデルが、終わったターンを読みます。どのモデルでも選べます。"
+
 #: src/renderer/components/thread/ChatPane/parts/MessageList.tsx
 msgid "The checkpoint could not be restored."
 msgstr "チェックポイントを復元できませんでした。"
@@ -20800,12 +21620,17 @@ msgid "The matched message is no longer available."
 msgstr "一致したメッセージは利用できなくなりました。"
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
+#: src/renderer/components/mcp/McpServersManager.tsx
 msgid "The MCP server configuration is invalid or uses a reserved name."
 msgstr "MCPサーバー設定が無効か、予約済みの名前を使用しています。"
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "The MCP server is invalid."
 msgstr "MCPサーバーが無効です。"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#~ msgid "The memory catalog is edited on the desktop that owns this host."
+#~ msgstr "メモリの一覧は、このホストを持つデスクトップで編集します。"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The move expired. Start it again."
@@ -21091,9 +21916,18 @@ msgstr "ソースホストから無効な応答が返されました。連携を
 msgid "The SSH tunnel reached an incompatible Poracode server."
 msgstr "SSH トンネルは互換性のない Poracode サーバーに接続しました。"
 
+#: src/renderer/components/providers/gemini/profileSettings.tsx
+msgid "The stored configuration is invalid. Saving below replaces it with what this form holds."
+msgstr "保存済みの設定は無効です。下で保存するとこのフォームの内容で置き換えられます。"
+
 #: src/renderer/components/providers/devin/profileSettings.tsx
 msgid "The stored configuration is invalid. The stored values are kept; saving below replaces them with what this form holds."
 msgstr "保存済みの設定は無効です。保存済みの値は保持され、下で保存するとこのフォームの内容で置き換えられます。"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "The strongest model from the highest-rated provider merges notes. You can choose any model."
+msgstr "評価が最も高いプロバイダーの最強モデルがメモをまとめます。どのモデルでも選べます。"
 
 #: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
 msgid "The sub-agent settings need Codex 0.145 or newer. They are ignored until Codex is updated."
@@ -21353,6 +22187,10 @@ msgstr "このデスクトップ"
 #~ msgid "This desktop's Poracode version doesn't support browser forwarding. Update Poracode on your desktop."
 #~ msgstr "このデスクトップのPoracodeのバージョンはブラウザー転送に対応していません。デスクトップでPoracodeを更新してください。"
 
+#: src/renderer/views/ProfileOverlay/parts/ProfileHeader.tsx
+msgid "This device"
+msgstr "このデバイス"
+
 #: src/mobile/QrScanner.tsx
 #~ msgid "This device has no usable camera. Enter the endpoint and token below to pair instead."
 #~ msgstr "このデバイスには使用できるカメラがありません。代わりに下のエンドポイントとトークンを入力してペアリングしてください。"
@@ -21525,6 +22363,7 @@ msgid "This plugin's skills could not be read."
 msgstr "このプラグインのスキルを読み取れませんでした。"
 
 #: src/renderer/components/providers/codex/profileSettings.tsx
+#: src/renderer/components/providers/gemini/profileSettings.tsx
 msgid "This profile already has threads. Their sessions stay in the current home directory, so they can't be resumed after you change it."
 msgstr "このプロファイルにはすでにスレッドがあります。セッションは現在のホームディレクトリに残るため、変更後は再開できなくなります。"
 
@@ -21727,6 +22566,10 @@ msgstr "このスレッドはすでに {label} にあります。"
 msgid "This thread is not ready for Steer."
 msgstr "このスレッドはまだ軌道修正を受け付けられません。"
 
+#: src/renderer/views/MainView/parts/AppContent/parts/ThreadWindowPlaceholder.tsx
+msgid "This thread is open in a separate window."
+msgstr "このスレッドは別のウィンドウで開いています。"
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "This thread switched provider without transferring context: {agent} started without Poracode's read_thread tool, so it cannot read the earlier conversation. Re-enable the app-controls MCP tool, or summarize what it needs."
 msgstr "このスレッドはコンテキストを引き継がずにプロバイダーを切り替えました。{agent} は Poracode の read_thread ツールなしで起動したため、これまでの会話を読み取れません。app-controls の MCP ツールを再度有効にするか、必要な内容を要約してください。"
@@ -21751,6 +22594,42 @@ msgstr "このバージョンの Muse Code はセッション目標をサポー�
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
 msgid "This visual is too large. Showing source only."
 msgstr "このビジュアルは大きすぎます。ソースのみ表示しています。"
+
+#. placeholder {0}: f.model
+#. placeholder {1}: f.percent
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "This week you ran <0>{0}</0> {1}% less"
+msgstr "今週は <0>{0}</0> の利用が {1}% 減りました"
+
+#. placeholder {0}: f.model
+#. placeholder {1}: f.percent
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "This week you ran <0>{0}</0> {1}% more"
+msgstr "今週は <0>{0}</0> の利用が {1}% 増えました"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "This week you switched from <0>{fromLabel}</0> to <1>{toLabel}</1>"
+msgstr "今週 <0>{fromLabel}</0> から <1>{toLabel}</1> に切り替えました"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "This week you switched from <0>{fromLabel}</0> to <1>{toLabel}</1> ({toPercent}%)"
+msgstr "今週 <0>{fromLabel}</0> から <1>{toLabel}</1> に切り替え（{toPercent}%）"
+
+#. placeholder {0}: f.provider
+#. placeholder {1}: f.percent
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "This week you used <0>{0}</0> {1}% less"
+msgstr "今週は <0>{0}</0> の利用が {1}% 減りました"
+
+#. placeholder {0}: f.provider
+#. placeholder {1}: f.percent
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "This week you used <0>{0}</0> {1}% more"
+msgstr "今週は <0>{0}</0> の利用が {1}% 増えました"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "This week's usage equals ~{cost} at API rates"
+msgstr "今週の使用量は API 換算で約 {cost} です"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/DeleteWorktreePopover.tsx
 #~ msgid "This will permanently delete the thread and its worktree."
@@ -22022,9 +22901,21 @@ msgstr "ファイルツリーパネルを切り替えます"
 msgid "Toggle Work or Plan"
 msgstr "作業と計画を切り替え"
 
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Token usage is down {percent}% this week ({compact})"
+msgstr "今週のトークン使用量は {percent}% 減（{compact}）"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Token usage is up {percent}% this week ({compact})"
+msgstr "今週のトークン使用量は {percent}% 増（{compact}）"
+
 #: src/renderer/views/ProfileOverlay/parts/StatStrip.tsx
 msgid "Token usage unavailable for: {unavailableLabels}"
 msgstr "トークン使用量を取得できません: {unavailableLabels}"
+
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "tokens"
+msgstr "トークン"
 
 #: src/renderer/views/ProfileOverlay/parts/ActivitySection.tsx
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
@@ -22073,6 +22964,10 @@ msgstr "ツール検索"
 #~ msgid "Tools"
 #~ msgstr "ツール"
 
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Top skill this week: <0>{name}</0> ({count, plural, one {# run} other {# runs}})"
+msgstr "今週のトップスキル: <0>{name}</0>（{count, plural, one {# 回} other {# 回}}）"
+
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "Total installs"
 msgstr "合計インストール数"
@@ -22094,6 +22989,7 @@ msgid "Total tokens"
 msgstr "合計トークン"
 
 #: src/renderer/components/providers/settings/UsageProviderRow.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Track {label} usage"
 msgstr "{label}の使用状況を追跡する"
 
@@ -22101,14 +22997,18 @@ msgstr "{label}の使用状況を追跡する"
 msgid "Track per-provider session, weekly, and monthly usage. Windows are reported by each provider; estimated cost is reconstructed from local logs."
 msgstr "プロバイダーごとのセッション、週次、月次の使用量を追跡します。期間は各プロバイダーによって報告されます。推定コストはローカル ログから再構築されます。"
 
+#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+msgid "Tracked providers"
+msgstr "追跡中のプロバイダー"
+
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 msgid "Tracking and display"
 msgstr "トラッキングと表示"
 
 #. Usage status when provider tracking is disabled
 #: src/renderer/components/providers/settings/UsageProviderRow.tsx
-msgid "Tracking off"
-msgstr "追跡オフ"
+#~ msgid "Tracking off"
+#~ msgstr "追跡オフ"
 
 #: src/renderer/components/composer/VoiceInputButton.tsx
 msgid "Transcribing voice"
@@ -22184,6 +23084,10 @@ msgstr "このプロジェクトのスレッドで、インストール済みプ
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Turn on remote access to show a pairing code."
 msgstr "リモートアクセスをオンにすると、ペアリングコードが表示されます。"
+
+#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+msgid "Turn on tracking to monitor quotas and cost."
+msgstr "追跡をオンにして割り当て量とコストを監視します。"
 
 #: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -22470,6 +23374,10 @@ msgstr "Claude プロファイルを更新できません。"
 msgid "Unable to refresh Codex profiles."
 msgstr "Codex プロファイルを更新できません。"
 
+#: src/renderer/components/providers/gemini/profileSettings.tsx
+#~ msgid "Unable to refresh Gemini profiles."
+#~ msgstr "Gemini プロファイルを更新できません。"
+
 #. placeholder {0}: agent.label
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Unable to remove {0} credentials."
@@ -22604,6 +23512,7 @@ msgstr "{0}を更新できません。"
 msgid "Unable to update {agentLabel}."
 msgstr "{agentLabel}を更新できません。"
 
+#: src/renderer/components/providers/useCombinedProviderRuntimeUpdates.ts
 #: src/renderer/components/thread/ThreadAgentUpdateDock.tsx
 msgid "Unable to update {updateLabel}."
 msgstr "{updateLabel}を更新できません。"
@@ -22716,6 +23625,10 @@ msgstr "選択を解除したプロバイダーとモデルは Crossagents の�
 #~ msgid "Unchecked providers and models are skipped by Crossagents only."
 #~ msgstr "チェックを外したプロバイダーとモデルはCrossagentsでのみスキップされます。"
 
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Undo"
+msgstr "元に戻す"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabGroupMenu.tsx
 msgid "Ungroup"
 msgstr "グループ解除"
@@ -22763,6 +23676,7 @@ msgstr "不明なプロセス"
 
 #: src/renderer/components/providers/usageFormat.ts
 #: src/renderer/components/providers/UsageProviderCardView.tsx
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
 msgid "Unlimited"
 msgstr "無制限"
 
@@ -22816,6 +23730,7 @@ msgstr "フェーズなし:"
 #: src/renderer/components/common/BranchSelector/parts/BranchListBox.tsx
 #: src/renderer/components/thread/CompactThreadHeader.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
 msgid "Unpin"
 msgstr "固定を解除する"
 
@@ -23031,6 +23946,10 @@ msgstr "会話を分岐するにはホストを更新してください。"
 msgid "Update the remote host to use side chat with hidden context."
 msgstr "非表示のコンテキストでサイドチャットを使用するには、リモートホストを更新してください。"
 
+#: src/renderer/state/crewLibrary.ts
+msgid "Update the remote server first."
+msgstr "先にリモートサーバーを更新してください。"
+
 #: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
 msgid "Update this host to import its sessions."
 msgstr "セッションをインポートするには、このホストを更新してください。"
@@ -23208,8 +24127,8 @@ msgstr "使用量は選択したホストで収集されます。アカウント
 #~ msgstr "使用量が古くなっています。更新して最新の値を取得してください。"
 
 #: src/renderer/components/providers/HostUsageView.tsx
-msgid "Usage is stale. Refresh to update."
-msgstr "使用量が古くなっています。更新してください。"
+#~ msgid "Usage is stale. Refresh to update."
+#~ msgstr "使用量が古くなっています。更新してください。"
 
 #: src/renderer/components/providers/usageFormat.ts
 msgid "Usage not supported"
@@ -23261,6 +24180,10 @@ msgstr "試行回数は 2～6 回、待機時間は 1～3600 秒にしてくだ�
 msgid "Use a run limit between 1 and 100, or leave it empty."
 msgstr "実行回数の上限を 1～100 回にするか、空欄にしてください。"
 
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Use a separate account"
+msgstr "別のアカウントを使用"
+
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Use a time limit between 1 and 1440 minutes."
 msgstr "制限時間は 1～1440 分にしてください。"
@@ -23276,6 +24199,10 @@ msgstr "このアカウントを使用"
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 msgid "Use an image from the project folder..."
 msgstr "プロジェクトフォルダの画像を使用..."
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Use another profile's account"
+msgstr "別のプロファイルのアカウントを使用"
 
 #: src/renderer/components/common/BranchSelector/parts/BranchListBox.tsx
 msgid "Use as default for new worktrees"
@@ -23300,6 +24227,10 @@ msgstr "既定のフォントを使用"
 #: src/renderer/views/MainView/parts/AppOverlays.tsx
 msgid "Use detected session?"
 msgstr "検出されたセッションを使用しますか?"
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Use Devin's main account"
+msgstr "Devinのメインアカウントを使用"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/PluginsSection.tsx
 msgid "Use global (off)"
@@ -23329,6 +24260,12 @@ msgstr "ライブプレビューを使用"
 #: src/renderer/components/providers/settings/ModelProviderEditor.tsx
 msgid "Use lowercase letters, numbers, and hyphens."
 msgstr "小文字の英字、数字、ハイフンを使用してください。"
+
+#: src/renderer/components/composer/MemoryAddMenu.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Use memory"
+msgstr "メモリを使う"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
@@ -23625,8 +24562,14 @@ msgstr "バイオレット"
 
 #. placeholder {0}: props.surfaceLabel
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/ModelVisibilityDropdown.tsx
-msgid "Visible {0} models"
-msgstr "可視の{0}モデル"
+#~ msgid "Visible {0} models"
+#~ msgstr "可視の{0}モデル"
+
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/SidebarUsageVisibilityPopover.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageDisplaySettings.tsx
+msgid "Visible in sidebar"
+msgstr "サイドバーに表示"
 
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilitySection.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -23724,6 +24667,11 @@ msgstr "ワークツリーに移動する前に、スレッドの起動が完了
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Wait for the thread to finish starting."
 msgstr "スレッドの開始が完了するまで待ちます。"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Wait this long after a turn finishes."
+msgstr "ターン終了後、この時間待つ。"
 
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
 msgid "Waiting"
@@ -23855,6 +24803,10 @@ msgstr "ウェブサイト"
 msgid "Website origin"
 msgstr "ウェブサイトのオリジン"
 
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Weekday steady: {percent}% of your recent prompts ran Mon–Fri"
+msgstr "平日中心: 最近の {percent}% のプロンプトは月〜金でした"
+
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Weekdays"
 msgstr "平日"
@@ -23867,7 +24819,12 @@ msgstr "平日の{time}"
 msgid "Weekdays at 8:00 AM"
 msgstr "平日午前8:00"
 
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Weekend builder: {percent}% of your recent prompts ran on weekends"
+msgstr "週末ビルダー: 最近の {percent}% のプロンプトは週末でした"
+
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
 msgid "Weekly"
 msgstr "毎週"
 
@@ -23919,6 +24876,11 @@ msgstr "新着情報"
 msgid "What's new in Poracode, newest first."
 msgstr "Poracodeの新着情報（新しい順）。"
 
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "When a thread is deleted"
+msgstr "スレッドを削除したとき"
+
 #: src/renderer/views/SettingsOverlay/parts/SearchSettings.tsx
 msgid "When enabled, search respects <0>.gitignore</0> entries."
 msgstr "有効にすると、検索では <0>.gitignore</0> エントリが尊重されます。"
@@ -23931,6 +24893,11 @@ msgstr "Poracode ブラウザ タブでリンクが開くとき、ブラウザ�
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
 msgid "When off, suppress notifications from terminal threads whose status comes from the OSC fallback (no CLI hook plugin)."
 msgstr "オフの場合、OSC フォールバック (CLI フック プラグインなし) からステータスが取得される端末スレッドからの通知を抑制します。"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "When to capture"
+msgstr "取り込むタイミング"
 
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -23987,7 +24954,6 @@ msgstr "この環境で実行されます:"
 
 #: src/renderer/components/mcp/McpProjectDestinationDropdown.tsx
 #: src/renderer/components/providers/devin/cloudProfileSettings.tsx
-#: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
 msgid "Windows"
@@ -24022,6 +24988,10 @@ msgstr "作業"
 #: src/renderer/components/thread/WorktreeModeSelect.tsx
 msgid "Work in the current checkout"
 msgstr "現在のチェックアウトでの作業"
+
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "Work rhythm"
+msgstr "作業リズム"
 
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "Work with the pages and signed-in sessions already open in Chrome."
@@ -24121,6 +25091,7 @@ msgstr "実行中…"
 
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/thread/ThreadDetailsDocks.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectFilter.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 msgid "Workspace"
@@ -24250,7 +25221,6 @@ msgstr "変更のテストを書いて実行し、報告されたバグを再現
 msgid "Writing guide. You can leave this review and return when it is ready."
 msgstr "ガイドを作成しています。このレビューを離れ、準備ができてから戻ることができます。"
 
-#: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
 msgid "WSL"
@@ -24263,8 +25233,8 @@ msgstr "WSL · {0}"
 
 #. placeholder {0}: status.envDistro
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
-msgid "WSL ({0})"
-msgstr "WSL ({0})"
+#~ msgid "WSL ({0})"
+#~ msgstr "WSL ({0})"
 
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 #: src/renderer/components/mcp/McpProjectDestinationDropdown.tsx
@@ -24286,22 +25256,72 @@ msgstr "ソース管理用の WSL ブリッジを利用できません。"
 #~ msgstr "WSL ユーザー"
 
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
-msgid "WSL: {distro}"
-msgstr "WSL：{distro}"
+#~ msgid "WSL: {distro}"
+#~ msgstr "WSL：{distro}"
 
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/StructuredElicitationField.tsx
 msgid "Yes"
 msgstr "はい"
 
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "Yesterday"
+msgstr "昨日"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Yesterday <0>{model}</0> handled {percent}% of your prompts"
+msgstr "昨日は <0>{model}</0> がプロンプトの {percent}% を担当しました"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Yesterday you used {compact} tokens"
+msgstr "昨日のトークン使用量は {compact} です"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Yesterday you used {compact} tokens (~{cost})"
+msgstr "昨日のトークン使用量は {compact}（約 {cost}）です"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Yesterday: {prompts, plural, one {# prompt} other {# prompts}}"
+msgstr "昨日: {prompts, plural, one {# プロンプト} other {# プロンプト}}"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Yesterday: {prompts, plural, one {# prompt} other {# prompts}} · {compactTokens} tokens"
+msgstr "昨日: {prompts, plural, one {# プロンプト} other {# プロンプト}} · {compactTokens} トークン"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Yesterday: {prompts, plural, one {# prompt} other {# prompts}} · led by {topProvider} ({topProviderPercent}%)"
+msgstr "昨日: {prompts, plural, one {# プロンプト} other {# プロンプト}} · {topProvider} ({topProviderPercent}%)"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "You coded across {count} connected environments this week"
+msgstr "今週は {count} 個の接続環境で開発しました"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "You coded across {count} connected environments yesterday"
+msgstr "昨日は {count} 個の接続環境で開発しました"
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "You have an unfinished review on the source host. Submit or discard it there before submitting this one."
 msgstr "ソースホストに未完了のレビューがあります。このレビューを送信する前に、そちらで送信または破棄してください。"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "You leaned into {modeLabel} mode this week ({percent}% vs {prevPercent}%)"
+msgstr "今週は {modeLabel} モードの比率が増加（{percent}% 対 {prevPercent}%）"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "You ran {percent}% of turns with {effort} reasoning this week"
+msgstr "今週のターンの {percent}% で推論レベル {effort} を使用しました"
+
+#. placeholder {0}: f.model
+#. placeholder {1}: f.prompts
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "You started using <0>{0}</0> this week · {1, plural, one {# prompt} other {# prompts}}"
+msgstr "今週から <0>{0}</0> を使い始めました · {1, plural, one {# プロンプト} other {# プロンプト}}"
 
 #: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
 msgid "You’re all caught up."
 msgstr "すべて確認済みです。"
 
-#: src/renderer/components/newsLine/useInsightItems.tsx
+#: src/renderer/components/newsLine/insightContent.tsx
 msgid "You're most active around {hourLabel}"
 msgstr "最もアクティブなのは {hourLabel} ごろです"
 
@@ -24337,9 +25357,13 @@ msgstr "ローカルでの変更はスタッシュに保存されており、こ
 msgid "Your local changes were stashed and will be re-applied once the merge is resolved."
 msgstr "ローカルでの変更はスタッシュに保存され、マージが解決されると再適用されます。"
 
-#: src/renderer/components/newsLine/useInsightItems.tsx
+#: src/renderer/components/newsLine/insightContent.tsx
 msgid "Your longest task ran {duration}"
 msgstr "最長のタスクは {duration} 実行されました"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Your longest task yesterday ran {duration}"
+msgstr "昨日の最長タスクは {duration} でした"
 
 #: src/renderer/views/PullRequestsOverlay/chat/usePrAskChatSession.ts
 msgid "Your message was not sent: the chat thread is no longer available."
@@ -24348,6 +25372,10 @@ msgstr "メッセージは送信されませんでした。チャットスレッ
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 msgid "Your name"
 msgstr "あなたの名前"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Your peak coding hour shifted from {fromLabel} to {toLabel} this week"
+msgstr "今週のピーク時間帯が {fromLabel} から {toLabel} に移りました"
 
 #: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
 #~ msgid "Your pick"

@@ -6,6 +6,8 @@ export interface HostUsageState {
   pending: boolean;
   failed: boolean;
   initialized: boolean;
+  /** Volatile request time shared by all views to coalesce background reads. */
+  lastRequestedAt: number;
   /** Publication token of the last successful cache read; never persisted. */
   lastReadRequest: number;
   refreshing: boolean;
@@ -21,6 +23,7 @@ const EMPTY_HOST_USAGE: HostUsageEntry = {
   failed: false,
   request: 0,
   initialized: false,
+  lastRequestedAt: 0,
   lastReadRequest: 0,
   refreshing: false,
   updateRequired: false,
@@ -55,6 +58,7 @@ export const useHostUsageStore = create<{
           ...entryFor(state.hosts, connectionId),
           pending: true,
           refreshing: refresh,
+          lastRequestedAt: Date.now(),
           request,
         },
       },
@@ -81,6 +85,7 @@ export const useHostUsageStore = create<{
             pending: false,
             refreshing: false,
             initialized: true,
+            lastRequestedAt: existing.lastRequestedAt,
             lastReadRequest: existing.refreshing ? existing.lastReadRequest : request,
             failed: false,
             updateRequired: existing.refreshing ? false : existing.updateRequired,

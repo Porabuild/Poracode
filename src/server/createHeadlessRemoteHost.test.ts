@@ -917,6 +917,99 @@ describe("createHeadlessRemoteHost", () => {
     await host.dispose();
   });
 
+  it("serves App Controls catalog and lifecycle mutations without a renderer", async () => {
+    const startIngress = BackendDurableServices.prototype.startIngress;
+    let ingressEnv: Record<string, string> | undefined;
+    const start = vi
+      .spyOn(BackendDurableServices.prototype, "startIngress")
+      .mockImplementation(async function (this: BackendDurableServices) {
+        await startIngress.call(this);
+        ingressEnv = this.getSupervisorExtraEnv();
+      });
+    let host: Awaited<ReturnType<typeof makeHost>> | undefined;
+    try {
+      host = await makeHost();
+      const move = vi.spyOn(host.server, "moveAppThreadToWorktree").mockResolvedValue({
+        threadId: "target",
+        branch: "poracode/moved",
+        worktreePath: "/fixture/moved",
+        outcome: "moved",
+        runtime: "not_reopened",
+      });
+      const handoff = vi.spyOn(host.server, "handoffAppThread").mockResolvedValue({
+        threadId: "target",
+        sourceThreadId: "target",
+        mode: "in_place",
+        context: "thread-transcript",
+        sourceDisposition: "continued",
+      });
+      const reorder = vi.spyOn(host.server, "editAppCatalog").mockResolvedValue({ changed: true });
+      await host.start();
+      const invoke = (name: string, args: Record<string, unknown>) =>
+        fetch(`${ingressEnv?.PORACODE_APP_CONTROLS_MCP_URL}/mcp?thread=caller`, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${ingressEnv?.PORACODE_APP_CONTROLS_MCP_TOKEN}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            jsonrpc: "2.0",
+            id: 1,
+            method: "tools/call",
+            params: { name, arguments: args },
+          }),
+        });
+      const response = await invoke("move_thread_to_worktree", {
+        threadId: "target",
+        operationKey: "move-1234",
+      });
+      expect(response.ok).toBe(true);
+      await expect(response.json()).resolves.toMatchObject({
+        result: { content: [{ text: expect.stringContaining("/fixture/moved") }] },
+      });
+      expect(move).toHaveBeenCalledExactlyOnceWith({
+        threadId: "target",
+        operationKey: "move-1234",
+        withChanges: false,
+      });
+      const args = {
+        sourceThreadId: "target",
+        agentKind: "fixture-target",
+        config: { model: "target-model" },
+        presentationMode: "gui",
+        intent: "switch",
+        operationKey: "handoff-1234",
+      };
+      const continued = await invoke("handoff_thread", args);
+      expect(continued.ok).toBe(true);
+      await expect(continued.json()).resolves.toMatchObject({
+        result: { content: [{ text: expect.stringContaining("in_place") }] },
+      });
+      expect(handoff).toHaveBeenCalledExactlyOnceWith(
+        { ...args, withoutContext: false },
+        expect.any(String),
+      );
+      const order = {
+        projectId: "source",
+        threadId: "target",
+        targetThreadId: "reference",
+        placement: "before",
+      };
+      const reordered = await invoke("reorder_thread", { ...order, operationKey: "reorder-1234" });
+      expect(reordered.ok).toBe(true);
+      await expect(reordered.json()).resolves.toMatchObject({
+        result: { content: [{ text: expect.stringMatching(/"changed":\s*true/) }] },
+      });
+      expect(reorder).toHaveBeenCalledExactlyOnceWith(
+        { kind: "reorder", threadIds: ["target"], ...order },
+        "reorder-1234",
+      );
+    } finally {
+      start.mockRestore();
+      await host?.dispose();
+    }
+  });
+
   it("routes supervisor events to the server event stream", async () => {
     const host = await makeHost();
     await host.start();

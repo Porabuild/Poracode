@@ -1,3 +1,4 @@
+import { ContentSurface } from "@/renderer/components/common/ContentSurface";
 import { useEffect, useState } from "react";
 import { Button, Checkbox, Modal, toast } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
@@ -133,9 +134,9 @@ function OpenBrowserImportModal() {
                 <Trans>Looking for browser profiles…</Trans>
               </div>
             ) : sources.length === 0 ? (
-              <div className="rounded-lg border border-border bg-surface-secondary p-4 text-sm text-muted">
+              <ContentSurface className="p-4 text-sm text-muted">
                 <Trans>No supported browser profiles were found on this device.</Trans>
-              </div>
+              </ContentSurface>
             ) : (
               <>
                 <Select
@@ -146,7 +147,7 @@ function OpenBrowserImportModal() {
                   onChange={selectSource}
                 />
 
-                <div className="overflow-hidden rounded-xl border border-border bg-surface">
+                <ContentSurface className="overflow-hidden">
                   <div className="flex items-center gap-3 px-3 py-2.5">
                     <KeyRound className="size-4 shrink-0 text-muted" />
                     <span className="flex-1 text-sm font-medium">
@@ -171,7 +172,7 @@ function OpenBrowserImportModal() {
                       onChange={setCookies}
                     />
                   </div>
-                </div>
+                </ContentSurface>
 
                 {needsProtectedDataAcknowledgement ? (
                   <div className="rounded-xl border border-warning/35 bg-warning/10 p-3">

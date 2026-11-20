@@ -32,7 +32,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
  *
  * **Security:** every externally delivered Intent URL is treated as external
  * (`external=true` unconditionally). Explicit MAIN/data intents cannot bypass
- * confirmation. Only direct in-app manual form calls pair() without confirmation.
+ * confirmation. Only direct in-app manual form calls, and loopback links that
+ * cannot leave the device, pair without confirmation.
  */
 class MainActivity : ComponentActivity() {
     private val localNetworkPermissionUi = MutableStateFlow(LocalNetworkPermissionUi())
@@ -122,7 +123,8 @@ class MainActivity : ComponentActivity() {
         // Burn the intent data immediately (one-shot) so rotation cannot re-redeem.
         intent.data = null
         setIntent(intent)
-        // Unconditionally external — MAIN/data intents cannot bypass confirmation.
+        // Unconditionally external — MAIN/data intents cannot bypass the
+        // session's pairing-confirmation policy.
         (application as PoracodeApplication).session.handleIncomingPairingUrl(
             raw = data,
             external = true,

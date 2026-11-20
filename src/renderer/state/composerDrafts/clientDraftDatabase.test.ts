@@ -90,6 +90,19 @@ describe("client-owned draft bytes and submissions", () => {
     expect((await listClientSubmissions())[0]?.state).toBe("accepted");
   });
 
+  it("does not discard a receipt whose state changed after a failed-submission read", async () => {
+    const asset = stageClientDraftAsset(new Blob(["asset"]), "a.bin");
+    const record = submission(asset.path);
+    await preserveClientSubmission(record);
+    await claimClientSubmission(record.id);
+    await updateClientSubmission(record.id, "uncertain");
+
+    expect(await discardClientSubmission(record.id, true, undefined, "dispatching")).toBe(false);
+    expect(await listClientSubmissions()).toEqual([
+      expect.objectContaining({ state: "uncertain" }),
+    ]);
+  });
+
   it("resolves without discarding a submission another window already retired", async () => {
     const asset = stageClientDraftAsset(new Blob(["asset"]), "a.bin");
     const record = submission(asset.path);

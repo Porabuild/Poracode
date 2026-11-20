@@ -8,6 +8,7 @@ import { useVisibleThreadBackgroundTasks } from "./useThreadDocksSummary";
 import { ThreadDocksPlacementToggle } from "./ThreadDocksPlacementToggle";
 import {
   ThreadDockCollapseButton,
+  ThreadDockCountBadge,
   ThreadDockHeader,
   ThreadDockIconButton,
   ThreadDockList,
@@ -41,6 +42,26 @@ export function ThreadBackgroundTasksDock({
   if (tasks.length === 0) return null;
 
   const shown = collapsed ? tasks.slice(-1) : tasks;
+  const closeButton = (
+    <ThreadDockIconButton
+      label={t`Close background tasks`}
+      tooltip={t`Hide tasks; they keep running`}
+      onPress={() => {
+        dismiss(threadId, tasks);
+        onDismiss?.();
+      }}
+    >
+      <X className="size-3.5" />
+    </ThreadDockIconButton>
+  );
+  const collapseButton =
+    tasks.length > 1 ? (
+      <ThreadDockCollapseButton
+        collapsed={collapsed}
+        label={collapsed ? t`Expand background tasks` : t`Collapse background tasks`}
+        onPress={() => setCollapsed(!collapsed)}
+      />
+    ) : null;
 
   return (
     <ThreadDockSection
@@ -55,30 +76,24 @@ export function ThreadBackgroundTasksDock({
         {...(placement === "right" && tasks.length > 1
           ? { collapse: { collapsed, onToggle: () => setCollapsed(!collapsed) } }
           : {})}
-        countLabel={<span>{tasks.length}</span>}
+        {...(placement === "composer" ? { countLabel: <span>{tasks.length}</span> } : {})}
         actions={
-          <>
-            {showPlacementToggle ? <ThreadDocksPlacementToggle placement="composer" /> : null}
-            {tasks.length > 1 ? (
-              <ThreadDockCollapseButton
-                collapsed={collapsed}
-                label={collapsed ? t`Expand background tasks` : t`Collapse background tasks`}
-                onPress={() => setCollapsed(!collapsed)}
-              />
-            ) : null}
-            <ThreadDockIconButton
-              label={t`Close background tasks`}
-              tooltip={t`Hide tasks; they keep running`}
-              onPress={() => {
-                dismiss(threadId, tasks);
-                onDismiss?.();
-              }}
-            >
-              <X className="size-3.5" />
-            </ThreadDockIconButton>
-          </>
+          placement === "right" ? (
+            <>
+              {closeButton}
+              {collapseButton}
+            </>
+          ) : (
+            <>
+              {showPlacementToggle ? <ThreadDocksPlacementToggle placement="composer" /> : null}
+              {collapseButton}
+              {closeButton}
+            </>
+          )
         }
-      />
+      >
+        {placement === "right" ? <ThreadDockCountBadge>{tasks.length}</ThreadDockCountBadge> : null}
+      </ThreadDockHeader>
       <ThreadDockList placement={placement} collapsed={collapsed} gap="px">
         {shown.map((task) => {
           const actionKey = task.stopAction

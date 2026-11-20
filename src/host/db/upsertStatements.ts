@@ -75,6 +75,8 @@ export interface ThreadUpsertOptions {
    * snapshot cannot clobber a status source the supervisor just recorded.
    */
   readonly writeThreadStatusSource: boolean;
+  /** Only the host runtime writes failure details; stale replicas cannot erase them. */
+  readonly writeErrorMessage: boolean;
 }
 
 /** Grant columns are intentionally absent on INSERT and UPDATE: replicas never authorize scope. */
@@ -85,16 +87,19 @@ export function prepareThreadUpsertStatement(
   const statusSourceUpdate = options.writeThreadStatusSource
     ? "thread_status_source = excluded.thread_status_source,"
     : "";
+  const errorMessageUpdate = options.writeErrorMessage
+    ? "error_message = excluded.error_message,"
+    : "";
   return sqlite.prepare(`
     INSERT INTO threads (
       id, project_id, workspace_id, title, agent_kind, agent_instance_id, config, status,
-      attention, thread_status_source, can_resume_with_config, session_ref, terminal_prompt, worktree_path,
+      attention, error_message, thread_status_source, can_resume_with_config, session_ref, terminal_prompt, worktree_path,
       worktree_branch, pr_number, group_id, group_name, parent_thread_id, forked_from, archived, archived_at, done, done_at,
       starred, presentation_mode, sort_order, created_at, updated_at,
       active_turn_started_at, last_turn_started_at, last_turn_ended_at
     ) VALUES (
       @id, @projectId, @workspaceId, @title, @agentKind, @agentInstanceId, @config, @status,
-      @attention, @threadStatusSource, @canResumeWithConfig, @sessionRef, NULL, @worktreePath,
+      @attention, @errorMessage, @threadStatusSource, @canResumeWithConfig, @sessionRef, NULL, @worktreePath,
       @worktreeBranch, @prNumber, @groupId, @groupName, @parentThreadId, @forkedFrom, @archived, @archivedAt, @done, @doneAt,
       @starred, @presentationMode, @sortOrder, @createdAt, @updatedAt,
       @activeTurnStartedAt, @lastTurnStartedAt, @lastTurnEndedAt
@@ -110,6 +115,7 @@ export function prepareThreadUpsertStatement(
       config = excluded.config,
       status = excluded.status,
       attention = excluded.attention,
+      ${errorMessageUpdate}
       ${statusSourceUpdate}
       can_resume_with_config = excluded.can_resume_with_config,
       session_ref = excluded.session_ref,
@@ -155,6 +161,10 @@ export function runThreadUpsert(
         config: JSON.stringify(thread.config),
         status: thread.status,
         attention: thread.attention,
+        errorMessage:
+          options.writeErrorMessage && thread.status === "error"
+            ? (thread.errorMessage ?? null)
+            : null,
         threadStatusSource: options.writeThreadStatusSource
           ? (thread.threadStatusSource ?? null)
           : null,

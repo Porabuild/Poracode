@@ -6,6 +6,7 @@ import { pathToFileURL } from "node:url";
 import { ChildProcessLifetime } from "@/shared/childProcessLifetime";
 import { DEVICE_HUB_BOOTSTRAP } from "@/shared/deviceHubArtifact";
 import type { DeviceTarget } from "@/shared/deviceWorkspace";
+import { readBoundedResponseBody } from "@/shared/http";
 import { readDeviceHubArtifact, type DeviceHubArtifact } from "./deviceHubArtifact";
 import { DeviceWorkspaceError } from "./deviceProcess";
 import type { DeviceStreamTarget } from "./NativeDeviceDriver";
@@ -78,6 +79,7 @@ export class DeviceHubRuntime {
   private prepared: Promise<void> | null = null;
   private readonly generations = new Map<string, HubGeneration>();
   private readonly retirements = new Map<string, HubGeneration>();
+  private readonly startedIosHelpers = new Map<string, Promise<void>>();
   private readonly lifetime = new AbortController();
 
   constructor(private readonly resourcesRoot: string) {}
@@ -93,6 +95,74 @@ export class DeviceHubRuntime {
 
   platforms(): DeviceTarget["platform"][] {
     return this.artifact?.manifest.qualifiedPlatforms.slice() ?? [];
+  }
+
+  hasActiveGeneration(
+    platform: DeviceTarget["platform"],
+    target: Pick<DeviceStreamTarget, "clientDeviceId" | "bootId">,
+  ): boolean {
+    const key = JSON.stringify([platform, target.clientDeviceId, target.bootId ?? null]);
+    return this.generations.has(key);
+  }
+
+  // Shared serve-sim helper start for one booted UDID. Live preview and the
+  // fold channel hold independent acquire() references to the same pooled
+  // hub generation, so starting the helper is deduplicated per generation
+  // and neither consumer can stop the other's helper: the hub process only
+  // retires when its last holder releases.
+  ensureIosHelper(
+    hub: Pick<DeviceHubHandle, "origin" | "token" | "signal">,
+    udid: string,
+    signal: AbortSignal,
+  ): Promise<void> {
+    const key = `${hub.origin}\0${udid}`;
+    let started = this.startedIosHelpers.get(key);
+    if (!started) {
+      started = (async () => {
+        const response = await fetch(`${hub.origin}/vendor/serve-sim/grid/api/start`, {
+          method: "POST",
+          headers: { authorization: `Bearer ${hub.token}`, "content-type": "application/json" },
+          body: JSON.stringify({ udid }),
+          signal: AbortSignal.any([hub.signal, this.lifetime.signal, AbortSignal.timeout(30_000)]),
+          redirect: "error",
+        });
+        await readBoundedResponseBody(response, 128 * 1024);
+        if (!response.ok)
+          throw new DeviceWorkspaceError(
+            "device_preview_unavailable",
+            "The simulator preview helper could not start.",
+            503,
+          );
+      })();
+      this.startedIosHelpers.set(key, started);
+      const forget = () => {
+        if (this.startedIosHelpers.get(key) === started) this.startedIosHelpers.delete(key);
+      };
+      // Forget only on failure: re-POSTing start for a running helper
+      // restarts it, which makes its config endpoint flap for every
+      // consumer that acquires afterwards (observed live: pose reads
+      // failing in a loop). A dead helper surfaces as a typed error from
+      // the consumer instead of a silent restart here.
+      void started.catch(forget);
+      hub.signal.addEventListener("abort", forget, { once: true });
+    }
+    signal.throwIfAborted();
+    // The shared start itself is not cancelled for one caller; only this
+    // caller's wait is.
+    return new Promise<void>((resolve, reject) => {
+      const aborted = () => reject(signal.reason);
+      signal.addEventListener("abort", aborted, { once: true });
+      started.then(
+        () => {
+          signal.removeEventListener("abort", aborted);
+          resolve();
+        },
+        (error: unknown) => {
+          signal.removeEventListener("abort", aborted);
+          reject(error instanceof Error ? error : new Error(String(error)));
+        },
+      );
+    });
   }
 
   async acquire(

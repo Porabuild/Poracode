@@ -116,6 +116,18 @@ async function pressSwitch() {
   fireEvent.click(await screen.findByRole("button", { name: "Switch" }));
 }
 
+/** The app-wide usage entry that makes `popular-model` the most-used codex selection. */
+function popularModelUsage(count: number) {
+  return {
+    agentKind: "codex",
+    modelId: "popular-model",
+    effort: "high",
+    fast: false,
+    count,
+    lastUsedAt: 10,
+  };
+}
+
 describe("ContinueInProviderDialog handoff flow", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -638,6 +650,10 @@ describe("ContinueInProviderDialog target config", () => {
       hiddenModels: {},
       providerConfigs: {},
       providerModelPreferences: {},
+      agentSelectionUsage: [],
+      crossagentSelectionUsage: [],
+      favoriteModels: [],
+      crews: [],
     } as never);
     useAppStore.setState({
       runtimeItemIdsByThread: {},
@@ -700,6 +716,199 @@ describe("ContinueInProviderDialog target config", () => {
     expect(onContinue).toHaveBeenCalledWith(
       "codex",
       expect.objectContaining({ approvalPolicy: "never" }),
+      "gui",
+      expect.anything(),
+      undefined,
+      "switch",
+      expect.anything(),
+    );
+  });
+
+  it("opens on the target provider's last-selected model, not the first catalog entry", async () => {
+    const target = agent("codex", "Codex", "gui", {
+      models: [
+        { id: "first-model", label: "First" },
+        { id: "last-model", label: "Last Selected" },
+      ],
+    });
+    useSharedSettings.setState({
+      providerConfigs: { codex: { model: "last-model" } },
+    } as never);
+
+    const onContinue = renderDialog({
+      installedAgents: [agent("claude", "Claude", "gui"), target],
+    });
+
+    expect((await screen.findAllByText("Last Selected")).length).toBeGreaterThan(0);
+    await pressSwitch();
+    expect(onContinue).toHaveBeenCalledWith(
+      "codex",
+      expect.objectContaining({ model: "last-model" }),
+      "gui",
+      expect.anything(),
+      undefined,
+      "switch",
+      expect.anything(),
+    );
+  });
+
+  it("opens on the last-selected model when the catalog head is hidden", async () => {
+    // Regression: the unfiltered ranking defaulted to the hidden head model,
+    // which the visible surface then collapsed to its first visible entry —
+    // so the dialog always opened on that entry (e.g. Cursor's Grok 4.7
+    // behind a hidden Auto) instead of the saved model.
+    const target = agent("codex", "Codex", "gui", {
+      models: [
+        { id: "auto-model", label: "Auto" },
+        { id: "first-visible", label: "First Visible" },
+        { id: "last-model", label: "Last Selected" },
+      ],
+    });
+    useSharedSettings.setState({
+      hiddenModels: { codex: ["auto-model"] },
+      providerConfigs: { codex: { model: "last-model" } },
+    } as never);
+
+    const onContinue = renderDialog({
+      installedAgents: [agent("claude", "Claude", "gui"), target],
+    });
+
+    await pressSwitch();
+    expect(onContinue).toHaveBeenCalledWith(
+      "codex",
+      expect.objectContaining({ model: "last-model" }),
+      "gui",
+      expect.anything(),
+      undefined,
+      "switch",
+      expect.anything(),
+    );
+  });
+
+  it("opens on the target provider's most-used model when nothing is saved", async () => {
+    const target = agent("codex", "Codex", "gui", {
+      models: [
+        { id: "first-model", label: "First" },
+        { id: "popular-model", label: "Popular" },
+      ],
+      efforts: ["low", "high"],
+    });
+    useSharedSettings.setState({
+      agentSelectionUsage: [popularModelUsage(7)],
+    } as never);
+
+    const onContinue = renderDialog({
+      installedAgents: [agent("claude", "Claude", "gui"), target],
+    });
+
+    await pressSwitch();
+    expect(onContinue).toHaveBeenCalledWith(
+      "codex",
+      expect.objectContaining({ model: "popular-model", effort: "high" }),
+      "gui",
+      expect.anything(),
+      undefined,
+      "switch",
+      expect.anything(),
+    );
+  });
+
+  it("keeps the last-selected tuple when usage favors another model", async () => {
+    const target = agent("codex", "Codex", "gui", {
+      models: [
+        { id: "popular-model", label: "Popular" },
+        { id: "last-model", label: "Last Selected" },
+      ],
+      efforts: ["low", "high"],
+    });
+    useSharedSettings.setState({
+      providerConfigs: { codex: { model: "last-model", effort: "low" } },
+      agentSelectionUsage: [popularModelUsage(9)],
+    } as never);
+
+    const onContinue = renderDialog({
+      installedAgents: [agent("claude", "Claude", "gui"), target],
+    });
+
+    await pressSwitch();
+    // The ranked tuple must not stomp the saved model or leak its effort.
+    expect(onContinue).toHaveBeenCalledWith(
+      "codex",
+      expect.objectContaining({ model: "last-model", effort: "low" }),
+      "gui",
+      expect.anything(),
+      undefined,
+      "switch",
+      expect.anything(),
+    );
+  });
+
+  it("falls back to the most-used model when the saved model was hidden", async () => {
+    const target = agent("codex", "Codex", "gui", {
+      models: [
+        { id: "first-visible", label: "First Visible" },
+        { id: "popular-model", label: "Popular" },
+        { id: "last-model", label: "Last Selected" },
+      ],
+      efforts: ["low", "high"],
+    });
+    useSharedSettings.setState({
+      hiddenModels: { codex: ["last-model"] },
+      providerConfigs: { codex: { model: "last-model", effort: "low" } },
+      agentSelectionUsage: [popularModelUsage(9)],
+    } as never);
+
+    const onContinue = renderDialog({
+      installedAgents: [agent("claude", "Claude", "gui"), target],
+    });
+
+    await pressSwitch();
+    // An unusable saved tuple must not collapse to the first visible model
+    // or leak its effort onto the ranked one.
+    expect(onContinue).toHaveBeenCalledWith(
+      "codex",
+      expect.objectContaining({ model: "popular-model", effort: "high" }),
+      "gui",
+      expect.anything(),
+      undefined,
+      "switch",
+      expect.anything(),
+    );
+  });
+
+  it("opens on a model learned from crossagent usage when nothing is saved", async () => {
+    const target = agent("codex", "Codex", "gui", {
+      models: [
+        { id: "first-model", label: "First" },
+        { id: "learned-model", label: "Learned" },
+      ],
+      efforts: ["low", "high"],
+      fastModels: ["learned-model"],
+    });
+    useSharedSettings.setState({
+      crossagentSelectionUsage: [
+        {
+          agentKind: "codex",
+          modelId: "learned-model",
+          effort: "high",
+          fast: true,
+          count: 3,
+          lastUsedAt: 10,
+          explicitFields: { provider: false, model: true, effort: true, fast: true },
+        },
+      ],
+    } as never);
+
+    const onContinue = renderDialog({
+      installedAgents: [agent("claude", "Claude", "gui"), target],
+    });
+
+    await pressSwitch();
+    // The ranking's provider bucket stays "built-in" for model-explicit
+    // entries, but its preferred selection is still the learned tuple.
+    expect(onContinue).toHaveBeenCalledWith(
+      "codex",
+      expect.objectContaining({ model: "learned-model", effort: "high", fast: true }),
       "gui",
       expect.anything(),
       undefined,

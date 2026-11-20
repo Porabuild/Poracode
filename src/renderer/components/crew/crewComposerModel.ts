@@ -42,6 +42,12 @@ export interface CrewRosterModel {
   onSaveToCrew: (savedCrew: SavedCrew, binding: ThreadCrewBinding) => void;
   onSaveAsNewCrew: (savedCrew: SavedCrew, binding: ThreadCrewBinding) => void;
   onHandOff?: () => void;
+  /**
+   * Replaces the roster gear's direct Settings navigation. Surfaces that sit
+   * behind a modal supply this to dismiss themselves first; absence opens
+   * the Crews settings section immediately.
+   */
+  onEditInSettings?: () => void;
 }
 
 export function leadSelectionOf(

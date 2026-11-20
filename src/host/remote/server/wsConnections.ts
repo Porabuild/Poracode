@@ -349,7 +349,9 @@ export async function handleUpgrade(
           ? "Unauthorized"
           : error.status === 429
             ? "Too Many Requests"
-            : "Forbidden",
+            : error.status === 503
+              ? "Service Unavailable"
+              : "Forbidden",
         error.retryAfterMs,
       );
       return;

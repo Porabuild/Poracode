@@ -10,7 +10,10 @@ export const DEFAULT_WAIT_SECONDS = 60;
 /** Keep a settled sign-in result long enough for a late `wait` poll to read it. */
 const SETTLED_FLOW_RETENTION_MS = 10 * 60 * 1000;
 
-const flows = new Map<string, Promise<McpOauthWaitResult>>();
+const ownerFlows = new WeakMap<
+  AppControlsToolContext["supervisor"],
+  Map<string, Promise<McpOauthWaitResult>>
+>();
 const INACTIVE_FLOW: McpOauthWaitResult = {
   status: "error",
   message: "The sign-in flow is no longer active.",
@@ -24,8 +27,16 @@ export function ensureFlowWait(
   ctx: AppControlsToolContext,
   flowId: string,
   owner: McpOauthOwner,
+  pluginName?: string,
 ): void {
-  if (flows.has(flowId)) return;
+  let flows = ownerFlows.get(ctx.supervisor);
+  if (!flows) {
+    flows = new Map();
+    ownerFlows.set(ctx.supervisor, flows);
+  }
+  const key = flowKey(ctx, flowId, pluginName);
+  if (flows.has(key)) return;
+  const active = flows;
   const pending = ctx.supervisor
     .waitMcpServerOauth({ flowId, ...owner })
     .catch((error: unknown): McpOauthWaitResult => ({
@@ -33,10 +44,10 @@ export function ensureFlowWait(
       message: error instanceof Error && error.message ? error.message : "Sign-in failed.",
     }))
     .then((result) => {
-      setTimeout(() => flows.delete(flowId), SETTLED_FLOW_RETENTION_MS).unref?.();
+      setTimeout(() => active.delete(key), SETTLED_FLOW_RETENTION_MS).unref?.();
       return result;
     });
-  flows.set(flowId, pending);
+  active.set(key, pending);
 }
 
 export async function waitForFlow(
@@ -44,9 +55,11 @@ export async function waitForFlow(
   flowId: string,
   owner: McpOauthOwner,
   waitSeconds: number,
+  pluginName?: string,
 ): Promise<Record<string, unknown>> {
-  ensureFlowWait(ctx, flowId, owner);
-  const pending = flows.get(flowId) ?? Promise.resolve(INACTIVE_FLOW);
+  if (pluginName === undefined) ensureFlowWait(ctx, flowId, owner);
+  const pending = ownerFlows.get(ctx.supervisor)?.get(flowKey(ctx, flowId, pluginName));
+  if (!pending) return INACTIVE_FLOW;
   let timer: NodeJS.Timeout | undefined;
   const timeout = new Promise<null>((resolve) => {
     timer = setTimeout(() => resolve(null), waitSeconds * 1000);
@@ -57,6 +70,12 @@ export async function waitForFlow(
   } finally {
     clearTimeout(timer);
   }
+}
+
+function flowKey(ctx: AppControlsToolContext, flowId: string, pluginName?: string) {
+  return pluginName === undefined
+    ? flowId
+    : JSON.stringify([ctx.identity.threadId, pluginName, flowId]);
 }
 
 export async function authenticatedUrls(ctx: AppControlsToolContext, scope: McpScope) {

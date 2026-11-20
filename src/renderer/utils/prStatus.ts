@@ -82,6 +82,77 @@ export function countPassedPrChecks(checks: readonly PrCheck[]): number {
   return checks.filter((check) => getPrCheckPresentation(check).tone === "success").length;
 }
 
+export interface PrChecksSummary {
+  total: number;
+  /** Checks excluding skipped ones, so skipped checks are never counted as incomplete. */
+  relevantTotal: number;
+  passed: number;
+  failed: number;
+  active: number;
+  skipped: number;
+  completed: number;
+  /** Completion ratio in `[0, 1]`, or `null` when no checks were reported. */
+  progress: number | null;
+  tone: PrCheckTone;
+}
+
+export function summarizePrChecks(checks: readonly PrCheck[]): PrChecksSummary {
+  let passed = 0;
+  let failed = 0;
+  let active = 0;
+  let skipped = 0;
+  let completed = 0;
+
+  for (const check of checks) {
+    const presentation = getPrCheckPresentation(check);
+    if (presentation.status === "skipped") {
+      skipped += 1;
+      continue;
+    }
+    if (presentation.status === "running" || presentation.status === "pending") {
+      active += 1;
+      continue;
+    }
+    completed += 1;
+    if (presentation.tone === "success") {
+      passed += 1;
+    } else if (presentation.tone === "danger") {
+      failed += 1;
+    }
+  }
+
+  const total = checks.length;
+  const relevantTotal = total - skipped;
+  const progress = total === 0 ? null : relevantTotal === 0 ? 1 : completed / relevantTotal;
+  const tone: PrCheckTone =
+    failed > 0 ? "danger" : active > 0 ? "warning" : total > 0 ? "success" : "neutral";
+
+  return {
+    total,
+    relevantTotal,
+    passed,
+    failed,
+    active,
+    skipped,
+    completed,
+    progress,
+    tone,
+  };
+}
+
+function checkDisplaySortRank(check: PrCheck): number {
+  const presentation = getPrCheckPresentation(check);
+  if (presentation.tone === "danger") return 0;
+  if (presentation.status === "running") return 1;
+  if (presentation.status === "pending") return 2;
+  if (presentation.status === "skipped") return 4;
+  return 3;
+}
+
+export function sortPrChecksForDisplay(checks: readonly PrCheck[]): PrCheck[] {
+  return [...checks].sort((a, b) => checkDisplaySortRank(a) - checkDisplaySortRank(b));
+}
+
 export function isPrCheckActive(check: PrCheck): boolean {
   const status = getPrCheckPresentation(check).status;
   return status === "running" || status === "pending";

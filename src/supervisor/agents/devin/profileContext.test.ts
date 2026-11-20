@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, stat } from "node:fs/promises";
+import { mkdtemp, readFile, rm, stat } from "node:fs/promises";
 import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 import { expect, it, vi } from "vitest";
@@ -92,6 +92,39 @@ it("keeps the default account unredirected with native roots", async () => {
   expect(resolution.context.roots.manifestPath).toBe("");
   expect(resolution.context.requiresConfigSeed).toBe(false);
   expect(resolution.context.account).toEqual({ kind: "default" });
+});
+
+it("redirects Windows owners and references through the same private Windows profile", async () => {
+  const base = await tempRoot();
+  vi.stubEnv("APPDATA", base);
+  try {
+    for (const kind of ["isolated", "reference"] as const) {
+      const resolution = await resolveDevinExecutionContext(
+        settings({ auth: { kind, ownerId: "backup" } }),
+        { kind: "windows", path: "C:\\project" },
+      );
+      expect(resolution.ok).toBe(true);
+      if (!resolution.ok) return;
+      const root = join(base, "Poracode", "devin-accounts", devinAccountRootSegment("backup"));
+      expect(resolution.context.env).toMatchObject({
+        APPDATA: root,
+        USERPROFILE: join(root, ".poracode-devin-home"),
+        WINDSURF_API_KEY: "",
+      });
+      expect(resolution.context.roots.credentialsPath).toBe(
+        join(root, "devin", "credentials.toml"),
+      );
+      await expect(stat(root)).rejects.toMatchObject({ code: "ENOENT" });
+    }
+    const native = await resolveDevinExecutionContext(settings(), {
+      kind: "windows",
+      path: "C:\\project",
+    });
+    expect(native.ok && native.context.env).toBeUndefined();
+  } finally {
+    vi.unstubAllEnvs();
+    await rm(base, { recursive: true, force: true });
+  }
 });
 
 it("redirects isolated accounts to stable Poracode-managed roots and provisions a manifest", async () => {

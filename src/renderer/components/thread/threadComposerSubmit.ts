@@ -32,6 +32,10 @@ import {
   setThreadPendingSteer,
   submitThreadInput,
 } from "@/renderer/actions/threadRuntimeActions";
+import {
+  beginOptimisticThreadInput,
+  type PreparedOptimisticThreadInput,
+} from "@/renderer/actions/optimisticThreadInput";
 import { captureThreadPromptSubmitted } from "@/renderer/analytics/posthog";
 import { useAppStore } from "@/renderer/state/appStore";
 import { buildLcSelectorFence, buildSelectorPlainText } from "@/renderer/state/browserAttachInbox";
@@ -153,6 +157,22 @@ export function submitComposerPrompt(
         : segment,
     );
     ctx.setIsSubmitting(true);
+    let releasedSubmittingEarly = false;
+    let clearedParentEarly = false;
+    const clearParentComposer = () => {
+      if (
+        !ctx.isCurrentSession() ||
+        JSON.stringify(ctx.latestSegmentsRef.current) !== draftAtSubmit ||
+        JSON.stringify(attachments.getDraftAttachments()) !== attachmentsAtSubmit
+      )
+        return false;
+      mentionRef.current?.clear();
+      attachments.clearAll();
+      ctx.setPrompt("");
+      ctx.setHasContent(false);
+      ctx.latestSegmentsRef.current = [];
+      return true;
+    };
     const run = async () => {
       if (!sideAction.prompt) return openSideChat(thread.id);
       const submission = await preserveDraftSubmission({
@@ -165,6 +185,7 @@ export function submitComposerPrompt(
         configuration: { config: thread.config },
       });
       let opened = false;
+      let sideSurfaceOpened = false;
       try {
         const outgoing = await materializeDraftSegments(
           thread,
@@ -176,7 +197,18 @@ export function submitComposerPrompt(
           const didOpen = await openSideChat(thread.id, sideAction.prompt, outgoing, {
             clientSubmissionId: submission.id,
           });
-          if (didOpen) await waitForClientSubmission(submission.id);
+          if (didOpen) {
+            sideSurfaceOpened = true;
+            clearedParentEarly = clearParentComposer();
+            if (clearedParentEarly) {
+              useAppStore.getState().clearThreadDraftContent(thread.id);
+            }
+            if (ctx.isCurrentSession()) {
+              releasedSubmittingEarly = true;
+              ctx.setIsSubmitting(false);
+            }
+            await waitForClientSubmission(submission.id);
+          }
           return didOpen;
         });
         if (!opened) {
@@ -192,29 +224,22 @@ export function submitComposerPrompt(
           return false;
         }
         await acceptDraftSubmission(submission, () => {
-          if (
-            !ctx.isCurrentSession() ||
-            JSON.stringify(ctx.latestSegmentsRef.current) !== draftAtSubmit ||
-            JSON.stringify(attachments.getDraftAttachments()) !== attachmentsAtSubmit
-          )
-            return;
-          mentionRef.current?.clear();
-          attachments.clearAll();
-          ctx.setPrompt("");
-          ctx.setHasContent(false);
-          ctx.latestSegmentsRef.current = [];
-          useAppStore.getState().clearThreadDraftContent(thread.id);
+          if (clearParentComposer()) {
+            useAppStore.getState().clearThreadDraftContent(thread.id);
+          }
         });
         return true;
       } catch (error) {
-        if (!opened && !isRemoteCommandOutcomeUncertainError(error)) {
+        if (!isRemoteCommandOutcomeUncertainError(error)) {
           if (
-            ctx.isCurrentSession() &&
-            JSON.stringify(ctx.latestSegmentsRef.current) === draftAtSubmit &&
-            JSON.stringify(attachments.getDraftAttachments()) === attachmentsAtSubmit
+            (sideSurfaceOpened && clearedParentEarly) ||
+            (!opened &&
+              ctx.isCurrentSession() &&
+              JSON.stringify(ctx.latestSegmentsRef.current) === draftAtSubmit &&
+              JSON.stringify(attachments.getDraftAttachments()) === attachmentsAtSubmit)
           ) {
             await retireFailedDraftSubmission(submission.id);
-          } else {
+          } else if (!opened) {
             const { readClientSubmission } =
               await import("@/renderer/state/composerDrafts/clientDraftDatabase");
             if (
@@ -223,6 +248,11 @@ export function submitComposerPrompt(
             )
               await updateClientSubmission(submission.id, "failed").catch(() => undefined);
           }
+        }
+        // When the side surface already opened, SideChatThreadView owns the
+        // failed child row and its error item — do not also toast in the parent.
+        if (sideSurfaceOpened && !isRemoteCommandOutcomeUncertainError(error)) {
+          return false;
         }
         throw error;
       }
@@ -251,7 +281,7 @@ export function submitComposerPrompt(
         toast.danger(friendlyError(error));
       })
       .finally(() => {
-        if (ctx.isCurrentSession()) ctx.setIsSubmitting(false);
+        if (ctx.isCurrentSession() && !releasedSubmittingEarly) ctx.setIsSubmitting(false);
       });
   }
 
@@ -355,6 +385,8 @@ export function submitComposerPrompt(
         ctx.usesPendingSteerPath && ctx.followUpBehavior === "queue",
       );
   }
+  let preparedOptimisticInput: PreparedOptimisticThreadInput | undefined;
+  let handedOffOptimisticInput = false;
 
   let focusPromise = Promise.resolve();
   if (ctx.needsFocusBeforeInput) {
@@ -399,9 +431,16 @@ export function submitComposerPrompt(
     const clientContext = captured.context;
     if (!ctx.usesPendingSteerPath) {
       const outgoingSegments = outgoing.length > 0 ? outgoing : undefined;
-      await (ctx.onSubmitInput
-        ? ctx.onSubmitInput(flat, outgoingSegments)
-        : submitThreadInput(thread.id, flat, outgoingSegments, { clientContext }));
+      if (ctx.onSubmitInput) {
+        await ctx.onSubmitInput(flat, outgoingSegments);
+      } else {
+        handedOffOptimisticInput = true;
+        try {
+          await submitThreadInput(thread.id, flat, outgoingSegments, { clientContext });
+        } finally {
+          preparedOptimisticInput?.releaseUnconsumed();
+        }
+      }
       return;
     }
     if (ctx.followUpBehavior === "queue") {
@@ -434,15 +473,19 @@ export function submitComposerPrompt(
 
   return focusPromise
     .then(async () => {
-      const [captured, preserved] = await Promise.all([clientContextCapture, preservation]);
+      const preserved = await preservation;
       if ("error" in preserved) throw preserved.error;
       submission = preserved.value;
-      if ("error" in captured) throw captured.error;
       if (ctx.isCurrentSession()) ctx.submittedRef.current = true;
       if (!usesTerminalPresentation && ctx.isCurrentSession() && sameEditor()) {
         clearSubmittedComposer();
         clearedBeforeSendSettled = true;
       }
+      if (!usesTerminalPresentation && !ctx.usesPendingSteerPath && !ctx.onSubmitInput) {
+        preparedOptimisticInput = beginOptimisticThreadInput(thread, flat, allSegments);
+      }
+      const captured = await clientContextCapture;
+      if ("error" in captured) throw captured.error;
       outgoing = await materializeDraftSegments(
         thread,
         submission.segments,
@@ -471,6 +514,9 @@ export function submitComposerPrompt(
         ctx.onSubmitSuccess?.();
     })
     .catch(async (error: unknown) => {
+      if (!handedOffOptimisticInput) {
+        preparedOptimisticInput?.abortBeforeDispatch();
+      }
       if (deliveryAccepted) {
         toast.danger(friendlyError(error));
         return;

@@ -51,9 +51,9 @@ describe("custom theme application", () => {
     applyAppTheme(root, "dark", "default");
     expect(root.style.getPropertyValue("--sidebar-row-active-override")).toBe("");
   });
-  it("preserves the previous derived composer and content/sidebar relationship", () => {
+  it("uses the field fill for the derived composer and preserves the content/sidebar relationship", () => {
     const vars = buildVariant(THEME_SPECS[0]!.dark, "dark");
-    expect(vars["--composer-surface"]).toContain("color-mix");
+    expect(vars["--composer-surface"]).toBe(vars["--field-background"]);
     expect(vars["--sidebar-panel-background"]).toBe(THEME_SPECS[0]!.dark.content);
     // A literal wash avoids --row-active -> --sidebar-row-active -> --row-active cycles.
     expect(vars["--sidebar-row-active"]).not.toContain("var(--row-active)");

@@ -80,6 +80,10 @@ import {
 
 export { MANAGED_ROOT_CATALOG_KEY } from "./managedRootOrderFence";
 
+const SHELL_SNAPSHOT_RETRY_BASE_MS = 500;
+const SHELL_SNAPSHOT_RETRY_MAX_MS = 10_000;
+const SHELL_SNAPSHOT_MAX_AUTO_RETRIES = 5;
+
 /**
  * The root connection's seq ledger. Both the page guard and the per-thread
  * applied seq come from the SAME loopback dispatch sequence space (the
@@ -130,6 +134,39 @@ let unsubscribeActivation: (() => void) | null = null;
 let unsubscribeMembership: (() => void) | null = null;
 let unsubscribeAuthority: (() => void) | null = null;
 let unsubscribeSupervisorEvents: (() => void) | null = null;
+let shellRetryTimer: ReturnType<typeof setTimeout> | null = null;
+let shellLoadAttempt = 0;
+let shellRetryDelayOverrideMs: number | null = null;
+let shellLoadToken = 0;
+let shellLoadInFlight: {
+  readonly activation: ManagedLoopbackActivationSnapshot;
+  readonly token: number;
+  readonly promise: Promise<void>;
+} | null = null;
+const failedProtocolKinds = new Set<CatalogKind>();
+
+function clearShellRetryTimer(): void {
+  if (shellRetryTimer !== null) {
+    clearTimeout(shellRetryTimer);
+    shellRetryTimer = null;
+  }
+}
+
+function clearShellLoadInFlight(token: number): void {
+  if (shellLoadInFlight?.token === token) shellLoadInFlight = null;
+}
+
+function recoverManagedRootStatusIfFailed(kind: CatalogKind): void {
+  failedProtocolKinds.delete(kind);
+  if (
+    failedProtocolKinds.size === 0 &&
+    shellLoadInFlight === null &&
+    shellRetryTimer === null &&
+    getManagedRootCatalogStatus().status === "failed"
+  ) {
+    setManagedRootCatalogStatus({ status: "ready" });
+  }
+}
 
 function configureController(): void {
   if (configured) return;
@@ -161,10 +198,12 @@ function configureController(): void {
       commitThreadRows: (connectionKey, rows, preserveThreadIds) => {
         if (connectionKey !== MANAGED_ROOT_CATALOG_KEY) return;
         applyRootCatalogThreadRows(rows, preserveThreadIds);
+        recoverManagedRootStatusIfFailed("threads");
       },
       commitProjectRows: (connectionKey, rows) => {
         if (connectionKey !== MANAGED_ROOT_CATALOG_KEY) return;
         applyRootCatalogProjectRows(rows);
+        recoverManagedRootStatusIfFailed("projects");
       },
       removeThreadRows: (connectionKey, threadIds) => {
         if (connectionKey !== MANAGED_ROOT_CATALOG_KEY) return;
@@ -180,8 +219,14 @@ function configureController(): void {
         }
         return withRootClient(invoke);
       },
-      reportProtocolError: (connectionKey, error) => {
+      reportProtocolError: (connectionKey, error, kind) => {
         if (connectionKey !== MANAGED_ROOT_CATALOG_KEY) return;
+        if (kind) {
+          failedProtocolKinds.add(kind);
+        } else {
+          failedProtocolKinds.add("threads");
+          failedProtocolKinds.add("projects");
+        }
         const message = friendlyError(error) || i18n._(msg`The desktop's own catalog read failed.`);
         setManagedRootCatalogStatus({ status: "failed", message, retrying: false });
         toast.danger(message);
@@ -222,10 +267,29 @@ function configureController(): void {
   );
 }
 
-async function loadRootCatalogPageOne(
+function shellSnapshotRetryDelayMs(attempt: number): number {
+  if (shellRetryDelayOverrideMs !== null) return shellRetryDelayOverrideMs;
+  return Math.min(SHELL_SNAPSHOT_RETRY_BASE_MS * 2 ** attempt, SHELL_SNAPSHOT_RETRY_MAX_MS);
+}
+
+function loadRootCatalogPageOne(activation: ManagedLoopbackActivationSnapshot): Promise<void> {
+  if (readManagedLoopbackActivation() !== activation) return Promise.resolve();
+  if (shellLoadInFlight?.activation === activation) return shellLoadInFlight.promise;
+  clearShellRetryTimer();
+  const token = ++shellLoadToken;
+  const run = runLoadRootCatalogPageOne(activation, token).finally(() => {
+    clearShellLoadInFlight(token);
+  });
+  shellLoadInFlight = { activation, token, promise: run };
+  return run;
+}
+
+async function runLoadRootCatalogPageOne(
   activation: ManagedLoopbackActivationSnapshot,
+  token: number,
 ): Promise<void> {
   if (readManagedLoopbackActivation() !== activation) return;
+  failedProtocolKinds.clear();
   setManagedRootCatalogStatus({ status: "starting" });
   beginBoundedCatalogAttempt(MANAGED_ROOT_CATALOG_KEY);
   try {
@@ -239,6 +303,7 @@ async function loadRootCatalogPageOne(
     });
     if (readManagedLoopbackActivation() !== activation) return;
     if (result.negotiation !== "bounded") {
+      clearShellLoadInFlight(token);
       setManagedRootCatalogStatus({
         status: "failed",
         message: i18n._(msg`This server does not support the bounded catalog read.`),
@@ -246,15 +311,33 @@ async function loadRootCatalogPageOne(
       });
       return;
     }
+    shellLoadAttempt = 0;
+    failedProtocolKinds.clear();
+    clearShellLoadInFlight(token);
     installBoundedCatalogShellPage(MANAGED_ROOT_CATALOG_KEY, result.page, removalMark);
     setManagedRootCatalogStatus({ status: "ready" });
   } catch (error) {
     if (readManagedLoopbackActivation() !== activation) return;
     if (isRemoteBoundedReadProtocolError(error)) {
+      clearShellLoadInFlight(token);
       const message = friendlyError(error) || i18n._(msg`The desktop's own catalog read failed.`);
       setManagedRootCatalogStatus({ status: "failed", message, retrying: false });
       return;
     }
+    if (shellLoadAttempt < SHELL_SNAPSHOT_MAX_AUTO_RETRIES) {
+      const delayMs = shellSnapshotRetryDelayMs(shellLoadAttempt);
+      shellLoadAttempt += 1;
+      clearShellLoadInFlight(token);
+      clearShellRetryTimer();
+      shellRetryTimer = setTimeout(() => {
+        shellRetryTimer = null;
+        if (readManagedLoopbackActivation() !== activation) return;
+        void loadRootCatalogPageOne(activation);
+      }, delayMs);
+      shellRetryTimer.unref?.();
+      return;
+    }
+    clearShellLoadInFlight(token);
     setManagedRootCatalogStatus({
       status: "failed",
       message: friendlyError(error) || i18n._(msg`The desktop's own server is not connected yet.`),
@@ -381,6 +464,10 @@ function arraysEqual(left: readonly string[], right: readonly string[]): boolean
 }
 
 function applyActivation(activation: ManagedLoopbackActivationSnapshot | null): void {
+  clearShellRetryTimer();
+  shellLoadAttempt = 0;
+  shellLoadInFlight = null;
+  failedProtocolKinds.clear();
   rootSession.clearApplied();
   // A new activation may be a new backend child whose sequences restart:
   // baselines recorded against the previous stream prove nothing for it.
@@ -409,7 +496,16 @@ function applyActivation(activation: ManagedLoopbackActivationSnapshot | null): 
 }
 
 function handleMembershipEvent(eventType: string): void {
-  if (!readManagedLoopbackActivation()) return;
+  const activation = readManagedLoopbackActivation();
+  if (!activation) return;
+  if (getManagedRootCatalogStatus().status === "failed" && shellRetryTimer === null) {
+    // If an earlier shell snapshot or bounded read left status failed while the
+    // loopback leg remained live, a fresh host membership change re-arms page 1
+    // instead of ignoring the event.
+    shellLoadAttempt = 0;
+    void loadRootCatalogPageOne(activation);
+    return;
+  }
   if (eventType === "resync-required") {
     resetBoundedCatalogForResync(MANAGED_ROOT_CATALOG_KEY);
     return;
@@ -455,6 +551,9 @@ export function installManagedRootCatalogRuntime(): void {
 
 /** Truthful retry from the readiness surface. */
 export function retryManagedRootCatalog(): void {
+  clearShellRetryTimer();
+  shellLoadAttempt = 0;
+  failedProtocolKinds.clear();
   setManagedRootCatalogStatus({ status: "starting" });
   retryManagedParentDescriptor();
   retryManagedLoopbackIntake();
@@ -466,8 +565,18 @@ export function managedRootCatalogStatus(): ReturnType<typeof getManagedRootCata
   return getManagedRootCatalogStatus();
 }
 
+/** Test seam: override the automatic shell-snapshot retry delay. */
+export function __setManagedRootRetryDelayForTest(delayMs: number | null): void {
+  shellRetryDelayOverrideMs = delayMs;
+}
+
 /** Test seam: tear down subscriptions and controller/ledger state. */
 export function __resetManagedRootCatalogRuntimeForTest(): void {
+  clearShellRetryTimer();
+  shellLoadAttempt = 0;
+  shellRetryDelayOverrideMs = null;
+  shellLoadInFlight = null;
+  failedProtocolKinds.clear();
   unsubscribeActivation?.();
   unsubscribeMembership?.();
   unsubscribeAuthority?.();

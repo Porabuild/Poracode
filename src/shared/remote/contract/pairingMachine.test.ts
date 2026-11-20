@@ -140,9 +140,16 @@ describe("deep-link intent", () => {
     expect(extractPairingData("   ")).toBeNull();
   });
 
-  it("externally delivered links always require confirmation", () => {
-    expect(requiresBrowsableConfirmation(true)).toBe(true);
-    expect(requiresBrowsableConfirmation(false)).toBe(false);
+  it("requires confirmation for external links except loopback endpoints", () => {
+    expect(requiresBrowsableConfirmation(true, "https://desktop.example:49152")).toBe(true);
+    expect(requiresBrowsableConfirmation(true, "https://desktop.example")).toBe(true);
+    expect(requiresBrowsableConfirmation(true, "http://127.0.0.1:49192")).toBe(false);
+    expect(requiresBrowsableConfirmation(true, "http://localhost:49192")).toBe(false);
+    expect(requiresBrowsableConfirmation(true, "http://[::1]:49192")).toBe(false);
+    expect(requiresBrowsableConfirmation(true, "http://dev.localhost:49192")).toBe(false);
+    // Malformed endpoints are not loopback: they still ask.
+    expect(requiresBrowsableConfirmation(true, "not a url")).toBe(true);
+    expect(requiresBrowsableConfirmation(false, "https://desktop.example")).toBe(false);
   });
 
   it("builds a sanitized pending candidate without exposing the credential", () => {
@@ -269,6 +276,42 @@ describe("intent-machine reducer", () => {
     ).toEqual({ state: "pendingConfirmation", effect: "storePending" });
   });
 
+  it("pairs an external loopback candidate without a confirmation stop", () => {
+    const candidate = {
+      endpoint: "http://127.0.0.1:49152",
+      hostDisplay: "127.0.0.1:49152",
+      credential: "tok",
+      digest: "d1",
+      isCleartextLan: false,
+      replacesExistingPair: false,
+    };
+    expect(
+      reducePairingIntent(
+        "idle",
+        { type: "candidateSeen", external: true },
+        context({ candidate }),
+      ),
+    ).toEqual({ state: "pairInFlight", effect: "beginPair" });
+  });
+
+  it("keeps confirmation for a loopback candidate that would replace a live pair", () => {
+    const candidate = {
+      endpoint: "http://127.0.0.1:49152",
+      hostDisplay: "127.0.0.1:49152",
+      credential: "tok",
+      digest: "d1",
+      isCleartextLan: false,
+      replacesExistingPair: true,
+    };
+    expect(
+      reducePairingIntent(
+        "idle",
+        { type: "candidateSeen", external: true },
+        context({ candidate, hasExistingPair: true }),
+      ),
+    ).toEqual({ state: "pendingConfirmation", effect: "storePending" });
+  });
+
   it("routes a direct in-app candidate straight into the pair attempt", () => {
     const candidate = {
       endpoint: "https://h",
@@ -372,6 +415,8 @@ describe("generated pairing sources", () => {
     expect(kotlin).toContain("phaseAfterPairingFailure");
     expect(swift).toContain("sha256 hex-lowercase");
     expect(kotlin).toContain("sha256 hex-lowercase");
+    expect(swift).toContain("isLoopbackEndpoint");
+    expect(kotlin).toContain("isLoopbackEndpoint");
   });
 
   it("emits only the pairing machine — never wire-contract schema tables", () => {

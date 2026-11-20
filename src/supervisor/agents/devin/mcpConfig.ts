@@ -17,6 +17,8 @@ import { join } from "node:path";
 import type { ProjectLocation, ResolvedMcpServer } from "@/shared/contracts";
 import type { AcpSharedProcessPrepare } from "../acp";
 import { quotePosixShellArg, readAgentCommandOutput } from "../base";
+import { acpMcpServerName } from "../userMcp";
+import { prepareDevinWindowsHome } from "./accountRoots";
 
 /**
  * Devin session MCP serialization for the disk-catalog overlay.
@@ -52,10 +54,11 @@ export function mergeDevinMcpConfig(
   }
   const injected = Object.fromEntries(
     servers.map((server) => {
+      const wireName = acpMcpServerName(server);
       const transport = server.transport;
       if (transport.type === "http") {
         return [
-          server.name,
+          wireName,
           {
             url: transport.url,
             transport: "http",
@@ -66,7 +69,7 @@ export function mergeDevinMcpConfig(
       if (transport.type !== "stdio")
         throw new Error(`Devin session MCP does not support the ${transport.type} transport`);
       const { command, args, env } = transport;
-      return [server.name, { command, ...(args ? { args } : {}), ...(env ? { env } : {}) }];
+      return [wireName, { command, ...(args ? { args } : {}), ...(env ? { env } : {}) }];
     }),
   );
   return JSON.stringify({ ...config, mcpServers: { ...current, ...injected } });
@@ -86,7 +89,7 @@ async function mirrorEntries(source: string, target: string, excluded: string) {
     throw error;
   });
   for (const name of entries) {
-    if (name === excluded || name.startsWith(".poracode-devin-config-")) continue;
+    if (name === excluded || name.startsWith(".poracode-devin-")) continue;
     const from = join(source, name),
       to = join(target, name);
     try {
@@ -190,7 +193,13 @@ export async function planDevinMcpConfigForRoots(
         await mkdir(join(root, "devin"));
         await mirrorEntries(join(original, "devin"), join(root, "devin"), "mcp_config.json");
         await writeFile(join(root, "devin", "mcp_config.json"), config, { mode: 0o600 });
-        return { env: { [variable]: root }, cleanup };
+        return {
+          env: {
+            [variable]: root,
+            ...(variable === "APPDATA" ? { USERPROFILE: await prepareDevinWindowsHome(root) } : {}),
+          },
+          cleanup,
+        };
       } catch (error) {
         await cleanup();
         throw error;

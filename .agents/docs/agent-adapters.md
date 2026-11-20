@@ -81,6 +81,10 @@ Existing extension points built on the same pattern:
   supervisor owns thread and plugin enablement, launch-time disables and tool
   restrictions; external servers keep their launch snapshot. Providers own
   applying the resolved set to their native runtime.
+- `AgentAdapter.readMcpSessionId` parses trusted native MCP call metadata in the
+  provider folder. The supervisor validates ownership of the root or child
+  session and the Crossagents ingress requires a registered live parent;
+  legacy session-id routing remains available without the hook.
 - `supportsDeferredMcpAuthorization` opts into refreshing shared OAuth on MCP
   connection rather than before launch. Qualify the provider's startup budget
   and tool availability after delayed connection before enabling it; providers

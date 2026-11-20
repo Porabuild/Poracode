@@ -134,4 +134,16 @@
     <string name="settings_profile_tokens_by_provider">Tokens by provider</string>
     <string name="settings_profile_tokens_by_provider_empty">No provider token usage is available.</string>
     <string name="settings_profile_provider_cost">Estimated cost</string>
+    <string name="settings_profile_trends">Recent &amp; trends</string>
+    <string name="settings_profile_yesterday">Yesterday</string>
+    <string name="settings_profile_last_7d">Last 7 days</string>
+    <string name="settings_profile_avg_task_duration">Avg task duration</string>
+    <string name="settings_profile_prompt_cache_hit">Prompt cache hit</string>
+    <string name="settings_profile_weekend_share">Weekend share</string>
+    <string name="settings_profile_switched_provider">Provider shift</string>
+    <string name="settings_profile_switched_model">Model shift</string>
+    <string name="settings_profile_provider_less">%1$s down %2$d%% this week</string>
+    <string name="settings_profile_provider_more">%1$s up %2$d%% this week</string>
+    <string name="settings_profile_switched_from_to">%1$s → %2$s</string>
+    <string name="settings_profile_prompts_count">%1$s prompts</string>
 </resources>

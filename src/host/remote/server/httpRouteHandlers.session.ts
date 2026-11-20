@@ -25,6 +25,13 @@ import {
   dbSetProjectNotes,
   ProjectNotesConflictError,
 } from "@/host/db";
+import { MemoryCatalogError, runMemoryCatalogCommand } from "@/host/memory/catalog";
+import { handleMemoryCommand } from "@/host/memory/runtime";
+import {
+  memorySyncResponseSchema,
+  memorySyncStateSchema,
+  remoteMemoryCatalogCommandSchema,
+} from "@/shared/memory";
 import {
   getProfileCoreStats,
   getProfileDevicesResponse,
@@ -80,7 +87,9 @@ type SessionRouteId =
   | "settings-write"
   | "mcp-settings-read"
   | "mcp-settings-command"
-  | "mcp-settings-operation";
+  | "mcp-settings-operation"
+  | "memory-catalog"
+  | "memory-sync";
 
 /** Session-group HTTP route handlers (contract `sessionRoutes`). */
 export const SESSION_ROUTE_HANDLERS: Pick<HttpRouteHandlerTable, SessionRouteId> = {
@@ -295,12 +304,12 @@ export const SESSION_ROUTE_HANDLERS: Pick<HttpRouteHandlerTable, SessionRouteId>
 
   "profile-core-stats": async ({ req, res }) => {
     const payload = profileStatsRequestSchema.parse(await readJsonBody(req));
-    writeJson(res, 200, getProfileCoreStats(payload));
+    writeJson(res, 200, await getProfileCoreStats(payload));
   },
 
   "profile-token-stats": async ({ req, res }) => {
     const payload = profileStatsRequestSchema.parse(await readJsonBody(req));
-    writeJson(res, 200, getProfileTokenStats(payload));
+    writeJson(res, 200, await getProfileTokenStats(payload));
   },
 
   "profile-identity": async ({ req, res }) => {
@@ -335,7 +344,7 @@ export const SESSION_ROUTE_HANDLERS: Pick<HttpRouteHandlerTable, SessionRouteId>
 
   "mcp-settings-command": async ({ ctx, req, res }) => {
     const command = remoteMcpSettingsCommandSchema.parse(await readJsonBody(req));
-    writeJson(res, 200, ctx.requireSettingsGateway().commandMcpServers(command));
+    writeJson(res, 200, await ctx.requireSettingsGateway().commandMcpServers(command));
   },
 
   "mcp-settings-operation": async ({ ctx, req, res }) => {
@@ -380,6 +389,27 @@ export const SESSION_ROUTE_HANDLERS: Pick<HttpRouteHandlerTable, SessionRouteId>
         writeJson(res, 200, { kind: "oauth-wait", result });
         return;
       }
+      case "oauth-complete": {
+        const { server, projectLocation } = gateway.resolveServer(
+          operation.scope,
+          operation.serverId,
+        );
+        const serverUrl = mcpEndpointUrl(server);
+        if (!serverUrl) {
+          throw new RemoteHttpError(
+            "mcp_oauth_transport_unsupported",
+            "This MCP server does not support OAuth.",
+            400,
+          );
+        }
+        const result = await ctx.options.callSupervisor("waitMcpServerOauth", {
+          flowId: operation.flowId,
+          callback: { url: operation.callbackUrl, serverUrl },
+          ...(projectLocation ? { projectLocation } : {}),
+        });
+        writeJson(res, 200, { kind: "oauth-complete", result });
+        return;
+      }
       case "oauth-clear": {
         const resolved = gateway.resolveServer(operation.scope, operation.serverId);
         const endpoint = mcpEndpointUrl(resolved.server);
@@ -398,5 +428,25 @@ export const SESSION_ROUTE_HANDLERS: Pick<HttpRouteHandlerTable, SessionRouteId>
         return;
       }
     }
+  },
+
+  "memory-catalog": async ({ req, res }) => {
+    const command = remoteMemoryCatalogCommandSchema.parse(await readJsonBody(req));
+    try {
+      writeJson(res, 200, await runMemoryCatalogCommand(command));
+    } catch (error) {
+      if (error instanceof MemoryCatalogError) {
+        throw new RemoteHttpError(error.code, error.message, error.status);
+      }
+      throw error;
+    }
+  },
+
+  "memory-sync": async ({ req, res }) => {
+    const state = memorySyncStateSchema.parse(await readJsonBody(req));
+    const result = memorySyncResponseSchema.parse(
+      await handleMemoryCommand({ action: "sync-merge", state }),
+    );
+    writeJson(res, 200, result);
   },
 };

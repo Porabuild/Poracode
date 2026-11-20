@@ -14,7 +14,6 @@ import {
 } from "@/shared/settingsTransactions";
 import {
   notifySettingsChanged,
-  reportSettingsError,
   type BackendSettingsNotifications,
 } from "./BackendSettingsNotifications";
 import { SettingsAuthority, type SettingsAuthorityLease } from "./settings/SettingsAuthority";
@@ -59,11 +58,15 @@ export function createBackendSettingsAccess(
       // The desktop key always persists (OS-sealed or file-backed); there is no
       // session-only desktop mode to guard against yet.
       assertPersistentCredentials: () => {},
-      onCommitted: (_result, settings) =>
-        notifySettingsChanged(settings, {
-          onChanged: options.onChanged,
-          ...(options.reportError ? { reportError: options.reportError } : {}),
-        }),
+      onCommitted: (result, settings) =>
+        notifySettingsChanged(
+          settings,
+          {
+            onChanged: options.onChanged,
+            ...(options.reportError ? { reportError: options.reportError } : {}),
+          },
+          result,
+        ),
       ...(options.reportError ? { reportError: options.reportError } : {}),
     });
     const commands = new SettingsCommandService(authority, { assertCanPersistSecrets: () => {} });
@@ -156,14 +159,8 @@ export function createBackendSettingsAccess(
       ensureRuntime().then((opened) => opened.writes.commitCompatPatch(patch)),
     commitOwnerEdits: (edits) =>
       ensureRuntime().then((opened) => opened.writes.commitOwnerEdits(edits)),
-    /** Fire-and-forget compat write for durable event handlers; failures are
-     * reported through diagnostics, never thrown into the event path. */
-    writeSharedSettingsCompat: (next: SharedSettingsInput): void => {
-      if (closed) return;
-      void ensureRuntime()
-        .then((opened) => opened.writes.commitCompatSnapshot(next))
-        .catch((error: unknown) => reportSettingsError(error, options.reportError));
-    },
+    editPreferences: (compute) =>
+      ensureRuntime().then((opened) => opened.writes.editPreferences(compute)),
     dispose,
   };
 }
@@ -188,7 +185,9 @@ export interface BackendSettingsAccess {
   }): Promise<SharedSettings>;
   /** Trusted owner-runtime subject edits; see `SettingsCompatWriter.commitOwnerEdits`. */
   commitOwnerEdits(edits: readonly SettingsOwnerEdit[]): Promise<void>;
-  writeSharedSettingsCompat(next: SharedSettingsInput): void;
+  editPreferences(
+    compute: (current: SharedSettings) => SharedSettingsInput,
+  ): Promise<SettingsMutationResult>;
   dispose(): Promise<void>;
 }
 

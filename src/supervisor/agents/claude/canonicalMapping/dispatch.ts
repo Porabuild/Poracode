@@ -1,6 +1,7 @@
 import type { SDKMessage } from "@anthropic-ai/claude-agent-sdk";
 import { readMcpAppResource } from "@/shared/mcpAppResources";
 import { readToolVideoSources } from "@/shared/chatVideo";
+import { isUserAttachmentImageReadPayload } from "@/shared/inlineImagePayload";
 import type { RuntimeEvent, ToolCallProgress, TurnState } from "@/shared/contracts";
 import { readFileChangePath, readStringField } from "../../fileChangeSummary";
 import type { ClaudeMapperState } from "../sdkCanonicalMappingState";
@@ -554,7 +555,12 @@ function mapClaudeSdkMessageInner(
       const tool = state.toolItemsById.get(toolUseId);
       if (!tool) continue;
       const text = extractText(obj.content);
-      const images = extractToolResultImages(obj.content);
+      const images = isUserAttachmentImageReadPayload({
+        name: tool.toolName,
+        args: tool.input,
+      })
+        ? []
+        : extractToolResultImages(obj.content);
       const mcpResult = (message as { tool_use_result?: unknown }).tool_use_result;
       // The launch command/task category may only be provable here (a Bash
       // `backgroundTaskId` or a Monitor `taskId` in the typed result), while

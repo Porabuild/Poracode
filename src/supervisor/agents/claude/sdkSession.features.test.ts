@@ -71,6 +71,24 @@ describe("Claude SDK native features", () => {
       process.platform === "win32" ? "1" : undefined,
     );
   });
+  it("restores the CLI's Artifact tools for SDK chats unless the shell or profile opts out", async () => {
+    const h = await createSession({ agentSettings: {} });
+    expect(h.options.env?.CLAUDE_CODE_ARTIFACT).toBe("1");
+
+    const optedOut = await createSession({
+      agentSettings: {},
+      env: { CLAUDE_CODE_ARTIFACT: "0" },
+    });
+    expect(optedOut.options.env?.CLAUDE_CODE_ARTIFACT).toBe("0");
+
+    vi.stubEnv("CLAUDE_CODE_ARTIFACT", "0");
+    try {
+      const shellOptedOut = await createSession({ agentSettings: {} });
+      expect(shellOptedOut.options.env?.CLAUDE_CODE_ARTIFACT).toBe("0");
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
   it("enables native browser access by default and keeps native settings and the default tool surface", async () => {
     const h = await createSession({
       agentSettings: {},

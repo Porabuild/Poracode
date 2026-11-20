@@ -1,35 +1,52 @@
 import { z } from "zod";
 import { assistantDisplayText } from "@/shared/assistantMessageText";
 import type {
-  AgentKind,
   Project,
-  ProjectLocation,
+  PromptSegment,
+  QuestionAnswerItemPayload,
   StartThreadPayload,
+  ThreadConfig,
   Thread,
   ThreadRuntimeSnapshot,
   ThreadStatus,
 } from "@/shared/contracts";
 import {
-  agentKindSchema,
   DEFAULT_TERMINAL_SIZE,
   messageItemPayloadSchema,
   resolveMcpLaunchSnapshot,
+  sendThreadInputPortableSchema,
+  threadComposerConfigSchema,
 } from "@/shared/contracts";
-import { isHomeProjectId } from "@/shared/homeScope";
-import { formatDiffCommentPrompt, threadMentionLabel } from "@/shared/promptContent";
+import {
+  formatDiffCommentPrompt,
+  hasSendablePromptContent,
+  threadMentionLabel,
+} from "@/shared/promptContent";
 import { isUnknownThreadSessionError } from "@/shared/threadRelaunch";
 import { buildWorktreeLocation, normalizeWorktreePathForComparison } from "@/shared/worktree";
+import { matchesWorkspaceTerminal } from "@/shared/workspaceTerminalScope";
+import { appControlToolDomain, defineAppControlTool } from "../defineTools";
+import { catalogPageFields, pageCatalog } from "./catalogPage";
+import { createThreadTool } from "./createThread";
+import { readThreadHistoryTool } from "./threadHistory";
+import {
+  deleteThreadTool,
+  deleteWorktreeGroupTool,
+  forkThreadTool,
+  handoffThreadTool,
+  threadTransferTool,
+  moveThreadToWorktreeTool,
+} from "./threadLifecycle";
+import { updateThreadMetadataTool } from "./threadMetadata";
+import { resolveThreadInputSegments } from "@/host/threads/threadInputSegments";
 import { dbGetThreadConversationItemsPage } from "../../../db";
 import {
   assertNotSelf,
-  projectIdProp,
   requireThread,
   threadIdProp,
   type AppControlsToolContext,
   type ToolDomain,
 } from "./types";
-import { updateThreadMetadata } from "./threadMetadata";
-import { inheritCallerWorkspaceId, requireWorkspace } from "./workspaceLookup";
 
 /** Statuses `wait_for_thread` treats as settled (turn finished or needs the caller). */
 const SETTLED_STATUSES: ReadonlySet<ThreadStatus> = new Set<ThreadStatus>([
@@ -50,17 +67,13 @@ const READ_DEFAULT_LIMIT = 30;
 const READ_MAX_LIMIT = 100;
 /** Per-item text cap so a transcript can't blow up the caller's context. */
 const ITEM_TEXT_MAX_CHARS = 2_000;
+const publicThreadConfigSchema = threadComposerConfigSchema.strip();
 const ITEM_TEXT_HARD_MAX_CHARS = 10_000;
 /** Trailing slice of terminal scrollback returned by `read_terminal`. */
 const TERMINAL_SCROLLBACK_MAX_CHARS = 50_000;
 /** Hard cap on how many turns `rollback_thread` will discard in one call. */
 const ROLLBACK_MAX_TURNS = 20;
 
-const listArgsSchema = z.object({
-  projectId: z.string().min(1).optional(),
-  status: z.string().min(1).optional(),
-  currentWorktree: z.boolean().optional(),
-});
 const threadIdArgsSchema = z.object({ threadId: z.string().min(1) });
 const terminalIdArgsSchema = z.object({ terminalId: z.string().min(1) });
 const readArgsSchema = z.object({
@@ -68,32 +81,6 @@ const readArgsSchema = z.object({
   limit: z.number().int().min(1).max(READ_MAX_LIMIT).optional(),
   before: z.number().int().nonnegative().optional(),
   maxChars: z.number().int().min(500).max(ITEM_TEXT_HARD_MAX_CHARS).optional(),
-});
-const createArgsSchema = z.object({
-  projectId: z.string().min(1),
-  prompt: z.string().trim().min(1).max(50_000),
-  agentKind: agentKindSchema.optional(),
-  model: z.string().min(1).optional(),
-  effort: z.string().min(1).optional(),
-  title: z.string().trim().min(1).max(200).optional(),
-  worktree: z
-    .object({ enabled: z.boolean(), branch: z.string().trim().min(1).max(255).optional() })
-    .optional(),
-  workspaceId: z.string().trim().min(1).optional(),
-  browserMcp: z.boolean().optional(),
-  crossagentMcp: z.boolean().optional(),
-  chromeMcp: z.boolean().optional(),
-  computerUse: z.boolean().optional(),
-  mcpServers: z.record(z.string().min(1), z.boolean()).optional(),
-  plugins: z.record(z.string().min(1), z.boolean()).optional(),
-  attachments: z
-    .array(z.object({ path: z.string().min(1), mimeType: z.string().min(1).optional() }).strict())
-    .optional(),
-});
-const sendArgsSchema = z.object({
-  threadId: z.string().min(1),
-  message: z.string().trim().min(1).max(50_000),
-  interruptFirst: z.boolean().optional(),
 });
 const waitArgsSchema = z.object({
   threadIds: z.array(z.string().min(1)).min(1).max(8),
@@ -113,6 +100,110 @@ const rollbackArgsSchema = z.object({
   numTurns: z.number().int().min(1).max(ROLLBACK_MAX_TURNS),
 });
 
+const sendThreadTool = defineAppControlTool({
+  name: "send_to_thread",
+  description:
+    "Send a message to a thread. Pass the composer prompt, segments and optional config, or use the legacy message field. Use questionAnswer to relay the user’s structured reply to a form. Set interruptFirst to interrupt an active turn before sending. If the session is inactive, the host resumes it in the same checkout and sends the input.",
+  input: sendThreadInputPortableSchema
+    .pick({ threadId: true, segments: true, questionAnswer: true })
+    .extend({
+      prompt: z.string().trim().max(50_000).optional(),
+      message: z.string().trim().min(1).max(50_000).optional(),
+      config: threadComposerConfigSchema.optional(),
+      interruptFirst: z.boolean().optional(),
+    })
+    .strict(),
+  run: async (
+    { threadId, message, prompt, segments, questionAnswer, config, interruptFirst },
+    ctx,
+  ) => {
+    if (message !== undefined && prompt !== undefined)
+      throw new Error("Pass prompt or message. Use one field per call.");
+    const text = prompt ?? message ?? "";
+    if (!hasSendablePromptContent(text, segments))
+      throw new Error("Provide a prompt or sendable segments.");
+    const thread = requireThread(ctx, threadId);
+    if (interruptFirst) assertNotSelf(ctx, threadId, "interrupt");
+    const prepared = segments ? await resolveThreadInputSegments(segments, text) : undefined;
+    const settings = config ?? thread.config;
+    try {
+      if (interruptFirst) await ctx.supervisor.interruptThread({ threadId });
+      await ctx.supervisor.sendThreadInput({
+        threadId,
+        prompt: text,
+        config: settings,
+        ...(prepared !== undefined ? { segments: prepared } : {}),
+        ...(questionAnswer !== undefined ? { questionAnswer } : {}),
+      });
+      return { threadId, delivered: true, interruptedFirst: interruptFirst === true };
+    } catch (error) {
+      if (!isUnknownThreadSessionError(error)) throw error;
+    }
+    if (!thread.sessionRef && !thread.canResumeWithConfig) {
+      throw new Error(
+        `Thread ${threadId} has no live or resumable session, so it cannot receive a message. ` +
+          "Use create_thread to start a new thread instead.",
+      );
+    }
+    await ctx.supervisor.startThread(
+      buildResumeStartPayload(ctx, thread, {
+        prompt: text,
+        config: settings,
+        segments: prepared,
+        questionAnswer,
+      }),
+    );
+    return { threadId, delivered: true, resumed: true, interruptedFirst: false };
+  },
+});
+
+const launchAndLifecycleTools = appControlToolDomain(
+  createThreadTool,
+  forkThreadTool,
+  deleteThreadTool,
+  deleteWorktreeGroupTool,
+  moveThreadToWorktreeTool,
+  handoffThreadTool,
+  threadTransferTool,
+  sendThreadTool,
+);
+
+const listThreadsTool = defineAppControlTool({
+  name: "list_threads",
+  description:
+    "List threads with their live status, project, provider, model and checkout. Filter by projectId, status or currentWorktree:true for the caller's exact checkout, including the project root. Set limit for a page and pass nextOffset as offset with the same filters. count is the total number of matches.",
+  input: z.strictObject({
+    ...catalogPageFields,
+    projectId: z.string().min(1).optional(),
+    status: z.string().min(1).optional(),
+    currentWorktree: z.boolean().optional(),
+  }),
+  run: async ({ projectId, status, currentWorktree, offset, limit }, ctx) => {
+    const caller = currentWorktree ? currentThread(ctx) : undefined;
+    const projectsById = new Map(ctx.getProjects().map((project) => [project.id, project]));
+    const callerProject = caller ? projectsById.get(caller.projectId) : undefined;
+    const snapshots = await snapshotMap(ctx);
+    const matches = ctx.getThreads().filter((thread) => {
+      if (projectId && thread.projectId !== projectId) return false;
+      if (
+        caller &&
+        (thread.projectId !== caller.projectId ||
+          !sameWorktreePath(thread.worktreePath, caller.worktreePath, callerProject))
+      ) {
+        return false;
+      }
+      return !status || (snapshots.get(thread.id)?.status ?? thread.status) === status;
+    });
+    const { rows, ...page } = pageCatalog(matches, offset, limit);
+    return {
+      ...page,
+      threads: rows.map((thread) =>
+        threadView(thread, projectsById.get(thread.projectId), snapshots.get(thread.id)),
+      ),
+    };
+  },
+});
+
 export const threadTools: ToolDomain = {
   specs: [
     {
@@ -125,24 +216,11 @@ export const threadTools: ToolDomain = {
         properties: {},
       },
     },
-    {
-      name: "list_threads",
-      description:
-        "List app threads with their live status, attention, project, agent, model, presentation mode, and worktree. Set currentWorktree=true to return only threads in the calling agent's exact project and worktree; this also matches main-checkout threads whose worktreePath is absent. Optionally filter by projectId or status.",
-      inputSchema: {
-        type: "object",
-        additionalProperties: false,
-        properties: {
-          projectId: projectIdProp,
-          status: { type: "string" },
-          currentWorktree: { type: "boolean" },
-        },
-      },
-    },
+    listThreadsTool.spec,
     {
       name: "get_thread",
       description:
-        "Full detail for one thread: persisted row, live runtime status/config, pending steer (staged message), and turn timing.",
+        "Inspect a thread's saved composer config, live runtime config, provider-advertised session options and slash commands, pending steer, and turn timing.",
       inputSchema: threadIdJsonSchema(),
     },
     {
@@ -161,67 +239,8 @@ export const threadTools: ToolDomain = {
         },
       },
     },
-    {
-      name: "create_thread",
-      description:
-        "Create and launch a new app thread in a project (visible in the user's sidebar). The calling thread's agent and model are used unless overridden. Plugins and MCPs follow the New thread page's saved defaults. Override browserMcp, crossagentMcp, chromeMcp, or computerUse per thread; provider/platform restrictions and global hard disables still apply. mcpServers maps configured server ids (global or the target project's, from list_mcp_servers with its projectId) to booleans; plugins maps installed manifest names (from get_settings installedPlugins) to booleans and wins over the project's own plugin switches. These choices affect only the new thread and survive resume. Attach files or images with attachments: [{path, mimeType?}], using absolute paths on the host; image types are inferred from extensions. With worktree.enabled=true, this tool creates and assigns the worktree before launching the agent there; tell the child to use that checkout for task changes and checks, not create another one. For Home threads, workspaceId files the new conversation into a workspace (id or unique name from list_workspaces); omitted Home threads inherit the calling thread's workspace when possible. Project threads follow their project's workspace — use update_project to file a project.",
-      inputSchema: {
-        type: "object",
-        additionalProperties: false,
-        required: ["projectId", "prompt"],
-        properties: {
-          projectId: projectIdProp,
-          prompt: { type: "string", minLength: 1, maxLength: 50000 },
-          agentKind: { type: "string", minLength: 1 },
-          model: { type: "string", minLength: 1 },
-          effort: { type: "string", minLength: 1 },
-          title: { type: "string", minLength: 1, maxLength: 200 },
-          workspaceId: { type: "string", minLength: 1 },
-          browserMcp: { type: "boolean" },
-          crossagentMcp: { type: "boolean" },
-          chromeMcp: { type: "boolean" },
-          computerUse: { type: "boolean" },
-          mcpServers: { type: "object", additionalProperties: { type: "boolean" } },
-          plugins: { type: "object", additionalProperties: { type: "boolean" } },
-          attachments: {
-            type: "array",
-            items: {
-              type: "object",
-              additionalProperties: false,
-              required: ["path"],
-              properties: {
-                path: { type: "string", minLength: 1 },
-                mimeType: { type: "string", minLength: 1 },
-              },
-            },
-          },
-          worktree: {
-            type: "object",
-            additionalProperties: false,
-            required: ["enabled"],
-            properties: {
-              enabled: { type: "boolean" },
-              branch: { type: "string", minLength: 1, maxLength: 255 },
-            },
-          },
-        },
-      },
-    },
-    {
-      name: "send_to_thread",
-      description:
-        "Send a message to another thread. If the thread has no live session (it was stopped, unloaded, or the app restarted), it is resumed from its persisted config and session reference and the message is delivered as the first input of the resumed session. A thread with no resumable session cannot receive messages — use create_thread instead. Set interruptFirst to interrupt a working turn before sending (ignored when resuming, since nothing is running).",
-      inputSchema: {
-        type: "object",
-        additionalProperties: false,
-        required: ["threadId", "message"],
-        properties: {
-          threadId: threadIdProp,
-          message: { type: "string", minLength: 1, maxLength: 50000 },
-          interruptFirst: { type: "boolean" },
-        },
-      },
-    },
+    readThreadHistoryTool.spec,
+    ...launchAndLifecycleTools.specs,
     {
       name: "interrupt_thread",
       description:
@@ -248,28 +267,7 @@ export const threadTools: ToolDomain = {
         },
       },
     },
-    {
-      name: "update_thread",
-      description:
-        "Update a thread's metadata: rename, assign or remove a sidebar group, file a Home thread into a workspace, mark done/not-done, star/unstar, archive/unarchive, or acknowledge a finished thread. group assigns a sidebar group (clicking a group opens every member). ungroup removes this thread from its group (a leftover pair dissolves). ungroupAll dissolves the whole group. workspaceId files a Home thread (id or unique name from list_workspaces); null unfiles it so it is visible in every workspace. Project threads follow their project's workspace — use update_project for those.",
-      inputSchema: {
-        type: "object",
-        additionalProperties: false,
-        required: ["threadId"],
-        properties: {
-          threadId: threadIdProp,
-          rename: { type: "string", minLength: 1, maxLength: 200 },
-          group: { type: "string", minLength: 1, maxLength: 200 },
-          ungroup: { type: "boolean" },
-          ungroupAll: { type: "boolean" },
-          workspaceId: { type: ["string", "null"], minLength: 1 },
-          done: { type: "boolean" },
-          starred: { type: "boolean" },
-          archived: { type: "boolean" },
-          acknowledge: { type: "boolean" },
-        },
-      },
-    },
+    updateThreadMetadataTool.spec,
     {
       name: "open_thread",
       description: "Open and focus a thread in the Poracode UI for the user.",
@@ -341,6 +339,9 @@ export const threadTools: ToolDomain = {
     },
   ],
   handlers: {
+    ...launchAndLifecycleTools.handlers,
+    [readThreadHistoryTool.spec.name]: readThreadHistoryTool.handler,
+    [updateThreadMetadataTool.spec.name]: updateThreadMetadataTool.handler,
     get_current_thread: async (_args, ctx) => {
       const threadId = ctx.identity.threadId;
       if (!threadId) {
@@ -354,35 +355,22 @@ export const threadTools: ToolDomain = {
       const snapshots = await snapshotMap(ctx);
       return threadView(thread, project, snapshots.get(threadId));
     },
-    list_threads: async (args, ctx) => {
-      const { projectId, status, currentWorktree } = listArgsSchema.parse(args);
-      const caller = currentWorktree ? currentThread(ctx) : undefined;
-      const projectsById = new Map(ctx.getProjects().map((project) => [project.id, project]));
-      const callerProject = caller ? projectsById.get(caller.projectId) : undefined;
-      const snapshots = await snapshotMap(ctx);
-      const threads = ctx
-        .getThreads()
-        .filter((thread) => (projectId ? thread.projectId === projectId : true))
-        .filter((thread) =>
-          caller
-            ? thread.projectId === caller.projectId &&
-              sameWorktreePath(thread.worktreePath, caller.worktreePath, callerProject)
-            : true,
-        )
-        .map((thread) =>
-          threadView(thread, projectsById.get(thread.projectId), snapshots.get(thread.id)),
-        )
-        .filter((view) => (status ? view.status === status : true));
-      return { count: threads.length, threads };
-    },
+    [listThreadsTool.spec.name]: listThreadsTool.handler,
     get_thread: async (args, ctx) => {
       const { threadId } = threadIdArgsSchema.parse(args);
       const thread = requireThread(ctx, threadId);
       const project = ctx.getProject(thread.projectId) ?? undefined;
       const snapshots = await snapshotMap(ctx);
+      const snapshot = snapshots.get(threadId);
       const pendingSteer = ctx.threadStates.getPendingSteer(threadId);
       return {
-        ...threadView(thread, project, snapshots.get(threadId)),
+        ...threadView(thread, project, snapshot),
+        config: publicThreadConfigSchema.safeParse(thread.config).data,
+        runtimeConfig: publicThreadConfigSchema.safeParse(snapshot?.config).data,
+        ...(snapshot?.sessionConfigOptions !== undefined
+          ? { sessionConfigOptions: snapshot.sessionConfigOptions }
+          : {}),
+        ...(snapshot?.slashCommands ? { slashCommands: snapshot.slashCommands } : {}),
         pendingSteer: pendingSteer
           ? {
               id: pendingSteer.id,
@@ -415,81 +403,13 @@ export const threadTools: ToolDomain = {
         messageCount: page.items.length,
         ...(page.nextCursor != null ? { nextCursor: page.nextCursor } : {}),
         items: page.items.map((item) => ({
+          itemId: item.id,
           role: item.type === "user_message" ? "user" : "assistant",
           type: item.type,
           state: item.state,
           ...(itemText(item) ? truncatedText(itemText(item), maxChars ?? ITEM_TEXT_MAX_CHARS) : {}),
         })),
       };
-    },
-    create_thread: async (args, ctx) => {
-      const parsed = createArgsSchema.parse(args);
-      const sourceThread = ctx.identity.threadId ? ctx.getThread(ctx.identity.threadId) : null;
-      const agentKind: AgentKind | undefined = parsed.agentKind ?? sourceThread?.agentKind;
-      const model = parsed.model ?? sourceThread?.config.model;
-      if (!agentKind || !model) {
-        throw new Error(
-          "agentKind and model are required when they can't be inherited from the calling thread.",
-        );
-      }
-      const effort = parsed.effort ?? sourceThread?.config.effort;
-      const homeThread = isHomeProjectId(parsed.projectId);
-      if (parsed.workspaceId && !homeThread) {
-        throw new Error(
-          "workspaceId on create_thread only applies to Home threads. File a project with update_project instead.",
-        );
-      }
-      const workspaceId = homeThread
-        ? parsed.workspaceId
-          ? requireWorkspace(ctx, parsed.workspaceId).id
-          : inheritCallerWorkspaceId(ctx)
-        : undefined;
-      return ctx.createThread({
-        projectId: parsed.projectId,
-        prompt: parsed.prompt,
-        agentKind,
-        model,
-        ...(effort ? { effort } : {}),
-        ...(sourceThread?.config.fast !== undefined ? { fast: sourceThread.config.fast } : {}),
-        ...(parsed.browserMcp !== undefined ? { browserMcp: parsed.browserMcp } : {}),
-        ...(parsed.crossagentMcp !== undefined ? { crossagentMcp: parsed.crossagentMcp } : {}),
-        ...(parsed.chromeMcp !== undefined ? { chromeMcp: parsed.chromeMcp } : {}),
-        ...(parsed.computerUse !== undefined ? { computerUse: parsed.computerUse } : {}),
-        ...(parsed.mcpServers !== undefined ? { mcpServers: parsed.mcpServers } : {}),
-        ...(parsed.plugins !== undefined ? { plugins: parsed.plugins } : {}),
-        ...(parsed.attachments !== undefined ? { attachments: parsed.attachments } : {}),
-        ...(parsed.title ? { title: parsed.title } : {}),
-        ...(workspaceId ? { workspaceId } : {}),
-        ...(parsed.worktree?.enabled
-          ? { worktree: parsed.worktree.branch ? { branch: parsed.worktree.branch } : {} }
-          : {}),
-      });
-    },
-    send_to_thread: async (args, ctx) => {
-      const { threadId, message, interruptFirst } = sendArgsSchema.parse(args);
-      const thread = requireThread(ctx, threadId);
-      if (interruptFirst) assertNotSelf(ctx, threadId, "interrupt");
-      // Fast path: the thread has a live runtime session, so deliver directly.
-      // If the session is gone (stopped/unloaded/supervisor restart) the
-      // supervisor throws `Unknown thread session`; fall through to resume.
-      try {
-        if (interruptFirst) await ctx.supervisor.interruptThread({ threadId });
-        await ctx.supervisor.sendThreadInput({ threadId, prompt: message, config: thread.config });
-        return { threadId, delivered: true, interruptedFirst: interruptFirst === true };
-      } catch (error) {
-        if (!isUnknownThreadSessionError(error)) throw error;
-      }
-      // No live session — resume the thread the same way the app revives an
-      // inactive thread (startThread with the persisted config + sessionRef),
-      // delivering the message as the resumed session's first input.
-      if (!thread.sessionRef && !thread.canResumeWithConfig) {
-        throw new Error(
-          `Thread ${threadId} has no live or resumable session, so it cannot receive a message. ` +
-            "Use create_thread to start a new thread instead.",
-        );
-      }
-      await ctx.supervisor.startThread(buildResumeStartPayload(ctx, thread, message));
-      return { threadId, delivered: true, resumed: true, interruptedFirst: false };
     },
     interrupt_thread: async (args, ctx) => {
       const { threadId } = threadIdArgsSchema.parse(args);
@@ -520,7 +440,6 @@ export const threadTools: ToolDomain = {
       if (settled) return { timedOut: false, ...settled };
       return { timedOut: true, ...waitSnapshot(ctx, threadIds) };
     },
-    update_thread: updateThreadMetadata,
     open_thread: (args, ctx) => {
       const { threadId } = threadIdArgsSchema.parse(args);
       requireThread(ctx, threadId);
@@ -613,8 +532,14 @@ export const threadTools: ToolDomain = {
 function buildResumeStartPayload(
   ctx: AppControlsToolContext,
   thread: Thread,
-  prompt: string,
+  input: {
+    prompt: string;
+    config: ThreadConfig;
+    segments?: PromptSegment[] | undefined;
+    questionAnswer?: QuestionAnswerItemPayload | undefined;
+  },
 ): StartThreadPayload {
+  const { prompt, config, segments, questionAnswer } = input;
   const project = ctx.getProject(thread.projectId);
   if (!project) {
     throw new Error(
@@ -629,12 +554,14 @@ function buildResumeStartPayload(
     projectLocation,
     agentKind: thread.agentKind,
     ...(thread.agentInstanceId ? { agentInstanceId: thread.agentInstanceId } : {}),
-    config: thread.config,
+    config,
     prompt,
+    ...(segments !== undefined ? { segments } : {}),
+    ...(questionAnswer !== undefined ? { questionAnswer } : {}),
     initialSize: DEFAULT_TERMINAL_SIZE,
     ...(thread.sessionRef ? { sessionRef: thread.sessionRef } : {}),
     ...(thread.presentationMode ? { presentationMode: thread.presentationMode } : {}),
-    ...resolveMcpLaunchSnapshot(ctx.settings.read(), project, thread.config.mcpServerOverrides),
+    ...resolveMcpLaunchSnapshot(ctx.settings.read(), project, config.mcpServerOverrides),
   };
 }
 
@@ -791,33 +718,11 @@ async function currentWorktreeTerminals(ctx: AppControlsToolContext) {
   return snapshots.filter(
     (snapshot) =>
       snapshot.terminalId.startsWith("shell:") &&
-      sameWorktreePath(snapshot.worktreePath, caller.worktreePath, project) &&
-      sameProjectLocation(snapshot.projectLocation, location),
+      matchesWorkspaceTerminal(snapshot, {
+        projectLocation: location,
+        worktreePath: caller.worktreePath,
+      }),
   );
-}
-
-function sameProjectLocation(left: ProjectLocation, right: ProjectLocation): boolean {
-  if (left.kind !== right.kind || left.remoteServerId !== right.remoteServerId) return false;
-  if (left.kind === "wsl" && right.kind === "wsl") {
-    return (
-      left.distro.toLowerCase() === right.distro.toLowerCase() &&
-      normalizeWorktreePathForComparison(left.linuxPath, false) ===
-        normalizeWorktreePathForComparison(right.linuxPath, false)
-    );
-  }
-  if (left.kind === "windows" && right.kind === "windows") {
-    return (
-      normalizeWorktreePathForComparison(left.path, true) ===
-      normalizeWorktreePathForComparison(right.path, true)
-    );
-  }
-  if (left.kind === "posix" && right.kind === "posix") {
-    return (
-      normalizeWorktreePathForComparison(left.path, false) ===
-      normalizeWorktreePathForComparison(right.path, false)
-    );
-  }
-  return false;
 }
 
 function currentThread(ctx: AppControlsToolContext): Thread {

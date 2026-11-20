@@ -25,6 +25,7 @@ struct SettingsProfileDashboard: View {
         SettingsProfileDetails(
           information: information,
           metric: activeMetric,
+          window: query.window,
           selectedAccount: query.provider
         )
       }

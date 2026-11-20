@@ -26,6 +26,7 @@ import {
   type CursorSdkWorkerInitializeInput,
   type CursorSdkWorkerInitializeResult,
   type CursorSdkWorkerProbeResult,
+  type CursorSdkWorkerResolvedMetadata,
   type CursorSdkWorkerStartInput,
   type CursorSdkWorkerStartResult,
   type CursorSdkWorkerSteerResult,
@@ -68,6 +69,11 @@ export interface CursorSdkWorkerSpawnOptions {
    * the target environment is not the one the root was recorded in.
    */
   pinnedRoot?: CursorSdkPinHint;
+  /**
+   * When true, try active package-manager global roots before `pinnedRoot` so
+   * detection picks up updates installed into a different active prefix.
+   */
+  pinFallbackOnly?: boolean;
   /** Non-secret process environment overrides. */
   env?: Record<string, string>;
   /** Override the native helper path, or the host source staged into WSL. */
@@ -105,11 +111,13 @@ export type CursorSdkWorkerTransportErrorListener = (error: Error) => void;
 
 export class CursorSdkWorkerRpcError extends Error {
   readonly code: string | undefined;
+  readonly sdk: CursorSdkWorkerResolvedMetadata | undefined;
 
   constructor(error: CursorSdkWorkerError) {
     super(error.message);
     this.name = error.name || "CursorSdkWorkerRpcError";
     this.code = error.code;
+    this.sdk = error.sdk;
   }
 }
 
@@ -552,6 +560,7 @@ async function spawnWorkerProcess(
     ...(options.sdkEntryPath ? { entryPath: options.sdkEntryPath } : {}),
     ...(options.sdkPackageRoot ? { packageRoot: options.sdkPackageRoot } : {}),
     ...(pinnedRoot ? { pinnedRoot } : {}),
+    ...(pinnedRoot && options.pinFallbackOnly ? { pinFallbackOnly: true } : {}),
   };
   const spawnProcess =
     dependencies.spawnProcess ??

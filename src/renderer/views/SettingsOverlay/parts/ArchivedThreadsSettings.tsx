@@ -210,10 +210,7 @@ export function ArchivedThreadsSettings(props: ArchivedThreadsScopeProps) {
                     />
                   )}
                 </div>
-                <Surface
-                  variant="secondary"
-                  className="divide-y divide-[var(--hairline)] rounded-xl"
-                >
+                <Surface variant="secondary" className="content-surface-group">
                   {group.threads.map((thread) => {
                     const project = projects.find((p) => p.id === thread.projectId);
                     const archivedTime = timeFormatter.format(

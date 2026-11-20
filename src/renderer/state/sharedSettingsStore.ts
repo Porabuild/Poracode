@@ -32,6 +32,7 @@ import {
   type SharedSettings,
   type SharedSettingsInput,
 } from "@/shared/settings";
+import { memorySettingsSchema, type MemorySettings } from "@/shared/memory";
 import {
   isThreadConfigCrewEqual,
   MAX_SAVED_CREWS,
@@ -107,6 +108,7 @@ interface SharedSettingsState extends SharedSettings {
     effort: string,
     fast: boolean,
   ) => void;
+  setMemorySettings: (patch: Partial<MemorySettings>) => void;
   setConflictResolverPresentationMode: (mode: ThreadPresentationMode) => void;
   setWslCommitGenConfig: (provider: string, model: string, effort: string, fast: boolean) => void;
   setWslTitleGenConfig: (provider: string, model: string, effort: string, fast: boolean) => void;
@@ -189,6 +191,7 @@ interface SharedSettingsState extends SharedSettings {
   setMcpServers: (servers: McpServer[]) => void;
   upsertCrew: (crew: SavedCrew) => void;
   deleteCrew: (id: string) => void;
+  setWslCrews: (distro: string, crews: SavedCrew[]) => void;
   setCrewFavorite: (id: string, favorite: boolean) => void;
   setCrewLastUsedAt: (id: string, lastUsedAt: number | null) => void;
   setBuiltInMcpServerDisabled: (id: BuiltInMcpServerId, disabled: boolean) => void;
@@ -563,6 +566,19 @@ export const useSharedSettings = create<SharedSettingsState>()((set, get) => ({
       experimentJudgeEffort,
       experimentJudgeFast,
     });
+    persistSettings(selectSharedSettings(get()));
+  },
+  setMemorySettings: (patch) => {
+    const current = get().memory;
+    const memory = memorySettingsSchema.parse({ ...current, ...patch });
+    if (
+      (Object.keys(memory) as Array<keyof typeof memory>).every(
+        (key) => current[key] === memory[key],
+      )
+    ) {
+      return;
+    }
+    set({ memory });
     persistSettings(selectSharedSettings(get()));
   },
   setConflictResolverPresentationMode: (conflictResolverPresentationMode) => {
@@ -997,6 +1013,10 @@ export const useSharedSettings = create<SharedSettingsState>()((set, get) => ({
     set({ crews: next });
     persistSettings(selectSharedSettings(get()));
   },
+  setWslCrews: (distro, crews) => {
+    set({ wslCrews: { ...get().wslCrews, [distro]: crews } });
+    persistSettings(selectSharedSettings(get()));
+  },
   setBuiltInMcpServerDisabled: (id, disabled) => {
     const current = get().disabledBuiltInMcpServers;
     if ((current[id] ?? false) === disabled) return;
@@ -1372,6 +1392,7 @@ function selectSharedSettings(state: SharedSettingsState): SharedSettingsInput {
     experimentJudgeModel: state.experimentJudgeModel,
     experimentJudgeEffort: state.experimentJudgeEffort,
     experimentJudgeFast: state.experimentJudgeFast,
+    memory: state.memory,
     conflictResolverPresentationMode: state.conflictResolverPresentationMode,
     wslCommitGenProvider: state.wslCommitGenProvider,
     wslCommitGenModel: state.wslCommitGenModel,
@@ -1461,6 +1482,7 @@ function selectSharedSettings(state: SharedSettingsState): SharedSettingsInput {
     remotePushRedactContent: state.remotePushRedactContent,
     workspaces: state.workspaces,
     crews: state.crews,
+    wslCrews: state.wslCrews,
     favoriteModels: state.favoriteModels,
     recentModels: state.recentModels,
     agentSelectionUsage: state.agentSelectionUsage,

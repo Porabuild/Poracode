@@ -19,7 +19,7 @@ export async function buildSmokeRuntime({ repoRoot, appRoot, rendererViteHMR }) 
       ["prepare-pty-job-owner.mjs"],
       ["prepare-service-launcher.mjs"],
     ]);
-  const bundles = await build({
+  const { bundles } = await build({
     cwd: appRoot,
     config: join(appRoot, "tsdown.config.ts"),
     outDir: mainBundleDir,

@@ -45,13 +45,8 @@ import { runGitMergeToSource, showGitOperationFailure } from "./gitCommandRunner
 import { applyDefaultPrAutomation } from "./prAutomationActions";
 import { readExperimentResponseTranscript } from "./experimentResponseReads";
 
-export interface ExperimentJudgeSelection {
-  agentKind: string;
-  model: string;
-  effort?: string;
-  fast: boolean;
-  mode?: ExperimentJudgeMode;
-}
+import type { ExperimentJudgeSelection } from "@/shared/contracts/appExperiment";
+export type { ExperimentJudgeSelection } from "@/shared/contracts/appExperiment";
 
 function experimentSnapshotCandidates(experiment: Experiment) {
   return experiment.candidates.map((candidate) => ({

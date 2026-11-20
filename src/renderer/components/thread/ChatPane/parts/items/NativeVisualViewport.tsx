@@ -63,7 +63,7 @@ export function NativeVisualViewport({
       role="region"
       aria-label={label}
       {...(fitToWidth ? {} : { tabIndex: 0 })}
-      className={`min-w-0 ${fitToWidth ? "overflow-visible" : "focus-visible:outline-2 focus-visible:outline-accent"}`}
+      className={`min-w-0 ${fitToWidth ? "overflow-visible" : "focus-visible:outline-1 focus-visible:outline-focus"}`}
     >
       <div
         ref={content}

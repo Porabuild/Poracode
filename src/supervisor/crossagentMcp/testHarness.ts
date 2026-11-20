@@ -26,6 +26,7 @@ const resolveAgentProjectLocation = vi.hoisted(() =>
 vi.mock("@/supervisor/agents/base", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/supervisor/agents/base")>()),
   resolveAgentProjectLocation,
+  primeProjectShellEnv: async () => undefined,
 }));
 
 export const PARENT = "parent";

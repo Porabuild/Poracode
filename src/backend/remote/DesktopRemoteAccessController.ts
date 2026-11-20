@@ -138,23 +138,13 @@ export function createDesktopRemoteAccessController(
 
   const mcpSettings = createRemoteMcpSettingsGateway({
     readSettings: () => readSharedSettingsFile(options.paths.settingsPath),
-    // Scoped CAS edit of the whole `mcpServers` field, derived from the
-    // freshest committed state; a surviving conflict is reported, never
-    // written over the concurrent writer (mirrors the headless composition).
-    writeGlobalServers: (mcpServers) => {
-      void options.settingsWrites
-        .editSettingsField("mcpServers", () => mcpServers)
-        .then((result) => {
-          if (result.status !== "committed") {
-            options.reportError(
-              new Error(`MCP server settings were not committed (${result.status}).`),
-              { "poracode.feature_area": "remote-access" },
-            );
-          }
-        })
-        .catch((error: unknown) =>
-          options.reportError(error, { "poracode.feature_area": "remote-access" }),
-        );
+    editGlobalServers: async (edit) => {
+      const result = await options.settingsWrites.editSettingsField("mcpServers", (current) =>
+        edit(current.mcpServers),
+      );
+      if (result.status !== "committed") {
+        throw new Error(`MCP server settings were not committed (${result.status}).`);
+      }
     },
     readProject: dbGetProject,
     writeProject: dbUpdateProject,
@@ -214,6 +204,13 @@ export function createDesktopRemoteAccessController(
     return advertisedBaseUrl ? { advertisedBaseUrl } : {};
   };
 
+  const resolveInitialAdvertisedBaseUrl = (): string | undefined => {
+    if (process.env.PORACODE_REMOTE_ACCESS_ADVERTISED_HOST?.trim()) return undefined;
+    return normalizeAdvertisedUrlSetting(
+      readSharedSettingsFile(options.paths.settingsPath).remoteAccessAdvertisedUrl,
+    );
+  };
+
   const isCurrentStartAttempt = (attempt: RemoteAccessStartAttempt): boolean =>
     !refs.disposed &&
     !attempt.cancelled &&
@@ -264,14 +261,18 @@ export function createDesktopRemoteAccessController(
     isCurrentStartAttempt,
     stopMdnsAdvertiser,
     resolveAdvertisedBaseUrl,
+    resolveInitialAdvertisedBaseUrl,
     teardownAttemptTailscaleServe,
     getPairingInfo,
     prewarmGitStateOnce,
     clearEventInterests,
   };
 
-  const startRemoteAccessServer = (loopbackOnly: boolean): Promise<RemoteAccessServerInfo> =>
-    startDesktopRemoteAccessServer(startContext, loopbackOnly);
+  const startRemoteAccessServer = (
+    loopbackOnly: boolean,
+    waitForAdvertisement = false,
+  ): Promise<RemoteAccessServerInfo> =>
+    startDesktopRemoteAccessServer(startContext, loopbackOnly, waitForAdvertisement);
 
   /** Best-effort teardown of a Tailscale mapping established by this process. */
   const teardownTailscaleServe = (): Promise<void> => {
@@ -286,12 +287,22 @@ export function createDesktopRemoteAccessController(
   // out, so the managed desktop never loses its loopback leg.
 
   const restartRemoteAccessServer = async (loopbackOnly: boolean): Promise<void> => {
-    const restartGeneration = refs.remoteAccessGeneration;
+    let restartGeneration = refs.remoteAccessGeneration;
     const starting = refs.remoteAccessStartAttempt;
     if (!refs.remoteAccessServer && !starting) return;
     if (starting) {
+      starting.cancelled = true;
+      restartGeneration = ++refs.remoteAccessGeneration;
+      refs.remoteAccessServer = null;
+      refs.pushCoordinator = null;
+      refs.runningLoopbackOnly = loopbackOnly;
+      await retirements.run([
+        () => disposeAttemptServer(starting),
+        () => starting.coordinator?.dispose(),
+        () => stopMdnsAdvertiser(),
+        clearEventInterests,
+      ]);
       await starting.promise.catch(() => {});
-      if (starting.cancelled) return;
     }
     if (refs.disposed || restartGeneration !== refs.remoteAccessGeneration) return;
     const server = refs.remoteAccessServer;
@@ -307,7 +318,7 @@ export function createDesktopRemoteAccessController(
     ]);
     if (refs.disposed || restartGeneration !== refs.remoteAccessGeneration) return;
     try {
-      await startRemoteAccessServer(loopbackOnly);
+      await startRemoteAccessServer(loopbackOnly, true);
     } catch (error) {
       if (
         error instanceof RemoteAccessStartSupersededError &&
@@ -425,7 +436,8 @@ export function createDesktopRemoteAccessController(
 
     await writeRemoteAccessEnabledSetting(true);
     try {
-      await startRemoteAccessServer(false);
+      if (refs.runningLoopbackOnly) await restartRemoteAccessServer(false);
+      else await startRemoteAccessServer(false, true);
     } catch (error) {
       if (error instanceof RemoteAccessStartSupersededError) {
         return getPairingInfo();

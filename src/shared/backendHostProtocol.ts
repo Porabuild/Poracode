@@ -4,6 +4,10 @@ import {
   type BackendDiagnosticError,
 } from "./diagnostics/backendDiagnosticError";
 import { CLIENT_HOST_HOP_VERSION } from "./clientHostHop";
+import { appMemorySyncRequestSchema } from "./contracts/appMemorySync";
+import { appExperimentRequestSchema } from "./contracts/appExperiment";
+import { appLocalPortsRequestSchema } from "./contracts/appLocalPorts";
+import { appProviderLoginRequestSchema } from "./contracts/appProviderAuth";
 import type {
   ProfileCoreStats,
   ProfileDevicesResponse,
@@ -136,6 +140,7 @@ export const BACKEND_DATABASE_PROCEDURE_NAMES = [
   "dbGetThreadTokenUsage",
   "dbGetProjectNotes",
   "dbSetProjectNotes",
+  "memoryCommand",
   "getScheduleRuns",
   "appendUsageEvents",
 ] as const;
@@ -343,6 +348,26 @@ export type BackendNativeRequest =
       payload: { threadId: string; preview: boolean; streaming?: boolean };
     }
   | { operation: "dispatch-thread-command"; payload: RemoteThreadCommand }
+  | {
+      operation: "thread-transfer";
+      payload: import("./contracts/appThreadTransfer").AppThreadTransferRequest;
+    }
+  | {
+      operation: "memory-sync";
+      payload: import("./contracts/appMemorySync").AppMemorySyncRequest;
+    }
+  | {
+      operation: "experiment-workflow";
+      payload: import("./contracts/appExperiment").AppExperimentRequest;
+    }
+  | {
+      operation: "local-ports";
+      payload: import("./contracts/appLocalPorts").AppLocalPortsRequest;
+    }
+  | {
+      operation: "provider-login";
+      payload: import("./contracts/appProviderAuth").AppProviderLoginRequest;
+    }
   | { operation: "open-thread"; payload: { threadId: string } }
   | { operation: "notify-user"; payload: { title: string; body: string; threadId: string } }
   | { operation: "check-for-update"; payload: Record<string, never> }
@@ -361,7 +386,8 @@ export type BackendBrowserEvent =
 
 export type BackendNativeEvent =
   | { type: "database-projection-changed" }
-  | { type: "shared-settings-changed"; settings: SharedSettings }
+  // Older host and main bundles accept the original event and ignore the optional hint.
+  | { type: "shared-settings-changed"; settings: SharedSettings; pluginInventoryChanged?: true }
   | { type: "remote-access-pairing-changed"; info: RemoteAccessPairingInfo }
   | { type: "pr-watch-status"; event: PrWatchStatusEvent }
   | {
@@ -637,13 +663,21 @@ export function isBackendHostOutboundMessage(
       );
     case "supervisor-reset":
       return true;
-    case "native-request":
+    case "native-request": {
+      if (typeof message.id !== "string" || !isRecord(message.request)) return false;
+      const { operation, payload } = message.request;
+      if (operation === "experiment-workflow") {
+        return appExperimentRequestSchema.safeParse(payload).success;
+      }
+      if (operation === "memory-sync") return appMemorySyncRequestSchema.safeParse(payload).success;
+      if (operation === "local-ports") return appLocalPortsRequestSchema.safeParse(payload).success;
+      if (operation === "provider-login")
+        return appProviderLoginRequestSchema.safeParse(payload).success;
       return (
-        typeof message.id === "string" &&
-        isRecord(message.request) &&
-        typeof message.request.operation === "string" &&
+        typeof operation === "string" &&
         [
           "dispatch-thread-command",
+          "thread-transfer",
           "open-thread",
           "notify-user",
           "check-for-update",
@@ -655,9 +689,10 @@ export function isBackendHostOutboundMessage(
           "browser-watch-start",
           "browser-watch-stop",
           "browser-refresh",
-        ].includes(message.request.operation) &&
+        ].includes(operation) &&
         "payload" in message.request
       );
+    }
     case "native-event":
       return (
         isRecord(message.event) &&

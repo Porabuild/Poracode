@@ -5,7 +5,7 @@ import { MAX_WAIT_TIMEOUT_MS } from "./waitTiming";
 interface WaitableRun {
   parentThreadId: string;
   status: SubagentRunStatus;
-  pendingRequestIds: ReadonlySet<string>;
+  pendingRequestIds: { readonly size: number };
 }
 
 /** Join without polling; input requests wake either mode before the deadline. */

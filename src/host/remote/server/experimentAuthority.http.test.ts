@@ -467,6 +467,61 @@ describe.skipIf(!sqliteAvailable)("experiment authority over real HTTP", () => {
     expect(threadRow("E1-c1")).toBeUndefined();
   });
 
+  it("shares App Controls edits with the desktop experiment authority", async () => {
+    const record = experimentRecord("E1");
+    expect(
+      (
+        await postCommand(
+          info,
+          operatorToken,
+          record.id,
+          createCommandWire(record),
+          "mcp-experiment-create",
+        )
+      ).status,
+    ).toBe(200);
+    const { ws, read } = await openPairedSocket(info, operatorToken);
+    try {
+      await read();
+      const { revision } = server.readAppExperiments();
+      const rename = {
+        action: "rename",
+        experimentId: record.id,
+        revision,
+        title: "Model comparison",
+      } as const;
+      const renamed = await server.editAppExperiment(rename);
+      expect(renamed).toMatchObject({ ok: true });
+      await waitForEventType(read, "remote-projects-changed");
+      expect(await server.editAppExperiment(rename)).toEqual(renamed);
+      expect(threadRow("E1-c1")?.group_name).toBe(rename.title);
+      expect(threadRow("E1-c2")?.group_name).toBe(rename.title);
+      const select = {
+        action: "select_winner",
+        experimentId: record.id,
+        threadId: "E1-c2",
+      } as const;
+      await expect(server.editAppExperiment({ ...select, revision })).rejects.toMatchObject({
+        status: 409,
+      });
+      await expect(
+        server.editAppExperiment({ ...select, revision: renamed.revision, threadId: "unrelated" }),
+      ).rejects.toMatchObject({ status: 400 });
+      await expect(
+        server.editAppExperiment({ ...select, revision: renamed.revision }),
+      ).resolves.toMatchObject({ ok: true });
+      expect(server.readAppExperiments().experiments.E1).toMatchObject({
+        title: rename.title,
+        status: "running",
+        crown: { source: "user", threadId: select.threadId },
+      });
+      expect(threadRow("E1-c2")).toBeDefined();
+      expect(callSupervisor).not.toHaveBeenCalled();
+    } finally {
+      ws.close();
+    }
+  });
+
   it("conflicts on a stale store-wide token, then applies a rebased replace", async () => {
     const record = experimentRecord("E1");
     const created = await postCommand(

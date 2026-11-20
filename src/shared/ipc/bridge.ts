@@ -5,6 +5,12 @@ import type {
   SideChatThreadBinding,
   SideChatWindowsChanged,
 } from "./sideChat";
+import type {
+  ThreadWindowBootstrap,
+  ThreadWindowCloseOptions,
+  ThreadWindowNavigation,
+  ThreadWindowsChanged,
+} from "./threadWindow";
 import type { RemoteThreadCommand } from "../contracts";
 import type { RemoteAccessPairingInfo } from "../remote";
 import type { SharedSettings } from "../settings";
@@ -59,6 +65,14 @@ export type PoracodeBridge = PoracodeInvokeBridge & {
   bindSideChatThread?: (input: SideChatThreadBinding) => Promise<void>;
   getSideChatThreadIds?: () => Promise<string[]>;
   onSideChatWindowsChanged?: (listener: (event: SideChatWindowsChanged) => void) => () => void;
+  /** Opens the thread in its own window, or focuses the window it already has. */
+  openThreadWindow?: (input: ThreadWindowBootstrap) => Promise<void>;
+  /** Closes the thread's window and, unless told otherwise, shows the thread in the main window. */
+  closeThreadWindow?: (threadId: string, options?: ThreadWindowCloseOptions) => Promise<void>;
+  navigateFromThreadWindow?: (navigation: ThreadWindowNavigation) => Promise<void>;
+  getThreadWindowInfo?: () => Promise<ThreadWindowBootstrap | null>;
+  getThreadWindowIds?: () => Promise<string[]>;
+  onThreadWindowsChanged?: (listener: (event: ThreadWindowsChanged) => void) => () => void;
   platform: NodeJS.Platform;
   appVersion: string;
   arch: string;
@@ -91,10 +105,36 @@ export type PoracodeBridge = PoracodeInvokeBridge & {
   onBrowserEvent(listener: (event: BrowserEvent) => void): () => void;
   /** Thread-metadata mutations issued by paired browser clients. */
   onRemoteThreadCommand(listener: (command: RemoteThreadCommand) => void): () => void;
+  onAppThreadTransfer?(
+    listener: (
+      request: import("../contracts/appThreadTransfer").AppThreadTransferRequest,
+      begin: () => Promise<void>,
+    ) => Promise<import("../contracts/appThreadTransfer").AppThreadTransferResult>,
+  ): () => void;
+  onAppMemorySync?(
+    listener: (
+      request: import("../contracts/appMemorySync").AppMemorySyncRequest,
+      begin: () => Promise<void>,
+    ) => Promise<import("../contracts/appMemorySync").AppMemorySyncResult>,
+  ): () => void;
+  onAppExperiment?(
+    listener: (
+      request: import("../contracts/appExperiment").AppExperimentRequest,
+      begin: () => Promise<void>,
+    ) => Promise<import("../contracts/appExperiment").AppExperimentResult>,
+  ): () => void;
+  onAppProviderLogin?(
+    listener: (
+      request: import("../contracts/appProviderAuth").AppProviderLoginRequest,
+      begin: () => Promise<void>,
+    ) => Promise<import("../contracts/appProviderAuth").AppProviderLoginResult>,
+  ): () => void;
   /** Active remote-access code or paired-device state changed in main. */
   onRemoteAccessPairingChanged(listener: (info: RemoteAccessPairingInfo) => void): () => void;
   /** Shared settings rewritten outside this renderer (e.g. by a remote client). */
-  onSharedSettingsChanged(listener: (settings: SharedSettings) => void): () => void;
+  onSharedSettingsChanged(
+    listener: (settings: SharedSettings, pluginInventoryChanged?: true) => void,
+  ): () => void;
   onGitStateChanged(listener: (patch: GitStatePatch) => void): () => void;
   onUserNotification(listener: (notification: UserNotification) => void): () => void;
   onPrWatchMerged(listener: (event: PrWatchMergedEvent) => void): () => void;

@@ -27,6 +27,26 @@ final class GitOperationsControllerTests: XCTestCase {
   }
 
   @MainActor
+  func testRepositoryBusyIsDefiniteAndDoesNotReconcile() async {
+    let context = makeGitOperationsContext()
+    let gateway = QueuedGitOperationsGateway(outcomes: [
+      .failure(.http(statusCode: 429, code: "git_repository_busy", missingScope: nil))
+    ])
+    let controller = GitOperationsController(gateway: gateway)
+    controller.activate(context)
+    let request = GitOperationRequest.gitStageAll(
+      .init(projectLocation: context.lease.location)
+    )
+
+    await controller.submit(request)
+
+    XCTAssertEqual(controller.state.failure, .busy)
+    XCTAssertFalse(controller.state.requiresAuthoritativeRefresh)
+    let requests = await gateway.requests
+    XCTAssertEqual(requests, [request])
+  }
+
+  @MainActor
   func testDestructiveMutationRequiresCapturedConfirmation() async {
     let context = makeGitOperationsContext()
     let gateway = QueuedGitOperationsGateway(outcomes: [.value(.omitted)])

@@ -113,7 +113,14 @@ describe("authenticated host agent management", () => {
       { agentKind: "claude", envKind: "posix" },
       { ok: true, strategy: "npm-global" },
     ],
+    ["installAcpRegistryAgent", { agentId: "registry-agent" }, { installed: [] }],
+    ["removeAcpRegistryAgent", { agentId: "registry-agent" }, { installed: [] }],
     ["updateAcpRegistryAgent", { agentId: "registry-agent" }, { installed: [] }],
+    [
+      "setAcpRegistryAgentAuth",
+      { agentId: "registry-agent", environment: { API_KEY: "secret" } },
+      { installed: [] },
+    ],
   ] as const)(
     "dispatches an operator's %s to the addressed host and returns its parsed result",
     async (procedure, payload, result) => {
@@ -123,6 +130,50 @@ describe("authenticated host agent management", () => {
       expect(response.status).toBe(200);
       await expect(response.json()).resolves.toEqual({ result });
       expect(callSupervisor).toHaveBeenCalledWith(procedure, payload);
+    },
+  );
+
+  it.each([
+    ["authenticateAcpAgent", { agentKind: "acp-generic:demo", methodId: "sso" }],
+    ["logoutAcpAgent", { agentKind: "acp-generic:demo" }],
+  ] as const)(
+    "dispatches an operator's void %s to the addressed host",
+    async (procedure, payload) => {
+      const { call, callSupervisor } = await fixture("operator");
+      callSupervisor.mockResolvedValueOnce(undefined as never);
+      const response = await call(procedure, payload);
+      expect(response.status).toBe(200);
+      await expect(response.json()).resolves.toEqual({});
+      expect(callSupervisor).toHaveBeenCalledWith(procedure, payload);
+    },
+  );
+
+  it("resolves provider account metadata for a viewer", async () => {
+    const { call, callSupervisor } = await fixture("viewer");
+    const account = { account: { authenticatedAs: "user@example.com", plan: "Pro" } };
+    callSupervisor.mockResolvedValueOnce(account as never);
+    const response = await call("resolveAgentAccount", {
+      agentKind: "antigravity",
+      wslDistros: [],
+    });
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({ result: account });
+  });
+
+  it.each([
+    ["installAcpRegistryAgent", { agentId: "registry-agent" }],
+    ["removeAcpRegistryAgent", { agentId: "registry-agent" }],
+    ["setAcpRegistryAgentAuth", { agentId: "registry-agent", environment: { KEY: "v" } }],
+    ["authenticateAcpAgent", { agentKind: "acp-generic:demo", methodId: "sso" }],
+    ["logoutAcpAgent", { agentKind: "acp-generic:demo" }],
+  ] as const)(
+    "rejects a viewer's %s by scope before invoking the supervisor",
+    async (proc, payload) => {
+      const { call, callSupervisor } = await fixture("viewer");
+      const response = await call(proc, payload);
+      expect(response.status).toBe(403);
+      await expect(response.json()).resolves.toMatchObject({ error: { code: "missing_scope" } });
+      expect(callSupervisor.mock.calls.some(([name]) => name === proc)).toBe(false);
     },
   );
 

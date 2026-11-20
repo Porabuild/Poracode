@@ -6,7 +6,7 @@ import {
   isCurrentCheckoutRef,
   localBranchNameFromRef,
   resolveWorktreeOriginRef,
-} from "./worktreeBaseRef";
+} from "@/shared/worktreeBaseRef";
 
 function local(name: string): GitBranchInfo {
   return { name, current: name === "master", commit: "abc", isRemote: false };

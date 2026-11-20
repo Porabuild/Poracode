@@ -1,4 +1,5 @@
 import "@/renderer/testUtils/clientDraftDatabase";
+import { flushThreadWindowDraft } from "@/renderer/actions/threadWindowActions";
 import {
   isClientDraftAsset,
   readClientDraftAsset,
@@ -2275,6 +2276,25 @@ describe("ThreadComposerSection", () => {
       expect(screen.getByText("private-A.txt")).toBeInTheDocument();
     });
 
+    it("settles a file pick before handing the draft to another window", async () => {
+      const { pickFiles, resolvers } = deferredPicker();
+      renderComposer({ pickFiles });
+      startPick();
+      let flushed = false;
+      const handoff = flushThreadWindowDraft(guiThread.id).then(() => {
+        flushed = true;
+      });
+      await Promise.resolve();
+      expect(flushed).toBe(false);
+
+      await finishPick(resolvers[0]);
+      await handoff;
+      const received = createComposerDraftStorage(localStorage, window).load("thread")[
+        guiThread.id
+      ];
+      expect(received?.attachments.map((file) => file.name)).toEqual(["private-A.txt"]);
+    });
+
     it("imports dropped files into the thread they were dropped on", async () => {
       const resolvers: Array<(paths: string[]) => void> = [];
       const importFiles = vi.fn<(files: readonly File[]) => Promise<string[]>>(
@@ -2567,7 +2587,10 @@ describe("ThreadComposerSection", () => {
 
     unmount();
 
-    expect(useAppStore.getState().threadDraftContents[guiThread.id]).toBeUndefined();
+    // Delivery can finish after unmount. Its durable acknowledgment clears the draft.
+    await waitFor(() =>
+      expect(useAppStore.getState().threadDraftContents[guiThread.id]).toBeUndefined(),
+    );
   });
 
   describe("prompt recall", () => {
@@ -3170,7 +3193,9 @@ describe("ThreadComposerSection", () => {
       deliver.mockImplementationOnce(async () => {
         inFlight = await listClientSubmissions();
       });
-      renderComposer({ thread: { ...guiThread, status: "working", attention: "working" } });
+      const { unmount } = renderComposer({
+        thread: { ...guiThread, status: "working", attention: "working" },
+      });
       typeComposerText(screen.getByRole("textbox"), "handled by the host");
       fireEvent.click(screen.getByText("send"));
       await waitFor(() =>
@@ -3181,6 +3206,13 @@ describe("ThreadComposerSection", () => {
       await waitFor(async () => expect(await listClientSubmissions()).toEqual([]));
       expect(inFlight).toEqual([expect.objectContaining({ state: "dispatching" })]);
       expect(screen.queryByRole("button", { name: "Discard saved copy" })).toBeNull();
+      expect(screen.getByRole("textbox").textContent).toBe("");
+      unmount();
+      expect(useAppStore.getState().threadDraftContents[guiThread.id]).toBeUndefined();
+      renderComposer({ thread: { ...guiThread, status: "working", attention: "working" } });
+      expect(screen.getByRole("textbox").textContent).toBe("");
+      expect(screen.queryByRole("button", { name: "Restore a copy" })).toBeNull();
+      expect(toastDangerSpy).not.toHaveBeenCalled();
     },
   );
 
@@ -4485,7 +4517,7 @@ describe("ThreadComposerSection", () => {
     expect(details).toHaveTextContent("Dangerous command");
     expect(details).toHaveTextContent("Bash");
     const allow = screen.getByRole("button", { name: "Allow" });
-    expect(details).not.toContainElement(allow);
+    expect(details).toContainElement(allow);
     expect(allow).toHaveClass("button--tertiary");
     expect(screen.getByRole("button", { name: "Deny" })).toHaveClass("button--ghost");
   });

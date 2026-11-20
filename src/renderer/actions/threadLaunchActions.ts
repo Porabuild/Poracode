@@ -27,9 +27,15 @@ import type {
 } from "@/shared/contracts";
 import { DEFAULT_TERMINAL_SIZE, resolveMcpLaunchSnapshot } from "@/shared/contracts";
 import { isHomeProject, isHomeProjectId } from "@/shared/homeScope";
+import { threadWorktreeCreationOptions } from "@/shared/threadWorktreeLaunch";
 import { resolveProjectLocation } from "@/shared/worktree";
 import { friendlyError } from "@/shared/messages";
-import { buildPromptContentBlocks, hasSendablePromptContent } from "@/shared/promptContent";
+import { hasSendablePromptContent } from "@/shared/promptContent";
+import {
+  allocateInitialUserMessageItemId,
+  appendOptimisticInitialUserMessage,
+} from "./optimisticThreadInput";
+export { appendOptimisticInitialUserMessage } from "./optimisticThreadInput";
 import { captureThreadPromptSubmitted, captureThreadStarted } from "@/renderer/analytics/posthog";
 import { readBridge } from "@/renderer/bridge";
 import type {
@@ -40,6 +46,7 @@ import { i18n } from "@/renderer/i18n/i18n";
 import { useAppStore } from "@/renderer/state/appStore";
 import {
   notePendingThreadInputMessage,
+  retainPendingProviderSwitch,
   retainPendingThreadInput,
 } from "@/renderer/state/pendingThreadInput";
 import { captureFileCheckpoint } from "@/renderer/state/fileCheckpointActions";
@@ -57,6 +64,8 @@ import {
 import type { PendingLaunchProviderSwitch } from "@/renderer/state/slices/launchSlice";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { threadCrewBinding } from "@/shared/crew";
+import { LOCAL_NATIVE_MACHINE_KEY, machineKeyForLocation } from "@/shared/machines";
+import { crewLibraryActions, readCrewLibrary } from "@/renderer/state/crewLibrary";
 import { buildProjectDraftConfig } from "@/renderer/views/MainView/parts/AppContent/draftConfig";
 import {
   isRemoteCommandOutcomeAuthoritativelyResolved,
@@ -87,36 +96,43 @@ export async function performInitialThreadLaunch(input: {
   clientContext?: TurnClientContext;
   initialSize: TerminalSize;
 }): Promise<void> {
-  if (
-    input.segments?.some(
-      (segment) => segment.kind === "attachment" && isClientDraftAsset(segment.path),
-    )
-  ) {
-    input = {
-      ...input,
-      segments: await materializeDraftSegments(
-        input.thread,
-        input.segments,
-        entityHost(input.thread)?.hostId ?? input.thread.id,
-      ),
-    };
-  }
   const releasePendingInput =
     input.thread.presentationMode === "gui" &&
     hasSendablePromptContent(input.prompt, input.segments)
       ? retainPendingThreadInput(input.thread.id)
       : undefined;
+  const releasePendingSwitch =
+    input.thread.presentationMode === "gui" && input.providerSwitch
+      ? retainPendingProviderSwitch(input.thread.id, input.providerSwitch.fromAgentKind)
+      : undefined;
   try {
-    await performInitialThreadLaunchPending(input, releasePendingInput);
+    if (
+      input.segments?.some(
+        (segment) => segment.kind === "attachment" && isClientDraftAsset(segment.path),
+      )
+    ) {
+      input = {
+        ...input,
+        segments: await materializeDraftSegments(
+          input.thread,
+          input.segments,
+          entityHost(input.thread)?.hostId ?? input.thread.id,
+        ),
+      };
+    }
+    await performInitialThreadLaunchPending(input, releasePendingInput, releasePendingSwitch);
   } catch (error) {
     releasePendingInput?.();
     throw error;
+  } finally {
+    releasePendingSwitch?.();
   }
 }
 
 async function performInitialThreadLaunchPending(
   input: Parameters<typeof performInitialThreadLaunch>[0],
   releasePendingInput: (() => void) | undefined,
+  releasePendingSwitch: (() => void) | undefined,
 ): Promise<void> {
   const { thread, projectLocation, prompt, segments, userMessageItemId, initialSize } = input;
   const clientContext = input.clientContext;
@@ -126,6 +142,17 @@ async function performInitialThreadLaunchPending(
   const resumableSessionRef = providerSwitch ? undefined : thread.sessionRef;
   const presentation = thread.presentationMode ?? "terminal";
   const crewId = threadCrewBinding(thread.config)?.crewId;
+  const crewKey = machineKeyForLocation({
+    ...projectLocation,
+    ...(thread.remoteServerId ? { remoteServerId: thread.remoteServerId } : {}),
+  });
+  if (
+    crewId &&
+    crewKey !== LOCAL_NATIVE_MACHINE_KEY &&
+    readCrewLibrary(crewKey).some((crew) => crew.id === crewId)
+  ) {
+    crewLibraryActions(crewKey).setCrewLastUsedAt(crewId, Date.now());
+  }
   if (thread.config.model) {
     useSharedSettings
       .getState()
@@ -135,7 +162,7 @@ async function performInitialThreadLaunchPending(
         presentation,
         thread.config.effort,
         thread.config.fast,
-        crewId,
+        crewKey === LOCAL_NATIVE_MACHINE_KEY ? crewId : undefined,
       );
   }
 
@@ -377,6 +404,7 @@ async function performInitialThreadLaunchPending(
     // definite failure directly instead of claiming the outcome is unknown.
     if (isRemoteCommandOutcomeUncertainError(error)) {
       releasePendingInput?.();
+      releasePendingSwitch?.();
       const didReconcile = await reconcileThreadCommandOutcome(thread);
       const reconciled = useAppStore.getState().threads.find((row) => row.id === thread.id);
       if (
@@ -520,13 +548,13 @@ async function startThreadFromDraftPending(
   }
   if (!isHomeScope && !worktreePath && worktreeBranch) {
     try {
-      const transferUncommitted = worktreeTransferUncommitted ?? false;
       const result = await createWorktree(project, {
+        ...threadWorktreeCreationOptions({
+          ...(worktreeBaseBranch ? { startPoint: worktreeBaseBranch } : {}),
+          createBranch: worktreeIsNewBranch ?? false,
+          transferUncommitted: worktreeTransferUncommitted ?? false,
+        }),
         branch: worktreeBranch,
-        ...(worktreeBaseBranch ? { startPoint: worktreeBaseBranch } : {}),
-        createBranch: worktreeIsNewBranch ?? false,
-        transferUncommitted,
-        keepChangesInSource: transferUncommitted,
       });
       worktreePath = result.path;
       isNewWorktree = true;
@@ -554,7 +582,11 @@ async function startThreadFromDraftPending(
           canResumeWithConfig: false,
         });
       }
-      toast.danger(message);
+      if (isRemoteCommandOutcomeUncertainError(error)) {
+        notifyThreadCommandOutcomeUncertain();
+      } else {
+        toast.danger(message);
+      }
       markDraftLaunchErrorNotified(error);
       throw error;
     }
@@ -755,50 +787,4 @@ export function markThreadLaunchFailed(threadId: string, error: unknown): void {
     // Preserve that earned recovery path instead of clearing it locally.
     canResumeWithConfig: thread?.canResumeWithConfig === true && thread.sessionRef !== undefined,
   });
-}
-
-/**
- * Paint the user's first message for a launch that has not reached the
- * supervisor yet, so the chat shows what was sent instead of a bare working
- * row. The supervisor reuses the returned id for its own canonical
- * `user_message`, and the store's per-id dedupe drops the duplicate.
- */
-export function appendOptimisticInitialUserMessage(
-  thread: Thread,
-  prompt: string,
-  segments?: PromptSegment[],
-): string | undefined {
-  const itemId = allocateInitialUserMessageItemId(thread, prompt, segments);
-  if (!itemId) return undefined;
-
-  useAppStore.getState().requestChatScrollToPrompt(thread.id);
-  useAppStore.getState().applyRuntimeEvent(thread.id, {
-    type: "item.started",
-    threadId: thread.id,
-    itemId,
-    itemType: "user_message",
-    payload: { content: buildPromptContentBlocks(prompt, segments) },
-  });
-  useAppStore.getState().applyRuntimeEvent(thread.id, {
-    type: "item.completed",
-    threadId: thread.id,
-    itemId,
-  });
-  return itemId;
-}
-
-function allocateInitialUserMessageItemId(
-  thread: Thread,
-  prompt: string,
-  segments?: PromptSegment[],
-): string | undefined {
-  const presentation = thread.presentationMode ?? "terminal";
-  if (
-    presentation !== "gui" ||
-    !hasSendablePromptContent(prompt, segments) ||
-    thread.sessionRef !== undefined
-  ) {
-    return undefined;
-  }
-  return `user-${crypto.randomUUID()}`;
 }

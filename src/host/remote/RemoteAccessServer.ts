@@ -1,18 +1,40 @@
+import { beginHostThreadActivityTouch } from "./server/touchThreadActivity";
+import {
+  assertRemoteThreadCommandExperimentSafe,
+  assertRemoteThreadStartExperimentSafe,
+} from "./experimentOwnership";
+import { applyRemoteThreadCommand, ensureRemoteThreadRunning } from "./server/threadCommands";
+import { moveHostThreadToWorktree } from "./server/threadWorktreeMove";
+import { handoffHostThread } from "./server/threadHandoff";
+import type { ThreadHandoffInput } from "@/shared/contracts/threadHandoff";
+import type { AppCatalogEditCommand } from "@/shared/contracts/appCatalogOrder";
+import { applyAppCatalogEdit } from "./server/appCatalogOrder";
+import type { AppExperimentEdit } from "@/shared/contracts/appExperiment";
+import { editAppExperiment, readRemoteExperimentState } from "./server/experimentCommands";
+import type { MoveThreadToWorktreeInput } from "@/shared/contracts/threadWorktreeMove";
 import type { IncomingMessage } from "node:http";
 import type { Server as NetServer } from "node:net";
 import { performance } from "node:perf_hooks";
 import { WebSocket, WebSocketServer } from "ws";
 import { recordHandlerTiming } from "@/shared/diagnostics/handlerTimingObservations";
 import type { IpcProcedurePayload, SupervisorProcedureName } from "@/shared/ipc";
+import type { SupervisorCallOptions } from "@/host/supervisor/SupervisorClient";
 import { AsyncWorkTracker } from "@/shared/asyncWorkTracker";
 import {
+  toWebSocketUrl,
   type RemoteAccessScopePreset,
   type RemoteAccessSessionSummary,
   type RemoteWebSocketServerMessage,
 } from "@/shared/remote";
+import { retargetPairingUrl } from "@/shared/remote/pairingUrl";
 import type { GitStateInterest } from "@/shared/gitState";
 import { TerminalBaselineStreamScheduler } from "./server/terminalBaselineStream";
-import type { BackgroundTask, Project } from "@/shared/contracts";
+import type {
+  BackgroundTask,
+  Project,
+  RemoteThreadCommand,
+  TerminalSize,
+} from "@/shared/contracts";
 import { RemoteAuthStore, RemoteHttpError, type AuthenticatedRemoteSession } from "./auth";
 import type { EnvironmentProxyGatewayLike } from "./environments/types";
 import { loadRemoteAccessTlsMaterial } from "./server/tlsMaterial";
@@ -51,6 +73,8 @@ import {
 } from "./server/principalAdmission";
 import { LegacyBulkReadAdmission } from "./server/legacyBulkReadAdmission";
 import { SessionConfigInventory } from "./server/sessionConfigInventory";
+import { importAppSession } from "./server/sessionImportCommand";
+import type { AppSessionImportInput } from "@/shared/contracts/sessionImport";
 import { ThreadLiveReadState, seedThreadLiveReadState } from "./server/threadLiveReadState";
 import { ThreadHistoryReplay } from "./server/threadHistoryReplay";
 import {
@@ -414,10 +438,13 @@ export class RemoteAccessServer {
         callSupervisor: async <Name extends SupervisorProcedureName>(
           name: Name,
           payload: IpcProcedurePayload<Name>,
+          callOptions?: SupervisorCallOptions,
         ) => {
           const startedAt = performance.now();
           try {
-            return await this.options.callSupervisor(name, payload);
+            return await (callOptions === undefined
+              ? this.options.callSupervisor(name, payload)
+              : this.options.callSupervisor(name, payload, callOptions));
           } finally {
             recordHandlerTiming(`supervisor:${name}`, performance.now() - startedAt);
           }
@@ -570,6 +597,45 @@ export class RemoteAccessServer {
     return this.info;
   }
 
+  /** Publish a validated public origin after the listener is already serving. */
+  publishAdvertisedEndpoint(input: {
+    readonly advertisedBaseUrl: string;
+    readonly tailscaleHttpBaseUrl?: string;
+  }): RemoteAccessServerInfo {
+    if (this.stopping) throw new Error("Remote access server is stopping.");
+    const current = requireRemoteAccessInfo(this.asHost());
+    const advertised = new URL(input.advertisedBaseUrl);
+    if (
+      (advertised.protocol !== "http:" && advertised.protocol !== "https:") ||
+      advertised.username ||
+      advertised.password
+    ) {
+      throw new Error("Advertised remote access URL must be an HTTP(S) origin.");
+    }
+    const httpBaseUrl = `${advertised.origin}/`;
+    const tailscale =
+      input.tailscaleHttpBaseUrl === undefined ? undefined : new URL(input.tailscaleHttpBaseUrl);
+    if (
+      tailscale &&
+      (tailscale.protocol !== "https:" ||
+        tailscale.username ||
+        tailscale.password ||
+        tailscale.origin !== advertised.origin)
+    ) {
+      throw new Error("Tailscale HTTPS URL must match the advertised HTTPS origin.");
+    }
+    const info: RemoteAccessServerInfo = {
+      ...current,
+      httpBaseUrl,
+      wsBaseUrl: toWebSocketUrl(httpBaseUrl).toString(),
+      pairingUrl: retargetPairingUrl(current.pairingUrl, httpBaseUrl),
+      ...(tailscale ? { tailscaleHttpBaseUrl: tailscale.origin } : {}),
+    };
+    this.info = info;
+    this.options.onPairingChanged?.();
+    return info;
+  }
+
   /**
    * Availability facts for the versioned browser-forward capability descriptor
    * (the protocol/codegen integration is coordinator-owned; this is the host
@@ -678,6 +744,65 @@ export class RemoteAccessServer {
       REMOTELY_CONSUMED_EVENT_TYPES,
       DESKTOP_INTERNAL_EVENT_TYPES,
     );
+  }
+
+  reopenAppThread(threadId: string, initialSize: TerminalSize) {
+    assertRemoteThreadStartExperimentSafe(threadId);
+    return ensureRemoteThreadRunning(this.context, threadId, initialSize);
+  }
+
+  moveAppThreadToWorktree(input: MoveThreadToWorktreeInput) {
+    return moveHostThreadToWorktree(this.context, input);
+  }
+
+  handoffAppThread(input: ThreadHandoffInput, attachmentsDir: string) {
+    return handoffHostThread(this.context, attachmentsDir, input);
+  }
+
+  beginAppQueueActivity(threadId: string): () => void {
+    return beginHostThreadActivityTouch(this.context, threadId, { forceBroadcast: true });
+  }
+
+  editAppCatalog(command: AppCatalogEditCommand, operationKey: string) {
+    return applyAppCatalogEdit(this.context, command, operationKey);
+  }
+
+  readAppExperiments() {
+    return readRemoteExperimentState(this.context);
+  }
+
+  editAppExperiment(edit: AppExperimentEdit) {
+    return editAppExperiment(this.context, edit);
+  }
+
+  importAppSession(input: AppSessionImportInput) {
+    return importAppSession(this.context, input);
+  }
+
+  /** Runs the same durable command used by the interactive clients. */
+  async applyAppThreadLifecycle(
+    command: Extract<
+      RemoteThreadCommand,
+      { kind: "fork" | "delete" | "delete-worktree-group" | "prepare-worktree" }
+    >,
+  ): Promise<void> {
+    assertRemoteThreadCommandExperimentSafe(command);
+    await applyRemoteThreadCommand(this.context, command);
+    try {
+      if (command.kind !== "prepare-worktree")
+        this.publishThreadsChanged(
+          command.kind === "delete-worktree-group" ? command.threadIds : [command.threadId],
+        );
+    } catch (error) {
+      console.warn("[remote] thread lifecycle committed but catalog publication failed:", error);
+    }
+    if (command.kind !== "fork") {
+      void Promise.resolve()
+        .then(() => this.context.options.dispatchThreadCommand?.(command))
+        .catch((error: unknown) => {
+          console.warn("[remote] thread lifecycle committed but the desktop mirror failed:", error);
+        });
+    }
   }
 
   /**

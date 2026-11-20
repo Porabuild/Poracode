@@ -334,6 +334,8 @@ export type SupervisorEvent =
       turnStopRequested?: boolean;
       forceCloseActiveTurn?: boolean;
       threadStatusSource?: ThreadStatusSource;
+      /** Host-authoritative last-activity timestamp when emitted/persisted. */
+      updatedAt?: string;
     }
   | {
       type: "thread-pending-steer";
@@ -427,6 +429,7 @@ export type BrowserEvent =
 /** Emitted by the main process when a native app surface requests opening a thread. */
 export type ThreadOpenRequestedEvent = {
   threadId: string;
+  navigation?: import("./threadWindow").ThreadWindowNavigation;
   /** Present for OS notification clicks; omitted by tray and app-control opens. */
   source?: "notification";
 };

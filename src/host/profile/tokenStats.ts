@@ -1,13 +1,22 @@
+import { emptyCostTotals } from "@/shared/profile/costTotals";
 import {
   baseAgentKind,
   type ProfileBreakdownEntry,
+  type ProfileRecentTokenActivity,
   type ProfileStatsRequest,
+  type ProfileTokenPeriodSnapshot,
   type ProfileTokenProvider,
   type ProfileTokenStats,
 } from "@/shared/contracts";
 import type { ProfileCostTotals, UsageCostRecord } from "@/shared/contracts/costHistory";
 import { getProfileDataGeneration } from "../db";
-import { dbIterateTokenUsageScanRows, parseUsageCostRecord } from "../db/usageEvents";
+import { getProfileUsageResetGeneration } from "../db/connection";
+import {
+  dbIterateTokenUsageScanRowsInRange,
+  dbQueryUsageEventsBounds,
+  parseUsageCostRecord,
+  type TokenUsageScanRow,
+} from "../db/usageEvents";
 import {
   buildHeatmap,
   dayKeyFromIndex,
@@ -22,7 +31,6 @@ import {
   addCostSample,
   aggregateProfileCosts,
   createProfileCostAggregator,
-  emptyCostTotals,
   type ProfileCostPricing,
 } from "./costStats";
 
@@ -39,6 +47,135 @@ import {
 
 function round1(value: number): number {
   return Math.round(value * 10) / 10;
+}
+
+interface TokenPeriodAccumulator {
+  startIndex: number;
+  endIndex: number;
+  tokens: number;
+  estimatedUsd: number;
+  observed: Map<string, number>;
+  inputTokens: number;
+  outputTokens: number;
+  cacheReadTokens: number;
+  cacheWriteTokens: number;
+  perProvider: Map<string, number>;
+  perModel: Map<string, number>;
+}
+
+function createTokenPeriodAccumulator(
+  startIndex: number,
+  endIndex: number,
+): TokenPeriodAccumulator {
+  return {
+    startIndex,
+    endIndex,
+    tokens: 0,
+    estimatedUsd: 0,
+    observed: new Map(),
+    inputTokens: 0,
+    outputTokens: 0,
+    cacheReadTokens: 0,
+    cacheWriteTokens: 0,
+    perProvider: new Map(),
+    perModel: new Map(),
+  };
+}
+
+function addTokenTotalsToPeriod(
+  acc: TokenPeriodAccumulator,
+  dayIndex: number,
+  provider: string | null,
+  tokenModelKey: string,
+  totals: ProfileCostTotals,
+): void {
+  if (dayIndex < acc.startIndex || dayIndex > acc.endIndex) return;
+  if (totals.tokens > 0) {
+    acc.tokens += totals.tokens;
+    if (provider) {
+      const base = baseAgentKind(provider);
+      acc.perProvider.set(base, (acc.perProvider.get(base) ?? 0) + totals.tokens);
+    }
+    if (tokenModelKey) {
+      acc.perModel.set(tokenModelKey, (acc.perModel.get(tokenModelKey) ?? 0) + totals.tokens);
+    }
+  }
+  acc.estimatedUsd += totals.estimatedUsd;
+  acc.inputTokens += totals.categories.input;
+  acc.outputTokens += totals.categories.output;
+  acc.cacheReadTokens += totals.categories.cacheRead;
+  acc.cacheWriteTokens += totals.categories.cacheWrite;
+  for (const money of totals.observed) {
+    acc.observed.set(money.currency, (acc.observed.get(money.currency) ?? 0) + money.amount);
+  }
+}
+
+function addTokenSampleToPeriod(acc: TokenPeriodAccumulator, sample: RecentTokenSample): void {
+  if (sample.dayIndex < acc.startIndex || sample.dayIndex > acc.endIndex) return;
+  if (sample.value > 0) {
+    acc.tokens += sample.value;
+    if (sample.provider) {
+      const base = baseAgentKind(sample.provider);
+      acc.perProvider.set(base, (acc.perProvider.get(base) ?? 0) + sample.value);
+    }
+    if (sample.tokenModelKey) {
+      acc.perModel.set(
+        sample.tokenModelKey,
+        (acc.perModel.get(sample.tokenModelKey) ?? 0) + sample.value,
+      );
+    }
+  }
+  const details = sample.costDetails;
+  if (details?.estimate) acc.estimatedUsd += details.estimate.amount;
+  if (details?.tokens) {
+    acc.inputTokens += details.tokens.input;
+    acc.outputTokens += details.tokens.output;
+    acc.cacheReadTokens += details.tokens.cacheRead;
+    acc.cacheWriteTokens += details.tokens.cacheWrite;
+  }
+  if (details?.observed) {
+    acc.observed.set(
+      details.observed.currency,
+      (acc.observed.get(details.observed.currency) ?? 0) + details.observed.amount,
+    );
+  }
+}
+
+function finalizeTokenPeriodSnapshot(acc: TokenPeriodAccumulator): ProfileTokenPeriodSnapshot {
+  const providers: ProfileTokenProvider[] = [...acc.perProvider.entries()]
+    .filter(([, tokens]) => tokens > 0)
+    .map(([provider, tokens]) => ({
+      provider,
+      label: providerLabel(provider),
+      tokens,
+      percent: acc.tokens > 0 ? round1((tokens / acc.tokens) * 100) : 0,
+    }))
+    .sort((a, b) => b.tokens - a.tokens);
+
+  const models: ProfileBreakdownEntry[] = [...acc.perModel.entries()]
+    .map(([key, tokens]) => ({
+      key,
+      label: modelLabel(key),
+      count: tokens,
+      percent: acc.tokens > 0 ? round1((tokens / acc.tokens) * 100) : 0,
+    }))
+    .sort((a, b) => b.count - a.count);
+
+  const observed = [...acc.observed.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([currency, amount]) => ({ currency, amount }));
+
+  return {
+    tokens: acc.tokens,
+    estimatedUsd: acc.estimatedUsd,
+    observed,
+    inputTokens: acc.inputTokens,
+    outputTokens: acc.outputTokens,
+    cacheReadTokens: acc.cacheReadTokens,
+    cacheWriteTokens: acc.cacheWriteTokens,
+    providers,
+    models,
+  };
 }
 
 function emptyTokenStats(
@@ -86,155 +223,331 @@ interface RecentTokenSample {
   costDetails?: UsageCostRecord;
 }
 
-interface TokenRollupCache {
-  generation: number;
+export interface TokenRollupSnapshot {
   offset: number;
   scanTodayIndex: number;
-  unavailableProviders: string[];
+  firstRowId: number;
+  lastRowId: number;
+  firstExactTs: number | undefined;
+  activityFirstTs: Array<[string, number]>;
+  exactTokenProviders: string[];
   historicalBuckets: HistoricalTokenBucket[];
   recentSamples: RecentTokenSample[];
 }
 
+interface TokenRollupCache {
+  resetGeneration: number;
+  offset: number;
+  scanTodayIndex: number;
+  firstRowId: number;
+  lastRowId: number;
+  firstExactTs: number | undefined;
+  activityFirstTs: Map<string, number>;
+  exactTokenProviders: Set<string>;
+  bucketMap: Map<string, HistoricalTokenBucket>;
+  recentSamples: RecentTokenSample[];
+  unavailableProviders: string[];
+}
+
 let tokenRollupCache: TokenRollupCache | undefined;
+
+export function hasWarmTokenRollup(
+  offset: number,
+  todayIndex: number,
+  resetGeneration: number,
+): boolean {
+  return (
+    tokenRollupCache !== undefined &&
+    tokenRollupCache.resetGeneration === resetGeneration &&
+    tokenRollupCache.offset === offset &&
+    tokenRollupCache.scanTodayIndex <= todayIndex
+  );
+}
+
+export function installTokenRollupSnapshotIfCold(
+  snapshot: TokenRollupSnapshot,
+  todayIndex: number,
+  resetGeneration: number,
+): void {
+  if (
+    getProfileUsageResetGeneration() === resetGeneration &&
+    !hasWarmTokenRollup(snapshot.offset, todayIndex, resetGeneration)
+  ) {
+    tokenRollupCache = cacheFromTokenSnapshot(snapshot, resetGeneration);
+  }
+}
 let tokenCacheGeneration = -1;
 const tokenCache = new Map<
   string,
-  { generation: number; validUntil: number; result: ProfileTokenStats }
+  { generation: number; maxId: number; validUntil: number; result: ProfileTokenStats }
 >();
 
-function* iterateTokenRollupSourceRows(): IterableIterator<{
-  ts: number;
-  kind: string;
-  provider: string | null;
-  model: string | null;
-  value: number;
-  costDetails: UsageCostRecord | undefined;
-}> {
-  for (const row of dbIterateTokenUsageScanRows()) {
-    const costDetails = row.cost_details ? parseUsageCostRecord(row.cost_details) : undefined;
-    yield {
-      ts: row.ts,
-      kind: row.kind,
-      provider: row.provider,
-      model: row.model,
-      value: row.value,
-      costDetails,
+function bucketKeyFor(
+  dayIndex: number,
+  provider: string | null,
+  tokenModelKey: string,
+  costModelKey: string,
+): string {
+  return `${dayIndex}\0${provider ?? ""}\0${provider === null ? "0" : "1"}\0${tokenModelKey}\0${costModelKey}`;
+}
+
+function foldBucketSample(
+  bucketMap: Map<string, HistoricalTokenBucket>,
+  dayIndex: number,
+  provider: string | null,
+  tokenModelKey: string,
+  costModelKey: string,
+  value: number,
+  costDetails: UsageCostRecord | undefined,
+): void {
+  const bucketKey = bucketKeyFor(dayIndex, provider, tokenModelKey, costModelKey);
+  let bucket = bucketMap.get(bucketKey);
+  if (!bucket) {
+    bucket = {
+      dayIndex,
+      provider,
+      tokenModelKey,
+      costModelKey,
+      totals: emptyCostTotals(),
+      pricing: [],
     };
+    bucketMap.set(bucketKey, bucket);
+  }
+  addCostSample(bucket.totals, value, costDetails);
+  if (costDetails?.estimate) {
+    const price = costDetails.estimate.pricing;
+    const existingIndex = bucket.pricing.findIndex((entry) => entry.id === price.id);
+    if (existingIndex >= 0) bucket.pricing[existingIndex] = price;
+    else bucket.pricing.push(price);
   }
 }
 
-function getOrBuildTokenRollup(
-  generation: number,
-  offset: number,
-  todayIndex: number,
-): TokenRollupCache {
-  if (
-    tokenRollupCache &&
-    tokenRollupCache.generation === generation &&
-    tokenRollupCache.offset === offset &&
-    tokenRollupCache.scanTodayIndex <= todayIndex
-  ) {
-    return tokenRollupCache;
-  }
+function computeUnavailableProviders(
+  firstExactTs: number | undefined,
+  activityFirstTs: Map<string, number>,
+  exactTokenProviders: Set<string>,
+): string[] {
+  if (firstExactTs === undefined) return [];
+  return [...activityFirstTs]
+    .filter(
+      ([provider, firstActivityTs]) =>
+        firstActivityTs >= firstExactTs && !exactTokenProviders.has(provider),
+    )
+    .map(([provider]) => provider)
+    .sort();
+}
 
-  // Coverage sets for the honesty list: providers that ran threads or turns vs
-  // providers with at least one exact (tokens_v2) token row. A zero-value
-  // tokens_v2 row still proves the provider reports exact usage. Computed over
-  // the whole device log (ignoring the active account/window filters), but
-  // activity only counts once the exact-telemetry era started on this device
-  // (first tokens_v2 row) — otherwise every provider would flash "unavailable"
-  // right after upgrade until it next records exact rows.
-  const activityFirstTs = new Map<string, number>();
-  const exactTokenProviders = new Set<string>();
-  let firstExactTs: number | undefined;
-
-  const bucketMap = new Map<string, HistoricalTokenBucket>();
-  const recentSamples: RecentTokenSample[] = [];
-
-  for (const row of iterateTokenRollupSourceRows()) {
+function applyTokenScanRows(cache: TokenRollupCache, rows: Iterable<TokenUsageScanRow>): void {
+  for (const row of rows) {
     if (row.provider) {
       const base = baseAgentKind(row.provider);
       if (row.kind === "tokens_v2") {
-        exactTokenProviders.add(base);
-        if (firstExactTs === undefined || row.ts < firstExactTs) firstExactTs = row.ts;
+        cache.exactTokenProviders.add(base);
+        if (cache.firstExactTs === undefined || row.ts < cache.firstExactTs) {
+          cache.firstExactTs = row.ts;
+        }
       } else if (row.kind === "thread_started" || row.kind === "turn") {
-        const prev = activityFirstTs.get(base);
-        if (prev === undefined || row.ts < prev) activityFirstTs.set(base, row.ts);
+        const prev = cache.activityFirstTs.get(base);
+        if (prev === undefined || row.ts < prev) cache.activityFirstTs.set(base, row.ts);
       }
     }
-    if (
-      (row.kind !== "tokens" && row.kind !== "tokens_v2") ||
-      row.value < 0 ||
-      (row.value === 0 && !row.costDetails?.observed)
-    ) {
+    if ((row.kind !== "tokens" && row.kind !== "tokens_v2") || row.value < 0) {
+      continue;
+    }
+    const costDetails = row.cost_details ? parseUsageCostRecord(row.cost_details) : undefined;
+    if (row.value === 0 && !costDetails?.observed) {
       continue;
     }
 
-    const dayIndex = localDayIndex(row.ts, offset);
+    const dayIndex = localDayIndex(row.ts, cache.offset);
     const tokenModelKey = row.model ? modelKey(row.provider, row.model) : "";
-    const attributedModel = row.costDetails ? row.costDetails.model : row.model;
+    const attributedModel = costDetails ? costDetails.model : row.model;
     const costModelKey = attributedModel ? modelKey(row.provider, attributedModel) : "";
 
-    // Any row on a local calendar day strictly before todayIndex satisfies ts < nowMs
+    // Any row on a local calendar day strictly before scanTodayIndex satisfies ts < nowMs
     // for all timestamps >= todayIndex's start, so historical days fold immediately
     // into compact per-(day, provider, model) buckets without retaining per-row objects.
-    if (dayIndex < todayIndex) {
-      const bucketKey = `${dayIndex}\0${row.provider ?? ""}\0${row.provider === null ? "0" : "1"}\0${tokenModelKey}\0${costModelKey}`;
-      let bucket = bucketMap.get(bucketKey);
-      if (!bucket) {
-        bucket = {
-          dayIndex,
-          provider: row.provider,
-          tokenModelKey,
-          costModelKey,
-          totals: emptyCostTotals(),
-          pricing: [],
-        };
-        bucketMap.set(bucketKey, bucket);
-      }
-      addCostSample(bucket.totals, row.value, row.costDetails);
-      if (row.costDetails?.estimate) {
-        const price = row.costDetails.estimate.pricing;
-        const existingIndex = bucket.pricing.findIndex((entry) => entry.id === price.id);
-        if (existingIndex >= 0) bucket.pricing[existingIndex] = price;
-        else bucket.pricing.push(price);
-      }
+    if (dayIndex < cache.scanTodayIndex) {
+      foldBucketSample(
+        cache.bucketMap,
+        dayIndex,
+        row.provider,
+        tokenModelKey,
+        costModelKey,
+        row.value,
+        costDetails,
+      );
     } else {
-      recentSamples.push({
+      cache.recentSamples.push({
         ts: row.ts,
         dayIndex,
         provider: row.provider,
         tokenModelKey,
         costModelKey,
         value: row.value,
-        ...(row.costDetails ? { costDetails: row.costDetails } : {}),
+        ...(costDetails ? { costDetails } : {}),
       });
     }
   }
+}
 
-  const unavailableProviders =
-    firstExactTs === undefined
-      ? []
-      : [...activityFirstTs]
-          .filter(
-            ([provider, firstActivityTs]) =>
-              firstActivityTs >= firstExactTs && !exactTokenProviders.has(provider),
-          )
-          .map(([provider]) => provider)
-          .sort();
+function rollTokenTodayForward(cache: TokenRollupCache, todayIndex: number): void {
+  if (todayIndex <= cache.scanTodayIndex) return;
+  const remaining: RecentTokenSample[] = [];
+  for (const sample of cache.recentSamples) {
+    if (sample.dayIndex < todayIndex) {
+      foldBucketSample(
+        cache.bucketMap,
+        sample.dayIndex,
+        sample.provider,
+        sample.tokenModelKey,
+        sample.costModelKey,
+        sample.value,
+        sample.costDetails,
+      );
+    } else {
+      remaining.push(sample);
+    }
+  }
+  cache.recentSamples = remaining;
+  cache.scanTodayIndex = todayIndex;
+}
 
-  tokenRollupCache = {
-    generation,
+function buildTokenRollupInRange(
+  offset: number,
+  todayIndex: number,
+  resetGeneration: number,
+  existing?: TokenRollupCache,
+): TokenRollupCache {
+  const bounds = dbQueryUsageEventsBounds();
+  const canAppend =
+    existing !== undefined &&
+    existing.resetGeneration === resetGeneration &&
+    existing.offset === offset &&
+    existing.scanTodayIndex <= todayIndex &&
+    bounds.maxId >= existing.lastRowId &&
+    !(existing.firstRowId > 0 && bounds.minId > 0 && bounds.minId !== existing.firstRowId) &&
+    !(existing.lastRowId > 0 && bounds.maxId === 0);
+
+  if (canAppend) {
+    if (todayIndex > existing.scanTodayIndex) {
+      rollTokenTodayForward(existing, todayIndex);
+    }
+    if (bounds.maxId > existing.lastRowId) {
+      applyTokenScanRows(
+        existing,
+        dbIterateTokenUsageScanRowsInRange(existing.lastRowId, bounds.maxId),
+      );
+      if (existing.firstRowId === 0 && bounds.minId > 0) {
+        existing.firstRowId = bounds.minId;
+      }
+      existing.lastRowId = bounds.maxId;
+      existing.unavailableProviders = computeUnavailableProviders(
+        existing.firstExactTs,
+        existing.activityFirstTs,
+        existing.exactTokenProviders,
+      );
+    }
+    return existing;
+  }
+
+  const fresh: TokenRollupCache = {
+    resetGeneration,
     offset,
     scanTodayIndex: todayIndex,
-    unavailableProviders,
-    historicalBuckets: [...bucketMap.values()],
-    recentSamples,
+    firstRowId: bounds.minId,
+    lastRowId: bounds.maxId,
+    firstExactTs: undefined,
+    activityFirstTs: new Map(),
+    exactTokenProviders: new Set(),
+    bucketMap: new Map(),
+    recentSamples: [],
+    unavailableProviders: [],
   };
+  if (bounds.maxId > 0) {
+    applyTokenScanRows(fresh, dbIterateTokenUsageScanRowsInRange(0, bounds.maxId));
+    fresh.unavailableProviders = computeUnavailableProviders(
+      fresh.firstExactTs,
+      fresh.activityFirstTs,
+      fresh.exactTokenProviders,
+    );
+  }
+  return fresh;
+}
+
+/** Cold worker-safe snapshot builder (runs inside AsyncDatabaseReads or inline). */
+export function buildTokenRollupSnapshot(offset: number, todayIndex: number): TokenRollupSnapshot {
+  const rollup = buildTokenRollupInRange(offset, todayIndex, getProfileUsageResetGeneration());
+  return {
+    offset: rollup.offset,
+    scanTodayIndex: rollup.scanTodayIndex,
+    firstRowId: rollup.firstRowId,
+    lastRowId: rollup.lastRowId,
+    firstExactTs: rollup.firstExactTs,
+    activityFirstTs: [...rollup.activityFirstTs.entries()],
+    exactTokenProviders: [...rollup.exactTokenProviders],
+    historicalBuckets: [...rollup.bucketMap.values()],
+    recentSamples: rollup.recentSamples,
+  };
+}
+
+function cacheFromTokenSnapshot(
+  snapshot: TokenRollupSnapshot,
+  resetGeneration: number,
+): TokenRollupCache {
+  const bucketMap = new Map<string, HistoricalTokenBucket>();
+  for (const bucket of snapshot.historicalBuckets) {
+    bucketMap.set(
+      bucketKeyFor(bucket.dayIndex, bucket.provider, bucket.tokenModelKey, bucket.costModelKey),
+      bucket,
+    );
+  }
+  const activityFirstTs = new Map(snapshot.activityFirstTs);
+  const exactTokenProviders = new Set(snapshot.exactTokenProviders);
+  return {
+    resetGeneration,
+    offset: snapshot.offset,
+    scanTodayIndex: snapshot.scanTodayIndex,
+    firstRowId: snapshot.firstRowId,
+    lastRowId: snapshot.lastRowId,
+    firstExactTs: snapshot.firstExactTs,
+    activityFirstTs,
+    exactTokenProviders,
+    bucketMap,
+    recentSamples: snapshot.recentSamples,
+    unavailableProviders: computeUnavailableProviders(
+      snapshot.firstExactTs,
+      activityFirstTs,
+      exactTokenProviders,
+    ),
+  };
+}
+
+function getOrBuildTokenRollup(offset: number, todayIndex: number): TokenRollupCache {
+  const resetGeneration = getProfileUsageResetGeneration();
+  tokenRollupCache = buildTokenRollupInRange(offset, todayIndex, resetGeneration, tokenRollupCache);
   return tokenRollupCache;
 }
 
+function tokenResultKey(req: ProfileStatsRequest, todayIndex: number): string {
+  return `${req.utcOffsetMinutes}|${todayIndex}|${req.scope ?? "device"}|${req.deviceId ?? "current"}|${req.provider ?? "all"}|${req.window ?? "all"}`;
+}
+
+export function getCachedProfileTokenStats(
+  req: ProfileStatsRequest,
+): ProfileTokenStats | undefined {
+  const now = Date.now();
+  const cached = tokenCache.get(tokenResultKey(req, localDayIndex(now, req.utcOffsetMinutes)));
+  return cached?.generation === getProfileDataGeneration() &&
+    now >= cached.result.generatedAt &&
+    now < cached.validUntil
+    ? cached.result
+    : undefined;
+}
+
 export function computeProfileTokenStats(req: ProfileStatsRequest): ProfileTokenStats {
+  const existing = getCachedProfileTokenStats(req);
+  if (existing) return existing;
   const offset = req.utcOffsetMinutes;
   const nowMs = Date.now();
   const todayIndex = localDayIndex(nowMs, offset);
@@ -245,26 +558,30 @@ export function computeProfileTokenStats(req: ProfileStatsRequest): ProfileToken
     tokenCache.clear();
     tokenCacheGeneration = generation;
   }
-  const cacheKey = `${offset}|${todayIndex}|${req.scope ?? "device"}|${req.deviceId ?? "current"}|${req.provider ?? "all"}|${req.window ?? "all"}`;
-  const cached = tokenCache.get(cacheKey);
-  if (
-    cached &&
-    cached.generation === generation &&
-    nowMs >= cached.result.generatedAt &&
-    nowMs < cached.validUntil
-  )
-    return cached.result;
-
+  const cacheKey = tokenResultKey(req, todayIndex);
   const currentDevice = recordCurrentDevice();
   const targetDeviceId =
     req.scope === "all" ? currentDevice.id : (req.deviceId ?? currentDevice.id);
   if (targetDeviceId !== currentDevice.id) {
+    const cached = tokenCache.get(cacheKey);
+    if (cached && cached.generation === generation) return cached.result;
     const empty = emptyTokenStats(resolveProfileDevice(targetDeviceId), req, nowMs, todayIndex);
-    tokenCache.set(cacheKey, { generation, validUntil: Infinity, result: empty });
+    tokenCache.set(cacheKey, { generation, maxId: 0, validUntil: Infinity, result: empty });
     return empty;
   }
 
-  const rollup = getOrBuildTokenRollup(generation, offset, todayIndex);
+  const rollup = getOrBuildTokenRollup(offset, todayIndex);
+  const cached = tokenCache.get(cacheKey);
+  if (
+    cached &&
+    cached.generation === generation &&
+    cached.maxId === rollup.lastRowId &&
+    nowMs >= cached.result.generatedAt &&
+    nowMs < cached.validUntil
+  ) {
+    return cached.result;
+  }
+
   const perDay = new Map<string, number>();
   const perProvider = new Map<string, number>();
   const perAccount = new Map<string, number>();
@@ -274,6 +591,21 @@ export function computeProfileTokenStats(req: ProfileStatsRequest): ProfileToken
   const windowDays = statsWindowDays(req.window);
   const startDayIndex = windowDays ? windowStartIndex(todayIndex, windowDays) : undefined;
   const costAggregator = createProfileCostAggregator(req, todayIndex);
+  const recentCutoff = todayIndex - 59;
+  const periodToday = createTokenPeriodAccumulator(todayIndex, todayIndex);
+  const periodYesterday = createTokenPeriodAccumulator(todayIndex - 1, todayIndex - 1);
+  const periodLast7d = createTokenPeriodAccumulator(todayIndex - 6, todayIndex);
+  const periodPrev7d = createTokenPeriodAccumulator(todayIndex - 13, todayIndex - 7);
+  const periodLast30d = createTokenPeriodAccumulator(todayIndex - 29, todayIndex);
+  const periodPrev30d = createTokenPeriodAccumulator(todayIndex - 59, todayIndex - 30);
+  const recentAccumulators = [
+    periodToday,
+    periodYesterday,
+    periodLast7d,
+    periodPrev7d,
+    periodLast30d,
+    periodPrev30d,
+  ];
 
   const accumulatePositiveTokens = (
     dayIndex: number,
@@ -294,9 +626,20 @@ export function computeProfileTokenStats(req: ProfileStatsRequest): ProfileToken
     }
   };
 
-  for (const bucket of rollup.historicalBuckets) {
+  for (const bucket of rollup.bucketMap.values()) {
     // Scope to the selected account (exact account-kind match) when filtering.
     if (req.provider && bucket.provider !== req.provider) continue;
+    if (bucket.dayIndex >= recentCutoff && bucket.dayIndex <= todayIndex) {
+      for (const acc of recentAccumulators) {
+        addTokenTotalsToPeriod(
+          acc,
+          bucket.dayIndex,
+          bucket.provider,
+          bucket.tokenModelKey,
+          bucket.totals,
+        );
+      }
+    }
     if (
       startDayIndex !== undefined &&
       (bucket.dayIndex < startDayIndex || bucket.dayIndex > todayIndex)
@@ -325,6 +668,11 @@ export function computeProfileTokenStats(req: ProfileStatsRequest): ProfileToken
     if (sample.ts > nowMs) {
       validUntil = Math.min(validUntil, sample.ts);
       continue;
+    }
+    if (sample.dayIndex >= recentCutoff && sample.dayIndex <= todayIndex) {
+      for (const acc of recentAccumulators) {
+        addTokenSampleToPeriod(acc, sample);
+      }
     }
     if (
       startDayIndex !== undefined &&
@@ -389,8 +737,18 @@ export function computeProfileTokenStats(req: ProfileStatsRequest): ProfileToken
     }))
     .sort((a, b) => b.count - a.count);
 
+  const recent: ProfileRecentTokenActivity = {
+    today: finalizeTokenPeriodSnapshot(periodToday),
+    yesterday: finalizeTokenPeriodSnapshot(periodYesterday),
+    last7d: finalizeTokenPeriodSnapshot(periodLast7d),
+    prev7d: finalizeTokenPeriodSnapshot(periodPrev7d),
+    last30d: finalizeTokenPeriodSnapshot(periodLast30d),
+    prev30d: finalizeTokenPeriodSnapshot(periodPrev30d),
+  };
+
   const result: ProfileTokenStats = {
     costs: costAggregator.finish(),
+    recent,
     available: lifetimeTokens > 0,
     scope: req.scope ?? "device",
     device: currentDevice,
@@ -406,6 +764,6 @@ export function computeProfileTokenStats(req: ProfileStatsRequest): ProfileToken
     tokenHeatmap,
     unavailableProviders: rollup.unavailableProviders,
   };
-  tokenCache.set(cacheKey, { generation, validUntil, result });
+  tokenCache.set(cacheKey, { generation, maxId: rollup.lastRowId, validUntil, result });
   return result;
 }

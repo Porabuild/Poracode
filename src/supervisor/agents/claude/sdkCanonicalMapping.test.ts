@@ -2579,6 +2579,58 @@ describe("sdkCanonicalMapping — tool use", () => {
     expect(updated?.payload.images).toEqual(["data:image/png;base64,iVBORw0KGgo="]);
   });
 
+  it("omits payload.images when Read inspects a Poracode user attachment", () => {
+    const state = createClaudeMapperState("thread-1");
+    mapClaudeSdkMessage(
+      {
+        type: "assistant",
+        session_id: "claude-session",
+        parent_tool_use_id: null,
+        message: {
+          role: "assistant",
+          content: [
+            {
+              type: "tool_use",
+              id: "toolu_read_att",
+              name: "Read",
+              input: {
+                file_path: "/Users/me/.poracode-nightly.host-v1/attachments/draft-1/Image 1.png",
+              },
+            },
+          ],
+        },
+      } as unknown as SDKMessage,
+      state,
+    );
+    const events = mapClaudeSdkMessage(
+      {
+        type: "user",
+        session_id: "claude-session",
+        parent_tool_use_id: null,
+        message: {
+          role: "user",
+          content: [
+            {
+              type: "tool_result",
+              tool_use_id: "toolu_read_att",
+              content: [
+                {
+                  type: "image",
+                  source: { type: "base64", media_type: "image/png", data: "iVBORw0KGgo=" },
+                },
+              ],
+            },
+          ],
+        },
+      } as unknown as SDKMessage,
+      state,
+    );
+    const updated = events.find((e) => e.type === "item.updated") as
+      | { payload: Record<string, unknown> }
+      | undefined;
+    expect(updated?.payload.images).toBeUndefined();
+  });
+
   it("maps Edit tool results as ACP-shaped file changes", () => {
     const state = createClaudeMapperState("thread-1");
     const args = {
@@ -2611,6 +2663,7 @@ describe("sdkCanonicalMapping — tool use", () => {
           name: "Edit",
           path: "src/renderer/components/composer/MentionInput.tsx",
           changeKind: "edit",
+          diffSummary: { added: 1, removed: 1 },
           args,
         },
       },
@@ -2646,6 +2699,7 @@ describe("sdkCanonicalMapping — tool use", () => {
           name: "Edit",
           path: "src/renderer/components/composer/MentionInput.tsx",
           changeKind: "edit",
+          diffSummary: { added: 1, removed: 1 },
           args,
           result: "Edit applied.",
         },
@@ -2823,6 +2877,57 @@ describe("sdkCanonicalMapping — tool use", () => {
         changeKind: "create",
         diffSummary: { added: 2, removed: 0 },
       },
+    });
+  });
+
+  it("populates diffSummary for Claude Edit and MultiEdit file_change payloads", () => {
+    const state = createClaudeMapperState("thread-1");
+    const editStarted = mapClaudeSdkMessage(
+      streamEvent({
+        type: "content_block_start",
+        index: 0,
+        content_block: {
+          type: "tool_use",
+          id: "toolu_edit",
+          name: "Edit",
+          input: {
+            file_path: "src/app.ts",
+            old_string: "const a = 1;\nconst b = 2;\n",
+            new_string: "const a = 1;\nconst b = 3;\nconst c = 4;\n",
+          },
+        },
+      }),
+      state,
+    );
+    expect(editStarted[0]).toMatchObject({
+      type: "item.started",
+      itemType: "file_change",
+      payload: { diffSummary: { added: 2, removed: 1 } },
+    });
+
+    const multiStarted = mapClaudeSdkMessage(
+      streamEvent({
+        type: "content_block_start",
+        index: 1,
+        content_block: {
+          type: "tool_use",
+          id: "toolu_multi",
+          name: "MultiEdit",
+          input: {
+            file_path: "src/app.ts",
+            edits: [
+              { old_string: "x", new_string: "y" },
+              { old_string: "m\n", new_string: "m\nn\n" },
+            ],
+          },
+        },
+      }),
+      state,
+    );
+    expect(multiStarted[0]).toMatchObject({
+      type: "item.started",
+      itemType: "file_change",
+      payload: { diffSummary: { added: 2, removed: 1 } },
     });
   });
 

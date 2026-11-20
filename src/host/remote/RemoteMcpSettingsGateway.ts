@@ -9,7 +9,7 @@ import { RemoteHttpError } from "./auth";
 
 export interface RemoteMcpSettingsGateway {
   read(): { servers: McpServer[] };
-  command(command: RemoteMcpSettingsCommand): { servers: McpServer[] };
+  command(command: RemoteMcpSettingsCommand): Promise<{ servers: McpServer[] }>;
   resolveScope(scope: RemoteMcpSettingsScope): {
     servers: McpServer[];
     projectLocation?: ProjectLocation;
@@ -25,7 +25,7 @@ export interface RemoteMcpSettingsGateway {
 
 export interface RemoteMcpSettingsGatewayDependencies {
   readSettings(): SharedSettings;
-  writeGlobalServers(servers: McpServer[]): void;
+  editGlobalServers(edit: (current: McpServer[]) => McpServer[]): Promise<void>;
   readProject(projectId: string): Project | null | undefined;
   writeProject(project: Project): void;
   projectsChanged(): void;
@@ -53,6 +53,8 @@ export function createRemoteMcpSettingsGateway(
     return { servers: project.mcpServers ?? [], projectLocation: project.location };
   };
 
+  // Serialize cross-scope moves with other remote changes to either list.
+  let pending = Promise.resolve();
   return {
     read,
     resolveScope,
@@ -66,75 +68,76 @@ export function createRemoteMcpSettingsGateway(
       };
     },
     command(command) {
-      switch (command.kind) {
-        case "upsert":
-          upsert(command.scope, command.server, dependencies);
-          break;
-        case "remove":
-          remove(command.scope, command.serverId, dependencies);
-          break;
-        case "move":
-          move(command.source, command.destination, command.serverId, dependencies);
-          break;
-      }
-      return read();
+      const result = pending.then(async () => {
+        switch (command.kind) {
+          case "upsert":
+            await editScope(command.scope, dependencies, (servers) =>
+              upsertMcpServerDefinition(servers, command.server, badRequest),
+            );
+            break;
+          case "remove":
+            await editScope(command.scope, dependencies, (servers) =>
+              remove(servers, command.serverId),
+            );
+            break;
+          case "move":
+            await move(command.source, command.destination, command.serverId, dependencies);
+            break;
+        }
+        return read();
+      });
+      pending = result.then(
+        () => undefined,
+        () => undefined,
+      );
+      return result;
     },
   };
 }
 
-function upsert(
-  scope: RemoteMcpSettingsScope,
-  incoming: McpServer,
-  dependencies: RemoteMcpSettingsGatewayDependencies,
-): void {
-  const servers = readScope(scope, dependencies);
-  writeScope(scope, upsertMcpServerDefinition(servers, incoming, badRequest), dependencies);
-}
-
-function remove(
-  scope: RemoteMcpSettingsScope,
-  serverId: string,
-  dependencies: RemoteMcpSettingsGatewayDependencies,
-): void {
-  const servers = readScope(scope, dependencies);
+function remove(servers: McpServer[], serverId: string): McpServer[] {
   const next = servers.filter((server) => server.id !== serverId);
   if (next.length === servers.length) throw notFound();
-  writeScope(scope, next, dependencies);
+  return next;
 }
 
-function move(
+async function move(
   source: RemoteMcpSettingsScope,
   destination: RemoteMcpSettingsScope,
   serverId: string,
   dependencies: RemoteMcpSettingsGatewayDependencies,
-): void {
+): Promise<void> {
   if (sameScope(source, destination)) throw badRequest("mcp_same_scope");
   const sourceServers = readScope(source, dependencies);
   const server = sourceServers.find((candidate) => candidate.id === serverId);
   if (!server) throw notFound();
 
-  const destinationServers = readScope(destination, dependencies);
-  const sameID = destinationServers.find((candidate) => candidate.id === server.id);
-  if (sameID && !sameServer(sameID, server)) {
-    throw badRequest("mcp_duplicate_id");
-  }
-  if (
-    destinationServers.some(
-      (candidate) => candidate.id !== server.id && sameMcpServerName(candidate.name, server.name),
-    )
-  ) {
-    throw badRequest("mcp_duplicate_name");
-  }
-
   // Destination first: an interrupted cross-store operation can duplicate a
   // server, but never lose its credential-bearing configuration. A retry sees
   // the matching id and completes the source removal idempotently.
-  if (!sameID) writeScope(destination, [...destinationServers, server], dependencies);
-  writeScope(
-    source,
-    sourceServers.filter((candidate) => candidate.id !== server.id),
-    dependencies,
-  );
+  await editScope(destination, dependencies, (servers) => {
+    const sameID = servers.find((candidate) => candidate.id === server.id);
+    if (sameID && !sameServer(sameID, server)) throw badRequest("mcp_duplicate_id");
+    if (
+      servers.some(
+        (candidate) => candidate.id !== server.id && sameMcpServerName(candidate.name, server.name),
+      )
+    )
+      throw badRequest("mcp_duplicate_name");
+    return sameID ? servers : [...servers, server];
+  });
+  await editScope(source, dependencies, (servers) => {
+    const current = servers.find((candidate) => candidate.id === server.id);
+    if (!current) return servers;
+    if (!sameServer(current, server)) {
+      throw new RemoteHttpError(
+        "mcp_move_conflict",
+        "The source MCP server changed during the move.",
+        409,
+      );
+    }
+    return remove(servers, server.id);
+  });
 }
 
 function readScope(
@@ -145,16 +148,19 @@ function readScope(
   return requireProject(scope.projectId, dependencies).mcpServers ?? [];
 }
 
-function writeScope(
+async function editScope(
   scope: RemoteMcpSettingsScope,
-  servers: McpServer[],
   dependencies: RemoteMcpSettingsGatewayDependencies,
-): void {
+  edit: (current: McpServer[]) => McpServer[],
+): Promise<void> {
   if (scope.kind === "global") {
-    dependencies.writeGlobalServers(servers);
+    await dependencies.editGlobalServers(edit);
     return;
   }
   const project = requireProject(scope.projectId, dependencies);
+  const before = project.mcpServers ?? [];
+  const servers = edit(before);
+  if (servers === before) return;
   dependencies.writeProject({ ...project, mcpServers: servers });
   dependencies.projectsChanged();
 }

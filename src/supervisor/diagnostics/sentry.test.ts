@@ -309,9 +309,10 @@ describe("supervisor Sentry policy", () => {
       );
     const previousDsn = process.env.SENTRY_DSN;
     const previousDataDir = process.env.PORACODE_DATA_DIR;
-    const directory = mkdtempSync(join(process.cwd(), "tmp", "sentry-capture-isolation-"));
+    mkdirSync("tmp", { recursive: true });
+    const dataDir = mkdtempSync(join(process.cwd(), "tmp", "sentry-policy-"));
     process.env.SENTRY_DSN = "https://public@example.test/1";
-    process.env.PORACODE_DATA_DIR = directory;
+    process.env.PORACODE_DATA_DIR = dataDir;
     try {
       const reporter = await import("./sentry");
       expect(reporter.initializeSupervisorSentry({ appVersion: "test", isDev: false })).toBe(true);
@@ -347,7 +348,7 @@ describe("supervisor Sentry policy", () => {
       else process.env.SENTRY_DSN = previousDsn;
       if (previousDataDir === undefined) delete process.env.PORACODE_DATA_DIR;
       else process.env.PORACODE_DATA_DIR = previousDataDir;
-      rmSync(directory, { recursive: true, force: true });
+      rmSync(dataDir, { recursive: true, force: true });
     }
   });
   it.each(["ABORT_ERR", "ECONNRESET", "ETIMEDOUT"])(

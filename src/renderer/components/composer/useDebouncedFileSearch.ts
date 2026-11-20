@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import type { FileEntry, ProjectLocation } from "@/shared/contracts";
 import { readBridge } from "@/renderer/bridge";
 import { useAppStore } from "@/renderer/state/appStore";
-import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
+import { useHostSetting } from "@/renderer/state/pairedHostSettings";
 import { resolveSearchConfig } from "@/shared/searchExclude";
 
 export function useDebouncedFileSearch(
@@ -15,8 +15,9 @@ export function useDebouncedFileSearch(
   const timerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
   const abortRef = useRef(0);
 
-  const globalUseIgnoreFiles = useSharedSettings((s) => s.searchUseIgnoreFiles);
-  const globalExclude = useSharedSettings((s) => s.searchExclude);
+  const host = projectLocation?.remoteServerId;
+  const globalUseIgnoreFiles = useHostSetting(host, "searchUseIgnoreFiles");
+  const globalExclude = useHostSetting(host, "searchExclude");
   const projectSearchSettings = useAppStore((s) =>
     projectId ? s.projects.find((p) => p.id === projectId)?.searchSettings : undefined,
   );

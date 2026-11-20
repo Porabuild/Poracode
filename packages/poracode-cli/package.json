@@ -23,5 +23,5 @@
   "engines": {
     "node": ">=20.11.0"
   },
-  "packageManager": "bun@1.4.3-canary.20261021.1"
+  "packageManager": "bun@1.4.4-canary.20261109.1"
 }

@@ -28,24 +28,28 @@ export const modelProviderConfigSchema = z.object({
   modelIds: z.array(z.string().trim().min(1).max(512)).max(200),
 });
 export type ModelProviderConfig = z.infer<typeof modelProviderConfigSchema>;
-export const manageModelProvidersPayloadSchema = z
-  .discriminatedUnion("action", [
-    z.object({ action: z.literal("list") }),
-    z.object({
-      action: z.literal("save"),
-      create: z.boolean(),
-      revision: z.string().min(1).max(128),
-      provider: modelProviderConfigSchema,
-      /** Write-only: omitted or blank preserves the existing credential. */
-      apiKey: z.string().trim().max(16384).optional(),
-    }),
-    z.object({
-      action: z.literal("remove"),
-      revision: z.string().min(1).max(128),
-      providerId: z.string().min(1).max(128),
-    }),
-  ])
-  .and(z.object({ agentKind: z.string().min(1).max(128), env: agentEnvSchema }));
+export const modelProviderOperationSchema = z.discriminatedUnion("action", [
+  z.object({ action: z.literal("list") }),
+  z.object({
+    action: z.literal("save"),
+    create: z.boolean(),
+    revision: z.string().min(1).max(128),
+    provider: modelProviderConfigSchema,
+    /** Write-only: omitted or blank preserves the existing credential. */
+    apiKey: z.string().trim().max(16384).optional(),
+  }),
+  z.object({
+    action: z.literal("remove"),
+    revision: z.string().min(1).max(128),
+    providerId: z.string().min(1).max(128),
+  }),
+]);
+export const modelProviderTargetSchema = z.object({
+  agentKind: z.string().min(1).max(128),
+  env: agentEnvSchema,
+});
+export const manageModelProvidersPayloadSchema =
+  modelProviderOperationSchema.and(modelProviderTargetSchema);
 export type ManageModelProvidersPayload = z.infer<typeof manageModelProvidersPayloadSchema>;
 export interface ConfiguredModelProvider extends ModelProviderConfig {
   custom: boolean;

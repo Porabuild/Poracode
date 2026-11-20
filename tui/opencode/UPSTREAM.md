@@ -26,10 +26,11 @@ Sliced to the TUI import graph:
 - `ui`: the five audio files imported by the TUI
 - `util`: TUI-used activity calendar, flock/hash, global paths, runtime module loading, no-timeout fetch, open, retry, and session title utilities
 
-Package manifests are reduced to the required exports and runtime dependencies so installing the nested project does not install unrelated OpenCode server, CLI, or UI dependencies. `packages/tui/package.json` remains from upstream. The root catalog keeps the tag's OpenTUI 0.6.6 and TypeScript 7.0.2 pins; `zod` is additionally pinned to Poracode's root version because the adapter imports shared Poracode contracts.
+Package manifests are reduced to the required exports and runtime dependencies so installing the nested project does not install unrelated OpenCode server, CLI, or UI dependencies. The TUI uses the catalog version of `@solid-primitives/event-bus`, pins `strip-ansi` to 7.2.0 and uses `string-width` 8 directly for Node terminal column counts. Patch 0092 adapts scroll anchoring to OpenTUI 0.8.4. The catalog retains the upstream TypeScript 7.0.2 pin and matches Poracode's root Zod version for the shared contracts.
 
 ## Local patches
 
+- The command and model pickers use Fuzzysort 4 snapshots and include every matching row in keyboard navigation. The prompt autocomplete keeps its ten-result cap and its file-line-range handling.
 - `packages/tui/src/app.tsx`: optional adapter `fetch` is used by initial and reconnect clients; `plugins.local: false` skips project-local plugin discovery, and `plugins.server: false` disables host-reported plugin loading while leaving built-in system feature plugins intact. Each patch is marked `// poracode:`.
 - `packages/tui/src/plugin/context.tsx`: gate host-reported plugin discovery and loading for embedded clients. This additional isolation patch was required because the live-server smoke exposed server-reported plugin paths into the user's `~/.config/opencode/plugins` directory.
 - `packages/tui/tsconfig.json`: scope the package project to `src` plus `../../../src/dev/simulation-frontend.d.ts`, excluding upstream tests that require sliced server/simulation sources.

@@ -12,6 +12,7 @@ import {
   ThreadDockHeader,
   ThreadDockIconButton,
   ThreadDockList,
+  ThreadDockProgressRing,
   ThreadDockRow,
   ThreadDockSection,
 } from "./ThreadDockUI";
@@ -68,7 +69,21 @@ export function ThreadTodoDock(props: ThreadTodoDockProps) {
     (count, step) => (step.status === "completed" ? count + 1 : count),
     0,
   );
+  const progressPercent =
+    state.steps.length > 0 ? Math.round((completedCount / state.steps.length) * 100) : 0;
   const countLabel = <AnimatedFraction value={completedCount} total={state.steps.length} />;
+  const closeButton = (
+    <ThreadDockIconButton label={t`Close plan`} danger onPress={onRetire}>
+      <X className="size-3.5" />
+    </ThreadDockIconButton>
+  );
+  const collapseButton = (
+    <ThreadDockCollapseButton
+      collapsed={collapsed}
+      label={collapsed ? t`Expand todo dock` : t`Collapse todo dock`}
+      onPress={() => onCollapsedChange(!collapsed)}
+    />
+  );
 
   return (
     <ThreadDockSection ariaLabel={t`Thread todo dock`} placement={placement} collapsed={collapsed}>
@@ -77,24 +92,40 @@ export function ThreadTodoDock(props: ThreadTodoDockProps) {
         title={t`Plan`}
         {...(placement === "right"
           ? { collapse: { collapsed, onToggle: () => onCollapsedChange(!collapsed) } }
-          : {})}
-        countLabel={countLabel}
+          : { countLabel })}
         actions={
-          <>
-            {showPlacementToggle ? <ThreadDocksPlacementToggle placement="composer" /> : null}
-            <ThreadDockCollapseButton
-              collapsed={collapsed}
-              label={collapsed ? t`Expand todo dock` : t`Collapse todo dock`}
-              onPress={() => onCollapsedChange(!collapsed)}
-            />
-            <ThreadDockIconButton label={t`Close plan`} danger onPress={onRetire}>
-              <X className="size-3.5" />
-            </ThreadDockIconButton>
-          </>
+          placement === "right" ? (
+            <>
+              {closeButton}
+              {collapseButton}
+            </>
+          ) : (
+            <>
+              {showPlacementToggle ? <ThreadDocksPlacementToggle placement="composer" /> : null}
+              {collapseButton}
+              {closeButton}
+            </>
+          )
         }
-      />
+      >
+        {placement === "right" ? (
+          <span className="ml-auto inline-flex shrink-0 items-center gap-1.5 text-[11px] tabular-nums text-muted">
+            <ThreadDockProgressRing
+              percent={progressPercent}
+              size={15}
+              radius={5.5}
+              progressStroke={progressPercent >= 100 ? "var(--success)" : "var(--foreground)"}
+            />
+            {countLabel}
+          </span>
+        ) : null}
+      </ThreadDockHeader>
 
-      <ThreadDockList placement={placement} collapsed={collapsed}>
+      <ThreadDockList
+        placement={placement}
+        collapsed={collapsed}
+        gap={placement === "right" ? "0.5" : "none"}
+      >
         {displayedStepIndices.map((index) => {
           const step = state.steps[index];
           if (!step) return null;

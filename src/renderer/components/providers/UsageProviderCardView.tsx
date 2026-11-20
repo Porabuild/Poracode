@@ -1,3 +1,4 @@
+import { ContentSurface } from "@/renderer/components/common/ContentSurface";
 import { useState, type ReactNode } from "react";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useSortable } from "@dnd-kit/react/sortable";
@@ -19,8 +20,70 @@ import {
 import { usageToneColor } from "@/renderer/components/providers/usageTone";
 import { usesSharedWindowReset } from "@/renderer/components/providers/usageProviders";
 
+/** Derived display state shared by the usage panel cards and settings provider cards. */
+export function summarizeUsageSnapshot(
+  snapshot: UsageSnapshot | undefined,
+  showEstimatedCost: boolean,
+) {
+  const showCost = Boolean(snapshot?.cost && (!snapshot.cost.estimated || showEstimatedCost));
+  const credits = hasDisplayableCredits(snapshot?.credits, snapshot?.windows ?? [])
+    ? snapshot?.credits
+    : undefined;
+  const hasWindows = Boolean(snapshot && snapshot.windows.length > 0);
+  const hasUsage = Boolean(snapshot && (hasWindows || showCost || credits));
+  const refreshFailed = Boolean(
+    snapshot &&
+    (snapshot.status === "error" ||
+      snapshot.status === "rate-limited" ||
+      (snapshot.status === "auth-missing" && hasUsage)),
+  );
+  return { showCost, credits, hasWindows, hasUsage, refreshFailed };
+}
+
+/** Warning icon + tooltip shown when refresh failed, optionally preserving retained usage time. */
+export function UsageRefreshWarning(props: {
+  id: string;
+  label: string;
+  snapshot: UsageSnapshot;
+  hasUsage: boolean;
+  compact?: boolean;
+  buttonClassName?: string;
+}) {
+  const { id, label, snapshot, hasUsage, compact = false, buttonClassName } = props;
+  const { t, i18n } = useLingui();
+  const lastUpdated = new Date(snapshot.fetchedAt).toLocaleString(i18n.locale);
+
+  return (
+    <Tooltip delay={0}>
+      <Button
+        isIconOnly
+        variant="ghost"
+        aria-label={t`Usage refresh failed`}
+        className={
+          buttonClassName ??
+          `min-w-0 shrink-0 rounded-md p-0 text-warning hover:bg-transparent ${
+            compact ? "size-11" : "size-5"
+          }`
+        }
+      >
+        <TriangleAlert aria-hidden="true" className="size-3.5" />
+      </Button>
+      <Tooltip.Content placement="top" className="max-w-72 text-xs">
+        <div className="space-y-1">
+          <p>
+            {snapshot.status === "auth-missing"
+              ? t`Authentication is unavailable or the token could not be renewed.`
+              : usageStatusText(snapshot, label, id)}
+          </p>
+          {hasUsage ? <p>{t`Showing last successful usage from ${lastUpdated}.`}</p> : null}
+        </div>
+      </Tooltip.Content>
+    </Tooltip>
+  );
+}
+
 /** Compact one-line window chips shown when the card is collapsed. */
-function WindowChips(props: {
+export function WindowChips(props: {
   windows: UsageSnapshot["windows"];
   credits?: UsageSnapshot["credits"];
 }) {
@@ -74,6 +137,7 @@ export function UsageProviderCardView(props: {
   credentialActions?: ReactNode;
   credentialBody?: ReactNode;
   credentialEmptyBody?: ReactNode;
+  footer?: ReactNode;
   showAccount?: boolean;
   id: string;
   label: string;
@@ -84,7 +148,7 @@ export function UsageProviderCardView(props: {
   onToggleCollapse: (id: string) => void;
 }) {
   const { id, label, index, compact, collapsed, draggable = true, onToggleCollapse } = props;
-  const { t, i18n } = useLingui();
+  const { t } = useLingui();
   const { snapshot, refreshing, onRefresh, refreshDisabled = false } = props;
   const { ref, handleRef, isDragging } = useSortable({
     id: `usage-order:${id}`,
@@ -97,18 +161,10 @@ export function UsageProviderCardView(props: {
   });
 
   const showEstimatedCost = useSharedSettings((s) => s.usage.showEstimatedCost);
-  const showCost = Boolean(snapshot?.cost && (!snapshot.cost.estimated || showEstimatedCost));
-  const credits = hasDisplayableCredits(snapshot?.credits, snapshot?.windows ?? [])
-    ? snapshot?.credits
-    : undefined;
-  const hasUsage = Boolean(snapshot && (snapshot.windows.length > 0 || showCost || credits));
-  const hasWindows = Boolean(snapshot?.windows.length);
-  const refreshFailed =
-    snapshot &&
-    (snapshot.status === "error" ||
-      snapshot.status === "rate-limited" ||
-      (snapshot.status === "auth-missing" && hasUsage));
-  const lastUpdated = snapshot ? new Date(snapshot.fetchedAt).toLocaleString(i18n.locale) : "";
+  const { showCost, credits, hasWindows, hasUsage, refreshFailed } = summarizeUsageSnapshot(
+    snapshot,
+    showEstimatedCost,
+  );
   // Mount-time clock for the reset label (same pattern as UsageWindowBars):
   // impure reads can't run during render, and the card re-renders on snapshot
   // updates anyway.
@@ -117,11 +173,10 @@ export function UsageProviderCardView(props: {
   const Chevron = collapsed ? ChevronRight : ChevronDown;
 
   return (
-    <div
+    <ContentSurface
       ref={ref}
-      className={`rounded-2xl border border-[color:var(--separator)] bg-surface ${
-        isDragging ? "opacity-40" : ""
-      }`}
+      data-usage-provider-id={id}
+      className={isDragging ? "opacity-40" : ""}
     >
       <div
         className={
@@ -180,29 +235,14 @@ export function UsageProviderCardView(props: {
             ) : null}
           </span>
         </button>
-        {refreshFailed ? (
-          <Tooltip delay={0}>
-            <Button
-              isIconOnly
-              variant="ghost"
-              aria-label={t`Usage refresh failed`}
-              className={`min-w-0 shrink-0 rounded-md p-0 text-warning hover:bg-transparent ${
-                compact ? "size-11" : "size-5"
-              }`}
-            >
-              <TriangleAlert aria-hidden="true" className="size-3.5" />
-            </Button>
-            <Tooltip.Content placement="top" className="max-w-72 text-xs">
-              <div className="space-y-1">
-                <p>
-                  {snapshot.status === "auth-missing"
-                    ? t`Authentication is unavailable or the token could not be renewed.`
-                    : usageStatusText(snapshot, label, id)}
-                </p>
-                {hasUsage ? <p>{t`Showing last successful usage from ${lastUpdated}.`}</p> : null}
-              </div>
-            </Tooltip.Content>
-          </Tooltip>
+        {refreshFailed && snapshot ? (
+          <UsageRefreshWarning
+            id={id}
+            label={label}
+            snapshot={snapshot}
+            hasUsage={hasUsage}
+            compact={compact}
+          />
         ) : null}
         <button
           type="button"
@@ -236,7 +276,7 @@ export function UsageProviderCardView(props: {
       ) : null}
 
       {!collapsed ? (
-        <div className="space-y-2 border-t border-[color:var(--separator)] px-3 py-2.5">
+        <div className="space-y-2 border-t border-[var(--hairline-soft)] px-3 py-2.5">
           {hasUsage && snapshot ? (
             <>
               {snapshot.windows.length > 0 ? (
@@ -257,13 +297,16 @@ export function UsageProviderCardView(props: {
             </div>
           )}
           {props.credentialBody}
+          {props.footer ? (
+            <div className="pt-0.5 text-[11px] text-muted/70">{props.footer}</div>
+          ) : null}
         </div>
       ) : null}
-    </div>
+    </ContentSurface>
   );
 }
 
-function UsageCreditsRow(props: {
+export function UsageCreditsRow(props: {
   credits: NonNullable<UsageSnapshot["credits"]>;
   showSeparator: boolean;
 }) {
@@ -273,7 +316,7 @@ function UsageCreditsRow(props: {
   return (
     <div
       className={`flex items-center justify-between gap-3 ${
-        props.showSeparator ? "border-t border-[color:var(--separator)] pt-2" : ""
+        props.showSeparator ? "border-t border-[var(--hairline-soft)] pt-2" : ""
       }`}
     >
       <span className="text-xs text-muted">{credits.label ?? t`Credits`}</span>

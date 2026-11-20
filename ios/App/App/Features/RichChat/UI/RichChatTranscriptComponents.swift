@@ -243,12 +243,11 @@ struct RichChatMessageSurface<Content: View>: View {
       .padding(.horizontal, 12)
       .padding(.vertical, 9)
       .background {
-        PoracodeShapes.content
-          .fill(kind == .prompt ? palette.tertiarySurface : .clear)
-          .overlay {
-            PoracodeShapes.content
-              .stroke(kind == .prompt ? palette.foreground.opacity(0.09) : .clear, lineWidth: 0.5)
-          }
+        if kind == .prompt {
+          let shape = RoundedRectangle(cornerRadius: 8, style: .continuous)
+          shape.fill(palette.contentSurface)
+            .overlay { shape.strokeBorder(palette.foreground.opacity(0.03), lineWidth: 1) }
+        }
       }
   }
 

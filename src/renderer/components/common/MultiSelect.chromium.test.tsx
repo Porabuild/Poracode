@@ -86,12 +86,19 @@ describe("MultiSelect trigger layout", () => {
       );
     }
 
-    const { getByLabelText } = render(<ControlledMultiSelect />);
+    const { getByLabelText, getByRole } = render(
+      <>
+        <h2>Power settings</h2>
+        <ControlledMultiSelect />
+      </>,
+    );
+    // The body's accessible text changes as the menu exits; hover a stable sibling.
+    const outside = page.elementLocator(getByRole("heading", { name: "Power settings" }));
     const trigger = getByLabelText("Prevent system sleep");
     const indicator = trigger.querySelector(".select__indicator");
     if (!indicator) throw new Error("Missing select indicator");
 
-    await page.elementLocator(document.body).hover();
+    await outside.hover();
     await page.elementLocator(indicator).hover();
     await vi.waitFor(() => {
       const tooltip = document.querySelector<HTMLElement>('[role="tooltip"]');
@@ -110,7 +117,7 @@ describe("MultiSelect trigger layout", () => {
     expect(trigger.getAttribute("aria-expanded")).toBe("true");
 
     await userEvent.keyboard("{Escape}");
-    await page.elementLocator(document.body).hover();
+    await outside.hover();
     await page.elementLocator(indicator).hover();
     await vi.waitFor(() => {
       expect(document.querySelector('[role="tooltip"]')?.textContent).toBe("Working, Computer Use");

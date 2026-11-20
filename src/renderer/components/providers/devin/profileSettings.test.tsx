@@ -1,5 +1,5 @@
 import { fireEvent, screen, waitFor } from "@testing-library/react";
-import type { ReactNode } from "react";
+import type { ReactElement, ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { AgentInstanceConfig, AgentStatus } from "@/shared/contracts";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
@@ -9,8 +9,10 @@ const toastMock = vi.hoisted(() => ({
   success: vi.fn<(message: string) => void>(),
 }));
 
-vi.mock("@heroui/react", () => {
+vi.mock("@heroui/react", async (importOriginal) => {
+  const { Disclosure } = await importOriginal<typeof import("@heroui/react")>();
   return {
+    Disclosure,
     Button: (props: {
       children?: ReactNode;
       type?: string;
@@ -87,11 +89,15 @@ const getSharedSettingsMock = vi.hoisted(() =>
   vi.fn<() => Promise<{ agentInstances: Record<string, unknown> }>>(),
 );
 const runAgentLoginCommandMock = vi.hoisted(() => vi.fn<(input: unknown) => boolean>());
+const createProfileMock = vi.hoisted(() =>
+  vi.fn<(input: unknown) => Promise<AgentInstanceConfig>>(),
+);
 
 vi.mock("@/renderer/bridge", () => ({
   readBridge: () => ({
     refreshAgentStatuses: refreshAgentStatusesMock,
     getSharedSettings: getSharedSettingsMock,
+    createProfile: createProfileMock,
   }),
 }));
 
@@ -157,14 +163,14 @@ function agentStatus(overrides: Partial<AgentStatus> = {}): AgentStatus {
 }
 
 describe("devinProfileSupport.createPayload", () => {
-  it("creates a latest-format native-default config, keeping an optional config file", () => {
+  it("creates a separate account requiring its own sign-in", () => {
     expect(
       devinProfileSupport.createPayload({ id: "work", displayName: "Work", field: "" }),
     ).toEqual({
       driver: "devin",
       id: "work",
       displayName: "Work",
-      config: { format: 2, auth: { kind: "native-default" } },
+      config: { format: 2, auth: { kind: "isolated-owner" } },
     });
     expect(
       devinProfileSupport.createPayload({
@@ -174,11 +180,17 @@ describe("devinProfileSupport.createPayload", () => {
       }).config,
     ).toEqual({
       format: 2,
-      auth: { kind: "native-default" },
-      configPath: "~/.config/devin/review.json",
+      auth: { kind: "isolated-owner" },
     });
   });
 });
+
+function renderExpandedSettings(ui: ReactElement) {
+  const rendered = render(ui);
+  const advanced = screen.queryByRole("button", { name: "Advanced settings" });
+  if (advanced?.getAttribute("aria-expanded") === "false") fireEvent.click(advanced);
+  return rendered;
+}
 
 describe("DevinProfileProviderSettings", () => {
   // Stands in for the host's settings file: `setSharedSettings` writes land
@@ -200,6 +212,70 @@ describe("DevinProfileProviderSettings", () => {
     runAgentLoginCommandMock.mockReset().mockReturnValue(true);
     toastMock.success.mockReset();
     toastMock.danger.mockReset();
+    createProfileMock.mockReset().mockImplementation(async (input) => input as AgentInstanceConfig);
+  });
+
+  it("adds an independent account using only a name", async () => {
+    const onOpenProfile = vi.fn<(kind: string) => void>();
+    render(
+      <DevinAgentSettingsPanel
+        agentKind="devin"
+        statuses={[]}
+        wslDistros={[]}
+        onOpenProfile={onOpenProfile}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Add profile" }));
+    expect(screen.getAllByRole("textbox")).toHaveLength(1);
+    fireEvent.change(screen.getByLabelText("New profile name"), { target: { value: "Second" } });
+    fireEvent.click(screen.getByRole("button", { name: "Create profile" }));
+    await waitFor(() => expect(onOpenProfile).toHaveBeenCalledWith("devin:second"));
+    expect(createProfileMock).toHaveBeenCalledWith({
+      driver: "devin",
+      id: "second",
+      displayName: "Second",
+      config: { format: 2, auth: { kind: "isolated-owner" } },
+    });
+  });
+
+  it("keeps specialist, organization and account-sharing controls collapsed by default", () => {
+    settingsState.agentInstances = {
+      work: devinProfile({ config: { format: 2, auth: { kind: "isolated-owner" } } }),
+    };
+    render(<DevinAgentSettingsPanel agentKind="devin:work" statuses={[]} wslDistros={[]} />);
+    expect(screen.getByLabelText("Devin profile name")).toBeVisible();
+    expect(screen.getByRole("button", { name: "Advanced settings" })).toHaveAttribute(
+      "aria-expanded",
+      "false",
+    );
+    expect(screen.queryByRole("combobox", { name: "Login source" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("combobox", { name: "Agent type" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("textbox", { name: "Devin organization id" }),
+    ).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Advanced settings" }));
+    expect(screen.getByLabelText("Login source")).toHaveValue("isolated-owner");
+    expect(screen.getByLabelText("Agent type")).toBeVisible();
+    expect(screen.getByLabelText("Devin organization id")).toBeVisible();
+  });
+
+  it("preserves a legacy shared account and its launch options when saving with Advanced closed", async () => {
+    const config = {
+      format: 2,
+      auth: { kind: "native-default" },
+      orgId: "org-kept",
+      agentType: "review",
+      configPath: "/custom/config.json",
+      runtimeTarget: "local",
+    };
+    settingsState.agentInstances = { work: devinProfile({ config }) };
+    render(<DevinAgentSettingsPanel agentKind="devin:work" statuses={[]} wslDistros={[]} />);
+    fireEvent.change(screen.getByLabelText("Devin profile name"), { target: { value: "Renamed" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save Devin profile" }));
+    await waitFor(() => expect(toastMock.success).toHaveBeenCalled());
+    expect(settingsState.setAgentInstance).toHaveBeenCalledWith(
+      expect.objectContaining({ displayName: "Renamed", config }),
+    );
   });
 
   it("renders the stored configuration for editing", () => {
@@ -214,7 +290,9 @@ describe("DevinProfileProviderSettings", () => {
         },
       }),
     };
-    render(<DevinAgentSettingsPanel agentKind="devin:work" statuses={[]} wslDistros={[]} />);
+    renderExpandedSettings(
+      <DevinAgentSettingsPanel agentKind="devin:work" statuses={[]} wslDistros={[]} />,
+    );
     expect(screen.getByLabelText("Devin profile name")).toHaveValue("Work");
     expect(screen.getByLabelText("Login source")).toHaveValue("isolated-owner");
     expect(screen.getByLabelText("Devin profile config file")).toHaveValue(
@@ -251,7 +329,9 @@ describe("DevinProfileProviderSettings", () => {
         },
       }),
     };
-    render(<DevinAgentSettingsPanel agentKind="devin:work" statuses={[]} wslDistros={[]} />);
+    renderExpandedSettings(
+      <DevinAgentSettingsPanel agentKind="devin:work" statuses={[]} wslDistros={[]} />,
+    );
     fireEvent.change(screen.getByLabelText("Devin organization id"), {
       target: { value: "org-new" },
     });
@@ -297,7 +377,9 @@ describe("DevinProfileProviderSettings", () => {
         work: { id: "work", driver: "devin", displayName: "Work", config: stored.config },
       },
     });
-    render(<DevinAgentSettingsPanel agentKind="devin:work" statuses={[]} wslDistros={[]} />);
+    renderExpandedSettings(
+      <DevinAgentSettingsPanel agentKind="devin:work" statuses={[]} wslDistros={[]} />,
+    );
     fireEvent.change(screen.getByLabelText("Devin organization id"), {
       target: { value: "org-new" },
     });
@@ -318,7 +400,9 @@ describe("DevinProfileProviderSettings", () => {
     });
     settingsState.agentInstances = { work: stored };
     flushSharedSettingsMock.mockRejectedValueOnce(new Error("profile.dependencyUnavailable"));
-    render(<DevinAgentSettingsPanel agentKind="devin:work" statuses={[]} wslDistros={[]} />);
+    renderExpandedSettings(
+      <DevinAgentSettingsPanel agentKind="devin:work" statuses={[]} wslDistros={[]} />,
+    );
     fireEvent.change(screen.getByLabelText("Devin organization id"), {
       target: { value: "org-new" },
     });
@@ -347,7 +431,9 @@ describe("DevinProfileProviderSettings", () => {
         config: { format: 1, auth: { kind: "owner-reference", ownerId: "owner" } },
       }),
     };
-    render(<DevinAgentSettingsPanel agentKind="devin:owner" statuses={[]} wslDistros={[]} />);
+    renderExpandedSettings(
+      <DevinAgentSettingsPanel agentKind="devin:owner" statuses={[]} wslDistros={[]} />,
+    );
     fireEvent.change(screen.getByLabelText("Login source"), {
       target: { value: "native-default" },
     });
@@ -363,7 +449,9 @@ describe("DevinProfileProviderSettings", () => {
       config: { format: 1, auth: { kind: "native-default" }, orgId: "org-keep" },
     });
     settingsState.agentInstances = { work: stored };
-    render(<DevinAgentSettingsPanel agentKind="devin:work" statuses={[]} wslDistros={[]} />);
+    renderExpandedSettings(
+      <DevinAgentSettingsPanel agentKind="devin:work" statuses={[]} wslDistros={[]} />,
+    );
     fireEvent.change(screen.getByLabelText("Login source"), {
       target: { value: "owner-reference" },
     });
@@ -392,7 +480,9 @@ describe("DevinProfileProviderSettings", () => {
         config: { format: 1, auth: { kind: "isolated-owner" } },
       }),
     };
-    render(<DevinAgentSettingsPanel agentKind="devin:work" statuses={[]} wslDistros={[]} />);
+    renderExpandedSettings(
+      <DevinAgentSettingsPanel agentKind="devin:work" statuses={[]} wslDistros={[]} />,
+    );
     expect(screen.getByText(/no longer exists or is not usable/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Save Devin profile" })).toBeDisabled();
 
@@ -406,7 +496,9 @@ describe("DevinProfileProviderSettings", () => {
     const stored = { format: 3, auth: { kind: "native-default" }, newThing: true };
     const instance = devinProfile({ config: stored });
     settingsState.agentInstances = { work: instance };
-    render(<DevinAgentSettingsPanel agentKind="devin:work" statuses={[]} wslDistros={[]} />);
+    renderExpandedSettings(
+      <DevinAgentSettingsPanel agentKind="devin:work" statuses={[]} wslDistros={[]} />,
+    );
     expect(screen.getByText("Configuration from a newer Poracode")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Save Devin profile" })).not.toBeInTheDocument();
     expect(instance.config).toBe(stored);
@@ -421,7 +513,9 @@ describe("DevinProfileProviderSettings", () => {
       loginCommand: "devin auth login",
       authState: "missing",
     });
-    render(<DevinAgentSettingsPanel agentKind="devin:work" statuses={[status]} wslDistros={[]} />);
+    renderExpandedSettings(
+      <DevinAgentSettingsPanel agentKind="devin:work" statuses={[status]} wslDistros={[]} />,
+    );
     fireEvent.click(screen.getByRole("button", { name: /Sign in to Devin Work/i }));
     expect(runAgentLoginCommandMock).toHaveBeenCalledWith(
       expect.objectContaining({ command: "devin auth login" }),
@@ -436,7 +530,9 @@ describe("DevinProfileProviderSettings", () => {
       loginCommand: "devin auth login",
       authState: "missing",
     });
-    render(<DevinAgentSettingsPanel agentKind="devin:work" statuses={[status]} wslDistros={[]} />);
+    renderExpandedSettings(
+      <DevinAgentSettingsPanel agentKind="devin:work" statuses={[status]} wslDistros={[]} />,
+    );
     // The generic page renders one AgentEnvironmentRow login per env above
     // this panel; the custom slot must not duplicate it.
     expect(
@@ -448,7 +544,9 @@ describe("DevinProfileProviderSettings", () => {
 
   it("points same-login profiles at the base page instead of offering a login", () => {
     settingsState.agentInstances = { work: devinProfile() };
-    render(<DevinAgentSettingsPanel agentKind="devin:work" statuses={[]} wslDistros={[]} />);
+    renderExpandedSettings(
+      <DevinAgentSettingsPanel agentKind="devin:work" statuses={[]} wslDistros={[]} />,
+    );
     expect(screen.getByText(/Sign in or out from the base Devin page/i)).toBeInTheDocument();
     expect(runAgentLoginCommandMock).not.toHaveBeenCalled();
   });
@@ -468,7 +566,9 @@ describe("DevinProfileProviderSettings", () => {
         },
       }),
     };
-    render(<DevinAgentSettingsPanel agentKind="devin:work" statuses={[]} wslDistros={[]} />);
+    renderExpandedSettings(
+      <DevinAgentSettingsPanel agentKind="devin:work" statuses={[]} wslDistros={[]} />,
+    );
     expect(screen.getByLabelText("Cloud repositories")).toHaveValue("list");
     expect(screen.getByLabelText("Cloud repository list")).toHaveValue("SDSLeon/zed");
     // persona "" is the explicit Agent choice, seeded as such — not dropped.
@@ -488,7 +588,9 @@ describe("DevinProfileProviderSettings", () => {
         },
       }),
     };
-    render(<DevinAgentSettingsPanel agentKind="devin:work" statuses={[]} wslDistros={[]} />);
+    renderExpandedSettings(
+      <DevinAgentSettingsPanel agentKind="devin:work" statuses={[]} wslDistros={[]} />,
+    );
     fireEvent.change(screen.getByLabelText("Cloud repositories"), {
       target: { value: "list" },
     });
@@ -530,7 +632,9 @@ describe("DevinProfileProviderSettings", () => {
         },
       }),
     };
-    render(<DevinAgentSettingsPanel agentKind="devin:work" statuses={[]} wslDistros={[]} />);
+    renderExpandedSettings(
+      <DevinAgentSettingsPanel agentKind="devin:work" statuses={[]} wslDistros={[]} />,
+    );
     expect(screen.getByText("Cloud chat setup")).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText("Runtime target"), {
       target: { value: "local" },
@@ -563,7 +667,9 @@ describe("DevinProfileProviderSettings", () => {
         },
       }),
     };
-    render(<DevinAgentSettingsPanel agentKind="devin:work" statuses={[]} wslDistros={[]} />);
+    renderExpandedSettings(
+      <DevinAgentSettingsPanel agentKind="devin:work" statuses={[]} wslDistros={[]} />,
+    );
     fireEvent.change(screen.getByLabelText("Cloud repositories"), {
       target: { value: "list" },
     });
@@ -595,7 +701,9 @@ describe("DevinProfileProviderSettings", () => {
         },
       }),
     };
-    render(<DevinAgentSettingsPanel agentKind="devin:work" statuses={[]} wslDistros={[]} />);
+    renderExpandedSettings(
+      <DevinAgentSettingsPanel agentKind="devin:work" statuses={[]} wslDistros={[]} />,
+    );
     // The combination is visibly invalid, not silently accepted.
     expect(screen.getByText(/stored configuration is invalid/i)).toBeInTheDocument();
     // No cloud section: the unusable view cannot seed honest choices.
@@ -641,7 +749,9 @@ describe("DevinProfileRowSubtitle via the profile list", () => {
         config: { format: 9, auth: { kind: "native-default" } },
       }),
     };
-    render(<DevinAgentSettingsPanel agentKind="devin" statuses={[]} wslDistros={[]} />);
+    renderExpandedSettings(
+      <DevinAgentSettingsPanel agentKind="devin" statuses={[]} wslDistros={[]} />,
+    );
     expect(screen.getByText("Same login as Devin")).toBeInTheDocument();
     expect(screen.getByText("Own isolated login")).toBeInTheDocument();
     expect(screen.getByText(/Shares Owner/)).toBeInTheDocument();

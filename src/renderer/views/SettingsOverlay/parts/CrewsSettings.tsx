@@ -1,3 +1,4 @@
+import { ContentSurface } from "@/renderer/components/common/ContentSurface";
 import { useState } from "react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { Modal, Separator } from "@heroui/react";
@@ -29,7 +30,9 @@ import { CrewMemberRow } from "@/renderer/components/crew/CrewMemberRow";
 import { CrewRolePill } from "@/renderer/components/crew/CrewRolePill";
 import { formatEffortLabel } from "@/renderer/components/thread/threadDraftViewHelpers";
 import { ThreadDockIconButton } from "@/renderer/components/thread/ThreadDockUI";
-import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
+import { useHostAgentStatusPools } from "@/renderer/hooks/useHostAgentStatuses";
+import { useCrewLibrary } from "@/renderer/state/crewLibrary";
+import { parseMachineKey } from "@/shared/machines";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { buildProviderModelMenuProviders } from "@/renderer/components/thread/buildModelPickerControls";
 import { capabilitiesForPresentation, modelSelectionFor } from "@/shared/agentSelection";
@@ -45,18 +48,20 @@ import {
 } from "@/shared/crew";
 import { SettingsPage } from "./SettingsForm";
 
-export function CrewsSettings() {
+export function CrewsSettings({ machineKey }: { machineKey?: string }) {
   const { t } = useLingui();
-  const crews = useSharedSettings((state) => state.crews);
-  const upsertCrew = useSharedSettings((state) => state.upsertCrew);
-  const deleteCrew = useSharedSettings((state) => state.deleteCrew);
-  const statuses = useAgentStatusesStore((state) => state.agentStatuses);
-  const wslStatuses = useAgentStatusesStore((state) => state.wslAgentStatuses);
+  const { crews, upsertCrew, deleteCrew, ready } = useCrewLibrary(machineKey);
+  const machine = machineKey ? parseMachineKey(machineKey) : undefined;
+  const pools = useHostAgentStatusPools(machine?.host === "remote" ? machine.desktopId : undefined);
+  const distro = machine?.env.kind === "wsl" ? machine.env.distro : undefined;
+  const statuses = distro
+    ? pools.wsl.filter((status) => status.envDistro === distro)
+    : pools.windows;
   const providerOrder = useSharedSettings((state) => state.providerOrder);
-  const helperOptions = useCrewHelperOptions();
+  const helperOptions = useCrewHelperOptions(machineKey);
   const [editorCrewId, setEditorCrewId] = useState<string | undefined>();
   const [deleteTarget, setDeleteTarget] = useState<SavedCrew | undefined>();
-  const installed = getSettingsInstalledAgents(statuses, wslStatuses).sort((left, right) => {
+  const installed = getSettingsInstalledAgents(statuses, []).sort((left, right) => {
     const leftIndex = providerOrder.indexOf(left.kind);
     const rightIndex = providerOrder.indexOf(right.kind);
     return (
@@ -151,7 +156,7 @@ export function CrewsSettings() {
           icon={<Plus className="size-4" />}
           options={templateOptions}
           buttonVariant="tertiary"
-          isDisabled={!newCrewHelper}
+          isDisabled={!ready || !newCrewHelper}
           onChange={(template) => createFromTemplate(template)}
         />
       }
@@ -165,8 +170,8 @@ export function CrewsSettings() {
             </p>
           </div>
         ) : (
-          <div className="overflow-hidden rounded-xl border border-[var(--hairline)]">
-            <ul className="divide-y divide-[var(--hairline)]">
+          <ContentSurface className="overflow-hidden">
+            <ul className="divide-y divide-[var(--hairline-soft)]">
               {crews.map((crew) => (
                 <li
                   key={crew.id}
@@ -265,7 +270,7 @@ export function CrewsSettings() {
                 </li>
               ))}
             </ul>
-          </div>
+          </ContentSurface>
         )}
       </div>
       {editingCrew ? (
@@ -361,7 +366,7 @@ function CrewEditorModal(props: {
               />
               <p className="mt-1 text-[11px] text-muted">{t`New crews start as Crew only.`}</p>
             </div>
-            <div className="overflow-hidden rounded-xl border border-[var(--hairline)] px-1.5 py-1">
+            <ContentSurface className="overflow-hidden px-1.5 py-1">
               <CrewMemberRow
                 model={model}
                 selection={crew.lead}
@@ -419,7 +424,7 @@ function CrewEditorModal(props: {
                 <Plus className="size-3.5" />
                 <Trans>Add role</Trans>
               </Button>
-            </div>
+            </ContentSurface>
             <p className="text-[11px] text-muted">
               <Trans>
                 If a role's agent is unavailable, its fallbacks run. Crew first may also use the

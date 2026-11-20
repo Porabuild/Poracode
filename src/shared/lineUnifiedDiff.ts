@@ -45,6 +45,33 @@ export function countLineChangeStats(oldText: string, newText: string): LineChan
   return { added, removed };
 }
 
+/**
+ * Read pre-counted line stats (`linesAdded` / `linesRemoved` / `linesCreated`)
+ * from loosely-typed tool result records when no diff text is present.
+ */
+export function readLineCountDiffSummary(source: unknown): LineChangeStats | undefined {
+  if (!source || typeof source !== "object" || Array.isArray(source)) return undefined;
+  const record = source as Record<string, unknown>;
+  if ("linesAdded" in record || "linesRemoved" in record) {
+    const added = record.linesAdded === undefined ? 0 : readNonNegativeInteger(record.linesAdded);
+    const removed =
+      record.linesRemoved === undefined ? 0 : readNonNegativeInteger(record.linesRemoved);
+    if (
+      added !== undefined &&
+      removed !== undefined &&
+      (record.linesAdded !== undefined || record.linesRemoved !== undefined)
+    ) {
+      return { added, removed };
+    }
+  }
+  const linesCreated = readNonNegativeInteger(record.linesCreated);
+  return linesCreated !== undefined ? { added: linesCreated, removed: 0 } : undefined;
+}
+
+function readNonNegativeInteger(value: unknown): number | undefined {
+  return typeof value === "number" && Number.isInteger(value) && value >= 0 ? value : undefined;
+}
+
 export function countUnifiedDiffStats(diff: string): UnifiedDiffStats {
   let files = 0;
   let insertions = 0;

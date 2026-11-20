@@ -14,6 +14,7 @@ import {
   preflightConversationSearchGeneration,
 } from "./conversationSearchSchema";
 import { reclaimOrphanInlineImageBlobs } from "./runtimeInlineImages";
+import { recoverInterruptedSessionImports } from "./sessionImportJournal";
 
 let _sqlite: InstanceType<typeof Database> | undefined;
 
@@ -24,8 +25,12 @@ let _sqlite: InstanceType<typeof Database> | undefined;
  * turns) does NOT churn the cache during active sessions.
  */
 let _profileDataGeneration = 0;
+let _profileUsageResetGeneration = 0;
 export function getProfileDataGeneration(): number {
   return _profileDataGeneration;
+}
+export function getProfileUsageResetGeneration(): number {
+  return _profileUsageResetGeneration;
 }
 export function bumpProfileDataGeneration(): void {
   _profileDataGeneration++;
@@ -66,6 +71,7 @@ export function initReadOnlyDatabase(dbPath: string): void {
     assertConversationSearchReady(sqlite);
     _sqlite = sqlite;
     _profileDataGeneration++;
+    _profileUsageResetGeneration++;
   } catch (error) {
     sqlite.close();
     throw error;
@@ -117,6 +123,7 @@ export function initDatabase(
   const previousSqlite = _sqlite;
   _sqlite = sqlite;
   _profileDataGeneration++;
+  _profileUsageResetGeneration++;
 
   if (options.schemaMode === "validate") {
     console.log("[db] validated");
@@ -229,7 +236,8 @@ export function initDatabase(
       project_id TEXT PRIMARY KEY,
       doc TEXT,
       todos TEXT NOT NULL DEFAULT '[]',
-      updated_at TEXT NOT NULL
+      updated_at TEXT NOT NULL,
+      revision TEXT
     );
     CREATE TABLE IF NOT EXISTS usage_events (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -329,10 +337,28 @@ export function initDatabase(
   assertRequiredDatabaseSchema(sqlite);
   try {
     ensureConversationSearchGeneration(sqlite);
+    recoverInterruptedSessionImports(sqlite);
   } catch (error) {
     sqlite.close();
     _sqlite = previousSqlite;
     throw error;
+  }
+
+  // These secondary indexes speed up startup maintenance. They are optional
+  // for readers and older owners, so the stored schema version stays valid.
+  try {
+    sqlite.transaction(() => {
+      sqlite.exec(`
+        CREATE INDEX IF NOT EXISTS idx_usage_events_ts ON usage_events (ts);
+        CREATE INDEX IF NOT EXISTS idx_runtime_items_tool_calls
+          ON thread_runtime_items (thread_id) WHERE type = 'tool_call';
+        -- Walk hashes without scanning the image bytes in the WITHOUT ROWID table.
+        CREATE INDEX IF NOT EXISTS idx_runtime_inline_image_blob_hash
+          ON runtime_inline_image_blobs (blob_hash);
+      `);
+    })();
+  } catch (error) {
+    console.warn("[db] could not build startup maintenance indexes:", error);
   }
 
   // Bound the durable usage log: drop events older than the retention window so
@@ -380,6 +406,7 @@ export function initDatabase(
 export function attachEditableDatabaseHandle(sqlite: InstanceType<typeof Database>): void {
   _sqlite = sqlite;
   _profileDataGeneration++;
+  _profileUsageResetGeneration++;
 }
 
 export interface DatabaseSpaceReclamationResult {
@@ -463,4 +490,5 @@ export function closeDatabase() {
   }
   _sqlite = undefined;
   _profileDataGeneration++;
+  _profileUsageResetGeneration++;
 }

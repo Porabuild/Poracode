@@ -8,7 +8,11 @@ import {
   useAgentStatusesStore,
 } from "@/renderer/state/agentStatusesStore";
 import { AgentDiscoveryOverlay } from "@/renderer/components/thread/AgentDiscoveryOverlay";
-import { AgentsGeneralSettings } from "./AgentsGeneralSettings";
+import { AgentsGeneralSettings as AgentsGeneralSettingsView } from "./AgentsGeneralSettings";
+
+function AgentsGeneralSettings() {
+  return <AgentsGeneralSettingsView onOpenAgentSettings={() => undefined} />;
+}
 
 const mocks = vi.hoisted(() => ({
   rediscover: vi.fn<(distros: string[]) => Promise<unknown>>(),
@@ -19,10 +23,15 @@ const mocks = vi.hoisted(() => ({
 }));
 let machine: MachineDescriptor;
 vi.mock("@/renderer/state/machines", () => ({ useSelectedMachine: () => machine }));
-vi.mock("@/renderer/components/providers/settings/agentManagementHost", () => ({
+vi.mock("@/renderer/components/providers/settings/agentManagementHost", async (importOriginal) => ({
+  ...(await importOriginal<
+    typeof import("@/renderer/components/providers/settings/agentManagementHost")
+  >()),
   agentManagementHostForMachine: (selected: MachineDescriptor) => {
     mocks.host(selected);
     return {
+      key:
+        selected.ref.host === "remote" ? selected.ref.desktopId : (selected.desktopId ?? "local"),
       isRemote: selected.ref.host === "remote" || selected.desktopId !== undefined,
       rediscoverAgents: mocks.rediscover,
     };
@@ -206,13 +215,27 @@ describe("Agents General discovery", () => {
           finish = () => resolve({ windows: [], wsl: [] });
         }),
     );
-    const { rerender } = render(<AgentsGeneralSettings />);
+    const { rerender } = render(
+      <>
+        <AgentsGeneralSettings />
+        <AgentDiscoveryOverlay />
+      </>,
+    );
     fireEvent.click(screen.getByRole("button", { name: "Refresh detected agents" }));
     expect(screen.getByRole("button", { name: "Refresh detected agents" })).toBeDisabled();
-    machine = { ...machine, id: "other", label: "Other" };
-    rerender(<AgentsGeneralSettings />);
+    expect(screen.getByRole("status")).toHaveTextContent("Discovering agents…Local");
+    machine = { ...machine, desktopId: "other", label: "Other" };
+    rerender(
+      <>
+        <AgentsGeneralSettings />
+        <AgentDiscoveryOverlay />
+      </>,
+    );
     expect(screen.getByRole("button", { name: "Refresh detected agents" })).not.toBeDisabled();
+    rerender(<AgentDiscoveryOverlay />);
+    expect(screen.getByRole("status")).toHaveTextContent("Discovering agents…Local");
     await act(async () => finish());
+    expect(screen.queryByRole("status")).toBeNull();
     expect(mocks.rediscover).toHaveBeenCalledTimes(1);
   });
 

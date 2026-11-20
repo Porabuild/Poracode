@@ -1,3 +1,4 @@
+import { ContentSurface } from "@/renderer/components/common/ContentSurface";
 import { useState } from "react";
 import { Button, Input, Popover, toast } from "@heroui/react";
 import { Plural, Trans, useLingui } from "@lingui/react/macro";
@@ -83,7 +84,7 @@ export function CrossagentMemorySection() {
           <Trans>No learned selections yet.</Trans>
         </p>
       ) : (
-        <div className="max-h-80 overflow-y-auto rounded-lg border border-border">
+        <ContentSurface className="max-h-80 overflow-y-auto">
           {learned.map((entry) => {
             const key = entryRowKey(entry);
             const tags = normalizeCrossagentTags(entry.tags);
@@ -96,7 +97,7 @@ export function CrossagentMemorySection() {
             return (
               <div
                 key={key}
-                className="flex items-center gap-3 border-b border-border px-3 py-2 last:border-b-0"
+                className="flex items-center gap-3 border-b border-[var(--hairline-soft)] px-3 py-2 last:border-b-0"
               >
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm text-foreground">
@@ -133,7 +134,7 @@ export function CrossagentMemorySection() {
               </div>
             );
           })}
-        </div>
+        </ContentSurface>
       )}
     </section>
   );

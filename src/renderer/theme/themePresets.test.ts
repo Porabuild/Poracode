@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { applyAppTheme } from "./applyAppTheme";
-import { contrastRatio, mixHex, toHex } from "./colorMath";
+import { contrastRatio, mixHex, parseHex, relativeLuminance, toHex } from "./colorMath";
 import { APP_THEME_PRESETS, DEFAULT_THEME_ID, getThemePreset } from "./themePresets";
 import { MANAGED_THEME_VARS } from "./themeTokens";
 
@@ -81,6 +81,17 @@ describe("theme presets", () => {
     }
   });
 
+  it("places editable fills toward the foreground relative to read-only surfaces", () => {
+    for (const preset of APP_THEME_PRESETS) {
+      for (const mode of ["light", "dark"] as const) {
+        const vars = preset[mode];
+        const field = relativeLuminance(parseHex(vars["--field-background"]!));
+        const panel = relativeLuminance(parseHex(vars["--content-surface-fill"]!));
+        expect(mode === "light" ? panel - field : field - panel).toBeGreaterThan(0);
+      }
+    }
+  });
+
   it("falls back to the default preset for unknown ids", () => {
     expect(getThemePreset("does-not-exist").id).toBe(DEFAULT_THEME_ID);
   });
@@ -102,6 +113,9 @@ describe("theme presets", () => {
         const muted = v["--muted"]!;
         const fg = v["--foreground"]!;
         const checks: [string, string, string, number][] = [
+          ["muted/panel", muted, v["--content-surface-fill"]!, BG_FLOOR],
+          ["placeholder/field", v["--field-placeholder"]!, v["--field-background"]!, BG_FLOOR],
+          ["placeholder/composer", v["--field-placeholder"]!, v["--composer-surface"]!, BG_FLOOR],
           ["muted/bg", muted, bg, BG_FLOOR],
           ["muted/surface", muted, surface, PANEL_FLOOR],
           ["muted/sidebar", muted, sidebar, PANEL_FLOOR],

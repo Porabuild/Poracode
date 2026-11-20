@@ -134,4 +134,16 @@
     <string name="settings_profile_tokens_by_provider">Токени за провайдерами</string>
     <string name="settings_profile_tokens_by_provider_empty">Дані про використання токенів за провайдерами недоступні.</string>
     <string name="settings_profile_provider_cost">Орієнтовна вартість</string>
+    <string name="settings_profile_trends">Недавнє та тренди</string>
+    <string name="settings_profile_yesterday">Учора</string>
+    <string name="settings_profile_last_7d">Останні 7 днів</string>
+    <string name="settings_profile_avg_task_duration">Середня тривалість завдання</string>
+    <string name="settings_profile_prompt_cache_hit">Влучання в кеш</string>
+    <string name="settings_profile_weekend_share">Частка вихідних</string>
+    <string name="settings_profile_switched_provider">Зміна провайдера</string>
+    <string name="settings_profile_switched_model">Зміна моделі</string>
+    <string name="settings_profile_provider_less">%1$s на %2$d%% менше за тиждень</string>
+    <string name="settings_profile_provider_more">%1$s на %2$d%% більше за тиждень</string>
+    <string name="settings_profile_switched_from_to">%1$s → %2$s</string>
+    <string name="settings_profile_prompts_count">%1$s запитів</string>
 </resources>

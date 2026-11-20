@@ -328,6 +328,21 @@ describe("ModelVisibilitySection", () => {
     };
     rerender(<ModelVisibilitySection />);
     expect(screen.getByRole("button", { name: "Visible models" })).toHaveTextContent("3 / 3");
+
+    // The browser's local entry represents its connected host and uses that host's live inventory.
+    useRemoteServersStore.setState({
+      runtime: {
+        studio: {
+          status: "online",
+          projects: [],
+          threads: [],
+          agentStatuses: { windows: [], wsl: [ubuntuClaude], updatedAt: "2026-01-01T00:00:00Z" },
+        },
+      },
+    });
+    envMocks.machine = { ...envMocks.machine, desktopId: "studio" };
+    rerender(<ModelVisibilitySection />);
+    expect(screen.getByRole("button", { name: "Visible models" })).toHaveTextContent("2 / 2");
   });
 
   it("disambiguates the 'All' filter chip in Japanese so it translates to 'すべて' rather than '全期間'", async () => {

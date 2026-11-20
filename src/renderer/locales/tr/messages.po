@@ -89,6 +89,11 @@ msgstr "{0, plural, one {İçeriği olmadan listelenen # dosya} other {İçeriğ
 msgid "{0, plural, one {# file} other {# files}}"
 msgstr "{0, plural, one {# dosya} other {# dosya}}"
 
+#. placeholder {0}: facts.length
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "{0, plural, one {# highlight} other {# highlights}}"
+msgstr "{0, plural, one {# öne çıkan} other {# öne çıkan}}"
+
 #. placeholder {0}: groupRows.length
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "{0, plural, one {# MCP server} other {# MCP servers}}"
@@ -269,6 +274,11 @@ msgstr "{0} kimlik bilgileri kaydedildi."
 msgid "{0} devices"
 msgstr "{0} cihaz"
 
+#. placeholder {0}: summary.failed
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrChecksIndicator.tsx
+msgid "{0} failed"
+msgstr "{0} başarısız"
+
 #. placeholder {0}: props.agentLabel
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
 msgid "{0} hooks installed for {envName}."
@@ -319,8 +329,11 @@ msgstr "{0} anonimleştirilmiş farkları karşılaştırıyor…"
 msgid "{0} is offline. Showing last known status."
 msgstr "{0} çevrimdışı. Bilinen son durum gösteriliyor."
 
+#. placeholder {0}: provider?.label ?? installedAgents.find((agent) => agent.kind === agentKind)?.label ?? agentKind
 #. placeholder {0}: target?.label ?? saved.lead.agentKind
 #. placeholder {1}: modelLabelOf(draftLead)
+#. placeholder {1}: modelLabelOf(targetLead)
+#: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/components/thread/ThreadDraftView.tsx
 msgid "{0} isn't available, so {1} stays the lead."
 msgstr "{0} kullanılamıyor; lider {1} olarak kalacak."
@@ -339,6 +352,13 @@ msgstr "{0} oturumu kapatıldı."
 #: src/renderer/views/SettingsOverlay/parts/HexSetupDialog.tsx
 msgid "{0} MB download"
 msgstr "{0} MB indir"
+
+#. placeholder {0}: status.entryCount
+#. placeholder {1}: status.pendingCandidates
+#. placeholder {2}: status.suggestionCount
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "{0} memories · {1} waiting · {2} skill suggestions"
+msgstr "{0} anı · {1} bekliyor · {2} beceri önerisi"
 
 #. placeholder {0}: capabilities.models.length
 #: src/renderer/components/providers/settings/CursorProviderSettings.tsx
@@ -419,10 +439,15 @@ msgstr "{0} çalıştırma"
 msgid "{0} share this profile's isolated login and will lose their sign-in until they pick another owner."
 msgstr "{0} bu profilin yalıtılmış girişini paylaşıyor ve başka bir sahip seçene kadar oturumunu kaybedecek."
 
-#. placeholder {0}: loginDependents.map((dependent) => dependent.displayName ?? dependent.id).join(", ")
+#. placeholder {0}: loginDependents .map((dependent) => dependent.displayName ?? dependent.id) .join(", ")
 #: src/renderer/components/providers/devin/profileSettings.tsx
 msgid "{0} share this profile's isolated login. Move them to another owner first — the host refuses changes that leave them without a login."
 msgstr "{0} bu profilin yalıtılmış girişini paylaşıyor. Önce onları başka bir sahipe taşıyın — ana makine, girişsiz bırakan değişiklikleri reddeder."
+
+#. placeholder {0}: summary.skipped
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrChecksIndicator.tsx
+msgid "{0} skipped"
+msgstr "{0} atlandı"
 
 #. placeholder {0}: threads.length
 #: src/mobile/views/ThreadsView.tsx
@@ -515,6 +540,12 @@ msgstr "{0}, Çalışıyor"
 msgid "{0}: {stateLabel}"
 msgstr "{0}: {stateLabel}"
 
+#. placeholder {0}: currentPeriod.activeDays
+#. placeholder {1}: currentPeriod.days
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "{0}/{1} active days"
+msgstr "{0}/{1} aktif gün"
+
 #. placeholder {0}: selectedRows.length
 #. placeholder {0}: selectedSkills.length
 #. placeholder {1}: importableRows.length
@@ -523,6 +554,11 @@ msgstr "{0}: {stateLabel}"
 #: src/renderer/components/skills/SkillImportModal.tsx
 msgid "{0}/{1} selected"
 msgstr "{0}/{1} seçildi"
+
+#. placeholder {0}: insights.fastModePercent
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "{0}% fast"
+msgstr "{0}% hızlı"
 
 #. placeholder {0}: summary.percent
 #: src/renderer/components/thread/ThreadContextDock.tsx
@@ -558,6 +594,10 @@ msgstr "{agentLead} devam etmek için girişinizi bekliyor."
 msgid "{commentCount, plural, one {# comment} other {# comments}}"
 msgstr "{commentCount, plural, one {# yorum} other {# yorum}}"
 
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "{commits} commits"
+msgstr "{commits} commit"
+
 #: src/mobile/views/pr/PrOverviewPage.tsx
 #~ msgid "{commitsCount, plural, one {# commit} other {# commits}}"
 #~ msgstr "{commitsCount, plural, one {# commit} other {# commit}}"
@@ -567,6 +607,10 @@ msgstr "{commentCount, plural, one {# yorum} other {# yorum}}"
 #~ msgid "{completedSteps} of {0} steps"
 #~ msgstr "{completedSteps}/{0} adım tamamlandı"
 
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "{conflicts} conflicts"
+msgstr "{conflicts} çakışma"
+
 #: src/mobile/views/pr/PrOverviewPage.tsx
 #~ msgid "{conversationCount, plural, one {# comment or review} other {# comments & reviews}}"
 #~ msgstr "{conversationCount, plural, one {# yorum veya inceleme} other {# yorum ve inceleme}}"
@@ -575,11 +619,35 @@ msgstr "{commentCount, plural, one {# yorum} other {# yorum}}"
 #~ msgid "{count, plural, one {# agent found} other {# agents found}}"
 #~ msgstr "{count, plural, one {# aracı bulundu} other {# aracı bulundu}}"
 
-#: src/renderer/components/newsLine/useInsightItems.tsx
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "{count, plural, one {# subagent run} other {# subagent runs}} this week"
+msgstr "Bu hafta {count, plural, one {# alt ajan çalıştırması} other {# alt ajan çalıştırması}}"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "{count, plural, one {# subagent run} other {# subagent runs}} this week (-{deltaPercent}%)"
+msgstr "Bu hafta {count, plural, one {# alt ajan çalıştırması} other {# alt ajan çalıştırması}} (-%{deltaPercent})"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "{count, plural, one {# subagent run} other {# subagent runs}} this week (+{deltaPercent}%)"
+msgstr "Bu hafta {count, plural, one {# alt ajan çalıştırması} other {# alt ajan çalıştırması}} (+%{deltaPercent})"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "{count, plural, one {# workflow run} other {# workflow runs}} this week"
+msgstr "Bu hafta {count, plural, one {# workflow çalıştırması} other {# workflow çalıştırması}}"
+
+#: src/renderer/components/composer/MemoryAddMenu.tsx
+msgid "{count} saved"
+msgstr "{count} kaydedildi"
+
+#: src/renderer/components/composer/MemoryAddMenu.tsx
+msgid "{count} waiting"
+msgstr "{count} bekliyor"
+
+#: src/renderer/components/newsLine/insightContent.tsx
 msgid "{current, plural, one {# day} other {# days}} in a row · your best is {longest}"
 msgstr "{current, plural, one {# gün} other {# gün}} üst üste · rekorunuz {longest}"
 
-#: src/renderer/components/newsLine/useInsightItems.tsx
+#: src/renderer/components/newsLine/insightContent.tsx
 msgid "{current, plural, one {# day} other {# days}} in a row · your best streak yet"
 msgstr "{current, plural, one {# gün} other {# gün}} üst üste · şimdiye kadarki en iyi seriniz"
 
@@ -685,6 +753,7 @@ msgstr "{label} API anahtarı"
 msgid "{label} auto-refresh interval in minutes"
 msgstr "{label} otomatik yenileme aralığı (dakika)"
 
+#: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 msgid "{label} can't lead a crew. Pick another model first."
 msgstr "{label} bir ekibe liderlik edemez. Önce başka bir model seçin."
@@ -772,6 +841,10 @@ msgstr "{0} kontrolün {passed} tanesi başarılı"
 msgid "{percent}% full"
 msgstr "%{percent} dolu"
 
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "{percent}% of your threads this week used {modeLabel} mode"
+msgstr "Bu hafta konuşmalarınızın %{percent} kadarı {modeLabel} modundaydı"
+
 #: src/renderer/components/newsLine/useNewsLineItems.tsx
 msgid "{percent}% used"
 msgstr "%{percent} kullanıldı"
@@ -797,13 +870,17 @@ msgstr "{targetLabel} üzerindeki {projectName} bir Git deposu değil, bu nedenl
 msgid "{projectName} Settings"
 msgstr "{projectName} Ayarları"
 
-#: src/renderer/components/newsLine/useInsightItems.tsx
+#: src/renderer/components/newsLine/insightContent.tsx
 msgid "{prompts, plural, one {# prompt} other {# prompts}} this week"
 msgstr "Bu hafta {prompts, plural, one {# istem} other {# istem}}"
 
-#: src/renderer/components/newsLine/useInsightItems.tsx
+#: src/renderer/components/newsLine/insightContent.tsx
 msgid "{prompts, plural, one {# prompt} other {# prompts}} this week · busiest on {weekday}"
 msgstr "Bu hafta {prompts, plural, one {# istem} other {# istem}} · en yoğun gün: {weekday}"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "{promptsText} total prompts across {threadsText} threads"
+msgstr "{threadsText} konuşmada toplam {promptsText} istem"
 
 #: src/renderer/components/providers/codex/manifest.ts
 #: src/renderer/components/providers/usageProviders.ts
@@ -821,6 +898,10 @@ msgstr "{provider} tek seferlik üretimi desteklemiyor"
 #: src/renderer/i18n/sharedMessages.ts
 #~ msgid "{provider} does not support text-only one-shot generation"
 #~ msgstr "{provider} yalnızca metin içeren tek seferlik üretimi desteklemiyor"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "{prs} PRs"
+msgstr "{prs} PR"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/TodoList.tsx
 msgid "{remaining, plural, one {# open} other {# open}}"
@@ -923,6 +1004,7 @@ msgstr "{totalCount} öğeden {visibleCount} tanesi kullanılabilir"
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProviderModelVisibilityPopover.tsx
 #: src/renderer/views/SettingsOverlay/parts/SidebarShortcutsSelector.tsx
+#: src/renderer/views/SettingsOverlay/parts/SidebarUsageVisibilityPopover.tsx
 msgid "{visibleCount} of {totalCount} visible"
 msgstr "{totalCount} öğeden {visibleCount} tanesi görünür"
 
@@ -930,6 +1012,10 @@ msgstr "{totalCount} öğeden {visibleCount} tanesi görünür"
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #~ msgid "{visibleSidebarShortcutCount}/{0} selected"
 #~ msgstr "{visibleSidebarShortcutCount}/{0} seçildi"
+
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "{weekdayPct}% Mon–Fri"
+msgstr "%{weekdayPct} Pzt–Cum"
 
 #: src/renderer/views/SettingsOverlay/parts/CursorSdkRuntimeSetup.tsx
 msgid "@cursor/sdk is not installed."
@@ -1066,7 +1152,15 @@ msgstr "<0/> bir inceleme konusu başlattı"
 msgid "<0/>% Full"
 msgstr "%<0/> Dolu"
 
-#: src/renderer/components/newsLine/useInsightItems.tsx
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "<0>{envA}</0> leaned {providerA} while <1>{envB}</1> leaned {providerB} this week"
+msgstr "Bu hafta <0>{envA}</0> daha çok {providerA}, <1>{envB}</1> ise {providerB} kullandı"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "<0>{envLabel}</0> ran {percent}% of your prompts this week"
+msgstr "Bu hafta istemlerinizin %{percent} kadarı <0>{envLabel}</0> üzerinde çalıştı"
+
+#: src/renderer/components/newsLine/insightContent.tsx
 msgid "<0>{label}</0> handles {percent}% of your prompts"
 msgstr "İstemlerinizin %{percent} kadarını <0>{label}</0> karşılıyor"
 
@@ -1157,6 +1251,11 @@ msgstr "Bir aday artık deney şubesinde değil."
 #: src/renderer/components/providers/settings/CursorProfileIdentity.tsx
 msgid "A Cursor profile with this name already exists."
 msgstr "Bu ada sahip bir Cursor profili zaten var."
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "A delete never waits on a model. Text is saved first, then read later."
+msgstr "Silme bir modeli beklemez. Metin önce kaydedilir, sonra okunur."
 
 #: src/renderer/components/devices/DeviceWorkspace.tsx
 msgid "A device failed to start."
@@ -1309,6 +1408,10 @@ msgstr "{0} için hesap etiketi"
 msgid "Account options"
 msgstr "Hesap seçenekleri"
 
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Account sharing and launch defaults."
+msgstr "Hesap paylaşımı ve başlangıç varsayılanları."
+
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 #: src/renderer/views/PullRequestsOverlay/list/PrListMenuSections.tsx
 #: src/renderer/views/PullRequestsOverlay/list/prListSheetSections.ts
@@ -1320,6 +1423,7 @@ msgstr "Hesaplar"
 msgid "Accounts belong to this plugin and service. Account labels are yours; the service may not report a verified identity. Provider logins are separate."
 msgstr "Hesaplar bu eklentiye ve hizmete aittir. Hesap etiketlerini siz belirlersiniz; hizmet doğrulanmış bir kimlik bildirmeyebilir. Sağlayıcı oturumları ayrıdır."
 
+#: src/renderer/components/providers/cursor/index.tsx
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "ACP"
@@ -1403,9 +1507,21 @@ msgstr "{0} bağlantı noktası için eylemler"
 msgid "Active"
 msgstr "Aktif"
 
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Active {activeDays} of the last {totalDays} days"
+msgstr "Son {totalDays} günün {activeDays} günü aktif"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 msgid "Active forwards"
 msgstr "Etkin yönlendirmeler"
+
+#: src/renderer/views/ProfileOverlay/parts/ProfileHeader.tsx
+msgid "Active today"
+msgstr "Bugün etkin"
+
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "Active yesterday"
+msgstr "Dün aktifti"
 
 #: src/renderer/views/ProfileOverlay/parts/ActivitySection.tsx
 #: src/renderer/views/PullRequestsOverlay/summary/ActivityFeed.tsx
@@ -1422,15 +1538,30 @@ msgstr "Etkinlik öne çıkanları"
 msgid "Activity insights"
 msgstr "Etkinlik içgörüleri"
 
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Activity is down {percent}% this week · {current} vs {previous} prompts"
+msgstr "Bu hafta etkinlik %{percent} azaldı · {current} / {previous} istem"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Activity is up {percent}% this week · {current} vs {previous} prompts"
+msgstr "Bu hafta etkinlik %{percent} arttı · {current} / {previous} istem"
+
 #: src/renderer/views/ProfileOverlay/parts/ActivitySection.tsx
 msgid "Activity metric"
 msgstr "Etkinlik metriği"
+
+#. placeholder {0}: f.envLabel
+#. placeholder {1}: f.percent
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Activity on <0>{0}</0> jumped {1}% this week"
+msgstr "Bu hafta <0>{0}</0> üzerindeki etkinlik %{1} arttı"
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 #: src/renderer/components/providers/settings/ProviderContextWindowSettings.tsx
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/StructuredCustomValues.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/ProjectTreeCreateMenu.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SearchExcludeBody.tsx
@@ -1445,6 +1576,10 @@ msgstr "{0} ekle"
 #: src/renderer/commands/registry.ts
 msgid "Add a local project"
 msgstr "Yerel bir proje ekle"
+
+#: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
+msgid "Add a memory"
+msgstr "Anı ekle"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
 msgid "Add a password or import one from another browser."
@@ -1468,6 +1603,7 @@ msgid "Add a project before signing in."
 msgstr "Oturum açmadan önce bir proje ekleyin."
 
 #: src/renderer/actions/agentLoginActions.ts
+#: src/renderer/components/providers/useCombinedProviderRuntimeUpdates.ts
 msgid "Add a project before updating an agent."
 msgstr "Bir aracıyı güncellemeden önce proje ekleyin."
 
@@ -1529,6 +1665,10 @@ msgstr "İşlem ekle"
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
 msgid "Add an existing folder"
 msgstr "Mevcut klasör ekle"
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Add another Devin account with its own sign-in."
+msgstr "Kendi oturum açma bilgilerine sahip başka bir Devin hesabı ekleyin."
 
 #: src/renderer/components/composer/ComposerAddMenu.tsx
 msgid "Add attachment or capability"
@@ -1732,6 +1872,7 @@ msgstr "Eski bağlantıyı devral"
 msgid "Advanced"
 msgstr "Gelişmiş"
 
+#: src/renderer/components/providers/devin/profileSettings.tsx
 #: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
 msgid "Advanced settings"
 msgstr "Gelişmiş ayarlar"
@@ -1739,6 +1880,18 @@ msgstr "Gelişmiş ayarlar"
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Advertise a custom base URL, e.g. a reverse proxy or tunnel. Leave empty for automatic."
 msgstr "Özel bir temel URL duyurun, örn. bir ters proxy veya tünel. Otomatik için boş bırakın."
+
+#: src/renderer/components/mcp/RemoteMcpOauthDialog.tsx
+msgid "After authorizing, copy the full URL from the browser address bar and paste it here, even if the page fails to load."
+msgstr "Yetki verdikten sonra, sayfa yüklenmese bile tarayıcının adres çubuğundaki URL’nin tamamını kopyalayıp buraya yapıştırın."
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "After the turn settles (2 min)"
+msgstr "Tur durulduktan sonra (2 dk)"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "After the turn settles (90 sec)"
+msgstr "Tur durulduktan sonra (90 sn)"
 
 #: src/renderer/components/providers/devin/cloudProfileSettings.tsx
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
@@ -1868,6 +2021,10 @@ msgstr "Agentlar devredilen işi görev etiketleriyle sınıflandırır. Manuel 
 #: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
 #~ msgid "Agents classify delegated work with task tags. Matching learned routes rank first, followed by global Crossagents usage, favorites, normal agent usage, and built-in order."
 #~ msgstr "Aracılar devredilen işleri görev etiketleriyle sınıflandırır. Eşleşen öğrenilmiş rotalar ilk sırada yer alır; ardından genel Crossagents kullanımı, favoriler, normal aracı kullanımı ve yerleşik sıra gelir."
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Agents shipped {summary} this week"
+msgstr "Ajanlar bu hafta {summary} tamamladı"
 
 #: src/renderer/components/providers/antigravity/index.tsx
 msgid "agy CLI"
@@ -2019,6 +2176,7 @@ msgid "All threads in Done will be permanently deleted."
 msgstr "Bitti bölümündeki tüm iş parçacıkları kalıcı olarak silinecek."
 
 #: src/renderer/components/workspace/workspaceMenuItems.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectFilter.tsx
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 msgid "All workspaces"
 msgstr "Tüm çalışma alanları"
@@ -2090,6 +2248,10 @@ msgstr "Her zaman uygulanır"
 #: src/renderer/views/SettingsOverlay/parts/SearchExcludeBody.tsx
 msgid "Always excluded"
 msgstr "Her zaman hariç tutuldu"
+
+#: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
+msgid "Always use bun"
+msgstr "Her zaman bun kullan"
 
 #: src/renderer/utils/projectIconColors.ts
 msgid "Amber"
@@ -2256,8 +2418,8 @@ msgstr "Görünüm modu"
 #~ msgstr "Yeni veya bekleyen bir bulut sohbetine ilk mesajından önce uygulanır — zaten bir çalışma alanı olan bulut sohbeti onu korur. Bir seçimi \"Devin'in mevcut seçimini koru\"da bırakmak kararı Devin'e bırakır; önceki bir ayarı geri getirmez."
 
 #: src/renderer/components/providers/devin/profileSettings.tsx
-msgid "Applied to this profile's config view (devin.org_id). Poracode cannot list the organizations a login belongs to; Devin validates the id at launch and an unauthorized org fails visibly."
-msgstr "Bu profilin yapılandırma görünümüne (devin.org_id) uygulanır. Poracode bir girişin ait olduğu kuruluşları listeleyemez; Devin id'yi başlangıçta doğrular ve yetkisiz kuruluş görünür şekilde başarısız olur."
+#~ msgid "Applied to this profile's config view (devin.org_id). Poracode cannot list the organizations a login belongs to; Devin validates the id at launch and an unauthorized org fails visibly."
+#~ msgstr "Bu profilin yapılandırma görünümüne (devin.org_id) uygulanır. Poracode bir girişin ait olduğu kuruluşları listeleyemez; Devin id'yi başlangıçta doğrular ve yetkisiz kuruluş görünür şekilde başarısız olur."
 
 #: src/renderer/components/common/ProviderModelMenu/ModelConfigurationPanel.tsx
 msgid "Applies to both models"
@@ -2272,6 +2434,7 @@ msgstr "Sağlayıcı hazır ayarını uygula"
 msgid "Approval or reply required from you."
 msgstr "Onayınız veya yanıtınız isteniyor."
 
+#: src/renderer/components/skills/MemorySkillSuggestions.tsx
 #: src/renderer/views/PullRequestsOverlay/parts/SubmitReviewPopover.tsx
 msgid "Approve"
 msgstr "Onayla"
@@ -2388,6 +2551,12 @@ msgstr "Aşamalandırılmamış tüm değişiklikleri geri almak istediğinizden
 msgid "Arguments"
 msgstr "Bağımsız değişkenler"
 
+#: src/renderer/components/thread/ThreadArtifactsBubble.tsx
+#: src/renderer/components/thread/ThreadArtifactsDock.tsx
+#: src/renderer/components/thread/ThreadDocksPanel.tsx
+msgid "Artifacts"
+msgstr "Çıktılar"
+
 #. placeholder {0}: effectiveAgentStatus?.label ?? agentFallbackLabel
 #. placeholder {0}: project.name
 #: src/renderer/components/thread/ThreadComposerSection.tsx
@@ -2438,6 +2607,11 @@ msgstr "Soru sorma kullanılamıyor: bu proje için sohbet başlatabilecek bir t
 #: src/renderer/views/WelcomeOverlay.tsx
 msgid "Ask Question"
 msgstr "Soru Sor"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Ask sessions not to write a separate provider memory on top of this one."
+msgstr "Oturumlardan bunun üstüne ayrı bir sağlayıcı belleği yazmamalarını iste."
 
 #: src/renderer/components/providers/kimi/index.tsx
 msgid "Ask When Needed"
@@ -2728,6 +2902,15 @@ msgstr "Avatar rengi"
 msgid "Avatar color {color}"
 msgstr "Avatar rengi {color}"
 
+#. placeholder {0}: formatDuration(avgTurnMs)
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "avg {0}"
+msgstr "ort. {0}"
+
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "Avg task duration"
+msgstr "Ort. görev süresi"
+
 #: src/renderer/views/PullRequestsOverlay/summary/RailMergeStatus.tsx
 msgid "Awaiting a required review."
 msgstr "Zorunlu bir inceleme bekleniyor."
@@ -2741,6 +2924,7 @@ msgstr "İnceleme bekleniyor"
 #: src/renderer/components/composer/ComposerAddMenu.tsx
 #: src/renderer/components/composer/ComposerMcpServersMenu.tsx
 #: src/renderer/components/composer/ComposerSessionActionsMenu.tsx
+#: src/renderer/components/composer/MemoryAddMenu.tsx
 #: src/renderer/components/devices/DeviceWorkspace.tsx
 #: src/renderer/components/layout/MobilePageHeader.tsx
 #: src/renderer/views/FileEditorOverlay/FileEditorOverlay.tsx
@@ -3003,6 +3187,10 @@ msgstr "Dal koruma kuralları bu birleştirmeyi engelledi."
 msgid "Branches"
 msgstr "Şubeler"
 
+#: src/renderer/views/MainView/parts/AppContent/parts/ThreadWindowPlaceholder.tsx
+msgid "Bring back to main window"
+msgstr "Ana pencereye geri getir"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserDockSlot.tsx
 msgid "Bring back to panel"
 msgstr "Panele geri getir"
@@ -3201,6 +3389,10 @@ msgstr "İş ve finans"
 msgid "Business and operations"
 msgstr "İş ve operasyonlar"
 
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Busy day yesterday · {prompts} prompts ({multiplier}x your daily average)"
+msgstr "Dün yoğun geçti · {prompts} istem (günlük ortalamanızın {multiplier} katı)"
+
 #: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
 #~ msgid "by <0>{author}</0>"
 #~ msgstr "<0>{author}</0> tarafından"
@@ -3251,6 +3443,10 @@ msgstr "Kaydettikten sonra masaüstünde hesaplanır"
 msgid "Calendar"
 msgstr "Takvim"
 
+#: src/renderer/components/mcp/RemoteMcpOauthDialog.tsx
+msgid "Callback URL"
+msgstr "Geri çağırma URL’si"
+
 #: src/renderer/components/devices/DeviceTools.tsx
 msgid "Camera"
 msgstr "Kamera"
@@ -3278,8 +3474,11 @@ msgstr "Bu model seçimi bu arayüzde kullanılamaz"
 #: src/renderer/components/common/FeedbackDialog.tsx
 #: src/renderer/components/experiment/ExperimentDraftTargets.tsx
 #: src/renderer/components/mcp/McpServerEditor.tsx
+#: src/renderer/components/mcp/RemoteMcpOauthDialog.tsx
 #: src/renderer/components/plugins/PluginCatalogDetail.tsx
 #: src/renderer/components/providers/settings/ModelProviderEditor.tsx
+#: src/renderer/components/skills/MemorySkillSuggestions.tsx
+#: src/renderer/components/skills/SkillViewModal.tsx
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 #: src/renderer/components/thread/ChatPane/ConversationSearchJump.tsx
 #: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
@@ -3317,6 +3516,7 @@ msgstr "Bu model seçimi bu arayüzde kullanılamaz"
 #: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/HexSetupDialog.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
@@ -3416,6 +3616,16 @@ msgstr "Yakalama ve görünüm kontrolleri"
 msgid "Capture audio from this device."
 msgstr "Bu cihazdan ses yakalayın."
 
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Capture model"
+msgstr "Yakalama modeli"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Capture new notes after turns finish."
+msgstr "Tur bitince yeni notları kaydet."
+
 #: src/renderer/components/newsLine/NewsLine.tsx
 msgid "carousel"
 msgstr "döngü"
@@ -3441,6 +3651,7 @@ msgid "Change context size to {contextLabel}?"
 msgstr "Bağlam boyutu {contextLabel} olarak değiştirilsin mi?"
 
 #: src/renderer/components/providers/codex/profileSettings.tsx
+#: src/renderer/components/providers/gemini/profileSettings.tsx
 msgid "Change home"
 msgstr "Dizini değiştir"
 
@@ -3449,6 +3660,7 @@ msgid "Change order"
 msgstr "Sırayı değiştir"
 
 #: src/renderer/components/providers/codex/profileSettings.tsx
+#: src/renderer/components/providers/gemini/profileSettings.tsx
 msgid "Change profile home?"
 msgstr "Profil dizini değiştirilsin mi?"
 
@@ -3695,7 +3907,7 @@ msgstr "Kontrol ediliyor…"
 msgid "Checkout is unavailable while this review is read-only"
 msgstr "Bu inceleme salt okunurken checkout kullanılamaz"
 
-#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrChecksIndicator.tsx
 #: src/renderer/views/PullRequestsOverlay/list/PrListMenuSections.tsx
 #: src/renderer/views/PullRequestsOverlay/list/prListSheetSections.ts
 #: src/renderer/views/PullRequestsOverlay/summary/RailChecks.tsx
@@ -3720,6 +3932,34 @@ msgstr "Kontroller beklemede"
 #: src/renderer/views/PullRequestsOverlay/list/PrListRow.tsx
 msgid "Checks running"
 msgstr "Kontroller çalışıyor"
+
+#. placeholder {0}: summary.passed
+#. placeholder {1}: summary.relevantTotal
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrChecksIndicator.tsx
+msgid "Checks: {0} of {1} passed"
+msgstr "Kontroller: {1} kontrolden {0} tanesi başarılı"
+
+#. placeholder {0}: summary.passed
+#. placeholder {1}: summary.relevantTotal
+#. placeholder {2}: summary.failed
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrChecksIndicator.tsx
+msgid "Checks: {0} of {1} passed, {2} failed"
+msgstr "Kontroller: {1} kontrolden {0} tanesi başarılı, {2} başarısız"
+
+#. placeholder {0}: summary.passed
+#. placeholder {1}: summary.relevantTotal
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrChecksIndicator.tsx
+msgid "Checks: {0} of {1} passed, estimated end {endTimeText}"
+msgstr "Kontroller: {1} kontrolden {0} tanesi başarılı, tahmini bitiş {endTimeText}"
+
+#. placeholder {0}: summary.skipped
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrChecksIndicator.tsx
+msgid "Checks: {0} skipped"
+msgstr "Kontroller: {0} atlandı"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrChecksIndicator.tsx
+msgid "Checks: none reported"
+msgstr "Kontroller: bildirilmedi"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Choose a completed turn to fork from."
@@ -3894,6 +4134,10 @@ msgstr "Poracode'un yeni pull request'lerde ne yapacağını seçin: hiçbir şe
 #~ msgid "Choose when this machine stays awake."
 #~ msgstr "Bu makinenin ne zaman uyanık kalacağını seçin."
 
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Choose where new sessions start. Use /handoff in chat to transfer an existing session."
+msgstr "Yeni oturumların nerede başlayacağını seçin. Mevcut bir oturumu aktarmak için sohbette /handoff kullanın."
+
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
 msgid "Choose whether chat messages sent while an agent is working steer the current response or queue for the next response. {followUpShortcut} uses the opposite action."
 msgstr "Bir aracı çalışırken gönderilen sohbet mesajlarının mevcut yanıtı yönlendirmesini veya sonraki yanıt için kuyruğa alınmasını seçin. {followUpShortcut} ters eylemi kullanır."
@@ -3902,6 +4146,11 @@ msgstr "Bir aracı çalışırken gönderilen sohbet mesajlarının mevcut yanı
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Choose whether links from Poracode and browser popups stay in Poracode or open externally."
 msgstr "Poracode ve tarayıcı açılır pencerelerindeki bağlantıların Poracode'da mı kalacağını yoksa harici olarak mı açılacağını seçin."
+
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/UsageDisplaySettings.tsx
+msgid "Choose which providers show usage rings in the sidebar."
+msgstr "Kenar çubuğunda hangi sağlayıcıların kullanım halkalarını göstereceğini seçin."
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Choose which shortcuts appear in the sidebar footer."
@@ -4032,6 +4281,8 @@ msgstr "Hedefi temizle"
 #: src/renderer/sidebar/ChatSidebarHeader.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProviderModelVisibilityPopover.tsx
+#: src/renderer/views/SettingsOverlay/parts/SidebarUsageVisibilityPopover.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Clear search"
 msgstr "Aramayı temizle"
 
@@ -4052,6 +4303,10 @@ msgstr "CLI"
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
 msgid "CLI hooks"
 msgstr "CLI kancaları"
+
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
+msgid "CLI MCP setup"
+msgstr "CLI MCP kurulumu"
 
 #: src/renderer/components/thread/ThreadAgentVisionDock.tsx
 msgid "Click"
@@ -4245,6 +4500,7 @@ msgstr "Yer paylaşımını kapat"
 
 #: src/renderer/components/thread/ThreadDraftChrome.tsx
 #: src/renderer/components/thread/ThreadView.tsx
+#: src/renderer/views/MainView/parts/AppContent/parts/ThreadWindowPlaceholder.tsx
 msgid "Close pane"
 msgstr "Bölmeyi kapat"
 
@@ -4364,6 +4620,7 @@ msgstr "İş akışlarını kapat"
 msgid "Close workflows panel"
 msgstr "İş akışları panelini kapat"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
 #: src/renderer/utils/prStatus.ts
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 #: src/renderer/views/PullRequestsOverlay/list/PrListMenuSections.tsx
@@ -4448,7 +4705,12 @@ msgstr "Codex bu profili CODEX_HOME aşağıdaki dizine ayarlanmış olarak çal
 msgid "Collapse"
 msgstr "Daralt"
 
+#: src/renderer/components/providers/settings/UsageProviderRow.tsx
 #: src/renderer/components/providers/UsageProviderCardView.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/ActiveSubAgentTile.tsx
+#: src/renderer/components/thread/CrewDockSection.tsx
+#: src/renderer/components/thread/ThreadArtifactsDock.tsx
+#: src/renderer/components/thread/ThreadGoalDock.tsx
 msgid "Collapse {label}"
 msgstr "{label} daralt"
 
@@ -4467,6 +4729,7 @@ msgstr "Ajanın görüşünü daralt"
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsagePanelHeaderActions.tsx
 #: src/renderer/views/PullRequestsOverlay/changes/ChangesToolbar.tsx
 #: src/renderer/views/PullRequestsOverlay/changes/ChangesToolbarCompact.tsx
+#: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
 msgid "Collapse all"
 msgstr "Tümünü daralt"
 
@@ -4500,8 +4763,8 @@ msgstr "Hatayı daralt"
 #~ msgstr "Deneyi daralt"
 
 #: src/renderer/components/thread/ThreadArtifactsDock.tsx
-msgid "Collapse files & artifacts"
-msgstr "Dosyaları ve çıktıları daralt"
+#~ msgid "Collapse files & artifacts"
+#~ msgstr "Dosyaları ve çıktıları daralt"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarFooterNav.tsx
 msgid "Collapse footer"
@@ -4883,8 +5146,8 @@ msgid "Config file (optional)"
 msgstr "Yapılandırma dosyası (isteğe bağlı)"
 
 #: src/renderer/components/providers/devin/profileSettings.tsx
-msgid "Config file path (optional)"
-msgstr "Yapılandırma dosyası yolu (isteğe bağlı)"
+#~ msgid "Config file path (optional)"
+#~ msgstr "Yapılandırma dosyası yolu (isteğe bağlı)"
 
 #: src/renderer/components/providers/devin/profileSettings.tsx
 msgid "Configuration from a newer Poracode"
@@ -4908,6 +5171,7 @@ msgstr "Yapılandırıldı"
 
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/providers/settings/ProviderMcpServersSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 msgid "Configured MCP servers"
 msgstr "Yapılandırılmış MCP sunucuları"
 
@@ -5049,7 +5313,9 @@ msgstr "Bağlanıyor..."
 
 #: src/renderer/components/common/RemoteServerStatusDot.tsx
 #: src/renderer/components/machineScope/MachineSelect.tsx
+#: src/renderer/components/mcp/RemoteMcpServersManager.tsx
 #: src/renderer/components/providers/HostUsageView.tsx
+#: src/renderer/views/ProfileOverlay/parts/ProfileHeader.tsx
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Connecting…"
@@ -5073,6 +5339,9 @@ msgstr "Bağlantı hatası"
 #~ msgstr "Bağlantı hatası."
 
 #: src/renderer/components/mcp/McpServersManager.tsx
+#: src/renderer/components/mcp/RemoteMcpOauthDialog.tsx
+#: src/renderer/components/mcp/RemoteMcpServersManager.tsx
+#: src/renderer/state/pairedHostSettings.ts
 #: src/renderer/state/remoteServers/snapshotProjection.ts
 msgid "Connection failed."
 msgstr "Bağlantı başarısız."
@@ -5157,6 +5426,7 @@ msgstr "Bağlam penceresi"
 msgid "Context windows"
 msgstr "Bağlam pencereleri"
 
+#: src/renderer/components/mcp/RemoteMcpOauthDialog.tsx
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/QuestionFormActions.tsx
 msgid "Continue"
 msgstr "Devam et"
@@ -5257,6 +5527,7 @@ msgstr "Çerezler"
 #: src/renderer/components/thread/ChatPane/parts/items/CopyTextButton.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/ImageCard.tsx
 #: src/renderer/components/thread/ChatPane/UserMessageActionsSheet.tsx
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
 #: src/renderer/RendererCrashScreen.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/LocalPortsPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
@@ -5277,6 +5548,7 @@ msgstr "Panoya kopyalandı"
 
 #: src/renderer/components/common/EditContextMenuHost.tsx
 #: src/renderer/components/terminal/XTermSurface.tsx
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Copy"
 msgstr "Kopyala"
@@ -5488,6 +5760,11 @@ msgstr "Bu pazar yeri veya eklenti yönetilemedi. Kaynağı, uyumluluğu ve yere
 #~ msgid "Could not open this PDF."
 #~ msgstr "Bu PDF açılamadı."
 
+#: src/renderer/app.tsx
+#: src/renderer/windowApps/ThreadWindowApp.tsx
+msgid "Could not open this thread. Try again."
+msgstr "Bu konu açılamadı. Tekrar deneyin."
+
 #: src/renderer/components/thread/ChatPane/parts/items/useReadAbsoluteFile.tsx
 msgid "Could not read file."
 msgstr "Dosya okunamadı."
@@ -5498,6 +5775,8 @@ msgid "Could not read the thread context for side chat. Try again."
 msgstr "Yan sohbet için konuşma bağlamı okunamadı. Tekrar deneyin."
 
 #. placeholder {0}: account.serverName
+#. placeholder {0}: server.name
+#: src/renderer/components/mcp/RemoteMcpServersManager.tsx
 #: src/renderer/components/plugins/usePluginOauth.ts
 msgid "Could not sign in to {0}."
 msgstr "{0} için oturum açılamadı."
@@ -5572,6 +5851,11 @@ msgstr "{0} yüklenemedi."
 msgid "Couldn't list repositories."
 msgstr "Depolar listelenemedi."
 
+#: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Couldn't load memory."
+msgstr "Bellek yüklenemedi."
+
 #: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
 #: src/renderer/views/SettingsOverlay/parts/PluginsSettings.tsx
 msgid "Couldn't load plugins."
@@ -5633,7 +5917,13 @@ msgstr "MCP sunucusu yapılandırmaları taranamadı."
 msgid "Couldn't start the camera"
 msgstr "Kamera başlatılamadı"
 
+#: src/renderer/components/composer/MemoryAddMenu.tsx
+msgid "Couldn't update memory mode for this thread."
+msgstr "Bu konuşmanın bellek modu değiştirilemedi."
+
+#: src/renderer/components/skills/MemorySkillSuggestions.tsx
 #: src/renderer/components/skills/SkillsManager.tsx
+#: src/renderer/components/skills/SkillViewModal.tsx
 msgid "Couldn't update the skill."
 msgstr "Beceri güncellenemedi."
 
@@ -5693,6 +5983,10 @@ msgstr "Dosya oluştur"
 #: src/renderer/components/thread/ThreadForkDialog.tsx
 msgid "Create fork"
 msgstr "Dal oluştur"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Create iPhone Duo"
+msgstr "iPhone Duo oluştur"
 
 #: src/renderer/components/common/BranchSelector/parts/BranchFooterActions.tsx
 msgid "Create new branch"
@@ -6110,6 +6404,7 @@ msgstr "Cursor profili adı"
 msgid "Cursor profile renamed."
 msgstr "Cursor profili yeniden adlandırıldı."
 
+#: src/renderer/components/providers/cursor/index.tsx
 #: src/renderer/components/providers/settings/CursorProviderSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/CursorProfileSettings.tsx
 msgid "Cursor SDK"
@@ -6153,6 +6448,10 @@ msgstr "Cursor SDK v{nextVersion} sürümüne güncellendi."
 msgid "Custom"
 msgstr "Özel"
 
+#: src/renderer/components/providers/settings/UsageProviderRow.tsx
+msgid "Custom auto-refresh interval in minutes. Clear to use default."
+msgstr "Dakika cinsinden özel otomatik yenileme aralığı. Varsayılanı kullanmak için temizleyin."
+
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
 msgid "Custom color"
 msgstr "Özel renk"
@@ -6168,6 +6467,15 @@ msgstr "Özel bağlam penceresi"
 #: src/renderer/components/providers/settings/ModelProviderEditor.tsx
 msgid "Custom endpoint"
 msgstr "Özel uç nokta"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Custom idle delay"
+msgstr "Özel bekleme"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Custom idle minutes"
+msgstr "Özel boşta dakika"
 
 #: src/renderer/views/SettingsOverlay/parts/cursorRuntimeInstall.ts
 msgid "custom path"
@@ -6268,6 +6576,7 @@ msgstr "Kalıcı oturumlar, akıl yürütme ayarları ve MCP araçlarıyla DeepS
 #: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/TerminalFontPicker.tsx
 #: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
 msgid "Default"
@@ -6345,6 +6654,7 @@ msgstr "İşi diğer yapay zeka aracılarına devredin."
 #: src/renderer/views/SettingsOverlay/parts/CrewsSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/CustomThemes.tsx
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 msgid "Delete"
@@ -6556,6 +6866,7 @@ msgid "Describe what the agent should do"
 msgstr "Ajanın ne yapması gerektiğini açıklayın"
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
+#: src/renderer/components/skills/MemorySkillSuggestions.tsx
 #: src/renderer/views/PullRequestsOverlay/summary/DescriptionCard.tsx
 msgid "Description"
 msgstr "Açıklama"
@@ -6631,22 +6942,23 @@ msgstr "Bu makinedeki ajanları algıla"
 #~ msgstr "Proje dosyalarından algıla"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
+#: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Detected"
 msgstr "Algılanan"
 
 #. placeholder {0}: detectionScopeLabel(status)
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
-msgid "Detected <0>({0})</0>"
-msgstr "Algılandı <0>({0})</0>"
+#~ msgid "Detected <0>({0})</0>"
+#~ msgstr "Algılandı <0>({0})</0>"
 
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
-msgid "Detected <0>(local)</0>"
-msgstr "<0>(yerel)</0> algılandı"
+#~ msgid "Detected <0>(local)</0>"
+#~ msgstr "<0>(yerel)</0> algılandı"
 
 #. placeholder {0}: status.envDistro ? `WSL (${status.envDistro})` : "WSL"
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
-msgid "Detected <0>{0}</0>"
-msgstr "Algılandı <0>{0}</0>"
+#~ msgid "Detected <0>{0}</0>"
+#~ msgstr "Algılandı <0>{0}</0>"
 
 #: src/renderer/components/thread/ThreadDraftView.tsx
 #: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
@@ -6821,8 +7133,8 @@ msgstr "Devin revize edilmiş bir komut önerir; herhangi bir şey çalışmadan
 #~ msgstr "Devin, Poracode'un yorumlayamadığı bir ayar listesi döndürdü."
 
 #: src/renderer/components/providers/devin/profileSettings.tsx
-msgid "Devin's own login (default)"
-msgstr "Devin'in kendi girişi (varsayılan)"
+#~ msgid "Devin's own login (default)"
+#~ msgstr "Devin'in kendi girişi (varsayılan)"
 
 #: src/renderer/components/newsLine/featureCatalog.ts
 msgid "Dictate prompts instead of typing them"
@@ -7027,6 +7339,7 @@ msgid "Discovery complete"
 msgstr "Keşif tamamlandı"
 
 #: src/renderer/components/composer/VoiceInputFeedback.tsx
+#: src/renderer/components/skills/MemorySkillSuggestions.tsx
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 #: src/renderer/components/thread/ThreadErrorDock.tsx
 #: src/renderer/components/thread/ThreadHistoryNoticeDock.tsx
@@ -7049,6 +7362,10 @@ msgstr "Yok sayıldı"
 #: src/renderer/views/PullRequestsOverlay/summary/ActivityRows.tsx
 msgid "dismissed review"
 msgstr "reddedilen inceleme"
+
+#: src/renderer/views/SettingsOverlay/parts/UsageDisplaySettings.tsx
+msgid "Display"
+msgstr "Görünüm"
 
 #: src/renderer/components/providers/settings/ModelProviderEditor.tsx
 #: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
@@ -7133,6 +7450,11 @@ msgstr "Bitti ({doneCount})"
 #: src/renderer/components/thread/AgentDiscoveryDoneButton.tsx
 msgid "Done ({remainingSeconds}s)"
 msgstr "Bitti ({remainingSeconds}sn)"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Done, archive, unload, and delete still capture immediately when allowed."
+msgstr "Bitti, arşiv, boşalt ve sil, izin verildiğinde hemen kaydetmeye devam eder."
 
 #: src/renderer/components/thread/ChatPane/parts/items/InlineFilePathChip.tsx
 #: src/renderer/views/SettingsOverlay/parts/HexSetupDialog.tsx
@@ -7272,6 +7594,20 @@ msgstr "Yeniden sıralamak için sürükleyin; düzenlemek için çift tıklayı
 msgid "Draggable model"
 msgstr "Sürüklenebilir model"
 
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Dream model"
+msgstr "Düzenleme modeli"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Dream now"
+msgstr "Şimdi düzenle"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Dream schedule"
+msgstr "Düzenleme takvimi"
+
 #: src/renderer/views/SettingsOverlay/parts/MobileHostFolderPicker.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
 msgid "Drives"
@@ -7343,13 +7679,20 @@ msgstr "Her depo girdisi 1–512 karakter olmalı ve kontrol karakteri içermeme
 msgid "Earlier text"
 msgstr "Önceki metin"
 
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Early bird: {percent}% of your recent prompts started before 10 AM"
+msgstr "Erken kalkan: Son istemlerinizin %{percent} kadarı 10:00 öncesiydi"
+
 #: src/renderer/components/providers/settings/ModelProviderManager.tsx
+#: src/renderer/components/skills/MemorySkillSuggestions.tsx
+#: src/renderer/components/skills/SkillViewModal.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/FileChange.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 #: src/renderer/views/PullRequestsOverlay/changes/inlineComments.tsx
 #: src/renderer/views/PullRequestsOverlay/parts/PrCommentBody.tsx
 #: src/renderer/views/PullRequestsOverlay/summary/DescriptionCard.tsx
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "Edit"
 msgstr "Düzenle"
@@ -7451,6 +7794,10 @@ msgstr "Başlığı düzenle"
 #: src/renderer/components/thread/ChatPane/parts/items/FileChange.tsx
 #~ msgid "Edit:"
 #~ msgstr "Düzenle:"
+
+#: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
+msgid "Edited by you"
+msgstr "Sizin tarafınızdan düzenlendi"
 
 #: src/renderer/commands/registry.ts
 #: src/renderer/commands/shortcutCatalog.ts
@@ -7803,6 +8150,10 @@ msgstr "Hata · Temsilci bir hatayla karşılaştı"
 msgid "Errors"
 msgstr "Hatalar"
 
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrChecksIndicator.tsx
+msgid "Est. end {endTimeText} (~{remainingText} left)"
+msgstr "Tahm. bitiş {endTimeText} (~{remainingText} kaldı)"
+
 #: src/renderer/components/thread/ThreadSpendDetails.tsx
 msgid "Estimated at list prices."
 msgstr "Liste fiyatlarına göre tahmin."
@@ -7822,6 +8173,10 @@ msgstr "Tahminler, tam model kimlikleri için standart API hızındaki tarihli v
 #: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
 msgid "Evaluate the result after every iteration."
 msgstr "Her yinelemeden sonra sonucu değerlendirin."
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Evening builder: {percent}% of your recent prompts ran 6–10 PM"
+msgstr "Akşam geliştiricisi: Son istemlerin %{percent} kadarı 18–22 arasındaydı"
 
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
 msgid "Event"
@@ -7846,6 +8201,10 @@ msgstr "Her {every} saatte bir"
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Every {every} minutes"
 msgstr "Her {every} dakikada bir"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Every 3 days"
+msgstr "3 günde bir"
 
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Every day at {time}"
@@ -7918,7 +8277,12 @@ msgstr "{0} koduyla çıkıldı. Yeniden denemek için kapatın."
 msgid "Expand"
 msgstr "Genişlet"
 
+#: src/renderer/components/providers/settings/UsageProviderRow.tsx
 #: src/renderer/components/providers/UsageProviderCardView.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/ActiveSubAgentTile.tsx
+#: src/renderer/components/thread/CrewDockSection.tsx
+#: src/renderer/components/thread/ThreadArtifactsDock.tsx
+#: src/renderer/components/thread/ThreadGoalDock.tsx
 msgid "Expand {label}"
 msgstr "{label} genişlet"
 
@@ -7937,6 +8301,7 @@ msgstr "Ajanın görüşünü genişlet"
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsagePanelHeaderActions.tsx
 #: src/renderer/views/PullRequestsOverlay/changes/ChangesToolbar.tsx
 #: src/renderer/views/PullRequestsOverlay/changes/ChangesToolbarCompact.tsx
+#: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
 msgid "Expand all"
 msgstr "Tümünü genişlet"
 
@@ -7957,8 +8322,8 @@ msgstr "Hatayı genişlet"
 #~ msgstr "Deneyi genişlet"
 
 #: src/renderer/components/thread/ThreadArtifactsDock.tsx
-msgid "Expand files & artifacts"
-msgstr "Dosyaları ve çıktıları genişlet"
+#~ msgid "Expand files & artifacts"
+#~ msgstr "Dosyaları ve çıktıları genişlet"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarFooterNav.tsx
 msgid "Expand footer"
@@ -8127,6 +8492,10 @@ msgstr "Üstel gecikme"
 msgid "Export MCP servers"
 msgstr "MCP sunucularını dışa aktar"
 
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Export MCP servers without secrets"
+msgstr "MCP sunucularını gizli bilgiler olmadan dışa aktar"
+
 #: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
 msgid "Export theme"
 msgstr "Temayı dışa aktar"
@@ -8281,6 +8650,14 @@ msgstr "Bu eşleştirme için hızlı mod kullanılamıyor"
 msgid "Fast mode"
 msgstr "Hızlı mod"
 
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Fast mode powered {percent}% of your turns this week"
+msgstr "Bu hafta turlarınızın %{percent} kadarında hızlı mod kullanıldı"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Fast mode ran on {percent}% of turns this week (was {prevPercent}%)"
+msgstr "Bu hafta hızlı mod oranı %{percent} (önceki %{prevPercent})"
+
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 msgid "Fastest (Whisper tiny)"
 msgstr "En hızlı (Whisper tiny)"
@@ -8372,6 +8749,9 @@ msgstr "Dosya desteklenmeyen bir kodlama kullanıyor."
 #: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/components/composer/MentionPopover.tsx
 #: src/renderer/components/layout/PanelDock/panelTabMeta.ts
+#: src/renderer/components/thread/ThreadArtifactsBubble.tsx
+#: src/renderer/components/thread/ThreadArtifactsDock.tsx
+#: src/renderer/components/thread/ThreadDocksPanel.tsx
 #: src/renderer/components/thread/ThreadToolRail.tsx
 #: src/renderer/views/MainView/parts/MobileWorkspacePage.tsx
 #: src/renderer/views/PullRequestsOverlay/changes/ChangesTab.tsx
@@ -8379,8 +8759,6 @@ msgid "Files"
 msgstr "Dosyalar"
 
 #: src/renderer/components/thread/ThreadArtifactsBubble.tsx
-#: src/renderer/components/thread/ThreadArtifactsDock.tsx
-#: src/renderer/components/thread/ThreadDocksPanel.tsx
 msgid "Files & artifacts"
 msgstr "Dosyalar ve çıktılar"
 
@@ -8686,9 +9064,19 @@ msgstr "Tarayıcı adres çubuğuna odakla"
 msgid "Focus the in-app browser address bar"
 msgstr "Uygulama içi tarayıcı adres çubuğuna odakla"
 
+#: src/renderer/views/MainView/parts/AppContent/parts/ThreadWindowPlaceholder.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserDockSlot.tsx
 msgid "Focus window"
 msgstr "Pencereyi öne getir"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Fold controls"
+msgstr "Katlama kontrolleri"
+
+#: src/renderer/components/devices/DeviceListItem.tsx
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Foldable"
+msgstr "Katlanabilir"
 
 #: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/InlineFolderPathChip.tsx
@@ -8720,6 +9108,10 @@ msgstr "Tüm çalışma ağaçlarını barındıran klasör. İpucu: buradaki bi
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectWorktreeLocation.tsx
 msgid "Folder that holds this project's worktrees. Reset to use the global setting."
 msgstr "Bu projenin çalışma ağaçlarını barındıran klasör. Genel ayarı kullanmak için sıfırlayın."
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Folding is unavailable on this host."
+msgstr "Katlama bu ana bilgisayarda kullanılamıyor."
 
 #. placeholder {0}: "@poracode"
 #. placeholder {0}: "@serg_vecher"
@@ -8917,6 +9309,43 @@ msgstr "Oyunlar ve eğlence"
 #: src/renderer/components/providers/gemini/manifest.ts
 msgid "Gemini"
 msgstr "Gemini"
+
+#. placeholder {0}: trimmedName || displayLabel
+#: src/renderer/components/providers/gemini/profileSettings.tsx
+msgid "Gemini {0} profile saved."
+msgstr "Gemini {0} profili kaydedildi."
+
+#: src/renderer/components/providers/gemini/manifest.ts
+msgid "Gemini {profile}"
+msgstr "Gemini {profile}"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Gemini authentication failed. Sign in again or verify your API key in settings."
+msgstr "Gemini kimlik doğrulaması başarısız oldu. Tekrar giriş yapın veya ayarlarda API anahtarınızı doğrulayın."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Gemini did not return a response because the output was filtered or blocked."
+msgstr "Çıktı filtrelendiği veya engellendiği için Gemini yanıt döndürmedi."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Gemini ended the turn without returning a response. Check authentication or quota and try again."
+msgstr "Gemini bir yanıt döndürmeden turu sonlandırdı. Kimlik doğrulamayı veya kotayı kontrol edip tekrar deneyin."
+
+#: src/renderer/components/providers/gemini/profileSettings.tsx
+msgid "Gemini profile home directory"
+msgstr "Gemini profili ana dizini"
+
+#: src/renderer/components/providers/gemini/profileSettings.tsx
+msgid "Gemini profile name"
+msgstr "Gemini profili adı"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Gemini quota or rate limit was exceeded. Wait and try again, or switch models."
+msgstr "Gemini kotası veya hız sınırı aşıldı. Bekleyip tekrar deneyin veya model değiştirin."
+
+#: src/renderer/components/providers/gemini/profileSettings.tsx
+msgid "Gemini runs this profile with GEMINI_CLI_HOME set to the directory below. Use Login above to sign this profile in to its own account."
+msgstr "Gemini bu profili GEMINI_CLI_HOME aşağıdaki dizine ayarlanmış olarak çalıştırır. Bu profili kendi hesabına bağlamak için yukarıdaki Giriş yap'ı kullanın."
 
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
@@ -9238,6 +9667,10 @@ msgstr "Rehber adımları"
 msgid "Guide writer"
 msgstr "Rehber yazarı"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Half open"
+msgstr "Yarı açık"
+
 #: src/renderer/components/crew/CrewMemberRow.tsx
 msgid "Hand off to another lead…"
 msgstr "Başka bir lidere devret…"
@@ -9383,19 +9816,18 @@ msgstr "Gizli devam ettirilebilir konular her 5 dakikada bir taranır ve bu boş
 msgid "Hide"
 msgstr "Gizle"
 
-#: src/renderer/components/thread/ThreadArtifactsBubble.tsx
-#: src/renderer/components/thread/ThreadDockBubbles.tsx
-#: src/renderer/components/thread/ThreadImagesBubble.tsx
+#: src/renderer/components/thread/ThreadDockUI.tsx
 msgid "Hide {label}"
 msgstr "{label} gizle"
 
 #: src/renderer/components/providers/settings/UsageProviderRow.tsx
-msgid "Hide {label} circle in sidebar"
-msgstr "{label} dairesini kenar çubuğunda gizle"
+#~ msgid "Hide {label} circle in sidebar"
+#~ msgstr "{label} dairesini kenar çubuğunda gizle"
 
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProviderModelVisibilityPopover.tsx
 #: src/renderer/views/SettingsOverlay/parts/SidebarShortcutsSelector.tsx
+#: src/renderer/views/SettingsOverlay/parts/SidebarUsageVisibilityPopover.tsx
 msgid "Hide all"
 msgstr "Tümünü gizle"
 
@@ -9484,6 +9916,10 @@ msgstr "Boşluk değişikliklerini gizle"
 msgid "High"
 msgstr "Yüksek"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Hinge angle"
+msgstr "Menteşe açısı"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
 msgid "History"
 msgstr "Geçmiş"
@@ -9497,6 +9933,7 @@ msgid "Home"
 msgstr "Ana sayfa"
 
 #: src/renderer/components/providers/codex/profileSettings.tsx
+#: src/renderer/components/providers/gemini/profileSettings.tsx
 msgid "Home directory"
 msgstr "Ana dizin"
 
@@ -9899,6 +10336,11 @@ msgstr "Etkin değil"
 msgid "Include in sync"
 msgstr "Senkronizasyona ekle"
 
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Include memory when a thread starts."
+msgstr "İş parçacığı başlarken belleği ekle."
+
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Include your streaks, prompt counts, and usage limits in the news line."
@@ -9978,6 +10420,10 @@ msgstr "Saniye cinsinden ilk yeniden deneme gecikmesi"
 msgid "Initialize Repository"
 msgstr "Depoyu Başlat"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Inner display"
+msgstr "İç ekran"
+
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 msgid "Input"
 msgstr "Girdi"
@@ -10031,8 +10477,8 @@ msgid "Inspect"
 msgstr "İncele"
 
 #: src/renderer/components/plugins/pluginCopy.ts
-msgid "Inspect and control the simulator or emulator attached to this thread."
-msgstr "Bu sohbete bağlı simülatörü veya emülatörü inceleyin ve kontrol edin."
+#~ msgid "Inspect and control the simulator or emulator attached to this thread."
+#~ msgstr "Bu sohbete bağlı simülatörü veya emülatörü inceleyin ve kontrol edin."
 
 #: src/renderer/components/thread/ThreadView.tsx
 msgid "Inspect canonical runtime items"
@@ -10127,8 +10573,8 @@ msgid "Install and restart"
 msgstr "Yükle ve yeniden başlat"
 
 #: src/renderer/views/SettingsOverlay/parts/machineScope/MachineScopeRows.tsx
-msgid "Install and sign-in are not yet available on remote machines."
-msgstr "Uzak makinelerde kurulum ve oturum açma henüz kullanılamıyor."
+#~ msgid "Install and sign-in are not yet available on remote machines."
+#~ msgstr "Uzak makinelerde kurulum ve oturum açma henüz kullanılamıyor."
 
 #: src/renderer/components/devices/DeviceWorkspace.tsx
 msgid "Install Android SDK Emulator and platform-tools, then create an AVD."
@@ -10222,8 +10668,8 @@ msgstr "{executionHost} üzerine GitHub CLI (gh) yükleyip yeniden deneyin."
 
 #. placeholder {0}: target.label
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
-msgid "Install in {0}"
-msgstr "{0} ortamına yükle"
+#~ msgid "Install in {0}"
+#~ msgstr "{0} ortamına yükle"
 
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #~ msgid "Install in WSL: {distro}"
@@ -10247,8 +10693,8 @@ msgstr "Önce yerel sağlayıcıları yükleyin; ek protokol aracıları için A
 #~ msgstr "{env} üzerine kur"
 
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
-msgid "Install on Windows"
-msgstr "Windows'a yükleyin"
+#~ msgid "Install on Windows"
+#~ msgstr "Windows'a yükleyin"
 
 #: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
 msgid "Install OpenCode 2 to manage its plugins."
@@ -10460,6 +10906,10 @@ msgstr "iPhone 15 Pro"
 msgid "iPhone 15 Pro Max"
 msgstr "iPhone 15 Pro Max"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "iPhone Duo is unavailable on this host."
+msgstr "iPhone Duo bu ana bilgisayarda kullanılamıyor."
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
 msgid "iPhone SE"
 msgstr "iPhone SE"
@@ -10660,6 +11110,14 @@ msgstr "Büyük"
 msgid "Largest"
 msgstr "En büyük"
 
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "Last 30 days"
+msgstr "Son 30 gün"
+
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "Last 7 days"
+msgstr "Son 7 gün"
+
 #. placeholder {0}: formatSessionTime(session.lastConnectedAt)
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Last connected: {0}"
@@ -10682,6 +11140,7 @@ msgstr "Son ilerleme {elapsed} önce"
 msgid "Last tool: <0>{0}</0>"
 msgstr "Son araç: <0>{0}</0>"
 
+#: src/renderer/components/providers/settings/UsageProviderRow.tsx
 #: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
 msgid "Last updated: {fetchedAt}"
 msgstr "Son güncelleme: {fetchedAt}"
@@ -10722,6 +11181,7 @@ msgstr "Konuyu başlat"
 
 #: src/renderer/components/crew/CrewMemberRow.tsx
 #: src/renderer/components/providers/devin/modelPricing.ts
+#: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/components/thread/CrewDockSection.tsx
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 #: src/renderer/components/thread/ThreadDraftView.tsx
@@ -10746,6 +11206,16 @@ msgstr "Ana model + Yardımcı model"
 #: src/renderer/components/providers/devin/modelPricing.ts
 #~ msgid "Lead and Sidekick prices are per 1M tokens for each model. Ranges cover model variants."
 #~ msgstr "Ana model ve yardımcı model fiyatları, her model için 1 milyon token başınadır. Aralıklar model varyantlarını kapsar."
+
+#: src/renderer/components/composer/MemoryAddMenu.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Learn from chats"
+msgstr "Sohbetlerden öğren"
+
+#: src/renderer/components/composer/MemoryAddMenu.tsx
+msgid "Learn from this thread"
+msgstr "Bu iş parçacığından öğren"
 
 #: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentMemorySection.tsx
 #~ msgid "Learned routing memory"
@@ -10777,6 +11247,10 @@ msgstr "Mevcut kimlik bilgilerini korumak veya ortam kimlik doğrulamasını kul
 #: src/renderer/components/providers/settings/ModelProviderEditor.tsx
 msgid "Leave blank to use the installed model catalog."
 msgstr "Yüklü model kataloğunu kullanmak için boş bırakın."
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Leave empty to use the organization selected by Devin. Set this only to choose a different organization for this account."
+msgstr "Devin tarafından seçilen kuruluşu kullanmak için boş bırakın. Yalnızca bu hesap için farklı bir kuruluş seçmek istiyorsanız doldurun."
 
 #: src/renderer/views/GitHubActionsView/GitHubActionsDispatchDialog.tsx
 #~ msgid "Leave empty to use the repository default branch."
@@ -10962,7 +11436,9 @@ msgstr "Kaydedilen notları yükle"
 #: src/renderer/components/common/PixelLoader.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentMessageList.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/RemoteBrowserMirror.tsx
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Loading"
@@ -11059,6 +11535,7 @@ msgid "Loading PR…"
 msgstr "PR yükleniyor…"
 
 #: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisualFile.tsx
 msgid "Loading preview…"
 msgstr "Önizleme yükleniyor…"
 
@@ -11125,20 +11602,22 @@ msgstr "Yükleniyor:"
 #: src/renderer/app.tsx
 #: src/renderer/components/composer/ImageLightbox.tsx
 #: src/renderer/components/devices/DeviceWorkspace.tsx
+#: src/renderer/components/mcp/RemoteMcpServersManager.tsx
 #: src/renderer/components/providers/settings/ModelProviderManager.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/useHistoryItemDetails.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/TreeEntryRow.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
 #: src/renderer/views/PullRequestsOverlay/detail/PrReadOnlyNotice.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileHostFolderPicker.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
 msgid "Loading…"
 msgstr "Yükleniyor…"
 
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
-msgid "local"
-msgstr "yerel"
+#~ msgid "local"
+#~ msgstr "yerel"
 
 #: src/renderer/components/common/BranchSelector/parts/useBranchList.ts
 #: src/renderer/components/common/RemoteServerPicker.tsx
@@ -11235,8 +11714,8 @@ msgstr "Giriş yapmak"
 
 #. placeholder {0}: detectionScopeLabel(entry.status)
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
-msgid "Login {0}"
-msgstr "Giriş {0}"
+#~ msgid "Login {0}"
+#~ msgstr "Giriş {0}"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
@@ -11248,8 +11727,8 @@ msgid "Login source"
 msgstr "Giriş kaynağı"
 
 #: src/renderer/components/providers/devin/profileSettings.tsx
-msgid "Login source, config file, organization, and runtime for this configuration. Thread knobs like model and approvals stay on the composer."
-msgstr "Bu yapılandırma için giriş kaynağı, yapılandırma dosyası, kuruluş ve çalışma zamanı. Model ve onaylar gibi konu ayarları bestecide kalır."
+#~ msgid "Login source, config file, organization, and runtime for this configuration. Thread knobs like model and approvals stay on the composer."
+#~ msgstr "Bu yapılandırma için giriş kaynağı, yapılandırma dosyası, kuruluş ve çalışma zamanı. Model ve onaylar gibi konu ayarları bestecide kalır."
 
 #: src/renderer/components/providers/settings/ProviderAccountsSection.tsx
 #: src/renderer/components/providers/settings/ProviderCredentialAccounts.tsx
@@ -11361,6 +11840,10 @@ msgstr "Yönet"
 msgid "Manage MCP servers"
 msgstr "MCP sunucularını yönet"
 
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Manage memories"
+msgstr "Anıları yönet"
+
 #: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
 #~ msgid "Manage packages with OpenCode's native plugin manager. Changes apply globally in the selected environment, including terminal plugins."
 #~ msgstr "Paketleri OpenCode'un yerel eklenti yöneticisiyle yönetin. Değişiklikler terminal eklentileri dahil seçili ortamın tamamına uygulanır."
@@ -11405,6 +11888,10 @@ msgstr "Global ve proje kapsamlarındaki paylaşılan becerileri yönetin."
 #: src/renderer/views/SettingsOverlay/parts/SkillsSettings.tsx
 #~ msgid "Manage shared skills across Windows, WSL, and projects."
 #~ msgstr "Windows, WSL ve projeler genelindeki paylaşılan becerileri yönetin."
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Manage the Devin account used by this profile."
+msgstr "Bu profilin kullandığı Devin hesabını yönetin."
 
 #: src/renderer/views/SettingsOverlay/parts/McpServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -11468,6 +11955,10 @@ msgstr "Yönetilen Hex kurulumu bu ana bilgisayarda mevcut değil."
 msgid "Managed installation is not available on this host. Use a compatible external Hex engine or the built-in engine."
 msgstr "Yönetilen kurulum bu ana bilgisayarda kullanılamıyor. Uyumlu bir harici Hex motoru veya yerleşik motor kullanın."
 
+#: src/renderer/components/composer/MemoryAddMenu.tsx
+msgid "Managed on this host"
+msgstr "Bu ana bilgisayarda yönetilir"
+
 #: src/renderer/components/skills/SkillsManager.tsx
 #~ msgid "Managed skills"
 #~ msgstr "Yönetilen beceriler"
@@ -11476,6 +11967,10 @@ msgstr "Yönetilen kurulum bu ana bilgisayarda kullanılamıyor. Uyumlu bir hari
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 msgid "Manual connection"
 msgstr "Manuel bağlantı"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Manual only"
+msgstr "Yalnızca elle"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/sortMode.ts
 msgid "Manual order"
@@ -11743,6 +12238,7 @@ msgstr "MCP sunucuları"
 #: src/renderer/views/ProjectSettingsOverlay/parts/SettingsSidebar.tsx
 #: src/renderer/views/ProjectSettingsOverlay/ProjectSettingsOverlay.tsx
 #: src/renderer/views/SettingsOverlay/parts/McpServersSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "MCP Servers"
@@ -11778,6 +12274,34 @@ msgstr "Medya"
 msgid "Medium"
 msgstr "Orta"
 
+#: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
+msgid "Memories"
+msgstr "Anılar"
+
+#: src/renderer/components/composer/MemoryAddMenu.tsx
+#: src/renderer/views/ProjectSettingsOverlay/parts/MobileProjectSettingsIndex.tsx
+#: src/renderer/views/ProjectSettingsOverlay/parts/SettingsSidebar.tsx
+#: src/renderer/views/ProjectSettingsOverlay/ProjectSettingsOverlay.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
+msgid "Memory"
+msgstr "Bellek"
+
+#: src/renderer/components/composer/MemoryAddMenu.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
+msgid "Memory actions"
+msgstr "Bellek eylemleri"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Memory catalog management is unavailable on this connection."
+msgstr "Bu bağlantıda bellek kataloğu yönetimi kullanılamıyor."
+
+#: src/renderer/components/composer/MemoryAddMenu.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Memory settings"
+msgstr "Bellek ayarları"
+
 #: src/renderer/views/PullRequestsOverlay/compact/PrCompactMergeAction.tsx
 #: src/renderer/views/PullRequestsOverlay/detail/header/PrMergeControls.tsx
 msgid "Merge"
@@ -11790,6 +12314,11 @@ msgstr "{crownedLabel} adayının değişiklikleri {mergeTarget} ile birleştiri
 #: src/renderer/views/MainView/parts/Sidebar/parts/useWorktreeActions.ts
 msgid "Merge & Remove"
 msgstr "Birleştir ve Kaldır"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Merge and retire notes. Skipped when nothing new was captured."
+msgstr "Notları birleştirir ve eskilerini ayırır. Yeni kayıt yoksa atlanır."
 
 #. placeholder {0}: props.candidateNumber
 #: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
@@ -12201,6 +12730,7 @@ msgid "More PR options"
 msgstr "Daha fazla PR seçeneği"
 
 #: src/renderer/components/providers/UsageOverflowChip.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "More providers"
 msgstr "Diğer sağlayıcılar"
 
@@ -12260,6 +12790,10 @@ msgstr "En çok kullanılan sağlayıcı"
 msgid "Most used reasoning"
 msgstr "En çok kullanılan akıl yürütme"
 
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Most-used MCP this week: <0>{name}</0> ({count, plural, one {# call} other {# calls}})"
+msgstr "Bu hafta en çok kullanılan MCP: <0>{name}</0> ({count, plural, one {# çağrı} other {# çağrı}})"
+
 #: src/renderer/components/devices/DeviceTools.tsx
 msgid "Motion"
 msgstr "Hareket"
@@ -12273,6 +12807,10 @@ msgstr "Taşı"
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 msgid "Move an existing device-local SSH connection onto this environment by its connection id. Keys are never uploaded."
 msgstr "Mevcut cihaza yerel SSH bağlantısını bağlantı kimliğiyle bu ortama taşıyın. Anahtarlar hiçbir zaman yüklenmez."
+
+#: src/renderer/components/thread/ThreadView.tsx
+msgid "Move back to main window"
+msgstr "Ana pencereye geri taşı"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 msgid "Move browser back to main window"
@@ -12395,8 +12933,8 @@ msgid "Multilingual speech recognition."
 msgstr "Çok dilli konuşma tanıma."
 
 #: src/renderer/components/providers/devin/profileSettings.tsx
-msgid "Multiple Devin configurations under one login — different config files, organizations, or approval defaults — or an isolated second login. Native credentials are never copied."
-msgstr "Tek giriş altında birden çok Devin yapılandırması — farklı yapılandırma dosyaları, kuruluşlar veya onay varsayılanları — ya da yalıtılmış ikinci giriş. Yerel kimlik bilgileri asla kopyalanmaz."
+#~ msgid "Multiple Devin configurations under one login — different config files, organizations, or approval defaults — or an isolated second login. Native credentials are never copied."
+#~ msgstr "Tek giriş altında birden çok Devin yapılandırması — farklı yapılandırma dosyaları, kuruluşlar veya onay varsayılanları — ya da yalıtılmış ikinci giriş. Yerel kimlik bilgileri asla kopyalanmaz."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Multiple source remotes are configured. Set the branch upstream before reviewing."
@@ -12429,8 +12967,10 @@ msgstr "my-mcp-server"
 #: src/renderer/components/mcp/McpServerEditor.tsx
 #: src/renderer/components/providers/codex/profileSettings.tsx
 #: src/renderer/components/providers/devin/profileSettings.tsx
+#: src/renderer/components/providers/gemini/profileSettings.tsx
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 #: src/renderer/components/providers/settings/CursorProfileIdentity.tsx
+#: src/renderer/components/skills/MemorySkillSuggestions.tsx
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 #: src/renderer/components/workspace/WorkspaceNameDialog.tsx
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
@@ -12454,10 +12994,6 @@ msgstr "Yerel"
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
 msgid "Native MCP configuration updated. Start a new CLI session to use it."
 msgstr "Yerel MCP yapılandırması güncellendi. Kullanmak için yeni bir CLI oturumu başlatın."
-
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
-msgid "Native MCP setup"
-msgstr "Yerel MCP kurulumu"
 
 #: src/renderer/components/providers/devin/sessionPersonas.tsx
 #~ msgid "Native persona files are listed read-only; Poracode never edits Devin's own definitions."
@@ -12544,6 +13080,10 @@ msgstr "Asla"
 msgid "Never Ask"
 msgstr "Asla sorma"
 
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Never capture deleted threads"
+msgstr "Silinen iş parçacıklarını kaydetme"
+
 #: src/renderer/components/changelog/ChangelogView.tsx
 msgid "New"
 msgstr "Yeni"
@@ -12598,8 +13138,8 @@ msgstr "Yeni Cursor profili API anahtarı"
 #~ msgstr "Yeni Cursor profili adı"
 
 #: src/renderer/components/providers/devin/profileSettings.tsx
-msgid "New Devin profile config file (optional)"
-msgstr "Yeni Devin profil yapılandırma dosyası (isteğe bağlı)"
+#~ msgid "New Devin profile config file (optional)"
+#~ msgstr "Yeni Devin profil yapılandırma dosyası (isteğe bağlı)"
 
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 msgid "New environment"
@@ -12636,6 +13176,10 @@ msgstr "Yeni Klasör"
 #: src/mobile/views/useFileTree.ts
 #~ msgid "New folder name"
 #~ msgstr "Yeni klasör adı"
+
+#: src/renderer/components/providers/gemini/profileSettings.tsx
+msgid "New Gemini profile home directory"
+msgstr "Yeni Gemini profili ana dizini"
 
 #: src/renderer/components/newsLine/useDiscoveryItems.tsx
 #: src/renderer/components/newsLine/useNewsLineItems.tsx
@@ -12811,6 +13355,10 @@ msgstr "Sonraki gönderilen mesaj"
 msgid "Next tab"
 msgstr "Sonraki sekme"
 
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Night owl: {percent}% of your recent prompts ran after 10 PM"
+msgstr "Gece kuşu: Son istemlerinizin %{percent} kadarı 22:00 sonrasıydı"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/hooks/useElementPicker.ts
 msgid "No active browser tab"
 msgstr "Etkin tarayıcı sekmesi yok"
@@ -12929,7 +13477,7 @@ msgstr "Henüz değişiklik yok"
 msgid "No chat response is available for experiment candidate {threadId}."
 msgstr "{threadId} deney adayı için kullanılabilir sohbet yanıtı yok."
 
-#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrChecksIndicator.tsx
 msgid "No checks reported for this PR."
 msgstr "Bu PR için herhangi bir kontrol raporlanmadı."
 
@@ -13179,6 +13727,10 @@ msgstr "Aramanızla eşleşen MCP sunucusu yok."
 msgid "No MCP tools used yet."
 msgstr "Henüz MCP aracı kullanılmadı."
 
+#: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
+msgid "No memories yet."
+msgstr "Henüz anı yok."
+
 #: src/renderer/components/thread/ChatPane/ChatPane.tsx
 msgid "No messages yet"
 msgstr "Henüz mesaj yok"
@@ -13284,14 +13836,27 @@ msgstr "Henüz proje yok."
 msgid "No prompts"
 msgstr "İstem yok"
 
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "No prompts yesterday"
+msgstr "Dün istem yok"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/UsagePanel.tsx
 msgid "No providers are being tracked."
 msgstr "Hiçbir sağlayıcı izlenmiyor."
+
+#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+msgid "No providers are being tracked. Enable providers below to monitor quotas and cost."
+msgstr "Hiçbir sağlayıcı izlenmiyor. Kotaları ve maliyeti izlemek için aşağıdan sağlayıcıları etkinleştirin."
 
 #: src/renderer/components/providers/settings/ModelProviderManager.tsx
 #: src/renderer/components/providers/settings/ProviderAccountsSection.tsx
 msgid "No providers connected yet."
 msgstr "Henüz bağlı sağlayıcı yok."
+
+#: src/renderer/views/SettingsOverlay/parts/SidebarUsageVisibilityPopover.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+msgid "No providers found"
+msgstr "Sağlayıcı bulunamadı"
 
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 #~ msgid "No providers ready yet"
@@ -13321,6 +13886,7 @@ msgstr "Hiçbir depo bulunamadı."
 #: src/renderer/commands/EverythingSearchResults.tsx
 #: src/renderer/components/find/FindBar.tsx
 #: src/renderer/sidebar/ChatSidebarHeader.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "No results"
 msgstr "Sonuç yok"
@@ -13635,6 +14201,7 @@ msgstr "Gözlemlendi"
 msgid "off"
 msgstr "kapalı"
 
+#: src/renderer/components/composer/MemoryAddMenu.tsx
 #: src/renderer/components/git/PrAutomationSlider.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/RemoteAccessSidebarIcon.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/PluginsSection.tsx
@@ -13651,7 +14218,10 @@ msgid "Official sources only"
 msgstr "Yalnızca resmî kaynaklar"
 
 #: src/renderer/components/common/RemoteServerStatusDot.tsx
+#: src/renderer/components/mcp/RemoteMcpServersManager.tsx
+#: src/renderer/views/ProfileOverlay/parts/ProfileHeader.tsx
 #: src/renderer/views/PullRequestsOverlay/list/PrListPanel.tsx
+#: src/renderer/views/SettingsOverlay/parts/McpServersSettings.tsx
 msgid "Offline"
 msgstr "Çevrimdışı"
 
@@ -13680,6 +14250,7 @@ msgstr "Önce en eski"
 msgid "on"
 msgstr "açık"
 
+#: src/renderer/components/composer/MemoryAddMenu.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/PluginsSection.tsx
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "On"
@@ -13698,6 +14269,10 @@ msgstr "Saat başında"
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Once on {0}"
 msgstr "{0} tarihinde bir kez"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Once per day"
+msgstr "Günde bir kez"
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "One Header: value pair per line"
@@ -13722,6 +14297,7 @@ msgstr "Tek kullanımlık eşleştirme belirteci"
 
 #: src/renderer/components/common/RemoteServerStatusDot.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/RemoteAccessSidebarIcon.tsx
+#: src/renderer/views/ProfileOverlay/parts/ProfileHeader.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Online"
 msgstr "Çevrimiçi"
@@ -13731,6 +14307,10 @@ msgstr "Çevrimiçi"
 msgid "Only chat threads can move to another machine."
 msgstr "Yalnızca sohbet ileti dizileri başka bir makineye taşınabilir."
 
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Only on archive or done"
+msgstr "Yalnızca arşiv veya bittiğinde"
+
 #: src/renderer/components/thread/MoveThreadDialog.tsx
 msgid "Only the conversation moves: this folder isn't a Git repository."
 msgstr "Yalnızca konuşma taşınır: bu klasör bir Git deposu değil."
@@ -13739,6 +14319,10 @@ msgstr "Yalnızca konuşma taşınır: bu klasör bir Git deposu değil."
 #: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
 msgid "Only the end of the output is shown ({0} bytes)."
 msgstr "Çıktının yalnızca sonu gösteriliyor ({0} bayt)."
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Only when a thread is done or archived"
+msgstr "Yalnızca iş parçacığı bittiğinde veya arşivlendiğinde"
 
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
 msgid "Only when unfocused"
@@ -13761,6 +14345,7 @@ msgid "Only your own comments on this pull request can be edited."
 msgstr "Bu çekme isteğinde yalnızca kendi yorumlarınızı düzenleyebilirsiniz."
 
 #: src/renderer/commands/CommandPalette.tsx
+#: src/renderer/components/devices/DeviceWorkspace.tsx
 #: src/renderer/components/newsLine/useAnnouncementItems.tsx
 #: src/renderer/components/thread/ThreadUsageBubble.tsx
 #: src/renderer/notifications.ts
@@ -13970,6 +14555,11 @@ msgstr "{0}/{1} görselini aç"
 msgid "Open image preview"
 msgstr "Görsel önizlemesini aç"
 
+#: src/renderer/components/thread/ChatPane/parts/items/ImageCard.tsx
+msgid "Open image preview (+{overflowCount} more)"
+msgstr "Görsel önizlemesini aç (+{overflowCount} tane daha)"
+
+#: src/renderer/components/mcp/RemoteMcpOauthDialog.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorBody.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 msgid "Open in browser"
@@ -13982,6 +14572,14 @@ msgstr "Tarayıcıda aç"
 #: src/renderer/views/GitReviewOverlay/parts/GitStackedDiff.tsx
 msgid "Open in editor"
 msgstr "Düzenleyicide aç"
+
+#: src/renderer/components/thread/ThreadView.tsx
+msgid "Open in new window"
+msgstr "Yeni pencerede aç"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
+msgid "Open in New Window"
+msgstr "Yeni pencerede aç"
 
 #: src/renderer/components/common/EditContextMenuHost.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/LocalPortsPanel.tsx
@@ -14208,6 +14806,10 @@ msgstr "Yalnızca görüntüleme olarak aç"
 msgid "Open with control"
 msgstr "Kontrol ile aç"
 
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Open, inspect, and control iOS Simulators (including foldable iPhone Duo) and Android Emulators in the panel."
+msgstr "Panelde iOS Simülatörlerini (katlanabilir iPhone Duo dahil) ve Android Emülatörlerini açın, inceleyin ve kontrol edin."
+
 #: src/renderer/components/providers/opencode/manifest.ts
 msgid "OpenCode"
 msgstr "OpenCode"
@@ -14354,6 +14956,10 @@ msgstr "Güncel değil"
 msgid "Outdated: the pull request changed after this was drafted."
 msgstr "Güncel değil: çekme isteği bu taslak oluşturulduktan sonra değişti."
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Outer display"
+msgstr "Dış ekran"
+
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "Outlook"
 msgstr "Outlook"
@@ -14369,6 +14975,18 @@ msgstr "Bu görev için çıktı kullanılamıyor."
 #: src/renderer/components/providers/usageFormat.ts
 msgid "Over pace — runs out early"
 msgstr "Aşırı tempo — erken biter"
+
+#. placeholder {0}: f.provider
+#. placeholder {1}: f.percent
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Over the last 30 days you used <0>{0}</0> {1}% less"
+msgstr "Son 30 günde <0>{0}</0> kullanımınız %{1} azaldı"
+
+#. placeholder {0}: f.provider
+#. placeholder {1}: f.percent
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Over the last 30 days you used <0>{0}</0> {1}% more"
+msgstr "Son 30 günde <0>{0}</0> kullanımınız %{1} arttı"
 
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PlanReviewModal.tsx
 msgid "Overall feedback"
@@ -14740,6 +15358,11 @@ msgstr "Bu Mac'in kilidini elle açana kadar duraklatıldı"
 msgid "PDF preview opens in the browser."
 msgstr "PDF önizlemesi tarayıcıda açılır."
 
+#. placeholder {0}: insights.mostActiveHour.label
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "Peak {0}"
+msgstr "Zirve {0}"
+
 #: src/renderer/views/ProfileOverlay/parts/ShareCard.tsx
 msgid "peak day"
 msgstr "en yoğun gün"
@@ -14884,6 +15507,7 @@ msgstr "{0} dalını en üste sabitle"
 #: src/renderer/components/common/BranchSelector/parts/BranchListBox.tsx
 #: src/renderer/components/thread/CompactThreadHeader.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
 msgid "Pin to top"
 msgstr "En üste sabitle"
 
@@ -14899,6 +15523,7 @@ msgstr "Pembe"
 #: src/renderer/components/common/BranchSelector/parts/useBranchList.ts
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/parts/ThreadItemSuffix.tsx
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
 msgid "Pinned"
 msgstr "Sabitlendi"
 
@@ -15131,6 +15756,10 @@ msgstr "X'te Poracode"
 msgid "Poracode only"
 msgstr "Yalnızca Poracode"
 
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Poracode remembers preferences and corrections across providers. Capture runs after a turn finishes. A daily pass merges them. Skills learned from repeated work stay as suggestions until you approve them."
+msgstr "Poracode, sağlayıcılar arasında tercihleri ve düzeltmeleri hatırlar. Kayıt tur bitince başlar. Günlük bir geçiş onları birleştirir. Tekrarlanan işten öğrenilen beceriler, siz onaylayana kadar öneri olarak kalır."
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Poracode SSH runtime manifest is missing or invalid: {path}"
 msgstr "Poracode SSH çalışma zamanı bildirimi eksik veya geçersiz: {path}"
@@ -15242,6 +15871,10 @@ msgstr "PR otomasyonu: Otomatik düzelt"
 msgid "PR automation: Auto Merge"
 msgstr "PR otomasyonu: Otomatik birleştir"
 
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrChecksIndicator.tsx
+msgid "PR checks"
+msgstr "PR kontrolleri"
+
 #: src/renderer/components/common/GithubPollingNotice.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/GitBadge.tsx
 msgid "PR data is unavailable; cached results may be stale."
@@ -15266,6 +15899,11 @@ msgstr "PR başlığı (otomatik oluşturmak için boş bırakın)"
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Pre-commit hook failed"
 msgstr "Pre-commit kancası başarısız oldu"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Prefer Poracode memory"
+msgstr "Poracode belleğini tercih et"
 
 #: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
 #~ msgid "Preferred routing order"
@@ -15490,6 +16128,7 @@ msgstr "{displayName} profili eklendi."
 #~ msgstr "Profil API anahtarı"
 
 #: src/renderer/components/providers/codex/profileSettings.tsx
+#: src/renderer/components/providers/gemini/profileSettings.tsx
 msgid "Profile home"
 msgstr "Profil dizini"
 
@@ -15575,6 +16214,7 @@ msgstr "Proje adı"
 msgid "Project no longer exists."
 msgstr "Proje artık mevcut değil."
 
+#: src/renderer/components/mcp/RemoteMcpServersManager.tsx
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Project not found."
 msgstr "Proje bulunamadı."
@@ -15632,9 +16272,17 @@ msgstr "{0} içindeki projeler {1} alanına taşınır. Hiçbir proje silinmez."
 #~ msgid "Projects live on the connected desktop. Add one before starting a thread."
 #~ msgstr "Projeler bağlı masaüstünde bulunur. Bir iş parçacığı başlatmadan önce bir proje ekleyin."
 
+#: src/renderer/components/composer/MemoryAddMenu.tsx
+msgid "Promoted {promoted}. Suggested {suggested} skills."
+msgstr "{promoted} not kaydedildi. {suggested} beceri önerildi."
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Promoting this profile into the owned data root…"
 msgstr "Bu profil, kendi veri köküne taşınıyor…"
+
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "prompt"
+msgstr "istem"
 
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 #: src/renderer/components/thread/ChatPane/StickyPrompt.tsx
@@ -15642,14 +16290,34 @@ msgstr "Bu profil, kendi veri köküne taşınıyor…"
 msgid "Prompt"
 msgstr "İstem"
 
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "Prompt cache hit"
+msgstr "İstem önbellek isabeti"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Prompt caching covered {percent}% of your input tokens this week"
+msgstr "Bu hafta girdi tokenlarının %{percent} kadarı önbellekten karşılandı"
+
 #: src/renderer/components/thread/ChatPane/ChatPromptRail.tsx
 msgid "Prompt navigation"
 msgstr "İstem gezintisi"
+
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "prompts"
+msgstr "istem"
 
 #: src/renderer/components/providers/codex/index.tsx
 #: src/renderer/views/ProfileOverlay/parts/ActivitySection.tsx
 msgid "Prompts"
 msgstr "İstemler"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Prompts dipped {percent}% over the last 30 days"
+msgstr "Son 30 günde istemler %{percent} azaldı"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Prompts rose {percent}% over the last 30 days"
+msgstr "Son 30 günde istemler %{percent} arttı"
 
 #: src/renderer/components/thread/ChatPane/parts/items/PlanProposal.tsx
 #: src/renderer/i18n/sharedMessages.ts
@@ -15723,7 +16391,6 @@ msgstr "sağlayıcılar"
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProviderModelVisibilityPopover.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Providers"
 msgstr "Sağlayıcılar"
 
@@ -15947,6 +16614,10 @@ msgstr "Çıkış"
 msgid "Quota reached"
 msgstr "Kotaya ulaşıldı"
 
+#: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
+msgid "Quotas"
+msgstr "Kotalar"
+
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettingsModel.ts
 #~ msgid "Qwen"
 #~ msgstr "Qwen"
@@ -16035,6 +16706,7 @@ msgstr "Bu çalışma ağacının Terminal panelini okuyun ve ne yazdırdığın
 #~ msgstr "salt okunur"
 
 #: src/renderer/components/crew/CrewRoleDetails.tsx
+#: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 #: src/renderer/components/thread/ThreadDraftView.tsx
 msgid "Read-only"
@@ -16088,6 +16760,7 @@ msgstr "Hazır. Yeni eşleştirme kodlarında Tailscale HTTPS URL'sini duyurmak 
 
 #: src/renderer/components/common/EffortContextMenu/EffortContextMenu.tsx
 #: src/renderer/components/common/ProviderModelMenu/ModelConfigurationPanel.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
 msgid "Reasoning"
 msgstr "Akıl yürütme"
 
@@ -16184,8 +16857,8 @@ msgid "Recording"
 msgstr "Kayıt"
 
 #: src/renderer/components/composer/VoiceInputButton.tsx
-msgid "Recording stops automatically at five minutes."
-msgstr "Kayıt beş dakika sonra otomatik olarak durur."
+#~ msgid "Recording stops automatically at five minutes."
+#~ msgstr "Kayıt beş dakika sonra otomatik olarak durur."
 
 #: src/renderer/components/composer/VoiceInputButton.tsx
 msgid "Recording will stop in less than fifteen seconds."
@@ -16219,6 +16892,7 @@ msgstr "Referans"
 
 #. Button: re-fetch provider usage now
 #: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
+#: src/renderer/components/providers/settings/UsageProviderRow.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
 #: src/renderer/views/GitReviewOverlay/GitReviewOverlay.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewPanel.tsx
@@ -16249,6 +16923,7 @@ msgstr "{0} kaynağını yenile"
 msgid "Refresh {0} authentication"
 msgstr "{0} kimlik doğrulamasını yenile"
 
+#: src/renderer/components/providers/settings/UsageProviderRow.tsx
 #: src/renderer/components/providers/UsageProviderCardView.tsx
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 msgid "Refresh {label}"
@@ -16257,6 +16932,10 @@ msgstr "{label} sağlayıcısını yenile"
 #: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
 #~ msgid "Refresh {label} usage"
 #~ msgstr "{label} kullanımını yenile"
+
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
+msgid "Refresh agent"
+msgstr "Aracıyı yenile"
 
 #: src/renderer/views/SettingsOverlay/parts/AgentsGeneralSettings.tsx
 msgid "Refresh detected agents"
@@ -16433,7 +17112,6 @@ msgstr "Uzak URL"
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
 #: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
 #: src/renderer/components/providers/settings/ModelProviderManager.tsx
-#: src/renderer/components/thread/SideChat/SideChatBody.tsx
 #: src/renderer/views/SettingsOverlay/parts/AgentProfileList.tsx
 #: src/renderer/views/SettingsOverlay/parts/HexSetupDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
@@ -16679,6 +17357,10 @@ msgstr "{profileName} kaldırıldığında kayıtlı API anahtarı da silinir. B
 msgid "Removing {profileName} drops it from Poracode. Its home directory and the Codex credentials inside it stay on disk."
 msgstr "{profileName} kaldırıldığında Poracode'dan silinir. Ana dizini ve içindeki Codex kimlik bilgileri diskte kalır."
 
+#: src/renderer/components/providers/gemini/profileSettings.tsx
+msgid "Removing {profileName} drops it from Poracode. Its home directory and the Gemini credentials inside it stay on disk."
+msgstr "{profileName} kaldırıldığında Poracode'dan silinir. Ana dizini ve içindeki Gemini kimlik bilgileri diskte kalır."
+
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Removing {profileName} drops its Poracode settings — env vars, models, and effort. Its config directory and the Claude credentials inside it stay on disk."
 msgstr "{profileName} kaldırıldığında Poracode ayarları — ortam değişkenleri, modeller ve effort — silinir. Yapılandırma dizini ve içindeki Claude kimlik bilgileri diskte kalır."
@@ -16809,6 +17491,15 @@ msgstr "Onar"
 msgid "Repeat"
 msgstr "Tekrarla"
 
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Repeated workflows appear in Settings → Skills for you to edit and approve."
+msgstr "Tekrarlanan akışlar, düzenleyip onaylamanız için Ayarlar → Beceriler'de görünür."
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Replace redacted values in the file before importing."
+msgstr "İçe aktarmadan önce dosyadaki maskelenmiş değerleri değiştirin."
+
 #: src/renderer/components/common/FeedbackDialog.tsx
 msgid "Report a bug or suggest an idea."
 msgstr "Bir hata bildirin veya fikir önerin."
@@ -16899,6 +17590,7 @@ msgstr "sıfırlama"
 
 #: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
 #: src/renderer/components/providers/settings/ProviderContextWindowSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
 msgid "Reset"
 msgstr "Sıfırla"
 
@@ -17122,13 +17814,13 @@ msgstr "Yalnızca bu sunucuda saklanan kullanım."
 #: src/renderer/components/common/GithubPollingNotice.tsx
 #: src/renderer/components/composer/ImageLightbox.tsx
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
+#: src/renderer/components/mcp/RemoteMcpServersManager.tsx
 #: src/renderer/components/plugins/PluginMarketplace.tsx
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
 #: src/renderer/components/skills/SkillsManager.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/MarkdownVideo.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/useHistoryItemDetails.tsx
 #: src/renderer/components/thread/MoveThreadDialog.tsx
-#: src/renderer/components/thread/SideChat/SideChatBody.tsx
 #: src/renderer/components/thread/SideChat/SideChatThreadView.tsx
 #: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
 #: src/renderer/components/thread/ThreadHistoryLoadFailureDock.tsx
@@ -17146,8 +17838,10 @@ msgstr "Yalnızca bu sunucuda saklanan kullanım."
 #: src/renderer/views/SettingsOverlay/parts/ManagedHostEnvironmentsSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileHostFolderPicker.tsx
 #: src/renderer/views/SettingsOverlay/parts/PluginsSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
+#: src/renderer/windowApps/ThreadWindowApp.tsx
 msgid "Retry"
 msgstr "Tekrar dene"
 
@@ -17571,6 +18265,10 @@ msgstr "Sonuçları burada görmek için zamanlanmış bir görevi çalıştır�
 msgid "Run a second Codex account from its own CODEX_HOME. Each profile signs in separately and keeps its own sessions."
 msgstr "İkinci bir Codex hesabını kendi CODEX_HOME dizininden çalıştırın. Her profil ayrı giriş yapar ve kendi oturumlarını tutar."
 
+#: src/renderer/components/providers/gemini/profileSettings.tsx
+msgid "Run a second Gemini account from its own GEMINI_CLI_HOME. Each profile signs in separately and keeps its own sessions."
+msgstr "İkinci bir Gemini hesabını kendi GEMINI_CLI_HOME dizininden çalıştırın. Her profil ayrı giriş yapar ve kendi oturumlarını tutar."
+
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
 msgid "Run actions"
@@ -17768,9 +18466,11 @@ msgstr "Doygunluk ve parlaklık"
 #: src/renderer/components/mcp/McpServerEditor.tsx
 #: src/renderer/components/providers/codex/profileSettings.tsx
 #: src/renderer/components/providers/devin/profileSettings.tsx
+#: src/renderer/components/providers/gemini/profileSettings.tsx
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 #: src/renderer/components/providers/settings/ModelProviderEditor.tsx
 #: src/renderer/components/providers/settings/ProviderMcpServersSection.tsx
+#: src/renderer/components/skills/SkillViewModal.tsx
 #: src/renderer/components/thread/ThreadFollowUpEditor.tsx
 #: src/renderer/components/thread/ThreadGoalControls.tsx
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PlanCommentCard.tsx
@@ -17786,6 +18486,7 @@ msgstr "Doygunluk ve parlaklık"
 #: src/renderer/views/PullRequestsOverlay/parts/PrEditSheet.tsx
 #: src/renderer/views/PullRequestsOverlay/summary/DescriptionCard.tsx
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Save"
@@ -17849,9 +18550,17 @@ msgstr "Devin profilini kaydet"
 msgid "Save File"
 msgstr "Dosyayı Kaydet"
 
+#: src/renderer/components/providers/gemini/profileSettings.tsx
+msgid "Save Gemini profile"
+msgstr "Gemini profilini kaydet"
+
 #: src/renderer/components/composer/ImageLightboxActions.tsx
 msgid "Save image"
 msgstr "Görseli kaydet"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Save learnings before deleting"
+msgstr "Silmeden önce öğrenilenleri kaydet"
 
 #: src/renderer/components/providers/settings/ProviderMcpServersSection.tsx
 msgid "Save MCP servers"
@@ -17865,6 +18574,10 @@ msgstr "Kısayolu kaydet"
 #: src/renderer/components/crew/CrewRosterPanel.tsx
 msgid "Save to {0}"
 msgstr "{0} konumuna kaydet"
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Save your edits before moving this MCP server."
+msgstr "Bu MCP sunucusunu taşımadan önce değişikliklerinizi kaydedin."
 
 #: src/renderer/views/SettingsOverlay/parts/CursorSdkRuntimeSetup.tsx
 #~ msgid "Saved API key"
@@ -18144,6 +18857,10 @@ msgstr "MCP sunucularında ara"
 msgid "Search MCP servers..."
 msgstr "MCP sunucularında ara..."
 
+#: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
+msgid "Search memories"
+msgstr "Anıları ara"
+
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProviderModelVisibilityPopover.tsx
 msgid "Search models"
@@ -18154,6 +18871,10 @@ msgstr "Modelleri ara"
 #: src/renderer/views/SettingsOverlay/parts/ProviderModelVisibilityPopover.tsx
 msgid "Search models..."
 msgstr "Modelleri ara..."
+
+#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+msgid "Search more providers"
+msgstr "Diğer sağlayıcıları ara"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserOmnibox.tsx
 msgid "Search or enter address"
@@ -18186,6 +18907,15 @@ msgstr "Eklenti ara"
 #: src/renderer/components/plugins/PluginMarketplace.tsx
 msgid "Search plugins, skills, and servers..."
 msgstr "Eklenti, beceri ve sunucu ara..."
+
+#: src/renderer/views/SettingsOverlay/parts/SidebarUsageVisibilityPopover.tsx
+msgid "Search providers"
+msgstr "Sağlayıcıları ara"
+
+#: src/renderer/views/SettingsOverlay/parts/SidebarUsageVisibilityPopover.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+msgid "Search providers…"
+msgstr "Sağlayıcıları ara…"
 
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 #~ msgid "Search pull requests"
@@ -18324,6 +19054,10 @@ msgstr "{1} içinden {0} seç"
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Select {serverName} from {providerLabel}"
 msgstr "{providerLabel} kaynağından {serverName} sunucusunu seç"
+
+#: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
+msgid "Select a device to view these details."
+msgstr "Bu ayrıntıları görmek için bir cihaz seçin."
 
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorModal.tsx
 msgid "Select a file from the tree"
@@ -18659,6 +19393,13 @@ msgstr "Ayarlar"
 msgid "Settings aren't available yet, so your changes couldn't be saved. Please try again."
 msgstr "Ayarlar henüz kullanılamadığı için değişiklikleriniz kaydedilemedi. Lütfen tekrar deneyin."
 
+#: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SearchSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
+msgid "Settings unavailable"
+msgstr "Ayarlar kullanılamıyor"
+
 #: src/renderer/actions/worktreeLaunchActions.ts
 msgid "setup"
 msgstr "kurulum"
@@ -18681,8 +19422,13 @@ msgid "Share"
 msgstr "Paylaş"
 
 #: src/renderer/components/providers/devin/profileSettings.tsx
-msgid "Share another profile's isolated login"
-msgstr "Başka bir profilin yalıtılmış girişini paylaş"
+#~ msgid "Share another profile's isolated login"
+#~ msgstr "Başka bir profilin yalıtılmış girişini paylaş"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Share global and linked-project notes with paired computers and WSL. Unlinked folders stay separate."
+msgstr "Genel ve bağlı proje notlarını eşleştirilmiş bilgisayarlar ve WSL ile paylaşın. Bağlı olmayan klasörler ayrı kalır."
 
 #: src/renderer/views/ProfileOverlay/parts/ShareDialog.tsx
 msgid "Share your activity"
@@ -18695,6 +19441,10 @@ msgstr "Paylaşılan"
 #: src/renderer/components/providers/devin/profileSettings.tsx
 msgid "Shared login owner"
 msgstr "Paylaşılan giriş sahibi"
+
+#: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
+msgid "Shared notes across providers"
+msgstr "Sağlayıcılar arasında paylaşılan notlar"
 
 #. placeholder {0}: owner.displayName ?? owner.id
 #: src/renderer/components/providers/devin/profileSettings.tsx
@@ -18734,13 +19484,13 @@ msgstr "Kısayollar"
 msgid "Show {0}"
 msgstr "{0} öğesini göster"
 
-#: src/renderer/components/thread/ThreadDockBubbles.tsx
+#: src/renderer/components/thread/ThreadDockUI.tsx
 msgid "Show {label}"
 msgstr "{label} göster"
 
 #: src/renderer/components/providers/settings/UsageProviderRow.tsx
-msgid "Show {label} circle in sidebar"
-msgstr "{label} dairesini kenar çubuğunda göster"
+#~ msgid "Show {label} circle in sidebar"
+#~ msgstr "{label} dairesini kenar çubuğunda göster"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/useProjectEnvironmentMenuItems.tsx
 msgid "Show {machine} as its own project"
@@ -18769,8 +19519,14 @@ msgstr "Ajan keşfini göster"
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProviderModelVisibilityPopover.tsx
 #: src/renderer/views/SettingsOverlay/parts/SidebarShortcutsSelector.tsx
+#: src/renderer/views/SettingsOverlay/parts/SidebarUsageVisibilityPopover.tsx
 msgid "Show all"
 msgstr "Tümünü göster"
+
+#. placeholder {0}: facts.length
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "Show all {0} insights"
+msgstr "Tüm {0} analizi göster"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
 msgid "Show bookmark bar"
@@ -18795,8 +19551,13 @@ msgstr "Kenar çubuğunda daireleri göster"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/UsageDisplaySettings.tsx
-msgid "Show compact per-provider usage rings in the sidebar. Hide individual providers' circles in the list below."
-msgstr "Kenar çubuğunda sağlayıcı başına kompakt kullanım halkaları gösterin. Aşağıdaki listeden tek tek sağlayıcıların dairelerini gizleyin."
+msgid "Show compact per-provider usage rings in the sidebar."
+msgstr "Kenar çubuğunda sağlayıcı başına kompakt kullanım halkaları gösterin."
+
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/UsageDisplaySettings.tsx
+#~ msgid "Show compact per-provider usage rings in the sidebar. Hide individual providers' circles in the list below."
+#~ msgstr "Kenar çubuğunda sağlayıcı başına kompakt kullanım halkaları gösterin. Aşağıdaki listeden tek tek sağlayıcıların dairelerini gizleyin."
 
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 msgid "Show composer"
@@ -18832,6 +19593,10 @@ msgstr "Tahmini maliyeti göster"
 #: src/renderer/views/PullRequestsOverlay/summary/RailChecks.tsx
 msgid "Show fewer"
 msgstr "Daha az göster"
+
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "Show fewer insights"
+msgstr "Daha az analiz göster"
 
 #: src/renderer/views/PullRequestsOverlay/changes/ChangesToolbar.tsx
 msgid "Show file tree"
@@ -19028,9 +19793,13 @@ msgstr "Yan sohbet: {0}"
 msgid "Sidebar background"
 msgstr "Kenar çubuğu arka planı"
 
+#: src/renderer/views/SettingsOverlay/parts/SidebarUsageVisibilityPopover.tsx
+msgid "Sidebar circles are currently turned off."
+msgstr "Kenar çubuğu daireleri şu anda kapalı."
+
 #: src/renderer/components/providers/settings/UsageProviderRow.tsx
-msgid "Sidebar circles are turned off globally above"
-msgstr "Kenar çubuğu daireleri yukarıda genel olarak kapatılmış"
+#~ msgid "Sidebar circles are turned off globally above"
+#~ msgstr "Kenar çubuğu daireleri yukarıda genel olarak kapatılmış"
 
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -19075,9 +19844,11 @@ msgstr "Eşleştirilmiş masaüstünde oturum açın, ardından bu durumu yenile
 msgid "Sign in required"
 msgstr "Oturum açmanız gerekiyor"
 
+#. placeholder {0}: props.name
 #. placeholder {0}: signIn.name
 #. placeholder {0}: status.label
 #: src/renderer/components/composer/ComposerMcpServersMenu.tsx
+#: src/renderer/components/mcp/RemoteMcpOauthDialog.tsx
 #: src/renderer/components/providers/devin/profileSettings.tsx
 msgid "Sign in to {0}"
 msgstr "{0} için oturum aç"
@@ -19181,6 +19952,10 @@ msgstr "Beceri"
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "Skill availability"
 msgstr "Beceri kullanılabilirliği"
+
+#: src/renderer/components/skills/MemorySkillSuggestions.tsx
+msgid "Skill instructions"
+msgstr "Yetenek talimatları"
 
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "Skill marketplace source"
@@ -19286,6 +20061,14 @@ msgstr "En küçük"
 #: src/renderer/components/devices/DeviceWorkspace.tsx
 msgid "Snapshots"
 msgstr "Anlık görüntüler"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "So far today: {prompts, plural, one {# prompt} other {# prompts}}"
+msgstr "Bugün şimdiye kadar: {prompts, plural, one {# istem} other {# istem}}"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "So far today: {prompts, plural, one {# prompt} other {# prompts}} · mostly {topProvider}"
+msgstr "Bugün şimdiye kadar: {prompts, plural, one {# istem} other {# istem}} · çoğunlukla {topProvider}"
 
 #. placeholder {0}: index + 1
 #. placeholder {0}: winnerOrdinal + 1
@@ -19947,6 +20730,11 @@ msgstr "Abonelik faturası"
 msgid "Succeeded"
 msgstr "Başarılı"
 
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Suggest skills"
+msgstr "Beceriler öner"
+
 #: src/renderer/components/providers/devin/sessionActionDialog.tsx
 msgid "Suggested command — review before use"
 msgstr "Önerilen komut — kullanmadan önce inceleyin"
@@ -19955,6 +20743,7 @@ msgstr "Önerilen komut — kullanmadan önce inceleyin"
 msgid "Suggested command inserted into the composer."
 msgstr "Önerilen komut besteciye eklendi."
 
+#: src/renderer/components/skills/MemorySkillSuggestions.tsx
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Suggestions"
 msgstr "Öneriler"
@@ -20111,9 +20900,18 @@ msgstr "Senkronizasyon (Yeniden Temelleme)"
 msgid "Sync ↓{behind} ↑{ahead}"
 msgstr "Senkronizasyon ↓{behind} ↑{ahead}"
 
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Sync across environments"
+msgstr "Ortamlar arasında eşitle"
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Sync failed: {detail}"
 msgstr "Senkronizasyon başarısız oldu: {detail}"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Sync now"
+msgstr "Şimdi eşitle"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CommitSyncPanel.tsx
 msgid "Sync options"
@@ -20124,12 +20922,13 @@ msgstr "Senkronizasyon seçenekleri"
 #~ msgstr "Masaüstüyle senkronize et"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ActionPhaseLabel.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
 msgid "Syncing…"
 msgstr "Senkronizasyon…"
 
 #: src/renderer/views/ProfileOverlay/parts/ProfileHeader.tsx
-msgid "Syncs with Cloud"
-msgstr "Cloud ile senkronize olur"
+#~ msgid "Syncs with Cloud"
+#~ msgstr "Cloud ile senkronize olur"
 
 #: src/renderer/components/devices/DeviceTools.tsx
 #: src/renderer/i18n/locales.ts
@@ -20186,6 +20985,10 @@ msgstr "Ana modelin devrettiği her uygulamalı görevi üstlenir: keşfeder, d�
 #~ msgid "Takes over the desktop while the agent clicks or types"
 #~ msgstr "Ajan tıklarken veya yazarken masaüstünü kontrol eder"
 
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrChecksIndicator.tsx
+msgid "Taking longer than average"
+msgstr "Ortalamadan uzun sürüyor"
+
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
 msgid "Tap + to add a folder or clone a repository on your desktop."
 msgstr "Masaüstünüzde bir klasör eklemek veya bir depoyu klonlamak için + öğesine dokunun."
@@ -20231,6 +21034,18 @@ msgstr "Görev çıkışı"
 #: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentMemorySection.tsx
 msgid "Task tags"
 msgstr "Görev etiketleri"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Tasks averaged {duration} this week"
+msgstr "Bu hafta görevler ortalama {duration} sürdü"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Tasks averaged {duration} this week · {deltaPercent}% faster than last week"
+msgstr "Görevler ortalama {duration} · geçen haftadan %{deltaPercent} daha hızlı"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Tasks averaged {duration} this week · {deltaPercent}% longer than last week"
+msgstr "Görevler ortalama {duration} · geçen haftadan %{deltaPercent} daha uzun"
 
 #: src/renderer/components/newsLine/featureCatalog.ts
 msgid "Teach your agents reusable procedures with skills"
@@ -20538,6 +21353,11 @@ msgstr "Adaylar henüz herhangi bir değişiklik yapmadı."
 msgid "The changes are too large to move ({size}). Commit or ignore large files first."
 msgstr "Değişiklikler taşınamayacak kadar büyük ({size}). Önce büyük dosyaları commit edin veya yok sayın."
 
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "The cheapest model from the highest-rated provider reads a finished turn. You can choose any model."
+msgstr "En yüksek puanlı sağlayıcının en ucuz modeli biten turu okur. Herhangi bir modeli seçebilirsiniz."
+
 #: src/renderer/components/thread/ChatPane/parts/MessageList.tsx
 msgid "The checkpoint could not be restored."
 msgstr "Kontrol noktası geri yüklenemedi."
@@ -20802,12 +21622,17 @@ msgid "The matched message is no longer available."
 msgstr "Eşleşen mesaj artık kullanılamıyor."
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
+#: src/renderer/components/mcp/McpServersManager.tsx
 msgid "The MCP server configuration is invalid or uses a reserved name."
 msgstr "MCP sunucusu yapılandırması geçersiz veya ayrılmış bir ad kullanıyor."
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "The MCP server is invalid."
 msgstr "MCP sunucusu geçersiz."
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#~ msgid "The memory catalog is edited on the desktop that owns this host."
+#~ msgstr "Bellek kataloğu, bu ana bilgisayarın sahibi olan masaüstünde düzenlenir."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The move expired. Start it again."
@@ -21093,9 +21918,18 @@ msgstr "Kaynak sunucusu geçersiz bir yanıt döndürdü. Entegrasyonu güncelle
 msgid "The SSH tunnel reached an incompatible Poracode server."
 msgstr "SSH tüneli uyumsuz bir Poracode sunucusuna ulaştı."
 
+#: src/renderer/components/providers/gemini/profileSettings.tsx
+msgid "The stored configuration is invalid. Saving below replaces it with what this form holds."
+msgstr "Kayıtlı yapılandırma geçersiz. Aşağıda kaydetmek onu bu formun içerdiği değerlerle değiştirir."
+
 #: src/renderer/components/providers/devin/profileSettings.tsx
 msgid "The stored configuration is invalid. The stored values are kept; saving below replaces them with what this form holds."
 msgstr "Kayıtlı yapılandırma geçersiz. Kayıtlı değerler korunur; aşağıda kaydetmek onları bu formun içerdiği değerlerle değiştirir."
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "The strongest model from the highest-rated provider merges notes. You can choose any model."
+msgstr "En yüksek puanlı sağlayıcının en güçlü modeli notları birleştirir. Herhangi bir modeli seçebilirsiniz."
 
 #: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
 msgid "The sub-agent settings need Codex 0.145 or newer. They are ignored until Codex is updated."
@@ -21355,6 +22189,10 @@ msgstr "Bu masaüstü"
 #~ msgid "This desktop's Poracode version doesn't support browser forwarding. Update Poracode on your desktop."
 #~ msgstr "Bu masaüstündeki Poracode sürümü tarayıcı yönlendirmeyi desteklemiyor. Poracode'yi masaüstünde güncelleyin."
 
+#: src/renderer/views/ProfileOverlay/parts/ProfileHeader.tsx
+msgid "This device"
+msgstr "Bu cihaz"
+
 #: src/mobile/QrScanner.tsx
 #~ msgid "This device has no usable camera. Enter the endpoint and token below to pair instead."
 #~ msgstr "Bu cihazda kullanılabilir kamera yok. Bunun yerine eşleştirmek için endpoint ve token'ı aşağıya girin."
@@ -21527,6 +22365,7 @@ msgid "This plugin's skills could not be read."
 msgstr "Bu eklentinin becerileri okunamadı."
 
 #: src/renderer/components/providers/codex/profileSettings.tsx
+#: src/renderer/components/providers/gemini/profileSettings.tsx
 msgid "This profile already has threads. Their sessions stay in the current home directory, so they can't be resumed after you change it."
 msgstr "Bu profilin zaten konuları var. Oturumları geçerli ana dizinde kalır, bu yüzden dizini değiştirdikten sonra sürdürülemezler."
 
@@ -21729,6 +22568,10 @@ msgstr "Bu ileti dizisi zaten {label} üzerinde."
 msgid "This thread is not ready for Steer."
 msgstr "Bu konu henüz yönlendirme için hazır değil."
 
+#: src/renderer/views/MainView/parts/AppContent/parts/ThreadWindowPlaceholder.tsx
+msgid "This thread is open in a separate window."
+msgstr "Bu konu ayrı bir pencerede açık."
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "This thread switched provider without transferring context: {agent} started without Poracode's read_thread tool, so it cannot read the earlier conversation. Re-enable the app-controls MCP tool, or summarize what it needs."
 msgstr "Bu konu bağlam aktarılmadan sağlayıcı değiştirdi: {agent}, Poracode'un read_thread aracı olmadan başlatıldığı için önceki konuşmayı okuyamıyor. app-controls MCP aracını yeniden etkinleştirin veya ihtiyaç duyduğu bilgileri özetleyin."
@@ -21753,6 +22596,42 @@ msgstr "Bu Muse Code sürümü oturum hedeflerini desteklemiyor. Muse Code'u gü
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
 msgid "This visual is too large. Showing source only."
 msgstr "Bu görsel çok büyük. Yalnızca kaynak gösteriliyor."
+
+#. placeholder {0}: f.model
+#. placeholder {1}: f.percent
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "This week you ran <0>{0}</0> {1}% less"
+msgstr "Bu hafta <0>{0}</0> çalıştırmanız %{1} azaldı"
+
+#. placeholder {0}: f.model
+#. placeholder {1}: f.percent
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "This week you ran <0>{0}</0> {1}% more"
+msgstr "Bu hafta <0>{0}</0> çalıştırmanız %{1} arttı"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "This week you switched from <0>{fromLabel}</0> to <1>{toLabel}</1>"
+msgstr "Bu hafta <0>{fromLabel}</0> yerine <1>{toLabel}</1> modeline geçtiniz"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "This week you switched from <0>{fromLabel}</0> to <1>{toLabel}</1> ({toPercent}%)"
+msgstr "Bu hafta <0>{fromLabel}</0> yerine <1>{toLabel}</1> kullanmaya başladınız (%{toPercent})"
+
+#. placeholder {0}: f.provider
+#. placeholder {1}: f.percent
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "This week you used <0>{0}</0> {1}% less"
+msgstr "Bu hafta <0>{0}</0> kullanımınız %{1} azaldı"
+
+#. placeholder {0}: f.provider
+#. placeholder {1}: f.percent
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "This week you used <0>{0}</0> {1}% more"
+msgstr "Bu hafta <0>{0}</0> kullanımınız %{1} arttı"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "This week's usage equals ~{cost} at API rates"
+msgstr "Bu haftaki kullanım API fiyatlarıyla ~{cost} değerinde"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/DeleteWorktreePopover.tsx
 #~ msgid "This will permanently delete the thread and its worktree."
@@ -22024,9 +22903,21 @@ msgstr "Dosya ağacı panelini aç/kapat"
 msgid "Toggle Work or Plan"
 msgstr "İş veya Plan modunu aç/kapat"
 
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Token usage is down {percent}% this week ({compact})"
+msgstr "Bu hafta token kullanımı %{percent} azaldı ({compact})"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Token usage is up {percent}% this week ({compact})"
+msgstr "Bu hafta token kullanımı %{percent} arttı ({compact})"
+
 #: src/renderer/views/ProfileOverlay/parts/StatStrip.tsx
 msgid "Token usage unavailable for: {unavailableLabels}"
 msgstr "Token kullanımı şunlar için kullanılamıyor: {unavailableLabels}"
+
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "tokens"
+msgstr "token"
 
 #: src/renderer/views/ProfileOverlay/parts/ActivitySection.tsx
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
@@ -22075,6 +22966,10 @@ msgstr "Araç arama"
 #~ msgid "Tools"
 #~ msgstr "Araçlar"
 
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Top skill this week: <0>{name}</0> ({count, plural, one {# run} other {# runs}})"
+msgstr "Bu haftanın öne çıkan becerisi: <0>{name}</0> ({count, plural, one {# çalıştırma} other {# çalıştırma}})"
+
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "Total installs"
 msgstr "Toplam yükleme"
@@ -22096,6 +22991,7 @@ msgid "Total tokens"
 msgstr "Token toplamı"
 
 #: src/renderer/components/providers/settings/UsageProviderRow.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Track {label} usage"
 msgstr "{label} kullanımını takip edin"
 
@@ -22103,14 +22999,18 @@ msgstr "{label} kullanımını takip edin"
 msgid "Track per-provider session, weekly, and monthly usage. Windows are reported by each provider; estimated cost is reconstructed from local logs."
 msgstr "Sağlayıcı başına oturum, haftalık ve aylık kullanımı izleyin. Pencereler her sağlayıcı tarafından raporlanır; tahmini maliyet yerel günlüklerden yeniden oluşturulur."
 
+#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+msgid "Tracked providers"
+msgstr "İzlenen sağlayıcılar"
+
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 msgid "Tracking and display"
 msgstr "İzleme ve görüntüleme"
 
 #. Usage status when provider tracking is disabled
 #: src/renderer/components/providers/settings/UsageProviderRow.tsx
-msgid "Tracking off"
-msgstr "Takip kapalı"
+#~ msgid "Tracking off"
+#~ msgstr "Takip kapalı"
 
 #: src/renderer/components/composer/VoiceInputButton.tsx
 msgid "Transcribing voice"
@@ -22186,6 +23086,10 @@ msgstr "Bu projedeki iş parçacıkları için yüklü eklentileri açın veya k
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Turn on remote access to show a pairing code."
 msgstr "Eşleştirme kodunu göstermek için uzaktan erişimi açın."
+
+#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+msgid "Turn on tracking to monitor quotas and cost."
+msgstr "Kotaları ve maliyeti izlemek için izlemeyi açın."
 
 #: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -22472,6 +23376,10 @@ msgstr "Claude profilleri yenilenemiyor."
 msgid "Unable to refresh Codex profiles."
 msgstr "Codex profilleri yenilenemiyor."
 
+#: src/renderer/components/providers/gemini/profileSettings.tsx
+#~ msgid "Unable to refresh Gemini profiles."
+#~ msgstr "Gemini profilleri yenilenemiyor."
+
 #. placeholder {0}: agent.label
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Unable to remove {0} credentials."
@@ -22606,6 +23514,7 @@ msgstr "{0} güncellenemiyor."
 msgid "Unable to update {agentLabel}."
 msgstr "{agentLabel} güncellenemiyor."
 
+#: src/renderer/components/providers/useCombinedProviderRuntimeUpdates.ts
 #: src/renderer/components/thread/ThreadAgentUpdateDock.tsx
 msgid "Unable to update {updateLabel}."
 msgstr "{updateLabel} güncellenemiyor."
@@ -22718,6 +23627,10 @@ msgstr "İşareti kaldırılan sağlayıcılar ve modeller, otomatik Crossagents
 #~ msgid "Unchecked providers and models are skipped by Crossagents only."
 #~ msgstr "İşaretlenmemiş sağlayıcılar ve modeller yalnızca Crossagents tarafından atlanır."
 
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Undo"
+msgstr "Geri al"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabGroupMenu.tsx
 msgid "Ungroup"
 msgstr "Grubu çöz"
@@ -22765,6 +23678,7 @@ msgstr "Bilinmeyen işlem"
 
 #: src/renderer/components/providers/usageFormat.ts
 #: src/renderer/components/providers/UsageProviderCardView.tsx
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
 msgid "Unlimited"
 msgstr "Sınırsız"
 
@@ -22818,6 +23732,7 @@ msgstr "Aşamasız:"
 #: src/renderer/components/common/BranchSelector/parts/BranchListBox.tsx
 #: src/renderer/components/thread/CompactThreadHeader.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
 msgid "Unpin"
 msgstr "Sabitlemeyi kaldır"
 
@@ -23033,6 +23948,10 @@ msgstr "Konuşmaları dallandırmak için ana bilgisayarı güncelleyin."
 msgid "Update the remote host to use side chat with hidden context."
 msgstr "Gizli bağlamla yan sohbet kullanmak için uzak ana bilgisayarı güncelleyin."
 
+#: src/renderer/state/crewLibrary.ts
+msgid "Update the remote server first."
+msgstr "Önce uzak sunucuyu güncelleyin."
+
 #: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
 msgid "Update this host to import its sessions."
 msgstr "Oturumlarını içe aktarmak için bu ana bilgisayarı güncelleyin."
@@ -23210,8 +24129,8 @@ msgstr "Kullanım, seçilen ana makinede toplanır. Hesaplar ve kotalar her ana 
 #~ msgstr "Kullanım verileri eski. En güncel değerleri toplamak için yenileyin."
 
 #: src/renderer/components/providers/HostUsageView.tsx
-msgid "Usage is stale. Refresh to update."
-msgstr "Kullanım verileri eski. Yenileyerek güncelleyin."
+#~ msgid "Usage is stale. Refresh to update."
+#~ msgstr "Kullanım verileri eski. Yenileyerek güncelleyin."
 
 #: src/renderer/components/providers/usageFormat.ts
 msgid "Usage not supported"
@@ -23263,6 +24182,10 @@ msgstr "2 ile 6 deneme ve 1 ile 3600 saniye arasında gecikmeler kullanın."
 msgid "Use a run limit between 1 and 100, or leave it empty."
 msgstr "1 ile 100 arasında bir çalıştırma sınırı girin veya boş bırakın."
 
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Use a separate account"
+msgstr "Ayrı bir hesap kullan"
+
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Use a time limit between 1 and 1440 minutes."
 msgstr "1 ile 1440 dakika arasında bir süre sınırı kullanın."
@@ -23278,6 +24201,10 @@ msgstr "Hesabı kullan"
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 msgid "Use an image from the project folder..."
 msgstr "Proje klasöründen bir görsel kullan..."
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Use another profile's account"
+msgstr "Başka bir profilin hesabını kullan"
 
 #: src/renderer/components/common/BranchSelector/parts/BranchListBox.tsx
 msgid "Use as default for new worktrees"
@@ -23302,6 +24229,10 @@ msgstr "Varsayılan yazı tipini kullan"
 #: src/renderer/views/MainView/parts/AppOverlays.tsx
 msgid "Use detected session?"
 msgstr "Algılanan oturum kullanılsın mı?"
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Use Devin's main account"
+msgstr "Devin’in ana hesabını kullan"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/PluginsSection.tsx
 msgid "Use global (off)"
@@ -23331,6 +24262,12 @@ msgstr "Canlı önizlemeyi kullan"
 #: src/renderer/components/providers/settings/ModelProviderEditor.tsx
 msgid "Use lowercase letters, numbers, and hyphens."
 msgstr "Küçük harf, rakam ve kısa çizgi kullanın."
+
+#: src/renderer/components/composer/MemoryAddMenu.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Use memory"
+msgstr "Belleği kullan"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
@@ -23627,8 +24564,14 @@ msgstr "Mor"
 
 #. placeholder {0}: props.surfaceLabel
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/ModelVisibilityDropdown.tsx
-msgid "Visible {0} models"
-msgstr "Görünür {0} modelleri"
+#~ msgid "Visible {0} models"
+#~ msgstr "Görünür {0} modelleri"
+
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/SidebarUsageVisibilityPopover.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageDisplaySettings.tsx
+msgid "Visible in sidebar"
+msgstr "Kenar çubuğunda görünür"
 
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilitySection.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -23726,6 +24669,11 @@ msgstr "Çalışma ağacına taşımadan önce konunun başlamasının bitmesini
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Wait for the thread to finish starting."
 msgstr "Konunun başlatılmasının bitmesini bekleyin."
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Wait this long after a turn finishes."
+msgstr "Tur bittikten sonra bu kadar bekle."
 
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
 msgid "Waiting"
@@ -23857,6 +24805,10 @@ msgstr "Web sitesi"
 msgid "Website origin"
 msgstr "Web sitesi adresi"
 
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Weekday steady: {percent}% of your recent prompts ran Mon–Fri"
+msgstr "Hafta içi odaklı: Son istemlerin %{percent} kadarı Pzt–Cum günleriydi"
+
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Weekdays"
 msgstr "Hafta içi"
@@ -23869,7 +24821,12 @@ msgstr "Hafta içi saat {time}"
 msgid "Weekdays at 8:00 AM"
 msgstr "Hafta içi 08:00"
 
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Weekend builder: {percent}% of your recent prompts ran on weekends"
+msgstr "Hafta sonu geliştiricisi: Son istemlerin %{percent} kadarı hafta sonuydu"
+
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
 msgid "Weekly"
 msgstr "Haftalık"
 
@@ -23921,6 +24878,11 @@ msgstr "Yenilikler"
 msgid "What's new in Poracode, newest first."
 msgstr "Poracode'daki yenilikler, en yeniden başlayarak."
 
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "When a thread is deleted"
+msgstr "Bir iş parçacığı silindiğinde"
+
 #: src/renderer/views/SettingsOverlay/parts/SearchSettings.tsx
 msgid "When enabled, search respects <0>.gitignore</0> entries."
 msgstr "Etkinleştirildiğinde, arama <0>.gitignore</0> girişlerine saygı duyar."
@@ -23933,6 +24895,11 @@ msgstr "Bağlantılar Poracode tarayıcı sekmesinde açıldığında, tarayıc�
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
 msgid "When off, suppress notifications from terminal threads whose status comes from the OSC fallback (no CLI hook plugin)."
 msgstr "Kapalıyken, durumu OSC yedeğinden alınan terminal konularının bildirimlerini gizleyin (CLI kanca eklentisi yok)."
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "When to capture"
+msgstr "Ne zaman kaydedilsin"
 
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -23989,7 +24956,6 @@ msgstr "Bu ortam içinde çalışacak:"
 
 #: src/renderer/components/mcp/McpProjectDestinationDropdown.tsx
 #: src/renderer/components/providers/devin/cloudProfileSettings.tsx
-#: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
 msgid "Windows"
@@ -24024,6 +24990,10 @@ msgstr "İş"
 #: src/renderer/components/thread/WorktreeModeSelect.tsx
 msgid "Work in the current checkout"
 msgstr "Mevcut çalışma kopyasında çalışın"
+
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "Work rhythm"
+msgstr "Çalışma ritmi"
 
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "Work with the pages and signed-in sessions already open in Chrome."
@@ -24123,6 +25093,7 @@ msgstr "Çalışıyor…"
 
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/thread/ThreadDetailsDocks.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectFilter.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 msgid "Workspace"
@@ -24252,7 +25223,6 @@ msgstr "Değişikliğin testlerini yazıp çalıştırır, bildirilen hataları 
 msgid "Writing guide. You can leave this review and return when it is ready."
 msgstr "Rehber yazılıyor. Bu incelemeden ayrılıp hazır olduğunda geri dönebilirsiniz."
 
-#: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
 msgid "WSL"
@@ -24265,8 +25235,8 @@ msgstr "WSL · {0}"
 
 #. placeholder {0}: status.envDistro
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
-msgid "WSL ({0})"
-msgstr "WSL ({0})"
+#~ msgid "WSL ({0})"
+#~ msgstr "WSL ({0})"
 
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 #: src/renderer/components/mcp/McpProjectDestinationDropdown.tsx
@@ -24288,22 +25258,72 @@ msgstr "Kaynak denetimi için WSL köprüsü kullanılamıyor."
 #~ msgstr "WSL kullanıcısı"
 
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
-msgid "WSL: {distro}"
-msgstr "WSL: {distro}"
+#~ msgid "WSL: {distro}"
+#~ msgstr "WSL: {distro}"
 
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/StructuredElicitationField.tsx
 msgid "Yes"
 msgstr "Evet"
 
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "Yesterday"
+msgstr "Dün"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Yesterday <0>{model}</0> handled {percent}% of your prompts"
+msgstr "Dün istemlerinizin %{percent} kadarını <0>{model}</0> işledi"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Yesterday you used {compact} tokens"
+msgstr "Dün {compact} token kullandınız"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Yesterday you used {compact} tokens (~{cost})"
+msgstr "Dün {compact} token kullandınız (~{cost})"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Yesterday: {prompts, plural, one {# prompt} other {# prompts}}"
+msgstr "Dün: {prompts, plural, one {# istem} other {# istem}}"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Yesterday: {prompts, plural, one {# prompt} other {# prompts}} · {compactTokens} tokens"
+msgstr "Dün: {prompts, plural, one {# istem} other {# istem}} · {compactTokens} token"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Yesterday: {prompts, plural, one {# prompt} other {# prompts}} · led by {topProvider} ({topProviderPercent}%)"
+msgstr "Dün: {prompts, plural, one {# istem} other {# istem}} · {topProvider} (%{topProviderPercent})"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "You coded across {count} connected environments this week"
+msgstr "Bu hafta {count} bağlı ortamda kod yazdınız"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "You coded across {count} connected environments yesterday"
+msgstr "Dün {count} bağlı ortamda kod yazdınız"
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "You have an unfinished review on the source host. Submit or discard it there before submitting this one."
 msgstr "Kaynak ana makinede tamamlanmamış bir incelemeniz var. Bunu göndermeden önce orada gönderin veya silin."
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "You leaned into {modeLabel} mode this week ({percent}% vs {prevPercent}%)"
+msgstr "Bu hafta {modeLabel} moduna yöneldiniz (%{percent} vs %{prevPercent})"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "You ran {percent}% of turns with {effort} reasoning this week"
+msgstr "Bu hafta turların %{percent} kadarı {effort} akıl yürütmeyle çalıştı"
+
+#. placeholder {0}: f.model
+#. placeholder {1}: f.prompts
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "You started using <0>{0}</0> this week · {1, plural, one {# prompt} other {# prompts}}"
+msgstr "Bu hafta <0>{0}</0> kullanmaya başladınız · {1, plural, one {# istem} other {# istem}}"
 
 #: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
 msgid "You’re all caught up."
 msgstr "Her şey tamam."
 
-#: src/renderer/components/newsLine/useInsightItems.tsx
+#: src/renderer/components/newsLine/insightContent.tsx
 msgid "You're most active around {hourLabel}"
 msgstr "En çok {hourLabel} civarında etkinsiniz"
 
@@ -24339,9 +25359,13 @@ msgstr "Yerel değişiklikleriniz zulada (stash) ve bu birleştirmeyi işlediği
 msgid "Your local changes were stashed and will be re-applied once the merge is resolved."
 msgstr "Yerel değişiklikleriniz zulaya (stash) alındı ve birleştirme çözüldüğünde yeniden uygulanacaktır."
 
-#: src/renderer/components/newsLine/useInsightItems.tsx
+#: src/renderer/components/newsLine/insightContent.tsx
 msgid "Your longest task ran {duration}"
 msgstr "En uzun göreviniz {duration} sürdü"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Your longest task yesterday ran {duration}"
+msgstr "Dün en uzun göreviniz {duration} sürdü"
 
 #: src/renderer/views/PullRequestsOverlay/chat/usePrAskChatSession.ts
 msgid "Your message was not sent: the chat thread is no longer available."
@@ -24350,6 +25374,10 @@ msgstr "Mesajınız gönderilmedi: sohbet konusu artık kullanılamıyor."
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 msgid "Your name"
 msgstr "Adınız"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Your peak coding hour shifted from {fromLabel} to {toLabel} this week"
+msgstr "Bu hafta en aktif saatiniz {fromLabel} yerine {toLabel} oldu"
 
 #: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
 #~ msgid "Your pick"

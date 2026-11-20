@@ -1,6 +1,11 @@
 import { createHash } from "node:crypto";
 import type Database from "better-sqlite3";
-import { readImageDimensions } from "@/shared/imageDimensions";
+import {
+  probeImageDimensionsFromBytes,
+  readImageDimensions,
+  readImageDimensionsFromBytes,
+  type ImageDimensions,
+} from "@/shared/imageDimensions";
 import {
   collectInlineImageLocationsDeep,
   enumerateDisplayImageCandidatePaths,
@@ -21,6 +26,7 @@ export interface PersistedInlineImageStub {
   readonly bytes: number;
   readonly width?: number;
   readonly height?: number;
+  readonly oriented?: 1;
 }
 
 export interface VerifiedInlineImageRef {
@@ -61,6 +67,9 @@ export function isPersistedInlineImageStub(value: unknown): value is PersistedIn
       !Number.isSafeInteger(record.height) ||
       record.height <= 0)
   ) {
+    return false;
+  }
+  if (record.oriented !== undefined && record.oriented !== 1) {
     return false;
   }
   return true;
@@ -200,6 +209,106 @@ const writeStatementsCache = new WeakMap<
   InlineImageWriteStatements
 >();
 
+const MAX_CACHED_BLOB_DIMENSIONS = 2_048;
+const EXIF_CAPABLE_MIMES = new Set(["image/png", "image/jpeg", "image/webp"]);
+const orientedBlobDimensionsCache = new WeakMap<
+  InstanceType<typeof Database>,
+  Map<string, ImageDimensions | null>
+>();
+
+function getBlobDimensionsCache(
+  sqlite: InstanceType<typeof Database>,
+): Map<string, ImageDimensions | null> {
+  let cached = orientedBlobDimensionsCache.get(sqlite);
+  if (!cached) {
+    cached = new Map();
+    orientedBlobDimensionsCache.set(sqlite, cached);
+  }
+  return cached;
+}
+
+function rememberBlobDimensions(
+  cache: Map<string, ImageDimensions | null>,
+  hash: string,
+  dimensions: ImageDimensions | null,
+): void {
+  cache.delete(hash);
+  cache.set(hash, dimensions);
+  if (cache.size > MAX_CACHED_BLOB_DIMENSIONS) {
+    const oldest = cache.keys().next();
+    if (!oldest.done) cache.delete(oldest.value);
+  }
+}
+
+function resolvePageOrientedBlobDimensions(
+  sqlite: InstanceType<typeof Database>,
+  stubs: ReadonlyArray<PersistedInlineImageStub>,
+): Map<string, ImageDimensions | null> {
+  const cache = getBlobDimensionsCache(sqlite);
+  const missing: string[] = [];
+  const seenMissing = new Set<string>();
+  for (const stub of stubs) {
+    if (
+      stub.oriented === 1 ||
+      !EXIF_CAPABLE_MIMES.has(stub.mime) ||
+      cache.has(stub.hash) ||
+      seenMissing.has(stub.hash)
+    ) {
+      continue;
+    }
+    seenMissing.add(stub.hash);
+    missing.push(stub.hash);
+  }
+  if (missing.length === 0) return cache;
+
+  const fastStmt = sqlite.prepare(
+    `SELECT b.blob_hash, b.mime, substr(b.raw_bytes, 1, 1024) AS prefix, length(b.raw_bytes) AS total_len
+     FROM json_each(?) AS hashes
+     JOIN runtime_inline_image_blobs b
+       ON b.blob_hash = hashes.value`,
+  );
+  const needMoreHashes: string[] = [];
+  for (const chunk of chunkStrings(missing, SQLITE_JSON_BATCH_SIZE)) {
+    const rows = fastStmt.all(JSON.stringify(chunk)) as Array<{
+      blob_hash: string;
+      mime: string;
+      prefix: Buffer;
+      total_len: number;
+    }>;
+    for (const row of rows) {
+      const probe = probeImageDimensionsFromBytes(row.prefix, row.mime, row.total_len > 1024);
+      if (probe.status === "settled") {
+        rememberBlobDimensions(cache, row.blob_hash, probe.dimensions ?? null);
+      } else {
+        needMoreHashes.push(row.blob_hash);
+      }
+    }
+  }
+  if (needMoreHashes.length > 0) {
+    const extStmt = sqlite.prepare(
+      `SELECT b.blob_hash, b.mime, substr(b.raw_bytes, 1, 32768) AS prefix
+       FROM json_each(?) AS hashes
+       JOIN runtime_inline_image_blobs b
+         ON b.blob_hash = hashes.value`,
+    );
+    for (const chunk of chunkStrings(needMoreHashes, SQLITE_JSON_BATCH_SIZE)) {
+      const rows = extStmt.all(JSON.stringify(chunk)) as Array<{
+        blob_hash: string;
+        mime: string;
+        prefix: Buffer;
+      }>;
+      for (const row of rows) {
+        rememberBlobDimensions(
+          cache,
+          row.blob_hash,
+          readImageDimensionsFromBytes(row.prefix, row.mime) ?? null,
+        );
+      }
+    }
+  }
+  return cache;
+}
+
 function getInlineImageWriteStatements(
   sqlite: InstanceType<typeof Database>,
 ): InlineImageWriteStatements {
@@ -324,9 +433,16 @@ export function externalizeRuntimeItemPayload(
       mime: extracted.mime,
       bytes: extracted.inlineUtf8Bytes,
       ...(extracted.width !== undefined && extracted.height !== undefined
-        ? { width: extracted.width, height: extracted.height }
+        ? { width: extracted.width, height: extracted.height, oriented: 1 as const }
         : {}),
     };
+    rememberBlobDimensions(
+      getBlobDimensionsCache(sqlite),
+      extracted.hash,
+      extracted.width !== undefined && extracted.height !== undefined
+        ? { width: extracted.width, height: extracted.height }
+        : null,
+    );
     nextPayload = setAtInlineImagePath(nextPayload, location.path, stub);
     refs.set(JSON.stringify(location.path), extracted.hash);
   }
@@ -543,38 +659,66 @@ export function prepareRuntimeItemPayloadsForRead(
   }
 
   if (options.preserveExternalizedImageStubs === true) {
+    const parsedEntries: Array<{
+      readonly row: { readonly item_id: string; readonly payload: string | null };
+      readonly parsed: unknown;
+      readonly stubs: Array<{
+        readonly pathJson: string;
+        readonly path: InlineImagePath;
+        readonly stub: PersistedInlineImageStub;
+      }>;
+    }> = [];
+    const pageStubs: PersistedInlineImageStub[] = [];
     for (const row of rows) {
       const parsed = row.payload ? safeParse(row.payload) : undefined;
       const itemRefs = refsByItem.get(row.item_id);
       if (!parsed || typeof parsed !== "object" || !itemRefs || itemRefs.length === 0) {
-        result.set(row.item_id, {
-          payload: parsed,
-          effectivePayloadLength: row.payload?.length ?? 0,
-        });
+        parsedEntries.push({ row, parsed, stubs: [] });
         continue;
       }
-      const verified = new Map<string, VerifiedInlineImageRef>();
-      let lengthDelta = 0;
+      const stubs: Array<{
+        readonly pathJson: string;
+        readonly path: InlineImagePath;
+        readonly stub: PersistedInlineImageStub;
+      }> = [];
       for (const ref of itemRefs) {
         const path = parseStoredInlineImagePath(ref.pathJson);
         if (!path) continue;
         const stub = readAtInlineImagePath(parsed, path);
         if (!isPersistedInlineImageStub(stub) || stub.hash !== ref.blobHash) continue;
-        verified.set(ref.pathJson, {
+        stubs.push({ pathJson: ref.pathJson, path, stub });
+        pageStubs.push(stub);
+      }
+      parsedEntries.push({ row, parsed, stubs });
+    }
+    const orientedByHash = resolvePageOrientedBlobDimensions(sqlite, pageStubs);
+    for (const entry of parsedEntries) {
+      if (entry.stubs.length === 0) {
+        result.set(entry.row.item_id, {
+          payload: entry.parsed,
+          effectivePayloadLength: entry.row.payload?.length ?? 0,
+        });
+        continue;
+      }
+      const verified = new Map<string, VerifiedInlineImageRef>();
+      let lengthDelta = 0;
+      for (const { pathJson, path, stub } of entry.stubs) {
+        const oriented = stub.oriented === 1 ? undefined : orientedByHash.get(stub.hash);
+        const width = oriented?.width ?? stub.width;
+        const height = oriented?.height ?? stub.height;
+        verified.set(pathJson, {
           path,
           hash: stub.hash,
           mime: stub.mime,
           bytes: stub.bytes,
-          ...(stub.width !== undefined && stub.height !== undefined
-            ? { width: stub.width, height: stub.height }
-            : {}),
+          ...(width !== undefined && height !== undefined ? { width, height } : {}),
         });
         lengthDelta += Math.max(0, stub.bytes - JSON.stringify(stub).length);
       }
-      attachVerifiedInlineImageRefs(parsed, verified);
-      result.set(row.item_id, {
-        payload: parsed,
-        effectivePayloadLength: (row.payload?.length ?? 0) + lengthDelta,
+      attachVerifiedInlineImageRefs(entry.parsed, verified);
+      result.set(entry.row.item_id, {
+        payload: entry.parsed,
+        effectivePayloadLength: (entry.row.payload?.length ?? 0) + lengthDelta,
       });
     }
     return result;
@@ -711,7 +855,7 @@ export function measureExternalizedImageSizesByItem(
             COUNT(*) AS ref_count,
             COALESCE(SUM(b.inline_utf8_bytes), 0) AS inline_bytes
      FROM json_each(?) AS ids
-     JOIN thread_runtime_item_image_refs r
+     CROSS JOIN thread_runtime_item_image_refs r
        ON r.thread_id = ? AND r.item_id = ids.value
      JOIN runtime_inline_image_blobs b
        ON b.blob_hash = r.blob_hash

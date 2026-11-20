@@ -17,8 +17,6 @@ import { findFeature, type FeatureContext } from "./featureCatalog";
 import { NEWS_ICON_CLASS, type NewsAction, type NewsItem } from "./newsTypes";
 import { openNewsUrl } from "./newsActions";
 
-/** Remote items featured per visit. */
-const ANNOUNCEMENTS_PER_VISIT = 3;
 const ICON_CLASS = NEWS_ICON_CLASS;
 
 function currentNewsPlatform(): NewsPlatform {
@@ -78,9 +76,7 @@ export function useAnnouncementItems(options: {
       const feature = findFeature(id);
       return feature ? feature.isUsed(context) : undefined;
     },
-  })
-    .filter((item) => !hidden.has(`remote:${item.id}`))
-    .slice(0, ANNOUNCEMENTS_PER_VISIT);
+  }).filter((item) => !hidden.has(`remote:${item.id}`));
 
   const actionFor = (item: SelectedNewsItem): NewsAction | undefined => {
     const hide = () => store().hideItem(`remote:${item.id}`);
@@ -131,6 +127,9 @@ export function useAnnouncementItems(options: {
     return {
       id: `remote:${item.id}`,
       kind: "announcement",
+      category: item.kind,
+      subject: item.id,
+      weight: 1.5,
       icon,
       content:
         "text" in item.content ? (

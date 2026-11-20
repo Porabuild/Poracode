@@ -153,6 +153,9 @@ final class SessionPool {
             slots[key] = slot
             if let socket = slot.socket, !slot.needsSelectedReconnect {
                 host.state.webSocket = socket
+                if case .host(let id) = key, let cachedState = host.state.hostSocketStates[id] {
+                    host.recordSocketState(cachedState, for: key)
+                }
                 let lease = SessionLease(key: key, generation: slot.generation)
                 await socket.setThreadItemInterests(cache.interests)
                 guard isCurrent(socket, for: lease) else { return }
@@ -318,7 +321,16 @@ final class SessionPool {
             interests: cache.gitStateInterests,
             socketObjectID: selectedSocket(for: key).map { ObjectIdentifier($0 as AnyObject) }
         )
-        host.state.webSocket = selectedSocket(for: key)
+        let socket = selectedSocket(for: key)
+        host.state.webSocket = socket
+        if socket != nil,
+           case .host(let id) = key,
+           let cachedState = host.state.hostSocketStates[id]
+        {
+            host.state.socketState = cachedState
+        } else {
+            host.state.socketState = .idle
+        }
     }
 
     func forget(_ key: SessionPoolKey) async {

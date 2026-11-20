@@ -68,11 +68,17 @@ export const REMOTE_PROCEDURE_SPECS = {
   // therefore operate-scoped, so a paired machine's agents can only be changed
   // by a client holding session:operate.
   getLatestAgentVersion: read("desktop"),
+  resolveAgentAccount: read("desktop"),
   // Additive: older hosts reject this name; clients report the failure without a local fallback.
   refreshAgentStatuses: mutating(longRunning(operate("desktop"))),
   listAcpRegistry: mutating(longRunning(operate("desktop"))),
+  installAcpRegistryAgent: mutating(longRunning(operate("desktop"))),
+  removeAcpRegistryAgent: mutating(longRunning(operate("desktop"))),
   updateAgentBinary: mutating(longRunning(operate("desktop"))),
   updateAcpRegistryAgent: mutating(longRunning(operate("desktop"))),
+  setAcpRegistryAgentAuth: mutating(operate("desktop")),
+  authenticateAcpAgent: mutating(longRunning(operate("desktop"))),
+  logoutAcpAgent: mutating(operate("desktop")),
 
   listThreadSessionActions: read("thread"),
   invokeThreadSessionAction: mutating(operate("thread")),
@@ -198,7 +204,9 @@ export const REMOTE_PROCEDURE_SPECS = {
   gitSyncRebase: longRunning(operate("projectLocation")),
   gitSwitchBranch: operate("projectLocation"),
   gitDeleteBranch: operate("projectLocation"),
-  gitAddWorktree: operate("projectLocation"),
+  // The timeout is client-side guidance only; the request and result remain
+  // compatible with hosts and clients predating this metadata.
+  gitAddWorktree: mutating(longRunning(operate("projectLocation"))),
   gitRemoveWorktree: operate("projectLocation"),
   gitPruneWorktrees: operate("projectLocation"),
   gitMergeToSource: longRunning(operate("projectLocation")),
@@ -297,8 +305,11 @@ export function isRemoteFollowUpQueueProcedure(
 export const REMOTE_AGENT_UPDATE_PROCEDURES = [
   "refreshAgentStatuses",
   "listAcpRegistry",
+  "installAcpRegistryAgent",
+  "removeAcpRegistryAgent",
   "updateAgentBinary",
   "updateAcpRegistryAgent",
+  "authenticateAcpAgent",
 ] as const satisfies readonly RemoteProcedureName[];
 
 const remoteAgentUpdateProcedures: ReadonlySet<string> = new Set(REMOTE_AGENT_UPDATE_PROCEDURES);

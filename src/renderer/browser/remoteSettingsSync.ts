@@ -28,6 +28,10 @@ const additiveRemoteSettingsKeys = new Set<keyof RemoteSettings>([
   "crews",
   "crossagentPausedProviders",
   "crossagentHiddenModels",
+  "wslCrews",
+  "autoArchiveDoneAfterDays",
+  "prCreateMode",
+  "memory",
 ]);
 // Monotonic id of the most recent push. Only its resolution may write back to
 // desktopSettings, so a slow or failed earlier push can't clobber the value a
@@ -57,6 +61,10 @@ export function applyDesktopSettings(settings: RemoteSettings): void {
     crews,
     crossagentPausedProviders,
     crossagentHiddenModels,
+    wslCrews,
+    autoArchiveDoneAfterDays,
+    prCreateMode,
+    memory,
     ...requiredSettings
   } = settings;
   applyExternalSharedSettings({
@@ -67,6 +75,10 @@ export function applyDesktopSettings(settings: RemoteSettings): void {
     ...(crews !== undefined ? { crews } : {}),
     ...(crossagentPausedProviders !== undefined ? { crossagentPausedProviders } : {}),
     ...(crossagentHiddenModels !== undefined ? { crossagentHiddenModels } : {}),
+    ...(wslCrews !== undefined ? { wslCrews } : {}),
+    ...(autoArchiveDoneAfterDays !== undefined ? { autoArchiveDoneAfterDays } : {}),
+    ...(prCreateMode !== undefined ? { prCreateMode } : {}),
+    ...(memory !== undefined ? { memory } : {}),
   });
 }
 

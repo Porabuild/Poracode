@@ -65,7 +65,8 @@ function countMathDelimiters(raw: string): number {
 }
 
 /**
- * Streamdown 2.6.0's block grouping with Marked 17.0.6's block pass only.
+ * Stateless block grouping for short messages. Streamdown 2.7.1 caches its most
+ * recent parse for incremental updates to large streaming messages.
  * Keep this paired with the untouched upstream oracle tests when upgrading
  * either dependency: the inline-token queue is unused by this projection.
  */
@@ -81,7 +82,9 @@ export function splitStreamdownMarkdownBlocks(markdown: string): string[] {
   const lexer = new Lexer({ gfm: true });
   // Match Lexer.lex's normalization and block bookkeeping, omitting only its
   // final drain of queued inlineTokens. Never reuse a lexer across snapshots.
-  const tokens = lexer.blockTokens(markdown.replace(/\r\n|\r/g, "\n"), lexer.tokens);
+  const input = markdown.replace(/\r\n|\r/g, "\n");
+  const tokens = lexer.blockTokens(input, lexer.tokens);
+  if (Object.keys(lexer.tokens.links).length > 0) return [input];
   const blocks: string[] = [];
   const openTags: string[] = [];
   let previousWasCode = false;
@@ -108,6 +111,13 @@ export function splitStreamdownMarkdownBlocks(markdown: string): string[] {
         // Upstream deliberately pushes one witness, even for multiple opens.
         if (countOpenTags(raw, tag) > countCloseTags(raw, tag)) openTags.push(tag);
       }
+    }
+
+    // Marked 18 emits trailing blank lines as separate tokens. Streamdown keeps
+    // that whitespace with its preceding block.
+    if (token.type === "space" && count > 0) {
+      blocks[count - 1] += raw;
+      continue;
     }
 
     if (count > 0 && !previousWasCode) {

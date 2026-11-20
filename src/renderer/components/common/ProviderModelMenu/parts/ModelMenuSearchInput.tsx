@@ -25,7 +25,7 @@ export function ModelMenuSearchInput(props: {
       <Search className="size-3.5 shrink-0 text-muted" />
       <input
         ref={inputRef}
-        className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted outline-none"
+        className="poracode-borderless-field flex-1 bg-transparent text-sm text-foreground placeholder:text-muted outline-none"
         placeholder={t`Search models...`}
         role="combobox"
         aria-autocomplete="list"

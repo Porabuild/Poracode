@@ -118,7 +118,7 @@ export interface StartTurnOptions {
   userMessageItemId?: string;
   /** Canonical reply metadata to preserve when echoing the user's message. */
   questionAnswer?: QuestionAnswerItemPayload;
-  /** Called only after the provider accepts the outgoing prompt. */
+  /** Called after the provider accepts the prompt, including a retained follow-up. */
   onPromptSubmitted?: () => void;
   /**
    * Portable-skills fallback: inline SKILL.md instructions for invoked skills
@@ -202,8 +202,12 @@ export interface StructuredSessionHandle {
    * path. When no turn is in flight, implementations fall back to `startTurn`
    * semantics so turn accounting stays correct.
    *
-   * Resolving this promise acknowledges input acceptance. If an accepted input
-   * awaits a subsequent turn inside the provider, keep status `working` across
+   * Resolving this promise or calling `onPromptSubmitted` acknowledges input
+   * acceptance. The callback can acknowledge a retained follow-up before this
+   * promise settles; later failures still belong to the runtime. Existing
+   * handles without the callback keep their promise-based acceptance contract.
+   * If an accepted input awaits a subsequent turn inside the provider, keep
+   * status `working` across
    * the preceding turn's completion and emit `turn.started` for the new reply.
    * Do not report `idle` until that accepted work finishes: runtime schedulers
    * use settled status to decide when another ordinary startTurn is safe.
@@ -309,6 +313,8 @@ export interface CreateStructuredSessionInput {
   /** User-approved roots on the same execution host; immutable for this runtime. */
   additionalDirectories?: readonly ProjectLocation[];
   config: ThreadConfig;
+  /** The caller keeps the launch approval policy for the lifetime of this session. */
+  fixedApprovalPolicy?: true;
   agentSettings?: Record<string, boolean | string>;
   env?: Record<string, string>;
   /**
@@ -912,6 +918,13 @@ export interface AgentSessionTracker {
   createStructuredSession?(
     input: CreateStructuredSessionInput,
   ): Promise<StructuredSessionHandle | undefined>;
+  /**
+   * Parse trusted MCP call metadata into a provider-native session id. The
+   * supervisor still verifies that this adapter owns the root or child session;
+   * returning an id never authorizes a call on its own. Legacy routing remains
+   * available to providers without this hook.
+   */
+  readMcpSessionId?(metadata: Readonly<Record<string, unknown>>): string | undefined;
   discoverSessionRef?(location: ProjectLocation): Promise<SessionRef | undefined>;
   initialSessionRefDiscoveryDelayMs?: number;
   watchSessionRef?(location: ProjectLocation, onChanged: () => void): (() => void) | undefined;
@@ -1078,7 +1091,24 @@ export interface AgentUpdater {
    * inspection. Heavy work (network, version comparison) lives in detect /
    * status probes.
    */
-  buildUpdateCommand?(ctx: AgentEnvContext, status: AgentStatus): AgentUpdaterCommand | undefined;
+  buildUpdateCommand?(
+    ctx: AgentEnvContext,
+    status: AgentStatus,
+    /** Resolved installation target, when the launcher is a symlink. */
+    installPath?: string,
+  ): AgentUpdaterCommand | undefined;
+  /**
+   * Arguments that start the installed binary and exit 0 only when the install
+   * is usable (typically `["--version"]`). After a package-manager update that
+   * reported success, the supervisor runs them against the detected executable.
+   * A failure means the package manager left a broken install (for example a
+   * launcher whose optional native dependency was silently skipped), so the same
+   * update command is re-run once to repair it before the update is reported.
+   *
+   * Declare it for CLIs that ship as a thin launcher plus a platform package.
+   * Not part of the wire contract: it never reaches clients.
+   */
+  readonly postUpdateHealthArgs?: readonly string[];
 }
 
 export interface AgentCliHookPluginSupport {

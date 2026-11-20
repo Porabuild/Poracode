@@ -13,6 +13,10 @@ public extension RemoteSchemas {
 }
 
 public extension RemoteSchemas {
+  static let schema_39f6d5287a718cd5 = RemoteSchema(type: "string", defaultValue: .string("auto"), unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
   static let schema_3a008e3c404a93c8 = RemoteSchema(type: "string", literals: [.string("running"), .string("completed"), .string("failed"), .string("cancelled"), .string("unknown")], unknownPolicy: .strip)
 }
 
@@ -62,6 +66,10 @@ public extension RemoteSchemas {
 
 public extension RemoteSchemas {
   static let schema_3c702b70b3eb4220 = RemoteSchema(type: "string", literals: [.string("ios"), .string("ios-video"), .string("android")], unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
+  static let schema_3cbfa576c37bf99e = RemoteSchema(type: "object", required: Set(["body", "category", "pinned", "polarity", "scope", "summary"]), properties: ["body": RemoteSchemas.schema_bf0b727f7b1c6d07, "category": RemoteSchemas.schema_e3c6a49a61116efe, "id": RemoteSchemas.schema_36fea325bf1aca70, "pinned": RemoteSchemas.schema_feeb8bb50144d96d, "polarity": RemoteSchemas.schema_6c042b493abd3ee5, "projectId": RemoteSchemas.schema_df704162f3d15808, "quote": RemoteSchemas.schema_2d0b6ec9f2b2decf, "scope": RemoteSchemas.schema_ac6ea0fc110d7efb, "summary": RemoteSchemas.schema_36fea325bf1aca70], additionalAllowed: false, unknownPolicy: .reject)
 }
 
 public extension RemoteSchemas {
@@ -145,10 +153,6 @@ public extension RemoteSchemas {
 }
 
 public extension RemoteSchemas {
-  static let schema_3f2f0534414961a0 = RemoteSchema(type: "object", required: Set(["authState", "authUsesProviderLogin", "capabilities", "installed", "presentationMode"]), properties: ["authLogoutSupported": RemoteSchemas.schema_feeb8bb50144d96d, "authMethods": RemoteSchemas.schema_cd0a57f27ae4fccb, "authState": RemoteSchemas.schema_2363c4dd0a78ce9d, "authUsesProviderLogin": RemoteSchemas.schema_feeb8bb50144d96d, "capabilities": RemoteSchemas.schema_d4c662966d120e66, "installationSource": RemoteSchemas.schema_36fea325bf1aca70, "installed": RemoteSchemas.schema_feeb8bb50144d96d, "loginCommand": RemoteSchemas.schema_36fea325bf1aca70, "loginCommandDisplay": RemoteSchemas.schema_36fea325bf1aca70, "preferTerminalLogin": RemoteSchemas.schema_feeb8bb50144d96d, "presentationMode": RemoteSchemas.schema_6508684ba659826b, "providerMetadata": RemoteSchemas.schema_197c2b8c01d7f4ed, "version": RemoteSchemas.schema_36fea325bf1aca70], additionalAllowed: true, unknownPolicy: .strip)
-}
-
-public extension RemoteSchemas {
   static let schema_3f3680e5774b47dd = RemoteSchema(type: "object", required: Set(["childDesktopId", "endpoint", "environmentId", "pairingCredential"]), properties: ["childDesktopId": RemoteSchemas.schema_97d85a5eaee82b97, "endpoint": RemoteSchemas.schema_85c1db78d5c7dc29, "environmentId": RemoteSchemas.schema_d855999aed5e6438, "pairingCredential": RemoteSchemas.schema_85c1db78d5c7dc29], additionalAllowed: true, unknownPolicy: .strip)
 }
 
@@ -158,6 +162,10 @@ public extension RemoteSchemas {
 
 public extension RemoteSchemas {
   static let schema_3f5bcd72f92b6f9f = RemoteSchema(type: "string", literals: [.string("browser-watch")], unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
+  static let schema_3fc597689b262069 = RemoteSchema(type: "object", required: Set(["action", "entry"]), properties: ["action": RemoteSchemas.schema_a2bcbae622b18cea, "entry": RemoteSchemas.schema_3cbfa576c37bf99e], additionalAllowed: false, unknownPolicy: .reject)
 }
 
 public extension RemoteSchemas {

@@ -29,7 +29,7 @@ public extension RemoteRootCodecs {
 }
 
 public extension RemoteRootCodecs {
-  static let routeU2EDeviceU2DPreviewU2DIosU2DConfigU2EResponse: RemoteRootCodec<RoutedeviceU2DPreviewU2DIosU2DConfigResponse_e6f95dbaa3> = .init(id: "route.device-preview-ios-config.response", schema: RemoteSchemas.schema_e6f95dbaa32318b7)
+  static let routeU2EDeviceU2DPreviewU2DIosU2DConfigU2EResponse: RemoteRootCodec<RoutedeviceU2DPreviewU2DIosU2DConfigResponse_5da869818b> = .init(id: "route.device-preview-ios-config.response", schema: RemoteSchemas.schema_5da869818be88063)
 }
 
 public extension RemoteRootCodecs {
@@ -133,7 +133,7 @@ public extension RemoteRootCodecs {
 }
 
 public extension RemoteRootCodecs {
-  static let routeU2EEnvironmentU2DLegacyU2EResponse: RemoteRootCodec<RouteenvironmentU2DLegacyResponse_ad4984c9f9> = .init(id: "route.environment-legacy.response", schema: RemoteSchemas.schema_ad4984c9f908ddf8)
+  static let routeU2EEnvironmentU2DLegacyU2EResponse: RemoteRootCodec<RouteenvironmentU2DLegacyResponse_29860e4152> = .init(id: "route.environment-legacy.response", schema: RemoteSchemas.schema_29860e4152b5fa24)
 }
 
 public extension RemoteRootCodecs {
@@ -237,7 +237,7 @@ public extension RemoteRootCodecs {
 }
 
 public extension RemoteRootCodecs {
-  static let routeU2EEnvironmentU2EResponse: RemoteRootCodec<RouteenvironmentU2DLegacyResponse_ad4984c9f9> = .init(id: "route.environment.response", schema: RemoteSchemas.schema_ad4984c9f908ddf8)
+  static let routeU2EEnvironmentU2EResponse: RemoteRootCodec<RouteenvironmentU2DLegacyResponse_29860e4152> = .init(id: "route.environment.response", schema: RemoteSchemas.schema_29860e4152b5fa24)
 }
 
 public extension RemoteRootCodecs {
@@ -333,11 +333,11 @@ public extension RemoteRootCodecs {
 }
 
 public extension RemoteRootCodecs {
-  static let routeU2EMcpU2DSettingsU2DOperationU2ERequest: RemoteRootCodec<RoutemcpU2DSettingsU2DOperationRequest_e8fbf0f2cb> = .init(id: "route.mcp-settings-operation.request", schema: RemoteSchemas.schema_e8fbf0f2cbb425a8)
+  static let routeU2EMcpU2DSettingsU2DOperationU2ERequest: RemoteRootCodec<RoutemcpU2DSettingsU2DOperationRequest_f46bb4e323> = .init(id: "route.mcp-settings-operation.request", schema: RemoteSchemas.schema_f46bb4e32320dcce)
 }
 
 public extension RemoteRootCodecs {
-  static let routeU2EMcpU2DSettingsU2DOperationU2EResponse: RemoteRootCodec<RoutemcpU2DSettingsU2DOperationResponse_20b48750f1> = .init(id: "route.mcp-settings-operation.response", schema: RemoteSchemas.schema_20b48750f1f97bcf)
+  static let routeU2EMcpU2DSettingsU2DOperationU2EResponse: RemoteRootCodec<RoutemcpU2DSettingsU2DOperationResponse_4ba08f8592> = .init(id: "route.mcp-settings-operation.response", schema: RemoteSchemas.schema_4ba08f85926d047f)
 }
 
 public extension RemoteRootCodecs {
@@ -345,7 +345,23 @@ public extension RemoteRootCodecs {
 }
 
 public extension RemoteRootCodecs {
-  static let routeU2EMetricsU2EResponse: RemoteRootCodec<RoutemetricsResponse_f983f1aded> = .init(id: "route.metrics.response", schema: RemoteSchemas.schema_f983f1aded87bea9)
+  static let routeU2EMemoryU2DCatalogU2ERequest: RemoteRootCodec<RoutememoryU2DCatalogRequest_0eb986e669> = .init(id: "route.memory-catalog.request", schema: RemoteSchemas.schema_0eb986e669e438e8)
+}
+
+public extension RemoteRootCodecs {
+  static let routeU2EMemoryU2DCatalogU2EResponse: RemoteRootCodec<RoutememoryU2DCatalogResponse_d2a9e452ab> = .init(id: "route.memory-catalog.response", schema: RemoteSchemas.schema_d2a9e452ab6ec4b9)
+}
+
+public extension RemoteRootCodecs {
+  static let routeU2EMemoryU2DSyncU2ERequest: RemoteRootCodec<RoutememoryU2DSyncRequest_e391f3a6d9> = .init(id: "route.memory-sync.request", schema: RemoteSchemas.schema_e391f3a6d93daf46)
+}
+
+public extension RemoteRootCodecs {
+  static let routeU2EMemoryU2DSyncU2EResponse: RemoteRootCodec<RoutememoryU2DSyncResponse_ac0baafa13> = .init(id: "route.memory-sync.response", schema: RemoteSchemas.schema_ac0baafa13683390)
+}
+
+public extension RemoteRootCodecs {
+  static let routeU2EMetricsU2EResponse: RemoteRootCodec<RoutemetricsResponse_e9b9e3e75f> = .init(id: "route.metrics.response", schema: RemoteSchemas.schema_e9b9e3e75ffe2b01)
 }
 
 public extension RemoteRootCodecs {

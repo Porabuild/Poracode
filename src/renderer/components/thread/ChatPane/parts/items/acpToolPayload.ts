@@ -11,7 +11,11 @@
  * fields lack extra body details and that's fine.
  */
 
-import { buildLineUnifiedDiff, countLineChangeStats } from "@/shared/lineUnifiedDiff";
+import {
+  buildLineUnifiedDiff,
+  countLineChangeStats,
+  readLineCountDiffSummary,
+} from "@/shared/lineUnifiedDiff";
 import {
   emptyToolTextPart as emptyPart,
   isUnifiedDiffText as isUnifiedDiff,
@@ -190,8 +194,31 @@ export function extractAcpDiffResultPart(payload: unknown): ExtractedPart {
   }
   const resultPart = extractAcpResultPart(payload);
   if (resultPart.language === "diff") return resultPart;
+  const resultDiff = extractResultObjectDiff(payload);
+  if (resultDiff) return { text: resultDiff, language: "diff" };
+  if (resultPart.text && hasUnifiedDiffHunk(resultPart.text)) {
+    return {
+      text: ensureUnifiedDiffHeaders(resultPart.text, readDiffTargetPath(payload)),
+      language: "diff",
+    };
+  }
   const synthesized = synthesizeEditDiff(payload);
   return synthesized ? { text: synthesized, language: "diff" } : emptyPart();
+}
+
+/** Reconstruct the created file body from apply_patch add-file sections or create args (`content` / `fileText`). */
+export function extractAcpCreateContent(payload: unknown): string | undefined {
+  if (!payload || typeof payload !== "object") return undefined;
+  const path = readPayloadString(payload, "path");
+  if (path) {
+    const patchContent = extractAcpAddedFileText(payload, path);
+    if (patchContent !== undefined) return patchContent;
+  }
+  const args = (payload as Record<string, unknown>).args;
+  if (!args || typeof args !== "object" || Array.isArray(args)) return undefined;
+  const record = args as Record<string, unknown>;
+  const content = readString(record.content) ?? readString(record.fileText);
+  return content !== undefined && content.length > 0 ? content : undefined;
 }
 
 /** Reconstruct the added file body from an apply_patch add-file section. */
@@ -240,7 +267,11 @@ export function extractAcpDiffSummary(
   const changesSummary = summarizeStructuredFileChanges(payload);
   if (changesSummary) return changesSummary;
   const diffPart = precomputedDiffPart ?? extractAcpDiffResultPart(payload);
-  return diffPart.text ? summarizeDiffText(diffPart.text) : undefined;
+  if (diffPart.text) {
+    const summary = summarizeDiffText(diffPart.text);
+    if (summary) return summary;
+  }
+  return readResultLineCountSummary(payload);
 }
 
 /** Back-compat: text-only accessors for callers that don't need the language. */
@@ -265,25 +296,48 @@ function synthesizeEditDiff(payload: unknown): string | undefined {
   const args = p.args;
   if (!args || typeof args !== "object" || Array.isArray(args)) return undefined;
   const a = args as Record<string, unknown>;
-  const oldText = readString(a.oldString) ?? readString(a.old_string);
-  const newText = readString(a.newString) ?? readString(a.new_string);
-  if (oldText === undefined || newText === undefined) return undefined;
-  const path = readString(a.filePath) ?? readString(a.file_path) ?? readString(p.path);
+  const path =
+    readString(a.filePath) ?? readString(a.file_path) ?? readString(a.path) ?? readString(p.path);
   if (!path) return undefined;
 
-  const oldLines = splitPatchLines(oldText);
-  const newLines = splitPatchLines(newText);
-  const oldRange = formatRange(oldLines.length, oldLines.length === 0 ? 0 : 1);
-  const newRange = formatRange(newLines.length, newLines.length === 0 ? 0 : 1);
-  return [
-    `diff --git a/${path} b/${path}`,
-    `--- a/${path}`,
-    `+++ b/${path}`,
-    `@@ -${oldRange} +${newRange} @@`,
-    ...oldLines.map((line) => `-${line}`),
-    ...newLines.map((line) => `+${line}`),
-    "",
-  ].join("\n");
+  const oldText = readString(a.oldString) ?? readString(a.old_string);
+  const newText = readString(a.newString) ?? readString(a.new_string);
+  if (oldText !== undefined && newText !== undefined) {
+    const oldLines = splitPatchLines(oldText);
+    const newLines = splitPatchLines(newText);
+    const oldRange = formatRange(oldLines.length, oldLines.length === 0 ? 0 : 1);
+    const newRange = formatRange(newLines.length, newLines.length === 0 ? 0 : 1);
+    return [
+      `diff --git a/${path} b/${path}`,
+      `--- a/${path}`,
+      `+++ b/${path}`,
+      `@@ -${oldRange} +${newRange} @@`,
+      ...oldLines.map((line) => `-${line}`),
+      ...newLines.map((line) => `+${line}`),
+      "",
+    ].join("\n");
+  }
+
+  const lineOld = readString(a.oldText) ?? readString(a.old_text);
+  const lineNew = readString(a.newText) ?? readString(a.new_text);
+  if (lineOld !== undefined && lineNew !== undefined && lineOld !== lineNew) {
+    return buildLineUnifiedDiff(path, lineOld, lineNew);
+  }
+
+  if (Array.isArray(a.edits) && a.edits.length > 0) {
+    const parts: string[] = [];
+    for (const entry of a.edits) {
+      if (!entry || typeof entry !== "object") continue;
+      const e = entry as Record<string, unknown>;
+      const editOld = readString(e.oldText) ?? readString(e.oldString) ?? readString(e.old_string);
+      const editNew = readString(e.newText) ?? readString(e.newString) ?? readString(e.new_string);
+      if (editOld === undefined || editNew === undefined || editOld === editNew) continue;
+      parts.push(buildLineUnifiedDiff(path, editOld, editNew).trimEnd());
+    }
+    if (parts.length > 0) return `${parts.join("\n")}\n`;
+  }
+
+  return undefined;
 }
 
 function synthesizeCreateContentDiff(payload: unknown): string | undefined {
@@ -296,6 +350,55 @@ function synthesizeCreateContentDiff(payload: unknown): string | undefined {
     readPayloadString(payload, "path");
   if (!path) return undefined;
   return buildLineUnifiedDiff(path, "", content);
+}
+
+function readDiffTargetPath(payload: unknown): string | undefined {
+  return (
+    readPayloadString(payload, "path") ??
+    readAcpStringField(payload, "filePath") ??
+    readAcpStringField(payload, "file_path") ??
+    readAcpStringField(payload, "path")
+  );
+}
+
+function extractResultObjectDiff(payload: unknown): string | undefined {
+  if (!payload || typeof payload !== "object") return undefined;
+  const p = payload as Record<string, unknown>;
+  const result = p.result;
+  if (!result || typeof result !== "object" || Array.isArray(result)) return undefined;
+  const r = result as Record<string, unknown>;
+  for (const key of ["diffString", "diff_string", "unifiedDiff", "unified_diff", "diff", "patch"]) {
+    const candidate = readString(r[key]);
+    if (!candidate || !candidate.trim()) continue;
+    if (isUnifiedDiff(candidate)) return candidate;
+    if (hasUnifiedDiffHunk(candidate) || summarizeDiffText(candidate)) {
+      return ensureUnifiedDiffHeaders(candidate, readDiffTargetPath(payload));
+    }
+  }
+  return undefined;
+}
+
+function hasUnifiedDiffHunk(text: string): boolean {
+  return /^@@ -\d+(?:,\d+)? \+\d+(?:,\d+)? @@/m.test(text);
+}
+
+function ensureUnifiedDiffHeaders(diff: string, filePath: string | undefined): string {
+  if (isUnifiedDiff(diff) || !filePath) return diff;
+  const body = extractUnifiedDiffBody(diff).trimEnd();
+  return [
+    `diff --git a/${filePath} b/${filePath}`,
+    `--- a/${filePath}`,
+    `+++ b/${filePath}`,
+    body,
+    "",
+  ].join("\n");
+}
+
+function readResultLineCountSummary(payload: unknown): DiffSummary | undefined {
+  if (!payload || typeof payload !== "object") return undefined;
+  const p = payload as Record<string, unknown>;
+  if (p.status === "error") return undefined;
+  return readLineCountDiffSummary(p.result);
 }
 
 interface StructuredFileChange {
@@ -416,7 +519,12 @@ function readApplyPatchText(payload: unknown): string | undefined {
   if (typeof args === "string") return args;
   if (!args || typeof args !== "object" || Array.isArray(args)) return undefined;
   const record = args as Record<string, unknown>;
-  const value = record.patchText ?? record.patch_text ?? record.patch;
+  const value =
+    record.patchText ??
+    record.patch_text ??
+    record.patch ??
+    record.patchContent ??
+    record.patch_content;
   return typeof value === "string" && value.length > 0 ? value : undefined;
 }
 
@@ -558,7 +666,8 @@ function readCreateContent(payload: unknown): string | undefined {
   const toolName = (readString(record.name) ?? "").toLowerCase();
   const args = record.args;
   if (!args || typeof args !== "object" || Array.isArray(args)) return undefined;
-  const content = readString((args as Record<string, unknown>).content);
+  const argsRecord = args as Record<string, unknown>;
+  const content = readString(argsRecord.content) ?? readString(argsRecord.fileText);
   if (content === undefined) return undefined;
   return changeKind === "create" || toolName === "write" ? content : undefined;
 }

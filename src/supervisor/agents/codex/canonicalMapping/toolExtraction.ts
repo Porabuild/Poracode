@@ -10,6 +10,7 @@ import { readFileSync, statSync } from "node:fs";
 import { extname } from "node:path";
 import type { CanonicalItemType, CommandAction } from "@/shared/contracts";
 import { extractLeadingPath } from "@/shared/extractLeadingPath";
+import { isPoracodeAttachmentPath } from "@/shared/inlineImagePayload";
 import { toWslUncPath } from "@/shared/wsl";
 import { inferFileChangeKindFromSource } from "../../fileChangeKind";
 import { canonicalTypeFor } from "../canonicalMappingState";
@@ -241,6 +242,7 @@ export function readCodexImageViewDataUrl(
   let imagePath: string | undefined;
   if (source.type === "imageView") {
     imagePath = readNonEmptyString(source.path);
+    if (imagePath && isPoracodeAttachmentPath(imagePath)) return undefined;
   } else if (
     source.type === "imageGeneration" &&
     (typeof source.result !== "string" || source.result.length === 0)

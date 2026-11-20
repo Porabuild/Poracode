@@ -366,7 +366,7 @@ const FIELD_ORDER: FieldDef[] = [
   { name: "surfaceSecondary", comment: "--surface-secondary" },
   { name: "surfaceTertiary", comment: "--surface-tertiary" },
   { name: "overlay", comment: "--overlay" },
-  { name: "listRow", comment: "--m-list-row-surface (compact)" },
+  { name: "listRow", comment: "--content-surface-fill" },
   { name: "glass", comment: "--m-glass-surface (compact, non-iOS alpha 80%)" },
   { name: "composerSurface", comment: "--composer-surface" },
   { name: "default", comment: "--default" },
@@ -507,11 +507,7 @@ function buildColors(presetId: string, mode: "light" | "dark"): Map<string, Rgba
   out.set("separator", g("--separator"));
 
   // Compact-layout derived surfaces.
-  // --m-list-row-surface: light -> #fff (all light compact); dark default -> #1c1c1e;
-  // dark non-default -> color-mix(--foreground 14%, transparent).
-  if (mode === "light") out.set("listRow", parseHex("#ffffff"));
-  else if (isDefault) out.set("listRow", parseHex("#1c1c1e"));
-  else out.set("listRow", fade(fg, 14));
+  out.set("listRow", g("--content-surface-fill"));
   // --m-glass-surface = color-mix(--composer-surface 80%, transparent) for the
   // non-iOS compact target Android matches; dark default -> #1c1c1e override.
   if (isDefault && mode === "dark") out.set("glass", parseHex("#1c1c1e"));

@@ -3,17 +3,21 @@
   "contract": "poracode.remote",
   "protocolVersion": 14,
   "bindingFormatVersion": 2,
-  "manifestHash": "sha256:0532350c304568eb166c9a3e851797c1c2c6222ada9a61edb9854ea2ef178544",
-  "keyCount": 351,
+  "manifestHash": "sha256:9a015c6f0cb7b1decdaf26b44f4a8e9b71a10bdebded3bf004a8f60bd187343b",
+  "keyCount": 361,
   "counts": {
-    "route": 122,
-    "procedure": 173,
+    "route": 126,
+    "procedure": 179,
     "ws-client": 11,
     "ws-server": 12,
     "replay": 17,
     "runtime": 16
   },
   "operations": {
+    "procedure:authenticateAcpAgent": {
+      "kind": "procedure",
+      "id": "authenticateAcpAgent"
+    },
     "procedure:beginMcpServerOauth": {
       "kind": "procedure",
       "id": "beginMcpServerOauth"
@@ -518,6 +522,10 @@
       "kind": "procedure",
       "id": "importSkills"
     },
+    "procedure:installAcpRegistryAgent": {
+      "kind": "procedure",
+      "id": "installAcpRegistryAgent"
+    },
     "procedure:installMarketplaceSkill": {
       "kind": "procedure",
       "id": "installMarketplaceSkill"
@@ -549,6 +557,10 @@
     "procedure:listThreadSessionActions": {
       "kind": "procedure",
       "id": "listThreadSessionActions"
+    },
+    "procedure:logoutAcpAgent": {
+      "kind": "procedure",
+      "id": "logoutAcpAgent"
     },
     "procedure:lspStart": {
       "kind": "procedure",
@@ -610,6 +622,10 @@
       "kind": "procedure",
       "id": "relocateProject"
     },
+    "procedure:removeAcpRegistryAgent": {
+      "kind": "procedure",
+      "id": "removeAcpRegistryAgent"
+    },
     "procedure:removeQueuedThreadFollowUp": {
       "kind": "procedure",
       "id": "removeQueuedThreadFollowUp"
@@ -621,6 +637,10 @@
     "procedure:reorderQueuedThreadFollowUp": {
       "kind": "procedure",
       "id": "reorderQueuedThreadFollowUp"
+    },
+    "procedure:resolveAgentAccount": {
+      "kind": "procedure",
+      "id": "resolveAgentAccount"
     },
     "procedure:resolveLinkMetadata": {
       "kind": "procedure",
@@ -653,6 +673,10 @@
     "procedure:searchProjectTree": {
       "kind": "procedure",
       "id": "searchProjectTree"
+    },
+    "procedure:setAcpRegistryAgentAuth": {
+      "kind": "procedure",
+      "id": "setAcpRegistryAgentAuth"
     },
     "procedure:setSkillEnabled": {
       "kind": "procedure",
@@ -810,9 +834,17 @@
       "kind": "route",
       "id": "device-action"
     },
+    "route:device-adopt-session": {
+      "kind": "route",
+      "id": "device-adopt-session"
+    },
     "route:device-attach": {
       "kind": "route",
       "id": "device-attach"
+    },
+    "route:device-create-duo": {
+      "kind": "route",
+      "id": "device-create-duo"
     },
     "route:device-detach": {
       "kind": "route",
@@ -1005,6 +1037,14 @@
     "route:mcp-settings-read": {
       "kind": "route",
       "id": "mcp-settings-read"
+    },
+    "route:memory-catalog": {
+      "kind": "route",
+      "id": "memory-catalog"
+    },
+    "route:memory-sync": {
+      "kind": "route",
+      "id": "memory-sync"
     },
     "route:metrics": {
       "kind": "route",

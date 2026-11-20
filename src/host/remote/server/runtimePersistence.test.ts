@@ -11,6 +11,7 @@ import { closeDatabase, getSqlite, initDatabase } from "@/host/db/connection";
 import {
   dbGetThread,
   dbMarkLiveThreadsInactive,
+  dbTouchThreadUpdatedAt,
   dbUpsertProject,
   dbUpsertThread,
 } from "@/host/db/projectsThreads";
@@ -28,7 +29,7 @@ import {
   armRuntimeThreadForLaunch,
   barrierRuntimeWrites,
 } from "@/host/db/runtimePersistenceRuntime";
-import { withPendingInterruptedTurn } from "./pendingInterruptedTurns";
+import { withPendingInterruptedTurn, withPendingThreadActivity } from "./pendingInterruptedTurns";
 import { persistSupervisorEvent, resetDeferredThreadResetsForTests } from "./runtimePersistence";
 
 const THREAD_ID = "thread-1";
@@ -252,6 +253,44 @@ describe.skipIf(!sqliteAvailable)("persistSupervisorEvent failure contract", () 
       expect(dbGetThread(THREAD_ID)).toMatchObject({ status: "idle" });
       expect(dbGetThread(THREAD_ID)?.interruptedTurn).toBe(stored);
       expect(withPendingInterruptedTurn(dbGetThread(THREAD_ID)!)).toEqual(dbGetThread(THREAD_ID));
+    },
+  );
+
+  it.each([false, true])("keeps a specific error through a rebroadcast (Stop=%s)", async (stop) => {
+    vi.useFakeTimers();
+    const state = {
+      type: "thread-state",
+      threadId: THREAD_ID,
+      status: "error",
+      attention: "error",
+      canResumeWithConfig: true,
+    } as const;
+    persistSupervisorEvent({ ...state, errorMessage: "Weekly quota exhausted." });
+    persistSupervisorEvent({ ...state, ...(stop ? { turnStopRequested: true } : {}) });
+    await vi.advanceTimersByTimeAsync(10);
+    expect(dbGetThread(THREAD_ID)?.errorMessage).toBe("Weekly quota exhausted.");
+  });
+
+  it.each([false, true])(
+    "does not revive an earlier error after a retry (Stop=%s)",
+    async (stop) => {
+      vi.useFakeTimers();
+      dbUpsertThread({ ...testThread(), status: "error", errorMessage: "Previous failure" }, 0);
+      const state = {
+        type: "thread-state",
+        threadId: THREAD_ID,
+        attention: "none",
+        canResumeWithConfig: true,
+      } as const;
+      persistSupervisorEvent({ ...state, status: "working" });
+      persistSupervisorEvent({
+        ...state,
+        status: "error",
+        ...(stop ? { turnStopRequested: true } : {}),
+      });
+      await vi.advanceTimersByTimeAsync(10);
+      expect(dbGetThread(THREAD_ID)).toMatchObject({ status: "error" });
+      expect(dbGetThread(THREAD_ID)).not.toHaveProperty("errorMessage");
     },
   );
 
@@ -529,5 +568,72 @@ describe.skipIf(!sqliteAvailable)("persistSupervisorEvent failure contract", () 
     dbUpsertThread({ ...testThread(), id: threadId }, 1);
     await vi.advanceTimersByTimeAsync(10);
     expect(dbGetThread(threadId)).toMatchObject({ status: "idle", canResumeWithConfig: true });
+  });
+
+  it("retains authoritative updatedAt across coalesced working-to-idle states and pre-flush reads", async () => {
+    vi.useFakeTimers();
+    const initialUpdatedAt = "2026-10-07T10:00:00.000Z";
+    dbUpsertThread({ ...testThread(), status: "idle", updatedAt: initialUpdatedAt }, 0);
+    vi.setSystemTime(new Date("2026-10-07T10:05:00.000Z"));
+    const workingOutcome = persistSupervisorEvent({
+      type: "thread-state",
+      threadId: THREAD_ID,
+      agentKind: testThread().agentKind,
+      status: "working",
+      attention: "working",
+      canResumeWithConfig: true,
+    });
+    expect(workingOutcome).toMatchObject({
+      kind: "publish",
+      event: { status: "working", updatedAt: "2026-10-07T10:05:00.000Z" },
+    });
+    expect(withPendingThreadActivity(dbGetThread(THREAD_ID)!)).toMatchObject({
+      status: "working",
+      updatedAt: "2026-10-07T10:05:00.000Z",
+    });
+
+    // A quick completion arrives before the control queue flushes, replacing the queued op.
+    vi.setSystemTime(new Date("2026-10-07T10:05:00.200Z"));
+    persistSupervisorEvent({
+      type: "thread-state",
+      threadId: THREAD_ID,
+      agentKind: testThread().agentKind,
+      status: "idle",
+      attention: "none",
+      canResumeWithConfig: true,
+    });
+    expect(withPendingThreadActivity(dbGetThread(THREAD_ID)!)).toMatchObject({
+      status: "idle",
+      updatedAt: "2026-10-07T10:05:00.000Z",
+    });
+
+    await vi.advanceTimersByTimeAsync(10);
+    expect(dbGetThread(THREAD_ID)).toMatchObject({
+      status: "idle",
+      updatedAt: "2026-10-07T10:05:00.000Z",
+    });
+  });
+
+  it("advances updated_at monotonically via dbTouchThreadUpdatedAt without regression from queued state", async () => {
+    vi.useFakeTimers();
+    dbUpsertThread(
+      { ...testThread(), status: "working", updatedAt: "2026-10-07T10:05:00.000Z" },
+      0,
+    );
+    expect(dbTouchThreadUpdatedAt(THREAD_ID, "2026-10-07T10:04:00.000Z")).toBe(false);
+    expect(dbTouchThreadUpdatedAt(THREAD_ID, "2026-10-07T10:06:00.000Z")).toBe(true);
+    expect(dbGetThread(THREAD_ID)?.updatedAt).toBe("2026-10-07T10:06:00.000Z");
+
+    vi.setSystemTime(new Date("2026-10-07T10:05:30.000Z"));
+    persistSupervisorEvent({
+      type: "thread-state",
+      threadId: THREAD_ID,
+      agentKind: testThread().agentKind,
+      status: "idle",
+      attention: "none",
+      canResumeWithConfig: true,
+    });
+    await vi.advanceTimersByTimeAsync(10);
+    expect(dbGetThread(THREAD_ID)?.updatedAt).toBe("2026-10-07T10:06:00.000Z");
   });
 });

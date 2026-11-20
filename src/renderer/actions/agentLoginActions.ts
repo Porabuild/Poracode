@@ -95,7 +95,10 @@ export function runAgentLoginCommand(input: {
   });
   const command =
     project.location.kind === "windows" ? `Clear-Host; ${loginCommand}` : `clear; ${loginCommand}`;
-  const stopOpeningUrls = interceptWslUrls ? watchUrlsInNativeBrowser(shellId) : undefined;
+  const remoteServerId = project.remoteServerId ?? project.location.remoteServerId;
+  const stopOpeningUrls = interceptWslUrls
+    ? watchUrlsInNativeBrowser(shellId, remoteServerId)
+    : undefined;
   const completionToken = createCompletionToken();
   const script = appendCompletionSignal(command, project, completionToken);
 
@@ -191,12 +194,8 @@ export function runAgentLoginCommand(input: {
 }
 
 /**
- * Run an agent installer inside the transient terminal overlay (the same
- * surface as {@link runAgentLoginCommand}) rather than a dev-terminal tab.
- *
- * Shows no success toast: progress is visible in the overlay, which auto-closes
- * on success and stays open on failure. Callers drive their own pending UI via
- * `onCommandComplete`.
+ * Interactive installs own the terminal overlay. Updates run independently:
+ * the initiating control owns their pending state and reports their result.
  */
 export function runAgentInstallCommand(input: {
   label: string;
@@ -217,7 +216,8 @@ export function runAgentInstallCommand(input: {
   }
 
   // Replace any active overlay session — only one terminal overlay at a time.
-  const previous = useLoginTerminalStore.getState().active;
+  const background = input.purpose === "update";
+  const previous = !background && useLoginTerminalStore.getState().active;
   if (previous) {
     previous.onForceClose?.();
     disposeRoutedShellSession(previous.shellId);
@@ -234,6 +234,11 @@ export function runAgentInstallCommand(input: {
   });
   const completionToken = createCompletionToken();
   const script = appendCompletionSignal(command, project, completionToken);
+  const remoteServerId = project.location.remoteServerId ?? project.remoteServerId;
+  const projectLocation = remoteServerId
+    ? { ...project.location, remoteServerId }
+    : project.location;
+  let started: Promise<void> = Promise.resolve();
 
   let fired = false;
   const fireOnce = (exitCode: number) => {
@@ -247,43 +252,60 @@ export function runAgentInstallCommand(input: {
     completionToken,
     (exitCode) => {
       fireOnce(exitCode);
+      if (background) {
+        disposeRoutedShellSession(shellId);
+        void started
+          .then(() => readBridge().closeThread({ threadId: shellId }))
+          .catch(() => undefined);
+        return;
+      }
       if (exitCode === 0) {
         // Let the user read the final success line before the overlay slides away.
-        window.setTimeout(() => useLoginTerminalStore.getState().close(), 1200);
+        window.setTimeout(() => {
+          if (useLoginTerminalStore.getState().active?.shellId === shellId)
+            useLoginTerminalStore.getState().close();
+        }, 1200);
       } else {
         useLoginTerminalStore.getState().markFailed(shellId, exitCode);
       }
     },
-    project.remoteServerId,
+    remoteServerId,
+    { reportMissingCompletion: true },
   );
 
-  useLoginTerminalStore.getState().open({
-    shellId,
-    label: input.label,
-    projectLocation: project.location,
-    purpose: input.purpose ?? "install",
-    onForceClose: () => {
-      stopWatching();
-      fireOnce(-1);
-    },
-  });
+  if (!background) {
+    useLoginTerminalStore.getState().open({
+      shellId,
+      label: input.label,
+      projectLocation,
+      purpose: "install",
+      onForceClose: () => {
+        stopWatching();
+        fireOnce(-1);
+      },
+    });
+  }
 
-  void startShellWithCurrentSettings({
+  writeScriptToShell(shellId, script, remoteServerId);
+  started = startShellWithCurrentSettings({
     // Installers shouldn't run inside the (possibly ephemeral) project
     // worktree — launch the shell in the user's home directory instead.
     shellId,
-    projectLocation: project.location,
+    projectLocation,
     startInHome: true,
     ...(project.location.kind === "windows" ? { windowsShellRuntime: "powershell" as const } : {}),
-  }).catch((error) => {
+  });
+  void started.catch((error) => {
     stopWatching();
+    disposeRoutedShellSession(shellId);
     fireOnce(-1);
+    if (background) return;
+    if (useLoginTerminalStore.getState().active?.shellId !== shellId) return;
     toast.danger(
       error instanceof Error ? error.message : i18n._(msg`Unable to install ${input.label}.`),
     );
     useLoginTerminalStore.getState().close();
   });
-  writeScriptToShell(shellId, script, project.remoteServerId);
   return true;
 }
 
@@ -380,7 +402,10 @@ function isLoopbackUrl(text: string): boolean {
   }
 }
 
-function watchUrlsInNativeBrowser(shellId: string): (flushPending?: boolean) => void {
+function watchUrlsInNativeBrowser(
+  shellId: string,
+  remoteServerId?: string,
+): (flushPending?: boolean) => void {
   let buffer = "";
   let done = false;
   let flushTimer = 0;
@@ -421,11 +446,27 @@ function watchUrlsInNativeBrowser(shellId: string): (flushPending?: boolean) => 
     unsubscribe();
   }, 10 * 60_000);
 
-  unsubscribe = readBridge().onSupervisorEvent((event) => {
-    if (done || event.type !== "thread-output" || event.threadId !== shellId) return;
-    buffer = `${buffer}${stripAnsi(event.data).replace(/\r\n?/gu, "\n")}`.slice(-8192);
+  const consumeOutput = (data: string) => {
+    if (done) return;
+    buffer = `${buffer}${stripAnsi(data).replace(/\r\n?/gu, "\n")}`.slice(-8192);
     scheduleFlush();
-  });
+  };
+
+  unsubscribe = remoteServerId
+    ? watchRoutedTerminal(
+        shellId,
+        {
+          onOutput: consumeOutput,
+          onSnapshot: (snapshot) => consumeOutput(snapshot.data),
+          onReset: () => undefined,
+          onExited: () => undefined,
+        },
+        remoteServerId,
+      )
+    : readBridge().onSupervisorEvent((event) => {
+        if (done || event.type !== "thread-output" || event.threadId !== shellId) return;
+        consumeOutput(event.data);
+      });
 
   return (flushPending = false) => {
     if (done) return;
@@ -460,23 +501,26 @@ function watchCommandCompletion(
   token: string,
   onCommandComplete: (exitCode: number) => void,
   remoteServerId?: string,
+  options: { reportMissingCompletion?: boolean } = {},
 ): () => void {
   const parser = new CommandCompletionParser(completionMarker(token));
   let done = false;
   let unsubscribe: () => void = () => undefined;
-  const timeout = window.setTimeout(() => {
+  const finish = (exitCode?: number) => {
     if (done) return;
     done = true;
+    window.clearTimeout(timeout);
     unsubscribe();
-  }, 10 * 60_000);
+    if (exitCode !== undefined || options.reportMissingCompletion) {
+      onCommandComplete(exitCode ?? -1);
+    }
+  };
+  const timeout = window.setTimeout(() => finish(), 10 * 60_000);
   const consume = (output: string, replace = false) => {
     if (done) return;
     const exitCode = replace ? parser.replace(output) : parser.push(output);
     if (exitCode === null) return;
-    done = true;
-    window.clearTimeout(timeout);
-    unsubscribe();
-    onCommandComplete(exitCode);
+    finish(exitCode);
   };
   unsubscribe = watchRoutedTerminal(
     shellId,
@@ -484,12 +528,7 @@ function watchCommandCompletion(
       onOutput: (output) => consume(output),
       onSnapshot: (snapshot) => consume(snapshot.data, true),
       onReset: () => parser.reset(),
-      onExited: () => {
-        if (done) return;
-        done = true;
-        window.clearTimeout(timeout);
-        unsubscribe();
-      },
+      onExited: () => finish(),
     },
     remoteServerId,
   );

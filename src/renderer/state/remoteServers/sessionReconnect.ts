@@ -8,6 +8,7 @@ import { toast } from "@heroui/react";
 import { friendlyError, msg as sharedMsg } from "@/shared/messages";
 import { RemoteClientError } from "@/shared/remote/client";
 import { REMOTE_BROWSER_FORWARD_VERSION } from "@/shared/remote/protocol";
+import { REMOTE_MEMORY_CATALOG_VERSION } from "@/shared/memory";
 import {
   environmentAdvertisesRuntimeHistoryNotices,
   forgetRuntimeHistoryNoticesCapability,
@@ -157,15 +158,19 @@ export function closeAllRemoteServerEventSockets(): void {
   }
 }
 
-/** In-flight connectAll(), so concurrent callers coalesce onto one pass. */
-let connectAllInFlight: Promise<void> | null = null;
-let connectAllInFlightForce = false;
-let connectAllForceRequested = false;
+/** Coalesced per-connection reconnect passes so one offline host never stalls others. */
+interface InFlightConnectionAttempt {
+  readonly promise: Promise<void>;
+  readonly force: boolean;
+}
+let hydrationInFlight: Promise<void> | null = null;
+const connectInFlightByKey = new Map<string, InFlightConnectionAttempt>();
+const connectSeqByKey = new Map<string, number>();
 
 export function __resetConnectAllForTest(): void {
-  connectAllInFlight = null;
-  connectAllInFlightForce = false;
-  connectAllForceRequested = false;
+  hydrationInFlight = null;
+  connectInFlightByKey.clear();
+  connectSeqByKey.clear();
 }
 
 export interface SessionReconnectActionDeps extends RemoteServersStoreApi {
@@ -365,6 +370,10 @@ export function createSessionReconnectActions(deps: SessionReconnectActionDeps) 
           environment.capabilities?.browserForward?.versions.includes(
             REMOTE_BROWSER_FORWARD_VERSION,
           ) ?? false,
+        memoryCatalogAvailable:
+          environment.capabilities?.memoryCatalog?.versions.includes(
+            REMOTE_MEMORY_CATALOG_VERSION,
+          ) ?? false,
         ...(environment.platform ? { platform: environment.platform } : {}),
         ...(environment.hostMode ? { hostMode: environment.hostMode } : {}),
       };
@@ -421,8 +430,14 @@ export function createSessionReconnectActions(deps: SessionReconnectActionDeps) 
     );
     if (!current) return;
     server = current;
-    await startRemoteServerEventStream(server, initialTerminalCapabilities, options);
-    checkHostUpdateInBackground(server);
+    const statusAfterRefresh = get().runtime[connectionKey]?.status;
+    await startRemoteServerEventStream(server, initialTerminalCapabilities, {
+      ...options,
+      ...(statusAfterRefresh === "offline" ? { deferInitialConnect: true } : {}),
+    });
+    if (statusAfterRefresh === "online") {
+      checkHostUpdateInBackground(server);
+    }
   };
 
   const reconnectAfterHostUpdate = async (
@@ -489,59 +504,65 @@ export function createSessionReconnectActions(deps: SessionReconnectActionDeps) 
     });
   };
 
+  const connectServerEntry = (
+    connectionKey: string,
+    forceTransportReconnect: boolean,
+  ): Promise<void> => {
+    const existing = connectInFlightByKey.get(connectionKey);
+    if (existing && (!forceTransportReconnect || existing.force)) {
+      return existing.promise;
+    }
+    const server = get().servers.find((entry) => remoteConnectionKey(entry) === connectionKey);
+    if (!server || get().hostUpdateRestarts[connectionKey] !== undefined) {
+      return Promise.resolve();
+    }
+    if (!forceTransportReconnect && isLiveConnection(server)) {
+      return Promise.resolve();
+    }
+    const seq = (connectSeqByKey.get(connectionKey) ?? 0) + 1;
+    connectSeqByKey.set(connectionKey, seq);
+    if (forceTransportReconnect) {
+      // Requests from before the network change can linger until their deadlines.
+      // Fence their snapshots before starting the replacement connection.
+      invalidateRemoteServerRefresh(connectionKey);
+      closeRemoteServerEventSocket(connectionKey, { preserveReplayState: true });
+    }
+    setServersConnecting([server]);
+    const attempt: InFlightConnectionAttempt = {
+      force: forceTransportReconnect,
+      promise: connectServer(
+        server,
+        () => connectSeqByKey.get(connectionKey) === seq,
+        forceTransportReconnect ? { resyncInterestedThreads: true } : undefined,
+      ).finally(() => {
+        if (connectInFlightByKey.get(connectionKey) === attempt) {
+          connectInFlightByKey.delete(connectionKey);
+        }
+      }),
+    };
+    connectInFlightByKey.set(connectionKey, attempt);
+    return attempt.promise;
+  };
+
   return {
     connectAll: async (options: { readonly forceTransportReconnect?: boolean } = {}) => {
-      // Coalesce concurrent callers (the sidebar and the settings panel both
-      // connect on mount) so servers aren't snapshotted twice on startup.
-      if (connectAllInFlight) {
-        if (options.forceTransportReconnect && !connectAllInFlightForce) {
-          connectAllForceRequested = true;
+      // The secure browser vault hydrates asynchronously. Sidebar mount
+      // can otherwise observe the empty initial state, finish a no-op
+      // connection pass, and never reconnect the restored servers.
+      if (!persistHasHydrated()) {
+        if (!hydrationInFlight) {
+          hydrationInFlight = persistRehydrate().finally(() => {
+            hydrationInFlight = null;
+          });
         }
-        return connectAllInFlight;
+        await hydrationInFlight;
       }
-      connectAllInFlight = (async () => {
-        // The secure browser vault hydrates asynchronously. Sidebar mount
-        // can otherwise observe the empty initial state, finish a no-op
-        // connection pass, and never reconnect the restored servers.
-        if (!persistHasHydrated()) {
-          await persistRehydrate();
-        }
-        const connectPass = async (forceTransportReconnect: boolean): Promise<void> => {
-          connectAllInFlightForce = forceTransportReconnect;
-          const servers = get().servers.filter(
-            (server) =>
-              get().hostUpdateRestarts[remoteConnectionKey(server)] === undefined &&
-              (forceTransportReconnect || !isLiveConnection(server)),
-          );
-          if (forceTransportReconnect) {
-            for (const server of servers) {
-              closeRemoteServerEventSocket(remoteConnectionKey(server), {
-                preserveReplayState: true,
-              });
-            }
-          }
-          setServersConnecting(servers);
-          await Promise.all(
-            servers.map((server) =>
-              connectServer(
-                server,
-                () => true,
-                forceTransportReconnect ? { resyncInterestedThreads: true } : undefined,
-              ),
-            ),
-          );
-        };
-        await connectPass(options.forceTransportReconnect === true);
-        if (connectAllForceRequested) {
-          connectAllForceRequested = false;
-          await connectPass(true);
-        }
-      })().finally(() => {
-        connectAllInFlight = null;
-        connectAllInFlightForce = false;
-        connectAllForceRequested = false;
-      });
-      return connectAllInFlight;
+      const forceTransportReconnect = options.forceTransportReconnect === true;
+      await Promise.all(
+        get().servers.map((server) =>
+          connectServerEntry(remoteConnectionKey(server), forceTransportReconnect),
+        ),
+      );
     },
 
     verifyConnections: async () => {
@@ -558,9 +579,9 @@ export function createSessionReconnectActions(deps: SessionReconnectActionDeps) 
       if (get().hostUpdateRestarts[connectionKey] !== undefined) return;
       const server = get().servers.find((entry) => remoteConnectionKey(entry) === connectionKey);
       if (!server) return;
-      closeRemoteServerEventSocket(connectionKey, { preserveReplayState: true });
-      setServersConnecting([server]);
-      await connectServer(server, undefined, { resyncInterestedThreads: true });
+      connectSeqByKey.set(connectionKey, (connectSeqByKey.get(connectionKey) ?? 0) + 1);
+      connectInFlightByKey.delete(connectionKey);
+      await connectServerEntry(connectionKey, true);
     },
 
     removeServer: (
@@ -587,6 +608,8 @@ export function createSessionReconnectActions(deps: SessionReconnectActionDeps) 
       }
 
       const removeRecord = (server: RemoteServerRecord | undefined, key: string) => {
+        connectSeqByKey.set(key, (connectSeqByKey.get(key) ?? 0) + 1);
+        connectInFlightByKey.delete(key);
         disposeDirectImageSession(key);
         setRemoteHostUpdateReconnectSeq(key, nextRemoteHostUpdateSequence());
         deleteRemoteHostUpdateRequestSeq(key);
@@ -716,13 +739,26 @@ export function createSessionReconnectActions(deps: SessionReconnectActionDeps) 
       if (get().hostUpdateRestarts[connectionKey] !== undefined) return;
       const server = get().servers.find((entry) => remoteConnectionKey(entry) === connectionKey);
       const status = get().hostUpdates[connectionKey]?.status;
-      if (!server || status?.type !== "downloaded") {
-        await withClient(connectionKey, (client) => client.installHostUpdate());
-        return;
-      }
-
       const reconnectGeneration = remoteHostUpdateReconnectSeq(connectionKey);
-      await withClient(connectionKey, (client) => client.installHostUpdate());
+      try {
+        await withClient(connectionKey, (client) => client.installHostUpdate());
+      } catch (error) {
+        if (
+          error instanceof RemoteClientError &&
+          error.code === "host_update_not_ready" &&
+          remoteHostUpdateReconnectSeq(connectionKey) === reconnectGeneration
+        ) {
+          // The host rejection is authoritative; fence polls that still report
+          // the old download so they cannot bring back the install action.
+          setRemoteHostUpdateRequestSeq(connectionKey, nextRemoteHostUpdateSequence());
+          set((state) => {
+            const { [connectionKey]: _stale, ...hostUpdates } = state.hostUpdates;
+            return { hostUpdates };
+          });
+        }
+        throw error;
+      }
+      if (!server || status?.type !== "downloaded") return;
       if (remoteHostUpdateReconnectSeq(connectionKey) !== reconnectGeneration) {
         return;
       }

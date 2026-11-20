@@ -83,9 +83,7 @@ export function ActionsSection(props: { projectId: string }) {
             <div
               key={action.id}
               className={
-                compactLayout
-                  ? "group m-project-actions__card"
-                  : "group rounded-lg border border-[var(--hairline)] bg-[var(--row-hover)] p-3"
+                compactLayout ? "group m-project-actions__card" : "group content-surface p-3"
               }
             >
               <div

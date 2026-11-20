@@ -17,7 +17,9 @@ extension RemoteAPIClient: GitOperationsRemoteAPI {
       response = try await requestData(
         path: GitOperationsRemoteV3Contract.procedurePath,
         method: "POST",
-        jsonBody: body
+        jsonBody: body,
+        // Include time waiting behind other repository mutations and the host's RPC deadline.
+        timeout: request.procedure == .gitAddWorktree ? 660 : nil
       )
     } catch is CancellationError {
       throw CancellationError()

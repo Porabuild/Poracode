@@ -505,4 +505,51 @@ describe("computeProfileTokenStats (real sqlite)", () => {
       modelKey("claude:work", "claude-sonnet-4-6"),
     ]);
   });
+
+  it("populates recent token and cost period snapshots regardless of requested window", () => {
+    const now = Date.parse("2026-10-17T12:00:00Z");
+    vi.spyOn(Date, "now").mockReturnValue(now);
+    const day = 86_400_000;
+    const cat = { input: 1_000, output: 500, cacheRead: 2_500, cacheWrite: 0 };
+    const estimate = historicalTokenEstimate("claude-sonnet-4-6", cat, now)!;
+
+    dbAppendUsageEvents([
+      // 10 days ago -> prev7d + last30d
+      { ts: now - 10 * day, kind: "tokens_v2", provider: "codex", model: "m-old", value: 9_000 },
+      // yesterday -> yesterday + last7d + last30d
+      {
+        ts: now - day,
+        kind: "tokens_v2",
+        provider: "claude",
+        model: "claude-sonnet-4-6",
+        value: 4_000,
+        costDetails: {
+          version: 1,
+          model: "claude-sonnet-4-6",
+          tokens: cat,
+          estimate,
+        },
+      },
+      // today -> today + last7d + last30d
+      { ts: now, kind: "tokens_v2", provider: "claude", model: "claude-sonnet-4-6", value: 2_000 },
+    ]);
+
+    const weekStats = computeProfileTokenStats({ utcOffsetMinutes: 0, window: "7d" });
+    expect(weekStats.recent?.today.tokens).toBe(2_000);
+    expect(weekStats.recent?.yesterday).toMatchObject({
+      tokens: 4_000,
+      inputTokens: 1_000,
+      outputTokens: 500,
+      cacheReadTokens: 2_500,
+      providers: [{ provider: "claude", tokens: 4_000, percent: 100 }],
+    });
+    expect(weekStats.recent?.yesterday.estimatedUsd).toBeGreaterThan(0);
+    expect(weekStats.recent?.last7d.tokens).toBe(6_000);
+    expect(weekStats.recent?.prev7d).toMatchObject({
+      tokens: 9_000,
+      providers: [{ provider: "codex", tokens: 9_000, percent: 100 }],
+    });
+    expect(weekStats.recent?.last30d.tokens).toBe(15_000);
+    expect(weekStats.recent?.prev30d.tokens).toBe(0);
+  });
 });

@@ -8,14 +8,19 @@ import type { RemoteAccessServer, RemoteAccessServerInfo } from "./RemoteAccessS
 export interface RemoteAccessStartAttempt {
   readonly generation: number;
   readonly promise: Promise<RemoteAccessServerInfo>;
+  readonly serverReadyPromise: Promise<RemoteAccessServerInfo>;
+  readonly resolveServerReady: (info: RemoteAccessServerInfo) => void;
+  readonly rejectServerReady: (error: unknown) => void;
   cancelled: boolean;
   server: RemoteAccessServer | null;
   serverStartPromise: Promise<RemoteAccessServerInfo> | null;
   serverDisposalPromise: Promise<void> | null;
+  previewStorePromise: Promise<void> | null;
   forwarding: PortForwarding | null;
   coordinator: PushCoordinator | null;
   tailscaleServeUrl: string | null;
   tailscaleTeardownPromise: Promise<void> | null;
+  advertisementPending: boolean;
   /**
    * True when this attempt starts the ALWAYS-ON loopback-only instance (V5
    * plan 2.5 completion): bind pinned to loopback, no advertised URL, no

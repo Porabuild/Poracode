@@ -41,6 +41,8 @@ function input(): AuthorityInput {
   });
 }
 
+// The determinism test still emits twice more. Assertions about the same
+// unmodified authority can inspect its first immutable output.
 function outputForAuthority(): NativeBindingOutput {
   const { ir, manifest } = input();
   return (authoritativeOutput ??= buildNativeBindingOutput(ir, manifest));
@@ -92,8 +94,6 @@ describe("remote v3 native binding generator", () => {
         // the optional review-thread diff side adds one field; optional async reply source IDs
         // preserve wire versions; the optional `deferBodies` history query parameter adds one
         // structural type (its literal).
-        // Optional Crossagents visibility preferences extend settings reads
-        // and sparse patches without invalidating older v14 payloads.
         // Optional response-only quota ring IDs add two structural types.
         // Optional sessionId on the token-exchange result moves the source hash only.
         // Optional crew favorites/usage and model recency move only the source hash.
@@ -114,30 +114,36 @@ describe("remote v3 native binding generator", () => {
         // Link metadata adds one read procedure, two roots and structural types.
         // Thread transfer adds two operate-scoped routes (command and raw upload)
         // with their request, query and result roots and structural types.
-        // The optional v1 host tool-presentation catalog extends environment
-        // bindings only. Canonical rows, history budgets and wire v14 stay valid.
-        // Opt-in V2 MCP headings extend the generated schema; V1 reads and wire V14 remain compatible.
-        // Opt-in V3 workflow registration hints extend schemas; V1/V2 reads and wire V14 remain compatible.
-        // Opt-in V4 workflow viewer metadata extends schemas; V1/V2/V3 and wire V14 stay compatible.
-        // Optional V5 resolved bodies extend advisory reads; V1–V4 and canonical events remain compatible.
-        // Guarded Notes adds optional revision metadata and typed save outcomes.
-        sourceHash: "sha256:037d18861ac0cf823ee899b69f4fb9317f521b45bad77e3f7235f25bbc0a4bf6",
-        manifestHash: "sha256:15b2a0f001c6f7b6b83efb5184813418a2fb7536e65907b24382383f51ab9916",
+        // Optional agent-statuses `detecting` moves only the source hash.
+        // Worktree creation adds an optional checkout-pool diagnostic and a longer client deadline.
+        // Remote agent management exposes ACP install/remove/auth/logout/account resolution.
+        // Optional period activity snapshots (`recent`) on ProfileCoreStats and ProfileTokenStats
+        // add five structural types and move only the source hash while keeping older hosts valid.
+        // Hex completion waiting adds two structural types and one Swift shard.
+        // The additive device-create-duo route and optional foldable fields
+        // regenerate both authority hashes and the native mirrors.
+        // The additive device-adopt-session route (renderer adoption of an
+        // agent-opened lease) does the same.
+        // Memory sync and catalog management are additive operator routes.
+        // Optional environment settings and MCP OAuth completion add six structural types.
+        // Guarded Notes saves add revision metadata and typed save outcomes.
+        sourceHash: "sha256:299e49b5f1da5ed8494baf0ed69a5df9f7ba493af040d9d7600a975c597aad9f",
+        manifestHash: "sha256:4c65d87f75044cd0750dbf9b6aba2f3d74ba1fdebcbd66b30b3e4d73b86bde99",
         counts: {
-          routes: 122,
-          procedures: 173,
-          voidProcedureResults: 64,
-          jsonProcedureResults: 109,
+          routes: 126,
+          procedures: 179,
+          voidProcedureResults: 66,
+          jsonProcedureResults: 113,
           webSocketClientVariants: 11,
           // 11 shared + the desktop-internal `desktop-event` frame (V5 plan 2.5).
           webSocketServerVariants: 12,
-          schemaRoots: 573,
-          structuralTypes: 1459,
+          schemaRoots: 590,
+          structuralTypes: 1515,
           semanticValidators: 25,
           // Content-defined shards (emitterCommon.shardDeclarations) average
           // ~200 lines, so a contract change rewrites only nearby files.
-          swiftFiles: 162,
-          kotlinFiles: 138,
+          swiftFiles: 167,
+          kotlinFiles: 144,
           stateMachines: 5,
         },
       });
@@ -407,7 +413,7 @@ describe("remote v3 native binding generator", () => {
       const output = outputForAuthority().files;
       for (const language of ["swift", "kotlin"] as const) {
         const adapters = rootAdapters(graph, language);
-        expect(adapters).toHaveLength(573);
+        expect(adapters).toHaveLength(590);
         expect(
           adapters
             .map((adapter) => adapter.id)

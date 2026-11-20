@@ -12,6 +12,7 @@ import {
   resolveModelSelection,
   resolveReasoningSelection,
   validateAgentModelSelection,
+  visibleModelCapabilities,
 } from "./agentSelection";
 
 const capabilities: AgentCapability = {
@@ -123,6 +124,21 @@ describe("agent selection", () => {
     expect(filterHiddenModels(withDefaults, ["current"]).models.map(({ id }) => id)).toEqual([
       "legacy",
     ]);
+  });
+
+  it("offers the unfiltered surface when hiding would leave no model selectable", () => {
+    const twoModels: AgentCapability = {
+      ...capabilities,
+      models: [
+        { id: "first", label: "First" },
+        { id: "second", label: "Second" },
+      ],
+    };
+
+    expect(visibleModelCapabilities(twoModels, ["first"]).models.map(({ id }) => id)).toEqual([
+      "second",
+    ]);
+    expect(visibleModelCapabilities(twoModels, ["first", "second"])).toBe(twoModels);
   });
 
   it("never carries a root family relation across a presentation override", () => {

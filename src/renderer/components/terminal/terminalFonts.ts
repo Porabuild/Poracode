@@ -34,6 +34,45 @@ export function applyTerminalFont(terminal: Terminal, family: string): void {
   terminal.options.fontFamily = stack;
 }
 
+let canvasFontWhitespaceChecked = false;
+
+function patchCanvasFontSetter(proto: object): void {
+  const descriptor = Object.getOwnPropertyDescriptor(proto, "font");
+  if (!descriptor?.set || !descriptor.configurable) return;
+  const originalSet = descriptor.set;
+  Object.defineProperty(proto, "font", {
+    ...descriptor,
+    set(value: string) {
+      originalSet.call(this, typeof value === "string" ? value.trimStart() : value);
+    },
+  });
+}
+
+export function ensureCanvasFontWhitespaceSupport(): void {
+  if (
+    canvasFontWhitespaceChecked ||
+    typeof document === "undefined" ||
+    typeof CanvasRenderingContext2D === "undefined"
+  ) {
+    return;
+  }
+  canvasFontWhitespaceChecked = true;
+  const ctx = document.createElement("canvas").getContext("2d");
+  if (!ctx) return;
+  ctx.font = "20px monospace";
+  if (!ctx.font.includes("20px")) return;
+  ctx.font = " normal 16px monospace";
+  if (ctx.font.includes("16px")) return;
+  patchCanvasFontSetter(CanvasRenderingContext2D.prototype);
+  if (typeof OffscreenCanvasRenderingContext2D !== "undefined") {
+    patchCanvasFontSetter(OffscreenCanvasRenderingContext2D.prototype);
+  }
+}
+
+export function resetCanvasFontWhitespaceCheckForTests(): void {
+  canvasFontWhitespaceChecked = false;
+}
+
 type LocalFontWindow = Window & {
   queryLocalFonts?: () => Promise<Array<{ family: string }>>;
 };

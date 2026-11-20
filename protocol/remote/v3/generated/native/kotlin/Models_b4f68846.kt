@@ -28,6 +28,134 @@ data class ProcedureimportSkillsResult_82088d0ad1(
 }
 
 @Serializable
+enum class ProcedureinstallAcpRegistryAgentRequestU2DTargetU2DOptionU2D1U2DKind_236d6f96ed {
+    @SerialName("native") NATIVE,
+}
+
+@Serializable
+data class ProcedureinstallAcpRegistryAgentRequestU2DTargetU2DOptionU2D1_c538d0467a(
+    @SerialName("kind") val kind: ProcedureinstallAcpRegistryAgentRequestU2DTargetU2DOptionU2D1U2DKind_236d6f96ed,
+) {
+    companion object {
+        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
+            RemoteFieldDescriptor("kind", "ProcedureinstallAcpRegistryAgentRequestU2DTargetU2DOptionU2D1U2DKind_236d6f96ed", true, false, null, null, null, null, null, null, null, null, listOf()),
+        ), listOf())
+    }
+}
+
+@Serializable(with = ProcedureinstallAcpRegistryAgentRequestU2DTarget_2583fd7992.Serializer::class)
+sealed interface ProcedureinstallAcpRegistryAgentRequestU2DTarget_2583fd7992 {
+    data class Option1(val value: ProcedureinstallAcpRegistryAgentRequestU2DTargetU2DOptionU2D1_c538d0467a) : ProcedureinstallAcpRegistryAgentRequestU2DTarget_2583fd7992
+    data class Option2(val value: ProcedureconnectThreadVoiceRequestU2DConfigU2DExecutionEnvironment_4cd2587996) : ProcedureinstallAcpRegistryAgentRequestU2DTarget_2583fd7992
+    object Serializer : KSerializer<ProcedureinstallAcpRegistryAgentRequestU2DTarget_2583fd7992> {
+        override val descriptor: SerialDescriptor = buildClassSerialDescriptor("ProcedureinstallAcpRegistryAgentRequestU2DTarget_2583fd7992")
+        override fun deserialize(decoder: Decoder): ProcedureinstallAcpRegistryAgentRequestU2DTarget_2583fd7992 {
+            val jsonDecoder = decoder as? JsonDecoder ?: throw SerializationException("ProcedureinstallAcpRegistryAgentRequestU2DTarget_2583fd7992 supports JSON only")
+            val element = jsonDecoder.decodeJsonElement()
+            val matches = mutableListOf<RemoteUnionMatch<ProcedureinstallAcpRegistryAgentRequestU2DTarget_2583fd7992>>()
+            RemoteUnionCodec.tryOption(matches, 1, RemoteUnionCodec.matchesProperty(element, "kind", listOf(JsonPrimitive("native")))) { Option1(jsonDecoder.json.decodeFromJsonElement<ProcedureinstallAcpRegistryAgentRequestU2DTargetU2DOptionU2D1_c538d0467a>(element)) }
+            RemoteUnionCodec.tryOption(matches, 2, RemoteUnionCodec.matchesProperty(element, "kind", listOf(JsonPrimitive("wsl")))) { Option2(jsonDecoder.json.decodeFromJsonElement<ProcedureconnectThreadVoiceRequestU2DConfigU2DExecutionEnvironment_4cd2587996>(element)) }
+            return RemoteUnionCodec.single("ProcedureinstallAcpRegistryAgentRequestU2DTarget_2583fd7992", matches)
+        }
+        override fun serialize(encoder: Encoder, value: ProcedureinstallAcpRegistryAgentRequestU2DTarget_2583fd7992) {
+            val jsonEncoder = encoder as? JsonEncoder ?: throw SerializationException("ProcedureinstallAcpRegistryAgentRequestU2DTarget_2583fd7992 supports JSON only")
+            val element = when (value) {
+                is Option1 -> jsonEncoder.json.encodeToJsonElement<ProcedureinstallAcpRegistryAgentRequestU2DTargetU2DOptionU2D1_c538d0467a>(value.value)
+                is Option2 -> jsonEncoder.json.encodeToJsonElement<ProcedureconnectThreadVoiceRequestU2DConfigU2DExecutionEnvironment_4cd2587996>(value.value)
+            }
+            jsonEncoder.encodeJsonElement(element)
+        }
+    }
+}
+
+@Serializable
+data class ProcedureinstallAcpRegistryAgentRequest_e484765a09(
+    @SerialName("agentId") val agentId: String,
+    @SerialName("target") val target: RemoteField<ProcedureinstallAcpRegistryAgentRequestU2DTarget_2583fd7992> = RemoteField.Missing,
+) {
+    companion object {
+        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
+            RemoteFieldDescriptor("agentId", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("target", "ProcedureinstallAcpRegistryAgentRequestU2DTarget_2583fd7992", false, false, null, null, null, null, null, null, null, null, listOf()),
+        ), listOf())
+    }
+}
+
+@Serializable
+enum class ProcedureinstallAcpRegistryAgentResultU2DInstalledU2DItemU2DInstallKind_e5d4267d1d {
+    @SerialName("first-class") FIRSTU2DCLASS,
+    @SerialName("generic") GENERIC,
+}
+
+@Serializable
+data class ProcedureinstallAcpRegistryAgentResultU2DInstalledU2DItemU2DInstallationsU2DNative_e1b186e080(
+    @SerialName("installedAt") val installedAt: ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b,
+    @SerialName("layoutVersion") val layoutVersion: RemoteField<Long> = RemoteField.Missing,
+    @SerialName("target") val target: String,
+    @SerialName("version") val version: String,
+) {
+    companion object {
+        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
+            RemoteFieldDescriptor("installedAt", "ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("layoutVersion", "Long", false, false, null, 9007199254740991.0, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("target", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("version", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
+        ), listOf())
+    }
+}
+
+typealias ProcedureinstallAcpRegistryAgentResultU2DInstalledU2DItemU2DInstallationsU2DWsl_e374b60989 = Map<String, ProcedureinstallAcpRegistryAgentResultU2DInstalledU2DItemU2DInstallationsU2DNative_e1b186e080>
+
+@Serializable
+data class ProcedureinstallAcpRegistryAgentResultU2DInstalledU2DItemU2DInstallations_9e2c34c258(
+    @SerialName("native") val native: RemoteField<ProcedureinstallAcpRegistryAgentResultU2DInstalledU2DItemU2DInstallationsU2DNative_e1b186e080> = RemoteField.Missing,
+    @SerialName("wsl") val wsl: RemoteField<ProcedureinstallAcpRegistryAgentResultU2DInstalledU2DItemU2DInstallationsU2DWsl_e374b60989> = RemoteField.Missing,
+) {
+    companion object {
+        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
+            RemoteFieldDescriptor("native", "ProcedureinstallAcpRegistryAgentResultU2DInstalledU2DItemU2DInstallationsU2DNative_e1b186e080", false, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("wsl", "ProcedureinstallAcpRegistryAgentResultU2DInstalledU2DItemU2DInstallationsU2DWsl_e374b60989", false, false, null, null, null, null, null, null, null, null, listOf()),
+        ), listOf())
+    }
+}
+
+@Serializable
+data class ProcedureinstallAcpRegistryAgentResultU2DInstalledU2DItem_76767b687c(
+    @SerialName("adapterKind") val adapterKind: String,
+    @SerialName("icon") val icon: RemoteField<ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b> = RemoteField.Missing,
+    @SerialName("id") val id: String,
+    @SerialName("installKind") val installKind: ProcedureinstallAcpRegistryAgentResultU2DInstalledU2DItemU2DInstallKind_e5d4267d1d,
+    @SerialName("installations") val installations: RemoteField<ProcedureinstallAcpRegistryAgentResultU2DInstalledU2DItemU2DInstallations_9e2c34c258> = RemoteField.Missing,
+    @SerialName("installedAt") val installedAt: String,
+    @SerialName("name") val name: String,
+    @SerialName("version") val version: String,
+) {
+    companion object {
+        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
+            RemoteFieldDescriptor("adapterKind", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("icon", "ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b", false, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("id", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("installKind", "ProcedureinstallAcpRegistryAgentResultU2DInstalledU2DItemU2DInstallKind_e5d4267d1d", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("installations", "ProcedureinstallAcpRegistryAgentResultU2DInstalledU2DItemU2DInstallations_9e2c34c258", false, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("installedAt", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("name", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("version", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
+        ), listOf())
+    }
+}
+
+@Serializable
+data class ProcedureinstallAcpRegistryAgentResult_4e9b40f602(
+    @SerialName("installed") val installed: List<ProcedureinstallAcpRegistryAgentResultU2DInstalledU2DItem_76767b687c>,
+) {
+    companion object {
+        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
+            RemoteFieldDescriptor("installed", "List<ProcedureinstallAcpRegistryAgentResultU2DInstalledU2DItem_76767b687c>", true, false, null, null, null, null, null, null, null, null, listOf()),
+        ), listOf())
+    }
+}
+
+@Serializable
 enum class ProcedureinstallMarketplaceSkillRequestU2DMarketplace_118f67a0fa {
     @SerialName("skills-sh") SKILLSU2DSH,
     @SerialName("skills-directory") SKILLSU2DDIRECTORY,

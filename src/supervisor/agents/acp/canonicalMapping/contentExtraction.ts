@@ -408,7 +408,9 @@ export function extractAcpTodoWriteSteps(
     const step =
       typeof obj.content === "string" && obj.content.trim().length > 0
         ? obj.content.trim()
-        : "Task";
+        : typeof obj.description === "string" && obj.description.trim().length > 0
+          ? obj.description.trim()
+          : "Task";
     const status =
       obj.status === "completed"
         ? "completed"

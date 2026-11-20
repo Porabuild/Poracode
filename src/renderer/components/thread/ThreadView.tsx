@@ -1,6 +1,6 @@
 import { memo, useEffect, useRef, useState } from "react";
 import { Tooltip } from "@heroui/react";
-import { ArrowRightLeft, Bug, CircleCheck, X } from "lucide-react";
+import { ArrowRightLeft, Bug, CircleCheck, PictureInPicture2, X } from "lucide-react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import type {
   AgentStatus,
@@ -18,7 +18,17 @@ import { useAppStore } from "@/renderer/state/appStore";
 import { TuxIcon } from "@/renderer/components/common/TuxIcon";
 import { isRemoteCommandOutcomeUncertainError } from "@/renderer/actions/threadCommandOutcomeActions";
 import { performInitialThreadLaunch } from "@/renderer/actions/threadLaunchActions";
-import { macosTrafficLightPadClass } from "@/renderer/components/layout/sidebarChrome";
+import {
+  macosTrafficLightGutterClass,
+  macosTrafficLightPadClass,
+  overlayHeaderStyle,
+} from "@/renderer/components/layout/sidebarChrome";
+import { hasMacWindowChrome } from "@/renderer/components/layout/windowChrome";
+import {
+  canOpenThreadWindow,
+  openThreadWindow,
+  returnThreadToMainWindow,
+} from "@/renderer/actions/threadWindowActions";
 import type { TerminalPaneHandle } from "./TerminalPane";
 import type { CheckpointRevertActions } from "./ChatPane/parts/MessageList";
 import { ContinueInProviderDialog, type ContinueIntent } from "./ContinueInProviderDialog";
@@ -88,6 +98,7 @@ function areThreadViewPropsEqual(prev: ThreadViewProps, next: ThreadViewProps): 
     prev.isWsl === next.isWsl &&
     prev.showCloseButton === next.showCloseButton &&
     prev.chatOnly === next.chatOnly &&
+    prev.surface === next.surface &&
     prev.paneAlign === next.paneAlign &&
     prev.hidden === next.hidden &&
     prev.isDragging === next.isDragging &&
@@ -120,6 +131,8 @@ export type ThreadViewProps = {
   showCloseButton?: boolean;
   /** Embedded chat clients supply their own selector header and omit workspace tools. */
   chatOnly?: boolean;
+  /** `window`: the header doubles as the title bar of the thread's own window. */
+  surface?: "main" | "window";
   paneAlign?: "left" | "center" | "right";
   isDragging?: boolean;
   /** Mounted but hidden for keep-alive. */
@@ -339,6 +352,7 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
     thread,
   ]);
 
+  const windowSurface = props.surface === "window";
   const alignClass =
     paneAlign === "right" ? "ml-auto" : paneAlign === "left" ? "mr-auto" : "mx-auto";
   const paddingClass = "px-2";
@@ -390,8 +404,12 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
           <div
             data-poracode-thread-header=""
             data-compact={compactLayout || undefined}
-            className={`poracode-thread-pane-header px-2 ${headerNeedsTrafficLightPad ? macosTrafficLightPadClass : ""}`}
+            className={`poracode-thread-pane-header px-2 ${windowSurface ? "poracode-overlay-header flex shrink-0 items-center" : ""} ${headerNeedsTrafficLightPad ? macosTrafficLightPadClass : ""}`}
+            {...(windowSurface ? { style: overlayHeaderStyle() } : {})}
           >
+            {windowSurface && hasMacWindowChrome() ? (
+              <span className={macosTrafficLightGutterClass} aria-hidden />
+            ) : null}
             <div
               className={`${dragHandleRef ? "poracode-content-over-drag-region" : "poracode-content-over-drag-region--drag"} @container ${alignClass} flex min-h-8 w-full max-w-[920px] items-center gap-2 py-1`}
             >
@@ -513,7 +531,33 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
                       <CircleCheck className="size-3.5" />
                     </ThreadActionIconButton>
                   ) : null}
-                  {awaitingWorktree ? null : (
+                  {windowSurface || canOpenThreadWindow() ? (
+                    <Tooltip delay={0}>
+                      <Tooltip.Trigger>
+                        <ThreadActionIconButton
+                          data-poracode-thread-window-toggle=""
+                          aria-label={
+                            windowSurface ? t`Move back to main window` : t`Open in new window`
+                          }
+                          className="text-muted/60 hover:text-foreground"
+                          onPress={() => {
+                            if (windowSurface) returnThreadToMainWindow(thread.id);
+                            else openThreadWindow(thread);
+                          }}
+                        >
+                          <PictureInPicture2 className="size-3.5" />
+                        </ThreadActionIconButton>
+                      </Tooltip.Trigger>
+                      <Tooltip.Content>
+                        {windowSurface ? (
+                          <Trans>Move back to main window</Trans>
+                        ) : (
+                          <Trans>Open in new window</Trans>
+                        )}
+                      </Tooltip.Content>
+                    </Tooltip>
+                  ) : null}
+                  {awaitingWorktree || windowSurface ? null : (
                     <ThreadToolRail
                       threadId={thread.id}
                       projectId={thread.projectId}

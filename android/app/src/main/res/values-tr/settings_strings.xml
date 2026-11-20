@@ -134,4 +134,16 @@
     <string name="settings_profile_tokens_by_provider">Sağlayıcıya göre tokenlar</string>
     <string name="settings_profile_tokens_by_provider_empty">Sağlayıcıya göre token kullanım verisi yok.</string>
     <string name="settings_profile_provider_cost">Tahmini maliyet</string>
+    <string name="settings_profile_trends">Son ve trendler</string>
+    <string name="settings_profile_yesterday">Dün</string>
+    <string name="settings_profile_last_7d">Son 7 gün</string>
+    <string name="settings_profile_avg_task_duration">Ort. görev süresi</string>
+    <string name="settings_profile_prompt_cache_hit">İstem önbellek isabeti</string>
+    <string name="settings_profile_weekend_share">Hafta sonu payı</string>
+    <string name="settings_profile_switched_provider">Sağlayıcı değişimi</string>
+    <string name="settings_profile_switched_model">Model değişimi</string>
+    <string name="settings_profile_provider_less">%1$s bu hafta %%%2$d azaldı</string>
+    <string name="settings_profile_provider_more">%1$s bu hafta %%%2$d arttı</string>
+    <string name="settings_profile_switched_from_to">%1$s → %2$s</string>
+    <string name="settings_profile_prompts_count">%1$s istem</string>
 </resources>

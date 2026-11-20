@@ -144,6 +144,72 @@ describe("Cursor SDK 1.0.38 isolated worker", () => {
     await harness.client.dispose();
   });
 
+  it("reports sdkVersion on initialize, streams model-call-completed, and rejects cloud queued steer outcomes on 1.4.0", async () => {
+    const source140 = sdkSource
+      .replace(
+        "async *stream() { await completion; }",
+        `async *stream() {
+          await completion;
+          yield {
+            type: "usage",
+            agent_id: this.agentId,
+            run_id: "run-1",
+            usage: { inputTokens: 100, outputTokens: 25, cacheReadTokens: 80, cacheWriteTokens: 10, totalTokens: 125 },
+          };
+        }`,
+      )
+      .replace(
+        'const waiting = ["wait", "no-steer"].includes(message);',
+        `const waiting = ["wait", "no-steer"].includes(message);
+        if (message === "delta-140") {
+          await options.onDelta?.({
+            update: {
+              type: "model-call-completed",
+              modelCallId: "mc-1",
+              usage: { inputTokens: 100, outputTokens: 25, cacheReadTokens: 80, cacheWriteTokens: 10 },
+            },
+          });
+          await options.onDelta?.({
+            update: {
+              type: "turn-ended",
+              usage: { inputTokens: 100, outputTokens: 25, cacheReadTokens: 80, cacheWriteTokens: 10 },
+            },
+          });
+        }`,
+      )
+      .replace(
+        "steer: async (text) => text",
+        'steer: async (text) => (text === "queued-cloud" ? { outcome: "queued" } : text)',
+      );
+    const harness = await createHarness(source140, "1.4.0");
+    await expect(
+      harness.client.initialize({
+        createOptions: { model: { id: "default" }, local: { cwd: harness.directory } },
+      }),
+    ).resolves.toMatchObject({
+      agentId: "agent-1",
+      sdkVersion: "1.4.0",
+    });
+
+    const events: CursorSdkWorkerEvent[] = [];
+    harness.client.onEvent((event) => events.push(event));
+    await harness.client.start({ message: "delta-140" });
+    await vi.waitFor(() => expect(events.some((event) => event.type === "result")).toBe(true));
+    expect(events).toContainEqual(
+      expect.objectContaining({
+        type: "delta",
+        update: expect.objectContaining({ type: "model-call-completed", modelCallId: "mc-1" }),
+      }),
+    );
+
+    const waitingRun = await harness.client.start({ message: "wait" });
+    await expect(harness.client.steer(waitingRun.runId, "queued-cloud")).rejects.toMatchObject({
+      code: "module_api_incompatible",
+    });
+    await harness.client.cancel(waitingRun.runId);
+    await harness.client.dispose();
+  });
+
   it("rejects an explicitly configured pre-1.0.38 installation at load", async () => {
     const harness = await createHarness(sdkSource, "1.0.37");
     await expect(

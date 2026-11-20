@@ -161,7 +161,7 @@ describe("UsageService", () => {
     expect(await service.getProviderUsage({})).toEqual({ snapshots: [], fromCache: false });
     expect((await service.refreshProviderUsage({ force: true })).snapshots).toEqual([fresh]);
     expect(JSON.parse(readFileSync(cachePath, "utf8"))).toMatchObject({
-      version: 16,
+      version: 17,
       snapshots: [fresh],
     });
     service.stop();
@@ -597,7 +597,7 @@ describe("UsageService", () => {
     writeFileSync(
       cachePath,
       JSON.stringify({
-        version: 16,
+        version: 17,
         snapshots: [{ providerId: "fixture", status: "ok", windows: [], fetchedAt: NOW - 600_000 }],
       }),
     );
@@ -1004,7 +1004,7 @@ describe("UsageService", () => {
       credits: { balance: 20 },
       fetchedAt: NOW - 6 * 60 * 60_000,
     };
-    writeFileSync(cachePath, JSON.stringify({ version: 16, snapshots: [previous] }));
+    writeFileSync(cachePath, JSON.stringify({ version: 17, snapshots: [previous] }));
     let failed = true;
     const options = {
       emit: () => {},
@@ -1166,5 +1166,47 @@ describe("UsageService", () => {
     await service.getProviderUsage({ providerIds: ["opencode"] });
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(calls).toBeGreaterThan(2);
+  });
+
+  it("discards stale v16 cache entries when booting with v17", async () => {
+    const cachePath = tempCachePath();
+    writeFileSync(
+      cachePath,
+      JSON.stringify({
+        version: 16,
+        snapshots: [
+          {
+            providerId: "gemini",
+            status: "auth-missing",
+            windows: [],
+            fetchedAt: NOW,
+          },
+        ],
+      }),
+    );
+    const service = new UsageService({
+      emit: () => {},
+      cachePath,
+      host: makeHost({}),
+      providerIds: ["gemini"],
+      localCollectors: [
+        {
+          id: "gemini",
+          collect: async (nowMs) => ({
+            providerId: "gemini",
+            status: "ok",
+            windows: [],
+            fetchedAt: nowMs,
+          }),
+        },
+      ],
+    });
+    try {
+      const res = await service.getProviderUsage({ providerIds: ["gemini"] });
+      expect(res.fromCache).toBe(false);
+      expect(res.snapshots).toEqual([]);
+    } finally {
+      service.stop();
+    }
   });
 });

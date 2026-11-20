@@ -1,9 +1,11 @@
 import { useState } from "react";
 import { Gauge } from "lucide-react";
 import { useLingui } from "@lingui/react/macro";
+import { useHostAgentStatuses } from "@/renderer/hooks/useHostAgentStatuses";
 import { useAppStore } from "@/renderer/state/appStore";
-import { useThread } from "@/renderer/state/useThread";
+import { useProject, useThread } from "@/renderer/state/useThread";
 import { ThreadContextUsageDetails } from "./ThreadContextDock";
+import { ContextUsageRing, resolveContextTone } from "./ThreadContextIndicator";
 import { resolveThreadContextUsageSummary } from "./threadContextUsage";
 import { ThreadDockCollapseButton, ThreadDockHeader, ThreadDockSection } from "./ThreadDockUI";
 
@@ -17,13 +19,26 @@ export function ThreadContextWindowDock({ threadId }: { threadId: string }) {
   const { t } = useLingui();
   const [collapsed, setCollapsed] = useState(true);
   const thread = useThread(threadId);
+  const project = useProject(thread?.projectId);
+  const hostAgentStatuses = useHostAgentStatuses(
+    thread?.remoteServerId ?? project?.remoteServerId,
+    project?.location,
+  );
   const context = useAppStore((state) => state.runtimeContextByThread[threadId]);
   if (!thread) return null;
+  const agentStatus = hostAgentStatuses.find((status) => status.kind === thread.agentKind);
   const summary = resolveThreadContextUsageSummary({
     thread,
-    agentStatus: undefined,
+    agentStatus,
     reportedUsage: context,
   });
+  const tone = resolveContextTone(summary.percent);
+  const percentClassName =
+    tone === "danger"
+      ? "font-medium text-danger"
+      : tone === "warning"
+        ? "font-medium text-warning"
+        : "text-foreground";
   return (
     <ThreadDockSection placement="right" collapsed={collapsed} ariaLabel={t`Context window`}>
       <ThreadDockHeader
@@ -39,9 +54,33 @@ export function ThreadContextWindowDock({ threadId }: { threadId: string }) {
         }
       >
         {collapsed ? (
-          <span className="ml-auto min-w-0 truncate text-right text-[0.85em] tabular-nums text-muted">
-            {summary.detail}
-          </span>
+          summary.percent !== undefined ? (
+            <span
+              className="ml-auto inline-flex shrink-0 items-center gap-1.5 text-[11px] tabular-nums"
+              title={summary.detail}
+            >
+              <ContextUsageRing percent={summary.percent} size={16} />
+              <span className={percentClassName}>{summary.percent}%</span>
+              <span className="sr-only">{summary.detail}</span>
+            </span>
+          ) : summary.usedTokens !== undefined ? (
+            <span
+              className="ml-auto inline-flex min-w-0 items-center gap-1.5 text-[11px] tabular-nums text-muted"
+              title={summary.detail}
+            >
+              <ContextUsageRing percent={undefined} size={16} />
+              <span className="truncate">{summary.detail}</span>
+            </span>
+          ) : (
+            <span
+              className="ml-auto inline-flex shrink-0 items-center gap-1.5 text-[11px] text-muted"
+              title={summary.detail}
+            >
+              <ContextUsageRing percent={undefined} size={16} />
+              <span aria-hidden="true">—</span>
+              <span className="sr-only">{summary.detail}</span>
+            </span>
+          )
         ) : null}
       </ThreadDockHeader>
       {!collapsed ? <ThreadContextUsageDetails summary={summary} /> : null}

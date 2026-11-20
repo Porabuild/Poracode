@@ -27,10 +27,13 @@ import {
 import type { RemoteBroadcastEvent } from "./context";
 import {
   notePendingInterruptedTurn,
+  notePendingThreadActivity,
   notePendingThreadState,
   isPendingThreadStateCurrent,
   retirePendingThreadState,
   pendingInterruptedTurn,
+  pendingThreadActivity,
+  pendingThreadErrorMessage,
   resetPendingInterruptedTurnsForTests,
 } from "./pendingInterruptedTurns";
 import { persistThreadStateEvent } from "./threadStatePersistence";
@@ -224,24 +227,62 @@ function dispatchPersist(
       if (thread && event.agentKind !== undefined && event.agentKind !== thread.agentKind) {
         return { kind: "withhold", reason: "refused", threadIds: [event.threadId] };
       }
+      // A newer state replaces a queued one. Keep the complete error level so
+      // rebroadcasts retain details, while a coalesced retry still clears them.
+      const owner =
+        thread ??
+        (event.agentKind !== undefined
+          ? { id: event.threadId, agentKind: event.agentKind }
+          : undefined);
+      const pendingError = owner ? pendingThreadErrorMessage(owner) : undefined;
+      const previousError =
+        pendingError !== undefined
+          ? pendingError
+          : thread?.status === "error"
+            ? thread.errorMessage
+            : undefined;
+      const admission = {
+        agentKind: thread?.agentKind ?? event.agentKind,
+        errorMessage:
+          event.status === "error" ? (event.errorMessage ?? previousError ?? null) : null,
+      };
+      const previousActivity = pendingThreadActivity(owner ?? { id: event.threadId });
+      const previousStatus = previousActivity?.status ?? thread?.status;
+      const previousUpdatedAt = previousActivity?.updatedAt ?? thread?.updatedAt;
+      const enteredWorking = event.status === "working" && previousStatus !== "working";
+      const candidateUpdatedAt = enteredWorking
+        ? (event.updatedAt ?? new Date().toISOString())
+        : event.updatedAt;
+      const nextUpdatedAt =
+        candidateUpdatedAt !== undefined
+          ? previousUpdatedAt !== undefined && previousUpdatedAt > candidateUpdatedAt
+            ? previousUpdatedAt
+            : candidateUpdatedAt
+          : previousActivity?.updatedAt;
+      const publishedEvent =
+        (enteredWorking || event.updatedAt !== undefined) && nextUpdatedAt !== undefined
+          ? { ...event, updatedAt: nextUpdatedAt }
+          : event;
+      const persistedEvent = {
+        ...event,
+        errorMessage: admission.errorMessage ?? "",
+        ...(nextUpdatedAt !== undefined ? { updatedAt: nextUpdatedAt } : {}),
+      };
       // Stop must reach disk before a reset can classify the active row as
-      // interrupted. Retire any older queued state after the write succeeds.
+      // interrupted. It also needs queued details when Stop follows a failure.
       if (
         thread &&
         event.turnStopRequested &&
-        runRuntimeControlWrite(() => persistThreadStateEvent(event), event.threadId).ok
+        runRuntimeControlWrite(() => persistThreadStateEvent(persistedEvent), event.threadId).ok
       ) {
         retirePendingThreadState(event.threadId);
-        return { kind: "publish", event };
+        return { kind: "publish", event: publishedEvent };
       }
       // Control write: queued for bounded retry (idempotent upsert). Row lag is
       // replay-covered, so publication stays immediate — but only once the
       // write was actually queued. A refused control reserve means the row
       // would never be rebuilt, so publishing the state would claim a durable
       // transition that does not exist.
-      // A newer state replaces a queued one, but the cut-off marker is only
-      // reported when it changes, so carry it into the write that replaced it.
-      const admission = {};
       const queued = enqueueRuntimeControlOperation({
         key: `thread-state:${event.threadId}`,
         describe: `thread-state ${event.threadId}`,
@@ -266,14 +307,14 @@ function dispatchPersist(
           if (thread) {
             const interruptedTurn = pendingInterruptedTurn(thread);
             persistThreadStateEvent({
-              ...event,
+              ...persistedEvent,
               // Legacy events without an owner are bound at admission, so a
               // provider switch while queued cannot adopt them either.
               agentKind: thread.agentKind,
               ...(interruptedTurn === undefined ? {} : { interruptedTurn }),
             });
           } else {
-            persistThreadStateEvent(event);
+            persistThreadStateEvent(persistedEvent);
           }
           retirePendingThreadState(event.threadId);
         },
@@ -282,10 +323,16 @@ function dispatchPersist(
         return { kind: "withhold", reason: "refused", threadIds: [event.threadId] };
       }
       notePendingThreadState(event.threadId, admission);
+      notePendingThreadActivity(event.threadId, {
+        agentKind: owner?.agentKind,
+        status: event.status,
+        attention: event.attention,
+        ...(nextUpdatedAt !== undefined ? { updatedAt: nextUpdatedAt } : {}),
+      });
       if (thread && event.interruptedTurn !== undefined) {
         notePendingInterruptedTurn(thread, event.interruptedTurn, event.turnStopRequested === true);
       }
-      return { kind: "publish", event };
+      return { kind: "publish", event: publishedEvent };
     }
     case "thread-reset":
       enqueueDeferredReset(event, options.publishDeferredEvent);

@@ -3,7 +3,11 @@ import type { LegendListRef } from "@legendapp/list/react";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import type { RuntimeChatItem } from "@/renderer/state/slices/runtimeEventSlice";
-import { selectRuntimeItemById, type ChatTimelineEntry } from "../chatPaneSelectors";
+import {
+  selectRuntimeItemById,
+  selectThreadUserAttachmentImagePaths,
+  type ChatTimelineEntry,
+} from "../chatPaneSelectors";
 import { imageViewRendersInline } from "./items/imageViewSource";
 import { isToolLikeItem } from "./items/toolCallCategorization";
 import {
@@ -102,13 +106,24 @@ export function useTimelineMeasurements({
       const sizes = instance.getState().sizes;
       const measurements = [];
       const entries = entriesRef.current;
+      const userAttachmentPaths = selectThreadUserAttachmentImagePaths(state, threadId);
       for (let index = 0; index < entries.length; index++) {
         const entry = entries[index]!;
-        if (
-          entry.kind !== "item" ||
-          !isRemountStableSnapshotItem(selectRuntimeItemById(state, threadId, entry.id))
-        )
-          continue;
+        const isStable =
+          entry.kind === "item"
+            ? isRemountStableSnapshotItem(
+                selectRuntimeItemById(state, threadId, entry.id),
+                userAttachmentPaths,
+              )
+            : entry.kind === "image_group" &&
+              entry.itemIds.length > 0 &&
+              entry.itemIds.every((id) =>
+                isRemountStableSnapshotItem(
+                  selectRuntimeItemById(state, threadId, id),
+                  userAttachmentPaths,
+                ),
+              );
+        if (!isStable) continue;
         const size = sizes.get(entry.id);
         if (size === undefined) continue;
         measurements.push({ key: entry.id, index, size });
@@ -134,7 +149,10 @@ export function useTimelineMeasurements({
  * dropped too since their height keeps changing while the thread works in the
  * background.
  */
-function isRemountStableSnapshotItem(item: RuntimeChatItem | undefined): boolean {
+function isRemountStableSnapshotItem(
+  item: RuntimeChatItem | undefined,
+  userAttachmentPaths: ReadonlySet<string>,
+): boolean {
   if (!item || item.state !== "completed") return false;
   switch (item.type) {
     case "assistant_message":
@@ -146,6 +164,6 @@ function isRemountStableSnapshotItem(item: RuntimeChatItem | undefined): boolean
     default:
       // Inline image cards have no disclosure; every other tool-like row renders
       // the collapsible accordion and remounts collapsed.
-      return isToolLikeItem(item) && imageViewRendersInline(item.payload);
+      return isToolLikeItem(item) && imageViewRendersInline(item.payload, userAttachmentPaths);
   }
 }

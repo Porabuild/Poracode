@@ -13,6 +13,7 @@ import {
 import { RemoteHttpError } from "../auth";
 import { computeEtag, etagMatches, writeNegotiatedJson } from "./httpCompression";
 import {
+  GIT_REPOSITORY_BUSY_CODE,
   gitProcessAdmissionRetryAfterMsOf,
   isGitProcessAdmissionRefusal,
 } from "@/shared/gitProcessAdmission";
@@ -171,7 +172,7 @@ function gitProcessAdmissionHttpError(error: unknown): RemoteHttpError | null {
   return new RemoteHttpError(
     code,
     "Git work is temporarily unavailable. Retry the operation.",
-    503,
+    code === GIT_REPOSITORY_BUSY_CODE ? 429 : 503,
     gitProcessAdmissionRetryAfterMsOf(error),
   );
 }

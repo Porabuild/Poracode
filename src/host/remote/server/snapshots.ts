@@ -13,6 +13,7 @@ import { HISTORY_DETAILS_VERSION } from "@/shared/remote/historyPresentation";
 import { THREAD_HISTORY_RESUME_VERSION } from "@/shared/remote/historyResume";
 import { THREAD_TRANSFER_VERSION } from "@/shared/threadTransfer";
 import { canonicalToolPresentationCatalog } from "@/shared/canonicalToolPresentation";
+import { REMOTE_MEMORY_CATALOG_VERSION } from "@/shared/memory";
 import {
   PORACODE_REMOTE_PROTOCOL_VERSION,
   REMOTE_CATALOG_MUTATIONS_VERSION,
@@ -58,7 +59,7 @@ import {
 import { RemoteHttpError } from "../auth";
 import { mapFenceRefusal, mapPersistenceRefusal } from "./persistenceRefusals";
 import type { RemoteServerContext } from "./context";
-import { withPendingInterruptedTurn } from "./pendingInterruptedTurns";
+import { withPendingInterruptedTurn, withPendingThreadActivity } from "./pendingInterruptedTurns";
 import { readRuntimeHistoryNoticeForRead } from "./runtimeHistoryNoticeGate";
 import { CONVERSATION_SEARCH_VERSION } from "@/shared/conversationSearch";
 import { withStableUpdatedAt } from "./stableUpdatedAt";
@@ -193,6 +194,7 @@ export function descriptor(ctx: RemoteServerContext): RemoteEnvironmentDescripto
       conversationSnapshots: { versions: [REMOTE_CONVERSATION_SNAPSHOTS_VERSION] },
       threadForks: { versions: [1] },
       sessionImport: { versions: [1] },
+      memoryCatalog: { versions: [REMOTE_MEMORY_CATALOG_VERSION] },
       // Every composition serves the transfer routes over its own database,
       // attachment root and supervisor, so the capability is unconditional.
       threadTransfer: { versions: [THREAD_TRANSFER_VERSION] },
@@ -256,7 +258,9 @@ function projectShellSnapshot(
     ctx.threadLiveReadState.retainThreads(knownThreadIds);
   }
   const threads = data.threads.map((thread) =>
-    withPendingInterruptedTurn(ctx.sessionConfigInventory.enrichThreadRow(thread)),
+    withPendingThreadActivity(
+      withPendingInterruptedTurn(ctx.sessionConfigInventory.enrichThreadRow(thread)),
+    ),
   );
   const summariesByThread = runtimeSummariesFor(threads, summaries);
   const gitSummariesByThread =
@@ -342,7 +346,11 @@ function projectThreadListPage(
   page: ReturnType<typeof readLegacyThreadCatalog>,
 ): RemoteThreadListPage {
   return remoteThreadListPageSchema.parse({
-    threads: page.threads.map((thread) => ctx.sessionConfigInventory.enrichThreadRow(thread)),
+    threads: page.threads.map((thread) =>
+      withPendingThreadActivity(
+        withPendingInterruptedTurn(ctx.sessionConfigInventory.enrichThreadRow(thread)),
+      ),
+    ),
     runtimeSummariesByThread: runtimeSummariesFor(page.threads, page.summaries),
     gitSummariesByThread: gitSummariesFor(ctx, page.threads),
     nextCursor: page.nextCursor,
@@ -381,6 +389,7 @@ export async function buildAgentStatuses(
     withStableUpdatedAt("agent-statuses", {
       windows,
       wsl,
+      ...(statuses.fromCache === false ? { detecting: true } : {}),
     }),
   );
 }

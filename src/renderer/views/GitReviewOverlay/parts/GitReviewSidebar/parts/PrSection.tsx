@@ -22,7 +22,7 @@ import {
 } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { PrMergeMethod, PrWatch } from "@/shared/contracts";
-import { PixelLoader, PrCheckStatusText } from "@/renderer/components/common";
+import { PixelLoader } from "@/renderer/components/common";
 import type { PrWriteAction } from "@/renderer/hooks/usePrWriteActions";
 import { openExternalWithFeedback } from "@/renderer/utils/openExternal";
 import {
@@ -35,12 +35,9 @@ import {
 import { useGitStore } from "@/renderer/state/gitStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import { usePrMergeReadiness } from "@/renderer/hooks/usePrMergeReadiness";
-import {
-  countPassedPrChecks,
-  PR_TONE_BG_CLASS,
-  PR_TONE_TEXT_CLASS,
-} from "@/renderer/utils/prStatus";
+import { PR_TONE_BG_CLASS, PR_TONE_TEXT_CLASS } from "@/renderer/utils/prStatus";
 import { GitReviewSection } from "./GitReviewSection";
+import { PrChecksIndicator } from "./PrChecksIndicator";
 import { PrWatchControls } from "./PrWatchControls";
 
 export function PrSection(props: {
@@ -99,7 +96,7 @@ export function PrSection(props: {
     isBlocked,
     blockReason,
     canBypass,
-  } = usePrMergeReadiness(prKey, cacheKey);
+  } = usePrMergeReadiness(prKey, cacheKey, projectId);
   const requestedDetailsKey = useRef<string | undefined>(undefined);
   const [bypass, setBypass] = useState(false);
 
@@ -136,7 +133,6 @@ export function PrSection(props: {
   // Offer refresh for live PRs only — a merged/closed PR's head branch is often
   // gone, so a by-branch refetch is pointless. Mirrors `canReview`'s exclusions.
   const canRefresh = Boolean(onRefreshPr) && state !== "merged" && state !== "closed";
-  const passedChecks = details ? countPassedPrChecks(details.checks) : 0;
 
   return (
     <GitReviewSection>
@@ -246,39 +242,11 @@ export function PrSection(props: {
                   −{details.deletions}
                 </span>
               </span>
-              <Tooltip delay={300}>
-                <Tooltip.Trigger
-                  className="shrink-0 cursor-help whitespace-nowrap"
-                  aria-label={t`Checks`}
-                  tabIndex={0}
-                >
-                  <span>
-                    <Trans>Checks</Trans>:{" "}
-                    <span className="text-foreground">
-                      {passedChecks}/{details.checks.length}
-                    </span>
-                  </span>
-                </Tooltip.Trigger>
-                <Tooltip.Content placement="top" className="min-w-48 max-w-80 text-xs">
-                  {details.checks.length === 0 ? (
-                    <Trans>No checks reported for this PR.</Trans>
-                  ) : (
-                    <ul className="space-y-1 py-0.5">
-                      {details.checks.map((check, index) => {
-                        return (
-                          <li
-                            key={`${check.name}-${index}`}
-                            className="flex items-center justify-between gap-4"
-                          >
-                            <span className="min-w-0 truncate text-foreground">{check.name}</span>
-                            <PrCheckStatusText check={check} className="shrink-0" />
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  )}
-                </Tooltip.Content>
-              </Tooltip>
+              <PrChecksIndicator
+                checks={details.checks}
+                projectId={projectId}
+                {...((details.source ?? source) ? { source: (details.source ?? source)! } : {})}
+              />
             </>
           )}
         </div>

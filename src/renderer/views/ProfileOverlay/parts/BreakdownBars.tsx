@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { Skeleton } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import type { ProfileBreakdownEntry } from "@/shared/contracts";
 
@@ -6,10 +7,10 @@ function SkeletonRow() {
   return (
     <div className="flex flex-col gap-1.5">
       <div className="flex items-center justify-between gap-4">
-        <div className="h-3.5 w-28 animate-pulse rounded bg-foreground/10" />
-        <div className="h-3.5 w-8 animate-pulse rounded bg-foreground/10" />
+        <Skeleton className="h-3.5 w-28 rounded bg-foreground/10" />
+        <Skeleton className="h-3.5 w-10 rounded bg-foreground/10" />
       </div>
-      <div className="h-1.5 w-full rounded-full bg-foreground/10" />
+      <Skeleton className="h-1.5 w-full rounded-full bg-foreground/10" />
     </div>
   );
 }

@@ -50,6 +50,7 @@ afterEach(() => {
   wslMocks.deployFilesToWslTempBase.mockClear();
   for (const path of roots.splice(0)) rmSync(path, { recursive: true, force: true });
 });
+const fixtureSecret = "poracode-sensitive-fixture-value";
 const server: McpServer = {
   id: "fixture",
   name: "fixture",
@@ -61,7 +62,7 @@ const server: McpServer = {
     command: "node",
     args: ["relative.mjs"],
     cwd: "/plugin",
-    env: { FIXTURE: "fixture-mcp-secret" },
+    env: { FIXTURE: fixtureSecret },
   },
 };
 
@@ -99,7 +100,7 @@ describe("MCP launch transport compatibility", () => {
       server,
       disabledTools: [],
     });
-    expect(wrapped!.transport.args.join(" ")).not.toContain("fixture-mcp-secret");
+    expect(wrapped!.transport.args.join(" ")).not.toContain(fixtureSecret);
   });
 
   it("preserves native transports unless filtering or cwd emulation is needed", async () => {
@@ -128,7 +129,7 @@ describe("MCP launch transport compatibility", () => {
       Buffer.from(wrapped!.transport.env.PORACODE_MCP_STDIO_CONFIG!, "base64url").toString("utf8"),
     );
     expect(config).toEqual({ version: 1, server });
-    expect(wrapped!.transport.args.join(" ")).not.toContain("fixture-mcp-secret");
+    expect(wrapped!.transport.args.join(" ")).not.toContain(fixtureSecret);
   });
 });
 
@@ -415,7 +416,7 @@ describe("host endpoint relays", () => {
       });
       if (schemaOnly!.transport.type !== "stdio") throw new Error("expected stdio");
       expect(schemaOnly!.transport.command).toBe(binary);
-      expect(schemaOnly!.transport.env.FIXTURE).toBe("fixture-mcp-secret");
+      expect(schemaOnly!.transport.env.FIXTURE).toBe(fixtureSecret);
       expect(readMcpToolFilterConfig(schemaOnly!.transport.env).schemaOnly).toBe(true);
 
       const [depthLimited] = await prepareMcpToolFilters([server], location, {
@@ -423,7 +424,7 @@ describe("host endpoint relays", () => {
       });
       if (depthLimited!.transport.type !== "stdio") throw new Error("expected stdio");
       expect(depthLimited!.transport.command).toBe(binary);
-      expect(depthLimited!.transport.env.FIXTURE).toBe("fixture-mcp-secret");
+      expect(depthLimited!.transport.env.FIXTURE).toBe(fixtureSecret);
       expect(depthLimited!.transport.env[MCP_FILTER_CONFIG_V3_ENV]).toEqual(expect.any(String));
       expect(readMcpToolFilterConfig(depthLimited!.transport.env)).toMatchObject({
         version: 3,

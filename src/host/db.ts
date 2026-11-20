@@ -6,6 +6,7 @@
 
 export {
   getProfileDataGeneration,
+  getProfileUsageResetGeneration,
   bumpProfileDataGeneration,
   initDatabase,
   closeDatabase,
@@ -27,6 +28,7 @@ export {
   dbUpdateThreadMetadata,
   dbSetThreadGroup,
   dbSetThreadsDone,
+  dbTouchThreadUpdatedAt,
   dbMarkLiveThreadsInactive,
   dbDeleteThread,
   dbDeleteProject,
@@ -51,9 +53,9 @@ export type {
 } from "./db/catalogIntents";
 
 export {
-  dbCompareAndSetProjectNotes,
   dbGetProjectNotes,
   dbSetProjectNotes,
+  dbCompareAndSetProjectNotes,
   ProjectNotesConflictError,
 } from "./db/notes";
 export { dbBeginWorktreeObservation, dbReconcileProjectWorktrees } from "./db/worktreeLinks";
@@ -79,6 +81,7 @@ export {
   dbGetLatestThreadGoalItem,
   dbGetThreadPromptIndex,
   dbGetThreadRuntimeItems,
+  dbGetThreadOpenRequestItems,
   dbGetThreadRuntimeItemCursor,
   dbGetThreadRuntimeItemsAfter,
   dbGetThreadRuntimeItemsPage,
@@ -182,16 +185,19 @@ export {
   CORE_USAGE_EVENT_KINDS,
   dbAppendUsageEvents,
   dbGetAllUsageEvents,
-  dbIterateCoreUsageEvents,
-  dbIterateTokenUsageScanRows,
-  dbQueryUsageAccountCounts,
+  dbIterateCoreUsageEventsInRange,
+  dbIterateTokenUsageScanRowsInRange,
+  dbIterateUsageAccountRowsInRange,
+  dbQueryUsageAccountCountsUpTo,
+  dbQueryUsageEventsBounds,
   parseUsageCostRecord,
 } from "./db/usageEvents";
 export type {
   CoreUsageEventRow,
   TokenUsageScanRow,
-  UsageAccountCountRow,
+  UsageAccountAggregateRow,
   UsageEventRow,
+  UsageEventsBounds,
 } from "./db/usageEvents";
 
 export {
@@ -321,5 +327,6 @@ export {
 export { dbMeasureLegacyHistoryCharge, dbMeasureLegacySnapshotCharge } from "./db/legacyReadCharge";
 export {
   dbReadCommittedRuntimeItemImageBlob,
+  dbReadCommittedRuntimeItemImageRefMeta,
   dbReadInlineImageBlobPreviewSource,
 } from "./db/runtimeInlineImageReads";

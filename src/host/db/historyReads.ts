@@ -25,6 +25,7 @@ import {
   classifyRuntimeTimelineEntry,
   mapRuntimeItemRows,
   placeholders,
+  projectSavedCrossagentRoute,
   selectRuntimePageRows,
   type RuntimeTimelineItemRow,
   type RuntimeTimelineKind,
@@ -645,7 +646,9 @@ export function dbReadThreadHistoryPhase2(
       return row ? [row] : [];
     });
     if (!options.compactDetails) {
-      return mapRuntimeItemRows(sqlite, threadId, ordered, inlineImageOptions);
+      return mapRuntimeItemRows(sqlite, threadId, ordered, inlineImageOptions).map(
+        projectSavedCrossagentRoute,
+      );
     }
     const deferred = ordered.filter((row) => hasDeferredHistoryStreams(row.type, row.state));
     const ordinary = ordered.filter((row) => !hasDeferredHistoryStreams(row.type, row.state));
@@ -659,7 +662,7 @@ export function dbReadThreadHistoryPhase2(
       ].map((item) => [item.id, item]),
     );
     return ordered.map((row) => ({
-      ...items.get(row.item_id)!,
+      ...projectSavedCrossagentRoute(items.get(row.item_id)!),
       ...(row.details_deferred ? { detailsDeferred: true as const } : {}),
     }));
   });

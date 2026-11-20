@@ -123,6 +123,7 @@ extension AppSession {
             return
         }
         ForgeReviewDiskCache.purgeAll()
+        hostSnapshotTasks.removeValue(forKey: connectionId)?.task.cancel()
         await cancelStaleSessionWork(invalidateSocket: false)
         await NativeRecentHistoryCache.shared.purgeAll()
         await sessionPool.forget(.host(connectionId))
@@ -335,8 +336,9 @@ extension AppSession {
     }
 
     /// Refreshes the selected live host and fetches lightweight shell snapshots
-    /// for every other paired host. Failures retain the last successful entry,
-    /// so an offline machine's threads remain visible instead of disappearing.
+    /// for every other paired host concurrently. Per-connection coalescing keeps
+    /// an offline host from duplicating or blocking online peers, and failures
+    /// retain the last successful entry so cached threads stay visible.
     func refreshUnifiedThreadList() async {
         let secondaryHosts = state.hosts.filter { $0.connectionId != state.selectedConnectionId }
         await withTaskGroup(of: Void.self) { group in
@@ -350,6 +352,10 @@ extension AppSession {
     private func refreshSecondaryCatalog(for record: HostRecord) async {
         let id = record.connectionId
         guard !Task.isCancelled, !sessionPool.isBackgroundGated, id != state.selectedConnectionId else { return }
+        if let existing = hostSnapshotTasks[id] {
+            await existing.task.value
+            return
+        }
         let key = SessionPoolKey.host(id)
         if let refresh = sessionPool.refreshSecondaryCatalog(for: key) {
             await refresh.join()
@@ -358,15 +364,25 @@ extension AppSession {
         let lease = sessionPool.lease(for: key)
         let backgroundGeneration = sessionPool.backgroundGeneration
         let workGeneration = state.workGeneration
-        guard record.scopes.contains("session:read"),
-              let token = try? await deps.hostCatalog.token(for: id), !token.isEmpty
-        else { return }
-        let api = deps.makeAPI(record.httpBaseURL, token)
-        guard let snapshot = try? await api.snapshot(), !Task.isCancelled,
-              sessionPool.lease(for: key) == lease, sessionPool.backgroundGeneration == backgroundGeneration,
-              state.workGeneration == workGeneration, state.hosts.contains(record)
-        else { return }
-        installSecondaryCatalog(snapshot, for: id)
+        guard record.scopes.contains("session:read") else { return }
+        let tokenID = UUID()
+        let task = Task { @MainActor [weak self] in
+            guard let self else { return }
+            guard let token = try? await self.deps.hostCatalog.token(for: id), !token.isEmpty else { return }
+            let api = self.deps.makeAPI(record.httpBaseURL, token)
+            guard let snapshot = try? await api.snapshot(), !Task.isCancelled,
+                  self.sessionPool.lease(for: key) == lease,
+                  self.sessionPool.backgroundGeneration == backgroundGeneration,
+                  self.state.workGeneration == workGeneration,
+                  self.state.hosts.contains(record)
+            else { return }
+            self.installSecondaryCatalog(snapshot, for: id)
+        }
+        hostSnapshotTasks[id] = (token: tokenID, task: task)
+        await task.value
+        if hostSnapshotTasks[id]?.token == tokenID {
+            hostSnapshotTasks.removeValue(forKey: id)
+        }
     }
 
     func installSecondaryCatalog(

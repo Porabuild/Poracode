@@ -27,6 +27,7 @@ import com.poracode.app.transport.RemoteEventSocket
 import java.io.File
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runCurrent
@@ -570,6 +571,76 @@ class MultiHostSessionTest {
         )
 
         assertSame(snapshot, compactHostsByEndpoint(snapshot))
+    }
+
+    @Test
+    fun refreshHostSnapshotsDoesNotBlockOnlinePeerBehindHangingOfflinePeer() = runTest {
+        val catalog = HostCatalog(
+            registry = HostRegistryStore(File(temporary.newFolder("peer-refresh-catalog"), "hosts")),
+            vault = InMemoryHostVault(),
+            legacySource = EmptyLegacySource,
+        )
+        val first = HostRecord(id(1), profile(1), 1_001L)
+        val offlineSecond = HostRecord(id(2), profile(2), 1_002L)
+        val onlineThird = HostRecord(id(3), profile(3), 1_003L)
+        catalog.add(first, "token-1", catalog.begin(HostOperationKind.Add))
+        catalog.add(offlineSecond, "token-2", catalog.begin(HostOperationKind.Add))
+        catalog.add(onlineThird, "token-3", catalog.begin(HostOperationKind.Add))
+        catalog.select(first.connectionId, catalog.begin(HostOperationKind.Select))
+
+        val offlineGate = CompletableDeferred<Unit>()
+        val offlineReached = CompletableDeferred<Unit>()
+        val apis = mapOf(
+            profile(1).httpBaseUrl to FakeApiGateway(profile(1).httpBaseUrl, "token-1").apply {
+                shellSnapshot = RemoteShellSnapshot(
+                    snapshotSeq = 10,
+                    projects = emptyList(),
+                    threads = emptyList(),
+                    updatedAt = "now",
+                )
+            },
+            profile(2).httpBaseUrl to FakeApiGateway(profile(2).httpBaseUrl, "token-2").apply {
+                snapshotHold = offlineGate
+                snapshotReachedHold = offlineReached
+            },
+            profile(3).httpBaseUrl to FakeApiGateway(profile(3).httpBaseUrl, "token-3").apply {
+                shellSnapshot = RemoteShellSnapshot(
+                    snapshotSeq = 30,
+                    projects = emptyList(),
+                    threads = emptyList(),
+                    updatedAt = "now",
+                )
+            },
+        )
+        val session = AppSession(
+            credentials = HostCatalogCredentialRepository(catalog),
+            scope = this,
+            apiFactory = { endpoint, _ -> apis.getValue(endpoint) },
+            socketFactory = { FakeSocket() },
+            ioDispatcher = StandardTestDispatcher(testScheduler),
+            networkGate = ForegroundNetworkGate(),
+        )
+        session.bootstrap()
+        advanceUntilIdle()
+        session.onAppForeground()
+        runCurrent()
+        // Wait until the offline peer is hanging in snapshot(), without releasing offlineGate.
+        offlineReached.await()
+        runCurrent()
+
+        // Online peer 3 must already have installed its snapshot despite offline peer 2 hanging.
+        assertEquals(30, session.state.value.hostSnapshots[onlineThird.connectionId]?.snapshotSeq)
+        assertNull(session.state.value.hostSnapshots[offlineSecond.connectionId])
+        assertEquals(1, apis.getValue(profile(2).httpBaseUrl).snapshotCalls.get())
+
+        // A duplicate refresh while peer 2 is hanging coalesces peer 2 and still refreshes peer 3.
+        session.refreshSnapshot()
+        runCurrent()
+        assertEquals(1, apis.getValue(profile(2).httpBaseUrl).snapshotCalls.get())
+        assertEquals(2, apis.getValue(profile(3).httpBaseUrl).snapshotCalls.get())
+
+        offlineGate.complete(Unit)
+        advanceUntilIdle()
     }
 
     private object EmptyLegacySource : LegacyHostSource {

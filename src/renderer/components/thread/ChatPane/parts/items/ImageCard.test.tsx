@@ -1,7 +1,8 @@
 import { act, fireEvent, render } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { toast } from "@heroui/react";
 import { AppProvider } from "@/renderer/components/ui/provider";
+import { clearInlineImageDimensionsCache } from "./chatImageClass";
 import { ImageCard } from "./ImageCard";
 import type { ImageViewSource } from "./imageViewSource";
 import { getThreadGalleryImages, openThreadGallery } from "../../../useThreadGalleryImages";
@@ -20,6 +21,10 @@ vi.mock("../../chatPaneActionsContext", () => ({
 }));
 
 const PREVIEW = "data:image/jpeg;base64,QQ==";
+
+afterEach(() => {
+  clearInlineImageDimensionsCache();
+});
 
 function source(overrides: Partial<ImageViewSource> = {}): ImageViewSource {
   return {
@@ -626,6 +631,46 @@ describe("reserved slot", () => {
     const { width: _w, height: _h, ...noSize } = source();
     const { img } = renderCard(noSize);
     expect(img.getAttribute("style") ?? "").not.toContain("width:");
+  });
+
+  it("reconciles pre-upgrade unrotated metadata with EXIF-oriented decoded pixels and retains across remount", () => {
+    const remoteRef = {
+      threadId: "thread-exif",
+      itemId: "item-exif",
+      path: ["images", 0] as const,
+      mime: "image/png",
+      bytes: 200_000,
+      width: 1640,
+      height: 2360,
+    };
+    const first = renderCard(
+      source({
+        src: "blob:exif-landscape-card",
+        width: 1640,
+        height: 2360,
+        remoteRef,
+      }),
+    );
+    expect(first.img.style.aspectRatio).toBe("1640 / 2360");
+    Object.defineProperties(first.img, {
+      naturalWidth: { value: 960 },
+      naturalHeight: { value: 667 },
+    });
+    fireEvent.load(first.img);
+    expect(first.img.style.aspectRatio).toBe("2360 / 1640");
+    expect(first.img).toHaveAttribute("width", "2360");
+    expect(first.img).toHaveAttribute("height", "1640");
+    first.view.unmount();
+
+    const remounted = renderCard(
+      source({
+        src: "blob:exif-landscape-card-2",
+        width: 1640,
+        height: 2360,
+        remoteRef,
+      }),
+    );
+    expect(remounted.img.style.aspectRatio).toBe("2360 / 1640");
   });
 });
 

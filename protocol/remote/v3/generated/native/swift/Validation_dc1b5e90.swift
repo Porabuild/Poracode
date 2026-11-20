@@ -41,6 +41,10 @@ public extension RemoteSchemas {
 }
 
 public extension RemoteSchemas {
+  static let schema_0eb986e669e438e8 = RemoteSchema(unionKind: "oneOf", options: [RemoteSchemas.schema_62b62e61531c0036, RemoteSchemas.schema_649f2dd010d75dad, RemoteSchemas.schema_3fc597689b262069, RemoteSchemas.schema_46f2b301a55ee807], unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
   static let schema_0f2003aeafbcbd0b = RemoteSchema(unionKind: "anyOf", options: [RemoteSchemas.schema_f06b19c7fb38c63d, RemoteSchemas.schema_0d6d6153b8ec8300], unknownPolicy: .strip)
 }
 

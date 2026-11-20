@@ -3,11 +3,14 @@ import { admissionRetryAfterMsOf } from "./admissionRefusal";
 export const GIT_ADMISSION_QUEUE_FULL_CODE = "git_admission_queue_full" as const;
 export const GIT_ADMISSION_WAIT_TIMEOUT_CODE = "git_admission_wait_timeout" as const;
 export const GIT_ADMISSION_CANCELLED_CODE = "git_admission_cancelled" as const;
+/** A worktree request expired before acquiring its repository mutation lock. */
+export const GIT_REPOSITORY_BUSY_CODE = "git_repository_busy" as const;
 
 export const GIT_PROCESS_ADMISSION_REFUSAL_CODES = [
   GIT_ADMISSION_QUEUE_FULL_CODE,
   GIT_ADMISSION_WAIT_TIMEOUT_CODE,
   GIT_ADMISSION_CANCELLED_CODE,
+  GIT_REPOSITORY_BUSY_CODE,
 ] as const;
 
 export type GitProcessAdmissionRefusalCode = (typeof GIT_PROCESS_ADMISSION_REFUSAL_CODES)[number];

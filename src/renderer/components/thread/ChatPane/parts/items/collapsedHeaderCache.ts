@@ -20,7 +20,7 @@ import type {
 import { i18n } from "@/renderer/i18n/i18n";
 import type { RuntimeChatItem } from "@/renderer/state/slices/runtimeEventSlice";
 import {
-  extractAcpAddedFileText,
+  extractAcpCreateContent,
   extractAcpDiffResultPart,
   extractAcpDiffSummary,
   extractReadFileResultPart,
@@ -141,7 +141,7 @@ function computeToolCallHeader(payload: ToolCallPayload): ToolCallCollapsedHeade
 
 function computeFileChangeHeader(payload: FileChangePayload): FileChangeCollapsedHeader {
   const isCreate = payload.changeKind === "create";
-  const hasArgContent = isCreate ? extractCreateContentExists(payload) : false;
+  const hasArgContent = isCreate ? extractAcpCreateContent(payload) !== undefined : false;
   const diffPart = !isCreate ? extractAcpDiffResultPart(payload) : undefined;
   const hasDiffText = !!diffPart?.text;
   const fallbackTitle = readPayloadString(payload, "title") ?? readPayloadString(payload, "name");
@@ -208,16 +208,6 @@ function isEditLikeToolPayload(payload: ToolCallPayload): boolean {
   return /^(?:edit|editing|write|writing|patch|patching|create|creating|delete|deleting|remove|removing)(?:\s|:|$)/i.test(
     title,
   );
-}
-
-function extractCreateContentExists(payload: FileChangePayload): boolean {
-  if (payload.path) {
-    if (extractAcpAddedFileText(payload, payload.path) !== undefined) return true;
-  }
-  const args = (payload as { args?: unknown }).args;
-  if (!args || typeof args !== "object" || Array.isArray(args)) return false;
-  const content = (args as Record<string, unknown>).content;
-  return typeof content === "string" && content.length > 0;
 }
 
 function hasAuxFields(payload: unknown): boolean {

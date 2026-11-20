@@ -11,7 +11,7 @@ function assertVersion(version, label) {
  * The host declaration, rather than this checkout's current protocol number,
  * lets the same minimal client qualify both published N-1 and candidate hosts.
  */
-export async function readQualificationProtocolVersion(fetchImpl, httpBase, doctorReport) {
+export async function readQualificationEnvironment(fetchImpl, httpBase, doctorReport) {
   const response = await jsonRequest(fetchImpl, `${httpBase}/.well-known/poracode/environment`);
   if (response.status !== 200) throw new Error(`environment ${response.status}`);
   const version = response.body?.protocolVersion;
@@ -21,7 +21,11 @@ export async function readQualificationProtocolVersion(fetchImpl, httpBase, doct
   if (doctorVersion !== version) {
     throw new Error(`environment protocol ${version} disagrees with doctor ${doctorVersion}`);
   }
-  return version;
+  return response.body;
+}
+
+export async function readQualificationProtocolVersion(fetchImpl, httpBase, doctorReport) {
+  return (await readQualificationEnvironment(fetchImpl, httpBase, doctorReport)).protocolVersion;
 }
 
 export async function jsonRequest(

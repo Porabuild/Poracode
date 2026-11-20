@@ -98,7 +98,7 @@ describe("client draft recovery startup", () => {
     expect(await listClientSubmissions()).toEqual([]);
   });
 
-  it("retires leftover uncertain project launch submissions from an earlier build while keeping the unsent draft", async () => {
+  it("keeps uncertain project launch submissions and their drafts across startup", async () => {
     const project = {
       id: "p",
       name: "Project",
@@ -129,7 +129,9 @@ describe("client draft recovery startup", () => {
 
     await initializeClientDraftRecovery();
 
-    expect(await listClientSubmissions()).toEqual([]);
+    expect(await listClientSubmissions()).toEqual([
+      expect.objectContaining({ id: submission.id, state: "uncertain" }),
+    ]);
     expect(useAppStore.getState().draftContents[project.id]).toEqual(draft);
     expect(await readClientDraftAsset(asset.path)).toMatchObject({ name: "Image 1.png" });
   });

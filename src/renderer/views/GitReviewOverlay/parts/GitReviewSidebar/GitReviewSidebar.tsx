@@ -10,10 +10,11 @@ import {
   PanelLeft,
   PanelLeftClose,
 } from "lucide-react";
-import { Button, ButtonGroup, Dropdown, Label, Modal, Separator } from "@heroui/react";
+import { Button, ButtonGroup, Dropdown, Label, Modal, Separator, toast } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { GitBranchInfo, GitStatusResult, PrCreateMode, Project } from "@/shared/contracts";
 import { branchNameFromRemoteRef } from "@/shared/gitUtils";
+import { friendlyError } from "@/shared/messages";
 import { findExperimentByWorktree } from "@/renderer/state/experimentStore";
 import { gitReviewActionStoreKey } from "@/renderer/state/gitReviewActionStore";
 import { useGitStore } from "@/renderer/state/gitStore";
@@ -29,6 +30,7 @@ import {
   useSourceBranch,
 } from "@/renderer/state/gitSelectors";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
+import { editPairedHostSettings, usePairedHostSettings } from "@/renderer/state/pairedHostSettings";
 import { PixelLoader, SidebarButton } from "@/renderer/components/common";
 import { useScrollFade } from "@/renderer/hooks/useScrollFade";
 import { isPrActive } from "@/renderer/utils/prStatus";
@@ -117,7 +119,10 @@ export function GitReviewSidebar(props: {
     contentRef: scrollContentRef,
     maxFadePx: 10,
   });
-  const prCreateMode = useSharedSettings((s) => s.prCreateMode);
+  const hostKey = project.location.remoteServerId;
+  const hostCreateMode = usePairedHostSettings(hostKey)?.settings?.prCreateMode;
+  const localCreateMode = useSharedSettings((s) => s.prCreateMode);
+  const prCreateMode = hostKey ? (hostCreateMode ?? "dialog") : localCreateMode;
   const setPrCreateMode = useSharedSettings((s) => s.setPrCreateMode);
   const commitDefaultAction = useSharedSettings((s) => s.commitDefaultAction);
   const setCommitDefaultAction = useSharedSettings((s) => s.setCommitDefaultAction);
@@ -287,7 +292,15 @@ export function GitReviewSidebar(props: {
   // it the sticky default (the same field the Git settings select drives).
   const selectPrMode = (prMode: PrCreateMode) => {
     if (actionPhase) return;
-    setPrCreateMode(prMode);
+    if (hostKey) {
+      if (hostCreateMode !== undefined) {
+        void editPairedHostSettings(hostKey, () => ({ prCreateMode: prMode })).catch(
+          (error: unknown) => toast.danger(friendlyError(error)),
+        );
+      }
+    } else {
+      setPrCreateMode(prMode);
+    }
     runPrMode(prMode);
   };
   const altPrMode: PrCreateMode = isAutoPrMode ? "dialog" : "auto";
@@ -685,7 +698,7 @@ export function GitReviewSidebar(props: {
                         <input
                           id="git-add-remote-name"
                           aria-label={t`Remote name`}
-                          className="h-8 rounded-md border border-[color:var(--border)] bg-surface px-2 text-xs text-foreground outline-none transition-colors placeholder:text-muted/50 focus:border-foreground/40"
+                          className="h-8 rounded-md form-field px-2 text-xs text-foreground outline-none transition-colors placeholder:text-field-placeholder"
                           value={remoteName}
                           onChange={(event) => setRemoteName(event.target.value)}
                         />
@@ -700,7 +713,7 @@ export function GitReviewSidebar(props: {
                         <input
                           id="git-add-remote-url"
                           aria-label={t`Remote URL`}
-                          className="h-8 rounded-md border border-[color:var(--border)] bg-surface px-2 text-xs text-foreground outline-none transition-colors placeholder:text-muted/50 focus:border-foreground/40"
+                          className="h-8 rounded-md form-field px-2 text-xs text-foreground outline-none transition-colors placeholder:text-field-placeholder"
                           placeholder="git@github.com:owner/repo.git"
                           value={remoteUrl}
                           onChange={(event) => setRemoteUrl(event.target.value)}

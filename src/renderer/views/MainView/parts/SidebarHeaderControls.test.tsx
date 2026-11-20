@@ -6,6 +6,9 @@ import type { ReactNode } from "react";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import { useGlobalTerminalStore } from "@/renderer/state/globalTerminalStore";
 import { resetDevTerminalStore, useDevTerminalStore } from "@/renderer/state/devTerminalStore";
+import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
+import { useWorkspaceStore } from "@/renderer/state/workspaceStore";
+import { useAppStore } from "@/renderer/state/appStore";
 import { SidebarHeaderControls } from "./SidebarHeaderControls";
 
 const { capabilities } = vi.hoisted(() => ({
@@ -49,6 +52,9 @@ describe("SidebarHeaderControls", () => {
       })),
     );
     useRemoteServersStore.setState({ servers: [], runtime: {} });
+    useSharedSettings.setState({ workspaces: [] });
+    useWorkspaceStore.setState({ activeWorkspaceId: null, compactWorkspaceFilter: null });
+    useAppStore.setState({ projects: [], threads: [] });
   });
 
   afterEach(() => {
@@ -124,5 +130,52 @@ describe("SidebarHeaderControls", () => {
     capabilities.nativeAppUpdates = true;
     rerender(<SidebarHeaderControls />);
     expect(getByRole("button", { name: "Check for updates" })).toBeInTheDocument();
+  });
+
+  it("keeps the mobile workspace filter trigger available even when the selected workspace has no projects", async () => {
+    useRemoteServersStore.setState({
+      servers: [
+        {
+          desktopId: "desktop-1",
+          label: "Desktop",
+          endpoint: "http://desktop.test",
+          accessToken: "test-token",
+        },
+      ],
+      runtime: { "desktop-1": { status: "online", projects: [], threads: [] } },
+    } as never);
+    useSharedSettings.setState({
+      workspaces: [
+        { id: "w1", name: "Work", createdAt: "2026-01-01T00:00:00.000Z", icon: "briefcase" },
+        { id: "w2", name: "Empty", createdAt: "2026-01-01T00:00:00.000Z", icon: "rocket" },
+      ],
+    });
+    useWorkspaceStore.setState({ compactWorkspaceFilter: "w2" });
+    useAppStore.setState({
+      projects: [
+        {
+          id: "p1",
+          name: "Alpha",
+          workspaceId: "w1",
+          location: { kind: "posix", path: "/alpha" },
+          createdAt: "2026-01-01T00:00:00.000Z",
+        },
+      ],
+    });
+
+    const { getByRole, findByRole } = render(
+      <AppProvider>
+        <SidebarHeaderControls />
+      </AppProvider>,
+    );
+
+    const filterTrigger = getByRole("button", { name: "Filter threads" });
+    expect(filterTrigger).toHaveClass("text-accent");
+    fireEvent.click(filterTrigger);
+
+    const dialog = await findByRole("dialog", { name: "Filter threads" });
+    expect(dialog).toBeInTheDocument();
+    fireEvent.click(getByRole("button", { name: "All workspaces" }));
+    expect(useWorkspaceStore.getState().compactWorkspaceFilter).toBeNull();
   });
 });

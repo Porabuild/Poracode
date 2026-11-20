@@ -80,7 +80,13 @@ export function createCodexSessionImport(
       // A first line past the read budget fails to parse; the helper then
       // falls back to the id in the filename.
       const meta = parseCodexRolloutMeta(file.path, firstLine ?? "");
-      if (!meta || meta.subagent || meta.source === "exec" || meta.originator === "codex_exec") {
+      if (
+        !meta ||
+        meta.subagent ||
+        meta.source === "exec" ||
+        meta.source === "memory_consolidation" ||
+        meta.originator === "codex_exec"
+      ) {
         return undefined;
       }
       return {

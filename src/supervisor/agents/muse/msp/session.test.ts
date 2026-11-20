@@ -80,6 +80,7 @@ vi.mock("./client", () => ({
 }));
 
 import { MuseMspStructuredSession } from "./session";
+import { MuseMspToolOutputs } from "./toolOutputs";
 
 const projectLocation: ProjectLocation = {
   kind: "wsl",
@@ -173,6 +174,83 @@ function appControlsMcpFixture(): ResolvedMcpServer[] {
 }
 
 describe("MuseMspStructuredSession", () => {
+  it("repairs legacy control rows without replaying them as agent invocations", async () => {
+    const { session, runtimeEvents } = await createSession({
+      sessionRef: { providerSessionId: "session-1", discoveredAt: "2026-11-17T00:00:00.000Z" },
+    });
+    request.mockImplementation(async (method) =>
+      method === "session/resume"
+        ? {
+            session: sessionRecord(),
+            history: {
+              items: [
+                {
+                  itemId: "old-cancel",
+                  kind: "toolCall",
+                  tool: "subagent_cancel",
+                  status: "completed",
+                  visibleOutput: '{"status":"rejected","reason":"not_stoppable"}',
+                },
+              ],
+            },
+          }
+        : {},
+    );
+    await session.openThread(config);
+    expect(runtimeEvents).toContainEqual(
+      expect.objectContaining({
+        type: "item.updated",
+        itemId: "old-cancel",
+        payload: expect.objectContaining({
+          isSubAgent: false,
+          isSubAgentResume: false,
+          status: "error",
+          result: '{"status":"rejected","reason":"not_stoppable"}',
+        }),
+      }),
+    );
+    expect(runtimeEvents.filter((event) => event.type === "item.started")).toEqual([]);
+    await session.dispose();
+  });
+
+  it("repairs retained tool media on resume without replaying message history", async () => {
+    const { session, runtimeEvents } = await createSession({
+      sessionRef: { providerSessionId: "session-1", discoveredAt: "2026-11-17T00:00:00.000Z" },
+    });
+    const observe = vi.spyOn(MuseMspToolOutputs.prototype, "observe");
+    const item = {
+      itemId: "old-tool",
+      kind: "toolCall",
+      status: "completed",
+      tool: "read_file",
+      callId: "old-call",
+      turnId: "old-turn",
+      visibleOutput: "Read image file old.png",
+    };
+    request.mockImplementation(async (method) =>
+      method === "session/resume"
+        ? {
+            session: sessionRecord(),
+            history: {
+              snapshot: {
+                state: {
+                  items: [
+                    item,
+                    { itemId: "old-message", kind: "agentMessage", text: "previous answer" },
+                  ],
+                },
+              },
+            },
+          }
+        : {},
+    );
+    await session.openThread(config);
+    expect(observe).toHaveBeenCalledWith("session-1", "old-tool", item);
+    expect(runtimeEvents.filter((event) => event.type === "item.started")).toEqual([]);
+    observe.mockRestore();
+    await session.dispose();
+  });
+
   it("routes session/start through the catalog's provider for the model", async () => {
     // `session/start` without `providerId` falls back to the server default,
     // whose retained-history policy rejects media — unlike the catalog route

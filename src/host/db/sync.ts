@@ -16,6 +16,7 @@ import { notifyProjectThreadDataChanged } from "./projectThreadChanges";
 import { rowToProject, type ProjectRow } from "./rowMappers";
 import { rehomeProjectReferences, remapProjectViewJson } from "./projectDeduplication";
 import { notifyThreadsDeleted } from "./deletedThreadNotifications";
+import { notifyMemoryThreadDeleting } from "./memoryDeleteHook";
 import { dbDiscardThreadRuntimeWrites } from "./runtimeItems";
 import {
   assertProjectMergeSelectionsReplaceable,
@@ -30,7 +31,7 @@ import {
 } from "./upsertStatements";
 
 /** Renderer snapshots never own `thread_status_source`; see ThreadUpsertOptions. */
-const THREAD_SYNC_OPTIONS = { writeThreadStatusSource: false } as const;
+const THREAD_SYNC_OPTIONS = { writeThreadStatusSource: false, writeErrorMessage: false } as const;
 
 /**
  * Row-scoped sibling of [dbSyncAll]: the renderer diffs its store against the
@@ -68,6 +69,7 @@ export function dbSyncChanges(payload: {
         // announcement must include them like any explicit deletion.
         for (const row of listProjectThreadIds.all(projectId) as Array<{ id: string }>) {
           deletedThreadIds.add(row.id);
+          notifyMemoryThreadDeleting(row.id);
         }
         deleteProject.run(projectId);
         deleteProjectNotes.run(projectId);
@@ -79,6 +81,7 @@ export function dbSyncChanges(payload: {
 
       const deleteThread = sqlite.prepare("DELETE FROM threads WHERE id = ?");
       for (const threadId of payload.deletedThreadIds) {
+        notifyMemoryThreadDeleting(threadId);
         deleteThread.run(threadId);
         forgetMainCreatedThread(threadId);
       }
@@ -206,6 +209,9 @@ export function dbSyncAll(
 
       for (const pid of existingProjectIds) {
         if (!incomingProjectIds.has(pid)) {
+          for (const thread of existingThreads) {
+            if (thread.project_id === pid) notifyMemoryThreadDeleting(thread.id);
+          }
           deleteProject.run(pid);
           deleteProjectNotes.run(pid);
         }
@@ -228,6 +234,7 @@ export function dbSyncAll(
         // forwarded command yet. Deleting it would cascade away the launch turn's
         // runtime items — most visibly the initial `user_message`.
         if (!deletedProjectIds.has(projectId) && isMainCreatedThreadUnmirrored(tid)) continue;
+        notifyMemoryThreadDeleting(tid);
         deleteThread.run(tid);
         deletedThreadIds.add(tid);
       }

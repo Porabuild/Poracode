@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { defaultMemorySettings, memorySettingsSchema } from "./memory";
 import {
   settingsStringListSchema,
   settingsUnknownRecordSchema,
@@ -289,6 +290,7 @@ export const THREAD_DOCK_KINDS = [
   "agents",
   "backgroundTasks",
   "images",
+  "files",
   "artifacts",
   "info",
   "context",
@@ -351,6 +353,12 @@ export function normalizeThreadDocksOrder(order: readonly ThreadDockKind[]): Thr
   // of appending it at the end. No settings version bump needed.
   if (!normalized.includes("artifacts") && normalized.includes("images")) {
     normalized.splice(normalized.indexOf("images") + 1, 0, "artifacts");
+  }
+  // Compatibility: orders saved before the unversioned "files" dock split out
+  // of "artifacts" stay valid; insert it beside "artifacts" instead of
+  // appending it at the end. No settings version bump needed.
+  if (!normalized.includes("files") && normalized.includes("artifacts")) {
+    normalized.splice(normalized.indexOf("artifacts"), 0, "files");
   }
   // Compatibility: orders saved before the unversioned "info" dock existed
   // stay valid; insert it beside the old combined "context" section instead
@@ -752,6 +760,7 @@ export const sharedSettingsSchema = z.object({
   workspaces: workspaceListSchema,
   /** Additive field: older settings files omit it and normalize to an empty list. */
   crews: z.array(savedCrewSchema).max(MAX_SAVED_CREWS).default([]),
+  wslCrews: z.record(z.string().min(1), z.array(savedCrewSchema).max(MAX_SAVED_CREWS)).default({}),
   /** User-starred (provider, presentation, model) entries surfaced at the top of the model picker. */
   favoriteModels: z.array(modelPickerEntrySchema),
   /**
@@ -848,6 +857,11 @@ export const sharedSettingsSchema = z.object({
    * mention); this is the global guidance text shared across every such thread.
    */
   crossagentRoutingGuide: z.string(),
+  /**
+   * Shared memory controls. Opt-in (`enabled: false` by default) and
+   * per-field normalized so future enum additions never discard the object.
+   */
+  memory: memorySettingsSchema.default(defaultMemorySettings),
 });
 export type SharedSettings = z.infer<typeof sharedSettingsSchema>;
 
@@ -977,6 +991,7 @@ export const defaultSharedSettings: SharedSettings = {
   remotePushRedactContent: false,
   workspaces: [],
   crews: [],
+  wslCrews: {},
   favoriteModels: [],
   recentModels: [],
   agentSelectionUsage: [],
@@ -1021,6 +1036,7 @@ export const defaultSharedSettings: SharedSettings = {
   },
   hostResourceAdmission: { ...DEFAULT_HOST_RESOURCE_ADMISSION_SETTINGS },
   crossagentRoutingGuide: "",
+  memory: defaultMemorySettings,
 };
 
 function parseSettingOrDefault<T>(schema: z.ZodType<T>, value: unknown, fallback: T): T {
@@ -1847,6 +1863,17 @@ function normalizeSharedSettingsStateImpl(value: unknown): {
       ...normalized,
       machineSettings: normalizeMachineSettings(parsed.data.machineSettings),
       crews: normalizeSavedCrews(parsed.data.crews),
+      wslCrews: Object.fromEntries(
+        Object.entries(normalized.wslCrews).map(([distro, crews]) => [
+          distro,
+          normalizeSavedCrews(crews),
+        ]),
+      ),
+      memory: normalizeObjectFromSchema(
+        memorySettingsSchema.shape,
+        defaultMemorySettings,
+        parsed.data.memory,
+      ),
     },
     parsed.data,
   );

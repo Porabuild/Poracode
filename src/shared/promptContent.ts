@@ -156,8 +156,8 @@ export function isPdfPath(path: string, mimeType?: string): boolean {
   return mimeType === "application/pdf" || getExtension(path) === "pdf";
 }
 
-export function isSvgPath(path: string): boolean {
-  return getExtension(path) === "svg";
+export function isSvgPath(path: string, mimeType?: string): boolean {
+  return mimeType === "image/svg+xml" || getExtension(path) === "svg";
 }
 
 /**

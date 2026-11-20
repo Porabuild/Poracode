@@ -8,12 +8,7 @@ import type {
 } from "@/shared/contracts";
 import { isRemoteSession } from "@/renderer/bridge";
 import { useCompactLayout } from "@/renderer/adaptiveLayout";
-import {
-  Button,
-  LightballTabs,
-  PixelLoader,
-  type LightballTab,
-} from "@/renderer/components/common";
+import { Button, LightballTabs, type LightballTab } from "@/renderer/components/common";
 import { useProfileData } from "@/renderer/views/ProfileOverlay/useProfileData";
 import { ProfileHeader } from "@/renderer/views/ProfileOverlay/parts/ProfileHeader";
 import { StatStrip } from "@/renderer/views/ProfileOverlay/parts/StatStrip";
@@ -54,6 +49,9 @@ export function ProfileSettings() {
   const [tab, setTab] = useState<"activity" | "costs">("activity");
   const [pickedMetric, setPickedMetric] = useState<ActivityMetric | null>(null);
   const { core, coreLoading, tokens, tokensLoading } = data;
+  const identity = data.identity ?? null;
+  const corePending = coreLoading && !core;
+  const hasError = tab === "activity" && !core && !coreLoading;
 
   // Resolve the active metric at render time (not via a post-paint effect) so the
   // breakdown sections never paint the prompt mix for a frame before flipping to
@@ -75,33 +73,20 @@ export function ProfileSettings() {
     { id: "costs", label: t`Costs` },
   ];
 
-  if (coreLoading && !core) {
-    return (
-      <div className="flex h-64 items-center justify-center">
-        <PixelLoader size="lg" />
-      </div>
-    );
-  }
-  if (!core) {
-    return (
-      <div className="flex h-64 items-center justify-center px-6 text-center text-sm text-muted">
-        {data.error ?? t`Couldn't load your profile stats.`}
-      </div>
-    );
-  }
-
   // Follow the Prompts/Tokens toggle for the breakdown sections: token-weighted
   // when "tokens" is active and token data exists, else prompt-weighted activity
   // (which also covers every provider incl. all ACP agents).
   const metricIsTokens = metric === "tokens" && Boolean(tokens?.available);
 
   const providersByTokens = metricIsTokens && tokens!.providers.length > 0;
-  const providerEntries = providersByTokens ? tokens!.providers.map(toEntry) : core.providers;
+  const providerEntries = providersByTokens
+    ? tokens!.providers.map(toEntry)
+    : (core?.providers ?? []);
 
   // Per-account (per-profile) usage - only worth showing when the user actually
   // has multiple accounts/profiles (an account key carries an instance suffix).
   const accountsByTokens = metricIsTokens && tokens!.accounts.length > 0;
-  const accountEntries = accountsByTokens ? tokens!.accounts.map(toEntry) : core.accounts;
+  const accountEntries = accountsByTokens ? tokens!.accounts.map(toEntry) : (core?.accounts ?? []);
   // With a single account selected the breakdown collapses to one 100% bar for
   // the account already named in the filter, so only show it when unfiltered.
   const hasMultipleAccounts =
@@ -109,10 +94,10 @@ export function ProfileSettings() {
 
   // Per-account filter (whole page) - only when more than one account exists.
   const accountFilter =
-    core.availableAccounts.length > 1 ? (
+    (core?.availableAccounts.length ?? 0) > 1 ? (
       <AccountFilter
         value={data.selection.provider}
-        options={core.availableAccounts}
+        options={core!.availableAccounts}
         onChange={(provider) =>
           data.setSelection({
             scope: data.selection.scope,
@@ -127,13 +112,25 @@ export function ProfileSettings() {
   const headerActions = (
     <>
       {!remote && tab === "activity" && (
-        <Button size="sm" variant="ghost" onPress={() => setShareOpen(true)} className="gap-1.5">
+        <Button
+          size="sm"
+          variant="ghost"
+          isDisabled={!core || Boolean(core.incompleteDetails)}
+          onPress={() => setShareOpen(true)}
+          className="gap-1.5"
+        >
           <Share2 className="size-4" />
           <Trans>Share</Trans>
         </Button>
       )}
       {!compact && tab !== "costs" && (
-        <Button size="sm" variant="ghost" onPress={() => setEditOpen(true)} className="gap-1.5">
+        <Button
+          size="sm"
+          variant="ghost"
+          isDisabled={!identity}
+          onPress={() => setEditOpen(true)}
+          className="gap-1.5"
+        >
           <Pencil className="size-4" />
           <Trans>Edit</Trans>
         </Button>
@@ -148,6 +145,7 @@ export function ProfileSettings() {
         size="sm"
         variant="ghost"
         aria-label={t`Edit`}
+        isDisabled={!identity}
         onPress={() => setEditOpen(true)}
       >
         <Pencil className="size-4" />
@@ -156,9 +154,12 @@ export function ProfileSettings() {
 
   const profileHeader = (
     <ProfileHeader
-      identity={core.identity}
+      identity={identity}
       devices={data.devices}
       currentDeviceId={data.currentDeviceId}
+      {...(data.remoteStatusByDeviceId
+        ? { remoteStatusByDeviceId: data.remoteStatusByDeviceId }
+        : {})}
       selection={data.selection}
       onSelect={data.setSelection}
       filter={accountFilter}
@@ -200,87 +201,147 @@ export function ProfileSettings() {
           </div>
           {tab === "costs" && profileHeader}
         </div>
-        {tab === "activity" && (
-          <div role="tabpanel" aria-label={t`Activity`} className="flex flex-col gap-8">
-            <StatStrip
-              core={core}
-              tokens={tokens}
-              tokensLoading={tokensLoading}
-              window={data.selection.window}
-            />
-            <ActivitySection
-              promptHeatmap={core.promptHeatmap}
-              tokenHeatmap={tokens?.tokenHeatmap ?? null}
-              tokensAvailable={tokens?.available ?? false}
-              metric={metric}
-              onMetricChange={handleMetricChange}
-            />
-            <div className="grid grid-cols-1 gap-x-10 gap-y-8 sm:grid-cols-2">
-              <ActivityInsights core={core} className="sm:col-span-2" />
-              <PluginUsage
-                items={core.skills}
-                title={t`Skills`}
-                emptyText={t`No skills used yet.`}
-              />
-              <PluginUsage
-                items={core.mcps}
-                title={t`MCP servers`}
-                emptyText={t`No MCP tools used yet.`}
-              />
-            </div>
-            <div className="grid grid-cols-1 gap-x-10 gap-y-8 sm:grid-cols-2">
-              <BreakdownBars
-                title={t`Providers`}
-                caption={providersByTokens ? t`by tokens` : t`by prompts`}
-                entries={providerEntries}
-                loading={tokensLoading && !tokens}
-                loadingRows={Math.min(4, Math.max(1, core.providers.length || 4))}
-                emptyText={t`No activity yet.`}
-                {...(providersByTokens ? tokenFormat : {})}
-              />
-              <ModelUsage
-                tokens={tokens}
-                coreModels={core.models}
-                tokensLoading={tokensLoading}
-                metric={metric}
-              />
-            </div>
-            {hasMultipleAccounts ? (
-              <BreakdownBars
-                title={t`Accounts`}
-                caption={accountsByTokens ? t`by tokens` : t`by prompts`}
-                entries={accountEntries}
-                limit={12}
-                {...(accountsByTokens ? tokenFormat : {})}
-              />
+        {hasError ? (
+          <div className="flex h-48 flex-col items-center justify-center gap-3 px-6 text-center text-sm text-muted">
+            <p>{data.error ?? t`Couldn't load your profile stats.`}</p>
+            {data.retry ? (
+              <Button size="sm" variant="secondary" onPress={data.retry}>
+                <Trans>Retry</Trans>
+              </Button>
             ) : null}
-            <div className="grid grid-cols-1 gap-x-10 gap-y-8 sm:grid-cols-2">
-              <BreakdownBars title={t`Modes`} entries={core.modes} emptyText={t`No threads yet.`} />
-              <AiActions actions={core.aiActions} />
-            </div>
           </div>
-        )}
-        {tab === "costs" && (
-          <div role="tabpanel" aria-label={t`Costs`}>
-            <CostHistory stats={tokens?.costs} loading={tokensLoading} locale={i18n.locale} />
-          </div>
+        ) : (
+          <>
+            {tab === "activity" && (
+              <div
+                role="tabpanel"
+                aria-label={t`Activity`}
+                aria-busy={corePending || tokensLoading}
+                className="flex flex-col gap-8"
+              >
+                {(corePending || tokensLoading) && (
+                  <span role="status" className="sr-only">
+                    <Trans>Loading</Trans>
+                  </span>
+                )}
+                <StatStrip
+                  core={core}
+                  coreLoading={corePending}
+                  tokens={tokens}
+                  tokensLoading={tokensLoading}
+                  window={data.selection.window}
+                  streaksAvailable={!core?.incompleteDetails?.streaks}
+                  peakAvailable={!tokens?.incompletePeak}
+                />
+                <ActivitySection
+                  promptHeatmap={core?.promptHeatmap ?? null}
+                  tokenHeatmap={tokens?.tokenHeatmap ?? null}
+                  tokensAvailable={tokens?.available ?? false}
+                  loading={corePending}
+                  window={data.selection.window}
+                  metric={metric}
+                  onMetricChange={handleMetricChange}
+                />
+                <div className="grid grid-cols-1 gap-x-10 gap-y-8 sm:grid-cols-2">
+                  <ActivityInsights
+                    core={core}
+                    tokens={tokens}
+                    envs={data.envSummaries ?? []}
+                    window={data.selection.window}
+                    loading={corePending}
+                    className="sm:col-span-2"
+                    skillsAvailable={!core?.incompleteDetails?.skills}
+                  />
+                  <PluginUsage
+                    items={core?.skills ?? []}
+                    title={t`Skills`}
+                    emptyText={
+                      core?.incompleteDetails?.skills
+                        ? t`Select a device to view these details.`
+                        : t`No skills used yet.`
+                    }
+                    loading={corePending}
+                  />
+                  <PluginUsage
+                    items={core?.mcps ?? []}
+                    title={t`MCP servers`}
+                    emptyText={
+                      core?.incompleteDetails?.mcps
+                        ? t`Select a device to view these details.`
+                        : t`No MCP tools used yet.`
+                    }
+                    loading={corePending}
+                  />
+                </div>
+                <div className="grid grid-cols-1 gap-x-10 gap-y-8 sm:grid-cols-2">
+                  <BreakdownBars
+                    title={t`Providers`}
+                    caption={providersByTokens ? t`by tokens` : t`by prompts`}
+                    entries={providerEntries}
+                    loading={corePending || (tokensLoading && !tokens)}
+                    loadingRows={Math.min(4, Math.max(1, (core?.providers.length ?? 0) || 4))}
+                    emptyText={t`No activity yet.`}
+                    {...(providersByTokens ? tokenFormat : {})}
+                  />
+                  <ModelUsage
+                    tokens={tokens}
+                    coreModels={core?.models ?? []}
+                    tokensLoading={tokensLoading || corePending}
+                    metric={metric}
+                  />
+                </div>
+                {hasMultipleAccounts ? (
+                  <BreakdownBars
+                    title={t`Accounts`}
+                    caption={accountsByTokens ? t`by tokens` : t`by prompts`}
+                    entries={accountEntries}
+                    limit={12}
+                    {...(accountsByTokens ? tokenFormat : {})}
+                  />
+                ) : null}
+                <div className="grid grid-cols-1 gap-x-10 gap-y-8 sm:grid-cols-2">
+                  <BreakdownBars
+                    title={t`Modes`}
+                    entries={core?.modes ?? []}
+                    loading={corePending}
+                    loadingRows={2}
+                    emptyText={t`No threads yet.`}
+                  />
+                  <AiActions actions={core?.aiActions ?? []} loading={corePending} />
+                </div>
+              </div>
+            )}
+            {tab === "costs" && (
+              <div role="tabpanel" aria-label={t`Costs`}>
+                <CostHistory
+                  stats={tokens?.costs}
+                  loading={tokensLoading && !tokens?.costs}
+                  locale={i18n.locale}
+                />
+              </div>
+            )}
+          </>
         )}
       </div>
 
-      <EditProfileDialog
-        open={editOpen}
-        identity={core.identity}
-        onClose={() => setEditOpen(false)}
-        onSave={data.saveIdentity}
-      />
-      <ShareDialog
-        open={shareOpen}
-        core={core}
-        tokens={tokens}
-        metric={metric}
-        window={data.selection.window}
-        onClose={() => setShareOpen(false)}
-      />
+      {identity ? (
+        <EditProfileDialog
+          open={editOpen}
+          identity={identity}
+          onClose={() => setEditOpen(false)}
+          onSave={data.saveIdentity}
+        />
+      ) : null}
+      {core ? (
+        <ShareDialog
+          open={shareOpen}
+          core={core}
+          tokens={tokens}
+          metric={metric}
+          window={data.selection.window}
+          onClose={() => setShareOpen(false)}
+        />
+      ) : null}
     </div>
   );
 }

@@ -1,3 +1,4 @@
+import { ContentSurface } from "@/renderer/components/common/ContentSurface";
 import { useEffect, useId, useRef, useState } from "react";
 import { Button, ButtonGroup, Checkbox, Modal } from "@heroui/react";
 import { ChevronDown, ChevronRight, RefreshCw } from "lucide-react";
@@ -389,9 +390,9 @@ export function McpExternalImportModal(props: McpExternalImportModalProps) {
               </div>
             ) : null}
 
-            <div
+            <ContentSurface
               id={groupsId}
-              className="min-h-0 flex-1 overflow-y-auto rounded-xl border border-[var(--hairline)]"
+              className="min-h-0 flex-1 overflow-y-auto"
               aria-busy={discovery.status === "loading"}
             >
               {discovery.status === "idle" || discovery.status === "loading" ? (
@@ -435,7 +436,7 @@ export function McpExternalImportModal(props: McpExternalImportModalProps) {
                   return (
                     <div
                       key={group.providerId}
-                      className="border-b border-[var(--hairline)] last:border-b-0"
+                      className="border-b border-[var(--hairline-soft)] last:border-b-0"
                     >
                       <div className="flex min-h-11 items-center gap-2 px-3 py-2">
                         <Checkbox
@@ -542,7 +543,7 @@ export function McpExternalImportModal(props: McpExternalImportModalProps) {
                   );
                 })
               )}
-            </div>
+            </ContentSurface>
           </Modal.Body>
 
           <Modal.Footer className="justify-between">

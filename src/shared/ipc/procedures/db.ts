@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { memoryCommandPayloadSchema, type MemoryCommandPayload } from "../../memory";
 import { projectSchema, threadContextUsageSchema } from "../../contracts";
 import type {
   Project,
@@ -241,4 +242,9 @@ export const dbProcedures = {
     ProjectNotesSaveResult | void,
     "main-local"
   >("dbSetProjectNotes", "main-local", dbSetProjectNotesPayloadSchema),
+  memoryCommand: definePayloadProcedure<MemoryCommandPayload, unknown, "main-local">(
+    "memoryCommand",
+    "main-local",
+    memoryCommandPayloadSchema,
+  ),
 } as const;

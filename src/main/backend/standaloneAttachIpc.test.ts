@@ -3,6 +3,7 @@
 // event-interest no-op), server-owned procedures loud-reject with no local
 // backend side effects, unknown senders are refused, and the
 // quick-composer/renderer-reload window channels resolve instead of crashing.
+import { EventEmitter } from "node:events";
 import { mkdtempSync, readdirSync, realpathSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -373,5 +374,46 @@ describe("standalone attach device IPC", () => {
     const pick = electron.handlers.get(IPC_WINDOW_CHANNELS.quickComposerPickFiles);
     await expect(pick?.({ sender: composer.sender })).resolves.toEqual(["picked.ts"]);
     expect(electron.handlers.get(IPC_WINDOW_CHANNELS.rendererReload)).toBeTypeOf("function");
+  });
+
+  it("queues a thread returned from its window and delivers it on main's ready ping", async () => {
+    const order: string[] = [];
+    const lifecycle = attachLifecycle(() => main.window);
+    const threadWindow = Object.assign(new EventEmitter(), {
+      isDestroyed: () => false,
+      close: vi.fn<() => void>(),
+      webContents: { send: vi.fn<(...args: unknown[]) => void>() },
+    });
+    registerStandaloneAttachIpc({
+      createThreadWindow: () => threadWindow as never,
+      showThreadInMain: (threadId) => order.push(`queue:${threadId}`),
+      flushMainThreadOpen: () => order.push(`deliver:ready=${lifecycle.isMainReady()}`),
+      isQuitting: () => false,
+      getMainWindow: () => main.window as never,
+      getQuickComposerWindow: () => composer.window as never,
+      profileNamespace,
+      channel: "stable",
+      isDev: false,
+      reportError: () => {},
+      markQuitting,
+      quickComposer: lifecycle,
+    });
+    await electron.handlers.get(IPC_WINDOW_CHANNELS.threadWindowOpen)?.(
+      { sender: main.sender },
+      { threadId: "thread-a", title: "Thread A" },
+    );
+
+    // The main renderer is reloading: its listener may not exist yet.
+    threadWindow.emit("closed");
+    expect(order).toEqual(["queue:thread-a"]);
+    expect(main.window.webContents.send).not.toHaveBeenCalledWith(
+      IPC_EVENT_CHANNELS.threadOpenRequested,
+      expect.anything(),
+    );
+
+    await electron.handlers.get(IPC_WINDOW_CHANNELS.quickComposerMainReady)?.({
+      sender: main.sender,
+    });
+    expect(order).toEqual(["queue:thread-a", "deliver:ready=true"]);
   });
 });

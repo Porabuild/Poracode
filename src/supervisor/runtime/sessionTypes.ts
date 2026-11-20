@@ -263,6 +263,8 @@ export interface ShellSessionRuntime {
   outputLength: number;
   outputTranscript: TranscriptBuffer;
   worktreePath?: string;
+  startInHome?: true;
+  reportWorkspaceClose?: true;
   ptyExited?: boolean;
   ignoreExit?: boolean;
 }

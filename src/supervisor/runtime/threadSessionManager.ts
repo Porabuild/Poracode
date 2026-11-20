@@ -1,10 +1,18 @@
 import { randomUUID } from "node:crypto";
+import {
+  WORKSPACE_TERMINAL_READ_LIMIT,
+  type ControlWorkspaceTerminalPayload,
+  type ControlWorkspaceTerminalResult,
+} from "@/shared/contracts/workspaceTerminal";
+import { matchesWorkspaceTerminal } from "@/shared/workspaceTerminalScope";
 import type {
   ControlThreadExecutionPayload,
   ThreadExecutionReservationPayload,
   ControlledThreadRequestPayload,
 } from "@/shared/contracts/threadExecution";
 import { ThreadExecutionControl } from "./threadExecutionControl";
+import { LiveThreadRequests, type RequestHandle } from "./threadSession/liveThreadRequests";
+import type { AppThreadRequestsPayload } from "@/shared/contracts/appThreadRequests";
 import { toError } from "@/shared/errorMessage";
 import { msg } from "@/shared/messages";
 import { ThreadSessionAbsenceRefusalError } from "@/shared/threadSessionRefusal";
@@ -102,7 +110,11 @@ import {
 } from "./threadSession/userInterrupt";
 import { writeSubmittedPrompt } from "./threadSession/promptWrite";
 import { resolveTerminalColorEnv } from "./threadSession/terminalEnv";
-import { requireSessionPty } from "./threadSession/helpers";
+import {
+  fenceSessionForRetirement,
+  requireSessionPty,
+  stopSessionRefWatcher,
+} from "./threadSession/helpers";
 import { resolveThreadMentionSegments } from "./threadMentionResolver";
 import { formatTurnClientContext } from "./turnClientContext";
 import { RuntimeEventRouter } from "./threadSession/runtimeEventRouter";
@@ -199,6 +211,8 @@ export class ThreadSessionManager {
   private readonly logWriter = new BufferedLogWriter();
   private readonly outputPipeline: ThreadOutputPipeline;
   private readonly runtimeEventRouter: RuntimeEventRouter;
+  private readonly liveRequests = new LiveThreadRequests();
+  private readonly forwardedRequestHandles = new WeakMap<SessionRuntime, RequestHandle>();
   private readonly steerCoordinator: SteerCoordinator;
   private readonly structuredInterruptWatchdog: StructuredInterruptWatchdog;
   private readonly cliHookPlugin: CliHookSessionCoordinator;
@@ -374,6 +388,7 @@ export class ThreadSessionManager {
       ptyLifecycle: this.ptyLifecycle,
       outputPipeline: this.outputPipeline,
       runtimeEventRouter: this.runtimeEventRouter,
+      observeLiveRequest: (handle, event) => this.liveRequests.observe(handle, event),
       steerCoordinator: this.steerCoordinator,
       followUpQueue: this.followUpQueue,
       crewLeadEdits,
@@ -392,6 +407,7 @@ export class ThreadSessionManager {
       // A released lease cannot be protected by a retired generation, so its
       // retained custody entry is dropped on the same observation that freed
       // capacity (the retention stays bounded by live reservations).
+      retireAgentSession: (session) => this.sessionRetirement.retireAgentSession(session),
       onResourceLeaseRelease: (session) => {
         this.retiringSessions.delete(session.threadId);
       },
@@ -474,6 +490,28 @@ export class ThreadSessionManager {
     return undefined;
   }
 
+  /** Provider parsers cannot route calls to a different adapter's sessions. */
+  getThreadIdByProviderMcpMetadata(
+    metadata: Readonly<Record<string, unknown>>,
+  ): string | undefined {
+    let threadId: string | undefined;
+    for (const session of this.sessions.values()) {
+      if (session.adapter.capabilities.crossagentMcpRouting !== "provider-session") continue;
+      const sessionId = session.adapter.readMcpSessionId?.(metadata);
+      if (
+        !sessionId ||
+        (session.sessionRef?.providerSessionId !== sessionId &&
+          !session.structuredSession?.ownsProviderSession?.(sessionId))
+      ) {
+        continue;
+      }
+      // Ambiguous metadata must never select a parent by iteration order.
+      if (threadId !== undefined && threadId !== session.threadId) return undefined;
+      threadId = session.threadId;
+    }
+    return threadId;
+  }
+
   getThreadSnapshots(): ThreadRuntimeSnapshot[] {
     return [...this.sessions.values()].map((session) => ({
       threadId: session.threadId,
@@ -502,12 +540,67 @@ export class ThreadSessionManager {
   }
 
   getTerminalShellSnapshots(): TerminalShellSnapshot[] {
-    return [...this.shellSessions.values()].map((session) => ({
-      terminalId: session.shellId,
-      projectLocation: session.projectLocation,
-      ...(session.worktreePath ? { worktreePath: session.worktreePath } : {}),
-      outputLength: session.outputLength,
-    }));
+    return [...this.shellSessions.values()]
+      .filter((session) => !session.startInHome)
+      .map((session) => ({
+        terminalId: session.shellId,
+        projectLocation: session.projectLocation,
+        ...(session.worktreePath ? { worktreePath: session.worktreePath } : {}),
+        outputLength: session.outputLength,
+      }));
+  }
+
+  async controlWorkspaceTerminal(
+    payload: ControlWorkspaceTerminalPayload,
+  ): Promise<ControlWorkspaceTerminalResult> {
+    const { command, terminalId } = payload;
+    const live = this.shellSessions.get(terminalId);
+    const shell =
+      live ?? (command.action === "close" ? this.retiringShells.get(terminalId) : undefined);
+    if (!shell && command.action === "close" && !this.sessions.has(terminalId)) {
+      const receipt = this.exitedShellSnapshots.get(terminalId);
+      if (
+        receipt?.workspaceClose &&
+        !isRetainedShellExpired(receipt) &&
+        matchesWorkspaceTerminal({ terminalId, ...receipt.workspaceClose }, payload)
+      ) {
+        return { action: "close", confirmed: true };
+      }
+    }
+    if (
+      !shell ||
+      shell.startInHome ||
+      !matchesWorkspaceTerminal(
+        { terminalId, projectLocation: shell.projectLocation, worktreePath: shell.worktreePath },
+        payload,
+      )
+    ) {
+      throw new Error(`Terminal ${terminalId} is not attached to the selected checkout.`);
+    }
+    switch (command.action) {
+      case "read": {
+        const snapshot = snapshotFromLiveShell(
+          shell,
+          shell.ptyExited ? "exited" : "running",
+          WORKSPACE_TERMINAL_READ_LIMIT,
+        );
+        return { ...snapshot, action: "read", truncated: snapshot.fromCursor > 0 };
+      }
+      case "write":
+        await this.writeTerminal({ threadId: terminalId, data: command.data });
+        return { action: "write" };
+      case "resize":
+        await this.resizeTerminal({ threadId: terminalId, rows: command.rows, cols: command.cols });
+        return { action: "resize" };
+      case "close": {
+        shell.reportWorkspaceClose = true;
+        const confirmed = live
+          ? await this.retireLiveShell(shell)
+          : await this.retryRetainedShell(terminalId);
+        if (confirmed) this.reportWorkspaceShellClose(shell, null);
+        return { action: "close", confirmed };
+      }
+    }
   }
 
   /**
@@ -637,8 +730,20 @@ export class ThreadSessionManager {
     this.canonicalOverflowStopped.add(threadId);
     const message = `Agent output stopped: ${detail}.`;
     console.error(`[supervisor] ${message} (thread ${threadId})`);
+    // Fence late provider/PTY callbacks and timers before retiring so the dying
+    // process cannot overwrite the explicit error state, and retire the
+    // negotiated session controls with the handle.
+    session.structuredTurnInterruptRequested = false;
+    session.structuredSession?.forceCompleteTurn?.();
+    fenceSessionForRetirement(session, this.outputPipeline);
+    session.sessionConfigOptions = null;
+    if (session.sessionRef?.providerSessionId) {
+      this.sessionsBySessionId.delete(session.sessionRef.providerSessionId);
+    }
     this.outputPipeline.updateState(session, "error", "error", message);
+    this.steerCoordinator.onSessionClosing(session);
     this.followUpQueue.onStructuredUpdate(session, "error");
+    this.followUpQueue.onSessionClosing(threadId, session);
     // Release the retained batch first (capacity-aware), then queue the stop
     // marker behind it: the marker goes out as its own control-class envelope
     // once the content ahead of it is fully out.
@@ -648,8 +753,9 @@ export class ThreadSessionManager {
       threadId,
       event: { type: "error", threadId, message },
     });
-    // One retirement path: a rejecting dispose never skips PTY termination,
-    // and an unconfirmed exit retains the slot instead of freeing it.
+    // One retirement path: takes custody of any structured handle and detaches
+    // it from `session.structuredSession` immediately so a later submit
+    // relaunches via `sessionRef` instead of calling into the disposed handle.
     void this.sessionRetirement.retireAgentSession(session);
   }
 
@@ -818,7 +924,28 @@ export class ThreadSessionManager {
    * live. Consumed by {@link SubagentRunManager}.
    */
   appendSubagentRuntimeEvent(parentThreadId: string, event: RuntimeEvent): void {
-    if (!this.sessions.has(parentThreadId)) return;
+    const session = this.sessions.get(parentThreadId);
+    if (!session) return;
+    const isRequest = event.type === "request.opened" || event.type === "request.resolved";
+    const crossagent = isRequest && !session.ignoreExit ? this.options.crossagentMcp : undefined;
+    if (crossagent) {
+      let handle = this.forwardedRequestHandles.get(session);
+      if (!handle) {
+        handle = {
+          resolveServerRequest: async (id, response) => {
+            if (
+              !this.isCurrentSession(session) ||
+              session.ignoreExit ||
+              !(await crossagent.resolveChildRequest(id, response, parentThreadId, true))
+            ) {
+              throw new Error("The forwarded request is no longer pending.");
+            }
+          },
+        };
+        this.forwardedRequestHandles.set(session, handle);
+      }
+      this.liveRequests.observe(handle, event);
+    }
     this.runtimeEventRouter.append(parentThreadId, event);
   }
 
@@ -1345,12 +1472,15 @@ export class ThreadSessionManager {
         // paths and existing clients' message matchers.
         throw new ThreadSessionAbsenceRefusalError(`Unknown thread session: ${payload.threadId}`);
       }
-      if (session.status === "inactive" && !session.sessionRef) {
-        throw new Error("This thread exited before a resumable session id was discovered.");
-      }
       const usesStructuredFlow =
         session.adapter.capabilities.liveInputMode === "server" ||
         session.presentationMode === "gui";
+      if (
+        !session.sessionRef &&
+        (session.status === "inactive" || (usesStructuredFlow && !session.structuredSession))
+      ) {
+        throw new Error("This thread exited before a resumable session id was discovered.");
+      }
       requireThreadMentionTools(session, payload.segments);
       const mentionSegments = payload.segments
         ? resolveThreadMentionSegments(payload.segments)
@@ -1391,6 +1521,12 @@ export class ThreadSessionManager {
         return this.sendThreadInput(payload);
       }
       this.executionControl.assertUnowned(payload.threadId);
+      if (
+        !session.sessionRef &&
+        (session.status === "inactive" || (usesStructuredFlow && !session.structuredSession))
+      ) {
+        throw new Error("This thread exited before a resumable session id was discovered.");
+      }
       if (session.status !== "inactive" && session.structuredSession) {
         assertWorkspaceLiveConfig(session, effectiveConfig);
       }
@@ -2027,28 +2163,32 @@ export class ThreadSessionManager {
     }
   }
 
+  private async retireLiveShell(shell: ShellSessionRuntime): Promise<boolean> {
+    const { shellId } = shell;
+    shell.ignoreExit = true;
+    this.shellSessions.delete(shellId);
+    this.clearRetainedShellSnapshot(shellId);
+    this.rememberRemovedThread(shellId);
+    this.retiringShells.set(shellId, shell);
+    const confirmed = await this.sessionRetirement.retireShellSession(shell);
+    if (confirmed) {
+      if (this.retiringShells.get(shellId) === shell) this.retiringShells.delete(shellId);
+    } else {
+      // The retiring shell keeps its lease until exit or a confirmed retry.
+      console.warn(
+        `[supervisor] shell ${shellId} retirement was not confirmed; its execution slot stays counted.`,
+      );
+    }
+    return confirmed;
+  }
+
   private async retireThreadRuntime(
     payload: CloseThreadPayload,
     options: { replacement?: boolean } = {},
   ): Promise<CloseThreadConfirmedResult> {
     const shell = this.shellSessions.get(payload.threadId);
     if (shell) {
-      shell.ignoreExit = true;
-      this.shellSessions.delete(payload.threadId);
-      this.clearRetainedShellSnapshot(payload.threadId);
-      this.rememberRemovedThread(payload.threadId);
-      const confirmed = await this.sessionRetirement.retireShellSession(shell);
-      if (confirmed) {
-        this.retiringShells.delete(payload.threadId);
-      } else {
-        // Reachable custody plus a truthful failure: capacity is retained and
-        // a later close/start/shutdown retry can finish the kill.
-        this.retiringShells.set(payload.threadId, shell);
-        console.warn(
-          `[supervisor] shell ${payload.threadId} retirement was not confirmed; its execution slot stays counted.`,
-        );
-      }
-      return { confirmed };
+      return { confirmed: await this.retireLiveShell(shell) };
     }
 
     const existing = this.sessions.get(payload.threadId);
@@ -2087,12 +2227,10 @@ export class ThreadSessionManager {
       return { confirmed };
     }
 
-    existing.ignoreExit = true;
+    fenceSessionForRetirement(existing, this.outputPipeline);
     this.rememberRemovedThread(payload.threadId);
-    this.outputPipeline.clearSessionTimers(existing);
+    this.steerCoordinator.onSessionClosing(existing);
     this.followUpQueue.onSessionClosing(payload.threadId, existing);
-    existing.stopSessionRefWatcher?.();
-    existing.stopSessionRefWatcher = undefined;
     // Final state before the session disappears: without it a working thread
     // freezes at `working` in the DB and in every renderer, with nothing left
     // running to ever move it.
@@ -2247,6 +2385,7 @@ export class ThreadSessionManager {
       outputLength: 0,
       outputTranscript: new TranscriptBuffer(200_000),
       ...(payload.worktreePath ? { worktreePath: payload.worktreePath } : {}),
+      ...(payload.startInHome ? { startInHome: true } : {}),
     };
 
     this.shellSessions.set(payload.shellId, session);
@@ -2278,6 +2417,7 @@ export class ThreadSessionManager {
         this.retiringShells.delete(payload.shellId);
       }
       if (session.ignoreExit) {
+        this.reportWorkspaceShellClose(session, exitCode ?? null);
         return;
       }
       if (this.shellSessions.get(payload.shellId)?.instanceId !== session.instanceId) {
@@ -2301,26 +2441,45 @@ export class ThreadSessionManager {
     return this.resolveOwnedThreadServerRequest(payload);
   }
 
+  appThreadRequests({ input }: AppThreadRequestsPayload) {
+    this.executionControl.assertUnowned(input.threadId);
+    const current = this.sessions.get(input.threadId);
+    const session = current?.ignoreExit ? undefined : current;
+    return this.liveRequests.run(
+      session?.structuredSession,
+      input,
+      session && this.forwardedRequestHandles.get(session),
+    );
+  }
+
   private async resolveOwnedThreadServerRequest(
     payload: ResolveThreadServerRequestPayload,
   ): Promise<void> {
     // Forwarded subagent requests carry a run-namespaced id; route them to the
     // owning child handle first and only fall through to the parent session
     // when the id isn't a subagent request.
+    const parent = this.sessions.get(payload.threadId);
+    const forwardedHandle = parent && this.forwardedRequestHandles.get(parent);
     if (
-      await this.options.crossagentMcp?.resolveChildRequest(
-        payload.requestId,
-        payload.response,
-        payload.threadId,
+      await this.liveRequests.submit(forwardedHandle, payload.requestId, async () =>
+        this.options.crossagentMcp?.resolveChildRequest(
+          payload.requestId,
+          payload.response,
+          payload.threadId,
+        ),
       )
     ) {
       return;
     }
     const session = this.requireSession(payload.threadId);
-    if (!session.structuredSession?.resolveServerRequest) {
+    const handle = session.structuredSession;
+    const resolve = handle?.resolveServerRequest?.bind(handle);
+    if (!resolve) {
       throw new Error(`Thread ${payload.threadId} does not support server request resolution.`);
     }
-    await session.structuredSession.resolveServerRequest(payload.requestId, payload.response);
+    await this.liveRequests.submit(handle, payload.requestId, () =>
+      resolve(payload.requestId, payload.response),
+    );
   }
 
   readTerminalScrollback(threadId: string): string {
@@ -2371,6 +2530,19 @@ export class ThreadSessionManager {
 
   private retainExitedShellSnapshot(shell: ShellSessionRuntime): void {
     putRetainedShellSnapshot(this.exitedShellSnapshots, buildRetainedShellSnapshot(shell));
+  }
+
+  private reportWorkspaceShellClose(shell: ShellSessionRuntime, exitCode: number | null): void {
+    if (!shell.reportWorkspaceClose || this.shellSessions.has(shell.shellId)) return;
+    delete shell.reportWorkspaceClose;
+    putRetainedShellSnapshot(this.exitedShellSnapshots, {
+      ...buildRetainedShellSnapshot(shell),
+      workspaceClose: {
+        projectLocation: shell.projectLocation,
+        ...(shell.worktreePath ? { worktreePath: shell.worktreePath } : {}),
+      },
+    });
+    this.options.emit({ type: "thread-exited", threadId: shell.shellId, exitCode });
   }
 
   private clearRetainedShellSnapshot(threadId: string): void {
@@ -2546,8 +2718,7 @@ export class ThreadSessionManager {
           session.sessionRef = ref;
           session.canResumeWithConfig = true;
           this.indexSessionRef(session, undefined);
-          session.stopSessionRefWatcher?.();
-          session.stopSessionRefWatcher = undefined;
+          stopSessionRefWatcher(session);
           this.outputPipeline.emitState(session);
           return;
         }

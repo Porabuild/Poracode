@@ -37,14 +37,31 @@ export interface AppControlsMcpIngressDeps {
   getProjects(): Project[];
   getProject(projectId: string): Project | null;
   getProjectNotes(projectId: string): ProjectNotes | null;
+  compareAndSetProjectNotes?: NonNullable<AppControlsToolContext["compareAndSetProjectNotes"]>;
   directoryExists(path: string): boolean;
   applyProjectCommand(command: RemoteProjectCommand): Promise<RemoteProjectCommandResult>;
   updateProject(project: Project): void;
   settings: AppControlsSettingsGateway;
+  assertCanPersistSecrets(): void;
   getAppInfo(): AppControlsAppInfo;
   supervisor: AppControlsSupervisorCaller;
+  runtime?: NonNullable<AppControlsToolContext["runtime"]>;
+  projectActions?: NonNullable<AppControlsToolContext["projectActions"]>;
+  prWatches?: NonNullable<AppControlsToolContext["prWatches"]>;
+  reopenThread?: NonNullable<AppControlsToolContext["reopenThread"]>;
+  revertCheckpoint?: NonNullable<AppControlsToolContext["revertCheckpoint"]>;
   gitState?: NonNullable<AppControlsToolContext["gitState"]>;
   deviceWorkspace?: NonNullable<AppControlsToolContext["deviceWorkspace"]>;
+  applyThreadLifecycle?: NonNullable<AppControlsToolContext["applyThreadLifecycle"]>;
+  importSession?: NonNullable<AppControlsToolContext["importSession"]>;
+  editCatalog?: NonNullable<AppControlsToolContext["editCatalog"]>;
+  experiments?: NonNullable<AppControlsToolContext["experiments"]>;
+  moveThreadToWorktree?: NonNullable<AppControlsToolContext["moveThreadToWorktree"]>;
+  handoffThread?: NonNullable<AppControlsToolContext["handoffThread"]>;
+  transferThread?: NonNullable<AppControlsToolContext["transferThread"]>;
+  syncMemory?: NonNullable<AppControlsToolContext["syncMemory"]>;
+  localPorts?: NonNullable<AppControlsToolContext["localPorts"]>;
+  openProviderLogin?: NonNullable<AppControlsToolContext["openProviderLogin"]>;
   /** Per-call launch admission options stay host-only and ephemeral. */
   createThread(
     request: CreateAppThreadRequest,

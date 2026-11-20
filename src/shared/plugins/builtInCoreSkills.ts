@@ -10,6 +10,8 @@ import terminal from "../../../resources/plugins/terminal/plugin.json";
 import { type BuiltInMcpServerId } from "../contracts/mcpServer";
 import { parsePluginManifest, parsePoracodeExtension } from "./spec";
 
+export const APP_CONTROLS_PLUGIN_VERSION = appControls.version;
+
 /**
  * Bundled `resources/plugins` packages. A new folder there must be imported
  * here — the companion test compares this list to the disk.

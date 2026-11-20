@@ -28,6 +28,7 @@ import {
   type TurnCloseUpdate,
 } from "./threadTurnHelpers";
 import { recordThreadStarted } from "../usageRecorder";
+import { hasOwnWindow } from "../auxiliaryThreadWindows";
 import { keepAlivePatch, removeKeepAliveId } from "./paneCacheSlice";
 import type { SliceCreator } from "./shared";
 import { clearRuntimeStructuralChangeHint } from "../runtimeStructuralChanges";
@@ -38,6 +39,7 @@ import {
   carryPendingThreadInput,
   confirmPendingThreadInput,
   noteThreadInterruptedTurnStated,
+  retirePendingProviderSwitch,
 } from "../pendingThreadInput";
 import { noteRendererCreatedThreadIntent } from "../managedRootCatalog/rootCreateIntent";
 import { terminateStaleSubAgentItems } from "./staleSubAgents";
@@ -196,6 +198,8 @@ export interface ThreadSlice {
       errorMessage?: string;
       /** Null clears a cut-off turn; undefined keeps it until a turn starts. */
       interruptedTurn?: Thread["interruptedTurn"] | null;
+      /** Host-authoritative last-activity timestamp when emitted/persisted. */
+      updatedAt?: string;
     },
   ) => void;
   /**
@@ -223,7 +227,7 @@ export interface ThreadSlice {
   purgeStaleArchivedThreads: (maxAgeDays: number) => void;
   archiveOldDoneThreads: (maxAgeDays: number) => void;
   markThreadExited: (threadId: string) => void;
-  touchThread: (threadId: string) => void;
+  touchThread: (threadId: string, updatedAt?: string) => void;
   markThreadViewed: (threadId: string) => void;
   markThreadsViewed: (threadIds: readonly string[]) => void;
   reconcileRuntimeSnapshots: (
@@ -412,9 +416,15 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set, get) => ({
     set((state) => {
       const now = new Date().toISOString();
       let changed = false;
+      let previousAgentKind: string | undefined;
+      let previousAgentInstanceId: string | undefined;
+      let previousPresentationMode: Thread["presentationMode"];
       const threads = state.threads.map((thread): Thread => {
         if (thread.id !== threadId) return thread;
         changed = true;
+        previousAgentKind = thread.agentKind;
+        previousAgentInstanceId = thread.agentInstanceId;
+        previousPresentationMode = thread.presentationMode;
         // Everything dropped here belongs to the provider being left behind:
         // its session, its instance, its slash commands, and any error it
         // failed with. Only the thread's identity and transcript carry over.
@@ -447,8 +457,17 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set, get) => ({
       });
       if (!changed) return {};
       // The old provider's authoritative launch snapshot describes a session
-      // that no longer exists; drop it so the new provider's first launch owns it.
-      confirmPendingThreadInput(threadId);
+      // that no longer exists; drop it so the new provider's first launch owns
+      // it. Skip clearing on the desktop host's same-provider retarget echo so
+      // an in-flight switch launch keeps its pending-input and pre-switch guards.
+      if (
+        previousAgentKind !== input.agentKind ||
+        (previousAgentInstanceId || undefined) !== (input.agentInstanceId || undefined) ||
+        previousPresentationMode !== input.presentationMode
+      ) {
+        confirmPendingThreadInput(threadId);
+        retirePendingProviderSwitch(threadId);
+      }
       const { [threadId]: _droppedPendingConfig, ...pendingThreadConfigByThreadId } =
         state.pendingThreadConfigByThreadId;
       const { [threadId]: _droppedLaunchConfig, ...runtimeLaunchConfigByThreadId } =
@@ -535,6 +554,7 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set, get) => ({
       forgetTimelineMeasurements(threadId);
       forgetThreadGalleryCache(threadId);
       confirmPendingThreadInput(threadId);
+      retirePendingProviderSwitch(threadId);
       const nextThreads = state.threads.filter((thread) => thread.id !== threadId);
       const chatPromptAnchorIds = Object.fromEntries(
         Object.entries(state.chatPromptAnchorIds).filter(([id]) => id !== threadId),
@@ -745,7 +765,10 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set, get) => ({
       let turnUpdate: TurnCloseUpdate = {
         runtimeCompletedTurnsByThread: state.runtimeCompletedTurnsByThread,
       };
-      const isVisible = state.view.kind === "thread" && state.view.panes.includes(threadId);
+      // A thread in its own window stays on screen whatever this window shows.
+      const isVisible =
+        (state.view.kind === "thread" && state.view.panes.includes(threadId)) ||
+        hasOwnWindow(threadId);
       const nowIso = new Date().toISOString();
 
       // Track confirmed config independently of the GUI's next-turn edits.
@@ -829,6 +852,13 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set, get) => ({
         // not on working rebroadcasts after the user marks done mid-turn.
         const turnStarted = input.status === "working" && thread.status !== "working";
         const activityClearsDone = turnStarted && thread.done;
+        const nextUpdatedAt =
+          input.updatedAt !== undefined && (turnStarted || input.status === "working")
+            ? input.updatedAt
+            : turnStarted && nowIso > thread.updatedAt
+              ? nowIso
+              : thread.updatedAt;
+        const updatedAtChanged = nextUpdatedAt !== thread.updatedAt;
         const nextInterruptedTurn =
           input.interruptedTurn !== undefined
             ? (input.interruptedTurn ?? undefined)
@@ -846,6 +876,7 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set, get) => ({
           !slashCommandsChanged &&
           !sessionConfigOptionsChanged &&
           !sessionRefChanged &&
+          !updatedAtChanged &&
           thread.activeTurnStartedAt === nextTurnTiming.activeTurnStartedAt &&
           thread.lastTurnStartedAt === nextTurnTiming.lastTurnStartedAt &&
           thread.lastTurnEndedAt === nextTurnTiming.lastTurnEndedAt &&
@@ -887,7 +918,7 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set, get) => ({
           ...(effectiveStatus === "error" && nextErrorMessage !== undefined
             ? { errorMessage: nextErrorMessage }
             : {}),
-          ...(turnStarted ? { updatedAt: nowIso } : {}),
+          ...(updatedAtChanged ? { updatedAt: nextUpdatedAt } : {}),
           ...(activityClearsDone ? { done: false, doneAt: undefined } : {}),
           ...nextTurnTiming,
         };
@@ -1178,12 +1209,19 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set, get) => ({
         ...(backgroundTasksPatch ?? {}),
       };
     }),
-  touchThread: (threadId) =>
-    set((state) => ({
-      threads: state.threads.map((thread) =>
-        thread.id === threadId ? { ...thread, updatedAt: new Date().toISOString() } : thread,
-      ),
-    })),
+  touchThread: (threadId, updatedAt) =>
+    set((state) => {
+      const candidate = updatedAt ?? new Date().toISOString();
+      let changed = false;
+      const threads = state.threads.map((thread) => {
+        if (thread.id !== threadId) return thread;
+        const nextUpdatedAt = candidate > thread.updatedAt ? candidate : thread.updatedAt;
+        if (nextUpdatedAt === thread.updatedAt) return thread;
+        changed = true;
+        return { ...thread, updatedAt: nextUpdatedAt };
+      });
+      return changed ? { threads } : {};
+    }),
   markThreadViewed: (threadId) =>
     set((state) => {
       const now = Date.now();

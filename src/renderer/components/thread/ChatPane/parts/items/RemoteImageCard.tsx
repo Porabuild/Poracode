@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import type { RemoteImageRefValue } from "@/shared/remote";
 import { cardVariantForRef } from "@/shared/remote/clientEnvironmentImages";
 import { useChatPaneActions } from "../../chatPaneActionsContext";
@@ -25,6 +26,9 @@ export function RemoteImageCard(props: {
   readonly className?: string;
   readonly imageClassName?: string;
   readonly isBlock?: boolean;
+  readonly layout?: "inline" | "tile";
+  readonly overlay?: ReactNode;
+  readonly overflowCount?: number;
 }) {
   const readiness = useChatPaneActions()?.remoteImageReadiness;
   const ref: RemoteImageRefValue | undefined = props.source.remoteRef;
@@ -59,6 +63,9 @@ export function RemoteImageCard(props: {
       {...(props.className !== undefined ? { className: props.className } : {})}
       {...(props.imageClassName !== undefined ? { imageClassName: props.imageClassName } : {})}
       {...(props.isBlock !== undefined ? { isBlock: props.isBlock } : {})}
+      {...(props.layout !== undefined ? { layout: props.layout } : {})}
+      {...(props.overlay !== undefined ? { overlay: props.overlay } : {})}
+      {...(props.overflowCount !== undefined ? { overflowCount: props.overflowCount } : {})}
     />
   );
 }

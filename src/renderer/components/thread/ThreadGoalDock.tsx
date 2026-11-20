@@ -7,7 +7,12 @@ import type { ThreadDocksPlacement } from "@/shared/settings";
 import type { TranslateFn } from "@/renderer/i18n/i18n";
 import { formatElapsed } from "@/renderer/utils/formatTime";
 import { ThreadDocksPlacementToggle } from "./ThreadDocksPlacementToggle";
-import { ThreadDockSection } from "./ThreadDockUI";
+import {
+  ThreadDockBody,
+  ThreadDockCollapseButton,
+  ThreadDockHeader,
+  ThreadDockSection,
+} from "./ThreadDockUI";
 import { ThreadGoalControls } from "./ThreadGoalControls";
 import { ThreadGoalStatusIcon } from "./ThreadGoalStatusIcon";
 import { formatTokenCount } from "./formatTokenCount";
@@ -30,6 +35,7 @@ export function ThreadGoalDock({
   onDismiss,
 }: ThreadGoalDockProps) {
   const { t } = useLingui();
+  const [collapsed, setCollapsed] = useState(false);
   const elapsedSeconds = useGoalElapsedSeconds(state);
   const meta = goalMeta(state, t);
   const elapsedLabel = elapsedSeconds > 0 ? formatElapsed(elapsedSeconds) : null;
@@ -41,11 +47,69 @@ export function ThreadGoalDock({
   const controls = (
     <ThreadGoalControls threadId={threadId} state={state} {...(onDismiss ? { onDismiss } : {})} />
   );
+  if (placement === "right") {
+    const label = t`Goal`;
+    return (
+      <ThreadDockSection ariaLabel={t`Thread goal dock`} placement="right" collapsed={collapsed}>
+        <ThreadDockHeader
+          icon={<ThreadGoalStatusIcon status={state.status} />}
+          title={label}
+          countLabel={
+            elapsedLabel ? <span className="tabular-nums">{elapsedLabel}</span> : undefined
+          }
+          collapse={{ collapsed, onToggle: () => setCollapsed(!collapsed) }}
+          actions={
+            <>
+              {placementToggle}
+              {controls}
+              <ThreadDockCollapseButton
+                collapsed={collapsed}
+                label={collapsed ? t`Expand ${label}` : t`Collapse ${label}`}
+                onPress={() => setCollapsed(!collapsed)}
+              />
+            </>
+          }
+        >
+          {collapsed ? (
+            <span
+              className="ml-auto min-w-0 truncate text-right text-[11px] text-muted"
+              title={state.objective}
+            >
+              {state.objective}
+            </span>
+          ) : null}
+        </ThreadDockHeader>
+        {!collapsed ? (
+          <ThreadDockBody className="space-y-2">
+            <GoalObjectiveText
+              objective={state.objective}
+              lastReason={state.lastReason}
+              multiline
+            />
+            {hasMeta || evaluationChecks ? (
+              <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[11px] text-muted [font-variant-numeric:tabular-nums]">
+                {hasMeta ? <span>{meta.join(" · ")}</span> : null}
+                {hasMeta && evaluationChecks ? <span aria-hidden="true">·</span> : null}
+                {evaluationChecks ? (
+                  <span>
+                    <Plural value={state.iterations ?? 0} one="# check" other="# checks" />
+                  </span>
+                ) : null}
+              </div>
+            ) : null}
+            {state.lastReason ? (
+              <p className="border-t border-[var(--hairline-soft)] pt-1.5 text-[11px] leading-4 text-muted">
+                <Trans>Last evaluation:</Trans> {state.lastReason}
+              </p>
+            ) : null}
+          </ThreadDockBody>
+        ) : null}
+      </ThreadDockSection>
+    );
+  }
   return (
     <ThreadDockSection ariaLabel={t`Thread goal dock`} placement={placement} className="px-2 py-1">
-      <div
-        className={`flex min-w-0 items-center gap-x-2 leading-5 ${placement === "right" ? "flex-wrap gap-y-0.5" : ""}`}
-      >
+      <div className="flex min-w-0 items-center gap-x-2 leading-5">
         <ThreadGoalStatusIcon status={state.status} />
         <span className="shrink-0 font-semibold text-foreground">
           <Trans>Goal</Trans>
@@ -69,24 +133,10 @@ export function ThreadGoalDock({
             ) : null}
           </span>
         ) : null}
-        {placement === "right" ? (
-          <>
-            <div className="ml-auto flex shrink-0 items-center gap-1">
-              {placementToggle}
-              {controls}
-            </div>
-            <div className="basis-full min-w-0 pl-[22px]">
-              <GoalObjectiveText objective={state.objective} lastReason={state.lastReason} />
-            </div>
-          </>
-        ) : (
-          <>
-            <span className="h-3 w-px shrink-0 bg-[color:var(--border)]" />
-            <GoalObjectiveText objective={state.objective} lastReason={state.lastReason} />
-            {placementToggle}
-            {controls}
-          </>
-        )}
+        <span className="h-3 w-px shrink-0 bg-[color:var(--border)]" />
+        <GoalObjectiveText objective={state.objective} lastReason={state.lastReason} />
+        {placementToggle}
+        {controls}
       </div>
     </ThreadDockSection>
   );
@@ -95,9 +145,11 @@ export function ThreadGoalDock({
 function GoalObjectiveText({
   objective,
   lastReason,
+  multiline = false,
 }: {
   objective: string;
   lastReason?: string | undefined;
+  multiline?: boolean;
 }) {
   const textRef = useRef<HTMLSpanElement>(null);
   const [isOverflowing, setIsOverflowing] = useState(false);
@@ -110,7 +162,12 @@ function GoalObjectiveText({
       // `objective` re-runs the measurement for the new text. Empty text can
       // never overflow, so it clears the tooltip here and skips the observer
       // work below; the effect still re-runs (and observes) once text arrives.
-      setIsOverflowing(objective.length > 0 && element.scrollWidth > element.clientWidth);
+      setIsOverflowing(
+        objective.length > 0 &&
+          (multiline
+            ? element.scrollHeight > element.clientHeight + 1
+            : element.scrollWidth > element.clientWidth),
+      );
     };
     measure();
 
@@ -118,22 +175,33 @@ function GoalObjectiveText({
     const observer = new ResizeObserver(measure);
     observer.observe(element);
     return () => observer.disconnect();
-  }, [objective]);
+  }, [multiline, objective]);
 
   const text = (
-    <span ref={textRef} className="block truncate text-foreground">
+    <span
+      ref={textRef}
+      className={
+        multiline
+          ? "line-clamp-4 break-words text-xs leading-relaxed text-foreground"
+          : "block truncate text-foreground"
+      }
+    >
       {objective}
     </span>
   );
 
-  if (!isOverflowing && !lastReason) return <div className="min-w-0 flex-1">{text}</div>;
+  if (!isOverflowing && (!lastReason || multiline)) {
+    return <div className="min-w-0 flex-1">{text}</div>;
+  }
   return (
     <div className="min-w-0 flex-1">
       <Tooltip delay={0}>
-        <Tooltip.Trigger className="block w-full min-w-0 overflow-hidden">{text}</Tooltip.Trigger>
+        <Tooltip.Trigger className="block w-full min-w-0 overflow-hidden text-left">
+          {text}
+        </Tooltip.Trigger>
         <Tooltip.Content className="max-w-[32rem] whitespace-normal break-words">
           <span className="block">{objective}</span>
-          {lastReason ? (
+          {!multiline && lastReason ? (
             <span className="mt-1 block text-muted">
               <Trans>Last evaluation:</Trans> {lastReason}
             </span>

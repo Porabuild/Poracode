@@ -234,8 +234,13 @@ describe("ACP registry persistence through the settings owner", () => {
 
   /** An installed registry instance holding one unreadable and one readable credential. */
   function writeCredentialedInstance(extra: Record<string, unknown> = {}) {
-    const unreadable = `${encryptSecret("", "lost-key-secret").slice(0, -4)}AAAA`;
-    expect(() => decryptSecret("", unreadable)).toThrow("unable to authenticate data");
+    const parts = encryptSecret("", "lost-key-secret").split(":");
+    const tagIndex = parts.length - 2;
+    const tag = Buffer.from(parts[tagIndex]!, "base64");
+    tag[0] = tag[0]! ^ 1;
+    parts[tagIndex] = tag.toString("base64");
+    const unreadable = parts.join(":");
+    expect(() => decryptSecret("", unreadable)).toThrow(/unable to authenticate data|bad decrypt/i);
     const readable = encryptSecret("", "readable-secret");
     writeFileSync(
       join(root, "settings.json"),

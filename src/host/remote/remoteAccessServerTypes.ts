@@ -18,6 +18,7 @@ import type { GitStateInterest, GitStateSnapshot } from "@/shared/gitState";
 import type { ResourceAdmissionPeek } from "@/shared/hostResourceAdmission";
 import type { LiveEventInterests } from "@/shared/liveEventInterests";
 import type { WorktreePlacement } from "@/shared/worktree";
+import type { SupervisorCallOptions } from "@/host/supervisor/SupervisorClient";
 import type {
   RuntimeHistoryGapAcknowledgeResult,
   RuntimeHistoryGapDescriptor,
@@ -327,6 +328,12 @@ export interface RemoteAccessServerOptions {
   readonly advertisedBaseUrl?: string;
   /** Tailscale HTTPS origin exposed alongside the LAN origin in pairing UI. */
   readonly tailscaleHttpBaseUrl?: string;
+  /**
+   * Host-owned signal for a pending public-origin update. Unknown Host/Origin
+   * requests get a retryable 503 while the listener is preparing that origin;
+   * this never adds a hostname or origin to the allowlist.
+   */
+  readonly isAdvertisedEndpointPending?: () => boolean;
   readonly pairingAppUrl?: string;
   readonly trustedCorsOrigins?: readonly string[];
   /**
@@ -478,6 +485,7 @@ export interface RemoteAccessServerOptions {
   callSupervisor<Name extends SupervisorProcedureName>(
     name: Name,
     payload: IpcProcedurePayload<Name>,
+    options?: SupervisorCallOptions,
   ): Promise<IpcProcedureResult<Name>>;
   /**
    * On-demand supervisor admission snapshot for the loopback `/metrics`
@@ -510,6 +518,7 @@ export interface RemoteAccessServerOptions {
   }): Promise<CheckpointRevertResult>;
   /** Keep compound removal ordered against launches and checkpoint reverts. */
   runThreadMutation?: import("@/host/supervisor/threadMutationCustody").RunThreadMutation;
+  captureThreadControlState?(threadId: string, expectedControls: number): () => boolean;
   /**
    * Forwards a thread-metadata command to the desktop renderer, which owns
    * thread metadata and persists it. Returns false when no renderer window is
@@ -603,7 +612,7 @@ export interface RemoteAccessServerOptions {
      * authority persists on its own queue); the route awaits the result. */
     update(patch: RemoteSettingsPatch): RemoteSettings | Promise<RemoteSettings>;
     readMcpServers(): { servers: McpServer[] };
-    commandMcpServers(command: RemoteMcpSettingsCommand): { servers: McpServer[] };
+    commandMcpServers(command: RemoteMcpSettingsCommand): Promise<{ servers: McpServer[] }>;
     resolveScope(scope: RemoteMcpSettingsScope): {
       servers: McpServer[];
       projectLocation?: ProjectLocation;
@@ -692,7 +701,7 @@ export interface RemoteAccessServerOptions {
     upsert(registration: RemotePushRegistration): void;
     remove(deviceId: string, routing?: RemotePushRegistrationRouting): void;
   };
-  /** Notifies the desktop shell after the active pairing code rotates. */
+  /** Notifies the desktop shell after published pairing information changes. */
   readonly onPairingChanged?: () => void;
   /**
    * Optional host hook receiving the authoritative project rows after an HTTP

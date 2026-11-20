@@ -1,3 +1,4 @@
+import { ContentSurface } from "@/renderer/components/common/ContentSurface";
 import { Button } from "@heroui/react";
 import { Plural, Trans } from "@lingui/react/macro";
 import type { ReviewDraftComment } from "./prReviewDraftStore";
@@ -17,7 +18,7 @@ export function ReviewDraftSummary(props: {
   const { drafts, outdatedCount } = props;
   if (drafts.length === 0 && outdatedCount === 0) return null;
   return (
-    <div className="flex flex-col gap-1 rounded-lg border border-border px-2 py-1.5 text-xs">
+    <ContentSurface variant="row" className="flex flex-col gap-1 px-2 py-1.5 text-xs">
       {drafts.length > 0 ? (
         <>
           <span className="font-medium text-foreground">
@@ -65,6 +66,6 @@ export function ReviewDraftSummary(props: {
           </Button>
         </div>
       ) : null}
-    </div>
+    </ContentSurface>
   );
 }

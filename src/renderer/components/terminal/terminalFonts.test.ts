@@ -1,9 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   applyTerminalFont,
+  ensureCanvasFontWhitespaceSupport,
   listInstalledFontFamilies,
   loadTerminalFonts,
   quoteFontFamily,
+  resetCanvasFontWhitespaceCheckForTests,
   resolveTerminalFontFamily,
   supportsInstalledFonts,
   TERMINAL_FONT_FAMILY,
@@ -11,6 +13,9 @@ import {
 import type { Terminal } from "@xterm/xterm";
 
 afterEach(() => {
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+  resetCanvasFontWhitespaceCheckForTests();
   Reflect.deleteProperty(window, "queryLocalFonts");
   Reflect.deleteProperty(document, "fonts");
 });
@@ -84,5 +89,69 @@ describe("terminal fonts", () => {
     };
     applyTerminalFont({ options } as Terminal, "");
     expect(writes).toEqual(["monospace", TERMINAL_FONT_FAMILY]);
+  });
+
+  it("leaves canvas font setters untouched when leading whitespace is already accepted", () => {
+    class HealthyCanvasContext {
+      #font = "10px sans-serif";
+      get font(): string {
+        return this.#font;
+      }
+      set font(value: string) {
+        this.#font = value.trim();
+      }
+    }
+    const originalSet = Object.getOwnPropertyDescriptor(
+      HealthyCanvasContext.prototype,
+      "font",
+    )?.set;
+    vi.stubGlobal("CanvasRenderingContext2D", HealthyCanvasContext);
+    vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockImplementation(
+      () => new HealthyCanvasContext() as unknown as CanvasRenderingContext2D,
+    );
+
+    ensureCanvasFontWhitespaceSupport();
+
+    expect(Object.getOwnPropertyDescriptor(HealthyCanvasContext.prototype, "font")?.set).toBe(
+      originalSet,
+    );
+  });
+
+  it("trims leading whitespace on canvas font setters when the runtime rejects it", () => {
+    const createStrictContextClass = () =>
+      class StrictCanvasContext {
+        #font = "10px sans-serif";
+        get font(): string {
+          return this.#font;
+        }
+        set font(value: string) {
+          if (/^\s/.test(value)) return;
+          this.#font = value;
+        }
+      };
+    const StrictCanvasContext = createStrictContextClass();
+    const StrictOffscreenContext = createStrictContextClass();
+    vi.stubGlobal("CanvasRenderingContext2D", StrictCanvasContext);
+    vi.stubGlobal("OffscreenCanvasRenderingContext2D", StrictOffscreenContext);
+    vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockImplementation(
+      () => new StrictCanvasContext() as unknown as CanvasRenderingContext2D,
+    );
+
+    ensureCanvasFontWhitespaceSupport();
+    const wrappedSet = Object.getOwnPropertyDescriptor(StrictCanvasContext.prototype, "font")?.set;
+    ensureCanvasFontWhitespaceSupport();
+    expect(Object.getOwnPropertyDescriptor(StrictCanvasContext.prototype, "font")?.set).toBe(
+      wrappedSet,
+    );
+
+    const ctx = new StrictCanvasContext();
+    ctx.font = " normal 24px 'Geist Mono', monospace";
+    expect(ctx.font).toBe("normal 24px 'Geist Mono', monospace");
+    ctx.font = "italic bold 24px 'Geist Mono', monospace";
+    expect(ctx.font).toBe("italic bold 24px 'Geist Mono', monospace");
+
+    const offscreen = new StrictOffscreenContext();
+    offscreen.font = " bold 24px monospace";
+    expect(offscreen.font).toBe("bold 24px monospace");
   });
 });

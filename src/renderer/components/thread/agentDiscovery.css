@@ -1,8 +1,9 @@
 /* Discovery is a full-window OverlayShell surface dressed in the shared
    first-launch backdrop (WelcomeBackdrop). The radar reuses the pairing
    handshake's global ripple/orbit CSS and the welcome icon's steady ring, so
-   the only keyframes owned here are the row entry and the status heartbeat.
-   Motion stays on transform/opacity; the entry glow is a one-shot. */
+   the motion owned here is the staggered card reveal, arrival rim bloom,
+   smooth subtitle collapse, radar fade-out, and status heartbeat. All
+   animations stay strictly on compositor properties (transform, opacity). */
 
 /* Chrome-free top strip: keeps the frameless window draggable (and content
    clear of the macOS traffic lights) without a visible title bar. */
@@ -12,37 +13,191 @@
   user-select: none;
 }
 
-/* One ring fired per newly found agent (keyed in the component, so it
-   replays). Reuses the pair-ripple travel but runs once and dies invisible. */
-.agent-discovery-radar__arrival {
-  border: 1px solid color-mix(in oklab, var(--accent) 65%, transparent);
-  animation: poracode-pair-ripple 1.1s cubic-bezier(0.2, 0.8, 0.2, 1) 1 both;
+.agent-discovery-radar__signals {
+  opacity: 1;
+  transform: scale(1);
+  animation: agent-discovery-radar-in 320ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  transition:
+    opacity 400ms ease-out,
+    transform 400ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-/* A found agent's card, in the settings row language (rounded-xl, hairline
-   border, tinted surface) lifted off the code wall by a light blur. Entry is
-   a rise with a brief accent glow that settles into the plain card. The card
-   holds the agent pill (icon, name, refresh) plus one secondary row per
-   profile or machine the agent was found with. */
+.agent-discovery-radar__signals--exiting {
+  opacity: 0;
+  transform: scale(0.88);
+}
+
+.agent-discovery-radar__constellation {
+  opacity: 1;
+  transition: opacity 420ms ease-out;
+}
+
+.agent-discovery-radar__constellation--settled .agent-discovery-radar__orbit-ring {
+  opacity: 0.45;
+  transition: opacity 420ms ease-out;
+}
+
+.agent-discovery-radar__orbit-ring {
+  border-style: dashed;
+  opacity: 0.65;
+  transition: opacity 420ms ease-out;
+}
+
+.agent-discovery-radar__scanner {
+  animation: agent-discovery-radar-spin 7s linear infinite;
+}
+
+.agent-discovery-radar__scanner-beam {
+  border-radius: 50%;
+  background: conic-gradient(
+    from -22deg at 50% 50%,
+    transparent 0deg,
+    color-mix(in oklab, var(--accent) 2%, transparent) 8deg,
+    color-mix(in oklab, var(--accent) 13%, transparent) 30deg,
+    transparent 58deg
+  );
+  mask-image: radial-gradient(circle, transparent 31%, black 49%, transparent 94%);
+}
+
+.agent-discovery-radar__planet-track {
+  width: 0;
+  height: 0;
+  transform: rotate(var(--planet-angle));
+  animation: agent-discovery-planet-orbit var(--planet-orbit-duration, 64s) linear infinite;
+}
+
+html[data-app-hidden] .agent-discovery-radar__planet-track,
+html[data-app-unfocused] .agent-discovery-radar__planet-track,
+html[data-app-hidden] .agent-discovery-radar__planet,
+html[data-app-unfocused] .agent-discovery-radar__planet,
+html[data-app-hidden] .agent-discovery-radar__scanner,
+html[data-app-unfocused] .agent-discovery-radar__scanner {
+  animation-play-state: paused;
+}
+
+.agent-discovery-radar__planet {
+  position: absolute;
+  left: calc(var(--planet-size) / -2);
+  top: calc(var(--planet-size) / -2);
+  width: var(--planet-size);
+  height: var(--planet-size);
+  border-radius: 50%;
+  background: color-mix(in oklab, var(--accent) 82%, white);
+  box-shadow:
+    0 0 0 2px color-mix(in oklab, var(--accent) 14%, transparent),
+    0 0 12px color-mix(in oklab, var(--accent) 60%, transparent);
+  animation:
+    agent-discovery-planet-reveal 640ms cubic-bezier(0.16, 1, 0.3, 1) both,
+    agent-discovery-planet-breathe 3.6s ease-in-out 640ms infinite;
+}
+
+.agent-discovery-radar__planet::after {
+  content: "";
+  position: absolute;
+  inset: -6px;
+  border: 1px solid color-mix(in oklab, var(--accent) 45%, transparent);
+  border-radius: inherit;
+  opacity: 0;
+  animation: agent-discovery-planet-ping 900ms cubic-bezier(0.16, 1, 0.3, 1) 140ms 1 both;
+}
+
+/* Smoothly collapses the scanning subtitle when discovery finishes so the
+   results list glides up into the reclaimed space instead of snapping. */
+.agent-discovery-subtitle {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  visibility: hidden;
+  transform: translate3d(0, -4px, 0);
+  transition:
+    grid-template-rows 360ms cubic-bezier(0.16, 1, 0.3, 1),
+    opacity 240ms ease-out,
+    transform 360ms cubic-bezier(0.16, 1, 0.3, 1),
+    visibility 0s linear 360ms;
+}
+
+.agent-discovery-subtitle--open {
+  grid-template-rows: 1fr;
+  opacity: 1;
+  visibility: visible;
+  transform: translate3d(0, 0, 0);
+  transition:
+    grid-template-rows 360ms cubic-bezier(0.16, 1, 0.3, 1),
+    opacity 240ms ease-out,
+    transform 360ms cubic-bezier(0.16, 1, 0.3, 1),
+    visibility 0s;
+}
+
+/* A found agent's card: in-flow content surface with an unframed
+   provider icon, name + status hierarchy, and a hover-revealed refresh action.
+   Lives inside the grid-item wrapper so FLIP slot slides never clobber the
+   card's own entrance transform. Every column shares the same reveal. */
 .agent-discovery-row {
-  padding: 10px 14px;
-  border: 1px solid color-mix(in oklab, var(--border) 50%, transparent);
-  border-radius: 1rem;
-  background: color-mix(in oklab, var(--surface-secondary) 55%, transparent);
-  backdrop-filter: blur(10px);
-  animation: agent-discovery-enter 520ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  position: relative;
+  padding: 12px 14px;
+  transition:
+    border-color 180ms ease-out,
+    background-color 180ms ease-out;
+  animation: agent-discovery-enter 500ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation-delay: var(--discovery-enter-delay, 0ms);
+}
+
+.agent-discovery-row:hover {
+  border-color: var(--hairline);
+  background-color: var(--surface-secondary);
+}
+
+.agent-discovery-card__refresh {
+  opacity: 0;
+  transform: scale(0.88);
+  pointer-events: none;
+  transition:
+    opacity 160ms ease-out,
+    transform 160ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.agent-discovery-row:hover .agent-discovery-card__refresh,
+.agent-discovery-row:focus-within .agent-discovery-card__refresh,
+.agent-discovery-card__refresh--active,
+html[data-coarse-input] .agent-discovery-card__refresh {
+  opacity: 1;
+  transform: scale(1);
+  pointer-events: auto;
+}
+
+@media (hover: none), (pointer: coarse) {
+  .agent-discovery-card__refresh {
+    opacity: 1;
+    transform: scale(1);
+    pointer-events: auto;
+  }
+}
+
+/* Compositor-only arrival rim bloom (animates opacity over a static border
+   and glow rather than animating box-shadow blur every frame). */
+.agent-discovery-row::after {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  pointer-events: none;
+  border: 1px solid color-mix(in oklab, var(--accent) 55%, transparent);
+  box-shadow: 0 0 24px color-mix(in oklab, var(--accent) 24%, transparent);
+  opacity: 0;
+  animation: agent-discovery-glow 780ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation-delay: var(--discovery-enter-delay, 0ms);
 }
 
 /* A secondary (profile/machine) row arriving inside an already-mounted card
    gets a quieter entrance (no glow ring — it is not a new agent). */
 .agent-discovery-env-row {
-  animation: agent-discovery-env-enter 360ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  animation: agent-discovery-env-enter 360ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 /* Scan finishing swaps the heading, status line, and actions; the new copy
    fades up in step with the cards sliding into the reclaimed space. */
 .agent-discovery-phase {
-  animation: agent-discovery-phase-in 280ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  animation: agent-discovery-phase-in 280ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 .agent-discovery-row__status {
@@ -74,21 +229,102 @@
   border-radius: 999px;
 }
 
+.agent-discovery-indicator--remote {
+  gap: 8px;
+  padding: 8px 12px;
+}
+
+@keyframes agent-discovery-radar-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes agent-discovery-radar-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes agent-discovery-planet-orbit {
+  from {
+    transform: rotate(var(--planet-angle));
+  }
+  to {
+    transform: rotate(calc(var(--planet-angle) + 360deg));
+  }
+}
+
+@keyframes agent-discovery-planet-reveal {
+  0% {
+    opacity: 0;
+    transform: translate3d(48px, 0, 0) scale(0.45);
+  }
+  24% {
+    opacity: 1;
+  }
+  70% {
+    opacity: 1;
+    transform: translate3d(calc(var(--planet-radius) + 3px), 0, 0) scale(1.24);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(var(--planet-radius), 0, 0) scale(1);
+  }
+}
+
+@keyframes agent-discovery-planet-breathe {
+  0%,
+  100% {
+    opacity: 0.78;
+    scale: 1;
+  }
+  50% {
+    opacity: 1;
+    scale: 1.18;
+  }
+}
+
+@keyframes agent-discovery-planet-ping {
+  0% {
+    opacity: 0.7;
+    transform: scale(0.6);
+  }
+  80%,
+  100% {
+    opacity: 0;
+    transform: scale(1.7);
+  }
+}
+
 @keyframes agent-discovery-enter {
   0% {
     opacity: 0;
-    transform: translate3d(0, 14px, 0) scale(0.96);
-    box-shadow:
-      0 0 0 1px color-mix(in oklab, var(--accent) 55%, transparent),
-      0 0 28px color-mix(in oklab, var(--accent) 28%, transparent);
+    transform: translate3d(0, 14px, 0) scale(0.945);
   }
-  55% {
+  50% {
     opacity: 1;
   }
   100% {
     opacity: 1;
     transform: translate3d(0, 0, 0) scale(1);
-    box-shadow: 0 0 0 0 transparent;
+  }
+}
+
+@keyframes agent-discovery-glow {
+  0% {
+    opacity: 0;
+  }
+  22% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
   }
 }
 
@@ -126,13 +362,30 @@
 @media (prefers-reduced-motion: reduce) {
   /* The pair-ripple/orbit and welcome-ring reduced-motion stops are global;
      only the layers owned here need handling. */
-  .agent-discovery-radar__arrival {
+  .agent-discovery-radar__planet::after,
+  .agent-discovery-row::after {
     display: none;
   }
+  .agent-discovery-radar__signals,
+  .agent-discovery-subtitle,
+  .agent-discovery-row,
+  .agent-discovery-card__refresh {
+    transition: none;
+  }
+  .agent-discovery-radar__signals,
+  .agent-discovery-radar__scanner,
+  .agent-discovery-radar__planet-track,
+  .agent-discovery-radar__planet,
   .agent-discovery-row,
   .agent-discovery-env-row,
   .agent-discovery-phase {
     animation: none;
+  }
+  .agent-discovery-radar__planet-track {
+    transform: rotate(var(--planet-angle));
+  }
+  .agent-discovery-radar__planet {
+    transform: translate3d(var(--planet-radius), 0, 0);
   }
   .agent-discovery-screen__activity {
     animation: none;

@@ -182,22 +182,24 @@ it.each([false, true])(
     ]);
     expect(selectVisibleThreadTimelineEntries(useAppStore.getState(), threadId)).toEqual([]);
     const observed: string[][] = [];
+    const parentPage = Promise.withResolvers<void>();
     const onStartReached = vi.fn<() => Promise<boolean>>(async () => {
       const loaded = await loadOlderThreadRuntimeItems(threadId);
-      observed.push([...(useAppStore.getState().runtimeItemIdsByThread[threadId] ?? [])]);
+      const ids = useAppStore.getState().runtimeItemIdsByThread[threadId] ?? [];
+      observed.push([...ids]);
+      if (!loaded || ids.includes("parent")) parentPage.resolve();
       return loaded;
     });
     const view = render(
       <UnderfilledHistoryReader threadId={threadId} onStartReached={onStartReached} />,
     );
-    await vi.waitFor(() =>
-      expect(useAppStore.getState().runtimeItemIdsByThread[threadId]).toEqual([
-        ...prefix,
-        "parent",
-        "child-answer",
-        "child-command",
-      ]),
-    );
+    await parentPage.promise;
+    expect(useAppStore.getState().runtimeItemIdsByThread[threadId]).toEqual([
+      ...prefix,
+      "parent",
+      "child-answer",
+      "child-command",
+    ]);
     await act(async () => {
       await Promise.resolve();
     });

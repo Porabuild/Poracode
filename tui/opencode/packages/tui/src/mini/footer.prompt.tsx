@@ -22,7 +22,8 @@ import { deduplicatePromptImages, promptAttachmentLabel } from "../prompt/attach
 import { resolvePastedAttachments } from "../component/prompt/local-attachment"
 import { createTuiClipboard, type OwnedClipboardService } from "../clipboard"
 import type { ClipboardService } from "../context/clipboard"
-import fuzzysort from "fuzzysort"
+import { go } from "fuzzysort"
+import { allPickerMatches } from "../util/fuzzy-search"
 import path from "path"
 import { pathToFileURL } from "node:url"
 import {
@@ -554,19 +555,19 @@ export function createPromptState(input: PromptInput): PromptState {
     }
 
     const next = stripFileLineRange(query())
+    if (!next) return mode() === "mention" ? files() : []
     if (mode() === "mention") {
       return [
-        ...fuzzysort.go(next, agents(), { keys: ["value", "display", "description"] }).map((item) => item.obj),
+        ...go(next, agents(), { ...allPickerMatches, keys: ["value", "display", "description"] }).map((item) => item.obj),
         ...files(),
-        ...fuzzysort.go(next, references(), { keys: ["value", "display", "description"] }).map((item) => item.obj),
+        ...go(next, references(), { ...allPickerMatches, keys: ["value", "display", "description"] }).map((item) => item.obj),
       ]
     }
 
-    return fuzzysort
-      .go(next, mixed, {
-        keys: [(item) => (item.kind === "mention" ? item.value : item.name).trimEnd(), "display", "description"],
-      })
-      .map((item) => item.obj)
+    return go(next, mixed, {
+      ...allPickerMatches,
+      keys: [(item) => (item.kind === "mention" ? item.value : item.name).trimEnd(), "display", "description"],
+    }).map((item) => item.obj)
   })
   const layout = createMemo(() => {
     term()

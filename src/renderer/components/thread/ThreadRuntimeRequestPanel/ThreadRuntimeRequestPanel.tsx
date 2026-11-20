@@ -16,6 +16,7 @@ import {
 } from "@/shared/contracts";
 import { friendlyError } from "@/shared/messages";
 import { isRemoteCommandOutcomeUncertainError } from "@/renderer/actions/threadCommandOutcomeActions";
+import { floatingGlassSurfaceClass } from "@/renderer/components/layout/floatingGlass";
 import { applyOptimisticRequestResolution } from "@/renderer/state/runtimeRequestActions";
 import type { OpenRuntimeRequest } from "@/renderer/state/slices/runtimeEventSlice";
 import { useComposerInputInbox } from "@/renderer/state/composerInputInbox";
@@ -289,12 +290,22 @@ export function ThreadRuntimeRequestPanel(props: ThreadRuntimeRequestPanelProps)
         {detailText}
       </pre>
     ) : null;
+  const hasRequestDetails = !!(
+    requestDetails ||
+    planFilePath ||
+    planText ||
+    approvalSummaryScrolls
+  );
 
   return (
     <ThreadDockSection className="!text-xs" placement="composer" collapsed={false}>
       {/* Question forms title themselves with the active question. */}
       {isCustomForm ? null : (
-        <div className="@container flex flex-wrap items-start gap-x-2 gap-y-1 px-2 py-1.5 leading-snug">
+        <div
+          className={`@container items-start gap-x-2 gap-y-1 px-2 py-1.5 leading-snug ${
+            isPlanApproval || isQuestion ? "flex flex-wrap" : "grid grid-cols-[auto_minmax(0,1fr)]"
+          }`}
+        >
           <Icon
             className={`mt-0.5 size-3.5 shrink-0 ${isQuestion || isPlanApproval ? "text-foreground-muted" : "text-warning"}`}
           />
@@ -307,13 +318,13 @@ export function ThreadRuntimeRequestPanel(props: ThreadRuntimeRequestPanelProps)
             {contextLine ? (
               <div className="text-[11px] text-[color:var(--muted)]">{contextLine}</div>
             ) : null}
-            {requestDetails || planFilePath || planText || approvalSummaryScrolls ? (
+            {hasRequestDetails ? (
               <div
                 role="region"
                 aria-label={t`Request details`}
                 // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- keyboard focus enables native scrolling
                 tabIndex={0}
-                className="mt-0.5 max-h-[min(12rem,35vh)] overflow-y-auto pr-1 [scrollbar-gutter:stable] [overflow-wrap:anywhere] outline-none focus-visible:ring-2 focus-visible:ring-focus/50"
+                className="mt-0.5 max-h-[min(12rem,35vh)] overflow-y-auto pr-1 [scrollbar-gutter:stable] [overflow-wrap:anywhere] outline-none focus-visible:focus-ring"
               >
                 {approvalSummaryScrolls ? (
                   <div className="font-semibold whitespace-pre-wrap text-foreground [overflow-wrap:anywhere]">
@@ -323,15 +334,24 @@ export function ThreadRuntimeRequestPanel(props: ThreadRuntimeRequestPanelProps)
                 {planText ? <ItemMarkdown text={planText} /> : null}
                 {requestDetails}
                 {planFilePath ? <PlanFileLine path={planFilePath} /> : null}
+                {approvalActions && !isPlanApproval ? (
+                  // Sticky positioning keeps the footer's height in the scroll
+                  // content, including when the buttons wrap on narrow panes.
+                  <div
+                    className={`${floatingGlassSurfaceClass} poracode-floating-chrome--clear sticky bottom-0 z-10 mt-2 ml-auto max-h-[min(9rem,25vh)] w-fit max-w-full overflow-y-auto rounded-4xl p-1 empty:hidden`}
+                  >
+                    {approvalActions}
+                  </div>
+                ) : null}
               </div>
             ) : null}
           </div>
-          {approvalActions ? (
+          {approvalActions && (isPlanApproval || !hasRequestDetails) ? (
             <div
               className={
                 isPlanApproval
                   ? "ml-auto max-w-full shrink-0 self-end @max-[44rem]:ml-0 @max-[44rem]:basis-full @max-[44rem]:self-stretch"
-                  : "ml-auto max-w-full shrink-0 self-end"
+                  : "col-span-2 min-w-0 max-w-full justify-self-end"
               }
             >
               {approvalActions}
@@ -339,7 +359,7 @@ export function ThreadRuntimeRequestPanel(props: ThreadRuntimeRequestPanelProps)
           ) : null}
           {resolving ? (
             <span
-              className="flex shrink-0 items-center gap-1 self-center text-[11px] text-muted"
+              className="col-start-2 flex shrink-0 items-center gap-1 self-center text-[11px] text-muted"
               role="status"
             >
               <Loader2 className="size-3 animate-spin" />

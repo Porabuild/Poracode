@@ -336,6 +336,7 @@ export const codexDefaultCapabilities: AgentCapability = {
   sandboxModes: [],
   supportsResume: true,
   supportsOneShot: true,
+  utilityRank: 10,
   supportsDirectInput: true,
   liveInputMode: "terminal",
   presentationMode: "terminal",

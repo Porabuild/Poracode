@@ -3,7 +3,7 @@ import { readRunResult } from "./runResult";
 import type { PreparedSubagentRun } from "./spawnPlan";
 import type { SubagentWaitOptions } from "./types";
 
-function record(): Parameters<typeof readRunResult>[0] {
+function record(): Parameters<typeof readRunResult>[0] & { pendingRequestIds: Set<string> } {
   return {
     status: "completed",
     output: "final",

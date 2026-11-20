@@ -96,6 +96,50 @@ describe("composer draft checkpoints", () => {
     expect(Object.keys(first.load("project"))).toEqual(["remote:a:thread:1"]);
   });
 
+  it("adopts a draft another window changed after this window cached it", () => {
+    const text = (value: string): DraftContent => ({
+      segments: [{ kind: "text", content: value }],
+      attachments: [],
+    });
+    const main = createComposerDraftStorage(localStorage, window);
+    main.save("thread", "one", text("typed in main"));
+    main.flush();
+    const threadWindow = createComposerDraftStorage(localStorage, window);
+    expect(threadWindow.load("thread").one).toEqual(text("typed in main"));
+    threadWindow.save("thread", "one", text("edited in its own window"));
+    threadWindow.flush();
+
+    main.refresh("thread", "one");
+    expect(main.load("thread").one).toEqual(text("edited in its own window"));
+    main.save("thread", "one", text("continued in main"));
+    main.flush();
+    expect(createComposerDraftStorage(localStorage, window).load("thread").one).toEqual(
+      text("continued in main"),
+    );
+  });
+
+  it("drops a write this window still had queued when the draft comes back", () => {
+    const text = (value: string): DraftContent => ({
+      segments: [{ kind: "text", content: value }],
+      attachments: [],
+    });
+    const main = createComposerDraftStorage(localStorage, window);
+    main.save("thread", "one", text("typed in main"));
+    main.flush();
+    const threadWindow = createComposerDraftStorage(localStorage, window);
+    threadWindow.load("thread");
+    threadWindow.save("thread", "one", text("edited in its own window"));
+    threadWindow.flush();
+    main.save("thread", "one", text("stale write from main"));
+
+    main.refresh("thread", "one");
+    main.flush();
+    expect(main.load("thread").one).toEqual(text("edited in its own window"));
+    expect(createComposerDraftStorage(localStorage, window).load("thread").one).toEqual(
+      text("edited in its own window"),
+    );
+  });
+
   it("starts without drafts for a previous-version profile and isolates corrupt records", () => {
     localStorage.setItem("poracode-app-v2", JSON.stringify({ version: 5, state: { threads: [] } }));
     const store = createComposerDraftStorage(localStorage, window);

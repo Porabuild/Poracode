@@ -27,10 +27,12 @@ vi.mock("@/renderer/bridge", () => ({
 vi.mock("./ThreadComposer", () => ({
   ThreadComposer: (props: {
     inputContent: ReactNode;
+    attachmentBar: ReactNode;
     onSubmit(): void;
     submitDisabled: boolean;
   }) => (
     <div>
+      {props.attachmentBar}
       {props.inputContent}
       <button type="button" disabled={props.submitDisabled} onClick={props.onSubmit}>
         Send fixture
@@ -122,7 +124,133 @@ it("restores text and attachments without inventing a new draft revision", async
   second.unmount();
 });
 
-it("retires the submission outbox copy and never shows recovery controls after a failed draft launch", async () => {
+it.each(["accepted", "rejected"] as const)(
+  "defers a draft reopened before launch preparation finishes (%s)",
+  async (outcome) => {
+    const report = vi.spyOn(toast, "danger").mockReturnValue("test-toast");
+    const capture = Promise.withResolvers<Awaited<ReturnType<TurnClientContextCapture>>>();
+    const onStart = vi.fn<() => Promise<"accepted">>(async () => {
+      if (outcome === "rejected") {
+        throw new RemoteClientError("Invalid params", 422, "thread_launch_failed");
+      }
+      return "accepted";
+    });
+    try {
+      const first = form(onStart, () => capture.promise);
+      fireEvent.click(screen.getByRole("button", { name: "Send fixture" }));
+      expect(onStart).not.toHaveBeenCalled();
+      first.unmount();
+
+      const reopened = form(onStart);
+      const editor = screen.getByRole("textbox");
+      expect(editor).toHaveTextContent(/^$/);
+      expect(screen.queryByText("notes.txt")).toBeNull();
+
+      await act(async () => capture.resolve(undefined));
+      await waitFor(() => expect(onStart).toHaveBeenCalledOnce());
+      await waitFor(async () => expect(await listClientSubmissions()).toEqual([]));
+      expect(editor).toHaveTextContent(outcome === "accepted" ? /^$/ : "Preserve this prompt");
+      expect(screen.queryAllByText("notes.txt")).toHaveLength(outcome === "accepted" ? 0 : 1);
+      expect(screen.queryByRole("button", { name: "Restore a copy" })).toBeNull();
+      expect(report.mock.calls).toEqual(outcome === "accepted" ? [] : [["Invalid params"]]);
+      reopened.unmount();
+      expect(useAppStore.getState().draftContents[project.id]).toEqual(
+        outcome === "accepted" ? undefined : draft,
+      );
+    } finally {
+      capture.resolve(undefined);
+      report.mockRestore();
+    }
+  },
+);
+
+it.each([false, true])(
+  "leaves a reopened draft free of the submitted prompt during launch (new edit: %s)",
+  async (edit) => {
+    const launch = Promise.withResolvers<"accepted">();
+    const onStart = vi.fn<() => Promise<"accepted">>(() => launch.promise);
+    const first = form(onStart);
+    expect(screen.getByText("notes.txt")).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: "Send fixture" }));
+    await waitFor(() => expect(onStart).toHaveBeenCalledOnce());
+    first.unmount();
+    const reopened = form(onStart);
+    await act(async () => {
+      expect(await listClientSubmissions()).toEqual([
+        expect.objectContaining({ state: "dispatching" }),
+      ]);
+    });
+    const editor = screen.getByRole("textbox");
+    expect(editor).not.toHaveTextContent("Preserve this prompt");
+    expect(screen.queryByText("notes.txt")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Restore a copy" })).toBeNull();
+    if (edit) {
+      editor.textContent = "Next draft";
+      fireEvent.input(editor);
+    }
+
+    await act(async () => launch.resolve("accepted"));
+    await waitFor(async () => expect(await listClientSubmissions()).toEqual([]));
+    expect(editor).toHaveTextContent(edit ? "Next draft" : /^$/);
+    expect(screen.queryByRole("button", { name: "Restore a copy" })).toBeNull();
+    reopened.unmount();
+    expect(useAppStore.getState().draftContents[project.id]).toEqual(
+      edit ? { segments: [{ kind: "text", content: "Next draft" }], attachments: [] } : undefined,
+    );
+  },
+);
+
+it.each(["cancelled", "uncertain"] as const)(
+  "restores the deferred draft when the launch ends as %s",
+  async (outcome) => {
+    const report = vi.spyOn(toast, "danger").mockReturnValue("test-toast");
+    try {
+      const launch = Promise.withResolvers<"cancelled">();
+      const onStart = vi.fn<ComponentProps<typeof ThreadDraftComposerArea>["onStart"]>(
+        async ({ clientSubmissionId }) => {
+          const result = await launch.promise;
+          // startThreadFromDraft settles the receipt before returning a cancellation.
+          await draftSubmission.settleClientSubmission(clientSubmissionId, "failed");
+          return result;
+        },
+      );
+      const first = form(onStart);
+      fireEvent.click(screen.getByRole("button", { name: "Send fixture" }));
+      await waitFor(() => expect(onStart).toHaveBeenCalledOnce());
+      first.unmount();
+      const reopened = form(onStart);
+      expect(screen.getByRole("textbox")).not.toHaveTextContent("Preserve this prompt");
+
+      await act(async () => {
+        if (outcome === "cancelled") launch.resolve(outcome);
+        else
+          launch.reject(
+            new RemoteClientError("Unknown delivery", 409, "command_outcome_uncertain"),
+          );
+      });
+      await waitFor(() =>
+        expect(screen.getByRole("textbox")).toHaveTextContent("Preserve this prompt"),
+      );
+      expect(useAppStore.getState().draftContents[project.id]).toEqual(draft);
+      expect(screen.getByText("notes.txt")).toBeVisible();
+      const expectedStates = outcome === "cancelled" ? [] : ["uncertain"];
+      await waitFor(async () => {
+        const records = await listClientSubmissions();
+        expect(records.map(({ state }) => state)).toEqual(expectedStates);
+      });
+      await waitFor(() =>
+        expect(screen.queryByRole("button", { name: "Restore a copy" }) !== null).toBe(
+          outcome === "uncertain",
+        ),
+      );
+      reopened.unmount();
+    } finally {
+      report.mockRestore();
+    }
+  },
+);
+
+it("keeps an uncertain draft launch visible and blocks retry until its saved copy is discarded", async () => {
   const report = vi.spyOn(toast, "danger").mockReturnValue("test-toast");
   try {
     const onStart = vi
@@ -134,17 +262,26 @@ it("retires the submission outbox copy and never shows recovery controls after a
     const first = form(onStart);
     fireEvent.click(screen.getByRole("button", { name: "Send fixture" }));
     await waitFor(() => expect(onStart).toHaveBeenCalledOnce());
-    await waitFor(async () => expect(await listClientSubmissions()).toEqual([]));
-    expect(screen.queryByRole("status")).toBeNull();
-    expect(screen.queryByRole("button", { name: "Restore a copy" })).toBeNull();
-    expect(screen.queryByRole("button", { name: "Discard saved copy" })).toBeNull();
+    await waitFor(async () =>
+      expect(await listClientSubmissions()).toEqual([
+        expect.objectContaining({ state: "uncertain" }),
+      ]),
+    );
+    expect(await screen.findByRole("button", { name: "Restore a copy" })).toBeVisible();
     const before = composerDraftStorage()!.currentIdentity("project", project.id);
     first.unmount();
     const second = form(onStart);
     expect(composerDraftStorage()!.currentIdentity("project", project.id)).toEqual(before);
-    expect(screen.queryByRole("status")).toBeNull();
-    expect(screen.queryByRole("button", { name: "Restore a copy" })).toBeNull();
-    expect(screen.queryByRole("button", { name: "Discard saved copy" })).toBeNull();
+    expect(await screen.findByRole("button", { name: "Discard saved copy" })).toBeVisible();
+    report.mockClear();
+    fireEvent.click(screen.getByRole("button", { name: "Send fixture" }));
+    await waitFor(() => expect(report).toHaveBeenCalled());
+    expect(onStart).toHaveBeenCalledOnce();
+    expect(await listClientSubmissions()).toEqual([
+      expect.objectContaining({ state: "uncertain" }),
+    ]);
+    fireEvent.click(screen.getByRole("button", { name: "Discard saved copy" }));
+    await waitFor(async () => expect(await listClientSubmissions()).toEqual([]));
     fireEvent.click(screen.getByRole("button", { name: "Send fixture" }));
     await waitFor(() => expect(onStart).toHaveBeenCalledTimes(2));
     await waitFor(async () => expect(await listClientSubmissions()).toEqual([]));
@@ -199,7 +336,11 @@ it("captures browser focus before attachment preparation and keeps it out of rec
     await act(async () => {
       rejectStart(new RemoteClientError("Unknown delivery", 409, "command_outcome_uncertain"));
     });
-    await waitFor(async () => expect(await listClientSubmissions()).toEqual([]));
+    await waitFor(async () =>
+      expect(await listClientSubmissions()).toEqual([
+        expect.objectContaining({ state: "uncertain" }),
+      ]),
+    );
     view.unmount();
   } finally {
     materialize.mockRestore();

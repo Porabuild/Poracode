@@ -35,6 +35,21 @@ data class ProceduresearchProjectTreeResult_ed3d977334(
     }
 }
 
+typealias ProceduresetAcpRegistryAgentAuthRequestU2DEnvironment_e1b513bc9f = Map<String, ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b>
+
+@Serializable
+data class ProceduresetAcpRegistryAgentAuthRequest_abad7b87a3(
+    @SerialName("agentId") val agentId: String,
+    @SerialName("environment") val environment: ProceduresetAcpRegistryAgentAuthRequestU2DEnvironment_e1b513bc9f,
+) {
+    companion object {
+        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
+            RemoteFieldDescriptor("agentId", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("environment", "ProceduresetAcpRegistryAgentAuthRequestU2DEnvironment_e1b513bc9f", true, false, null, null, null, null, null, null, null, null, listOf()),
+        ), listOf())
+    }
+}
+
 @Serializable
 data class ProceduresetSkillEnabledRequest_38462ff398(
     @SerialName("absolutePath") val absolutePath: String,

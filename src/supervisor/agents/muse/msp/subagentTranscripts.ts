@@ -21,8 +21,9 @@ import {
   museString,
   type MuseChildState,
 } from "./subagentDiscovery";
-import { museSubagentId, museSubagentResultStatus } from "./subagentMapping";
+import { isMuseSubagentRun, museSubagentId, museSubagentResultStatus } from "./subagentMapping";
 import { isMspRpcError } from "./protocol";
+import type { MuseMspToolOutputs } from "./toolOutputs";
 
 type ItemPhase = "started" | "updated" | "completed";
 
@@ -33,6 +34,7 @@ interface Invocation {
   item: Record<string, unknown>;
   mapper: MuseMspItemMapperState;
   revisions: Map<string, number>;
+  aggregate: boolean;
   published?: {
     item: Record<string, unknown>;
     status: Child["status"];
@@ -80,6 +82,7 @@ export class MuseSubagentTranscripts {
     private readonly client: Pick<MuseMspClient, "request">,
     private readonly root: MuseMspItemMapperState,
     private readonly emit: (events: RuntimeEvent[]) => void,
+    private readonly toolOutputs?: MuseMspToolOutputs,
   ) {}
 
   open(sessionId: string, history: Record<string, unknown>): void {
@@ -87,8 +90,30 @@ export class MuseSubagentTranscripts {
     this.logPath = museString(museRecord(history["session"])["path"]);
     // Stable native item ids update the previous release's persisted launch rows.
     for (const item of museHistoryItems(history)) {
-      if (item["kind"] === "subagent" || museString(item["tool"])?.startsWith("subagent_")) {
-        this.emit(this.mapItem(item, item["status"] === "inProgress" ? "started" : "completed"));
+      if (
+        item["kind"] === "subagent" ||
+        item["kind"] === "workflow" ||
+        isMuseSubagentRun(museString(item["tool"]))
+      ) {
+        const events = this.mapItem(
+          item,
+          item["status"] === "inProgress" ? "started" : "completed",
+        );
+        this.emit(
+          events.flatMap((event): RuntimeEvent[] =>
+            item["kind"] === "workflow" && event.type === "item.started"
+              ? [
+                  event,
+                  {
+                    type: "item.updated",
+                    threadId: this.root.threadId,
+                    itemId: event.itemId,
+                    payload: event.payload,
+                  },
+                ]
+              : [event],
+          ),
+        );
       }
     }
   }
@@ -112,8 +137,44 @@ export class MuseSubagentTranscripts {
 
   mapItem(item: Record<string, unknown>, phase: ItemPhase): RuntimeEvent[] {
     const name = museString(item["tool"] ?? item["name"]);
+    if (item["kind"] === "workflow") {
+      const events = mapMuseMspItem(this.root, item, phase);
+      const itemId = museString(item["itemId"]);
+      if (!itemId || !Array.isArray(item["children"])) return events;
+      for (const value of item["children"]) {
+        const entry = museRecord(value);
+        const id = museString(entry["childId"]);
+        if (!id) continue;
+        const child = this.ensure(id);
+        child.nativeState = true;
+        const terminal = entry["terminal"] ?? entry["status"];
+        const status =
+          terminal === "completed" || terminal === "cancelled" || terminal === "failed"
+            ? terminal
+            : item["status"] !== "inProgress"
+              ? item["status"] === "completed"
+                ? "completed"
+                : item["status"] === "cancelled"
+                  ? "cancelled"
+                  : "failed"
+              : "inProgress";
+        this.setChildStatus(child, status);
+        let invocation = child.invocations.get(itemId);
+        if (!invocation) {
+          invocation = this.createInvocation(child, item, true);
+          child.invocations.set(itemId, invocation);
+        }
+        invocation.item = item;
+        for (const childItem of child.items.values())
+          events.push(...this.mapChildItem(child, invocation, itemId, childItem));
+      }
+      this.startMonitoring();
+      return events;
+    }
     const native = item["kind"] === "subagent";
-    if (!native && !name?.startsWith("subagent_")) return mapMuseMspItem(this.root, item, phase);
+    if (!native && !isMuseSubagentRun(name)) return mapMuseMspItem(this.root, item, phase);
+    if (!native && museJsonRecord(item["visibleOutput"])["status"] === "rejected")
+      return mapMuseMspItem(this.root, item, phase);
     const id = native
       ? museString(item["subagentId"])
       : (museSubagentId(museJsonRecord(item["args"])) ??
@@ -131,10 +192,10 @@ export class MuseSubagentTranscripts {
         this.setChildSession(child, sessionId);
       }
       const result = museRecord(item["result"]);
-      // 1.4.6 leaves the generic task open after ResultReady until owner close.
-      // The child has finished producing its transcript at that point.
+      // ResultReady owns the outcome; generic task status can infer a crash
+      // after owner close even though the child already reported success.
       const status =
-        item["status"] === "inProgress" && item["controlStatus"] === "resultReady"
+        item["controlStatus"] === "resultReady"
           ? museSubagentResultStatus(result["errorKind"])
           : museString(item["status"]);
       if (status)
@@ -153,11 +214,7 @@ export class MuseSubagentTranscripts {
     }
     let invocation = child.invocations.get(itemId);
     if (!invocation) {
-      invocation = {
-        item,
-        mapper: createMuseMspItemMapperState(this.root.threadId),
-        revisions: new Map(),
-      };
+      invocation = this.createInvocation(child, item);
       child.invocations.set(itemId, invocation);
       child.readFailures = 0;
       child.retryAt = 0;
@@ -318,7 +375,7 @@ export class MuseSubagentTranscripts {
     this.stopMonitoring();
     return [...this.children.values()].flatMap((child) =>
       [...child.invocations.values()].flatMap((invocation) =>
-        completeOpenMuseMspItems(invocation.mapper),
+        completeOpenMuseMspItems(invocation.mapper, true),
       ),
     );
   }
@@ -346,6 +403,21 @@ export class MuseSubagentTranscripts {
     return child;
   }
 
+  private createInvocation(
+    child: Child,
+    item: Record<string, unknown>,
+    aggregate = false,
+  ): Invocation {
+    return {
+      item,
+      mapper: createMuseMspItemMapperState(this.root.threadId, (itemId, mediaItem) => {
+        if (child.sessionId) void this.toolOutputs?.observe(child.sessionId, itemId, mediaItem);
+      }),
+      revisions: new Map(),
+      aggregate,
+    };
+  }
+
   private mapParent(
     invocation: Invocation,
     status: Child["status"],
@@ -353,6 +425,7 @@ export class MuseSubagentTranscripts {
     result?: string,
     complete = true,
   ): RuntimeEvent[] {
+    if (invocation.aggregate) return [];
     if (
       invocation.published?.item === invocation.item &&
       invocation.published.status === status &&
@@ -451,6 +524,7 @@ export class MuseSubagentTranscripts {
     if (!child.ready || child.polling || (status !== "inProgress" && !child.finalRead)) {
       const result = await this.client.request("session/read", { sessionId, excludeItems: false });
       if (this.disposed || child.sessionId !== sessionId || child.generation !== generation) return;
+      this.toolOutputs?.open(sessionId, museRecord(result["session"])["path"]);
       for (const item of museHistoryItems(result)) {
         const id = museString(item["itemId"]);
         const unchanged =
@@ -504,7 +578,7 @@ export class MuseSubagentTranscripts {
     child.deltaFields.clear();
     delete child.result;
     for (const invocation of child.invocations.values()) {
-      this.emit(completeOpenMuseMspItems(invocation.mapper));
+      this.emit(completeOpenMuseMspItems(invocation.mapper, true));
       invocation.revisions.clear();
     }
   }

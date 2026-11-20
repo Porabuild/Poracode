@@ -337,6 +337,8 @@ export class SupervisorRuntime {
       settingsPath: this.settingsPath,
       statusCachePath: paths.statusCachePath,
       emit,
+      onStartupDetectionComplete: (statuses) =>
+        this.agentRegistryService.scheduleFirstClassAcpAutoInstall(statuses),
       prepareWslEnvironment: (distro) =>
         this.agentRegistryService.prepareWslRegistryInstallations(distro),
     });
@@ -517,6 +519,8 @@ export class SupervisorRuntime {
         threadCrewBinding(this.threadSessionManager.getThreadConfig(threadId)),
       resolveProviderSessionThreadId: (sessionId) =>
         this.threadSessionManager.getThreadIdByProviderSessionId(sessionId),
+      resolveProviderMcpThreadId: (metadata) =>
+        this.threadSessionManager.getThreadIdByProviderMcpMetadata(metadata),
       // User-configured routing guidance, read live from shared settings (the
       // cache invalidates on file change) so edits take effect on the next turn
       // without a supervisor restart. Empty/whitespace-only = no guidance.
@@ -586,8 +590,13 @@ export class SupervisorRuntime {
         unregister: (threadId) => this.crossagentMcpIngress.unregisterThread(threadId),
         cancelForeground: (threadId) => this.subagentRunManager.cancelForegroundForThread(threadId),
         cancelAll: (threadId) => this.subagentRunManager.cancelAllForThread(threadId),
-        resolveChildRequest: (requestId, response, parentThreadId) =>
-          this.subagentRunManager.resolveChildServerRequest(requestId, response, parentThreadId),
+        resolveChildRequest: (requestId, response, parentThreadId, requirePending) =>
+          this.subagentRunManager.resolveChildServerRequest(
+            requestId,
+            response,
+            parentThreadId,
+            requirePending,
+          ),
         memberRunActivity: (threadId) => this.subagentRunManager.memberRunActivity(threadId),
       },
       readDirtySetSnapshot: (location) => readDirtySetSnapshot(location, this.wslBridgeClient),

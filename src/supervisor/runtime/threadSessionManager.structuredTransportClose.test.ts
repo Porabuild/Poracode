@@ -99,6 +99,7 @@ function createStructuredSession(
       async () => PROVIDER_SESSION_ID,
     ),
     startTurn: vi.fn<NonNullable<StructuredSessionHandle["startTurn"]>>(startTurn),
+    forceCompleteTurn: vi.fn<() => void>(),
     setListener: vi.fn<(next: StructuredSessionListener) => void>((next) => {
       listener = next;
     }),
@@ -145,6 +146,36 @@ function attach(manager: ThreadSessionManager, session: SessionRuntime): void {
       };
     }
   ).spawnPipeline.ctx.sessionRuntimeLifecycle.attach(session);
+}
+
+async function expectResumedSubmit(
+  manager: ThreadSessionManager,
+  adapter: AgentAdapter,
+  dead: StructuredSessionHandle,
+  replacement: StructuredSessionHandle,
+  prompt: string,
+): Promise<void> {
+  await manager.sendThreadInput({
+    threadId: THREAD_ID,
+    prompt,
+    config: { model: `${AGENT_KIND}/model` },
+  });
+
+  expect(dead.startTurn).not.toHaveBeenCalled();
+  expect(adapter.createStructuredSession).toHaveBeenCalledTimes(1);
+  expect(replacement.openThread).toHaveBeenCalledWith(
+    expect.anything(),
+    expect.objectContaining({ providerSessionId: PROVIDER_SESSION_ID }),
+  );
+  await vi.waitFor(() => {
+    expect(replacement.startTurn).toHaveBeenCalledWith(
+      prompt,
+      expect.anything(),
+      undefined,
+      expect.anything(),
+    );
+  });
+  expect(manager.sessions.get(THREAD_ID)?.structuredSession).toBe(replacement);
 }
 
 describe("ThreadSessionManager structured transport close", () => {
@@ -207,29 +238,175 @@ describe("ThreadSessionManager structured transport close", () => {
       }),
     );
 
-    await manager.sendThreadInput({
-      threadId: THREAD_ID,
-      prompt: "after crash",
-      config: { model: `${AGENT_KIND}/model` },
-    });
-
-    expect(dead.startTurn).not.toHaveBeenCalled();
-    expect(adapter.createStructuredSession).toHaveBeenCalledTimes(1);
-    expect(replacement.openThread).toHaveBeenCalledWith(
-      expect.anything(),
-      expect.objectContaining({ providerSessionId: PROVIDER_SESSION_ID }),
-    );
-    await vi.waitFor(() => {
-      expect(replacement.startTurn).toHaveBeenCalledWith(
-        "after crash",
-        expect.anything(),
-        undefined,
-        expect.anything(),
-      );
-    });
-    expect(manager.sessions.get(THREAD_ID)?.structuredSession).toBe(replacement);
+    await expectResumedSubmit(manager, adapter, dead, replacement, "after crash");
     expect(
       manager.getThreadSnapshots().find((snapshot) => snapshot.threadId === THREAD_ID),
     ).not.toHaveProperty("errorMessage");
+  });
+
+  it("detaches the retired handle and resumes on next submit after canonical overflow without onClose", async () => {
+    const events: SupervisorEvent[] = [];
+    // Intentional dispose() on ACP sessions suppresses onClose(). A zombie
+    // handle left attached after overflow retirement would route subsequent
+    // submits straight into the disposed handle (causing bogus config rejection).
+    const dead = createStructuredSession(async () => {
+      throw new Error(
+        "The session rejected the requested configuration. Review the selected settings and try again.",
+      );
+    });
+    const replacement = createStructuredSession(async () => undefined);
+    const adapter = createAdapter();
+    adapter.createStructuredSession = vi.fn<NonNullable<AgentAdapter["createStructuredSession"]>>(
+      async () => replacement,
+    );
+    const manager = createManager((event) => events.push(event));
+    const session = createSession(adapter, dead);
+    session.status = "working";
+    session.attention = "working";
+    session.sessionConfigOptions = [
+      {
+        id: "model",
+        category: "model",
+        type: "select",
+        currentValue: `${AGENT_KIND}/model`,
+        values: [{ value: `${AGENT_KIND}/model`, name: "Model" }],
+        groups: [],
+      },
+    ];
+    attach(manager, session);
+
+    manager.stopSessionForCanonicalOverflow(
+      THREAD_ID,
+      "supervisor IPC queue overflow while the host was not draining",
+    );
+
+    expect(dead.forceCompleteTurn).toHaveBeenCalledOnce();
+    expect(dead.dispose).toHaveBeenCalledOnce();
+    expect(session.structuredSession).toBeUndefined();
+    expect(session.sessionConfigOptions).toBeNull();
+    expect(session.ignoreExit).toBe(true);
+    expect(manager.sessions.get(THREAD_ID)?.status).toBe("error");
+    expect(
+      events.findLast(
+        (event): event is Extract<SupervisorEvent, { type: "thread-state" }> =>
+          event.type === "thread-state" && event.threadId === THREAD_ID,
+      ),
+    ).toMatchObject({
+      status: "error",
+      attention: "error",
+      sessionConfigOptions: null,
+      errorMessage:
+        "Agent output stopped: supervisor IPC queue overflow while the host was not draining.",
+    });
+
+    // Late provider callbacks during teardown must not overwrite the stop error.
+    dead.listener()?.onUpdate({ status: "idle", attention: "none" });
+    expect(manager.sessions.get(THREAD_ID)?.status).toBe("error");
+
+    await expectResumedSubmit(manager, adapter, dead, replacement, "stuck or working?");
+  });
+
+  it("joins a failed overflow disposal before resuming on next submit", async () => {
+    let disposeFails = true;
+    const dead = createStructuredSession(async () => {
+      throw new Error("must not call startTurn on retiring handle");
+    });
+    dead.dispose = vi.fn<() => Promise<void>>(() =>
+      disposeFails ? Promise.reject(new Error("overflow dispose failed")) : Promise.resolve(),
+    );
+    const replacement = createStructuredSession(async () => undefined);
+    const adapter = createAdapter();
+    adapter.createStructuredSession = vi.fn<NonNullable<AgentAdapter["createStructuredSession"]>>(
+      async () => replacement,
+    );
+    const manager = createManager(() => undefined);
+    const session = createSession(adapter, dead);
+    session.status = "working";
+    session.attention = "working";
+    attach(manager, session);
+
+    manager.stopSessionForCanonicalOverflow(THREAD_ID, "buffer cap reached");
+    expect(session.structuredSession).toBeUndefined();
+    expect(session.pendingStructuredDisposal).toBeDefined();
+
+    // First submit retries the failed disposal and refuses to launch a
+    // successor until the old process is confirmed retired.
+    await expect(
+      manager.sendThreadInput({
+        threadId: THREAD_ID,
+        prompt: "first retry",
+        config: { model: `${AGENT_KIND}/model` },
+      }),
+    ).rejects.toThrow("predecessor retirement was not confirmed");
+    expect(dead.startTurn).not.toHaveBeenCalled();
+    expect(adapter.createStructuredSession).not.toHaveBeenCalled();
+
+    // Once disposal confirms, the next submit resumes cleanly.
+    disposeFails = false;
+    await expectResumedSubmit(manager, adapter, dead, replacement, "second retry");
+  });
+
+  it("refuses sendThreadInput cleanly instead of crashing on a missing PTY when overflow stops before sessionRef discovery", async () => {
+    const dead = createStructuredSession(async () => undefined);
+    const adapter = createAdapter();
+    const manager = createManager(() => undefined);
+    const session = createSession(adapter, dead);
+    delete session.sessionRef;
+    session.canResumeWithConfig = false;
+    session.status = "working";
+    session.attention = "working";
+    const originalConfig = session.config;
+    attach(manager, session);
+
+    manager.stopSessionForCanonicalOverflow(THREAD_ID, "buffer cap reached");
+
+    await expect(
+      manager.sendThreadInput({
+        threadId: THREAD_ID,
+        prompt: "follow up",
+        config: { model: `${AGENT_KIND}/next-model` },
+      }),
+    ).rejects.toThrow("This thread exited before a resumable session id was discovered.");
+    expect(session.config).toBe(originalConfig);
+    expect(dead.startTurn).not.toHaveBeenCalled();
+  });
+
+  it("clears pending steers, unindexes sessionRef, and ignores late CLI hook states on canonical overflow", async () => {
+    const events: SupervisorEvent[] = [];
+    const dead = createStructuredSession(async () => undefined);
+    dead.interruptTurn = vi.fn<() => Promise<void>>(async () => undefined);
+    const adapter = createAdapter();
+    const manager = createManager((event) => events.push(event));
+    const session = createSession(adapter, dead);
+    session.status = "working";
+    session.attention = "working";
+    attach(manager, session);
+
+    await manager.setPendingSteer({
+      threadId: THREAD_ID,
+      prompt: "queued steer",
+      config: { model: `${AGENT_KIND}/model` },
+    });
+    expect(session.pendingSteer).toBeDefined();
+    expect(manager.findSessionForCliHookPlugin({ sessionId: PROVIDER_SESSION_ID })).toBe(session);
+
+    manager.stopSessionForCanonicalOverflow(THREAD_ID, "buffer cap reached");
+
+    expect(session.pendingSteer).toBeUndefined();
+    expect(events).toContainEqual({
+      type: "thread-pending-steer",
+      threadId: THREAD_ID,
+      pending: null,
+    });
+    expect(
+      (
+        manager as unknown as {
+          sessionsBySessionId: Map<string, SessionRuntime>;
+        }
+      ).sessionsBySessionId.has(PROVIDER_SESSION_ID),
+    ).toBe(false);
+
+    manager.applyCliHookPluginState(session, { status: "idle", attention: "none" });
+    expect(session.status).toBe("error");
   });
 });

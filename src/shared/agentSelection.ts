@@ -19,6 +19,19 @@ export interface AgentModelSelection {
   };
 }
 
+/** New Thread uses the last supported mode for the selected agent, then Chat when available. */
+export function resolveComposerPresentationMode(
+  agent: AgentStatus | undefined,
+  lastByAgent: Readonly<Record<string, ThreadPresentationMode>>,
+): ThreadPresentationMode {
+  if (!agent) return "gui";
+  const supported = agent.capabilities.presentationModes ?? [agent.capabilities.presentationMode];
+  const last = lastByAgent[agent.kind];
+  if (last && supported.includes(last)) return last;
+  if (supported.includes("gui")) return "gui";
+  return supported[0] ?? agent.capabilities.presentationMode ?? "gui";
+}
+
 export function authStateForPresentation(
   status: Pick<AgentStatus, "authState" | "presentationAuthStates">,
   presentationMode: ThreadPresentationMode,
@@ -249,6 +262,20 @@ export function filterHiddenModels(
   if (effectiveHiddenIds.length === 0) return capabilities;
   const hidden = new Set(effectiveHiddenIds);
   return { ...capabilities, models: capabilities.models.filter((m) => !hidden.has(m.id)) };
+}
+
+/**
+ * The surface a model picker offers: hidden models removed, unless hiding
+ * leaves nothing selectable, in which case the unfiltered surface stands in so
+ * a launch still has a model. Anything that ranks or resolves a model for such
+ * a picker reads this, so both always agree on what is offered.
+ */
+export function visibleModelCapabilities(
+  capabilities: AgentCapability,
+  hiddenIds: readonly string[] | undefined,
+): AgentCapability {
+  const filtered = filterHiddenModels(capabilities, hiddenIds);
+  return filtered.models.length > 0 ? filtered : capabilities;
 }
 
 /**

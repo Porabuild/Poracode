@@ -1,3 +1,4 @@
+import { ContentSurface } from "@/renderer/components/common/ContentSurface";
 import { useState } from "react";
 import { useLingui } from "@lingui/react/macro";
 import { Button } from "@/renderer/components/common/Button";
@@ -8,7 +9,8 @@ import {
   saveAsNewCrew,
 } from "@/renderer/components/crew/crewComposerModel";
 import { useAppStore } from "@/renderer/state/appStore";
-import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
+import { useCrewLibrary } from "@/renderer/state/crewLibrary";
+import { machineKeyForLocation } from "@/shared/machines";
 import { crewBindingFromSavedCrew, threadCrewBinding } from "@/shared/crew";
 import type { Project, Thread } from "@/shared/contracts";
 
@@ -17,8 +19,9 @@ export function ExperimentWinnerCrewActions(props: {
   winnerThread: Thread | undefined;
 }) {
   const { t } = useLingui();
-  const crews = useSharedSettings((state) => state.crews);
-  const upsertCrew = useSharedSettings((state) => state.upsertCrew);
+  const { crews, upsertCrew } = useCrewLibrary(
+    machineKeyForLocation(props.project?.location ?? { kind: "native" }),
+  );
   const [isSaving, setIsSaving] = useState(false);
   const [name, setName] = useState("");
   const project = props.project;
@@ -55,7 +58,7 @@ export function ExperimentWinnerCrewActions(props: {
   }
 
   return (
-    <div className="flex flex-wrap items-center gap-2 rounded-lg border border-[var(--hairline)] px-3 py-2">
+    <ContentSurface variant="row" className="flex flex-wrap items-center gap-2 px-3 py-2">
       <Button size="sm" variant="secondary" onPress={() => applyToProject()}>
         {t`Use ${crewName} in this project`}
       </Button>
@@ -97,6 +100,6 @@ export function ExperimentWinnerCrewActions(props: {
           </Button>
         )
       ) : null}
-    </div>
+    </ContentSurface>
   );
 }

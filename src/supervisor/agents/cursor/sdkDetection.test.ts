@@ -40,11 +40,8 @@ describe("probeCursorSdkRuntime", () => {
   }
 
   /** The record detection writes for a native install resolved via global npm. */
-  function recordNativeInstall(packageRoot: string): void {
-    recordCursorSdkInstallPin(
-      { packageRoot, source: "global-npm", version: "1.0.31" },
-      { pinsPath },
-    );
+  function recordNativeInstall(packageRoot: string, version = "1.0.31"): void {
+    recordCursorSdkInstallPin({ packageRoot, source: "global-npm", version }, { pinsPath });
   }
 
   beforeEach(() => {
@@ -61,7 +58,7 @@ describe("probeCursorSdkRuntime", () => {
     rmSync(profileDir, { recursive: true, force: true, maxRetries: 10, retryDelay: 50 });
   });
 
-  it("records the resolved installation so a later pass finds it without probing", async () => {
+  it("records the resolved installation for session launches and detection fallback", async () => {
     const packageRoot = installedPackageDir("1.0.31");
     const handle = worker({
       probe: async () => ({
@@ -207,7 +204,7 @@ describe("probeCursorSdkRuntime", () => {
     ).resolves.toMatchObject({ installed: false });
   });
 
-  it("hands the recorded installation to the worker before it probes", async () => {
+  it("passes the recorded installation to the worker as a fallback during detection", async () => {
     const packageRoot = installedPackageDir("1.0.31");
     recordNativeInstall(packageRoot);
     const handle = worker({
@@ -220,8 +217,125 @@ describe("probeCursorSdkRuntime", () => {
     expect(spawnWorker).toHaveBeenCalledWith(
       expect.objectContaining({
         pinnedRoot: { packageRoot, source: "global-npm", version: "1.0.31" },
+        pinFallbackOnly: true,
       }),
     );
+  });
+
+  it("supersedes a pre-upgrade v1 pin when detection discovers a newer global root", async () => {
+    const oldRoot = installedPackageDir("1.3.1");
+    const newRoot = installedPackageDir("1.4.2");
+    writeFileSync(
+      pinsPath,
+      JSON.stringify({
+        version: 1,
+        pins: {
+          "cursor-sdk": {
+            packageName: "@cursor/sdk",
+            packageRoot: oldRoot,
+            version: "1.3.1",
+            source: "global-npm",
+            resolvedAt: "2026-11-06T01:43:14.923Z",
+          },
+        },
+      }),
+      "utf8",
+    );
+    const handle = worker({
+      probe: async () => ({
+        models: [],
+        sdkVersion: "1.4.2",
+        source: "global-npm",
+        packageRoot: newRoot,
+      }),
+    });
+    const spawnWorker = vi.fn<(_options: unknown) => Promise<typeof handle>>(async () => handle);
+
+    const probe = await probeCursorSdkRuntime({ envKind: "posix" }, { spawnWorker });
+
+    expect(spawnWorker).toHaveBeenCalledWith(
+      expect.objectContaining({
+        pinnedRoot: { packageRoot: oldRoot, source: "global-npm", version: "1.3.1" },
+        pinFallbackOnly: true,
+      }),
+    );
+    expect(probe).toMatchObject({ installed: true, version: "1.4.2", source: "global-npm" });
+    expect(readCursorSdkInstallPin({ pinsPath })).toEqual({
+      packageRoot: newRoot,
+      source: "global-npm",
+      version: "1.4.2",
+    });
+  });
+
+  it("updates the pin and reports the newer version when auth or catalog fails after discovery", async () => {
+    const oldRoot = installedPackageDir("1.3.1");
+    const newRoot = installedPackageDir("1.4.2");
+    recordNativeInstall(oldRoot, "1.3.1");
+
+    const authMissingWorker = worker({
+      probe: async () => {
+        throw new CursorSdkWorkerRpcError({
+          name: "CursorSdkWorkerError",
+          code: "auth_missing",
+          message: "Cursor API key required",
+          sdk: {
+            sdkVersion: "1.4.2",
+            source: "global-npm",
+            packageRoot: newRoot,
+          },
+        });
+      },
+    });
+    const missingProbe = await probeCursorSdkRuntime(
+      { envKind: "posix" },
+      { spawnWorker: async () => authMissingWorker },
+    );
+
+    expect(missingProbe).toMatchObject({
+      installed: true,
+      authState: "missing",
+      version: "1.4.2",
+      source: "global-npm",
+      diagnosticCode: "auth_missing",
+    });
+    expect(readCursorSdkInstallPin({ pinsPath })).toEqual({
+      packageRoot: newRoot,
+      source: "global-npm",
+      version: "1.4.2",
+    });
+
+    recordNativeInstall(oldRoot, "1.3.1");
+    const authInvalidWorker = worker({
+      probe: async () => {
+        throw new CursorSdkWorkerRpcError({
+          name: "CursorSdkWorkerError",
+          code: "auth_invalid",
+          message: "API key rejected",
+          sdk: {
+            sdkVersion: "1.4.2",
+            source: "global-npm",
+            packageRoot: newRoot,
+          },
+        });
+      },
+    });
+    const invalidProbe = await probeCursorSdkRuntime(
+      { envKind: "posix" },
+      { spawnWorker: async () => authInvalidWorker },
+    );
+
+    expect(invalidProbe).toMatchObject({
+      installed: true,
+      authState: "missing",
+      version: "1.4.2",
+      source: "global-npm",
+      diagnosticCode: "auth_invalid",
+    });
+    expect(readCursorSdkInstallPin({ pinsPath })).toEqual({
+      packageRoot: newRoot,
+      source: "global-npm",
+      version: "1.4.2",
+    });
   });
 
   it("keeps a recorded SDK installed when the probe never reaches a verdict", async () => {

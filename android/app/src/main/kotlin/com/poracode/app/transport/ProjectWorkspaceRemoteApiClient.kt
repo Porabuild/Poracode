@@ -215,6 +215,8 @@ class ProjectWorkspaceRemoteApiClient private constructor(
             method = route.method,
             jsonBody = body,
             expectedStatus = route.expectedStatus,
+            // Include time waiting behind other repository mutations and the host's RPC deadline.
+            timeoutMs = if (procedure == GitProcedure.AddWorktree) 660_000 else null,
         )
         return RemoteV3GitContract.result(procedure, envelope)
     }

@@ -9,6 +9,7 @@ import {
 import { isNewerVersion } from "@/shared/agents/updateResolver";
 import { machineKey } from "@/shared/machines";
 import { localizeCatalogMessage } from "@/shared/messages";
+import { isWindows } from "@/renderer/bridge";
 import {
   loadAcpRegistryListing,
   useCombinedProviderRuntimeUpdates,
@@ -16,10 +17,13 @@ import {
 } from "@/renderer/components/providers/useCombinedProviderRuntimeUpdates";
 import { getCombinedRuntimeUpdates } from "@/renderer/components/providers/providerComposer";
 import { useHostAgentStatusPools } from "@/renderer/hooks/useHostAgentStatuses";
+import { useAppStore } from "@/renderer/state/appStore";
 import { machineIdForStatus, type MachineDescriptor } from "@/renderer/state/machines";
 import {
   currentWslDistros,
   envLabelForStatus,
+  findProjectForMachine,
+  findStatusForTarget,
   scopeEnvForStatus,
   statusUpdateScope,
 } from "@/renderer/utils/acpRegistryAuth";
@@ -89,7 +93,7 @@ function splitKinds(kindsKey: string): string[] {
 }
 
 function hasCombinedRuntimes(kind: string): boolean {
-  return getCombinedRuntimeUpdates(kind) !== undefined;
+  return getCombinedRuntimeUpdates(kind, "provider-list") !== undefined;
 }
 
 /**
@@ -111,7 +115,21 @@ export function useProviderUpdates(
   const pools = useHostAgentStatusPools(host.connectionKey);
   const machineEnvId = machineKey({ host: "local", env: machine.ref.env });
   const registryInstalled = useHostRegistryInstalledAgents(host);
-  const combinedUpdates = useCombinedProviderRuntimeUpdates(agents, {}, host);
+  const combinedUpdates = useCombinedProviderRuntimeUpdates(agents, {}, host, {
+    resolveProject: (status) =>
+      findProjectForMachine(
+        host.connectionKey
+          ? {
+              ...machine,
+              ref: { host: "remote", desktopId: host.connectionKey, env: machine.ref.env },
+            }
+          : machine,
+        useAppStore.getState().projects,
+        status.envKind === "windows" || (status.envKind === undefined && isWindows()),
+        [status],
+        { allowHomeWithoutProject: true },
+      ),
+  });
   const [latestByKind, setLatestByKind] = useState<Readonly<Record<string, string>>>({});
   const [registryLatestById, setRegistryLatestById] = useState<Readonly<Record<string, string>>>(
     {},
@@ -231,7 +249,7 @@ export function useProviderUpdates(
     if (statuses.length === 0) return EMPTY_ENTRY;
     const pendingUpdate = queue.pendingUpdates.get(hostScopedKey(host.key, kind));
     const pendingTargetVersion = pendingUpdate?.targetVersion;
-    if (hasCombinedRuntimes(kind) && !isAgentProfileKind(kind)) {
+    if (hasCombinedRuntimes(kind)) {
       return {
         installedVersion: newestVersionOf(statuses),
         environments: [],
@@ -284,8 +302,18 @@ export function useProviderUpdates(
 
   const outdatedKinds = kinds.filter((kind) => hasUpdate(entryFor(kind)));
 
+  function binaryUpdateError(agent: AgentStatus, output: string | undefined): Error {
+    const detail = localizeCatalogMessage(output?.trim() ?? "");
+    return new Error(
+      detail
+        ? t`Unable to update ${agent.label}: ${detail.slice(0, 240)}`
+        : t`Unable to update ${agent.label}.`,
+    );
+  }
+
   async function runBinaryUpdate(
     agent: AgentStatus,
+    targetVersion: string | undefined,
     onPhaseChange: (phase: ActiveProviderUpdatePhase) => void,
   ): Promise<void> {
     // Attempt every outdated environment even when one fails, so a flaky
@@ -294,6 +322,7 @@ export function useProviderUpdates(
     let failure: Error | undefined;
     for (const status of outdatedStatusesFor(agent.kind)) {
       const scope = statusUpdateScope(status);
+      const env = scopeEnvForStatus(status);
       try {
         onPhaseChange("updating");
         const result = await host.updateAgentBinary({
@@ -302,18 +331,30 @@ export function useProviderUpdates(
           ...(scope.wslDistro ? { wslDistro: scope.wslDistro } : {}),
         });
         if (!result.ok) {
-          const detail = localizeCatalogMessage(result.output?.trim() ?? "");
-          throw new Error(
-            detail
-              ? t`Unable to update ${agent.label}: ${detail.slice(0, 240)}`
-              : t`Unable to update ${agent.label}.`,
-          );
+          throw binaryUpdateError(agent, result.output);
         }
         onPhaseChange("probing");
-        await host.refreshAgentStatuses(currentWslDistros(), {
+        const wslDistros =
+          env.kind === "wsl"
+            ? [...new Set([...currentWslDistros(), env.distro])]
+            : currentWslDistros();
+        const refreshed = await host.refreshAgentStatuses(wslDistros, {
           agentKinds: [agent.kind],
-          envs: [scopeEnvForStatus(status)],
+          envs: [env],
         });
+        const detected = findStatusForTarget(refreshed, agent.kind, env);
+        // Exit 0 alone does not guarantee the version advanced (e.g. a package
+        // manager cache lag or `already installed` warning). Surface the output
+        // instead of claiming success when the re-probed binary is still behind.
+        if (
+          detected &&
+          (!detected.installed ||
+            (targetVersion !== undefined &&
+              detected.version !== undefined &&
+              isNewerVersion(targetVersion, detected.version)))
+        ) {
+          throw binaryUpdateError(agent, result.output);
+        }
       } catch (error) {
         failure ??= error instanceof Error ? error : new Error(t`Unable to update ${agent.label}.`);
       }
@@ -333,7 +374,7 @@ export function useProviderUpdates(
       return;
     }
     if (registryId === undefined) {
-      await runBinaryUpdate(agent, onPhaseChange);
+      await runBinaryUpdate(agent, target.targetVersion, onPhaseChange);
     } else {
       onPhaseChange("updating");
       const result = await host.updateAcpRegistryAgent({ agentId: registryId });
@@ -347,7 +388,7 @@ export function useProviderUpdates(
   function updateKind(kind: string): void {
     const agent = agents.find((candidate) => candidate.kind === kind);
     const entry = entryFor(kind);
-    if (!agent || !hasUpdate(entry) || isAgentProfileKind(kind)) return;
+    if (!agent || !hasUpdate(entry)) return;
     queue.updateKind({ agent, targetVersion: entry.targetVersion, hostKey: host.key });
   }
 

@@ -1,3 +1,4 @@
+import { ContentSurface } from "@/renderer/components/common/ContentSurface";
 import { useId, useState } from "react";
 import { Button } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
@@ -139,12 +140,13 @@ export function NativeVisualChart({
       ) : !evaluatedSeries.length ? (
         <p
           role="status"
-          className="rounded-[0.875rem] bg-surface-secondary/40 p-4 text-sm text-muted"
+          className="content-surface-row p-4 text-sm text-muted"
         >{t`No series selected. Choose a series above.`}</p>
       ) : (
-        <div
+        <ContentSurface
+          variant="row"
           data-native-visual-chart-plot
-          className="relative min-w-[420px] rounded-[0.875rem] bg-surface-secondary/40"
+          className="relative min-w-[420px]"
           onPointerLeave={() => setHovered(undefined)}
         >
           <svg
@@ -332,11 +334,12 @@ export function NativeVisualChart({
               )}
             </div>
           )}
-        </div>
+        </ContentSurface>
       )}
       {!view.showTable && evaluatedSeries.length ? (
-        <div
-          className="flex items-center gap-2 rounded-[0.875rem] bg-surface-secondary/40 px-2 py-2"
+        <ContentSurface
+          variant="row"
+          className="flex items-center gap-2 px-2 py-2"
           role="group"
           aria-label={t`Chart inspection`}
         >
@@ -377,7 +380,7 @@ export function NativeVisualChart({
               <ChevronRight className="size-3.5" />
             </Button>
           ) : null}
-        </div>
+        </ContentSurface>
       ) : null}
       {!view.showTable &&
       values.length !== evaluatedSeries.reduce((sum, series) => sum + series.values.length, 0) ? (

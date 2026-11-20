@@ -5,12 +5,17 @@ import {
   isThreadTurnActive,
   type RuntimeEvent,
 } from "@/shared/contracts";
-import type { StructuredSessionUpdate } from "../../agents/base";
+import type { StructuredSessionHandle, StructuredSessionUpdate } from "../../agents/base";
 import { captureSupervisorException } from "../../diagnostics/sentry";
 import type { CrewLeadEditMonitor } from "../crewLeadEditMonitor";
 import type { SessionRuntime } from "../sessionTypes";
 import type { ThreadOutputPipeline } from "../threadOutputPipeline";
-import { shouldReleaseInitialStructuredIdleSuppression } from "./helpers";
+import {
+  retireStructuredSessionState,
+  shouldReleaseInitialStructuredIdleSuppression,
+  stopSessionRefWatcher,
+} from "./helpers";
+import { STRUCTURED_DISPOSAL_SETTLE_MS } from "./sessionRetirement";
 import type { ThreadSessionManagerOptions } from "./managerOptions";
 import type { PtyLifecycle } from "./ptyLifecycle";
 import type { RuntimeEventRouter } from "./runtimeEventRouter";
@@ -28,8 +33,10 @@ export interface SessionRuntimeLifecycleContext {
     "emitState" | "updateState" | "noteTurnFailed" | "handlePtyData" | "clearSessionTimers"
   >;
   runtimeEventRouter: Pick<RuntimeEventRouter, "flush" | "append">;
+  observeLiveRequest?(handle: StructuredSessionHandle, event: RuntimeEvent): void;
   steerCoordinator: Pick<SteerCoordinator, "maybeDrainPendingSteer"> &
-    Partial<Pick<SteerCoordinator, "noteSteerTurnStarted">>;
+    Partial<Pick<SteerCoordinator, "noteSteerTurnStarted" | "onSessionClosing">>;
+  retireAgentSession?(session: SessionRuntime): Promise<unknown>;
   /** Optional for compatibility with focused lifecycle harnesses. */
   followUpQueue?: Pick<
     FollowUpQueueCoordinator,
@@ -106,7 +113,8 @@ export class SessionRuntimeLifecycle {
 
   private bindStructuredSession(session: SessionRuntime): void {
     const actualAdapter = session.adapter;
-    session.structuredSession?.setListener({
+    const handle = session.structuredSession;
+    handle?.setListener({
       onClose: () => {
         // Transport close is the structured side's confirmed retirement.
         session.structuredRetired = true;
@@ -114,7 +122,7 @@ export class SessionRuntimeLifecycle {
         // close; release the slot here. When a PTY also backs this session,
         // retirement requires both owned effects (the close path kills the
         // PTY next and the PTY exit cannot release alone).
-        if (!session.pty) {
+        if (!session.pty || session.ptyExited === true) {
           session.resourceLease?.confirmExit();
           this.context.onResourceLeaseRelease?.(session);
         }
@@ -131,6 +139,7 @@ export class SessionRuntimeLifecycle {
       },
       onRuntimeEvent: (event) => {
         if (!this.canHandleStructuredEvent(session)) return;
+        if (session.structuredSession === handle) this.context.observeLiveRequest?.(handle, event);
         this.handleStructuredRuntimeEvent(
           session,
           captureRuntimePayloadOrigin(event, actualAdapter.runtimePayloadFormatOwnerKey),
@@ -286,7 +295,10 @@ export class SessionRuntimeLifecycle {
       // so a late predecessor exit cannot free a successor. A mixed session
       // (out-of-contract PTY + structured) still owes the structured side's
       // confirmation, so the PTY exit alone must not free its capacity.
-      if (!session.structuredSession || session.structuredRetired === true) {
+      if (
+        (!session.structuredSession && !session.pendingStructuredDisposal) ||
+        session.structuredRetired === true
+      ) {
         session.resourceLease?.confirmExit();
         context.onResourceLeaseRelease?.(session);
       }
@@ -301,8 +313,13 @@ export class SessionRuntimeLifecycle {
       if (session.ignoreExit) return;
       if (!this.context.isCurrentSession(session)) return;
 
-      void session.structuredSession?.dispose();
+      if (context.retireAgentSession) {
+        void context.retireAgentSession(session);
+      } else {
+        void session.structuredSession?.dispose();
+      }
       context.outputPipeline.clearSessionTimers(session);
+      context.steerCoordinator.onSessionClosing?.(session);
       context.followUpQueue?.onSessionClosing(session.threadId, session);
       context.outputPipeline.updateState(session, "inactive", "none");
       session.hasCliHookPluginActivity = false;
@@ -334,11 +351,11 @@ export class SessionRuntimeLifecycle {
     // Detach it: the send path relaunches (and resumes via `sessionRef`) only
     // when no live structured session is attached. Leaving the dead handle in
     // place routes every later submit into its closed transport.
-    session.structuredSession = undefined;
-    // The negotiated inventory died with the transport: retire it explicitly
-    // so neither the settled state nor a pulled snapshot can resurrect it.
-    const inventoryRetired = session.sessionConfigOptions !== null;
-    session.sessionConfigOptions = null;
+    const inventoryRetired = retireStructuredSessionState(session);
+    this.context.steerCoordinator.onSessionClosing?.(session);
+    if (session.sessionRef?.providerSessionId) {
+      this.context.sessionsBySessionId.delete(session.sessionRef.providerSessionId);
+    }
     if (session.status === "inactive") {
       if (inventoryRetired) this.context.outputPipeline.emitState(session);
       return;
@@ -356,8 +373,7 @@ export class SessionRuntimeLifecycle {
       exitCode: null,
     });
     session.ignoreExit = true;
-    session.stopSessionRefWatcher?.();
-    session.stopSessionRefWatcher = undefined;
-    setTimeout(() => this.context.ptyLifecycle.kill(session), 150);
+    stopSessionRefWatcher(session);
+    setTimeout(() => this.context.ptyLifecycle.kill(session), STRUCTURED_DISPOSAL_SETTLE_MS);
   }
 }

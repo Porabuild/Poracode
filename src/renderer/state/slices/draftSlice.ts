@@ -46,6 +46,8 @@ export interface DraftSlice {
   consumeDraftContentDiscard: (projectId: string) => boolean;
   saveThreadDraftContent: (threadId: string, content: DraftContent) => void;
   clearThreadDraftContent: (threadId: string) => void;
+  /** Re-reads a thread draft another window may have changed. */
+  reloadThreadDraftContent: (threadId: string) => void;
   /**
    * Appends attachments to a thread's saved draft. Used when an async attach
    * (file picker/upload) finishes after its composer moved to another thread,
@@ -113,6 +115,18 @@ export const createDraftSlice: SliceCreator<DraftSlice> = (set) => ({
   clearThreadDraftContent: (threadId) => {
     composerDraftStorage()?.remove("thread", threadId);
     set((state) => {
+      if (!(threadId in state.threadDraftContents)) return {};
+      const { [threadId]: _, ...rest } = state.threadDraftContents;
+      return { threadDraftContents: rest };
+    });
+  },
+  reloadThreadDraftContent: (threadId) => {
+    const storage = composerDraftStorage();
+    storage?.refresh("thread", threadId);
+    const saved = storage?.load("thread")[threadId];
+    set((state) => {
+      if (saved)
+        return { threadDraftContents: { ...state.threadDraftContents, [threadId]: saved } };
       if (!(threadId in state.threadDraftContents)) return {};
       const { [threadId]: _, ...rest } = state.threadDraftContents;
       return { threadDraftContents: rest };

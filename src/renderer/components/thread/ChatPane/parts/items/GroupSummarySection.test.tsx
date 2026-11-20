@@ -41,6 +41,11 @@ describe("GroupSummarySection", () => {
     expect(code.textContent).toBe("3 MCPs");
     expect(label.textContent).toBe("MCPs");
     expect(counter.closest(".poracode-thinking-text")).toBeNull();
+    expect(container.querySelector("svg")).toHaveClass(
+      "size-3",
+      "shrink-0",
+      "text-[color:var(--muted)]",
+    );
   });
 
   it("refreshes changed label glyphs while preserving the rolling counter", () => {

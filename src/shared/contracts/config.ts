@@ -48,6 +48,9 @@ export const threadConfigBaseSchema = z.object(threadConfigShape);
 export const threadConfigSchema = threadConfigBaseSchema;
 export type ThreadConfig = z.infer<typeof threadConfigSchema>;
 
+/** User-selected composer configuration, without imported transcript bookkeeping. */
+export const threadComposerConfigSchema = threadConfigSchema.omit({ importedFrom: true }).strict();
+
 /** Older clients omit per-thread tool choices and crew; explicit empty maps and crew: null clear them. */
 export function retainThreadToolOverrides(
   config: ThreadConfig,

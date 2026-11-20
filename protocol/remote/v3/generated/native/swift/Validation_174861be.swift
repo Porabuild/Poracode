@@ -69,7 +69,7 @@ public extension RemoteSchemas {
 }
 
 public extension RemoteSchemas {
-  static let schema_0b2ba27512e423eb = RemoteSchema(type: "object", required: Set(["control", "kind", "version"]), properties: ["control": RemoteSchemas.schema_9040d7586304950d, "kind": RemoteSchemas.schema_6eed5e1fa2ae0e54, "version": RemoteSchemas.schema_7f9f5a0d72de0d9a], additionalAllowed: false, unknownPolicy: .reject)
+  static let schema_0b5160b3777eea2f = RemoteSchema(type: "object", required: Set(["count", "hour"]), properties: ["count": RemoteSchemas.schema_56aa0e45cbdce0d0, "hour": RemoteSchemas.schema_47c50d7349a5a322], additionalAllowed: true, unknownPolicy: .strip)
 }
 
 public extension RemoteSchemas {

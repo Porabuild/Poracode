@@ -19,6 +19,7 @@ import { runOneShotChild, type OneShotChildHandle } from "./oneShotChild";
 vi.mock("@/supervisor/agents/base", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/supervisor/agents/base")>()),
   resolveAgentProjectLocation: async (location: unknown) => location,
+  primeProjectShellEnv: async () => undefined,
 }));
 vi.mock("./oneShotChild", () => ({ runOneShotChild: vi.fn<typeof runOneShotChild>() }));
 

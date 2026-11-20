@@ -99,12 +99,16 @@ export const NON_ROUTER_PROJECT_PROCEDURES = {
   // Host-owned destructive-retirement check (housekeeping purge)
   closeThreadConfirmed:
     "local-shell: host-owned confirmed-retirement close for destructive housekeeping; the renderer never issues it and no remote route exists",
+  controlWorkspaceTerminal:
+    "local-shell: app-controls checks checkout scope on its own supervisor; renderers use the existing terminal routes",
   controlThreadExecution:
     "local-shell: local administration owns provider execution and confirmed retirement on this supervisor",
   reserveThreadExecution:
     "local-shell: local administration reserves execution custody on this supervisor before launching",
   controlledThreadRequest:
     "local-shell: local administration binds answers to this supervisor's exact pending request incarnation",
+  appThreadRequests:
+    "local-shell: App Controls binds replies to the owning supervisor's live requests",
   ghMergePrAtHead:
     "local-shell: app-controls invokes this host's guarded merge directly; older supervisors reject its distinct name and no remote route exists",
 
@@ -250,17 +254,11 @@ export const NON_ROUTER_PROJECT_PROCEDURES = {
   getAgentHookPluginStatuses: "local-shell: this machine's agent hook plugin inventory",
   installAgentHookPlugin: "local-shell: installs into this machine's CLI hook plugins",
   uninstallAgentHookPlugin: "local-shell: uninstalls from this machine's CLI hook plugins",
-  installAcpRegistryAgent: "local-shell: installs a CLI agent on this machine",
-  removeAcpRegistryAgent: "local-shell: removes a CLI agent install from this machine",
-  setAcpRegistryAgentAuth: "local-shell: stores agent auth on this machine",
   confirmSupervisorSettingsEdits: "local-shell: this device's settings owner acknowledgement",
-  authenticateAcpAgent: "local-shell: runs this machine's agent OAuth window and secret store",
   controlAcpAuthentication:
     "local-shell: supervisor-owned authentication operation IDs and cancellation stay on this host",
   controlMcpAuthentication:
     "local-shell: supervisor-owned integration OAuth operations and cancellation stay on this host",
-  logoutAcpAgent: "local-shell: clears agent auth on this machine",
-  resolveAgentAccount: "local-shell: resolves accounts against this machine's agent auth",
   getAgentConfigDefaults: "local-shell: reads this machine's agent config file, read-only",
   manageAgentPlugins: "local-shell: manages this machine's agent plugin packages",
   manageAgentCredentials: "local-shell: this machine's keychain-stored agent credentials",
@@ -277,6 +275,10 @@ export const NON_ROUTER_PROJECT_PROCEDURES = {
   removeCrossagentRoutingOverride: "local-shell: this device's routing override decision",
   updateCrossagentMemoryEntryTags: "local-shell: this device's memory catalog",
   removeCrossagentMemoryEntry: "local-shell: this device's memory catalog",
+  memoryCommand:
+    "local-shell: privileged local memory commands. Remote catalog and sync use their own HTTP routes",
+  generateMemoryText:
+    "local-shell: host-owned background capture/dream one-shot generation on this machine",
 
   // Desktop browser panel — the WebContentsView tab strip of this window
   browserGetState: "local-shell: this desktop window's browser tab strip",

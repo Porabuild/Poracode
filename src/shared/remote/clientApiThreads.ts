@@ -86,6 +86,7 @@ import { parseResponse } from "./clientParse";
 import {
   LONG_REMOTE_REQUEST_TIMEOUT_MS,
   THREAD_START_REMOTE_REQUEST_TIMEOUT_MS,
+  WORKTREE_ADD_REMOTE_REQUEST_TIMEOUT_MS,
   type StartRemoteNewThreadInput,
   type StartRemoteNewThreadOptions,
   type StartRemoteThreadInput,
@@ -806,11 +807,13 @@ export abstract class RemoteClientThreadsApi extends RemoteClientHostApi {
         body: { procedure, payload },
         ...(receiptGuardedStart || procedure === "ensureThreadRunning"
           ? { timeoutMs: THREAD_START_REMOTE_REQUEST_TIMEOUT_MS }
-          : isRemoteAgentUpdateProcedure(procedure)
-            ? { timeoutMs: AGENT_UPDATE_REQUEST_TIMEOUT_MS }
-            : "timeout" in spec && spec.timeout === "long"
-              ? { timeoutMs: LONG_REMOTE_REQUEST_TIMEOUT_MS }
-              : {}),
+          : procedure === "gitAddWorktree"
+            ? { timeoutMs: WORKTREE_ADD_REMOTE_REQUEST_TIMEOUT_MS }
+            : isRemoteAgentUpdateProcedure(procedure)
+              ? { timeoutMs: AGENT_UPDATE_REQUEST_TIMEOUT_MS }
+              : "timeout" in spec && spec.timeout === "long"
+                ? { timeoutMs: LONG_REMOTE_REQUEST_TIMEOUT_MS }
+                : {}),
       });
       const resultSchema = ipcProcedureMap[procedure].resultSchema;
       if (!resultSchema) {

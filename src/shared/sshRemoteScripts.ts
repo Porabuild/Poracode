@@ -130,8 +130,10 @@ printf 'ready\n'
  * verified owner that does not speak this remote protocol refuses
  * (`owner-incompatible`); a verified owner whose listener is down refuses
  * (`owner-unresponsive`). Starting a new owner while another owner still holds
- * the data-root lease fails closed through that owner's own lease and is
- * reported as `owner-conflict`.
+ * the data-root lease fails closed through that owner's own lease: connect
+ * first retries authenticated discovery for one start budget (the holder may
+ * be an owner that is still booting because its starter died), then reports
+ * `owner-conflict`.
  *
  * The one process this script may terminate is the new owner it spawned
  * itself, re-proven by its own start token, when that child fails to become
@@ -322,6 +324,37 @@ poracode_reuse_or_refuse_authenticated_owner() {
   exit 0
 }
 
+# A child that died on the data-root lease proves another owner holds this
+# root right now, but not that it is foreign: a starter that died between
+# spawning its owner and publishing the identity leaves a booting owner that
+# authenticated discovery can still find (the real data-root lease is a
+# process-lifetime kernel lock, so a crashed starter's owner keeps holding it
+# exactly while it lives). Connect therefore retries authenticated discovery
+# for one start budget before failing closed; upgrade keeps the immediate
+# refusal because replacing that owner is an owner-authorized decision.
+poracode_rediscover_leased_owner() {
+  _pc_disc_wait_ms="${"$"}{PORACODE_REDISCOVER_WAIT_MS:-}"
+  case "$_pc_disc_wait_ms" in
+    ''|*[!0-9]*) _pc_disc_wait_ms="$PC_START_WAIT_MS" ;;
+  esac
+  if [ "$_pc_disc_wait_ms" -gt 3600000 ]; then
+    _pc_disc_wait_ms=3600000
+  fi
+  _pc_disc_deadline=$(( $(date +%s) + (_pc_disc_wait_ms + 999) / 1000 ))
+  while :; do
+    poracode_refresh_identity
+    poracode_refresh_status_runtime
+    poracode_query_owner
+    if [ "$PC_AUTH" -eq 1 ]; then
+      poracode_reuse_or_refuse_authenticated_owner
+    fi
+    if [ "$(date +%s)" -ge "$_pc_disc_deadline" ]; then
+      return 1
+    fi
+    sleep 0.2
+  done
+}
+
 poracode_start_new_owner() {
   PORT="$(pick_port)" || { printf 'No remote loopback port is available for Poracode.\n' >&2; exit 46; }
   LOG_OFFSET=0
@@ -378,6 +411,9 @@ poracode_start_new_owner() {
     LOG_TAIL="$(tail -c "+$((LOG_OFFSET + 1))" "$LOG_FILE" 2>/dev/null || true)"
     printf '%s\n' "$LOG_TAIL" >&2
     if printf '%s\n' "$LOG_TAIL" | grep -q 'already owns'; then
+      if [ "$MODE" = "connect" ] && poracode_rediscover_leased_owner; then
+        exit 0
+      fi
       poracode_emit_refused "owner-conflict" "" ""
     else
       poracode_emit_refused "launch-failed" "" ""

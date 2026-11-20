@@ -15,7 +15,7 @@ export const MERGE_METHODS = ["squash", "merge", "rebase"] as const;
 export function usePrMergeFlow() {
   const scope = usePrDetailScope();
   const { actions } = scope;
-  const readiness = usePrMergeReadiness(scope.prKey, scope.cacheKey);
+  const readiness = usePrMergeReadiness(scope.prKey, scope.cacheKey, scope.projectId);
   const [pending, setPending] = useState<{
     method: PrMergeMethod;
     head: string | undefined;

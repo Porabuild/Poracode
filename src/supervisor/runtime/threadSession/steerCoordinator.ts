@@ -223,6 +223,12 @@ export class SteerCoordinator {
     clearPendingSteerSlot(session, this.ctx.emit);
   }
 
+  /** Settle any staged steer or in-flight replacement admission when a session closes. */
+  onSessionClosing(session: SessionRuntime): void {
+    clearPendingSteerSlot(session, this.ctx.emit);
+    this.rejectPendingReplacement(session, msg("supervisor.steer.cleared"));
+  }
+
   /**
    * Detach a staged steer for the forced-restart path without rejecting a
    * queue promotion that is waiting for replacement admission. The caller
@@ -488,12 +494,18 @@ export class SteerCoordinator {
             },
           )
         : undefined;
+    const admission = Promise.withResolvers<void | StructuredTurnResult>();
+    const textOptions = structuredTurnTextOptions(session, turn, { steersRunningTurn: true });
     const steerOptions = {
       ...(optimisticItemId ? { userMessageItemId: optimisticItemId } : {}),
       ...(turn.questionAnswer ? { questionAnswer: turn.questionAnswer } : {}),
       // "Last turn you edited files…" does not fit a turn still running, so
       // that reminder stays for the next submitted prompt.
-      ...structuredTurnTextOptions(session, turn, { steersRunningTurn: true }),
+      ...textOptions,
+      onPromptSubmitted: () => {
+        textOptions.onPromptSubmitted?.();
+        admission.resolve();
+      },
     };
     this.ctx.noteDirectSteerSubmitted?.(session);
     const steer = steerTurn.call(
@@ -501,21 +513,24 @@ export class SteerCoordinator {
       turn.prompt,
       turn.config,
       turn.segments,
-      Object.keys(steerOptions).length > 0 ? steerOptions : undefined,
+      steerOptions,
     );
-    const observedSteer = steer.then((result) => {
-      if (isCompletedWithoutTurn(result)) {
-        this.ctx.noteDirectSteerCompletedWithoutTurn?.(session);
-      }
-      return result;
-    });
-    void observedSteer.catch((error) => {
-      if (this.ctx.sessions.get(session.threadId)?.instanceId !== session.instanceId) {
-        return;
-      }
-      this.ctx.failStructuredSession(session, error);
-    });
-    // Queue callers retain the selected item until the provider accepts it.
-    return observedSteer;
+    void steer.then(
+      (result) => {
+        if (isCompletedWithoutTurn(result)) {
+          this.ctx.noteDirectSteerCompletedWithoutTurn?.(session);
+        }
+        // Handles without an admission callback retain their existing contract.
+        admission.resolve(result);
+      },
+      (error: unknown) => {
+        admission.reject(error);
+        if (this.ctx.sessions.get(session.threadId)?.instanceId !== session.instanceId) return;
+        this.ctx.failStructuredSession(session, error);
+      },
+    );
+    // A provider may accept the input before its steer/fallback turn finishes.
+    // Acknowledge that edge to the host without losing later runtime failures.
+    return admission.promise;
   }
 }

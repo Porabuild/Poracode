@@ -1,4 +1,5 @@
-import { useState, type ReactNode } from "react";
+import { ContentSurface } from "@/renderer/components/common/ContentSurface";
+import { useRef, useState, type ReactNode } from "react";
 import { Input, Modal, Tooltip, toast } from "@heroui/react";
 import {
   AppWindow,
@@ -23,6 +24,7 @@ import {
   type BuiltInMcpServerDisabled,
   type BuiltInMcpDisabledTools,
   type BuiltInMcpServerId,
+  type McpProbeResult,
   type McpServer,
   type ProjectLocation,
 } from "@/shared/contracts";
@@ -34,7 +36,7 @@ import {
   type McpProjectDestination,
 } from "./McpProjectDestinationDropdown";
 import { McpServerEditor } from "./McpServerEditor";
-import { mcpTransportSummary, serializeMcpServersJson } from "./mcpFormUtils";
+import { mcpTransportSummary, parseMcpServersJson, serializeMcpServersJson } from "./mcpFormUtils";
 import {
   readCurrentServers,
   removeServerRow,
@@ -60,7 +62,8 @@ interface EditorState {
   selectedDestinationId: string;
 }
 
-interface McpServerSource extends McpServersSink {
+interface McpServerSource extends Omit<McpServersSink, "saveServers"> {
+  saveServers?: McpServersSink["saveServers"];
   projectId?: string;
   projectLocation?: ProjectLocation;
   projectName?: string;
@@ -74,7 +77,7 @@ interface McpEditorDestination {
 }
 
 /** Every app project the import modal can scan or import into. */
-export interface McpImportProjectTarget extends McpServersSink {
+export interface McpImportProjectTarget extends McpServerSource {
   id: string;
   name: string;
   location: ProjectLocation;
@@ -96,6 +99,24 @@ interface McpToolList {
   onToolEnabledChange: (tool: string, enabled: boolean) => void;
 }
 
+interface RemoteMcpActions {
+  upsert(projectId: string | undefined, server: McpServer): Promise<void>;
+  remove(projectId: string | undefined, serverId: string): Promise<void>;
+  move(from: string | undefined, to: string | undefined, serverId: string): Promise<void>;
+  probe(projectId: string | undefined, serverId: string): Promise<McpProbeResult>;
+  oauth: {
+    authenticated(projectId: string | undefined, serverId: string): boolean;
+    busy(projectId: string | undefined, serverId: string): boolean;
+    authenticate(projectId: string | undefined, server: McpServer): Promise<boolean>;
+    signOut(projectId: string | undefined, server: McpServer): Promise<void>;
+  };
+}
+
+function listSink(source: McpServerSource): McpServersSink {
+  if (!source.saveServers) throw new Error("MCP list writes are not available for this source.");
+  return { ...source, saveServers: source.saveServers };
+}
+
 export function McpServersManager(props: {
   sources: {
     user: McpServerSource;
@@ -109,25 +130,34 @@ export function McpServersManager(props: {
   onBuiltInToolEnabledChange?: (id: BuiltInMcpServerId, tool: string, enabled: boolean) => void;
   builtInSettings?: Partial<Record<BuiltInMcpServerId, BuiltInSettings>>;
   managedBuiltIns?: Partial<Record<BuiltInMcpServerId, string>>;
+  remoteActions?: RemoteMcpActions;
 }) {
   const { t } = useLingui();
   const [query, setQuery] = useState("");
   const [editor, setEditor] = useState<EditorState | undefined>();
   const [importOpen, setImportOpen] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const importFile = useRef<HTMLInputElement>(null);
   const [builtInSettingsId, setBuiltInSettingsId] = useState<BuiltInMcpServerId>();
   const [toolList, setToolList] = useState<McpToolList>();
-  const userOauth = useMcpServerOauth();
+  const remote = props.remoteActions;
+  const userOauth = useMcpServerOauth(undefined, !remote);
   // Each scope signs in on its own host: user servers on this one, workspace
   // servers on their project's host (the hook resolves which host a location names).
   const workspaceLocation = props.sources.workspace?.projectLocation;
   const workspaceOauth = useMcpServerOauth(
     workspaceLocation,
-    props.sources.workspace !== undefined,
+    !remote && props.sources.workspace !== undefined,
   );
-  const userProbes = useMcpServerProbes(props.sources.user.servers);
+  const userProbes = useMcpServerProbes(
+    props.sources.user.servers,
+    undefined,
+    remote ? (server) => remote.probe(undefined, server.id) : undefined,
+  );
   const workspaceProbes = useMcpServerProbes(
     props.sources.workspace?.servers ?? EMPTY_MCP_SERVERS,
     props.sources.workspace?.projectLocation,
+    remote ? (server) => remote.probe(props.sources.workspace?.projectId, server.id) : undefined,
   );
   const defaultScope =
     props.defaultScope === "workspace" && !props.sources.workspace ? "user" : props.defaultScope;
@@ -151,12 +181,10 @@ export function McpServersManager(props: {
         ...(project.icon ? { icon: project.icon } : {}),
       },
       source: {
-        servers: project.servers,
+        ...project,
         projectId: project.id,
         projectLocation: project.location,
         projectName: project.name,
-        ...(project.loadServers ? { loadServers: project.loadServers } : {}),
-        saveServers: project.saveServers,
       },
     }),
   );
@@ -269,6 +297,36 @@ export function McpServersManager(props: {
     );
     const targetSource = destination?.source;
     if (!targetSource) return;
+    const editorKey = editor.key;
+    const closeEditor = () =>
+      setEditor((current) => (current?.key === editorKey ? undefined : current));
+    const moving = editor.server && editor.sourceDestinationId !== editor.selectedDestinationId;
+    const source = moving
+      ? editorDestinations.find((candidate) => candidate.id === editor.sourceDestinationId)?.source
+      : undefined;
+    if (moving && !source) return;
+    if (remote) {
+      // The move command copies the stored definition and its secrets on-host;
+      // it does not take an edited definition. Keep an unsaved draft intact.
+      if (source && editor.server) {
+        if (serializeMcpServersJson([server]) !== serializeMcpServersJson([editor.server])) {
+          toast.danger(t`Save your edits before moving this MCP server.`);
+          return;
+        }
+        void remote
+          .move(source.projectId, targetSource.projectId, server.id)
+          .then(closeEditor, reportMutationError);
+      } else {
+        const disabledTools = editor.server?.disabledTools;
+        void remote
+          .upsert(targetSource.projectId, {
+            ...server,
+            ...(disabledTools ? { disabledTools } : {}),
+          })
+          .then(closeEditor, reportMutationError);
+      }
+      return;
+    }
     // Project destinations commit against their authoritative list: a source
     // whose settings are not loaded yet must never be treated as empty. A move
     // preflights BOTH lists before the first write — a source read refused
@@ -281,38 +339,31 @@ export function McpServersManager(props: {
     // per-destination saves — deliberately not an atomic move: if the source
     // removal fails after the destination confirmed, the server exists in both
     // lists until the user retries, which is the safe direction to fail in.
-    const editorKey = editor.key;
     void (async () => {
-      const targetServers = await readCurrentServers(targetSource);
-      const sourceDestination =
-        editor.server && editor.sourceDestinationId !== editor.selectedDestinationId
-          ? editorDestinations.find((candidate) => candidate.id === editor.sourceDestinationId)
-          : undefined;
-      const source = sourceDestination?.source;
-      if (source) await readCurrentServers(source);
+      const target = listSink(targetSource);
+      const sourceSink = source ? listSink(source) : undefined;
+      const targetServers = await readCurrentServers(target);
+      if (sourceSink) await readCurrentServers(sourceSink);
       const sourceServerId = editor.server?.id;
       const existingIndex = targetServers.findIndex((item) => item.id === server.id);
       const nextTarget =
         existingIndex === -1
           ? [...targetServers, server]
           : targetServers.map((item) => (item.id === server.id ? server : item));
-      await targetSource.saveServers(nextTarget);
+      await target.saveServers(nextTarget);
       try {
-        if (source && sourceServerId !== undefined) {
+        if (sourceSink && sourceServerId !== undefined) {
           // Re-read the source now that the destination confirmed: the
           // preflight snapshot goes stale while a slow destination save gives
           // other clients a window to modify the source. Remove only the moved
           // id from the fresh read; if that read or save still fails, the
           // source keeps its copy — a safe duplicate, never a loss.
-          const currentSource = await readCurrentServers(source);
-          if (currentSource.some((item) => item.id === sourceServerId)) {
-            await source.saveServers(currentSource.filter((item) => item.id !== sourceServerId));
-          }
+          await removeServerRow(sourceSink, sourceServerId);
         }
       } finally {
         // The destination holds the server from here on: close the editor even
         // when the source removal failed (the duplicate is surfaced below).
-        setEditor((current) => (current?.key === editorKey ? undefined : current));
+        closeEditor();
       }
     })().catch((error) => {
       // A destination refusal lands here with the source list untouched and
@@ -320,6 +371,17 @@ export function McpServersManager(props: {
       // closed with its copy retained. One truthful toast either way.
       reportMutationError(error);
     });
+  };
+
+  const updateRow = async (
+    source: McpServerSource,
+    serverId: string,
+    update: (server: McpServer) => McpServer,
+  ) => {
+    if (!remote) return updateServerRow(listSink(source), serverId, update);
+    const current = await readCurrentServers(source);
+    const server = current.find((item) => item.id === serverId);
+    if (server) await remote.upsert(source.projectId, update(server));
   };
 
   const importExternalServers = (destination: McpImportDestination, servers: McpServer[]) => {
@@ -332,7 +394,8 @@ export function McpServersManager(props: {
       // Merge into the authoritative list: importing into another project must
       // preserve the configuration it already has, even when that
       // configuration was never projected into the catalog row.
-      const current = await readCurrentServers(target);
+      const sink = listSink(target);
+      const current = await readCurrentServers(sink);
       const names = new Set(current.map((server) => server.name.toLowerCase()));
       const imported = servers.filter((server) => {
         const name = server.name.toLowerCase();
@@ -340,7 +403,7 @@ export function McpServersManager(props: {
         names.add(name);
         return true;
       });
-      if (imported.length > 0) await target.saveServers([...current, ...imported]);
+      if (imported.length > 0) await sink.saveServers([...current, ...imported]);
     })().catch((error) => reportMutationError(error));
   };
 
@@ -350,6 +413,37 @@ export function McpServersManager(props: {
       `${serializeMcpServersJson(defaultSource.servers)}\n`,
       "application/json",
     );
+  };
+
+  const importRemoteFile = async (file: File) => {
+    if (!remote || importing) return;
+    setImporting(true);
+    try {
+      if (file.size > 1024 * 1024)
+        throw new Error(t`The MCP server configuration is invalid or uses a reserved name.`);
+      const parsed = parseMcpServersJson(await file.text());
+      if (!parsed.ok)
+        throw new Error(t`The MCP server configuration is invalid or uses a reserved name.`);
+      if (
+        parsed.servers.some((server) => JSON.stringify(server.transport).includes("<redacted>"))
+      ) {
+        throw new Error(t`Replace redacted values in the file before importing.`);
+      }
+      const current = await readCurrentServers(defaultSource);
+      const names = new Set(current.map((server) => server.name.toLowerCase()));
+      for (const server of parsed.servers) {
+        const name = server.name.toLowerCase();
+        if (names.has(name)) continue;
+        // A file may define an arbitrary stdio command. Do not let importing
+        // it start the process before the user reviews and enables the row.
+        await remote.upsert(defaultSource.projectId, { ...server, enabled: false });
+        names.add(name);
+      }
+    } catch (error) {
+      reportMutationError(error);
+    } finally {
+      setImporting(false);
+    }
   };
 
   const hasVisibleRows =
@@ -416,7 +510,7 @@ export function McpServersManager(props: {
                 </p>
               </Modal.Header>
               <Modal.Body className="max-h-[min(32rem,65vh)] p-0">
-                <ul className="divide-y divide-[var(--hairline)]">
+                <ul className="divide-y divide-[var(--hairline-soft)]">
                   {toolList.tools.map((tool, index) => {
                     const enabled = !toolList.disabledTools.includes(tool);
                     return (
@@ -444,16 +538,18 @@ export function McpServersManager(props: {
           </Modal.Container>
         </Modal.Backdrop>
       ) : null}
-      <McpExternalImportModal
-        isOpen={importOpen}
-        onOpenChange={setImportOpen}
-        {...(defaultScope === "workspace" && props.sources.workspace?.projectId
-          ? { defaultProjectId: props.sources.workspace.projectId }
-          : {})}
-        userServers={props.sources.user.servers}
-        projects={props.importProjects ?? []}
-        onImport={importExternalServers}
-      />
+      {!remote ? (
+        <McpExternalImportModal
+          isOpen={importOpen}
+          onOpenChange={setImportOpen}
+          {...(defaultScope === "workspace" && props.sources.workspace?.projectId
+            ? { defaultProjectId: props.sources.workspace.projectId }
+            : {})}
+          userServers={props.sources.user.servers}
+          projects={props.importProjects ?? []}
+          onImport={importExternalServers}
+        />
+      ) : null}
 
       <div className="flex items-center gap-2">
         <div className="relative min-w-0 flex-1">
@@ -476,6 +572,19 @@ export function McpServersManager(props: {
           <Plus className="size-4" />
           <Trans>Add MCP server</Trans>
         </Button>
+        {remote ? (
+          <input
+            ref={importFile}
+            type="file"
+            accept=".json,application/json"
+            hidden
+            onChange={(event) => {
+              const file = event.currentTarget.files?.[0];
+              event.currentTarget.value = "";
+              if (file) void importRemoteFile(file);
+            }}
+          />
+        ) : null}
         <Tooltip>
           <Tooltip.Trigger>
             <Button
@@ -483,7 +592,8 @@ export function McpServersManager(props: {
               size="sm"
               variant="tertiary"
               aria-label={t`Import MCP servers`}
-              onPress={() => setImportOpen(true)}
+              isPending={importing}
+              onPress={() => (remote ? importFile.current?.click() : setImportOpen(true))}
             >
               <Download className="size-4" />
             </Button>
@@ -498,7 +608,7 @@ export function McpServersManager(props: {
               isIconOnly
               size="sm"
               variant="tertiary"
-              aria-label={t`Export MCP servers`}
+              aria-label={remote ? t`Export MCP servers without secrets` : t`Export MCP servers`}
               isDisabled={defaultSource.servers.length === 0}
               onPress={exportServers}
             >
@@ -506,7 +616,11 @@ export function McpServersManager(props: {
             </Button>
           </Tooltip.Trigger>
           <Tooltip.Content>
-            <Trans>Export MCP servers</Trans>
+            {remote ? (
+              <Trans>Export MCP servers without secrets</Trans>
+            ) : (
+              <Trans>Export MCP servers</Trans>
+            )}
           </Tooltip.Content>
         </Tooltip>
       </div>
@@ -514,7 +628,7 @@ export function McpServersManager(props: {
       {visibleServers.length > 0 ? (
         <section className="space-y-2">
           <SectionHeading title={t`Configured MCP servers`} count={visibleServers.length} />
-          <div className="overflow-hidden rounded-xl border border-[var(--hairline)]">
+          <ContentSurface className="overflow-hidden">
             {visibleServers.map(({ scope, source, server }) => {
               const probes = scope === "user" ? userProbes : workspaceProbes;
               const oauth = scope === "user" ? userOauth : workspaceOauth;
@@ -535,21 +649,30 @@ export function McpServersManager(props: {
                   scopeLabel={scope === "user" ? t`Global` : (source.projectName ?? t`Workspace`)}
                   oauth={{
                     supported: serverUrl !== undefined,
-                    authenticated:
-                      serverUrl !== undefined && oauth.authenticatedUrls.has(serverUrl),
-                    busy: oauth.busyServerIds.has(server.id),
+                    authenticated: remote
+                      ? remote.oauth.authenticated(source.projectId, server.id)
+                      : serverUrl !== undefined && oauth.authenticatedUrls.has(serverUrl),
+                    busy: remote
+                      ? remote.oauth.busy(source.projectId, server.id)
+                      : oauth.busyServerIds.has(server.id),
                     onAuthenticate: () => {
-                      void oauth.authenticate(server).then((authenticated) => {
+                      const signIn = remote
+                        ? remote.oauth.authenticate(source.projectId, server)
+                        : oauth.authenticate(server);
+                      void signIn.then((authenticated) => {
                         if (authenticated) probes.probe(server);
                       });
                     },
                     onSignOut: () => {
-                      void oauth.signOut(server).then(() => probes.probe(server));
+                      const signOut = remote
+                        ? remote.oauth.signOut(source.projectId, server)
+                        : oauth.signOut(server);
+                      void signOut.then(() => probes.probe(server));
                     },
                   }}
                   probeState={
                     probes.states[server.id] ?? {
-                      status: server.enabled ? "checking" : "disabled",
+                      status: server.enabled ? (remote ? "idle" : "checking") : "disabled",
                     }
                   }
                   onProbe={() => probes.probe(server)}
@@ -566,7 +689,7 @@ export function McpServersManager(props: {
                         if (enabled) disabled.delete(tool);
                         else disabled.add(tool);
                         const disabledTools = [...disabled];
-                        void updateServerRow(source, server.id, (item) => {
+                        void updateRow(source, server.id, (item) => {
                           const fresh = new Set(item.disabledTools ?? []);
                           if (enabled) fresh.delete(tool);
                           else fresh.add(tool);
@@ -579,7 +702,7 @@ export function McpServersManager(props: {
                     })
                   }
                   onToggle={(enabled) =>
-                    void updateServerRow(source, server.id, (item) => ({
+                    void updateRow(source, server.id, (item) => ({
                       ...item,
                       enabled,
                     })).catch(reportMutationError)
@@ -592,13 +715,16 @@ export function McpServersManager(props: {
                       selectedDestinationId: destinationId,
                     })
                   }
-                  onDelete={() =>
-                    void removeServerRow(source, server.id).catch(reportMutationError)
-                  }
+                  onDelete={() => {
+                    const request = remote
+                      ? remote.remove(source.projectId, server.id)
+                      : removeServerRow(listSink(source), server.id);
+                    void request.catch(reportMutationError);
+                  }}
                 />
               );
             })}
-          </div>
+          </ContentSurface>
         </section>
       ) : sources.every(({ source }) => source.servers.length === 0) && !normalizedQuery ? (
         <div className="rounded-xl border border-dashed border-[var(--hairline-strong)] px-4 py-7 text-center">
@@ -639,7 +765,7 @@ export function McpServersManager(props: {
             </p>
           </div>
           {visibleBuiltIns.length > 0 ? (
-            <div className="overflow-hidden rounded-xl border border-[var(--hairline)]">
+            <ContentSurface className="overflow-hidden">
               {visibleBuiltIns.map((server) => (
                 <BuiltInServerRow
                   key={server.id}
@@ -671,7 +797,7 @@ export function McpServersManager(props: {
                     : {})}
                 />
               ))}
-            </div>
+            </ContentSurface>
           ) : null}
         </section>
       ) : null}
@@ -721,7 +847,7 @@ function ConfiguredServerRow(props: {
     !props.oauth.authenticated &&
     props.probeState.status === "auth-required";
   return (
-    <div className="flex min-h-16 items-center gap-3 border-b border-[var(--hairline)] px-3 py-2.5 last:border-b-0">
+    <div className="flex min-h-16 items-center gap-3 border-b border-[var(--hairline-soft)] px-3 py-2.5 last:border-b-0">
       <div className="flex size-8 shrink-0 items-center justify-center rounded-full border border-[var(--hairline)] text-muted">
         <Settings2 className="size-4" />
       </div>
@@ -835,6 +961,7 @@ function McpServerProbeStatus(props: {
   const { t } = useLingui();
   const state = props.state;
 
+  if (state.status === "idle") return null;
   if (state.status === "disabled") {
     return (
       <div className="mt-1 flex items-center gap-1.5 text-xs text-muted" role="status">
@@ -935,7 +1062,7 @@ function BuiltInServerRow(props: {
   return (
     <div
       data-built-in-mcp-server={props.server.id}
-      className="border-b border-[var(--hairline)] last:border-b-0"
+      className="border-b border-[var(--hairline-soft)] last:border-b-0"
     >
       <div className="flex min-h-16 items-center gap-3 px-3 py-2.5">
         <div className="flex size-8 shrink-0 items-center justify-center rounded-full border border-[var(--hairline)] text-muted">

@@ -1,3 +1,4 @@
+import { ContentSurface } from "@/renderer/components/common/ContentSurface";
 import type { ReactNode } from "react";
 import { Radio } from "@heroui/react";
 import { Trans } from "@lingui/react/macro";
@@ -18,15 +19,13 @@ export function CursorRuntimeCard(props: {
   children?: ReactNode;
 }) {
   return (
-    <div
-      className={`flex flex-col rounded-lg border transition-colors ${
-        props.isSelected
-          ? "border-accent/50 bg-accent/5"
-          : "border-border/40 bg-surface-secondary/35"
+    <ContentSurface
+      className={`flex flex-col transition-colors ${
+        props.isSelected ? "border-accent/50 bg-accent/5" : ""
       }`}
     >
       <Radio
-        className="group w-full cursor-pointer focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-accent"
+        className="group w-full cursor-pointer focus-within:outline-1 focus-within:outline-offset-2 focus-within:outline-focus"
         value={props.value}
         isDisabled={!props.isSelectable}
       >
@@ -50,7 +49,7 @@ export function CursorRuntimeCard(props: {
           {props.children}
         </div>
       ) : null}
-    </div>
+    </ContentSurface>
   );
 }
 

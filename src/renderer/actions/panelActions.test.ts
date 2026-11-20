@@ -2,12 +2,14 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import { useDevTerminalStore } from "@/renderer/state/devTerminalStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
+import { useUsageScopeStore } from "@/renderer/state/usageScopeStore";
 import type { Thread } from "@/shared/contracts";
 import {
   dockPanelTab,
   closePanelsForUnloadedThread,
   openGitReview,
   openUsagePanel,
+  openUsagePanelAtProvider,
   showGitReviewPage,
   showSubAgentPanel,
   toggleThreadDocksPanel,
@@ -38,6 +40,26 @@ function resetDockState() {
 describe("dockPanelTab", () => {
   beforeEach(resetDockState);
   afterEach(resetDockState);
+
+  it("reveals repeated sidebar provider clicks without closing Usage or changing its saved order", () => {
+    useSharedSettings.setState((state) => ({
+      usage: { ...state.usage, providerOrder: ["claude", "codex"] },
+    }));
+    useUsageScopeStore.setState({ preferredProviderId: "claude", revealRequest: null });
+    openUsagePanelAtProvider("codex");
+    const firstRequest = useUsageScopeStore.getState().revealRequest;
+    openUsagePanelAtProvider("codex");
+    expect(usePanelStore.getState()).toMatchObject({
+      usagePanelOpen: true,
+      rightPanelTab: "usage",
+    });
+    expect(useUsageScopeStore.getState()).toMatchObject({
+      preferredProviderId: null,
+      revealRequest: { providerId: "codex" },
+    });
+    expect(useUsageScopeStore.getState().revealRequest).not.toBe(firstRequest);
+    expect(useSharedSettings.getState().usage.providerOrder).toEqual(["claude", "codex"]);
+  });
 
   it("does not dock Devices or create a second device surface", () => {
     usePanelStore.getState().setDeviceWorkspaceThreadId("device-thread");

@@ -7,6 +7,7 @@ import {
 import {
   acceptClientSubmissionById,
   matchesSubmissionRecoveryContent,
+  isUncertainProjectLaunch,
   retireFailedDraftSubmission,
 } from "@/renderer/actions/clientDraftSubmission";
 import { useAppStore } from "@/renderer/state/appStore";
@@ -56,11 +57,13 @@ export async function initializeClientDraftRecovery(): Promise<void> {
       }
       if (!scopePair) continue;
       const [kind, ownerId] = scopePair;
-      // Project draft composers never clear before host acceptance; any
-      // earlier non-accepted launch/experiment outbox record is redundant with
-      // the live project draft in storage and would only block a retry.
+      // Definite project launch failures are redundant with the saved draft.
+      // An in-flight or uncertain launch must remain visible for recovery:
+      // its host may still create a worktree or start an agent.
       if (kind === "project" && record.target !== "local-checkpoint") {
-        await retireFailedDraftSubmission(record.id);
+        if (!isUncertainProjectLaunch(record)) {
+          await retireFailedDraftSubmission(record.id);
+        }
         continue;
       }
       if (record.state !== "failed" && record.state !== "prepared") continue;

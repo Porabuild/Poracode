@@ -25,6 +25,10 @@ public extension RemoteSchemas {
 }
 
 public extension RemoteSchemas {
+  static let schema_6b6133f7ff53b2a8 = RemoteSchema(type: "array", items: RemoteSchemas.schema_def077222ff95f67, unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
   static let schema_6b97469fe43177d6 = RemoteSchema(type: "array", items: RemoteSchemas.schema_6602e9e9c3006d18, unknownPolicy: .strip)
 }
 
@@ -41,7 +45,7 @@ public extension RemoteSchemas {
 }
 
 public extension RemoteSchemas {
-  static let schema_6c203f8f04d76313 = RemoteSchema(type: "array", maxItems: 128, items: RemoteSchemas.schema_4b43828b172de36c, unknownPolicy: .strip)
+  static let schema_6c042b493abd3ee5 = RemoteSchema(type: "string", literals: [.string("positive"), .string("negative"), .string("fact")], unknownPolicy: .strip)
 }
 
 public extension RemoteSchemas {
@@ -54,6 +58,10 @@ public extension RemoteSchemas {
 
 public extension RemoteSchemas {
   static let schema_6c6fca70506b8f43 = RemoteSchema(type: "object", required: Set(["data"]), properties: ["data": RemoteSchemas.schema_36fea325bf1aca70], additionalAllowed: true, unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
+  static let schema_6c7cb6fb412178b1 = RemoteSchema(type: "string", literals: [.string("fold")], unknownPolicy: .strip)
 }
 
 public extension RemoteSchemas {

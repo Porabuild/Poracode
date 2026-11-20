@@ -171,7 +171,7 @@ void test("portable Swift suites run concurrently, join every suite, and propaga
   const native = parse(
     await readFile(new URL("../.github/workflows/native-ci.yml", import.meta.url), "utf8"),
   );
-  const step = native.jobs.ios.steps.find(
+  const step = native.jobs.ios_swift_contracts.steps.find(
     (item) => item.name === "Run portable Swift contract suites",
   );
   assert.ok(step, "the portable Swift contract step must stay present");

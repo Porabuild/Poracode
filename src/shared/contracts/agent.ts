@@ -422,6 +422,11 @@ export const agentCapabilitySchema = z.object({
    * Optional: absent = false.
    */
   supportsOneShot: z.boolean().optional(),
+  /**
+   * Lower ranks are preferred when an automatic utility task must choose a
+   * provider. Mirrors the renderer manifest utility order. Absent sorts last.
+   */
+  utilityRank: z.number().int().nonnegative().optional(),
   /** Enforces filesystem read/search/list only, with external tools disabled, in one-shot workspaces. */
   supportsReadOnlyOneShotWorkspace: z.boolean().optional(),
   /**

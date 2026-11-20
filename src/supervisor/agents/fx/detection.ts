@@ -33,6 +33,7 @@ export const fxDefaultCapabilities: AgentCapability = {
   sandboxModes: [],
   supportsResume: true,
   supportsOneShot: true,
+  utilityRank: 110,
   supportsDirectInput: true,
   liveInputMode: "terminal",
   presentationMode: "terminal",

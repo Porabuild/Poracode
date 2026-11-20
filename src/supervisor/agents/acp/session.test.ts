@@ -22,12 +22,14 @@ import {
 import { shouldSpawnAcpSession } from "./sessionFactory";
 import { ACP_INLINE_CONTENT_MAX_BYTES } from "./sessionContentBlocks";
 import {
+  createAcpPromptUsageSpentEvent,
   resolveAcpPromptFailureMessage,
   shouldEmitAcpPromptRpcErrorItem,
   type AcpPromptErrorReasonResolver,
 } from "./sessionErrors";
 import * as textFileRead from "./sessionTextFileRead";
 import { withAcpCommandStatus } from "./canonicalMapping/commandStatus";
+import { acpMcpServerName } from "../userMcp";
 
 function makeInput(
   overrides: Partial<CreateStructuredSessionInput> = {},
@@ -632,6 +634,12 @@ describe("ACP prompt-response usage → usage.spent", () => {
       usage: {
         counterKind: "cumulative",
         counter: 1200,
+        tokens: {
+          input: 1000,
+          output: 200,
+          cacheRead: 0,
+          cacheWrite: 0,
+        },
         scopeId: "session-1",
         epoch: 0,
         fresh: true,
@@ -661,6 +669,78 @@ describe("ACP prompt-response usage → usage.spent", () => {
         sampleId: "session-1:0:1500",
       },
     });
+  });
+
+  it("includes ACP usage categories only when they reconcile to totalTokens", () => {
+    const scope = {
+      scopeId: "session-1",
+      epoch: 0,
+      counterKind: "per-call" as const,
+      sampleId: "acp-prompt-v1:session-1:0:turn-1",
+    };
+
+    // Standard ACP / Antigravity shape: outputTokens already includes thoughtTokens.
+    expect(
+      createAcpPromptUsageSpentEvent(
+        "thread-1",
+        {
+          inputTokens: 891_788,
+          outputTokens: 21_813,
+          thoughtTokens: 8_704,
+          cachedReadTokens: 2_016_794,
+          cachedWriteTokens: 0,
+          totalTokens: 2_930_395,
+        },
+        scope,
+      ),
+    ).toMatchObject({
+      type: "usage.spent",
+      usage: {
+        counter: 2_930_395,
+        tokens: {
+          input: 891_788,
+          output: 21_813,
+          cacheRead: 2_016_794,
+          cacheWrite: 0,
+        },
+      },
+    });
+
+    // Disjoint thoughtTokens shape: outputTokens + thoughtTokens reconciles to totalTokens.
+    expect(
+      createAcpPromptUsageSpentEvent(
+        "thread-1",
+        {
+          inputTokens: 100,
+          outputTokens: 20,
+          thoughtTokens: 5,
+          cachedReadTokens: 50,
+          cachedWriteTokens: 0,
+          totalTokens: 175,
+        },
+        scope,
+      ),
+    ).toMatchObject({
+      type: "usage.spent",
+      usage: {
+        counter: 175,
+        tokens: { input: 100, output: 25, cacheRead: 50, cacheWrite: 0 },
+      },
+    });
+
+    // Mismatched or malformed category fields stay omitted while preserving counter.
+    for (const usage of [
+      { inputTokens: 100, outputTokens: 20, totalTokens: 200 },
+      { inputTokens: 100, outputTokens: 20, cachedReadTokens: -1, totalTokens: 120 },
+      { inputTokens: 100, outputTokens: 20, totalTokens: 120.7 },
+    ]) {
+      const event = createAcpPromptUsageSpentEvent("thread-1", usage, scope);
+      expect(event).toMatchObject({
+        type: "usage.spent",
+        usage: { counter: Math.trunc(usage.totalTokens) },
+      });
+      expect((event as { usage: Record<string, unknown> }).usage).not.toHaveProperty("tokens");
+    }
   });
 
   it("marks resumed sessions non-fresh and emits nothing without prompt usage", async () => {
@@ -2972,6 +3052,65 @@ describe("ACP client protocol helpers", () => {
           headers: [{ name: "Authorization", value: "Bearer crossagent-token" }],
         },
       ],
+    });
+  });
+
+  it("sanitizes dotted plugin MCP server names in session/new, session/resume, and session/load", async () => {
+    const pluginServer = {
+      id: "plugin:atlassian:atlassian",
+      name: "atlassian.atlassian",
+      timeoutMs: 30_000,
+      transport: {
+        type: "http" as const,
+        url: "https://mcp.atlassian.com/v1/mcp",
+        headers: { Authorization: "Bearer secret-token" },
+      },
+    };
+    const expectedName = acpMcpServerName(pluginServer);
+    expect(expectedName).toMatch(/^[A-Za-z0-9_-]+$/u);
+    const expectedWire = [
+      {
+        type: "http",
+        name: expectedName,
+        url: "https://mcp.atlassian.com/v1/mcp",
+        headers: [{ name: "Authorization", value: "Bearer secret-token" }],
+      },
+    ];
+
+    const newCase = makeConfigSyncSession({ mcpServers: [pluginServer] });
+    await expect(newCase.session.openThread({ model: "model-a" })).resolves.toBe("session-1");
+    expect(newCase.connection.newSession).toHaveBeenCalledWith({
+      cwd: "C:\\repo",
+      mcpServers: expectedWire,
+    });
+
+    const resumeCase = makeConfigSyncSession({ mcpServers: [pluginServer] });
+    (resumeCase.session as unknown as Record<string, unknown>)["agentSessionCapabilities"] = {
+      resume: {},
+    };
+    await expect(
+      resumeCase.session.openThread(
+        { model: "model-a" },
+        { providerSessionId: "session-resume", discoveredAt: new Date().toISOString() },
+      ),
+    ).resolves.toBe("session-resume");
+    expect(resumeCase.connection.resumeSession).toHaveBeenCalledWith({
+      sessionId: "session-resume",
+      cwd: "C:\\repo",
+      mcpServers: expectedWire,
+    });
+
+    const loadCase = makeConfigSyncSession({ mcpServers: [pluginServer] });
+    await expect(
+      loadCase.session.openThread(
+        { model: "model-a" },
+        { providerSessionId: "session-load", discoveredAt: new Date().toISOString() },
+      ),
+    ).resolves.toBe("session-load");
+    expect(loadCase.connection.loadSession).toHaveBeenCalledWith({
+      sessionId: "session-load",
+      cwd: "C:\\repo",
+      mcpServers: expectedWire,
     });
   });
 });

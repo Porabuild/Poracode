@@ -31,7 +31,7 @@ describe("runtime payload projection build composition", () => {
         entry,
         'export {runtimePayloadProjections} from "poracode:runtime-payload-projections";',
       );
-      const result = await build({
+      const { bundles } = await build({
         config: false,
         cwd: root,
         entry: [entry],
@@ -41,7 +41,7 @@ describe("runtime payload projection build composition", () => {
         logLevel: "silent",
         plugins: [runtimePayloadProjectionPlugin(root)],
       });
-      const chunk = result
+      const chunk = bundles
         .flatMap((bundle) => bundle.chunks)
         .find((output) => output.type === "chunk");
       expect(chunk?.code).toContain('"alpha"');

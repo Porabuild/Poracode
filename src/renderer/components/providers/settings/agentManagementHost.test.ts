@@ -35,9 +35,16 @@ vi.mock("@/renderer/state/sharedSettingsStore", () => ({
 
 const bridge = {
   getLatestAgentVersion: vi.fn<() => Promise<{ source?: string; version?: string }>>(),
+  resolveAgentAccount: vi.fn<() => Promise<{ account?: { authenticatedAs?: string } }>>(),
   listAcpRegistry: vi.fn<() => Promise<{ version: string; agents: never[] }>>(),
+  installAcpRegistryAgent: vi.fn<() => Promise<{ installed: never[] }>>(),
+  removeAcpRegistryAgent: vi.fn<() => Promise<{ installed: never[] }>>(),
   updateAgentBinary: vi.fn<() => Promise<{ ok: boolean }>>(),
   updateAcpRegistryAgent: vi.fn<() => Promise<{ installed: never[] }>>(),
+  setAcpRegistryAgentAuth: vi.fn<() => Promise<{ installed: never[] }>>(),
+  authenticateAcpAgent: vi.fn<() => Promise<void>>(),
+  logoutAcpAgent: vi.fn<() => Promise<void>>(),
+  focusWindow: vi.fn<() => Promise<void>>(),
   refreshAgentStatuses: vi.fn<() => Promise<AgentStatusesResponse>>(),
 };
 
@@ -133,9 +140,16 @@ const REMOTE_MACHINE: MachineDescriptor = {
 describe("agent management hosts", () => {
   beforeEach(() => {
     bridge.getLatestAgentVersion.mockReset();
+    bridge.resolveAgentAccount.mockReset();
     bridge.listAcpRegistry.mockReset();
+    bridge.installAcpRegistryAgent.mockReset();
+    bridge.removeAcpRegistryAgent.mockReset();
     bridge.updateAgentBinary.mockReset();
     bridge.updateAcpRegistryAgent.mockReset();
+    bridge.setAcpRegistryAgentAuth.mockReset();
+    bridge.authenticateAcpAgent.mockReset();
+    bridge.logoutAcpAgent.mockReset();
+    bridge.focusWindow.mockReset();
     bridge.refreshAgentStatuses.mockReset();
     callRemoteProcedure.mockReset();
     agentStatuses.mockReset();
@@ -182,6 +196,62 @@ describe("agent management hosts", () => {
     callRemoteProcedure.mockResolvedValueOnce({ version: "1", agents: [] });
     await expect(host.listAcpRegistry()).resolves.toEqual({ version: "1", agents: [] });
     expect(callRemoteProcedure).toHaveBeenLastCalledWith("listAcpRegistry", {});
+
+    callRemoteProcedure.mockResolvedValueOnce({ installed: [] });
+    await expect(host.installAcpRegistryAgent({ agentId: "glm-acp-agent" })).resolves.toEqual({
+      installed: [],
+    });
+    expect(callRemoteProcedure).toHaveBeenLastCalledWith("installAcpRegistryAgent", {
+      agentId: "glm-acp-agent",
+    });
+
+    callRemoteProcedure.mockResolvedValueOnce({ installed: [] });
+    await expect(host.removeAcpRegistryAgent({ agentId: "glm-acp-agent" })).resolves.toEqual({
+      installed: [],
+    });
+    expect(callRemoteProcedure).toHaveBeenLastCalledWith("removeAcpRegistryAgent", {
+      agentId: "glm-acp-agent",
+    });
+
+    callRemoteProcedure.mockResolvedValueOnce({ installed: [] });
+    await expect(
+      host.setAcpRegistryAgentAuth({ agentId: "glm-acp-agent", environment: { KEY: "val" } }),
+    ).resolves.toEqual({ installed: [] });
+    expect(callRemoteProcedure).toHaveBeenLastCalledWith("setAcpRegistryAgentAuth", {
+      agentId: "glm-acp-agent",
+      environment: { KEY: "val" },
+    });
+
+    callRemoteProcedure.mockResolvedValueOnce(undefined);
+    await expect(
+      host.authenticateAcpAgent({ agentKind: "acp-generic:glm-acp-agent", methodId: "sso" }),
+    ).resolves.toBeUndefined();
+    expect(callRemoteProcedure).toHaveBeenLastCalledWith("authenticateAcpAgent", {
+      agentKind: "acp-generic:glm-acp-agent",
+      methodId: "sso",
+    });
+
+    callRemoteProcedure.mockResolvedValueOnce(undefined);
+    await expect(
+      host.logoutAcpAgent({ agentKind: "acp-generic:glm-acp-agent" }),
+    ).resolves.toBeUndefined();
+    expect(callRemoteProcedure).toHaveBeenLastCalledWith("logoutAcpAgent", {
+      agentKind: "acp-generic:glm-acp-agent",
+    });
+
+    callRemoteProcedure.mockResolvedValueOnce({
+      account: { authenticatedAs: "user@example.com" },
+    });
+    await expect(
+      host.resolveAgentAccount({ agentKind: "antigravity", wslDistros: [] }),
+    ).resolves.toEqual({ account: { authenticatedAs: "user@example.com" } });
+    expect(callRemoteProcedure).toHaveBeenLastCalledWith("resolveAgentAccount", {
+      agentKind: "antigravity",
+      wslDistros: [],
+    });
+
+    await host.focusAfterAuth();
+    expect(bridge.focusWindow).not.toHaveBeenCalled();
   });
 
   it("re-reads a paired host's statuses and stores them on its runtime row", async () => {
@@ -230,6 +300,31 @@ describe("agent management hosts", () => {
     );
     expect(agentStatuses).not.toHaveBeenCalled();
     expect(bridge.refreshAgentStatuses).not.toHaveBeenCalled();
+  });
+
+  it("forwards an individual profile and environment scope to local discovery", async () => {
+    const scope = { agentKinds: ["claude:work"], envs: [{ kind: "native" as const }] };
+    bridge.refreshAgentStatuses.mockResolvedValue({ windows: [], wsl: [], fromCache: false });
+    await LOCAL_AGENT_MANAGEMENT_HOST.rediscoverAgents([], scope);
+    expect(bridge.refreshAgentStatuses).toHaveBeenCalledExactlyOnceWith([], scope);
+    expect(callRemoteProcedure).not.toHaveBeenCalled();
+  });
+
+  it("forwards an individual profile and environment scope to paired-host discovery", async () => {
+    const scope = {
+      agentKinds: ["claude:work"],
+      envs: [{ kind: "wsl" as const, distro: "Ubuntu" }],
+    };
+    const statuses = makeRemoteStatuses();
+    callRemoteProcedure.mockResolvedValueOnce({ windows: [], wsl: [], fromCache: false });
+    agentStatuses.mockResolvedValue(statuses);
+    await agentManagementHostForMachine(REMOTE_MACHINE).rediscoverAgents(["Ubuntu"], scope);
+    expect(callRemoteProcedure).toHaveBeenCalledExactlyOnceWith("refreshAgentStatuses", {
+      wslDistros: ["Ubuntu"],
+      scope,
+    });
+    expect(bridge.refreshAgentStatuses).not.toHaveBeenCalled();
+    expect(useRemoteServersStore.getState().runtime["conn-1"]?.agentStatuses).toEqual(statuses);
   });
 
   it("keeps a discovered WSL distro absent from the host's project-scoped snapshot", async () => {

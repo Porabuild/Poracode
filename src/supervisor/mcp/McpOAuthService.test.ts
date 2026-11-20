@@ -451,6 +451,30 @@ describe("McpOAuthService", () => {
     ).toBe("Bearer at-1");
   });
 
+  it("accepts a remote callback only for the same server, port, and flow state", async () => {
+    const fake = await startFakeAuthServer({ expiresIn: 3600 });
+    const service = makeService();
+    const serverUrl = `${fake.url}/mcp`;
+    const begin = await service.begin({ server: httpServer(fake.url) });
+    if (begin.status !== "redirect") throw new Error("Expected OAuth redirect");
+    const consent = new URL(begin.authorizationUrl);
+    const callback = new URL(consent.searchParams.get("redirect_uri")!);
+    callback.searchParams.set("code", "fake-code");
+    callback.searchParams.set("state", consent.searchParams.get("state")!);
+    const submit = (url: string, expected = serverUrl) =>
+      service.wait({ flowId: begin.flowId, callback: { url, serverUrl: expected } });
+    expect(await submit(callback.href, `${serverUrl}/other`)).toMatchObject({ status: "error" });
+    expect(await submit(callback.href.replace("127.0.0.1", "localhost"))).toMatchObject({
+      status: "error",
+    });
+    const wrongState = new URL(callback);
+    wrongState.searchParams.set("state", "not-this-flow");
+    expect(await submit(wrongState.href)).toMatchObject({ status: "error" });
+    expect(fake.tokenRequests).toHaveLength(0);
+    expect(await submit(callback.href)).toEqual({ status: "authorized" });
+    expect(service.status().authenticatedUrls).toEqual([serverUrl]);
+  });
+
   it("does not resurrect a cancelled sign-in over its replacement after PKCE generation", async () => {
     const hashStarted = Promise.withResolvers<void>();
     const hashGate = Promise.withResolvers<void>();

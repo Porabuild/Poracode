@@ -617,35 +617,63 @@ export interface ThreadFollowUpQueueState {
   paused: boolean;
 }
 
-/**
- * Thread-metadata mutation issued by a paired browser client. Thread
- * metadata is owned by the desktop renderer's store (which persists it via
- * `dbSyncAll`), so these commands are forwarded main → renderer and applied
- * through the regular thread actions instead of writing to the DB directly.
- */
+export const forkThreadCommandSchema = z.object({
+  kind: z.literal("fork"),
+  threadId: z.string().min(1),
+  sourceThreadId: z.string().min(1),
+  throughItemId: z.string().min(1).optional(),
+  title: z.string().min(1),
+});
+
+// The host runs cleanup and removes the registered worktree and its threads.
+export const deleteWorktreeGroupCommandSchema = z.object({
+  kind: z.literal("delete-worktree-group"),
+  threadId: z.string().min(1),
+  projectId: z.string().min(1),
+  worktreePath: z.string().min(1),
+  threadIds: z.array(z.string().min(1)).min(1),
+});
+
+/** Host thread commands shared by the interactive clients and app controls. */
+export const reorderProjectThreadsCommandSchema = z.object({
+  kind: z.literal("reorder"),
+  threadId: z.string().min(1),
+  projectId: z.string().min(1),
+  threadIds: z.array(z.string().min(1)).min(1),
+  targetThreadId: z.string().min(1),
+  placement: catalogReorderPlacementSchema,
+});
+
+export const reorderFlatThreadCommandSchema = z.object({
+  kind: z.literal("reorder-flat"),
+  threadId: z.string().min(1),
+  projectId: z.string().min(1),
+  targetThreadId: z.string().min(1),
+  placement: catalogReorderPlacementSchema,
+});
+
+/** Host command for replaying a CLI transcript into a resumable Chat thread. */
+export const importSessionThreadCommandSchema = z.object({
+  kind: z.literal("import-session"),
+  threadId: z.string().min(1),
+  projectId: z.string().min(1),
+  agentKind: z.string().min(1),
+  model: z.string().min(1),
+  title: z.string().min(1),
+  path: z.string().min(1),
+  providerSessionId: z.string().min(1),
+});
+
+export type ImportSessionThreadCommand = z.infer<typeof importSessionThreadCommandSchema>;
+
 export const remoteThreadCommandSchema = z.discriminatedUnion("kind", [
-  z.object({
-    kind: z.literal("fork"),
-    threadId: z.string().min(1),
-    sourceThreadId: z.string().min(1),
-    throughItemId: z.string().min(1).optional(),
-    title: z.string().min(1),
-  }),
+  forkThreadCommandSchema,
   /**
    * Import one of the host's CLI transcripts into a new thread: the host saves
    * a resumable row and replays the transcript into it, or saves nothing.
    * Gate on capabilities.sessionImport v1; older hosts reject the kind.
    */
-  z.object({
-    kind: z.literal("import-session"),
-    threadId: z.string().min(1),
-    projectId: z.string().min(1),
-    agentKind: z.string().min(1),
-    model: z.string().min(1),
-    title: z.string().min(1),
-    path: z.string().min(1),
-    providerSessionId: z.string().min(1),
-  }),
+  importSessionThreadCommandSchema,
   /**
    * Host lifecycle preflight for a freshly-created worktree. The host primes
    * git watches and runs the project setup script before launching the thread.
@@ -767,16 +795,7 @@ export const remoteThreadCommandSchema = z.discriminatedUnion("kind", [
     worktreeBranch: z.string().optional(),
     isNewWorktree: z.boolean().optional(),
   }),
-  // Removes a worktree group. The host closes threads, runs cleanup, and
-  // removes the git worktree/branch. The desktop renderer only dismisses
-  // local UI (tabs, overlays) when a window is present.
-  z.object({
-    kind: z.literal("delete-worktree-group"),
-    threadId: z.string().min(1),
-    projectId: z.string().min(1),
-    worktreePath: z.string().min(1),
-    threadIds: z.array(z.string().min(1)).min(1),
-  }),
+  deleteWorktreeGroupCommandSchema,
   z.object({ kind: z.literal("archive"), threadId: z.string().min(1) }),
   z.object({ kind: z.literal("unarchive"), threadId: z.string().min(1) }),
   z.object({ kind: z.literal("delete"), threadId: z.string().min(1) }),
@@ -786,26 +805,13 @@ export const remoteThreadCommandSchema = z.discriminatedUnion("kind", [
   // own complete `(sort_order, id)` order, so every thread the caller did not
   // name keeps its relative order. The path id is the block's first entry and
   // must equal `threadIds[0]`; the host refuses a mismatch before any effect.
-  z.object({
-    kind: z.literal("reorder"),
-    threadId: z.string().min(1),
-    projectId: z.string().min(1),
-    threadIds: z.array(z.string().min(1)).min(1),
-    targetThreadId: z.string().min(1),
-    placement: catalogReorderPlacementSchema,
-  }),
+  reorderProjectThreadsCommandSchema,
   // Flat Manual order over the host's complete thread catalog, without
   // changing project membership. Separate from project-only `reorder` so an
   // older host rejects the unknown kind instead of stripping an optional
   // scope and reporting success for a different move. Gate on
   // capabilities.flatThreadReorder v1; the source must still match projectId.
-  z.object({
-    kind: z.literal("reorder-flat"),
-    threadId: z.string().min(1),
-    projectId: z.string().min(1),
-    targetThreadId: z.string().min(1),
-    placement: catalogReorderPlacementSchema,
-  }),
+  reorderFlatThreadCommandSchema,
   // Single-column nullable workspace assignment (`null` clears). The host
   // writes only `workspace_id`; status, session, sort order, group, and config
   // are untouched.

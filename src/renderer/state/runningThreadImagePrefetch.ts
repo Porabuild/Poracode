@@ -8,8 +8,9 @@ import type { RemoteImageRefValue } from "@/shared/remote";
 import { cardVariantForRef } from "@/shared/remote/clientEnvironmentImages";
 import { isVisibleRuntimeItem } from "@/shared/runtimeItemVisibility";
 import {
+  collectUserAttachmentImagePaths,
   imageViewSourceFromImageBlock,
-  resolveImageViewSource,
+  resolveImageViewSources,
 } from "@/renderer/components/thread/ChatPane/parts/items/imageViewSource";
 import { resolveThreadImageAuthority } from "@/renderer/components/thread/threadImageAuthority";
 import { useAppStore } from "@/renderer/state/appStore";
@@ -39,14 +40,20 @@ export function newestThreadImageRefs(
 ): Array<{ ref: RemoteImageRefValue; rank: number }> {
   const refs: Array<{ ref: RemoteImageRefValue; rank: number }> = [];
   const start = Math.max(0, itemIds.length - MAX_SCANNED_ITEMS);
+  const userAttachmentPaths = collectUserAttachmentImagePaths(itemIds.map((id) => itemsById[id]));
   for (let index = itemIds.length - 1; index >= start; index -= 1) {
     const item = itemsById[itemIds[index]!];
     if (!item || item.parentItemId || !isVisibleRuntimeItem(item)) continue;
     if (IMAGE_TOOL_TYPES.has(item.type)) {
-      const source = resolveImageViewSource(item.payload, resolveRef, {
+      const sources = resolveImageViewSources(item.payload, resolveRef, {
         pendingAsPlaceholder: true,
+        userAttachmentPaths,
       });
-      if (source?.remoteRef) refs.push({ ref: source.remoteRef, rank: index });
+      for (let sourceIndex = sources.length - 1; sourceIndex >= 0; sourceIndex -= 1) {
+        const source = sources[sourceIndex];
+        if (source?.remoteRef) refs.push({ ref: source.remoteRef, rank: index });
+        if (refs.length >= limit) return refs;
+      }
     } else if (item.type === "assistant_message") {
       const content = payloadContent(item.payload);
       if (!content) continue;

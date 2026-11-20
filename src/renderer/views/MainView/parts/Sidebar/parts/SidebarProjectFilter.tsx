@@ -1,10 +1,11 @@
 import React, { useEffect, useRef, useState } from "react";
 import type { Selection } from "@heroui/react";
 import { Dropdown, Label, Separator } from "@heroui/react";
-import { Check, ChevronsUpDown, ListFilter, MoreHorizontal } from "lucide-react";
+import { Check, ChevronsUpDown, Layers, ListFilter, MoreHorizontal } from "lucide-react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { plural } from "@lingui/core/macro";
-import type { Project } from "@/shared/contracts";
+import type { Project, Workspace } from "@/shared/contracts";
+import { WorkspaceIcon } from "@/renderer/components/workspace/WorkspaceIcon";
 import { isHomeProject } from "@/shared/homeScope";
 import { MENU_BACKDROP_ATTR } from "@/renderer/components/common/ContextMenu";
 import {
@@ -123,6 +124,7 @@ function useFilterDismissal(args: {
  * with the project rows', which end in a 44px overflow button.
  */
 function SheetCheckRow(props: {
+  icon?: React.ReactNode;
   label: React.ReactNode;
   count?: number;
   selected: boolean;
@@ -135,6 +137,7 @@ function SheetCheckRow(props: {
       aria-pressed={props.selected}
       onClick={props.onPress}
     >
+      {props.icon}
       <span className="flex-1 truncate">{props.label}</span>
       {props.count === undefined ? null : (
         <span className="shrink-0 text-xs text-muted">{props.count}</span>
@@ -309,6 +312,15 @@ export function SidebarProjectFilter(props: {
     doneCount: number;
     onChange: (showDone: boolean) => void;
   };
+  /**
+   * Compact home only: scopes the home list, projects, PRs, and schedules to
+   * a workspace (`null` = All workspaces).
+   */
+  workspaceFilter?: {
+    workspaces: readonly Workspace[];
+    value: string | null;
+    onChange: (workspaceId: string | null) => void;
+  };
 }) {
   const { t } = useLingui();
   const { mobile } = useResponsiveMenu();
@@ -430,9 +442,15 @@ export function SidebarProjectFilter(props: {
   );
 
   if (mobile) {
-    const { statusView } = props;
+    const { statusView, workspaceFilter } = props;
+    const hasWorkspaceSection =
+      workspaceFilter !== undefined && workspaceFilter.workspaces.length >= 2;
+    const hasProjectsSection = props.projects.length > 0 || !hasWorkspaceSection;
     const sheetLabel = statusView ? t`Filter threads` : t`Filter by project`;
-    const filtered = !isAll || statusView?.showDone === true;
+    const filtered =
+      !isAll ||
+      statusView?.showDone === true ||
+      (hasWorkspaceSection && workspaceFilter.value !== null);
     const trigger = props.mobileIconTrigger ? (
       <MobileCircleButton
         aria-label={sheetLabel}
@@ -475,14 +493,48 @@ export function SidebarProjectFilter(props: {
                   selected={statusView.showDone}
                   onPress={() => statusView.onChange(true)}
                 />
-                <Separator className="my-1" />
+                {hasWorkspaceSection || hasProjectsSection ? <Separator className="my-1" /> : null}
               </>
             ) : null}
-            <SheetCheckRow
-              label={<Trans>All projects</Trans>}
-              selected={isAll}
-              onPress={selectAll}
-            />
+            {hasWorkspaceSection ? (
+              <>
+                <div className="m-sheet-section">
+                  <Trans>Workspace</Trans>
+                </div>
+                <SheetCheckRow
+                  icon={<Layers className="size-4 shrink-0 text-muted" />}
+                  label={<Trans>All workspaces</Trans>}
+                  selected={workspaceFilter.value === null}
+                  onPress={() => workspaceFilter.onChange(null)}
+                />
+                {workspaceFilter.workspaces.map((workspace) => (
+                  <SheetCheckRow
+                    key={workspace.id}
+                    icon={
+                      <WorkspaceIcon icon={workspace.icon} className="size-4 shrink-0 text-muted" />
+                    }
+                    label={workspace.name}
+                    selected={workspaceFilter.value === workspace.id}
+                    onPress={() => workspaceFilter.onChange(workspace.id)}
+                  />
+                ))}
+                {hasProjectsSection ? <Separator className="my-1" /> : null}
+              </>
+            ) : null}
+            {hasProjectsSection ? (
+              <>
+                {hasWorkspaceSection ? (
+                  <div className="m-sheet-section">
+                    <Trans>Projects</Trans>
+                  </div>
+                ) : null}
+                <SheetCheckRow
+                  label={<Trans>All projects</Trans>}
+                  selected={isAll}
+                  onPress={selectAll}
+                />
+              </>
+            ) : null}
             {filterableRows.map((row) => {
               const { project } = row;
               const selected = isRowSelected(row);

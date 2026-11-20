@@ -1,3 +1,4 @@
+import { ContentSurface } from "@/renderer/components/common/ContentSurface";
 import { Button } from "@heroui/react";
 import { Check, EyeOff, RefreshCw, X } from "lucide-react";
 import { msg } from "@lingui/core/macro";
@@ -10,6 +11,7 @@ import { WelcomeBackdrop } from "@/renderer/components/common/WelcomeBackdrop";
 import { ProviderIcon } from "@/renderer/components/providers/ProviderIcon";
 import { getProviderManifests } from "@/renderer/components/providers/providerManifest";
 import { isBrowserClientRuntime } from "@/renderer/clientRuntime";
+import { useScrollFade } from "@/renderer/hooks/useScrollFade";
 import { localEnvLabel } from "@/renderer/utils/machineLabels";
 import { agentEnvForStatus } from "@/shared/machines";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
@@ -23,7 +25,7 @@ import {
 } from "./agentDiscoveryGroups";
 import { AgentDiscoveryRadar } from "./AgentDiscoveryRadar";
 import { AgentDiscoveryDoneButton } from "./AgentDiscoveryDoneButton";
-import { useDiscoveryCardMotion } from "./useDiscoveryCardMotion";
+import { prefersReducedMotion, useDiscoveryCardMotion } from "./useDiscoveryCardMotion";
 import "./agentDiscovery.css";
 
 /** Collision-free row key for (kind, env) without embedding separators. */
@@ -57,11 +59,57 @@ function foundBadge(status: AgentStatus): { label: MessageDescriptor; toneClass:
     : { label: msg`Found`, toneClass: "text-warning" };
 }
 
+function discoveryGridItemClass(index: number, count: number, scanning: boolean): string {
+  if (scanning) return "lg:col-span-2";
+  const isLast = index === count - 1;
+  const isSecondLast = index === count - 2;
+  const smCenter =
+    count % 2 === 1 && isLast
+      ? "sm:max-lg:col-span-2 sm:max-lg:w-[calc(50%-0.3125rem)] sm:max-lg:justify-self-center"
+      : "";
+  const lgPlacement =
+    count % 3 === 1 && isLast
+      ? "lg:col-start-3 lg:col-span-2"
+      : count % 3 === 2 && isSecondLast
+        ? "lg:col-start-2 lg:col-span-2"
+        : count % 3 === 2 && isLast
+          ? "lg:col-start-4 lg:col-span-2"
+          : "lg:col-span-2";
+  return smCenter ? `${smCenter} ${lgPlacement}` : lgPlacement;
+}
+
+function scrollScrollerToBottom(el: HTMLElement, programmaticUntilRef: { current: number }): void {
+  const targetTop = Math.max(0, el.scrollHeight - el.clientHeight);
+  if (targetTop <= el.scrollTop + 1) return;
+  const reduced = prefersReducedMotion();
+  programmaticUntilRef.current = performance.now() + (reduced ? 50 : 500);
+  if (typeof el.scrollTo === "function") {
+    el.scrollTo({ top: targetTop, behavior: reduced ? "auto" : "smooth" });
+  } else {
+    el.scrollTop = targetTop;
+  }
+}
+
+function cancelAutoScroll(el: HTMLElement, programmaticUntilRef: { current: number }): void {
+  // An instant scroll to the current position interrupts an in-flight smooth
+  // follow so the browser cannot continue pulling the viewport after a user
+  // grabs or wheels the list.
+  programmaticUntilRef.current = 0;
+  const top = el.scrollTop;
+  if (typeof el.scrollTo === "function") el.scrollTo({ top, behavior: "auto" });
+  else el.scrollTop = top;
+}
+
 export function AgentDiscoveryScreen(props: { onHide: () => void; onCancel: () => void }) {
   const { t } = useLingui();
   const headingId = useId();
   const rootRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
+  const stickToBottomRef = useRef(true);
+  const programmaticScrollUntilRef = useRef(0);
+  const lastScrollTopRef = useRef(0);
+  const prevGroupCountRef = useRef(0);
+  const prevDiscoveredCountRef = useRef(0);
   const discovered = useAgentStatusesStore((s) => s.discoveredAgents);
   const scanning = useAgentStatusesStore((s) => s.discoveryScanning);
   const scope = useAgentStatusesStore((s) => s.discoveryScope);
@@ -72,6 +120,10 @@ export function AgentDiscoveryScreen(props: { onHide: () => void; onCancel: () =
   const phaseClass = scanning === openedScanning ? "" : "agent-discovery-phase";
   const phaseKey = scanning ? "scanning" : "complete";
   useDiscoveryCardMotion(listRef);
+  const { setScrollContainer, scrollEl, scrollFadeStyle } = useScrollFade<HTMLDivElement>({
+    contentRef: listRef,
+    maxFadePx: 28,
+  });
   const wslDistro = scope?.kind === "wsl" ? scope.distro : undefined;
   const wslDistros = scope?.kind === "all" ? scope.wslDistros : [];
   const scanLabels = wslDistro
@@ -120,7 +172,9 @@ export function AgentDiscoveryScreen(props: { onHide: () => void; onCancel: () =
       el.inert = true;
     });
     const controls = () => [...root.querySelectorAll<HTMLButtonElement>("button:not(:disabled)")];
-    (controls()[0] ?? root).focus({ preventScroll: true });
+    (root.querySelector<HTMLButtonElement>("[data-discovery-primary-action]") ?? root).focus({
+      preventScroll: true,
+    });
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key !== "Tab") return;
       const buttons = controls();
@@ -144,6 +198,41 @@ export function AgentDiscoveryScreen(props: { onHide: () => void; onCancel: () =
           ?.focus({ preventScroll: true });
     };
   }, []);
+
+  // Follow newly arriving cards (and growing detail rows) while the user
+  // remains anchored at the bottom; stop immediately if they scroll upward.
+  useEffect(() => {
+    if (groups.length === 0) {
+      stickToBottomRef.current = true;
+      prevGroupCountRef.current = 0;
+      prevDiscoveredCountRef.current = 0;
+      return;
+    }
+    const grew =
+      groups.length > prevGroupCountRef.current ||
+      discovered.length > prevDiscoveredCountRef.current;
+    prevGroupCountRef.current = groups.length;
+    prevDiscoveredCountRef.current = discovered.length;
+    if (grew && stickToBottomRef.current && scrollEl) {
+      scrollScrollerToBottom(scrollEl, programmaticScrollUntilRef);
+    }
+  }, [groups.length, discovered.length, scrollEl]);
+
+  useEffect(() => {
+    const list = listRef.current;
+    if (!scrollEl || !list || typeof ResizeObserver !== "function") return;
+    let prevHeight = list.getBoundingClientRect().height;
+    const observer = new ResizeObserver((entries) => {
+      const nextHeight = entries[0]?.contentRect.height ?? list.getBoundingClientRect().height;
+      const grew = nextHeight > prevHeight + 1;
+      prevHeight = nextHeight;
+      if (grew && stickToBottomRef.current) {
+        scrollScrollerToBottom(scrollEl, programmaticScrollUntilRef);
+      }
+    });
+    observer.observe(list);
+    return () => observer.disconnect();
+  }, [scrollEl]);
 
   return createPortal(
     <div
@@ -181,8 +270,11 @@ export function AgentDiscoveryScreen(props: { onHide: () => void; onCancel: () =
                 )}
               </span>
             </h1>
-            {scanning ? (
-              <>
+            <div
+              aria-hidden={!scanning}
+              className={`agent-discovery-subtitle ${scanning ? "agent-discovery-subtitle--open" : ""}`}
+            >
+              <div className="min-h-0 overflow-hidden">
                 <p className="mt-2 max-w-sm text-sm leading-relaxed text-muted">
                   {wslDistro
                     ? t`Scanning ${wslDistro} for installed CLIs. This usually takes a couple of seconds.`
@@ -197,41 +289,73 @@ export function AgentDiscoveryScreen(props: { onHide: () => void; onCancel: () =
                     ))}
                   </div>
                 ) : null}
-              </>
-            ) : null}
+              </div>
+            </div>
           </div>
           {/* Only this region scrolls; hero and footer stay pinned. */}
-          <div className="mt-6 min-h-0 flex-1 overflow-y-auto">
-            {groups.length > 0 ? (
-              <ul
-                ref={listRef}
-                className="relative mx-auto grid w-full max-w-3xl grid-cols-1 items-start gap-2 px-6 pb-4 text-left sm:grid-cols-2"
-              >
-                {groups.map((group) => {
-                  const rows = discoveryCardRows(group, multiEnv);
-                  const manifestLabel = labels.get(group.kind);
-                  const label = manifestLabel ? t(manifestLabel) : rows.header.label;
-                  const refreshing = pendingRefresh.has(group.kind);
-                  const hasProfiles = group.statuses.some((status) => status.kind !== group.kind);
-                  // Secondary rows carry what the header cannot: each machine
-                  // in a multi-env scan, and each profile (its sign-in state
-                  // is its own). In a single-env scan the header badge covers
-                  // the base agent, so only profiles get a row; with no base
-                  // status found, the profiles are the rows instead.
-                  const showDetail = rows.detail.length > 0;
-                  const headerBadge = !multiEnv && rows.base ? foundBadge(rows.base) : undefined;
-                  return (
-                    // An unpaired last card (a lone result, or the odd one
-                    // out) keeps one column's width but centers under the
-                    // hero instead of hugging the left column.
-                    <li
-                      key={group.kind}
-                      data-motion-key={group.kind}
-                      // Accounts can arrive without changing the agent count.
-                      // Announce header badges as well as nested profile rows.
-                      aria-live="polite"
-                      className="agent-discovery-row sm:odd:last:col-span-2 sm:odd:last:w-[calc(50%-0.25rem)] sm:odd:last:justify-self-center"
-                    >
+          <div
+            ref={setScrollContainer}
+            style={scrollFadeStyle}
+            className="mt-6 min-h-0 flex-1 overflow-y-auto"
+            onWheel={(event) => {
+              cancelAutoScroll(event.currentTarget, programmaticScrollUntilRef);
+              if (event.deltaY < 0) stickToBottomRef.current = false;
+            }}
+            onPointerDown={(event) => {
+              if (event.target === event.currentTarget) {
+                cancelAutoScroll(event.currentTarget, programmaticScrollUntilRef);
+              }
+            }}
+            onScroll={(event) => {
+              const el = event.currentTarget;
+              const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+              if (distanceFromBottom <= 24) {
+                stickToBottomRef.current = true;
+              } else if (
+                el.scrollTop < lastScrollTopRef.current - 2 ||
+                performance.now() > programmaticScrollUntilRef.current
+              ) {
+                stickToBottomRef.current = false;
+              }
+              lastScrollTopRef.current = el.scrollTop;
+            }}
+          >
+            <ul
+              ref={listRef}
+              aria-hidden={groups.length === 0 || undefined}
+              className={
+                groups.length > 0
+                  ? "relative mx-auto grid w-full max-w-4xl grid-cols-1 items-start gap-2.5 px-6 pt-1 pb-4 text-left sm:grid-cols-2 lg:grid-cols-6"
+                  : "hidden"
+              }
+            >
+              {groups.map((group, index) => {
+                const rows = discoveryCardRows(group, multiEnv);
+                const manifestLabel = labels.get(group.kind);
+                const label = manifestLabel ? t(manifestLabel) : rows.header.label;
+                const refreshing = pendingRefresh.has(group.kind);
+                const hasProfiles = group.statuses.some((status) => status.kind !== group.kind);
+                // Secondary rows carry what the header cannot: each machine
+                // in a multi-env scan, and each profile (its sign-in state
+                // is its own). In a single-env scan the header badge covers
+                // the base agent, so only profiles get a row; with no base
+                // status found, the profiles are the rows instead.
+                const showDetail = rows.detail.length > 0;
+                const headerBadge = !multiEnv && rows.base ? foundBadge(rows.base) : undefined;
+                return (
+                  // Keep columns symmetric while streaming so every card shares
+                  // the exact same reveal without overlapping. Once scanning
+                  // finishes, any unpaired cards on the last row center
+                  // symmetrically under the hero.
+                  <li
+                    key={group.kind}
+                    data-motion-key={group.kind}
+                    // Accounts can arrive without changing the agent count.
+                    // Announce header badges as well as nested profile rows.
+                    aria-live="polite"
+                    className={discoveryGridItemClass(index, groups.length, scanning)}
+                  >
+                    <ContentSurface className="agent-discovery-row">
                       <div className="flex items-center gap-3">
                         <ProviderIcon
                           kind={group.kind}
@@ -240,26 +364,31 @@ export function AgentDiscoveryScreen(props: { onHide: () => void; onCancel: () =
                           {...(rows.header.icon ? { icon: rows.header.icon } : {})}
                           fallbackLabel={label}
                         />
-                        <span className="min-w-0 flex-1 truncate text-sm font-medium leading-tight">
-                          {label}
-                        </span>
-                        {headerBadge ? (
-                          <span
-                            className={`agent-discovery-row__status shrink-0 text-xs font-medium ${headerBadge.toneClass}`}
-                          >
-                            <span
-                              aria-hidden="true"
-                              className="size-1.5 shrink-0 rounded-full bg-current"
-                            />
-                            {t(headerBadge.label)}
+                        <div className="min-w-0 flex-1">
+                          <span className="block truncate text-[13.5px] font-medium leading-snug text-foreground">
+                            {label}
                           </span>
-                        ) : null}
+                          {headerBadge ? (
+                            <span
+                              className={`agent-discovery-row__status mt-0.5 text-[11.5px] font-medium ${headerBadge.toneClass}`}
+                            >
+                              <span
+                                aria-hidden="true"
+                                className="size-1.5 shrink-0 rounded-full bg-current"
+                              />
+                              {t(headerBadge.label)}
+                            </span>
+                          ) : null}
+                        </div>
                         <Button
                           isIconOnly
                           size="sm"
                           variant="ghost"
                           aria-label={t`Refresh ${label}`}
                           isDisabled={refreshing}
+                          className={`agent-discovery-card__refresh shrink-0 ${
+                            refreshing ? "agent-discovery-card__refresh--active" : ""
+                          }`}
                           onPress={() => refreshGroup(group)}
                         >
                           <RefreshCw className={`size-3.5 ${refreshing ? "animate-spin" : ""}`} />
@@ -268,62 +397,62 @@ export function AgentDiscoveryScreen(props: { onHide: () => void; onCancel: () =
                       {/* Each profile and, in a multi-env scan, each machine
                             with the agent gets a secondary row carrying its
                             own status. */}
-                      <ul
-                        className={`flex flex-col gap-0.5 ${showDetail ? "mt-2 border-t border-border/10 pt-2" : ""}`}
-                      >
-                        {rows.detail.map((status) => {
-                          const badge = foundBadge(status);
-                          const isProfile = status.kind !== group.kind;
-                          // Beside profile rows, a bare env label would not
-                          // read as the base account — name it. Without
-                          // profiles the env alone stays the row label.
-                          const namePart = isProfile
-                            ? profileRowLabel(status, label)
-                            : hasProfiles
-                              ? status.label
+                      {showDetail ? (
+                        <ul className="mt-2.5 flex flex-col gap-1 border-t border-border/10 pt-2">
+                          {rows.detail.map((status) => {
+                            const badge = foundBadge(status);
+                            const isProfile = status.kind !== group.kind;
+                            // Beside profile rows, a bare env label would not
+                            // read as the base account — name it. Without
+                            // profiles the env alone stays the row label.
+                            const namePart = isProfile
+                              ? profileRowLabel(status, label)
+                              : hasProfiles
+                                ? status.label
+                                : undefined;
+                            const envPart = multiEnv
+                              ? localEnvLabel(agentEnvForStatus(status))
                               : undefined;
-                          const envPart = multiEnv
-                            ? localEnvLabel(agentEnvForStatus(status))
-                            : undefined;
-                          return (
-                            <li
-                              key={rowKey(status)}
-                              className="agent-discovery-env-row flex items-center gap-2 py-0.5 pl-9"
-                            >
-                              {namePart ? (
-                                <span className="min-w-0 flex-1 truncate text-xs text-muted">
-                                  {namePart}
-                                </span>
-                              ) : null}
-                              {envPart ? (
-                                <span
-                                  className={
-                                    namePart
-                                      ? "min-w-0 shrink truncate text-xs text-muted"
-                                      : "min-w-0 flex-1 truncate text-xs text-muted"
-                                  }
-                                >
-                                  {namePart ? `· ${envPart}` : envPart}
-                                </span>
-                              ) : null}
-                              <span
-                                className={`agent-discovery-row__status shrink-0 text-xs font-medium ${badge.toneClass}`}
+                            return (
+                              <li
+                                key={rowKey(status)}
+                                className="agent-discovery-env-row flex items-center gap-2 py-0.5"
                               >
+                                {namePart ? (
+                                  <span className="min-w-0 flex-1 truncate text-xs text-muted">
+                                    {namePart}
+                                  </span>
+                                ) : null}
+                                {envPart ? (
+                                  <span
+                                    className={
+                                      namePart
+                                        ? "min-w-0 shrink truncate text-xs text-muted"
+                                        : "min-w-0 flex-1 truncate text-xs text-muted"
+                                    }
+                                  >
+                                    {namePart ? `· ${envPart}` : envPart}
+                                  </span>
+                                ) : null}
                                 <span
-                                  aria-hidden="true"
-                                  className="size-1.5 shrink-0 rounded-full bg-current"
-                                />
-                                {t(badge.label)}
-                              </span>
-                            </li>
-                          );
-                        })}
-                      </ul>
-                    </li>
-                  );
-                })}
-              </ul>
-            ) : null}
+                                  className={`agent-discovery-row__status shrink-0 text-xs font-medium ${badge.toneClass}`}
+                                >
+                                  <span
+                                    aria-hidden="true"
+                                    className="size-1.5 shrink-0 rounded-full bg-current"
+                                  />
+                                  {t(badge.label)}
+                                </span>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      ) : null}
+                    </ContentSurface>
+                  </li>
+                );
+              })}
+            </ul>
           </div>
           <div className="flex shrink-0 flex-col items-center gap-4 px-6 pb-6 pt-3">
             <div className="text-xs text-muted" aria-live="polite">
@@ -339,7 +468,12 @@ export function AgentDiscoveryScreen(props: { onHide: () => void; onCancel: () =
             <div key={phaseKey} className={`flex items-center gap-2 ${phaseClass}`}>
               {scanning ? (
                 <>
-                  <Button size="sm" variant="secondary" onPress={props.onHide}>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    data-discovery-primary-action=""
+                    onPress={props.onHide}
+                  >
                     <EyeOff className="size-3.5" />
                     <Trans>Hide</Trans>
                   </Button>

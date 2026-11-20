@@ -1,3 +1,4 @@
+import { assertRemoteGitMutationExperimentSafe } from "@/host/remote/experimentOwnership";
 import { msg } from "@/shared/messages";
 import { joinRuntimeShutdown } from "./joinRuntimeShutdown";
 import { DeviceWorkspaceService } from "@/host/devices/DeviceWorkspaceService";
@@ -7,6 +8,7 @@ import {
   dbDeleteThread,
   dbGetProject,
   dbGetProjectNotes,
+  dbCompareAndSetProjectNotes,
   dbGetProjects,
   dbGetThread,
   dbGetThreadRuntimeItemCursor,
@@ -31,6 +33,8 @@ import {
 } from "@/host/app-controls";
 import type { AppControlsMcpIngressDeps } from "@/host/app-controls/AppControlsMcpIngress";
 import { ensureHomeProjectWithPublish } from "@/host/app-controls/ingressDeps";
+import type { SupervisorCall } from "@/host/app-controls/supervisorCaller";
+import { ProjectActionService } from "@/host/app-controls/projectActions";
 import { createGitStateExecutor, GitStateService, ProjectWatchLeases } from "@/host/gitState";
 import { ForgeActivityService } from "@/host/forgeActivity";
 import {
@@ -47,7 +51,8 @@ import type { SupervisorClient } from "@/host/supervisor/SupervisorClient";
 import { SupervisorUnavailableError } from "@/host/supervisor/SupervisorClient";
 import type { PrData, PrDetails, PrWatch, RemoteThreadCommand } from "@/shared/contracts";
 import { isThreadTurnActive } from "@/shared/contracts";
-import type { GitStatePatch } from "@/shared/gitState";
+import { gitProjectKey, type GitStatePatch } from "@/shared/gitState";
+import { repoIdentityKey } from "@/shared/repoIdentity";
 import type { SupervisorEvent } from "@/shared/ipc";
 import type { RemoteForgeActivityEvent } from "@/shared/remote/protocol/forgeActivity";
 import type { SharedSettings } from "@/shared/settings";
@@ -55,27 +60,60 @@ import type { SettingsMutationResult, SettingsOwnerEdit } from "@/shared/setting
 import { observeRoutingSettingsEvent } from "./BackendRoutingSettings";
 import { observeSupervisorSettingsEditsEvent } from "./BackendSupervisorSettingsEdits";
 import { runThreadHousekeeping } from "./ThreadHousekeepingService";
+import {
+  handleMemoryCommand,
+  installMemoryDeleteHook,
+  runMemoryCapturePass,
+  setMemoryModelCaller,
+} from "@/host/memory/runtime";
+import { setMemoryRepoKeyReader } from "@/host/memory/repoKeyReader";
+import { setMemorySettingsReader } from "@/host/memory/settingsReader";
+import { defaultMemorySettings, memoryDreamIntervalMs } from "@/shared/memory";
+import {
+  collectMemoryModelCandidates,
+  isEligibleMemoryOneShotAgent,
+  pickMemoryModel,
+  type MemoryModelCandidate,
+} from "@/shared/memoryModelChoice";
+import {
+  dbCountPendingCandidates,
+  dbMemoryMeta,
+  dbStartMemoryCapture,
+} from "@/host/db/memoryStore";
 
 export interface BackendDurableServicesOptions {
   appVersion: string;
+  reopenThread?: NonNullable<AppControlsMcpIngressDeps["reopenThread"]>;
+  revertCheckpoint?: NonNullable<AppControlsMcpIngressDeps["revertCheckpoint"]>;
+  beginQueueActivity?(threadId: string): (() => void) | undefined;
+  applyThreadLifecycle?: NonNullable<AppControlsMcpIngressDeps["applyThreadLifecycle"]>;
+  importSession?: NonNullable<AppControlsMcpIngressDeps["importSession"]>;
+  editCatalog?: NonNullable<AppControlsMcpIngressDeps["editCatalog"]>;
+  experiments?: NonNullable<AppControlsMcpIngressDeps["experiments"]>;
+  moveThreadToWorktree?: NonNullable<AppControlsMcpIngressDeps["moveThreadToWorktree"]>;
+  handoffThread?: NonNullable<AppControlsMcpIngressDeps["handoffThread"]>;
+  transferThread?: NonNullable<AppControlsMcpIngressDeps["transferThread"]>;
+  syncMemory?: NonNullable<AppControlsMcpIngressDeps["syncMemory"]>;
+  localPorts?: NonNullable<AppControlsMcpIngressDeps["localPorts"]>;
+  openProviderLogin?: NonNullable<AppControlsMcpIngressDeps["openProviderLogin"]>;
   hostId: string;
   supervisor: SupervisorClient;
   getSharedSettings(): SharedSettings;
-  /** Compat whole-snapshot write (app-controls `update_settings`). Routed
-   * through the composition's settings authority as scoped CAS edits; a
-   * rejection is reported instead of thrown, so fire-and-forget callers cannot
-   * turn a durable event into an unhandled rejection. */
-  writeSharedSettings(settings: SharedSettings): void;
   /** Trusted single-field CAS edit for owner-managed records (learned routing
    * usage, overrides). Backed by the composition's settings authority. */
   editSettingsField<F extends keyof SharedSettings>(
     field: F,
     compute: (current: SharedSettings) => SharedSettings[F] | undefined,
   ): Promise<SettingsMutationResult>;
+  editSettingsFields?: NonNullable<AppControlsMcpIngressDeps["settings"]["editFields"]>;
+  editPreferences(
+    compute: (current: SharedSettings) => SharedSettings,
+  ): Promise<SettingsMutationResult>;
   /** Supervisor-owned records (ACP registry installs, hook verdicts) committed
    * through the composition's settings authority; the supervisor never writes
    * settings.json itself. */
   commitOwnerSettingsEdits(edits: readonly SettingsOwnerEdit[]): Promise<void>;
+  assertCanPersistSecrets(): void;
   sendThreadCommand(command: RemoteThreadCommand): boolean;
   emitRemoteThreadCommand?(command: RemoteThreadCommand): boolean | Promise<boolean>;
   publishProjectsChanged(): void;
@@ -126,6 +164,7 @@ export class BackendDurableServices {
    * every client's watch interest. */
   readonly projectWatchLeases: ProjectWatchLeases;
   readonly appControls: AppControlsMcpIngress;
+  private readonly projectActions: ProjectActionService;
   readonly deviceWorkspace: DeviceWorkspaceService;
   /** Settled or in-flight shared ingress start; cleared on failure so it can retry. */
   private ingressStart: Promise<void> | null = null;
@@ -140,8 +179,13 @@ export class BackendDurableServices {
   private housekeepingCancelled = false;
   /** Settled-or-in-flight boot sweep, joined by {@link dispose}. */
   private housekeepingRun: Promise<void> | null = null;
+  private memoryTimer: ReturnType<typeof setInterval> | null = null;
+  private memoryPass: Promise<void> | null = null;
+  private memoryWasEnabled: boolean;
 
   constructor(private readonly options: BackendDurableServicesOptions) {
+    const memory = options.getSharedSettings()?.memory;
+    this.memoryWasEnabled = Boolean(memory?.enabled && memory.learning);
     this.deviceWorkspace = new DeviceWorkspaceService(
       (id) => {
         const thread = dbGetThread(id);
@@ -223,6 +267,17 @@ export class BackendDurableServices {
       sendThreadCommand: options.sendThreadCommand,
       getSharedSettings: options.getSharedSettings,
       publishProjectsChanged: options.publishProjectsChanged,
+      ...(options.applyThreadLifecycle
+        ? {
+            prepareWorktree: (projectId: string, worktreePath: string, threadId: string) =>
+              options.applyThreadLifecycle!({
+                kind: "prepare-worktree",
+                threadId,
+                projectId,
+                worktreePath,
+              }),
+          }
+        : {}),
       ...(options.publishThreadsChanged
         ? { publishThreadsChanged: options.publishThreadsChanged }
         : {}),
@@ -348,33 +403,77 @@ export class BackendDurableServices {
         getSharedSettings: options.getSharedSettings,
       }),
     });
+    const callAppControlsSupervisor: SupervisorCall = (name, payload) => {
+      assertRemoteGitMutationExperimentSafe(name, payload);
+      return supervisor.call(name, payload);
+    };
+    this.projectActions = new ProjectActionService(callAppControlsSupervisor, dbGetProject);
     this.appControls = new AppControlsMcpIngress({
+      projectActions: this.projectActions,
       gitState: this.gitStateService,
       scheduleService: this.scheduleService,
+      prWatches: this.prWatchService,
       getThread: dbGetThread,
       getThreads: dbGetThreads,
       getProjects: dbGetProjects,
       getProject: dbGetProject,
       getProjectNotes: dbGetProjectNotes,
+      compareAndSetProjectNotes: dbCompareAndSetProjectNotes,
+      ...(options.reopenThread ? { reopenThread: options.reopenThread } : {}),
+      ...(options.importSession ? { importSession: options.importSession } : {}),
+      ...(options.editCatalog ? { editCatalog: options.editCatalog } : {}),
+      ...(options.experiments ? { experiments: options.experiments } : {}),
+      ...(options.handoffThread ? { handoffThread: options.handoffThread } : {}),
+      ...(options.transferThread ? { transferThread: options.transferThread } : {}),
+      ...(options.syncMemory ? { syncMemory: options.syncMemory } : {}),
+      ...(options.localPorts ? { localPorts: options.localPorts } : {}),
+      ...(options.openProviderLogin ? { openProviderLogin: options.openProviderLogin } : {}),
+      ...(options.moveThreadToWorktree
+        ? { moveThreadToWorktree: options.moveThreadToWorktree }
+        : {}),
+      ...(options.revertCheckpoint ? { revertCheckpoint: options.revertCheckpoint } : {}),
+      runtime: {
+        call: async (name, payload) => {
+          const finishActivity =
+            name === "queueThreadFollowUp" &&
+            "threadId" in payload &&
+            typeof payload.threadId === "string"
+              ? options.beginQueueActivity?.(payload.threadId)
+              : undefined;
+          const result = await callAppControlsSupervisor(name, payload);
+          if (finishActivity) {
+            try {
+              finishActivity();
+            } catch (error) {
+              options.reportError?.(error);
+            }
+          }
+          return result;
+        },
+      },
       ...sharedAppControlsDeps,
       ...(options.reportError ? { reportError: options.reportError } : {}),
       settings: {
         read: options.getSharedSettings,
-        write: options.writeSharedSettings,
+        editField: options.editSettingsField,
+        ...(options.editSettingsFields ? { editFields: options.editSettingsFields } : {}),
+        editPreferences: options.editPreferences,
       },
+      assertCanPersistSecrets: options.assertCanPersistSecrets,
       getAppInfo: () => ({
         version: options.appVersion,
         platform: process.platform,
         hasRendererWindow: options.hasRendererWindow,
       }),
-      supervisor: createAppControlsSupervisorCaller((name, payload) =>
-        supervisor.call(name, payload),
-      ),
+      supervisor: createAppControlsSupervisorCaller(callAppControlsSupervisor),
       emitRemoteThreadCommand: options.emitRemoteThreadCommand ?? options.sendThreadCommand,
       openThreadInUi: options.openThreadInUi,
       notifyUser: options.notifyUser,
       checkForUpdate: options.checkForUpdate,
       deviceWorkspace: this.deviceWorkspace,
+      ...(options.applyThreadLifecycle
+        ? { applyThreadLifecycle: options.applyThreadLifecycle }
+        : {}),
     });
     if (options.attachmentsDir) {
       this.attachmentReclaim = new AttachmentReclaimService({
@@ -389,6 +488,146 @@ export class BackendDurableServices {
     } else {
       this.attachmentReclaim = null;
     }
+    setMemorySettingsReader(
+      () => this.options.getSharedSettings()?.memory ?? defaultMemorySettings,
+    );
+    setMemoryRepoKeyReader((projectId) =>
+      repoIdentityKey(
+        this.gitStateService.getSnapshot().projects[
+          gitProjectKey({ hostId: this.options.hostId, projectId })
+        ]?.status?.remoteInfo,
+      ),
+    );
+    installMemoryDeleteHook();
+    setMemoryModelCaller({
+      complete: (input) => this.completeMemoryPrompt(input),
+    });
+  }
+
+  private async completeMemoryPrompt(input: {
+    projectId: string | null;
+    purpose: "capture" | "dream";
+    prompt: string;
+  }): Promise<string> {
+    if (this.disposed) throw new Error("Backend durable services are shutting down.");
+    const shared = this.options.getSharedSettings();
+    const settings = shared?.memory ?? defaultMemorySettings;
+    const provider = input.purpose === "dream" ? settings.dreamProvider : settings.captureProvider;
+    const model = input.purpose === "dream" ? settings.dreamModel : settings.captureModel;
+    const effort = input.purpose === "dream" ? settings.dreamEffort : settings.captureEffort;
+    const fast = input.purpose === "dream" ? settings.dreamFast : settings.captureFast;
+    const project = (input.projectId ? dbGetProject(input.projectId) : null) ?? dbGetProjects()[0];
+    if (!project) throw new Error("No project is available for a memory model call.");
+    const wslDistro = project.location.kind === "wsl" ? project.location.distro : undefined;
+    const wslDistros = wslDistro ? [wslDistro] : [];
+    const statuses = await this.options.supervisor.call("getAgentStatuses", { wslDistros });
+    if (this.disposed) throw new Error("Backend durable services are shutting down.");
+    const rawPool = wslDistro
+      ? statuses.wsl.filter((agent) => agent.envDistro === wslDistro)
+      : statuses.windows;
+    const disabled = new Set(shared?.disabledAgents ?? []);
+    const hiddenModels = shared?.hiddenModels ?? {};
+    const agents = rawPool.filter((agent) => isEligibleMemoryOneShotAgent(agent, disabled));
+    const candidates = collectMemoryModelCandidates(agents, {
+      hiddenModelsByAgent: hiddenModels,
+      explicitProvider: provider,
+      explicitModel: model,
+    });
+    const role = input.purpose === "dream" ? "dream" : "capture";
+    const attempts: MemoryModelCandidate[] = [];
+    if (provider !== "auto") {
+      const scoped = candidates.filter((candidate) => candidate.agentKind === provider);
+      const explicit =
+        model && scoped.some((candidate) => candidate.model === model)
+          ? scoped.find((candidate) => candidate.model === model)
+          : undefined;
+      const chosen = explicit ?? pickMemoryModel(scoped, role);
+      if (chosen) attempts.push(chosen);
+    } else {
+      const remaining = [...candidates];
+      const triedProviders = new Set<string>();
+      while (remaining.length > 0) {
+        const next = pickMemoryModel(remaining, role);
+        if (!next) break;
+        attempts.push(next);
+        triedProviders.add(next.agentKind);
+        for (let i = remaining.length - 1; i >= 0; i -= 1) {
+          if (triedProviders.has(remaining[i]!.agentKind)) remaining.splice(i, 1);
+        }
+      }
+    }
+    if (attempts.length === 0) throw new Error("No one-shot agent is available for memory.");
+    let lastError: unknown;
+    for (const chosen of attempts) {
+      if (this.disposed) throw new Error("Backend durable services are shutting down.");
+      const startedAt = Date.now();
+      try {
+        const result = await this.options.supervisor.call("generateMemoryText", {
+          projectLocation: project.location,
+          agentKind: chosen.agentKind,
+          prompt: input.prompt,
+          selection: {
+            model: chosen.model,
+            ...(effort ? { effort } : {}),
+            ...(fast ? { fast } : {}),
+          },
+        });
+        console.info(
+          `[memory] ${input.purpose} completed via ${chosen.agentKind}/${chosen.model} in ${Date.now() - startedAt}ms`,
+        );
+        return result.text;
+      } catch (error) {
+        lastError = error;
+        console.warn(
+          `[memory] ${input.purpose} failed via ${chosen.agentKind}/${chosen.model} after ${Date.now() - startedAt}ms:`,
+          error instanceof Error ? error.message : String(error),
+        );
+      }
+    }
+    throw lastError instanceof Error ? lastError : new Error(String(lastError));
+  }
+
+  observeMemorySettings(settings: SharedSettings | undefined): void {
+    const enabled = Boolean(settings?.memory?.enabled && settings.memory.learning);
+    if (enabled && (!this.memoryWasEnabled || !dbMemoryMeta("captureCutoffAt"))) {
+      dbStartMemoryCapture(new Date().toISOString());
+    }
+    this.memoryWasEnabled = enabled;
+  }
+
+  private startMemory(): void {
+    const tick = () => {
+      if (this.disposed || this.memoryPass) return;
+      this.memoryPass = (async () => {
+        this.observeMemorySettings(this.options.getSharedSettings() ?? undefined);
+        if (!this.memoryWasEnabled) return;
+        const result = await runMemoryCapturePass();
+        if (this.disposed) return;
+        if (result.captured > 0 || result.spooled > 0) {
+          console.info(`[memory] pass captured=${result.captured} spooled=${result.spooled}`);
+        }
+        await this.maybeDream();
+      })()
+        .catch((error: unknown) => {
+          if (!this.disposed) this.options.reportError?.(error);
+        })
+        .finally(() => {
+          this.memoryPass = null;
+        });
+    };
+    this.memoryTimer = setInterval(tick, 20_000);
+    this.memoryTimer.unref?.();
+  }
+
+  private async maybeDream(): Promise<void> {
+    if (this.disposed) return;
+    const settings = this.options.getSharedSettings()?.memory ?? defaultMemorySettings;
+    const interval = memoryDreamIntervalMs(settings);
+    if (!settings.enabled || !settings.learning || !interval || dbCountPendingCandidates() === 0)
+      return;
+    const last = dbMemoryMeta("lastDreamAt");
+    if (last && Date.now() - Date.parse(last) < interval) return;
+    await handleMemoryCommand({ action: "dream" });
   }
 
   getSupervisorExtraEnv(): Record<string, string> {
@@ -430,6 +669,7 @@ export class BackendDurableServices {
   startBackgroundServices(): void {
     if (this.disposed || this.backgroundStarted) return;
     this.backgroundStarted = true;
+    this.startMemory();
     this.scheduleService.start();
     this.prWatchService.start();
     this.gitStateService.start();
@@ -477,6 +717,7 @@ export class BackendDurableServices {
   }
 
   handleSupervisorReset(): void {
+    this.projectActions.reset();
     this.scheduleCoordinator.handleSupervisorReset();
     this.projectWatchLeases.handleSupervisorReset();
   }
@@ -498,6 +739,7 @@ export class BackendDurableServices {
   }
 
   observeSupervisorEvent(event: SupervisorEvent): boolean {
+    this.projectActions.observe(event);
     if (this.disposed) return true;
     if (observeRoutingSettingsEvent(this.options, event)) return true;
     if (observeSupervisorSettingsEditsEvent(this.options, event)) return true;
@@ -532,6 +774,10 @@ export class BackendDurableServices {
   dispose(): Promise<void> {
     if (this.disposal) return this.disposal;
     this.disposed = true;
+    if (this.memoryTimer) {
+      clearInterval(this.memoryTimer);
+      this.memoryTimer = null;
+    }
     // H4: cancel the sweep synchronously, before any join starts, and join its
     // in-flight operation in the same shutdown barrier. The composition stops
     // the supervisor concurrently, so a held retirement call settles promptly
@@ -543,6 +789,7 @@ export class BackendDurableServices {
     // The composition stops the supervisor concurrently while keeping SQLite open.
     void joinRuntimeShutdown(
       [
+        () => this.memoryPass ?? Promise.resolve(),
         () => this.housekeepingRun?.then(() => undefined),
         () => {
           // Unsubscribe first so a late commit can no longer enqueue work.
@@ -556,7 +803,10 @@ export class BackendDurableServices {
         () => Promise.resolve(this.forgeActivityService.dispose()),
         () => this.gitStateService.dispose(),
         () => this.projectWatchLeases.dispose(),
-        () => this.appControls.dispose(),
+        () => {
+          this.projectActions.reset();
+          return this.appControls.dispose();
+        },
         () => this.deviceWorkspace.dispose(),
       ],
       "Backend durable services did not shut down cleanly.",

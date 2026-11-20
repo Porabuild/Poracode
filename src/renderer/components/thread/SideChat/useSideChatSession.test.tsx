@@ -11,11 +11,15 @@ const mocks = vi.hoisted(() => ({
   create: vi.fn<() => unknown>(),
   bind: vi.fn<(...args: unknown[]) => Promise<void>>(),
   settle: vi.fn<(...args: unknown[]) => Promise<void>>(),
+  applyRuntimeEvent: vi.fn<(...args: unknown[]) => void>(),
+  updateThreadRuntime: vi.fn<(...args: unknown[]) => void>(),
+  captureContext: vi.fn<() => Promise<{ conversationSnapshot: { text: string } }>>(),
   owned: ["child"] as string[],
   threads: [] as Array<Record<string, unknown>>,
 }));
 vi.mock("@/renderer/actions/clientDraftSubmission", () => ({
   settleClientSubmission: mocks.settle,
+  materializeDraftSegments: async (_target: unknown, segments: unknown) => segments,
 }));
 vi.mock("@/renderer/state/appStore", () => ({
   useAppStore: {
@@ -24,6 +28,9 @@ vi.mock("@/renderer/state/appStore", () => ({
       createThread: mocks.create,
       deleteThread: vi.fn<() => void>(),
       openThread: vi.fn<() => void>(),
+      applyRuntimeEvent: mocks.applyRuntimeEvent,
+      updateThreadRuntime: mocks.updateThreadRuntime,
+      requestChatScrollToPrompt: vi.fn<() => void>(),
     }),
   },
 }));
@@ -55,7 +62,7 @@ vi.mock("@/renderer/state/chatRuntimePersister", () => ({
 }));
 vi.mock("./sideChatPanelStore", () => ({ updateSideChatPanelDraft: vi.fn<() => void>() }));
 vi.mock("./sideChatTurnContext", () => ({
-  captureSideChatTurnContext: async () => ({ conversationSnapshot: { text: "latest parent" } }),
+  captureSideChatTurnContext: () => mocks.captureContext(),
 }));
 import { useSideChatSession } from "./useSideChatSession";
 import { useSideChatLaunchState } from "./sideChatLaunchState";
@@ -87,6 +94,9 @@ beforeEach(() => {
   mocks.launch.mockReset().mockResolvedValue();
   mocks.settle.mockResolvedValue();
   mocks.bind.mockResolvedValue();
+  mocks.captureContext
+    .mockReset()
+    .mockResolvedValue({ conversationSnapshot: { text: "latest parent" } });
   mocks.create.mockImplementation(() => {
     const row = {
       id: "child",
@@ -94,6 +104,7 @@ beforeEach(() => {
       agentKind: "neutral-gui",
       config: {},
       title: "Side chat",
+      presentationMode: "gui",
       remoteServerId: "host",
       remoteId: "host-child",
     };
@@ -277,4 +288,55 @@ it("settles a child closed during binding as a definite pre-launch cancellation"
   });
   expect(mocks.launch).not.toHaveBeenCalled();
   expect(mocks.settle).toHaveBeenCalledWith(entry.id, "failed");
+});
+
+it("transitions to the thread view and paints the optimistic message before context or launch settles", async () => {
+  let resolveContext!: (value: { conversationSnapshot: { text: string } }) => void;
+  let resolveLaunch!: () => void;
+  mocks.captureContext.mockReturnValueOnce(
+    new Promise((resolve) => {
+      resolveContext = resolve;
+    }),
+  );
+  mocks.launch.mockReturnValueOnce(
+    new Promise<void>((resolve) => {
+      resolveLaunch = resolve;
+    }),
+  );
+  const hook = renderHook(() => useSideChatSession({ ...entry, autoStart: false }, "panel"), {
+    wrapper,
+  });
+  let pending!: Promise<void>;
+  act(() => {
+    pending = hook.result.current.start("instant question");
+  });
+  // Before context capture or provider launch resolves, threadId is set and the
+  // optimistic user_message + working status are already painted!
+  expect(hook.result.current.threadId).toBe("child");
+  expect(mocks.applyRuntimeEvent).toHaveBeenCalledWith(
+    "child",
+    expect.objectContaining({ type: "item.started", itemType: "user_message" }),
+  );
+  expect(mocks.updateThreadRuntime).toHaveBeenCalledWith(
+    "child",
+    expect.objectContaining({ status: "working", attention: "working" }),
+  );
+  expect(mocks.launch).not.toHaveBeenCalled();
+
+  await act(async () => {
+    resolveContext({ conversationSnapshot: { text: "parent context" } });
+    await Promise.resolve();
+  });
+  expect(mocks.launch).toHaveBeenCalledWith(
+    expect.objectContaining({
+      prompt: "instant question",
+      userMessageItemId: expect.stringMatching(/^user-/),
+      clientContext: { conversationSnapshot: { text: "parent context" } },
+    }),
+  );
+  await act(async () => {
+    resolveLaunch();
+    await pending;
+  });
+  hook.unmount();
 });

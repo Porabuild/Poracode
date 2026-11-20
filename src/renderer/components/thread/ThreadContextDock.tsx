@@ -3,7 +3,12 @@ import { Trans, useLingui } from "@lingui/react/macro";
 import type { CSSProperties } from "react";
 import { AnimatedNumber } from "@/renderer/components/common/AnimatedNumber";
 import type { ThreadCrewBinding } from "@/shared/crew";
-import { ThreadDockHeader, ThreadDockIconButton, ThreadDockSection } from "./ThreadDockUI";
+import {
+  ThreadDockBody,
+  ThreadDockHeader,
+  ThreadDockIconButton,
+  ThreadDockSection,
+} from "./ThreadDockUI";
 import { ThreadSpendDetails } from "./ThreadSpendDetails";
 import type { ThreadContextUsageSummary } from "./threadContextUsage";
 
@@ -64,40 +69,52 @@ export function ThreadContextUsageDetails({ summary }: { summary: ThreadContextU
       : tone === "warning"
         ? "poracode-context-dock__bar-fill poracode-context-dock__bar-fill--warning"
         : "poracode-context-dock__bar-fill";
+  const percentClassName =
+    tone === "danger" ? "text-danger" : tone === "warning" ? "text-warning" : "text-foreground";
 
   return (
-    <div className="flex flex-col gap-2 px-3 pb-2">
-      <div className="flex items-center justify-between gap-3 text-xs text-foreground-muted">
-        <span>
-          <Trans>{summary.usedLabel} used</Trans>
+    <ThreadDockBody className="flex flex-col gap-2">
+      <div className="flex items-baseline justify-between gap-2 text-xs">
+        <span className="flex min-w-0 items-baseline gap-1.5 tabular-nums">
+          <span className="font-medium text-foreground">
+            <Trans>{summary.usedLabel} used</Trans>
+          </span>
+          <span aria-hidden="true" className="text-muted/60">
+            ·
+          </span>
+          <span className="text-muted">
+            <Trans>{summary.maxLabel} limit</Trans>
+          </span>
         </span>
-        <span>
-          <Trans>{summary.maxLabel} limit</Trans>
-        </span>
+        {summary.percent !== undefined ? (
+          <span className={`shrink-0 font-medium tabular-nums ${percentClassName}`}>
+            {summary.percent}%
+          </span>
+        ) : null}
       </div>
       <div className="poracode-context-dock__bar" style={usageStyle} aria-hidden="true">
         <div className={fillClassName} />
       </div>
       {summary.breakdown.length > 0 ? (
-        <ul className="grid gap-1">
+        <ul className="divide-y divide-[var(--hairline-soft)]">
           {summary.breakdown.map((entry) => (
             <li
               key={entry.id}
-              className="flex items-center justify-between gap-4 rounded px-1 py-0.5 text-xs"
+              className="flex items-center justify-between gap-4 py-1 text-xs first:pt-0 last:pb-0"
             >
-              <span className="min-w-0 truncate text-foreground">{entry.label}</span>
-              <span className="shrink-0 tabular-nums text-foreground-muted">
+              <span className="min-w-0 truncate text-muted">{entry.label}</span>
+              <span className="shrink-0 font-medium tabular-nums text-foreground">
                 {entry.tokens.toLocaleString()}
               </span>
             </li>
           ))}
         </ul>
       ) : (
-        <p className="text-xs text-foreground-muted">
+        <p className="text-xs text-muted">
           <Trans>Provider has not reported token usage.</Trans>
         </p>
       )}
-    </div>
+    </ThreadDockBody>
   );
 }
 

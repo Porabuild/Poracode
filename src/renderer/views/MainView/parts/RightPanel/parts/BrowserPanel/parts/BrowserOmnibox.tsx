@@ -252,7 +252,7 @@ export function BrowserOmnibox(props: {
         ref={inputRef}
         type="text"
         data-poracode-browser-address=""
-        className="h-7 w-full rounded border border-border bg-[var(--field-background)] px-2 text-[12px] text-foreground outline-none placeholder:text-[color:var(--field-placeholder)] focus:border-[color:var(--accent)]"
+        className="h-7 w-full rounded border border-border bg-[var(--field-background)] px-2 text-[12px] text-foreground outline-none placeholder:text-[color:var(--field-placeholder)] focus-visible:outline-1 focus-visible:outline-offset-[-1px] focus-visible:outline-focus"
         placeholder={t`Search or enter address`}
         value={urlInput}
         spellCheck={false}

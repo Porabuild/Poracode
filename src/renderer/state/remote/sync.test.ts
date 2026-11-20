@@ -3,6 +3,14 @@ import type { SessionConfigOptions } from "@/shared/contracts/sessionConfigOptio
 import type { SessionRef, Thread, ThreadFollowUpQueueState } from "@/shared/contracts";
 import type { RemoteThreadSnapshot } from "@/shared/remote";
 import type { RemoteForgeActivityEvent } from "@/shared/remote/protocol/forgeActivity";
+import type { UserNotification } from "@/shared/threadNotification";
+
+const notificationMocks = vi.hoisted(() => ({
+  showUserNotification: vi.fn<(notification: UserNotification) => void>(),
+}));
+vi.mock("@/renderer/notifications", () => ({
+  showUserNotification: notificationMocks.showUserNotification,
+}));
 import { useAppStore } from "@/renderer/state/appStore";
 import type {
   OpenRuntimeRequest,
@@ -42,6 +50,7 @@ function snapshot(
     snapshotSeq?: number;
     remoteServerId?: string;
     status?: Thread["status"];
+    attention?: Thread["attention"];
     presentationMode?: Thread["presentationMode"];
     runtimeItems?: RemoteThreadSnapshot["runtimeItems"];
     contextUsage?: RemoteThreadSnapshot["contextUsage"];
@@ -53,6 +62,7 @@ function snapshot(
       ...thread,
       ...(overrides.remoteServerId ? { remoteServerId: overrides.remoteServerId } : {}),
       ...(overrides.status ? { status: overrides.status } : {}),
+      ...(overrides.attention ? { attention: overrides.attention } : {}),
       ...(overrides.presentationMode ? { presentationMode: overrides.presentationMode } : {}),
     },
     runtimeItems: overrides.runtimeItems ?? [],
@@ -210,37 +220,103 @@ describe("remote thread stale-snapshot arbitration", () => {
     expect(useAppStore.getState().runtimeOpenTurnByThread[thread.id]).toBe(false);
   });
 
-  it("still re-seeds an open request from persisted items on a fresh awaiting-user snapshot", () => {
+  it.each([
+    { status: "needs_approval", attention: "none" },
+    { status: "working", attention: "needs_reply" },
+    { status: "idle", attention: "needs_reply" },
+    { status: "finished", attention: "needs_reply" },
+    { status: "working", attention: "needs_approval" },
+  ] as const)(
+    "re-seeds an open request from a fresh $status/$attention snapshot",
+    ({ status, attention }) => {
+      useAppStore.setState({
+        threads: [{ ...remoteThread, status: "working" }],
+      });
+
+      applyThreadSnapshot(
+        snapshot(undefined, {
+          snapshotSeq: 10,
+          remoteServerId: "desktop-1",
+          status,
+          attention,
+          runtimeItems: [
+            {
+              id: "pending_request:req-1",
+              type: "pending_request",
+              state: "started",
+              payload: {
+                requestId: "req-1",
+                requestType: "tool_user_input",
+                payload: { summary: "Which framework?" },
+              },
+              streams: {},
+            },
+          ],
+        }),
+        { fromServer: true, lastSeenEventSeq: 10 },
+      );
+
+      expect(useAppStore.getState().runtimeRequestsByThread[thread.id]).toEqual([
+        expect.objectContaining({ requestId: "req-1", threadId: thread.id }),
+      ]);
+    },
+  );
+
+  it("keeps a live question when a current snapshot still needs a reply while working", () => {
     useAppStore.setState({
-      threads: [{ ...remoteThread, status: "working" }],
+      threads: [remoteThread],
+      runtimeRequestsByThread: { [thread.id]: [openRequest] },
     });
 
     applyThreadSnapshot(
       snapshot(undefined, {
         snapshotSeq: 10,
         remoteServerId: "desktop-1",
-        status: "needs_approval",
+        status: "working",
+        attention: "needs_reply",
+        presentationMode: "gui",
+      }),
+      { fromServer: true, lastSeenEventSeq: 10 },
+    );
+
+    expect(useAppStore.getState().runtimeRequestsByThread[thread.id]).toEqual([openRequest]);
+  });
+
+  it.each(["error", "inactive", "launching"] as const)(
+    "clears stale questions when a fresh %s snapshot retains reply attention",
+    (status) => {
+      useAppStore.setState({
+        threads: [remoteThread],
+        runtimeRequestsByThread: { [thread.id]: [openRequest] },
+      });
+      const incoming = snapshot(undefined, {
+        snapshotSeq: 10,
+        remoteServerId: "desktop-1",
+        status,
+        attention: "needs_reply",
+        presentationMode: "gui",
         runtimeItems: [
           {
             id: "pending_request:req-1",
             type: "pending_request",
             state: "started",
             payload: {
-              requestId: "req-1",
-              requestType: "tool_user_input",
-              payload: { summary: "Which framework?" },
+              requestId: openRequest.requestId,
+              requestType: openRequest.requestType,
+              payload: openRequest.payload,
             },
             streams: {},
           },
         ],
-      }),
-      { fromServer: true, lastSeenEventSeq: 10 },
-    );
+      });
 
-    expect(useAppStore.getState().runtimeRequestsByThread[thread.id]).toEqual([
-      expect.objectContaining({ requestId: "req-1", threadId: thread.id }),
-    ]);
-  });
+      applyThreadSnapshot(incoming, { fromServer: true, lastSeenEventSeq: 10 });
+      expect(useAppStore.getState().runtimeRequestsByThread[thread.id]).toEqual([]);
+
+      applyThreadSnapshot(incoming, { fromServer: true, lastSeenEventSeq: 10 });
+      expect(useAppStore.getState().runtimeRequestsByThread[thread.id]).toEqual([]);
+    },
+  );
 });
 
 describe("host history metadata identity", () => {
@@ -657,5 +733,43 @@ describe("remote forge activity events", () => {
     );
 
     expect(onForgeActivity).not.toHaveBeenCalled();
+  });
+});
+
+describe("remote user notification events", () => {
+  afterEach(() => {
+    notificationMocks.showUserNotification.mockReset();
+  });
+
+  it("forwards a parsed remote-user-notification event to showUserNotification", () => {
+    dispatchRemoteSupervisorEvent({
+      type: "remote-user-notification",
+      threadId: "remote:desk-1:thread:t1",
+      category: "done",
+      projectName: "Repo",
+      threadTitle: "Thread",
+      status: "finished",
+    });
+
+    expect(notificationMocks.showUserNotification).toHaveBeenCalledExactlyOnceWith({
+      threadId: "remote:desk-1:thread:t1",
+      category: "done",
+      projectName: "Repo",
+      threadTitle: "Thread",
+      status: "finished",
+    });
+  });
+
+  it("ignores a malformed remote-user-notification event", () => {
+    dispatchRemoteSupervisorEvent({
+      type: "remote-user-notification",
+      threadId: "",
+      category: "done",
+      projectName: "Repo",
+      threadTitle: "Thread",
+      status: "finished",
+    });
+
+    expect(notificationMocks.showUserNotification).not.toHaveBeenCalled();
   });
 });

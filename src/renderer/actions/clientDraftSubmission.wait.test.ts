@@ -11,7 +11,10 @@ vi.mock("@/renderer/state/composerDrafts/clientDraftDatabase", async (original) 
   readClientSubmission: mocks.read,
   subscribeClientDraftSubmissions: mocks.subscribe,
 }));
-import { waitForClientSubmission } from "./clientDraftSubmission";
+import {
+  waitForClientSubmission,
+  WORKTREE_LAUNCH_RECEIPT_TIMEOUT_MS,
+} from "./clientDraftSubmission";
 const record = (state: ClientDraftSubmission["state"]): ClientDraftSubmission => ({
   formatVersion: 1,
   id: "receipt",
@@ -100,6 +103,14 @@ describe("handoff receipt subscriptions", () => {
     await vi.advanceTimersByTimeAsync(10 * 60_000);
     await expect(pending).resolves.toMatchObject({ code: "command_outcome_uncertain" });
     expect(mocks.unsubscribe).toHaveBeenCalledOnce();
+    expect(vi.getTimerCount()).toBe(0);
+  });
+  it("allows worktree provisioning and provider startup to finish before the receipt deadline", async () => {
+    const pending = waitForClientSubmission("receipt", WORKTREE_LAUNCH_RECEIPT_TIMEOUT_MS);
+    await vi.advanceTimersByTimeAsync(11 * 60_000);
+    mocks.read.mockResolvedValue(record("accepted"));
+    await vi.advanceTimersByTimeAsync(1000);
+    await expect(pending).resolves.toBeUndefined();
     expect(vi.getTimerCount()).toBe(0);
   });
 });

@@ -17,6 +17,7 @@ import { usePanelStore } from "./panelStore";
 import { installBrowserClientRuntime, resetClientRuntimeForTest } from "@/renderer/clientRuntime";
 import type { PoracodeBridge } from "@/shared/ipc";
 import { useThreadFollowUpQueueStore } from "./threadFollowUpQueueStore";
+import { setOwnWindowThreadIds } from "./auxiliaryThreadWindows";
 
 const volatileInventory: SessionConfigOptions = [
   {
@@ -1382,6 +1383,33 @@ describe("appStore runtime config sync", () => {
     expect(useAppStore.getState().threads[0]?.activeTurnStartedAt).toBeUndefined();
     expect(useAppStore.getState().threads[0]?.lastTurnStartedAt).toBe("2026-05-01T12:00:00.000Z");
     expect(useAppStore.getState().threads[0]?.lastTurnEndedAt).toBe("2026-05-01T12:01:15.000Z");
+  });
+
+  it("working→idle on a thread open in its own window stays idle", () => {
+    const project = useAppStore.getState().addProject({ kind: "windows", path: "C:\\repo" });
+    const t1 = useAppStore.getState().createThread({
+      projectId: project.id,
+      agentKind: "codex",
+      config: { model: "m" },
+      prompt: "a",
+    });
+    useAppStore.setState((s) => ({ ...s, view: { kind: "home" } }));
+    setOwnWindowThreadIds([t1.id]);
+    try {
+      useAppStore.getState().updateThreadRuntime(t1.id, {
+        status: "working",
+        attention: "working",
+        canResumeWithConfig: false,
+      });
+      useAppStore.getState().updateThreadRuntime(t1.id, {
+        status: "idle",
+        attention: "none",
+        canResumeWithConfig: true,
+      });
+      expect(useAppStore.getState().threads[0]?.status).toBe("idle");
+    } finally {
+      setOwnWindowThreadIds([]);
+    }
   });
 
   it("working→idle on visible thread stays idle", () => {
@@ -3120,5 +3148,61 @@ describe("group view layout restore", () => {
     expect(view.kind === "thread" && view.panes).toEqual([ids[0], ids[1], ids[2], ids[3]]);
     expect(view.kind === "thread" && view.paneLayout).toEqual(normalizePaneSlots(savedLayout));
     expect(useAppStore.getState().focusedPaneId).toBe(ids[2]);
+  });
+
+  it("adopts host updatedAt on working state and prevents local clock regression", () => {
+    vi.useFakeTimers();
+    const project = useAppStore.getState().addProject({
+      kind: "posix",
+      path: "/clock-skew",
+    });
+    vi.setSystemTime(new Date("2026-05-10T12:00:00.000Z"));
+    const thread = useAppStore.getState().createThread({
+      projectId: project.id,
+      agentKind: "codex",
+      config: { model: "m" },
+      prompt: "a",
+    });
+    useAppStore.getState().updateThreadRuntime(thread.id, {
+      status: "idle",
+      attention: "none",
+      canResumeWithConfig: true,
+    });
+
+    // Client clock is ahead of host clock when optimistic working runs, then
+    // the host thread-state delivers its authoritative updatedAt.
+    vi.setSystemTime(new Date("2026-05-10T12:05:00.000Z"));
+    useAppStore.getState().updateThreadRuntime(thread.id, {
+      status: "working",
+      attention: "working",
+      canResumeWithConfig: true,
+    });
+    expect(useAppStore.getState().threads[0]?.updatedAt).toBe("2026-05-10T12:05:00.000Z");
+
+    useAppStore.getState().updateThreadRuntime(thread.id, {
+      status: "working",
+      attention: "working",
+      canResumeWithConfig: true,
+      updatedAt: "2026-05-10T12:00:10.000Z",
+    });
+    expect(useAppStore.getState().threads[0]?.updatedAt).toBe("2026-05-10T12:00:10.000Z");
+
+    // Client clock behind host clock must not move updatedAt backwards on touch or legacy working.
+    vi.setSystemTime(new Date("2026-05-10T11:59:00.000Z"));
+    useAppStore.getState().touchThread(thread.id);
+    expect(useAppStore.getState().threads[0]?.updatedAt).toBe("2026-05-10T12:00:10.000Z");
+
+    useAppStore.getState().updateThreadRuntime(thread.id, {
+      status: "idle",
+      attention: "none",
+      canResumeWithConfig: true,
+    });
+    useAppStore.getState().updateThreadRuntime(thread.id, {
+      status: "working",
+      attention: "working",
+      canResumeWithConfig: true,
+    });
+    expect(useAppStore.getState().threads[0]?.updatedAt).toBe("2026-05-10T12:00:10.000Z");
+    vi.useRealTimers();
   });
 });

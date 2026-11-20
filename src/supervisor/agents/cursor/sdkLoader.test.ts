@@ -232,6 +232,121 @@ describe("loadCursorSdk discovery", () => {
     expect(loaded.packageRoot).toBe(observed.packageRoot);
   });
 
+  it("prefers an active package-manager install over a stale pin when pinFallbackOnly is set", async () => {
+    const stalePinned = await makeFakePackage({ version: "1.3.1", helperVersion: "1.3.1" });
+    const updatedGlobal = await makeFakePackage({ version: "1.4.2", helperVersion: "1.4.2" });
+    const emptyProject = await mkdtemp(join(tmpdir(), "poracode-cursor-empty-project-"));
+    createdDirectories.push(emptyProject);
+
+    const loaded = expectSuccess(
+      await loadCursorSdk(
+        baseOptions({
+          projectCwd: emptyProject,
+          includeGlobal: true,
+          env: {},
+          pinnedRoot: { packageRoot: stalePinned.packageRoot, source: "global-npm" },
+          pinFallbackOnly: true,
+        }),
+        {
+          executablePath: "/nonexistent/app-bundle/executable",
+          resolvePackageManagerRoots: async () => [
+            { root: updatedGlobal.nodeModulesRoot, source: "global-npm" },
+          ],
+        },
+      ),
+    );
+
+    expect(loaded.source).toBe("global-npm");
+    expect(loaded.packageRoot).toBe(updatedGlobal.packageRoot);
+    expect(loaded.version).toBe("1.4.2");
+  });
+
+  it("falls back to the recorded pin when pinFallbackOnly sees a corrupt or incompatible active global install", async () => {
+    const workingPinned = await makeFakePackage({ version: "1.3.1", helperVersion: "1.3.1" });
+    const corruptGlobal = await makeFakePackage({ version: "1.4.2", helperVersion: "1.4.2" });
+    await writeFile(join(corruptGlobal.packageRoot, "package.json"), "{not-valid-json", "utf8");
+    const incompatibleGlobal = await makeFakePackage({ version: "0.9.0", helperVersion: "0.9.0" });
+    const emptyProject = await mkdtemp(join(tmpdir(), "poracode-cursor-empty-project-"));
+    createdDirectories.push(emptyProject);
+
+    for (const brokenRoot of [corruptGlobal.nodeModulesRoot, incompatibleGlobal.nodeModulesRoot]) {
+      const loaded = expectSuccess(
+        await loadCursorSdk(
+          baseOptions({
+            projectCwd: emptyProject,
+            includeGlobal: true,
+            env: {},
+            pinnedRoot: { packageRoot: workingPinned.packageRoot, source: "global-npm" },
+            pinFallbackOnly: true,
+          }),
+          {
+            executablePath: "/nonexistent/app-bundle/executable",
+            resolvePackageManagerRoots: async () => [{ root: brokenRoot, source: "global-npm" }],
+          },
+        ),
+      );
+
+      expect(loaded.packageRoot).toBe(workingPinned.packageRoot);
+      expect(loaded.version).toBe("1.3.1");
+    }
+  });
+
+  it("checks the pinned package manager first when both npm and pnpm have installs", async () => {
+    const staleNpm = await makeFakePackage({ version: "1.3.1", helperVersion: "1.3.1" });
+    const updatedPnpm = await makeFakePackage({ version: "1.4.2", helperVersion: "1.4.2" });
+    const emptyProject = await mkdtemp(join(tmpdir(), "poracode-cursor-empty-project-"));
+    createdDirectories.push(emptyProject);
+
+    const loaded = expectSuccess(
+      await loadCursorSdk(
+        baseOptions({
+          projectCwd: emptyProject,
+          includeGlobal: true,
+          env: {},
+          pinnedRoot: { packageRoot: staleNpm.packageRoot, source: "global-pnpm" },
+          pinFallbackOnly: true,
+        }),
+        {
+          executablePath: "/nonexistent/app-bundle/executable",
+          resolvePackageManagerRoots: async () => [
+            { root: staleNpm.nodeModulesRoot, source: "global-npm" },
+            { root: updatedPnpm.nodeModulesRoot, source: "global-pnpm" },
+          ],
+        },
+      ),
+    );
+
+    expect(loaded.source).toBe("global-pnpm");
+    expect(loaded.packageRoot).toBe(updatedPnpm.packageRoot);
+    expect(loaded.version).toBe("1.4.2");
+  });
+
+  it("falls back to the pinned installation when pinFallbackOnly probes find nothing", async () => {
+    const pinned = await makeFakePackage({ version: "1.3.1", helperVersion: "1.3.1" });
+    const emptyProject = await mkdtemp(join(tmpdir(), "poracode-cursor-empty-project-"));
+    createdDirectories.push(emptyProject);
+
+    const loaded = expectSuccess(
+      await loadCursorSdk(
+        baseOptions({
+          projectCwd: emptyProject,
+          includeGlobal: true,
+          env: {},
+          pinnedRoot: { packageRoot: pinned.packageRoot, source: "global-npm" },
+          pinFallbackOnly: true,
+        }),
+        {
+          executablePath: "/nonexistent/app-bundle/executable",
+          resolvePackageManagerRoots: async () => [],
+        },
+      ),
+    );
+
+    expect(loaded.source).toBe("global-npm");
+    expect(loaded.packageRoot).toBe(pinned.packageRoot);
+    expect(loaded.version).toBe("1.3.1");
+  });
+
   it("keeps looking when a recorded root is gone instead of failing the load", async () => {
     const observed = await makeFakePackage();
     const emptyProject = await mkdtemp(join(tmpdir(), "poracode-cursor-empty-project-"));

@@ -16,6 +16,9 @@ const buildAgentCommandMock = vi.hoisted(() =>
 const primeProjectShellEnvMock = vi.hoisted(() =>
   vi.fn<(cwd: string) => Promise<Record<string, string> | undefined>>(),
 );
+const loadProjectDirenvMock = vi.hoisted(() =>
+  vi.fn<(cwd: string, env: NodeJS.ProcessEnv) => Promise<NodeJS.ProcessEnv | undefined>>(),
+);
 const mkdtempMock = vi.hoisted(() => vi.fn<(prefix: string) => Promise<string>>());
 const rmMock = vi.hoisted(() => vi.fn<(...args: unknown[]) => Promise<void>>());
 const writeFileMock = vi.hoisted(() => vi.fn<(...args: unknown[]) => Promise<void>>());
@@ -48,6 +51,8 @@ vi.mock("./agents/base", () => ({
   buildAgentCommand: buildAgentCommandMock,
   primeProjectShellEnv: primeProjectShellEnvMock,
 }));
+
+vi.mock("./githubProjectEnvironment", () => ({ loadProjectDirenv: loadProjectDirenvMock }));
 
 import {
   GitHubService,
@@ -92,6 +97,7 @@ describe("GitHubService", () => {
     rmMock.mockResolvedValue(undefined);
     writeFileMock.mockResolvedValue(undefined);
     primeProjectShellEnvMock.mockResolvedValue(undefined);
+    loadProjectDirenvMock.mockResolvedValue(undefined);
   });
 
   afterEach(() => {
@@ -671,6 +677,55 @@ describe("GitHubService", () => {
           env: expect.objectContaining({ PATH: "/opt/homebrew/bin:/usr/bin:/bin" }),
         }),
       );
+    });
+
+    it("uses each project's direnv PATH for PR reads and keeps repository selection at cwd", async () => {
+      const otherLocation = { ...posixLocation, path: "/Users/demo/other" };
+      buildAgentCommandMock.mockImplementation((_loc, command, args) => ({
+        command,
+        args,
+        env: { PATH: "/login/bin", GH_REPO: "ambient/override" },
+      }));
+      loadProjectDirenvMock.mockImplementation(async (cwd) => ({
+        PATH: `${cwd}/bin:/login/bin`,
+        GH_REPO: "direnv/override",
+      }));
+      execFileAsyncMock.mockResolvedValue({ stdout: "[]" });
+      const service = new GitHubService();
+
+      await Promise.all([service.listPrs(posixLocation), service.listPrs(otherLocation)]);
+
+      for (const { path } of [posixLocation, otherLocation]) {
+        expect(loadProjectDirenvMock).toHaveBeenCalledWith(
+          path,
+          expect.objectContaining({ PATH: "/login/bin" }),
+        );
+        expect(execFileAsyncMock).toHaveBeenCalledWith(
+          "gh",
+          expect.arrayContaining(["pr", "list"]),
+          expect.objectContaining({ cwd: path, env: { PATH: `${path}/bin:/login/bin` } }),
+        );
+      }
+    });
+
+    it("reports a refused direnv environment without trying gh under the default account", async () => {
+      loadProjectDirenvMock.mockRejectedValue(
+        new Error("Could not load the project's direnv environment."),
+      );
+
+      await expect(new GitHubService().listPrs(posixLocation)).rejects.toThrow(
+        "direnv environment",
+      );
+      expect(execFileAsyncMock).not.toHaveBeenCalled();
+    });
+
+    it("lists host accounts from outside the repository environment", async () => {
+      execFileAsyncMock.mockResolvedValue({ stdout: "" });
+
+      await new GitHubService().listAccounts(posixLocation);
+
+      expect(loadProjectDirenvMock).not.toHaveBeenCalled();
+      expect(execFileAsyncMock).toHaveBeenCalledWith("gh", ["auth", "status"], expect.anything());
     });
   });
 
@@ -1972,7 +2027,9 @@ on:
         workflows: [{ id: 11, name: "CI", path: ".github/workflows/ci.yml", state: "active" }],
       });
       expect(execFileAsyncMock).toHaveBeenCalledTimes(1);
-      expect(envOf(execFileAsyncMock.mock.calls[0]!)?.GH_TOKEN).toBeUndefined();
+      // The default account inherits the caller's token, if any. Compare the
+      // values without printing a real token when the assertion fails.
+      expect(envOf(execFileAsyncMock.mock.calls[0]!)?.GH_TOKEN === process.env.GH_TOKEN).toBe(true);
     });
 
     it("detects the account that sees the repo when the active account 404s", async () => {
@@ -2193,6 +2250,11 @@ on:
         if (isGh(a, "workflow", "run")) return { stdout: "" };
         throw new Error(`unexpected ${String(command)} ${a.join(" ")}`);
       });
+      loadProjectDirenvMock.mockResolvedValue({
+        PATH: "/project/bin:/login/bin",
+        GH_TOKEN: "project-token",
+        GH_REPO: "another/repo",
+      });
 
       await new GitHubService().dispatchWorkflow(posixLocation, 11, "main", {}, ym);
 
@@ -2200,6 +2262,7 @@ on:
         isGh(argsOf(call), "workflow", "run"),
       );
       expect(dispatchCall?.[0]).toBe("gh");
+      expect(envOf(dispatchCall!)?.PATH).toBe("/project/bin:/login/bin");
       expect(envOf(dispatchCall!)?.GH_TOKEN).toBe("gho_override");
       expect(envOf(dispatchCall!)?.GH_REPO).toBe("github.com/SDSLeon/lightcode");
     });

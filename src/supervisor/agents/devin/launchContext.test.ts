@@ -23,8 +23,62 @@ import {
 import { parseDevinModelCatalog } from "./models";
 import type { DevinExecutionContext } from "./profileContext";
 import type { DevinModelFamily } from "./models";
+import { devinWindowsHomePath } from "./accountRoots";
 
 const terminalOwner = { agentKind: "devin", presentationMode: "terminal" as const };
+
+it("prepares the Windows account view before auth and uses a private view for profile MCPs", async () => {
+  const root = await mkdtemp(join(tmpdir(), "devin-windows-launch-"));
+  try {
+    const context: DevinExecutionContext = {
+      instanceId: "backup",
+      label: "Devin backup",
+      binaryIdentity: "devin",
+      runtimeTarget: "local",
+      configGeneration: "fixture",
+      generation: "fixture",
+      prefixArgs: [],
+      location: { kind: "windows", path: "C:\\project" },
+      account: { kind: "isolated", ownerId: "backup" },
+      roots: {
+        configRoot: root,
+        dataRoot: root,
+        credentialsPath: join(root, "devin", "credentials.toml"),
+        nativeConfigPath: join(root, "devin", "config.json"),
+        manifestPath: join(root, "poracode-account.json"),
+      },
+      env: { APPDATA: root, USERPROFILE: devinWindowsHomePath(root) },
+      requiresConfigSeed: false,
+    };
+    await prepareDevinProfileLaunch(context);
+    const effective = join(context.env!.USERPROFILE!, "AppData", "Roaming", "devin");
+    await writeFile(join(effective, "credentials.toml"), "backup-login");
+    expect(await readFile(join(root, "devin", "credentials.toml"), "utf8")).toBe("backup-login");
+    const overlay = await prepareDevinProfileMcpOverlay(context.location, context, [
+      {
+        id: "host",
+        name: "host",
+        timeoutMs: 1000,
+        transport: { type: "stdio", command: "fixture", args: [], env: {} },
+      },
+    ]);
+    expect(overlay).toBeDefined();
+    try {
+      const overlayDevin = join(overlay!.env.USERPROFILE!, "AppData", "Roaming", "devin");
+      expect(await readFile(join(overlayDevin, "credentials.toml"), "utf8")).toBe("backup-login");
+      expect(
+        JSON.parse(await readFile(join(overlayDevin, "mcp_config.json"), "utf8")),
+      ).toMatchObject({
+        mcpServers: { host: { command: "fixture" } },
+      });
+    } finally {
+      await overlay?.cleanup();
+    }
+    expect(await readFile(join(effective, "credentials.toml"), "utf8")).toBe("backup-login");
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
 const resolveDevinLaunchModel = (
   families: Parameters<typeof resolveLaunchForOwner>[0],
   config: Parameters<typeof resolveLaunchForOwner>[1],

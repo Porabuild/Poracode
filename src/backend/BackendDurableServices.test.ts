@@ -7,6 +7,8 @@ import { readSharedSettingsFile, writeSharedSettingsFile } from "@/host/sharedSe
 import { RoutingOverridePersistence } from "@/supervisor/crossagentMcp/RoutingOverridePersistence";
 import type { ConfirmCrossagentRoutingOverridePayload } from "@/shared/ipc/procedures/mcp";
 import { defaultSharedSettings } from "@/shared/settings";
+import { getMemoryModelCaller } from "@/host/memory/runtime";
+import { defaultMemorySettings } from "@/shared/memory";
 import type { SettingsMutationResult } from "@/shared/settingsTransactions";
 import type { RemoteForgeActivityEvent } from "@/shared/remote/protocol/forgeActivity";
 import { BackendDurableServices } from "./BackendDurableServices";
@@ -59,6 +61,7 @@ vi.mock("@/shared/processTree", () => ({ terminateChildProcessTree: vi.fn<() => 
 vi.mock("@/host/db", () => ({
   dbAdmitScheduleExecution: vi.fn<(task: ScheduledTask) => void>(),
   dbArchiveDoneThreads: vi.fn<() => string[]>(() => []),
+  dbCompareAndSetProjectNotes: vi.fn<typeof import("@/host/db").dbCompareAndSetProjectNotes>(),
   dbDeleteThread: vi.fn<(threadId: string) => void>(),
   dbGetProject: vi.fn<(id: string) => Project | null>((id) =>
     id === "fixture-home"
@@ -200,7 +203,8 @@ function createDurable(
       call: vi.fn<(name: string, payload: unknown) => Promise<null>>(async () => null),
     },
     getSharedSettings: () => ({}),
-    writeSharedSettings: () => {},
+    editPreferences: async () => committedEdit,
+    assertCanPersistSecrets: () => undefined,
     editSettingsField: async () => committedEdit,
     sendThreadCommand: () => true,
     publishProjectsChanged: () => {},
@@ -1101,5 +1105,110 @@ describe("BackendDurableServices project watch re-apply on real supervisor resta
       await disposing;
     }
     expect(forkMock).toHaveBeenCalledTimes(3);
+  });
+
+  it("picks the rated cheap/strong memory models, skips unauthenticated/disabled ones, and falls back", async () => {
+    const calls: Array<{ name: string; payload: unknown }> = [];
+    const supervisor = {
+      call: vi.fn<(name: string, payload: unknown) => Promise<unknown>>(async (name, payload) => {
+        calls.push({ name, payload });
+        if (name === "getAgentStatuses") {
+          return {
+            windows: [
+              {
+                kind: "unauthed",
+                label: "Unauthed",
+                installed: true,
+                authState: "missing",
+                capabilities: {
+                  supportsOneShot: true,
+                  utilityRank: 1,
+                  models: [{ id: "u-mini", label: "Mini" }],
+                },
+              },
+              {
+                kind: "disabled-agent",
+                label: "Disabled",
+                installed: true,
+                authState: "authenticated",
+                capabilities: {
+                  supportsOneShot: true,
+                  utilityRank: 2,
+                  models: [{ id: "d-mini", label: "Mini" }],
+                },
+              },
+              {
+                kind: "top-authed",
+                label: "Top",
+                installed: true,
+                authState: "authenticated",
+                capabilities: {
+                  supportsOneShot: true,
+                  utilityRank: 10,
+                  models: [
+                    { id: "top-pro", label: "Pro" },
+                    { id: "top-flash", label: "Flash" },
+                  ],
+                },
+              },
+              {
+                kind: "backup-authed",
+                label: "Backup",
+                installed: true,
+                authState: "authenticated",
+                capabilities: {
+                  supportsOneShot: true,
+                  utilityRank: 20,
+                  models: [{ id: "backup-haiku", label: "Haiku" }],
+                },
+              },
+            ],
+            wsl: [],
+          };
+        }
+        if (name === "generateMemoryText") {
+          const req = payload as { agentKind: string; selection?: { model?: string } };
+          if (req.agentKind === "top-authed" && req.selection?.model === "top-flash") {
+            throw new Error("rate limited");
+          }
+          return { text: '{"observations":[]}' };
+        }
+        return null;
+      }),
+    };
+    const durable = createDurable({
+      supervisor: supervisor as unknown as BackendDurableServicesOptions["supervisor"],
+      getSharedSettings: () => ({
+        ...defaultSharedSettings,
+        disabledAgents: ["disabled-agent"],
+        memory: defaultMemorySettings,
+      }),
+    });
+    try {
+      const caller = getMemoryModelCaller();
+      expect(caller).toBeDefined();
+      await caller!.complete({ projectId: "fixture-home", purpose: "capture", prompt: "hi" });
+      const captureCalls = calls.filter((c) => c.name === "generateMemoryText");
+      expect(captureCalls).toHaveLength(2);
+      expect(captureCalls[0]!.payload).toMatchObject({
+        agentKind: "top-authed",
+        selection: { model: "top-flash" },
+      });
+      expect(captureCalls[1]!.payload).toMatchObject({
+        agentKind: "backup-authed",
+        selection: { model: "backup-haiku" },
+      });
+
+      calls.length = 0;
+      await caller!.complete({ projectId: "fixture-home", purpose: "dream", prompt: "merge" });
+      const dreamCalls = calls.filter((c) => c.name === "generateMemoryText");
+      expect(dreamCalls).toHaveLength(1);
+      expect(dreamCalls[0]!.payload).toMatchObject({
+        agentKind: "top-authed",
+        selection: { model: "top-pro" },
+      });
+    } finally {
+      await durable.dispose();
+    }
   });
 });

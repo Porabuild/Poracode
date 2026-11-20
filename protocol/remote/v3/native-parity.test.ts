@@ -58,8 +58,8 @@ const UI_DISPOSITIONS = [
 ] as const;
 
 const EXPECTED_COUNTS = {
-  httpRoutes: 122,
-  procedures: 173,
+  httpRoutes: 126,
+  procedures: 179,
   webSocketClientMessages: 11,
   // 10 shared + the desktop-internal `desktop-event` frame (V5 plan 2.5).
   webSocketServerMessages: 12,
@@ -269,6 +269,8 @@ const PLANNED_ABSENCE_TOKENS: Record<
       "thread-history-prompts",
       "thread-transfer-command",
       "thread-transfer-upload",
+      "memory-catalog",
+      "memory-sync",
     ].map((id) => [
       id,
       [
@@ -284,9 +286,16 @@ const PLANNED_ABSENCE_TOKENS: Record<
       "refreshProviderUsage",
       "resolveLinkMetadata",
       "getLatestAgentVersion",
+      "resolveAgentAccount",
+      "refreshAgentStatuses",
       "listAcpRegistry",
+      "installAcpRegistryAgent",
+      "removeAcpRegistryAgent",
       "updateAgentBinary",
       "updateAcpRegistryAgent",
+      "setAcpRegistryAgentAuth",
+      "authenticateAcpAgent",
+      "logoutAcpAgent",
     ].map((token) => [
       token,
       [
@@ -658,10 +667,10 @@ describe("remote v3 native parity planning ledger", () => {
       }
     }
     for (const claim of plannedClaims) {
-      assertLedger(
-        PLANNED_ABSENCE_TOKENS[claim.id]?.some((rule) => rule.platform === claim.platform) === true,
+      expect(
+        PLANNED_ABSENCE_TOKENS[claim.id]?.some((rule) => rule.platform === claim.platform),
         `planned entry ${claim.id} (${claim.platform}) needs absence tokens in PLANNED_ABSENCE_TOKENS`,
-      );
+      ).toBe(true);
     }
 
     // And each declared token must really be absent from the native tree.
@@ -682,14 +691,16 @@ describe("remote v3 native parity planning ledger", () => {
       ios: walk(join(repositoryRoot, "ios/App/App")),
       android: walk(join(repositoryRoot, "android/app/src/main/kotlin")),
     };
-    for (const rules of Object.values(PLANNED_ABSENCE_TOKENS)) {
-      for (const rule of rules) {
-        for (const path of trees[rule.platform]) {
-          const contents = readFileSync(path, "utf8");
-          expect(
-            contents.includes(rule.token),
-            `${rule.platform} implements ${rule.token} in ${path} while the ledger entry is still planned — flip the disposition with evidence`,
-          ).toBe(false);
+    const absenceRules = Object.values(PLANNED_ABSENCE_TOKENS).flat();
+    for (const platform of ["ios", "android"] as const) {
+      const rules = absenceRules.filter((rule) => rule.platform === platform);
+      for (const path of trees[platform]) {
+        const contents = readFileSync(path, "utf8");
+        for (const { token } of rules) {
+          assertLedger(
+            !contents.includes(token),
+            `${platform} implements ${token} in ${path} while the ledger entry is still planned — flip the disposition with evidence`,
+          );
         }
       }
     }

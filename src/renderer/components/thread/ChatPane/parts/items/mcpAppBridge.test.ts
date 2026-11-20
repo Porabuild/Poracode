@@ -1,7 +1,9 @@
+import { runInNewContext } from "node:vm";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { waitFor } from "@testing-library/react";
-import { McpAppFrameTransport, mountMcpApp } from "@/shared/mcpApps/viewBridge";
+import { loadMcpAppSandbox, McpAppFrameTransport, mountMcpApp } from "@/shared/mcpApps/viewBridge";
 import type { ControlMcpAppPayload, ControlMcpAppResult } from "@/shared/contracts/mcpApps";
+import { MAX_INLINE_VISUAL_BYTES } from "@/shared/inlineVisuals";
 
 const app = {
   version: 1 as const,
@@ -11,9 +13,28 @@ const app = {
 };
 const owners: AbortController[] = [];
 afterEach(() => {
+  vi.unstubAllGlobals();
   for (const owner of owners.splice(0)) owner.abort();
   document.body.replaceChildren();
   vi.restoreAllMocks();
+});
+
+describe("MCP App sandbox loading", () => {
+  it.each([
+    ["file:", "file://", "null"],
+    ["file:", "null", "null"],
+    ["http:", "http://localhost:3100", "http://localhost:3100"],
+    ["https:", "https://app.poracode.com", "https://app.poracode.com"],
+  ])("uses the message origin for a %s parent reporting %s", (protocol, origin, expected) => {
+    const frame = document.createElement("iframe");
+    vi.stubGlobal("window", { location: { protocol, origin } });
+
+    loadMcpAppSandbox(frame, "http://localhost:4400", {});
+    expect(new URLSearchParams(new URL(frame.src).hash.slice(1)).get("parent")).toBe(expected);
+
+    loadMcpAppSandbox(frame, "http://localhost:4400", {}, true);
+    expect(frame.srcdoc).toContain(`const parentOrigin = ${JSON.stringify(expected)};`);
+  });
 });
 
 function frameFixture() {
@@ -28,7 +49,7 @@ function frameFixture() {
   return { frame, posted, emit };
 }
 
-async function mounted() {
+async function mounted(html = "<button>Refresh</button>") {
   const fixture = frameFixture();
   const owner = new AbortController();
   owners.push(owner);
@@ -43,7 +64,7 @@ async function mounted() {
                   {
                     uri: app.resourceUri,
                     mimeType: "text/html;profile=mcp-app",
-                    text: "<button>Refresh</button>",
+                    text: html,
                   },
                 ],
               }
@@ -98,6 +119,41 @@ async function mounted() {
 }
 
 describe("MCP App bridge", () => {
+  it("provides empty cookies and unavailable IndexedDB before an app script runs in an opaque frame", async () => {
+    const prefix = '<!doctype html><html lang="en"><!-- app --><head data-name="App > view">';
+    const { posted } = await mounted(
+      prefix +
+        `<script>
+          document.cookie = "session=private";
+          rendered = document.cookie === "" && typeof indexedDB === "undefined";
+        </script></head>`,
+    );
+    const { params } = posted.mock.calls[0]![0] as { params: { html: string } };
+    expect(params.html.startsWith(prefix)).toBe(true);
+
+    const document = {
+      get cookie() {
+        throw new DOMException("Cookie access denied in an opaque origin", "SecurityError");
+      },
+    };
+    const sandbox = { document, origin: "null", indexedDB: {}, rendered: false };
+    const scripts = Array.from(
+      params.html.matchAll(/<script>([^]*?)<\/script>/gu),
+      ([, script]) => script,
+    );
+    runInNewContext(
+      ["const self = globalThis, window = globalThis;", ...scripts].join("\n"),
+      sandbox,
+    );
+    expect(sandbox.rendered).toBe(true);
+  });
+
+  it("still delivers a v1 resource at the existing sandbox size limit", async () => {
+    const html = "a".repeat(MAX_INLINE_VISUAL_BYTES);
+    const { posted } = await mounted(html);
+    expect(posted.mock.calls[0]![0]).toMatchObject({ params: { html } });
+  });
+
   it("accepts only its exact opaque proxy and one sandbox handshake", async () => {
     const { frame, emit, posted } = frameFixture();
     const transport = new McpAppFrameTransport(frame, "<script>app()</script>");

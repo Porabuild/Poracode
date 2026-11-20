@@ -24,6 +24,15 @@ describe("base control styles", () => {
     }
   });
 
+  it("tracks child height tightly on tooltip and popover triggers", () => {
+    expect(styles).toMatch(
+      /^\.tooltip__trigger\s*\{\s*display:\s*inline-flex;\s*align-items:\s*center;\s*\}/m,
+    );
+    expect(styles).toMatch(
+      /@layer components\s*\{\s*\.popover__trigger\s*\{\s*display:\s*inline-flex;\s*align-items:\s*center;\s*\}\s*\}/,
+    );
+  });
+
   it("keeps small button icons and labels spaced and vertically centered", () => {
     expect(styles).toMatch(
       /@layer components\s*\{\s*\.button--sm\s*\{\s*line-height:\s*1rem;\s*\}\s*\.button--sm svg:not\(\[data-slot="spinner"\] svg, \[data-slot="link-icon"\] svg\)\s*\{\s*margin-inline:\s*0;/,
@@ -38,7 +47,7 @@ describe("base control styles", () => {
       /html\[data-platform="darwin"\]\.dark,[^{]*html\[data-platform="darwin"\]\[data-theme="dark"\]\s*\{[^}]*--floating-chrome-surface:\s*color-mix\(\s*in oklab,\s*color-mix\(\s*in oklab,\s*var\(--sidebar-background\) 91%,\s*var\(--foreground\) 9%\s*\) 34%,\s*transparent\s*\);[^}]*--floating-chrome-backdrop:\s*blur\(10px\) saturate\(135%\);/s,
     );
     expect(styles).toMatch(
-      /html:is\(\[data-platform="darwin"\], \[data-platform="win32"\]\) \.poracode-floating-chrome\s*\{[^}]*border-color:\s*color-mix\(in oklab, var\(--foreground\) 8%, transparent\);[^}]*background-image:\s*none;[^}]*backdrop-filter:\s*var\(--floating-chrome-backdrop\);[^}]*box-shadow:\s*0 2px 10px rgb\(0 0 0 \/ 0\.18\);/s,
+      /html:is\(\[data-platform="darwin"\], \[data-platform="win32"\]\) \.poracode-floating-chrome\s*\{[^}]*background-image:\s*none;[^}]*backdrop-filter:\s*var\(--floating-chrome-backdrop\);[^}]*box-shadow:\s*0 2px 10px rgb\(0 0 0 \/ 0\.18\);/s,
     );
     expect(styles).toMatch(
       /--floating-chrome-active-surface:\s*color-mix\(\s*in oklab,\s*var\(--floating-chrome-surface\) 84%,\s*var\(--sidebar-background\) 16%\s*\);/s,
@@ -224,9 +233,7 @@ describe("base control styles", () => {
   });
 
   it("keeps bottom-sheet actions compact without sticky touch hover", () => {
-    expect(ruleFor(".m-sheet-action")).toContain(
-      "border-radius: var(--m-list-row-radius, 0.625rem)",
-    );
+    expect(ruleFor(".m-sheet-action")).toContain("border-radius: var(--content-surface-radius)");
     expect(ruleFor(".m-sheet-action:active")).toContain("background: var(--row-hover)");
     expect(styles).toMatch(/@media \(hover: hover\)\s*\{\s*\.m-sheet-action:hover\s*\{/);
   });
@@ -283,6 +290,21 @@ describe("base control styles", () => {
     expect(ruleFor(".m-sheet-scroll > .m-sheet-list")).toContain("overflow-y: visible");
     expect(ruleFor(".m-sheet-grabber")).toContain(
       "var(--sidebar-background, var(--background)) 78%",
+    );
+  });
+
+  it("defers bottom-sheet enter keyframes until the backdrop is revealed", () => {
+    expect(ruleFor(".m-sheet-backdrop:not([data-entered]):not([data-closing])")).toContain(
+      "opacity: 0",
+    );
+    expect(ruleFor(".m-sheet-backdrop[data-entered]")).toContain(
+      "animation: poracode-sheet-backdrop-in",
+    );
+    expect(ruleFor(".m-sheet-backdrop:not([data-entered]):not([data-closing]) .m-sheet")).toContain(
+      "transform: translateY(100%)",
+    );
+    expect(ruleFor(".m-sheet-backdrop[data-entered] .m-sheet")).toContain(
+      "animation: poracode-sheet-in",
     );
   });
 });

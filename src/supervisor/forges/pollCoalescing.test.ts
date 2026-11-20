@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ProjectLocation } from "@/shared/contracts";
 
 type ExecGitFn = typeof import("../git/exec").execGit;
@@ -9,13 +9,6 @@ type ExecFileAsyncFn = (
 
 const execGitMock = vi.hoisted(() => vi.fn<ExecGitFn>());
 const execFileAsyncMock = vi.hoisted(() => vi.fn<ExecFileAsyncFn>());
-
-// This case counts CLI batches. A locally built native helper must not bypass
-// that path; native status and its fallback are exercised in gitNativeHelper.test.ts.
-vi.mock("../git/gitNativeHelperClient", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("../git/gitNativeHelperClient")>()),
-  isNativeGitHelperActive: () => false,
-}));
 
 vi.mock("../git/exec", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../git/exec")>();
@@ -55,6 +48,9 @@ describe("forge and git poller coalescing", () => {
   beforeEach(() => {
     execGitMock.mockReset();
     execFileAsyncMock.mockReset();
+  });
+  afterEach(() => {
+    vi.unstubAllEnvs();
   });
 
   it("coalesces concurrent ForgeConnections.resolve bursts, caches within TTL, and isolates source mutations", async () => {
@@ -127,7 +123,8 @@ describe("forge and git poller coalescing", () => {
   it("coalesces concurrent GitHubService.forReviewRepository calls and avoids caching errors", async () => {
     let ghCalls = 0;
     let failNext = true;
-    execFileAsyncMock.mockImplementation(async (_file: string, args: readonly string[]) => {
+    execFileAsyncMock.mockImplementation(async (file: string, args: readonly string[]) => {
+      if (file === "direnv") return { stdout: "PATH=/usr/bin:/bin\0", stderr: "" };
       ghCalls += 1;
       await new Promise((resolve) => setTimeout(resolve, 10));
       if (failNext) {
@@ -174,7 +171,10 @@ describe("forge and git poller coalescing", () => {
     expect(d.repository).toBe("acme/widget");
   });
 
-  it("coalesces concurrent GitStatusService status and summary calls into single CLI fallback batches", async () => {
+  it("coalesces concurrent GitStatusService.getStatus and getStatusSummary calls into single git batches", async () => {
+    // This case measures calls to the mocked Git CLI, not the native helper.
+    vi.stubEnv("PORACODE_GIT_HELPER_BIN", "");
+    vi.stubEnv("PORACODE_DISABLE_GIT_HELPER", "1");
     let statusCalls = 0;
     let summaryCalls = 0;
     execGitMock.mockImplementation(async (_loc: ProjectLocation, args: readonly string[]) => {

@@ -8,6 +8,7 @@ import {
   dbAssertNoRunningCheckpointRevert,
   ThreadCheckpointRevertActiveError,
 } from "./checkpointRevertOperations";
+import { notifyMemoryThreadDeleting } from "./memoryDeleteHook";
 import { getSqlite } from "./connection";
 import type { CatalogIntentCommittedSignal } from "./catalogIntents";
 import {
@@ -562,6 +563,7 @@ function applyRemove(
       refuse({ status: "thread_project_mismatch", threadIds: projectMismatch });
     }
     for (const threadId of deletedThreadIds) {
+      notifyMemoryThreadDeleting(threadId);
       sqlite()
         .prepare(`DELETE FROM threads WHERE id = ? AND project_id = ?`)
         .run(threadId, stored.projectId);

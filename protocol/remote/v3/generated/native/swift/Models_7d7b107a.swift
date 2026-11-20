@@ -29,10 +29,10 @@ public struct RoutethreadU2DCommandRequestU2DOptionU2D14_a93ba7bf23: Codable, Se
 }
 
 public struct RoutethreadU2DCommandRequestU2DOptionU2D15_370ff0ec0a: Codable, Sendable, RemoteModelMetadata {
-  public var kind: RouteschedulesU2DCommandRequestU2DOptionU2D3U2DKind_4d5989d27d
+  public var kind: RoutememoryU2DCatalogRequestU2DOptionU2D4U2DAction_4d5989d27d
   public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .strip
   public static let fields: [RemoteFieldDescriptor] = [
-    .init(wireName: "kind", typeName: "RouteschedulesU2DCommandRequestU2DOptionU2D3U2DKind_4d5989d27d", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "kind", typeName: "RoutememoryU2DCatalogRequestU2DOptionU2D4U2DAction_4d5989d27d", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
   ]
   public static let semanticValidatorIds: [String] = []
   private enum CodingKeys: String, CodingKey {

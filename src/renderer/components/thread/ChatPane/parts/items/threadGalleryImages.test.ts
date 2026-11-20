@@ -516,3 +516,81 @@ it("uses the host path decoder for ready Windows Markdown provenance", () => {
   );
   expect(collection.readyRemotePaths).toEqual(["C:/project/ready.png"]);
 });
+
+it("does not duplicate user-attached images when a tool call reads them back", () => {
+  const userPath = "/Users/me/.poracode-nightly.host-v1/attachments/draft-6c9670/Image 1.png";
+  const droppedPath = "/Users/me/Desktop/bug.png";
+  const items: RuntimeChatItem[] = [
+    {
+      id: "user-1",
+      type: "user_message",
+      state: "completed",
+      streams: {},
+      payload: {
+        content: [
+          {
+            kind: "image",
+            source: "attachment",
+            path: userPath,
+            mimeType: "image/png",
+            name: "Image 1.png",
+          },
+          {
+            kind: "image",
+            source: "attachment",
+            path: droppedPath,
+            mimeType: "image/png",
+            name: "bug.png",
+          },
+        ],
+      },
+    },
+    {
+      id: "read-managed",
+      type: "tool_call",
+      state: "completed",
+      streams: {},
+      payload: {
+        name: "read_file",
+        kind: "read",
+        args: { path: userPath },
+        status: "success",
+        images: [
+          "data:image/webp;base64,UklGRi4AAABXRUJQVlA4ICIAAABwAQCdASoCAAEAAUAmJZQCdAFAAAD+/DeBV/fU6D4r4AAA",
+        ],
+      },
+    },
+    {
+      id: "read-dropped",
+      type: "tool_call",
+      state: "completed",
+      streams: {},
+      payload: {
+        name: "Read",
+        args: { file_path: droppedPath },
+        status: "success",
+        images: [
+          "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
+        ],
+      },
+    },
+    {
+      id: "read-agent-screenshot",
+      type: "tool_call",
+      state: "completed",
+      streams: {},
+      payload: {
+        name: "read_file",
+        kind: "read",
+        args: { path: "/tmp/agent-shot.png" },
+        status: "success",
+        images: [
+          "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAIAAAABCAYAAAD0In+KAAAACXBIWXMAAAPoAAAD6AG1e1JrAAAADklEQVQImWPgEpH7D8IACDMCd75ivFQAAAAASUVORK5CYII=",
+        ],
+      },
+    },
+  ];
+  const collection = collectThreadGallery(items);
+  // 2 user attachments + 1 agent-captured screenshot read = 3 total (no echoes).
+  expect(collection.images).toHaveLength(3);
+});

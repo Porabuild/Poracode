@@ -141,6 +141,53 @@ describe("resolveSharedUpdateCommand", () => {
     ).toBeUndefined();
   });
 
+  it("recognizes Homebrew Caskroom realpaths as Homebrew cask installs", () => {
+    for (const executablePath of [
+      "/opt/homebrew/Caskroom/cursor-cli/2026.11.19/cursor-agent",
+      "/usr/local/Caskroom/cursor-cli/2026.11.19/cursor-agent",
+    ]) {
+      expect(
+        resolveSharedUpdateCommand({
+          update: cursorUpdate,
+          executablePath,
+          envKind: "posix",
+          skipBuiltIn: true,
+        }),
+      ).toEqual({
+        binary: "brew",
+        args: ["upgrade", "--cask", "cursor-cli"],
+        strategy: "brew",
+      });
+    }
+  });
+
+  it("distinguishes Linuxbrew Cellar installs from Linuxbrew global npm packages", () => {
+    expect(
+      resolveSharedUpdateCommand({
+        update: geminiUpdate,
+        executablePath: "/home/linuxbrew/.linuxbrew/Cellar/gemini-cli/0.69.0/bin/gemini",
+        envKind: "posix",
+      }),
+    ).toEqual({
+      binary: "brew",
+      args: ["upgrade", "gemini-cli"],
+      strategy: "brew",
+    });
+
+    expect(
+      resolveSharedUpdateCommand({
+        update: geminiUpdate,
+        executablePath:
+          "/home/linuxbrew/.linuxbrew/lib/node_modules/@google/gemini-cli/bundle/gemini.js",
+        envKind: "posix",
+      }),
+    ).toEqual({
+      binary: "npm",
+      args: ["install", "-g", "@google/gemini-cli@latest"],
+      strategy: "npm-global",
+    });
+  });
+
   it("returns the provider's built-in updater when one is configured", () => {
     expect(
       resolveSharedUpdateCommand({

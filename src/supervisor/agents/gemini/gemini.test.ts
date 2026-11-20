@@ -1,4 +1,4 @@
-import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -8,7 +8,7 @@ import { createGeminiAdapter } from ".";
 import { buildGeminiArgs } from "./argv";
 import { UnsupportedOneShotControlError } from "../base";
 import { geminiIntentFor } from "./plugin/intentMap";
-import { detectGeminiInvalidSessionRef } from "./session";
+import { detectGeminiInvalidSessionRef, waitForGeminiResumeArtifact } from "./session";
 import { detectGeminiOscTitleStatus } from "./terminal";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -188,6 +188,50 @@ describe("createGeminiAdapter buildLaunchArgv", () => {
   });
 });
 
+describe("createGeminiAdapter ACP env configuration", () => {
+  it("sets GEMINI_PTY_INFO=child_process on POSIX and Windows ACP auth commands", async () => {
+    const adapter = createGeminiAdapter();
+    const posixCmd = await adapter.buildAcpAuthCommand?.({ envKind: "posix" });
+    const winCmd = await adapter.buildAcpAuthCommand?.({ envKind: "windows" });
+
+    expect(posixCmd?.args.join(" ")).toContain("--acp");
+    expect(posixCmd?.args.join(" ")).toContain("--skip-trust");
+    expect(posixCmd?.env).toMatchObject({ GEMINI_PTY_INFO: "child_process" });
+    expect(winCmd?.env).toMatchObject({ GEMINI_PTY_INFO: "child_process" });
+  });
+});
+
+describe("waitForGeminiResumeArtifact", () => {
+  it("finds both .json and v0.68.0 .jsonl session artifacts under GEMINI_CLI_HOME and short-ID project dirs", async () => {
+    const homeDir = mkdtempSync(join(tmpdir(), "poracode-gemini-resume-"));
+    try {
+      const chatsDir = join(homeDir, ".gemini", "tmp", "short123", "chats");
+      mkdirSync(chatsDir, { recursive: true });
+      writeFileSync(join(chatsDir, "session-2026-05-01-deadbeef.jsonl"), '{"id":"1"}\n', "utf8");
+
+      await expect(
+        waitForGeminiResumeArtifact("deadbeef-1111-2222-3333-444444444444", {
+          projectLocation: { kind: "posix", path: homeDir },
+          env: { GEMINI_CLI_HOME: homeDir },
+          timeoutMs: 100,
+          pollIntervalMs: 10,
+        }),
+      ).resolves.toBe(true);
+
+      await expect(
+        waitForGeminiResumeArtifact("missing00-1111-2222-3333-444444444444", {
+          projectLocation: { kind: "posix", path: homeDir },
+          env: { GEMINI_CLI_HOME: homeDir },
+          timeoutMs: 30,
+          pollIntervalMs: 10,
+        }),
+      ).resolves.toBe(false);
+    } finally {
+      rmSync(homeDir, { recursive: true, force: true });
+    }
+  });
+});
+
 describe("detectGeminiInvalidSessionRef", () => {
   it("detects Gemini invalid resume session errors", () => {
     expect(
@@ -313,23 +357,33 @@ describe("createGeminiAdapter one-shot control policy", () => {
     expect(resumeOutcome).toBeInstanceOf(UnsupportedOneShotControlError);
     expect((resumeOutcome as UnsupportedOneShotControlError).axes).toEqual(["effort", "fast"]);
 
-    // The legacy default carriers stay present and accepted on both lanes.
+    // The legacy default carriers stay present and accepted on both lanes,
+    // and --skip-trust prevents status-55 untrusted-workspace exits.
+    expect(adapter.defaultOneShotModel).toBe("gemini-3.8-flash");
     const legacy = await adapter.buildOneShotCommand?.(
-      "gemini-2.5-pro",
+      "gemini-3.8-flash",
       "",
       "title",
       undefined,
       false,
-      { selection: { model: "gemini-2.5-pro", effort: "", fast: false } },
+      { selection: { model: "gemini-3.8-flash", effort: "", fast: false } },
     );
-    expect(legacy?.args).toEqual(["-p", "title", "--model", "gemini-2.5-pro"]);
+    expect(legacy?.args).toEqual(["-p", "title", "--model", "gemini-3.8-flash", "--skip-trust"]);
     const legacyResume = await adapter.buildContextExtractionCommand?.(
       { providerSessionId: "s-1", discoveredAt: "2026-10-09T00:00:00.000Z" },
       { kind: "posix", path: "/fixture/repo" },
-      "gemini-2.5-pro",
-      { selection: { model: "gemini-2.5-pro", effort: "", fast: false } },
+      "gemini-3.8-flash",
+      { selection: { model: "gemini-3.8-flash", effort: "", fast: false } },
     );
     expect(legacyResume?.args).toContain("--resume");
-    expect(legacyResume?.args).toContain("gemini-2.5-pro");
+    expect(legacyResume?.args).toContain("gemini-3.8-flash");
+    expect(legacyResume?.args).toContain("--skip-trust");
+    const defaultResume = await adapter.buildContextExtractionCommand?.(
+      { providerSessionId: "s-1", discoveredAt: "2026-10-09T00:00:00.000Z" },
+      { kind: "posix", path: "/fixture/repo" },
+      undefined,
+    );
+    expect(defaultResume?.args).toContain("gemini-3.8-flash");
+    expect(defaultResume?.args).toContain("--skip-trust");
   });
 });

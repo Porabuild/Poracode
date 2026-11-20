@@ -624,6 +624,24 @@
     },
     {
       "auth": "bearer",
+      "id": "memory-catalog",
+      "method": "POST",
+      "path": "/api/memory/catalog",
+      "scopes": [
+        "session:operate"
+      ]
+    },
+    {
+      "auth": "bearer",
+      "id": "memory-sync",
+      "method": "POST",
+      "path": "/api/memory/sync",
+      "scopes": [
+        "session:operate"
+      ]
+    },
+    {
+      "auth": "bearer",
       "id": "schedules-read",
       "method": "GET",
       "path": "/api/schedules",
@@ -1212,9 +1230,27 @@
     },
     {
       "auth": "bearer",
+      "id": "device-create-duo",
+      "method": "POST",
+      "path": "/api/devices/duo",
+      "scopes": [
+        "session:operate"
+      ]
+    },
+    {
+      "auth": "bearer",
       "id": "device-attach",
       "method": "POST",
       "path": "/api/threads/{threadId}/devices",
+      "scopes": [
+        "session:read"
+      ]
+    },
+    {
+      "auth": "bearer",
+      "id": "device-adopt-session",
+      "method": "POST",
+      "path": "/api/threads/{threadId}/devices/adopt",
       "scopes": [
         "session:read"
       ]
@@ -1389,6 +1425,11 @@
       "scope": "session:read"
     },
     {
+      "name": "resolveAgentAccount",
+      "owner": "desktop",
+      "scope": "session:read"
+    },
+    {
       "name": "refreshAgentStatuses",
       "owner": "desktop",
       "scope": "session:operate",
@@ -1396,6 +1437,18 @@
     },
     {
       "name": "listAcpRegistry",
+      "owner": "desktop",
+      "scope": "session:operate",
+      "timeout": "long"
+    },
+    {
+      "name": "installAcpRegistryAgent",
+      "owner": "desktop",
+      "scope": "session:operate",
+      "timeout": "long"
+    },
+    {
+      "name": "removeAcpRegistryAgent",
       "owner": "desktop",
       "scope": "session:operate",
       "timeout": "long"
@@ -1411,6 +1464,22 @@
       "owner": "desktop",
       "scope": "session:operate",
       "timeout": "long"
+    },
+    {
+      "name": "setAcpRegistryAgentAuth",
+      "owner": "desktop",
+      "scope": "session:operate"
+    },
+    {
+      "name": "authenticateAcpAgent",
+      "owner": "desktop",
+      "scope": "session:operate",
+      "timeout": "long"
+    },
+    {
+      "name": "logoutAcpAgent",
+      "owner": "desktop",
+      "scope": "session:operate"
     },
     {
       "name": "listThreadSessionActions",
@@ -1981,7 +2050,8 @@
     {
       "name": "gitAddWorktree",
       "owner": "projectLocation",
-      "scope": "session:operate"
+      "scope": "session:operate",
+      "timeout": "long"
     },
     {
       "name": "gitRemoveWorktree",

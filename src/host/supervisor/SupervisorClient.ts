@@ -839,6 +839,12 @@ export class SupervisorClient {
     this.threadMutationEpochs.set(threadId, (this.threadMutationEpochs.get(threadId) ?? 0) + 1);
   }
 
+  /** Ignore only the expected control calls made by the compound operation itself. */
+  captureThreadControlState(threadId: string, expectedControls = 0): () => boolean {
+    const expectedEpoch = (this.threadMutationEpochs.get(threadId) ?? 0) + expectedControls;
+    return () => !this.disposed && (this.threadMutationEpochs.get(threadId) ?? 0) === expectedEpoch;
+  }
+
   async call<Name extends SupervisorProcedureName>(
     type: Name,
     payload: IpcProcedurePayload<Name>,
@@ -1022,7 +1028,13 @@ export class SupervisorClient {
       type,
       requestPayload,
       options.requestTimeoutMs ??
-        (type === "updateAgentBinary" ? AGENT_UPDATE_REQUEST_TIMEOUT_MS : REQUEST_TIMEOUT_MS),
+        (type === "updateAgentBinary" ||
+        type === "installAcpRegistryAgent" ||
+        type === "updateAcpRegistryAgent" ||
+        type === "removeAcpRegistryAgent" ||
+        type === "authenticateAcpAgent"
+          ? AGENT_UPDATE_REQUEST_TIMEOUT_MS
+          : REQUEST_TIMEOUT_MS),
     );
   }
 

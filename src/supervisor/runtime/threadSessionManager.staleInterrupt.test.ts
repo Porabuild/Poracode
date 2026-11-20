@@ -197,6 +197,16 @@ describe("ThreadSessionManager structured stale-interrupt watchdog", () => {
     const adapter = createAdapter(structuredSession);
     const { manager, events } = createManager(adapter);
     const session = createWorkingSession(adapter, structuredSession);
+    session.sessionConfigOptions = [
+      {
+        id: "model",
+        category: "model",
+        type: "select",
+        currentValue: `${AGENT_KIND}/model`,
+        values: [{ value: `${AGENT_KIND}/model`, name: "Model" }],
+        groups: [],
+      },
+    ];
     manager.sessions.set(THREAD_ID, session);
 
     await manager.interruptThread({ threadId: THREAD_ID });
@@ -212,6 +222,7 @@ describe("ThreadSessionManager structured stale-interrupt watchdog", () => {
     expect(structuredSession.dispose).toHaveBeenCalledTimes(1);
     expect(structuredSession.forceCompleteTurn).toHaveBeenCalledTimes(1);
     expect(session.structuredSession).toBeUndefined();
+    expect(session.sessionConfigOptions).toBeNull();
     expect(session.status).toBe("idle");
     expect(session.ignoreExit).toBe(true);
     expect(session.structuredTurnInterruptRequested).toBe(false);
@@ -221,6 +232,7 @@ describe("ThreadSessionManager structured stale-interrupt watchdog", () => {
         type: "thread-state",
         threadId: THREAD_ID,
         status: "idle",
+        sessionConfigOptions: null,
         forceCloseActiveTurn: true,
       }),
     );
@@ -483,7 +495,10 @@ describe("ThreadSessionManager steer capability", () => {
       "steer me",
       { model: `${AGENT_KIND}/model` },
       undefined,
-      { userMessageItemId: expect.stringMatching(/^user-/) },
+      {
+        userMessageItemId: expect.stringMatching(/^user-/),
+        onPromptSubmitted: expect.any(Function),
+      },
     );
     expect(structuredSession.interruptTurn).not.toHaveBeenCalled();
     expect(structuredSession.startTurn).not.toHaveBeenCalled();

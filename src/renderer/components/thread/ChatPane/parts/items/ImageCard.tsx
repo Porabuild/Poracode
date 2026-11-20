@@ -4,6 +4,7 @@ import { Check, Copy, Download, Maximize2 } from "lucide-react";
 import {
   memo,
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
   type PointerEvent as ReactPointerEvent,
@@ -23,7 +24,14 @@ import {
 } from "@/renderer/components/thread/useThreadGalleryImages";
 import { useChatPaneActions } from "../../chatPaneActionsContext";
 import { friendlyError } from "@/shared/messages";
-import { chatInlineImageClass, reserveInlineImageSlot } from "./chatImageClass";
+import {
+  chatInlineImageClass,
+  getCachedInlineImageDimensions,
+  inlineImageDimensionCacheKey,
+  rememberInlineImageDimensions,
+  reserveInlineImageSlot,
+  resolveInlineImageDimensions,
+} from "./chatImageClass";
 import type { ImageViewSource } from "./imageViewSource";
 
 interface ImageCardProps {
@@ -31,6 +39,12 @@ interface ImageCardProps {
   className?: string;
   imageClassName?: string;
   isBlock?: boolean;
+  /** `"tile"` fills a mosaic grid cell with `object-cover`; `"inline"` keeps intrinsic sizing. */
+  layout?: "inline" | "tile";
+  /** Optional non-interactive overlay rendered inside the preview button (e.g. `+N` overflow). */
+  overlay?: ReactNode;
+  /** Number of additional hidden images represented by this overflow tile, for screen readers. */
+  overflowCount?: number;
   viewportRef?: Ref<HTMLSpanElement>;
   /**
    * Called when the user signals they may open the preview: the pointer
@@ -50,6 +64,25 @@ interface ImageCardProps {
 
 const PREVIEW_INTENT_DWELL_MS = 150;
 
+interface CardLoadState {
+  readonly src: string;
+  readonly key: string | undefined;
+  readonly loaded: boolean;
+  readonly naturalWidth: number | undefined;
+  readonly naturalHeight: number | undefined;
+}
+
+function initialCardLoadState(src: string, key: string | undefined): CardLoadState {
+  const cached = key ? getCachedInlineImageDimensions(key) : undefined;
+  return {
+    src,
+    key,
+    loaded: false,
+    naturalWidth: cached?.width,
+    naturalHeight: cached?.height,
+  };
+}
+
 /**
  * Shared interactive image used by tool results, message image blocks, and
  * markdown images. A span root keeps the card valid inside markdown paragraphs.
@@ -59,10 +92,14 @@ export const ImageCard = memo(function ImageCard({
   className,
   imageClassName,
   isBlock = false,
+  layout = "inline",
+  overlay,
+  overflowCount,
   viewportRef,
   resolveFullSrc,
   onPreviewIntent,
 }: ImageCardProps) {
+  const isTile = layout === "tile";
   const { t } = useLingui();
   const imageAlt = source.alt || t`Image`;
   // Thread-wide gallery: opening any transcript image offers prev/next across
@@ -114,8 +151,15 @@ export const ImageCard = memo(function ImageCard({
       return;
     }
     // The displayed variant can be EXIF-rotated relative to source metadata.
-    const width = imageRef.current?.naturalWidth || source.width;
-    const height = imageRef.current?.naturalHeight || source.height;
+    const cached = dimensionKey ? getCachedInlineImageDimensions(dimensionKey) : undefined;
+    const reconciled = resolveInlineImageDimensions(
+      source.width,
+      source.height,
+      cached?.width,
+      cached?.height,
+    );
+    const width = imageRef.current?.naturalWidth || reconciled?.width || source.width;
+    const height = imageRef.current?.naturalHeight || reconciled?.height || source.height;
     const dimensions = width && height ? { width, height } : {};
     openImageLightbox(
       [
@@ -180,16 +224,54 @@ export const ImageCard = memo(function ImageCard({
   // An empty source keeps the reserved slot without issuing an <img src="">.
   const hasSource = source.src.length > 0;
   const isInline = source.src.startsWith("data:");
+  const dimensionKey = inlineImageDimensionCacheKey(source);
   // Reset for a replacement resource before it paints, without remounting the
   // card or briefly treating the new URI as the previous image's loaded state.
-  const [loadState, setLoadState] = useState({ src: source.src, loaded: false });
-  if (loadState.src !== source.src) setLoadState({ src: source.src, loaded: false });
+  const [loadState, setLoadState] = useState<CardLoadState>(() =>
+    initialCardLoadState(source.src, dimensionKey),
+  );
+  if (loadState.src !== source.src || loadState.key !== dimensionKey) {
+    setLoadState(initialCardLoadState(source.src, dimensionKey));
+  }
+  useLayoutEffect(() => {
+    const img = imageRef.current;
+    if (!img || !hasSource || !img.complete) return;
+    const { naturalWidth, naturalHeight } = img;
+    if (naturalWidth <= 0 || naturalHeight <= 0) return;
+    if (dimensionKey) rememberInlineImageDimensions(dimensionKey, naturalWidth, naturalHeight);
+    setLoadState((prev) =>
+      prev.src === source.src &&
+      prev.key === dimensionKey &&
+      prev.loaded &&
+      prev.naturalWidth === naturalWidth &&
+      prev.naturalHeight === naturalHeight
+        ? prev
+        : {
+            src: source.src,
+            key: dimensionKey,
+            loaded: true,
+            naturalWidth,
+            naturalHeight,
+          },
+    );
+  }, [dimensionKey, hasSource, source.src]);
   const loaded = isInline || (loadState.src === source.src && loadState.loaded);
   const showPreview = !loaded && Boolean(source.preview);
+  const naturalWidth = loadState.key === dimensionKey ? loadState.naturalWidth : undefined;
+  const naturalHeight = loadState.key === dimensionKey ? loadState.naturalHeight : undefined;
+  const slotDimensions = resolveInlineImageDimensions(
+    source.width,
+    source.height,
+    naturalWidth,
+    naturalHeight,
+  );
   // Reserve the final box up front so the transcript never reflows when a
   // fetched image lands. Inline `data:` images paint immediately and keep the
-  // natural `w-auto` sizing.
-  const reservedSlot = isInline ? undefined : reserveInlineImageSlot(source.width, source.height);
+  // natural `w-auto` sizing; mosaic tiles fill their fixed grid cell directly.
+  const reservedSlot =
+    isInline || isTile
+      ? undefined
+      : reserveInlineImageSlot(slotDimensions?.width, slotDimensions?.height);
   const clearIntentTimer = () => {
     if (intentTimer.current === undefined) return;
     clearTimeout(intentTimer.current);
@@ -220,13 +302,25 @@ export const ImageCard = memo(function ImageCard({
     <span
       ref={viewportRef}
       {...previewIntentHandlers}
-      className={`poracode-image-card relative self-start ${isBlock ? "flex w-fit" : "inline-flex"} max-w-full overflow-hidden rounded-3xl border border-[var(--hairline-soft)] bg-[var(--composer-surface)]${className ? ` ${className}` : ""}`}
+      className={
+        isTile
+          ? `poracode-image-card relative block size-full overflow-hidden content-surface${className ? ` ${className}` : ""}`
+          : `poracode-image-card relative self-start ${isBlock ? "flex w-fit" : "inline-flex"} max-w-full overflow-hidden content-surface${className ? ` ${className}` : ""}`
+      }
       data-poracode-image-card="true"
     >
       <button
         type="button"
-        className="relative block cursor-zoom-in bg-black/20"
-        aria-label={t`Open image preview`}
+        className={
+          isTile
+            ? "relative block size-full cursor-zoom-in bg-black/20"
+            : "relative block min-w-0 max-w-full cursor-zoom-in bg-black/20"
+        }
+        aria-label={
+          overflowCount && overflowCount > 0
+            ? t`Open image preview (+${overflowCount} more)`
+            : t`Open image preview`
+        }
         disabled={!hasSource}
         onClick={openPreview}
       >
@@ -252,23 +346,45 @@ export const ImageCard = memo(function ImageCard({
             alt={imageAlt}
             draggable={false}
             decoding="async"
-            onLoad={() => setLoadState({ src: source.src, loaded: true })}
-            onError={() => setLoadState({ src: source.src, loaded: true })}
-            {...(source.width && source.height
-              ? { width: source.width, height: source.height }
+            onLoad={(event) => {
+              const { naturalWidth: nw, naturalHeight: nh } = event.currentTarget;
+              const hasNatural = nw > 0 && nh > 0;
+              if (hasNatural && dimensionKey) {
+                rememberInlineImageDimensions(dimensionKey, nw, nh);
+              }
+              setLoadState((prev) => ({
+                src: source.src,
+                key: dimensionKey,
+                loaded: true,
+                naturalWidth: hasNatural ? nw : prev.naturalWidth,
+                naturalHeight: hasNatural ? nh : prev.naturalHeight,
+              }));
+            }}
+            onError={() =>
+              setLoadState((prev) => ({
+                src: source.src,
+                key: dimensionKey,
+                loaded: true,
+                naturalWidth: prev.naturalWidth,
+                naturalHeight: prev.naturalHeight,
+              }))
+            }
+            {...(slotDimensions && !isTile
+              ? { width: slotDimensions.width, height: slotDimensions.height }
               : {})}
             {...(reservedSlot ? { style: reservedSlot } : {})}
-            className={`${chatInlineImageClass} relative${imageClassName ? ` ${imageClassName}` : ""}`}
+            className={`${isTile ? "block size-full object-cover" : chatInlineImageClass} relative${imageClassName ? ` ${imageClassName}` : ""}`}
           />
         ) : (
           <span
             aria-hidden="true"
-            className="block bg-black/10"
+            className={isTile ? "block size-full bg-black/10" : "block max-w-full bg-black/10"}
             {...(reservedSlot ? { style: reservedSlot } : {})}
           />
         )}
+        {overlay}
       </button>
-      {hasSource ? (
+      {hasSource && !overlay ? (
         <span className="poracode-image-action-toolbar absolute right-1.5 top-1.5 flex items-center gap-0.5 rounded-lg bg-black/50 p-0.5 backdrop-blur-sm transition-opacity duration-150">
           <CopyImageButton resolveFullSource={fullSource} />
           <DownloadImageButton fileName={source.fileName} resolveFullSource={fullSource} />

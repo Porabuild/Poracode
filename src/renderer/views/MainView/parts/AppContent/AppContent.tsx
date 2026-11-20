@@ -55,7 +55,9 @@ import { ExperimentView } from "@/renderer/views/ExperimentView/ExperimentView";
 import { BrowserRemoteConnectionGate } from "@/renderer/views/MainView/parts/BrowserRemoteConnectionGate";
 import { PixelLoader } from "@/renderer/components/common/PixelLoader";
 import { useCompactLayout } from "@/renderer/adaptiveLayout";
+import { useAuxiliaryThreadWindows } from "@/renderer/state/auxiliaryThreadWindows";
 import { ThreadPane } from "./parts/ThreadPane";
+import { ThreadWindowPlaceholder } from "./parts/ThreadWindowPlaceholder";
 import { DraftPane } from "./parts/DraftPane";
 import { resolveResponsivePaneLayout } from "./responsivePaneLayout";
 
@@ -96,6 +98,7 @@ export function AppContent() {
   const draftLastDraftConfig = useInitialProjectDraftConfig(draftProjectId);
   const queueThreadLaunch = useAppStore((state) => state.queueThreadLaunch);
   const focusedPaneId = useAppStore((state) => state.focusedPaneId);
+  const ownWindowThreadIds = useAuxiliaryThreadWindows((state) => state.ownWindowThreadIds);
   const compactLayout = useCompactLayout();
   const mobileUtilityPage = usePanelStore((state) => state.mobileUtilityPage);
   const activeGroupName = useAppStore((s) => {
@@ -375,6 +378,8 @@ export function AppContent() {
             startThreadFromDraft(project, input, { replacePaneId: paneId })
           }
         />
+      ) : ownWindowThreadIds.has(paneId) ? (
+        <ThreadWindowPlaceholder threadId={paneId} onClose={() => closePane(paneId)} />
       ) : (
         <ThreadPane
           threadId={paneId}

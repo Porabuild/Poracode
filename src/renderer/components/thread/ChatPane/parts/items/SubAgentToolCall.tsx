@@ -153,7 +153,7 @@ export const SubAgentToolCall = memo(function SubAgentToolCall({
           aria-label={isCrew ? t`Open Crew run: ${task}` : t`Open Crossagent: ${task}`}
           {...(describesCancelledStatus ? { "aria-describedby": statusDescriptionId } : {})}
         >
-          <Bot className="size-3 shrink-0 text-muted" />
+          <Bot className="size-3 shrink-0 text-[color:var(--muted)]" />
           <span
             ref={titleRef}
             className={`min-w-0 flex-1 truncate ${isRunning ? "poracode-thinking-text" : ""}`}

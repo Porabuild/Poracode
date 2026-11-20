@@ -24,10 +24,9 @@ const REVIEW_STATE_META: Record<
   PENDING: { label: msg`pending review`, toneClass: "text-warning", Icon: MessageSquare },
 };
 
-const CARD_CLASS =
-  "overflow-hidden rounded-2xl border border-[color:var(--border)] bg-surface-tertiary/30";
+const CARD_CLASS = "overflow-hidden content-surface";
 const CARD_HEADER_CLASS =
-  "flex items-center gap-2 border-b border-[color:var(--border)] bg-foreground/[0.03] px-3 py-1.5 text-xs";
+  "flex items-center gap-2 border-b border-[var(--hairline-soft)] bg-foreground/[0.03] px-3 py-1.5 text-xs";
 
 export function CommentRow(props: {
   comment: PrComment;
@@ -106,7 +105,7 @@ export function ReviewThreadRow(props: {
     ? `${path}${thread.line !== undefined ? `:${thread.line}` : ""}`
     : undefined;
   return (
-    <li className={`rounded-2xl border border-[color:var(--border)] ${compact ? "p-2" : "p-3"}`}>
+    <li className={`content-surface-row ${compact ? "p-2" : "p-3"}`}>
       <div
         className={`flex flex-wrap items-center gap-2 text-xs text-muted ${compact ? "mb-1" : "mb-2"}`}
       >
@@ -115,7 +114,7 @@ export function ReviewThreadRow(props: {
             type="button"
             aria-label={t`Open ${location} in changes`}
             onClick={() => nav.openFile(path, thread.line, thread.side)}
-            className="break-all font-mono text-left text-foreground underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
+            className="break-all font-mono text-left text-foreground underline-offset-2 hover:underline focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-focus"
           >
             {location}
           </button>

@@ -121,7 +121,7 @@ describe("ComputerUseDesktopOverlay", () => {
     vi.useRealTimers();
   });
 
-  it("covers every display with a transparent click-through border during control", async () => {
+  it("shows the same top-center overlay chip on every display during takeover", async () => {
     const overlay = new ComputerUseDesktopOverlay({
       onExit: vi.fn<(threadIds: string[]) => void>(),
     });
@@ -136,26 +136,33 @@ describe("ComputerUseDesktopOverlay", () => {
     await Promise.resolve();
 
     expect(electronMock.BrowserWindow.instances).toHaveLength(2);
-    for (const window of electronMock.BrowserWindow.instances) {
+    const expectedBounds = [
+      { x: 740, y: 48, width: 440, height: 34 },
+      { x: 2340, y: 48, width: 440, height: 34 },
+    ];
+    electronMock.BrowserWindow.instances.forEach((window, index) => {
       expect(window.options).toMatchObject({
-        transparent: true,
+        ...expectedBounds[index],
+        transparent: process.platform !== "darwin",
+        hasShadow: process.platform === "darwin",
+        ...(process.platform === "darwin" ? { roundedCorners: true } : {}),
         focusable: false,
         frame: false,
         title: "Poracode Computer Use Overlay",
       });
-      expect(window.setIgnoreMouseEvents).toHaveBeenCalledWith(true);
+      expect(window.setIgnoreMouseEvents).toHaveBeenLastCalledWith(false);
       expect(window.setAlwaysOnTop).toHaveBeenCalledWith(true, "screen-saver");
       expect(window.setContentProtection).toHaveBeenCalledWith(true);
       expect(window.showInactive).toHaveBeenCalled();
-      // The takeover border must frame the entire display, work area included.
-      expect(window.setBounds).toHaveBeenLastCalledWith(expect.objectContaining({ y: 0 }));
+      expect(window.setBounds).toHaveBeenLastCalledWith(expectedBounds[index]);
       const overlayHtml = decodeURIComponent(window.loadURL.mock.calls[0]![0].split(",", 2)[1]!);
-      expect(overlayHtml).toContain("inset 0 0 0 2px rgba(92, 167, 255, 0.6)");
-      expect(overlayHtml).toContain("inset 0 0 48px rgba(92, 167, 255, 0.08)");
       expect(overlayHtml).toContain("Poracode using your computer | Esc to Exit");
       expect(overlayHtml).toContain("<title>Poracode Computer Use Overlay</title>");
-      expect(overlayHtml).not.toContain("<button");
-    }
+      expect(overlayHtml).toContain("Exit computer use");
+      expect(overlayHtml).toContain("border: 1px solid rgba(211, 215, 222, 0.12)");
+      expect(overlayHtml).not.toContain("inset 0 0 0 2px");
+      expect(overlayHtml).not.toContain("inset 0 0 48px");
+    });
     expect(electronMock.globalShortcut.register).toHaveBeenCalledWith(
       "Escape",
       expect.any(Function),
@@ -197,10 +204,10 @@ describe("ComputerUseDesktopOverlay", () => {
     const [primaryOverlay, targetOverlay] = electronMock.BrowserWindow.instances;
     expect(primaryOverlay?.visible).toBe(false);
     expect(targetOverlay?.visible).toBe(true);
-    expect(targetOverlay?.options).toMatchObject({ x: 1920, y: 0, width: 1280, height: 1024 });
     // Anchored to the top of the work area so the badge never covers the macOS
     // menu bar or the focused app's title bar, and sized to hug the chip: the
     // badge is clickable, so the window must not span the display.
+    expect(targetOverlay?.options).toMatchObject({ x: 2340, y: 48, width: 440, height: 34 });
     expect(targetOverlay?.setBounds).toHaveBeenLastCalledWith({
       x: 2340,
       y: 48,
@@ -226,58 +233,55 @@ describe("ComputerUseDesktopOverlay", () => {
     overlay.dispose();
   });
 
-  it.runIf(process.platform === "darwin")(
-    "replaces the native badge with a transparent takeover and restores it afterwards",
-    async () => {
-      const overlay = new ComputerUseDesktopOverlay({
-        onExit: vi.fn<(threadIds: string[]) => void>(),
-      });
-      overlay.setActivity({ kind: "session", threadId: "thread-1", active: true });
-      await Promise.resolve();
-      const badge = electronMock.BrowserWindow.instances[0]!;
-      expect(badge.options).toMatchObject({
-        transparent: false,
-        hasShadow: true,
-        roundedCorners: true,
-      });
+  it("reuses the chip window across takeover and background transitions", async () => {
+    const overlay = new ComputerUseDesktopOverlay({
+      onExit: vi.fn<(threadIds: string[]) => void>(),
+    });
+    overlay.setActivity({ kind: "session", threadId: "thread-1", active: true });
+    await Promise.resolve();
+    const badge = electronMock.BrowserWindow.instances[0]!;
+    expect(badge.options).toMatchObject({
+      transparent: process.platform !== "darwin",
+      hasShadow: process.platform === "darwin",
+      ...(process.platform === "darwin" ? { roundedCorners: true } : {}),
+    });
 
-      overlay.setActivity({
-        kind: "action",
-        threadId: "thread-1",
-        toolName: "click",
-        delivery: "foreground",
-        active: true,
-      });
-      await Promise.resolve();
-      expect(badge.destroyed).toBe(true);
-      const takeover = electronMock.BrowserWindow.instances.filter((window) => !window.destroyed);
-      expect(takeover).toHaveLength(2);
-      for (const window of takeover) {
-        expect(window.options).toMatchObject({
-          transparent: true,
-          hasShadow: false,
-        });
-        expect(window.setIgnoreMouseEvents).toHaveBeenLastCalledWith(true);
-      }
+    overlay.setActivity({
+      kind: "action",
+      threadId: "thread-1",
+      toolName: "click",
+      delivery: "foreground",
+      active: true,
+    });
+    await Promise.resolve();
+    expect(badge.destroyed).toBe(false);
+    expect(electronMock.BrowserWindow.instances).toHaveLength(2);
+    for (const window of electronMock.BrowserWindow.instances) {
+      expect(window.visible).toBe(true);
+      expect(window.setIgnoreMouseEvents).toHaveBeenLastCalledWith(false);
+    }
+    const takeoverHtml = decodeURIComponent(badge.loadURL.mock.calls.at(-1)![0].split(",", 2)[1]!);
+    expect(takeoverHtml).toContain("Poracode using your computer | Esc to Exit");
 
-      overlay.setActivity({
-        kind: "action",
-        threadId: "thread-1",
-        toolName: "click",
-        delivery: "foreground",
-        active: false,
-      });
-      vi.advanceTimersByTime(COMPUTER_USE_OVERLAY_RELEASE_DELAY_MS);
-      await Promise.resolve();
-      expect(takeover[0]!.destroyed).toBe(true);
-      const restoredBadge = electronMock.BrowserWindow.instances.at(-1)!;
-      expect(restoredBadge.options).toMatchObject({ transparent: false, hasShadow: true });
-      expect(restoredBadge.visible).toBe(true);
-      expect(restoredBadge.setIgnoreMouseEvents).toHaveBeenLastCalledWith(false);
-      overlay.dispose();
-      expect(electronMock.BrowserWindow.instances.every((window) => window.destroyed)).toBe(true);
-    },
-  );
+    overlay.setActivity({
+      kind: "action",
+      threadId: "thread-1",
+      toolName: "click",
+      delivery: "foreground",
+      active: false,
+    });
+    vi.advanceTimersByTime(COMPUTER_USE_OVERLAY_RELEASE_DELAY_MS);
+    await Promise.resolve();
+    expect(badge.destroyed).toBe(false);
+    expect(badge.visible).toBe(true);
+    expect(electronMock.BrowserWindow.instances[1]?.visible).toBe(false);
+    expect(badge.setIgnoreMouseEvents).toHaveBeenLastCalledWith(false);
+    const restoredHtml = decodeURIComponent(badge.loadURL.mock.calls.at(-1)![0].split(",", 2)[1]!);
+    expect(restoredHtml).toContain("Poracode is controlling an app in the background");
+
+    overlay.dispose();
+    expect(electronMock.BrowserWindow.instances.every((window) => window.destroyed)).toBe(true);
+  });
 
   it("ends background control when the badge's exit button is used", async () => {
     const onExit = vi.fn<(threadIds: string[]) => void>();
@@ -303,54 +307,73 @@ describe("ComputerUseDesktopOverlay", () => {
     overlay.dispose();
   });
 
-  it.runIf(process.platform === "darwin")(
-    "ignores a pending badge load aborted by replacement with a takeover",
-    async () => {
-      const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
-      const overlay = new ComputerUseDesktopOverlay({
-        onExit: vi.fn<(threadIds: string[]) => void>(),
+  it("ends takeover control when the overlay's exit button is used", async () => {
+    const onExit = vi.fn<(threadIds: string[]) => void>();
+    const overlay = new ComputerUseDesktopOverlay({ onExit });
+    overlay.setActivity({
+      kind: "action",
+      threadId: "thread-1",
+      toolName: "click",
+      delivery: "foreground",
+      active: true,
+    });
+    await Promise.resolve();
+
+    const takeover = electronMock.BrowserWindow.instances[0]!;
+    const openHandler = takeover.webContents.setWindowOpenHandler.mock.calls.at(-1)![0];
+    const decision = openHandler({ url: OVERLAY_EXIT_URL });
+
+    expect(decision).toEqual({ action: "deny" });
+    expect(onExit).toHaveBeenCalledWith(["thread-1"]);
+    expect(electronMock.BrowserWindow.instances.every((window) => !window.visible)).toBe(true);
+    expect(electronMock.globalShortcut.unregister).toHaveBeenCalledWith("Escape");
+
+    overlay.dispose();
+  });
+
+  it("ignores a pending badge load aborted by transition to takeover", async () => {
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const overlay = new ComputerUseDesktopOverlay({
+      onExit: vi.fn<(threadIds: string[]) => void>(),
+    });
+    try {
+      overlay.setActivity({ kind: "session", threadId: "thread-1", active: true });
+      await Promise.resolve();
+      const badge = electronMock.BrowserWindow.instances[0]!;
+      let rejectLoad: ((error: Error) => void) | undefined;
+      badge.loadURL.mockImplementationOnce(
+        () =>
+          new Promise<void>((_resolve, reject) => {
+            rejectLoad = reject;
+          }),
+      );
+      overlay.setActivity({
+        kind: "action",
+        threadId: "thread-1",
+        toolName: "click",
+        delivery: "background",
+        target: "Notepad",
+        active: false,
       });
-      try {
-        overlay.setActivity({ kind: "session", threadId: "thread-1", active: true });
-        await Promise.resolve();
-        const badge = electronMock.BrowserWindow.instances[0]!;
-        let rejectLoad: ((error: Error) => void) | undefined;
-        badge.loadURL.mockImplementationOnce(
-          () =>
-            new Promise<void>((_resolve, reject) => {
-              rejectLoad = reject;
-            }),
-        );
-        overlay.setActivity({
-          kind: "action",
-          threadId: "thread-1",
-          toolName: "click",
-          delivery: "background",
-          target: "Notepad",
-          active: false,
-        });
-        overlay.setActivity({
-          kind: "action",
-          threadId: "thread-1",
-          toolName: "click",
-          delivery: "foreground",
-          active: true,
-        });
-        expect(badge.destroyed).toBe(true);
-        expect(rejectLoad).toBeTypeOf("function");
-        rejectLoad?.(new Error("ERR_ABORTED"));
-        await Promise.resolve();
-        await Promise.resolve();
-        expect(consoleError).not.toHaveBeenCalled();
-        const takeover = electronMock.BrowserWindow.instances.filter((window) => !window.destroyed);
-        expect(takeover).toHaveLength(2);
-        expect(takeover.every((window) => window.visible)).toBe(true);
-      } finally {
-        overlay.dispose();
-        consoleError.mockRestore();
-      }
-    },
-  );
+      overlay.setActivity({
+        kind: "action",
+        threadId: "thread-1",
+        toolName: "click",
+        delivery: "foreground",
+        active: true,
+      });
+      expect(rejectLoad).toBeTypeOf("function");
+      rejectLoad?.(new Error("ERR_ABORTED"));
+      await Promise.resolve();
+      await Promise.resolve();
+      expect(consoleError).not.toHaveBeenCalled();
+      expect(electronMock.BrowserWindow.instances).toHaveLength(2);
+      expect(electronMock.BrowserWindow.instances.every((window) => window.visible)).toBe(true);
+    } finally {
+      overlay.dispose();
+      consoleError.mockRestore();
+    }
+  });
 
   it("ignores other open requests from the badge page", async () => {
     const onExit = vi.fn<(threadIds: string[]) => void>();
@@ -471,7 +494,7 @@ describe("ComputerUseDesktopOverlay", () => {
     overlay.dispose();
   });
 
-  it("keeps the border visible briefly across a burst of interactive actions", async () => {
+  it("keeps the overlay visible briefly across a burst of interactive actions", async () => {
     const overlay = new ComputerUseDesktopOverlay({
       onExit: vi.fn<(threadIds: string[]) => void>(),
     });
@@ -501,7 +524,7 @@ describe("ComputerUseDesktopOverlay", () => {
     overlay.dispose();
   });
 
-  it("keeps the border visible for an enabled session until it is disabled", async () => {
+  it("keeps the overlay visible for an enabled session until it is disabled", async () => {
     const overlay = new ComputerUseDesktopOverlay({
       onExit: vi.fn<(threadIds: string[]) => void>(),
     });

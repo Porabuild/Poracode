@@ -1,0 +1,14 @@
+diff --git a/runtime-plugin.js b/runtime-plugin.js
+index 0e471f990094c9aa6f0e4b69c2f9ea6a59dd5390..6954ecb85d0e45d2cf370e68e1d79ec26c87b7a2 100644
+--- a/runtime-plugin.js
++++ b/runtime-plugin.js
+@@ -58,7 +58,8 @@ export const isCoreRuntimeModuleSpecifier = (specifier) => {
+     return DEFAULT_CORE_RUNTIME_MODULE_SPECIFIER_SET.has(specifier);
+ };
+ const loadCoreTestingRuntimeModule = async () => {
+-    return (await import("@opentui/core/testing"));
++    // The virtual module intercepts the public specifier. Load its Bun entry directly.
++    return (await import("./testing.bun.js"));
+ };
+ const escapeRegExp = (value) => {
+     return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");

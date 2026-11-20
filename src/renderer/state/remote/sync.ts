@@ -1,6 +1,7 @@
 import { historyContentOmissions } from "../historyDelivery";
 import { noteHistoryDeliveryGap } from "../historyResumeRegistry";
 import { isThreadTurnActive, type Thread } from "@/shared/contracts";
+import { threadAttentionStatus } from "@/shared/threadAttention";
 import type { SupervisorEvent } from "@/shared/ipc";
 import type { GitStatePatch } from "@/shared/gitState";
 import type { RemoteGitSummaries, RemoteThreadSnapshot } from "@/shared/remote";
@@ -22,7 +23,11 @@ import {
 import { applyAgentStatusSupervisorEvent } from "@/renderer/state/agentStatusesStore";
 import { preservePendingThreadConfig, retainPendingThreadConfigs } from "../pendingThreadConfig";
 import { carryActiveTurnTiming } from "../activeTurnTiming";
-import { carryPendingThreadInput, pendingThreadInputItems } from "../pendingThreadInput";
+import {
+  carryPendingThreadInput,
+  isPendingProviderSwitchStaleRow,
+  pendingThreadInputItems,
+} from "../pendingThreadInput";
 import { projectPendingCatalogEdit } from "../pendingCatalogEdits";
 import { carryVolatileSessionConfigOptions } from "@/renderer/state/volatileSessionConfigOptions";
 import { showUserNotification } from "@/renderer/notifications";
@@ -68,6 +73,7 @@ import {
 } from "./reducers/hostHistoryRecovery";
 import { recordRuntimeUsage } from "../usageRecorder";
 import { hostRunsOnThisMachine } from "../hostLocality";
+import { hasOwnWindow, recordsUsageInThisWindow } from "../auxiliaryThreadWindows";
 import { isHistoryIncorporated } from "../historyBaselines";
 
 /**
@@ -86,12 +92,13 @@ import { isHistoryIncorporated } from "../historyBaselines";
 type AppView = ReturnType<typeof useAppStore.getState>["view"];
 
 /**
- * True when `threadId` is one of the panes currently shown in the thread view.
- * A visible thread has already been acknowledged on this client, so an
- * authoritative snapshot must not resurrect its `finished` unread badge.
+ * True when `threadId` is one of the panes currently shown in the thread view,
+ * or is open in its own window. A visible thread has already been acknowledged
+ * on this client, so an authoritative snapshot must not resurrect its
+ * `finished` unread badge.
  */
 export function isThreadVisible(view: AppView, threadId: string): boolean {
-  return view.kind === "thread" && view.panes.includes(threadId);
+  return (view.kind === "thread" && view.panes.includes(threadId)) || hasOwnWindow(threadId);
 }
 
 function toCompletedTurnRecords(
@@ -208,6 +215,17 @@ export function applyThreadSnapshot(
         proof.lastSeenEventSeq() ?? -Infinity,
       ),
     };
+  }
+  const preSnapshotState = useAppStore.getState();
+  const preSnapshotResident = preSnapshotState.threads.find((thread) => thread.id === threadId);
+  if (
+    isPendingProviderSwitchStaleRow(
+      preSnapshotResident,
+      snapshot.thread,
+      preSnapshotState.pendingLaunchProviderSwitches[threadId]?.fromAgentKind,
+    )
+  ) {
+    return { installedAuthoritativeHistory: false };
   }
   // Arbitrate after the flush, before any snapshot write (including metadata
   // and offline caching). A flush can synchronously advance the applied seq.
@@ -536,8 +554,8 @@ function syncRuntimeRequestsFromSnapshot(
 ): void {
   if (snapshotIsStaleForThread(snapshot, lastSeenEventSeq)) return;
   const threadId = snapshot.thread.id;
-  const awaitingUser =
-    snapshot.thread.status === "needs_approval" || snapshot.thread.status === "needs_reply";
+  const status = threadAttentionStatus(snapshot.thread.status, snapshot.thread.attention);
+  const awaitingUser = status === "needs_approval" || status === "needs_reply";
   useAppStore.setState((current) => {
     const open = current.runtimeRequestsByThread[threadId] ?? [];
     if (!awaitingUser) {
@@ -708,7 +726,10 @@ function liveReducer(): SupervisorEventReducer {
       for (const { threadId, events } of batches) {
         // Usage is captured on the machine whose provider accounts run the
         // thread; a host on another machine records its own.
-        if (hostRunsOnThisMachine(threadMetadata.find((thread) => thread.id === threadId)))
+        if (
+          hostRunsOnThisMachine(threadMetadata.find((thread) => thread.id === threadId)) &&
+          recordsUsageInThisWindow(threadId)
+        )
           recordRuntimeUsage(threadId, events, threadMetadata);
       }
     },

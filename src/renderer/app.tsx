@@ -7,7 +7,7 @@ import { Trans } from "@lingui/react/macro";
 import { lazy, Suspense, useEffect, useState } from "react";
 import { PixelLoader } from "./components/common/PixelLoader";
 import { StartupRecoveryScreen } from "./components/startup/StartupRecoveryScreen";
-import { msg } from "@/shared/messages";
+import { friendlyError, msg } from "@/shared/messages";
 import type { UpdateStatus } from "@/shared/ipc";
 import { readBridge } from "./bridge";
 import { captureRendererException } from "./diagnostics/sentry";
@@ -18,6 +18,13 @@ import { useAppStore } from "./state/appStore";
 import { useGitReadModelStore } from "./state/gitReadModelStore";
 import { projectGitReadModelIntoLegacyStore } from "./state/gitReadModelLegacyProjection";
 import { openThread } from "./actions/threadActions";
+import { returnThreadToMainWindow } from "./actions/threadWindowActions";
+import { showGitReviewPage } from "./actions/panelActions";
+import { hasOwnWindow } from "./state/auxiliaryThreadWindows";
+import { entityHost } from "./state/entityHost";
+import { readHostThreadExistence } from "./state/hostThreadLaunch";
+import { openFileInEditor, resolveWorktreeBranch } from "./utils/gitHelpers";
+import type { ThreadWindowNavigation } from "@/shared/ipc/threadWindow";
 import { applyForwardedRemoteThreadCommand } from "./actions/remoteThreadCommandApplication";
 import { isManagedHostEventInterest } from "./state/rendererEventInterests";
 import { pruneLiveObservedCrossagentItems } from "./state/slices/staleSubAgents";
@@ -26,6 +33,7 @@ import { onRemoteTerminalExited } from "./state/remoteTerminalFeed";
 import { installRemoteGitSummaryPublisher } from "./remoteGitSummaries";
 import { installRemoteProjectWorkspaceSync } from "./state/remoteServers/appRows";
 import { applyExternalSharedSettings } from "./state/sharedSettingsStore";
+import { invalidatePluginInventory } from "./state/pluginsStore";
 import { normalizeSharedSettings } from "@/shared/settings";
 import { useDevTerminalStore } from "./state/devTerminalStore";
 import { useThreadOutputStore } from "./state/threadOutputStore";
@@ -53,9 +61,11 @@ import {
   installSideChatOwnershipReconciliation,
 } from "@/renderer/components/thread/SideChat/sideChatOwnershipActions";
 import { applySideChatPanel } from "@/renderer/components/thread/SideChat/sideChatPanelStore";
+import { installThreadWindowTracking } from "@/renderer/state/threadWindowTracking";
 import { startThreadFromDraft } from "@/renderer/actions/threadLaunchActions";
 import { captureAppStarted, installProductAnalytics } from "@/renderer/analytics/posthog";
 import { flushProductAnalytics } from "@/renderer/analytics/productAnalytics";
+import { installMemoryEnvironmentAutoSync } from "@/renderer/state/memorySync";
 import { UserMessageActionsSheet } from "@/renderer/components/thread/ChatPane/UserMessageActionsSheet";
 import { isBrowserClientRuntime, readElectronHostBridge } from "@/renderer/clientRuntime";
 
@@ -85,6 +95,11 @@ const QuickComposerWindowApp = lazy(() =>
 const SideChatWindowApp = lazy(() =>
   import("@/renderer/windowApps/SideChatWindowApp").then((module) => ({
     default: module.SideChatWindowApp,
+  })),
+);
+const ThreadWindowApp = lazy(() =>
+  import("@/renderer/windowApps/ThreadWindowApp").then((module) => ({
+    default: module.ThreadWindowApp,
   })),
 );
 
@@ -239,10 +254,41 @@ export function installUpdateStatusSync(
   };
 }
 
+async function applyThreadWindowNavigation(
+  threadId: string,
+  navigation: ThreadWindowNavigation,
+): Promise<void> {
+  if (navigation.kind === "thread") {
+    if (hasOwnWindow(threadId)) returnThreadToMainWindow(threadId);
+    else openThread(threadId, { focusComposer: true, switchWorkspace: true });
+    return;
+  }
+  let thread = useAppStore.getState().threads.find((row) => row.id === threadId);
+  if (!thread) {
+    const host = entityHost({ id: threadId });
+    if (host) await readHostThreadExistence(host, threadId);
+    thread = useAppStore.getState().threads.find((row) => row.id === threadId);
+  }
+  const project = useAppStore.getState().projects.find((row) => row.id === thread?.projectId);
+  if (!thread || !project)
+    throw new Error(i18n._(linguiMsg`Could not open this thread. Try again.`));
+  if (navigation.kind === "file") {
+    await openFileInEditor(
+      project,
+      thread.worktreePath,
+      thread.worktreePath
+        ? (resolveWorktreeBranch(thread.projectId, thread.worktreePath) ?? undefined)
+        : undefined,
+      navigation.path,
+      navigation.lineNumber,
+    );
+  } else showGitReviewPage(thread.projectId, thread.worktreePath);
+}
+
 // Chat windows consume the same runtime reducer; shell navigation and global
 // notification policies remain owned by the main window.
 const runtimeWindowCleanups: Array<() => void> =
-  isMainWindow || windowKind === "sideChat"
+  isMainWindow || windowKind === "sideChat" || windowKind === "thread"
     ? [
         installDraftPersistenceNotifications(),
         readBridge().onSupervisorEvent((event, rendererSequence, sequenceSpace) =>
@@ -276,14 +322,57 @@ const runtimeWindowCleanups: Array<() => void> =
           : []),
         // Settings rewritten outside this renderer (remote clients editing desktop
         // settings over the remote API) — apply without echoing a persist.
-        readBridge().onSharedSettingsChanged((settings) => {
+        readBridge().onSharedSettingsChanged((settings, pluginInventoryChanged) => {
           applyExternalSharedSettings(normalizeSharedSettings(settings));
+          if (pluginInventoryChanged) invalidatePluginInventory();
         }),
         supervisorReducer.installScheduling(),
       ]
     : [];
+// Thread windows show the same branch and change counts as the main window.
+const gitStateCleanups: Array<() => void> =
+  isMainWindow || windowKind === "thread"
+    ? [
+        readBridge().onGitStateChanged((patch) => {
+          const previous = useGitReadModelStore.getState();
+          if (patch.revision <= previous.revision) return;
+          previous.applyPatch(patch);
+          projectGitReadModelIntoLegacyStore(useGitReadModelStore.getState(), previous);
+        }),
+      ]
+    : [];
+const unsubscribeAppThreadTransfer = isMainWindow
+  ? readBridge().onAppThreadTransfer?.(async (request, begin) => {
+      const { runAppThreadTransfer } = await import("./actions/appThreadTransferActions");
+      return runAppThreadTransfer(request, begin);
+    })
+  : undefined;
+const unsubscribeAppMemorySync = isMainWindow
+  ? readBridge().onAppMemorySync?.(async (_request, begin) => {
+      const { syncMemoryAcrossEnvironments } = await import("./state/memorySync");
+      await begin();
+      return syncMemoryAcrossEnvironments({ force: true });
+    })
+  : undefined;
+const unsubscribeAppExperiment = isMainWindow
+  ? readBridge().onAppExperiment?.(async (request, begin) => {
+      const { runAppExperiment } = await import("./actions/appExperimentActions");
+      return runAppExperiment(request, begin);
+    })
+  : undefined;
+const unsubscribeAppProviderLogin = isMainWindow
+  ? readBridge().onAppProviderLogin?.(async (request, begin) => {
+      const { runAppProviderLogin } = await import("./actions/appProviderLoginActions");
+      return runAppProviderLogin(request, begin);
+    })
+  : undefined;
 const mainWindowCleanups: Array<() => void> = isMainWindow
   ? [
+      ...(unsubscribeAppThreadTransfer ? [unsubscribeAppThreadTransfer] : []),
+      ...(unsubscribeAppMemorySync ? [unsubscribeAppMemorySync] : []),
+      ...(unsubscribeAppExperiment ? [unsubscribeAppExperiment] : []),
+      ...(unsubscribeAppProviderLogin ? [unsubscribeAppProviderLogin] : []),
+      installThreadWindowTracking(),
       onRemoteTerminalExited((terminalId) => {
         if (terminalId.startsWith("shell:")) closeExitedShell(terminalId);
       }),
@@ -294,16 +383,16 @@ const mainWindowCleanups: Array<() => void> = isMainWindow
       readBridge().onRemoteThreadCommand((command) => {
         applyForwardedRemoteThreadCommand(command);
       }),
-      readBridge().onGitStateChanged((patch) => {
-        const previous = useGitReadModelStore.getState();
-        if (patch.revision <= previous.revision) return;
-        previous.applyPatch(patch);
-        projectGitReadModelIntoLegacyStore(useGitReadModelStore.getState(), previous);
-      }),
       readBridge().onUserNotification((notification) => {
         showUserNotification(notification);
       }),
-      readBridge().onThreadOpenRequested(({ threadId, source }) => {
+      readBridge().onThreadOpenRequested(({ threadId, source, navigation }) => {
+        if (navigation) {
+          void applyThreadWindowNavigation(threadId, navigation).catch((error: unknown) =>
+            toast.danger(friendlyError(error)),
+          );
+          return;
+        }
         openThread(threadId, {
           focusComposer: true,
           ...(source === "notification" ? { switchWorkspace: true } : {}),
@@ -347,7 +436,8 @@ if (import.meta.hot) {
   import.meta.hot.dispose(() => {
     unsubscribeSideChatWindows?.();
     uninstallSideChatReconciliation?.();
-    for (const cleanup of [...runtimeWindowCleanups, ...mainWindowCleanups]) cleanup();
+    for (const cleanup of [...runtimeWindowCleanups, ...gitStateCleanups, ...mainWindowCleanups])
+      cleanup();
     supervisorReducer.clear();
     clearSupervisorSequenceTracking();
     uninstallSupervisorIntakeHooks();
@@ -362,6 +452,12 @@ export function App() {
     return (
       <Suspense>
         <SideChatWindowApp />
+      </Suspense>
+    );
+  if (windowKind === "thread")
+    return (
+      <Suspense>
+        <ThreadWindowApp />
       </Suspense>
     );
   if (isBrowserExtractWindow) {
@@ -428,7 +524,9 @@ function MainApp() {
       productAnalyticsStarted = true;
       captureAppStarted();
     }
+    const uninstallMemorySync = chatSidebarSurface ? undefined : installMemoryEnvironmentAutoSync();
     return () => {
+      uninstallMemorySync?.();
       void flushProductAnalytics();
     };
   }, [initialLoading]);

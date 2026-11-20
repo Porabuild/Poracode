@@ -845,7 +845,7 @@ describe("AgentStatusService accepted readiness publication", () => {
     try {
       old.resolve(status(FAST, "obsolete-scoped"));
       const result = await scoped;
-      expect(modelIds(result)).toBeUndefined();
+      expect(modelIds(result)).toEqual(["baseline-fast"]);
       expect(events.some((event) => event.type === "agent-status-updated")).toBe(false);
       expect(memory.writes).toHaveLength(0);
     } finally {

@@ -428,8 +428,22 @@ export function createComposerDraftStorage(storage: Storage, lifecycle: Window) 
     load,
     save,
     remove,
+    /**
+     * Hands a draft back from another window that owned it meanwhile: forgets
+     * this window's cached copy and any write still queued from before, so the
+     * next read and write start from the other window's stored record.
+     */
+    refresh(kind: DraftKind, id: string) {
+      const name = key(kind, id);
+      pending.delete(name);
+      records.delete(name);
+      observed.delete(name);
+      legacyObserved.delete(name);
+    },
     flush,
     flushRequired,
+    /** Writes one queued draft now rather than after the checkpoint delay. */
+    flushDraft: (kind: DraftKind, id: string) => flushScope(kind, id),
     canReclaimAssets,
     referencedAssets,
     async recoverJournals() {
@@ -519,12 +533,15 @@ export function createComposerDraftStorage(storage: Storage, lifecycle: Window) 
       kind: DraftKind,
       ownerId: string,
       content: DraftContent,
+      onCapture?: (checkpoint: DraftCheckpoint) => void,
     ): Promise<DraftCheckpoint> {
       save(kind, ownerId, content);
       const record = readRecord(kind, ownerId);
-      await flushScope(kind, ownerId);
       if (!record) throw new Error("Composer draft could not be saved.");
-      return { ...record, kind, ownerId };
+      const checkpoint = { ...record, kind, ownerId };
+      onCapture?.(checkpoint);
+      await flushScope(kind, ownerId);
+      return checkpoint;
     },
     async acknowledge(checkpoint: DraftCheckpoint, onRetire?: () => void): Promise<boolean> {
       await flushScope(checkpoint.kind, checkpoint.ownerId);

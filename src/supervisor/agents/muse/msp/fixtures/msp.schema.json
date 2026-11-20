@@ -37,7 +37,7 @@
           "type": "boolean"
         },
         "kind": {
-          "description": "What happened: for example `stageResolved` (a shell stage was\nsatisfied), `policyPersistence` (saving a rule succeeded or failed),\n`reviewStarted` or `reviewCompleted` (the automated LLM judge started or\nfinished reviewing), `restartRecovered` (a host restart recovered this\napproval: either the host first resolves it `abort` and a re-ask comes\nas a new approval with a new `approvalId`, or it stays pending under\nthe same `approvalId` with refreshed choices) or `alreadyTerminal`\n(recovery found it already decided). The set is open, so newer hosts\nmay add kinds.",
+          "description": "What happened: for example `stageResolved` (a shell stage was\nsatisfied), `policyPersistence` (saving a rule succeeded or failed),\n`reviewStarted` or `reviewCompleted` (the automated LLM judge started or\nfinished reviewing), `restartRecovered` (a host restart recovered this\napproval: either the host first resolves it `abort` and a re-ask comes\nas a new approval with a new `approvalId`, or it stays pending under\nthe same `approvalId` with refreshed choices), `alreadyTerminal`\n(recovery found it already decided) or `resolving` (a\n`computerUseTakeover` approval was marked resolving and waits for the\nlock broker; a decide now answers -32059). The set is open, so newer\nhosts may add kinds.",
           "type": "string"
         },
         "reason": {
@@ -97,9 +97,32 @@
       "type": "string",
       "x-msp-openness": "open"
     },
+    "ApprovalCuaBrowser": {
+      "description": "A browser card's notices: the first time Computer Use uses a browser on\nthis Mac, and the session's consent before it opens its own window in a\nbrowser that comes to the front when it does. A client words each flag\nitself.",
+      "properties": {
+        "firstUse": {
+          "description": "Show the first-use notice: Computer Use hasn't used this browser on\nthis Mac before and will act signed in as the person.",
+          "type": "boolean"
+        },
+        "name": {
+          "description": "The browser's display name.",
+          "type": "string"
+        },
+        "windowConsent": {
+          "description": "Show the window consent line: Computer Use will open its own window\nin this browser and bring the browser to the front, once per session.",
+          "type": "boolean"
+        }
+      },
+      "required": ["name"],
+      "type": "object"
+    },
     "ApprovalCuaCardFacts": {
       "description": "One Computer Use card's facts. Empty collections and absent rows are\nomitted, never `null`.",
       "properties": {
+        "browser": {
+          "$ref": "#/$defs/ApprovalCuaBrowser",
+          "description": "For a browser card, the notices it carries; absent unless at least\none shows."
+        },
         "data": {
           "description": "The data the call would send that the card must name; a card with any\noffers only one-shot choices.",
           "items": {
@@ -519,6 +542,10 @@
     "ApprovalResolvedParams": {
       "description": "`approval/resolved` params: the first durable terminal decision.",
       "properties": {
+        "abortReason": {
+          "description": "Why an `abort` was not a cancel, when the host knows: `lockEpochEnded |\nbrokerUnavailable`, an open vocabulary (tdd SS5.5). Clients render an\nunknown value like an absent one.",
+          "type": "string"
+        },
         "amendment": {
           "$ref": "#/$defs/ApprovalAmendment",
           "description": "The policy rule the decision created. Present only when the decision\ncreated one."
@@ -720,12 +747,16 @@
           "description": "The full raw shell command. Present when `kind` is `shell`.",
           "type": "string"
         },
+        "holder": {
+          "$ref": "#/$defs/ComputerUseLockHolder",
+          "description": "The session that holds the Computer Use lock now, by label and times\nonly. Present when `kind` is `computerUseTakeover` (tdd SS5.2.8)."
+        },
         "host": {
           "description": "The network host the tool wants to reach. Present when `kind` is\n`network`.",
           "type": "string"
         },
         "kind": {
-          "description": "Open discriminator: `shell | fileAccess | network | unixSocket | process | tool`.",
+          "description": "Open discriminator: `shell | fileAccess | network | unixSocket | process | tool | computerUseTakeover`.",
           "type": "string"
         },
         "origin": {
@@ -852,12 +883,44 @@
       "type": "string",
       "x-msp-openness": "open"
     },
+    "BackgroundTarget": {
+      "description": "One call's live background-target record (tdd SS4.5.5; ADR\n63254-background-target-on-tool-call D2): exactly the runtime\nsnapshot's four facts, no new nouns.",
+      "properties": {
+        "backgroundRequested": {
+          "description": "Whether the background was already requested for this call.",
+          "type": "boolean"
+        },
+        "foregroundWaitActive": {
+          "description": "Whether the call sits in its foreground wait right now.",
+          "type": "boolean"
+        },
+        "manualReleaseAdmissible": {
+          "description": "Point-in-time Ctrl+B chooser hint; the runtime re-checks\nadmission on the action.",
+          "type": "boolean"
+        },
+        "toolCallId": {
+          "description": "The tool call this record describes (the provider call id).",
+          "type": "string"
+        }
+      },
+      "required": [
+        "backgroundRequested",
+        "foregroundWaitActive",
+        "manualReleaseAdmissible",
+        "toolCallId"
+      ],
+      "type": "object"
+    },
     "BackgroundTerminalCompletion": {
-      "description": "`backgroundTerminalCompletion`: the five facts the Finished cell\nrenders (ADR 50041 D3/D4). The fold reads them from the inbox\nterminal record and the backgrounded call it names; every member\nis required (empty output serializes as `\"\"`, never absent).",
+      "description": "`backgroundTerminalCompletion`: the facts the Finished cell\nrenders (ADR 50041 D3/D4, plus the optional exit code from D28 and\nthe optional reason from D29).\nThe fold reads them from the inbox terminal record and the\nbackgrounded call it names; every member is required (empty\noutput serializes as `\"\"`, never absent) except `exit_code` and\n`reason`, each absent when the terminal carries none.",
       "properties": {
         "command": {
           "description": "The title text gate-off shows for the backgrounded command.",
           "type": "string"
+        },
+        "exitCode": {
+          "description": "The process exit code from the terminal record's `exit_code: `\nline (ADR 50041 D28); absent when the terminal carries none.\n`i32`, the gate-off frozen-header twin's width\n(`BackgroundTerminalTailTerminal.exit_code`). Old clients\nignore the unknown member (tdd evolution rule).",
+          "type": "integer"
         },
         "output": {
           "description": "The completion text; empty when the terminal carries none.",
@@ -866,6 +929,10 @@
         "outputTruncated": {
           "description": "True when `output` is a prefix of the terminal text.",
           "type": "boolean"
+        },
+        "reason": {
+          "description": "The terminal's reason from the terminal record's `reason: `\nline, trimmed like gate-off's parse (ADR 50041 D29); absent when\nthe terminal carries none or an empty one. Old clients ignore\nthe unknown member (tdd evolution rule).",
+          "type": "string"
         },
         "terminalStatus": {
           "description": "One of `completed`, `failed`, `cancelled`, `timedOut`,\n`rejected` (the ItemStatus wire vocabulary, tdd SS4.4.1).",
@@ -888,6 +955,39 @@
         }
       },
       "required": ["text"],
+      "type": "object"
+    },
+    "BodyCompletionCorrelation": {
+      "description": "Whether the origin call join held at delivery.",
+      "enum": ["resolved", "unresolved"],
+      "type": "string",
+      "x-msp-openness": "open"
+    },
+    "BodyCompletionMembers": {
+      "description": "`bodyCompletion`: the facts one receipt row renders (ADR 87062\nD2). The fold reads them from the inbox terminal record and the\nbackgrounded call it names. `status`, `result_summary`, and\n`correlation` are required; `origin_call_id` is absent exactly\nwhen the join is unresolved.",
+      "properties": {
+        "correlation": {
+          "$ref": "#/$defs/BodyCompletionCorrelation",
+          "description": "Whether the origin call join held at delivery."
+        },
+        "originCallId": {
+          "description": "The originating call's provider call id, opaque — the join\nkey back to the original row. Absent when the join is\nunresolved (compaction).",
+          "type": "string"
+        },
+        "receipt": {
+          "description": "True for the Manual semantic receipt (`◆`); false for the\nordinary completion row.",
+          "type": "boolean"
+        },
+        "resultSummary": {
+          "description": "Bounded transcript-visible result text; empty when the\nterminal carries none. Full bytes stay behind outputRef.",
+          "type": "string"
+        },
+        "status": {
+          "description": "One fixed wire word per Task terminal (`completed`,\n`failed`, `cancelled`, `timedOut`, `rejected`) — never\ndisplay text; gate-off display words derive client-side.",
+          "type": "string"
+        }
+      },
+      "required": ["correlation", "receipt", "resultSummary", "status"],
       "type": "object"
     },
     "BranchState": {
@@ -1183,6 +1283,25 @@
         }
       },
       "required": ["bundleId", "name"],
+      "type": "object"
+    },
+    "ComputerUseLockHolder": {
+      "description": "The Computer Use lock's holder as a `computerUseTakeover` approval shows\nit: never its app, window, target or current action (ADR 73131 D2).",
+      "properties": {
+        "acquiredAt": {
+          "description": "When the holder took the lock (RFC 3339).",
+          "type": "string"
+        },
+        "lastActivityAt": {
+          "description": "When the holder last acted under the lock (RFC 3339).",
+          "type": "string"
+        },
+        "sessionLabel": {
+          "description": "The holding session's label.",
+          "type": "string"
+        }
+      },
+      "required": ["acquiredAt", "lastActivityAt", "sessionLabel"],
       "type": "object"
     },
     "ComputerUsePermission": {
@@ -1487,6 +1606,37 @@
       "required": ["missingRecords", "readableAfterAt", "unreadableLines"],
       "type": "object"
     },
+    "DeliveredInput": {
+      "description": "One input the read session's log delivered to a subagent (tdd\nSS2.5.5, ADR 72596-delivered-inputs-on-read D2): the queue-note\nsummary (never the body) plus the queue and drain record sequences,\nthe order and re-read dedupe keys, plus the join ids clients adopt\nalready-rendered rows by.",
+      "properties": {
+        "deliveredSequence": {
+          "description": "The matching drain record's log sequence: the Delivered row's\nposition key.",
+          "type": "integer"
+        },
+        "sequence": {
+          "description": "The queued record's log sequence: entry order, and half of the\nsequence-pair join key.",
+          "type": "integer"
+        },
+        "sourceCommandId": {
+          "description": "The `SubagentInput` record's command id: the key wire-twin rows\njoin by in either order. Absent when the record carries none.",
+          "type": "string"
+        },
+        "sourceRunRecordId": {
+          "description": "The queue record's run-log id: the record-row join key. Absent\nwhen the host's record carries no mirror metadata (a pre-feature\nhost), which falls back to the command id, then the\nsequence-pair join.",
+          "type": "string"
+        },
+        "subagentId": {
+          "description": "The subagent the input was delivered to (parent-scope id).",
+          "type": "string"
+        },
+        "summary": {
+          "description": "The stored queue-note summary (never the body).",
+          "type": "string"
+        }
+      },
+      "required": ["deliveredSequence", "sequence", "subagentId", "summary"],
+      "type": "object"
+    },
     "EarlierHistory": {
       "description": "`earlierHistory`: the boundary checkpoint's transcript tail, served in\nplace of every item that opened in its pruned prefix (ADR 71910 D1/D3).\nNo log record carries it; the host derives it from the checkpoint.",
       "properties": {
@@ -1681,6 +1831,10 @@
           "$ref": "#/$defs/UserInputSettlementSummary",
           "description": "Winning settlement on `userInputAlreadySettled`."
         },
+        "stopRefusal": {
+          "description": "The stop's refusal kind on a `workflow/cancel` `commandRejected`\nwhose stop was refused or whose settlement read failed (SS3.19, spec\n14410 FR-92884-1): `stale_revision`, `policy_rejected`,\n`actor_authority_mismatch`, `authority_index_conflict`,\n`admission_failed`, `persistence_failed`, `control_not_signalled`,\n`post_marker_not_cancellable`, `control_outcome_uncertain`,\n`adapter_contract_violation`, `transport_lost` or `reply_lost`.",
+          "type": "string"
+        },
         "uploadId": {
           "description": "The rejected upload id on `uploadNotFound` (`-32038`, SS3.33).",
           "type": "string"
@@ -1743,7 +1897,9 @@
         "approvalReviewerUnavailable",
         "userInputNotFound",
         "userInputAlreadySettled",
-        "userInputAnswerInvalid"
+        "userInputAnswerInvalid",
+        "approvalBrokerUnavailable",
+        "approvalResolving"
       ],
       "type": "string",
       "x-msp-openness": "open"
@@ -1791,6 +1947,16 @@
         }
       },
       "required": ["error", "id", "jsonrpc"],
+      "type": "object"
+    },
+    "ExternalWaitView": {
+      "description": "The live host-declared external wait as served on a `Session` object\n(`Session.externalWait`): present exactly while a declaration is\nlive for the loaded session, absent otherwise. Absence is never\nfabricated — an unloaded row carries no member.",
+      "properties": {
+        "reason": {
+          "description": "The host's label for what the session waits on. Omitted when\nthe host declared without one.",
+          "type": "string"
+        }
+      },
       "type": "object"
     },
     "FeedbackClassification": {
@@ -1919,6 +2085,10 @@
         },
         "cutExplicit": {
           "description": "Whether the fork named an explicit cut point.",
+          "type": "boolean"
+        },
+        "isRewind": {
+          "description": "`true` when validated full provenance records a conversation rewind,\n`false` for a proved ordinary fork (ADR 50280 D8). **Additive-optional**:\nomitted when the serving face holds no full provenance, which means\nunknown, never a guessed ordinary fork; never `null`.",
           "type": "boolean"
         },
         "sessionId": {
@@ -2079,19 +2249,20 @@
       "x-msp-openness": "open"
     },
     "HistoryNoneReason": {
-      "description": "Why a result served `history.mode: \"none\"`: the server's typed reason for\nserving no history. Open on the client side: an absent (older server) or\nunknown (newer server) value decodes conservatively as an unknown reason,\nand `viewCursor` text never substitutes for it.",
+      "description": "Why a result served `history.mode: \"none\"` — the server's typed reason for\nserving no history, with one push-only exception: `projectionRebuildFailed`\nrides only a `session/viewHealthChanged` notification; no resume or read\nresult carries it (see its variant doc). Open on the client side: an\nabsent (older server) or unknown (newer server) value decodes\nconservatively as an unknown reason, and `viewCursor` text never\nsubstitutes for it.",
       "enum": [
         "excluded",
         "cursorSuffix",
         "historyBudget",
         "projectionUnavailable",
-        "projectionReadLimit"
+        "projectionReadLimit",
+        "projectionRebuildFailed"
       ],
       "type": "string",
       "x-msp-openness": "open"
     },
     "HistoryPreference": {
-      "description": "The `history` request preference of `session/resume` (tdd SS2.5.2). The\nforced values downgrade `anchored` → `inline` → `snapshot` → `none`; under\n`auto` the full rung order is anchoredSnapshot → inline → snapshot →\nelided snapshot → none.",
+      "description": "The `history` request preference of `session/resume` (tdd SS2.5.2). The\nforced values downgrade `anchored` → `inline` → `snapshot` → `none`; under\n`auto` the full rung order is anchoredSnapshot → anchored pending cut →\ninline → snapshot → pending cut → elided snapshot → elided pending cut →\nnone, a pending cut being the snapshot with its `monitorInbox` cut to the\nentries still awaiting delivery.",
       "enum": ["auto", "inline", "snapshot", "anchored"],
       "type": "string",
       "x-msp-openness": "closed"
@@ -2297,13 +2468,25 @@
           "$ref": "#/$defs/BackgroundInitiator",
           "description": "`toolCall`: who backgrounded the task; absent on pre-split records —\nnever inferred (tdd SS4.5.5)."
         },
+        "backgroundTarget": {
+          "$ref": "#/$defs/BackgroundTarget",
+          "description": "`toolCall`: this call's live background-target record\n(tdd SS4.5.5; ADR 63254-background-target-on-tool-call D1–D2).\nSet when the foreground tool starts, refreshed by whole-item\n`item/updated` when the facts change, omitted once the call\nsettles or unregisters — present means a live candidate.\nAbsent (pre-feature hosts, unregistered calls) keeps the\nclient's derived behavior, never an error. Old clients\nignore it."
+        },
         "backgroundTerminalCompletion": {
           "$ref": "#/$defs/BackgroundTerminalCompletion",
           "description": "`backgroundTerminalCompletion`: the five facts the Finished\ncell renders (ADR 50041 D4)."
         },
+        "bashTitle": {
+          "description": "`toolCall`: the call's Bash Title — its `description` argument\nthrough the shared Bash Title normalizer, for a managed Bash call,\nserved only while the host's `bash_titles` gate is on. The host adds\nit when it serves the item and never stores it; absent for any other\ncall (tdd SS4.5.5; ADR 31406 D26). Old clients ignore it.",
+          "type": "string"
+        },
         "blocking": {
           "description": "`reminderChild`: `true` when this child is a blocking reminder (it holds\nthe turn open until it settles); absent otherwise, never `false` (ADR\n41191 D4). The status word stays off the wire; clients name the\nreminder from `reminderAgentId`.",
           "type": "boolean"
+        },
+        "bodyCompletion": {
+          "$ref": "#/$defs/BodyCompletionMembers",
+          "description": "`bodyCompletion`: the facts one receipt row renders (ADR\n87062 D2, accepted names)."
         },
         "callId": {
           "description": "`toolCall`: the provider call id (`call_...`), opaque.",
@@ -2354,6 +2537,10 @@
         "declaredPhase": {
           "description": "`workflow`: the run-level declared-phase label — the last `Phase`\ndetail-row label of the reconciled projection; terminal-only, absent\nwhile live (tdd SS4.5.8, #45449).",
           "type": "string"
+        },
+        "deliveredBeforeTurnEnd": {
+          "description": "`subagentInput` (`delivered`): `true` when the drain landed on its\nturn before that turn's terminal, which ends the turn's final answer\nas gate-off's drain record does; absent otherwise (ADR 70249 D4).",
+          "type": "boolean"
         },
         "deliveryNumber": {
           "description": "`scheduledFire`: the occurrence number within the job's\nhistory, present with occurrence metadata (tdd SS4.5.17;\nADR 45446 D2).",
@@ -2427,6 +2614,10 @@
           "description": "`hookRun`: the durable `hook_key` (tdd SS4.5.11).",
           "type": "string"
         },
+        "inputPhase": {
+          "$ref": "#/$defs/SubagentInputPhase",
+          "description": "`subagentInput`: the record the item stands for; see\n[`SubagentInputPhase`] (#70249)."
+        },
         "itemId": {
           "description": "Bare UUIDv7; the item's identity across its whole lifecycle. Identity\nrule (tdd SS4.4.1): the task id for task-backed kinds\n(`toolCall`, `subagent`), the pre-minted commit `message_id` for\ndelta-streamed kinds (`agentMessage`, `reasoning`), `EventId::derive`\nover the session id and the range's starting sequence number for\n`damagedRange` (no record carries it, SS4.5.16), the same over the\nboundary checkpoint's sequence number for `earlierHistory` (SS4.5.22),\nand the opening durable record's event id for everything else.\nOpaque to clients.",
           "type": "string"
@@ -2449,7 +2640,7 @@
         },
         "messagePhase": {
           "$ref": "#/$defs/MessagePhase",
-          "description": "`agentMessage`: the phase the model declared on the commit; see [`MessagePhase`]."
+          "description": "`agentMessage`: the phase the model declared; see [`MessagePhase`]."
         },
         "modelVisibleContent": {
           "description": "`toolCall`: rich content the model saw beyond text; base64 is not\ninlined on the view (tdd SS4.5.5).",
@@ -2470,6 +2661,22 @@
           "description": "`scheduledFire`: the next scheduled epoch in milliseconds;\nabsent on a final delivery (tdd SS4.5.17; ADR 45446 D2).",
           "type": "integer"
         },
+        "noticeKind": {
+          "description": "`systemNotice`: an optional open machine code for what happened, minted\nper origin by the slice that adds its producer; omitted for `monitor`\nand for `hook` (tdd SS4.5.23).",
+          "type": "string"
+        },
+        "noticeOrigin": {
+          "$ref": "#/$defs/NoticeOrigin",
+          "description": "`systemNotice`: the producing family, so a client routes a notice\nwithout parsing its text (tdd SS4.5.23). Absent means the server named\nno origin: render generically, never infer one."
+        },
+        "noticeSeverity": {
+          "$ref": "#/$defs/NoticeSeverity",
+          "description": "`systemNotice`: the notice's level — `info` | `warning` | `error`,\nopen (tdd SS4.5.23; ADR 42729 D1). Absent means the server classified\nno level."
+        },
+        "noticeSubject": {
+          "$ref": "#/$defs/NoticeSubject",
+          "description": "`systemNotice`: the durable thing the notice is about — for `hook`,\nthe hook run's item id and its bounded label (tdd SS4.5.23; ADR 75121\nD2)."
+        },
         "objective": {
           "description": "`subagent`: objective as spawned, bounded on the wire at the 64 KiB\nretained-text budget (tdd SS4.5.4, ADR 35691 D9); a cut sets\n`truncated`. The durable record stays verbatim.",
           "type": "string"
@@ -2482,6 +2689,10 @@
           "$ref": "#/$defs/OutputRef",
           "description": "`toolCall`/`userShell`: stored-output reference; fetch the full bytes\nvia `item/readOutput` (served by #208)."
         },
+        "parentSubagentId": {
+          "description": "`subagent`: the `subagentId` of the subagent whose own session spawned this child, by\n`subagent/list`'s `parentSubagentId` rule. **Additive-optional**: absent for a child of the\nview's own session, or when no open `subagent` item in this view owns the spawning session;\nnever guessed, never derived from `agentPath` (tdd SS4.5.7, #88542).",
+          "type": "string"
+        },
         "patchRef": {
           "$ref": "#/$defs/OutputRef",
           "description": "`toolCall`: stored structured-patch reference (`kind: \"tool_patch\"`,\n`mediaType: \"application/json\"`); the body is fetched via\n`item/readOutput` with `patchRef.id`, and the ref survives the\nSS2.5.2 elided-snapshot rung exactly like `outputRef` without ever\nbeing an elision trigger (tdd SS2.5.2, SS4.5.5; #33025)."
@@ -2493,6 +2704,10 @@
         "paused": {
           "description": "`workflow`: `true` only while a durable pause fact is in force for\nthe run's generation; absent otherwise, never `false` (tdd SS4.5.8,\nADR 45437 D2; the fold sets it on pause commit and clears it on\nresume-commit supersession or the generation's terminal).",
           "type": "boolean"
+        },
+        "peerMessage": {
+          "$ref": "#/$defs/PeerMessage",
+          "description": "`peerMessage`: the four facts the consumed card renders (ADR\n72708 D2, tdd SS4.5.24)."
         },
         "providerItemId": {
           "description": "`reasoning`: provider reasoning item id (e.g. `rs_...`), for\nprovider-side correlation.",
@@ -2517,6 +2732,10 @@
         "result": {
           "$ref": "#/$defs/SubagentResult",
           "description": "`subagent`: the result envelope from `ResultReady` (tdd SS4.5.7)."
+        },
+        "resultStatus": {
+          "$ref": "#/$defs/SubagentResultStatus",
+          "description": "`subagentResult`: the consumed attempt's outcome; absent if unseen at the drain (#88809)."
         },
         "resumeFromRunId": {
           "description": "`workflow`: set on resumed launches.",
@@ -2610,11 +2829,15 @@
           "type": "array"
         },
         "taskId": {
-          "description": "`reminderChild`: the linked task id.",
+          "description": "`reminderChild`: the linked task id. Unresolved\n`bodyCompletion` items also set it (FR-87062-1: the\ndiagnostic names the task whose join did not hold).",
           "type": "string"
         },
         "terminalRowAfterItemId": {
-          "description": "Terminal `toolCall`: the item after whose rows the terminal\nrow renders (tdd SS4.5.21, ADR 56496 D2/D3).",
+          "description": "Terminal monitor `toolCall`, drained `subagent`,\n`backgroundTerminalCompletion`, or Finished-row `toolCall`: render after\nthe target's logical rows (tdd SS4.5.21, ADR 56496 D2/D3, OD #738).",
+          "type": "string"
+        },
+        "terminalRowBeforeItemId": {
+          "description": "`backgroundTerminalCompletion`, or a terminal `toolCall` that already\nshows a Finished row: render before the target's whole coalesced region\n(tdd SS4.5.21, ADR 50041 D6).",
           "type": "string"
         },
         "text": {
@@ -2650,11 +2873,11 @@
           "type": "string"
         },
         "truncated": {
-          "description": "`true` when the server's per-surface text budget saturated a streamed\nsurface (`agentMessage.text`, `reasoning.summary[*]`,\n`toolCall.visibleOutput`, `userShell.visibleOutput`), cut a\n`subagent` surface (`objective`, `fallbackText`, `result.summary`,\n`result.text`), or cut a `monitorFeed` surface (`text`,\n`fallbackText`, `monitorDescription`) (ADR 50058-monitor-feed-wire\nD3). On a `subagent` item the flag is item-level and never\ncleared: once any of those four is cut, every later update keeps it,\neven when `result.text` arrives whole (ADR 35691 D9). The durable full\ntext remains in the log (tdd SS4.5.4).",
+          "description": "`true` when the server's per-surface text budget saturated a streamed surface\n(`agentMessage.text`, `reasoning.summary[*]`, `toolCall.visibleOutput`,\n`userShell.visibleOutput`), cut a `subagent` surface (`objective`, `fallbackText`,\n`result.summary`, `result.text`), or cut a `monitorFeed` surface (`text`, `fallbackText`,\n`monitorDescription`) (ADR 50058-monitor-feed-wire D3), or cut a `systemNotice` surface\n(`text`, `fallbackText`; the committed-surface budget, ADR 42729 D1, tdd SS4.5.23). On a\n`subagent` item the flag is item-level and never cleared: once any of those four is cut,\nevery later update keeps it, even when `result.text` arrives whole (ADR 35691 D9). The\ndurable full text remains in the log (tdd SS4.5.4).",
           "type": "boolean"
         },
         "turnId": {
-          "description": "The owning turn (== the submitting `commandId` for fresh turns, tdd\nSS3.1.4). `null` for the kinds outside a turn: `userShell` always\n(tdd SS4.5.6), `hookRun` for session-boundary runs, `monitorFeed`\nalways (ADR 50058-monitor-feed-wire D1), `sideChat` always (SS4.5.13),\n`damagedRange` always (ADR 60914 D2), `earlierHistory` always (ADR\n71910 D3).",
+          "description": "The owning turn (== the submitting `commandId` for fresh turns, tdd\nSS3.1.4). `null` for the kinds outside a turn: `userShell` always\n(tdd SS4.5.6), `hookRun` for session-boundary runs, `monitorFeed`\nalways (ADR 50058-monitor-feed-wire D1), `sideChat` always (SS4.5.13),\n`damagedRange` always (ADR 60914 D2), `earlierHistory` always (ADR\n71910 D3), `systemNotice` when produced outside a turn (tdd SS4.5.23).",
           "type": ["string", "null"]
         },
         "usage": {
@@ -2754,7 +2977,12 @@
         "scheduledFire",
         "backgroundTerminalCompletion",
         "overdueNotice",
-        "earlierHistory"
+        "earlierHistory",
+        "peerMessage",
+        "subagentInput",
+        "subagentResult",
+        "systemNotice",
+        "bodyCompletion"
       ],
       "type": "string",
       "x-msp-openness": "open"
@@ -2997,10 +3225,26 @@
       "type": "object"
     },
     "MessagePhase": {
-      "description": "`agentMessage.messagePhase` (tdd SS4.5.3, #50254): the phase the model\ndeclared on the commit, never inferred from position. Set on the\ncompleted item only; absent on `item/started`, which opens before the\nphase is recorded. Open: a client reads an absent or unknown value on a\ncompleted item as `\"finalAnswer\"` and still decodes the item. Not a\nturn-done signal; `turn/completed` is.",
+      "description": "`agentMessage.messagePhase` (tdd SS4.5.3, #50254): the phase the model\ndeclared, never inferred from position. Set on every completed item, and\non `item/started` when the host knows the phase (#77396): absent or\nunknown there means not yet known, and the completed value wins. A failed\nitem carries none, and its missing value does not read as `\"finalAnswer\"`.\nOpen: a client reads an absent or unknown value on a completed item as\n`\"finalAnswer\"` and still decodes the item. Not a turn-done signal;\n`turn/completed` is.",
       "enum": ["commentary", "finalAnswer"],
       "type": "string",
       "x-msp-openness": "open"
+    },
+    "ModelCancelParams": {
+      "description": "`model/cancel` params (tdd SS3.40, FR-90352-4): the `commandId` of the\ncall to cancel, not a retry id of its own.",
+      "properties": {
+        "commandId": {
+          "description": "The call to cancel.",
+          "type": "string"
+        }
+      },
+      "required": ["commandId"],
+      "type": "object"
+    },
+    "ModelCancelResult": {
+      "description": "`model/cancel` result (ADR 90352 D6): always empty, for a call in flight\nand for an id no call holds alike; `model/completed` reports the outcome.",
+      "properties": {},
+      "type": "object"
     },
     "ModelCatalogEntry": {
       "description": "One visible catalog row (tdd SS3.10). Catalog rows marked hidden never\nreach the wire, so a client cannot select one.",
@@ -3104,6 +3348,133 @@
       "enum": ["user", "default", "policy"],
       "type": "string",
       "x-msp-openness": "open"
+    },
+    "ModelCompleteMessage": {
+      "description": "One `model/complete` message (tdd SS3.40).",
+      "properties": {
+        "role": {
+          "$ref": "#/$defs/ModelCompleteRole",
+          "description": "Who said it."
+        },
+        "text": {
+          "description": "What was said.",
+          "type": "string"
+        }
+      },
+      "required": ["role", "text"],
+      "type": "object"
+    },
+    "ModelCompleteOutcome": {
+      "description": "How a `model/complete` call settled. **Open**: a server-produced result\nvocabulary, so a word a newer host adds decodes to `Unknown` (tdd SS1.9).",
+      "enum": ["completed", "failed", "cancelled", "timedOut"],
+      "type": "string",
+      "x-msp-openness": "open"
+    },
+    "ModelCompleteParams": {
+      "description": "`model/complete` params (tdd SS3.40, FR-90352-1): the retry id, 1 to 32\nmessages (the first and the last `user`), an optional system text and\nthe output bound. No session and no model: the host picks the model\n(ADR 90352 D3). The host answers an unknown field with `invalidParams`;\nthe type itself accepts it.",
+      "properties": {
+        "commandId": {
+          "description": "The client-minted UUIDv7 retry id (required, SS3.1.1).",
+          "type": "string"
+        },
+        "maxTokens": {
+          "description": "The most tokens the model may write.",
+          "maximum": 1024,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "messages": {
+          "description": "What the model answers, oldest first.",
+          "items": {
+            "$ref": "#/$defs/ModelCompleteMessage"
+          },
+          "maxItems": 32,
+          "type": "array"
+        },
+        "system": {
+          "description": "The system text, when the caller sends one.",
+          "type": "string"
+        }
+      },
+      "required": ["commandId", "maxTokens", "messages"],
+      "type": "object"
+    },
+    "ModelCompleteResult": {
+      "description": "`model/complete` result (tdd SS3.40): admission only — the ack is never\nthe completion.",
+      "properties": {
+        "commandId": {
+          "description": "The request's id, echoed.",
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/$defs/CommandStatus",
+          "description": "Always `accepted` on this path."
+        }
+      },
+      "required": ["commandId", "status"],
+      "type": "object"
+    },
+    "ModelCompleteRole": {
+      "description": "Who said one `model/complete` message. **Closed**: a client-produced\ninput the host validates, so an unknown role is `invalidParams`.",
+      "enum": ["user", "assistant"],
+      "type": "string",
+      "x-msp-openness": "closed"
+    },
+    "ModelCompleteStopReason": {
+      "description": "Why the model stopped on a `completed` call (FR-90352-2). **Open**: a\nserver-produced word, so a word a newer host adds decodes to `Unknown`\n(tdd SS1.9).",
+      "enum": ["end", "maxTokens"],
+      "type": "string",
+      "x-msp-openness": "open"
+    },
+    "ModelCompleteUsage": {
+      "description": "The provider's token counts for one completed call (ADR 90352 D5): real\ncounts only, never an estimate.",
+      "properties": {
+        "inputTokens": {
+          "description": "Input tokens, as the provider counted them.",
+          "type": "integer"
+        },
+        "outputTokens": {
+          "description": "Output tokens, as the provider counted them.",
+          "type": "integer"
+        }
+      },
+      "required": ["inputTokens", "outputTokens"],
+      "type": "object"
+    },
+    "ModelCompletedParams": {
+      "description": "`model/completed` params (tdd SS3.40, FR-90352-2). `text`, `stopReason`, `modelId` and\n`usage` ride `completed` (`usage` only when the provider reported counts);\n`message` rides `failed`; `cancelled` and `timedOut` carry neither. The\nstruct marks the conditional members optional; the SS prose pins the\nper-outcome rule. `text` is untrusted model output.",
+      "properties": {
+        "commandId": {
+          "description": "The request's id — the correlation key.",
+          "type": "string"
+        },
+        "message": {
+          "description": "Why the call failed, in words (on `failed`).",
+          "type": "string"
+        },
+        "modelId": {
+          "description": "The `model/list` id of the model that ran (on `completed`).",
+          "type": "string"
+        },
+        "outcome": {
+          "$ref": "#/$defs/ModelCompleteOutcome",
+          "description": "How the call settled."
+        },
+        "stopReason": {
+          "$ref": "#/$defs/ModelCompleteStopReason",
+          "description": "Why the model stopped (on `completed`)."
+        },
+        "text": {
+          "description": "The model's answer, verbatim (on `completed`).",
+          "type": "string"
+        },
+        "usage": {
+          "$ref": "#/$defs/ModelCompleteUsage",
+          "description": "The provider's counts (on `completed`, when it reported them)."
+        }
+      },
+      "required": ["commandId", "outcome"],
+      "type": "object"
     },
     "ModelCost": {
       "description": "Per-1M-token catalog cost, carried **verbatim** for display and never\nrounded or re-formatted by the host (tdd SS3.10). Cost arithmetic stays\nclient-local view math.",
@@ -3387,6 +3758,105 @@
       "required": ["itemId", "sessionId", "sourceRange", "viewCursor", "voidedAt"],
       "type": "object"
     },
+    "MonitorInboxSnapshotEntry": {
+      "description": "One snapshot `monitorInbox` entry (tdd SS4.9.1, FR-56492-7 as amended by\n#76729): a retained admission in the `monitor/inboxItemAdmitted` shape,\nenvelope-stripped, plus the newest drain and void stamps folded for it.\nThe entry is still awaiting delivery when `drainedAt` is absent, or when\n`voidedAt` is strictly newer than it (FR-56492-3).",
+      "properties": {
+        "body": {
+          "description": "The model-facing delivery text.",
+          "type": "string"
+        },
+        "displayBody": {
+          "description": "The producer-recorded pre-augmentation content; absent on\npre-#24686 records.",
+          "type": "string"
+        },
+        "drainedAt": {
+          "description": "The newest drain stamp (RFC3339); absent while never drained.",
+          "type": "string"
+        },
+        "eventIndex": {
+          "description": "Per-task event order key (with `line_index`).",
+          "type": "integer"
+        },
+        "eventKind": {
+          "description": "Monitor event kind, snake_case, open vocabulary.",
+          "type": "string"
+        },
+        "itemId": {
+          "description": "The inbox item id (dedupe key).",
+          "type": "string"
+        },
+        "lineIndex": {
+          "description": "Line order key; absent when the event has no line.",
+          "type": "integer"
+        },
+        "queuedAt": {
+          "description": "Admission stamp (RFC3339).",
+          "type": "string"
+        },
+        "showLines": {
+          "description": "Whether the event carries displayable lines.",
+          "type": "boolean"
+        },
+        "summary": {
+          "description": "The notice-text summary.",
+          "type": "string"
+        },
+        "taskId": {
+          "description": "The owning monitor task id (per-task set key).",
+          "type": "string"
+        },
+        "voidedAt": {
+          "description": "The newest wake-missed void stamp (RFC3339); absent while never voided.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "body",
+        "eventIndex",
+        "eventKind",
+        "itemId",
+        "queuedAt",
+        "showLines",
+        "summary",
+        "taskId"
+      ],
+      "type": "object"
+    },
+    "NoticeOrigin": {
+      "description": "`systemNotice`: the producing family, so a client routes a notice without\nparsing its text (tdd SS4.5.23). Open. The v1 vocabulary is the Monitor\nnotice and the three system-chrome producers (ADR 42729 D1) plus the\nhook-run producer (ADR 75121 D2), the paused-Workflow checkpoint\nproducer (ADR 39490 D5) and the continued-child tools producer\n(ADR 42729 D5); absent means the server named no\norigin, and a client never infers one.",
+      "enum": [
+        "monitor",
+        "skillsStartup",
+        "scheduledFire",
+        "incompleteGeneration",
+        "hook",
+        "workflowCheckpoint",
+        "continuedChildTools"
+      ],
+      "type": "string",
+      "x-msp-openness": "open"
+    },
+    "NoticeSeverity": {
+      "description": "`systemNotice`: the notice's level (tdd SS4.5.23). Open; an unknown value\nis an unknown-but-present level, rendered generically (SS4.10).",
+      "enum": ["info", "warning", "error"],
+      "type": "string",
+      "x-msp-openness": "open"
+    },
+    "NoticeSubject": {
+      "description": "`systemNotice`: the durable thing the notice is about (tdd SS4.5.23).\n`id` is required whenever the object is present; `label` is the\nproducer's sanitized, already-capped display value, omitted when it is\nempty, never `\"\"`.",
+      "properties": {
+        "id": {
+          "description": "The subject's durable identity: for `monitor`, the monitor's task id\n(its `toolCall` `itemId`); for `hook`, the hook run's item id (the\nopening `HookRunStarted` record's event id, SS4.5.11).",
+          "type": "string"
+        },
+        "label": {
+          "description": "The subject's bounded display label (the `hookRun.label` shape).",
+          "type": "string"
+        }
+      },
+      "required": ["id"],
+      "type": "object"
+    },
     "Notification": {
       "description": "A notification frame, either direction (SS1.2 §2.2). No `id`; a\nnotification is never answered.",
       "properties": {
@@ -3473,6 +3943,29 @@
         }
       },
       "required": ["added", "files", "removed"],
+      "type": "object"
+    },
+    "PeerMessage": {
+      "description": "`peerMessage`: the four facts the consumed card renders (ADR 72708\nD2, tdd SS4.5.24). The fold reads them from the drained inbox\nrecord's delivery snapshot; `senderLabel` already ran the\ngate-off label rule host-side, so the client renders it verbatim.\nStable from day one (the `scheduledFire` precedent): no\n`x-msp-stability` marker.",
+      "properties": {
+        "body": {
+          "description": "The message text verbatim — never cut (an over-budget event\nanswers the typed `pageEventTooLarge` arm).",
+          "type": "string"
+        },
+        "remote": {
+          "description": "True for mailbox/remote senders, false for local session\nsenders.",
+          "type": "boolean"
+        },
+        "senderLabel": {
+          "description": "The peer label gate-off shows: the sender name when the\ndurable record names one, else the sender id shortened as\ngate-off shortens it, else `unknown session` — and `remote\nsession` verbatim for a remote sender.",
+          "type": "string"
+        },
+        "senderSessionId": {
+          "description": "The local sender's session id; absent for remote senders and\nwhen the record names none.",
+          "type": "string"
+        }
+      },
+      "required": ["body", "remote", "senderLabel"],
       "type": "object"
     },
     "PendingApprovalPointer": {
@@ -3916,6 +4409,31 @@
       "type": "string",
       "x-msp-openness": "open"
     },
+    "ProbeDegradedReason": {
+      "description": "Why a workspace status probe produced no fresh reading (#35065 item 2).\n\n**Open**: a new reason is additive evolution, and a client MUST render an\nunknown value as an unknown-but-present reason rather than rejecting the\nrow.",
+      "enum": ["skippedUntrusted", "skippedSandboxUnavailable", "probeFailed"],
+      "type": "string",
+      "x-msp-openness": "open"
+    },
+    "PrunedSubagent": {
+      "description": "One child session pruned below a checkpoint boundary (tdd SS2.5.5,\nADR 71910 D8): the restored row's key, text, and stoppability —\nnever pruned transcript.",
+      "properties": {
+        "label": {
+          "description": "The served display label (the spawn's role, agent path as\nfallback); absent when the spawn records carry neither.",
+          "type": "string"
+        },
+        "sessionId": {
+          "description": "The child session id — the trace key for `session/read` on the\nchild, exactly as for a live child row.",
+          "type": "string"
+        },
+        "status": {
+          "description": "`running`, `completed`, or `failed`; absent reads as `running`.",
+          "type": "string"
+        }
+      },
+      "required": ["sessionId"],
+      "type": "object"
+    },
     "QueuedInput": {
       "description": "One input still queued for delivery to a session (tdd SS2.5.5,\nADR 63254-queued-inputs-on-read D2): the full message body plus its\nlog record sequence, the delivery-order and re-read dedupe key, plus\nthe run-log record id clients join served entries against\nrecord-seeded rows by.",
       "properties": {
@@ -4215,15 +4733,23 @@
       "x-msp-openness": "open"
     },
     "RuntimeWorktree": {
-      "description": "The runtime-owned git worktree a child session runs in, mirrored from the\n`subagent.worktree.*` records on its parent's log (tdd SS2.5.5, ADR\n50042-child-worktree-on-read D2). The three enums are open: clients\ntreat an unknown value as unknown.",
+      "description": "The runtime-owned git worktree a child session runs in, mirrored from the\n`subagent.worktree.*` records on its parent's log (tdd SS2.5.5, ADR\n50042-child-worktree-on-read D2). The four enums are open: clients\ntreat an unknown value as unknown.",
       "properties": {
         "baseCommit": {
           "description": "The commit the worktree was created from.",
           "type": "string"
         },
+        "cleanupDiagnostic": {
+          "description": "The cleanup outcome's recorded diagnostic, verbatim (#70088); absent\nwhen the outcome records none.",
+          "type": "string"
+        },
         "cleanupPolicy": {
           "$ref": "#/$defs/RuntimeWorktreeCleanupPolicy",
           "description": "How the worktree is cleaned up."
+        },
+        "cleanupReason": {
+          "$ref": "#/$defs/RuntimeWorktreeCleanupReason",
+          "description": "Why cleanup kept the worktree or failed, as the cleanup outcome\nrecorded it (#70088); absent when the outcome records no reason."
         },
         "cleanupState": {
           "$ref": "#/$defs/RuntimeWorktreeCleanupState",
@@ -4263,6 +4789,18 @@
       "type": "string",
       "x-msp-openness": "open"
     },
+    "RuntimeWorktreeCleanupReason": {
+      "description": "Why a session's worktree cleanup kept the worktree or failed. The set is\nopen, so newer hosts may send other values.",
+      "enum": [
+        "dirtyWorktree",
+        "headChanged",
+        "pathEscape",
+        "cleanupFailed",
+        "uncertainLeaseState"
+      ],
+      "type": "string",
+      "x-msp-openness": "open"
+    },
     "RuntimeWorktreeCleanupState": {
       "description": "Where a session's worktree cleanup stands. The set is open, so newer\nhosts may send other values.",
       "enum": ["active", "cleaned", "retained", "cleanupFailed"],
@@ -4290,6 +4828,15 @@
     "SchemaInfo": {
       "description": "The `schema` pair in [`InitializeResult`] (SS1.4.1, SS1.5.3). `version`\nis the wire **envelope** schema version — distinct from the session-view\n`schemaVersion`, the raw-log `schema_version`, and the 0.x/1.0 stability\nposture, which is not on the wire at all (INV-006a).",
       "properties": {
+        "compatibilityEpoch": {
+          "description": "The host's declared compatibility epoch (spec 206 amendment #22936\nFR-22936-2, ADR 22936 D2): the count of declared non-additive\nadvances of the stable surface. A client reads a `fingerprint`\nmismatch by comparing this with its own pin: equal, every difference\nis additive; different, a declared non-additive advance lies between.\nAdditive-optional: a host that predates the member omits it, and\nthe reader treats absence as unknown, never a guessed value\n(SS1.5.4).",
+          "type": "integer"
+        },
+        "experimentalFingerprint": {
+          "description": "`sha256:<64 lower hex>` content hash of this server binary's\nexperimental-surface bundle (ADR 97527 D5). Additive-optional: a\nhost that predates the member omits it, and the reader treats\nabsence as unknown — never a guessed value (SS1.5.4).",
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "type": "string"
+        },
         "fingerprint": {
           "description": "`sha256:<64 lower hex>` content hash of this server binary's\nstable-surface bundle (INV-003). A mismatch is a warning condition,\nnot an error (SS1.4.1).",
           "pattern": "^sha256:[0-9a-f]{64}$",
@@ -4322,7 +4869,7 @@
       "description": "The session object every lifecycle method returns or lists (tdd SS2.4).\n\nAdditive-optional evolution applies: clients must ignore unknown fields.",
       "properties": {
         "activeTurnId": {
-          "description": "The `turnId` of the current foreground turn when `status` is\n`running`, and `null` when the session is idle (tdd SS2.4).\n\n**Required-nullable.** Every served `Session` carries the member: `null`\nwhen the session is idle or not loaded, the turn id when it is running.\nAn optional-absent shape would publish it as plain `string` and reject\nevery idle `Session` frame the host sends.",
+          "description": "The `turnId` of the current foreground turn when a turn is in\nflight (parked under `needsInput` included), and `null` otherwise\n(tdd SS2.4, ADR 95605 D1).\n\n**Required-nullable.** Every served `Session` carries the member: `null`\nwhen no turn is in flight or the session is not loaded, the turn id\nwhen one is. An optional-absent shape would publish it as plain\n`string` and reject every idle `Session` frame the host sends.",
           "type": ["string", "null"]
         },
         "approvalMode": {
@@ -4351,6 +4898,10 @@
         "driveHolder": {
           "$ref": "#/$defs/ClientInfo",
           "description": "The handshake `ClientInfo` of the connection that currently holds\nthis session's drive grant (spec 39851 INV-001; spec 42713\nFR-58706-1, ADR 58706 D2), served on `session/read` only, as `name`\nand `version` (the handshake's\ndisplay `title` is never served, the `createdByClient` rule).\n**Additive-optional, loaded-only, live**:\npresent exactly when a live connection holds the grant and its\nhandshake is known; absent on `notLoaded` rows, once the holder's\nconnection drops (its orphaned turn included), and for a holder with\nno handshake stamp. Provenance only\n(INV-005): whether a client may drive is answered by\n`session/resume` / `turn/start` (`sessionInUse`), never by this\nmember (FR-58706-4)."
+        },
+        "externalWait": {
+          "$ref": "#/$defs/ExternalWaitView",
+          "description": "The live host-declared external wait for this session, served on\n`session/read` only.\n**Additive-optional, loaded-only, live**: present exactly while\na declaration is live for the loaded session; absent on\n`notLoaded` rows, once the declaration is cleared, once the next\nuser input clears it, and after a restart or resume, which lose\nit. Presence is the declaration — a client must never infer one\nfrom any other member."
         },
         "firstUserPrompt": {
           "description": "Derived first-user-prompt preview (tdd SS2.14.1, #27598).\n**Additive-optional**, omitted when underivable.",
@@ -4400,12 +4951,16 @@
           "description": "How the served `name` was set (tdd SS2.4/SS2.14.1, #50048; ADR 50048\nD1/D2). **Additive-optional**, **fold-only**: the snapshot fold\n(`session/read`, the resume/start/fork-ack snapshot) derives and\ncarries it from the log; `session/list` rows never carry it. Absent —\nand any value the client does not recognize — reads as unknown,\nnever fabricated."
         },
         "parentSessionId": {
-          "description": "The containing session's id when `kind` is `\"subagent\"` (FR-002,\nINV-002) — the id of the TOP-LEVEL session whose home holds this\nchild, which is **not necessarily the session that spawned it**:\nnative-child homes are physical siblings under the outer session's\n`subagent/` directory, so a subagent spawned by another subagent\nresolves to the outer session, not to its spawner. A client building\na tree from this field gets one level, not a chain.\nFlat rather than nested: there is exactly one fact to\ncarry, unlike `forkedFrom`'s four-field `ForkProvenance`.\n**Additive-optional**; a root carries none.",
+          "description": "The containing session's id when `kind` is `\"subagent\"` (FR-002,\nINV-002) — the id of the TOP-LEVEL session whose home holds this\nchild, which is **not necessarily the session that spawned it**:\nnative-child homes are physical siblings under the outer session's\n`subagent/` directory, so a subagent spawned by another subagent\nresolves to the outer session, not to its spawner. A client building\na tree from this field gets one level, not a chain.\nFlat rather than nested: there is exactly one fact to\ncarry, unlike `forkedFrom`'s structured `ForkProvenance`.\n**Additive-optional**; a root carries none.",
           "type": "string"
         },
         "path": {
           "description": "Absolute path of the session's durable log; non-nullable. Under the\nephemeral session profile it is the **empty string**, meaning \"no\ndurable log exists\" (tdd SS2.13.2) — the one value a client must not\nhand to a filesystem call.",
           "type": "string"
+        },
+        "probeDegradedReason": {
+          "$ref": "#/$defs/ProbeDegradedReason",
+          "description": "Why the workspace status probe produced no fresh reading (#35065\nitem 2) — the index's last derived value, like `branch`, so the TUI\ncan show WHY status is unavailable instead of a generic unavailable.\n**Additive-optional**, omitted when the latest probed observation\ncarries no reason or none exists. **Open enum**: a client treats an\nunknown-but-present reason and renders it, never rejecting the row."
         },
         "providerId": {
           "description": "The winning metadata fold's provider; `null` when that record omits it.",
@@ -4432,7 +4987,7 @@
         },
         "spawnedBy": {
           "$ref": "#/$defs/SessionSpawnedBy",
-          "description": "The session that opened this one (spec 42713 FR-69621-6, ADR 69621\nD4), recorded once in this session's creation record and served from\nthe session index. Its `parentSessionId` is the exact spawner, unlike\nthe containing session `parentSessionId` names above; `project` and\n`thread` are opaque labels the spawner may name beside it.\n**Additive-optional** and **provenance only** (INV-005): never a\nvisibility or authority gate. Absence asserts nothing — no recorded\nspawner, a later session of the spawned process, a row folded before\nthe member existed, or a session the index has not folded yet."
+          "description": "The session that opened this one (spec 42713 FR-69621-6, ADR 69621\nD4), recorded once in this session's creation record and served from\nthe session index. Unlike the containing session `parentSessionId`\nnames above, its `parentSessionId` is the exact spawner, except that\nany `muse` started in a later pane of the worker's tmux session or\nHerdr workspace names the worker's manager and carries the worker's\n`project`/`thread` labels (ADR 69621 D8); `project` and `thread` are\nopaque labels the spawner may name beside it.\n**Additive-optional** and **provenance only** (INV-005): never a\nvisibility or authority gate. Absence asserts nothing — no recorded\nspawner, a later session of the spawned process, a row folded before\nthe member existed, or a session the index has not folded yet."
         },
         "status": {
           "$ref": "#/$defs/SessionStatus",
@@ -4544,6 +5099,28 @@
       "required": ["branch", "sessionId", "sourceRange", "viewCursor", "workspaceRoot"],
       "type": "object"
     },
+    "SessionClearExternalWaitParams": {
+      "description": "`session/clearExternalWait` params.",
+      "properties": {
+        "sessionId": {
+          "description": "The loaded session the declaration is cleared for.",
+          "type": "string"
+        }
+      },
+      "required": ["sessionId"],
+      "type": "object"
+    },
+    "SessionClearExternalWaitResult": {
+      "description": "`session/clearExternalWait` result: no declaration is live.",
+      "properties": {
+        "declared": {
+          "description": "Always `false` on a successful clear: no declaration is live.",
+          "type": "boolean"
+        }
+      },
+      "required": ["declared"],
+      "type": "object"
+    },
     "SessionClosedParams": {
       "description": "`session/closed` params (tdd SS2.6.2; enrolled by #33065): a loaded\nsession was unloaded from this host, broadcast to every initialized\nconnection. After it, the session is `notLoaded`; the log remains on disk\nand `session/resume` reloads it. A crash emits nothing — only the\norderly unload paths do (idle unload, host shutdown and a released\n`session/leave`), and each writes the durable `SessionEnd` record first.",
       "properties": {
@@ -4610,6 +5187,10 @@
     "SessionConfig": {
       "description": "The open configuration extension object shared by `session/start` and\n`session/resume` (ADR 32760 D1).\n\nUnknown keys are ignored on the wire, never rejected: the live decoder\ntolerates them, and no exported bundle carries `additionalProperties:\nfalse`. The Rust typed model's `deny_unknown_fields` is internal and never\nexported — the closedness export applies nowhere, and the `x-msp-closed`\nopt-in mechanism stays inert. Recognized `mcpServers` values are typed and\nvalidated before they leave the wire boundary.",
       "properties": {
+        "developerPrompt": {
+          "description": "Developer instructions for this session only (ADR 32029 D38, stable\nfrom switch piece F2), on `session/start` and `session/resume`. The\ntext is trimmed. A nonblank value replaces the settings-derived\ndeveloper instructions; an omitted member is no override and keeps\nthe full developer context. Explicit `null` and blank text are the\nexplicit clear (the Rust value is an empty string): no override, and\non a host that serves developer instructions they also turn off the\nsession's suppressible developer context (the agent catalog and the\nmemory snapshot). Any other type fails the decode. A host that does\nnot serve developer instructions ignores a valid member.",
+          "type": ["string", "null"]
+        },
         "mcpServers": {
           "additionalProperties": {
             "$ref": "#/$defs/SessionMcpServerConfig"
@@ -4649,6 +5230,36 @@
         }
       },
       "required": ["pressure", "sessionId", "sourceRange", "usedTokens", "viewCursor"],
+      "type": "object"
+    },
+    "SessionDeclareExternalWaitParams": {
+      "description": "`session/declareExternalWait` params.",
+      "properties": {
+        "reason": {
+          "description": "The host's label for what the session waits on, shown in the\nsession view while the declaration is live. Omitted when the\nhost has no label to show.",
+          "type": "string"
+        },
+        "sessionId": {
+          "description": "The loaded session the declaration is for.",
+          "type": "string"
+        }
+      },
+      "required": ["sessionId"],
+      "type": "object"
+    },
+    "SessionDeclareExternalWaitResult": {
+      "description": "`session/declareExternalWait` result: the declaration is live.",
+      "properties": {
+        "declared": {
+          "description": "Always `true` on a successful declare: a declaration is live.",
+          "type": "boolean"
+        },
+        "reason": {
+          "description": "The live declaration's reason, as declared (truncated by the\nhost runtime). Omitted when the host declared without one.",
+          "type": "string"
+        }
+      },
+      "required": ["declared"],
       "type": "object"
     },
     "SessionDurability": {
@@ -4930,7 +5541,7 @@
       "type": "object"
     },
     "SessionListResult": {
-      "description": "`session/list` result (tdd SS2.5.4). Ordering is `updatedAt` descending.",
+      "description": "`session/list` result (tdd SS2.5.4). The default order is content\nactivity: `lastActivityAt` descending, then `sessionId` ascending. The\norder is the session index's key, so a row's displayed timestamps do not\nalways show its position: a row the index has not yet derived keeps its\n`updatedAt` position, a derived row with no content orders by\n`createdAt`, and a loaded row can show newer values. Do not re-sort or\nvalidate a page from them. `updatedAfter` still filters on `updatedAt`.",
       "properties": {
         "appliedFilter": {
           "$ref": "#/$defs/SessionListFilter",
@@ -5211,6 +5822,13 @@
           "$ref": "#/$defs/BlockedPrompt",
           "description": "Same member as `session/resume` (tdd SS2.5.5, ADR 50074 D2)."
         },
+        "deliveredInputs": {
+          "description": "The inputs the read session's log delivered to its subagents\n(tdd SS2.5.5, ADR 72596-delivered-inputs-on-read D2).\nAbsent-when-empty: a missing member means nothing delivered,\nnever an error.",
+          "items": {
+            "$ref": "#/$defs/DeliveredInput"
+          },
+          "type": "array"
+        },
         "history": {
           "$ref": "#/$defs/SessionHistory",
           "description": "The served history."
@@ -5219,10 +5837,21 @@
           "$ref": "#/$defs/LastTurn",
           "description": "Same member as `session/resume` (tdd SS2.5.5, ADR 36635 D2)."
         },
+        "modelTurnRunning": {
+          "description": "Whether a native child read session's model turn runs (tdd SS2.5.5,\nADR 89202 D1): served on a read of a `subagent` session whose\ncontaining session this host holds loaded, from that session's\nruntime at serve time. Absent for every other read and when the\nruntime cannot answer; absence asserts nothing.",
+          "type": "boolean"
+        },
         "pendingRequests": {
           "description": "The same pointer shape as `session/resume`. Because `session/read`\nnever subscribes this is a point-in-time log read only: no requests\nare re-issued after it (tdd SS2.5.5).",
           "items": {
             "$ref": "#/$defs/PendingRequestPointer"
+          },
+          "type": "array"
+        },
+        "prunedSubagents": {
+          "description": "One short record per child session the checkpoint boundary pruned\n(tdd SS2.5.5, ADR 71910 D8). Absent-when-empty: a missing member\nmeans the view is uncompacted or nothing pruned, never an error.",
+          "items": {
+            "$ref": "#/$defs/PrunedSubagent"
           },
           "type": "array"
         },
@@ -5342,7 +5971,7 @@
           "description": "History mode preference, default `auto`. A PREFERENCE, not a budget\noverride: when the requested mode does not fit the history budget the\nserver downgrades it and `history.mode` reports what was actually\nserved (tdd SS2.5.2). Ignored when `cursor` or `excludeItems` makes it\nmoot."
         },
         "modelId": {
-          "description": "The explicit MSP model override (T-51858-304; INV-51858-11 rank 1):\na model string the caller supplies at resume time. When present it\nwins over the retained binding's recorded origin — over a stamped\nlabel and over a stamped pin — and it recovers an\notherwise-unresolved label binding by sending the override as the\nwire model instead of the unresolved refusal. Omitted preserves\narm (2): the retained binding resolves by recorded origin exactly\nas without this member. Explicit `null` is invalid params (the\nsame closed null-tolerant set as at start). The override changes\nthe model within the retained provider; it never names a\nprovider, and it never touches the retained profile.",
+          "description": "The explicit MSP model override (T-51858-304; INV-51858-11 rank 1):\na model string the caller supplies at resume time. When present it\nwins over the retained binding's recorded origin — over a stamped\nlabel and over a stamped pin — and it recovers an\notherwise-unresolved label binding by sending the override as the\nwire model instead of the unresolved refusal. Omitted preserves\narm (2): the retained binding resolves by recorded origin exactly\nas without this member. Explicit `null` is invalid params (the\nsame closed null-tolerant set as at start). The override changes\nthe model within the retained provider; it never names a provider.\nA resume that loads the session records it as a resume `--model`\nrecords (ADR 24046 D7): nothing when it already is the session's\nmodel, else one durable selection with the provider's profile for\nthat model. A resume that attaches to a loaded session switches\nthe model live. A model the host refuses, a blank one included,\nleaves the session on its recorded model, which `session.modelId`\nreports; a connection that opted into `experimentalApi` also gets\nthe reason in `modelIdRefusal`.",
           "type": "string"
         },
         "permissionProfile": {
@@ -5380,6 +6009,13 @@
           "description": "The late-joiner pointer set; empty when nothing is pending.",
           "items": {
             "$ref": "#/$defs/PendingRequestPointer"
+          },
+          "type": "array"
+        },
+        "prunedSubagents": {
+          "description": "One short record per child session the checkpoint boundary pruned\n(tdd SS2.5.2, ADR 71910 D8). **Additive-optional**, like\n`queuedInputs` on the read: absent-when-empty, never stripped.",
+          "items": {
+            "$ref": "#/$defs/PrunedSubagent"
           },
           "type": "array"
         },
@@ -5525,7 +6161,7 @@
       "properties": {
         "history": {
           "$ref": "#/$defs/SessionHistory",
-          "description": "The served history (inline; SS2.5.7's empty-items half is #49416 —\ninherited turns surface until the boundary-aware fold lands)."
+          "description": "The served history: inline, with empty items, since the side opens\nempty (SS2.5.7)."
         },
         "pendingRequests": {
           "description": "The late-joiner pointer set.",
@@ -5550,7 +6186,7 @@
       "description": "Who opened a session (`Session.spawnedBy`, spec 42713 FR-69621-6, ADR\n69621 D4).",
       "properties": {
         "parentSessionId": {
-          "description": "The exact session that opened this one (ADR 69621 D2).",
+          "description": "The exact session that opened this one (ADR 69621 D2), except that any\n`muse` started in a later pane of the worker's tmux session or Herdr\nworkspace names the worker's manager and carries the worker's\n`project`/`thread` labels (ADR 69621 D8).",
           "type": "string"
         },
         "project": {
@@ -5578,6 +6214,10 @@
             }
           ],
           "description": "The session's starting approval mode; server default when omitted or\nexplicit `null` — both spellings select the default (#23468).\nSelect, never create — the value names a mode the host's configuration\nalready defines (tdd SS2.5.1, SS5.12). This is the only surface that\ndeclares a non-interactive run's policy (tdd SS5.11, D-008)."
+        },
+        "clear": {
+          "description": "Marks this start as a `/clear` (spec 207 amendment 93195, FR-93195-1,\nADR 93195 D1): `true` starts the new session as a clear, so its\n`SessionStart` hooks get source `clear` instead of `startup`. `false`\nand omitted are the same plain start (source `startup`). It neither\nneeds nor implies `previousSessionId`. Explicit `null` is invalid params.",
+          "type": "boolean"
         },
         "commandId": {
           "description": "The SS2.5 idempotency handle (UUIDv7). Required; the server never\nmints one.",
@@ -5663,7 +6303,7 @@
       "x-msp-openness": "open"
     },
     "SessionStatusChangedParams": {
-      "description": "`session/statusChanged` params (tdd SS4.6.10, ADR 31983 D2): a loaded\nsession's projected `(status, attention)` value flipped. A command-plane\nbroadcast — delivered to every connection regardless of its view\nsubscription set, never gated, no `sourceRange`; the same facts live on\nthe Session object, which is how a client seeds its table (no initial\nburst on connect).",
+      "description": "`session/statusChanged` params (tdd SS4.6.10, ADR 31983 D2): a loaded\nsession's projected `(status, attention, needsInputReasons)` value flipped. A command-plane\nbroadcast — delivered to every connection regardless of its view\nsubscription set, never gated, no `sourceRange`; the same facts live on\nthe Session object, which is how a client seeds its table (no initial\nburst on connect).",
       "properties": {
         "attention": {
           "description": "Attention flags after the transition; present only when at least one\nflag is set (tdd SS2.4, ADR 31983 D3).",
@@ -5678,7 +6318,7 @@
         },
         "status": {
           "$ref": "#/$defs/SessionStatus",
-          "description": "Load state after the transition (the closed SS2.4 enum, unchanged)."
+          "description": "Load state after the transition (the open SS2.4 enum, including\n`needsInput` since ADR 95605 D1/D4)."
         },
         "viewCursor": {
           "description": "The causing record's view cursor (ADR 31983 D4). Required-nullable:\n`null` exactly when the paired `session/closed`'s cursor is `null`\n(the unload fold-failure arm); a definite cursor everywhere else.",
@@ -5818,21 +6458,21 @@
       "type": "object"
     },
     "SessionViewHealth": {
-      "description": "The view-health state (tdd SS2.5.2 companion). Open enum (`x-msp-openness:\nopen`): a client MUST ignore an unrecognized value. v1 emits only\n`Unavailable`; openness itself reserves additive room for a future re-arm\n(ADR 32557 D1 names it `healthy`) and for the #14401 durable-degraded axis,\nso no never-emitted token is baked onto the stable surface now.",
-      "enum": ["unavailable"],
+      "description": "The view-health state (tdd SS2.5.2 companion). Open enum (`x-msp-openness:\nopen`): a client MUST ignore an unrecognized value. `Healthy` is the\nre-arm value reserved by ADR 32557 D1, emitted after a host re-load\n(ADR 32557 D5, #60870);\nopenness still reserves additive room for the #14401 durable-degraded axis.",
+      "enum": ["unavailable", "healthy"],
       "type": "string",
       "x-msp-openness": "open"
     },
     "SessionViewHealthChangedParams": {
-      "description": "`session/viewHealthChanged` params (ADR 32557; #32557): the named\nsession's live view stream became unavailable, and why.\n\nBest-effort: ordered after already-queued view frames and may be dropped\n(for example when the connection is closing), so a client MUST NOT assume a\nguaranteed push and still reads `history.noneReason` on its next\nresume/read (FM-005).",
+      "description": "`session/viewHealthChanged` params (ADR 32557; #32557): the named\nsession's live view stream became unavailable, and why, or (ADR 32557 D5)\nit is back after the host re-loaded the view, so the client re-reads and\nre-subscribes.\n\nBest-effort: ordered after already-queued view frames and may be dropped\n(for example when the connection is closing), so a client MUST NOT assume a\nguaranteed push and still reads `history.noneReason` on its next\nresume/read (FM-005).",
       "properties": {
         "health": {
           "$ref": "#/$defs/SessionViewHealth",
-          "description": "The new view-health state. In v1 the host emits only `Unavailable`."
+          "description": "The new view-health state: `Unavailable`, or `Healthy` once the host\nre-loaded a failed view (#60870)."
         },
         "noneReason": {
           "$ref": "#/$defs/HistoryNoneReason",
-          "description": "Why the view is unavailable — the SAME typed `HistoryNoneReason`\nvocabulary the pull path stamps on `history.noneReason` (tdd SS2.5.2,\nD-050), so a client reuses one handler for push and pull.\n`projectionUnavailable` in v1; present only when `health` is\n`Unavailable`. Open on the client side: an unknown reason decodes\nconservatively and renders generically."
+          "description": "Why the view is unavailable — the SAME typed `HistoryNoneReason`\nvocabulary the pull path stamps on `history.noneReason` (tdd SS2.5.2,\nD-050), so a client reuses one handler for push and pull.\n`projectionUnavailable` when the view fails, then\n`projectionRebuildFailed`, which the pull path never stamps: it rides\nonly a `session/viewHealthChanged` notification, after the host's one\nre-load of a failed live view fails or right after a fork child's live\nfail-close; present only when `health` is\n`Unavailable`. Open on the client side: an unknown reason decodes\nconservatively and renders generically."
         },
         "sessionId": {
           "description": "The session whose live view health changed.",
@@ -6245,6 +6885,13 @@
           },
           "type": "array"
         },
+        "monitorInbox": {
+          "description": "The retained Monitor admissions at this cursor (tdd SS4.9.1,\nFR-56492-7 as amended by #76729): every admission still awaiting\ndelivery, plus per task the newest 200 non-blank stdout lines and the\nnewest other admission, delivered or not, each with its drain and void\nstamps; a pending cut of the history ladder (tdd SS2.5.2, ADR 56492 D4)\ncarries only the entries still awaiting delivery. A current host always\nsends it (empty when no monitor admitted anything); absent means an\nolder host.",
+          "items": {
+            "$ref": "#/$defs/MonitorInboxSnapshotEntry"
+          },
+          "type": "array"
+        },
         "name": {
           "description": "The settled canonical session name; `null` when the session was never\nnamed (#27598, tdd SS4.9.1 / SS2.14). Folds the same durable\n`session/nameChanged` record `Session.name` reports.",
           "type": ["string", "null"]
@@ -6507,6 +7154,37 @@
       "required": ["body", "commandId", "sessionId", "subagentId"],
       "type": "object"
     },
+    "SubagentInputPhase": {
+      "description": "`subagentInput.inputPhase` (#70249): the record the item stands for.\nOpen: a client ignores an item whose phase it does not know.",
+      "enum": ["queued", "delivered"],
+      "type": "string",
+      "x-msp-openness": "open"
+    },
+    "SubagentListParams": {
+      "description": "`subagent/list` params: the session whose subagent roster to read. A\nread-only query in the `skill/list` mold: no `commandId`, no durable\nrecord, no view event. Served by the loaded parent's runtime control\nrecords, so its refusals (`-32020`/`-32021`/`-32022`/`-32024`, plus a retryable\n`-32603` when the runtime source declines) are the `task/list` split.",
+      "properties": {
+        "sessionId": {
+          "description": "The target session (the parent whose children to list).",
+          "type": "string"
+        }
+      },
+      "required": ["sessionId"],
+      "type": "object"
+    },
+    "SubagentListResult": {
+      "description": "`subagent/list` result: the session's roster rows. Empty only when the\nparent's control records name no durable child; a declined source\nrefuses typed instead of answering empty.",
+      "properties": {
+        "subagents": {
+          "description": "The session's roster rows, ordered by `(agentPath, subagentId)`.",
+          "items": {
+            "$ref": "#/$defs/SubagentRosterEntry"
+          },
+          "type": "array"
+        }
+      },
+      "required": ["subagents"],
+      "type": "object"
+    },
     "SubagentOwnerReasonParams": {
       "description": "Params for `subagent/interrupt`, `subagent/stop`, and `subagent/close`\n(SS3.16): a child target plus an optional human-readable reason that is\npreserved on the durable effect record.",
       "properties": {
@@ -6541,7 +7219,7 @@
           "type": "array"
         },
         "drained": {
-          "description": "`true` once the parent consumed the result (the inbox join fact the\ngate-off drain arm folds into the `Finished` marker — tdd SS4.5.7).\nAbsent otherwise; never cleared once set. Clients mint the\n`Finished` marker off this flag instead of re-deriving the join.",
+          "description": "`true` once the parent consumed the result (the inbox join fact the\ngate-off drain arm folds into the `Finished` marker — tdd SS4.5.7).\nAbsent otherwise; never cleared once set. Clients mint the\n`Finished` marker off this flag instead of re-deriving the join; a\nclient that knows `subagentResult` (tdd SS4.5.26) draws one\n`Finished` member per consumed result instead, and keeps drawing from\nthis flag for a child with no such item, as on a host before the kind\n(#88809).",
           "type": "boolean"
         },
         "errorKind": {
@@ -6564,12 +7242,89 @@
           "description": "Result summary, bounded on the wire at the 64 KiB retained-text budget\n(tdd SS4.5.4 and SS4.5.7, ADR 35691 D9); a cut sets the item's\n`truncated`. The durable record stays verbatim.",
           "type": "string"
         },
+        "superseded": {
+          "description": "`true` once a newer attempt of the child started after this result\n(ADR 92325 D1): the result stays, and a client takes the child's\nstatus from `controlStatus`. Absent, it asserts nothing (a host\nbefore this member, or a fold state saved before it, never sets it);\na newer result replaces the whole result, so it carries no mark.",
+          "type": "boolean"
+        },
         "text": {
           "description": "Result text, when present, bounded on the wire at the same 64 KiB\nbudget (ADR 35691 D9); a cut sets the item's `truncated`.",
           "type": "string"
         }
       },
       "required": ["artifactRefs", "evidenceRefs", "summary"],
+      "type": "object"
+    },
+    "SubagentResultStatus": {
+      "description": "`subagentResult.resultStatus` (#88809): the consumed attempt's outcome.\nAbsent when the host had not seen that attempt's result envelope at the\ndrain; a client then shows the child's current outcome (ADR 88809 D2).\nOpen: a client treats a value it does not know as an absent member.",
+      "enum": ["completed", "failed", "cancelled"],
+      "type": "string",
+      "x-msp-openness": "open"
+    },
+    "SubagentRosterEntry": {
+      "description": "One roster row: a durable child's identity, place, and state, projected\nfrom its control records. Rows carry no result content — the transcript\nstays on the child session / `subagent/readResult`.",
+      "properties": {
+        "agentPath": {
+          "description": "The agent definition path (`agent_path`), verbatim from the spawn.",
+          "type": "string"
+        },
+        "childSessionId": {
+          "description": "The child's own session id, readable via `session/read`/`view/page`.\n**Additive-optional**: absent until the child's start is attested.",
+          "type": "string"
+        },
+        "controlStatus": {
+          "$ref": "#/$defs/SubagentControlStatus",
+          "description": "The child's control status: `Accepted` at spawn, then the latest\n`StatusUpdated` / `Closed` / `ResultReady` / `RecoveryAvailable` /\n`RecoveryDecision` (`Accepted | Starting | Running | ResultReady |\nClosing | Closed | RecoveryPending | ManualReconciliation`)."
+        },
+        "definitionName": {
+          "description": "The granted definition's name (`definition_grant_audit`\n`definition_name`). **Additive-optional**: absent on spawns without\na grant audit (historical records). The resolved definition id is\nnot persisted on the spawn record, so the name is what the roster\ncan truthfully carry.",
+          "type": "string"
+        },
+        "depth": {
+          "description": "The spawn depth (1 = a root-session child).",
+          "type": "integer"
+        },
+        "durationMs": {
+          "description": "The child's observed wall-clock duration in ms, when the runtime\nobserved one. **Additive-optional**: absent until first observation.",
+          "type": "integer"
+        },
+        "name": {
+          "description": "The child's display name: the spawn `description`, falling back to\nthe spawn `role`. **Additive-optional**: absent when neither carries\none; never parsed from `agentPath`.",
+          "type": "string"
+        },
+        "objective": {
+          "description": "The spawn objective. **Additive-optional**: absent when the spawn\ncarried none.",
+          "type": "string"
+        },
+        "parentPath": {
+          "description": "The parent row's `agentPath`. **Additive-optional**: absent whenever\n`parentSubagentId` is.",
+          "type": "string"
+        },
+        "parentSubagentId": {
+          "description": "The parent's `subagentId`: the roster row whose child session issued\nthis child's spawn. **Additive-optional**: absent when the parent is\nthe root session, or when the parent row is not in the roster or not\nyet attested — never guessed, never derived from `agentPath`.",
+          "type": "string"
+        },
+        "resultReady": {
+          "description": "Whether the child's latest attempt's result is ready (a\n`ResultReady` for the latest admitted attempt seen).",
+          "type": "boolean"
+        },
+        "role": {
+          "description": "The spawn role. **Additive-optional**: absent when the spawn\ncarried none.",
+          "type": "string"
+        },
+        "subagentId": {
+          "description": "The durable child identity (`subagent_id`). Rows without one are not\nroster rows: a rejected spawn names no child.",
+          "type": "string"
+        },
+        "terminalReason": {
+          "description": "The terminal reason: the result envelope's `errorKind` when present,\nelse the cancel outcome's `reason`. **Additive-optional**: absent on\nlive rows and on terminals that carry no reason — never fabricated\nfrom the close outcome's status word.",
+          "type": "string"
+        },
+        "workflowRunId": {
+          "description": "The owning dynamic workflow run id, when the child was\nworkflow-admitted. **Additive-optional**: absent for native spawns.",
+          "type": "string"
+        }
+      },
+      "required": ["agentPath", "controlStatus", "depth", "resultReady", "subagentId"],
       "type": "object"
     },
     "SubagentTargetParams": {
@@ -7155,7 +7910,9 @@
         "modelError",
         "launchError",
         "authRequired",
-        "mcpLinkError"
+        "mcpLinkError",
+        "reasoningReplayRefused",
+        "contextOverflow"
       ],
       "type": "string",
       "x-msp-openness": "open"
@@ -7287,6 +8044,29 @@
         }
       },
       "required": ["commandId", "status", "turnId"],
+      "type": "object"
+    },
+    "TurnModelAttemptStartedParams": {
+      "description": "`turn/modelAttemptStarted` params (tdd SS4.5.1; ADR\n`68644-model-attempt-started` D1): a turn's model provider task recorded\nits opening status — one model attempt is starting (before the provider\ndials), retries and later model steps included. Clients raise their\nthinking state here, the point a switch-off TUI flips on model-task\nactivity. Non-terminal: it never resolves a turn-wait. `sourceRange`\ncites the session stream's mirror of the task-lifecycle record (tdd\nSS4.2).",
+      "properties": {
+        "sessionId": {
+          "description": "The owning session.",
+          "type": "string"
+        },
+        "sourceRange": {
+          "$ref": "#/$defs/SourceRange",
+          "description": "The durable record this event folded from (the session stream's\nmirror of the model task's opening status; `first == last`)."
+        },
+        "turnId": {
+          "description": "The running turn whose model attempt is starting.",
+          "type": "string"
+        },
+        "viewCursor": {
+          "description": "Opaque, strictly monotonic view cursor (tdd SS4.1).",
+          "type": "string"
+        }
+      },
+      "required": ["sessionId", "sourceRange", "turnId", "viewCursor"],
       "type": "object"
     },
     "TurnModelRetryScheduledParams": {
@@ -8600,9 +9380,14 @@
       {
         "name": "rawLog",
         "reference": "#13929"
+      },
+      {
+        "name": "mxp",
+        "reference": "#38644"
       }
     ]
   },
+  "compatibilityEpoch": 0,
   "description": "Muse Session Protocol (MSP) v1 wire schema bundle, rendered from the tbh-protocol schema model (spec 206). Generated; do not edit.",
   "errors": [
     {
@@ -8792,6 +9577,16 @@
       "code": -32057,
       "kind": "userInputAnswerInvalid",
       "retryable": false
+    },
+    {
+      "code": -32058,
+      "kind": "approvalBrokerUnavailable",
+      "retryable": true
+    },
+    {
+      "code": -32059,
+      "kind": "approvalResolving",
+      "retryable": false
     }
   ],
   "methods": {
@@ -8945,6 +9740,24 @@
         "$ref": "#/$defs/MediaUploadResult"
       }
     },
+    "model/cancel": {
+      "description": "Cancels the sending connection's `model/complete` call, which settles `cancelled`; any other id answers `{}` and changes nothing (ADR 90352 D4/D6, tdd SS3.40).",
+      "params": {
+        "$ref": "#/$defs/ModelCancelParams"
+      },
+      "result": {
+        "$ref": "#/$defs/ModelCancelResult"
+      }
+    },
+    "model/complete": {
+      "description": "Runs one model completion with no session on the host's model; acks `accepted` and settles exactly once on `model/completed` — 4 in flight per connection, host-enforced 45s timeout (ADR 90352 D1-D4, tdd SS3.40).",
+      "params": {
+        "$ref": "#/$defs/ModelCompleteParams"
+      },
+      "result": {
+        "$ref": "#/$defs/ModelCompleteResult"
+      }
+    },
     "model/list": {
       "description": "Reads the catalog of models the host will accept in `session/setModel`; a query, not a command (SS3.10).",
       "params": {
@@ -9017,6 +9830,15 @@
         "$ref": "#/$defs/RecapRequestResult"
       }
     },
+    "session/clearExternalWait": {
+      "description": "Clears a live host-declared external wait: no declaration is live afterwards, and the end-of-turn reminder boundary returns to today's behaviour at once. Clearing a session with no declaration is a no-op that still answers `declared: false`.",
+      "params": {
+        "$ref": "#/$defs/SessionClearExternalWaitParams"
+      },
+      "result": {
+        "$ref": "#/$defs/SessionClearExternalWaitResult"
+      }
+    },
     "session/compact": {
       "description": "Compacts the session's conversation context; runs asynchronously, so the ack is admission only (SS3.7).",
       "params": {
@@ -9024,6 +9846,15 @@
       },
       "result": {
         "$ref": "#/$defs/SessionCompactResult"
+      }
+    },
+    "session/declareExternalWait": {
+      "description": "Declares that a loaded session is waiting on an external event: the end-of-turn reminder boundary parks a blocking reminder instead of re-verifying until the next input arrives (ADR 66573 amendment). Live-only: a serve restart, unload, or resume loses the declaration; the next user input or an explicit clear ends it.",
+      "params": {
+        "$ref": "#/$defs/SessionDeclareExternalWaitParams"
+      },
+      "result": {
+        "$ref": "#/$defs/SessionDeclareExternalWaitResult"
       }
     },
     "session/fork": {
@@ -9186,6 +10017,15 @@
       },
       "result": {
         "$ref": "#/$defs/CommandAcceptedResult"
+      }
+    },
+    "subagent/list": {
+      "description": "Lists the session's subagent roster: one row per durable child, running and finished, projected from the loaded parent's runtime subagent control records (kt-o155).",
+      "params": {
+        "$ref": "#/$defs/SubagentListParams"
+      },
+      "result": {
+        "$ref": "#/$defs/SubagentListResult"
       }
     },
     "subagent/readResult": {
@@ -9478,6 +10318,12 @@
         "$ref": "#/$defs/ItemUpdatedParams"
       }
     },
+    "model/completed": {
+      "description": "A model/complete call settled exactly once: `completed`, `failed`, `cancelled` or `timedOut`, to the requesting connection only (ADR 90352 D2, tdd SS3.40).",
+      "params": {
+        "$ref": "#/$defs/ModelCompletedParams"
+      }
+    },
     "monitor/inboxItemAdmitted": {
       "description": "One monitor inbox admission: the fold keys gate-off consumes (SS4.5.18).",
       "params": {
@@ -9626,6 +10472,12 @@
       "description": "The turn's foreground work is done while named background reminder checks hold the turn open; explicitly non-terminal (SS4.5.12).",
       "params": {
         "$ref": "#/$defs/TurnForegroundCompletedParams"
+      }
+    },
+    "turn/modelAttemptStarted": {
+      "description": "A turn's model attempt is starting: its model provider task recorded its opening status; observable mid-turn, non-terminal (SS4.5.1; ADR 68644-model-attempt-started D1).",
+      "params": {
+        "$ref": "#/$defs/TurnModelAttemptStartedParams"
       }
     },
     "turn/modelRetryScheduled": {

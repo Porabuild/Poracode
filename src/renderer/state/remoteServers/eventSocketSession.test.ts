@@ -154,7 +154,11 @@ vi.mock("./connectionRefresh", () => ({
   markRemoteServerRowResyncPending: vi.fn<() => void>(),
 }));
 
-vi.mock("./gitState", () => ({ syncRemoteGitStatePatch: vi.fn<() => void>() }));
+const gitStateMocks = vi.hoisted(() => ({
+  clearRemoteGitState: vi.fn<() => void>(),
+  syncRemoteGitStatePatch: vi.fn<() => void>(),
+}));
+vi.mock("./gitState", () => gitStateMocks);
 vi.mock("./gitSummaries", () => ({ syncRemoteGitSummaries: vi.fn<() => void>() }));
 
 // Real reconnect backoff starts at 1 s; collapse it so reconnect-driven tests
@@ -437,6 +441,8 @@ beforeEach(() => {
   FakeSocket.instances.length = 0;
   remoteState.dispatchRemoteSupervisorEvent.mockClear();
   remoteState.resetRemoteThreadProjection.mockClear();
+  gitStateMocks.clearRemoteGitState.mockClear();
+  gitStateMocks.syncRemoteGitStatePatch.mockClear();
   clearLiveObservedCrossagentItems();
   remoteState.applyThreadSnapshot.mockClear();
   remoteState.applyThreadSnapshot.mockImplementation(() => ({
@@ -613,7 +619,7 @@ describe("remote event socket session (V5 2.1)", () => {
   });
 
   it("accepts a server resync-required restart without a false gap", async () => {
-    const { deps, dispatch } = makeHarness();
+    const { deps, dispatch, store } = makeHarness();
     await startRemoteServerEventStream(deps);
     const socket = FakeSocket.instances[0]!;
 
@@ -630,6 +636,10 @@ describe("remote event socket session (V5 2.1)", () => {
     expect(remoteState.resetRemoteThreadProjection).toHaveBeenCalledWith(`${DESKTOP_ID}:t1`);
     // Frames queued from the previous host instance never replay on the new baseline.
     expect(remoteState.discardQueuedRuntimeEvents).toHaveBeenCalledWith(`${DESKTOP_ID}:t1`);
+    expect(gitStateMocks.clearRemoteGitState).toHaveBeenCalledWith(DESKTOP_ID);
+    expect(store.scheduleServerRefresh).toHaveBeenCalledWith(DESKTOP_ID, {
+      includeAgentStatuses: true,
+    });
 
     // Fresh-stream events continue contiguously from the accepted cursor.
     await deliver(socket, runtimeEventFrame(1));
@@ -652,9 +662,29 @@ describe("remote event socket session (V5 2.1)", () => {
       JSON.stringify({ type: "resync-required", seq: 40, reason: "Output shedding" }),
     );
     expect(remoteState.resetRemoteThreadProjection).not.toHaveBeenCalled();
+    expect(gitStateMocks.clearRemoteGitState).not.toHaveBeenCalled();
     expect(remoteServerSnapshotSeq(DESKTOP_ID)).toBe(40);
     await deliver(socket, runtimeEventFrame(41));
     expect(socket.closed).toBe(false);
+  });
+
+  it("refreshes snapshot and agentStatuses when socket activates from offline, error, or detecting states", async () => {
+    for (const scenario of ["offline", "error", "detecting"] as const) {
+      const { deps, store } = makeHarness();
+      const runtime = (store.runtime as Record<string, Record<string, unknown>>)[DESKTOP_ID]!;
+      if (scenario === "detecting") {
+        runtime.status = "online";
+        runtime.agentStatuses = { windows: [], wsl: [], detecting: true, updatedAt: "now" };
+      } else {
+        runtime.status = scenario;
+      }
+
+      await startRemoteServerEventStream(deps);
+      expect(store.scheduleServerRefresh).toHaveBeenCalledWith(DESKTOP_ID, {
+        includeAgentStatuses: true,
+      });
+      deleteRemoteServerEventSocketEntry(DESKTOP_ID);
+    }
   });
 
   it("uses the connect cursor to detect a restart and retires even unsubscribed run observations", async () => {

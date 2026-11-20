@@ -1,15 +1,15 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "app-controls",
-  "version": "1.7.5",
-  "description": "Read and drive Poracode itself: threads, workspaces, terminal panes, git, pull requests, and schedules.",
+  "version": "1.8.0",
+  "description": "Manage Poracode threads, workspaces, terminals, Git, pull requests, schedules, plugins, skills, and MCP servers.",
   "author": {
     "name": "Poracode",
     "url": "https://poracode.com"
   },
   "homepage": "https://poracode.com",
   "license": "Apache-2.0",
-  "keywords": ["threads", "workspaces", "git", "pull requests", "schedules"],
+  "keywords": ["threads", "workspaces", "git", "pull requests", "schedules", "plugins"],
   "extensions": {
     "com.poracode.client": {
       "title": "Poracode",
@@ -22,7 +22,7 @@
       "skills": {
         "app-controls": {
           "name": "Poracode",
-          "description": "Inspect threads, workspaces, and terminal panes, and drive git, pull requests, and schedules from inside Poracode."
+          "description": "Manage the running Poracode app, including threads, workspaces, Git, schedules, plugins, skills, and MCP servers."
         },
         "commit": {
           "name": "Commit",

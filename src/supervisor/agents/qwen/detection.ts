@@ -26,6 +26,7 @@ export const qwenDefaultCapabilities: AgentCapability = {
   sandboxModes: [],
   supportsResume: true,
   supportsOneShot: true,
+  utilityRank: 35,
   supportsDirectInput: true,
   liveInputMode: "terminal",
   presentationMode: "terminal",

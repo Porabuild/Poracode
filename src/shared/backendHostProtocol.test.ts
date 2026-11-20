@@ -8,6 +8,93 @@ import {
 } from "./backendHostProtocol";
 
 describe("backendHostProtocol", () => {
+  it("admits provider login targets and rejects raw commands on that native channel", () => {
+    const message = {
+      version: BACKEND_HOST_PROTOCOL_VERSION,
+      kind: "native-request",
+      id: "request",
+      request: {
+        operation: "provider-login",
+        payload: { version: 1, input: { agentKind: "fixture", env: { kind: "native" } } },
+      },
+    };
+    expect(isBackendHostOutboundMessage(message)).toBe(true);
+    expect(
+      isBackendHostOutboundMessage({
+        ...message,
+        request: {
+          ...message.request,
+          payload: {
+            ...message.request.payload,
+            input: { ...message.request.payload.input, command: "fixture login" },
+          },
+        },
+      }),
+    ).toBe(false);
+  });
+
+  it("rejects a native port close without the process start token", () => {
+    const command = { action: "close", port: 4173, address: "*", pid: 401 };
+    const base = { version: BACKEND_HOST_PROTOCOL_VERSION, kind: "native-request", id: "request" };
+    const request = (payload: unknown) => ({
+      ...base,
+      request: { operation: "local-ports", payload },
+    });
+    expect(isBackendHostOutboundMessage(request({ version: 1, command }))).toBe(false);
+    expect(
+      isBackendHostOutboundMessage(
+        request({
+          version: 1,
+          command: { ...command, processStartedAt: "start-token" },
+        }),
+      ),
+    ).toBe(true);
+  });
+
+  it("checks the experiment workflow request at the native boundary", () => {
+    const message = {
+      version: BACKEND_HOST_PROTOCOL_VERSION,
+      kind: "native-request",
+      id: "request",
+      request: {
+        operation: "experiment-workflow",
+        payload: {
+          version: 1,
+          experimentId: "fixture",
+          input: {
+            action: "judge",
+            experimentId: "fixture",
+            revision: "current",
+            operationKey: "judge-tool",
+          },
+        },
+      },
+    };
+    expect(isBackendHostOutboundMessage(message)).toBe(true);
+    expect(
+      isBackendHostOutboundMessage({
+        ...message,
+        request: { ...message.request, payload: { ...message.request.payload, version: 0 } },
+      }),
+    ).toBe(false);
+  });
+
+  it("admits the additive memory sync request only with its current versioned payload", () => {
+    const message = {
+      version: BACKEND_HOST_PROTOCOL_VERSION,
+      kind: "native-request",
+      id: "request",
+      request: { operation: "memory-sync", payload: { version: 1 } },
+    };
+    expect(isBackendHostOutboundMessage(message)).toBe(true);
+    expect(
+      isBackendHostOutboundMessage({
+        ...message,
+        request: { ...message.request, payload: { version: 0 } },
+      }),
+    ).toBe(false);
+  });
+
   it("accepts current database requests and rejects unknown names or versions", () => {
     const request = createBackendDatabaseRequest("id", "dbGetProjects", {});
 

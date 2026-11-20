@@ -25,6 +25,8 @@ import {
   readDatabaseAsync,
 } from "./asyncReads";
 import { closeDatabase, getSqlite, initDatabase } from "./connection";
+import { dbAppendUsageEvents } from "./usageEvents";
+import { getProfileCoreStats, getProfileTokenStats } from "../profile";
 import { callDatabaseRpc } from "./databaseRpc";
 import { dbSetState, dbUpsertProject, dbUpsertThread } from "./projectsThreads";
 import {
@@ -143,6 +145,37 @@ function pool(path = workerPath, imagePreviews = false) {
 }
 
 describe("worker-backed SQLite reads", () => {
+  it("builds cold profile rollups off the owner from an upgraded database and appends incrementally", async () => {
+    const now = Date.now();
+    dbAppendUsageEvents([
+      { ts: now, kind: "turn", provider: "codex:work", value: 1000 },
+      // Legacy token rows remain valid after the profile loading upgrade.
+      { ts: now, kind: "tokens", provider: "codex:work", value: 500 },
+    ]);
+    enableAsyncDatabaseReads(dbPath, workerPath);
+    const prepare = vi.spyOn(getSqlite(), "prepare");
+    try {
+      const [core, tokens] = await Promise.all([
+        getProfileCoreStats({ utcOffsetMinutes: 0 }),
+        getProfileTokenStats({ utcOffsetMinutes: 0 }),
+      ]);
+      expect(core.totals.totalPrompts).toBe(1);
+      expect(tokens.lifetimeTokens).toBe(500);
+      expect(prepare.mock.calls.some(([sql]) => String(sql).includes("SELECT ts, kind"))).toBe(
+        false,
+      );
+
+      dbAppendUsageEvents([
+        { ts: now, kind: "turn", provider: "codex:work", value: 2000 },
+        { ts: now, kind: "tokens", provider: "codex:work", value: 700 },
+      ]);
+      expect((await getProfileCoreStats({ utcOffsetMinutes: 0 })).totals.totalPrompts).toBe(2);
+      expect((await getProfileTokenStats({ utcOffsetMinutes: 0 })).lifetimeTokens).toBe(1200);
+    } finally {
+      prepare.mockRestore();
+    }
+  });
+
   it("reads through an IPC process that never loads SQLite or image dependencies", async () => {
     const guard = join(directory, "control-dependencies.cjs");
     writeFileSync(

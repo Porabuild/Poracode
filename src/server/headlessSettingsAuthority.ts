@@ -3,7 +3,6 @@ import type { RemoteSettings, RemoteSettingsPatch } from "@/shared/remote";
 import { pickRemoteSettings, remoteHostWorkspaces } from "@/shared/remote";
 import type { SharedSettings } from "@/shared/settings";
 import type { SettingsMutationResult, SettingsOwnerEdit } from "@/shared/settingsTransactions";
-import { reportSettingsError } from "@/backend/BackendSettingsNotifications";
 import { SettingsAuthority } from "@/backend/settings/SettingsAuthority";
 import { SettingsCompatWriter } from "@/backend/settings/settingsCompatWrites";
 import type { OwnedHostRuntime } from "@/backend/ownership/HostOwnerController";
@@ -22,8 +21,10 @@ import {
  * guard, which completes the HOST_OWNERSHIP.md writer obligation.
  */
 export interface HeadlessSettingsComposition {
-  /** Compat whole-snapshot write for `BackendDurableServices` (fire-and-forget). */
-  writeSharedSettings(next: SharedSettings): void;
+  /** Compute a guarded preference edit from the latest authority snapshot. */
+  editPreferences(
+    compute: (current: SharedSettings) => SharedSettings,
+  ): Promise<SettingsMutationResult>;
   /** Trusted single-field CAS edit (learned routing records, MCP servers). */
   editSettingsField<F extends keyof SharedSettings>(
     field: F,
@@ -46,9 +47,7 @@ export interface HeadlessSettingsComposition {
     read(): RemoteSettings;
     update(patch: RemoteSettingsPatch): Promise<RemoteSettings>;
     readMcpServers(): { servers: McpServer[] };
-    commandMcpServers(command: Parameters<RemoteMcpSettingsGateway["command"]>[0]): {
-      servers: McpServer[];
-    };
+    commandMcpServers: RemoteMcpSettingsGateway["command"];
   };
   /** Push-coordinator projection of the committed settings. */
   pushSettings(): { enabled: boolean; redactContent: boolean };
@@ -73,7 +72,6 @@ export async function composeHeadlessSettingsAuthority(
     reportError?: (error: unknown) => void;
   },
 ): Promise<HeadlessSettingsComposition> {
-  const report = (error: unknown): void => reportSettingsError(error, options.reportError);
   // Host-root preparation and key initialization completed before composition;
   // re-assert the lease so an aborted or lost runtime never opens an authority.
   runtime.lease.assertActive();
@@ -87,23 +85,20 @@ export async function composeHeadlessSettingsAuthority(
   const writes = new SettingsCompatWriter(authority);
   const mcpSettings = createRemoteMcpSettingsGateway({
     readSettings: options.readSettings,
-    writeGlobalServers: (mcpServers) => {
-      void writes
-        .editSettingsField("mcpServers", () => mcpServers)
-        .then((result) => {
-          if (result.status !== "committed")
-            report(new Error(`MCP server settings were not committed (${result.status}).`));
-        })
-        .catch(report);
+    editGlobalServers: async (edit) => {
+      const result = await writes.editSettingsField("mcpServers", (current) =>
+        edit(current.mcpServers),
+      );
+      if (result.status !== "committed") {
+        throw new Error(`MCP server settings were not committed (${result.status}).`);
+      }
     },
     readProject: options.readProject,
     writeProject: options.writeProject,
     projectsChanged: options.projectsChanged,
   });
   return {
-    writeSharedSettings: (next) => {
-      void writes.commitCompatSnapshot(next).catch(report);
-    },
+    editPreferences: (compute) => writes.editPreferences(compute),
     editSettingsField: (field, compute) => writes.editSettingsField(field, compute),
     editSettingsFields: (fields, compute) => writes.editSettingsFields(fields, compute),
     commitOwnerEdits: (edits) => writes.commitOwnerEdits(edits),

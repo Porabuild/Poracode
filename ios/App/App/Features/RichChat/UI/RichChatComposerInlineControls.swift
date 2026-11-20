@@ -116,6 +116,8 @@ struct RichChatAdaptiveComposer<Summary: View, Leading: View, Configuration: Vie
   /// Plain state, not `@FocusState`: the editor is a UIKit text view, so no
   /// SwiftUI view is bound to a focus state. The text view owns first responder.
   @State private var focused = false
+  @Environment(\.poracodePalette) private var palette
+  @State private var expandedHasFocused = false
   @AppStorage(PoracodeChatTextSize.storageKey) private var storedTextSize = PoracodeChatTextSize.defaultValue
 
   @Environment(\.horizontalSizeClass) private var horizontalSizeClass
@@ -142,7 +144,7 @@ struct RichChatAdaptiveComposer<Summary: View, Leading: View, Configuration: Vie
             Button { isExpanded = true } label: {
               Text(text)
                 .poracodeChatText(.body)
-                .foregroundStyle(.primary)
+                .foregroundStyle(hasPrompt ? palette.foreground : palette.fieldPlaceholder)
                 .lineLimit(1)
                 .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
                 .padding(.leading, 4)
@@ -252,7 +254,6 @@ struct RichChatComposerTextInput: UIViewRepresentable {
     label.text = placeholder
     label.isHidden = !text.isEmpty
     label.font = view.font
-    label.textColor = .placeholderText
     label.isAccessibilityElement = false
     label.translatesAutoresizingMaskIntoConstraints = false
     view.addSubview(label)
@@ -280,6 +281,8 @@ struct RichChatComposerTextInput: UIViewRepresentable {
     let font = UIFontMetrics(forTextStyle: .body).scaledFont(for: .systemFont(ofSize: pointSize))
     if view.font != font { view.font = font }
     context.coordinator.placeholder?.font = font
+    view.textColor = UIColor(context.environment.poracodePalette.foreground)
+    context.coordinator.placeholder?.textColor = UIColor(context.environment.poracodePalette.fieldPlaceholder)
     context.coordinator.placeholder?.text = placeholder
     Self.applyPalette(theme.variant(for: colorScheme), to: view, placeholder: context.coordinator.placeholder)
     context.coordinator.scheduleViewUpdate(view)

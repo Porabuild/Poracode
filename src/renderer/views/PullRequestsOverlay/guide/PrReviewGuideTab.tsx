@@ -328,7 +328,7 @@ export function PrReviewGuideTab(props: {
               </div>
               {!stale &&
                 stop.excerpts.map((excerpt, ordinal) => (
-                  <figure key={ordinal} className="overflow-hidden rounded-lg border border-border">
+                  <figure key={ordinal} className="content-surface overflow-hidden">
                     <figcaption className="break-all bg-surface-tertiary px-3 py-2 text-xs font-mono">
                       {excerpt.path}:{excerpt.startLine}–{excerpt.endLine}
                     </figcaption>

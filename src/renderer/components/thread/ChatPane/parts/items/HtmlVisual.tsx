@@ -1,3 +1,4 @@
+import { ContentSurface } from "@/renderer/components/common/ContentSurface";
 import { useState } from "react";
 import { Button, Modal, Tooltip } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
@@ -76,11 +77,11 @@ function HtmlVisualPreview({
   const [expanded, setExpanded] = useState(false);
   const [ready, setReady] = useState(false);
   return (
-    <div
+    <ContentSurface
       data-poracode-html-visual="true"
-      className="not-prose @container my-2 flex min-w-0 flex-col overflow-hidden rounded-xl border border-border bg-background text-foreground"
+      className="not-prose @container my-2 flex min-w-0 flex-col overflow-hidden text-foreground"
     >
-      <div className="flex flex-wrap items-center gap-x-1 border-b border-border px-2 py-1 @min-[480px]:px-3">
+      <div className="flex flex-wrap items-center gap-x-1 border-b border-[var(--hairline-soft)] px-2 py-1 @min-[480px]:px-3">
         <div className="flex min-w-0 flex-1 items-center gap-2 py-1.5">
           <AppWindow className="size-3.5 shrink-0 text-muted" aria-hidden="true" />
           <span title={label} className="min-w-0 truncate text-xs font-medium">
@@ -157,6 +158,6 @@ function HtmlVisualPreview({
           </Modal.Dialog>
         </Modal.Container>
       </Modal.Backdrop>
-    </div>
+    </ContentSurface>
   );
 }

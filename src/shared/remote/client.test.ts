@@ -51,6 +51,9 @@ describe("remote error classification", () => {
     expect(isUnauthorizedRemoteError(new RemoteClientError("conflict", 409, "conflict"))).toBe(
       false,
     );
+    expect(
+      isUnauthorizedRemoteError(new RemoteClientError("host still starting", 503, "host_starting")),
+    ).toBe(false);
   });
 });
 
@@ -1618,7 +1621,13 @@ describe("RemoteDesktopClient", () => {
     },
   );
 
-  it.each(["gitPush", "waitMcpServerOauth", "startThread", "ensureThreadRunning"])(
+  it.each([
+    "gitPush",
+    "gitAddWorktree",
+    "waitMcpServerOauth",
+    "startThread",
+    "ensureThreadRunning",
+  ])(
     "gives long-running %s operations a larger timeout than ordinary requests",
     async (procedure) => {
       vi.useFakeTimers();
@@ -1641,6 +1650,78 @@ describe("RemoteDesktopClient", () => {
     },
   );
 
+  it("accepts the previous host's worktree response after the ordinary client deadline", async () => {
+    vi.useFakeTimers();
+    const fetch = vi.fn<RemoteFetch>(
+      async () =>
+        new Promise((resolve) => {
+          setTimeout(
+            () => resolve(new Response(JSON.stringify({ result: { path: "/repo/feature" } }))),
+            61_000,
+          );
+        }),
+    );
+    const client = new RemoteDesktopClient("http://127.0.0.1:38987/", "token", fetch);
+    const payload = {
+      projectLocation: { kind: "posix", path: "/repo" },
+      branch: "feature",
+      createBranch: true,
+    };
+    const result = client.callRemoteProcedure("gitAddWorktree", payload);
+    await vi.advanceTimersByTimeAsync(61_000);
+
+    await expect(result).resolves.toEqual({ path: "/repo/feature" });
+    expect(fetch).toHaveBeenCalledOnce();
+    expect(JSON.parse(String(fetch.mock.calls[0]?.[1]?.body))).toEqual({
+      procedure: "gitAddWorktree",
+      payload,
+    });
+  });
+
+  it("waits for a worktree queued behind another slow repository mutation", async () => {
+    vi.useFakeTimers();
+    const fetch = vi.fn<RemoteFetch>(
+      async () =>
+        new Promise((resolve) => {
+          setTimeout(
+            () => resolve(new Response(JSON.stringify({ result: { path: "/repo/feature" } }))),
+            320_000,
+          );
+        }),
+    );
+    const client = new RemoteDesktopClient("http://127.0.0.1:38987/", "token", fetch);
+    const result = client.callRemoteProcedure("gitAddWorktree", {});
+    await vi.advanceTimersByTimeAsync(320_000);
+    await expect(result).resolves.toEqual({ path: "/repo/feature" });
+    expect(fetch).toHaveBeenCalledOnce();
+  });
+
+  it("treats a failed worktree response as a potentially applied mutation", async () => {
+    const fetch = vi.fn<RemoteFetch>(
+      async () =>
+        new Response(JSON.stringify({ error: { code: "internal_error", message: "Error" } }), {
+          status: 500,
+        }),
+    );
+    const client = new RemoteDesktopClient("http://127.0.0.1:38987/", "token", fetch);
+    const error: unknown = await client.callRemoteProcedure("gitAddWorktree", {}).catch((e) => e);
+    expect(remoteMutationMayHaveCommitted(error)).toBe(true);
+    expect(fetch).toHaveBeenCalledOnce();
+  });
+
+  it("treats a repository queue refusal as a definite worktree failure", async () => {
+    const fetch = vi.fn<RemoteFetch>(
+      async () =>
+        new Response(JSON.stringify({ error: { code: "git_repository_busy", message: "Busy" } }), {
+          status: 429,
+        }),
+    );
+    const client = new RemoteDesktopClient("http://127.0.0.1:38987/", "token", fetch);
+    const error: unknown = await client.callRemoteProcedure("gitAddWorktree", {}).catch((e) => e);
+    expect(remoteMutationMayHaveCommitted(error)).toBe(false);
+    expect(fetch).toHaveBeenCalledOnce();
+  });
+
   it("gives agent install/update procedures the supervisor's agent update budget", async () => {
     const sentinel = new Error("stub request");
     const requestJson = vi.fn<(...args: unknown[]) => Promise<unknown>>(() =>
@@ -1659,6 +1740,9 @@ describe("RemoteDesktopClient", () => {
       "updateAgentBinary",
       "listAcpRegistry",
       "refreshAgentStatuses",
+      "installAcpRegistryAgent",
+      "removeAcpRegistryAgent",
+      "authenticateAcpAgent",
     ] as const) {
       await expect(client.callRemoteProcedure(procedure, {})).rejects.toBe(sentinel);
     }
@@ -1670,7 +1754,10 @@ describe("RemoteDesktopClient", () => {
     expect(timeoutFor(0)).toBe(AGENT_UPDATE_REQUEST_TIMEOUT_MS);
     expect(timeoutFor(1)).toBe(AGENT_UPDATE_REQUEST_TIMEOUT_MS);
     expect(timeoutFor(2)).toBe(AGENT_UPDATE_REQUEST_TIMEOUT_MS);
-    expect(timeoutFor(3)).toBe(LONG_REMOTE_REQUEST_TIMEOUT_MS);
+    expect(timeoutFor(3)).toBe(AGENT_UPDATE_REQUEST_TIMEOUT_MS);
+    expect(timeoutFor(4)).toBe(AGENT_UPDATE_REQUEST_TIMEOUT_MS);
+    expect(timeoutFor(5)).toBe(AGENT_UPDATE_REQUEST_TIMEOUT_MS);
+    expect(timeoutFor(6)).toBe(LONG_REMOTE_REQUEST_TIMEOUT_MS);
   });
 
   it("gives repository clones the long-running request timeout", async () => {

@@ -2,6 +2,7 @@ import { toast } from "@heroui/react";
 import { i18n } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
 import type { ImportableSession, ProjectLocation, Thread } from "@/shared/contracts";
+import { matchesImportedSession } from "@/shared/contracts/sessionImport";
 import { resolveModelSelection } from "@/shared/agentSelection";
 import { friendlyError, msg as message } from "@/shared/messages";
 import { projectLocationKey } from "@/shared/projectIdentity";
@@ -27,12 +28,7 @@ export function findImportedThreadId(
   session: ImportableSession,
   threads: readonly Thread[],
 ): string | undefined {
-  return threads.find(
-    (thread) =>
-      thread.config.importedFrom?.path === session.path ||
-      (thread.agentKind === session.agentKind &&
-        thread.sessionRef?.providerSessionId === session.providerSessionId),
-  )?.id;
+  return threads.find((thread) => matchesImportedSession(session, thread))?.id;
 }
 
 /** The host's own threads: the only ones that can already hold its sessions. */

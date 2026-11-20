@@ -1,5 +1,5 @@
-import { cleanup, renderHook, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { act, cleanup, renderHook, screen } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import type { RemoteServerRuntime } from "@/renderer/state/remoteServers/types";
@@ -9,6 +9,30 @@ import {
   __resetManagedRootCatalogStoreForTest,
 } from "@/renderer/state/managedRootCatalog/rootCatalogStore";
 import { ThreadHostOfflineDock } from "./ThreadHostOfflineDock";
+
+const loopbackState = vi.hoisted(() => ({
+  offline: false,
+  listeners: new Set<(offline: boolean) => void>(),
+  setOffline(next: boolean) {
+    this.offline = next;
+    for (const listener of [...this.listeners]) listener(next);
+  },
+}));
+
+vi.mock("@/renderer/hostTransport/loopbackHttpWsTransport", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@/renderer/hostTransport/loopbackHttpWsTransport")>();
+  return {
+    ...actual,
+    isManagedLoopbackOffline: () => loopbackState.offline,
+    subscribeManagedLoopbackOffline: (listener: (offline: boolean) => void) => {
+      loopbackState.listeners.add(listener);
+      return () => {
+        loopbackState.listeners.delete(listener);
+      };
+    },
+  };
+});
 
 const pairedThread = { remoteServerId: "pc", remoteId: "remote-thread" };
 const managedThread = {};
@@ -22,6 +46,8 @@ function setPairedStatus(status: RemoteServerRuntime["status"]): void {
 describe("host offline notice", () => {
   afterEach(() => {
     cleanup();
+    loopbackState.listeners.clear();
+    loopbackState.setOffline(false);
     useRemoteServersStore.setState({ runtime: {} });
     __resetManagedRootCatalogStoreForTest();
   });
@@ -43,11 +69,24 @@ describe("host offline notice", () => {
     expect(renderHook(() => useEntityHostOffline(pairedThread)).result.current).toBe(offline);
   });
 
-  it("treats the desktop's own host as offline only once its connection failed", () => {
+  it("treats the desktop's own host as offline only when the loopback leg is offline", () => {
     const hook = renderHook(() => useEntityHostOffline(managedThread));
     expect(hook.result.current).toBe(false);
-    setManagedRootCatalogStatus({ status: "failed", message: "down", retrying: true });
-    hook.rerender();
+
+    // A catalog read hiccup alone never marks local threads offline while connected.
+    act(() => {
+      setManagedRootCatalogStatus({ status: "failed", message: "catalog failed", retrying: false });
+    });
+    expect(hook.result.current).toBe(false);
+
+    act(() => {
+      loopbackState.setOffline(true);
+    });
     expect(hook.result.current).toBe(true);
+
+    act(() => {
+      loopbackState.setOffline(false);
+    });
+    expect(hook.result.current).toBe(false);
   });
 });

@@ -1536,6 +1536,58 @@
         }
       },
       {
+        "id": "memory-catalog",
+        "scopes": ["session:operate"],
+        "batch": "settings-integrations",
+        "note": "Authenticated host catalog management in the shared desktop and browser/PWA renderer. Native client adoption is planned.",
+        "ios": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": []
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": []
+          }
+        }
+      },
+      {
+        "id": "memory-sync",
+        "scopes": ["session:operate"],
+        "batch": "settings-integrations",
+        "note": "Cross-environment memory merge endpoint used by paired desktop hosts; native client adoption is planned.",
+        "ios": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": []
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": []
+          }
+        }
+      },
+      {
         "id": "schedules-read",
         "scopes": ["session:read"],
         "batch": "settings-integrations",
@@ -3813,7 +3865,59 @@
         "note": "Development device workspace is implemented in the desktop and browser renderer. Native Poracode phone companions are outside this feature; generated bindings describe the routes without claiming a native device journey."
       },
       {
+        "id": "device-create-duo",
+        "scopes": ["session:operate"],
+        "batch": "explicitly-desktop-only",
+        "ios": {
+          "wire": {
+            "disposition": "desktop-only",
+            "evidence": ["src/shared/remote/contract/routes/devices.ts"]
+          },
+          "ui": {
+            "disposition": "desktop-only",
+            "evidence": ["src/renderer/components/devices/DeviceWorkspace.tsx"]
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "desktop-only",
+            "evidence": ["src/shared/remote/contract/routes/devices.ts"]
+          },
+          "ui": {
+            "disposition": "desktop-only",
+            "evidence": ["src/renderer/components/devices/DeviceWorkspace.tsx"]
+          }
+        },
+        "note": "Development device workspace is implemented in the desktop and browser renderer. Native Poracode phone companions are outside this feature; generated bindings describe the routes without claiming a native device journey."
+      },
+      {
         "id": "device-attach",
+        "scopes": ["session:read"],
+        "batch": "explicitly-desktop-only",
+        "ios": {
+          "wire": {
+            "disposition": "desktop-only",
+            "evidence": ["src/shared/remote/contract/routes/devices.ts"]
+          },
+          "ui": {
+            "disposition": "desktop-only",
+            "evidence": ["src/renderer/components/devices/DeviceWorkspace.tsx"]
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "desktop-only",
+            "evidence": ["src/shared/remote/contract/routes/devices.ts"]
+          },
+          "ui": {
+            "disposition": "desktop-only",
+            "evidence": ["src/renderer/components/devices/DeviceWorkspace.tsx"]
+          }
+        },
+        "note": "Development device workspace is implemented in the desktop and browser renderer. Native Poracode phone companions are outside this feature; generated bindings describe the routes without claiming a native device journey."
+      },
+      {
+        "id": "device-adopt-session",
         "scopes": ["session:read"],
         "batch": "explicitly-desktop-only",
         "ios": {
@@ -5293,7 +5397,7 @@
             "note": "Native Android voice capture and Hex transport are outside the current scope."
           }
         },
-        "note": "The additive procedure is available to the shared renderer; native clients do not yet invoke its host-side transcription operations."
+        "note": "Generated codecs include the additive supportsWait capability and wait action for host dictation. Native clients do not yet invoke Hex capture or transcription; the shared renderer uses this procedure."
       },
       {
         "id": "getProviderUsage",
@@ -5541,6 +5645,126 @@
             "disposition": "planned",
             "evidence": [],
             "note": "Host agent management is served to desktop and the shared browser renderer (PWA) through the procedure passthrough; native clients have no agent registry surface yet."
+          }
+        }
+      },
+      {
+        "id": "installAcpRegistryAgent",
+        "batch": "settings-integrations",
+        "ios": {
+          "wire": { "disposition": "planned", "evidence": [] },
+          "ui": {
+            "disposition": "planned",
+            "evidence": [],
+            "note": "Host agent management is served to desktop and the shared browser renderer (PWA) through the procedure passthrough; native clients have no agent registry surface yet."
+          }
+        },
+        "android": {
+          "wire": { "disposition": "planned", "evidence": [] },
+          "ui": {
+            "disposition": "planned",
+            "evidence": [],
+            "note": "Host agent management is served to desktop and the shared browser renderer (PWA) through the procedure passthrough; native clients have no agent registry surface yet."
+          }
+        }
+      },
+      {
+        "id": "removeAcpRegistryAgent",
+        "batch": "settings-integrations",
+        "ios": {
+          "wire": { "disposition": "planned", "evidence": [] },
+          "ui": {
+            "disposition": "planned",
+            "evidence": [],
+            "note": "Host agent management is served to desktop and the shared browser renderer (PWA) through the procedure passthrough; native clients have no agent registry surface yet."
+          }
+        },
+        "android": {
+          "wire": { "disposition": "planned", "evidence": [] },
+          "ui": {
+            "disposition": "planned",
+            "evidence": [],
+            "note": "Host agent management is served to desktop and the shared browser renderer (PWA) through the procedure passthrough; native clients have no agent registry surface yet."
+          }
+        }
+      },
+      {
+        "id": "setAcpRegistryAgentAuth",
+        "batch": "settings-integrations",
+        "ios": {
+          "wire": { "disposition": "planned", "evidence": [] },
+          "ui": {
+            "disposition": "planned",
+            "evidence": [],
+            "note": "Host agent management is served to desktop and the shared browser renderer (PWA) through the procedure passthrough; native clients have no agent management surface yet."
+          }
+        },
+        "android": {
+          "wire": { "disposition": "planned", "evidence": [] },
+          "ui": {
+            "disposition": "planned",
+            "evidence": [],
+            "note": "Host agent management is served to desktop and the shared browser renderer (PWA) through the procedure passthrough; native clients have no agent management surface yet."
+          }
+        }
+      },
+      {
+        "id": "authenticateAcpAgent",
+        "batch": "settings-integrations",
+        "ios": {
+          "wire": { "disposition": "planned", "evidence": [] },
+          "ui": {
+            "disposition": "planned",
+            "evidence": [],
+            "note": "Host agent management is served to desktop and the shared browser renderer (PWA) through the procedure passthrough; native clients have no agent management surface yet."
+          }
+        },
+        "android": {
+          "wire": { "disposition": "planned", "evidence": [] },
+          "ui": {
+            "disposition": "planned",
+            "evidence": [],
+            "note": "Host agent management is served to desktop and the shared browser renderer (PWA) through the procedure passthrough; native clients have no agent management surface yet."
+          }
+        }
+      },
+      {
+        "id": "logoutAcpAgent",
+        "batch": "settings-integrations",
+        "ios": {
+          "wire": { "disposition": "planned", "evidence": [] },
+          "ui": {
+            "disposition": "planned",
+            "evidence": [],
+            "note": "Host agent management is served to desktop and the shared browser renderer (PWA) through the procedure passthrough; native clients have no agent management surface yet."
+          }
+        },
+        "android": {
+          "wire": { "disposition": "planned", "evidence": [] },
+          "ui": {
+            "disposition": "planned",
+            "evidence": [],
+            "note": "Host agent management is served to desktop and the shared browser renderer (PWA) through the procedure passthrough; native clients have no agent management surface yet."
+          }
+        }
+      },
+      {
+        "id": "resolveAgentAccount",
+        "batch": "settings-integrations",
+        "ios": {
+          "wire": { "disposition": "planned", "evidence": [] },
+          "ui": {
+            "disposition": "planned",
+            "evidence": [],
+            "note": "Host agent management is served to desktop and the shared browser renderer (PWA) through the procedure passthrough; native clients have no agent management surface yet."
+          }
+        },
+        "android": {
+          "wire": { "disposition": "planned", "evidence": [] },
+          "ui": {
+            "disposition": "planned",
+            "evidence": [],
+            "note": "Host agent management is served to desktop and the shared browser renderer (PWA) through the procedure passthrough; native clients have no agent management surface yet."
           }
         }
       },

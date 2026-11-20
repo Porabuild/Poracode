@@ -85,6 +85,19 @@ describe("sidebar usage hydration", () => {
     expect(useProviderUsageStore.getState().snapshots.fixture).toEqual(snapshot());
   });
 
+  it("does not read or publish managed usage while another environment is selected", async () => {
+    mocks.activation = activation(1);
+    const view = renderHook(({ enabled }) => useProviderUsageHydration(enabled), {
+      initialProps: { enabled: false },
+    });
+    expect(mocks.getProviderUsage).not.toHaveBeenCalled();
+    const resolve = deferredRead();
+    view.rerender({ enabled: true });
+    view.rerender({ enabled: false });
+    await act(async () => resolve({ snapshots: [snapshot()], fromCache: true }));
+    expect(useProviderUsageStore.getState().snapshots).toEqual({});
+  });
+
   it("reloads on reconnect and rejects a reply from a retired connection", async () => {
     mocks.activation = activation(1);
     const resolveOld = deferredRead();

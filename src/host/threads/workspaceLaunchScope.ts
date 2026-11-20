@@ -34,10 +34,11 @@ function readCommittedWorkspaceLaunchSelection(
       "Workspace launch requires reconciliation of the unresolved grant operation.",
     );
   }
-  // Owner-only revisions invalidate stale approvals without changing a
-  // never-scoped thread's legacy runtime ownership.
-  if (!current.hasCommittedScope && current.additionalDirectories.length === 0) return undefined;
   const thread = dbGetThread(payload.threadId);
+  const hasScope = current.hasCommittedScope || current.additionalDirectories.length > 0;
+  // Unscoped launches may have been queued with the original cwd while the
+  // owning host was moving this thread to a worktree.
+  if (!hasScope && !thread?.worktreePath) return undefined;
   const project = thread ? dbGetProject(thread.projectId) : null;
   if (!thread || !project)
     throw new WorkspaceLaunchUnavailableError("Workspace launch owner no longer exists.");
@@ -46,9 +47,11 @@ function readCommittedWorkspaceLaunchSelection(
     : project.location;
   const locationKey = (location: typeof primary) =>
     projectIdentityKey({ location }, { caseInsensitivePosix: false });
+  if (locationKey(primary) !== locationKey(payload.projectLocation)) {
+    throw new WorkspaceLaunchUnavailableError("The saved thread checkout changed before launch.");
+  }
+  if (!hasScope) return undefined;
   if (
-    locationKey(primary) !== locationKey(payload.projectLocation) ||
-    primary.remoteServerId !== payload.projectLocation.remoteServerId ||
     thread.agentKind !== payload.agentKind ||
     thread.agentInstanceId !== payload.agentInstanceId ||
     thread.presentationMode !== payload.presentationMode ||

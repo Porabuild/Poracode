@@ -30,21 +30,26 @@ import {
 
 import { msg } from "@lingui/core/macro";
 import { i18n } from "@/renderer/i18n/i18n";
+import type { MessageItemPayload } from "@/shared/contracts";
 import {
   classifyInlineImageCandidate,
   enumerateDisplayImageCandidatePaths,
+  isUserAttachmentImageReadPayload,
+  normalizeAttachmentImagePath,
   readAtInlineImagePath,
   inlineImagePayloadRenders,
   normalizeInlineImageDataUrl,
   type InlineImageClassification,
 } from "@/shared/inlineImagePayload";
 import { readImageDimensions } from "@/shared/imageDimensions";
+import { isImagePath } from "@/shared/promptContent";
 import {
   findDisplayableImageRef,
   readRemoteImageRef,
   type RemoteImageRefValue,
 } from "@/shared/remote";
 import { resolveRemoteImageRefUrl } from "@/shared/imageRefDisplay";
+import type { RuntimeChatItem } from "@/renderer/state/slices/runtimeChatItem";
 
 export interface ImageViewSource {
   /** Renderable image URL. */
@@ -73,7 +78,12 @@ export interface ImageViewSource {
   remoteRef?: RemoteImageRefValue;
   /** True while {@link remoteRef} has no resolved URL yet. */
   pending?: boolean;
+  /** Stable cache key for non-ref images (e.g. canonical Markdown image source). */
+  dimensionKey?: string;
 }
+
+/** Shared reference-stable sentinel when a thread has no user-attached images. */
+export const EMPTY_USER_ATTACHMENT_PATHS: ReadonlySet<string> = new Set();
 
 export interface ImageViewSourceOptions {
   /**
@@ -83,6 +93,59 @@ export interface ImageViewSourceOptions {
    * accordion. Only environment-aware callers that also subscribe set this.
    */
   readonly pendingAsPlaceholder?: boolean;
+  /**
+   * Normalized filesystem paths of image attachments the user already sent in
+   * this thread. Tool calls that merely read/view one of these paths fall back
+   * to the standard tool-call row instead of echoing the user's own image back
+   * into the transcript and Media gallery.
+   */
+  readonly userAttachmentPaths?: ReadonlySet<string> | undefined;
+}
+
+/**
+ * Append normalized image attachment paths from one `user_message` item into
+ * `target`. Returns true if at least one new path was added.
+ */
+export function addUserMessageAttachmentImagePaths(
+  target: Set<string>,
+  item: RuntimeChatItem | undefined,
+): boolean {
+  if (!item || item.parentItemId || item.type !== "user_message") return false;
+  const payload = item.payload as MessageItemPayload | undefined;
+  const content = payload?.content;
+  if (!Array.isArray(content)) return false;
+  let added = false;
+  for (const block of content) {
+    if (!block || typeof block !== "object") continue;
+    let rawPath: string | undefined;
+    if (block.kind === "image" && typeof block.path === "string" && block.path.length > 0) {
+      rawPath = block.path;
+    } else if (
+      block.kind === "file" &&
+      block.source === "attachment" &&
+      typeof block.path === "string" &&
+      block.path.length > 0 &&
+      isImagePath(block.path, block.mimeType ?? undefined)
+    ) {
+      rawPath = block.path;
+    }
+    if (!rawPath) continue;
+    const normalized = normalizeAttachmentImagePath(rawPath);
+    if (normalized && !target.has(normalized)) {
+      target.add(normalized);
+      added = true;
+    }
+  }
+  return added;
+}
+
+/** Collect normalized paths of all user-attached images in a thread's items. */
+export function collectUserAttachmentImagePaths(
+  items: Iterable<RuntimeChatItem | undefined>,
+): ReadonlySet<string> {
+  const paths = new Set<string>();
+  for (const item of items) addUserMessageAttachmentImagePaths(paths, item);
+  return paths;
 }
 
 /**
@@ -91,12 +154,16 @@ export interface ImageViewSourceOptions {
  * decision so the grouping selector and the component never disagree: an image
  * is shown only when the payload carries a renderable image AND did not error.
  */
-export function imageViewRendersInline(payload: unknown): boolean {
+export function imageViewRendersInline(
+  payload: unknown,
+  userAttachmentPaths?: ReadonlySet<string>,
+): boolean {
+  if (isUserAttachmentImageReadPayload(payload, userAttachmentPaths)) return false;
   // On remote clients the host replaces inline image bytes with a reference, so
   // the row must still be recognized as an image here or grouping would demote
   // it to a plain tool-call accordion.
   if (readStatus(payload) !== "error" && findDisplayableImageRef(payload)) return true;
-  return inlineImagePayloadRenders(payload);
+  return inlineImagePayloadRenders(payload, userAttachmentPaths);
 }
 
 /** Full resolution for the transcript card: preserve the first candidate. */
@@ -126,7 +193,12 @@ function* imageViewSources(
   remoteImageRefUrl?: (ref: RemoteImageRefValue) => string,
   options?: ImageViewSourceOptions,
 ): Generator<ImageViewSource | null, void> {
-  if (readStatus(payload) === "error") return;
+  if (
+    readStatus(payload) === "error" ||
+    isUserAttachmentImageReadPayload(payload, options?.userAttachmentPaths)
+  ) {
+    return;
+  }
   // Both consumers use the same narrow candidate paths and URL validation.
   // The card stops after its first candidate; the gallery retains all images
   // and all pending/ready coordinates, including unresolved earlier refs.
@@ -265,11 +337,13 @@ export function imageViewSourceFromMarkdownImage({
   alt,
   width,
   height,
+  dimensionKey,
 }: {
   src: string;
   alt: string;
   width?: unknown;
   height?: unknown;
+  dimensionKey?: string;
 }): ImageViewSource {
   const { mime, extension, fileName } = imageUrlMetadata(src, alt);
   const dimensions = readExplicitDimensions(width, height);
@@ -280,6 +354,7 @@ export function imageViewSourceFromMarkdownImage({
     fileName,
     alt,
     ...dimensions,
+    ...(dimensionKey ? { dimensionKey } : {}),
   };
 }
 

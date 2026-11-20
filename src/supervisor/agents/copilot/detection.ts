@@ -36,6 +36,7 @@ export const copilotDefaultCapabilities: AgentCapability = {
   sandboxModes: [],
   supportsResume: true,
   supportsOneShot: true,
+  utilityRank: 90,
   supportsDirectInput: true,
   liveInputMode: "terminal",
   presentationMode: "terminal",

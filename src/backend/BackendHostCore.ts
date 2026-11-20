@@ -13,6 +13,7 @@ import {
 import {
   closeDatabase,
   dbGetThread,
+  dbFindProjectByLocation,
   dbGetProject,
   dbMarkLiveThreadsInactive,
   dbTruncateThreadRuntimeAfter,
@@ -56,6 +57,7 @@ import {
   isInheritedThreadForkItem,
   readThreadForkInitialInstructions,
 } from "@/host/db/threadForks";
+import { prepareLaunchMemory, recordMemoryUsage } from "@/host/memory/runtime";
 import { HostDataFence } from "@/backend/ownership/hostDataFence";
 import {
   persistSupervisorEvent,
@@ -69,6 +71,7 @@ import { DelegatedAgentSettlementRecovery } from "@/backend/delegatedAgentSettle
 import type { SupervisorEvent } from "@/shared/ipc";
 import { stripRuntimePayloadOriginMetadata } from "@/shared/runtimePayloadOriginProtocol";
 import type { ProjectLocation } from "@/shared/contracts/common";
+import { resolveProjectLocation } from "@/shared/worktree";
 import type { ThreadConfig } from "@/shared/contracts/config";
 import type { ProviderRevertAnchor } from "@/shared/contracts";
 
@@ -195,6 +198,7 @@ export interface BackendHostCoreOptions {
 export class BackendHostCore {
   readonly supervisorClient: SupervisorClient;
   private readonly terminalScrollbackPersistence: TerminalScrollbackPersistence;
+  private readonly pendingMemoryEntryIdsByThread = new Map<string, string[]>();
   private persistenceProducerControl: HostPersistenceProducerControl | null = null;
   private canonicalAdmissionControl: HostCanonicalAdmissionControl | null = null;
   private databaseOpen = false;
@@ -299,9 +303,31 @@ export class BackendHostCore {
           if (typeof threadId === "string" && threadId.length > 0) {
             armRuntimeThreadForLaunch(threadId);
           }
-          const initialInstructions = threadId
+          const forkInstructions = threadId
             ? readThreadForkInitialInstructions(threadId)
             : undefined;
+          let memoryInstructions: string | undefined;
+          try {
+            if (prepared.presentationMode !== "terminal") {
+              const projectId =
+                (threadId ? dbGetThread(threadId)?.projectId : undefined) ??
+                dbFindProjectByLocation(prepared.projectLocation)?.id;
+              const preparedMemory = prepareLaunchMemory(threadId, projectId);
+              memoryInstructions = preparedMemory?.instructions;
+              if (threadId && preparedMemory && preparedMemory.entryIds.length > 0) {
+                this.pendingMemoryEntryIdsByThread.set(threadId, preparedMemory.entryIds);
+              } else if (threadId) {
+                this.pendingMemoryEntryIdsByThread.delete(threadId);
+              }
+            } else if (threadId) {
+              this.pendingMemoryEntryIdsByThread.delete(threadId);
+            }
+          } catch (error) {
+            console.error("[memory] launch instructions skipped:", error);
+          }
+          const initialInstructions = [forkInstructions, memoryInstructions]
+            .filter((part): part is string => typeof part === "string" && part.length > 0)
+            .join("\n\n");
           return initialInstructions ? { ...prepared, initialInstructions } : prepared;
         },
         // Only the owning host database supplies grant-bearing launch intent.
@@ -314,6 +340,13 @@ export class BackendHostCore {
           try {
             if (event.type === "thread-state" && event.initialInstructionsApplied) {
               acknowledgeThreadForkInitialInstructions(event.threadId);
+              const entryIds = this.pendingMemoryEntryIdsByThread.get(event.threadId);
+              if (entryIds) {
+                this.pendingMemoryEntryIdsByThread.delete(event.threadId);
+                recordMemoryUsage(entryIds);
+              }
+            } else if (event.type === "thread-reset" || event.type === "thread-exited") {
+              this.pendingMemoryEntryIdsByThread.delete(event.threadId);
             }
             this.terminalScrollbackPersistence.handle(event);
             const persistOptions = {
@@ -345,6 +378,7 @@ export class BackendHostCore {
         onOutputShed: (threadIds) => options.onSupervisorOutputShed?.(threadIds),
         onCanonicalAdmission: (message) => this.canonicalAdmissionControl?.handle(message),
         onReset: () => {
+          this.pendingMemoryEntryIdsByThread.clear();
           // SupervisorClient reset follows positive close/termination join.
           this.canonicalAdmissionControl?.retireOwner();
           // The supervisor process that owned every delegated-agent run just died;
@@ -618,7 +652,10 @@ export class BackendHostCore {
     if (!thread) return false;
     const project = dbGetProject(thread.projectId);
     if (!project?.location) return false;
-    return JSON.stringify(project.location) === JSON.stringify(frozenLocation);
+    return (
+      JSON.stringify(resolveProjectLocation(project.location, thread.worktreePath)) ===
+      JSON.stringify(frozenLocation)
+    );
   }
 
   /** Single DB mutation + canonical event; callers own the entry guards. */
@@ -776,8 +813,10 @@ export class BackendHostCore {
     // path) and frozen into the journal at claim time either way. Only an
     // explicitly supplied location participates in same-ID conflict detection;
     // server-resolved drift never invalidates a legitimate replay.
+    const project = thread ? dbGetProject(thread.projectId) : null;
     const resolvedLocation =
-      input.projectLocation ?? (thread ? dbGetProject(thread.projectId)?.location : undefined);
+      input.projectLocation ??
+      (project ? resolveProjectLocation(project.location, thread?.worktreePath) : undefined);
     const claim = dbClaimCheckpointRevertOperation({
       operationKey: input.operationKey,
       threadId: input.threadId,

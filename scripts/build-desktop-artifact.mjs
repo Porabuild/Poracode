@@ -63,7 +63,7 @@ const RUNTIME_DEPS = [
   "cron-parser",
   "json5",
   "jsonc-parser",
-  "micromatch",
+  "minimatch",
   "node-pty",
   "proper-lockfile",
   "qrcode",

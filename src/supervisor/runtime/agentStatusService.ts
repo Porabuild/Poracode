@@ -285,6 +285,7 @@ export interface AgentStatusServiceOptions {
   settingsPath: string;
   statusCachePath: string;
   emit(event: SupervisorEvent): void;
+  onStartupDetectionComplete?: (statuses: DetectionResults) => void;
   /** Repair recorded WSL installations only when detection actually probes their distro. */
   prepareWslEnvironment?: (distro: string) => Promise<void>;
 }
@@ -419,14 +420,20 @@ export class AgentStatusService {
 
   /** Return the last detected installed version for one native or WSL provider. */
   getCachedVersion(kind: AgentKind, wslDistro?: string): string | undefined {
-    const cached = this.readAcceptedStatuses();
-    const statuses = wslDistro ? cached.wsl : cached.windows;
-    return statuses.find(
+    if (!wslDistro) return this.getCachedNativeStatus(kind)?.version;
+    return this.readAcceptedStatuses().wsl.find(
       (status) =>
         status.kind === kind &&
         status.installed &&
-        (wslDistro === undefined || status.envDistro?.toLowerCase() === wslDistro.toLowerCase()),
+        status.envDistro?.toLowerCase() === wslDistro.toLowerCase(),
     )?.version;
+  }
+
+  /** Return the last detected installed native status for one provider, if known. */
+  getCachedNativeStatus(kind: AgentKind): AgentStatus | undefined {
+    return this.readAcceptedStatuses([]).windows.find(
+      (status) => status.kind === kind && status.installed,
+    );
   }
 
   /** Registry changes retire both active probes and the previously ready view. */
@@ -517,11 +524,14 @@ export class AgentStatusService {
     if (payload.scope) {
       return this.runScopedDetection(wslDistros, payload.scope);
     }
-    // Full Settings refresh must not keep serving the previous sweep. Drop the
-    // on-disk status file first so `getAgentStatuses` / `getCachedCapabilities`
-    // cannot return stale models while the new probe runs, then rewrite it.
+    // Retire the previous sweep and its disk cache, but keep the last accepted
+    // inventory visible to clients until each target has a fresh observation.
+    const lastKnown = this.readAcceptedStatuses();
     const retained = this.publication.invalidate(
       [...this.scopedDetectionJobs].map((job) => job.ticket),
+      [...lastKnown.windows, ...lastKnown.wsl].filter((status) =>
+        this.options.adapters.has(status.kind),
+      ),
     );
     for (const job of this.scopedDetectionJobs) job.ticket = retained.get(job.ticket) ?? job.ticket;
     this.clearDiskCache();
@@ -838,10 +848,12 @@ export class AgentStatusService {
       this.startupDetectionWslDistros.add(distro);
     }
     const detectionWslDistros = [...this.startupDetectionWslDistros];
-    void this.queueFullDetection(detectionWslDistros).catch((error) => {
-      if (error instanceof AgentDiscoveryCancelledError) return;
-      console.error("[supervisor] background agent detection failed", error);
-    });
+    void this.queueFullDetection(detectionWslDistros)
+      .then((statuses) => this.options.onStartupDetectionComplete?.(statuses))
+      .catch((error) => {
+        if (error instanceof AgentDiscoveryCancelledError) return;
+        console.error("[supervisor] background agent detection failed", error);
+      });
   }
 
   private statusTarget(adapter: AgentAdapter, env: RefreshAgentScopeEnv): AgentStatusTarget {

@@ -2,9 +2,12 @@ import { Profiler } from "react";
 import { act, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Thread } from "@/shared/contracts";
+import type { PoracodeBridge } from "@/shared/ipc";
 import { AppProvider } from "@/renderer/components/ui/provider";
 import { useAppStore } from "@/renderer/state/appStore";
 import type { RuntimeChatItem } from "@/renderer/state/slices/runtimeEventSlice";
+import { ChatPaneActionsContext } from "../../chatPaneActionsContext";
+import { resolveThreadHtmlVisualFileReferences } from "../../../threadTranscriptMarkdown";
 import { AssistantMessage } from "./AssistantMessage";
 
 const sandbox = vi.hoisted(() => ({ endpoint: undefined as string | undefined }));
@@ -195,6 +198,120 @@ describe("AssistantMessage", () => {
     expect(container.querySelector("#untrusted")).toBeNull();
     expect(screen.getByText("Comparison")).toBeTruthy();
     expect(screen.getByText("Choose a plan.")).toBeTruthy();
+  });
+
+  it("renders a saved multiline visual reference in the owning workspace's sandbox", async () => {
+    const content = '<h1 id="author-node">Surface comparison</h1>';
+    const readProjectFile = vi.fn<PoracodeBridge["readProjectFile"]>(async ({ path }) => ({
+      path,
+      status: "ready",
+      modifiedAtMs: 1,
+      content,
+    }));
+    const location = { kind: "posix", path: "/workspace/thread-worktree" } as const;
+    const text =
+      'Before\n\n\ue200visualize\ue202{"path":"\nporacode-surfaces.html\n","mode":"wide","title":"Surface proposals with tighter corners"}\ue201\n\nAfter';
+    const reply = (state: RuntimeChatItem["state"]) => (
+      <AppProvider>
+        <ChatPaneActionsContext.Provider
+          value={{
+            mediaLocation: location,
+            splitHtmlVisualFileReferences: resolveThreadHtmlVisualFileReferences("codex"),
+          }}
+        >
+          <AssistantMessage
+            threadId="visual-thread"
+            item={{
+              id: "visual-ref",
+              type: "assistant_message",
+              state,
+              streams: { assistant_text: text },
+            }}
+            isTurnActive={false}
+          />
+        </ChatPaneActionsContext.Provider>
+      </AppProvider>
+    );
+    vi.stubGlobal("poracode", {
+      readProjectFile,
+      setWindowChrome: vi.fn<PoracodeBridge["setWindowChrome"]>().mockResolvedValue(undefined),
+    });
+    sandbox.endpoint = "http://127.0.0.1:4400";
+    try {
+      const { container, rerender } = render(reply("updated"));
+      expect(readProjectFile).not.toHaveBeenCalled();
+      rerender(reply("completed"));
+      const frame = await waitFor(() => {
+        const preview = container.querySelector(
+          'iframe[title="Surface proposals with tighter corners"]',
+        );
+        expect(preview).toHaveAttribute("src", expect.stringContaining("/mcp-apps/sandbox/v1"));
+        return preview;
+      });
+      expect(readProjectFile).toHaveBeenCalledExactlyOnceWith({
+        projectLocation: location,
+        path: "poracode-surfaces.html",
+      });
+      expect(frame).toHaveAttribute("sandbox", "allow-scripts");
+      expect(container.querySelector("#author-node")).toBeNull();
+      expect(container).not.toHaveTextContent("visualize");
+      expect(screen.getByText("Before")).toBeInTheDocument();
+      expect(screen.getByText("After")).toBeInTheDocument();
+    } finally {
+      sandbox.endpoint = undefined;
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("keeps a file chip for missing and out-of-workspace visual files", async () => {
+    const readProjectFile = vi
+      .fn<PoracodeBridge["readProjectFile"]>()
+      .mockRejectedValue(new Error("File not found"));
+    const openProjectRelativePath = vi.fn<() => Promise<void>>();
+    const text =
+      '\ue200visualize\ue202{"path":"/worktree/missing.html"}\ue201\n\n' +
+      '\ue200visualize\ue202{"path":"/another-project/external.html"}\ue201\n\n' +
+      '\ue200visualize\ue202{"path":"../traversal.html"}\ue201';
+    vi.stubGlobal("poracode", {
+      readProjectFile,
+      setWindowChrome: vi.fn<PoracodeBridge["setWindowChrome"]>().mockResolvedValue(undefined),
+    });
+    sandbox.endpoint = "http://127.0.0.1:4400";
+    try {
+      const { container } = render(
+        <AppProvider>
+          <ChatPaneActionsContext.Provider
+            value={{
+              mediaLocation: { kind: "posix", path: "/worktree" },
+              openProjectRelativePath,
+              splitHtmlVisualFileReferences: resolveThreadHtmlVisualFileReferences("codex"),
+            }}
+          >
+            <AssistantMessage
+              threadId="visual-thread"
+              item={{
+                id: "missing-ref",
+                type: "assistant_message",
+                state: "completed",
+                streams: { assistant_text: text },
+              }}
+              isTurnActive={false}
+            />
+          </ChatPaneActionsContext.Provider>
+        </AppProvider>,
+      );
+      expect(await screen.findByRole("button", { name: "missing.html" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "external.html" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "traversal.html" })).toBeInTheDocument();
+      expect(readProjectFile).toHaveBeenCalledExactlyOnceWith({
+        projectLocation: { kind: "posix", path: "/worktree" },
+        path: "missing.html",
+      });
+      expect(container.querySelector("iframe")).toBeNull();
+    } finally {
+      sandbox.endpoint = undefined;
+      vi.unstubAllGlobals();
+    }
   });
 
   it("previews only four finished HTML blocks per message in the host sandbox", async () => {

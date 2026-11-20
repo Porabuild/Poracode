@@ -11,6 +11,7 @@ import {
   defaultSharedSettings,
   type SharedSettings,
 } from "@/shared/settings";
+import { defaultMemorySettings } from "@/shared/memory";
 import {
   applyAgentSecretSetting,
   applyCreateProfile,
@@ -111,6 +112,7 @@ describe("sharedSettingsFile", () => {
       themePreset: "default",
       customThemes: [],
       crews: [],
+      wslCrews: {},
       locale: "system",
       gitTextLanguage: "en",
       terminalPosition: "right",
@@ -266,6 +268,7 @@ describe("sharedSettingsFile", () => {
         maxActiveGenerationHelpers: 0,
       },
       crossagentRoutingGuide: "",
+      memory: defaultMemorySettings,
     });
 
     expect(readSharedSettingsFile(settingsPath)).toEqual({
@@ -274,6 +277,7 @@ describe("sharedSettingsFile", () => {
       themePreset: "default",
       customThemes: [],
       crews: [],
+      wslCrews: {},
       locale: "system",
       gitTextLanguage: "en",
       terminalPosition: "right",
@@ -332,6 +336,7 @@ describe("sharedSettingsFile", () => {
         "agents",
         "backgroundTasks",
         "images",
+        "files",
         "artifacts",
         "vision",
         "info",
@@ -439,6 +444,7 @@ describe("sharedSettingsFile", () => {
         maxActiveGenerationHelpers: 0,
       },
       crossagentRoutingGuide: "",
+      memory: defaultMemorySettings,
     });
     expect(readFileSync(settingsPath, "utf8")).toContain('"themeMode": "dark"');
   });
@@ -629,6 +635,7 @@ describe("sharedSettingsFile", () => {
         "agents",
         "backgroundTasks",
         "images",
+        "files",
         "artifacts",
         "info",
         "context",

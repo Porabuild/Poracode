@@ -4,6 +4,7 @@ import { getSqlite } from "./connection";
 import { dbAssertNoRunningCheckpointRevert } from "./checkpointRevertOperations";
 import { forgetMainCreatedThread, noteMainCreatedThread } from "./mainCreatedThreads";
 import { notifyProjectThreadDataChanged } from "./projectThreadChanges";
+import { notifyMemoryThreadDeleting } from "./memoryDeleteHook";
 import { notifyThreadsDeleted } from "./deletedThreadNotifications";
 import type { CatalogIntentCommittedSignal } from "./catalogIntents";
 import {
@@ -299,7 +300,7 @@ export function dbUpsertThread(
       // the desktop/backend-host database connections.
       const isNewRow =
         sqlite.prepare("SELECT 1 FROM threads WHERE id = ?").get(thread.id) === undefined;
-      const options = { writeThreadStatusSource: true } as const;
+      const options = { writeThreadStatusSource: true, writeErrorMessage: true } as const;
       runThreadUpsert(prepareThreadUpsertStatement(sqlite, options), thread, sortOrder, options);
       if (isNewRow) noteMainCreatedThread(thread.id);
       if (interruptedTurn !== undefined) {
@@ -327,6 +328,48 @@ export function dbSetThreadsDone(threadIds: readonly string[], doneAt: string): 
     )
     .run(doneAt, doneAt, ...threadIds);
   notifyProjectThreadDataChanged();
+}
+
+/** Monotonically advance `updated_at` on host-side user activity without rewriting other columns. */
+export function dbTouchThreadUpdatedAt(threadId: string, updatedAt: string): boolean {
+  const result = getSqlite()
+    .prepare("UPDATE threads SET updated_at = ? WHERE id = ? AND updated_at < ?")
+    .run(updatedAt, threadId, updatedAt);
+  if (result.changes > 0) {
+    notifyProjectThreadDataChanged();
+    return true;
+  }
+  return false;
+}
+
+/** Assign a checkout without rewriting status, runtime identity or catalog order. */
+export function dbAssignMainThreadWorktree(input: {
+  threadId: string;
+  projectId: string;
+  worktreePath: string;
+  worktreeBranch?: string;
+}): boolean {
+  const result = getSqlite()
+    .prepare(
+      `UPDATE threads SET worktree_path = ?, worktree_branch = ?, updated_at = ?
+       WHERE id = ? AND project_id = ? AND archived = 0
+         AND (worktree_path IS NULL OR worktree_path = '')`,
+    )
+    .run(
+      input.worktreePath,
+      input.worktreeBranch ?? null,
+      new Date().toISOString(),
+      input.threadId,
+      input.projectId,
+    );
+  if (result.changes > 0) {
+    try {
+      notifyProjectThreadDataChanged();
+    } catch (error) {
+      console.warn("[db] thread worktree assignment committed but notification failed:", error);
+    }
+  }
+  return result.changes > 0;
 }
 
 /** Compute against the current row; never replace runtime/configuration or catalog order. */
@@ -415,6 +458,7 @@ export function dbDeleteThread(threadId: string): void {
   // would let the revert's file-restore phase run into a deleted project, so
   // the delete refuses loudly until the operation settles.
   dbAssertNoRunningCheckpointRevert([threadId]);
+  notifyMemoryThreadDeleting(threadId);
   getSqlite().prepare("DELETE FROM threads WHERE id = ?").run(threadId);
   // The single-statement delete has committed; announce it so the composition's
   // reclaimer can retire the thread's attachment directory. A later bookkeeping
@@ -439,6 +483,7 @@ export function dbDeleteProject(projectId: string): void {
   // Same custody rule as dbDeleteProject's per-thread counterpart: any thread
   // of the project with a running revert blocks the whole project deletion.
   dbAssertNoRunningCheckpointRevert(threadIds);
+  for (const threadId of threadIds) notifyMemoryThreadDeleting(threadId);
   // Notes are not foreign-key cascaded. A failure in either deletion must
   // retain the rows backing pending canonical events until a successful retry.
   sqlite.transaction(() => {

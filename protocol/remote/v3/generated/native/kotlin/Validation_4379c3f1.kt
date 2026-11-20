@@ -57,10 +57,6 @@ internal val schema_f802abb4a32bbf85: RemoteSchema by lazy {
     RemoteSchema(type = "string", literals = listOf(JsonPrimitive("agent-vision-unwatch")), unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
 
-internal val schema_f80bf20556c43632: RemoteSchema by lazy {
-    RemoteSchema(type = "object", required = setOf("admitted", "cancellations", "long", "queueFullRefusals", "short", "waitTimeoutRefusals"), properties = mapOf("admitted" to schema_56aa0e45cbdce0d0, "cancellations" to schema_56aa0e45cbdce0d0, "environments" to schema_2f4c1755c2d3a402, "long" to schema_164937b9a51028fa, "queueFullRefusals" to schema_56aa0e45cbdce0d0, "short" to schema_164937b9a51028fa, "slowFetches" to schema_56aa0e45cbdce0d0, "waitTimeoutRefusals" to schema_56aa0e45cbdce0d0), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
-}
-
 internal val schema_f86171557f2ff456: RemoteSchema by lazy {
     RemoteSchema(type = "array", items = schema_11f20430355ec49c, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
@@ -87,6 +83,10 @@ internal val schema_f92ad486eceff5e1: RemoteSchema by lazy {
 
 internal val schema_f958c6e1fa6d616c: RemoteSchema by lazy {
     RemoteSchema(type = "object", required = setOf("canLinkToGlobal", "effectiveSkillIds", "invocation", "issues", "skills"), properties = mapOf("canLinkToGlobal" to schema_feeb8bb50144d96d, "effectiveSkillIds" to schema_0f732b9fceb2c6ac, "invocation" to schema_7a20e2f82d6f16d6, "issues" to schema_ee5346688873f70f, "skills" to schema_4df989d5459165c8), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
+}
+
+internal val schema_f96ab4911dae8c83: RemoteSchema by lazy {
+    RemoteSchema(type = "object", required = setOf("control", "kind", "version"), properties = mapOf("control" to schema_c3a191d9ad55837f, "kind" to schema_6eed5e1fa2ae0e54, "version" to schema_7f9f5a0d72de0d9a), additionalAllowed = false, unknownPolicy = RemoteUnknownFieldPolicy.REJECT)
 }
 
 internal val schema_f97770a7e3ba8e29: RemoteSchema by lazy {

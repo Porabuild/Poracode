@@ -4,16 +4,16 @@
   "generatorVersion": 7,
   "inventory": {
     "blockedProcedureResults": [],
-    "jsonProcedureResults": 109,
-    "procedures": 173,
+    "jsonProcedureResults": 113,
+    "procedures": 179,
     "replayableEventTypes": 17,
-    "routes": 122,
+    "routes": 126,
     "runtimeEventTypes": 16,
-    "voidProcedureResults": 64,
+    "voidProcedureResults": 66,
     "webSocketClientMessages": 11,
     "webSocketServerMessages": 12
   },
-  "manifestHash": "sha256:f57b5ebe7bfbefa36fbb5c4a639e81932693c0c71439248d3cdd64c8e282292d",
+  "manifestHash": "sha256:4c65d87f75044cd0750dbf9b6aba2f3d74ba1fdebcbd66b30b3e4d73b86bde99",
   "protocolVersion": 14,
-  "sourceHash": "sha256:c5de5c949cbea501b8f1c66f6365eb5fbab7abdfeeaa362df11a278a2bdb3b63"
+  "sourceHash": "sha256:299e49b5f1da5ed8494baf0ed69a5df9f7ba493af040d9d7600a975c597aad9f"
 }

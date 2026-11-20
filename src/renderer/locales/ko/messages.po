@@ -89,6 +89,11 @@ msgstr "{0, plural, one {내용 없이 나열된 파일 #개} other {내용 없�
 msgid "{0, plural, one {# file} other {# files}}"
 msgstr "{0, plural, one {# 파일} other {# 파일}}"
 
+#. placeholder {0}: facts.length
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "{0, plural, one {# highlight} other {# highlights}}"
+msgstr "{0, plural, one {하이라이트 #개} other {하이라이트 #개}}"
+
 #. placeholder {0}: groupRows.length
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "{0, plural, one {# MCP server} other {# MCP servers}}"
@@ -269,6 +274,11 @@ msgstr "{0} 자격 증명이 저장되었습니다."
 msgid "{0} devices"
 msgstr "기기 {0}개"
 
+#. placeholder {0}: summary.failed
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrChecksIndicator.tsx
+msgid "{0} failed"
+msgstr "{0}개 실패"
+
 #. placeholder {0}: props.agentLabel
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
 msgid "{0} hooks installed for {envName}."
@@ -319,8 +329,11 @@ msgstr "{0}이(가) 익명화된 diff를 비교하고 있습니다…"
 msgid "{0} is offline. Showing last known status."
 msgstr "{0}이(가) 오프라인입니다. 마지막으로 확인된 상태를 표시합니다."
 
+#. placeholder {0}: provider?.label ?? installedAgents.find((agent) => agent.kind === agentKind)?.label ?? agentKind
 #. placeholder {0}: target?.label ?? saved.lead.agentKind
 #. placeholder {1}: modelLabelOf(draftLead)
+#. placeholder {1}: modelLabelOf(targetLead)
+#: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/components/thread/ThreadDraftView.tsx
 msgid "{0} isn't available, so {1} stays the lead."
 msgstr "{0}을(를) 사용할 수 없어 {1}이(가) 리드로 유지됩니다."
@@ -339,6 +352,13 @@ msgstr "{0} 로그아웃되었습니다."
 #: src/renderer/views/SettingsOverlay/parts/HexSetupDialog.tsx
 msgid "{0} MB download"
 msgstr "{0}MB 다운로드"
+
+#. placeholder {0}: status.entryCount
+#. placeholder {1}: status.pendingCandidates
+#. placeholder {2}: status.suggestionCount
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "{0} memories · {1} waiting · {2} skill suggestions"
+msgstr "메모리 {0} · 대기 {1} · 스킬 제안 {2}"
 
 #. placeholder {0}: capabilities.models.length
 #: src/renderer/components/providers/settings/CursorProviderSettings.tsx
@@ -419,10 +439,15 @@ msgstr "{0}회 실행"
 msgid "{0} share this profile's isolated login and will lose their sign-in until they pick another owner."
 msgstr "{0}은(는) 이 프로필의 격리 로그인을 공유하며, 다른 소유자를 선택할 때까지 로그인을 잃습니다."
 
-#. placeholder {0}: loginDependents.map((dependent) => dependent.displayName ?? dependent.id).join(", ")
+#. placeholder {0}: loginDependents .map((dependent) => dependent.displayName ?? dependent.id) .join(", ")
 #: src/renderer/components/providers/devin/profileSettings.tsx
 msgid "{0} share this profile's isolated login. Move them to another owner first — the host refuses changes that leave them without a login."
 msgstr "{0}은(는) 이 프로필의 격리 로그인을 공유합니다. 먼저 다른 소유자로 옮기세요 — 호스트는 로그인 없이 남겨지는 변경을 거부합니다."
+
+#. placeholder {0}: summary.skipped
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrChecksIndicator.tsx
+msgid "{0} skipped"
+msgstr "{0}개 건너뜀"
 
 #. placeholder {0}: threads.length
 #: src/mobile/views/ThreadsView.tsx
@@ -515,6 +540,12 @@ msgstr "{0}, 실행 중"
 msgid "{0}: {stateLabel}"
 msgstr "{0}: {stateLabel}"
 
+#. placeholder {0}: currentPeriod.activeDays
+#. placeholder {1}: currentPeriod.days
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "{0}/{1} active days"
+msgstr "{0}/{1} 활동일"
+
 #. placeholder {0}: selectedRows.length
 #. placeholder {0}: selectedSkills.length
 #. placeholder {1}: importableRows.length
@@ -523,6 +554,11 @@ msgstr "{0}: {stateLabel}"
 #: src/renderer/components/skills/SkillImportModal.tsx
 msgid "{0}/{1} selected"
 msgstr "{0}/{1}개 선택됨"
+
+#. placeholder {0}: insights.fastModePercent
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "{0}% fast"
+msgstr "{0}% 고속"
 
 #. placeholder {0}: summary.percent
 #: src/renderer/components/thread/ThreadContextDock.tsx
@@ -558,6 +594,10 @@ msgstr "{agentLead}가 계속하려면 입력이 필요합니다."
 msgid "{commentCount, plural, one {# comment} other {# comments}}"
 msgstr "{commentCount, plural, other {댓글 #개}}"
 
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "{commits} commits"
+msgstr "커밋 {commits}개"
+
 #: src/mobile/views/pr/PrOverviewPage.tsx
 #~ msgid "{commitsCount, plural, one {# commit} other {# commits}}"
 #~ msgstr "{commitsCount, plural, one {커밋 #개} other {커밋 #개}}"
@@ -567,6 +607,10 @@ msgstr "{commentCount, plural, other {댓글 #개}}"
 #~ msgid "{completedSteps} of {0} steps"
 #~ msgstr "{completedSteps}/{0}단계 완료"
 
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "{conflicts} conflicts"
+msgstr "충돌 {conflicts}건"
+
 #: src/mobile/views/pr/PrOverviewPage.tsx
 #~ msgid "{conversationCount, plural, one {# comment or review} other {# comments & reviews}}"
 #~ msgstr "{conversationCount, plural, one {댓글 또는 리뷰 #개} other {댓글 및 리뷰 #개}}"
@@ -575,11 +619,35 @@ msgstr "{commentCount, plural, other {댓글 #개}}"
 #~ msgid "{count, plural, one {# agent found} other {# agents found}}"
 #~ msgstr "{count, plural, one {# 에이전트 발견됨} other {# 에이전트 발견됨}}"
 
-#: src/renderer/components/newsLine/useInsightItems.tsx
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "{count, plural, one {# subagent run} other {# subagent runs}} this week"
+msgstr "이번 주 서브에이전트 실행 {count, plural, one {#회} other {#회}}"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "{count, plural, one {# subagent run} other {# subagent runs}} this week (-{deltaPercent}%)"
+msgstr "이번 주 서브에이전트 실행 {count, plural, one {#회} other {#회}} (-{deltaPercent}%)"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "{count, plural, one {# subagent run} other {# subagent runs}} this week (+{deltaPercent}%)"
+msgstr "이번 주 서브에이전트 실행 {count, plural, one {#회} other {#회}} (+{deltaPercent}%)"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "{count, plural, one {# workflow run} other {# workflow runs}} this week"
+msgstr "이번 주 워크플로 실행 {count, plural, one {#회} other {#회}}"
+
+#: src/renderer/components/composer/MemoryAddMenu.tsx
+msgid "{count} saved"
+msgstr "{count}개 저장됨"
+
+#: src/renderer/components/composer/MemoryAddMenu.tsx
+msgid "{count} waiting"
+msgstr "{count}개 대기"
+
+#: src/renderer/components/newsLine/insightContent.tsx
 msgid "{current, plural, one {# day} other {# days}} in a row · your best is {longest}"
 msgstr "{current, plural, other {#일}} 연속 · 최고 기록 {longest}일"
 
-#: src/renderer/components/newsLine/useInsightItems.tsx
+#: src/renderer/components/newsLine/insightContent.tsx
 msgid "{current, plural, one {# day} other {# days}} in a row · your best streak yet"
 msgstr "{current, plural, other {#일}} 연속 · 지금까지 최고 기록"
 
@@ -685,6 +753,7 @@ msgstr "{label} API 키"
 msgid "{label} auto-refresh interval in minutes"
 msgstr "{label} 자동 새로고침 간격(분)"
 
+#: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 msgid "{label} can't lead a crew. Pick another model first."
 msgstr "{label}은(는) 크루를 이끌 수 없습니다. 먼저 다른 모델을 선택하세요."
@@ -772,6 +841,10 @@ msgstr "{0}개 중 {passed}개 통과"
 msgid "{percent}% full"
 msgstr "{percent}% 가득 참"
 
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "{percent}% of your threads this week used {modeLabel} mode"
+msgstr "이번 주 스레드의 {percent}%가 {modeLabel} 모드를 사용했습니다"
+
 #: src/renderer/components/newsLine/useNewsLineItems.tsx
 msgid "{percent}% used"
 msgstr "{percent}% 사용됨"
@@ -797,13 +870,17 @@ msgstr "{targetLabel}의 {projectName}은(는) Git 저장소가 아니므로 코
 msgid "{projectName} Settings"
 msgstr "{projectName} 설정"
 
-#: src/renderer/components/newsLine/useInsightItems.tsx
+#: src/renderer/components/newsLine/insightContent.tsx
 msgid "{prompts, plural, one {# prompt} other {# prompts}} this week"
 msgstr "이번 주 프롬프트 {prompts, plural, other {#개}}"
 
-#: src/renderer/components/newsLine/useInsightItems.tsx
+#: src/renderer/components/newsLine/insightContent.tsx
 msgid "{prompts, plural, one {# prompt} other {# prompts}} this week · busiest on {weekday}"
 msgstr "이번 주 프롬프트 {prompts, plural, other {#개}} · {weekday}에 가장 활발"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "{promptsText} total prompts across {threadsText} threads"
+msgstr "{threadsText}개 스레드에서 총 {promptsText}개 프롬프트"
 
 #: src/renderer/components/providers/codex/manifest.ts
 #: src/renderer/components/providers/usageProviders.ts
@@ -821,6 +898,10 @@ msgstr "{provider}에서는 원샷 생성을 지원하지 않습니다"
 #: src/renderer/i18n/sharedMessages.ts
 #~ msgid "{provider} does not support text-only one-shot generation"
 #~ msgstr "{provider}에서는 텍스트 전용 원샷 생성을 지원하지 않습니다"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "{prs} PRs"
+msgstr "PR {prs}개"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/TodoList.tsx
 msgid "{remaining, plural, one {# open} other {# open}}"
@@ -923,6 +1004,7 @@ msgstr "{totalCount}개 중 {visibleCount}개 사용 가능"
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProviderModelVisibilityPopover.tsx
 #: src/renderer/views/SettingsOverlay/parts/SidebarShortcutsSelector.tsx
+#: src/renderer/views/SettingsOverlay/parts/SidebarUsageVisibilityPopover.tsx
 msgid "{visibleCount} of {totalCount} visible"
 msgstr "{totalCount}개 중 {visibleCount}개 표시"
 
@@ -930,6 +1012,10 @@ msgstr "{totalCount}개 중 {visibleCount}개 표시"
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #~ msgid "{visibleSidebarShortcutCount}/{0} selected"
 #~ msgstr "{visibleSidebarShortcutCount}/{0}개 선택됨"
+
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "{weekdayPct}% Mon–Fri"
+msgstr "{weekdayPct}% 월–금"
 
 #: src/renderer/views/SettingsOverlay/parts/CursorSdkRuntimeSetup.tsx
 msgid "@cursor/sdk is not installed."
@@ -1066,7 +1152,15 @@ msgstr "<0/>님이 리뷰 스레드를 시작했습니다"
 msgid "<0/>% Full"
 msgstr "<0/>% 가득 참"
 
-#: src/renderer/components/newsLine/useInsightItems.tsx
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "<0>{envA}</0> leaned {providerA} while <1>{envB}</1> leaned {providerB} this week"
+msgstr "이번 주 <0>{envA}</0>는 {providerA}, <1>{envB}</1>는 {providerB} 비중이 높았습니다"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "<0>{envLabel}</0> ran {percent}% of your prompts this week"
+msgstr "이번 주 프롬프트의 {percent}%가 <0>{envLabel}</0>에서 실행되었습니다"
+
+#: src/renderer/components/newsLine/insightContent.tsx
 msgid "<0>{label}</0> handles {percent}% of your prompts"
 msgstr "<0>{label}</0>이(가) 프롬프트의 {percent}%를 처리합니다"
 
@@ -1157,6 +1251,11 @@ msgstr "후보가 더 이상 실험 브랜치에 있지 않습니다."
 #: src/renderer/components/providers/settings/CursorProfileIdentity.tsx
 msgid "A Cursor profile with this name already exists."
 msgstr "같은 이름의 Cursor 프로필이 이미 있습니다."
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "A delete never waits on a model. Text is saved first, then read later."
+msgstr "삭제는 모델을 기다리지 않습니다. 텍스트를 먼저 저장한 뒤 나중에 읽습니다."
 
 #: src/renderer/components/devices/DeviceWorkspace.tsx
 msgid "A device failed to start."
@@ -1309,6 +1408,10 @@ msgstr "{0}의 계정 이름"
 msgid "Account options"
 msgstr "계정 옵션"
 
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Account sharing and launch defaults."
+msgstr "계정 공유 및 시작 기본 설정입니다."
+
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 #: src/renderer/views/PullRequestsOverlay/list/PrListMenuSections.tsx
 #: src/renderer/views/PullRequestsOverlay/list/prListSheetSections.ts
@@ -1320,6 +1423,7 @@ msgstr "계정"
 msgid "Accounts belong to this plugin and service. Account labels are yours; the service may not report a verified identity. Provider logins are separate."
 msgstr "계정은 이 플러그인과 서비스에 속합니다. 계정 이름은 직접 지정하며 서비스가 확인된 신원 정보를 제공하지 않을 수 있습니다. 공급자 로그인과는 별개입니다."
 
+#: src/renderer/components/providers/cursor/index.tsx
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "ACP"
@@ -1403,9 +1507,21 @@ msgstr "포트 {0} 작업"
 msgid "Active"
 msgstr "활성"
 
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Active {activeDays} of the last {totalDays} days"
+msgstr "최근 {totalDays}일 중 {activeDays}일 활동"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 msgid "Active forwards"
 msgstr "활성 포워딩"
+
+#: src/renderer/views/ProfileOverlay/parts/ProfileHeader.tsx
+msgid "Active today"
+msgstr "오늘 활동함"
+
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "Active yesterday"
+msgstr "어제 활동함"
 
 #: src/renderer/views/ProfileOverlay/parts/ActivitySection.tsx
 #: src/renderer/views/PullRequestsOverlay/summary/ActivityFeed.tsx
@@ -1422,15 +1538,30 @@ msgstr "활동 하이라이트"
 msgid "Activity insights"
 msgstr "활동 인사이트"
 
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Activity is down {percent}% this week · {current} vs {previous} prompts"
+msgstr "이번 주 활동이 {percent}% 감소했습니다 · {current} vs {previous} 프롬프트"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Activity is up {percent}% this week · {current} vs {previous} prompts"
+msgstr "이번 주 활동이 {percent}% 증가했습니다 · {current} vs {previous} 프롬프트"
+
 #: src/renderer/views/ProfileOverlay/parts/ActivitySection.tsx
 msgid "Activity metric"
 msgstr "활동 지표"
+
+#. placeholder {0}: f.envLabel
+#. placeholder {1}: f.percent
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Activity on <0>{0}</0> jumped {1}% this week"
+msgstr "이번 주 <0>{0}</0> 활동이 {1}% 급증했습니다"
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 #: src/renderer/components/providers/settings/ProviderContextWindowSettings.tsx
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/StructuredCustomValues.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/ProjectTreeCreateMenu.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SearchExcludeBody.tsx
@@ -1445,6 +1576,10 @@ msgstr "{0} 추가"
 #: src/renderer/commands/registry.ts
 msgid "Add a local project"
 msgstr "로컬 프로젝트 추가"
+
+#: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
+msgid "Add a memory"
+msgstr "메모리 추가"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
 msgid "Add a password or import one from another browser."
@@ -1468,6 +1603,7 @@ msgid "Add a project before signing in."
 msgstr "로그인하기 전에 프로젝트를 추가하세요."
 
 #: src/renderer/actions/agentLoginActions.ts
+#: src/renderer/components/providers/useCombinedProviderRuntimeUpdates.ts
 msgid "Add a project before updating an agent."
 msgstr "에이전트를 업데이트하기 전에 프로젝트를 추가하세요."
 
@@ -1529,6 +1665,10 @@ msgstr "작업 추가"
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
 msgid "Add an existing folder"
 msgstr "기존 폴더 추가"
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Add another Devin account with its own sign-in."
+msgstr "별도로 로그인하는 Devin 계정을 추가합니다."
 
 #: src/renderer/components/composer/ComposerAddMenu.tsx
 msgid "Add attachment or capability"
@@ -1732,6 +1872,7 @@ msgstr "레거시 연결 채택"
 msgid "Advanced"
 msgstr "고급"
 
+#: src/renderer/components/providers/devin/profileSettings.tsx
 #: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
 msgid "Advanced settings"
 msgstr "고급 설정"
@@ -1739,6 +1880,18 @@ msgstr "고급 설정"
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Advertise a custom base URL, e.g. a reverse proxy or tunnel. Leave empty for automatic."
 msgstr "사용자 정의 기본 URL을 게시합니다(예: 리버스 프록시 또는 터널). 자동으로 설정하려면 비워 두세요."
+
+#: src/renderer/components/mcp/RemoteMcpOauthDialog.tsx
+msgid "After authorizing, copy the full URL from the browser address bar and paste it here, even if the page fails to load."
+msgstr "승인 후 페이지가 로드되지 않더라도 브라우저 주소창의 전체 URL을 복사해 여기에 붙여넣으세요."
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "After the turn settles (2 min)"
+msgstr "턴이 끝난 뒤 (2분)"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "After the turn settles (90 sec)"
+msgstr "턴이 끝난 뒤 (90초)"
 
 #: src/renderer/components/providers/devin/cloudProfileSettings.tsx
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
@@ -1868,6 +2021,10 @@ msgstr "에이전트는 위임된 작업을 작업 태그로 분류합니다. �
 #: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
 #~ msgid "Agents classify delegated work with task tags. Matching learned routes rank first, followed by global Crossagents usage, favorites, normal agent usage, and built-in order."
 #~ msgstr "에이전트는 위임된 작업을 작업 태그로 분류합니다. 일치하는 학습된 경로가 먼저 순위에 오르고, 전체 Crossagents 사용량, 즐겨찾기, 일반 에이전트 사용량, 기본 순서가 이어집니다."
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Agents shipped {summary} this week"
+msgstr "이번 주 에이전트가 {summary}를 완료했습니다"
 
 #: src/renderer/components/providers/antigravity/index.tsx
 msgid "agy CLI"
@@ -2019,6 +2176,7 @@ msgid "All threads in Done will be permanently deleted."
 msgstr "완료 섹션의 모든 스레드가 영구적으로 삭제됩니다."
 
 #: src/renderer/components/workspace/workspaceMenuItems.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectFilter.tsx
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 msgid "All workspaces"
 msgstr "모든 작업 영역"
@@ -2090,6 +2248,10 @@ msgstr "항상 적용"
 #: src/renderer/views/SettingsOverlay/parts/SearchExcludeBody.tsx
 msgid "Always excluded"
 msgstr "항상 제외됨"
+
+#: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
+msgid "Always use bun"
+msgstr "항상 bun 사용"
 
 #: src/renderer/utils/projectIconColors.ts
 msgid "Amber"
@@ -2256,8 +2418,8 @@ msgstr "모양 모드"
 #~ msgstr "새 클라우드 채팅 또는 대기 중인 클라우드 채팅의 첫 메시지 이전에 적용됩니다 — 이미 작업 영역이 있는 클라우드 채팅은 이를 유지합니다. 선택을 \"Devin의 현재 선택 유지\"로 두면 결정은 Devin에 맡겨지며, 이전 설정을 복원하지 않습니다."
 
 #: src/renderer/components/providers/devin/profileSettings.tsx
-msgid "Applied to this profile's config view (devin.org_id). Poracode cannot list the organizations a login belongs to; Devin validates the id at launch and an unauthorized org fails visibly."
-msgstr "이 프로필의 설정 뷰(devin.org_id)에 적용됩니다. Poracode는 로그인이 속한 조직을 나열할 수 없으며, Devin이 시작 시 ID를 검증하여 권한 없는 조직은 눈에 띄게 실패합니다."
+#~ msgid "Applied to this profile's config view (devin.org_id). Poracode cannot list the organizations a login belongs to; Devin validates the id at launch and an unauthorized org fails visibly."
+#~ msgstr "이 프로필의 설정 뷰(devin.org_id)에 적용됩니다. Poracode는 로그인이 속한 조직을 나열할 수 없으며, Devin이 시작 시 ID를 검증하여 권한 없는 조직은 눈에 띄게 실패합니다."
 
 #: src/renderer/components/common/ProviderModelMenu/ModelConfigurationPanel.tsx
 msgid "Applies to both models"
@@ -2272,6 +2434,7 @@ msgstr "제공자 프리셋 적용"
 msgid "Approval or reply required from you."
 msgstr "사용자의 승인 또는 응답이 필요합니다."
 
+#: src/renderer/components/skills/MemorySkillSuggestions.tsx
 #: src/renderer/views/PullRequestsOverlay/parts/SubmitReviewPopover.tsx
 msgid "Approve"
 msgstr "승인"
@@ -2388,6 +2551,12 @@ msgstr "스테이징되지 않은 모든 변경 사항을 되돌리시겠습니�
 msgid "Arguments"
 msgstr "인수"
 
+#: src/renderer/components/thread/ThreadArtifactsBubble.tsx
+#: src/renderer/components/thread/ThreadArtifactsDock.tsx
+#: src/renderer/components/thread/ThreadDocksPanel.tsx
+msgid "Artifacts"
+msgstr "결과물"
+
 #. placeholder {0}: effectiveAgentStatus?.label ?? agentFallbackLabel
 #. placeholder {0}: project.name
 #: src/renderer/components/thread/ThreadComposerSection.tsx
@@ -2438,6 +2607,11 @@ msgstr "질문할 수 없습니다. 이 프로젝트에서 채팅을 시작할 �
 #: src/renderer/views/WelcomeOverlay.tsx
 msgid "Ask Question"
 msgstr "질문하기"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Ask sessions not to write a separate provider memory on top of this one."
+msgstr "세션이 이 메모리 위에 제공자 전용 메모리를 쓰지 않도록 합니다."
 
 #: src/renderer/components/providers/kimi/index.tsx
 msgid "Ask When Needed"
@@ -2728,6 +2902,15 @@ msgstr "아바타 색상"
 msgid "Avatar color {color}"
 msgstr "아바타 색상 {color}"
 
+#. placeholder {0}: formatDuration(avgTurnMs)
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "avg {0}"
+msgstr "평균 {0}"
+
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "Avg task duration"
+msgstr "평균 작업 시간"
+
 #: src/renderer/views/PullRequestsOverlay/summary/RailMergeStatus.tsx
 msgid "Awaiting a required review."
 msgstr "필수 리뷰를 기다리는 중입니다."
@@ -2741,6 +2924,7 @@ msgstr "검토 대기 중"
 #: src/renderer/components/composer/ComposerAddMenu.tsx
 #: src/renderer/components/composer/ComposerMcpServersMenu.tsx
 #: src/renderer/components/composer/ComposerSessionActionsMenu.tsx
+#: src/renderer/components/composer/MemoryAddMenu.tsx
 #: src/renderer/components/devices/DeviceWorkspace.tsx
 #: src/renderer/components/layout/MobilePageHeader.tsx
 #: src/renderer/views/FileEditorOverlay/FileEditorOverlay.tsx
@@ -3003,6 +3187,10 @@ msgstr "브랜치 보호 규칙이 이 병합을 차단했습니다."
 msgid "Branches"
 msgstr "브랜치"
 
+#: src/renderer/views/MainView/parts/AppContent/parts/ThreadWindowPlaceholder.tsx
+msgid "Bring back to main window"
+msgstr "메인 창으로 되돌리기"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserDockSlot.tsx
 msgid "Bring back to panel"
 msgstr "패널로 되돌리기"
@@ -3201,6 +3389,10 @@ msgstr "비즈니스 및 금융"
 msgid "Business and operations"
 msgstr "비즈니스 및 운영"
 
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Busy day yesterday · {prompts} prompts ({multiplier}x your daily average)"
+msgstr "어제 바쁜 하루 · {prompts}개 프롬프트 (일평균의 {multiplier}배)"
+
 #: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
 #~ msgid "by <0>{author}</0>"
 #~ msgstr "작성자: <0>{author}</0>"
@@ -3251,6 +3443,10 @@ msgstr "저장 후 데스크톱에서 계산됨"
 msgid "Calendar"
 msgstr "캘린더"
 
+#: src/renderer/components/mcp/RemoteMcpOauthDialog.tsx
+msgid "Callback URL"
+msgstr "콜백 URL"
+
 #: src/renderer/components/devices/DeviceTools.tsx
 msgid "Camera"
 msgstr "카메라"
@@ -3278,8 +3474,11 @@ msgstr "이 화면에서는 이 모델 설정을 사용할 수 없습니다"
 #: src/renderer/components/common/FeedbackDialog.tsx
 #: src/renderer/components/experiment/ExperimentDraftTargets.tsx
 #: src/renderer/components/mcp/McpServerEditor.tsx
+#: src/renderer/components/mcp/RemoteMcpOauthDialog.tsx
 #: src/renderer/components/plugins/PluginCatalogDetail.tsx
 #: src/renderer/components/providers/settings/ModelProviderEditor.tsx
+#: src/renderer/components/skills/MemorySkillSuggestions.tsx
+#: src/renderer/components/skills/SkillViewModal.tsx
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 #: src/renderer/components/thread/ChatPane/ConversationSearchJump.tsx
 #: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
@@ -3317,6 +3516,7 @@ msgstr "이 화면에서는 이 모델 설정을 사용할 수 없습니다"
 #: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/HexSetupDialog.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
@@ -3416,6 +3616,16 @@ msgstr "캡처 및 보기 컨트롤"
 msgid "Capture audio from this device."
 msgstr "이 장치에서 오디오를 캡처합니다."
 
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Capture model"
+msgstr "기록 모델"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Capture new notes after turns finish."
+msgstr "턴이 끝나면 새 메모를 기록합니다."
+
 #: src/renderer/components/newsLine/NewsLine.tsx
 msgid "carousel"
 msgstr "캐러셀"
@@ -3441,6 +3651,7 @@ msgid "Change context size to {contextLabel}?"
 msgstr "컨텍스트 크기를 {contextLabel}(으)로 변경할까요?"
 
 #: src/renderer/components/providers/codex/profileSettings.tsx
+#: src/renderer/components/providers/gemini/profileSettings.tsx
 msgid "Change home"
 msgstr "홈 변경"
 
@@ -3449,6 +3660,7 @@ msgid "Change order"
 msgstr "순서 변경"
 
 #: src/renderer/components/providers/codex/profileSettings.tsx
+#: src/renderer/components/providers/gemini/profileSettings.tsx
 msgid "Change profile home?"
 msgstr "프로필 홈을 변경할까요?"
 
@@ -3695,7 +3907,7 @@ msgstr "확인 중…"
 msgid "Checkout is unavailable while this review is read-only"
 msgstr "이 리뷰는 읽기 전용이므로 체크아웃할 수 없습니다"
 
-#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrChecksIndicator.tsx
 #: src/renderer/views/PullRequestsOverlay/list/PrListMenuSections.tsx
 #: src/renderer/views/PullRequestsOverlay/list/prListSheetSections.ts
 #: src/renderer/views/PullRequestsOverlay/summary/RailChecks.tsx
@@ -3720,6 +3932,34 @@ msgstr "검사 대기 중"
 #: src/renderer/views/PullRequestsOverlay/list/PrListRow.tsx
 msgid "Checks running"
 msgstr "검사 실행 중"
+
+#. placeholder {0}: summary.passed
+#. placeholder {1}: summary.relevantTotal
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrChecksIndicator.tsx
+msgid "Checks: {0} of {1} passed"
+msgstr "검사: {1}개 중 {0}개 통과"
+
+#. placeholder {0}: summary.passed
+#. placeholder {1}: summary.relevantTotal
+#. placeholder {2}: summary.failed
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrChecksIndicator.tsx
+msgid "Checks: {0} of {1} passed, {2} failed"
+msgstr "검사: {1}개 중 {0}개 통과, {2}개 실패"
+
+#. placeholder {0}: summary.passed
+#. placeholder {1}: summary.relevantTotal
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrChecksIndicator.tsx
+msgid "Checks: {0} of {1} passed, estimated end {endTimeText}"
+msgstr "검사: {1}개 중 {0}개 통과, 예상 완료 {endTimeText}"
+
+#. placeholder {0}: summary.skipped
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrChecksIndicator.tsx
+msgid "Checks: {0} skipped"
+msgstr "검사: {0}개 건너뜀"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrChecksIndicator.tsx
+msgid "Checks: none reported"
+msgstr "검사: 보고된 항목 없음"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Choose a completed turn to fork from."
@@ -3894,6 +4134,10 @@ msgstr "새 풀 리퀘스트에서 Poracode가 수행할 작업을 선택하세�
 #~ msgid "Choose when this machine stays awake."
 #~ msgstr "이 기기가 깨어 있는 상태를 유지할 시점을 선택하세요."
 
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Choose where new sessions start. Use /handoff in chat to transfer an existing session."
+msgstr "새 세션을 시작할 위치를 선택하세요. 기존 세션을 옮기려면 채팅에서 /handoff를 사용하세요."
+
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
 msgid "Choose whether chat messages sent while an agent is working steer the current response or queue for the next response. {followUpShortcut} uses the opposite action."
 msgstr "에이전트가 작업 중일 때 보낸 채팅 메시지를 현재 응답에 반영할지, 다음 응답을 위해 대기열에 넣을지 선택합니다. {followUpShortcut}는 반대 동작을 사용합니다."
@@ -3902,6 +4146,11 @@ msgstr "에이전트가 작업 중일 때 보낸 채팅 메시지를 현재 응�
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Choose whether links from Poracode and browser popups stay in Poracode or open externally."
 msgstr "Poracode 및 브라우저 팝업의 링크를 Poracode에 유지할지 아니면 외부에서 열지 선택합니다."
+
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/UsageDisplaySettings.tsx
+msgid "Choose which providers show usage rings in the sidebar."
+msgstr "사이드바에 사용량 원을 표시할 공급자를 선택합니다."
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Choose which shortcuts appear in the sidebar footer."
@@ -4032,6 +4281,8 @@ msgstr "목표 지우기"
 #: src/renderer/sidebar/ChatSidebarHeader.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProviderModelVisibilityPopover.tsx
+#: src/renderer/views/SettingsOverlay/parts/SidebarUsageVisibilityPopover.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Clear search"
 msgstr "검색 지우기"
 
@@ -4052,6 +4303,10 @@ msgstr "CLI"
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
 msgid "CLI hooks"
 msgstr "CLI 후크"
+
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
+msgid "CLI MCP setup"
+msgstr "CLI MCP 설정"
 
 #: src/renderer/components/thread/ThreadAgentVisionDock.tsx
 msgid "Click"
@@ -4245,6 +4500,7 @@ msgstr "오버레이 닫기"
 
 #: src/renderer/components/thread/ThreadDraftChrome.tsx
 #: src/renderer/components/thread/ThreadView.tsx
+#: src/renderer/views/MainView/parts/AppContent/parts/ThreadWindowPlaceholder.tsx
 msgid "Close pane"
 msgstr "창 닫기"
 
@@ -4364,6 +4620,7 @@ msgstr "워크플로 닫기"
 msgid "Close workflows panel"
 msgstr "워크플로 패널 닫기"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
 #: src/renderer/utils/prStatus.ts
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 #: src/renderer/views/PullRequestsOverlay/list/PrListMenuSections.tsx
@@ -4448,7 +4705,12 @@ msgstr "Codex는 CODEX_HOME을 아래 디렉터리로 설정하여 이 프로필
 msgid "Collapse"
 msgstr "접기"
 
+#: src/renderer/components/providers/settings/UsageProviderRow.tsx
 #: src/renderer/components/providers/UsageProviderCardView.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/ActiveSubAgentTile.tsx
+#: src/renderer/components/thread/CrewDockSection.tsx
+#: src/renderer/components/thread/ThreadArtifactsDock.tsx
+#: src/renderer/components/thread/ThreadGoalDock.tsx
 msgid "Collapse {label}"
 msgstr "{label} 접기"
 
@@ -4467,6 +4729,7 @@ msgstr "에이전트 시야 접기"
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsagePanelHeaderActions.tsx
 #: src/renderer/views/PullRequestsOverlay/changes/ChangesToolbar.tsx
 #: src/renderer/views/PullRequestsOverlay/changes/ChangesToolbarCompact.tsx
+#: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
 msgid "Collapse all"
 msgstr "모두 접기"
 
@@ -4500,8 +4763,8 @@ msgstr "오류 접기"
 #~ msgstr "실험 접기"
 
 #: src/renderer/components/thread/ThreadArtifactsDock.tsx
-msgid "Collapse files & artifacts"
-msgstr "파일 및 결과물 접기"
+#~ msgid "Collapse files & artifacts"
+#~ msgstr "파일 및 결과물 접기"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarFooterNav.tsx
 msgid "Collapse footer"
@@ -4883,8 +5146,8 @@ msgid "Config file (optional)"
 msgstr "설정 파일(선택 사항)"
 
 #: src/renderer/components/providers/devin/profileSettings.tsx
-msgid "Config file path (optional)"
-msgstr "설정 파일 경로(선택 사항)"
+#~ msgid "Config file path (optional)"
+#~ msgstr "설정 파일 경로(선택 사항)"
 
 #: src/renderer/components/providers/devin/profileSettings.tsx
 msgid "Configuration from a newer Poracode"
@@ -4908,6 +5171,7 @@ msgstr "설정됨"
 
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/providers/settings/ProviderMcpServersSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 msgid "Configured MCP servers"
 msgstr "구성된 MCP 서버"
 
@@ -5049,7 +5313,9 @@ msgstr "연결 중..."
 
 #: src/renderer/components/common/RemoteServerStatusDot.tsx
 #: src/renderer/components/machineScope/MachineSelect.tsx
+#: src/renderer/components/mcp/RemoteMcpServersManager.tsx
 #: src/renderer/components/providers/HostUsageView.tsx
+#: src/renderer/views/ProfileOverlay/parts/ProfileHeader.tsx
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Connecting…"
@@ -5073,6 +5339,9 @@ msgstr "연결 오류"
 #~ msgstr "연결 오류입니다."
 
 #: src/renderer/components/mcp/McpServersManager.tsx
+#: src/renderer/components/mcp/RemoteMcpOauthDialog.tsx
+#: src/renderer/components/mcp/RemoteMcpServersManager.tsx
+#: src/renderer/state/pairedHostSettings.ts
 #: src/renderer/state/remoteServers/snapshotProjection.ts
 msgid "Connection failed."
 msgstr "연결에 실패했습니다."
@@ -5157,6 +5426,7 @@ msgstr "컨텍스트 창"
 msgid "Context windows"
 msgstr "컨텍스트 창"
 
+#: src/renderer/components/mcp/RemoteMcpOauthDialog.tsx
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/QuestionFormActions.tsx
 msgid "Continue"
 msgstr "계속"
@@ -5257,6 +5527,7 @@ msgstr "쿠키"
 #: src/renderer/components/thread/ChatPane/parts/items/CopyTextButton.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/ImageCard.tsx
 #: src/renderer/components/thread/ChatPane/UserMessageActionsSheet.tsx
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
 #: src/renderer/RendererCrashScreen.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/LocalPortsPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
@@ -5277,6 +5548,7 @@ msgstr "클립보드에 복사됨"
 
 #: src/renderer/components/common/EditContextMenuHost.tsx
 #: src/renderer/components/terminal/XTermSurface.tsx
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Copy"
 msgstr "복사"
@@ -5488,6 +5760,11 @@ msgstr "이 마켓플레이스 또는 플러그인를 관리할 수 없습니다
 #~ msgid "Could not open this PDF."
 #~ msgstr "이 PDF를 열 수 없습니다."
 
+#: src/renderer/app.tsx
+#: src/renderer/windowApps/ThreadWindowApp.tsx
+msgid "Could not open this thread. Try again."
+msgstr "이 스레드를 열 수 없습니다. 다시 시도하세요."
+
 #: src/renderer/components/thread/ChatPane/parts/items/useReadAbsoluteFile.tsx
 msgid "Could not read file."
 msgstr "파일을 읽을 수 없습니다."
@@ -5498,6 +5775,8 @@ msgid "Could not read the thread context for side chat. Try again."
 msgstr "보조 채팅을 위한 스레드 컨텍스트를 읽을 수 없습니다. 다시 시도하세요."
 
 #. placeholder {0}: account.serverName
+#. placeholder {0}: server.name
+#: src/renderer/components/mcp/RemoteMcpServersManager.tsx
 #: src/renderer/components/plugins/usePluginOauth.ts
 msgid "Could not sign in to {0}."
 msgstr "{0}에 로그인할 수 없습니다."
@@ -5572,6 +5851,11 @@ msgstr "{0}을(를) 설치할 수 없습니다."
 msgid "Couldn't list repositories."
 msgstr "저장소를 나열할 수 없습니다."
 
+#: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Couldn't load memory."
+msgstr "메모리를 불러오지 못했습니다."
+
 #: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
 #: src/renderer/views/SettingsOverlay/parts/PluginsSettings.tsx
 msgid "Couldn't load plugins."
@@ -5633,7 +5917,13 @@ msgstr "MCP 서버 구성을 스캔할 수 없습니다."
 msgid "Couldn't start the camera"
 msgstr "카메라를 시작할 수 없습니다"
 
+#: src/renderer/components/composer/MemoryAddMenu.tsx
+msgid "Couldn't update memory mode for this thread."
+msgstr "이 스레드의 메모리 모드를 변경하지 못했습니다."
+
+#: src/renderer/components/skills/MemorySkillSuggestions.tsx
 #: src/renderer/components/skills/SkillsManager.tsx
+#: src/renderer/components/skills/SkillViewModal.tsx
 msgid "Couldn't update the skill."
 msgstr "스킬을 업데이트하지 못했습니다."
 
@@ -5693,6 +5983,10 @@ msgstr "파일 생성"
 #: src/renderer/components/thread/ThreadForkDialog.tsx
 msgid "Create fork"
 msgstr "분기 만들기"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Create iPhone Duo"
+msgstr "iPhone Duo 만들기"
 
 #: src/renderer/components/common/BranchSelector/parts/BranchFooterActions.tsx
 msgid "Create new branch"
@@ -6110,6 +6404,7 @@ msgstr "Cursor 프로필 이름"
 msgid "Cursor profile renamed."
 msgstr "Cursor 프로필 이름을 변경했습니다."
 
+#: src/renderer/components/providers/cursor/index.tsx
 #: src/renderer/components/providers/settings/CursorProviderSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/CursorProfileSettings.tsx
 msgid "Cursor SDK"
@@ -6153,6 +6448,10 @@ msgstr "Cursor SDK를 v{nextVersion}(으)로 업데이트했습니다."
 msgid "Custom"
 msgstr "맞춤"
 
+#: src/renderer/components/providers/settings/UsageProviderRow.tsx
+msgid "Custom auto-refresh interval in minutes. Clear to use default."
+msgstr "사용자 지정 자동 새로 고침 간격(분). 기본값을 사용하려면 비워 두세요."
+
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
 msgid "Custom color"
 msgstr "사용자 지정 색상"
@@ -6168,6 +6467,15 @@ msgstr "사용자 지정 컨텍스트 창"
 #: src/renderer/components/providers/settings/ModelProviderEditor.tsx
 msgid "Custom endpoint"
 msgstr "사용자 지정 엔드포인트"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Custom idle delay"
+msgstr "사용자 지정 대기"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Custom idle minutes"
+msgstr "사용자 지정 대기 분"
 
 #: src/renderer/views/SettingsOverlay/parts/cursorRuntimeInstall.ts
 msgid "custom path"
@@ -6268,6 +6576,7 @@ msgstr "영구 세션, 추론 설정, MCP 도구를 지원하는 DeepSeek Harnes
 #: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/TerminalFontPicker.tsx
 #: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
 msgid "Default"
@@ -6345,6 +6654,7 @@ msgstr "다른 AI 에이전트에게 작업을 위임합니다."
 #: src/renderer/views/SettingsOverlay/parts/CrewsSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/CustomThemes.tsx
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 msgid "Delete"
@@ -6556,6 +6866,7 @@ msgid "Describe what the agent should do"
 msgstr "에이전트가 수행할 작업을 설명하세요"
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
+#: src/renderer/components/skills/MemorySkillSuggestions.tsx
 #: src/renderer/views/PullRequestsOverlay/summary/DescriptionCard.tsx
 msgid "Description"
 msgstr "설명"
@@ -6631,22 +6942,23 @@ msgstr "이 기기에서 에이전트 감지"
 #~ msgstr "프로젝트 파일에서 감지"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
+#: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Detected"
 msgstr "감지됨"
 
 #. placeholder {0}: detectionScopeLabel(status)
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
-msgid "Detected <0>({0})</0>"
-msgstr "감지됨 <0>({0})</0>"
+#~ msgid "Detected <0>({0})</0>"
+#~ msgstr "감지됨 <0>({0})</0>"
 
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
-msgid "Detected <0>(local)</0>"
-msgstr "<0>(로컬)</0> 감지됨"
+#~ msgid "Detected <0>(local)</0>"
+#~ msgstr "<0>(로컬)</0> 감지됨"
 
 #. placeholder {0}: status.envDistro ? `WSL (${status.envDistro})` : "WSL"
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
-msgid "Detected <0>{0}</0>"
-msgstr "<0>{0}</0> 감지됨"
+#~ msgid "Detected <0>{0}</0>"
+#~ msgstr "<0>{0}</0> 감지됨"
 
 #: src/renderer/components/thread/ThreadDraftView.tsx
 #: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
@@ -6821,8 +7133,8 @@ msgstr "Devin이 수정된 명령어를 제안하며, 실행 전에 검토할 �
 #~ msgstr "Devin이 Poracode가 해석할 수 없는 설정 목록을 반환했습니다."
 
 #: src/renderer/components/providers/devin/profileSettings.tsx
-msgid "Devin's own login (default)"
-msgstr "Devin 자체 로그인(기본값)"
+#~ msgid "Devin's own login (default)"
+#~ msgstr "Devin 자체 로그인(기본값)"
 
 #: src/renderer/components/newsLine/featureCatalog.ts
 msgid "Dictate prompts instead of typing them"
@@ -7027,6 +7339,7 @@ msgid "Discovery complete"
 msgstr "검색 완료"
 
 #: src/renderer/components/composer/VoiceInputFeedback.tsx
+#: src/renderer/components/skills/MemorySkillSuggestions.tsx
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 #: src/renderer/components/thread/ThreadErrorDock.tsx
 #: src/renderer/components/thread/ThreadHistoryNoticeDock.tsx
@@ -7049,6 +7362,10 @@ msgstr "해제됨"
 #: src/renderer/views/PullRequestsOverlay/summary/ActivityRows.tsx
 msgid "dismissed review"
 msgstr "기각된 리뷰"
+
+#: src/renderer/views/SettingsOverlay/parts/UsageDisplaySettings.tsx
+msgid "Display"
+msgstr "표시"
 
 #: src/renderer/components/providers/settings/ModelProviderEditor.tsx
 #: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
@@ -7133,6 +7450,11 @@ msgstr "완료({doneCount})"
 #: src/renderer/components/thread/AgentDiscoveryDoneButton.tsx
 msgid "Done ({remainingSeconds}s)"
 msgstr "완료 ({remainingSeconds}초)"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Done, archive, unload, and delete still capture immediately when allowed."
+msgstr "완료, 보관, 언로드, 삭제는 허용되면 즉시 기록합니다."
 
 #: src/renderer/components/thread/ChatPane/parts/items/InlineFilePathChip.tsx
 #: src/renderer/views/SettingsOverlay/parts/HexSetupDialog.tsx
@@ -7272,6 +7594,20 @@ msgstr "드래그하여 재정렬하세요. 편집하려면 두 번 클릭하세
 msgid "Draggable model"
 msgstr "드래그 가능한 모델"
 
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Dream model"
+msgstr "정리 모델"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Dream now"
+msgstr "지금 정리"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Dream schedule"
+msgstr "정리 일정"
+
 #: src/renderer/views/SettingsOverlay/parts/MobileHostFolderPicker.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
 msgid "Drives"
@@ -7343,13 +7679,20 @@ msgstr "각 저장소 항목은 1–512자여야 하며 제어 문자를 포함�
 msgid "Earlier text"
 msgstr "이전 텍스트"
 
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Early bird: {percent}% of your recent prompts started before 10 AM"
+msgstr "아침형: 최근 프롬프트의 {percent}%가 오전 10시 전에 시작되었습니다"
+
 #: src/renderer/components/providers/settings/ModelProviderManager.tsx
+#: src/renderer/components/skills/MemorySkillSuggestions.tsx
+#: src/renderer/components/skills/SkillViewModal.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/FileChange.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 #: src/renderer/views/PullRequestsOverlay/changes/inlineComments.tsx
 #: src/renderer/views/PullRequestsOverlay/parts/PrCommentBody.tsx
 #: src/renderer/views/PullRequestsOverlay/summary/DescriptionCard.tsx
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "Edit"
 msgstr "편집"
@@ -7451,6 +7794,10 @@ msgstr "제목 편집"
 #: src/renderer/components/thread/ChatPane/parts/items/FileChange.tsx
 #~ msgid "Edit:"
 #~ msgstr "편집:"
+
+#: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
+msgid "Edited by you"
+msgstr "내가 편집함"
 
 #: src/renderer/commands/registry.ts
 #: src/renderer/commands/shortcutCatalog.ts
@@ -7803,6 +8150,10 @@ msgstr "오류 · 에이전트에 오류가 발생했습니다."
 msgid "Errors"
 msgstr "오류"
 
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrChecksIndicator.tsx
+msgid "Est. end {endTimeText} (~{remainingText} left)"
+msgstr "예상 완료 {endTimeText} (약 {remainingText} 남음)"
+
 #: src/renderer/components/thread/ThreadSpendDetails.tsx
 msgid "Estimated at list prices."
 msgstr "정가 기준 추정치입니다."
@@ -7822,6 +8173,10 @@ msgstr "추정에는 정확한 모델 ID의 표준 API 속도에 해당하는 �
 #: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
 msgid "Evaluate the result after every iteration."
 msgstr "각 반복 후 결과를 평가합니다."
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Evening builder: {percent}% of your recent prompts ran 6–10 PM"
+msgstr "저녁형: 최근 프롬프트의 {percent}%가 오후 6~10시에 실행되었습니다"
 
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
 msgid "Event"
@@ -7846,6 +8201,10 @@ msgstr "{every}시간마다"
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Every {every} minutes"
 msgstr "{every}분마다"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Every 3 days"
+msgstr "3일마다"
 
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Every day at {time}"
@@ -7918,7 +8277,12 @@ msgstr "코드 {0}(으)로 종료되었습니다. 다시 시도하려면 닫으�
 msgid "Expand"
 msgstr "펼치기"
 
+#: src/renderer/components/providers/settings/UsageProviderRow.tsx
 #: src/renderer/components/providers/UsageProviderCardView.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/ActiveSubAgentTile.tsx
+#: src/renderer/components/thread/CrewDockSection.tsx
+#: src/renderer/components/thread/ThreadArtifactsDock.tsx
+#: src/renderer/components/thread/ThreadGoalDock.tsx
 msgid "Expand {label}"
 msgstr "{label} 펼치기"
 
@@ -7937,6 +8301,7 @@ msgstr "에이전트 시야 펼치기"
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsagePanelHeaderActions.tsx
 #: src/renderer/views/PullRequestsOverlay/changes/ChangesToolbar.tsx
 #: src/renderer/views/PullRequestsOverlay/changes/ChangesToolbarCompact.tsx
+#: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
 msgid "Expand all"
 msgstr "모두 펼치기"
 
@@ -7957,8 +8322,8 @@ msgstr "확장 오류"
 #~ msgstr "실험 펼치기"
 
 #: src/renderer/components/thread/ThreadArtifactsDock.tsx
-msgid "Expand files & artifacts"
-msgstr "파일 및 결과물 펼치기"
+#~ msgid "Expand files & artifacts"
+#~ msgstr "파일 및 결과물 펼치기"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarFooterNav.tsx
 msgid "Expand footer"
@@ -8127,6 +8492,10 @@ msgstr "지수 백오프"
 msgid "Export MCP servers"
 msgstr "MCP 서버 내보내기"
 
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Export MCP servers without secrets"
+msgstr "비밀 정보 없이 MCP 서버 내보내기"
+
 #: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
 msgid "Export theme"
 msgstr "테마 내보내기"
@@ -8281,6 +8650,14 @@ msgstr "이 조합에서는 빠른 모드를 사용할 수 없습니다"
 msgid "Fast mode"
 msgstr "고속 모드"
 
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Fast mode powered {percent}% of your turns this week"
+msgstr "이번 주 턴의 {percent}%에서 고속 모드를 사용했습니다"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Fast mode ran on {percent}% of turns this week (was {prevPercent}%)"
+msgstr "이번 주 고속 모드 비율 {percent}% (지난주 {prevPercent}%)"
+
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 msgid "Fastest (Whisper tiny)"
 msgstr "가장 빠름 (Whisper tiny)"
@@ -8372,6 +8749,9 @@ msgstr "파일이 지원되지 않는 인코딩을 사용합니다."
 #: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/components/composer/MentionPopover.tsx
 #: src/renderer/components/layout/PanelDock/panelTabMeta.ts
+#: src/renderer/components/thread/ThreadArtifactsBubble.tsx
+#: src/renderer/components/thread/ThreadArtifactsDock.tsx
+#: src/renderer/components/thread/ThreadDocksPanel.tsx
 #: src/renderer/components/thread/ThreadToolRail.tsx
 #: src/renderer/views/MainView/parts/MobileWorkspacePage.tsx
 #: src/renderer/views/PullRequestsOverlay/changes/ChangesTab.tsx
@@ -8379,8 +8759,6 @@ msgid "Files"
 msgstr "파일"
 
 #: src/renderer/components/thread/ThreadArtifactsBubble.tsx
-#: src/renderer/components/thread/ThreadArtifactsDock.tsx
-#: src/renderer/components/thread/ThreadDocksPanel.tsx
 msgid "Files & artifacts"
 msgstr "파일 및 결과물"
 
@@ -8686,9 +9064,19 @@ msgstr "브라우저 주소 표시줄에 포커스"
 msgid "Focus the in-app browser address bar"
 msgstr "인앱 브라우저 주소 표시줄에 포커스"
 
+#: src/renderer/views/MainView/parts/AppContent/parts/ThreadWindowPlaceholder.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserDockSlot.tsx
 msgid "Focus window"
 msgstr "창 활성화"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Fold controls"
+msgstr "접기 컨트롤"
+
+#: src/renderer/components/devices/DeviceListItem.tsx
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Foldable"
+msgstr "폴더블"
 
 #: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/InlineFolderPathChip.tsx
@@ -8720,6 +9108,10 @@ msgstr "모든 작업 트리를 보관하는 폴더입니다. 팁: 여기에 Dev
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectWorktreeLocation.tsx
 msgid "Folder that holds this project's worktrees. Reset to use the global setting."
 msgstr "이 프로젝트의 작업 트리를 보관하는 폴더입니다. 전역 설정을 사용하려면 재설정하세요."
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Folding is unavailable on this host."
+msgstr "이 호스트에서는 접기를 사용할 수 없습니다."
 
 #. placeholder {0}: "@poracode"
 #. placeholder {0}: "@serg_vecher"
@@ -8917,6 +9309,43 @@ msgstr "게임 및 재미"
 #: src/renderer/components/providers/gemini/manifest.ts
 msgid "Gemini"
 msgstr "Gemini"
+
+#. placeholder {0}: trimmedName || displayLabel
+#: src/renderer/components/providers/gemini/profileSettings.tsx
+msgid "Gemini {0} profile saved."
+msgstr "Gemini {0} 프로필이 저장되었습니다."
+
+#: src/renderer/components/providers/gemini/manifest.ts
+msgid "Gemini {profile}"
+msgstr "Gemini {profile}"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Gemini authentication failed. Sign in again or verify your API key in settings."
+msgstr "Gemini 인증에 실패했습니다. 다시 로그인하거나 설정에서 API 키를 확인하세요."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Gemini did not return a response because the output was filtered or blocked."
+msgstr "출력이 필터링되거나 차단되어 Gemini가 응답을 반환하지 않았습니다."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Gemini ended the turn without returning a response. Check authentication or quota and try again."
+msgstr "Gemini가 응답을 반환하지 않고 턴을 종료했습니다. 인증 또는 할당량을 확인한 후 다시 시도하세요."
+
+#: src/renderer/components/providers/gemini/profileSettings.tsx
+msgid "Gemini profile home directory"
+msgstr "Gemini 프로필 홈 디렉터리"
+
+#: src/renderer/components/providers/gemini/profileSettings.tsx
+msgid "Gemini profile name"
+msgstr "Gemini 프로필 이름"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Gemini quota or rate limit was exceeded. Wait and try again, or switch models."
+msgstr "Gemini 할당량 또는 속도 제한을 초과했습니다. 잠시 후 다시 시도하거나 모델을 전환하세요."
+
+#: src/renderer/components/providers/gemini/profileSettings.tsx
+msgid "Gemini runs this profile with GEMINI_CLI_HOME set to the directory below. Use Login above to sign this profile in to its own account."
+msgstr "Gemini는 GEMINI_CLI_HOME을 아래 디렉터리로 설정하여 이 프로필을 실행합니다. 위의 로그인을 사용해 이 프로필을 별도 계정에 로그인하세요."
 
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
@@ -9238,6 +9667,10 @@ msgstr "가이드 단계"
 msgid "Guide writer"
 msgstr "가이드 작성 에이전트"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Half open"
+msgstr "반쯤 열림"
+
 #: src/renderer/components/crew/CrewMemberRow.tsx
 msgid "Hand off to another lead…"
 msgstr "다른 리드에게 넘기기…"
@@ -9383,19 +9816,18 @@ msgstr "숨겨진 재개 가능 스레드는 5분마다 청소되고 이 유휴 
 msgid "Hide"
 msgstr "숨기기"
 
-#: src/renderer/components/thread/ThreadArtifactsBubble.tsx
-#: src/renderer/components/thread/ThreadDockBubbles.tsx
-#: src/renderer/components/thread/ThreadImagesBubble.tsx
+#: src/renderer/components/thread/ThreadDockUI.tsx
 msgid "Hide {label}"
 msgstr "{label} 숨기기"
 
 #: src/renderer/components/providers/settings/UsageProviderRow.tsx
-msgid "Hide {label} circle in sidebar"
-msgstr "사이드바에서 {label} 원 숨기기"
+#~ msgid "Hide {label} circle in sidebar"
+#~ msgstr "사이드바에서 {label} 원 숨기기"
 
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProviderModelVisibilityPopover.tsx
 #: src/renderer/views/SettingsOverlay/parts/SidebarShortcutsSelector.tsx
+#: src/renderer/views/SettingsOverlay/parts/SidebarUsageVisibilityPopover.tsx
 msgid "Hide all"
 msgstr "모두 숨기기"
 
@@ -9484,6 +9916,10 @@ msgstr "공백 변경 숨기기"
 msgid "High"
 msgstr "높음"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Hinge angle"
+msgstr "힌지 각도"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
 msgid "History"
 msgstr "기록"
@@ -9497,6 +9933,7 @@ msgid "Home"
 msgstr "홈"
 
 #: src/renderer/components/providers/codex/profileSettings.tsx
+#: src/renderer/components/providers/gemini/profileSettings.tsx
 msgid "Home directory"
 msgstr "홈 디렉터리"
 
@@ -9899,6 +10336,11 @@ msgstr "비활성"
 msgid "Include in sync"
 msgstr "동기화에 포함"
 
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Include memory when a thread starts."
+msgstr "스레드가 시작될 때 메모리를 포함합니다."
+
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Include your streaks, prompt counts, and usage limits in the news line."
@@ -9978,6 +10420,10 @@ msgstr "초기 재시도 지연(초)"
 msgid "Initialize Repository"
 msgstr "저장소 초기화"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Inner display"
+msgstr "안쪽 디스플레이"
+
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 msgid "Input"
 msgstr "입력"
@@ -10031,8 +10477,8 @@ msgid "Inspect"
 msgstr "검사"
 
 #: src/renderer/components/plugins/pluginCopy.ts
-msgid "Inspect and control the simulator or emulator attached to this thread."
-msgstr "이 스레드에 연결된 시뮬레이터 또는 에뮬레이터를 검사하고 제어합니다."
+#~ msgid "Inspect and control the simulator or emulator attached to this thread."
+#~ msgstr "이 스레드에 연결된 시뮬레이터 또는 에뮬레이터를 검사하고 제어합니다."
 
 #: src/renderer/components/thread/ThreadView.tsx
 msgid "Inspect canonical runtime items"
@@ -10127,8 +10573,8 @@ msgid "Install and restart"
 msgstr "설치 후 다시 시작"
 
 #: src/renderer/views/SettingsOverlay/parts/machineScope/MachineScopeRows.tsx
-msgid "Install and sign-in are not yet available on remote machines."
-msgstr "원격 기기에서는 설치와 로그인을 아직 사용할 수 없습니다."
+#~ msgid "Install and sign-in are not yet available on remote machines."
+#~ msgstr "원격 기기에서는 설치와 로그인을 아직 사용할 수 없습니다."
 
 #: src/renderer/components/devices/DeviceWorkspace.tsx
 msgid "Install Android SDK Emulator and platform-tools, then create an AVD."
@@ -10222,8 +10668,8 @@ msgstr "{executionHost}에 GitHub CLI (gh)를 설치한 후 다시 시도하세�
 
 #. placeholder {0}: target.label
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
-msgid "Install in {0}"
-msgstr "{0}에 설치"
+#~ msgid "Install in {0}"
+#~ msgstr "{0}에 설치"
 
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #~ msgid "Install in WSL: {distro}"
@@ -10247,8 +10693,8 @@ msgstr "기본 공급자를 먼저 설치하십시오. 추가 프로토콜 에�
 #~ msgstr "{env}에 설치"
 
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
-msgid "Install on Windows"
-msgstr "Windows에 설치"
+#~ msgid "Install on Windows"
+#~ msgstr "Windows에 설치"
 
 #: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
 msgid "Install OpenCode 2 to manage its plugins."
@@ -10460,6 +10906,10 @@ msgstr "iPhone 15 Pro"
 msgid "iPhone 15 Pro Max"
 msgstr "iPhone 15 Pro Max"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "iPhone Duo is unavailable on this host."
+msgstr "이 호스트에서는 iPhone Duo를 사용할 수 없습니다."
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
 msgid "iPhone SE"
 msgstr "iPhone SE"
@@ -10660,6 +11110,14 @@ msgstr "크게"
 msgid "Largest"
 msgstr "크기 큰 순"
 
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "Last 30 days"
+msgstr "최근 30일"
+
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "Last 7 days"
+msgstr "최근 7일"
+
 #. placeholder {0}: formatSessionTime(session.lastConnectedAt)
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Last connected: {0}"
@@ -10682,6 +11140,7 @@ msgstr "마지막 진행 보고: {elapsed} 전"
 msgid "Last tool: <0>{0}</0>"
 msgstr "마지막 도구: <0>{0}</0>"
 
+#: src/renderer/components/providers/settings/UsageProviderRow.tsx
 #: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
 msgid "Last updated: {fetchedAt}"
 msgstr "마지막 업데이트: {fetchedAt}"
@@ -10722,6 +11181,7 @@ msgstr "스레드 시작"
 
 #: src/renderer/components/crew/CrewMemberRow.tsx
 #: src/renderer/components/providers/devin/modelPricing.ts
+#: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/components/thread/CrewDockSection.tsx
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 #: src/renderer/components/thread/ThreadDraftView.tsx
@@ -10746,6 +11206,16 @@ msgstr "주 모델 + 보조 모델"
 #: src/renderer/components/providers/devin/modelPricing.ts
 #~ msgid "Lead and Sidekick prices are per 1M tokens for each model. Ranges cover model variants."
 #~ msgstr "주 모델과 보조 모델의 가격은 각 모델의 토큰 100만 개당 가격입니다. 가격 범위에는 모델 변형이 포함됩니다."
+
+#: src/renderer/components/composer/MemoryAddMenu.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Learn from chats"
+msgstr "채팅에서 배우기"
+
+#: src/renderer/components/composer/MemoryAddMenu.tsx
+msgid "Learn from this thread"
+msgstr "이 스레드에서 배우기"
 
 #: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentMemorySection.tsx
 #~ msgid "Learned routing memory"
@@ -10777,6 +11247,10 @@ msgstr "기존 자격 증명을 유지하거나 환경 인증을 사용하려면
 #: src/renderer/components/providers/settings/ModelProviderEditor.tsx
 msgid "Leave blank to use the installed model catalog."
 msgstr "설치된 모델 카탈로그를 사용하려면 비워 두세요."
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Leave empty to use the organization selected by Devin. Set this only to choose a different organization for this account."
+msgstr "비워 두면 Devin이 선택한 조직을 사용합니다. 이 계정에서 다른 조직을 선택할 때만 설정하세요."
 
 #: src/renderer/views/GitHubActionsView/GitHubActionsDispatchDialog.tsx
 #~ msgid "Leave empty to use the repository default branch."
@@ -10962,7 +11436,9 @@ msgstr "저장된 노트 불러오기"
 #: src/renderer/components/common/PixelLoader.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentMessageList.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/RemoteBrowserMirror.tsx
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Loading"
@@ -11059,6 +11535,7 @@ msgid "Loading PR…"
 msgstr "PR 로드 중…"
 
 #: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisualFile.tsx
 msgid "Loading preview…"
 msgstr "미리 보기 로드 중…"
 
@@ -11125,20 +11602,22 @@ msgstr "로드 중:"
 #: src/renderer/app.tsx
 #: src/renderer/components/composer/ImageLightbox.tsx
 #: src/renderer/components/devices/DeviceWorkspace.tsx
+#: src/renderer/components/mcp/RemoteMcpServersManager.tsx
 #: src/renderer/components/providers/settings/ModelProviderManager.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/useHistoryItemDetails.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/TreeEntryRow.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
 #: src/renderer/views/PullRequestsOverlay/detail/PrReadOnlyNotice.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileHostFolderPicker.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
 msgid "Loading…"
 msgstr "로드 중…"
 
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
-msgid "local"
-msgstr "로컬"
+#~ msgid "local"
+#~ msgstr "로컬"
 
 #: src/renderer/components/common/BranchSelector/parts/useBranchList.ts
 #: src/renderer/components/common/RemoteServerPicker.tsx
@@ -11235,8 +11714,8 @@ msgstr "로그인"
 
 #. placeholder {0}: detectionScopeLabel(entry.status)
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
-msgid "Login {0}"
-msgstr "로그인 {0}"
+#~ msgid "Login {0}"
+#~ msgstr "로그인 {0}"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
@@ -11248,8 +11727,8 @@ msgid "Login source"
 msgstr "로그인 소스"
 
 #: src/renderer/components/providers/devin/profileSettings.tsx
-msgid "Login source, config file, organization, and runtime for this configuration. Thread knobs like model and approvals stay on the composer."
-msgstr "이 구성의 로그인 소스, 설정 파일, 조직, 런타임입니다. 모델과 승인 같은 스레드 설정은 컴포저에 남아 있습니다."
+#~ msgid "Login source, config file, organization, and runtime for this configuration. Thread knobs like model and approvals stay on the composer."
+#~ msgstr "이 구성의 로그인 소스, 설정 파일, 조직, 런타임입니다. 모델과 승인 같은 스레드 설정은 컴포저에 남아 있습니다."
 
 #: src/renderer/components/providers/settings/ProviderAccountsSection.tsx
 #: src/renderer/components/providers/settings/ProviderCredentialAccounts.tsx
@@ -11361,6 +11840,10 @@ msgstr "관리"
 msgid "Manage MCP servers"
 msgstr "MCP 서버 관리"
 
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Manage memories"
+msgstr "메모리 관리"
+
 #: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
 #~ msgid "Manage packages with OpenCode's native plugin manager. Changes apply globally in the selected environment, including terminal plugins."
 #~ msgstr "OpenCode의 기본 플러그인 관리자로 패키지를 관리합니다. 변경 사항은 터미널 플러그인을 포함하여 선택한 환경 전체에 적용됩니다."
@@ -11405,6 +11888,10 @@ msgstr "전역 및 프로젝트 범위의 공유 스킬을 관리합니다."
 #: src/renderer/views/SettingsOverlay/parts/SkillsSettings.tsx
 #~ msgid "Manage shared skills across Windows, WSL, and projects."
 #~ msgstr "Windows, WSL 및 프로젝트에서 공유 스킬을 관리합니다."
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Manage the Devin account used by this profile."
+msgstr "이 프로필에서 사용하는 Devin 계정을 관리합니다."
 
 #: src/renderer/views/SettingsOverlay/parts/McpServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -11468,6 +11955,10 @@ msgstr "이 호스트에서는 관리형 Hex 설치를 사용할 수 없습니�
 msgid "Managed installation is not available on this host. Use a compatible external Hex engine or the built-in engine."
 msgstr "이 호스트에서는 관리형 설치를 사용할 수 없습니다. 호환되는 외부 Hex 엔진 또는 내장 엔진을 사용하세요."
 
+#: src/renderer/components/composer/MemoryAddMenu.tsx
+msgid "Managed on this host"
+msgstr "이 호스트에서 관리"
+
 #: src/renderer/components/skills/SkillsManager.tsx
 #~ msgid "Managed skills"
 #~ msgstr "관리 스킬"
@@ -11476,6 +11967,10 @@ msgstr "이 호스트에서는 관리형 설치를 사용할 수 없습니다. �
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 msgid "Manual connection"
 msgstr "수동 연결"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Manual only"
+msgstr "수동만"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/sortMode.ts
 msgid "Manual order"
@@ -11743,6 +12238,7 @@ msgstr "MCP 서버"
 #: src/renderer/views/ProjectSettingsOverlay/parts/SettingsSidebar.tsx
 #: src/renderer/views/ProjectSettingsOverlay/ProjectSettingsOverlay.tsx
 #: src/renderer/views/SettingsOverlay/parts/McpServersSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "MCP Servers"
@@ -11778,6 +12274,34 @@ msgstr "미디어"
 msgid "Medium"
 msgstr "중간"
 
+#: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
+msgid "Memories"
+msgstr "메모리"
+
+#: src/renderer/components/composer/MemoryAddMenu.tsx
+#: src/renderer/views/ProjectSettingsOverlay/parts/MobileProjectSettingsIndex.tsx
+#: src/renderer/views/ProjectSettingsOverlay/parts/SettingsSidebar.tsx
+#: src/renderer/views/ProjectSettingsOverlay/ProjectSettingsOverlay.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
+msgid "Memory"
+msgstr "메모리"
+
+#: src/renderer/components/composer/MemoryAddMenu.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
+msgid "Memory actions"
+msgstr "메모리 작업"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Memory catalog management is unavailable on this connection."
+msgstr "이 연결에서는 메모리 카탈로그를 관리할 수 없습니다."
+
+#: src/renderer/components/composer/MemoryAddMenu.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Memory settings"
+msgstr "메모리 설정"
+
 #: src/renderer/views/PullRequestsOverlay/compact/PrCompactMergeAction.tsx
 #: src/renderer/views/PullRequestsOverlay/detail/header/PrMergeControls.tsx
 msgid "Merge"
@@ -11790,6 +12314,11 @@ msgstr "{crownedLabel}의 변경 사항을 {mergeTarget}에 병합할까요?"
 #: src/renderer/views/MainView/parts/Sidebar/parts/useWorktreeActions.ts
 msgid "Merge & Remove"
 msgstr "병합 및 제거"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Merge and retire notes. Skipped when nothing new was captured."
+msgstr "메모를 합치고 오래된 것을 뺍니다. 새로 기록된 것이 없으면 건너뜁니다."
 
 #. placeholder {0}: props.candidateNumber
 #: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
@@ -12201,6 +12730,7 @@ msgid "More PR options"
 msgstr "더 많은 PR 옵션"
 
 #: src/renderer/components/providers/UsageOverflowChip.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "More providers"
 msgstr "추가 공급자"
 
@@ -12260,6 +12790,10 @@ msgstr "가장 많이 사용한 제공자"
 msgid "Most used reasoning"
 msgstr "가장 많이 사용한 추론 강도"
 
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Most-used MCP this week: <0>{name}</0> ({count, plural, one {# call} other {# calls}})"
+msgstr "이번 주 최다 사용 MCP: <0>{name}</0> ({count, plural, one {#회} other {#회}})"
+
 #: src/renderer/components/devices/DeviceTools.tsx
 msgid "Motion"
 msgstr "동작"
@@ -12273,6 +12807,10 @@ msgstr "이동"
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 msgid "Move an existing device-local SSH connection onto this environment by its connection id. Keys are never uploaded."
 msgstr "연결 ID로 기존 장치 로컬 SSH 연결을 이 환경으로 이동합니다. 키는 업로드되지 않습니다."
+
+#: src/renderer/components/thread/ThreadView.tsx
+msgid "Move back to main window"
+msgstr "메인 창으로 다시 이동"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 msgid "Move browser back to main window"
@@ -12395,8 +12933,8 @@ msgid "Multilingual speech recognition."
 msgstr "다국어 음성 인식."
 
 #: src/renderer/components/providers/devin/profileSettings.tsx
-msgid "Multiple Devin configurations under one login — different config files, organizations, or approval defaults — or an isolated second login. Native credentials are never copied."
-msgstr "하나의 로그인 아래 여러 Devin 구성 — 서로 다른 설정 파일, 조직, 승인 기본값 — 또는 분리된 두 번째 로그인. 네이티브 자격 증명은 절대 복사되지 않습니다."
+#~ msgid "Multiple Devin configurations under one login — different config files, organizations, or approval defaults — or an isolated second login. Native credentials are never copied."
+#~ msgstr "하나의 로그인 아래 여러 Devin 구성 — 서로 다른 설정 파일, 조직, 승인 기본값 — 또는 분리된 두 번째 로그인. 네이티브 자격 증명은 절대 복사되지 않습니다."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Multiple source remotes are configured. Set the branch upstream before reviewing."
@@ -12429,8 +12967,10 @@ msgstr "my-mcp-server"
 #: src/renderer/components/mcp/McpServerEditor.tsx
 #: src/renderer/components/providers/codex/profileSettings.tsx
 #: src/renderer/components/providers/devin/profileSettings.tsx
+#: src/renderer/components/providers/gemini/profileSettings.tsx
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 #: src/renderer/components/providers/settings/CursorProfileIdentity.tsx
+#: src/renderer/components/skills/MemorySkillSuggestions.tsx
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 #: src/renderer/components/workspace/WorkspaceNameDialog.tsx
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
@@ -12454,10 +12994,6 @@ msgstr "네이티브"
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
 msgid "Native MCP configuration updated. Start a new CLI session to use it."
 msgstr "네이티브 MCP 구성이 업데이트되었습니다. 새 CLI 세션을 시작해 사용하세요."
-
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
-msgid "Native MCP setup"
-msgstr "네이티브 MCP 설정"
 
 #: src/renderer/components/providers/devin/sessionPersonas.tsx
 #~ msgid "Native persona files are listed read-only; Poracode never edits Devin's own definitions."
@@ -12544,6 +13080,10 @@ msgstr "안 함"
 msgid "Never Ask"
 msgstr "묻지 않기"
 
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Never capture deleted threads"
+msgstr "삭제된 스레드는 기록하지 않음"
+
 #: src/renderer/components/changelog/ChangelogView.tsx
 msgid "New"
 msgstr "신규"
@@ -12598,8 +13138,8 @@ msgstr "새 Cursor 프로필 API 키"
 #~ msgstr "새 Cursor 프로필 이름"
 
 #: src/renderer/components/providers/devin/profileSettings.tsx
-msgid "New Devin profile config file (optional)"
-msgstr "새 Devin 프로필 설정 파일(선택 사항)"
+#~ msgid "New Devin profile config file (optional)"
+#~ msgstr "새 Devin 프로필 설정 파일(선택 사항)"
 
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 msgid "New environment"
@@ -12636,6 +13176,10 @@ msgstr "새 폴더"
 #: src/mobile/views/useFileTree.ts
 #~ msgid "New folder name"
 #~ msgstr "새 폴더 이름"
+
+#: src/renderer/components/providers/gemini/profileSettings.tsx
+msgid "New Gemini profile home directory"
+msgstr "새 Gemini 프로필 홈 디렉터리"
 
 #: src/renderer/components/newsLine/useDiscoveryItems.tsx
 #: src/renderer/components/newsLine/useNewsLineItems.tsx
@@ -12811,6 +13355,10 @@ msgstr "다음에 보낸 메시지"
 msgid "Next tab"
 msgstr "다음 탭"
 
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Night owl: {percent}% of your recent prompts ran after 10 PM"
+msgstr "올빼미형: 최근 프롬프트의 {percent}%가 밤 10시 이후에 실행되었습니다"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/hooks/useElementPicker.ts
 msgid "No active browser tab"
 msgstr "활성 브라우저 탭이 없습니다."
@@ -12929,7 +13477,7 @@ msgstr "아직 변경 사항 없음"
 msgid "No chat response is available for experiment candidate {threadId}."
 msgstr "실험 후보 {threadId}에 사용할 수 있는 채팅 응답이 없습니다."
 
-#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrChecksIndicator.tsx
 msgid "No checks reported for this PR."
 msgstr "이 PR에 대해 보고된 검사가 없습니다."
 
@@ -13179,6 +13727,10 @@ msgstr "검색과 일치하는 MCP 서버가 없습니다."
 msgid "No MCP tools used yet."
 msgstr "아직 사용한 MCP 도구가 없습니다."
 
+#: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
+msgid "No memories yet."
+msgstr "아직 메모리가 없습니다."
+
 #: src/renderer/components/thread/ChatPane/ChatPane.tsx
 msgid "No messages yet"
 msgstr "아직 메시지가 없습니다"
@@ -13284,14 +13836,27 @@ msgstr "아직 프로젝트가 없습니다."
 msgid "No prompts"
 msgstr "프롬프트 없음"
 
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "No prompts yesterday"
+msgstr "어제 프롬프트 없음"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/UsagePanel.tsx
 msgid "No providers are being tracked."
 msgstr "추적 중인 공급자가 없습니다."
+
+#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+msgid "No providers are being tracked. Enable providers below to monitor quotas and cost."
+msgstr "추적 중인 공급자가 없습니다. 할당량과 비용을 모니터링하려면 아래에서 공급자를 활성화하세요."
 
 #: src/renderer/components/providers/settings/ModelProviderManager.tsx
 #: src/renderer/components/providers/settings/ProviderAccountsSection.tsx
 msgid "No providers connected yet."
 msgstr "아직 연결된 공급자가 없습니다."
+
+#: src/renderer/views/SettingsOverlay/parts/SidebarUsageVisibilityPopover.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+msgid "No providers found"
+msgstr "공급자를 찾을 수 없습니다."
 
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 #~ msgid "No providers ready yet"
@@ -13321,6 +13886,7 @@ msgstr "저장소를 찾을 수 없습니다."
 #: src/renderer/commands/EverythingSearchResults.tsx
 #: src/renderer/components/find/FindBar.tsx
 #: src/renderer/sidebar/ChatSidebarHeader.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "No results"
 msgstr "결과 없음"
@@ -13635,6 +14201,7 @@ msgstr "관찰됨"
 msgid "off"
 msgstr "꺼짐"
 
+#: src/renderer/components/composer/MemoryAddMenu.tsx
 #: src/renderer/components/git/PrAutomationSlider.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/RemoteAccessSidebarIcon.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/PluginsSection.tsx
@@ -13651,7 +14218,10 @@ msgid "Official sources only"
 msgstr "공식 소스만"
 
 #: src/renderer/components/common/RemoteServerStatusDot.tsx
+#: src/renderer/components/mcp/RemoteMcpServersManager.tsx
+#: src/renderer/views/ProfileOverlay/parts/ProfileHeader.tsx
 #: src/renderer/views/PullRequestsOverlay/list/PrListPanel.tsx
+#: src/renderer/views/SettingsOverlay/parts/McpServersSettings.tsx
 msgid "Offline"
 msgstr "오프라인"
 
@@ -13680,6 +14250,7 @@ msgstr "오래된순"
 msgid "on"
 msgstr "켜짐"
 
+#: src/renderer/components/composer/MemoryAddMenu.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/PluginsSection.tsx
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "On"
@@ -13698,6 +14269,10 @@ msgstr "정각"
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Once on {0}"
 msgstr "{0}에 한 번"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Once per day"
+msgstr "하루에 한 번"
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "One Header: value pair per line"
@@ -13722,6 +14297,7 @@ msgstr "일회용 페어링 토큰"
 
 #: src/renderer/components/common/RemoteServerStatusDot.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/RemoteAccessSidebarIcon.tsx
+#: src/renderer/views/ProfileOverlay/parts/ProfileHeader.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Online"
 msgstr "온라인"
@@ -13731,6 +14307,10 @@ msgstr "온라인"
 msgid "Only chat threads can move to another machine."
 msgstr "채팅 스레드만 다른 기기로 이동할 수 있습니다."
 
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Only on archive or done"
+msgstr "보관 또는 완료 때만"
+
 #: src/renderer/components/thread/MoveThreadDialog.tsx
 msgid "Only the conversation moves: this folder isn't a Git repository."
 msgstr "대화만 이동합니다. 이 폴더는 Git 저장소가 아닙니다."
@@ -13739,6 +14319,10 @@ msgstr "대화만 이동합니다. 이 폴더는 Git 저장소가 아닙니다."
 #: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
 msgid "Only the end of the output is shown ({0} bytes)."
 msgstr "출력의 끝부분만 표시됩니다({0}바이트)."
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Only when a thread is done or archived"
+msgstr "스레드가 완료되거나 보관될 때만"
 
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
 msgid "Only when unfocused"
@@ -13761,6 +14345,7 @@ msgid "Only your own comments on this pull request can be edited."
 msgstr "이 풀 리퀘스트에서 자신이 작성한 댓글만 편집할 수 있습니다."
 
 #: src/renderer/commands/CommandPalette.tsx
+#: src/renderer/components/devices/DeviceWorkspace.tsx
 #: src/renderer/components/newsLine/useAnnouncementItems.tsx
 #: src/renderer/components/thread/ThreadUsageBubble.tsx
 #: src/renderer/notifications.ts
@@ -13970,6 +14555,11 @@ msgstr "이미지 {0}/{1} 열기"
 msgid "Open image preview"
 msgstr "이미지 미리보기 열기"
 
+#: src/renderer/components/thread/ChatPane/parts/items/ImageCard.tsx
+msgid "Open image preview (+{overflowCount} more)"
+msgstr "이미지 미리보기 열기 (+{overflowCount}개 더)"
+
+#: src/renderer/components/mcp/RemoteMcpOauthDialog.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorBody.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 msgid "Open in browser"
@@ -13982,6 +14572,14 @@ msgstr "브라우저에서 열기"
 #: src/renderer/views/GitReviewOverlay/parts/GitStackedDiff.tsx
 msgid "Open in editor"
 msgstr "편집기에서 열기"
+
+#: src/renderer/components/thread/ThreadView.tsx
+msgid "Open in new window"
+msgstr "새 창에서 열기"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
+msgid "Open in New Window"
+msgstr "새 창에서 열기"
 
 #: src/renderer/components/common/EditContextMenuHost.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/LocalPortsPanel.tsx
@@ -14208,6 +14806,10 @@ msgstr "보기 전용으로 열기"
 msgid "Open with control"
 msgstr "제어로 열기"
 
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Open, inspect, and control iOS Simulators (including foldable iPhone Duo) and Android Emulators in the panel."
+msgstr "패널에서 iOS 시뮬레이터(접이식 iPhone Duo 포함)와 Android 에뮬레이터를 열고, 검사하고, 제어합니다."
+
 #: src/renderer/components/providers/opencode/manifest.ts
 msgid "OpenCode"
 msgstr "OpenCode"
@@ -14354,6 +14956,10 @@ msgstr "오래된 내용"
 msgid "Outdated: the pull request changed after this was drafted."
 msgstr "오래된 내용: 이 초안을 작성한 후 풀 리퀘스트가 변경되었습니다."
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Outer display"
+msgstr "바깥쪽 디스플레이"
+
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "Outlook"
 msgstr "Outlook"
@@ -14369,6 +14975,18 @@ msgstr "이 작업의 출력을 사용할 수 없습니다."
 #: src/renderer/components/providers/usageFormat.ts
 msgid "Over pace — runs out early"
 msgstr "사용 속도 초과 — 조기 소진"
+
+#. placeholder {0}: f.provider
+#. placeholder {1}: f.percent
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Over the last 30 days you used <0>{0}</0> {1}% less"
+msgstr "최근 30일간 <0>{0}</0> 사용이 {1}% 줄었습니다"
+
+#. placeholder {0}: f.provider
+#. placeholder {1}: f.percent
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Over the last 30 days you used <0>{0}</0> {1}% more"
+msgstr "최근 30일간 <0>{0}</0> 사용이 {1}% 늘었습니다"
 
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PlanReviewModal.tsx
 msgid "Overall feedback"
@@ -14740,6 +15358,11 @@ msgstr "이 Mac을 직접 잠금 해제할 때까지 일시 중지됨"
 msgid "PDF preview opens in the browser."
 msgstr "PDF 미리보기는 브라우저에서 열립니다."
 
+#. placeholder {0}: insights.mostActiveHour.label
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "Peak {0}"
+msgstr "피크 {0}"
+
 #: src/renderer/views/ProfileOverlay/parts/ShareCard.tsx
 msgid "peak day"
 msgstr "최고 활동일"
@@ -14884,6 +15507,7 @@ msgstr "{0}을(를) 맨 위에 고정"
 #: src/renderer/components/common/BranchSelector/parts/BranchListBox.tsx
 #: src/renderer/components/thread/CompactThreadHeader.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
 msgid "Pin to top"
 msgstr "상단에 고정"
 
@@ -14899,6 +15523,7 @@ msgstr "분통"
 #: src/renderer/components/common/BranchSelector/parts/useBranchList.ts
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/parts/ThreadItemSuffix.tsx
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
 msgid "Pinned"
 msgstr "고정됨"
 
@@ -15131,6 +15756,10 @@ msgstr "X의 Poracode"
 msgid "Poracode only"
 msgstr "Poracode 전용"
 
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Poracode remembers preferences and corrections across providers. Capture runs after a turn finishes. A daily pass merges them. Skills learned from repeated work stay as suggestions until you approve them."
+msgstr "Poracode는 제공자를 넘어 선호와 수정을 기억합니다. 기록은 턴이 끝난 뒤 시작됩니다. 매일 한 번 합칩니다. 반복된 작업에서 배운 스킬은 승인할 때까지 제안으로 남습니다."
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Poracode SSH runtime manifest is missing or invalid: {path}"
 msgstr "Poracode SSH 런타임 매니페스트가 없거나 유효하지 않습니다: {path}"
@@ -15242,6 +15871,10 @@ msgstr "PR 자동화: 자동 수정"
 msgid "PR automation: Auto Merge"
 msgstr "PR 자동화: 자동 병합"
 
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrChecksIndicator.tsx
+msgid "PR checks"
+msgstr "PR 검사"
+
 #: src/renderer/components/common/GithubPollingNotice.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/GitBadge.tsx
 msgid "PR data is unavailable; cached results may be stale."
@@ -15266,6 +15899,11 @@ msgstr "PR 제목(자동 생성하려면 비워두세요)"
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Pre-commit hook failed"
 msgstr "사전 커밋 후크 실패"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Prefer Poracode memory"
+msgstr "Poracode 메모리 우선"
 
 #: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
 #~ msgid "Preferred routing order"
@@ -15490,6 +16128,7 @@ msgstr "프로필 {displayName}을(를) 추가했습니다."
 #~ msgstr "프로필 API 키"
 
 #: src/renderer/components/providers/codex/profileSettings.tsx
+#: src/renderer/components/providers/gemini/profileSettings.tsx
 msgid "Profile home"
 msgstr "프로필 홈"
 
@@ -15575,6 +16214,7 @@ msgstr "프로젝트 이름"
 msgid "Project no longer exists."
 msgstr "프로젝트가 더 이상 존재하지 않습니다."
 
+#: src/renderer/components/mcp/RemoteMcpServersManager.tsx
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Project not found."
 msgstr "프로젝트를 찾을 수 없습니다."
@@ -15632,9 +16272,17 @@ msgstr "{0}의 프로젝트가 {1}(으)로 이동합니다. 삭제되는 프로�
 #~ msgid "Projects live on the connected desktop. Add one before starting a thread."
 #~ msgstr "프로젝트는 연결된 데스크톱에 있습니다. 스레드를 시작하기 전에 프로젝트를 추가하세요."
 
+#: src/renderer/components/composer/MemoryAddMenu.tsx
+msgid "Promoted {promoted}. Suggested {suggested} skills."
+msgstr "{promoted}개의 메모를 반영했습니다. {suggested}개의 스킬을 제안했습니다."
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Promoting this profile into the owned data root…"
 msgstr "이 프로필을 전용 데이터 루트로 이전하는 중…"
+
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "prompt"
+msgstr "프롬프트"
 
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 #: src/renderer/components/thread/ChatPane/StickyPrompt.tsx
@@ -15642,14 +16290,34 @@ msgstr "이 프로필을 전용 데이터 루트로 이전하는 중…"
 msgid "Prompt"
 msgstr "프롬프트"
 
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "Prompt cache hit"
+msgstr "프롬프트 캐시 적중률"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Prompt caching covered {percent}% of your input tokens this week"
+msgstr "이번 주 입력 토큰의 {percent}%를 프롬프트 캐시가 처리했습니다"
+
 #: src/renderer/components/thread/ChatPane/ChatPromptRail.tsx
 msgid "Prompt navigation"
 msgstr "프롬프트 탐색"
+
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "prompts"
+msgstr "프롬프트"
 
 #: src/renderer/components/providers/codex/index.tsx
 #: src/renderer/views/ProfileOverlay/parts/ActivitySection.tsx
 msgid "Prompts"
 msgstr "프롬프트"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Prompts dipped {percent}% over the last 30 days"
+msgstr "최근 30일간 프롬프트가 {percent}% 감소했습니다"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Prompts rose {percent}% over the last 30 days"
+msgstr "최근 30일간 프롬프트가 {percent}% 증가했습니다"
 
 #: src/renderer/components/thread/ChatPane/parts/items/PlanProposal.tsx
 #: src/renderer/i18n/sharedMessages.ts
@@ -15723,7 +16391,6 @@ msgstr "공급자"
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProviderModelVisibilityPopover.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Providers"
 msgstr "공급자"
 
@@ -15947,6 +16614,10 @@ msgstr "종료"
 msgid "Quota reached"
 msgstr "할당량 도달"
 
+#: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
+msgid "Quotas"
+msgstr "할당량"
+
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettingsModel.ts
 #~ msgid "Qwen"
 #~ msgstr "Qwen"
@@ -16035,6 +16706,7 @@ msgstr "이 작업 트리의 터미널 패널을 읽고 출력 내용을 보고�
 #~ msgstr "읽기 전용"
 
 #: src/renderer/components/crew/CrewRoleDetails.tsx
+#: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 #: src/renderer/components/thread/ThreadDraftView.tsx
 msgid "Read-only"
@@ -16088,6 +16760,7 @@ msgstr "준비됨. 이 옵션을 켜면 새 페어링 코드에 Tailscale HTTPS 
 
 #: src/renderer/components/common/EffortContextMenu/EffortContextMenu.tsx
 #: src/renderer/components/common/ProviderModelMenu/ModelConfigurationPanel.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
 msgid "Reasoning"
 msgstr "추론"
 
@@ -16184,8 +16857,8 @@ msgid "Recording"
 msgstr "녹음 중"
 
 #: src/renderer/components/composer/VoiceInputButton.tsx
-msgid "Recording stops automatically at five minutes."
-msgstr "5분마다 녹음이 자동으로 중지됩니다."
+#~ msgid "Recording stops automatically at five minutes."
+#~ msgstr "5분마다 녹음이 자동으로 중지됩니다."
 
 #: src/renderer/components/composer/VoiceInputButton.tsx
 msgid "Recording will stop in less than fifteen seconds."
@@ -16219,6 +16892,7 @@ msgstr "참조"
 
 #. Button: re-fetch provider usage now
 #: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
+#: src/renderer/components/providers/settings/UsageProviderRow.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
 #: src/renderer/views/GitReviewOverlay/GitReviewOverlay.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewPanel.tsx
@@ -16249,6 +16923,7 @@ msgstr "{0} 새로 고침"
 msgid "Refresh {0} authentication"
 msgstr "{0} 인증 새로 고침"
 
+#: src/renderer/components/providers/settings/UsageProviderRow.tsx
 #: src/renderer/components/providers/UsageProviderCardView.tsx
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 msgid "Refresh {label}"
@@ -16257,6 +16932,10 @@ msgstr "{label} 새로고침"
 #: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
 #~ msgid "Refresh {label} usage"
 #~ msgstr "{label} 사용량 새로고침"
+
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
+msgid "Refresh agent"
+msgstr "에이전트 새로고침"
 
 #: src/renderer/views/SettingsOverlay/parts/AgentsGeneralSettings.tsx
 msgid "Refresh detected agents"
@@ -16433,7 +17112,6 @@ msgstr "원격 URL"
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
 #: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
 #: src/renderer/components/providers/settings/ModelProviderManager.tsx
-#: src/renderer/components/thread/SideChat/SideChatBody.tsx
 #: src/renderer/views/SettingsOverlay/parts/AgentProfileList.tsx
 #: src/renderer/views/SettingsOverlay/parts/HexSetupDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
@@ -16679,6 +17357,10 @@ msgstr "{profileName}을(를) 제거하면 저장된 API 키도 삭제됩니다.
 msgid "Removing {profileName} drops it from Poracode. Its home directory and the Codex credentials inside it stay on disk."
 msgstr "{profileName}을(를) 제거하면 Poracode에서 삭제됩니다. 홈 디렉터리와 그 안의 Codex 자격 증명은 디스크에 남습니다."
 
+#: src/renderer/components/providers/gemini/profileSettings.tsx
+msgid "Removing {profileName} drops it from Poracode. Its home directory and the Gemini credentials inside it stay on disk."
+msgstr "{profileName}을(를) 제거하면 Poracode에서 삭제됩니다. 홈 디렉터리와 그 안의 Gemini 자격 증명은 디스크에 남습니다."
+
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Removing {profileName} drops its Poracode settings — env vars, models, and effort. Its config directory and the Claude credentials inside it stay on disk."
 msgstr "{profileName}을(를) 제거하면 환경 변수, 모델, Effort 등 Poracode 설정이 사라집니다. 구성 디렉터리와 그 안의 Claude 자격 증명은 디스크에 남습니다."
@@ -16809,6 +17491,15 @@ msgstr "복구"
 msgid "Repeat"
 msgstr "반복"
 
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Repeated workflows appear in Settings → Skills for you to edit and approve."
+msgstr "반복된 작업 흐름은 설정 → 스킬에 나타나며, 편집하고 승인할 수 있습니다."
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Replace redacted values in the file before importing."
+msgstr "가져오기 전에 파일에서 가려진 값을 바꾸세요."
+
 #: src/renderer/components/common/FeedbackDialog.tsx
 msgid "Report a bug or suggest an idea."
 msgstr "버그를 신고하거나 아이디어를 제안하세요."
@@ -16899,6 +17590,7 @@ msgstr "재설정"
 
 #: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
 #: src/renderer/components/providers/settings/ProviderContextWindowSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
 msgid "Reset"
 msgstr "재설정"
 
@@ -17122,13 +17814,13 @@ msgstr "이 호스트에 보관된 사용량만 포함합니다."
 #: src/renderer/components/common/GithubPollingNotice.tsx
 #: src/renderer/components/composer/ImageLightbox.tsx
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
+#: src/renderer/components/mcp/RemoteMcpServersManager.tsx
 #: src/renderer/components/plugins/PluginMarketplace.tsx
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
 #: src/renderer/components/skills/SkillsManager.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/MarkdownVideo.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/useHistoryItemDetails.tsx
 #: src/renderer/components/thread/MoveThreadDialog.tsx
-#: src/renderer/components/thread/SideChat/SideChatBody.tsx
 #: src/renderer/components/thread/SideChat/SideChatThreadView.tsx
 #: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
 #: src/renderer/components/thread/ThreadHistoryLoadFailureDock.tsx
@@ -17146,8 +17838,10 @@ msgstr "이 호스트에 보관된 사용량만 포함합니다."
 #: src/renderer/views/SettingsOverlay/parts/ManagedHostEnvironmentsSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileHostFolderPicker.tsx
 #: src/renderer/views/SettingsOverlay/parts/PluginsSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
+#: src/renderer/windowApps/ThreadWindowApp.tsx
 msgid "Retry"
 msgstr "다시 시도"
 
@@ -17571,6 +18265,10 @@ msgstr "예약 작업을 실행하면 여기에 결과가 표시됩니다."
 msgid "Run a second Codex account from its own CODEX_HOME. Each profile signs in separately and keeps its own sessions."
 msgstr "별도의 CODEX_HOME에서 두 번째 Codex 계정을 실행합니다. 각 프로필은 개별적으로 로그인하고 자체 세션을 유지합니다."
 
+#: src/renderer/components/providers/gemini/profileSettings.tsx
+msgid "Run a second Gemini account from its own GEMINI_CLI_HOME. Each profile signs in separately and keeps its own sessions."
+msgstr "별도의 GEMINI_CLI_HOME에서 두 번째 Gemini 계정을 실행합니다. 각 프로필은 개별적으로 로그인하고 자체 세션을 유지합니다."
+
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
 msgid "Run actions"
@@ -17768,9 +18466,11 @@ msgstr "채도와 밝기"
 #: src/renderer/components/mcp/McpServerEditor.tsx
 #: src/renderer/components/providers/codex/profileSettings.tsx
 #: src/renderer/components/providers/devin/profileSettings.tsx
+#: src/renderer/components/providers/gemini/profileSettings.tsx
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 #: src/renderer/components/providers/settings/ModelProviderEditor.tsx
 #: src/renderer/components/providers/settings/ProviderMcpServersSection.tsx
+#: src/renderer/components/skills/SkillViewModal.tsx
 #: src/renderer/components/thread/ThreadFollowUpEditor.tsx
 #: src/renderer/components/thread/ThreadGoalControls.tsx
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PlanCommentCard.tsx
@@ -17786,6 +18486,7 @@ msgstr "채도와 밝기"
 #: src/renderer/views/PullRequestsOverlay/parts/PrEditSheet.tsx
 #: src/renderer/views/PullRequestsOverlay/summary/DescriptionCard.tsx
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Save"
@@ -17849,9 +18550,17 @@ msgstr "Devin 프로필 저장"
 msgid "Save File"
 msgstr "파일 저장"
 
+#: src/renderer/components/providers/gemini/profileSettings.tsx
+msgid "Save Gemini profile"
+msgstr "Gemini 프로필 저장"
+
 #: src/renderer/components/composer/ImageLightboxActions.tsx
 msgid "Save image"
 msgstr "이미지 저장"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Save learnings before deleting"
+msgstr "삭제 전에 배운 내용 저장"
 
 #: src/renderer/components/providers/settings/ProviderMcpServersSection.tsx
 msgid "Save MCP servers"
@@ -17865,6 +18574,10 @@ msgstr "단축키 저장"
 #: src/renderer/components/crew/CrewRosterPanel.tsx
 msgid "Save to {0}"
 msgstr "{0}에 저장"
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Save your edits before moving this MCP server."
+msgstr "이 MCP 서버를 이동하기 전에 변경 사항을 저장하세요."
 
 #: src/renderer/views/SettingsOverlay/parts/CursorSdkRuntimeSetup.tsx
 #~ msgid "Saved API key"
@@ -18144,6 +18857,10 @@ msgstr "MCP 서버 검색"
 msgid "Search MCP servers..."
 msgstr "MCP 서버 검색..."
 
+#: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
+msgid "Search memories"
+msgstr "메모리 검색"
+
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProviderModelVisibilityPopover.tsx
 msgid "Search models"
@@ -18154,6 +18871,10 @@ msgstr "모델 검색"
 #: src/renderer/views/SettingsOverlay/parts/ProviderModelVisibilityPopover.tsx
 msgid "Search models..."
 msgstr "모델 검색..."
+
+#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+msgid "Search more providers"
+msgstr "추가 공급자 검색"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserOmnibox.tsx
 msgid "Search or enter address"
@@ -18186,6 +18907,15 @@ msgstr "플러그인 검색"
 #: src/renderer/components/plugins/PluginMarketplace.tsx
 msgid "Search plugins, skills, and servers..."
 msgstr "플러그인, 스킬, 서버 검색..."
+
+#: src/renderer/views/SettingsOverlay/parts/SidebarUsageVisibilityPopover.tsx
+msgid "Search providers"
+msgstr "공급자 검색"
+
+#: src/renderer/views/SettingsOverlay/parts/SidebarUsageVisibilityPopover.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+msgid "Search providers…"
+msgstr "공급자 검색…"
 
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 #~ msgid "Search pull requests"
@@ -18324,6 +19054,10 @@ msgstr "{1}에서 {0} 선택"
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Select {serverName} from {providerLabel}"
 msgstr "{providerLabel}에서 {serverName} 선택"
+
+#: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
+msgid "Select a device to view these details."
+msgstr "이 세부 정보를 보려면 기기를 선택하세요."
 
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorModal.tsx
 msgid "Select a file from the tree"
@@ -18659,6 +19393,13 @@ msgstr "설정"
 msgid "Settings aren't available yet, so your changes couldn't be saved. Please try again."
 msgstr "설정을 아직 사용할 수 없어 변경 사항을 저장하지 못했습니다. 다시 시도해 주세요."
 
+#: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SearchSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
+msgid "Settings unavailable"
+msgstr "설정을 사용할 수 없음"
+
 #: src/renderer/actions/worktreeLaunchActions.ts
 msgid "setup"
 msgstr "설정"
@@ -18681,8 +19422,13 @@ msgid "Share"
 msgstr "공유"
 
 #: src/renderer/components/providers/devin/profileSettings.tsx
-msgid "Share another profile's isolated login"
-msgstr "다른 프로필의 격리 로그인 공유"
+#~ msgid "Share another profile's isolated login"
+#~ msgstr "다른 프로필의 격리 로그인 공유"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Share global and linked-project notes with paired computers and WSL. Unlinked folders stay separate."
+msgstr "전역 메모와 연결된 프로젝트 메모를 페어링된 컴퓨터 및 WSL과 공유합니다. 연결되지 않은 폴더는 분리된 상태로 유지됩니다."
 
 #: src/renderer/views/ProfileOverlay/parts/ShareDialog.tsx
 msgid "Share your activity"
@@ -18695,6 +19441,10 @@ msgstr "공유"
 #: src/renderer/components/providers/devin/profileSettings.tsx
 msgid "Shared login owner"
 msgstr "공유 로그인 소유자"
+
+#: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
+msgid "Shared notes across providers"
+msgstr "제공자 사이에 공유되는 메모"
 
 #. placeholder {0}: owner.displayName ?? owner.id
 #: src/renderer/components/providers/devin/profileSettings.tsx
@@ -18734,13 +19484,13 @@ msgstr "단축키"
 msgid "Show {0}"
 msgstr "{0} 표시"
 
-#: src/renderer/components/thread/ThreadDockBubbles.tsx
+#: src/renderer/components/thread/ThreadDockUI.tsx
 msgid "Show {label}"
 msgstr "{label} 표시"
 
 #: src/renderer/components/providers/settings/UsageProviderRow.tsx
-msgid "Show {label} circle in sidebar"
-msgstr "사이드바에 {label} 원 표시"
+#~ msgid "Show {label} circle in sidebar"
+#~ msgstr "사이드바에 {label} 원 표시"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/useProjectEnvironmentMenuItems.tsx
 msgid "Show {machine} as its own project"
@@ -18769,8 +19519,14 @@ msgstr "에이전트 검색 표시"
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProviderModelVisibilityPopover.tsx
 #: src/renderer/views/SettingsOverlay/parts/SidebarShortcutsSelector.tsx
+#: src/renderer/views/SettingsOverlay/parts/SidebarUsageVisibilityPopover.tsx
 msgid "Show all"
 msgstr "모두 표시"
+
+#. placeholder {0}: facts.length
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "Show all {0} insights"
+msgstr "인사이트 {0}개 모두 보기"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
 msgid "Show bookmark bar"
@@ -18795,8 +19551,13 @@ msgstr "사이드바에 원 표시"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/UsageDisplaySettings.tsx
-msgid "Show compact per-provider usage rings in the sidebar. Hide individual providers' circles in the list below."
-msgstr "사이드바에 간단한 공급자별 사용량 링을 표시합니다. 아래 목록에서 개별 공급자의 원을 숨길 수 있습니다."
+msgid "Show compact per-provider usage rings in the sidebar."
+msgstr "사이드바에 간단한 공급자별 사용량 링을 표시합니다."
+
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/UsageDisplaySettings.tsx
+#~ msgid "Show compact per-provider usage rings in the sidebar. Hide individual providers' circles in the list below."
+#~ msgstr "사이드바에 간단한 공급자별 사용량 링을 표시합니다. 아래 목록에서 개별 공급자의 원을 숨길 수 있습니다."
 
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 msgid "Show composer"
@@ -18832,6 +19593,10 @@ msgstr "예상 비용 표시"
 #: src/renderer/views/PullRequestsOverlay/summary/RailChecks.tsx
 msgid "Show fewer"
 msgstr "간략히 보기"
+
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "Show fewer insights"
+msgstr "인사이트 접기"
 
 #: src/renderer/views/PullRequestsOverlay/changes/ChangesToolbar.tsx
 msgid "Show file tree"
@@ -19028,9 +19793,13 @@ msgstr "사이드 채팅: {0}"
 msgid "Sidebar background"
 msgstr "사이드바 배경"
 
+#: src/renderer/views/SettingsOverlay/parts/SidebarUsageVisibilityPopover.tsx
+msgid "Sidebar circles are currently turned off."
+msgstr "사이드바 원이 현재 꺼져 있습니다."
+
 #: src/renderer/components/providers/settings/UsageProviderRow.tsx
-msgid "Sidebar circles are turned off globally above"
-msgstr "위에서 사이드바 원이 전체적으로 꺼져 있습니다"
+#~ msgid "Sidebar circles are turned off globally above"
+#~ msgstr "위에서 사이드바 원이 전체적으로 꺼져 있습니다"
 
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -19075,9 +19844,11 @@ msgstr "페어링된 데스크톱에서 로그인한 다음 이 상태를 새로
 msgid "Sign in required"
 msgstr "로그인이 필요합니다"
 
+#. placeholder {0}: props.name
 #. placeholder {0}: signIn.name
 #. placeholder {0}: status.label
 #: src/renderer/components/composer/ComposerMcpServersMenu.tsx
+#: src/renderer/components/mcp/RemoteMcpOauthDialog.tsx
 #: src/renderer/components/providers/devin/profileSettings.tsx
 msgid "Sign in to {0}"
 msgstr "{0}에 로그인"
@@ -19181,6 +19952,10 @@ msgstr "스킬"
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "Skill availability"
 msgstr "스킬 사용 범위"
+
+#: src/renderer/components/skills/MemorySkillSuggestions.tsx
+msgid "Skill instructions"
+msgstr "스킬 지침"
 
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "Skill marketplace source"
@@ -19286,6 +20061,14 @@ msgstr "크기 작은 순"
 #: src/renderer/components/devices/DeviceWorkspace.tsx
 msgid "Snapshots"
 msgstr "스냅샷"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "So far today: {prompts, plural, one {# prompt} other {# prompts}}"
+msgstr "오늘 현재까지: {prompts, plural, one {프롬프트 #개} other {프롬프트 #개}}"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "So far today: {prompts, plural, one {# prompt} other {# prompts}} · mostly {topProvider}"
+msgstr "오늘 현재까지: {prompts, plural, one {프롬프트 #개} other {프롬프트 #개}} · 주로 {topProvider}"
 
 #. placeholder {0}: index + 1
 #. placeholder {0}: winnerOrdinal + 1
@@ -19947,6 +20730,11 @@ msgstr "구독 청구액"
 msgid "Succeeded"
 msgstr "성공"
 
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Suggest skills"
+msgstr "스킬 제안"
+
 #: src/renderer/components/providers/devin/sessionActionDialog.tsx
 msgid "Suggested command — review before use"
 msgstr "제안된 명령어 — 사용 전 검토"
@@ -19955,6 +20743,7 @@ msgstr "제안된 명령어 — 사용 전 검토"
 msgid "Suggested command inserted into the composer."
 msgstr "제안된 명령어가 컴포저에 삽입되었습니다."
 
+#: src/renderer/components/skills/MemorySkillSuggestions.tsx
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Suggestions"
 msgstr "제안"
@@ -20111,9 +20900,18 @@ msgstr "동기화(리베이스)"
 msgid "Sync ↓{behind} ↑{ahead}"
 msgstr "동기화 ↓{behind}↑{ahead}"
 
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Sync across environments"
+msgstr "환경 간 동기화"
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Sync failed: {detail}"
 msgstr "동기화 실패: {detail}"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Sync now"
+msgstr "지금 동기화"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CommitSyncPanel.tsx
 msgid "Sync options"
@@ -20124,12 +20922,13 @@ msgstr "동기화 옵션"
 #~ msgstr "데스크톱과 동기화"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ActionPhaseLabel.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
 msgid "Syncing…"
 msgstr "동기화 중…"
 
 #: src/renderer/views/ProfileOverlay/parts/ProfileHeader.tsx
-msgid "Syncs with Cloud"
-msgstr "Cloud와 동기화"
+#~ msgid "Syncs with Cloud"
+#~ msgstr "Cloud와 동기화"
 
 #: src/renderer/components/devices/DeviceTools.tsx
 #: src/renderer/i18n/locales.ts
@@ -20186,6 +20985,10 @@ msgstr "주 모델이 넘기는 실무 작업을 무엇이든 맡습니다. 탐�
 #~ msgid "Takes over the desktop while the agent clicks or types"
 #~ msgstr "에이전트가 클릭하거나 입력하는 동안 데스크톱을 제어합니다"
 
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrChecksIndicator.tsx
+msgid "Taking longer than average"
+msgstr "평균보다 오래 걸리는 중"
+
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
 msgid "Tap + to add a folder or clone a repository on your desktop."
 msgstr "+를 탭하여 데스크톱에서 폴더를 추가하거나 저장소를 복제하세요."
@@ -20231,6 +21034,18 @@ msgstr "작업 출력"
 #: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentMemorySection.tsx
 msgid "Task tags"
 msgstr "작업 태그"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Tasks averaged {duration} this week"
+msgstr "이번 주 평균 작업 시간은 {duration}였습니다"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Tasks averaged {duration} this week · {deltaPercent}% faster than last week"
+msgstr "이번 주 작업 평균 {duration} · 지난주보다 {deltaPercent}% 빠름"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Tasks averaged {duration} this week · {deltaPercent}% longer than last week"
+msgstr "이번 주 작업 평균 {duration} · 지난주보다 {deltaPercent}% 김"
 
 #: src/renderer/components/newsLine/featureCatalog.ts
 msgid "Teach your agents reusable procedures with skills"
@@ -20538,6 +21353,11 @@ msgstr "후보가 아직 변경 사항을 만들지 않았습니다."
 msgid "The changes are too large to move ({size}). Commit or ignore large files first."
 msgstr "변경 사항이 너무 커서 이동할 수 없습니다({size}). 먼저 큰 파일을 커밋하거나 무시하세요."
 
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "The cheapest model from the highest-rated provider reads a finished turn. You can choose any model."
+msgstr "가장 높게 평가된 제공자의 가장 저렴한 모델이 끝난 턴을 읽습니다. 어떤 모델이든 고를 수 있습니다."
+
 #: src/renderer/components/thread/ChatPane/parts/MessageList.tsx
 msgid "The checkpoint could not be restored."
 msgstr "체크포인트를 복원할 수 없습니다."
@@ -20802,12 +21622,17 @@ msgid "The matched message is no longer available."
 msgstr "일치하는 메시지를 더 이상 사용할 수 없습니다."
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
+#: src/renderer/components/mcp/McpServersManager.tsx
 msgid "The MCP server configuration is invalid or uses a reserved name."
 msgstr "MCP 서버 구성이 올바르지 않거나 예약된 이름을 사용합니다."
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "The MCP server is invalid."
 msgstr "MCP 서버가 올바르지 않습니다."
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#~ msgid "The memory catalog is edited on the desktop that owns this host."
+#~ msgstr "메모리 목록은 이 호스트를 가진 데스크톱에서 편집합니다."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The move expired. Start it again."
@@ -21093,9 +21918,18 @@ msgstr "소스 호스트가 잘못된 응답을 반환했습니다. 통합을 �
 msgid "The SSH tunnel reached an incompatible Poracode server."
 msgstr "SSH 터널이 호환되지 않는 Poracode 서버에 연결되었습니다."
 
+#: src/renderer/components/providers/gemini/profileSettings.tsx
+msgid "The stored configuration is invalid. Saving below replaces it with what this form holds."
+msgstr "저장된 구성이 잘못되었습니다. 아래에서 저장하면 이 폼의 내용으로 대체됩니다."
+
 #: src/renderer/components/providers/devin/profileSettings.tsx
 msgid "The stored configuration is invalid. The stored values are kept; saving below replaces them with what this form holds."
 msgstr "저장된 구성이 잘못되었습니다. 저장된 값은 유지되며, 아래에서 저장하면 이 폼의 내용으로 대체됩니다."
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "The strongest model from the highest-rated provider merges notes. You can choose any model."
+msgstr "가장 높게 평가된 제공자의 가장 강한 모델이 노트를 합칩니다. 어떤 모델이든 고를 수 있습니다."
 
 #: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
 msgid "The sub-agent settings need Codex 0.145 or newer. They are ignored until Codex is updated."
@@ -21355,6 +22189,10 @@ msgstr "이 데스크톱"
 #~ msgid "This desktop's Poracode version doesn't support browser forwarding. Update Poracode on your desktop."
 #~ msgstr "이 데스크톱의 Poracode 버전은 브라우저 포워딩을 지원하지 않습니다. 데스크톱에서 Poracode를 업데이트하세요."
 
+#: src/renderer/views/ProfileOverlay/parts/ProfileHeader.tsx
+msgid "This device"
+msgstr "이 기기"
+
 #: src/mobile/QrScanner.tsx
 #~ msgid "This device has no usable camera. Enter the endpoint and token below to pair instead."
 #~ msgstr "이 기기에는 사용할 수 있는 카메라가 없습니다. 대신 아래에 엔드포인트와 토큰을 입력하여 페어링하세요."
@@ -21527,6 +22365,7 @@ msgid "This plugin's skills could not be read."
 msgstr "이 플러그인의 스킬을 읽을 수 없습니다."
 
 #: src/renderer/components/providers/codex/profileSettings.tsx
+#: src/renderer/components/providers/gemini/profileSettings.tsx
 msgid "This profile already has threads. Their sessions stay in the current home directory, so they can't be resumed after you change it."
 msgstr "이 프로필에는 이미 스레드가 있습니다. 세션은 현재 홈 디렉터리에 남아 있으므로 변경한 후에는 재개할 수 없습니다."
 
@@ -21729,6 +22568,10 @@ msgstr "이 스레드는 이미 {label}에 있습니다."
 msgid "This thread is not ready for Steer."
 msgstr "이 스레드는 아직 방향 수정을 받을 준비가 되지 않았습니다."
 
+#: src/renderer/views/MainView/parts/AppContent/parts/ThreadWindowPlaceholder.tsx
+msgid "This thread is open in a separate window."
+msgstr "이 스레드는 별도의 창에서 열려 있습니다."
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "This thread switched provider without transferring context: {agent} started without Poracode's read_thread tool, so it cannot read the earlier conversation. Re-enable the app-controls MCP tool, or summarize what it needs."
 msgstr "이 스레드는 컨텍스트를 전달하지 않고 프로바이더를 전환했습니다. {agent}이(가) Poracode의 read_thread 도구 없이 시작되어 이전 대화를 읽을 수 없습니다. app-controls MCP 도구를 다시 활성화하거나 필요한 내용을 요약해 주세요."
@@ -21753,6 +22596,42 @@ msgstr "이 버전의 Muse Code는 세션 목표를 지원하지 않습니다. M
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
 msgid "This visual is too large. Showing source only."
 msgstr "이 시각화는 너무 큽니다. 소스만 표시합니다."
+
+#. placeholder {0}: f.model
+#. placeholder {1}: f.percent
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "This week you ran <0>{0}</0> {1}% less"
+msgstr "이번 주 <0>{0}</0> 실행이 {1}% 줄었습니다"
+
+#. placeholder {0}: f.model
+#. placeholder {1}: f.percent
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "This week you ran <0>{0}</0> {1}% more"
+msgstr "이번 주 <0>{0}</0> 실행이 {1}% 늘었습니다"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "This week you switched from <0>{fromLabel}</0> to <1>{toLabel}</1>"
+msgstr "이번 주 <0>{fromLabel}</0>에서 <1>{toLabel}</1>(으)로 전환했습니다"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "This week you switched from <0>{fromLabel}</0> to <1>{toLabel}</1> ({toPercent}%)"
+msgstr "이번 주 <0>{fromLabel}</0>에서 <1>{toLabel}</1>(으)로 전환 ({toPercent}%)"
+
+#. placeholder {0}: f.provider
+#. placeholder {1}: f.percent
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "This week you used <0>{0}</0> {1}% less"
+msgstr "이번 주 <0>{0}</0> 사용이 {1}% 줄었습니다"
+
+#. placeholder {0}: f.provider
+#. placeholder {1}: f.percent
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "This week you used <0>{0}</0> {1}% more"
+msgstr "이번 주 <0>{0}</0> 사용이 {1}% 늘었습니다"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "This week's usage equals ~{cost} at API rates"
+msgstr "이번 주 사용량은 API 요금 기준 약 {cost}입니다"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/DeleteWorktreePopover.tsx
 #~ msgid "This will permanently delete the thread and its worktree."
@@ -22024,9 +22903,21 @@ msgstr "파일 트리 패널 표시 전환"
 msgid "Toggle Work or Plan"
 msgstr "작업 또는 계획 전환"
 
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Token usage is down {percent}% this week ({compact})"
+msgstr "이번 주 토큰 사용량이 {percent}% 감소했습니다 ({compact})"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Token usage is up {percent}% this week ({compact})"
+msgstr "이번 주 토큰 사용량이 {percent}% 증가했습니다 ({compact})"
+
 #: src/renderer/views/ProfileOverlay/parts/StatStrip.tsx
 msgid "Token usage unavailable for: {unavailableLabels}"
 msgstr "토큰 사용량을 사용할 수 없음: {unavailableLabels}"
+
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "tokens"
+msgstr "토큰"
 
 #: src/renderer/views/ProfileOverlay/parts/ActivitySection.tsx
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
@@ -22075,6 +22966,10 @@ msgstr "도구 검색"
 #~ msgid "Tools"
 #~ msgstr "도구"
 
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Top skill this week: <0>{name}</0> ({count, plural, one {# run} other {# runs}})"
+msgstr "이번 주 인기 스킬: <0>{name}</0> ({count, plural, one {#회} other {#회}})"
+
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "Total installs"
 msgstr "총 설치 수"
@@ -22096,6 +22991,7 @@ msgid "Total tokens"
 msgstr "전체 토큰"
 
 #: src/renderer/components/providers/settings/UsageProviderRow.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Track {label} usage"
 msgstr "{label} 사용량 추적"
 
@@ -22103,14 +22999,18 @@ msgstr "{label} 사용량 추적"
 msgid "Track per-provider session, weekly, and monthly usage. Windows are reported by each provider; estimated cost is reconstructed from local logs."
 msgstr "공급자별 세션, 주별 및 월별 사용량을 추적합니다. 사용 기간(윈도우)은 각 공급자가 보고합니다. 예상 비용은 로컬 로그에서 재구성됩니다."
 
+#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+msgid "Tracked providers"
+msgstr "추적 중인 공급자"
+
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 msgid "Tracking and display"
 msgstr "추적 및 표시"
 
 #. Usage status when provider tracking is disabled
 #: src/renderer/components/providers/settings/UsageProviderRow.tsx
-msgid "Tracking off"
-msgstr "추적 꺼짐"
+#~ msgid "Tracking off"
+#~ msgstr "추적 꺼짐"
 
 #: src/renderer/components/composer/VoiceInputButton.tsx
 msgid "Transcribing voice"
@@ -22186,6 +23086,10 @@ msgstr "이 프로젝트의 스레드에서 설치된 플러그인을 켜거나 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Turn on remote access to show a pairing code."
 msgstr "페어링 코드를 표시하려면 원격 액세스를 켜세요."
+
+#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+msgid "Turn on tracking to monitor quotas and cost."
+msgstr "할당량과 비용을 모니터링하려면 추적을 켜세요."
 
 #: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -22472,6 +23376,10 @@ msgstr "Claude 프로필을 새로 고칠 수 없습니다."
 msgid "Unable to refresh Codex profiles."
 msgstr "Codex 프로필을 새로 고칠 수 없습니다."
 
+#: src/renderer/components/providers/gemini/profileSettings.tsx
+#~ msgid "Unable to refresh Gemini profiles."
+#~ msgstr "Gemini 프로필을 새로 고칠 수 없습니다."
+
 #. placeholder {0}: agent.label
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Unable to remove {0} credentials."
@@ -22606,6 +23514,7 @@ msgstr "{0}을(를) 업데이트할 수 없습니다."
 msgid "Unable to update {agentLabel}."
 msgstr "{agentLabel}을(를) 업데이트할 수 없습니다."
 
+#: src/renderer/components/providers/useCombinedProviderRuntimeUpdates.ts
 #: src/renderer/components/thread/ThreadAgentUpdateDock.tsx
 msgid "Unable to update {updateLabel}."
 msgstr "{updateLabel}을(를) 업데이트할 수 없습니다."
@@ -22718,6 +23627,10 @@ msgstr "선택 해제한 공급자와 모델은 Crossagents 자동 라우팅에�
 #~ msgid "Unchecked providers and models are skipped by Crossagents only."
 #~ msgstr "선택 해제된 제공자와 모델은 Crossagents에서만 건너뜁니다."
 
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Undo"
+msgstr "실행 취소"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabGroupMenu.tsx
 msgid "Ungroup"
 msgstr "그룹 해제"
@@ -22765,6 +23678,7 @@ msgstr "알 수 없는 프로세스"
 
 #: src/renderer/components/providers/usageFormat.ts
 #: src/renderer/components/providers/UsageProviderCardView.tsx
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
 msgid "Unlimited"
 msgstr "무제한"
 
@@ -22818,6 +23732,7 @@ msgstr "단계 미지정:"
 #: src/renderer/components/common/BranchSelector/parts/BranchListBox.tsx
 #: src/renderer/components/thread/CompactThreadHeader.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
 msgid "Unpin"
 msgstr "고정 해제"
 
@@ -23033,6 +23948,10 @@ msgstr "대화를 분기하려면 호스트를 업데이트하세요."
 msgid "Update the remote host to use side chat with hidden context."
 msgstr "숨겨진 컨텍스트로 보조 채팅을 사용하려면 원격 호스트를 업데이트하세요."
 
+#: src/renderer/state/crewLibrary.ts
+msgid "Update the remote server first."
+msgstr "먼저 원격 서버를 업데이트하세요."
+
 #: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
 msgid "Update this host to import its sessions."
 msgstr "세션을 가져오려면 이 호스트를 업데이트하세요."
@@ -23210,8 +24129,8 @@ msgstr "사용량은 선택한 호스트에서 수집됩니다. 계정과 할당
 #~ msgstr "사용량이 오래되었습니다. 새로고침하여 최신 값을 수집하세요."
 
 #: src/renderer/components/providers/HostUsageView.tsx
-msgid "Usage is stale. Refresh to update."
-msgstr "사용량이 오래되었습니다. 새로고침하세요."
+#~ msgid "Usage is stale. Refresh to update."
+#~ msgstr "사용량이 오래되었습니다. 새로고침하세요."
 
 #: src/renderer/components/providers/usageFormat.ts
 msgid "Usage not supported"
@@ -23263,6 +24182,10 @@ msgstr "시도 횟수는 2~6회, 대기 시간은 1~3600초로 설정하세요."
 msgid "Use a run limit between 1 and 100, or leave it empty."
 msgstr "실행 횟수 제한을 1~100회로 설정하거나 비워 두세요."
 
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Use a separate account"
+msgstr "별도 계정 사용"
+
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Use a time limit between 1 and 1440 minutes."
 msgstr "제한 시간을 1~1440분으로 설정하세요."
@@ -23278,6 +24201,10 @@ msgstr "계정 사용"
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 msgid "Use an image from the project folder..."
 msgstr "프로젝트 폴더의 이미지 사용..."
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Use another profile's account"
+msgstr "다른 프로필의 계정 사용"
 
 #: src/renderer/components/common/BranchSelector/parts/BranchListBox.tsx
 msgid "Use as default for new worktrees"
@@ -23302,6 +24229,10 @@ msgstr "기본 글꼴 사용"
 #: src/renderer/views/MainView/parts/AppOverlays.tsx
 msgid "Use detected session?"
 msgstr "감지된 세션을 사용하시겠습니까?"
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Use Devin's main account"
+msgstr "Devin의 기본 계정 사용"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/PluginsSection.tsx
 msgid "Use global (off)"
@@ -23331,6 +24262,12 @@ msgstr "실시간 미리보기 사용"
 #: src/renderer/components/providers/settings/ModelProviderEditor.tsx
 msgid "Use lowercase letters, numbers, and hyphens."
 msgstr "소문자, 숫자, 하이픈을 사용하세요."
+
+#: src/renderer/components/composer/MemoryAddMenu.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Use memory"
+msgstr "메모리 사용"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
@@ -23627,8 +24564,14 @@ msgstr "보라"
 
 #. placeholder {0}: props.surfaceLabel
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/ModelVisibilityDropdown.tsx
-msgid "Visible {0} models"
-msgstr "표시되는 {0} 모델"
+#~ msgid "Visible {0} models"
+#~ msgstr "표시되는 {0} 모델"
+
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/SidebarUsageVisibilityPopover.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageDisplaySettings.tsx
+msgid "Visible in sidebar"
+msgstr "사이드바에 표시"
 
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilitySection.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -23726,6 +24669,11 @@ msgstr "작업 트리로 이동하기 전에 스레드 시작이 완료될 때�
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Wait for the thread to finish starting."
 msgstr "스레드 시작이 완료될 때까지 기다리세요."
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Wait this long after a turn finishes."
+msgstr "턴이 끝난 뒤 이 시간만큼 기다립니다."
 
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
 msgid "Waiting"
@@ -23857,6 +24805,10 @@ msgstr "웹사이트"
 msgid "Website origin"
 msgstr "웹사이트 출처"
 
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Weekday steady: {percent}% of your recent prompts ran Mon–Fri"
+msgstr "평일 집중: 최근 프롬프트의 {percent}%가 월~금에 실행되었습니다"
+
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Weekdays"
 msgstr "평일"
@@ -23869,7 +24821,12 @@ msgstr "평일 {time}"
 msgid "Weekdays at 8:00 AM"
 msgstr "평일 오전 8:00"
 
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Weekend builder: {percent}% of your recent prompts ran on weekends"
+msgstr "주말 빌더: 최근 프롬프트의 {percent}%가 주말에 실행되었습니다"
+
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
 msgid "Weekly"
 msgstr "매주"
 
@@ -23921,6 +24878,11 @@ msgstr "새 소식"
 msgid "What's new in Poracode, newest first."
 msgstr "Poracode의 새 소식, 최신순."
 
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "When a thread is deleted"
+msgstr "스레드를 삭제할 때"
+
 #: src/renderer/views/SettingsOverlay/parts/SearchSettings.tsx
 msgid "When enabled, search respects <0>.gitignore</0> entries."
 msgstr "활성화되면 검색은 <0>.gitignore</0> 항목을 존중합니다."
@@ -23933,6 +24895,11 @@ msgstr "Poracode 브라우저 탭에서 링크가 열리면 브라우저가 표�
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
 msgid "When off, suppress notifications from terminal threads whose status comes from the OSC fallback (no CLI hook plugin)."
 msgstr "꺼져 있으면 상태가 OSC 대체(CLI 후크 플러그인 없음)에서 나오는 터미널 스레드의 알림을 억제합니다."
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "When to capture"
+msgstr "언제 기록할지"
 
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -23989,7 +24956,6 @@ msgstr "이 환경에서 실행됩니다:"
 
 #: src/renderer/components/mcp/McpProjectDestinationDropdown.tsx
 #: src/renderer/components/providers/devin/cloudProfileSettings.tsx
-#: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
 msgid "Windows"
@@ -24024,6 +24990,10 @@ msgstr "작업"
 #: src/renderer/components/thread/WorktreeModeSelect.tsx
 msgid "Work in the current checkout"
 msgstr "현재 체크아웃에서 작업"
+
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "Work rhythm"
+msgstr "작업 리듬"
 
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "Work with the pages and signed-in sessions already open in Chrome."
@@ -24123,6 +25093,7 @@ msgstr "작업 중…"
 
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/thread/ThreadDetailsDocks.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectFilter.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 msgid "Workspace"
@@ -24252,7 +25223,6 @@ msgstr "변경에 대한 테스트를 작성해 실행하고, 보고된 버그�
 msgid "Writing guide. You can leave this review and return when it is ready."
 msgstr "가이드를 작성 중입니다. 이 검토를 떠났다가 준비되면 돌아올 수 있습니다."
 
-#: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
 msgid "WSL"
@@ -24265,8 +25235,8 @@ msgstr "WSL · {0}"
 
 #. placeholder {0}: status.envDistro
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
-msgid "WSL ({0})"
-msgstr "WSL({0})"
+#~ msgid "WSL ({0})"
+#~ msgstr "WSL({0})"
 
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 #: src/renderer/components/mcp/McpProjectDestinationDropdown.tsx
@@ -24288,22 +25258,72 @@ msgstr "소스 제어용 WSL 브리지를 사용할 수 없습니다."
 #~ msgstr "WSL 사용자"
 
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
-msgid "WSL: {distro}"
-msgstr "WSL: {distro}"
+#~ msgid "WSL: {distro}"
+#~ msgstr "WSL: {distro}"
 
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/StructuredElicitationField.tsx
 msgid "Yes"
 msgstr "예"
 
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "Yesterday"
+msgstr "어제"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Yesterday <0>{model}</0> handled {percent}% of your prompts"
+msgstr "어제 <0>{model}</0>이(가) 프롬프트의 {percent}%를 처리했습니다"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Yesterday you used {compact} tokens"
+msgstr "어제 {compact} 토큰을 사용했습니다"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Yesterday you used {compact} tokens (~{cost})"
+msgstr "어제 {compact} 토큰을 사용했습니다 (~{cost})"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Yesterday: {prompts, plural, one {# prompt} other {# prompts}}"
+msgstr "어제: {prompts, plural, one {프롬프트 #개} other {프롬프트 #개}}"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Yesterday: {prompts, plural, one {# prompt} other {# prompts}} · {compactTokens} tokens"
+msgstr "어제: {prompts, plural, one {프롬프트 #개} other {프롬프트 #개}} · {compactTokens} 토큰"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Yesterday: {prompts, plural, one {# prompt} other {# prompts}} · led by {topProvider} ({topProviderPercent}%)"
+msgstr "어제: {prompts, plural, one {프롬프트 #개} other {프롬프트 #개}} · {topProvider} ({topProviderPercent}%)"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "You coded across {count} connected environments this week"
+msgstr "이번 주 연결된 {count}개 환경에서 작업했습니다"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "You coded across {count} connected environments yesterday"
+msgstr "어제 연결된 {count}개 환경에서 작업했습니다"
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "You have an unfinished review on the source host. Submit or discard it there before submitting this one."
 msgstr "소스 호스트에 완료되지 않은 리뷰가 있습니다. 이 리뷰를 제출하기 전에 해당 리뷰를 제출하거나 삭제하세요."
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "You leaned into {modeLabel} mode this week ({percent}% vs {prevPercent}%)"
+msgstr "이번 주 {modeLabel} 모드 비중이 늘었습니다 ({percent}% vs {prevPercent}%)"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "You ran {percent}% of turns with {effort} reasoning this week"
+msgstr "이번 주 턴의 {percent}%를 {effort} 추론으로 실행했습니다"
+
+#. placeholder {0}: f.model
+#. placeholder {1}: f.prompts
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "You started using <0>{0}</0> this week · {1, plural, one {# prompt} other {# prompts}}"
+msgstr "이번 주부터 <0>{0}</0> 사용 시작 · {1, plural, one {프롬프트 #개} other {프롬프트 #개}}"
 
 #: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
 msgid "You’re all caught up."
 msgstr "모두 확인했습니다."
 
-#: src/renderer/components/newsLine/useInsightItems.tsx
+#: src/renderer/components/newsLine/insightContent.tsx
 msgid "You're most active around {hourLabel}"
 msgstr "{hourLabel}쯤 가장 활발합니다"
 
@@ -24339,9 +25359,13 @@ msgstr "로컬 변경 사항이 스태시에 저장되어 있으며 이 병합�
 msgid "Your local changes were stashed and will be re-applied once the merge is resolved."
 msgstr "로컬 변경 사항이 스태시에 저장되었으며 병합이 해결되면 다시 적용됩니다."
 
-#: src/renderer/components/newsLine/useInsightItems.tsx
+#: src/renderer/components/newsLine/insightContent.tsx
 msgid "Your longest task ran {duration}"
 msgstr "가장 긴 작업은 {duration} 동안 실행되었습니다"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Your longest task yesterday ran {duration}"
+msgstr "어제 가장 긴 작업은 {duration}였습니다"
 
 #: src/renderer/views/PullRequestsOverlay/chat/usePrAskChatSession.ts
 msgid "Your message was not sent: the chat thread is no longer available."
@@ -24350,6 +25374,10 @@ msgstr "메시지가 전송되지 않았습니다. 채팅 스레드를 더 이�
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 msgid "Your name"
 msgstr "이름"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Your peak coding hour shifted from {fromLabel} to {toLabel} this week"
+msgstr "이번 주 최고 집중 시간대가 {fromLabel}에서 {toLabel}(으)로 이동했습니다"
 
 #: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
 #~ msgid "Your pick"

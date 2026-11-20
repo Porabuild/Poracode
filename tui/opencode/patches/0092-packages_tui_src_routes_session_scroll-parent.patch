@@ -1,0 +1,13 @@
+diff --git a/packages/tui/src/routes/session/index.tsx b/packages/tui/src/routes/session/index.tsx
+index fe29dc06e5..9d1088b757 100644
+--- a/packages/tui/src/routes/session/index.tsx
++++ b/packages/tui/src/routes/session/index.tsx
+@@ -421,7 +421,7 @@ export function Session(props: {
+   // Renderable positions are still stale at that point; read the computed layout instead.
+   let held: { node: Renderable; top: number } | undefined
+   const layoutTop = (node: Renderable): number =>
+-    node === scroll.content || !node.parent ? 0 : node.getComputedLayout().top + layoutTop(node.parent)
++    node === scroll || !node.parent ? 0 : node.getComputedLayout().top + layoutTop(node.parent)
+   const holdAnchor = () => {
+     if (held && !held.node.isDestroyed) scroll.scrollTo(layoutTop(held.node) - held.top)
+   }

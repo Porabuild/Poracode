@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { readMcpAppResource } from "@/shared/mcpAppResources";
 import { readToolVideoSources } from "@/shared/chatVideo";
+import { isUserAttachmentImageReadPayload } from "@/shared/inlineImagePayload";
 import type {
   AgentSlashCommand,
   PromptSegment,
@@ -121,6 +122,7 @@ export class PiRpcSession implements StructuredSessionHandle {
   private readonly client: PiRpcClient;
   private readonly pendingDialogs = new Map<string, PendingDialog>();
   private readonly openToolItems = new Map<string, string>();
+  private readonly openToolArgs = new Map<string, unknown>();
   private readonly unsubscribeEvents: () => void;
   private readonly unsubscribeExit: () => void;
   private readonly cleanupMcp: (() => Promise<void>) | undefined;
@@ -384,6 +386,7 @@ export class PiRpcSession implements StructuredSessionHandle {
     this.assistantItemId = undefined;
     this.reasoningItemId = undefined;
     this.openToolItems.clear();
+    this.openToolArgs.clear();
     this.turnCompletion = new Promise<void>((resolve) => {
       this.resolveTurnCompletion = resolve;
     });
@@ -545,6 +548,7 @@ export class PiRpcSession implements StructuredSessionHandle {
     const toolName = String(event.toolName ?? "tool");
     const itemId = this.nextItemId("tool");
     this.openToolItems.set(toolCallId, itemId);
+    if (event.args !== undefined) this.openToolArgs.set(toolCallId, event.args);
     const isMcp = toolName.startsWith("mcp__");
     const serverId = isMcp ? toolName.split("__")[1] : undefined;
     this.emit({
@@ -566,8 +570,10 @@ export class PiRpcSession implements StructuredSessionHandle {
   }
 
   private handleToolUpdate(event: PiRpcEvent): void {
-    const itemId = this.openToolItems.get(String(event.toolCallId ?? ""));
+    const toolCallId = String(event.toolCallId ?? "");
+    const itemId = this.openToolItems.get(toolCallId);
     if (!itemId) return;
+    if (event.args !== undefined) this.openToolArgs.set(toolCallId, event.args);
     const toolName = String(event.toolName ?? "tool");
     this.emit({
       type: "item.updated",
@@ -589,8 +595,18 @@ export class PiRpcSession implements StructuredSessionHandle {
     const itemId = this.openToolItems.get(toolCallId);
     if (!itemId) return;
     this.openToolItems.delete(toolCallId);
+    const args = event.args ?? this.openToolArgs.get(toolCallId);
+    this.openToolArgs.delete(toolCallId);
     const toolName = String(event.toolName ?? "tool");
-    const images = toolResultImages(event.result);
+    const kind = toolKind(toolName);
+    const images = isUserAttachmentImageReadPayload({
+      name: toolName,
+      title: toolName,
+      kind,
+      args,
+    })
+      ? []
+      : toolResultImages(event.result);
     const mcpResult = recordOf(event.result)?.details;
     this.emit({
       type: "item.completed",
@@ -599,7 +615,7 @@ export class PiRpcSession implements StructuredSessionHandle {
       payload: {
         name: toolName,
         title: toolName,
-        kind: toolKind(toolName),
+        kind,
         result:
           readMcpAppResource(mcpResult) || readToolVideoSources(mcpResult).length > 0
             ? mcpResult
@@ -925,6 +941,7 @@ export class PiRpcSession implements StructuredSessionHandle {
     this.reasoningItemId = undefined;
     this.assistantItemId = undefined;
     this.openToolItems.clear();
+    this.openToolArgs.clear();
   }
 
   private async publishContextUsage(): Promise<void> {

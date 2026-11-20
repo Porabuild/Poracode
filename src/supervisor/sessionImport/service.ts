@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
-import { basename, relative, resolve, isAbsolute } from "node:path";
+import { basename, relative, isAbsolute, sep } from "node:path";
+import { realpath, stat } from "node:fs/promises";
 import type {
   ImportSessionTranscriptPayload,
   ImportSessionTranscriptResult,
@@ -10,7 +11,7 @@ import type {
 import type { SupervisorEvent } from "@/shared/ipc";
 import { msg } from "@/shared/messages";
 import type { AgentAdapter } from "../agents/base";
-import type { ImportedTranscript } from "../agents/base/sessionImport";
+import type { ImportedTranscript, SessionImportSource } from "../agents/base/sessionImport";
 import {
   DEFAULT_SCAN_LIMITS,
   SessionImportScanner,
@@ -23,8 +24,24 @@ const MAX_MESSAGE_CHARS = 100_000;
 const REPLAY_BATCH_SIZE = 200;
 
 function isInside(root: string, path: string): boolean {
-  const rel = relative(resolve(root), resolve(path));
-  return rel.length > 0 && !rel.startsWith("..") && !isAbsolute(rel);
+  const rel = relative(root, path);
+  return rel.length > 0 && rel !== ".." && !rel.startsWith(`..${sep}`) && !isAbsolute(rel);
+}
+
+async function resolveTranscriptFile(source: SessionImportSource, path: string): Promise<string> {
+  const unknown = () => new Error(msg("sessionImport.unknownTranscript"));
+  if (!isAbsolute(path) || !source.acceptFile(basename(path))) throw unknown();
+  const lexicalRoots = source.roots.filter((root) => isInside(root, path));
+  if (lexicalRoots.length === 0) throw unknown();
+  const canonicalPath = await realpath(path).catch(() => undefined);
+  if (!canonicalPath || !source.acceptFile(basename(canonicalPath))) throw unknown();
+  const roots = await Promise.all(
+    lexicalRoots.map((root) => realpath(root).catch(() => undefined)),
+  );
+  if (!roots.some((root) => root !== undefined && isInside(root, canonicalPath))) throw unknown();
+  const stats = await stat(canonicalPath).catch(() => undefined);
+  if (!stats?.isFile()) throw unknown();
+  return canonicalPath;
 }
 
 /** Replays a transcript as the canonical events a live session emits. */
@@ -81,16 +98,12 @@ export class SessionImportService {
   ): Promise<ImportSessionTranscriptResult> {
     const source = this.adapters.get(payload.agentKind)?.sessionImport;
     if (!source) throw new Error(msg("sessionImport.unsupported"));
-    // The path comes from the renderer: only read files inside the agent's own store.
-    const known =
-      source.acceptFile(basename(payload.path)) &&
-      source.roots.some((root) => isInside(root, payload.path));
-    if (!known) throw new Error(msg("sessionImport.unknownTranscript"));
     const key = `${payload.agentKind}:${payload.providerSessionId}`;
     if (this.importing.has(key)) throw new Error(msg("sessionImport.inProgress"));
     this.importing.add(key);
     try {
-      const transcript = await source.readTranscript(payload.path);
+      const path = await resolveTranscriptFile(source, payload.path);
+      const transcript = await source.readTranscript(path);
       if (transcript.providerSessionId !== payload.providerSessionId) {
         throw new Error(msg("sessionImport.changedOnDisk"));
       }

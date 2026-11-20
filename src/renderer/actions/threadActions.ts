@@ -44,9 +44,16 @@ import { resolveWorktreeBranch } from "@/renderer/utils/gitHelpers";
 import { closeThreads } from "@/renderer/utils/shellUtils";
 import {
   auxiliaryThreadIds,
+  hasOwnWindow,
+  livesInAnotherWindow,
   useAuxiliaryThreadWindows,
 } from "@/renderer/state/auxiliaryThreadWindows";
 import { closePanelsForUnloadedThread } from "./panelActions";
+import {
+  dismissThreadWindow,
+  openInMainWindowFromThread,
+  returnThreadToMainWindow,
+} from "./threadWindowActions";
 import { getCurrentProjectId } from "./currentProject";
 import { switchWorkspaceForProject } from "./workspaceActions";
 import { deleteWorktreeGroup } from "./worktreeActions";
@@ -276,6 +283,7 @@ export function openThread(
     reopenRuntime?: boolean;
   },
 ): void {
+  if (openInMainWindowFromThread({ kind: "thread", threadId })) return;
   const requestId = nextThreadOpenRequest();
   allowAutomaticThreadReopen(threadId);
   const store = useAppStore.getState();
@@ -476,6 +484,9 @@ export function switchToAdjacentThread(current: Thread, direction: "next" | "pre
 }
 
 export function reopenStoredThread(threadId: string): void {
+  // A thread in its own window is started by that window. Here the pane is a
+  // placeholder, so a queued launch would wait for a view that never mounts.
+  if (livesInAnotherWindow(threadId)) return;
   allowAutomaticThreadReopen(threadId);
   const store = useAppStore.getState();
   const thread = store.threads.find((item) => item.id === threadId);
@@ -575,11 +586,18 @@ export function archiveThread(threadId: string): void {
         threadId: remoteThreadId,
       }),
       () => useAppStore.getState().archiveThread(threadId),
+      () => closeOwnThreadWindow(threadId),
     )
   )
     return;
+  closeOwnThreadWindow(threadId);
   void unloadStoredThread(threadId).catch(() => undefined);
   useAppStore.getState().archiveThread(threadId);
+}
+
+/** Archive and Done close the thread's own window, as they close its pane. */
+function closeOwnThreadWindow(threadId: string): void {
+  if (hasOwnWindow(threadId)) dismissThreadWindow(threadId);
 }
 
 export function unarchiveThread(threadId: string): void {
@@ -634,6 +652,7 @@ export function cleanupDoneThread(threadId: string): void {
   const store = useAppStore.getState();
   const thread = store.threads.find((row) => row.id === threadId);
   if (!thread?.done) return;
+  closeOwnThreadWindow(threadId);
   void unloadStoredThread(threadId, { keepSidePanels: true }).catch(() => undefined);
   const worktreePath = thread.worktreePath;
   const isLastOpenWorktreeThread =
@@ -821,6 +840,7 @@ function deleteThreadOnly(
     void readBridge()
       .closeSideChatPanel?.(threadId)
       .catch((error: unknown) => toast.danger(friendlyError(error)));
+    dismissThreadWindow(threadId);
     completion?.resolve();
   };
   if (
@@ -847,6 +867,7 @@ function deleteThreadOnly(
   void readBridge()
     .closeSideChatPanel?.(threadId)
     .catch((error: unknown) => toast.danger(friendlyError(error)));
+  dismissThreadWindow(threadId);
   void readBridge()
     .closeThread({ threadId })
     .catch(() => undefined);
@@ -985,6 +1006,8 @@ export function requestDeleteThread(
  * on it once mounted.
  */
 export function continueInProvider(threadId: string): void {
+  // The dialog lives in the main window pane, so the thread has to come back first.
+  if (hasOwnWindow(threadId)) returnThreadToMainWindow(threadId);
   openThread(threadId);
   useContinueInProviderStore.getState().request(threadId);
 }

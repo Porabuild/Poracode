@@ -1,4 +1,19 @@
 import { z } from "zod";
+import type { McpServer } from "../contracts/mcpServer";
+import {
+  remoteMcpSettingsOperationResultSchema,
+  remoteMcpSettingsReadResultSchema,
+  type RemoteMcpSettingsCommand,
+  type RemoteMcpSettingsOperation,
+} from "./contract/routeSchemas";
+import {
+  memorySyncResponseSchema,
+  remoteMemoryCatalogResultSchema,
+  type MemorySyncResponse,
+  type MemorySyncState,
+  type RemoteMemoryCatalogCommand,
+  type RemoteMemoryCatalogResult,
+} from "../memory";
 import { agentVisionResponseSchema, type AgentVision } from "../agentVision";
 import {
   remoteHostDescribeSchema,
@@ -84,6 +99,7 @@ import {
 } from "@/shared/contracts";
 import { RemoteClientDevicePreviewApi } from "./clientDevicePreview";
 import {
+  deviceAdoptedSessionSchema,
   deviceInventorySchema,
   deviceSessionSchema,
   deviceFrameSchema,
@@ -123,6 +139,24 @@ export abstract class RemoteClientHostApi extends RemoteClientDevicePreviewApi {
       }),
       "device session",
     );
+  }
+  async createDuoDevice() {
+    return parseResponse(
+      deviceInventorySchema,
+      await this.requestJson("/api/devices/duo", { method: "POST", mutation: true }),
+      "device inventory",
+    );
+  }
+  async adoptDeviceSession(threadId: string) {
+    const result = parseResponse(
+      deviceAdoptedSessionSchema,
+      await this.requestJson(`/api/threads/${encodeURIComponent(threadId)}/devices/adopt`, {
+        method: "POST",
+        mutation: true,
+      }),
+      "device session",
+    );
+    return result.session;
   }
   async deviceFrame(threadId: string, sessionId: string, signal?: AbortSignal) {
     return parseResponse(
@@ -475,6 +509,59 @@ export abstract class RemoteClientHostApi extends RemoteClientDevicePreviewApi {
       "settings",
     );
     return result.settings;
+  }
+
+  async mcpServers(): Promise<McpServer[]> {
+    const result = parseResponse(
+      remoteMcpSettingsReadResultSchema,
+      await this.requestJson("/api/settings/mcp-servers"),
+      "MCP settings",
+    );
+    return result.servers;
+  }
+
+  async commandMcpServers(command: RemoteMcpSettingsCommand): Promise<McpServer[]> {
+    const result = parseResponse(
+      remoteMcpSettingsReadResultSchema,
+      await this.requestJson("/api/settings/mcp-servers/command", {
+        method: "POST",
+        body: command,
+      }),
+      "MCP settings command",
+    );
+    return result.servers;
+  }
+
+  async operateMcpServer(operation: RemoteMcpSettingsOperation) {
+    const result = parseResponse(
+      remoteMcpSettingsOperationResultSchema,
+      await this.requestJson("/api/settings/mcp-servers/operation", {
+        method: "POST",
+        body: operation,
+      }),
+      "MCP settings operation",
+    );
+    if (result.kind !== operation.kind) throw new Error("MCP operation response mismatch.");
+    return result;
+  }
+
+  async memoryCatalog(command: RemoteMemoryCatalogCommand): Promise<RemoteMemoryCatalogResult> {
+    const result = parseResponse(
+      remoteMemoryCatalogResultSchema,
+      await this.requestJson("/api/memory/catalog", { method: "POST", body: command }),
+      "memory catalog",
+    );
+    if (result.action !== command.action)
+      throw new Error("Memory catalog response mismatched its request.");
+    return result;
+  }
+
+  async memorySync(state: MemorySyncState): Promise<MemorySyncResponse> {
+    return parseResponse(
+      memorySyncResponseSchema,
+      await this.requestJson("/api/memory/sync", { method: "POST", body: state }),
+      "memory sync",
+    );
   }
 
   async uploadAttachment(input: {

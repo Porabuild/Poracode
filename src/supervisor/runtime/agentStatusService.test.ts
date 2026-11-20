@@ -22,6 +22,7 @@ import {
   AgentStatusService,
   detectWslAgentStatuses,
   parseWslRegistryDistributionNames,
+  type AgentStatusServiceOptions,
 } from "./agentStatusService";
 
 const tempDirs: string[] = [];
@@ -78,7 +79,10 @@ function makeAdapter(
   } as unknown as AgentAdapter;
 }
 
-function makeService(detectInstall: AgentAdapter["detectInstall"]): {
+function makeService(
+  detectInstall: AgentAdapter["detectInstall"],
+  onStartupDetectionComplete?: AgentStatusServiceOptions["onStartupDetectionComplete"],
+): {
   service: AgentStatusService;
   statusCachePath: string;
 } {
@@ -92,6 +96,7 @@ function makeService(detectInstall: AgentAdapter["detectInstall"]): {
       settingsPath: join(dir, "settings.json"),
       statusCachePath,
       emit: vi.fn<(event: SupervisorEvent) => void>(),
+      ...(onStartupDetectionComplete ? { onStartupDetectionComplete } : {}),
     }),
     statusCachePath,
   };
@@ -137,15 +142,23 @@ HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Lxss\\{333}
   });
 
   it("runs automatic startup detection only once across status reads", async () => {
-    const detectInstall = vi.fn<AgentAdapter["detectInstall"]>().mockResolvedValue(makeStatus());
-    const { service, statusCachePath } = makeService(detectInstall);
+    const probe = Promise.withResolvers<AgentStatus>();
+    const detectInstall = vi.fn<AgentAdapter["detectInstall"]>().mockReturnValue(probe.promise);
+    const onStartupDetectionComplete =
+      vi.fn<NonNullable<AgentStatusServiceOptions["onStartupDetectionComplete"]>>();
+    const { service, statusCachePath } = makeService(detectInstall, onStartupDetectionComplete);
 
     const first = await service.getAgentStatuses({ wslDistros: [] });
 
-    expect(first.fromCache).toBe(false);
+    expect(first).toEqual({ windows: [], wsl: [], fromCache: false });
+    expect(onStartupDetectionComplete).not.toHaveBeenCalled();
+    probe.resolve(makeStatus());
     await vi.waitFor(() => {
       expect(detectInstall).toHaveBeenCalledTimes(1);
       expect(existsSync(statusCachePath)).toBe(true);
+      expect(onStartupDetectionComplete).toHaveBeenCalledExactlyOnceWith(
+        expect.objectContaining({ windows: [expect.objectContaining(makeStatus())], wsl: [] }),
+      );
     });
 
     const second = await service.getAgentStatuses({ wslDistros: [] });
@@ -153,6 +166,7 @@ HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Lxss\\{333}
 
     expect(second.fromCache).toBe(true);
     expect(detectInstall).toHaveBeenCalledTimes(1);
+    expect(onStartupDetectionComplete).toHaveBeenCalledOnce();
   });
 
   it.each(["startup", "update", "rediscover"])(
@@ -327,19 +341,19 @@ HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Lxss\\{333}
           wsl: [],
         }),
       );
-      expect(STATUS_CACHE_VERSION).toBe(79);
+      expect(STATUS_CACHE_VERSION).toBe(82);
       expect(service.getCachedCapabilities("codex")).toBeUndefined();
     },
   );
 
-  it("drops the on-disk status cache before an explicit full refresh", async () => {
+  it("keeps serving the last-known inventory while rewriting the disk cache during a full refresh", async () => {
     const detectInstall = vi.fn<AgentAdapter["detectInstall"]>().mockResolvedValue({
       ...makeStatus(),
       capabilities: { ...capabilities, models: [{ id: "stale", label: "Stale" }] },
     });
     const { service, statusCachePath } = makeService(detectInstall);
 
-    await service.refreshAgentStatuses({ wslDistros: [] });
+    await service.refreshAgentStatuses({ wslDistros: ["Ubuntu"] });
     expect(existsSync(statusCachePath)).toBe(true);
 
     expect(service.getCachedCapabilities("codex")?.models.map((model) => model.id)).toEqual([
@@ -349,7 +363,12 @@ HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Lxss\\{333}
     detectInstall.mockClear();
     detectInstall.mockImplementation(async () => {
       expect(existsSync(statusCachePath)).toBe(false);
-      expect(service.getCachedCapabilities("codex")).toBeUndefined();
+      expect(service.getCachedCapabilities("codex")?.models.map((model) => model.id)).toEqual([
+        "stale",
+      ]);
+      // A second client or a reconnect can read the same inventory mid-refresh.
+      const response = await service.getAgentStatuses({ wslDistros: [] });
+      expect(response.windows[0]?.capabilities.models.map((model) => model.id)).toEqual(["stale"]);
       return {
         ...makeStatus(),
         capabilities: {
@@ -364,8 +383,10 @@ HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Lxss\\{333}
     expect(detectInstall).toHaveBeenCalledTimes(1);
     const cached = JSON.parse(readFileSync(statusCachePath, "utf8")) as {
       windows: AgentStatus[];
+      wsl: AgentStatus[];
     };
     expect(cached.windows[0]?.capabilities.models.map((model) => model.id)).toEqual(["fresh"]);
+    expect(cached.wsl[0]?.capabilities.models.map((model) => model.id)).toEqual(["stale"]);
     expect(service.getCachedCapabilities("codex")?.models.map((model) => model.id)).toEqual([
       "fresh",
     ]);

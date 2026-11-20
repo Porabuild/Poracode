@@ -1,5 +1,17 @@
 import { z } from "zod";
 import {
+  appThreadRequestsPayloadSchema,
+  appThreadRequestsResultSchema,
+  type AppThreadRequestsPayload,
+  type AppThreadRequestsResult,
+} from "../../contracts/appThreadRequests";
+import {
+  controlWorkspaceTerminalPayloadSchema,
+  controlWorkspaceTerminalResultSchema,
+  type ControlWorkspaceTerminalPayload,
+  type ControlWorkspaceTerminalResult,
+} from "../../contracts/workspaceTerminal";
+import {
   controlThreadExecutionPayloadSchema,
   controlThreadExecutionResultSchema,
   threadExecutionReservationPayloadSchema,
@@ -63,6 +75,7 @@ import {
   getLatestAgentVersionResultSchema,
   getAgentConfigDefaultsPayloadSchema,
   resolveAgentAccountPayloadSchema,
+  resolveAgentAccountResultSchema,
   writeTerminalPayloadSchema,
 } from "../../contracts";
 import type {
@@ -156,6 +169,16 @@ import {
 } from "../schemas";
 
 export const threadProcedures = {
+  appThreadRequests: definePayloadProcedure<
+    AppThreadRequestsPayload,
+    AppThreadRequestsResult,
+    "supervisor"
+  >(
+    "appThreadRequests",
+    "supervisor",
+    appThreadRequestsPayloadSchema,
+    appThreadRequestsResultSchema,
+  ),
   controlledThreadRequest: definePayloadProcedure<
     ControlledThreadRequestPayload,
     ControlledThreadRequestResult,
@@ -252,7 +275,12 @@ export const threadProcedures = {
     InstallAcpRegistryAgentPayload,
     AcpRegistryMutationResult,
     "supervisor"
-  >("installAcpRegistryAgent", "supervisor", installAcpRegistryAgentPayloadSchema),
+  >(
+    "installAcpRegistryAgent",
+    "supervisor",
+    installAcpRegistryAgentPayloadSchema,
+    acpRegistryMutationResultSchema,
+  ),
   updateAcpRegistryAgent: definePayloadProcedure<
     UpdateAcpRegistryAgentPayload,
     AcpRegistryMutationResult,
@@ -287,7 +315,12 @@ export const threadProcedures = {
     ResolveAgentAccountPayload,
     ResolveAgentAccountResult,
     "supervisor"
-  >("resolveAgentAccount", "supervisor", resolveAgentAccountPayloadSchema),
+  >(
+    "resolveAgentAccount",
+    "supervisor",
+    resolveAgentAccountPayloadSchema,
+    resolveAgentAccountResultSchema,
+  ),
   getAgentConfigDefaults: definePayloadProcedure<
     GetAgentConfigDefaultsPayload,
     GetAgentConfigDefaultsResult,
@@ -297,16 +330,27 @@ export const threadProcedures = {
     RemoveAcpRegistryAgentPayload,
     AcpRegistryMutationResult,
     "supervisor"
-  >("removeAcpRegistryAgent", "supervisor", removeAcpRegistryAgentPayloadSchema),
+  >(
+    "removeAcpRegistryAgent",
+    "supervisor",
+    removeAcpRegistryAgentPayloadSchema,
+    acpRegistryMutationResultSchema,
+  ),
   setAcpRegistryAgentAuth: definePayloadProcedure<
     SetAcpRegistryAgentAuthPayload,
     AcpRegistryMutationResult,
     "supervisor"
-  >("setAcpRegistryAgentAuth", "supervisor", setAcpRegistryAgentAuthPayloadSchema),
+  >(
+    "setAcpRegistryAgentAuth",
+    "supervisor",
+    setAcpRegistryAgentAuthPayloadSchema,
+    acpRegistryMutationResultSchema,
+  ),
   authenticateAcpAgent: definePayloadProcedure<AuthenticateAcpAgentPayload, void, "supervisor">(
     "authenticateAcpAgent",
     "supervisor",
     authenticateAcpAgentPayloadSchema,
+    omittedResultSchema,
   ),
   controlAcpAuthentication: definePayloadProcedure<
     ControlAcpAuthenticationPayload,
@@ -317,6 +361,7 @@ export const threadProcedures = {
     "logoutAcpAgent",
     "supervisor",
     logoutAcpAgentPayloadSchema,
+    omittedResultSchema,
   ),
   getThreadSnapshots: defineNoArgProcedure<ThreadRuntimeSnapshot[], "supervisor">(
     "getThreadSnapshots",
@@ -534,6 +579,16 @@ export const threadProcedures = {
     "startShell",
     "supervisor",
     startShellPayloadSchema,
+  ),
+  controlWorkspaceTerminal: definePayloadProcedure<
+    ControlWorkspaceTerminalPayload,
+    ControlWorkspaceTerminalResult,
+    "supervisor"
+  >(
+    "controlWorkspaceTerminal",
+    "supervisor",
+    controlWorkspaceTerminalPayloadSchema,
+    controlWorkspaceTerminalResultSchema,
   ),
   extractContext: definePayloadProcedure<ExtractContextPayload, ExtractContextResult, "supervisor">(
     "extractContext",

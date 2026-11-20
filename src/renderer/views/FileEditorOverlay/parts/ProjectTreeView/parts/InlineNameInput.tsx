@@ -40,7 +40,7 @@ export function InlineNameInput(props: {
           onCancel();
         }
       }}
-      className="w-full rounded border border-default-300 bg-background px-1 text-sm outline-none focus:border-primary"
+      className="w-full rounded form-field px-1 text-sm outline-none"
     />
   );
 }

@@ -49,7 +49,7 @@ await withRuntimeDeclarationBatch(root, runtime.runtimeDeclaration.buildOptions,
         inputs: [] as string[],
         files: [] as string[],
       };
-      const bundles = await build({
+      const { bundles } = await build({
         ...config,
         config: false,
         cwd: root,

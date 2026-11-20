@@ -1,12 +1,14 @@
+import { ContentSurface } from "@/renderer/components/common/ContentSurface";
 import type { ReactNode } from "react";
+import { Skeleton } from "@heroui/react";
 import { msg } from "@lingui/core/macro";
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { ProfileCoreStats, ProfileStatsWindow, ProfileTokenStats } from "@/shared/contracts";
 import type { TranslateFn } from "@/renderer/i18n/i18n";
 import { formatCompact, formatDayLabel, formatDuration } from "../format";
 
-function Skeleton() {
-  return <div className="h-6 w-14 animate-pulse rounded-md bg-foreground/10" />;
+function ValueSkeleton() {
+  return <Skeleton className="h-6 w-14 rounded-md bg-foreground/10" />;
 }
 
 /**
@@ -16,7 +18,7 @@ function Skeleton() {
  */
 function Tile(props: { value: ReactNode; label: string; sub?: string }) {
   return (
-    <div className="flex flex-col items-center justify-center gap-1 bg-surface-secondary px-3 py-4">
+    <div className="flex flex-col items-center justify-center gap-1 bg-[var(--content-surface-fill)] px-3 py-4">
       <div className="flex h-7 items-center text-xl font-semibold tabular-nums text-foreground">
         {props.value}
       </div>
@@ -42,26 +44,30 @@ function unavailableProviderLabel(key: string, tokens: ProfileTokenStats): strin
 }
 
 export function StatStrip(props: {
-  core: ProfileCoreStats;
+  core: ProfileCoreStats | null;
+  coreLoading?: boolean;
   tokens: ProfileTokenStats | null;
   tokensLoading: boolean;
   window: ProfileStatsWindow;
+  streaksAvailable?: boolean;
+  peakAvailable?: boolean;
 }) {
   const { t } = useLingui();
-  const { core, tokens, tokensLoading, window } = props;
-  const totals = core.totals;
-  const pending = tokensLoading && !tokens;
+  const { core, coreLoading = false, tokens, tokensLoading, window } = props;
+  const totals = core?.totals;
+  const corePending = coreLoading && !totals;
+  const tokensPending = tokensLoading && !tokens;
 
-  const lifetime = pending ? (
-    <Skeleton />
+  const lifetime = tokensPending ? (
+    <ValueSkeleton />
   ) : tokens?.available ? (
     formatCompact(tokens.lifetimeTokens)
   ) : (
     "-"
   );
-  const peak = pending ? (
-    <Skeleton />
-  ) : tokens?.available ? (
+  const peak = tokensPending ? (
+    <ValueSkeleton />
+  ) : tokens?.available && props.peakAvailable !== false ? (
     formatCompact(tokens.peakDayTokens)
   ) : (
     "-"
@@ -73,17 +79,44 @@ export function StatStrip(props: {
 
   return (
     <div className="flex flex-col gap-1.5">
-      <div className="grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-border bg-border sm:grid-cols-3 lg:grid-cols-5">
+      <ContentSurface className="grid grid-cols-2 gap-px overflow-hidden bg-[var(--hairline-soft)] sm:grid-cols-3 lg:grid-cols-5">
         <Tile value={lifetime} label={window === "all" ? t`Lifetime tokens` : t`Total tokens`} />
         <Tile
           value={peak}
           label={t`Peak day`}
-          {...(tokens?.peakDay ? { sub: formatDayLabel(tokens.peakDay) } : {})}
+          {...(tokens?.peakDay && props.peakAvailable !== false
+            ? { sub: formatDayLabel(tokens.peakDay) }
+            : {})}
         />
-        <Tile value={formatDuration(totals.longestTaskMs)} label={t`Longest task`} />
-        <Tile value={formatDaysLabel(totals.currentStreakDays, t)} label={t`Current streak`} />
-        <Tile value={formatDaysLabel(totals.longestStreakDays, t)} label={t`Longest streak`} />
-      </div>
+        <Tile
+          value={corePending || !totals ? <ValueSkeleton /> : formatDuration(totals.longestTaskMs)}
+          label={t`Longest task`}
+        />
+        <Tile
+          value={
+            corePending || !totals ? (
+              <ValueSkeleton />
+            ) : props.streaksAvailable === false ? (
+              "-"
+            ) : (
+              formatDaysLabel(totals.currentStreakDays, t)
+            )
+          }
+          label={t`Current streak`}
+        />
+        <Tile
+          value={
+            corePending || !totals ? (
+              <ValueSkeleton />
+            ) : props.streaksAvailable === false ? (
+              "-"
+            ) : (
+              formatDaysLabel(totals.longestStreakDays, t)
+            )
+          }
+          label={t`Longest streak`}
+        />
+      </ContentSurface>
       {tokens && tokens.unavailableProviders.length > 0 ? (
         <p className="text-center text-[10px] text-muted/60">
           <Trans>Token usage unavailable for: {unavailableLabels}</Trans>

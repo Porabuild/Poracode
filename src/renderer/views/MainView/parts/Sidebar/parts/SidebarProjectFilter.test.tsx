@@ -2,7 +2,7 @@ import { useState } from "react";
 import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
-import type { Project } from "@/shared/contracts";
+import type { Project, Workspace } from "@/shared/contracts";
 import { HOME_PROJECT_ID } from "@/shared/homeScope";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useDevTerminalStore } from "@/renderer/state/devTerminalStore";
@@ -1011,6 +1011,84 @@ describe("SidebarProjectFilter", () => {
       expect(
         screen.queryByRole("button", { name: "Project actions for Home" }),
       ).not.toBeInTheDocument();
+    });
+  });
+
+  describe("mobile workspace filter", () => {
+    const workspaces: Workspace[] = [
+      { id: "w1", name: "Work", createdAt: "2026-01-01T00:00:00.000Z", icon: "briefcase" },
+      { id: "w2", name: "Side Hustle", createdAt: "2026-01-01T00:00:00.000Z", icon: "rocket" },
+    ];
+
+    it("renders All workspaces and workspace rows in the mobile filter drawer and highlights when filtered", async () => {
+      responsiveMenuState.mobile = true;
+      const onWorkspaceChange = vi.fn<(workspaceId: string | null) => void>();
+      const { rerender } = render(
+        <SidebarProjectFilter
+          projects={projects}
+          filterableProjectIds={new Set(projects.map((candidate) => candidate.id))}
+          threadCounts={threadCounts}
+          value={null}
+          onChange={vi.fn<(next: string[] | null) => void>()}
+          mobileIconTrigger
+          statusView={{
+            showDone: false,
+            doneCount: 0,
+            onChange: vi.fn<(showDone: boolean) => void>(),
+          }}
+          workspaceFilter={{
+            workspaces,
+            value: null,
+            onChange: onWorkspaceChange,
+          }}
+        />,
+      );
+
+      const trigger = screen.getByRole("button", { name: "Filter threads" });
+      expect(trigger).toHaveClass("text-muted");
+      fireEvent.click(trigger);
+
+      const dialog = await screen.findByRole("dialog", { name: "Filter threads" });
+      expect(within(dialog).getByRole("button", { name: "All workspaces" })).toHaveAttribute(
+        "aria-pressed",
+        "true",
+      );
+      expect(within(dialog).getByRole("button", { name: "Work" })).toHaveAttribute(
+        "aria-pressed",
+        "false",
+      );
+
+      fireEvent.click(within(dialog).getByRole("button", { name: "Side Hustle" }));
+      expect(onWorkspaceChange).toHaveBeenCalledWith("w2");
+
+      rerender(
+        <SidebarProjectFilter
+          projects={[]}
+          filterableProjectIds={new Set()}
+          threadCounts={new Map()}
+          value={null}
+          onChange={vi.fn<(next: string[] | null) => void>()}
+          mobileIconTrigger
+          statusView={{
+            showDone: false,
+            doneCount: 0,
+            onChange: vi.fn<(showDone: boolean) => void>(),
+          }}
+          workspaceFilter={{
+            workspaces,
+            value: "w2",
+            onChange: onWorkspaceChange,
+          }}
+        />,
+      );
+      expect(screen.getByRole("button", { name: "Filter threads", hidden: true })).toHaveClass(
+        "text-accent",
+      );
+      expect(
+        within(dialog).queryByRole("button", { name: "All projects" }),
+      ).not.toBeInTheDocument();
+      fireEvent.click(within(dialog).getByRole("button", { name: "All workspaces" }));
+      expect(onWorkspaceChange).toHaveBeenLastCalledWith(null);
     });
   });
 });

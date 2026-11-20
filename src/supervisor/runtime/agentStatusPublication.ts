@@ -28,7 +28,7 @@ function targetKey(target: Pick<AgentStatus, "kind" | "envKind" | "envDistro">):
  * In-memory ownership for detection publications. Reserve targets before a
  * job waits in the probe queue: only the latest request for each target may
  * publish. An accepted snapshot remains last-known while that target refreshes;
- * explicit invalidation/full refresh retires the entire view instead.
+ * invalidating the registry retires the entire view instead.
  *
  * Maps contain target identities, not a history of jobs. Persistence is allowed
  * only when every latest requested target has completed, never for a partial
@@ -81,6 +81,7 @@ export class AgentStatusPublication {
 
   invalidate(
     retain: readonly AgentStatusPublicationTicket[] = [],
+    lastKnown: readonly AgentStatus[] = [],
   ): Map<AgentStatusPublicationTicket, AgentStatusPublicationTicket> {
     const eligible = retain
       .filter((ticket) => ticket.epoch === this.epoch && !this.retired.has(ticket))
@@ -94,6 +95,7 @@ export class AgentStatusPublication {
     this.owners.clear();
     this.completed.clear();
     this.ready.clear();
+    for (const status of lastKnown) this.ready.set(targetKey(status), status);
     this.completeInventory = false;
     // Best-effort unlink must not let a stale readable cache become current.
     this.ignoreCache = true;

@@ -73,8 +73,8 @@ internal val schema_0ae85718844e0018: RemoteSchema by lazy {
     RemoteSchema(type = "object", required = setOf("countLabel", "kind", "label", "rows"), properties = mapOf("countLabel" to schema_dfc3f3726c991dbe, "kind" to schema_0b65061c63a380da, "label" to schema_7885f0e6f248437e, "rows" to schema_96dbcc526b5fade7), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
 
-internal val schema_0b2ba27512e423eb: RemoteSchema by lazy {
-    RemoteSchema(type = "object", required = setOf("control", "kind", "version"), properties = mapOf("control" to schema_9040d7586304950d, "kind" to schema_6eed5e1fa2ae0e54, "version" to schema_7f9f5a0d72de0d9a), additionalAllowed = false, unknownPolicy = RemoteUnknownFieldPolicy.REJECT)
+internal val schema_0b5160b3777eea2f: RemoteSchema by lazy {
+    RemoteSchema(type = "object", required = setOf("count", "hour"), properties = mapOf("count" to schema_56aa0e45cbdce0d0, "hour" to schema_47c50d7349a5a322), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
 
 internal val schema_0b5555e2ca059ee2: RemoteSchema by lazy {

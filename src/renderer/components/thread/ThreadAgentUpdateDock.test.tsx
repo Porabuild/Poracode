@@ -37,7 +37,7 @@ const bridgeMock = vi.hoisted(() => ({
   listAcpRegistry: vi.fn<() => Promise<AcpRegistryListResult>>(),
   refreshAgentStatuses: vi.fn<(...args: unknown[]) => Promise<AgentStatusesResponse>>(),
   updateAcpRegistryAgent: vi.fn<() => Promise<{ installed: [] }>>(),
-  updateAgentBinary: vi.fn<(payload: unknown) => Promise<{ ok: boolean }>>(),
+  updateAgentBinary: vi.fn<(payload: unknown) => Promise<{ ok: boolean; output?: string }>>(),
 }));
 
 vi.mock("@/renderer/bridge", () => ({
@@ -246,6 +246,19 @@ describe("ThreadAgentUpdateDock", () => {
     expect(toastMock.success).not.toHaveBeenCalled();
   });
 
+  it("reports a Cursor SDK background update that exits non-zero", async () => {
+    render(<ThreadAgentUpdateDock agentStatus={sdkStatus} project={project} />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Update" }));
+    await act(async () => {
+      runAgentInstallCommandMock.mock.calls[0]?.[0].onCommandComplete?.(1);
+    });
+
+    expect(toastMock.danger).toHaveBeenCalledWith("Unable to update Cursor SDK.");
+    expect(toastMock.success).not.toHaveBeenCalled();
+    expect(bridgeMock.refreshAgentStatuses).not.toHaveBeenCalled();
+  });
+
   it("keeps the provider binary updater for the selected Cursor ACP runtime", async () => {
     bridgeMock.getLatestAgentVersion.mockResolvedValue({
       version: "2026.07.23-e383d2b",
@@ -275,6 +288,42 @@ describe("ThreadAgentUpdateDock", () => {
       }),
     );
     expect(runAgentInstallCommandMock).not.toHaveBeenCalled();
+  });
+
+  it("surfaces an error instead of claiming success when a binary update exits 0 without advancing the version", async () => {
+    const geminiStatus: AgentStatus = {
+      kind: "gemini",
+      label: "Gemini",
+      installed: true,
+      authState: "authenticated",
+      version: "0.69.0",
+      executablePath: "/opt/homebrew/bin/gemini",
+      envKind: "posix",
+      capabilities,
+      update: { npm: "@google/gemini-cli", brew: "gemini-cli" },
+    };
+    bridgeMock.getLatestAgentVersion.mockResolvedValue({ version: "0.70.0", source: "npm" });
+    bridgeMock.updateAgentBinary.mockResolvedValue({
+      ok: true,
+      output: "Warning: gemini-cli 0.69.0 already installed",
+    });
+    bridgeMock.refreshAgentStatuses.mockResolvedValue({
+      windows: [geminiStatus],
+      wsl: [],
+      fromCache: false,
+    });
+
+    render(<ThreadAgentUpdateDock agentStatus={geminiStatus} project={project} />);
+
+    expect(await screen.findByText(/v0\.69\.0 → v0\.70\.0/u)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Update" }));
+
+    await vi.waitFor(() =>
+      expect(toastMock.danger).toHaveBeenCalledWith(
+        "Unable to update Gemini: Warning: gemini-cli 0.69.0 already installed",
+      ),
+    );
+    expect(toastMock.success).not.toHaveBeenCalled();
   });
 
   it("shows and updates both Antigravity runtimes through one composer action", async () => {

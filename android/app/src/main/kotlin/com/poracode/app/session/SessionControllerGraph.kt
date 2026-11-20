@@ -311,6 +311,8 @@ internal fun buildSessionControllerGraph(
         apiFactory = apiFactory,
         hasEndpointPermission = hasEndpointPermission,
         updateState = updateState,
+        onStarted = pairing::noteBootstrapStarted,
+        onComplete = pairing::resumeDeferredAutoPair,
     )
     lifecycleCoordinator = AppSessionLifecycleCoordinator(
         networkGate = networkGate,

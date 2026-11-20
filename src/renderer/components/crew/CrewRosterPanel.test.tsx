@@ -244,6 +244,25 @@ describe("CrewRosterPanel", () => {
     expect(usePanelStore.getState().settingsAnchor).toBe("crews.crew-review");
   });
 
+  it("lets a host surface take over the settings gear", () => {
+    const openSettingsSection = vi.fn<(section: string, anchor?: string) => void>();
+    const original = usePanelStore.getState().openSettingsSection;
+    usePanelStore.setState({ openSettingsSection } as never);
+    try {
+      const onEditInSettings = vi.fn<() => void>();
+      const onClose = vi.fn<() => void>();
+      renderWithI18n(<CrewRosterPanel model={makeModel({ onEditInSettings })} onClose={onClose} />);
+
+      fireEvent.click(screen.getByRole("button", { name: "Edit crews in settings" }));
+
+      expect(onClose).toHaveBeenCalledTimes(1);
+      expect(onEditInSettings).toHaveBeenCalledTimes(1);
+      expect(openSettingsSection).not.toHaveBeenCalled();
+    } finally {
+      usePanelStore.setState({ openSettingsSection: original } as never);
+    }
+  });
+
   it("uses installed GUI model labels even when the provider is not a helper option", () => {
     const options: CrewHelperOptions = {
       ...helperOptions,

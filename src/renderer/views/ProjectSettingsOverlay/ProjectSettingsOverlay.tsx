@@ -3,6 +3,7 @@ import { useLingui } from "@lingui/react/macro";
 import { useCompactLayout } from "@/renderer/adaptiveLayout";
 import { useProductViewTracking } from "@/renderer/analytics/useProductViewTracking";
 import { useAppStore } from "@/renderer/state/appStore";
+import { openMemorySettings } from "@/renderer/actions/panelActions";
 import { PageLayout } from "@/renderer/components/layout/PageLayout";
 import { SettingsSidebar } from "./parts/SettingsSidebar";
 import { MobileProjectSettingsIndex } from "./parts/MobileProjectSettingsIndex";
@@ -13,10 +14,12 @@ import { SearchSection } from "./parts/SearchSection";
 import { McpSection } from "./parts/McpSection";
 import { PluginsSection } from "./parts/PluginsSection";
 import { SkillsSection } from "./parts/SkillsSection";
+import { MemorySettings } from "@/renderer/views/SettingsOverlay/parts/MemorySettings";
 import type { ProjectSettingsSection } from "./parts/types";
 import { useProjectEnvironmentMachines } from "@/renderer/components/common/ProjectEnvironment";
 import {
   PROJECT_SETTINGS_SCOPE_BAR_SPACE,
+  PROJECT_SETTINGS_SCROLL_CLASS,
   ProjectEnvironmentScopeBar,
 } from "./parts/ProjectEnvironmentScope";
 
@@ -70,11 +73,13 @@ export function ProjectSettingsOverlay(props: {
           ? t`Actions`
           : activeSection === "skills"
             ? t`Skills`
-            : activeSection === "mcp"
-              ? t`MCP Servers`
-              : activeSection === "plugins"
-                ? t`Plugins`
-                : t`Search`;
+            : activeSection === "memory"
+              ? t`Memory`
+              : activeSection === "mcp"
+                ? t`MCP Servers`
+                : activeSection === "plugins"
+                  ? t`Plugins`
+                  : t`Search`;
 
   const sectionBody =
     activeSection === "general" ? (
@@ -85,6 +90,16 @@ export function ProjectSettingsOverlay(props: {
       <ActionsSection projectId={projectId} />
     ) : activeSection === "skills" ? (
       <SkillsSection projectId={projectId} />
+    ) : activeSection === "memory" ? (
+      <div className={PROJECT_SETTINGS_SCROLL_CLASS}>
+        <MemorySettings
+          projectId={projectId}
+          onOpenGlobalSettings={() => {
+            onClose();
+            openMemorySettings();
+          }}
+        />
+      </div>
     ) : activeSection === "mcp" ? (
       <McpSection projectId={projectId} />
     ) : activeSection === "plugins" ? (

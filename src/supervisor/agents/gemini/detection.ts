@@ -1,26 +1,40 @@
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, statSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import type { AgentCapability, AgentTerminalAuthMethod } from "@/shared/contracts";
+import type { AgentCapability, AgentTerminalAuthMethod, AuthState } from "@/shared/contracts";
 import { compactAgentProviderMetadata } from "@/shared/contracts";
+import { readMacKeychainFingerprint } from "@/supervisor/runtime/macKeychain";
 import { humanizeModelId, probeAcpCapabilities } from "../acp";
 import {
   batchWslCommandsAsync,
   buildAgentCommand,
-  envVarAuthProbe,
+  quotePosixShellArg,
   type AuthProbe,
   type DetectionSpec,
 } from "../base";
 import { buildContextSizeCapabilities } from "../contextWindowLabel";
-import { getAgentProbeCwd } from "../probeCwd";
+import { getAgentProbeCwd, resolveProbeSpawnCwd } from "../probeCwd";
+import {
+  buildWslGeminiConfigDirShellAssign,
+  readEffectiveGeminiEnvVar,
+  resolveGeminiConfigDir,
+} from "./session";
 
 // Gemini's ACP probe reports the selectable model ids/names, but not token
 // limits. Keep this as an exact documented allowlist so new ids do not inherit
-// a context label until we have a real source for that model.
+// a context label until we have a real source for that model (or ACP advertises
+// context configOptions dynamically).
 const GEMINI_MODEL_CONTEXT_TOKENS = new Map<string, number>([
+  ["gemini-3-pro-preview", 1_048_576],
   ["gemini-3.1-pro-preview", 1_048_576],
+  ["gemini-3.1-pro-preview-customtools", 1_048_576],
   ["gemini-3-flash-preview", 1_048_576],
+  ["gemini-3-flash", 1_048_576],
+  ["gemini-3.5-flash", 1_048_576],
+  ["gemini-3.8-flash", 1_048_576],
+  ["gemini-3.1-flash-lite", 1_048_576],
   ["gemini-3.1-flash-lite-preview", 1_048_576],
+  ["gemini-3.5-flash-lite", 1_048_576],
   ["gemini-2.5-pro", 1_048_576],
   ["gemini-2.5-flash", 1_048_576],
   ["gemini-2.5-flash-lite", 1_048_576],
@@ -29,9 +43,11 @@ const GEMINI_MODEL_CONTEXT_TOKENS = new Map<string, number>([
   ["gemini-1.5-pro", 2_000_000],
   ["gemini-1.5-flash", 1_048_576],
   ["gemini-1.5-flash-8b", 1_048_576],
+  ["gemma-4-31b-it", 256_000],
+  ["gemma-4-26b-a4b-it", 256_000],
 ]);
 
-function geminiModelContextTokens(modelId: string): number | undefined {
+export function geminiModelContextTokens(modelId: string): number | undefined {
   return GEMINI_MODEL_CONTEXT_TOKENS.get(modelId.toLowerCase());
 }
 
@@ -48,6 +64,7 @@ export const defaultGeminiCapabilities: AgentCapability = {
   sandboxModes: [],
   supportsResume: true,
   supportsOneShot: true,
+  utilityRank: 30,
   supportsDirectInput: true,
   liveInputMode: "terminal",
   presentationMode: "terminal",
@@ -56,20 +73,6 @@ export const defaultGeminiCapabilities: AgentCapability = {
   bypassPermissions: { approvalPolicy: "never" },
   mcpScope: { terminal: "launch", gui: "launch" },
   settingDefs: [],
-};
-
-// Gemini stores a config dir at ~/.gemini after first login; treat its
-// presence as authenticated even without GEMINI_API_KEY set.
-const configDirAuthProbe: AuthProbe = async (ctx) => {
-  if (ctx.location.kind !== "wsl") {
-    return existsSync(join(homedir(), ".gemini")) ? "authenticated" : "unknown";
-  }
-  const [result] = await batchWslCommandsAsync(
-    ctx.location.distro,
-    ["test -d ~/.gemini && echo yes"],
-    ctx.signal,
-  );
-  return result?.ok && result.stdout.trim() === "yes" ? "authenticated" : "unknown";
 };
 
 /**
@@ -89,50 +92,313 @@ export function parseGeminiGoogleAccountsJson(raw: string): string | undefined {
   }
 }
 
-async function probeGeminiMetadata(ctx: Parameters<NonNullable<DetectionSpec["statusProbe"]>>[0]) {
-  if (ctx.location.kind === "wsl") {
-    const [apiKeyResult, configDirResult, accountsResult] = await batchWslCommandsAsync(
-      ctx.location.distro,
-      [
-        'printf %s "$GEMINI_API_KEY"',
-        "test -d ~/.gemini && echo yes",
-        'cat ~/.gemini/google_accounts.json 2>/dev/null || printf ""',
-      ],
-      ctx.signal,
+export function parseGeminiOAuthCredsPresence(raw: string): boolean {
+  try {
+    const parsed = JSON.parse(raw) as { access_token?: unknown; refresh_token?: unknown };
+    return Boolean(
+      (typeof parsed.access_token === "string" && parsed.access_token.trim().length > 0) ||
+      (typeof parsed.refresh_token === "string" && parsed.refresh_token.trim().length > 0),
     );
-    const apiKeySet = !!(apiKeyResult?.ok && apiKeyResult.stdout.trim().length > 0);
-    const configDirPresent = !!(configDirResult?.ok && configDirResult.stdout.trim() === "yes");
-    const activeAccount =
-      !apiKeySet && accountsResult?.ok && accountsResult.stdout.length > 0
-        ? parseGeminiGoogleAccountsJson(accountsResult.stdout)
-        : undefined;
-    const providerMetadata = compactAgentProviderMetadata({
-      ...(activeAccount ? { authenticatedAs: activeAccount } : {}),
-      ...(apiKeySet ? { authMethod: "API key" } : {}),
-      ...(!apiKeySet && configDirPresent && !activeAccount ? { authMethod: "Google account" } : {}),
-    });
-    return providerMetadata ? { providerMetadata } : undefined;
+  } catch {
+    return false;
   }
-
-  const apiKeySet =
-    typeof process.env.GEMINI_API_KEY === "string" && process.env.GEMINI_API_KEY.trim().length > 0;
-  const accountsPath = join(homedir(), ".gemini", "google_accounts.json");
-  let activeAccount: string | undefined;
-  if (!apiKeySet) {
-    try {
-      activeAccount = parseGeminiGoogleAccountsJson(readFileSync(accountsPath, "utf8"));
-    } catch {
-      activeAccount = undefined;
-    }
-  }
-  const configDirPresent = existsSync(join(homedir(), ".gemini"));
-  const providerMetadata = compactAgentProviderMetadata({
-    ...(activeAccount ? { authenticatedAs: activeAccount } : {}),
-    ...(apiKeySet ? { authMethod: "API key" } : {}),
-    ...(!apiKeySet && configDirPresent && !activeAccount ? { authMethod: "Google account" } : {}),
-  });
-  return providerMetadata ? { providerMetadata } : undefined;
 }
+
+export function parseGeminiSelectedAuthType(raw: string): string | undefined {
+  try {
+    const parsed = JSON.parse(raw) as {
+      security?: { auth?: { selectedType?: unknown } };
+    };
+    const selected = parsed.security?.auth?.selectedType;
+    return typeof selected === "string" && selected.trim().length > 0 ? selected.trim() : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+export interface GeminiAuthEvidence {
+  apiKeySet: boolean;
+  serviceAccountPresent: boolean;
+  vertexProjectSet: boolean;
+  adcPresent: boolean;
+  selectedAuthType?: string | undefined;
+  baseUrlSet: boolean;
+  oauthCredsPresent: boolean;
+  fileKeychainPresent: boolean;
+  macKeychainPresent: boolean;
+  macKeychainApiKeyPresent?: boolean | undefined;
+  activeAccount?: string | undefined;
+}
+
+export function evaluateGeminiAuthEvidence(evidence: GeminiAuthEvidence): {
+  authState: AuthState;
+  authMethod?: string;
+  authenticatedAs?: string;
+} {
+  const preferOAuth =
+    evidence.selectedAuthType === "oauth-personal" &&
+    Boolean(
+      evidence.oauthCredsPresent ||
+      evidence.fileKeychainPresent ||
+      evidence.macKeychainPresent ||
+      evidence.activeAccount,
+    );
+  if (
+    evidence.apiKeySet ||
+    (!preferOAuth &&
+      (evidence.macKeychainApiKeyPresent ||
+        (evidence.fileKeychainPresent && evidence.selectedAuthType === "gemini-api-key")))
+  ) {
+    return { authState: "authenticated", authMethod: "API key" };
+  }
+  if (evidence.serviceAccountPresent) {
+    return { authState: "authenticated", authMethod: "Service account" };
+  }
+  if (
+    evidence.adcPresent &&
+    (evidence.vertexProjectSet ||
+      evidence.selectedAuthType === "vertex-ai" ||
+      evidence.selectedAuthType === "cloud-shell")
+  ) {
+    return { authState: "authenticated", authMethod: "Vertex AI" };
+  }
+  if (
+    evidence.oauthCredsPresent ||
+    evidence.fileKeychainPresent ||
+    evidence.macKeychainPresent ||
+    evidence.activeAccount
+  ) {
+    return {
+      authState: "authenticated",
+      ...(evidence.activeAccount
+        ? { authenticatedAs: evidence.activeAccount }
+        : { authMethod: "Google account" }),
+    };
+  }
+  if (evidence.baseUrlSet) {
+    return { authState: "unknown" };
+  }
+  return { authState: "missing" };
+}
+
+function isNonEmptyFile(path: string): boolean {
+  try {
+    return existsSync(path) && statSync(path).size > 0;
+  } catch {
+    return false;
+  }
+}
+
+function readUtf8Safe(path: string): string {
+  try {
+    return readFileSync(path, "utf8");
+  } catch {
+    return "";
+  }
+}
+
+async function probeWslGeminiAuth(
+  distro: string,
+  probeEnv: Readonly<Record<string, string | undefined>> | undefined,
+  signal: AbortSignal | undefined,
+): Promise<GeminiAuthEvidence> {
+  const overridden = (name: string): string | undefined =>
+    probeEnv && name in probeEnv ? (probeEnv[name]?.trim() ?? "") : undefined;
+
+  const commands: string[] = [];
+  const queueCommand = (cmd: string): number => {
+    commands.push(cmd);
+    return commands.length - 1;
+  };
+  const queueEnvCheck = (name: string): number | string => {
+    const fixed = overridden(name);
+    return fixed !== undefined ? fixed : queueCommand(`printf %s "$${name}"`);
+  };
+
+  const geminiKeySource = queueEnvCheck("GEMINI_API_KEY");
+  const googleKeySource = queueEnvCheck("GOOGLE_API_KEY");
+  const gacOverride = overridden("GOOGLE_APPLICATION_CREDENTIALS");
+  const gacIndex =
+    gacOverride === ""
+      ? -1
+      : queueCommand(
+          gacOverride !== undefined
+            ? `test -f ${quotePosixShellArg(gacOverride)} && echo yes || echo no`
+            : 'if [ -n "$GOOGLE_APPLICATION_CREDENTIALS" ] && [ -f "$GOOGLE_APPLICATION_CREDENTIALS" ]; then echo yes; else echo no; fi',
+        );
+  const projectSource = queueEnvCheck("GOOGLE_CLOUD_PROJECT");
+  const locationSource = queueEnvCheck("GOOGLE_CLOUD_LOCATION");
+  const baseUrlSource = queueEnvCheck("GOOGLE_GEMINI_BASE_URL");
+
+  const cloudSdkOverride = overridden("CLOUDSDK_CONFIG");
+  const adcIndex = queueCommand(
+    cloudSdkOverride
+      ? `test -s ${quotePosixShellArg(`${cloudSdkOverride}/application_default_credentials.json`)} && echo yes || echo no`
+      : 'test -s "${CLOUDSDK_CONFIG:-$HOME/.config/gcloud}/application_default_credentials.json" && echo yes || echo no',
+  );
+
+  const configAssign = buildWslGeminiConfigDirShellAssign(probeEnv);
+  const oauthIndex = queueCommand(
+    `${configAssign}; cat "$gemini_config_dir/oauth_creds.json" 2>/dev/null || printf ""`,
+  );
+  const keychainIndex = queueCommand(
+    `${configAssign}; test -s "$gemini_config_dir/gemini-credentials.json" && echo yes || echo no`,
+  );
+  const accountsIndex = queueCommand(
+    `${configAssign}; cat "$gemini_config_dir/google_accounts.json" 2>/dev/null || printf ""`,
+  );
+  const settingsIndex = queueCommand(
+    `${configAssign}; cat "$gemini_config_dir/settings.json" 2>/dev/null || printf ""`,
+  );
+
+  const results = await batchWslCommandsAsync(distro, commands, signal);
+  const readResult = (index: number) => (index >= 0 ? results[index] : undefined);
+  const resolveEnvValue = (source: number | string): string =>
+    typeof source === "string" ? source : readResult(source)?.ok ? readResult(source)!.stdout : "";
+
+  const apiKeySet = Boolean(
+    resolveEnvValue(geminiKeySource).trim().length > 0 ||
+    resolveEnvValue(googleKeySource).trim().length > 0,
+  );
+  const gacRes = readResult(gacIndex);
+  const serviceAccountPresent = Boolean(gacRes?.ok && gacRes.stdout.trim() === "yes");
+  const vertexProjectSet = Boolean(
+    resolveEnvValue(projectSource).trim().length > 0 ||
+    resolveEnvValue(locationSource).trim().length > 0,
+  );
+  const baseUrlSet = resolveEnvValue(baseUrlSource).trim().length > 0;
+  const adcRes = readResult(adcIndex);
+  const adcPresent = Boolean(adcRes?.ok && adcRes.stdout.trim() === "yes");
+  const oauthRes = readResult(oauthIndex);
+  const oauthCredsPresent = Boolean(
+    oauthRes?.ok &&
+    oauthRes.stdout.trim().length > 0 &&
+    parseGeminiOAuthCredsPresence(oauthRes.stdout),
+  );
+  const keychainRes = readResult(keychainIndex);
+  const fileKeychainPresent = Boolean(keychainRes?.ok && keychainRes.stdout.trim() === "yes");
+  const accountsRes = readResult(accountsIndex);
+  const activeAccount =
+    !apiKeySet && accountsRes?.ok && accountsRes.stdout.length > 0
+      ? parseGeminiGoogleAccountsJson(accountsRes.stdout)
+      : undefined;
+  const settingsRes = readResult(settingsIndex);
+  const selectedAuthType =
+    settingsRes?.ok && settingsRes.stdout.length > 0
+      ? parseGeminiSelectedAuthType(settingsRes.stdout)
+      : undefined;
+
+  return {
+    apiKeySet,
+    serviceAccountPresent,
+    vertexProjectSet,
+    adcPresent,
+    selectedAuthType,
+    baseUrlSet,
+    oauthCredsPresent,
+    fileKeychainPresent,
+    macKeychainPresent: false,
+    macKeychainApiKeyPresent: false,
+    activeAccount,
+  };
+}
+
+async function probeNativeGeminiAuth(
+  probeEnv: Readonly<Record<string, string | undefined>> | undefined,
+): Promise<GeminiAuthEvidence> {
+  const apiKeySet = Boolean(
+    readEffectiveGeminiEnvVar("GEMINI_API_KEY", probeEnv) ||
+    readEffectiveGeminiEnvVar("GOOGLE_API_KEY", probeEnv),
+  );
+  const gacPath = readEffectiveGeminiEnvVar("GOOGLE_APPLICATION_CREDENTIALS", probeEnv);
+  const serviceAccountPresent = Boolean(gacPath && isNonEmptyFile(gacPath));
+  const vertexProjectSet = Boolean(
+    readEffectiveGeminiEnvVar("GOOGLE_CLOUD_PROJECT", probeEnv) ||
+    readEffectiveGeminiEnvVar("GOOGLE_CLOUD_LOCATION", probeEnv),
+  );
+  const baseUrlSet = Boolean(readEffectiveGeminiEnvVar("GOOGLE_GEMINI_BASE_URL", probeEnv));
+  const cloudSdkConfig = readEffectiveGeminiEnvVar("CLOUDSDK_CONFIG", probeEnv);
+  const adcPath = join(
+    cloudSdkConfig || join(homedir(), ".config", "gcloud"),
+    "application_default_credentials.json",
+  );
+  const adcPresent = isNonEmptyFile(adcPath);
+
+  const hasCustomHome = Boolean(
+    readEffectiveGeminiEnvVar("GEMINI_CLI_HOME", probeEnv) ||
+    readEffectiveGeminiEnvVar("GEMINI_HOME", probeEnv),
+  );
+  const forceFileStorage =
+    readEffectiveGeminiEnvVar("GEMINI_FORCE_FILE_STORAGE", probeEnv) === "true";
+  const configDir = resolveGeminiConfigDir(probeEnv);
+  const oauthCredsPresent = parseGeminiOAuthCredsPresence(
+    readUtf8Safe(join(configDir, "oauth_creds.json")),
+  );
+  const fileKeychainPresent = isNonEmptyFile(join(configDir, "gemini-credentials.json"));
+  const activeAccount = !apiKeySet
+    ? parseGeminiGoogleAccountsJson(readUtf8Safe(join(configDir, "google_accounts.json")))
+    : undefined;
+  const selectedAuthType = parseGeminiSelectedAuthType(
+    readUtf8Safe(join(configDir, "settings.json")),
+  );
+
+  const shouldProbeMacKeychain =
+    !hasCustomHome &&
+    !forceFileStorage &&
+    !apiKeySet &&
+    process.platform === "darwin" &&
+    ((!oauthCredsPresent && !fileKeychainPresent) || selectedAuthType === "gemini-api-key");
+
+  const [macKeychainPresent, macKeychainApiKeyPresent] = shouldProbeMacKeychain
+    ? await Promise.all([
+        oauthCredsPresent || fileKeychainPresent
+          ? Promise.resolve(false)
+          : readMacKeychainFingerprint({
+              service: "gemini-cli-oauth",
+              account: "main-account",
+            }).then(Boolean),
+        readMacKeychainFingerprint({
+          service: "gemini-cli-api-key",
+          account: "default-api-key",
+        }).then(Boolean),
+      ])
+    : [false, false];
+
+  return {
+    apiKeySet,
+    serviceAccountPresent,
+    vertexProjectSet,
+    adcPresent,
+    selectedAuthType,
+    baseUrlSet,
+    oauthCredsPresent,
+    fileKeychainPresent,
+    macKeychainPresent,
+    macKeychainApiKeyPresent,
+    activeAccount,
+  };
+}
+
+async function probeGeminiMetadata(ctx: Parameters<NonNullable<DetectionSpec["statusProbe"]>>[0]) {
+  const evidence =
+    ctx.location.kind === "wsl"
+      ? await probeWslGeminiAuth(ctx.location.distro, ctx.probeEnv, ctx.signal)
+      : await probeNativeGeminiAuth(ctx.probeEnv);
+  const evaluated = evaluateGeminiAuthEvidence(evidence);
+  const providerMetadata = compactAgentProviderMetadata({
+    ...(evaluated.authenticatedAs ? { authenticatedAs: evaluated.authenticatedAs } : {}),
+    ...(evaluated.authMethod ? { authMethod: evaluated.authMethod } : {}),
+  });
+  return {
+    authState: evaluated.authState,
+    ...(providerMetadata ? { providerMetadata } : {}),
+  };
+}
+
+const credentialAuthProbe: AuthProbe = async (ctx) => {
+  const result = await probeGeminiMetadata(ctx);
+  return result.authState;
+};
 
 export const geminiDetectionSpec: DetectionSpec = {
   kind: "gemini",
@@ -145,7 +411,7 @@ export const geminiDetectionSpec: DetectionSpec = {
     brew: "gemini-cli",
   },
   statusProbe: probeGeminiMetadata,
-  authProbes: [envVarAuthProbe(["GEMINI_API_KEY"]), configDirAuthProbe],
+  authProbes: [credentialAuthProbe],
   async capabilitiesProbe(ctx) {
     if (!ctx.executablePath) return undefined;
     // Bypass Gemini's folder-trust check during the probe so the AgentRegistry
@@ -154,12 +420,25 @@ export const geminiDetectionSpec: DetectionSpec = {
     const probeArgs = ["--acp", "--skip-trust"];
     const probeCmd =
       ctx.location.kind === "wsl"
-        ? buildAgentCommand(ctx.location, "gemini", probeArgs, ctx.executablePath)
+        ? buildAgentCommand(
+            ctx.location,
+            "gemini",
+            probeArgs,
+            ctx.executablePath,
+            ...(ctx.probeEnv ? [ctx.probeEnv] : []),
+          )
         : buildAgentCommand(ctx.location, ctx.executablePath, probeArgs);
     const probeCwd = ctx.location.kind === "wsl" ? "/tmp" : getAgentProbeCwd(ctx.location);
+    const processCwd = resolveProbeSpawnCwd(ctx.location, probeCmd.cwd);
+    const env =
+      ctx.location.kind !== "wsl" && (probeCmd.env || ctx.probeEnv)
+        ? { ...(probeCmd.env ?? {}), ...(ctx.probeEnv ?? {}) }
+        : undefined;
     const probeResult = await probeAcpCapabilities(probeCmd.command, probeCmd.args, probeCwd, {
-      timeoutMs: 15_000,
+      ...(processCwd ? { processCwd } : {}),
+      timeoutMs: 20_000,
       modelLabel: humanizeGeminiModelId,
+      ...(env ? { env } : {}),
       ...(ctx.signal ? { signal: ctx.signal } : {}),
       label:
         ctx.location.kind === "wsl"
@@ -178,29 +457,55 @@ export const geminiDetectionSpec: DetectionSpec = {
       id: "gemini-terminal-login",
       name: "Login",
       type: "terminal",
+      ...(ctx.probeEnv ? { env: ctx.probeEnv } : {}),
     };
     if (!probeResult) {
       return { authMethods: [terminalAuthMethod] };
     }
     const modelTokens = new Map<string, number>();
     for (const model of probeResult.models ?? []) {
+      if (probeResult.modelContextSizes?.[model.id]) continue;
       const tokens = geminiModelContextTokens(model.id);
       if (tokens !== undefined) modelTokens.set(model.id, tokens);
     }
+    const staticContext = buildContextSizeCapabilities(modelTokens);
+    const mergedContextSizes = [
+      ...(probeResult.contextSizes ?? []),
+      ...(staticContext.contextSizes ?? []).filter(
+        (entry) => !(probeResult.contextSizes ?? []).some((dyn) => dyn.id === entry.id),
+      ),
+    ];
+    const mergedModelContextSizes = {
+      ...(staticContext.modelContextSizes ?? {}),
+      ...(probeResult.modelContextSizes ?? {}),
+    };
     return {
       ...(probeResult.models?.length ? { models: probeResult.models } : {}),
       ...(probeResult.efforts?.length ? { efforts: probeResult.efforts } : {}),
       ...(probeResult.defaultEffort ? { defaultEffort: probeResult.defaultEffort } : {}),
+      ...(probeResult.modelEfforts ? { modelEfforts: probeResult.modelEfforts } : {}),
+      ...(probeResult.modelDefaultEfforts
+        ? { modelDefaultEfforts: probeResult.modelDefaultEfforts }
+        : {}),
       ...(probeResult.thinkingModels ? { thinkingModels: probeResult.thinkingModels } : {}),
+      ...(probeResult.fastModels ? { fastModels: probeResult.fastModels } : {}),
+      ...(probeResult.subProviders?.length ? { subProviders: probeResult.subProviders } : {}),
+      ...(probeResult.modelSubProvider ? { modelSubProvider: probeResult.modelSubProvider } : {}),
       ...(probeResult.modes?.length ? { modes: probeResult.modes } : {}),
       ...(probeResult.approvalPolicies?.length
         ? { approvalPolicies: probeResult.approvalPolicies }
         : {}),
       ...(probeResult.slashCommands?.length ? { slashCommands: probeResult.slashCommands } : {}),
-      ...buildContextSizeCapabilities(modelTokens),
+      ...(mergedContextSizes.length > 0 ? { contextSizes: mergedContextSizes } : {}),
+      ...(Object.keys(mergedModelContextSizes).length > 0
+        ? { modelContextSizes: mergedModelContextSizes }
+        : {}),
       authMethods: [terminalAuthMethod],
       ...(probeResult.authLogoutSupported ? { authLogoutSupported: true } : {}),
-      ...(probeResult.authState ? { authState: probeResult.authState } : {}),
+      // Only let explicit ACP auth_required ("missing") override credential
+      // evidence; unauthenticated `gemini --acp` sessions should not override
+      // `statusProbe` with an optimistic `"authenticated"`.
+      ...(probeResult.authState === "missing" ? { authState: "missing" } : {}),
     };
   },
 };

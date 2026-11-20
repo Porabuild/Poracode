@@ -67,6 +67,12 @@ export function isQuickComposerWindow(): boolean {
   return readBridge().windowKind === "quickComposer";
 }
 
+/** Side chat and thread windows show one conversation; the main window owns shared saved state. */
+export function isConversationWindow(): boolean {
+  const kind = readBridge().windowKind;
+  return kind === "sideChat" || kind === "thread";
+}
+
 /**
  * True when the renderer runs against the remote-session bridge shim (the
  * canonical browser app paired to a host) instead of the local Electron bridge.

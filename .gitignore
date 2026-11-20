@@ -30,6 +30,7 @@ mcps/
 .antigravitycli/
 .factory/
 .recovery/
+/skills/system/
 resources/wsl-helpers/watcher.node
 resources/wsl-helpers/bridge.mjs
 resources/wsl-helpers/mcp-probe.mjs

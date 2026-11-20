@@ -1,10 +1,18 @@
 import type { ProfileCoreStats } from "@/shared/contracts";
+import {
+  buildProfileInsightFacts,
+  PROFILE_INSIGHT_THRESHOLDS,
+  type ProfileInsightFact,
+  type ProfileInsightsInput,
+} from "@/shared/profile/insights";
 import type { UsageSnapshot, UsageWindow } from "@poracode/agents-usage/types";
 
+export { buildProfileInsightFacts, type ProfileInsightFact, type ProfileInsightsInput };
+
 /**
- * Personal highlights derived from the host's profile stats. Facts carry data
- * only; the news line renders the localized sentence. Each fact appears only
- * when it is encouraging and meaningful — never "0 prompts this week".
+ * Legacy five-fact projection retained for existing unit tests; rich trend,
+ * switch, behavior, and cross-environment insights come from
+ * {@link buildProfileInsightFacts}.
  */
 export type InsightFact =
   | { id: "insight:streak"; current: number; longest: number }
@@ -14,68 +22,44 @@ export type InsightFact =
   | { id: "insight:longest-task"; minutes: number };
 
 export const INSIGHT_THRESHOLDS = {
-  streakDays: 2,
-  weekPrompts: 5,
-  topModelPercent: 25,
-  topModelMinPrompts: 20,
-  activeHourMinPrompts: 10,
-  longestTaskMinutes: 10,
+  streakDays: PROFILE_INSIGHT_THRESHOLDS.streakDays,
+  weekPrompts: PROFILE_INSIGHT_THRESHOLDS.weekPrompts,
+  topModelPercent: PROFILE_INSIGHT_THRESHOLDS.topModelPercent,
+  topModelMinPrompts: PROFILE_INSIGHT_THRESHOLDS.topModelMinPrompts,
+  activeHourMinPrompts: PROFILE_INSIGHT_THRESHOLDS.activeHourMinPrompts,
+  longestTaskMinutes: PROFILE_INSIGHT_THRESHOLDS.longestTaskMinutes,
 } as const;
 
-/** Daily prompt counts for the last seven days, oldest first. */
-function lastWeek(stats: ProfileCoreStats): { day: string; count: number }[] {
-  return stats.promptHeatmap.metric === "prompts" ? stats.promptHeatmap.cells.slice(-7) : [];
-}
-
 export function buildInsightFacts(stats: ProfileCoreStats | null): InsightFact[] {
-  if (!stats) return [];
-  const facts: InsightFact[] = [];
-  const { totals, insights } = stats;
-
-  if (totals.currentStreakDays >= INSIGHT_THRESHOLDS.streakDays) {
-    facts.push({
-      id: "insight:streak",
-      current: totals.currentStreakDays,
-      longest: Math.max(totals.longestStreakDays, totals.currentStreakDays),
-    });
+  const rich = buildProfileInsightFacts({ core: stats });
+  const out: InsightFact[] = [];
+  for (const fact of rich) {
+    switch (fact.id) {
+      case "insight:streak":
+        out.push({ id: fact.id, current: fact.current, longest: fact.longest });
+        break;
+      case "insight:week-prompts":
+        out.push({
+          id: fact.id,
+          prompts: fact.prompts,
+          daily: fact.daily,
+          busiestDay: fact.busiestDay,
+        });
+        break;
+      case "insight:top-model":
+        out.push({ id: fact.id, label: fact.label, percent: fact.percent });
+        break;
+      case "insight:active-hour":
+        out.push({ id: fact.id, hour: fact.hour });
+        break;
+      case "insight:longest-task":
+        out.push({ id: fact.id, minutes: fact.minutes });
+        break;
+      default:
+        break;
+    }
   }
-
-  const week = lastWeek(stats);
-  const weekPrompts = week.reduce((sum, cell) => sum + cell.count, 0);
-  if (weekPrompts >= INSIGHT_THRESHOLDS.weekPrompts) {
-    let busiest: { day: string; count: number } | null = null;
-    for (const cell of week) if (!busiest || cell.count > busiest.count) busiest = cell;
-    facts.push({
-      id: "insight:week-prompts",
-      prompts: weekPrompts,
-      daily: week.map((cell) => cell.count),
-      busiestDay: busiest && busiest.count > 0 ? busiest.day : null,
-    });
-  }
-
-  const topModel = insights.topModel;
-  if (
-    topModel &&
-    totals.totalPrompts >= INSIGHT_THRESHOLDS.topModelMinPrompts &&
-    topModel.percent >= INSIGHT_THRESHOLDS.topModelPercent
-  ) {
-    facts.push({
-      id: "insight:top-model",
-      label: topModel.label,
-      percent: Math.round(topModel.percent),
-    });
-  }
-
-  const activeHour = insights.mostActiveHour;
-  if (activeHour && totals.totalPrompts >= INSIGHT_THRESHOLDS.activeHourMinPrompts) {
-    facts.push({ id: "insight:active-hour", hour: activeHour.hour });
-  }
-
-  const longestMinutes = Math.round(totals.longestTaskMs / 60_000);
-  if (longestMinutes >= INSIGHT_THRESHOLDS.longestTaskMinutes) {
-    facts.push({ id: "insight:longest-task", minutes: longestMinutes });
-  }
-  return facts;
+  return out;
 }
 
 export interface UsageFact {

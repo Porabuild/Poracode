@@ -403,26 +403,14 @@ data class RouteprofileU2DCoreU2DStatsResponseU2DPromptHeatmap_c1094a243b(
 }
 
 @Serializable
-data class RouteprofileU2DCoreU2DStatsResponseU2DTotals_22f3597ef0(
-    @SerialName("activeDays") val activeDays: Long,
-    @SerialName("currentStreakDays") val currentStreakDays: Long,
-    @SerialName("goalsSet") val goalsSet: Long,
-    @SerialName("longestStreakDays") val longestStreakDays: Long,
-    @SerialName("longestTaskMs") val longestTaskMs: Long,
-    @SerialName("messagesSent") val messagesSent: Long,
-    @SerialName("totalPrompts") val totalPrompts: Long,
-    @SerialName("totalThreads") val totalThreads: Long,
+data class RouteprofileU2DCoreU2DStatsResponseU2DRecentU2DLast30dU2DHoursU2DItem_0b5160b377(
+    @SerialName("count") val count: Long,
+    @SerialName("hour") val hour: Long,
 ) {
     companion object {
         val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
-            RemoteFieldDescriptor("activeDays", "Long", true, false, 0.0, 9007199254740991.0, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("currentStreakDays", "Long", true, false, 0.0, 9007199254740991.0, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("goalsSet", "Long", true, false, 0.0, 9007199254740991.0, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("longestStreakDays", "Long", true, false, 0.0, 9007199254740991.0, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("longestTaskMs", "Long", true, false, 0.0, 9007199254740991.0, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("messagesSent", "Long", true, false, 0.0, 9007199254740991.0, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("totalPrompts", "Long", true, false, 0.0, 9007199254740991.0, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("totalThreads", "Long", true, false, 0.0, 9007199254740991.0, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("count", "Long", true, false, 0.0, 9007199254740991.0, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("hour", "Long", true, false, 0.0, 23.0, null, null, null, null, null, null, listOf()),
         ), listOf())
     }
 }

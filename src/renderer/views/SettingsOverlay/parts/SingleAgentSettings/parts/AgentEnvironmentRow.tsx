@@ -20,6 +20,7 @@ export function AgentInstallEnvironmentRow(props: {
   agentLabel: string;
   status: AgentStatus;
   installPending: boolean;
+  isDisabled?: boolean;
   onInstall: (status: AgentStatus) => void;
 }) {
   const { t } = useLingui();
@@ -37,6 +38,7 @@ export function AgentInstallEnvironmentRow(props: {
           variant="tertiary"
           className="h-6 min-h-6 px-2 py-0 text-[10px] text-muted hover:text-foreground"
           isPending={props.installPending}
+          isDisabled={props.isDisabled === true}
           onPress={() => props.onInstall(props.status)}
         >
           {props.installPending ? <PixelLoader size="xs" /> : <Download className="size-3" />}
@@ -80,6 +82,7 @@ export function AgentEnvironmentRow(props: {
   authMethods: ReadonlyArray<AgentOwnedAuthMethod | AgentTerminalAuthMethod>;
   canLogout: boolean;
   authPending: boolean;
+  isDisabled?: boolean;
   pendingMessage: string | undefined;
   onLogin: (method: AgentOwnedAuthMethod | AgentTerminalAuthMethod) => void;
   onLogout: () => void;
@@ -216,6 +219,7 @@ export function AgentEnvironmentRow(props: {
               variant="ghost"
               className="h-5 min-h-5 shrink-0 gap-1 px-1.5 py-0 text-[10px] text-muted hover:text-foreground @max-[400px]:basis-full"
               isPending={runtimeInstall.isPending}
+              isDisabled={props.isDisabled === true}
               onPress={runtimeInstall.onInstall}
             >
               {runtimeInstall.isPending ? (
@@ -246,6 +250,7 @@ export function AgentEnvironmentRow(props: {
                       ? t`Update to ${updateLabel} for ${props.agentLabel}`
                       : t`Update ${props.agentLabel}`
                   }
+                  isDisabled={props.isDisabled === true}
                   onPress={runUpdate}
                 >
                   <ArrowUpCircle className="size-3" />
@@ -297,6 +302,7 @@ export function AgentEnvironmentRow(props: {
                   size="sm"
                   variant="tertiary"
                   className="h-6 min-h-6 px-2 py-0 text-[10px] text-muted hover:text-foreground"
+                  isDisabled={props.isDisabled === true}
                   onPress={() => props.onLogin(defaultMethod)}
                 >
                   {hasMultipleMethods ? defaultMethod.name : loginLabel}
@@ -310,6 +316,7 @@ export function AgentEnvironmentRow(props: {
                     isIconOnly
                     className="h-6 min-h-6 min-w-6 px-0 text-muted hover:text-foreground"
                     aria-label={t`More sign-in methods`}
+                    isDisabled={props.isDisabled === true}
                   >
                     <ChevronDown className="size-3" />
                   </Button>
@@ -335,6 +342,7 @@ export function AgentEnvironmentRow(props: {
                   size="sm"
                   variant="tertiary"
                   className="h-6 min-h-6 px-2 py-0 text-[10px] text-muted hover:text-foreground"
+                  isDisabled={props.isDisabled === true}
                   onPress={props.onLogout}
                 >
                   <Trans>Logout</Trans>

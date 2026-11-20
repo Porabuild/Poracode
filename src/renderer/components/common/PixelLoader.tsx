@@ -81,7 +81,7 @@ export interface PixelLoaderProps {
 }
 
 const MIN_FRAME_MS = 80;
-const PIXEL_LOADER_STYLE_VERSION = "pure-css-v3";
+const PIXEL_LOADER_STYLE_VERSION = "pure-css-v4";
 
 function buildPatternStyles(name: PatternKey, frames: Frames): string {
   const rules: string[] = [];
@@ -175,7 +175,18 @@ function injectPatternStyles(): void {
   const style = existing instanceof HTMLStyleElement ? existing : document.createElement("style");
   style.id = id;
   style.dataset.version = PIXEL_LOADER_STYLE_VERSION;
-  style.textContent = KEYS.map((key) => buildPatternStyles(key, PATTERNS[key])).join("\n");
+  style.textContent =
+    KEYS.map((key) => buildPatternStyles(key, PATTERNS[key])).join("\n") +
+    `\n@media (prefers-reduced-motion: reduce) {
+      .poracode-pixel-loader[data-pattern].poracode-pixel-loader--animated .poracode-pixel-loader__cell {
+        animation: none;
+        opacity: 0.45;
+        transition: none;
+      }
+      .poracode-pixel-loader[data-pattern].poracode-pixel-loader--animated .poracode-pixel-loader__cell--4 {
+        opacity: 1;
+      }
+    }`;
   if (!style.isConnected) {
     document.head.appendChild(style);
   }

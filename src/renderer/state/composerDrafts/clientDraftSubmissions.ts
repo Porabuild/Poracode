@@ -217,6 +217,7 @@ export async function discardClientSubmission(
   id: string,
   explicitDiscard = false,
   expected?: Pick<ClientDraftSubmission, "revision" | "fingerprint">,
+  expectedState?: ClientDraftSubmission["state"],
 ): Promise<boolean> {
   const discarded = await transact<boolean>(["submissions"], "readwrite", (tx, done) => {
     const store = tx.objectStore("submissions");
@@ -225,6 +226,7 @@ export async function discardClientSubmission(
       const record = request.result as ClientDraftSubmission | undefined;
       if (
         !record ||
+        (expectedState !== undefined && record.state !== expectedState) ||
         (expected &&
           (record.revision !== expected.revision || record.fingerprint !== expected.fingerprint))
       ) {

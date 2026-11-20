@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { REMOTE_HTTP_ROUTES } from "../routes";
+import { defaultSharedSettings } from "../../../settings";
 import {
   pathScopedEmptyBodySchema,
   projectNotesWriteBodySchema,
@@ -37,9 +38,25 @@ const PATH_SCOPED_BODIES = {
 } as const;
 
 describe("remote HTTP route goldens", () => {
-  it("covers exactly 122 unique routes", () => {
-    expect(REMOTE_HTTP_ROUTES).toHaveLength(122);
-    expect(new Set(REMOTE_HTTP_ROUTES.map((route) => route.id)).size).toBe(122);
+  it("covers exactly 126 unique routes", () => {
+    expect(REMOTE_HTTP_ROUTES).toHaveLength(126);
+    expect(new Set(REMOTE_HTTP_ROUTES.map((route) => route.id)).size).toBe(126);
+  });
+
+  it("carries optional Memory settings on the settings routes", () => {
+    const read = REMOTE_HTTP_ROUTES.find((route) => route.id === "settings-read");
+    const write = REMOTE_HTTP_ROUTES.find((route) => route.id === "settings-write");
+    const legacy = { ...defaultSharedSettings, memory: undefined };
+    const memory = { ...defaultSharedSettings.memory, enabled: true };
+    expect(read?.response.jsonSchema?.parse({ settings: legacy })).not.toHaveProperty(
+      "settings.memory.enabled",
+    );
+    expect(read?.response.jsonSchema?.parse({ settings: { ...legacy, memory } })).toHaveProperty(
+      "settings.memory",
+      memory,
+    );
+    expect(write?.request.jsonSchema?.parse({ memory })).toEqual({ memory });
+    expect(write?.request.jsonSchema?.parse({ titleGenFast: false })).not.toHaveProperty("memory");
   });
 
   it("keeps preview-v1 an enumerated read facade with strictly versioned grant requests", () => {

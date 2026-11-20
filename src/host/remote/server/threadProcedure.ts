@@ -23,6 +23,7 @@ import { runRemoteCommand } from "./remoteCommandIdempotency";
 import { authorizeProjectProcedurePayload } from "./projectProcedureAuthorization";
 import { isProjectWatchProcedure, runProjectWatchProcedure } from "./projectWatchProcedure";
 import { requireCurrentRemoteProtocolVersion } from "./writerProtocolAdmission";
+import { beginHostThreadActivityTouch } from "./touchThreadActivity";
 import {
   applyRemoteThreadSwitch,
   isPlainThreadStartPreEffectFailure,
@@ -116,6 +117,13 @@ export async function runRemoteProcedure(
       : undefined;
   const observedProject = observedLocation ? dbFindProjectByLocation(observedLocation) : null;
   const observation = observedProject ? dbBeginWorktreeObservation(observedProject.id) : undefined;
+  const activityThreadId =
+    name === "queueThreadFollowUp"
+      ? (parsedPayload as IpcProcedurePayload<"queueThreadFollowUp">).threadId
+      : undefined;
+  const finishActivityTouch = activityThreadId
+    ? beginHostThreadActivityTouch(ctx, activityThreadId, { forceBroadcast: true })
+    : undefined;
   let raw: unknown;
   try {
     // `startThread` is delivered through this generic passthrough on the
@@ -172,6 +180,7 @@ export async function runRemoteProcedure(
     } else {
       raw = await ctx.options.callSupervisor(name, parsedPayload);
     }
+    finishActivityTouch?.();
   } catch (error) {
     throw mapSupervisorProcedureError(name, error);
   }

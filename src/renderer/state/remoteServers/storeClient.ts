@@ -341,8 +341,10 @@ export function createRemoteServerClientBindings(
           };
         });
         // Reactivation re-arms bounded reloads (offline cleared them, but
-        // an explicit success proves reachability again).
+        // an explicit success proves reachability again) and refreshes
+        // potentially missed state across the offline gap.
         syncDesktopBrowserBridgeClient(get());
+        get().scheduleServerRefresh?.(desktopId, { includeAgentStatuses: true });
       }
       return result;
     } catch (error) {
@@ -393,5 +395,8 @@ export type RemoteServerClientBindings = ReturnType<typeof createRemoteServerCli
 export type StartRemoteServerEventStream = (
   server: RemoteServerRecord,
   initialCapabilities?: TerminalConnectionCapabilities,
-  options?: { readonly resyncInterestedThreads?: boolean },
+  options?: {
+    readonly resyncInterestedThreads?: boolean;
+    readonly deferInitialConnect?: boolean;
+  },
 ) => Promise<void>;

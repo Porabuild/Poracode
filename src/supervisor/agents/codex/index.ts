@@ -185,6 +185,9 @@ export function createCodexAdapter(options: CodexAdapterOptions = {}): AgentAdap
     listNativePlugins: async (ctx) => listNativeCodexPlugins(ctx, await pluginDiscoveryHome(ctx)),
     readConfigDefaults: () => readCodexConfigDefaults(nativeHomeDir),
     ...(codexDetectionSpec.update ? { update: codexDetectionSpec.update } : {}),
+    // The npm launcher resolves its native binary from an optional platform
+    // package; an update that drops it leaves a shim that cannot start Codex.
+    postUpdateHealthArgs: ["--version"],
     get capabilities() {
       return capabilities;
     },

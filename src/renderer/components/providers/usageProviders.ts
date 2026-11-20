@@ -3,6 +3,7 @@ import { allUsageProviderDescriptors } from "@poracode/agents-usage/providers";
 import type { UsageSnapshot, UsageWindow, UsageRingGroup } from "@poracode/agents-usage/types";
 export type { UsageRingGroup } from "@poracode/agents-usage/types";
 import { baseAgentKind, agentProfileKind, type AgentInstanceConfigMap } from "@/shared/contracts";
+import type { RemoteAgentStatuses } from "@/shared/remote";
 import { USAGE_PROFILE_SUPPORT } from "./usageProfileRegistry";
 import { i18n } from "@/renderer/i18n/i18n";
 import { getProviderManifest } from "./providerManifest";
@@ -227,6 +228,26 @@ export function hasRailUsage(snapshot: UsageSnapshot | undefined): boolean {
     case "error":
       return true;
   }
+}
+
+/** Remote profile IDs and labels belong to that host, never the client's configured profiles. */
+export function resolveHostUsageProviders(
+  snapshots: readonly UsageSnapshot[],
+  providerOrder: readonly string[],
+  agents: RemoteAgentStatuses | undefined,
+): UsageProvider[] {
+  const labels = new Map(STATIC_USAGE_PROVIDERS.map((provider) => [provider.id, provider.label]));
+  for (const agent of agents?.windows ?? []) labels.set(agent.kind, agent.label);
+  const rank = (id: string) => {
+    const index = providerOrder.indexOf(id);
+    return index < 0 ? providerOrder.length : index;
+  };
+  return snapshots
+    .map((snapshot) => ({
+      id: snapshot.providerId,
+      label: labels.get(snapshot.providerId) ?? snapshot.providerId,
+    }))
+    .sort((a, b) => rank(a.id) - rank(b.id));
 }
 
 /**

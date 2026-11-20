@@ -34,8 +34,8 @@ const row = (kind: string, extra: Record<string, unknown> = {}) => ({
 });
 
 describe("devin status cache policy", () => {
-  it("requires the v75 effort and Fusion family derivations", () => {
-    expect(devinStatusCachePolicy).toEqual({ kind: "devin", minimumVersion: 75 });
+  it("requires account-scoped observations and the earlier model derivations", () => {
+    expect(devinStatusCachePolicy).toEqual({ kind: "devin", minimumVersion: 80 });
     // The stale row really did advertise a defaulted "medium" for Adaptive.
     const gui = capabilitiesForPresentation(staleAdaptiveCapabilities, "gui");
     expect(modelSelectionFor(gui, "adaptive").reasoning).toEqual({
@@ -59,8 +59,33 @@ describe("devin status cache policy", () => {
       expect(stale.statuses).toEqual({ windows: [unaffected], wsl: [], fromCache: false });
       expect(isAgentStatusCacheEntryCompatible(kind, 73)).toBe(false);
       expect(isAgentStatusCacheEntryCompatible(kind, 74)).toBe(false);
-      expect(isAgentStatusCacheEntryCompatible(kind, 75)).toBe(true);
+      expect(isAgentStatusCacheEntryCompatible(kind, 75)).toBe(false);
+      expect(isAgentStatusCacheEntryCompatible(kind, 80)).toBe(true);
       expect(isAgentStatusCacheEntryCompatible("unaffected", 73)).toBe(true);
+    },
+  );
+
+  it.each(["devin", "devin:backup"])(
+    "refreshes pre-upgrade v79 %s account observations while retaining other providers",
+    (kind) => {
+      const primaryAccountModels = agentCapabilitySchema.parse({
+        models: [{ id: "primary-only", label: "Primary account model" }],
+      });
+      const native = row(kind, {
+        envKind: "windows",
+        capabilities: primaryAccountModels,
+        authMethods: [{ id: "primary-login", name: "Primary login" }],
+      });
+      const unaffected = { ...native, kind: "unaffected", label: "Unaffected" };
+      const stale = decodeAgentStatusCache({ version: 79, windows: [native, unaffected], wsl: [] });
+      expect(stale.statuses).toEqual({ windows: [unaffected], wsl: [], fromCache: false });
+      expect(isAgentStatusCacheEntryCompatible(kind, 79)).toBe(false);
+      const fresh = decodeAgentStatusCache({
+        version: STATUS_CACHE_VERSION,
+        windows: [native, unaffected],
+        wsl: [],
+      });
+      expect(fresh.statuses).toEqual({ windows: [native, unaffected], wsl: [], fromCache: true });
     },
   );
 

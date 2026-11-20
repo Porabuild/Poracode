@@ -1100,6 +1100,118 @@ describe("ThreadSessionManager host resource admission", () => {
 });
 
 describe("ThreadSessionManager shell admission", () => {
+  it("operates only on a workspace shell in the selected checkout", async () => {
+    const emit = vi.fn<ThreadSessionManagerOptions["emit"]>();
+    const manager = createManager(createAdapter({ presentationMode: "terminal" }), policy({}), {
+      emit,
+    });
+    const worktreePath = tempDir();
+    const projectLocation = { kind: "posix" as const, path: worktreePath };
+    const terminalId = "shell:worktree";
+    await manager.startShell({ shellId: terminalId, projectLocation, worktreePath });
+    const pty = ptyState.spawned.at(-1)!;
+    const write = vi.spyOn(pty, "write");
+    const resize = vi.spyOn(pty, "resize");
+    const target = { version: 1 as const, terminalId, projectLocation, worktreePath };
+
+    pty.dataHandlers[0]?.(`${"a".repeat(50_000)}tail`);
+    await expect(
+      manager.controlWorkspaceTerminal({ ...target, command: { action: "read" } }),
+    ).resolves.toMatchObject({
+      action: "read",
+      data: `${"a".repeat(49_996)}tail`,
+      fromCursor: 4,
+      toCursor: 50_004,
+      truncated: true,
+    });
+    await expect(
+      manager.controlWorkspaceTerminal({
+        ...target,
+        projectLocation: { kind: "posix", path: tempDir() },
+        command: { action: "write", data: "pwd\r" },
+      }),
+    ).rejects.toThrow("not attached to the selected checkout");
+    expect(write).not.toHaveBeenCalled();
+    await manager.controlWorkspaceTerminal({
+      ...target,
+      command: { action: "write", data: "pwd\r" },
+    });
+    expect(write).toHaveBeenCalledExactlyOnceWith("pwd\r");
+    await manager.controlWorkspaceTerminal({
+      ...target,
+      command: { action: "resize", cols: 90, rows: 25 },
+    });
+    expect(resize).toHaveBeenCalledExactlyOnceWith(90, 25);
+    await expect(
+      manager.controlWorkspaceTerminal({ ...target, command: { action: "close" } }),
+    ).resolves.toEqual({ action: "close", confirmed: true });
+    expect(pty.exitEmitted).toBe(true);
+    expect(emit).toHaveBeenCalledWith({
+      type: "thread-exited",
+      threadId: terminalId,
+      exitCode: 0,
+    });
+    expect(manager.getTerminalShellSnapshots()).toEqual([]);
+
+    // A stale terminal handle cannot be redirected to a provider session
+    // that now has the same id.
+    await manager.startThread(terminalPayload(terminalId));
+    await expect(
+      manager.controlWorkspaceTerminal({ ...target, command: { action: "close" } }),
+    ).rejects.toThrow("not attached to the selected checkout");
+    expect(manager.sessions.has(terminalId)).toBe(true);
+  });
+
+  it("confirms a scoped close retry after a delayed exit", async () => {
+    const emit = vi.fn<ThreadSessionManagerOptions["emit"]>();
+    const manager = createManager(createAdapter({ presentationMode: "terminal" }), policy({}), {
+      emit,
+    });
+    const terminalId = "shell:delayed";
+    const projectLocation = { kind: "posix" as const, path: tempDir() };
+    ptyState.autoExitOnKill = false;
+    await manager.startShell({ shellId: terminalId, projectLocation });
+    const pty = ptyState.spawned.at(-1)!;
+    const close = {
+      version: 1 as const,
+      terminalId,
+      projectLocation,
+      command: { action: "close" as const },
+    };
+    await expect(manager.controlWorkspaceTerminal(close)).resolves.toEqual({
+      action: "close",
+      confirmed: false,
+    });
+    pty.emitExit(1);
+    await expect(manager.controlWorkspaceTerminal(close)).resolves.toEqual({
+      action: "close",
+      confirmed: true,
+    });
+    expect(emit.mock.calls.filter(([event]) => event.type === "thread-exited")).toEqual([
+      [{ type: "thread-exited", threadId: terminalId, exitCode: 1 }],
+    ]);
+    await expect(
+      manager.controlWorkspaceTerminal({ ...close, worktreePath: tempDir() }),
+    ).rejects.toThrow("not attached to the selected checkout");
+  });
+
+  it("keeps a home shell outside project terminal discovery and control", async () => {
+    const manager = createManager(createAdapter({ presentationMode: "terminal" }), policy({}));
+    const projectLocation = { kind: "posix" as const, path: tempDir() };
+    const terminalId = "shell:global";
+    await manager.startShell({ shellId: terminalId, projectLocation, startInHome: true });
+    expect(manager.getTerminalShellSnapshots()).toEqual([]);
+    await expect(
+      manager.controlWorkspaceTerminal({
+        version: 1,
+        projectLocation,
+        terminalId,
+        command: { action: "close" },
+      }),
+    ).rejects.toThrow("not attached to the selected checkout");
+    expect(manager.shellSessions.has(terminalId)).toBe(true);
+  });
+
   it("requires a same-id shell's exit and holds one slot across the handoff", async () => {
     const adapter = createAdapter({ presentationMode: "terminal" });
     const manager = createManager(
@@ -1189,5 +1301,35 @@ describe("ThreadSessionManager shell admission", () => {
     await manager.startShell({ shellId: "shell:close-retry", projectLocation: location });
     expect(manager.shellSessions.has("shell:close-retry")).toBe(true);
     expect(manager.hostResourceAdmission.usage().terminalShells.active).toBe(1);
+  });
+
+  it("releases a mixed session slot only once structured disposal confirms after an earlier PTY exit", async () => {
+    const adapter = createAdapter({ presentationMode: "terminal" });
+    const manager = createManager(adapter, policy({ maxActiveAgentSessions: 1 }));
+    await manager.startThread(terminalPayload("thread-mixed-pty-first"));
+    const session = manager.sessions.get("thread-mixed-pty-first")!;
+    let finishDispose!: () => void;
+    session.structuredSession = createHandle({
+      dispose: () =>
+        new Promise<void>((resolve) => {
+          finishDispose = resolve;
+        }),
+    });
+
+    // Natural PTY exit routes through structured retirement: while structured
+    // disposal is still pending, the slot remains counted.
+    (session.pty as unknown as FakePty).emitExit(0);
+    await vi.waitFor(() => expect(finishDispose).toBeTypeOf("function"));
+    expect(session.structuredSession).toBeUndefined();
+    expect(session.pendingStructuredDisposal).toBeDefined();
+    expect(manager.hostResourceAdmission.usage()).toMatchObject({
+      total: 1,
+      agentSessions: { retiring: 1 },
+    });
+
+    // Once structured disposal settles after the already-completed PTY exit,
+    // custody releases the lease without requiring a second close/exit.
+    finishDispose();
+    await vi.waitFor(() => expect(manager.hostResourceAdmission.usage().total).toBe(0));
   });
 });
