@@ -43,6 +43,7 @@ export type AcpSessionOverrides = Pick<
   | "resolveMode"
   | "permissionRequestTransform"
   | "promptErrorReason"
+  | "isDroppedSessionError"
   | "resolveModelConfig"
   | "configureOpenedSession"
   | "allowUnlistedSelectValue"
@@ -157,6 +158,9 @@ function buildAcpSessionOptions(
       : {}),
     ...(overrides?.promptSteering ? { promptSteering: overrides.promptSteering } : {}),
     ...(overrides?.promptErrorReason ? { promptErrorReason: overrides.promptErrorReason } : {}),
+    ...(overrides?.isDroppedSessionError
+      ? { isDroppedSessionError: overrides.isDroppedSessionError }
+      : {}),
   };
 }
 

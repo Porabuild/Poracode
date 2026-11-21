@@ -111,6 +111,12 @@ Existing extension points built on the same pattern:
   its `acp-prompt-v1` sample id, so replies that repeat one native sample
   dedup instead of double-counting. Missing or malformed identities fall back
   to the shared per-turn/per-steer suffix.
+- `AcpStructuredSessionOptions.isDroppedSessionError` identifies errors that
+  prove an otherwise-live agent tore down its in-memory session while the
+  persisted conversation remains restorable. Before any turn output has arrived,
+  the shared session reopens via `session/resume` or `session/load`, reapplies
+  turn config, and retries the prompt once; if recovery fails or cannot run, it
+  retires the dead handle while preserving the error and `sessionRef`.
 - `registerModelDescriptionFormatter` (renderer) lets a provider parse its own
   catalog text into a numeric hint plus a localized explanation; the shared
   picker never parses vendor pricing formats.

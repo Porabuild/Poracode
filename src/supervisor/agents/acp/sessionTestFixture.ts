@@ -72,10 +72,13 @@ export function makeConfigSyncSession(
     initializeMeta?: Record<string, unknown>;
     clientCapabilitiesMeta?: Record<string, unknown>;
     agentPromptCapabilities?: PromptCapabilities;
+    agentSessionCapabilities?: import("@agentclientprotocol/sdk").SessionCapabilities;
+    agentLoadSession?: boolean;
     behavior?: AcpSessionBehavior;
     textStreamExtension?: AcpTextStreamExtension;
     stderrTurnSignalParser?: (line: string) => "background-wait" | undefined;
     promptSteering?: AcpPromptSteering;
+    isDroppedSessionError?: (error: unknown) => boolean;
   } = {},
 ) {
   const connection = {
@@ -203,7 +206,9 @@ export function makeConfigSyncSession(
   session["releasedAcpTerminalOutput"] = new Map();
   session["acpTerminalCommandById"] = new Map();
   session["agentPromptCapabilities"] = overrides.agentPromptCapabilities;
-  session["agentSessionCapabilities"] = undefined;
+  session["agentSessionCapabilities"] = overrides.agentSessionCapabilities;
+  session["agentLoadSession"] = overrides.agentLoadSession ?? false;
+  session["isDroppedSessionError"] = overrides.isDroppedSessionError;
   session["initializeMeta"] = overrides.initializeMeta;
   session["clientCapabilitiesMeta"] = overrides.clientCapabilitiesMeta;
   session["behavior"] = overrides.behavior ?? {};
