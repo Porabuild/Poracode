@@ -5,13 +5,13 @@ struct CustomThemePreview: View {
 
   var body: some View {
     HStack(spacing: 12) {
-      preview(document.light, title: "Light")
-      preview(document.dark, title: "Dark")
+      preview(document.light, title: "Light", mode: "light")
+      preview(document.dark, title: "Dark", mode: "dark")
     }
   }
 
-  private func preview(_ palette: CustomThemePalette, title: String) -> some View {
-    let variant = palette.nativeVariant
+  private func preview(_ palette: CustomThemePalette, title: String, mode: String) -> some View {
+    let variant = palette.nativeVariant(mode: mode)
     return VStack(alignment: .leading, spacing: 7) {
       CustomThemeStrings.text(title).font(.caption).foregroundStyle(.secondary)
       HStack(spacing: 0) {
