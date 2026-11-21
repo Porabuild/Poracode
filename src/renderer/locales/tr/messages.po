@@ -9238,6 +9238,10 @@ msgstr "Yazı tipleri ve kaydırma"
 msgid "Food & drink"
 msgstr "Yiyecek ve içecek"
 
+#: src/renderer/components/providers/antigravity/index.tsx
+msgid "For GUI chats, install Antigravity ACP."
+msgstr "Grafik arayüz sohbetleri için Antigravity ACP'yi yükleyin."
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/ForceDeleteBranchDialog.tsx
 msgid "Force Delete"
 msgstr "Silmeye Zorla"
@@ -10633,6 +10637,7 @@ msgstr "{badge} yükle"
 #~ msgid "Install @cursor/sdk to configure its API key."
 #~ msgstr "API anahtarını yapılandırmak için @cursor/sdk paketini yükleyin."
 
+#: src/renderer/components/providers/antigravity/index.tsx
 #: src/renderer/views/SettingsOverlay/parts/antigravityRuntimeInstall.ts
 msgid "Install ACP"
 msgstr "ACP'yi yükle"
@@ -14190,6 +14195,7 @@ msgstr "kurulu değil"
 #: src/renderer/components/plugins/ComputerUsePluginSettings.tsx
 #: src/renderer/components/providers/CombinedRuntimeVersionList.tsx
 #: src/renderer/components/providers/settings/CursorProviderSettings.tsx
+#: src/renderer/components/thread/ThreadRuntimeInstallDock.tsx
 #: src/renderer/views/SettingsOverlay/parts/antigravityRuntimeInstall.ts
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
@@ -23396,8 +23402,10 @@ msgid "Unable to install {0} hooks."
 msgstr "{0} kancaları yüklenemiyor."
 
 #. placeholder {0}: agent.label
+#. placeholder {0}: agentStatus.label
 #. placeholder {0}: input.label
 #: src/renderer/actions/agentLoginActions.ts
+#: src/renderer/components/thread/ThreadRuntimeInstallDock.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Unable to install {0}."
 msgstr "{0} yüklenemiyor."

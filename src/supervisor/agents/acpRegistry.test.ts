@@ -788,6 +788,7 @@ describe("ACP registry installs", () => {
         "fetch",
         vi.fn(async () => new Response(new Uint8Array([1]), { status: 200 })),
       );
+      vi.stubEnv("PSModulePath", "C:\\Program Files\\PowerShell\\7\\Modules");
       try {
         await installAcpRegistryAgent({
           agentId: "binary-agent",
@@ -804,8 +805,10 @@ describe("ACP registry installs", () => {
           "-NoLogo",
           "-NoProfile",
           "-Command",
-          "Expand-Archive -LiteralPath $env:PORACODE_ACP_ARCHIVE_PATH -DestinationPath $env:PORACODE_ACP_INSTALL_DIR -Force",
+          "$ErrorActionPreference = 'Stop'; Expand-Archive -LiteralPath $env:PORACODE_ACP_ARCHIVE_PATH -DestinationPath $env:PORACODE_ACP_INSTALL_DIR -Force",
         ]);
+        const env = (options as { env: NodeJS.ProcessEnv }).env;
+        expect(Object.keys(env).some((name) => name.toUpperCase() === "PSMODULEPATH")).toBe(false);
         expect(options).toMatchObject({
           windowsHide: true,
           env: {
@@ -821,6 +824,7 @@ describe("ACP registry installs", () => {
         });
       } finally {
         vi.unstubAllGlobals();
+        vi.unstubAllEnvs();
       }
     },
   );

@@ -128,6 +128,8 @@ import {
 import { ThreadAgentUpdateDock } from "./ThreadAgentUpdateDock";
 import { RemoteHostUpdateDock } from "./RemoteHostUpdateDock";
 import { ThreadAuthRequiredDock } from "./ThreadAuthRequiredDock";
+import { composerRuntimeRequirement } from "../providers/composerRuntimeRequirement";
+import { ThreadRuntimeInstallDock } from "./ThreadRuntimeInstallDock";
 import { ThreadDockHeader, ThreadDockIconButton, ThreadDockSection } from "./ThreadDockUI";
 import { ThreadComposer, type ComposerControl } from "./ThreadComposer";
 import { isPlanModeControl } from "../providers/composerControlBuilders";
@@ -517,6 +519,10 @@ export function ThreadDraftComposerArea(props: {
   const filteredCommands = filterSlashCommands(availableCommands, slashQuery);
   const showCommandPanel = filteredCommands.length > 0;
   const authRequired = props.selectedAgent.authState === "missing";
+  const runtimeRequirement = composerRuntimeRequirement(
+    props.selectedAgent,
+    props.presentationMode,
+  );
   const isHomeScope = isHomeProject(props.project);
   const threadMentions = useThreadMentionItems(
     isHomeScope
@@ -978,7 +984,7 @@ export function ThreadDraftComposerArea(props: {
       resetDraftRefs();
       return;
     }
-    if (authRequired) {
+    if (authRequired || runtimeRequirement) {
       return;
     }
     // Draft state may hold an empty model until one is chosen, but the wire
@@ -1500,8 +1506,17 @@ export function ThreadDraftComposerArea(props: {
             {props.project.remoteServerId ? (
               <RemoteHostUpdateDock desktopId={props.project.remoteServerId} />
             ) : null}
-            {authRequired ? (
+            {/* The missing runtime's own sign-in state is meaningless until it is installed. */}
+            {authRequired && !runtimeRequirement ? (
               <ThreadAuthRequiredDock agentStatus={props.selectedAgent} project={props.project} />
+            ) : null}
+            {runtimeRequirement ? (
+              <ThreadRuntimeInstallDock
+                key={`${props.project.id}:${props.selectedAgent.kind}`}
+                requirement={runtimeRequirement}
+                agentStatus={props.selectedAgent}
+                project={props.project}
+              />
             ) : null}
             {/* Agent updates and hook plugins are installed on this machine. */}
             {hostIsLocalToClient ? (
@@ -1676,6 +1691,7 @@ export function ThreadDraftComposerArea(props: {
         prompt={prompt}
         submitDisabled={
           authRequired ||
+          Boolean(runtimeRequirement) ||
           agentUpdating ||
           hostUpdateRestarting ||
           isSubmitting ||

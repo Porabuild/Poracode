@@ -1,11 +1,7 @@
 import { readFileSync } from "node:fs";
 import { isDeepStrictEqual } from "node:util";
 import { msg } from "@/shared/messages";
-import {
-  decodeSettingsDocument,
-  parseSettingsDocument,
-  SettingsDocumentError,
-} from "./settingsDocument";
+import { parseSettingsDocument, SettingsDocumentError } from "./settingsDocument";
 import { assertSettingsSelectionDataReplaceable } from "./settingsSelectionData";
 
 /**
@@ -23,7 +19,11 @@ export function assertSettingsDocumentWriteAdmission(
     current = parseSettingsDocument(readFileSync(path, "utf8"));
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
-    current = decodeSettingsDocument({});
+    // A missing document under a live owner is not a concurrent edit: the
+    // owner's committed document is the only authoritative copy left, so the
+    // next write recreates it. Treating absence as a mismatch would refuse
+    // every settings write (including ACP installs) until a restart.
+    return;
   }
   assertSettingsSelectionDataReplaceable(current.raw);
   if (!isDeepStrictEqual(current.raw, committedRaw))

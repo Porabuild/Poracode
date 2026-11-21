@@ -9238,6 +9238,10 @@ msgstr "Phông chữ và cuộn"
 msgid "Food & drink"
 msgstr "Đồ ăn và thức uống"
 
+#: src/renderer/components/providers/antigravity/index.tsx
+msgid "For GUI chats, install Antigravity ACP."
+msgstr "Để trò chuyện trong giao diện đồ họa, hãy cài đặt Antigravity ACP."
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/ForceDeleteBranchDialog.tsx
 msgid "Force Delete"
 msgstr "Buộc xóa"
@@ -10633,6 +10637,7 @@ msgstr "Cài đặt {badge}"
 #~ msgid "Install @cursor/sdk to configure its API key."
 #~ msgstr "Cài đặt @cursor/sdk để cấu hình khóa API."
 
+#: src/renderer/components/providers/antigravity/index.tsx
 #: src/renderer/views/SettingsOverlay/parts/antigravityRuntimeInstall.ts
 msgid "Install ACP"
 msgstr "Cài đặt ACP"
@@ -14190,6 +14195,7 @@ msgstr "chưa được cài đặt"
 #: src/renderer/components/plugins/ComputerUsePluginSettings.tsx
 #: src/renderer/components/providers/CombinedRuntimeVersionList.tsx
 #: src/renderer/components/providers/settings/CursorProviderSettings.tsx
+#: src/renderer/components/thread/ThreadRuntimeInstallDock.tsx
 #: src/renderer/views/SettingsOverlay/parts/antigravityRuntimeInstall.ts
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
@@ -23396,8 +23402,10 @@ msgid "Unable to install {0} hooks."
 msgstr "Không thể cài đặt hook {0}."
 
 #. placeholder {0}: agent.label
+#. placeholder {0}: agentStatus.label
 #. placeholder {0}: input.label
 #: src/renderer/actions/agentLoginActions.ts
+#: src/renderer/components/thread/ThreadRuntimeInstallDock.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Unable to install {0}."
 msgstr "Không thể cài đặt {0}."

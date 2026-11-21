@@ -97,6 +97,60 @@ describe("SettingsAuthority", () => {
     );
   });
 
+  it.each([1, 2, 3])(
+    "recovers a deleted v%s document from the live owner without losing unknown fields",
+    async (version) => {
+      await writeFile(
+        settingsPath,
+        JSON.stringify({
+          [SETTINGS_DOCUMENT_VERSION_KEY]: version,
+          themeMode: "dark",
+          futureSetting: { keep: true },
+        }),
+      );
+      const authority = await open();
+      const first = authority.snapshot();
+      await expect(
+        authority.mutate(request(first, [set(first, theme, "light")]), allow),
+      ).resolves.toMatchObject({ status: "committed" });
+      await rm(settingsPath);
+      expect(() => authority.assertWriteAdmission()).not.toThrow();
+
+      const next = authority.snapshot();
+      await expect(
+        authority.mutate(request(next, [set(next, font, 15)]), allow),
+      ).resolves.toMatchObject({ status: "committed" });
+      expect(await disk()).toMatchObject({
+        [SETTINGS_DOCUMENT_VERSION_KEY]: SETTINGS_DOCUMENT_VERSION,
+        themeMode: "light",
+        guiChatFontSize: 15,
+        futureSetting: { keep: true },
+      });
+      await authority.close();
+      expect((await open()).readSettings()).toMatchObject({
+        themeMode: "light",
+        guiChatFontSize: 15,
+      });
+    },
+  );
+
+  it.each(['{"themeMode":"dark"}', '{"themeMode":', '{"$poracodeSettingsVersion":4}'])(
+    "still refuses an externally replaced document after deletion: %s",
+    async (contents) => {
+      const authority = await open();
+      const snapshot = authority.snapshot();
+      await authority.mutate(request(snapshot, [set(snapshot, theme, "light")]), allow);
+      await rm(settingsPath);
+      await writeFile(settingsPath, contents);
+      expect(() => authority.assertWriteAdmission()).toThrow(/settings/i);
+      const next = authority.snapshot();
+      await expect(authority.mutate(request(next, [set(next, font, 15)]), allow)).rejects.toThrow(
+        /settings/i,
+      );
+      expect(await readFile(settingsPath, "utf8")).toBe(contents);
+    },
+  );
+
   it.each([1, 2])(
     "writes v3 shortcuts over a v%s document and restores them after reopening",
     async (version) => {

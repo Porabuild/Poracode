@@ -9238,6 +9238,10 @@ msgstr "글꼴 및 스크롤"
 msgid "Food & drink"
 msgstr "음식 및 음료"
 
+#: src/renderer/components/providers/antigravity/index.tsx
+msgid "For GUI chats, install Antigravity ACP."
+msgstr "GUI 채팅을 사용하려면 Antigravity ACP를 설치하세요."
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/ForceDeleteBranchDialog.tsx
 msgid "Force Delete"
 msgstr "강제삭제"
@@ -10633,6 +10637,7 @@ msgstr "{badge} 설치"
 #~ msgid "Install @cursor/sdk to configure its API key."
 #~ msgstr "API 키를 구성하려면 @cursor/sdk를 설치하세요."
 
+#: src/renderer/components/providers/antigravity/index.tsx
 #: src/renderer/views/SettingsOverlay/parts/antigravityRuntimeInstall.ts
 msgid "Install ACP"
 msgstr "ACP 설치"
@@ -14190,6 +14195,7 @@ msgstr "설치되지 않음"
 #: src/renderer/components/plugins/ComputerUsePluginSettings.tsx
 #: src/renderer/components/providers/CombinedRuntimeVersionList.tsx
 #: src/renderer/components/providers/settings/CursorProviderSettings.tsx
+#: src/renderer/components/thread/ThreadRuntimeInstallDock.tsx
 #: src/renderer/views/SettingsOverlay/parts/antigravityRuntimeInstall.ts
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
@@ -23396,8 +23402,10 @@ msgid "Unable to install {0} hooks."
 msgstr "{0} 후크를 설치할 수 없습니다."
 
 #. placeholder {0}: agent.label
+#. placeholder {0}: agentStatus.label
 #. placeholder {0}: input.label
 #: src/renderer/actions/agentLoginActions.ts
+#: src/renderer/components/thread/ThreadRuntimeInstallDock.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Unable to install {0}."
 msgstr "{0}을(를) 설치할 수 없습니다."

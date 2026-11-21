@@ -9238,6 +9238,10 @@ msgstr "Polices et défilement"
 msgid "Food & drink"
 msgstr "Cuisine et boissons"
 
+#: src/renderer/components/providers/antigravity/index.tsx
+msgid "For GUI chats, install Antigravity ACP."
+msgstr "Pour les discussions dans l’interface graphique, installez Antigravity ACP."
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/ForceDeleteBranchDialog.tsx
 msgid "Force Delete"
 msgstr "Forcer la suppression"
@@ -10633,6 +10637,7 @@ msgstr "Installer {badge}"
 #~ msgid "Install @cursor/sdk to configure its API key."
 #~ msgstr "Installez @cursor/sdk pour configurer sa clé API."
 
+#: src/renderer/components/providers/antigravity/index.tsx
 #: src/renderer/views/SettingsOverlay/parts/antigravityRuntimeInstall.ts
 msgid "Install ACP"
 msgstr "Installer ACP"
@@ -14189,6 +14194,7 @@ msgstr "non installé"
 #: src/renderer/components/plugins/ComputerUsePluginSettings.tsx
 #: src/renderer/components/providers/CombinedRuntimeVersionList.tsx
 #: src/renderer/components/providers/settings/CursorProviderSettings.tsx
+#: src/renderer/components/thread/ThreadRuntimeInstallDock.tsx
 #: src/renderer/views/SettingsOverlay/parts/antigravityRuntimeInstall.ts
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
@@ -23395,8 +23401,10 @@ msgid "Unable to install {0} hooks."
 msgstr "Impossible d'installer les hooks {0}."
 
 #. placeholder {0}: agent.label
+#. placeholder {0}: agentStatus.label
 #. placeholder {0}: input.label
 #: src/renderer/actions/agentLoginActions.ts
+#: src/renderer/components/thread/ThreadRuntimeInstallDock.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Unable to install {0}."
 msgstr "Impossible d'installer {0}."
