@@ -15,6 +15,7 @@ import { floatingBubbleIconClass } from "@/renderer/components/layout/floatingGl
 import { useAppStore } from "@/renderer/state/appStore";
 import { useComposerBubbleSlotStore } from "@/renderer/state/composerBubbleSlotStore";
 import { isPanelResizing, subscribePanelResize } from "@/renderer/state/panelResizeSignal";
+import { isIosTouchScroll } from "@/renderer/utils/iosScroll";
 import {
   BOTTOM_EPSILON_PX,
   isElementAtBottom,
@@ -35,6 +36,8 @@ import { ChatReaderFollowContext } from "./chatReaderFollow";
 type ScrollGeometry = Pick<HTMLElement, "scrollHeight" | "clientHeight">;
 
 const USER_SCROLL_INTENT_MS = 750;
+const IOS_MOMENTUM_SETTLE_MS = 260;
+const TOUCH_DRAG_THRESHOLD_PX = 6;
 const VIRTUALIZER_LAYOUT_SETTLE_MS = 250;
 const INITIAL_SCROLL_REVEAL_WATCHDOG_MS = 1_000;
 /** Minimum at-bottom cache when no coalesce window is active. */
@@ -144,6 +147,9 @@ export function ChatScrollControls(props: {
   const previousInitialScrollSettledRef = useRef(initialScrollSettled);
   const disableStickToBottomRef = useRef<() => void>(() => undefined);
   const pinHoldoffUntilRef = useRef(0);
+  const touchActiveRef = useRef(false);
+  const iosMomentumUntilRef = useRef(0);
+  const iosTouchScroll = isIosTouchScroll();
   const touchFirstPointer = window.matchMedia(TOUCH_FIRST_POINTER_QUERY).matches;
   const [showScrollDown, setShowScrollDown] = useState(false);
   const observeScrollElements = useChatScrollResizeObserver({
@@ -325,6 +331,16 @@ export function ChatScrollControls(props: {
       return;
     }
     const now = performance.now();
+    // On iOS WebKit, writing scrollTop during an active touch drag or inertial
+    // momentum glide cancels momentum and snaps the viewport. Defer automatic
+    // pins until the gesture finishes; explicit user/open reconciles still run.
+    if (
+      iosTouchScroll &&
+      options.reconcileVirtualizer !== true &&
+      (touchActiveRef.current || now < iosMomentumUntilRef.current)
+    ) {
+      return;
+    }
     // An untagged upward scroll was recently suppressed as layout-driven. It
     // may equally be a native scrollbar-thumb drag (Windows overlay thumbs emit
     // no pointer events) — hold pins off briefly so a real drag is not yanked.
@@ -734,6 +750,13 @@ export function ChatScrollControls(props: {
       const nextScrollTop = el.scrollTop;
       lastScrollTopRef.current = nextScrollTop;
       const isProgrammaticScroll = consumeProgrammaticScroll(nextScrollTop);
+      if (
+        iosTouchScroll &&
+        !isProgrammaticScroll &&
+        (touchActiveRef.current || performance.now() < iosMomentumUntilRef.current)
+      ) {
+        iosMomentumUntilRef.current = performance.now() + IOS_MOMENTUM_SETTLE_MS;
+      }
       // The direct pin already recorded this exact destination and geometry.
       // Its asynchronous scroll event acknowledges that write; reading layout
       // again can flush the next streamed commit before the resize observer.
@@ -825,6 +848,18 @@ export function ChatScrollControls(props: {
                 !viewportHeightChanged &&
                 !isVirtualizerLayoutChange));
           if (userReturnedToEnd) {
+            if (
+              iosTouchScroll &&
+              (touchActiveRef.current || performance.now() < iosMomentumUntilRef.current)
+            ) {
+              // Resume following without calling scrollTop mid-momentum (which
+              // would cancel iOS bottom rubber-band physics).
+              promptAnchoredRef.current = false;
+              stickToBottomRef.current = true;
+              readerFollow?.resume();
+              setShowScrollDown(false);
+              return;
+            }
             resumeReaderAtEnd();
             return;
           }
@@ -840,15 +875,19 @@ export function ChatScrollControls(props: {
         nextScrollTop < prevScrollTop
       ) {
         if (touchFirstPointer) {
-          // Touch scrolling always starts with the pane's pointerdown handler,
-          // which disables sticky mode before the first scroll event. With no
-          // recorded intent, an upward move inside a virtualizer/height-change
-          // window is therefore LegendList's visible-content compensation.
-          // Re-pin in this event, before Safari can paint the live tail below
-          // the floating composer while waiting for another provider delta.
-          pinHoldoffUntilRef.current = 0;
-          atBottomCachedUntilRef.current = 0;
-          writeBottomPin(el);
+          // Only re-pin immediately when no touch drag or iOS momentum glide is
+          // active; a touch drag that started on a button/disclosure skips
+          // pointerdown intent and must not be yanked back to the bottom.
+          if (touchActiveRef.current || performance.now() < iosMomentumUntilRef.current) {
+            markUserScrollIntent();
+            promptAnchoredRef.current = false;
+            disableStickToBottomRef.current();
+            if (!isContentAtBottom(el)) readerFollow?.pause();
+          } else {
+            pinHoldoffUntilRef.current = 0;
+            atBottomCachedUntilRef.current = 0;
+            writeBottomPin(el);
+          }
         } else {
           // Desktop native scrollbar thumbs can emit scroll without pointer
           // events. Hold pins off briefly so a real drag keeps re-arming the
@@ -866,13 +905,56 @@ export function ChatScrollControls(props: {
       );
     };
 
+    let touchStartY: number | null = null;
+    const handleTouchStart = (event: TouchEvent) => {
+      touchActiveRef.current = true;
+      touchStartY = event.touches[0]?.clientY ?? null;
+    };
+    const handleTouchMove = (event: TouchEvent) => {
+      const y = event.touches[0]?.clientY;
+      if (y === undefined || touchStartY === null) return;
+      const dy = y - touchStartY;
+      if (Math.abs(dy) < TOUCH_DRAG_THRESHOLD_PX) return;
+      markUserScrollIntent();
+      if (dy > 0) {
+        // Dragging finger downward scrolls toward older messages. Always
+        // release sticky mode even if the touch started on a button/link.
+        disableStickToBottomRef.current();
+      } else {
+        markUserScrollTowardEnd();
+      }
+    };
+    const handleTouchEnd = () => {
+      touchActiveRef.current = false;
+      touchStartY = null;
+      if (iosTouchScroll) {
+        iosMomentumUntilRef.current = performance.now() + IOS_MOMENTUM_SETTLE_MS;
+      }
+    };
+
     lastScrollTopRef.current = el.scrollTop;
     lastSeenScrollHeightRef.current = el.scrollHeight;
     lastSeenClientHeightRef.current = el.clientHeight;
     handleScroll();
     el.addEventListener("scroll", handleScroll, { passive: true });
-    return () => el.removeEventListener("scroll", handleScroll);
-  }, [scrollRef, threadId, touchFirstPointer, readerFollow]);
+    if (touchFirstPointer || iosTouchScroll) {
+      el.addEventListener("touchstart", handleTouchStart, { passive: true });
+      el.addEventListener("touchmove", handleTouchMove, { passive: true });
+      el.addEventListener("touchend", handleTouchEnd, { passive: true });
+      el.addEventListener("touchcancel", handleTouchEnd, { passive: true });
+    }
+    return () => {
+      el.removeEventListener("scroll", handleScroll);
+      if (touchFirstPointer || iosTouchScroll) {
+        el.removeEventListener("touchstart", handleTouchStart);
+        el.removeEventListener("touchmove", handleTouchMove);
+        el.removeEventListener("touchend", handleTouchEnd);
+        el.removeEventListener("touchcancel", handleTouchEnd);
+      }
+      touchActiveRef.current = false;
+      iosMomentumUntilRef.current = 0;
+    };
+  }, [scrollRef, threadId, touchFirstPointer, iosTouchScroll, readerFollow]);
 
   const syncPinnedContentChange = useEffectEvent((initialReveal: boolean) => {
     atBottomCachedUntilRef.current = 0;
