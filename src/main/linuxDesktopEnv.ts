@@ -1,6 +1,6 @@
 interface CommandLineLike {
   appendSwitch(switchName: string, value?: string): void;
-  hasSwitch(switchName: string): boolean;
+  hasSwitch?: (switchName: string) => boolean;
 }
 
 export interface LinuxDesktopSwitchOptions {
@@ -42,11 +42,14 @@ export function configureLinuxDesktopSwitches({
 }: LinuxDesktopSwitchOptions): void {
   if (platform !== "linux") return;
 
+  const hasSwitch = (switchName: string) =>
+    typeof commandLine.hasSwitch === "function" && commandLine.hasSwitch(switchName);
+
   commandLine.appendSwitch("enable-features", "GlobalShortcutsPortal");
 
   if (
-    !commandLine.hasSwitch("ozone-platform") &&
-    !commandLine.hasSwitch("ozone-platform-hint") &&
+    !hasSwitch("ozone-platform") &&
+    !hasSwitch("ozone-platform-hint") &&
     !env.ELECTRON_OZONE_PLATFORM_HINT?.trim()
   ) {
     commandLine.appendSwitch("ozone-platform-hint", "auto");
@@ -54,8 +57,8 @@ export function configureLinuxDesktopSwitches({
 
   if (
     !useMockKeychain &&
-    !commandLine.hasSwitch("use-mock-keychain") &&
-    !commandLine.hasSwitch("password-store") &&
+    !hasSwitch("use-mock-keychain") &&
+    !hasSwitch("password-store") &&
     isHyprlandOrOmarchySession(env)
   ) {
     commandLine.appendSwitch("password-store", "gnome-libsecret");

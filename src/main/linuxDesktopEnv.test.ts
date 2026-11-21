@@ -90,4 +90,22 @@ describe("linuxDesktopEnv", () => {
     });
     expect(withEnvAndMock.appended).toEqual([["enable-features", "GlobalShortcutsPortal"]]);
   });
+
+  it("handles minimal commandLine doubles that omit hasSwitch", () => {
+    const appended: Array<[string, string | undefined]> = [];
+    configureLinuxDesktopSwitches({
+      platform: "linux",
+      env: { XDG_CURRENT_DESKTOP: "Hyprland" },
+      commandLine: {
+        appendSwitch: (name, value) => {
+          appended.push([name, value]);
+        },
+      },
+    });
+    expect(appended).toEqual([
+      ["enable-features", "GlobalShortcutsPortal"],
+      ["ozone-platform-hint", "auto"],
+      ["password-store", "gnome-libsecret"],
+    ]);
+  });
 });
