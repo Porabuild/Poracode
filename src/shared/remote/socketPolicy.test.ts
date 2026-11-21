@@ -163,6 +163,33 @@ describe("remote socket policy", () => {
     expect(send).toHaveBeenCalledTimes(2);
   });
 
+  it("replaces a stale pending probe on forced foreground-resume probe", async () => {
+    const socket = {};
+    const send = vi.fn<(socket: object, payload: string) => void>();
+    const onDead = vi.fn<(socket: object) => void>();
+    const monitor = new RemoteSocketHealthMonitor({
+      isCurrent: () => true,
+      isOpen: () => true,
+      send,
+      onDead,
+    });
+
+    monitor.probe(socket);
+    expect(send).toHaveBeenCalledTimes(1);
+    const firstId = (JSON.parse(send.mock.calls[0]![1]) as { id: string }).id;
+
+    // A forced resume probe supersedes the pre-sleep ping with a shorter deadline.
+    monitor.probe(socket, {
+      force: true,
+      timeoutMs: REMOTE_SOCKET_POLICY.resumeHealthPingTimeoutMs,
+    });
+    expect(send).toHaveBeenCalledTimes(2);
+    expect(monitor.acceptPong(firstId)).toBe(false);
+
+    await vi.advanceTimersByTimeAsync(REMOTE_SOCKET_POLICY.resumeHealthPingTimeoutMs + 1);
+    expect(onDead).toHaveBeenCalledWith(socket);
+  });
+
   it("recognizes policy and explicit expiry closes", () => {
     expect(isUnauthorizedRemoteSocketClose(1008, "")).toBe(true);
     expect(isUnauthorizedRemoteSocketClose(1000, "Remote access session expired")).toBe(true);

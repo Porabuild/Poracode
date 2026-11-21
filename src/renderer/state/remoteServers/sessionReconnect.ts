@@ -7,6 +7,7 @@ import { msg } from "@lingui/core/macro";
 import { toast } from "@heroui/react";
 import { friendlyError, msg as sharedMsg } from "@/shared/messages";
 import { RemoteClientError } from "@/shared/remote/client";
+import { REMOTE_SOCKET_POLICY } from "@/shared/remote/socketPolicy";
 import { REMOTE_BROWSER_FORWARD_VERSION } from "@/shared/remote/protocol";
 import { REMOTE_MEMORY_CATALOG_VERSION } from "@/shared/memory";
 import {
@@ -566,13 +567,37 @@ export function createSessionReconnectActions(deps: SessionReconnectActionDeps) 
     },
 
     verifyConnections: async () => {
+      const toReconnect: string[] = [];
       for (const server of get().servers) {
-        if (!isLiveConnection(server)) continue;
-        const entry = getRemoteServerEventSocketEntry(remoteConnectionKey(server));
-        if (entry?.socket) entry.health?.probe(entry.socket);
+        const key = remoteConnectionKey(server);
+        const entry = getRemoteServerEventSocketEntry(key);
+        if (isLiveConnection(server)) {
+          // Force a fresh, bounded probe on foreground resume so a pre-sleep
+          // pending ping never hides a suspended/dead mobile socket.
+          if (entry?.socket) {
+            entry.health?.probe(entry.socket, {
+              force: true,
+              timeoutMs: REMOTE_SOCKET_POLICY.resumeHealthPingTimeoutMs,
+            });
+          }
+          continue;
+        }
+        // An offline peer that already has its own backoff reconnect loop
+        // running should stay on that loop instead of flapping "connecting"
+        // and starting duplicate hanging HTTP fetches on every tab switch.
+        const runtimeStatus = get().runtime[key]?.status;
+        if (
+          runtimeStatus === "offline" &&
+          entry &&
+          (entry.connecting || entry.reconnectTimer !== null)
+        ) {
+          continue;
+        }
+        toReconnect.push(key);
       }
-      // The pass skips every live server, so only the dropped ones reconnect.
-      await get().connectAll();
+      if (toReconnect.length > 0) {
+        await Promise.all(toReconnect.map((key) => connectServerEntry(key, false)));
+      }
     },
 
     reconnectServer: async (connectionKey: string) => {

@@ -20,6 +20,13 @@ import {
 } from "./types";
 
 let desktopBrowserBridgeServerId: string | null = null;
+/**
+ * True once the current bound server was explicitly selected by the user or
+ * actually reached `online` in this session. A tentative cold-boot binding to
+ * a stored preference that is still offline/connecting may fail over as soon
+ * as another paired host comes online.
+ */
+let desktopBrowserBridgeConfirmedOnline = false;
 let desktopBrowserBridgeClientKey: string | null = null;
 let desktopBrowserMirrorSocket: RemoteSocketLike | null = null;
 // v1 is a public owner preference; credentials are never copied into this slot.
@@ -57,6 +64,7 @@ export function selectBrowserBridgeServer(
 /** Explicitly scope browser-backed machine settings and shared remote RPCs. */
 export function selectBrowserBridgeDesktop(desktopId: string): void {
   desktopBrowserBridgeServerId = desktopId;
+  desktopBrowserBridgeConfirmedOnline = true;
   desktopBrowserBridgeClientKey = null;
   syncDesktopBrowserBridgeClient(useRemoteServersStore.getState());
 }
@@ -84,7 +92,21 @@ export function selectBrowserBridgeClientServer(
           stored[2] === server.desktopId &&
           stored[3] === server.endpoint)),
   );
-  if (selected) return selected;
+  if (selected) {
+    const selectedStatus = state.runtime[remoteConnectionKey(selected)]?.status;
+    const onlineFallback = selectBrowserBridgeServer(state);
+    // Keep a confirmed owner (explicitly selected or already seen online this
+    // session) across transient disconnects so actions do not silently jump
+    // hosts. Only a tentative cold-boot binding to an unreachable/unready host
+    // fails over as soon as another paired host is online.
+    const shouldFailOver =
+      !desktopBrowserBridgeConfirmedOnline &&
+      onlineFallback !== undefined &&
+      remoteConnectionKey(onlineFallback) !== remoteConnectionKey(selected) &&
+      selectedStatus !== "online";
+    if (!shouldFailOver) return selected;
+    return onlineFallback;
+  }
   return (
     selectBrowserBridgeServer(state) ??
     state.servers.find(
@@ -142,6 +164,7 @@ export function syncDesktopBrowserBridgeClient(state: RemoteServersState): void 
   }
   if (!server) {
     desktopBrowserBridgeServerId = null;
+    desktopBrowserBridgeConfirmedOnline = false;
     desktopBrowserBridgeClientKey = null;
     setRemoteBridgeClient(null);
     resetDesktopSettings();
@@ -150,6 +173,10 @@ export function syncDesktopBrowserBridgeClient(state: RemoteServersState): void 
     return;
   }
   const connectionKey = remoteConnectionKey(server);
+  const serverIsOnline = state.runtime[connectionKey]?.status === "online";
+  if (desktopBrowserBridgeServerId === connectionKey && serverIsOnline) {
+    desktopBrowserBridgeConfirmedOnline = true;
+  }
   const agentStatuses = state.runtime[connectionKey]?.agentStatuses;
   if (agentStatuses) {
     useAgentStatusesStore.getState().setAgentStatuses(agentStatuses.windows);
@@ -157,6 +184,11 @@ export function syncDesktopBrowserBridgeClient(state: RemoteServersState): void 
   }
   const clientKey = `${connectionKey}\0${server.endpoint}\0${server.accessToken}\0${server.platform ?? ""}\0${server.appVersion ?? ""}`;
   if (desktopBrowserBridgeClientKey === clientKey) return;
+  if (desktopBrowserBridgeServerId !== connectionKey) {
+    desktopBrowserBridgeConfirmedOnline = serverIsOnline;
+  } else if (serverIsOnline) {
+    desktopBrowserBridgeConfirmedOnline = true;
+  }
   desktopBrowserBridgeServerId = connectionKey;
   try {
     const previous = window.localStorage.getItem(BROWSER_OWNER_KEY);
@@ -200,6 +232,7 @@ export function syncDesktopBrowserBridgeClient(state: RemoteServersState): void 
 export function __resetBrowserBridgeForTest(): void {
   window.localStorage.removeItem(BROWSER_OWNER_KEY);
   desktopBrowserBridgeServerId = null;
+  desktopBrowserBridgeConfirmedOnline = false;
   desktopBrowserBridgeClientKey = null;
   desktopBrowserMirrorSocket = null;
   setBrowserSocketSender(null);
