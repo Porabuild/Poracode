@@ -43,16 +43,17 @@ export interface EnvironmentProxyLegLeases {
 }
 
 /**
- * Pool policy for the per-target keep-alive agents. Same idle semantics as the
- * port-forward pools (idle sockets retire ~5s after their last response;
- * `timeout` never deadlines an in-flight response), plus a hard socket cap per
- * environment generation so one environment cannot grow unbounded upstream
- * connections.
+ * Pool policy for the per-target keep-alive agents. Idle sockets retire 4s
+ * after their last response — strictly shorter than Node's default 5s server
+ * `keepAliveTimeout` so older child hosts do not race idle closes against
+ * socket reuse (`timeout` never deadlines an in-flight response), plus a hard
+ * socket cap per environment generation so one environment cannot grow
+ * unbounded upstream connections.
  */
 const ENVIRONMENT_AGENT_OPTIONS = {
   keepAlive: true,
   scheduling: "lifo" as const,
-  timeout: 5_000,
+  timeout: 4_000,
   maxSockets: 32,
 };
 
