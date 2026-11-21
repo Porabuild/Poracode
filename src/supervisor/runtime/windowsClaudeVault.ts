@@ -1,5 +1,6 @@
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
+import { coalesceByKey } from "@/shared/coalesce";
 import { windowsPowershellPath } from "./windowsPowershell";
 
 const execFileAsync = promisify(execFile);
@@ -135,4 +136,90 @@ export async function readWindowsCredentialTarget(targetName: string): Promise<s
   } catch {
     return undefined;
   }
+}
+
+// Presence only. CredRead still loads the blob inside PowerShell, but the
+// script frees it there and writes yes/no so the secret never crosses into
+// this process. An empty blob is not a stored secret. No backticks or `${`.
+const PS_TARGET_EXISTS_SCRIPT = `
+$ErrorActionPreference = 'SilentlyContinue'
+[Console]::OutputEncoding = New-Object System.Text.UTF8Encoding $false
+$OutputEncoding = [Console]::OutputEncoding
+$targetName = $env:PORACODE_CRED_TARGET
+if ([string]::IsNullOrWhiteSpace($targetName)) { exit 0 }
+Add-Type -TypeDefinition @"
+using System;
+using System.Runtime.InteropServices;
+public static class LcCredTargetExists {
+  [StructLayout(LayoutKind.Sequential, CharSet=CharSet.Unicode)]
+  public struct CREDENTIAL {
+    public uint Flags; public uint Type; public string TargetName; public string Comment;
+    public System.Runtime.InteropServices.ComTypes.FILETIME LastWritten;
+    public uint CredentialBlobSize; public IntPtr CredentialBlob; public uint Persist;
+    public uint AttributeCount; public IntPtr Attributes; public string TargetAlias; public string UserName;
+  }
+  [DllImport("advapi32", SetLastError=true, CharSet=CharSet.Unicode, EntryPoint="CredReadW")]
+  static extern bool CredRead(string target, uint type, int reservedFlag, out IntPtr credentialPtr);
+  [DllImport("advapi32")] static extern void CredFree(IntPtr cred);
+  public static bool Exists(string target) {
+    IntPtr p;
+    if (!CredRead(target, 1, 0, out p)) { return false; }
+    try {
+      CREDENTIAL c = (CREDENTIAL)Marshal.PtrToStructure(p, typeof(CREDENTIAL));
+      return c.CredentialBlobSize > 0 && c.CredentialBlob != IntPtr.Zero;
+    } finally { CredFree(p); }
+  }
+}
+"@
+if ([LcCredTargetExists]::Exists($targetName)) { [Console]::Out.Write('yes') }
+`;
+
+const CREDENTIAL_PRESENCE_TTL_MS = 30_000;
+const presenceInflight = new Map<string, Promise<boolean>>();
+const presenceCache = new Map<string, { at: number; present: boolean }>();
+
+export function resetWindowsCredentialPresenceCacheForTests(): void {
+  presenceInflight.clear();
+  presenceCache.clear();
+}
+
+async function queryWindowsCredentialTargetExists(target: string): Promise<boolean | undefined> {
+  const powershell = windowsPowershellPath();
+  try {
+    const encoded = Buffer.from(PS_TARGET_EXISTS_SCRIPT, "utf16le").toString("base64");
+    const { stdout } = await execFileAsync(
+      powershell,
+      ["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-EncodedCommand", encoded],
+      {
+        timeout: 6_000,
+        windowsHide: true,
+        maxBuffer: 64 * 1024,
+        env: { ...process.env, PORACODE_CRED_TARGET: target },
+      },
+    );
+    return stdout.trim() === "yes";
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * Whether a generic Windows Credential Manager target holds a non-empty secret.
+ * Does not return the secret. A failed query is "not present" for this call and
+ * is not cached, so a later probe can retry. Confirmed results are shared for a
+ * short window so a parallel auth probe does not spawn a second PowerShell.
+ */
+export async function windowsCredentialTargetExists(targetName: string): Promise<boolean> {
+  if (process.platform !== "win32") return false;
+  const target = targetName.trim();
+  if (!target || target.includes("\0") || target.includes("\n") || target.includes("\r")) {
+    return false;
+  }
+  const cached = presenceCache.get(target);
+  if (cached && Date.now() - cached.at < CREDENTIAL_PRESENCE_TTL_MS) return cached.present;
+  return coalesceByKey(presenceInflight, target, async () => {
+    const present = await queryWindowsCredentialTargetExists(target);
+    if (present !== undefined) presenceCache.set(target, { at: Date.now(), present });
+    return present === true;
+  });
 }

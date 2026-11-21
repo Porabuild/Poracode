@@ -199,9 +199,12 @@ host with `gemini` installed).
 - **Auth & config custody (`detection.ts`, `session.ts`, `sessionImport.ts`):**
   `evaluateGeminiAuthEvidence` requires real credential evidence (API key env var,
   service account, Vertex ADC/project, `oauth_creds.json`, `FileKeychain`
-  `gemini-credentials.json`, or macOS Keychain `gemini-cli-oauth` /
-  `gemini-cli-api-key`), never `.gemini` directory existence or `settings.json`
-  `selectedType` alone. Config resolves in precedence `GEMINI_CLI_HOME`
+  `gemini-credentials.json`, macOS Keychain `gemini-cli-oauth` /
+  `gemini-cli-api-key`, or Windows Credential Manager target
+  `gemini-cli-api-key/default-api-key`), never `.gemini` directory existence or
+  `settings.json` `selectedType` alone. The Windows target counts only when
+  `selectedType` is `gemini-api-key`, because logout clears that selection and
+  leaves the stored key in place. Config resolves in precedence `GEMINI_CLI_HOME`
   (`<dir>/.gemini`) → legacy `GEMINI_HOME` → `~/.gemini`. Conversation files
   live under `<configDir>/tmp/<projectDir>/chats/session-*-<shortId>.{json,jsonl}`
   (both `.json` and `v0.68.0` `.jsonl` incremental logs with `$set`/`$patch`/`$rewindTo`);

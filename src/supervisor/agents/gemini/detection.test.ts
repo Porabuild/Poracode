@@ -1,4 +1,5 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import * as os from "node:os";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -21,6 +22,9 @@ const probeAcpCapabilitiesMock = vi.hoisted(() =>
 const readMacKeychainFingerprintMock = vi.hoisted(() =>
   vi.fn<(entry: { service: string; account?: string }) => Promise<string | undefined>>(),
 );
+const windowsCredentialTargetExistsMock = vi.hoisted(() =>
+  vi.fn<(targetName: string) => Promise<boolean>>(),
+);
 
 vi.mock("../base", async () => {
   const actual = await vi.importActual<typeof import("../base")>("../base");
@@ -37,6 +41,14 @@ vi.mock("../acp", async (importOriginal) => ({
 
 vi.mock("@/supervisor/runtime/macKeychain", () => ({
   readMacKeychainFingerprint: readMacKeychainFingerprintMock,
+}));
+
+vi.mock("@/supervisor/runtime/windowsClaudeVault", () => ({
+  windowsCredentialTargetExists: windowsCredentialTargetExistsMock,
+}));
+
+vi.mock("node:os", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("node:os")>()),
 }));
 
 import {
@@ -61,6 +73,7 @@ describe("geminiDetectionSpec", () => {
     });
     probeAcpCapabilitiesMock.mockResolvedValue(undefined);
     readMacKeychainFingerprintMock.mockResolvedValue(undefined);
+    windowsCredentialTargetExistsMock.mockResolvedValue(false);
   });
 
   afterEach(() => {
@@ -438,6 +451,143 @@ describe("geminiDetectionSpec", () => {
       }
     }
   });
+
+  it("detects a Gemini API key stored in Windows Credential Manager and keeps profiles off that store", async () => {
+    Object.defineProperty(process, "platform", { value: "win32", configurable: true });
+    windowsCredentialTargetExistsMock.mockImplementation(
+      async (target) => target === "gemini-cli-api-key/default-api-key",
+    );
+    const home = join(rootDir, "win-host-home");
+    mkdirSync(join(home, ".gemini"), { recursive: true });
+    writeFileSync(
+      join(home, ".gemini", "settings.json"),
+      JSON.stringify({ security: { auth: { selectedType: "gemini-api-key" } } }),
+      "utf8",
+    );
+    const homeSpy = vi.spyOn(os, "homedir").mockReturnValue(home);
+
+    const envKeys = [
+      "GEMINI_API_KEY",
+      "GOOGLE_API_KEY",
+      "GOOGLE_APPLICATION_CREDENTIALS",
+      "GOOGLE_CLOUD_PROJECT",
+      "GOOGLE_CLOUD_LOCATION",
+      "GOOGLE_GEMINI_BASE_URL",
+      "GEMINI_CLI_HOME",
+      "GEMINI_HOME",
+      "GEMINI_FORCE_FILE_STORAGE",
+      "CLOUDSDK_CONFIG",
+    ] as const;
+    const saved = Object.fromEntries(envKeys.map((k) => [k, process.env[k]]));
+    for (const k of envKeys) delete process.env[k];
+    try {
+      const hostStatus = await geminiDetectionSpec.statusProbe?.({
+        location: { kind: "posix", path: rootDir },
+        executablePath: "C:\\Program Files\\nodejs\\gemini.cmd",
+      });
+      expect(hostStatus).toEqual({
+        authState: "authenticated",
+        providerMetadata: { authMethod: "API key" },
+      });
+      expect(windowsCredentialTargetExistsMock).toHaveBeenCalledWith(
+        "gemini-cli-api-key/default-api-key",
+      );
+
+      windowsCredentialTargetExistsMock.mockClear();
+      writeFileSync(join(home, ".gemini", "settings.json"), "{}\n", "utf8");
+      const loggedOut = await geminiDetectionSpec.statusProbe?.({
+        location: { kind: "posix", path: rootDir },
+        executablePath: "C:\\Program Files\\nodejs\\gemini.cmd",
+      });
+      expect(loggedOut).toEqual({ authState: "missing" });
+
+      windowsCredentialTargetExistsMock.mockClear();
+      const emptyProfile = join(rootDir, "win-profile-home");
+      mkdirSync(join(emptyProfile, ".gemini"), { recursive: true });
+      const profileStatus = await geminiDetectionSpec.statusProbe?.({
+        location: { kind: "posix", path: rootDir },
+        executablePath: "C:\\Program Files\\nodejs\\gemini.cmd",
+        probeEnv: {
+          GEMINI_CLI_HOME: emptyProfile,
+          ...GEMINI_BLANKED_HOST_CREDENTIALS,
+        },
+      });
+      expect(profileStatus).toEqual({ authState: "missing" });
+      expect(windowsCredentialTargetExistsMock).not.toHaveBeenCalled();
+    } finally {
+      homeSpy.mockRestore();
+      for (const k of envKeys) {
+        if (saved[k] === undefined) delete process.env[k];
+        else process.env[k] = saved[k];
+      }
+    }
+  });
+
+  it("does not let an ACP auth_required result hide a configured Gemini API key", async () => {
+    const location: ProjectLocation = { kind: "posix", path: rootDir };
+    buildAgentCommandMock.mockReturnValue({
+      command: "/bin/gemini",
+      args: ["--acp", "--skip-trust"],
+    });
+    probeAcpCapabilitiesMock.mockResolvedValue({ authState: "missing" });
+
+    const result = await geminiDetectionSpec.capabilitiesProbe?.({
+      location,
+      executablePath: "/bin/gemini",
+      probeEnv: {
+        GEMINI_CLI_HOME: rootDir,
+        ...GEMINI_BLANKED_HOST_CREDENTIALS,
+        GEMINI_API_KEY: "test-api-key",
+      },
+    });
+
+    expect(result?.authMethods).toEqual([
+      expect.objectContaining({ id: "gemini-terminal-login", type: "terminal" }),
+    ]);
+    expect(result).not.toHaveProperty("authState");
+  });
+
+  it("does not let an ACP auth_required result hide a Windows Credential Manager API key", async () => {
+    Object.defineProperty(process, "platform", { value: "win32", configurable: true });
+    const home = join(rootDir, "win-acp-home");
+    mkdirSync(join(home, ".gemini"), { recursive: true });
+    writeFileSync(
+      join(home, ".gemini", "settings.json"),
+      JSON.stringify({ security: { auth: { selectedType: "gemini-api-key" } } }),
+      "utf8",
+    );
+    const homeSpy = vi.spyOn(os, "homedir").mockReturnValue(home);
+    windowsCredentialTargetExistsMock.mockResolvedValue(true);
+    buildAgentCommandMock.mockReturnValue({
+      command: "C:\\Program Files\\nodejs\\gemini.cmd",
+      args: ["--acp", "--skip-trust"],
+    });
+    probeAcpCapabilitiesMock.mockResolvedValue({ authState: "missing" });
+    const savedHome = process.env.GEMINI_CLI_HOME;
+    const savedGeminiHome = process.env.GEMINI_HOME;
+    const savedKey = process.env.GEMINI_API_KEY;
+    delete process.env.GEMINI_CLI_HOME;
+    delete process.env.GEMINI_HOME;
+    delete process.env.GEMINI_API_KEY;
+    try {
+      const result = await geminiDetectionSpec.capabilitiesProbe?.({
+        location: { kind: "posix", path: rootDir },
+        executablePath: "C:\\Program Files\\nodejs\\gemini.cmd",
+      });
+      expect(result).not.toHaveProperty("authState");
+      expect(windowsCredentialTargetExistsMock).toHaveBeenCalledWith(
+        "gemini-cli-api-key/default-api-key",
+      );
+    } finally {
+      homeSpy.mockRestore();
+      if (savedHome === undefined) delete process.env.GEMINI_CLI_HOME;
+      else process.env.GEMINI_CLI_HOME = savedHome;
+      if (savedGeminiHome === undefined) delete process.env.GEMINI_HOME;
+      else process.env.GEMINI_HOME = savedGeminiHome;
+      if (savedKey === undefined) delete process.env.GEMINI_API_KEY;
+      else process.env.GEMINI_API_KEY = savedKey;
+    }
+  });
 });
 
 describe("evaluateGeminiAuthEvidence", () => {
@@ -510,6 +660,35 @@ describe("evaluateGeminiAuthEvidence", () => {
         macKeychainPresent: false,
       }),
     ).toEqual({ authState: "authenticated", authMethod: "API key" });
+
+    expect(
+      evaluateGeminiAuthEvidence({
+        apiKeySet: false,
+        serviceAccountPresent: false,
+        vertexProjectSet: false,
+        adcPresent: false,
+        selectedAuthType: "gemini-api-key",
+        baseUrlSet: false,
+        oauthCredsPresent: false,
+        fileKeychainPresent: false,
+        macKeychainPresent: false,
+        windowsKeychainApiKeyPresent: true,
+      }),
+    ).toEqual({ authState: "authenticated", authMethod: "API key" });
+
+    expect(
+      evaluateGeminiAuthEvidence({
+        apiKeySet: false,
+        serviceAccountPresent: false,
+        vertexProjectSet: false,
+        adcPresent: false,
+        baseUrlSet: false,
+        oauthCredsPresent: false,
+        fileKeychainPresent: false,
+        macKeychainPresent: false,
+        windowsKeychainApiKeyPresent: true,
+      }),
+    ).toEqual({ authState: "missing" });
 
     // Settings selection alone without backing credentials must not report authenticated.
     expect(
