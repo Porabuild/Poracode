@@ -37,6 +37,7 @@ import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import { useAppStore } from "@/renderer/state/appStore";
 import {
   machineIdForStatus,
+  useAgentsScopeMachines,
   useMachines,
   useSelectedMachine,
   type MachineDescriptor,
@@ -220,7 +221,7 @@ export function AcpRegistrySettings(props: { onOpenAgentSettings?: (kind: string
   const requestedLatestVersionsRef = useRef<Set<string>>(new Set());
 
   const selectedMachine = useSelectedMachine();
-  const machines = useMachines();
+  const machines = useAgentsScopeMachines(useMachines());
   const compactLayout = useCompactLayout();
   const showsScopeBar = !compactLayout && machines.length > 1;
   const agentHost = agentManagementHostForMachine(selectedMachine);

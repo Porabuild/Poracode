@@ -3,10 +3,12 @@
 import { describe, expect, it } from "vitest";
 import { threadSchema, type Project, type Thread } from "@/shared/contracts";
 import {
+  buildActiveProjectMachinesKey,
   buildActiveProjectsKey,
   buildBranchPrPrefetchThreadKeys,
   buildWslProjectDistrosKey,
   diffProjectKeys,
+  parseActiveProjectMachinesKey,
 } from "./projectKeys";
 
 function makeProject(
@@ -148,6 +150,44 @@ describe("projectKeys", () => {
     ];
 
     expect(buildWslProjectDistrosKey(projects)).toBe("Debian");
+  });
+
+  it("lists the machines hosting an active project, dropping disabled ones", () => {
+    const projects: Project[] = [
+      makeProject({ id: "local", name: "Local", location: { kind: "posix", path: "/repo" } }),
+      makeProject({
+        id: "ubuntu",
+        name: "Ubuntu",
+        location: {
+          kind: "wsl",
+          distro: "Ubuntu",
+          linuxPath: "/repo",
+          uncPath: "\\\\wsl$\\Ubuntu\\repo",
+        },
+      }),
+      makeProject({
+        id: "remote",
+        name: "Remote",
+        location: { kind: "posix", path: "/srv/repo", remoteServerId: "mac" },
+      }),
+      makeProject({
+        id: "disabled",
+        name: "Disabled",
+        disabled: true,
+        location: {
+          kind: "wsl",
+          distro: "Debian",
+          linuxPath: "/off",
+          uncPath: "\\\\wsl$\\Debian\\off",
+        },
+      }),
+    ];
+
+    expect(parseActiveProjectMachinesKey(buildActiveProjectMachinesKey(projects))).toEqual([
+      "local",
+      "local/wsl:Ubuntu",
+      "remote:mac",
+    ]);
   });
 
   it("keys branch-PR prefetch inputs per project, ignoring order and streamed fields", () => {

@@ -1883,8 +1883,29 @@ describe("AcpRegistrySettings", () => {
     });
     rerender(<AcpRegistrySettings />);
 
+    // A paired machine with no project is not a scope the pill offers, so it
+    // must not reserve bar room either.
+    expect(scrollArea).toHaveClass("pb-8");
+    expect(scrollArea).not.toHaveClass("pb-20");
+
+    act(() => {
+      appState.projects = [
+        {
+          id: "studio-project",
+          name: "Studio project",
+          createdAt: "2026-01-01T00:00:00.000Z",
+          location: { kind: "posix", path: "/studio", remoteServerId: "conn-1" },
+        },
+      ];
+    });
+    rerender(<AcpRegistrySettings />);
+
     expect(scrollArea).toHaveClass("pb-20");
     expect(scrollArea).not.toHaveClass("pb-8");
+
+    act(() => {
+      appState.projects = [];
+    });
   });
 
   it("scopes ACP registry installs per machine and passes the selected WSL target", async () => {

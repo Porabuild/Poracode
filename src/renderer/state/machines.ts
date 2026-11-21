@@ -3,7 +3,12 @@ import { isRemoteSession, readBridge } from "@/renderer/bridge";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useMachineSelectionStore } from "@/renderer/state/machineSelectionStore";
-import { buildWslProjectDistrosKey, parseWslProjectDistrosKey } from "@/renderer/state/projectKeys";
+import {
+  buildActiveProjectMachinesKey,
+  buildWslProjectDistrosKey,
+  parseActiveProjectMachinesKey,
+  parseWslProjectDistrosKey,
+} from "@/renderer/state/projectKeys";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { remoteConnectionKey } from "@/renderer/state/remoteServers/types";
 import { useSettingsHostServer, useSettingsHostStore } from "@/renderer/state/settingsHostStore";
@@ -226,6 +231,27 @@ export function useMachines(): MachineDescriptor[] {
         }
       : {}),
   });
+}
+
+/**
+ * Machines the Agents settings scope offers: the local anchor, every machine
+ * hosting an active project, and the current selection. Keeping the selection
+ * matters because an attention row ("Needs attention on …") can scope the page
+ * to a machine with no project; the pill must show that scope instead of
+ * snapping it back, and the overlay's bottom padding reads the same list.
+ */
+export function useAgentsScopeMachines(
+  machines: readonly MachineDescriptor[],
+): MachineDescriptor[] {
+  const key = useAppStore((state) => buildActiveProjectMachinesKey(state.projects));
+  const selectedMachineId = useMachineSelectionStore((state) => state.selectedMachineId);
+  const activeIds = new Set(parseActiveProjectMachinesKey(key));
+  return machines.filter(
+    (machine) =>
+      machine.id === LOCAL_NATIVE_MACHINE_KEY ||
+      machine.id === selectedMachineId ||
+      activeIds.has(machine.id),
+  );
 }
 
 /**

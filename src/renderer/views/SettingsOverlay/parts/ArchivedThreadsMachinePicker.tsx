@@ -3,6 +3,7 @@ import { Monitor } from "lucide-react";
 import { desktopTitle } from "@/shared/remote/desktopLabel";
 import { isRemoteSession } from "@/renderer/bridge";
 import { Select } from "@/renderer/components/common";
+import { useMachineScopeTriggerClass } from "@/renderer/components/machineScope/MachineSelect";
 import { ProjectRemoteServerIcon } from "@/renderer/components/common/ProjectRemoteServer";
 import { remoteConnectionKey } from "@/renderer/state/remoteServers/types";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
@@ -62,11 +63,13 @@ export function useArchivedThreadsMachine(machineId: string) {
 export function ArchivedThreadsMachinePicker(props: ArchivedThreadsScopeProps) {
   const { t } = useLingui();
   const { options, selectedMachine } = useArchivedThreadsMachine(props.machineId);
+  const triggerClassName = useMachineScopeTriggerClass();
   if (options.length <= 1 || !selectedMachine) return null;
   return (
     <Select
       aria-label={`${t`Machine`}: ${selectedMachine.label}`}
-      className="w-[220px] shrink-0"
+      className="max-w-56 shrink-0"
+      {...(triggerClassName ? { triggerClassName } : {})}
       options={options}
       value={selectedMachine.id}
       onChange={props.onMachineChange}

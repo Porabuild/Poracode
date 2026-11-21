@@ -1,9 +1,11 @@
 import { renderHook } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { RemoteServerRecord } from "./remoteServers/types";
+import { useAppStore } from "./appStore";
 import { useMachineSelectionStore } from "./machineSelectionStore";
 import {
   chooseMachine,
+  useAgentsScopeMachines,
   useMachines,
   useWslDistroListStore,
   type MachineDescriptor,
@@ -78,5 +80,43 @@ describe("chooseMachine", () => {
     expect(result.current).toEqual(["Mac", "Mac · WSL Debian", "PC"]);
     useRemoteServersStore.setState({ servers: [], runtime: {} });
     useWslDistroListStore.setState({ distros: [], loadedFor: null });
+  });
+});
+
+describe("useAgentsScopeMachines", () => {
+  afterEach(() => {
+    bound.host = undefined;
+    useAppStore.setState({ projects: [] });
+    useRemoteServersStore.setState({ servers: [], runtime: {} });
+    useWslDistroListStore.setState({ distros: [], loadedFor: null });
+    useMachineSelectionStore.setState({ selectedMachineId: "local" });
+  });
+
+  it("maps the bridge host and its projects onto the local entry and keeps other hosts' projects", () => {
+    bound.host = host("mac", "Mac");
+    useRemoteServersStore.setState({ servers: [host("pc", "PC")], runtime: {} });
+    useWslDistroListStore.setState({ distros: [], loadedFor: "mac" });
+    useAppStore.setState({
+      projects: [
+        {
+          id: "bridge-project",
+          name: "Bridge project",
+          createdAt: "2026-11-21T00:00:00.000Z",
+          location: { kind: "posix", path: "/repo" },
+        },
+        {
+          id: "paired-project",
+          name: "Paired project",
+          createdAt: "2026-11-21T00:00:00.000Z",
+          location: { kind: "posix", path: "/srv/repo", remoteServerId: "pc" },
+        },
+      ],
+    });
+
+    const { result } = renderHook(() => useAgentsScopeMachines(useMachines()));
+
+    // The bridge host's own project keys to the local entry; the other paired
+    // host keeps its remote id. Both projectless hosts are dropped.
+    expect(result.current.map((machine) => machine.id)).toEqual(["local", "remote:pc"]);
   });
 });
