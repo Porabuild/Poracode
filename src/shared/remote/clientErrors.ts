@@ -118,6 +118,7 @@ export function isAmbiguousRemoteMutationFailure(
 ): boolean {
   if (code === "cancelled") return phase === "dispatched";
   if (status === 409 && code === REMOTE_COMMAND_OUTCOME_UNCERTAIN_CODE) return true;
+  if (status === 503 && code === "host_busy") return false;
   if (status >= 400 && status < 500) return false;
   return (
     status === 0 || status >= 500 || code === "invalid_response" || code === "response_too_large"

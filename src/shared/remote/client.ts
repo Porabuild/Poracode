@@ -51,5 +51,19 @@ export type {
   RemoteTokenLifecycle,
   RemoteCertFingerprintProbe,
 } from "./clientTypes";
+export {
+  DEFAULT_REMOTE_OVERLOAD_MAX_RETRIES,
+  DEFAULT_REMOTE_REQUEST_SCHEDULER_LIMITS,
+  RemoteRequestScheduler,
+  __resetDefaultRemoteRequestSchedulerForTest,
+  classifyRemoteRequestPriority,
+  defaultRemoteRequestScheduler,
+} from "./requestScheduler";
+export type {
+  RemoteRequestLease,
+  RemoteRequestPriority,
+  RemoteRequestSchedulerLimits,
+  RemoteRequestSchedulerOptions,
+} from "./requestScheduler";
 
 export class RemoteDesktopClient extends RemoteClientThreadTransferApi {}

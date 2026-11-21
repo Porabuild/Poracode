@@ -1,4 +1,4 @@
-import { pinnedHttpsFetch } from "./pinnedHttpsFetch";
+import { closePinnedHttpsAgents, pinnedHttpsFetch } from "./pinnedHttpsFetch";
 import {
   REMOTE_HTTP_BRIDGE_PORT_LINGER_MS,
   REMOTE_HTTP_BRIDGE_VERSION,
@@ -211,6 +211,7 @@ export class RemoteHttpBridgeService {
     for (const request of [...this.requests.values()]) {
       this.abortRequest(request, "cancelled", "Remote request cancelled.", true);
     }
+    closePinnedHttpsAgents();
   }
 
   /** Main-side cancel fallback (a renderer normally cancels over its port). */

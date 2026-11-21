@@ -1763,6 +1763,11 @@
       "scope": "session:read"
     },
     {
+      "name": "gitWorktreeSourceBranchBatch",
+      "owner": "projectLocation",
+      "scope": "session:read"
+    },
+    {
       "name": "gitGetWorktreeOwner",
       "owner": "projectLocation",
       "scope": "session:read"

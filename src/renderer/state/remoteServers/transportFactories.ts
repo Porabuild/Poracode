@@ -1,4 +1,5 @@
 import { RemoteDesktopClient } from "@/shared/remote/client";
+import { hasAnyClientBridge, readClientRuntime } from "@/renderer/clientRuntime";
 import { mainProcessFetch } from "./mainProcessFetch";
 import { electronCertFingerprintProbe } from "./certFingerprintProbe";
 import type { RemoteClientFactory, RemoteSocketFactory, RemoteSocketLike } from "./types";
@@ -23,6 +24,7 @@ export const defaultClientFactory: RemoteClientFactory = (endpoint, accessToken)
     ? policy.client(endpoint, accessToken)
     : new RemoteDesktopClient(endpoint, accessToken, mainProcessFetch, {
         certFingerprintProbe: electronCertFingerprintProbe,
+        transportEnforcesCertPin: !(hasAnyClientBridge() && readClientRuntime().host === "browser"),
       });
 export const defaultSocketFactory: RemoteSocketFactory = (url) =>
   policy ? policy.socket(url) : (new WebSocket(url) as unknown as RemoteSocketLike);

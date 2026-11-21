@@ -127,18 +127,19 @@ describe("remote v3 native binding generator", () => {
         // Memory sync and catalog management are additive operator routes.
         // Optional environment settings and MCP OAuth completion add six structural types.
         // Guarded Notes saves add revision metadata and typed save outcomes.
-        sourceHash: "sha256:299e49b5f1da5ed8494baf0ed69a5df9f7ba493af040d9d7600a975c597aad9f",
-        manifestHash: "sha256:4c65d87f75044cd0750dbf9b6aba2f3d74ba1fdebcbd66b30b3e4d73b86bde99",
+        // Batched worktree source-branch reads add one read procedure and its request/result roots.
+        sourceHash: "sha256:16af2aa03ce00618bd6081dd4a2cdedc1604739a8b68316a57554c92a6cb0fb7",
+        manifestHash: "sha256:0e0e82e3c9b7cd9e0dd1f089c2eafa868fd3507f2ff28691107dbc29e82a5809",
         counts: {
           routes: 126,
-          procedures: 179,
+          procedures: 180,
           voidProcedureResults: 66,
-          jsonProcedureResults: 113,
+          jsonProcedureResults: 114,
           webSocketClientVariants: 11,
           // 11 shared + the desktop-internal `desktop-event` frame (V5 plan 2.5).
           webSocketServerVariants: 12,
-          schemaRoots: 590,
-          structuralTypes: 1515,
+          schemaRoots: 592,
+          structuralTypes: 1518,
           semanticValidators: 25,
           // Content-defined shards (emitterCommon.shardDeclarations) average
           // ~200 lines, so a contract change rewrites only nearby files.
@@ -413,7 +414,7 @@ describe("remote v3 native binding generator", () => {
       const output = outputForAuthority().files;
       for (const language of ["swift", "kotlin"] as const) {
         const adapters = rootAdapters(graph, language);
-        expect(adapters).toHaveLength(590);
+        expect(adapters).toHaveLength(592);
         expect(
           adapters
             .map((adapter) => adapter.id)

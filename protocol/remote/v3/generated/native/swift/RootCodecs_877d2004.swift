@@ -1,6 +1,14 @@
 // GENERATED FILE. Do not edit by hand.
 import Foundation
 public extension RemoteRootCodecs {
+  static let procedureU2ELogoutAcpAgentU2ERequest: RemoteRootCodec<ProcedurelogoutAcpAgentRequest_afbd186700> = .init(id: "procedure.logoutAcpAgent.request", schema: RemoteSchemas.schema_afbd18670080eac5)
+}
+
+public extension RemoteRootCodecs {
+  static let procedureU2ELspStartU2ERequest: RemoteRootCodec<ProcedurelspStartRequest_0fbb6754fb> = .init(id: "procedure.lspStart.request", schema: RemoteSchemas.schema_0fbb6754fb3c4dd0)
+}
+
+public extension RemoteRootCodecs {
   static let procedureU2EMoveProjectEntryU2ERequest: RemoteRootCodec<ProceduremoveProjectEntryRequest_47c3f1ae81> = .init(id: "procedure.moveProjectEntry.request", schema: RemoteSchemas.schema_47c3f1ae81cfac00)
 }
 

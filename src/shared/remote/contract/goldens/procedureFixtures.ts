@@ -167,6 +167,7 @@ export const REMOTE_PROCEDURE_RESULT_FIXTURES = {
   gitProjectSnapshot: { status: null, branches: null, worktrees: null, ghAvailable: null },
   gitWorktreeStatusBatch: { statuses: {} },
   gitGetWorktreeSourceBranch: { sourceBranch: null, commitsAhead: 0, sourceAhead: 0 },
+  gitWorktreeSourceBranchBatch: { results: {} },
   gitGetWorktreeOwner: { ownerToken: null },
   ghCheckAvailable: { available: true },
   forgeGetRepository: { repository: null },

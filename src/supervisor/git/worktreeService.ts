@@ -1,4 +1,5 @@
 import { normalize, posix as posixPath, win32 as win32Path } from "node:path";
+import { mapWithConcurrency } from "@/shared/concurrency";
 import {
   type CreateExperimentWorktreesPayload,
   type CreateExperimentWorktreesResult,
@@ -934,6 +935,72 @@ export class GitWorktreeService {
       }
     }
     return { sourceBranch, commitsAhead, sourceAhead };
+  }
+
+  async getWorktreeSourceBranchesBatch(
+    location: ProjectLocation,
+    branches: readonly string[],
+    concurrency = 4,
+  ): Promise<Record<string, GitGetWorktreeSourceBranchResult>> {
+    const uniqueBranches = [...new Set(branches.filter(Boolean))];
+    if (uniqueBranches.length === 0) return {};
+
+    // Read all configured `branch.<name>.poracodeSource` entries in one git call.
+    const configuredSources = new Map<string, string>();
+    try {
+      const configOutput = await execGit(
+        location,
+        ["config", "--get-regexp", "^branch\\..*\\.poracodesource$"],
+        { acceptedExitCodes: [1] },
+      );
+      for (const line of configOutput.split(/\r?\n/u)) {
+        const spaceIndex = line.indexOf(" ");
+        if (spaceIndex <= 0) continue;
+        const key = line.slice(0, spaceIndex);
+        const value = line.slice(spaceIndex + 1).trim();
+        if (!value) continue;
+        const match = /^branch\.(.+)\.poracodesource$/i.exec(key);
+        if (match?.[1]) configuredSources.set(match[1], value);
+      }
+    } catch {
+      // Fall back to per-branch inference below.
+    }
+
+    const sourceRefCache = new Map<string, Promise<string>>();
+    const resolveCachedSourceRef = (sourceBranch: string): Promise<string> => {
+      let cached = sourceRefCache.get(sourceBranch);
+      if (!cached) {
+        cached = this.resolveSourceRef(location, sourceBranch);
+        sourceRefCache.set(sourceBranch, cached);
+      }
+      return cached;
+    };
+
+    const entries = await mapWithConcurrency(uniqueBranches, concurrency, async (branch) => {
+      const sourceBranch =
+        configuredSources.get(branch) ?? (await this.inferWorktreeSourceBranch(location, branch));
+      let commitsAhead = 0;
+      let sourceAhead = 0;
+      if (sourceBranch) {
+        try {
+          const sourceRef = await resolveCachedSourceRef(sourceBranch);
+          const output = await execGit(location, [
+            "rev-list",
+            "--left-right",
+            "--count",
+            `${sourceRef}...${branch}`,
+          ]);
+          const parts = output.trim().split(/\s+/);
+          sourceAhead = parseInt(parts[0]!, 10) || 0;
+          commitsAhead = parseInt(parts[1]!, 10) || 0;
+        } catch {
+          // branches may not share history
+        }
+      }
+      return [branch, { sourceBranch, commitsAhead, sourceAhead }] as const;
+    });
+
+    return Object.fromEntries(entries);
   }
 
   async getWorktreeOwner(

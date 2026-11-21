@@ -155,6 +155,12 @@ val RemoteRootCodecs.procedureU2EGitWatchProjectU2ERequest: RemoteRootCodec<Proc
 val RemoteRootCodecs.procedureU2EGitWatchWorktreesU2ERequest: RemoteRootCodec<ProceduregitWatchWorktreesRequest_8b52512d7a>
     get() = RemoteRootCodec("procedure.gitWatchWorktrees.request", serializer<ProceduregitWatchWorktreesRequest_8b52512d7a>(), schema_8b52512d7a324001)
 
+val RemoteRootCodecs.procedureU2EGitWorktreeSourceBranchBatchU2ERequest: RemoteRootCodec<ProceduregitWorktreeSourceBranchBatchRequest_03d8a6f138>
+    get() = RemoteRootCodec("procedure.gitWorktreeSourceBranchBatch.request", serializer<ProceduregitWorktreeSourceBranchBatchRequest_03d8a6f138>(), schema_03d8a6f1380a7b2a)
+
+val RemoteRootCodecs.procedureU2EGitWorktreeSourceBranchBatchU2EResult: RemoteRootCodec<ProceduregitWorktreeSourceBranchBatchResult_5d90f428f5>
+    get() = RemoteRootCodec("procedure.gitWorktreeSourceBranchBatch.result", serializer<ProceduregitWorktreeSourceBranchBatchResult_5d90f428f5>(), schema_5d90f428f5eaf4f1)
+
 val RemoteRootCodecs.procedureU2EGitWorktreeStatusBatchU2ERequest: RemoteRootCodec<ProceduregitWorktreeStatusBatchRequest_a6f98c7f48>
     get() = RemoteRootCodec("procedure.gitWorktreeStatusBatch.request", serializer<ProceduregitWorktreeStatusBatchRequest_a6f98c7f48>(), schema_a6f98c7f485db267)
 
@@ -442,9 +448,3 @@ val RemoteRootCodecs.routeU2EAgentU2DSlashU2DCommandsU2EPath: RemoteRootCodec<Ro
 
 val RemoteRootCodecs.routeU2EAgentU2DSlashU2DCommandsU2EResponse: RemoteRootCodec<RouteagentU2DSlashU2DCommandsResponse_d50d163800>
     get() = RemoteRootCodec("route.agent-slash-commands.response", serializer<RouteagentU2DSlashU2DCommandsResponse_d50d163800>(), schema_d50d16380040f1f2)
-
-val RemoteRootCodecs.routeU2EAgentU2DStatusesU2EQuery: RemoteRootCodec<RouteagentU2DStatusesQuery_b09b259cd2>
-    get() = RemoteRootCodec("route.agent-statuses.query", serializer<RouteagentU2DStatusesQuery_b09b259cd2>(), schema_b09b259cd2bbc25d)
-
-val RemoteRootCodecs.routeU2EAgentU2DStatusesU2EResponse: RemoteRootCodec<RouteagentU2DStatusesResponse_0170ad7cfc>
-    get() = RemoteRootCodec("route.agent-statuses.response", serializer<RouteagentU2DStatusesResponse_0170ad7cfc>(), schema_0170ad7cfc4d502b)

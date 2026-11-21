@@ -449,6 +449,34 @@ describe("bundled web client real HTTP serving", () => {
     expect(await document.text()).toContain("Rebuilt");
   });
 
+  it("gzips large compressible static assets while preserving Range and HEAD behavior", async () => {
+    const bundle = `export const data = ${JSON.stringify("poracode-bundle ".repeat(400))};\n`;
+    writeFileSync(join(root, "assets/large.js"), bundle);
+
+    const compressed = await get("/assets/large.js", {
+      headers: { "accept-encoding": "gzip" },
+    });
+    expect(compressed.status).toBe(200);
+    expect(compressed.headers.get("content-encoding")).toBe("gzip");
+    expect(compressed.headers.get("vary")).toBe("Accept-Encoding");
+    expect(await compressed.text()).toBe(bundle);
+
+    const headResponse = await get("/assets/large.js", {
+      method: "HEAD",
+      headers: { "accept-encoding": "gzip" },
+    });
+    expect(headResponse.status).toBe(200);
+    expect(headResponse.headers.get("content-encoding")).toBeNull();
+    expect(headResponse.headers.get("content-length")).toBe(String(Buffer.byteLength(bundle)));
+
+    const ranged = await get("/assets/large.js", {
+      headers: { "accept-encoding": "gzip", range: "bytes=0-15" },
+    });
+    expect(ranged.status).toBe(206);
+    expect(ranged.headers.get("content-encoding")).toBeNull();
+    expect(await ranged.text()).toBe(bundle.slice(0, 16));
+  });
+
   it("refuses to serve an unfinalized service-worker template", async () => {
     const templateRoot = mkdtempSync(join(tmpdir(), "poracode-web-template-"));
     writeFileSync(join(templateRoot, "index.html"), INDEX_HTML);

@@ -23,7 +23,7 @@ import {
 
 const V = REMOTE_HTTP_BRIDGE_VERSION;
 
-function createHarness() {
+function createHarness(options: { readonly maxConcurrent?: number } = {}) {
   const listeners = new Set<RemoteHttpBridgePortListener>();
   const opens: RemoteHttpBridgeOpenRequest[] = [];
   const cancels: string[] = [];
@@ -47,6 +47,7 @@ function createHarness() {
       listeners.add(listener);
       return () => listeners.delete(listener);
     },
+    ...(options.maxConcurrent !== undefined ? { maxConcurrent: options.maxConcurrent } : {}),
   });
   return {
     client,
@@ -470,5 +471,86 @@ describe("RemoteHttpBridgeClient", () => {
       cause: { message: "The remote HTTP bridge sent a malformed frame." },
     });
     expect(pair.client.closed).toBe(true);
+  });
+
+  it("queues requests beyond maxConcurrent instead of overflowing openRemoteHttpBridge", async () => {
+    const harness = createHarness({ maxConcurrent: 2 });
+    const p1 = harness.client.fetch("https://host.test/1");
+    const p2 = harness.client.fetch("https://host.test/2");
+    const p3 = harness.client.fetch("https://host.test/3");
+
+    await vi.waitFor(() => expect(harness.opens).toHaveLength(2));
+    expect(harness.opens.map((open) => open.url)).toEqual([
+      "https://host.test/1",
+      "https://host.test/2",
+    ]);
+
+    const pair1 = createInMemoryBridgePortPair();
+    const id1 = harness.opens[0]!.requestId;
+    harness.deliver(envelope(id1), pair1.client);
+    pair1.worker.postMessage({
+      v: V,
+      kind: "head",
+      requestId: id1,
+      generation: 5,
+      status: 204,
+      statusText: "No Content",
+      headers: [],
+    });
+    pair1.worker.postMessage({ v: V, kind: "end", requestId: id1, generation: 5 });
+    const r1 = await p1;
+    expect(r1.status).toBe(204);
+
+    // Settling request 1 immediately admits queued request 3.
+    await vi.waitFor(() => expect(harness.opens).toHaveLength(3));
+    expect(harness.opens[2]?.url).toBe("https://host.test/3");
+
+    for (const [index, pending] of [
+      [1, p2],
+      [2, p3],
+    ] as const) {
+      const id = harness.opens[index]!.requestId;
+      const pair = createInMemoryBridgePortPair();
+      harness.deliver(envelope(id), pair.client);
+      pair.worker.postMessage({
+        v: V,
+        kind: "head",
+        requestId: id,
+        generation: 5,
+        status: 204,
+        statusText: "No Content",
+        headers: [],
+      });
+      pair.worker.postMessage({ v: V, kind: "end", requestId: id, generation: 5 });
+      expect((await pending).status).toBe(204);
+    }
+  });
+
+  it("aborts a queued bridge request without ever opening it", async () => {
+    const harness = createHarness({ maxConcurrent: 1 });
+    const p1 = harness.client.fetch("https://host.test/1");
+    const controller = new AbortController();
+    const p2 = harness.client.fetch("https://host.test/2", { signal: controller.signal });
+
+    await vi.waitFor(() => expect(harness.opens).toHaveLength(1));
+    controller.abort();
+    await expect(p2).rejects.toMatchObject({ name: "AbortError" });
+    expect(harness.opens).toHaveLength(1);
+
+    const id1 = harness.opens[0]!.requestId;
+    const pair1 = createInMemoryBridgePortPair();
+    harness.deliver(envelope(id1), pair1.client);
+    pair1.worker.postMessage({
+      v: V,
+      kind: "head",
+      requestId: id1,
+      generation: 5,
+      status: 204,
+      statusText: "No Content",
+      headers: [],
+    });
+    pair1.worker.postMessage({ v: V, kind: "end", requestId: id1, generation: 5 });
+    expect((await p1).status).toBe(204);
+    expect(harness.opens).toHaveLength(1);
   });
 });

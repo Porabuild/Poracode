@@ -7623,6 +7623,31 @@
         }
       },
       {
+        "id": "gitWorktreeSourceBranchBatch",
+        "batch": "projects",
+        "ios": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": []
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": []
+          }
+        },
+        "note": "Additive desktop/web batch read for worktree source branches; native clients still call gitGetWorktreeSourceBranch per opened worktree."
+      },
+      {
         "id": "gitGetWorktreeSourceBranch",
         "batch": "projects",
         "ios": {

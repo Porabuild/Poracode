@@ -145,6 +145,7 @@ export const REMOTE_PROCEDURE_SPECS = {
   gitProjectSnapshot: read("projectLocation"),
   gitWorktreeStatusBatch: read("projectLocation"),
   gitGetWorktreeSourceBranch: read("projectLocation"),
+  gitWorktreeSourceBranchBatch: read("projectLocation"),
   gitGetWorktreeOwner: read("projectLocation"),
   ghCheckAvailable: read("projectLocation"),
   ghGetPrForBranch: read("projectLocation"),

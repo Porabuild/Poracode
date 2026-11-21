@@ -13,8 +13,8 @@ object RemoteContractMetadata {
     const val protocolVersion = 14
     const val bindingFormatVersion = 2
     const val generatorVersion = 7
-    const val sourceHash = "sha256:299e49b5f1da5ed8494baf0ed69a5df9f7ba493af040d9d7600a975c597aad9f"
-    const val manifestHash = "sha256:4c65d87f75044cd0750dbf9b6aba2f3d74ba1fdebcbd66b30b3e4d73b86bde99"
+    const val sourceHash = "sha256:16af2aa03ce00618bd6081dd4a2cdedc1604739a8b68316a57554c92a6cb0fb7"
+    const val manifestHash = "sha256:0e0e82e3c9b7cd9e0dd1f089c2eafa868fd3507f2ff28691107dbc29e82a5809"
     val validationBoundary = RemoteValidationBoundary.ROOT_CODEC_ONLY
     val generatedModelSerializationSemantics = RemoteGeneratedSerializerSemantics.NON_VALIDATING_REPRESENTATION_ONLY
     val portableTransformIds = listOf("agent-settings.strip-sensitive", "push.routing.client-connection-id.lowercase", "string.trim")
@@ -271,6 +271,7 @@ object RemoteContractMetadata {
         RemoteProcedureDescriptor("gitUnwatchProject", "session:operate", "project", "omitted", "ProceduregitUnwatchProjectRequest_42dfa7eae9", "RemoteUnit"),
         RemoteProcedureDescriptor("gitWatchProject", "session:operate", "projectLocation", "omitted", "ProceduregitWatchProjectRequest_da482300f3", "RemoteUnit"),
         RemoteProcedureDescriptor("gitWatchWorktrees", "session:operate", "project", "omitted", "ProceduregitWatchWorktreesRequest_8b52512d7a", "RemoteUnit"),
+        RemoteProcedureDescriptor("gitWorktreeSourceBranchBatch", "session:read", "projectLocation", "json", "ProceduregitWorktreeSourceBranchBatchRequest_03d8a6f138", "ProceduregitWorktreeSourceBranchBatchResult_5d90f428f5"),
         RemoteProcedureDescriptor("gitWorktreeStatusBatch", "session:read", "projectLocation", "json", "ProceduregitWorktreeStatusBatchRequest_a6f98c7f48", "ProceduregitWorktreeStatusBatchResult_1b23732705"),
         RemoteProcedureDescriptor("hexVoice", "session:operate", "desktop", "json", "ProcedurehexVoiceRequest_f14fd28613", "ProcedurehexVoiceResult_49ffdcc76e"),
         RemoteProcedureDescriptor("importSkills", "session:operate", "skillLocations", "json", "ProcedureimportSkillsRequest_8a62b43ffe", "ProcedureimportSkillsResult_82088d0ad1"),
