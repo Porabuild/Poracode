@@ -383,6 +383,9 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set, get) => ({
           ? { ...state.provisioningWorktreeThreadIds, [thread.id]: true }
           : state.provisioningWorktreeThreadIds,
         view: nextView,
+        ...(focus !== false && state.lastDraftProjectId === projectId
+          ? { lastDraftProjectId: null }
+          : {}),
         lastRuntimeConfigByThreadId: {
           ...state.lastRuntimeConfigByThreadId,
           [thread.id]: thread.config,

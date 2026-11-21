@@ -270,6 +270,7 @@ export const createProjectSlice: SliceCreator<ProjectSlice> = (set, get) => ({
         draftContents: nextDraftContents,
         threadDraftContents: nextThreadDraftContents,
         view: nextView,
+        ...(state.lastDraftProjectId === projectId ? { lastDraftProjectId: null } : {}),
       };
     }),
   updateProjectDraftConfig: (projectId, draftConfig) =>
@@ -469,7 +470,11 @@ export const createProjectSlice: SliceCreator<ProjectSlice> = (set, get) => ({
         }, state.view);
       }
 
-      return { projects: nextProjects, view: nextView };
+      return {
+        projects: nextProjects,
+        view: nextView,
+        ...(state.lastDraftProjectId === projectId ? { lastDraftProjectId: null } : {}),
+      };
     }),
   reorderProjects: (sourceId, targetId, placement) =>
     set((state) => {

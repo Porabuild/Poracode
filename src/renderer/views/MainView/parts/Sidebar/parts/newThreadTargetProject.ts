@@ -1,18 +1,24 @@
 import type { Project, Thread } from "@/shared/contracts";
 
 /**
- * The project a flat list's "New thread" control targets: the most recently
- * updated thread's project (among projects that can take a new thread), else
- * the first actionable project inside the project filter, or the first
- * actionable project when unfiltered, so a fresh workspace still has a target.
+ * The project a flat list's "New thread" control targets: the preferred/last
+ * open draft project when still actionable inside the project filter, else the
+ * most recently updated thread's project (among projects that can take a new
+ * thread), else the first actionable project inside the project filter, or the
+ * first actionable project when unfiltered, so a fresh workspace still has a
+ * target.
  */
 export function pickNewThreadProjectId(
   threads: readonly Thread[],
   actionableProjects: readonly Project[],
   projectFilter: ReadonlySet<string> | null,
+  preferredProjectId?: string | null,
 ): string | undefined {
   const inFilter = (projectId: string) => projectFilter === null || projectFilter.has(projectId);
   const actionableIds = new Set(actionableProjects.map((project) => project.id));
+  if (preferredProjectId && inFilter(preferredProjectId) && actionableIds.has(preferredProjectId)) {
+    return preferredProjectId;
+  }
   let latestProjectId: string | undefined;
   let latestUpdatedAt = "";
   for (const thread of threads) {

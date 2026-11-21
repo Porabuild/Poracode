@@ -1,9 +1,11 @@
 import type { Project } from "@/shared/contracts";
+import { parseDraftProjectId } from "@/shared/paneId";
 import {
   ProjectEnvironmentIndicator,
   useProjectEnvironmentMachineLookup,
 } from "@/renderer/components/common/ProjectEnvironment";
 import { ProjectSelectorIcon } from "@/renderer/components/common/ProjectRemoteServer";
+import { resolveActivePaneId } from "@/renderer/actions/currentProject";
 import { openNewThread, openNewThreadSideBySide } from "@/renderer/actions/threadActions";
 import { useDragSource } from "@/renderer/dnd";
 import {
@@ -14,8 +16,10 @@ import {
   useLiveBackgroundThreadIds,
 } from "@/renderer/hooks/uiSelectors";
 import { useScrollFade } from "@/renderer/hooks/useScrollFade";
+import { useAppStore } from "@/renderer/state/appStore";
 import { useExperimentCandidateOrder } from "@/renderer/state/experimentStore";
 import { useSidebarUiStore, useThreadListLimit } from "@/renderer/state/sidebarUiStore";
+import { rememberWorkspaceProject } from "@/renderer/state/workspaceStore";
 import { sidebarBodyScrollClass } from "@/renderer/components/layout/sidebarChrome";
 import { FlatListProjectTag } from "./FlatListProjectTag";
 import { NewThreadButton } from "./NewThreadButton";
@@ -93,8 +97,25 @@ export function SidebarFlatThreadList(props: { sortMode: ThreadSortMode }) {
       : visibleThreads.filter((thread) => activeProjectFilter.has(thread.projectId));
   const liveBackgroundThreadIds = useLiveBackgroundThreadIds(threads);
 
-  // "New thread" targets the most recently active project.
-  const latestProjectId = pickNewThreadProjectId(threads, actionableProjects, activeProjectFilter);
+  // "New thread" targets the open/last open draft, else the most recently active project.
+  const openDraftProjectId = useAppStore((s) => {
+    if (s.view.kind === "draft") return s.view.projectId;
+    if (s.view.kind === "thread") {
+      const focusedDraft = parseDraftProjectId(resolveActivePaneId(s.view.panes, s.focusedPaneId));
+      if (focusedDraft) return focusedDraft;
+      for (const paneId of s.view.panes) {
+        const draftProjectId = parseDraftProjectId(paneId);
+        if (draftProjectId) return draftProjectId;
+      }
+    }
+    return s.lastDraftProjectId ?? null;
+  });
+  const latestProjectId = pickNewThreadProjectId(
+    threads,
+    actionableProjects,
+    activeProjectFilter,
+    openDraftProjectId,
+  );
   const hasDraft = useHasDraft(latestProjectId ?? "");
   const isDraftActive = useIsCurrentProjectDraft(latestProjectId ?? "");
 
@@ -145,6 +166,7 @@ export function SidebarFlatThreadList(props: { sortMode: ThreadSortMode }) {
         onPress={() => openNewThread(latestProjectId)}
         onSelectProject={(projectId) => {
           useProjectGroupStore.getState().markProjectUsed(projectId);
+          rememberWorkspaceProject(projectId);
           openNewThread(projectId);
         }}
         onOpenAsPanel={() => openNewThreadSideBySide(latestProjectId)}

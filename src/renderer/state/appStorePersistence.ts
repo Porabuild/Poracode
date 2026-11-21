@@ -5,7 +5,12 @@ import { stripVolatileSessionConfigOptions } from "./volatileSessionConfigOption
 
 type Inputs = Pick<
   AppStoreState,
-  "projects" | "threads" | "view" | "groupLayouts" | "provisioningWorktreeThreadIds"
+  | "projects"
+  | "threads"
+  | "view"
+  | "lastDraftProjectId"
+  | "groupLayouts"
+  | "provisioningWorktreeThreadIds"
 >;
 
 /**
@@ -18,8 +23,13 @@ type Inputs = Pick<
  * remote bridge and own no host DB), minus the volatile `sessionConfigOptions`
  * inventory: it belongs to a live session incarnation and must not rehydrate
  * from a persisted row after a host restart.
+ *
+ * `lastDraftProjectId` is additive within v5: older persisted payloads omit it
+ * and rehydrate as `null` (or `view.projectId` when `view.kind === "draft"`),
+ * and older readers ignore the extra field without breaking.
  */
 type PersistedAppState = Pick<AppStoreState, "view" | "groupLayouts"> & {
+  readonly lastDraftProjectId?: string | null;
   readonly projects?: Project[];
   readonly threads?: Thread[];
 };
@@ -35,6 +45,7 @@ export function createAppStorePartializer() {
       previous.input.projects === state.projects &&
       previous.input.threads === state.threads &&
       previous.input.view === state.view &&
+      previous.input.lastDraftProjectId === state.lastDraftProjectId &&
       previous.input.groupLayouts === state.groupLayouts &&
       previous.input.provisioningWorktreeThreadIds === state.provisioningWorktreeThreadIds
     )
@@ -49,6 +60,11 @@ export function createAppStorePartializer() {
         view.panes.some((paneId) =>
           state.threads.some((thread) => thread.id === paneId && thread.remoteServerId),
         ));
+    const hasRemoteLastDraft =
+      state.lastDraftProjectId !== null &&
+      state.projects.some(
+        (project) => project.id === state.lastDraftProjectId && project.remoteServerId,
+      );
     const hasPendingWorktreeView =
       view.kind === "thread" &&
       view.panes.some((paneId) =>
@@ -63,10 +79,12 @@ export function createAppStorePartializer() {
             .filter((thread) => !state.provisioningWorktreeThreadIds[thread.id])
             .map(stripVolatileSessionConfigOptions),
           view: hasPendingWorktreeView ? { kind: "home" as const } : view,
+          lastDraftProjectId: state.lastDraftProjectId,
           groupLayouts: state.groupLayouts,
         }
       : {
           view: hasRemoteView || hasPendingWorktreeView ? { kind: "home" as const } : view,
+          lastDraftProjectId: hasRemoteLastDraft ? null : state.lastDraftProjectId,
           groupLayouts: state.groupLayouts,
         };
     previous = {
@@ -74,6 +92,7 @@ export function createAppStorePartializer() {
         projects: state.projects,
         threads: state.threads,
         view: state.view,
+        lastDraftProjectId: state.lastDraftProjectId,
         groupLayouts: state.groupLayouts,
         provisioningWorktreeThreadIds: state.provisioningWorktreeThreadIds,
       },
