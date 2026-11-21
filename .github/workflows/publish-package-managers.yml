@@ -124,6 +124,32 @@ jobs:
           git push origin HEAD:master
         shell: bash
 
+      - name: Push the AUR desktop package
+        if: ${{ vars.AUR_DESKTOP_PUBLISH_ENABLED == 'true' }}
+        env:
+          AUR_KEY: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          if [ -z "$AUR_KEY" ]; then
+            echo "AUR_SSH_PRIVATE_KEY is not set; skipping the AUR desktop package."
+            exit 0
+          fi
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$AUR_KEY" > ~/.ssh/aur && chmod 600 ~/.ssh/aur
+          ssh-keyscan -t ed25519 aur.archlinux.org >> ~/.ssh/known_hosts
+          export GIT_SSH_COMMAND="ssh -i ~/.ssh/aur -o IdentitiesOnly=yes"
+          git clone ssh://aur@aur.archlinux.org/poracode-bin.git "$RUNNER_TEMP/aur-desktop"
+          cp "$RUNNER_TEMP/manifests/aur/poracode-bin/PKGBUILD" "$RUNNER_TEMP/aur-desktop/"
+          cd "$RUNNER_TEMP/aur-desktop"
+          docker run --rm -v "$PWD":/pkg -w /pkg archlinux:base \
+            sh -c 'pacman -Sy --noconfirm --needed pacman-contrib >/dev/null && useradd -m builder && chown -R builder /pkg && su builder -c "makepkg --printsrcinfo > .SRCINFO"'
+          git config user.name "Porabuild"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add PKGBUILD .SRCINFO
+          git diff --cached --quiet || git commit -m "poracode-bin $RELEASE_VERSION"
+          git push origin HEAD:master
+        shell: bash
+
   winget:
     name: Submit to winget-pkgs
     needs: render

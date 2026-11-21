@@ -26,6 +26,7 @@ const MIME = {
   ".dmg": "application/octet-stream",
   ".AppImage": "application/octet-stream",
   ".deb": "application/octet-stream",
+  ".pacman": "application/octet-stream",
   ".blockmap": "application/octet-stream",
   ".json": "application/json",
 };
@@ -60,7 +61,7 @@ server.listen(PORT, () => {
   console.log(`\n  Update server running at http://localhost:${PORT}`);
   console.log(`  Serving files from: ${releaseDir}\n`);
   const files = readdirSync(releaseDir).filter((f) =>
-    /\.(yml|yaml|exe|dmg|AppImage|deb|blockmap)$/i.test(f),
+    /\.(yml|yaml|exe|dmg|AppImage|deb|pacman|blockmap)$/i.test(f),
   );
   for (const f of files) {
     const size = (statSync(join(releaseDir, f)).size / 1024 / 1024).toFixed(1);

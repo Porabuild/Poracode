@@ -29,7 +29,12 @@ const PLATFORMS = [
   {
     os: "Linux",
     icon: Terminal,
-    variants: [{ label: "x64 (AppImage)", slug: "linux-x64", ext: ".AppImage" }],
+    variants: [
+      { label: "x64 (AppImage)", slug: "linux-x64", ext: ".AppImage" },
+      { label: "ARM64 (AppImage)", slug: "linux-arm64", ext: ".AppImage" },
+      { label: "x64 (Arch / Omarchy)", slug: "linux-pacman-x64", ext: ".pacman" },
+      { label: "ARM64 (Arch / Omarchy)", slug: "linux-pacman-arm64", ext: ".pacman" },
+    ],
   },
 ];
 

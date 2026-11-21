@@ -77,7 +77,7 @@ const RUNTIME_DEPS = [
 
 // devDependencies the stage needs to run electron-builder.
 const STAGE_DEV_DEPS = ["electron", "electron-builder"];
-const { PACKAGED_DIST_DIRS, PACKAGED_DIST_FILES } = channelTable;
+const { ARCH_LINUX_DESKTOP_DEPENDS, PACKAGED_DIST_DIRS, PACKAGED_DIST_FILES } = channelTable;
 
 function parseArgs(argv) {
   const args = { _: [] };
@@ -138,7 +138,13 @@ const PLATFORM_FLAG = { mac: "--mac", linux: "--linux", win: "--win" };
 
 // Arches each platform ships when the caller does not pin --arch. Must mirror
 // the per-platform `target.arch` lists emitted by buildElectronBuilderConfig().
-const DEFAULT_TARGET_ARCHES = { win: ["x64", "arm64"], mac: ["x64", "arm64"], linux: ["x64"] };
+const DEFAULT_TARGET_ARCHES = {
+  win: ["x64", "arm64"],
+  mac: ["x64", "arm64"],
+  linux: ["x64", "arm64"],
+};
+
+export { ARCH_LINUX_DESKTOP_DEPENDS };
 
 export function verifyDesktopPtyTargets(resourceRoot, arches) {
   for (const arch of arches)
@@ -305,7 +311,13 @@ function copyArtifactsBack(stageReleaseDir, outputDir) {
 async function main() {
   const args = parseArgs(process.argv.slice(2));
   const platform = args.platform ?? detectHostPlatform();
-  const arch = args.arch;
+  const arch =
+    args.arch ??
+    (platform === "linux"
+      ? process.platform === "linux" && process.arch === "arm64"
+        ? "arm64"
+        : "x64"
+      : undefined);
   const target = args.target; // optional, e.g. dmg/zip/nsis/AppImage/deb
   const skipBuild = Boolean(args["skip-build"]);
   const checkRuntimeDeps = Boolean(args["check-runtime-deps"]);
@@ -315,6 +327,11 @@ async function main() {
 
   if (!PLATFORM_FLAG[platform]) {
     throw new Error(`Unknown platform "${platform}". Expected mac/linux/win.`);
+  }
+  if (arch && !DEFAULT_TARGET_ARCHES[platform].includes(arch)) {
+    throw new Error(
+      `Unsupported arch "${arch}" for platform "${platform}". Expected ${DEFAULT_TARGET_ARCHES[platform].join("/")}.`,
+    );
   }
   if (platform === "mac" && publish !== "never") {
     throw new Error(
@@ -402,6 +419,7 @@ async function main() {
         initialMacArtifactKind,
         platform,
         existsSync(join(stageRoot, "resources/pty-job-owner")),
+        arch,
       ),
     );
 
@@ -462,6 +480,7 @@ async function main() {
             macArtifactKind,
             platform,
             existsSync(join(stageRoot, "resources/pty-job-owner")),
+            arch,
           ),
         );
       }
@@ -521,6 +540,7 @@ export function buildElectronBuilderConfig(
   macArtifactKind = "branded",
   platform,
   includePtyOwner = platform === "win",
+  arch,
 ) {
   // Generate the staged electron-builder config with a drastically simplified
   // `files:` block — the stage's node_modules contains only the runtime
@@ -584,6 +604,15 @@ export function buildElectronBuilderConfig(
   const packagedDistFilesYaml = PACKAGED_DIST_FILES.map((glob) =>
     glob.startsWith("!") ? `  - "${glob}"` : `  - ${glob}`,
   ).join("\n");
+  const archListYaml = (targetPlatform) =>
+    (arch && (!platform || platform === targetPlatform)
+      ? [arch]
+      : DEFAULT_TARGET_ARCHES[targetPlatform]
+    )
+      .map((item) => `        - ${item}`)
+      .join("\n");
+  const pacmanDependsYaml = ARCH_LINUX_DESKTOP_DEPENDS.map((dep) => `    - ${dep}`).join("\n");
+  const linuxExecutableName = linuxDesktopExecutableName(channel);
 
   return `appId: ${appId}
 productName: ${productName}
@@ -659,6 +688,12 @@ extraResources:${desktopCliResources}${ptyOwnerResources}
 
 extraMetadata:
   main: dist/main/main.cjs
+  desktopName: ${linuxExecutableName}.desktop
+
+toolsets:
+  # Static FUSE3-compatible type-2 AppImage runtime so AppImages launch on
+  # Arch / Omarchy 4.5 and modern distros without legacy libfuse2.
+  appimage: "1.0.3"
 
 asar: true
 asarUnpack:
@@ -685,8 +720,7 @@ win:
   target:
     - target: nsis
       arch:
-        - x64
-        - arm64
+${archListYaml("win")}
   icon: build/icon${iconSuffix}.ico
 
 nsis:
@@ -701,18 +735,27 @@ appImage:
   artifactName: ${prefix}-Linux-\${arch}.\${ext}
 
 linux:
-  executableName: ${linuxDesktopExecutableName(channel)}
+  executableName: ${linuxExecutableName}
+  syncDesktopName: true
   target:
     - target: AppImage
       arch:
-        - x64
+${archListYaml("linux")}
     - target: deb
       arch:
-        - x64
+${archListYaml("linux")}
+    - target: pacman
+      arch:
+${archListYaml("linux")}
   icon: build/icon${iconSuffix}.png
   category: Development
   maintainer: Porabuild <${supportEmail}>
   artifactName: ${prefix}-\${version}-\${arch}.\${ext}
+
+pacman:
+  compression: zstd
+  depends:
+${pacmanDependsYaml}
 
 mac:
   minimumSystemVersion: "13.0.0"
@@ -720,12 +763,10 @@ mac:
   target:
     - target: dmg
       arch:
-        - x64
-        - arm64
+${archListYaml("mac")}
     - target: zip
       arch:
-        - x64
-        - arm64
+${archListYaml("mac")}
   icon: build/icon${iconSuffix}.icns
   category: public.app-category.developer-tools
   artifactName: ${prefix}-\${version}-\${arch}.\${ext}

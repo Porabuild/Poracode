@@ -20,6 +20,7 @@ import { afterEach, describe, it } from "node:test";
 import {
   NATIVE_HELPER_TARGETS,
   UnsupportedArchError,
+  cargoBuildEnv,
   parseArgs,
   readHello,
   requestedTargets,
@@ -84,18 +85,47 @@ void describe("requestedTargets", () => {
       requestedTargets("win", null, false, "x64", NATIVE_HELPER_TARGETS, "relay").length,
       2,
     );
-    assert.equal(
-      requestedTargets("linux", null, false, "arm64", NATIVE_HELPER_TARGETS, "relay").length,
-      1,
+    assert.deepEqual(
+      requestedTargets("linux", null, false, "x64", NATIVE_HELPER_TARGETS, "relay"),
+      [{ arch: "x64", id: "linux-x64", triple: "x86_64-unknown-linux-musl" }],
+    );
+    assert.deepEqual(
+      requestedTargets("linux", null, false, "arm64", NATIVE_HELPER_TARGETS, "relay"),
+      [{ arch: "arm64", id: "linux-arm64", triple: "aarch64-unknown-linux-musl" }],
+    );
+    assert.deepEqual(
+      requestedTargets("linux", "arm64", false, "x64", NATIVE_HELPER_TARGETS, "relay"),
+      [{ arch: "arm64", id: "linux-arm64", triple: "aarch64-unknown-linux-musl" }],
     );
   });
 
   void it("throws UnsupportedArchError for an arch with no target", () => {
     assert.throws(
-      () => requestedTargets("linux", null, true, "arm64", NATIVE_HELPER_TARGETS, "relay"),
+      () => requestedTargets("linux", null, true, "riscv64", NATIVE_HELPER_TARGETS, "relay"),
       (error) =>
         error instanceof UnsupportedArchError &&
-        error.message === "Unsupported linux relay architecture: arm64",
+        error.message === "Unsupported linux relay architecture: riscv64",
+    );
+  });
+
+  void it("configures musl-gcc for native Linux musl builds when unset", () => {
+    const target = { arch: "arm64", id: "linux-arm64", triple: "aarch64-unknown-linux-musl" };
+    assert.equal(
+      cargoBuildEnv("linux", target, {}, true, "arm64").CC_aarch64_unknown_linux_musl,
+      "musl-gcc",
+    );
+    assert.equal(
+      cargoBuildEnv("linux", target, { CC_aarch64_unknown_linux_musl: "custom-cc" }, true, "arm64")
+        .CC_aarch64_unknown_linux_musl,
+      "custom-cc",
+    );
+    assert.equal(
+      cargoBuildEnv("linux", target, {}, true, "x64").CC_aarch64_unknown_linux_musl,
+      undefined,
+    );
+    assert.equal(
+      cargoBuildEnv("linux", target, {}, false, "arm64").CC_aarch64_unknown_linux_musl,
+      undefined,
     );
   });
 
@@ -115,14 +145,14 @@ void describe("unsupported host arch fallback", () => {
     try {
       runNativeHelperPrepare(relaySpec, {
         platform: "linux",
-        arch: "arm64",
+        arch: "riscv64",
         argv: ["--host-only"],
       });
     } finally {
       console.warn = original;
     }
     assert.equal(warnings.length, 1);
-    assert.match(warnings[0], /Unsupported linux relay architecture: arm64/u);
+    assert.match(warnings[0], /Unsupported linux relay architecture: riscv64/u);
     assert.match(warnings[0], /JavaScript relay/u);
   });
 
@@ -131,7 +161,7 @@ void describe("unsupported host arch fallback", () => {
       () =>
         runNativeHelperPrepare(helperSpec, {
           platform: "linux",
-          arch: "arm64",
+          arch: "riscv64",
           argv: ["--host-only"],
         }),
       UnsupportedArchError,
@@ -140,7 +170,7 @@ void describe("unsupported host arch fallback", () => {
       () =>
         runNativeHelperPrepare(relaySpec, {
           platform: "linux",
-          arch: "arm64",
+          arch: "riscv64",
           argv: ["--host-only", "--require"],
         }),
       UnsupportedArchError,
@@ -154,8 +184,8 @@ void describe("unsupported host arch fallback", () => {
       () =>
         runNativeHelperPrepare(relaySpec, {
           platform: "linux",
-          arch: "arm64",
-          argv: ["--host-only", "--arch", "arm64"],
+          arch: "riscv64",
+          argv: ["--host-only", "--arch", "riscv64"],
         }),
       UnsupportedArchError,
     );

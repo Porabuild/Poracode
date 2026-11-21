@@ -43,7 +43,7 @@ RUSTDOCFLAGS="-D warnings" cargo doc --no-deps --all-features --locked
 cargo deny check
 ```
 
-From the repository root, `pnpm run prepare:computer-use-helper` builds and stages the current host binary. Release packaging builds Windows x64/arm64, Linux x64-musl, or a macOS x64+arm64 universal binary and validates its `--hello` response.
+From the repository root, `pnpm run prepare:computer-use-helper` builds and stages the current host binary. Release packaging builds Windows x64/arm64, Linux x64/arm64-musl, or a macOS x64+arm64 universal binary and validates its `--hello` response.
 
 ## Manual QA matrix
 

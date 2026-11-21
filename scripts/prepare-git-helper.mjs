@@ -37,7 +37,7 @@ export const spec = {
     "Rust cargo/rustup is unavailable; Git status batches will use the TypeScript worker fallback",
   allowMissing: () => /^(1|true|yes)$/i.test(process.env.PORACODE_ALLOW_MISSING_GIT_HELPER ?? ""),
   expectedVersion: () => expectedProtocolVersion,
-  // A host with no target for --host-only (e.g. linux-arm64) warns and
+  // A host with no target for --host-only (e.g. linux-riscv64) warns and
   // exits 0 so Git status queries keep using the TypeScript fallback.
   unsupportedHostArch: "warn",
   validateHello(parsed, path, expectedVersion) {

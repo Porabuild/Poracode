@@ -9,6 +9,9 @@ export const PLATFORM_PATTERNS: Record<string, RegExp> = {
   "win-x64": /Poracode-.*Setup-.*-x64\.exe$/,
   "win-arm64": /Poracode-.*Setup-.*-arm64\.exe$/,
   "linux-x64": /Poracode-.*-x86_64\.AppImage$/,
+  "linux-arm64": /Poracode-.*-arm64\.AppImage$/,
+  "linux-pacman-x64": /Poracode-.*-x64\.pacman$/,
+  "linux-pacman-arm64": /Poracode-.*-aarch64\.pacman$/,
 };
 
 export type PlatformSlug = keyof typeof PLATFORM_PATTERNS;

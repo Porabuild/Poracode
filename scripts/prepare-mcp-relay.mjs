@@ -37,7 +37,7 @@ export const spec = {
     "Rust cargo/rustup is unavailable; MCP HTTP endpoints will use the JavaScript relay",
   allowMissing: () => /^(1|true|yes)$/i.test(process.env.PORACODE_ALLOW_MISSING_MCP_RELAY ?? ""),
   expectedVersion: () => expectedConfigVersion,
-  // A host with no target for --host-only (e.g. linux-arm64) warns and
+  // A host with no target for --host-only (e.g. linux-riscv64) warns and
   // exits 0 so endpoints keep using the JavaScript relay.
   unsupportedHostArch: "warn",
   validateHello(parsed, path, expectedVersion) {

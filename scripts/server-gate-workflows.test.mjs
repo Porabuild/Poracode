@@ -238,7 +238,7 @@ void test("Windows desktop build stages the Linux x64 MCP relay for WSL without 
   assert.ok(sshArchiveIndex < packageWinIndex);
 
   const upload = steps[uploadIndex];
-  assert.equal(upload.if, "matrix.platform == 'linux'");
+  assert.equal(upload.if, "matrix.platform == 'linux' && matrix.arch == 'x64'");
   assert.equal(upload.with.name, "mcp-relay-linux-x64");
   assert.equal(upload.with.path, "resources/wsl-helpers/mcp-relay/linux-x64/poracode-mcp-relay");
   assert.equal(upload.with["if-no-files-found"], "error");
@@ -663,6 +663,73 @@ void test("macOS updater and DMG packaging run as independent release legs", asy
   assert.equal(dmgUpload.if, "matrix.target == 'dmg'");
   assert.match(dmgUpload.with.path, /Poracode-\*\.dmg/u);
   assert.doesNotMatch(dmgUpload.with.path, /latest\*\.yml|nightly\*\.yml/u);
+});
+
+void test("Linux desktop releases build x64 and arm64 natively without colliding caches or uploads", async () => {
+  const build = await readWorkflow("_build.yml");
+  const linuxLegs = build.jobs.build.strategy.matrix.include.filter(
+    (entry) => entry.platform === "linux",
+  );
+  assert.deepEqual(
+    linuxLegs.map((entry) => ({
+      os: entry.os,
+      artifact: entry.artifact,
+      arch: entry.arch,
+      helperTargets: entry["helper-targets"],
+      rustTargets: entry["rust-targets"],
+    })),
+    [
+      {
+        os: "ubuntu-latest",
+        artifact: "dist-linux",
+        arch: "x64",
+        helperTargets: "linux-x64",
+        rustTargets: "x86_64-unknown-linux-musl",
+      },
+      {
+        os: "ubuntu-24.04-arm",
+        artifact: "dist-linux-arm64",
+        arch: "arm64",
+        helperTargets: "linux-arm64",
+        rustTargets: "aarch64-unknown-linux-musl",
+      },
+    ],
+  );
+  const steps = build.jobs.build.steps;
+  const muslStep = steps.find((step) => step.name === "Install Linux helper build tools");
+  assert.equal(muslStep.if, "matrix.platform == 'linux'");
+  assert.match(muslStep.run, /\blibarchive-tools\b/u);
+  assert.match(muslStep.run, /\bzstd\b/u);
+  const uploadArtifacts = steps.find((step) => step.name === "Upload built artifacts");
+  assert.match(uploadArtifacts.with.path, /release\/Poracode-\*\.pacman/u);
+  const electronCache = steps.find((step) => step.name === "Cache Electron binary");
+  assert.match(electronCache.with.key, /runner\.arch/u);
+  assert.match(electronCache.with["restore-keys"], /runner\.arch/u);
+  const buildStep = steps.find((step) => step.name === "Build app");
+  assert.equal(
+    buildStep.env.PORACODE_SOURCEMAPS,
+    "${{ matrix.platform == 'linux' && matrix.arch == 'x64' && '1' || '0' }}",
+  );
+  const sentryStep = steps.find((step) => step.name === "Upload Sentry source maps");
+  assert.equal(sentryStep.if, "matrix.platform == 'linux' && matrix.arch == 'x64'");
+  for (const stepName of [
+    "Prepare computer-use helper",
+    "Prepare MCP relay",
+    "Prepare Git helper",
+    "Package Windows/Linux",
+  ]) {
+    const step = steps.find((candidate) => candidate.name === stepName);
+    assert.equal(step.env.MATRIX_ARCH, "${{ matrix.arch }}", `${stepName} must pass MATRIX_ARCH`);
+    assert.match(step.run, /--arch "\$MATRIX_ARCH"/u, `${stepName} must forward --arch`);
+  }
+  for (const releaseName of ["release.yml", "release-nightly.yml"]) {
+    const release = await readWorkflow(releaseName);
+    const download = release.jobs.release.steps.find(
+      (step) => step.name === "Download all build artifacts",
+    );
+    const pattern = new RegExp(`^${download.with.pattern.replace("*", ".*")}$`, "u");
+    assert.match("dist-linux-arm64", pattern);
+  }
 });
 
 void test("desktop packaging ships the SSH worker and the preassembled archive", async () => {

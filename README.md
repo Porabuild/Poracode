@@ -131,11 +131,11 @@ Install and run any agent from the [Agent Client Protocol](https://agentclientpr
 
 Download the latest release for your platform from the [releases page](https://github.com/Porabuild/Poracode/releases) or visit [poracode.com](https://poracode.com).
 
-| Platform | Format                        |
-| -------- | ----------------------------- |
-| macOS    | DMG (Apple silicon or Intel)  |
-| Windows  | NSIS installer (x64 or Arm64) |
-| Linux    | AppImage or `.deb` (x64)      |
+| Platform | Format                                                         |
+| -------- | -------------------------------------------------------------- |
+| macOS    | DMG (Apple silicon or Intel)                                   |
+| Windows  | NSIS installer (x64 or Arm64)                                  |
+| Linux    | AppImage, `.deb`, or `.pacman` — Arch / Omarchy (x64 or Arm64) |
 
 ### Command line
 

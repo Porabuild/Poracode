@@ -24,7 +24,10 @@ export const NATIVE_HELPER_TARGETS = {
     { arch: "x64", id: "win32-x64", triple: "x86_64-pc-windows-msvc" },
     { arch: "arm64", id: "win32-arm64", triple: "aarch64-pc-windows-msvc" },
   ],
-  linux: [{ arch: "x64", id: "linux-x64", triple: "x86_64-unknown-linux-musl" }],
+  linux: [
+    { arch: "x64", id: "linux-x64", triple: "x86_64-unknown-linux-musl" },
+    { arch: "arm64", id: "linux-arm64", triple: "aarch64-unknown-linux-musl" },
+  ],
 };
 
 export class UnsupportedArchError extends Error {}
@@ -156,6 +159,21 @@ export function copyBuiltBinary(source, destination) {
 // `ctx` carries the per-run values the spec fixed: { crateRoot, resourcesRoot,
 // binaryName, noun, scriptName, label, helloNoun, targetTable, profile, repoRoot }.
 
+export function cargoBuildEnv(
+  platform,
+  target,
+  env = process.env,
+  hasMuslGcc = commandExists("musl-gcc"),
+  hostArch = process.arch,
+) {
+  if (platform !== "linux" || !target.triple.endsWith("-musl") || hostArch !== target.arch) {
+    return env;
+  }
+  const ccKey = `CC_${target.triple.replaceAll("-", "_")}`;
+  if (env[ccKey] || !hasMuslGcc) return env;
+  return { ...env, [ccKey]: "musl-gcc" };
+}
+
 export function prepareWindowsOrLinux(ctx, platform, targets, sourceMtime, force, targetDirectory) {
   let built = false;
   for (const target of targets) {
@@ -165,14 +183,12 @@ export function prepareWindowsOrLinux(ctx, platform, targets, sourceMtime, force
       continue;
     }
     run(ctx.crateRoot, "rustup", ["target", "add", target.triple]);
-    run(ctx.crateRoot, "cargo", [
-      "build",
-      "--profile",
-      ctx.profile,
-      "--locked",
-      "--target",
-      target.triple,
-    ]);
+    run(
+      ctx.crateRoot,
+      "cargo",
+      ["build", "--profile", ctx.profile, "--locked", "--target", target.triple],
+      { env: cargoBuildEnv(platform, target) },
+    );
     copyBuiltBinary(
       builtBinary(
         targetDirectory,
@@ -234,7 +250,7 @@ export function requestedTargets(platform, arch, hostOnly, hostArch, targetTable
 
   const targets = targetTable[platform];
   if (!targets) throw new Error(`Unknown platform "${platform}". Expected win, mac, or linux.`);
-  const selectedArch = arch ?? (hostOnly ? hostArch : null);
+  const selectedArch = arch ?? (hostOnly || platform === "linux" ? hostArch : null);
   if (!selectedArch) return targets;
   const selected = targets.filter((target) => target.arch === selectedArch);
   if (selected.length === 0) {
@@ -261,8 +277,8 @@ export function runnableBinary(ctx, platform) {
     return stagedBinary(ctx.resourcesRoot, ctx.binaryName, "darwin-universal");
   if (platform === "win")
     return stagedBinary(ctx.resourcesRoot, ctx.binaryName, `win32-${process.arch}`);
-  if (platform === "linux" && process.arch === "x64")
-    return stagedBinary(ctx.resourcesRoot, ctx.binaryName, "linux-x64");
+  if (platform === "linux" && (process.arch === "x64" || process.arch === "arm64"))
+    return stagedBinary(ctx.resourcesRoot, ctx.binaryName, `linux-${process.arch}`);
   return null;
 }
 
@@ -368,7 +384,7 @@ export function runNativeHelperPrepare(spec, io = {}) {
       spec.noun,
     );
   } catch (error) {
-    // A host with no target for --host-only (e.g. linux-arm64) warns and
+    // A host with no target for --host-only (e.g. linux-riscv64) warns and
     // exits 0 so the JavaScript fallback is used — unless --require or
     // --check asked for a real artifact, or --arch was given explicitly
     // (an explicit request must fail rather than silently warn).
