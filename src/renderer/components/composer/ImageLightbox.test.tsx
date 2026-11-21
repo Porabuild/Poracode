@@ -719,14 +719,7 @@ describe("image preview toolbar", () => {
       expect(screen.getByRole("status")).toHaveTextContent("Loading…");
       await waitFor(() => expect(originals()).toHaveLength(1));
       expect(originals()[0]).toContain(encodeURIComponent(attachments[1]!.path));
-      // Visible strip tiles load the card variant, not another full original.
-      expect(
-        fetchBytes.mock.calls.some(
-          (call) =>
-            call[0].includes("variant=card") &&
-            call[0].includes(encodeURIComponent(attachments[0]!.path)),
-        ),
-      ).toBe(true);
+      expect(fetchBytes.mock.calls.every((call) => !call[0].includes("variant=card"))).toBe(true);
       await act(async () => {
         for (const resolve of pending.splice(0)) resolve({ bytes: png, contentType: "image/png" });
       });
@@ -1421,16 +1414,15 @@ describe("lightbox thumbnail strip", () => {
     expect(first).not.toHaveAttribute("loading", "lazy");
   });
 
-  it("shows card previews for the other gallery images without fetching their originals", async () => {
+  it("shows host stand-ins in the strip without fetching the other originals", () => {
     const requested: string[] = [];
     const cache = new RemoteEnvironmentImageCache({
       fetchBytes: (requestPath) => {
         requested.push(requestPath);
-        return Promise.resolve({ bytes: png, contentType: "image/png" });
+        return new Promise(() => undefined);
       },
       createObjectUrl: () => "blob:card",
       revokeObjectUrl: () => undefined,
-      maxConcurrentFetches: 4,
     });
     const readiness = createCacheImageReadiness(cache);
     const ref = (itemId: string): RemoteImageRefValue => ({
@@ -1445,13 +1437,13 @@ describe("lightbox thumbnail strip", () => {
         images={[
           {
             src: "",
-            previewSrc: "data:image/png;base64,ONE",
+            stripPreviewSrc: "data:image/png;base64,ONE",
             resource: galleryImageResource(readiness, ref("item-1")),
             alt: "one.png",
           },
           {
             src: "",
-            previewSrc: "data:image/png;base64,TWO",
+            stripPreviewSrc: "data:image/png;base64,TWO",
             resource: galleryImageResource(readiness, ref("item-2")),
             alt: "two.png",
           },
@@ -1461,14 +1453,12 @@ describe("lightbox thumbnail strip", () => {
       />,
     );
 
-    const second = screen.getByRole("button", { name: "Open image 2 of 2" });
-    expect(second.querySelector("img")).toHaveAttribute("src", "data:image/png;base64,TWO");
-    await waitFor(() => {
-      expect(second.querySelector("img")).toHaveAttribute("src", "blob:card");
-    });
-    const neighborRequests = requested.filter((path) => path.includes("item-2"));
-    expect(neighborRequests.length).toBeGreaterThan(0);
-    expect(neighborRequests.every((path) => path.includes("variant=card"))).toBe(true);
+    expect(
+      screen.getByRole("button", { name: "Open image 2 of 2" }).querySelector("img"),
+    ).toHaveAttribute("src", "data:image/png;base64,TWO");
+    expect(screen.getByRole("status")).toHaveTextContent("Loading…");
+    expect(screen.queryByRole("img", { name: "one.png" })).toBeNull();
+    expect(requested.some((path) => path.includes("item-2"))).toBe(false);
     cache.dispose();
   });
 });

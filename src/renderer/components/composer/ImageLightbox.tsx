@@ -704,9 +704,7 @@ function LightboxThumbnailStrip({
   const { t } = useLingui();
   const [strip, setStrip] = useState<HTMLDivElement | null>(null);
   const [inView, setInView] = useState<ReadonlySet<number>>(() => new Set());
-  const [previewEpoch, setPreviewEpoch] = useState(0);
   const edge = lightboxThumbEdge();
-  const retryPreview = () => setPreviewEpoch((epoch) => epoch + 1);
 
   useLayoutEffect(() => {
     const el = strip?.querySelector<HTMLElement>(`[data-thumb-index="${activeIndex}"]`);
@@ -745,28 +743,6 @@ function LightboxThumbnailStrip({
     return () => observer.disconnect();
   }, [strip, images]);
 
-  useEffect(() => {
-    // `previewEpoch` is the retry generation. Reading it keeps the effect on
-    // that tick when a stand-in is still empty after a cache notification.
-    if (previewEpoch < 0) return;
-    const queued: {
-      distance: number;
-      priority: EnvironmentImagePriority;
-      request: (priority?: EnvironmentImagePriority) => void;
-    }[] = [];
-    images.forEach((item, index) => {
-      const request = item.kind === "video" ? undefined : item.resource?.requestPreview;
-      if (!request || item.resource?.getPreviewSnapshot?.()) return;
-      const priority = stripPreviewPriority(Math.abs(index - activeIndex), inView.has(index));
-      if (!priority) return;
-      queued.push({ distance: Math.abs(index - activeIndex), priority, request });
-    });
-    // Closest tiles take the free fetch slots. The cache starts the first
-    // requests immediately and the most recently queued key after that.
-    queued.sort((a, b) => a.distance - b.distance);
-    for (const tile of queued) tile.request(tile.priority);
-  }, [activeIndex, images, inView, previewEpoch]);
-
   return (
     <div
       ref={setStrip}
@@ -786,7 +762,6 @@ function LightboxThumbnailStrip({
           activeSrc={activeSrc}
           edge={edge}
           onSelect={onSelect}
-          onPreviewMissed={retryPreview}
         />
       ))}
     </div>
@@ -802,7 +777,6 @@ function LightboxStripThumb({
   activeSrc,
   edge,
   onSelect,
-  onPreviewMissed,
 }: {
   item: LightboxImage;
   itemIndex: number;
@@ -812,7 +786,6 @@ function LightboxStripThumb({
   activeSrc: string;
   edge: number;
   onSelect: (index: number) => void;
-  onPreviewMissed: () => void;
 }) {
   const { t } = useLingui();
   const resource = item.resource;
@@ -823,10 +796,7 @@ function LightboxStripThumb({
   const previewSnapshot = useSyncExternalStore(
     (listener) =>
       trackPreview && resource?.subscribePreview
-        ? resource.subscribePreview(() => {
-            onNotify(listener)();
-            if (!resource.getPreviewSnapshot?.()) onPreviewMissed();
-          }, priority)
+        ? resource.subscribePreview(onNotify(listener), priority)
         : subscribeEmptyImage,
     () => (trackPreview ? (resource?.getPreviewSnapshot?.() ?? "") : ""),
   );
