@@ -137,15 +137,7 @@ export function collectThreadGallery(
         );
         if (!source) continue;
         readiness.recordRef(source);
-        push({
-          src: source.src,
-          alt: source.alt,
-          mime: source.mime,
-          fileName: source.fileName,
-          ...(resolvers.lightboxReadiness && source.remoteRef
-            ? { resource: galleryImageResource(resolvers.lightboxReadiness, source.remoteRef) }
-            : {}),
-        });
+        push(galleryImageFromSource(source, resolvers));
       }
       // Pure text deltas intentionally do not invalidate the gallery cache.
       // Collect markdown once the item completes, when its structural version
@@ -175,15 +167,7 @@ export function collectThreadGallery(
         const source = sources[index];
         if (!source) continue;
         readiness.recordRef(source);
-        push({
-          src: source.src,
-          alt: source.alt,
-          mime: source.mime,
-          fileName: source.fileName,
-          ...(resolvers.lightboxReadiness && source.remoteRef
-            ? { resource: galleryImageResource(resolvers.lightboxReadiness, source.remoteRef) }
-            : {}),
-        });
+        push(galleryImageFromSource(source, resolvers));
       }
     }
   }
@@ -202,6 +186,34 @@ export function collectThreadGalleryImages(
   resolvers: ThreadGalleryResolvers = {},
 ): readonly ThreadGalleryImage[] {
   return collectThreadGallery(items, resolvers).images;
+}
+
+/** Tiny host stand-in painted in the lightbox strip before the card bytes arrive. */
+function hostStripPreview(preview: string | undefined): { stripPreviewSrc: string } | undefined {
+  return preview ? { stripPreviewSrc: preview } : undefined;
+}
+
+function galleryImageFromSource(
+  source: {
+    src: string;
+    alt: string;
+    mime: string;
+    fileName: string;
+    preview?: string;
+    remoteRef?: RemoteImageRefValue;
+  },
+  resolvers: ThreadGalleryResolvers,
+): ThreadGalleryImage {
+  return {
+    src: source.src,
+    alt: source.alt,
+    mime: source.mime,
+    fileName: source.fileName,
+    ...hostStripPreview(source.preview),
+    ...(resolvers.lightboxReadiness && source.remoteRef
+      ? { resource: galleryImageResource(resolvers.lightboxReadiness, source.remoteRef) }
+      : {}),
+  };
 }
 
 /** Mirrors `imageViewSource`'s status check: errored tool calls show the accordion. */

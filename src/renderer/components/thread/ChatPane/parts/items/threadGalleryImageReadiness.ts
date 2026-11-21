@@ -1,7 +1,10 @@
 import type { RemoteImageRefValue } from "@/shared/remote";
 import {
+  cardVariantForRef,
   environmentImageRefKey,
   environmentLocalImageKey,
+  type EnvironmentImagePriority,
+  type EnvironmentImageVariant,
 } from "@/shared/remote/clientEnvironmentImages";
 import { resolveLocalFileUrlPath } from "@/shared/promptContent";
 import type { ImageViewSource } from "./imageViewSource";
@@ -12,25 +15,43 @@ export function galleryImageResource(
   readiness: RemoteImageReadiness,
   target: RemoteImageRefValue | string,
 ): NonNullable<LightboxImage["resource"]> {
-  return typeof target === "string"
-    ? {
-        key: environmentLocalImageKey(target),
-        getSnapshot: () => readiness.resolvePath(target),
-        subscribe: (listener, priority = "focus") =>
-          readiness.subscribePath(target, listener, priority),
-        request: (priority = "focus") => {
-          readiness.requestPath(target, priority);
-        },
-      }
-    : {
-        key: environmentImageRefKey(target),
-        getSnapshot: () => readiness.resolveRef(target),
-        subscribe: (listener, priority = "focus") =>
-          readiness.subscribeRef(target, listener, priority),
-        request: (priority = "focus") => {
-          readiness.requestRef(target, priority);
-        },
-      };
+  // Strip tiles ask for the host's downscaled card. Small refs already fit a
+  // tile, so they keep the full coordinate instead of splitting the cache.
+  const previewVariant: EnvironmentImageVariant | undefined =
+    typeof target === "string" ? "card" : cardVariantForRef(target);
+  const read = (variant?: EnvironmentImageVariant) =>
+    typeof target === "string"
+      ? readiness.resolvePath(target, variant)
+      : readiness.resolveRef(target, variant);
+  const listen = (
+    listener: () => void,
+    priority: EnvironmentImagePriority = "focus",
+    variant?: EnvironmentImageVariant,
+  ) =>
+    typeof target === "string"
+      ? readiness.subscribePath(target, listener, priority, variant)
+      : readiness.subscribeRef(target, listener, priority, variant);
+  const ask = (priority: EnvironmentImagePriority = "focus", variant?: EnvironmentImageVariant) => {
+    if (typeof target === "string") readiness.requestPath(target, priority, variant);
+    else readiness.requestRef(target, priority, variant);
+  };
+  return {
+    key:
+      typeof target === "string"
+        ? environmentLocalImageKey(target)
+        : environmentImageRefKey(target),
+    getSnapshot: () => read(),
+    subscribe: (listener, priority) => listen(listener, priority),
+    request: (priority) => {
+      ask(priority);
+    },
+    getPreviewSnapshot: () => read(previewVariant),
+    subscribePreview: (listener, priority = "foreground") =>
+      listen(listener, priority, previewVariant),
+    requestPreview: (priority = "foreground") => {
+      ask(priority, previewVariant);
+    },
+  };
 }
 
 /** Coordinate provenance survives URL deduplication and pending-to-ready changes. */

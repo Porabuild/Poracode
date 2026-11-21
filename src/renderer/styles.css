@@ -5931,6 +5931,15 @@ html[data-keyboard-navigation] .poracode-thread-mention-chip:focus-visible {
   transform: scale(1.06);
 }
 
+.poracode-image-lightbox__thumb-image {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  pointer-events: none;
+}
+
 .poracode-image-lightbox__zoom,
 .poracode-image-lightbox__counter {
   display: flex;

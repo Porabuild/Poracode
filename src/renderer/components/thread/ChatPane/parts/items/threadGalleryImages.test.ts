@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { remoteImageRef } from "@/shared/remote/imageRef";
 import type { RemoteImageRefValue } from "@/shared/remote";
+import type { RemoteImageReadiness } from "@/renderer/state/remoteServers/environmentSessions";
 import type { RemoteServerRecord, RemoteServersState } from "@/renderer/state/remoteServers/types";
 import {
   buildGalleryResolversFromState,
@@ -233,6 +234,51 @@ describe("threadGalleryImages", () => {
     // Without remoteImageRefUrl (and no global bridge resolver in jsdom) the
     // row falls back to the inert accordion — the gallery must agree.
     expect(collectThreadGalleryImages([tool], {}).length).toBe(0);
+  });
+
+  it("keeps the host preview stand-in on a pending lightbox image", () => {
+    const preview = "data:image/png;base64,AAAA";
+    const tool: RuntimeChatItem = {
+      id: "t1",
+      type: "image_view",
+      state: "completed",
+      payload: {
+        name: "imageView",
+        status: "success",
+        result: {
+          image: {
+            __poracodeImageRef: {
+              threadId: "t",
+              itemId: "t1",
+              path: ["result", "image"],
+              mime: "image/png",
+              bytes: 300_000,
+              width: 8,
+              height: 8,
+              preview,
+            },
+          },
+        },
+      },
+      streams: {},
+    };
+    const readiness: RemoteImageReadiness = {
+      resolveRef: () => "",
+      subscribeRef: () => () => undefined,
+      requestRef: () => undefined,
+      resolvePath: () => "",
+      subscribePath: () => () => undefined,
+      requestPath: () => undefined,
+    };
+    const gallery = collectThreadGalleryImages([tool], {
+      remoteImageRefUrl: () => "",
+      lightboxReadiness: readiness,
+    });
+    expect(gallery).toHaveLength(1);
+    expect(gallery[0]?.src).toBe("");
+    expect(gallery[0]?.stripPreviewSrc).toBe(preview);
+    expect(gallery[0]?.previewSrc).toBeUndefined();
+    expect(gallery[0]?.resource?.requestPreview).toEqual(expect.any(Function));
   });
 
   it("deduplicates identical URLs while preserving order", () => {
