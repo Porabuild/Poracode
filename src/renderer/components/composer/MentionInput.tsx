@@ -33,6 +33,11 @@ import { createSlashCommandChipElement } from "./SlashCommandChip";
 import { MentionPopover, type MentionEntry } from "./MentionPopover";
 import { useDebouncedFileSearch } from "./useDebouncedFileSearch";
 import { CHIP_SELECTOR } from "./editorSnapshot";
+import {
+  isTokenStartBoundaryChar,
+  parsePastedTokens,
+  type ParsedPastePiece,
+} from "./parsePastedTokens";
 import { serializeToSegments, flattenSegments } from "./serializeMentions";
 import { caretLineEdges, type CaretLineEdges } from "./caretLine";
 import {
@@ -90,6 +95,7 @@ export interface CrewMentionItem {
   detail?: string;
 }
 
+const EMPTY_SLASH_COMMANDS: readonly AgentSlashCommand[] = [];
 /** Stable empty list so an omitted `mcpMentions` prop doesn't churn renders. */
 const EMPTY_MCP_MENTIONS: readonly McpMentionItem[] = [];
 const EMPTY_PLUGIN_MENTIONS: readonly PluginMentionItem[] = [];
@@ -414,6 +420,139 @@ function createSelectionChipElement(text: string): HTMLSpanElement {
   return chip;
 }
 
+function createCommandChipElement(command: string | AgentSlashCommand): HTMLSpanElement {
+  const skill = typeof command === "string" ? undefined : skillSegmentFromSlashCommand(command);
+  return createSlashCommandChipElement(
+    typeof command === "string"
+      ? command
+      : {
+          id: command.id,
+          ...(command.skillName ? { skillName: command.skillName } : {}),
+          ...(skill ? skillChipDataset(skill) : {}),
+        },
+  );
+}
+
+function appendTextWithLineBreaks(parent: Node, content: string): void {
+  const lines = content.split("\n");
+  for (let index = 0; index < lines.length; index++) {
+    if (index > 0) parent.appendChild(document.createElement("br"));
+    const line = lines[index]!;
+    if (line) parent.appendChild(document.createTextNode(line));
+  }
+}
+
+function appendParsedPastePieces(parent: Node, pieces: readonly ParsedPastePiece[]): void {
+  for (const piece of pieces) {
+    if (piece.kind === "text") {
+      appendTextWithLineBreaks(parent, piece.content);
+    } else if (piece.kind === "slash_command") {
+      parent.appendChild(createCommandChipElement(piece.command));
+    } else if (piece.kind === "plugin") {
+      parent.appendChild(
+        createSlashCommandChipElement({
+          id: piece.item.command.id,
+          ...skillChipDataset(piece.skill),
+        }),
+      );
+    } else if (piece.kind === "mcp") {
+      parent.appendChild(createMcpMentionChipElement({ id: piece.item.id, name: piece.item.name }));
+    } else if (piece.kind === "thread") {
+      parent.appendChild(
+        createThreadMentionChipElement({
+          threadId: piece.item.threadId,
+          title: piece.item.title,
+        }),
+      );
+    } else if (piece.kind === "file") {
+      const displayPath = piece.path.replace(/[\\/]+$/u, "");
+      parent.appendChild(
+        createChipElement({
+          path: piece.path,
+          name: fileNameFromPath(displayPath) || piece.path,
+          isDirectory: piece.isDirectory,
+        }),
+      );
+    }
+  }
+}
+
+function hasMeaningfulNodes(fragment: DocumentFragment): boolean {
+  if (fragment.querySelector(CHIP_SELECTOR) || fragment.querySelector("br")) return true;
+  return (fragment.textContent ?? "").length > 0;
+}
+
+function endsAtTokenBoundary(node: Node): boolean {
+  for (let index = node.childNodes.length - 1; index >= 0; index--) {
+    const child = node.childNodes[index]!;
+    if (child.nodeType === Node.TEXT_NODE) {
+      const text = child.textContent ?? "";
+      if (text.length === 0) continue;
+      return isTokenStartBoundaryChar(text[text.length - 1]!);
+    }
+    if (child.nodeType === Node.ELEMENT_NODE) {
+      const el = child as HTMLElement;
+      if (el.tagName === "BR" || el.matches(CHIP_SELECTOR)) return true;
+      if (el.tagName === "DIV" || el.tagName === "P") {
+        if (el.childNodes.length === 0) return true;
+        return endsAtTokenBoundary(el);
+      }
+      if (el.childNodes.length > 0) return endsAtTokenBoundary(el);
+    }
+  }
+  return true;
+}
+
+function classifyLeading(node: Node, unwrapFirstBlock: boolean): "ws" | "nonws" | "empty" {
+  let unwrap = unwrapFirstBlock;
+  for (let index = 0; index < node.childNodes.length; index++) {
+    const child = node.childNodes[index]!;
+    if (child.nodeType === Node.TEXT_NODE) {
+      const text = child.textContent ?? "";
+      if (text.length === 0) continue;
+      return /^\s/u.test(text) ? "ws" : "nonws";
+    }
+    if (child.nodeType === Node.ELEMENT_NODE) {
+      const el = child as HTMLElement;
+      if (el.tagName === "BR") return "ws";
+      if (el.matches(CHIP_SELECTOR)) return "nonws";
+      if (el.tagName === "DIV" || el.tagName === "P") {
+        if (!unwrap) return "ws";
+        const inner = classifyLeading(el, true);
+        if (inner !== "empty") return inner;
+        unwrap = false;
+        continue;
+      }
+      if (el.childNodes.length > 0) {
+        const inner = classifyLeading(el, false);
+        if (inner !== "empty") return inner;
+      }
+    }
+  }
+  return "empty";
+}
+
+function inspectPasteContext(
+  editor: HTMLDivElement,
+  range: Range,
+): { atEditorStart: boolean; startsAtTokenBoundary: boolean; followedByWhitespace: boolean } {
+  const beforeRange = document.createRange();
+  beforeRange.selectNodeContents(editor);
+  beforeRange.setEnd(range.startContainer, range.startOffset);
+  const beforeFragment = beforeRange.cloneContents();
+  const atEditorStart = !hasMeaningfulNodes(beforeFragment);
+  const startsAtTokenBoundary = atEditorStart || endsAtTokenBoundary(beforeFragment);
+
+  const afterRange = document.createRange();
+  afterRange.selectNodeContents(editor);
+  afterRange.setStart(range.endContainer, range.endOffset);
+  const afterFragment = afterRange.cloneContents();
+  const followedByWhitespace =
+    classifyLeading(afterFragment, range.endContainer !== editor) === "ws";
+
+  return { atEditorStart, startsAtTokenBoundary, followedByWhitespace };
+}
+
 function appendPromptSegments(parent: Node, segments: PromptSegment[]): void {
   for (const segment of segments) {
     if (segment.kind === "text") {
@@ -421,12 +560,7 @@ function appendPromptSegments(parent: Node, segments: PromptSegment[]): void {
         parent.appendChild(createSelectionChipElement(segment.content));
         continue;
       }
-      const lines = segment.content.split("\n");
-      for (let index = 0; index < lines.length; index++) {
-        if (index > 0) parent.appendChild(document.createElement("br"));
-        const line = lines[index]!;
-        if (line) parent.appendChild(document.createTextNode(line));
-      }
+      appendTextWithLineBreaks(parent, segment.content);
     } else if (segment.kind === "file") {
       parent.appendChild(
         createChipElement({
@@ -464,6 +598,11 @@ export const MentionInput = forwardRef<
     onTextChange: (hasText: boolean) => void;
     onSubmit: (segments: PromptSegment[]) => void;
     onPasteImage?: (file: File) => void;
+    /**
+     * Available slash commands and skills for this composer, used to convert
+     * pasted `/command` and `$skill` tokens into badges.
+     */
+    slashCommands?: readonly AgentSlashCommand[];
     /**
      * Composer MCP servers to offer as `@`-mentions (Browser, Crossagents,
      * Computer Use). Enabled entries remain as prompt text; disabled entries
@@ -506,6 +645,7 @@ export const MentionInput = forwardRef<
     submitOnEnter = true,
     onInterceptKey,
   } = props;
+  const slashCommands = props.slashCommands ?? EMPTY_SLASH_COMMANDS;
   const mcpMentions = props.mcpMentions ?? EMPTY_MCP_MENTIONS;
   const pluginMentions = props.pluginMentions ?? EMPTY_PLUGIN_MENTIONS;
   const threadMentions = props.threadMentions ?? EMPTY_THREAD_MENTIONS;
@@ -682,16 +822,7 @@ export const MentionInput = forwardRef<
     sel.addRange(range);
     range.deleteContents();
 
-    const skill = typeof command === "string" ? undefined : skillSegmentFromSlashCommand(command);
-    const chip = createSlashCommandChipElement(
-      typeof command === "string"
-        ? command
-        : {
-            id: command.id,
-            ...(command.skillName ? { skillName: command.skillName } : {}),
-            ...(skill ? skillChipDataset(skill) : {}),
-          },
-    );
+    const chip = createCommandChipElement(command);
     range.insertNode(chip);
 
     // Trailing space keeps the cursor visually separate from the chip and
@@ -1257,24 +1388,51 @@ export const MentionInput = forwardRef<
     e.preventDefault();
     // Windows puts \r\n line endings on the clipboard.
     const text = e.clipboardData.getData("text/plain").replace(/\r\n?/g, "\n");
+    const editor = editorRef.current;
     const sel = window.getSelection();
-    if (!text || !sel || sel.rangeCount === 0) return;
+    if (!text || !editor || !sel || sel.rangeCount === 0) return;
+    const initialRange = sel.getRangeAt(0);
+    if (
+      !editor.contains(initialRange.startContainer) ||
+      !editor.contains(initialRange.endContainer)
+    ) {
+      return;
+    }
+    const enableMcpIds: string[] = [];
     undoHistory.edit(() => {
       const range = sel.getRangeAt(0);
+      const pasteContext = inspectPasteContext(editor, range);
+      const parsed = parsePastedTokens(text, {
+        ...pasteContext,
+        slashCommands,
+        mcpMentions,
+        pluginMentions,
+        threadMentions,
+        crewMentions,
+      });
+      enableMcpIds.push(...parsed.enableMcpServerIds);
       // Same <br> line breaks as restored drafts, so the serializer reads both alike.
       const fragment = document.createDocumentFragment();
-      appendPromptSegments(fragment, [{ kind: "text", content: text }]);
+      appendParsedPastePieces(fragment, parsed.pieces);
       const lastNode = fragment.lastChild;
       range.deleteContents();
       if (lastNode) {
         range.insertNode(fragment);
-        range.setStartAfter(lastNode);
+        if (lastNode.nodeType === Node.TEXT_NODE) {
+          range.setStart(lastNode, (lastNode as Text).length);
+        } else {
+          range.setStartAfter(lastNode);
+        }
       }
       range.collapse(true);
       sel.removeAllRanges();
       sel.addRange(range);
+      checkMentionState();
       notifyTextChange();
     });
+    for (const id of enableMcpIds) {
+      onMcpMentionSelect?.(id);
+    }
   }
 
   const editorClassName = compact
