@@ -7,8 +7,9 @@ import { galleryImageResource } from "../thread/ChatPane/parts/items/threadGalle
 import type { RemoteImageReadiness } from "@/renderer/state/remoteServers/environmentSessions";
 import type { ProjectLocation } from "@/shared/contracts";
 import { chatVideoFilePath } from "@/shared/chatVideo";
+import { localImageThumbUrl } from "@/shared/localImageThumb";
 import type { EnvironmentImagePriority } from "@/shared/remote/clientEnvironmentImages";
-import { memo, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { memo, useEffect, useLayoutEffect, useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import {
   ChevronLeft,
@@ -37,6 +38,11 @@ export interface LightboxImage {
   src: string;
   /** Already-displayed thumbnail to retain until the original is decoded. */
   previewSrc?: string;
+  /**
+   * Tiny host stand-in for the thumbnail strip only. The stage must not use
+   * it: the bitmap is a few dozen pixels and has no layout dimensions.
+   */
+  stripPreviewSrc?: string;
   width?: number;
   height?: number;
   /** Accessible label / alt text. */
@@ -50,12 +56,19 @@ export interface LightboxImage {
   mediaLocation?: ProjectLocation;
   /** Optional owner-supplied byte read (e.g. the pinned client that issued a media grant). */
   readBytes?: () => Promise<Uint8Array<ArrayBuffer>>;
-  /** Stable cache coordinate; only the currently displayed original is requested. */
+  /**
+   * Stable cache coordinate. `request` loads the full original for the open
+   * image. Preview methods read the host's downscaled card for the strip and
+   * do not start that original fetch.
+   */
   resource?: {
     key: string;
     subscribe: (listener: () => void, priority?: EnvironmentImagePriority) => () => void;
     getSnapshot: () => string;
     request: (priority?: EnvironmentImagePriority) => void;
+    getPreviewSnapshot?: () => string;
+    subscribePreview?: (listener: () => void, priority?: EnvironmentImagePriority) => () => void;
+    requestPreview?: (priority?: EnvironmentImagePriority) => void;
   };
 }
 
@@ -621,6 +634,62 @@ function imageKey(image: LightboxImage | undefined): string | undefined {
   return image?.resource?.key ?? image?.src;
 }
 
+/** Tiles kept warm around the open image. The strip itself shows about a dozen. */
+const LIGHTBOX_STRIP_RADIUS = 12;
+/** Tiles that fit in the strip; these load ahead of the off-screen buffer. */
+const LIGHTBOX_VISIBLE_RADIUS = 6;
+
+function lightboxThumbEdge(): number {
+  const dpr = typeof window === "undefined" ? 1 : window.devicePixelRatio || 1;
+  // 3.25rem tile, at 2x device pixels, so the bitmap matches the painted size.
+  return Math.ceil(52 * Math.max(1, dpr) * 2);
+}
+
+function displayThumb(url: string | undefined, edge: number): string {
+  if (!url) return "";
+  return localImageThumbUrl(url, edge) ?? url;
+}
+
+function stripPreviewPriority(
+  distance: number,
+  inView: boolean,
+): EnvironmentImagePriority | undefined {
+  if (distance <= LIGHTBOX_VISIBLE_RADIUS || inView) return "foreground";
+  if (distance <= LIGHTBOX_STRIP_RADIUS) return "prefetch";
+  return undefined;
+}
+
+/**
+ * URL painted in one strip tile.
+ *
+ * Native `loading="lazy"` never starts inside this fixed overlay, so an
+ * `<img>` with a URL must be eager and absolutely sized. A card or stand-in
+ * wins over the full original so the tile does not decode the open image.
+ */
+function lightboxThumbSrc(
+  item: LightboxImage,
+  options: {
+    edge: number;
+    near: boolean;
+    isActive: boolean;
+    activeSrc: string;
+    previewSnapshot: string;
+  },
+): string {
+  if (item.kind === "video") return "";
+  const { edge, near, isActive, activeSrc, previewSnapshot } = options;
+  const card = displayThumb(previewSnapshot, edge);
+  if (card) return card;
+  if (item.previewSrc) return displayThumb(item.previewSrc, edge);
+  if (item.stripPreviewSrc) return item.stripPreviewSrc;
+  if (!near) return "";
+  return (
+    displayThumb(item.resource?.getSnapshot(), edge) ||
+    displayThumb(item.src, edge) ||
+    (isActive ? displayThumb(activeSrc, edge) : "")
+  );
+}
+
 function LightboxThumbnailStrip({
   images,
   activeIndex,
@@ -633,67 +702,140 @@ function LightboxThumbnailStrip({
   onSelect: (index: number) => void;
 }) {
   const { t } = useLingui();
-  const stripRef = useRef<HTMLDivElement | null>(null);
+  const [strip, setStrip] = useState<HTMLDivElement | null>(null);
+  const [inView, setInView] = useState<ReadonlySet<number>>(() => new Set());
+  const edge = lightboxThumbEdge();
+
+  useLayoutEffect(() => {
+    const el = strip?.querySelector<HTMLElement>(`[data-thumb-index="${activeIndex}"]`);
+    if (el && typeof el.scrollIntoView === "function") {
+      el.scrollIntoView({ block: "nearest", inline: "center", behavior: "auto" });
+    }
+  }, [activeIndex, strip]);
 
   useEffect(() => {
-    const el = stripRef.current?.querySelector<HTMLElement>(`[data-thumb-index="${activeIndex}"]`);
-    if (el && typeof el.scrollIntoView === "function") {
-      el.scrollIntoView({ block: "nearest", inline: "center", behavior: "smooth" });
+    if (!strip || typeof IntersectionObserver !== "function") return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        setInView((current) => {
+          const next = new Set(current);
+          let changed = false;
+          for (const entry of entries) {
+            const index = Number(entry.target.getAttribute("data-thumb-index"));
+            if (!Number.isInteger(index)) continue;
+            if (entry.isIntersecting) {
+              if (!next.has(index)) {
+                next.add(index);
+                changed = true;
+              }
+            } else if (next.delete(index)) changed = true;
+          }
+          return changed ? next : current;
+        });
+      },
+      { root: strip, rootMargin: "120px", threshold: 0 },
+    );
+    const indexes = new Set(images.map((_, index) => index));
+    for (const node of strip.querySelectorAll<HTMLElement>("[data-thumb-index]")) {
+      const index = Number(node.getAttribute("data-thumb-index"));
+      if (indexes.has(index)) observer.observe(node);
     }
-  }, [activeIndex]);
+    return () => observer.disconnect();
+  }, [strip, images]);
 
   return (
     <div
-      ref={stripRef}
+      ref={setStrip}
       className="poracode-image-lightbox__strip"
       data-poracode-lightbox-strip="true"
       role="list"
       aria-label={t`Image preview`}
     >
-      {images.map((item, itemIndex) => {
-        const isActive = itemIndex === activeIndex;
-        const isItemVideo = item.kind === "video";
-        // Read only already-available thumbnails/snapshots so non-selected
-        // remote items never trigger full-resolution original fetches.
-        const fallbackSrc =
-          item.previewSrc || (item.resource ? item.resource.getSnapshot() : item.src);
-        const thumbSrc = isItemVideo ? "" : isActive ? activeSrc || fallbackSrc : fallbackSrc;
-        const key = `${imageKey(item) ?? item.videoPath ?? "media"}:${itemIndex}`;
-        const label = isItemVideo
-          ? t`Video preview`
-          : t`Open image ${itemIndex + 1} of ${images.length}`;
-        return (
-          <div key={key} role="listitem" className="shrink-0">
-            <button
-              type="button"
-              data-thumb-index={itemIndex}
-              className={`poracode-image-lightbox__thumb${isActive ? " poracode-image-lightbox__thumb--active" : ""}`}
-              aria-label={label}
-              aria-current={isActive ? "true" : undefined}
-              title={item.alt || item.fileName || label}
-              onClick={(event) => {
-                event.stopPropagation();
-                onSelect(itemIndex);
-              }}
-            >
-              {isItemVideo ? (
-                <Film className="size-4 text-white/80" aria-hidden="true" />
-              ) : thumbSrc ? (
-                <img
-                  src={thumbSrc}
-                  alt=""
-                  draggable={false}
-                  loading="lazy"
-                  decoding="async"
-                  className="size-full object-cover"
-                />
-              ) : (
-                <ImageIcon className="size-3.5 text-white/50" aria-hidden="true" />
-              )}
-            </button>
-          </div>
-        );
-      })}
+      {images.map((item, itemIndex) => (
+        <LightboxStripThumb
+          key={`${imageKey(item) ?? item.videoPath ?? "media"}:${itemIndex}`}
+          item={item}
+          itemIndex={itemIndex}
+          count={images.length}
+          active={itemIndex === activeIndex}
+          priority={stripPreviewPriority(Math.abs(itemIndex - activeIndex), inView.has(itemIndex))}
+          activeSrc={activeSrc}
+          edge={edge}
+          onSelect={onSelect}
+        />
+      ))}
+    </div>
+  );
+}
+
+function LightboxStripThumb({
+  item,
+  itemIndex,
+  count,
+  active,
+  priority,
+  activeSrc,
+  edge,
+  onSelect,
+}: {
+  item: LightboxImage;
+  itemIndex: number;
+  count: number;
+  active: boolean;
+  priority: EnvironmentImagePriority | undefined;
+  activeSrc: string;
+  edge: number;
+  onSelect: (index: number) => void;
+}) {
+  const { t } = useLingui();
+  const resource = item.resource;
+  const onNotify = useRenderOnNotify();
+  const isVideo = item.kind === "video";
+  const trackPreview =
+    priority !== undefined && !isVideo && resource?.subscribePreview !== undefined;
+  const previewSnapshot = useSyncExternalStore(
+    (listener) =>
+      trackPreview && resource?.subscribePreview
+        ? resource.subscribePreview(onNotify(listener), priority)
+        : subscribeEmptyImage,
+    () => (trackPreview ? (resource?.getPreviewSnapshot?.() ?? "") : ""),
+  );
+  const thumbSrc = lightboxThumbSrc(item, {
+    edge,
+    near: priority !== undefined,
+    isActive: active,
+    activeSrc,
+    previewSnapshot,
+  });
+  const label = isVideo ? t`Video preview` : t`Open image ${itemIndex + 1} of ${count}`;
+  return (
+    <div role="listitem" className="shrink-0">
+      <button
+        type="button"
+        data-thumb-index={itemIndex}
+        className={`poracode-image-lightbox__thumb${active ? " poracode-image-lightbox__thumb--active" : ""}`}
+        aria-label={label}
+        aria-current={active ? "true" : undefined}
+        title={item.alt || item.fileName || label}
+        onClick={(event) => {
+          event.stopPropagation();
+          onSelect(itemIndex);
+        }}
+      >
+        {isVideo ? (
+          <Film className="size-4 text-white/80" aria-hidden="true" />
+        ) : thumbSrc ? (
+          <img
+            src={thumbSrc}
+            alt=""
+            draggable={false}
+            decoding="async"
+            className="poracode-image-lightbox__thumb-image"
+          />
+        ) : (
+          <ImageIcon className="size-3.5 text-white/50" aria-hidden="true" />
+        )}
+      </button>
     </div>
   );
 }

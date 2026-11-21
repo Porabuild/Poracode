@@ -8,6 +8,8 @@ import {
   type RemoteEnvironmentImageCacheOptions,
 } from "@/shared/remote/clientEnvironmentImages";
 import { createCacheImageReadiness } from "@/renderer/state/cacheImageReadiness";
+import { galleryImageResource } from "../thread/ChatPane/parts/items/threadGalleryImageReadiness";
+import type { RemoteImageRefValue } from "@/shared/remote";
 import {
   ImageLightboxHost,
   ImageLightboxView,
@@ -687,11 +689,11 @@ describe("lightbox gestural zoom", () => {
 
 describe("image preview toolbar", () => {
   it("loads and subscribes to only the selected remote attachment's original", async () => {
-    let finish: (value: RemoteEnvironmentImageBytes) => void = () => {};
+    const pending: Array<(value: RemoteEnvironmentImageBytes) => void> = [];
     const fetchBytes = vi.fn<RemoteEnvironmentImageCacheOptions["fetchBytes"]>(
       () =>
         new Promise<RemoteEnvironmentImageBytes>((resolve) => {
-          finish = resolve;
+          pending.push(resolve);
         }),
     );
     const revokeObjectUrl = vi.fn<(url: string) => void>();
@@ -707,15 +709,20 @@ describe("image preview toolbar", () => {
       name: `${name}.png`,
       isImage: true,
     }));
+    const originals = () =>
+      fetchBytes.mock.calls.map((call) => call[0]).filter((path) => !path.includes("variant="));
     const view = render(<ImageLightboxHost />);
     try {
       act(() =>
         openAttachmentLightbox(attachments, 1, (path) => cache.localImageUrl(path), readiness),
       );
       expect(screen.getByRole("status")).toHaveTextContent("Loading…");
-      await waitFor(() => expect(fetchBytes).toHaveBeenCalledTimes(1));
-      expect(fetchBytes.mock.calls[0]?.[0]).toContain(encodeURIComponent(attachments[1]!.path));
-      await act(async () => finish({ bytes: png, contentType: "image/png" }));
+      await waitFor(() => expect(originals()).toHaveLength(1));
+      expect(originals()[0]).toContain(encodeURIComponent(attachments[1]!.path));
+      expect(fetchBytes.mock.calls.every((call) => !call[0].includes("variant=card"))).toBe(true);
+      await act(async () => {
+        for (const resolve of pending.splice(0)) resolve({ bytes: png, contentType: "image/png" });
+      });
       expect(screen.getByRole("img", { name: "second.png" })).toHaveAttribute(
         "src",
         "blob:original",
@@ -723,8 +730,8 @@ describe("image preview toolbar", () => {
       expect(screen.queryByRole("status")).toBeNull();
       fireEvent.click(screen.getByRole("button", { name: "Previous image" }));
       expect(screen.getByRole("status")).toHaveTextContent("Loading…");
-      await waitFor(() => expect(fetchBytes).toHaveBeenCalledTimes(2));
-      expect(fetchBytes.mock.calls[1]?.[0]).toContain(encodeURIComponent(attachments[0]!.path));
+      await waitFor(() => expect(originals()).toHaveLength(2));
+      expect(originals()[1]).toContain(encodeURIComponent(attachments[0]!.path));
     } finally {
       view.unmount();
       cache.dispose();
@@ -1318,6 +1325,7 @@ describe("lightbox thumbnail strip", () => {
     expect(thumb2).not.toHaveAttribute("aria-current");
     expect(thumb3).not.toHaveAttribute("aria-current");
     expect(thumb3.querySelector("img")).toHaveAttribute("src", "data:image/png;base64,CCC");
+    expect(thumb3.querySelector("img")).not.toHaveAttribute("loading", "lazy");
 
     fireEvent.click(thumb3);
     expect(onClose).not.toHaveBeenCalled();
@@ -1357,5 +1365,100 @@ describe("lightbox thumbnail strip", () => {
     expect(screen.getByText("2 / 2")).toBeInTheDocument();
     const dialog = screen.getByRole("dialog", { name: "demo.mp4" });
     expect(dialog.querySelector("video")).toHaveAttribute("src", "https://example.com/demo.mp4");
+  });
+
+  it("keeps the host stand-in in the strip and the full image on the stage", () => {
+    render(
+      <ImageLightboxView
+        images={[
+          {
+            src: "blob:full",
+            stripPreviewSrc: "data:image/png;base64,TINY",
+            alt: "shot.png",
+          },
+          { src: "blob:other", alt: "other.png" },
+        ]}
+        initialIndex={0}
+        onClose={() => {}}
+      />,
+    );
+
+    expect(screen.getByRole("img", { name: "shot.png" })).toHaveAttribute("src", "blob:full");
+    expect(
+      screen.getByRole("button", { name: "Open image 1 of 2" }).querySelector("img"),
+    ).toHaveAttribute("src", "data:image/png;base64,TINY");
+  });
+
+  it("paints host-resized local files in the strip", () => {
+    render(
+      <ImageLightboxView
+        images={[
+          { src: "poracode-local://local/tmp/one.png", alt: "one.png" },
+          { src: "poracode-local://local/tmp/two.png", alt: "two.png" },
+        ]}
+        initialIndex={0}
+        onClose={() => {}}
+      />,
+    );
+
+    const first = screen.getByRole("button", { name: "Open image 1 of 2" }).querySelector("img");
+    const second = screen.getByRole("button", { name: "Open image 2 of 2" }).querySelector("img");
+    expect(first).toHaveAttribute(
+      "src",
+      expect.stringMatching(/^poracode-local:\/\/local\/tmp\/one\.png\?thumb=\d+$/),
+    );
+    expect(second).toHaveAttribute(
+      "src",
+      expect.stringMatching(/^poracode-local:\/\/local\/tmp\/two\.png\?thumb=\d+$/),
+    );
+    expect(first).not.toHaveAttribute("loading", "lazy");
+  });
+
+  it("shows host stand-ins in the strip without fetching the other originals", () => {
+    const requested: string[] = [];
+    const cache = new RemoteEnvironmentImageCache({
+      fetchBytes: (requestPath) => {
+        requested.push(requestPath);
+        return new Promise(() => undefined);
+      },
+      createObjectUrl: () => "blob:card",
+      revokeObjectUrl: () => undefined,
+    });
+    const readiness = createCacheImageReadiness(cache);
+    const ref = (itemId: string): RemoteImageRefValue => ({
+      threadId: "thread-1",
+      itemId,
+      path: ["images", 0],
+      mime: "image/png",
+      bytes: 300_000,
+    });
+    render(
+      <ImageLightboxView
+        images={[
+          {
+            src: "",
+            stripPreviewSrc: "data:image/png;base64,ONE",
+            resource: galleryImageResource(readiness, ref("item-1")),
+            alt: "one.png",
+          },
+          {
+            src: "",
+            stripPreviewSrc: "data:image/png;base64,TWO",
+            resource: galleryImageResource(readiness, ref("item-2")),
+            alt: "two.png",
+          },
+        ]}
+        initialIndex={0}
+        onClose={() => {}}
+      />,
+    );
+
+    expect(
+      screen.getByRole("button", { name: "Open image 2 of 2" }).querySelector("img"),
+    ).toHaveAttribute("src", "data:image/png;base64,TWO");
+    expect(screen.getByRole("status")).toHaveTextContent("Loading…");
+    expect(screen.queryByRole("img", { name: "one.png" })).toBeNull();
+    expect(requested.some((path) => path.includes("item-2"))).toBe(false);
+    cache.dispose();
   });
 });
