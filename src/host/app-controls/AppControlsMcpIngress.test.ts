@@ -494,33 +494,45 @@ describe("AppControlsMcpIngress", () => {
         },
       });
       for (const name of ["git_sync", "merge_worktree", "git_repository", "git_branch"]) {
-        expect(tools.find((tool) => tool.name === name)?.inputSchema).toMatchObject({
+        const schema = tools.find((tool) => tool.name === name)?.inputSchema;
+        expect(schema).toMatchObject({
           type: "object",
-          oneOf: expect.any(Array),
+          properties: { action: { type: "string", enum: expect.any(Array) } },
         });
+        expect(schema).not.toHaveProperty("oneOf");
       }
       expect(tools.find((tool) => tool.name === "read_thread_history")?.inputSchema).toMatchObject({
         type: "object",
-        oneOf: expect.any(Array),
+        required: expect.arrayContaining(["action", "threadId"]),
+        properties: {
+          action: { type: "string", enum: ["items", "turns", "detail"] },
+          itemId: { type: "string" },
+        },
       });
+      expect(
+        tools.find((tool) => tool.name === "read_thread_history")?.inputSchema,
+      ).not.toHaveProperty("oneOf");
       expect(
         tools.find((tool) => tool.name === "delete_worktree_group")?.inputSchema,
       ).toMatchObject({
         type: "object",
         required: ["projectId", "worktreePath", "threadIds"],
-        additionalProperties: false,
       });
       expect(tools.find((tool) => tool.name === "manage_terminal")?.inputSchema).toMatchObject({
         type: "object",
-        oneOf: expect.any(Array),
+        properties: { action: { type: "string", enum: expect.arrayContaining(["list", "start"]) } },
       });
       expect(tools.find((tool) => tool.name === "thread_follow_ups")?.inputSchema).toMatchObject({
         type: "object",
-        oneOf: expect.any(Array),
+        properties: {
+          action: { type: "string", enum: expect.arrayContaining(["list", "enqueue", "steer"]) },
+        },
       });
       expect(tools.find((tool) => tool.name === "control_device")?.inputSchema).toMatchObject({
         type: "object",
-        oneOf: expect.any(Array),
+        properties: {
+          kind: { type: "string", enum: expect.arrayContaining(["tap", "text", "fold"]) },
+        },
       });
     } finally {
       await client.close();

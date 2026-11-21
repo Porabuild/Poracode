@@ -3449,6 +3449,48 @@ describe("ThreadDraftView", () => {
     });
   });
 
+  it("keeps a provider on Chat when that surface only needs an installable runtime", async () => {
+    type ProviderModelControl = {
+      kind?: string;
+      currentAgentKind?: string;
+      onChange?: (next: {
+        agentKind: string;
+        model: string;
+        presentationMode?: "terminal" | "gui";
+      }) => void;
+    };
+    const providerModelControl = () =>
+      (
+        composerSpy.mock.lastCall?.[0] as { controls: ProviderModelControl[] } | undefined
+      )?.controls.find((c) => c.kind === "provider-model");
+    render(
+      <ThreadDraftView
+        project={project}
+        agentStatuses={[dualModeCodexStatus, antigravityStatus]}
+        onStart={vi.fn<(input: unknown) => void>()}
+      />,
+    );
+    await waitFor(() => expect(providerModelControl()?.currentAgentKind).toBe("codex"));
+    act(() => {
+      providerModelControl()?.onChange?.({
+        agentKind: "antigravity",
+        model: "auto",
+        presentationMode: "terminal",
+      });
+    });
+    await waitFor(() => {
+      expect(screen.getByRole("tab", { name: "CLI" })).toHaveAttribute("aria-selected", "true");
+      expect(providerModelControl()?.currentAgentKind).toBe("antigravity");
+    });
+
+    fireEvent.click(screen.getByRole("tab", { name: "Chat" }));
+
+    await waitFor(() => {
+      expect(screen.getByRole("tab", { name: "Chat" })).toHaveAttribute("aria-selected", "true");
+      expect(providerModelControl()?.currentAgentKind).toBe("antigravity");
+    });
+  });
+
   it("keeps Chat as the default when a dual-mode agent resolves after mount", async () => {
     const onStart = vi.fn<(input: unknown) => void>();
     const { rerender } = render(

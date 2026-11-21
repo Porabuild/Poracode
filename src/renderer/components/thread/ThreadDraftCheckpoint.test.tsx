@@ -28,11 +28,13 @@ vi.mock("./ThreadComposer", () => ({
   ThreadComposer: (props: {
     inputContent: ReactNode;
     attachmentBar: ReactNode;
+    fixedContent: ReactNode;
     onSubmit(): void;
     submitDisabled: boolean;
   }) => (
     <div>
       {props.attachmentBar}
+      {props.fixedContent}
       {props.inputContent}
       <button type="button" disabled={props.submitDisabled} onClick={props.onSubmit}>
         Send fixture
@@ -75,12 +77,13 @@ const draft = {
 function form(
   onStart: ComponentProps<typeof ThreadDraftComposerArea>["onStart"] = vi.fn<() => Promise<void>>(),
   capture?: TurnClientContextCapture,
+  selectedAgent: AgentStatus = agent,
 ) {
   return render(
     <TurnClientContextSource value={capture}>
       <ThreadDraftComposerArea
         project={project}
-        selectedAgent={agent}
+        selectedAgent={selectedAgent}
         config={{ model: "test" }}
         controls={[]}
         compact={false}
@@ -108,6 +111,23 @@ beforeEach(async () => {
   });
   useAppStore.getState().saveDraftContent(project.id, draft);
   await composerDraftStorage()!.flushRequired();
+});
+
+it("preserves a new GUI draft while its provider runtime needs installation", async () => {
+  const onStart = vi.fn<() => Promise<void>>();
+  const view = form(onStart, undefined, { ...agent, kind: "antigravity", authState: "missing" });
+  await waitFor(() =>
+    expect(screen.getByRole("textbox")).toHaveTextContent("Preserve this prompt"),
+  );
+  expect(screen.getByText("For GUI chats, install Antigravity ACP.")).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Install ACP" })).toBeEnabled();
+  expect(screen.queryByText("Sign in required")).not.toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Send fixture" })).toBeDisabled();
+  fireEvent.click(screen.getByRole("button", { name: "Send fixture" }));
+  expect(onStart).not.toHaveBeenCalled();
+  expect(screen.getByText("notes.txt")).toBeInTheDocument();
+  expect(useAppStore.getState().draftContents[project.id]).toEqual(draft);
+  view.unmount();
 });
 
 it("restores text and attachments without inventing a new draft revision", async () => {

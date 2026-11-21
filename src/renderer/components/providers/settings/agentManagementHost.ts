@@ -219,6 +219,13 @@ export function agentManagementHostForMachine(machine: MachineDescriptor): Agent
   // A remote client's local entries are its bridge host, reached through the
   // same connection as any paired machine.
   const connectionKey = machine.ref.host === "remote" ? machine.ref.desktopId : machine.desktopId;
+  return agentManagementHostForConnection(connectionKey);
+}
+
+/** Project-owned actions use the project's connection, never the selected settings machine. */
+export function agentManagementHostForConnection(
+  connectionKey: string | undefined,
+): AgentManagementHost {
   if (connectionKey === undefined) return LOCAL_AGENT_MANAGEMENT_HOST;
   let host = remoteHosts.get(connectionKey);
   if (!host) {

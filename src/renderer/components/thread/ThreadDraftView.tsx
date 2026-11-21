@@ -16,6 +16,7 @@ import { readBridge } from "@/renderer/bridge";
 import { resolveNewThreadMcpConfig } from "@/shared/contracts";
 import { useImplicitMcpServers } from "@/renderer/components/composer/implicitMcpServers";
 import { getConfigNormalizer } from "@/renderer/components/providers/providerComposer";
+import { composerRuntimeRequirement } from "@/renderer/components/providers/composerRuntimeRequirement";
 import { useGitStore } from "@/renderer/state/gitStore";
 import { PixelLoader } from "@/renderer/components/common/PixelLoader";
 import { modelVisibilityKey } from "@/renderer/components/common/ProviderModelMenu/parts/providerIdentity";
@@ -1868,6 +1869,12 @@ export function ThreadDraftView(props: {
     // installed provider that can — the provider-switch effect will then
     // reload the per-provider config snapshot.
     if (!supportedPresentationModes.includes(next)) {
+      // A surface that only needs an installable runtime keeps the provider so
+      // the composer can offer that install instead of silently switching away.
+      if (composerRuntimeRequirement(selectedAgent, next)) {
+        retargetPresentation(next);
+        return;
+      }
       const fallback = installedAgents.find((agent) => {
         const modes = agent.capabilities.presentationModes ?? [agent.capabilities.presentationMode];
         return modes.includes(next);

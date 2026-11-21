@@ -4,6 +4,7 @@ import { join } from "node:path";
 import type { AgentCapability, AgentTerminalAuthMethod, AuthState } from "@/shared/contracts";
 import { compactAgentProviderMetadata } from "@/shared/contracts";
 import { readMacKeychainFingerprint } from "@/supervisor/runtime/macKeychain";
+import { windowsCredentialTargetExists } from "@/supervisor/runtime/windowsClaudeVault";
 import { humanizeModelId, probeAcpCapabilities } from "../acp";
 import {
   batchWslCommandsAsync,
@@ -54,6 +55,14 @@ export function geminiModelContextTokens(modelId: string): number | undefined {
 export function humanizeGeminiModelId(id: string): string {
   return humanizeModelId(id.replace(/^gemini-/, ""));
 }
+
+/**
+ * keytar target Gemini CLI uses for a pasted API key
+ * (`service/account` → `gemini-cli-api-key/default-api-key`).
+ * On Windows that is a generic Credential Manager entry, not a file under
+ * `~/.gemini`.
+ */
+const GEMINI_WINDOWS_API_KEY_TARGET = "gemini-cli-api-key/default-api-key";
 
 export const defaultGeminiCapabilities: AgentCapability = {
   models: [],
@@ -127,6 +136,8 @@ export interface GeminiAuthEvidence {
   fileKeychainPresent: boolean;
   macKeychainPresent: boolean;
   macKeychainApiKeyPresent?: boolean | undefined;
+  /** Gemini API key stored in Windows Credential Manager (keytar generic cred). */
+  windowsKeychainApiKeyPresent?: boolean | undefined;
   activeAccount?: string | undefined;
 }
 
@@ -147,7 +158,10 @@ export function evaluateGeminiAuthEvidence(evidence: GeminiAuthEvidence): {
     evidence.apiKeySet ||
     (!preferOAuth &&
       (evidence.macKeychainApiKeyPresent ||
-        (evidence.fileKeychainPresent && evidence.selectedAuthType === "gemini-api-key")))
+        // Gemini only loads the Credential Manager / file key when this mode is
+        // selected. Logout clears selectedType and leaves the stored key behind.
+        ((evidence.windowsKeychainApiKeyPresent || evidence.fileKeychainPresent) &&
+          evidence.selectedAuthType === "gemini-api-key")))
   ) {
     return { authState: "authenticated", authMethod: "API key" };
   }
@@ -299,6 +313,7 @@ async function probeWslGeminiAuth(
     fileKeychainPresent,
     macKeychainPresent: false,
     macKeychainApiKeyPresent: false,
+    windowsKeychainApiKeyPresent: false,
     activeAccount,
   };
 }
@@ -342,12 +357,16 @@ async function probeNativeGeminiAuth(
     readUtf8Safe(join(configDir, "settings.json")),
   );
 
-  const shouldProbeMacKeychain =
+  // Profiles set GEMINI_CLI_HOME and force the encrypted file store, so they
+  // must not inherit the host OS keychain. Host login uses that keychain:
+  // macOS Keychain, or Windows Credential Manager via keytar.
+  const shouldProbeOsKeychain =
     !hasCustomHome &&
     !forceFileStorage &&
     !apiKeySet &&
-    process.platform === "darwin" &&
     ((!oauthCredsPresent && !fileKeychainPresent) || selectedAuthType === "gemini-api-key");
+  const shouldProbeMacKeychain = shouldProbeOsKeychain && process.platform === "darwin";
+  const shouldProbeWindowsKeychain = shouldProbeOsKeychain && process.platform === "win32";
 
   const [macKeychainPresent, macKeychainApiKeyPresent] = shouldProbeMacKeychain
     ? await Promise.all([
@@ -363,6 +382,9 @@ async function probeNativeGeminiAuth(
         }).then(Boolean),
       ])
     : [false, false];
+  const windowsKeychainApiKeyPresent = shouldProbeWindowsKeychain
+    ? await windowsCredentialTargetExists(GEMINI_WINDOWS_API_KEY_TARGET)
+    : false;
 
   return {
     apiKeySet,
@@ -375,6 +397,7 @@ async function probeNativeGeminiAuth(
     fileKeychainPresent,
     macKeychainPresent,
     macKeychainApiKeyPresent,
+    windowsKeychainApiKeyPresent,
     activeAccount,
   };
 }
@@ -462,6 +485,11 @@ export const geminiDetectionSpec: DetectionSpec = {
     if (!probeResult) {
       return { authMethods: [terminalAuthMethod] };
     }
+    const credentialStatus =
+      probeResult.authState === "missing" ? await probeGeminiMetadata(ctx) : undefined;
+    const apiKeyConfigured =
+      credentialStatus?.authState === "authenticated" &&
+      credentialStatus.providerMetadata?.authMethod === "API key";
     const modelTokens = new Map<string, number>();
     for (const model of probeResult.models ?? []) {
       if (probeResult.modelContextSizes?.[model.id]) continue;
@@ -504,8 +532,11 @@ export const geminiDetectionSpec: DetectionSpec = {
       ...(probeResult.authLogoutSupported ? { authLogoutSupported: true } : {}),
       // Only let explicit ACP auth_required ("missing") override credential
       // evidence; unauthenticated `gemini --acp` sessions should not override
-      // `statusProbe` with an optimistic `"authenticated"`.
-      ...(probeResult.authState === "missing" ? { authState: "missing" } : {}),
+      // `statusProbe` with an optimistic `"authenticated"`. An API key Gemini
+      // already stored is not stale file evidence, so it wins over that signal.
+      ...(probeResult.authState === "missing" && !apiKeyConfigured
+        ? { authState: "missing" as const }
+        : {}),
     };
   },
 };

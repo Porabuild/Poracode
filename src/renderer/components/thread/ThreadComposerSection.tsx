@@ -3,6 +3,8 @@ import {
   retainClientDraftAsset,
 } from "@/renderer/state/composerDrafts/clientDraftDatabase";
 import { DraftRecoveryNotice } from "@/renderer/components/composer/DraftRecoveryNotice";
+import { composerRuntimeRequirement } from "../providers/composerRuntimeRequirement";
+import { ThreadRuntimeInstallDock } from "./ThreadRuntimeInstallDock";
 import { mergeDraftContent } from "@/renderer/state/projectReferences";
 import {
   useEffect,
@@ -286,7 +288,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
     docksPlacement: requestedDocksPlacement,
     todoDockState,
     goalDockState,
-    errorDockStates,
+    errorDockStates: suppliedErrorDockStates,
   } = props;
   const awaitingWorktree = useAppStore(
     (state) =>
@@ -407,6 +409,15 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
   const [contextDockOpen, setContextDockOpen] = useState(false);
   const presentationMode =
     thread.presentationMode ?? agentStatus?.capabilities.presentationMode ?? "terminal";
+  const runtimeRequirement = composerRuntimeRequirement(agentStatus, presentationMode);
+  const errorDockStates = runtimeRequirement
+    ? suppliedErrorDockStates.filter(
+        (state) =>
+          !state.message.startsWith(
+            `Agent ${thread.agentKind} does not support ${presentationMode} presentation`,
+          ),
+      )
+    : suppliedErrorDockStates;
   const presentationAgentStatus = agentStatus
     ? agentStatusForPresentation(agentStatus, presentationMode, thread.sessionRef)
     : undefined;
@@ -836,6 +847,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
   const isCliThread = usesTerminalPresentation;
   const canSubmit =
     (canSubmitServerInput || canSubmitTerminalInput) &&
+    !runtimeRequirement &&
     !isSubmitting &&
     !authRequired &&
     !attachments.isUploading;
@@ -890,9 +902,26 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
   // connection to the thread's host, whichever host that is.
   const hostOffline = useEntityHostOffline(thread);
   const showHostOfflineWarning = hostOffline && !usesTerminalPresentation;
+  const project = useAppStore((state) =>
+    state.projects.find((candidate) => candidate.id === thread.projectId),
+  );
+  const runtimeInstallNotice =
+    runtimeRequirement && agentStatus && project ? (
+      <ThreadRuntimeInstallDock
+        key={`${thread.id}:${agentStatus.kind}`}
+        requirement={runtimeRequirement}
+        agentStatus={agentStatus}
+        project={project}
+      />
+    ) : null;
   const composerNotices =
-    historyNoticeDock || historyLoadFailed || showHostOfflineWarning || resumeUnavailableNotice ? (
+    runtimeInstallNotice ||
+    historyNoticeDock ||
+    historyLoadFailed ||
+    showHostOfflineWarning ||
+    resumeUnavailableNotice ? (
       <>
+        {runtimeInstallNotice}
         {historyNoticeDock}
         {historyLoadFailed ? <ThreadHistoryLoadFailureDock threadId={thread.id} /> : null}
         {showHostOfflineWarning ? <ThreadHostOfflineDock /> : null}
@@ -914,7 +943,9 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
   const composerRuntimeRequest = hideActionDocks ? undefined : activeRuntimeRequest;
   const composerPendingSteer = hideActionDocks ? undefined : visiblePendingSteer;
   const composerFollowUpQueue = hideActionDocks ? undefined : followUpQueue;
-  const showAuthInComposer = (authRequired || hasRuntimeAuthError) && !hideActionDocks;
+  // The missing runtime's own sign-in state is meaningless until it is installed.
+  const showAuthInComposer =
+    (authRequired || hasRuntimeAuthError) && !hideActionDocks && !runtimeRequirement;
   const reportedContextUsage = useAppStore((s) =>
     canShowRuntimeChrome ? s.runtimeContextByThread[thread.id] : undefined,
   );
@@ -929,9 +960,6 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
     contextSummary.maxTokens !== undefined;
   const showContextIndicator = !hideInfoDocks && hasContextUsage;
   const showContextInComposer = showContextIndicator && contextDockOpen;
-  const project = useAppStore((s) =>
-    s.projects.find((candidate) => candidate.id === thread.projectId),
-  );
   const agentFallbackLabel = t`the agent`;
 
   useEffect(() => {

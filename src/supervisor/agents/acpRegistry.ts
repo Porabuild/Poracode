@@ -527,6 +527,20 @@ function archiveFileName(url: string): string {
   }
 }
 
+/**
+ * Windows PowerShell 5.1 resolves modules through the inherited PSModulePath.
+ * A host started from PowerShell 7 lists 7's Archive module first, which calls
+ * a .NET overload 5.1 lacks; Expand-Archive then reports a non-terminating
+ * error, extracts nothing, and still exits 0. Dropping the variable lets 5.1
+ * rebuild its own default module path.
+ */
+function windowsPowerShellEnv(extra: Record<string, string>): NodeJS.ProcessEnv {
+  const env = Object.fromEntries(
+    Object.entries(process.env).filter(([name]) => name.toUpperCase() !== "PSMODULEPATH"),
+  );
+  return { ...env, ...extra };
+}
+
 async function extractArchive(archivePath: string, installDir: string): Promise<void> {
   if (archivePath.endsWith(".zip")) {
     if (process.platform === "win32") {
@@ -536,15 +550,14 @@ async function extractArchive(archivePath: string, installDir: string): Promise<
           "-NoLogo",
           "-NoProfile",
           "-Command",
-          "Expand-Archive -LiteralPath $env:PORACODE_ACP_ARCHIVE_PATH -DestinationPath $env:PORACODE_ACP_INSTALL_DIR -Force",
+          "$ErrorActionPreference = 'Stop'; Expand-Archive -LiteralPath $env:PORACODE_ACP_ARCHIVE_PATH -DestinationPath $env:PORACODE_ACP_INSTALL_DIR -Force",
         ],
         {
           windowsHide: true,
-          env: {
-            ...process.env,
+          env: windowsPowerShellEnv({
             PORACODE_ACP_ARCHIVE_PATH: archivePath,
             PORACODE_ACP_INSTALL_DIR: installDir,
-          },
+          }),
         },
       );
     } else {
