@@ -396,6 +396,11 @@ msgstr "{1} ステップ中 {0}"
 #~ msgid "{0} of {matchCount}"
 #~ msgstr "{0} / {matchCount}"
 
+#. placeholder {0}: formatPercentShare(costShare)
+#: src/renderer/views/ProfileOverlay/parts/CostModelDialog.tsx
+msgid "{0} of cost"
+msgstr "コストの{0}"
+
 #. placeholder {0}: projectCount(workspace.id)
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 #~ msgid "{0} projects"
@@ -473,6 +478,11 @@ msgstr "{0}トークン - {when}"
 #: src/renderer/components/thread/ThreadSpendDetails.tsx
 msgid "{0} tokens · cached {1} · written {2} · output {3}"
 msgstr "{0} トークン · キャッシュ読み取り {1} · キャッシュ書き込み {2} · 出力 {3}"
+
+#. placeholder {0}: formatCompact(model.totals.unpricedTokens)
+#: src/renderer/views/ProfileOverlay/parts/CostModelDialog.tsx
+msgid "{0} tokens have no known price."
+msgstr "{0}トークンは価格不明です。"
 
 #. placeholder {0}: agent.label
 #. placeholder {0}: agent.name
@@ -3423,9 +3433,23 @@ msgid "Bypass Permissions"
 msgstr "権限確認をバイパス"
 
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "cache"
+msgstr "キャッシュ"
+
+#: src/renderer/views/ProfileOverlay/parts/CostModelDialog.tsx
+msgid "Cache hit"
+msgstr "キャッシュヒット"
+
+#: src/renderer/views/ProfileOverlay/parts/costBreakdown.ts
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 msgid "Cache read"
 msgstr "キャッシュ読み取り"
 
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "Cache savings"
+msgstr "キャッシュ節約額"
+
+#: src/renderer/views/ProfileOverlay/parts/costBreakdown.ts
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 msgid "Cache write"
 msgstr "キャッシュ書き込み"
@@ -4359,6 +4383,7 @@ msgstr "クローン作成中…"
 #: src/renderer/views/ExperimentView/parts/ExperimentJudgeRunDialog.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/parts/MobileTerminalLayout.tsx
+#: src/renderer/views/ProfileOverlay/parts/CostModelDialog.tsx
 #: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
 #: src/renderer/views/SchedulesView/parts/ScheduleRunDetails.tsx
 #: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
@@ -5434,6 +5459,7 @@ msgstr "続ける"
 msgid "Continue from where you left off."
 msgstr "中断したところから続けてください。"
 
+#: src/renderer/components/thread/CompactThreadHeader.tsx
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/components/thread/ThreadView.tsx
 msgid "Continue in another provider"
@@ -5679,8 +5705,17 @@ msgstr "コミットされていない変更をここにコピーします (こ�
 #~ msgstr "URLをコピー"
 
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+#: src/renderer/views/ProfileOverlay/parts/CostModelDialog.tsx
+msgid "Cost"
+msgstr "コスト"
+
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 msgid "Cost breakdown"
 msgstr "費用の内訳"
+
+#: src/renderer/views/ProfileOverlay/parts/CostShareBar.tsx
+msgid "Cost by type"
+msgstr "種別ごとのコスト"
 
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 msgid "Cost history is unavailable from this host."
@@ -6514,6 +6549,10 @@ msgstr "毎日"
 msgid "Daily brief"
 msgstr "デイリーブリーフ"
 
+#: src/renderer/views/ProfileOverlay/parts/CostModelDialog.tsx
+msgid "Daily cost"
+msgstr "日別コスト"
+
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 msgid "Daily costs"
 msgstr "日別の費用"
@@ -6521,6 +6560,14 @@ msgstr "日別の費用"
 #: src/renderer/views/ProfileOverlay/parts/CostTrend.tsx
 msgid "Daily recorded cost; gaps may contain unpriced usage."
 msgstr "日別の記録済み費用。空白には料金不明の使用量が含まれる場合があります。"
+
+#: src/renderer/views/ProfileOverlay/parts/CostTrend.tsx
+msgid "Daily recorded tokens."
+msgstr "日別の記録済みトークン数。"
+
+#: src/renderer/views/ProfileOverlay/parts/CostModelDialog.tsx
+msgid "Daily tokens"
+msgstr "日別トークン"
 
 #: src/renderer/components/devices/DeviceTools.tsx
 #: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
@@ -10423,6 +10470,7 @@ msgstr "リポジトリの初期化"
 msgid "Inner display"
 msgstr "内側ディスプレイ"
 
+#: src/renderer/views/ProfileOverlay/parts/costBreakdown.ts
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 msgid "Input"
 msgstr "入力"
@@ -11302,7 +11350,7 @@ msgstr "ライセンス"
 msgid "lifetime tokens"
 msgstr "累計トークン"
 
-#: src/renderer/views/ProfileOverlay/parts/StatStrip.tsx
+#: src/renderer/views/ProfileOverlay/parts/ActivitySection.tsx
 msgid "Lifetime tokens"
 msgstr "累計トークン"
 
@@ -13304,6 +13352,7 @@ msgid "News line"
 msgstr "ニュースライン"
 
 #: src/renderer/components/newsLine/NewsLine.tsx
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
 #: src/renderer/views/PullRequestsOverlay/guide/PrReviewGuideTab.tsx
 msgid "Next"
 msgstr "次へ"
@@ -14919,6 +14968,7 @@ msgstr "組織（省略可）"
 #: src/renderer/components/plugins/PluginMarketplace.tsx
 #: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/StructuredCustomValues.tsx
+#: src/renderer/views/ProfileOverlay/parts/costBreakdown.ts
 #: src/renderer/views/PullRequestsOverlay/compact/PrCompactMenu.tsx
 msgid "Other"
 msgstr "その他"
@@ -14962,6 +15012,7 @@ msgstr "外側ディスプレイ"
 msgid "Outlook"
 msgstr "Outlook"
 
+#: src/renderer/views/ProfileOverlay/parts/costBreakdown.ts
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 msgid "Output"
 msgstr "出力"
@@ -15365,6 +15416,7 @@ msgstr "ピーク {0}"
 msgid "peak day"
 msgstr "ピークの日"
 
+#: src/renderer/views/ProfileOverlay/parts/ActivitySection.tsx
 #: src/renderer/views/ProfileOverlay/parts/StatStrip.tsx
 msgid "Peak day"
 msgstr "ピークの日"
@@ -15390,6 +15442,10 @@ msgstr "レビュー待ち"
 #: src/renderer/components/thread/ThreadPendingSteerStrip.tsx
 msgid "Pending steer"
 msgstr "保留中のステアリング"
+
+#: src/renderer/views/ProfileOverlay/parts/CostModelDialog.tsx
+msgid "Per 1M tokens"
+msgstr "100万トークンあたり"
 
 #: src/renderer/components/thread/ThreadAgentVisionDock.tsx
 msgid "Perform actions"
@@ -16010,6 +16066,7 @@ msgid "Preview {0}"
 msgstr "{0}をプレビューする"
 
 #: src/renderer/components/newsLine/NewsLine.tsx
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
 msgid "Previous"
 msgstr "前へ"
 
@@ -17803,6 +17860,10 @@ msgid "Resuming session…"
 msgstr "セッションを再開中…"
 
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "Retained usage across connected devices."
+msgstr "接続されたデバイス全体に保存された使用量です。"
+
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 msgid "Retained usage on this host only."
 msgstr "このホストに保存された使用量のみです。"
 
@@ -19523,8 +19584,8 @@ msgstr "すべて表示"
 
 #. placeholder {0}: facts.length
 #: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
-msgid "Show all {0} insights"
-msgstr "{0} 件のインサイトをすべて表示"
+#~ msgid "Show all {0} insights"
+#~ msgstr "{0} 件のインサイトをすべて表示"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
 msgid "Show bookmark bar"
@@ -19593,8 +19654,8 @@ msgid "Show fewer"
 msgstr "表示を減らす"
 
 #: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
-msgid "Show fewer insights"
-msgstr "インサイトを折りたたむ"
+#~ msgid "Show fewer insights"
+#~ msgstr "インサイトを折りたたむ"
 
 #: src/renderer/views/PullRequestsOverlay/changes/ChangesToolbar.tsx
 msgid "Show file tree"
@@ -19761,6 +19822,10 @@ msgstr "最後に読み込んだバージョンを表示しています。更新
 #: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
 msgid "Showing the most recent sessions — narrow the filters to see more."
 msgstr "最新のセッションを表示しています — さらに表示するにはフィルターを絞り込んでください。"
+
+#: src/renderer/views/ProfileOverlay/parts/CostModelDialog.tsx
+msgid "Showing tokens (model is unpriced)"
+msgstr "トークン数を表示中（モデル価格不明）"
 
 #: src/renderer/components/providers/settings/CursorProfileIdentity.tsx
 msgid "Shown in the sidebar and the model picker."
@@ -22914,13 +22979,19 @@ msgid "Token usage unavailable for: {unavailableLabels}"
 msgstr "トークン使用量を取得できません: {unavailableLabels}"
 
 #: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 msgid "tokens"
 msgstr "トークン"
 
 #: src/renderer/views/ProfileOverlay/parts/ActivitySection.tsx
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+#: src/renderer/views/ProfileOverlay/parts/CostModelDialog.tsx
 msgid "Tokens"
 msgstr "トークン"
+
+#: src/renderer/views/ProfileOverlay/parts/CostShareBar.tsx
+msgid "Tokens by type"
+msgstr "種別ごとのトークン"
 
 #. placeholder {0}: tokens!.providers.map((p) => p.label).join(", ")
 #: src/renderer/views/ProfileOverlay/parts/ModelUsage.tsx
@@ -22968,15 +23039,21 @@ msgstr "ツール検索"
 msgid "Top skill this week: <0>{name}</0> ({count, plural, one {# run} other {# runs}})"
 msgstr "今週のトップスキル: <0>{name}</0>（{count, plural, one {# 回} other {# 回}}）"
 
+#: src/renderer/views/ProfileOverlay/parts/CostTrend.tsx
+msgid "Total"
+msgstr "合計"
+
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "Total installs"
 msgstr "合計インストール数"
 
 #: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+#: src/renderer/views/ProfileOverlay/parts/ActivitySection.tsx
 msgid "Total prompts"
 msgstr "プロンプト総数"
 
 #: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+#: src/renderer/views/ProfileOverlay/parts/ActivitySection.tsx
 msgid "Total threads"
 msgstr "スレッド総数"
 
@@ -22984,7 +23061,7 @@ msgstr "スレッド総数"
 msgid "total tokens"
 msgstr "合計トークン"
 
-#: src/renderer/views/ProfileOverlay/parts/StatStrip.tsx
+#: src/renderer/views/ProfileOverlay/parts/ActivitySection.tsx
 msgid "Total tokens"
 msgstr "合計トークン"
 
@@ -23031,6 +23108,10 @@ msgstr "半透明のサイドバー"
 #: src/renderer/utils/projectIcons.ts
 msgid "Travel & places"
 msgstr "旅行と場所"
+
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "Trend metric"
+msgstr "推移の指標"
 
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "Trending now"
@@ -23658,6 +23739,8 @@ msgstr "{name}をアンインストール"
 #: src/renderer/utils/prStatus.ts
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+#: src/renderer/views/ProfileOverlay/parts/CostModelDialog.tsx
+#: src/renderer/views/ProfileOverlay/parts/CostTrend.tsx
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Unknown"
 msgstr "不明"
@@ -23738,6 +23821,10 @@ msgstr "固定を解除する"
 #: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
 msgid "Unpin workflow"
 msgstr "ワークフローのピン留めを解除"
+
+#: src/renderer/views/ProfileOverlay/parts/CostModelDialog.tsx
+msgid "Unpriced"
+msgstr "価格なし"
 
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 msgid "Unpriced tokens"

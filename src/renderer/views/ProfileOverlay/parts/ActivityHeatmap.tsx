@@ -109,7 +109,7 @@ export function ActivityHeatmap(props: { heatmap: ProfileHeatmap }) {
           {heatmap.cells.map((cell) => (
             <div
               key={cell.day}
-              className="size-3 rounded-[2px]"
+              className="aspect-square min-w-0 max-w-3 flex-1 rounded-[2px]"
               style={{ backgroundColor: colorFor(cell.intensity) }}
               title={tooltipFor(cell, heatmap.metric, t)}
             />
@@ -131,16 +131,16 @@ export function ActivityHeatmap(props: { heatmap: ProfileHeatmap }) {
 
   return (
     <div className="flex flex-col gap-1.5">
-      <div className="flex gap-[3px] text-[10px] leading-none text-muted">
+      <div className="flex gap-[2px] text-[10px] leading-none text-muted @min-[760px]:gap-[3px]">
         {monthLabels.map((label, i) => (
           <div key={i} className="min-w-0 flex-1 overflow-visible whitespace-nowrap">
             {label ?? " "}
           </div>
         ))}
       </div>
-      <div className="flex gap-[3px]">
+      <div className="flex gap-[2px] @min-[760px]:gap-[3px]">
         {columns.map((col, i) => (
-          <div key={i} className="flex min-w-0 flex-1 flex-col gap-[3px]">
+          <div key={i} className="flex min-w-0 flex-1 flex-col gap-[2px] @min-[760px]:gap-[3px]">
             {col.map((cell, j) =>
               cell ? (
                 <div

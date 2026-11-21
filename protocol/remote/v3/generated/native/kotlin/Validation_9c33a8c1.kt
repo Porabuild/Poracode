@@ -5,6 +5,10 @@ import kotlinx.serialization.*
 import kotlinx.serialization.descriptors.*
 import kotlinx.serialization.encoding.*
 import kotlinx.serialization.json.*
+internal val schema_eb148d7195a1780a: RemoteSchema by lazy {
+    RemoteSchema(type = "string", literals = listOf(JsonPrimitive("downloaded")), unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
+}
+
 internal val schema_eb2405f61baf028b: RemoteSchema by lazy {
     RemoteSchema(type = "object", required = setOf("bytesPerSecond", "percent", "total", "transferred", "type"), properties = mapOf("bytesPerSecond" to schema_80c415b6e27c6ebd, "percent" to schema_80c415b6e27c6ebd, "total" to schema_80c415b6e27c6ebd, "transferred" to schema_80c415b6e27c6ebd, "type" to schema_bd136ee4bcce8b07), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
@@ -15,6 +19,10 @@ internal val schema_eb2798e2ccc8bf65: RemoteSchema by lazy {
 
 internal val schema_ebd70a208b453fe1: RemoteSchema by lazy {
     RemoteSchema(type = "object", required = setOf("kind", "starred"), properties = mapOf("kind" to schema_833ef472e7760fae, "starred" to schema_feeb8bb50144d96d), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
+}
+
+internal val schema_ebdf410e6db99e49: RemoteSchema by lazy {
+    RemoteSchema(type = "array", items = schema_9939fd9aa16e34e6, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
 
 internal val schema_ebe931a38f838083: RemoteSchema by lazy {
@@ -99,6 +107,10 @@ internal val schema_ee8a6a87417deae2: RemoteSchema by lazy {
 
 internal val schema_eeb5c5f788e7f258: RemoteSchema by lazy {
     RemoteSchema(type = "object", required = setOf("filePath", "projectLocation", "staged"), properties = mapOf("filePath" to schema_36fea325bf1aca70, "projectLocation" to schema_080f9cc154af9e27, "staged" to schema_feeb8bb50144d96d), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
+}
+
+internal val schema_eed304c45e697ad1: RemoteSchema by lazy {
+    RemoteSchema(type = "array", items = schema_01b65e34c5bdc081, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
 
 internal val schema_eef64882a7b017fb: RemoteSchema by lazy {

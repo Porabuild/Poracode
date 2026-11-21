@@ -417,11 +417,12 @@ describe("mapOpenCode2Event", () => {
     },
   );
 
-  it("retains step-reported USD cost and never also counts the overlapping session total", () => {
+  it("retains step-reported USD cost and step model without overlapping the session total", () => {
     const events = mapAll(stateFor(), probeTurnEvents());
     const spent = events.filter((mapped) => mapped.type === "usage.spent");
     expect(spent).toHaveLength(1);
     expect(spent[0]?.usage.cost).toEqual({ amount: 0.00168105, currency: "USD" });
+    expect(spent[0]?.usage.model).toBe("opencode-go/deepseek-v4.1-flash");
   });
 
   it("retains explicitly reported zero-token, zero-cost steps exactly once", () => {

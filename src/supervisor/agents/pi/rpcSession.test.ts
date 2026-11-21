@@ -541,6 +541,8 @@ describe("PiRpcSession (mock pi --mode rpc)", () => {
       usage: {
         counterKind: "cumulative",
         counter: 100,
+        tokens: { input: 60, output: 25, cacheRead: 10, cacheWrite: 5 },
+        cost: { amount: 0.01, currency: "USD" },
         scopeId: "mock-session-1",
         epoch: 0,
         fresh: true,

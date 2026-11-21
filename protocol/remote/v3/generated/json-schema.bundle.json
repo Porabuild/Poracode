@@ -58135,6 +58135,9 @@
         "__schema0": {
           "additionalProperties": true,
           "properties": {
+            "cacheSavingsUsd": {
+              "$ref": "#/$defs/__schema3"
+            },
             "categories": {
               "additionalProperties": true,
               "properties": {
@@ -58165,6 +58168,31 @@
             },
             "categorizedTokens": {
               "$ref": "#/$defs/__schema1"
+            },
+            "categoryCostUsd": {
+              "additionalProperties": true,
+              "properties": {
+                "cacheRead": {
+                  "$ref": "#/$defs/__schema3"
+                },
+                "cacheWrite": {
+                  "$ref": "#/$defs/__schema3"
+                },
+                "input": {
+                  "$ref": "#/$defs/__schema3"
+                },
+                "output": {
+                  "$ref": "#/$defs/__schema3"
+                }
+              },
+              "required": [
+                "input",
+                "output",
+                "cacheRead",
+                "cacheWrite"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
             },
             "estimatedSamples": {
               "$ref": "#/$defs/__schema1"
@@ -58235,6 +58263,10 @@
           "x-poracode-unknownFields": "strip"
         },
         "__schema3": {
+          "minimum": 0,
+          "type": "number"
+        },
+        "__schema4": {
           "additionalProperties": true,
           "properties": {
             "key": {
@@ -58255,25 +58287,25 @@
           "type": "object",
           "x-poracode-unknownFields": "strip"
         },
-        "__schema4": {
+        "__schema5": {
           "additionalProperties": true,
           "properties": {
             "cacheReadTokens": {
-              "$ref": "#/$defs/__schema5"
+              "$ref": "#/$defs/__schema6"
             },
             "cacheWriteTokens": {
-              "$ref": "#/$defs/__schema5"
+              "$ref": "#/$defs/__schema6"
             },
             "estimatedUsd": {
               "minimum": 0,
               "type": "number"
             },
             "inputTokens": {
-              "$ref": "#/$defs/__schema5"
+              "$ref": "#/$defs/__schema6"
             },
             "models": {
               "items": {
-                "$ref": "#/$defs/__schema7"
+                "$ref": "#/$defs/__schema8"
               },
               "type": "array"
             },
@@ -58284,16 +58316,16 @@
               "type": "array"
             },
             "outputTokens": {
-              "$ref": "#/$defs/__schema5"
+              "$ref": "#/$defs/__schema6"
             },
             "providers": {
               "items": {
-                "$ref": "#/$defs/__schema6"
+                "$ref": "#/$defs/__schema7"
               },
               "type": "array"
             },
             "tokens": {
-              "$ref": "#/$defs/__schema5"
+              "$ref": "#/$defs/__schema6"
             }
           },
           "required": [
@@ -58310,12 +58342,12 @@
           "type": "object",
           "x-poracode-unknownFields": "strip"
         },
-        "__schema5": {
+        "__schema6": {
           "maximum": 9007199254740991,
           "minimum": 0,
           "type": "integer"
         },
-        "__schema6": {
+        "__schema7": {
           "additionalProperties": true,
           "properties": {
             "estimatedCostUsd": {
@@ -58331,7 +58363,7 @@
               "type": "string"
             },
             "tokens": {
-              "$ref": "#/$defs/__schema5"
+              "$ref": "#/$defs/__schema6"
             }
           },
           "required": [
@@ -58343,7 +58375,7 @@
           "type": "object",
           "x-poracode-unknownFields": "strip"
         },
-        "__schema7": {
+        "__schema8": {
           "additionalProperties": true,
           "properties": {
             "count": {
@@ -58368,7 +58400,7 @@
           "type": "object",
           "x-poracode-unknownFields": "strip"
         },
-        "__schema8": {
+        "__schema9": {
           "maximum": 9007199254740991,
           "minimum": -9007199254740991,
           "type": "integer"
@@ -58379,7 +58411,7 @@
       "properties": {
         "accounts": {
           "items": {
-            "$ref": "#/$defs/__schema6"
+            "$ref": "#/$defs/__schema7"
           },
           "type": "array"
         },
@@ -58391,7 +58423,55 @@
           "properties": {
             "accounts": {
               "items": {
-                "$ref": "#/$defs/__schema3"
+                "$ref": "#/$defs/__schema4"
+              },
+              "type": "array"
+            },
+            "dayModels": {
+              "items": {
+                "additionalProperties": true,
+                "properties": {
+                  "day": {
+                    "type": "string"
+                  },
+                  "model": {
+                    "type": "string"
+                  },
+                  "totals": {
+                    "$ref": "#/$defs/__schema0"
+                  }
+                },
+                "required": [
+                  "day",
+                  "model",
+                  "totals"
+                ],
+                "type": "object",
+                "x-poracode-unknownFields": "strip"
+              },
+              "type": "array"
+            },
+            "dayProviders": {
+              "items": {
+                "additionalProperties": true,
+                "properties": {
+                  "day": {
+                    "type": "string"
+                  },
+                  "provider": {
+                    "type": "string"
+                  },
+                  "totals": {
+                    "$ref": "#/$defs/__schema0"
+                  }
+                },
+                "required": [
+                  "day",
+                  "provider",
+                  "totals"
+                ],
+                "type": "object",
+                "x-poracode-unknownFields": "strip"
               },
               "type": "array"
             },
@@ -58417,7 +58497,7 @@
             },
             "models": {
               "items": {
-                "$ref": "#/$defs/__schema3"
+                "$ref": "#/$defs/__schema4"
               },
               "type": "array"
             },
@@ -58481,7 +58561,7 @@
             },
             "providers": {
               "items": {
-                "$ref": "#/$defs/__schema3"
+                "$ref": "#/$defs/__schema4"
               },
               "type": "array"
             },
@@ -58513,7 +58593,7 @@
               "type": "string"
             },
             "lastActiveAt": {
-              "$ref": "#/$defs/__schema8"
+              "$ref": "#/$defs/__schema9"
             },
             "platform": {
               "type": "string"
@@ -58528,14 +58608,14 @@
           "x-poracode-unknownFields": "strip"
         },
         "generatedAt": {
-          "$ref": "#/$defs/__schema8"
+          "$ref": "#/$defs/__schema9"
         },
         "lifetimeTokens": {
-          "$ref": "#/$defs/__schema5"
+          "$ref": "#/$defs/__schema6"
         },
         "models": {
           "items": {
-            "$ref": "#/$defs/__schema7"
+            "$ref": "#/$defs/__schema8"
           },
           "type": "array"
         },
@@ -58543,11 +58623,11 @@
           "type": "string"
         },
         "peakDayTokens": {
-          "$ref": "#/$defs/__schema5"
+          "$ref": "#/$defs/__schema6"
         },
         "providers": {
           "items": {
-            "$ref": "#/$defs/__schema6"
+            "$ref": "#/$defs/__schema7"
           },
           "type": "array"
         },
@@ -58555,22 +58635,22 @@
           "additionalProperties": true,
           "properties": {
             "last30d": {
-              "$ref": "#/$defs/__schema4"
+              "$ref": "#/$defs/__schema5"
             },
             "last7d": {
-              "$ref": "#/$defs/__schema4"
+              "$ref": "#/$defs/__schema5"
             },
             "prev30d": {
-              "$ref": "#/$defs/__schema4"
+              "$ref": "#/$defs/__schema5"
             },
             "prev7d": {
-              "$ref": "#/$defs/__schema4"
+              "$ref": "#/$defs/__schema5"
             },
             "today": {
-              "$ref": "#/$defs/__schema4"
+              "$ref": "#/$defs/__schema5"
             },
             "yesterday": {
-              "$ref": "#/$defs/__schema4"
+              "$ref": "#/$defs/__schema5"
             }
           },
           "required": [
@@ -58592,7 +58672,7 @@
           "type": "string"
         },
         "timezoneOffsetMinutes": {
-          "$ref": "#/$defs/__schema8"
+          "$ref": "#/$defs/__schema9"
         },
         "tokenHeatmap": {
           "additionalProperties": true,
@@ -58602,7 +58682,7 @@
                 "additionalProperties": true,
                 "properties": {
                   "count": {
-                    "$ref": "#/$defs/__schema5"
+                    "$ref": "#/$defs/__schema6"
                   },
                   "day": {
                     "type": "string"
@@ -58643,7 +58723,7 @@
               "type": "array"
             },
             "max": {
-              "$ref": "#/$defs/__schema5"
+              "$ref": "#/$defs/__schema6"
             },
             "metric": {
               "enum": [
@@ -58653,7 +58733,7 @@
               "type": "string"
             },
             "windowDays": {
-              "$ref": "#/$defs/__schema5"
+              "$ref": "#/$defs/__schema6"
             }
           },
           "required": [
@@ -58672,7 +58752,7 @@
           "type": "array"
         },
         "windowDays": {
-          "$ref": "#/$defs/__schema5"
+          "$ref": "#/$defs/__schema6"
         }
       },
       "required": [
@@ -86496,5 +86576,5 @@
   },
   "manifestHash": "sha256:4c65d87f75044cd0750dbf9b6aba2f3d74ba1fdebcbd66b30b3e4d73b86bde99",
   "protocolVersion": 14,
-  "sourceHash": "sha256:299e49b5f1da5ed8494baf0ed69a5df9f7ba493af040d9d7600a975c597aad9f"
+  "sourceHash": "sha256:a46df04303c87eaa4c346e7bf188147f8e8a34dabcb6de140193b7590c4f6a7e"
 }

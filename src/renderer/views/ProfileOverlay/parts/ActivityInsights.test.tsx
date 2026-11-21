@@ -243,7 +243,7 @@ describe("ActivityInsights", () => {
       },
     };
 
-    render(<ActivityInsights core={core} tokens={tokens} window="all" />);
+    const view = render(<ActivityInsights core={core} tokens={tokens} window="all" />);
 
     expect(screen.getByText("Activity insights")).toBeInTheDocument();
     expect(screen.getByText("Yesterday")).toBeInTheDocument();
@@ -259,9 +259,37 @@ describe("ActivityInsights", () => {
     ).toHaveTextContent(/used Alpha 45% less/i);
     expect(screen.getByText("Most used provider")).toBeInTheDocument();
 
-    // Expands hidden highlights beyond the initial 8.
-    const expandButton = screen.getByRole("button", { name: /Show all \d+ insights/ });
-    fireEvent.click(expandButton);
-    expect(screen.getByRole("button", { name: /Show fewer insights/ })).toBeInTheDocument();
+    // Paginates highlights with Next / Previous carousel controls instead of dumping all rows.
+    const pageIndicator = screen.getByTestId("profile-insights-page");
+    expect(pageIndicator.textContent).toMatch(/^1 \/ [2-9]\d*$/);
+    const prevButton = screen.getByRole("button", { name: "Previous" });
+    const nextButton = screen.getByRole("button", { name: "Next" });
+    expect(prevButton).toBeDisabled();
+    expect(nextButton).toBeEnabled();
+    expect(document.querySelectorAll("[data-profile-insight]").length).toBe(6);
+
+    fireEvent.click(nextButton);
+    expect(pageIndicator.textContent).toMatch(/^2 \/ [2-9]\d*$/);
+    expect(prevButton).toBeEnabled();
+    expect(document.querySelector(".poracode-tab-panel-from-right")).toBeTruthy();
+
+    fireEvent.click(prevButton);
+    expect(pageIndicator.textContent).toMatch(/^1 \/ [2-9]\d*$/);
+    expect(document.querySelector(".poracode-tab-panel-from-left")).toBeTruthy();
+
+    fireEvent.click(nextButton);
+    view.rerender(
+      <ActivityInsights
+        core={{
+          ...core,
+          totals: { ...core.totals, totalPrompts: core.totals.totalPrompts + 1 },
+        }}
+        tokens={tokens}
+        window="all"
+      />,
+    );
+    expect(screen.getByTestId("profile-insights-page").textContent).toMatch(/^1 \/ [2-9]\d*$/);
+    expect(screen.getByRole("button", { name: "Previous" })).toBeDisabled();
+    expect(document.querySelector(".poracode-tab-panel-from-right")).toBeNull();
   });
 });

@@ -127,7 +127,9 @@ describe("remote v3 native binding generator", () => {
         // Memory sync and catalog management are additive operator routes.
         // Optional environment settings and MCP OAuth completion add six structural types.
         // Guarded Notes saves add revision metadata and typed save outcomes.
-        sourceHash: "sha256:299e49b5f1da5ed8494baf0ed69a5df9f7ba493af040d9d7600a975c597aad9f",
+        // Additive optional cost-history fields (`cacheSavingsUsd`, `categoryCostUsd`,
+        // `dayProviders`, `dayModels`) add three structural types while keeping older peers valid.
+        sourceHash: "sha256:a46df04303c87eaa4c346e7bf188147f8e8a34dabcb6de140193b7590c4f6a7e",
         manifestHash: "sha256:4c65d87f75044cd0750dbf9b6aba2f3d74ba1fdebcbd66b30b3e4d73b86bde99",
         counts: {
           routes: 126,
@@ -138,12 +140,12 @@ describe("remote v3 native binding generator", () => {
           // 11 shared + the desktop-internal `desktop-event` frame (V5 plan 2.5).
           webSocketServerVariants: 12,
           schemaRoots: 590,
-          structuralTypes: 1515,
+          structuralTypes: 1518,
           semanticValidators: 25,
           // Content-defined shards (emitterCommon.shardDeclarations) average
           // ~200 lines, so a contract change rewrites only nearby files.
-          swiftFiles: 167,
-          kotlinFiles: 144,
+          swiftFiles: 169,
+          kotlinFiles: 145,
           stateMachines: 5,
         },
       });

@@ -551,5 +551,11 @@ describe("computeProfileTokenStats (real sqlite)", () => {
     });
     expect(weekStats.recent?.last30d.tokens).toBe(15_000);
     expect(weekStats.recent?.prev30d.tokens).toBe(0);
+    expect(weekStats.costs?.totals.cacheSavingsUsd).toBeGreaterThan(0);
+    expect(weekStats.costs?.totals.categoryCostUsd?.cacheRead).toBeGreaterThan(0);
+    expect(weekStats.costs?.dayProviders?.map((entry) => entry.provider)).toContain("claude");
+    expect(weekStats.costs?.dayModels?.map((entry) => entry.model)).toContain(
+      modelKey("claude", "claude-sonnet-4-6"),
+    );
   });
 });

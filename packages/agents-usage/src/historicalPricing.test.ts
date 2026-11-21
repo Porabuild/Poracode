@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { execFileSync } from "node:child_process";
-import { historicalTokenEstimate, HISTORICAL_PRICES } from "./historicalPricing";
+import {
+  estimateCacheSavingsUsd,
+  estimateCategoryCosts,
+  historicalTokenEstimate,
+  HISTORICAL_PRICES,
+} from "./historicalPricing";
 
 const tokens = { input: 1_000_000, output: 100_000, cacheRead: 500_000, cacheWrite: 0 };
 const now = Date.parse("2026-10-16T12:00:00Z");
@@ -107,5 +112,104 @@ describe("dated historical estimates", () => {
       historicalTokenEstimate(model, { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 }, now)
         ?.amount,
     ).toBe(0);
+  });
+
+  it("normalizes provider-prefixed, bracket-variant, and Cursor effort model IDs without guessing unknown names", () => {
+    const nov21 = Date.parse("2026-11-21T12:00:00Z");
+    expect(historicalTokenEstimate("anthropic/claude-opus-4-6", tokens, nov21)?.pricing.model).toBe(
+      "claude-opus-4-6",
+    );
+    expect(historicalTokenEstimate("claude-opus-4-6[1m]", tokens, nov21)?.pricing.model).toBe(
+      "claude-opus-4-6",
+    );
+    expect(
+      historicalTokenEstimate("claude-opus-4-6-thinking-high", tokens, nov21)?.pricing.model,
+    ).toBe("claude-opus-4-6");
+    expect(
+      historicalTokenEstimate("xai/grok-4[effort=high,fast=true]", tokens, nov21)?.pricing.model,
+    ).toBe("grok-4");
+    expect(historicalTokenEstimate("google/gemini-2.5-flash", tokens, nov21)?.pricing.model).toBe(
+      "gemini-2.5-flash",
+    );
+    expect(
+      historicalTokenEstimate("opencode-go/deepseek-reasoner", tokens, nov21)?.pricing.model,
+    ).toBe("deepseek-reasoner");
+    expect(historicalTokenEstimate("cursor-grok-4-high-fast", tokens, nov21)?.pricing.model).toBe(
+      "grok-4",
+    );
+    expect(historicalTokenEstimate("anthropic/sonnet", tokens, nov21)).toBeUndefined();
+    expect(historicalTokenEstimate("<synthetic>", tokens, nov21)).toBeUndefined();
+    expect(historicalTokenEstimate("openai/gpt-99-unknown", tokens, nov21)).toBeUndefined();
+  });
+
+  it("prices long-context tiers for Gemini models when prompt exceeds 200k tokens", () => {
+    const nov21 = Date.parse("2026-11-21T12:00:00Z");
+    const shortUsage = { input: 150_000, output: 10_000, cacheRead: 50_000, cacheWrite: 0 };
+    const longUsage = { input: 150_001, output: 10_000, cacheRead: 50_000, cacheWrite: 0 };
+
+    const shortEstimate = historicalTokenEstimate("gemini-2.5-pro", shortUsage, nov21)!;
+    const longEstimate = historicalTokenEstimate("gemini-2.5-pro", longUsage, nov21)!;
+    expect(shortEstimate.pricing.id).toBe("gemini-2.5-pro:2026-11-21");
+    expect(shortEstimate.amount).toBeCloseTo(
+      (150_000 * 1.25 + 10_000 * 10 + 50_000 * 0.125) / 1_000_000,
+      12,
+    );
+    expect(longEstimate.pricing.id).toBe("gemini-2.5-pro:2026-11-21:long-context");
+    expect(longEstimate.amount).toBeCloseTo(
+      (150_001 * 2.5 + 10_000 * 15 + 50_000 * 0.25) / 1_000_000,
+      12,
+    );
+  });
+
+  it("enforces the 200k prompt-size cap on unpinned Anthropic 4.0/4.1/4.5 aliases and avoids stale base fallback", () => {
+    const nov21 = Date.parse("2026-11-21T12:00:00Z");
+    expect(
+      historicalTokenEstimate(
+        "anthropic/claude-sonnet-4-5[1m]",
+        { input: 200_001, output: 1_000, cacheRead: 0, cacheWrite: 0 },
+        nov21,
+      ),
+    ).toBeUndefined();
+    expect(
+      historicalTokenEstimate(
+        "anthropic/claude-sonnet-4-5",
+        { input: 200_000, output: 1_000, cacheRead: 0, cacheWrite: 0 },
+        nov21,
+      )?.pricing.model,
+    ).toBe("claude-sonnet-4-5");
+
+    // Distinct suffixed model must not fall back to an earlier base model's snapshot.
+    const baseEarlier = {
+      ...HISTORICAL_PRICES.find((p) => p.model === "grok-4")!,
+      effectiveFrom: "2026-10-01",
+    };
+    const fastLater = {
+      ...HISTORICAL_PRICES.find((p) => p.model === "grok-4-fast")!,
+      effectiveFrom: "2026-11-21",
+    };
+    expect(
+      historicalTokenEstimate("grok-4-fast", tokens, Date.parse("2026-11-01T00:00:00Z"), [
+        baseEarlier,
+        fastLater,
+      ]),
+    ).toBeUndefined();
+  });
+
+  it("computes per-category costs and cache savings accurately", () => {
+    const price = HISTORICAL_PRICES.find((p) => p.model === "claude-sonnet-4-6")!;
+    const cat = estimateCategoryCosts(price, {
+      input: 1_000_000,
+      output: 100_000,
+      cacheRead: 500_000,
+      cacheWrite: 1_000_000,
+      cacheWrite1h: 400_000,
+    });
+    expect(cat.input).toBeCloseTo(3, 12);
+    expect(cat.output).toBeCloseTo(1.5, 12);
+    expect(cat.cacheRead).toBeCloseTo(0.15, 12);
+    expect(cat.cacheWrite).toBeCloseTo((600_000 * 3.75 + 400_000 * 6) / 1_000_000, 12);
+    expect(estimateCacheSavingsUsd(price, { cacheRead: 500_000 })).toBeCloseTo(1.35, 12);
+    expect(estimateCacheSavingsUsd(price, { cacheRead: 0 })).toBe(0);
+    expect(estimateCacheSavingsUsd({ input: 0.5, cacheRead: 1 }, { cacheRead: 500_000 })).toBe(0);
   });
 });

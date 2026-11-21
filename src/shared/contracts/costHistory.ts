@@ -18,6 +18,17 @@ export const usageMoneySchema = z.object({
   currency: z.string().regex(/^[A-Z]{3}$/),
 });
 
+const usdAmount = z.number().finite().nonnegative();
+
+/** Per-category estimated USD spend; mirrors `usageTokenCategoriesSchema`. */
+export const usageCategoryCostSchema = z.object({
+  input: usdAmount,
+  output: usdAmount,
+  cacheRead: usdAmount,
+  cacheWrite: usdAmount,
+});
+export type UsageCategoryCost = z.infer<typeof usageCategoryCostSchema>;
+
 export const usagePricingSchema = z.object({
   id: z.string(),
   model: z.string(),
@@ -55,6 +66,10 @@ export const profileCostTotalsSchema = z.object({
   observed: z.array(usageMoneySchema),
   estimatedUsd: z.number().finite().nonnegative(),
   categories: usageTokenCategoriesSchema,
+  /** Estimated USD saved by prompt cache reads relative to uncached input pricing. */
+  cacheSavingsUsd: usdAmount.optional(),
+  /** Estimated USD spend split by token category for samples with list-rate estimates. */
+  categoryCostUsd: usageCategoryCostSchema.optional(),
 });
 export type ProfileCostTotals = z.infer<typeof profileCostTotalsSchema>;
 
@@ -63,6 +78,19 @@ const costBreakdownSchema = z.object({
   label: z.string(),
   totals: profileCostTotalsSchema,
 });
+
+const dayProviderCostSchema = z.object({
+  day: z.string(),
+  provider: z.string(),
+  totals: profileCostTotalsSchema,
+});
+
+const dayModelCostSchema = z.object({
+  day: z.string(),
+  model: z.string(),
+  totals: profileCostTotalsSchema,
+});
+
 export const profileCostStatsSchema = z.object({
   totals: profileCostTotalsSchema,
   days: z.array(z.object({ day: z.string(), totals: profileCostTotalsSchema })),
@@ -70,5 +98,9 @@ export const profileCostStatsSchema = z.object({
   models: z.array(costBreakdownSchema),
   accounts: z.array(costBreakdownSchema),
   pricing: z.array(usagePricingSchema),
+  /** Per-day, per-provider totals for multi-provider trend charts and daily tables. */
+  dayProviders: z.array(dayProviderCostSchema).optional(),
+  /** Per-day, per-model totals for model drill-down trend charts. */
+  dayModels: z.array(dayModelCostSchema).optional(),
 });
 export type ProfileCostStats = z.infer<typeof profileCostStatsSchema>;

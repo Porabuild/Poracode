@@ -721,3 +721,175 @@ it("pairs compact profile and range tabs across views while grouping Edit in Pro
   expect(screen.queryByRole("button", { name: "Share" })).toBeNull();
   expect(screen.getByRole("button", { name: "Edit" })).toBeTruthy();
 });
+
+it("keeps the top bar and container width stable across Activity and Costs with directional transitions", () => {
+  const { container } = render(<ProfileSettings />);
+  const outer = container.firstElementChild as HTMLElement;
+  const profileTabs = screen.getByRole("tablist", { name: "Profile tabs" });
+  const topBar = profileTabs.parentElement?.parentElement as HTMLElement;
+  const editButton = screen.getByRole("button", { name: "Edit" });
+  const shareButton = screen.getByRole("button", { name: "Share" });
+  const activityPanel = screen.getByRole("tabpanel", { name: "Activity" });
+
+  expect(outer.className).toContain("max-w-[1080px]");
+  expect(topBar.contains(editButton)).toBe(true);
+  expect(topBar.contains(shareButton)).toBe(false);
+  expect(activityPanel.contains(shareButton)).toBe(true);
+  expect(activityPanel.className).not.toContain("poracode-tab-panel-");
+
+  // Activity hero defaults to Tokens as primary and Total prompts as secondary, swapping on toggle.
+  expect(screen.getByRole("region", { name: "Lifetime tokens" })).toBeTruthy();
+  fireEvent.click(screen.getByRole("tab", { name: "Prompts" }));
+  expect(screen.getByRole("region", { name: "Total prompts" })).toBeTruthy();
+  fireEvent.click(screen.getByRole("tab", { name: "Tokens" }));
+  expect(screen.getByRole("region", { name: "Lifetime tokens" })).toBeTruthy();
+
+  // Switch Activity -> Costs: same container width, same top bar node, enters from right.
+  fireEvent.click(screen.getByRole("tab", { name: "Costs" }));
+  const costsPanel = screen.getByRole("tabpanel", { name: "Costs" });
+  expect(container.firstElementChild).toBe(outer);
+  expect(outer.className).toContain("max-w-[1080px]");
+  expect(screen.getByRole("tablist", { name: "Profile tabs" }).parentElement?.parentElement).toBe(
+    topBar,
+  );
+  expect(costsPanel.className).toContain("poracode-tab-panel-from-right");
+
+  // Switch Costs -> Activity: enters from left without remounting the top bar.
+  fireEvent.click(screen.getByRole("tab", { name: "Activity" }));
+  const returnedActivityPanel = screen.getByRole("tabpanel", { name: "Activity" });
+  expect(screen.getByRole("tablist", { name: "Profile tabs" }).parentElement?.parentElement).toBe(
+    topBar,
+  );
+  expect(returnedActivityPanel.className).toContain("poracode-tab-panel-from-left");
+});
+
+it("renders multi-provider trend, cache savings, type share bars, and model drill-down dialog", () => {
+  const claudeTotals: ProfileCostTotals = {
+    tokens: 1_500_000,
+    categorizedTokens: 1_500_000,
+    unpricedTokens: 0,
+    observedTokens: 0,
+    estimatedTokens: 1_500_000,
+    observedSamples: 0,
+    estimatedSamples: 2,
+    observed: [],
+    estimatedUsd: 4.65,
+    cacheSavingsUsd: 1.35,
+    categoryCostUsd: { input: 3, output: 1.5, cacheRead: 0.15, cacheWrite: 0 },
+    categories: { input: 1_000_000, output: 100_000, cacheRead: 400_000, cacheWrite: 0 },
+  };
+  const geminiTotals: ProfileCostTotals = {
+    tokens: 500_000,
+    categorizedTokens: 500_000,
+    unpricedTokens: 0,
+    observedTokens: 0,
+    estimatedTokens: 500_000,
+    observedSamples: 0,
+    estimatedSamples: 1,
+    observed: [],
+    estimatedUsd: 1.25,
+    cacheSavingsUsd: 0.25,
+    categoryCostUsd: { input: 0.5, output: 0.7, cacheRead: 0.05, cacheWrite: 0 },
+    categories: { input: 300_000, output: 100_000, cacheRead: 100_000, cacheWrite: 0 },
+  };
+  const combinedTotals: ProfileCostTotals = {
+    tokens: 2_000_000,
+    categorizedTokens: 2_000_000,
+    unpricedTokens: 0,
+    observedTokens: 0,
+    estimatedTokens: 2_000_000,
+    observedSamples: 0,
+    estimatedSamples: 3,
+    observed: [],
+    estimatedUsd: 5.9,
+    cacheSavingsUsd: 1.6,
+    categoryCostUsd: { input: 3.5, output: 2.2, cacheRead: 0.2, cacheWrite: 0 },
+    categories: { input: 1_300_000, output: 200_000, cacheRead: 500_000, cacheWrite: 0 },
+  };
+  const stats: ProfileCostStats = {
+    totals: combinedTotals,
+    days: [
+      { day: "2026-11-20", totals: claudeTotals },
+      { day: "2026-11-21", totals: geminiTotals },
+    ],
+    providers: [
+      { key: "claude", label: "Claude", totals: claudeTotals },
+      { key: "gemini", label: "Gemini", totals: geminiTotals },
+    ],
+    models: [
+      {
+        key: "claude:work\x1fclaude-sonnet-4-6",
+        label: "claude-sonnet-4-6 (Claude - work)",
+        totals: claudeTotals,
+      },
+      {
+        key: "gemini:default\x1fgemini-2.5-pro",
+        label: "gemini-2.5-pro (Gemini - default)",
+        totals: geminiTotals,
+      },
+    ],
+    accounts: [],
+    pricing: [],
+    dayProviders: [
+      { day: "2026-11-20", provider: "claude", totals: claudeTotals },
+      { day: "2026-11-21", provider: "gemini", totals: geminiTotals },
+    ],
+    dayModels: [
+      {
+        day: "2026-11-20",
+        model: "claude:work\x1fclaude-sonnet-4-6",
+        totals: claudeTotals,
+      },
+      {
+        day: "2026-11-21",
+        model: "gemini:default\x1fgemini-2.5-pro",
+        totals: geminiTotals,
+      },
+    ],
+  };
+
+  render(<CostHistory stats={stats} loading={false} locale="en" />);
+
+  // Cache savings aside + Cost by type & Tokens by type share bars render in estimate mode.
+  expect(screen.getByTestId("profile-cost-cache-savings").textContent).toContain("$1.60");
+  expect(screen.getByRole("group", { name: "Cost by type" })).toBeTruthy();
+  expect(screen.getByRole("group", { name: "Tokens by type" })).toBeTruthy();
+
+  // Multi-provider chart draws curves/markers even on alternating active days.
+  expect(screen.getByRole("img").querySelectorAll("path").length).toBeGreaterThanOrEqual(2);
+
+  // Trend metric toggles between Cost and Tokens.
+  fireEvent.click(screen.getByRole("tab", { name: "Tokens" }));
+  expect(screen.getByRole("img", { name: "Daily recorded tokens." })).toBeTruthy();
+  fireEvent.click(screen.getByRole("tab", { name: "Cost" }));
+  expect(
+    screen.getByRole("img", { name: "Daily recorded cost; gaps may contain unpriced usage." }),
+  ).toBeTruthy();
+
+  // Clicking anywhere on a model row opens the model drill-down dialog with Per 1M tokens and Cache hit.
+  const modelRow = screen
+    .getByRole("button", { name: "claude-sonnet-4-6 (Claude - work)" })
+    .closest("tr")!;
+  fireEvent.click(modelRow);
+  const dialog = screen.getByRole("dialog");
+  expect(within(dialog).getByText("Per 1M tokens")).toBeTruthy();
+  expect(within(dialog).getByText("$3.10")).toBeTruthy();
+  expect(within(dialog).getByText("Cache hit")).toBeTruthy();
+  expect(within(dialog).getByText("29%")).toBeTruthy();
+  // Inactive day on a fully-attributed date renders as $0.00 rather than Unknown.
+  expect(within(dialog).getByText(/^2026-11-21: \$0\.00$/, { selector: "title" })).toBeTruthy();
+});
+
+it("handles pre-upgrade host payloads without optional dayProviders, dayModels, categoryCostUsd, or cacheSavingsUsd", () => {
+  const stats = reportedStats(3.2, "EUR");
+  stats.models.push({
+    key: "claude:work\x1fclaude-sonnet-4-6",
+    label: "claude-sonnet-4-6 (Claude - work)",
+    totals: stats.totals,
+  });
+  render(<CostHistory stats={stats} loading={false} locale="en" />);
+  expect(screen.queryByTestId("profile-cost-cache-savings")).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "claude-sonnet-4-6 (Claude - work)" }));
+  const dialog = screen.getByRole("dialog");
+  expect(within(dialog).getAllByText("€3.20").length).toBeGreaterThanOrEqual(1);
+});

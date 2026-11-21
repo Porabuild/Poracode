@@ -38,8 +38,52 @@ function deviceHint(
   return "";
 }
 
-export function ProfileHeader(props: {
+export function ProfileIdentityHeading(props: {
   identity: ProfileIdentity | null;
+  actions?: ReactNode;
+}) {
+  const { t } = useLingui();
+  const { identity, actions } = props;
+  const plan = identity?.plan ?? t`Local`;
+
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-4">
+      <div className="flex min-w-0 items-center gap-3">
+        {identity ? (
+          <>
+            <div
+              className="flex size-10 shrink-0 items-center justify-center rounded-full text-sm font-semibold text-white shadow-sm"
+              style={{ backgroundColor: identity.avatarColor }}
+            >
+              {initialsFor(identity.name)}
+            </div>
+            <div className="min-w-0">
+              <h1 className="truncate text-lg leading-tight font-semibold text-foreground">
+                {identity.name}
+              </h1>
+              <p className="mt-0.5 truncate text-xs text-muted">
+                @{identity.handle}
+                <span className="px-1.5 text-muted/50">·</span>
+                <span>{plan}</span>
+              </p>
+            </div>
+          </>
+        ) : (
+          <>
+            <Skeleton className="size-10 shrink-0 rounded-full bg-foreground/10" />
+            <div className="space-y-1.5">
+              <Skeleton className="h-5 w-32 rounded-md bg-foreground/10" />
+              <Skeleton className="h-3.5 w-28 rounded bg-foreground/10" />
+            </div>
+          </>
+        )}
+      </div>
+      {actions ? <div className="flex shrink-0 items-center gap-2">{actions}</div> : null}
+    </div>
+  );
+}
+
+export function ProfileHeader(props: {
   devices: ProfileDevice[];
   currentDeviceId: string | null;
   remoteStatusByDeviceId?: Readonly<Record<string, RemoteServerStatus>>;
@@ -47,26 +91,12 @@ export function ProfileHeader(props: {
   onSelect: (selection: ProfileSelection) => void;
   /** Rendered on the same row as the device picker, before the actions. */
   filter?: ReactNode;
-  /** Rendered beside the handle and plan metadata. */
-  identityAction?: ReactNode;
-  /** Rendered on the same row as the device picker (Share / Edit). */
+  /** Rendered on the same row as the device picker (e.g. Edit). */
   actions?: ReactNode;
-  compact?: boolean;
 }) {
   const { t } = useLingui();
-  const {
-    identity,
-    devices,
-    currentDeviceId,
-    remoteStatusByDeviceId,
-    selection,
-    onSelect,
-    filter,
-    identityAction,
-    actions,
-    compact = false,
-  } = props;
-  const plan = identity?.plan ?? t`Local`;
+  const { devices, currentDeviceId, remoteStatusByDeviceId, selection, onSelect, filter, actions } =
+    props;
 
   const value =
     selection.scope === "all"
@@ -89,45 +119,8 @@ export function ProfileHeader(props: {
   ];
 
   return (
-    <div className={compact ? "min-w-0" : "flex flex-col items-center gap-3 text-center"}>
-      {!compact &&
-        (identity ? (
-          <>
-            <div
-              className="flex size-20 items-center justify-center rounded-full text-2xl font-semibold text-white shadow-sm"
-              style={{ backgroundColor: identity.avatarColor }}
-            >
-              {initialsFor(identity.name)}
-            </div>
-            <div className="flex flex-col items-center gap-1">
-              <h1 className="text-2xl font-semibold text-foreground">{identity.name}</h1>
-              <div className="flex items-center justify-center gap-1">
-                <p className="text-sm text-muted">
-                  @{identity.handle}
-                  <span className="px-1.5 text-muted/50">-</span>
-                  <span className="text-muted">{plan}</span>
-                </p>
-                {identityAction}
-              </div>
-            </div>
-          </>
-        ) : (
-          <>
-            <Skeleton className="size-20 rounded-full bg-foreground/10" />
-            <div className="flex flex-col items-center gap-2">
-              <Skeleton className="h-7 w-32 rounded-lg bg-foreground/10" />
-              <Skeleton className="h-4 w-28 rounded-md bg-foreground/10" />
-            </div>
-          </>
-        ))}
-
-      <div
-        className={
-          compact
-            ? "flex min-w-0 flex-wrap items-center gap-1 [&_button]:max-w-full"
-            : "mt-1 flex flex-wrap items-center justify-center gap-2"
-        }
-      >
+    <div className="min-w-0">
+      <div className="flex min-w-0 flex-wrap items-center gap-1 [&_button]:max-w-full">
         <DevicePicker
           value={value}
           options={options}
@@ -142,7 +135,6 @@ export function ProfileHeader(props: {
           }}
         />
         {filter}
-        {compact && identityAction}
         {actions}
       </div>
     </div>

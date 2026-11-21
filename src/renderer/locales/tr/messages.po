@@ -396,6 +396,11 @@ msgstr "{1} adımın {0} tanesi"
 #~ msgid "{0} of {matchCount}"
 #~ msgstr "{0} / {matchCount}"
 
+#. placeholder {0}: formatPercentShare(costShare)
+#: src/renderer/views/ProfileOverlay/parts/CostModelDialog.tsx
+msgid "{0} of cost"
+msgstr "Maliyetin {0} oranı"
+
 #. placeholder {0}: projectCount(workspace.id)
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 #~ msgid "{0} projects"
@@ -473,6 +478,11 @@ msgstr "{0} token - {when}"
 #: src/renderer/components/thread/ThreadSpendDetails.tsx
 msgid "{0} tokens · cached {1} · written {2} · output {3}"
 msgstr "{0} token · önbellekten {1} · yazılan {2} · çıktı {3}"
+
+#. placeholder {0}: formatCompact(model.totals.unpricedTokens)
+#: src/renderer/views/ProfileOverlay/parts/CostModelDialog.tsx
+msgid "{0} tokens have no known price."
+msgstr "{0} token için bilinen bir fiyat yok."
 
 #. placeholder {0}: agent.label
 #. placeholder {0}: agent.name
@@ -3424,9 +3434,23 @@ msgid "Bypass Permissions"
 msgstr "İzinleri atla"
 
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "cache"
+msgstr "önbellek"
+
+#: src/renderer/views/ProfileOverlay/parts/CostModelDialog.tsx
+msgid "Cache hit"
+msgstr "Önbellek isabeti"
+
+#: src/renderer/views/ProfileOverlay/parts/costBreakdown.ts
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 msgid "Cache read"
 msgstr "Önbellek okuma"
 
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "Cache savings"
+msgstr "Önbellek tasarrufu"
+
+#: src/renderer/views/ProfileOverlay/parts/costBreakdown.ts
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 msgid "Cache write"
 msgstr "Önbellek yazma"
@@ -4360,6 +4384,7 @@ msgstr "Klonlanıyor…"
 #: src/renderer/views/ExperimentView/parts/ExperimentJudgeRunDialog.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/parts/MobileTerminalLayout.tsx
+#: src/renderer/views/ProfileOverlay/parts/CostModelDialog.tsx
 #: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
 #: src/renderer/views/SchedulesView/parts/ScheduleRunDetails.tsx
 #: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
@@ -5435,6 +5460,7 @@ msgstr "Devam et"
 msgid "Continue from where you left off."
 msgstr "Kaldığın yerden devam et."
 
+#: src/renderer/components/thread/CompactThreadHeader.tsx
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/components/thread/ThreadView.tsx
 msgid "Continue in another provider"
@@ -5680,8 +5706,17 @@ msgstr "Taahhüt edilmemiş değişiklikleri buraya kopyalayın (onları bu dald
 #~ msgstr "URL'yi kopyala"
 
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+#: src/renderer/views/ProfileOverlay/parts/CostModelDialog.tsx
+msgid "Cost"
+msgstr "Maliyet"
+
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 msgid "Cost breakdown"
 msgstr "Maliyet dökümü"
+
+#: src/renderer/views/ProfileOverlay/parts/CostShareBar.tsx
+msgid "Cost by type"
+msgstr "Türe göre maliyet"
 
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 msgid "Cost history is unavailable from this host."
@@ -6515,6 +6550,10 @@ msgstr "Günlük"
 msgid "Daily brief"
 msgstr "Günlük özet"
 
+#: src/renderer/views/ProfileOverlay/parts/CostModelDialog.tsx
+msgid "Daily cost"
+msgstr "Günlük maliyet"
+
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 msgid "Daily costs"
 msgstr "Günlük maliyetler"
@@ -6522,6 +6561,14 @@ msgstr "Günlük maliyetler"
 #: src/renderer/views/ProfileOverlay/parts/CostTrend.tsx
 msgid "Daily recorded cost; gaps may contain unpriced usage."
 msgstr "Kaydedilen günlük maliyet; boşluklarda fiyatı bilinmeyen kullanım olabilir."
+
+#: src/renderer/views/ProfileOverlay/parts/CostTrend.tsx
+msgid "Daily recorded tokens."
+msgstr "Günlük kaydedilen tokenler."
+
+#: src/renderer/views/ProfileOverlay/parts/CostModelDialog.tsx
+msgid "Daily tokens"
+msgstr "Günlük tokenler"
 
 #: src/renderer/components/devices/DeviceTools.tsx
 #: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
@@ -10424,6 +10471,7 @@ msgstr "Depoyu Başlat"
 msgid "Inner display"
 msgstr "İç ekran"
 
+#: src/renderer/views/ProfileOverlay/parts/costBreakdown.ts
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 msgid "Input"
 msgstr "Girdi"
@@ -11303,7 +11351,7 @@ msgstr "Lisans"
 msgid "lifetime tokens"
 msgstr "toplam token"
 
-#: src/renderer/views/ProfileOverlay/parts/StatStrip.tsx
+#: src/renderer/views/ProfileOverlay/parts/ActivitySection.tsx
 msgid "Lifetime tokens"
 msgstr "Toplam token"
 
@@ -13306,6 +13354,7 @@ msgid "News line"
 msgstr "Haber satırı"
 
 #: src/renderer/components/newsLine/NewsLine.tsx
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
 #: src/renderer/views/PullRequestsOverlay/guide/PrReviewGuideTab.tsx
 msgid "Next"
 msgstr "İleri"
@@ -14921,6 +14970,7 @@ msgstr "Kuruluş (isteğe bağlı)"
 #: src/renderer/components/plugins/PluginMarketplace.tsx
 #: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/StructuredCustomValues.tsx
+#: src/renderer/views/ProfileOverlay/parts/costBreakdown.ts
 #: src/renderer/views/PullRequestsOverlay/compact/PrCompactMenu.tsx
 msgid "Other"
 msgstr "Diğer"
@@ -14964,6 +15014,7 @@ msgstr "Dış ekran"
 msgid "Outlook"
 msgstr "Outlook"
 
+#: src/renderer/views/ProfileOverlay/parts/costBreakdown.ts
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 msgid "Output"
 msgstr "Çıktı"
@@ -15367,6 +15418,7 @@ msgstr "Zirve {0}"
 msgid "peak day"
 msgstr "en yoğun gün"
 
+#: src/renderer/views/ProfileOverlay/parts/ActivitySection.tsx
 #: src/renderer/views/ProfileOverlay/parts/StatStrip.tsx
 msgid "Peak day"
 msgstr "En yoğun gün"
@@ -15392,6 +15444,10 @@ msgstr "İnceleme bekliyor"
 #: src/renderer/components/thread/ThreadPendingSteerStrip.tsx
 msgid "Pending steer"
 msgstr "Yönlendirme bekleniyor"
+
+#: src/renderer/views/ProfileOverlay/parts/CostModelDialog.tsx
+msgid "Per 1M tokens"
+msgstr "1M token başına"
 
 #: src/renderer/components/thread/ThreadAgentVisionDock.tsx
 msgid "Perform actions"
@@ -16012,6 +16068,7 @@ msgid "Preview {0}"
 msgstr "Önizleme {0}"
 
 #: src/renderer/components/newsLine/NewsLine.tsx
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
 msgid "Previous"
 msgstr "Önceki"
 
@@ -17805,6 +17862,10 @@ msgid "Resuming session…"
 msgstr "Oturum sürdürülüyor…"
 
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "Retained usage across connected devices."
+msgstr "Bağlı cihazlarda saklanan kullanım."
+
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 msgid "Retained usage on this host only."
 msgstr "Yalnızca bu sunucuda saklanan kullanım."
 
@@ -19525,8 +19586,8 @@ msgstr "Tümünü göster"
 
 #. placeholder {0}: facts.length
 #: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
-msgid "Show all {0} insights"
-msgstr "Tüm {0} analizi göster"
+#~ msgid "Show all {0} insights"
+#~ msgstr "Tüm {0} analizi göster"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
 msgid "Show bookmark bar"
@@ -19595,8 +19656,8 @@ msgid "Show fewer"
 msgstr "Daha az göster"
 
 #: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
-msgid "Show fewer insights"
-msgstr "Daha az analiz göster"
+#~ msgid "Show fewer insights"
+#~ msgstr "Daha az analiz göster"
 
 #: src/renderer/views/PullRequestsOverlay/changes/ChangesToolbar.tsx
 msgid "Show file tree"
@@ -19763,6 +19824,10 @@ msgstr "Son yüklenen sürüm gösteriliyor. Yenilenene kadar salt okunur."
 #: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
 msgid "Showing the most recent sessions — narrow the filters to see more."
 msgstr "En son oturumlar gösteriliyor — daha fazlasını görmek için filtreleri daraltın."
+
+#: src/renderer/views/ProfileOverlay/parts/CostModelDialog.tsx
+msgid "Showing tokens (model is unpriced)"
+msgstr "Tokenler gösteriliyor (model fiyatlandırılmamış)"
 
 #: src/renderer/components/providers/settings/CursorProfileIdentity.tsx
 msgid "Shown in the sidebar and the model picker."
@@ -22916,13 +22981,19 @@ msgid "Token usage unavailable for: {unavailableLabels}"
 msgstr "Token kullanımı şunlar için kullanılamıyor: {unavailableLabels}"
 
 #: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 msgid "tokens"
 msgstr "token"
 
 #: src/renderer/views/ProfileOverlay/parts/ActivitySection.tsx
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+#: src/renderer/views/ProfileOverlay/parts/CostModelDialog.tsx
 msgid "Tokens"
 msgstr "Token"
+
+#: src/renderer/views/ProfileOverlay/parts/CostShareBar.tsx
+msgid "Tokens by type"
+msgstr "Türe göre tokenler"
 
 #. placeholder {0}: tokens!.providers.map((p) => p.label).join(", ")
 #: src/renderer/views/ProfileOverlay/parts/ModelUsage.tsx
@@ -22970,15 +23041,21 @@ msgstr "Araç arama"
 msgid "Top skill this week: <0>{name}</0> ({count, plural, one {# run} other {# runs}})"
 msgstr "Bu haftanın öne çıkan becerisi: <0>{name}</0> ({count, plural, one {# çalıştırma} other {# çalıştırma}})"
 
+#: src/renderer/views/ProfileOverlay/parts/CostTrend.tsx
+msgid "Total"
+msgstr "Toplam"
+
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "Total installs"
 msgstr "Toplam yükleme"
 
 #: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+#: src/renderer/views/ProfileOverlay/parts/ActivitySection.tsx
 msgid "Total prompts"
 msgstr "Toplam istem"
 
 #: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+#: src/renderer/views/ProfileOverlay/parts/ActivitySection.tsx
 msgid "Total threads"
 msgstr "Toplam konuşma"
 
@@ -22986,7 +23063,7 @@ msgstr "Toplam konuşma"
 msgid "total tokens"
 msgstr "token toplamı"
 
-#: src/renderer/views/ProfileOverlay/parts/StatStrip.tsx
+#: src/renderer/views/ProfileOverlay/parts/ActivitySection.tsx
 msgid "Total tokens"
 msgstr "Token toplamı"
 
@@ -23033,6 +23110,10 @@ msgstr "Yarı saydam kenar çubuğu"
 #: src/renderer/utils/projectIcons.ts
 msgid "Travel & places"
 msgstr "Seyahat ve yerler"
+
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "Trend metric"
+msgstr "Eğilim metriği"
 
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "Trending now"
@@ -23660,6 +23741,8 @@ msgstr "{name} kaldır"
 #: src/renderer/utils/prStatus.ts
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+#: src/renderer/views/ProfileOverlay/parts/CostModelDialog.tsx
+#: src/renderer/views/ProfileOverlay/parts/CostTrend.tsx
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Unknown"
 msgstr "Bilinmiyor"
@@ -23740,6 +23823,10 @@ msgstr "Sabitlemeyi kaldır"
 #: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
 msgid "Unpin workflow"
 msgstr "İş akışının sabitlemesini kaldır"
+
+#: src/renderer/views/ProfileOverlay/parts/CostModelDialog.tsx
+msgid "Unpriced"
+msgstr "Fiyatsız"
 
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 msgid "Unpriced tokens"

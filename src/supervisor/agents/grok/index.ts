@@ -50,6 +50,19 @@ warnIfPluginManifestMissing("grok", GROK_PLUGIN_VERSION);
 // Modes/permissions: https://docs.x.ai/build/modes-and-commands
 // Enterprise auth:   https://docs.x.ai/build/enterprise
 
+const GROK_COST_USD_TICKS_PER_DOLLAR = 10_000_000_000;
+
+/** Parse xAI/Grok ACP `costUsdTicks` (1e-10 USD units) into standard USD cost. */
+export function readGrokPromptUsageCost(
+  usage: Record<string, unknown>,
+): { amount: number; currency: string } | undefined {
+  const ticks = usage.costUsdTicks ?? usage.cost_usd_ticks;
+  if (typeof ticks === "number" && Number.isFinite(ticks) && ticks >= 0) {
+    return { amount: ticks / GROK_COST_USD_TICKS_PER_DOLLAR, currency: "USD" };
+  }
+  return undefined;
+}
+
 export function createGrokAdapter(): AgentAdapter {
   let capabilities = grokDefaultCapabilities;
 
@@ -205,7 +218,10 @@ export function createGrokAdapter(): AgentAdapter {
         acpFsAgentHomeDirs: [".grok"],
         acpSessionUpdateTransform: createGrokAcpSessionUpdateTransform(),
       };
-      const overrides = { resolveModelConfig: resolveGrokAcpModel };
+      const overrides = {
+        resolveModelConfig: resolveGrokAcpModel,
+        behavior: { promptUsageCost: readGrokPromptUsageCost },
+      };
       return input.projectLocation.kind === "wsl"
         ? createAcpStructuredSession(command, sessionInput, overrides)
         : await createSharedAcpStructuredSession(

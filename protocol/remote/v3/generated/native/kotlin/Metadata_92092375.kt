@@ -13,7 +13,7 @@ object RemoteContractMetadata {
     const val protocolVersion = 14
     const val bindingFormatVersion = 2
     const val generatorVersion = 7
-    const val sourceHash = "sha256:299e49b5f1da5ed8494baf0ed69a5df9f7ba493af040d9d7600a975c597aad9f"
+    const val sourceHash = "sha256:a46df04303c87eaa4c346e7bf188147f8e8a34dabcb6de140193b7590c4f6a7e"
     const val manifestHash = "sha256:4c65d87f75044cd0750dbf9b6aba2f3d74ba1fdebcbd66b30b3e4d73b86bde99"
     val validationBoundary = RemoteValidationBoundary.ROOT_CODEC_ONLY
     val generatedModelSerializationSemantics = RemoteGeneratedSerializerSemantics.NON_VALIDATING_REPRESENTATION_ONLY
@@ -96,7 +96,7 @@ object RemoteContractMetadata {
         RemoteRouteDescriptor("profile-core-stats", "POST", "/api/profile/core-stats", "bearer", listOf("session:read"), "json", "json", 200, "RouteprofileU2DCoreU2DStatsRequest_f76e77baae", "RouteprofileU2DCoreU2DStatsResponse_42cbe66f12", listOf()),
         RemoteRouteDescriptor("profile-devices", "GET", "/api/profile/devices", "bearer", listOf("session:read"), "empty", "json", 200, "RemoteUnit", "RouteprofileU2DDevicesResponse_0943be33f9", listOf()),
         RemoteRouteDescriptor("profile-identity", "POST", "/api/profile/identity", "bearer", listOf("session:operate"), "json", "json", 200, "RouteprofileU2DCoreU2DStatsResponseU2DIdentity_da76232259", "RouteprofileU2DIdentityResponse_e0bc631a25", listOf()),
-        RemoteRouteDescriptor("profile-token-stats", "POST", "/api/profile/token-stats", "bearer", listOf("session:read"), "json", "json", 200, "RouteprofileU2DCoreU2DStatsRequest_f76e77baae", "RouteprofileU2DTokenU2DStatsResponse_06c478cc50", listOf()),
+        RemoteRouteDescriptor("profile-token-stats", "POST", "/api/profile/token-stats", "bearer", listOf("session:read"), "json", "json", 200, "RouteprofileU2DCoreU2DStatsRequest_f76e77baae", "RouteprofileU2DTokenU2DStatsResponse_c6173f708b", listOf()),
         RemoteRouteDescriptor("project-command", "POST", "/api/projects/command", "bearer", listOf("projects:manage"), "json", "json", 200, "RouteprojectU2DCommandRequest_3e58e9f152", "RouteprojectU2DCommandResponse_2351864622", listOf()),
         RemoteRouteDescriptor("project-list", "GET", "/api/projects", "bearer", listOf("session:read"), "empty", "json", 200, "RemoteUnit", "RouteprojectU2DListResponse_d983c015b3", listOf(RemoteQueryParameterDescriptor("reads", "string", true, false), RemoteQueryParameterDescriptor("cursor", "string", true, false), RemoteQueryParameterDescriptor("mode", "string", true, false), RemoteQueryParameterDescriptor("order", "string", true, false), RemoteQueryParameterDescriptor("projectLimit", "int", true, false), RemoteQueryParameterDescriptor("maxBytes", "int", true, false), RemoteQueryParameterDescriptor("maxDecodeBytes", "int", true, false))),
         RemoteRouteDescriptor("project-notes-read", "GET", "/api/projects/{projectId}/notes", "bearer", listOf("session:read"), "empty", "json", 200, "RemoteUnit", "RouteprojectU2DNotesU2DReadResponse_da74e89ba0", listOf()),

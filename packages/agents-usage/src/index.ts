@@ -173,4 +173,11 @@ export type {
   AntigravityModelQuota,
   AntigravityRingGroup,
 } from "./collectors/antigravity";
-export { historicalTokenEstimate } from "./historicalPricing";
+export {
+  candidateHistoricalModelIds,
+  estimateCacheSavingsUsd,
+  estimateCategoryCosts,
+  HISTORICAL_PRICES,
+  historicalTokenEstimate,
+} from "./historicalPricing";
+export type { CategoryCostUsd, HistoricalPrice } from "./historicalPricing";

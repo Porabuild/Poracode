@@ -256,10 +256,10 @@ describe("mergeProfileCoreStats", () => {
       { type: "commit", label: "AI commits", count: 7 },
       { type: "pr", label: "AI pull requests", count: 1 },
     ]);
-    expect(merged.availableAccounts.map((a) => a.key)).toEqual(["claude:work", "codex:default"]);
+    expect(merged.availableAccounts.map((a) => a.key)).toEqual(["codex:default", "claude:work"]);
   });
 
-  it("merges recent period snapshots and derives mostActiveHour from windowHours", () => {
+  it("merges recent period snapshots and derives mostActiveHour and topReasoning across devices", () => {
     const emptySnapshot = {
       days: 7,
       activeDays: 1,
@@ -314,6 +314,12 @@ describe("mergeProfileCoreStats", () => {
     });
     const merged = mergeProfileCoreStats([devA, devB]);
     expect(merged.insights.mostActiveHour).toEqual({ hour: 21, label: "9 PM", count: 9 });
+    expect(merged.insights.topReasoning).toEqual({
+      key: "high",
+      label: "High",
+      count: 2,
+      percent: 100,
+    });
     expect(merged.recent?.yesterday.prompts).toBe(5);
     expect(merged.recent?.last7d.prompts).toBe(5);
     expect(merged.recent?.prev7d.prompts).toBe(5);
@@ -331,20 +337,42 @@ describe("mergeProfileTokenStats", () => {
   });
   it("sums token counts, heatmaps, peak day, unavailable providers, and cost stats", () => {
     const costA: ProfileCostStats = {
-      totals: makeCostTotals(1000, 1.5, 2),
+      totals: {
+        ...makeCostTotals(1000, 1.5, 2),
+        cacheSavingsUsd: 0.4,
+        categoryCostUsd: { input: 1, output: 0.5, cacheRead: 0, cacheWrite: 0 },
+      },
       days: [{ day: "2026-10-16", totals: makeCostTotals(1000, 1.5, 2) }],
       providers: [{ key: "claude", label: "Claude", totals: makeCostTotals(1000, 1.5, 2) }],
       models: [],
       accounts: [],
       pricing: [],
+      dayProviders: [
+        { day: "2026-10-16", provider: "claude", totals: makeCostTotals(1000, 1.5, 2) },
+      ],
+      dayModels: [
+        {
+          day: "2026-10-16",
+          model: "claude:work\x1fclaude-sonnet-4-6",
+          totals: makeCostTotals(1000, 1.5, 2),
+        },
+      ],
     };
     const costB: ProfileCostStats = {
-      totals: makeCostTotals(3000, 3.0, 1),
+      totals: {
+        ...makeCostTotals(3000, 3.0, 1),
+        cacheSavingsUsd: 0.6,
+        categoryCostUsd: { input: 2, output: 1, cacheRead: 0, cacheWrite: 0 },
+      },
       days: [{ day: "2026-10-16", totals: makeCostTotals(3000, 3.0, 1) }],
       providers: [{ key: "codex", label: "Codex", totals: makeCostTotals(3000, 3.0, 1) }],
       models: [],
       accounts: [],
       pricing: [],
+      dayProviders: [
+        { day: "2026-10-16", provider: "codex", totals: makeCostTotals(3000, 3.0, 1) },
+      ],
+      dayModels: [],
     };
     const tokA = makeTokens({
       lifetimeTokens: 1000,
@@ -387,7 +415,71 @@ describe("mergeProfileTokenStats", () => {
     expect(merged.unavailableProviders).toEqual(["deepseek", "qwen"]);
     expect(merged.costs?.totals.tokens).toBe(4000);
     expect(merged.costs?.totals.estimatedUsd).toBe(4.5);
+    expect(merged.costs?.totals.cacheSavingsUsd).toBeCloseTo(1.0);
+    expect(merged.costs?.totals.categoryCostUsd).toEqual({
+      input: 3,
+      output: 1.5,
+      cacheRead: 0,
+      cacheWrite: 0,
+    });
     expect(merged.costs?.totals.observed).toEqual([{ amount: 3, currency: "EUR" }]);
     expect(merged.costs?.days[0]?.totals.tokens).toBe(4000);
+    expect(merged.costs?.dayProviders?.map((entry) => entry.provider)).toEqual(["claude", "codex"]);
+    expect(merged.costs?.dayModels?.map((entry) => entry.model)).toEqual([
+      "claude:work\x1fclaude-sonnet-4-6",
+    ]);
+  });
+
+  it("omits dayProviders and dayModels when merging with a pre-upgrade host that lacks them", () => {
+    const upgraded = makeTokens({
+      lifetimeTokens: 1000,
+      costs: {
+        totals: makeCostTotals(1000, 1.5),
+        days: [{ day: "2026-10-16", totals: makeCostTotals(1000, 1.5) }],
+        providers: [{ key: "claude", label: "Claude", totals: makeCostTotals(1000, 1.5) }],
+        models: [
+          {
+            key: "claude\x1fclaude-sonnet-4-6",
+            label: "claude-sonnet-4-6 (Claude)",
+            totals: makeCostTotals(1000, 1.5),
+          },
+        ],
+        accounts: [],
+        pricing: [],
+        dayProviders: [
+          { day: "2026-10-16", provider: "claude", totals: makeCostTotals(1000, 1.5) },
+        ],
+        dayModels: [
+          {
+            day: "2026-10-16",
+            model: "claude\x1fclaude-sonnet-4-6",
+            totals: makeCostTotals(1000, 1.5),
+          },
+        ],
+      },
+    });
+    const preUpgrade = makeTokens({
+      device: makeDevice("dev-legacy", "Older Host", false),
+      lifetimeTokens: 2000,
+      costs: {
+        totals: makeCostTotals(2000, 3.0),
+        days: [{ day: "2026-10-16", totals: makeCostTotals(2000, 3.0) }],
+        providers: [{ key: "codex", label: "Codex", totals: makeCostTotals(2000, 3.0) }],
+        models: [
+          {
+            key: "codex\x1fgpt-5.3-codex",
+            label: "gpt-5.3-codex (Codex)",
+            totals: makeCostTotals(2000, 3.0),
+          },
+        ],
+        accounts: [],
+        pricing: [],
+      },
+    });
+
+    const merged = mergeProfileTokenStats([upgraded, preUpgrade]);
+    expect(merged.costs?.totals.estimatedUsd).toBe(4.5);
+    expect(merged.costs?.dayProviders).toBeUndefined();
+    expect(merged.costs?.dayModels).toBeUndefined();
   });
 });

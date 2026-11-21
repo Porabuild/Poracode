@@ -401,6 +401,7 @@ final class SettingsUICompositionTests: XCTestCase {
   func testProfileFiltersKeepDesktopIdentifiersSeparate() {
     let first = ClientConnectionID(), second = ClientConnectionID()
     var state = SettingsProfileQuerySelection()
+    XCTAssertEqual(state[first].scope, .all)
     state[first] = SettingsProfileQuery(
       scope: .device, deviceID: "device-a", provider: "account-a", window: .sevenDays
     )

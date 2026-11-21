@@ -260,7 +260,7 @@ private fun localProfileStatsRequest(): ProfileStatsRequest {
     val offsetMinutes = ZoneId.systemDefault().rules.getOffset(Instant.now()).totalSeconds / 60.0
     return ProfileStatsRequest(
         utcOffsetMinutes = offsetMinutes,
-        scope = ProfileStatsScope.Device,
+        scope = ProfileStatsScope.All,
         window = ProfileStatsWindow.ThirtyDays,
     )
 }

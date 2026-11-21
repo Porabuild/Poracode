@@ -321,14 +321,14 @@ describe("Profile progressive loading, skeletons, and remote devices", () => {
       expect(screen.getByRole("heading", { level: 1, name: "Sdsle" })).toBeTruthy();
     });
 
-    // Open device picker and verify "Syncs with Cloud" is gone while device hints render.
+    // Open device picker (defaults to All devices) and verify "Syncs with Cloud" is gone while device hints render.
     await waitFor(() => {
-      expect(screen.getAllByRole("button", { name: /amd-pc-12-25/ }).length).toBeGreaterThan(0);
+      expect(screen.getAllByRole("button", { name: /All devices/ }).length).toBeGreaterThan(0);
     });
-    const deviceButtons = screen.getAllByRole("button", { name: /amd-pc-12-25/ });
+    const deviceButtons = screen.getAllByRole("button", { name: /All devices/ });
     fireEvent.click(deviceButtons[deviceButtons.length - 1]!);
     await waitFor(() => {
-      expect(screen.getByText("All devices")).toBeTruthy();
+      expect(screen.getByText("amd-pc-12-25")).toBeTruthy();
       expect(screen.getByText("This device")).toBeTruthy();
     });
     expect(screen.queryByText("Syncs with Cloud")).toBeNull();
@@ -336,7 +336,7 @@ describe("Profile progressive loading, skeletons, and remote devices", () => {
     // Close the device picker popover before clicking tabs.
     fireEvent.click(deviceButtons[deviceButtons.length - 1]!);
     await waitFor(() => {
-      expect(screen.queryByText("All devices")).toBeNull();
+      expect(screen.queryByText("This device")).toBeNull();
     });
 
     // Switching to Costs while tokens are still loading renders structured skeleton (no PixelLoader).
@@ -395,16 +395,10 @@ describe("Profile progressive loading, skeletons, and remote devices", () => {
 
     const { result } = renderHook(() => useProfileData(), { wrapper: I18nTestWrapper });
 
+    // Defaults to All devices: local resolves first without waiting for remote!
+    expect(result.current.selection.scope).toBe("all");
     await waitFor(() => {
       expect(result.current.devices.map((d) => d.label)).toEqual(["amd-pc-12-25", "mac-studio"]);
-    });
-
-    // Switch to All devices: local resolves first without waiting for remote!
-    act(() => {
-      result.current.setSelection({ scope: "all", window: "all" });
-    });
-
-    await waitFor(() => {
       expect(result.current.core?.totals.totalPrompts).toBe(5);
       expect(result.current.tokens?.lifetimeTokens).toBe(1000);
     });
@@ -456,6 +450,12 @@ describe("Profile progressive loading, skeletons, and remote devices", () => {
     bridgeState.getProfileTokenStats.mockResolvedValue(
       sampleTokens("dev-1", "Primary Server", 200),
     );
+    remoteStoreState.withClient.mockImplementation(async (_key, invoke) =>
+      invoke({
+        profileCoreStats: async () => sampleCore("dev-2", "Secondary Server", 4),
+        profileTokenStats: async () => sampleTokens("dev-2", "Secondary Server", 300),
+      }),
+    );
 
     const { result } = renderHook(() => useProfileData(), { wrapper: I18nTestWrapper });
 
@@ -464,7 +464,9 @@ describe("Profile progressive loading, skeletons, and remote devices", () => {
         "Primary Server",
         "Secondary Server",
       ]);
+      expect(result.current.core?.totals.totalPrompts).toBe(7);
     });
+    expect(remoteStoreState.withClient.mock.calls.every(([key]) => key === "srv-2")).toBe(true);
   });
 
   it("keeps ProfileHeader and DevicePicker mounted with Retry when a selected remote device fails", async () => {
@@ -502,7 +504,7 @@ describe("Profile progressive loading, skeletons, and remote devices", () => {
       expect(screen.getByRole("heading", { level: 1, name: "Sdsle" })).toBeTruthy();
     });
 
-    const deviceButtons = screen.getAllByRole("button", { name: /amd-pc-12-25/ });
+    const deviceButtons = screen.getAllByRole("button", { name: /All devices/ });
     fireEvent.click(deviceButtons[deviceButtons.length - 1]!);
     await waitFor(() => {
       expect(screen.getByText("offline-box")).toBeTruthy();

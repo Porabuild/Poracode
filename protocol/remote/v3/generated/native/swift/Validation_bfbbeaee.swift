@@ -105,6 +105,14 @@ public extension RemoteSchemas {
 }
 
 public extension RemoteSchemas {
+  static let schema_9f5f978bdfd3d4d9 = RemoteSchema(type: "array", items: RemoteSchemas.schema_3cba112875bf376c, unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
+  static let schema_9f69a3eb5854c7b1 = RemoteSchema(type: "object", required: Set(["accounts", "days", "models", "pricing", "providers", "totals"]), properties: ["accounts": RemoteSchemas.schema_3b1f9447f1bebace, "dayModels": RemoteSchemas.schema_ebdf410e6db99e49, "dayProviders": RemoteSchemas.schema_9f5f978bdfd3d4d9, "days": RemoteSchemas.schema_eed304c45e697ad1, "models": RemoteSchemas.schema_3b1f9447f1bebace, "pricing": RemoteSchemas.schema_7f0fc2dd36a6993f, "providers": RemoteSchemas.schema_3b1f9447f1bebace, "totals": RemoteSchemas.schema_e0fa095c6a9a1aed], additionalAllowed: true, unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
   static let schema_9f6b436502c63c75 = RemoteSchema(type: "string", literals: [.string("agent-vision-watch")], unknownPolicy: .strip)
 }
 

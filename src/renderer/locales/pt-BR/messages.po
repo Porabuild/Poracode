@@ -396,6 +396,11 @@ msgstr "{0} de {1} etapas"
 #~ msgid "{0} of {matchCount}"
 #~ msgstr "{0} de {matchCount}"
 
+#. placeholder {0}: formatPercentShare(costShare)
+#: src/renderer/views/ProfileOverlay/parts/CostModelDialog.tsx
+msgid "{0} of cost"
+msgstr "{0} do custo"
+
 #. placeholder {0}: projectCount(workspace.id)
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 #~ msgid "{0} projects"
@@ -473,6 +478,11 @@ msgstr "{0} tokens - {when}"
 #: src/renderer/components/thread/ThreadSpendDetails.tsx
 msgid "{0} tokens · cached {1} · written {2} · output {3}"
 msgstr "{0} tokens · em cache {1} · gravados {2} · saída {3}"
+
+#. placeholder {0}: formatCompact(model.totals.unpricedTokens)
+#: src/renderer/views/ProfileOverlay/parts/CostModelDialog.tsx
+msgid "{0} tokens have no known price."
+msgstr "{0} tokens não têm preço conhecido."
 
 #. placeholder {0}: agent.label
 #. placeholder {0}: agent.name
@@ -3424,9 +3434,23 @@ msgid "Bypass Permissions"
 msgstr "Ignorar permissões"
 
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "cache"
+msgstr "cache"
+
+#: src/renderer/views/ProfileOverlay/parts/CostModelDialog.tsx
+msgid "Cache hit"
+msgstr "Acerto de cache"
+
+#: src/renderer/views/ProfileOverlay/parts/costBreakdown.ts
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 msgid "Cache read"
 msgstr "Leitura de cache"
 
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "Cache savings"
+msgstr "Economia de cache"
+
+#: src/renderer/views/ProfileOverlay/parts/costBreakdown.ts
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 msgid "Cache write"
 msgstr "Gravação de cache"
@@ -4360,6 +4384,7 @@ msgstr "Clonando…"
 #: src/renderer/views/ExperimentView/parts/ExperimentJudgeRunDialog.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/parts/MobileTerminalLayout.tsx
+#: src/renderer/views/ProfileOverlay/parts/CostModelDialog.tsx
 #: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
 #: src/renderer/views/SchedulesView/parts/ScheduleRunDetails.tsx
 #: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
@@ -5435,6 +5460,7 @@ msgstr "Continuar"
 msgid "Continue from where you left off."
 msgstr "Continue de onde você parou."
 
+#: src/renderer/components/thread/CompactThreadHeader.tsx
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/components/thread/ThreadView.tsx
 msgid "Continue in another provider"
@@ -5680,8 +5706,17 @@ msgstr "Copiar alterações não commitadas aqui (mantém-nas neste branch)"
 #~ msgstr "Copiar URL"
 
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+#: src/renderer/views/ProfileOverlay/parts/CostModelDialog.tsx
+msgid "Cost"
+msgstr "Custo"
+
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 msgid "Cost breakdown"
 msgstr "Detalhamento de custos"
+
+#: src/renderer/views/ProfileOverlay/parts/CostShareBar.tsx
+msgid "Cost by type"
+msgstr "Custo por tipo"
 
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 msgid "Cost history is unavailable from this host."
@@ -6515,6 +6550,10 @@ msgstr "Diariamente"
 msgid "Daily brief"
 msgstr "Resumo diário"
 
+#: src/renderer/views/ProfileOverlay/parts/CostModelDialog.tsx
+msgid "Daily cost"
+msgstr "Custo diário"
+
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 msgid "Daily costs"
 msgstr "Custos diários"
@@ -6522,6 +6561,14 @@ msgstr "Custos diários"
 #: src/renderer/views/ProfileOverlay/parts/CostTrend.tsx
 msgid "Daily recorded cost; gaps may contain unpriced usage."
 msgstr "Custo diário registrado; lacunas podem conter uso sem preço."
+
+#: src/renderer/views/ProfileOverlay/parts/CostTrend.tsx
+msgid "Daily recorded tokens."
+msgstr "Tokens registrados por dia."
+
+#: src/renderer/views/ProfileOverlay/parts/CostModelDialog.tsx
+msgid "Daily tokens"
+msgstr "Tokens diários"
 
 #: src/renderer/components/devices/DeviceTools.tsx
 #: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
@@ -10424,6 +10471,7 @@ msgstr "Inicializar repositório"
 msgid "Inner display"
 msgstr "Tela interna"
 
+#: src/renderer/views/ProfileOverlay/parts/costBreakdown.ts
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 msgid "Input"
 msgstr "Entrada"
@@ -11303,7 +11351,7 @@ msgstr "Licença"
 msgid "lifetime tokens"
 msgstr "tokens acumulados"
 
-#: src/renderer/views/ProfileOverlay/parts/StatStrip.tsx
+#: src/renderer/views/ProfileOverlay/parts/ActivitySection.tsx
 msgid "Lifetime tokens"
 msgstr "Tokens acumulados"
 
@@ -13306,6 +13354,7 @@ msgid "News line"
 msgstr "Linha de novidades"
 
 #: src/renderer/components/newsLine/NewsLine.tsx
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
 #: src/renderer/views/PullRequestsOverlay/guide/PrReviewGuideTab.tsx
 msgid "Next"
 msgstr "Próximo"
@@ -14921,6 +14970,7 @@ msgstr "Organização (opcional)"
 #: src/renderer/components/plugins/PluginMarketplace.tsx
 #: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/StructuredCustomValues.tsx
+#: src/renderer/views/ProfileOverlay/parts/costBreakdown.ts
 #: src/renderer/views/PullRequestsOverlay/compact/PrCompactMenu.tsx
 msgid "Other"
 msgstr "Outros"
@@ -14964,6 +15014,7 @@ msgstr "Tela externa"
 msgid "Outlook"
 msgstr "Outlook"
 
+#: src/renderer/views/ProfileOverlay/parts/costBreakdown.ts
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 msgid "Output"
 msgstr "Saída"
@@ -15367,6 +15418,7 @@ msgstr "Pico {0}"
 msgid "peak day"
 msgstr "dia de pico"
 
+#: src/renderer/views/ProfileOverlay/parts/ActivitySection.tsx
 #: src/renderer/views/ProfileOverlay/parts/StatStrip.tsx
 msgid "Peak day"
 msgstr "Dia de pico"
@@ -15392,6 +15444,10 @@ msgstr "Revisão pendente"
 #: src/renderer/components/thread/ThreadPendingSteerStrip.tsx
 msgid "Pending steer"
 msgstr "Orientação pendente"
+
+#: src/renderer/views/ProfileOverlay/parts/CostModelDialog.tsx
+msgid "Per 1M tokens"
+msgstr "Por 1M de tokens"
 
 #: src/renderer/components/thread/ThreadAgentVisionDock.tsx
 msgid "Perform actions"
@@ -16012,6 +16068,7 @@ msgid "Preview {0}"
 msgstr "Visualizar {0}"
 
 #: src/renderer/components/newsLine/NewsLine.tsx
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
 msgid "Previous"
 msgstr "Anterior"
 
@@ -17805,6 +17862,10 @@ msgid "Resuming session…"
 msgstr "Retomando sessão…"
 
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "Retained usage across connected devices."
+msgstr "Uso retido em todos os dispositivos conectados."
+
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 msgid "Retained usage on this host only."
 msgstr "Somente o uso retido neste host."
 
@@ -19525,8 +19586,8 @@ msgstr "Mostrar tudo"
 
 #. placeholder {0}: facts.length
 #: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
-msgid "Show all {0} insights"
-msgstr "Mostrar todos os {0} insights"
+#~ msgid "Show all {0} insights"
+#~ msgstr "Mostrar todos os {0} insights"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
 msgid "Show bookmark bar"
@@ -19595,8 +19656,8 @@ msgid "Show fewer"
 msgstr "Mostrar menos"
 
 #: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
-msgid "Show fewer insights"
-msgstr "Mostrar menos insights"
+#~ msgid "Show fewer insights"
+#~ msgstr "Mostrar menos insights"
 
 #: src/renderer/views/PullRequestsOverlay/changes/ChangesToolbar.tsx
 msgid "Show file tree"
@@ -19763,6 +19824,10 @@ msgstr "Mostrando a última versão carregada. Somente leitura até ser atualiza
 #: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
 msgid "Showing the most recent sessions — narrow the filters to see more."
 msgstr "Mostrando as sessões mais recentes — refine os filtros para ver mais."
+
+#: src/renderer/views/ProfileOverlay/parts/CostModelDialog.tsx
+msgid "Showing tokens (model is unpriced)"
+msgstr "Exibindo tokens (modelo sem preço)"
 
 #: src/renderer/components/providers/settings/CursorProfileIdentity.tsx
 msgid "Shown in the sidebar and the model picker."
@@ -22916,13 +22981,19 @@ msgid "Token usage unavailable for: {unavailableLabels}"
 msgstr "Uso de tokens indisponível para: {unavailableLabels}"
 
 #: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 msgid "tokens"
 msgstr "tokens"
 
 #: src/renderer/views/ProfileOverlay/parts/ActivitySection.tsx
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+#: src/renderer/views/ProfileOverlay/parts/CostModelDialog.tsx
 msgid "Tokens"
 msgstr "Tokens"
+
+#: src/renderer/views/ProfileOverlay/parts/CostShareBar.tsx
+msgid "Tokens by type"
+msgstr "Tokens por tipo"
 
 #. placeholder {0}: tokens!.providers.map((p) => p.label).join(", ")
 #: src/renderer/views/ProfileOverlay/parts/ModelUsage.tsx
@@ -22970,15 +23041,21 @@ msgstr "Pesquisa de ferramentas"
 msgid "Top skill this week: <0>{name}</0> ({count, plural, one {# run} other {# runs}})"
 msgstr "Skill mais usada esta semana: <0>{name}</0> ({count, plural, one {# execução} other {# execuções}})"
 
+#: src/renderer/views/ProfileOverlay/parts/CostTrend.tsx
+msgid "Total"
+msgstr "Total"
+
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "Total installs"
 msgstr "Total de instalações"
 
 #: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+#: src/renderer/views/ProfileOverlay/parts/ActivitySection.tsx
 msgid "Total prompts"
 msgstr "Total de prompts"
 
 #: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+#: src/renderer/views/ProfileOverlay/parts/ActivitySection.tsx
 msgid "Total threads"
 msgstr "Total de threads"
 
@@ -22986,7 +23063,7 @@ msgstr "Total de threads"
 msgid "total tokens"
 msgstr "total de tokens"
 
-#: src/renderer/views/ProfileOverlay/parts/StatStrip.tsx
+#: src/renderer/views/ProfileOverlay/parts/ActivitySection.tsx
 msgid "Total tokens"
 msgstr "Total de tokens"
 
@@ -23033,6 +23110,10 @@ msgstr "Barra lateral translúcida"
 #: src/renderer/utils/projectIcons.ts
 msgid "Travel & places"
 msgstr "Viagens e lugares"
+
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "Trend metric"
+msgstr "Métrica de tendência"
 
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "Trending now"
@@ -23660,6 +23741,8 @@ msgstr "Desinstalar {name}"
 #: src/renderer/utils/prStatus.ts
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+#: src/renderer/views/ProfileOverlay/parts/CostModelDialog.tsx
+#: src/renderer/views/ProfileOverlay/parts/CostTrend.tsx
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Unknown"
 msgstr "Desconhecido"
@@ -23740,6 +23823,10 @@ msgstr "Desafixar"
 #: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
 msgid "Unpin workflow"
 msgstr "Desafixar fluxo de trabalho"
+
+#: src/renderer/views/ProfileOverlay/parts/CostModelDialog.tsx
+msgid "Unpriced"
+msgstr "Sem preço"
 
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 msgid "Unpriced tokens"

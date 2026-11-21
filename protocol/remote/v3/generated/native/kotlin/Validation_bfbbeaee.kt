@@ -109,6 +109,14 @@ internal val schema_9f521c8da83e5984: RemoteSchema by lazy {
     RemoteSchema(unionKind = "oneOf", options = listOf(schema_96b8d7dbded67d2c, schema_9cce97362cd5b2d5), unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
 
+internal val schema_9f5f978bdfd3d4d9: RemoteSchema by lazy {
+    RemoteSchema(type = "array", items = schema_3cba112875bf376c, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
+}
+
+internal val schema_9f69a3eb5854c7b1: RemoteSchema by lazy {
+    RemoteSchema(type = "object", required = setOf("accounts", "days", "models", "pricing", "providers", "totals"), properties = mapOf("accounts" to schema_3b1f9447f1bebace, "dayModels" to schema_ebdf410e6db99e49, "dayProviders" to schema_9f5f978bdfd3d4d9, "days" to schema_eed304c45e697ad1, "models" to schema_3b1f9447f1bebace, "pricing" to schema_7f0fc2dd36a6993f, "providers" to schema_3b1f9447f1bebace, "totals" to schema_e0fa095c6a9a1aed), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
+}
+
 internal val schema_9f6b436502c63c75: RemoteSchema by lazy {
     RemoteSchema(type = "string", literals = listOf(JsonPrimitive("agent-vision-watch")), unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }

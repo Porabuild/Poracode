@@ -1,14 +1,14 @@
 import { ContentSurface } from "@/renderer/components/common/ContentSurface";
 import { useState } from "react";
 import { Button, Chip, Skeleton } from "@heroui/react";
-import { ChevronDown, ChevronUp } from "lucide-react";
-import { Plural, Trans, useLingui } from "@lingui/react/macro";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import { Plural, useLingui } from "@lingui/react/macro";
 import type { ProfileCoreStats, ProfileStatsWindow, ProfileTokenStats } from "@/shared/contracts";
 import { buildProfileInsightFacts, type ProfileEnvSummary } from "@/shared/profile/insights";
 import { renderInsightFact } from "@/renderer/components/newsLine/insightContent";
 import { formatCompact, formatDuration } from "../format";
 
-const DEFAULT_VISIBLE_INSIGHTS = 8;
+const INSIGHTS_PER_PAGE = 6;
 
 function chipColor(
   tone: "neutral" | "positive" | "negative" | "accent" | "warning",
@@ -34,7 +34,7 @@ function pctDelta(current: number, previous: number): number | null {
 
 function Row(props: { label: string; value: string }) {
   return (
-    <div className="flex items-center justify-between gap-4 py-2 text-sm">
+    <div className="flex items-center justify-between gap-4 py-2.5 text-xs">
       <span className="text-muted">{props.label}</span>
       <span className="font-medium tabular-nums text-foreground">{props.value}</span>
     </div>
@@ -43,9 +43,9 @@ function Row(props: { label: string; value: string }) {
 
 function SkeletonRow() {
   return (
-    <div className="flex items-center justify-between gap-4 py-2">
-      <Skeleton className="h-4 w-32 rounded bg-foreground/10" />
-      <Skeleton className="h-4 w-14 rounded bg-foreground/10" />
+    <div className="flex items-center justify-between gap-4 py-2.5">
+      <Skeleton className="h-3.5 w-32 rounded bg-foreground/10" />
+      <Skeleton className="h-3.5 w-14 rounded bg-foreground/10" />
     </div>
   );
 }
@@ -85,13 +85,17 @@ export function ActivityInsights(props: {
 }) {
   const { t, i18n } = useLingui();
   const { core, tokens = null, envs = [], window = "all", loading = false, className = "" } = props;
-  const [expanded, setExpanded] = useState(false);
+  const [pagination, setPagination] = useState<{
+    key: string;
+    page: number;
+    motion: "none" | "from-right" | "from-left";
+  }>({ key: "", page: 0, motion: "none" });
 
   if (loading || !core) {
     return (
-      <section className={`flex flex-col gap-4 ${className}`}>
+      <section className={`flex min-w-0 flex-col gap-3 ${className}`}>
         <h2 className="text-sm font-semibold text-foreground">{t`Activity insights`}</h2>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <div className="grid grid-cols-1 gap-3 @min-[560px]:grid-cols-3">
           {Array.from({ length: 3 }).map((_, i) => (
             <ContentSurface key={i} className="flex flex-col gap-2 px-3.5 py-3">
               <Skeleton className="h-3 w-20 rounded bg-foreground/10" />
@@ -100,18 +104,18 @@ export function ActivityInsights(props: {
             </ContentSurface>
           ))}
         </div>
-        <div className="grid grid-cols-1 gap-x-10 sm:grid-cols-2">
+        <ContentSurface className="grid grid-cols-1 px-4 py-1 @min-[640px]:grid-cols-2 @min-[640px]:gap-x-8">
           <div className="divide-y divide-[var(--hairline-soft)]">
             {Array.from({ length: 7 }).map((_, i) => (
               <SkeletonRow key={i} />
             ))}
           </div>
-          <div className="divide-y divide-[var(--hairline-soft)]">
+          <div className="divide-y divide-[var(--hairline-soft)] border-t border-[var(--hairline-soft)] @min-[640px]:border-t-0">
             {Array.from({ length: 6 }).map((_, i) => (
               <SkeletonRow key={i} />
             ))}
           </div>
-        </div>
+        </ContentSurface>
       </section>
     );
   }
@@ -120,7 +124,40 @@ export function ActivityInsights(props: {
   const facts = buildProfileInsightFacts({ core, tokens, envs }).toSorted(
     (a, b) => b.priority - a.priority,
   );
-  const visibleFacts = expanded ? facts : facts.slice(0, DEFAULT_VISIBLE_INSIGHTS);
+  // All accounts is the default scope. Switching account, device, or range
+  // replaces the highlight set, so the carousel returns to the first page of
+  // that merged list without firing a render-time setState on mount.
+  const factsIdentity = [
+    window,
+    core.scope,
+    core.device.id,
+    totals.totalPrompts,
+    totals.totalThreads,
+    tokens?.lifetimeTokens ?? 0,
+    core.accounts.map((account) => `${account.key}:${account.count}`).join(","),
+    facts.map((fact) => fact.id).join("\0"),
+  ].join("|");
+  const totalPages = Math.max(1, Math.ceil(facts.length / INSIGHTS_PER_PAGE));
+  const currentPage =
+    pagination.key === factsIdentity ? Math.min(pagination.page, totalPages - 1) : 0;
+  const slideMotion = pagination.key === factsIdentity ? pagination.motion : "none";
+  const pageStart = currentPage * INSIGHTS_PER_PAGE;
+  const visibleFacts = facts.slice(pageStart, pageStart + INSIGHTS_PER_PAGE);
+  const slideMotionClass =
+    slideMotion === "from-right"
+      ? "poracode-tab-panel-from-right"
+      : slideMotion === "from-left"
+        ? "poracode-tab-panel-from-left"
+        : "";
+  const goToPage = (nextPage: number) => {
+    const clamped = Math.max(0, Math.min(totalPages - 1, nextPage));
+    if (clamped === currentPage) return;
+    setPagination({
+      key: factsIdentity,
+      page: clamped,
+      motion: clamped > currentPage ? "from-right" : "from-left",
+    });
+  };
 
   // Period pulse summaries
   const compareMonthly = window === "30d";
@@ -237,18 +274,18 @@ export function ActivityInsights(props: {
   ];
 
   return (
-    <section className={`flex flex-col gap-4 ${className}`}>
-      <div className="flex items-baseline justify-between gap-2">
+    <section className={`flex min-w-0 flex-col gap-3 ${className}`}>
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h2 className="text-sm font-semibold text-foreground">{t`Activity insights`}</h2>
         {facts.length > 0 ? (
-          <span className="text-[11px] text-muted/75">
+          <span className="text-xs text-muted">
             <Plural value={facts.length} one="# highlight" other="# highlights" />
           </span>
         ) : null}
       </div>
 
       {recent ? (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <div className="grid grid-cols-1 gap-3 @min-[560px]:grid-cols-3">
           <PulseCard
             label={t`Yesterday`}
             value={yesterdayValue}
@@ -279,71 +316,108 @@ export function ActivityInsights(props: {
       ) : null}
 
       {visibleFacts.length > 0 ? (
-        <div className="flex flex-col gap-2">
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-            {visibleFacts.map((fact) => {
-              const rendered = renderInsightFact(fact, {
-                locale: i18n.locale,
-                t,
-                iconClass: "size-3.5 shrink-0 text-warning",
-              });
-              return (
-                <ContentSurface
-                  variant="row"
-                  key={fact.id}
-                  data-profile-insight={fact.id}
-                  className="flex items-center gap-2.5 px-3 py-2.5 text-xs text-muted"
+        <div className="flex flex-col gap-2.5">
+          {totalPages > 1 ? (
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <span
+                  className="text-[11px] tabular-nums text-muted"
+                  data-testid="profile-insights-page"
+                  aria-live="polite"
                 >
-                  {rendered.icon}
-                  <span className="min-w-0 flex-1 leading-snug">{rendered.content}</span>
-                  {rendered.badge ? (
-                    <Chip
-                      size="sm"
-                      variant="soft"
-                      color={chipColor(rendered.badge.tone)}
-                      className="shrink-0"
-                    >
-                      {rendered.badge.label}
-                    </Chip>
-                  ) : null}
-                </ContentSurface>
-              );
-            })}
-          </div>
-          {facts.length > DEFAULT_VISIBLE_INSIGHTS ? (
-            <div className="flex justify-center pt-0.5">
-              <Button
-                size="sm"
-                variant="ghost"
-                onPress={() => setExpanded((prev) => !prev)}
-                className="gap-1 text-xs text-muted"
-              >
-                {expanded ? (
-                  <>
-                    <Trans>Show fewer insights</Trans>
-                    <ChevronUp className="size-3.5" />
-                  </>
-                ) : (
-                  <>
-                    <Trans>Show all {facts.length} insights</Trans>
-                    <ChevronDown className="size-3.5" />
-                  </>
-                )}
-              </Button>
+                  {currentPage + 1} / {totalPages}
+                </span>
+                {totalPages <= 8 ? (
+                  <span className="flex items-center gap-1" aria-hidden="true">
+                    {Array.from({ length: totalPages }).map((_, i) => (
+                      <span
+                        key={i}
+                        className={`h-1.5 rounded-full transition-all duration-200 ${
+                          i === currentPage ? "w-4 bg-foreground" : "w-1.5 bg-foreground/20"
+                        }`}
+                      />
+                    ))}
+                  </span>
+                ) : null}
+              </div>
+              <div className="flex items-center gap-1.5">
+                <Button
+                  isIconOnly
+                  size="sm"
+                  variant="secondary"
+                  aria-label={t`Previous`}
+                  isDisabled={currentPage === 0}
+                  onPress={() => goToPage(currentPage - 1)}
+                  className="size-7 min-w-0"
+                >
+                  <ChevronLeft className="size-3.5" />
+                </Button>
+                <Button
+                  isIconOnly
+                  size="sm"
+                  variant="secondary"
+                  aria-label={t`Next`}
+                  isDisabled={currentPage >= totalPages - 1}
+                  onPress={() => goToPage(currentPage + 1)}
+                  className="size-7 min-w-0"
+                >
+                  <ChevronRight className="size-3.5" />
+                </Button>
+              </div>
             </div>
           ) : null}
+          <div className="overflow-x-clip">
+            <div
+              key={currentPage}
+              className={`grid grid-cols-1 gap-2.5 @min-[640px]:grid-cols-2 ${slideMotionClass}`}
+            >
+              {visibleFacts.map((fact) => {
+                const rendered = renderInsightFact(fact, {
+                  locale: i18n.locale,
+                  t,
+                  iconClass: "size-3.5 shrink-0 text-warning",
+                });
+                return (
+                  <ContentSurface
+                    variant="row"
+                    key={fact.id}
+                    data-profile-insight={fact.id}
+                    className="flex items-center gap-2.5 px-3 py-2.5 text-xs text-muted"
+                  >
+                    {rendered.icon}
+                    <span className="min-w-0 flex-1 leading-snug">{rendered.content}</span>
+                    {rendered.badge ? (
+                      <Chip
+                        size="sm"
+                        variant="soft"
+                        color={chipColor(rendered.badge.tone)}
+                        className="shrink-0"
+                      >
+                        {rendered.badge.label}
+                      </Chip>
+                    ) : null}
+                  </ContentSurface>
+                );
+              })}
+            </div>
+          </div>
         </div>
       ) : null}
 
-      <div className="grid grid-cols-1 gap-x-10 sm:grid-cols-2">
-        {groups.map((group) => (
-          <div key={group.key} className="divide-y divide-[var(--hairline-soft)]">
+      <ContentSurface className="grid grid-cols-1 px-4 py-1 @min-[640px]:grid-cols-2 @min-[640px]:gap-x-8">
+        {groups.map((group, index) => (
+          <div
+            key={group.key}
+            className={`divide-y divide-[var(--hairline-soft)] ${
+              index > 0 ? "border-t border-[var(--hairline-soft)] @min-[640px]:border-t-0" : ""
+            }`}
+          >
             {group.rows.map((row) => (
               <Row key={row.label} label={row.label} value={row.value} />
             ))}
           </div>
         ))}
-      </div>
+      </ContentSurface>
     </section>
   );
 }

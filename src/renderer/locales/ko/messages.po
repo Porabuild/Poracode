@@ -396,6 +396,11 @@ msgstr "{1}단계 중 {0}"
 #~ msgid "{0} of {matchCount}"
 #~ msgstr "{0} / {matchCount}"
 
+#. placeholder {0}: formatPercentShare(costShare)
+#: src/renderer/views/ProfileOverlay/parts/CostModelDialog.tsx
+msgid "{0} of cost"
+msgstr "비용의 {0}"
+
 #. placeholder {0}: projectCount(workspace.id)
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 #~ msgid "{0} projects"
@@ -473,6 +478,11 @@ msgstr "토큰 {0} - {when}"
 #: src/renderer/components/thread/ThreadSpendDetails.tsx
 msgid "{0} tokens · cached {1} · written {2} · output {3}"
 msgstr "{0}개 토큰 · 캐시 읽기 {1} · 캐시 쓰기 {2} · 출력 {3}"
+
+#. placeholder {0}: formatCompact(model.totals.unpricedTokens)
+#: src/renderer/views/ProfileOverlay/parts/CostModelDialog.tsx
+msgid "{0} tokens have no known price."
+msgstr "{0} 토큰의 가격 정보가 없습니다."
 
 #. placeholder {0}: agent.label
 #. placeholder {0}: agent.name
@@ -3424,9 +3434,23 @@ msgid "Bypass Permissions"
 msgstr "권한 확인 건너뛰기"
 
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "cache"
+msgstr "캐시"
+
+#: src/renderer/views/ProfileOverlay/parts/CostModelDialog.tsx
+msgid "Cache hit"
+msgstr "캐시 적중률"
+
+#: src/renderer/views/ProfileOverlay/parts/costBreakdown.ts
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 msgid "Cache read"
 msgstr "캐시 읽기"
 
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "Cache savings"
+msgstr "캐시 절감액"
+
+#: src/renderer/views/ProfileOverlay/parts/costBreakdown.ts
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 msgid "Cache write"
 msgstr "캐시 쓰기"
@@ -4360,6 +4384,7 @@ msgstr "복제 중…"
 #: src/renderer/views/ExperimentView/parts/ExperimentJudgeRunDialog.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/parts/MobileTerminalLayout.tsx
+#: src/renderer/views/ProfileOverlay/parts/CostModelDialog.tsx
 #: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
 #: src/renderer/views/SchedulesView/parts/ScheduleRunDetails.tsx
 #: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
@@ -5435,6 +5460,7 @@ msgstr "계속"
 msgid "Continue from where you left off."
 msgstr "중단된 지점부터 계속 진행해 주세요."
 
+#: src/renderer/components/thread/CompactThreadHeader.tsx
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/components/thread/ThreadView.tsx
 msgid "Continue in another provider"
@@ -5680,8 +5706,17 @@ msgstr "커밋되지 않은 변경 사항을 여기에 복사합니다(이 브�
 #~ msgstr "URL 복사"
 
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+#: src/renderer/views/ProfileOverlay/parts/CostModelDialog.tsx
+msgid "Cost"
+msgstr "비용"
+
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 msgid "Cost breakdown"
 msgstr "비용 내역"
+
+#: src/renderer/views/ProfileOverlay/parts/CostShareBar.tsx
+msgid "Cost by type"
+msgstr "유형별 비용"
 
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 msgid "Cost history is unavailable from this host."
@@ -6515,6 +6550,10 @@ msgstr "매일"
 msgid "Daily brief"
 msgstr "일일 브리핑"
 
+#: src/renderer/views/ProfileOverlay/parts/CostModelDialog.tsx
+msgid "Daily cost"
+msgstr "일별 비용"
+
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 msgid "Daily costs"
 msgstr "일별 비용"
@@ -6522,6 +6561,14 @@ msgstr "일별 비용"
 #: src/renderer/views/ProfileOverlay/parts/CostTrend.tsx
 msgid "Daily recorded cost; gaps may contain unpriced usage."
 msgstr "일별 기록 비용입니다. 빈 구간에 가격 미상의 사용량이 포함될 수 있습니다."
+
+#: src/renderer/views/ProfileOverlay/parts/CostTrend.tsx
+msgid "Daily recorded tokens."
+msgstr "일별 기록된 토큰."
+
+#: src/renderer/views/ProfileOverlay/parts/CostModelDialog.tsx
+msgid "Daily tokens"
+msgstr "일별 토큰"
 
 #: src/renderer/components/devices/DeviceTools.tsx
 #: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
@@ -10424,6 +10471,7 @@ msgstr "저장소 초기화"
 msgid "Inner display"
 msgstr "안쪽 디스플레이"
 
+#: src/renderer/views/ProfileOverlay/parts/costBreakdown.ts
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 msgid "Input"
 msgstr "입력"
@@ -11303,7 +11351,7 @@ msgstr "라이센스"
 msgid "lifetime tokens"
 msgstr "누적 토큰"
 
-#: src/renderer/views/ProfileOverlay/parts/StatStrip.tsx
+#: src/renderer/views/ProfileOverlay/parts/ActivitySection.tsx
 msgid "Lifetime tokens"
 msgstr "누적 토큰"
 
@@ -13306,6 +13354,7 @@ msgid "News line"
 msgstr "뉴스 라인"
 
 #: src/renderer/components/newsLine/NewsLine.tsx
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
 #: src/renderer/views/PullRequestsOverlay/guide/PrReviewGuideTab.tsx
 msgid "Next"
 msgstr "다음"
@@ -14921,6 +14970,7 @@ msgstr "조직(선택 사항)"
 #: src/renderer/components/plugins/PluginMarketplace.tsx
 #: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/StructuredCustomValues.tsx
+#: src/renderer/views/ProfileOverlay/parts/costBreakdown.ts
 #: src/renderer/views/PullRequestsOverlay/compact/PrCompactMenu.tsx
 msgid "Other"
 msgstr "기타"
@@ -14964,6 +15014,7 @@ msgstr "바깥쪽 디스플레이"
 msgid "Outlook"
 msgstr "Outlook"
 
+#: src/renderer/views/ProfileOverlay/parts/costBreakdown.ts
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 msgid "Output"
 msgstr "출력"
@@ -15367,6 +15418,7 @@ msgstr "피크 {0}"
 msgid "peak day"
 msgstr "최고 활동일"
 
+#: src/renderer/views/ProfileOverlay/parts/ActivitySection.tsx
 #: src/renderer/views/ProfileOverlay/parts/StatStrip.tsx
 msgid "Peak day"
 msgstr "최고 활동일"
@@ -15392,6 +15444,10 @@ msgstr "리뷰 대기 중"
 #: src/renderer/components/thread/ThreadPendingSteerStrip.tsx
 msgid "Pending steer"
 msgstr "조정 대기 중"
+
+#: src/renderer/views/ProfileOverlay/parts/CostModelDialog.tsx
+msgid "Per 1M tokens"
+msgstr "100만 토큰당"
 
 #: src/renderer/components/thread/ThreadAgentVisionDock.tsx
 msgid "Perform actions"
@@ -16012,6 +16068,7 @@ msgid "Preview {0}"
 msgstr "미리보기 {0}"
 
 #: src/renderer/components/newsLine/NewsLine.tsx
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
 msgid "Previous"
 msgstr "이전"
 
@@ -17805,6 +17862,10 @@ msgid "Resuming session…"
 msgstr "세션 재개 중…"
 
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "Retained usage across connected devices."
+msgstr "연결된 모든 기기에 보관된 사용량입니다."
+
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 msgid "Retained usage on this host only."
 msgstr "이 호스트에 보관된 사용량만 포함합니다."
 
@@ -19525,8 +19586,8 @@ msgstr "모두 표시"
 
 #. placeholder {0}: facts.length
 #: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
-msgid "Show all {0} insights"
-msgstr "인사이트 {0}개 모두 보기"
+#~ msgid "Show all {0} insights"
+#~ msgstr "인사이트 {0}개 모두 보기"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
 msgid "Show bookmark bar"
@@ -19595,8 +19656,8 @@ msgid "Show fewer"
 msgstr "간략히 보기"
 
 #: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
-msgid "Show fewer insights"
-msgstr "인사이트 접기"
+#~ msgid "Show fewer insights"
+#~ msgstr "인사이트 접기"
 
 #: src/renderer/views/PullRequestsOverlay/changes/ChangesToolbar.tsx
 msgid "Show file tree"
@@ -19763,6 +19824,10 @@ msgstr "마지막으로 불러온 버전을 표시 중입니다. 새로고침될
 #: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
 msgid "Showing the most recent sessions — narrow the filters to see more."
 msgstr "최근 세션을 표시하고 있습니다 — 더 보려면 필터를 좁히세요."
+
+#: src/renderer/views/ProfileOverlay/parts/CostModelDialog.tsx
+msgid "Showing tokens (model is unpriced)"
+msgstr "토큰 표시 중 (모델 가격 정보 없음)"
 
 #: src/renderer/components/providers/settings/CursorProfileIdentity.tsx
 msgid "Shown in the sidebar and the model picker."
@@ -22916,13 +22981,19 @@ msgid "Token usage unavailable for: {unavailableLabels}"
 msgstr "토큰 사용량을 사용할 수 없음: {unavailableLabels}"
 
 #: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 msgid "tokens"
 msgstr "토큰"
 
 #: src/renderer/views/ProfileOverlay/parts/ActivitySection.tsx
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+#: src/renderer/views/ProfileOverlay/parts/CostModelDialog.tsx
 msgid "Tokens"
 msgstr "토큰"
+
+#: src/renderer/views/ProfileOverlay/parts/CostShareBar.tsx
+msgid "Tokens by type"
+msgstr "유형별 토큰"
 
 #. placeholder {0}: tokens!.providers.map((p) => p.label).join(", ")
 #: src/renderer/views/ProfileOverlay/parts/ModelUsage.tsx
@@ -22970,15 +23041,21 @@ msgstr "도구 검색"
 msgid "Top skill this week: <0>{name}</0> ({count, plural, one {# run} other {# runs}})"
 msgstr "이번 주 인기 스킬: <0>{name}</0> ({count, plural, one {#회} other {#회}})"
 
+#: src/renderer/views/ProfileOverlay/parts/CostTrend.tsx
+msgid "Total"
+msgstr "합계"
+
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "Total installs"
 msgstr "총 설치 수"
 
 #: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+#: src/renderer/views/ProfileOverlay/parts/ActivitySection.tsx
 msgid "Total prompts"
 msgstr "전체 프롬프트"
 
 #: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+#: src/renderer/views/ProfileOverlay/parts/ActivitySection.tsx
 msgid "Total threads"
 msgstr "전체 스레드"
 
@@ -22986,7 +23063,7 @@ msgstr "전체 스레드"
 msgid "total tokens"
 msgstr "전체 토큰"
 
-#: src/renderer/views/ProfileOverlay/parts/StatStrip.tsx
+#: src/renderer/views/ProfileOverlay/parts/ActivitySection.tsx
 msgid "Total tokens"
 msgstr "전체 토큰"
 
@@ -23033,6 +23110,10 @@ msgstr "반투명 사이드바"
 #: src/renderer/utils/projectIcons.ts
 msgid "Travel & places"
 msgstr "여행 및 장소"
+
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "Trend metric"
+msgstr "추세 지표"
 
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "Trending now"
@@ -23660,6 +23741,8 @@ msgstr "{name} 제거"
 #: src/renderer/utils/prStatus.ts
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+#: src/renderer/views/ProfileOverlay/parts/CostModelDialog.tsx
+#: src/renderer/views/ProfileOverlay/parts/CostTrend.tsx
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Unknown"
 msgstr "알 수 없음"
@@ -23740,6 +23823,10 @@ msgstr "고정 해제"
 #: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
 msgid "Unpin workflow"
 msgstr "워크플로 고정 해제"
+
+#: src/renderer/views/ProfileOverlay/parts/CostModelDialog.tsx
+msgid "Unpriced"
+msgstr "가격 없음"
 
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 msgid "Unpriced tokens"

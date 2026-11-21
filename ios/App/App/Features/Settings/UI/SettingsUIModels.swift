@@ -26,7 +26,7 @@ struct SettingsHostSelection: Equatable, Sendable {
 }
 
 struct SettingsProfileQuery: Equatable, Hashable, Sendable {
-  var scope: SettingsProfileScope = .device
+  var scope: SettingsProfileScope = .all
   var deviceID: String?
   var provider: String?
   var window: SettingsProfileWindow = .all
@@ -50,7 +50,7 @@ struct SettingsProfileQuerySelection {
     let provider: String?
   }
 
-  private var scope = SettingsProfileScope.device
+  private var scope = SettingsProfileScope.all
   private var window = SettingsProfileWindow.all
   private var filters: [ClientConnectionID: HostFilters] = [:]
 

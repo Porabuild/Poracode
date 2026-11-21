@@ -3,10 +3,20 @@ import { useState } from "react";
 import { Disclosure, Skeleton } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { ProfileCostStats, ProfileCostTotals } from "@/shared/contracts/costHistory";
-import { Select } from "@/renderer/components/common";
+import { LightballTabs, Select, type LightballTab } from "@/renderer/components/common";
 import { ProviderIcon } from "@/renderer/components/providers/ProviderIcon";
-import { formatCost } from "../format";
-import { CostTrend } from "./CostTrend";
+import { formatCompact, formatCost } from "../format";
+import {
+  cacheHitRate,
+  costTypeSegments,
+  formatPercentShare,
+  providerColor,
+  providerKeyFromModelKey,
+  tokenTypeSegments,
+} from "./costBreakdown";
+import { CostModelDialog } from "./CostModelDialog";
+import { CostTypeShareSection } from "./CostShareBar";
+import { CostTrend, type CostTrendPoint, type CostTrendSeries } from "./CostTrend";
 
 function CostHistorySkeleton() {
   return (
@@ -19,7 +29,7 @@ function CostHistorySkeleton() {
         <Skeleton className="h-9 w-full rounded-xl bg-foreground/10 @min-[480px]:w-52" />
       </div>
       <ContentSurface className="grid gap-6 p-4 @min-[640px]:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] @min-[640px]:p-5">
-        <div className="flex min-w-0 flex-col gap-4 @min-[640px]:justify-between @min-[640px]:border-r @min-[640px]:border-[var(--hairline-soft)] @min-[640px]:pr-6">
+        <div className="flex min-w-0 flex-col gap-4 border-b border-[var(--hairline-soft)] pb-5 @min-[640px]:justify-between @min-[640px]:border-r @min-[640px]:border-b-0 @min-[640px]:pr-6 @min-[640px]:pb-0">
           <div className="space-y-2">
             <Skeleton className="h-3.5 w-32 rounded bg-foreground/10" />
             <Skeleton className="h-10 w-36 rounded-lg bg-foreground/10" />
@@ -69,10 +79,12 @@ export function CostHistory({
   stats,
   loading,
   locale,
+  allDevices = false,
 }: {
   stats: ProfileCostStats | undefined;
   loading: boolean;
   locale: string;
+  allDevices?: boolean;
 }) {
   const { t } = useLingui();
   const [breakdown, setBreakdown] = useState<"models" | "days" | "providers" | "accounts">(
@@ -80,6 +92,9 @@ export function CostHistory({
   );
   const [basis, setBasis] = useState<"estimate" | "reported" | null>(null);
   const [reportedCurrency, setReportedCurrency] = useState<string | null>(null);
+  const [chartMetric, setChartMetric] = useState<"cost" | "tokens">("cost");
+  const [selectedModelKey, setSelectedModelKey] = useState<string | null>(null);
+
   if (loading)
     return (
       <div aria-busy="true">
@@ -111,25 +126,28 @@ export function CostHistory({
     "estimate"
       ? "estimate"
       : selectedCurrency;
-  const currency = activeBasis === "estimate" ? "USD" : activeBasis;
-  const displayCurrency =
-    activeBasis === "estimate" ? "USD" : currencies.length > 0 ? activeBasis : undefined;
-  const basisLabel =
-    activeBasis === "estimate" ? t`API-equivalent estimate` : t`Provider-reported cost`;
+  const activeBasisIsEstimate = activeBasis === "estimate";
+  const currency = activeBasisIsEstimate ? "USD" : activeBasis;
+  const displayCurrency = activeBasisIsEstimate
+    ? "USD"
+    : currencies.length > 0
+      ? activeBasis
+      : undefined;
+  const basisLabel = activeBasisIsEstimate ? t`API-equivalent estimate` : t`Provider-reported cost`;
   const basisCaption = displayCurrency ? `${basisLabel} · ${displayCurrency}` : basisLabel;
   const moneyHeading =
-    (activeBasis === "estimate" ? t`API equivalent` : t`Provider reported`) +
+    (activeBasisIsEstimate ? t`API equivalent` : t`Provider reported`) +
     (displayCurrency ? ` · ${displayCurrency}` : "");
   const amount = (value: ProfileCostTotals) =>
-    activeBasis === "estimate"
+    activeBasisIsEstimate
       ? value.estimatedSamples > 0
         ? value.estimatedUsd
         : undefined
       : value.observed.find((entry) => entry.currency === activeBasis)?.amount;
   const coverage = (value: ProfileCostTotals) =>
-    activeBasis === "estimate" ? value.estimatedTokens : value.observedTokens;
+    activeBasisIsEstimate ? value.estimatedTokens : value.observedTokens;
   const isPartial = (value: ProfileCostTotals) =>
-    coverage(value) < value.tokens || (activeBasis !== "estimate" && value.observed.length > 1);
+    coverage(value) < value.tokens || (!activeBasisIsEstimate && value.observed.length > 1);
   const costValue = (value: ProfileCostTotals) => {
     const known = amount(value);
     return known !== undefined
@@ -137,13 +155,85 @@ export function CostHistory({
       : unknown;
   };
   const totalAmount = amount(totals);
+  const effectiveChartMetric: "cost" | "tokens" = totals.tokens > 0 ? chartMetric : "cost";
   const byCost = (
     a: ProfileCostStats["providers"][number],
     b: ProfileCostStats["providers"][number],
   ) => (amount(b.totals) ?? -1) - (amount(a.totals) ?? -1) || a.key.localeCompare(b.key);
   const sortedProviders = stats.providers
-    .filter((entry) => activeBasis !== "estimate" || entry.totals.estimatedSamples > 0)
+    .filter((entry) => !activeBasisIsEstimate || entry.totals.estimatedSamples > 0)
     .toSorted(byCost);
+
+  // Build multi-provider chart series whenever dayProviders has data.
+  const providerByKey = new Map(stats.providers.map((p) => [p.key, p]));
+  const dayProviderMap = new Map<string, Map<string, ProfileCostTotals>>();
+  const attributedTokensByDay = new Map<string, number>();
+  const activeProviderKeys = new Set<string>();
+  if (stats.dayProviders && stats.dayProviders.length > 0) {
+    for (const entry of stats.dayProviders) {
+      let byProv = dayProviderMap.get(entry.day);
+      if (!byProv) {
+        byProv = new Map();
+        dayProviderMap.set(entry.day, byProv);
+      }
+      byProv.set(entry.provider, entry.totals);
+      attributedTokensByDay.set(
+        entry.day,
+        (attributedTokensByDay.get(entry.day) ?? 0) + entry.totals.tokens,
+      );
+      const val = effectiveChartMetric === "tokens" ? entry.totals.tokens : amount(entry.totals);
+      if (val !== undefined && val > 0) activeProviderKeys.add(entry.provider);
+    }
+  }
+
+  const chartSeries: CostTrendSeries[] =
+    activeProviderKeys.size > 0
+      ? [...activeProviderKeys]
+          .map((key) => {
+            const entry = providerByKey.get(key);
+            const sortVal = entry
+              ? effectiveChartMetric === "tokens"
+                ? entry.totals.tokens
+                : (amount(entry.totals) ?? 0)
+              : 0;
+            return { key, label: entry?.label || key, sortVal };
+          })
+          .sort((a, b) => b.sortVal - a.sortVal || a.key.localeCompare(b.key))
+          .map(({ key, label }) => ({ key, label }))
+      : [];
+
+  const points: CostTrendPoint[] = stats.days.map(({ day, totals: dayTotals }) => {
+    const dayByProv = dayProviderMap.get(day);
+    let byProvider: Record<string, number | undefined> | undefined;
+    if (chartSeries.length > 0) {
+      byProvider = {};
+      // When every token on a day is attributed to known providers, an absent
+      // provider genuinely spent 0 that day; otherwise keep it unknown (`undefined`).
+      const dayFullyAttributed =
+        dayTotals.tokens === 0 || attributedTokensByDay.get(day) === dayTotals.tokens;
+      for (const s of chartSeries) {
+        const provTotals = dayByProv?.get(s.key);
+        byProvider[s.key] = provTotals
+          ? effectiveChartMetric === "tokens"
+            ? provTotals.tokens
+            : amount(provTotals)
+          : dayFullyAttributed
+            ? 0
+            : undefined;
+      }
+    }
+    const dayAmount = effectiveChartMetric === "tokens" ? dayTotals.tokens : amount(dayTotals);
+    return {
+      day,
+      amount: dayAmount,
+      label:
+        effectiveChartMetric === "tokens"
+          ? `${day}: ${dayTotals.tokens.toLocaleString(locale)} ${t`Tokens`}`
+          : `${day}: ${costValue(dayTotals)} · ${dayTotals.unpricedTokens.toLocaleString(locale)} ${t`Unpriced tokens`}`,
+      ...(byProvider ? { byProvider } : {}),
+    };
+  });
+
   const rows =
     breakdown === "days"
       ? stats.days
@@ -152,8 +242,10 @@ export function CostHistory({
       : breakdown === "providers"
         ? sortedProviders
         : stats[breakdown]
-            .filter((entry) => activeBasis !== "estimate" || entry.totals.estimatedSamples > 0)
+            .filter((entry) => !activeBasisIsEstimate || entry.totals.estimatedSamples > 0)
             .toSorted(byCost);
+
+  const rowPeakAmount = rows.reduce((peak, entry) => Math.max(peak, amount(entry.totals) ?? 0), 0);
   const rowHeading =
     breakdown === "models"
       ? t`Models`
@@ -162,11 +254,72 @@ export function CostHistory({
         : breakdown === "accounts"
           ? t`Accounts`
           : t`Providers`;
-  const points = stats.days.map(({ day, totals: dayTotals }) => ({
-    day,
-    amount: amount(dayTotals),
-    label: `${day}: ${costValue(dayTotals)} · ${dayTotals.unpricedTokens.toLocaleString(locale)} ${t`Unpriced tokens`}`,
-  }));
+
+  const costSegments = costTypeSegments(totals, totalAmount, activeBasisIsEstimate);
+  const tokenSegments = tokenTypeSegments(totals);
+  // Cache savings is an API-equivalent USD metric; only show it in estimate mode so
+  // non-USD provider-reported views never mix in hardcoded USD figures.
+  const cacheSavingsUsd =
+    activeBasisIsEstimate && totals.cacheSavingsUsd !== undefined && totals.cacheSavingsUsd > 0
+      ? totals.cacheSavingsUsd
+      : undefined;
+
+  const selectedModel =
+    selectedModelKey !== null
+      ? (stats.models.find((m) => m.key === selectedModelKey) ?? null)
+      : null;
+
+  const chartMetricTabs: ReadonlyArray<LightballTab<"cost" | "tokens">> = [
+    { id: "cost", label: t`Cost` },
+    { id: "tokens", label: t`Tokens` },
+  ];
+
+  const categoryTiles: Array<{ label: string; value: string; title?: string }> = [
+    {
+      label: t`Tokens`,
+      value: totals.tokens.toLocaleString(locale),
+      title: totals.tokens.toLocaleString(locale),
+    },
+    {
+      label: t`Input`,
+      value:
+        totals.categorizedTokens > 0 ? totals.categories.input.toLocaleString(locale) : unknown,
+      ...(totals.categorizedTokens > 0
+        ? { title: totals.categories.input.toLocaleString(locale) }
+        : {}),
+    },
+    {
+      label: t`Cache read`,
+      value:
+        totals.categorizedTokens > 0 ? totals.categories.cacheRead.toLocaleString(locale) : unknown,
+      ...(totals.categorizedTokens > 0
+        ? { title: totals.categories.cacheRead.toLocaleString(locale) }
+        : {}),
+    },
+    {
+      label: t`Cache write`,
+      value:
+        totals.categorizedTokens > 0
+          ? totals.categories.cacheWrite.toLocaleString(locale)
+          : unknown,
+      ...(totals.categorizedTokens > 0
+        ? { title: totals.categories.cacheWrite.toLocaleString(locale) }
+        : {}),
+    },
+    {
+      label: t`Output`,
+      value:
+        totals.categorizedTokens > 0 ? totals.categories.output.toLocaleString(locale) : unknown,
+      ...(totals.categorizedTokens > 0
+        ? { title: totals.categories.output.toLocaleString(locale) }
+        : {}),
+    },
+    {
+      label: t`Unpriced tokens`,
+      value: totals.unpricedTokens.toLocaleString(locale),
+      title: totals.unpricedTokens.toLocaleString(locale),
+    },
+  ];
 
   return (
     <div className="@container flex min-w-0 flex-col gap-6" data-testid="profile-cost-history">
@@ -176,7 +329,11 @@ export function CostHistory({
             <Trans>Costs</Trans>
           </h1>
           <p className="mt-1 text-xs text-muted">
-            <Trans>Retained usage on this host only.</Trans>
+            {allDevices ? (
+              <Trans>Retained usage across connected devices.</Trans>
+            ) : (
+              <Trans>Retained usage on this host only.</Trans>
+            )}
           </p>
         </div>
         <div className="flex w-full min-w-0 flex-wrap items-end gap-3 @min-[480px]:w-auto">
@@ -186,11 +343,11 @@ export function CostHistory({
               { id: "estimate", label: t`API equivalent` },
               { id: "reported", label: t`Provider reported` },
             ]}
-            value={activeBasis === "estimate" ? "estimate" : "reported"}
+            value={activeBasisIsEstimate ? "estimate" : "reported"}
             onChange={(value) => setBasis(value === "estimate" ? "estimate" : "reported")}
             className="min-w-0 flex-1 @min-[480px]:w-52 @min-[480px]:flex-none"
           />
-          {activeBasis !== "estimate" && currencies.length > 1 && (
+          {!activeBasisIsEstimate && currencies.length > 1 && (
             <Select
               label={t`Currency`}
               options={currencies.map((code) => ({ id: code, label: code }))}
@@ -201,34 +358,76 @@ export function CostHistory({
           )}
         </div>
       </div>
+
       <ContentSurface className="grid gap-6 p-4 @min-[640px]:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] @min-[640px]:p-5">
         <section
-          className="flex min-w-0 flex-col gap-4 @min-[640px]:justify-between @min-[640px]:border-r @min-[640px]:border-[var(--hairline-soft)] @min-[640px]:pr-6"
+          className="flex min-w-0 flex-col gap-4 border-b border-[var(--hairline-soft)] pb-5 @min-[640px]:justify-between @min-[640px]:border-r @min-[640px]:border-b-0 @min-[640px]:pr-6 @min-[640px]:pb-0"
           aria-label={t`Costs`}
         >
-          <div>
-            <h2 className="text-xs text-muted">{basisLabel}</h2>
-            <div
-              className="mt-1 break-words text-3xl leading-tight font-semibold tracking-tight tabular-nums text-foreground @min-[880px]:text-4xl"
-              data-testid="profile-cost-total"
-            >
-              {totalAmount !== undefined ? formatCost(totalAmount, currency, locale) : unknown}
+          <div className="flex flex-col gap-4">
+            <div>
+              <h2 className="text-xs text-muted">{basisLabel}</h2>
+              <div
+                className="mt-1 break-words text-3xl leading-tight font-semibold tracking-tight tabular-nums text-foreground @min-[880px]:text-4xl"
+                data-testid="profile-cost-total"
+              >
+                {totalAmount !== undefined ? formatCost(totalAmount, currency, locale) : unknown}
+              </div>
+              <p className="mt-2 text-[11px] leading-relaxed text-muted">
+                {displayCurrency}
+                {totalAmount !== undefined && isPartial(totals) ? ` · ${partial}` : ""}
+                <span className="block">
+                  {!activeBasisIsEstimate && currencies.length > 1
+                    ? t`Coverage across reported currencies`
+                    : t`Coverage`}
+                  : {coverage(totals).toLocaleString(locale)} /{" "}
+                  {totals.tokens.toLocaleString(locale)} {t`Tokens`}
+                </span>
+              </p>
             </div>
-            <p className="mt-2 text-[11px] leading-relaxed text-muted">
-              {displayCurrency}
-              {totalAmount !== undefined && isPartial(totals) ? ` · ${partial}` : ""}
-              <span className="block">
-                {activeBasis !== "estimate" && currencies.length > 1
-                  ? t`Coverage across reported currencies`
-                  : t`Coverage`}
-                : {coverage(totals).toLocaleString(locale)} / {totals.tokens.toLocaleString(locale)}{" "}
-                {t`Tokens`}
-              </span>
-            </p>
+
+            {sortedProviders.length > 1 && totalAmount !== undefined && totalAmount > 0 ? (
+              <div className="flex flex-col gap-2.5 border-t border-[var(--hairline-soft)] pt-3">
+                {sortedProviders.slice(0, 5).map((entry) => {
+                  const provAmount = amount(entry.totals);
+                  const share =
+                    provAmount !== undefined && totalAmount > 0 ? provAmount / totalAmount : null;
+                  return (
+                    <div key={entry.key} className="flex flex-col gap-0.5">
+                      <div className="flex items-baseline justify-between gap-2 text-xs">
+                        <span className="flex min-w-0 items-center gap-1.5 font-medium text-foreground">
+                          <span
+                            aria-hidden="true"
+                            className="size-2 shrink-0 rounded-full"
+                            style={{ backgroundColor: providerColor(entry.key) }}
+                          />
+                          <ProviderIcon
+                            kind={entry.key}
+                            fallbackLabel={entry.label}
+                            className="size-3.5 shrink-0"
+                          />
+                          <span className="truncate">{entry.label || unknown}</span>
+                        </span>
+                        <span className="shrink-0 font-medium tabular-nums text-foreground">
+                          {provAmount !== undefined
+                            ? formatCost(provAmount, currency, locale)
+                            : unknown}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-muted tabular-nums">
+                        {share !== null ? `${formatPercentShare(share)} · ` : ""}
+                        {formatCompact(entry.totals.tokens)} {t`tokens`}
+                      </p>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : null}
           </div>
+
           <dl className="border-t border-[var(--hairline-soft)] pt-3 text-xs">
             <dt className="text-muted">
-              {activeBasis === "estimate" ? (
+              {activeBasisIsEstimate ? (
                 <>
                   {t`Provider-reported cost`}
                   {reported ? ` · ${selectedCurrency}` : ""}
@@ -238,7 +437,7 @@ export function CostHistory({
               )}
             </dt>
             <dd className="mt-1 break-words font-medium tabular-nums">
-              {activeBasis === "estimate"
+              {activeBasisIsEstimate
                 ? reported
                   ? formatCost(reported.amount, selectedCurrency, locale) +
                     (totals.observedTokens < totals.tokens || currencies.length > 1
@@ -252,39 +451,50 @@ export function CostHistory({
             </dd>
           </dl>
         </section>
-        <section className="flex min-w-0 flex-col gap-4" aria-label={t`Cost trend`}>
-          <div>
-            <h2 className="text-sm font-semibold">
-              <Trans>Cost trend</Trans>
-            </h2>
-            <p className="mt-1 text-[11px] text-muted">{basisCaption}</p>
+
+        <section className="flex min-w-0 flex-col justify-between gap-4" aria-label={t`Cost trend`}>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <h2 className="text-sm font-semibold">
+                <Trans>Cost trend</Trans>
+              </h2>
+              <p className="mt-0.5 text-[11px] text-muted">
+                {effectiveChartMetric === "tokens" ? t`Tokens` : basisCaption}
+              </p>
+            </div>
+            {totals.tokens > 0 ? (
+              <LightballTabs
+                tabs={chartMetricTabs}
+                active={effectiveChartMetric}
+                onChange={setChartMetric}
+                ariaLabel={t`Trend metric`}
+                className="w-[140px]"
+                equalWidth
+                shape="rounded"
+                delayActiveText
+              />
+            ) : null}
           </div>
-          <CostTrend points={points} currency={currency} locale={locale} />
+          <CostTrend
+            points={points}
+            series={chartSeries}
+            metric={effectiveChartMetric}
+            currency={currency}
+            locale={locale}
+          />
         </section>
       </ContentSurface>
+
       <section className="flex flex-col gap-3" aria-label={t`Recorded token categories`}>
         <h2 className="text-sm font-semibold">
           <Trans>Recorded token categories</Trans>
         </h2>
         <dl className="grid grid-cols-2 gap-3 @min-[480px]:grid-cols-3 @min-[880px]:grid-cols-6">
-          {[
-            [t`Tokens`, totals.tokens],
-            [t`Input`, totals.categorizedTokens > 0 ? totals.categories.input : undefined],
-            [t`Cache read`, totals.categorizedTokens > 0 ? totals.categories.cacheRead : undefined],
-            [
-              t`Cache write`,
-              totals.categorizedTokens > 0 ? totals.categories.cacheWrite : undefined,
-            ],
-            [t`Output`, totals.categorizedTokens > 0 ? totals.categories.output : undefined],
-            [t`Unpriced tokens`, totals.unpricedTokens],
-          ].map(([label, value]) => (
+          {categoryTiles.map(({ label, value, title }) => (
             <ContentSurface key={label} className="min-w-0 px-3 py-2.5">
-              <dt className="text-[11px] text-muted">{label}</dt>
-              <dd
-                className="mt-1 break-words text-lg font-semibold tabular-nums"
-                title={typeof value === "number" ? value.toLocaleString(locale) : undefined}
-              >
-                {typeof value === "number" ? value.toLocaleString(locale) : unknown}
+              <dt className="truncate text-[11px] text-muted">{label}</dt>
+              <dd className="mt-1 break-words text-lg font-semibold tabular-nums" title={title}>
+                {value}
               </dd>
             </ContentSurface>
           ))}
@@ -302,6 +512,27 @@ export function CostHistory({
           </Trans>
         </p>
       </section>
+
+      <CostTypeShareSection
+        costSegments={costSegments}
+        tokenSegments={tokenSegments}
+        currency={currency}
+        locale={locale}
+        className="@min-[640px]:p-5"
+        {...(cacheSavingsUsd !== undefined
+          ? {
+              costAside: (
+                <span className="text-xs text-muted" data-testid="profile-cost-cache-savings">
+                  {t`Cache savings`}{" "}
+                  <span className="font-medium text-foreground tabular-nums">
+                    {formatCost(cacheSavingsUsd, "USD", locale)}
+                  </span>
+                </span>
+              ),
+            }
+          : {})}
+      />
+
       <section className="flex min-w-0 flex-col gap-3" aria-label={t`Providers`}>
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <h2 className="text-sm font-semibold">
@@ -311,33 +542,57 @@ export function CostHistory({
         </div>
         {sortedProviders.length ? (
           <ul className="grid gap-3 @min-[480px]:grid-cols-2 @min-[800px]:grid-cols-3">
-            {sortedProviders.map((entry) => (
-              <li key={entry.key} className="min-w-0 content-surface p-3">
-                <div className="flex items-start gap-2 text-sm">
-                  <span aria-hidden>
-                    <ProviderIcon
-                      kind={entry.key}
-                      fallbackLabel={entry.label}
-                      className="size-4 shrink-0"
-                    />
-                  </span>
-                  <span className="min-w-0 break-words font-medium">{entry.label || unknown}</span>
-                </div>
-                <p className="mt-2 break-words font-semibold tabular-nums">
-                  {costValue(entry.totals)}
-                </p>
-                <p className="mt-1 text-xs text-muted tabular-nums">
-                  {entry.totals.tokens.toLocaleString(locale)} {t`Tokens`}
-                </p>
-              </li>
-            ))}
+            {sortedProviders.map((entry) => {
+              const provAmount = amount(entry.totals);
+              const share =
+                provAmount !== undefined && totalAmount && totalAmount > 0
+                  ? provAmount / totalAmount
+                  : null;
+              const provHitRate = cacheHitRate(entry.totals);
+              return (
+                <li key={entry.key} className="min-w-0 content-surface p-3">
+                  <div className="flex items-center justify-between gap-2 text-sm">
+                    <div className="flex min-w-0 items-center gap-2">
+                      <span
+                        aria-hidden="true"
+                        className="size-2 shrink-0 rounded-full"
+                        style={{ backgroundColor: providerColor(entry.key) }}
+                      />
+                      <span aria-hidden="true">
+                        <ProviderIcon
+                          kind={entry.key}
+                          fallbackLabel={entry.label}
+                          className="size-4 shrink-0"
+                        />
+                      </span>
+                      <span className="min-w-0 truncate font-medium">{entry.label || unknown}</span>
+                    </div>
+                    {share !== null ? (
+                      <span className="shrink-0 text-xs text-muted tabular-nums">
+                        {formatPercentShare(share)}
+                      </span>
+                    ) : null}
+                  </div>
+                  <p className="mt-2 break-words font-semibold tabular-nums">
+                    {costValue(entry.totals)}
+                  </p>
+                  <p className="mt-1 text-xs text-muted tabular-nums">
+                    {entry.totals.tokens.toLocaleString(locale)} {t`Tokens`}
+                    {provHitRate !== null
+                      ? ` · ${formatPercentShare(provHitRate)} ${t`cache`}`
+                      : ""}
+                  </p>
+                </li>
+              );
+            })}
           </ul>
         ) : (
           <p className="text-xs text-muted">
-            {activeBasis === "estimate" ? t`No priced usage in this range.` : t`No data yet.`}
+            {activeBasisIsEstimate ? t`No priced usage in this range.` : t`No data yet.`}
           </p>
         )}
       </section>
+
       <section className="flex min-w-0 flex-col gap-3" aria-label={t`Cost breakdown`}>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 className="text-sm font-semibold">
@@ -396,54 +651,130 @@ export function CostHistory({
               </tr>
             </thead>
             <tbody className="block @min-[640px]:table-row-group">
-              {rows.map((entry) => (
-                <tr
-                  key={entry.key}
-                  className="grid grid-cols-2 gap-x-4 gap-y-2 border-b border-[var(--hairline-soft)] py-3 last:border-0 @min-[640px]:table-row @min-[640px]:py-0"
-                >
-                  <th
-                    scope="row"
-                    className="col-span-2 min-w-0 break-words font-medium @min-[640px]:max-w-80 @min-[640px]:py-3 @min-[640px]:pr-5"
+              {rows.map((entry) => {
+                const entryAmount = amount(entry.totals);
+                const isModelRow = breakdown === "models";
+                const modelProvKey = isModelRow
+                  ? providerKeyFromModelKey(entry.key)
+                  : breakdown === "providers" || breakdown === "accounts"
+                    ? entry.key
+                    : undefined;
+                const barWidth =
+                  entryAmount !== undefined && entryAmount > 0 && rowPeakAmount > 0
+                    ? Math.max(4, (entryAmount / rowPeakAmount) * 100)
+                    : 0;
+                const barColor = modelProvKey ? providerColor(modelProvKey) : "var(--foreground)";
+                const share =
+                  breakdown !== "days" &&
+                  entryAmount !== undefined &&
+                  totalAmount &&
+                  totalAmount > 0
+                    ? entryAmount / totalAmount
+                    : null;
+                return (
+                  <tr
+                    key={entry.key}
+                    onClick={
+                      isModelRow
+                        ? () => {
+                            if (window.getSelection()?.toString()) return;
+                            setSelectedModelKey(entry.key);
+                          }
+                        : undefined
+                    }
+                    className={`grid grid-cols-2 gap-x-4 gap-y-2 border-b border-[var(--hairline-soft)] py-3 last:border-0 @min-[640px]:table-row @min-[640px]:py-0 ${
+                      isModelRow
+                        ? "cursor-pointer transition-colors hover:bg-[var(--row-hover)]"
+                        : ""
+                    }`}
                   >
-                    {entry.label || unknown}
-                  </th>
-                  <td className="min-w-0 break-words font-mono tabular-nums @min-[640px]:px-3 @min-[640px]:py-3 @min-[640px]:text-right">
-                    <span
-                      aria-hidden
-                      className="mb-1 block font-sans text-[10px] text-muted @min-[640px]:hidden"
+                    <th
+                      scope="row"
+                      className="col-span-2 min-w-0 break-words font-medium @min-[640px]:max-w-80 @min-[640px]:py-3 @min-[640px]:pr-5"
                     >
-                      {moneyHeading}
-                    </span>
-                    {costValue(entry.totals)}
-                  </td>
-                  <td
-                    className="min-w-0 break-words text-right tabular-nums @min-[640px]:px-3 @min-[640px]:py-3"
-                    title={entry.totals.tokens.toLocaleString(locale)}
-                  >
-                    <span
-                      aria-hidden
-                      className="mb-1 block text-[10px] text-muted @min-[640px]:hidden"
+                      {isModelRow ? (
+                        <button
+                          type="button"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            setSelectedModelKey(entry.key);
+                          }}
+                          className="flex w-full items-center gap-2 text-left text-foreground outline-none focus-visible:focus-ring"
+                        >
+                          {modelProvKey ? (
+                            <ProviderIcon
+                              kind={modelProvKey}
+                              fallbackLabel={entry.label}
+                              className="size-3.5 shrink-0"
+                            />
+                          ) : null}
+                          <span className="min-w-0 truncate">{entry.label || unknown}</span>
+                        </button>
+                      ) : (
+                        <span className="flex items-center gap-2">
+                          {modelProvKey ? (
+                            <ProviderIcon
+                              kind={modelProvKey}
+                              fallbackLabel={entry.label}
+                              className="size-3.5 shrink-0"
+                            />
+                          ) : null}
+                          <span className="min-w-0 truncate">{entry.label || unknown}</span>
+                        </span>
+                      )}
+                      {barWidth > 0 && breakdown !== "days" ? (
+                        <div
+                          aria-hidden="true"
+                          className="mt-1.5 h-0.5 max-w-48 overflow-hidden rounded-full bg-foreground/10"
+                        >
+                          <div
+                            className="h-full rounded-full"
+                            style={{ width: `${barWidth}%`, backgroundColor: barColor }}
+                          />
+                        </div>
+                      ) : null}
+                    </th>
+                    <td className="min-w-0 break-words font-mono tabular-nums @min-[640px]:px-3 @min-[640px]:py-3 @min-[640px]:text-right">
+                      <span
+                        aria-hidden="true"
+                        className="mb-1 block font-sans text-[10px] text-muted @min-[640px]:hidden"
+                      >
+                        {moneyHeading}
+                      </span>
+                      {costValue(entry.totals)}
+                      {share !== null ? (
+                        <span className="ml-1.5 font-sans text-[10px] text-muted">
+                          {formatPercentShare(share)}
+                        </span>
+                      ) : null}
+                    </td>
+                    <td
+                      className="min-w-0 break-words text-right tabular-nums @min-[640px]:px-3 @min-[640px]:py-3"
+                      title={entry.totals.tokens.toLocaleString(locale)}
                     >
-                      {t`Tokens`}
-                    </span>
-                    {entry.totals.tokens.toLocaleString(locale)}
-                  </td>
-                  <td
-                    className={`${entry.totals.unpricedTokens === 0 ? "sr-only @min-[640px]:not-sr-only" : "block"} col-span-2 text-muted tabular-nums @min-[640px]:table-cell @min-[640px]:py-3 @min-[640px]:pl-3 @min-[640px]:text-right`}
-                  >
-                    <span aria-hidden className="mr-1 @min-[640px]:hidden">
-                      {t`Unpriced tokens`}:
-                    </span>
-                    {entry.totals.unpricedTokens.toLocaleString(locale)}
-                  </td>
-                </tr>
-              ))}
+                      <span
+                        aria-hidden="true"
+                        className="mb-1 block text-[10px] text-muted @min-[640px]:hidden"
+                      >
+                        {t`Tokens`}
+                      </span>
+                      {entry.totals.tokens.toLocaleString(locale)}
+                    </td>
+                    <td
+                      className={`${entry.totals.unpricedTokens === 0 ? "sr-only @min-[640px]:not-sr-only" : "block"} col-span-2 text-muted tabular-nums @min-[640px]:table-cell @min-[640px]:py-3 @min-[640px]:pl-3 @min-[640px]:text-right`}
+                    >
+                      <span aria-hidden="true" className="mr-1 @min-[640px]:hidden">
+                        {t`Unpriced tokens`}:
+                      </span>
+                      {entry.totals.unpricedTokens.toLocaleString(locale)}
+                    </td>
+                  </tr>
+                );
+              })}
               {rows.length === 0 && (
                 <tr>
                   <td colSpan={4} className="py-6 text-center text-muted">
-                    {activeBasis === "estimate"
-                      ? t`No priced usage in this range.`
-                      : t`No data yet.`}
+                    {activeBasisIsEstimate ? t`No priced usage in this range.` : t`No data yet.`}
                   </td>
                 </tr>
               )}
@@ -454,6 +785,7 @@ export function CostHistory({
           <Trans>Unpriced tokens have neither a provider-reported cost nor an API estimate.</Trans>
         </p>
       </section>
+
       <div className="flex flex-col gap-2 border-t border-[var(--hairline-soft)] pt-4 text-[11px] leading-relaxed text-muted">
         <dl className="flex flex-wrap gap-x-2 font-medium text-foreground">
           <dt>
@@ -468,6 +800,7 @@ export function CostHistory({
           </Trans>
         </p>
       </div>
+
       <Disclosure className="border-t border-[var(--hairline-soft)] pt-4">
         <Disclosure.Heading>
           <Disclosure.Trigger className="flex w-full items-center justify-between gap-3 text-left text-sm font-semibold">
@@ -513,6 +846,20 @@ export function CostHistory({
           </Disclosure.Body>
         </Disclosure.Content>
       </Disclosure>
+
+      <CostModelDialog
+        model={selectedModel}
+        days={stats.days}
+        {...(stats.dayModels ? { dayModels: stats.dayModels } : {})}
+        totalCostAmount={totalAmount}
+        activeBasisIsEstimate={activeBasisIsEstimate}
+        currency={currency}
+        locale={locale}
+        amount={amount}
+        coverage={coverage}
+        costValue={costValue}
+        onClose={() => setSelectedModelKey(null)}
+      />
     </div>
   );
 }

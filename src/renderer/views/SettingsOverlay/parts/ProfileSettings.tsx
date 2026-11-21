@@ -7,10 +7,12 @@ import type {
   ProfileTokenProvider,
 } from "@/shared/contracts";
 import { isRemoteSession } from "@/renderer/bridge";
-import { useCompactLayout } from "@/renderer/adaptiveLayout";
 import { Button, LightballTabs, type LightballTab } from "@/renderer/components/common";
 import { useProfileData } from "@/renderer/views/ProfileOverlay/useProfileData";
-import { ProfileHeader } from "@/renderer/views/ProfileOverlay/parts/ProfileHeader";
+import {
+  ProfileHeader,
+  ProfileIdentityHeading,
+} from "@/renderer/views/ProfileOverlay/parts/ProfileHeader";
 import { StatStrip } from "@/renderer/views/ProfileOverlay/parts/StatStrip";
 import {
   ActivitySection,
@@ -38,7 +40,6 @@ function toEntry(p: ProfileTokenProvider): ProfileBreakdownEntry {
 /** Profile + usage statistics, rendered as a Settings section. */
 export function ProfileSettings() {
   const { t, i18n } = useLingui();
-  const compact = useCompactLayout();
   const data = useProfileData();
   // Sharing takes a native clipboard screenshot of the page (copyShareImage),
   // which has no remote equivalent; hide the affordance rather than surface a
@@ -47,11 +48,19 @@ export function ProfileSettings() {
   const [editOpen, setEditOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const [tab, setTab] = useState<"activity" | "costs">("activity");
+  const [tabMotion, setTabMotion] = useState<"none" | "from-right" | "from-left">("none");
   const [pickedMetric, setPickedMetric] = useState<ActivityMetric | null>(null);
   const { core, coreLoading, tokens, tokensLoading } = data;
   const identity = data.identity ?? null;
   const corePending = coreLoading && !core;
-  const hasError = tab === "activity" && !core && !coreLoading;
+  const hasError =
+    (tab === "activity" && !core && !coreLoading) || (tab === "costs" && !tokens && !tokensLoading);
+
+  const handleTabChange = (next: "activity" | "costs") => {
+    if (next === tab) return;
+    setTabMotion(next === "costs" ? "from-right" : "from-left");
+    setTab(next);
+  };
 
   // Resolve the active metric at render time (not via a post-paint effect) so the
   // breakdown sections never paint the prompt mix for a frame before flipping to
@@ -87,10 +96,13 @@ export function ProfileSettings() {
   // has multiple accounts/profiles (an account key carries an instance suffix).
   const accountsByTokens = metricIsTokens && tokens!.accounts.length > 0;
   const accountEntries = accountsByTokens ? tokens!.accounts.map(toEntry) : (core?.accounts ?? []);
-  // With a single account selected the breakdown collapses to one 100% bar for
-  // the account already named in the filter, so only show it when unfiltered.
+  // With a single account selected or only one account present in the range,
+  // the breakdown collapses to one 100% bar duplicating Providers, so only show
+  // it when unfiltered with multiple accounts.
   const hasMultipleAccounts =
-    !data.selection.provider && accountEntries.some((a) => a.key.includes(":"));
+    !data.selection.provider &&
+    accountEntries.length > 1 &&
+    accountEntries.some((a) => a.key.includes(":"));
 
   // Per-account filter (whole page) - only when more than one account exists.
   const accountFilter =
@@ -109,85 +121,54 @@ export function ProfileSettings() {
       />
     ) : null;
 
-  const headerActions = (
-    <>
-      {!remote && tab === "activity" && (
-        <Button
-          size="sm"
-          variant="ghost"
-          isDisabled={!core || Boolean(core.incompleteDetails)}
-          onPress={() => setShareOpen(true)}
-          className="gap-1.5"
-        >
-          <Share2 className="size-4" />
-          <Trans>Share</Trans>
-        </Button>
-      )}
-      {!compact && tab !== "costs" && (
-        <Button
-          size="sm"
-          variant="ghost"
-          isDisabled={!identity}
-          onPress={() => setEditOpen(true)}
-          className="gap-1.5"
-        >
-          <Pencil className="size-4" />
-          <Trans>Edit</Trans>
-        </Button>
-      )}
-    </>
+  const editAction = (
+    <Button
+      isIconOnly
+      size="sm"
+      variant="ghost"
+      aria-label={t`Edit`}
+      isDisabled={!identity}
+      onPress={() => setEditOpen(true)}
+    >
+      <Pencil className="size-4" />
+    </Button>
   );
 
-  const compactEditAction =
-    compact || tab === "costs" ? (
-      <Button
-        isIconOnly
-        size="sm"
-        variant="ghost"
-        aria-label={t`Edit`}
-        isDisabled={!identity}
-        onPress={() => setEditOpen(true)}
-      >
-        <Pencil className="size-4" />
-      </Button>
-    ) : null;
+  const shareAction = !remote ? (
+    <Button
+      size="sm"
+      variant="secondary"
+      isDisabled={
+        !core || Boolean(core.incompleteDetails?.streaks) || Boolean(tokens?.incompletePeak)
+      }
+      onPress={() => setShareOpen(true)}
+      className="gap-1.5"
+    >
+      <Share2 className="size-3.5" />
+      <Trans>Share</Trans>
+    </Button>
+  ) : null;
 
-  const profileHeader = (
-    <ProfileHeader
-      identity={identity}
-      devices={data.devices}
-      currentDeviceId={data.currentDeviceId}
-      {...(data.remoteStatusByDeviceId
-        ? { remoteStatusByDeviceId: data.remoteStatusByDeviceId }
-        : {})}
-      selection={data.selection}
-      onSelect={data.setSelection}
-      filter={accountFilter}
-      identityAction={compactEditAction}
-      actions={headerActions}
-      compact={tab === "costs"}
-    />
-  );
+  const tabMotionClass =
+    tabMotion === "from-right"
+      ? "poracode-tab-panel-from-right"
+      : tabMotion === "from-left"
+        ? "poracode-tab-panel-from-left"
+        : "";
 
   return (
-    <div className={`mx-auto w-full pb-8 ${tab === "costs" ? "max-w-[1080px]" : "max-w-[760px]"}`}>
+    <div className="mx-auto w-full max-w-[1080px] pb-8">
       <div className="flex flex-col gap-6">
-        <div
-          className={
-            tab === "costs"
-              ? "flex flex-wrap items-center justify-between gap-3 border-b border-border/40 pb-3"
-              : "contents"
-          }
-        >
-          {tab !== "costs" && <div className="mb-2">{profileHeader}</div>}
-          <div className="flex flex-wrap items-center justify-center gap-2">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--hairline)] pb-3">
+          <div className="flex flex-wrap items-center gap-2">
             <LightballTabs
               tabs={profileTabs}
               active={tab}
-              onChange={setTab}
+              onChange={handleTabChange}
               ariaLabel={t`Profile tabs`}
               className="shrink-0"
               shape="rounded"
+              delayActiveText
             />
             <LightballTabs
               tabs={windowTabs}
@@ -197,9 +178,20 @@ export function ProfileSettings() {
               className="w-[180px] shrink-0"
               equalWidth
               shape="rounded"
+              delayActiveText
             />
           </div>
-          {tab === "costs" && profileHeader}
+          <ProfileHeader
+            devices={data.devices}
+            currentDeviceId={data.currentDeviceId}
+            {...(data.remoteStatusByDeviceId
+              ? { remoteStatusByDeviceId: data.remoteStatusByDeviceId }
+              : {})}
+            selection={data.selection}
+            onSelect={data.setSelection}
+            filter={accountFilter}
+            actions={editAction}
+          />
         </div>
         {hasError ? (
           <div className="flex h-48 flex-col items-center justify-center gap-3 px-6 text-center text-sm text-muted">
@@ -211,47 +203,49 @@ export function ProfileSettings() {
             ) : null}
           </div>
         ) : (
-          <>
+          <div className="overflow-x-clip">
             {tab === "activity" && (
               <div
+                key="activity"
                 role="tabpanel"
                 aria-label={t`Activity`}
                 aria-busy={corePending || tokensLoading}
-                className="flex flex-col gap-8"
+                className={`@container flex min-w-0 flex-col gap-6 ${tabMotionClass}`}
               >
                 {(corePending || tokensLoading) && (
                   <span role="status" className="sr-only">
                     <Trans>Loading</Trans>
                   </span>
                 )}
-                <StatStrip
+                <ProfileIdentityHeading identity={identity} actions={shareAction} />
+                <ActivitySection
                   core={core}
                   coreLoading={corePending}
                   tokens={tokens}
                   tokensLoading={tokensLoading}
                   window={data.selection.window}
+                  metric={metric}
+                  defaultToTokensWhileLoading={pickedMetric === null}
+                  onMetricChange={handleMetricChange}
+                  peakAvailable={!tokens?.incompletePeak}
+                />
+                <StatStrip
+                  core={core}
+                  coreLoading={corePending}
+                  tokens={tokens}
+                  tokensLoading={tokensLoading}
                   streaksAvailable={!core?.incompleteDetails?.streaks}
                   peakAvailable={!tokens?.incompletePeak}
                 />
-                <ActivitySection
-                  promptHeatmap={core?.promptHeatmap ?? null}
-                  tokenHeatmap={tokens?.tokenHeatmap ?? null}
-                  tokensAvailable={tokens?.available ?? false}
-                  loading={corePending}
+                <ActivityInsights
+                  core={core}
+                  tokens={tokens}
+                  envs={data.envSummaries ?? []}
                   window={data.selection.window}
-                  metric={metric}
-                  onMetricChange={handleMetricChange}
+                  loading={corePending}
+                  skillsAvailable={!core?.incompleteDetails?.skills}
                 />
-                <div className="grid grid-cols-1 gap-x-10 gap-y-8 sm:grid-cols-2">
-                  <ActivityInsights
-                    core={core}
-                    tokens={tokens}
-                    envs={data.envSummaries ?? []}
-                    window={data.selection.window}
-                    loading={corePending}
-                    className="sm:col-span-2"
-                    skillsAvailable={!core?.incompleteDetails?.skills}
-                  />
+                <div className="grid grid-cols-1 gap-6 @min-[640px]:grid-cols-2">
                   <PluginUsage
                     items={core?.skills ?? []}
                     title={t`Skills`}
@@ -273,7 +267,7 @@ export function ProfileSettings() {
                     loading={corePending}
                   />
                 </div>
-                <div className="grid grid-cols-1 gap-x-10 gap-y-8 sm:grid-cols-2">
+                <div className="grid grid-cols-1 gap-6 @min-[640px]:grid-cols-2">
                   <BreakdownBars
                     title={t`Providers`}
                     caption={providersByTokens ? t`by tokens` : t`by prompts`}
@@ -299,7 +293,7 @@ export function ProfileSettings() {
                     {...(accountsByTokens ? tokenFormat : {})}
                   />
                 ) : null}
-                <div className="grid grid-cols-1 gap-x-10 gap-y-8 sm:grid-cols-2">
+                <div className="grid grid-cols-1 gap-6 @min-[640px]:grid-cols-2">
                   <BreakdownBars
                     title={t`Modes`}
                     entries={core?.modes ?? []}
@@ -312,15 +306,16 @@ export function ProfileSettings() {
               </div>
             )}
             {tab === "costs" && (
-              <div role="tabpanel" aria-label={t`Costs`}>
+              <div key="costs" role="tabpanel" aria-label={t`Costs`} className={tabMotionClass}>
                 <CostHistory
                   stats={tokens?.costs}
                   loading={tokensLoading && !tokens?.costs}
                   locale={i18n.locale}
+                  allDevices={data.selection.scope === "all" && data.devices.length > 1}
                 />
               </div>
             )}
-          </>
+          </div>
         )}
       </div>
 
