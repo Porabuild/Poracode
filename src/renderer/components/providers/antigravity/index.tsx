@@ -14,10 +14,20 @@ import {
 import { registerCommitGenDefaults } from "../commitGen";
 import { registerConflictResolverDefaults } from "../conflictResolver";
 import { registerTitleGenDefaults } from "../titleGen";
+import { registerComposerRuntimeRequirement } from "../composerRuntimeRequirement";
 
 const PROVIDER_KIND = providerManifest.kind;
 
 registerProviderIcon(PROVIDER_KIND, AntigravityIcon);
+registerComposerRuntimeRequirement(PROVIDER_KIND, (status, presentation) =>
+  presentation === "gui" && status.runtimeVariants?.acp?.installed !== true
+    ? {
+        description: msg`For GUI chats, install Antigravity ACP.`,
+        installLabel: msg`Install ACP`,
+        registryAgentId: ANTIGRAVITY_ACP_REGISTRY_ID,
+      }
+    : undefined,
+);
 registerCombinedRuntimeUpdates(PROVIDER_KIND, ({ agentStatus }) => {
   const cli = agentStatus.runtimeVariants?.cli;
   const acp = agentStatus.runtimeVariants?.acp;

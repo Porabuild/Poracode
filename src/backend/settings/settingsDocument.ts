@@ -16,6 +16,8 @@ import {
 /**
  * V3 admits settings:<section> sidebar IDs; older readers reject those arrays.
  * V1/V2 documents retain their shortcut order/visibility and all other values.
+ * Missing-file recovery reuses the live owner's raw document; its shape and
+ * older documents remain valid, so write admission needs no format bump.
  */
 export const SETTINGS_DOCUMENT_VERSION = 3 as const;
 export const SETTINGS_DOCUMENT_VERSION_KEY = "$poracodeSettingsVersion";

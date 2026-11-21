@@ -55,6 +55,8 @@ import type { SaveClipboardImage } from "../composer/useAttachments";
 import type { ComposerControl } from "./ThreadComposer";
 import { useContinueInProviderStore } from "@/renderer/state/continueInProviderStore";
 import { ThreadComposerSection } from "./ThreadComposerSection";
+import { msg } from "@lingui/core/macro";
+import { registerComposerRuntimeRequirement } from "../providers/composerRuntimeRequirement";
 import { ImplicitMcpServersContext } from "../composer/implicitMcpServers";
 import {
   TurnClientContextSource,
@@ -751,6 +753,50 @@ describe("ThreadComposerSection", () => {
     const result = render(composerElement({ ...opts, onSubmitInput }));
     return { ...result, onSubmitInput };
   }
+
+  it("replaces an unsupported-presentation error with runtime installation guidance and blocks sending", async () => {
+    const originalProjects = useAppStore.getState().projects;
+    useAppStore.setState({
+      projects: [
+        {
+          id: "project-1",
+          name: "Repo",
+          location: { kind: "windows", path: "C:\\repo" },
+          createdAt: new Date().toISOString(),
+        },
+      ],
+    });
+    const kind = "fixture-install-required";
+    registerComposerRuntimeRequirement(kind, () => ({
+      description: msg`Not installed`,
+      installLabel: msg`Install ACP`,
+      registryAgentId: "fixture-runtime",
+    }));
+    try {
+      const thread = { ...guiThread, agentKind: kind, status: "error" as const };
+      const agentStatus = { ...codexGuiStatus, kind };
+      const error = `Agent ${kind} does not support gui presentation (declared: terminal).`;
+      const { onSubmitInput, rerender } = renderComposer({
+        thread,
+        agentStatus: { ...agentStatus, authState: "missing" },
+        errorDockStates: [{ sourceItemId: "error", message: error }],
+      });
+      typeComposerText(screen.getByRole("textbox"), "keep this prompt");
+      expect(screen.getByRole("button", { name: "Install ACP" })).toBeInTheDocument();
+      expect(screen.queryByText("Sign in required")).not.toBeInTheDocument();
+      expect(screen.queryByText(error)).not.toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "send" })).toBeDisabled();
+      fireEvent.click(screen.getByRole("button", { name: "send" }));
+      expect(onSubmitInput).not.toHaveBeenCalled();
+      registerComposerRuntimeRequirement(kind, () => undefined);
+      rerender(composerElement({ thread, agentStatus, onSubmitInput }));
+      expect(screen.queryByRole("button", { name: "Install ACP" })).not.toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "send" })).not.toBeDisabled();
+    } finally {
+      registerComposerRuntimeRequirement(kind, () => undefined);
+      await act(() => useAppStore.setState({ projects: originalProjects }));
+    }
+  });
 
   it.each(["Explain the code", "$review Explain the code", "/model", "/btw Explain the code"])(
     "resends the unanswered text literally (%s) and hides resume after Stop",
