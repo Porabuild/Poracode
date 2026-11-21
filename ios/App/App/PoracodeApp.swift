@@ -46,7 +46,7 @@ struct PoracodeApp: App {
   var body: some Scene {
     WindowGroup {
       PoracodeThemeRoot {
-        RootView(session: session)
+        NativeCommandSceneRoot(session: session)
       }
       .task {
         NotificationIngress.shared.attach(session: session)
@@ -69,6 +69,7 @@ struct PoracodeApp: App {
         }
       }
     }
+    .commands { NativeAppCommands() }
   }
 }
 

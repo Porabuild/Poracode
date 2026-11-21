@@ -422,7 +422,14 @@ describe("native mobile scenario control API", () => {
       ],
     });
     socket.ws.send(JSON.stringify(CLIENT_WS_FIXTURES["browser-watch"]));
-    for (let index = 0; index < 3; index += 1) await socket.next();
+    const watchState = await socket.next();
+    const browserState = await fetch(new URL("api/browser/state", harness.httpBaseUrl), {
+      headers: { authorization: `Bearer ${accessToken}` },
+    });
+    expect(browserState.status).toBe(200);
+    expect(watchState).toMatchObject({ type: "browser-state", ...(await browserState.json()) });
+    await socket.next();
+    await socket.next();
     socket.ws.send(JSON.stringify(CLIENT_WS_FIXTURES["browser-unwatch"]));
     socket.ws.send(JSON.stringify(CLIENT_WS_FIXTURES["browser-input"]));
     socket.ws.send(JSON.stringify(CLIENT_WS_FIXTURES["git-state-interests"]));

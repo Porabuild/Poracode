@@ -8,7 +8,9 @@ import { build } from "esbuild";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   createRuntimePayloadProjectionSource,
+  createToolPresentationAdapterSource,
   RUNTIME_PAYLOAD_PROJECTION_MODULE,
+  TOOL_PRESENTATION_ADAPTER_MODULE,
 } from "@/build/runtimePayloadProjectionSource.mjs";
 import * as asyncReads from "./asyncReads";
 import { elisionNotice } from "@/shared/runtimeStreamRetentionPolicy";
@@ -493,8 +495,10 @@ describe.skipIf(!sqliteAvailable)("saved conversation search", () => {
     const artifacts = mkdtempSync(resolvePath("tmp/search-read-worker-"));
     const workerPath = join(artifacts, "databaseReadWorker.cjs");
     const projectionsPath = join(artifacts, "runtimePayloadProjections.ts");
+    const toolAdaptersPath = join(artifacts, "toolPresentationAdapters.ts");
     try {
       writeFileSync(projectionsPath, createRuntimePayloadProjectionSource(process.cwd()).source);
+      writeFileSync(toolAdaptersPath, createToolPresentationAdapterSource(process.cwd()).source);
       await build({
         entryPoints: [fileURLToPath(new URL("./databaseReadWorker.ts", import.meta.url))],
         outfile: workerPath,
@@ -502,7 +506,11 @@ describe.skipIf(!sqliteAvailable)("saved conversation search", () => {
         platform: "node",
         format: "cjs",
         packages: "external",
-        alias: { "@": resolvePath("src"), [RUNTIME_PAYLOAD_PROJECTION_MODULE]: projectionsPath },
+        alias: {
+          "@": resolvePath("src"),
+          [RUNTIME_PAYLOAD_PROJECTION_MODULE]: projectionsPath,
+          [TOOL_PRESENTATION_ADAPTER_MODULE]: toolAdaptersPath,
+        },
       });
       asyncReads.enableAsyncDatabaseReads(join(directory, "state.sqlite"), workerPath);
       const reads = vi.spyOn(asyncReads, "readDatabaseAsync");

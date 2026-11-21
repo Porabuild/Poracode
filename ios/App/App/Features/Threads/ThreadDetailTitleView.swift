@@ -29,15 +29,21 @@ struct ThreadDetailTitleView: View {
   let thread: RemoteThread
   let project: RemoteProject
   var hasBackgroundActivity = false
-  var showsProviderBadge = true
+  var foregroundIsOpen: Bool? = nil
+  var showsProviderBadge = false
 
+  @Environment(\.horizontalSizeClass) private var horizontalSizeClass
   @State private var showsStatus = false
+
+  private var isRegularWidth: Bool {
+    horizontalSizeClass == .regular
+  }
 
   var body: some View {
     Button {
       showsStatus = true
     } label: {
-      HStack(spacing: 6) {
+      HStack(spacing: isRegularWidth ? 8 : 6) {
         if showsProviderBadge { providerBadge }
         VStack(alignment: .leading, spacing: 1) {
           Text(thread.title)
@@ -57,10 +63,17 @@ struct ThreadDetailTitleView: View {
           .lineLimit(1)
         }
       }
+      .frame(
+        maxWidth: isRegularWidth ? 540 : nil,
+        alignment: .leading
+      )
+      .padding(.horizontal, isRegularWidth ? 4 : 0)
       .contentShape(Rectangle())
     }
     .buttonStyle(.plain)
     .accessibilityLabel("\(thread.title), \(agentLabel), \(statusLabel), \(metadata)")
+    .accessibilityValue(statusLabel)
+    .accessibilityIdentifier("native-e2e.thread-status")
     .popover(isPresented: $showsStatus, arrowEdge: .top) {
       statusDetail
         .presentationCompactAdaptation(.sheet)
@@ -126,7 +139,9 @@ struct ThreadDetailTitleView: View {
   }
 
   private var statusLabel: String {
-    ThreadLifecycleStrings.status(resolvedStatus, hasSessionRef: thread.sessionRef != nil)
+    if WorkflowActivityPresentation.isWaitingForBackground(thread: thread, foregroundIsOpen: foregroundIsOpen,
+      hasActivity: hasBackgroundActivity) { return WorkflowActivityStrings.waitingForBackground }
+    return ThreadLifecycleStrings.status(resolvedStatus, hasSessionRef: thread.sessionRef != nil)
   }
 
   private var resolvedStatus: String {

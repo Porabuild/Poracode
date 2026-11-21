@@ -6,14 +6,11 @@ struct GitHubWorkflowRunsView: View {
   @Bindable var controller: GitHubWorkflowController
   @Bindable var mutations: GitHubWorkflowMutationController
 
-  @State private var dispatchDefinition: GitHubWorkflowDefinition?
+  @State private var dispatchSelection: GitHubWorkflowDispatchSelection?
   @State private var dispatchDiscoveryDeadline: Date?
 
   private var runs: [GitHubWorkflowRun] {
-    guard let document = controller.documents[.ghListWorkflowRuns] else { return [] }
-    return GitHubResultProjection.workflowRuns(
-      .json(procedure: .ghListWorkflowRuns, document: document)
-    ) ?? []
+    controller.runs(for: workflow.id)
   }
 
   private var definition: GitHubWorkflowDefinition? {
@@ -105,29 +102,26 @@ struct GitHubWorkflowRunsView: View {
       }
     }
     .listStyle(.insetGrouped)
+    .poracodeReadableListMargins(760)
     .navigationTitle(workflow.name)
     .navigationBarTitleDisplayMode(.inline)
-    .poracodeBottomBar {
-      PoracodeBottomActionBar {
-        PoracodeCircleButton {
+    .toolbar {
+      ToolbarItemGroup(placement: .bottomBar) {
+        Button(
+          isLoading ? ProjectManagementStrings.loading : HomeStrings.refresh,
+          systemImage: isLoading ? "hourglass" : "arrow.clockwise"
+        ) {
           Task { await load() }
-        } label: {
-          Label(HomeStrings.refresh, systemImage: "arrow.clockwise")
-            .labelStyle(.iconOnly)
         }
-        .disabled(isLoading)
-        .accessibilityLabel(HomeStrings.refresh)
+        .disabled(context?.isUsable != true || isLoading)
         .accessibilityIdentifier("native-e2e.github-actions.refresh-runs")
-      } trailing: {
-        if definition?.dispatchable == true {
-          PoracodeCircleButton {
-            dispatchDefinition = definition
-          } label: {
-            Label(GitHubOperationsStrings.run, systemImage: "play.fill")
-              .labelStyle(.iconOnly)
+        if let definition, definition.dispatchable, let context {
+          Button(GitHubOperationsStrings.run, systemImage: "play.fill") {
+            dispatchSelection = .init(
+              workflow: workflow, definition: definition, lease: context.lease
+            )
           }
-          .disabled(mutations.state.isBusy)
-          .accessibilityLabel(GitHubOperationsStrings.run)
+          .disabled(!context.isUsable || !context.permits(.operate) || mutations.state.isBusy)
           .accessibilityIdentifier("native-e2e.github-actions.run-workflow")
         }
       }
@@ -138,10 +132,11 @@ struct GitHubWorkflowRunsView: View {
       await pollRuns()
     }
     .refreshable { await load() }
-    .sheet(item: $dispatchDefinition) { definition in
-      GitHubWorkflowDispatchView(workflow: workflow, definition: definition) {
-        await dispatch(ref: $0, inputs: $1)
+    .sheet(item: $dispatchSelection) { selection in
+      GitHubWorkflowDispatchView(workflow: selection.workflow, definition: selection.definition) {
+        await dispatch(selection, ref: $0, inputs: $1)
       }
+      .poracodeFormSheetSizing()
     }
     .confirmationDialog(
       confirmationTitle,
@@ -264,30 +259,25 @@ struct GitHubWorkflowRunsView: View {
   }
 
   private func submit(_ request: GitHubOperationRequest) async {
-    await mutations.submit(request)
+    await mutations.submit(request, expectedLease: context?.lease)
     if mutations.state.pendingConfirmation == nil { await loadRuns() }
   }
 
   private func dispatch(
+    _ selection: GitHubWorkflowDispatchSelection,
     ref: String,
     inputs: [String: String]
   ) async -> GitHubOperationsFailure? {
-    await submit(
-      .ghDispatchWorkflow(
-        .init(
-          projectLocation: location,
-          workflowId: workflow.id,
-          ref: ref,
-          inputs: inputs
-        )
-      )
+    let failure = await mutations.submit(
+      selection.request(ref: ref, inputs: inputs), expectedLease: selection.lease
     )
-    if mutations.state.failure == nil {
+    if failure == nil {
       dispatchDiscoveryDeadline = Date().addingTimeInterval(
         GitHubActionsPollingPolicy.dispatchDiscoveryTimeout
       )
     }
-    return mutations.state.failure
+    if failure != .notReady { await loadRuns() }
+    return failure
   }
 
   private func pollRuns() async {

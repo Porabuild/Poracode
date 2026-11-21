@@ -79,6 +79,25 @@ final class BoundedReadsTransportTests: XCTestCase {
     XCTAssertEqual(fixture.requestCount("/api/snapshot"), 1)
   }
 
+  func testExistingWorkspaceMetadataSurvivesLegacyAndBoundedSnapshotPaths() async throws {
+    fixture.workspaceNames = [["id": "host-work", "name": "Work"]]
+    for declared in [false, true] {
+      fixture.declared = declared
+      let outcome = try await makeClient().boundedShellSnapshot(order: .updated)
+      let snapshot: RemoteShellSnapshot
+      switch outcome {
+      case .legacy(let value): snapshot = value
+      case .bounded(let page): snapshot = page.asShellSnapshot()
+      }
+      XCTAssertEqual(snapshot.workspaces, [.init(id: "host-work", name: "Work")])
+    }
+    fixture.workspaceNames = nil
+    guard case .bounded(let oldPage) = try await makeClient().boundedShellSnapshot(order: .updated) else {
+      return XCTFail("Expected a bounded page")
+    }
+    XCTAssertNil(oldPage.asShellSnapshot().workspaces)
+  }
+
   func testEchoMismatchIsATypedProtocolError() async throws {
     fixture.echoOverride = "bounded-v9"
     let client = makeClient()

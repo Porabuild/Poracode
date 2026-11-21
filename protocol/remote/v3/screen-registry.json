@@ -113,6 +113,16 @@
       "file": "ios/App/NativeE2ETests/NativeJourneyUITests.swift"
     },
     {
+      "id": "ios.thread-history-changes",
+      "testClass": "NativeFamilyJourneyUITests",
+      "file": "ios/App/NativeE2ETests/NativeFamilyJourneyUITests.swift"
+    },
+    {
+      "id": "ios.thread-history-item",
+      "testClass": "NativeFamilyJourneyUITests",
+      "file": "ios/App/NativeE2ETests/NativeFamilyJourneyUITests.swift"
+    },
+    {
       "id": "ios.thread-interrupt",
       "testClass": "NativeJourneyUITests",
       "file": "ios/App/NativeE2ETests/NativeJourneyUITests.swift"

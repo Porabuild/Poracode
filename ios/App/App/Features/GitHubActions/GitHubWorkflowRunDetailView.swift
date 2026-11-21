@@ -97,6 +97,7 @@ struct GitHubWorkflowRunDetailView: View {
       }
     }
     .listStyle(.insetGrouped)
+    .poracodeReadableListMargins(760)
     .navigationTitle(run.title.isEmpty ? run.workflowName : run.title)
     .navigationBarTitleDisplayMode(.inline)
     .toolbar {
@@ -215,7 +216,7 @@ struct GitHubWorkflowRunDetailView: View {
   }
 
   private func submit(_ request: GitHubOperationRequest) async {
-    await mutations.submit(request)
+    await mutations.submit(request, expectedLease: context?.lease)
     if mutations.state.pendingConfirmation == nil { await load() }
   }
 

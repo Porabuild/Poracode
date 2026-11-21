@@ -478,6 +478,28 @@ final class PortForwardingCompositionTests: XCTestCase {
     XCTAssertEqual(store.selection()?.access.capabilities, [.forward])
   }
 
+  func testResolvedTransportUsesTheCurrentBrowserEntryHandshake() throws {
+    let app = makeSession()
+    let lease = try XCTUnwrap(app.currentPortForwardingAccess?.lease)
+    let store = PortForwardingSelectionStore { [weak app] in app?.currentPortForwardingAccess }
+    store.adopt(
+      makeSelection(lease: lease, capabilities: [.forward], browserForwardEntry: false),
+      lease: lease
+    )
+    XCTAssertEqual(store.selection()?.access.browserForwardEntry, false)
+
+    let descriptor = try environmentDescriptor(
+      browserForwardJSON: #"{"browserForward":{"versions":[1]}}"#
+    )
+    app.state.noteBrowserForwardEntry(descriptor, connectionID: connectionID)
+    XCTAssertEqual(store.selection()?.access.browserForwardEntry, true)
+
+    app.state.beginBrowserForwardOnlineEpoch()
+    XCTAssertEqual(store.selection()?.access.browserForwardEntry, false)
+    app.state.noteBrowserForwardEntry(descriptor, connectionID: otherConnectionID)
+    XCTAssertEqual(store.selection()?.access.browserForwardEntry, false)
+  }
+
   func testResolvedHostIsDroppedWhenTheConnectionGenerationMoves() throws {
     let app = makeSession()
     let store = PortForwardingSelectionStore { [weak app] in app?.currentPortForwardingAccess }
@@ -600,7 +622,8 @@ final class PortForwardingCompositionTests: XCTestCase {
 
   private func makeSelection(
     lease: PortForwardingHostLease,
-    capabilities: Set<PortForwardingCapability>
+    capabilities: Set<PortForwardingCapability>,
+    browserForwardEntry: Bool = true
   ) -> PortForwardingTransportSelection {
     PortForwardingTransportSelection(
       access: PortForwardingHostAccess(
@@ -610,7 +633,7 @@ final class PortForwardingCompositionTests: XCTestCase {
         isReady: true,
         isForeground: true,
         capabilities: capabilities,
-        browserForwardEntry: true
+        browserForwardEntry: browserForwardEntry
       ),
       api: PortForwardingAPIStub()
     )

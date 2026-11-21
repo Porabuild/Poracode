@@ -4,6 +4,10 @@ private struct PoracodeAccentKey: EnvironmentKey {
   static let defaultValue = Color.accentColor
 }
 
+private struct PoracodeAccentForegroundKey: EnvironmentKey {
+  static let defaultValue: Color? = nil
+}
+
 extension EnvironmentValues {
   /// The active theme accent. The app root sets it and keeps its own tint
   /// neutral, so only controls that read this value show the accent.
@@ -11,14 +15,43 @@ extension EnvironmentValues {
     get { self[PoracodeAccentKey.self] }
     set { self[PoracodeAccentKey.self] = newValue }
   }
+
+  /// Authored text on an accent fill. Nil keeps the native automatic label.
+  var poracodeAccentForeground: Color? {
+    get { self[PoracodeAccentForegroundKey.self] }
+    set { self[PoracodeAccentForegroundKey.self] = newValue }
+  }
+
+}
+
+private struct PoracodeGlassButtonModifier: ViewModifier {
+  let tint: Color
+
+  @ViewBuilder
+  func body(content: Content) -> some View {
+    if #available(iOS 26.0, macOS 26.0, *) {
+      content.buttonStyle(.glass).tint(tint)
+    } else {
+      content.buttonStyle(.bordered).tint(tint)
+    }
+  }
 }
 
 private struct PoracodeProminentButtonModifier: ViewModifier {
   @Environment(\.poracodeAccent) private var accent
+  @Environment(\.poracodeAccentForeground) private var accentForeground
   let tint: Color?
 
   @ViewBuilder
   func body(content: Content) -> some View {
+    if let accentForeground, tint == nil {
+      prominent(content.foregroundStyle(accentForeground))
+    } else {
+      prominent(content)
+    }
+  }
+
+  @ViewBuilder private func prominent<C: View>(_ content: C) -> some View {
     if #available(iOS 26.0, macOS 26.0, *) {
       content
         .buttonStyle(.glassProminent)
@@ -34,13 +67,8 @@ private struct PoracodeProminentButtonModifier: ViewModifier {
 extension View {
   /// Neutral Liquid Glass button on iOS 26, bordered elsewhere. Labels stay
   /// neutral; accent is reserved for `poracodeProminentButtonStyle()`.
-  @ViewBuilder
   func poracodeGlassButtonStyle(tint: Color = .primary) -> some View {
-    if #available(iOS 26.0, macOS 26.0, *) {
-      buttonStyle(.glass).tint(tint)
-    } else {
-      buttonStyle(.bordered).tint(tint)
-    }
+    modifier(PoracodeGlassButtonModifier(tint: tint))
   }
 
   /// Neutral fill-only button for controls that already sit on a glass or

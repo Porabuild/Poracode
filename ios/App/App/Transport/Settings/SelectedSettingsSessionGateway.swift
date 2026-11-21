@@ -2,6 +2,7 @@ import Foundation
 
 protocol SettingsSessionGateway: Sendable {
   func agentStatuses(lease: SettingsHostLease) async throws -> SettingsAgentStatuses
+  func discoverAgents(_ request: SettingsAgentDiscoveryRequest, lease: SettingsHostLease) async throws -> SettingsAgentDiscoveryResult
   func providerUsage(lease: SettingsHostLease) async throws -> SettingsProviderUsage
   func profileDevices(lease: SettingsHostLease) async throws -> SettingsProfileDevices
   func profileCoreStats(
@@ -34,6 +35,10 @@ protocol SettingsSessionGateway: Sendable {
 }
 
 extension SettingsSessionGateway {
+  func discoverAgents(_ request: SettingsAgentDiscoveryRequest, lease: SettingsHostLease) async throws -> SettingsAgentDiscoveryResult {
+    throw SettingsGatewayError.transport
+  }
+
   func readGlobalMCPSettings(lease: SettingsHostLease) async throws
     -> GlobalMCPSettingsResponse
   {
@@ -67,18 +72,29 @@ actor SelectedSettingsSessionGateway: SettingsSessionGateway {
     -> SettingsTransportSelection?
 
   private let selectionProvider: SelectionProvider
+  private let mutationSettled: (@Sendable (SettingsHostLease) async -> Void)?
 
-  init(selectionProvider: @escaping SelectionProvider) {
+  init(mutationSettled: (@Sendable (SettingsHostLease) async -> Void)? = nil,
+    selectionProvider: @escaping SelectionProvider) {
     self.selectionProvider = selectionProvider
+    self.mutationSettled = mutationSettled
   }
 
-  init(source: SettingsExactHostTransportSource) {
+  init(source: SettingsExactHostTransportSource,
+    mutationSettled: (@Sendable (SettingsHostLease) async -> Void)? = nil) {
     self.selectionProvider = { lease in try await source.selection(for: lease) }
+    self.mutationSettled = mutationSettled
   }
 
   func agentStatuses(lease: SettingsHostLease) async throws -> SettingsAgentStatuses {
     try await execute(lease: lease, scope: .sessionRead) {
       try await $0.settingsAgentStatuses()
+    }
+  }
+
+  func discoverAgents(_ request: SettingsAgentDiscoveryRequest, lease: SettingsHostLease) async throws -> SettingsAgentDiscoveryResult {
+    try await execute(lease: lease, scope: .sessionOperate) {
+      try await $0.settingsDiscoverAgents(request)
     }
   }
 
@@ -129,8 +145,18 @@ actor SelectedSettingsSessionGateway: SettingsSessionGateway {
     _ patch: SettingsPatch,
     lease: SettingsHostLease
   ) async throws -> SettingsReadResponse {
-    try await execute(lease: lease, scope: .sessionOperate) {
-      try await $0.settingsWrite(patch)
+    do {
+      let response = try await execute(lease: lease, scope: .sessionOperate) {
+        try await $0.settingsWrite(patch)
+      }
+      await mutationSettled?(lease)
+      return response
+    } catch {
+      // A cancellation or ambiguous response can follow a committed write.
+      // Invalidate only this connection; never replay the mutation or publish
+      // an optimistic document as another screen's authoritative state.
+      await mutationSettled?(lease)
+      throw error
     }
   }
 

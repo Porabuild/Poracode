@@ -1,4 +1,7 @@
-import { HISTORY_DETAILS_PROJECTION } from "./historyPresentation";
+import {
+  HISTORY_DEFER_FILE_CHANGE_BODIES,
+  HISTORY_DETAILS_PROJECTION,
+} from "./historyPresentation";
 import { z } from "zod";
 import { runtimeEventSchema } from "../contracts";
 import { remoteThreadSnapshotSchema } from "./protocol/resources";
@@ -12,6 +15,9 @@ export const historyResumeQuerySchema = z.object({
   cursor: z.string().min(1).max(4096),
   afterSeq: z.number().int().nonnegative().optional(),
   projection: z.literal(HISTORY_DETAILS_PROJECTION).optional(),
+  deferBodies: z.literal(HISTORY_DEFER_FILE_CHANGE_BODIES).optional(),
+  targetTimelineEntryCount: z.number().int().min(1).max(100).optional(),
+  omitScrollback: z.boolean().optional(),
   maxBytes: z.number().int().positive().optional(),
   maxDecodeBytes: z.number().int().positive().optional(),
 });

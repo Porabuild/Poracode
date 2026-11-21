@@ -38,6 +38,8 @@ enum RemoteBoundedReads {
   static let defaultCompletedTurnsLimit = 200
   static let defaultHistoryItemsLimit = 500
   static let defaultTargetTimelineEntryCount = 40
+  /// Match the PWA's first viewport; explicit older-page reads keep 40.
+  static let interactiveTargetTimelineEntryCount = 20
 
   /// Bounded work per inventory/paint segment. A segment yields control back
   /// to the session (and the event loop) after this many pages.
@@ -231,6 +233,7 @@ struct RemoteBoundedShellPage: Sendable, Equatable {
   var gitState: JSONValue?
   var updatedAt: String
   var snapshotEpoch: String? = nil
+  var workspaces: [RemoteHostWorkspace]? = nil
 
   /// Projects the page into the app-owned shell snapshot the session commits.
   /// The bounded carries stay on the snapshot so the catalog can record the
@@ -247,7 +250,8 @@ struct RemoteBoundedShellPage: Sendable, Equatable {
       reads: RemoteBoundedReads.capability,
       threadsNextCursor: threadsNextCursor,
       projectsNextCursor: projectsNextCursor,
-      snapshotEpoch: snapshotEpoch
+      snapshotEpoch: snapshotEpoch,
+      workspaces: workspaces
     )
   }
 }

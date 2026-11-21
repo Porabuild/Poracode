@@ -9,6 +9,7 @@ import { runtimePayloadProjectionVitePlugin } from "./runtimePayloadProjectionVi
 import {
   RUNTIME_PAYLOAD_PROJECTION_MODULE,
   createRuntimePayloadProjectionSource,
+  TOOL_PRESENTATION_ADAPTER_MODULE,
 } from "./runtimePayloadProjectionSource.mjs";
 
 describe("runtime payload projection build composition", () => {
@@ -54,45 +55,56 @@ describe("runtime payload projection build composition", () => {
     }
   });
 
-  it("loads in Vite and refreshes when provider projection leaves appear or disappear", async () => {
-    const root = mkdtempSync(join(tmpdir(), "poracode-projection-vite-"));
-    const agents = join(root, "src/supervisor/agents");
-    const alpha = join(agents, "alpha");
-    mkdirSync(alpha, { recursive: true });
-    writeFileSync(join(alpha, "index.ts"), 'throw new Error("Adapter must never load");');
-    writeFileSync(
-      join(alpha, "persistedRuntimePayload.ts"),
-      'export const runtimePayloadProjection = {formatOwnerKey:"alpha"};',
-    );
-    const server = await createServer({
-      configFile: false,
-      root,
-      plugins: [runtimePayloadProjectionVitePlugin(root)],
-      server: { middlewareMode: true },
-      optimizeDeps: { noDiscovery: true },
-      logLevel: "silent",
-    });
-    const owners = async () => {
-      const module = await server.ssrLoadModule(RUNTIME_PAYLOAD_PROJECTION_MODULE);
-      return module.runtimePayloadProjections.map(
-        (p: { formatOwnerKey: string }) => p.formatOwnerKey,
-      );
-    };
-    try {
-      expect(await owners()).toEqual(["alpha"]);
-      const directory = createRuntimePayloadProjectionSource(root).directory;
-      await expect.poll(() => server.watcher.getWatched()[directory]).toContain("alpha");
-      const beta = join(agents, "beta");
-      mkdirSync(beta);
-      writeFileSync(join(beta, "index.ts"), 'throw new Error("Adapter must never load");');
-      const path = join(beta, "persistedRuntimePayload.ts");
-      writeFileSync(path, 'export const runtimePayloadProjection = {formatOwnerKey:"beta"};');
-      await expect.poll(owners, { timeout: 5_000 }).toEqual(["alpha", "beta"]);
-      unlinkSync(path);
-      await expect.poll(owners, { timeout: 5_000 }).toEqual(["alpha"]);
-    } finally {
-      await server.close();
-      rmSync(root, { recursive: true, force: true });
-    }
-  });
+  it.each([
+    {
+      moduleId: RUNTIME_PAYLOAD_PROJECTION_MODULE,
+      filename: "persistedRuntimePayload.ts",
+      exported: "runtimePayloadProjection",
+      collection: "runtimePayloadProjections",
+    },
+    {
+      moduleId: TOOL_PRESENTATION_ADAPTER_MODULE,
+      filename: "toolPresentation.ts",
+      exported: "toolPresentationAdapter",
+      collection: "toolPresentationAdapters",
+    },
+  ])(
+    "loads $filename in Vite and refreshes when leaves appear or disappear",
+    async ({ moduleId, filename, exported, collection }) => {
+      const root = mkdtempSync(join(tmpdir(), "poracode-projection-vite-"));
+      const agents = join(root, "src/supervisor/agents");
+      const alpha = join(agents, "alpha");
+      mkdirSync(alpha, { recursive: true });
+      writeFileSync(join(alpha, "index.ts"), 'throw new Error("Adapter must never load");');
+      writeFileSync(join(alpha, filename), `export const ${exported} = {formatOwnerKey:"alpha"};`);
+      const server = await createServer({
+        configFile: false,
+        root,
+        plugins: [runtimePayloadProjectionVitePlugin(root)],
+        server: { middlewareMode: true },
+        optimizeDeps: { noDiscovery: true },
+        logLevel: "silent",
+      });
+      const owners = async () => {
+        const module = await server.ssrLoadModule(moduleId);
+        return module[collection].map((p: { formatOwnerKey: string }) => p.formatOwnerKey);
+      };
+      try {
+        expect(await owners()).toEqual(["alpha"]);
+        const directory = createRuntimePayloadProjectionSource(root).directory;
+        await expect.poll(() => server.watcher.getWatched()[directory]).toContain("alpha");
+        const beta = join(agents, "beta");
+        mkdirSync(beta);
+        writeFileSync(join(beta, "index.ts"), 'throw new Error("Adapter must never load");');
+        const path = join(beta, filename);
+        writeFileSync(path, `export const ${exported} = {formatOwnerKey:"beta"};`);
+        await expect.poll(owners, { timeout: 5_000 }).toEqual(["alpha", "beta"]);
+        unlinkSync(path);
+        await expect.poll(owners, { timeout: 5_000 }).toEqual(["alpha"]);
+      } finally {
+        await server.close();
+        rmSync(root, { recursive: true, force: true });
+      }
+    },
+  );
 });

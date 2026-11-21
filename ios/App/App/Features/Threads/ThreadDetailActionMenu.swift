@@ -3,8 +3,10 @@ import SwiftUI
 /// Native thread-page counterpart to the compact PWA action drawer and
 /// workspace bar. One toolbar menu keeps secondary project destinations and
 /// thread lifecycle mutations reachable without crowding the navigation bar.
-struct ThreadDetailActionMenu: View {
+struct ThreadDetailActionMenu<InformationControls: View>: View {
   @Bindable var session: AppSession
+  @Environment(HomeThreadLifecycleCoordinator.self) private var homeLifecycle: HomeThreadLifecycleCoordinator?
+  let owningConnectionID: ClientConnectionID?
   let thread: RemoteThread
   let project: RemoteProject
   let workspaceLocation: ProjectLocation
@@ -12,13 +14,15 @@ struct ThreadDetailActionMenu: View {
   let terminalScrollback: String?
   let canRefresh: Bool
   let canClose: Bool
+  let selectDestination: (ThreadDetailDestination) -> Void
+  let externalHandoffRequest: Binding<ThreadProviderHandoffRequest?>?
   let refresh: () -> Void
   let requestClose: () -> Void
   let onThreadRemoved: () -> Void
+  let informationControls: InformationControls
 
   @State private var lifecycle: ThreadLifecycleController
   @State private var worktreeMover = ThreadWorktreeMoveController()
-  @State private var destination: ThreadDetailDestination?
   @State private var renameIntent: ThreadRenameIntent?
   @State private var relaunchIntent: ThreadRelaunchIntent?
   @State private var worktreeComposeIntent: ThreadWorktreeComposeIntent?
@@ -30,6 +34,7 @@ struct ThreadDetailActionMenu: View {
 
   init(
     session: AppSession,
+    owningConnectionID: ClientConnectionID?,
     thread: RemoteThread,
     project: RemoteProject,
     workspaceLocation: ProjectLocation,
@@ -37,11 +42,15 @@ struct ThreadDetailActionMenu: View {
     terminalScrollback: String?,
     canRefresh: Bool,
     canClose: Bool,
+    selectDestination: @escaping (ThreadDetailDestination) -> Void,
+    externalHandoffRequest: Binding<ThreadProviderHandoffRequest?>? = nil,
     refresh: @escaping () -> Void,
     requestClose: @escaping () -> Void,
-    onThreadRemoved: @escaping () -> Void
+    onThreadRemoved: @escaping () -> Void,
+    @ViewBuilder informationControls: () -> InformationControls
   ) {
     self.session = session
+    self.owningConnectionID = owningConnectionID
     self.thread = thread
     self.project = project
     self.workspaceLocation = workspaceLocation
@@ -49,9 +58,12 @@ struct ThreadDetailActionMenu: View {
     self.terminalScrollback = terminalScrollback
     self.canRefresh = canRefresh
     self.canClose = canClose
+    self.selectDestination = selectDestination
+    self.externalHandoffRequest = externalHandoffRequest
     self.refresh = refresh
     self.requestClose = requestClose
     self.onThreadRemoved = onThreadRemoved
+    self.informationControls = informationControls()
     _lifecycle = State(initialValue: session.makeThreadLifecycleController())
   }
 
@@ -65,7 +77,7 @@ struct ThreadDetailActionMenu: View {
       canRefresh: canRefresh,
       canClose: canClose,
       isBusy: lifecycle.isBusy || worktreeMover.isMoving,
-      selectDestination: { destination = $0 },
+      selectDestination: selectDestination,
       composeInWorktree: { worktree in
         worktreeComposeIntent = ThreadWorktreeComposeIntent(
           projectID: project.id,
@@ -78,19 +90,12 @@ struct ThreadDetailActionMenu: View {
       refresh: refresh,
       perform: perform,
       requestClose: requestClose,
+      informationControls: { informationControls },
       lifecycleButtons: { lifecycleButtons }
     )
     .disabled(!canUseMenu || worktreeMover.isMoving)
     .accessibilityLabel(ThreadLifecycleStrings.actions)
-    .navigationDestination(item: $destination) { destination in
-      ThreadDetailDestinationView(
-        session: session,
-        thread: thread,
-        project: project,
-        workspaceLocation: workspaceLocation,
-        destination: destination
-      )
-    }
+    .accessibilityIdentifier("native-e2e.thread.actions")
     .sheet(item: $relaunchIntent) { intent in
       ThreadRelaunchSheet(
         intent: Binding(
@@ -113,7 +118,7 @@ struct ThreadDetailActionMenu: View {
       }
     }
     .sheet(item: $handoffIntent) { intent in
-      if let target = handoffTarget {
+      if intent.owns(ownedTarget), let target = handoffTarget {
         ThreadProviderHandoffSheet(
           session: session,
           thread: thread,
@@ -139,11 +144,11 @@ struct ThreadDetailActionMenu: View {
         )
       }
     }
-    .threadRenameAlert(intent: $renameIntent) {
+    .threadRenameSheet(intent: $renameIntent) {
       submitRename()
     }
-    .threadLifecycleDestructiveConfirmation(controller: lifecycle) {
-      Task { await lifecycle.confirmDestructiveIntent() }
+    .threadLifecycleDestructiveConfirmation(controller: lifecycle) { intent in
+      Task { await lifecycle.confirmDestructiveIntent(intent) }
     }
     .confirmationDialog(
       RichChatStrings.continueInProvider,
@@ -151,7 +156,9 @@ struct ThreadDetailActionMenu: View {
       titleVisibility: .visible
     ) {
       Button(RichChatStrings.handoffFork) { prepareHandoff(.fork) }
-      Button(ThreadLifecycleStrings.moveToWorktreeConfirm) { prepareHandoff(.move) }
+        .accessibilityIdentifier("native-e2e.thread.handoff-fork")
+      Button(RichChatStrings.handoffSwitch) { prepareHandoff(.move) }
+        .accessibilityIdentifier("native-e2e.thread.handoff-move")
       Button(RichChatStrings.cancel, role: .cancel) {}
     }
     .confirmationDialog(
@@ -182,6 +189,17 @@ struct ThreadDetailActionMenu: View {
     .onChange(of: lifecycle.lastOutcome) { _, outcome in
       consume(outcome)
     }
+    .onChange(of: externalHandoffRequest?.wrappedValue, initial: true) { _, request in
+      guard let request else { return }
+      externalHandoffRequest?.wrappedValue = nil
+      guard request.target == ownedTarget,
+        request.owner == RichChatSessionActionOwner(thread: thread), canOperateLifecycle,
+        handoffTarget != nil, !lifecycle.isBusy, !worktreeMover.isMoving else { return }
+      isChoosingHandoffMode = true
+    }
+    .onChange(of: ownedTarget) { _, target in
+      if handoffIntent?.owns(target) == false { handoffIntent = nil }
+    }
     .onDisappear { lifecycle.deactivate() }
   }
 
@@ -197,7 +215,12 @@ struct ThreadDetailActionMenu: View {
   }
 
   private var canUseMenu: Bool {
-    session.threadLifecycleTarget(threadID: thread.id) != nil
+    ownedTarget != nil
+  }
+
+  private var ownedTarget: ThreadLifecycleTarget? {
+    guard let owningConnectionID, session.selectedConnectionId == owningConnectionID else { return nil }
+    return session.threadLifecycleTarget(threadID: thread.id)
   }
 
   private var canOperateLifecycle: Bool {
@@ -254,9 +277,7 @@ struct ThreadDetailActionMenu: View {
   }
 
   private func activate() -> ThreadLifecycleTarget? {
-    guard canOperateLifecycle,
-      let target = session.threadLifecycleTarget(threadID: thread.id)
-    else { return nil }
+    guard canOperateLifecycle, let target = ownedTarget else { return nil }
     lifecycle.activate(target)
     return target
   }
@@ -265,6 +286,10 @@ struct ThreadDetailActionMenu: View {
     guard let target = activate() else { return }
     switch action {
     case .rename:
+      if let homeLifecycle {
+        homeLifecycle.requestRename(thread, target: target)
+        return
+      }
       renameIntent = ThreadRenameIntent(
         id: thread.id,
         thread: thread,
@@ -291,9 +316,7 @@ struct ThreadDetailActionMenu: View {
   }
 
   private func submitRename() {
-    guard let intent = renameIntent,
-      session.threadLifecycleTarget(threadID: intent.thread.id) == intent.target
-    else { return }
+    guard let intent = renameIntent, ownedTarget == intent.target else { return }
     let title = intent.title.trimmingCharacters(in: .whitespacesAndNewlines)
     guard !title.isEmpty else { return }
     lifecycle.activate(intent.target)
@@ -302,7 +325,7 @@ struct ThreadDetailActionMenu: View {
   }
 
   private func submitRelaunch(intent: ThreadRelaunchIntent, prompt: String) {
-    guard session.threadLifecycleTarget(threadID: intent.thread.id) == intent.target,
+    guard ownedTarget == intent.target,
       let request = session.threadStartExistingRequest(
         threadID: intent.thread.id,
         prompt: prompt
@@ -313,10 +336,11 @@ struct ThreadDetailActionMenu: View {
   }
 
   private func prepareHandoff(_ mode: ThreadProviderHandoffMode) {
-    guard handoffTarget != nil, canOperateLifecycle else { return }
+    guard handoffTarget != nil, canOperateLifecycle, let source = ownedTarget else { return }
     let forksConversation = mode == .fork
     handoffIntent = ThreadProviderHandoffIntent(
       mode: mode,
+      source: source,
       groupID: forksConversation ? thread.groupId ?? UUID().uuidString.lowercased() : nil,
       groupName: forksConversation ? thread.groupName ?? thread.title : nil
     )
@@ -324,18 +348,24 @@ struct ThreadDetailActionMenu: View {
 
   private func finishHandoff(threadID: String, intent: ThreadProviderHandoffIntent) {
     handoffIntent = nil
+    guard intent.owns(ownedTarget) else { return }
+    if threadID == intent.source.threadID {
+      refresh()
+      return
+    }
     openedThreadID = threadID
-    guard let target = activate() else { return }
+    let target = intent.source
+    lifecycle.activate(target)
     Task {
       switch intent.mode {
       case .fork:
         if thread.groupId == nil, let groupID = intent.groupID, let groupName = intent.groupName {
-          await lifecycle.setGroup(id: groupID, name: groupName)
+          await lifecycle.setGroup(id: groupID, name: groupName, target: target)
         }
       case .move:
         await lifecycle.setDone(true, target: target)
       }
-      await session.refreshSnapshot()
+      if intent.owns(ownedTarget) { await session.refreshSnapshot() }
     }
   }
 
@@ -355,9 +385,11 @@ struct ThreadDetailActionMenu: View {
   private func consume(_ outcome: ThreadLifecycleOutcome?) {
     switch outcome {
     case .succeeded(let action):
+      guard let target = ownedTarget else { return }
       Task {
+        guard ownedTarget == target else { return }
         await session.refreshSnapshot()
-        if action == .archive || action == .delete { onThreadRemoved() }
+        if ownedTarget == target, action == .archive || action == .delete { onThreadRemoved() }
       }
     case .failed(_, let failure):
       failureMessage = ThreadLifecycleStrings.failureMessage(failure)

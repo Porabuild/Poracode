@@ -12,6 +12,8 @@ struct SettingsIntegrationsScreen: View {
   let projects: [SettingsIntegrationsProjectOption]
   @Binding var selectedProjectIdentity: ProjectIdentity?
   private let embeddedInNavigationStack: Bool
+  private let allowsRouteSelection: Bool
+  private let onSurfaceChange: ((String, Bool) -> Void)?
   private let onImportMCPServer: ((SettingsMCPServer) -> Void)?
   private let onUpdateMCPServer: ((SettingsMCPServer) -> Void)?
   @State private var route: Route?
@@ -23,6 +25,8 @@ struct SettingsIntegrationsScreen: View {
     selectedProjectIdentity: Binding<ProjectIdentity?>,
     initialRoute: Route = .skills,
     embeddedInNavigationStack: Bool = false,
+    allowsRouteSelection: Bool = false,
+    onSurfaceChange: ((String, Bool) -> Void)? = nil,
     onImportMCPServer: ((SettingsMCPServer) -> Void)? = nil,
     onUpdateMCPServer: ((SettingsMCPServer) -> Void)? = nil
   ) {
@@ -31,6 +35,8 @@ struct SettingsIntegrationsScreen: View {
     self.projects = projects
     _selectedProjectIdentity = selectedProjectIdentity
     self.embeddedInNavigationStack = embeddedInNavigationStack
+    self.allowsRouteSelection = allowsRouteSelection
+    self.onSurfaceChange = onSurfaceChange
     self.onImportMCPServer = onImportMCPServer
     self.onUpdateMCPServer = onUpdateMCPServer
     _route = State(initialValue: initialRoute)
@@ -38,8 +44,30 @@ struct SettingsIntegrationsScreen: View {
 
   @ViewBuilder
   var body: some View {
-    if embeddedInNavigationStack {
-      detail
+    if embeddedInNavigationStack && allowsRouteSelection {
+      List {
+        projectPicker
+        Section {
+          ForEach(Route.allCases) { item in
+            NavigationLink {
+              detail(for: item)
+                .navigationTitle(label(item))
+                .navigationBarTitleDisplayMode(.inline)
+                .onAppear { onSurfaceChange?("detail:\(item.rawValue)", true) }
+                .onDisappear { onSurfaceChange?("detail:\(item.rawValue)", false) }
+            } label: {
+              Label(label(item), systemImage: symbol(item))
+            }
+            .accessibilityIdentifier("native-e2e.integrations.\(item.rawValue)")
+          }
+        }
+      }
+      .listStyle(.insetGrouped)
+      .poracodeReadableListMargins(740)
+      .navigationTitle(SettingsIntegrationsStrings.title)
+      .navigationBarTitleDisplayMode(.inline)
+    } else if embeddedInNavigationStack {
+      detail(for: route ?? .skills)
         .navigationTitle(label(route ?? .skills))
         .navigationBarTitleDisplayMode(.inline)
     } else {
@@ -57,7 +85,7 @@ struct SettingsIntegrationsScreen: View {
         .navigationTitle(SettingsIntegrationsStrings.title)
         .listStyle(.sidebar)
       } detail: {
-        detail
+        detail(for: route ?? .skills)
       }
       .navigationSplitViewStyle(.balanced)
     }
@@ -74,7 +102,7 @@ struct SettingsIntegrationsScreen: View {
     }
   }
 
-  @ViewBuilder private var detail: some View {
+  @ViewBuilder private func detail(for activeRoute: Route) -> some View {
     if let failure = controller.failure(for: .read) {
       SettingsIntegrationsAccessView(failure: failure)
     } else {
@@ -88,7 +116,7 @@ struct SettingsIntegrationsScreen: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .poracodeBarBackground()
         }
-        switch route ?? .skills {
+        switch activeRoute {
         case .skills:
           SettingsSkillsView(
             controller: controller.skills,

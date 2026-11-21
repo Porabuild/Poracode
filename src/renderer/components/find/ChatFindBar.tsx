@@ -83,7 +83,7 @@ function ActiveChatFind({ threadId, scrollToIndexRef, scrollElement }: ChatFindB
 
   // Re-resolve highlight ranges from the live (virtualized) DOM. Reads the latest
   // render's values so the scroll listener and nav effect can share it.
-  const refresh = useEffectEvent(() => {
+  const refresh = useEffectEvent((horizontally = false) => {
     if (!scrollElement) return;
     if (!query) {
       clearFindHighlights();
@@ -100,7 +100,7 @@ function ActiveChatFind({ threadId, scrollToIndexRef, scrollElement }: ChatFindB
       }
     }
     setFindHighlights(all, current);
-    if (current) scrollRangeIntoView(scrollElement, current);
+    if (current) scrollRangeIntoView(scrollElement, current, { horizontally });
   });
 
   useEffect(() => {
@@ -112,6 +112,7 @@ function ActiveChatFind({ threadId, scrollToIndexRef, scrollElement }: ChatFindB
   // Scroll the active match's row into the virtualized window, then re-highlight
   // across the (now newly mounted) rows. Two frames: one for the scroll to land,
   // one for the virtualizer to mount/measure the target row.
+  // Only navigation requests a horizontal reveal; scrolling just repaints highlights.
   useEffect(() => {
     if (!scrollElement) return;
     const match = matches[currentIndex];
@@ -119,8 +120,8 @@ function ActiveChatFind({ threadId, scrollToIndexRef, scrollElement }: ChatFindB
     const ids: number[] = [];
     ids.push(
       requestAnimationFrame(() => {
-        refresh();
-        ids.push(requestAnimationFrame(() => refresh()));
+        refresh(true);
+        ids.push(requestAnimationFrame(() => refresh(true)));
       }),
     );
     return () => {

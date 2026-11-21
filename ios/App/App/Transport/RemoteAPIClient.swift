@@ -12,6 +12,12 @@ actor RemoteAPIClient: PushRemoteAPI {
     /// authority header in addition to the child bearer.
     private let environment: RemoteEnvironmentContext?
     private let responseEvidenceHeaders: [String]
+    private let recentHistoryCache: NativeRecentHistoryCache
+    private var readCache = RemoteReadCache()
+    private var memoryWarningSubscription: MemoryWarningSubscription?
+    private var recentHistoryEpoch: UInt64 = 0
+    private var historyDesktopID: String?
+    private(set) var terminalCursorSyncV2Advertised = false
 
     // MARK: Capability advertisement + per-client declarations
     //
@@ -32,6 +38,7 @@ actor RemoteAPIClient: PushRemoteAPI {
     /// advertised flag gates it: an old or unprobed host keeps the complete
     /// legacy request and result.
     private(set) var projectCommandResultsAdvertised = false
+    private(set) var catalogMutationsAdvertised = false
 
     /// Effective per-request `x-poracode-project-command-result` declaration.
     var effectiveProjectCommandResultDeclaration: Bool {
@@ -60,9 +67,16 @@ actor RemoteAPIClient: PushRemoteAPI {
     /// version list is "not advertised here"; nothing is inferred from a
     /// failed read (the caller simply never reaches this).
     func observeEnvironmentCapabilities(_ descriptor: RemoteEnvironmentDescriptor) {
+        if historyDesktopID != descriptor.desktopId {
+            recentHistoryEpoch &+= 1
+            readCache.clear()
+        }
+        historyDesktopID = descriptor.desktopId
+        terminalCursorSyncV2Advertised = descriptor.capabilities?.terminalCursorSync?.versions.contains(2) == true
         noticesAdvertised = descriptor.advertisesRuntimeHistoryNotices
         catalogChangesAdvertised = descriptor.advertisesBoundedCatalogChanges
         projectCommandResultsAdvertised = descriptor.advertisesProjectCommandResults
+        catalogMutationsAdvertised = descriptor.advertisesCatalogMutations
     }
 
     /// Client intent for the B1 notice declaration. The effective value also
@@ -85,7 +99,8 @@ actor RemoteAPIClient: PushRemoteAPI {
         session: URLSession? = nil,
         requestTimeout: TimeInterval = RemoteSocketPolicy.requestTimeoutSeconds,
         maxResponseBodyBytes: Int = ProtocolConstants.maxResponseBodyBytes,
-        environment: RemoteEnvironmentContext? = nil
+        environment: RemoteEnvironmentContext? = nil,
+        recentHistoryCache: NativeRecentHistoryCache = .shared
     ) {
         self.endpoint = endpoint
         self.accessToken = accessToken
@@ -94,16 +109,89 @@ actor RemoteAPIClient: PushRemoteAPI {
         self.requestTimeout = requestTimeout
         self.maxResponseBodyBytes = maxResponseBodyBytes
         self.environment = environment
+        self.recentHistoryCache = recentHistoryCache
         self.responseEvidenceHeaders = environment == nil
             ? []
             : [ProtocolConstants.environmentAuthAuthorityHeader]
+        let register: @Sendable (RemoteAPIClient) -> Void = { client in
+            Task { await client.installMemoryWarningSubscription() }
+        }
+        register(self)
+    }
+
+    private func installMemoryWarningSubscription() {
+        guard memoryWarningSubscription == nil else { return }
+        memoryWarningSubscription = MemoryWarningSubscription { [weak self] in
+            guard let self else { return }
+            Task { await self.clearReadCache() }
+        }
+    }
+
+    func clearReadCache() {
+        readCache.clear()
     }
 
     /// Normalized HTTP endpoint the client was constructed with (user-reached, including relay prefix).
     var httpEndpoint: String { endpoint }
 
     func setAccessToken(_ token: String?) {
+        if accessToken != token {
+            recentHistoryEpoch &+= 1
+            readCache.clear()
+        }
         accessToken = token
+    }
+
+    struct RecentHistoryReadContext: Sendable {
+        let epoch: UInt64
+        let namespace: String?
+        let candidate: NativeRecentHistoryTail?
+        let cacheGeneration: UInt64?
+    }
+
+    func beginRecentHistoryRead(threadID: String, includeCandidate: Bool = true) async throws -> RecentHistoryReadContext {
+        let epoch = recentHistoryEpoch
+        let namespace = await recentHistoryNamespace()
+        try Task.checkCancellation()
+        guard epoch == recentHistoryEpoch else { throw CancellationError() }
+        let candidate: NativeRecentHistoryCache.Candidate?
+        if includeCandidate, let namespace { candidate = await recentHistoryCache.candidate(namespace: namespace, threadID: threadID) }
+        else { candidate = nil }
+        try Task.checkCancellation()
+        guard epoch == recentHistoryEpoch else { throw CancellationError() }
+        return .init(epoch: epoch, namespace: namespace, candidate: candidate?.tail, cacheGeneration: candidate?.generation)
+    }
+
+    func finishRecentHistoryRead(_ context: RecentHistoryReadContext, snapshot: RemoteThreadSnapshot) async throws {
+        try await validateRecentHistoryRead(context)
+        if snapshot.historyCache?["unchanged"]?.boolValue != true,
+           let namespace = context.namespace, let tail = NativeRecentHistoryTail(snapshot: snapshot) {
+            await recentHistoryCache.enqueue(tail, namespace: namespace, threadID: snapshot.thread.id, generation: context.cacheGeneration)
+        }
+        // Admission suspends on a different actor. Recheck the live parent
+        // grant too before this response may be installed by the caller.
+        try await validateRecentHistoryRead(context)
+    }
+
+    func validateRecentHistoryRead(_ context: RecentHistoryReadContext) async throws {
+        try Task.checkCancellation()
+        let namespace = await recentHistoryNamespace()
+        guard context.epoch == recentHistoryEpoch,
+              context.namespace == namespace else { throw CancellationError() }
+    }
+
+    /// Only digests reach the cache. Include the verified host, current bearer,
+    /// endpoint and live parent grant so a failed purge cannot expose a prior
+    /// pairing's rows to a newer authorization or another environment.
+    private func recentHistoryNamespace() async -> String? {
+        guard let token = accessToken, !token.isEmpty,
+              let desktopID = historyDesktopID, !desktopID.isEmpty else { return nil }
+        var components = [endpoint, desktopID, token]
+        if let environment {
+            guard let parent = await environment.parentAuthorizationToken(), !parent.isEmpty else { return nil }
+            components += [environment.environmentId, environment.expectedChildDesktopId ?? "", parent]
+        }
+        return NativeRecentHistoryCache.digest(components)
     }
 
     // MARK: - Pairing / environment
@@ -493,10 +581,31 @@ actor RemoteAPIClient: PushRemoteAPI {
             )
         }
 
+        let isCacheableGet = method == "GET" && jsonBody == nil && extraHeaders.isEmpty
+        let cachedRead = isCacheableGet ? readCache.capture(url: url.absoluteString) : nil
+        if let etag = cachedRead?.entry?.etag {
+            request.setValue(etag, forHTTPHeaderField: "If-None-Match")
+        }
+
         let data: Data
         let response: URLResponse
         do {
-            (data, response) = try await performBoundedRequest(request, resourceTimeout: timeout)
+            let initial = try await performBoundedRequest(request, resourceTimeout: timeout)
+            if let initialHttp = initial.1 as? HTTPURLResponse,
+               initialHttp.statusCode == 304,
+               let cachedRead
+            {
+                if let cachedBody = readCache.body(for: cachedRead) {
+                    return cachedBody
+                }
+                var uncachedRequest = request
+                uncachedRequest.setValue(nil, forHTTPHeaderField: "If-None-Match")
+                (data, response) = try await performBoundedRequest(
+                    uncachedRequest, resourceTimeout: timeout
+                )
+            } else {
+                (data, response) = initial
+            }
         } catch is CancellationError {
             try Self.rethrowTransportFailure(error: CancellationError(), endpoint: endpoint)
         } catch let error as RemoteClientError {
@@ -546,6 +655,9 @@ actor RemoteAPIClient: PushRemoteAPI {
             )
         }
 
+        if let cachedRead {
+            readCache.store(read: cachedRead, response: http, body: data)
+        }
         return data
     }
 

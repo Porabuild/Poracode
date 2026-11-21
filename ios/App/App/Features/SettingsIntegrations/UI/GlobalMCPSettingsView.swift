@@ -1,15 +1,5 @@
 import SwiftUI
 
-private struct GlobalMCPEditorSelection: Identifiable {
-  let id: String
-  let server: ProjectMCPServer?
-
-  init(server: ProjectMCPServer? = nil) {
-    id = server?.id ?? UUID().uuidString
-    self.server = server
-  }
-}
-
 private struct GlobalMCPToolSelection: Identifiable {
   let server: ProjectMCPServer
   var id: String { server.id }
@@ -19,7 +9,7 @@ struct GlobalMCPSettingsView: View {
   @Environment(\.scenePhase) private var scenePhase
   @Bindable var session: AppSession
   @State private var controller: GlobalMCPSettingsController
-  @State private var editor: GlobalMCPEditorSelection?
+  @State private var editor: MCPServerEditSession<SettingsHostLease>?
   @State private var toolSelection: GlobalMCPToolSelection?
 
   init(session: AppSession) {
@@ -33,6 +23,8 @@ struct GlobalMCPSettingsView: View {
     Group {
       if let failure = accessFailure {
         SettingsUnavailableView(failure: failure)
+      } else if controller.selection?.lease != activeSelection?.lease {
+        SettingsLoadingView()
       } else if controller.servers.isEmpty, controller.state == .loading {
         SettingsLoadingView()
       } else if controller.servers.isEmpty, case .failed(let failure) = controller.state {
@@ -45,39 +37,45 @@ struct GlobalMCPSettingsView: View {
     }
     .navigationTitle(ProjectSettingsStrings.mcpServers)
     .navigationBarTitleDisplayMode(.inline)
-    .poracodeBottomBar {
-      PoracodeBottomActionDock(placement: .trailing) {
-        PoracodeCircleButton {
-          editor = GlobalMCPEditorSelection()
-        } label: {
-          Label(ProjectSettingsStrings.addMCPServer, systemImage: "plus")
-            .labelStyle(.iconOnly)
+    .toolbar {
+      ToolbarItem(placement: .topBarTrailing) {
+        HostSelectionMenu(session: session)
+      }
+      ToolbarItem(placement: .bottomBar) {
+        Button(ProjectSettingsStrings.addMCPServer, systemImage: "plus") {
+          presentEditor()
         }
-        .disabled(controller.isMutating)
-        .accessibilityLabel(ProjectSettingsStrings.addMCPServer)
+        .disabled(editingLease == nil)
         .accessibilityIdentifier("native-e2e.global-mcp.add")
       }
     }
     .sheet(item: $editor) { selection in
       NavigationStack {
         ProjectMCPServerEditor(
-          server: selection.server,
+          session: selection,
           existingNames: Set(controller.servers.map { $0.name.lowercased() })
         ) { server in
+          guard editingLease == selection.lease else { return }
           editor = nil
           Task {
-            await controller.perform(.upsert(scope: .global, server: server))
+            await controller.perform(.upsert(scope: .global, server: server), expectedLease: selection.lease)
           }
         }
       }
+      .poracodeFormSheetSizing()
     }
     .sheet(item: $toolSelection) { selection in
       toolSheet(selection.server)
+        .poracodeFormSheetSizing()
     }
     .task(id: refreshIdentity) {
       controller.activate(activeSelection)
       await controller.load()
       await controller.refreshOAuthStatus()
+    }
+    .onChange(of: activeSelection?.lease) {
+      editor = nil
+      toolSelection = nil
     }
     .onChange(of: scenePhase) { _, phase in
       switch phase {
@@ -128,6 +126,7 @@ struct GlobalMCPSettingsView: View {
       }
     }
     .listStyle(.insetGrouped)
+    .poracodeReadableListMargins(740)
     .refreshable {
       await controller.load()
       await controller.refreshOAuthStatus()
@@ -200,7 +199,7 @@ struct GlobalMCPSettingsView: View {
     .disabled(controller.isMutating)
     .swipeActions(edge: .leading, allowsFullSwipe: false) {
       Button {
-        editor = GlobalMCPEditorSelection(server: server)
+        presentEditor(server)
       } label: {
         Label(ProjectManagementStrings.edit, systemImage: "pencil")
       }
@@ -215,7 +214,7 @@ struct GlobalMCPSettingsView: View {
     }
     .contextMenu {
       Button {
-        editor = GlobalMCPEditorSelection(server: server)
+        presentEditor(server)
       } label: {
         Label(ProjectManagementStrings.edit, systemImage: "pencil")
       }
@@ -246,38 +245,8 @@ struct GlobalMCPSettingsView: View {
     }
   }
 
-  @ViewBuilder private var oauthStatus: some View {
-    switch controller.oauthLifecycle {
-    case .waiting, .openingBrowser, .starting:
-      Section {
-        HStack {
-          ProgressView()
-          Text(SettingsIntegrationsStrings.waitingForAuthorization)
-          Spacer()
-          Button(SettingsIntegrationsStrings.cancel) { controller.cancelOAuth() }
-        }
-      }
-    case .authorized:
-      Section {
-        Label(SettingsIntegrationsStrings.authorized, systemImage: "checkmark.shield")
-      }
-    case .paused:
-      Section {
-        Label(SettingsIntegrationsStrings.authorizationPaused, systemImage: "pause.circle")
-      }
-    case .timedOut:
-      Section {
-        Label(
-          SettingsIntegrationsStrings.authorizationTimedOut,
-          systemImage: "clock.badge.exclamationmark")
-      }
-    case .failed(let failure):
-      Section {
-        Label(SettingsIntegrationsStrings.failure(failure), systemImage: "exclamationmark.triangle")
-      }
-    default:
-      EmptyView()
-    }
+  private var oauthStatus: some View {
+    SettingsMCPOAuthStatusView(lifecycle: controller.oauthLifecycle, cancel: controller.cancelOAuth)
   }
 
   @ViewBuilder private func probeSummary(_ server: ProjectMCPServer) -> some View {
@@ -328,6 +297,7 @@ struct GlobalMCPSettingsView: View {
         .disabled(controller.isMutating)
         .poracodeSwitchStyle()
       }
+      .poracodeReadableListMargins(740)
       .navigationTitle(server.name)
       .navigationBarTitleDisplayMode(.inline)
       .toolbar {
@@ -382,6 +352,18 @@ struct GlobalMCPSettingsView: View {
 
   private var activeSelection: SettingsHostSelection? {
     session.currentSettingsHostSelection
+  }
+
+  private var editingLease: SettingsHostLease? {
+    guard let selection = activeSelection, controller.selection?.lease == selection.lease,
+      selection.gate(.projectsManage) == nil, controller.state == .loaded, !controller.isMutating
+    else { return nil }
+    return selection.lease
+  }
+
+  private func presentEditor(_ server: ProjectMCPServer? = nil) {
+    guard let lease = editingLease else { return }
+    editor = .init(lease: lease, server: server)
   }
 
   private var accessFailure: SettingsOperationFailure? {

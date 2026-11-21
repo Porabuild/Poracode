@@ -4,19 +4,166 @@
     "NSCameraUsageDescription": {
       "extractionState": "manual",
       "localizations": {
-        "de": { "stringUnit": { "state": "translated", "value": "Poracode verwendet die Kamera, um Kopplungscodes zu scannen und Fotos an Unterhaltungen anzuhängen." } },
-        "en": { "stringUnit": { "state": "translated", "value": "Poracode uses the camera to scan pairing codes and attach photos to conversations." } },
-        "es": { "stringUnit": { "state": "translated", "value": "Poracode usa la cámara para escanear códigos de emparejamiento y adjuntar fotos a conversaciones." } },
-        "fr": { "stringUnit": { "state": "translated", "value": "Poracode utilise l’appareil photo pour scanner les codes de jumelage et joindre des photos aux conversations." } },
-        "ja": { "stringUnit": { "state": "translated", "value": "Poracode は、ペアリングコードのスキャンと会話への写真の添付にカメラを使用します。" } },
-        "ko": { "stringUnit": { "state": "translated", "value": "Poracode는 페어링 코드를 스캔하고 대화에 사진을 첨부하기 위해 카메라를 사용합니다." } },
-        "pl": { "stringUnit": { "state": "translated", "value": "Poracode używa aparatu do skanowania kodów parowania i dołączania zdjęć do rozmów." } },
-        "pt-BR": { "stringUnit": { "state": "translated", "value": "O Poracode usa a câmera para escanear códigos de pareamento e anexar fotos às conversas." } },
-        "ru": { "stringUnit": { "state": "translated", "value": "Poracode использует камеру для сканирования кодов сопряжения и добавления фотографий в беседы." } },
-        "tr": { "stringUnit": { "state": "translated", "value": "Poracode, eşleştirme kodlarını taramak ve konuşmalara fotoğraf eklemek için kamerayı kullanır." } },
-        "uk": { "stringUnit": { "state": "translated", "value": "Poracode використовує камеру для сканування кодів сполучення та додавання фотографій до розмов." } },
-        "vi": { "stringUnit": { "state": "translated", "value": "Poracode sử dụng camera để quét mã ghép nối và đính kèm ảnh vào cuộc trò chuyện." } },
-        "zh-Hans": { "stringUnit": { "state": "translated", "value": "Poracode 使用相机扫描配对码并将照片附加到对话中。" } }
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Poracode verwendet die Kamera, um Kopplungscodes zu scannen und Fotos an Unterhaltungen anzuhängen."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Poracode uses the camera to scan pairing codes and attach photos to conversations."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Poracode usa la cámara para escanear códigos de emparejamiento y adjuntar fotos a conversaciones."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Poracode utilise l’appareil photo pour scanner les codes de jumelage et joindre des photos aux conversations."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Poracode は、ペアリングコードのスキャンと会話への写真の添付にカメラを使用します。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Poracode는 페어링 코드를 스캔하고 대화에 사진을 첨부하기 위해 카메라를 사용합니다."
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Poracode używa aparatu do skanowania kodów parowania i dołączania zdjęć do rozmów."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O Poracode usa a câmera para escanear códigos de pareamento e anexar fotos às conversas."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Poracode использует камеру для сканирования кодов сопряжения и добавления фотографий в беседы."
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Poracode, eşleştirme kodlarını taramak ve konuşmalara fotoğraf eklemek için kamerayı kullanır."
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Poracode використовує камеру для сканування кодів сполучення та додавання фотографій до розмов."
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Poracode sử dụng camera để quét mã ghép nối và đính kèm ảnh vào cuộc trò chuyện."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Poracode 使用相机扫描配对码并将照片附加到对话中。"
+          }
+        }
+      }
+    },
+    "NSMicrophoneUsageDescription": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Poracode uses the microphone to transcribe your spoken message."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Poracode verwendet das Mikrofon, um deine gesprochene Nachricht zu transkribieren."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Poracode usa el micrófono para transcribir tu mensaje hablado."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Poracode utilise le microphone pour transcrire votre message vocal."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Poracodeは、話したメッセージを文字起こしするためにマイクを使用します。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Poracode는 음성 메시지를 텍스트로 변환하기 위해 마이크를 사용합니다."
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Poracode używa mikrofonu do transkrypcji wypowiedzianej wiadomości."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O Poracode usa o microfone para transcrever sua mensagem falada."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Poracode использует микрофон для расшифровки вашего голосового сообщения."
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Poracode, sesli mesajınızı yazıya dönüştürmek için mikrofonu kullanır."
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Poracode використовує мікрофон для розшифрування вашого голосового повідомлення."
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Poracode sử dụng micrô để chuyển tin nhắn nói của bạn thành văn bản."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Poracode 使用麦克风转写您的语音消息。"
+          }
+        }
       }
     }
   },

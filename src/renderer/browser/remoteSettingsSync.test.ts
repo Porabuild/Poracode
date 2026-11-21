@@ -122,6 +122,8 @@ describe("pushDesktopSettingsDiff push ordering", () => {
       ...settings("v0"),
       searchUseIgnoreFiles: false,
       searchExclude: { "**/generated": true },
+      crossagentPausedProviders: ["example"],
+      crossagentHiddenModels: { example: ["mini"] },
     } as RemoteSettings;
 
     applyDesktopSettings(remote);
@@ -139,6 +141,8 @@ describe("pushDesktopSettingsDiff push ordering", () => {
       ...input("v0"),
       searchUseIgnoreFiles: false,
       searchExclude: { "**/generated": true },
+      crossagentPausedProviders: ["example"],
+      crossagentHiddenModels: { example: ["mini"] },
     } as SharedSettingsInput);
 
     expect(client.updateSettings).not.toHaveBeenCalled();

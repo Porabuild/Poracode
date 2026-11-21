@@ -76,7 +76,10 @@ extension AppSession {
 }
 
 struct RemoteIntegrationsSessionView: View {
+  @Environment(\.homeWorkspace) private var workspace
   @Environment(\.dismiss) private var dismiss
+  @Environment(\.colorScheme) private var colorScheme
+  @Environment(\.poracodeTheme) private var theme
 
   @Bindable var session: AppSession
   @State private var showsScheduleComposer = false
@@ -101,10 +104,11 @@ struct RemoteIntegrationsSessionView: View {
     RemoteIntegrationsScreen(
       session: session,
       selection: session.currentRemoteIntegrationsHostSelection,
-      projects: session.currentRemoteIntegrationsProjects,
+      projects: workspaceProjects,
       scheduleAgents: session.currentRemoteIntegrationsScheduleAgents,
       gateway: gateway,
       singleRoute: initialRoute,
+      onDismiss: embeddedInNavigationStack ? nil : { dismiss() },
       onCreateScheduleWithAgent: scheduleComposerProject == nil
         ? nil
         : {
@@ -113,11 +117,6 @@ struct RemoteIntegrationsSessionView: View {
         }
     )
     .toolbar {
-      if !embeddedInNavigationStack {
-        ToolbarItem(placement: .cancellationAction) {
-          Button(RemoteIntegrationsStrings.dismiss) { dismiss() }
-        }
-      }
       ToolbarItem(placement: .primaryAction) {
         HostSelectionMenu(session: session)
       }
@@ -127,7 +126,7 @@ struct RemoteIntegrationsSessionView: View {
         NavigationStack {
           VStack {
             Spacer(minLength: 20)
-            HomeQuickComposeView(
+            HomeQuickComposeSessionView(
               session: session,
               isExpanded: $scheduleComposerExpanded,
               launchSeed: HomeThreadLaunchSeed(
@@ -140,7 +139,8 @@ struct RemoteIntegrationsSessionView: View {
             }
             .padding()
           }
-          .background(Color(uiColor: .systemGroupedBackground))
+          .poracodeReadableWidth(680)
+          .background(theme.variant(for: colorScheme).background.ignoresSafeArea())
           .navigationTitle(RemoteIntegrationsStrings.createWithAgent)
           .navigationBarTitleDisplayMode(.inline)
           .toolbar {
@@ -149,6 +149,7 @@ struct RemoteIntegrationsSessionView: View {
             }
           }
         }
+        .poracodeFormSheetSizing()
         .presentationDetents([.large])
         .presentationDragIndicator(.visible)
       }
@@ -169,10 +170,14 @@ struct RemoteIntegrationsSessionView: View {
     }
   }
 
-  private var scheduleComposerProject: RemoteProject? {
-    let projectIDs = Set(session.currentRemoteIntegrationsProjects.map(\.id))
-    return session.activeWorkspaceProjects.first {
-      $0.id != RemoteProject.homeScopeID && projectIDs.contains($0.id)
+  private var workspaceProjects: [RemoteIntegrationsProjectOption] {
+    session.currentRemoteIntegrationsProjects.filter {
+      workspace.includes(projectID: $0.id, connectionID: session.selectedConnectionId)
     }
+  }
+
+  private var scheduleComposerProject: RemoteProject? {
+    let projectIDs = Set(workspaceProjects.map(\.id))
+    return session.activeWorkspaceProjects.first { projectIDs.contains($0.id) }
   }
 }

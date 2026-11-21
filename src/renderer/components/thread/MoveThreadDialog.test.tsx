@@ -292,10 +292,10 @@ describe("MoveThreadDialog", () => {
     const { baseElement } = render(<MoveThreadDialog sourceThreadId="thread-1" />);
     await screen.findByText("Worktree + changes");
     // One candidate renders the environment menu's single-machine label —
-    // same muted treatment as the project label, never a disabled control.
+    // same foreground treatment as the project label, never a disabled control.
     const label = baseElement.querySelector("[data-project-environment]");
     expect(label?.textContent).toContain("MacBook");
-    expect(label?.className).toContain("text-muted/60");
+    expect(label?.className).toContain("text-foreground");
     expect(screen.queryByRole("button", { name: /Machine:/ })).toBeNull();
   });
 

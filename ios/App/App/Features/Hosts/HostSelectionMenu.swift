@@ -5,6 +5,12 @@ import SwiftUI
 /// reloads through its existing exact-host controller path.
 struct HostSelectionMenu: View {
   @Bindable var session: AppSession
+  var showsSelectedHost = false
+
+  private var selectedLabel: String {
+    session.hosts.first { $0.connectionId == session.selectedConnectionId }?.label
+      ?? session.profile?.label ?? HostStrings.switcherTitle
+  }
 
   var body: some View {
     if session.hosts.count > 1 {
@@ -22,10 +28,18 @@ struct HostSelectionMenu: View {
           }
         }
       } label: {
-        Image(systemName: "desktopcomputer")
+        if showsSelectedHost {
+          Label(selectedLabel, systemImage: "desktopcomputer")
+            .frame(minHeight: 44)
+            .contentShape(Rectangle())
+        } else {
+          Image(systemName: "desktopcomputer")
+        }
       }
       .accessibilityLabel(HostStrings.switcherAccessibility)
-      .accessibilityValue(session.profile?.label ?? HostStrings.switcherTitle)
+      .accessibilityValue(selectedLabel)
+    } else if showsSelectedHost {
+      Text(selectedLabel)
     }
   }
 }

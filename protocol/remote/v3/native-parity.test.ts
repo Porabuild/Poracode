@@ -58,7 +58,7 @@ const UI_DISPOSITIONS = [
 ] as const;
 
 const EXPECTED_COUNTS = {
-  httpRoutes: 125,
+  httpRoutes: 126,
   procedures: 179,
   webSocketClientMessages: 11,
   // 10 shared + the desktop-internal `desktop-event` frame (V5 plan 2.5).
@@ -261,12 +261,12 @@ const PLANNED_ABSENCE_TOKENS: Record<
   string,
   ReadonlyArray<{ platform: Platform; token: string }>
 > = {
+  "thread-item-presentations": [{ platform: "android", token: "/item-presentations" }],
   ...Object.fromEntries(
     [
       "conversation-search",
       "thread-history-item",
       "thread-history-prompts",
-      "thread-history-changes",
       "thread-transfer-command",
       "thread-transfer-upload",
       "memory-catalog",
@@ -282,11 +282,9 @@ const PLANNED_ABSENCE_TOKENS: Record<
   // Quoted procedure identifiers distinguish the new wire calls from existing UI method names.
   ...Object.fromEntries(
     [
-      "hexVoice",
       "getProviderUsage",
       "refreshProviderUsage",
       "resolveLinkMetadata",
-      "listImportableSessions",
       "getLatestAgentVersion",
       "resolveAgentAccount",
       "refreshAgentStatuses",
@@ -306,6 +304,9 @@ const PLANNED_ABSENCE_TOKENS: Record<
       ],
     ]),
   ),
+  refreshAgentStatuses: [{ platform: "android", token: '"refreshAgentStatuses"' }],
+  listImportableSessions: [{ platform: "android", token: '"listImportableSessions"' }],
+  hexVoice: [{ platform: "android", token: '"hexVoice"' }],
   // Scoped review operations that a native platform has not wired keep their quoted wire
   // name out of that platform's tree until the ledger records the implementation.
   ...Object.fromEntries(

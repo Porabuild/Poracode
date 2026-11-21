@@ -67,8 +67,9 @@ final class GitOperationsQualityGatesTests: XCTestCase {
     XCTAssertTrue(sessionView.contains("@State private var gitOperationsController"))
     XCTAssertTrue(sessionView.contains("SelectedGitOperationsGateway"))
     XCTAssertTrue(workspaceView.contains("gitOperationsController:"))
-    XCTAssertTrue(gitView.contains("NavigationLink"))
-    XCTAssertTrue(gitView.contains("GitOperationsPanel"))
+    XCTAssertTrue(workspaceView.contains(".sheet(item: $gitDestination)"))
+    XCTAssertTrue(gitView.contains("onOpenDestination(.gitOperations)"))
+    XCTAssertTrue(gitDetailView.contains("GitOperationsPanel"))
     XCTAssertTrue(gitDetailView.contains("GitOperationsFileActions"))
     XCTAssertTrue(gitView.contains(".contextMenu"))
     XCTAssertTrue(gitView.contains(".swipeActions"))
@@ -245,7 +246,9 @@ final class GitOperationsQualityGatesTests: XCTestCase {
     }
     for path in [
       "ios/App/App/Features/Projects/ProjectWorkspaceSessionView.swift",
+      "ios/App/App/Features/Projects/ProjectWorkspaceSelectionSource.swift",
       "ios/App/App/Features/Projects/ProjectWorkspaceView.swift",
+      "ios/App/App/Features/Projects/ProjectWorkspaceFileEditing.swift",
       "ios/App/App/Features/Projects/ProjectGitWorkspaceViews.swift",
       "ios/App/App/Features/Projects/ProjectGitDetailView.swift",
       "ios/App/App/Features/Projects/NativeUnifiedDiffView.swift",

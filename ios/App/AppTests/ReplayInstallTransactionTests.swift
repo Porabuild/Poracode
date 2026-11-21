@@ -424,8 +424,12 @@ final class ReplayInstallTransactionTests: XCTestCase {
     threadID: String = "thread-rich",
     sequence: Int = 5
   ) -> RichChatControllerSuite {
+    // Live attachments belong to the selected host lease; a suite from an
+    // outgoing host must never consume this host's committed boundary frames.
+    session.state.selectedConnectionId = RichChatControllerTestValues.hostA
+    let access = RichChatControllerTestValues.access(generation: UInt64(session.state.workGeneration))
     let suite = RichChatControllerSuite(gateway: RichChatControllerGatewayFake())
-    suite.select(access: RichChatControllerTestValues.access(), threadID: threadID)
+    suite.select(access: access, threadID: threadID)
     session.activeRichChatSuite = suite
     suite.transcript.receiveLiveEvents(
       [
@@ -444,9 +448,19 @@ final class ReplayInstallTransactionTests: XCTestCase {
         )
       ],
       sequence: sequence,
-      target: RichChatControllerTestValues.target(threadID: threadID)
+      target: .init(lease: access.lease, threadID: threadID)
     )
     return suite
+  }
+
+  func testBufferedLifecycleDoesNotDrainThePreviousHostsSameThreadID() throws {
+    let session = makeSession()
+    let suite = attachBackgroundSuite(session)
+    session.state.selectedConnectionId = RichChatControllerTestValues.hostB
+    _ = try XCTUnwrap(commitBuffered(session,
+      event: .threadExited(threadId: "thread-rich", exitCode: 0), seq: 6, snapshotSeq: 5))
+    XCTAssertEqual(suite.transcript.state.backgroundTasks?.map(\.taskId), ["task-1"])
+    XCTAssertEqual(suite.transcript.state.backgroundTaskSequence, Optional(5))
   }
 
   private func commitBuffered(

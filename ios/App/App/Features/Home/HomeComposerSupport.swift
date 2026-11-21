@@ -1,6 +1,20 @@
 import Foundation
 
 extension HomeQuickComposeView {
+  var environmentAgents: [AgentStatusRecord] {
+    guard ownsCurrentConnection else { return [] }
+    return ComposerProviderCatalog.inEnvironment(session.state.replay.agentStatuses.ordered, location: selectedProject?.location)
+  }
+
+  var projects: [RemoteProject] {
+    guard ownsCurrentConnection else { return [] }
+    return session.projects.filter { project in
+      let included = workspace.activeID == nil || launchSeed != nil || project.id == RemoteProject.homeScopeID
+        || session.selectedConnectionId.map { workspace.preferences.includes(projectID: project.identity(on: $0).id.rawValue, activeID: workspace.activeID) } == true
+      return included && project.disabled != true
+    }
+  }
+
   var currentBranch: String? {
     guard let project = selectedProject else { return nil }
     return session.threads(for: project.id)
@@ -9,39 +23,23 @@ extension HomeQuickComposeView {
   }
 
   var availableAgents: [AgentStatusRecord] {
-    HomeComposerCatalog.availableAgents(
-      from: session.state.replay.agentStatuses.ordered,
-      presentationMode: presentationMode
+    guard ownsCurrentConnection else { return [] }
+    return ComposerProviderCatalog.available(
+      environmentAgents,
+      presentation: draft.presentationMode, settings: draft.visibilityDocument.document
     ).filter { $0.kind != launchSeed?.excludedAgentKind }
   }
 
+  func effectiveProviderOrder(_ fallback: [String]) -> [String] {
+    session.composerPreferences.providerOrder(connectionID: draft.connectionID,
+      location: selectedProject?.location, fallback: fallback)
+  }
+
   func supportsPresentationMode(_ mode: ThreadPresentationMode) -> Bool {
-    HomeComposerCatalog.availableAgents(
-      from: session.state.replay.agentStatuses.ordered,
-      presentationMode: mode
+    ComposerProviderCatalog.available(
+      environmentAgents,
+      presentation: mode, settings: draft.visibilityDocument.document
     ).contains { $0.kind != launchSeed?.excludedAgentKind }
-  }
-
-  var effortOptions: [String] {
-    guard let agent = selectedAgent else { return [] }
-    let capabilities = HomeComposerCatalog.capabilities(
-      for: agent, presentationMode: presentationMode)
-    var config = ThreadConfig.empty
-    config.model = effectiveConfiguration?.model ?? ""
-    // Inside a model-bound family this is the encoded ladder reachable from
-    // the current member; otherwise the ordinary advertised ladder.
-    return ModelFamilies.efforts(capabilities, config: config)
-  }
-
-  var supportsFast: Bool {
-    guard let agent = selectedAgent, let model = effectiveConfiguration?.model else { return false }
-    let capabilities = HomeComposerCatalog.capabilities(
-      for: agent, presentationMode: presentationMode)
-    var config = ThreadConfig.empty
-    config.model = model
-    // Inside a model-bound family an opposite-Fast sibling must exist;
-    // otherwise the ordinary fastModels capability applies.
-    return ModelFamilies.fastAvailable(capabilities, config: config)
   }
 
   /// The picker rows for one agent: hidden ids removed (user override, then
@@ -50,9 +48,9 @@ extension HomeQuickComposeView {
   func modelOptions(for agent: AgentStatusRecord) -> [HomeComposerModel] {
     let options = HomeComposerCatalog.pickerModels(
       for: agent,
-      presentationMode: presentationMode,
-      userHiddenModels: hiddenModels,
-      currentModelID: selectedModel ?? defaults?.configuration.model
+      presentationMode: draft.presentationMode,
+      userHiddenModels: draft.hiddenModels,
+      currentModelID: draft.selectedModel ?? defaults?.configuration.model
     )
     if !options.isEmpty { return options }
     guard agent.kind == defaults?.agentKind, let model = defaults?.configuration.model else {
@@ -71,7 +69,7 @@ extension HomeQuickComposeView {
   func defaultEffort(for agent: AgentStatusRecord, modelID: String) -> String? {
     HomeComposerCatalog.defaultEffort(
       capabilities: HomeComposerCatalog.capabilities(
-        for: agent, presentationMode: presentationMode),
+        for: agent, presentationMode: draft.presentationMode),
       modelID: modelID
     )
   }
@@ -80,34 +78,55 @@ extension HomeQuickComposeView {
   /// reach the model pickers. An unavailable document (offline, no lease) is
   /// not a failure — the provider's advertised defaults still apply.
   func loadVisibilityOverrides() async {
-    visibilityDocument.activate(session.currentSettingsHostSelection?.lease)
-    guard visibilityDocument.document == nil else {
-      hiddenModels = visibilityDocument.document?.hiddenModels ?? [:]
-      return
-    }
-    await visibilityDocument.load()
-    hiddenModels = visibilityDocument.document?.hiddenModels ?? [:]
+    guard ownsCurrentConnection, !session.state.liveLifecycle.isInBackground else { return }
+    await loadComposerTools()
+    guard ownsCurrentConnection else { return }
+    draft.hiddenModels = draft.visibilityDocument.document?.hiddenModels ?? [:]
+    normalizeDisabledProviderSelection()
   }
 
-  /// The launch/selection trigger label: a projected family member reads as
-  /// its family row (desktop parity); every other id keeps its raw native
-  /// label or the normalized fallback.
-  var modelLabel: String {
-    guard let agent = selectedAgent, let modelID = effectiveConfiguration?.model else {
-      return HomeStrings.model
-    }
-    if let family = ModelFamilies.family(
-      for: modelID,
-      in: HomeComposerCatalog.capabilities(for: agent, presentationMode: presentationMode))
-    {
-      return family.label
-    }
-    return modelOptions(for: agent).first(where: { $0.modelID == modelID })?.label
-      ?? HomeComposerCatalog.normalizedLabel(
-        agentKind: agent.kind, modelID: modelID, advertisedLabel: modelID)
+  func normalizeDisabledProviderSelection() {
+    guard ownsCurrentConnection, launchSeed == nil, let kind = draft.selectedAgentKind,
+      draft.visibilityDocument.document?.disabledAgents.contains(kind) == true,
+      let replacement = availableAgents.first,
+      let model = modelOptions(for: replacement).first else { return }
+    // Like the PWA's effectiveAgentKind fallback, an explicit disabled-provider
+    // preference selects an available provider. Reading settings is not a new
+    // preference write, and it does not dismiss an open model picker.
+    selectModel(model, persist: false, dismiss: false)
+  }
+
+  func loadComposerTools(servers: Bool = false) async {
+    guard ownsCurrentConnection, !session.state.liveLifecycle.isInBackground else { return }
+    draft.tools.activate(selection: session.currentSettingsHostSelection,
+      projectSession: session.currentProjectControllerSession, project: selectedProject)
+    await draft.tools.load(servers: servers)
+  }
+
+  var settingsRefreshKey: ComposerSettingsRefreshKey {
+    .init(selection: session.currentSettingsHostSelection,
+      revision: session.settingsDocumentChanges.revision(for: draft.connectionID),
+      foreground: !session.state.liveLifecycle.isInBackground, expanded: isExpanded,
+      mutating: draft.tools.isMutating || draft.crews.isMutating)
+  }
+
+  func reloadComposerSettings() async {
+    guard settingsRefreshKey.foreground, !settingsRefreshKey.mutating else { return }
+    async let visibility: Void = loadVisibilityOverrides()
+    async let crews: Void = loadCrews()
+    _ = await (visibility, crews)
   }
 
   func launchDefaults(for project: RemoteProject) -> HomeThreadLaunchDefaults? {
+    if project.id == draft.projectID, let saved = draft.restoredSelection,
+      !session.state.catalogMutationsSupported || saved.owner.agentInstanceID != nil,
+      let agent = availableAgents.first(where: { $0.kind == saved.owner.agentKind }),
+      let model = launchModel(for: agent, preferredID: saved.configuration.model) {
+      var configuration = saved.configuration
+      configuration.model = model.modelID
+      return HomeThreadLaunchDefaults(agentKind: agent.kind, agentInstanceID: saved.owner.agentInstanceID,
+        configuration: ThreadLaunchConfiguration(configuration))
+    }
     if let object = project.lastDraftConfig?.objectValue,
       let agentKind = object["agentKind"]?.stringValue?.nilIfBlank,
       let agent = availableAgents.first(where: { $0.kind == agentKind }),
@@ -116,32 +135,23 @@ extension HomeQuickComposeView {
         preferredID: object["model"]?.stringValue?.nilIfBlank
       )
     {
+      var saved = object
+      saved["model"] = .string(model.modelID)
+      guard let data = try? JSONDecoding.encoder.encode(JSONValue.object(saved)),
+        let config = try? JSONDecoding.decode(ThreadConfig.self, from: data) else { return nil }
+      var configuration = ThreadLaunchConfiguration(config)
+      configuration.mode = RichChatComposerControlCatalog.restoredDraftMode(configuration.mode,
+        capabilities: HomeComposerCatalog.capabilities(for: agent, presentationMode: draft.presentationMode))
       return HomeThreadLaunchDefaults(
         agentKind: agentKind,
         agentInstanceID: nil,
-        configuration: ThreadLaunchConfiguration(
-          model: model.modelID,
-          effort: object["effort"]?.stringValue,
-          contextSize: object["contextSize"]?.stringValue,
-          fast: object["fast"]?.boolValue,
-          thinking: object["thinking"]?.boolValue,
-          mode: object["mode"]?.stringValue,
-          approvalPolicy: object["approvalPolicy"]?.stringValue,
-          approvalsReviewer: object["approvalsReviewer"]?.stringValue,
-          sandboxMode: object["sandboxMode"]?.stringValue,
-          browserMcp: object["browserMcp"]?.boolValue,
-          crossagentMcp: object["crossagentMcp"]?.boolValue,
-          computerUse: object["computerUse"]?.boolValue,
-          chromeMcp: object["chromeMcp"]?.boolValue,
-          executionEnvironment: Self.draftExecutionEnvironment(object),
-          crew: object["crew"]
-        )
+        configuration: configuration
       )
     }
     let presentationThreads = session.threads(for: project.id).filter {
       ThreadPresentationFilter.matches(
         $0.presentationMode,
-        mode: presentationMode.rawValue
+        mode: draft.presentationMode.rawValue
       )
     }
     if let thread = presentationThreads.max(by: { $0.updatedAt < $1.updatedAt }),
@@ -150,6 +160,8 @@ extension HomeQuickComposeView {
     {
       var configuration = thread.config.lifecycleLaunchConfiguration
       configuration.model = model.modelID
+      configuration.mode = RichChatComposerControlCatalog.restoredDraftMode(configuration.mode,
+        capabilities: HomeComposerCatalog.capabilities(for: agent, presentationMode: draft.presentationMode))
       return HomeThreadLaunchDefaults(
         agentKind: thread.agentKind,
         agentInstanceID: thread.agentInstanceId,
@@ -169,31 +181,18 @@ extension HomeQuickComposeView {
     )
   }
 
-  /// Draft configs share the thread-config shape (`providerDraftConfigSchema`),
-  /// so a saved draft can pin the WSL execution environment. Dropping it here
-  /// would silently retarget a pinned distro on the next quick compose.
-  private static func draftExecutionEnvironment(
-    _ object: [String: JSONValue]
-  ) -> RemoteExecutionEnvironment? {
-    guard let environment = object["executionEnvironment"]?.objectValue,
-      let kind = environment["kind"]?.stringValue,
-      let distro = environment["distro"]?.stringValue
-    else { return nil }
-    return RemoteExecutionEnvironment(kind: kind, distro: distro)
-  }
-
-  private func launchModel(
+  func launchModel(
     for agent: AgentStatusRecord,
     preferredID: String? = nil
   ) -> HomeComposerModel? {
     // The raw inventory resolves preferred ids first: a family member keeps
     // its exact UID and native label even though the picker projects one row
     // per family. Restores never widen or rewrite the saved choice.
-    let rawModels = HomeComposerCatalog.models(for: agent, presentationMode: presentationMode)
+    let rawModels = HomeComposerCatalog.models(for: agent, presentationMode: draft.presentationMode)
     if let preferredID, let advertised = rawModels.first(where: { $0.modelID == preferredID }) {
       return advertised
     }
-    let models = HomeComposerCatalog.pickerModels(for: agent, presentationMode: presentationMode)
+    let models = HomeComposerCatalog.pickerModels(for: agent, presentationMode: draft.presentationMode)
     if let preferredID = preferredID?.nilIfBlank {
       return HomeComposerModel(
         agentKind: agent.kind,
@@ -211,189 +210,47 @@ extension HomeQuickComposeView {
 
   var targetConfiguration: ThreadLaunchConfiguration? {
     guard let agent = selectedAgent else { return nil }
+    if var configuration = draft.configuredConfiguration {
+      // Workflow mode is a per-draft choice and only sent for an advertised
+      // model. Every other carrier stays exactly as selected.
+      if !HomeComposerCatalog.supportsWorkflows(
+        capabilities: HomeComposerCatalog.capabilities(for: agent, presentationMode: draft.presentationMode),
+        modelID: configuration.model) { configuration.workflows = nil }
+      return configuration
+    }
     let model =
-      selectedModel
+      draft.selectedModel
       ?? (agent.kind == defaults?.agentKind ? defaults?.configuration.model : nil)
       ?? modelOptions(for: agent).first?.modelID
     guard let model else { return nil }
-    let baseConfiguration =
-      configuredConfiguration
-      ?? (agent.kind == defaults?.agentKind ? defaults?.configuration : nil)
+    let baseConfiguration = agent.kind == defaults?.agentKind ? defaults?.configuration : nil
     if var configuration = baseConfiguration {
       configuration.model = model
-      configuration.effort = selectedEffort ?? configuration.effort
-      configuration.fast = fast
-      configuration.workflows = draftWorkflows(for: agent, model: model)
-      configuration.browserMcp = browserMcp ?? configuration.browserMcp
-      configuration.crossagentMcp = crossagentMcp ?? configuration.crossagentMcp
-      configuration.computerUse = computerUse ?? configuration.computerUse
-      configuration.chromeMcp = chromeMcp ?? configuration.chromeMcp
-      return configuration
+      configuration.workflows = nil
+      if launchSeed?.initialConfiguration != nil { return configuration }
+      return restoredProviderConfiguration(configuration, agent: agent)
     }
-    return ThreadLaunchConfiguration(
+    return restoredProviderConfiguration(ThreadLaunchConfiguration(
       model: model,
-      effort: selectedEffort ?? defaultEffort(for: agent, modelID: model),
-      fast: fast,
-      workflows: draftWorkflows(for: agent, model: model),
-      browserMcp: browserMcp,
-      crossagentMcp: crossagentMcp,
-      computerUse: computerUse,
-      chromeMcp: chromeMcp
-    )
-  }
-
-  /// Workflow mode is a per-draft choice: off unless switched on for this
-  /// draft, sent only while the selected model offers it, and never read back
-  /// from saved drafts or an earlier thread's config.
-  private func draftWorkflows(for agent: AgentStatusRecord, model: String) -> Bool? {
-    guard workflows,
-      HomeComposerCatalog.supportsWorkflows(
-        capabilities: HomeComposerCatalog.capabilities(
-          for: agent, presentationMode: presentationMode),
-        modelID: model)
-    else { return nil }
-    return true
+      effort: defaultEffort(for: agent, modelID: model)
+    ), agent: agent)
   }
 
   func openComposerControls() {
-    guard let configuration = targetConfiguration else { return }
-    controlsConfiguration = ThreadConfig(configuration)
-    selector = nil
-    DispatchQueue.main.async { showingComposerControls = true }
+    guard ownsCurrentConnection, effectiveConfiguration != nil else { return }
+    draft.selector = .controls
   }
 
-  func applyComposerControls(_ configuration: ThreadConfig) {
-    configuredConfiguration = ThreadLaunchConfiguration(configuration)
-    selectedModel = configuration.model
-    selectedEffort = configuration.effort
-    fast = configuration.fast == true
-    workflows = configuration.workflows == true
-    browserMcp = configuration.browserMcp
-    crossagentMcp = configuration.crossagentMcp
-    computerUse = configuration.computerUse
-    chromeMcp = configuration.chromeMcp
-    permissionMode = .configured
+  func applyComposerControls(_ configuration: ThreadConfig, persist: Bool = true) {
+    guard ownsCurrentConnection, let kind = selectedAgent?.kind else { return }
+    // A local edit pins the provider with its config. Later catalog/project
+    // updates from another client must not retarget this unsent selection.
+    draft.selectAgent(kind, preservingContext: true)
+    draft.configuredConfiguration = ThreadLaunchConfiguration(ModelSelectionBindings.validated(configuration, owner: composerSelectionOwner))
+    if persist { rememberComposerSelection() }
   }
 
-  // MARK: Family-aware common controls
 
-  /// The derived family view of the current selection. Inside a model-bound
-  /// family Effort/Fast are encoded in the member UID, so the displayed values
-  /// come from the relation while the saved carriers stay inert. `nil` outside
-  /// any family — the raw selection state is the display.
-  var composerFamilyDisplay: ModelFamilyDisplay? {
-    guard let agent = selectedAgent else { return nil }
-    let capabilities = HomeComposerCatalog.capabilities(
-      for: agent, presentationMode: presentationMode)
-    var config = ThreadConfig.empty
-    config.model = effectiveConfiguration?.model ?? ""
-    config.effort = selectedEffort
-    config.fast = fast
-    return ModelFamilies.displayConfig(capabilities, config: config)
-  }
-
-  var composerDisplayedEffort: String? {
-    composerFamilyDisplay?.effort ?? effectiveConfiguration?.effort
-  }
-
-  var composerDisplayedFast: Bool {
-    composerFamilyDisplay?.fast ?? fast
-  }
-
-  /// Explicit Effort pick at the control boundary. Inside a model-bound family
-  /// this resolves the one-axis tuple to the exact sibling UID (inert seeds,
-  /// no sibling guessing); otherwise it is the ordinary independent carrier.
-  func applyComposerEffort(_ effort: String) {
-    guard let agent = selectedAgent else {
-      selectedEffort = effort
-      return
-    }
-    let capabilities = HomeComposerCatalog.capabilities(
-      for: agent, presentationMode: presentationMode)
-    var config = ThreadConfig.empty
-    config.model = effectiveConfiguration?.model ?? ""
-    config.effort = selectedEffort
-    config.fast = fast
-    guard let patch = ModelFamilies.apply(.effort(effort), to: config, capabilities: capabilities)
-    else { return }
-    applyComposerPatch(patch)
-  }
-
-  /// Explicit Fast toggle at the control boundary — same resolution rule as
-  /// the Effort pick. The displayed state flips only when the relation admits
-  /// the opposite-Fast sibling.
-  func applyComposerFastToggle() {
-    guard let agent = selectedAgent else {
-      fast.toggle()
-      return
-    }
-    let capabilities = HomeComposerCatalog.capabilities(
-      for: agent, presentationMode: presentationMode)
-    var config = ThreadConfig.empty
-    config.model = effectiveConfiguration?.model ?? ""
-    config.effort = selectedEffort
-    config.fast = fast
-    let target = !composerDisplayedFast
-    guard let patch = ModelFamilies.apply(.fast(target), to: config, capabilities: capabilities)
-    else { return }
-    applyComposerPatch(patch)
-  }
-
-  private func applyComposerPatch(_ patch: ModelSelectionPatch) {
-    if let model = patch.model { selectedModel = model }
-    if let effort = patch.effort { selectedEffort = effort }
-    if let fast = patch.fast { self.fast = fast }
-  }
-}
-
-extension ThreadConfig {
-  init(_ configuration: ThreadLaunchConfiguration) {
-    self.init(
-      model: configuration.model,
-      effort: configuration.effort,
-      contextSize: configuration.contextSize,
-      fast: configuration.fast,
-      thinking: configuration.thinking,
-      workflows: configuration.workflows,
-      mode: configuration.mode,
-      approvalPolicy: configuration.approvalPolicy,
-      approvalsReviewer: configuration.approvalsReviewer,
-      sandboxMode: configuration.sandboxMode,
-      browserMcp: configuration.browserMcp,
-      crossagentMcp: configuration.crossagentMcp,
-      computerUse: configuration.computerUse,
-      chromeMcp: configuration.chromeMcp,
-      mcpServerOverrides: configuration.mcpServerOverrides,
-      pluginOverrides: configuration.pluginOverrides,
-      executionEnvironment: configuration.executionEnvironment,
-      crew: configuration.crew
-    )
-  }
-}
-
-extension ThreadLaunchConfiguration {
-  init(_ configuration: ThreadConfig) {
-    self.init(
-      model: configuration.model,
-      effort: configuration.effort,
-      contextSize: configuration.contextSize,
-      fast: configuration.fast,
-      thinking: configuration.thinking,
-      workflows: configuration.workflows,
-      mode: configuration.mode,
-      approvalPolicy: configuration.approvalPolicy,
-      approvalsReviewer: configuration.approvalsReviewer,
-      sandboxMode: configuration.sandboxMode,
-      browserMcp: configuration.browserMcp,
-      crossagentMcp: configuration.crossagentMcp,
-      computerUse: configuration.computerUse,
-      chromeMcp: configuration.chromeMcp,
-      executionEnvironment: configuration.executionEnvironment,
-      mcpServerOverrides: configuration.mcpServerOverrides,
-      pluginOverrides: configuration.pluginOverrides,
-      crew: configuration.crew
-    )
-  }
 }
 
 struct HomeThreadLaunchDefaults {
@@ -574,7 +431,7 @@ enum HomeComposerCatalog {
       capabilities: capability,
       userHiddenModels: userHiddenModels,
       agentKind: agent.kind,
-      runtimeVariant: ModelVisibility.declaredGUIVariant(
+      runtimeVariant: ModelVisibility.guiRuntimeVariant(
         for: agent, presentationMode: presentationMode)
     )
     let visibleIDs = ModelVisibility.visiblePickerIDs(
@@ -719,38 +576,15 @@ enum HomeComposerCatalog {
 }
 
 enum HomeComposerSelector: String, Identifiable {
-  case project, model, add
+  case project, model, add, controls, crew
   var id: String { rawValue }
   var title: String {
     switch self {
     case .project: HomeStrings.project
     case .model: HomeStrings.model
     case .add: HomeStrings.context
-    }
-  }
-}
-
-enum HomeComposerPermission: String, CaseIterable, Identifiable {
-  case auto, bypass, configured
-  var id: String { rawValue }
-  var label: String {
-    switch self {
-    case .auto: HomeStrings.auto
-    case .bypass: HomeStrings.bypass
-    case .configured: SettingsUIStrings.configurationSection
-    }
-  }
-
-  func approvalPolicy(capabilities: [String: JSONValue]) -> String? {
-    let bypass = capabilities["bypassPermissions"]?.objectValue
-    let prefersDeclared = bypass?["preferDeclaredApprovalPolicy"]?.boolValue == true
-    switch self {
-    case .auto:
-      return prefersDeclared ? capabilities["defaultApprovalPolicy"]?.stringValue : nil
-    case .bypass:
-      return prefersDeclared ? bypass?["approvalPolicy"]?.stringValue : "never"
-    case .configured:
-      return nil
+    case .controls: RichChatStrings.composerControls
+    case .crew: RichChatStrings.crew
     }
   }
 }

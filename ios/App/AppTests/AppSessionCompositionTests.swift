@@ -77,6 +77,11 @@ final class FakeRemoteAPI: SessionRemoteAPI {
   }
 
   private(set) var environmentCalls = 0
+  private(set) var observedDesktopIDs: [String] = []
+
+  func observeEnvironmentCapabilities(_ descriptor: RemoteEnvironmentDescriptor) async {
+    observedDesktopIDs.append(descriptor.desktopId)
+  }
 
   func environment() async throws -> RemoteEnvironmentDescriptor {
     environmentCalls += 1
@@ -513,6 +518,27 @@ private final class MutationCheckpointProbe: @unchecked Sendable {
 
 @MainActor
 final class AppSessionCompositionTests: XCTestCase {
+  func testFirstPairValidationSurvivesEmptyCatalogRecoveryWithoutNetwork() async throws {
+    let suite = "pair-validation-\(UUID().uuidString)"
+    addTeardownBlock {
+      UserDefaults(suiteName: suite)?.removePersistentDomain(forName: suite)
+      try? FileManager.default.removeItem(at: FileManager.default.temporaryDirectory
+        .appendingPathComponent("poracode-composition-hosts-\(suite)"))
+    }
+    var apiCreations = 0
+    let (session, _, _) = try await makeSession(suite: suite) { endpoint, _ in
+      apiCreations += 1
+      return FakeRemoteAPI(endpoint: endpoint)
+    }
+    await session.pair(with: .init(pairingURLOrEmpty: "", manualBaseURL: "", manualToken: ""))
+    XCTAssertEqual(session.state.phase, .needsPairing)
+    XCTAssertEqual(session.globalError, PairingError.invalidURL.localizedDescription)
+    XCTAssertNil(session.selectedConnectionId)
+    await session.pair(with: .init(pairingURLOrEmpty: "", manualBaseURL: "https://example.com", manualToken: ""))
+    XCTAssertEqual(session.globalError, PairingError.missingToken.localizedDescription)
+    XCTAssertEqual(apiCreations, 0)
+  }
+
   func testRootPresentationKeepsStoredSessionOnHomeWhileConnecting() {
     XCTAssertEqual(
       RootPresentation.resolve(phase: .connecting, hasProfile: true),
@@ -692,6 +718,7 @@ final class AppSessionCompositionTests: XCTestCase {
 
   func testPairBFailureLeavesPairACoherent() async throws {
     var apis: [FakeRemoteAPI] = []
+    let failure = RemoteClientError(message: "down", status: 502, code: "network")
     let (session, repo, _) = try await makeSession(
       seedProfile: makeProfile(),
       seedToken: "token-a"
@@ -699,9 +726,7 @@ final class AppSessionCompositionTests: XCTestCase {
       let api = FakeRemoteAPI(endpoint: endpoint, accessToken: token)
       apis.append(api)
       if endpoint.contains("b.test") {
-        api.environmentResult = .failure(
-          RemoteClientError(message: "down", status: 502, code: "network")
-        )
+        api.environmentResult = .failure(failure)
       } else {
         api.environmentResult = .success(makeEnvironment())
         api.snapshotResult = .success(makeShell(seq: 10, threads: [makeThread(id: "t1")]))
@@ -715,7 +740,10 @@ final class AppSessionCompositionTests: XCTestCase {
     XCTAssertEqual(session.profile?.desktopId, "desk-a")
     let before = try await repo.v2RawData()
 
-    await session.pair(with: .init(manualBaseURL: "https://b.test", manualToken: "pair-b"))
+    let rejected = await session.submitPairing(
+      with: .init(manualBaseURL: "https://b.test", manualToken: "pair-b")
+    )
+    XCTAssertEqual(rejected, .failed(failure.localizedDescription))
     XCTAssertEqual(session.profile?.desktopId, "desk-a")
     let after = try await repo.v2RawData()
     XCTAssertEqual(after, before, "pair B network failure leaves A bytes identical")
@@ -779,7 +807,10 @@ final class AppSessionCompositionTests: XCTestCase {
     XCTAssertEqual(socketA.stopCount, 0)
     XCTAssertNotNil(socketA.startedWithSeq)
 
-    await session.pair(with: .init(manualBaseURL: "https://b.test", manualToken: "pair-b"))
+    let paired = await session.submitPairing(
+      with: .init(manualBaseURL: "https://b.test", manualToken: "pair-b")
+    )
+    XCTAssertEqual(paired, .installedLive)
 
     // UI + live host are B only — no mixed A token/profile.
     XCTAssertEqual(session.phase, .ready)
@@ -803,7 +834,7 @@ final class AppSessionCompositionTests: XCTestCase {
       try await session.deps.hostCatalog.token(for: durable.selected!.connectionId),
       "token-desk-b")
 
-    XCTAssertEqual(socketA.stopCount, 0, "A remains warm as the single LRU secondary")
+    XCTAssertEqual(socketA.stopCount, 0, "A remains connected alongside the selected host")
     XCTAssertEqual(sockets.count, 2, "exactly one B socket after pair B")
     let socketB = try XCTUnwrap(sockets.last)
     XCTAssertTrue(socketA !== socketB)

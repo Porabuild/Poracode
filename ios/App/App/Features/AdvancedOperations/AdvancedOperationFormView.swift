@@ -62,10 +62,10 @@ struct AdvancedOperationFormView: View {
       .navigationTitle(descriptor.title)
       .toolbar {
         ToolbarItem(placement: .cancellationAction) {
-          Button(AdvancedOperationsStrings.close) { dismiss() }
+          Button(AdvancedOperationsStrings.close, systemImage: "xmark") { dismiss() }
         }
         ToolbarItem(placement: .confirmationAction) {
-          Button(AdvancedOperationsStrings.run) { Task { await run() } }
+          Button(AdvancedOperationsStrings.run, systemImage: "play.fill") { Task { await run() } }
             .disabled(isSubmitting || owner == nil || !draft.hasRequiredValues)
             .accessibilityIdentifier("advancedOperations.submit")
         }

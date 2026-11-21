@@ -1,93 +1,106 @@
 import SwiftUI
 
-enum GitOperationsForm: String, Identifiable, Sendable {
+enum GitOperationsForm: Sendable {
   case remote
   case worktree
+}
 
-  var id: String { rawValue }
+@MainActor
+@Observable
+final class GitOperationsFormDraft: Identifiable {
+  let form: GitOperationsForm
+  let lease: ProjectWorkspaceLease
+  var name = ""
+  var value = ""
+  var branch = ""
+  var createBranch = true
+
+  init(form: GitOperationsForm, lease: ProjectWorkspaceLease) {
+    self.form = form
+    self.lease = lease
+  }
 }
 
 struct GitOperationsFormView: View {
-  let form: GitOperationsForm
-  let location: ProjectLocation
+  @Bindable var draft: GitOperationsFormDraft
+  let canSubmit: Bool
   let submit: (GitOperationRequest) -> Void
 
   @Environment(\.dismiss) private var dismiss
-  @State private var name = ""
-  @State private var value = ""
-  @State private var branch = ""
-  @State private var createBranch = true
 
   var body: some View {
     NavigationStack {
       Form {
-        switch form {
+        switch draft.form {
         case .remote:
-          TextField(GitOperationsStrings.remoteName, text: $name)
+          TextField(GitOperationsStrings.remoteName, text: $draft.name)
             .textInputAutocapitalization(.never)
             .autocorrectionDisabled()
-          TextField(GitOperationsStrings.remoteURL, text: $value)
+            .accessibilityIdentifier("native-e2e.git.remote.name")
+          TextField(GitOperationsStrings.remoteURL, text: $draft.value)
             .textInputAutocapitalization(.never)
             .autocorrectionDisabled()
             .keyboardType(.URL)
+            .accessibilityIdentifier("native-e2e.git.remote.url")
         case .worktree:
-          TextField(GitOperationsStrings.branchName, text: $branch)
+          TextField(GitOperationsStrings.branchName, text: $draft.branch)
             .textInputAutocapitalization(.never)
             .autocorrectionDisabled()
-          TextField(GitOperationsStrings.worktreePath, text: $value)
+          TextField(GitOperationsStrings.worktreePath, text: $draft.value)
             .textInputAutocapitalization(.never)
             .autocorrectionDisabled()
-          Toggle(GitOperationsStrings.createBranch, isOn: $createBranch)
+          Toggle(GitOperationsStrings.createBranch, isOn: $draft.createBranch)
           .poracodeSwitchStyle()
         }
       }
       .navigationTitle(title)
       .toolbar {
         ToolbarItem(placement: .cancellationAction) {
-          Button(GitOperationsStrings.cancel) { dismiss() }
+          Button(GitOperationsStrings.cancel, systemImage: "xmark") { dismiss() }
         }
         ToolbarItem(placement: .confirmationAction) {
-          Button(GitOperationsStrings.add) {
+          Button(GitOperationsStrings.add, systemImage: "plus") {
             submit(request)
             dismiss()
           }
-          .disabled(!isValid)
+          .disabled(!canSubmit || !isValid)
+          .accessibilityIdentifier("native-e2e.git.form.submit")
         }
       }
     }
   }
 
   private var title: String {
-    switch form {
+    switch draft.form {
     case .remote: GitOperationsStrings.action(.gitAddRemote)
     case .worktree: GitOperationsStrings.action(.gitAddWorktree)
     }
   }
 
   private var isValid: Bool {
-    switch form {
+    switch draft.form {
     case .remote:
-      !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-        && !value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+      !draft.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        && !draft.value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     case .worktree:
-      !branch.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-        && !value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+      !draft.branch.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        && !draft.value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
   }
 
   private var request: GitOperationRequest {
-    switch form {
+    switch draft.form {
     case .remote:
       .gitAddRemote(
-        .init(projectLocation: location, remote: name, url: value)
+        .init(projectLocation: draft.lease.location, remote: draft.name, url: draft.value)
       )
     case .worktree:
       .gitAddWorktree(
         .init(
-          projectLocation: location,
-          branch: branch,
-          createBranch: createBranch,
-          path: value
+          projectLocation: draft.lease.location,
+          branch: draft.branch,
+          createBranch: draft.createBranch,
+          path: draft.value
         )
       )
     }

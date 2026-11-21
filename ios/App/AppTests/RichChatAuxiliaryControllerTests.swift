@@ -137,6 +137,50 @@ final class RichChatAuxiliaryControllerTests: XCTestCase {
     XCTAssertEqual(refreshReasons, [.ambiguousMutation])
   }
 
+  func testURLRequestRetainsTheSameDraftOnReturnAndRejectsAnEarlierDesktop() async throws {
+    let gateway = RichChatControllerGatewayFake()
+    let controller = RichChatRequestController(gateway: gateway)
+    let a = RichChatControllerTestValues.access(host: RichChatControllerTestValues.hostA)
+    let b = RichChatControllerTestValues.access(host: RichChatControllerTestValues.hostB)
+    func request(id: String, time: Int64) -> RichOpenRequest {
+      RichOpenRequest(requestID: .text("r1"), threadID: "thread-rich", type: .toolUserInput,
+        payload: .init(summary: "Browser step", details: .object(["structuredElicitation": .object([
+          "sourceText": .string("Fixture connector"), "mode": .string("url"), "message": .string("Open review"),
+          "url": .string("https://fixture.test/review"), "elicitationId": .string(id),
+        ])]), options: nil, multiSelect: nil), receivedAtMilliseconds: time)
+    }
+    let first = request(id: "a", time: 1)
+    let form = try XCTUnwrap(RichChatRequestForm(request: first))
+    let visit = RichChatExternalRequestVisit(target: .init(lease: a.lease, threadID: first.threadID),
+      requestID: first.id, form: form)
+    let renewed = RichChatControllerTestValues.access(host: RichChatControllerTestValues.hostA, generation: 2)
+    XCTAssertTrue(visit.needsRebind(to: .init(lease: renewed.lease, threadID: first.threadID)))
+    XCTAssertFalse(visit.needsRebind(to: .init(lease: b.lease, threadID: first.threadID)))
+    XCTAssertNotNil(visit.matchingRequest(in: [request(id: "a", time: 2)]))
+    XCTAssertNil(visit.matchingRequest(in: [request(id: "repeat", time: 3)]))
+    controller.activate(access: a, threadID: first.threadID)
+    controller.editForm(form, request: first)
+    let original = try XCTUnwrap(controller.editingForm)
+    controller.enterBackground()
+    controller.leaveBackground(access: a)
+    controller.reconcileRequestForms(with: [request(id: "a", time: 2)])
+    XCTAssertTrue(controller.editingForm === original)
+    controller.reconcileRequestForms(with: [request(id: "repeat", time: 3)])
+    XCTAssertNil(controller.editingForm)
+
+    controller.activate(access: b, threadID: first.threadID)
+    controller.editForm(form, request: first)
+    let stale = await controller.resolveForm(original, response: form.cancelResponse)
+    let staleCalls = await gateway.calls
+    XCTAssertFalse(stale)
+    XCTAssertTrue(staleCalls.isEmpty)
+    let current = try XCTUnwrap(controller.editingForm)
+    let resolved = await controller.resolveForm(current, response: form.cancelResponse)
+    let currentCalls = await gateway.calls
+    XCTAssertTrue(resolved)
+    XCTAssertEqual(currentCalls, ["request-resolve"])
+  }
+
   func testCheckpointFixtureLoadsAndValidatedCreateAppends() async throws {
     let fixture = try loadRichChatFixture("checkpoint-turn-sequences.json")
     let list = try richFixtureObject(try XCTUnwrap(fixture["listResult"]))
@@ -393,6 +437,26 @@ final class RichChatAuxiliaryControllerTests: XCTestCase {
 
     XCTAssertEqual(results, [payload, payload])
     XCTAssertEqual(localImageCallCount, 2)
+  }
+
+  func testAttachmentLookupCannotMintATicketAfterDesktopReplacement() async {
+    let gateway = RichChatControllerGatewayFake()
+    let controller = RichChatMediaController(historyGateway: gateway, conversationGateway: gateway)
+    let first = RichChatControllerTestValues.access()
+    let second = RichChatControllerTestValues.access(host: RichChatControllerTestValues.hostB)
+    controller.activate(access: first, threadID: "shared-thread-id")
+
+    let download = await controller.fetchFileDownload(request: .project(relativePath: "notes.txt"),
+      projectLocation: .posix(path: "/workspace"), suggestedName: "notes.txt") { filename, target in
+        XCTAssertEqual(filename, "notes.txt")
+        XCTAssertEqual(target.lease, first.lease)
+        controller.activate(access: second, threadID: "shared-thread-id")
+        return "reports/notes.txt"
+      }
+
+    XCTAssertNil(download)
+    let calls = await gateway.calls
+    XCTAssertFalse(calls.contains("file-download"))
   }
 
   func testSuiteSelectionSwitchResetsEveryController() {

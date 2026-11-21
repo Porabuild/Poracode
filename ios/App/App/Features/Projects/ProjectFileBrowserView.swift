@@ -14,6 +14,7 @@ struct ProjectFileBrowserView: View {
   let onRefresh: () async -> Void
   let onEntryMutated: (ProjectWorkspaceEntryMutation) async -> Void
 
+  @Environment(\.poracodeEmbeddedInInspector) private var embeddedInInspector
   @State private var editor: ProjectEntryEditor?
   @State private var pendingDelete: ProjectWorkspaceEntry?
   @State private var mutationFailure: String?
@@ -99,8 +100,7 @@ struct ProjectFileBrowserView: View {
     // bar; the Git mode already removes it, so Files gets the same
     // first-section placement when switching modes.
     .contentMargins(.top, 0, for: .scrollContent)
-    .navigationTitle(ProjectWorkspaceStrings.files)
-    .navigationBarTitleDisplayMode(.inline)
+    .poracodeNavigationTitle(ProjectWorkspaceStrings.files, suppressed: embeddedInInspector)
   }
 
   @ViewBuilder
@@ -193,6 +193,7 @@ struct ProjectFileBrowserView: View {
           }
           .buttonStyle(.plain)
           .accessibilityLabel(ProjectWorkspaceStrings.openEntry(entry.name))
+          .accessibilityIdentifier("native-e2e.project-file.\(entry.path)")
           .contextMenu { entryActions(entry) }
           .swipeActions(edge: .trailing, allowsFullSwipe: false) {
             Button(role: .destructive) {

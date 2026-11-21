@@ -16,16 +16,20 @@ struct SettingsSkillsView: View {
   @State private var sort = SettingsSkillMarketplaceSort.rank
 
   var body: some View {
-    VStack(spacing: 0) {
-      Picker(SettingsIntegrationsStrings.skills, selection: $mode) {
-        Text(SettingsIntegrationsStrings.installed).tag(Mode.installed)
-        Text(SettingsIntegrationsStrings.marketplace).tag(Mode.marketplace)
+    List {
+      Section {
+        Picker(SettingsIntegrationsStrings.skills, selection: $mode) {
+          Text(SettingsIntegrationsStrings.installed).tag(Mode.installed)
+          Text(SettingsIntegrationsStrings.marketplace).tag(Mode.marketplace)
+        }
+        .pickerStyle(.segmented)
+        .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
+        .listRowBackground(Color.clear)
       }
-      .pickerStyle(.segmented)
-      .padding()
-
-      if mode == .installed { installedList } else { marketplaceList }
+      if mode == .installed { installedSections } else { marketplaceSections }
     }
+    .poracodeReadableListMargins(740)
+    .modifier(MarketplaceSearchModifier(isActive: mode == .marketplace, query: $query))
     .navigationTitle(SettingsIntegrationsStrings.skills)
     .toolbar { refreshButton }
     .confirmationDialog(
@@ -52,49 +56,46 @@ struct SettingsSkillsView: View {
     }
   }
 
-  private var installedList: some View {
-    List {
-      feedback
-      skillSection(.global, title: SettingsIntegrationsStrings.global)
-      skillSection(.project, title: SettingsIntegrationsStrings.project)
-      SettingsIntegrationsLoadView(
-        state: controller.scanState,
-        empty: controller.skills.isEmpty,
-        emptyMessage: SettingsIntegrationsStrings.noSkills
-      )
-      .listRowBackground(Color.clear)
-    }
+  @ViewBuilder
+  private var installedSections: some View {
+    feedback
+    skillSection(.global, title: SettingsIntegrationsStrings.global)
+    skillSection(.project, title: SettingsIntegrationsStrings.project)
+    SettingsIntegrationsLoadView(
+      state: controller.scanState,
+      empty: controller.skills.isEmpty,
+      emptyMessage: SettingsIntegrationsStrings.noSkills
+    )
+    .listRowBackground(Color.clear)
   }
 
-  private var marketplaceList: some View {
-    List {
-      Section {
-        Picker(SettingsIntegrationsStrings.source, selection: $marketplace) {
-          Text(SettingsIntegrationsStrings.skillsSH).tag(SettingsSkillMarketplaceID.skillsSH)
-          Text(SettingsIntegrationsStrings.skillsDirectory).tag(
-            SettingsSkillMarketplaceID.skillsDirectory)
-        }
-        Picker(SettingsIntegrationsStrings.sort, selection: $sort) {
-          ForEach(SettingsSkillMarketplaceSort.allCases, id: \.self) { value in
-            Text(SettingsIntegrationsStrings.sort(value)).tag(value)
-          }
+  @ViewBuilder
+  private var marketplaceSections: some View {
+    Section {
+      Picker(SettingsIntegrationsStrings.source, selection: $marketplace) {
+        Text(SettingsIntegrationsStrings.skillsSH).tag(SettingsSkillMarketplaceID.skillsSH)
+        Text(SettingsIntegrationsStrings.skillsDirectory).tag(
+          SettingsSkillMarketplaceID.skillsDirectory)
+      }
+      Picker(SettingsIntegrationsStrings.sort, selection: $sort) {
+        ForEach(SettingsSkillMarketplaceSort.allCases, id: \.self) { value in
+          Text(SettingsIntegrationsStrings.sort(value)).tag(value)
         }
       }
-      if let result = controller.marketplace {
-        Section(SettingsIntegrationsStrings.marketplace) {
-          ForEach(result.skills) { skill in
-            marketplaceRow(skill)
-          }
-        }
-      }
-      SettingsIntegrationsLoadView(
-        state: controller.marketplaceState,
-        empty: controller.marketplace?.skills.isEmpty ?? true,
-        emptyMessage: SettingsIntegrationsStrings.noMarketplaceResults
-      )
-      .listRowBackground(Color.clear)
     }
-    .searchable(text: $query, prompt: SettingsIntegrationsStrings.searchMarketplace)
+    if let result = controller.marketplace {
+      Section(SettingsIntegrationsStrings.marketplace) {
+        ForEach(result.skills) { skill in
+          marketplaceRow(skill)
+        }
+      }
+    }
+    SettingsIntegrationsLoadView(
+      state: controller.marketplaceState,
+      empty: controller.marketplace?.skills.isEmpty ?? true,
+      emptyMessage: SettingsIntegrationsStrings.noMarketplaceResults
+    )
+    .listRowBackground(Color.clear)
   }
 
   @ViewBuilder
@@ -210,6 +211,23 @@ struct SettingsSkillsView: View {
       query: query,
       context: controller.access?.context
     )
+  }
+}
+
+private struct MarketplaceSearchModifier: ViewModifier {
+  let isActive: Bool
+  @Binding var query: String
+
+  func body(content: Content) -> some View {
+    if isActive {
+      content.searchable(
+        text: $query,
+        placement: .navigationBarDrawer(displayMode: .always),
+        prompt: SettingsIntegrationsStrings.searchMarketplace
+      )
+    } else {
+      content
+    }
   }
 }
 

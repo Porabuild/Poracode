@@ -3,7 +3,7 @@ import Foundation
 /// Narrow inbound sink for browser traffic carried on the shared event-stream socket.
 /// Implementations receive raw bytes plus the socket generation they arrived on so a
 /// frame from a superseded connection can be discarded without inspecting it.
-protocol BrowserMirrorSocketInboundSink: Sendable {
+protocol BrowserMirrorSocketInboundSink: AnyObject, Sendable {
   func receiveBrowserMirrorMessage(_ data: Data, socketGeneration: UInt64) async
 }
 

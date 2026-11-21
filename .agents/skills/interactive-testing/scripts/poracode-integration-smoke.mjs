@@ -219,6 +219,9 @@ async function runSmoke(plan) {
     );
     await installWindowErrorCollector(client);
     await runScenario(report, "baseline", () => baselineScenario(client));
+    if (plan.automated.includes("tool-headings")) {
+      await runScenario(report, "tool-headings", () => toolHeadingScenario(client));
+    }
     if (plan.automated.includes("settings")) {
       await runScenario(report, "settings", () => settingsScenario(client));
       await runScenario(report, "control-geometry", () => controlGeometryScenario(client));
@@ -329,6 +332,46 @@ async function baselineScenario(client) {
   const screenshotPath = join(outDir, "smoke-01-baseline.png");
   await screenshot(client, screenshotPath);
   return { ...state, screenshotPath };
+}
+
+async function toolHeadingScenario(client) {
+  const result = await evaluate(
+    client,
+    `window.__poracodeDev.loadToolPresentation().then(({deriveToolDisplay}) => {
+    const inputs = [
+      {name:'search', serverId:'workspace_docs', status:'success'},
+      {name:'mcp__workspace_docs__search', status:'success'},
+      {name:'workspace_docs-mcp-server-search', status:'success'},
+    ];
+    const before = JSON.stringify(inputs);
+    const titles = inputs.map(input => deriveToolDisplay(input).title);
+    return {titles, identitiesPreserved: JSON.stringify(inputs) === before};
+  })`,
+    true,
+  );
+  assert(
+    result.titles.length === 3 &&
+      result.titles.every((title) => title === "workspace docs: search"),
+    `MCP heading variants differ from the native advisory meaning: ${JSON.stringify(result)}`,
+  );
+  assert(result.identitiesPreserved, "MCP display formatting changed tool routing identities");
+  const workflow = await evaluate(
+    client,
+    `window.__poracodeDev.loadWorkflowPresentation().then(({parseWorkflowInfo}) => {
+    const payload={name:'workflow.fixture',status:'success',workflow:{runId:'run',transcriptDir:'/session/subagents/workflows/run',summary:'Review workspace'}};
+    const before=JSON.stringify(payload);const info=parseWorkflowInfo(payload);
+    return {info, unchanged:JSON.stringify(payload)===before};
+  })`,
+    true,
+  );
+  assert(
+    workflow.info.description === "Review workspace" &&
+      workflow.info.manifestPath === "/session/workflows/run.json",
+    `Canonical workflow interpretation changed: ${JSON.stringify(workflow)}`,
+  );
+  assert(workflow.unchanged, "Workflow presentation rewrote the canonical payload");
+  result.workflow = workflow.info;
+  return result;
 }
 
 async function settingsScenario(client) {

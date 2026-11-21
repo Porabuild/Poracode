@@ -9,7 +9,9 @@ import com.poracode.app.transport.richchat.MAX_IMAGE_RESPONSE_BYTES
 import com.poracode.app.transport.richchat.RuntimeImagePathSegment
 import com.poracode.app.transport.RemoteBinaryResponse
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.StateFlow
+import java.util.concurrent.ConcurrentHashMap
 
 /** Validates attachment/image ownership before exposing any network request plan. */
 class RichChatMediaController(
@@ -126,19 +128,97 @@ class RichChatMediaController(
         }
     }
 
-    suspend fun loadLocalImage(path: String): RichChatOperationResult<RemoteBinaryResponse> {
+    private data class ImageCacheKey(
+        val hostKey: RichChatHostKey,
+        val generation: Long,
+        val kind: String,
+        val id: String,
+        val variant: String?,
+    )
+
+    private val imageCacheLock = Any()
+    private val imageCache = LinkedHashMap<ImageCacheKey, RemoteBinaryResponse>(16, 0.75f, true)
+    private var imageCacheBytes = 0L
+    private val inFlightImages =
+        ConcurrentHashMap<ImageCacheKey, CompletableDeferred<RichChatOperationResult<RemoteBinaryResponse>>>()
+
+    fun clearImageCache() {
+        synchronized(imageCacheLock) {
+            imageCache.clear()
+            imageCacheBytes = 0L
+        }
+    }
+
+    private fun readCachedImage(key: ImageCacheKey): RemoteBinaryResponse? = synchronized(imageCacheLock) {
+        imageCache[key]
+    }
+
+    private suspend fun loadCoalescedImage(
+        cacheKey: ImageCacheKey,
+        host: RichChatHostLease,
+        fetch: suspend () -> RemoteBinaryResponse,
+    ): RichChatOperationResult<RemoteBinaryResponse> {
+        readCachedImage(cacheKey)?.let { return RichChatOperationResult.Success(it) }
+        if (cacheKey.variant != null) {
+            readCachedImage(cacheKey.copy(variant = null))?.let {
+                return RichChatOperationResult.Success(it)
+            }
+        }
+        val created = CompletableDeferred<RichChatOperationResult<RemoteBinaryResponse>>()
+        val existing = inFlightImages.putIfAbsent(cacheKey, created)
+        if (existing != null) return existing.await()
+        return try {
+            val result = load(host, fetch)
+            if (result is RichChatOperationResult.Success) {
+                storeCachedImage(cacheKey, result.value)
+            }
+            created.complete(result)
+            result
+        } catch (error: Throwable) {
+            created.completeExceptionally(error)
+            throw error
+        } finally {
+            inFlightImages.remove(cacheKey, created)
+        }
+    }
+
+    private fun storeCachedImage(key: ImageCacheKey, value: RemoteBinaryResponse) {
+        val size = value.bytes.size.toLong()
+        if (size <= 0L || size > MAX_CACHED_IMAGE_BYTES) return
+        synchronized(imageCacheLock) {
+            imageCache.remove(key)?.let { imageCacheBytes -= it.bytes.size.toLong() }
+            while (imageCache.isNotEmpty() &&
+                (imageCacheBytes + size > MAX_CACHED_IMAGE_BYTES || imageCache.size >= MAX_CACHED_IMAGES)
+            ) {
+                val oldest = imageCache.entries.iterator()
+                imageCacheBytes -= oldest.next().value.bytes.size.toLong()
+                oldest.remove()
+            }
+            imageCache[key] = value
+            imageCacheBytes += size
+        }
+    }
+
+    suspend fun loadLocalImage(
+        path: String,
+        variant: String? = null,
+    ): RichChatOperationResult<RemoteBinaryResponse> {
         if (path.isEmpty()) return RichChatOperationResult.Failed(RichChatOperationFailure.InvalidRequest)
         val (host, failure) = session.currentLease(RichChatCapability.Read)
         if (!lifecycle.isForeground) {
+            clearImageCache()
             return RichChatOperationResult.Failed(RichChatOperationFailure.Backgrounded)
         }
         if (failure != null || host == null) return RichChatOperationResult.Failed(failure!!)
-        return load(host) { gateway.loadLocalImage(host, path) }
+        val cacheKey = ImageCacheKey(host.key, host.generation, "local", path, variant)
+        return loadCoalescedImage(cacheKey, host) { gateway.loadLocalImage(host, path, variant) }
     }
 
     suspend fun loadRuntimeImage(
         ref: RichRemoteImageRef,
+        variant: String? = null,
     ): RichChatOperationResult<RemoteBinaryResponse> {
+        if (!lifecycle.isForeground) clearImageCache()
         val lease = prepare(RichChatCapability.Read) ?: return currentRejection()
         if (ref.threadId != lease.threadId || ref.bytes !in 0L..MAX_IMAGE_RESPONSE_BYTES) {
             return RichChatOperationResult.Failed(RichChatOperationFailure.InvalidRequest)
@@ -149,9 +229,16 @@ class RichChatMediaController(
                 is com.poracode.app.chat.RichImagePathPart.Index -> RuntimeImagePathSegment.Index(it.value)
             }
         }
-        return load(lease.host) {
-            gateway.loadRuntimeImage(lease.host, lease.threadId, ref.itemId, path)
+        val refId = "${lease.threadId}:${ref.itemId}:${path.joinToString("/")}"
+        val cacheKey = ImageCacheKey(lease.host.key, lease.host.generation, "runtime", refId, variant)
+        return loadCoalescedImage(cacheKey, lease.host) {
+            gateway.loadRuntimeImage(lease.host, lease.threadId, ref.itemId, path, variant)
         }
+    }
+
+    private companion object {
+        const val MAX_CACHED_IMAGES = 64
+        const val MAX_CACHED_IMAGE_BYTES = 24L * 1024L * 1024L
     }
 
     /**

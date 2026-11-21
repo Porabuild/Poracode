@@ -14,6 +14,43 @@ import Foundation
 
     static func applyIfRequested() {
       guard ProcessInfo.processInfo.arguments.contains(launchArgument) else { return }
+      if ProcessInfo.processInfo.arguments.contains("-native-e2e-custom-themes-fresh-state") {
+        UserDefaults.standard.removeObject(forKey: CustomThemeStore.storageKey)
+        if UserDefaults.standard.string(forKey: PoracodeThemePreset.storageKey)?.hasPrefix("custom:") == true {
+          UserDefaults.standard.removeObject(forKey: PoracodeThemePreset.storageKey)
+        }
+      }
+      if ProcessInfo.processInfo.arguments.contains("-native-e2e-news-fresh-state") {
+        for key in [HomeNewsMemoryStore.storageKey, HomeNewsPreferences.enabledKey, HomeNewsPreferences.activityKey] {
+          UserDefaults.standard.removeObject(forKey: key)
+        }
+        try? FileManager.default.removeItem(at: HomeNewsFeedCache.directory)
+      }
+      if ProcessInfo.processInfo.arguments.contains("-native-e2e-shortcuts-fresh-preferences") {
+        UserDefaults.standard.removeObject(forKey: HomeShortcutPreferences.storageKey)
+      }
+      if ProcessInfo.processInfo.arguments.contains("-native-e2e-keybindings-fresh-preferences") {
+        UserDefaults.standard.removeObject(forKey: NativeKeybindingStore.storageKey)
+      }
+      if ProcessInfo.processInfo.arguments.contains("-native-e2e-voice-fresh-preferences") {
+        UserDefaults.standard.removeObject(forKey: VoicePreferencesStore.key)
+      }
+      if ProcessInfo.processInfo.arguments.contains("-native-e2e-terminal-font-fresh-preferences") {
+        UserDefaults.standard.removeObject(forKey: TerminalFontPreference.storageKey)
+      }
+      if ProcessInfo.processInfo.arguments.contains("-native-e2e-notifications-fresh-preferences") {
+        for key in [
+          NotificationDeliveryPreference.storageKey, NotificationAlertPreference.soundStorageKey,
+          NotificationAlertPreference.foregroundStorageKey, NotificationAlertPreference.doneStorageKey,
+          NotificationAlertPreference.needsAttentionStorageKey, NotificationAlertPreference.errorStorageKey,
+        ] {
+          UserDefaults.standard.removeObject(forKey: key)
+        }
+      }
+      if ProcessInfo.processInfo.arguments.contains("-native-e2e-changelog-fresh-cache") {
+        try? FileManager.default.removeItem(at: ChangelogDiskCache.defaultDirectory)
+      }
+      UserDefaults.standard.removeObject(forKey: ComposerPreferencesStore.key)
       try? HostRegistryStore(directory: HostRegistryStore.productionDirectory()).remove()
       try? SystemKeychainIO(service: HostVault.service).deleteAll()
       try? SystemKeychainIO(service: SystemKeychainIO.service).deleteAll()

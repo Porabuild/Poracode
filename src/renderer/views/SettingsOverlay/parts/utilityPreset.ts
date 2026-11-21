@@ -7,9 +7,10 @@ import {
   readUtilitySelection,
   utilitySelectionOwner,
   type UtilityPresetEdit,
+  type UtilityPresetScalars,
 } from "@/renderer/utils/utilitySelection";
 
-type UtilityDomain = "titleGen" | "commitGen" | "conflictResolver";
+export type UtilityDomain = "titleGen" | "commitGen" | "conflictResolver";
 type UtilityKeyPrefix = UtilityDomain | `wsl${Capitalize<UtilityDomain>}`;
 
 /** The shared-settings keys one utility domain reads and writes. */
@@ -34,13 +35,79 @@ export function utilitySettingsKeys(domain: UtilityDomain, wsl: boolean): Utilit
   };
 }
 
-/** The complete stored tuple: the canonical object, else the scalar siblings. */
-function readStoredUtilitySelection(state: SharedSettings, keys: UtilitySettingsKeys) {
-  return readUtilitySelection(state[keys.canonical], {
+type UtilityDocument = Pick<SharedSettings, UtilitySettingsKeys[keyof UtilitySettingsKeys]>;
+type UtilityPresetValue = UtilityPresetScalars & { provider: string };
+
+export function readUtilityPreset(state: UtilityDocument, keys: UtilitySettingsKeys) {
+  return {
+    provider: state[keys.provider],
     model: state[keys.model],
     effort: state[keys.effort],
     fast: state[keys.fast],
+    selection: state[keys.canonical],
+  };
+}
+
+/** The same event applies to local settings and drafts owned by another desktop. */
+export function editUtilityPreset(
+  stored: ReturnType<typeof readUtilityPreset>,
+  { provider, model, effort, fast }: UtilityPresetValue,
+  edit: UtilityPresetEdit,
+  presentation: ThreadPresentationMode | undefined,
+): ModelSelection | undefined {
+  if (edit.kind === "family-noop" && stored.provider === provider) return undefined;
+  const previous = readUtilitySelection(stored.selection, stored);
+  const { selectionBinding: _binding, ...actual } = previous;
+  let candidate = actual;
+  switch (edit.kind) {
+    case "reset":
+      candidate = { model: "", effort: "", fast: false };
+      break;
+    case "model":
+      candidate = { ...actual, ...edit.patch, model };
+      break;
+    case "carrier":
+      candidate = { ...actual };
+      for (const axis of edit.axes) {
+        const value = edit.patch
+          ? edit.patch[axis]
+          : axis === "effort"
+            ? effort
+            : axis === "fast"
+              ? fast
+              : actual[axis];
+        delete candidate[axis];
+        if (value !== undefined) Object.assign(candidate, { [axis]: value });
+      }
+      break;
+    case "family-noop":
+    case "presentation":
+      break;
+  }
+  return applyUtilityPresetMutation({
+    previous,
+    previousProvider: stored.provider,
+    nextProvider: provider,
+    next: candidate,
+    owner: utilitySelectionOwner(provider, presentation ?? "terminal"),
+    // Only a declared presentation can mint a binding.
+    mintAllowed: presentation !== undefined,
+    edit,
   });
+}
+
+export function utilityPresetFields(
+  keys: UtilitySettingsKeys,
+  provider: string,
+  selection: ModelSelection,
+): Partial<UtilityDocument> {
+  return {
+    [keys.canonical]: selection,
+    [keys.provider]: provider,
+    [keys.model]: selection.model,
+    [keys.effort]: selection.effort ?? "",
+    [keys.fast]: selection.fast ?? false,
+  };
 }
 
 /** Apply only the deliberate event's fields over the complete previous tuple. */
@@ -58,47 +125,13 @@ export function createUtilityPresetSetter(input: {
     edit: UtilityPresetEdit,
   ) => {
     const state = useSharedSettings.getState();
-    if (edit.kind === "family-noop" && state[keys.provider] === provider) return;
-    const previous = readStoredUtilitySelection(state, keys);
-    const { selectionBinding: _binding, ...actual } = previous;
-    let candidate = actual;
-    switch (edit.kind) {
-      case "reset":
-        candidate = { model: "", effort: "", fast: false };
-        break;
-      case "model":
-        candidate = { ...actual, ...edit.patch, model };
-        break;
-      case "carrier":
-        candidate = { ...actual };
-        for (const axis of edit.axes) {
-          const value = edit.patch
-            ? edit.patch[axis]
-            : axis === "effort"
-              ? effort
-              : axis === "fast"
-                ? fast
-                : actual[axis];
-          delete candidate[axis];
-          if (value !== undefined) Object.assign(candidate, { [axis]: value });
-        }
-        break;
-      case "family-noop":
-      case "presentation":
-        break;
-    }
-    const next = applyUtilityPresetMutation({
-      previous,
-      previousProvider: state[keys.provider],
-      nextProvider: provider,
-      next: candidate,
-      owner: utilitySelectionOwner(provider, input.presentation ?? "terminal"),
-      // Mint only from a declared presentation. Title and commit pass
-      // ONE_SHOT_UTILITY_PRESENTATION; an unset presentation still refuses.
-      mintAllowed: input.presentation !== undefined,
+    const next = editUtilityPreset(
+      readUtilityPreset(state, keys),
+      { provider, model, effort, fast },
       edit,
-    });
-    persistUtilityPreset(keys, provider, next, input.setScalars);
+      input.presentation,
+    );
+    if (next) persistUtilityPreset(keys, provider, next, input.setScalars);
   };
 }
 
@@ -110,17 +143,9 @@ export function setUtilityPresentation(wsl: boolean, presentation: ThreadPresent
     ? "wslConflictResolverPresentationMode"
     : "conflictResolverPresentationMode";
   if (state[presentationKey] === presentation) return;
-  const previous = readStoredUtilitySelection(state, keys);
-  const { selectionBinding: _binding, ...actual } = previous;
-  const next = applyUtilityPresetMutation({
-    previous,
-    next: actual,
-    previousProvider: state[keys.provider],
-    nextProvider: state[keys.provider],
-    owner: utilitySelectionOwner(state[keys.provider], presentation),
-    mintAllowed: false,
-    edit: { kind: "presentation" },
-  });
+  const stored = readUtilityPreset(state, keys);
+  const next = editUtilityPreset(stored, stored, { kind: "presentation" }, presentation);
+  if (!next) return;
   const setScalars = wsl ? state.setWslConflictResolverConfig : state.setConflictResolverConfig;
   persistUtilityPreset(keys, state[keys.provider], next, setScalars, {
     [presentationKey]: presentation,
@@ -137,11 +162,7 @@ function persistUtilityPreset(
 ): void {
   useSharedSettings.setState({
     ...extra,
-    [keys.canonical]: next,
-    [keys.provider]: provider,
-    [keys.model]: next.model,
-    [keys.effort]: next.effort ?? "",
-    [keys.fast]: next.fast ?? false,
+    ...utilityPresetFields(keys, provider, next),
   });
   setScalars(provider, next.model, next.effort ?? "", next.fast ?? false);
 }

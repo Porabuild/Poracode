@@ -37,8 +37,28 @@ import { persistedPromptIndexSchema } from "../../../ipc/schemas";
 import type { RemoteHttpRouteContract } from "../types";
 import { historyItemDetailSchema, historyItemDetailQuerySchema } from "../../historyPresentation";
 import { historyResumeQuerySchema, historyResumeResponseSchema } from "../../historyResume";
+import {
+  runtimeItemPresentationRequestSchema,
+  runtimeItemPresentationResponseSchema,
+  runtimeItemPresentationQuerySchema,
+} from "../../../contracts/runtimeItemPresentation";
 
 export const threadRoutes: readonly RemoteHttpRouteContract[] = [
+  defineRoute({
+    id: "thread-item-presentations",
+    method: "POST",
+    path: "/api/threads/{threadId}/item-presentations",
+    auth: "bearer",
+    scopes: ["session:read"],
+    audit: noAudit("read"),
+    queryParameters: ["notices", "maxBytes", "maxDecodeBytes"],
+    request: {
+      bodyKind: "json",
+      jsonSchema: runtimeItemPresentationRequestSchema,
+      querySchema: runtimeItemPresentationQuerySchema,
+    },
+    response: { wireKind: "json", status: 200, jsonSchema: runtimeItemPresentationResponseSchema },
+  }),
   defineRoute({
     id: "thread-agent-vision",
     method: "GET",
@@ -66,6 +86,9 @@ export const threadRoutes: readonly RemoteHttpRouteContract[] = [
       "cursor",
       "afterSeq",
       "projection",
+      "deferBodies",
+      "targetTimelineEntryCount",
+      "omitScrollback",
       "maxBytes",
       "maxDecodeBytes",
     ],

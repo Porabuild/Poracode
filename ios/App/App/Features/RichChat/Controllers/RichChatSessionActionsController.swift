@@ -17,6 +17,14 @@ struct RichChatSessionActionOwner: Equatable, Sendable {
   var executionIdentity: String?
 }
 
+extension RichChatSessionActionOwner {
+  init(thread: RemoteThread) {
+    self.init(threadID: thread.id, agentKind: thread.agentKind, agentInstanceID: thread.agentInstanceId,
+      presentationMode: thread.presentationMode, sessionRefID: thread.sessionRef?.providerSessionID,
+      executionIdentity: thread.sessionRef?.executionIdentity)
+  }
+}
+
 /// Neutral live session-action state for one selected conversation.
 struct RichChatSessionActionsControllerState: Equatable, Sendable {
   var access: RichChatSessionAccess?

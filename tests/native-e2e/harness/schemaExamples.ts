@@ -30,6 +30,7 @@ const STRING_EXAMPLES: Readonly<Record<string, string>> = {
   hash: FIXTURE_RUNTIME_HASH,
   headBranch: "fixture-branch",
   hostKeyFingerprint: FIXTURE_FINGERPRINT,
+  inputDigest: FIXTURE_RUNTIME_HASH,
   itemId: "item-fixture-assistant",
   manifestPath: "/tmp/native-e2e-fixture/workflow.json",
   message: "fixture message",

@@ -35,9 +35,13 @@ extension AppSession {
 
   func makeThreadLifecycleController() -> ThreadLifecycleController {
     ThreadLifecycleController(
-      gateway: SelectedThreadSessionGateway { @MainActor [weak self] in
+      gateway: SelectedThreadSessionGateway(prepareStart: { [weak self] target, request, commandID in
+        try await self?.prepareSideChatStart(target: target, request: request, commandID: commandID) ?? request
+      }, prepareRelaunch: { [weak self] target, request, commandID in
+        try await self?.prepareSideChatRelaunch(target: target, request: request, commandID: commandID) ?? request
+      }, selectionProvider: { @MainActor [weak self] in
         self?.currentThreadLifecycleSelection
-      },
+      }),
       authoritativeRefresh: { @MainActor [weak self] lease in
         guard self?.currentThreadHostLease == lease else { return }
         await self?.refreshSnapshot()

@@ -131,6 +131,7 @@ extension GeneratedRemoteV3Contract {
     if let segments = input.segments {
       payload["segments"] = .array(segments.map(\.richChatWireValue))
     }
+    if let context = input.clientContext { payload["clientContext"] = context.richChatWireValue }
     return try richProcedureRequest(.queueThreadFollowUp, payload: payload)
   }
 

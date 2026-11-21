@@ -1,4 +1,5 @@
 import Foundation
+import SwiftUI
 import XCTest
 @testable import App
 
@@ -12,6 +13,31 @@ final class RichChatFilePolicyTests: XCTestCase {
   )
 
   // MARK: - Source safety
+
+  func testEditableAttachmentTargetsUseTheOwningWorkspaceAndKeepDecodedPaths() throws {
+    for filename in ["report.txt", "report.CSV", "report.tsv", "report.pdf"] {
+      XCTAssertTrue(RichChatFilePolicy.usesWorkspaceBasenameLookup(filename), filename)
+      XCTAssertFalse(RichChatFilePolicy.usesWorkspaceBasenameLookup("reports/\(filename)"), filename)
+    }
+    XCTAssertFalse(RichChatFilePolicy.usesWorkspaceBasenameLookup("report.zip"))
+    XCTAssertFalse(RichChatFilePolicy.usesWorkspaceBasenameLookup("/repo/app/report.txt"))
+
+    let bare = try XCTUnwrap(RichChatProjectFileLink.attachmentTarget("Audit.txt", in: posix))
+    XCTAssertEqual(bare.path, "Audit.txt")
+    XCTAssertTrue(bare.resolvesBareName)
+
+    let markdown = try XCTUnwrap(RichChatFilePolicy.markdownFileRef(src: "reports/Audit%20%2520.TSV"))
+    let table = try XCTUnwrap(RichChatProjectFileLink.attachmentTarget(markdown.path, in: posix))
+    XCTAssertEqual(table.path, "reports/Audit %20.TSV")
+    XCTAssertFalse(table.resolvesBareName)
+    XCTAssertEqual(RichChatProjectFileLink.attachmentTarget("C:\\REPO\\app\\reports\\Audit.CSV", in: windows)?.path,
+      "reports/Audit.CSV")
+    XCTAssertEqual(RichChatProjectFileLink.attachmentTarget("/repo/app/Audit.txt", in: wsl)?.path, "Audit.txt")
+    XCTAssertFalse(try XCTUnwrap(RichChatProjectFileLink.attachmentTarget("/repo/app/Audit.txt", in: posix)).resolvesBareName)
+    for path in ["../external.txt", "/other/Audit.txt", "reports/report.pdf", "reports/file.csv/"] {
+      XCTAssertNil(RichChatProjectFileLink.attachmentTarget(path, in: posix), path)
+    }
+  }
 
   func testSafeSourcesAcceptLocalRefs() {
     XCTAssertTrue(RichChatFilePolicy.isSafeFileSource("out/a.zip"))
@@ -230,5 +256,129 @@ final class RichChatFilePolicyTests: XCTestCase {
     XCTAssertFalse(
       RichChatFilePolicy.isAttachmentResponse(
         contentDisposition: "attachment", contentType: nil))
+  }
+
+  func testSourceReferenceOpensOnlyAFileInTheThreadWorkspaceAndDecodesOnce() throws {
+    let location = ProjectLocation.posix(path: "/workspace/project")
+    XCTAssertEqual(
+      RichChatProjectFileLink.target("./README.md:48", in: location, markdown: true),
+      .init(path: "README.md", line: 48)
+    )
+    XCTAssertEqual(
+      RichChatProjectFileLink.target("/workspace/project/src/app.swift#L7-L10", in: location, markdown: true),
+      .init(path: "src/app.swift", line: 7)
+    )
+    XCTAssertEqual(
+      RichChatProjectFileLink.target("https://poracode.local/path/v2/src%2Fhas%2520percent.swift?line=3",
+        in: location, markdown: true),
+      .init(path: "src/has%20percent.swift", line: 3)
+    )
+    XCTAssertEqual(
+      RichChatProjectFileLink.target("poracode:path:src%2Fapp.swift%3A7", in: location, markdown: true),
+      .init(path: "src/app.swift", line: 7)
+    )
+    let future = try XCTUnwrap(URL(string: "https://poracode.local/path/v3/README.md?line=8"))
+    XCTAssertNil(RichChatProjectFileLink.target(future.absoluteString, in: location, markdown: true))
+    XCTAssertFalse(RichChatProjectFileLink.isExternal(future))
+    for value in ["../private.swift", "/workspace/project-other/README.md", "%2e%2e/README.md", "src/…/file.swift", "src/"] {
+      XCTAssertNil(RichChatProjectFileLink.target(value, in: location, markdown: true), value)
+    }
+    let reference = ProjectWorkspaceFileTarget(path: "src/has%20percent.swift", line: 3)
+    let url = try XCTUnwrap(RichChatProjectFileLink.url(for: reference))
+    XCTAssertEqual(RichChatProjectFileLink.target(from: url, in: location), reference)
+    let unsafe = try XCTUnwrap(RichChatProjectFileLink.url(for: .init(path: "../private.swift")))
+    XCTAssertNil(RichChatProjectFileLink.target(from: unsafe, in: location))
+  }
+  @MainActor
+  func testTranscriptSourceLinksRetainTheirVisibleLabelsAndLine() {
+    let parsed = RichChatAttributedText.presentation(
+      "Open [Linked source](./README.md:48) or `README.md:48`. [Web](https://example.test/)",
+      projectLocation: posix
+    )
+    let targets = parsed.runs.compactMap { run in
+      run.link.flatMap { RichChatProjectFileLink.target(from: $0, in: posix) }
+    }
+    XCTAssertEqual(targets, Array(repeating: .init(path: "README.md", line: 48), count: 2))
+    XCTAssertTrue(String(parsed.characters).contains("Open Linked source or README.md:48."))
+    XCTAssertTrue(parsed.runs.contains { $0.link?.host == "example.test" })
+    XCTAssertNil(RichChatAttributedText.standaloneSourceReference(in: parsed, projectLocation: posix))
+  }
+
+  @MainActor
+  func testOnlyStandaloneProjectLinksUseAFileChip() throws {
+    for source in ["[Linked **source**](./src/README.md:48)", "`src/README.md:48`"] {
+      let parsed = RichChatAttributedText.presentation(source, projectLocation: posix)
+      let reference = try XCTUnwrap(
+        RichChatAttributedText.standaloneSourceReference(in: parsed, projectLocation: posix)
+      )
+      XCTAssertEqual(reference.filename, "README.md")
+      XCTAssertEqual(reference.target, .init(path: "src/README.md", line: 48))
+      XCTAssertNil(RichChatAttributedText.standaloneSourceReference(in: parsed, projectLocation: nil))
+    }
+    for source in ["[Web](https://example.test/)", "[Outside](../README.md:48)",
+      "[First](./README.md:48) [Second](./README.md:48)"] {
+      let parsed = RichChatAttributedText.presentation(source, projectLocation: posix)
+      XCTAssertNil(RichChatAttributedText.standaloneSourceReference(in: parsed, projectLocation: posix))
+    }
+  }
+
+  @MainActor
+  func testSourceBadgeAndInlineReferenceUseChatTextLineHeight() async throws {
+    let linked = RichChatAttributedText.presentation("[Source](./README.md:48)", projectLocation: posix)
+    let reference = try XCTUnwrap(
+      RichChatAttributedText.standaloneSourceReference(in: linked, projectLocation: posix)
+    )
+    let links = [
+      RichChatAttributedText.presentation("Read the [source](./README.md:48).", projectLocation: posix),
+      RichChatAttributedText.presentation("Open [Apple Developer](https://developer.apple.com).", projectLocation: posix),
+    ]
+    let sizes = [DynamicTypeSize.large, .xxxLarge, .accessibility2]
+    var heights: [String: CGFloat] = [:]
+    func measured(_ view: some View, id: String) -> some View {
+      view.onGeometryChange(for: CGFloat.self) { $0.size.height } action: { heights[id] = $0 }
+    }
+    let scene = try XCTUnwrap(UIApplication.shared.connectedScenes.first as? UIWindowScene)
+    let previous = scene.windows.first(where: \.isKeyWindow)
+    let window = UIWindow(windowScene: scene)
+    window.rootViewController = UIHostingController(rootView:
+      ScrollView {
+        VStack(alignment: .leading, spacing: 0) {
+          ForEach(Array(sizes.enumerated()), id: \.offset) { index, size in
+            VStack(alignment: .leading, spacing: 0) {
+              measured(Text("Inspect the source").poracodeChatText(.body), id: "\(index)-body")
+              measured(RichChatSourceReferenceChip(reference: reference, findPart: .body), id: "\(index)-badge")
+              ForEach(Array(links.enumerated()), id: \.offset) { linkIndex, inline in
+                measured(Text(String(inline.characters)).poracodeChatText(.body), id: "\(index)-text-\(linkIndex)")
+                measured(RichChatInlineLinkText(text: inline, part: .body).poracodeChatText(.body),
+                  id: "\(index)-link-\(linkIndex)")
+              }
+            }
+            .environment(\.dynamicTypeSize, size)
+          }
+        }
+        .frame(width: 430, alignment: .leading)
+      }
+    )
+    window.makeKeyAndVisible()
+    defer { window.isHidden = true; previous?.makeKey() }
+    for _ in 0..<100 where heights.count < sizes.count * (2 + links.count * 2) {
+      try await Task.sleep(for: .milliseconds(20))
+    }
+
+    for (index, size) in sizes.enumerated() {
+      XCTAssertEqual(try XCTUnwrap(heights["\(index)-badge"]), try XCTUnwrap(heights["\(index)-body"]),
+        accuracy: 1, "\(size)")
+      for linkIndex in links.indices {
+        XCTAssertEqual(try XCTUnwrap(heights["\(index)-link-\(linkIndex)"]),
+          try XCTUnwrap(heights["\(index)-text-\(linkIndex)"]), accuracy: 1, "\(size)")
+      }
+    }
+  }
+
+  @MainActor
+  func testLineAnchorUsesUTF16OffsetsAndClampsToTheFileEnd() {
+    let text = "é\r\n日本\nlinked line"
+    XCTAssertEqual(ProjectLinkedTextEditor.lineAnchor(3, in: text).location, 6)
+    XCTAssertEqual(ProjectLinkedTextEditor.lineAnchor(999, in: text).location, text.utf16.count)
   }
 }

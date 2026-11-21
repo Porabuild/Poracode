@@ -210,7 +210,7 @@ private fun StatusText(text: String) {
 
 @Composable
 private fun HtmlSource(html: String) {
-    Box(Modifier.padding(8.dp)) { MarkdownCodeBlock(RichMarkdownBlock.Code("html", html)) }
+    Box(Modifier.padding(8.dp)) { MarkdownCodeBlock(RichMarkdownBlock.Code("html", html), showsCopyAction = false) }
 }
 
 @Composable

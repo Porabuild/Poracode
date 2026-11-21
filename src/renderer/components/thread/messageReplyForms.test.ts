@@ -72,6 +72,16 @@ describe("message reply projections", () => {
     expect(reply.payload).not.toHaveProperty("questionAnswer");
   });
 
+  it("hydrates an older prompt-only user message as an ordinary reply", () => {
+    const current = state([
+      question,
+      { ...reply, payload: { prompt: "Continue the conversation" } },
+    ]);
+    expect(selectPendingMessageReplyIds(current, "thread")).toEqual([]);
+    expect(selectMessageReplyState(current, "thread", question.id)).toBe("answered");
+    expect(selectMessageReplyAnswer(current, "thread", reply.id)).toBeUndefined();
+  });
+
   it.each([question.id, "other-question"])(
     "resolves only the submitted source %s even when question text is identical",
     (sourceItemId) => {

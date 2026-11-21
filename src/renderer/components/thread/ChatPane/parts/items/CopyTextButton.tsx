@@ -9,6 +9,7 @@ interface CopyTextButtonProps {
   text: string;
   /** Idle tooltip / aria-label (already translated), e.g. t`Copy message`. */
   label: string;
+  className?: string;
 }
 
 /**
@@ -16,7 +17,7 @@ interface CopyTextButtonProps {
  * its tooltip to "Copied" for a moment. Shared by the user/assistant message
  * action strips and markdown code blocks.
  */
-export function CopyTextButton({ text, label }: CopyTextButtonProps) {
+export function CopyTextButton({ text, label, className = "" }: CopyTextButtonProps) {
   const { t } = useLingui();
   const [copyState, setCopyState] = useState<"idle" | "copied">("idle");
   const [isTooltipOpen, setIsTooltipOpen] = useState(false);
@@ -33,13 +34,13 @@ export function CopyTextButton({ text, label }: CopyTextButtonProps) {
 
   return (
     <Tooltip delay={300} isOpen={isTooltipOpen} onOpenChange={setIsTooltipOpen}>
-      <Tooltip.Trigger>
+      <Tooltip.Trigger tabIndex={-1} role="none">
         <Button
           variant="ghost"
           size="sm"
           isIconOnly
           aria-label={copyState === "copied" ? t`Copied` : label}
-          className="size-6 min-w-6 text-muted"
+          className={`size-6 min-w-6 text-muted ${className}`}
           onClick={(event) => event.stopPropagation()}
           onPress={() => {
             navigator.clipboard

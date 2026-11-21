@@ -34,29 +34,21 @@ struct SessionLease: Hashable, Sendable, Equatable {
 }
 
 enum SessionPoolEviction {
-    static let maxLiveSockets = 2
-
-    /// Deterministic victims: anyone not in `{selected, secondary}` , sorted by id.
-    static func victims(
-        live: [SessionPoolKey],
-        selected: SessionPoolKey?,
-        secondary: SessionPoolKey?
-    ) -> [SessionPoolKey] {
-        let allowed = Set([selected, secondary].compactMap { $0 })
-        return live
-            .filter { !allowed.contains($0) }
-            .sorted(by: Self.lessThan)
-    }
-
+    /// Foreground clients keep every paired host current. The selected key
+    /// still owns commands; presence here only permits that host's own socket.
     static func allowedKeys(
         selected: ClientConnectionID?,
-        lru: [ClientConnectionID]
-    ) -> (selected: SessionPoolKey?, secondary: SessionPoolKey?) {
-        if let selected {
-            let secondary = lru.first { $0 != selected }
-            return (.host(selected), secondary.map { .host($0) })
-        }
-        return (.legacy, nil)
+        paired: [ClientConnectionID]
+    ) -> [SessionPoolKey] {
+        let selectedKey = selected.map(SessionPoolKey.host) ?? .legacy
+        var seen: Set<SessionPoolKey> = [selectedKey]
+        return [selectedKey] + paired.map(SessionPoolKey.host).filter { seen.insert($0).inserted }
+    }
+
+    /// Only removed/unpaired hosts are evicted, in a deterministic order.
+    static func victims(live: [SessionPoolKey], allowed: [SessionPoolKey]) -> [SessionPoolKey] {
+        let allowed = Set(allowed)
+        return live.filter { !allowed.contains($0) }.sorted(by: Self.lessThan)
     }
 
     static func lessThan(_ lhs: SessionPoolKey, _ rhs: SessionPoolKey) -> Bool {

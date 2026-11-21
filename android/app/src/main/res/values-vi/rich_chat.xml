@@ -256,6 +256,7 @@
     <string name="rich_chat_background_task_last_progress">Tiến độ gần nhất cách đây %1$s</string>
     <string name="rich_chat_background_task_close">Đóng chi tiết tác vụ</string>
     <string name="rich_chat_background_task_report_missing">Tác vụ đã kết thúc mà không có báo cáo hoàn thành.</string>
+    <string name="rich_chat_copy_code">Sao chép mã</string>
     <string name="rich_chat_copy_message">Sao chép tin nhắn</string>
     <string name="rich_chat_add_to_composer">Thêm vào trình soạn thảo</string>
     <string name="rich_chat_file">tập tin</string>

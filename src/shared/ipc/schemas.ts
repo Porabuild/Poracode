@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { runtimeItemPresentationSnapshotSlotSchema } from "../contracts/runtimeItemPresentationSnapshot";
 import {
   agentKindSchema,
   hasSendableInput,
@@ -149,10 +150,12 @@ export const workflowAgentChatPayloadSchema = z.object({
 export type WorkflowAgentChatPayload = z.infer<typeof workflowAgentChatPayloadSchema>;
 export interface WorkflowAgentChatResult {
   events: RuntimeEvent[];
+  itemPresentations?: z.infer<typeof runtimeItemPresentationSnapshotSlotSchema> | undefined;
 }
 
 export const workflowAgentChatResultSchema: z.ZodType<WorkflowAgentChatResult> = z.object({
   events: z.array(runtimeEventSchema),
+  itemPresentations: runtimeItemPresentationSnapshotSlotSchema.optional(),
 });
 
 export const dbStateKeySchema = z.string().min(1);

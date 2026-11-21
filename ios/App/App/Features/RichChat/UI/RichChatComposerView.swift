@@ -1,13 +1,8 @@
 import SwiftUI
 
-struct RichChatUploadedAttachment: Identifiable, Equatable {
-  let id = UUID()
-  let name: String
-  let mimeType: String
-  let remotePath: String
-}
-
 struct RichChatComposerView: View {
+  @Environment(\.composerVoiceHost) private var voiceHost
+  @Environment(\.composerPreferences) var preferences
   @Binding var draft: String
   @Binding var attachments: [RichChatUploadedAttachment]
   @Binding var skills: [RichChatSelectedSkill]
@@ -22,37 +17,47 @@ struct RichChatComposerView: View {
   let canResolveRequests: Bool
   let mediaController: RichChatMediaController
   let agentKind: String
+  var agentInstanceID: String? = nil
   @Binding var configuration: ThreadConfig
   let agentStatus: AgentStatusRecord?
   let threadSlashCommands: [RemoteSlashCommand]?
-  /// Live negotiated session controls for the open thread; nil keeps every
-  /// composer control on the static capability projection.
   let sessionConfigOptions: JSONValue?
   let canConfigure: Bool
   var hasStartedSession: Bool = false
-  /// User-saved visibility lists for the model picker; empty keeps the
-  /// provider's advertised defaults in charge.
+  var launchConfiguration = ThreadConfig.empty
   var hiddenModels: [String: [String]] = [:]
   let fileMentionController: RichChatFileMentionController
   let onSubmissionStarted: () -> Void
   let onSubmissionFinished: (_ succeeded: Bool) -> Void
   let skillPickerContext: RichChatSkillPickerContext?
-  /// Neutral live session actions; nil (or an empty inventory) adds no entry.
   var sessionActions: RichChatSessionActionsController?
-  /// Explicit draft insertion only; a revise suggestion is never sent by the app.
   var onInsertIntoComposer: (String) -> Void = { _ in }
-  /// Cut-off turn resume and the send-settled hook (RichChatComposerResume.swift).
   var resumeContext = RichChatComposerResumeContext()
+  var openSideChat: (() -> Void)?
+  var sideQuestion: (@MainActor (String) async -> Bool)?
+  var crewContext: RichChatCrewComposerContext?
+  var controlsDestination: Binding<RichChatComposerControlsPresentation?>?
+  var stateOwnerID: ObjectIdentifier? = nil
+  var isConnectingHost = false
+  var restoredPromptOrder: RichChatRestoredPromptOrder? = nil
+  var draftRestoration: RichChatDraftRestorationAction? = nil
 
   @State private var importing = false
+  @State var transferringSideQuestion = false
   @State private var attachmentError: String?
-  @State private var controlsPresented: RichChatComposerControlsPresentation?
+  @State var localControlsPresented: RichChatComposerControlsPresentation?
   @State private var showsSkillPicker = false
   @State private var draftSelection: NSRange?
-  @Namespace private var composerGlassNamespace
+  @State private var keyboardOwnerID = UUID()
+  @State var restorePromptAfterControls = false
+  @State private var keyboardFocusRequest: UInt64 = 0
 
   var body: some View {
     VStack(spacing: 6) {
+      if let draftRestoration, canOperate {
+        draftRestoration
+          .disabled(controller.state.isSending || controller.state.activeMutation != nil)
+      }
       if !attachments.isEmpty || !skills.isEmpty || !mcps.isEmpty || !queuedSegments.isEmpty {
         RichChatComposerContextBar(
           attachments: $attachments,
@@ -72,36 +77,34 @@ struct RichChatComposerView: View {
         composerRow
       } else {
         PoracodeStatusBubble {
-          Label(RichChatStrings.readOnly, systemImage: "lock")
+          Label(
+            isConnectingHost ? HostStrings.statusConnecting : RichChatStrings.readOnly,
+            systemImage: isConnectingHost ? "network" : "lock"
+          )
             .font(.footnote)
             .foregroundStyle(.secondary)
         }
       }
     }
-    .padding(.horizontal, 16)
-    .padding(.vertical, 8)
-    .sheet(item: $controlsPresented) { presentation in
-      if presentation == .crew {
-        crewRosterSheet
-      } else {
-        RichChatComposerControlsSheet(
-          configuration: $configuration,
-          agentStatus: agentStatus,
-          presentationMode: .gui,
-          sessionConfigOptions: sessionConfigOptions,
-          hiddenModels: hiddenModels,
-          hasStartedSession: hasStartedSession
-        )
-        .poracodeZoomTransition(sourceID: "richchat.composer-controls", in: composerGlassNamespace)
-      }
+    .padding(.leading, 16)
+    .padding(.trailing, 8)
+    .padding(.bottom, 8)
+    .modifier(NativeComposerCommands(ownerID: keyboardOwnerID, configuration: $configuration, catalog: slashCommandCatalog,
+      enabled: canOperate && canConfigure && agentStatus != nil,
+      chooseModel: openKeyboardModelPicker, stateOwnerID: stateOwnerID))
+    .sheet(item: controlsBinding, onDismiss: {
+      guard restorePromptAfterControls else { return }
+      restorePromptAfterControls = false
+      if composerExpanded && canOperate { keyboardFocusRequest &+= 1 }
+    }) { presentation in
+      composerControlsSheet(presentation)
     }
     .sheet(isPresented: $showsSkillPicker) {
-      if let skillPickerContext {
-        RichChatComposerSkillPicker(context: skillPickerContext, selection: $skills)
-      }
+      composerSkillsSheet
     }
     .onAppear { fileMentionController.update(draft: draft) }
     .onChange(of: draft) { _, value in fileMentionController.update(draft: value) }
+    .onChange(of: restoredPromptOrder) { _, _ in draftSelection = NSRange(location: draft.utf16.count, length: 0) }
   }
 
   private var composerRow: some View {
@@ -109,30 +112,22 @@ struct RichChatComposerView: View {
       !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
       || !queuedSegments.isEmpty || !skills.isEmpty || !mcps.isEmpty
     let canSend = hasPrompt || !attachments.isEmpty
-    let canOpenControls = agentStatus != nil && canConfigure
     let resume = resumeAction(canSend: canSend)
     let placeholder =
       (agentStatus?.label).map { RichChatStrings.messageAgent($0) } ?? RichChatStrings.message
     return RichChatAdaptiveComposer(
       text: $draft,
       selection: $draftSelection,
-      isExpanded: $composerExpanded,
+      isExpanded: $composerExpanded, controlsVisible: controlsPresented != nil || voiceHost?.request?.owner == voiceOwner,
+      keyboardOwnerID: keyboardOwnerID,
+      keyboardFocusRequest: keyboardFocusRequest,
       hasPrompt: hasPrompt,
       hasTrailingAction: canSend || isTurnActive || controller.state.isSending || resume != nil,
       placeholder: placeholder,
       submit: { send() }
     ) {
-      RichChatComposerInlineConfiguration(
-        agentKind: agentKind,
-        configuration: configuration,
-        catalog: slashCommandCatalog,
-        canOpen: canOpenControls,
-        crew: crewPresentation,
-        openCrew: { controlsPresented = .crew },
-        glassNamespace: composerGlassNamespace,
-        open: { controlsPresented = .controls }
-      )
-    } toolbar: {
+      composerSelectors(expandsComposer: true)
+    } leading: {
       if let sessionActions {
         RichChatSessionActionsControls(
           controller: sessionActions,
@@ -145,30 +140,16 @@ struct RichChatComposerView: View {
       } else {
         attachmentButton()
       }
-      RichChatComposerInlineConfiguration(
-        agentKind: agentKind,
-        configuration: configuration,
-        catalog: slashCommandCatalog,
-        canOpen: canOpenControls,
-        showsStatusIcons: false,
-        glassNamespace: composerGlassNamespace,
-        open: { controlsPresented = .controls }
-      )
-      RichChatComposerConfigurationIcon(
-        systemImage: configuration.mode == "plan" ? "list.bullet.clipboard" : "hammer",
-        canOpen: canOpenControls,
-        open: { controlsPresented = .controls }
-      )
-      RichChatComposerConfigurationIcon(
-        systemImage: "checkmark.shield",
-        canOpen: canOpenControls,
-        open: { controlsPresented = .controls }
-      )
+    } configuration: {
+      composerSelectors()
+    } voice: {
+      ComposerVoiceButton(owner: voiceOwner, text: $draft, selection: $draftSelection,
+        isEnabled: canOperate && !controller.state.isSending, keyboardOwnerID: keyboardOwnerID, stateOwnerID: stateOwnerID)
     } trailing: {
       RichChatComposerTrailingAction(
         hasPrompt: canSend,
         isTurnActive: isTurnActive,
-        isSending: controller.state.isSending,
+        isSending: controller.state.isSending || transferringSideQuestion,
         showsSendWhenEmpty: composerExpanded,
         importing: importing,
         isResolvingRequest: requestController.state.resolvingRequestID != nil,
@@ -178,6 +159,20 @@ struct RichChatComposerView: View {
         send: { send() }
       )
     }
+  }
+
+  private var voiceOwner: VoiceInputOwner? {
+    controller.state.target.map { .init(lease: $0.lease, conversationID: $0.threadID) }
+  }
+
+  private func composerSelectors(expandsComposer: Bool = false) -> some View {
+    RichChatComposerSelectors(
+      configuration: $configuration, agentKind: agentKind, catalog: slashCommandCatalog,
+      canConfigure: agentStatus != nil && canConfigure, hasStartedSession: hasStartedSession,
+      openAll: { if ThreadCrewBinding(wire: configuration.crew) != nil { openCrewEditor() } else { controlsPresented = .controls } },
+      expandComposer: expandsComposer ? { composerExpanded = true } : nil,
+      openCrew: ThreadCrewBinding(wire: configuration.crew) == nil ? nil : { openCrewEditor() }
+    )
   }
 
   private func attachmentButton(
@@ -193,6 +188,11 @@ struct RichChatComposerView: View {
       disabled: controller.state.isSending,
       openSkills: skillPickerContext == nil ? nil : { showsSkillPicker = true },
       openControls: canOpenControls ? { controlsPresented = .controls } : nil,
+      configuration: $configuration,
+      launchConfiguration: launchConfiguration,
+      planModes: canOpenControls ? slashCommandCatalog.modeOptions(for: configuration.model) : [],
+      openCrew: crewPresentation == nil ? nil : { openCrewEditor() },
+      openSideChat: openSideChat,
       compactToolbar: true,
       sessionActionEntries: entries,
       sessionActionsDisabled: sessionActions?.state.pendingActionID != nil,
@@ -201,16 +201,19 @@ struct RichChatComposerView: View {
       retrySessionActions: { Task { await sessionActions?.refreshInventory() } }
     )
     .controlSize(.small)
-    .frame(width: 32, height: 32)
+    .frame(width: 44, height: 44)
   }
 
-  private var slashCommandCatalog: RichChatComposerControlCatalog {
+  var slashCommandCatalog: RichChatComposerControlCatalog {
     RichChatComposerControlCatalog(
       agentStatus: agentStatus,
       presentationMode: .gui,
       configuration: configuration,
       threadSlashCommands: threadSlashCommands,
-      sessionConfigOptions: sessionConfigOptions
+      sessionConfigOptions: sessionConfigOptions, hiddenModels: hiddenModels,
+      agentInstanceID: agentInstanceID,
+      modelPreferences: preferences?.modelPreferences(for: .init(agentKind: agentKind,
+        agentInstanceID: agentInstanceID, presentationMode: .gui)) ?? [:]
     )
   }
 
@@ -247,6 +250,7 @@ struct RichChatComposerView: View {
   }
 
   private func send(queueInsteadOfSteer: Bool = false) {
+    guard !transferringSideQuestion, !transferSideQuestionIfPresent() else { return }
     let typedText = draft.trimmingCharacters(in: .whitespacesAndNewlines)
     let structuredPrompt =
       queuedSegments.compactMap(\.promptText)
@@ -255,42 +259,41 @@ struct RichChatComposerView: View {
     let text =
       typedText.isEmpty
       ? structuredPrompt.joined(separator: " ") : typedText
-    let attachmentSegments = attachments.map {
-      RichPromptSegment.attachment(path: $0.remotePath, mimeType: $0.mimeType)
-    }
+    let attachmentSegments = attachments.map(\.segment)
     guard !text.isEmpty || !attachmentSegments.isEmpty else { return }
     let textSegments: [RichPromptSegment] = typedText.isEmpty ? [] : [.text(content: draft)]
-    let contextSegments = (queuedSegments + skills.map(\.segment) + mcps.map(\.segment))
-      .flatMap { [$0, RichPromptSegment.text(content: " ")] }
+    let context = queuedSegments + skills.map(\.segment) + mcps.map(\.segment)
+    let contextSegments = context.flatMap { [$0, RichPromptSegment.text(content: " ")] }
     let segments = contextSegments + textSegments + attachmentSegments
+    let ordered = restoredPromptOrder?.unchangedSegments(text: draft, context: context, attachments: attachmentSegments)
+      ?? segments
+    let outgoingSegments = ordered.isEmpty ? nil : ordered
     let turnActive = isTurnActive && !controller.state.isSending
     let queuesSteer = turnActive && !queueInsteadOfSteer
     let queuesFollowUp = turnActive && queueInsteadOfSteer
     onSubmissionStarted()
     let steerInput = RichSetPendingSteerInput(
       prompt: text,
-      segments: segments.isEmpty ? nil : segments,
+      segments: outgoingSegments,
       config: configuration.richChatObject
     )
+    let sentConfiguration = configuration
+    let input = RichChatSendInput(prompt: text, config: sentConfiguration.richChatObject,
+      segments: outgoingSegments, userMessageItemID: "user-\(UUID().uuidString.lowercased())")
+    let resume = resumeContext
     Task {
       guard await declinePendingApproval() else {
         onSubmissionFinished(false)
         return
       }
-      let succeeded: Bool
+      var succeeded: Bool
       if queuesFollowUp {
         succeeded = await controller.queueFollowUp(steerInput)
       } else if queuesSteer {
         succeeded = await controller.setPendingSteer(steerInput)
       } else {
-        succeeded = await controller.send(
-          RichChatSendInput(
-            prompt: text,
-            config: configuration.richChatObject,
-            segments: segments.isEmpty ? nil : segments,
-            userMessageItemID: "user-\(UUID().uuidString.lowercased())"
-          )
-        )
+        succeeded = await controller.send(input)
+        if !succeeded { succeeded = await resume.relaunchRefused(input, sentConfiguration) }
       }
       if succeeded {
         draft = ""

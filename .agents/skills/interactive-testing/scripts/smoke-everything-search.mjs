@@ -146,7 +146,16 @@ export async function runEverythingSearchScenario({
       (state) => state.open && state.target && state.highlighted,
       "setting row deep link",
     );
-    await read("window.__poracodeDev.closeSettings(); document.activeElement?.blur()");
+    await read("window.__poracodeDev.closeSettings()");
+    // Closing starts an animated exit. Blur only after its form is detached,
+    // so the legacy NOT_TYPING shortcut is tested from the neutral app surface.
+    const settingsExited = await wait(
+      `!window.__poracodeDev.stores.panel.getState().settingsOpen && !document.querySelector('[data-settings-anchor="appearance.mode"]')`,
+      Boolean,
+      "settings exit before legacy search shortcut",
+    );
+    await read("document.activeElement?.blur()");
+    await wait("document.activeElement === document.body", Boolean, "neutral shortcut focus");
     await key("g", shortcutModifier);
     await wait(
       `(() => { const input = document.querySelector(${JSON.stringify(inputSelector)}); return Boolean(input && input === document.activeElement); })()`,
@@ -159,7 +168,7 @@ export async function runEverythingSearchScenario({
       Boolean,
       "search Escape dismissal",
     );
-    return { initial, messagesHint, expanded, files, deepLink, screenshotPath };
+    return { initial, messagesHint, expanded, files, deepLink, settingsExited, screenshotPath };
   } finally {
     await read("window.__poracodeDev.reset()");
   }

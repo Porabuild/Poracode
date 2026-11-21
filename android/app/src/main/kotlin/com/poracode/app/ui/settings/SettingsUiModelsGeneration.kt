@@ -20,6 +20,12 @@ data class SettingsGenerationSlotDraft(
     /** Non-null only for the conflict-resolution slot, which can run terminal or graphical. */
     val presentationMode: String? = null,
 ) {
+    fun selectModel(model: String, agent: SettingsGenerationAgentOption) = copy(
+        model = model,
+        effort = agent.displayEffort(model, effort),
+        fast = fast && model in agent.fastModels,
+    )
+
     companion object {
         const val PROVIDER_AUTO = "auto"
         const val PROVIDER_DISABLED = "disabled"
@@ -40,9 +46,22 @@ data class SettingsGenerationAgentOption(
     val label: String,
     val models: List<SettingsAgentModel>,
     val efforts: List<String>,
+    val modelEfforts: Map<String, List<String>>,
+    val defaultEffort: String?,
     val fastModels: Set<String>,
     val supportsOneShot: Boolean,
-)
+) {
+    fun effortsFor(model: String): List<String> = modelEfforts[model] ?: efforts
+
+    fun displayEffort(model: String, effort: String): String {
+        val choices = effortsFor(model)
+        return when {
+            effort in choices -> effort
+            defaultEffort != null && defaultEffort in choices -> defaultEffort
+            else -> choices.firstOrNull().orEmpty()
+        }
+    }
+}
 
 data class SettingsPreferencesDraft(
     val windows: SettingsGenerationEnvironmentDraft,
@@ -141,7 +160,15 @@ private fun JsonObject.generationAgentOption(): SettingsGenerationAgentOption? {
         label = label,
         models = models,
         efforts = capabilities.stringArray("efforts"),
-        fastModels = capabilities.stringArray("fastModels").toSet(),
+        modelEfforts = capabilities.obj("modelEfforts")?.let { efforts ->
+            efforts.keys.associateWith(efforts::stringArray)
+        }.orEmpty(),
+        defaultEffort = capabilities.string("defaultEffort"),
+        fastModels = if (capabilities.string("fastDisabledReason") == null) {
+            capabilities.stringArray("fastModels").toSet()
+        } else {
+            emptySet()
+        },
         supportsOneShot = capabilities.bool("supportsOneShot"),
     )
 }

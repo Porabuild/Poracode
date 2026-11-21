@@ -8,6 +8,7 @@ import {
   ChevronRight,
   Cable,
   CircleUserRound,
+  Download,
   Gauge,
   GitFork,
   LifeBuoy,
@@ -72,7 +73,7 @@ export function MobileSettingsIndex(props: {
       key: string;
       icon: LucideIcon;
       label: string;
-      hint: string;
+      hint?: string;
       onPress: () => void;
     }> = [
       {
@@ -131,6 +132,12 @@ export function MobileSettingsIndex(props: {
         hint: t`Saved crews for the model picker`,
         onPress: () => props.onOpenSection("crews"),
       },
+      {
+        key: "import",
+        icon: Download,
+        label: t`Import sessions`,
+        onPress: () => props.onOpenSection("import"),
+      },
     ];
 
     if (remote) {
@@ -165,7 +172,7 @@ export function MobileSettingsIndex(props: {
                 key={row.key}
                 icon={row.icon}
                 label={row.label}
-                hint={row.hint}
+                {...(row.hint !== undefined ? { hint: row.hint } : {})}
                 onPress={row.onPress}
               />
             ))}
@@ -243,9 +250,9 @@ export function MobileSettingsIndex(props: {
             icon={MonitorCog}
             label={t`Desktop Settings`}
             hint={
-              props.showArchived
-                ? t`Schedules, AI, agents, and archived threads on the paired desktop`
-                : t`Schedules, AI, agents, crews, and Git on the paired desktop`
+              remote
+                ? t`Schedules, AI, agents, crews, and Git on the paired desktop`
+                : t`Schedules, AI, agents, and archived threads on the paired desktop`
             }
             disabled={!props.hasDesktop}
             onPress={props.onOpenDesktop}

@@ -14,6 +14,16 @@ final class AdvancedAndPortRegistrationTests: XCTestCase {
 
   // MARK: - Source registration
 
+  func testBuiltAppKeepsPhonesPortraitAndIPadAdaptive() throws {
+    let data = try Data(contentsOf: Bundle.main.bundleURL.appendingPathComponent("Info.plist"))
+    let info = try XCTUnwrap(PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any])
+    XCTAssertEqual(info["UISupportedInterfaceOrientations"] as? [String], ["UIInterfaceOrientationPortrait"])
+    XCTAssertEqual(Set(try XCTUnwrap(info["UISupportedInterfaceOrientations~ipad"] as? [String])), [
+      "UIInterfaceOrientationPortrait", "UIInterfaceOrientationPortraitUpsideDown",
+      "UIInterfaceOrientationLandscapeLeft", "UIInterfaceOrientationLandscapeRight",
+    ])
+  }
+
   func testEveryAdvancedProductionSourceIsCompiledIntoTheAppTarget() throws {
     let project = try Self.project()
     for name in try Self.swiftFileNames(
@@ -87,13 +97,14 @@ final class AdvancedAndPortRegistrationTests: XCTestCase {
     XCTAssertTrue(more.contains("PortForwardingSessionView("))
     XCTAssertTrue(more.contains("embeddedInNavigationStack: true"))
     XCTAssertFalse(more.contains("session.canOpenPortForwarding"))
-    XCTAssertTrue(more.contains(".disabled(session.currentProjectControllerSession == nil)"))
+    XCTAssertTrue(more.contains(".disabled(session.homeProjectOptions.isEmpty)"))
     XCTAssertFalse(more.contains("currentProjectControllerSession?.gate(.projectsManage)"))
     XCTAssertTrue(more.contains("SettingsMoreIndexView(session: session)"))
     XCTAssertTrue(more.contains("initialRoute: .schedules"))
     XCTAssertTrue(more.contains("HomeTerminalProjectsView(session: session)"))
     XCTAssertTrue(more.contains("ProjectShellTerminalView("))
-    XCTAssertTrue(more.contains("session.projectSyncPreferences.isSynced"))
+    let catalog = try Self.source("App/Features/Home/Pages/HomeProjectsView.swift")
+    XCTAssertTrue(catalog.contains("projectSyncPreferences.isSynced"))
     XCTAssertTrue(more.contains("await session.switchHost(option.connectionID)"))
     XCTAssertFalse(
       home.contains("AdvancedOperationsSessionView"),
@@ -123,10 +134,10 @@ final class AdvancedAndPortRegistrationTests: XCTestCase {
     XCTAssertTrue(more.contains(".poracodeDrawerListStyle()"))
 
     for destination in [
-      "SettingsMoreRouteView(session: session, route: .profile)",
-      "SettingsMoreRouteView(session: session, route: .usage)",
-      "HostSwitcherView(session: session)",
-      "ProjectManagementView(session: session, embeddedInNavigationStack: true)",
+      "DeviceSettingsDestinationView(session: session, destination: .profile)",
+      "DeviceSettingsDestinationView(session: session, destination: .usage)",
+      "DeviceSettingsDestinationView(session: session, destination: .connections)",
+      "HomeProjectsView(session: session)",
       "BrowserMirrorSessionView(session: session, embeddedInNavigationStack: true)",
       "SettingsMoreIndexView(session: session)",
     ] {
@@ -139,12 +150,17 @@ final class AdvancedAndPortRegistrationTests: XCTestCase {
     let settingsComposition = try Self.source(
       "App/Features/Settings/UI/SettingsSessionComposition.swift"
     )
-    XCTAssertTrue(settingsComposition.contains("if route == .usage"))
+    XCTAssertFalse(settingsComposition.contains("if route == .usage"), "Every host-owned settings route exposes its connection scope")
     XCTAssertTrue(settingsComposition.contains("HostSelectionMenu(session: session)"))
 
-    let deviceSettings = try Self.source("App/Features/Settings/UI/DeviceSettingsView.swift")
-    XCTAssertTrue(deviceSettings.contains("GitSettingsView(session: session)"))
-    XCTAssertTrue(deviceSettings.contains("SettingsGitView(composition: composition"))
+    let destinations = try Self.source("App/Features/Settings/UI/DeviceSettingsDestination.swift")
+    XCTAssertTrue(destinations.contains("GitSettingsView(session: session)"))
+    XCTAssertTrue(destinations.contains("SettingsMoreRouteView(session: session, route: .profile)"))
+    XCTAssertTrue(destinations.contains("SettingsMoreRouteView(session: session, route: .usage)"))
+    XCTAssertTrue(destinations.contains("HostSwitcherView(session: session)"))
+    XCTAssertFalse(destinations.contains("NavigationStack"))
+    let gitSettings = try Self.source("App/Features/Settings/UI/GitSettingsView.swift")
+    XCTAssertTrue(gitSettings.contains("SettingsGitView(composition: composition"))
   }
 
   func testHomeProjectActionsPushInsideOneNativeDrawerStack() throws {
@@ -177,6 +193,7 @@ final class AdvancedAndPortRegistrationTests: XCTestCase {
 
   func testHomeProjectFilterUsesModelComponentViewPageLayers() throws {
     let menu = try Self.source("App/Features/Home/HomeProjectFilterSheet.swift")
+    let home = try Self.source("App/Features/Home/HomeView.swift")
     let models = try Self.source("App/Features/Home/Models/HomeProjectFilterModels.swift")
     let rows = try Self.source("App/Features/Home/Components/HomeProjectFilterRows.swift")
     let filter = try Self.source("App/Features/Home/Views/HomeProjectFilterDrawer.swift")
@@ -185,7 +202,9 @@ final class AdvancedAndPortRegistrationTests: XCTestCase {
       "App/Features/Home/Pages/HomeProjectMenuDestinationView.swift"
     )
 
-    XCTAssertTrue(menu.contains("HomeProjectFilterDrawer("))
+    XCTAssertTrue(home.contains("case .threadFilters(let showsStatus):"))
+    XCTAssertTrue(home.contains("HomeProjectFilterDrawer("))
+    XCTAssertFalse(menu.contains(".sheet("))
     XCTAssertTrue(models.contains("enum HomeProjectOptionsPresentation"))
     XCTAssertTrue(rows.contains("struct HomeProjectFilterRow: View"))
     XCTAssertTrue(filter.contains("HomeAllProjectsFilterRow("))
@@ -235,8 +254,8 @@ final class AdvancedAndPortRegistrationTests: XCTestCase {
     XCTAssertTrue(settingsHost.contains("session.currentSettingsHostSelection"))
     XCTAssertTrue(switcher.contains("beginRename(host)"))
     XCTAssertTrue(switcher.contains("session.renameHost(host.connectionId, label: label)"))
-    XCTAssertTrue(switcher.contains("PoracodeBottomActionDock(placement: .trailing)"))
-    XCTAssertTrue(switcher.contains("PoracodeCircleButton"))
+    XCTAssertTrue(switcher.contains("ToolbarItem(placement: .bottomBar)"))
+    XCTAssertTrue(switcher.contains("Button(HostStrings.addHost, systemImage: \"plus\")"))
     XCTAssertTrue(switcher.contains("native-e2e.connections.add"))
     XCTAssertTrue(switcher.contains("hostSection(showsEmptyAction: false)"))
     XCTAssertTrue(switcher.contains("hostSection(showsEmptyAction: true)"))
@@ -322,19 +341,17 @@ final class AdvancedAndPortRegistrationTests: XCTestCase {
     }
   }
 
-  func testPrimaryProjectActionUsesTheThumbReachableNativeBottomBar() throws {
+  func testProjectAndPortActionsUseTheToolbarInNavigationPages() throws {
     let projects = try Self.source("App/Features/Projects/ProjectManagementView.swift")
     let hosts = try Self.source("App/Features/Hosts/HostSwitcherView.swift")
     let ports = try Self.source("App/Features/PortForwarding/PortForwardingView.swift")
     let components = try Self.source("App/Features/Components/GlassHelpers.swift")
 
-    XCTAssertTrue(projects.contains("PoracodeBottomActionDock(placement: .trailing)"))
-    XCTAssertTrue(projects.contains("PoracodeCircleButton"))
+    XCTAssertTrue(projects.contains("ToolbarItem(placement: .bottomBar)"))
     XCTAssertTrue(
-      projects.contains("Label(ProjectManagementStrings.add, systemImage: \"plus\")")
+      projects.contains("Button(ProjectManagementStrings.add, systemImage: \"plus\")")
     )
     XCTAssertTrue(projects.contains("native-e2e.projects.add"))
-    XCTAssertFalse(projects.contains("ToolbarItem(placement: .bottomBar)"))
     XCTAssertTrue(components.contains("struct PoracodeBottomActionDock<Content: View>"))
     XCTAssertTrue(
       components.contains("struct PoracodeBottomActionBar<Leading: View, Trailing: View>")
@@ -349,12 +366,12 @@ final class AdvancedAndPortRegistrationTests: XCTestCase {
     XCTAssertTrue(components.contains(".tint(.secondary)"))
     XCTAssertTrue(components.contains(".frame(width: 44, height: 44)"))
     XCTAssertFalse(components.contains("prominent"))
-    XCTAssertTrue(projects.contains("PoracodeCircleButton"))
-    XCTAssertTrue(hosts.contains("PoracodeCircleButton"))
+    XCTAssertTrue(hosts.contains("ToolbarItem(placement: .bottomBar)"))
+    XCTAssertTrue(ports.contains("ToolbarItemGroup(placement: .bottomBar)"))
     XCTAssertTrue(ports.contains("PoracodeCircleButton"))
   }
 
-  func testNestedCreationPagesReuseTheTrailingNativeActionDock() throws {
+  func testMCPSettingsUseSystemAddActionsAndWorkspaceKeepsItsControlStrip() throws {
     for (relative, identifier) in [
       ("App/Features/Projects/ProjectMCPSettingsView.swift", "native-e2e.project-mcp.add"),
       (
@@ -363,7 +380,7 @@ final class AdvancedAndPortRegistrationTests: XCTestCase {
       ),
     ] {
       let source = try Self.source(relative)
-      XCTAssertTrue(source.contains("PoracodeBottomActionDock(placement: .trailing)"), relative)
+      XCTAssertTrue(source.contains("ToolbarItem(placement: .bottomBar)"), relative)
       XCTAssertTrue(source.contains(identifier), relative)
       XCTAssertFalse(source.contains("ToolbarItem(placement: .primaryAction)"), relative)
     }
@@ -377,11 +394,12 @@ final class AdvancedAndPortRegistrationTests: XCTestCase {
       "search and resting states share one morphing strip"
     )
     XCTAssertTrue(workspace.contains("PoracodeCircleMenu"))
+    XCTAssertTrue(workspace.contains("PoracodeBottomSearchField("))
     XCTAssertTrue(workspace.contains("ProjectWorkspaceModePicker("))
     XCTAssertTrue(workspace.contains("native-e2e.project-files.create"))
     XCTAssertTrue(workspace.contains("poracodeGlassID(\"workspace.leading\""))
-    XCTAssertTrue(workspace.contains("poracodeGlassID(\"workspace.center\""))
     XCTAssertTrue(workspace.contains("poracodeGlassID(\"workspace.trailing\""))
+    XCTAssertTrue(workspace.contains("ToolbarItem(placement: .bottomBar)"))
     XCTAssertFalse(workspace.contains("ToolbarItem(placement: .primaryAction)"))
 
     let workspacePage = try Self.source(
@@ -413,10 +431,10 @@ final class AdvancedAndPortRegistrationTests: XCTestCase {
     XCTAssertTrue(gitSidebar.contains(".navigationTitle(ProjectWorkspaceStrings.git)"))
   }
 
-  func testWorkflowRunActionsMatchTheCompactBottomCornerLayout() throws {
+  func testWorkflowRunActionsUseTheSystemBottomToolbar() throws {
     let runs = try Self.source("App/Features/GitHubActions/GitHubWorkflowRunsView.swift")
 
-    XCTAssertTrue(runs.contains("PoracodeBottomActionBar"))
+    XCTAssertTrue(runs.contains("ToolbarItemGroup(placement: .bottomBar)"))
     XCTAssertTrue(runs.contains("native-e2e.github-actions.refresh-runs"))
     XCTAssertTrue(runs.contains("native-e2e.github-actions.run-workflow"))
     XCTAssertFalse(runs.contains("ToolbarItemGroup(placement: .topBarTrailing)"))
@@ -450,7 +468,9 @@ final class AdvancedAndPortRegistrationTests: XCTestCase {
 
     let editor = try Self.source("App/Features/Projects/ProjectNotesView.swift")
     XCTAssertTrue(editor.contains("GeometryReader { geometry in"))
-    XCTAssertTrue(editor.contains("geometry.size.height * 0.42"))
+    XCTAssertTrue(editor.contains(".frame(height: editorHeight)"))
+    XCTAssertTrue(editor.contains(".poracodeThemeBackground("))
+    XCTAssertTrue(editor.contains(".listRowBackground(cardColor)"))
     XCTAssertTrue(editor.contains("native-e2e.notes.editor"))
     XCTAssertTrue(editor.contains("ProjectNoteTextEditor("))
     XCTAssertTrue(editor.contains("startThread(with: selectedNoteText)"))
@@ -474,7 +494,6 @@ final class AdvancedAndPortRegistrationTests: XCTestCase {
       "App/Features/Projects/ProjectManagementView.swift",
       "App/Features/Projects/ProjectNotesPageView.swift",
       "App/Features/PullRequests/PullRequestsPageView.swift",
-      "App/Features/GitHubActions/GitHubActionsProjectsView.swift",
       "App/Features/BrowserMirror/BrowserMirrorSessionView.swift",
       "App/Features/PortForwarding/PortForwardingSessionView.swift",
       "App/Features/RemoteIntegrations/UI/RemoteIntegrationsSessionComposition.swift",
@@ -484,38 +503,53 @@ final class AdvancedAndPortRegistrationTests: XCTestCase {
     }
   }
 
+  func testAllConnectionsActionsIndexBindsTheChosenProjectOwner() throws {
+    let actions = try Self.source("App/Features/GitHubActions/GitHubActionsProjectsView.swift")
+    let destination = try Self.source("App/Features/Home/Pages/HomeProjectMenuDestinationView.swift")
+    let catalog = try Self.source("App/Features/Home/Pages/HomeProjectsView.swift")
+    let projection = try Self.source("App/Features/Home/Models/HomeProjectFilterModels.swift")
+    XCTAssertTrue(actions.contains("session.homeProjectOptions"))
+    XCTAssertTrue(actions.contains("workspace.includes($0)"))
+    XCTAssertTrue(actions.contains(".gitHubActions(option)"))
+    XCTAssertTrue(destination.contains("await session.switchHost(option.connectionID)"))
+    XCTAssertTrue(catalog.contains("HomeProjectOptionsPresentation.options("))
+    XCTAssertTrue(projection.contains("project.disabled != true"))
+    XCTAssertTrue(actions.contains("$0.project.id != RemoteProject.homeScopeID"))
+  }
+
   func testProjectBackedUtilitiesExcludeDisabledAndSyntheticHomeProjects() throws {
     let session = try Self.source("App/Features/AppSession.swift")
     XCTAssertTrue(session.contains("var activeWorkspaceProjects: [RemoteProject]"))
     XCTAssertTrue(session.contains("$0.disabled != true && $0.id != RemoteProject.homeScopeID"))
 
-    for relative in [
-      "App/Features/PullRequests/PullRequestsController.swift",
-      "App/Features/GitHubActions/GitHubActionsProjectsView.swift",
-      "App/Features/RemoteIntegrations/UI/RemoteIntegrationsSessionComposition.swift",
-    ] {
-      XCTAssertTrue(
-        try Self.source(relative).contains("activeWorkspaceProjects"), relative
-      )
-    }
+    let schedules = try Self.source(
+      "App/Features/RemoteIntegrations/UI/RemoteIntegrationsSessionComposition.swift"
+    )
+    XCTAssertTrue(schedules.contains("activeWorkspaceProjects"))
+    XCTAssertTrue(schedules.contains("projects: workspaceProjects"))
+    XCTAssertTrue(schedules.contains("let projectIDs = Set(workspaceProjects.map"))
 
     let pullRequests = try Self.source("App/Features/PullRequests/PullRequestsPageView.swift")
+    XCTAssertTrue(pullRequests.contains("session.activeWorkspaceProjects.filter"))
+    XCTAssertTrue(pullRequests.contains("workspace.includes(projectID:"))
     XCTAssertTrue(pullRequests.contains("resetHostScopedPresentation()"))
-    XCTAssertTrue(pullRequests.contains(".task(id: session.currentProjectControllerLease)"))
+    XCTAssertTrue(pullRequests.contains(".task(id: scope)"))
     XCTAssertTrue(pullRequests.contains(".onChange(of: session.selectedConnectionId)"))
+    let pullRequestsController = try Self.source("App/Features/PullRequests/PullRequestsController.swift")
+    XCTAssertTrue(pullRequestsController.contains("for project in scope.projects"))
+    XCTAssertTrue(pullRequestsController.contains("scope.host == session.currentProjectControllerSession"))
 
     let projects = try Self.source("App/Features/Projects/ProjectManagementView.swift")
     XCTAssertTrue(projects.contains("deactivateControllers()"))
 
-    let actions = try Self.source("App/Features/GitHubActions/GitHubActionsProjectsView.swift")
-    XCTAssertTrue(actions.contains("session.currentProjectControllerSession?.lease.connectionId"))
   }
 
   /// One identifiable destination, not a set of independent booleans that can
   /// be raised in the same update.
   func testHomeUsesASingleEnumDrivenSheetDestination() throws {
     let home = try Self.source("App/Features/Home/HomeView.swift")
-    XCTAssertTrue(home.contains(".sheet(item: $sheetDestination)"))
+    XCTAssertTrue(home.contains(".sheet(item: $sheetDestination, onDismiss: finishSheet)"))
+    XCTAssertTrue(home.contains("restoreSheetHost()"))
     XCTAssertFalse(home.contains("isPresented: $showing"))
     XCTAssertFalse(home.contains("@State private var showing"))
   }
@@ -545,7 +579,7 @@ final class AdvancedAndPortRegistrationTests: XCTestCase {
     XCTAssertFalse(filter.contains("PoracodeCircleButton(surface: .automatic)"))
     XCTAssertFalse(filter.contains("line.3.horizontal.decrease.circle.fill"))
     XCTAssertTrue(actions.contains("struct PoracodeToolbarIconButton: View"))
-    XCTAssertTrue(actions.contains(".buttonBorderShape(.circle)"))
+    XCTAssertTrue(actions.contains(".buttonBorderShape(sharesBackground ? .automatic : .circle)"))
     XCTAssertTrue(actions.contains(".tint(color)"))
     XCTAssertTrue(composer.contains(".foregroundStyle(.secondary)"))
     XCTAssertTrue(composer.contains(".tint(.secondary)"))
@@ -591,11 +625,15 @@ final class AdvancedAndPortRegistrationTests: XCTestCase {
     XCTAssertTrue(poracodeGlass.contains("safeAreaBar(edge: .bottom"))
     XCTAssertTrue(actions.contains("func poracodeNativeComposerSurface"))
     XCTAssertTrue(
-      actions.contains("glassEffect(.regular.interactive(interactive), in: shape)"))
+      actions.contains("glassEffect(.regular.interactive(), in: shape)"))
     XCTAssertTrue(actions.contains("background(.regularMaterial, in: shape)"))
+    XCTAssertTrue(actions.contains("content.poracodeInputSurface(in: shape, fill:"))
     XCTAssertTrue(homeComposer.contains(".poracodeNativeComposerSurface(in: shape"))
     XCTAssertTrue(homeComposer.contains("interactive: !isExpanded"))
-    XCTAssertTrue(homeComposer.contains("poracodeGlassID(\"home.compose\""))
+    XCTAssertFalse(homeComposer.contains("poracodeGlassID(\"home.compose\""),
+      "The UIKit editor must retain a stable foreground hierarchy when the composer expands")
+    XCTAssertFalse(actions.contains("shape.fill(.clear)"),
+      "A glass-only background inside a glass container can render over the editor's text")
     XCTAssertFalse(homeComposer.contains(".shadow("))
     XCTAssertFalse(homeComposer.contains(".background(.regularMaterial"))
     XCTAssertTrue(home.contains("PoracodeGlassGroup(spacing: 8)"))
@@ -605,10 +643,11 @@ final class AdvancedAndPortRegistrationTests: XCTestCase {
     XCTAssertTrue(home.contains("poracodeZoomSource(id: \"home.more\""))
     XCTAssertTrue(home.contains("poracodeZoomTransition(sourceID: \"home.search\""))
     XCTAssertTrue(home.contains("poracodeZoomTransition(sourceID: \"home.more\""))
-    XCTAssertTrue(home.contains(".poracodeBottomBar"))
+    XCTAssertTrue(home.contains(".poracodeComposerInset"),
+      "Home's expanding UIKit editor uses the same keyboard-safe inset as a thread composer")
     XCTAssertTrue(layout.contains("PoracodeGlassGroup(spacing: 2)"))
     XCTAssertFalse(layout.contains("safeAreaBar("))
-    XCTAssertTrue(layout.contains(".poracodeComposerInset"))
+    XCTAssertTrue(layout.contains(".overlay(alignment: .bottom)"))
   }
 
   /// The app chrome stays neutral like the PWA: the theme accent reaches the

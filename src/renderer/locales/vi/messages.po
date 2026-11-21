@@ -10224,6 +10224,7 @@ msgid "Import selected"
 msgstr "Nhập mục đã chọn"
 
 #: src/renderer/views/SettingsOverlay/parts/ImportSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 msgid "Import sessions"
 msgstr "Nhập phiên"
 
@@ -11348,7 +11349,6 @@ msgstr "Đã liên kết"
 msgid "Linux"
 msgstr "Linux"
 
-#: src/renderer/components/thread/ChatPane/parts/items/commandActionsDisplay.ts
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "List"
@@ -18799,7 +18799,6 @@ msgstr "Chưa cài SDK"
 
 #: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/commands/registry.ts
-#: src/renderer/components/thread/ChatPane/parts/items/commandActionsDisplay.ts
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 #: src/renderer/views/MainView/parts/Sidebar/parts/MobileHomeActions.tsx
@@ -18994,7 +18993,6 @@ msgstr "Tìm luồng, lệnh, cài đặt và tệp…"
 msgid "Search titles, messages and folders"
 msgstr "Tìm trong tiêu đề, tin nhắn và thư mục"
 
-#: src/renderer/components/thread/ChatPane/parts/items/commandActionsDisplay.ts
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 msgid "Search: \"{query}\" in {scope}"
 msgstr "Tìm kiếm: \"{query}\" trong {scope}"
@@ -22188,8 +22186,8 @@ msgid "This desktop"
 msgstr "Máy tính này"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
-msgid "This desktop's Poracode version doesn't support browser forwarding. Update Poracode on your desktop."
-msgstr "Phiên bản Poracode trên máy tính này không hỗ trợ chuyển tiếp qua trình duyệt. Hãy cập nhật Poracode trên máy tính của bạn."
+#~ msgid "This desktop's Poracode version doesn't support browser forwarding. Update Poracode on your desktop."
+#~ msgstr "Phiên bản Poracode trên máy tính này không hỗ trợ chuyển tiếp qua trình duyệt. Hãy cập nhật Poracode trên máy tính của bạn."
 
 #: src/renderer/views/ProfileOverlay/parts/ProfileHeader.tsx
 msgid "This device"

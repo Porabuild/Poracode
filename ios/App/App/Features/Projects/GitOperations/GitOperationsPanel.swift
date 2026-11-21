@@ -5,7 +5,7 @@ struct GitOperationsPanel: View {
   @Bindable var controller: GitOperationsController
 
   @State private var commitMessage = ""
-  @State private var presentedForm: GitOperationsForm?
+  @State private var presentedForm: GitOperationsFormDraft?
 
   var body: some View {
     List {
@@ -14,23 +14,22 @@ struct GitOperationsPanel: View {
       worktreesSection
     }
     .navigationTitle(GitOperationsStrings.title)
-    .poracodeBottomBar {
-      GitOperationsCompactChrome(
-        isBusy: controller.state.isBusy || !canWrite,
-        onFetch: { perform(.gitFetch(.init(projectLocation: location))) },
-        onPull: { perform(.gitPull(.init(projectLocation: location))) },
-        onPush: { perform(.gitPush(.init(projectLocation: location))) },
-        onSync: { perform(.gitSync(.init(projectLocation: location))) }
-      )
-    }
+    .navigationBarTitleDisplayMode(.inline)
     .toolbar { toolbarContent }
     .task(id: ProjectWorkspaceActivationID(context)) { await activateAndRefresh() }
+    .onChange(of: context?.lease) { _, lease in
+      if presentedForm?.lease != lease { presentedForm = nil }
+      commitMessage = ""
+    }
     .onChange(of: controller.state.completedMutationCount) { _, completed in
       guard completed > 0 else { return }
       Task { await refreshAuthoritativeState() }
     }
-    .sheet(item: $presentedForm) { form in
-      GitOperationsFormView(form: form, location: location, submit: perform)
+    .sheet(item: $presentedForm) { draft in
+      GitOperationsFormView(draft: draft, canSubmit: canWrite && context?.lease == draft.lease) { request in
+        perform(request, expectedLease: draft.lease)
+      }
+      .poracodeFormSheetSizing()
     }
     .confirmationDialog(
       GitOperationsStrings.destructiveTitle,
@@ -62,7 +61,7 @@ struct GitOperationsPanel: View {
   @ViewBuilder
   private var repositorySection: some View {
     Section(GitOperationsStrings.repository) {
-      if let failure = controller.state.failure {
+      if activeLease != nil, let failure = controller.state.failure {
         Label(GitOperationsStrings.failure(failure), systemImage: "exclamationmark.triangle")
           .foregroundStyle(.secondary)
           .accessibilityIdentifier("native-e2e.git.failure")
@@ -70,10 +69,12 @@ struct GitOperationsPanel: View {
       TextField(GitOperationsStrings.commitMessage, text: $commitMessage, axis: .vertical)
         .accessibilityLabel(GitOperationsStrings.commitMessage)
       let commit = GitOperationsPresentation.descriptor(for: .gitCommit)
+      let lease = activeLease
       Button(commit.accessibilityLabel, systemImage: commit.symbol) {
+        guard let lease, activeLease == lease, canWrite else { return }
         let message = commitMessage
         commitMessage = ""
-        perform(.gitCommit(.init(projectLocation: location, message: message)))
+        perform(.gitCommit(.init(projectLocation: lease.location, message: message)), expectedLease: lease)
       }
       .disabled(!canWrite || commitMessage.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
     }
@@ -82,18 +83,18 @@ struct GitOperationsPanel: View {
   @ViewBuilder
   private var branchesSection: some View {
     Section(GitOperationsStrings.branches) {
-      if controller.state.authoritative.owner != nil {
+      if activeLease != nil, controller.state.authoritative.owner != nil {
         Label(
           GitOperationsStrings.action(.gitGetWorktreeOwner),
           systemImage: "checkmark.circle"
         )
         .foregroundStyle(.secondary)
       }
-      if let source = controller.state.authoritative.sourceBranch?.sourceBranch {
+      if activeLease != nil, let source = controller.state.authoritative.sourceBranch?.sourceBranch {
         Label(GitOperationsStrings.branch(source), systemImage: "arrow.triangle.branch")
           .foregroundStyle(.secondary)
       }
-      if let branches = controller.state.authoritative.branches {
+      if let lease = activeLease, let branches = controller.state.authoritative.branches {
         ForEach(branches.branches) { branch in
           Label(
             GitOperationsStrings.branch(branch.name),
@@ -104,14 +105,14 @@ struct GitOperationsPanel: View {
           .contextMenu {
             ForEach(GitOperationsPresentation.actions(on: .branch)) { descriptor in
               actionButton(descriptor, enabled: branchActionEnabled(descriptor, branch: branch)) {
-                performBranchAction(descriptor.procedure, branch: branch)
+                performBranchAction(descriptor.procedure, branch: branch, lease: lease)
               }
             }
           }
           .accessibilityActions {
             ForEach(GitOperationsPresentation.actions(on: .branch)) { descriptor in
               actionButton(descriptor, enabled: branchActionEnabled(descriptor, branch: branch)) {
-                performBranchAction(descriptor.procedure, branch: branch)
+                performBranchAction(descriptor.procedure, branch: branch, lease: lease)
               }
             }
           }
@@ -123,7 +124,7 @@ struct GitOperationsPanel: View {
   @ViewBuilder
   private var worktreesSection: some View {
     Section(GitOperationsStrings.worktrees) {
-      if let worktrees = controller.state.authoritative.worktrees {
+      if let lease = activeLease, let worktrees = controller.state.authoritative.worktrees {
         ForEach(worktrees) { worktree in
           Label(
             GitOperationsStrings.worktree(worktree.path),
@@ -137,7 +138,7 @@ struct GitOperationsPanel: View {
                 descriptor,
                 enabled: worktreeActionEnabled(descriptor, worktree: worktree)
               ) {
-                performWorktreeAction(descriptor.procedure, worktree: worktree)
+                performWorktreeAction(descriptor.procedure, worktree: worktree, lease: lease)
               }
             }
           }
@@ -147,7 +148,7 @@ struct GitOperationsPanel: View {
                 descriptor,
                 enabled: worktreeActionEnabled(descriptor, worktree: worktree)
               ) {
-                performWorktreeAction(descriptor.procedure, worktree: worktree)
+                performWorktreeAction(descriptor.procedure, worktree: worktree, lease: lease)
               }
             }
           }
@@ -158,36 +159,47 @@ struct GitOperationsPanel: View {
 
   @ToolbarContentBuilder
   private var toolbarContent: some ToolbarContent {
+    let lease = activeLease
+    GitOperationsQuickToolbar(isEnabled: canWrite) { procedure in
+      performRepositoryAction(procedure, lease: lease)
+    }
     ToolbarItemGroup(placement: .topBarTrailing) {
       Button(GitOperationsStrings.refresh, systemImage: "arrow.clockwise") {
         Task { await refreshAuthoritativeState() }
       }
       .disabled(!canRead)
-      Menu(GitOperationsStrings.quickActions, systemImage: "ellipsis") {
+      Menu {
         ForEach(
           GitOperationsPresentation.actions(on: .repository).filter {
             $0.procedure != .gitCommit
           }
         ) { descriptor in
           actionButton(descriptor, enabled: canWrite) {
-            performRepositoryAction(descriptor.procedure)
+            performRepositoryAction(descriptor.procedure, lease: lease)
           }
         }
+      } label: {
+        Label(GitOperationsStrings.quickActions, systemImage: "ellipsis")
+          .symbolRenderingMode(.monochrome)
       }
       .disabled(!canWrite)
+      .tint(.primary)
       .accessibilityLabel(GitOperationsStrings.quickActions)
       .accessibilityIdentifier("native-e2e.git.panel-quick-actions")
     }
   }
 
+  private var activeLease: ProjectWorkspaceLease? {
+    guard let context, context.isConsistent, controller.state.context?.lease == context.lease else { return nil }
+    return context.lease
+  }
+
   private var canRead: Bool {
-    guard let context else { return false }
-    return context.isConsistent && context.session.gate(.sessionRead) == nil
+    activeLease != nil && context?.session.gate(.sessionRead) == nil
   }
 
   private var canWrite: Bool {
-    guard let context, !controller.state.isBusy else { return false }
-    return context.isConsistent && context.session.gate(.sessionOperate) == nil
+    activeLease != nil && !controller.state.isBusy && context?.session.gate(.sessionOperate) == nil
   }
 
   private func actionButton(
@@ -243,104 +255,113 @@ struct GitOperationsPanel: View {
 
   private func performBranchAction(
     _ procedure: GitOperationProcedure,
-    branch: ProjectGitBranchInfo
+    branch: ProjectGitBranchInfo,
+    lease: ProjectWorkspaceLease
   ) {
+    let request: GitOperationRequest
     switch procedure {
     case .gitSwitchBranch:
-      perform(.gitSwitchBranch(.init(projectLocation: location, branch: branch.name)))
+      request = .gitSwitchBranch(.init(projectLocation: lease.location, branch: branch.name))
     case .gitDeleteBranch:
-      perform(.gitDeleteBranch(.init(projectLocation: location, branch: branch.name)))
+      request = .gitDeleteBranch(.init(projectLocation: lease.location, branch: branch.name))
     case .gitGetWorktreeOwner:
-      perform(.gitGetWorktreeOwner(.init(projectLocation: location, branch: branch.name)))
+      request = .gitGetWorktreeOwner(.init(projectLocation: lease.location, branch: branch.name))
     case .gitGetWorktreeSourceBranch:
-      perform(
-        .gitGetWorktreeSourceBranch(.init(projectLocation: location, branch: branch.name))
-      )
-    default:
-      break
+      request = .gitGetWorktreeSourceBranch(.init(projectLocation: lease.location, branch: branch.name))
+    default: return
     }
+    perform(request, expectedLease: lease)
   }
 
   private func performWorktreeAction(
     _ procedure: GitOperationProcedure,
-    worktree: ProjectGitWorktreeInfo
+    worktree: ProjectGitWorktreeInfo,
+    lease: ProjectWorkspaceLease
   ) {
+    guard activeLease == lease else { return }
+    let location = lease.location
     let worktreeLocation = GitOperationLocation.worktreeLocation(
       path: worktree.path,
       relativeTo: location
     )
+    let request: GitOperationRequest
     switch procedure {
     case .gitAbortMerge:
-      perform(.gitAbortMerge(.init(worktreeLocation: worktreeLocation)))
+      request = .gitAbortMerge(.init(worktreeLocation: worktreeLocation))
     case .gitFinishMerge:
-      perform(.gitFinishMerge(.init(worktreeLocation: worktreeLocation)))
+      request = .gitFinishMerge(.init(worktreeLocation: worktreeLocation))
     case .gitPullFromSource:
       guard let sourceBranch else { return }
-      perform(
-        .gitPullFromSource(
-          .init(worktreeLocation: worktreeLocation, sourceBranch: sourceBranch)
-        )
-      )
+      request = .gitPullFromSource(.init(worktreeLocation: worktreeLocation, sourceBranch: sourceBranch))
     case .gitMergeToSource:
       guard !worktree.branch.isEmpty, let sourceBranch else { return }
-      perform(
-        .gitMergeToSource(
-          .init(
-            projectLocation: location,
-            worktreeLocation: worktreeLocation,
-            worktreeBranch: worktree.branch,
-            sourceBranch: sourceBranch
-          )
+      request = .gitMergeToSource(
+        .init(
+          projectLocation: location,
+          worktreeLocation: worktreeLocation,
+          worktreeBranch: worktree.branch,
+          sourceBranch: sourceBranch
         )
       )
     case .gitRemoveWorktree:
-      perform(
-        .gitRemoveWorktree(
-          .init(
-            projectLocation: location,
-            path: worktree.path,
-            expectedBranch: worktree.branch.isEmpty ? nil : worktree.branch
-          )
+      request = .gitRemoveWorktree(
+        .init(
+          projectLocation: location,
+          path: worktree.path,
+          expectedBranch: worktree.branch.isEmpty ? nil : worktree.branch
         )
       )
-    default:
-      break
+    default: return
     }
+    perform(request, expectedLease: lease)
   }
 
-  private func performRepositoryAction(_ procedure: GitOperationProcedure) {
+  private func performRepositoryAction(_ procedure: GitOperationProcedure, lease: ProjectWorkspaceLease?) {
+    guard let lease, lease == activeLease, canWrite else { return }
+    let location = lease.location
+    let request: GitOperationRequest
     switch procedure {
     case .gitAddRemote:
-      presentedForm = .remote
+      presentedForm = GitOperationsFormDraft(form: .remote, lease: lease)
+      return
     case .gitAddWorktree:
-      presentedForm = .worktree
+      presentedForm = GitOperationsFormDraft(form: .worktree, lease: lease)
+      return
+    case .gitFetch:
+      request = .gitFetch(.init(projectLocation: location))
+    case .gitPull:
+      request = .gitPull(.init(projectLocation: location))
+    case .gitPush:
+      request = .gitPush(.init(projectLocation: location))
+    case .gitSync:
+      request = .gitSync(.init(projectLocation: location))
     case .gitInit:
-      perform(.gitInit(.init(projectLocation: location)))
+      request = .gitInit(.init(projectLocation: location))
     case .gitPruneWorktrees:
       let paths = controller.state.authoritative.worktrees?.map(\.path) ?? []
-      perform(.gitPruneWorktrees(.init(projectLocation: location, activeWorktreePaths: paths)))
+      request = .gitPruneWorktrees(.init(projectLocation: location, activeWorktreePaths: paths))
     case .gitPullRebase:
-      perform(.gitPullRebase(.init(projectLocation: location)))
+      request = .gitPullRebase(.init(projectLocation: location))
     case .gitSyncRebase:
-      perform(.gitSyncRebase(.init(projectLocation: location)))
+      request = .gitSyncRebase(.init(projectLocation: location))
     case .gitStageAll:
-      perform(.gitStageAll(.init(projectLocation: location)))
+      request = .gitStageAll(.init(projectLocation: location))
     case .gitUnstageAll:
-      perform(.gitUnstageAll(.init(projectLocation: location)))
+      request = .gitUnstageAll(.init(projectLocation: location))
     case .gitRevertAll:
-      perform(.gitRevertAll(.init(projectLocation: location)))
-    default:
-      break
+      request = .gitRevertAll(.init(projectLocation: location))
+    default: return
     }
+    perform(request, expectedLease: lease)
   }
 
-  private func perform(_ request: GitOperationRequest) {
-    guard context?.lease.location == request.ownerLocation else { return }
+  private func perform(_ request: GitOperationRequest, expectedLease lease: ProjectWorkspaceLease) {
+    guard activeLease == lease, lease.location == request.ownerLocation else { return }
     Task {
       if request.procedure.metadata.scope == .read {
-        await controller.read(request)
+        await controller.read(request, expectedLease: lease)
       } else {
-        await controller.submit(request)
+        await controller.submit(request, expectedLease: lease)
       }
     }
   }
@@ -355,7 +376,7 @@ struct GitOperationsPanel: View {
   }
 
   private func refreshAuthoritativeState() async {
-    guard canRead else { return }
+    guard canRead, let lease = context?.lease else { return }
     let worktreePaths =
       controller.state.authoritative.worktrees?.map(\.path)
       ?? [location.displayPath]
@@ -373,7 +394,7 @@ struct GitOperationsPanel: View {
       default:
         continue
       }
-      await controller.read(request)
+      await controller.read(request, expectedLease: lease)
     }
   }
 }

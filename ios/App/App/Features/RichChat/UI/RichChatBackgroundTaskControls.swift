@@ -15,6 +15,7 @@ struct RichChatBackgroundTasksPanel: View {
   let suite: RichChatControllerSuite
   let tasks: [RichBackgroundTaskPresentation]
   let canOperate: Bool
+  var embedded: Bool
 
   @State private var selection: RichChatBackgroundTaskSelection?
   /// Owned by the persistent panel (not the transient details sheet) so a
@@ -24,11 +25,13 @@ struct RichChatBackgroundTasksPanel: View {
   init(
     suite: RichChatControllerSuite,
     tasks: [RichBackgroundTaskPresentation],
-    canOperate: Bool
+    canOperate: Bool,
+    embedded: Bool = false
   ) {
     self.suite = suite
     self.tasks = tasks
     self.canOperate = canOperate
+    self.embedded = embedded
     _selection = State(initialValue: nil)
     _reader = State(
       initialValue: RichChatBackgroundTaskDetailsController(
@@ -39,6 +42,7 @@ struct RichChatBackgroundTasksPanel: View {
 
   var body: some View {
     VStack(alignment: .leading, spacing: 8) {
+      if !embedded {
       HStack(spacing: 8) {
         Label(RichChatStrings.backgroundTasks, systemImage: "gearshape.2")
           .poracodeChatText(.body, weight: .semibold)
@@ -47,12 +51,14 @@ struct RichChatBackgroundTasksPanel: View {
           .poracodeChatText(.metadata)
           .foregroundStyle(.secondary)
       }
+      }
       RichChatBackgroundTasksList(tasks: tasks) { taskID in
         selection = RichChatBackgroundTaskSelection(taskID: taskID)
       }
     }
     .padding(12)
-    .poracodeGlassBackground(in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+    .frame(maxWidth: .infinity, alignment: .leading)
+    .poracodeContentCardBackground(enabled: !embedded)
     .accessibilityElement(children: .contain)
     .accessibilityIdentifier("background-tasks-panel")
     .sheet(item: $selection) { selection in
@@ -123,13 +129,19 @@ struct RichChatBackgroundTaskRow: View {
     TimelineView(.periodic(from: .now, by: 1)) { context in
       HStack(spacing: 4) {
         Text(task.category.label)
+          .lineLimit(1)
+          .fixedSize(horizontal: true, vertical: false)
         if let age = age(at: context.date) {
           separator
           Text(age)
+            .lineLimit(1)
+            .fixedSize(horizontal: true, vertical: false)
         }
         if let progress = task.progress {
           separator
-          Text(progress).lineLimit(1)
+          Text(progress)
+            .lineLimit(1)
+            .truncationMode(.tail)
         }
       }
       .poracodeChatText(.metadata)

@@ -10,6 +10,8 @@ struct ProjectEditView: View {
   @Bindable var settingsController: ProjectControllerSettingsController
   @Bindable var directoryController: ProjectControllerDirectoryController
   @Bindable var notesController: ProjectControllerNotesController
+  var workspaceUsesCompactNavigation = false
+  @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
   var body: some View {
     List {
@@ -24,6 +26,7 @@ struct ProjectEditView: View {
         } label: {
           Label(ProjectSettingsStrings.general, systemImage: "gearshape")
         }
+        .accessibilityIdentifier("native-e2e.settings.project-general")
 
         NavigationLink {
           ProjectWorktreeSettingsView(
@@ -34,14 +37,18 @@ struct ProjectEditView: View {
         } label: {
           Label(ProjectSettingsStrings.worktrees, systemImage: "arrow.triangle.branch")
         }
+        .accessibilityIdentifier("native-e2e.settings.project-worktrees")
 
-        NavigationLink {
-          ProjectActionsSettingsView(
-            project: currentProject,
-            commandController: commandController
-          )
-        } label: {
-          Label(ProjectSettingsStrings.actions, systemImage: "play")
+        if let lease = commandController.state.session?.lease {
+          NavigationLink {
+            ProjectActionsSettingsView(
+              session: session, project: currentProject, lease: lease,
+              commandController: commandController
+            )
+          } label: {
+            Label(ProjectSettingsStrings.actions, systemImage: "play")
+          }
+          .accessibilityIdentifier("native-e2e.settings.project-actions")
         }
 
         if let identity {
@@ -67,6 +74,7 @@ struct ProjectEditView: View {
           } label: {
             Label(ProjectSettingsStrings.mcpServers, systemImage: "server.rack")
           }
+          .accessibilityIdentifier("native-e2e.settings.project-mcp")
         }
 
         NavigationLink {
@@ -78,6 +86,7 @@ struct ProjectEditView: View {
         } label: {
           Label(ProjectSettingsStrings.search, systemImage: "magnifyingglass")
         }
+        .accessibilityIdentifier("native-e2e.settings.project-search")
       }
 
       if let identity {
@@ -92,6 +101,10 @@ struct ProjectEditView: View {
               session: session,
               identity: identity,
               location: currentProject.location
+            )
+            .environment(
+              \.horizontalSizeClass,
+              workspaceUsesCompactNavigation ? .compact : horizontalSizeClass
             )
           } label: {
             Label(ProjectWorkspaceStrings.title, systemImage: "doc.text.magnifyingglass")
@@ -113,10 +126,12 @@ struct ProjectEditView: View {
           } label: {
             Label(AdvancedOperationsStrings.openFromProject, systemImage: "slider.horizontal.3")
           }
+          .accessibilityIdentifier("native-e2e.settings.project-advanced")
         }
       }
     }
     .listStyle(.insetGrouped)
+    .poracodeReadableListMargins(760)
     .navigationTitle(ProjectManagementStrings.edit)
     .navigationBarTitleDisplayMode(.inline)
     .overlay(alignment: .bottom) {

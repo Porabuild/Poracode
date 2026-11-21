@@ -25,7 +25,27 @@ struct PoracodeGlassGroup<Content: View>: View {
   }
 }
 
+/// Clips a column horizontally while allowing its background to extend under
+/// the surrounding navigation and home-indicator safe areas.
+struct PoracodeColumnHorizontalClip: Shape {
+  func path(in rect: CGRect) -> Path {
+    Path(rect.insetBy(dx: 0, dy: -256))
+  }
+}
+
 extension View {
+  /// A content surface is needed only when an inspector covers the document.
+  /// Keep its shadow outside the column so it can blend into the conversation.
+  func poracodeInspectorOverlaySurface(enabled: Bool) -> some View {
+    background {
+      if enabled {
+        RoundedRectangle(cornerRadius: 20, style: .continuous)
+          .fill(.regularMaterial)
+          .shadow(color: .black.opacity(0.14), radius: 18, y: 4)
+      }
+    }
+  }
+
   /// Gives this view's glass effect a stable identity so the system can morph
   /// it into another glass shape inside the same `PoracodeGlassGroup`.
   @ViewBuilder
@@ -64,6 +84,16 @@ extension View {
     } else {
       safeAreaInset(edge: .bottom, spacing: 0) { bar() }
     }
+  }
+
+  /// Floating controls without the system bar's rectangular scroll-edge
+  /// surface. Content padding reserves space without making the controls
+  /// follow the keyboard with a system safe-area bar.
+  func poracodeFloatingBottomBar<Bar: View>(
+    clearance: CGFloat, @ViewBuilder _ bar: () -> Bar
+  ) -> some View {
+    padding(.bottom, clearance)
+    .overlay(alignment: .bottom) { bar() }
   }
 
   /// Bottom chrome that hosts the expanding UIKit composer editor. On iOS 26

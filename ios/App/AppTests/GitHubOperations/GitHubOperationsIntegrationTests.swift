@@ -61,7 +61,12 @@ final class GitHubOperationsIntegrationTests: XCTestCase {
     XCTAssertTrue(panel.contains("github.action.\\(descriptor.procedure.rawValue)"))
     XCTAssertTrue(panel.contains("GitHubOperationFormView"))
     XCTAssertTrue(form.contains("switch procedure"))
-    XCTAssertTrue(gitUI.contains("GitHubOperationsPanel"))
+    XCTAssertTrue(gitUI.contains("onOpenDestination(.gitHubOperations)"))
+    let destination = try String(contentsOf: root.appendingPathComponent(
+      "ios/App/App/Features/Projects/ProjectGitDetailView.swift"
+    ), encoding: .utf8)
+    XCTAssertTrue(destination.contains("case .gitHubOperations:"))
+    XCTAssertTrue(destination.contains("GitHubOperationsPanel(context: gitHubContext"))
   }
 
   @MainActor

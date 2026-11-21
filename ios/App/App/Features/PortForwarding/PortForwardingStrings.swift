@@ -58,10 +58,6 @@ enum PortForwardingStrings {
   static let forwardingUnavailable = localized(
     "port-forwarding.forwarding-unavailable",
     "Browser forwarding isn't set up on this desktop.")
-  static let browserEntryUnsupported = localized(
-    "port-forwarding.browser-entry-unsupported",
-    "Update Poracode on your desktop to open forwards in the browser.")
-
   static func port(_ value: Int) -> String {
     String(format: localized("port-forwarding.port-format", "Port %lld"), Int64(value))
   }
@@ -89,8 +85,7 @@ enum PortForwardingStrings {
     case .certificateMismatch: certificateMismatch
     case .unsafeEntry: unsafeEntry
     case .browserUnavailable: browserUnavailable
-    case .forwardingUnavailable: forwardingUnavailable
-    case .browserEntryUnsupported: browserEntryUnsupported
+    case .forwardingUnavailable, .browserEntryUnsupported: forwardingUnavailable
     default: unavailable
     }
   }

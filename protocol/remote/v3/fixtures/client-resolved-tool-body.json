@@ -1,0 +1,1254 @@
+{
+  "version": 1,
+  "catalog": {
+    "version": 1,
+    "itemTypes": [
+      {
+        "itemType": "command_execution",
+        "presentation": {
+          "version": 1,
+          "header": {
+            "label": "run",
+            "source": {
+              "root": "payload",
+              "path": ["command"],
+              "format": "value"
+            }
+          },
+          "sections": [
+            {
+              "kind": "terminal",
+              "label": "command",
+              "prefix": "$ ",
+              "source": {
+                "root": "payload",
+                "path": ["command"],
+                "format": "value"
+              }
+            },
+            {
+              "kind": "terminal",
+              "label": "output",
+              "source": {
+                "firstNonempty": [
+                  {
+                    "root": "streams",
+                    "path": ["command_output"],
+                    "format": "terminal"
+                  },
+                  {
+                    "root": "payload",
+                    "path": ["result"],
+                    "format": "value",
+                    "accept": "scalar"
+                  },
+                  {
+                    "root": "payload",
+                    "path": ["result", "detailedContent"],
+                    "format": "value",
+                    "accept": "string"
+                  },
+                  {
+                    "root": "payload",
+                    "path": ["result", "text"],
+                    "format": "value",
+                    "accept": "string"
+                  },
+                  {
+                    "root": "payload",
+                    "path": ["result", "content"],
+                    "format": "value",
+                    "accept": "string"
+                  },
+                  {
+                    "root": "payload",
+                    "path": ["result", "content"],
+                    "format": "text-list",
+                    "eachPath": ["text"]
+                  },
+                  {
+                    "root": "payload",
+                    "path": ["result", "contents"],
+                    "format": "text-list",
+                    "eachPath": ["text"]
+                  },
+                  {
+                    "root": "payload",
+                    "path": ["result"],
+                    "format": "json",
+                    "accept": "object"
+                  }
+                ]
+              }
+            },
+            {
+              "kind": "code",
+              "label": "error",
+              "source": {
+                "root": "payload",
+                "path": ["errorMessage"],
+                "format": "value"
+              }
+            }
+          ],
+          "headerProjection": {
+            "version": 1,
+            "maxItems": 32,
+            "maxInputBytes": 4194304,
+            "maxDepth": 64,
+            "maxNodes": 16384,
+            "inputs": [
+              {
+                "root": "payload",
+                "path": ["command"]
+              },
+              {
+                "root": "payload",
+                "path": ["cwd"]
+              },
+              {
+                "root": "payload",
+                "path": ["actions"]
+              },
+              {
+                "root": "payload",
+                "path": ["status"]
+              },
+              {
+                "root": "payload",
+                "path": ["exitCode"]
+              },
+              {
+                "root": "payload",
+                "path": ["durationMs"]
+              },
+              {
+                "root": "payload",
+                "path": ["args", "command"]
+              },
+              {
+                "root": "payload",
+                "path": ["args", "cwd"]
+              }
+            ]
+          },
+          "mediaSources": [
+            {
+              "root": "payload",
+              "path": ["images"]
+            }
+          ]
+        }
+      },
+      {
+        "itemType": "file_change",
+        "presentation": {
+          "version": 1,
+          "header": {
+            "label": "edit",
+            "labelChoice": {
+              "source": {
+                "root": "payload",
+                "path": ["changeKind"],
+                "format": "value"
+              },
+              "labels": {
+                "create": "create",
+                "edit": "edit",
+                "delete": "delete"
+              }
+            },
+            "source": {
+              "root": "payload",
+              "path": ["path"],
+              "format": "value"
+            },
+            "path": true
+          },
+          "sections": [
+            {
+              "kind": "code",
+              "label": "changes",
+              "replaceFollowing": true,
+              "source": {
+                "root": "streams",
+                "path": ["file_change_output"],
+                "format": "value"
+              }
+            },
+            {
+              "kind": "code",
+              "label": "changes",
+              "onlyLanguage": "diff",
+              "replaceFollowing": true,
+              "source": {
+                "firstNonempty": [
+                  {
+                    "root": "payload",
+                    "path": ["result"],
+                    "format": "value",
+                    "accept": "scalar"
+                  },
+                  {
+                    "root": "payload",
+                    "path": ["result", "detailedContent"],
+                    "format": "value",
+                    "accept": "string"
+                  },
+                  {
+                    "root": "payload",
+                    "path": ["result", "text"],
+                    "format": "value",
+                    "accept": "string"
+                  },
+                  {
+                    "root": "payload",
+                    "path": ["result", "content"],
+                    "format": "value",
+                    "accept": "string"
+                  },
+                  {
+                    "root": "payload",
+                    "path": ["result", "content"],
+                    "format": "text-list",
+                    "eachPath": ["text"]
+                  },
+                  {
+                    "root": "payload",
+                    "path": ["result", "contents"],
+                    "format": "text-list",
+                    "eachPath": ["text"]
+                  },
+                  {
+                    "root": "payload",
+                    "path": ["result"],
+                    "format": "json",
+                    "accept": "object"
+                  }
+                ]
+              }
+            },
+            {
+              "kind": "code",
+              "label": "args",
+              "source": {
+                "firstNonempty": [
+                  {
+                    "root": "payload",
+                    "path": ["args"],
+                    "format": "value",
+                    "accept": "string"
+                  },
+                  {
+                    "root": "payload",
+                    "path": ["args"],
+                    "format": "json",
+                    "accept": "non-string"
+                  }
+                ]
+              }
+            },
+            {
+              "kind": "code",
+              "label": "result",
+              "source": {
+                "firstNonempty": [
+                  {
+                    "root": "payload",
+                    "path": ["result"],
+                    "format": "value",
+                    "accept": "scalar"
+                  },
+                  {
+                    "root": "payload",
+                    "path": ["result", "detailedContent"],
+                    "format": "value",
+                    "accept": "string"
+                  },
+                  {
+                    "root": "payload",
+                    "path": ["result", "text"],
+                    "format": "value",
+                    "accept": "string"
+                  },
+                  {
+                    "root": "payload",
+                    "path": ["result", "content"],
+                    "format": "value",
+                    "accept": "string"
+                  },
+                  {
+                    "root": "payload",
+                    "path": ["result", "content"],
+                    "format": "text-list",
+                    "eachPath": ["text"]
+                  },
+                  {
+                    "root": "payload",
+                    "path": ["result", "contents"],
+                    "format": "text-list",
+                    "eachPath": ["text"]
+                  },
+                  {
+                    "root": "payload",
+                    "path": ["result"],
+                    "format": "json",
+                    "accept": "object"
+                  }
+                ]
+              }
+            }
+          ],
+          "mediaSources": [
+            {
+              "root": "payload",
+              "path": ["images"]
+            }
+          ]
+        }
+      },
+      {
+        "itemType": "tool_call",
+        "presentation": {
+          "version": 1,
+          "header": {
+            "source": {
+              "firstNonempty": [
+                {
+                  "root": "payload",
+                  "path": ["title"],
+                  "format": "value",
+                  "accept": "string"
+                },
+                {
+                  "root": "payload",
+                  "path": ["name"],
+                  "format": "value",
+                  "accept": "string"
+                }
+              ]
+            },
+            "context": {
+              "root": "payload",
+              "path": ["serverId"],
+              "format": "value",
+              "accept": "string"
+            }
+          },
+          "sections": [
+            {
+              "kind": "code",
+              "label": "args",
+              "source": {
+                "firstNonempty": [
+                  {
+                    "root": "payload",
+                    "path": ["args"],
+                    "format": "value",
+                    "accept": "string"
+                  },
+                  {
+                    "root": "payload",
+                    "path": ["args"],
+                    "format": "json",
+                    "accept": "non-string"
+                  }
+                ]
+              }
+            },
+            {
+              "kind": "code",
+              "label": "result",
+              "source": {
+                "firstNonempty": [
+                  {
+                    "root": "payload",
+                    "path": ["result"],
+                    "format": "value",
+                    "accept": "scalar"
+                  },
+                  {
+                    "root": "payload",
+                    "path": ["result", "detailedContent"],
+                    "format": "value",
+                    "accept": "string"
+                  },
+                  {
+                    "root": "payload",
+                    "path": ["result", "text"],
+                    "format": "value",
+                    "accept": "string"
+                  },
+                  {
+                    "root": "payload",
+                    "path": ["result", "content"],
+                    "format": "value",
+                    "accept": "string"
+                  },
+                  {
+                    "root": "payload",
+                    "path": ["result", "content"],
+                    "format": "text-list",
+                    "eachPath": ["text"]
+                  },
+                  {
+                    "root": "payload",
+                    "path": ["result", "contents"],
+                    "format": "text-list",
+                    "eachPath": ["text"]
+                  },
+                  {
+                    "root": "payload",
+                    "path": ["result"],
+                    "format": "json",
+                    "accept": "object"
+                  }
+                ]
+              }
+            }
+          ],
+          "headerProjection": {
+            "version": 2,
+            "maxItems": 32,
+            "maxInputBytes": 4194304,
+            "maxDepth": 64,
+            "maxNodes": 16384,
+            "inputs": [
+              {
+                "root": "payload",
+                "path": ["name"]
+              },
+              {
+                "root": "payload",
+                "path": ["serverId"]
+              },
+              {
+                "root": "payload",
+                "path": ["status"]
+              }
+            ]
+          },
+          "workflowProjection": {
+            "version": 3,
+            "maxItems": 32,
+            "maxInputBytes": 4194304,
+            "maxDepth": 64,
+            "maxNodes": 16384,
+            "inputs": [
+              {
+                "root": "payload",
+                "path": ["name"]
+              },
+              {
+                "root": "payload",
+                "path": ["serverId"]
+              },
+              {
+                "root": "payload",
+                "path": ["workflow"]
+              },
+              {
+                "root": "payload",
+                "path": ["result"]
+              },
+              {
+                "root": "payload",
+                "path": ["progress", "description"]
+              }
+            ],
+            "conditions": [
+              {
+                "root": "payload",
+                "path": ["name"],
+                "values": ["Workflow"]
+              },
+              {
+                "root": "payload",
+                "path": ["serverId"],
+                "values": [null, ""]
+              },
+              {
+                "root": "payload",
+                "path": ["workflow"],
+                "values": [null]
+              }
+            ]
+          },
+          "workflowViewProjection": {
+            "version": 4,
+            "maxItems": 32,
+            "maxInputBytes": 4194304,
+            "maxDepth": 64,
+            "maxNodes": 16384,
+            "inputs": [
+              {
+                "root": "payload",
+                "path": ["name"]
+              },
+              {
+                "root": "payload",
+                "path": ["serverId"]
+              },
+              {
+                "root": "payload",
+                "path": ["workflow"]
+              },
+              {
+                "root": "payload",
+                "path": ["result"]
+              },
+              {
+                "root": "payload",
+                "path": ["progress", "description"]
+              },
+              {
+                "root": "payload",
+                "path": ["args"]
+              }
+            ],
+            "conditions": [
+              {
+                "root": "payload",
+                "path": ["name"],
+                "values": ["Workflow"]
+              },
+              {
+                "root": "payload",
+                "path": ["serverId"],
+                "values": [null, ""]
+              }
+            ]
+          },
+          "bodyProjection": {
+            "version": 5,
+            "maxItems": 32,
+            "maxInputBytes": 4194304,
+            "maxDepth": 64,
+            "maxNodes": 16384,
+            "inputs": [
+              {
+                "root": "payload",
+                "path": ["name"]
+              },
+              {
+                "root": "payload",
+                "path": ["serverId"]
+              },
+              {
+                "root": "payload",
+                "path": ["workflow"]
+              },
+              {
+                "root": "payload",
+                "path": ["status"]
+              },
+              {
+                "root": "payload",
+                "path": ["result"]
+              }
+            ],
+            "conditions": [
+              {
+                "root": "payload",
+                "path": ["name"],
+                "values": ["fixture-batch"]
+              },
+              {
+                "root": "payload",
+                "path": ["serverId"],
+                "values": [null, ""]
+              }
+            ]
+          },
+          "mediaSources": [
+            {
+              "root": "payload",
+              "path": ["images"]
+            }
+          ]
+        }
+      },
+      {
+        "itemType": "dynamic_tool_call",
+        "presentation": {
+          "version": 1,
+          "header": {
+            "source": {
+              "firstNonempty": [
+                {
+                  "root": "payload",
+                  "path": ["title"],
+                  "format": "value",
+                  "accept": "string"
+                },
+                {
+                  "root": "payload",
+                  "path": ["name"],
+                  "format": "value",
+                  "accept": "string"
+                }
+              ]
+            },
+            "context": {
+              "root": "payload",
+              "path": ["serverId"],
+              "format": "value",
+              "accept": "string"
+            }
+          },
+          "sections": [
+            {
+              "kind": "code",
+              "label": "args",
+              "source": {
+                "firstNonempty": [
+                  {
+                    "root": "payload",
+                    "path": ["args"],
+                    "format": "value",
+                    "accept": "string"
+                  },
+                  {
+                    "root": "payload",
+                    "path": ["args"],
+                    "format": "json",
+                    "accept": "non-string"
+                  }
+                ]
+              }
+            },
+            {
+              "kind": "code",
+              "label": "result",
+              "source": {
+                "firstNonempty": [
+                  {
+                    "root": "payload",
+                    "path": ["result"],
+                    "format": "value",
+                    "accept": "scalar"
+                  },
+                  {
+                    "root": "payload",
+                    "path": ["result", "detailedContent"],
+                    "format": "value",
+                    "accept": "string"
+                  },
+                  {
+                    "root": "payload",
+                    "path": ["result", "text"],
+                    "format": "value",
+                    "accept": "string"
+                  },
+                  {
+                    "root": "payload",
+                    "path": ["result", "content"],
+                    "format": "value",
+                    "accept": "string"
+                  },
+                  {
+                    "root": "payload",
+                    "path": ["result", "content"],
+                    "format": "text-list",
+                    "eachPath": ["text"]
+                  },
+                  {
+                    "root": "payload",
+                    "path": ["result", "contents"],
+                    "format": "text-list",
+                    "eachPath": ["text"]
+                  },
+                  {
+                    "root": "payload",
+                    "path": ["result"],
+                    "format": "json",
+                    "accept": "object"
+                  }
+                ]
+              }
+            }
+          ],
+          "headerProjection": {
+            "version": 2,
+            "maxItems": 32,
+            "maxInputBytes": 4194304,
+            "maxDepth": 64,
+            "maxNodes": 16384,
+            "inputs": [
+              {
+                "root": "payload",
+                "path": ["name"]
+              },
+              {
+                "root": "payload",
+                "path": ["serverId"]
+              },
+              {
+                "root": "payload",
+                "path": ["status"]
+              }
+            ]
+          },
+          "workflowProjection": {
+            "version": 3,
+            "maxItems": 32,
+            "maxInputBytes": 4194304,
+            "maxDepth": 64,
+            "maxNodes": 16384,
+            "inputs": [
+              {
+                "root": "payload",
+                "path": ["name"]
+              },
+              {
+                "root": "payload",
+                "path": ["serverId"]
+              },
+              {
+                "root": "payload",
+                "path": ["workflow"]
+              },
+              {
+                "root": "payload",
+                "path": ["result"]
+              },
+              {
+                "root": "payload",
+                "path": ["progress", "description"]
+              }
+            ],
+            "conditions": [
+              {
+                "root": "payload",
+                "path": ["name"],
+                "values": ["Workflow"]
+              },
+              {
+                "root": "payload",
+                "path": ["serverId"],
+                "values": [null, ""]
+              },
+              {
+                "root": "payload",
+                "path": ["workflow"],
+                "values": [null]
+              }
+            ]
+          },
+          "workflowViewProjection": {
+            "version": 4,
+            "maxItems": 32,
+            "maxInputBytes": 4194304,
+            "maxDepth": 64,
+            "maxNodes": 16384,
+            "inputs": [
+              {
+                "root": "payload",
+                "path": ["name"]
+              },
+              {
+                "root": "payload",
+                "path": ["serverId"]
+              },
+              {
+                "root": "payload",
+                "path": ["workflow"]
+              },
+              {
+                "root": "payload",
+                "path": ["result"]
+              },
+              {
+                "root": "payload",
+                "path": ["progress", "description"]
+              },
+              {
+                "root": "payload",
+                "path": ["args"]
+              }
+            ],
+            "conditions": [
+              {
+                "root": "payload",
+                "path": ["name"],
+                "values": ["Workflow"]
+              },
+              {
+                "root": "payload",
+                "path": ["serverId"],
+                "values": [null, ""]
+              }
+            ]
+          },
+          "bodyProjection": {
+            "version": 5,
+            "maxItems": 32,
+            "maxInputBytes": 4194304,
+            "maxDepth": 64,
+            "maxNodes": 16384,
+            "inputs": [
+              {
+                "root": "payload",
+                "path": ["name"]
+              },
+              {
+                "root": "payload",
+                "path": ["serverId"]
+              },
+              {
+                "root": "payload",
+                "path": ["workflow"]
+              },
+              {
+                "root": "payload",
+                "path": ["status"]
+              },
+              {
+                "root": "payload",
+                "path": ["result"]
+              }
+            ],
+            "conditions": [
+              {
+                "root": "payload",
+                "path": ["name"],
+                "values": ["fixture-batch"]
+              },
+              {
+                "root": "payload",
+                "path": ["serverId"],
+                "values": [null, ""]
+              }
+            ]
+          },
+          "mediaSources": [
+            {
+              "root": "payload",
+              "path": ["images"]
+            }
+          ]
+        }
+      },
+      {
+        "itemType": "mcp_tool_call",
+        "presentation": {
+          "version": 1,
+          "header": {
+            "source": {
+              "firstNonempty": [
+                {
+                  "root": "payload",
+                  "path": ["title"],
+                  "format": "value",
+                  "accept": "string"
+                },
+                {
+                  "root": "payload",
+                  "path": ["name"],
+                  "format": "value",
+                  "accept": "string"
+                }
+              ]
+            },
+            "context": {
+              "root": "payload",
+              "path": ["serverId"],
+              "format": "value",
+              "accept": "string"
+            }
+          },
+          "sections": [
+            {
+              "kind": "code",
+              "label": "args",
+              "source": {
+                "firstNonempty": [
+                  {
+                    "root": "payload",
+                    "path": ["args"],
+                    "format": "value",
+                    "accept": "string"
+                  },
+                  {
+                    "root": "payload",
+                    "path": ["args"],
+                    "format": "json",
+                    "accept": "non-string"
+                  }
+                ]
+              }
+            },
+            {
+              "kind": "code",
+              "label": "result",
+              "source": {
+                "firstNonempty": [
+                  {
+                    "root": "payload",
+                    "path": ["result"],
+                    "format": "value",
+                    "accept": "scalar"
+                  },
+                  {
+                    "root": "payload",
+                    "path": ["result", "detailedContent"],
+                    "format": "value",
+                    "accept": "string"
+                  },
+                  {
+                    "root": "payload",
+                    "path": ["result", "text"],
+                    "format": "value",
+                    "accept": "string"
+                  },
+                  {
+                    "root": "payload",
+                    "path": ["result", "content"],
+                    "format": "value",
+                    "accept": "string"
+                  },
+                  {
+                    "root": "payload",
+                    "path": ["result", "content"],
+                    "format": "text-list",
+                    "eachPath": ["text"]
+                  },
+                  {
+                    "root": "payload",
+                    "path": ["result", "contents"],
+                    "format": "text-list",
+                    "eachPath": ["text"]
+                  },
+                  {
+                    "root": "payload",
+                    "path": ["result"],
+                    "format": "json",
+                    "accept": "object"
+                  }
+                ]
+              }
+            }
+          ],
+          "headerProjection": {
+            "version": 2,
+            "maxItems": 32,
+            "maxInputBytes": 4194304,
+            "maxDepth": 64,
+            "maxNodes": 16384,
+            "inputs": [
+              {
+                "root": "payload",
+                "path": ["name"]
+              },
+              {
+                "root": "payload",
+                "path": ["serverId"]
+              },
+              {
+                "root": "payload",
+                "path": ["status"]
+              }
+            ]
+          },
+          "mediaSources": [
+            {
+              "root": "payload",
+              "path": ["images"]
+            }
+          ]
+        }
+      },
+      {
+        "itemType": "web_search",
+        "presentation": {
+          "version": 1,
+          "header": {
+            "label": "search",
+            "source": {
+              "root": "payload",
+              "path": ["query"],
+              "format": "value"
+            }
+          },
+          "sections": [
+            {
+              "kind": "code",
+              "label": "args",
+              "source": {
+                "root": "payload",
+                "path": ["query"],
+                "format": "value"
+              }
+            },
+            {
+              "kind": "code",
+              "label": "content",
+              "source": {
+                "root": "payload",
+                "path": [],
+                "format": "json"
+              }
+            }
+          ],
+          "mediaSources": [
+            {
+              "root": "payload",
+              "path": ["images"]
+            }
+          ]
+        }
+      },
+      {
+        "itemType": "image_view",
+        "presentation": {
+          "version": 1,
+          "header": {
+            "label": "view",
+            "source": {
+              "root": "payload",
+              "path": ["path"],
+              "format": "value"
+            },
+            "path": true
+          },
+          "sections": [],
+          "mediaSources": [
+            {
+              "root": "payload",
+              "path": ["path"]
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "cases": [
+    {
+      "id": "findings",
+      "type": "tool_call",
+      "state": "completed",
+      "payload": {
+        "name": "fixture-batch",
+        "status": "success",
+        "result": {
+          "result": {
+            "findings": [
+              {
+                "title": "Layout",
+                "summary": "Keep **both panes** readable. 東京 🧭",
+                "severity": "high",
+                "checks": 0,
+                "confirmed": false,
+                "extra": null,
+                "location": {
+                  "path": "src/App.tsx",
+                  "line": 12
+                }
+              },
+              {
+                "title": "Keyboard",
+                "summary": "Preserve the draft when rotating.",
+                "detail": "Secondary detail excluded just like PWA.",
+                "evidence": ["portrait", "landscape"]
+              }
+            ]
+          }
+        }
+      },
+      "entry": {
+        "status": "ready",
+        "itemId": "findings",
+        "inputDigest": "71e3ab0914de8c706384d243cfc918c0d912b62e45ebdde83d90da41777a9278",
+        "body": {
+          "blocks": [
+            {
+              "kind": "disclosure-list",
+              "label": "results",
+              "countLabel": "2 titles",
+              "rows": [
+                {
+                  "title": "Layout",
+                  "detail": "Keep **both panes** readable. 東京 🧭",
+                  "summary": "Keep **both panes** readable. 東京 🧭",
+                  "fields": [
+                    {
+                      "label": "severity",
+                      "text": "high",
+                      "kind": "text"
+                    },
+                    {
+                      "label": "checks",
+                      "text": "0",
+                      "kind": "code"
+                    },
+                    {
+                      "label": "confirmed",
+                      "text": "false",
+                      "kind": "code"
+                    },
+                    {
+                      "label": "extra",
+                      "text": "null",
+                      "kind": "code"
+                    },
+                    {
+                      "label": "location",
+                      "text": "{\"path\":\"src/App.tsx\",\"line\":12}",
+                      "kind": "code"
+                    }
+                  ]
+                },
+                {
+                  "title": "Keyboard",
+                  "detail": "Preserve the draft when rotating.",
+                  "summary": "Preserve the draft when rotating.",
+                  "fields": [
+                    {
+                      "label": "evidence",
+                      "text": "[\"portrait\",\"landscape\"]",
+                      "kind": "code"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "plain",
+      "type": "tool_call",
+      "state": "completed",
+      "payload": {
+        "name": "fixture-batch",
+        "status": "success",
+        "result": "  Review **complete**.\n\n- Keep all content.  "
+      },
+      "entry": {
+        "status": "ready",
+        "itemId": "plain",
+        "inputDigest": "9fd5908635dee72401bb02c814fe04cf6c2266e222392c3c2ac9f490881b0551",
+        "body": {
+          "blocks": [
+            {
+              "kind": "markdown",
+              "text": "Review **complete**.\n\n- Keep all content."
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "json",
+      "type": "tool_call",
+      "state": "completed",
+      "payload": {
+        "name": "fixture-batch",
+        "status": "success",
+        "result": {
+          "total": 0,
+          "passed": false,
+          "detail": null
+        }
+      },
+      "entry": {
+        "status": "ready",
+        "itemId": "json",
+        "inputDigest": "6c6ae2c4db2529ea5ccd054ce49d319c836775700268a4c5dc896c42ef31e96d",
+        "body": {
+          "blocks": [
+            {
+              "kind": "code",
+              "text": "{\n  \"total\": 0,\n  \"passed\": false,\n  \"detail\": null\n}",
+              "language": "json"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "empty",
+      "type": "tool_call",
+      "state": "completed",
+      "payload": {
+        "name": "fixture-batch",
+        "status": "success",
+        "result": "   "
+      },
+      "entry": {
+        "status": "ready",
+        "itemId": "empty",
+        "inputDigest": "b58616a9b7a2542c9f34148eb8b9709381d231dcc703aed826cc5dcd021d11f6",
+        "body": {
+          "blocks": []
+        }
+      }
+    },
+    {
+      "id": "unlabeled",
+      "type": "tool_call",
+      "state": "completed",
+      "payload": {
+        "name": "fixture-batch",
+        "status": "success",
+        "result": [
+          {
+            "score": 0,
+            "enabled": false
+          },
+          {
+            "score": 1,
+            "enabled": true
+          }
+        ]
+      },
+      "entry": {
+        "status": "ready",
+        "itemId": "unlabeled",
+        "inputDigest": "7304ef5b01d71aedb5154714acefde5f4b85e7fda1cc20a05015ae61021f1395",
+        "body": {
+          "blocks": [
+            {
+              "kind": "disclosure-list",
+              "label": "results",
+              "countLabel": "2 results",
+              "rows": [
+                {
+                  "summary": "score: 0 · enabled: false",
+                  "fields": [
+                    {
+                      "label": "score",
+                      "text": "0",
+                      "kind": "code"
+                    },
+                    {
+                      "label": "enabled",
+                      "text": "false",
+                      "kind": "code"
+                    }
+                  ]
+                },
+                {
+                  "summary": "score: 1 · enabled: true",
+                  "fields": [
+                    {
+                      "label": "score",
+                      "text": "1",
+                      "kind": "code"
+                    },
+                    {
+                      "label": "enabled",
+                      "text": "true",
+                      "kind": "code"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

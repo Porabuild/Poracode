@@ -14,12 +14,13 @@ struct PoracodeToolbarIconButton: View {
   let title: String
   let systemImage: String
   var color: Color = .secondary
+  var sharesBackground = false
   let action: () -> Void
 
   var body: some View {
     Button(title, systemImage: systemImage, action: action)
       .labelStyle(.iconOnly)
-      .buttonBorderShape(.circle)
+      .buttonBorderShape(sharesBackground ? .automatic : .circle)
       .foregroundStyle(color)
       .tint(color)
   }
@@ -87,17 +88,18 @@ struct PoracodeStatusBubble<Content: View>: View {
   }
 }
 
-/// A native glass capsule for compact navigation title metadata. The
-/// navigation bar stays transparent while this bubble keeps the centered title
-/// legible over transcript content scrolling underneath.
-struct PoracodeToolbarInfoBubble<Content: View>: View {
+/// Titles orient the content hierarchy rather than sharing the glass treatment
+/// of toolbar actions. iPad can place this after its leading navigation items.
+struct PoracodeToolbarTitle<Content: View>: ToolbarContent {
   @ViewBuilder let content: () -> Content
 
-  var body: some View {
-    content()
-      .padding(.horizontal, 10)
-      .padding(.vertical, 5)
-      .poracodeNativeBubbleSurface(in: Capsule(), interactive: true)
+  var body: some ToolbarContent {
+    if #available(iOS 26.0, *) {
+      ToolbarItem(placement: .title) { content() }
+        .sharedBackgroundVisibility(.hidden)
+    } else {
+      ToolbarItem(placement: .principal) { content() }
+    }
   }
 }
 
@@ -125,6 +127,27 @@ struct PoracodeComposerBar<Leading: View, Content: View, Trailing: View>: View {
   }
 }
 
+/// One persistent composer surface morphs between its collapsed and editing
+/// geometries. Its 50pt resting height matches the floating panel control strips.
+struct PoracodeAdaptiveComposerSurface<Content: View>: View {
+  let isExpanded: Bool
+  var leadingPadding: CGFloat = 16
+  var trailingPadding: CGFloat = 8
+  @ViewBuilder let content: () -> Content
+
+  var body: some View {
+    content()
+      .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+      .padding(.leading, leadingPadding)
+      .padding(.trailing, trailingPadding)
+      .padding(.vertical, isExpanded ? 10 : 3)
+      .poracodeNativeComposerSurface(
+        in: RoundedRectangle(cornerRadius: isExpanded ? 20 : 25, style: .continuous),
+        interactive: !isExpanded
+      )
+  }
+}
+
 /// Two-row native composer surface used while editing. Its compact counterpart
 /// is `PoracodeComposerBar`; keeping both geometries shared prevents each
 /// feature from inventing its own bubble radius, border, and toolbar spacing.
@@ -149,16 +172,11 @@ struct PoracodeExpandedComposerSurface<Editor: View, Toolbar: View>: View {
 }
 
 extension View {
-  /// One native surface for composer bubbles. On iOS 26 it is Liquid Glass —
-  /// `interactive` opts collapsed bars into the system's touch response while
-  /// expanded editors stay non-interactive because a UIKit text view sits
-  /// inside. The material fallback keeps its stroke and owns the drop shadow.
-  /// Composer controls must not add Liquid Glass on top of this surface.
-  func poracodeNativeComposerSurface<S: InsettableShape>(
-    in shape: S,
+  func poracodeNativeComposerSurface(
+    in shape: some InsettableShape,
     interactive: Bool = false
   ) -> some View {
-    modifier(NativeComposerMaterial(shape: shape, interactive: interactive))
+    modifier(PoracodeNativeComposerThemeSurface(shape: shape, interactive: interactive))
   }
 
   /// Native Liquid Glass for floating bubbles on iOS 26, with a material
@@ -183,17 +201,43 @@ extension View {
   }
 }
 
+private struct PoracodeNativeComposerThemeSurface<S: InsettableShape>: ViewModifier {
+  @Environment(\.poracodeTheme) private var theme
+  @Environment(\.colorScheme) private var colorScheme
+  let shape: S
+  let interactive: Bool
+
+  private var authoredFill: Color? { theme.variant(for: colorScheme).composerHex.map { Color(poracodeHex: $0) } }
+
+  @available(iOS 26.0, *) private var glass: Glass {
+    if let authoredFill { return .regular.tint(authoredFill) }
+    return .regular
+  }
+
+  @ViewBuilder func body(content: Content) -> some View {
+    if #available(iOS 26.0, *), interactive {
+      content.glassEffect(glass.interactive(), in: shape)
+    } else {
+      content.poracodeInputSurface(in: shape, fill: authoredFill.map(AnyShapeStyle.init) ?? AnyShapeStyle(.regularMaterial))
+        .shadow(color: .black.opacity(0.18), radius: 12, y: 5)
+    }
+  }
+}
+
 /// Groups related compact information controls into one neutral pill instead
 /// of presenting a detached glass circle for every secondary destination.
 struct PoracodeCompactControlGroup<Content: View>: View {
   @ViewBuilder let content: () -> Content
+  @ScaledMetric(relativeTo: .caption2) private var surfaceHeight: CGFloat = 28
 
   var body: some View {
     HStack(spacing: 2) {
       content()
     }
-    .padding(2)
+    .padding(.horizontal, 2)
+    .frame(height: surfaceHeight)
     .poracodeNativeBubbleSurface(in: Capsule(), interactive: true)
+    .frame(minHeight: 44)
   }
 }
 

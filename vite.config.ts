@@ -8,6 +8,7 @@ import { lingui, linguiTransformerBabelPreset } from "@lingui/vite-plugin";
 import tailwindcss from "@tailwindcss/vite";
 import { formatter } from "@lingui/format-po";
 import { SUPPORTED_LOCALES } from "./src/shared/locale";
+import { runtimePayloadProjectionVitePlugin } from "./src/build/runtimePayloadProjectionVitePlugin";
 
 const linguiPreset = linguiTransformerBabelPreset();
 const CLIENT_SOURCE_RE = /[\\/]src[\\/]renderer[\\/].*\.[tj]sx?(?:$|\?)/;
@@ -493,6 +494,7 @@ function materialIconAssets(): Plugin[] {
 
 export default defineConfig(({ command, mode }) => ({
   plugins: [
+    runtimePayloadProjectionVitePlugin(import.meta.dirname),
     tailwindcss(),
     pwaBootScreen(),
     resizeObserverLoopErrorFilter(),

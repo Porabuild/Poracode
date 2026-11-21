@@ -31,6 +31,8 @@ actor HostCatalog {
     private var currentOperationKind: HostOperationKind?
     private var crashAfterStage: HostTransactionJournal.Stage?
     private var mutationCheckpoint: (@Sendable () async -> Void)?
+    enum ReadCheckpoint: Equatable, Sendable { case snapshot, token }
+    private var readCheckpoint: (ReadCheckpoint, @Sendable () async -> Void)?
 
     init(
         directory: URL,
@@ -90,6 +92,7 @@ actor HostCatalog {
         currentOperationKind = nil
         crashAfterStage = nil
         mutationCheckpoint = nil
+        readCheckpoint = nil
     }
 
     func setCrashAfterStage(_ stage: HostTransactionJournal.Stage?) {
@@ -98,6 +101,12 @@ actor HostCatalog {
 
     func setMutationCheckpoint(_ checkpoint: (@Sendable () async -> Void)?) {
         mutationCheckpoint = checkpoint
+    }
+
+    /// One-shot delayed completion for authority-race tests, after the value
+    /// has been read. Production reads have no checkpoint or suspension here.
+    func setReadCheckpoint(_ read: ReadCheckpoint, _ checkpoint: @escaping @Sendable () async -> Void) {
+        readCheckpoint = (read, checkpoint)
     }
 
     func activate(id: UInt64, kind: HostOperationKind) throws -> Bool {
@@ -141,9 +150,30 @@ actor HostCatalog {
         return HostCatalogSnapshot(document: document, registryExists: exists)
     }
 
+    /// UI publication is fenced after these independently awaited reads.
+    /// Exact-host credential resolvers keep the synchronous primitives above
+    /// and below so record/token resolution stays in one catalog actor turn.
+    func presentationSnapshot() async throws -> HostCatalogSnapshot {
+        let snapshot = try snapshot()
+        await consumeReadCheckpoint(.snapshot)
+        return snapshot
+    }
+
     func token(for connectionId: ClientConnectionID) throws -> String? {
         try recover()
         return try vault.loadToken(connectionId: connectionId)
+    }
+
+    func presentationToken(for connectionId: ClientConnectionID) async throws -> String? {
+        let token = try token(for: connectionId)
+        await consumeReadCheckpoint(.token)
+        return token
+    }
+
+    private func consumeReadCheckpoint(_ read: ReadCheckpoint) async {
+        guard let (expected, checkpoint) = readCheckpoint, expected == read else { return }
+        readCheckpoint = nil
+        await checkpoint()
     }
 
     func importLegacyIfNeeded() throws -> LegacyHostImport.Outcome {

@@ -5,6 +5,7 @@ enum RichChatConversationOperation: Equatable, Sendable {
   case send
   case interrupt
   case close
+  case unload
   case truncate
   case command
   case goal
@@ -41,6 +42,7 @@ final class RichChatConversationController {
 
   private let gateway: any RichChatConversationGateway
   private let refreshRequester: any RichChatAuthoritativeRefreshRequesting
+  private let checkpointRevertAttempts: RichChatCheckpointRevertAttempts
   private let sendTask = RichChatControllerTaskSlot()
   private let mutationTask = RichChatControllerTaskSlot()
   private let interruptTask = RichChatControllerTaskSlot()
@@ -51,10 +53,12 @@ final class RichChatConversationController {
   init(
     gateway: any RichChatConversationGateway,
     refreshRequester: any RichChatAuthoritativeRefreshRequesting =
-      RichChatNoopRefreshRequester()
+      RichChatNoopRefreshRequester(),
+    checkpointRevertAttempts: RichChatCheckpointRevertAttempts = RichChatCheckpointRevertAttempts()
   ) {
     self.gateway = gateway
     self.refreshRequester = refreshRequester
+    self.checkpointRevertAttempts = checkpointRevertAttempts
   }
 
   func activate(access: RichChatSessionAccess, threadID: String) {
@@ -114,7 +118,7 @@ final class RichChatConversationController {
       state.failure = .invalidRequest
       return false
     }
-    guard !state.isSending else {
+    guard !state.isSending, state.activeMutation != .unload else {
       state.failure = .busy
       return false
     }
@@ -182,6 +186,16 @@ final class RichChatConversationController {
     }
   }
 
+  /// Retires the current runtime while keeping the conversation and draft
+  /// visible. The next send resumes it with its updated Crew configuration.
+  @discardableResult
+  func unloadForRelaunch() async -> Bool {
+    guard !state.isSending else { return false }
+    return await runMutation(.unload, refreshOnSuccess: true) { gateway, target in
+      try await gateway.closeRichThread(target: target)
+    }
+  }
+
   func truncate(after itemID: String) async {
     guard !itemID.isEmpty else {
       state.failure = .invalidRequest
@@ -199,14 +213,15 @@ final class RichChatConversationController {
     }
   }
 
-  func updateGoal(_ update: RichChatGoalUpdate) async {
+  @discardableResult
+  func updateGoal(_ update: RichChatGoalUpdate) async -> Bool {
     if case .edit(let objective) = update,
       objective.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     {
       state.failure = .invalidRequest
-      return
+      return false
     }
-    await runMutation(.goal, refreshOnSuccess: false) { gateway, target in
+    return await runMutation(.goal, refreshOnSuccess: false) { gateway, target in
       try await gateway.updateRichGoal(target: target, update: update)
     }
   }
@@ -217,10 +232,9 @@ final class RichChatConversationController {
       state.failure = .invalidRequest
       return false
     }
-    await runMutation(.setSteer, refreshOnSuccess: false) { gateway, target in
+    return await runMutation(.setSteer, refreshOnSuccess: false) { gateway, target in
       try await gateway.setRichSteer(target: target, input: input)
     }
-    return state.lastCompletedOperation == .setSteer && state.failure == nil
   }
 
   func clearPendingSteer() async {
@@ -258,14 +272,13 @@ final class RichChatConversationController {
 
   @discardableResult
   func editQueuedFollowUp(_ edit: RichQueuedFollowUpEdit) async -> Bool {
-    guard !edit.prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+    guard RichPromptSegment.isSendable(prompt: edit.prompt, segments: edit.segments) else {
       state.failure = .invalidRequest
       return false
     }
-    await runMutation(.editQueuedFollowUp, refreshOnSuccess: false) { gateway, target in
+    return await runMutation(.editQueuedFollowUp, refreshOnSuccess: false) { gateway, target in
       try await gateway.editRichQueuedFollowUp(target: target, edit: edit)
     }
-    return state.lastCompletedOperation == .editQueuedFollowUp && state.failure == nil
   }
 
   @discardableResult
@@ -273,7 +286,6 @@ final class RichChatConversationController {
     await runMutation(.steerQueuedFollowUp, refreshOnSuccess: false) { gateway, target in
       try await gateway.steerRichQueuedFollowUp(target: target, id: id)
     }
-    return state.lastCompletedOperation == .steerQueuedFollowUp && state.failure == nil
   }
 
   /// Must complete before an edit with `expectedStagedAt` is accepted: the
@@ -283,7 +295,6 @@ final class RichChatConversationController {
     await runMutation(.pauseFollowUps, refreshOnSuccess: false) { gateway, target in
       try await gateway.pauseRichFollowUps(target: target, id: id)
     }
-    return state.lastCompletedOperation == .pauseFollowUps && state.failure == nil
   }
 
   func resumeFollowUps() async {
@@ -317,22 +328,41 @@ final class RichChatConversationController {
   }
 
   @discardableResult
-  func revertToCheckpoint(_ input: RichChatCheckpointRevertInput) async -> Bool {
+  func revertToCheckpoint(
+    _ input: RichChatCheckpointRevertInput,
+    onConfirmed: (@MainActor @Sendable () -> Void)? = nil
+  ) async -> RichChatCheckpointRevertOutcome? {
     guard !input.checkpointItemID.isEmpty else {
       state.failure = .invalidRequest
-      return false
+      return nil
     }
-    await runMutation(.revertCheckpoint, refreshOnSuccess: true) { gateway, target in
-      // WS2 stage 4: the host owns the compound — provider rollback, file
-      // restore and transcript truncation run as one journaled operation, so
-      // the client is down to a single idempotent call.
-      try await gateway.checkpointRevert(
+    let attempts = checkpointRevertAttempts
+    let receipt = CheckpointRevertReceipt()
+    let succeeded = await runMutation(.revertCheckpoint, refreshOnSuccess: true) { gateway, target in
+      try Task.checkCancellation()
+      if let expected = input.expectedTarget, target != expected { throw CancellationError() }
+      let operationKey = await attempts.operationKey(target: target, itemID: input.checkpointItemID)
+      let outcome = try await gateway.checkpointRevert(
         target: target,
         itemID: input.checkpointItemID,
-        operationKey: "checkpoint-revert.\(target.threadID).\(input.checkpointItemID)"
+        operationKey: operationKey
       )
+      await attempts.settle(target: target, itemID: input.checkpointItemID, operationKey: operationKey)
+      switch outcome {
+      case .completed, .completedLocalOnly, .noop:
+        await receipt.record(outcome)
+        await onConfirmed?()
+      case .ambiguous: throw RichChatGatewayError.ambiguousOutcome
+      case .failed: throw RichChatGatewayError.transport
+      }
     }
-    return state.lastCompletedOperation == .revertCheckpoint && state.failure == nil
+    return succeeded ? receipt.outcome : nil
+  }
+
+  @MainActor
+  private final class CheckpointRevertReceipt {
+    private(set) var outcome: RichChatCheckpointRevertOutcome?
+    func record(_ outcome: RichChatCheckpointRevertOutcome) { self.outcome = outcome }
   }
 
   private struct OperationContext: Sendable {

@@ -12,6 +12,8 @@ struct RemoteEnvironmentDescriptor: Codable, Sendable, Equatable {
     var auth: Auth
     var endpoints: Endpoints
     var capabilities: Capabilities? = nil
+    /// Read-only UI data. Unknown catalog versions remain opaque and optional.
+    var toolPresentation: JSONValue? = nil
 
     struct Auth: Codable, Sendable, Equatable {
         /// Optional on the wire for older helpers; validated when present.
@@ -27,7 +29,9 @@ struct RemoteEnvironmentDescriptor: Codable, Sendable, Equatable {
     }
 
     struct Capabilities: Codable, Sendable, Equatable {
+        var sessionImport: VersionedCapability? = nil
         var threadForks: VersionedCapability? = nil
+        var conversationSnapshots: VersionedCapability? = nil
         var pushRouting: VersionedCapability?
         /// Additive since browser-origin forward entry shipped. Absent on older
         /// hosts; unknown keys on newer hosts are ignored by the decoder.
@@ -51,6 +55,9 @@ struct RemoteEnvironmentDescriptor: Codable, Sendable, Equatable {
         /// absence or an unknown-only version list means "not advertised here"
         /// and keeps the complete legacy result.
         var projectCommandResults: VersionedCapability?
+        /// Existing narrow project catalog intents v1. Never infer support
+        /// from the protocol generation or bounded-result capability.
+        var catalogMutations: VersionedCapability?
 
         struct VersionedCapability: Codable, Sendable, Equatable {
             var versions: [Int]
@@ -59,6 +66,9 @@ struct RemoteEnvironmentDescriptor: Codable, Sendable, Equatable {
 }
 
 extension RemoteEnvironmentDescriptor {
+    var advertisesConversationSnapshots: Bool {
+        capabilities?.conversationSnapshots?.versions.contains(1) == true
+    }
     /// Frozen wire version for origin-bound browser forward entry
     /// (`/forward/<id>/enter?fwt=…` two-hop exchange on the current route).
     static let browserForwardEntryVersion = 1
@@ -100,6 +110,9 @@ extension RemoteEnvironmentDescriptor {
     var advertisesProjectCommandResults: Bool {
         capabilities?.projectCommandResults?.versions
             .contains(Self.projectCommandResultsVersion) == true
+    }
+    var advertisesCatalogMutations: Bool {
+        capabilities?.catalogMutations?.versions.contains(1) == true
     }
 }
 
@@ -157,6 +170,8 @@ struct ThreadConfig: Codable, Sendable, Hashable {
     var pluginOverrides: [String: Bool]?
     var executionEnvironment: RemoteExecutionEnvironment?
     var crew: JSONValue? = nil
+    var importedFrom: RemoteImportedSession? = nil
+    var selectionBinding: ModelSelectionBinding? = nil
 
     static let empty = ThreadConfig(model: "default")
 }
@@ -165,7 +180,7 @@ extension ThreadConfig {
     private enum CodingKeys: String, CodingKey {
         case model, effort, contextSize, fast, thinking, workflows, mode, approvalPolicy
         case approvalsReviewer, sandboxMode, browserMcp, crossagentMcp, computerUse, chromeMcp
-        case mcpServerOverrides, pluginOverrides, executionEnvironment, crew
+        case mcpServerOverrides, pluginOverrides, executionEnvironment, crew, importedFrom, selectionBinding
     }
 
     init(from decoder: Decoder) throws {
@@ -187,6 +202,11 @@ extension ThreadConfig {
         mcpServerOverrides = try values.decodeIfPresent([String: Bool].self, forKey: .mcpServerOverrides)
         pluginOverrides = try values.decodeIfPresent([String: Bool].self, forKey: .pluginOverrides)
         executionEnvironment = try values.decodeIfPresent(RemoteExecutionEnvironment.self, forKey: .executionEnvironment)
+        importedFrom = try values.decodeIfPresent(RemoteImportedSession.self, forKey: .importedFrom)
+        // Present null/future/unknown records fail, matching the strict wire
+        // codec; an absent legacy record remains a valid unbound selection.
+        selectionBinding = values.contains(.selectionBinding)
+          ? try values.decode(ModelSelectionBinding.self, forKey: .selectionBinding) : nil
         // Absent keeps the host's binding untouched; an explicit null is kept as `.null`.
         if values.contains(.crew) {
             crew = try values.decode(JSONValue.self, forKey: .crew)
@@ -215,7 +235,14 @@ extension ThreadConfig {
         try values.encodeIfPresent(pluginOverrides, forKey: .pluginOverrides)
         try values.encodeIfPresent(executionEnvironment, forKey: .executionEnvironment)
         try values.encodeIfPresent(crew, forKey: .crew)
+        try values.encodeIfPresent(importedFrom, forKey: .importedFrom)
+        try values.encodeIfPresent(selectionBinding, forKey: .selectionBinding)
     }
+}
+
+struct RemoteImportedSession: Codable, Sendable, Hashable {
+    let path: String
+    let importedAt: String
 }
 
 struct RemoteSlashCommand: Codable, Sendable, Hashable {
@@ -266,6 +293,8 @@ struct RemoteThread: Codable, Sendable, Identifiable, Hashable {
     var worktreePath: String?
     var worktreeBranch: String?
     var archived: Bool?
+    // Already optional on the wire. Older native catalog caches use updatedAt.
+    var archivedAt: String? = nil
     var done: Bool?
     var starred: Bool?
     var presentationMode: String?
@@ -307,6 +336,13 @@ struct RemoteRuntimeSummary: Codable, Sendable, Hashable {
     var latestItemState: String?
 }
 
+/// Read-only projection of the existing optional remoteHostWorkspaceSchema.
+/// Older protocol-14 hosts omit names; clients keep their own workspace filing.
+struct RemoteHostWorkspace: Codable, Sendable, Equatable {
+    let id: String
+    let name: String
+}
+
 struct RemoteShellSnapshot: Codable, Sendable, Equatable {
     var snapshotSeq: Int
     var projects: [RemoteProject]
@@ -325,6 +361,7 @@ struct RemoteShellSnapshot: Codable, Sendable, Equatable {
     var threadsNextCursor: String? = nil
     var projectsNextCursor: String? = nil
     var snapshotEpoch: String? = nil
+    var workspaces: [RemoteHostWorkspace]? = nil
 }
 
 extension RemoteShellSnapshot {
@@ -398,6 +435,8 @@ struct PersistedRuntimeItem: Codable, Sendable, Identifiable, Hashable {
     var payload: JSONValue?
     var streams: [String: String]
     var parentItemId: String?
+    /// Only opt-in history projections omit bodies; live events stay complete.
+    var detailsDeferred: Bool? = nil
 
     /// Best-effort text for transcript rows (canonical streams + payload content blocks).
     var displayText: String {
@@ -433,11 +472,17 @@ struct RemoteThreadSnapshot: Codable, Sendable, Equatable {
     /// report the roster, and retained live metadata must be preserved.
     var backgroundTasks: [JSONValue]? = nil
     var backgroundTasksPresent: Bool = false
+    /// App projection of validated cache metadata. The generated root codec
+    /// owns its wire schema; only durable fields may be reused on a match.
+    var historyCache: JSONValue? = nil
+    var historyProjection: String? = nil
+    var runtimeResumeCursor: String? = nil
 
     private enum CodingKeys: String, CodingKey {
         case snapshotSeq, thread, runtimeItems, runtimeNextCursor, completedTurns
         case contextUsage, terminalScrollback, updatedAt, followUpQueue
-        case completedTurnsNextCursor, reads, runtimeNotice, backgroundTasks
+        case completedTurnsNextCursor, reads, runtimeNotice, backgroundTasks, historyCache, historyProjection
+        case runtimeResumeCursor
     }
 
     init(
@@ -455,7 +500,10 @@ struct RemoteThreadSnapshot: Codable, Sendable, Equatable {
         reads: String? = nil,
         runtimeNotice: RemoteHistoryNotice? = nil,
         backgroundTasks: [JSONValue]? = nil,
-        backgroundTasksPresent: Bool = false
+        backgroundTasksPresent: Bool = false,
+        historyCache: JSONValue? = nil,
+        historyProjection: String? = nil,
+        runtimeResumeCursor: String? = nil
     ) {
         self.snapshotSeq = snapshotSeq
         self.thread = thread
@@ -472,6 +520,9 @@ struct RemoteThreadSnapshot: Codable, Sendable, Equatable {
         self.runtimeNotice = runtimeNotice
         self.backgroundTasks = backgroundTasks
         self.backgroundTasksPresent = backgroundTasksPresent
+        self.historyCache = historyCache
+        self.historyProjection = historyProjection
+        self.runtimeResumeCursor = runtimeResumeCursor
     }
 
     init(from decoder: Decoder) throws {
@@ -496,6 +547,9 @@ struct RemoteThreadSnapshot: Codable, Sendable, Equatable {
         )
         reads = try container.decodeIfPresent(String.self, forKey: .reads)
         runtimeNotice = try container.decodeIfPresent(RemoteHistoryNotice.self, forKey: .runtimeNotice)
+        historyCache = try container.decodeIfPresent(JSONValue.self, forKey: .historyCache)
+        historyProjection = try container.decodeIfPresent(String.self, forKey: .historyProjection)
+        runtimeResumeCursor = try container.decodeIfPresent(String.self, forKey: .runtimeResumeCursor)
         if container.contains(.backgroundTasks) {
             backgroundTasksPresent = true
             backgroundTasks = try container.decodeIfPresent([JSONValue].self, forKey: .backgroundTasks)
@@ -605,9 +659,7 @@ extension JSONValue {
     /// Exact JSON integer only — rejects fractional, NaN, and infinite values (no Int truncation).
     var numberInt: Int? {
         guard let number = numberValue, number.isFinite else { return nil }
-        guard number.rounded(.towardZero) == number else { return nil }
-        guard number >= Double(Int.min), number <= Double(Int.max) else { return nil }
-        return Int(number)
+        return Int(exactly: number)
     }
 }
 

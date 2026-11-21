@@ -69,6 +69,10 @@ internal val schema_46a8742e5750f74f: RemoteSchema by lazy {
     RemoteSchema(unionKind = "anyOf", options = listOf(schema_1e3c3dda8e348c4b, schema_b7c373d0981a5441), unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
 
+internal val schema_46a9830765f014a1: RemoteSchema by lazy {
+    RemoteSchema(type = "array", maxItems = 16, items = schema_7bf37fd7696952c8, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
+}
+
 internal val schema_46c9cbbd3df64c2a: RemoteSchema by lazy {
     RemoteSchema(type = "string", literals = listOf(JsonPrimitive("conversation"), JsonPrimitive("inline")), unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
@@ -181,10 +185,6 @@ internal val schema_49834fb5a406b494: RemoteSchema by lazy {
     RemoteSchema(type = "string", literals = listOf(JsonPrimitive("remove_engine")), unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
 
-internal val schema_4986251e245712da: RemoteSchema by lazy {
-    RemoteSchema(type = "object", required = setOf("settings"), properties = mapOf("settings" to schema_bc197948930fab80), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
-}
-
 internal val schema_499c88c1c549e934: RemoteSchema by lazy {
     RemoteSchema(type = "number", literals = listOf(JsonPrimitive(0.0)), unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
@@ -215,6 +215,10 @@ internal val schema_4a927b60e49ddae0: RemoteSchema by lazy {
 
 internal val schema_4b47ae3fc75a3ec0: RemoteSchema by lazy {
     RemoteSchema(type = "object", properties = mapOf("innerWindowId" to schema_36fea325bf1aca70, "outerWindowId" to schema_36fea325bf1aca70), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
+}
+
+internal val schema_4b51a86edb3e38b1: RemoteSchema by lazy {
+    RemoteSchema(type = "object", required = setOf("labels", "source"), properties = mapOf("labels" to schema_202f40856ac8b683, "source" to schema_0f2003aeafbcbd0b), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
 
 internal val schema_4ba08f85926d047f: RemoteSchema by lazy {

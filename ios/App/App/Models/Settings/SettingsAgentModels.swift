@@ -35,6 +35,17 @@ struct SettingsAgentStatus: Codable, Equatable, Sendable {
   var kind: String { payload.objectValue?["kind"]?.stringValue ?? "" }
   var label: String { payload.objectValue?["label"]?.stringValue ?? "" }
   var installed: Bool { payload.objectValue?["installed"]?.boolValue ?? false }
+  var identity: String {
+    AgentStatusRecord.identity(kind: kind, environment: payload.objectValue?["envKind"]?.stringValue,
+      distro: payload.objectValue?["envDistro"]?.stringValue)
+  }
+  /// Both settings and composer read the same validated status payload. This
+  /// bridge is display-only; the lossless SettingsJSON remains the wire owner.
+  var composerRecord: AgentStatusRecord? {
+    guard let data = try? JSONEncoder().encode(payload),
+      let value = try? JSONDecoder().decode(JSONValue.self, from: data) else { return nil }
+    return try? AgentStatusRecord(wire: value)
+  }
   var authState: SettingsAgentAuthState? {
     payload.objectValue?["authState"]?.stringValue.flatMap(SettingsAgentAuthState.init(rawValue:))
   }
@@ -62,14 +73,39 @@ struct SettingsAgentStatus: Codable, Equatable, Sendable {
     stringArray("efforts")
   }
 
+  func efforts(forModel model: String) -> [String] {
+    let scoped = payload.objectValue?["capabilities"]?.objectValue?["modelEfforts"]?
+      .objectValue?[model]?.arrayValue
+    return scoped?.compactMap(\.stringValue).filter { !$0.isEmpty } ?? efforts
+  }
+
+  var defaultEffort: String? {
+    payload.objectValue?["capabilities"]?.objectValue?["defaultEffort"]?.stringValue
+  }
+
   var fastModels: Set<String> {
     Set(stringArray("fastModels"))
   }
 
-  /// An explicit empty override means show all. Seed the first settings edit
-  /// from the effective defaults so toggling one model preserves the others.
-  func effectiveHiddenModelIDs(overrides: [String: [String]]) -> Set<String> {
-    Set(overrides[kind] ?? stringArray("defaultHiddenModels"))
+  func supportsFast(forModel model: String) -> Bool {
+    fastModels.contains(model)
+      && payload.objectValue?["capabilities"]?.objectValue?["fastDisabledReason"]?.stringValue == nil
+  }
+
+  func supportsThinking(forModel model: String) -> Bool {
+    stringArray("thinkingModels").contains(model)
+  }
+
+  func contextOptions(forModel model: String) -> [SettingsAgentModel] {
+    let capabilities = payload.objectValue?["capabilities"]?.objectValue
+    let allOptions = capabilities?["contextSizes"]?.arrayValue?.compactMap { value -> SettingsAgentModel? in
+      guard let id = value.objectValue?["id"]?.stringValue,
+        let label = value.objectValue?["label"]?.stringValue else { return nil }
+      return SettingsAgentModel(id: id, label: label)
+    } ?? []
+    guard let scoped = capabilities?["modelContextSizes"]?.objectValue?[model]?.arrayValue
+    else { return allOptions }
+    return scoped.compactMap { value in allOptions.first { $0.id == value.stringValue } }
   }
 
   private func stringArray(_ key: String) -> [String] {
@@ -89,6 +125,61 @@ struct SettingsAgentStatuses: Codable, Equatable, Sendable {
   let windows: [SettingsAgentStatus]
   let wsl: [SettingsAgentStatus]
   let updatedAt: String
+
+  /// The status endpoint owns complete native/project-distro inventories.
+  /// Explicit discovery can additionally return a WSL distro absent from that
+  /// endpoint. Retain other previously discovered distros, without reviving
+  /// entries in the scope that was just scanned.
+  func mergingDiscovery(_ discovered: SettingsAgentDiscoveryResult?,
+    requestedDistros: [String], previous: SettingsAgentStatuses?) -> Self {
+    let fetchedDistros = Set(wsl.map { $0.payload.objectValue?["envDistro"]?.stringValue ?? "" })
+    let requested = Set(requestedDistros)
+    let retained = (previous?.wsl ?? []).filter {
+      !requested.contains($0.payload.objectValue?["envDistro"]?.stringValue ?? "")
+    }
+    var seen = Set<String>()
+    let merged = wsl + ((discovered?.wsl ?? []) + retained).filter {
+      !fetchedDistros.contains($0.payload.objectValue?["envDistro"]?.stringValue ?? "")
+    }
+    return .init(windows: windows, wsl: merged.filter {
+      seen.insert($0.identity).inserted
+    }, updatedAt: updatedAt)
+  }
+}
+
+struct SettingsAgentDiscoveryRequest: Codable, Equatable, Sendable {
+  let wslDistros: [String]
+}
+
+struct SettingsAgentDiscoveryResult: Codable, Equatable, Sendable {
+  let windows: [SettingsAgentStatus]
+  let wsl: [SettingsAgentStatus]
+  let fromCache: Bool
+}
+
+/// PWA settings treat old undistroed WSL statuses as part of the host pool.
+/// A removed distro falls back to that pool, keeping the machine picker usable.
+struct SettingsAgentMachineScope {
+  let distros: [String]
+  let distro: String?
+  let agents: [AgentStatusRecord]
+
+  init(statuses: SettingsAgentStatuses?, preferredDistro: String?) {
+    let available = Set((statuses?.wsl ?? []).compactMap {
+      $0.payload.objectValue?["envDistro"]?.stringValue
+    }.filter { !$0.isEmpty }).sorted()
+    distros = available
+    distro = preferredDistro.flatMap { available.contains($0) ? $0 : nil }
+    let candidates: [SettingsAgentStatus]
+    if let distro {
+      candidates = (statuses?.wsl ?? []).filter { $0.payload.objectValue?["envDistro"]?.stringValue == distro }
+    } else {
+      candidates = (statuses?.windows ?? []) + (statuses?.wsl ?? []).filter {
+        ($0.payload.objectValue?["envDistro"]?.stringValue ?? "").isEmpty
+      }
+    }
+    agents = candidates.compactMap(\.composerRecord)
+  }
 }
 
 enum SettingsUsageStatus: String, Codable, Sendable {

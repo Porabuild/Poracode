@@ -5,17 +5,20 @@ struct RichChatSendInput: Sendable, Equatable {
   let config: [String: RichJSON]
   let segments: [RichPromptSegment]?
   let userMessageItemID: String?
+  var clientContext: TurnClientContext?
 
   init(
     prompt: String,
     config: [String: RichJSON],
     segments: [RichPromptSegment]? = nil,
-    userMessageItemID: String? = nil
+    userMessageItemID: String? = nil,
+    clientContext: TurnClientContext? = nil
   ) {
     self.prompt = prompt
     self.config = config
     self.segments = segments
     self.userMessageItemID = userMessageItemID
+    self.clientContext = clientContext
   }
 }
 
@@ -79,8 +82,6 @@ enum RichChatTransportFailure: Error, Sendable, Equatable {
   case invalidResponse
   case rawTransportUnavailable
   case ambiguousOutcome
-  /// The compound checkpoint revert settled `failed` on the server.
-  case revertFailed
 }
 
 struct RichChatPreparedJSONRoute: Sendable, Equatable {
@@ -98,6 +99,8 @@ extension RichPromptSegment {
     switch self {
     case .text(let content):
       return .object(["kind": .string("text"), "content": .string(content)])
+    case .selectedText(let content):
+      return .object(["kind": .string("text"), "content": .string(content), "selection": .bool(true)])
     case .file(let path):
       return .object(["kind": .string("file"), "path": .string(path)])
     case .attachment(let path, let mimeType):

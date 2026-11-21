@@ -33,8 +33,6 @@
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
-		<string>UIInterfaceOrientationLandscapeLeft</string>
-		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
 	<key>UISupportedInterfaceOrientations~ipad</key>
 	<array>
@@ -47,6 +45,8 @@
 	<true/>
 	<key>NSCameraUsageDescription</key>
 	<string>Poracode uses the camera to scan pairing codes and attach photos to conversations.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Poracode uses the microphone to transcribe your spoken message.</string>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>Poracode connects to the Poracode desktop app on your local network.</string>
 	<key>NSBonjourServices</key>

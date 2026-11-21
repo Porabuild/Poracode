@@ -40,6 +40,7 @@ final class BrowserMirrorLiveSocketSpy: SessionLiveSocket {
   private(set) var attachments = 0
   private(set) var detachments = 0
   private(set) var sent: [Data] = []
+  private(set) var sink: (any BrowserMirrorSocketInboundSink)?
   var generation: UInt64 = 4
   var sendFailure: BrowserMirrorFailure?
 
@@ -58,7 +59,14 @@ final class BrowserMirrorLiveSocketSpy: SessionLiveSocket {
   }
 
   func attachBrowserMirrorSink(_ sink: (any BrowserMirrorSocketInboundSink)?) async {
+    self.sink = sink
     if sink == nil { detachments += 1 } else { attachments += 1 }
+  }
+
+  func detachBrowserMirrorSink(_ sink: any BrowserMirrorSocketInboundSink) async {
+    guard self.sink === sink else { return }
+    self.sink = nil
+    detachments += 1
   }
 
   func sendBrowserMirrorMessage(_ data: Data, socketGeneration: UInt64) async throws {

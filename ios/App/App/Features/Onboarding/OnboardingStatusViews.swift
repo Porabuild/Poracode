@@ -32,26 +32,50 @@ struct OnboardingStatusBanner: View {
 /// user-driven — nothing here pairs on its own.
 struct OnboardingPendingPairingCard: View {
   let pending: RemotePairingPending
+  var isCompactHeight = false
   let onCancel: () -> Void
   let onConfirm: () -> Void
 
+  @Environment(\.colorScheme) private var colorScheme
+  @ScaledMetric(relativeTo: .title) private var tileSize: CGFloat = 46
+
+  private var accentTint: Color {
+    pending.isCleartextLan ? .orange : OnboardingBrand.violet
+  }
+
+  private var resolvedTileSize: CGFloat {
+    isCompactHeight ? min(tileSize, 38) : tileSize
+  }
+
+  private var cardShape: RoundedRectangle {
+    RoundedRectangle(cornerRadius: isCompactHeight ? 18 : 22, style: .continuous)
+  }
+
   var body: some View {
-    VStack(alignment: .leading, spacing: 14) {
-      Label {
-        VStack(alignment: .leading, spacing: 4) {
+    VStack(alignment: .leading, spacing: isCompactHeight ? 12 : 16) {
+      HStack(alignment: .center, spacing: isCompactHeight ? 12 : 14) {
+        iconTile
+        VStack(alignment: .leading, spacing: 3) {
           Text(
             pending.replacesExistingPair
               ? OnboardingStrings.pendingReplaceTitle
               : OnboardingStrings.pendingConfirmTitle
           )
           .font(.headline)
+          .foregroundStyle(colorScheme == .dark ? .white : .primary)
           Text(pending.sanitizedDescription)
-            .font(.subheadline)
-            .foregroundStyle(.secondary)
+            .font(.subheadline.monospaced())
+            .foregroundStyle(colorScheme == .dark ? Color.white.opacity(0.68) : .secondary)
             .textSelection(.enabled)
             .fixedSize(horizontal: false, vertical: true)
+        }
+        Spacer(minLength: 0)
+      }
+
+      if pending.isCleartextLan || pending.replacesExistingPair {
+        VStack(alignment: .leading, spacing: 6) {
           if pending.isCleartextLan {
-            Text(OnboardingStrings.pendingUnencryptedWarning)
+            Label(OnboardingStrings.pendingUnencryptedWarning, systemImage: "exclamationmark.triangle.fill")
               .font(.footnote)
               .foregroundStyle(.orange)
               .fixedSize(horizontal: false, vertical: true)
@@ -59,38 +83,69 @@ struct OnboardingPendingPairingCard: View {
           if pending.replacesExistingPair {
             Text(OnboardingStrings.pendingReplacesHint)
               .font(.footnote)
-              .foregroundStyle(.secondary)
+              .foregroundStyle(colorScheme == .dark ? Color.white.opacity(0.6) : .secondary)
               .fixedSize(horizontal: false, vertical: true)
           }
         }
-      } icon: {
-        Image(systemName: "link.badge.plus")
-          .foregroundStyle(OnboardingBrand.violet)
       }
+
       HStack(spacing: 10) {
-        Button(OnboardingStrings.pendingCancel, action: onCancel)
-          .poracodeSurfaceButtonStyle()
-        Button(
-          pending.isCleartextLan
-            ? OnboardingStrings.pendingConnectAnyway
-            : OnboardingStrings.pendingConfirm,
-          action: onConfirm
-        )
-        .poracodeProminentButtonStyle(tint: pending.isCleartextLan ? .orange : nil)
+        Button(action: onCancel) {
+          Text(OnboardingStrings.pendingCancel)
+            .fontWeight(.medium)
+            .frame(maxWidth: .infinity)
+        }
+        .poracodeSurfaceButtonStyle()
+        .controlSize(isCompactHeight ? .regular : .large)
+
+        Button(action: onConfirm) {
+          Text(
+            pending.isCleartextLan
+              ? OnboardingStrings.pendingConnectAnyway
+              : OnboardingStrings.pendingConfirm
+          )
+          .fontWeight(.semibold)
+          .frame(maxWidth: .infinity)
+        }
+        .poracodeProminentButtonStyle(tint: accentTint)
+        .controlSize(isCompactHeight ? .regular : .large)
         .accessibilityIdentifier("native-e2e.pair.confirm")
       }
     }
-    .padding(16)
+    .padding(isCompactHeight ? 14 : 16)
     .frame(maxWidth: .infinity, alignment: .leading)
-    .poracodeGlassBackground(in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+    .background { cardSurface }
     .overlay {
-      RoundedRectangle(cornerRadius: 22, style: .continuous)
-        .strokeBorder(
-          pending.isCleartextLan ? Color.orange.opacity(0.45) : OnboardingBrand.violet.opacity(0.4),
-          lineWidth: 1
-        )
+      cardShape.strokeBorder(
+        accentTint.opacity(colorScheme == .dark ? 0.42 : 0.35),
+        lineWidth: 1
+      )
     }
     .accessibilityElement(children: .contain)
-    .accessibilityLabel(OnboardingStrings.pendingAccessibility(pending.hostDisplay))
+  }
+
+  private var iconTile: some View {
+    ZStack {
+      RoundedRectangle(cornerRadius: resolvedTileSize * 0.24, style: .continuous)
+        .fill(accentTint.opacity(0.15))
+      Image(systemName: "link.badge.plus")
+        .font(.system(size: resolvedTileSize * 0.44, weight: .semibold))
+        .foregroundStyle(accentTint)
+    }
+    .frame(width: resolvedTileSize, height: resolvedTileSize)
+  }
+
+  @ViewBuilder
+  private var cardSurface: some View {
+    if colorScheme == .dark {
+      cardShape
+        .fill(Color.white.opacity(0.075))
+        .background {
+          cardShape.fill(.ultraThinMaterial)
+            .opacity(0.45)
+        }
+    } else {
+      Color.clear.poracodeGlassBackground(in: cardShape)
+    }
   }
 }

@@ -84,13 +84,9 @@ public struct RoutethreadU2DHistoryU2DItemResponse_69f5ba498b: Codable, Sendable
   }
 }
 
-public enum RoutethreadU2DHistoryU2DItemsQueryU2DDeferBodies_30a537a934: String, Codable, Sendable {
-  case `fileU5FChange` = "file_change"
-}
-
 public struct RoutethreadU2DHistoryU2DItemsQuery_ad31e0c5f6: Codable, Sendable, RemoteModelMetadata {
   public var beforePosition: RemoteField<Int64> = .missing
-  public var deferBodies: RemoteField<RoutethreadU2DHistoryU2DItemsQueryU2DDeferBodies_30a537a934> = .missing
+  public var deferBodies: RemoteField<RoutethreadU2DHistoryU2DChangesQueryU2DDeferBodies_30a537a934> = .missing
   public var limit: RemoteField<Int64> = .missing
   public var maxBytes: RemoteField<Int64> = .missing
   public var maxDecodeBytes: RemoteField<Int64> = .missing
@@ -101,7 +97,7 @@ public struct RoutethreadU2DHistoryU2DItemsQuery_ad31e0c5f6: Codable, Sendable, 
   public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .strip
   public static let fields: [RemoteFieldDescriptor] = [
     .init(wireName: "beforePosition", typeName: "Int64", required: false, nullable: false, minimum: 0, maximum: 9007199254740991, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
-    .init(wireName: "deferBodies", typeName: "RoutethreadU2DHistoryU2DItemsQueryU2DDeferBodies_30a537a934", required: false, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "deferBodies", typeName: "RoutethreadU2DHistoryU2DChangesQueryU2DDeferBodies_30a537a934", required: false, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "limit", typeName: "Int64", required: false, nullable: false, minimum: 1, maximum: 500, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "maxBytes", typeName: "Int64", required: false, nullable: false, minimum: 1, maximum: 9007199254740991, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "maxDecodeBytes", typeName: "Int64", required: false, nullable: false, minimum: 1, maximum: 9007199254740991, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),

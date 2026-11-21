@@ -29,7 +29,8 @@ enum RichChatRemoteModelBridge {
       state: state,
       payload: try item.payload.map(json),
       streams: item.streams,
-      parentItemID: item.parentItemId
+      parentItemID: item.parentItemId,
+      detailsDeferred: item.detailsDeferred == true
     )
   }
 

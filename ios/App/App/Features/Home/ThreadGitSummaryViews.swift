@@ -88,10 +88,12 @@ struct ThreadGitSummaryPresentation: Sendable, Equatable {
 struct ThreadGitSummaryBadge: View {
   let presentation: ThreadGitSummaryPresentation
   let showsBranch: Bool
+  let compact: Bool
 
-  init(summary: GitThreadSummary?, showsBranch: Bool = true) {
+  init(summary: GitThreadSummary?, showsBranch: Bool = true, compact: Bool = false) {
     self.presentation = ThreadGitSummaryPresentation(summary: summary)
     self.showsBranch = showsBranch
+    self.compact = compact
   }
 
   var body: some View {
@@ -99,7 +101,7 @@ struct ThreadGitSummaryBadge: View {
       EmptyView()
     } else {
       HStack(spacing: 8) {
-        if showsBranch, let branch = presentation.branch {
+        if showsBranch && !compact, let branch = presentation.branch {
           Label(branch, systemImage: "arrow.triangle.branch")
             .labelStyle(.titleAndIcon)
             .lineLimit(1)
@@ -114,12 +116,12 @@ struct ThreadGitSummaryBadge: View {
             .monospacedDigit()
             .foregroundStyle(.red)
         }
-        if let divergence = presentation.divergence {
+        if !compact, let divergence = presentation.divergence {
           Text(divergence)
         }
         if let pullRequest = presentation.pullRequestLabel,
           let state = presentation.pullRequestState {
-          Text("\(pullRequest) · \(GitSummaryStrings.state(state))")
+          Text(compact ? pullRequest : "\(pullRequest) · \(GitSummaryStrings.state(state))")
             .foregroundStyle(color(for: state))
         }
       }

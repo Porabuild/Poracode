@@ -10,6 +10,34 @@ private final class ProjectControllerChangeRecorder {
 
 @MainActor
 final class ProjectControllerCommandControllerTests: XCTestCase {
+  func testActionDraftPreservesDesktopChangesWhileStagingValidActions() throws {
+    let lease = ProjectControllerTestValues.session(ProjectControllerTestValues.hostA).lease
+    let existing = ProjectAction(id: "existing", name: "Original", command: "printf 'existing'", icon: nil)
+    var project = ProjectControllerTestValues.project("action-project", name: "Project")
+    project.scripts = ProjectScripts(setupScript: "original setup", actions: [existing])
+    let draft = ProjectActionsDraft(project: project, lease: lease)
+    draft.actions[0].name = "Renamed"
+    draft.newName = "  New action  "
+    XCTAssertNil(draft.scriptsToSave(for: project))
+    draft.newCommand = "  printf 'new'  "
+    draft.addAction()
+
+    let desktop = ProjectAction(id: "desktop", name: "Desktop action", command: "printf 'desktop'", icon: "hammer")
+    var edited = existing
+    edited.command = "printf 'desktop edited command'"
+    project.scripts = ProjectScripts(
+      setupScript: "desktop setup", cleanupScript: "desktop cleanup",
+      worktreeCopyPatterns: ["foo"], actions: [edited, desktop]
+    )
+    let patch = try XCTUnwrap(draft.scriptsToSave(for: project))
+    XCTAssertEqual(patch.setupScript, "desktop setup")
+    XCTAssertEqual(patch.cleanupScript, "desktop cleanup")
+    XCTAssertEqual(patch.worktreeCopyPatterns, ["foo"])
+    XCTAssertEqual(patch.actions.map(\.name), ["Renamed", "Desktop action", "New action"])
+    XCTAssertEqual(patch.actions.map(\.command), [edited.command, desktop.command, "printf 'new'"])
+    project.location = .posix(path: "/moved")
+    XCTAssertNil(draft.scriptsToSave(for: project))
+  }
   func testDeactivateClearsPreviousHostProjectsAndCommandAuthority() async {
     let gateway = ProjectControllerGatewayFake()
     let controller = ProjectControllerCommandController(gateway: gateway)
@@ -46,13 +74,27 @@ final class ProjectControllerCommandControllerTests: XCTestCase {
     await gateway.enqueueCommand(.value(.complete(.init(projects: ordered, project: ordered[0]))))
     controller.activate(session, snapshotSequence: 47)
 
-    await controller.perform(.update(projectId: "z", patch: ProjectPatch()))
+    let accepted = await controller.perform(.update(projectId: "z", patch: ProjectPatch()))
 
     let refreshLeases = await refresh.leases
+    XCTAssertTrue(accepted)
     XCTAssertEqual(controller.state.projects, ordered)
     XCTAssertEqual(controller.state.snapshotSequence, 47)
     XCTAssertEqual(refreshLeases, [session.lease])
     XCTAssertEqual(recorder.leases, [session.lease])
+  }
+
+  func testCreationDraftCannotRunOnAReplacementHost() async {
+    let gateway = ProjectControllerGatewayFake()
+    let controller = ProjectControllerCommandController(gateway: gateway)
+    let original = ProjectControllerTestValues.session(ProjectControllerTestValues.hostA)
+    let replacement = ProjectControllerTestValues.session(ProjectControllerTestValues.hostB)
+    controller.activate(replacement)
+    let accepted = await controller.perform(.addExisting(path: "/workspace/New", name: nil), expectedLease: original.lease)
+    let calls = await gateway.commandCalls
+    XCTAssertFalse(accepted)
+    XCTAssertTrue(calls.isEmpty)
+    XCTAssertEqual(controller.state.session, replacement)
   }
 
   func testStaleHostCommandResponseIsANoop() async {

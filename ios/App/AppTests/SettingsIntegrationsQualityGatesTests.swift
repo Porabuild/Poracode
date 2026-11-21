@@ -186,7 +186,9 @@ final class SettingsIntegrationsQualityGatesTests: XCTestCase {
       ),
       encoding: .utf8
     )
-    XCTAssertTrue(settingsSource.contains("SettingsIntegrationsSessionView(session: session)"))
+    XCTAssertTrue(settingsSource.contains("SettingsIntegrationsSessionView("))
+    XCTAssertTrue(settingsSource.contains("embeddedInNavigationStack: true"))
+    XCTAssertTrue(settingsSource.contains("allowsRouteSelection: true"))
     XCTAssertTrue(settingsSource.contains("SettingsIntegrationsStrings.title"))
 
     let integrationsSource = try String(

@@ -156,7 +156,11 @@ export function clearFindHighlights(): void {
  * Used to bring the active match fully into view after the virtualizer has
  * scrolled its row into range. No-op when the range has no layout box yet.
  */
-export function scrollRangeIntoView(container: HTMLElement, range: Range): void {
+export function scrollRangeIntoView(
+  container: HTMLElement,
+  range: Range,
+  { horizontally = false }: { horizontally?: boolean } = {},
+): void {
   const rect = range.getBoundingClientRect();
   if (rect.height === 0 && rect.width === 0) return;
   const view = container.getBoundingClientRect();
@@ -165,5 +169,22 @@ export function scrollRangeIntoView(container: HTMLElement, range: Range): void 
     container.scrollTop -= view.top + margin - rect.top;
   } else if (rect.bottom > view.bottom - margin) {
     container.scrollTop += rect.bottom - (view.bottom - margin);
+  }
+  if (horizontally) revealInHorizontalScrollers(container, range);
+}
+
+function revealInHorizontalScrollers(container: HTMLElement, range: Range): void {
+  const common = range.commonAncestorContainer;
+  if (!container.contains(common)) return;
+  const ancestor = common instanceof HTMLElement ? common : common.parentElement;
+  for (let element = ancestor; element && element !== container; element = element.parentElement) {
+    if (element.scrollWidth <= element.clientWidth) continue;
+    const { overflowX } = getComputedStyle(element);
+    if (overflowX !== "auto" && overflowX !== "scroll") continue;
+    const rect = range.getBoundingClientRect();
+    const left = element.getBoundingClientRect().left + element.clientLeft;
+    const right = left + element.clientWidth;
+    if (rect.left < left) element.scrollLeft += rect.left - left;
+    else if (rect.right > right) element.scrollLeft += rect.right - right;
   }
 }

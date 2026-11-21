@@ -7,10 +7,21 @@ import Foundation
 /// identifiable destination makes the presentation state exclusive by
 /// construction, so adding entries cannot reintroduce that race.
 enum HomeSheetDestination: Identifiable, Hashable, Sendable {
-  case search
+  case search(commands: [String]?)
+  case threadFilters(showsStatus: Bool)
   case more
+  case connections
+  case workspaces
+  case pullRequests
+  case githubActions
+  case schedules
   case projectManagement
+  case terminal
+  case usage
+  case providerUsage(SettingsUsageSidebarFocus)
   case settings
+  case settingsDestination(DeviceSettingsDestination)
+  case newsProjectGit(HomeProjectFilterOption)
   case remoteIntegrations
   case browserMirror
   /// Carries the lease that was current when the entry was tapped, so the
@@ -20,9 +31,20 @@ enum HomeSheetDestination: Identifiable, Hashable, Sendable {
   var id: String {
     switch self {
     case .search: "search"
+    case .threadFilters: "threadFilters"
     case .more: "more"
+    case .connections: "connections"
+    case .workspaces: "workspaces"
+    case .pullRequests: "pullRequests"
+    case .githubActions: "githubActions"
+    case .schedules: "schedules"
     case .projectManagement: "projectManagement"
+    case .terminal: "terminal"
+    case .usage: "usage"
+    case .providerUsage(let focus): "usage:\(focus.providerID)"
     case .settings: "settings"
+    case .settingsDestination(let destination): "settings:\(destination.rawValue)"
+    case .newsProjectGit(let project): "news-git:\(project.id)"
     case .remoteIntegrations: "remoteIntegrations"
     case .browserMirror: "browserMirror"
     case .portForwarding(let lease):

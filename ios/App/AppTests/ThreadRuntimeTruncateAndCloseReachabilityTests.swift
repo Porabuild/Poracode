@@ -211,11 +211,12 @@ final class ThreadRuntimeTruncateAndCloseReachabilityTests: XCTestCase {
 
   func testTheTimelineOffersTruncateBehindConfirmationAndRealGating() throws {
     let timeline = try Self.source("App/Features/RichChat/UI/RichChatTimelineView.swift")
-    XCTAssertTrue(timeline.contains("conversation.truncate(after: intent.id)"))
+    let interactions = try Self.source("App/Features/RichChat/UI/RichChatTimelineInteractions.swift")
+    XCTAssertTrue(interactions.contains("conversation.truncate(after: intent.id)"))
     XCTAssertTrue(timeline.contains(".confirmationDialog("))
     XCTAssertTrue(timeline.contains("RichChatStrings.truncateConfirmationTitle"))
-    XCTAssertTrue(timeline.contains("guard canOperate, !isRefreshing, !isBusy"))
-    XCTAssertTrue(timeline.contains("RichChatTruncateEligibility.isEligible("))
+    XCTAssertTrue(interactions.contains("guard canOperate, !isRefreshing, !isBusy"))
+    XCTAssertTrue(interactions.contains("RichChatTruncateEligibility.isEligible("))
   }
 
   func testTheThreadViewOffersCloseBehindConfirmationAndNavigatesOnlyOnSuccess() throws {

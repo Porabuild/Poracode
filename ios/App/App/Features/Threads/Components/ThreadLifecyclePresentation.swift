@@ -24,50 +24,69 @@ enum ThreadLifecycleDestructivePresentation {
   }
 }
 
-private struct ThreadRenameAlertModifier: ViewModifier {
+private struct ThreadRenameSheetModifier: ViewModifier {
   @Binding var intent: ThreadRenameIntent?
   let submit: () -> Void
 
   func body(content: Content) -> some View {
-    content.alert(
-      ThreadLifecycleStrings.rename,
-      isPresented: Binding(
-        get: { intent != nil },
-        set: { if !$0 { intent = nil } }
-      )
-    ) {
-      TextField(
-        ThreadLifecycleStrings.renamePrompt,
-        text: Binding(
-          get: { intent?.title ?? "" },
-          set: { intent?.title = $0 }
-        )
-      )
-      Button(ThreadLifecycleStrings.cancel, role: .cancel) { intent = nil }
-      Button(ThreadLifecycleStrings.rename, action: submit)
-        .disabled(intent?.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ?? true)
+    content.sheet(item: $intent) { request in
+      NavigationStack {
+        Form {
+          TextField(
+            ThreadLifecycleStrings.renamePrompt,
+            text: Binding(
+              get: { intent?.title ?? "" },
+              set: { intent?.title = $0 }
+            )
+          )
+          .submitLabel(.done)
+          .onSubmit(commit)
+          .accessibilityIdentifier("native-e2e.thread.rename.title")
+        }
+        .navigationTitle(ThreadLifecycleStrings.rename)
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+          ToolbarItem(placement: .cancellationAction) {
+            Button(ThreadLifecycleStrings.cancel, systemImage: "xmark") { intent = nil }
+          }
+          ToolbarItem(placement: .confirmationAction) {
+            Button(ThreadLifecycleStrings.rename, systemImage: "checkmark", action: commit)
+              .disabled(!canRename)
+              .accessibilityIdentifier("native-e2e.thread.rename.submit")
+          }
+        }
+      }
+      .nativeCommands(identity: "thread-rename:\(request.id)", blocksParentActions: true)
+      .poracodeFormSheetSizing()
+      .presentationDetents([.fraction(0.7), .large])
     }
+  }
+
+  private var canRename: Bool {
+    intent?.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
+  }
+
+  private func commit() {
+    if canRename { submit() }
   }
 }
 
 private struct ThreadLifecycleDestructiveConfirmationModifier: ViewModifier {
   @Bindable var controller: ThreadLifecycleController
-  let confirm: () -> Void
+  let confirm: (ThreadLifecycleDestructiveIntent) -> Void
 
   func body(content: Content) -> some View {
-    content.confirmationDialog(
+    content.alert(
       ThreadLifecycleDestructivePresentation.title(controller.pendingDestructiveIntent),
       isPresented: Binding(
         get: { controller.pendingDestructiveIntent != nil },
         set: { if !$0 { controller.cancelDestructiveIntent() } }
-      ),
-      titleVisibility: .visible
-    ) {
-      Button(
-        ThreadLifecycleDestructivePresentation.button(controller.pendingDestructiveIntent),
-        role: .destructive,
-        action: confirm
       )
+    ) {
+      Button(ThreadLifecycleDestructivePresentation.button(controller.pendingDestructiveIntent), role: .destructive) {
+        guard let intent = controller.takePendingDestructiveIntent() else { return }
+        confirm(intent)
+      }
       Button(ThreadLifecycleStrings.cancel, role: .cancel) {
         controller.cancelDestructiveIntent()
       }
@@ -95,16 +114,16 @@ private struct ThreadLifecycleFailureAlertModifier: ViewModifier {
 }
 
 extension View {
-  func threadRenameAlert(
+  func threadRenameSheet(
     intent: Binding<ThreadRenameIntent?>,
     submit: @escaping () -> Void
   ) -> some View {
-    modifier(ThreadRenameAlertModifier(intent: intent, submit: submit))
+    modifier(ThreadRenameSheetModifier(intent: intent, submit: submit))
   }
 
   func threadLifecycleDestructiveConfirmation(
     controller: ThreadLifecycleController,
-    confirm: @escaping () -> Void
+    confirm: @escaping (ThreadLifecycleDestructiveIntent) -> Void
   ) -> some View {
     modifier(
       ThreadLifecycleDestructiveConfirmationModifier(

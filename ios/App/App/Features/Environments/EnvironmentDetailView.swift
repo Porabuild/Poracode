@@ -26,6 +26,7 @@ struct EnvironmentDetailView: View {
             }
         }
         .listStyle(.insetGrouped)
+        .poracodeReadableListMargins(760)
         .navigationTitle(environment?.label ?? EnvironmentStrings.title)
         #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
@@ -132,16 +133,19 @@ struct EnvironmentDetailView: View {
                     Button(EnvironmentStrings.disconnect) {
                         Task { await controller.disconnect(environmentId) }
                     }
+                    .accessibilityIdentifier("native-e2e.environment-detail.disconnect")
                 } else {
                     Button(EnvironmentStrings.connect) {
                         Task { await controller.connect(environmentId) }
                     }
+                    .accessibilityIdentifier("native-e2e.environment-detail.connect")
                 }
             }
             if controller.capabilities.canManage {
                 Button(EnvironmentStrings.probeTrust) {
                     Task { await controller.probeTrust(environmentId) }
                 }
+                .accessibilityIdentifier("native-e2e.environment-detail.probe-trust")
                 if let probe = controller.trustProbe, probe.environmentId == environmentId {
                     VStack(alignment: .leading, spacing: 4) {
                         Text("\(EnvironmentStrings.trustKeyType): \(probe.keyType)")
@@ -153,11 +157,13 @@ struct EnvironmentDetailView: View {
                         Button(EnvironmentStrings.acceptTrust) {
                             isAcceptingTrust = true
                         }
+                        .accessibilityIdentifier("native-e2e.environment-detail.accept-trust")
                     }
                 }
                 Button(EnvironmentStrings.upgrade) {
                     isUpgrading = true
                 }
+                .accessibilityIdentifier("native-e2e.environment-detail.upgrade")
             }
         }
     }

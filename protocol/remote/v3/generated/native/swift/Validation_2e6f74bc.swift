@@ -13,6 +13,10 @@ public extension RemoteSchemas {
 }
 
 public extension RemoteSchemas {
+  static let schema_4f3ecdc243b0be72 = RemoteSchema(type: "string", literals: [.string("missing"), .string("changed"), .string("unsupported"), .string("too_large")], unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
   static let schema_4f4b6a906ef42788 = RemoteSchema(type: "object", required: Set(["agentId"]), properties: ["agentId": RemoteSchemas.schema_36fea325bf1aca70], additionalAllowed: true, unknownPolicy: .strip)
 }
 

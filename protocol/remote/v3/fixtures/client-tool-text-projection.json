@@ -1,0 +1,334 @@
+{
+  "version": 1,
+  "cases": [
+    {
+      "id": "full-result-wins-over-preview",
+      "selection": "result",
+      "payload": {
+        "result": {
+          "content": "preview",
+          "text": "summary",
+          "detailedContent": "complete output"
+        }
+      },
+      "expected": {
+        "text": "complete output",
+        "language": "plain"
+      }
+    },
+    {
+      "id": "empty-full-result-falls-back",
+      "selection": "result",
+      "payload": {
+        "result": {
+          "detailedContent": "",
+          "text": "response"
+        }
+      },
+      "expected": {
+        "text": "response",
+        "language": "plain"
+      }
+    },
+    {
+      "id": "text-blocks-join-without-image-loss-in-data",
+      "selection": "result",
+      "payload": {
+        "result": {
+          "content": [
+            null,
+            {
+              "type": "image",
+              "data": "opaque"
+            },
+            {
+              "text": "one"
+            },
+            {
+              "text": "two"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "text": "one\n\ntwo",
+        "language": "plain"
+      }
+    },
+    {
+      "id": "all-json-blocks-retain-json-language",
+      "selection": "result",
+      "payload": {
+        "result": {
+          "content": [
+            {
+              "text": "{\"a\":1}"
+            },
+            {
+              "text": "[2,3]"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "text": "{\n  \"a\": 1\n}\n\n[\n  2,\n  3\n]",
+        "language": "json"
+      }
+    },
+    {
+      "id": "mixed-blocks-retain-plain-language",
+      "selection": "result",
+      "payload": {
+        "result": {
+          "content": [
+            {
+              "text": "{\"a\":1}"
+            },
+            {
+              "text": "complete"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "text": "{\n  \"a\": 1\n}\n\ncomplete",
+        "language": "plain"
+      }
+    },
+    {
+      "id": "empty-content-falls-back-to-contents",
+      "selection": "result",
+      "payload": {
+        "result": {
+          "content": [
+            {
+              "type": "image"
+            }
+          ],
+          "contents": [
+            {
+              "text": "details"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "text": "details",
+        "language": "plain"
+      }
+    },
+    {
+      "id": "unrecognized-object-stays-complete-json",
+      "selection": "result",
+      "payload": {
+        "result": {
+          "ok": true,
+          "rows": [1, 2]
+        }
+      },
+      "expected": {
+        "text": "{\n  \"ok\": true,\n  \"rows\": [\n    1,\n    2\n  ]\n}",
+        "language": "json"
+      }
+    },
+    {
+      "id": "result-array-stays-json",
+      "selection": "result",
+      "payload": {
+        "result": ["a", "b"]
+      },
+      "expected": {
+        "text": "[\n  \"a\",\n  \"b\"\n]",
+        "language": "json"
+      }
+    },
+    {
+      "id": "false-result-is-not-missing",
+      "selection": "result",
+      "payload": {
+        "result": false
+      },
+      "expected": {
+        "text": "false",
+        "language": "plain"
+      }
+    },
+    {
+      "id": "zero-result-is-not-missing",
+      "selection": "result",
+      "payload": {
+        "result": 0
+      },
+      "expected": {
+        "text": "0",
+        "language": "plain"
+      }
+    },
+    {
+      "id": "null-result-is-empty",
+      "selection": "result",
+      "payload": {
+        "result": null
+      },
+      "expected": {
+        "text": "",
+        "language": "plain"
+      }
+    },
+    {
+      "id": "empty-string-result-is-empty",
+      "selection": "result",
+      "payload": {
+        "result": ""
+      },
+      "expected": {
+        "text": "",
+        "language": "plain"
+      }
+    },
+    {
+      "id": "whitespace-result-is-verbatim",
+      "selection": "result",
+      "payload": {
+        "result": {
+          "text": " "
+        }
+      },
+      "expected": {
+        "text": " ",
+        "language": "plain"
+      }
+    },
+    {
+      "id": "unified-diff-result-is-classified",
+      "selection": "result",
+      "payload": {
+        "result": "diff --git a/x b/x\n--- a/x\n+++ b/x\n@@ -1 +1 @@\n-old\n+new\n"
+      },
+      "expected": {
+        "text": "diff --git a/x b/x\n--- a/x\n+++ b/x\n@@ -1 +1 @@\n-old\n+new\n",
+        "language": "diff"
+      }
+    },
+    {
+      "id": "unicode-json-string-is-prettified",
+      "selection": "result",
+      "payload": {
+        "result": "{\"label\":\"Δ 東京 🧭\"}"
+      },
+      "expected": {
+        "text": "{\n  \"label\": \"Δ 東京 🧭\"\n}",
+        "language": "json"
+      }
+    },
+    {
+      "id": "malformed-json-is-verbatim",
+      "selection": "result",
+      "payload": {
+        "result": "{invalid}"
+      },
+      "expected": {
+        "text": "{invalid}",
+        "language": "plain"
+      }
+    },
+    {
+      "id": "false-argument-remains-json",
+      "selection": "args",
+      "payload": {
+        "args": false
+      },
+      "expected": {
+        "text": "false",
+        "language": "json"
+      }
+    },
+    {
+      "id": "zero-argument-remains-json",
+      "selection": "args",
+      "payload": {
+        "args": 0
+      },
+      "expected": {
+        "text": "0",
+        "language": "json"
+      }
+    },
+    {
+      "id": "empty-argument-is-not-a-quoted-json-string",
+      "selection": "args",
+      "payload": {
+        "args": ""
+      },
+      "expected": {
+        "text": "",
+        "language": "plain"
+      }
+    },
+    {
+      "id": "argument-string-json-is-prettified",
+      "selection": "args",
+      "payload": {
+        "args": "{\"path\":\"src/app.ts\"}"
+      },
+      "expected": {
+        "text": "{\n  \"path\": \"src/app.ts\"\n}",
+        "language": "json"
+      }
+    },
+    {
+      "id": "command-stream-reference-is-live",
+      "selection": "source",
+      "streams": {
+        "command_output": "one\ntwo\n"
+      },
+      "source": {
+        "root": "streams",
+        "path": ["command_output"],
+        "format": "value"
+      },
+      "expected": {
+        "text": "one\ntwo\n",
+        "language": "plain"
+      }
+    },
+    {
+      "id": "generic-array-reference",
+      "selection": "source",
+      "payload": {
+        "rows": [
+          {
+            "text": "entry"
+          }
+        ]
+      },
+      "source": {
+        "root": "payload",
+        "path": ["rows", 0, "text"],
+        "format": "value"
+      },
+      "expected": {
+        "text": "entry",
+        "language": "plain"
+      }
+    },
+    {
+      "id": "generic-object-reference-preserves-structure",
+      "selection": "source",
+      "payload": {
+        "value": {
+          "enabled": false
+        }
+      },
+      "source": {
+        "root": "payload",
+        "path": ["value"],
+        "format": "value"
+      },
+      "expected": {
+        "text": "{\n  \"enabled\": false\n}",
+        "language": "json"
+      }
+    }
+  ]
+}

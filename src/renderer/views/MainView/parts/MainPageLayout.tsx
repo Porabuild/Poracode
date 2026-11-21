@@ -17,7 +17,6 @@ import { useClearDndEntityElementsOnUnmount } from "@/renderer/dndEntityCleanup"
 import { DeferredFileEditorPanel } from "@/renderer/deferredFeatures";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useLingui } from "@lingui/react/macro";
-import { useProjectAgentStatuses } from "@/renderer/hooks/uiSelectors";
 import { CompactThreadHeader } from "@/renderer/components/thread/CompactThreadHeader";
 import { useCompactLayout } from "@/renderer/adaptiveLayout";
 import { useExperimentStore } from "@/renderer/state/experimentStore";
@@ -65,10 +64,6 @@ export function MainPageLayout(props: { onTitleClick: () => void }) {
   });
   const compactProject = useAppStore((state) =>
     compactThread ? getProjectMap(state.projects).get(compactThread.projectId) : undefined,
-  );
-  const compactAgentStatuses = useProjectAgentStatuses(compactProject?.location);
-  const compactAgentStatus = compactAgentStatuses.find(
-    (status) => status.kind === compactThread?.agentKind,
   );
   const experimentTitle = useExperimentStore((state) =>
     view.kind === "experiment" ? (state.experiments[view.experimentId]?.title ?? null) : null,
@@ -119,11 +114,7 @@ export function MainPageLayout(props: { onTitleClick: () => void }) {
       compactTitle={compactTitle}
       compactHeaderChildren={
         activeMobileUtilityPage === null && compactThread && compactProject ? (
-          <CompactThreadHeader
-            thread={compactThread}
-            project={compactProject}
-            agentStatus={compactAgentStatus}
-          />
+          <CompactThreadHeader thread={compactThread} project={compactProject} />
         ) : undefined
       }
       onCompactBack={() => {

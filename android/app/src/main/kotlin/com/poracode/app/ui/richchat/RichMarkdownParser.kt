@@ -14,6 +14,8 @@ internal sealed interface RichMarkdownBlock {
 }
 
 internal object RichMarkdownParser {
+    private val fencePattern = Regex("^( {0,3})(`{3,}|~{3,})(.*)$")
+
     fun parse(source: String): List<RichMarkdownBlock> {
         val lines = source.lines()
         val blocks = mutableListOf<RichMarkdownBlock>()
@@ -25,15 +27,25 @@ internal object RichMarkdownParser {
                 continue
             }
 
-            if (line.startsWith("```")) {
-                val language = line.drop(3).trim().ifEmpty { null }
+            val fence = openingFence(line)
+            if (fence != null) {
+                val (indentation, marker, info) = fence.destructured
+                val language = info.trimStart().takeWhile { !it.isWhitespace() }.ifEmpty { null }
                 index += 1
                 val code = mutableListOf<String>()
-                while (index < lines.size && !lines[index].startsWith("```")) {
-                    code += lines[index]
+                while (index < lines.size) {
+                    val candidate = lines[index]
                     index += 1
+                    val closing = fencePattern.matchEntire(candidate)
+                    if (closing != null) {
+                        val (_, closer, closingInfo) = closing.destructured
+                        if (closer.first() == marker.first() && closer.length >= marker.length &&
+                            closingInfo.all { it == ' ' || it == '\t' }
+                        ) break
+                    }
+                    val removable = minOf(indentation.length, candidate.takeWhile { it == ' ' }.length)
+                    code += candidate.drop(removable)
                 }
-                if (index < lines.size) index += 1
                 blocks += RichMarkdownBlock.Code(language, code.joinToString("\n"))
                 continue
             }
@@ -73,7 +85,12 @@ internal object RichMarkdownParser {
                     (lines[index].startsWith("    ") || lines[index].startsWith("\t") ||
                         lines[index].isBlank())
                 ) {
-                    code += lines[index]
+                    val candidate = lines[index]
+                    code += when {
+                        candidate.startsWith("    ") -> candidate.drop(4)
+                        candidate.startsWith("\t") -> candidate.drop(1)
+                        else -> ""
+                    }
                     index += 1
                 }
                 blocks += RichMarkdownBlock.Code(null, code.joinToString("\n").trimEnd('\n'))
@@ -148,6 +165,11 @@ internal object RichMarkdownParser {
         return RichMarkdownBlock.Heading(count, line.drop(count + 1))
     }
 
+    private fun openingFence(line: String): MatchResult? =
+        fencePattern.matchEntire(line)?.takeUnless {
+            it.groupValues[2].startsWith('`') && '`' in it.groupValues[3]
+        }
+
     private fun orderedItem(line: String): String? {
         val trimmed = line.trimStart()
         val separator = trimmed.indexOf('.')
@@ -182,7 +204,7 @@ internal object RichMarkdownParser {
 
     private fun startsBlock(line: String, next: String?): Boolean {
         val trimmed = line.trimStart()
-        return line.isBlank() || line.startsWith("```") || heading(line) != null ||
+        return line.isBlank() || openingFence(line) != null || heading(line) != null ||
             trimmed.startsWith(">") || orderedItem(line) != null || unorderedItem(line) != null ||
             (next != null && isTableRow(line) && isTableDivider(next))
     }

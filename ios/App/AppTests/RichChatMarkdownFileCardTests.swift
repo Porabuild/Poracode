@@ -76,4 +76,24 @@ final class RichChatMarkdownFileCardTests: XCTestCase {
     }
     XCTAssertEqual("out/a%20b.zip", ref.path)
   }
+
+  func testLongerAndTildeFencesKeepCopyableCodeSeparateFromProse() {
+    let source = [
+      "Intro",
+      "  ````swift option",
+      "    let result = \"café\"",
+      "  ```",
+      "  ````",
+      "~~~",
+      "  second marker",
+      "~~~",
+      "Done",
+    ].joined(separator: "\r\n")
+    XCTAssertEqual(RichChatMarkdownParser.parse(source), [
+      .paragraph("Intro"),
+      .code(language: "swift", source: "  let result = \"café\"\n```"),
+      .code(language: nil, source: "  second marker"),
+      .paragraph("Done"),
+    ])
+  }
 }

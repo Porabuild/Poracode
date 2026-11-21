@@ -1,12 +1,17 @@
+import Observation
 import SwiftUI
 
-private struct ProjectMCPEditorSelection: Identifiable {
-  let id: String
+@Observable
+final class MCPServerEditSession<Lease>: Identifiable {
+  let id = UUID()
+  let lease: Lease
   let server: ProjectMCPServer?
+  var draft: ProjectMCPServerDraft
 
-  init(server: ProjectMCPServer? = nil) {
-    id = server?.id ?? UUID().uuidString
+  init(lease: Lease, server: ProjectMCPServer? = nil) {
+    self.lease = lease
     self.server = server
+    draft = server.map(ProjectMCPServerDraft.init(server:)) ?? .init()
   }
 }
 
@@ -18,7 +23,7 @@ struct ProjectMCPSettingsView: View {
   @Bindable var commandController: ProjectControllerCommandController
 
   @State private var servers: [ProjectMCPServer] = []
-  @State private var editor: ProjectMCPEditorSelection?
+  @State private var editor: MCPServerEditSession<ProjectControllerHostLease>?
   @State private var moveFailure: SettingsOperationFailure?
 
   var body: some View {
@@ -47,31 +52,32 @@ struct ProjectMCPSettingsView: View {
     }
     .navigationTitle(ProjectSettingsStrings.mcpServers)
     .navigationBarTitleDisplayMode(.inline)
-    .poracodeBottomBar {
-      PoracodeBottomActionDock(placement: .trailing) {
-        PoracodeCircleButton {
-          editor = ProjectMCPEditorSelection()
-        } label: {
-          Label(ProjectSettingsStrings.addMCPServer, systemImage: "plus")
-            .labelStyle(.iconOnly)
+    .toolbar {
+      ToolbarItem(placement: .bottomBar) {
+        Button(ProjectSettingsStrings.addMCPServer, systemImage: "plus") {
+          presentEditor()
         }
-        .disabled(commandController.state.isExecuting)
-        .accessibilityLabel(ProjectSettingsStrings.addMCPServer)
+        .disabled(editingLease == nil)
         .accessibilityIdentifier("native-e2e.project-mcp.add")
       }
     }
     .sheet(item: $editor) { selection in
       NavigationStack {
         ProjectMCPServerEditor(
-          server: selection.server,
+          session: selection,
           existingNames: Set(servers.map { $0.name.lowercased() })
         ) { server in
-          upsert(server)
+          guard editingLease == selection.lease else { return }
+          upsert(server, expectedLease: selection.lease)
           editor = nil
         }
       }
+      .poracodeFormSheetSizing()
     }
     .task(id: identity) { await load() }
+    .onChange(of: session.currentProjectControllerLease) {
+      editor = nil
+    }
     .onChange(of: settingsController.cachedSettings(for: identity)) { _, settings in
       guard let settings else { return }
       servers = settings.mcpServers ?? []
@@ -119,6 +125,7 @@ struct ProjectMCPSettingsView: View {
       }
     }
     .listStyle(.insetGrouped)
+    .poracodeReadableListMargins(760)
     .refreshable { await load() }
   }
 
@@ -161,7 +168,7 @@ struct ProjectMCPSettingsView: View {
     .disabled(commandController.state.isExecuting)
     .swipeActions(edge: .leading, allowsFullSwipe: false) {
       Button {
-        editor = ProjectMCPEditorSelection(server: server)
+        presentEditor(server)
       } label: {
         Label(ProjectManagementStrings.edit, systemImage: "pencil")
       }
@@ -176,7 +183,7 @@ struct ProjectMCPSettingsView: View {
     }
     .contextMenu {
       Button {
-        editor = ProjectMCPEditorSelection(server: server)
+        presentEditor(server)
       } label: {
         Label(ProjectManagementStrings.edit, systemImage: "pencil")
       }
@@ -201,12 +208,26 @@ struct ProjectMCPSettingsView: View {
     }
   }
 
-  private func upsert(_ server: ProjectMCPServer) {
-    guard !commandController.state.isExecuting else { return }
+  private var editingLease: ProjectControllerHostLease? {
+    guard let access = session.currentProjectControllerSession,
+      access.lease.connectionId == identity.connectionId,
+      commandController.state.session?.lease == access.lease,
+      access.gate(.projectsManage) == nil, !commandController.state.isExecuting,
+      !commandController.state.isRunningSetupFollowUp,
+      settingsController.cachedSettings(for: identity) != nil else { return nil }
+    return access.lease
+  }
+
+  private func presentEditor(_ server: ProjectMCPServer? = nil) {
+    guard let lease = editingLease else { return }
+    editor = .init(lease: lease, server: server)
+  }
+
+  private func upsert(_ server: ProjectMCPServer, expectedLease: ProjectControllerHostLease? = nil) {
     if servers.contains(where: { $0.id == server.id }) {
-      persist(servers.map { $0.id == server.id ? server : $0 })
+      persist(servers.map { $0.id == server.id ? server : $0 }, expectedLease: expectedLease)
     } else {
-      persist(servers + [server])
+      persist(servers + [server], expectedLease: expectedLease)
     }
   }
 
@@ -226,8 +247,9 @@ struct ProjectMCPSettingsView: View {
     upsert(ProjectMCPServer(imported: source, id: existing.id))
   }
 
-  private func persist(_ next: [ProjectMCPServer]) {
-    guard next != servers, !commandController.state.isExecuting else { return }
+  private func persist(_ next: [ProjectMCPServer], expectedLease: ProjectControllerHostLease? = nil) {
+    guard next != servers, let lease = editingLease,
+      expectedLease == nil || expectedLease == lease else { return }
     let previous = servers
     servers = next
     Task {
@@ -236,8 +258,10 @@ struct ProjectMCPSettingsView: View {
           projectId: project.id,
           patch: ProjectPatch(mcpServers: .set(next))
         ),
-        detectSetup: false
+        detectSetup: false,
+        expectedLease: lease
       )
+      guard session.currentProjectControllerLease == lease else { return }
       if commandController.state.failure != nil {
         servers = previous
         return
@@ -247,7 +271,8 @@ struct ProjectMCPSettingsView: View {
   }
 
   private func moveToGlobal(_ server: ProjectMCPServer) {
-    guard let selection = session.currentSettingsHostSelection,
+    guard editingLease != nil, let selection = session.currentSettingsHostSelection,
+      selection.lease.connectionID == identity.connectionId,
       selection.gate(.projectsManage) == nil
     else { return }
     moveFailure = nil
@@ -270,82 +295,74 @@ struct ProjectMCPSettingsView: View {
   }
 }
 
-struct ProjectMCPServerEditor: View {
+struct ProjectMCPServerEditor<Lease>: View {
   @Environment(\.dismiss) private var dismiss
-  let server: ProjectMCPServer?
+  @Bindable var session: MCPServerEditSession<Lease>
   let existingNames: Set<String>
   let onSave: (ProjectMCPServer) -> Void
 
-  @State private var draft: ProjectMCPServerDraft
   @State private var validationError: ProjectMCPDraftError?
-
-  init(
-    server: ProjectMCPServer?,
-    existingNames: Set<String>,
-    onSave: @escaping (ProjectMCPServer) -> Void
-  ) {
-    self.server = server
-    self.existingNames = existingNames
-    self.onSave = onSave
-    _draft = State(initialValue: server.map(ProjectMCPServerDraft.init(server:)) ?? .init())
-  }
 
   var body: some View {
     Form {
       Section {
-        TextField(ProjectManagementStrings.name, text: $draft.name)
+        TextField(ProjectManagementStrings.name, text: $session.draft.name)
+          .accessibilityIdentifier("native-e2e.mcp-editor.name")
           .textInputAutocapitalization(.never)
           .autocorrectionDisabled()
-        Toggle(ProjectSettingsStrings.mcpEnabled, isOn: $draft.enabled)
+        Toggle(ProjectSettingsStrings.mcpEnabled, isOn: $session.draft.enabled)
+          .accessibilityIdentifier("native-e2e.mcp-editor.enabled")
         .poracodeSwitchStyle()
-        Picker(ProjectSettingsStrings.mcpTransport, selection: $draft.transportKind) {
+        Picker(ProjectSettingsStrings.mcpTransport, selection: $session.draft.transportKind) {
           ForEach(ProjectMCPTransportKind.allCases) { kind in
             Text(kind.label).tag(kind)
           }
         }
-        TextField(ProjectSettingsStrings.mcpTimeout, text: $draft.timeoutText)
+        .accessibilityIdentifier("native-e2e.mcp-editor.transport")
+        TextField(ProjectSettingsStrings.mcpTimeout, text: $session.draft.timeoutText)
           .keyboardType(.numberPad)
       }
 
-      if draft.transportKind == .stdio {
+      if session.draft.transportKind == .stdio {
         Section {
-          TextField(ProjectSettingsStrings.mcpCommand, text: $draft.command)
+          TextField(ProjectSettingsStrings.mcpCommand, text: $session.draft.command)
             .font(.body.monospaced())
             .textInputAutocapitalization(.never)
             .autocorrectionDisabled()
           TextField(
-            ProjectSettingsStrings.mcpArguments, text: $draft.argumentsText, axis: .vertical
+            ProjectSettingsStrings.mcpArguments, text: $session.draft.argumentsText, axis: .vertical
           )
           .lineLimit(2...5)
           .font(.body.monospaced())
           .textInputAutocapitalization(.never)
           .autocorrectionDisabled()
-          TextField(ProjectSettingsStrings.mcpWorkingDirectory, text: $draft.workingDirectory)
+          TextField(ProjectSettingsStrings.mcpWorkingDirectory, text: $session.draft.workingDirectory)
             .font(.body.monospaced())
             .textInputAutocapitalization(.never)
             .autocorrectionDisabled()
         }
         Section(ProjectSettingsStrings.mcpEnvironment) {
           multilineEditor(
-            text: $draft.environmentText,
+            text: $session.draft.environmentText,
             label: ProjectSettingsStrings.mcpEnvironment
           )
         }
       } else {
         Section {
-          TextField(ProjectSettingsStrings.mcpURL, text: $draft.url)
+          TextField(ProjectSettingsStrings.mcpURL, text: $session.draft.url)
+            .accessibilityIdentifier("native-e2e.mcp-editor.url")
             .keyboardType(.URL)
             .textInputAutocapitalization(.never)
             .autocorrectionDisabled()
         }
         Section(ProjectSettingsStrings.mcpHeaders) {
-          multilineEditor(text: $draft.headersText, label: ProjectSettingsStrings.mcpHeaders)
+          multilineEditor(text: $session.draft.headersText, label: ProjectSettingsStrings.mcpHeaders)
         }
       }
 
       Section {
         TextField(
-          ProjectSettingsStrings.mcpDescription, text: $draft.descriptionText, axis: .vertical
+          ProjectSettingsStrings.mcpDescription, text: $session.draft.descriptionText, axis: .vertical
         )
         .lineLimit(2...5)
       }
@@ -361,15 +378,17 @@ struct ProjectMCPServerEditor: View {
       }
     }
     .navigationTitle(
-      server == nil ? ProjectSettingsStrings.addMCPServer : ProjectSettingsStrings.editMCPServer
+      session.server == nil ? ProjectSettingsStrings.addMCPServer : ProjectSettingsStrings.editMCPServer
     )
     .navigationBarTitleDisplayMode(.inline)
     .toolbar {
       ToolbarItem(placement: .cancellationAction) {
-        Button(ProjectManagementStrings.cancel) { dismiss() }
+        Button(ProjectManagementStrings.cancel, systemImage: "xmark") { dismiss() }
+          .accessibilityIdentifier("native-e2e.mcp-editor.cancel")
       }
       ToolbarItem(placement: .confirmationAction) {
-        Button(ProjectManagementStrings.save) { save() }
+        Button(ProjectManagementStrings.save, systemImage: "checkmark") { save() }
+          .accessibilityIdentifier("native-e2e.mcp-editor.save")
       }
     }
   }
@@ -385,9 +404,9 @@ struct ProjectMCPServerEditor: View {
 
   private func save() {
     do {
-      let value = try draft.server(
+      let value = try session.draft.server(
         existingNames: existingNames,
-        previousName: server?.name
+        previousName: session.server?.name
       )
       validationError = nil
       onSave(value)

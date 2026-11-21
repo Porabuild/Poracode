@@ -1,4 +1,5 @@
-import { baseAgentKind, type ThreadPresentationMode } from "@/shared/contracts";
+import type { ThreadPresentationMode } from "@/shared/contracts";
+import { getProviderManifest } from "@/renderer/components/providers/providerManifest";
 
 type ProviderIdentityInput = {
   kind: string;
@@ -12,26 +13,6 @@ type ProviderIdentityInput = {
     runtimeLabel?: string | undefined;
     showRuntimeLabelInPicker?: boolean | undefined;
   };
-};
-
-/**
- * Compatibility defaults for provider surfaces that shipped before their
- * adapter declared a `runtimeLabel` capability / a named runtime variant per
- * GUI surface.
- *
- * Shared code below never branches on a provider kind — it only looks the kind
- * up in this table. Entries exist purely so already-persisted hidden-model keys
- * and already-shipped surface labels stay stable; a provider that declares
- * `runtimeLabel` on every runtime surface needs no entry here.
- */
-const legacySurfaceIdentity: Record<
-  string,
-  { terminalRuntimeLabel?: string; defaultGuiRuntimeVariant?: string }
-> = {
-  // Cursor's CLI surface has no adapter-declared runtimeLabel, and threads that
-  // predate named runtime variants persist their GUI hidden models under the
-  // ACP surface key.
-  cursor: { terminalRuntimeLabel: "CLI", defaultGuiRuntimeVariant: "acp" },
 };
 
 export function providerMenuKey(provider: ProviderIdentityInput): string {
@@ -57,10 +38,7 @@ function resolveRuntimeVariantId(
   runtimeVariant?: string,
 ): string | undefined {
   if (presentationMode !== "gui") return undefined;
-  return (
-    runtimeVariant?.toLowerCase() ??
-    legacySurfaceIdentity[baseAgentKind(agentKind)]?.defaultGuiRuntimeVariant
-  );
+  return runtimeVariant?.toLowerCase() ?? getProviderManifest(agentKind)?.legacyGuiRuntimeVariant;
 }
 
 /** Settings key used to persist hidden models for one provider surface. */
@@ -78,7 +56,7 @@ export function providerLabelForPresentation(provider: ProviderIdentityInput): s
   if (provider.capabilities?.showRuntimeLabelInPicker === false) return label;
   const runtimeLabel =
     provider.presentationMode === "terminal"
-      ? legacySurfaceIdentity[baseAgentKind(provider.kind)]?.terminalRuntimeLabel
+      ? getProviderManifest(provider.kind)?.legacyTerminalRuntimeLabel
       : provider.capabilities?.runtimeLabel;
   if (!runtimeLabel) return label;
   // Callers may pass a provider whose label was already qualified by this

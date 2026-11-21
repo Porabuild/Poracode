@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct AppearanceSettingsView: View {
+  @State private var customThemes = CustomThemeStore.shared
   @AppStorage(PoracodeThemePreset.storageKey) private var selectedThemeID =
     PoracodeThemePreset.defaultID
   @AppStorage(PoracodeAppearanceMode.storageKey) private var appearanceModeID =
@@ -20,6 +21,24 @@ struct AppearanceSettingsView: View {
         }
         .pickerStyle(.segmented)
         .labelsHidden()
+        .settingsSearchAnchor(.appearanceMode)
+      }
+      .listRowBackground(activeTheme.variant(for: colorScheme).surface)
+
+      Section {
+        NavigationLink {
+          CustomThemeSettingsView(store: customThemes)
+        } label: {
+          HStack {
+            CustomThemeStrings.text("Custom theme")
+            Spacer(minLength: 8)
+            if let active = customThemes.themes.first(where: { $0.id == selectedThemeID }) {
+              Text(verbatim: active.document.label).foregroundStyle(.secondary).lineLimit(1)
+            }
+          }
+        }
+        .accessibilityIdentifier("native-e2e.settings.custom-themes")
+        .settingsSearchAnchor(.customTheme)
       }
       .listRowBackground(activeTheme.variant(for: colorScheme).surface)
 
@@ -32,6 +51,7 @@ struct AppearanceSettingsView: View {
           }
           .buttonStyle(.plain)
           .accessibilityAddTraits(theme.id == selectedThemeID ? .isSelected : [])
+          .settingsSearchAnchor(theme.id == PoracodeThemePreset.defaultID ? .theme : nil)
         }
       } header: {
         Text(SettingsUIStrings.theme)
@@ -59,6 +79,7 @@ struct AppearanceSettingsView: View {
             .foregroundStyle(.secondary)
             .frame(minWidth: 24, alignment: .trailing)
         }
+        .settingsSearchAnchor(.chatTextSize)
       } header: {
         Text(SettingsUIStrings.chatTextSize)
       } footer: {
@@ -66,6 +87,8 @@ struct AppearanceSettingsView: View {
       }
       .listRowBackground(activeTheme.variant(for: colorScheme).surface)
     }
+    .poracodeReadableListMargins(740)
+    .settingsSearchScroll()
     .scrollContentBackground(.hidden)
     .background(activeTheme.variant(for: colorScheme).background)
     .navigationTitle(SettingsUIStrings.appearanceTitle)
@@ -104,7 +127,7 @@ struct AppearanceSettingsView: View {
   }
 }
 
-private struct ThemeSwatch: View {
+struct ThemeSwatch: View {
   let variant: PoracodeThemeVariant
 
   var body: some View {

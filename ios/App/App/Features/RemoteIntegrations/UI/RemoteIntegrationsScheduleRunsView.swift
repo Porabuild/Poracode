@@ -55,6 +55,7 @@ struct RemoteIntegrationsScheduleRunsView: View {
           runRow(run)
         }
         .listStyle(.insetGrouped)
+        .poracodeReadableListMargins(740)
       }
     }
   }

@@ -57,10 +57,12 @@ extension RichChatThreadView {
   /// The composer's resume wiring: the plan, the relaunch for a refused send,
   /// and the hook every send reports to.
   var composerResume: RichChatComposerResumeContext {
-    RichChatComposerResumeContext(
+    let owner = conversationOwner
+    let target = suite.scope.target
+    return RichChatComposerResumeContext(
       plan: resumePlan,
-      relaunchRefused: { prompt, configuration in
-        await relaunchRefusedResume(prompt: prompt, configuration: configuration)
+      relaunchRefused: { input, configuration in
+        await relaunchRefusedResume(input: input, configuration: configuration, owner: owner, target: target)
       },
       sendSettled: { [rowAtSubmit = thread] succeeded in
         resumeState.suppressedRow = RichChatResumePlanner.suppression(
@@ -90,16 +92,24 @@ extension RichChatThreadView {
 
   /// Relaunches the latest row with the same prompt when the host refused the
   /// resume send because it lost the thread's session; false otherwise.
-  private func relaunchRefusedResume(prompt: String, configuration: ThreadConfig) async -> Bool {
+  private func relaunchRefusedResume(
+    input: RichChatSendInput, configuration: ThreadConfig,
+    owner: RichChatSessionActionOwner?, target submittedTarget: RichChatThreadTarget?
+  ) async -> Bool {
     guard let refusal = suite.conversation.state.failure, let latest = thread,
+      let submittedTarget, suite.scope.target == submittedTarget,
+      session.currentRichChatAccess?.lease == submittedTarget.lease,
+      conversationConnectionID == submittedTarget.lease.connectionID,
+      owner == conversationOwner, canOperate, !resumeState.isRelaunching,
       RichChatResumePlanner.relaunches(after: refusal, latest: latest),
-      let base = session.threadStartExistingRequest(threadID: threadID, prompt: prompt),
-      let target = session.threadLifecycleTarget(threadID: threadID)
+      let base = session.threadStartExistingRequest(threadID: threadID, prompt: input.prompt),
+      let target = session.threadLifecycleTarget(threadID: threadID),
+      let request = try? RichChatResumePlanner.relaunchRequest(base, latest: latest, configuration: configuration, input: input)
     else { return false }
     resumeState.isRelaunching = true
     defer { resumeState.isRelaunching = false }
     return await RichChatResumeRelaunch.relaunch(
-      RichChatResumePlanner.relaunchRequest(base, latest: latest, configuration: configuration),
+      request,
       target: target,
       lifecycle: session.makeThreadLifecycleController(),
       replacing: refusal,

@@ -64,7 +64,7 @@ sealed interface RoutethreadU2DGoalRequest_54c8350637 {
 @Serializable
 data class RoutethreadU2DHistoryQuery_598de4be53(
     @SerialName("completedTurnsLimit") val completedTurnsLimit: RemoteField<Long> = RemoteField.Missing,
-    @SerialName("deferBodies") val deferBodies: RemoteField<RoutethreadU2DHistoryU2DItemsQueryU2DDeferBodies_30a537a934> = RemoteField.Missing,
+    @SerialName("deferBodies") val deferBodies: RemoteField<RoutethreadU2DHistoryU2DChangesQueryU2DDeferBodies_30a537a934> = RemoteField.Missing,
     @SerialName("historyCache") val historyCache: RemoteField<RoutethreadU2DHistoryU2DChangesQueryU2DNotices_f67f6cbe63> = RemoteField.Missing,
     @SerialName("historyRevision") val historyRevision: RemoteField<String> = RemoteField.Missing,
     @SerialName("maxBytes") val maxBytes: RemoteField<Long> = RemoteField.Missing,
@@ -79,7 +79,7 @@ data class RoutethreadU2DHistoryQuery_598de4be53(
     companion object {
         val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
             RemoteFieldDescriptor("completedTurnsLimit", "Long", false, false, 1.0, 500.0, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("deferBodies", "RoutethreadU2DHistoryU2DItemsQueryU2DDeferBodies_30a537a934", false, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("deferBodies", "RoutethreadU2DHistoryU2DChangesQueryU2DDeferBodies_30a537a934", false, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("historyCache", "RoutethreadU2DHistoryU2DChangesQueryU2DNotices_f67f6cbe63", false, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("historyRevision", "String", false, false, null, null, 1, 160, null, null, null, null, listOf()),
             RemoteFieldDescriptor("maxBytes", "Long", false, false, 1.0, 9007199254740991.0, null, null, null, null, null, null, listOf()),
@@ -140,6 +140,11 @@ data class RoutethreadU2DHistoryResponse_d1ba4ef10f(
 }
 
 @Serializable
+enum class RoutethreadU2DHistoryU2DChangesQueryU2DDeferBodies_30a537a934 {
+    @SerialName("file_change") FILEU5FCHANGE,
+}
+
+@Serializable
 enum class RoutethreadU2DHistoryU2DChangesQueryU2DNotices_f67f6cbe63 {
     @SerialName("v1") V1,
 }
@@ -150,24 +155,30 @@ enum class RoutethreadU2DHistoryU2DChangesQueryU2DProjection_72a4409660 {
 }
 
 @Serializable
-data class RoutethreadU2DHistoryU2DChangesQuery_095b77a7c8(
+data class RoutethreadU2DHistoryU2DChangesQuery_e52b25f4a0(
     @SerialName("afterSeq") val afterSeq: RemoteField<Long> = RemoteField.Missing,
     @SerialName("cursor") val cursor: String,
+    @SerialName("deferBodies") val deferBodies: RemoteField<RoutethreadU2DHistoryU2DChangesQueryU2DDeferBodies_30a537a934> = RemoteField.Missing,
     @SerialName("maxBytes") val maxBytes: RemoteField<Long> = RemoteField.Missing,
     @SerialName("maxDecodeBytes") val maxDecodeBytes: RemoteField<Long> = RemoteField.Missing,
     @SerialName("notices") val notices: RoutethreadU2DHistoryU2DChangesQueryU2DNotices_f67f6cbe63,
+    @SerialName("omitScrollback") val omitScrollback: RemoteField<Boolean> = RemoteField.Missing,
     @SerialName("projection") val projection: RemoteField<RoutethreadU2DHistoryU2DChangesQueryU2DProjection_72a4409660> = RemoteField.Missing,
     @SerialName("reads") val reads: RouteprojectU2DListQueryU2DReads_4659e6d395,
+    @SerialName("targetTimelineEntryCount") val targetTimelineEntryCount: RemoteField<Long> = RemoteField.Missing,
 ) {
     companion object {
         val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
             RemoteFieldDescriptor("afterSeq", "Long", false, false, 0.0, 9007199254740991.0, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("cursor", "String", true, false, null, null, 1, 4096, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("deferBodies", "RoutethreadU2DHistoryU2DChangesQueryU2DDeferBodies_30a537a934", false, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("maxBytes", "Long", false, false, null, 9007199254740991.0, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("maxDecodeBytes", "Long", false, false, null, 9007199254740991.0, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("notices", "RoutethreadU2DHistoryU2DChangesQueryU2DNotices_f67f6cbe63", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("omitScrollback", "Boolean", false, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("projection", "RoutethreadU2DHistoryU2DChangesQueryU2DProjection_72a4409660", false, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("reads", "RouteprojectU2DListQueryU2DReads_4659e6d395", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("targetTimelineEntryCount", "Long", false, false, 1.0, 100.0, null, null, null, null, null, null, listOf()),
         ), listOf())
     }
 }

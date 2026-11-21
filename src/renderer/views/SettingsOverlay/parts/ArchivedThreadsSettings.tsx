@@ -8,7 +8,12 @@ import { ConfirmationPopover } from "@/renderer/components/common/ConfirmationPo
 import { useCompactLayout } from "@/renderer/adaptiveLayout";
 import { useAppStore } from "@/renderer/state/appStore";
 import { ThreadProviderIcon } from "@/renderer/components/providers/ThreadProviderIcon";
-import { deleteThreadsAndOwnedWorktrees, unarchiveThread } from "@/renderer/actions/threadActions";
+import {
+  deleteThreadRecord,
+  deleteThreadsAndOwnedWorktrees,
+  unarchiveThread,
+} from "@/renderer/actions/threadActions";
+import { entityHost, type EntityHost } from "@/renderer/state/entityHost";
 import { SettingsPage } from "./SettingsForm";
 import {
   ArchivedThreadsMachinePicker,
@@ -27,6 +32,7 @@ interface ClearTarget {
   key: string;
   label: string;
   threads: Thread[];
+  owner?: EntityHost;
 }
 
 function groupArchivedThreads(threads: readonly Thread[]): ArchivedThreadGroup[] {
@@ -52,18 +58,21 @@ export function ArchivedThreadsSettings(props: ArchivedThreadsScopeProps) {
     options,
     selectedMachine,
     unavailable: selectedMachineUnavailable,
+    canOperate,
+    remoteSession,
   } = useArchivedThreadsMachine(props.machineId);
   const [clearTarget, setClearTarget] = useState<ClearTarget | null>(null);
-  const selectedMachineId = selectedMachine.id;
+  const selectedMachineId = selectedMachine?.id;
   const archivedThreads = threads.filter(
     (thread) =>
+      selectedMachineId !== undefined &&
       thread.archived &&
       (selectedMachineId === LOCAL_ARCHIVE_MACHINE_ID
         ? thread.remoteServerId === undefined
         : thread.remoteServerId === selectedMachineId),
   );
   const groups = groupArchivedThreads(archivedThreads);
-  const selectedMachineLabel = selectedMachine.label;
+  const selectedMachineLabel = selectedMachine?.label ?? "";
   const dateFormatter = new Intl.DateTimeFormat(i18n.locale, {
     weekday: "long",
     year: "numeric",
@@ -74,14 +83,30 @@ export function ArchivedThreadsSettings(props: ArchivedThreadsScopeProps) {
     hour: "numeric",
     minute: "2-digit",
   });
-  const clearThreads = (threadsToClear: readonly Thread[]) => {
+  const clearThreads = (target: ClearTarget) => {
     setClearTarget(null);
-    deleteThreadsAndOwnedWorktrees(threadsToClear);
+    if (!canOperate) return;
+    if (!remoteSession) {
+      deleteThreadsAndOwnedWorktrees(target.threads);
+      return;
+    }
+    // Keep confirmation tied to the original pairing and drop it if the
+    // desktop or archived row changed while the popover was open.
+    if (!target.owner?.isCurrent() || target.owner.connectionKey !== selectedMachineId) return;
+    const current = useAppStore
+      .getState()
+      .threads.find(
+        (row) =>
+          row.id === target.threads[0]?.id &&
+          row.remoteServerId === selectedMachineId &&
+          row.archived,
+      );
+    if (current) void deleteThreadRecord(current).catch(() => undefined);
   };
   const clearConfirmationBody = clearTarget ? (
     <>
       {t`Permanently delete the selected archive entries from ${clearTarget.label}.`}
-      {clearTarget.threads.some((thread) => thread.worktreePath) ? (
+      {!remoteSession && clearTarget.threads.some((thread) => thread.worktreePath) ? (
         <span className="mt-1 block">
           <Trans>Associated worktrees with no remaining threads will also be removed.</Trans>
         </span>
@@ -94,34 +119,38 @@ export function ArchivedThreadsSettings(props: ArchivedThreadsScopeProps) {
       title={t`Archived Threads`}
       bodyClassName=""
       actions={
-        <ConfirmationPopover
-          isOpen={clearTarget?.key === "all"}
-          onOpenChange={(isOpen) =>
-            setClearTarget(
-              isOpen ? { key: "all", label: selectedMachineLabel, threads: archivedThreads } : null,
-            )
-          }
-          title={t`Delete archived threads?`}
-          body={clearConfirmationBody}
-          placement="bottom end"
-          actions={[
-            {
-              label: t`Delete`,
-              variant: "danger",
-              onPress: () => clearTarget && clearThreads(clearTarget.threads),
-            },
-          ]}
-          trigger={
-            <Button
-              size="sm"
-              variant="secondary"
-              isDisabled={archivedThreads.length === 0 || selectedMachineUnavailable}
-            >
-              <Trash2 className="size-4" />
-              <Trans>Clear all</Trans>
-            </Button>
-          }
-        />
+        !remoteSession && (
+          <ConfirmationPopover
+            isOpen={clearTarget?.key === "all"}
+            onOpenChange={(isOpen) =>
+              setClearTarget(
+                isOpen
+                  ? { key: "all", label: selectedMachineLabel, threads: archivedThreads }
+                  : null,
+              )
+            }
+            title={t`Delete archived threads?`}
+            body={clearConfirmationBody}
+            placement="bottom end"
+            actions={[
+              {
+                label: t`Delete`,
+                variant: "danger",
+                onPress: () => clearTarget && clearThreads(clearTarget),
+              },
+            ]}
+            trigger={
+              <Button
+                size="sm"
+                variant="secondary"
+                isDisabled={archivedThreads.length === 0 || !canOperate}
+              >
+                <Trash2 className="size-4" />
+                <Trans>Clear all</Trans>
+              </Button>
+            }
+          />
+        )
       }
     >
       {compactLayout && options.length > 1 ? (
@@ -148,36 +177,38 @@ export function ArchivedThreadsSettings(props: ArchivedThreadsScopeProps) {
               <section key={group.key}>
                 <div className="mb-2 flex items-center justify-between gap-3 px-1">
                   <h2 className="text-xs font-semibold text-muted">{dateLabel}</h2>
-                  <ConfirmationPopover
-                    isOpen={clearTarget?.key === group.key}
-                    onOpenChange={(isOpen) =>
-                      setClearTarget(
-                        isOpen
-                          ? { key: group.key, label: dateLabel, threads: group.threads }
-                          : null,
-                      )
-                    }
-                    title={t`Delete archived threads?`}
-                    body={clearConfirmationBody}
-                    actions={[
-                      {
-                        label: t`Delete`,
-                        variant: "danger",
-                        onPress: () => clearTarget && clearThreads(clearTarget.threads),
-                      },
-                    ]}
-                    trigger={
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        isDisabled={selectedMachineUnavailable}
-                        aria-label={t`Clear archived threads from ${dateLabel}`}
-                      >
-                        <Trash2 className="size-3.5" />
-                        <Trans>Clear day</Trans>
-                      </Button>
-                    }
-                  />
+                  {!remoteSession && (
+                    <ConfirmationPopover
+                      isOpen={clearTarget?.key === group.key}
+                      onOpenChange={(isOpen) =>
+                        setClearTarget(
+                          isOpen
+                            ? { key: group.key, label: dateLabel, threads: group.threads }
+                            : null,
+                        )
+                      }
+                      title={t`Delete archived threads?`}
+                      body={clearConfirmationBody}
+                      actions={[
+                        {
+                          label: t`Delete`,
+                          variant: "danger",
+                          onPress: () => clearTarget && clearThreads(clearTarget),
+                        },
+                      ]}
+                      trigger={
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          isDisabled={!canOperate}
+                          aria-label={t`Clear archived threads from ${dateLabel}`}
+                        >
+                          <Trash2 className="size-3.5" />
+                          <Trans>Clear day</Trans>
+                        </Button>
+                      }
+                    />
+                  )}
                 </div>
                 <Surface variant="secondary" className="content-surface-group">
                   {group.threads.map((thread) => {
@@ -217,7 +248,7 @@ export function ArchivedThreadsSettings(props: ArchivedThreadsScopeProps) {
                                 variant="ghost"
                                 size="sm"
                                 isIconOnly
-                                isDisabled={selectedMachineUnavailable}
+                                isDisabled={!canOperate}
                                 aria-label={t`Restore thread`}
                                 onPress={() => unarchiveThread(thread.id)}
                               >
@@ -230,24 +261,27 @@ export function ArchivedThreadsSettings(props: ArchivedThreadsScopeProps) {
                           </Tooltip>
                           <ConfirmationPopover
                             isOpen={clearTarget?.key === `thread:${thread.id}`}
-                            onOpenChange={(isOpen) =>
+                            onOpenChange={(isOpen) => {
+                              const owner =
+                                remoteSession && isOpen ? entityHost(thread) : undefined;
                               setClearTarget(
                                 isOpen
                                   ? {
                                       key: `thread:${thread.id}`,
                                       label: selectedMachineLabel,
                                       threads: [thread],
+                                      ...(owner ? { owner } : {}),
                                     }
                                   : null,
-                              )
-                            }
+                              );
+                            }}
                             title={t`Delete archived thread?`}
                             body={clearConfirmationBody}
                             actions={[
                               {
                                 label: t`Delete`,
                                 variant: "danger",
-                                onPress: () => clearTarget && clearThreads(clearTarget.threads),
+                                onPress: () => clearTarget && clearThreads(clearTarget),
                               },
                             ]}
                             trigger={
@@ -255,7 +289,7 @@ export function ArchivedThreadsSettings(props: ArchivedThreadsScopeProps) {
                                 variant="ghost"
                                 size="sm"
                                 isIconOnly
-                                isDisabled={selectedMachineUnavailable}
+                                isDisabled={!canOperate}
                                 aria-label={t`Delete thread`}
                               >
                                 <Trash2 className="size-4 text-danger" />

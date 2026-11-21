@@ -1,6 +1,7 @@
 import { useLingui } from "@lingui/react/macro";
 import { Monitor } from "lucide-react";
 import { desktopTitle } from "@/shared/remote/desktopLabel";
+import { isRemoteSession } from "@/renderer/bridge";
 import { Select } from "@/renderer/components/common";
 import { ProjectRemoteServerIcon } from "@/renderer/components/common/ProjectRemoteServer";
 import { remoteConnectionKey } from "@/renderer/state/remoteServers/types";
@@ -15,10 +16,19 @@ export interface ArchivedThreadsScopeProps {
 
 export function useArchivedThreadsMachine(machineId: string) {
   const { t } = useLingui();
+  const remoteSession = isRemoteSession();
   const servers = useRemoteServersStore((state) => state.servers);
   const runtime = useRemoteServersStore((state) => state.runtime);
   const options = [
-    { id: LOCAL_ARCHIVE_MACHINE_ID, label: t`This machine`, icon: <Monitor className="size-4" /> },
+    ...(!remoteSession
+      ? [
+          {
+            id: LOCAL_ARCHIVE_MACHINE_ID,
+            label: t`This machine`,
+            icon: <Monitor className="size-4" />,
+          },
+        ]
+      : []),
     ...servers.map((server) => ({
       id: remoteConnectionKey(server),
       label: desktopTitle(server.label),
@@ -35,18 +45,24 @@ export function useArchivedThreadsMachine(machineId: string) {
       ),
     })),
   ];
-  const selectedMachine = options.find((option) => option.id === machineId) ?? options[0]!;
+  const selectedMachine = options.find((option) => option.id === machineId) ?? options[0];
+  const server = servers.find(
+    (candidate) => remoteConnectionKey(candidate) === selectedMachine?.id,
+  );
   const unavailable =
-    selectedMachine.id !== LOCAL_ARCHIVE_MACHINE_ID &&
-    runtime[selectedMachine.id]?.status !== "online" &&
-    runtime[selectedMachine.id]?.status !== "error";
-  return { options, selectedMachine, unavailable };
+    !selectedMachine ||
+    (selectedMachine.id !== LOCAL_ARCHIVE_MACHINE_ID &&
+      runtime[selectedMachine.id]?.status !== "online" &&
+      runtime[selectedMachine.id]?.status !== "error");
+  const canOperate =
+    !unavailable && (!remoteSession || server?.scopes.includes("session:operate") === true);
+  return { options, selectedMachine, unavailable, canOperate, remoteSession };
 }
 
 export function ArchivedThreadsMachinePicker(props: ArchivedThreadsScopeProps) {
   const { t } = useLingui();
   const { options, selectedMachine } = useArchivedThreadsMachine(props.machineId);
-  if (options.length <= 1) return null;
+  if (options.length <= 1 || !selectedMachine) return null;
   return (
     <Select
       aria-label={`${t`Machine`}: ${selectedMachine.label}`}

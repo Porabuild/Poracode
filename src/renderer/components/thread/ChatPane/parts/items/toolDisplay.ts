@@ -21,7 +21,8 @@ import type { MessageDescriptor } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
 import type { ToolCallPayload } from "@/shared/contracts";
 import { extractLeadingPath } from "@/shared/extractLeadingPath";
-import { isWorkflowTool, parseMcpName, type McpInfo } from "@/shared/toolCallClassification";
+import { isWorkflowTool, parseMcpName } from "@/shared/toolCallClassification";
+import { formatMcpToolTitle } from "@/shared/toolPresentationAdapters";
 import { i18n } from "@/renderer/i18n/i18n";
 import { extractAcpPatchTargetPath } from "./acpToolPayload";
 import { parseWorkflowInfo } from "./workflowDisplay";
@@ -116,7 +117,7 @@ export function deriveToolDisplay(
 
   const mcp = parseMcpName(payload);
   if (mcp) {
-    return { title: formatMcpTitle(mcp), Icon: Plug };
+    return { title: formatMcpToolTitle(mcp), Icon: Plug };
   }
 
   if (isSkillTool(payload)) {
@@ -504,24 +505,6 @@ function formatReadPathDisplay(
   if (title.length === 0) return { title: verb, Icon };
   const readableTitle = title.replace(/^read(?:ing| file)?[:\s]+/i, "").trim() || title;
   return { title: `${verb}: ${readableTitle}`, Icon };
-}
-
-function formatMcpTitle(info: McpInfo): string {
-  return `${prettyMcpServer(info.server)}: ${info.tool}`;
-}
-
-function normalizedMcpServer(server: string): string {
-  return server.replace(/^claude_ai_/, "").replace(/^plugin_[^_]+_/, "");
-}
-
-/**
- * Strip common namespace prefixes that the host injects on every server name
- * (`claude_ai_<Name>`, `plugin_<vendor>_<plugin>`) and replace remaining
- * underscores with spaces so the title reads as a label, not an identifier.
- */
-function prettyMcpServer(s: string): string {
-  const core = normalizedMcpServer(s);
-  return core.replace(/_/g, " ");
 }
 
 export function isSkillTool(payload: ToolCallPayload): boolean {

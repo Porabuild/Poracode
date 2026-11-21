@@ -28,6 +28,21 @@ import {
 } from "@/renderer/state/browserPresentationIntents";
 
 describe("remote bridge", () => {
+  it("projects the selected host version before notifying and clears it on disconnect", () => {
+    installRemoteBridge();
+    const versions: Array<string | undefined> = [];
+    const unsubscribe = subscribeRemoteBridgeClient(() =>
+      versions.push(window.poracode?.appVersion),
+    );
+    setRemoteBridgeClient({} as RemoteDesktopClient, "darwin", "first-owner", "1.8.2");
+    expect(window.poracode?.appVersion).toBe("1.8.2");
+    setRemoteBridgeClient({} as RemoteDesktopClient, "linux", "second-owner", "1.9.0");
+    expect(window.poracode?.appVersion).toBe("1.9.0");
+    setRemoteBridgeClient(null);
+    expect(window.poracode?.appVersion).toBe("0.0.0");
+    expect(versions).toEqual(["1.8.2", "1.9.0", "0.0.0"]);
+    unsubscribe();
+  });
   it("notifies subscribers after the active client changes", () => {
     const first = {} as RemoteDesktopClient;
     const second = {} as RemoteDesktopClient;

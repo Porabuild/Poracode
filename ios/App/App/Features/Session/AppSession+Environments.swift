@@ -113,6 +113,8 @@ extension AppSession {
         let childCapabilities: HostServiceCapabilities
         do {
             childCapabilities = try await environmentClient.fetchHostCapabilities()
+        } catch is CancellationError {
+            throw CancellationError()
         } catch {
             childCapabilities = previouslyKnownCapabilities ?? .unknown
         }
@@ -135,7 +137,7 @@ extension AppSession {
             // Never a child fingerprint: the proxy endpoint is the parent
             // host:port and the parent pin already governs it.
             certFingerprint: nil,
-            hostCapabilities: childCapabilities
+            hostCapabilities: childCapabilities.applyingEnvironmentAdvertisement(descriptor)
         )
         let record = HostRecord(
             connectionId: ClientConnectionID(),

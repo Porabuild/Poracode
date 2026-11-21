@@ -52,12 +52,14 @@ fun RichRemoteImage(
     ) {
         val bytes = when (source) {
             is RichImageSource.Inline -> inlineBytes(source.value)
-            is RichImageSource.Local -> when (val result = runtime.media.loadLocalImage(source.path)) {
+            is RichImageSource.Local -> when (
+                val result = runtime.media.loadLocalImage(source.path, variant = "card")
+            ) {
                 is RichChatOperationResult.Success -> result.value.bytes
                 else -> null
             }
             is RichImageSource.Runtime -> when (
-                val result = runtime.media.loadRuntimeImage(source.ref)
+                val result = runtime.media.loadRuntimeImage(source.ref, variant = "card")
             ) {
                 is RichChatOperationResult.Success -> result.value.bytes
                 else -> null

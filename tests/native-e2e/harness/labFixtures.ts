@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { canonicalToolPresentationCatalog } from "../../../src/shared/canonicalToolPresentation.ts";
 import type { RemoteScope } from "./constants.ts";
 import { initialBackgroundTasks } from "./backgroundTaskLab.ts";
 import { loadProtocolManifest } from "./manifest.ts";
@@ -19,12 +20,18 @@ export function buildEnvironmentDescriptor(input: {
   readonly label: string;
   readonly appVersion: string;
   readonly scopes: readonly string[];
+  readonly conversationSnapshots?: boolean;
+  readonly catalogMutations?: boolean;
+  readonly toolPresentation?: boolean;
+  readonly threadForks?: boolean;
+  readonly environmentManagement?: boolean;
 }): Record<string, unknown> {
   const platform =
     process.platform === "darwin" || process.platform === "linux" ? process.platform : undefined;
   const manifest = loadProtocolManifest();
   return {
     protocolVersion: manifest.protocolVersion,
+    ...(input.toolPresentation ? { toolPresentation: canonicalToolPresentationCatalog() } : {}),
     hostMode: "helper",
     desktopId: input.desktopId,
     label: input.label,
@@ -41,6 +48,11 @@ export function buildEnvironmentDescriptor(input: {
       wsBaseUrl: input.wsBaseUrl,
     },
     capabilities: {
+      ...(input.conversationSnapshots ? { conversationSnapshots: { versions: [1] } } : {}),
+      ...(input.catalogMutations ? { catalogMutations: { versions: [1] } } : {}),
+      ...(input.threadForks ? { threadForks: { versions: [1] } } : {}),
+      ...(input.environmentManagement ? { sshEnvironments: { versions: [1] } } : {}),
+      sessionImport: { versions: [1] },
       terminalCursorSync: {
         versions: [1],
       },
@@ -196,3 +208,7 @@ export function allReplayableEventFixtures(): Record<string, unknown>[] {
 export function defaultGrantedScopes(scopes: readonly string[]): readonly RemoteScope[] {
   return scopes as readonly RemoteScope[];
 }
+export const TRANSCRIPT_CODE_COPY_BLOCKS = [
+  "  first value = café\n\n```\n  first marker",
+  "second value = 東京\n\tsecond marker",
+] as const;

@@ -93,10 +93,11 @@ interface RichChatRemoteTransport {
         body: AttachmentUploadBody,
     ): String
 
-    fun localImageRequest(path: String): BinaryRequestPlan
+    fun localImageRequest(path: String, variant: String? = null): BinaryRequestPlan
     fun runtimeImageRequest(
         threadId: String,
         itemId: String,
         path: List<RuntimeImagePathSegment>,
+        variant: String? = null,
     ): BinaryRequestPlan
 }

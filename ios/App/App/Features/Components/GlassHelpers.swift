@@ -1,5 +1,87 @@
 import SwiftUI
+#if canImport(UIKit)
+import UIKit
+#endif
 
+/// Shared continuous geometry for native content, distinct from system control chrome.
+enum PoracodeShapes {
+  static var content: RoundedRectangle { RoundedRectangle(cornerRadius: 14, style: .continuous) }
+}
+
+/// A quiet, opaque-looking content grouping that stays legible over themed
+/// surfaces. Glass is reserved for controls and navigation above the content.
+private struct PoracodeContentCardBackground: ViewModifier {
+  @Environment(\.colorSchemeContrast) private var contrast
+
+  func body(content: Content) -> some View {
+    content.background(
+      Color.primary.opacity(contrast == .increased ? 0.12 : 0.06),
+      in: PoracodeShapes.content
+    )
+  }
+}
+
+extension View {
+  @ViewBuilder
+  func poracodeContentCardBackground(enabled: Bool = true) -> some View {
+    if enabled { modifier(PoracodeContentCardBackground()) }
+    else { self }
+  }
+}
+
+private struct PoracodeInputSurface<FieldShape: InsettableShape, Fill: ShapeStyle>: ViewModifier {
+  let shape: FieldShape
+  let fill: Fill
+  @Environment(\.colorSchemeContrast) private var contrast
+  @Environment(\.pixelLength) private var pixelLength
+
+  func body(content: Content) -> some View {
+    content.background(fill, in: shape)
+      .overlay {
+        shape.strokeBorder(
+          Color.primary.opacity(contrast == .increased ? 0.24 : 0.035),
+          lineWidth: contrast == .increased ? 1 : pixelLength
+        )
+          .allowsHitTesting(false)
+      }
+  }
+}
+
+extension View {
+  func poracodeInputSurface(
+    in shape: some InsettableShape = PoracodeShapes.content,
+    fill: some ShapeStyle = Color.primary.opacity(0.06)
+  ) -> some View {
+    modifier(PoracodeInputSurface(shape: shape, fill: fill))
+  }
+}
+
+/// The shared geometry for panel navigation and shortcut controls.
+struct PoracodePanelControlStrip<Content: View>: View {
+  @ViewBuilder let content: () -> Content
+
+  var body: some View {
+    HStack(spacing: 2) { content() }
+      .padding(.horizontal, 6)
+      .padding(.vertical, 3)
+      .frame(maxWidth: .infinity)
+      .poracodeGlassBackground(in: Capsule(), interactive: true)
+  }
+}
+
+private struct PoracodeGlassBackground<BackgroundShape: Shape>: ViewModifier {
+  let shape: BackgroundShape
+  let interactive: Bool
+
+  @ViewBuilder
+  func body(content: Content) -> some View {
+    if #available(iOS 26.0, *) {
+      content.glassEffect(.regular.interactive(interactive), in: shape)
+    } else {
+      content.background(.ultraThinMaterial, in: shape)
+    }
+  }
+}
 enum PoracodeBottomActionPlacement {
   case leading
   case trailing
@@ -98,22 +180,30 @@ struct PoracodeBottomActionStrip<Leading: View, Center: View, Trailing: View>: V
 
 struct PoracodeCircleButton<Label: View>: View {
   private let color: Color
+  private let size: CGFloat
+  private let onSurface: Bool
   private let action: () -> Void
   private let label: Label
 
   init(
     color: Color = .secondary,
+    size: CGFloat = 30,
+    onSurface: Bool = false,
     action: @escaping () -> Void,
     @ViewBuilder label: () -> Label
   ) {
     self.color = color
+    self.size = size
+    self.onSurface = onSurface
     self.action = action
     self.label = label()
   }
 
   var body: some View {
     Group {
-      if #available(iOS 26.0, *) {
+      if onSurface {
+        button.buttonStyle(.bordered)
+      } else if #available(iOS 26.0, *) {
         button.buttonStyle(.glass)
       } else {
         button.buttonStyle(.bordered)
@@ -123,7 +213,7 @@ struct PoracodeCircleButton<Label: View>: View {
 
   private var button: some View {
     Button(action: action) {
-      label.frame(width: 30, height: 30).contentShape(Circle())
+      label.frame(width: size, height: size).contentShape(Circle())
     }
       .buttonBorderShape(.circle)
       .foregroundStyle(color)
@@ -147,7 +237,7 @@ struct PoracodeBottomSearchField: View {
       .focused($isFocused)
       .padding(.horizontal, 16)
       .frame(height: 44)
-      .poracodeGlassBackground(in: Capsule(), interactive: true)
+      .poracodeInputSurface(in: Capsule(), fill: Material.regular)
       .onAppear { isFocused = true }
   }
 }
@@ -184,22 +274,298 @@ struct PoracodeCircleMenu<Content: View, Label: View>: View {
   }
 }
 
+/// Interactive horizontal resize grip positioned on the boundary between
+/// split-view columns (sidebar / conversation / inspector). Tracks horizontal
+/// drags smoothly, ticks light haptics as the width crosses the default
+/// detent, and resets to the default width on double-tap.
+struct PoracodePanelResizeHandle: View {
+  enum Side {
+    /// Handle at the trailing edge of a leading column (dragging right widens it).
+    case trailingOfLeadingPanel
+    /// Handle at the leading edge of a trailing column (dragging left widens it).
+    case leadingOfTrailingPanel
+
+    fileprivate var dragMultiplier: CGFloat {
+      switch self {
+      case .trailingOfLeadingPanel: 1
+      case .leadingOfTrailingPanel: -1
+      }
+    }
+  }
+
+  let side: Side
+  let label: String
+  let currentWidth: CGFloat
+  let defaultWidth: CGFloat
+  let allowedRange: ClosedRange<CGFloat>
+  var showsGuideWhileDragging = false
+  let onLiveResize: (CGFloat) -> Void
+  let onCommit: (CGFloat) -> Void
+  let onReset: () -> Void
+
+  @State private var dragStartWidth: CGFloat?
+  @State private var previousLiveWidth: CGFloat?
+  @State private var isHovering = false
+
+  private var isDragging: Bool { dragStartWidth != nil }
+  private var isActive: Bool { isDragging || isHovering }
+
+  var body: some View {
+    ZStack {
+      if showsGuideWhileDragging && isDragging {
+        Rectangle()
+          .fill(Color.primary.opacity(0.10))
+          .frame(width: 1)
+          .frame(maxHeight: .infinity)
+      }
+
+      Group {
+        if isActive {
+          Capsule(style: .continuous)
+            .fill(Color.primary.opacity(0.62))
+            .frame(width: 3.5, height: 26)
+            .padding(.horizontal, 3)
+            .padding(.vertical, 6)
+            .poracodeGlassBackground(in: Capsule(), interactive: true)
+        } else {
+          Capsule(style: .continuous)
+            .fill(Color.secondary.opacity(0.28))
+            .frame(width: 3.5, height: 22)
+        }
+      }
+      .animation(.snappy(duration: 0.16), value: isActive)
+    }
+    .frame(width: 16)
+    .frame(maxHeight: .infinity)
+    .padding(.vertical, 56)
+    .contentShape(Rectangle())
+    .onHover { hovering in
+      isHovering = hovering
+    }
+    .modifier(PoracodeColumnResizePointerModifier())
+    .gesture(resizeGesture)
+    .onTapGesture(count: 2) {
+      triggerDetentHaptic()
+      onReset()
+    }
+    .accessibilityElement(children: .ignore)
+    .accessibilityLabel(label)
+    .accessibilityValue("\(Int(round(currentWidth))) pt")
+    .accessibilityAdjustableAction { direction in
+      switch direction {
+      case .increment:
+        let next = clampWidth(currentWidth + 24)
+        triggerDetentHaptic()
+        onCommit(next)
+      case .decrement:
+        let next = clampWidth(currentWidth - 24)
+        triggerDetentHaptic()
+        onCommit(next)
+      @unknown default:
+        break
+      }
+    }
+  }
+
+  private var resizeGesture: some Gesture {
+    DragGesture(minimumDistance: 6, coordinateSpace: .global)
+      .onChanged { value in
+        let start = dragStartWidth ?? currentWidth
+        if dragStartWidth == nil {
+          dragStartWidth = start
+          previousLiveWidth = currentWidth
+        }
+        let proposed = clampWidth(start + value.translation.width * side.dragMultiplier)
+        if let prev = previousLiveWidth,
+          crossedDetent(from: prev, to: proposed, detent: defaultWidth)
+        {
+          triggerDetentHaptic()
+        }
+        previousLiveWidth = proposed
+        onLiveResize(proposed)
+      }
+      .onEnded { value in
+        let start = dragStartWidth ?? currentWidth
+        let finalWidth = clampWidth(start + value.translation.width * side.dragMultiplier)
+        dragStartWidth = nil
+        previousLiveWidth = nil
+        onCommit(finalWidth)
+      }
+  }
+
+  private func clampWidth(_ raw: CGFloat) -> CGFloat {
+    min(allowedRange.upperBound, max(allowedRange.lowerBound, round(raw)))
+  }
+
+  private func crossedDetent(from previous: CGFloat, to next: CGFloat, detent: CGFloat) -> Bool {
+    guard allowedRange.contains(detent) else { return false }
+    let tolerance: CGFloat = 1.5
+    let wasNear = abs(previous - detent) <= tolerance
+    let isNear = abs(next - detent) <= tolerance
+    if !wasNear && isNear { return true }
+    return (previous < detent - tolerance && next > detent + tolerance)
+      || (previous > detent + tolerance && next < detent - tolerance)
+  }
+
+  private func triggerDetentHaptic() {
+    #if canImport(UIKit)
+    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+    #endif
+  }
+}
+
+private struct PoracodeColumnResizePointerModifier: ViewModifier {
+  func body(content: Content) -> some View {
+    #if os(macOS)
+    if #available(macOS 15.0, *) {
+      content.pointerStyle(.columnResize)
+    } else {
+      content
+    }
+    #elseif os(iOS)
+    content.hoverEffect(.highlight)
+    #else
+    content
+    #endif
+  }
+}
+
 extension View {
+  /// Measure the space available without the software keyboard while leaving
+  /// the foreground view free to avoid the keyboard in its normal layout.
+  func poracodeObserveKeyboardUnobstructedSize(_ update: @escaping (CGSize) -> Void) -> some View {
+    background {
+      GeometryReader { proxy in
+        Color.clear
+          .onAppear { update(proxy.size) }
+          .onChange(of: proxy.size) { _, size in update(size) }
+      }
+      .ignoresSafeArea(.keyboard, edges: .bottom)
+    }
+  }
+
   /// Apply Liquid Glass styling when available; fall back to standard materials.
   /// `interactive` opts the glass into the system's touch response on iOS 26.
-  @ViewBuilder
   func poracodeGlassBackground(
     in shape: some Shape = RoundedRectangle(cornerRadius: 16, style: .continuous),
     interactive: Bool = false
   ) -> some View {
-    if #available(iOS 26.0, *) {
-      // Liquid Glass when the OS supports it; still clipped to the shape.
-      glassEffect(.regular.interactive(interactive), in: shape)
+    modifier(PoracodeGlassBackground(shape: shape, interactive: interactive))
+  }
+
+  /// Applies `.navigationTitle` only when the view owns a navigation bar, so
+  /// inspector-embedded panels never overwrite the enclosing thread title.
+  @ViewBuilder
+  func poracodeNavigationTitle(
+    _ title: String,
+    inline: Bool = true,
+    suppressed: Bool
+  ) -> some View {
+    if suppressed {
+      self
+    } else if inline {
+      navigationTitle(title).navigationBarTitleDisplayMode(.inline)
     } else {
-      self.background(.ultraThinMaterial, in: shape)
+      navigationTitle(title)
     }
   }
 
+  /// Presents modal utility sheets as centered form cards on wide screens and
+  /// adaptive sheets on compact viewports.
+  @ViewBuilder
+  func poracodeFormSheetSizing() -> some View {
+    Group {
+      if #available(iOS 18.0, *) { presentationSizing(.form) }
+      else { self }
+    }
+    .environment(\.composerVoiceHost, nil)
+  }
+
+  /// Presents rich multi-column or browser/terminal workspace sheets using page
+  /// sizing on wide screens so split navigation and sidebars have room.
+  @ViewBuilder
+  func poracodePageSheetSizing() -> some View {
+    Group {
+      if #available(iOS 18.0, *) { presentationSizing(.page) }
+      else { self }
+    }
+    .environment(\.composerVoiceHost, nil)
+  }
+
+  /// Centers a stacked reading/dashboard measure on wide screens while keeping
+  /// compact layouts edge-to-edge within their normal padding.
+  func poracodeReadableWidth(_ maxWidth: CGFloat = 760) -> some View {
+    frame(maxWidth: maxWidth)
+      .frame(maxWidth: .infinity)
+  }
+
+  /// Centers grouped list/form cards to a readable measure on wide screens
+  /// without clipping full-bleed scroll backgrounds or overriding default compact
+  /// horizontal margins.
+  func poracodeReadableListMargins(_ maxWidth: CGFloat = 760) -> some View {
+    modifier(PoracodeReadableListMarginsModifier(maxWidth: maxWidth))
+  }
+}
+
+private struct PoracodeReadableListMarginsModifier: ViewModifier {
+  let maxWidth: CGFloat
+  @State private var containerWidth: CGFloat = 0
+  @State private var hasHorizontalSafeAreaInset = false
+
+  func body(content: Content) -> some View {
+    // A split view supplies a sidebar safe-area inset; overriding its margins
+    // would let the list extend underneath that sidebar.
+    let horizontalInset: CGFloat? =
+      !hasHorizontalSafeAreaInset && containerWidth > maxWidth + 40
+      ? floor((containerWidth - maxWidth) / 2)
+      : nil
+    content
+      .contentMargins(.horizontal, horizontalInset, for: .scrollContent)
+      .background {
+        GeometryReader { proxy in
+          Color.clear
+            .onAppear {
+              updateWidth(proxy.size.width)
+              updateSafeArea(proxy.safeAreaInsets)
+            }
+            .onChange(of: proxy.size.width) { _, width in
+              updateWidth(width)
+            }
+            .onChange(of: proxy.safeAreaInsets) { _, insets in
+              updateSafeArea(insets)
+            }
+        }
+      }
+  }
+
+  private func updateWidth(_ width: CGFloat) {
+    guard abs(containerWidth - width) > 0.5 else { return }
+    containerWidth = width
+  }
+
+  private func updateSafeArea(_ insets: EdgeInsets) {
+    hasHorizontalSafeAreaInset = insets.leading > 0 || insets.trailing > 0
+  }
+}
+
+private struct PoracodeCloseThreadDetailKey: EnvironmentKey {
+  static let defaultValue: (@MainActor @Sendable () -> Void)? = nil
+}
+
+private struct PoracodeEmbeddedInInspectorKey: EnvironmentKey {
+  static let defaultValue = false
+}
+
+extension EnvironmentValues {
+  var poracodeCloseThreadDetail: (@MainActor @Sendable () -> Void)? {
+    get { self[PoracodeCloseThreadDetailKey.self] }
+    set { self[PoracodeCloseThreadDetailKey.self] = newValue }
+  }
+
+  var poracodeEmbeddedInInspector: Bool {
+    get { self[PoracodeEmbeddedInInspectorKey.self] }
+    set { self[PoracodeEmbeddedInInspectorKey.self] = newValue }
+  }
 }
 
 extension View {

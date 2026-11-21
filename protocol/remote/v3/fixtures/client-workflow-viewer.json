@@ -1,0 +1,109 @@
+{
+  "version": 1,
+  "cases": [
+    {
+      "id": "planned-phases-fill-only-missing-values",
+      "plan": {
+        "phases": [{ "title": "Inspect" }, { "title": "Verify" }],
+        "plannedAgents": [
+          { "label": "Inspect:code", "phaseTitle": "Inspect", "model": "planned" },
+          { "label": "Verify:tests", "phaseTitle": "Verify", "model": "planned" }
+        ],
+        "liveAgents": []
+      },
+      "run": {
+        "runId": "wf-1",
+        "status": "running",
+        "agentCount": 3,
+        "phases": [],
+        "unphasedAgents": [
+          { "agentId": "a", "label": "a", "state": "done" },
+          { "agentId": "b", "label": "Real label", "model": "actual", "state": "running" },
+          { "agentId": "c", "label": "Extra", "phaseTitle": "Inspect" }
+        ]
+      },
+      "expected": {
+        "phases": [
+          { "title": "Inspect", "labels": ["Inspect:code"], "models": ["planned"] },
+          { "title": "Verify", "labels": ["Real label"], "models": ["actual"] }
+        ],
+        "unphased": ["Extra"],
+        "completed": 1
+      }
+    },
+    {
+      "id": "real-manifest-phases-win",
+      "plan": {
+        "phases": [{ "title": "Planned" }],
+        "plannedAgents": [{ "label": "Planned agent" }],
+        "liveAgents": []
+      },
+      "run": {
+        "runId": "wf-1",
+        "status": "completed",
+        "agentCount": 1,
+        "phases": [
+          {
+            "title": "Actual",
+            "agents": [{ "agentId": "a", "label": "Actual agent", "state": "done" }]
+          }
+        ],
+        "unphasedAgents": []
+      },
+      "expected": {
+        "phases": [{ "title": "Actual", "labels": ["Actual agent"], "models": [null] }],
+        "unphased": [],
+        "completed": 1
+      }
+    },
+    {
+      "id": "live-observations-fallback",
+      "plan": {
+        "phases": [{ "title": "Inspect" }],
+        "plannedAgents": [],
+        "liveAgents": [{ "label": "Observed", "phaseTitle": "Inspect" }]
+      },
+      "run": {
+        "runId": "wf-1",
+        "status": "running",
+        "agentCount": 1,
+        "phases": [],
+        "unphasedAgents": [{ "agentId": "a", "label": "a", "state": "failed" }]
+      },
+      "expected": {
+        "phases": [{ "title": "Inspect", "labels": ["Observed"], "models": [null] }],
+        "unphased": [],
+        "completed": 1
+      }
+    },
+    {
+      "id": "phase-plan-without-agent-plan-keeps-unphased-manifest",
+      "plan": { "phases": [{ "title": "Inspect" }], "plannedAgents": [], "liveAgents": [] },
+      "run": {
+        "runId": "wf-1",
+        "status": "running",
+        "agentCount": 1,
+        "phases": [],
+        "unphasedAgents": [{ "agentId": "a", "label": "a", "phaseTitle": "Inspect" }]
+      },
+      "expected": { "phases": [], "unphased": ["a"], "completed": 0 }
+    },
+    {
+      "id": "plan-before-manifest",
+      "plan": {
+        "phases": [{ "title": "Inspect" }, { "title": "Verify" }],
+        "plannedAgents": [],
+        "liveAgents": []
+      },
+      "run": null,
+      "expected": {
+        "phases": [
+          { "title": "Inspect", "labels": [], "models": [] },
+          { "title": "Verify", "labels": [], "models": [] }
+        ],
+        "unphased": [],
+        "completed": 0
+      }
+    }
+  ]
+}
