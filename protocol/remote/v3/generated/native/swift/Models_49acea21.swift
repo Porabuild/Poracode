@@ -75,6 +75,35 @@ public struct ProceduregitWatchWorktreesRequest_8b52512d7a: Codable, Sendable, R
   }
 }
 
+public struct ProceduregitWorktreeSourceBranchBatchRequest_03d8a6f138: Codable, Sendable, RemoteModelMetadata {
+  public var branches: [String]
+  public var projectLocation: ProcedurebeginMcpServerOauthRequestU2DProjectLocation_080f9cc154
+  public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .strip
+  public static let fields: [RemoteFieldDescriptor] = [
+    .init(wireName: "branches", typeName: "[String]", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "projectLocation", typeName: "ProcedurebeginMcpServerOauthRequestU2DProjectLocation_080f9cc154", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+  ]
+  public static let semanticValidatorIds: [String] = []
+  private enum CodingKeys: String, CodingKey {
+    case branches = "branches"
+    case projectLocation = "projectLocation"
+  }
+}
+
+public typealias ProceduregitWorktreeSourceBranchBatchResultU2DResults_393ee0b919 = [String: ProceduregitGetWorktreeSourceBranchResult_4864c5f65a]
+
+public struct ProceduregitWorktreeSourceBranchBatchResult_5d90f428f5: Codable, Sendable, RemoteModelMetadata {
+  public var results: ProceduregitWorktreeSourceBranchBatchResultU2DResults_393ee0b919
+  public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .strip
+  public static let fields: [RemoteFieldDescriptor] = [
+    .init(wireName: "results", typeName: "ProceduregitWorktreeSourceBranchBatchResultU2DResults_393ee0b919", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+  ]
+  public static let semanticValidatorIds: [String] = []
+  private enum CodingKeys: String, CodingKey {
+    case results = "results"
+  }
+}
+
 public struct ProceduregitWorktreeStatusBatchRequest_a6f98c7f48: Codable, Sendable, RemoteModelMetadata {
   public var detail: RemoteField<ProceduregetGitStatusRequestU2DDetail_15cae388d0> = .missing
   public var projectLocation: ProcedurebeginMcpServerOauthRequestU2DProjectLocation_080f9cc154
@@ -415,34 +444,3 @@ public enum ProcedurehexVoiceRequest_f14fd28613: Codable, Sendable {
 }
 
 public typealias ProcedurehexVoiceResultU2DOptionU2D1U2DSetupU2DEngineU2DDownloadBytes_78830b3d6e = Double?
-
-public enum ProcedurehexVoiceResultU2DOptionU2D1U2DSetupU2DEngineU2DError_522013c708: String, Codable, Sendable {
-  case `unavailable` = "unavailable"
-  case `busy` = "busy"
-  case `invalidU5FRequest` = "invalid_request"
-  case `notU5FReady` = "not_ready"
-  case `failed` = "failed"
-  case `cancelled` = "cancelled"
-  case `timeout` = "timeout"
-  case `disconnected` = "disconnected"
-  case `incompatible` = "incompatible"
-  case `unsupported` = "unsupported"
-  case `downloadU5FFailed` = "download_failed"
-  case `integrity` = "integrity"
-  case `permissionU5FDenied` = "permission_denied"
-}
-
-public enum ProcedurehexVoiceResultU2DOptionU2D1U2DSetupU2DEngineU2DSourceU2DOptionU2D1_ed8928e1a8: String, Codable, Sendable {
-  case `managed` = "managed"
-  case `external` = "external"
-}
-
-public typealias ProcedurehexVoiceResultU2DOptionU2D1U2DSetupU2DEngineU2DSource_54e62eb98f = ProcedurehexVoiceResultU2DOptionU2D1U2DSetupU2DEngineU2DSourceU2DOptionU2D1_ed8928e1a8?
-
-public enum ProcedurehexVoiceResultU2DOptionU2D1U2DSetupU2DEngineU2DState_fd20949193: String, Codable, Sendable {
-  case `missing` = "missing"
-  case `installed` = "installed"
-  case `installing` = "installing"
-  case `unsupported` = "unsupported"
-  case `error` = "error"
-}

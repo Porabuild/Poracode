@@ -45,15 +45,15 @@ import { OutboundByteBudget, type OutboundReservation } from "./outboundBudget";
  */
 
 /** Outstanding HTTP/WS continuations admitted per authenticated principal. */
-export const DEFAULT_MAX_CONCURRENT_PRINCIPAL_WORK = 32;
+export const DEFAULT_MAX_CONCURRENT_PRINCIPAL_WORK = 64;
 /**
  * Slice of a principal's work allowance bulk can never occupy, so Stop /
  * approval-class requests from the same principal stay admissible while its
  * bulk work is saturated. Mirrors `DEFAULT_RESERVED_INGRESS_CONTROL_CAPACITY_PER_SOURCE`.
  */
-export const DEFAULT_RESERVED_PRINCIPAL_CONTROL_CAPACITY = 4;
+export const DEFAULT_RESERVED_PRINCIPAL_CONTROL_CAPACITY = 8;
 /** Aggregate principal work, defaulting to the transport global admission. */
-export const DEFAULT_MAX_TOTAL_PRINCIPAL_WORK = 128;
+export const DEFAULT_MAX_TOTAL_PRINCIPAL_WORK = 192;
 /** Established event sockets per principal. */
 export const DEFAULT_MAX_SOCKETS_PER_PRINCIPAL = 16;
 /** Established event sockets across all principals. */

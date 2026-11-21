@@ -4,6 +4,7 @@ import { RemoteClientError } from "@/shared/remote/client";
 import {
   REMOTE_HTTP_BRIDGE_METHODS,
   REMOTE_HTTP_BRIDGE_VERSION,
+  REMOTE_HTTP_MAX_ACTIVE_REQUESTS_PER_WINDOW,
   REMOTE_HTTP_RESPONSE_CREDIT_BYTES,
   REMOTE_HTTP_UPLOAD_CHUNK_BYTES,
   REMOTE_HTTP_UPLOAD_CREDIT_BYTES,
@@ -62,6 +63,19 @@ export interface RemoteHttpBridgeClientDeps {
   readonly transport: RemoteHttpBridgeTransport;
   readonly subscribePorts: (listener: RemoteHttpBridgePortListener) => () => void;
   readonly randomUuid?: () => string;
+  readonly maxConcurrent?: number;
+}
+
+const DEFAULT_BRIDGE_CLIENT_MAX_CONCURRENT = Math.max(
+  1,
+  REMOTE_HTTP_MAX_ACTIVE_REQUESTS_PER_WINDOW - 8,
+);
+
+interface BridgeSlotWaiter {
+  readonly resolve: () => void;
+  readonly reject: (error: Error) => void;
+  readonly cleanup: () => void;
+  settled: boolean;
 }
 
 interface HeadFrame {
@@ -85,6 +99,7 @@ class PendingBridgeRequest {
   terminalError: Error | null = null;
   bodyEnded = false;
   pendingChunks: Uint8Array[] = [];
+  releaseSlot: (() => void) | null = null;
   private uploadOffset = 0;
   private uploadCredit = 0;
   private uploadEnded = false;
@@ -181,8 +196,9 @@ class PendingBridgeRequest {
         this.uploadOffset += size;
         this.uploadCredit -= size;
         // Yield between quanta so a large grant is still delivered as small
-        // bounded messages instead of one synchronous full-body loop.
-        await new Promise<void>((resolve) => setTimeout(resolve, 0));
+        // bounded messages instead of one synchronous full-body loop, without
+        // hitting Chromium's 4ms nested-setTimeout clamp.
+        await yieldUploadTurn();
       }
     } catch {
       // The port close event settles the request.
@@ -204,6 +220,21 @@ class PendingBridgeRequest {
       // The port close event settles the request.
     }
   }
+}
+
+function yieldUploadTurn(): Promise<void> {
+  if (typeof MessageChannel !== "undefined") {
+    return new Promise<void>((resolve) => {
+      const channel = new MessageChannel();
+      channel.port1.onmessage = () => {
+        channel.port1.close();
+        channel.port2.close();
+        resolve();
+      };
+      channel.port2.postMessage(undefined);
+    });
+  }
+  return new Promise<void>((resolve) => setTimeout(resolve, 0));
 }
 
 function cancelledError(): DOMException {
@@ -260,10 +291,61 @@ export class RemoteHttpBridgeClient {
   private readonly pending = new Map<string, PendingBridgeRequest>();
   private portSubscription: (() => void) | null = null;
   private readonly randomUuid: () => string;
+  private readonly maxConcurrent: number;
+  private activeSlots = 0;
+  private readonly slotQueue: BridgeSlotWaiter[] = [];
 
   constructor(deps: RemoteHttpBridgeClientDeps) {
     this.deps = deps;
     this.randomUuid = deps.randomUuid ?? (() => crypto.randomUUID());
+    this.maxConcurrent = Math.max(
+      1,
+      Math.floor(deps.maxConcurrent ?? DEFAULT_BRIDGE_CLIENT_MAX_CONCURRENT),
+    );
+  }
+
+  private acquireSlot(signal?: AbortSignal): (() => void) | Promise<() => void> {
+    if (signal?.aborted) {
+      return Promise.reject(cancelledError());
+    }
+    if (this.activeSlots < this.maxConcurrent && this.slotQueue.length === 0) {
+      this.activeSlots += 1;
+      return this.makeSlotReleaser();
+    }
+    return new Promise<() => void>((resolve, reject) => {
+      const onAbort = () => {
+        if (waiter.settled) return;
+        waiter.settled = true;
+        const index = this.slotQueue.indexOf(waiter);
+        if (index >= 0) this.slotQueue.splice(index, 1);
+        reject(cancelledError());
+      };
+      const waiter: BridgeSlotWaiter = {
+        resolve: () => resolve(this.makeSlotReleaser()),
+        reject,
+        cleanup: () => signal?.removeEventListener("abort", onAbort),
+        settled: false,
+      };
+      signal?.addEventListener("abort", onAbort, { once: true });
+      this.slotQueue.push(waiter);
+    });
+  }
+
+  private makeSlotReleaser(): () => void {
+    let released = false;
+    return () => {
+      if (released) return;
+      released = true;
+      this.activeSlots = Math.max(0, this.activeSlots - 1);
+      while (this.activeSlots < this.maxConcurrent && this.slotQueue.length > 0) {
+        const next = this.slotQueue.shift()!;
+        if (next.settled) continue;
+        next.settled = true;
+        next.cleanup();
+        this.activeSlots += 1;
+        next.resolve();
+      }
+    };
   }
 
   async fetch(url: string, init?: RemoteHttpBridgeFetchInit): Promise<Response> {
@@ -276,9 +358,16 @@ export class RemoteHttpBridgeClient {
     if (!isHeaderBudgetWithinBounds(headers)) {
       throw unreachableError(new Error("Remote request header budget exceeded."));
     }
+    const acquired = this.acquireSlot(signal);
+    const releaseSlot = typeof acquired === "function" ? acquired : await acquired;
+    if (signal?.aborted) {
+      releaseSlot();
+      throw cancelledError();
+    }
     const requestId = this.randomUuid();
     const entry = new PendingBridgeRequest(requestId);
     entry.body = body;
+    entry.releaseSlot = releaseSlot;
     this.pending.set(requestId, entry);
     // Abort must reject immediately even while the admission invoke is in
     // flight; a late port for an aborted request is closed on arrival.
@@ -306,12 +395,15 @@ export class RemoteHttpBridgeClient {
     } catch (error) {
       this.pending.delete(requestId);
       entry.removeSignal();
+      const release = entry.releaseSlot;
+      entry.releaseSlot = null;
+      release?.();
       if (signal?.aborted) throw cancelledError();
       throw unreachableError(error);
     }
 
     if (entry.aborted || signal?.aborted) {
-      this.cancelEntry(entry);
+      this.abortEntry(entry);
       throw cancelledError();
     }
     this.acceptGeneration(entry, opened.generation);
@@ -558,6 +650,9 @@ export class RemoteHttpBridgeClient {
       }
     }
     if (entry.port) safeClose(entry.port);
+    const release = entry.releaseSlot;
+    entry.releaseSlot = null;
+    release?.();
   }
 }
 

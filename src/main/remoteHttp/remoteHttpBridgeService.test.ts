@@ -128,7 +128,7 @@ describe("RemoteHttpBridgeService", () => {
     expect(REMOTE_HTTP_REQUEST_TIMEOUT_MS).toBe(10 * 60_000);
     expect(REMOTE_HTTP_MAX_REQUEST_BODY_BYTES).toBe(64 * 1024 * 1024);
     expect(REMOTE_HTTP_UPLOAD_RETENTION_BUDGET_BYTES).toBe(96 * 1024 * 1024);
-    expect(REMOTE_HTTP_UPLOAD_CREDIT_BYTES).toBe(1024 * 1024);
+    expect(REMOTE_HTTP_UPLOAD_CREDIT_BYTES).toBe(4 * 1024 * 1024);
     expect(REMOTE_HTTP_BRIDGE_VERSION).toBe(3);
   });
 
@@ -191,8 +191,8 @@ describe("RemoteHttpBridgeService", () => {
     expect(port.chunkBytes()).toBe(payload.byteLength);
   });
 
-  it("clamps burst or duplicate response credit to the documented 1 MiB window", async () => {
-    const payload = payloadOf(3 * 1024 * 1024);
+  it("clamps burst or duplicate response credit to the documented credit window", async () => {
+    const payload = payloadOf(REMOTE_HTTP_RESPONSE_CREDIT_BYTES + 2 * 1024 * 1024);
     const server = await startLoopbackHttpServer((_req, res) => {
       res.writeHead(200, { "content-length": String(payload.byteLength) });
       res.end(Buffer.from(payload));

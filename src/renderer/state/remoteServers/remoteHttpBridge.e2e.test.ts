@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   REMOTE_HTTP_BRIDGE_PORT_CHANNEL,
   REMOTE_HTTP_BRIDGE_VERSION,
+  REMOTE_HTTP_UPLOAD_CHUNK_BYTES,
   REMOTE_HTTP_UPLOAD_CREDIT_BYTES,
   type RemoteHttpBridgeOpenRequest,
   type RemoteHttpBridgeOpenResult,
@@ -336,7 +337,7 @@ describe("off-main remote HTTP bridge end to end", () => {
   });
 
   it("holds a paused utility to the bounded upload window and completes on release", async () => {
-    const payload = payloadOf(3 * 1024 * 1024);
+    const payload = payloadOf(REMOTE_HTTP_UPLOAD_CREDIT_BYTES + 2 * REMOTE_HTTP_UPLOAD_CHUNK_BYTES);
     let receivedSha = "";
     const server = await startLoopbackHttpServer((req, res) => {
       const chunks: Buffer[] = [];
@@ -365,10 +366,11 @@ describe("off-main remote HTTP bridge end to end", () => {
       body: payload,
     });
     await vi.waitFor(() => expect(pair).not.toBeNull());
-    // One bounded 1 MiB frame may queue; the whole 3 MiB body is never cloned.
-    await vi.waitFor(() => expect(pair!.queuedDepth("worker")).toBeGreaterThan(0));
+    // Only the bounded upload credit window may queue; the rest of the body is never cloned.
+    const expectedWindowChunks = REMOTE_HTTP_UPLOAD_CREDIT_BYTES / REMOTE_HTTP_UPLOAD_CHUNK_BYTES;
+    await vi.waitFor(() => expect(pair!.queuedDepth("worker")).toBe(expectedWindowChunks));
     await new Promise((resolve) => setTimeout(resolve, 30));
-    expect(pair!.queuedDepth("worker")).toBe(1);
+    expect(pair!.queuedDepth("worker")).toBe(expectedWindowChunks);
     expect(server.requests).toHaveLength(0);
 
     pair!.release("worker");
@@ -386,7 +388,9 @@ describe("off-main remote HTTP bridge end to end", () => {
   });
 
   it("does not let a stalled upload block a healthy upload sibling", async () => {
-    const slowPayload = payloadOf(2 * 1024 * 1024);
+    const slowPayload = payloadOf(
+      REMOTE_HTTP_UPLOAD_CREDIT_BYTES + 2 * REMOTE_HTTP_UPLOAD_CHUNK_BYTES,
+    );
     const fastPayload = payloadOf(256 * 1024);
     let slowBody: Buffer = Buffer.alloc(0);
     let fastBody: Buffer = Buffer.alloc(0);
@@ -428,7 +432,9 @@ describe("off-main remote HTTP bridge end to end", () => {
     expect(await fast.text()).toBe("fast");
     expect(sha256Bytes(fastBody)).toBe(sha256Bytes(fastPayload));
     // The paused sibling contributes at most its bounded window.
-    expect(slowPair!.queuedDepth("worker")).toBe(1);
+    expect(slowPair!.queuedDepth("worker")).toBeLessThanOrEqual(
+      REMOTE_HTTP_UPLOAD_CREDIT_BYTES / REMOTE_HTTP_UPLOAD_CHUNK_BYTES,
+    );
 
     slowPair!.release("worker");
     expect(await (await slow).text()).toBe("slow");
@@ -464,17 +470,17 @@ describe("off-main remote HTTP bridge end to end", () => {
     const chunks = pair!.worker.received.filter(
       (message) => (message as { kind?: string }).kind === "upload-chunk",
     ) as Array<{ data: Uint8Array }>;
-    expect(chunks).toHaveLength(viewBytes / REMOTE_HTTP_UPLOAD_CREDIT_BYTES);
+    expect(chunks).toHaveLength(viewBytes / REMOTE_HTTP_UPLOAD_CHUNK_BYTES);
     for (const chunk of chunks) {
-      expect(chunk.data.byteLength).toBe(REMOTE_HTTP_UPLOAD_CREDIT_BYTES);
+      expect(chunk.data.byteLength).toBe(REMOTE_HTTP_UPLOAD_CHUNK_BYTES);
       // Exact-length owned copies: the clone carries exactly this chunk and
       // zero bytes from the rest of the 64 MiB backing store.
-      expect(chunk.data.buffer.byteLength).toBe(REMOTE_HTTP_UPLOAD_CREDIT_BYTES);
+      expect(chunk.data.buffer.byteLength).toBe(REMOTE_HTTP_UPLOAD_CHUNK_BYTES);
       expect(chunk.data.byteOffset).toBe(0);
     }
     const uploaded = new Uint8Array(viewBytes);
     for (const [index, chunk] of chunks.entries()) {
-      uploaded.set(chunk.data, index * REMOTE_HTTP_UPLOAD_CREDIT_BYTES);
+      uploaded.set(chunk.data, index * REMOTE_HTTP_UPLOAD_CHUNK_BYTES);
     }
     expect(sha256Bytes(uploaded)).toBe(sha256Bytes(body));
     expect(harness.service.stats()).toMatchObject({
@@ -485,7 +491,7 @@ describe("off-main remote HTTP bridge end to end", () => {
     });
   });
 
-  it("pins the upload credit window at one chunk of bounded delivery", () => {
-    expect(REMOTE_HTTP_UPLOAD_CREDIT_BYTES).toBe(1024 * 1024);
+  it("pins the upload credit window at four chunks of bounded delivery", () => {
+    expect(REMOTE_HTTP_UPLOAD_CREDIT_BYTES).toBe(4 * REMOTE_HTTP_UPLOAD_CHUNK_BYTES);
   });
 });

@@ -5,7 +5,7 @@ import {
 } from "@/shared/remote/catalogReadContract";
 import { dbReadCatalogMembership } from "@/host/db/catalogMembershipReads";
 import { RemoteHttpError } from "../auth";
-import { writeJson } from "./httpResponses";
+import { writeCompressedJsonResponse } from "./httpResponses";
 import { readJsonBody } from "./requestBody";
 import type { HttpRouteCall } from "./httpRouteHandlers.shared";
 
@@ -25,5 +25,10 @@ export async function handleCatalogMembership(call: HttpRouteCall): Promise<void
   if (duplicateField !== null) {
     throw new RemoteHttpError("invalid_request", `${duplicateField} must be unique.`, 400);
   }
-  writeJson(call.res, 200, catalogMembershipResponseSchema.parse(dbReadCatalogMembership(request)));
+  await writeCompressedJsonResponse(
+    call.req,
+    call.res,
+    200,
+    catalogMembershipResponseSchema.parse(dbReadCatalogMembership(request)),
+  );
 }

@@ -286,7 +286,7 @@ describe("EnvironmentProxyLegs nested parent/environment budget (D2)", () => {
       resolveEnvironmentProxyBudget(
         admissionLimits({ ...defaultLimits, maxSocketsPerPrincipal: 64 }),
       ),
-    ).toEqual({ parent: { legs: 48, bulkLegs: 21 }, environment: { legs: 36, bulkLegs: 16 } });
+    ).toEqual({ parent: { legs: 48, bulkLegs: 42 }, environment: { legs: 36, bulkLegs: 32 } });
     // A one-slot bulk allowance (the F1 corrections host) stays usable.
     expect(
       resolveEnvironmentProxyBudget(

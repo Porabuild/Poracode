@@ -1,5 +1,7 @@
 import { pollBranchPr, pollPullRequests } from "./githubPolling";
+import { mapWithConcurrency } from "@/shared/concurrency";
 import type { GitStatusDetail, GitStatusResult, PrData, ProjectLocation } from "@/shared/contracts";
+import { RemoteClientError } from "@/shared/remote/clientErrors";
 import { isHomeProjectId } from "@/shared/homeScope";
 import { friendlyError, msg } from "@/shared/messages";
 import { readBridge } from "@/renderer/bridge";
@@ -66,6 +68,9 @@ const watchedWorktreePaths = new Map<string, string>();
 const activeRefreshTokens = new Map<string, symbol>();
 const singlePrRefreshTokens = new Map<string, symbol>();
 const GIT_REFRESH_TIMEOUT_MS = 30_000;
+const GIT_WORKTREE_SOURCE_INFO_CONCURRENCY = 4;
+const GIT_WORKTREE_PR_CONCURRENCY = 3;
+const PENDING_PR_REFRESH_CONCURRENCY = 2;
 export const PR_PENDING_REFRESH_INTERVAL_MS = 30_000;
 export const PR_POST_PUSH_STATUS_WAIT_MS = 15_000;
 export const PR_POST_PUSH_STATUS_POLL_MS = 5_000;
@@ -74,7 +79,7 @@ const alwaysActive = () => true;
 
 const BRANCH_PR_PREFETCH_THROTTLE_MS = 10_000;
 const branchPrPrefetchLastRun = new Map<string, number>();
-const branchPrPrefetchInFlight = new Set<string>();
+const branchPrPrefetchInFlight = new Map<string, Promise<Record<string, PrData> | null>>();
 const branchPrPrefetchCache = new Map<string, Record<string, PrData>>();
 
 function shouldApplyPrefetchedPr(
@@ -167,29 +172,38 @@ function applyPrefetchedPrData(
 export async function prefetchBranchPrData(project: {
   id: string;
   location: ProjectLocation;
-}): Promise<void> {
+}): Promise<Record<string, PrData> | null> {
   const cachedPrs = branchPrPrefetchCache.get(project.id);
   if (cachedPrs) applyPrefetchedPrData(project.id, cachedPrs, true);
 
-  if (branchPrPrefetchInFlight.has(project.id)) return;
+  const inFlight = branchPrPrefetchInFlight.get(project.id);
+  if (inFlight) return inFlight;
   const last = branchPrPrefetchLastRun.get(project.id) ?? 0;
-  if (Date.now() - last < BRANCH_PR_PREFETCH_THROTTLE_MS) return;
+  if (Date.now() - last < BRANCH_PR_PREFETCH_THROTTLE_MS) return cachedPrs ?? null;
   const state = useGitStore.getState();
-  if (!state.ghAvailable[project.id]) return;
+  if (!state.ghAvailable[project.id]) return null;
 
-  branchPrPrefetchInFlight.add(project.id);
   branchPrPrefetchLastRun.set(project.id, Date.now());
-  try {
-    const result = await pollPullRequests({ projectLocation: project.location }, project.id);
-    if (result.status === "blocked") return;
-    const { prs } = result;
-    branchPrPrefetchCache.set(project.id, prs);
-    applyPrefetchedPrData(project.id, prs, false);
-  } catch (err) {
-    console.warn(`[git-refresh] ghListPrs failed project=${project.id}`, err);
-  } finally {
-    branchPrPrefetchInFlight.delete(project.id);
-  }
+  const pending = (async (): Promise<Record<string, PrData> | null> => {
+    try {
+      const result = await pollPullRequests({ projectLocation: project.location }, project.id);
+      if (result.status === "blocked") return null;
+      const { prs } = result;
+      branchPrPrefetchCache.set(project.id, prs);
+      applyPrefetchedPrData(project.id, prs, false);
+      return prs;
+    } catch (err) {
+      console.warn(`[git-refresh] ghListPrs failed project=${project.id}`, err);
+      return null;
+    }
+  })();
+  branchPrPrefetchInFlight.set(project.id, pending);
+  void pending.finally(() => {
+    if (branchPrPrefetchInFlight.get(project.id) === pending) {
+      branchPrPrefetchInFlight.delete(project.id);
+    }
+  });
+  return pending;
 }
 
 /** Refresh PR data only while Git is visibly scoped to this real project/worktree. */
@@ -207,7 +221,7 @@ export function prefetchVisibleGitPanelPrData(
     return Promise.resolve();
   }
   const project = useAppStore.getState().projects.find((item) => item.id === projectId);
-  return project ? prefetchBranchPrData(project) : Promise.resolve();
+  return project ? prefetchBranchPrData(project).then(() => undefined) : Promise.resolve();
 }
 
 interface ForgeActivityRefreshInput {
@@ -760,19 +774,46 @@ export async function refreshSinglePr(params: {
   }
 }
 
-async function refreshPendingPr(key: string): Promise<void> {
+let activePendingPrRefreshes = 0;
+const queuedPendingPrKeys: string[] = [];
+
+function drainPendingPrRefreshQueue(): void {
+  while (
+    activePendingPrRefreshes < PENDING_PR_REFRESH_CONCURRENCY &&
+    queuedPendingPrKeys.length > 0
+  ) {
+    const nextKey = queuedPendingPrKeys.shift()!;
+    if (!pendingPrRefreshEntries.has(nextKey)) continue;
+    void runPendingPrRefresh(nextKey);
+  }
+}
+
+async function runPendingPrRefresh(key: string): Promise<void> {
   const entry = pendingPrRefreshEntries.get(key);
   if (!entry || entry.inFlight) return;
   entry.inFlight = true;
+  activePendingPrRefreshes += 1;
   try {
     await refreshSinglePr(entry.target);
   } finally {
+    activePendingPrRefreshes = Math.max(0, activePendingPrRefreshes - 1);
     const current = pendingPrRefreshEntries.get(key);
     if (current) current.inFlight = false;
     if (pendingPrRefreshActiveProjects.length > 0) {
       syncPendingPrRefreshProjects(pendingPrRefreshActiveProjects);
     }
+    drainPendingPrRefreshQueue();
   }
+}
+
+function refreshPendingPr(key: string): void {
+  const entry = pendingPrRefreshEntries.get(key);
+  if (!entry || entry.inFlight) return;
+  if (activePendingPrRefreshes >= PENDING_PR_REFRESH_CONCURRENCY) {
+    if (!queuedPendingPrKeys.includes(key)) queuedPendingPrKeys.push(key);
+    return;
+  }
+  void runPendingPrRefresh(key);
 }
 
 function isPostPushPrRefreshTargetActive(target: PostPushPrRefreshTarget): boolean {
@@ -884,6 +925,7 @@ export function syncPendingPrRefreshProjects(activeProjects: readonly ActiveGitP
 
 export function stopPendingPrRefresh(): void {
   pendingPrRefreshActiveProjects = [];
+  queuedPendingPrKeys.length = 0;
   for (const entry of pendingPrRefreshEntries.values()) {
     clearInterval(entry.intervalId);
   }
@@ -910,7 +952,7 @@ export function cleanupGitRefreshProjects(activeProjectIds: ReadonlySet<string>)
   const stalePrefetchProjectIds = new Set([
     ...branchPrPrefetchCache.keys(),
     ...branchPrPrefetchLastRun.keys(),
-    ...branchPrPrefetchInFlight,
+    ...branchPrPrefetchInFlight.keys(),
   ]);
   for (const projectId of stalePrefetchProjectIds) {
     if (activeProjectIds.has(projectId)) continue;
@@ -1124,12 +1166,17 @@ export async function refreshGitProject(
         const worktreesPromise = snapshotPromise.then((snap) => snap?.worktrees ?? undefined);
 
         // Once the snapshot has set gh availability + remote platform, bulk-prefetch
-        // PR status for every branch (one gh call) for the branch-selector icons.
-        // Fire-and-forget: it writes branch-keyed prData independently of this refresh.
-        void snapshotPromise.then(() => {
-          if (!isRefreshCurrent(project.id, refreshToken, isActive)) return;
-          void prefetchBranchPrData(project);
-        });
+        // PR status for every branch (one gh call) for the branch-selector icons and
+        // reuse any matched branches below to avoid redundant per-branch gh calls.
+        const bulkPrsPromise: Promise<Record<string, PrData> | null> = snapshotPromise.then(
+          async () => {
+            if (!isRefreshCurrent(project.id, refreshToken, isActive)) return null;
+            if (reason === "manual" || reason === "fetch") {
+              branchPrPrefetchLastRun.delete(project.id);
+            }
+            return prefetchBranchPrData(project);
+          },
+        );
 
         const ghAvailablePromise: Promise<boolean> = cachedGhAvailable
           ? Promise.resolve(true)
@@ -1155,10 +1202,52 @@ export async function refreshGitProject(
                   isRefreshCurrent(project.id, refreshToken, isActive),
                 );
 
-          const sourceInfoPromise = Promise.all(
-            activeChildWorktrees
-              .filter((wt) => wt.branch)
-              .map(async (wt) => {
+          const branchedWorktrees = activeChildWorktrees.filter((wt) => wt.branch);
+          const sourceInfoPromise = (async () => {
+            if (branchedWorktrees.length === 0) return;
+            const bridge = readBridge();
+            if (
+              branchedWorktrees.length >= 2 &&
+              typeof bridge.gitWorktreeSourceBranchBatch === "function"
+            ) {
+              try {
+                const { results } = await bridge.gitWorktreeSourceBranchBatch({
+                  projectLocation: project.location,
+                  branches: [...new Set(branchedWorktrees.map((wt) => wt.branch))],
+                });
+                if (!isRefreshCurrent(project.id, refreshToken, isActive)) return;
+                const next: Record<
+                  string,
+                  { sourceBranch: string | null; commitsAhead: number; sourceAhead: number }
+                > = {};
+                for (const wt of branchedWorktrees) {
+                  const info = results[wt.branch];
+                  if (info) {
+                    next[wt.path] = {
+                      sourceBranch: info.sourceBranch,
+                      commitsAhead: info.commitsAhead,
+                      sourceAhead: info.sourceAhead,
+                    };
+                  }
+                }
+                if (Object.keys(next).length > 0) {
+                  useGitStore.getState().setWorktreeSourceInfoBatch(next);
+                }
+                return;
+              } catch (error) {
+                const unsupportedOnOlderHost =
+                  error instanceof RemoteClientError &&
+                  error.status === 403 &&
+                  error.code === "git_procedure_not_allowed";
+                if (!unsupportedOnOlderHost) return;
+              }
+            }
+
+            const entries = await mapWithConcurrency(
+              branchedWorktrees,
+              GIT_WORKTREE_SOURCE_INFO_CONCURRENCY,
+              async (wt) => {
+                if (!isRefreshCurrent(project.id, refreshToken, isActive)) return undefined;
                 try {
                   const info = await readBridge().gitGetWorktreeSourceBranch({
                     projectLocation: project.location,
@@ -1175,21 +1264,21 @@ export async function refreshGitProject(
                 } catch {
                   return undefined;
                 }
-              }),
-          ).then((entries) => {
+              },
+            );
             if (!isRefreshCurrent(project.id, refreshToken, isActive)) return;
             const next = Object.fromEntries(entries.filter((e) => e !== undefined));
             if (Object.keys(next).length > 0) {
               useGitStore.getState().setWorktreeSourceInfoBatch(next);
             }
-          });
+          })();
 
           await Promise.all([statusesPromise, sourceInfoPromise]);
         });
 
         // PR fetches: each one starts the moment its prerequisites resolve.
-        // Worktree-thread PRs only need `ghAvailable`; project PR also needs
-        // `status.branch`. They run concurrently with everything above.
+        // Branches already matched by the bulk PR prefetch skip redundant
+        // per-branch `gh` calls; unmatched branches fall back to bounded polls.
         const prUpdates: Record<string, PrData | null> = {};
         const previousPrs: Record<string, PrData | null | undefined> = {};
         const wtThreads = getActiveWorktreeBranchThreads(project.id);
@@ -1199,35 +1288,59 @@ export async function refreshGitProject(
             wtThreads.map((thread) => [`${thread.worktreePath}\0${thread.worktreeBranch}`, thread]),
           ).values(),
         ];
-        const wtPrPromises = wtPrThreads.map(async (t) => {
-          const ghAvailable = await ghAvailablePromise;
+        const wtPrsPromise = (async () => {
+          const [ghAvailable, bulkPrs] = await Promise.all([ghAvailablePromise, bulkPrsPromise]);
           if (!isRefreshCurrent(project.id, refreshToken, isActive)) return;
-          if (!ghAvailable || !t.worktreeBranch || !t.worktreePath) return;
-          try {
-            previousPrs[t.worktreePath] = useGitStore.getState().prData[t.worktreePath];
-            const pr = await pollBranchPr(
-              {
-                projectLocation: project.location,
-                branch: t.worktreeBranch,
-              },
-              project.id,
-            );
-            prUpdates[t.worktreePath] = pr;
-          } catch (err) {
-            console.warn(
-              `[git-refresh] ghGetPrForBranch failed (worktree) project=${project.id} branch=${t.worktreeBranch}`,
-              err,
-            );
+          if (!ghAvailable) return;
+          const missingThreads: typeof wtPrThreads = [];
+          for (const t of wtPrThreads) {
+            if (!t.worktreeBranch || !t.worktreePath) continue;
+            const bulkMatch = bulkPrs?.[t.worktreeBranch];
+            if (bulkMatch) {
+              previousPrs[t.worktreePath] = useGitStore.getState().prData[t.worktreePath];
+              prUpdates[t.worktreePath] = bulkMatch;
+            } else {
+              missingThreads.push(t);
+            }
           }
-        });
+          await mapWithConcurrency(missingThreads, GIT_WORKTREE_PR_CONCURRENCY, async (t) => {
+            if (!isRefreshCurrent(project.id, refreshToken, isActive)) return;
+            if (!t.worktreeBranch || !t.worktreePath) return;
+            try {
+              previousPrs[t.worktreePath] = useGitStore.getState().prData[t.worktreePath];
+              const pr = await pollBranchPr(
+                {
+                  projectLocation: project.location,
+                  branch: t.worktreeBranch,
+                },
+                project.id,
+              );
+              prUpdates[t.worktreePath] = pr;
+            } catch (err) {
+              console.warn(
+                `[git-refresh] ghGetPrForBranch failed (worktree) project=${project.id} branch=${t.worktreeBranch}`,
+                err,
+              );
+            }
+          });
+        })();
 
         const projectPrPromise = (async () => {
-          const [status, ghAvailable] = await Promise.all([statusPromise, ghAvailablePromise]);
+          const [status, ghAvailable, bulkPrs] = await Promise.all([
+            statusPromise,
+            ghAvailablePromise,
+            bulkPrsPromise,
+          ]);
           if (!isRefreshCurrent(project.id, refreshToken, isActive)) return;
           if (!ghAvailable || !status?.branch) return;
+          const prKey = buildBranchPrKey(project.id);
+          previousPrs[prKey] = useGitStore.getState().prData[prKey];
+          const bulkMatch = bulkPrs?.[status.branch];
+          if (bulkMatch) {
+            prUpdates[prKey] = bulkMatch;
+            return;
+          }
           try {
-            const prKey = buildBranchPrKey(project.id);
-            previousPrs[prKey] = useGitStore.getState().prData[prKey];
             const pr = await pollBranchPr(
               {
                 projectLocation: project.location,
@@ -1244,12 +1357,7 @@ export async function refreshGitProject(
           }
         })();
 
-        await Promise.all([
-          snapshotPromise,
-          worktreeWorkPromise,
-          ...wtPrPromises,
-          projectPrPromise,
-        ]);
+        await Promise.all([snapshotPromise, worktreeWorkPromise, wtPrsPromise, projectPrPromise]);
 
         if (!isRefreshCurrent(project.id, refreshToken, isActive)) return;
         for (const [key, pr] of Object.entries(prUpdates)) {

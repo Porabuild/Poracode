@@ -1,5 +1,36 @@
 // GENERATED FILE. Do not edit by hand.
 import Foundation
+public enum ProcedurehexVoiceResultU2DOptionU2D1U2DSetupU2DEngineU2DError_522013c708: String, Codable, Sendable {
+  case `unavailable` = "unavailable"
+  case `busy` = "busy"
+  case `invalidU5FRequest` = "invalid_request"
+  case `notU5FReady` = "not_ready"
+  case `failed` = "failed"
+  case `cancelled` = "cancelled"
+  case `timeout` = "timeout"
+  case `disconnected` = "disconnected"
+  case `incompatible` = "incompatible"
+  case `unsupported` = "unsupported"
+  case `downloadU5FFailed` = "download_failed"
+  case `integrity` = "integrity"
+  case `permissionU5FDenied` = "permission_denied"
+}
+
+public enum ProcedurehexVoiceResultU2DOptionU2D1U2DSetupU2DEngineU2DSourceU2DOptionU2D1_ed8928e1a8: String, Codable, Sendable {
+  case `managed` = "managed"
+  case `external` = "external"
+}
+
+public typealias ProcedurehexVoiceResultU2DOptionU2D1U2DSetupU2DEngineU2DSource_54e62eb98f = ProcedurehexVoiceResultU2DOptionU2D1U2DSetupU2DEngineU2DSourceU2DOptionU2D1_ed8928e1a8?
+
+public enum ProcedurehexVoiceResultU2DOptionU2D1U2DSetupU2DEngineU2DState_fd20949193: String, Codable, Sendable {
+  case `missing` = "missing"
+  case `installed` = "installed"
+  case `installing` = "installing"
+  case `unsupported` = "unsupported"
+  case `error` = "error"
+}
+
 public struct ProcedurehexVoiceResultU2DOptionU2D1U2DSetupU2DEngine_152c40e616: Codable, Sendable, RemoteModelMetadata {
   public var availableVersion: ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b
   public var downloadBytes: RemoteField<Double>

@@ -283,6 +283,9 @@ export function createSupervisorIpcHandlers(runtime: SupervisorRuntime): Supervi
         payload.branch,
         payload.sourceBranchOverride,
       ),
+    gitWorktreeSourceBranchBatch: async (payload) => ({
+      results: await git.getWorktreeSourceBranchesBatch(payload.projectLocation, payload.branches),
+    }),
     gitGetWorktreeOwner: (payload) => git.getWorktreeOwner(payload.projectLocation, payload.branch),
     gitProjectSnapshot: (payload) => runtime.gitProjectSnapshot(payload),
     gitWorktreeStatusBatch: async (payload) => ({

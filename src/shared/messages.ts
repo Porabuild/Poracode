@@ -680,6 +680,7 @@ const remoteErrorMessageKeys: Readonly<Record<string, MessageKey>> = {
   // and the host settings authority.
   overloaded: "remote.server.busy",
   principal_busy: "remote.server.busy",
+  host_busy: "remote.server.busy",
   settings_overloaded: "remote.server.busy",
   git_repository_busy: "remote.server.busy",
 };

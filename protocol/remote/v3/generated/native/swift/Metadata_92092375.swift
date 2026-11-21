@@ -8,8 +8,8 @@ public enum RemoteContractMetadata {
   public static let protocolVersion = 14
   public static let bindingFormatVersion = 2
   public static let generatorVersion = 7
-  public static let sourceHash = "sha256:299e49b5f1da5ed8494baf0ed69a5df9f7ba493af040d9d7600a975c597aad9f"
-  public static let manifestHash = "sha256:4c65d87f75044cd0750dbf9b6aba2f3d74ba1fdebcbd66b30b3e4d73b86bde99"
+  public static let sourceHash = "sha256:16af2aa03ce00618bd6081dd4a2cdedc1604739a8b68316a57554c92a6cb0fb7"
+  public static let manifestHash = "sha256:0e0e82e3c9b7cd9e0dd1f089c2eafa868fd3507f2ff28691107dbc29e82a5809"
   public static let validationBoundary: RemoteValidationBoundary = .rootCodecOnly
   public static let generatedModelCodableSemantics: RemoteGeneratedSerializerSemantics = .nonValidatingRepresentationOnly
   public static let portableTransformIds = ["agent-settings.strip-sensitive", "push.routing.client-connection-id.lowercase", "string.trim"]
@@ -266,6 +266,7 @@ public enum RemoteContractMetadata {
     .init(name: "gitUnwatchProject", scope: "session:operate", owner: "project", resultKind: "omitted", requestType: "ProceduregitUnwatchProjectRequest_42dfa7eae9", resultType: "RemoteUnit"),
     .init(name: "gitWatchProject", scope: "session:operate", owner: "projectLocation", resultKind: "omitted", requestType: "ProceduregitWatchProjectRequest_da482300f3", resultType: "RemoteUnit"),
     .init(name: "gitWatchWorktrees", scope: "session:operate", owner: "project", resultKind: "omitted", requestType: "ProceduregitWatchWorktreesRequest_8b52512d7a", resultType: "RemoteUnit"),
+    .init(name: "gitWorktreeSourceBranchBatch", scope: "session:read", owner: "projectLocation", resultKind: "json", requestType: "ProceduregitWorktreeSourceBranchBatchRequest_03d8a6f138", resultType: "ProceduregitWorktreeSourceBranchBatchResult_5d90f428f5"),
     .init(name: "gitWorktreeStatusBatch", scope: "session:read", owner: "projectLocation", resultKind: "json", requestType: "ProceduregitWorktreeStatusBatchRequest_a6f98c7f48", resultType: "ProceduregitWorktreeStatusBatchResult_1b23732705"),
     .init(name: "hexVoice", scope: "session:operate", owner: "desktop", resultKind: "json", requestType: "ProcedurehexVoiceRequest_f14fd28613", resultType: "ProcedurehexVoiceResult_49ffdcc76e"),
     .init(name: "importSkills", scope: "session:operate", owner: "skillLocations", resultKind: "json", requestType: "ProcedureimportSkillsRequest_8a62b43ffe", resultType: "ProcedureimportSkillsResult_82088d0ad1"),

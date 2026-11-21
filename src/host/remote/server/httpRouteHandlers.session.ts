@@ -44,7 +44,12 @@ import { FORWARD_ORIGIN_UNAVAILABLE } from "../portForward/forwardOriginIdentity
 import { handleCatalogMembership } from "./catalogMembership";
 import { handleCatalogProjectList } from "./catalogPages";
 import { handleLegacyAdmittedShellSnapshot } from "./legacyAdmittedReads";
-import { writeHtml, writeJson, writeNegotiatedJsonResponse } from "./httpResponses";
+import {
+  writeCompressedJsonResponse,
+  writeHtml,
+  writeJson,
+  writeNegotiatedJsonResponse,
+} from "./httpResponses";
 import { requirePathParam, type HttpRouteHandlerTable } from "./httpRouteHandlers.shared";
 import { readJsonBody } from "./requestBody";
 import { DEFAULT_TOKEN_EXCHANGE_RATE_LIMIT } from "./security";
@@ -93,10 +98,10 @@ type SessionRouteId =
 
 /** Session-group HTTP route handlers (contract `sessionRoutes`). */
 export const SESSION_ROUTE_HANDLERS: Pick<HttpRouteHandlerTable, SessionRouteId> = {
-  "conversation-search": async ({ res, url }) => {
+  "conversation-search": async ({ req, res, url }) => {
     const query = conversationSearchQuerySchema.parse(Object.fromEntries(url.searchParams));
     try {
-      writeJson(res, 200, await dbSearchConversations(query));
+      await writeCompressedJsonResponse(req, res, 200, await dbSearchConversations(query));
     } catch (error) {
       if (
         error instanceof ConversationSearchCursorError ||
@@ -260,16 +265,24 @@ export const SESSION_ROUTE_HANDLERS: Pick<HttpRouteHandlerTable, SessionRouteId>
     );
   },
 
-  "provider-usage": async ({ ctx, res }) => {
-    writeJson(res, 200, await ctx.options.callSupervisor("getProviderUsage", {}));
+  "provider-usage": async ({ ctx, req, res }) => {
+    await writeCompressedJsonResponse(
+      req,
+      res,
+      200,
+      await ctx.options.callSupervisor("getProviderUsage", {}),
+    );
   },
 
-  "project-notes-read": ({ res, params }) => {
+  "project-notes-read": async ({ req, res, params }) => {
     const notesProjectId = requirePathParam(params, "projectId");
     if (!dbGetProject(notesProjectId)) {
       throw new RemoteHttpError("project_not_found", msg("remote.project.notFound"), 404);
     }
-    writeJson(res, 200, { notes: dbGetProjectNotes(notesProjectId), guardedWrites: 1 });
+    await writeCompressedJsonResponse(req, res, 200, {
+      notes: dbGetProjectNotes(notesProjectId),
+      guardedWrites: 1,
+    });
   },
 
   "project-notes-write": async ({ req, res, params }) => {
@@ -304,12 +317,12 @@ export const SESSION_ROUTE_HANDLERS: Pick<HttpRouteHandlerTable, SessionRouteId>
 
   "profile-core-stats": async ({ req, res }) => {
     const payload = profileStatsRequestSchema.parse(await readJsonBody(req));
-    writeJson(res, 200, await getProfileCoreStats(payload));
+    await writeCompressedJsonResponse(req, res, 200, await getProfileCoreStats(payload));
   },
 
   "profile-token-stats": async ({ req, res }) => {
     const payload = profileStatsRequestSchema.parse(await readJsonBody(req));
-    writeJson(res, 200, await getProfileTokenStats(payload));
+    await writeCompressedJsonResponse(req, res, 200, await getProfileTokenStats(payload));
   },
 
   "profile-identity": async ({ req, res }) => {
@@ -317,14 +330,18 @@ export const SESSION_ROUTE_HANDLERS: Pick<HttpRouteHandlerTable, SessionRouteId>
     writeJson(res, 200, setProfileIdentityResponse(identity));
   },
 
-  "settings-read": ({ ctx, res }) => {
-    writeJson(res, 200, { settings: ctx.requireSettingsGateway().read() });
+  "settings-read": async ({ ctx, req, res }) => {
+    await writeCompressedJsonResponse(req, res, 200, {
+      settings: ctx.requireSettingsGateway().read(),
+    });
   },
 
   "settings-write": async ({ ctx, req, res }) => {
     const patch = remoteSettingsPatchSchema.parse(await readJsonBody(req));
     try {
-      writeJson(res, 200, { settings: await ctx.requireSettingsGateway().update(patch) });
+      await writeCompressedJsonResponse(req, res, 200, {
+        settings: await ctx.requireSettingsGateway().update(patch),
+      });
     } catch (error) {
       // Authority conflict/overload is conflict-explicit on the wire, never a
       // 500: the write did not commit and the client may retry it as-is.
@@ -338,13 +355,18 @@ export const SESSION_ROUTE_HANDLERS: Pick<HttpRouteHandlerTable, SessionRouteId>
     }
   },
 
-  "mcp-settings-read": ({ ctx, res }) => {
-    writeJson(res, 200, ctx.requireSettingsGateway().readMcpServers());
+  "mcp-settings-read": async ({ ctx, req, res }) => {
+    await writeCompressedJsonResponse(req, res, 200, ctx.requireSettingsGateway().readMcpServers());
   },
 
   "mcp-settings-command": async ({ ctx, req, res }) => {
     const command = remoteMcpSettingsCommandSchema.parse(await readJsonBody(req));
-    writeJson(res, 200, await ctx.requireSettingsGateway().commandMcpServers(command));
+    await writeCompressedJsonResponse(
+      req,
+      res,
+      200,
+      await ctx.requireSettingsGateway().commandMcpServers(command),
+    );
   },
 
   "mcp-settings-operation": async ({ ctx, req, res }) => {
@@ -433,7 +455,7 @@ export const SESSION_ROUTE_HANDLERS: Pick<HttpRouteHandlerTable, SessionRouteId>
   "memory-catalog": async ({ req, res }) => {
     const command = remoteMemoryCatalogCommandSchema.parse(await readJsonBody(req));
     try {
-      writeJson(res, 200, await runMemoryCatalogCommand(command));
+      await writeCompressedJsonResponse(req, res, 200, await runMemoryCatalogCommand(command));
     } catch (error) {
       if (error instanceof MemoryCatalogError) {
         throw new RemoteHttpError(error.code, error.message, error.status);
@@ -447,6 +469,6 @@ export const SESSION_ROUTE_HANDLERS: Pick<HttpRouteHandlerTable, SessionRouteId>
     const result = memorySyncResponseSchema.parse(
       await handleMemoryCommand({ action: "sync-merge", state }),
     );
-    writeJson(res, 200, result);
+    await writeCompressedJsonResponse(req, res, 200, result);
   },
 };

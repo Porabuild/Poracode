@@ -142,16 +142,19 @@ import { isRemoteProcedure } from "../remote/procedures";
 // both names before any effect. Existing payloads stay valid, so hop 19 stays.
 // Workspace terminal control adds one scoped supervisor-only name. Older peers
 // reject it before accessing a shell. Existing terminal transports stay valid.
-const HOP_PIN = `${IPC_PROCEDURE_MAP_VERSION}:b4a9a57b82b86a0801cb6bf28a7ba992bc58bd00b3c98d9cbfa6af8d7394710c`;
+// Batched worktree source-branch lookup adds one read-only supervisor name
+// (`gitWorktreeSourceBranchBatch`); older hosts reject it by name with 403 and
+// callers fall back to `gitGetWorktreeSourceBranch`, so hop 19 stays.
+const HOP_PIN = `${IPC_PROCEDURE_MAP_VERSION}:01083209f50c6394d9e21a3355c4e19ad49801e03c18831ae854a5d743121c24`;
 
 const preWorkspaceTerminalMap = (line: string) =>
-  !/^(controlWorkspaceTerminal|appThreadRequests):/u.test(line);
+  !/^(controlWorkspaceTerminal|appThreadRequests|gitWorktreeSourceBranchBatch):/u.test(line);
 
 describe("IPC procedure map versioning", () => {
   it("preserves earlier procedures and keeps live request reply custody on the supervisor", () => {
     const prior = ipcProcedureMapFingerprint()
       .split("\n")
-      .filter((line) => !line.startsWith("appThreadRequests:"))
+      .filter((line) => !/^(appThreadRequests|gitWorktreeSourceBranchBatch):/u.test(line))
       .join("\n");
     expect(createHash("sha256").update(prior).digest("hex")).toBe(
       "2baa89a686dc74f6a2f2dd2acf8cd4a778a958590e754969eb8e014cdb62dad9",

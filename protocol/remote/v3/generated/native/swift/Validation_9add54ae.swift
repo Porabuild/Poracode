@@ -129,6 +129,10 @@ public extension RemoteSchemas {
 }
 
 public extension RemoteSchemas {
+  static let schema_03d8a6f1380a7b2a = RemoteSchema(type: "object", required: Set(["branches", "projectLocation"]), properties: ["branches": RemoteSchemas.schema_515482d2104d1efa, "projectLocation": RemoteSchemas.schema_080f9cc154af9e27], additionalAllowed: true, unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
   static let schema_03fdf2ff7afe440b = RemoteSchema(type: "string", literals: [.string("clear-group")], unknownPolicy: .strip)
 }
 

@@ -567,40 +567,49 @@ export class RemoteEnvironmentClient extends RemoteDesktopClient {
     requestPath: string,
     signal: AbortSignal,
   ): Promise<RemoteEnvironmentImageBytes> {
-    const response = await this.dispatchImageFetch(requestPath, signal, false);
-    if (!response.ok) {
-      await response.body?.cancel().catch(() => undefined);
-      throw new RemoteClientError(
-        `Environment image request failed with status ${response.status}.`,
-        response.status,
-        "request_failed",
-      );
-    }
-    const bytes = await readBoundedResponseBody(response, this.maxImageFetchBytes);
-    return {
-      bytes,
-      contentType: response.headers.get("content-type") ?? "application/octet-stream",
-    };
+    return this.dispatchImageBytes(requestPath, signal, false);
   }
 
-  private async dispatchImageFetch(
+  private async dispatchImageBytes(
     requestPath: string,
     signal: AbortSignal,
     recovered: boolean,
-  ): Promise<Response> {
-    const headers: Record<string, string> = {
-      [ENVIRONMENT_AUTHORIZATION_HEADER]: `Bearer ${this.requireParentToken()}`,
-    };
-    if (this.accessToken) headers.authorization = `Bearer ${this.accessToken}`;
-    const response = await this.fetchImpl(endpointUrl(this.endpoint, requestPath), {
-      method: "GET",
-      headers,
-      signal: imageDeadlineSignal(signal, this.imageFetchDeadlineMs),
-      certFingerprint: this.pinnedCertFingerprint ?? null,
+  ): Promise<RemoteEnvironmentImageBytes> {
+    const outcome = await this.withScheduledSlot("background", signal, async () => {
+      const headers: Record<string, string> = {
+        [ENVIRONMENT_AUTHORIZATION_HEADER]: `Bearer ${this.requireParentToken()}`,
+      };
+      if (this.accessToken) headers.authorization = `Bearer ${this.accessToken}`;
+      const response = await this.fetchImpl(endpointUrl(this.endpoint, requestPath), {
+        method: "GET",
+        headers,
+        signal: imageDeadlineSignal(signal, this.imageFetchDeadlineMs),
+        certFingerprint: this.pinnedCertFingerprint ?? null,
+      });
+      if (response.status === 401) {
+        const marker = response.headers.get(ENVIRONMENT_AUTH_AUTHORITY_HEADER);
+        await response.body?.cancel().catch(() => undefined);
+        return { kind: "unauthorized" as const, marker };
+      }
+      if (!response.ok) {
+        await response.body?.cancel().catch(() => undefined);
+        throw new RemoteClientError(
+          `Environment image request failed with status ${response.status}.`,
+          response.status,
+          "request_failed",
+        );
+      }
+      const bytes = await readBoundedResponseBody(response, this.maxImageFetchBytes);
+      return {
+        kind: "ok" as const,
+        value: {
+          bytes,
+          contentType: response.headers.get("content-type") ?? "application/octet-stream",
+        },
+      };
     });
-    if (response.status !== 401) return response;
-    const marker = response.headers.get(ENVIRONMENT_AUTH_AUTHORITY_HEADER);
-    await response.body?.cancel().catch(() => undefined);
+    if (outcome.kind === "ok") return outcome.value;
+    const { marker } = outcome;
     if (marker === ENVIRONMENT_AUTH_AUTHORITY_PARENT) {
       if (recovered) {
         // The parent refreshed and its fresh token was marker-rejected again:
@@ -612,7 +621,7 @@ export class RemoteEnvironmentClient extends RemoteDesktopClient {
       } catch (repairError) {
         this.rethrowParentAuthorityFailure(repairError);
       }
-      return this.dispatchImageFetch(requestPath, signal, true);
+      return this.dispatchImageBytes(requestPath, signal, true);
     }
     if (recovered) {
       // A successful refresh proves only that earlier request. Credentials can
@@ -632,7 +641,7 @@ export class RemoteEnvironmentClient extends RemoteDesktopClient {
       throw refreshError;
     }
     if (!tokens) throw this.childNeedsRepair(imageUnauthorizedError(401, marker));
-    return this.dispatchImageFetch(requestPath, signal, true);
+    return this.dispatchImageBytes(requestPath, signal, true);
   }
 }
 

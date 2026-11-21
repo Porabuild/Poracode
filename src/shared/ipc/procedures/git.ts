@@ -38,6 +38,7 @@ import {
   gitUnwatchProjectPayloadSchema,
   gitWatchProjectPayloadSchema,
   gitWatchWorktreesPayloadSchema,
+  gitWorktreeSourceBranchBatchPayloadSchema,
   gitWorktreeStatusBatchPayloadSchema,
   listFileCheckpointsPayloadSchema,
   relocateProjectPayloadSchema,
@@ -64,6 +65,7 @@ import {
   gitSwitchBranchResultSchema,
   gitSyncResultSchema,
   gitWorktreeListResultSchema,
+  gitWorktreeSourceBranchBatchResultSchema,
   gitWorktreeStatusBatchResultSchema,
   listFileCheckpointsResultSchema,
   relocateProjectResultSchema,
@@ -140,6 +142,8 @@ import type {
   GitWatchProjectPayload,
   GitWatchWorktreesPayload,
   GitWorktreeListResult,
+  GitWorktreeSourceBranchBatchPayload,
+  GitWorktreeSourceBranchBatchResult,
   GitWorktreeStatusBatchPayload,
   GitWorktreeStatusBatchResult,
   ListFileCheckpointsPayload,
@@ -405,6 +409,16 @@ export const gitProcedures = {
     "supervisor",
     gitGetWorktreeSourceBranchPayloadSchema,
     gitGetWorktreeSourceBranchResultSchema,
+  ),
+  gitWorktreeSourceBranchBatch: definePayloadProcedure<
+    GitWorktreeSourceBranchBatchPayload,
+    GitWorktreeSourceBranchBatchResult,
+    "supervisor"
+  >(
+    "gitWorktreeSourceBranchBatch",
+    "supervisor",
+    gitWorktreeSourceBranchBatchPayloadSchema,
+    gitWorktreeSourceBranchBatchResultSchema,
   ),
   gitGetWorktreeOwner: definePayloadProcedure<
     GitGetWorktreeOwnerPayload,

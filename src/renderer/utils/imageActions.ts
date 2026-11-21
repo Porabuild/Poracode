@@ -11,6 +11,7 @@ export async function fetchImageBytes(src: string): Promise<Uint8Array<ArrayBuff
   if (/^https?:\/\//i.test(src)) {
     const response = await mainProcessFetch(src);
     if (response.status < 200 || response.status >= 300) {
+      await response.body?.cancel().catch(() => undefined);
       throw new Error(`Failed to load image (${response.status})`);
     }
     return new Uint8Array(await response.arrayBuffer());

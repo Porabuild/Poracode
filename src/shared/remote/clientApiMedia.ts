@@ -23,16 +23,18 @@ export abstract class RemoteClientMediaApi extends RemoteClientThreadsApi {
     const expected = endpointUrl(this.endpoint, "/api/files/media");
     if (url.origin !== expected.origin || url.pathname !== expected.pathname)
       throw new RemoteClientError("Media owner mismatch.", 403, "invalid_media_owner");
-    const response = await this.fetchImpl(url, {
-      method: "GET",
-      certFingerprint: this.pinnedCertFingerprint ?? null,
-      ...(signal ? { signal } : {}),
+    return this.withScheduledSlot("background", signal, async () => {
+      const response = await this.fetchImpl(url, {
+        method: "GET",
+        certFingerprint: this.pinnedCertFingerprint ?? null,
+        ...(signal ? { signal } : {}),
+      });
+      if (!response.ok) {
+        await response.body?.cancel().catch(() => undefined);
+        throw new RemoteClientError("Media image read failed.", response.status, "request_failed");
+      }
+      return new Uint8Array(await readBoundedResponseBody(response, this.maxResponseBodyBytes));
     });
-    if (!response.ok) {
-      await response.body?.cancel().catch(() => undefined);
-      throw new RemoteClientError("Media image read failed.", response.status, "request_failed");
-    }
-    return new Uint8Array(await readBoundedResponseBody(response, this.maxResponseBodyBytes));
   }
   async renewMediaSource(
     ticket: string,

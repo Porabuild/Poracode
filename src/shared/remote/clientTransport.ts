@@ -29,7 +29,43 @@ import {
   type RemoteTokenLifecycle,
   type RemoteTokenSnapshot,
 } from "./clientTypes";
+import {
+  DEFAULT_REMOTE_OVERLOAD_MAX_RETRIES,
+  classifyRemoteRequestPriority,
+  computeOverloadRetryDelayMs,
+  defaultRemoteRequestScheduler,
+  isRetryableRemoteAdmissionError,
+  originKeyForEndpoint,
+  parseRetryAfterMs,
+  type RemoteRequestPriority,
+  type RemoteRequestScheduler,
+} from "./requestScheduler";
 import { z } from "zod";
+
+function sleepWithAbort(delayMs: number, signal: AbortSignal): Promise<void> {
+  if (signal.aborted) {
+    return Promise.reject(
+      signal.reason instanceof Error
+        ? signal.reason
+        : new DOMException("The remote request was cancelled.", "AbortError"),
+    );
+  }
+  return new Promise<void>((resolve, reject) => {
+    const onAbort = () => {
+      clearTimeout(timer);
+      reject(
+        signal.reason instanceof Error
+          ? signal.reason
+          : new DOMException("The remote request was cancelled.", "AbortError"),
+      );
+    };
+    const timer = setTimeout(() => {
+      signal.removeEventListener("abort", onAbort);
+      resolve();
+    }, delayMs);
+    signal.addEventListener("abort", onAbort, { once: true });
+  });
+}
 
 /** Mint result of `POST /api/files/image-ticket` (B5b ticket flow). */
 const remoteImageTicketResultSchema = z.object({
@@ -44,6 +80,10 @@ export abstract class RemoteClientTransport extends RemoteClientPinCore {
   protected readonly onRequestSuccess: (() => void) | undefined;
   protected readonly onRequestError: ((error: unknown) => void) | undefined;
   private readonly responseEvidenceHeaders: readonly string[] | undefined;
+  protected readonly requestScheduler: RemoteRequestScheduler;
+  protected readonly requestOrigin: string;
+  protected readonly maxOverloadRetries: number;
+  protected readonly transportEnforcesCertPin: boolean;
   protected tokenLifecycle: RemoteTokenLifecycle | undefined;
   protected accessToken: string | undefined;
 
@@ -103,7 +143,34 @@ export abstract class RemoteClientTransport extends RemoteClientPinCore {
     this.onRequestSuccess = options.onRequestSuccess;
     this.onRequestError = options.onRequestError;
     this.responseEvidenceHeaders = options.responseEvidenceHeaders;
+    this.requestScheduler = options.requestScheduler ?? defaultRemoteRequestScheduler();
+    this.requestOrigin = originKeyForEndpoint(endpoint);
+    this.maxOverloadRetries = Math.max(
+      0,
+      Math.floor(options.maxOverloadRetries ?? DEFAULT_REMOTE_OVERLOAD_MAX_RETRIES),
+    );
+    this.transportEnforcesCertPin = options.transportEnforcesCertPin === true;
     this.tokenLifecycle = options.tokenLifecycle;
+  }
+
+  protected async withScheduledSlot<T>(
+    priority: RemoteRequestPriority,
+    signal: AbortSignal | undefined,
+    run: () => Promise<T>,
+  ): Promise<T> {
+    if (signal?.aborted) {
+      throw signal.reason instanceof Error
+        ? signal.reason
+        : new DOMException("The remote request was cancelled.", "AbortError");
+    }
+    const lease =
+      this.requestScheduler.tryAcquire(this.requestOrigin, priority) ??
+      (await this.requestScheduler.acquire(this.requestOrigin, priority, signal));
+    try {
+      return await run();
+    } finally {
+      lease.release();
+    }
   }
 
   /**
@@ -179,19 +246,27 @@ export abstract class RemoteClientTransport extends RemoteClientPinCore {
       );
     }
     url.searchParams.set("ticket", result.ticket);
-    const response = await this.fetchImpl(url, {
-      method: "GET",
-      signal,
-      certFingerprint: this.pinnedCertFingerprint ?? null,
+    return this.withScheduledSlot("background", signal, async () => {
+      const response = await this.fetchImpl(url, {
+        method: "GET",
+        signal,
+        certFingerprint: this.pinnedCertFingerprint ?? null,
+      });
+      if (!response.ok) {
+        if (response.status === 429 || response.status === 503) {
+          this.requestScheduler.noteOverload(
+            this.requestOrigin,
+            parseRetryAfterMs(response.headers.get("retry-after")),
+          );
+        }
+        await response.body?.cancel().catch(() => undefined);
+        throw new RemoteClientError("Image request failed.", response.status, "request_failed");
+      }
+      return {
+        bytes: await readBoundedResponseBody(response, this.maxResponseBodyBytes),
+        contentType: response.headers.get("content-type") ?? "application/octet-stream",
+      };
     });
-    if (!response.ok) {
-      await response.body?.cancel().catch(() => undefined);
-      throw new RemoteClientError("Image request failed.", response.status, "request_failed");
-    }
-    return {
-      bytes: await readBoundedResponseBody(response, this.maxResponseBodyBytes),
-      contentType: response.headers.get("content-type") ?? "application/octet-stream",
-    };
   }
 
   /** One authorized image GET; a 401 refreshes the access token once, like `requestJson`. */
@@ -202,7 +277,7 @@ export abstract class RemoteClientTransport extends RemoteClientPinCore {
   ): Promise<{ bytes: Uint8Array; contentType: string }> {
     // Same pre-credential pin refusal as `requestJson`: never send the Bearer
     // token to a host whose certificate no longer matches the pin.
-    if (this.pinnedCertFingerprint && this.certFingerprintProbe) {
+    if (this.pinnedCertFingerprint && this.certFingerprintProbe && !this.transportEnforcesCertPin) {
       const actual = await this.probeCertFingerprint();
       if (actual && actual.toLowerCase() !== this.pinnedCertFingerprint) {
         throw remoteCertificateMismatchError();
@@ -217,51 +292,64 @@ export abstract class RemoteClientTransport extends RemoteClientPinCore {
     }
     this.syncAccessToken();
     const usedToken = this.accessToken;
-    const response = await this.fetchImpl(url, {
-      method: "GET",
-      headers: {
-        ...(usedToken ? { authorization: `Bearer ${usedToken}` } : {}),
-        [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
-      },
-      signal,
-      certFingerprint: this.pinnedCertFingerprint ?? null,
-    });
-    if (response.status === 401) {
-      await response.body?.cancel().catch(() => undefined);
-      let imageRefreshFailure: unknown = null;
-      if (!retried && this.tokenLifecycle?.refreshToken()) {
-        // The retry recursion must stay OUTSIDE the catch: its own 401 is the
-        // request's final 401 (that frame fires the hook with null), never a
-        // refresh failure to classify.
-        let repaired = false;
-        try {
-          // Another request or a sibling client may have rotated the token while
-          // this one was in flight; renew only when the rejected bearer is current.
-          this.syncAccessToken();
-          repaired =
-            (this.accessToken !== undefined && this.accessToken !== usedToken) ||
-            Boolean(await this.refreshTokens());
-        } catch (refreshError) {
-          // Surface the original 401 below, never a grant-endpoint failure.
-          imageRefreshFailure = refreshError;
-        }
-        if (repaired) {
-          return this.fetchImageBytesWithBearer(url, signal, true);
-        }
+    const outcome = await this.withScheduledSlot("background", signal, async () => {
+      const response = await this.fetchImpl(url, {
+        method: "GET",
+        headers: {
+          ...(usedToken ? { authorization: `Bearer ${usedToken}` } : {}),
+          [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
+        },
+        signal,
+        certFingerprint: this.pinnedCertFingerprint ?? null,
+      });
+      if (response.status === 401) {
+        await response.body?.cancel().catch(() => undefined);
+        return { kind: "unauthorized" as const };
       }
-      // Same contract as `requestJson`: every final 401 notifies the custody —
-      // with the refresh failure when one was attempted, null otherwise.
-      this.tokenLifecycle?.onUnauthorized?.(imageRefreshFailure);
-      throw new RemoteClientError("Image request failed.", 401, "request_failed");
+      if (!response.ok) {
+        if (response.status === 429 || response.status === 503) {
+          this.requestScheduler.noteOverload(
+            this.requestOrigin,
+            parseRetryAfterMs(response.headers.get("retry-after")),
+          );
+        }
+        await response.body?.cancel().catch(() => undefined);
+        throw new RemoteClientError("Image request failed.", response.status, "request_failed");
+      }
+      return {
+        kind: "ok" as const,
+        value: {
+          bytes: await readBoundedResponseBody(response, this.maxResponseBodyBytes),
+          contentType: response.headers.get("content-type") ?? "application/octet-stream",
+        },
+      };
+    });
+    if (outcome.kind === "ok") return outcome.value;
+    let imageRefreshFailure: unknown = null;
+    if (!retried && this.tokenLifecycle?.refreshToken()) {
+      // The retry recursion must stay OUTSIDE the catch: its own 401 is the
+      // request's final 401 (that frame fires the hook with null), never a
+      // refresh failure to classify.
+      let repaired = false;
+      try {
+        // Another request or a sibling client may have rotated the token while
+        // this one was in flight; renew only when the rejected bearer is current.
+        this.syncAccessToken();
+        repaired =
+          (this.accessToken !== undefined && this.accessToken !== usedToken) ||
+          Boolean(await this.refreshTokens());
+      } catch (refreshError) {
+        // Surface the original 401 below, never a grant-endpoint failure.
+        imageRefreshFailure = refreshError;
+      }
+      if (repaired) {
+        return this.fetchImageBytesWithBearer(url, signal, true);
+      }
     }
-    if (!response.ok) {
-      await response.body?.cancel().catch(() => undefined);
-      throw new RemoteClientError("Image request failed.", response.status, "request_failed");
-    }
-    return {
-      bytes: await readBoundedResponseBody(response, this.maxResponseBodyBytes),
-      contentType: response.headers.get("content-type") ?? "application/octet-stream",
-    };
+    // Same contract as `requestJson`: every final 401 notifies the custody —
+    // with the refresh failure when one was attempted, null otherwise.
+    this.tokenLifecycle?.onUnauthorized?.(imageRefreshFailure);
+    throw new RemoteClientError("Image request failed.", 401, "request_failed");
   }
 
   /**
@@ -353,37 +441,17 @@ export abstract class RemoteClientTransport extends RemoteClientPinCore {
   ): Promise<unknown> {
     // Gate 6 item 4.2: with a pinned fingerprint and a TLS-observable
     // transport, refuse BEFORE credentials leave the client.
-    if (this.pinnedCertFingerprint && this.certFingerprintProbe) {
+    if (this.pinnedCertFingerprint && this.certFingerprintProbe && !this.transportEnforcesCertPin) {
       const actual = await this.probeCertFingerprint();
       if (actual && actual.toLowerCase() !== this.pinnedCertFingerprint) {
         throw remoteCertificateMismatchError();
       }
     }
 
-    this.syncAccessToken();
     const method = init.method ?? "GET";
-    const headers: Record<string, string> = { ...init.headers };
-    if (init.body !== undefined) {
-      headers["content-type"] = "application/json";
-    }
-    if (this.accessToken) {
-      headers.authorization = `Bearer ${this.accessToken}`;
-      // Fence 1 (remote 13): the current TS producer declares the writer
-      // generation on every authenticated request — including the
-      // post-refresh retry, which rebuilds headers through this same block.
-      // The compiled constant is the only source: a caller-supplied stale
-      // value is replaced here (this producer is the only thing that may
-      // upgrade it), and the transport-level `mutation` hint is never
-      // consulted — the host classifies by route/procedure scope, not client
-      // intent. Auth-free calls (pairing/refresh exchange before a token
-      // exists) carry no header, mirroring the host's auth-free exemptions.
-      headers[REMOTE_PROTOCOL_VERSION_HEADER] = REMOTE_PROTOCOL_VERSION_HEADER_VALUE;
-    }
-    const cached = method === "GET" ? this.etagCache.get(path) : undefined;
-    if (cached) {
-      headers["if-none-match"] = cached.etag;
-    }
+    const priority = init.priority ?? classifyRemoteRequestPriority(method, path, init.body);
     const effectiveTimeoutMs = init.timeoutMs ?? this.requestTimeoutMs;
+    const deadlineAt = Date.now() + effectiveTimeoutMs;
     const controller = new AbortController();
     const externalSignal = init.signal;
     // A signal already aborted before dispatch is a presend refusal: the
@@ -424,6 +492,7 @@ export abstract class RemoteClientTransport extends RemoteClientPinCore {
         reject(timeoutError);
       }, effectiveTimeoutMs);
     });
+    timeoutPromise.catch(() => undefined);
     // Phase evidence: anything that can fail before the fetch is handed the
     // request (URL derivation, body serialization) is a presend failure and
     // can never be ambiguous for a mutation.
@@ -437,58 +506,158 @@ export abstract class RemoteClientTransport extends RemoteClientPinCore {
           : init.rawBody !== undefined
             ? init.rawBody
             : undefined;
-      dispatched = true;
-      const response = await Promise.race([
-        this.fetchImpl(url, {
-          method: init.method ?? "GET",
-          headers,
-          signal: controller.signal,
-          certFingerprint: this.pinnedCertFingerprint ?? null,
-          ...(requestBody !== undefined ? { body: requestBody } : {}),
-        }),
-        timeoutPromise,
-      ]);
-      // The large read endpoints send a revalidating `ETag`. Browser clients
-      // (PWA, Electron renderer) resolve `304` against their own HTTP cache and
-      // surface it as a `200` with the stored body, so this is unreachable
-      // there. A non-browser `fetchImpl` — or an intermediary that revalidates
-      // on its own — could still surface a bare `304`, whose empty body would
-      // otherwise parse to `{}` and fail schema validation with a confusing
-      // error. Fail loudly instead.
-      if (response.status === 304) {
-        // Conditional GET revalidated clean: the cached body is the answer.
-        // Without a cache entry this is a protocol error (a bare 304 carries
-        // no body and would parse to `{}`), so fail loudly.
-        if (!cached) {
-          throw new RemoteClientError(
-            "Remote request returned 304 without a cached body.",
-            304,
-            "not_modified",
-          );
+      for (let overloadAttempt = 0; ; overloadAttempt += 1) {
+        dispatched = false;
+        let retryAfterMs: number | undefined;
+        let attemptOutcome:
+          | { readonly kind: "ok"; readonly value: unknown }
+          | {
+              readonly kind: "unauthorized";
+              readonly authorizationHeader: string | undefined;
+              readonly parsed: unknown;
+              readonly response: Response;
+            };
+
+        try {
+          const lease =
+            this.requestScheduler.tryAcquire(this.requestOrigin, priority) ??
+            (await Promise.race([
+              this.requestScheduler.acquire(this.requestOrigin, priority, controller.signal),
+              timeoutPromise,
+            ]));
+          try {
+            this.syncAccessToken();
+            const headers: Record<string, string> = { ...init.headers };
+            if (init.body !== undefined) {
+              headers["content-type"] = "application/json";
+            }
+            if (this.accessToken) {
+              headers.authorization = `Bearer ${this.accessToken}`;
+              // Fence 1 (remote 13): the current TS producer declares the writer
+              // generation on every authenticated request — including the
+              // post-refresh retry, which rebuilds headers through this same block.
+              // The compiled constant is the only source: a caller-supplied stale
+              // value is replaced here (this producer is the only thing that may
+              // upgrade it), and the transport-level `mutation` hint is never
+              // consulted — the host classifies by route/procedure scope, not client
+              // intent. Auth-free calls (pairing/refresh exchange before a token
+              // exists) carry no header, mirroring the host's auth-free exemptions.
+              headers[REMOTE_PROTOCOL_VERSION_HEADER] = REMOTE_PROTOCOL_VERSION_HEADER_VALUE;
+            }
+            const cached = method === "GET" ? this.etagCache.get(path) : undefined;
+            if (cached) {
+              headers["if-none-match"] = cached.etag;
+            }
+            dispatched = true;
+            const response = await Promise.race([
+              this.fetchImpl(url, {
+                method: init.method ?? "GET",
+                headers,
+                signal: controller.signal,
+                certFingerprint: this.pinnedCertFingerprint ?? null,
+                ...(requestBody !== undefined ? { body: requestBody } : {}),
+              }),
+              timeoutPromise,
+            ]);
+            // The large read endpoints send a revalidating `ETag`. Browser clients
+            // (PWA, Electron renderer) resolve `304` against their own HTTP cache and
+            // surface it as a `200` with the stored body, so this is unreachable
+            // there. A non-browser `fetchImpl` — or an intermediary that revalidates
+            // on its own — could still surface a bare `304`, whose empty body would
+            // otherwise parse to `{}` and fail schema validation with a confusing
+            // error. Fail loudly instead.
+            if (response.status === 304) {
+              // Conditional GET revalidated clean: the cached body is the answer.
+              // Without a cache entry this is a protocol error (a bare 304 carries
+              // no body and would parse to `{}`), so fail loudly.
+              if (!cached) {
+                throw new RemoteClientError(
+                  "Remote request returned 304 without a cached body.",
+                  304,
+                  "not_modified",
+                );
+              }
+              this.onRequestSuccess?.();
+              attemptOutcome = { kind: "ok", value: cached.parsed };
+            } else {
+              const body = await Promise.race([
+                readBoundedResponseBody(response, this.maxResponseBodyBytes),
+                timeoutPromise,
+              ]);
+              const text = new TextDecoder().decode(body);
+              const parsed = parseJsonResponse(text, response);
+              if (!response.ok) {
+                if (response.status === 401) {
+                  attemptOutcome = {
+                    kind: "unauthorized",
+                    authorizationHeader: headers.authorization,
+                    parsed,
+                    response,
+                  };
+                } else {
+                  retryAfterMs = parseRetryAfterMs(response.headers.get("retry-after"));
+                  const error = remoteHttpErrorSchema.safeParse(parsed);
+                  throw new RemoteClientError(
+                    error.success ? error.data.error.message : "Remote request failed.",
+                    response.status,
+                    error.success ? error.data.error.code : "request_failed",
+                    this.responseEvidenceFor(response),
+                  );
+                }
+              } else {
+                if (method === "GET") {
+                  const etag = response.headers.get("etag");
+                  if (etag) {
+                    this.etagCache.delete(path);
+                    this.etagCache.set(path, { etag, parsed });
+                    while (this.etagCache.size > ETAG_CACHE_MAX_ENTRIES) {
+                      const oldest = this.etagCache.keys().next().value;
+                      if (oldest === undefined) break;
+                      this.etagCache.delete(oldest);
+                    }
+                  }
+                }
+                this.onRequestSuccess?.();
+                attemptOutcome = { kind: "ok", value: parsed };
+              }
+            }
+          } finally {
+            lease.release();
+          }
+        } catch (attemptError) {
+          if (isRetryableRemoteAdmissionError(attemptError)) {
+            const delayMs = computeOverloadRetryDelayMs(overloadAttempt, retryAfterMs);
+            this.requestScheduler.noteOverload(this.requestOrigin, delayMs);
+            if (
+              overloadAttempt < this.maxOverloadRetries &&
+              !externalAbortRequested &&
+              !controller.signal.aborted &&
+              Date.now() + delayMs < deadlineAt
+            ) {
+              dispatched = false;
+              await Promise.race([sleepWithAbort(delayMs, controller.signal), timeoutPromise]);
+              continue;
+            }
+          }
+          throw attemptError;
         }
-        this.onRequestSuccess?.();
-        return cached.parsed;
-      }
-      const body = await Promise.race([
-        readBoundedResponseBody(response, this.maxResponseBodyBytes),
-        timeoutPromise,
-      ]);
-      const text = new TextDecoder().decode(body);
-      const parsed = parseJsonResponse(text, response);
-      if (!response.ok) {
+
+        if (attemptOutcome.kind === "ok") {
+          return attemptOutcome.value;
+        }
+
         // Gate 6 item 4.6 (S6): a 401 from an expired 24-hour access token
         // transparently refreshes once and retries the request. Any refresh
         // failure surfaces the ORIGINAL authorization error, so callers keep
         // seeing a clean 401 instead of a grant-endpoint failure.
         let refreshFailure: unknown = null;
         if (
-          response.status === 401 &&
           !refreshState.isTokenRefresh &&
           !refreshState.isRefreshRetry &&
           this.tokenLifecycle?.refreshToken()
         ) {
           // The retry recursion must stay OUTSIDE the catch: a 401 from the
-          // retried request is the request's own final 401 (its frame fires
+          // retried request is the request's own final 401 (that frame fires
           // the hook with null), never a refresh failure to classify.
           let repaired = false;
           try {
@@ -498,7 +667,7 @@ export abstract class RemoteClientTransport extends RemoteClientPinCore {
             this.syncAccessToken();
             const alreadyRotated =
               this.accessToken !== undefined &&
-              headers.authorization !== `Bearer ${this.accessToken}`;
+              attemptOutcome.authorizationHeader !== `Bearer ${this.accessToken}`;
             repaired = alreadyRotated || Boolean(await this.refreshTokens());
           } catch (refreshError) {
             // Surface the original 401 below, never a grant-endpoint failure.
@@ -508,34 +677,20 @@ export abstract class RemoteClientTransport extends RemoteClientPinCore {
             return await this.requestJson(path, init, { isRefreshRetry: true });
           }
         }
-        if (response.status === 401 && !refreshState.isTokenRefresh) {
+        if (!refreshState.isTokenRefresh) {
           // The refresh path is exhausted: the caller-owned custody learns the
           // 401 is final (with the refresh failure, when one threw) so it can
           // re-prove the credential.
           this.tokenLifecycle?.onUnauthorized?.(refreshFailure);
         }
-        const error = remoteHttpErrorSchema.safeParse(parsed);
+        const error = remoteHttpErrorSchema.safeParse(attemptOutcome.parsed);
         throw new RemoteClientError(
           error.success ? error.data.error.message : "Remote request failed.",
-          response.status,
+          attemptOutcome.response.status,
           error.success ? error.data.error.code : "request_failed",
-          this.responseEvidenceFor(response),
+          this.responseEvidenceFor(attemptOutcome.response),
         );
       }
-      if (method === "GET") {
-        const etag = response.headers.get("etag");
-        if (etag) {
-          this.etagCache.delete(path);
-          this.etagCache.set(path, { etag, parsed });
-          while (this.etagCache.size > ETAG_CACHE_MAX_ENTRIES) {
-            const oldest = this.etagCache.keys().next().value;
-            if (oldest === undefined) break;
-            this.etagCache.delete(oldest);
-          }
-        }
-      }
-      this.onRequestSuccess?.();
-      return parsed;
     } catch (error) {
       const cancelled = externalAbortRequested;
       const abortedLocally = !cancelled && controller.signal.aborted && error !== timeoutError;

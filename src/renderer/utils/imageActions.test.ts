@@ -95,9 +95,12 @@ describe("image action bytes", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it("rejects unsuccessful remote HTTP image responses", async () => {
-    mainProcessFetch.mockResolvedValue(new Response("nope", { status: 403 }));
+  it("rejects unsuccessful remote HTTP image responses and cancels their body stream", async () => {
+    const cancel = vi.fn<() => Promise<void>>(async () => undefined);
+    const body = new ReadableStream<Uint8Array>({ cancel });
+    mainProcessFetch.mockResolvedValue(new Response(body, { status: 403 }));
     await expect(fetchImageBytes("https://desktop.test/image")).rejects.toThrow("403");
+    expect(cancel).toHaveBeenCalledOnce();
   });
 
   it("uses browser fetch for other sources", async () => {

@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { shallow } from "zustand/shallow";
+import { mapWithConcurrency } from "@/shared/concurrency";
 import {
   WORKFLOW_STALE_PROGRESS_MS,
   isWorkflowRunLive,
@@ -31,6 +32,7 @@ import { readBridge } from "@/renderer/bridge";
  */
 
 const POLL_MS = 4000;
+const MAX_CONCURRENT_WORKFLOW_POLLS = 4;
 // A launched workflow writes its manifest within ~seconds, on its first
 // progress event (see workflowRunStore). Treat a never-seen manifest as a dead
 // launch only after this generous window, so a merely slow first phase isn't
@@ -130,7 +132,9 @@ export const useThreadLiveWorkflowStore = create<ThreadLiveWorkflowStore>((set, 
     timer = null;
     ticking = true;
     try {
-      await Promise.all([...entries.keys()].map((key) => pollEntry(key)));
+      await mapWithConcurrency([...entries.keys()], MAX_CONCURRENT_WORKFLOW_POLLS, (key) =>
+        pollEntry(key),
+      );
     } finally {
       ticking = false;
     }

@@ -1698,6 +1698,162 @@ describe("watcher git status refresh", () => {
     ).toBe(true);
   });
 
+  it("bounds concurrent source-branch and branch-PR fan-out across many active worktrees", async () => {
+    let activeSourceReads = 0;
+    let peakSourceReads = 0;
+    let activePrReads = 0;
+    let peakPrReads = 0;
+    const worktrees = Array.from({ length: 12 }, (_, index) => ({
+      path: `/repo-wt-${index}`,
+      branch: `feature/wt-${index}`,
+      commit: `abc-${index}`,
+      isMain: false,
+    }));
+    const threads = worktrees.map((wt, index) => ({
+      ...worktreeThread,
+      id: `thread-${index}`,
+      worktreePath: wt.path,
+      worktreeBranch: wt.branch,
+    }));
+    const gitProjectSnapshot = vi.fn<PoracodeBridge["gitProjectSnapshot"]>().mockResolvedValue({
+      status,
+      branches: { current: status.branch, branches: [] },
+      worktrees,
+      ghAvailable: true,
+    });
+    const gitWorktreeStatusBatch = vi
+      .fn<PoracodeBridge["gitWorktreeStatusBatch"]>()
+      .mockResolvedValue({ statuses: {} });
+    const gitGetWorktreeSourceBranch = vi
+      .fn<PoracodeBridge["gitGetWorktreeSourceBranch"]>()
+      .mockImplementation(async () => {
+        activeSourceReads += 1;
+        peakSourceReads = Math.max(peakSourceReads, activeSourceReads);
+        await new Promise((resolve) => setTimeout(resolve, 2));
+        activeSourceReads -= 1;
+        return { sourceBranch: "main", commitsAhead: 1, sourceAhead: 0 };
+      });
+    const ghGetPrForBranch = vi
+      .fn<PoracodeBridge["ghGetPrForBranch"]>()
+      .mockImplementation(async () => {
+        activePrReads += 1;
+        peakPrReads = Math.max(peakPrReads, activePrReads);
+        await new Promise((resolve) => setTimeout(resolve, 2));
+        activePrReads -= 1;
+        return basePr;
+      });
+    Object.defineProperty(window, "poracode", {
+      configurable: true,
+      value: {
+        ...window.poracode,
+        gitProjectSnapshot,
+        gitWorktreeStatusBatch,
+        gitGetWorktreeSourceBranch,
+        ghGetPrForBranch,
+        ghListPrs: vi.fn<PoracodeBridge["ghListPrs"]>().mockResolvedValue({ prs: {} }),
+        ghPollPullRequests: mockPollPullRequests,
+        gitWatchWorktrees: vi
+          .fn<PoracodeBridge["gitWatchWorktrees"]>()
+          .mockResolvedValue(undefined),
+      },
+    });
+    useSidebarUiStore.setState({ threadListLimits: { [project.id]: 20 } });
+    useAppStore.setState({ projects: [project], threads });
+
+    await refreshGitProject(project, "initial", "full");
+
+    expect(gitGetWorktreeSourceBranch).toHaveBeenCalledTimes(12);
+    expect(peakSourceReads).toBeLessThanOrEqual(4);
+    expect(ghGetPrForBranch).toHaveBeenCalledTimes(13);
+    // Up to 3 concurrent worktree PR reads + 1 project branch PR read = 4 total.
+    expect(peakPrReads).toBeLessThanOrEqual(4);
+  });
+
+  it("uses gitWorktreeSourceBranchBatch and reuses bulk PR prefetch to eliminate per-worktree fan-out", async () => {
+    const worktrees = Array.from({ length: 6 }, (_, index) => ({
+      path: `/repo-wt-${index}`,
+      branch: `feature/wt-${index}`,
+      commit: `abc-${index}`,
+      isMain: false,
+    }));
+    const threads = worktrees.map((wt, index) => ({
+      ...worktreeThread,
+      id: `thread-${index}`,
+      worktreePath: wt.path,
+      worktreeBranch: wt.branch,
+    }));
+    const bulkPrs: Record<string, PrData> = {
+      [status.branch]: { ...basePr, number: 100 },
+      ...Object.fromEntries(
+        worktrees.map((wt, index) => [wt.branch, { ...basePr, number: 200 + index }]),
+      ),
+    };
+    const gitWorktreeSourceBranchBatch = vi
+      .fn<PoracodeBridge["gitWorktreeSourceBranchBatch"]>()
+      .mockResolvedValue({
+        results: Object.fromEntries(
+          worktrees.map((wt) => [
+            wt.branch,
+            { sourceBranch: "main", commitsAhead: 2, sourceAhead: 1 },
+          ]),
+        ),
+      });
+    const gitGetWorktreeSourceBranch = vi.fn<PoracodeBridge["gitGetWorktreeSourceBranch"]>();
+    const ghGetPrForBranch = vi.fn<PoracodeBridge["ghGetPrForBranch"]>();
+    const ghListPrs = vi.fn<PoracodeBridge["ghListPrs"]>().mockResolvedValue({ prs: bulkPrs });
+    Object.defineProperty(window, "poracode", {
+      configurable: true,
+      value: {
+        ...window.poracode,
+        gitProjectSnapshot: vi.fn<PoracodeBridge["gitProjectSnapshot"]>().mockResolvedValue({
+          status,
+          branches: { current: status.branch, branches: [] },
+          worktrees,
+          ghAvailable: true,
+        }),
+        gitWorktreeStatusBatch: vi
+          .fn<PoracodeBridge["gitWorktreeStatusBatch"]>()
+          .mockResolvedValue({ statuses: {} }),
+        gitWorktreeSourceBranchBatch,
+        gitGetWorktreeSourceBranch,
+        ghGetPrForBranch,
+        ghListPrs,
+        ghPollPullRequests: async (input: {
+          projectLocation: ProjectLocation;
+          branch?: string;
+        }) => {
+          if (input.branch) {
+            const pr = await ghGetPrForBranch({
+              projectLocation: input.projectLocation,
+              branch: input.branch,
+            });
+            return { status: "ready", prs: pr ? { [input.branch]: pr } : {}, pullRequests: [] };
+          }
+          const { prs } = await ghListPrs({ projectLocation: input.projectLocation });
+          return { status: "ready", prs, pullRequests: [] };
+        },
+        gitWatchWorktrees: vi
+          .fn<PoracodeBridge["gitWatchWorktrees"]>()
+          .mockResolvedValue(undefined),
+      },
+    });
+    useSidebarUiStore.setState({ threadListLimits: { [project.id]: 20 } });
+    useAppStore.setState({ projects: [project], threads });
+
+    await refreshGitProject(project, "initial", "full");
+
+    expect(gitWorktreeSourceBranchBatch).toHaveBeenCalledTimes(1);
+    expect(gitGetWorktreeSourceBranch).not.toHaveBeenCalled();
+    expect(ghListPrs).toHaveBeenCalledTimes(1);
+    expect(ghGetPrForBranch).not.toHaveBeenCalled();
+    expect(useGitStore.getState().worktreeSourceInfo["/repo-wt-0"]).toEqual({
+      sourceBranch: "main",
+      commitsAhead: 2,
+      sourceAhead: 1,
+    });
+    expect(useAppStore.getState().threads[0]?.prNumber).toBe(200);
+  });
+
   it("keeps a merged PR and thread association when a buffered full refresh finishes", async () => {
     const readStarted = Promise.withResolvers<void>();
     const response = Promise.withResolvers<PrData | null>();

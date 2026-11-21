@@ -156,14 +156,16 @@ describe("friendlyErrorWithDetail", () => {
   });
 
   it.each([
-    ["overloaded", "Too many active remote requests for this window."],
-    ["principal_busy", "This paired client has too much work in flight; retry shortly."],
+    ["overloaded", 429, "Too many active remote requests for this window."],
+    ["principal_busy", 429, "This paired client has too much work in flight; retry shortly."],
+    ["host_busy", 503, "The host is busy with other requests; retry shortly."],
     [
       "settings_overloaded",
+      429,
       "Settings update was refused by the settings authority (queue full); retry later.",
     ],
-  ])("maps %s admission refusals to the localized busy message", (code, message) => {
-    const error = new RemoteClientError(message, 429, code);
+  ])("maps %s admission refusals to the localized busy message", (code, status, message) => {
+    const error = new RemoteClientError(message, status, code);
     expect(friendlyErrorWithDetail(error)).toEqual({
       summary: "Too many remote requests are in progress. Try again in a moment.",
       details: message,

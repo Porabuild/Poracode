@@ -39,7 +39,7 @@ import {
 } from "./sharedCredentials";
 import { noteDesktopTokenCommitted } from "./tokenVault";
 import { SessionRenewal } from "./sessionRenewal";
-import type { RemoteServerRecord, RemoteServersState } from "./types";
+import type { RemoteClientFactory, RemoteServerRecord, RemoteServersState } from "./types";
 import type { TerminalConnectionCapabilities } from "./terminalCapabilities";
 
 export type RemoteServersStoreSet = (
@@ -163,13 +163,25 @@ export function createRemoteServerClientBindings(
     });
   };
 
+  const cachedClients = new Map<
+    string,
+    {
+      readonly endpoint: string;
+      readonly accessToken: string | undefined;
+      readonly pin: string | undefined;
+      readonly incarnation: ReturnType<typeof ensureConnectionIncarnation>;
+      readonly factory: RemoteClientFactory;
+      readonly client: RemoteDesktopClient;
+    }
+  >();
+
   /**
-   * Builds a client for a server record with the Gate 6 lifecycle attached:
-   * the refresh-token lifecycle (4.6) reads the in-memory token and
-   * persists rotations back to the encrypted vault, and the pinned
-   * certificate fingerprint (4.2) is enforced by the client's transport
-   * hook when one is available. Factory-created clients are wrapped here
-   * so every call site gets the same behavior.
+   * Builds (or reuses) a client for a server record with the Gate 6 lifecycle
+   * attached: the refresh-token lifecycle (4.6) reads the in-memory token and
+   * persists rotations back to the encrypted vault, and the pinned certificate
+   * fingerprint (4.2) is enforced by the client's transport hook when one is
+   * available. Reusing the instance per credential/endpoint/pin/incarnation
+   * keeps the ETag revalidation cache warm across `withClient` calls.
    */
   const clientForServer = (server: RemoteServerRecord): RemoteDesktopClient => {
     if (server.transport?.kind === "environment") {
@@ -194,8 +206,25 @@ export function createRemoteServerClientBindings(
     // current bearer only for the same endpoint; never send it to a stale one.
     const accessToken =
       current?.endpoint === server.endpoint ? current.accessToken : server.accessToken;
-    const client = get().clientFactory(server.endpoint, accessToken);
+    const factory = get().clientFactory;
     const incarnation = current ? ensureConnectionIncarnation(connectionKey) : undefined;
+    const pin = certPinForDesktop(connectionKey);
+    const cacheable = current?.endpoint === server.endpoint && incarnation !== undefined;
+    if (cacheable) {
+      const cached = cachedClients.get(connectionKey);
+      if (
+        cached &&
+        cached.endpoint === server.endpoint &&
+        cached.accessToken === accessToken &&
+        cached.pin === pin &&
+        cached.incarnation === incarnation &&
+        cached.factory === factory &&
+        ownsConnectionIncarnation(connectionKey, cached.incarnation)
+      ) {
+        return cached.client;
+      }
+    }
+    const client = factory(server.endpoint, accessToken);
     const isCurrent = () =>
       incarnation !== undefined &&
       ownsConnectionIncarnation(connectionKey, incarnation) &&
@@ -258,8 +287,17 @@ export function createRemoteServerClientBindings(
         setRemoteServerFailure(server.desktopId, "error", sharedMsg("remote.session.expired"));
       },
     });
-    const pin = certPinForDesktop(remoteConnectionKey(server));
     if (pin) client.setCertFingerprintPin(pin);
+    if (cacheable) {
+      cachedClients.set(connectionKey, {
+        endpoint: server.endpoint,
+        accessToken,
+        pin,
+        incarnation,
+        factory,
+        client,
+      });
+    }
     return client;
   };
 
@@ -311,6 +349,7 @@ export function createRemoteServerClientBindings(
 
   /** Stops a removed connection's renewal, so a re-paired one never inherits its timer. */
   const disposeSessionRenewal = (connectionKey: string): void => {
+    cachedClients.delete(connectionKey);
     sessionRenewals.get(connectionKey)?.dispose();
     sessionRenewals.delete(connectionKey);
   };
