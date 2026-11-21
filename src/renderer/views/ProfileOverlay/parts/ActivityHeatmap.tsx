@@ -65,7 +65,9 @@ function buildColumns(
 
   const monthLabels: Array<string | null> = [];
   let prevMonth = -1;
-  for (const col of columns) {
+  let lastLabelCol = -3;
+  for (let colIdx = 0; colIdx < columns.length; colIdx += 1) {
+    const col = columns[colIdx]!;
     const first = col.find((c): c is ProfileHeatmapCell => c !== null);
     if (!first) {
       monthLabels.push(null);
@@ -73,8 +75,26 @@ function buildColumns(
     }
     const month = monthOf(first.day);
     if (month !== prevMonth) {
-      monthLabels.push(monthNames[month]!);
       prevMonth = month;
+      // Avoid overlapping adjacent month labels (e.g. partial leading "Nov" + "Dec").
+      if (colIdx - lastLabelCol >= 3) {
+        // If this is the first label and the next month starts in <=2 cols, skip the sliver.
+        const nextMonthStartsSoon =
+          colIdx === 0 &&
+          columns
+            .slice(1, 3)
+            .some((nextCol) =>
+              nextCol.some((cell) => cell !== null && monthOf(cell.day) !== month),
+            );
+        if (nextMonthStartsSoon) {
+          monthLabels.push(null);
+        } else {
+          monthLabels.push(monthNames[month]!);
+          lastLabelCol = colIdx;
+        }
+      } else {
+        monthLabels.push(null);
+      }
     } else {
       monthLabels.push(null);
     }
