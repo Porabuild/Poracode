@@ -6,6 +6,7 @@ import { isLocalhostOrigin, readBoundedNodeRequestBody, writeJsonResponse } from
 import { AsyncWorkTracker } from "@/shared/asyncWorkTracker";
 import { HttpServerConnections } from "@/shared/httpServerConnections";
 import type { McpToolAnnotations } from "@/shared/contracts/mcpServer";
+import { publishToolInputSchema } from "./publishToolInputSchema";
 
 export interface StreamableHttpMcpIngressInfo {
   url: string;
@@ -370,7 +371,9 @@ export class StreamableHttpMcpIngress<TContext> {
           jsonrpc: "2.0",
           id,
           result: {
-            tools: this.options.tools.filter((tool) => !disabled.has(normalize(tool.name))),
+            tools: this.options.tools
+              .filter((tool) => !disabled.has(normalize(tool.name)))
+              .map((tool) => ({ ...tool, inputSchema: publishToolInputSchema(tool.inputSchema) })),
           },
         };
       }
