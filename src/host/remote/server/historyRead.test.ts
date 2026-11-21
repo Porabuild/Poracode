@@ -870,17 +870,26 @@ describe.skipIf(!sqliteAvailable)("B4 bounded history server composition", () =>
           true,
           defer,
         ),
-      ) as { items: { id: string; payload: Record<string, unknown>; detailsDeferred?: true }[] };
+      ) as {
+        items: {
+          id: string;
+          type: string;
+          payload: Record<string, unknown>;
+          detailsDeferred?: true;
+        }[];
+      };
 
     it("packs far more rows per read and flags each one", async () => {
       await dbReplaceThreadRuntimeItems("thread-1", fileChangeRows(40));
       const page = await readOlder(true);
       const complete = await readOlder(false);
       // ~160 KB rows pack about a dozen per 2 MiB soft-target page; deferred rows
-      // are limited only by the per-read materialization bound.
+      // pack the whole group plus its preceding prompt in one compact read.
       expect(page.items.length).toBeGreaterThan(2 * complete.items.length);
-      expect(page.items.every((entry) => entry.detailsDeferred === true)).toBe(true);
-      expect(Object.keys(page.items[0]!.payload).sort()).toEqual([
+      const fileChanges = page.items.filter((entry) => entry.type === "file_change");
+      expect(fileChanges).toHaveLength(40);
+      expect(fileChanges.every((entry) => entry.detailsDeferred === true)).toBe(true);
+      expect(Object.keys(fileChanges[0]!.payload).sort()).toEqual([
         "changeKind",
         "diffSummary",
         "path",
@@ -965,6 +974,232 @@ describe.skipIf(!sqliteAvailable)("B4 bounded history server composition", () =>
       };
       expect(detail.item.detailsDeferred).toBeUndefined();
       expect(detail.item.payload.args.old_str).toHaveLength(80_000);
+    });
+
+    it("packs an idle thread's large mixed-state file_change tail group with its prompt in one read", async () => {
+      dbUpsertThread({ ...testThread(), status: "idle", attention: "none" }, 0);
+      const largeFile = "m".repeat(950_000);
+      const rows = [
+        item(0, {
+          type: "user_message",
+          payload: { content: [{ kind: "text", text: "Earlier prompt" }] },
+        }),
+        item(1, {
+          type: "assistant_message",
+          streams: { assistant_text: "Earlier reply" },
+        }),
+        item(2, {
+          type: "user_message",
+          payload: { content: [{ kind: "text", text: "I mean this one" }] },
+        }),
+        // 12 ~1.9 MB file_change edits (mix of completed and unsettled updated/started
+        // states) whose 6x conservative bound (~136 MiB) far exceeds the 32 MiB hard cap.
+        ...Array.from({ length: 12 }, (_, offset) =>
+          item(3 + offset, {
+            type: "file_change",
+            state: offset < 4 ? "completed" : offset === 6 ? "started" : "updated",
+            payload: {
+              path: `src/renderer/locales/loc-${offset}/messages.po`,
+              changeKind: "edit",
+              diffSummary: { added: 1, removed: 1 },
+              status: "running",
+              editOldText: largeFile,
+              editNewText: largeFile,
+            },
+          }),
+        ),
+      ];
+      await dbReplaceThreadRuntimeItems("thread-1", rows);
+
+      const raw = await buildBoundedThreadSnapshot(
+        context(),
+        "thread-1",
+        negotiation("&projection=details-v1&deferBodies=file_change"),
+        { targetTimelineEntryCount: 20, historyCache: {} },
+      );
+      const snapshot = boundedThreadSnapshotSchema.parse(JSON.parse(raw));
+      expect(snapshot.runtimeItems.map((entry) => entry.id)).toEqual(rows.map((row) => row.id));
+      expect(snapshot.runtimeNextCursor).toBeNull();
+      const fileChanges = snapshot.runtimeItems.filter((entry) => entry.type === "file_change");
+      expect(fileChanges).toHaveLength(12);
+      expect(fileChanges.every((entry) => entry.detailsDeferred === true)).toBe(true);
+      expect(serializedWireByteLength(raw)).toBeLessThan(64 * 1024);
+      expect(snapshot.historyCache?.revision).toMatch(/^hc2\./u);
+    });
+
+    it("keeps active-turn unsettled file_change rows complete while deferring prior turns", async () => {
+      dbUpsertThread({ ...testThread(), status: "working", attention: "working" }, 0);
+      const largeFile = "n".repeat(400_000);
+      await dbReplaceThreadRuntimeItems("thread-1", [
+        item(0, {
+          type: "user_message",
+          payload: { content: [{ kind: "text", text: "Prior prompt" }] },
+        }),
+        item(1, {
+          type: "file_change",
+          state: "updated",
+          payload: {
+            path: "src/prior.ts",
+            changeKind: "edit",
+            diffSummary: { added: 1, removed: 1 },
+            status: "running",
+            editOldText: largeFile,
+            editNewText: largeFile,
+          },
+        }),
+        item(2, {
+          type: "user_message",
+          payload: { content: [{ kind: "text", text: "Current prompt" }] },
+        }),
+        item(3, {
+          type: "file_change",
+          state: "updated",
+          payload: {
+            path: "src/live.ts",
+            changeKind: "edit",
+            diffSummary: { added: 2, removed: 0 },
+            status: "running",
+            editOldText: largeFile,
+            editNewText: largeFile,
+          },
+        }),
+      ]);
+
+      const snapshot = boundedThreadSnapshotSchema.parse(
+        JSON.parse(
+          await buildBoundedThreadSnapshot(
+            context(),
+            "thread-1",
+            negotiation("&projection=details-v1&deferBodies=file_change"),
+            { targetTimelineEntryCount: 20 },
+          ),
+        ),
+      );
+      const prior = snapshot.runtimeItems.find((entry) => entry.id === "item-001");
+      const live = snapshot.runtimeItems.find((entry) => entry.id === "item-003");
+      expect(prior?.detailsDeferred).toBe(true);
+      expect(live?.detailsDeferred).toBeUndefined();
+      expect((live?.payload as Record<string, unknown> | undefined)?.editOldText).toBe(largeFile);
+
+      // An older-items page strictly before the latest user_message also defers prior-turn unsettled rows.
+      const older = JSON.parse(
+        await buildBoundedThreadHistoryItems(
+          { threadId: "thread-1", limit: 500, beforePosition: 2 },
+          negotiation("&projection=details-v1&deferBodies=file_change").caps,
+          undefined,
+          true,
+          true,
+        ),
+      ) as { items: { id: string; detailsDeferred?: true }[] };
+      expect(older.items.find((entry) => entry.id === "item-001")?.detailsDeferred).toBe(true);
+    });
+
+    it("continues across phase-2 batches when deferrable file_change rows exceed a single batch raw cap", async () => {
+      dbUpsertThread({ ...testThread(), status: "idle", attention: "none" }, 0);
+      const largeFile = "p".repeat(1_050_000);
+      // 18 × ~2.1 MB (~38 MB raw > 32 MiB single-batch cap, <= 64 MiB cumulative raw cap).
+      const rows = [
+        item(0, {
+          type: "user_message",
+          payload: { content: [{ kind: "text", text: "Prompt" }] },
+        }),
+        ...Array.from({ length: 18 }, (_, offset) =>
+          item(1 + offset, {
+            type: "file_change",
+            state: "completed",
+            payload: {
+              path: `src/locale-${offset}.po`,
+              changeKind: "edit",
+              diffSummary: { added: 1, removed: 1 },
+              status: "completed",
+              editOldText: largeFile,
+              editNewText: largeFile,
+            },
+          }),
+        ),
+      ];
+      await dbReplaceThreadRuntimeItems("thread-1", rows);
+
+      const raw = await buildBoundedThreadSnapshot(
+        context(),
+        "thread-1",
+        negotiation("&projection=details-v1&deferBodies=file_change"),
+        { targetTimelineEntryCount: 20 },
+      );
+      const snapshot = boundedThreadSnapshotSchema.parse(JSON.parse(raw));
+      expect(snapshot.runtimeItems.map((entry) => entry.id)).toEqual(rows.map((row) => row.id));
+      expect(snapshot.runtimeNextCursor).toBeNull();
+      expect(serializedWireByteLength(raw)).toBeLessThan(64 * 1024);
+    });
+
+    it("keeps wire budget enforcement when deferrable-looking file_change rows lack diffSummary", async () => {
+      dbUpsertThread({ ...testThread(), status: "idle", attention: "none" }, 0);
+      const largeFile = "q".repeat(1_000_000);
+      await dbReplaceThreadRuntimeItems("thread-1", [
+        item(0, {
+          type: "user_message",
+          payload: { content: [{ kind: "text", text: "Prompt" }] },
+        }),
+        ...Array.from({ length: 6 }, (_, offset) =>
+          item(1 + offset, {
+            type: "file_change",
+            state: "completed",
+            payload: {
+              path: `src/no-summary-${offset}.ts`,
+              changeKind: "edit",
+              status: "completed",
+              editOldText: largeFile,
+              editNewText: largeFile,
+            },
+          }),
+        ),
+      ]);
+
+      const raw = await buildBoundedThreadSnapshot(
+        context(),
+        "thread-1",
+        negotiation("&projection=details-v1&deferBodies=file_change"),
+        { targetTimelineEntryCount: 20 },
+      );
+      const snapshot = boundedThreadSnapshotSchema.parse(JSON.parse(raw));
+      // Without diffSummary, rows stay ~2 MB each, so the 8 MiB latest-turn wire
+      // budget admits 3-4 rows instead of dumping all 12 MB on the wire.
+      expect(snapshot.runtimeItems.length).toBeGreaterThanOrEqual(1);
+      expect(snapshot.runtimeItems.length).toBeLessThan(6);
+      expect(snapshot.runtimeNextCursor).not.toBeNull();
+      expect(serializedWireByteLength(raw)).toBeLessThanOrEqual(8 * 1024 * 1024);
+    });
+
+    it("never validates a pre-upgrade hc1 cache revision as unchanged", async () => {
+      dbUpsertThread({ ...testThread(), status: "idle", attention: "none" }, 0);
+      await dbReplaceThreadRuntimeItems("thread-1", fileChangeRows(3));
+      const fresh = boundedThreadSnapshotSchema.parse(
+        JSON.parse(
+          await buildBoundedThreadSnapshot(
+            context(),
+            "thread-1",
+            negotiation("&projection=details-v1&deferBodies=file_change"),
+            { historyCache: {} },
+          ),
+        ),
+      );
+      const currentRevision = fresh.historyCache!.revision;
+      expect(currentRevision).toMatch(/^hc2\./u);
+      const legacyHc1Revision = currentRevision.replace(/^hc2\./u, "hc1.");
+
+      const revalidated = boundedThreadSnapshotSchema.parse(
+        JSON.parse(
+          await buildBoundedThreadSnapshot(
+            context(),
+            "thread-1",
+            negotiation("&projection=details-v1&deferBodies=file_change"),
+            { historyCache: { revision: legacyHc1Revision } },
+          ),
+        ),
+      );
+      expect(revalidated.historyCache?.unchanged).toBe(false);
+      expect(revalidated.historyCache?.revision).toBe(currentRevision);
+      expect(revalidated.runtimeItems.length).toBeGreaterThan(0);
     });
   });
 

@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { isThreadTurnActive } from "@/shared/contracts";
 import { readDatabaseAsync } from "@/host/db/asyncReads";
 import { getSqlite } from "@/host/db/connection";
 import { readHistoryCacheRevision } from "@/host/db/historyCacheRevision";
@@ -97,9 +98,14 @@ export async function buildBoundedThreadSnapshot(
         threadId,
         negotiation.noticesDeclared,
       );
+      const currentThread = dbGetThread(threadId) ?? initialThread;
+      const liveThreadStatus =
+        ctx.threadLiveReadState.projectSnapshotRuntime(currentThread).thread.status;
       const input = {
         compactDetails: negotiation.compactDetails === true,
         deferFileChangeBodies: negotiation.deferFileChangeBodies === true,
+        deferUnsettledFileChanges:
+          negotiation.deferFileChangeBodies === true && !isThreadTurnActive(liveThreadStatus),
         includeTerminalScrollback: readsTerminal && !options.omitScrollback,
         completedTurnsLimit: negotiation.completedTurnsLimit,
         targetTimelineEntryCount,
@@ -109,12 +115,14 @@ export async function buildBoundedThreadSnapshot(
         options.historyCache && !readsTerminal
           ? readHistoryCacheRevision(getSqlite(), threadId)
           : undefined;
-      // hc1 versions the projected payload and its selection. A changed bound,
-      // projection or thread incarnation must never validate a different tail.
+      // hc2 versions the projected payload and its selection (bumped from hc1 so
+      // pre-fix cached tails that cut deferred file_change groups never validate
+      // as unchanged). A changed bound, projection or thread incarnation must
+      // never validate a different tail.
       const cacheRevision =
         revision === undefined
           ? undefined
-          : `hc1.${revision}.${createHash("sha256").update(JSON.stringify(input)).digest("hex")}`;
+          : `hc2.${revision}.${createHash("sha256").update(JSON.stringify(input)).digest("hex")}`;
       const unchanged =
         cacheRevision !== undefined && options.historyCache?.revision === cacheRevision;
       const data = unchanged
@@ -277,6 +285,7 @@ export async function buildBoundedThreadHistoryItems(
   runtimeNotice?: RemoteRuntimeHistoryNotice,
   compactDetails = false,
   deferFileChangeBodies = false,
+  threadTurnActive?: boolean,
 ): Promise<string> {
   if (!dbGetThread(input.threadId)) {
     throw new RemoteHttpError("thread_not_found", "Thread not found.", 404);
@@ -287,7 +296,7 @@ export async function buildBoundedThreadHistoryItems(
     return await readRuntimeFenceAsync(fenceToken, () =>
       readDatabaseAsync(
         "boundedItems",
-        [input, caps, runtimeNotice, compactDetails, deferFileChangeBodies],
+        [input, caps, runtimeNotice, compactDetails, deferFileChangeBodies, threadTurnActive],
         () =>
           readBoundedHistoryItems(
             input,
@@ -295,6 +304,7 @@ export async function buildBoundedThreadHistoryItems(
             runtimeNotice,
             compactDetails,
             deferFileChangeBodies,
+            threadTurnActive,
           ),
       ),
     );
