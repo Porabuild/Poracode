@@ -17,7 +17,7 @@ import { manageOpenCodeCredentials } from "./credentials";
 import { opencodeDefaultCapabilities, openCodeDetectionSpec } from "./detection";
 import { readOpenCodeMcpSessionId } from "./mcp";
 import { runOpenCodeOneShot } from "./oneShot";
-import { manageOpenCodePlugins } from "./plugins";
+import { listNativeOpenCodePlugins, manageOpenCodePlugins } from "./plugins";
 import { OpenCodeSession } from "./session";
 import { detectOpenCodeTerminalStatus, opencodeOscHint, opencodeOscTitleHint } from "./terminal";
 import { buildOpenCodeTerminalLaunch } from "./terminalLaunch";
@@ -27,6 +27,7 @@ export function createOpenCodeAdapter(): AgentAdapter {
 
   return {
     managePlugins: manageOpenCodePlugins,
+    listNativePlugins: listNativeOpenCodePlugins,
     manageCredentials: manageOpenCodeCredentials,
     kind: OPENCODE_PROVIDER_KIND,
     label: openCodeDetectionSpec.label,
@@ -103,6 +104,7 @@ export function createOpenCodeAdapter(): AgentAdapter {
         prompt,
         launchOptions?.resumeThreadId ?? _sessionRef?.providerSessionId,
         launchOptions?.mcpServers,
+        launchOptions?.onTerminalStatusUpdate,
       );
     },
     buildResumeArgv(location, config, prompt, sessionRef, launchOptions) {
@@ -112,6 +114,7 @@ export function createOpenCodeAdapter(): AgentAdapter {
         prompt,
         sessionRef.providerSessionId,
         launchOptions?.mcpServers,
+        launchOptions?.onTerminalStatusUpdate,
       );
     },
     createInitialSessionRef() {
@@ -121,14 +124,14 @@ export function createOpenCodeAdapter(): AgentAdapter {
 
     // ── Structured session (V2 HTTP server for both modes) ──────────────
     //
-    // Terminal mode (default): runtime calls `activate()` + `openThread()`,
-    // captures the returned session id into `launchOptions.resumeThreadId`,
-    // then releases its preparation acquisition. Terminal argv acquires its
-    // own lease before that release and passes `--server` + `--session`, so the
-    // TUI keeps the same configured backend until its PTY cleanup runs.
+    // GUI mode (default): handle stays alive for the thread's lifetime; the
+    // shared SSE stream routes V2 events through `eventMapping` into chat items.
     //
-    // GUI mode: same handle stays alive for the thread's lifetime; the shared
-    // SSE stream routes V2 events through `eventMapping` into chat items.
+    // Terminal mode: runtime calls `activate()` + `openThread()`, captures the
+    // returned session id into `launchOptions.resumeThreadId`, then releases
+    // its preparation acquisition. Terminal argv acquires its own lease before
+    // that release and passes `--server` + `--session`, keeping dynamic MCP
+    // permissions and L1 SSE status synced until its PTY cleanup runs.
     async createStructuredSession(input: CreateStructuredSessionInput) {
       return OpenCodeSession.create(input);
     },

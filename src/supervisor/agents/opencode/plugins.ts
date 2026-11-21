@@ -1,3 +1,4 @@
+import { basename, posix, win32 } from "node:path";
 import { awaitOpenCodeActivation } from "./readiness";
 import { readOpenCodeTerminalPackages } from "./terminalPluginConfig";
 import type {
@@ -5,12 +6,92 @@ import type {
   ManageAgentPluginsPayload,
   ManageAgentPluginsResult,
 } from "@/shared/contracts";
-import { detectProbeLocation, readAgentCommandOutput } from "../base";
+import {
+  detectProbeLocation,
+  readAgentCommandOutput,
+  type AgentEnvContext,
+  type AgentNativePlugin,
+} from "../base";
 import { resolveOpenCodeBinary } from "./binary";
 import { acquireOpenCodeServer } from "./client";
 import type { PluginInfo } from "./clientTypes";
 
 const operations = new Map<string, Promise<unknown>>();
+
+function stripNpmPackageVersionSpecifier(target: string): string {
+  const trimmed = target.trim();
+  if (!trimmed) return "";
+  if (trimmed.startsWith("@")) {
+    const slashIndex = trimmed.indexOf("/");
+    if (slashIndex < 0) return trimmed;
+    const versionAtIndex = trimmed.indexOf("@", slashIndex + 1);
+    return versionAtIndex < 0 ? trimmed : trimmed.slice(0, versionAtIndex);
+  }
+  const versionAtIndex = trimmed.indexOf("@");
+  return versionAtIndex < 0 ? trimmed : trimmed.slice(0, versionAtIndex);
+}
+
+/**
+ * Normalize active OpenCode native plugins (local directories and npm package
+ * plugins) into Poracode `AgentNativePlugin` descriptors so Poracode's plugin
+ * and skill pipeline can recognize plugins already loaded by OpenCode.
+ */
+export function openCodeNativePlugins(
+  plugins: readonly PluginInfo[],
+  packageRoots?: ReadonlyMap<string, string>,
+): AgentNativePlugin[] {
+  const entries: AgentNativePlugin[] = [];
+  const seen = new Set<string>();
+  const add = (name: string | undefined, root: string | undefined) => {
+    const trimmedName = name?.trim();
+    const trimmedRoot = root?.trim();
+    if (!trimmedName || !trimmedRoot) return;
+    const key = `${trimmedName}\0${trimmedRoot}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    entries.push({ name: trimmedName, root: trimmedRoot });
+  };
+
+  for (const plugin of plugins) {
+    if (plugin.state.status !== "active") continue;
+    if (plugin.source.type === "local") {
+      const root = plugin.source.path;
+      const folderName = (root.includes("\\") ? win32 : posix).basename(
+        root.replace(/[\\/]+$/u, ""),
+      );
+      add(plugin.id, root);
+      add(folderName, root);
+      continue;
+    }
+    if (plugin.source.type === "package") {
+      const packageName = stripNpmPackageVersionSpecifier(plugin.source.target);
+      const root =
+        packageRoots?.get(plugin.source.target) ?? packageRoots?.get(packageName) ?? packageName;
+      const unscopedName = packageName.includes("/") ? basename(packageName) : packageName;
+      add(packageName, root);
+      add(unscopedName, root);
+      add(plugin.id, root);
+    }
+  }
+  return entries;
+}
+
+export async function listNativeOpenCodePlugins(
+  ctx: AgentEnvContext,
+): Promise<readonly AgentNativePlugin[]> {
+  const location = detectProbeLocation(ctx);
+  const binary = await resolveOpenCodeBinary(location, ctx.signal);
+  if (!binary) return [];
+  const acquired = await acquireOpenCodeServer({ projectLocation: location });
+  try {
+    const options = { signal: ctx.signal ?? AbortSignal.timeout(15_000) };
+    await awaitOpenCodeActivation(acquired.client, undefined, options);
+    const result = await acquired.client.plugin.list(undefined, options);
+    return openCodeNativePlugins(result.data);
+  } finally {
+    await acquired.dispose({ closeServerIfIdle: true });
+  }
+}
 
 /** Native package entries only: local and built-in plugins cannot be removed with plugin remove. */
 export function openCodePluginPackages(plugins: PluginInfo[]): AgentPluginPackage[] {

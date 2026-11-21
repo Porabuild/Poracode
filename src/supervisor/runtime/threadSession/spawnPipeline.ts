@@ -1069,6 +1069,7 @@ export class SpawnPipeline {
       structuredSession?.launchOptions,
       resolvedMcpServers,
       executionLocation,
+      payload.threadId,
     );
     const argv = payload.sessionRef
       ? await adapter.buildResumeArgv(
@@ -1500,6 +1501,7 @@ export class SpawnPipeline {
         structuredSession?.launchOptions,
         resolvedMcpServers,
         executionLocation,
+        session.threadId,
       ),
     );
     if (cliHookExtras.extraArgs.length > 0) {
@@ -1823,11 +1825,28 @@ export class SpawnPipeline {
     launchOptions: AgentLaunchOptions | undefined,
     mcpServers: readonly ResolvedMcpServer[],
     location?: ProjectLocation,
+    threadId?: string,
   ): AgentLaunchOptions {
     return {
       ...(launchOptions ?? {}),
       agentSettings: this.ctx.resolveAgentSettings(adapter, location),
       ...(mcpServers.length > 0 ? { mcpServers } : {}),
+      ...(threadId
+        ? {
+            onTerminalStatusUpdate: (change: {
+              status: ThreadStatus;
+              attention: ThreadAttention;
+            }) => {
+              if (this.ctx.options.readDisableCliHookPlugin()) return;
+              const target = this.ctx.sessions.get(threadId);
+              if (!target || target.ignoreExit) return;
+              target.hasCliHookPluginActivity = true;
+              target.lastCliHookPluginActivityAt = Date.now();
+              this.ctx.cliHookPlugin.noteCliHookPluginActivity(target);
+              this.ctx.cliHookPlugin.applyCliHookPluginState(target, change);
+            },
+          }
+        : {}),
     };
   }
 

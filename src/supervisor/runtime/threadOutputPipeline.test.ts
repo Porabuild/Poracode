@@ -164,6 +164,50 @@ describe("ThreadOutputPipeline / CLI hook disables L2", () => {
     expect(detectTerminalStatus).not.toHaveBeenCalled();
   });
 
+  it("runs terminal readiness and terminal status detection for dual-mode providers opened in terminal mode", () => {
+    const onStartQueuedLaunchPrompt = vi.fn<(session: SessionRuntime) => void>();
+    const p = new ThreadOutputPipeline({
+      emit: vi.fn<() => void>(),
+      isDev: false,
+      logWriter: { append: vi.fn<() => void>() } as never,
+      resolveLogPath: () => "",
+      resolveHintLogPath: () => "",
+      readDisableCliHookPlugin: () => false,
+      onRecoverInvalidSessionRef: vi.fn<() => void>(),
+      onStartQueuedLaunchPrompt,
+      onStartSessionRefDiscovery: vi.fn<() => void>(),
+    });
+    const detectTerminalStatus = vi.fn<
+      () => { status: "needs_reply"; attention: "needs_reply"; corroborated: true }
+    >(() => ({
+      status: "needs_reply",
+      attention: "needs_reply",
+      corroborated: true,
+    }));
+    const session = {
+      threadId: "t1",
+      status: "launching",
+      attention: "none",
+      presentationMode: "terminal",
+      config: {},
+      pendingLaunchPrompt: "Hello from CLI",
+      prevChunk: "",
+      outputLength: 0,
+      adapter: {
+        capabilities: { presentationMode: "gui" },
+        isReadyForInitialPrompt: () => true,
+        detectTerminalStatus,
+      },
+      pty: { write: vi.fn<(data: string) => void>() },
+    } as unknown as SessionRuntime;
+
+    p.handlePtyData(session, "Ask anything");
+
+    expect(onStartQueuedLaunchPrompt).toHaveBeenCalledExactlyOnceWith(session);
+    expect(detectTerminalStatus).toHaveBeenCalled();
+    expect(session.status).toBe("needs_reply");
+  });
+
   it("allows hook-active terminal fallback when the adapter opts into an attention hint", () => {
     const p = pipeline();
     const detectTerminalStatus = vi.fn<
@@ -693,6 +737,22 @@ describe("ThreadOutputPipeline / invalid session-ref detection on launch", () =>
     expect(onRecoverInvalidSessionRef).toHaveBeenCalledExactlyOnceWith(session);
     // The recovery path must return before the launching→idle flip — a session
     // flipped idle here would spawn the replacement from the wrong state.
+    expect(session.status).toBe("launching");
+  });
+
+  it("recovers when a dual-mode provider defaults to GUI but the session is opened in terminal mode", () => {
+    const { p, onRecoverInvalidSessionRef } = recoveryPipeline();
+    const session = launchingSession({
+      presentationMode: "terminal",
+      adapter: {
+        capabilities: { presentationMode: "gui" },
+        detectInvalidSessionRef: (text: string) => text.includes("No conversation found"),
+      },
+    });
+
+    p.handlePtyData(session, "Error: No conversation found with session ID sess-1\r\n");
+
+    expect(onRecoverInvalidSessionRef).toHaveBeenCalledExactlyOnceWith(session);
     expect(session.status).toBe("launching");
   });
 

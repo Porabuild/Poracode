@@ -6,12 +6,14 @@ import { createOpenCodeAdapter } from ".";
 import { createKnownSessionRef } from "../base";
 import { buildOpenCodeArgs, buildOpenCodeServerCommand } from "./argv";
 import { acquireOpenCodeServer } from "./client";
+import type { V2Event } from "./clientTypes";
 import { clearOpenCodeSessionDatabases, rememberOpenCodeSessionDatabase } from "./database";
 import {
   buildOpenCodeCapabilityPartialFromInventory,
   openCodeDetectionSpec,
   type OpenCodeInventory,
 } from "./detection";
+import { subscribeOpenCodeServerEvents } from "./eventHub";
 import { OpenCodeSession } from "./session";
 import { detectOpenCodeTerminalStatus, opencodeOscHint, opencodeOscTitleHint } from "./terminal";
 
@@ -26,17 +28,37 @@ vi.mock("./client", async (importOriginal) => ({
   acquireOpenCodeServer: vi.fn<typeof acquireOpenCodeServer>(),
 }));
 
+vi.mock("./eventHub", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./eventHub")>()),
+  subscribeOpenCodeServerEvents: vi.fn<typeof subscribeOpenCodeServerEvents>(),
+}));
+
 const disposeTerminalServer = vi.fn<() => Promise<void>>();
 const interruptTerminalSession = vi.fn<() => Promise<void>>();
+const updateTerminalSession = vi.fn<() => Promise<void>>();
+const unsubscribeTerminalEvents = vi.fn<() => void>();
 beforeEach(() => {
   disposeTerminalServer.mockReset().mockResolvedValue(undefined);
   interruptTerminalSession.mockReset().mockResolvedValue(undefined);
+  updateTerminalSession.mockReset().mockResolvedValue(undefined);
+  unsubscribeTerminalEvents.mockReset();
+  vi.mocked(subscribeOpenCodeServerEvents).mockReset().mockReturnValue(unsubscribeTerminalEvents);
   vi.mocked(acquireOpenCodeServer)
     .mockReset()
     .mockResolvedValue({
       baseUrl: "http://127.0.0.1:4300",
       handle: { password: Promise.resolve("fixture-password") },
-      client: { session: { interrupt: interruptTerminalSession } },
+      client: {
+        session: {
+          interrupt: interruptTerminalSession,
+          update: updateTerminalSession,
+        },
+        event: {
+          subscribe: vi.fn<() => void>(),
+        },
+      },
+      getDirectoryMcpNames: () => [],
+      onDirectoryMcpChanged: () => () => undefined,
       dispose: disposeTerminalServer,
     } as unknown as Awaited<ReturnType<typeof acquireOpenCodeServer>>);
 });
@@ -414,6 +436,7 @@ describe("createOpenCodeAdapter", () => {
     expect(adapter.label).toBe("OpenCode");
     expect(adapter.binary).toBe("opencode");
     expect(adapter.poolsDirectoryMcp).toBe(true);
+    expect(adapter.listNativePlugins).toBeTypeOf("function");
     expect(adapter.update?.latestVersionUrls).toEqual([
       "https://registry.npmjs.org/@opencode%2Fcli/latest",
     ]);
@@ -438,16 +461,17 @@ describe("createOpenCodeAdapter", () => {
     });
   });
 
-  it("ships dynamic per-thread MCP defaults with native one-shot support and no hook plugin", () => {
+  it("ships GUI default presentation, dynamic per-thread MCP defaults, and native one-shot support", () => {
     const adapter = createOpenCodeAdapter();
     expect(adapter.capabilities).toMatchObject({
+      presentationMode: "gui",
+      presentationModes: ["terminal", "gui"],
       defaultApprovalPolicy: "yolo",
       bypassPermissions: { approvalPolicy: "yolo" },
       mcpScope: { terminal: "launch", gui: "always" },
       crossagentMcpRouting: "provider-session",
       supportsResume: true,
       supportsOneShot: true,
-      presentationModes: ["terminal", "gui"],
     });
     expect(adapter.capabilities.mcpConfigSource).toBeUndefined();
     expect(adapter.pluginId).toBeUndefined();
@@ -651,5 +675,142 @@ describe("createOpenCodeAdapter", () => {
       ),
     ).rejects.toThrow("password unavailable");
     expect(disposeTerminalServer).toHaveBeenCalledOnce();
+  });
+
+  it("dynamically refreshes terminal session permissions when sibling threads change directory MCPs", async () => {
+    let directoryListeners: Array<() => void> = [];
+    let directoryNames = ["poracode", "browser"];
+    const unsubscribeMcp = vi.fn<() => void>();
+    vi.mocked(acquireOpenCodeServer).mockResolvedValueOnce({
+      baseUrl: "http://127.0.0.1:4300",
+      handle: { password: Promise.resolve("fixture-password") },
+      client: {
+        session: {
+          interrupt: interruptTerminalSession,
+          update: updateTerminalSession,
+        },
+        event: {
+          subscribe: vi.fn<() => void>(),
+        },
+      },
+      getDirectoryMcpNames: () => directoryNames,
+      onDirectoryMcpChanged: (listener: () => void) => {
+        directoryListeners.push(listener);
+        return unsubscribeMcp;
+      },
+      dispose: disposeTerminalServer,
+    } as unknown as Awaited<ReturnType<typeof acquireOpenCodeServer>>);
+
+    const location = { kind: "posix" as const, path: "/repo" };
+    rememberOpenCodeSessionDatabase(location, "ses_terminal", "native");
+    const launch = await createOpenCodeAdapter().buildLaunchArgv(
+      location,
+      { model: "", approvalPolicy: "yolo" },
+      "",
+      undefined,
+      {
+        resumeThreadId: "ses_terminal",
+        mcpServers: [
+          {
+            id: "app-controls",
+            name: "poracode",
+            timeoutMs: 30_000,
+            transport: { type: "http", url: "http://127.0.0.1:9/mcp", headers: {} },
+          },
+        ],
+      },
+    );
+
+    expect(directoryListeners).toHaveLength(1);
+    directoryListeners[0]?.();
+    await Promise.resolve();
+    expect(updateTerminalSession).toHaveBeenCalledWith({
+      sessionID: "ses_terminal",
+      permissions: [
+        { action: "*", resource: "*", effect: "allow" },
+        { action: "question", resource: "*", effect: "allow" },
+        { action: "browser_*", resource: "*", effect: "deny" },
+      ],
+    });
+
+    // Duplicate notifications with identical permissions are deduped.
+    directoryListeners[0]?.();
+    await Promise.resolve();
+    expect(updateTerminalSession).toHaveBeenCalledTimes(1);
+
+    // Sibling thread adds chrome MCP; terminal session denies chrome_* dynamically.
+    directoryNames = ["poracode", "browser", "chrome"];
+    directoryListeners[0]?.();
+    await Promise.resolve();
+    expect(updateTerminalSession).toHaveBeenCalledTimes(2);
+    expect(updateTerminalSession).toHaveBeenLastCalledWith({
+      sessionID: "ses_terminal",
+      permissions: [
+        { action: "*", resource: "*", effect: "allow" },
+        { action: "question", resource: "*", effect: "allow" },
+        { action: "browser_*", resource: "*", effect: "deny" },
+        { action: "chrome_*", resource: "*", effect: "deny" },
+      ],
+    });
+
+    await launch.cleanup?.();
+    expect(unsubscribeMcp).toHaveBeenCalledOnce();
+  });
+
+  it("streams L1 terminal status updates from the pooled server SSE hub and unsubscribes on cleanup", async () => {
+    const location = { kind: "posix" as const, path: "/repo" };
+    rememberOpenCodeSessionDatabase(location, "ses_terminal", "native");
+    const statusUpdates: Array<{ status: string; attention: string }> = [];
+    const launch = await createOpenCodeAdapter().buildLaunchArgv(
+      location,
+      { model: "", approvalPolicy: "default" },
+      "",
+      undefined,
+      {
+        resumeThreadId: "ses_terminal",
+        onTerminalStatusUpdate: (change) => statusUpdates.push(change),
+      },
+    );
+
+    expect(subscribeOpenCodeServerEvents).toHaveBeenCalledOnce();
+    const sub = vi.mocked(subscribeOpenCodeServerEvents).mock.calls[0]?.[0]?.subscription;
+    expect(sub?.sessionId()).toBe("ses_terminal");
+
+    sub?.onEvent({
+      type: "session.execution.started",
+      data: { sessionID: "ses_terminal" },
+    } as unknown as V2Event);
+    sub?.onEvent({
+      type: "permission.asked",
+      data: { id: "perm_1", sessionID: "ses_terminal" },
+    } as unknown as V2Event);
+    sub?.onEvent({
+      type: "form.created",
+      data: { form: { id: "form_1", sessionID: "ses_terminal" } },
+    } as unknown as V2Event);
+    sub?.onEvent({
+      type: "permission.replied",
+      data: { requestID: "perm_1", sessionID: "ses_terminal" },
+    } as unknown as V2Event);
+    sub?.onEvent({
+      type: "form.replied",
+      data: { id: "form_1", sessionID: "ses_terminal" },
+    } as unknown as V2Event);
+    sub?.onEvent({
+      type: "session.idle",
+      data: { sessionID: "ses_terminal" },
+    } as unknown as V2Event);
+
+    expect(statusUpdates).toEqual([
+      { status: "working", attention: "working" },
+      { status: "needs_approval", attention: "needs_approval" },
+      { status: "needs_approval", attention: "needs_approval" },
+      { status: "needs_reply", attention: "needs_reply" },
+      { status: "working", attention: "working" },
+      { status: "idle", attention: "none" },
+    ]);
+
+    await launch.cleanup?.();
+    expect(unsubscribeTerminalEvents).toHaveBeenCalledOnce();
   });
 });

@@ -46,10 +46,10 @@ export const opencodeDefaultCapabilities: AgentCapability = {
   reportsSkillCatalog: true,
   supportsDirectInput: true,
   liveInputMode: "terminal",
-  presentationMode: "terminal",
-  // GUI presentation runs on the V2 HTTP server (long-lived `opencode serve`
-  // + SSE stream); terminal stays the default and reuses the same pooled
-  // server for session-id allocation.
+  presentationMode: "gui",
+  // GUI presentation is the default and runs on the V2 HTTP server (long-lived
+  // `opencode serve` + SSE stream); terminal mode reuses the same pooled
+  // server for session-id allocation, dynamic MCP sync, and L1 status events.
   presentationModes: ["terminal", "gui"],
   defaultApprovalPolicy: "yolo",
   bypassPermissions: { approvalPolicy: "yolo" },

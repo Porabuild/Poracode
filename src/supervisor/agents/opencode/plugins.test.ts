@@ -18,7 +18,9 @@ vi.mock("./binary", () => ({
 vi.mock("./client", () => ({ acquireOpenCodeServer: mocks.acquire }));
 vi.mock("./terminalPluginConfig", () => ({ readOpenCodeTerminalPackages: mocks.terminal }));
 import {
+  listNativeOpenCodePlugins,
   manageOpenCodePlugins,
+  openCodeNativePlugins,
   openCodePluginPackages,
   validateOpenCodePluginTarget,
 } from "./plugins";
@@ -126,6 +128,53 @@ describe("OpenCode native plugin manager", () => {
       manageOpenCodePlugins({ env: { kind: "native" }, action: "list" }),
     ).rejects.toThrow("offline");
     expect(dispose).toHaveBeenCalledOnce();
+  });
+
+  it("extracts active local and package plugins for native plugin discovery", () => {
+    const localPlugin: PluginInfo = {
+      id: "github-tools",
+      source: { type: "local", path: "/workspace/.opencode/plugins/github" },
+      features: { server: true, tui: true },
+      state: { status: "active" },
+    };
+    const failedPlugin: PluginInfo = {
+      id: "broken",
+      source: { type: "package", target: "@vendor/broken@1.0.0", version: "1.0.0" },
+      features: { server: true, tui: true },
+      state: { status: "failed", error: "load error" },
+    };
+    expect(
+      openCodeNativePlugins([
+        localPlugin,
+        plugin,
+        failedPlugin,
+        { ...plugin, source: { type: "builtin" } },
+      ]),
+    ).toEqual([
+      { name: "github-tools", root: "/workspace/.opencode/plugins/github" },
+      { name: "github", root: "/workspace/.opencode/plugins/github" },
+      { name: "@vendor/goal", root: "@vendor/goal" },
+      { name: "goal", root: "@vendor/goal" },
+    ]);
+  });
+
+  it("queries the OpenCode server for native plugins and disposes cleanly", async () => {
+    const { list, dispose } = setup();
+    const result = await listNativeOpenCodePlugins({
+      envKind: "posix",
+    });
+    expect(result).toEqual([
+      { name: "@vendor/goal", root: "@vendor/goal" },
+      { name: "goal", root: "@vendor/goal" },
+    ]);
+    expect(list).toHaveBeenCalled();
+    expect(dispose).toHaveBeenCalledWith({ closeServerIfIdle: true });
+  });
+
+  it("returns empty native plugins when the OpenCode binary is unavailable", async () => {
+    mocks.resolve.mockResolvedValueOnce(undefined);
+    await expect(listNativeOpenCodePlugins({ envKind: "posix" })).resolves.toEqual([]);
+    expect(mocks.acquire).not.toHaveBeenCalled();
   });
 });
 

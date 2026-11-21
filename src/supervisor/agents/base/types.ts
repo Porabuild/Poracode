@@ -88,6 +88,11 @@ export interface AgentLaunchOptions {
   resumeThreadId?: string;
   agentSettings?: Record<string, boolean | string>;
   mcpServers?: readonly ResolvedMcpServer[];
+  /**
+   * Authoritative L1 status callback for terminal (CLI) launches backed by a
+   * provider sidecar stream (e.g. `opencode serve` SSE events).
+   */
+  onTerminalStatusUpdate?: (change: { status: ThreadStatus; attention: ThreadAttention }) => void;
 }
 
 export interface StructuredSessionUpdate {
