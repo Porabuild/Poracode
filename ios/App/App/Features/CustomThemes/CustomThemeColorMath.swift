@@ -21,9 +21,11 @@ enum CustomThemeColorMath {
     return String(format: "#%02x%02x%02x", components[0], components[1], components[2])
   }
 
-  static func muted(_ palette: CustomThemePalette) -> String? {
-    let tintedPanel = mix(palette.fg, palette.surface, fraction: 0.06) ?? palette.surface
-    let panel = (contrast(palette.fg, tintedPanel) ?? 0) >= 9 ? tintedPanel : palette.surface
+  static func muted(_ palette: CustomThemePalette, mode: String = "light") -> String? {
+    let isDark = mode == "dark"
+    let tintedPanel = mix(palette.fg, palette.surface, fraction: isDark ? 0.06 : 0.085) ?? palette.surface
+    let readablePanel = (contrast(palette.fg, tintedPanel) ?? 0) >= 9 ? tintedPanel : palette.surface
+    let panel = isDark ? (mix("#000000", readablePanel, fraction: 0.05) ?? readablePanel) : readablePanel
     let targets: [(String, Double)] = [
       (palette.bg, 4.5),
       (palette.content ?? palette.bg, 4.5),
@@ -40,12 +42,12 @@ enum CustomThemeColorMath {
     return mix(palette.fg, palette.bg, fraction: 0.85)
   }
 
-  static func ratios(_ palette: CustomThemePalette) -> [String: Double] {
+  static func ratios(_ palette: CustomThemePalette, mode: String = "light") -> [String: Double] {
     var result: [String: Double] = [:]
     result["content"] = contrast(palette.fg, palette.content ?? palette.bg)
     result["surface"] = contrast(palette.fg, palette.surface)
     result["sidebar"] = contrast(palette.fg, palette.sidebar ?? palette.surface)
-    if (try? palette.validate()) != nil, let secondary = muted(palette) {
+    if (try? palette.validate()) != nil, let secondary = muted(palette, mode: mode) {
       result["muted"] = contrast(secondary, palette.content ?? palette.bg)
     }
     if let composer = palette.composer { result["composer"] = contrast(palette.fg, composer) }

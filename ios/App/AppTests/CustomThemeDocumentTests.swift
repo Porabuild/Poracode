@@ -7,7 +7,7 @@ final class CustomThemeDocumentTests: XCTestCase {
   private struct Fixture: Decodable {
     struct Document: Decodable { let id: String; let json: String; let expected: JSONValue? }
     struct Hex: Decodable { let value: String; let valid: Bool }
-    struct Palette: Decodable { let id: String; let palette: JSONValue; let ratios: [String: Double?]; let muted: String? }
+    struct Palette: Decodable { let id: String; let mode: String?; let palette: JSONValue; let ratios: [String: Double?]; let muted: String? }
     let formatVersion: Int; let maximumBytes: Int; let maximumThemes: Int
     let documents: [Document]; let hex: [Hex]; let palettes: [Palette]
   }
@@ -42,12 +42,13 @@ final class CustomThemeDocumentTests: XCTestCase {
   func testNativeContrastAndMutedDerivationMatchThePWA() throws {
     for sample in try fixture().palettes {
       let palette = try palette(sample.palette)
-      let actual = CustomThemeColorMath.ratios(palette)
+      let mode = sample.mode ?? "light"
+      let actual = CustomThemeColorMath.ratios(palette, mode: mode)
       for (key, expected) in sample.ratios {
         if let expected { XCTAssertEqual(try XCTUnwrap(actual[key]), expected, accuracy: 1e-12, sample.id + ":" + key) }
         else { XCTAssertNil(actual[key], sample.id + ":" + key) }
       }
-      if let expected = sample.muted { XCTAssertEqual(CustomThemeColorMath.muted(palette), expected, sample.id) }
+      if let expected = sample.muted { XCTAssertEqual(CustomThemeColorMath.muted(palette, mode: mode), expected, sample.id) }
     }
   }
 

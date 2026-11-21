@@ -86,7 +86,7 @@ struct CustomThemeSettingsView: View {
   }
 
   private func row(_ theme: NativeCustomTheme) -> some View {
-    let variant = (colorScheme == .dark ? theme.document.dark : theme.document.light).nativeVariant
+    let variant = colorScheme == .dark ? theme.document.dark.nativeVariant(mode: "dark") : theme.document.light.nativeVariant(mode: "light")
     return HStack(spacing: 12) {
       ThemeSwatch(variant: variant)
       Text(verbatim: theme.document.label).foregroundStyle(.primary)
