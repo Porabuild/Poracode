@@ -90,9 +90,19 @@ describe("slimDeferredFileChange", () => {
     expect(slimDeferredFileChange(item)).toBe(item);
   });
 
-  it("never touches running rows or other item types", () => {
-    const running = fileChange({ ...header, editOldText: BIG }, { state: "started" });
-    expect(slimDeferredFileChange(running)).toBe(running);
+  it("never touches running rows by default, but defers historical unsettled rows when allowed", () => {
+    const started = fileChange({ ...header, editOldText: BIG }, { state: "started" });
+    const updated = fileChange({ ...header, editOldText: BIG }, { state: "updated" });
+    expect(slimDeferredFileChange(started)).toBe(started);
+    expect(slimDeferredFileChange(updated)).toBe(updated);
+
+    const slimStarted = slimDeferredFileChange(started, { allowUnsettled: true });
+    const slimUpdated = slimDeferredFileChange(updated, { allowUnsettled: true });
+    expect(slimStarted.detailsDeferred).toBe(true);
+    expect(slimStarted.payload).toEqual(header);
+    expect(slimUpdated.detailsDeferred).toBe(true);
+    expect(slimUpdated.payload).toEqual(header);
+
     const command = fileChange(
       { ...header, editOldText: BIG },
       {
@@ -100,6 +110,7 @@ describe("slimDeferredFileChange", () => {
       },
     );
     expect(slimDeferredFileChange(command)).toBe(command);
+    expect(slimDeferredFileChange(command, { allowUnsettled: true })).toBe(command);
   });
 });
 

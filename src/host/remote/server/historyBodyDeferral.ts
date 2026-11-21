@@ -40,8 +40,21 @@ const COLLAPSED_ROW_VALUE_MAX_BYTES = 16 * 1024;
  */
 export const DEFERRED_FILE_CHANGE_PACKING_BYTES = 4096;
 
-export function isDeferrableFileChangeRow(type: string, state: string): boolean {
-  return type === "file_change" && state === "completed";
+export interface FileChangeDeferralOptions {
+  /**
+   * Permit deferring non-completed (`started`/`updated`) `file_change` rows.
+   * Safe whenever the row is historical (the thread is not turn-active or the
+   * row belongs to a prior turn), so no live update can merge into it.
+   */
+  readonly allowUnsettled?: boolean;
+}
+
+export function isDeferrableFileChangeRow(
+  type: string,
+  state: string,
+  options?: FileChangeDeferralOptions,
+): boolean {
+  return type === "file_change" && (state === "completed" || options?.allowUnsettled === true);
 }
 
 function hasDiffSummary(payload: Record<string, unknown>): boolean {
@@ -55,8 +68,11 @@ function serializedBytes(value: unknown): number {
   return Buffer.byteLength(JSON.stringify(value), "utf8");
 }
 
-export function slimDeferredFileChange(item: HistoryRuntimeItem): HistoryRuntimeItem {
-  if (!isDeferrableFileChangeRow(item.type, item.state)) return item;
+export function slimDeferredFileChange(
+  item: HistoryRuntimeItem,
+  options?: FileChangeDeferralOptions,
+): HistoryRuntimeItem {
+  if (!isDeferrableFileChangeRow(item.type, item.state, options)) return item;
   const payload = item.payload;
   if (typeof payload !== "object" || payload === null || Array.isArray(payload)) return item;
   const record = payload as Record<string, unknown>;

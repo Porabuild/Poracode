@@ -1,3 +1,5 @@
+import { isThreadTurnActive } from "@/shared/contracts";
+import { getSqlite } from "@/host/db/connection";
 import { dbGetThreadTerminalScrollback } from "@/host/db/terminalScrollback";
 import { dbReadCompletedTurnPhase1, dbReadCompletedTurnPhase2 } from "@/host/db/completedTurnPages";
 import { dbReadThreadHistoryPagePhase1 } from "@/host/db/historyReads";
@@ -32,6 +34,7 @@ export function readBoundedHistorySnapshotData(
   input: {
     readonly compactDetails: boolean;
     readonly deferFileChangeBodies?: boolean;
+    readonly deferUnsettledFileChanges?: boolean;
     readonly includeTerminalScrollback: boolean;
     readonly completedTurnsLimit: number;
     readonly targetTimelineEntryCount: number;
@@ -56,6 +59,7 @@ export function readBoundedHistorySnapshotData(
     {
       compactDetails: input.compactDetails,
       deferFileChangeBodies: input.deferFileChangeBodies === true,
+      deferUnsettledFileChanges: input.deferUnsettledFileChanges === true,
       protectLatestTurn: true,
     },
   );
@@ -92,9 +96,10 @@ export function readBoundedHistoryItems(
   runtimeNotice: RemoteRuntimeHistoryNotice | undefined,
   compactDetails: boolean,
   deferFileChangeBodies = false,
+  threadTurnActive?: boolean,
 ): string {
-  if (!dbGetThread(input.threadId))
-    throw new RemoteHttpError("thread_not_found", "Thread not found.", 404);
+  const thread = dbGetThread(input.threadId);
+  if (!thread) throw new RemoteHttpError("thread_not_found", "Thread not found.", 404);
   const soft = Math.min(HISTORY_ITEMS_SOFT_PACK_WIRE_BYTES, caps.maxWireBytes);
   const phase1 = dbReadThreadHistoryPagePhase1(input.threadId, {
     ...(compactDetails ? { compactDetails: true } : {}),
@@ -104,6 +109,12 @@ export function readBoundedHistoryItems(
       ? { targetTimelineEntryCount: input.targetTimelineEntryCount }
       : {}),
   });
+  const isTurnActive = threadTurnActive ?? isThreadTurnActive(thread.status);
+  const deferUnsettledFileChanges =
+    deferFileChangeBodies &&
+    (!isTurnActive ||
+      (input.beforePosition !== undefined &&
+        isStrictlyBeforeLatestUserMessage(input.threadId, input.beforePosition)));
   const { keptMeta, projectedDesc } = readProjectedHistoryWindow(
     input.threadId,
     phase1.rows,
@@ -113,6 +124,7 @@ export function readBoundedHistoryItems(
     {
       compactDetails,
       deferFileChangeBodies,
+      deferUnsettledFileChanges,
       protectLatestTurn: input.beforePosition === undefined,
     },
   );
@@ -194,4 +206,16 @@ export function readBoundedCompletedTurnPage(input: {
     );
   }
   return trimmed.body;
+}
+
+function isStrictlyBeforeLatestUserMessage(threadId: string, beforePosition: number): boolean {
+  const row = getSqlite()
+    .prepare(
+      `SELECT position FROM thread_runtime_items
+       WHERE thread_id = ? AND type = 'user_message' AND parent_item_id IS NULL
+       ORDER BY position DESC
+       LIMIT 1`,
+    )
+    .get(threadId) as { position: number } | undefined;
+  return row !== undefined && beforePosition <= row.position;
 }

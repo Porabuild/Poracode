@@ -1,3 +1,5 @@
+import { isThreadTurnActive } from "@/shared/contracts";
+import { dbGetThread } from "@/host/db/projectsThreads";
 import {
   CATALOG_READS_CAPABILITY,
   HistoryCursorError,
@@ -165,6 +167,10 @@ export async function handleBoundedThreadHistoryItems(call: HttpRouteCall): Prom
   const targetTimelineEntryCount = parseTargetTimelineEntryCount(
     url.searchParams.get("targetTimelineEntryCount"),
   );
+  const threadRow = dbGetThread(threadId);
+  const threadTurnActive = threadRow
+    ? isThreadTurnActive(ctx.threadLiveReadState.projectSnapshotRuntime(threadRow).thread.status)
+    : undefined;
   await writeBoundedHistoryResponse(call, () =>
     buildBoundedThreadHistoryItems(
       {
@@ -177,6 +183,7 @@ export async function handleBoundedThreadHistoryItems(call: HttpRouteCall): Prom
       runtimeNotice,
       negotiation.compactDetails,
       negotiation.deferFileChangeBodies,
+      threadTurnActive,
     ),
   );
 }
