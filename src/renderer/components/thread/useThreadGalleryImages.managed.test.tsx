@@ -393,7 +393,8 @@ it("updates a mounted gallery and lightbox with every image from one tool row", 
     </AppProvider>,
   );
   expect(document.querySelector("[data-images-dock]")).toHaveTextContent("3");
-  fireEvent.click(screen.getByRole("button", { name: "Open image 3 of 3" }));
+  const dockView = within(document.querySelector("[data-images-dock]") as HTMLElement);
+  fireEvent.click(dockView.getByRole("button", { name: "Open image 3 of 3" }));
   expect(screen.getByText("3 / 3")).toBeInTheDocument();
 });
 
