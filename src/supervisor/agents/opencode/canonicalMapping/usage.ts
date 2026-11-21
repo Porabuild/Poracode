@@ -50,6 +50,10 @@ function sumTokenBuckets(buckets: ReadonlyArray<number | undefined>): number | u
  * is the provider message id, giving the ledger exact-once dedup across
  * replayed snapshots.
  */
+function readSafeNonNegativeInteger(value: unknown): number | undefined {
+  return typeof value === "number" && Number.isSafeInteger(value) && value >= 0 ? value : undefined;
+}
+
 export function createOpenCodeUsageSpentEvent(
   threadId: string,
   info: unknown,
@@ -65,16 +69,42 @@ export function createOpenCodeUsageSpentEvent(
   const tok = tokens as Record<string, unknown>;
   const cache =
     tok.cache && typeof tok.cache === "object" ? (tok.cache as Record<string, unknown>) : {};
+  const input = readNonNegativeInteger(tok.input);
+  const output = readNonNegativeInteger(tok.output);
+  const rawReasoning = readNonNegativeInteger(tok.reasoning);
+  const rawCacheRead = readNonNegativeInteger(cache.read);
+  const rawCacheWrite = readNonNegativeInteger(cache.write);
   const total =
     readNonNegativeInteger(tok.total) ??
-    sumTokenBuckets([
-      readNonNegativeInteger(tok.input),
-      readNonNegativeInteger(tok.output),
-      readNonNegativeInteger(tok.reasoning),
-      readNonNegativeInteger(cache.read),
-      readNonNegativeInteger(cache.write),
-    ]);
-  if (total === undefined || total <= 0) return undefined;
+    sumTokenBuckets([input, output, rawReasoning, rawCacheRead, rawCacheWrite]);
+  const rawCost = obj.cost;
+  const cost =
+    typeof rawCost === "number" && Number.isFinite(rawCost) && rawCost >= 0
+      ? { amount: rawCost, currency: "USD" }
+      : undefined;
+  if (total === undefined || (total <= 0 && !cost)) return undefined;
+
+  // Require strict non-negative integers on all five buckets before emitting
+  // categorized tokens so malformed or partial payloads never fabricate zeros.
+  const exactInput = readSafeNonNegativeInteger(tok.input);
+  const exactOutput = readSafeNonNegativeInteger(tok.output);
+  const exactReasoning = readSafeNonNegativeInteger(tok.reasoning);
+  const exactCacheRead = readSafeNonNegativeInteger(cache.read);
+  const exactCacheWrite = readSafeNonNegativeInteger(cache.write);
+  const categorizedTokens =
+    exactInput !== undefined &&
+    exactOutput !== undefined &&
+    exactReasoning !== undefined &&
+    exactCacheRead !== undefined &&
+    exactCacheWrite !== undefined &&
+    exactInput + exactOutput + exactReasoning + exactCacheRead + exactCacheWrite === total
+      ? {
+          input: exactInput,
+          output: exactOutput + exactReasoning,
+          cacheRead: exactCacheRead,
+          cacheWrite: exactCacheWrite,
+        }
+      : undefined;
   const model = typeof obj.modelID === "string" && obj.modelID.length > 0 ? obj.modelID : undefined;
   return {
     type: "usage.spent",
@@ -82,6 +112,8 @@ export function createOpenCodeUsageSpentEvent(
     usage: {
       counterKind: "per-call",
       counter: total,
+      ...(categorizedTokens ? { tokens: categorizedTokens } : {}),
+      ...(cost ? { cost } : {}),
       scopeId: scope.scopeId,
       epoch: scope.epoch,
       ...(scope.fresh ? { fresh: true } : {}),

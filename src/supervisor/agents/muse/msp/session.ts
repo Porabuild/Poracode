@@ -174,6 +174,8 @@ export class MuseMspStructuredSession implements StructuredSessionHandle {
   private pendingCompact: { turnId: string; timer: NodeJS.Timeout } | undefined;
   private usageEpoch = 0;
   private usageScopeFresh = false;
+  /** True once a completion reported unsplit `cachedTokens` without read/write breakdown. */
+  private hasUnsplitCachedUsage = false;
   /** MSP `config.mcpServers` for this launch; undefined when the set is empty. */
   private readonly sessionMcpServers;
   /** Whether the host granted `sessionMcp` at initialize. */
@@ -334,6 +336,7 @@ export class MuseMspStructuredSession implements StructuredSessionHandle {
     }
     this.ownedSessionIds.add(sessionId);
     this.usageScopeFresh = !resumeId;
+    this.hasUnsplitCachedUsage = false;
     this.activeTurnId = stringValue(session?.["activeTurnId"]);
     if (resumeId) {
       const approvalMode = recordOf(session?.["approvalMode"]);
@@ -1243,13 +1246,60 @@ export class MuseMspStructuredSession implements StructuredSessionHandle {
   private handleUsage(params: Record<string, unknown>): void {
     const cumulative = recordOf(params["cumulative"]);
     const counter = numberValue(cumulative?.["totalTokens"]);
-    if (!this.sessionId || counter === undefined) return;
+    if (!this.sessionId || counter === undefined || !Number.isSafeInteger(counter)) return;
+
+    const rawUsage = recordOf(params["usage"]);
+    const rawCached = numberValue(rawUsage?.["cachedTokens"]);
+    if (
+      rawCached !== undefined &&
+      rawCached > 0 &&
+      rawUsage?.["cacheReadTokens"] === undefined &&
+      rawUsage?.["cacheWriteTokens"] === undefined
+    ) {
+      this.hasUnsplitCachedUsage = true;
+    }
+
+    const readOptionalSafeInt = (value: unknown): number | undefined => {
+      if (value === undefined || value === null) return 0;
+      const num = numberValue(value);
+      return num !== undefined && Number.isSafeInteger(num) ? num : undefined;
+    };
+
+    const promptTokens = numberValue(cumulative?.["promptTokens"]);
+    const outputTokens = numberValue(cumulative?.["outputTokens"]);
+    const cacheRead = readOptionalSafeInt(cumulative?.["cacheReadTokens"]);
+    const cacheWrite = readOptionalSafeInt(cumulative?.["cacheWriteTokens"]);
+    const tokens =
+      !this.hasUnsplitCachedUsage &&
+      promptTokens !== undefined &&
+      outputTokens !== undefined &&
+      cacheRead !== undefined &&
+      cacheWrite !== undefined &&
+      Number.isSafeInteger(promptTokens) &&
+      Number.isSafeInteger(outputTokens) &&
+      promptTokens >= cacheRead + cacheWrite &&
+      promptTokens + outputTokens === counter
+        ? {
+            input: promptTokens - cacheRead - cacheWrite,
+            output: outputTokens,
+            cacheRead,
+            cacheWrite,
+          }
+        : undefined;
+    const costRecord = recordOf(cumulative?.["cost"]);
+    const costUsd = numberValue(costRecord?.["usd"]);
+    const cost =
+      costRecord?.["partial"] === false && costUsd !== undefined
+        ? { amount: costUsd, currency: "USD" }
+        : undefined;
     this.emit({
       type: "usage.spent",
       threadId: this.input.threadId,
       usage: {
         counterKind: "cumulative",
         counter,
+        ...(tokens ? { tokens } : {}),
+        ...(cost ? { cost } : {}),
         scopeId: this.sessionId,
         epoch: this.usageEpoch,
         ...(this.usageScopeFresh ? { fresh: true } : {}),

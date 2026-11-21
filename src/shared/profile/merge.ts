@@ -148,13 +148,24 @@ function mergeAiActions(lists: readonly (readonly ProfileAiAction[])[]): Profile
   for (const list of lists) {
     for (const item of list) {
       const existing = byType.get(item.type);
-      if (existing) existing.count += item.count;
-      else byType.set(item.type, { type: item.type, label: item.label, count: item.count });
+      if (existing) {
+        existing.count += item.count;
+        delete existing.topProvider;
+        delete existing.topModel;
+      } else {
+        byType.set(item.type, {
+          type: item.type,
+          label: item.label,
+          count: item.count,
+          ...(item.topProvider ? { topProvider: item.topProvider } : {}),
+          ...(item.topModel ? { topModel: item.topModel } : {}),
+        });
+      }
     }
   }
   return (["commit", "pr", "conflict"] as const).flatMap((type) => {
-    const entry = byType.get(type);
-    return entry ? [entry] : [];
+    const found = byType.get(type);
+    return found ? [found] : [];
   });
 }
 
@@ -403,6 +414,27 @@ export function mergeProfileCoreStats(
   const mostActiveHour = recent?.windowHours
     ? topActiveHourFromBuckets(recent.windowHours)
     : undefined;
+  const allHaveRecent = blobs.every((b) => Boolean(b.recent));
+  const topReasoning: ProfileBreakdownEntry | undefined = (() => {
+    if (allHaveRecent && recent) {
+      if (promptHeatmap.windowDays <= 7) return recent.last7d.efforts[0];
+      if (promptHeatmap.windowDays <= 30) return recent.last30d.efforts[0];
+      if (blobs.every((b) => b.recent!.last30d.prompts === b.totals.totalPrompts)) {
+        return recent.last30d.efforts[0];
+      }
+    }
+    const activeBlobs = blobs.filter((b) => b.totals.totalPrompts > 0 || b.insights.topReasoning);
+    return activeBlobs.length === 1 ? activeBlobs[0]?.insights.topReasoning : undefined;
+  })();
+  const accountRank = new Map(accounts.map((entry, idx) => [entry.key, idx]));
+  const availableAccounts = [...availableAccountsMap.entries()]
+    .map(([key, label], order) => ({ key, label, order }))
+    .sort(
+      (a, b) =>
+        (accountRank.get(a.key) ?? Number.MAX_SAFE_INTEGER) -
+          (accountRank.get(b.key) ?? Number.MAX_SAFE_INTEGER) || a.order - b.order,
+    )
+    .map(({ key, label }) => ({ key, label }));
 
   const incompleteDetails = {
     skills: blobs.some(
@@ -437,6 +469,7 @@ export function mergeProfileCoreStats(
     insights: {
       ...(providers[0] ? { topProvider: providers[0] } : {}),
       ...(models[0] ? { topModel: models[0] } : {}),
+      ...(topReasoning ? { topReasoning } : {}),
       ...(mostActiveHour ? { mostActiveHour } : {}),
       fastModePercent: totalPrompts > 0 ? round1(fastWeightedSum / totalPrompts) : 0,
       skillsExplored: incompleteDetails.skills ? 0 : skillKeys.size,
@@ -452,7 +485,7 @@ export function mergeProfileCoreStats(
     skills: incompleteDetails.skills ? [] : skills,
     mcps: incompleteDetails.mcps ? [] : mcps,
     aiActions,
-    availableAccounts: [...availableAccountsMap.entries()].map(([key, label]) => ({ key, label })),
+    availableAccounts,
     ...(recent ? { recent } : {}),
   };
 }
@@ -476,10 +509,31 @@ function mergeCostBreakdowns(
     .sort((a, b) => b.totals.tokens - a.totals.tokens || a.key.localeCompare(b.key));
 }
 
+function hasAttributedUsage(entries: readonly ProfileCostStats["providers"][number][]): boolean {
+  return entries.some(
+    (entry) =>
+      entry.key !== "" &&
+      (entry.totals.tokens > 0 ||
+        entry.totals.observedSamples > 0 ||
+        entry.totals.estimatedSamples > 0),
+  );
+}
+
 function mergeProfileCostStats(costStats: readonly ProfileCostStats[]): ProfileCostStats {
   const totals = emptyCostTotals();
   const daysMap = new Map<string, ProfileCostTotals>();
+  const dayProvidersMap = new Map<
+    string,
+    { day: string; provider: string; totals: ProfileCostTotals }
+  >();
+  const dayModelsMap = new Map<string, { day: string; model: string; totals: ProfileCostTotals }>();
   const pricingMap = new Map<string, ProfileCostStats["pricing"][number]>();
+  // Only emit cross-host daily breakdowns when every host with attributed usage
+  // supplied them; mixing upgraded + pre-upgrade hosts falls back to aggregate `days`.
+  let hasAnyDayProviders = false;
+  let allActiveHaveDayProviders = true;
+  let hasAnyDayModels = false;
+  let allActiveHaveDayModels = true;
 
   for (const cost of costStats) {
     mergeCostTotals(totals, cost.totals);
@@ -490,6 +544,34 @@ function mergeProfileCostStats(costStats: readonly ProfileCostStats[]): ProfileC
         daysMap.set(dayEntry.day, target);
       }
       mergeCostTotals(target, dayEntry.totals);
+    }
+    if (cost.dayProviders !== undefined) {
+      hasAnyDayProviders = true;
+      for (const entry of cost.dayProviders) {
+        const key = `${entry.day}\0${entry.provider}`;
+        let target = dayProvidersMap.get(key);
+        if (!target) {
+          target = { day: entry.day, provider: entry.provider, totals: emptyCostTotals() };
+          dayProvidersMap.set(key, target);
+        }
+        mergeCostTotals(target.totals, entry.totals);
+      }
+    } else if (hasAttributedUsage(cost.providers)) {
+      allActiveHaveDayProviders = false;
+    }
+    if (cost.dayModels !== undefined) {
+      hasAnyDayModels = true;
+      for (const entry of cost.dayModels) {
+        const key = `${entry.day}\0${entry.model}`;
+        let target = dayModelsMap.get(key);
+        if (!target) {
+          target = { day: entry.day, model: entry.model, totals: emptyCostTotals() };
+          dayModelsMap.set(key, target);
+        }
+        mergeCostTotals(target.totals, entry.totals);
+      }
+    } else if (hasAttributedUsage(cost.models)) {
+      allActiveHaveDayModels = false;
     }
     for (const price of cost.pricing) {
       pricingMap.set(price.id, price);
@@ -507,6 +589,20 @@ function mergeProfileCostStats(costStats: readonly ProfileCostStats[]): ProfileC
     models: mergeCostBreakdowns(costStats.map((c) => c.models)),
     accounts: mergeCostBreakdowns(costStats.map((c) => c.accounts)),
     pricing: [...pricingMap.values()].sort((a, b) => a.id.localeCompare(b.id)),
+    ...(hasAnyDayProviders && allActiveHaveDayProviders
+      ? {
+          dayProviders: [...dayProvidersMap.values()].sort(
+            (a, b) => a.day.localeCompare(b.day) || a.provider.localeCompare(b.provider),
+          ),
+        }
+      : {}),
+    ...(hasAnyDayModels && allActiveHaveDayModels
+      ? {
+          dayModels: [...dayModelsMap.values()].sort(
+            (a, b) => a.day.localeCompare(b.day) || a.model.localeCompare(b.model),
+          ),
+        }
+      : {}),
   };
 }
 

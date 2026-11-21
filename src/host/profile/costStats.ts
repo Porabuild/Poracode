@@ -1,8 +1,18 @@
-import { emptyCostTotals, mergeCostTotals } from "@/shared/profile/costTotals";
+import {
+  estimateCacheSavingsUsd,
+  estimateCategoryCosts,
+} from "@poracode/agents-usage/historical-pricing";
+import {
+  addCategoryCostUsd,
+  emptyCostTotals,
+  mergeCostTotals,
+  TOKEN_CATEGORY_KEYS,
+} from "@/shared/profile/costTotals";
 import { baseAgentKind, type ProfileStatsRequest } from "@/shared/contracts";
 import type {
   ProfileCostStats,
   ProfileCostTotals,
+  UsageCategoryCost,
   UsageCostRecord,
 } from "@/shared/contracts/costHistory";
 import type { UsageEventRow } from "../db/usageEvents";
@@ -11,16 +21,32 @@ import { accountLabel, modelKey, modelLabel, providerLabel } from "./labels";
 
 export type ProfileCostPricing = ProfileCostStats["pricing"][number];
 
+interface ComputedSampleEconomics {
+  categoryCost: UsageCategoryCost;
+  cacheSavingsUsd: number;
+}
+
+function computeSampleEconomics(
+  details: UsageCostRecord | undefined,
+): ComputedSampleEconomics | undefined {
+  if (!details?.estimate || !details.tokens) return undefined;
+  return {
+    categoryCost: estimateCategoryCosts(details.estimate.pricing, details.tokens),
+    cacheSavingsUsd: estimateCacheSavingsUsd(details.estimate.pricing, details.tokens),
+  };
+}
+
 export function addCostSample(
   totals: ProfileCostTotals,
   value: number,
   details: UsageCostRecord | undefined,
+  precomputed?: ComputedSampleEconomics,
 ): void {
   totals.tokens += value;
   if (!details?.observed && !details?.estimate) totals.unpricedTokens += value;
   if (details?.tokens) {
     totals.categorizedTokens += value;
-    for (const key of ["input", "output", "cacheRead", "cacheWrite"] as const) {
+    for (const key of TOKEN_CATEGORY_KEYS) {
       totals.categories[key] += details.tokens[key];
     }
   }
@@ -35,6 +61,13 @@ export function addCostSample(
     totals.estimatedUsd += details.estimate.amount;
     totals.estimatedSamples += 1;
     totals.estimatedTokens += value;
+    const economics = precomputed ?? computeSampleEconomics(details);
+    if (economics) {
+      addCategoryCostUsd(totals, economics.categoryCost);
+      if (economics.cacheSavingsUsd > 0) {
+        totals.cacheSavingsUsd = (totals.cacheSavingsUsd ?? 0) + economics.cacheSavingsUsd;
+      }
+    }
   }
 }
 
@@ -62,6 +95,11 @@ export function createProfileCostAggregator(
 ): ProfileCostAggregator {
   const totals = emptyCostTotals();
   const days = new Map<string, ProfileCostTotals>();
+  const dayProviders = new Map<
+    string,
+    { day: string; provider: string; totals: ProfileCostTotals }
+  >();
+  const dayModels = new Map<string, { day: string; model: string; totals: ProfileCostTotals }>();
   const providers = new Map<string, ProfileCostTotals>();
   const models = new Map<string, ProfileCostTotals>();
   const accounts = new Map<string, ProfileCostTotals>();
@@ -78,32 +116,62 @@ export function createProfileCostAggregator(
     return entry;
   };
 
+  const getOrCreateDayProvider = (day: string, baseProvider: string): ProfileCostTotals => {
+    const key = `${day}\0${baseProvider}`;
+    let entry = dayProviders.get(key);
+    if (!entry) {
+      entry = { day, provider: baseProvider, totals: emptyCostTotals() };
+      dayProviders.set(key, entry);
+    }
+    return entry.totals;
+  };
+
+  const getOrCreateDayModel = (day: string, costModelKey: string): ProfileCostTotals => {
+    const key = `${day}\0${costModelKey}`;
+    let entry = dayModels.get(key);
+    if (!entry) {
+      entry = { day, model: costModelKey, totals: emptyCostTotals() };
+      dayModels.set(key, entry);
+    }
+    return entry.totals;
+  };
+
   return {
     addBucket(dayIndex, provider, costModelKey, bucketTotals, bucketPricing) {
       if (windowDays === undefined) firstDayIndex = Math.min(firstDayIndex, dayIndex);
+      const day = dayKeyFromIndex(dayIndex);
+      const baseProvider = provider ? baseAgentKind(provider) : "";
       mergeCostTotals(totals, bucketTotals);
-      mergeCostTotals(getOrCreate(days, dayKeyFromIndex(dayIndex)), bucketTotals);
-      mergeCostTotals(
-        getOrCreate(providers, provider ? baseAgentKind(provider) : ""),
-        bucketTotals,
-      );
+      mergeCostTotals(getOrCreate(days, day), bucketTotals);
+      mergeCostTotals(getOrCreate(providers, baseProvider), bucketTotals);
       mergeCostTotals(getOrCreate(accounts, provider ?? ""), bucketTotals);
       mergeCostTotals(getOrCreate(models, costModelKey), bucketTotals);
+      if (baseProvider) {
+        mergeCostTotals(getOrCreateDayProvider(day, baseProvider), bucketTotals);
+      }
+      if (costModelKey) {
+        mergeCostTotals(getOrCreateDayModel(day, costModelKey), bucketTotals);
+      }
       for (const price of bucketPricing) {
         pricing.set(price.id, price);
       }
     },
     addSample(dayIndex, provider, costModelKey, value, details) {
       if (windowDays === undefined) firstDayIndex = Math.min(firstDayIndex, dayIndex);
-      addCostSample(totals, value, details);
-      addCostSample(getOrCreate(days, dayKeyFromIndex(dayIndex)), value, details);
-      addCostSample(
-        getOrCreate(providers, provider ? baseAgentKind(provider) : ""),
-        value,
-        details,
-      );
-      addCostSample(getOrCreate(accounts, provider ?? ""), value, details);
-      addCostSample(getOrCreate(models, costModelKey), value, details);
+      const day = dayKeyFromIndex(dayIndex);
+      const baseProvider = provider ? baseAgentKind(provider) : "";
+      const economics = computeSampleEconomics(details);
+      addCostSample(totals, value, details, economics);
+      addCostSample(getOrCreate(days, day), value, details, economics);
+      addCostSample(getOrCreate(providers, baseProvider), value, details, economics);
+      addCostSample(getOrCreate(accounts, provider ?? ""), value, details, economics);
+      addCostSample(getOrCreate(models, costModelKey), value, details, economics);
+      if (baseProvider) {
+        addCostSample(getOrCreateDayProvider(day, baseProvider), value, details, economics);
+      }
+      if (costModelKey) {
+        addCostSample(getOrCreateDayModel(day, costModelKey), value, details, economics);
+      }
       if (details?.estimate) {
         const price = details.estimate.pricing;
         pricing.set(price.id, price);
@@ -124,6 +192,12 @@ export function createProfileCostAggregator(
         models: breakdown(models, modelLabel),
         accounts: breakdown(accounts, accountLabel),
         pricing: [...pricing.values()].sort((a, b) => a.id.localeCompare(b.id)),
+        dayProviders: [...dayProviders.values()].sort(
+          (a, b) => a.day.localeCompare(b.day) || a.provider.localeCompare(b.provider),
+        ),
+        dayModels: [...dayModels.values()].sort(
+          (a, b) => a.day.localeCompare(b.day) || a.model.localeCompare(b.model),
+        ),
       };
     },
   };

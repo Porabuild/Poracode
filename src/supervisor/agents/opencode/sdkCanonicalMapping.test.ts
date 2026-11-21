@@ -1528,6 +1528,7 @@ describe("sdkCanonicalMapping — usage.spent", () => {
       usage: {
         counterKind: "per-call",
         counter: 150,
+        tokens: { input: 90, output: 60, cacheRead: 0, cacheWrite: 0 },
         scopeId: "ses_test",
         epoch: 0,
         fresh: true,
@@ -1547,6 +1548,39 @@ describe("sdkCanonicalMapping — usage.spent", () => {
       state,
     );
     expect(replay.find((e) => e.type === "usage.spent")).toBeUndefined();
+
+    // Falls back cleanly without emitting fabricated categories when partial or malformed,
+    // while retaining explicit USD cost (including zero-token billed calls).
+    const costOnly = mapOpenCodeEvent(
+      messageUpdatedEvent(
+        assistantMessage("msg_cost_only", {
+          time: { created: 0, completed: 5 },
+          cost: 0.04,
+          tokens: { total: 0, input: 0, output: 0, reasoning: 0, cache: { read: 0, write: 0 } },
+        }),
+      ),
+      state,
+    ).find((e) => e.type === "usage.spent");
+    expect(costOnly).toMatchObject({
+      usage: { counter: 0, cost: { amount: 0.04, currency: "USD" } },
+    });
+
+    const malformed = mapOpenCodeEvent(
+      messageUpdatedEvent(
+        assistantMessage("msg_bad_cache", {
+          time: { created: 0, completed: 5 },
+          tokens: {
+            total: 120,
+            input: 100,
+            output: 20,
+            reasoning: 0,
+            cache: { read: -5, write: 0 },
+          },
+        }),
+      ),
+      state,
+    ).find((e) => e.type === "usage.spent");
+    expect(malformed && "usage" in malformed ? malformed.usage.tokens : undefined).toBeUndefined();
   });
 
   it("falls back to summing token buckets when tokens.total is missing", () => {

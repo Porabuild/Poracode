@@ -21,7 +21,7 @@ vi.mock("../acp", () => {
 import type { ProjectLocation, ThreadConfig } from "@/shared/contracts";
 import { createAcpStructuredSession } from "../acp";
 import { resolveGrokAcpModel } from "./fastMode";
-import { createGrokAdapter } from "./index";
+import { createGrokAdapter, readGrokPromptUsageCost } from "./index";
 
 async function createSessionOptions() {
   const adapter = createGrokAdapter();
@@ -41,6 +41,7 @@ describe("Grok ACP fs home carve-out", () => {
     expect(await createSessionOptions()).toMatchObject({ acpFsAgentHomeDirs: [".grok"] });
     expect(vi.mocked(createAcpStructuredSession).mock.calls[0]?.[2]).toEqual({
       resolveModelConfig: resolveGrokAcpModel,
+      behavior: { promptUsageCost: readGrokPromptUsageCost },
     });
   });
 });

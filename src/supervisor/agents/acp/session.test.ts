@@ -728,6 +728,47 @@ describe("ACP prompt-response usage → usage.spent", () => {
       },
     });
 
+    // Inclusive-input convention: inputTokens includes cachedReadTokens, plus costUsd, custom cost hook, and model.
+    expect(
+      createAcpPromptUsageSpentEvent(
+        "thread-1",
+        {
+          inputTokens: 1_000,
+          outputTokens: 200,
+          cachedReadTokens: 400,
+          cachedWriteTokens: 0,
+          totalTokens: 1_200,
+          costUsd: 0.0025,
+          model: "model-a",
+        },
+        scope,
+      ),
+    ).toMatchObject({
+      type: "usage.spent",
+      usage: {
+        counter: 1_200,
+        tokens: { input: 600, output: 200, cacheRead: 400, cacheWrite: 0 },
+        cost: { amount: 0.0025, currency: "USD" },
+        model: "model-a",
+      },
+    });
+    expect(
+      createAcpPromptUsageSpentEvent(
+        "thread-1",
+        { totalTokens: 500, customMicroUsd: 3_000 },
+        {
+          ...scope,
+          promptUsageCost: (u) =>
+            typeof u.customMicroUsd === "number"
+              ? { amount: u.customMicroUsd / 1_000_000, currency: "USD" }
+              : undefined,
+        },
+      ),
+    ).toMatchObject({
+      type: "usage.spent",
+      usage: { counter: 500, cost: { amount: 0.003, currency: "USD" } },
+    });
+
     // Mismatched or malformed category fields stay omitted while preserving counter.
     for (const usage of [
       { inputTokens: 100, outputTokens: 20, totalTokens: 200 },

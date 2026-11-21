@@ -27,7 +27,7 @@ export function ModelUsage(props: {
 
   const footer =
     byTokens && tokens!.providers.length > 0 ? (
-      <p className="pt-1 text-[11px] text-muted/60">
+      <p className="text-[11px] leading-relaxed text-muted">
         {t(msg`Tokens from ${tokens!.providers.map((p) => p.label).join(", ")}`)}
       </p>
     ) : undefined;

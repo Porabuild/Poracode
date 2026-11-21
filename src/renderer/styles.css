@@ -8304,8 +8304,40 @@ html[data-compact-layout] .poracode-thread-composer-section > .m-thread-compose-
   animation: poracode-prompt-rail-card-in 120ms ease-out;
 }
 
+@keyframes poracode-tab-panel-from-right {
+  from {
+    opacity: 0;
+    transform: translate3d(10px, 0, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes poracode-tab-panel-from-left {
+  from {
+    opacity: 0;
+    transform: translate3d(-10px, 0, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+.poracode-tab-panel-from-right {
+  animation: poracode-tab-panel-from-right 200ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.poracode-tab-panel-from-left {
+  animation: poracode-tab-panel-from-left 200ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .poracode-prompt-rail-card {
+  .poracode-prompt-rail-card,
+  .poracode-tab-panel-from-right,
+  .poracode-tab-panel-from-left {
     animation: none;
   }
 }

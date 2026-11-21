@@ -128,7 +128,9 @@ describe("remote v3 native binding generator", () => {
         // Optional environment settings and MCP OAuth completion add six structural types.
         // Guarded Notes saves add revision metadata and typed save outcomes.
         // Batched worktree source-branch reads add one read procedure and its request/result roots.
-        sourceHash: "sha256:16af2aa03ce00618bd6081dd4a2cdedc1604739a8b68316a57554c92a6cb0fb7",
+        // Additive optional cost-history fields (`cacheSavingsUsd`, `categoryCostUsd`,
+        // `dayProviders`, `dayModels`) add three structural types while keeping older peers valid.
+        sourceHash: "sha256:319ec2f6eb20376cc124737298bfe6b3226c9c1dd93c20606dd7e364b2e841a7",
         manifestHash: "sha256:0e0e82e3c9b7cd9e0dd1f089c2eafa868fd3507f2ff28691107dbc29e82a5809",
         counts: {
           routes: 126,
@@ -139,12 +141,12 @@ describe("remote v3 native binding generator", () => {
           // 11 shared + the desktop-internal `desktop-event` frame (V5 plan 2.5).
           webSocketServerVariants: 12,
           schemaRoots: 592,
-          structuralTypes: 1518,
+          structuralTypes: 1521,
           semanticValidators: 25,
           // Content-defined shards (emitterCommon.shardDeclarations) average
           // ~200 lines, so a contract change rewrites only nearby files.
-          swiftFiles: 167,
-          kotlinFiles: 144,
+          swiftFiles: 169,
+          kotlinFiles: 145,
           stateMachines: 5,
         },
       });

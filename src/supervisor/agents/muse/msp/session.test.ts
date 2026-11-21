@@ -1755,4 +1755,67 @@ describe("Muse MSP todo list mapping", () => {
     }
     expect((lastPlanUpdate.payload as { steps: unknown[] }).steps).toEqual([]);
   });
+
+  it("emits reconciled tokens and non-partial USD cost on session/tokenUsage and drops unsplit cache tokens", async () => {
+    const { session, runtimeEvents } = await createSession();
+    await session.openThread(config);
+
+    notificationHandler?.("session/tokenUsage", {
+      sessionId: "session-1",
+      turnId: "turn-1",
+      modelId: "claude-sonnet-4-6",
+      usage: {
+        inputTokens: 1000,
+        outputTokens: 200,
+        cachedTokens: 400,
+        cacheReadTokens: 400,
+        reasoningTokens: 0,
+      },
+      cumulative: {
+        promptTokens: 1000,
+        outputTokens: 200,
+        cacheReadTokens: 400,
+        cacheWriteTokens: 100,
+        totalTokens: 1200,
+        cost: { usd: 0.05, partial: false },
+      },
+    });
+
+    const first = runtimeEvents.find((event) => event.type === "usage.spent");
+    expect(first).toMatchObject({
+      type: "usage.spent",
+      usage: {
+        counterKind: "cumulative",
+        counter: 1200,
+        tokens: { input: 500, output: 200, cacheRead: 400, cacheWrite: 100 },
+        cost: { amount: 0.05, currency: "USD" },
+        model: "claude-sonnet-4-6",
+      },
+    });
+
+    // Once unsplit cachedTokens appears without cacheReadTokens/cacheWriteTokens, omit tokens
+    // rather than charging cached tokens as uncached input, and omit partial cost.
+    notificationHandler?.("session/tokenUsage", {
+      sessionId: "session-1",
+      turnId: "turn-2",
+      modelId: "gpt-5.4",
+      usage: { inputTokens: 600, outputTokens: 100, cachedTokens: 500, reasoningTokens: 0 },
+      cumulative: {
+        promptTokens: 1600,
+        outputTokens: 300,
+        totalTokens: 1900,
+        cost: { usd: 0.09, partial: true },
+      },
+    });
+
+    const spentEvents = runtimeEvents.filter((event) => event.type === "usage.spent");
+    expect(spentEvents).toHaveLength(2);
+    const second = spentEvents[1]!;
+    expect(second).toMatchObject({
+      type: "usage.spent",
+      usage: { counter: 1900, model: "gpt-5.4" },
+    });
+    expect(second.type === "usage.spent" ? second.usage.tokens : undefined).toBeUndefined();
+    expect(second.type === "usage.spent" ? second.usage.cost : undefined).toBeUndefined();
+  });
 });

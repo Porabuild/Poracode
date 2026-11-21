@@ -222,7 +222,7 @@ export function useProfileData(): ProfileData {
   const identity =
     hostState.key === hostScopeKey ? hostState.identity : (hostCache.identity ?? null);
   const [selection, setSelection] = useState<ProfileSelection>({
-    scope: "device",
+    scope: "all",
     window: "all",
   });
   const [retryToken, setRetryToken] = useState(0);

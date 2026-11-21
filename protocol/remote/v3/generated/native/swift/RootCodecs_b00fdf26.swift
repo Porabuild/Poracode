@@ -69,7 +69,7 @@ public extension RemoteRootCodecs {
 }
 
 public extension RemoteRootCodecs {
-  static let routeU2EProfileU2DTokenU2DStatsU2EResponse: RemoteRootCodec<RouteprofileU2DTokenU2DStatsResponse_06c478cc50> = .init(id: "route.profile-token-stats.response", schema: RemoteSchemas.schema_06c478cc50edb7bf)
+  static let routeU2EProfileU2DTokenU2DStatsU2EResponse: RemoteRootCodec<RouteprofileU2DTokenU2DStatsResponse_c6173f708b> = .init(id: "route.profile-token-stats.response", schema: RemoteSchemas.schema_c6173f708ba6a476)
 }
 
 public extension RemoteRootCodecs {

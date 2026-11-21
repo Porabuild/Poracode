@@ -72,6 +72,8 @@ interface OpenCode2StreamItemState {
 export interface OpenCode2AssistantMessageState {
   /** Canonical assistant_message row; minted on the message's first text. */
   assistantItemId: string | undefined;
+  /** Server-attributed model identifier from `session.step.started`, when present. */
+  model: string | undefined;
   /** V2 restarts `ordinal` per message — hence per-message stream maps. */
   text: Map<number, OpenCode2StreamItemState>;
   reasoning: Map<number, OpenCode2StreamItemState>;
@@ -318,9 +320,12 @@ export function mapOpenCode2Event(event: V2Event, state: OpenCode2MapperState): 
       return settleTurn(state, "interrupted");
 
     // ── Steps (assistant messages) ──────────────────────────────────────
-    case "session.step.started":
-      ensureOpenCode2MessageState(state, event.data.assistantMessageID);
+    case "session.step.started": {
+      const message = ensureOpenCode2MessageState(state, event.data.assistantMessageID);
+      const stepModel = readOpenCode2StepModel((event.data as { model?: unknown }).model);
+      if (stepModel) message.model = stepModel;
       return [];
+    }
     case "session.step.ended":
       return closeOpenCode2Step(
         state,
@@ -561,7 +566,25 @@ function settleTurn(
 // ── Stream helpers (assistant text / reasoning) ───────────────────────
 
 function createOpenCode2MessageState(): OpenCode2AssistantMessageState {
-  return { assistantItemId: undefined, text: new Map(), reasoning: new Map(), tools: new Map() };
+  return {
+    assistantItemId: undefined,
+    model: undefined,
+    text: new Map(),
+    reasoning: new Map(),
+    tools: new Map(),
+  };
+}
+
+function readOpenCode2StepModel(value: unknown): string | undefined {
+  const record = readOpenCode2Record(value);
+  const id =
+    typeof record?.id === "string" && record.id.trim().length > 0 ? record.id.trim() : undefined;
+  if (!id) return undefined;
+  const providerID =
+    typeof record?.providerID === "string" && record.providerID.trim().length > 0
+      ? record.providerID.trim()
+      : undefined;
+  return providerID ? `${providerID}/${id}` : id;
 }
 
 function ensureOpenCode2MessageState(
@@ -838,6 +861,7 @@ function openCode2UsageSpentEvents(
   messageID: string,
   tokens: unknown,
   cost: number | undefined,
+  model?: string,
 ): RuntimeEvent[] {
   if (state.usageSpentMessages.has(messageID)) return [];
   const buckets = [
@@ -858,6 +882,7 @@ function openCode2UsageSpentEvents(
       usage: {
         counterKind: "per-call",
         counter,
+        ...(model ? { model } : {}),
         ...(cost !== undefined && Number.isFinite(cost) && cost >= 0
           ? { cost: { amount: cost, currency: "USD" } }
           : {}),
@@ -888,12 +913,13 @@ function closeOpenCode2Step(
   cost?: number,
 ): RuntimeEvent[] {
   const message = state.messages.get(messageID);
+  const model = message?.model;
   const events = message ? closeOpenCode2Message(state, message) : [];
   if (message) state.messages.delete(messageID);
   state.completedMessages.add(messageID);
   if (tokens !== undefined && tokens !== null) {
     events.push(...openCode2ContextUsageEvents(state, tokens));
-    events.push(...openCode2UsageSpentEvents(state, messageID, tokens, cost));
+    events.push(...openCode2UsageSpentEvents(state, messageID, tokens, cost, model));
   }
   return events;
 }

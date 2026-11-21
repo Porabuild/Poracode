@@ -3,28 +3,29 @@ import type { ReactNode } from "react";
 import { Skeleton } from "@heroui/react";
 import { msg } from "@lingui/core/macro";
 import { Trans, useLingui } from "@lingui/react/macro";
-import type { ProfileCoreStats, ProfileStatsWindow, ProfileTokenStats } from "@/shared/contracts";
+import type { ProfileCoreStats, ProfileTokenStats } from "@/shared/contracts";
 import type { TranslateFn } from "@/renderer/i18n/i18n";
 import { formatCompact, formatDayLabel, formatDuration } from "../format";
 
 function ValueSkeleton() {
-  return <Skeleton className="h-6 w-14 rounded-md bg-foreground/10" />;
+  return <Skeleton className="h-6 w-16 rounded bg-foreground/10" />;
 }
 
 /**
- * Every tile reserves the same fixed heights for the value row (h-7) and the
- * sub row (h-3.5) so the strip never reflows when async token tiles resolve or
- * the peak-day sub-label appears. Numerals use tabular-nums for stable width.
+ * Separated left-aligned metric tiles matching Costs' token-category cards.
+ * Fixed value height prevents reflow when async token tiles resolve.
  */
 function Tile(props: { value: ReactNode; label: string; sub?: string }) {
   return (
-    <div className="flex flex-col items-center justify-center gap-1 bg-[var(--content-surface-fill)] px-3 py-4">
-      <div className="flex h-7 items-center text-xl font-semibold tabular-nums text-foreground">
+    <ContentSurface className="min-w-0 px-3 py-2.5">
+      <dt className="flex items-baseline justify-between gap-2 text-[11px] text-muted">
+        <span className="truncate">{props.label}</span>
+        {props.sub ? <span className="shrink-0 text-muted/75">{props.sub}</span> : null}
+      </dt>
+      <dd className="mt-1 flex h-7 items-center break-words text-lg font-semibold tabular-nums text-foreground">
         {props.value}
-      </div>
-      <div className="text-xs text-muted">{props.label}</div>
-      <div className="h-3.5 text-[10px] leading-none text-muted/60">{props.sub ?? ""}</div>
-    </div>
+      </dd>
+    </ContentSurface>
   );
 }
 
@@ -48,23 +49,15 @@ export function StatStrip(props: {
   coreLoading?: boolean;
   tokens: ProfileTokenStats | null;
   tokensLoading: boolean;
-  window: ProfileStatsWindow;
   streaksAvailable?: boolean;
   peakAvailable?: boolean;
 }) {
   const { t } = useLingui();
-  const { core, coreLoading = false, tokens, tokensLoading, window } = props;
+  const { core, coreLoading = false, tokens, tokensLoading } = props;
   const totals = core?.totals;
   const corePending = coreLoading && !totals;
   const tokensPending = tokensLoading && !tokens;
 
-  const lifetime = tokensPending ? (
-    <ValueSkeleton />
-  ) : tokens?.available ? (
-    formatCompact(tokens.lifetimeTokens)
-  ) : (
-    "-"
-  );
   const peak = tokensPending ? (
     <ValueSkeleton />
   ) : tokens?.available && props.peakAvailable !== false ? (
@@ -78,9 +71,8 @@ export function StatStrip(props: {
     "";
 
   return (
-    <div className="flex flex-col gap-1.5">
-      <ContentSurface className="grid grid-cols-2 gap-px overflow-hidden bg-[var(--hairline-soft)] sm:grid-cols-3 lg:grid-cols-5">
-        <Tile value={lifetime} label={window === "all" ? t`Lifetime tokens` : t`Total tokens`} />
+    <div className="flex flex-col gap-2">
+      <dl className="grid grid-cols-2 gap-3 @min-[640px]:grid-cols-4">
         <Tile
           value={peak}
           label={t`Peak day`}
@@ -116,9 +108,9 @@ export function StatStrip(props: {
           }
           label={t`Longest streak`}
         />
-      </ContentSurface>
+      </dl>
       {tokens && tokens.unavailableProviders.length > 0 ? (
-        <p className="text-center text-[10px] text-muted/60">
+        <p className="text-[11px] leading-relaxed text-muted">
           <Trans>Token usage unavailable for: {unavailableLabels}</Trans>
         </p>
       ) : null}

@@ -976,7 +976,8 @@ export class PiRpcSession implements StructuredSessionHandle {
    * baseline-only first sample — inherited history is not new spend).
    */
   private publishUsageSpent(stats: Record<string, unknown> | undefined, sessionId: string): void {
-    const totalTokens = readNonNegativeInteger(recordOf(stats?.tokens)?.total);
+    const tokenRecord = recordOf(stats?.tokens);
+    const totalTokens = readNonNegativeInteger(tokenRecord?.total);
     if (totalTokens === undefined) return;
     if (this.usageScopeId !== sessionId) {
       const firstScope = this.usageScopeId === undefined;
@@ -984,12 +985,35 @@ export class PiRpcSession implements StructuredSessionHandle {
       this.usageScopeId = sessionId;
       this.usageScopeFresh = firstScope && !this.launchedWithResume;
     }
+    const readExactInt = (value: unknown): number | undefined =>
+      typeof value === "number" && Number.isSafeInteger(value) && value >= 0 ? value : undefined;
+    const exactTotal = readExactInt(tokenRecord?.total);
+    const input = readExactInt(tokenRecord?.input);
+    const output = readExactInt(tokenRecord?.output);
+    const cacheRead = readExactInt(tokenRecord?.cacheRead);
+    const cacheWrite = readExactInt(tokenRecord?.cacheWrite);
+    const tokens =
+      exactTotal !== undefined &&
+      input !== undefined &&
+      output !== undefined &&
+      cacheRead !== undefined &&
+      cacheWrite !== undefined &&
+      input + output + cacheRead + cacheWrite === exactTotal
+        ? { input, output, cacheRead, cacheWrite }
+        : undefined;
+    const rawCost = stats?.cost;
+    const cost =
+      typeof rawCost === "number" && Number.isFinite(rawCost) && rawCost >= 0
+        ? { amount: rawCost, currency: "USD" }
+        : undefined;
     this.emit({
       type: "usage.spent",
       threadId: this.input.threadId,
       usage: {
         counterKind: "cumulative",
         counter: totalTokens,
+        ...(tokens ? { tokens } : {}),
+        ...(cost ? { cost } : {}),
         scopeId: sessionId,
         epoch: this.usageEpoch,
         ...(this.usageScopeFresh ? { fresh: true } : {}),

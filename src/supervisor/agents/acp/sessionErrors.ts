@@ -42,7 +42,62 @@ function readAcpPromptUsageCategories(
   if (thought > 0 && input + output + thought + cacheRead + cacheWrite === totalTokens) {
     return { input, output: output + thought, cacheRead, cacheWrite };
   }
+  // Inclusive-input convention: `inputTokens` includes cached prompt tokens,
+  // so `input + output === totalTokens` (or `+ thought`).
+  const cachedTotal = cacheRead + cacheWrite;
+  if (cachedTotal > 0 && input >= cachedTotal) {
+    if (thought <= output && input + output === totalTokens) {
+      return { input: input - cachedTotal, output, cacheRead, cacheWrite };
+    }
+    if (thought > 0 && input + output + thought === totalTokens) {
+      return { input: input - cachedTotal, output: output + thought, cacheRead, cacheWrite };
+    }
+  }
   return undefined;
+}
+
+const ISO_CURRENCY_RE = /^[A-Z]{3}$/;
+
+function readAcpPromptUsageCost(
+  obj: Record<string, unknown>,
+  providerCostReader?: (
+    usage: Record<string, unknown>,
+  ) => { amount: number; currency: string } | undefined,
+): { amount: number; currency: string } | undefined {
+  const rawCost = obj.cost;
+  if (rawCost && typeof rawCost === "object") {
+    const rec = rawCost as Record<string, unknown>;
+    if (
+      typeof rec.amount === "number" &&
+      Number.isFinite(rec.amount) &&
+      rec.amount >= 0 &&
+      typeof rec.currency === "string" &&
+      ISO_CURRENCY_RE.test(rec.currency)
+    ) {
+      return { amount: rec.amount, currency: rec.currency };
+    }
+  }
+  const costUsd = obj.costUsd ?? obj.cost_usd;
+  if (typeof costUsd === "number" && Number.isFinite(costUsd) && costUsd >= 0) {
+    return { amount: costUsd, currency: "USD" };
+  }
+  if (providerCostReader) {
+    const custom = providerCostReader(obj);
+    if (
+      custom &&
+      Number.isFinite(custom.amount) &&
+      custom.amount >= 0 &&
+      ISO_CURRENCY_RE.test(custom.currency)
+    ) {
+      return custom;
+    }
+  }
+  return undefined;
+}
+
+function readAcpPromptUsageModel(obj: Record<string, unknown>): string | undefined {
+  const raw = obj.model ?? obj.modelId ?? obj.model_id;
+  return typeof raw === "string" && raw.trim().length > 0 ? raw.trim() : undefined;
 }
 
 export function createAcpPromptUsageEvent(
@@ -82,6 +137,9 @@ export function createAcpPromptUsageSpentEvent(
     counterKind?: "cumulative" | "per-call";
     sampleId?: string;
     turnId?: string;
+    promptUsageCost?: (
+      usage: Record<string, unknown>,
+    ) => { amount: number; currency: string } | undefined;
   },
 ): RuntimeEvent | undefined {
   if (!usage || typeof usage !== "object") return undefined;
@@ -93,6 +151,8 @@ export function createAcpPromptUsageSpentEvent(
     counterKind === "per-call" ? scope.sampleId : `${scope.scopeId}:${scope.epoch}:${totalTokens}`;
   if (!sampleId) return undefined;
   const tokens = readAcpPromptUsageCategories(obj, totalTokens);
+  const cost = readAcpPromptUsageCost(obj, scope.promptUsageCost);
+  const model = readAcpPromptUsageModel(obj);
   return {
     type: "usage.spent",
     threadId,
@@ -100,6 +160,8 @@ export function createAcpPromptUsageSpentEvent(
       counterKind,
       counter: totalTokens,
       ...(tokens ? { tokens } : {}),
+      ...(cost ? { cost } : {}),
+      ...(model ? { model } : {}),
       scopeId: scope.scopeId,
       epoch: scope.epoch,
       ...(scope.fresh ? { fresh: true } : {}),

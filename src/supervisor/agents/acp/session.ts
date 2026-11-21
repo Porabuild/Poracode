@@ -305,6 +305,10 @@ export interface AcpSessionBehavior {
    * migration; absent keeps the per-turn/per-steer fallback exactly.
    */
   promptUsageSampleId?: (response: PromptResponse) => string | undefined;
+  /** Optional provider-specific parser for non-standard cost units in prompt usage. */
+  promptUsageCost?: (
+    usage: Record<string, unknown>,
+  ) => { amount: number; currency: string } | undefined;
   /** False when prompt consumption cannot measure context-window occupancy. */
   promptUsageReportsContext?: boolean;
   /** Stop painting message and thought chunks as soon as the user cancels. */
@@ -2341,6 +2345,9 @@ export class AcpStructuredSession implements StructuredSessionHandle {
         scopeId: this.usageScopeId,
         epoch: this.usageEpoch,
         ...(this.usageScopeFresh ? { fresh: true } : {}),
+        ...(this.behavior?.promptUsageCost
+          ? { promptUsageCost: this.behavior.promptUsageCost }
+          : {}),
         ...(this.behavior?.promptUsageCounterKind === "per-call"
           ? {
               counterKind: "per-call" as const,

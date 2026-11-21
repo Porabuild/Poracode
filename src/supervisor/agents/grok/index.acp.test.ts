@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { ThreadConfig } from "@/shared/contracts";
 import type { CreateStructuredSessionInput } from "../base/types";
 import { primeWslLaunchEnvironment } from "../base";
-import { createGrokAdapter } from "./index";
+import { createGrokAdapter, readGrokPromptUsageCost } from "./index";
 
 const mocks = vi.hoisted(() => {
   const createAcpStructuredSession = vi.fn<(...args: unknown[]) => unknown>(() => undefined);
@@ -80,5 +80,18 @@ describe("createGrokAdapter shared ACP process", () => {
   it("shuts down the shared pool scoped to its own kind", async () => {
     await createGrokAdapter().shutdown?.();
     expect(mocks.shutdownSharedAcpProcesses).toHaveBeenCalledExactlyOnceWith("grok");
+  });
+
+  it("parses Grok ACP costUsdTicks and cost_usd_ticks into USD cost", () => {
+    expect(readGrokPromptUsageCost({ costUsdTicks: 25_000_000 })).toEqual({
+      amount: 0.0025,
+      currency: "USD",
+    });
+    expect(readGrokPromptUsageCost({ cost_usd_ticks: 10_000_000_000 })).toEqual({
+      amount: 1,
+      currency: "USD",
+    });
+    expect(readGrokPromptUsageCost({ costUsdTicks: -1 })).toBeUndefined();
+    expect(readGrokPromptUsageCost({})).toBeUndefined();
   });
 });
