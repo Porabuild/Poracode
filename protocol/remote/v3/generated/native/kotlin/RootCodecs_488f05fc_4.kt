@@ -5,6 +5,12 @@ import kotlinx.serialization.*
 import kotlinx.serialization.descriptors.*
 import kotlinx.serialization.encoding.*
 import kotlinx.serialization.json.*
+val RemoteRootCodecs.routeU2EProfileU2DCoreU2DStatsU2EResponse: RemoteRootCodec<RouteprofileU2DCoreU2DStatsResponse_42cbe66f12>
+    get() = RemoteRootCodec("route.profile-core-stats.response", serializer<RouteprofileU2DCoreU2DStatsResponse_42cbe66f12>(), schema_42cbe66f126154fe)
+
+val RemoteRootCodecs.routeU2EProfileU2DDevicesU2EResponse: RemoteRootCodec<RouteprofileU2DDevicesResponse_0943be33f9>
+    get() = RemoteRootCodec("route.profile-devices.response", serializer<RouteprofileU2DDevicesResponse_0943be33f9>(), schema_0943be33f9e190f8)
+
 val RemoteRootCodecs.routeU2EProfileU2DIdentityU2ERequest: RemoteRootCodec<RouteprofileU2DCoreU2DStatsResponseU2DIdentity_da76232259>
     get() = RemoteRootCodec("route.profile-identity.request", serializer<RouteprofileU2DCoreU2DStatsResponseU2DIdentity_da76232259>(), schema_da76232259cbe6bb)
 

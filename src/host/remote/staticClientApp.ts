@@ -2,9 +2,10 @@ import { createReadStream } from "node:fs";
 import type { FileHandle } from "node:fs/promises";
 import { lstat, open, realpath, stat } from "node:fs/promises";
 import type { IncomingMessage, ServerResponse } from "node:http";
-import { join, normalize, sep } from "node:path";
+import { extname, join, normalize, sep } from "node:path";
 import { finished } from "node:stream/promises";
 import { parseByteRange, pipeOwnedFileResponse } from "./fileResponseStream";
+import { acceptsGzip } from "./server/httpCompression";
 import {
   bundledWebClientAssetPath,
   bundledWebClientCacheControl,
@@ -30,6 +31,20 @@ const UNFINALIZED_WORKER_TOKEN = "__PORACODE_BUILD_VERSION__";
 
 /** Bounded read window for the service-worker finalization scan. */
 const WORKER_SCAN_CHUNK_BYTES = 64 * 1024;
+const STATIC_GZIP_MIN_BYTES = 1024;
+const COMPRESSIBLE_STATIC_EXTENSIONS: ReadonlySet<string> = new Set([
+  ".js",
+  ".css",
+  ".html",
+  ".json",
+  ".svg",
+  ".txt",
+  ".webmanifest",
+]);
+
+function isCompressibleStaticAsset(relativePath: string): boolean {
+  return COMPRESSIBLE_STATIC_EXTENSIONS.has(extname(relativePath).toLowerCase());
+}
 
 export function builtClientHtmlFile(pathname: string): string | null {
   return bundledWebClientDocumentPath(pathname);
@@ -182,12 +197,21 @@ async function writeStaticFile(
   }
   const start = range ? range.start : 0;
   const end = range ? range.end : size - 1;
+  const shouldGzip =
+    req.method === "GET" &&
+    !range &&
+    size >= STATIC_GZIP_MIN_BYTES &&
+    isCompressibleStaticAsset(relativePath) &&
+    acceptsGzip(req);
   res.writeHead(range ? 206 : 200, {
     "content-type": bundledWebClientContentType(relativePath),
     "cache-control": cacheControl,
     "accept-ranges": "bytes",
     "x-content-type-options": "nosniff",
-    "content-length": String(size === 0 ? 0 : end - start + 1),
+    ...(isCompressibleStaticAsset(relativePath) ? { vary: "Accept-Encoding" } : {}),
+    ...(shouldGzip
+      ? { "content-encoding": "gzip" }
+      : { "content-length": String(size === 0 ? 0 : end - start + 1) }),
     ...(range ? { "content-range": `bytes ${start}-${end}/${size}` } : {}),
   });
   if (req.method === "HEAD" || size === 0) {
@@ -199,7 +223,17 @@ async function writeStaticFile(
   const sourcePrefixBytes = localHtml?.sourcePrefixBytes ?? 0;
   const prefixPart = prefix?.subarray(start, Math.min(end + 1, prefixBytes));
   if (end < prefixBytes || sourceSize === sourcePrefixBytes) {
-    res.end(prefixPart);
+    if (shouldGzip) {
+      const { gzip } = await import("node:zlib");
+      const compressed = await new Promise<Buffer>((resolve, reject) => {
+        gzip(prefixPart ?? Buffer.alloc(0), { level: 6 }, (err, out) =>
+          err ? reject(err) : resolve(out),
+        );
+      });
+      if (!res.destroyed && !res.writableEnded) res.end(compressed);
+    } else {
+      res.end(prefixPart);
+    }
     await Promise.allSettled([finished(res, { readable: false, cleanup: true })]);
     return;
   }
@@ -216,7 +250,7 @@ async function writeStaticFile(
         ? { start, end }
         : {},
   );
-  await pipeOwnedFileResponse(stream, res, prefixPart);
+  await pipeOwnedFileResponse(stream, res, prefixPart, undefined, { gzip: shouldGzip });
 }
 
 async function realDirectory(path: string): Promise<string | null> {

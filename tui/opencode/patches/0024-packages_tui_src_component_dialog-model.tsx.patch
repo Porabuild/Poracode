@@ -1,8 +1,11 @@
 diff --git a/packages/tui/src/component/dialog-model.tsx b/packages/tui/src/component/dialog-model.tsx
-index 7ae17d5..ba450df 100644
+index bd0d348..8fd9597 100644
 --- a/packages/tui/src/component/dialog-model.tsx
 +++ b/packages/tui/src/component/dialog-model.tsx
-@@ -2,9 +2,8 @@ import { createMemo, createSignal } from "solid-js"
+@@ -1,24 +1,20 @@
+ import type { ModelInfo } from "@opencode/client"
+-import { createMemo, createSignal, Show } from "solid-js"
++import { createMemo, createSignal } from "solid-js"
  import { useLocal } from "../context/local"
  import { DialogSelect } from "../ui/dialog-select"
  import { useDialog } from "../ui/dialog"
@@ -13,52 +16,102 @@ index 7ae17d5..ba450df 100644
  import { useConnected } from "./use-connected"
  import { useData } from "../context/data"
  import { modelPreferenceKey } from "../model-preference"
-@@ -18,7 +17,7 @@ export function DialogModel(props: { providerID?: string }) {
+ import { useLocation } from "../context/location"
+ import { useNewDesigns } from "../config"
+-import { DialogFreeModels } from "./dialog-model-free"
+ import { FavoriteMarker, isFreeModel, prioritizeFavorites, sortModelOptions } from "./model-options"
+ 
+ export function DialogModel(props: { providerID?: string }) {
+   const local = useLocal()
    const dialog = useDialog()
-   const location = useLocation()
+-  const newDesigns = useNewDesigns()
+-  const connected = useConnected()
+ 
+   function select(providerID: string, modelID: string) {
+     local.model.set({ providerID, modelID }, { recent: true })
+@@ -36,19 +32,10 @@ export function DialogModel(props: { providerID?: string }) {
+   }
+ 
+   function connect() {
+-    dialog.replace(() => (
+-      <DialogIntegration onConnected={(providerID) => dialog.replace(() => <DialogModel providerID={providerID} />)} />
+-    ))
++    // poracode: provider authentication stays in the host app.
+   }
+ 
+-  return (
+-    <Show
+-      when={newDesigns() && !connected() && !props.providerID}
+-      fallback={<DialogConnectedModels providerID={props.providerID} onSelect={select} onConnect={connect} />}
+-    >
+-      <DialogFreeModels onSelect={select} onConnect={connect} />
+-    </Show>
+-  )
++  return <DialogConnectedModels providerID={props.providerID} onSelect={select} onConnect={connect} />
+ }
+ 
+ function DialogConnectedModels(props: {
+@@ -63,7 +50,9 @@ function DialogConnectedModels(props: {
    const [query, setQuery] = createSignal("")
--  const favoritePriority = new Set(local.model.favorite().map(modelPreferenceKey))
-+  const favoritePriority = createMemo(() => new Set(local.model.favorite().map(modelPreferenceKey)))
-
-   const connected = useConnected()
-   const providers = createMemo(
-@@ -28,9 +27,9 @@ export function DialogModel(props: { providerID?: string }) {
-
+   // Under new designs, favoriting does not reorder the list until the dialog is reopened.
+   const favoritesAtOpen = [...local.model.favorite()]
+-  const favoritePriority = new Set(favoritesAtOpen.map(modelPreferenceKey))
++  const favoritePriority = createMemo(
++    () => new Set((newDesigns() ? favoritesAtOpen : local.model.favorite()).map(modelPreferenceKey)),
++  )
+   const isFavorite = (value: { providerID: string; modelID: string } | undefined) =>
+     value !== undefined &&
+     local.model.favorite().some((item) => item.providerID === value.providerID && item.modelID === value.modelID)
+@@ -83,10 +72,10 @@ function DialogConnectedModels(props: {
+   const models = createMemo(() => data.location.model.list(location.ref) ?? [])
+ 
    const showExtra = createMemo(() => connected() && !props.providerID)
-
++  const showFavoriteSections = createMemo(() => showExtra() && query().trim().length === 0)
+ 
 -  const options = createMemo(() => {
 -    const needle = query().trim()
 -    const showSections = showExtra() && needle.length === 0
-+  const showFavoriteSections = createMemo(() => showExtra() && query().trim().length === 0)
 +  const groups = createMemo(() => {
 +    const showSections = showFavoriteSections()
-     const favorites = connected() ? local.model.favorite() : []
+     const favorites = connected() ? (newDesigns() ? favoritesAtOpen : local.model.favorite()) : []
      const recents = local.model.recent()
-
-@@ -104,16 +103,13 @@ export function DialogModel(props: { providerID?: string }) {
+ 
+@@ -161,21 +150,25 @@ function DialogConnectedModels(props: {
        connected(),
      )
-
+ 
 -    if (needle) {
--      return prioritizeFavorites(
+-      const results = prioritizeFavorites(
 -        sortModelOptions(
 -          fuzzysort.go(needle, modelOptions, { keys: ["title", "category"] }).map((item) => item.obj),
 -          false,
 -        ),
 -        favoritePriority,
 -      )
--    }
 +    return { favoriteOptions, recentOptions, modelOptions }
 +  })
-
-+  const matchingModels = createPickerFilter(() => groups().modelOptions, () => query().trim(), ["title", "category"])
++
++  const matchingModels = createPickerFilter(
++    () => groups().modelOptions,
++    () => query().trim(),
++    ["title", "category"],
++  )
 +  const options = createMemo(() => {
-+    if (query().trim()) return prioritizeFavorites(sortModelOptions(matchingModels(), false), favoritePriority())
++    if (query().trim()) {
++      const results = prioritizeFavorites(sortModelOptions(matchingModels(), false), favoritePriority())
+       // Search results name the provider inline. Without a category, the trailing slot keeps the favorite marker
+       // instead of falling back to the provider name.
+       if (!newDesigns()) return results
+       return results.map((option) => ({ ...option, description: option.providerName, category: undefined }))
+     }
+ 
+-    if (!connected()) return prioritizeFavorites(modelOptions, favoritePriority)
 +    const { favoriteOptions, recentOptions, modelOptions } = groups()
-     return [...favoriteOptions, ...recentOptions, ...modelOptions]
-   })
-
-@@ -146,23 +142,13 @@ export function DialogModel(props: { providerID?: string }) {
++    if (!connected()) return prioritizeFavorites(modelOptions, favoritePriority())
+ 
+     return [
+       ...favoriteOptions,
+@@ -199,17 +192,13 @@ function DialogConnectedModels(props: {
        titlePlaceholder="Search models"
        options={options()}
        actions={[
@@ -74,13 +127,7 @@ index 7ae17d5..ba450df 100644
 -              : "View all integrations",
 +          title: "Connect an integration",
            selection: "none",
--          onTrigger() {
--            dialog.replace(() => (
--              <DialogIntegration
--                onConnected={(providerID) => dialog.replace(() => <DialogModel providerID={providerID} />)}
--              />
--            ))
--          },
+-          onTrigger: props.onConnect,
 +          hidden: true,
 +          onTrigger: () => {},
          },

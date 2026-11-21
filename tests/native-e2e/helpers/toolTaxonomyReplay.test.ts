@@ -35,7 +35,7 @@ describe("reusable deterministic normalized replay", () => {
       });
       expect(selectVisibleThreadTimelineEntries(state, threadId)).toEqual([
         { kind: "item", id: "neighbor" },
-        { kind: "item", id: "image" },
+        { kind: "image_group", id: "image-group:image", itemIds: ["image"] },
       ]);
     },
   );

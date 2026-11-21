@@ -9,7 +9,7 @@ struct CustomThemeContrastView: View {
     ("accent", "Text on accent")]
 
   var body: some View {
-    let light = CustomThemeColorMath.ratios(document.light), dark = CustomThemeColorMath.ratios(document.dark)
+    let light = CustomThemeColorMath.ratios(document.light, mode: "light"), dark = CustomThemeColorMath.ratios(document.dark, mode: "dark")
     let low = (Array(light.values) + Array(dark.values)).contains { $0 < 4.5 }
     DisclosureGroup {
       if !dynamicTypeSize.isAccessibilitySize { HStack {

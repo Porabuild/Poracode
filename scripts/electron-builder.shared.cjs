@@ -14,6 +14,30 @@ const PACKAGED_DIST_FILES = PACKAGED_DIST_DIRS.flatMap((dir) => [
   `!dist/${dir}/**/*.map`,
 ]);
 
+// Runtime dependencies present in both Arch Linux (x86_64) and Arch Linux ARM /
+// Omarchy 4.5 (aarch64) official repos. Replaces electron-builder/fpm's stale
+// default pacman list (which still references dropped packages like http-parser).
+const ARCH_LINUX_DESKTOP_DEPENDS = [
+  "alsa-lib",
+  "at-spi2-core",
+  "bash",
+  "gcc-libs",
+  "glibc",
+  "gtk3",
+  "hicolor-icon-theme",
+  "libdrm",
+  "libnotify",
+  "libsecret",
+  "libxcb",
+  "libxss",
+  "libxtst",
+  "mesa",
+  "nss",
+  "util-linux-libs",
+  "xdg-desktop-portal",
+  "xdg-utils",
+];
+
 function normalizeChannel(value) {
   return value === "nightly" ? "nightly" : "stable";
 }
@@ -53,6 +77,7 @@ function macExecutableNameFor(channel, artifactKind) {
 }
 
 module.exports = {
+  ARCH_LINUX_DESKTOP_DEPENDS,
   CHANNELS,
   PACKAGED_DIST_DIRS,
   PACKAGED_DIST_FILES,

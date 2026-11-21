@@ -60,7 +60,7 @@ export const REMOTE_HTTP_UPLOAD_RETENTION_BUDGET_BYTES = 96 * 1024 * 1024;
  * outstanding credit, and the utility clamps its accumulated credit to the same
  * value, so one consumer pull can never authorize a larger response burst.
  */
-export const REMOTE_HTTP_RESPONSE_CREDIT_BYTES = 1024 * 1024;
+export const REMOTE_HTTP_RESPONSE_CREDIT_BYTES = 4 * 1024 * 1024;
 /** Upload frames are bounded so one message cannot be an unbounded allocation. */
 export const REMOTE_HTTP_UPLOAD_CHUNK_BYTES = 1024 * 1024;
 /**
@@ -70,10 +70,10 @@ export const REMOTE_HTTP_UPLOAD_CHUNK_BYTES = 1024 * 1024;
  * accepted chunk back, so a paused utility can never accumulate a full body in
  * the port queue and a slow upload cannot grow a sibling's backlog.
  */
-export const REMOTE_HTTP_UPLOAD_CREDIT_BYTES = 1024 * 1024;
+export const REMOTE_HTTP_UPLOAD_CREDIT_BYTES = 4 * 1024 * 1024;
 /** Global and per-window active-request admission caps. */
-export const REMOTE_HTTP_MAX_ACTIVE_REQUESTS = 128;
-export const REMOTE_HTTP_MAX_ACTIVE_REQUESTS_PER_WINDOW = 64;
+export const REMOTE_HTTP_MAX_ACTIVE_REQUESTS = 192;
+export const REMOTE_HTTP_MAX_ACTIVE_REQUESTS_PER_WINDOW = 96;
 /** Request metadata bounds: admission is bounded as strictly as data. */
 export const REMOTE_HTTP_MAX_URL_LENGTH = 4096;
 export const REMOTE_HTTP_MAX_HEADER_COUNT = 64;

@@ -23,7 +23,7 @@ const payload = elfPayload();
 const testAsset: HexEngineAsset = {
   platform: "linux",
   arch: "x64",
-  filename: "hex-3.1.1-linux-x64",
+  filename: "hex-3.4.0-linux-x64",
   downloadBytes: payload.length,
   sha256: createHash("sha256").update(payload).digest("hex"),
   archive: false,
@@ -78,7 +78,7 @@ describe("HexEngineInstaller", () => {
           {
             platform: "win32",
             arch: "x64",
-            filename: "hex-3.1.1-windows-x64.exe",
+            filename: "hex-3.4.0-windows-x64.exe",
             downloadBytes: pe.length,
             sha256: createHash("sha256").update(pe).digest("hex"),
             archive: false,
@@ -92,7 +92,7 @@ describe("HexEngineInstaller", () => {
     manager.startInstall();
     await vi.waitFor(() => expect(manager.isInstalling).toBe(false));
 
-    expect(manager.snapshot()).toMatchObject({ state: "installed", version: "3.1.1" });
+    expect(manager.snapshot()).toMatchObject({ state: "installed", version: "3.4.0" });
     expect(runCommand).toHaveBeenCalledOnce();
     const [command, args, options] = runCommand.mock.calls[0]!;
     expect(command).toBe("powershell.exe");
@@ -124,14 +124,14 @@ describe("HexEngineInstaller", () => {
     expect(manager.managedExecutable).toBeUndefined();
   });
 
-  it("rejects unsupported platforms and Linux runtimes below glibc 2.39 without downloading", async () => {
+  it("rejects unsupported platforms and Linux runtimes below glibc 2.36 without downloading", async () => {
     const root = await createDirectory();
     const fetcher = vi.fn<typeof fetch>();
     const unsupported = installer(root, { arch: "ia32", fetcher });
     expect(unsupported.snapshot()).toMatchObject({ state: "unsupported", error: "unsupported" });
     expect(() => unsupported.startInstall()).toThrow("unsupported");
 
-    const incompatible = installer(root, { glibcVersion: "2.38", fetcher });
+    const incompatible = installer(root, { glibcVersion: "2.35", fetcher });
     expect(incompatible.snapshot()).toMatchObject({
       state: "unsupported",
       error: "incompatible",
@@ -139,6 +139,9 @@ describe("HexEngineInstaller", () => {
     });
     expect(() => incompatible.startInstall()).toThrow("incompatible");
     expect(fetcher).not.toHaveBeenCalled();
+
+    const compatible = installer(root, { glibcVersion: "2.36", fetcher });
+    expect(compatible.snapshot()).toMatchObject({ state: "missing" });
   });
 
   it("preserves an unknown manifest without attempting to install over it", async () => {
@@ -206,7 +209,7 @@ describe("HexEngineInstaller", () => {
 
   it("keeps an older managed engine selected when an upgrade probe fails", async () => {
     const root = await createDirectory();
-    const release = "3.0.0-12345678-1234-1234-1234-123456789abc";
+    const release = "3.1.1-12345678-1234-1234-1234-123456789abc";
     const releaseDirectory = join(root, "releases", release);
     const oldExecutable = join(releaseDirectory, "hex");
     const pointerPath = join(root, "active.json");
@@ -215,7 +218,7 @@ describe("HexEngineInstaller", () => {
     const pointer = JSON.stringify({
       schemaVersion: 1,
       release,
-      version: "3.0.0",
+      version: "3.1.1",
       platform: "linux",
       arch: "x64",
     });
@@ -233,7 +236,8 @@ describe("HexEngineInstaller", () => {
     expect(manager.snapshot()).toMatchObject({
       state: "installed",
       source: "managed",
-      version: "3.0.0",
+      version: "3.1.1",
+      availableVersion: "3.4.0",
       error: "incompatible",
     });
     expect(await readFile(pointerPath, "utf8")).toBe(pointer);
@@ -244,7 +248,14 @@ describe("HexEngineInstaller", () => {
     });
     await expect(service.handle({ action: "setup" })).resolves.toMatchObject({
       kind: "setup",
-      setup: { engine: { source: "managed", version: "3.0.0", error: "incompatible" } },
+      setup: {
+        engine: {
+          source: "managed",
+          version: "3.1.1",
+          availableVersion: "3.4.0",
+          error: "incompatible",
+        },
+      },
     });
     await service.dispose();
   });

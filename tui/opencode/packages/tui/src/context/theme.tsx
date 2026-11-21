@@ -175,7 +175,7 @@ const themeContext = createSimpleContext({
       if (palette) setSystemTheme(generateSystem(palette, store.mode))
     }
     if (palette) {
-      const mode = store.lock ?? terminalMode(palette) ?? store.mode
+      const mode = store.lock ?? renderer.themeMode ?? terminalMode(palette) ?? store.mode
       if (store.mode !== mode) setStore("mode", mode)
       applyPalette()
     } else setSystemTheme(undefined)
@@ -294,7 +294,7 @@ const themeContext = createSimpleContext({
       const sources = available()
       // poracode: missing selections fall back to the built-in theme while keeping their
       // name so a late-registered theme can still resolve; only a load failure is rewritten.
-      const resolved = resolveThemeWithFallback(store.active, sources, store.mode)
+      const resolved = resolveThemeWithFallback(store.active, sources, store.mode, { newDesigns: newDesigns() })
       if ("error" in resolved && resolved.name !== store.active) {
         themeErrors.emit(store.active, resolved.error)
         setStore("active", resolved.name)

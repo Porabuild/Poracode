@@ -700,6 +700,17 @@ export class GitService {
     return this.worktreeService.getWorktreeSourceBranch(location, branch, sourceBranchOverride);
   }
 
+  async getWorktreeSourceBranchesBatch(
+    location: ProjectLocation,
+    branches: readonly string[],
+  ): Promise<Record<string, GitGetWorktreeSourceBranchResult>> {
+    return this.worktreeService.getWorktreeSourceBranchesBatch(
+      location,
+      branches,
+      GIT_WORKTREE_STATUS_CONCURRENCY,
+    );
+  }
+
   async getWorktreeOwner(
     location: ProjectLocation,
     branch: string,

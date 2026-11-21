@@ -418,29 +418,27 @@ data class ProceduregitWatchWorktreesRequest_8b52512d7a(
 }
 
 @Serializable
-data class ProceduregitWorktreeStatusBatchRequest_a6f98c7f48(
-    @SerialName("detail") val detail: RemoteField<ProceduregetGitStatusRequestU2DDetail_15cae388d0> = RemoteField.Missing,
+data class ProceduregitWorktreeSourceBranchBatchRequest_03d8a6f138(
+    @SerialName("branches") val branches: List<String>,
     @SerialName("projectLocation") val projectLocation: ProcedurebeginMcpServerOauthRequestU2DProjectLocation_080f9cc154,
-    @SerialName("worktreePaths") val worktreePaths: List<String>,
 ) {
     companion object {
         val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
-            RemoteFieldDescriptor("detail", "ProceduregetGitStatusRequestU2DDetail_15cae388d0", false, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("branches", "List<String>", true, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("projectLocation", "ProcedurebeginMcpServerOauthRequestU2DProjectLocation_080f9cc154", true, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("worktreePaths", "List<String>", true, false, null, null, null, null, null, null, null, null, listOf()),
         ), listOf())
     }
 }
 
-typealias ProceduregitWorktreeStatusBatchResultU2DStatuses_745963f664 = Map<String, ProceduregetGitStatusResult_c1d4a9f752>
+typealias ProceduregitWorktreeSourceBranchBatchResultU2DResults_393ee0b919 = Map<String, ProceduregitGetWorktreeSourceBranchResult_4864c5f65a>
 
 @Serializable
-data class ProceduregitWorktreeStatusBatchResult_1b23732705(
-    @SerialName("statuses") val statuses: ProceduregitWorktreeStatusBatchResultU2DStatuses_745963f664,
+data class ProceduregitWorktreeSourceBranchBatchResult_5d90f428f5(
+    @SerialName("results") val results: ProceduregitWorktreeSourceBranchBatchResultU2DResults_393ee0b919,
 ) {
     companion object {
         val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
-            RemoteFieldDescriptor("statuses", "ProceduregitWorktreeStatusBatchResultU2DStatuses_745963f664", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("results", "ProceduregitWorktreeSourceBranchBatchResultU2DResults_393ee0b919", true, false, null, null, null, null, null, null, null, null, listOf()),
         ), listOf())
     }
 }

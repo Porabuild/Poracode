@@ -984,38 +984,58 @@ html[data-app-unfocused] .poracode-welcome-ring::after {
    secondary variant uses --accent-soft-foreground, which makes ordinary
    controls (including shared OptionMenu triggers) accent-colored by default.
    Keep accent text opt-in and make all neutral action variants inherit the
-   theme foreground: off-white in dark themes and dark in light themes. */
-.button--primary {
-  --button-bg: var(--default);
-  --button-bg-hover: var(--default-hover);
-  --button-bg-pressed: var(--default-hover);
-  --button-fg: var(--foreground);
-}
+   theme foreground: off-white in dark themes and dark in light themes.
+   Fills use translucent washes (foreground in dark, black in light so themes
+   with a dark foreground don't over-darken) instead of opaque tokens tied to
+   one surface, so filled buttons and ghost hover states separate cleanly on
+   plain canvas, ContentSurface cards, the composer, and modal overlays alike.
+   Layered in `components` so per-instance Tailwind utilities (such as
+   `[--button-bg-hover:...]`) still override them. */
+@layer components {
+  .button--primary {
+    --button-fg: var(--foreground);
+  }
 
-.button--secondary {
-  --button-fg: var(--foreground);
-}
+  .button--secondary {
+    --button-fg: var(--foreground);
+  }
 
-/* Tertiary: a quiet neutral that still reads as interactive. Borderless, like
-   HeroUI's stock tertiary — the separation comes from a fill a touch darker than
-   the panel. Derived by darkening --content-background (the surface these controls
-   render on) a fixed fraction toward black, NOT by mixing toward --foreground:
-   a toward-fg step darkens by a fraction of the gap to fg, so themes with a dark
-   foreground (e.g. Poracode light, fg ~L0.21) over-darken and read heavy. Scaling
-   the panel's own luminance toward black is foreground-independent, so the fill
-   lands at a uniform ~1.28:1 across every light preset. Dark keeps HeroUI's stock
-   fill, so this is light-only. */
-.button--tertiary {
-  --button-fg: var(--foreground);
-}
+  .button--tertiary {
+    --button-fg: var(--foreground);
+  }
 
-.light .button--tertiary,
-[data-theme="light"] .button--tertiary,
-.light .button--primary,
-[data-theme="light"] .button--primary {
-  --button-bg: color-mix(in oklab, var(--content-background) 89%, #000);
-  --button-bg-hover: color-mix(in oklab, var(--content-background) 84%, #000);
-  --button-bg-pressed: var(--button-bg-hover);
+  .button--primary,
+  .button--secondary,
+  .button--tertiary {
+    --button-bg: color-mix(in oklab, var(--foreground) 12%, transparent);
+    --button-bg-hover: color-mix(in oklab, var(--foreground) 17%, transparent);
+    --button-bg-pressed: color-mix(in oklab, var(--foreground) 20%, transparent);
+  }
+
+  .button--ghost,
+  .button--outline {
+    --button-bg-hover: color-mix(in oklab, var(--foreground) 9%, transparent);
+    --button-bg-pressed: color-mix(in oklab, var(--foreground) 13%, transparent);
+  }
+
+  .light .button--primary,
+  [data-theme="light"] .button--primary,
+  .light .button--secondary,
+  [data-theme="light"] .button--secondary,
+  .light .button--tertiary,
+  [data-theme="light"] .button--tertiary {
+    --button-bg: color-mix(in oklab, #000 11%, transparent);
+    --button-bg-hover: color-mix(in oklab, #000 16%, transparent);
+    --button-bg-pressed: color-mix(in oklab, #000 20%, transparent);
+  }
+
+  .light .button--ghost,
+  [data-theme="light"] .button--ghost,
+  .light .button--outline,
+  [data-theme="light"] .button--outline {
+    --button-bg-hover: color-mix(in oklab, #000 8%, transparent);
+    --button-bg-pressed: color-mix(in oklab, #000 12%, transparent);
+  }
 }
 
 /* Field-styled picker buttons (e.g. Location folder pickers alongside text
@@ -5282,29 +5302,40 @@ html[data-app-unfocused] .poracode-provider-icon--finished {
   position: relative;
   display: inline-flex;
   align-items: center;
-  gap: 0.2rem;
-  padding: 0.15em 0.3em;
-  margin: 0 2px;
-  border-radius: 0.3rem;
-  background: color-mix(in oklab, var(--accent) 15%, var(--surface));
+  gap: 0.25em;
+  padding: 0.1em 0.3em;
+  margin: 0 1px;
+  border-radius: 0.25rem;
+  background: color-mix(in oklab, var(--accent) 12%, var(--surface));
   color: var(--foreground);
+  font-family: inherit;
   font-size: 0.875em;
-  line-height: 1;
-  vertical-align: text-bottom;
+  line-height: 1.3;
+  vertical-align: middle;
   user-select: none;
   cursor: default;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.poracode-mention-input .poracode-mention-chip {
+  margin-block: -0.25em;
 }
 
 .poracode-mention-chip__icon {
-  width: 1.1em;
-  height: 1.1em;
-  vertical-align: middle;
+  width: 1em;
+  height: 1em;
+  flex-shrink: 0;
 }
 
 .poracode-mention-chip__name {
+  display: inline-block;
+  min-width: 0;
+  max-width: 20rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-weight: 400;
-  position: relative;
-  top: -1.5px;
 }
 
 .poracode-mention-chip__delete {
@@ -5752,6 +5783,10 @@ html[data-keyboard-navigation] .poracode-thread-mention-chip:focus-visible {
   touch-action: none;
 }
 
+.poracode-image-lightbox__stage--with-strip {
+  inset: 3rem 3rem 8.25rem;
+}
+
 .poracode-image-lightbox__image {
   max-width: 100%;
   max-height: 100%;
@@ -5831,13 +5866,69 @@ html[data-keyboard-navigation] .poracode-thread-mention-chip:focus-visible {
 
 .poracode-image-lightbox__footer {
   position: absolute;
-  bottom: 1.5rem;
+  bottom: 1.25rem;
   left: 50%;
   transform: translateX(-50%);
   display: flex;
+  flex-direction: column;
   align-items: center;
   gap: 0.5rem;
+  max-width: calc(100vw - 2rem);
   z-index: 2;
+}
+
+.poracode-image-lightbox__footer-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.poracode-image-lightbox__strip {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  max-width: min(44rem, calc(100vw - 2rem));
+  padding: 0.35rem 0.45rem;
+  border-radius: 0.875rem;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(10px);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.poracode-image-lightbox__strip::-webkit-scrollbar {
+  display: none;
+}
+
+.poracode-image-lightbox__thumb {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 3.25rem;
+  height: 2.375rem;
+  padding: 0;
+  border: 2px solid transparent;
+  border-radius: 0.45rem;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+  opacity: 0.58;
+  cursor: var(--interactive-cursor);
+  transition:
+    opacity 140ms ease,
+    border-color 140ms ease,
+    transform 140ms ease;
+}
+
+.poracode-image-lightbox__thumb:hover,
+.poracode-image-lightbox__thumb:focus-visible {
+  opacity: 0.92;
+}
+
+.poracode-image-lightbox__thumb--active {
+  border-color: rgba(255, 255, 255, 0.95);
+  opacity: 1;
+  transform: scale(1.06);
 }
 
 .poracode-image-lightbox__zoom,

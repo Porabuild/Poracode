@@ -39,12 +39,14 @@ describe("native custom theme compatibility vectors", () => {
   it("pins native contrast warnings and secondary text derivation to the PWA", () => {
     for (const sample of fixture.palettes) {
       const palette: ThemePalette = sample.palette;
-      expect(themeTextContrast(palette, "light")).toEqual(sample.ratios);
+      const mode: "light" | "dark" = sample.mode ?? "light";
+      expect(themeTextContrast(palette, mode)).toEqual(sample.ratios);
     }
     for (const sample of fixture.palettes.filter(
       (entry: { muted: string | null }) => entry.muted !== null,
     )) {
-      expect(buildVariant(sample.palette, "light")["--muted"]).toBe(sample.muted);
+      const mode: "light" | "dark" = sample.mode ?? "light";
+      expect(buildVariant(sample.palette, mode)["--muted"]).toBe(sample.muted);
     }
   });
 });

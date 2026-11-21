@@ -345,6 +345,14 @@ public extension RemoteRootCodecs {
 }
 
 public extension RemoteRootCodecs {
+  static let procedureU2EGitWorktreeSourceBranchBatchU2ERequest: RemoteRootCodec<ProceduregitWorktreeSourceBranchBatchRequest_03d8a6f138> = .init(id: "procedure.gitWorktreeSourceBranchBatch.request", schema: RemoteSchemas.schema_03d8a6f1380a7b2a)
+}
+
+public extension RemoteRootCodecs {
+  static let procedureU2EGitWorktreeSourceBranchBatchU2EResult: RemoteRootCodec<ProceduregitWorktreeSourceBranchBatchResult_5d90f428f5> = .init(id: "procedure.gitWorktreeSourceBranchBatch.result", schema: RemoteSchemas.schema_5d90f428f5eaf4f1)
+}
+
+public extension RemoteRootCodecs {
   static let procedureU2EGitWorktreeStatusBatchU2ERequest: RemoteRootCodec<ProceduregitWorktreeStatusBatchRequest_a6f98c7f48> = .init(id: "procedure.gitWorktreeStatusBatch.request", schema: RemoteSchemas.schema_a6f98c7f485db267)
 }
 
@@ -438,12 +446,4 @@ public extension RemoteRootCodecs {
 
 public extension RemoteRootCodecs {
   static let procedureU2EListThreadSessionActionsU2EResult: RemoteRootCodec<ProcedurelistThreadSessionActionsResult_825afc62b8> = .init(id: "procedure.listThreadSessionActions.result", schema: RemoteSchemas.schema_825afc62b855f7e6)
-}
-
-public extension RemoteRootCodecs {
-  static let procedureU2ELogoutAcpAgentU2ERequest: RemoteRootCodec<ProcedurelogoutAcpAgentRequest_afbd186700> = .init(id: "procedure.logoutAcpAgent.request", schema: RemoteSchemas.schema_afbd18670080eac5)
-}
-
-public extension RemoteRootCodecs {
-  static let procedureU2ELspStartU2ERequest: RemoteRootCodec<ProcedurelspStartRequest_0fbb6754fb> = .init(id: "procedure.lspStart.request", schema: RemoteSchemas.schema_0fbb6754fb3c4dd0)
 }

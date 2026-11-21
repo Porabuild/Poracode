@@ -28,7 +28,11 @@ import { dbGetProject } from "@/host/db";
 import { redactMcpServer } from "@/host/mcpSettings";
 import { parseBearerAuthorizationHeader, RemoteHttpError } from "../auth";
 import { FORWARD_ORIGIN_UNAVAILABLE } from "../portForward/forwardOriginIdentity";
-import { writeHardenedImageResponse, writeJson } from "./httpResponses";
+import {
+  writeCompressedJsonResponse,
+  writeHardenedImageResponse,
+  writeJson,
+} from "./httpResponses";
 import {
   remoteProjectCommandResultIsBounded,
   requirePathParam,
@@ -322,13 +326,17 @@ export const WORKSPACE_ROUTE_HANDLERS: Pick<HttpRouteHandlerTable, WorkspaceRout
     });
   },
 
-  "schedules-read": ({ ctx, res }) => {
-    writeJson(res, 200, { schedules: ctx.requireSchedulesGateway().list() });
+  "schedules-read": async ({ ctx, req, res }) => {
+    await writeCompressedJsonResponse(req, res, 200, {
+      schedules: ctx.requireSchedulesGateway().list(),
+    });
   },
 
-  "schedule-runs-read": ({ ctx, res, url }) => {
+  "schedule-runs-read": async ({ ctx, req, res, url }) => {
     const { id } = scheduledTaskIdPayloadSchema.parse({ id: url.searchParams.get("id") });
-    writeJson(res, 200, { runs: ctx.requireSchedulesGateway().runs(id) });
+    await writeCompressedJsonResponse(req, res, 200, {
+      runs: ctx.requireSchedulesGateway().runs(id),
+    });
   },
 
   "schedules-command": async ({ ctx, req, res }) => {
@@ -336,7 +344,7 @@ export const WORKSPACE_ROUTE_HANDLERS: Pick<HttpRouteHandlerTable, WorkspaceRout
     const schedules = ctx.requireSchedulesGateway();
     if (command.kind === "delete") {
       schedules.delete(command.id);
-      writeJson(res, 200, { schedules: schedules.list() });
+      await writeCompressedJsonResponse(req, res, 200, { schedules: schedules.list() });
       return;
     }
     const schedule =
@@ -345,10 +353,10 @@ export const WORKSPACE_ROUTE_HANDLERS: Pick<HttpRouteHandlerTable, WorkspaceRout
         : command.kind === "update"
           ? schedules.update(command.id, command.task)
           : schedules.runNow(command.id);
-    writeJson(res, 200, { schedule, schedules: schedules.list() });
+    await writeCompressedJsonResponse(req, res, 200, { schedule, schedules: schedules.list() });
   },
 
-  "automations-snapshot": ({ ctx, res, url }) => {
+  "automations-snapshot": async ({ ctx, req, res, url }) => {
     const schedules = ctx.requireSchedulesGateway();
     if (!schedules.snapshot)
       throw new RemoteHttpError(
@@ -356,9 +364,9 @@ export const WORKSPACE_ROUTE_HANDLERS: Pick<HttpRouteHandlerTable, WorkspaceRout
         "Automation results are unavailable on this host.",
         503,
       );
-    writeJson(res, 200, schedules.snapshot(inboxQuery(url)));
+    await writeCompressedJsonResponse(req, res, 200, schedules.snapshot(inboxQuery(url)));
   },
-  "schedule-run-inbox": ({ ctx, res, url }) => {
+  "schedule-run-inbox": async ({ ctx, req, res, url }) => {
     const schedules = ctx.requireSchedulesGateway();
     if (!schedules.inbox)
       throw new RemoteHttpError(
@@ -366,7 +374,7 @@ export const WORKSPACE_ROUTE_HANDLERS: Pick<HttpRouteHandlerTable, WorkspaceRout
         "Automation results are unavailable on this host.",
         503,
       );
-    writeJson(res, 200, { runs: schedules.inbox(inboxQuery(url)) });
+    await writeCompressedJsonResponse(req, res, 200, { runs: schedules.inbox(inboxQuery(url)) });
   },
   "schedule-run-command": async ({ ctx, req, res }) => {
     const schedules = ctx.requireSchedulesGateway();
@@ -434,13 +442,17 @@ export const WORKSPACE_ROUTE_HANDLERS: Pick<HttpRouteHandlerTable, WorkspaceRout
     writeJson(res, 200, { ok: true });
   },
 
-  "browser-state": async ({ ctx, res }) => {
-    writeJson(res, 200, { state: await ctx.requireBrowserGateway().state() });
+  "browser-state": async ({ ctx, req, res }) => {
+    await writeCompressedJsonResponse(req, res, 200, {
+      state: await ctx.requireBrowserGateway().state(),
+    });
   },
 
   "browser-command": async ({ ctx, req, res }) => {
     const command = remoteBrowserCommandSchema.parse(await readJsonBody(req));
-    writeJson(res, 200, { state: await ctx.requireBrowserGateway().command(command) });
+    await writeCompressedJsonResponse(req, res, 200, {
+      state: await ctx.requireBrowserGateway().command(command),
+    });
   },
 
   "ports-read": async ({ ctx, res }) => {
@@ -507,7 +519,9 @@ export const WORKSPACE_ROUTE_HANDLERS: Pick<HttpRouteHandlerTable, WorkspaceRout
   "procedure-call": async ({ ctx, req, res }) => {
     // Scope resolution is procedure-defined: `runRemoteProcedure` authenticates
     // the bearer token against the called procedure's own scope.
-    writeJson(res, 200, { result: await runRemoteProcedure(ctx, req) });
+    await writeCompressedJsonResponse(req, res, 200, {
+      result: await runRemoteProcedure(ctx, req),
+    });
   },
 
   "project-command": async ({ ctx, req, res, url, session }) => {

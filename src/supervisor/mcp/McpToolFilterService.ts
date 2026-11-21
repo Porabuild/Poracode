@@ -89,12 +89,17 @@ function filterConfig(server: ResolvedMcpServer, options: FilterOptions): string
 }
 
 /** Staged target id of the native relay for this host, when one exists. */
-export function nativeRelayTargetId(): string | undefined {
-  if (process.platform === "darwin") return "darwin-universal";
-  if (process.platform === "win32") {
-    return process.arch === "x64" || process.arch === "arm64" ? `win32-${process.arch}` : undefined;
+export function nativeRelayTargetId(
+  platform: NodeJS.Platform = process.platform,
+  arch: string = process.arch,
+): string | undefined {
+  if (platform === "darwin") return "darwin-universal";
+  if (platform === "win32") {
+    return arch === "x64" || arch === "arm64" ? `win32-${arch}` : undefined;
   }
-  if (process.platform === "linux" && process.arch === "x64") return "linux-x64";
+  if (platform === "linux") {
+    return arch === "x64" || arch === "arm64" ? `linux-${arch}` : undefined;
+  }
   return undefined;
 }
 

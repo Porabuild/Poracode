@@ -7,6 +7,7 @@ import type {
   ThreadPresentationMode,
 } from "@/shared/contracts";
 import type { RemoteClientMetadata } from "@/shared/remote";
+import type { RemoteRequestPriority, RemoteRequestScheduler } from "./requestScheduler";
 
 export interface ThreadHistoryOptions {
   readonly targetTimelineEntryCount?: number;
@@ -160,6 +161,16 @@ export interface RemoteDesktopClientOptions {
   /** Notified once when a first-pair probe validated the server certificate
    * and the fingerprint was adopted as this client's pin. */
   readonly onCertFingerprintValidated?: (fingerprint: string) => void;
+  /** Per-origin concurrency scheduler; defaults to the shared process scheduler. */
+  readonly requestScheduler?: RemoteRequestScheduler;
+  /** Bounded retry budget for definite uncommitted admission refusals (429/503). */
+  readonly maxOverloadRetries?: number;
+  /**
+   * True when the underlying `fetchImpl` binds `certFingerprint` directly onto
+   * the actual TLS socket before transmitting bytes (e.g. Electron's off-main
+   * `pinnedHttpsFetch`), avoiding a separate pre-request TLS probe handshake.
+   */
+  readonly transportEnforcesCertPin?: boolean;
 }
 
 /** Tokens of one session after a (re)issue; persisted by the caller. */
@@ -275,6 +286,8 @@ export type RemoteJsonRequestInit = {
    * before dispatch keeps the refusal in the presend phase.
    */
   readonly signal?: AbortSignal;
+  /** Explicit scheduling priority; derived from route/procedure when omitted. */
+  readonly priority?: RemoteRequestPriority;
 };
 
 export type RemoteJsonRefreshState = {

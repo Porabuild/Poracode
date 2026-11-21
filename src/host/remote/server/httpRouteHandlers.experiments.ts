@@ -6,7 +6,7 @@ import {
   readRemoteExperimentState,
   requireExperimentAuthority,
 } from "./experimentCommands";
-import { writeJson } from "./httpResponses";
+import { writeCompressedJsonResponse } from "./httpResponses";
 import {
   requirePathParam,
   requireRemoteCommandId,
@@ -19,8 +19,8 @@ type ExperimentRouteId = "experiment-state" | "experiment-command";
 
 /** Experiment authority route handlers (contract `experimentsRoutes`). */
 export const EXPERIMENT_ROUTE_HANDLERS: Pick<HttpRouteHandlerTable, ExperimentRouteId> = {
-  "experiment-state": (call) => {
-    writeJson(call.res, 200, readRemoteExperimentState(call.ctx));
+  "experiment-state": async (call) => {
+    await writeCompressedJsonResponse(call.req, call.res, 200, readRemoteExperimentState(call.ctx));
   },
 
   "experiment-command": async (call) => {
@@ -57,6 +57,6 @@ export const EXPERIMENT_ROUTE_HANDLERS: Pick<HttpRouteHandlerTable, ExperimentRo
       principalId: session?.sessionId ?? null,
       requestPayload: wire,
     });
-    writeJson(res, 200, result);
+    await writeCompressedJsonResponse(req, res, 200, result);
   },
 };

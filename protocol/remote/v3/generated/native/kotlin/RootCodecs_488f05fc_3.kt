@@ -5,6 +5,12 @@ import kotlinx.serialization.*
 import kotlinx.serialization.descriptors.*
 import kotlinx.serialization.encoding.*
 import kotlinx.serialization.json.*
+val RemoteRootCodecs.routeU2EAgentU2DStatusesU2EQuery: RemoteRootCodec<RouteagentU2DStatusesQuery_b09b259cd2>
+    get() = RemoteRootCodec("route.agent-statuses.query", serializer<RouteagentU2DStatusesQuery_b09b259cd2>(), schema_b09b259cd2bbc25d)
+
+val RemoteRootCodecs.routeU2EAgentU2DStatusesU2EResponse: RemoteRootCodec<RouteagentU2DStatusesResponse_0170ad7cfc>
+    get() = RemoteRootCodec("route.agent-statuses.response", serializer<RouteagentU2DStatusesResponse_0170ad7cfc>(), schema_0170ad7cfc4d502b)
+
 val RemoteRootCodecs.routeU2EAttachmentU2DUploadU2EQuery: RemoteRootCodec<RouteattachmentU2DUploadQuery_f22a438b83>
     get() = RemoteRootCodec("route.attachment-upload.query", serializer<RouteattachmentU2DUploadQuery_f22a438b83>(), schema_f22a438b8392693b)
 
@@ -442,9 +448,3 @@ val RemoteRootCodecs.routeU2EProcedureU2DCallU2ERequest: RemoteRootCodec<Routepr
 
 val RemoteRootCodecs.routeU2EProfileU2DCoreU2DStatsU2ERequest: RemoteRootCodec<RouteprofileU2DCoreU2DStatsRequest_f76e77baae>
     get() = RemoteRootCodec("route.profile-core-stats.request", serializer<RouteprofileU2DCoreU2DStatsRequest_f76e77baae>(), schema_f76e77baaeec46d5)
-
-val RemoteRootCodecs.routeU2EProfileU2DCoreU2DStatsU2EResponse: RemoteRootCodec<RouteprofileU2DCoreU2DStatsResponse_42cbe66f12>
-    get() = RemoteRootCodec("route.profile-core-stats.response", serializer<RouteprofileU2DCoreU2DStatsResponse_42cbe66f12>(), schema_42cbe66f126154fe)
-
-val RemoteRootCodecs.routeU2EProfileU2DDevicesU2EResponse: RemoteRootCodec<RouteprofileU2DDevicesResponse_0943be33f9>
-    get() = RemoteRootCodec("route.profile-devices.response", serializer<RouteprofileU2DDevicesResponse_0943be33f9>(), schema_0943be33f9e190f8)

@@ -11,7 +11,11 @@ import {
 import { readRuntimeItemChanges } from "@/renderer/state/runtimeItemChanges";
 import { isVisibleRuntimeItem } from "@/shared/runtimeItemVisibility";
 import { clearThreadTodoDockStateCache } from "../threadTodoState";
-import { isStandaloneImageItem, isToolGroupItem } from "./chatToolGroupItem";
+import {
+  isPendingImageGroupFollower,
+  isStandaloneImageItem,
+  isToolGroupItem,
+} from "./chatToolGroupItem";
 import {
   addUserMessageAttachmentImagePaths,
   EMPTY_USER_ATTACHMENT_PATHS,
@@ -421,22 +425,22 @@ function buildTimelineEntryProjection(
         if (
           !next ||
           childParentIds.has(nextId) ||
-          !isStandaloneImageItem(next, userAttachmentPaths)
+          (!isStandaloneImageItem(next, userAttachmentPaths) &&
+            !isPendingImageGroupFollower(next, userAttachmentPaths))
         ) {
           break;
         }
         imageIds.push(nextId);
         idx += 1;
       }
-      if (imageIds.length === 1) {
-        entries.push({ kind: "item", id: itemId });
-      } else {
-        entries.push({
-          kind: "image_group",
-          id: `image-group:${imageIds[0]}`,
-          itemIds: imageIds,
-        });
-      }
+      // Keep standalone image rows under a stable `image-group:<firstId>`
+      // entry even for a single image so appending a 2nd image transitions
+      // 1 -> 2 in place without unmounting tile 0.
+      entries.push({
+        kind: "image_group",
+        id: `image-group:${imageIds[0]}`,
+        itemIds: imageIds,
+      });
       continue;
     }
     if (!isToolGroupItem(item, userAttachmentPaths)) {

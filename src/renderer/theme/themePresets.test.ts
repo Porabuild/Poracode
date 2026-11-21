@@ -209,16 +209,18 @@ describe("theme presets", () => {
         // git-branch is a fixed tone in light; in dark it's the themed --muted.
         const gitBranch = mode === "light" ? semanticHex.light.gitBranch : v["--muted"]!;
 
-        // Tertiary fill. In light, styles.css .button--tertiary darkens
-        // --content-background (where these controls render) toward black by a fixed
-        // fraction — foreground-independent, so it lands at a uniform contrast across
-        // presets instead of over-darkening themes with a dark foreground (the
-        // toward-fg approach made Poracode light read heavy). Measured against
-        // --content-background. In dark we keep HeroUI's stock --default fill: it
-        // sits quieter on the panel (below UI_FILL_FLOOR for a couple of dark
-        // presets) but reads as intended, so the floor is enforced light only.
-        const buttonBg = mode === "light" ? mixHex("#000000", content, 0.11) : v["--default"]!;
-        const buttonHover = mode === "light" ? mixHex("#000000", content, 0.16) : v["--default"]!;
+        // Neutral button fill. styles.css uses translucent washes (12% fg in
+        // dark, 11% black in light) so buttons separate cleanly on both plain
+        // --content-background and raised --content-surface-fill / composer
+        // surfaces without collapsing on cards or over-darkening light themes.
+        const panel = v["--content-surface-fill"]!;
+        const buttonTint = mode === "light" ? "#000000" : fg;
+        const buttonRestPct = mode === "light" ? 0.11 : 0.12;
+        const buttonHoverPct = mode === "light" ? 0.16 : 0.17;
+        const buttonBgContent = mixHex(buttonTint, content, buttonRestPct);
+        const buttonHoverContent = mixHex(buttonTint, content, buttonHoverPct);
+        const buttonBgPanel = mixHex(buttonTint, panel, buttonRestPct);
+        const buttonHoverPanel = mixHex(buttonTint, panel, buttonHoverPct);
         // Soft-accent label (--color-accent-soft-foreground): styles.css deepens
         // HeroUI's raw --accent toward fg so explicitly accent-tinted controls
         // such as selected toggles, badges, chips, and calendar states stay
@@ -234,16 +236,14 @@ describe("theme presets", () => {
           ["pr-merged/content", sem.prMerged, content, UI_BOUNDARY_FLOOR],
           ["finished/content", sem.finished, content, UI_BOUNDARY_FLOOR],
           ["git-branch/content", gitBranch, content, UI_BOUNDARY_FLOOR],
-          // Fill floor is light-only (dark uses the quieter stock fill), measured
-          // against --content-background where the tool panels/overlays render.
-          ...(mode === "light"
-            ? ([
-                ["tertiary bg/content", buttonBg, content, UI_FILL_FLOOR],
-                ["tertiary hover/content", buttonHover, content, UI_FILL_FLOOR],
-              ] as [string, string, string, number][])
-            : []),
-          ["tertiary text/bg", fg, buttonBg, BG_FLOOR],
-          ["tertiary text/hover", fg, buttonHover, BG_FLOOR],
+          ["button bg/content", buttonBgContent, content, UI_FILL_FLOOR],
+          ["button hover/content", buttonHoverContent, content, UI_FILL_FLOOR],
+          ["button bg/panel", buttonBgPanel, panel, UI_FILL_FLOOR],
+          ["button hover/panel", buttonHoverPanel, panel, UI_FILL_FLOOR],
+          ["button text/bg content", fg, buttonBgContent, BG_FLOOR],
+          ["button text/hover content", fg, buttonHoverContent, BG_FLOOR],
+          ["button text/bg panel", fg, buttonBgPanel, BG_FLOOR],
+          ["button text/hover panel", fg, buttonHoverPanel, BG_FLOOR],
           ["soft-accent label/accent-soft", softLabel, accentSoftFill, UI_BOUNDARY_FLOOR],
           ["soft-accent label/default", softLabel, defaultFill, UI_BOUNDARY_FLOOR],
         ];

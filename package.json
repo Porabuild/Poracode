@@ -78,6 +78,7 @@
     "dist:win": "node scripts/build-desktop-artifact.mjs --platform win --target nsis --arch x64",
     "dist:win:all": "node scripts/build-desktop-artifact.mjs --platform win",
     "dist:linux": "node scripts/build-desktop-artifact.mjs --platform linux",
+    "dist:linux:arm": "node scripts/build-desktop-artifact.mjs --platform linux --arch arm64",
     "dist:mac": "node scripts/build-desktop-artifact.mjs --platform mac",
     "dist:mac:arm": "node scripts/build-desktop-artifact.mjs --platform mac --target dmg --arch arm64",
     "typecheck": "bun scripts/turbo.mjs typecheck",
@@ -126,7 +127,7 @@
     "@dnd-kit/geometry": "^0.5.3",
     "@dnd-kit/react": "^0.5.3",
     "@dnd-kit/state": "^0.5.3",
-    "@expo/hub-client": "1.5.0",
+    "@expo/hub-client": "1.12.2",
     "@git-diff-view/core": "^0.1.8",
     "@git-diff-view/react": "^0.1.8",
     "@heroui/react": "3.2.7",
@@ -331,7 +332,7 @@
     "bun@1.4.4-canary.20261109.1": "patches/bun@1.4.4-canary.20261109.1.patch",
     "micromark-extension-math-extended@3.2.2": "patches/micromark-extension-math-extended@3.2.2.patch",
     "monaco-editor@0.57.0": "patches/monaco-editor@0.57.0.patch",
-    "@expo/hub-client@1.5.0": "patches/@expo%2Fhub-client@1.5.0.patch"
+    "@expo/hub-client@1.12.2": "patches/@expo%2Fhub-client@1.12.2.patch"
   },
   "trustedDependencies": [
     "@sentry/cli",

@@ -14,6 +14,7 @@ import { readSharedSettingsFile } from "@/host/sharedSettingsFile";
 import { captureMainException, initializeMainSentry } from "./diagnostics/sentry";
 import { legacyProductNameFor } from "@/shared/legacyProductPaths";
 import { shouldUseMockKeychain } from "./mockKeychain";
+import { configureLinuxDesktopSwitches } from "./linuxDesktopEnv";
 import { resolveElectronUserDataPath } from "./userDataPath";
 import { installProcessStdioErrorHandlers } from "./processStdio";
 import { HostDataFence, HostDataFenceInUseError } from "@/backend/ownership/hostDataFence";
@@ -69,7 +70,8 @@ if (process.env.PORACODE_CDP_PORT) {
 // launch back in, and PORACODE_USE_MOCK_KEYCHAIN=1 lets a harness-driven
 // unpackaged launch (built bundle on the node_modules electron binary) opt
 // into the mock — never a packaged app.
-if (shouldUseMockKeychain({ isDev, isPackaged: app.isPackaged })) {
+const useMockKeychain = shouldUseMockKeychain({ isDev, isPackaged: app.isPackaged });
+if (useMockKeychain) {
   app.commandLine.appendSwitch("use-mock-keychain");
 }
 
@@ -79,9 +81,10 @@ if (shouldUseMockKeychain({ isDev, isPackaged: app.isPackaged })) {
 if (process.platform === "win32") {
   app.commandLine.appendSwitch("force-color-profile", "srgb");
 }
-if (process.platform === "linux") {
-  app.commandLine.appendSwitch("enable-features", "GlobalShortcutsPortal");
-}
+configureLinuxDesktopSwitches({
+  commandLine: app.commandLine,
+  useMockKeychain,
+});
 
 desktopApp.browserUserAgent = buildBrowserUserAgent(app.userAgentFallback);
 app.userAgentFallback = desktopApp.browserUserAgent;

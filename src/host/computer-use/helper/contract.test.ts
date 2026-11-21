@@ -129,6 +129,7 @@ describe("computer-use helper contract", () => {
           executable: false,
         },
         { platform: "linux" as const, arch: "x64", id: "linux-x64", executable: false },
+        { platform: "linux" as const, arch: "arm64", id: "linux-arm64", executable: false },
       ];
       writeFileSync(
         join(helperRoot, "manifest.json"),
@@ -151,9 +152,10 @@ describe("computer-use helper contract", () => {
           ),
         );
       }
-      expect(resolveComputerUseHelperBinaryPath(helperRoot, "linux", "arm64")).toBeNull();
-      expect(isComputerUseBackendAvailable(helperRoot, "linux", "arm64")).toBe(false);
+      expect(resolveComputerUseHelperBinaryPath(helperRoot, "linux", "riscv64")).toBeNull();
+      expect(isComputerUseBackendAvailable(helperRoot, "linux", "riscv64")).toBe(false);
       expect(isComputerUseBackendAvailable(helperRoot, "linux", "x64")).toBe(true);
+      expect(isComputerUseBackendAvailable(helperRoot, "linux", "arm64")).toBe(true);
       expect(isComputerUseBackendAvailable(helperRoot, "darwin", "arm64")).toBe(true);
       expect(isComputerUseBackendAvailable(helperRoot, "win32", "arm64")).toBe(true);
 
@@ -172,7 +174,10 @@ describe("computer-use helper contract", () => {
         "utf8",
       );
       expect(sharedPrepareSource).toContain(
-        'linux: [{ arch: "x64", id: "linux-x64", triple: "x86_64-unknown-linux-musl" }]',
+        '{ arch: "x64", id: "linux-x64", triple: "x86_64-unknown-linux-musl" }',
+      );
+      expect(sharedPrepareSource).toContain(
+        '{ arch: "arm64", id: "linux-arm64", triple: "aarch64-unknown-linux-musl" }',
       );
       expect(prepareSource).toContain(
         "Rust cargo/rustup is unavailable; computer use will be unavailable on Linux",
@@ -180,8 +185,8 @@ describe("computer-use helper contract", () => {
       expect(prepareSource).toContain(
         "Rust cargo/rustup is unavailable; computer use will use the legacy foreground driver",
       );
-      expect(afterPackSource).toContain('if (archName !== "x64")');
-      expect(artifactSource).toContain('linux: ["x64"]');
+      expect(afterPackSource).toContain('if (archName !== "x64" && archName !== "arm64")');
+      expect(artifactSource).toContain('linux: ["x64", "arm64"]');
     } finally {
       if (originalOverride === undefined) {
         delete process.env.PORACODE_COMPUTER_USE_HELPER_PATH;

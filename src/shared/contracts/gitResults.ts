@@ -150,6 +150,10 @@ export const gitGetWorktreeSourceBranchResultSchema = z.object({
   sourceAhead: safeInt,
 });
 
+export const gitWorktreeSourceBranchBatchResultSchema = z.object({
+  results: z.record(z.string(), gitGetWorktreeSourceBranchResultSchema),
+});
+
 export const gitGetWorktreeOwnerResultSchema = z.object({
   ownerToken: z.string().nullable(),
 });

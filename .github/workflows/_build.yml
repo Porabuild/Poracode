@@ -69,9 +69,18 @@ jobs:
           - os: ubuntu-latest
             artifact: dist-linux
             platform: linux
+            arch: x64
             rust-version: 1.98.1
             helper-targets: linux-x64
             rust-targets: x86_64-unknown-linux-musl
+            electron-cache: "~/.cache/electron"
+          - os: ubuntu-24.04-arm
+            artifact: dist-linux-arm64
+            platform: linux
+            arch: arm64
+            rust-version: 1.98.1
+            helper-targets: linux-arm64
+            rust-targets: aarch64-unknown-linux-musl
             electron-cache: "~/.cache/electron"
           - os: macos-15
             artifact: dist-mac-updater
@@ -106,8 +115,8 @@ jobs:
           ref: ${{ inputs.ref }}
 
       - name: Install Linux helper build tools
-        if: matrix.os == 'ubuntu-latest'
-        run: sudo apt-get update && sudo apt-get install --yes musl-tools
+        if: matrix.platform == 'linux'
+        run: sudo apt-get update && sudo apt-get install --yes musl-tools libarchive-tools zstd
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
@@ -153,9 +162,9 @@ jobs:
         uses: actions/cache@v5
         with:
           path: ${{ matrix.electron-cache }}
-          key: electron-${{ runner.os }}-${{ hashFiles('bun.lock') }}
+          key: electron-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('bun.lock') }}
           restore-keys: |
-            electron-${{ runner.os }}-
+            electron-${{ runner.os }}-${{ runner.arch }}-
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
@@ -179,7 +188,7 @@ jobs:
           PORACODE_CHANNEL: ${{ inputs.channel }}
           SENTRY_DSN: ${{ vars.SENTRY_DSN }}
           SENTRY_ENVIRONMENT: ${{ inputs.sentry_environment }}
-          PORACODE_SOURCEMAPS: ${{ matrix.platform == 'linux' && '1' || '0' }}
+          PORACODE_SOURCEMAPS: ${{ matrix.platform == 'linux' && matrix.arch == 'x64' && '1' || '0' }}
           POSTHOG_ENABLED: ${{ vars.POSTHOG_ENABLED || '1' }}
           POSTHOG_KEY: ${{ vars.POSTHOG_KEY }}
           POSTHOG_HOST: ${{ vars.POSTHOG_HOST || 'https://us.i.posthog.com' }}
@@ -203,7 +212,12 @@ jobs:
         shell: bash
 
       - name: Prepare computer-use helper
-        run: node scripts/prepare-computer-use-helper.mjs --platform "${{ matrix.platform }}" --require
+        env:
+          MATRIX_ARCH: ${{ matrix.arch }}
+        run: |
+          ARCH_ARGS=()
+          if [ -n "${MATRIX_ARCH:-}" ]; then ARCH_ARGS=(--arch "$MATRIX_ARCH"); fi
+          node scripts/prepare-computer-use-helper.mjs --platform "${{ matrix.platform }}" "${ARCH_ARGS[@]}" --require
         shell: bash
 
       - name: Cache MCP relay artifact
@@ -219,11 +233,16 @@ jobs:
         shell: bash
 
       - name: Prepare MCP relay
-        run: node scripts/prepare-mcp-relay.mjs --platform "${{ matrix.platform }}" --require
+        env:
+          MATRIX_ARCH: ${{ matrix.arch }}
+        run: |
+          ARCH_ARGS=()
+          if [ -n "${MATRIX_ARCH:-}" ]; then ARCH_ARGS=(--arch "$MATRIX_ARCH"); fi
+          node scripts/prepare-mcp-relay.mjs --platform "${{ matrix.platform }}" "${ARCH_ARGS[@]}" --require
         shell: bash
 
       - name: Upload Linux MCP relay for Windows WSL
-        if: matrix.platform == 'linux'
+        if: matrix.platform == 'linux' && matrix.arch == 'x64'
         uses: actions/upload-artifact@v7
         with:
           name: mcp-relay-linux-x64
@@ -255,7 +274,12 @@ jobs:
         shell: bash
 
       - name: Prepare Git helper
-        run: node scripts/prepare-git-helper.mjs --platform "${{ matrix.platform }}" --require
+        env:
+          MATRIX_ARCH: ${{ matrix.arch }}
+        run: |
+          ARCH_ARGS=()
+          if [ -n "${MATRIX_ARCH:-}" ]; then ARCH_ARGS=(--arch "$MATRIX_ARCH"); fi
+          node scripts/prepare-git-helper.mjs --platform "${{ matrix.platform }}" "${ARCH_ARGS[@]}" --require
         shell: bash
 
       - name: Prepare locked computer use plug-in
@@ -278,7 +302,7 @@ jobs:
         shell: bash
 
       - name: Upload Sentry source maps
-        if: matrix.platform == 'linux'
+        if: matrix.platform == 'linux' && matrix.arch == 'x64'
         run: |
           # Local `bun run dist` cleans source maps before packaging. Release CI
           # uploads them from the build output first, then removes them below.
@@ -320,9 +344,12 @@ jobs:
         if: matrix.platform != 'mac'
         run: |
           bun run prepare:package-assets
-          node scripts/build-desktop-artifact.mjs --platform "${{ matrix.platform }}" --skip-build
+          ARCH_ARGS=()
+          if [ -n "${MATRIX_ARCH:-}" ]; then ARCH_ARGS=(--arch "$MATRIX_ARCH"); fi
+          node scripts/build-desktop-artifact.mjs --platform "${{ matrix.platform }}" "${ARCH_ARGS[@]}" --skip-build
         shell: bash
         env:
+          MATRIX_ARCH: ${{ matrix.arch }}
           PORACODE_CHANNEL: ${{ inputs.channel }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CSC_IDENTITY_AUTO_DISCOVERY: false
@@ -465,6 +492,7 @@ jobs:
             release/Poracode-*.zip
             release/Poracode-*.AppImage
             release/Poracode-*.deb
+            release/Poracode-*.pacman
             release/latest*.yml
             release/nightly*.yml
             release/*.blockmap

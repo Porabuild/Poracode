@@ -7,8 +7,10 @@ import { fileURLToPath } from "node:url";
 import {
   parseSha256Sums,
   renderAll,
+  renderAurDesktopPkgbuild,
   renderAurPkgbuild,
   renderHomebrewFormula,
+  renderOmarchyPackage,
   renderScoopManifest,
   renderWingetManifests,
 } from "./package-managers.mjs";
@@ -29,9 +31,11 @@ const names = [
   "Poracode-2.1.0-x64.dmg",
   "Poracode-Setup-2.1.0-x64.exe",
   "Poracode-Setup-2.1.0-arm64.exe",
+  "Poracode-2.1.0-x64.pacman",
+  "Poracode-2.1.0-aarch64.pacman",
 ];
 const sums = parseSha256Sums(
-  names.map((name, index) => `${String(index).repeat(64).slice(0, 64)}  ${name}`).join("\n"),
+  names.map((name, index) => `${index.toString(16).repeat(64).slice(0, 64)}  ${name}`).join("\n"),
 );
 
 void test("manifests pin release URLs and the published SHA256SUMS hashes", () => {
@@ -65,6 +69,36 @@ void test("manifests pin release URLs and the published SHA256SUMS hashes", () =
   );
   assert.match(pkgbuild, /^pkgver=2\.2\.0$/mu);
   assert.match(pkgbuild, /ln -s \/opt\/poracode-cli\/bin\/poracode/u);
+
+  const desktopAur = renderAurDesktopPkgbuild(version, sums);
+  assert.match(desktopAur, /^pkgname=poracode-bin$/mu);
+  assert.match(desktopAur, /^arch=\('x86_64' 'aarch64'\)$/mu);
+  assert.match(
+    desktopAur,
+    new RegExp(`sha256sums_x86_64=\\('${sums.get("Poracode-2.1.0-x64.pacman")}'\\)`, "u"),
+  );
+  assert.match(
+    desktopAur,
+    new RegExp(`sha256sums_aarch64=\\('${sums.get("Poracode-2.1.0-aarch64.pacman")}'\\)`, "u"),
+  );
+  assert.match(desktopAur, /'libsecret'/u);
+  assert.match(desktopAur, /'xdg-desktop-portal'/u);
+  assert.match(desktopAur, /chmod 0755 "\$pkgdir\/opt\/Poracode\/chrome-sandbox"/u);
+
+  const omarchy = renderOmarchyPackage(version, sums);
+  assert.match(omarchy.PKGBUILD, /^pkgname=poracode$/mu);
+  assert.match(omarchy.PKGBUILD, /^COMPRESSZST=\(zstd -c -z -q --ultra -22 --threads=0 -\)$/mu);
+  const omarchyMeta = JSON.parse(omarchy[".omarchy/package.json"]);
+  assert.deepEqual(omarchyMeta, {
+    source: "local",
+    release_ring: "fast",
+    upstream: {
+      watch: {
+        github: "Porabuild/Poracode",
+        pattern: "v(?P<version>[0-9]+(?:\\.[0-9]+)*)",
+      },
+    },
+  });
 });
 
 void test("renderAll refuses a non-plain version", () => {
@@ -88,9 +122,12 @@ void test("renderAll writes every manifest", () => {
   tempDirs.push(out);
   const written = renderAll(version, sums, out);
   assert.deepEqual(written, [
+    "aur/poracode-bin/PKGBUILD",
     "aur/poracode-cli-bin/PKGBUILD",
     "homebrew/Casks/poracode.rb",
     "homebrew/Formula/poracode-cli.rb",
+    "omarchy/pkgbuilds/poracode/.omarchy/package.json",
+    "omarchy/pkgbuilds/poracode/PKGBUILD",
     "scoop/poracode.json",
     "winget/Porabuild.Poracode.installer.yaml",
     "winget/Porabuild.Poracode.locale.en-US.yaml",
@@ -130,6 +167,9 @@ void test("the publish workflow is manual, release-pinned and gated per channel"
   assert.equal(bucket.if, "${{ vars.SCOOP_BUCKET_REPO != \x27\x27 }}");
   const aur = steps.find((step) => step.name === "Push the AUR package");
   assert.match(aur.run, /if \[ -z "\$AUR_KEY" \]; then[\s\S]*exit 0/u);
+  const aurDesktop = steps.find((step) => step.name === "Push the AUR desktop package");
+  assert.equal(aurDesktop.if, "${{ vars.AUR_DESKTOP_PUBLISH_ENABLED == 'true' }}");
+  assert.match(aurDesktop.run, /aur\/poracode-bin\/PKGBUILD/u);
   const winget = workflow.jobs.winget.steps[0];
   assert.match(winget.run, /if \(-not \$env:WINGET_TOKEN\)[^\n]*exit 0/u);
 });

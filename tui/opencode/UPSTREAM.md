@@ -1,9 +1,9 @@
 # OpenCode TUI vendor
 
 - Repository: https://github.com/anomalyco/opencode
-- Tag: `v2.1.0`
-- Commit: `60c68d145a14127ce633e26aa5fdfb882a7baa6d` (2026-10-20)
-- Vendored: 2026-10-24
+- Tag: `v2.3.2`
+- Commit: `c0ad18b402eb2827fc1ee71c171b1177b3fc02d1` (2026-11-18)
+- Vendored: 2026-11-21
 - License: MIT; `LICENSE` is the upstream root license verbatim.
 
 ## Packages
@@ -24,9 +24,9 @@ Sliced to the TUI import graph:
 - `plugin`: TUI context/definitions and the host, runtime, source, and Promise entrypoints reachable from TUI plugin support; `@opencode/ai` and `@ai-sdk/provider` are not needed by those paths.
 - `simulation`: `src/protocol/index.ts`
 - `ui`: the five audio files imported by the TUI
-- `util`: TUI-used activity calendar, flock/hash, global paths, runtime module loading, no-timeout fetch, open, retry, and session title utilities
+- `util`: TUI-used activity calendar, duration, execute-output, flock/hash, global paths, QR, runtime module loading, no-timeout fetch, open, retry, session-mention/title/turn, teardown, and text-boundary utilities
 
-Package manifests are reduced to the required exports and runtime dependencies so installing the nested project does not install unrelated OpenCode server, CLI, or UI dependencies. The TUI uses the catalog version of `@solid-primitives/event-bus`, pins `strip-ansi` to 7.2.0 and uses `string-width` 8 directly for Node terminal column counts. Patch 0092 adapts scroll anchoring to OpenTUI 0.8.4. The catalog retains the upstream TypeScript 7.0.2 pin and matches Poracode's root Zod version for the shared contracts.
+Package manifests are reduced to the required exports and runtime dependencies so installing the nested project does not install unrelated OpenCode server, CLI, or UI dependencies. The TUI uses the catalog version of `@solid-primitives/event-bus`, pins `strip-ansi` to 7.2.0 and uses `string-width` 8 directly for Node terminal column counts. Upstream `v2.3.2` adopted `scroll.anchor` for disclosure scroll anchoring on OpenTUI 0.8.4. The catalog retains the upstream TypeScript 7.0.2 pin and matches Poracode's root Zod version for the shared contracts.
 
 ## Local patches
 
@@ -47,7 +47,7 @@ The dev harness clears `OPENCODE_DRIVE`, and the compile smoke externalizes `@op
 - `packages/tui/src/theme/poracode.ts`, `packages/tui/src/theme/v1.ts`, `packages/tui/src/theme/index.ts`, `packages/tui/src/context/theme.tsx`, `packages/tui/src/config/index.tsx`, `packages/tui/src/component/dialog-config.tsx`, `packages/tui/src/component/dialog-theme-list.tsx`, `packages/tui/src/component/theme-error-toast.tsx`, and `packages/tui/src/mini/theme.ts`: register the built-in `poracode` theme, use it for new and missing selections, preserve explicit user themes, and fall back to Poracode for invalid custom themes.
 - `packages/theme/src/tui/schema.ts`, `packages/theme/src/tui/types.ts`, `packages/theme/src/tui/resolve.ts`, and `packages/theme/src/tui/v1-migrate.ts`: add the semantic `text.brand` token; legacy themes inherit a compatible accent when the optional token is absent.
 - `packages/tui/src/app.tsx`, `packages/tui/src/attention.ts`, `packages/tui/src/ui/dialog-help.tsx`, `packages/tui/src/component/dialog-status.tsx`, `packages/tui/src/component/dialog-debug.tsx`, `packages/tui/src/component/error-component.tsx`, `packages/tui/src/component/terminal-pane.tsx`, `packages/tui/src/util/error.ts`, `packages/tui/src/util/error-details.ts`, `packages/tui/src/routes/session/permission.tsx`, `packages/tui/src/mini/footer.permission.tsx`, `packages/tui/src/mini/footer.prompt.tsx`, `packages/tui/src/mini/runtime.lifecycle.ts`, and `packages/tui/src/feature-plugins/system/stats.tsx`: rebrand user-facing identity, use the Poracode help URL, and replace the upstream crash-issue link with a local diagnostic report.
-- `packages/tui/src/feature-plugins/sidebar/footer.tsx`, `packages/tui/src/component/prompt/index.tsx`, `packages/tui/src/component/dialog-model.tsx`, `packages/tui/src/config/keybind.ts`, `packages/tui/src/config/v1/keybind.ts`, and `packages/tui/src/context/local.tsx`: disable provider connection onboarding while retaining stored command and keybind identifiers; the empty selection label reads "No model selected / Choose a configured model".
+- `packages/tui/src/feature-plugins/sidebar/footer.tsx`, `packages/tui/src/component/prompt/index.tsx`, `packages/tui/src/component/dialog-model.tsx`, `packages/tui/src/config/keybind.ts`, `packages/tui/src/config/v1/keybind.ts`, `packages/tui/src/app.tsx`, and `packages/tui/src/context/local.tsx`: disable provider connection onboarding and OpenCode Console `usage.show` while retaining stored command and keybind identifiers; the empty selection label reads "No model selected / Choose a configured model".
 - `packages/tui/src/feature-plugins/system/storybook/highlights.tsx`: replace product identity in the opt-in story fixture.
 - `packages/tui/src/logo.ts` (block-art exports), `packages/tui/src/util/presentation.ts`, `packages/tui/src/routes/session/index.tsx`, `packages/tui/src/mini/splash.ts`, `packages/tui/src/mini/demo.ts`, `packages/tui/src/util/tool-display.ts`, `packages/tui/src/component/dialog-update.tsx`, `packages/tui/src/component/dialog-pair.tsx`, `packages/tui/src/component/devtools-bar.tsx`, `packages/tui/src/context/keymap.tsx`, and `packages/tui/src/feature-plugins/system/storybook/{session-tabs,session-location-missing,link-clicks,merman-layouts,one-cell-spinner}.tsx`: shared `pora.code` block art and `P.` brand mark, width-aware epilogue wordmark with truecolor brand/shadow from the theme, `poracode tui --session` resume command, `poracode` direct-mode label, first-party provider label, dormant update-dialog copy, remote-serve instruction, debug-snapshot filename, and neutral story/demo fixtures.
 - `packages/tui/src/context/theme.tsx`: the selection memo only rewrites the active theme on a load failure; a merely missing selection keeps its name so late-registered themes still resolve (upstream semantics with the Poracode fallback).

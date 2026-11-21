@@ -505,6 +505,27 @@ export interface AcpStructuredSessionOptions {
    * it; absent, the runtime keeps interrupt-and-resend steering.
    */
   promptSteering?: AcpPromptSteering;
+  /**
+   * Identifies a rejected `session/prompt` or config write whose error proves
+   * the agent tore down its live in-memory session while the persisted
+   * conversation remains restorable (for example, a deferred model-switch
+   * harness rebuild that cleaned up the session before running the prompt, or a
+   * subsequent session-not-found on an otherwise live process).
+   *
+   * When this returns `true` before any turn output has arrived and the agent
+   * supports `session/resume` or `session/load`, the shared session reopens the
+   * session once, reapplies the turn config, and retries the prompt. If
+   * recovery fails or cannot run, the handle retires its dead session so the
+   * runtime detaches it and relaunches cleanly on the next submit.
+   */
+  isDroppedSessionError?: (error: unknown) => boolean;
+}
+
+class DroppedSessionUnrecoverableError extends Error {
+  constructor(readonly originalError: unknown) {
+    super(toErrorMessage(originalError), { cause: originalError });
+    this.name = "DroppedSessionUnrecoverableError";
+  }
 }
 
 export interface AcpExternalSessionUpdateSource {
@@ -571,6 +592,7 @@ export class AcpStructuredSession implements StructuredSessionHandle {
   private readonly resolveMode: AcpStructuredSessionOptions["resolveMode"];
   private readonly permissionRequestTransform: AcpStructuredSessionOptions["permissionRequestTransform"];
   private readonly promptErrorReason: AcpStructuredSessionOptions["promptErrorReason"];
+  private readonly isDroppedSessionError: AcpStructuredSessionOptions["isDroppedSessionError"];
 
   private emptyResponseErrorResolver?: AcpEmptyResponseErrorResolver;
 
@@ -741,6 +763,7 @@ export class AcpStructuredSession implements StructuredSessionHandle {
   private pendingPromptAdmission: (() => void) | undefined;
   private agentPromptCapabilities: PromptCapabilities | undefined;
   private agentSessionCapabilities: SessionCapabilities | undefined;
+  private agentLoadSession = false;
   private agentMcpCapabilities: McpCapabilities | undefined;
   private mapperState: AcpMapperState | undefined;
   // Agents may request an unreferenced terminal before or after reporting its tool call.
@@ -1010,6 +1033,7 @@ export class AcpStructuredSession implements StructuredSessionHandle {
     this.resolveMode = options?.resolveMode;
     this.permissionRequestTransform = options?.permissionRequestTransform;
     this.promptErrorReason = options?.promptErrorReason;
+    this.isDroppedSessionError = options?.isDroppedSessionError;
     this.resolveModelConfig = options?.resolveModelConfig;
     this.child = child;
     this.connection = connection;
@@ -1551,6 +1575,7 @@ export class AcpStructuredSession implements StructuredSessionHandle {
   private adoptInitializeResult(initResult: InitializeResponse): void {
     this.agentPromptCapabilities = initResult.agentCapabilities?.promptCapabilities;
     this.agentSessionCapabilities = initResult.agentCapabilities?.sessionCapabilities;
+    this.agentLoadSession = initResult.agentCapabilities?.loadSession === true;
     this.agentMcpCapabilities = initResult.agentCapabilities?.mcpCapabilities;
     if (this.promptSteering?.isSupported(initResult)) {
       this.steerTurn = (prompt, config, segments, options) =>
@@ -1980,7 +2005,39 @@ export class AcpStructuredSession implements StructuredSessionHandle {
     this.currentTurnHadAgentActivity = false;
     this.stderrChunks.length = 0;
 
-    await this.applyCurrentConfig(config);
+    let reopenedForDroppedSession = false;
+    try {
+      await this.applyCurrentConfig(config);
+    } catch (error) {
+      const droppedError =
+        error instanceof AcpConfigSelectionError && this.matchesDroppedSessionError(error.cause)
+          ? error.cause
+          : this.matchesDroppedSessionError(error)
+            ? error
+            : undefined;
+      if (!droppedError || this.isDisposed || this.transportClosed) throw error;
+      if (!this.canReopenSession()) {
+        await this.failAndRetireDroppedSession(error);
+        return;
+      }
+      console.warn(
+        "[acp] agent dropped live session %s during turn config sync (%s); reopening once",
+        sessionId,
+        resolveAcpPromptRpcErrorMessage(droppedError),
+      );
+      reopenedForDroppedSession = true;
+      try {
+        await this.reopenDroppedSession(sessionId, config);
+      } catch (reopenError) {
+        console.warn(
+          "[acp] reopening dropped session %s failed during turn config sync: %s",
+          sessionId,
+          toErrorMessage(reopenError),
+        );
+        await this.failAndRetireDroppedSession(error);
+        return;
+      }
+    }
 
     // A real prompt supersedes any agent-initiated turn still in progress, so
     // its items close under that turn instead of leaking into this one. Silent:
@@ -2033,12 +2090,18 @@ export class AcpStructuredSession implements StructuredSessionHandle {
         this.completeTurn(this.ensureMapperState(), "cancelled");
         return;
       }
-      this.promptInFlight = true;
-      this.pendingPromptAdmission = options?.onPromptSubmitted;
-      const result = await this.connection.prompt({
+      const result = await this.sendPromptWithDroppedSessionRecovery(
         sessionId,
-        prompt: contentBlocks,
-      });
+        config,
+        contentBlocks,
+        options?.onPromptSubmitted,
+        !reopenedForDroppedSession,
+      );
+      if (!result) {
+        this.emitTurnStatusAfterPrompt("cancelled");
+        this.completeTurn(this.ensureMapperState(), "cancelled");
+        return;
+      }
       this.pendingPromptAdmission?.();
       this.pendingPromptAdmission = undefined;
       this.emitPromptUsage(result, usageSampleTurnId);
@@ -2105,22 +2168,31 @@ export class AcpStructuredSession implements StructuredSessionHandle {
       }
     } catch (error) {
       if (this.isDisposed) return;
+      const droppedSessionUnrecoverable = error instanceof DroppedSessionUnrecoverableError;
+      const surfaceError = droppedSessionUnrecoverable ? error.originalError : error;
+      const shouldRetireDroppedSession =
+        droppedSessionUnrecoverable || this.matchesDroppedSessionError(surfaceError);
       if (this.promptHeldForBackgroundWork) {
         // The turn already completed at the background-wait signal, so a late
         // rejection (transport loss, cancel acknowledgement) has no open turn
         // to fail. Close any synthetic report turn and stay idle.
         this.completeOrphanTurn({ state: "cancelled" });
+        if (shouldRetireDroppedSession) await this.retireDroppedSession();
         return;
       }
       if (this.agentSurfacedErrorMessage) {
         // Quota/provider failures already sealed the turn; a later transport
         // abort from session/cancel must not overwrite that error with idle.
         if (this.currentTurnId) this.completeTurn(this.ensureMapperState(), "failed");
-      } else if (isAcpPromptCancellationError(error, this.currentTurnInterruptRequested)) {
+        if (shouldRetireDroppedSession) await this.retireDroppedSession();
+      } else if (isAcpPromptCancellationError(surfaceError, this.currentTurnInterruptRequested)) {
         this.emitListenerUpdate({ status: "idle", attention: "none" });
         this.completeTurn(this.ensureMapperState(), "cancelled");
+        if (shouldRetireDroppedSession) await this.retireDroppedSession();
+      } else if (shouldRetireDroppedSession) {
+        await this.failAndRetireDroppedSession(surfaceError);
       } else {
-        this.emitPromptFailure(error);
+        this.emitPromptFailure(surfaceError);
       }
     } finally {
       const promptWasInFlight = this.promptInFlight;
@@ -2144,6 +2216,119 @@ export class AcpStructuredSession implements StructuredSessionHandle {
         this.clearCompletedTurnCaches();
       }
     }
+  }
+
+  private canReopenSession(): boolean {
+    return (
+      Boolean(this.sessionId) &&
+      (this.agentSessionCapabilities?.resume != null || this.agentLoadSession === true)
+    );
+  }
+
+  private matchesDroppedSessionError(error: unknown): boolean {
+    if (!this.isDroppedSessionError) return false;
+    try {
+      return this.isDroppedSessionError(error) === true;
+    } catch {
+      return false;
+    }
+  }
+
+  private async sendPromptWithDroppedSessionRecovery(
+    sessionId: string,
+    config: ThreadConfig,
+    contentBlocks: ContentBlock[],
+    onPromptSubmitted: (() => void) | undefined,
+    allowRecovery: boolean,
+  ): Promise<PromptResponse | undefined> {
+    this.promptInFlight = true;
+    this.pendingPromptAdmission = onPromptSubmitted;
+    try {
+      return await this.connection.prompt({
+        sessionId,
+        prompt: contentBlocks,
+      });
+    } catch (error) {
+      if (
+        !allowRecovery ||
+        !this.matchesDroppedSessionError(error) ||
+        this.isDisposed ||
+        this.transportClosed ||
+        this.currentTurnInterruptRequested ||
+        this.currentTurnHadAgentActivity ||
+        this.agentSurfacedErrorMessage ||
+        !this.canReopenSession()
+      ) {
+        throw error;
+      }
+
+      console.warn(
+        "[acp] agent dropped live session %s before prompt output (%s); reopening and retrying once",
+        sessionId,
+        resolveAcpPromptRpcErrorMessage(error),
+      );
+      this.promptInFlight = false;
+      this.pendingPromptAdmission = undefined;
+      try {
+        await this.reopenDroppedSession(sessionId, config);
+      } catch (reopenError) {
+        console.warn(
+          "[acp] reopening dropped session %s failed: %s",
+          sessionId,
+          toErrorMessage(reopenError),
+        );
+        throw new DroppedSessionUnrecoverableError(error);
+      }
+
+      if (this.isDisposed || this.transportClosed) {
+        throw new Error("ACP session is closed.", { cause: error });
+      }
+      if (this.currentTurnInterruptRequested) {
+        return undefined;
+      }
+
+      this.stderrChunks.length = 0;
+      const reopenedSessionId = this.assertSessionReadyForTurn();
+      this.promptInFlight = true;
+      this.pendingPromptAdmission = onPromptSubmitted;
+      return await this.connection.prompt({
+        sessionId: reopenedSessionId,
+        prompt: contentBlocks,
+      });
+    }
+  }
+
+  private async reopenDroppedSession(sessionId: string, config: ThreadConfig): Promise<void> {
+    await this.openThread(config, createKnownSessionRef(sessionId));
+    this.isReplayingHistory = false;
+    this.replayHistoryUntil = 0;
+  }
+
+  /**
+   * Dispose a dead process/lease before emitting `onClose` (and an optional
+   * pre-close callback such as `emitPromptFailure`). Finishing disposal first
+   * ensures the old process has exited before the runtime releases its slot,
+   * and emitting the error synchronously ahead of `onClose` closes the race
+   * where an immediate retry sees the error state while the retired handle is
+   * still attached.
+   */
+  private async retireDroppedSession(onBeforeClose?: () => void): Promise<void> {
+    if (this.isDisposed || this.transportClosed) {
+      onBeforeClose?.();
+      return;
+    }
+    this.transportClosed = true;
+    try {
+      await this.dispose();
+    } catch (disposeError) {
+      console.warn("[acp] failed to dispose dropped session:", toErrorMessage(disposeError));
+    }
+    onBeforeClose?.();
+    this.reportTransportOutcome(undefined);
+  }
+
+  private failAndRetireDroppedSession(error: unknown): Promise<void> {
+    return this.retireDroppedSession(() => this.emitPromptFailure(error));
   }
 
   /** Emit one prompt response's context and per-call consumption usage events. */
@@ -2377,8 +2562,8 @@ export class AcpStructuredSession implements StructuredSessionHandle {
           // The lease cancels+closes this session and retires the shared
           // process once the last member releases.
           await this.sharedLease.release();
-        } else {
-          await awaitProcessTermination(this.child!, {
+        } else if (this.child) {
+          await awaitProcessTermination(this.child, {
             ownedProcessGroup: process.platform !== "win32",
           });
         }

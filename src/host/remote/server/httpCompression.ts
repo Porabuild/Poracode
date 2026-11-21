@@ -66,33 +66,12 @@ async function gzipAsync(body: string): Promise<Buffer> {
   });
 }
 
-/**
- * Writes a JSON body with `ETag`, negotiated gzip, and a `304` short-circuit.
- *
- * Callers pass the already-serialized body so the ETag is computed over exactly
- * the bytes that would be sent.
- */
-export async function writeNegotiatedJson(
+async function writeMaybeGzippedBody(
   req: IncomingMessage,
   res: ServerResponse,
   status: number,
   body: string,
 ): Promise<void> {
-  const etag = computeEtag(body);
-  res.setHeader("Content-Type", "application/json; charset=utf-8");
-  // Responses are per-session private and must be revalidated, never reused
-  // blind: `no-cache` still permits the conditional request that yields the 304.
-  res.setHeader("Cache-Control", "private, no-cache");
-  res.setHeader("ETag", etag);
-  // Cached bodies belong to the negotiated encoding and bearer credential.
-  res.appendHeader("Vary", "Accept-Encoding, Authorization");
-
-  if (status === 200 && etagMatches(req, etag)) {
-    res.statusCode = 304;
-    res.end();
-    return;
-  }
-
   const rawBytes = Buffer.byteLength(body, "utf8");
   if (!acceptsGzip(req) || rawBytes < MIN_COMPRESS_BYTES) {
     res.statusCode = status;
@@ -123,4 +102,50 @@ export async function writeNegotiatedJson(
   res.setHeader("Content-Encoding", "gzip");
   res.setHeader("Content-Length", String(compressed.byteLength));
   res.end(compressed);
+}
+
+/**
+ * Writes a JSON body with negotiated async gzip above `MIN_COMPRESS_BYTES`
+ * (without ETag/304 semantics, suitable for POST RPC responses such as
+ * `/api/git/call` diffs, file reads, tree listings, and PR batches).
+ */
+export async function writeCompressedJson(
+  req: IncomingMessage,
+  res: ServerResponse,
+  status: number,
+  body: string,
+): Promise<void> {
+  res.setHeader("Content-Type", "application/json; charset=utf-8");
+  res.appendHeader("Vary", "Accept-Encoding");
+  await writeMaybeGzippedBody(req, res, status, body);
+}
+
+/**
+ * Writes a JSON body with `ETag`, negotiated gzip, and a `304` short-circuit.
+ *
+ * Callers pass the already-serialized body so the ETag is computed over exactly
+ * the bytes that would be sent.
+ */
+export async function writeNegotiatedJson(
+  req: IncomingMessage,
+  res: ServerResponse,
+  status: number,
+  body: string,
+): Promise<void> {
+  const etag = computeEtag(body);
+  res.setHeader("Content-Type", "application/json; charset=utf-8");
+  // Responses are per-session private and must be revalidated, never reused
+  // blind: `no-cache` still permits the conditional request that yields the 304.
+  res.setHeader("Cache-Control", "private, no-cache");
+  res.setHeader("ETag", etag);
+  // Cached bodies belong to the negotiated encoding and bearer credential.
+  res.appendHeader("Vary", "Accept-Encoding, Authorization");
+
+  if (status === 200 && etagMatches(req, etag)) {
+    res.statusCode = 304;
+    res.end();
+    return;
+  }
+
+  await writeMaybeGzippedBody(req, res, status, body);
 }

@@ -1,3 +1,4 @@
+import { mapWithConcurrency } from "@/shared/concurrency";
 import type { EventSequenceSpace } from "@/shared/eventSequenceSpace";
 import type { SupervisorEvent } from "@/shared/ipc";
 import { useAppStore } from "@/renderer/state/appStore";
@@ -46,6 +47,8 @@ let resumer: HostHistoryResumer | null = null;
 export function setHostHistoryResumer(next: HostHistoryResumer | null): void {
   resumer = next;
 }
+
+const MAX_CONCURRENT_THREAD_RECOVERIES = 4;
 
 export function createHostHistoryRecovery(deps: {
   readonly getArbitration: () => RuntimeQueueArbitration;
@@ -130,9 +133,9 @@ export function createHostHistoryRecovery(deps: {
         const [threadId] = threadIds;
         return recoverRuntimeThread(threadId!);
       }
-      return Promise.all(threadIds.map((threadId) => recoverRuntimeThread(threadId))).then(
-        (results) => results.every(Boolean),
-      );
+      return mapWithConcurrency(threadIds, MAX_CONCURRENT_THREAD_RECOVERIES, (threadId) =>
+        recoverRuntimeThread(threadId),
+      ).then((results) => results.every(Boolean));
     },
     recoverFromThreadReset: (threadId) => recoverRuntimeThread(threadId),
   };

@@ -3,7 +3,12 @@ import { createServer, request as httpRequest, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { gunzipSync } from "node:zlib";
 import { afterEach, describe, expect, it } from "vitest";
-import { computeEtag, etagMatches, writeNegotiatedJson } from "./httpCompression";
+import {
+  computeEtag,
+  etagMatches,
+  writeCompressedJson,
+  writeNegotiatedJson,
+} from "./httpCompression";
 import { writeHardenedImageResponse } from "./httpResponses";
 
 const servers: Server[] = [];
@@ -190,5 +195,23 @@ describe("writeNegotiatedJson", () => {
     const second = await fetch(url, { headers: { "if-none-match": etag! } });
     expect(second.status).toBe(304);
     expect(await second.text()).toBe("");
+  });
+
+  it("compresses large JSON RPC bodies with writeCompressedJson without ETag headers", async () => {
+    const server = createServer((req, res) => {
+      void writeCompressedJson(req, res, 200, bigBody);
+    });
+    servers.push(server);
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const { port } = server.address() as AddressInfo;
+    const response = await fetch(`http://127.0.0.1:${port}/`, {
+      method: "POST",
+      headers: { "accept-encoding": "gzip" },
+    });
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-encoding")).toBe("gzip");
+    expect(response.headers.get("vary")).toBe("Accept-Encoding");
+    expect(response.headers.get("etag")).toBeNull();
+    expect(await response.text()).toBe(bigBody);
   });
 });

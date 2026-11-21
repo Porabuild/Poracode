@@ -184,7 +184,7 @@ export const GROUPING_SCENARIOS: readonly GroupingScenario[] = [
             items: [taxonomyItem("read_full"), image, taxonomyItem("command_command")],
             rows:
               status === "success"
-                ? ["read_full", "image_png", "command_command"]
+                ? ["read_full", "image-group:image_png", "command_command"]
                 : [["read_full", "image_png", "command_command"]],
           };
         }),
@@ -268,7 +268,7 @@ export const GROUPING_SCENARIOS: readonly GroupingScenario[] = [
             "command_stream",
             "mcp_names",
           ],
-          "image_jpeg_synthetic",
+          "image-group:image_jpeg_synthetic",
           "subagent_nested_child",
         ],
       },

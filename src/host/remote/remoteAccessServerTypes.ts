@@ -81,8 +81,8 @@ export const EVENT_BUFFER_LIMIT = 4_000;
 export const EVENT_BUFFER_MAX_BYTES = DEFAULT_EVENT_BUFFER_MAX_BYTES;
 export const DEFAULT_LISTEN_RETRY_ATTEMPTS = 5;
 export const DEFAULT_LISTEN_RETRY_DELAY_MS = 500;
-export const DEFAULT_MAX_CONCURRENT_INGRESS_WORK = 128;
-export const DEFAULT_MAX_CONCURRENT_INGRESS_WORK_PER_SOURCE = 32;
+export const DEFAULT_MAX_CONCURRENT_INGRESS_WORK = 192;
+export const DEFAULT_MAX_CONCURRENT_INGRESS_WORK_PER_SOURCE = 64;
 /**
  * B3 pre-authentication fairness bound keyed on the resolved client address
  * (relay hop secret / trusted proxies, exactly like the rate limiter). A flood
@@ -94,7 +94,7 @@ export const DEFAULT_MAX_CONCURRENT_INGRESS_WORK_PER_SOURCE = 32;
  * work is exempt so Stop/approval stays admissible under an address's bulk
  * flood (the global control reserve still bounds it).
  */
-export const DEFAULT_MAX_CONCURRENT_INGRESS_WORK_PER_ADDRESS = 64;
+export const DEFAULT_MAX_CONCURRENT_INGRESS_WORK_PER_ADDRESS = 96;
 /**
  * Reserved control-priority capacity (Gate 4 fairness): slots of the ingress
  * semaphore bulk traffic can never occupy, so Stop/approval-class requests
@@ -104,8 +104,8 @@ export const DEFAULT_MAX_CONCURRENT_INGRESS_WORK_PER_ADDRESS = 64;
  * mutations "so a long-running mutation can still be interrupted". The
  * reservation bounds total capacity; it never reorders already-admitted work.
  */
-export const DEFAULT_RESERVED_INGRESS_CONTROL_CAPACITY = 16;
-export const DEFAULT_RESERVED_INGRESS_CONTROL_CAPACITY_PER_SOURCE = 4;
+export const DEFAULT_RESERVED_INGRESS_CONTROL_CAPACITY = 24;
+export const DEFAULT_RESERVED_INGRESS_CONTROL_CAPACITY_PER_SOURCE = 8;
 
 /**
  * HTTP classes for {@link RemoteAccessServer.runIngressWork}. `control` is the

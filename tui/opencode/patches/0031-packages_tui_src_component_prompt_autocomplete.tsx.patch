@@ -1,0 +1,17 @@
+diff --git a/packages/tui/src/component/prompt/autocomplete.tsx b/packages/tui/src/component/prompt/autocomplete.tsx
+index 444297a..78518d3 100644
+--- a/packages/tui/src/component/prompt/autocomplete.tsx
++++ b/packages/tui/src/component/prompt/autocomplete.tsx
+@@ -566,8 +566,11 @@ export function Autocomplete(props: {
+       return [...nonFileOptions, ...fileOptions]
+     }
+ 
++    const needle = stripFileLineRange(searchValue)
++    if (!needle) return fileOptions.slice(0, 10)
++
+     const fuzziedNonFiles = fuzzysort
+-      .go(stripFileLineRange(searchValue), nonFileOptions, {
++      .go(needle, nonFileOptions, {
+         keys: [
+           (obj) => stripFileLineRange((obj.value ?? obj.display).trimEnd()),
+           // Match description for slash commands only; for "@" it surfaced unrelated items.

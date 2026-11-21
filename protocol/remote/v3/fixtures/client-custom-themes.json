@@ -503,6 +503,7 @@
   "palettes": [
     {
       "id": "base-light",
+      "mode": "light",
       "palette": {
         "bg": "#f1f1f4",
         "surface": "#fafafb",
@@ -517,15 +518,16 @@
         "content": 16.42494594101076,
         "surface": 16.984513026014458,
         "sidebar": 15.026477235267151,
-        "muted": 4.998053338244722,
+        "muted": 5.305584728413363,
         "composer": null,
         "sidebarRowActive": null,
         "accent": 4.532157405294753
       },
-      "muted": "#6a6a6d"
+      "muted": "#666669"
     },
     {
       "id": "base-dark",
+      "mode": "dark",
       "palette": {
         "bg": "#070709",
         "surface": "#0e0e14",
@@ -540,12 +542,12 @@
         "content": 18.799857975036502,
         "surface": 18.431357959801133,
         "sidebar": 18.431357959801133,
-        "muted": 5.3229364646539,
+        "muted": 5.181093459964031,
         "composer": null,
         "sidebarRowActive": null,
         "accent": 6.952492613739522
       },
-      "muted": "#858586"
+      "muted": "#838384"
     },
     {
       "id": "short-colors",

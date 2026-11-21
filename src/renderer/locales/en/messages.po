@@ -1577,6 +1577,7 @@ msgstr "Activity on <0>{0}</0> jumped {1}% this week"
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/StructuredCustomValues.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/ProjectTreeCreateMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemoryEditorDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SearchExcludeBody.tsx
@@ -1593,6 +1594,7 @@ msgid "Add a local project"
 msgstr "Add a local project"
 
 #: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemoryEditorDialog.tsx
 msgid "Add a memory"
 msgstr "Add a memory"
 
@@ -2100,6 +2102,7 @@ msgstr "Alerts when threads need you"
 #: src/renderer/views/PullRequestsOverlay/timeline/TimelineTab.tsx
 #: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "All"
 msgstr "All"
@@ -2264,7 +2267,7 @@ msgstr "Always applied"
 msgid "Always excluded"
 msgstr "Always excluded"
 
-#: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemoryEditorDialog.tsx
 msgid "Always use bun"
 msgstr "Always use bun"
 
@@ -3550,6 +3553,7 @@ msgstr "Can't use this model selection on that surface"
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/HexSetupDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemoryEditorDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
@@ -4303,6 +4307,7 @@ msgstr "Clear filter"
 
 #: src/renderer/views/PullRequestsOverlay/list/PrListMenuSections.tsx
 #: src/renderer/views/PullRequestsOverlay/list/prListSheetSections.ts
+#: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
 msgid "Clear filters"
 msgstr "Clear filters"
 
@@ -4313,6 +4318,7 @@ msgstr "Clear goal"
 #: src/renderer/components/plugins/PluginMarketplace.tsx
 #: src/renderer/sidebar/ChatSidebarHeader.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProviderModelVisibilityPopover.tsx
 #: src/renderer/views/SettingsOverlay/parts/SidebarUsageVisibilityPopover.tsx
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
@@ -5941,6 +5947,10 @@ msgstr "Couldn't manage plugins. Check the package name, OpenCode version, and n
 #~ msgid "Couldn't reach the desktop. If the browser asked to access your local network, allow it and pair again. Otherwise open the pairing link directly from the desktop (LAN), or expose the desktop over HTTPS."
 #~ msgstr "Couldn't reach the desktop. If the browser asked to access your local network, allow it and pair again. Otherwise open the pairing link directly from the desktop (LAN), or expose the desktop over HTTPS."
 
+#: src/renderer/views/SettingsOverlay/parts/MemoryEditorDialog.tsx
+msgid "Couldn't save memory."
+msgstr "Couldn't save memory."
+
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Couldn't save the shortcut."
 msgstr "Couldn't save the shortcut."
@@ -6341,6 +6351,7 @@ msgstr "Crown with AI"
 msgid "Crowned"
 msgstr "Crowned"
 
+#: src/renderer/views/SettingsOverlay/parts/MemoryEditorDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
 msgid "Ctrl+Enter"
 msgstr "Ctrl+Enter"
@@ -6788,6 +6799,10 @@ msgstr "Delete environment"
 #: src/renderer/components/thread/ChatPane/parts/items/FileChange.tsx
 msgid "Delete file"
 msgstr "Delete file"
+
+#: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
+msgid "Delete memory?"
+msgstr "Delete memory?"
 
 #. Tooltip: permanently delete the archived thread
 #: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
@@ -7804,6 +7819,10 @@ msgstr "Edit labels"
 msgid "Edit MCP server"
 msgstr "Edit MCP server"
 
+#: src/renderer/views/SettingsOverlay/parts/MemoryEditorDialog.tsx
+msgid "Edit memory"
+msgstr "Edit memory"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
 msgid "Edit password"
 msgstr "Edit password"
@@ -8736,6 +8755,10 @@ msgstr "Favorites"
 msgid "Featured"
 msgstr "Featured"
 
+#: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
+msgid "Feedback"
+msgstr "Feedback"
+
 #: src/renderer/components/common/FeedbackDialog.tsx
 msgid "Feedback could not be sent. Your draft is kept."
 msgstr "Feedback could not be sent. Your draft is kept."
@@ -8867,6 +8890,10 @@ msgstr "Filter and sort ({count} active)"
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectFilter.tsx
 msgid "Filter by project"
 msgstr "Filter by project"
+
+#: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
+msgid "Filter by scope"
+msgstr "Filter by scope"
 
 #: src/renderer/views/PullRequestsOverlay/summary/LabelPicker.tsx
 msgid "Filter labels"
@@ -9580,6 +9607,8 @@ msgstr "global"
 #: src/renderer/components/providers/devin/sessionListings.tsx
 #: src/renderer/components/skills/SkillImportModal.tsx
 #: src/renderer/components/thread/ThreadCommandPanel.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemoryEditorDialog.tsx
 msgid "Global"
 msgstr "Global"
 
@@ -12339,6 +12368,7 @@ msgstr "Memories"
 #: src/renderer/views/ProjectSettingsOverlay/parts/MobileProjectSettingsIndex.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/SettingsSidebar.tsx
 #: src/renderer/views/ProjectSettingsOverlay/ProjectSettingsOverlay.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemoryEditorDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
@@ -14602,7 +14632,10 @@ msgid "Open git review as a right-side panel or a full page."
 msgstr "Open git review as a right-side panel or a full page."
 
 #. placeholder {0}: index + 1
+#. placeholder {0}: itemIndex + 1
 #. placeholder {1}: gallery.length
+#. placeholder {1}: images.length
+#: src/renderer/components/composer/ImageLightbox.tsx
 #: src/renderer/components/thread/ThreadImagesDock.tsx
 msgid "Open image {0} of {1}"
 msgstr "Open image {0} of {1}"
@@ -14614,6 +14647,7 @@ msgid "Open image preview"
 msgstr "Open image preview"
 
 #: src/renderer/components/thread/ChatPane/parts/items/ImageCard.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/ImageMosaic.tsx
 msgid "Open image preview (+{overflowCount} more)"
 msgstr "Open image preview (+{overflowCount} more)"
 
@@ -15573,6 +15607,7 @@ msgstr "Pin {0} to top"
 #: src/renderer/components/thread/CompactThreadHeader.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemoryEditorDialog.tsx
 msgid "Pin to top"
 msgstr "Pin to top"
 
@@ -16230,6 +16265,8 @@ msgstr "Profiles"
 #: src/renderer/views/GitHubActionsView/GitHubActionsProjectPicker.tsx
 #: src/renderer/views/ProjectSettingsOverlay/ProjectSettingsOverlay.tsx
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemoryEditorDialog.tsx
 msgid "Project"
 msgstr "Project"
 
@@ -16953,6 +16990,7 @@ msgstr "Reduce motion"
 #: src/renderer/components/plugins/PluginCatalogBrowser.tsx
 #: src/renderer/components/plugins/PluginCatalogDetail.tsx
 #: src/renderer/components/plugins/PluginDetail.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
 msgid "Reference"
 msgstr "Reference"
 
@@ -18556,7 +18594,7 @@ msgstr "Saturation and brightness"
 #: src/renderer/views/PullRequestsOverlay/parts/PrEditSheet.tsx
 #: src/renderer/views/PullRequestsOverlay/summary/DescriptionCard.tsx
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
-#: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemoryEditorDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Save"
@@ -18635,6 +18673,10 @@ msgstr "Save learnings before deleting"
 #: src/renderer/components/providers/settings/ProviderMcpServersSection.tsx
 msgid "Save MCP servers"
 msgstr "Save MCP servers"
+
+#: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
+msgid "Save preferences, workflows, or project conventions to share across threads."
+msgstr "Save preferences, workflows, or project conventions to share across threads."
 
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Save shortcut"
@@ -18791,6 +18833,7 @@ msgid "Science & education"
 msgstr "Science & education"
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemoryEditorDialog.tsx
 msgid "Scope"
 msgstr "Scope"
 
@@ -19066,6 +19109,11 @@ msgstr "Search titles, messages and folders"
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 msgid "Search: \"{query}\" in {scope}"
 msgstr "Search: \"{query}\" in {scope}"
+
+#. placeholder {0}: query.trim()
+#: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
+msgid "Search: {0}"
+msgstr "Search: {0}"
 
 #: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
 #~ msgid "Search…"
@@ -22308,13 +22356,17 @@ msgstr "This folder is empty."
 msgid "This guide is out of date. Rewrite it to see excerpts for the current change."
 msgstr "This guide is out of date. Rewrite it to see excerpts for the current change."
 
+#: src/renderer/views/SettingsOverlay/parts/HexSetupDialog.tsx
+msgid "This Hex release requires glibc 2.36 or newer on Linux. Use the built-in engine instead."
+msgstr "This Hex release requires glibc 2.36 or newer on Linux. Use the built-in engine instead."
+
 #: src/renderer/views/SettingsOverlay/parts/HexEngineDialog.tsx
 #~ msgid "This Hex release requires glibc 2.39 or newer on Linux."
 #~ msgstr "This Hex release requires glibc 2.39 or newer on Linux."
 
 #: src/renderer/views/SettingsOverlay/parts/HexSetupDialog.tsx
-msgid "This Hex release requires glibc 2.39 or newer on Linux. Use the built-in engine instead."
-msgstr "This Hex release requires glibc 2.39 or newer on Linux. Use the built-in engine instead."
+#~ msgid "This Hex release requires glibc 2.39 or newer on Linux. Use the built-in engine instead."
+#~ msgstr "This Hex release requires glibc 2.39 or newer on Linux. Use the built-in engine instead."
 
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "This host"
@@ -22381,6 +22433,10 @@ msgstr "This machine (local)"
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorMediaViews.tsx
 msgid "This media preview is unavailable."
 msgstr "This media preview is unavailable."
+
+#: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
+msgid "This memory will be permanently removed."
+msgstr "This memory will be permanently removed."
 
 #: src/renderer/components/thread/ThreadFollowUpQueue.tsx
 msgid "This message is no longer queued. Your edit is still available to copy."
@@ -22923,6 +22979,14 @@ msgstr "Title Generation"
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 msgid "Title, commit, and conflict models"
 msgstr "Title, commit, and conflict models"
+
+#: src/renderer/views/SettingsOverlay/parts/MemoryEditorDialog.tsx
+msgid "to add"
+msgstr "to add"
+
+#: src/renderer/views/SettingsOverlay/parts/MemoryEditorDialog.tsx
+msgid "to save"
+msgstr "to save"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/TodoList.tsx
 msgid "To-dos"
@@ -24099,6 +24163,10 @@ msgstr "Updated"
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/UsagePanel.tsx
 msgid "Updated {0}"
 msgstr "Updated {0}"
+
+#: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
+msgid "Updated {formattedUpdatedAt}"
+msgstr "Updated {formattedUpdatedAt}"
 
 #: src/renderer/components/thread/ThreadAgentUpdateDock.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx

@@ -448,7 +448,18 @@ function HomeBody({
             : { label: "Windows", slug: "win-x64" },
         );
       } else if (ua.includes("Linux")) {
-        apply({ label: "Linux", slug: "linux-x64" });
+        let isArm = false;
+        const architecture = await getBrowserArchitecture();
+        if (architecture) {
+          isArm = /^(?:arm|arm64|aarch64)$/i.test(architecture);
+        } else {
+          isArm = /\b(?:aarch64|arm64)\b/i.test(ua);
+        }
+        apply(
+          isArm
+            ? { label: "Linux (ARM)", slug: "linux-arm64" }
+            : { label: "Linux", slug: "linux-x64" },
+        );
       }
     };
     void detect();

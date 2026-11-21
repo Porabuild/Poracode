@@ -139,6 +139,19 @@ export interface GitWorktreeStatusBatchResult {
   statuses: Record<string, GitStatusResult>;
 }
 
+export const gitWorktreeSourceBranchBatchPayloadSchema = z.object({
+  projectLocation: projectLocationSchema,
+  branches: z.array(z.string().min(1)),
+});
+export type GitWorktreeSourceBranchBatchPayload = z.infer<
+  typeof gitWorktreeSourceBranchBatchPayloadSchema
+>;
+
+export interface GitWorktreeSourceBranchBatchResult {
+  /** Map worktree branch → source branch info. */
+  results: Record<string, GitGetWorktreeSourceBranchResult>;
+}
+
 export const getGitDiffPayloadSchema = z.object({
   projectLocation: projectLocationSchema,
   filePath: z.string().optional(),

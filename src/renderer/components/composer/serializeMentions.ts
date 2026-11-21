@@ -45,7 +45,7 @@ function pushTextBufferSegments(segments: PromptSegment[], content: string): voi
   }
 }
 
-function isLikelyInlineFilePath(path: string): boolean {
+export function isLikelyInlineFilePath(path: string): boolean {
   if (path.length === 0) return false;
   if (PATH_PREFIX_REGEX.test(path)) return true;
   const normalized = path.replace(/\\/g, "/");

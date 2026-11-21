@@ -1,3 +1,4 @@
+import { mapWithConcurrency } from "@/shared/concurrency";
 import type { AgentSlashCommand } from "@/shared/contracts";
 import type { RemoteAgentStatuses } from "@/shared/remote/protocol";
 
@@ -74,6 +75,8 @@ export function fetchSlashCommandCatalog(
   return pending;
 }
 
+const MAX_CONCURRENT_CATALOG_REFRESHES = 4;
+
 export async function refreshSlashCommandCatalogs(
   scope: string,
   statuses: RemoteAgentStatuses,
@@ -88,17 +91,19 @@ export async function refreshSlashCommandCatalogs(
     requested.delete(cacheKey);
   }
   const entries = [...statuses.windows, ...statuses.wsl];
-  await Promise.allSettled(
-    keys.map(async (cacheKey) => {
-      const kind = cacheKey.slice(prefix.length);
-      const entry = entries.find((candidate) => candidate.kind === kind && candidate.installed);
-      if (!entry) return;
+  await mapWithConcurrency(keys, MAX_CONCURRENT_CATALOG_REFRESHES, async (cacheKey) => {
+    const kind = cacheKey.slice(prefix.length);
+    const entry = entries.find((candidate) => candidate.kind === kind && candidate.installed);
+    if (!entry) return;
+    try {
       await fetchSlashCommandCatalog(scope, kind, () =>
         entry.capabilities.slashCommands !== undefined
           ? Promise.resolve(entry.capabilities.slashCommands)
           : fetch(kind),
       );
-    }),
-  );
+    } catch {
+      // Failed commands stay uncached and retry on the next refresh.
+    }
+  });
   return applyCachedSlashCommandCatalogs(scope, statuses);
 }

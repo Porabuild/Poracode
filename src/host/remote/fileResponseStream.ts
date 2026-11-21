@@ -1,6 +1,7 @@
 import type { ServerResponse } from "node:http";
 import type { Readable } from "node:stream";
 import { finished } from "node:stream/promises";
+import { createGzip } from "node:zlib";
 
 interface ByteRange {
   readonly start: number;
@@ -40,15 +41,22 @@ export async function pipeOwnedFileResponse(
   res: ServerResponse,
   prefix?: Uint8Array,
   signal?: AbortSignal,
+  options: { readonly gzip?: boolean } = {},
 ): Promise<void> {
+  const compressor = options.gzip ? createGzip({ level: 6 }) : null;
   const onResponseClose = () => {
-    if (!res.writableEnded) stream.destroy();
+    if (!res.writableEnded) {
+      stream.destroy();
+      compressor?.destroy();
+    }
   };
   const onAbort = () => {
     stream.destroy();
+    compressor?.destroy();
     res.destroy();
   };
   const onStreamError = () => {
+    compressor?.destroy();
     if (res.headersSent) res.destroy();
     else {
       res.writeHead(500, { "content-type": "text/plain; charset=utf-8" });
@@ -57,16 +65,28 @@ export async function pipeOwnedFileResponse(
   };
   res.on("close", onResponseClose);
   stream.on("error", onStreamError);
+  compressor?.on("error", onStreamError);
   signal?.addEventListener("abort", onAbort, { once: true });
   if (signal?.aborted) onAbort();
-  if (res.destroyed && !res.writableEnded) stream.destroy();
-  if (prefix?.length) res.write(prefix);
-  stream.pipe(res);
+  if (res.destroyed && !res.writableEnded) {
+    stream.destroy();
+    compressor?.destroy();
+  }
+  if (compressor) {
+    compressor.pipe(res);
+    if (prefix?.length) compressor.write(prefix);
+    stream.pipe(compressor);
+  } else {
+    if (prefix?.length) res.write(prefix);
+    stream.pipe(res);
+  }
   await Promise.allSettled([
     finished(stream, { error: false, cleanup: true }),
+    ...(compressor ? [finished(compressor, { error: false, cleanup: true })] : []),
     finished(res, { readable: false, cleanup: true }),
   ]);
   res.off("close", onResponseClose);
   stream.off("error", onStreamError);
+  compressor?.off("error", onStreamError);
   signal?.removeEventListener("abort", onAbort);
 }

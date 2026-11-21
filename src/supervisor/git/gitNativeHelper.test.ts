@@ -29,6 +29,7 @@ import {
   disposeNativeGitHelper,
   isNativeGitHelperIdle,
   nativeGitHelperBinaryPath,
+  nativeGitHelperTargetId,
   queryNativeGitStatusBatch,
   queryNativeListTree,
   queryNativeSearchTree,
@@ -1454,6 +1455,14 @@ describe("poracode-git-helper parity & fallback", () => {
     expect([global, include, worktreeConfig].map((path) => readFileSync(path, "utf8"))).toEqual(
       unchanged,
     );
+  });
+
+  it("resolves staged target ids for x64 and arm64 Linux hosts", () => {
+    expect(nativeGitHelperTargetId("linux", "x64")).toBe("linux-x64");
+    expect(nativeGitHelperTargetId("linux", "arm64")).toBe("linux-arm64");
+    expect(nativeGitHelperTargetId("linux", "riscv64")).toBeUndefined();
+    expect(nativeGitHelperTargetId("darwin", "arm64")).toBe("darwin-universal");
+    expect(nativeGitHelperTargetId("win32", "arm64")).toBe("win32-arm64");
   });
 
   it("preserves GitProcessAdmissionError refusals on native batch calls", async () => {

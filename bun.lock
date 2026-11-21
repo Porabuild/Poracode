@@ -14,7 +14,7 @@
         "@dnd-kit/geometry": "^0.5.3",
         "@dnd-kit/react": "^0.5.3",
         "@dnd-kit/state": "^0.5.3",
-        "@expo/hub-client": "1.5.0",
+        "@expo/hub-client": "1.12.2",
         "@git-diff-view/core": "^0.1.8",
         "@git-diff-view/react": "^0.1.8",
         "@heroui/react": "3.2.7",
@@ -203,8 +203,8 @@
     "@sentry/cli",
   ],
   "patchedDependencies": {
+    "@expo/hub-client@1.12.2": "patches/@expo%2Fhub-client@1.12.2.patch",
     "@legendapp/list@3.3.3": "patches/@legendapp__list@3.3.3.patch",
-    "@expo/hub-client@1.5.0": "patches/@expo%2Fhub-client@1.5.0.patch",
     "micromark-extension-math-extended@3.2.2": "patches/micromark-extension-math-extended@3.2.2.patch",
     "@agentclientprotocol/sdk@1.4.0": "patches/@agentclientprotocol__sdk@1.4.0.patch",
     "monaco-editor@0.57.0": "patches/monaco-editor@0.57.0.patch",
@@ -509,7 +509,7 @@
 
     "@exodus/bytes": ["@exodus/bytes@1.16.0", "", { "peerDependencies": { "@noble/hashes": "^1.8.0 || ^2.0.0" }, "optionalPeers": ["@noble/hashes"] }, "sha512-IcpW84uEn3N7ETtNZMlxKhfl6Pec8rUNGOTBtWbK1FKhJxIFAptZyVrvVRVBimAJxJCgc3PxepxkdWWG4DVzfA=="],
 
-    "@expo/hub-client": ["@expo/hub-client@1.5.0", "", { "dependencies": { "use-sync-external-store": "^1.7.0" }, "peerDependencies": { "react": ">=18.0.0" } }, "sha512-viMiTybFWoxNShOw0C/78Ky479Hhl+cKysNv0ZPUN+F8n8lI8ECTFs+CCKQA3LI8En/ASFIuaaunD+1JUk6ipw=="],
+    "@expo/hub-client": ["@expo/hub-client@1.12.2", "", { "dependencies": { "use-sync-external-store": "^1.7.0" }, "peerDependencies": { "react": ">=18.0.0" } }, "sha512-cs27+un0dh63lJUybm/wlepF6D9BN1qFRwnj80Ju+RPi4TLp3uKX5MCIS4nnLYlbTIHM+M0M/DOPo7i280fPsg=="],
 
     "@floating-ui/core": ["@floating-ui/core@1.8.0", "", { "dependencies": { "@floating-ui/utils": "0.2.12" } }, "sha512-0CIZ5itps/8x7BG8dEIhs53BvCUH2PCoogtakwRTut+Arm58sJooJ0AuZhLw2HJYIR5cMLNPBSS728sPho2khQ=="],
 

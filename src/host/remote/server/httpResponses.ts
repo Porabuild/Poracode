@@ -11,7 +11,12 @@ import {
   isHostResourceBusyError,
 } from "@/shared/hostResourceAdmission";
 import { RemoteHttpError } from "../auth";
-import { computeEtag, etagMatches, writeNegotiatedJson } from "./httpCompression";
+import {
+  computeEtag,
+  etagMatches,
+  writeCompressedJson,
+  writeNegotiatedJson,
+} from "./httpCompression";
 import {
   GIT_REPOSITORY_BUSY_CODE,
   gitProcessAdmissionRetryAfterMsOf,
@@ -20,6 +25,16 @@ import {
 
 export function writeJson(res: ServerResponse, status: number, data: unknown): void {
   writeJsonResponse(res, status, data, { trailingNewline: true });
+}
+
+/** `writeJson` with async gzip negotiation above the compression threshold. */
+export async function writeCompressedJsonResponse(
+  req: IncomingMessage,
+  res: ServerResponse,
+  status: number,
+  data: unknown,
+): Promise<void> {
+  await writeCompressedJson(req, res, status, `${JSON.stringify(data)}\n`);
 }
 
 /**

@@ -1,5 +1,7 @@
 import {
+  CATALOG_HOST_DECODE_MAX_BYTES,
   CATALOG_HOST_WIRE_MAX_BYTES,
+  CATALOG_JSON_BOUND_FACTOR,
   HISTORY_LATEST_TURN_MAX_WIRE_BYTES,
 } from "@/shared/remote/historyReadContract";
 import {
@@ -35,6 +37,7 @@ export function readProjectedHistoryWindow(
   options: {
     readonly compactDetails?: boolean;
     readonly deferFileChangeBodies?: boolean;
+    readonly deferUnsettledFileChanges?: boolean;
     readonly protectLatestTurn?: boolean;
   } = {},
 ): {
@@ -43,10 +46,21 @@ export function readProjectedHistoryWindow(
 } {
   const compactDetails = options.compactDetails === true;
   const deferFileChanges = compactDetails && options.deferFileChangeBodies === true;
+  const latestUserTurnRows =
+    rows.findIndex((row) => row.type === "user_message" && row.parentItemId === null) + 1;
+  const deferrableRows = rows.map(
+    (row, rowIndex) =>
+      deferFileChanges &&
+      isDeferrableFileChangeRow(row.type, row.state, {
+        allowUnsettled:
+          options.deferUnsettledFileChanges === true ||
+          (latestUserTurnRows > 0 && rowIndex >= latestUserTurnRows),
+      }),
+  );
   if (deferFileChanges)
     // The bound stays conservative: it caps what one read materializes.
-    rows = rows.map((row) =>
-      isDeferrableFileChangeRow(row.type, row.state)
+    rows = rows.map((row, rowIndex) =>
+      deferrableRows[rowIndex]
         ? {
             ...row,
             packingWireBytes: Math.min(row.packingWireBytes, DEFERRED_FILE_CHANGE_PACKING_BYTES),
@@ -77,9 +91,7 @@ export function readProjectedHistoryWindow(
       dbMeasureHistoryStreamHeadEscaped(threadId, first.itemId),
     );
   }
-  const latestTurnRows = options.protectLatestTurn
-    ? rows.findIndex((row) => row.type === "user_message" && row.parentItemId === null) + 1
-    : 0;
+  const latestTurnRows = options.protectLatestTurn ? latestUserTurnRows : 0;
   // Half the client's effective cap stays for the rest of the envelope, so the
   // builder's cap trim cannot cut the protected prompt.
   const latestTurnWireBytes = Math.max(
@@ -91,75 +103,151 @@ export function readProjectedHistoryWindow(
   );
   const budgetAt = (index: number) =>
     index < latestTurnRows ? latestTurnWireBytes : softWireBytes;
+  // Deferrable file_change rows drop their large diff bodies immediately after
+  // phase-2 slimming, so charge their raw stored size (~bound/6) rather than
+  // worst-case 6x JSON wire expansion against batch and read caps.
+  const rowDeferredRawBytes = (rowIndex: number): number =>
+    deferrableRows[rowIndex]
+      ? Math.ceil(rows[rowIndex]!.boundWireBytes / CATALOG_JSON_BOUND_FACTOR)
+      : 0;
+  const rowNonDeferredBound = (rowIndex: number): number =>
+    deferrableRows[rowIndex] ? 0 : rows[rowIndex]!.boundWireBytes;
+  const rowBatchCost = (rowIndex: number): number =>
+    deferrableRows[rowIndex] ? rowDeferredRawBytes(rowIndex) : rows[rowIndex]!.boundWireBytes;
+
+  const firstUnitEnd = rows.length > 0 ? unitEnd(rows, 0) : 0;
   const keptMeta: HistoryPageRowMeta[] = [];
   const projectedDesc: HistoryRuntimeItem[] = [];
   let wireBytes = 2;
-  let materializationBound = 0;
+  let nonDeferredMaterialized = 0;
+  let deferredMaterialized = 0;
   let index = 0;
   while (index < rows.length) {
     const batchStart = index;
     const unitEnds: number[] = [];
     let estimatedBytes = wireBytes;
+    let batchMaterialized = 0;
+    const cutUnitSlice = (end: number, requireOne: boolean) => {
+      let cut = index;
+      let cutBatch = batchMaterialized;
+      let cutNonDeferred = nonDeferredMaterialized;
+      let cutDeferred = deferredMaterialized;
+      let cutEstimate = estimatedBytes;
+      if (requireOne) {
+        cutBatch += rowBatchCost(cut);
+        cutNonDeferred += rowNonDeferredBound(cut);
+        cutDeferred += rowDeferredRawBytes(cut);
+        cutEstimate += rows[cut]!.packingWireBytes;
+        cut += 1;
+      }
+      while (cut < end) {
+        const nextBatch = cutBatch + rowBatchCost(cut);
+        const nextNonDeferred = cutNonDeferred + rowNonDeferredBound(cut);
+        const nextDeferred = cutDeferred + rowDeferredRawBytes(cut);
+        const nextEstimate = cutEstimate + rows[cut]!.packingWireBytes;
+        if (
+          nextBatch > CATALOG_HOST_WIRE_MAX_BYTES ||
+          nextNonDeferred > CATALOG_HOST_WIRE_MAX_BYTES ||
+          nextDeferred > CATALOG_HOST_DECODE_MAX_BYTES ||
+          nextEstimate > budgetAt(cut)
+        )
+          break;
+        cutBatch = nextBatch;
+        cutNonDeferred = nextNonDeferred;
+        cutDeferred = nextDeferred;
+        cutEstimate = nextEstimate;
+        cut += 1;
+      }
+      if (cut > index) {
+        batchMaterialized = cutBatch;
+        nonDeferredMaterialized = cutNonDeferred;
+        deferredMaterialized = cutDeferred;
+        index = cut;
+        unitEnds.push(index);
+      }
+    };
     while (index < rows.length) {
       const end = unitEnd(rows, index);
-      const unit = rows.slice(index, end);
-      const estimate = unit.reduce((sum, row) => sum + row.packingWireBytes, 0);
-      const bound = unit.reduce((sum, row) => sum + row.boundWireBytes, 0);
+      let estimate = 0;
+      let batchCost = 0;
+      let nonDeferredCost = 0;
+      let deferredCost = 0;
+      for (let cursor = index; cursor < end; cursor += 1) {
+        estimate += rows[cursor]!.packingWireBytes;
+        batchCost += rowBatchCost(cursor);
+        nonDeferredCost += rowNonDeferredBound(cursor);
+        deferredCost += rowDeferredRawBytes(cursor);
+      }
+      const inFirstUnit = index < firstUnitEnd;
       const isFirst = keptMeta.length === 0 && index === batchStart;
-      if (
-        !isFirst &&
-        (estimatedBytes + estimate > budgetAt(index) ||
-          materializationBound + bound > CATALOG_HOST_WIRE_MAX_BYTES)
-      )
+      const fitsMaterialization =
+        batchMaterialized + batchCost <= CATALOG_HOST_WIRE_MAX_BYTES &&
+        nonDeferredMaterialized + nonDeferredCost <= CATALOG_HOST_WIRE_MAX_BYTES &&
+        deferredMaterialized + deferredCost <= CATALOG_HOST_DECODE_MAX_BYTES;
+      if (!isFirst && (!fitsMaterialization || estimatedBytes + estimate > budgetAt(index))) {
+        if (inFirstUnit && index === batchStart && estimatedBytes < budgetAt(index)) {
+          cutUnitSlice(end, false);
+        }
         break;
-      if (isFirst && bound > CATALOG_HOST_WIRE_MAX_BYTES) {
+      }
+      if (isFirst && !fitsMaterialization) {
         // The conservative bound exceeding the hard cap does not prove the real
         // size does. Cut the unit by row at the soft target so a long tool run
         // pages in a few reads; a page of one row still reaches the exact
         // hard-cap refusal that names it.
-        let cut = index + 1;
-        let cutBound = rows[index]!.boundWireBytes;
-        let cutEstimate = estimatedBytes + rows[index]!.packingWireBytes;
-        while (
-          cut < end &&
-          cutBound + rows[cut]!.boundWireBytes <= CATALOG_HOST_WIRE_MAX_BYTES &&
-          cutEstimate + rows[cut]!.packingWireBytes <= budgetAt(cut)
-        ) {
-          cutBound += rows[cut]!.boundWireBytes;
-          cutEstimate += rows[cut]!.packingWireBytes;
-          cut += 1;
-        }
-        materializationBound += cutBound;
-        index = cut;
-        unitEnds.push(index);
+        cutUnitSlice(end, true);
         break;
       }
       estimatedBytes += estimate;
-      materializationBound += bound;
+      batchMaterialized += batchCost;
+      nonDeferredMaterialized += nonDeferredCost;
+      deferredMaterialized += deferredCost;
       index = end;
       unitEnds.push(end);
     }
     if (index === batchStart) break;
     const batchMeta = rows.slice(batchStart, index);
+    const deferrableById = new Map<string, boolean>();
+    for (let cursor = batchStart; cursor < index; cursor += 1) {
+      deferrableById.set(rows[cursor]!.itemId, deferrableRows[cursor]!);
+    }
     const materialized = dbReadThreadHistoryPhase2(
       threadId,
       batchMeta.map((row) => row.itemId),
       { compactDetails, preserveExternalizedImageStubs: true },
     );
-    const byId = new Map(
+    const byId = new Map<string, HistoryRuntimeItem>(
       projectRuntimeItemsImageRefs(threadId, materialized).map((item) => [
         item.id,
-        deferFileChanges ? slimDeferredFileChange(item) : item,
+        deferrableById.get(item.id) ? slimDeferredFileChange(item, { allowUnsettled: true }) : item,
       ]),
     );
     let start = batchStart;
     for (const end of unitEnds) {
       const meta = rows.slice(start, end).filter((row) => byId.has(row.itemId));
       const items = meta.map((row) => byId.get(row.itemId)!);
-      const actualBytes = items.reduce(
-        (sum, item) => sum + Buffer.byteLength(JSON.stringify(item), "utf8") + 1,
-        0,
+      const itemWireBytes = items.map(
+        (item) => Buffer.byteLength(JSON.stringify(item), "utf8") + 1,
       );
+      const actualBytes = itemWireBytes.reduce((sum, bytes) => sum + bytes, 0);
+      const canTrimFirstUnitByRow =
+        end <= firstUnitEnd &&
+        (keptMeta.length > 0 ||
+          (deferFileChanges &&
+            meta.some(
+              (row, idx) => deferrableById.get(row.itemId) && !items[idx]!.detailsDeferred,
+            )));
+      if (canTrimFirstUnitByRow && wireBytes + actualBytes > budgetAt(start)) {
+        for (let offset = 0; offset < meta.length; offset += 1) {
+          const bytes = itemWireBytes[offset]!;
+          if (keptMeta.length > 0 && wireBytes + bytes > budgetAt(start + offset))
+            return { keptMeta, projectedDesc };
+          keptMeta.push(meta[offset]!);
+          projectedDesc.push(items[offset]!);
+          wireBytes += bytes;
+        }
+        return { keptMeta, projectedDesc };
+      }
       // The first display unit is soft-exempt; hard caps are checked by the
       // builder against the complete serialized envelope. Never cut a group.
       if (keptMeta.length > 0 && wireBytes + actualBytes > budgetAt(start))

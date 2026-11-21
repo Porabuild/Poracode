@@ -1,8 +1,13 @@
+import { RequestError } from "@agentclientprotocol/sdk";
 import { describe, expect, it } from "vitest";
 import type { AgentStatus } from "@/shared/contracts";
 import { agentStatusForPresentation } from "@/shared/agentSelection";
 import { defaultAntigravityCapabilities } from "./detection";
-import { applyAntigravityAcpStatus, preferDefaultAntigravityAcpAuthMethod } from "./acp";
+import {
+  applyAntigravityAcpStatus,
+  isAntigravityDroppedSessionError,
+  preferDefaultAntigravityAcpAuthMethod,
+} from "./acp";
 
 function cliStatus(installed: boolean): AgentStatus {
   return {
@@ -185,5 +190,67 @@ describe("Antigravity runtime detection", () => {
     expect(agentStatusForPresentation(status, "gui").capabilities).toMatchObject({
       defaultApprovalPolicy: "yolo",
     });
+  });
+});
+
+describe("isAntigravityDroppedSessionError", () => {
+  it("recognizes model-switch rebuild failures and vanished live sessions", () => {
+    expect(
+      isAntigravityDroppedSessionError(
+        new RequestError(-32603, "Internal error", {
+          details: "Failed to rebuild agent: received 1000 (OK); then sent 1000 (OK)",
+        }),
+      ),
+    ).toBe(true);
+    expect(
+      isAntigravityDroppedSessionError(
+        new Error("Failed to rebuild agent: received 1000 (OK); then sent 1000 (OK)"),
+      ),
+    ).toBe(true);
+    expect(
+      isAntigravityDroppedSessionError(
+        new RequestError(-32603, "Internal error", {
+          details: "Session not found: f6227a4b-f283-430c-a186-654d2bbe3fc6",
+        }),
+      ),
+    ).toBe(true);
+    expect(
+      isAntigravityDroppedSessionError(
+        new RequestError(-32002, "Resource not found", {
+          uri: "session f6227a4b-f283-430c-a186-654d2bbe3fc6",
+        }),
+      ),
+    ).toBe(true);
+    expect(
+      isAntigravityDroppedSessionError({
+        code: -32603,
+        message: "Internal error",
+        data: { details: "Failed to rebuild agent: received 1000 (OK); then sent 1000 (OK)" },
+      }),
+    ).toBe(true);
+    expect(
+      isAntigravityDroppedSessionError({
+        code: -32002,
+        message: "Resource not found",
+        data: { uri: "session f6227a4b-f283-430c-a186-654d2bbe3fc6" },
+      }),
+    ).toBe(true);
+  });
+
+  it("excludes missing-on-disk trajectories and unrelated errors", () => {
+    expect(
+      isAntigravityDroppedSessionError(
+        new RequestError(-32002, "Session not found in the current GEMINI_HOME", {
+          details: "No session with this ID exists under GEMINI_HOME ('/home/user/.gemini').",
+        }),
+      ),
+    ).toBe(false);
+    expect(
+      isAntigravityDroppedSessionError(
+        new RequestError(-32002, "Resource not found", { uri: "file:///tmp/missing.ts" }),
+      ),
+    ).toBe(false);
+    expect(isAntigravityDroppedSessionError(new Error("Usage Limit Reached"))).toBe(false);
+    expect(isAntigravityDroppedSessionError(RequestError.authRequired())).toBe(false);
   });
 });
