@@ -11,7 +11,7 @@ describe("native real-socket core coverage profile", () => {
     harness = undefined;
   });
 
-  it("positively exercises the complete 361-operation remote-v3 inventory", async () => {
+  it("positively exercises the complete 362-operation remote-v3 inventory", async () => {
     harness = await startLab({ replayLimit: 64 });
     const { accessToken } = await pairAndAuth(harness, [
       "session:read",
@@ -35,7 +35,7 @@ describe("native real-socket core coverage profile", () => {
     expect(snapshot.fullParityComplete).toBe(true);
     expect(snapshot.counts).toEqual({
       route: { expected: 126, positive: 126, unsupported: 0, missing: 0 },
-      procedure: { expected: 179, positive: 179, unsupported: 0, missing: 0 },
+      procedure: { expected: 180, positive: 180, unsupported: 0, missing: 0 },
       "ws-client": { expected: 11, positive: 11, unsupported: 0, missing: 0 },
       "ws-server": { expected: 12, positive: 12, unsupported: 0, missing: 0 },
       replay: { expected: 17, positive: 17, unsupported: 0, missing: 0 },
