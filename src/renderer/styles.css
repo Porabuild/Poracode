@@ -984,38 +984,58 @@ html[data-app-unfocused] .poracode-welcome-ring::after {
    secondary variant uses --accent-soft-foreground, which makes ordinary
    controls (including shared OptionMenu triggers) accent-colored by default.
    Keep accent text opt-in and make all neutral action variants inherit the
-   theme foreground: off-white in dark themes and dark in light themes. */
-.button--primary {
-  --button-bg: var(--default);
-  --button-bg-hover: var(--default-hover);
-  --button-bg-pressed: var(--default-hover);
-  --button-fg: var(--foreground);
-}
+   theme foreground: off-white in dark themes and dark in light themes.
+   Fills use translucent washes (foreground in dark, black in light so themes
+   with a dark foreground don't over-darken) instead of opaque tokens tied to
+   one surface, so filled buttons and ghost hover states separate cleanly on
+   plain canvas, ContentSurface cards, the composer, and modal overlays alike.
+   Layered in `components` so per-instance Tailwind utilities (such as
+   `[--button-bg-hover:...]`) still override them. */
+@layer components {
+  .button--primary {
+    --button-fg: var(--foreground);
+  }
 
-.button--secondary {
-  --button-fg: var(--foreground);
-}
+  .button--secondary {
+    --button-fg: var(--foreground);
+  }
 
-/* Tertiary: a quiet neutral that still reads as interactive. Borderless, like
-   HeroUI's stock tertiary — the separation comes from a fill a touch darker than
-   the panel. Derived by darkening --content-background (the surface these controls
-   render on) a fixed fraction toward black, NOT by mixing toward --foreground:
-   a toward-fg step darkens by a fraction of the gap to fg, so themes with a dark
-   foreground (e.g. Poracode light, fg ~L0.21) over-darken and read heavy. Scaling
-   the panel's own luminance toward black is foreground-independent, so the fill
-   lands at a uniform ~1.28:1 across every light preset. Dark keeps HeroUI's stock
-   fill, so this is light-only. */
-.button--tertiary {
-  --button-fg: var(--foreground);
-}
+  .button--tertiary {
+    --button-fg: var(--foreground);
+  }
 
-.light .button--tertiary,
-[data-theme="light"] .button--tertiary,
-.light .button--primary,
-[data-theme="light"] .button--primary {
-  --button-bg: color-mix(in oklab, var(--content-background) 89%, #000);
-  --button-bg-hover: color-mix(in oklab, var(--content-background) 84%, #000);
-  --button-bg-pressed: var(--button-bg-hover);
+  .button--primary,
+  .button--secondary,
+  .button--tertiary {
+    --button-bg: color-mix(in oklab, var(--foreground) 12%, transparent);
+    --button-bg-hover: color-mix(in oklab, var(--foreground) 17%, transparent);
+    --button-bg-pressed: color-mix(in oklab, var(--foreground) 20%, transparent);
+  }
+
+  .button--ghost,
+  .button--outline {
+    --button-bg-hover: color-mix(in oklab, var(--foreground) 9%, transparent);
+    --button-bg-pressed: color-mix(in oklab, var(--foreground) 13%, transparent);
+  }
+
+  .light .button--primary,
+  [data-theme="light"] .button--primary,
+  .light .button--secondary,
+  [data-theme="light"] .button--secondary,
+  .light .button--tertiary,
+  [data-theme="light"] .button--tertiary {
+    --button-bg: color-mix(in oklab, #000 11%, transparent);
+    --button-bg-hover: color-mix(in oklab, #000 16%, transparent);
+    --button-bg-pressed: color-mix(in oklab, #000 20%, transparent);
+  }
+
+  .light .button--ghost,
+  [data-theme="light"] .button--ghost,
+  .light .button--outline,
+  [data-theme="light"] .button--outline {
+    --button-bg-hover: color-mix(in oklab, #000 8%, transparent);
+    --button-bg-pressed: color-mix(in oklab, #000 12%, transparent);
+  }
 }
 
 /* Field-styled picker buttons (e.g. Location folder pickers alongside text

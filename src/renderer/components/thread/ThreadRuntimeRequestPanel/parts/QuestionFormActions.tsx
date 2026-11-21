@@ -35,7 +35,7 @@ export function QuestionFormActions(props: {
           isDisabled={isDisabled}
           size="sm"
           variant="ghost"
-          className="text-muted"
+          className="text-muted hover:text-foreground data-[hovered=true]:text-foreground"
           onPress={onDecline}
         >
           <Trans>Decline</Trans>

@@ -31,10 +31,8 @@ export function ApprovalActions(props: {
   const capClassName = stackOnNarrow
     ? "max-w-[min(100%,28rem)] @max-[44rem]:max-w-full"
     : "max-w-[min(100%,28rem)]";
-  const negativeButtonClassName = stackOnNarrow
-    ? `${capClassName} text-muted @max-[44rem]:w-full`
-    : `${capClassName} text-muted`;
   const buttonClassName = stackOnNarrow ? `${capClassName} @max-[44rem]:w-full` : capClassName;
+  const negativeButtonClassName = `${buttonClassName} text-muted hover:text-foreground data-[hovered=true]:text-foreground`;
 
   if (!primary && negatives.length === 0) return null;
 
