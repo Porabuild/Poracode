@@ -1,5 +1,5 @@
 import type { AppView } from "@/shared/contracts";
-import { makeDraftPaneId } from "@/shared/paneId";
+import { makeDraftPaneId, parseDraftProjectId } from "@/shared/paneId";
 import { keepAlivePatch } from "./paneCacheSlice";
 import {
   adjustInsertTargetForRemoval,
@@ -33,6 +33,8 @@ import { usePanelStore } from "../panelStore";
 
 export interface ViewSlice {
   view: AppView;
+  /** Project id of the most recently opened unsubmitted draft, so "New thread" re-opens it. */
+  lastDraftProjectId: string | null;
   focusedPaneId: string | null;
   /**
    * Bumped whenever a draft is opened. Client-only surfaces use it to re-roll
@@ -112,6 +114,7 @@ export interface ViewSlice {
 
 export const createViewSlice: SliceCreator<ViewSlice> = (set) => ({
   view: { kind: "home" },
+  lastDraftProjectId: null,
   focusedPaneId: null,
   draftVisit: 0,
   pendingComposerFocusThreadId: null,
@@ -166,23 +169,26 @@ export const createViewSlice: SliceCreator<ViewSlice> = (set) => ({
   openDraft: (projectId) =>
     set((state) => ({
       view: { kind: "draft", projectId },
+      lastDraftProjectId: projectId,
       draftVisit: state.draftVisit + 1,
     })),
   moveDraft: (projectId) =>
     set((state) => ({
       view: { kind: "draft", projectId },
+      lastDraftProjectId: projectId,
       ...(state.view.kind === "draft" ? {} : { draftVisit: state.draftVisit + 1 }),
     })),
   openDraftSideBySide: (projectId) =>
     set((state) => {
       const draftVisit = state.draftVisit + 1;
       if (state.view.kind !== "thread") {
-        return { view: { kind: "draft", projectId }, draftVisit };
+        return { view: { kind: "draft", projectId }, lastDraftProjectId: projectId, draftVisit };
       }
       if (state.view.activeGroupId) {
         return {
           groupLayouts: saveGroupLayout(state),
           view: { kind: "draft", projectId },
+          lastDraftProjectId: projectId,
           draftVisit,
         };
       }
@@ -209,6 +215,7 @@ export const createViewSlice: SliceCreator<ViewSlice> = (set) => ({
             panes: collectPaneIds(layout),
             paneLayout: layout,
           },
+          lastDraftProjectId: projectId,
           draftVisit,
         };
       }
@@ -226,6 +233,7 @@ export const createViewSlice: SliceCreator<ViewSlice> = (set) => ({
       );
       return {
         view: nextView,
+        lastDraftProjectId: projectId,
         draftVisit,
       };
     }),
@@ -704,6 +712,13 @@ export const createViewSlice: SliceCreator<ViewSlice> = (set) => ({
       if (state.view.kind !== "thread") {
         return {};
       }
+      const closedDraftProjectId = parseDraftProjectId(threadId);
+      const lastDraftPatch =
+        closedDraftProjectId !== undefined &&
+        closedDraftProjectId === state.lastDraftProjectId &&
+        !(closedDraftProjectId in state.draftContents)
+          ? { lastDraftProjectId: null }
+          : {};
       const activeGid = state.view.activeGroupId;
       if (activeGid) {
         const threads = state.threads.map((t) =>
@@ -722,13 +737,21 @@ export const createViewSlice: SliceCreator<ViewSlice> = (set) => ({
           return {
             threads: dissolvedThreads,
             view: { kind: "thread" as const, panes: nextView.panes } satisfies AppView,
+            ...lastDraftPatch,
           };
         }
-        return { threads, view: nextView };
+        return {
+          threads,
+          view: nextView,
+          ...lastDraftPatch,
+        };
       }
       // Closing a pane does NOT kill the thread, so its terminal stays alive
       // (keep-alive). The cache entry survives; re-opening is instant.
-      return { view: removePaneFromView(state.view, threadId) };
+      return {
+        view: removePaneFromView(state.view, threadId),
+        ...lastDraftPatch,
+      };
     }),
   replacePaneId: (oldId, newId) =>
     set((state) => {
@@ -740,8 +763,10 @@ export const createViewSlice: SliceCreator<ViewSlice> = (set) => ({
       const nextView = replacePaneInView(state.view, oldId, newId);
       const nextPanes = nextView.kind === "thread" ? nextView.panes : [newId];
       const cleared = clearFinished(state.threads, nextPanes);
+      const nextDraftProjectId = parseDraftProjectId(newId);
       return {
         ...(cleared ? { view: nextView, threads: cleared } : { view: nextView }),
+        ...(nextDraftProjectId ? { lastDraftProjectId: nextDraftProjectId } : {}),
         // A draft pane is replaced by the real thread it started; touch the
         // new thread so its terminal gets keep-alive treatment.
         ...keepAlivePatch(state, newId),

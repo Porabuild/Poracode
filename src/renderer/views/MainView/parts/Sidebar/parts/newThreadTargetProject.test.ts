@@ -28,4 +28,12 @@ describe("pickNewThreadProjectId", () => {
     expect(pickNewThreadProjectId([], projects, null)).toBe("a");
     expect(pickNewThreadProjectId([], [], null)).toBeUndefined();
   });
+
+  it("prefers the last open draft project when actionable and inside the filter", () => {
+    const threads = [thread("a", "2026-08-01"), thread("b", "2026-08-09")];
+    expect(pickNewThreadProjectId(threads, projects, null, "a")).toBe("a");
+    // Outside the filter or not actionable falls back to the most recent thread.
+    expect(pickNewThreadProjectId(threads, projects, new Set(["b"]), "a")).toBe("b");
+    expect(pickNewThreadProjectId(threads, [project("b")], null, "a")).toBe("b");
+  });
 });

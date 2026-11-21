@@ -121,6 +121,18 @@ export const useAppStore = create<AppStoreState>()(
             selectedView.kind === "thread" && selectedView.paneLayout
               ? { ...selectedView, paneLayout: normalizePaneSlots(selectedView.paneLayout) }
               : selectedView;
+          const selectedLastDraftProjectId =
+            state.lastDraftProjectId !== undefined &&
+            currentState.lastDraftProjectId === null &&
+            isPristineView(currentState.view)
+              ? state.lastDraftProjectId
+              : currentState.lastDraftProjectId;
+          const remappedView = remapProjectView(view, deduped.duplicateIds);
+          const remappedLastDraftProjectId = selectedLastDraftProjectId
+            ? (deduped.duplicateIds.get(selectedLastDraftProjectId) ?? selectedLastDraftProjectId)
+            : remappedView.kind === "draft"
+              ? remappedView.projectId
+              : null;
           const selectedGroupLayouts =
             state.groupLayouts !== undefined && isPristineGroupLayouts(currentState.groupLayouts)
               ? state.groupLayouts
@@ -129,7 +141,8 @@ export const useAppStore = create<AppStoreState>()(
             ...currentState,
             projects,
             threads,
-            view: remapProjectView(view, deduped.duplicateIds),
+            view: remappedView,
+            lastDraftProjectId: remappedLastDraftProjectId,
             groupLayouts: remapProjectGroupLayouts(
               Object.fromEntries(
                 Object.entries(selectedGroupLayouts).map(([id, saved]) => [

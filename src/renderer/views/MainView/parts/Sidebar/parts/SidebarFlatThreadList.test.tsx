@@ -53,13 +53,25 @@ vi.mock("./NewThreadButton", () => ({
   NewThreadButton: (props: {
     projectId: string;
     inline?: boolean;
+    hasDraft?: boolean;
+    isActive?: boolean;
+    onPress?: () => void;
     projectOptions?: readonly { id: string; name: string; description?: string }[];
     onSelectProject?: (projectId: string) => void;
   }) => {
     newThreadCalls.push({ projectId: props.projectId, inline: props.inline });
     newThreadOptions.value = props.projectOptions;
     newThreadOptions.onSelect = props.onSelectProject;
-    return <button type="button">new-thread:{props.projectId}</button>;
+    return (
+      <button
+        type="button"
+        data-has-draft={String(Boolean(props.hasDraft))}
+        data-active={String(Boolean(props.isActive))}
+        onClick={props.onPress}
+      >
+        new-thread:{props.projectId}
+      </button>
+    );
   },
 }));
 
@@ -163,7 +175,13 @@ describe("SidebarFlatThreadList", () => {
       homeScopeEnabled: true,
       workspaces: [{ id: "w1", name: "Side Hustle" }],
     } as never);
-    useWorkspaceStore.setState({ activeWorkspaceId: "w1" });
+    useWorkspaceStore.setState({ activeWorkspaceId: "w1", lastProjectIdByWorkspace: {} });
+    useAppStore.setState({
+      view: { kind: "home" },
+      lastDraftProjectId: null,
+      draftContents: {},
+      draftContentDiscardRequests: {},
+    });
     useSidebarUiStore.setState({
       flatListProjectFilter: null,
       collapsedWorktrees: {},
@@ -919,5 +937,76 @@ describe("SidebarFlatThreadList", () => {
     expect(screen.getByText(/thread:p1/)).toBeInTheDocument();
     expect(screen.queryByText(/thread:h1/)).not.toBeInTheDocument();
     expect(screen.queryByText(/thread:s1/)).not.toBeInTheDocument();
+  });
+
+  it("keeps and re-opens the project draft selected from the new-thread dropdown instead of jumping to a newer thread's project", async () => {
+    const newerThread = makeThread("take-1", secondLocalProject.id, "2026-08-10T10:00:00.000Z");
+    const olderThread = makeThread("code-1", localProject.id, "2026-08-01T10:00:00.000Z");
+    useAppStore.setState({
+      projects: [homeProject, localProject, secondLocalProject],
+      threads: [newerThread, olderThread],
+      view: { kind: "thread", panes: [newerThread.id] },
+    });
+
+    render(<SidebarFlatThreadList sortMode="updated" />);
+    expect(screen.getByText("new-thread:local-2")).toBeInTheDocument();
+
+    await act(async () => {
+      newThreadOptions.onSelect?.(localProject.id);
+    });
+    expect(useAppStore.getState().view).toEqual({ kind: "draft", projectId: localProject.id });
+    expect(useWorkspaceStore.getState().lastProjectIdByWorkspace).toEqual({ w1: localProject.id });
+
+    // Typing into the selected project's draft lights up both active and draft state
+    // on New thread, and pressing New thread preserves the open draft.
+    const draft = {
+      segments: [{ kind: "text" as const, content: "release mobile" }],
+      attachments: [],
+    };
+    act(() => {
+      useAppStore.getState().saveDraftContent(localProject.id, draft);
+    });
+    const newThreadButton = screen.getByRole("button", { name: "new-thread:local-1" });
+    expect(newThreadButton).toHaveAttribute("data-active", "true");
+    expect(newThreadButton).toHaveAttribute("data-has-draft", "true");
+
+    fireEvent.click(newThreadButton);
+    expect(useAppStore.getState().view).toEqual({ kind: "draft", projectId: localProject.id });
+    expect(useAppStore.getState().draftContents[localProject.id]).toEqual(draft);
+
+    // Navigating away to a newer thread in another project and pressing New thread
+    // still re-opens the last open draft.
+    act(() => {
+      useAppStore.getState().openThread(newerThread.id);
+    });
+    const reopenButton = screen.getByRole("button", { name: "new-thread:local-1" });
+    expect(reopenButton).toHaveAttribute("data-active", "false");
+    expect(reopenButton).toHaveAttribute("data-has-draft", "true");
+
+    fireEvent.click(reopenButton);
+    expect(useAppStore.getState().view).toEqual({ kind: "draft", projectId: localProject.id });
+    expect(useAppStore.getState().draftContents[localProject.id]).toEqual(draft);
+
+    // Submitting the draft clears it as the last open draft so New thread returns
+    // to following thread recency when another project later becomes active.
+    act(() => {
+      useAppStore.getState().createThread({
+        projectId: localProject.id,
+        agentKind: "codex",
+        config: { model: "gpt-5.4" },
+        prompt: "release mobile",
+      });
+    });
+    expect(useAppStore.getState().lastDraftProjectId).toBeNull();
+    act(() => {
+      useAppStore.setState((state) => ({
+        threads: state.threads.map((thread) =>
+          thread.id === newerThread.id
+            ? { ...thread, updatedAt: "2099-01-01T00:00:00.000Z" }
+            : thread,
+        ),
+      }));
+    });
+    expect(screen.getByRole("button", { name: "new-thread:local-2" })).toBeInTheDocument();
   });
 });

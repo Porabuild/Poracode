@@ -689,6 +689,112 @@ describe("appStore runtime config sync", () => {
     expect(useAppStore.getState().draftVisit).toBe(visit + 1);
   });
 
+  it("tracks the last open draft across navigation and clears it on launch or delete", () => {
+    const first = useAppStore.getState().addProject({ kind: "posix", path: "/repo-a" });
+    const second = useAppStore.getState().addProject({ kind: "posix", path: "/repo-b" });
+
+    useAppStore.getState().openDraft(first.id);
+    expect(useAppStore.getState().lastDraftProjectId).toBe(first.id);
+
+    useAppStore.getState().moveDraft(second.id);
+    expect(useAppStore.getState().lastDraftProjectId).toBe(second.id);
+
+    useAppStore.getState().openHome();
+    expect(useAppStore.getState().lastDraftProjectId).toBe(second.id);
+
+    useAppStore.getState().createThread({
+      projectId: second.id,
+      agentKind: "codex",
+      config: { model: "gpt-5.4" },
+      prompt: "launch second",
+    });
+    expect(useAppStore.getState().lastDraftProjectId).toBeNull();
+
+    useAppStore.getState().openDraftSideBySide(first.id);
+    expect(useAppStore.getState().lastDraftProjectId).toBe(first.id);
+    const firstView = useAppStore.getState().view;
+    const firstDraftPaneId = firstView.kind === "thread" ? firstView.panes[1]! : "";
+
+    useAppStore.getState().replacePaneId(firstDraftPaneId, `draft:${second.id}`);
+    expect(useAppStore.getState().lastDraftProjectId).toBe(second.id);
+
+    useAppStore.getState().closePane(`draft:${second.id}`);
+    expect(useAppStore.getState().lastDraftProjectId).toBeNull();
+
+    useAppStore.getState().openDraft(first.id);
+    useAppStore.getState().setProjectDisabled(first.id, true);
+    expect(useAppStore.getState().lastDraftProjectId).toBeNull();
+
+    useAppStore.getState().setProjectDisabled(first.id, false);
+    useAppStore.getState().openDraft(first.id);
+    useAppStore.getState().deleteProject(first.id);
+    expect(useAppStore.getState().lastDraftProjectId).toBeNull();
+
+    const partialize = useAppStore.persist.getOptions().partialize!;
+    useAppStore.setState({
+      projects: [
+        {
+          id: "remote-p",
+          remoteId: "rp",
+          remoteServerId: "d1",
+          name: "Remote",
+          location: { kind: "posix", path: "/remote" },
+          createdAt: "2026-01-01T00:00:00.000Z",
+        },
+      ],
+      view: { kind: "home" },
+      lastDraftProjectId: "remote-p",
+    });
+    expect(
+      (partialize(useAppStore.getState()) as { lastDraftProjectId?: string | null })
+        .lastDraftProjectId,
+    ).toBeNull();
+  });
+
+  it("rehydrates pre-existing v5 state without lastDraftProjectId and remaps duplicate draft targets", () => {
+    const merge = useAppStore.persist.getOptions().merge!;
+    const canonical = useAppStore.getState().addProject({ kind: "posix", path: "/repo" });
+    const duplicate = {
+      ...canonical,
+      id: "duplicate-repo",
+      createdAt: "2099-01-01T00:00:00.000Z",
+    };
+
+    const fromThread = merge(
+      {
+        projects: [canonical],
+        threads: [],
+        view: { kind: "home" },
+        groupLayouts: {},
+      },
+      { ...useAppStore.getState(), view: { kind: "home" }, lastDraftProjectId: null },
+    ) as AppStoreState;
+    expect(fromThread.lastDraftProjectId).toBeNull();
+
+    const fromDraft = merge(
+      {
+        projects: [canonical, duplicate],
+        threads: [],
+        view: { kind: "draft", projectId: duplicate.id },
+        groupLayouts: {},
+      },
+      { ...useAppStore.getState(), view: { kind: "home" }, lastDraftProjectId: null },
+    ) as AppStoreState;
+    expect(fromDraft.lastDraftProjectId).toBe(canonical.id);
+
+    const fromPersistedLastDraft = merge(
+      {
+        projects: [canonical, duplicate],
+        threads: [],
+        view: { kind: "home" },
+        lastDraftProjectId: duplicate.id,
+        groupLayouts: {},
+      },
+      { ...useAppStore.getState(), view: { kind: "home" }, lastDraftProjectId: null },
+    ) as AppStoreState;
+    expect(fromPersistedLastDraft.lastDraftProjectId).toBe(canonical.id);
+  });
+
   it.each([
     ["Home", (state: AppStoreState, _projectId: string, _threadId: string) => state.openHome()],
     [
