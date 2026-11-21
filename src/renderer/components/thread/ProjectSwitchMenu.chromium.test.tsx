@@ -10,6 +10,7 @@ import { useProjectGroupStore } from "@/renderer/state/projectGroups/projectGrou
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useWorkspaceStore } from "@/renderer/state/workspaceStore";
+import { PresentationModeTabs } from "./PresentationModeTabs";
 import { ProjectSwitchMenu } from "./ProjectSwitchMenu";
 
 const stamp = "2026-11-01T10:00:00.000Z";
@@ -104,3 +105,60 @@ it.each(["light", "dark"] as const)(
     }
   },
 );
+
+it("matches PresentationModeTabs typography, height, and icon scale for project and environment selectors", () => {
+  const localProject = makeProject("p1", "Pora.code");
+  const remoteMirror = makeProject("remote:mac:p1", "Pora.code", "mac");
+  const secondProject = makeProject("p2", "Other");
+  useAppStore.setState({
+    projects: [localProject, remoteMirror, secondProject],
+    view: { kind: "draft", projectId: localProject.id },
+  });
+  useRemoteServersStore.setState({
+    servers: [{ desktopId: "mac", label: "MacBook" }],
+    runtime: { mac: { status: "online", projects: [], threads: [] } },
+  } as never);
+
+  const view = render(
+    <div className="flex items-center justify-between gap-2">
+      <ProjectSwitchMenu currentProjectId={localProject.id} variant="compact" />
+      <PresentationModeTabs
+        presentationMode="gui"
+        supportsGui
+        supportsTerminal
+        onChange={() => undefined}
+      />
+    </div>,
+  );
+
+  const chatTab = view.getByRole("tab", { name: "Chat" });
+  const projectTrigger = view.getByRole("button", { name: "Switch project" });
+  const envTrigger = view.getByRole("button", { name: "Machine: Local" });
+
+  const chatStyle = getComputedStyle(chatTab);
+  const projectStyle = getComputedStyle(projectTrigger);
+  const envStyle = getComputedStyle(envTrigger);
+
+  expect(projectStyle.fontSize).toBe(chatStyle.fontSize);
+  expect(projectStyle.fontWeight).toBe(chatStyle.fontWeight);
+  expect(envStyle.fontSize).toBe(chatStyle.fontSize);
+  expect(envStyle.fontWeight).toBe(chatStyle.fontWeight);
+
+  expect(projectTrigger.getBoundingClientRect().height).toBeCloseTo(
+    chatTab.getBoundingClientRect().height,
+    1,
+  );
+  expect(envTrigger.getBoundingClientRect().height).toBeCloseTo(
+    chatTab.getBoundingClientRect().height,
+    1,
+  );
+
+  const chatIconRect = chatTab.querySelector("svg")!.getBoundingClientRect();
+  const projectIconRect = projectTrigger.querySelector("svg")!.getBoundingClientRect();
+  const envIconRect = envTrigger.querySelector("svg")!.getBoundingClientRect();
+
+  expect(projectIconRect.width).toBeCloseTo(chatIconRect.width, 1);
+  expect(projectIconRect.height).toBeCloseTo(chatIconRect.height, 1);
+  expect(envIconRect.width).toBeCloseTo(chatIconRect.width, 1);
+  expect(envIconRect.height).toBeCloseTo(chatIconRect.height, 1);
+});

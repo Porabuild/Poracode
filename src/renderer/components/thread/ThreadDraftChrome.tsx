@@ -4,6 +4,7 @@ import { Trans, useLingui } from "@lingui/react/macro";
 import { macosTrafficLightPadClass } from "@/renderer/components/layout/sidebarChrome";
 import { BrandWordmark } from "@/renderer/components/common/BrandWordmark";
 import { PaneDragHandle } from "./PaneDragAndDrop";
+import { PROJECT_CONTROL_LABEL_CLASS } from "./ProjectEnvironmentMenu";
 import { ProjectSwitchMenu } from "./ProjectSwitchMenu";
 
 export type ThreadDraftDropIndicator =
@@ -45,7 +46,7 @@ export function ThreadDraftCompactHeader({
         </span>
         <div className="flex shrink-0 items-center">
           {props.scopeLabel ? (
-            <span className="px-1 text-sm leading-tight text-foreground">{props.scopeLabel}</span>
+            <span className={PROJECT_CONTROL_LABEL_CLASS}>{props.scopeLabel}</span>
           ) : (
             <ProjectSwitchMenu
               currentProjectId={props.projectId}

@@ -26,6 +26,17 @@ export const UNDIMMED_DISABLED_TRIGGER_CLASS =
   "disabled:cursor-default disabled:opacity-100 aria-disabled:cursor-default aria-disabled:opacity-100 data-[disabled=true]:cursor-default data-[disabled=true]:opacity-100";
 
 /**
+ * Shared scale for the composer header's project and environment controls so
+ * they sit on the same type/icon rhythm as the adjacent Chat | CLI tabs.
+ */
+export const PROJECT_CONTROL_ICON_CLASS = "size-3";
+
+export const PROJECT_CONTROL_LABEL_CLASS =
+  "inline-flex h-6 min-w-0 items-center gap-1.5 rounded-lg px-1.5 text-[11px] font-semibold leading-tight tracking-tight text-foreground";
+
+export const PROJECT_CONTROL_TRIGGER_CLASS = `group ${PROJECT_CONTROL_LABEL_CLASS} max-w-full outline-none transition-colors hover:bg-[var(--row-hover)] focus-visible:bg-[var(--row-hover)]`;
+
+/**
  * Where the new thread runs: the machines (Local, WSL distros, paired hosts)
  * that have the current project in the active workspace, with the same
  * glyphs, labels and offline handling as the Settings machine picker. A
@@ -81,11 +92,8 @@ export function ProjectEnvironmentMenu(
   if (environments.length < 2) {
     if (current.machine.ref.host === "local") return null;
     return (
-      <span
-        className="inline-flex min-w-0 shrink items-center gap-1 px-1 py-0.5 text-sm leading-tight text-foreground"
-        data-project-environment=""
-      >
-        <MachineIcon machine={current.machine} className="size-3.5" />
+      <span className={`${PROJECT_CONTROL_LABEL_CLASS} shrink`} data-project-environment="">
+        <MachineIcon machine={current.machine} className={PROJECT_CONTROL_ICON_CLASS} />
         <span className="min-w-0 truncate">{current.machine.label}</span>
       </span>
     );
@@ -108,17 +116,16 @@ export function ProjectEnvironmentMenu(
 
   const triggerContent = (
     <>
-      <MachineIcon machine={current.machine} className="size-3.5" />
+      <MachineIcon machine={current.machine} className={PROJECT_CONTROL_ICON_CLASS} />
       <span className="min-w-0 truncate">{currentLabel}</span>
       {environments.length > 2 ? (
-        <ChevronDown className="size-3 shrink-0 text-muted opacity-70 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100" />
+        <ChevronDown className="-ml-0.5 size-3 shrink-0 text-muted opacity-70 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100" />
       ) : null}
     </>
   );
   // Same type scale and treatment as the project trigger beside it, so the
   // machine reads as a control rather than metadata.
-  const triggerClass =
-    "group inline-flex min-w-0 max-w-full items-center gap-1 rounded px-1 py-0.5 text-sm leading-tight text-foreground outline-none transition-colors hover:bg-[var(--row-hover)] focus-visible:bg-[var(--row-hover)]";
+  const triggerClass = PROJECT_CONTROL_TRIGGER_CLASS;
 
   // Match the worktree control: two choices switch directly on every surface.
   // Use the same React Aria button and styles as Dropdown.Trigger, without

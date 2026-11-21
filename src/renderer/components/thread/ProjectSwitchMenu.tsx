@@ -20,7 +20,12 @@ import {
   useProjectEnvironmentMachineLookup,
 } from "@/renderer/components/common/ProjectEnvironment";
 import { type ProjectSwitchEntry, useProjectSwitchEntries } from "./projectSwitchGroups";
-import { ProjectEnvironmentMenu, UNDIMMED_DISABLED_TRIGGER_CLASS } from "./ProjectEnvironmentMenu";
+import {
+  PROJECT_CONTROL_ICON_CLASS,
+  PROJECT_CONTROL_TRIGGER_CLASS,
+  ProjectEnvironmentMenu,
+  UNDIMMED_DISABLED_TRIGGER_CLASS,
+} from "./ProjectEnvironmentMenu";
 import { switchDraftProject } from "./switchDraftProject";
 
 export function ProjectSwitchMenu(props: {
@@ -51,12 +56,12 @@ export function ProjectSwitchMenu(props: {
   const label = isHomeCurrent ? HOME_PROJECT_NAME : (current?.name ?? t`Select project`);
   const currentRemote = remoteServerFor(current);
   const triggerIcon = isHomeCurrent ? (
-    <House className="size-3.5 shrink-0 text-muted" />
+    <House className={`${PROJECT_CONTROL_ICON_CLASS} shrink-0 text-muted`} />
   ) : current ? (
     <ProjectSelectorIcon
       project={current}
       remote={currentRemote}
-      className="size-3.5"
+      className={PROJECT_CONTROL_ICON_CLASS}
       showEnvironment={false}
     />
   ) : null;
@@ -141,7 +146,7 @@ export function ProjectSwitchMenu(props: {
   }
 
   const heroTriggerClass = `group mx-auto inline-flex max-w-full items-center gap-1.5 rounded border border-transparent px-2 py-0.5 outline-none transition-colors hover:border-border/60 hover:bg-[var(--row-hover)] focus-visible:bg-[var(--row-hover)] ${UNDIMMED_DISABLED_TRIGGER_CLASS} disabled:hover:border-transparent disabled:hover:bg-transparent`;
-  const compactTriggerClass = `group inline-flex min-w-0 max-w-full items-center gap-1 rounded px-1 py-0.5 text-sm leading-tight text-foreground outline-none transition-colors hover:bg-[var(--row-hover)] focus-visible:bg-[var(--row-hover)] ${UNDIMMED_DISABLED_TRIGGER_CLASS} disabled:hover:bg-transparent`;
+  const compactTriggerClass = `${PROJECT_CONTROL_TRIGGER_CLASS} ${UNDIMMED_DISABLED_TRIGGER_CLASS} disabled:hover:bg-transparent`;
 
   // Mobile PWA: present as a bottom drawer with finger-sized rows instead of the
   // desktop HeroUI dropdown popover. The runtime surface, not its transport,
@@ -175,7 +180,11 @@ export function ProjectSwitchMenu(props: {
                   <span className="min-w-0 truncate">{label}</span>
                 </>
               )}
-              {!isDisabled ? <ChevronDown className="size-3 shrink-0 text-muted" /> : null}
+              {!isDisabled ? (
+                <ChevronDown
+                  className={`${variant === "hero" ? "" : "-ml-0.5 "}size-3 shrink-0 text-muted`}
+                />
+              ) : null}
             </button>
           }
         >
@@ -232,7 +241,7 @@ export function ProjectSwitchMenu(props: {
           {triggerIcon}
           <span className="min-w-0 truncate">{label}</span>
           {!isDisabled ? (
-            <ChevronDown className="size-3 shrink-0 text-muted opacity-70 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100" />
+            <ChevronDown className="-ml-0.5 size-3 shrink-0 text-muted opacity-70 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100" />
           ) : null}
         </Dropdown.Trigger>
         <Dropdown.Popover placement="bottom end">{menu}</Dropdown.Popover>
