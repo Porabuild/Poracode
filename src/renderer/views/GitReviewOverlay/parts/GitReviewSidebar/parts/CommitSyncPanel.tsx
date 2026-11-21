@@ -12,6 +12,7 @@ import {
 import { Button, ButtonGroup, Dropdown, Label, Tooltip } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { CommitDefaultAction } from "@/shared/contracts";
+import { useCompactLayout } from "@/renderer/adaptiveLayout";
 import type { GitActionPhase } from "@/renderer/state/gitReviewActionStore";
 import { PixelLoader, TextArea } from "@/renderer/components/common";
 import type { GitSyncCommand } from "@/renderer/actions/gitCommandRunner";
@@ -97,6 +98,7 @@ export function CommitSyncPanel(props: {
     handlePullFromSource,
   } = props;
   const { t } = useLingui();
+  const compactLayout = useCompactLayout();
 
   // Resolve which commit action the primary button performs. The user's
   // sticky last-used choice wins when it's actually available; otherwise we
@@ -143,7 +145,7 @@ export function CommitSyncPanel(props: {
               autoSize
               maxRows={8}
               aria-label={t`Commit message`}
-              placeholder={t`Commit message (Ctrl+Enter)`}
+              placeholder={compactLayout ? t`Commit message` : t`Commit message (Ctrl+Enter)`}
               rows={1}
               value={commitMessage}
               className={`lc-commit-message ${

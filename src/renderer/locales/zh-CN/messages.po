@@ -14634,13 +14634,15 @@ msgid "Open git review as a right-side panel or a full page."
 msgstr "将 git review 作为右侧面板或整页打开。"
 
 #. placeholder {0}: index + 1
-#. placeholder {0}: itemIndex + 1
 #. placeholder {1}: gallery.length
-#. placeholder {1}: images.length
-#: src/renderer/components/composer/ImageLightbox.tsx
 #: src/renderer/components/thread/ThreadImagesDock.tsx
 msgid "Open image {0} of {1}"
 msgstr "打开图片 {0}/{1}"
+
+#. placeholder {0}: itemIndex + 1
+#: src/renderer/components/composer/ImageLightbox.tsx
+msgid "Open image {0} of {count}"
+msgstr "打开图片 {0}/{count}"
 
 #: src/renderer/components/media/ImageFileView.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/ImageCard.tsx
@@ -15176,10 +15178,9 @@ msgstr "将手机、平板电脑或浏览器与此桌面配对。"
 #~ msgid "Pair a remote machine…"
 #~ msgstr "配对远程设备…"
 
-#: src/mobile/components.tsx
-#: src/mobile/remoteConnectionState.ts
-#~ msgid "Pair again"
-#~ msgstr "重新配对"
+#: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
+msgid "Pair again"
+msgstr "重新配对"
 
 #: src/renderer/components/thread/MoveThreadDialog.tsx
 #~ msgid "Pair another machine in Settings to move threads to it."
@@ -19117,9 +19118,9 @@ msgstr "搜索: \"{query}\" ({scope} 中)"
 msgid "Search: {0}"
 msgstr "搜索：{0}"
 
-#: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
-#~ msgid "Search…"
-#~ msgstr "搜索..."
+#: src/renderer/commands/CommandPalette.tsx
+msgid "Search…"
+msgstr "搜索..."
 
 #: src/renderer/commands/EverythingSearchResults.tsx
 msgid "Searching files…"

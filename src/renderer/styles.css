@@ -1955,7 +1955,9 @@ html[data-compact-layout] {
   --m-page-inline: 0.7rem;
   --m-tap-min: 44px;
   --m-header-height: 48px;
-  --m-page-header-safe-zone: calc(var(--m-header-height) + env(safe-area-inset-top));
+  --m-top-fade-gap: 0px;
+  --m-top-safe-inset: calc(env(safe-area-inset-top) + var(--m-top-fade-gap));
+  --m-page-header-safe-zone: calc(var(--m-header-height) + var(--m-top-safe-inset));
   --m-header-content-gap: 12px;
   --m-list-row-border: none;
   --m-list-row-surface: var(--content-surface-fill);
@@ -1982,7 +1984,7 @@ html[data-compact-layout] {
   --m-glass-border: var(--hairline, var(--border));
   --m-glass-blur: blur(12px);
   --m-floating-control-shadow: 0 8px 24px rgb(0 0 0 / 0.35);
-  overscroll-behavior: none;
+  overscroll-behavior-y: none;
 }
 
 /* Dropdowns stay anchored on compact PWA layouts, but their dense desktop
@@ -2216,6 +2218,14 @@ html[data-compact-layout] .poracode-shell {
   padding: 0;
 }
 
+/* Installed iOS 26.1+ / 27 PWAs draw a system progressive blur/fade across the
+   status bar that extends ~20px below env(safe-area-inset-top) and cannot be
+   disabled from CSS. Add a dedicated top gap so headers, buttons, and sheets
+   sit cleanly below the system fade while scrolled content still passes under. */
+html[data-compact-layout][data-mobile-platform="ios"][data-mobile-standalone] {
+  --m-top-fade-gap: 20px;
+}
+
 /* Installed iOS PWAs report a visual viewport that stops above the system's
    home-indicator band. The pre-paint bootstrap pins <html> to physical 100lvh;
    keep body/root in normal document flow so that full-height surfaces and
@@ -2235,6 +2245,13 @@ html[data-compact-layout][data-mobile-platform="ios"][data-mobile-standalone] #r
 html[data-compact-layout][data-mobile-platform="ios"][data-mobile-standalone] .poracode-shell {
   height: 100%;
   min-height: 100%;
+}
+
+/* Fixed sheet backdrops also stop above the home-indicator band (or float after
+   an input keyboard closes) unless pinned to the physical 100lvh viewport. */
+html[data-compact-layout][data-mobile-platform="ios"][data-mobile-standalone] .m-sheet-backdrop {
+  bottom: auto;
+  height: 100lvh;
 }
 
 /* Match the installed PWA's pairing composition to the native welcome
@@ -2263,7 +2280,7 @@ html[data-compact-layout] .poracode-overlay-header {
   box-sizing: border-box;
   height: var(--m-page-header-safe-zone) !important;
   padding-inline: var(--m-page-inline) !important;
-  padding-top: env(safe-area-inset-top);
+  padding-top: var(--m-top-safe-inset);
 }
 
 html[data-compact-layout] .poracode-sidebar-aside--overlay {
@@ -2452,6 +2469,9 @@ html[data-compact-layout] .poracode-sidebar-worktree-row {
   background: var(--m-list-row-surface);
   padding: 0.5rem 0.625rem;
   cursor: pointer;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 html[data-compact-layout] .poracode-sidebar-group-first-thread {
@@ -3084,10 +3104,20 @@ html[data-compact-layout] .poracode-compact-panel-button::after {
   background: var(--sidebar-background, var(--background));
   padding: 0.375rem 0.75rem calc(0.75rem + env(safe-area-inset-bottom));
   transform: translateY(var(--m-sheet-drag-y, 0));
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
   transition:
     opacity 0.18s ease,
     height 0.22s cubic-bezier(0.32, 0.72, 0, 1),
     max-height 0.22s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.m-sheet input,
+.m-sheet textarea,
+.m-sheet [contenteditable="true"] {
+  -webkit-user-select: text;
+  user-select: text;
 }
 
 .m-sheet-backdrop:not([data-entered]):not([data-closing]) .m-sheet {
@@ -3118,13 +3148,13 @@ html[data-compact-layout] .poracode-compact-panel-button::after {
 }
 
 .m-sheet[data-expanded] {
-  height: calc(100dvh - env(safe-area-inset-top) - 0.75rem);
-  max-height: calc(100dvh - env(safe-area-inset-top) - 0.75rem);
+  height: calc(100dvh - var(--m-top-safe-inset, env(safe-area-inset-top)) - 0.75rem);
+  max-height: calc(100dvh - var(--m-top-safe-inset, env(safe-area-inset-top)) - 0.75rem);
 }
 
 .m-sheet[data-full-screen] {
-  height: calc(100dvh - env(safe-area-inset-top) - 0.75rem);
-  max-height: calc(100dvh - env(safe-area-inset-top) - 0.75rem);
+  height: calc(100dvh - var(--m-top-safe-inset, env(safe-area-inset-top)) - 0.75rem);
+  max-height: calc(100dvh - var(--m-top-safe-inset, env(safe-area-inset-top)) - 0.75rem);
 }
 
 .m-sheet[data-dragging] {
@@ -7177,14 +7207,20 @@ html[data-mobile-platform="ios"][data-mobile-standalone]
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
-  max-height: calc(100dvh - var(--m-keyboard-offset, 0px) - env(safe-area-inset-top) - 4.5rem);
+  max-height: calc(
+    100dvh - var(--m-keyboard-offset, 0px) - var(--m-top-safe-inset, env(safe-area-inset-top)) -
+      4.5rem
+  );
 }
 
 /* iOS keeps the layout viewport full-height under the keyboard, so dvh would
    double-count the band that --m-keyboard-offset already removes (same reasoning
    as the expanded-bubble cap below). */
 html[data-mobile-platform="ios"] .m-thread-compose-dock {
-  max-height: calc(100lvh - var(--m-keyboard-offset, 0px) - env(safe-area-inset-top) - 4.5rem);
+  max-height: calc(
+    100lvh - var(--m-keyboard-offset, 0px) - var(--m-top-safe-inset, env(safe-area-inset-top)) -
+      4.5rem
+  );
 }
 
 /* Requests that ask for text (elicitation forms, user-input questions) raise the
@@ -7301,7 +7337,10 @@ html:not([data-touch-device]) .m-compose-scrim {
    of snapping after it. */
 .m-compose-dock[data-expanded]:not([data-collapsing]) .m-compose-bubble,
 .m-thread-compose-dock[data-expanded]:not([data-collapsing]) .m-compose-bubble {
-  max-height: calc(100dvh - var(--m-keyboard-offset, 0px) - env(safe-area-inset-top) - 7.5rem);
+  max-height: calc(
+    100dvh - var(--m-keyboard-offset, 0px) - var(--m-top-safe-inset, env(safe-area-inset-top)) -
+      7.5rem
+  );
   border-radius: 1rem;
   background: var(--composer-surface, var(--sidebar-background, var(--background)));
   /* The expanded surface is opaque, so the blur is invisible — but it still
@@ -7324,7 +7363,10 @@ html[data-mobile-platform="ios"]
 html[data-mobile-platform="ios"]
   .m-thread-compose-dock[data-expanded]:not([data-collapsing])
   .m-compose-bubble {
-  max-height: calc(100lvh - var(--m-keyboard-offset, 0px) - env(safe-area-inset-top) - 7.5rem);
+  max-height: calc(
+    100lvh - var(--m-keyboard-offset, 0px) - var(--m-top-safe-inset, env(safe-area-inset-top)) -
+      7.5rem
+  );
 }
 
 /* The measured grow/shrink animation (useBubbleGrowAnimation) drives an
@@ -7913,6 +7955,76 @@ html[data-compact-layout]
   pointer-events: none;
 }
 
+/* A running turn keeps its stop control on the collapsed empty pill. Without
+   this the bare-prompt rule above hides the only action that can interrupt the
+   agent until the user types something and reopens the dock. Mirror the
+   typed-prompt pin, narrowed to the send slot. */
+html[data-compact-layout]
+  .m-thread-compose-dock[data-thread-working]:not([data-expanded]):not([data-input-has-content])
+  .poracode-composer-shell
+  .poracode-composer-toolbar {
+  position: absolute;
+  right: 0.25rem;
+  bottom: 0.25rem;
+  left: auto;
+  z-index: 3;
+  display: flex;
+  height: auto !important;
+  width: var(--m-floating-control-inner-size);
+  align-items: center;
+  justify-content: flex-end;
+  padding: 0;
+  opacity: 1;
+  pointer-events: none;
+}
+
+html[data-compact-layout]
+  .m-thread-compose-dock[data-thread-working]:not([data-expanded]):not([data-input-has-content])
+  .poracode-composer-shell
+  .poracode-composer-toolbar
+  > * {
+  display: none;
+}
+
+html[data-compact-layout]
+  .m-thread-compose-dock[data-thread-working]:not([data-expanded]):not([data-input-has-content])
+  .poracode-composer-shell
+  .poracode-composer-toolbar
+  > .poracode-composer-actions:has(.poracode-composer-send) {
+  display: flex;
+  margin-left: 0;
+}
+
+html[data-compact-layout]
+  .m-thread-compose-dock[data-thread-working]:not([data-expanded]):not([data-input-has-content])
+  .poracode-composer-shell
+  .poracode-composer-toolbar
+  > .poracode-composer-actions
+  > :not(.poracode-composer-send):not([data-composer-send]) {
+  display: none;
+}
+
+html[data-compact-layout]
+  .m-thread-compose-dock[data-thread-working]:not([data-expanded]):not([data-input-has-content])
+  .poracode-composer-shell
+  .poracode-composer-send {
+  pointer-events: auto;
+}
+
+/* The collapsed tap overlay exists to expand without native focus, but it sits
+   above the pinned trailing control. Leave the control slot outside the overlay
+   whenever the pill shows one (typed send or running stop), or the tap expands
+   instead of acting. */
+html[data-compact-layout]
+  .m-thread-compose-dock:not([data-expanded]):is([data-input-has-content], [data-thread-working])
+  .m-compose-bubble
+  .m-compose-tap {
+  /* The bubble is full-bleed; cover the control plus its inline padding and
+     the pill's own right margin so the whole button, not just its edge, is
+     outside the overlay. */
+  right: calc(var(--m-floating-control-height) + 1rem);
+}
+
 /* The input metrics switch at the transparent midpoint. The toolbar fades out
    during the first half so the compact prompt can fade back in cleanly during
    the second half of the same outer height tween. */
@@ -8002,10 +8114,12 @@ html[data-compact-layout]
   transition-duration: 0.1s;
 }
 
-/* Provider / fast / mode / permission summary pinned inside the compact pill's right end
+/* Provider / fast / mode / permission summary inside the compact pill
    (ComposerCompactSummary). Inert info chrome: it fades away when the
    composer expands (the real controls take over) or once a prompt is typed
-   (the pinned send button owns that corner). */
+   (the pinned send button owns that corner). In the collapsed empty pill it
+   is the pill's own label and sits at the leading edge; see the override
+   below. */
 .m-compose-summary {
   position: absolute;
   top: 0;
@@ -8074,32 +8188,30 @@ html[data-compact-layout]
   transition-duration: 0.1s;
 }
 
-/* The compact input reserves the summary's measured width (published on the
-   bubble by ComposerCompactSummary) so the placeholder never runs beneath it.
-   Empty-prompt case only — typed prompts swap to the pinned-send reserve. */
+/* Collapsed and empty, the pill speaks for the agent: the model summary takes
+   the leading edge instead of the prompt placeholder, and stops before the
+   pinned send/stop slot so the two never overlap. */
 html[data-compact-layout]
   .m-thread-compose-dock:is(:not([data-expanded]), [data-compact-content]):not(
     [data-input-has-content]
   )
-  .poracode-composer-shell
-  .poracode-mention-input {
-  padding-right: calc(1.5rem + var(--m-compose-summary-width, 0px));
+  .m-compose-bubble:has(.m-compose-summary)
+  .m-compose-summary {
+  right: calc(var(--m-floating-control-height) + 0.75rem);
+  left: 0.75rem;
+  justify-content: flex-start;
 }
 
-/* The generated placeholder is a pseudo-element, so WebKit can paint its
-   unbroken first line through the absolutely-positioned summary even though
-   the editor itself reserves that space. Make the collapsed prompt a true
-   one-line label; the full copy is available as soon as the composer opens.
-   An empty prompt can still pin the send slot (the resume button), so this
-   keys off :empty alone. */
+/* The summary replaces the placeholder in that state; drop the generated
+   pseudo-element so its first line cannot paint through the summary. Without
+   a summary (no agent status yet) the prompt stays as the pill label. */
 html[data-compact-layout]
-  .m-thread-compose-dock:is(:not([data-expanded]), [data-compact-content])
-  .poracode-composer-shell
+  .m-thread-compose-dock:is(:not([data-expanded]), [data-compact-content]):not(
+    [data-input-has-content]
+  )
+  .m-compose-bubble:has(.m-compose-summary)
   .poracode-mention-input:empty::before {
-  display: block;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  content: none;
 }
 
 /* Compact → expanded moves the toolbar from invisible absolute chrome into

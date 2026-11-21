@@ -12,12 +12,14 @@ const KEYBOARD_VISIBILITY_OFFSET_VAR = "--m-keyboard-visibility-offset";
 const COLLAPSE_CONTENT_SWAP_MS = 100;
 const NON_COMPOSER_INPUT_SELECTOR =
   ".poracode-composer-send, .poracode-selection-chip, [data-selection-preview-dialog]";
+const COLLAPSE_FOCUS_GUARD_MS = 250;
 const COMPOSER_OVERLAY_SELECTOR = [
   '[data-slot^="popover-"]',
   '[data-slot$="-popover"]',
   '[role="menu"]',
   '[role="listbox"]',
   ".poracode-mention-popover",
+  ".m-sheet-backdrop",
 ].join(",");
 
 function resetCompactComposerScroll(
@@ -63,6 +65,12 @@ export function FloatingComposerDock(props: {
   /** Semantic editor state; unlike DOM emptiness this is stable across WebKit's filler `<br>`. */
   readonly inputHasContent?: boolean | undefined;
   /**
+   * The thread's agent turn is running. The collapsed empty pill keeps its
+   * pinned stop control visible for this state, so the turn can be interrupted
+   * without typing first.
+   */
+  readonly working?: boolean | undefined;
+  /**
    * When to flip the collapsing content to its compact metrics
    * (data-compact-content), in ms from the start of the collapse. Must land
    * inside the transparent window of the host's content-collapse keyframes;
@@ -104,6 +112,7 @@ export function FloatingComposerDock(props: {
   const expansionLocked = props.expansionLocked === true;
   const expanded = expansionLocked ? false : (props.expanded ?? internalExpanded);
   const wasExpandedRef = useRef(expanded);
+  const collapsedUntilRef = useRef(0);
   // One-shot guard for the focus-on-expand path below: the guarded-focus
   // choreography focuses the composer itself, so the expansion it caused must
   // not trigger a second programmatic focus. Owned state (reset during render
@@ -163,10 +172,8 @@ export function FloatingComposerDock(props: {
     });
   };
 
-  const { focusComposer, inputFocused, liftOffset, measuringKeyboard } = useComposerKeyboard(
-    bubbleRef,
-    props.keyboardKey,
-    {
+  const { focusComposer, dismissKeyboard, inputFocused, liftOffset, measuringKeyboard } =
+    useComposerKeyboard(bubbleRef, props.keyboardKey, {
       onBeforeGuardedFocus: () => {
         preseedAndroidKeyboardOffset();
         keyboardDebug("dock-before-guarded-focus-expand", {
@@ -216,8 +223,19 @@ export function FloatingComposerDock(props: {
         });
         onComposerFocusChange?.(true);
       },
-    },
-  );
+      onKeyboardDismiss: () => {
+        // When the user dismisses the iOS software keyboard (Done/dismiss key),
+        // collapse the dock unless a composer menu or sheet is open on top of it.
+        if (!expanded || document.querySelector(COMPOSER_OVERLAY_SELECTOR) !== null) return;
+        collapsedUntilRef.current = performance.now() + COLLAPSE_FOCUS_GUARD_MS;
+        setExpanded(false);
+        onComposerFocusChange?.(false);
+        const active = document.activeElement;
+        if (active instanceof HTMLElement && bubbleRef.current?.contains(active)) {
+          active.blur();
+        }
+      },
+    });
 
   useEffect(() => () => window.cancelAnimationFrame(instantExpandReleaseRafRef.current), []);
 
@@ -283,9 +301,16 @@ export function FloatingComposerDock(props: {
         onComposerFocusChange?.(true);
         focusComposer("focus-on-expand");
       }
+    } else if (!expanded && wasExpandedRef.current) {
+      // Programmatic collapse (e.g. after sending a message) must disarm any
+      // in-flight guarded-focus settle timer or cold keyboard probe so a late
+      // blur/focusout cannot re-focus the editable and pop the composer back open.
+      collapsedUntilRef.current = performance.now() + COLLAPSE_FOCUS_GUARD_MS;
+      dismissKeyboard();
+      onComposerFocusChange?.(false);
     }
     wasExpandedRef.current = expanded;
-  }, [expanded, focusComposer, props.focusOnExpand, onComposerFocusChange]);
+  }, [dismissKeyboard, expanded, focusComposer, props.focusOnExpand, onComposerFocusChange]);
 
   useEffect(() => {
     onComposerFocusChange?.(inputFocused);
@@ -333,17 +358,20 @@ export function FloatingComposerDock(props: {
 
   const collapse = () => {
     keyboardDebug("dock-scrim-collapse", { expanded, measuringKeyboard });
+    collapsedUntilRef.current = performance.now() + COLLAPSE_FOCUS_GUARD_MS;
     setExpanded(false);
+    dismissKeyboard();
     onComposerFocusChange?.(false);
-    (document.activeElement as HTMLElement | null)?.blur?.();
   };
 
   const expandAndFocus = (pointerType?: string) => {
+    collapsedUntilRef.current = 0;
     focusComposer("compact-composer", pointerType);
   };
 
   const handleFocusCapture = (event: ReactFocusEvent<HTMLDivElement>) => {
     if (expansionLocked) return;
+    if (performance.now() < collapsedUntilRef.current) return;
     if (event.target instanceof Element && event.target.closest(NON_COMPOSER_INPUT_SELECTOR))
       return;
     if (event.target instanceof HTMLElement && !expanded) {
@@ -447,6 +475,7 @@ export function FloatingComposerDock(props: {
         data-collapsing={collapsing || undefined}
         data-compact-content={(collapsing && compactCollapseContent) || undefined}
         data-input-has-content={props.inputHasContent || undefined}
+        data-thread-working={props.working || undefined}
         data-android-runtime={androidRuntime || undefined}
         data-instant-expand={instantExpand || undefined}
         data-measuring-keyboard={hideDockForMeasuring || undefined}

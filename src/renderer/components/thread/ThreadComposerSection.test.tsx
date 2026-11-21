@@ -1588,6 +1588,37 @@ describe("ThreadComposerSection", () => {
     expect(dock).not.toHaveAttribute("data-expanded");
   });
 
+  it("marks the collapsed empty pill of a working thread to keep its stop control", () => {
+    vi.stubGlobal(
+      "matchMedia",
+      vi.fn((query: string) => ({
+        media: query,
+        matches: query === "(max-width: 767px)",
+        onchange: null,
+        addEventListener: () => undefined,
+        removeEventListener: () => undefined,
+        addListener: () => undefined,
+        removeListener: () => undefined,
+        dispatchEvent: () => true,
+      })),
+    );
+
+    const { unmount } = renderComposer({
+      thread: { ...guiThread, status: "working", attention: "working" },
+    });
+    const dock = screen.getByRole("textbox").closest(".m-thread-compose-dock");
+    expect(dock).toHaveAttribute("data-thread-working");
+    expect(dock).not.toHaveAttribute("data-expanded");
+    expect(dock).not.toHaveAttribute("data-input-has-content");
+    expect(screen.getByRole("button", { name: "Stop response" })).toBeInTheDocument();
+    unmount();
+
+    renderComposer();
+    expect(screen.getByRole("textbox").closest(".m-thread-compose-dock")).not.toHaveAttribute(
+      "data-thread-working",
+    );
+  });
+
   it("reports the transcript inset from the rendered dock geometry", () => {
     vi.stubGlobal(
       "matchMedia",
