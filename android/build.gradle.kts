@@ -72,7 +72,7 @@ tasks.register<JavaExec>("androidApkDeployer") {
             "--device=$serial",
             "--adb=$adb",
             "--log-level=INFO",
-            "com.lightcodeapp.mobile",
+            "com.poracode.mobile",
             apk.absolutePath,
         )
         systemProperty(

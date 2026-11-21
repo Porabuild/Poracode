@@ -37,8 +37,8 @@ done
 
 adb shell df -h /data
 adb install -r app/build/outputs/apk/debug/app-debug.apk
-adb shell dumpsys package com.lightcodeapp.mobile | grep -F 'minSdk=34'
-adb shell dumpsys package com.lightcodeapp.mobile | grep -F 'targetSdk=37'
+adb shell dumpsys package com.poracode.mobile | grep -F 'minSdk=34'
+adb shell dumpsys package com.poracode.mobile | grep -F 'targetSdk=37'
 adb logcat -c
 # Cold-launch hardening. Measured cold launches on the API 37 emulator take
 # 6.5-11.4 s (first-run dexopt/profile install + software rendering), and the
@@ -48,11 +48,11 @@ adb logcat -c
 # single-shot status line, and force-stop + retry once if it truly never rose.
 launch_ok=0
 for launch_attempt in 1 2; do
-  adb shell am force-stop com.lightcodeapp.mobile
-  adb shell am start -W -n com.lightcodeapp.mobile/com.poracode.app.MainActivity \
+  adb shell am force-stop com.poracode.mobile
+  adb shell am start -W -n com.poracode.mobile/com.poracode.app.MainActivity \
     | tee "$RUNNER_TEMP/android-api37-launch.txt"
   for wait_attempt in $(seq 1 30); do
-    app_pid="$(adb shell pidof com.lightcodeapp.mobile | tr -d '\r')"
+    app_pid="$(adb shell pidof com.poracode.mobile | tr -d '\r')"
     if [ -n "$app_pid" ] && adb shell dumpsys activity activities 2>/dev/null \
         | grep -iF "resumedactivity" | grep -qF "com.poracode.app.MainActivity"; then
       launch_ok=1
@@ -70,9 +70,9 @@ for launch_attempt in 1 2; do
   echo "::warning::Launch attempt 1 did not come up; retrying after a force-stop."
 done
 sleep 3
-test -n "$(adb shell pidof com.lightcodeapp.mobile | tr -d '\r')"
+test -n "$(adb shell pidof com.poracode.mobile | tr -d '\r')"
 adb logcat -d -v threadtime > "$RUNNER_TEMP/android-api37-logcat.txt"
-if grep -A3 -F "FATAL EXCEPTION" "$RUNNER_TEMP/android-api37-logcat.txt" | grep -F "com.lightcodeapp.mobile"; then
+if grep -A3 -F "FATAL EXCEPTION" "$RUNNER_TEMP/android-api37-logcat.txt" | grep -F "com.poracode.mobile"; then
   echo "Poracode crashed during Android 17 launch." >&2
   exit 1
 fi

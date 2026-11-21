@@ -803,3 +803,104 @@ fs.writeFileSync(root + '/journey.json', JSON.stringify({
     await rm(temporary, { recursive: true, force: true });
   }
 });
+
+void test("release-mobile iOS TestFlight job archives unsigned, stamps entitlements, and uploads via cloud signing", async () => {
+  const workflow = parse(
+    await readFile(new URL("../.github/workflows/release-mobile.yml", import.meta.url), "utf8"),
+  );
+  const steps = workflow.jobs.ios.steps;
+  const keyStep = steps.find((step) => step.name === "Prepare App Store Connect key");
+  const archiveStep = steps.find((step) =>
+    step.name?.includes("Archive and upload the native iOS and iPadOS app to TestFlight"),
+  );
+  const pollStep = steps.find((step) =>
+    step.name?.includes("Wait for App Store Connect processing and distribute to TestFlight"),
+  );
+  const cleanupStep = steps.find((step) => step.name === "Remove App Store Connect key");
+  assert.ok(keyStep && archiveStep && pollStep && cleanupStep);
+  assert.ok(
+    steps.indexOf(archiveStep) < steps.indexOf(pollStep) &&
+      steps.indexOf(pollStep) < steps.indexOf(cleanupStep),
+    "App Store Connect polling must run after upload and before removing the .p8 key",
+  );
+  assert.equal(pollStep.run, "node scripts/ios-testflight-asc.mjs");
+
+  assert.match(keyStep.run, /openssl pkey -in "\$key_path" -noout/u);
+  const [archiveCommand, exportCommand] = archiveStep.run.split("xcodebuild -exportArchive");
+  assert.ok(archiveCommand && exportCommand);
+  assert.match(archiveCommand, /CODE_SIGNING_ALLOWED=NO/u);
+  assert.match(archiveCommand, /CODE_SIGNING_REQUIRED=NO/u);
+  assert.match(archiveCommand, /codesign --force -s - --entitlements App\/App\.entitlements/u);
+  assert.match(archiveCommand, /aps-environment/u);
+  assert.match(archiveCommand, /applinks:poracode\.com/u);
+  assert.doesNotMatch(
+    archiveCommand,
+    /-allowProvisioningUpdates/u,
+    "archive must not request Apple Development certificates on ephemeral CI runners",
+  );
+  assert.match(archiveCommand, /PrivacyInfo\.xcprivacy/u);
+  assert.match(archiveCommand, /PoracodeActivities\.appex/u);
+  assert.match(archiveCommand, /ITSAppUsesNonExemptEncryption/u);
+  assert.match(exportCommand, /-allowProvisioningUpdates/u);
+  assert.match(exportCommand, /-authenticationKeyPath "\$APP_STORE_CONNECT_KEY_PATH"/u);
+  assert.match(cleanupStep.run, /poracode-app-store-connect\.p8/u);
+  assert.match(cleanupStep.run, /exportOptions\.plist/u);
+  assert.ok(
+    !steps.some((step) => step.uses?.startsWith("apple-actions/upload-testflight-build@")),
+    "destination=upload in exportOptions.plist uploads directly to TestFlight",
+  );
+
+  const exportOptions = await readFile(
+    new URL("../ios/App/exportOptions.plist", import.meta.url),
+    "utf8",
+  );
+  assert.match(exportOptions, /<key>destination<\/key>\s*<string>upload<\/string>/u);
+  assert.match(exportOptions, /<key>manageAppVersionAndBuildNumber<\/key>\s*<false\/>/u);
+  assert.match(exportOptions, /<key>method<\/key>\s*<string>app-store-connect<\/string>/u);
+  assert.match(exportOptions, /<key>signingStyle<\/key>\s*<string>automatic<\/string>/u);
+});
+
+void test("promote-ios-appstore workflow pins checksum-verified asc CLI and promotes existing TestFlight builds", async () => {
+  const workflow = parse(
+    await readFile(
+      new URL("../.github/workflows/promote-ios-appstore.yml", import.meta.url),
+      "utf8",
+    ),
+  );
+  assert.deepEqual(Object.keys(workflow.on), ["workflow_dispatch"]);
+  assert.deepEqual(workflow.on.workflow_dispatch.inputs.action.options, [
+    "stage",
+    "submit",
+    "release",
+  ]);
+  assert.equal(workflow.on.workflow_dispatch.inputs.action.default, "stage");
+  assert.equal(workflow.on.workflow_dispatch.inputs.release_type.default, "MANUAL");
+
+  const job = workflow.jobs.promote_ios;
+  assert.equal(job.environment, "mobile-ios");
+  assert.equal(job["runs-on"], "ubuntu-latest");
+  assert.equal(job.env.ASC_VERSION, "6.6.1");
+  assert.match(job.env.ASC_LINUX_AMD64_SHA256, /^[0-9a-f]{64}$/u);
+  assert.equal(job.env.ASC_TELEMETRY_DISABLED, "1");
+  assert.equal(job.env.ASC_BYPASS_KEYCHAIN, "1");
+
+  const installStep = job.steps.find((step) =>
+    step.name?.includes("Install pinned App Store Connect CLI"),
+  );
+  const authStep = job.steps.find((step) => step.name === "Authenticate App Store Connect CLI");
+  const promoteStep = job.steps.find((step) => step.name?.includes("execute promotion step"));
+  const cleanupStep = job.steps.find(
+    (step) => step.name === "Remove App Store Connect credentials",
+  );
+  assert.ok(installStep && authStep && promoteStep && cleanupStep);
+  assert.match(installStep.run, /sha256sum -c -/u);
+  assert.match(authStep.run, /openssl pkey -in "\$key_path" -noout/u);
+  assert.match(authStep.run, /asc auth login[\s\S]*--local[\s\S]*--bypass-keychain/u);
+  assert.match(promoteStep.run, /asc versions attach-build/u);
+  assert.match(promoteStep.run, /asc validate/u);
+  assert.match(promoteStep.run, /asc review submissions-submit[\s\S]*--confirm/u);
+  assert.match(promoteStep.run, /asc versions release[\s\S]*--confirm/u);
+  assert.equal(cleanupStep.if, "${{ always() }}");
+  assert.match(cleanupStep.run, /poracode-app-store-connect\.p8/u);
+  assert.match(cleanupStep.run, /\.asc/u);
+});

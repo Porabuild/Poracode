@@ -2,7 +2,7 @@ import Foundation
 
 actor PushTokenVault {
   static let shared = PushTokenVault()
-  static let service = "com.lightcodeapp.mobile.notifications"
+  static let service = "com.poracode.mobile.notifications"
   static let account = "push-token-vault-v1"
 
   struct ActivitySecret: Codable, Sendable, Equatable {

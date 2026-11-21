@@ -85,7 +85,7 @@
             <!-- Canonical https://poracode.com root + /pair + /app.
                  Android treats a pathless URI as path "/"; path="/" covers root
                  pathless and root-slash. pathPrefix limits pair/app without
-                 matching unrelated site paths. package id stays com.lightcodeapp.mobile. -->
+                 matching unrelated site paths. package id stays com.poracode.mobile. -->
             <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />

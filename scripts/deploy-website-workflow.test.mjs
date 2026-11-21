@@ -137,7 +137,7 @@ void test("website install omits the desktop compiler's optional peer graph", as
 
 async function routeDocuments(fingerprints) {
   const settings = {
-    PORACODE_MOBILE_APP_ID: "com.lightcodeapp.mobile",
+    PORACODE_MOBILE_APP_ID: "com.poracode.mobile",
     PORACODE_MOBILE_ANDROID_SHA256_CERT_FINGERPRINTS: fingerprints,
     PORACODE_MOBILE_ANDROID_SHA256_CERT_FINGERPRINT: "",
     PORACODE_MOBILE_APPLE_TEAM_ID: teamId,
@@ -282,7 +282,7 @@ void test("website deployment verifies the generated routes on both deployment a
       name: "iOS rejects a different team",
       fingerprints: "",
       mutate: (d) => {
-        d.apple.applinks.details[0].appIDs = ["OTHER12345.com.lightcodeapp.mobile"];
+        d.apple.applinks.details[0].appIDs = ["OTHER12345.com.poracode.mobile"];
       },
     },
     {
@@ -303,7 +303,7 @@ void test("website deployment verifies the generated routes on both deployment a
       name: "iOS rejects a different webcredentials app",
       fingerprints: "",
       mutate: (d) => {
-        d.apple.webcredentials.apps = ["OTHER12345.com.lightcodeapp.mobile"];
+        d.apple.webcredentials.apps = ["OTHER12345.com.poracode.mobile"];
       },
     },
     {

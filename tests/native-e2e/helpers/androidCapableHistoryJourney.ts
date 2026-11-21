@@ -114,7 +114,7 @@ export const CAPABLE_HISTORY_JOURNEY_APP_ID_ENV = "ANDROID_CAPABLE_HISTORY_JOURN
 
 export const CAPABLE_HISTORY_INSTRUMENTATION_CLASS =
   "com.poracode.app.Android37CapableHistoryJourneyInstrumentedTest";
-export const DEFAULT_CAPABLE_HISTORY_APP_ID = "com.lightcodeapp.mobile";
+export const DEFAULT_CAPABLE_HISTORY_APP_ID = "com.poracode.mobile";
 export const DEFAULT_CAPABLE_HISTORY_RUNNER = "androidx.test.runner.AndroidJUnitRunner";
 
 /** Instrumentation lines the runner requires before it will call a run green. */

@@ -974,10 +974,10 @@ async function runAndroidRealJourney({ registerShutdown }) {
       "pm",
       "list",
       "packages",
-      "com.lightcodeapp.mobile",
+      "com.poracode.mobile",
     ]);
     if (hasInstalledAndroidPackage(installedAppPath)) {
-      await runBuffered("adb", ["shell", "pm", "clear", "com.lightcodeapp.mobile"]);
+      await runBuffered("adb", ["shell", "pm", "clear", "com.poracode.mobile"]);
     }
     const status = await runStreaming(
       "./gradlew",
