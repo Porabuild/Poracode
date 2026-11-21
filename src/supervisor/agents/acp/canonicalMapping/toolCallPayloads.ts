@@ -32,6 +32,11 @@ import { readAcpCommandStatus } from "./commandStatus";
  * `file_change` payloads. Larger edits already carry their compact unified diff
  * in `payload.result` and line counts in `payload.diffSummary`; embedding whole
  * multi-megabyte files bloats IPC bursts, SQLite rows, and remote live streams.
+ *
+ * No schema or database version bump. Stored string snapshots stay valid, and
+ * readers accept only strings. `null` is a shallow-merge clear when a later
+ * update outgrows this cap; older string-only readers ignore it. Omitted keys
+ * mean the snapshot was never stored.
  */
 const MAX_INLINE_EDIT_SNAPSHOT_CHARS = 128 * 1024;
 

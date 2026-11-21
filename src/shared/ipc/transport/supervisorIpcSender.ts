@@ -195,10 +195,7 @@ export class SupervisorIpcSender<AdditionalMessage = never> {
   constructor(private readonly options: SupervisorIpcSenderOptions<AdditionalMessage>) {
     this.probe = options.queueDiagnostics?.active ? new IpcQueueProbe() : undefined;
     this.flowLedger = new CanonicalFlowLedger({
-      maxEntries: Math.min(
-        IPC_MAX_FLOW_LEDGER_ENTRIES,
-        options.maxQueuedMessages ?? IPC_MAX_QUEUED_MESSAGES,
-      ),
+      maxEntries: Math.min(IPC_MAX_FLOW_LEDGER_ENTRIES, this.bulkLimits().messages),
     });
   }
 
@@ -276,6 +273,20 @@ export class SupervisorIpcSender<AdditionalMessage = never> {
     };
   }
 
+  /** Unclamped bulk-lane slots and bytes still free. Callers apply their own reject rule. */
+  private bulkHeadroom(): { messages: number; bytes: number } {
+    const bulk = this.bulkLimits();
+    return {
+      messages: bulk.messages - this.queuedBulkMessages,
+      bytes: bulk.bytes - this.queuedBulkBytes,
+    };
+  }
+
+  /** Byte estimate for a message whose size cannot be measured, one past this sender's bulk cap. */
+  private estimateOutboundBytes(message: OutboundMessage<AdditionalMessage>): number {
+    return estimateMessageBytes(message, this.bulkLimits().bytes + 1);
+  }
+
   /** Configured lane capacities. The capability advertisement derives the
    * supervisor's truthful retained bound from these instead of a hardcoded
    * constant, so a sender configured with different limits cannot advertise a
@@ -336,10 +347,9 @@ export class SupervisorIpcSender<AdditionalMessage = never> {
    */
   canonicalSendCapacity(): number {
     if (this.failed) return 0;
-    const bulk = this.bulkLimits();
-    if (this.queuedBulkMessages >= bulk.messages) return 0;
-    const bulkRemainingBytes = Math.max(0, bulk.bytes - this.queuedBulkBytes);
-    return Math.min(this.flowLedger.remaining(), bulkRemainingBytes);
+    const headroom = this.bulkHeadroom();
+    if (headroom.messages < 1) return 0;
+    return Math.min(this.flowLedger.remaining(), Math.max(0, headroom.bytes));
   }
 
   isCanonicalCreditActive(): boolean {
@@ -483,7 +493,7 @@ export class SupervisorIpcSender<AdditionalMessage = never> {
     message: OutboundMessage<AdditionalMessage>,
     meta: { estimatedBytes?: number } = {},
   ): void {
-    const bytes = meta.estimatedBytes ?? estimateMessageBytes(message, this.bulkLimits().bytes + 1);
+    const bytes = meta.estimatedBytes ?? this.estimateOutboundBytes(message);
     const attributed = this.assignFlow(message, bytes);
     this.enqueueEntry({
       message: attributed,
@@ -509,11 +519,11 @@ export class SupervisorIpcSender<AdditionalMessage = never> {
         return;
       }
     }
-    const { messages: bulkMaxMessages, bytes: bulkMaxBytes } = this.bulkLimits();
-    const controlMaxMessages =
-      bulkMaxMessages + (this.options.controlReserveMessages ?? IPC_CONTROL_RESERVE_MESSAGES);
-    const controlMaxBytes =
-      bulkMaxBytes + (this.options.controlReserveBytes ?? IPC_CONTROL_RESERVE_BYTES);
+    const limits = this.configuredLimits;
+    const bulkMaxMessages = limits.bulkMessages;
+    const bulkMaxBytes = limits.bulkBytes;
+    const controlMaxMessages = bulkMaxMessages + limits.controlReserveMessages;
+    const controlMaxBytes = bulkMaxBytes + limits.controlReserveBytes;
 
     if (entry.lane === "control") {
       if (
@@ -534,9 +544,8 @@ export class SupervisorIpcSender<AdditionalMessage = never> {
 
     // Bulk capacity is bulk-only: control usage above the bulk caps is already
     // reserved and does not shrink the bulk lane.
-    const bulkRemainingMessages = bulkMaxMessages - this.queuedBulkMessages;
-    const bulkRemainingBytes = bulkMaxBytes - this.queuedBulkBytes;
-    if (bulkRemainingMessages < 1 || entry.bytes > bulkRemainingBytes) {
+    const headroom = this.bulkHeadroom();
+    if (headroom.messages < 1 || entry.bytes > headroom.bytes) {
       const shedResult = this.shedOverflow(
         bulkMaxMessages + this.queuedControlMessages,
         bulkMaxBytes + this.queuedControlBytes,
@@ -671,7 +680,7 @@ export class SupervisorIpcSender<AdditionalMessage = never> {
           ? { queuedAt: this.queueProbe.admittedAt() }
           : {}),
     };
-    signal.bytes = estimateMessageBytes(signal.message, this.bulkLimits().bytes + 1);
+    signal.bytes = this.estimateOutboundBytes(signal.message);
     if (merging && leading) {
       this.queuedBytes -= leading.bytes;
       this.queue[0] = signal;
@@ -757,7 +766,7 @@ export class SupervisorIpcSender<AdditionalMessage = never> {
         adjacentEntry && policy.isRecoverySignal(adjacentEntry.message) ? firstShedIndex - 1 : null;
       const previousEntry = adjacentIndex === null ? undefined : adjacentEntry;
       const signalEntry = buildSignal(previousEntry ? previousEntry.message : null);
-      signalEntry.bytes = estimateMessageBytes(signalEntry.message, this.bulkLimits().bytes + 1);
+      signalEntry.bytes = this.estimateOutboundBytes(signalEntry.message);
       const replacing = previousEntry !== undefined;
       const signalSlotReserve = replacing ? 0 : 1;
       const signalByteReserve = replacing
@@ -788,7 +797,7 @@ export class SupervisorIpcSender<AdditionalMessage = never> {
         const merged = buildSignal(candidate.message);
         if (candidate.queuedAt !== undefined) merged.queuedAt = candidate.queuedAt;
         else delete merged.queuedAt;
-        merged.bytes = estimateMessageBytes(merged.message, this.bulkLimits().bytes + 1);
+        merged.bytes = this.estimateOutboundBytes(merged.message);
         if (this.queue.length + incomingSlotReserve > maxMessages) return false;
         if (this.queuedBytes + incomingBytes + merged.bytes - candidate.bytes > maxBytes) {
           return false;

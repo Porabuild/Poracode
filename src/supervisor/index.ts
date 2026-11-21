@@ -55,6 +55,9 @@ let shedLogBytes = 0;
 let shedLogAt = 0;
 let canonicalDroppedCount = 0;
 let canonicalDroppedBytes = 0;
+// 16 MiB keeps one max-size canonical event (8 MiB) plus envelope overhead
+// inside the bulk lane. Flow-control version stays 1: `maxInFlightBytes` is
+// still the advertised retained bound, and message shapes are unchanged.
 const SUPERVISOR_IPC_MAX_QUEUED_BYTES = 16 * 1024 * 1024;
 const ipcSender = new SupervisorIpcSender<
   SupervisorOutputShedSignal | SupervisorFlowControlCapabilities
