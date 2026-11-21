@@ -219,6 +219,37 @@ describe("showUserNotification", () => {
   });
 });
 
+describe("notification sound", () => {
+  beforeEach(() => {
+    sharedSettingsState.current = {
+      notificationsEnabled: true,
+      notificationSound: true,
+      notificationFilter: "all",
+      notificationStatuses: { done: true, needsAttention: true, error: true },
+    };
+    vi.spyOn(document, "hasFocus").mockReturnValue(true);
+    toastMock.success.mockClear();
+  });
+
+  it("swallows a blocked Audio.play() rejection instead of leaving it unhandled", async () => {
+    const play = vi.fn<() => Promise<void>>(() =>
+      Promise.reject(new DOMException("denied", "NotAllowedError")),
+    );
+    vi.stubGlobal(
+      "Audio",
+      class {
+        volume = 1;
+        play = play;
+      },
+    );
+
+    showUserNotification(notification());
+
+    expect(play).toHaveBeenCalledOnce();
+    await Promise.resolve();
+  });
+});
+
 describe("showUserNotification native path", () => {
   beforeEach(() => {
     sharedSettingsState.current = {
@@ -304,8 +335,6 @@ describe("showUserNotification PWA path", () => {
     expect(BrowserNotification.requestPermission).toHaveBeenCalledOnce();
     expect(notifications).toHaveLength(0);
 
-    await Promise.resolve();
-
-    expect(notifications).toHaveLength(1);
+    await vi.waitFor(() => expect(notifications).toHaveLength(1));
   });
 });

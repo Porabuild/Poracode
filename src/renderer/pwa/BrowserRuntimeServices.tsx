@@ -6,6 +6,7 @@ import {
 } from "@/renderer/state/remoteServersStore";
 import { WebPushPermissionPrompt } from "./push/WebPushPermissionPrompt";
 import { usePushLifecycle } from "./push/usePushLifecycle";
+import { usePushThreadDeepLink } from "./push/pushThreadDeepLink";
 
 export function BrowserRuntimeServices() {
   return isBrowserClientRuntime() ? <ConnectedBrowserRuntimeServices /> : null;
@@ -28,6 +29,7 @@ function ConnectedBrowserRuntimeServices() {
         }
       : null,
   });
+  usePushThreadDeepLink();
 
   return <WebPushPermissionPrompt />;
 }
