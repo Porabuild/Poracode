@@ -159,7 +159,12 @@ export function RendererCrashScreen(props: RendererCrashScreenProps) {
       data-renderer-crash-screen=""
       className="flex h-screen w-screen overflow-hidden bg-background text-foreground"
     >
-      <div className="flex min-h-0 w-full flex-col gap-4 px-8 pt-14 pb-8">
+      <div
+        className="flex min-h-0 w-full flex-col gap-4 px-8 pb-8"
+        style={{
+          paddingTop: "max(3.5rem, calc(var(--m-top-safe-inset, env(safe-area-inset-top)) + 1rem))",
+        }}
+      >
         <header className="flex shrink-0 items-start justify-between gap-4">
           <div className="min-w-0">
             <p className="text-xs font-medium text-danger">{i18n._(msg`Renderer crashed`)}</p>
