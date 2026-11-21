@@ -14543,7 +14543,10 @@ msgid "Open git review as a right-side panel or a full page."
 msgstr "将 git review 作为右侧面板或整页打开。"
 
 #. placeholder {0}: index + 1
+#. placeholder {0}: itemIndex + 1
 #. placeholder {1}: gallery.length
+#. placeholder {1}: images.length
+#: src/renderer/components/composer/ImageLightbox.tsx
 #: src/renderer/components/thread/ThreadImagesDock.tsx
 msgid "Open image {0} of {1}"
 msgstr "打开图片 {0}/{1}"
@@ -14555,6 +14558,7 @@ msgid "Open image preview"
 msgstr "打开图片预览"
 
 #: src/renderer/components/thread/ChatPane/parts/items/ImageCard.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/ImageMosaic.tsx
 msgid "Open image preview (+{overflowCount} more)"
 msgstr "打开图片预览（还有 {overflowCount} 张）"
 

@@ -2,10 +2,12 @@ import { memo, useMemo } from "react";
 import { Surface } from "@heroui/react";
 import { useShallow } from "zustand/react/shallow";
 import type { ToolCallPayload } from "@/shared/contracts";
+import type { RemoteImageRefValue } from "@/shared/remote";
 import { useAppStore } from "@/renderer/state/appStore";
 import type { RuntimeChatItem } from "@/renderer/state/slices/runtimeEventSlice";
 import { useChatPaneActions } from "../../chatPaneActionsContext";
 import { selectThreadUserAttachmentImagePaths } from "../../chatPaneSelectors";
+import { isPendingImageGroupFollower } from "../../chatToolGroupItem";
 import { chatMessageSurfaceClass } from "./chatMessageSurface";
 import { ImageMosaic } from "./ImageMosaic";
 import { ImageView } from "./ImageView";
@@ -17,9 +19,49 @@ interface ImageGroupProps {
   readonly itemIds: readonly string[];
 }
 
+interface CachedResolvedSources {
+  readonly refUrl: ((ref: RemoteImageRefValue) => string) | undefined;
+  readonly pendingAsPlaceholder: boolean;
+  readonly userAttachmentPaths: ReadonlySet<string>;
+  readonly sources: readonly ImageViewSource[];
+}
+
+const EMPTY_SOURCES: readonly ImageViewSource[] = [];
+const resolvedItemSourcesCache = new WeakMap<object, CachedResolvedSources>();
+
+function resolveCachedItemSources(
+  payload: ToolCallPayload | undefined,
+  refUrl: ((ref: RemoteImageRefValue) => string) | undefined,
+  pendingAsPlaceholder: boolean,
+  userAttachmentPaths: ReadonlySet<string>,
+): readonly ImageViewSource[] {
+  if (!payload || typeof payload !== "object") return EMPTY_SOURCES;
+  const cached = resolvedItemSourcesCache.get(payload);
+  if (
+    cached &&
+    cached.refUrl === refUrl &&
+    cached.pendingAsPlaceholder === pendingAsPlaceholder &&
+    cached.userAttachmentPaths === userAttachmentPaths
+  ) {
+    return cached.sources;
+  }
+  const sources = resolveImageViewSources(payload, refUrl, {
+    pendingAsPlaceholder,
+    userAttachmentPaths,
+  });
+  resolvedItemSourcesCache.set(payload, {
+    refUrl,
+    pendingAsPlaceholder,
+    userAttachmentPaths,
+    sources,
+  });
+  return sources;
+}
+
 /**
- * Renders 2+ consecutive standalone image tool calls as one compact mosaic
- * row instead of stacking full-height image cards vertically.
+ * Renders 1+ consecutive standalone image tool calls in one stable row: a
+ * single image renders as the standard inline card, and 2+ images render as a
+ * uniform monotonic mosaic without unmounting tile 0 on the `1 -> 2` transition.
  */
 export const ImageGroup = memo(function ImageGroup({ threadId, itemIds }: ImageGroupProps) {
   useRememberToolCallItems(itemIds);
@@ -37,11 +79,13 @@ export const ImageGroup = memo(function ImageGroup({ threadId, itemIds }: ImageG
   const refUrl = readiness?.resolveRef ?? actions?.remoteImageRefUrl;
   const pendingAsPlaceholder = readiness !== undefined;
 
-  // Keep `sources` referentially stable so `RemoteImageCard` does not resubscribe
-  // its host-held image readiness listener on unrelated renders.
-  const { sources, fallbackItems } = useMemo(() => {
+  // Cache resolved sources per item payload so appending new images keeps
+  // earlier `ImageViewSource` references stable (avoiding `RemoteImageCard` /
+  // `ImageCard` re-renders and host-held image listener resubscriptions).
+  const { sources, pendingTileCount, fallbackItems } = useMemo(() => {
     const nextSources: ImageViewSource[] = [];
     const nextFallbacks: RuntimeChatItem[] = [];
+    const pendingItems: RuntimeChatItem[] = [];
     for (const item of items) {
       if (!item) continue;
       const payload = item.payload as ToolCallPayload | undefined;
@@ -49,17 +93,29 @@ export const ImageGroup = memo(function ImageGroup({ threadId, itemIds }: ImageG
         nextFallbacks.push(item);
         continue;
       }
-      const itemSources = resolveImageViewSources(payload, refUrl, {
+      const itemSources = resolveCachedItemSources(
+        payload,
+        refUrl,
         pendingAsPlaceholder,
         userAttachmentPaths,
-      });
+      );
       if (itemSources.length > 0) {
         nextSources.push(...itemSources);
+      } else if (isPendingImageGroupFollower(item, userAttachmentPaths)) {
+        pendingItems.push(item);
       } else {
         nextFallbacks.push(item);
       }
     }
-    return { sources: nextSources, fallbackItems: nextFallbacks };
+    if (nextSources.length === 0 && pendingItems.length > 0) {
+      nextFallbacks.push(...pendingItems);
+      return { sources: nextSources, pendingTileCount: 0, fallbackItems: nextFallbacks };
+    }
+    return {
+      sources: nextSources,
+      pendingTileCount: pendingItems.length,
+      fallbackItems: nextFallbacks,
+    };
   }, [items, pendingAsPlaceholder, refUrl, userAttachmentPaths]);
 
   if (sources.length === 0) {
@@ -75,7 +131,7 @@ export const ImageGroup = memo(function ImageGroup({ threadId, itemIds }: ImageG
   return (
     <>
       <Surface variant="transparent" className={chatMessageSurfaceClass}>
-        <ImageMosaic sources={sources} />
+        <ImageMosaic sources={sources} pendingTileCount={pendingTileCount} />
       </Surface>
       {fallbackItems.map((item) => (
         <ImageView key={item.id} item={item} />

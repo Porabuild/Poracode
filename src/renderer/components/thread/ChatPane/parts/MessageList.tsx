@@ -51,7 +51,11 @@ import {
   resolveInlineImageDimensions,
 } from "./items/chatImageClass";
 import { chatMessageSurfaceClass } from "./items/chatMessageSurface";
-import { imageViewRendersInline, resolveImageViewSources } from "./items/imageViewSource";
+import {
+  imageViewRendersInline,
+  resolveImageViewSources,
+  type ImageViewSource,
+} from "./items/imageViewSource";
 import { isToolLikeItem } from "./items/toolCallCategorization";
 import { useTimelineMeasurements } from "./useTimelineMeasurements";
 import { useNewPromptScroll } from "./useNewPromptScroll";
@@ -138,6 +142,8 @@ interface MessageListProps {
 const DEFAULT_ROW_ESTIMATE_PX = 59;
 const CONTENT_TAIL_PADDING_PX = 8;
 const INLINE_IMAGE_ROW_CHROME_PX = 27;
+// Grid mosaics sit inside Surface (py-2 = 16px) + row wrapper (pb-1 = 4px) without inline baseline descender.
+const MOSAIC_IMAGE_ROW_CHROME_PX = 20;
 const INLINE_IMAGE_MAX_HEIGHT_REM = 18;
 const INLINE_IMAGE_MAX_VIEWPORT_HEIGHT = 0.4;
 const INLINE_IMAGE_HORIZONTAL_CHROME_PX = 26;
@@ -484,12 +490,14 @@ export function MessageList({
         dataKey={threadId}
         estimatedItemSize={DEFAULT_ROW_ESTIMATE_PX}
         extraData={`${lastLiveIndex}:${isTurnActive}:${markTailAsLive}:${suppressInlineTurnAnchorId ?? ""}:${canRevertCheckpoints}`}
-        getFixedItemSize={(entry) =>
+        getFixedItemSize={(entry, index) =>
           getFixedTimelineEntrySize(
             entry,
             threadId,
             () => scrollElementRef.current?.clientWidth,
             parentActions?.remoteImageReadiness !== undefined,
+            index === lastLiveIndex && isTurnActive,
+            suppressInlineTurnAnchorId,
           )
         }
         getItemType={(entry, index) =>
@@ -799,7 +807,8 @@ function getTimelineEntryType(
     return `${isLiveTail ? "tool_call_group:live" : entry.kind}${rowSuffix}`;
   }
   if (entry.kind === "image_group") {
-    return `${entry.kind}${rowSuffix}`;
+    if (isLiveTail) return `image_group:live${rowSuffix}`;
+    return `image_group:${entry.itemIds.length > 1 ? "mosaic" : "single"}${rowSuffix}`;
   }
   const item = selectRuntimeItemById(state, threadId, entry.id);
   if (!item) return "unknown";
@@ -837,30 +846,39 @@ function getFixedTimelineEntrySize(
   threadId: string,
   readListWidth: () => number | undefined,
   reservesPendingRemoteImages: boolean,
+  isLiveTail: boolean,
+  suppressInlineTurnAnchorId: string | null,
 ): number | undefined {
   if (entry.kind === "image_group") {
+    // Do not lock a live-growing image group behind getFixedItemSize: LegendList
+    // skips real DOM measurements when sizesKnown matches fixedItemSize, and
+    // live arrivals can still append tiles or flip 1 -> 2+.
+    if (isLiveTail) return undefined;
     const state = useAppStore.getState();
+    const completedTurn = selectCompletedTurnForEntry(state, threadId, entry);
+    if (
+      completedTurn !== undefined &&
+      completedTurn.anchorItemId !== null &&
+      completedTurn.anchorItemId !== suppressInlineTurnAnchorId
+    ) {
+      return undefined;
+    }
     const userAttachmentPaths = selectThreadUserAttachmentImagePaths(state, threadId);
-    let totalSources = 0;
+    const sources: ImageViewSource[] = [];
     for (const id of entry.itemIds) {
       const item = selectRuntimeItemById(state, threadId, id);
-      if (!item || !isToolLikeItem(item)) continue;
-      const itemSources = resolveImageViewSources(
-        item.payload as ToolCallPayload | undefined,
-        unresolvedImageRefUrl,
-        { pendingAsPlaceholder: reservesPendingRemoteImages, userAttachmentPaths },
-      );
-      totalSources += itemSources.length;
+      if (!item || item.state !== "completed" || !isToolLikeItem(item)) return undefined;
+      const payload = item.payload as ToolCallPayload | undefined;
+      if (payload?.status === "error") return undefined;
+      const itemSources = resolveImageViewSources(payload, unresolvedImageRefUrl, {
+        pendingAsPlaceholder: true,
+        userAttachmentPaths,
+      });
+      if (itemSources.length === 0) return undefined;
+      sources.push(...itemSources);
     }
-    const rootFontSize = Number.parseFloat(getComputedStyle(document.documentElement).fontSize);
-    const mosaicHeight = estimateImageMosaicHeightPx(
-      totalSources,
-      window.innerWidth,
-      Number.isFinite(rootFontSize) ? rootFontSize : 16,
-    );
-    return mosaicHeight !== undefined
-      ? Math.round(mosaicHeight + INLINE_IMAGE_ROW_CHROME_PX)
-      : undefined;
+    if (sources.length === 0) return undefined;
+    return estimateResolvedImageRowHeight(sources, readListWidth, reservesPendingRemoteImages);
   }
   if (entry.kind !== "item") return undefined;
   const state = useAppStore.getState();
@@ -885,6 +903,21 @@ function getFixedTimelineEntrySize(
     unresolvedImageRefUrl,
     { pendingAsPlaceholder: true, userAttachmentPaths },
   );
+  return estimateResolvedImageRowHeight(sources, readListWidth, reservesPendingRemoteImages);
+}
+
+function estimateResolvedImageRowHeight(
+  sources: readonly ImageViewSource[],
+  readListWidth: () => number | undefined,
+  reservesPendingRemoteImages: boolean,
+): number | undefined {
+  if (sources.length === 1) {
+    return estimateSingleInlineImageRowHeight(
+      sources[0],
+      readListWidth,
+      reservesPendingRemoteImages,
+    );
+  }
   if (sources.length > 1) {
     if (!reservesPendingRemoteImages && sources.some((source) => source.remoteRef !== undefined)) {
       return undefined;
@@ -896,10 +929,17 @@ function getFixedTimelineEntrySize(
       Number.isFinite(rootFontSize) ? rootFontSize : 16,
     );
     return mosaicHeight !== undefined
-      ? Math.round(mosaicHeight + INLINE_IMAGE_ROW_CHROME_PX)
+      ? Math.round(mosaicHeight + MOSAIC_IMAGE_ROW_CHROME_PX)
       : undefined;
   }
-  const source = sources[0];
+  return undefined;
+}
+
+function estimateSingleInlineImageRowHeight(
+  source: ImageViewSource | undefined,
+  readListWidth: () => number | undefined,
+  reservesPendingRemoteImages: boolean,
+): number | undefined {
   if (!source) return undefined;
   const dimensionKey = inlineImageDimensionCacheKey(source);
   const cached = dimensionKey ? getCachedInlineImageDimensions(dimensionKey) : undefined;

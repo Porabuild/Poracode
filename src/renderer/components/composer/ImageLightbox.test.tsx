@@ -1279,3 +1279,83 @@ describe("video lightbox items", () => {
     expect(dialog.querySelector("video")).not.toBeNull();
   });
 });
+
+describe("lightbox thumbnail strip", () => {
+  it("omits the bottom thumbnail strip when viewing a single image", () => {
+    render(
+      <ImageLightboxView
+        images={[{ src: "data:image/png;base64,AAA", alt: "solo.png" }]}
+        initialIndex={0}
+        onClose={() => {}}
+      />,
+    );
+    expect(document.querySelector("[data-poracode-lightbox-strip='true']")).toBeNull();
+    expect(document.querySelector(".poracode-image-lightbox__stage--with-strip")).toBeNull();
+  });
+
+  it("renders mini previews for multi-image galleries and jumps directly on click without dismissing", () => {
+    const onClose = vi.fn<() => void>();
+    render(
+      <ImageLightboxView
+        images={[
+          { src: "data:image/png;base64,AAA", alt: "first.png" },
+          { src: "data:image/png;base64,BBB", alt: "second.png" },
+          { src: "data:image/png;base64,CCC", alt: "third.png" },
+        ]}
+        initialIndex={0}
+        onClose={onClose}
+      />,
+    );
+
+    expect(document.querySelector(".poracode-image-lightbox__stage--with-strip")).not.toBeNull();
+    const strip = document.querySelector("[data-poracode-lightbox-strip='true']");
+    expect(strip).not.toBeNull();
+
+    const thumb1 = screen.getByRole("button", { name: "Open image 1 of 3" });
+    const thumb2 = screen.getByRole("button", { name: "Open image 2 of 3" });
+    const thumb3 = screen.getByRole("button", { name: "Open image 3 of 3" });
+    expect(thumb1).toHaveAttribute("aria-current", "true");
+    expect(thumb2).not.toHaveAttribute("aria-current");
+    expect(thumb3).not.toHaveAttribute("aria-current");
+    expect(thumb3.querySelector("img")).toHaveAttribute("src", "data:image/png;base64,CCC");
+
+    fireEvent.click(thumb3);
+    expect(onClose).not.toHaveBeenCalled();
+    expect(screen.getByRole("img", { name: "third.png" })).toHaveAttribute(
+      "src",
+      "data:image/png;base64,CCC",
+    );
+    expect(screen.getByText("3 / 3")).toBeInTheDocument();
+    expect(thumb3).toHaveAttribute("aria-current", "true");
+    expect(thumb1).not.toHaveAttribute("aria-current");
+  });
+
+  it("renders video entries in the thumbnail strip and switches to the video player when selected", () => {
+    const onClose = vi.fn<() => void>();
+    render(
+      <ImageLightboxView
+        images={[
+          { src: "data:image/png;base64,AAA", alt: "shot.png" },
+          {
+            kind: "video",
+            src: "https://example.com/demo.mp4",
+            alt: "demo.mp4",
+            fileName: "demo.mp4",
+          },
+        ]}
+        initialIndex={0}
+        onClose={onClose}
+      />,
+    );
+
+    const videoThumb = screen.getByRole("button", { name: "Video preview" });
+    expect(videoThumb).toBeInTheDocument();
+    fireEvent.click(videoThumb);
+
+    expect(onClose).not.toHaveBeenCalled();
+    expect(videoThumb).toHaveAttribute("aria-current", "true");
+    expect(screen.getByText("2 / 2")).toBeInTheDocument();
+    const dialog = screen.getByRole("dialog", { name: "demo.mp4" });
+    expect(dialog.querySelector("video")).toHaveAttribute("src", "https://example.com/demo.mp4");
+  });
+});

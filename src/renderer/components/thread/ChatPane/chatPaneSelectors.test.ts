@@ -2059,7 +2059,7 @@ describe("chatPaneSelectors", () => {
           itemIds: ["img1", "img2", "img3"],
         },
         { kind: "item", id: "a1" },
-        { kind: "item", id: "img4" },
+        { kind: "image_group", id: "image-group:img4", itemIds: ["img4"] },
       ]);
     });
 
@@ -2101,7 +2101,7 @@ describe("chatPaneSelectors", () => {
 
       expect(selectVisibleThreadTimelineEntries(state, threadId)).toEqual([
         { kind: "item", id: "u1" },
-        { kind: "item", id: "img1" },
+        { kind: "image_group", id: "image-group:img1", itemIds: ["img1"] },
       ]);
 
       // Incremental structural update +1 appending a 2nd standalone image regroups into image_group
@@ -2156,6 +2156,62 @@ describe("chatPaneSelectors", () => {
       recordRuntimeStructuralChangeHint(threadId, 3, new Set(["u1"]));
 
       expect(selectThreadUserAttachmentImagePaths(state, threadId).size).toBe(0);
+    });
+
+    it("folds adjacent in-progress image_view calls into the preceding image_group without folding lone pending calls", () => {
+      const threadId = "pending-image-group-follower";
+      const baseState = {
+        runtimeItemIdsByThread: {
+          [threadId]: ["pending-lone", "a1", "img1", "img2-pending"],
+        },
+        runtimeItemsByIdByThread: {
+          [threadId]: {
+            "pending-lone": {
+              id: "pending-lone",
+              type: "image_view",
+              state: "started",
+              payload: { name: "imageGeneration", status: "running" },
+              streams: {},
+            },
+            a1: {
+              id: "a1",
+              type: "assistant_message",
+              state: "completed",
+              payload: { content: [{ kind: "text", text: "Generating..." }] },
+              streams: {},
+            },
+            img1: {
+              id: "img1",
+              type: "image_view",
+              state: "completed",
+              payload: {
+                name: "imageGeneration",
+                status: "success",
+                images: [PNG_DATA],
+              },
+              streams: {},
+            },
+            "img2-pending": {
+              id: "img2-pending",
+              type: "image_view",
+              state: "started",
+              payload: { name: "imageGeneration", status: "running" },
+              streams: {},
+            },
+          },
+        },
+        runtimeStructuralVersionByThread: { [threadId]: 1 },
+      } as unknown as AppStoreState;
+
+      expect(selectVisibleThreadTimelineEntries(baseState, threadId)).toEqual([
+        { kind: "item", id: "pending-lone" },
+        { kind: "item", id: "a1" },
+        {
+          kind: "image_group",
+          id: "image-group:img1",
+          itemIds: ["img1", "img2-pending"],
+        },
+      ]);
     });
   });
 });

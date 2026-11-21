@@ -1,4 +1,5 @@
 import type { RuntimeChatItem } from "@/renderer/state/slices/runtimeChatItem";
+import { isUserAttachmentImageReadPayload } from "@/shared/inlineImagePayload";
 import { readMcpAppResource } from "@/shared/mcpAppResources";
 import { completedToolVideoSources } from "@/shared/chatVideo";
 import type { ToolCallPayload } from "@/shared/contracts";
@@ -30,6 +31,22 @@ export function isStandaloneImageItem(
     return false;
   }
   return imageViewRendersInline(payload, userAttachmentPaths);
+}
+
+/**
+ * Whether an in-flight `image_view` tool call can reserve a pending skeleton
+ * slot inside a preceding `image_group` instead of flashing a transient tool
+ * row below the mosaic before completing.
+ */
+export function isPendingImageGroupFollower(
+  item: RuntimeChatItem,
+  userAttachmentPaths?: ReadonlySet<string>,
+): boolean {
+  if (item.type !== "image_view" || item.state === "completed") return false;
+  const payload = item.payload as ToolCallPayload | undefined;
+  if (payload?.status === "error") return false;
+  if (isUserAttachmentImageReadPayload(payload, userAttachmentPaths)) return false;
+  return true;
 }
 
 /**

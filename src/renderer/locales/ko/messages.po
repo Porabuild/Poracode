@@ -14544,7 +14544,10 @@ msgid "Open git review as a right-side panel or a full page."
 msgstr "Git 검토를 오른쪽 패널이나 전체 페이지로 엽니다."
 
 #. placeholder {0}: index + 1
+#. placeholder {0}: itemIndex + 1
 #. placeholder {1}: gallery.length
+#. placeholder {1}: images.length
+#: src/renderer/components/composer/ImageLightbox.tsx
 #: src/renderer/components/thread/ThreadImagesDock.tsx
 msgid "Open image {0} of {1}"
 msgstr "이미지 {0}/{1} 열기"
@@ -14556,6 +14559,7 @@ msgid "Open image preview"
 msgstr "이미지 미리보기 열기"
 
 #: src/renderer/components/thread/ChatPane/parts/items/ImageCard.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/ImageMosaic.tsx
 msgid "Open image preview (+{overflowCount} more)"
 msgstr "이미지 미리보기 열기 (+{overflowCount}개 더)"
 

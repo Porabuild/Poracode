@@ -885,6 +885,70 @@ describe("MessageList", () => {
     expect(attachedProps.getFixedItemSize(entries[0]!, 0, "image_view")).toBeGreaterThan(28);
   });
 
+  it("defers fixed sizing for live-tail or incomplete image_group entries and estimates settled mosaics", () => {
+    const pngBase64 =
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+M8AAQUBAScY42YAAAAASUVORK5CYII=";
+    for (const id of ["img-1", "img-2"]) {
+      useAppStore.getState().applyRuntimeEvent("thread-1", {
+        type: "item.started",
+        threadId: "thread-1",
+        itemId: id,
+        itemType: "image_view",
+        payload: {
+          name: "imageGeneration",
+          status: "success",
+          result: pngBase64,
+        },
+      });
+      useAppStore.getState().applyRuntimeEvent("thread-1", {
+        type: "item.completed",
+        threadId: "thread-1",
+        itemId: id,
+      });
+    }
+    const groupEntry: ChatTimelineEntry = {
+      kind: "image_group",
+      id: "image-group:img-1",
+      itemIds: ["img-1", "img-2"],
+    };
+
+    const liveView = render(
+      <MessageList threadId="thread-1" entries={[groupEntry]} isTurnActive />,
+    );
+    const liveProps = latestLegendProps.current as MockLegendProps;
+    expect(liveProps.getItemType(groupEntry, 0)).toBe("image_group:live");
+    expect(liveProps.getFixedItemSize(groupEntry, 0, "image_group:live")).toBeUndefined();
+    liveView.unmount();
+
+    const settledView = render(
+      <MessageList threadId="thread-1" entries={[groupEntry]} isTurnActive={false} />,
+    );
+    const settledProps = latestLegendProps.current as MockLegendProps;
+    expect(settledProps.getItemType(groupEntry, 0)).toBe("image_group:mosaic");
+    expect(settledProps.getFixedItemSize(groupEntry, 0, "image_group:mosaic")).toBe(180);
+    settledView.unmount();
+
+    // An in-progress follower inside the group also defers fixed sizing until settled.
+    useAppStore.getState().applyRuntimeEvent("thread-1", {
+      type: "item.started",
+      threadId: "thread-1",
+      itemId: "img-3",
+      itemType: "image_view",
+      payload: { name: "imageGeneration", status: "running" },
+    });
+    const pendingGroup: ChatTimelineEntry = {
+      kind: "image_group",
+      id: "image-group:img-1",
+      itemIds: ["img-1", "img-2", "img-3"],
+    };
+    const pendingView = render(
+      <MessageList threadId="thread-1" entries={[pendingGroup]} isTurnActive={false} />,
+    );
+    const pendingProps = latestLegendProps.current as MockLegendProps;
+    expect(pendingProps.getFixedItemSize(pendingGroup, 0, "image_group:mosaic")).toBeUndefined();
+    pendingView.unmount();
+  });
+
   it("exposes LegendList's scroll node and content node to the shared chat controls", () => {
     const setScrollContainer = vi.fn<(element: HTMLDivElement | null) => void>();
     const scrollContentRef = createRef<HTMLDivElement>();
