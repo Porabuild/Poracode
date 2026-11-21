@@ -3,6 +3,7 @@ import type { SupervisorEvent } from "@/shared/ipc";
 import type { RemoteProjectCommand, RemoteProjectCommandResult } from "@/shared/remote";
 import {
   StreamableHttpMcpIngress,
+  type PooledMcpIdentityResolver,
   type StreamableHttpMcpIngressInfo,
 } from "../mcp/StreamableHttpMcpIngress";
 import type { ScheduleService } from "../schedules/ScheduleService";
@@ -82,6 +83,7 @@ export interface AppControlsMcpIngressDeps {
     threadId: string;
   }): AppControlsNotifyResult | Promise<AppControlsNotifyResult>;
   checkForUpdate(): Promise<AppControlsUpdateCheck>;
+  resolvePooledIdentity?: PooledMcpIdentityResolver;
 }
 
 export class AppControlsMcpIngress {
@@ -95,6 +97,8 @@ export class AppControlsMcpIngress {
 
   constructor(deps: AppControlsMcpIngressDeps) {
     this.ingress = new StreamableHttpMcpIngress<AppControlsToolContext>({
+      serverId: "app-controls",
+      ...(deps.resolvePooledIdentity ? { resolvePooledIdentity: deps.resolvePooledIdentity } : {}),
       serverInfo: { ...APP_CONTROLS_MCP_SERVER_INFO },
       instructions: APP_CONTROLS_MCP_INSTRUCTIONS,
       tools: TOOLS,

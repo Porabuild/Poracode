@@ -4,6 +4,7 @@ import { runScreenshotTool } from "./mcp/tools/screenshot";
 import type { BrowserPanelManager } from "./BrowserPanelManager";
 import {
   StreamableHttpMcpIngress,
+  type PooledMcpIdentityResolver,
   type StreamableHttpMcpIngressInfo,
 } from "@/host/mcp/StreamableHttpMcpIngress";
 import {
@@ -30,6 +31,7 @@ export class BrowserMcpIngress {
   private allowDataAccess = false;
   private getManager: (() => BrowserPanelManager | null) | null = null;
   private readonly ingress = new StreamableHttpMcpIngress<ToolContext>({
+    serverId: "browser",
     serverInfo: { name: "browser", version: "2.0.0" },
     instructions: BROWSER_MCP_INSTRUCTIONS,
     tools: TOOLS,
@@ -51,6 +53,10 @@ export class BrowserMcpIngress {
 
   setAgentVision(vision: AgentVisionService): void {
     this.vision = vision;
+  }
+
+  setResolvePooledIdentity(resolver: PooledMcpIdentityResolver | undefined): void {
+    this.ingress.setResolvePooledIdentity(resolver);
   }
 
   private async dispatchWithVision(

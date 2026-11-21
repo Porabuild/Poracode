@@ -24,4 +24,18 @@ describe("MCP endpoint identity", () => {
     );
     expect(encodeThreadQuery("http://localhost/mcp", {})).toBe("http://localhost/mcp");
   });
+
+  it("round-trips pooled mode cleanly", () => {
+    const encoded = encodeThreadQuery("http://localhost/mcp", {
+      pooled: true,
+      threadId: "ignored-in-pooled",
+      disabledTools: ["click"],
+    });
+    expect(encoded).toContain("pooled=1");
+    expect(encoded).toContain("disable=click");
+    expect(decodeThreadIdentity(encoded)).toEqual({
+      pooled: true,
+      disabledTools: ["click"],
+    });
+  });
 });

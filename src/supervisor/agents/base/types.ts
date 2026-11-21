@@ -1218,6 +1218,9 @@ export interface AgentAdapter
   /** Release provider-owned shared processes after all thread sessions have closed. */
   shutdown?(): void | Promise<void>;
 
+  /** Share one directory-scoped MCP URL per pooled runtime and isolate callers by session permissions + request metadata. */
+  readonly poolsDirectoryMcp?: boolean;
+
   /** Route stdio MCPs with an explicit cwd through the proxy when the native runtime ignores cwd. */
   readonly mcpRequiresStdioCwdProxy?: boolean;
 

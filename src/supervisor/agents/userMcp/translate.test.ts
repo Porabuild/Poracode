@@ -7,8 +7,6 @@ import {
   buildCodexMcp,
   buildCursorSdkMcpServers,
   buildGeminiMcpServers,
-  buildOpenCodeMcp,
-  buildOpenCodeMcpLaunchConfig,
   codexMcpServerName,
   codexMcpTokenEnvVar,
 } from "./translate";
@@ -51,7 +49,7 @@ const servers: McpServer[] = [
 ];
 
 describe("custom MCP translators", () => {
-  it("maps Claude, Cursor SDK, Gemini, OpenCode, and ACP transport shapes", () => {
+  it("maps Claude, Cursor SDK, Gemini, and ACP transport shapes", () => {
     expect(buildClaudeMcpServers(servers)).toMatchObject({
       "local.tools": { type: "stdio", command: "node", timeout: 45_000 },
       remote: { type: "http", url: "https://example.test/mcp", timeout: 12_500 },
@@ -76,16 +74,6 @@ describe("custom MCP translators", () => {
       "local.tools": { command: "node", cwd: "/repo", timeout: 45_000 },
       remote: { httpUrl: "https://example.test/mcp", timeout: 12_500 },
       events: { url: "https://example.test/sse" },
-    });
-    expect(buildOpenCodeMcp(servers)).toMatchObject({
-      "local.tools": {
-        type: "local",
-        command: ["node", "server.js"],
-        cwd: "/repo",
-        timeout: 45_000,
-      },
-      remote: { type: "remote", url: "https://example.test/mcp", timeout: 12_500 },
-      events: { type: "remote", url: "https://example.test/sse" },
     });
     expect(buildAcpMcpServers(servers)).toEqual([
       {
@@ -236,23 +224,5 @@ describe("custom MCP translators", () => {
     expect(keyFor("secret-two")).toBeDefined();
     expect(keyFor("secret-one")).not.toBe(keyFor("secret-two"));
     expect(keyFor("header-one")).not.toBe(keyFor("header-two"));
-  });
-
-  it("keeps OpenCode launch credentials out of the inline config", () => {
-    const launch = buildOpenCodeMcpLaunchConfig(servers);
-    const config = JSON.parse(launch.configContent) as {
-      mcp: Record<
-        string,
-        { environment?: Record<string, string>; headers?: Record<string, string> }
-      >;
-    };
-
-    expect(launch.configContent).not.toContain("Bearer secret");
-    expect(launch.configContent).not.toContain('"MODE":"test"');
-    expect(config.mcp["local.tools"]?.environment?.MODE).toMatch(/^\{env:PORACODE_MCP_/u);
-    expect(config.mcp.remote?.headers?.Authorization).toMatch(/^\{env:PORACODE_MCP_/u);
-    expect(Object.values(launch.env)).toEqual(
-      expect.arrayContaining(["test", "Bearer secret", "yes"]),
-    );
   });
 });

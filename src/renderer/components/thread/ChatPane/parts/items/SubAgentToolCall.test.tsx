@@ -84,7 +84,7 @@ it("marks a resumed compact Crossagent as a follow-up", () => {
         state: "started",
         streams: {},
         payload: {
-          name: "OpenCode 2 · DeepSeek V4.1 Flash · Max",
+          name: "OpenCode · DeepSeek V4.1 Flash · Max",
           title: "Fence stale shell pages",
           status: "running",
           isCrossagent: true,
@@ -96,7 +96,7 @@ it("marks a resumed compact Crossagent as a follow-up", () => {
     />,
   );
   const lineTwo = container.querySelector(".text-\\[11px\\]");
-  expect(lineTwo).toHaveTextContent("Sidekick · follow-up · OpenCode 2 · DeepSeek V4.1 Flash");
+  expect(lineTwo).toHaveTextContent("Sidekick · follow-up · OpenCode · DeepSeek V4.1 Flash");
 });
 
 it("drops the Crossagent Follow-up prefix from a compact task without a title", () => {
@@ -110,7 +110,7 @@ it("drops the Crossagent Follow-up prefix from a compact task without a title", 
         state: "started",
         streams: {},
         payload: {
-          name: "OpenCode 2 · DeepSeek V4.1 Flash · Max",
+          name: "OpenCode · DeepSeek V4.1 Flash · Max",
           status: "running",
           isCrossagent: true,
           isSubAgentResume: true,
@@ -119,9 +119,9 @@ it("drops the Crossagent Follow-up prefix from a compact task without a title", 
     />,
   );
   const button = screen.getByRole("button", {
-    name: /Open Crossagent: OpenCode 2/,
+    name: /Open Crossagent: OpenCode/,
   });
-  expect(button).toHaveTextContent("OpenCode 2 · DeepSeek V4.1 Flash · Max");
+  expect(button).toHaveTextContent("OpenCode · DeepSeek V4.1 Flash · Max");
   expect(button.textContent).not.toContain("Crossagent");
 });
 
@@ -135,7 +135,7 @@ it("labels a crew run's completed result as a Crew Result", () => {
         state: "completed",
         streams: {},
         payload: {
-          name: "OpenCode 2 · DeepSeek V4.1 Flash · Max",
+          name: "OpenCode · DeepSeek V4.1 Flash · Max",
           status: "success",
           isCrossagent: true,
           subAgentType: "Sidekick",
@@ -157,7 +157,7 @@ it("keeps a non-crew Crossagent result labeled Crossagent Result", () => {
         state: "completed",
         streams: {},
         payload: {
-          name: "Fence stale shell pages — OpenCode 2 · DeepSeek V4.1 Flash · Max",
+          name: "Fence stale shell pages — OpenCode · DeepSeek V4.1 Flash · Max",
           status: "success",
           isCrossagent: true,
           result: "Crossagent finished.",

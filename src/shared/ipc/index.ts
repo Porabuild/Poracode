@@ -43,6 +43,10 @@ export {
 } from "./bridge";
 export type { RemoteAccessTailscaleStatus, StartTailscaleResult } from "./procedures/app";
 export type {
+  ResolveMcpSessionIdentityPayload,
+  ResolveMcpSessionIdentityResult,
+} from "./procedures/mcp";
+export type {
   SshConnectPayload,
   SshConnectResult,
   SshDisconnectPayload,

@@ -3,6 +3,7 @@ import type { AgentVisionService } from "@/host/AgentVisionService";
 import { captureScreenshotPng } from "../cdp/tools";
 import {
   StreamableHttpMcpIngress,
+  type PooledMcpIdentityResolver,
   type StreamableHttpMcpIngressInfo,
 } from "../../mcp/StreamableHttpMcpIngress";
 import {
@@ -33,6 +34,7 @@ export class ChromeMcpIngress {
     // Chrome MCP is intentionally unavailable to WSL agents, so exposing this
     // control surface beyond loopback is unnecessary.
     bindHost: "127.0.0.1",
+    serverId: "chrome",
     serverInfo: { name: "chrome", version: "1.0.0" },
     instructions: CHROME_MCP_INSTRUCTIONS,
     tools: CHROME_TOOLS,
@@ -49,6 +51,10 @@ export class ChromeMcpIngress {
 
   setAgentVision(vision: AgentVisionService): void {
     this.vision = vision;
+  }
+
+  setResolvePooledIdentity(resolver: PooledMcpIdentityResolver | undefined): void {
+    this.ingress.setResolvePooledIdentity(resolver);
   }
 
   private async dispatchWithVision(

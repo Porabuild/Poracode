@@ -107,6 +107,8 @@ export interface SessionRuntime {
   launchConfig?: ThreadConfig;
   /** MCP launch snapshot reused by restart and recovery paths. */
   mcpLaunchSnapshot: McpLaunchSnapshot;
+  /** First-line prompt fallback title for pooled built-in MCP calls. */
+  mcpTitle?: string | undefined;
   /** True only when the resolved launch server set contains app-controls/read_thread. */
   threadMentionToolsAvailable?: boolean;
   /** Provider-native plugin packages that replace matching Poracode contributions. */

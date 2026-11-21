@@ -1,98 +1,162 @@
+import { existsSync, realpathSync } from "node:fs";
+import { homedir } from "node:os";
+import { basename, dirname, join } from "node:path";
+import { compareVersions } from "@/shared/changelog";
+import { msg } from "@/shared/messages";
 import type { ProjectLocation } from "@/shared/contracts";
-import {
-  extractSemverFromVersionOutput,
-  readAgentCommandOutput,
-  resolveExecutablePathAsync,
-} from "../base";
+import { readAgentCommandOutput, resolveExecutablePathAsync } from "../base";
 import { resolveAgentBinaryPath } from "../binaryResolver";
 
-const resolved = new Map<string, string>();
-/** Version learned while accepting the binary above, keyed by the same scope. */
-const resolvedVersions = new Map<string, string>();
-const scope = (location: ProjectLocation) =>
-  location.kind === "wsl" ? `wsl:${location.distro}` : location.kind;
+/** HTTP contract used by the pinned client, including session forms and MCP configuration. */
+export const OPENCODE_MIN_VERSION = "2.0.26";
+
+const OPENCODE_LEGACY_STUB = /opencode2\.(?:cjs|cmd|ps1)$/;
 
 function normalizeInstallPath(path: string): string {
   return path.replaceAll("\\", "/");
 }
 
-/** OpenCode 1 is the 1.x CLI (`opencode-ai`). 2.x and V2 betas are OpenCode 2. */
-export function isOpenCode1CliVersion(version: string | undefined): boolean {
-  if (!version) return false;
-  return /^1\.\d+/.test(version.replace(/^v/i, ""));
-}
-
-/**
- * Paths that belong to the OpenCode 2 npm layout even if `--version` is
- * unavailable. V1 must not claim the managed `~/.opencode2` prefix or
- * `@opencode/cli` package binaries.
- */
-export function isOpenCode2ForeignInstallPath(path: string | undefined): boolean {
+/** Legacy 1.x npm layout (`opencode-ai`). Never treat those binaries as supported OpenCode 2+ CLIs. */
+export function isOpenCode1PackagePath(path: string | undefined): boolean {
   if (!path) return false;
   const normalized = normalizeInstallPath(path);
-  return /(?:^|\/)\.opencode2(?:\/|$)/.test(normalized) || /\/@opencode\/cli\//.test(normalized);
+  return /\/opencode-ai\//.test(normalized) && !/\/@opencode\//.test(normalized);
 }
 
-export function acceptOpenCode1Binary(
+export function parseOpenCodeVersion(output: string): string | undefined {
+  return /\bv?(0\.0\.0-beta-\d+|2\.\d+\.\d+(?:-[\w.-]+)?)\b/.exec(output)?.[1];
+}
+
+export function supportsOpenCodeVersion(version: string | undefined): boolean {
+  if (!version) return false;
+  return /^2\.\d+\.\d+$/.test(version) && compareVersions(version, OPENCODE_MIN_VERSION) >= 0;
+}
+
+export function requireOpenCodeVersion(version: string | undefined): void {
+  if (!supportsOpenCodeVersion(version)) throw new Error(msg("provider.versionUnsupported"));
+}
+
+export function acceptOpenCodeBinary(
   path: string | undefined,
   version: string | undefined,
 ): boolean {
-  if (!path || isOpenCode2ForeignInstallPath(path)) return false;
-  return isOpenCode1CliVersion(version);
+  if (!path || isOpenCodeStub(path) || isOpenCode1PackagePath(path)) return false;
+  return supportsOpenCodeVersion(version);
 }
 
-export function cachedOpenCode1Binary(location: ProjectLocation): string | undefined {
-  return resolved.get(scope(location));
+function resolvedBasename(path: string): string {
+  try {
+    return basename(realpathSync(path));
+  } catch {
+    return basename(path);
+  }
 }
 
-/**
- * Version reported by the binary `resolveOpenCode1Binary` accepted. Lets
- * detection reuse that `--version` result instead of spawning the CLI again.
- */
-export function cachedOpenCode1Version(location: ProjectLocation): string | undefined {
-  return resolvedVersions.get(scope(location));
+/** npm's `opencode2` entry is a stub that prints a rename message and exits 1. */
+export function isOpenCodeStub(path: string): boolean {
+  return OPENCODE_LEGACY_STUB.test(resolvedBasename(path));
 }
 
-export function clearOpenCode1BinaryCache(): void {
-  resolved.clear();
-  resolvedVersions.clear();
+const resolved = new Map<string, string>();
+const scope = (location: ProjectLocation) =>
+  location.kind === "wsl" ? `wsl:${location.distro}` : location.kind;
+
+export function managedOpenCodeBinary(): string {
+  return join(homedir(), ".opencode2", "node_modules", "@opencode", "cli", "bin", "opencode.exe");
 }
 
-export async function resolveOpenCode1Binary(
+/** 2.0.0 leaves `opencode2` as a migration stub beside the real `opencode` executable. */
+export function unwrapOpenCodeBinary(path: string): string {
+  let target = path;
+  try {
+    target = realpathSync(path);
+  } catch {
+    return path;
+  }
+  if (!OPENCODE_LEGACY_STUB.test(basename(target))) return path;
+  const candidates = [
+    join(dirname(target), "opencode.exe"),
+    join(dirname(target), "node_modules", "@opencode", "cli", "bin", "opencode.exe"),
+  ];
+  return candidates.find(existsSync) ?? path;
+}
+
+function usableOpenCodeBinary(path: string | undefined): string | undefined {
+  if (!path) return undefined;
+  const unwrapped = unwrapOpenCodeBinary(path);
+  if (isOpenCodeStub(unwrapped) || isOpenCode1PackagePath(unwrapped)) return undefined;
+  return unwrapped;
+}
+
+export function cachedOpenCodeBinary(location: ProjectLocation): string | undefined {
+  const cached = resolved.get(scope(location));
+  if (cached && (location.kind === "wsl" || existsSync(cached))) return cached;
+  if (location.kind !== "wsl") {
+    const managed = usableOpenCodeBinary(
+      existsSync(managedOpenCodeBinary()) ? managedOpenCodeBinary() : undefined,
+    );
+    if (managed) return managed;
+  }
+  const direct = resolveAgentBinaryPath(location, "opencode");
+  const usableDirect = location.kind === "wsl" ? direct : usableOpenCodeBinary(direct);
+  if (usableDirect) return usableDirect;
+  const alias = resolveAgentBinaryPath(location, "opencode2");
+  return location.kind === "wsl" ? alias : usableOpenCodeBinary(alias);
+}
+
+export async function resolveOpenCodeBinary(
   location: ProjectLocation,
   signal?: AbortSignal,
+  detectionOnly = false,
 ): Promise<string | undefined> {
   const candidates: Array<string | undefined> = [];
   if (location.kind === "wsl") {
     const script = [
-      "path=$(command -v opencode 2>/dev/null || true)",
-      'if [ -z "$path" ]; then exit; fi',
-      'case "$path" in *.opencode2/*|*@opencode/cli*) exit ;; esac',
-      'printf "%s\\n" "$path"',
+      'managed="$HOME/.opencode2/node_modules/@opencode/cli/bin/opencode.exe"',
+      'if [ -x "$managed" ]; then printf "%s\\n" "$managed"; fi',
+      "command -v opencode 2>/dev/null || true",
+      "alias_path=$(command -v opencode2 2>/dev/null || true)",
+      'if [ -n "$alias_path" ]; then target=$(readlink -f "$alias_path" 2>/dev/null || printf "%s" "$alias_path"); sibling="$(dirname "$target")/opencode.exe"; if [ -x "$sibling" ]; then printf "%s\\n" "$sibling"; else case "$target" in *opencode2.cjs|*opencode2.cmd|*opencode2.ps1) ;; *) printf "%s\\n" "$alias_path" ;; esac; fi; fi',
     ].join("; ");
     const result = await readAgentCommandOutput(location, "sh", ["-c", script], {
       ...(signal ? { signal } : {}),
     });
-    const found = result.ok ? result.stdout.trim().split(/\r?\n/).at(-1) : undefined;
-    candidates.push(found?.startsWith("/mnt/") ? undefined : found);
+    if (result.ok) {
+      for (const line of result.stdout.trim().split(/\r?\n/)) {
+        const trimmed = line.trim();
+        if (trimmed && !trimmed.startsWith("/mnt/")) candidates.push(trimmed);
+      }
+    }
   } else {
     candidates.push(
+      existsSync(managedOpenCodeBinary()) ? managedOpenCodeBinary() : undefined,
       await resolveExecutablePathAsync("opencode"),
-      resolveAgentBinaryPath(location, "opencode"),
+      usableOpenCodeBinary(await resolveExecutablePathAsync("opencode2")),
     );
   }
 
+  let lastUnsupported: { path: string; version: string } | undefined;
   for (const raw of candidates) {
-    if (!raw || isOpenCode2ForeignInstallPath(raw)) continue;
-    const version = await readAgentCommandOutput(location, raw, ["--version"], {
+    const candidate = usableOpenCodeBinary(raw);
+    if (!candidate) continue;
+    const version = await readAgentCommandOutput(location, candidate, ["--version"], {
       ...(signal ? { signal } : {}),
       timeoutMs: 10_000,
     });
-    const parsed = extractSemverFromVersionOutput(version.stdout);
-    if (!version.ok || !acceptOpenCode1Binary(raw, parsed)) continue;
-    resolved.set(scope(location), raw);
-    if (parsed) resolvedVersions.set(scope(location), parsed);
-    return raw;
+    const parsed = parseOpenCodeVersion(version.stdout);
+    if (!version.ok || !parsed) continue;
+    if (!acceptOpenCodeBinary(candidate, parsed)) {
+      if (supportsOpenCodeVersion(parsed)) continue;
+      lastUnsupported = { path: candidate, version: parsed };
+      continue;
+    }
+    resolved.set(scope(location), candidate);
+    return candidate;
+  }
+  if (lastUnsupported) {
+    if (!detectionOnly) requireOpenCodeVersion(lastUnsupported.version);
+    resolved.set(scope(location), lastUnsupported.path);
+    return lastUnsupported.path;
   }
   return undefined;
 }

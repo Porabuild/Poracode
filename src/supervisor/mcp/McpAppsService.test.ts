@@ -239,4 +239,24 @@ describe("MCP Apps host custody", () => {
       404,
     );
   });
+
+  it("reuses pooled routes across threads in the same project and refcounts releases", async () => {
+    const service = new McpAppsService();
+    services.push(service);
+    const location = { kind: "posix" as const, path: process.cwd() };
+    const [first] = await service.prepare("thread-1", [fixture], location, { pooled: true });
+    const [second] = await service.prepare("thread-2", [fixture], location, { pooled: true });
+    expect(first?.transport).toEqual(second?.transport);
+    if (first?.transport.type !== "http") throw new Error("Expected HTTP");
+
+    await service.releaseThread("thread-1");
+    expect(
+      (await fetch(first.transport.url, { headers: first.transport.headers })).status,
+    ).not.toBe(404);
+
+    await service.releaseThread("thread-2");
+    expect((await fetch(first.transport.url, { headers: first.transport.headers })).status).toBe(
+      404,
+    );
+  });
 });

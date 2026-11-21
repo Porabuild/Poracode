@@ -1,98 +1,49 @@
-import type { AgentCapability, ResolvedMcpServer, PromptSegment } from "@/shared/contracts";
+import { OPENCODE_PROVIDER_KIND } from "@/shared/agents/opencode";
+import type { AgentCapability, PromptSegment } from "@/shared/contracts";
 import { inlinePromptSegmentText } from "@/shared/promptContent";
-import { EXTRACTION_PROMPT } from "@/supervisor/contextExtractor";
 import {
-  assertOneShotControlsMapped,
   bracketedPasteDirectInput,
-  resolveCheckedOneShotBuilderSelection,
-  resolveCheckedOneShotResumeSelection,
-  createKnownSessionRef,
   detectAgentInstall,
   detectProbeLocation,
+  inheritBaseSpawnEnv,
   notInstalledAgentStatus,
   shortenHomePath,
   type AgentAdapter,
   type CreateStructuredSessionInput,
-  type RunOneShotInput,
-  type TerminalStatusHint,
 } from "../base";
-import { warnIfPluginManifestMissing } from "../plugin/installerBase";
-import { buildOpenCodeArgs } from "./argv";
-import {
-  acceptOpenCode1Binary,
-  cachedOpenCode1Binary,
-  cachedOpenCode1Version,
-  resolveOpenCode1Binary,
-} from "./binary";
-import { opencodeDefaultCapabilities, opencodeDetectionSpec } from "./detection";
-import { shutdownSpawnedOpenCodeServers } from "./sdkClient";
-import { OpencodeSdkSession } from "./sdkSession";
-import {
-  installOpenCodePlugin,
-  isOpenCodePluginInstalled,
-  readBundledOpenCodePluginVersion,
-  uninstallOpenCodePlugin,
-} from "./plugin/install";
-import { buildOpenCodeMcpLaunchConfig } from "../userMcp";
-import { runOpenCodeOneShot } from "./sdkOneShot";
+import { resolveOpenCodeBinary } from "./binary";
+import { shutdownSpawnedOpenCodeServers } from "./client";
+import { manageOpenCodeCredentials } from "./credentials";
+import { opencodeDefaultCapabilities, openCodeDetectionSpec } from "./detection";
+import { readOpenCodeMcpSessionId } from "./mcp";
+import { runOpenCodeOneShot } from "./oneShot";
+import { manageOpenCodePlugins } from "./plugins";
+import { OpenCodeSession } from "./session";
 import { detectOpenCodeTerminalStatus, opencodeOscHint, opencodeOscTitleHint } from "./terminal";
-
-const OPENCODE_PLUGIN_VERSION = readBundledOpenCodePluginVersion();
-
-// Default model for one-shot calls (commit / title gen, context extraction).
-// `big-pickle` is OpenCode's free always-on house model — every other model
-// in `opencode models` requires the user to have configured a paid provider,
-// so it's the only safe out-of-the-box default. Renderer keeps its own
-// constant; the two bundles can't share runtime symbols.
-const OPENCODE_DEFAULT_ONE_SHOT_MODEL = "opencode/big-pickle";
-
-warnIfPluginManifestMissing(
-  "opencode",
-  OPENCODE_PLUGIN_VERSION,
-  "Expected at src/supervisor/agents/opencode/plugin/ (dev) or " +
-    "resources/agent-plugins/opencode/ (packaged, staged by scripts/prepare-agent-plugins.mjs).",
-);
-
-// Only allow text-derived `needs_approval` signals through while L1 is active —
-// those can race ahead of the `permission.asked` hook on slow ingress paths and
-// the cost of a duplicate transition is zero.
-function opencodeHookActiveTerminalFallback(hint: TerminalStatusHint): boolean {
-  return hint.status === "needs_approval";
-}
-
-function buildOpenCodeMcpEnv(
-  mcpServers: readonly ResolvedMcpServer[] = [],
-): Record<string, string> | undefined {
-  if (mcpServers.length === 0) return undefined;
-  const launch = buildOpenCodeMcpLaunchConfig(mcpServers);
-  return {
-    ...launch.env,
-    OPENCODE_CONFIG_CONTENT: launch.configContent,
-    ...(mcpServers.some((server) => server.id === "crossagents")
-      ? { PORACODE_OPENCODE_SESSION_ROUTING: "1" }
-      : {}),
-  };
-}
+import { buildOpenCodeTerminalLaunch } from "./terminalLaunch";
 
 export function createOpenCodeAdapter(): AgentAdapter {
   let capabilities: AgentCapability = opencodeDefaultCapabilities;
 
   return {
-    kind: opencodeDetectionSpec.kind,
-    label: opencodeDetectionSpec.label,
-    binary: opencodeDetectionSpec.binary,
+    managePlugins: manageOpenCodePlugins,
+    manageCredentials: manageOpenCodeCredentials,
+    kind: OPENCODE_PROVIDER_KIND,
+    label: openCodeDetectionSpec.label,
+    binary: openCodeDetectionSpec.binary,
+    poolsDirectoryMcp: true,
     skillSupport: {
       roots: [
         {
           id: "opencode",
-          label: opencodeDetectionSpec.label,
+          label: openCodeDetectionSpec.label,
           globalPath: ".config/opencode/skills",
           projectPath: ".opencode/skills",
           globalOverride: { env: "OPENCODE_CONFIG_DIR", path: "skills" },
         },
         {
           id: "opencode-singular",
-          label: opencodeDetectionSpec.label,
+          label: openCodeDetectionSpec.label,
           globalPath: ".config/opencode/skill",
           projectPath: ".opencode/skill",
           globalOverride: { env: "OPENCODE_CONFIG_DIR", path: "skill" },
@@ -118,60 +69,21 @@ export function createOpenCodeAdapter(): AgentAdapter {
         project: ["opencode", "opencode-singular", "agents", "claude"],
       },
     },
-    ...(opencodeDetectionSpec.update ? { update: opencodeDetectionSpec.update } : {}),
+    ...(openCodeDetectionSpec.update ? { update: openCodeDetectionSpec.update } : {}),
     get capabilities() {
       return capabilities;
     },
     spawnEnv: { wsl: { BROWSER: "/bin/true" } },
-
-    // ── CLI hook plugin support ──────────────────────────────────────────
-    pluginId: "poracode-status@opencode",
-    pluginVersion: OPENCODE_PLUGIN_VERSION,
-    minProtocolVersion: 1,
-    async isPluginSupported(ctx) {
-      // OpenCode auto-loads any `.mjs` file in its plugins dir on every
-      // launch (per https://opencode.ai/docs/plugins). No version gate, no
-      // platform restriction.
-      void ctx;
-      return true;
-    },
-    async isPluginInstalled(ctx) {
-      return isOpenCodePluginInstalled(ctx);
-    },
-    async installPlugin(ctx) {
-      // No node resolution needed — OpenCode runs the plugin under its own
-      // runtime. Missing-distro WSL contexts are caught downstream by
-      // `resolveOpenCodeWslPluginsDir → undefined`.
-      return await installOpenCodePlugin(ctx);
-    },
-    async uninstallPlugin(ctx) {
-      await uninstallOpenCodePlugin(ctx);
-    },
-    async pluginLaunchExtras() {
-      // Plugin is auto-loaded from the plugins/ directory; no CLI flag or
-      // env override is needed. PORACODE_HOOK_URL et al are injected by the
-      // cli-hook coordinator regardless of what we return.
-      return {};
-    },
+    ...inheritBaseSpawnEnv(openCodeDetectionSpec),
 
     // ── Detection ────────────────────────────────────────────────────────
     async detectInstall(ctx) {
       const location = detectProbeLocation(ctx);
-      const binary = await resolveOpenCode1Binary(location, ctx?.signal);
+      const binary = await resolveOpenCodeBinary(location, ctx?.signal, true);
       if (!binary) {
-        return notInstalledAgentStatus(opencodeDetectionSpec, opencodeDefaultCapabilities);
+        return notInstalledAgentStatus(openCodeDetectionSpec, opencodeDefaultCapabilities);
       }
-      // Binary resolution already ran `--version` to tell 1.x from 2.x; reuse
-      // that result so detection doesn't spawn the CLI a second time.
-      const knownVersion = cachedOpenCode1Version(location);
-      const status = await detectAgentInstall(ctx, {
-        ...opencodeDetectionSpec,
-        binary,
-        ...(knownVersion ? { versionProbe: async () => knownVersion } : {}),
-      });
-      if (!acceptOpenCode1Binary(status.executablePath, status.version)) {
-        return notInstalledAgentStatus(status, opencodeDefaultCapabilities);
-      }
+      const status = await detectAgentInstall(ctx, { ...openCodeDetectionSpec, binary });
       capabilities = status.capabilities;
       return status;
     },
@@ -180,58 +92,50 @@ export function createOpenCodeAdapter(): AgentAdapter {
     //
     // Session ID allocation: see `createStructuredSession` below. On a fresh
     // launch the runtime acquires the shared `opencode serve`, calls
-    // `session.create`, captures the resulting `ses_xxx` id, sets
-    // `launchOptions.resumeThreadId`, and then disposes the SDK connection
-    // (because `liveInputMode === "terminal"`).
-    // The TUI process below picks up the pre-allocated id via `--session <id>`,
-    // so the supervisor knows the providerSessionId synchronously instead of
-    // polling `opencode session list` after spawn.
+    // `session.create`, captures the resulting `ses_xxx` id into
+    // `launchOptions.resumeThreadId`, and then releases its acquisition
+    // (because `liveInputMode === "terminal"`). The TUI process below picks
+    // the pre-allocated id up via `--session <id>`.
     buildLaunchArgv(location, config, prompt, _sessionRef, launchOptions) {
-      const sessionId = launchOptions?.resumeThreadId;
-      const args = buildOpenCodeArgs(config, prompt, sessionId);
-      const env = buildOpenCodeMcpEnv(launchOptions?.mcpServers);
-      return {
-        binary: cachedOpenCode1Binary(location) ?? "opencode",
-        args,
-        ...(env ? { env } : {}),
-        preferShell: true,
-        ...(sessionId ? { sessionRef: createKnownSessionRef(sessionId) } : {}),
-      };
+      return buildOpenCodeTerminalLaunch(
+        location,
+        config,
+        prompt,
+        launchOptions?.resumeThreadId ?? _sessionRef?.providerSessionId,
+        launchOptions?.mcpServers,
+      );
     },
     buildResumeArgv(location, config, prompt, sessionRef, launchOptions) {
-      const env = buildOpenCodeMcpEnv(launchOptions?.mcpServers);
-      return {
-        binary: cachedOpenCode1Binary(location) ?? "opencode",
-        args: buildOpenCodeArgs(config, prompt, sessionRef.providerSessionId),
-        ...(env ? { env } : {}),
-        preferShell: true,
-      };
+      return buildOpenCodeTerminalLaunch(
+        location,
+        config,
+        prompt,
+        sessionRef.providerSessionId,
+        launchOptions?.mcpServers,
+      );
     },
     createInitialSessionRef() {
       return undefined;
     },
+    readMcpSessionId: readOpenCodeMcpSessionId,
 
-    // ── Structured session (SDK-backed for both modes) ──────────────────
+    // ── Structured session (V2 HTTP server for both modes) ──────────────
     //
     // Terminal mode (default): runtime calls `activate()` + `openThread()`,
     // captures the returned session id into `launchOptions.resumeThreadId`,
-    // then releases its SDK acquisition because `liveInputMode === "terminal"`.
-    // The shared runtime server stays warm; the TUI launches with `--session
-    // <id>` and resumes from SQLite. Same observable behaviour as the previous
-    // `opencode acp` allocation, just over HTTP+SDK so GUI projects share the
-    // runtime sidecar.
+    // then releases its preparation acquisition. Terminal argv acquires its
+    // own lease before that release and passes `--server` + `--session`, so the
+    // TUI keeps the same configured backend until its PTY cleanup runs.
     //
-    // GUI mode: same handle stays alive for the thread's lifetime; SSE
-    // events stream through `sdkCanonicalMapping` into chat items.
+    // GUI mode: same handle stays alive for the thread's lifetime; the shared
+    // SSE stream routes V2 events through `eventMapping` into chat items.
     async createStructuredSession(input: CreateStructuredSessionInput) {
-      // Terminal-mode resume: the TUI re-attaches via `--session <id>` from
-      // SQLite, so we don't need a live SDK session. Skip the spawn entirely.
-      const isResume = input.sessionRef !== undefined;
-      const isTerminal = input.presentationMode !== "gui";
-      if (isResume && isTerminal) return undefined;
-      return OpencodeSdkSession.create(input);
+      return OpenCodeSession.create(input);
     },
+
     shutdown: shutdownSpawnedOpenCodeServers,
+    runOneShot: runOpenCodeOneShot,
+    runTextOnlyOneShot: runOpenCodeOneShot,
 
     // ── Input ────────────────────────────────────────────────────────────
     buildDirectInput: bracketedPasteDirectInput,
@@ -245,26 +149,15 @@ export function createOpenCodeAdapter(): AgentAdapter {
       return attachmentLines ? `${restStr}\n\n${attachmentLines} ` : restStr;
     },
 
-    // OpenCode's TUI silently ignores `--prompt` when `--session <id>` is
-    // also present (verified empirically against opencode 1.14.30: the prompt
-    // text never lands in the session). Since we always pre-allocate the
-    // session id via SDK for new threads, `--session` is *always* present —
-    // so the launch-time prompt path is dead. Defer the initial prompt to the
-    // PTY: the runtime queues it as `pendingTerminalPrompt` and types it via
-    // `buildDirectInput` once the TUI is ready. Same pattern Codex uses for
-    // plan mode.
+    // Defer initial prompt to the PTY when resuming or starting with `--server` + `--session`:
+    // the runtime queues it as `pendingTerminalPrompt` and types it via `buildDirectInput`
+    // once the input box is up.
     shouldDeferPromptToTerminal() {
       return true;
     },
-    // Gate for flushing the deferred initial prompt. The runtime sets
-    // `cliHookEnvInjected = true` for any agent whose hook plugin is
-    // configured (which we are — the in-process plugin). That puts the
-    // pipeline on the hook-fast-path immediately, where the L2 idle hint we
-    // emit from `detectTerminalStatus` is bypassed. Instead, the fast path
-    // calls `isReadyForInitialPrompt(strippedData)` on every PTY chunk and
-    // only flushes the queued prompt once we say the input box is up.
-    // Match the same keybind footer the idle hint uses — it's painted only
-    // when the TUI accepts input.
+    // Gate for flushing the deferred initial prompt. Matches the keybind
+    // footer the idle hint uses — it's painted only when the TUI accepts
+    // input. Only consulted while a hook plugin is active.
     isReadyForInitialPrompt(text) {
       return /\btab\s*agents|\bctrl\+p\s*commands/i.test(text);
     },
@@ -273,65 +166,6 @@ export function createOpenCodeAdapter(): AgentAdapter {
     detectTerminalStatus: detectOpenCodeTerminalStatus,
     handleOscNotification: opencodeOscHint,
     handleOscTitle: opencodeOscTitleHint,
-    oscHintsDeferToHookPlugin: true,
-    shouldApplyTerminalStatusWhileHookActive: opencodeHookActiveTerminalFallback,
     workingSilenceTimeoutMs: null,
-
-    // ── One-shot (commit / title gen) ────────────────────────────────────
-    //
-    // Two paths:
-    //   - `runOneShot` (preferred): goes through `opencode serve` over SDK,
-    //     reusing the app-lifetime runtime server pool. Avoids one CLI
-    //     cold-start per generated commit/title/PR.
-    //   - `buildOneShotCommand` (fallback): legacy `opencode run --format
-    //     json` path. Kept so orchestrators that haven't migrated to the
-    //     SDK-first runner still work, and so we have a CLI fallback for
-    //     environments where `opencode serve` fails to start.
-    defaultOneShotModel: OPENCODE_DEFAULT_ONE_SHOT_MODEL,
-    async runOneShot(input: RunOneShotInput): Promise<string> {
-      return runOpenCodeOneShot(input);
-    },
-    buildOneShotCommand(model, effort, prompt, _location, fast, oneShotOptions) {
-      const selection = resolveCheckedOneShotBuilderSelection(
-        { model, effort, fast },
-        oneShotOptions,
-      );
-      // The legacy `opencode run` CLI maps neither effort nor Fast. The legacy
-      // default carriers stay accepted as declared-inactive so default utility
-      // selections keep flowing; a meaningful control refuses visibly instead
-      // of being silently dropped (the SDK lane maps effort onto the variant).
-      assertOneShotControlsMapped(selection, {
-        effort: { inactive: [""] },
-        fast: { inactive: [false] },
-      });
-      if (!prompt) return undefined;
-      return {
-        command: "opencode",
-        args: ["run", "--format", "json", "--model", model, prompt],
-        stdin: "",
-      };
-    },
-    buildContextExtractionCommand(sessionRef, _location, model, options) {
-      const selection = resolveCheckedOneShotResumeSelection(model, options);
-      // Same provider policy as the legacy CLI one-shot lane: only the model
-      // maps here, so meaningful effort/Fast (and any thinking/context
-      // carrier) refuse before the command is built.
-      assertOneShotControlsMapped(selection, {
-        effort: { inactive: [""] },
-        fast: { inactive: [false] },
-      });
-      return {
-        command: "opencode",
-        args: [
-          "run",
-          "--session",
-          sessionRef.providerSessionId,
-          "--model",
-          model ?? OPENCODE_DEFAULT_ONE_SHOT_MODEL,
-          EXTRACTION_PROMPT,
-        ],
-        stdin: "",
-      };
-    },
   };
 }

@@ -32,8 +32,7 @@ import {
 } from "@/renderer/components/providers/gemini/profileSettings";
 import { cursorProfileSupport } from "./CursorProfileSettings";
 import { CursorProviderSettings } from "../../../components/providers/settings/CursorProviderSettings";
-import { OPENCODE2_INSTALL_COMMANDS } from "@/renderer/components/providers/opencode2/installCommands";
-import { OpenCode2ProviderSettings } from "../../../components/providers/settings/OpenCode2ProviderSettings";
+import { OPENCODE_INSTALL_COMMANDS } from "@/renderer/components/providers/opencode/installCommands";
 import { OpenCodeProviderSettings } from "../../../components/providers/settings/OpenCodeProviderSettings";
 import { DeepSeekProviderSettings } from "@/renderer/components/providers/deepseek/DeepSeekProviderSettings";
 import { FxProviderSettings } from "@/renderer/components/providers/fx/FxProviderSettings";
@@ -285,38 +284,15 @@ export const NATIVE_AGENT_REGISTRY_ENTRIES: NativeAgentRegistryEntry[] = [
   {
     id: "opencode",
     acpRegistryAliases: [{ id: "opencode" }],
-    description: msg`First-class OpenCode integration using Poracode's native SDK runtime.`,
+    description: msg`First-class OpenCode integration with native terminal and GUI sessions.`,
     docsUrl: "https://opencode.ai/docs/",
     installCommand: (project) =>
       nativeInstallCommand(project, {
-        mac:
-          "if command -v curl >/dev/null 2>&1; then curl -fsSL https://opencode.ai/install | bash; " +
-          "elif command -v brew >/dev/null 2>&1; then brew install anomalyco/tap/opencode; " +
-          "elif command -v npm >/dev/null 2>&1; then npm install -g opencode-ai; else " +
-          MAC_MISSING_CURL_BREW_NPM_MESSAGE +
-          "; fi",
-        posix:
-          "if command -v curl >/dev/null 2>&1; then curl -fsSL https://opencode.ai/install | bash; " +
-          "elif command -v npm >/dev/null 2>&1; then npm install -g opencode-ai; else " +
-          POSIX_MISSING_CURL_NPM_MESSAGE +
-          "; fi",
-        windows:
-          "if (Get-Command npm -ErrorAction SilentlyContinue) { npm install -g opencode-ai } else { Write-Host 'No supported installer found. Install Node.js/npm first, then refresh detected agents.' }",
+        mac: OPENCODE_INSTALL_COMMANDS.posix,
+        posix: OPENCODE_INSTALL_COMMANDS.posix,
+        windows: OPENCODE_INSTALL_COMMANDS.windows,
       }),
     settingsPanel: OpenCodeProviderSettings,
-    ownsAuthUi: true,
-  },
-  {
-    id: "opencode2",
-    description: msg`Beta next-generation OpenCode runtime with native GUI sessions.`,
-    docsUrl: "https://opencode.ai/v2/docs",
-    installCommand: (project) =>
-      nativeInstallCommand(project, {
-        mac: OPENCODE2_INSTALL_COMMANDS.posix,
-        posix: OPENCODE2_INSTALL_COMMANDS.posix,
-        windows: OPENCODE2_INSTALL_COMMANDS.windows,
-      }),
-    settingsPanel: OpenCode2ProviderSettings,
     ownsAuthUi: true,
   },
   {

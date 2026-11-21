@@ -1,0 +1,121 @@
+import { awaitOpenCodeActivation } from "./readiness";
+import { readOpenCodeTerminalPackages } from "./terminalPluginConfig";
+import type {
+  AgentPluginPackage,
+  ManageAgentPluginsPayload,
+  ManageAgentPluginsResult,
+} from "@/shared/contracts";
+import { detectProbeLocation, readAgentCommandOutput } from "../base";
+import { resolveOpenCodeBinary } from "./binary";
+import { acquireOpenCodeServer } from "./client";
+import type { PluginInfo } from "./clientTypes";
+
+const operations = new Map<string, Promise<unknown>>();
+
+/** Native package entries only: local and built-in plugins cannot be removed with plugin remove. */
+export function openCodePluginPackages(plugins: PluginInfo[]): AgentPluginPackage[] {
+  return plugins.flatMap((plugin) =>
+    plugin.source.type !== "package"
+      ? []
+      : [
+          {
+            target: plugin.source.target,
+            ...(plugin.id ? { id: plugin.id } : {}),
+            ...(plugin.source.version ? { version: plugin.source.version } : {}),
+            status: plugin.state.status,
+            outdated: plugin.source.outdated === true,
+            server: plugin.features.server === true,
+            terminal: plugin.features.tui === true,
+          },
+        ],
+  );
+}
+
+export function validateOpenCodePluginTarget(target: string): string {
+  const value = target.trim();
+  // eslint-disable-next-line no-control-regex -- CLI targets must not contain control characters.
+  if (!value || value.length > 512 || value.startsWith("-") || /[\s\x00-\x1f\x7f]/.test(value))
+    throw new Error("Invalid plugin package target.");
+  return value;
+}
+
+/** Delegate config writes and package resolution to the CLI, including its separate TUI config. */
+export async function manageOpenCodePlugins(
+  input: Omit<ManageAgentPluginsPayload, "agentKind">,
+): Promise<ManageAgentPluginsResult> {
+  const key = input.env.kind === "wsl" ? `wsl:${input.env.distro}` : "native";
+  const previous = operations.get(key) ?? Promise.resolve();
+  const operation = previous
+    .catch(() => undefined)
+    .then(async () => {
+      const location = detectProbeLocation(
+        input.env.kind === "wsl"
+          ? { envKind: "wsl", wslDistro: input.env.distro }
+          : { envKind: process.platform === "win32" ? "windows" : "posix" },
+      );
+      const binary = await resolveOpenCodeBinary(location);
+      if (!binary) throw new Error("OpenCode is not installed.");
+      if (input.action === "install" || input.action === "remove") {
+        const target = validateOpenCodePluginTarget(input.target ?? "");
+        const result = await readAgentCommandOutput(
+          location,
+          binary,
+          ["plugin", input.action === "install" ? "add" : input.action, target],
+          { timeoutMs: 120_000 },
+        );
+        if (!result.ok)
+          throw new Error(
+            "OpenCode could not update the plugin. Check the package name and network connection.",
+          );
+      }
+      const acquired = await acquireOpenCodeServer({ projectLocation: location });
+      try {
+        const options = { signal: AbortSignal.timeout(60_000) };
+        await awaitOpenCodeActivation(acquired.client, undefined, options);
+        if (input.action === "update")
+          await acquired.client.plugin.update(
+            { targets: [validateOpenCodePluginTarget(input.target ?? "")] },
+            options,
+          );
+        const readPackages = async () => {
+          const result =
+            input.action === "check"
+              ? await acquired.client.plugin.check(undefined, options)
+              : await acquired.client.plugin.list(undefined, options);
+          const packages = openCodePluginPackages(result.data);
+          const terminal = await readOpenCodeTerminalPackages(location, binary);
+          return [
+            ...packages,
+            ...terminal.filter(
+              (pkg) => !packages.some((existing) => existing.target === pkg.target),
+            ),
+          ];
+        };
+        let packages = await readPackages();
+        if (input.action === "install" || input.action === "remove") {
+          // Config watching is asynchronous even after the native CLI has exited.
+          // Keep the operation pending until this location sees the changed package.
+          const expected = input.action === "install";
+          const target = validateOpenCodePluginTarget(input.target ?? "");
+          const deadline = Date.now() + 10_000;
+          while (packages.some((pkg) => pkg.target === target) !== expected) {
+            if (Date.now() >= deadline)
+              throw new Error(
+                "Plugin configuration changed but its catalog has not refreshed. Refresh the plugin list.",
+              );
+            await new Promise((resolve) => setTimeout(resolve, 250));
+            packages = await readPackages();
+          }
+        }
+        return { packages };
+      } finally {
+        await acquired.dispose();
+      }
+    });
+  operations.set(key, operation);
+  try {
+    return await operation;
+  } finally {
+    if (operations.get(key) === operation) operations.delete(key);
+  }
+}

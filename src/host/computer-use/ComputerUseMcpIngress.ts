@@ -11,6 +11,7 @@ import {
 import type { ComputerUseDriver, ComputerUseWindow } from "./mcp/types";
 import {
   StreamableHttpMcpIngress,
+  type PooledMcpIdentityResolver,
   type StreamableHttpMcpIngressInfo,
 } from "../mcp/StreamableHttpMcpIngress";
 import {
@@ -48,6 +49,7 @@ export type ComputerUseActivityEvent =
 
 export interface ComputerUseMcpIngressOptions {
   vision?: AgentVisionService;
+  resolvePooledIdentity?: PooledMcpIdentityResolver;
   driver?: ComputerUseDriver;
   driverOptions?: CreateComputerUseDriverOptions;
   onActivity?: (event: ComputerUseActivityEvent) => void;
@@ -103,6 +105,10 @@ export class ComputerUseMcpIngress {
       // must never be reachable off the machine — bind loopback only (unlike the
       // browser ingress, which binds 0.0.0.0 for WSL reachability).
       bindHost: "127.0.0.1",
+      serverId: "computer-use",
+      ...(options.resolvePooledIdentity
+        ? { resolvePooledIdentity: options.resolvePooledIdentity }
+        : {}),
       serverInfo: { name: "computer_use", version: "0.2.0" },
       instructions: COMPUTER_USE_MCP_INSTRUCTIONS,
       tools: TOOLS,
@@ -112,6 +118,10 @@ export class ComputerUseMcpIngress {
       formatToolResult: (name, result) =>
         formatToolResult(name, result, { notes: this.notesFor(result) }),
     });
+  }
+
+  setResolvePooledIdentity(resolver: PooledMcpIdentityResolver | undefined): void {
+    this.ingress.setResolvePooledIdentity(resolver);
   }
 
   start(): Promise<ComputerUseMcpIngressInfo> {

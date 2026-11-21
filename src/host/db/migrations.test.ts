@@ -86,8 +86,9 @@ describe("database migration registry", () => {
       [76, "poracode memory"],
       [77, "memory cross-env sync"],
       [78, "guarded project notes"],
+      [79, "adopt OpenCode provider"],
     ]);
-    expect(LATEST_SCHEMA_VERSION).toBe(78);
+    expect(LATEST_SCHEMA_VERSION).toBe(79);
     expect(() => validateMigrationRegistry()).not.toThrow();
   });
 
@@ -125,8 +126,8 @@ describe("database migration registry", () => {
     // instead of silently defaulting to rollback-compatible.
     expect(MIGRATION_ROLLBACK_CLASSIFICATION_REQUIRED_FROM).toBe(48);
     expect(describeMigrationRollbackPolicy().at(-1)).toEqual({
-      version: 78,
-      name: "guarded project notes",
+      version: 79,
+      name: "adopt OpenCode provider",
       rollback: "forward-only",
     });
     // Migrations below the floor keep their reviewed defaults.

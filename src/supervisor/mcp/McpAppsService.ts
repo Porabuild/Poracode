@@ -28,7 +28,10 @@ import { createUpstreamTransport, startFilterProxy, type FilterProxy } from "./m
 interface Route {
   id: string;
   token: string;
-  threadId: string;
+  pooled: boolean;
+  host: string;
+  key: string;
+  threadIds: Set<string>;
   server: McpServer;
   location: ProjectLocation;
   sessions: Map<string, AppConnection>;
@@ -73,6 +76,7 @@ export class McpAppsService {
     threadId: string,
     servers: McpServer[],
     location: ProjectLocation,
+    options?: { pooled?: boolean },
   ): Promise<Array<McpServer & Pick<ResolvedMcpServer, "directTransport">>> {
     if (this.stopping) throw new Error("MCP Apps service is shutting down.");
     await this.releaseThread(threadId);
@@ -85,16 +89,28 @@ export class McpAppsService {
     const port = await this.start();
     if (this.stopping) throw new Error("MCP Apps service is shutting down.");
     const host = access.kind === "gateway" ? access.ip : "127.0.0.1";
+    const pooled = options?.pooled === true;
     return servers.map((server) => {
-      const route: Route = {
-        id: randomUUID(),
-        token: randomBytes(32).toString("hex"),
-        threadId,
-        server,
-        location,
-        sessions: new Map(),
-      };
-      this.routes.set(route.id, route);
+      const key = JSON.stringify([host, server, location]);
+      let route = pooled
+        ? [...this.routes.values()].find((existing) => existing.pooled && existing.key === key)
+        : undefined;
+      if (route) {
+        route.threadIds.add(threadId);
+      } else {
+        route = {
+          id: randomUUID(),
+          token: randomBytes(32).toString("hex"),
+          pooled,
+          host,
+          key,
+          threadIds: new Set([threadId]),
+          server,
+          location,
+          sessions: new Map(),
+        };
+        this.routes.set(route.id, route);
+      }
       const transport: McpHttpTransport = {
         type: "http",
         url: `http://${host.includes(":") ? `[${host}]` : host}:${port}/${route.id}/mcp`,
@@ -114,7 +130,7 @@ export class McpAppsService {
     if (
       this.stopping ||
       !connection ||
-      connection.route.threadId !== payload.threadId ||
+      !connection.route.threadIds.has(payload.threadId) ||
       connection.apps.get(payload.app.toolName) !== payload.app.resourceUri
     )
       throw new Error("MCP App session is unavailable.");
@@ -170,7 +186,7 @@ export class McpAppsService {
     const context: string[] = [];
     let bytes = 0;
     for (const connection of this.sessions.values()) {
-      if (connection.route.threadId !== threadId) continue;
+      if (!connection.route.threadIds.has(threadId)) continue;
       for (const [tool, value] of connection.context) {
         const entry = JSON.stringify({
           server: connection.route.server.name,
@@ -189,7 +205,8 @@ export class McpAppsService {
   async releaseThread(threadId: string): Promise<void> {
     const closing: Promise<unknown>[] = [];
     for (const route of this.routes.values()) {
-      if (route.threadId !== threadId) continue;
+      if (!route.threadIds.delete(threadId)) continue;
+      if (route.threadIds.size > 0) continue;
       this.routes.delete(route.id);
       for (const connection of route.sessions.values()) closing.push(this.retire(connection));
     }

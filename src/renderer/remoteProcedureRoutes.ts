@@ -267,6 +267,8 @@ export const NON_ROUTER_PROJECT_PROCEDURES = {
   getNativeMcpSetup: "local-shell: reads this machine's CLI MCP config files",
   applyNativeMcpSetup: "local-shell: rewrites this machine's CLI MCP config files",
   reloadAgentMcpServers: "local-shell: reloads CLI servers registered on this machine",
+  resolveMcpSessionIdentity:
+    "local-shell: resolves a pooled provider MCP session back to its live thread and policy on this host",
 
   // Cross-agent routing and memory — this device's config
   getCrossagentRouting: "local-shell: this device's cross-agent routing config",

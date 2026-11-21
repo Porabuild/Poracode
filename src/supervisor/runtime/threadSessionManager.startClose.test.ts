@@ -1796,3 +1796,59 @@ it("wraps only genuine pre-runtime IPC launch failures without cross-attempt lea
     .catch((error: unknown) => error);
   expect(unwrapConfirmedIpcThreadLaunchFailure(unconfirmed).confirmedLaunchFailure).toBe(false);
 });
+
+describe("ThreadSessionManager resolveMcpSessionIdentity", () => {
+  it("resolves a pooled provider session to its thread and gates by server toggle and disabled tools", async () => {
+    const structuredSession = createStructuredSession(Promise.resolve());
+    const baseAdapter = createAdapter("codex", structuredSession);
+    const adapter: AgentAdapter = {
+      ...baseAdapter,
+      capabilities: {
+        ...baseAdapter.capabilities,
+        crossagentMcpRouting: "provider-session",
+        presentationMode: "gui",
+        presentationModes: ["gui"],
+      },
+      readMcpSessionId: (meta) =>
+        typeof meta["ai.opencode/sessionID"] === "string"
+          ? meta["ai.opencode/sessionID"]
+          : undefined,
+    };
+    const manager = createManager("codex", adapter);
+    await manager.startThreadForIpc({
+      threadId: "pooled-thread",
+      agentKind: "codex",
+      projectLocation: { kind: "posix", path: process.cwd() },
+      config: { model: "gpt-5", browserMcp: true, chromeMcp: false },
+      prompt: "Inspect page title",
+      initialSize: { cols: 80, rows: 24 },
+      presentationMode: "gui",
+      disabledBuiltInMcpTools: { browser: ["browser_click"] },
+    });
+
+    await expect(
+      manager.resolveMcpSessionIdentity({
+        metadata: { "ai.opencode/sessionID": "ses_test" },
+        serverId: "browser",
+      }),
+    ).resolves.toEqual({
+      threadId: "pooled-thread",
+      title: "Inspect page title",
+      disabledTools: ["browser_click"],
+    });
+
+    await expect(
+      manager.resolveMcpSessionIdentity({
+        metadata: { "ai.opencode/sessionID": "ses_test" },
+        serverId: "chrome",
+      }),
+    ).resolves.toBeNull();
+
+    await expect(
+      manager.resolveMcpSessionIdentity({
+        metadata: { "ai.opencode/sessionID": "unknown" },
+        serverId: "browser",
+      }),
+    ).resolves.toBeNull();
+  });
+});

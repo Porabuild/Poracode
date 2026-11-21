@@ -1035,3 +1035,189 @@ describe.each(["computerUseLockedUse", "computerUseLockedUseDimDisplay"] as cons
     expect(normalizeSharedSettings({ ...defaultSharedSettings, [key]: "yes" })[key]).toBe(false);
   });
 });
+
+describe("opencode2 -> opencode settings migration", () => {
+  it("migrates legacy opencode2 settings across configs, preferences, orders, crews, and selections", () => {
+    const legacySelectionBinding = {
+      version: 1 as const,
+      kind: "family-member" as const,
+      owner: { agentKind: "opencode2", presentationMode: "gui" as const },
+      model: "opencode-go/deepseek-v4.1-flash",
+      inertValues: { effort: "", fast: false },
+    };
+    const migrated = normalizeSharedSettings({
+      providerConfigs: {
+        opencode: { model: "opencode/big-pickle" },
+        opencode2: {
+          model: "opencode-go/deepseek-v4.1-flash",
+          selectionBinding: legacySelectionBinding,
+        },
+      },
+      providerModelPreferences: {
+        opencode: { "opencode/big-pickle": { effort: "low" } },
+        opencode2: { "opencode-go/deepseek-v4.1-flash": { effort: "high" } },
+      },
+      lastPresentationModeByAgent: { opencode: "terminal", opencode2: "gui" },
+      agentSettings: { opencode: { mcpServers: "{}" }, opencode2: {} },
+      hiddenModels: { opencode: ["old-hidden"], opencode2: ["v2-hidden"] },
+      crossagentHiddenModels: { opencode2: ["ca-hidden"] },
+      providerOrder: ["claude", "opencode", "codex", "opencode2"],
+      disabledAgents: ["opencode"],
+      crossagentPausedProviders: ["opencode"],
+      favoriteModels: [
+        {
+          agentKind: "opencode2",
+          modelId: "opencode-go/deepseek-v4.1-flash",
+          presentationMode: "gui",
+          lastUsedAt: 10,
+        },
+        {
+          agentKind: "opencode",
+          modelId: "opencode-go/deepseek-v4.1-flash",
+          presentationMode: "gui",
+          lastUsedAt: 5,
+        },
+      ],
+      recentModels: [
+        { agentKind: "opencode2", modelId: "opencode-go/kimi-k2.5", presentationMode: "terminal" },
+      ],
+      agentSelectionUsage: [
+        { agentKind: "opencode2", modelId: "opencode-go/kimi-k2.5", count: 3, lastUsedAt: 100 },
+      ],
+      crossagentSelectionUsage: [
+        { agentKind: "opencode2", modelId: "opencode-go/kimi-k2.5", count: 2, lastUsedAt: 90 },
+      ],
+      crossagentRoutingOverrides: [
+        {
+          tags: ["review"],
+          agentKind: "opencode2",
+          fallbacks: [{ agentKind: "opencode2", modelId: "opencode/big-pickle" }],
+          updatedAt: 10,
+        },
+      ],
+      crews: [
+        {
+          id: "c1",
+          name: "Crew",
+          lead: { agentKind: "opencode2", model: "opencode-go/deepseek-v4.1-flash" },
+          policy: "crew-only",
+          roles: [
+            {
+              id: "r1",
+              label: "Role",
+              selection: { agentKind: "opencode2", model: "opencode-go/kimi-k2.5" },
+              fallbacks: [{ agentKind: "opencode2", model: "opencode/big-pickle" }],
+            },
+          ],
+        },
+      ],
+      wslCrews: {
+        Ubuntu: [
+          {
+            id: "c2",
+            name: "WSL Crew",
+            lead: { agentKind: "opencode2", model: "opencode-go/deepseek-v4.1-flash" },
+            policy: "crew-only",
+            roles: [
+              {
+                id: "r1",
+                label: "Role",
+                selection: { agentKind: "opencode2", model: "opencode-go/kimi-k2.5" },
+              },
+            ],
+          },
+        ],
+      },
+      commitGenProvider: "opencode2",
+      commitGenSelection: {
+        model: "opencode-go/deepseek-v4.1-flash",
+        selectionBinding: legacySelectionBinding,
+      },
+      titleGenProvider: "opencode2",
+      conflictResolverProvider: "opencode2",
+      experimentJudgeProvider: "opencode2",
+      wslCommitGenProvider: "opencode2",
+      wslTitleGenProvider: "opencode2",
+      wslConflictResolverProvider: "opencode2",
+      machineSettings: {
+        local: {
+          providerOrder: ["opencode", "opencode2", "claude"],
+          disabledAgents: ["opencode"],
+          hiddenModels: { opencode2: ["local-hidden"] },
+          agentSettings: { opencode: { a: "1" }, opencode2: { b: "2" } },
+        },
+      },
+    });
+
+    expect(migrated.providerConfigs.opencode2).toBeUndefined();
+    expect(migrated.providerConfigs.opencode).toEqual({
+      model: "opencode-go/deepseek-v4.1-flash",
+      selectionBinding: {
+        ...legacySelectionBinding,
+        owner: { agentKind: "opencode", presentationMode: "gui" },
+      },
+    });
+    expect(migrated.providerModelPreferences.opencode).toEqual({
+      "opencode/big-pickle": { effort: "low" },
+      "opencode-go/deepseek-v4.1-flash": { effort: "high" },
+    });
+    expect(migrated.lastPresentationModeByAgent.opencode).toBe("gui");
+    expect(migrated.agentSettings.opencode).toEqual({});
+    expect(migrated.hiddenModels.opencode).toEqual(["old-hidden", "v2-hidden"]);
+    expect(migrated.crossagentHiddenModels.opencode).toEqual(["ca-hidden"]);
+    expect(migrated.providerOrder).toEqual(["claude", "codex", "opencode"]);
+    expect(migrated.disabledAgents).toEqual([]);
+    expect(migrated.crossagentPausedProviders).toEqual([]);
+    expect(migrated.favoriteModels).toEqual([
+      {
+        agentKind: "opencode",
+        modelId: "opencode-go/deepseek-v4.1-flash",
+        presentationMode: "gui",
+        lastUsedAt: 10,
+      },
+    ]);
+    expect(migrated.recentModels[0]?.agentKind).toBe("opencode");
+    expect(migrated.agentSelectionUsage[0]?.agentKind).toBe("opencode");
+    expect(migrated.crossagentSelectionUsage[0]?.agentKind).toBe("opencode");
+    expect(migrated.crossagentRoutingOverrides[0]).toMatchObject({
+      agentKind: "opencode",
+      fallbacks: [{ agentKind: "opencode", modelId: "opencode/big-pickle" }],
+    });
+    expect(migrated.crews[0]?.lead.agentKind).toBe("opencode");
+    expect(migrated.crews[0]?.roles[0]?.selection.agentKind).toBe("opencode");
+    expect(migrated.crews[0]?.roles[0]?.fallbacks?.[0]?.agentKind).toBe("opencode");
+    expect(migrated.wslCrews.Ubuntu?.[0]?.lead.agentKind).toBe("opencode");
+    expect(migrated.commitGenProvider).toBe("opencode");
+    expect(migrated.commitGenSelection?.selectionBinding?.owner.agentKind).toBe("opencode");
+    expect(migrated.titleGenProvider).toBe("opencode");
+    expect(migrated.conflictResolverProvider).toBe("opencode");
+    expect(migrated.experimentJudgeProvider).toBe("opencode");
+    expect(migrated.wslCommitGenProvider).toBe("opencode");
+    expect(migrated.wslTitleGenProvider).toBe("opencode");
+    expect(migrated.wslConflictResolverProvider).toBe("opencode");
+    expect(migrated.machineSettings.local).toEqual({
+      providerOrder: ["opencode", "claude"],
+      disabledAgents: [],
+      hiddenModels: { opencode: ["local-hidden"] },
+      agentSettings: { opencode: { b: "2" } },
+    });
+  });
+
+  it("preserves an explicit opencode2 disable and leaves standalone opencode disables untouched", () => {
+    expect(
+      normalizeSharedSettings({
+        disabledAgents: ["opencode", "opencode2"],
+        crossagentPausedProviders: ["opencode2"],
+      }),
+    ).toMatchObject({
+      disabledAgents: ["opencode"],
+      crossagentPausedProviders: ["opencode"],
+    });
+
+    expect(
+      normalizeSharedSettings({
+        disabledAgents: ["opencode"],
+      }).disabledAgents,
+    ).toEqual(["opencode"]);
+  });
+});

@@ -44,7 +44,7 @@ export function scanModuleIds(code) {
       return;
     }
     // Production minification rewrites literal dynamic-import specifiers to
-    // no-substitution templates: import(`@opencode-ai/sdk/v2/client`).
+    // no-substitution templates: import(`@opencode/client`).
     if (
       token?.type.label === "`" &&
       tokens[index + 1]?.type.label === "template" &&

@@ -44,7 +44,7 @@ describe("supportsOneShot capability", () => {
       .filter((adapter) => adapter.capabilities.supportsTextOnlyOneShot === true)
       .map((adapter) => adapter.kind)
       .sort();
-    expect(supported).toEqual(["claude", "opencode2", "pi"]);
+    expect(supported).toEqual(["claude", "opencode", "pi"]);
   });
 
   it("marks every first-class adapter as one-shot capable", () => {

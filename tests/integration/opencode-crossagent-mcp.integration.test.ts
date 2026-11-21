@@ -10,7 +10,7 @@ import {
   acquireOpenCodeServer,
   resolveOpenCodeSessionDirectory,
   shutdownSpawnedOpenCodeServers,
-} from "@/supervisor/agents/opencode/sdkClient";
+} from "@/supervisor/agents/opencode/client";
 import {
   CROSSAGENT_PROVIDER_SESSION_ID_ARG,
   CrossagentMcpIngress,
@@ -104,17 +104,17 @@ describe("opencode hosts Crossagents MCP on its shared server (live)", () => {
         [second, secondLocation],
       ] as const) {
         const directory = resolveOpenCodeSessionDirectory(location);
-        const result = await acquired.client.mcp.status({ directory });
-        const servers = (result.data ?? {}) as Record<string, { status: string }>;
-        expect(servers.crossagents?.status).toBe("connected");
+        const result = await acquired.client.mcp.list({ location: { directory } });
+        const crossagents = result.data.find((server) => server.name === "crossagents");
+        expect(crossagents?.status.status).toBe("connected");
       }
 
       const directory = resolveOpenCodeSessionDirectory(firstLocation);
       const created = await first.client.session.create({
-        directory,
+        location: { directory },
         title: "poracode/crossagents-shared-test",
       });
-      const providerSessionId = created.data?.id;
+      const providerSessionId = created.id;
       if (!providerSessionId) throw new Error("opencode session.create returned no id");
       providerSessions.set(providerSessionId, PARENT_THREAD_ID);
 

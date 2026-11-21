@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { DiagnosticError } from "@/shared/diagnostics/sentryPolicy";
-import { OpenCodeReadinessTimeoutError } from "../../agents/opencode/sdkServer";
+import { OpenCodeReadinessTimeoutError } from "../../agents/opencode/server";
 import type { SessionRuntime } from "../sessionTypes";
 
 const captureSupervisorException = vi.hoisted(() =>

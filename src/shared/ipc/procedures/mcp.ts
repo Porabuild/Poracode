@@ -53,6 +53,23 @@ export type ConfirmCrossagentRoutingOverridePayload = z.infer<
   typeof confirmCrossagentRoutingOverridePayloadSchema
 >;
 
+export const resolveMcpSessionIdentityPayloadSchema = z.object({
+  metadata: z.record(z.string(), z.unknown()),
+  serverId: z.string().optional(),
+});
+export type ResolveMcpSessionIdentityPayload = z.infer<
+  typeof resolveMcpSessionIdentityPayloadSchema
+>;
+
+export const resolveMcpSessionIdentityResultSchema = z
+  .object({
+    threadId: z.string(),
+    title: z.string().optional(),
+    disabledTools: z.array(z.string()).optional(),
+  })
+  .nullable();
+export type ResolveMcpSessionIdentityResult = z.infer<typeof resolveMcpSessionIdentityResultSchema>;
+
 export const mcpProcedures = {
   controlMcpApp: definePayloadProcedure<ControlMcpAppPayload, ControlMcpAppResult, "supervisor">(
     "controlMcpApp",
@@ -88,6 +105,16 @@ export const mcpProcedures = {
     "confirmCrossagentRoutingOverride",
     "supervisor",
     confirmCrossagentRoutingOverridePayloadSchema,
+  ),
+  resolveMcpSessionIdentity: definePayloadProcedure<
+    ResolveMcpSessionIdentityPayload,
+    ResolveMcpSessionIdentityResult,
+    "supervisor"
+  >(
+    "resolveMcpSessionIdentity",
+    "supervisor",
+    resolveMcpSessionIdentityPayloadSchema,
+    resolveMcpSessionIdentityResultSchema,
   ),
   discoverExternalMcpServers: definePayloadProcedure<
     DiscoverExternalMcpServersPayload,

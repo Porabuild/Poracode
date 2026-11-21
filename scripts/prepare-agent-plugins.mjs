@@ -13,10 +13,9 @@
  *
  * Provider assets are discovered from
  * `src/supervisor/agents/<kind>/plugin/`: a directory participates when it
- * contains `plugin.json`, and must contain exactly one supported runtime asset
- * (`forward.mjs`, or OpenCode's in-process `poracode-status.mjs`). This keeps
- * packaging registration beside the provider instead of duplicating a list in
- * this script.
+ * contains `plugin.json`, and must contain the supported runtime asset
+ * (`forward.mjs`). This keeps packaging registration beside the provider
+ * instead of duplicating a list in this script.
  *
  * Plus a shared forwarder runtime under `_runtime/poracode-hook-runtime.mjs`
  * that's deployed next to each `forward.mjs` at install time. Single source

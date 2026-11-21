@@ -108,7 +108,7 @@ export function normalizeRows(raw: { createdMs?: unknown; cost?: unknown }[]): O
 }
 
 /**
- * Read OpenCode 2's active Go key from its native credential table, or the
+ * Read OpenCode's active Go key from its native credential table, or the
  * legacy `auth.json` when no native credential store exists. Never resurrect
  * a stale JSON key after the native account has been removed or switched.
  */

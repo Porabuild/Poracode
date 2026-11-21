@@ -1,46 +1,38 @@
-import { readFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import { stripAnsi } from "@/shared/ansi";
-import {
-  type AgentSlashCommand,
-  compactAgentProviderMetadata,
-  type AgentCapability,
-  type AgentConnectedProvider,
-  type ProjectLocation,
-} from "@/shared/contracts";
+import { OPENCODE_PROVIDER_KIND } from "@/shared/agents/opencode";
+import type { AgentCapability, AgentSlashCommand, ProjectLocation } from "@/shared/contracts";
 import { sortEffortsByCanonicalOrder } from "@/shared/effortOrder";
-import {
-  configFileAuthProbe,
-  readAgentCommandOutput,
-  type DetectionSpec,
-  type StatusProbeResult,
-} from "../base";
+import { configFileAuthProbe, readAgentCommandOutput, type DetectionSpec } from "../base";
+import { quotePosixShellArg, quotePowerShellLiteral } from "../base/shellBasics";
+import type { StatusProbeResult } from "../base/types";
 import { buildContextSizeCapabilities } from "../contextWindowLabel";
-import { getAgentProbeCwd } from "../probeCwd";
-import { probeOpenCodeInventoryViaSdk, type OpenCodeSdkInventory } from "./sdkProbe";
+import { OPENCODE_MIN_VERSION, parseOpenCodeVersion, supportsOpenCodeVersion } from "./binary";
+import { availableOpenCodeCatalog } from "./catalogAvailability";
+import { acquireOpenCodeServer, resolveOpenCodeSessionDirectory } from "./client";
+import { mapOpenCodeAgents, mapOpenCodeCommands, mapOpenCodeSkills } from "./commands";
+import {
+  buildOpenCodeStatusFromIntegrations,
+  readOpenCodeIntegrations,
+  readOpenCodeLegacyProviders,
+  type OpenCodeInventoryIntegration,
+} from "./credentials";
+import { awaitOpenCodeActivation } from "./readiness";
 
-/**
- * Minimum OpenCode CLI version we can talk to over the SDK. 1.14.19 is the
- * first build that ships the v2 client surface we depend on (provider.list,
- * app.agents, session.promptAsync with `agent`/`variant`). Older binaries
- * silently miss fields and we crash deserialising responses.
- */
-export const OPENCODE_MIN_VERSION = "1.14.19";
-
-// Per-model default — preferred when the model exposes it, falling back to
-// the highest-precedence available variant. Mirrors how Claude defaults to
-// `high`; OpenCode defaults to `medium` because several Zen models (GPT-5.5,
-// Sonnet) make `medium` their lowest paid-effort tier.
-const OPENCODE_PREFERRED_DEFAULT_EFFORT = "medium";
+// Provider default for the default model's effort ladder. OpenCode Go's
+// deepseek-v4.1-flash ships `low`/`high`/`max` and OpenCode's own default is
+// the strongest tier.
+const OPENCODE_PREFERRED_DEFAULT_EFFORT = "max";
 
 export const opencodeDefaultCapabilities: AgentCapability = {
   models: [],
   efforts: [],
   modelEfforts: {},
-  // OpenCode exposes two built-in agents: `build` (default) and `plan`. The
-  // SDK accepts an `agent` field on `prompt_async`; the renderer's Plan toggle
-  // flips `ThreadConfig.mode` and the SDK session translates "plan" → agent.
+  // OpenCode exposes the built-in `build` (default) and `plan` agents. The
+  // HTTP API accepts `session.switchAgent`; the renderer's Plan toggle
+  // flips `ThreadConfig.mode` and the structured session applies it before
+  // submitting a prompt. `plan` is only advertised once the catalog confirms the agent
+  // exists and is user-visible.
   modes: ["agent", "plan"],
   approvalPolicies: [
     { id: "default", label: "Default" },
@@ -49,369 +41,266 @@ export const opencodeDefaultCapabilities: AgentCapability = {
   sandboxModes: [],
   supportsResume: true,
   supportsOneShot: true,
-  utilityRank: 70,
+  utilityRank: 71,
+  supportsTextOnlyOneShot: true,
+  reportsSkillCatalog: true,
   supportsDirectInput: true,
   liveInputMode: "terminal",
   presentationMode: "terminal",
-  // GUI presentation routes through `OpencodeSdkSession` (long-lived
-  // `opencode serve` + SDK SSE stream); terminal stays the default and uses
-  // the same SDK helper for one-shot session-id allocation.
+  // GUI presentation runs on the V2 HTTP server (long-lived `opencode serve`
+  // + SSE stream); terminal stays the default and reuses the same pooled
+  // server for session-id allocation.
   presentationModes: ["terminal", "gui"],
   defaultApprovalPolicy: "yolo",
   bypassPermissions: { approvalPolicy: "yolo" },
-  // MCP is provider-level for OpenCode: the composer shows the effective set
-  // read-only, while changes stay on the provider settings page.
-  // built-in server flags come from the OpenCode settings page
-  // (`agentSettings.opencode`) at launch. OpenCode applies that set to each
-  // project directory inside the shared runtime server instead of hosting
-  // per-thread MCP credentials.
-  mcpScope: { terminal: "none", gui: "none" },
-  mcpConfigSource: "agentSettings",
-  agentSettingsDefaults: { crossagentMcp: true },
-  // The installed OpenCode plugin injects the trusted provider session id
-  // into Crossagents calls, allowing every directory/session in the pooled
-  // server to share one MCP credential without losing parent-thread routing.
+  // Dynamic per-thread MCP toggles: enabled servers are registered on the
+  // pooled directory client via mcp.add / mcp.remove and isolated per session
+  // using session permissions + _meta["ai.opencode/sessionID"].
+  mcpScope: { terminal: "launch", gui: "always" },
+  // Crossagents calls from pooled sessions are routed by the trusted
+  // provider session id, so every directory/session shares one MCP credential.
   crossagentMcpRouting: "provider-session",
   settingDefs: [],
 };
 
 /**
- * OpenCode stores its credentials in `~/.local/share/opencode/auth.json`
- * after `opencode auth login`. Existence is good enough as an "authenticated"
- * signal — the host can't validate the token without spending a request.
+ * OpenCode credentials live in `~/.local/share/opencode/auth.json` after
+ * `opencode auth login`. Existence is good enough as an "authenticated" signal
+ * — the host can't validate the token without spending a request.
  */
 function opencodeNativeAuthPath(): string {
   return join(homedir(), ".local", "share", "opencode", "auth.json");
 }
 
-// `opencode models --verbose` interleaves `provider/model` headers with
-// pretty-printed JSON for each model. We split on header lines (column-0,
-// non-`{}`, matching the `provider/model` shape) and parse each block to pull
-// out the `variants` keys — those are the OpenCode "model variant" names that
-// `--variant` (CLI) and `prompt_async.variant` (SDK) accept and that we
-// surface as effort options in the composer.
-const OPENCODE_MODEL_HEADER_RE = /^[a-z0-9][a-z0-9_-]*\/[a-z0-9][a-z0-9_.-]*$/i;
-
-interface OpenCodeProbedModel {
+/** Per-model entry from the V2 catalog, normalised for the capability builder. */
+export interface OpenCodeInventoryModel {
+  /** Composite id the rest of Poracode keys models by: `${providerID}/${id}`. */
   id: string;
+  /** Server-supplied display name; falls back to the composite id when empty. */
+  label: string;
   variants: string[];
   contextLimit?: number;
 }
 
-/**
- * Compare two `x.y.z` semver strings. Returns -1 / 0 / 1 like a normal sort
- * comparator. Pre-release suffixes (`-alpha.1`) are ignored — they only affect
- * tie-breakers between the same `x.y.z`, which we don't care about for a
- * minimum-version gate. Non-numeric segments compare as zero so a malformed
- * "1.14.x" stays less than "1.14.19" without throwing.
- */
-export function compareOpencodeSemver(left: string, right: string): number {
-  const parse = (input: string): number[] => {
-    const core = input.split(/[-+]/, 1)[0] ?? input;
-    return core.split(".").map((segment) => {
-      const numeric = Number.parseInt(segment, 10);
-      return Number.isFinite(numeric) ? numeric : 0;
-    });
-  };
-  const a = parse(left);
-  const b = parse(right);
-  const max = Math.max(a.length, b.length);
-  for (let i = 0; i < max; i += 1) {
-    const ai = a[i] ?? 0;
-    const bi = b[i] ?? 0;
-    if (ai !== bi) return ai < bi ? -1 : 1;
+/** Per-provider entry from the V2 provider catalog. */
+export interface OpenCodeInventoryProvider {
+  id: string;
+  name: string;
+}
+
+/** Per-agent entry from the V2 agent catalog. */
+export interface OpenCodeInventoryAgent {
+  id: string;
+  mode: "primary" | "subagent" | "all";
+  hidden: boolean;
+}
+
+/** Aggregate catalog inventory returned by the V2 probe. */
+export interface OpenCodeInventory {
+  models: OpenCodeInventoryModel[];
+  commands?: AgentSlashCommand[];
+  providers: OpenCodeInventoryProvider[];
+  /**
+   * Upstream AI providers and the credentials stored for them. OpenCode
+   * authenticates per provider, so this — not the provider catalog, which also
+   * lists auto-activated providers — is what says who is signed in.
+   */
+  integrations: OpenCodeInventoryIntegration[];
+  agents: OpenCodeInventoryAgent[];
+  /** Server-configured default model, when the catalog reports one. */
+  defaultModel?: { providerID: string; id: string } | undefined;
+}
+
+function defaultEffortFor(ordered: readonly string[]): { defaultEffort?: string } {
+  if (ordered.includes(OPENCODE_PREFERRED_DEFAULT_EFFORT)) {
+    return { defaultEffort: OPENCODE_PREFERRED_DEFAULT_EFFORT };
   }
-  return 0;
-}
-
-interface OpenCodeCommandLike {
-  name?: string;
-  description?: string;
-  hints?: string[];
-  source?: string;
-  template?: string;
-}
-
-export function mapOpenCodeSlashCommands(
-  commands: readonly OpenCodeCommandLike[],
-): AgentSlashCommand[] {
-  return commands.flatMap((command) => {
-    const id = command.name?.trim();
-    if (!id) return [];
-    const description = command.description?.trim();
-    const argumentHint = command.hints
-      ?.map((hint) => hint.trim())
-      .filter(Boolean)
-      .join(" ");
-    return [
-      {
-        id,
-        label: description ? `${id} — ${description}` : id,
-        ...(description ? { description } : {}),
-        ...(argumentHint ? { argumentHint } : {}),
-      },
-    ];
-  });
-}
-
-export function parseOpenCodeVerboseModels(stdout: string): OpenCodeProbedModel[] {
-  const lines = stdout.split(/\r?\n/g);
-  const entries: { id: string; jsonLines: string[] }[] = [];
-  let currentId: string | undefined;
-  let buf: string[] = [];
-  for (const line of lines) {
-    if (OPENCODE_MODEL_HEADER_RE.test(line)) {
-      if (currentId) entries.push({ id: currentId, jsonLines: buf });
-      currentId = line;
-      buf = [];
-    } else if (currentId) {
-      buf.push(line);
-    }
-  }
-  if (currentId) entries.push({ id: currentId, jsonLines: buf });
-
-  return entries.map(({ id, jsonLines }) => {
-    const json = jsonLines.join("\n").trim();
-    if (!json) return { id, variants: [] };
-    try {
-      const obj = JSON.parse(json) as {
-        variants?: Record<string, unknown>;
-        limit?: { context?: unknown };
-      };
-      const variants =
-        obj.variants && typeof obj.variants === "object" ? Object.keys(obj.variants) : [];
-      const rawContext = obj.limit?.context;
-      const contextLimit =
-        typeof rawContext === "number" && Number.isFinite(rawContext) && rawContext > 0
-          ? Math.trunc(rawContext)
-          : undefined;
-      return {
-        id,
-        variants,
-        ...(contextLimit !== undefined ? { contextLimit } : {}),
-      };
-    } catch {
-      return { id, variants: [] };
-    }
-  });
-}
-
-async function probeOpenCodeModels(
-  location: ProjectLocation,
-  executablePath: string,
-  signal?: AbortSignal,
-): Promise<OpenCodeProbedModel[] | undefined> {
-  const result = await readAgentCommandOutput(location, executablePath, ["models", "--verbose"], {
-    // Verbose mode prints a JSON object per model — slower than the bare
-    // `models` listing but still bounded by OpenCode's local cache.
-    timeoutMs: 15_000,
-    posixCwd: getAgentProbeCwd(location),
-    ...(signal ? { signal } : {}),
-  });
-  if (!result.ok || !result.stdout) return undefined;
-  const parsed = parseOpenCodeVerboseModels(result.stdout);
-  return parsed.length > 0 ? parsed : undefined;
-}
-
-const OPENCODE_TITLE_TOKEN_OVERRIDES: Record<string, string> = {
-  api: "API",
-  aws: "AWS",
-  chatgpt: "ChatGPT",
-  claude: "Claude",
-  codestral: "Codestral",
-  copilot: "Copilot",
-  deepseek: "DeepSeek",
-  devstral: "Devstral",
-  gemini: "Gemini",
-  github: "GitHub",
-  glm: "GLM",
-  gpt: "GPT",
-  grok: "Grok",
-  groq: "Groq",
-  haiku: "Haiku",
-  kimi: "Kimi",
-  llama: "Llama",
-  llm: "LLM",
-  max: "Max",
-  mini: "Mini",
-  mistral: "Mistral",
-  ollama: "Ollama",
-  openai: "OpenAI",
-  opencode: "OpenCode",
-  openrouter: "OpenRouter",
-  opus: "Opus",
-  oss: "OSS",
-  pro: "Pro",
-  qwen: "Qwen",
-  sonnet: "Sonnet",
-  xai: "xAI",
-};
-
-function titleizeOpenCodeToken(token: string): string {
-  const lower = token.toLowerCase();
-  const override = OPENCODE_TITLE_TOKEN_OVERRIDES[lower];
-  if (override) return override;
-  if (/^o\d/.test(lower)) return lower;
-  if (/^[a-z]\d/.test(lower)) return lower.charAt(0).toUpperCase() + lower.slice(1);
-  const size = /^(\d+)([bkmt])$/i.exec(token);
-  if (size) {
-    const [, amount, unit] = size;
-    return `${amount}${unit!.toUpperCase()}`;
-  }
-  return lower.charAt(0).toUpperCase() + lower.slice(1);
-}
-
-function isString(value: string | undefined): value is string {
-  return typeof value === "string";
-}
-
-function titleizeOpenCodeName(name: string): string {
-  const rawParts = name.split(/[-_\s]+/g).filter(Boolean);
-  const parts: string[] = [];
-
-  for (let i = 0; i < rawParts.length; i += 1) {
-    const part = rawParts[i]!;
-    const next = rawParts[i + 1];
-    if (/^\d{1,2}$/.test(part) && next && /^\d{1,2}$/.test(next)) {
-      parts.push(`${part}.${next}`);
-      i += 1;
-      continue;
-    }
-    parts.push(titleizeOpenCodeToken(part));
-  }
-
-  return parts.join(" ");
-}
-
-function openCodeModelNamePart(id: string): string {
-  const slash = id.indexOf("/");
-  return slash >= 0 ? id.slice(slash + 1) : id;
-}
-
-function openCodeModelSubProvider(id: string): string | undefined {
-  const slash = id.indexOf("/");
-  return slash > 0 ? id.slice(0, slash) : undefined;
-}
-
-function formatOpenCodeCredentialType(value: string | undefined): string | undefined {
-  const trimmed = value?.trim().toLowerCase();
-  if (!trimmed) return undefined;
-  if (trimmed === "api") return "API";
-  if (trimmed === "oauth") return "OAuth";
-  return trimmed;
-}
-
-export function parseOpenCodeProvidersList(output: string): AgentConnectedProvider[] {
-  const providers: AgentConnectedProvider[] = [];
-  for (const rawLine of stripAnsi(output).split(/\r?\n/g)) {
-    const line = rawLine.trim();
-    const bullet = /^[●•]\s+(.+)$/.exec(line);
-    if (!bullet) continue;
-    const text = bullet[1]!.trim();
-    const match = /^(.*?)\s+(api|oauth)$/i.exec(text);
-    const label = (match?.[1] ?? text).trim();
-    providers.push({
-      label: label === "GitHub Copilot" ? "Copilot" : label,
-      ...(formatOpenCodeCredentialType(match?.[2])
-        ? { detail: formatOpenCodeCredentialType(match?.[2]) }
-        : {}),
-    });
-  }
-  return providers;
+  return ordered.length > 0 ? { defaultEffort: ordered[0]! } : {};
 }
 
 /**
- * Read the configured-provider ids straight from OpenCode's `auth.json` (the
- * object keys — e.g. `opencode`, `github-copilot`). Values are never read, so no
- * secret material is touched. Returns `[]` on any read/parse failure (missing
- * file = no providers). Only valid for the host: WSL distros keep their own copy.
- */
-async function readOpenCodeNativeProviderIds(): Promise<string[]> {
-  try {
-    const raw = await readFile(opencodeNativeAuthPath(), "utf8");
-    const parsed: unknown = JSON.parse(raw);
-    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return [];
-    return Object.keys(parsed as Record<string, unknown>);
-  } catch {
-    return [];
-  }
-}
-
-/**
- * Zip the auth.json provider ids onto the parsed `providers list` entries.
+ * Build the `capabilitiesProbe` return value from a V2 catalog inventory.
  *
- * `opencode providers list` renders exactly the auth.json credentials in file
- * order, so the bullet list lines up 1:1 with `Object.keys(auth.json)` by index
- * — that's how we recover a stable id (which the CLI text omits) for each
- * connected provider. We only attach when the counts match: a mismatch means the
- * CLI surfaced something not keyed in auth.json (e.g. an env-var credential), in
- * which case guessing an id risks logging out the wrong provider, so we leave the
- * ids off and let the UI fall back to interactive removal.
+ * The V2 HTTP API gives us everything directly:
+ *   - per-model display `name` (no slug-titleization heuristics needed)
+ *   - per-model `variants` (the effort tiers `session.prompt` accepts)
+ *   - per-model `limit.context` token counts
+ *   - the provider list (sub-provider grouping in the model picker)
+ *   - the agent list (whether the built-in `plan` agent is user-visible)
  */
-export function attachOpenCodeProviderIds(
-  providers: readonly AgentConnectedProvider[],
-  ids: readonly string[],
-): AgentConnectedProvider[] {
-  if (providers.length === 0 || ids.length !== providers.length) {
-    return providers.map((provider) => ({ ...provider }));
+export function buildOpenCodeCapabilityPartialFromInventory(
+  inventory: OpenCodeInventory,
+): Partial<AgentCapability> {
+  const modelEfforts: Record<string, string[]> = {};
+  const modelTokens = new Map<string, number>();
+  for (const model of inventory.models) {
+    modelEfforts[model.id] = model.variants;
+    if (model.contextLimit !== undefined) modelTokens.set(model.id, model.contextLimit);
   }
-  return providers.map((provider, index) => {
-    const id = ids[index]?.trim();
-    return id ? { ...provider, id } : { ...provider };
-  });
-}
 
-async function probeOpenCodeStatusViaCli(
-  ctx: Parameters<NonNullable<DetectionSpec["statusProbe"]>>[0],
-): Promise<StatusProbeResult | undefined> {
-  if (!ctx.executablePath) return undefined;
-  const result = await readAgentCommandOutput(
-    ctx.location,
-    ctx.executablePath,
-    ["providers", "list"],
-    {
-      posixCwd: getAgentProbeCwd(ctx.location),
-      ...(ctx.signal ? { signal: ctx.signal } : {}),
-    },
+  // The effort ladder follows the DEFAULT model rather than the union across
+  // the catalog: the composer should offer the tiers the out-of-the-box model
+  // actually exposes (live: low/high/max on opencode-go/deepseek-v4.1-flash),
+  // while `modelEfforts` still scopes each model to its own set.
+  const defaultModelId = inventory.defaultModel
+    ? `${inventory.defaultModel.providerID}/${inventory.defaultModel.id}`
+    : undefined;
+  const ordered = sortEffortsByCanonicalOrder(
+    defaultModelId ? (modelEfforts[defaultModelId] ?? []) : [],
   );
-  const text = `${result.stdout}\n${result.stderr}`.trim();
-  const parsedProviders = parseOpenCodeProvidersList(text);
-  // Recover a stable logout id per provider from the host auth.json. WSL distros
-  // keep their own auth.json we can't read from here, so they stay id-less and
-  // fall back to OpenCode's interactive removal flow.
-  const providerIds = ctx.location.kind === "wsl" ? [] : await readOpenCodeNativeProviderIds();
-  const connectedProviders = attachOpenCodeProviderIds(parsedProviders, providerIds);
-  const credentialsCountMatch = /(\d+)\s+credentials\b/i.exec(text);
-  const credentialsCount = credentialsCountMatch ? Number(credentialsCountMatch[1]) : undefined;
-  const providerMetadata = compactAgentProviderMetadata({
-    ...(connectedProviders.length > 0 ? { connectedProviders } : {}),
-  });
+
+  // Plan mode is the built-in non-hidden primary `plan` agent; "agent" is
+  // always available.
+  const modes: AgentCapability["modes"] = ["agent"];
+  if (
+    inventory.agents.some(
+      (agent) => agent.id === "plan" && !agent.hidden && agent.mode !== "subagent",
+    )
+  ) {
+    modes.push("plan");
+  }
 
   return {
-    ...(connectedProviders.length > 0 || (credentialsCount ?? 0) > 0
-      ? { authState: "authenticated" as const }
-      : /0\s+credentials\b/i.test(text)
-        ? { authState: "missing" as const }
-        : {}),
-    ...(providerMetadata ? { providerMetadata } : {}),
+    models: [...inventory.models]
+      .toSorted((left, right) => left.label.localeCompare(right.label))
+      .map(({ id, label }) => ({ id, label })),
+    subProviders: inventory.providers.map((provider) => ({
+      id: provider.id,
+      label: provider.name.trim().length > 0 ? provider.name : provider.id,
+    })),
+    efforts: ordered,
+    modelEfforts,
+    modes,
+    ...(inventory.commands ? { slashCommands: inventory.commands } : {}),
+    ...defaultEffortFor(ordered),
+    ...buildContextSizeCapabilities(modelTokens),
   };
 }
 
-export function buildOpenCodeStatusFromSdkInventory(
-  inventory: OpenCodeSdkInventory,
-): StatusProbeResult {
-  const providersById = new Map(inventory.providers.map((provider) => [provider.id, provider]));
-  const connectedProviders = inventory.connected.map((id) => {
-    const label = providersById.get(id)?.name.trim();
-    return { id, label: label || humanizeOpenCodeSubProviderId(id) };
+// The V2 catalog endpoints answer with empty lists until plugin activation
+// settles. Live servers activate in well under a second, but a first launch
+// that has to build its catalog can stall much longer, so the activation wait
+// gets its own generous budget.
+const OPENCODE_ACTIVATION_TIMEOUT_MS = 60_000;
+const OPENCODE_CATALOG_TIMEOUT_MS = 15_000;
+
+function raceWithTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  return Promise.race([
+    promise,
+    new Promise<never>((_, reject) => {
+      timer = setTimeout(() => reject(new Error(message)), timeoutMs);
+      if (typeof timer.unref === "function") timer.unref();
+    }),
+  ]).finally(() => {
+    if (timer) clearTimeout(timer);
   });
-  const providerMetadata = compactAgentProviderMetadata({
-    ...(connectedProviders.length > 0 ? { connectedProviders } : {}),
-  });
-  return {
-    authState: connectedProviders.length > 0 ? "authenticated" : "missing",
-    ...(providerMetadata ? { providerMetadata } : {}),
-  };
+}
+
+/**
+ * Acquire the runtime sidecar and read the V2 catalog for this location.
+ * The returned promise rejects on any failure; callers keep the default
+ * capabilities and log the failure mode.
+ */
+export async function probeOpenCodeInventory(
+  location: ProjectLocation,
+  signal?: AbortSignal,
+): Promise<OpenCodeInventory> {
+  signal?.throwIfAborted();
+  const acquired = await acquireOpenCodeServer({ projectLocation: location });
+
+  try {
+    signal?.throwIfAborted();
+    const client = acquired.client;
+    const directory = resolveOpenCodeSessionDirectory(location);
+    const locationInput = { directory };
+
+    let abortProbe: (() => void) | undefined;
+    const abortPromise = signal
+      ? new Promise<never>((_, reject) => {
+          abortProbe = () => reject(signal.reason ?? new Error("OpenCode inventory probe aborted"));
+          signal.addEventListener("abort", abortProbe, { once: true });
+          if (signal.aborted) abortProbe();
+        })
+      : undefined;
+
+    const inventoryPromise = (async () => {
+      await raceWithTimeout(
+        awaitOpenCodeActivation(
+          client,
+          { location: locationInput },
+          { ...(signal ? { signal } : {}) },
+        ),
+        OPENCODE_ACTIVATION_TIMEOUT_MS,
+        "OpenCode plugin activation timed out",
+      );
+      signal?.throwIfAborted();
+      const [models, agents, providers, defaultModel, commands, skills, integrations] =
+        await raceWithTimeout(
+          Promise.all([
+            client.model.list({ location: locationInput }),
+            client.agent.list({ location: locationInput }),
+            client.provider.list({ location: locationInput }),
+            client.model.default({ location: locationInput }),
+            client.command.list({ location: locationInput }),
+            client.skill.list({ location: locationInput }),
+            client.integration.list({ location: locationInput }),
+          ]),
+          OPENCODE_CATALOG_TIMEOUT_MS,
+          "OpenCode catalog probe timed out",
+        );
+
+      const available = availableOpenCodeCatalog(models.data, providers.data, integrations.data);
+
+      return {
+        commands: [
+          ...mapOpenCodeCommands(commands.data),
+          ...mapOpenCodeSkills(skills.data, directory),
+          ...mapOpenCodeAgents(agents.data),
+        ],
+        models: available.models.map((model) => {
+          const id = `${model.providerID}/${model.id}`;
+          const name = model.name.trim();
+          const contextLimit = model.limit.context;
+          return {
+            id,
+            label: name.length > 0 ? name : id,
+            variants: model.variants.map((variant) => variant.id),
+            ...(Number.isFinite(contextLimit) && contextLimit > 0
+              ? { contextLimit: Math.trunc(contextLimit) }
+              : {}),
+          };
+        }),
+        providers: available.providers.map((provider) => ({
+          id: provider.id,
+          name: provider.name,
+        })),
+        integrations: readOpenCodeIntegrations(integrations.data),
+        agents: agents.data.map((agent) => ({
+          id: agent.id,
+          mode: agent.mode,
+          hidden: agent.hidden,
+        })),
+        defaultModel:
+          defaultModel.data &&
+          available.models.some(
+            (model) =>
+              model.providerID === defaultModel.data?.providerID &&
+              model.id === defaultModel.data?.id,
+          )
+            ? { providerID: defaultModel.data.providerID, id: defaultModel.data.id }
+            : undefined,
+      } satisfies OpenCodeInventory;
+    })();
+
+    return await Promise.race([inventoryPromise, ...(abortPromise ? [abortPromise] : [])]).finally(
+      () => {
+        if (abortProbe) signal?.removeEventListener("abort", abortProbe);
+      },
+    );
+  } finally {
+    await acquired.dispose({ closeServerIfIdle: true });
+  }
 }
 
 interface OpenCodeDetectionProbeResult {
@@ -437,58 +326,23 @@ async function runOpenCodeDetectionProbe(
 ): Promise<OpenCodeDetectionProbeResult> {
   if (!ctx.executablePath) return {};
 
-  if (ctx.version && compareOpencodeSemver(ctx.version, OPENCODE_MIN_VERSION) < 0) {
-    const status = await probeOpenCodeStatusViaCli(ctx);
-    return status ? { status } : {};
-  }
-
-  // Refresh before starting the inventory server: provider.list() only reads
-  // OpenCode's catalog, and a running server retains its own in-memory copy.
-  // Status and capabilities share this entire operation through the pending map.
-  ctx.signal?.throwIfAborted();
-  const refreshed = await readAgentCommandOutput(
-    ctx.location,
-    ctx.executablePath,
-    ["models", "--refresh"],
-    {
-      timeoutMs: 15_000,
-      posixCwd: getAgentProbeCwd(ctx.location),
-      ...(ctx.signal ? { signal: ctx.signal } : {}),
-      ...(ctx.probeEnv ? { env: ctx.probeEnv } : {}),
-    },
-  );
-  ctx.signal?.throwIfAborted();
-  if (!refreshed.ok) {
-    console.warn("[opencode] model cache refresh failed; probing the existing catalog");
-  }
-
-  const sdkInventory = await probeOpenCodeInventoryViaSdk(ctx.location, ctx.signal).catch(
-    (cause) => {
-      console.warn(
-        `[opencode] SDK capabilities probe failed, falling back to CLI parser: ${
-          cause instanceof Error ? cause.message : String(cause)
-        }`,
-      );
-      return undefined;
-    },
-  );
-  ctx.signal?.throwIfAborted();
-  if (sdkInventory) {
+  try {
+    const inventory = await probeOpenCodeInventory(ctx.location, ctx.signal);
+    const legacyProviders = await readOpenCodeLegacyProviders(ctx.location, inventory.integrations);
     return {
-      capabilities: buildCapabilityPartialFromSdkInventory(sdkInventory),
-      status: buildOpenCodeStatusFromSdkInventory(sdkInventory),
+      capabilities: buildOpenCodeCapabilityPartialFromInventory(inventory),
+      status: buildOpenCodeStatusFromIntegrations(inventory.integrations, legacyProviders),
     };
+  } catch (cause) {
+    // No CLI fallback exists — keep the default capability set so the
+    // provider stays launchable (models/efforts just stay empty).
+    console.warn(
+      `[opencode] capabilities probe failed, keeping default capabilities: ${
+        cause instanceof Error ? cause.message : String(cause)
+      }`,
+    );
+    return {};
   }
-
-  // OpenCode's CLI and server share a SQLite database. Keep the two fallback
-  // commands serial so startup never races `models --verbose` against
-  // `providers list` and surfaces a spurious "database is locked" failure.
-  const probedModels = await probeOpenCodeModels(ctx.location, ctx.executablePath, ctx.signal);
-  const status = await probeOpenCodeStatusViaCli(ctx);
-  return {
-    ...(probedModels ? { capabilities: buildCapabilityPartialFromProbedModels(probedModels) } : {}),
-    ...(status ? { status } : {}),
-  };
 }
 
 function probeOpenCodeDetection(
@@ -509,151 +363,59 @@ function probeOpenCodeDetection(
   return pending;
 }
 
-export function humanizeOpenCodeModelId(id: string): string {
-  return titleizeOpenCodeName(openCodeModelNamePart(id));
-}
-
-export function humanizeOpenCodeSubProviderId(id: string): string {
-  if (id === "github-copilot") return "Copilot";
-  return titleizeOpenCodeName(id);
-}
-
-export const opencodeDetectionSpec: DetectionSpec = {
-  kind: "opencode",
+// Keep installs inside the supported protocol major. Run only the package-owned
+// setup explicitly: npm can succeed while its lifecycle policy leaves a stub.
+// Verify the launcher so an incomplete install never reports update success.
+export const openCodeDetectionSpec: DetectionSpec = {
+  kind: OPENCODE_PROVIDER_KIND,
   label: "OpenCode",
   binary: "opencode",
-  loginCommand: "opencode providers login",
+  versionArgs: ["--version"],
+  async versionProbe(ctx) {
+    if (!ctx.executablePath) return undefined;
+    const result = await readAgentCommandOutput(ctx.location, ctx.executablePath, ["--version"], {
+      ...(ctx.signal ? { signal: ctx.signal } : {}),
+      ...(ctx.probeEnv ? { env: ctx.probeEnv } : {}),
+    });
+    return result.ok ? parseOpenCodeVersion(result.stdout) : undefined;
+  },
+  loginCommand: (ctx) =>
+    ctx.executablePath
+      ? `${ctx.location.kind === "windows" ? "& " + quotePowerShellLiteral(ctx.executablePath) : quotePosixShellArg(ctx.executablePath)} auth login`
+      : undefined,
   capabilities: opencodeDefaultCapabilities,
   update: {
-    builtIn: { binary: "opencode", args: ["upgrade"] },
-    npm: "opencode-ai",
+    installer: {
+      posix: {
+        binary: "sh",
+        args: [
+          "-c",
+          `npm install --ignore-scripts --include=optional --prefix "$HOME/.opencode2" "@opencode/cli@^${OPENCODE_MIN_VERSION}" && npm --prefix "$HOME/.opencode2/node_modules/@opencode/cli" run postinstall && "$HOME/.opencode2/node_modules/@opencode/cli/bin/opencode.exe" --version`,
+        ],
+      },
+      windows: {
+        binary: "powershell.exe",
+        args: [
+          "-NoProfile",
+          "-Command",
+          `$ErrorActionPreference = "Stop"; npm install --ignore-scripts --include=optional --prefix "$env:USERPROFILE/.opencode2" "@opencode/cli@^${OPENCODE_MIN_VERSION}"; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; npm --prefix "$env:USERPROFILE/.opencode2/node_modules/@opencode/cli" run postinstall; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; & "$env:USERPROFILE/.opencode2/node_modules/@opencode/cli/bin/opencode.exe" --version; exit $LASTEXITCODE`,
+        ],
+      },
+    },
+    latestVersionUrls: ["https://registry.npmjs.org/@opencode%2Fcli/latest"],
   },
+  // The server knows which upstream AI providers hold credentials, so it — not
+  // the shared auth.json — is the source of truth when it answers. The file
+  // probe below stays as the fallback for when the server cannot be reached.
   statusProbe: async (ctx) => (await probeOpenCodeDetection(ctx)).status,
   authProbes: [
     // Auth file lives on the host; for WSL projects we report "unknown"
-    // (`undefined` skips the probe) because the WSL distro has its own
-    // copy under `$HOME/.local/share/opencode/auth.json`.
+    // (`undefined` skips the probe) because the WSL distro keeps its own copy
+    // under `$HOME/.local/share/opencode/auth.json`.
     configFileAuthProbe((loc) => (loc.kind === "wsl" ? undefined : opencodeNativeAuthPath())),
   ],
   async capabilitiesProbe(ctx) {
-    if (!ctx.executablePath) return undefined;
-
-    // Block old binaries before either probe path: parseOpenCodeVerboseModels
-    // happens to handle pre-1.14 output but the SDK call would silently
-    // misbehave, and the GUI session can't recover. Surface the issue early.
-    if (ctx.version && compareOpencodeSemver(ctx.version, OPENCODE_MIN_VERSION) < 0) {
-      console.warn(
-        `[opencode] detected version ${ctx.version} is below the supported minimum ${OPENCODE_MIN_VERSION}. ` +
-          `Models and chat will be disabled until OpenCode is upgraded (run \`opencode upgrade\` or reinstall).`,
-      );
-      return undefined;
-    }
-
+    if (!ctx.executablePath || !supportsOpenCodeVersion(ctx.version)) return undefined;
     return (await probeOpenCodeDetection(ctx)).capabilities;
   },
 };
-
-function defaultEffortFor(ordered: readonly string[]): { defaultEffort?: string } {
-  if (ordered.includes(OPENCODE_PREFERRED_DEFAULT_EFFORT)) {
-    return { defaultEffort: OPENCODE_PREFERRED_DEFAULT_EFFORT };
-  }
-  return ordered.length > 0 ? { defaultEffort: ordered[0]! } : {};
-}
-
-/**
- * Build the `capabilitiesProbe` return value from the CLI-parsed model list.
- * Used as the fallback when the SDK probe is unavailable.
- */
-export function buildCapabilityPartialFromProbedModels(
-  probed: readonly OpenCodeProbedModel[],
-): Partial<AgentCapability> {
-  const modelIds = probed.map((m) => m.id);
-  const subProviderIds = [...new Set(modelIds.map(openCodeModelSubProvider).filter(isString))];
-
-  // Per-model variant lists feed the composer effort picker via
-  // `getAvailableEfforts(capabilities, model)` — empty arrays mean "no
-  // effort selector for this model", which is the right default for free
-  // models like `opencode/big-pickle` whose `variants: {}` we already saw.
-  const modelEfforts: Record<string, string[]> = {};
-  const seenEfforts = new Set<string>();
-  for (const m of probed) {
-    modelEfforts[m.id] = m.variants;
-    for (const v of m.variants) seenEfforts.add(v);
-  }
-  const ordered = sortEffortsByCanonicalOrder([...seenEfforts]);
-
-  // Map each model to its registry-reported context limit so the renderer's
-  // context-usage dock can show "X / Y tokens" before any message has flowed
-  // through `context.updated`.
-  const modelTokens = new Map<string, number>();
-  for (const m of probed) {
-    if (m.contextLimit !== undefined) modelTokens.set(m.id, m.contextLimit);
-  }
-
-  return {
-    models: modelIds.map((id) => ({ id, label: humanizeOpenCodeModelId(id) })),
-    subProviders: subProviderIds.map((id) => ({
-      id,
-      label: humanizeOpenCodeSubProviderId(id),
-    })),
-    efforts: ordered,
-    modelEfforts,
-    ...defaultEffortFor(ordered),
-    ...buildContextSizeCapabilities(modelTokens),
-  };
-}
-
-/**
- * Build the `capabilitiesProbe` return value from a successful SDK inventory.
- *
- * The SDK gives us richer data than the CLI parser:
- *   - per-provider model names (so we don't need slug-titleization heuristics)
- *   - `connected` provider ids (we filter out providers with no upstream auth)
- *   - per-model `variants` keyed by id (same shape as the CLI parser)
- *   - per-model `limit.context` token counts
- *   - the list of user-defined agents (custom `~/.config/opencode/agent/*`)
- *
- * Returned shape exactly matches `buildCapabilityPartialFromProbedModels` so
- * the renderer treats the two paths interchangeably.
- */
-export function buildCapabilityPartialFromSdkInventory(
-  inventory: OpenCodeSdkInventory,
-): Partial<AgentCapability> {
-  const connected = new Set(inventory.connected);
-  const models: Array<{ id: string; label: string }> = [];
-  const subProviderIds = new Set<string>();
-  const modelEfforts: Record<string, string[]> = {};
-  const seenEfforts = new Set<string>();
-  const modelTokens = new Map<string, number>();
-
-  for (const provider of inventory.providers) {
-    // OpenCode reports both authenticated and pseudo "available" providers in
-    // `all`. The renderer's picker should only show models the user can
-    // actually call right now, so filter to the `connected` set.
-    if (!connected.has(provider.id)) continue;
-    subProviderIds.add(provider.id);
-    for (const model of provider.models) {
-      const slug = `${provider.id}/${model.id}`;
-      const label =
-        model.name.trim().length > 0 ? model.name.trim() : humanizeOpenCodeModelId(slug);
-      models.push({ id: slug, label });
-      modelEfforts[slug] = [...model.variants];
-      for (const variant of model.variants) seenEfforts.add(variant);
-      if (model.contextLimit !== undefined) modelTokens.set(slug, model.contextLimit);
-    }
-  }
-
-  const ordered = sortEffortsByCanonicalOrder([...seenEfforts]);
-
-  return {
-    models: models.toSorted((left, right) => left.label.localeCompare(right.label)),
-    subProviders: [...subProviderIds].map((id) => ({
-      id,
-      label: humanizeOpenCodeSubProviderId(id),
-    })),
-    efforts: ordered,
-    modelEfforts,
-    ...defaultEffortFor(ordered),
-    ...buildContextSizeCapabilities(modelTokens),
-  };
-}
