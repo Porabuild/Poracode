@@ -4,7 +4,7 @@ import { Tooltip } from "@heroui/react";
 import { ChevronDown, ChevronRight, LogIn, LogOut, RefreshCw } from "lucide-react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { allUsageProviderDescriptors } from "@poracode/agents-usage/providers";
-import { Button, ToggleSwitch } from "@/renderer/components/common";
+import { Button, Input, ToggleSwitch } from "@/renderer/components/common";
 import { ProviderUsageCircle } from "@/renderer/components/providers/ProviderUsageCircle";
 import { UsageCostLine } from "@/renderer/components/providers/UsageCostLine";
 import {
@@ -122,8 +122,8 @@ function UsageProviderCredentialStrip(props: {
       {canBrowserSignIn && !optionalBrowserSignIn ? (
         <Button
           size="sm"
-          variant="secondary"
-          className="shrink-0"
+          variant="ghost"
+          className="-ml-2 shrink-0 px-2 text-foreground"
           isDisabled={signingIn}
           onPress={() => void handleSignIn()}
         >
@@ -132,7 +132,8 @@ function UsageProviderCredentialStrip(props: {
       ) : null}
       {canApiKeySignIn ? (
         <form onSubmit={onSubmitApiKey} className="flex min-w-0 flex-1 items-center gap-1.5">
-          <input
+          <Input
+            size="sm"
             type="password"
             value={apiKey}
             onChange={(e) => setApiKey(e.target.value)}
@@ -140,13 +141,13 @@ function UsageProviderCredentialStrip(props: {
             aria-label={t`${label} API key`}
             autoComplete="off"
             spellCheck={false}
-            className="min-w-0 flex-1 rounded-lg form-field px-2.5 py-1 placeholder:text-field-placeholder text-xs text-foreground outline-none @xl:max-w-[260px]"
+            className="min-w-0 flex-1 px-2.5 text-xs @xl:max-w-[260px]"
           />
           <Button
             size="sm"
-            variant="secondary"
+            variant="ghost"
             type="submit"
-            className="shrink-0"
+            className="shrink-0 px-2.5 text-foreground"
             isDisabled={signingIn || apiKey.trim().length === 0}
           >
             {signingIn ? <Trans>Signing in…</Trans> : <Trans>Sign in</Trans>}

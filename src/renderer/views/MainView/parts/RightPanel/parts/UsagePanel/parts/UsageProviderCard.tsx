@@ -1,7 +1,8 @@
 import { type FormEvent } from "react";
-import { Button, Tooltip } from "@heroui/react";
+import { Tooltip } from "@heroui/react";
 import { LogIn, LogOut } from "lucide-react";
 import { Trans, useLingui } from "@lingui/react/macro";
+import { Button, Input } from "@/renderer/components/common";
 import { browserSessionAddsDetails } from "@/renderer/components/providers/usageProviders";
 import { useProviderUsageRefresh } from "@/renderer/components/providers/useProviderUsageRefresh";
 import { useUsageProviderLogin } from "@/renderer/components/providers/useUsageProviderLogin";
@@ -50,11 +51,12 @@ export function UsageProviderCard(props: {
             <Tooltip>
               <Button
                 isIconOnly
+                size="sm"
                 variant="ghost"
                 aria-label={signingIn ? t`Signing in…` : t`Browser sign-in`}
                 onPress={() => void handleSignIn()}
                 isDisabled={signingIn}
-                className={`min-w-0 shrink-0 rounded-md p-0 text-muted/60 hover:bg-muted/10 hover:text-foreground ${
+                className={`min-w-0 shrink-0 rounded-md p-0 text-muted/60 hover:text-foreground ${
                   compact ? "size-11" : "size-5"
                 }`}
               >
@@ -66,18 +68,24 @@ export function UsageProviderCard(props: {
             </Tooltip>
           ) : null}
           {canSignOut ? (
-            <button
-              type="button"
-              aria-label={t`Sign out ${label}`}
-              title={t`Sign out ${label}`}
-              onClick={() => void handleSignOut()}
-              disabled={signingOut}
-              className={`flex shrink-0 items-center justify-center rounded-md text-muted/60 transition-colors hover:bg-muted/10 hover:text-foreground disabled:opacity-50 ${
-                compact ? "size-11" : "size-5"
-              }`}
-            >
-              <LogOut className="size-3.5" />
-            </button>
+            <Tooltip>
+              <Button
+                isIconOnly
+                size="sm"
+                variant="ghost"
+                aria-label={t`Sign out ${label}`}
+                onPress={() => void handleSignOut()}
+                isDisabled={signingOut}
+                className={`min-w-0 shrink-0 rounded-md p-0 text-muted/60 hover:text-foreground ${
+                  compact ? "size-11" : "size-5"
+                }`}
+              >
+                <LogOut className="size-3.5" />
+              </Button>
+              <Tooltip.Content placement="top">
+                <Trans>Sign out</Trans>
+              </Tooltip.Content>
+            </Tooltip>
           ) : null}
         </>
       }
@@ -85,7 +93,8 @@ export function UsageProviderCard(props: {
         <>
           {canApiKeySignIn ? (
             <form onSubmit={onSubmitApiKey} className="flex items-center gap-1.5">
-              <input
+              <Input
+                size="sm"
                 type="password"
                 value={apiKey}
                 onChange={(e) => setApiKey(e.target.value)}
@@ -93,15 +102,17 @@ export function UsageProviderCard(props: {
                 aria-label={t`${label} API key`}
                 autoComplete="off"
                 spellCheck={false}
-                className="min-w-0 flex-1 rounded-lg form-field px-2 py-1 placeholder:text-field-placeholder text-xs text-foreground outline-none"
+                className="min-w-0 flex-1 px-2.5 text-xs"
               />
-              <button
+              <Button
+                size="sm"
+                variant="ghost"
                 type="submit"
-                disabled={signingIn || apiKey.trim().length === 0}
-                className="shrink-0 rounded-lg border border-[color:var(--separator)] bg-surface px-2.5 py-1 text-xs font-medium text-foreground transition-colors hover:bg-muted/10 disabled:opacity-50"
+                className="shrink-0 px-2.5 text-foreground"
+                isDisabled={signingIn || apiKey.trim().length === 0}
               >
                 {signingIn ? <Trans>Signing in…</Trans> : <Trans>Sign in</Trans>}
-              </button>
+              </Button>
             </form>
           ) : null}
         </>
@@ -109,14 +120,15 @@ export function UsageProviderCard(props: {
       credentialBody={
         <>
           {canBrowserSignIn && !optionalBrowserSignIn ? (
-            <button
-              type="button"
-              onClick={() => void handleSignIn()}
-              disabled={signingIn}
-              className="rounded-lg border border-[color:var(--separator)] bg-surface px-2.5 py-1 text-xs font-medium text-foreground transition-colors hover:bg-muted/10 disabled:opacity-50"
+            <Button
+              size="sm"
+              variant="ghost"
+              className="-ml-2 px-2 text-foreground"
+              isDisabled={signingIn}
+              onPress={() => void handleSignIn()}
             >
               {signingIn ? <Trans>Signing in…</Trans> : <Trans>Browser sign-in</Trans>}
-            </button>
+            </Button>
           ) : null}
         </>
       }
