@@ -10,6 +10,7 @@ import {
 } from "@/shared/contracts";
 import type { AgentStatusSupervisorEvent } from "@/shared/ipc";
 import { decodeAgentStatusCache } from "@/shared/agentStatusCache";
+import { isTestingOnboardingSkipped } from "./welcomeGateStore";
 
 export type AgentDiscoveryScope =
   | { kind: "native" }
@@ -278,6 +279,12 @@ export const useAgentStatusesStore = create<AgentStatusesStore>()(
           discoveryScope: undefined,
         })),
       beginStartupDiscovery: (scope) => {
+        if (isTestingOnboardingSkipped()) {
+          if (scope?.kind === "wsl") {
+            set((prev) => (prev.wslLoaded ? { wslLoaded: false } : prev));
+          }
+          return;
+        }
         if (!get().hasCompletedDiscovery) {
           get().beginFirstLaunchDiscovery(scope);
         } else if (scope?.kind === "wsl") {

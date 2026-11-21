@@ -409,13 +409,25 @@ async function screenshot(client, selector, out) {
   const params = { format: "png", fromSurface: true };
   if (selector !== "-") {
     params.captureBeyondViewport = true;
-    const rect = await evaluate(
+    const shotTarget = await evaluate(
       client,
       `(() => { const el = document.querySelector(${JSON.stringify(selector)});` +
         ` if (!el) return null; const r = el.getBoundingClientRect();` +
-        ` return { x: r.x, y: r.y, width: r.width, height: r.height }; })()`,
+        ` const cx = r.left + r.width / 2; const cy = r.top + r.height / 2;` +
+        ` const onboarding = document.querySelector(".poracode-welcome-page.fixed") ?? document.querySelector("[data-discovery-primary-action]")?.closest(".fixed");` +
+        ` if (onboarding && !el.contains(onboarding) && !onboarding.contains(el) && cx >= 0 && cy >= 0 && cx < window.innerWidth && cy < window.innerHeight) {` +
+        `   const hit = document.elementFromPoint(cx, cy);` +
+        `   if (hit && onboarding.contains(hit)) return { occludedBy: onboarding.className || "onboarding overlay" };` +
+        ` }` +
+        ` return { rect: { x: r.x, y: r.y, width: r.width, height: r.height } }; })()`,
     );
-    if (!rect) throw new Error(`selector not found: ${selector}`);
+    if (!shotTarget) throw new Error(`selector not found: ${selector}`);
+    if (shotTarget.occludedBy) {
+      throw new Error(
+        `cannot screenshot ${selector}: occluded by onboarding overlay (${shotTarget.occludedBy})`,
+      );
+    }
+    const { rect } = shotTarget;
     params.clip = {
       x: Math.max(0, Math.round(rect.x)),
       y: Math.max(0, Math.round(rect.y)),
