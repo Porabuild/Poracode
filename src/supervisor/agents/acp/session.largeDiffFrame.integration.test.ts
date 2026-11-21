@@ -56,6 +56,8 @@ describe("large ACP diff frames", () => {
               changeKind?: string;
               status?: string;
               diffSummary?: { added?: number; removed?: number };
+              editOldText?: unknown;
+              editNewText?: unknown;
             };
           },
       );
@@ -70,6 +72,14 @@ describe("large ACP diff frames", () => {
             event.payload?.status === "success" &&
             event.payload.diffSummary?.added === 6 &&
             event.payload.diffSummary.removed === 6,
+        ),
+      ).toBe(true);
+      const editEvents = events.filter((event) => event.payload?.changeKind === "edit");
+      expect(editEvents.length).toBeGreaterThan(0);
+      expect(
+        editEvents.every(
+          (event) =>
+            event.payload?.editOldText === undefined && event.payload?.editNewText === undefined,
         ),
       ).toBe(true);
       buffer.flush();

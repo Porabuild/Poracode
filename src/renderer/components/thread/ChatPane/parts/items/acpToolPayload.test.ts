@@ -362,6 +362,16 @@ describe("acpToolPayload", () => {
     expect(extractAcpDiffSummary(payload, precomputed)).toEqual({ added: 1, removed: 1 });
   });
 
+  it("falls back to payload.result when editOldText/editNewText were cleared with null", () => {
+    const payload = {
+      path: "locales/de/messages.po",
+      editOldText: null,
+      editNewText: null,
+      result: FILE_DIFF,
+    };
+    expect(extractAcpDiffResultPart(payload)).toEqual({ text: FILE_DIFF, language: "diff" });
+  });
+
   it("synthesizes diffs and summaries from create content args", () => {
     const payload = {
       name: "Write",

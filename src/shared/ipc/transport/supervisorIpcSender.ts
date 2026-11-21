@@ -268,8 +268,15 @@ export class SupervisorIpcSender<AdditionalMessage = never> {
     return this.flowLedger.generation;
   }
 
-  /**
-   * Configured lane capacities. The capability advertisement derives the
+  /** Effective bulk lane limits for this sender instance. */
+  private bulkLimits(): { messages: number; bytes: number } {
+    return {
+      messages: this.options.maxQueuedMessages ?? IPC_MAX_QUEUED_MESSAGES,
+      bytes: this.options.maxQueuedBytes ?? IPC_MAX_QUEUED_BYTES,
+    };
+  }
+
+  /** Configured lane capacities. The capability advertisement derives the
    * supervisor's truthful retained bound from these instead of a hardcoded
    * constant, so a sender configured with different limits cannot advertise a
    * window it does not actually retain.
@@ -280,9 +287,10 @@ export class SupervisorIpcSender<AdditionalMessage = never> {
     controlReserveMessages: number;
     controlReserveBytes: number;
   } {
+    const bulk = this.bulkLimits();
     return {
-      bulkMessages: this.options.maxQueuedMessages ?? IPC_MAX_QUEUED_MESSAGES,
-      bulkBytes: this.options.maxQueuedBytes ?? IPC_MAX_QUEUED_BYTES,
+      bulkMessages: bulk.messages,
+      bulkBytes: bulk.bytes,
       controlReserveMessages: this.options.controlReserveMessages ?? IPC_CONTROL_RESERVE_MESSAGES,
       controlReserveBytes: this.options.controlReserveBytes ?? IPC_CONTROL_RESERVE_BYTES,
     };
@@ -319,6 +327,19 @@ export class SupervisorIpcSender<AdditionalMessage = never> {
   /** Remaining canonical bytes the host will credit right now. */
   canonicalCreditRemaining(): number {
     return this.flowLedger.remaining();
+  }
+
+  /**
+   * Effective canonical bytes this sender can accept right now without
+   * overflowing its own bulk queue: the minimum of the host's in-flight credit
+   * window and the sender's remaining bulk queue headroom.
+   */
+  canonicalSendCapacity(): number {
+    if (this.failed) return 0;
+    const bulk = this.bulkLimits();
+    if (this.queuedBulkMessages >= bulk.messages) return 0;
+    const bulkRemainingBytes = Math.max(0, bulk.bytes - this.queuedBulkBytes);
+    return Math.min(this.flowLedger.remaining(), bulkRemainingBytes);
   }
 
   isCanonicalCreditActive(): boolean {
@@ -397,11 +418,12 @@ export class SupervisorIpcSender<AdditionalMessage = never> {
   }
 
   getQueueDiagnostics(): IpcQueueSample | undefined {
+    const bulk = this.bulkLimits();
     return this.queueProbe?.sample({
       queue: this.queue,
       waitingEstimatedBytes: this.queuedBytes,
-      maxWaitingMessages: this.options.maxQueuedMessages ?? IPC_MAX_QUEUED_MESSAGES,
-      maxWaitingEstimatedBytes: this.options.maxQueuedBytes ?? IPC_MAX_QUEUED_BYTES,
+      maxWaitingMessages: bulk.messages,
+      maxWaitingEstimatedBytes: bulk.bytes,
       terminalBatchMessages: this.pendingTerminalOutput.size,
       inFlightMessages: this.inFlightSends,
       backpressured: this.waitingForDrain,
@@ -461,7 +483,7 @@ export class SupervisorIpcSender<AdditionalMessage = never> {
     message: OutboundMessage<AdditionalMessage>,
     meta: { estimatedBytes?: number } = {},
   ): void {
-    const bytes = meta.estimatedBytes ?? estimateMessageBytes(message, IPC_MAX_QUEUED_BYTES + 1);
+    const bytes = meta.estimatedBytes ?? estimateMessageBytes(message, this.bulkLimits().bytes + 1);
     const attributed = this.assignFlow(message, bytes);
     this.enqueueEntry({
       message: attributed,
@@ -487,8 +509,7 @@ export class SupervisorIpcSender<AdditionalMessage = never> {
         return;
       }
     }
-    const bulkMaxMessages = this.options.maxQueuedMessages ?? IPC_MAX_QUEUED_MESSAGES;
-    const bulkMaxBytes = this.options.maxQueuedBytes ?? IPC_MAX_QUEUED_BYTES;
+    const { messages: bulkMaxMessages, bytes: bulkMaxBytes } = this.bulkLimits();
     const controlMaxMessages =
       bulkMaxMessages + (this.options.controlReserveMessages ?? IPC_CONTROL_RESERVE_MESSAGES);
     const controlMaxBytes =
@@ -650,7 +671,7 @@ export class SupervisorIpcSender<AdditionalMessage = never> {
           ? { queuedAt: this.queueProbe.admittedAt() }
           : {}),
     };
-    signal.bytes = estimateMessageBytes(signal.message, IPC_MAX_QUEUED_BYTES + 1);
+    signal.bytes = estimateMessageBytes(signal.message, this.bulkLimits().bytes + 1);
     if (merging && leading) {
       this.queuedBytes -= leading.bytes;
       this.queue[0] = signal;
@@ -736,7 +757,7 @@ export class SupervisorIpcSender<AdditionalMessage = never> {
         adjacentEntry && policy.isRecoverySignal(adjacentEntry.message) ? firstShedIndex - 1 : null;
       const previousEntry = adjacentIndex === null ? undefined : adjacentEntry;
       const signalEntry = buildSignal(previousEntry ? previousEntry.message : null);
-      signalEntry.bytes = estimateMessageBytes(signalEntry.message, IPC_MAX_QUEUED_BYTES + 1);
+      signalEntry.bytes = estimateMessageBytes(signalEntry.message, this.bulkLimits().bytes + 1);
       const replacing = previousEntry !== undefined;
       const signalSlotReserve = replacing ? 0 : 1;
       const signalByteReserve = replacing
@@ -767,7 +788,7 @@ export class SupervisorIpcSender<AdditionalMessage = never> {
         const merged = buildSignal(candidate.message);
         if (candidate.queuedAt !== undefined) merged.queuedAt = candidate.queuedAt;
         else delete merged.queuedAt;
-        merged.bytes = estimateMessageBytes(merged.message, IPC_MAX_QUEUED_BYTES + 1);
+        merged.bytes = estimateMessageBytes(merged.message, this.bulkLimits().bytes + 1);
         if (this.queue.length + incomingSlotReserve > maxMessages) return false;
         if (this.queuedBytes + incomingBytes + merged.bytes - candidate.bytes > maxBytes) {
           return false;
@@ -808,6 +829,7 @@ export class SupervisorIpcSender<AdditionalMessage = never> {
   private drain(): void {
     if (this.waitingForDrain || this.draining || this.failed) return;
     this.draining = true;
+    let notifyCapacityAfterDrain = false;
 
     try {
       while (this.queue.length > 0 && !this.failed) {
@@ -822,11 +844,17 @@ export class SupervisorIpcSender<AdditionalMessage = never> {
           callbackCompleted = true;
           this.inFlightSends -= 1;
           if (error) this.handleSendFailure(entry, error);
-          if (accepted === false && this.waitingForDrain) {
+          const resumedFromBackpressure = accepted === false && this.waitingForDrain;
+          if (resumedFromBackpressure) {
             this.clearBackpressureTimer();
             if (!this.failed) this.setBackpressured(false);
           }
           if (!this.draining) this.drain();
+          if (resumedFromBackpressure && !this.failed) {
+            // Notify AFTER `drain()` has shifted queued entries so producers
+            // reading `canonicalSendCapacity()` observe the freed bulk bytes.
+            this.notifyCanonicalCapacity();
+          }
           this.notifyIdle();
         };
 
@@ -843,13 +871,17 @@ export class SupervisorIpcSender<AdditionalMessage = never> {
             this.startBackpressureTimer();
             return;
           }
-          if (!this.failed) this.setBackpressured(false);
+          if (!this.failed) {
+            this.setBackpressured(false);
+            notifyCapacityAfterDrain = true;
+          }
         }
       }
     } finally {
       this.draining = false;
-      this.notifyIdle();
       if (!this.waitingForDrain && this.queue.length > 0 && !this.failed) this.drain();
+      if (notifyCapacityAfterDrain && !this.failed) this.notifyCanonicalCapacity();
+      this.notifyIdle();
     }
   }
 
@@ -935,12 +967,6 @@ export class SupervisorIpcSender<AdditionalMessage = never> {
   private setBackpressured(paused: boolean): void {
     if (this.waitingForDrain === paused) return;
     this.waitingForDrain = paused;
-    if (!paused) {
-      // The channel resumed: producers held only by the stalled bulk queue can
-      // flush again even without a credit/ack change. Reentrant flushes from
-      // the callback cannot loop because `draining` guards the send loop.
-      this.notifyCanonicalCapacity();
-    }
     try {
       this.options.onBackpressureChange?.(paused);
     } catch (error) {

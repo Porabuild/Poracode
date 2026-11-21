@@ -55,10 +55,12 @@ let shedLogBytes = 0;
 let shedLogAt = 0;
 let canonicalDroppedCount = 0;
 let canonicalDroppedBytes = 0;
+const SUPERVISOR_IPC_MAX_QUEUED_BYTES = 16 * 1024 * 1024;
 const ipcSender = new SupervisorIpcSender<
   SupervisorOutputShedSignal | SupervisorFlowControlCapabilities
 >({
   ...(performanceDiagnostics ? { queueDiagnostics: performanceDiagnostics.queueCapture } : {}),
+  maxQueuedBytes: SUPERVISOR_IPC_MAX_QUEUED_BYTES,
   send: (message, callback) => {
     if (!process.connected || !process.send) {
       callback(new Error("Supervisor IPC channel is disconnected."));
@@ -122,7 +124,7 @@ performanceDiagnostics?.observeIpcQueue("supervisor-to-host", () =>
 );
 let runtimeReady = false;
 const runtime = new SupervisorRuntime((event, meta) => ipcSender.emit(event, meta), {
-  canonicalCapacity: () => ipcSender.canonicalCreditRemaining(),
+  canonicalCapacity: () => ipcSender.canonicalSendCapacity(),
 });
 runtimeReady = true;
 

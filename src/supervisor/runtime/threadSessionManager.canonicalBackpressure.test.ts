@@ -218,8 +218,10 @@ describe("ThreadSessionManager + SupervisorIpcSender integration (B1)", () => {
   function makeWiredManager(
     options: {
       maxQueuedMessages?: number;
+      maxQueuedBytes?: number;
       controlReserveMessages?: number;
       windowBytes?: number;
+      useSendCapacity?: boolean;
     } = {},
   ) {
     const sent: SupervisorEvent[] = [];
@@ -235,7 +237,7 @@ describe("ThreadSessionManager + SupervisorIpcSender integration (B1)", () => {
       onError: vi.fn<(error: Error) => void>(),
       onFatalError,
       maxQueuedMessages: options.maxQueuedMessages ?? 1,
-      maxQueuedBytes: 10_000_000,
+      maxQueuedBytes: options.maxQueuedBytes ?? 10_000_000,
       ...(options.controlReserveMessages !== undefined
         ? { controlReserveMessages: options.controlReserveMessages }
         : {}),
@@ -264,7 +266,10 @@ describe("ThreadSessionManager + SupervisorIpcSender integration (B1)", () => {
       readDisableCliHookPlugin: () => false,
       adapters: new Map(),
       resolveWindowsShell: () => ({ shell: "cmd", kind: "cmd", args: [] }),
-      canonicalCapacity: () => sender.canonicalCreditRemaining(),
+      canonicalCapacity: () =>
+        options.useSendCapacity
+          ? sender.canonicalSendCapacity()
+          : sender.canonicalCreditRemaining(),
     });
     managerRef = manager;
     return { manager, sender, sent, callbacks, emit, onFatalError };
@@ -386,5 +391,45 @@ describe("ThreadSessionManager + SupervisorIpcSender integration (B1)", () => {
       "error",
     );
     expect(onFatalError).not.toHaveBeenCalled();
+  });
+
+  it("holds excess envelopes in the buffer instead of overflowing the IPC bulk queue when host credit exceeds bulkBytes", async () => {
+    const { manager, sent, callbacks, emit, onFatalError } = makeWiredManager({
+      maxQueuedMessages: 16,
+      maxQueuedBytes: 1_500_000,
+      windowBytes: 17 * 1024 * 1024,
+      useSendCapacity: true,
+    });
+    const dispose = vi.fn<() => Promise<void>>(async () => undefined);
+    addSession(manager, "t1", dispose);
+
+    // 4 × 700 KB = 2.8 MB > bulkMaxBytes (1.5 MB) while host credit is 17 MB.
+    // The 1st enters flight, the next 2 fill the 1.5 MB bulk queue, and the 4th
+    // stays buffered in RuntimeEventBuffer instead of overflowing the sender.
+    for (let i = 1; i <= 4; i += 1) {
+      enqueue(manager, "t1", deltaItem("t1", `item-${i}`, "x".repeat(700_000)));
+    }
+    await sleep(30);
+    await new Promise((resolve) => setImmediate(resolve));
+
+    expect(onFatalError).not.toHaveBeenCalled();
+    expect(dispose).not.toHaveBeenCalled();
+    expect(errorStates(emit)).toHaveLength(0);
+    expect(manager.getCanonicalEventBufferStats().events).toBe(1);
+
+    // Draining the stalled IPC sends frees bulk queue headroom and flushes the
+    // held 4th envelope in order without stopping the session.
+    while (callbacks.length > 0) callbacks.shift()!(null);
+    expect(manager.getCanonicalEventBufferStats().events).toBe(0);
+    expect(dispose).not.toHaveBeenCalled();
+    expect(errorStates(emit)).toHaveLength(0);
+    const deliveredItems = sent.flatMap((envelope) =>
+      envelope.type === "thread-runtime-event" && "itemId" in envelope.event
+        ? [envelope.event.itemId]
+        : envelope.type === "thread-runtime-events"
+          ? envelope.events.flatMap((event) => ("itemId" in event ? [event.itemId] : []))
+          : [],
+    );
+    expect(deliveredItems).toEqual(["item-1", "item-2", "item-3", "item-4"]);
   });
 });
