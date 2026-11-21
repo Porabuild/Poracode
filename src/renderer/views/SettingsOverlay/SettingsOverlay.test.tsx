@@ -768,7 +768,38 @@ describe("SettingsOverlay", () => {
     expect(screen.getByText("MCP settings for paired")).toBeInTheDocument();
   });
 
-  it("shows the floating machine selector for Agent Registry when multiple machines exist", () => {
+  it("shows the floating machine selector for Agent Registry when multiple machines host projects", () => {
+    useRemoteServersStore.setState({
+      servers: [
+        {
+          desktopId: "mac",
+          label: "Studio Mac",
+          endpoint: "https://mac.example.test",
+          accessToken: "token",
+          scopes: [],
+        },
+      ],
+    });
+    appState.projects = [
+      {
+        id: "mac-project",
+        name: "Mac project",
+        location: { kind: "posix", path: "/repo", remoteServerId: "mac" },
+        createdAt: "2026-01-01T00:00:00.000Z",
+      },
+    ];
+    usePanelStore.getState().openSettingsSection("acpRegistry");
+    render(<SettingsOverlay onClose={() => undefined} />);
+
+    const main = screen.getByRole("main");
+    expect(within(main).getByText("Agent Registry Settings")).toBeInTheDocument();
+    expect(within(main).getByTestId("machine-select")).toBeInTheDocument();
+    expect(
+      screen.getByText("Agent Registry Settings").closest(".min-h-0.flex-1"),
+    ).not.toContainElement(screen.getByTestId("machine-select"));
+  });
+
+  it("leaves a paired machine with no projects out of the Agent Registry selector", () => {
     useRemoteServersStore.setState({
       servers: [
         {
@@ -783,12 +814,45 @@ describe("SettingsOverlay", () => {
     usePanelStore.getState().openSettingsSection("acpRegistry");
     render(<SettingsOverlay onClose={() => undefined} />);
 
-    const main = screen.getByRole("main");
-    expect(within(main).getByText("Agent Registry Settings")).toBeInTheDocument();
-    expect(within(main).getByTestId("machine-select")).toBeInTheDocument();
-    expect(
-      screen.getByText("Agent Registry Settings").closest(".min-h-0.flex-1"),
-    ).not.toContainElement(screen.getByTestId("machine-select"));
+    expect(screen.getByText("Agent Registry Settings")).toBeInTheDocument();
+    expect(screen.queryByTestId("machine-select")).toBeNull();
+  });
+
+  it("reserves scope-bar room on Agents only when a second machine hosts a project", () => {
+    useRemoteServersStore.setState({
+      servers: [
+        {
+          desktopId: "mac",
+          label: "Studio Mac",
+          endpoint: "https://mac.example.test",
+          accessToken: "token",
+          scopes: [],
+        },
+      ],
+    });
+    usePanelStore.getState().openSettingsSection("agentsGeneral");
+    const { rerender } = render(<SettingsOverlay onClose={() => undefined} />);
+
+    const scrollArea = screen
+      .getByText("Agents General Settings")
+      .closest("[data-settings-scroll-area]");
+    expect(scrollArea).toHaveClass("pb-8");
+    expect(scrollArea).not.toHaveClass("pb-20");
+
+    act(() => {
+      appState.projects = [
+        {
+          id: "mac-project",
+          name: "Mac project",
+          location: { kind: "posix", path: "/repo", remoteServerId: "mac" },
+          createdAt: "2026-01-01T00:00:00.000Z",
+        },
+      ];
+    });
+    rerender(<SettingsOverlay onClose={() => undefined} />);
+
+    expect(scrollArea).toHaveClass("pb-20");
+    expect(scrollArea).not.toHaveClass("pb-8");
   });
 
   it("opens Schedules from the compact Desktop Settings index", () => {

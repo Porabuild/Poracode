@@ -34,11 +34,13 @@ export interface SelectProps extends Omit<
   options: readonly SelectOption[];
   value?: string | null;
   onChange: (value: string) => void;
+  /** Extra classes for the trigger surface, e.g. the shared floating-glass material. */
+  triggerClassName?: string;
   popoverProps?: Omit<ComponentProps<typeof HeroSelect.Popover>, "children">;
 }
 
 export function Select(props: SelectProps) {
-  const { label, onChange, options, popoverProps, value, ...rest } = props;
+  const { label, onChange, options, popoverProps, triggerClassName, value, ...rest } = props;
   const { t } = useLingui();
   const { mobile } = useResponsiveMenu();
   const labelId = useId();
@@ -106,7 +108,7 @@ export function Select(props: SelectProps) {
           >
             {label ? <Label id={labelId}>{label}</Label> : null}
             <HeroSelect.Trigger
-              className={slots.trigger()}
+              className={slots.trigger(triggerClassName ? { className: triggerClassName } : {})}
               {...(accessibleName ? { "aria-label": accessibleName } : {})}
               {...(label
                 ? { "aria-labelledby": labelId }
@@ -218,7 +220,7 @@ export function Select(props: SelectProps) {
       onChange={(nextValue) => onChange(nextValue == null ? "" : String(nextValue))}
     >
       {label ? <Label>{label}</Label> : null}
-      <HeroSelect.Trigger>
+      <HeroSelect.Trigger {...(triggerClassName ? { className: triggerClassName } : {})}>
         {/* min-w-0 lets a long selected label shrink and truncate instead of overflowing the trigger. */}
         <HeroSelect.Value className="min-w-0">
           {({ defaultChildren, isPlaceholder }) => {

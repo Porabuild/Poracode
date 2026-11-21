@@ -7,7 +7,11 @@ import { isRemoteSession } from "@/renderer/bridge";
 import { useAppStore } from "@/renderer/state/appStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
-import { useMachines, type MachineDescriptor } from "@/renderer/state/machines";
+import {
+  useAgentsScopeMachines,
+  useMachines,
+  type MachineDescriptor,
+} from "@/renderer/state/machines";
 import { PageLayout } from "@/renderer/components/layout/PageLayout";
 import { MobileMachineToolbar } from "@/renderer/components/common/MobileMachineToolbar";
 import { FloatingScopeBar } from "@/renderer/components/machineScope/FloatingScopeBar";
@@ -358,6 +362,7 @@ export function SettingsOverlay(props: { onClose: () => void; onBack?: () => voi
     activeSection === "acpRegistry" ||
     activeSection.startsWith("agents:");
   const machines = useMachines();
+  const projectMachines = useAgentsScopeMachines(machines);
   const hosts = machines.filter((machine) => machine.ref.env.kind === "native");
   const crewScope = activeSection === "crews";
   const scopedMachines = crewScope ? machines : hosts;
@@ -396,7 +401,7 @@ export function SettingsOverlay(props: { onClose: () => void; onBack?: () => voi
   // area need to reserve room so its last rows are not covered by it.
   const showsScopeBar =
     scopeBar !== null &&
-    (isMachineScopedSection ? machines.length > 1 : showMcpHostBar || hosts.length > 1);
+    (isMachineScopedSection ? projectMachines.length > 1 : showMcpHostBar || hosts.length > 1);
   const section = renderSection(
     activeSection,
     (nextSection) => navigateToSection(nextSection, undefined, mobileDetailParent),

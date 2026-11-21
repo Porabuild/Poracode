@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { useMachineSelectionStore } from "@/renderer/state/machineSelectionStore";
 import {
   chooseMachine,
+  useAgentsScopeMachines,
   useLocalDistroOwner,
   useMachines,
   useWslDistroListStore,
@@ -17,7 +18,8 @@ import { MachineSelect } from "@/renderer/components/machineScope/MachineSelect"
  * the pages exactly as before.
  */
 export function AgentsMachineBar() {
-  const machines = useMachines();
+  const allMachines = useMachines();
+  const machines = useAgentsScopeMachines(allMachines);
   const selectedMachineId = useMachineSelectionStore((state) => state.selectedMachineId);
   const setSelectedMachine = useMachineSelectionStore((state) => state.setSelectedMachine);
   const distroOwner = useLocalDistroOwner();
@@ -32,12 +34,13 @@ export function AgentsMachineBar() {
   }, [distroOwner, distrosLoadedFor, refreshDistros]);
 
   // Snap back to the local machine when the selection disappears (distro
-  // removed, server unpaired).
+  // removed, server unpaired). Filtering does not count as disappearing: the
+  // scope picker always keeps the selected machine listed.
   useEffect(() => {
-    if (!machines.some((machine) => machine.id === selectedMachineId)) {
+    if (!allMachines.some((machine) => machine.id === selectedMachineId)) {
       setSelectedMachine(LOCAL_NATIVE_MACHINE_KEY);
     }
-  }, [machines, selectedMachineId, setSelectedMachine]);
+  }, [allMachines, selectedMachineId, setSelectedMachine]);
 
   if (machines.length <= 1) return null;
 

@@ -1,4 +1,5 @@
 import type { Project, ProjectLocation, Thread } from "@/shared/contracts";
+import { projectEnvironmentKey } from "@/renderer/state/projectGroups/projectGroups";
 
 function buildProjectLocationKey(location: ProjectLocation): string {
   switch (location.kind) {
@@ -120,18 +121,39 @@ export function diffProjectKeys(
   return changed;
 }
 
+function buildStringSetKey(values: Iterable<string>): string {
+  return [...new Set(values)].sort().join("\0");
+}
+
+function parseStringSetKey(key: string): string[] {
+  return key ? key.split("\0") : [];
+}
+
 export function buildWslProjectDistrosKey(projects: readonly Project[]): string {
-  return [
-    ...new Set(
-      projects.flatMap((project) =>
-        !project.disabled && project.location.kind === "wsl" ? [project.location.distro] : [],
-      ),
+  return buildStringSetKey(
+    projects.flatMap((project) =>
+      !project.disabled && project.location.kind === "wsl" ? [project.location.distro] : [],
     ),
-  ]
-    .sort()
-    .join("\0");
+  );
 }
 
 export function parseWslProjectDistrosKey(key: string): string[] {
-  return key ? key.split("\0") : [];
+  return parseStringSetKey(key);
+}
+
+/**
+ * Machine ids that host at least one active (non-disabled) project. Settings
+ * scope pickers use it to offer only the machines the user actually works on,
+ * instead of every enumerated WSL distro and paired desktop.
+ */
+export function buildActiveProjectMachinesKey(projects: readonly Project[]): string {
+  return buildStringSetKey(
+    projects
+      .filter((project) => !project.disabled)
+      .map((project) => projectEnvironmentKey(project)),
+  );
+}
+
+export function parseActiveProjectMachinesKey(key: string): string[] {
+  return parseStringSetKey(key);
 }
