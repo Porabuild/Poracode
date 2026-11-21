@@ -127,6 +127,13 @@ measures consumption rather than context-window occupancy. Standard
 vendor notification again when it echoes the standard prompt reply. Qualify the
 declared semantics against multiple turns and each runtime target.
 
+`usage.spent.model` comes from the response's own `usage.model` / `modelId` /
+`model_id` when present; otherwise the shared session falls back to the
+ACP-negotiated `currentConfig.model`, so bridges whose `PromptResponse.usage`
+omits a model still get list-rate estimates. The fallback describes the
+session's selected lead model — a provider whose reply can be served by a
+different model must report the actual model in the usage payload.
+
 An extension notification handler receives the current native `sessionId` and
 the canonical foreground `turnId`, when present. Providers validate their
 payload's owner before emitting events. Replayed, disposed, and closed

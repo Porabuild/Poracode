@@ -640,6 +640,7 @@ describe("ACP prompt-response usage → usage.spent", () => {
           cacheRead: 0,
           cacheWrite: 0,
         },
+        model: "model-a",
         scopeId: "session-1",
         epoch: 0,
         fresh: true,
@@ -664,6 +665,7 @@ describe("ACP prompt-response usage → usage.spent", () => {
       usage: {
         counterKind: "cumulative",
         counter: 1500,
+        model: "model-a",
         scopeId: "session-1",
         epoch: 0,
         sampleId: "session-1:0:1500",
@@ -758,6 +760,7 @@ describe("ACP prompt-response usage → usage.spent", () => {
         { totalTokens: 500, customMicroUsd: 3_000 },
         {
           ...scope,
+          model: "gemini-3.8-flash",
           promptUsageCost: (u) =>
             typeof u.customMicroUsd === "number"
               ? { amount: u.customMicroUsd / 1_000_000, currency: "USD" }
@@ -766,7 +769,22 @@ describe("ACP prompt-response usage → usage.spent", () => {
       ),
     ).toMatchObject({
       type: "usage.spent",
-      usage: { counter: 500, cost: { amount: 0.003, currency: "USD" } },
+      usage: {
+        counter: 500,
+        cost: { amount: 0.003, currency: "USD" },
+        model: "gemini-3.8-flash",
+      },
+    });
+    // Explicit per-response usage.model takes precedence over the session-negotiated fallback.
+    expect(
+      createAcpPromptUsageSpentEvent(
+        "thread-1",
+        { totalTokens: 500, model: "grok-4.7" },
+        { ...scope, model: "grok-4.6" },
+      ),
+    ).toMatchObject({
+      type: "usage.spent",
+      usage: { counter: 500, model: "grok-4.7" },
     });
 
     // Mismatched or malformed category fields stay omitted while preserving counter.

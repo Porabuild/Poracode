@@ -558,4 +558,85 @@ describe("computeProfileTokenStats (real sqlite)", () => {
       modelKey("claude", "claude-sonnet-4-6"),
     );
   });
+
+  it("fills a missing list-rate estimate from the adapter model without replacing a stored one or using the row model", () => {
+    const now = Date.parse("2026-11-21T12:00:00Z");
+    vi.spyOn(Date, "now").mockReturnValue(now);
+    const tokens = { input: 1_000_000, output: 0, cacheRead: 0, cacheWrite: 0 };
+    const stored = historicalTokenEstimate("claude-sonnet-4-6", tokens, now)!;
+    dbAppendUsageEvents([
+      {
+        ts: Date.parse("2026-11-18T12:00:00Z"),
+        kind: "tokens_v2",
+        provider: "codex",
+        model: "gpt-6.2-sol",
+        value: 1_000_000,
+        costDetails: { version: 1, model: "gpt-6.2-sol", tokens },
+      },
+      {
+        ts: Date.parse("2026-11-18T15:00:00Z"),
+        kind: "tokens_v2",
+        provider: "codex",
+        model: "gpt-6.2-sol",
+        value: 1_000_000,
+        costDetails: { version: 1, tokens },
+      },
+      {
+        ts: Date.parse("2026-11-16T12:00:00Z"),
+        kind: "tokens_v2",
+        provider: "codex",
+        model: "gpt-6.2-sol",
+        value: 1_000_000,
+        costDetails: { version: 1, model: "gpt-6.2-sol", tokens },
+      },
+      {
+        ts: Date.parse("2026-11-18T12:00:00Z"),
+        kind: "tokens_v2",
+        provider: "cursor",
+        model: "gemini-4-neon",
+        value: 1_000_000,
+        costDetails: { version: 1, tokens },
+      },
+      {
+        ts: now,
+        kind: "tokens_v2",
+        provider: "codex",
+        model: "gemini-4-neon",
+        value: 1_000_000,
+        costDetails: { version: 1, model: "gpt-6.2-sol", tokens },
+      },
+      {
+        ts: now,
+        kind: "tokens_v2",
+        provider: "claude",
+        model: "claude-sonnet-4-6",
+        value: 1_000_000,
+        costDetails: {
+          version: 1,
+          model: "claude-sonnet-4-6",
+          tokens,
+          estimate: { amount: 123, pricing: stored.pricing },
+        },
+      },
+    ]);
+
+    const stats = computeProfileTokenStats({ utcOffsetMinutes: 0, window: "30d" });
+    const codex = stats.costs?.providers.find((entry) => entry.key === "codex");
+    expect(codex?.totals.estimatedUsd).toBeCloseTo(6, 12);
+    expect(codex?.totals.estimatedTokens).toBe(3_000_000);
+    expect(codex?.totals.unpricedTokens).toBe(1_000_000);
+    expect(
+      stats.costs?.models.find((entry) => entry.key === modelKey("codex", "gpt-6.2-sol"))?.totals
+        .estimatedTokens,
+    ).toBe(3_000_000);
+    expect(
+      stats.costs?.models.find((entry) => entry.key === modelKey("codex", "gemini-4-neon"))?.totals
+        .estimatedTokens ?? 0,
+    ).toBe(0);
+    const cursor = stats.costs?.providers.find((entry) => entry.key === "cursor");
+    expect(cursor?.totals.estimatedSamples).toBe(0);
+    expect(cursor?.totals.estimatedUsd).toBe(0);
+    const claude = stats.costs?.providers.find((entry) => entry.key === "claude");
+    expect(claude?.totals.estimatedUsd).toBe(123);
+  });
 });

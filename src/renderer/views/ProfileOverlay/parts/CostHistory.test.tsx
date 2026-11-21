@@ -893,3 +893,27 @@ it("handles pre-upgrade host payloads without optional dayProviders, dayModels, 
   const dialog = screen.getByRole("dialog");
   expect(within(dialog).getAllByText("€3.20").length).toBeGreaterThanOrEqual(1);
 });
+
+it("keeps noisy explanatory disclaimers tucked inside info icon tooltips until opened", () => {
+  const stats = reportedStats(2, "USD");
+  stats.totals.tokens = 1_000;
+  stats.totals.categorizedTokens = 600;
+  render(<CostHistory stats={stats} loading={false} locale="en" />);
+
+  expect(screen.queryByText(/Categories cover/)).toBeNull();
+  expect(screen.queryByText(/do not overlap/)).toBeNull();
+  expect(screen.queryByText(/Unpriced tokens have neither/)).toBeNull();
+  expect(screen.queryByText(/separate views of usage/)).toBeNull();
+
+  fireEvent.click(screen.getByRole("button", { name: "About recorded token categories" }));
+  expect(screen.getByText(/Categories cover 600 of 1,000 retained tokens/)).toBeTruthy();
+  expect(screen.getByText(/Reasoning is included in output/)).toBeTruthy();
+
+  fireEvent.click(screen.getByRole("button", { name: "About cost breakdown" }));
+  expect(
+    screen.getByText("Unpriced tokens have neither a provider-reported cost nor an API estimate."),
+  ).toBeTruthy();
+
+  fireEvent.click(screen.getByRole("button", { name: "About subscription bill" }));
+  expect(screen.getByText(/Estimates and provider-reported costs are separate views/)).toBeTruthy();
+});

@@ -196,10 +196,13 @@ export function recordUsageSpentFromRuntimeEvents(
         ) {
           tokens = undefined;
         }
-        // The thread's selected model only describes the lead, never a helper.
+        // The thread's selected model describes the lead. A helper call keeps a
+        // blank model unless its own usage names one, so it cannot inherit the
+        // parent's API rate.
         const model = usage.model ?? (usage.helper ? null : thread.config.model) ?? null;
-        // Selected thread settings do not prove which model served a child call.
-        const estimate = tokens ? historicalTokenEstimate(usage.model, tokens, ts) : undefined;
+        const estimate = tokens
+          ? historicalTokenEstimate(model ?? undefined, tokens, ts)
+          : undefined;
         const costDetails: UsageCostRecord = {
           version: 1,
           ...(usage.model ? { model: usage.model } : {}),

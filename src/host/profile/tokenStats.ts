@@ -30,6 +30,7 @@ import { accountLabel, modelKey, modelLabel, providerLabel } from "./labels";
 import {
   addCostSample,
   aggregateProfileCosts,
+  costDetailsWithDatedEstimate,
   createProfileCostAggregator,
   type ProfileCostPricing,
 } from "./costStats";
@@ -354,14 +355,15 @@ function applyTokenScanRows(cache: TokenRollupCache, rows: Iterable<TokenUsageSc
     if ((row.kind !== "tokens" && row.kind !== "tokens_v2") || row.value < 0) {
       continue;
     }
-    const costDetails = row.cost_details ? parseUsageCostRecord(row.cost_details) : undefined;
+    const storedCost = row.cost_details ? parseUsageCostRecord(row.cost_details) : undefined;
+    const costDetails = costDetailsWithDatedEstimate(storedCost, row.ts, row.model);
     if (row.value === 0 && !costDetails?.observed) {
       continue;
     }
 
     const dayIndex = localDayIndex(row.ts, cache.offset);
     const tokenModelKey = row.model ? modelKey(row.provider, row.model) : "";
-    const attributedModel = costDetails ? costDetails.model : row.model;
+    const attributedModel = costDetails?.model || row.model;
     const costModelKey = attributedModel ? modelKey(row.provider, attributedModel) : "";
 
     // Any row on a local calendar day strictly before scanTodayIndex satisfies ts < nowMs

@@ -1365,6 +1365,18 @@ msgstr "Abortar mesclagem"
 msgid "About"
 msgstr "Sobre"
 
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "About cost breakdown"
+msgstr "Sobre o detalhamento de custos"
+
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "About recorded token categories"
+msgstr "Sobre as categorias de tokens registradas"
+
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "About subscription bill"
+msgstr "Sobre a fatura da assinatura"
+
 #: src/renderer/components/providers/HostUsageInfo.tsx
 msgid "About usage"
 msgstr "Sobre o uso"

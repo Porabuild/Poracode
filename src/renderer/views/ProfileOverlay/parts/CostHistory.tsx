@@ -1,9 +1,10 @@
 import { ContentSurface } from "@/renderer/components/common/ContentSurface";
-import { useState } from "react";
-import { Disclosure, Skeleton } from "@heroui/react";
+import { useState, type ReactNode } from "react";
+import { Disclosure, Skeleton, Tooltip } from "@heroui/react";
+import { Info } from "lucide-react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { ProfileCostStats, ProfileCostTotals } from "@/shared/contracts/costHistory";
-import { LightballTabs, Select, type LightballTab } from "@/renderer/components/common";
+import { Button, LightballTabs, Select, type LightballTab } from "@/renderer/components/common";
 import { ProviderIcon } from "@/renderer/components/providers/ProviderIcon";
 import { formatCompact, formatCost } from "../format";
 import {
@@ -17,6 +18,28 @@ import {
 import { CostModelDialog } from "./CostModelDialog";
 import { CostTypeShareSection } from "./CostShareBar";
 import { CostTrend, type CostTrendPoint, type CostTrendSeries } from "./CostTrend";
+
+function CostInfoTooltip({ label, children }: { label: string; children: ReactNode }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <Tooltip delay={250} isOpen={open} onOpenChange={setOpen} shouldCloseOnPress={false}>
+      <Button
+        isIconOnly
+        size="sm"
+        variant="ghost"
+        aria-label={label}
+        aria-expanded={open}
+        className="size-6 min-h-6 min-w-6 text-muted"
+        onPress={() => setOpen((prev) => !prev)}
+      >
+        <Info className="size-3.5" aria-hidden />
+      </Button>
+      <Tooltip.Content placement="top" className="max-w-72 space-y-1.5 text-xs leading-relaxed">
+        {children}
+      </Tooltip.Content>
+    </Tooltip>
+  );
+}
 
 function CostHistorySkeleton() {
   return (
@@ -486,9 +509,25 @@ export function CostHistory({
       </ContentSurface>
 
       <section className="flex flex-col gap-3" aria-label={t`Recorded token categories`}>
-        <h2 className="text-sm font-semibold">
-          <Trans>Recorded token categories</Trans>
-        </h2>
+        <div className="flex items-center gap-1.5">
+          <h2 className="text-sm font-semibold">
+            <Trans>Recorded token categories</Trans>
+          </h2>
+          <CostInfoTooltip label={t`About recorded token categories`}>
+            <p>
+              <Trans>
+                Categories cover {totals.categorizedTokens.toLocaleString(locale)} of{" "}
+                {totals.tokens.toLocaleString(locale)} retained tokens. Missing categories, prices
+                and older history remain unknown.
+              </Trans>
+            </p>
+            <p>
+              <Trans>
+                Input, output and cache categories do not overlap. Reasoning is included in output.
+              </Trans>
+            </p>
+          </CostInfoTooltip>
+        </div>
         <dl className="grid grid-cols-2 gap-3 @min-[480px]:grid-cols-3 @min-[880px]:grid-cols-6">
           {categoryTiles.map(({ label, value, title }) => (
             <ContentSurface key={label} className="min-w-0 px-3 py-2.5">
@@ -499,18 +538,6 @@ export function CostHistory({
             </ContentSurface>
           ))}
         </dl>
-        <p className="text-[11px] leading-relaxed text-muted">
-          <Trans>
-            Categories cover {totals.categorizedTokens.toLocaleString(locale)} of{" "}
-            {totals.tokens.toLocaleString(locale)} retained tokens. Missing categories, prices and
-            older history remain unknown.
-          </Trans>
-        </p>
-        <p className="text-[11px] leading-relaxed text-muted">
-          <Trans>
-            Input, output and cache categories do not overlap. Reasoning is included in output.
-          </Trans>
-        </p>
       </section>
 
       <CostTypeShareSection
@@ -595,9 +622,18 @@ export function CostHistory({
 
       <section className="flex min-w-0 flex-col gap-3" aria-label={t`Cost breakdown`}>
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className="text-sm font-semibold">
-            <Trans>Cost breakdown</Trans>
-          </h2>
+          <div className="flex items-center gap-1.5">
+            <h2 className="text-sm font-semibold">
+              <Trans>Cost breakdown</Trans>
+            </h2>
+            <CostInfoTooltip label={t`About cost breakdown`}>
+              <p>
+                <Trans>
+                  Unpriced tokens have neither a provider-reported cost nor an API estimate.
+                </Trans>
+              </p>
+            </CostInfoTooltip>
+          </div>
           <Select
             options={[
               { id: "models", label: t`Models` },
@@ -781,24 +817,23 @@ export function CostHistory({
             </tbody>
           </table>
         </ContentSurface>
-        <p className="text-[11px] leading-relaxed text-muted">
-          <Trans>Unpriced tokens have neither a provider-reported cost nor an API estimate.</Trans>
-        </p>
       </section>
 
-      <div className="flex flex-col gap-2 border-t border-[var(--hairline-soft)] pt-4 text-[11px] leading-relaxed text-muted">
+      <div className="flex items-center gap-1.5 border-t border-[var(--hairline-soft)] pt-4 text-[11px] leading-relaxed text-muted">
         <dl className="flex flex-wrap gap-x-2 font-medium text-foreground">
           <dt>
             <Trans>Subscription bill</Trans>
           </dt>
           <dd>{unknown}</dd>
         </dl>
-        <p>
-          <Trans>
-            Estimates and provider-reported costs are separate views of usage; do not add them
-            together. Subscription invoices are not collected.
-          </Trans>
-        </p>
+        <CostInfoTooltip label={t`About subscription bill`}>
+          <p>
+            <Trans>
+              Estimates and provider-reported costs are separate views of usage; do not add them
+              together. Subscription invoices are not collected.
+            </Trans>
+          </p>
+        </CostInfoTooltip>
       </div>
 
       <Disclosure className="border-t border-[var(--hairline-soft)] pt-4">

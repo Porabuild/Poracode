@@ -1,6 +1,7 @@
 import {
   estimateCacheSavingsUsd,
   estimateCategoryCosts,
+  historicalTokenEstimate,
 } from "@poracode/agents-usage/historical-pricing";
 import {
   addCategoryCostUsd,
@@ -24,6 +25,28 @@ export type ProfileCostPricing = ProfileCostStats["pricing"][number];
 interface ComputedSampleEconomics {
   categoryCost: UsageCategoryCost;
   cacheSavingsUsd: number;
+}
+
+/**
+ * Fill a missing list-rate estimate from token categories and a model id.
+ * Adapter-recorded `details.model` wins. Otherwise `leadModel` is the model
+ * already stored on the usage row (the thread's selected lead; helpers are
+ * blank). A stored estimate is never replaced, and nothing is priced without
+ * categories.
+ */
+export function costDetailsWithDatedEstimate(
+  details: UsageCostRecord | undefined,
+  occurredAt: number,
+  leadModel?: string | null,
+): UsageCostRecord | undefined {
+  if (!details?.tokens || details.estimate) return details;
+  const recorded = details.model?.trim();
+  const lead = leadModel?.trim();
+  const model = recorded || lead || undefined;
+  if (!model) return details;
+  const estimate = historicalTokenEstimate(model, details.tokens, occurredAt);
+  if (!estimate) return details;
+  return recorded ? { ...details, estimate } : { ...details, model, estimate };
 }
 
 function computeSampleEconomics(
@@ -212,9 +235,10 @@ export function aggregateProfileCosts(
   const aggregator = createProfileCostAggregator(req, todayIndex);
   for (const row of rows) {
     const dayIndex = localDayIndex(row.ts, req.utcOffsetMinutes);
-    const attributedModel = row.costDetails ? row.costDetails.model : row.model;
+    const details = costDetailsWithDatedEstimate(row.costDetails, row.ts, row.model);
+    const attributedModel = details?.model || row.model;
     const costModelKey = attributedModel ? modelKey(row.provider, attributedModel) : "";
-    aggregator.addSample(dayIndex, row.provider, costModelKey, row.value, row.costDetails);
+    aggregator.addSample(dayIndex, row.provider, costModelKey, row.value, details);
   }
   return aggregator.finish();
 }

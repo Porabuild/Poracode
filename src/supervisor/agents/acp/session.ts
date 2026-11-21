@@ -2345,6 +2345,7 @@ export class AcpStructuredSession implements StructuredSessionHandle {
         scopeId: this.usageScopeId,
         epoch: this.usageEpoch,
         ...(this.usageScopeFresh ? { fresh: true } : {}),
+        ...(this.currentConfig?.model ? { model: this.currentConfig.model } : {}),
         ...(this.behavior?.promptUsageCost
           ? { promptUsageCost: this.behavior.promptUsageCost }
           : {}),

@@ -479,18 +479,36 @@ describe.skipIf(!sqliteAvailable)("usageLedger (real sqlite round-trip)", () => 
     expect(ledgerCounter("scope-1", 0)).toBe(0);
   });
 
-  it("never prices a call with unknown model using the parent thread's selected model", () => {
+  it("prices lead usage from the thread's selected model and does not lend that rate to a helper", () => {
     dbUpsertThread({ ...testThread(), config: { model: "gpt-5.3-codex" } }, 0);
+    const tokens = { input: 900, output: 100, cacheRead: 0, cacheWrite: 0 };
     recordUsageSpentFromRuntimeEvents(THREAD_ID, [
       spent({
         counterKind: "per-call",
         counter: 1000,
-        tokens: { input: 900, output: 100, cacheRead: 0, cacheWrite: 0 },
+        tokens,
+        occurredAt: Date.parse("2026-10-16T12:00:00Z"),
+      }),
+      spent({
+        counterKind: "per-call",
+        counter: 1000,
+        tokens,
+        sampleId: "helper-call",
+        helper: { agentKind: "codex" },
         occurredAt: Date.parse("2026-10-16T12:00:00Z"),
       }),
     ]);
-    expect(dbGetAllUsageEvents()[0]?.costDetails?.estimate).toBeUndefined();
-    expect(dbGetAllUsageEvents()[0]?.costDetails?.model).toBeUndefined();
+    const rows = dbGetAllUsageEvents();
+    const lead = rows.find((row) => row.model === "gpt-5.3-codex");
+    const helper = rows.find((row) => row.model === null);
+    expect(lead?.costDetails?.model).toBeUndefined();
+    expect(lead?.costDetails?.estimate?.pricing.model).toBe("gpt-5.3-codex");
+    expect(lead?.costDetails?.estimate?.amount).toBeCloseTo(
+      (900 * 1.75 + 100 * 14) / 1_000_000,
+      12,
+    );
+    expect(helper?.costDetails?.estimate).toBeUndefined();
+    expect(helper?.costDetails?.model).toBeUndefined();
   });
 
   it("deduplicates a cumulative provider session imported under another account alias", () => {

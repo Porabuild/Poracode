@@ -137,6 +137,8 @@ export function createAcpPromptUsageSpentEvent(
     counterKind?: "cumulative" | "per-call";
     sampleId?: string;
     turnId?: string;
+    /** Session's ACP-negotiated model, used when `usage` itself omits a model field. */
+    model?: string;
     promptUsageCost?: (
       usage: Record<string, unknown>,
     ) => { amount: number; currency: string } | undefined;
@@ -152,7 +154,11 @@ export function createAcpPromptUsageSpentEvent(
   if (!sampleId) return undefined;
   const tokens = readAcpPromptUsageCategories(obj, totalTokens);
   const cost = readAcpPromptUsageCost(obj, scope.promptUsageCost);
-  const model = readAcpPromptUsageModel(obj);
+  const fallbackModel =
+    typeof scope.model === "string" && scope.model.trim().length > 0
+      ? scope.model.trim()
+      : undefined;
+  const model = readAcpPromptUsageModel(obj) ?? fallbackModel;
   return {
     type: "usage.spent",
     threadId,
