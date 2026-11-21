@@ -28,7 +28,11 @@ import {
   ProjectSelectorIcon,
   useProjectRemoteServerLookup,
 } from "@/renderer/components/common/ProjectRemoteServer";
-import { ProjectEnvironmentMenu } from "./ProjectEnvironmentMenu";
+import {
+  PROJECT_CONTROL_ICON_CLASS,
+  PROJECT_CONTROL_LABEL_CLASS,
+  ProjectEnvironmentMenu,
+} from "./ProjectEnvironmentMenu";
 import { MoveThreadAgentComposer, type MoveThreadAgentValue } from "./MoveThreadAgentComposer";
 import { useHostAgentStatusPools } from "@/renderer/hooks/useHostAgentStatuses";
 import { useAppStore } from "@/renderer/state/appStore";
@@ -377,12 +381,12 @@ export function MoveThreadDialog({ sourceThreadId }: { sourceThreadId: string })
                 ) : null}
                 {targetMember && target ? (
                   <div>
-                    <div className="mb-1 flex items-center gap-2">
-                      <span className="inline-flex min-w-0 items-center gap-1 px-1 py-0.5 text-sm leading-tight text-foreground">
+                    <div className="mb-1 flex items-center gap-1">
+                      <span className={PROJECT_CONTROL_LABEL_CLASS}>
                         <ProjectSelectorIcon
                           project={targetMember}
                           remote={remoteServerFor(targetMember)}
-                          className="size-3.5"
+                          className={PROJECT_CONTROL_ICON_CLASS}
                           showEnvironment={false}
                         />
                         <span className="min-w-0 truncate">{targetMember.name}</span>
@@ -391,11 +395,14 @@ export function MoveThreadDialog({ sourceThreadId }: { sourceThreadId: string })
                         // One destination reads as a plain label, like the
                         // environment menu's single-machine row — never dimmed.
                         <span
-                          className="inline-flex min-w-0 shrink items-center gap-1 px-1 py-0.5 text-sm leading-tight text-foreground"
+                          className={`${PROJECT_CONTROL_LABEL_CLASS} shrink`}
                           data-project-environment=""
                         >
                           {targetEnvironment?.machine ? (
-                            <MachineIcon machine={targetEnvironment.machine} className="size-3.5" />
+                            <MachineIcon
+                              machine={targetEnvironment.machine}
+                              className={PROJECT_CONTROL_ICON_CLASS}
+                            />
                           ) : null}
                           <span className="min-w-0 truncate">
                             {targetEnvironment?.machine.label ?? target.label}
