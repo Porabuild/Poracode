@@ -41,6 +41,18 @@ const MUTED_MIN_FRACTION = 0.3;
 const MUTED_MAX_FRACTION = 0.85;
 
 /**
+ * Translucent foreground tint strength for editable fields (`--field-background`).
+ * Because the fill composites over whatever container sits behind the input,
+ * fields stay calm on the plain content canvas (matching `--content-surface-fill`)
+ * and automatically step brighter (dark) or darker (light) inside cards, panels,
+ * modals, popovers, and drawers without per-container CSS overrides.
+ */
+export const FIELD_TINT_PCT = {
+  dark: 6.5,
+  light: 7.5,
+} as const;
+
+/**
  * Every CSS custom property this module sets on the document root. Switching to
  * the base theme clears exactly these so the `.light` / `.dark` rules in
  * `styles.css` take over again.
@@ -86,14 +98,20 @@ export function buildVariant(spec: ThemeSpec, mode: "light" | "dark"): ThemeVari
   const content = spec.content ?? bg;
   // Encoded sRGB, also used by the native transcript. Identical content roles
   // need an opaque fill even on translucent sidebars and compact layouts.
-  const tintedPanel = mixHex(fg, surface, 0.06);
+  const tintedPanel = mixHex(fg, surface, mode === "light" ? 0.085 : 0.06);
   // Reserve room for both readable metadata and a visibly stronger primary label.
   const readablePanel = contrastRatio(fg, tintedPanel) >= 9 ? tintedPanel : surface;
   const panel = mode === "dark" ? mixHex("#000000", readablePanel, 0.05) : readablePanel;
-  const field = mixHex(fg, surface, mode === "dark" ? 0.09 : 0.11);
-  const composer = spec.composer ?? field;
+  const overlayApprox = mixHex(fg, surface, mode === "light" ? 0.07 : 0.02);
+  const fieldTintPct = FIELD_TINT_PCT[mode];
+  const fieldTintFraction = fieldTintPct / 100;
+  // Main composer sits directly on the content canvas and occludes scrolling
+  // chat messages, so it uses the opaque content-surface fill (matching cards
+  // and user messages) rather than the translucent form-field wash.
+  const composer = spec.composer ?? panel;
 
-  // Check metadata against its reading surfaces and hints against their actual fields.
+  // Check metadata against its reading surfaces and hints against the composited
+  // field fills on plain canvas, cards/panels, overlays, and the composer.
   const muted = deriveMutedColor(
     fg,
     [
@@ -108,7 +126,9 @@ export function buildVariant(spec: ThemeSpec, mode: "light" | "dark"): ThemeVari
   const placeholder = deriveMutedColor(
     fg,
     [
-      { color: field, floor: 5 },
+      { color: mixHex(fg, content, fieldTintFraction), floor: 5 },
+      { color: mixHex(fg, panel, fieldTintFraction), floor: 5 },
+      { color: mixHex(fg, overlayApprox, fieldTintFraction), floor: 5 },
       { color: composer, floor: 5 },
     ],
     { minFraction: MUTED_MIN_FRACTION, maxFraction: 1 },
@@ -122,8 +142,8 @@ export function buildVariant(spec: ThemeSpec, mode: "light" | "dark"): ThemeVari
     "--surface-secondary": mix(surface, 92, fg),
     "--surface-tertiary": mix(surface, 85, fg),
     // Floating chrome (modals, menus, popovers). In dark themes it drops to
-    // just above the surface so fields (mixed toward fg, below) read as raised
-    // cards on it; light overlays stay pale while editable fields step toward the dark foreground.
+    // just above the surface so translucent fields step up cleanly on it;
+    // light overlays stay pale while editable fields step toward the dark foreground.
     "--overlay": mode === "light" ? mix(surface, 93, fg) : mix(surface, 98, fg),
     "--muted": muted.hex,
     "--scrollbar": fade(muted.hex, 60),
@@ -135,8 +155,9 @@ export function buildVariant(spec: ThemeSpec, mode: "light" | "dark"): ThemeVari
     "--default": mix(surface, mode === "light" ? 82 : 86, fg),
     "--accent": accent,
     "--accent-foreground": accentFg,
-    // Editable fields are lighter than read-only panels in dark mode and darker in light mode.
-    "--field-background": field,
+    // Translucent foreground wash: stays calm on the plain canvas and automatically
+    // steps brighter (dark) or darker (light) over any raised surface behind it.
+    "--field-background": fade(fg, fieldTintPct),
     "--field-foreground": fg,
     "--field-placeholder": placeholder,
     "--field-border": fade(border, 70),

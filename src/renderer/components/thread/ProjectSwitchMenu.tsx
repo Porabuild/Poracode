@@ -20,7 +20,7 @@ import {
   useProjectEnvironmentMachineLookup,
 } from "@/renderer/components/common/ProjectEnvironment";
 import { type ProjectSwitchEntry, useProjectSwitchEntries } from "./projectSwitchGroups";
-import { ProjectEnvironmentMenu } from "./ProjectEnvironmentMenu";
+import { ProjectEnvironmentMenu, UNDIMMED_DISABLED_TRIGGER_CLASS } from "./ProjectEnvironmentMenu";
 import { switchDraftProject } from "./switchDraftProject";
 
 export function ProjectSwitchMenu(props: {
@@ -140,14 +140,14 @@ export function ProjectSwitchMenu(props: {
     });
   }
 
+  const heroTriggerClass = `group mx-auto inline-flex max-w-full items-center gap-1.5 rounded border border-transparent px-2 py-0.5 outline-none transition-colors hover:border-border/60 hover:bg-[var(--row-hover)] focus-visible:bg-[var(--row-hover)] ${UNDIMMED_DISABLED_TRIGGER_CLASS} disabled:hover:border-transparent disabled:hover:bg-transparent`;
+  const compactTriggerClass = `group inline-flex min-w-0 max-w-full items-center gap-1 rounded px-1 py-0.5 text-sm leading-tight text-foreground outline-none transition-colors hover:bg-[var(--row-hover)] focus-visible:bg-[var(--row-hover)] ${UNDIMMED_DISABLED_TRIGGER_CLASS} disabled:hover:bg-transparent`;
+
   // Mobile PWA: present as a bottom drawer with finger-sized rows instead of the
   // desktop HeroUI dropdown popover. The runtime surface, not its transport,
   // decides which presentation is appropriate.
   if (mobile) {
-    const triggerClass =
-      variant === "hero"
-        ? "group mx-auto inline-flex max-w-full items-center gap-1.5 rounded border border-transparent px-2 py-0.5 outline-none transition-colors hover:border-border/60 hover:bg-[var(--row-hover)] disabled:cursor-default disabled:hover:border-transparent disabled:hover:bg-transparent"
-        : "group inline-flex min-w-0 max-w-full items-center gap-1 rounded px-1 py-0.5 text-sm leading-tight text-muted/60 outline-none transition-colors hover:bg-[var(--row-hover)] hover:text-foreground disabled:cursor-default disabled:hover:bg-transparent disabled:hover:text-muted/60";
+    const triggerClass = variant === "hero" ? heroTriggerClass : compactTriggerClass;
     return (
       <span className="inline-flex min-w-0 max-w-full items-center gap-1">
         <ResponsiveMenuSurface
@@ -175,7 +175,7 @@ export function ProjectSwitchMenu(props: {
                   <span className="min-w-0 truncate">{label}</span>
                 </>
               )}
-              {!isDisabled ? <ChevronDown className="size-3 shrink-0 text-muted/60" /> : null}
+              {!isDisabled ? <ChevronDown className="size-3 shrink-0 text-muted" /> : null}
             </button>
           }
         >
@@ -205,13 +205,13 @@ export function ProjectSwitchMenu(props: {
           <Dropdown.Trigger
             aria-label={t`Switch project`}
             isDisabled={isDisabled}
-            className="group mx-auto inline-flex max-w-full items-center gap-1.5 rounded border border-transparent px-2 py-0.5 outline-none transition-colors hover:border-border/60 hover:bg-[var(--row-hover)] focus-visible:bg-[var(--row-hover)] disabled:cursor-default disabled:hover:border-transparent disabled:hover:bg-transparent"
+            className={heroTriggerClass}
           >
             <span className="min-w-0 truncate pb-[0.08em] leading-snug font-medium tracking-normal text-transparent [background-image:linear-gradient(135deg,var(--muted)_0%,color-mix(in_oklab,var(--accent)_30%,var(--muted))_100%)] [background-size:100%_100%] bg-clip-text font-mono">
               {label}
             </span>
             {!isDisabled ? (
-              <ChevronDown className="size-3 shrink-0 text-muted/60 opacity-60 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100" />
+              <ChevronDown className="size-3 shrink-0 text-muted opacity-70 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100" />
             ) : null}
           </Dropdown.Trigger>
           <Dropdown.Popover placement="bottom">{menu}</Dropdown.Popover>
@@ -227,12 +227,12 @@ export function ProjectSwitchMenu(props: {
         <Dropdown.Trigger
           aria-label={t`Switch project`}
           isDisabled={isDisabled}
-          className="group inline-flex min-w-0 max-w-full items-center gap-1 rounded px-1 py-0.5 text-sm leading-tight text-muted/60 outline-none transition-colors hover:bg-[var(--row-hover)] hover:text-foreground focus-visible:bg-[var(--row-hover)] disabled:cursor-default disabled:hover:bg-transparent disabled:hover:text-muted/60"
+          className={compactTriggerClass}
         >
           {triggerIcon}
           <span className="min-w-0 truncate">{label}</span>
           {!isDisabled ? (
-            <ChevronDown className="size-3 shrink-0 opacity-60 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100" />
+            <ChevronDown className="size-3 shrink-0 text-muted opacity-70 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100" />
           ) : null}
         </Dropdown.Trigger>
         <Dropdown.Popover placement="bottom end">{menu}</Dropdown.Popover>
