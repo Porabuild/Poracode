@@ -91,6 +91,8 @@ export interface AcpGenericAdapterOptions {
   sessionUpdateTransform?: AcpSessionUpdateTransform;
   /** Provider hook for attaching external session-update bridges to a live ACP session. */
   attachSession?: (session: AcpStructuredSession, input: CreateStructuredSessionInput) => void;
+  /** Provider hook identifying errors that mean the server tore down the live session. */
+  isDroppedSessionError?: (error: unknown) => boolean;
 }
 
 export function createAcpGenericAdapter(
@@ -192,6 +194,9 @@ export function createAcpGenericAdapter(
             : {}),
           ...(options.stderrTurnSignalParser
             ? { stderrTurnSignalParser: options.stderrTurnSignalParser }
+            : {}),
+          ...(options.isDroppedSessionError
+            ? { isDroppedSessionError: options.isDroppedSessionError }
             : {}),
         },
       );

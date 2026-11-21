@@ -1,4 +1,4 @@
-import type { SessionNotification } from "@agentclientprotocol/sdk";
+import { RequestError, type SessionNotification } from "@agentclientprotocol/sdk";
 import type { AgentCapability, AgentInstanceConfig, AgentStatus } from "@/shared/contracts";
 import { capabilitiesForPresentation } from "@/shared/agentSelection";
 import { resolveUnrestrictedPermissionConfig } from "@/shared/agents/unrestrictedPermissions";
@@ -43,6 +43,53 @@ export function transformAntigravitySessionUpdate(
   return transformAntigravitySubagentSessionUpdate(
     transformAntigravityBackgroundToolCall(notification),
   );
+}
+
+const ANTIGRAVITY_REBUILD_FAILURE_RE = /\bfailed to rebuild agent\b/i;
+const ANTIGRAVITY_LIVE_SESSION_NOT_FOUND_RE = /\bsession not found\b/i;
+const ANTIGRAVITY_MISSING_PERSISTED_SESSION_RE = /\bgemini_home\b|no session with this id exists/i;
+
+function collectAntigravityErrorEvidence(error: unknown): { code?: number; text: string } {
+  if (typeof error === "object" && error !== null) {
+    const candidate = error as {
+      code?: unknown;
+      message?: unknown;
+      data?: Record<string, unknown> | null;
+    };
+    const code = typeof candidate.code === "number" ? candidate.code : undefined;
+    if (error instanceof RequestError || code !== undefined || candidate.data !== undefined) {
+      const data =
+        candidate.data && typeof candidate.data === "object" ? candidate.data : undefined;
+      const parts = [
+        candidate.message,
+        data?.details,
+        data?.detail,
+        data?.message,
+        data?.uri,
+        data?.reason,
+      ].filter((value): value is string => typeof value === "string" && value.trim().length > 0);
+      return { ...(code !== undefined ? { code } : {}), text: parts.join(" ") };
+    }
+  }
+  return { text: error instanceof Error ? error.message : String(error) };
+}
+
+/**
+ * `agy_acp_server` defers model-switch harness rebuilds until the next
+ * `session/prompt`, and on any teardown/startup exception (for example a stale
+ * WebSocket raising `received 1000 (OK); then sent 1000 (OK)`) calls
+ * `cleanup(session_id)` before raising `RuntimeError("Failed to rebuild agent: …")`.
+ * That deletes the in-memory session while keeping the process alive and the
+ * trajectory `.db` intact on disk, so later calls hit `Session not found` or
+ * `-32002` (`resource_not_found("session …")`). Missing-on-disk trajectories
+ * (`Session not found in the current GEMINI_HOME`) are excluded.
+ */
+export function isAntigravityDroppedSessionError(error: unknown): boolean {
+  const { code, text } = collectAntigravityErrorEvidence(error);
+  if (!text || ANTIGRAVITY_MISSING_PERSISTED_SESSION_RE.test(text)) return false;
+  if (ANTIGRAVITY_REBUILD_FAILURE_RE.test(text)) return true;
+  if (ANTIGRAVITY_LIVE_SESSION_NOT_FOUND_RE.test(text)) return true;
+  return code === -32002 && /\bsession\b/i.test(text);
 }
 
 export function createAntigravityAcpRuntime(
@@ -90,6 +137,7 @@ export function createAntigravityAcpRuntime(
     // exits; the only end-of-reply boundary it publishes is a stderr
     // diagnostic. See ./acpTurnHold.ts.
     stderrTurnSignalParser: parseAntigravityAcpTurnSignal,
+    isDroppedSessionError: isAntigravityDroppedSessionError,
   });
 }
 
