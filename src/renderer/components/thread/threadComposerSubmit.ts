@@ -96,6 +96,10 @@ export interface ComposerSubmitContext {
   onSubmitInput?: ((prompt: string, segments?: PromptSegment[]) => Promise<void>) | undefined;
   /** Called after the transport accepts any ordinary, steered, or queued send. */
   onSubmitSuccess?: (() => void) | undefined;
+  /** Called immediately when the optimistic pre-send clear empties the editor. */
+  onSubmitClear?: (() => void) | undefined;
+  /** Keep keyboard focus in the editor after clear/restore (false on compact touch). */
+  focusAfterClear?: boolean | undefined;
   /** Surface-provided per-turn context, captured when the user submits. */
   captureClientContext?: TurnClientContextCapture | undefined;
 }
@@ -330,13 +334,13 @@ export function submitComposerPrompt(
   const submittedAttachments = currentAttachments;
   const clearSubmittedComposer = () => {
     mentionRef.current?.clear();
-    mentionRef.current?.focus();
+    if (ctx.focusAfterClear !== false) mentionRef.current?.focus();
     clearComposerText();
     attachments.clearAll();
   };
   const restoreSubmittedComposer = () => {
     mentionRef.current?.restoreFromSegments(submittedInputSegments);
-    mentionRef.current?.focus();
+    if (ctx.focusAfterClear !== false) mentionRef.current?.focus();
     ctx.setPrompt(flat);
     ctx.setHasContent(flat.length > 0);
     if (submittedAttachments.length > 0) {
@@ -480,6 +484,7 @@ export function submitComposerPrompt(
       if (!usesTerminalPresentation && ctx.isCurrentSession() && sameEditor()) {
         clearSubmittedComposer();
         clearedBeforeSendSettled = true;
+        ctx.onSubmitClear?.();
       }
       if (!usesTerminalPresentation && !ctx.usesPendingSteerPath && !ctx.onSubmitInput) {
         preparedOptimisticInput = beginOptimisticThreadInput(thread, flat, allSegments);

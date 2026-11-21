@@ -22,6 +22,7 @@ import { useCompactLayout } from "@/renderer/adaptiveLayout";
 import { useExperimentStore } from "@/renderer/state/experimentStore";
 import { useDevTerminalStore } from "@/renderer/state/devTerminalStore";
 import { useAgentDevicePanelAutoOpen } from "@/renderer/components/devices/useAgentDevicePanelAutoOpen";
+import { navigateBackMobilePage } from "./mobilePageHistory";
 
 const DeferredMainRightPanel = lazy(() =>
   import("@/renderer/views/MainView/parts/MainRightPanel").then((module) => ({
@@ -118,6 +119,7 @@ export function MainPageLayout(props: { onTitleClick: () => void }) {
         ) : undefined
       }
       onCompactBack={() => {
+        if (navigateBackMobilePage()) return;
         if (activeMobileUtilityPage !== null) {
           if (activeMobileUtilityPage === "terminal") {
             useDevTerminalStore.getState().closePanel();

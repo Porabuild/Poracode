@@ -888,4 +888,134 @@ describe("FloatingComposerDock", () => {
       restoreVisualViewport();
     }
   });
+
+  it("collapses when the software keyboard dismisses without an open composer overlay", async () => {
+    const restoreVisualViewport = installVisualViewport();
+    try {
+      const { rerender } = render(<ControlledDockHarness />);
+      const input = screen.getByRole("textbox");
+      const dock = document.querySelector(".m-compose-dock");
+
+      keyboardMock.offset = 320;
+      rerender(<ControlledDockHarness />);
+      fireEvent.focusIn(input);
+      await waitFor(() => expect(dock).toHaveAttribute("data-expanded"));
+
+      keyboardMock.offset = 0;
+      rerender(<ControlledDockHarness />);
+      await waitFor(() => expect(dock).not.toHaveAttribute("data-expanded"));
+    } finally {
+      restoreVisualViewport();
+    }
+  });
+
+  it("stays expanded on keyboard dismiss while a composer bottom sheet is open", async () => {
+    const restoreVisualViewport = installVisualViewport();
+    const sheet = document.createElement("div");
+    sheet.className = "m-sheet-backdrop";
+    document.body.append(sheet);
+    try {
+      const { rerender } = render(<ControlledDockHarness />);
+      const input = screen.getByRole("textbox");
+      const dock = document.querySelector(".m-compose-dock");
+
+      keyboardMock.offset = 320;
+      rerender(<ControlledDockHarness />);
+      fireEvent.focusIn(input);
+      await waitFor(() => expect(dock).toHaveAttribute("data-expanded"));
+
+      keyboardMock.offset = 0;
+      rerender(<ControlledDockHarness />);
+      await act(async () => {
+        await waitForTwoFrames();
+      });
+      expect(dock).toHaveAttribute("data-expanded");
+    } finally {
+      sheet.remove();
+      restoreVisualViewport();
+    }
+  });
+
+  it("cancels inner rAF when expanded flips back during double-rAF collapse", () => {
+    const queuedFrames: FrameRequestCallback[] = [];
+    const rafSpy = vi.spyOn(window, "requestAnimationFrame").mockImplementation((cb) => {
+      queuedFrames.push(cb);
+      return queuedFrames.length;
+    });
+    const cancelSpy = vi.spyOn(window, "cancelAnimationFrame").mockImplementation((id) => {
+      queuedFrames[id - 1] = () => {};
+    });
+
+    try {
+      const { rerender } = render(
+        <FloatingComposerDock
+          keyboardKey="thread-1"
+          scrimLabel="Collapse"
+          expanded={false}
+          onExpandedChange={() => {}}
+        >
+          <div>Composer</div>
+        </FloatingComposerDock>,
+      );
+      const bubble = document.querySelector(".m-compose-bubble") as HTMLDivElement;
+      vi.spyOn(bubble, "getBoundingClientRect").mockReturnValue({
+        height: 44,
+        width: 320,
+        top: 0,
+        left: 0,
+        right: 320,
+        bottom: 44,
+        x: 0,
+        y: 0,
+        toJSON: () => ({}),
+      });
+      Object.defineProperty(bubble, "scrollHeight", { configurable: true, value: 140 });
+
+      // Seed collapsed rest height with mocked geometry before flipping to expanded.
+      rerender(
+        <FloatingComposerDock
+          keyboardKey="thread-1"
+          scrimLabel="Collapse"
+          expanded={false}
+          onExpandedChange={() => {}}
+        >
+          <div>Composer</div>
+        </FloatingComposerDock>,
+      );
+      rerender(
+        <FloatingComposerDock
+          keyboardKey="thread-1"
+          scrimLabel="Collapse"
+          expanded={true}
+          onExpandedChange={() => {}}
+        >
+          <div>Composer</div>
+        </FloatingComposerDock>,
+      );
+
+      const firstBatch = queuedFrames.splice(0);
+      act(() => {
+        for (const cb of firstBatch) cb(16);
+      });
+      rerender(
+        <FloatingComposerDock
+          keyboardKey="thread-1"
+          scrimLabel="Collapse"
+          expanded={false}
+          onExpandedChange={() => {}}
+        >
+          <div>Composer</div>
+        </FloatingComposerDock>,
+      );
+
+      const rest = queuedFrames.splice(0);
+      act(() => {
+        for (const cb of rest) cb(32);
+      });
+      expect(cancelSpy).toHaveBeenCalled();
+    } finally {
+      rafSpy.mockRestore();
+      cancelSpy.mockRestore();
+    }
+  });
 });

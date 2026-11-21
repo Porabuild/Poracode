@@ -66,6 +66,7 @@ function endpointHost(endpoint: string): string {
 function MobileRemoteServerRow(props: {
   readonly server: RemoteServerRecord;
   readonly onOpenDesktopSettings?: ((desktopId: string) => void) | undefined;
+  readonly onPairAgain: (endpoint: string) => void;
 }) {
   const { t } = useLingui();
   const { server } = props;
@@ -201,6 +202,14 @@ function MobileRemoteServerRow(props: {
               />
             ) : null}
             <SidebarButton
+              icon={<Link2 className="size-4" />}
+              label={t`Pair again`}
+              onPress={() => {
+                setMenuOpen(false);
+                props.onPairAgain(server.endpoint);
+              }}
+            />
+            <SidebarButton
               icon={<Pencil className="size-4" />}
               label={t`Rename`}
               onPress={() => {
@@ -263,12 +272,16 @@ function MobileRemoteServerRow(props: {
   );
 }
 
-function MobilePairingSheet(props: { readonly onClose: () => void }) {
+function MobilePairingSheet(props: {
+  readonly onClose: () => void;
+  /** Prefills the manual endpoint when re-pairing an existing connection. */
+  readonly initialEndpoint?: string | undefined;
+}) {
   const { t } = useLingui();
   const pairServer = useRemoteServersStore((state) => state.pairServer);
   const connectAll = useRemoteServersStore((state) => state.connectAll);
   const [pairingUrl, setPairingUrl] = useState("");
-  const [endpoint, setEndpoint] = useState("");
+  const [endpoint, setEndpoint] = useState(props.initialEndpoint ?? "");
   const [token, setToken] = useState("");
   const [validationError, setValidationError] = useState<string | null>(null);
   const [scanning, setScanning] = useState(false);
@@ -604,6 +617,7 @@ export function MobileRemoteServersSettings(props: {
   const servers = useRemoteServersStore((state) => state.servers);
   const connectAll = useRemoteServersStore((state) => state.connectAll);
   const [pairingOpen, setPairingOpen] = useState(false);
+  const [pairingEndpoint, setPairingEndpoint] = useState<string | undefined>(undefined);
   const [connectionChoiceOpen, setConnectionChoiceOpen] = useState(false);
   const [sshOpen, setSshOpen] = useState(false);
   const nativeSsh = hasClientCapability("nativeSsh");
@@ -628,6 +642,10 @@ export function MobileRemoteServersSettings(props: {
               key={remoteConnectionKey(server)}
               server={server}
               onOpenDesktopSettings={props.onOpenDesktopSettings}
+              onPairAgain={(endpoint) => {
+                setPairingEndpoint(endpoint);
+                setPairingOpen(true);
+              }}
             />
           ))}
         </div>
@@ -647,6 +665,7 @@ export function MobileRemoteServersSettings(props: {
         aria-label={t`Pair a connection`}
         className="m-page-edge-action fixed bottom-[calc(1rem+env(safe-area-inset-bottom))] right-4 z-40"
         onPress={() => {
+          setPairingEndpoint(undefined);
           if (nativeSsh) setConnectionChoiceOpen(true);
           else setPairingOpen(true);
         }}
@@ -665,6 +684,7 @@ export function MobileRemoteServersSettings(props: {
               label={t`Pair with Poracode`}
               onPress={() => {
                 setConnectionChoiceOpen(false);
+                setPairingEndpoint(undefined);
                 setPairingOpen(true);
               }}
             />
@@ -679,7 +699,15 @@ export function MobileRemoteServersSettings(props: {
           </div>
         </BottomSheet>
       ) : null}
-      {pairingOpen ? <MobilePairingSheet onClose={() => setPairingOpen(false)} /> : null}
+      {pairingOpen ? (
+        <MobilePairingSheet
+          {...(pairingEndpoint ? { initialEndpoint: pairingEndpoint } : {})}
+          onClose={() => {
+            setPairingOpen(false);
+            setPairingEndpoint(undefined);
+          }}
+        />
+      ) : null}
       {sshOpen ? (
         <BottomSheet label={t`Connect over SSH`} onClose={() => setSshOpen(false)}>
           <div className="m-sheet-head">

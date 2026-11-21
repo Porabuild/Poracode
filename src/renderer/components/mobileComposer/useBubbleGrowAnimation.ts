@@ -133,8 +133,10 @@ export function useBubbleGrowAnimation(
     setPinned({ height: `${from}px`, maxHeight: expanded ? null : `${from}px` });
 
     let released = false;
+    let cancelled = false;
+    let innerRaf = 0;
     const release = () => {
-      if (released) return;
+      if (released || cancelled) return;
       released = true;
       setPinned(null);
     };
@@ -145,7 +147,9 @@ export function useBubbleGrowAnimation(
     // Double rAF: the pinned start value must paint (or at least commit)
     // before the target is set, or the transition has no start and jumps.
     const raf = requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
+      if (cancelled) return;
+      innerRaf = requestAnimationFrame(() => {
+        if (cancelled || released) return;
         // Prefer the rest height cached while last expanded: scrollHeight here
         // reads the inner chrome mid-transition (padding/line-height still
         // animating), which overshoots the real target and makes the bubble
@@ -155,7 +159,7 @@ export function useBubbleGrowAnimation(
         const target = expanded
           ? expandedHeightRef.current || bubble.scrollHeight
           : collapsedHeightRef.current;
-        if (target > 0) {
+        if (target > 0 && Math.abs(target - from) >= 1) {
           setPinned({
             height: `${target}px`,
             maxHeight: expanded ? null : `${Math.max(from, target)}px`,
@@ -167,8 +171,10 @@ export function useBubbleGrowAnimation(
     });
     const timeout = window.setTimeout(release, FALLBACK_RELEASE_MS);
     return () => {
+      cancelled = true;
       bubble.removeEventListener("transitionend", onTransitionEnd);
       cancelAnimationFrame(raf);
+      if (innerRaf !== 0) cancelAnimationFrame(innerRaf);
       window.clearTimeout(timeout);
     };
   }, [expanded, skipAnimation, bubbleRef]);

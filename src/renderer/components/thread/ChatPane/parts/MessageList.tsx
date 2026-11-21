@@ -1,6 +1,7 @@
 import {
   memo,
   useCallback,
+  useEffect,
   useLayoutEffect,
   useRef,
   useState,
@@ -21,6 +22,7 @@ import { threadProductProperties } from "@/renderer/analytics/posthog";
 import { captureProductEvent } from "@/renderer/analytics/productAnalytics";
 import { readBridge } from "@/renderer/bridge";
 import { formatElapsed } from "@/renderer/utils/formatTime";
+import { isIosTouchScroll } from "@/renderer/utils/iosScroll";
 import { useAppStore } from "@/renderer/state/appStore";
 import {
   getRuntimeItemPayload,
@@ -140,6 +142,13 @@ interface MessageListProps {
 }
 
 const DEFAULT_ROW_ESTIMATE_PX = 59;
+/**
+ * Generous virtualization buffer on iOS touch scroll: inertial momentum can
+ * outrun LegendList's default 250px buffer before React renders and measures
+ * newly entering rows, leaving transient blank gaps.
+ */
+const IOS_TOUCH_DRAW_DISTANCE_PX = 1600;
+const IOS_MOMENTUM_SETTLE_MS = 240;
 const CONTENT_TAIL_PADDING_PX = 8;
 const INLINE_IMAGE_ROW_CHROME_PX = 27;
 // Grid mosaics sit inside Surface (py-2 = 16px) + row wrapper (pb-1 = 4px) without inline baseline descender.
@@ -190,6 +199,55 @@ export function MessageList({
   const onContentHeightNotification = onContentHeightChange ?? parentActions?.onContentHeightChange;
   const listRef = useRef<LegendListRef | null>(null);
   const scrollElementRef = useRef<HTMLDivElement | null>(null);
+  const iosTouchScroll = isIosTouchScroll();
+  const [scrollNodeForIos, setScrollNodeForIos] = useState<HTMLDivElement | null>(null);
+  const [iosTouchScrolling, setIosTouchScrolling] = useState(false);
+
+  useEffect(() => {
+    if (!iosTouchScroll || !scrollNodeForIos) return;
+    let touchActive = false;
+    let momentumTimer: number | null = null;
+    const clearMomentumTimer = () => {
+      if (momentumTimer !== null) {
+        window.clearTimeout(momentumTimer);
+        momentumTimer = null;
+      }
+    };
+    const armMomentumSettle = () => {
+      clearMomentumTimer();
+      momentumTimer = window.setTimeout(() => {
+        momentumTimer = null;
+        if (!touchActive) setIosTouchScrolling(false);
+      }, IOS_MOMENTUM_SETTLE_MS);
+    };
+    const onTouchStart = () => {
+      touchActive = true;
+      clearMomentumTimer();
+      setIosTouchScrolling(true);
+    };
+    const onTouchEnd = () => {
+      touchActive = false;
+      armMomentumSettle();
+    };
+    const onScroll = () => {
+      if (touchActive || momentumTimer !== null) {
+        setIosTouchScrolling(true);
+        if (!touchActive) armMomentumSettle();
+      }
+    };
+    scrollNodeForIos.addEventListener("touchstart", onTouchStart, { passive: true });
+    scrollNodeForIos.addEventListener("touchend", onTouchEnd, { passive: true });
+    scrollNodeForIos.addEventListener("touchcancel", onTouchEnd, { passive: true });
+    scrollNodeForIos.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      clearMomentumTimer();
+      scrollNodeForIos.removeEventListener("touchstart", onTouchStart);
+      scrollNodeForIos.removeEventListener("touchend", onTouchEnd);
+      scrollNodeForIos.removeEventListener("touchcancel", onTouchEnd);
+      scrollNodeForIos.removeEventListener("scroll", onScroll);
+      setIosTouchScrolling(false);
+    };
+  }, [iosTouchScroll, scrollNodeForIos]);
   const { anchoredEndSpace, anchorKey, newPromptReady, cancelAnimation } = useNewPromptScroll({
     threadId,
     entries,
@@ -261,6 +319,7 @@ export function MessageList({
         ".legend-list-content-container",
       );
       scrollElementRef.current = scrollElement ?? null;
+      if (iosTouchScroll) setScrollNodeForIos(scrollElement ?? null);
       virtualSizeBoxRef.current = contentElement ?? null;
       if (contentElement) {
         contentElement.dataset.chatVirtualSizeBox = "true";
@@ -269,7 +328,13 @@ export function MessageList({
       if (scrollContentRef) scrollContentRef.current = contentElement ?? null;
       setScrollContainer?.(scrollElement ?? null);
     },
-    [scrollContentRef, setScrollContainer, snapshotMeasurements, resetUnderfilledHistory],
+    [
+      iosTouchScroll,
+      scrollContentRef,
+      setScrollContainer,
+      snapshotMeasurements,
+      resetUnderfilledHistory,
+    ],
   );
 
   useLayoutEffect(() => {
@@ -522,11 +587,18 @@ export function MessageList({
               }
         }
         maintainScrollAtEndThreshold={0}
-        maintainVisibleContentPosition={{ data: true, size: true }}
+        maintainVisibleContentPosition={{
+          data: true,
+          size: !(iosTouchScroll && iosTouchScrolling),
+        }}
         {...(onContentHeightNotification || onStartReached
           ? { onContentSizeCommit: notifyContentHeight }
           : {})}
-        {...(drawDistance !== undefined ? { drawDistance } : {})}
+        {...(drawDistance !== undefined
+          ? { drawDistance }
+          : iosTouchScroll
+            ? { drawDistance: IOS_TOUCH_DRAW_DISTANCE_PX }
+            : {})}
         {...(onStartReached
           ? {
               onStartReached: handleStartReached,

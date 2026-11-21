@@ -1,4 +1,7 @@
 import { useEffect, useLayoutEffect, useRef } from "react";
+import type { AppView } from "@/shared/contracts";
+import { useAppStore } from "@/renderer/state/appStore";
+import { useDevTerminalStore } from "@/renderer/state/devTerminalStore";
 import {
   usePanelStore,
   type GitHubActionsContext,
@@ -11,6 +14,7 @@ const MOBILE_PAGES = new Set<MobileUtilityPage>([
   "profile",
   "usage",
   "projects",
+  "terminal",
   "browser",
   "ports",
   "notes",
@@ -22,11 +26,24 @@ const MOBILE_PAGES = new Set<MobileUtilityPage>([
   "settings",
 ]);
 
+type CompactViewEntry =
+  | { readonly kind: "home" }
+  | { readonly kind: "thread"; readonly threadId: string }
+  | { readonly kind: "draft"; readonly projectId: string }
+  | { readonly kind: "experiment"; readonly experimentId: string; readonly projectId: string }
+  | { readonly kind: "pullRequests" }
+  | { readonly kind: "schedules" };
+
 interface MobileHistoryEntry {
-  readonly page: MobileUtilityPage;
+  readonly page?: MobileUtilityPage;
   readonly settingsSection?: string;
   readonly githubActionsContext?: GitHubActionsContext;
   readonly projectSettingsId?: string;
+  readonly workspaceContext?: {
+    readonly projectId: string;
+    readonly worktreePath?: string;
+  };
+  readonly view?: CompactViewEntry;
 }
 
 function readHistoryObject(): Record<string, unknown> {
@@ -34,15 +51,44 @@ function readHistoryObject(): Record<string, unknown> {
   return state !== null && typeof state === "object" ? (state as Record<string, unknown>) : {};
 }
 
+function readCompactViewEntry(candidate: unknown): CompactViewEntry | undefined {
+  if (candidate === null || typeof candidate !== "object") return undefined;
+  const record = candidate as Record<string, unknown>;
+  if (record.kind === "home") return { kind: "home" };
+  if (record.kind === "thread" && typeof record.threadId === "string" && record.threadId.length > 0)
+    return { kind: "thread", threadId: record.threadId };
+  if (
+    record.kind === "draft" &&
+    typeof record.projectId === "string" &&
+    record.projectId.length > 0
+  )
+    return { kind: "draft", projectId: record.projectId };
+  if (
+    record.kind === "experiment" &&
+    typeof record.experimentId === "string" &&
+    record.experimentId.length > 0 &&
+    typeof record.projectId === "string" &&
+    record.projectId.length > 0
+  ) {
+    return { kind: "experiment", experimentId: record.experimentId, projectId: record.projectId };
+  }
+  if (record.kind === "pullRequests") return { kind: "pullRequests" };
+  if (record.kind === "schedules") return { kind: "schedules" };
+  return undefined;
+}
+
 function readHistoryEntry(): MobileHistoryEntry | null {
   const candidate = readHistoryObject()[HISTORY_KEY];
   if (candidate === null || typeof candidate !== "object") return null;
   const record = candidate as Record<string, unknown>;
-  if (typeof record.page !== "string" || !MOBILE_PAGES.has(record.page as MobileUtilityPage)) {
-    return null;
-  }
 
-  const page = record.page as MobileUtilityPage;
+  const page =
+    typeof record.page === "string" && MOBILE_PAGES.has(record.page as MobileUtilityPage)
+      ? (record.page as MobileUtilityPage)
+      : undefined;
+  const view = readCompactViewEntry(record.view);
+  if (page === undefined && view === undefined) return null;
+
   const settingsSection =
     typeof record.settingsSection === "string" ? record.settingsSection : undefined;
   const githubCandidate = record.githubActionsContext;
@@ -52,21 +98,69 @@ function readHistoryEntry(): MobileHistoryEntry | null {
       : undefined;
   const projectSettingsId =
     typeof record.projectSettingsId === "string" ? record.projectSettingsId : undefined;
+  const workspaceCandidate = record.workspaceContext;
+  const workspaceRecord =
+    workspaceCandidate !== null && typeof workspaceCandidate === "object"
+      ? (workspaceCandidate as Record<string, unknown>)
+      : null;
+  const workspaceContext =
+    workspaceRecord && typeof workspaceRecord.projectId === "string"
+      ? {
+          projectId: workspaceRecord.projectId,
+          ...(typeof workspaceRecord.worktreePath === "string"
+            ? { worktreePath: workspaceRecord.worktreePath }
+            : {}),
+        }
+      : undefined;
 
   if (page === "projectSettings" && projectSettingsId === undefined) return null;
 
   return {
-    page,
+    ...(page !== undefined ? { page } : {}),
     ...(settingsSection !== undefined ? { settingsSection } : {}),
     ...(githubActionsContext !== undefined ? { githubActionsContext } : {}),
     ...(projectSettingsId !== undefined ? { projectSettingsId } : {}),
+    ...(workspaceContext !== undefined ? { workspaceContext } : {}),
+    ...(view !== undefined ? { view } : {}),
   };
 }
 
+function compactViewFromAppState(view: AppView, focusedPaneId: string | null): CompactViewEntry {
+  if (view.kind === "thread") {
+    const threadId =
+      focusedPaneId && view.panes.includes(focusedPaneId) ? focusedPaneId : view.panes[0];
+    if (threadId) return { kind: "thread", threadId };
+    return { kind: "home" };
+  }
+  if (view.kind === "draft") return { kind: "draft", projectId: view.projectId };
+  if (view.kind === "experiment") {
+    return { kind: "experiment", experimentId: view.experimentId, projectId: view.projectId };
+  }
+  if (view.kind === "pullRequests") return { kind: "pullRequests" };
+  if (view.kind === "schedules") return { kind: "schedules" };
+  return { kind: "home" };
+}
+
+function routeKeyFor(page: MobileUtilityPage | null, view: CompactViewEntry): string {
+  if (page !== null) return `page:${page}`;
+  if (view.kind === "thread") return `thread:${view.threadId}`;
+  if (view.kind === "draft") return `draft:${view.projectId}`;
+  if (view.kind === "experiment") return `experiment:${view.experimentId}`;
+  if (view.kind === "pullRequests") return "view:pullRequests";
+  if (view.kind === "schedules") return "view:schedules";
+  return "home";
+}
+
+function routeKeyFromHistoryEntry(entry: MobileHistoryEntry | null): string {
+  if (!entry) return "home";
+  return routeKeyFor(entry.page ?? null, entry.view ?? { kind: "home" });
+}
+
 /**
- * Traverse away from the current compact page without clearing it first.
- * Clearing the store before calling Back briefly renders Home and can lose the
- * page-to-page return target (for example Usage -> Settings -> Usage).
+ * Traverse away from the current compact page or thread without clearing it
+ * first. Clearing the store before calling Back briefly renders Home and can
+ * lose the page-to-page return target (for example Usage -> Settings -> Usage,
+ * or Home -> Thread -> Notes -> Thread -> Home).
  */
 export function navigateBackMobilePage(): boolean {
   if (readHistoryEntry() === null) return false;
@@ -74,54 +168,121 @@ export function navigateBackMobilePage(): boolean {
   return true;
 }
 
+function applyCompactView(view: CompactViewEntry): void {
+  const app = useAppStore.getState();
+  if (view.kind === "home") {
+    if (app.view.kind !== "home") app.openHome();
+    return;
+  }
+  if (view.kind === "thread") {
+    const exists = app.threads.some((thread) => thread.id === view.threadId);
+    if (exists) {
+      app.openThread(view.threadId);
+    } else if (app.view.kind !== "home") {
+      app.openHome();
+    }
+    return;
+  }
+  if (view.kind === "draft") {
+    const exists = app.projects.some((project) => project.id === view.projectId);
+    if (exists) {
+      app.openDraft(view.projectId);
+    } else if (app.view.kind !== "home") {
+      app.openHome();
+    }
+    return;
+  }
+  if (view.kind === "experiment") {
+    app.openExperiment(view.experimentId, view.projectId);
+    return;
+  }
+  if (view.kind === "pullRequests") {
+    app.openPullRequests();
+    return;
+  }
+  if (view.kind === "schedules") {
+    app.openSchedules();
+  }
+}
+
 function applyHistoryEntry(entry: MobileHistoryEntry | null): void {
   const state = usePanelStore.getState();
+  const nextPage = entry?.page ?? null;
+  if (state.mobileUtilityPage === "terminal" && nextPage !== "terminal") {
+    useDevTerminalStore.getState().closePanel();
+  }
+  const workspaceContext =
+    nextPage === "workspace" ? (entry?.workspaceContext ?? state.gitReviewContext) : null;
+  const leavingWorkspace = state.mobileUtilityPage === "workspace" && nextPage !== "workspace";
   usePanelStore.setState({
-    mobileUtilityPage: entry?.page ?? null,
+    mobileUtilityPage: nextPage,
     settingsOpen: false,
-    settingsSection: entry?.page === "settings" ? (entry.settingsSection ?? null) : null,
+    settingsSection: nextPage === "settings" ? (entry?.settingsSection ?? null) : null,
     githubActionsContext:
-      entry?.page === "githubActions"
-        ? (entry.githubActionsContext ?? state.githubActionsContext)
+      nextPage === "githubActions"
+        ? (entry?.githubActionsContext ?? state.githubActionsContext)
         : null,
-    projectSettingsId: entry?.page === "projectSettings" ? (entry.projectSettingsId ?? null) : null,
+    projectSettingsId: nextPage === "projectSettings" ? (entry?.projectSettingsId ?? null) : null,
     // History restores the page, not a one-shot deep link into one of its sections.
     projectSettingsSection: null,
+    ...(nextPage === "workspace" && workspaceContext
+      ? { gitReviewContext: workspaceContext }
+      : leavingWorkspace
+        ? { gitOverlayOpen: false, gitReviewContext: null, filesPanelContext: null }
+        : {}),
   });
+  if (entry === null) {
+    applyCompactView({ kind: "home" });
+  } else if (entry.view !== undefined) {
+    applyCompactView(entry.view);
+  }
 }
 
 function buildHistoryEntry(
-  page: MobileUtilityPage,
+  page: MobileUtilityPage | null,
   settingsSection: string | null,
   githubActionsContext: GitHubActionsContext | null,
   projectSettingsId: string | null,
+  workspaceContext: { readonly projectId: string; readonly worktreePath?: string } | null,
+  view: CompactViewEntry,
 ): MobileHistoryEntry {
   return {
-    page,
+    ...(page !== null ? { page } : {}),
     ...(page === "settings" && settingsSection !== null ? { settingsSection } : {}),
     ...(page === "githubActions" && githubActionsContext !== null ? { githubActionsContext } : {}),
     ...(page === "projectSettings" && projectSettingsId !== null ? { projectSettingsId } : {}),
+    ...(page === "workspace" && workspaceContext !== null ? { workspaceContext } : {}),
+    ...(view.kind !== "home" ? { view } : {}),
   };
 }
 
 /**
- * Gives compact PWA pages native-feeling Back/Forward and reload semantics
- * without adding a URL router to the shared Electron renderer.
+ * Gives compact PWA pages and threads native-feeling Back/Forward (including
+ * iOS edge swipe-back) and reload semantics without adding a URL router to the
+ * shared Electron renderer.
  */
 export function useMobilePageHistory(compactLayout: boolean): void {
   const page = usePanelStore((state) => state.mobileUtilityPage);
   const settingsSection = usePanelStore((state) => state.settingsSection);
   const githubActionsContext = usePanelStore((state) => state.githubActionsContext);
   const projectSettingsId = usePanelStore((state) => state.projectSettingsId);
-  const applyingHistoryRef = useRef<{ page: MobileUtilityPage | null } | null>(null);
-  const previousPageRef = useRef<MobileUtilityPage | null>(page);
+  const gitReviewContext = usePanelStore((state) => state.gitReviewContext);
+  const appView = useAppStore((state) => state.view);
+  const focusedPaneId = useAppStore((state) => state.focusedPaneId);
+  const compactView = compactViewFromAppState(appView, focusedPaneId);
+  const routeKey = routeKeyFor(page, compactView);
+  const applyingHistoryRef = useRef<{ routeKey: string } | null>(null);
+  const previousRouteRef = useRef<string>(routeKey);
+  const historyDepthRef = useRef<number>(0);
 
   useLayoutEffect(() => {
     if (!compactLayout) return;
     const entry = readHistoryEntry();
     if (entry === null) return;
-    applyingHistoryRef.current = { page: entry.page };
-    previousPageRef.current = entry.page;
+    const restoredKey = routeKeyFromHistoryEntry(entry);
+    applyingHistoryRef.current = { routeKey: restoredKey };
+    previousRouteRef.current = restoredKey;
+    historyDepthRef.current = Math.max(historyDepthRef.current, 1);
     applyHistoryEntry(entry);
   }, [compactLayout]);
 
@@ -129,8 +290,10 @@ export function useMobilePageHistory(compactLayout: boolean): void {
     if (!compactLayout) return;
     const onPopState = () => {
       const entry = readHistoryEntry();
-      applyingHistoryRef.current = { page: entry?.page ?? null };
-      previousPageRef.current = entry?.page ?? null;
+      const restoredKey = routeKeyFromHistoryEntry(entry);
+      applyingHistoryRef.current = { routeKey: restoredKey };
+      previousRouteRef.current = restoredKey;
+      historyDepthRef.current = entry === null ? 0 : Math.max(1, historyDepthRef.current - 1);
       applyHistoryEntry(entry);
     };
     window.addEventListener("popstate", onPopState);
@@ -139,10 +302,15 @@ export function useMobilePageHistory(compactLayout: boolean): void {
 
   useEffect(() => {
     // Restoration runs in a layout effect. Its synchronous store write can
-    // leave this commit's passive effect holding the previous page snapshot.
+    // leave this commit's passive effect holding the previous route snapshot.
     // Wait for the matching render rather than consuming the restoration and
-    // pushing the restored page again on the next commit.
-    if (page !== usePanelStore.getState().mobileUtilityPage) return;
+    // pushing the restored route again on the next commit.
+    const liveApp = useAppStore.getState();
+    const liveRouteKey = routeKeyFor(
+      usePanelStore.getState().mobileUtilityPage,
+      compactViewFromAppState(liveApp.view, liveApp.focusedPaneId),
+    );
+    if (routeKey !== liveRouteKey) return;
     if (!compactLayout) {
       if (page !== null) usePanelStore.setState({ mobileUtilityPage: null });
       return;
@@ -151,17 +319,57 @@ export function useMobilePageHistory(compactLayout: boolean): void {
     const restoration = applyingHistoryRef.current;
     if (restoration) {
       applyingHistoryRef.current = null;
-      if (restoration.page === page) {
-        previousPageRef.current = page;
+      if (restoration.routeKey === routeKey) {
+        previousRouteRef.current = routeKey;
         return;
       }
     }
 
-    const previousPage = previousPageRef.current;
-    if (page === previousPage) return;
-    previousPageRef.current = page;
+    const previousRoute = previousRouteRef.current;
+    if (routeKey === previousRoute) return;
+    previousRouteRef.current = routeKey;
 
-    if (page !== null) {
+    const currentHistory = readHistoryEntry();
+    const workspaceContext = gitReviewContext
+      ? {
+          projectId: gitReviewContext.projectId,
+          ...(gitReviewContext.worktreePath !== undefined
+            ? { worktreePath: gitReviewContext.worktreePath }
+            : {}),
+        }
+      : null;
+    // Closing a utility page while on a thread/draft/etc. must pop the utility
+    // page back to the underlying view instead of pushing a duplicate thread
+    // entry on top of the closed utility page.
+    if (previousRoute.startsWith("page:") && !routeKey.startsWith("page:")) {
+      if (currentHistory?.page !== undefined) {
+        if (historyDepthRef.current > 1 || routeKey === "home") {
+          historyDepthRef.current = Math.max(0, historyDepthRef.current - 1);
+          window.history.back();
+          return;
+        }
+        if (routeKey !== "home") {
+          window.history.replaceState(
+            {
+              ...readHistoryObject(),
+              [HISTORY_KEY]: buildHistoryEntry(
+                null,
+                settingsSection,
+                githubActionsContext,
+                projectSettingsId,
+                workspaceContext,
+                compactView,
+              ),
+            },
+            "",
+          );
+          return;
+        }
+      }
+    }
+
+    if (routeKey !== "home") {
+      historyDepthRef.current += 1;
       window.history.pushState(
         {
           ...readHistoryObject(),
@@ -170,6 +378,8 @@ export function useMobilePageHistory(compactLayout: boolean): void {
             settingsSection,
             githubActionsContext,
             projectSettingsId,
+            workspaceContext,
+            compactView,
           ),
         },
         "",
@@ -177,8 +387,25 @@ export function useMobilePageHistory(compactLayout: boolean): void {
       return;
     }
 
-    if (previousPage !== null && readHistoryEntry() !== null) {
-      window.history.back();
+    if (previousRoute !== "home" && currentHistory !== null) {
+      if (historyDepthRef.current <= 1) {
+        historyDepthRef.current = 0;
+        window.history.back();
+      } else {
+        historyDepthRef.current = 0;
+        const nextState = { ...readHistoryObject() };
+        delete nextState[HISTORY_KEY];
+        window.history.replaceState(nextState, "");
+      }
     }
-  }, [compactLayout, githubActionsContext, page, projectSettingsId, settingsSection]);
+  }, [
+    compactLayout,
+    compactView,
+    gitReviewContext,
+    githubActionsContext,
+    page,
+    projectSettingsId,
+    routeKey,
+    settingsSection,
+  ]);
 }

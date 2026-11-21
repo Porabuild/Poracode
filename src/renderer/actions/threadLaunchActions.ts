@@ -240,6 +240,11 @@ async function performInitialThreadLaunchPending(
     host && !providerSwitch && !resumableSessionRef
       ? peekPendingThreadLaunch(thread.id)
       : undefined;
+  // An empty ensure-running reopen is an automatic reconciliation, not a
+  // user-initiated mutation: an unconfirmed start carries no user content to
+  // retry or duplicate, so it must not raise the "command may have been
+  // applied — check the thread" warning.
+  let automaticReopen = false;
   try {
     if (pendingRootLaunch?.removal && (await pendingRootLaunch.removal)) return;
     if (pendingRootLaunch && host) {
@@ -361,6 +366,7 @@ async function performInitialThreadLaunchPending(
       // contract's thread start refuses candidates by design.
       const isEmptyRelaunch =
         !prompt && !segments?.length && !providerSwitch && !optimisticUserMessageItemId;
+      automaticReopen = isEmptyRelaunch;
       await withThreadConfigSubmission(thread.id, startInput.config, () =>
         host.withClient((client) =>
           client.startThread({
@@ -393,6 +399,7 @@ async function performInitialThreadLaunchPending(
           : {}),
         ...mcpLaunchSnapshot,
       };
+      automaticReopen = isEmptyReconnect;
       await withThreadConfigSubmission(thread.id, startInput.config, () =>
         isEmptyReconnect ? bridge.ensureThreadRunning(payload) : bridge.startThread(payload),
       );
@@ -423,8 +430,10 @@ async function performInitialThreadLaunchPending(
           { cause: error, requestMayHaveCommitted: false },
         );
       }
-      notifyThreadCommandOutcomeUncertain();
-      markDraftLaunchErrorNotified(error);
+      if (!automaticReopen) {
+        notifyThreadCommandOutcomeUncertain();
+        markDraftLaunchErrorNotified(error);
+      }
     }
     throw error;
   }

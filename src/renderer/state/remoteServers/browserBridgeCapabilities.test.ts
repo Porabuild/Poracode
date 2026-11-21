@@ -87,6 +87,30 @@ it("restores a stored v1 owner preference", () => {
   expect(selectBrowserBridgeClientServer(current)?.desktopId).toBe("first");
 });
 
+it("fails over from a cold-stored offline host when another paired host is online", () => {
+  const bridge = {} as PoracodeBridge;
+  window.poracode = bridge;
+  installBrowserClientRuntime(bridge);
+  window.localStorage.setItem(
+    "poracode.browser.review-owner.v1",
+    JSON.stringify([1, "second", "second", "http://second.test/"]),
+  );
+  const coldConnecting = {
+    ...state(),
+    runtime: { first: { status: "connecting" }, second: { status: "connecting" } },
+  } as unknown as RemoteServersState;
+  syncDesktopBrowserBridgeClient(coldConnecting);
+  expect(selectBrowserBridgeClientServer(coldConnecting)?.desktopId).toBe("second");
+
+  const firstOnlineSecondOffline = {
+    ...state(),
+    runtime: { first: { status: "online" }, second: { status: "offline" } },
+  } as unknown as RemoteServersState;
+  expect(selectBrowserBridgeClientServer(firstOnlineSecondOffline)?.desktopId).toBe("first");
+  syncDesktopBrowserBridgeClient(firstOnlineSecondOffline);
+  expect(readClientRuntime().capabilities.osNotifications).toBe(true);
+});
+
 it("never rewrites an owner preference written by a future version", () => {
   const future = JSON.stringify([2, "second", "second", "http://second.test/", { extra: true }]);
   window.localStorage.setItem("poracode.browser.review-owner.v1", future);

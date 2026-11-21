@@ -18,6 +18,7 @@ import {
   MessageSquare,
   Search,
   Settings,
+  X,
   Zap,
 } from "lucide-react";
 import { useShallow } from "zustand/shallow";
@@ -63,6 +64,22 @@ import { resolveSearchScope } from "./searchScope";
 import { revealSearchDestination } from "./searchNavigation";
 
 const EMPTY_THREADS: Thread[] = [];
+const COMPACT_HIDDEN_COMMAND_IDS = new Set([
+  "sidebar.toggle",
+  "thread.new.panel",
+  "thread.next",
+  "thread.previous",
+  "thread.recent.next",
+  "thread.recent.previous",
+  "terminal.toggle",
+  "pane.close",
+  "tab.next",
+  "tab.previous",
+  "browser.focus-address-bar",
+  "browser.tab.new",
+  "editor.save",
+  "editor.close",
+]);
 
 export function CommandPalette() {
   const { t } = useLingui();
@@ -162,7 +179,13 @@ function SearchPaletteContent() {
   const searchesCommands = category === "all" || category === "commands" || category === "actions";
   const context = buildWhenContext(originTarget);
   const commands = searchesCommands
-    ? buildCommandRegistry().filter((command) => isCommandAvailable(command, context))
+    ? buildCommandRegistry().filter(
+        (command) =>
+          isCommandAvailable(command, context) &&
+          (!compact ||
+            (!COMPACT_HIDDEN_COMMAND_IDS.has(command.id) &&
+              !(isRemoteSession() && command.id === "project.add"))),
+      )
     : [];
   const sections = buildEverythingSearchSections({
     category,
@@ -332,7 +355,7 @@ function SearchPaletteContent() {
               ? { "aria-activedescendant": `everything-search-result-${activeIndex}` }
               : {})}
             variant="secondary"
-            placeholder={t`Search threads, commands, settings, and files…`}
+            placeholder={compact ? t`Search…` : t`Search threads, commands, settings, and files…`}
             value={query}
             onChange={(event) => {
               setQuery(event.target.value);
@@ -343,16 +366,30 @@ function SearchPaletteContent() {
             spellCheck={false}
             autoComplete="off"
           />
-          <Button
-            type="button"
-            size="sm"
-            variant="ghost"
-            aria-label={t`Close search`}
-            onPress={close}
-            className="h-6 shrink-0 rounded-md border border-[var(--hairline)] px-1.5 text-[10px] text-muted"
-          >
-            Esc
-          </Button>
+          {compact ? (
+            <Button
+              type="button"
+              isIconOnly
+              size="sm"
+              variant="ghost"
+              aria-label={t`Close search`}
+              onPress={close}
+              className="size-9 min-w-9 shrink-0 rounded-full text-muted"
+            >
+              <X className="size-4" />
+            </Button>
+          ) : (
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              aria-label={t`Close search`}
+              onPress={close}
+              className="h-6 shrink-0 rounded-md border border-[var(--hairline)] px-1.5 text-[10px] text-muted"
+            >
+              Esc
+            </Button>
+          )}
         </div>
         <div
           role="toolbar"

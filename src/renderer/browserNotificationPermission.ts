@@ -3,13 +3,27 @@ export const BROWSER_NOTIFICATION_PERMISSION_CHANGED_EVENT =
 
 const WEB_PUSH_ACTIVE_KEY = "poracode.webPushRegistrationActive";
 
-/** Request permission from a user gesture and notify the PWA lifecycle. */
+/**
+ * Request permission from a user gesture and notify the PWA lifecycle.
+ *
+ * WebKit rejects (and can throw synchronously) when the request happens
+ * outside a user gesture — for example a host event while the installed PWA
+ * is in the background. This promise never rejects: callers that fire it from
+ * event handlers would otherwise produce an unhandled rejection, which the
+ * renderer treats as a crash.
+ */
 export function requestBrowserNotificationPermission(): Promise<NotificationPermission> {
-  const request = Notification.requestPermission();
-  void request.then(() => {
-    window.dispatchEvent(new Event(BROWSER_NOTIFICATION_PERMISSION_CHANGED_EVENT));
-  });
-  return request;
+  try {
+    return Notification.requestPermission().then(
+      (permission) => {
+        window.dispatchEvent(new Event(BROWSER_NOTIFICATION_PERMISSION_CHANGED_EVENT));
+        return permission;
+      },
+      () => Notification.permission,
+    );
+  } catch {
+    return Promise.resolve(Notification.permission);
+  }
 }
 
 export function setBrowserWebPushActive(active: boolean): void {

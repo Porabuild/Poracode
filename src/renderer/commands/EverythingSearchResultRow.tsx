@@ -6,6 +6,7 @@ import { GripVertical } from "lucide-react";
 import type { Project, Thread } from "@/shared/contracts";
 import type { DragSourceData } from "@/renderer/dnd";
 import { useClearDndEntityElementsOnUnmount } from "@/renderer/dndEntityCleanup";
+import { useCompactLayout } from "@/renderer/adaptiveLayout";
 import { ThreadProviderIcon } from "@/renderer/components/providers/ThreadProviderIcon";
 import type { SearchQuery } from "@/shared/searchMatching";
 import { SearchMatch } from "./SearchMatch";
@@ -24,6 +25,7 @@ interface ResultRowProps {
 }
 
 export function EverythingSearchResultRow(props: ResultRowProps) {
+  const compact = useCompactLayout();
   const stateClass = props.isSelected
     ? "bg-[var(--row-active)] text-foreground"
     : "text-foreground/85 hover:bg-[var(--row-hover)] hover:text-foreground";
@@ -62,7 +64,7 @@ export function EverythingSearchResultRow(props: ResultRowProps) {
           </span>
         ) : null}
       </span>
-      {props.shortcut ? (
+      {props.shortcut && !compact ? (
         <span className="shrink-0 rounded-md border border-[var(--hairline-strong)] bg-foreground/5 px-1.5 py-0.5 text-[10px] leading-4 text-muted">
           {props.shortcut}
         </span>
@@ -81,6 +83,7 @@ export function EverythingSearchThreadRow(props: {
   onHover: () => void;
 }) {
   const { t } = useLingui();
+  const compact = useCompactLayout();
   const rowRef = useRef<HTMLDivElement>(null);
   const dragId = useId();
 
@@ -143,18 +146,20 @@ export function EverythingSearchThreadRow(props: {
           ) : null}
         </span>
       </Button>
-      <Button
-        ref={handleRef}
-        type="button"
-        render={(buttonProps) => <button {...buttonProps} type="button" tabIndex={-1} />}
-        isIconOnly
-        size="sm"
-        variant="ghost"
-        aria-label={t`Move thread ${props.thread.title}`}
-        className="mr-1.5 flex size-7 shrink-0 cursor-grab items-center justify-center rounded-lg text-muted/60 hover:bg-foreground/5 hover:text-muted active:cursor-grabbing"
-      >
-        <GripVertical aria-hidden="true" className="size-3.5" />
-      </Button>
+      {!compact ? (
+        <Button
+          ref={handleRef}
+          type="button"
+          render={(buttonProps) => <button {...buttonProps} type="button" tabIndex={-1} />}
+          isIconOnly
+          size="sm"
+          variant="ghost"
+          aria-label={t`Move thread ${props.thread.title}`}
+          className="mr-1.5 flex size-7 shrink-0 cursor-grab items-center justify-center rounded-lg text-muted/60 hover:bg-foreground/5 hover:text-muted active:cursor-grabbing"
+        >
+          <GripVertical aria-hidden="true" className="size-3.5" />
+        </Button>
+      ) : null}
     </div>
   );
 }

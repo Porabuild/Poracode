@@ -14635,13 +14635,15 @@ msgid "Open git review as a right-side panel or a full page."
 msgstr "Otwórz przegląd git jako panel po prawej stronie lub całą stronę."
 
 #. placeholder {0}: index + 1
-#. placeholder {0}: itemIndex + 1
 #. placeholder {1}: gallery.length
-#. placeholder {1}: images.length
-#: src/renderer/components/composer/ImageLightbox.tsx
 #: src/renderer/components/thread/ThreadImagesDock.tsx
 msgid "Open image {0} of {1}"
 msgstr "Otwórz obraz {0} z {1}"
+
+#. placeholder {0}: itemIndex + 1
+#: src/renderer/components/composer/ImageLightbox.tsx
+msgid "Open image {0} of {count}"
+msgstr "Otwórz obraz {0} z {count}"
 
 #: src/renderer/components/media/ImageFileView.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/ImageCard.tsx
@@ -15177,10 +15179,9 @@ msgstr "Sparuj telefon, tablet lub przeglądarkę z tym komputerem."
 #~ msgid "Pair a remote machine…"
 #~ msgstr "Sparuj zdalny komputer…"
 
-#: src/mobile/components.tsx
-#: src/mobile/remoteConnectionState.ts
-#~ msgid "Pair again"
-#~ msgstr "Sparuj ponownie"
+#: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
+msgid "Pair again"
+msgstr "Sparuj ponownie"
 
 #: src/renderer/components/thread/MoveThreadDialog.tsx
 #~ msgid "Pair another machine in Settings to move threads to it."
@@ -19118,9 +19119,9 @@ msgstr "Szukaj: \"{query}\" w {scope}"
 msgid "Search: {0}"
 msgstr "Szukaj: {0}"
 
-#: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
-#~ msgid "Search…"
-#~ msgstr "Szukaj…"
+#: src/renderer/commands/CommandPalette.tsx
+msgid "Search…"
+msgstr "Szukaj…"
 
 #: src/renderer/commands/EverythingSearchResults.tsx
 msgid "Searching files…"

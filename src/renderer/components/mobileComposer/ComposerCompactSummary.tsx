@@ -1,4 +1,3 @@
-import { useEffect, useRef } from "react";
 import type { AgentStatus, Thread } from "@/shared/contracts";
 import { agentStatusForPresentation } from "@/shared/agentSelection";
 import { canonicalProviderModelId } from "@/renderer/components/providers/modelConfig";
@@ -20,12 +19,12 @@ import { modelFamilyDisplayConfig } from "@/shared/modelFamilySelection";
 type PresentedAgentStatus = NonNullable<ReturnType<typeof agentStatusForPresentation>>;
 
 /**
- * Read-only active-thread parameters pinned to the right edge of the compact
- * composer pill. Model and effort stay readable as text; the provider and
- * boolean/state controls remain compact icons. Inert (pointer-events: none) —
- * tapping anywhere still expands the composer, where the real controls live.
- * Hidden by CSS while the composer is expanded or has typed content (the
- * pinned send button owns that corner).
+ * Read-only active-thread parameters shown as the compact pill's own label.
+ * Model and effort stay readable as text; the provider and boolean/state
+ * controls remain compact icons. Inert (pointer-events: none) — tapping
+ * anywhere still expands the composer, where the real controls live. Hidden
+ * by CSS while the composer is expanded or has typed content (the prompt and
+ * the pinned send button own the pill then).
  */
 export function ComposerCompactSummary(props: {
   readonly thread: Thread;
@@ -89,10 +88,6 @@ export function ComposerCompactSummary(props: {
   );
 }
 
-// Owns the width-publishing observer behind a committed component boundary:
-// the parent gates this on the async agent status, so the summary node mounts
-// together with its content and a mount-only effect never misses it. The
-// observer itself keeps the published width fresh as the content resizes.
 function ComposerSummaryBody(props: {
   readonly thread: Thread;
   readonly agentStatus: PresentedAgentStatus;
@@ -105,25 +100,6 @@ function ComposerSummaryBody(props: {
 }) {
   const { t } = useLingui();
   const { thread, agentStatus } = props;
-  const ref = useRef<HTMLDivElement | null>(null);
-
-  // Publish the rendered width on the bubble so the compact input can reserve
-  // right padding for it (the placeholder would otherwise run underneath).
-  useEffect(() => {
-    const node = ref.current;
-    const bubble = node?.parentElement?.closest(".m-compose-bubble");
-    if (!node || !(bubble instanceof HTMLElement)) return;
-    const syncWidth = () => {
-      bubble.style.setProperty("--m-compose-summary-width", `${node.offsetWidth}px`);
-    };
-    syncWidth();
-    const observer = new ResizeObserver(syncWidth);
-    observer.observe(node);
-    return () => {
-      observer.disconnect();
-      bubble.style.removeProperty("--m-compose-summary-width");
-    };
-  }, []);
 
   const fastControl = props.controls.find(
     (control) => control.kind === "toggle" && control.iconKind === "fast" && control.isSelected,
@@ -137,7 +113,7 @@ function ComposerSummaryBody(props: {
   );
 
   return (
-    <div ref={ref} className="m-compose-summary" aria-hidden="true">
+    <div className="m-compose-summary" aria-hidden="true">
       {props.crewName !== undefined ? (
         <>
           <PoracodeGlyph className="size-3.5 shrink-0 text-foreground" />

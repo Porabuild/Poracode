@@ -356,7 +356,6 @@ export function ComposerInfoChips(props: {
               threadId={threadId}
               state={props.goalDockState}
               placement="composer"
-              showPlacementToggle
               onDismiss={props.onGoalDockDismiss}
             />
           ) : null}
@@ -381,7 +380,6 @@ export function ComposerInfoChips(props: {
               state={props.todoDockState}
               placement="composer"
               collapsed={false}
-              showPlacementToggle
               onCollapsedChange={closePanel}
               onRetire={props.onTodoDockRetire ?? (() => undefined)}
             />
@@ -390,7 +388,6 @@ export function ComposerInfoChips(props: {
             <ThreadBackgroundTasksDock
               threadId={threadId}
               placement="composer"
-              showPlacementToggle
               onDismiss={closePanel}
             />
           ) : null}
@@ -408,7 +405,6 @@ export function ComposerInfoChips(props: {
               threadId={threadId}
               projectLocation={projectLocation}
               kinds={[panelKey]}
-              showPlacementToggle
             />
           ) : null}
         </div>

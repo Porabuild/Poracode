@@ -1,4 +1,4 @@
-import { fireEvent, screen } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Project } from "@/shared/contracts";
@@ -6,8 +6,18 @@ import { useAppStore } from "@/renderer/state/appStore";
 import { useFileEditorStore } from "@/renderer/state/fileEditorStore";
 import { useGitStore } from "@/renderer/state/gitStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
+import {
+  rememberKeyboardHeight,
+  resetKeyboardHeightMemoryForTests,
+} from "@/renderer/components/mobileComposer/keyboardFocusShared";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import { MobileWorkspacePage } from "./MobileWorkspacePage";
+
+const keyboard = vi.hoisted(() => ({ offset: 0 }));
+
+vi.mock("@/renderer/components/mobileComposer/useKeyboardOffset", () => ({
+  useKeyboardOffset: () => keyboard.offset,
+}));
 
 vi.mock("@/renderer/components/layout/PageLayout", () => ({
   PageLayout: (props: {
@@ -68,6 +78,8 @@ const project: Project = {
 
 describe("MobileWorkspacePage", () => {
   beforeEach(() => {
+    keyboard.offset = 0;
+    resetKeyboardHeightMemoryForTests();
     useFileEditorStore.getState().clearSession();
     useGitStore.setState({
       statuses: {},
@@ -158,5 +170,41 @@ describe("MobileWorkspacePage", () => {
       gitOverlayOpen: false,
       mobileUtilityPage: null,
     });
+  });
+
+  it("lifts the workspace bottom padding when an input focuses with remembered keyboard height", () => {
+    rememberKeyboardHeight(340);
+    try {
+      const { container } = render(<MobileWorkspacePage />);
+      const section = container.querySelector(".m-mobile-workspace") as HTMLElement;
+      const input = document.createElement("textarea");
+      section.append(input);
+
+      fireEvent.focusIn(input);
+      expect(section.style.paddingBottom).toBe("340px");
+
+      fireEvent.focusOut(input);
+      expect(section.style.paddingBottom).toBe("");
+    } finally {
+      rememberKeyboardHeight(0);
+    }
+  });
+
+  it("drops the lifted padding when the keyboard closes without blurring the field", async () => {
+    keyboard.offset = 0;
+    const { container, rerender } = render(<MobileWorkspacePage />);
+    const section = container.querySelector(".m-mobile-workspace") as HTMLElement;
+    const input = document.createElement("textarea");
+    section.append(input);
+
+    keyboard.offset = 340;
+    rerender(<MobileWorkspacePage />);
+    fireEvent.focusIn(input);
+    await waitFor(() => expect(section.style.paddingBottom).toBe("340px"));
+
+    // iOS "Done" dismisses the keyboard but can leave the field focused.
+    keyboard.offset = 0;
+    rerender(<MobileWorkspacePage />);
+    await waitFor(() => expect(section.style.paddingBottom).toBe(""));
   });
 });

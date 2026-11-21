@@ -223,6 +223,7 @@ function AdaptiveThreadComposerDock(props: {
   aboveBubble?: ReactNode;
   summary?: ReactNode;
   inputHasContent?: boolean;
+  working?: boolean;
   expansionLocked?: boolean;
   onDockHeightChange?: (height: number, dock: HTMLElement) => void;
   onExpandedChange: (expanded: boolean) => void;
@@ -241,6 +242,7 @@ function AdaptiveThreadComposerDock(props: {
       // one-line placeholder and summary read around the tween's middle.
       collapseContentSwapMs={60}
       inputHasContent={props.inputHasContent}
+      working={props.working}
       aboveBubble={props.aboveBubble}
       expansionLocked={props.expansionLocked}
       onDockHeightChange={props.onDockHeightChange}
@@ -998,12 +1000,21 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
       requestOpenControl: (target) => requestOpenControl(thread.id, target),
       onSubmitInput: props.onSubmitInput,
       captureClientContext,
+      focusAfterClear: !compactLayout,
+      onSubmitClear: () => {
+        if (!compactLayout) return;
+        setComposerCollapsed(true);
+      },
       onSubmitSuccess: () => {
         props.onSubmitSuccess?.();
         if (!compactLayout) return;
         setComposerCollapsed(true);
         const active = document.activeElement;
-        if (active instanceof HTMLElement && active.closest(".m-thread-compose-dock")) {
+        if (
+          active instanceof HTMLElement &&
+          (active.closest(".m-thread-compose-dock") ||
+            active.hasAttribute("data-composer-keyboard-primer"))
+        ) {
           active.blur();
         }
       },
@@ -1246,6 +1257,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
             // The collapsed pill pins its send slot only for typed prompts; the
             // resume button needs the same pinned slot on an empty one.
             inputHasContent={hasContent || canResume}
+            working={canInterruptStructuredTurn}
             expansionLocked={activeRuntimeRequest !== undefined}
             onDockHeightChange={(height, dock) => {
               const pane = composerSectionRef.current?.closest("[data-poracode-thread-pane]");

@@ -14635,13 +14635,15 @@ msgid "Open git review as a right-side panel or a full page."
 msgstr "Git incelemesini sağ taraftaki panel veya tam sayfa olarak açın."
 
 #. placeholder {0}: index + 1
-#. placeholder {0}: itemIndex + 1
 #. placeholder {1}: gallery.length
-#. placeholder {1}: images.length
-#: src/renderer/components/composer/ImageLightbox.tsx
 #: src/renderer/components/thread/ThreadImagesDock.tsx
 msgid "Open image {0} of {1}"
 msgstr "{0}/{1} görselini aç"
+
+#. placeholder {0}: itemIndex + 1
+#: src/renderer/components/composer/ImageLightbox.tsx
+msgid "Open image {0} of {count}"
+msgstr "{0}/{count} görselini aç"
 
 #: src/renderer/components/media/ImageFileView.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/ImageCard.tsx
@@ -15177,10 +15179,9 @@ msgstr "Bir telefonu, tableti veya tarayıcıyı bu masaüstüyle eşleştirin."
 #~ msgid "Pair a remote machine…"
 #~ msgstr "Uzak makine eşleştir…"
 
-#: src/mobile/components.tsx
-#: src/mobile/remoteConnectionState.ts
-#~ msgid "Pair again"
-#~ msgstr "Tekrar eşleştir"
+#: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
+msgid "Pair again"
+msgstr "Tekrar eşleştir"
 
 #: src/renderer/components/thread/MoveThreadDialog.tsx
 #~ msgid "Pair another machine in Settings to move threads to it."
@@ -19118,9 +19119,9 @@ msgstr "Ara: \"{query}\" ({scope} içinde)"
 msgid "Search: {0}"
 msgstr "Arama: {0}"
 
-#: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
-#~ msgid "Search…"
-#~ msgstr "Ara…"
+#: src/renderer/commands/CommandPalette.tsx
+msgid "Search…"
+msgstr "Ara…"
 
 #: src/renderer/commands/EverythingSearchResults.tsx
 msgid "Searching files…"

@@ -1083,6 +1083,25 @@ describe("performInitialThreadLaunch host transport", () => {
     expect(mocks.bridge.startThread).not.toHaveBeenCalled();
   });
 
+  it("stays quiet when an automatic ensure-running reopen has an unknown outcome", async () => {
+    mocks.remoteClient.startThread.mockRejectedValue(
+      new RemoteClientError("Internal server error.", 500, "internal_error"),
+    );
+    mocks.reconcileThreadCommandOutcome.mockResolvedValue(false);
+
+    await expect(
+      performInitialThreadLaunch({
+        thread: remoteThread,
+        projectLocation: { kind: "posix", path: "/srv/repo", remoteServerId: "d1" },
+        prompt: "",
+        initialSize,
+      }),
+    ).rejects.toThrow("Internal server error.");
+
+    expect(mocks.reconcileThreadCommandOutcome).toHaveBeenCalledOnce();
+    expect(mocks.notifyThreadCommandOutcomeUncertain).not.toHaveBeenCalled();
+  });
+
   it("keeps an empty launch carrying a user message on the mutation path", async () => {
     await performInitialThreadLaunch({
       thread: remoteThread,

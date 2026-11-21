@@ -14635,13 +14635,15 @@ msgid "Open git review as a right-side panel or a full page."
 msgstr "Git 검토를 오른쪽 패널이나 전체 페이지로 엽니다."
 
 #. placeholder {0}: index + 1
-#. placeholder {0}: itemIndex + 1
 #. placeholder {1}: gallery.length
-#. placeholder {1}: images.length
-#: src/renderer/components/composer/ImageLightbox.tsx
 #: src/renderer/components/thread/ThreadImagesDock.tsx
 msgid "Open image {0} of {1}"
 msgstr "이미지 {0}/{1} 열기"
+
+#. placeholder {0}: itemIndex + 1
+#: src/renderer/components/composer/ImageLightbox.tsx
+msgid "Open image {0} of {count}"
+msgstr "이미지 {0}/{count} 열기"
 
 #: src/renderer/components/media/ImageFileView.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/ImageCard.tsx
@@ -15177,10 +15179,9 @@ msgstr "휴대폰, 태블릿 또는 브라우저를 이 데스크톱과 페어�
 #~ msgid "Pair a remote machine…"
 #~ msgstr "원격 기기 페어링…"
 
-#: src/mobile/components.tsx
-#: src/mobile/remoteConnectionState.ts
-#~ msgid "Pair again"
-#~ msgstr "다시 페어링"
+#: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
+msgid "Pair again"
+msgstr "다시 페어링"
 
 #: src/renderer/components/thread/MoveThreadDialog.tsx
 #~ msgid "Pair another machine in Settings to move threads to it."
@@ -19118,9 +19119,9 @@ msgstr "검색: \"{query}\" ({scope} 내)"
 msgid "Search: {0}"
 msgstr "검색: {0}"
 
-#: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
-#~ msgid "Search…"
-#~ msgstr "검색…"
+#: src/renderer/commands/CommandPalette.tsx
+msgid "Search…"
+msgstr "검색…"
 
 #: src/renderer/commands/EverythingSearchResults.tsx
 msgid "Searching files…"

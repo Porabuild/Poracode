@@ -82,7 +82,11 @@ function playSound(): void {
   if (!settings.notificationSound) return;
 
   try {
-    void getNotificationAudio().play();
+    // iOS can reject playback without a user gesture; an unhandled rejection
+    // here would trip the renderer's global crash screen.
+    void getNotificationAudio()
+      .play()
+      .catch(() => undefined);
   } catch {
     /* requires user gesture */
   }

@@ -6,6 +6,7 @@ export const REMOTE_SOCKET_POLICY = {
   unauthorizedReconnectMs: 60_000,
   healthPingIntervalMs: 25_000,
   healthPingTimeoutMs: 5_000,
+  resumeHealthPingTimeoutMs: 2_500,
   connectTimeoutMs: 15_000,
 } as const;
 
@@ -72,21 +73,28 @@ export class RemoteSocketHealthMonitor<Socket> {
   private windowStartedAt = 0;
   private deadlineAt = 0;
   private extensions = 0;
+  private maxExtensions = HEALTH_DEADLINE_MAX_EXTENSIONS;
+  private activeTimeoutMs: number | undefined;
   private lastActivityAt = Number.NEGATIVE_INFINITY;
 
   constructor(private readonly options: RemoteSocketHealthMonitorOptions<Socket>) {}
 
-  probe(socket: Socket): void {
-    if (
-      !this.options.isCurrent(socket) ||
-      !this.options.isOpen(socket) ||
-      this.pendingId !== null
-    ) {
+  probe(
+    socket: Socket,
+    probeOptions?: { readonly force?: boolean; readonly timeoutMs?: number },
+  ): void {
+    if (!this.options.isCurrent(socket) || !this.options.isOpen(socket)) {
       return;
+    }
+    if (this.pendingId !== null) {
+      if (probeOptions?.force !== true) return;
+      this.reset();
     }
     const id = crypto.randomUUID();
     this.pendingId = id;
     this.extensions = 0;
+    this.maxExtensions = probeOptions?.force === true ? 1 : HEALTH_DEADLINE_MAX_EXTENSIONS;
+    this.activeTimeoutMs = probeOptions?.timeoutMs;
     try {
       this.options.send(socket, JSON.stringify({ type: "ping", id, sentAt: Date.now() }));
     } catch {
@@ -111,12 +119,15 @@ export class RemoteSocketHealthMonitor<Socket> {
 
   reset(): void {
     this.pendingId = null;
+    this.activeTimeoutMs = undefined;
+    this.maxExtensions = HEALTH_DEADLINE_MAX_EXTENSIONS;
     if (this.timeout !== null) clearTimeout(this.timeout);
     this.timeout = null;
   }
 
   private armDeadline(id: string, socket: Socket): void {
-    const timeoutMs = this.options.timeoutMs ?? REMOTE_SOCKET_POLICY.healthPingTimeoutMs;
+    const timeoutMs =
+      this.activeTimeoutMs ?? this.options.timeoutMs ?? REMOTE_SOCKET_POLICY.healthPingTimeoutMs;
     this.windowStartedAt = Date.now();
     this.deadlineAt = this.windowStartedAt + timeoutMs;
     this.timeout = setTimeout(() => this.expire(id, socket), timeoutMs);
@@ -134,7 +145,7 @@ export class RemoteSocketHealthMonitor<Socket> {
     // peer is alive. Either way the deadline is not evidence of death yet.
     const stalled = Date.now() - this.deadlineAt > HEALTH_DEADLINE_STALL_SLACK_MS;
     const active = this.lastActivityAt >= this.windowStartedAt;
-    if ((stalled || active) && this.extensions < HEALTH_DEADLINE_MAX_EXTENSIONS) {
+    if ((stalled || active) && this.extensions < this.maxExtensions) {
       this.extensions += 1;
       this.armDeadline(id, socket);
       return;

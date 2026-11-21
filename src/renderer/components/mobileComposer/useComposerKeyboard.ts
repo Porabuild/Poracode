@@ -15,6 +15,7 @@ import {
   focusKeyboardPrimer,
   getFocusSentinel,
   getKeyboardPrimer,
+  isKeyboardPrimer,
   isPrimerAbandoned,
   recallKeyboardHeight,
   rememberKeyboardHeight,
@@ -118,6 +119,8 @@ interface ComposerKeyboardOptions {
   readonly onKeyboardProbeStart?: () => void;
   readonly onRememberedKeyboardProbeExpand?: () => void;
   readonly onKeyboardProbeExpand?: () => void;
+  /** Fired when the software keyboard dismisses (e.g. iOS Done key) while focused. */
+  readonly onKeyboardDismiss?: () => void;
 }
 
 function focusComposerInputWithScrollLock(root: HTMLElement): void {
@@ -153,6 +156,7 @@ export function useComposerKeyboard(
   options: ComposerKeyboardOptions = {},
 ): {
   readonly focusComposer: (source?: string, pointerType?: string) => void;
+  readonly dismissKeyboard: () => void;
   readonly inputFocused: boolean;
   readonly liftOffset: number;
   readonly measuringKeyboard: boolean;
@@ -195,6 +199,7 @@ export function useComposerKeyboard(
   const onKeyboardProbeStartRef = useRef(options.onKeyboardProbeStart);
   const onRememberedKeyboardProbeExpandRef = useRef(options.onRememberedKeyboardProbeExpand);
   const onKeyboardProbeExpandRef = useRef(options.onKeyboardProbeExpand);
+  const onKeyboardDismissRef = useRef(options.onKeyboardDismiss);
   keyboardOffsetRef.current = keyboardOffset;
   keyboardLiftOffsetRef.current = keyboardLiftOffset;
   onBeforeGuardedFocusRef.current = options.onBeforeGuardedFocus;
@@ -203,6 +208,7 @@ export function useComposerKeyboard(
   onKeyboardProbeStartRef.current = options.onKeyboardProbeStart;
   onRememberedKeyboardProbeExpandRef.current = options.onRememberedKeyboardProbeExpand;
   onKeyboardProbeExpandRef.current = options.onKeyboardProbeExpand;
+  onKeyboardDismissRef.current = options.onKeyboardDismiss;
 
   const armGuardedFocusSettle = () => {
     guardedFocusSettleRef.current = true;
@@ -463,6 +469,22 @@ export function useComposerKeyboard(
     return true;
   };
 
+  const dismissKeyboard = () => {
+    guardedFocusSettleRef.current = false;
+    window.clearTimeout(guardedFocusSettleTimerRef.current);
+    suppressNextFocusOutUnlockRef.current = false;
+    cancelColdKeyboardProbe("dismiss");
+    unlockComposeScroll();
+    setInputFocused(false);
+    const active = document.activeElement;
+    if (
+      active instanceof HTMLElement &&
+      (ref.current?.contains(active) || isKeyboardPrimer(active))
+    ) {
+      active.blur();
+    }
+  };
+
   const focusComposer = (source = "programmatic", pointerType?: string) => {
     const root = ref.current;
     keyboardDebug("programmatic-focus-request", {
@@ -540,16 +562,19 @@ export function useComposerKeyboard(
       suppressNextKeyboardGoneCleanupRef.current = false;
       return;
     }
-    if (prev > 0 && keyboardOffset === 0 && inputFocused) {
+    if (prev > 0 && keyboardOffset === 0) {
       if (suppressNextKeyboardGoneCleanupRef.current) {
         keyboardDebug("keyboard-gone-cleanup-suppressed", { prev, keyboardOffset });
         suppressNextKeyboardGoneCleanupRef.current = false;
         return;
       }
       keyboardDebug("keyboard-gone-cleanup", { prev, keyboardOffset });
+      guardedFocusSettleRef.current = false;
+      window.clearTimeout(guardedFocusSettleTimerRef.current);
       unlockComposeScroll();
       cancelColdKeyboardProbe("keyboard-gone");
-      setInputFocused(false);
+      if (inputFocused) setInputFocused(false);
+      onKeyboardDismissRef.current?.();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- cleanup helper reads current refs; this effect is keyed to keyboard open/close state
   }, [keyboardOffset, inputFocused]);
@@ -673,6 +698,7 @@ export function useComposerKeyboard(
   });
   return {
     focusComposer,
+    dismissKeyboard,
     inputFocused,
     liftOffset,
     measuringKeyboard,
