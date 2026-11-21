@@ -1,11 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useResolvedAppearance } from "@/renderer/components/ui/provider";
-import {
-  ensureLanguage,
-  getShikiHighlighter,
-  transparentBgTransformer,
-  type ShikiTheme,
-} from "./shikiClient";
+import { ensureLanguage, highlightLoadedCode, type ShikiTheme } from "./shikiClient";
 import type { HighlightLanguage } from "./languageDetect";
 import { SyntaxHighlightCache } from "./syntaxHighlightCache";
 
@@ -14,6 +9,11 @@ interface CodeBlockProps {
   /** Language id (Shiki bundled language) — falls back to a plain `<pre>` if unsupported. */
   lang: HighlightLanguage;
   className?: string;
+}
+
+interface ImmediateHighlight {
+  html: string | null;
+  resolved: boolean;
 }
 
 /**
@@ -27,55 +27,101 @@ function cacheKey(theme: ShikiTheme, lang: string, text: string): string {
   return `${theme}::${lang}::${text}`;
 }
 
+function resolveImmediateHighlight(
+  key: string,
+  text: string,
+  lang: HighlightLanguage,
+  theme: ShikiTheme,
+): ImmediateHighlight {
+  const cached = cache.get(key);
+  if (cached !== undefined) {
+    return { html: cached, resolved: true };
+  }
+  const result = highlightLoadedCode(text, lang, theme);
+  if (!result) {
+    return { html: null, resolved: false };
+  }
+  return { html: result.html, resolved: true };
+}
+
 /**
- * Render `text` as syntax-highlighted code via Shiki. While the highlighter
- * loads (or for unsupported languages) the component falls back to a plain
- * `<pre>` so the user sees the body immediately and gets the colored version
- * once Shiki is ready.
+ * Render `text` as syntax-highlighted code via Shiki. While the highlighter or
+ * grammar loads (or for unsupported languages) the component falls back to a
+ * plain `<pre>` so the user sees the current body immediately and gets the
+ * colored version once Shiki is ready. Once the grammar is loaded, updates
+ * highlight synchronously during render so streaming text never flashes plain
+ * `<pre>` frames between chunks.
  */
 export function CodeBlock({ text, lang, className }: CodeBlockProps) {
   const appearance = useResolvedAppearance();
   const theme: ShikiTheme = appearance === "dark" ? "github-dark" : "github-light";
   const key = cacheKey(theme, lang, text);
-  const [html, setHtml] = useState<string | null>(() => cache.get(key) ?? null);
-  // Show the current source immediately while an uncached grammar/theme loads.
-  const [prevKey, setPrevKey] = useState(key);
-  if (prevKey !== key) {
-    setPrevKey(key);
-    const cached = cache.get(key);
-    setHtml(cached ?? null);
+  // Manual memoization keeps synchronous highlighting tied to input identity in
+  // test runs without React Compiler and avoids re-tokenizing uncached oversized
+  // blocks when `asyncResult` commits.
+  const immediate = useMemo(
+    () => resolveImmediateHighlight(key, text, lang, theme),
+    [key, text, lang, theme],
+  );
+  const [asyncResult, setAsyncResult] = useState<{ key: string; html: string } | null>(null);
+  // Drop stale async HTML once the key moves on so a cold-load result is not
+  // retained in state after subsequent updates resolve synchronously.
+  if (asyncResult !== null && (immediate.resolved || asyncResult.key !== key)) {
+    setAsyncResult(null);
   }
+  const html = immediate.resolved
+    ? immediate.html
+    : asyncResult?.key === key
+      ? asyncResult.html
+      : null;
+
+  const cachedRef = useRef<{
+    key: string;
+    text: string;
+    lang: HighlightLanguage;
+    theme: ShikiTheme;
+  } | null>(null);
 
   useEffect(() => {
-    // Already handled during render above; skip the redundant async pass.
-    if (cache.get(key) !== undefined) return;
+    if (html === null) return;
+    const prev = cachedRef.current;
+    if (
+      prev &&
+      prev.key !== key &&
+      prev.lang === lang &&
+      prev.theme === theme &&
+      text.length > prev.text.length &&
+      text.startsWith(prev.text)
+    ) {
+      // Replace the prior prefix of an actively streaming block instead of
+      // filling the shared LRU with dead intermediate frames.
+      cache.delete(prev.key);
+    }
+    if (prev?.key !== key) {
+      cache.set(key, html);
+      cachedRef.current = { key, text, lang, theme };
+    }
+  }, [html, key, lang, text, theme]);
+
+  useEffect(() => {
+    if (immediate.resolved) return;
     let cancelled = false;
     void (async () => {
       try {
         const ok = await ensureLanguage(lang);
-        if (cancelled) return;
-        if (!ok) {
-          setHtml(null);
-          return;
+        if (cancelled || !ok) return;
+        const result = highlightLoadedCode(text, lang, theme);
+        if (result?.html != null) {
+          setAsyncResult({ key, html: result.html });
         }
-        const highlighter = await getShikiHighlighter();
-        if (cancelled) return;
-        const out = highlighter.codeToHtml(text, {
-          lang,
-          theme,
-          mergeSameStyleTokens: true,
-          transformers: [transparentBgTransformer],
-        });
-        cache.set(key, out);
-        if (!cancelled) setHtml(out);
       } catch {
-        if (!cancelled) setHtml(null);
+        // Keep the plain `<pre>` fallback visible when grammar or engine loading fails.
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [key, lang, text, theme]);
+  }, [immediate.resolved, key, lang, text, theme]);
 
   if (html !== null) {
     return (

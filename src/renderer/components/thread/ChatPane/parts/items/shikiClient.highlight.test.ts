@@ -4,7 +4,9 @@ import { createHighlighterCore } from "shiki/core";
 import { createOnigurumaEngine } from "shiki/engine/oniguruma";
 import {
   ensureLanguage,
+  getLoadedShikiHighlighter,
   getShikiHighlighter,
+  highlightLoadedCode,
   SHIKI_THEMES,
   transparentBgTransformer,
 } from "./shikiClient";
@@ -36,14 +38,19 @@ function styledLines(html: string) {
 
 describe("highlighting fidelity", () => {
   it("loads JSON without unrelated grammars", async () => {
+    expect(getLoadedShikiHighlighter("json")).toBeNull();
     await ensureLanguage("json");
-    expect((await getShikiHighlighter()).getLoadedLanguages()).toEqual(["json"]);
+    const highlighter = await getShikiHighlighter();
+    expect(highlighter.getLoadedLanguages()).toEqual(["json"]);
+    expect(getLoadedShikiHighlighter("json")).toBe(highlighter);
+    expect(getLoadedShikiHighlighter("markdown")).toBeNull();
   });
 
   it("preserves existing grammar colors, embedded code and text while merging equal-style spans", async () => {
     // Markdown is requested before its embedded grammars have been used.
     await ensureLanguage("markdown");
     const highlighter = await getShikiHighlighter();
+    expect(getLoadedShikiHighlighter("markdown")).toBe(highlighter);
     const reference = await createHighlighterCore({
       themes: [import("@shikijs/themes/github-light"), import("@shikijs/themes/github-dark")],
       langs: [
@@ -94,9 +101,9 @@ describe("highlighting fidelity", () => {
         for (const theme of SHIKI_THEMES) {
           const options = { lang, theme, transformers: [transparentBgTransformer] };
           const before = styledLines(reference.codeToHtml(text, options));
-          const after = styledLines(
-            highlighter.codeToHtml(text, { ...options, mergeSameStyleTokens: true }),
-          );
+          const result = highlightLoadedCode(text, lang, theme);
+          expect(result?.html, `${lang}/${theme} highlighted`).toBeTypeOf("string");
+          const after = styledLines(result!.html!);
           expect(after.text, `${lang}/${theme} text`).toBe(before.text);
           expect(after.lines, `${lang}/${theme} colors`).toEqual(before.lines);
           expect(after.elements).toBeLessThanOrEqual(before.elements);

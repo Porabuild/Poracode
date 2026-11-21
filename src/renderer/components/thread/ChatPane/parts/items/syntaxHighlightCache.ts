@@ -37,6 +37,10 @@ export class SyntaxHighlightCache {
     this.stringBytes += bytes;
   }
 
+  delete(key: string): void {
+    this.remove(key);
+  }
+
   private remove(key: string): void {
     const html = this.entries.get(key);
     if (html === undefined) return;
