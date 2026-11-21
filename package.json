@@ -78,6 +78,7 @@
     "dist:win": "node scripts/build-desktop-artifact.mjs --platform win --target nsis --arch x64",
     "dist:win:all": "node scripts/build-desktop-artifact.mjs --platform win",
     "dist:linux": "node scripts/build-desktop-artifact.mjs --platform linux",
+    "dist:linux:arm": "node scripts/build-desktop-artifact.mjs --platform linux --arch arm64",
     "dist:mac": "node scripts/build-desktop-artifact.mjs --platform mac",
     "dist:mac:arm": "node scripts/build-desktop-artifact.mjs --platform mac --target dmg --arch arm64",
     "typecheck": "bun scripts/turbo.mjs typecheck",

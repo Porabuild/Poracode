@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { McpServer, ResolvedMcpServer } from "@/shared/contracts";
-import { prepareMcpToolFilters } from "./McpToolFilterService";
+import { nativeRelayTargetId, prepareMcpToolFilters } from "./McpToolFilterService";
 
 const wslMocks = vi.hoisted(() => ({
   resolveNodeForDistro: vi.fn<(...args: unknown[]) => Promise<unknown>>(async () => ({
@@ -349,7 +349,7 @@ describe("host endpoint relays", () => {
           ? "darwin-universal"
           : process.platform === "win32"
             ? `win32-${process.arch}`
-            : "linux-x64";
+            : `linux-${process.arch}`;
       const dir = join(root, "mcp-relay", id);
       mkdirSync(dir, { recursive: true });
       const path = join(
@@ -652,6 +652,14 @@ describe("host endpoint relays", () => {
         "Ubuntu",
         "/tmp/poracode-mcp-filter-restaged/mcp-filter/poracode-mcp-relay",
       );
+    });
+
+    it("resolves staged target ids for x64 and arm64 Linux hosts", () => {
+      expect(nativeRelayTargetId("linux", "x64")).toBe("linux-x64");
+      expect(nativeRelayTargetId("linux", "arm64")).toBe("linux-arm64");
+      expect(nativeRelayTargetId("linux", "riscv64")).toBeUndefined();
+      expect(nativeRelayTargetId("darwin", "arm64")).toBe("darwin-universal");
+      expect(nativeRelayTargetId("win32", "arm64")).toBe("win32-arm64");
     });
   });
 

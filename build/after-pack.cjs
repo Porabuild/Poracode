@@ -195,7 +195,7 @@ function computerUseTarget(electronPlatformName, archName) {
     return { directory: `win32-${archName}`, executable: "poracode-computer-use.exe" };
   }
   if (electronPlatformName === "linux") {
-    if (archName !== "x64") {
+    if (archName !== "x64" && archName !== "arm64") {
       throw new Error(`[afterPack] FATAL: unsupported Linux computer-use arch ${archName}`);
     }
     return { directory: `linux-${archName}`, executable: "poracode-computer-use" };

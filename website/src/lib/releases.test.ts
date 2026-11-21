@@ -41,6 +41,59 @@ describe("getLatestRelease", () => {
     expect(fallback.version).toBeNull();
     expect(fallback.cliInstaller).toBe(false);
   });
+
+  it("matches Linux x64 and ARM64 AppImage and Arch/Omarchy pacman assets for stable and nightly builds", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        githubRelease([
+          { name: "Poracode-Linux-x86_64.AppImage" },
+          { name: "Poracode-Linux-arm64.AppImage" },
+          { name: "Poracode-2.1.0-arm64.deb" },
+          { name: "Poracode-2.1.0-x64.pacman" },
+          { name: "Poracode-2.1.0-aarch64.pacman" },
+        ]),
+      ),
+    );
+    const stable = await getLatestRelease();
+    expect(stable.downloads["linux-x64"]).toBe(
+      "https://example.test/Poracode-Linux-x86_64.AppImage",
+    );
+    expect(stable.downloads["linux-arm64"]).toBe(
+      "https://example.test/Poracode-Linux-arm64.AppImage",
+    );
+    expect(stable.downloads["linux-pacman-x64"]).toBe(
+      "https://example.test/Poracode-2.1.0-x64.pacman",
+    );
+    expect(stable.downloads["linux-pacman-arm64"]).toBe(
+      "https://example.test/Poracode-2.1.0-aarch64.pacman",
+    );
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        githubRelease([
+          { name: "Poracode-Nightly-Linux-x86_64.AppImage" },
+          { name: "Poracode-Nightly-Linux-arm64.AppImage" },
+          { name: "Poracode-Nightly-2.1.0-nightly.202611210000-x64.pacman" },
+          { name: "Poracode-Nightly-2.1.0-nightly.202611210000-aarch64.pacman" },
+        ]),
+      ),
+    );
+    const nightly = await getLatestRelease();
+    expect(nightly.downloads["linux-x64"]).toBe(
+      "https://example.test/Poracode-Nightly-Linux-x86_64.AppImage",
+    );
+    expect(nightly.downloads["linux-arm64"]).toBe(
+      "https://example.test/Poracode-Nightly-Linux-arm64.AppImage",
+    );
+    expect(nightly.downloads["linux-pacman-x64"]).toBe(
+      "https://example.test/Poracode-Nightly-2.1.0-nightly.202611210000-x64.pacman",
+    );
+    expect(nightly.downloads["linux-pacman-arm64"]).toBe(
+      "https://example.test/Poracode-Nightly-2.1.0-nightly.202611210000-aarch64.pacman",
+    );
+  });
 });
 
 describe("getNpmLauncherVersion", () => {

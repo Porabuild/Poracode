@@ -37,9 +37,10 @@ workload and again after an idle minute, because V8 heaps shrink late.
 | `native/git-helper`          | `poracode-git-helper`   | in-process local Git status, scoped filesystem watching, and project search             | `resources/wsl-helpers/git-helper/<target>/` | TypeScript status/search and bundled watcher worker    |
 
 Targets are `darwin-universal` (lipo of x86_64 and aarch64), `win32-x64`,
-`win32-arm64`, and `linux-x64` (static musl). The Linux MCP relay is also
-packaged into Windows desktop builds for x64 WSL distros and Linux SSH runtime
-archives. Linux arm64, arm64 WSL distros, `https:`/SSE/failure-isolated MCP
+`win32-arm64`, `linux-x64`, and `linux-arm64` (static musl). The Linux x64 MCP
+relay is also packaged into Windows desktop builds for x64 WSL distros and
+Linux SSH runtime archives. Standalone server tarballs currently bundle the
+`linux-x64` helpers; arm64 WSL distros, `https:`/SSE/failure-isolated MCP
 upstreams, and macOS SSH hosts use the MCP `.mjs` fallbacks. Git operations in
 WSL continue through the existing bridge.
 

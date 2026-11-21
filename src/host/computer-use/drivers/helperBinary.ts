@@ -6,7 +6,9 @@ function platformDirectory(platform: NodeJS.Platform, arch: string): string | nu
   if (platform === "win32" && (arch === "x64" || arch === "arm64")) {
     return `win32-${arch}`;
   }
-  if (platform === "linux" && arch === "x64") return "linux-x64";
+  if (platform === "linux" && (arch === "x64" || arch === "arm64")) {
+    return `linux-${arch}`;
+  }
   return null;
 }
 

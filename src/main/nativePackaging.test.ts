@@ -18,7 +18,14 @@ const afterPack = require("../../build/after-pack.cjs") as (context: {
   arch: number;
   packager: { appInfo: { productFilename: string } };
 }) => Promise<void>;
-const targets = ["win32-x64", "win32-arm64", "darwin-x64", "darwin-arm64", "linux-x64"];
+const targets = [
+  "win32-x64",
+  "win32-arm64",
+  "darwin-x64",
+  "darwin-arm64",
+  "linux-x64",
+  "linux-arm64",
+];
 
 describe("native N-API packaging", () => {
   let fixture: string;
@@ -99,4 +106,35 @@ describe("native N-API packaging", () => {
     else writeFileSync(helper, "");
     await expect(pack("win32", 3)).rejects.toThrow(/Windows crash helper missing or empty/);
   });
+
+  it.each([
+    { arch: 1, target: "linux-x64", foreign: "linux-arm64" },
+    { arch: 3, target: "linux-arm64", foreign: "linux-x64" },
+  ])(
+    "verifies and prunes the Linux computer-use helper for $target",
+    async ({ arch, target, foreign }) => {
+      prepare("linux");
+      vi.stubEnv("PORACODE_ALLOW_MISSING_COMPUTER_USE_HELPER", "");
+      const helperRoot = join(fixture, "resources", "computer-use-helper");
+      for (const id of [target, foreign]) {
+        mkdirSync(join(helperRoot, id), { recursive: true });
+        writeFileSync(join(helperRoot, id, "poracode-computer-use"), "elf");
+      }
+      writeFileSync(
+        join(helperRoot, "manifest.json"),
+        JSON.stringify({
+          protocolVersion: 4,
+          clientProtocolVersion: 4,
+          minClientProtocolVersion: 1,
+          targets: [target, foreign],
+        }),
+      );
+      await pack("linux", arch);
+      expect(existsSync(join(helperRoot, target, "poracode-computer-use"))).toBe(true);
+      expect(existsSync(join(helperRoot, foreign))).toBe(false);
+      expect(JSON.parse(readFileSync(join(helperRoot, "manifest.json"), "utf8")).targets).toEqual([
+        target,
+      ]);
+    },
+  );
 });

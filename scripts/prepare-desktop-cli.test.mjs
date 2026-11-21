@@ -195,6 +195,24 @@ void test("Linux packages include both the verified CLI and a separate GUI execu
     config.appImage.artifactName.replace("${arch}", "x86_64").replace("${ext}", "AppImage"),
     PLATFORM_PATTERNS["linux-x64"],
   );
+  assert.match(
+    config.appImage.artifactName.replace("${arch}", "arm64").replace("${ext}", "AppImage"),
+    PLATFORM_PATTERNS["linux-arm64"],
+  );
+  assert.match(
+    config.linux.artifactName
+      .replace("${version}", "2.0.0")
+      .replace("${arch}", "x64")
+      .replace("${ext}", "pacman"),
+    PLATFORM_PATTERNS["linux-pacman-x64"],
+  );
+  assert.match(
+    config.linux.artifactName
+      .replace("${version}", "2.0.0")
+      .replace("${arch}", "aarch64")
+      .replace("${ext}", "pacman"),
+    PLATFORM_PATTERNS["linux-pacman-arm64"],
+  );
   assert(config.files.includes("dist/cli-runtime/**/*"));
   assert(config.extraResources.some((entry) => entry.from === "resources/desktop-cli"));
   for (const channel of ["stable", "nightly"]) {

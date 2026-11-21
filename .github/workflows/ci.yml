@@ -447,7 +447,7 @@ jobs:
       - name: Build and verify the shipped Linux helper
         if: runner.os == 'Linux'
         working-directory: .
-        run: node scripts/prepare-git-helper.mjs --platform linux --require
+        run: node scripts/prepare-git-helper.mjs --platform linux --host-only --require
 
   test_shard:
     name: Test shard (${{ matrix.shard }}/8)

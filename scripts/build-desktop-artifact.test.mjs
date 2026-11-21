@@ -6,6 +6,7 @@ import { test } from "node:test";
 import { parse } from "yaml";
 import { SUPPORTED_LOCALES } from "../src/shared/locale.ts";
 import {
+  ARCH_LINUX_DESKTOP_DEPENDS,
   buildElectronBuilderConfig,
   buildStagePackageJson,
   verifyLockedComputerUseResources,
@@ -102,4 +103,28 @@ void test("macOS packaging requires the staged locked computer use plug-in", (t)
     writeFileSync(join(root, file), "x");
   }
   verifyLockedComputerUseResources(root);
+});
+
+void test("supports x64 and arm64 Linux targets including Omarchy/Arch pacman and FUSE3 AppImage", () => {
+  const full = parse(buildElectronBuilderConfig("branded", "linux", false));
+  assert.equal(full.toolsets.appimage, "1.0.3");
+  assert.equal(full.extraMetadata.desktopName, "poracode-desktop.desktop");
+  assert.equal(full.linux.syncDesktopName, true);
+  assert.deepEqual(full.linux.target, [
+    { target: "AppImage", arch: ["x64", "arm64"] },
+    { target: "deb", arch: ["x64", "arm64"] },
+    { target: "pacman", arch: ["x64", "arm64"] },
+  ]);
+  assert.equal(full.pacman.compression, "zstd");
+  assert.deepEqual(full.pacman.depends, ARCH_LINUX_DESKTOP_DEPENDS);
+  assert.ok(!full.pacman.depends.includes("http-parser"));
+  assert.ok(!full.pacman.depends.includes("libappindicator-gtk3"));
+  for (const arch of ["x64", "arm64"]) {
+    const pinned = parse(buildElectronBuilderConfig("branded", "linux", false, arch));
+    assert.deepEqual(pinned.linux.target, [
+      { target: "AppImage", arch: [arch] },
+      { target: "deb", arch: [arch] },
+      { target: "pacman", arch: [arch] },
+    ]);
+  }
 });
