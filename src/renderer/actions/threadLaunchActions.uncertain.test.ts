@@ -166,7 +166,7 @@ describe("performInitialThreadLaunch uncertain outcomes", () => {
     mocks.bridge.startThread.mockResolvedValue({ threadId: "thread-1" });
   });
 
-  it("reconciles once and never reports success for an uncertain remote start", async () => {
+  it("reconciles once and stays quiet for an automatic empty reopen", async () => {
     const thread = createRemoteThread();
     mocks.startThread.mockRejectedValue(uncertainError());
 
@@ -180,12 +180,12 @@ describe("performInitialThreadLaunch uncertain outcomes", () => {
     ).rejects.toMatchObject({ status: 409, code: "command_outcome_uncertain" });
 
     expect(mocks.startThread).toHaveBeenCalledTimes(1);
-    expect(mocks.notify).toHaveBeenCalledTimes(1);
+    expect(mocks.notify).not.toHaveBeenCalled();
     expect(mocks.reconcile).toHaveBeenCalledExactlyOnceWith(thread);
     expect(mocks.captureThreadStarted).not.toHaveBeenCalled();
   });
 
-  it("reconciles a remote start whose transport failure was wrapped by the store", async () => {
+  it("reconciles a wrapped transport failure on an automatic reopen without warning", async () => {
     const thread = createRemoteThread();
     // The remote-servers store wraps a dispatched transport failure into a
     // localized error whose cause keeps the transport evidence.
@@ -208,7 +208,7 @@ describe("performInitialThreadLaunch uncertain outcomes", () => {
     ).rejects.toMatchObject({ message: "Remote server unreachable." });
 
     expect(mocks.startThread).toHaveBeenCalledTimes(1);
-    expect(mocks.notify).toHaveBeenCalledTimes(1);
+    expect(mocks.notify).not.toHaveBeenCalled();
     expect(mocks.reconcile).toHaveBeenCalledExactlyOnceWith(thread);
     expect(mocks.captureThreadStarted).not.toHaveBeenCalled();
   });

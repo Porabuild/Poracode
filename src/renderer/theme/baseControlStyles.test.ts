@@ -158,7 +158,10 @@ describe("base control styles", () => {
     expect(styles).toContain("--m-header-height: 48px");
     expect(styles).toContain("--m-header-content-gap: 12px");
     expect(styles).toContain(
-      "--m-page-header-safe-zone: calc(var(--m-header-height) + env(safe-area-inset-top))",
+      "--m-top-safe-inset: calc(env(safe-area-inset-top) + var(--m-top-fade-gap))",
+    );
+    expect(styles).toContain(
+      "--m-page-header-safe-zone: calc(var(--m-header-height) + var(--m-top-safe-inset))",
     );
     expect(ruleFor("html[data-compact-layout] .poracode-overlay-header")).toContain(
       "height: var(--m-page-header-safe-zone) !important",

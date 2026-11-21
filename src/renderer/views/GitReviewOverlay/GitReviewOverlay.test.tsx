@@ -112,14 +112,14 @@ describe("GitReviewOverlay", () => {
     const file = within(main).getByText("worktree-only.ts");
     expect(file.closest(".invisible")).toBeNull();
     expect(within(main).getByText("worktree-only.ts")).toBeInTheDocument();
-    expect(within(main).getByPlaceholderText("Commit message (Ctrl+Enter)")).toBeInTheDocument();
+    expect(within(main).getByPlaceholderText("Commit message")).toBeInTheDocument();
     expect(within(main).queryByText("No changes to display")).not.toBeInTheDocument();
     expect(within(main).queryByRole("button", { name: "Refresh" })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Refresh" })).toHaveClass("m-home-compose-action");
 
     fireEvent.click(within(main).getByText("worktree-only.ts"));
     expect(await within(main).findByText("Unable to load diff.")).toBeInTheDocument();
-    expect(within(main).getByPlaceholderText("Commit message (Ctrl+Enter)")).toBeInTheDocument();
+    expect(within(main).getByPlaceholderText("Commit message")).toBeInTheDocument();
   });
 
   it.each([false, true])(
