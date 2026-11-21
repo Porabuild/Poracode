@@ -1277,3 +1277,242 @@ describe("structured segment insertion", () => {
     outside.remove();
   });
 });
+
+function pasteText(editor: HTMLElement, text: string) {
+  fireEvent.paste(editor, {
+    clipboardData: {
+      files: [],
+      items: [],
+      getData: (type: string) => (type === "text/plain" ? text : ""),
+    },
+  });
+}
+
+function setCaretAtEnd(editor: HTMLElement) {
+  const range = document.createRange();
+  range.selectNodeContents(editor);
+  range.collapse(false);
+  const selection = window.getSelection();
+  selection?.removeAllRanges();
+  selection?.addRange(range);
+}
+
+describe("paste token conversion", () => {
+  const slashCommands = [
+    { id: "goal", label: "goal", description: "Set a goal" },
+    {
+      id: "review-code",
+      label: "review-code",
+      section: "skills" as const,
+      skillName: "review-code",
+      skillPath: "/skills/review-code/SKILL.md",
+      skillInvocation: "$review-code",
+      skillProvider: "Shared",
+      skillScope: "global" as const,
+    },
+  ];
+  const mcpMentions: McpMentionItem[] = [
+    { id: "browser", name: "Browser", icon: Globe, detail: "MCP server", enabled: true },
+    { id: "computer-use", name: "Computer Use", icon: Monitor, detail: "MCP", enabled: false },
+  ];
+  const pluginMentions: PluginMentionItem[] = [
+    {
+      id: "github",
+      name: "GitHub",
+      detail: "Plugin",
+      enablesMcpServerIds: ["github-mcp"],
+      command: {
+        id: "github",
+        label: "GitHub",
+        section: "skills",
+        skillName: "github",
+        skillPath: "/plugins/github/skills/github/SKILL.md",
+        skillInvocation: "$github",
+        skillProvider: "GitHub",
+        skillScope: "global",
+        pluginId: "github",
+        pluginName: "GitHub",
+      },
+    },
+  ];
+  const threadMentions: ThreadMentionItem[] = [
+    { threadId: "thread-1", title: "Fix login", updatedAt: "2026-11-21T00:00:00Z" },
+  ];
+
+  it("converts pasted /goal, $skill, and @mentions into badges and supports undo/redo", () => {
+    const ref = createRef<MentionInputHandle>();
+    const onMcpMentionSelect = vi.fn<(id: string) => void>();
+    render(
+      createElement(MentionInput, {
+        ref,
+        placeholder: "Send a message...",
+        projectLocation: undefined,
+        onTextChange: vi.fn<(hasText: boolean) => void>(),
+        onSubmit: vi.fn<(segments: PromptSegment[]) => void>(),
+        slashCommands,
+        mcpMentions,
+        pluginMentions,
+        threadMentions,
+        onMcpMentionSelect,
+      }),
+    );
+
+    const editor = screen.getByRole("textbox");
+    setCaretAtEnd(editor);
+    pasteText(
+      editor,
+      "/goal run $review-code on @src/app.ts with @Browser, @Computer Use, @GitHub, and @Fix login",
+    );
+
+    expect(editor.querySelector('[data-slash-command="goal"]')).not.toBeNull();
+    expect(editor.querySelector('[data-skill-name="review-code"]')).not.toBeNull();
+    expect(editor.querySelector('[data-mention-path="src/app.ts"]')).not.toBeNull();
+    expect(editor.querySelector('[data-mcp-id="browser"]')).not.toBeNull();
+    expect(editor.querySelector('[data-mcp-id="computer-use"]')).not.toBeNull();
+    expect(editor.querySelector('[data-plugin-id="github"]')).not.toBeNull();
+    expect(editor.querySelector('[data-thread-mention-id="thread-1"]')).not.toBeNull();
+    expect(onMcpMentionSelect).toHaveBeenCalledWith("computer-use");
+    expect(onMcpMentionSelect).toHaveBeenCalledWith("github-mcp");
+
+    expect(ref.current?.serializeSegments()).toEqual([
+      { kind: "text", content: "/goal run " },
+      {
+        kind: "skill",
+        name: "review-code",
+        path: "/skills/review-code/SKILL.md",
+        invocation: "$review-code",
+        provider: "Shared",
+        scope: "global",
+      },
+      { kind: "text", content: " on " },
+      { kind: "file", path: "src/app.ts" },
+      { kind: "text", content: " with " },
+      { kind: "mcp", id: "browser", name: "Browser" },
+      { kind: "text", content: ", " },
+      { kind: "mcp", id: "computer-use", name: "Computer Use" },
+      { kind: "text", content: ", " },
+      {
+        kind: "skill",
+        name: "github",
+        path: "/plugins/github/skills/github/SKILL.md",
+        invocation: "$github",
+        provider: "GitHub",
+        scope: "global",
+        pluginId: "github",
+        pluginName: "GitHub",
+      },
+      { kind: "text", content: ", and " },
+      { kind: "thread", threadId: "thread-1", title: "Fix login" },
+      { kind: "text", content: " " },
+    ]);
+
+    fireEvent.keyDown(editor, { key: "z", ctrlKey: true });
+    expect(editor).toBeEmptyDOMElement();
+    fireEvent.keyDown(editor, { key: "z", ctrlKey: true, shiftKey: true });
+    expect(editor.querySelector('[data-slash-command="goal"]')).not.toBeNull();
+    expect(editor.querySelector('[data-mention-path="src/app.ts"]')).not.toBeNull();
+  });
+
+  it("converts standalone pasted /goal and keeps mid-sentence /goal plain", () => {
+    const ref = createRef<MentionInputHandle>();
+    render(
+      createElement(MentionInput, {
+        ref,
+        placeholder: "Send a message...",
+        projectLocation: undefined,
+        onTextChange: vi.fn<(hasText: boolean) => void>(),
+        onSubmit: vi.fn<(segments: PromptSegment[]) => void>(),
+        slashCommands,
+      }),
+    );
+
+    const editor = screen.getByRole("textbox");
+    setCaretAtEnd(editor);
+    pasteText(editor, "/goal");
+    expect(editor.querySelector('[data-slash-command="goal"]')).not.toBeNull();
+    expect(ref.current?.serialize()).toBe("/goal");
+
+    act(() => ref.current?.restoreFromSegments([{ kind: "text", content: "discuss " }]));
+    setCaretAtEnd(editor);
+    pasteText(editor, "/goal");
+    expect(editor.querySelector('[data-slash-command="goal"]')).toBeNull();
+    expect(ref.current?.serialize()).toBe("discuss /goal");
+  });
+
+  it("updates slash trigger state when pasting a partial command", () => {
+    const onSlashCommandChange = vi.fn<(query: string | null) => void>();
+    render(
+      createElement(MentionInput, {
+        placeholder: "Send a message...",
+        projectLocation: undefined,
+        onTextChange: vi.fn<(hasText: boolean) => void>(),
+        onSubmit: vi.fn<(segments: PromptSegment[]) => void>(),
+        slashCommands,
+        onSlashCommandChange,
+      }),
+    );
+
+    const editor = screen.getByRole("textbox");
+    setCaretAtEnd(editor);
+    pasteText(editor, "/go");
+    expect(editor.querySelector('[data-slash-command="goal"]')).toBeNull();
+    expect(onSlashCommandChange).toHaveBeenLastCalledWith("go");
+  });
+
+  it("replaces a full selection with a pasted leading /goal badge", () => {
+    const ref = createRef<MentionInputHandle>();
+    render(
+      createElement(MentionInput, {
+        ref,
+        placeholder: "Send a message...",
+        projectLocation: undefined,
+        onTextChange: vi.fn<(hasText: boolean) => void>(),
+        onSubmit: vi.fn<(segments: PromptSegment[]) => void>(),
+        slashCommands,
+      }),
+    );
+
+    act(() => ref.current?.restoreFromSegments([{ kind: "text", content: "old draft" }]));
+    const editor = screen.getByRole("textbox");
+    const range = document.createRange();
+    range.selectNodeContents(editor);
+    const selection = window.getSelection();
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+
+    pasteText(editor, "/goal new task");
+    expect(editor.querySelector('[data-slash-command="goal"]')).not.toBeNull();
+    expect(ref.current?.serialize()).toBe("/goal new task");
+  });
+
+  it("adds a trailing space when pasting a skill before text inside a contentEditable div block", () => {
+    const ref = createRef<MentionInputHandle>();
+    render(
+      createElement(MentionInput, {
+        ref,
+        placeholder: "Send a message...",
+        projectLocation: undefined,
+        onTextChange: vi.fn<(hasText: boolean) => void>(),
+        onSubmit: vi.fn<(segments: PromptSegment[]) => void>(),
+        slashCommands,
+      }),
+    );
+
+    const editor = screen.getByRole("textbox");
+    const block = document.createElement("div");
+    const textNode = document.createTextNode("please");
+    block.appendChild(textNode);
+    editor.appendChild(block);
+
+    const range = document.createRange();
+    range.setStart(textNode, 0);
+    range.collapse(true);
+    const selection = window.getSelection();
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+
+    pasteText(editor, "$review-code");
+    expect(editor.querySelector('[data-skill-name="review-code"]')).not.toBeNull();
+    expect(ref.current?.serialize()).toBe("$review-code please");
+  });
+});

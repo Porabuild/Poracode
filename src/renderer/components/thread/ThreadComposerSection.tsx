@@ -1494,6 +1494,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                             }
                           : {})}
                         projectId={thread.projectId}
+                        slashCommands={availableCommands}
                         mcpMentions={composerMcpMentions}
                         pluginMentions={composerPluginMentions}
                         threadMentions={threadMentions}

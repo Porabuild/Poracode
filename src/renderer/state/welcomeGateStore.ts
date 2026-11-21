@@ -13,9 +13,12 @@ export const WELCOME_SEEN_STORAGE_KEY = "poracode-welcome-seen-v16";
  * without first painting the onboarding overlay. Keep this dev-only so a build
  * environment can never suppress the real first-launch experience.
  */
+export function isTestingOnboardingSkipped(): boolean {
+  return import.meta.env.DEV && import.meta.env.VITE_PORACODE_SKIP_WELCOME === "1";
+}
+
 export function isWelcomeSeen(): boolean {
-  const skipForTesting = import.meta.env.DEV && import.meta.env.VITE_PORACODE_SKIP_WELCOME === "1";
-  return skipForTesting || readStoredBoolean(WELCOME_SEEN_STORAGE_KEY, false);
+  return isTestingOnboardingSkipped() || readStoredBoolean(WELCOME_SEEN_STORAGE_KEY, false);
 }
 
 interface WelcomeGateStore {

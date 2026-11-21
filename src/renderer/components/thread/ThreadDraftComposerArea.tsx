@@ -1625,6 +1625,7 @@ export function ThreadDraftComposerArea(props: {
               latestSegmentsRef.current = segments;
               checkpointDraft();
             }}
+            slashCommands={availableCommands}
             mcpMentions={composerMcpMentions}
             pluginMentions={composerPluginMentions}
             threadMentions={threadMentions}

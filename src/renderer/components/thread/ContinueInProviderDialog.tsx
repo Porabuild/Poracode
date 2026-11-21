@@ -1101,6 +1101,7 @@ export function ContinueInProviderDialog(props: {
                           placeholder={t`Tell ${selectedAgent?.label ?? targetProviderFallback} what to do next...`}
                           projectLocation={props.projectLocation}
                           projectId={thread.projectId}
+                          slashCommands={availableCommands}
                           mcpMentions={composerMcpMentions}
                           pluginMentions={composerPluginMentions}
                           threadMentions={threadMentions}

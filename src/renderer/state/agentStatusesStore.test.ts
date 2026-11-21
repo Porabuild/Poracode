@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { AgentStatus, ProjectLocation } from "@/shared/contracts";
 import {
   isDetectingAgentsForLocation,
@@ -1890,5 +1890,16 @@ it("publishes a progressive observation atomically to the composer and discovery
     expect(publications).toBe(1);
   } finally {
     unsubscribe();
+  }
+});
+
+it("skips first-launch discovery overlay when VITE_PORACODE_SKIP_WELCOME is set", () => {
+  vi.stubEnv("VITE_PORACODE_SKIP_WELCOME", "1");
+  try {
+    useAgentStatusesStore.getState().beginStartupDiscovery();
+    expect(useAgentStatusesStore.getState().inFirstLaunchDiscovery).toBe(false);
+    expect(useAgentStatusesStore.getState().discoveryScanning).toBe(false);
+  } finally {
+    vi.unstubAllEnvs();
   }
 });
