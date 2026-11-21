@@ -1,0 +1,302 @@
+name: Promote iOS and iPadOS to App Store
+
+# Promotes an already-processed TestFlight build of the universal iPhone + iPad
+# app (com.poracode.mobile) through App Store staging, readiness validation,
+# App Review submission, and developer release using a pinned, checksum-verified
+# App Store Connect CLI (asc) binary. Never rebuilds a different binary.
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: "Lifecycle step: stage (attach + validate), submit (stage + App Review), or release (go live from Pending Developer Release)"
+        type: choice
+        required: true
+        default: stage
+        options:
+          - stage
+          - submit
+          - release
+      version:
+        description: "App Store marketing version (X.Y.Z, e.g. 2.0.0)"
+        type: string
+        required: true
+      build_number:
+        description: "Exact TestFlight CFBundleVersion to attach (leave blank to pick the latest VALID build for this version; ignored for release)"
+        type: string
+        required: false
+        default: ""
+      release_type:
+        description: "App Store release trigger after approval"
+        type: choice
+        required: true
+        default: MANUAL
+        options:
+          - MANUAL
+          - AFTER_APPROVAL
+      whats_new:
+        description: "Optional en-US App Store 'What's New in This Version' text"
+        type: string
+        required: false
+        default: ""
+      strict_validate:
+        description: "Treat asc validate warnings as blocking"
+        type: boolean
+        required: false
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: promote-ios-appstore-${{ inputs.version }}
+  cancel-in-progress: false
+
+jobs:
+  promote_ios:
+    name: App Store (${{ inputs.action }} ${{ inputs.version }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: mobile-ios
+    env:
+      ASC_VERSION: "6.6.1"
+      ASC_LINUX_AMD64_SHA256: "b8e9a39362151551f0c9c5def7c6ee8676048afb19f423c9a4bf08d4880bfc21"
+      ASC_BYPASS_KEYCHAIN: "1"
+      ASC_TELEMETRY_DISABLED: "1"
+      PROMOTE_ACTION: ${{ inputs.action }}
+      PROMOTE_VERSION: ${{ inputs.version }}
+      PROMOTE_BUILD_NUMBER: ${{ inputs.build_number }}
+      PROMOTE_RELEASE_TYPE: ${{ inputs.release_type }}
+      PROMOTE_WHATS_NEW: ${{ inputs.whats_new }}
+      PROMOTE_STRICT_VALIDATE: ${{ inputs.strict_validate }}
+      PORACODE_MOBILE_APP_ID: ${{ vars.PORACODE_MOBILE_APP_ID || 'com.poracode.mobile' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+        with:
+          sparse-checkout: package.json
+
+      - name: Setup Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: "26.13.0"
+
+      - name: Validate inputs and App Store Connect secrets
+        shell: bash
+        env:
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          APP_STORE_CONNECT_PRIVATE_KEY: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          if [[ ! "$PROMOTE_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Invalid App Store version: $PROMOTE_VERSION (expected X.Y.Z)" >&2
+            exit 1
+          fi
+          if test -n "$PROMOTE_BUILD_NUMBER" && [[ ! "$PROMOTE_BUILD_NUMBER" =~ ^[0-9]+$ ]]; then
+            echo "Invalid build_number: $PROMOTE_BUILD_NUMBER (expected positive integer)" >&2
+            exit 1
+          fi
+          for name in APP_STORE_CONNECT_ISSUER_ID APP_STORE_CONNECT_KEY_ID APP_STORE_CONNECT_PRIVATE_KEY; do
+            if test -z "${!name}"; then
+              echo "Missing mobile-ios secret: $name" >&2
+              exit 1
+            fi
+          done
+
+      - name: Install pinned App Store Connect CLI (asc)
+        shell: bash
+        run: |
+          set -euo pipefail
+          bin_dir="$RUNNER_TEMP/asc-bin"
+          mkdir -p "$bin_dir"
+          url="https://github.com/rorkai/App-Store-Connect-CLI/releases/download/${ASC_VERSION}/asc_${ASC_VERSION}_linux_amd64"
+          curl -fsSL --retry 3 --retry-delay 2 "$url" -o "$bin_dir/asc"
+          printf '%s  %s\n' "$ASC_LINUX_AMD64_SHA256" "$bin_dir/asc" | sha256sum -c -
+          chmod 755 "$bin_dir/asc"
+          echo "$bin_dir" >> "$GITHUB_PATH"
+          "$bin_dir/asc" version
+
+      - name: Authenticate App Store Connect CLI
+        shell: bash
+        env:
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          APP_STORE_CONNECT_PRIVATE_KEY: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          umask 077
+          key_path="$RUNNER_TEMP/poracode-app-store-connect.p8"
+          node -e '
+            const raw = process.env.APP_STORE_CONNECT_PRIVATE_KEY ?? "";
+            const normalized = raw.trim().replace(/^["'\'']|["'\'']$/g, "").replace(/\\r/g, "").replace(/\r/g, "").replace(/\\n/g, "\n").trim();
+            require("node:fs").writeFileSync(process.argv[1], normalized + "\n", { mode: 0o600 });
+          ' "$key_path"
+          openssl pkey -in "$key_path" -noout
+          asc auth login \
+            --local \
+            --bypass-keychain \
+            --name "poracode-ci" \
+            --key-id "$APP_STORE_CONNECT_KEY_ID" \
+            --issuer-id "$APP_STORE_CONNECT_ISSUER_ID" \
+            --private-key "$key_path"
+          asc auth status --validate
+
+      - name: Resolve App Store Connect app and execute promotion step
+        shell: bash
+        run: |
+          set -euo pipefail
+          evidence_dir="$RUNNER_TEMP/appstore-evidence"
+          mkdir -p "$evidence_dir"
+
+          apps_json="$(asc apps list --bundle-id "$PORACODE_MOBILE_APP_ID" --output json)"
+          app_id="$(printf '%s' "$apps_json" | node -e '
+            const payload = JSON.parse(require("node:fs").readFileSync(0, "utf8"));
+            const target = process.argv[1];
+            const match = (payload.data ?? []).find((item) => item?.attributes?.bundleId === target);
+            process.stdout.write(match?.id ?? "");
+          ' "$PORACODE_MOBILE_APP_ID")"
+          if test -z "$app_id"; then
+            echo "App Store Connect app not found for bundle ID: $PORACODE_MOBILE_APP_ID" >&2
+            exit 1
+          fi
+          echo "Resolved App Store Connect app $PORACODE_MOBILE_APP_ID -> $app_id"
+
+          versions_json="$(asc versions list --app "$app_id" --version "$PROMOTE_VERSION" --platform IOS --output json)"
+          version_id="$(printf '%s' "$versions_json" | node -e '
+            const payload = JSON.parse(require("node:fs").readFileSync(0, "utf8"));
+            const target = process.argv[1];
+            const match = (payload.data ?? []).find((item) => item?.attributes?.versionString === target);
+            process.stdout.write(match?.id ?? "");
+          ' "$PROMOTE_VERSION")"
+
+          if test "$PROMOTE_ACTION" = "release"; then
+            if test -z "$version_id"; then
+              echo "No iOS App Store version $PROMOTE_VERSION found to release." >&2
+              exit 1
+            fi
+            asc versions release --version-id "$version_id" --confirm --output json \
+              | tee "$evidence_dir/release.json"
+            asc status --app "$app_id" --output json > "$evidence_dir/status.json" || true
+            {
+              echo "### App Store Release Triggered"
+              echo "- Bundle ID: \`$PORACODE_MOBILE_APP_ID\` (\`$app_id\`)"
+              echo "- Version: \`$PROMOTE_VERSION\` (\`$version_id\`)"
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          if test -n "$PROMOTE_BUILD_NUMBER"; then
+            build_json="$(asc builds info --app "$app_id" --version "$PROMOTE_VERSION" --build-number "$PROMOTE_BUILD_NUMBER" --platform IOS --output json)"
+          else
+            build_json="$(asc builds info --app "$app_id" --version "$PROMOTE_VERSION" --latest --platform IOS --output json)"
+          fi
+          printf '%s\n' "$build_json" > "$evidence_dir/build.json"
+          IFS=$'\t' read -r build_id build_state build_num < <(printf '%s' "$build_json" | node -e '
+            const payload = JSON.parse(require("node:fs").readFileSync(0, "utf8"));
+            const item = payload?.data ?? payload;
+            const id = String(item?.id ?? "").replace(/\s+/g, "");
+            const state = String(item?.attributes?.processingState ?? "").replace(/\s+/g, "");
+            const ver = String(item?.attributes?.version ?? "").replace(/\s+/g, "");
+            process.stdout.write([id || "-", state || "-", ver || "-"].join("\t"));
+          ')
+          if test "$build_id" = "-"; then build_id=""; fi
+          if test "$build_state" = "-"; then build_state=""; fi
+          if test "$build_num" = "-"; then build_num=""; fi
+          if test -z "$build_id"; then
+            echo "Could not resolve a TestFlight build for version $PROMOTE_VERSION." >&2
+            exit 1
+          fi
+          if test "$build_state" != "VALID"; then
+            echo "Selected build $build_id ($build_num) is not VALID (state: $build_state)." >&2
+            exit 1
+          fi
+          echo "Selected TestFlight build $PROMOTE_VERSION ($build_num) -> $build_id [VALID]"
+
+          if test -z "$version_id"; then
+            created_json="$(asc versions create \
+              --app "$app_id" \
+              --version "$PROMOTE_VERSION" \
+              --platform IOS \
+              --release-type "$PROMOTE_RELEASE_TYPE" \
+              --output json)"
+            version_id="$(printf '%s' "$created_json" | node -e '
+              const payload = JSON.parse(require("node:fs").readFileSync(0, "utf8"));
+              process.stdout.write(payload?.data?.id ?? payload?.id ?? "");
+            ')"
+          else
+            asc versions update \
+              --version-id "$version_id" \
+              --release-type "$PROMOTE_RELEASE_TYPE" \
+              --output json > "$evidence_dir/version-update.json"
+          fi
+          if test -z "$version_id"; then
+            echo "Failed to resolve or create App Store version $PROMOTE_VERSION." >&2
+            exit 1
+          fi
+
+          asc versions attach-build \
+            --version-id "$version_id" \
+            --build-id "$build_id" \
+            --output json > "$evidence_dir/attach-build.json"
+
+          if test -n "$PROMOTE_WHATS_NEW"; then
+            asc localizations update \
+              --version "$version_id" \
+              --locale "en-US" \
+              --whats-new "$PROMOTE_WHATS_NEW" \
+              --output json > "$evidence_dir/localization-en-US.json"
+          fi
+
+          validate_args=(--app "$app_id" --version-id "$version_id" --output json)
+          if test "$PROMOTE_STRICT_VALIDATE" = "true"; then
+            validate_args+=(--strict)
+          fi
+          asc validate "${validate_args[@]}" | tee "$evidence_dir/validate.json"
+
+          if test "$PROMOTE_ACTION" = "submit"; then
+            submission_json="$(asc review submissions-create --app "$app_id" --platform IOS --output json)"
+            printf '%s\n' "$submission_json" > "$evidence_dir/submission-create.json"
+            submission_id="$(printf '%s' "$submission_json" | node -e '
+              const payload = JSON.parse(require("node:fs").readFileSync(0, "utf8"));
+              process.stdout.write(payload?.data?.id ?? payload?.id ?? "");
+            ')"
+            if test -z "$submission_id"; then
+              echo "Failed to create App Store review submission." >&2
+              exit 1
+            fi
+            asc review items-add \
+              --submission "$submission_id" \
+              --item-type appStoreVersions \
+              --item-id "$version_id" \
+              --if-exists skip \
+              --output json > "$evidence_dir/submission-item.json"
+            asc review submissions-submit \
+              --id "$submission_id" \
+              --confirm \
+              --output json | tee "$evidence_dir/submission-submit.json"
+            asc submit status --version-id "$version_id" --output json > "$evidence_dir/submit-status.json" || true
+          fi
+
+          asc status --app "$app_id" --output json > "$evidence_dir/status.json" || true
+          {
+            echo "### App Store Promotion (\`$PROMOTE_ACTION\`)"
+            echo "- Bundle ID: \`$PORACODE_MOBILE_APP_ID\` (\`$app_id\`)"
+            echo "- Version: \`$PROMOTE_VERSION\` (\`$version_id\`)"
+            echo "- Attached Build: \`$build_num\` (\`$build_id\`)"
+            echo "- Release Type: \`$PROMOTE_RELEASE_TYPE\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload App Store promotion evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: poracode-ios-appstore-${{ inputs.action }}-${{ inputs.version }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/appstore-evidence/**
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Remove App Store Connect credentials
+        if: ${{ always() }}
+        shell: bash
+        run: rm -rf "$RUNNER_TEMP/poracode-app-store-connect.p8" .asc "$HOME/.asc"

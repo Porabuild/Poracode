@@ -156,7 +156,7 @@ cd android
 ./gradlew clean testDebugUnitTest assembleDebug lintDebug --no-daemon
 ./gradlew installDebug --no-daemon
 adb shell am start \
-  -n com.lightcodeapp.mobile/com.poracode.app.MainActivity
+  -n com.poracode.mobile/com.poracode.app.MainActivity
 ```
 
 The application uses Compose and Material 3, coroutines, OkHttp, Android

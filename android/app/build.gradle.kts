@@ -39,7 +39,7 @@ android {
     compileSdk = 37
 
     defaultConfig {
-        applicationId = "com.lightcodeapp.mobile"
+        applicationId = "com.poracode.mobile"
         // Android 14 (API 34): the oldest AOSP release still covered by the
         // monthly Android Security Bulletin (September 2026 bulletin covers 14-17).
         minSdk = 34
@@ -64,7 +64,7 @@ android {
             )
         }
         debug {
-            // Keep applicationId com.lightcodeapp.mobile (no suffix) for pairing deep links.
+            // Keep applicationId com.poracode.mobile (no suffix) for pairing deep links.
             versionNameSuffix = "-debug"
         }
     }

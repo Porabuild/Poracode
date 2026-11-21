@@ -245,14 +245,14 @@ describe("ios capable-history fresh owned profile", () => {
     const state = await readIosInstalledAppState({
       target: defaultIosSimctlTarget(),
       udid: identity().udid,
-      bundleId: "com.lightcodeapp.mobile",
+      bundleId: "com.poracode.mobile",
       run,
     });
     expect(state.installed).toBe(false);
     const evidence = await uninstallIosAppForFreshProfile({
       target: defaultIosSimctlTarget(),
       udid: identity().udid,
-      bundleId: "com.lightcodeapp.mobile",
+      bundleId: "com.poracode.mobile",
       run,
     });
     expect(evidence).toMatchObject({ skipped: true, installedBefore: false, success: true });
@@ -270,16 +270,11 @@ describe("ios capable-history fresh owned profile", () => {
     const evidence = await uninstallIosAppForFreshProfile({
       target: defaultIosSimctlTarget(),
       udid: identity().udid,
-      bundleId: "com.lightcodeapp.mobile",
+      bundleId: "com.poracode.mobile",
       run,
     });
     expect(evidence).toMatchObject({ skipped: false, installedBefore: true, success: true });
-    expect(calls).toContainEqual([
-      "simctl",
-      "uninstall",
-      identity().udid,
-      "com.lightcodeapp.mobile",
-    ]);
+    expect(calls).toContainEqual(["simctl", "uninstall", identity().udid, "com.poracode.mobile"]);
 
     const failing: IosCommandRunner = async (_command, args) =>
       args.includes("get_app_container")
@@ -288,7 +283,7 @@ describe("ios capable-history fresh owned profile", () => {
     const failed = await uninstallIosAppForFreshProfile({
       target: defaultIosSimctlTarget(),
       udid: identity().udid,
-      bundleId: "com.lightcodeapp.mobile",
+      bundleId: "com.poracode.mobile",
       run: failing,
     });
     expect(failed.success).toBe(false);
@@ -299,9 +294,9 @@ describe("ios capable-history built app identity", () => {
   it("parses the bundle identifier from an XML Info.plist", () => {
     expect(
       parseIosInfoPlistBundleIdentifier(
-        "<plist><dict><key>CFBundleIdentifier</key><string>com.lightcodeapp.mobile</string></dict></plist>",
+        "<plist><dict><key>CFBundleIdentifier</key><string>com.poracode.mobile</string></dict></plist>",
       ),
-    ).toBe("com.lightcodeapp.mobile");
+    ).toBe("com.poracode.mobile");
     expect(parseIosInfoPlistBundleIdentifier("<plist><dict/></plist>")).toBeNull();
   });
 
@@ -311,10 +306,10 @@ describe("ios capable-history built app identity", () => {
     mkdirSync(bundle, { recursive: true });
     writeFileSync(
       join(bundle, "Info.plist"),
-      "<plist><dict><key>CFBundleIdentifier</key><string>com.lightcodeapp.mobile</string></dict></plist>",
+      "<plist><dict><key>CFBundleIdentifier</key><string>com.poracode.mobile</string></dict></plist>",
     );
     await expect(readIosAppBundleIdentifier({ appBundlePath: bundle })).resolves.toBe(
-      "com.lightcodeapp.mobile",
+      "com.poracode.mobile",
     );
     await expect(
       readIosAppBundleIdentifier({ appBundlePath: join(dir, "Missing.app") }),

@@ -3,7 +3,7 @@ import Foundation
 /// New Keychain boundary for multi-host secrets.
 /// Distinct service from the single-host `session-credentials` item.
 struct HostVault: Sendable {
-    static let service = "com.lightcodeapp.mobile.remote.hosts"
+    static let service = "com.poracode.mobile.remote.hosts"
     static let accountPrefix = "host-vault."
     static let journalAccount = "host-transaction-journal"
 

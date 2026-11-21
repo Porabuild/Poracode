@@ -165,6 +165,89 @@
           }
         }
       }
+    },
+    "NSLocalNetworkUsageDescription": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Poracode verbindet sich mit der Poracode-Desktop-App in deinem lokalen Netzwerk."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Poracode connects to the Poracode desktop app on your local network."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Poracode se conecta a la aplicación de escritorio de Poracode en tu red local."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Poracode se connecte à l’application de bureau Poracode sur votre réseau local."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Poracode は、ローカルネットワーク上の Poracode デスクトップアプリに接続します。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Poracode는 로컬 네트워크의 Poracode 데스크톱 앱에 연결합니다."
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Poracode łączy się z aplikacją komputerową Poracode w Twojej sieci lokalnej."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O Poracode se conecta ao aplicativo para desktop do Poracode na sua rede local."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Poracode подключается к настольному приложению Poracode в вашей локальной сети."
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Poracode, yerel ağınızdaki Poracode masaüstü uygulamasına bağlanır."
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Poracode підключається до настільного застосунку Poracode у вашій локальній мережі."
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Poracode kết nối với ứng dụng máy tính Poracode trên mạng cục bộ của bạn."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Poracode 会连接到您本地网络上的 Poracode 桌面应用。"
+          }
+        }
+      }
     }
   },
   "version": "1.0"

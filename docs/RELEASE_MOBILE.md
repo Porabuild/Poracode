@@ -8,7 +8,7 @@ Poracode ships two independent native mobile clients:
 Neither app embeds `dist/web`, starts Vite, or runs the React renderer in a
 WebView. The hosted PWA has its own release workflow and is not an input to the
 native store binaries. Both native apps retain the store identifier
-`com.lightcodeapp.mobile`.
+`com.poracode.mobile`.
 
 Capacitor is fully removed — dependencies, scripts, configuration files, and
 both webview shells. It must not be reintroduced; the native projects are
@@ -17,10 +17,10 @@ watch/reload runners; append `--once` for a one-shot build/install/launch.
 
 ## Supported platform baselines
 
-| Client  | Build toolchain                   | Build target                    | Minimum OS |
-| ------- | --------------------------------- | ------------------------------- | ---------- |
-| iOS     | Xcode 26.6 with the iOS 26.5 SDK  | Swift 6 / native iPhone archive | iOS 17     |
-| Android | JDK 21, AGP 9.3.1, build-tools 37 | Android 17 / API 37             | API 34     |
+| Client  | Build toolchain                   | Build target                              | Minimum OS |
+| ------- | --------------------------------- | ----------------------------------------- | ---------- |
+| iOS     | Xcode 26.6 with the iOS 26.5 SDK  | Swift 6 / universal iPhone + iPad archive | iOS 17     |
+| Android | JDK 21, AGP 9.3.1, build-tools 37 | Android 17 / API 37                       | API 34     |
 
 There is no iOS 26.6 SDK: Xcode 26.6 is intentionally paired with the iOS 26.5
 device and simulator SDKs. Android compiles and targets API 37 with
@@ -318,7 +318,7 @@ derives a monotonic build number from the GitHub run number and attempt.
 The `mobile-android` environment:
 
 1. installs Android 17/API 37, validates the Firebase client for
-   `com.lightcodeapp.mobile`, and checks `compileSdk = 37`, `targetSdk = 37`, and
+   `com.poracode.mobile`, and checks `compileSdk = 37`, `targetSdk = 37`, and
    `minSdk = 34`;
 2. runs the 910 JVM unit tests and release lint;
 3. builds a signed release AAB (the PR gate separately assembles a debug APK)
@@ -340,15 +340,28 @@ artifact and must be uploaded separately.
 
 ### iOS
 
-The `mobile-ios` environment:
+The `mobile-ios` environment builds one universal iPhone + iPad (`TARGETED_DEVICE_FAMILY = "1,2"`) archive:
 
 1. selects Xcode 26.6 and verifies both iOS 26.5 SDKs plus the iOS 17 deployment
    floor;
-2. runs the `AppTests` suite on an iOS 26.5 simulator (1,148 passed and 1 skipped
-   in the final local evidence run);
-3. archives and exports the native `App` scheme with automatic signing;
-4. uploads the IPA, checksum, and dSYMs as release evidence; and
-5. uploads the IPA to TestFlight.
+2. runs the `AppTests` suite on an iOS 26.5 simulator (including
+   `TestFlightReadinessTests` for `PrivacyInfo.xcprivacy`, export compliance,
+   iPad orientations, and localized permission descriptions);
+3. builds an unsigned Release archive (avoiding ephemeral Apple Development
+   certificate churn on CI), stamps `App/App.entitlements` onto the archived
+   bundle with ad-hoc `codesign` so `aps-environment` and associated domains
+   are preserved, verifies `PrivacyInfo.xcprivacy`, `PoracodeActivities.appex`,
+   and `ITSAppUsesNonExemptEncryption = false`, and uploads directly to
+   TestFlight via `xcodebuild -exportArchive` with Apple cloud-managed
+   distribution signing (`exportOptions.plist`);
+4. polls the App Store Connect API (`scripts/ios-testflight-asc.mjs`) until the
+   uploaded build reaches `processingState = VALID` (failing loudly on `FAILED`
+   or `INVALID`), and optionally updates TestFlight "What to Test" notes
+   (`testflight_notes` / `TESTFLIGHT_WHAT_TO_TEST`) and assigns the build to
+   configured beta groups (`testflight_groups` / `TESTFLIGHT_GROUPS`, submitting
+   for Beta App Review when an external group is selected); and
+5. uploads `App.xcarchive/Info.plist`, `dSYMs`, and export summaries as release
+   evidence for 30 days.
 
 Required secrets are:
 
@@ -359,6 +372,29 @@ Required secrets are:
 
 The workflow deletes the decoded Android Firebase configuration, Android
 keystore, and Apple signing material from its runner after use.
+
+### Promoting a TestFlight build to the App Store
+
+Once a universal iPhone + iPad TestFlight build is qualified on physical
+devices, `.github/workflows/promote-ios-appstore.yml` promotes that exact
+already-processed build to the App Store without rebuilding a new binary. It
+runs on `ubuntu-latest` inside the protected `mobile-ios` environment using a
+pinned, SHA-256-verified `asc` (`rorkai/App-Store-Connect-CLI`) binary and the
+same `APP_STORE_CONNECT_*` secrets:
+
+1. `action=stage` (default): resolves the `VALID` TestFlight build (by exact
+   `build_number` or latest for `version`), creates or updates the iOS App Store
+   version (`MANUAL` or `AFTER_APPROVAL`), attaches the build, optionally sets
+   `en-US` `"What's New"`, and runs `asc validate` without creating a review
+   submission.
+2. `action=submit`: runs all staging and validation checks above, creates an App
+   Review submission with the attached App Store version, and submits it for
+   Apple App Review.
+3. `action=release`: releases an approved version waiting in
+   `PENDING_DEVELOPER_RELEASE`.
+
+Readiness and status JSON outputs are retained for 30 days as workflow evidence,
+and the runner deletes the `.p8` key and `.asc` auth config on completion.
 
 ## Verified links and hosted PWA
 

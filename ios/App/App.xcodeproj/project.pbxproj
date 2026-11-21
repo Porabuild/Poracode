@@ -238,6 +238,8 @@
 		A10000000000000000000126 /* HomeComposerSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000126 /* HomeComposerSupport.swift */; };
 		A10000000000000000000130 /* HomeComposerCameraPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000130 /* HomeComposerCameraPicker.swift */; };
 		A10000000000000000000131 /* InfoPlist.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000131 /* InfoPlist.xcstrings */; };
+		7F0100000000000000000002 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 7F0100000000000000000001 /* PrivacyInfo.xcprivacy */; };
+		7F0100000000000000000004 /* TestFlightReadinessTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F0100000000000000000003 /* TestFlightReadinessTests.swift */; };
 		A10000000000000000000127 /* HomeProjectFilterSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000127 /* HomeProjectFilterSheet.swift */; };
 		HF1000000000000000000001 /* HomeProjectFilterModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = HF2000000000000000000001 /* HomeProjectFilterModels.swift */; };
 		HF1000000000000000000002 /* HomeProjectFilterRows.swift in Sources */ = {isa = PBXBuildFile; fileRef = HF2000000000000000000002 /* HomeProjectFilterRows.swift */; };
@@ -1189,6 +1191,8 @@
 		504EC30E1FED79650016851F /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		504EC3111FED79650016851F /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		504EC3131FED79650016851F /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		7F0100000000000000000001 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		7F0100000000000000000003 /* TestFlightReadinessTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TestFlightReadinessTests.swift; sourceTree = "<group>"; };
 		B10000000000000000000001 /* PoracodeApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PoracodeApp.swift; sourceTree = "<group>"; };
 		B10000000000000000000002 /* ProtocolConstants.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProtocolConstants.swift; sourceTree = "<group>"; };
 		B10000000000000000000003 /* PairingURL.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PairingURL.swift; sourceTree = "<group>"; };
@@ -2329,6 +2333,7 @@
 				504EC30E1FED79650016851F /* Assets.xcassets */,
 				504EC3101FED79650016851F /* LaunchScreen.storyboard */,
 				504EC3131FED79650016851F /* Info.plist */,
+				7F0100000000000000000001 /* PrivacyInfo.xcprivacy */,
 			);
 			path = App;
 			sourceTree = "<group>";
@@ -3163,6 +3168,7 @@
 				E80000000000000000000045 /* EnvironmentManagementAPITests.swift */,
 				E80000000000000000000046 /* EnvironmentManagementGatingTests.swift */,
 				E20000000000000000000002 /* PushAlertLocalizationTests.swift */,
+				7F0100000000000000000003 /* TestFlightReadinessTests.swift */,
 				B10000000000000000000114 /* GitSummaryPresentationTests.swift */,
 				B10000000000000000000113 /* HostReplayIsolationTests.swift */,
 				B10000000000000000000112 /* ReplayInstallTransactionTests.swift */,
@@ -3852,6 +3858,7 @@
 				A10000000000000000000014 /* Assets.xcassets in Resources */,
 				A1000000000000000000004B /* Localizable.xcstrings in Resources */,
 				A10000000000000000000131 /* InfoPlist.xcstrings in Resources */,
+				7F0100000000000000000002 /* PrivacyInfo.xcprivacy in Resources */,
 				A10000000000000000000123 /* Home.xcstrings in Resources */,
 				5A5ACA9CA0624954AAC655B8 /* RemoteIntegrations.xcstrings in Resources */,
 				A100000000000000000000F1 /* ThreadLifecycle.xcstrings in Resources */,
@@ -4620,6 +4627,7 @@
 				A70000000000000000000045 /* EnvironmentManagementAPITests.swift in Sources */,
 				A70000000000000000000046 /* EnvironmentManagementGatingTests.swift in Sources */,
 				E10000000000000000000002 /* PushAlertLocalizationTests.swift in Sources */,
+				7F0100000000000000000004 /* TestFlightReadinessTests.swift in Sources */,
 				A60000000000000000000054 /* ReplayLifecycleHardeningTests.swift in Sources */,
 				A10000000000000000000BA3 /* AgentStatusHydrationTests.swift in Sources */,
 				A60000000000000000000053 /* RichChatTerminalControllerTests.swift in Sources */,
@@ -4903,8 +4911,8 @@
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
-				MARKETING_VERSION = 1.5.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.lightcodeapp.mobile.NativeE2ETests;
+				MARKETING_VERSION = 2.0.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.poracode.mobile.NativeE2ETests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_EMIT_LOC_STRINGS = NO;
@@ -4922,8 +4930,8 @@
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
-				MARKETING_VERSION = 1.5.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.lightcodeapp.mobile.NativeE2ETests;
+				MARKETING_VERSION = 2.0.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.poracode.mobile.NativeE2ETests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_EMIT_LOC_STRINGS = NO;
@@ -5074,11 +5082,13 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.5.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.lightcodeapp.mobile;
+				MARKETING_VERSION = 2.0.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.poracode.mobile;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_STRICT_CONCURRENCY = complete;
@@ -5102,11 +5112,13 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.5.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.lightcodeapp.mobile;
+				MARKETING_VERSION = 2.0.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.poracode.mobile;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_STRICT_CONCURRENCY = complete;
@@ -5134,8 +5146,8 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 1.5.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.lightcodeapp.mobile.PoracodeActivities;
+				MARKETING_VERSION = 2.0.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.poracode.mobile.PoracodeActivities;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
@@ -5158,8 +5170,8 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 1.5.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.lightcodeapp.mobile.PoracodeActivities;
+				MARKETING_VERSION = 2.0.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.poracode.mobile.PoracodeActivities;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
 				SWIFT_VERSION = 5.0;
@@ -5180,8 +5192,8 @@
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
-				MARKETING_VERSION = 1.5.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.lightcodeapp.mobile.AppTests;
+				MARKETING_VERSION = 2.0.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.poracode.mobile.AppTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_EMIT_LOC_STRINGS = NO;
@@ -5200,8 +5212,8 @@
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
-				MARKETING_VERSION = 1.5.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.lightcodeapp.mobile.AppTests;
+				MARKETING_VERSION = 2.0.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.poracode.mobile.AppTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_EMIT_LOC_STRINGS = NO;

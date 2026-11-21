@@ -26,7 +26,7 @@ import {
 } from "./native-hot-ios.mjs";
 
 await test("requires exact native toolchain versions", () => {
-  assert.equal(APP_ID, "com.lightcodeapp.mobile");
+  assert.equal(APP_ID, "com.poracode.mobile");
   assert.equal(exactToolVersion("Xcode 26.6\nBuild version 17G86", "Xcode", "26.6"), "26.6");
   assert.throws(() => exactToolVersion("Xcode 26.5", "Xcode", "26.6"), /26\.6 is required/);
   assert.equal(javaMajorVersion('openjdk version "21.0.8" 2025-07-15'), 21);
@@ -73,8 +73,8 @@ await test("keeps simulator signing enabled so native credential storage is avai
 
   assert.doesNotThrow(() =>
     assertIosSimulatorSigning(
-      "Executable=/tmp/App.app/App\nIdentifier=com.lightcodeapp.mobile\nSignature=adhoc",
-      "FAKETEAMID.com.lightcodeapp.mobile",
+      "Executable=/tmp/App.app/App\nIdentifier=com.poracode.mobile\nSignature=adhoc",
+      "FAKETEAMID.com.poracode.mobile",
     ),
   );
   assert.throws(

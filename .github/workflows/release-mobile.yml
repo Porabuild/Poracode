@@ -14,6 +14,14 @@ on:
         description: "Build and upload the iOS app to TestFlight"
         type: boolean
         default: false
+      testflight_notes:
+        description: "Optional TestFlight 'What to Test' notes (en-US)"
+        type: string
+        default: ""
+      testflight_groups:
+        description: "Optional comma-separated TestFlight beta group names (overrides TESTFLIGHT_GROUPS var)"
+        type: string
+        default: ""
   push:
     tags:
       - "mobile-v*"
@@ -161,10 +169,10 @@ jobs:
           const clients = Array.isArray(config.client) ? config.client : [];
           const matchesPackage = clients.some(
             (client) => client?.client_info?.android_client_info?.package_name ===
-              "com.lightcodeapp.mobile",
+              "com.poracode.mobile",
           );
           if (!matchesPackage) {
-            throw new Error("google-services.json does not contain com.lightcodeapp.mobile");
+            throw new Error("google-services.json does not contain com.poracode.mobile");
           }
           NODE
 
@@ -255,7 +263,7 @@ jobs:
         uses: r0adkll/upload-google-play@e738b9dd8f2476ea806d921b64aacd24f34515a5 # v1
         with:
           serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
-          packageName: com.lightcodeapp.mobile
+          packageName: com.poracode.mobile
           releaseFiles: android/app/build/outputs/bundle/release/*.aab
           track: ${{ vars.PLAY_TRACK || 'internal' }}
           status: completed
@@ -282,6 +290,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
 
+      - name: Setup Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: "26.13.0"
+
       - name: Setup Bun
         uses: ./.github/actions/setup-bun
 
@@ -290,8 +303,7 @@ jobs:
         with:
           xcode-version: "26.6"
 
-      # App.xcodeproj currently has no packageReferences. Do not key a cache
-      # from the unreferenced legacy Capacitor Package.resolved file.
+      # App.xcodeproj resolves WhisperKit from argmax-oss-swift via Package.resolved.
       - name: Require Xcode 26.6 and the iOS 26.5 SDK
         shell: bash
         run: |
@@ -349,11 +361,17 @@ jobs:
           set -euo pipefail
           umask 077
           key_path="$RUNNER_TEMP/poracode-app-store-connect.p8"
-          printf '%s' "$APP_STORE_CONNECT_PRIVATE_KEY" > "$key_path"
+          # Normalize literal \n escapes and CRLF line endings often introduced when pasting a .p8 secret.
+          node -e '
+            const raw = process.env.APP_STORE_CONNECT_PRIVATE_KEY ?? "";
+            const normalized = raw.trim().replace(/^["'\'']|["'\'']$/g, "").replace(/\\r/g, "").replace(/\r/g, "").replace(/\\n/g, "\n").trim();
+            require("node:fs").writeFileSync(process.argv[1], normalized + "\n", { mode: 0o600 });
+          ' "$key_path"
           test -s "$key_path"
+          openssl pkey -in "$key_path" -noout
           echo "APP_STORE_CONNECT_KEY_PATH=$key_path" >> "$GITHUB_ENV"
 
-      - name: Archive and export the native iOS app
+      - name: Archive and upload the native iOS and iPadOS app to TestFlight
         working-directory: ios/App
         shell: bash
         env:
@@ -362,56 +380,71 @@ jobs:
           PORACODE_MOBILE_APPLE_TEAM_ID: ${{ secrets.PORACODE_MOBILE_APPLE_TEAM_ID || secrets.APPLE_TEAM_ID }}
         run: |
           set -euo pipefail
+          # Build an unsigned Release archive so ephemeral CI runners never mint throwaway
+          # Apple Development certificates, then stamp App.entitlements onto the archived
+          # bundle via ad-hoc codesign so -exportArchive preserves aps-environment and
+          # associated-domains when re-signing with Apple cloud-managed distribution signing.
           xcodebuild archive \
             -project App.xcodeproj \
             -scheme App \
             -configuration Release \
             -destination 'generic/platform=iOS' \
             -archivePath "$RUNNER_TEMP/App.xcarchive" \
-            -allowProvisioningUpdates \
-            -authenticationKeyPath "$APP_STORE_CONNECT_KEY_PATH" \
-            -authenticationKeyID "$APP_STORE_CONNECT_KEY_ID" \
-            -authenticationKeyIssuerID "$APP_STORE_CONNECT_ISSUER_ID" \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
             DEVELOPMENT_TEAM="$PORACODE_MOBILE_APPLE_TEAM_ID" \
-            CODE_SIGN_STYLE=Automatic \
             MARKETING_VERSION="$PORACODE_MOBILE_VERSION_NAME" \
             CURRENT_PROJECT_VERSION="$PORACODE_MOBILE_BUILD_NUMBER"
+
+          app_bundle="$RUNNER_TEMP/App.xcarchive/Products/Applications/App.app"
+          test -f "$app_bundle/PrivacyInfo.xcprivacy"
+          test -d "$app_bundle/PlugIns/PoracodeActivities.appex"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :ITSAppUsesNonExemptEncryption' "$app_bundle/Info.plist")" = "false"
+
+          codesign --force -s - "$app_bundle/PlugIns/PoracodeActivities.appex"
+          codesign --force -s - --entitlements App/App.entitlements "$app_bundle"
+          entitlements_dump="$(codesign -d --entitlements :- "$app_bundle" 2>/dev/null)"
+          printf '%s' "$entitlements_dump" | grep -q 'aps-environment'
+          printf '%s' "$entitlements_dump" | grep -q 'applinks:poracode.com'
+
+          # Stamp teamID onto a temp copy of exportOptions.plist so automatic cloud signing
+          # always resolves the configured Apple team without relying on an interactive Xcode login.
+          export_plist="$RUNNER_TEMP/exportOptions.plist"
+          cp exportOptions.plist "$export_plist"
+          /usr/libexec/PlistBuddy -c "Add :teamID string $PORACODE_MOBILE_APPLE_TEAM_ID" "$export_plist"
 
           xcodebuild -exportArchive \
             -archivePath "$RUNNER_TEMP/App.xcarchive" \
             -exportPath "$RUNNER_TEMP/export" \
-            -exportOptionsPlist exportOptions.plist \
+            -exportOptionsPlist "$export_plist" \
             -allowProvisioningUpdates \
             -authenticationKeyPath "$APP_STORE_CONNECT_KEY_PATH" \
             -authenticationKeyID "$APP_STORE_CONNECT_KEY_ID" \
             -authenticationKeyIssuerID "$APP_STORE_CONNECT_ISSUER_ID"
 
-          set -- "$RUNNER_TEMP"/export/*.ipa
-          if test "$#" -ne 1 || test ! -f "$1"; then
-            echo "Expected exactly one exported IPA." >&2
-            exit 1
-          fi
-          mv "$1" "$RUNNER_TEMP/Poracode.ipa"
-          shasum -a 256 "$RUNNER_TEMP/Poracode.ipa" > "$RUNNER_TEMP/Poracode.ipa.sha256"
+      - name: Wait for App Store Connect processing and distribute to TestFlight
+        shell: bash
+        env:
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          PORACODE_MOBILE_APP_ID: ${{ vars.PORACODE_MOBILE_APP_ID || 'com.poracode.mobile' }}
+          TESTFLIGHT_WHAT_TO_TEST: ${{ inputs.testflight_notes || vars.TESTFLIGHT_WHAT_TO_TEST || '' }}
+          TESTFLIGHT_GROUPS: ${{ inputs.testflight_groups || vars.TESTFLIGHT_GROUPS || '' }}
+        run: node scripts/ios-testflight-asc.mjs
 
       - name: Upload iOS release evidence
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: poracode-ios-${{ needs.setup.outputs.version }}-${{ needs.setup.outputs.build_number }}
           path: |
-            ${{ runner.temp }}/Poracode.ipa
-            ${{ runner.temp }}/Poracode.ipa.sha256
+            ${{ runner.temp }}/App.xcarchive/Info.plist
             ${{ runner.temp }}/App.xcarchive/dSYMs/**
-          if-no-files-found: error
+            ${{ runner.temp }}/export/DistributionSummary.plist
+            ${{ runner.temp }}/export/ExportOptions.plist
+            ${{ runner.temp }}/export/Packaging.log
+          if-no-files-found: warn
           retention-days: 30
-
-      - name: Upload to TestFlight
-        uses: apple-actions/upload-testflight-build@9fd28d4e690396e43caca69cef54cccccce77034 # v3
-        with:
-          app-path: ${{ runner.temp }}/Poracode.ipa
-          issuer-id: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
-          api-key-id: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
-          api-private-key: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY }}
 
       - name: Upload iOS test evidence
         if: ${{ always() }}
@@ -425,7 +458,7 @@ jobs:
       - name: Remove App Store Connect key
         if: ${{ always() }}
         shell: bash
-        run: rm -f "$RUNNER_TEMP/poracode-app-store-connect.p8"
+        run: rm -f "$RUNNER_TEMP/poracode-app-store-connect.p8" "$RUNNER_TEMP/exportOptions.plist"
 
   release_gate:
     name: Native release gate

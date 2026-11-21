@@ -3,7 +3,9 @@
 <plist version="1.0">
 <dict>
 	<key>destination</key>
-	<string>export</string>
+	<string>upload</string>
+	<key>manageAppVersionAndBuildNumber</key>
+	<false/>
 	<key>method</key>
 	<string>app-store-connect</string>
 	<key>signingStyle</key>

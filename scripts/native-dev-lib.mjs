@@ -2,7 +2,7 @@ import { spawn } from "node:child_process";
 import { existsSync, statSync, watch } from "node:fs";
 import { dirname, resolve } from "node:path";
 
-export const APP_ID = "com.lightcodeapp.mobile";
+export const APP_ID = "com.poracode.mobile";
 export const COMMAND_TIMEOUT_MS = 60_000;
 export const BUILD_TIMEOUT_MS = 10 * 60_000;
 export const BOOT_TIMEOUT_MS = 3 * 60_000;

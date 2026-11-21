@@ -121,7 +121,7 @@ struct SystemKeychainSyscall: KeychainSyscall {
 /// Production Keychain I/O: SecItemUpdate when present, SecItemAdd only on not-found,
 /// duplicate-add retries update. Accessible: WhenUnlockedThisDeviceOnly.
 struct SystemKeychainIO: RawKeychainIO {
-    static let service = "com.lightcodeapp.mobile.remote"
+    static let service = "com.poracode.mobile.remote"
     static let credentialsAccount = "session-credentials"
     static let legacyTokenAccount = "access-token"
 

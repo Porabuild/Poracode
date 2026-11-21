@@ -126,7 +126,7 @@ jobs:
                 length == 1 and
                 .[0].relation == ["delegate_permission/common.handle_all_urls"] and
                 .[0].target.namespace == "android_app" and
-                .[0].target.package_name == "com.lightcodeapp.mobile" and
+                .[0].target.package_name == "com.poracode.mobile" and
                 (.[0].target.sha256_cert_fingerprints | map(ascii_upcase) | sort) == $expected and
                 all(.[0].target.sha256_cert_fingerprints[];
                   test("^([0-9A-Fa-f]{2}:){31}[0-9A-Fa-f]{2}$"))
@@ -135,7 +135,7 @@ jobs:
               echo "Android association verification failed at $origin" >&2
               return 1
             }
-            jq -e --arg app_id "$PORACODE_MOBILE_APPLE_TEAM_ID.com.lightcodeapp.mobile" '
+            jq -e --arg app_id "$PORACODE_MOBILE_APPLE_TEAM_ID.com.poracode.mobile" '
               (.applinks.details | length) == 1 and
               .applinks.details[0].appIDs == [$app_id] and
               (.applinks.details[0].components | map(.["/"]) | sort) ==

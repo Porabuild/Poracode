@@ -179,5 +179,5 @@ node branding/assets/build-native-assets.mjs
 
 The Lightcode → Poracode codebase rename is complete.
 
-- The desktop app IDs (`com.lightcode.app` / `com.lightcode.app.nightly`) and mobile app ID (`com.lightcodeapp.mobile`) remain stable technical upgrade identities. Product names, UI, packages, and namespaces use Poracode.
+- The desktop app IDs (`com.lightcode.app` / `com.lightcode.app.nightly`) remain stable technical upgrade identities, while the native mobile apps use `com.poracode.mobile`. Product names, UI, packages, and namespaces use Poracode.
 - Legacy names remain only at explicit compatibility boundaries for existing data, cached URLs, paired clients, hook cleanup, and Git checkpoints.
