@@ -411,7 +411,7 @@ describe("versioned device Hub artifact admission", () => {
 
   it("refuses old untrimmed and unknown future artifacts without rewriting them", async () => {
     const f = await fixture();
-    for (const version of [0, 1, DEVICE_HUB_ARTIFACT_VERSION + 1]) {
+    for (const version of [0, 1, 2, DEVICE_HUB_ARTIFACT_VERSION + 1]) {
       const path = join(f.root, "win32-x64", "manifest.json");
       const bytes = JSON.stringify({ ...f.manifest, version });
       await writeFile(path, bytes);
@@ -425,9 +425,10 @@ describe("versioned device Hub artifact admission", () => {
     const path = join(f.root, "win32-x64", "manifest.json");
     for (const delta of [
       { adapterVersion: 1 },
+      { adapterVersion: 2 },
       { adapterVersion: DEVICE_HUB_CLIENT_ADAPTER_VERSION + 1 },
-      { hubVersion: "0.15.2" },
-      { clientVersion: "1.4.0" },
+      { hubVersion: "0.15.3" },
+      { clientVersion: "1.5.0" },
       { clientPatchSha256: "a".repeat(64) },
       { scrcpySha256: "b".repeat(64) },
     ]) {

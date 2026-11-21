@@ -5435,6 +5435,7 @@ msgstr "Continuar"
 msgid "Continue from where you left off."
 msgstr "Continúa desde donde lo dejaste."
 
+#: src/renderer/components/thread/CompactThreadHeader.tsx
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/components/thread/ThreadView.tsx
 msgid "Continue in another provider"
@@ -22234,13 +22235,17 @@ msgstr "Esta carpeta está vacía."
 msgid "This guide is out of date. Rewrite it to see excerpts for the current change."
 msgstr "Esta guía está desactualizada. Reescríbela para ver fragmentos del cambio actual."
 
+#: src/renderer/views/SettingsOverlay/parts/HexSetupDialog.tsx
+msgid "This Hex release requires glibc 2.36 or newer on Linux. Use the built-in engine instead."
+msgstr "Esta versión de Hex requiere glibc 2.36 o posterior en Linux. Usa el motor integrado en su lugar."
+
 #: src/renderer/views/SettingsOverlay/parts/HexEngineDialog.tsx
 #~ msgid "This Hex release requires glibc 2.39 or newer on Linux."
 #~ msgstr "Esta versión de Hex requiere glibc 2.39 o posterior en Linux."
 
 #: src/renderer/views/SettingsOverlay/parts/HexSetupDialog.tsx
-msgid "This Hex release requires glibc 2.39 or newer on Linux. Use the built-in engine instead."
-msgstr "Esta versión de Hex requiere glibc 2.39 o posterior en Linux. Usa el motor integrado en su lugar."
+#~ msgid "This Hex release requires glibc 2.39 or newer on Linux. Use the built-in engine instead."
+#~ msgstr "Esta versión de Hex requiere glibc 2.39 o posterior en Linux. Usa el motor integrado en su lugar."
 
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "This host"

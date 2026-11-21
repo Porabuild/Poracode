@@ -1,0 +1,914 @@
+diff --git a/dist/DeviceScreen.d.ts b/dist/DeviceScreen.d.ts
+index 4238fdb..c01878d 100644
+--- a/dist/DeviceScreen.d.ts
++++ b/dist/DeviceScreen.d.ts
+@@ -26,5 +26,5 @@ export declare function deviceScreenMediaStyle(rotation: number, framePresented?
+  * non-portrait device, only the video element is CSS-rotated — the input
+  * overlay stays display-aligned.
+  */
+-export declare function DeviceScreen({ client, borderRadius, squircle, agentInteraction, onCopy, preserveKeyboardFocus, }: DeviceScreenInputProps): import("react").JSX.Element;
++export declare function DeviceScreen({ client, borderRadius, squircle, agentInteraction, onCopy, preserveKeyboardFocus, interactive, ariaLabel, }: DeviceScreenInputProps): import("react").JSX.Element;
+ //# sourceMappingURL=DeviceScreen.d.ts.map
+\ No newline at end of file
+diff --git a/dist/DeviceScreen.mjs b/dist/DeviceScreen.mjs
+index fd427de..bc69e7b 100644
+--- a/dist/DeviceScreen.mjs
++++ b/dist/DeviceScreen.mjs
+@@ -74,14 +74,22 @@ export const DEVICE_SCREEN_SURFACE_LAYOUT_STYLE = {
+  * scroll when the backend supports it. When the stream is rotated for a
+  * non-portrait device, only the video element is CSS-rotated — the input
+  * overlay stays display-aligned.
+- */ export function DeviceScreen({ client, borderRadius, squircle, agentInteraction, onCopy, preserveKeyboardFocus = false }) {
++ */ export function DeviceScreen({ client, borderRadius, squircle, agentInteraction, onCopy, preserveKeyboardFocus = false, interactive = true, ariaLabel }) {
+     const { videoKind, attachVideo, sendTouch, sendMultiTouch, sendScroll, cancelInput, screen, framePresented } = client;
+     const canMulti = !!sendMultiTouch;
+     const surfaceRef = useRef(null);
+     const scrollSenderRef = useRef(null);
+-    const { onKeyDown, onKeyUp, onPaste, releasePressedKeys, resetShortcuts } = useDeviceKeyboard(client, {
++    const { onKeyDown: keyboardKeyDown, onKeyUp: keyboardKeyUp, onPaste, releasePressedKeys, resetShortcuts } = useDeviceKeyboard(client, {
+         onCopy
+     });
++    const onKeyDown = (event)=>{
++        if (event.key === "Tab" || event.key === "Escape" && !event.shiftKey) return;
++        keyboardKeyDown(event);
++    };
++    const onKeyUp = (event)=>{
++        if (event.key === "Tab" || event.key === "Escape" && !event.shiftKey) return;
++        keyboardKeyUp(event);
++    };
+     // ── pointer state ──
+     const pointersRef = useRef(new Map());
+     const capturedPointersRef = useRef(new Set());
+@@ -372,7 +380,7 @@ export const DEVICE_SCREEN_SURFACE_LAYOUT_STYLE = {
+     // in-progress drag on the same surface.
+     useEffect(()=>{
+         const el = surfaceRef.current;
+-        if (!el || !sendScroll) return;
++        if (!interactive || !el || !sendScroll) return;
+         const sender = createFrameScrollSender(sendScroll);
+         scrollSenderRef.current = sender;
+         const onWheel = (event)=>{
+@@ -409,7 +417,8 @@ export const DEVICE_SCREEN_SURFACE_LAYOUT_STYLE = {
+             scrollSenderRef.current = null;
+         };
+     }, [
+-        sendScroll
++        sendScroll,
++        interactive
+     ]);
+     // ── display geometry (rotation for non-portrait devices) ──
+     const geometry = streamGeometry(screen);
+@@ -424,6 +433,8 @@ export const DEVICE_SCREEN_SURFACE_LAYOUT_STYLE = {
+     const mediaStyle = deviceScreenMediaStyle(rotation, framePresented);
+     return /*#__PURE__*/ _jsxs("div", {
+         style: surfaceStyle,
++        role: interactive ? undefined : "img",
++        "aria-label": interactive ? undefined : ariaLabel,
+         children: [
+             videoKind === "canvas" ? /*#__PURE__*/ _jsx("canvas", {
+                 ref: attachVideo,
+@@ -437,14 +448,14 @@ export const DEVICE_SCREEN_SURFACE_LAYOUT_STYLE = {
+             }) : // The input surface names the screen; an empty alt hides a broken image's text.
+             /*#__PURE__*/ _jsx("img", {
+                 ref: attachVideo,
+-                alt: "",
++                alt: ariaLabel ?? "",
+                 draggable: false,
+                 style: mediaStyle
+             }),
+-            /*#__PURE__*/ _jsx("div", {
++            interactive && /*#__PURE__*/ _jsx("div", {
+                 ref: surfaceRef,
+                 role: "application",
+-                "aria-label": "Interactive device screen. Focus to control it with your keyboard. Press Shift and Escape to stop keyboard control.",
++                "aria-label": ariaLabel ?? "Interactive device screen. Focus to control it with your keyboard. Press Shift and Escape to stop keyboard control.",
+                 tabIndex: 0,
+                 style: {
+                     position: "absolute",
+diff --git a/dist/input-socket.d.ts b/dist/input-socket.d.ts
+index 430af82..3357b58 100644
+--- a/dist/input-socket.d.ts
++++ b/dist/input-socket.d.ts
+@@ -10,13 +10,14 @@ type InputSocketHandlers = {
+     onRecovered(): void;
+ };
+ /** Own input sends, reconnects, and the temporary 1013 refusal window. */
+-export declare function createInputSocket(url: string, handlers: InputSocketHandlers, { initialMessages, requireAdmission, legacyOpenGraceMs, reconnectDelayMs, refusalDelayMs, openSocket, }?: {
++export declare function createInputSocket(url: string, handlers: InputSocketHandlers, { initialMessages, requireAdmission, legacyOpenGraceMs, reconnectDelayMs, refusalDelayMs, openSocket, flushQueue, }?: {
+     initialMessages?: QueuedWsMessage[] | undefined;
+     requireAdmission?: boolean | undefined;
+     legacyOpenGraceMs?: number | undefined;
+     reconnectDelayMs?: number | undefined;
+     refusalDelayMs?: number | undefined;
+-    openSocket?: ((address: string) => WebSocket) | undefined;
++    openSocket?: ((address: string, signal: AbortSignal) => WebSocket | Promise<WebSocket>) | undefined;
++    flushQueue?: boolean | undefined;
+ }): {
+     send(tag: number, payload: WsMessagePayload, onSent?: WsMessageSent): void;
+     discardUnfinishedGestures(tag: number): void;
+diff --git a/dist/input-socket.mjs b/dist/input-socket.mjs
+index 17d720f..fa6c228 100644
+--- a/dist/input-socket.mjs
++++ b/dist/input-socket.mjs
+@@ -3,8 +3,10 @@ import { WS_MSG_INPUT_ADMITTED, WS_REASON_INPUT_UNAVAILABLE } from "./input-prot
+ // @ref LLP 0013#input-admission — opening is not admission; an unavailable refusal waits out its grace
+ /** Own input sends, reconnects, and the temporary 1013 refusal window. */ export function createInputSocket(url, handlers, { initialMessages = [], requireAdmission = true, legacyOpenGraceMs = 1000, reconnectDelayMs = 1000, // Longer than the server's HID_HEARTBEAT pong timeout plus one reconnect, so a slot held
+ // by a stranded socket frees up before the notice shows.
+-refusalDelayMs = 13_000, openSocket = (address)=>new WebSocket(address) } = {}) {
++refusalDelayMs = 13_000, openSocket = (address)=>new WebSocket(address), flushQueue = true } = {}) {
+     let socket = null;
++    let opening = false;
++    let connectionAbort = null;
+     let reconnectTimer = null;
+     let refusalTimer = null;
+     let legacyTimer = null;
+@@ -12,19 +14,31 @@ refusalDelayMs = 13_000, openSocket = (address)=>new WebSocket(address) } = {})
+     let reported = false;
+     let stopped = false;
+     let pendingMessages = initialMessages;
+-    const connect = ()=>{
+-        if (stopped || socket) return;
++    const connect = async ()=>{
++        if (stopped || socket || opening) return;
+         admitted = false;
++        opening = true;
++        const abort = new AbortController();
++        connectionAbort = abort;
+         let ws;
+         try {
+-            ws = openSocket(url);
++            ws = await openSocket(url, abort.signal);
+         } catch  {
++            opening = false;
++            if (connectionAbort === abort) connectionAbort = null;
++            if (stopped) return;
+             reconnectTimer = setTimeout(()=>{
+                 reconnectTimer = null;
+-                connect();
++                void connect();
+             }, reconnectDelayMs);
+             return;
+         }
++        opening = false;
++        if (connectionAbort === abort) connectionAbort = null;
++        if (stopped || abort.signal.aborted) {
++            try { ws.close(); } catch {}
++            return;
++        }
+         ws.binaryType = "arraybuffer";
+         socket = ws;
+         const confirmAdmission = ()=>{
+@@ -42,7 +56,7 @@ refusalDelayMs = 13_000, openSocket = (address)=>new WebSocket(address) } = {})
+                 ws.close();
+                 return;
+             }
+-            pendingMessages = flushWsMessageQueue(ws, pendingMessages);
++            pendingMessages = flushQueue ? flushWsMessageQueue(ws, pendingMessages) : [];
+             if (confirmed) confirmAdmission();
+         };
+         ws.onopen = ()=>{
+@@ -97,6 +111,7 @@ refusalDelayMs = 13_000, openSocket = (address)=>new WebSocket(address) } = {})
+         ws.onerror = ()=>{
+             if (!stopped && socket === ws) ws.close();
+         };
++        if (ws.readyState === 1) ws.onopen?.(new Event("open"));
+     };
+     return {
+         send (tag, payload, onSent) {
+@@ -125,6 +140,8 @@ refusalDelayMs = 13_000, openSocket = (address)=>new WebSocket(address) } = {})
+         start: connect,
+         dispose () {
+             stopped = true;
++            connectionAbort?.abort();
++            connectionAbort = null;
+             if (reconnectTimer) clearTimeout(reconnectTimer);
+             if (refusalTimer) clearTimeout(refusalTimer);
+             if (legacyTimer) clearTimeout(legacyTimer);
+diff --git a/dist/types.d.ts b/dist/types.d.ts
+index e0f61e3..07479d9 100644
+--- a/dist/types.d.ts
++++ b/dist/types.d.ts
+@@ -727,7 +727,14 @@ export interface AgentInteraction {
+     timestamp: string;
+     segments: AgentInteractionSegment[];
+ }
++export interface DeviceClientTransport {
++  fetch: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
++  createWebSocket: (url: string, signal: AbortSignal) => Promise<WebSocket>;
++}
++
+ export interface DeviceConnectionOptions {
++  transport?: DeviceClientTransport;
++  inputEnabled?: boolean;
+     /**
+      * Origin (and optional base path) of a running serve-sim / serve-emu server,
+      * e.g. `http://localhost:3100`. When empty/null the hook stays `idle`.
+@@ -1158,6 +1165,8 @@ export type DeviceClientHook = (options: DeviceConnectionOptions) => DeviceClien
+ export type DeviceScreenClient = Pick<DeviceClient, "videoKind" | "attachVideo" | "sendTouch" | "sendMultiTouch" | "cancelInput" | "sendScroll" | "sendKey" | "fold" | "pasteText" | "capabilities" | "screen" | "status" | "error" | "framePresented" | "inputError">;
+ /** Props for the shared {@link DeviceScreen} component rendered inside PhoneFrame. */
+ export interface DeviceScreenProps {
++  interactive?: boolean;
++  ariaLabel?: string;
+     /** Keep a mobile viewer’s capture input focused while touching the stream. */
+     preserveKeyboardFocus?: boolean;
+     client: DeviceClient;
+diff --git a/dist/useAndroidDevice.mjs b/dist/useAndroidDevice.mjs
+index 03efe6e..6419ba2 100644
+--- a/dist/useAndroidDevice.mjs
++++ b/dist/useAndroidDevice.mjs
+@@ -170,10 +170,11 @@ function isIceServer(value) {
+     };
+ }
+ /** @deprecated Use DeviceClientProvider with useDeviceClient or useDeviceScreenClient instead. */ export function useAndroidDeviceClient(options) {
+-    const { baseUrl, enabled = true, device: targetDevice = null, streamMode, token = null } = options;
++    const { baseUrl, enabled = true, device: targetDevice = null, streamMode, token = null, transport, inputEnabled = true } = options;
+     const active = enabled && !!baseUrl;
+-    const sessionFetch = useMemo(()=>sessionTokenFetch(token), [
+-        token
++    const sessionFetch = useMemo(()=>transport?.fetch ?? sessionTokenFetch(token), [
++        token,
++        transport
+     ]);
+     const socketProtocols = useMemo(()=>sessionTokenProtocols("android", token), [
+         token
+@@ -350,7 +351,7 @@ function isIceServer(value) {
+     const send = useCallback((message)=>{
+         if (!active || committedInputIdentityRef.current !== inputIdentity) return false;
+         const ws = wsRef.current;
+-        if (!ws || ws.readyState !== WebSocket.OPEN) return false;
++        if (!ws || ws.readyState !== WebSocket.OPEN || !inputEnabled && message.type !== "reset-video") return false;
+         ws.send(JSON.stringify({
+             ack: false,
+             ...message
+@@ -358,7 +359,8 @@ function isIceServer(value) {
+         return true;
+     }, [
+         active,
+-        inputIdentity
++        inputIdentity,
++        inputEnabled
+     ]);
+     const sendTouch = useCallback((sample)=>{
+         send(androidTouchMessage(sample.phase, sample, 0));
+@@ -1366,14 +1368,18 @@ function isIceServer(value) {
+                 requestKeyframe();
+             }
+         };
+-        const connect = ()=>{
++        const connectionAbort = new AbortController();
++        const connect = async ()=>{
+             if (cancelled) return;
+             let ws;
+             try {
+-                ws = new WebSocket(androidWsUrlFor(baseUrl, targetDevice, true), socketProtocols);
++                ws = transport ? await transport.createWebSocket(androidWsUrlFor(baseUrl, targetDevice, true), connectionAbort.signal) : new WebSocket(androidWsUrlFor(baseUrl, targetDevice, true), socketProtocols);
++                if (cancelled) { ws.close(); return; }
+             } catch (err) {
++                if (cancelled) return;
+                 setStatus("error");
+                 setError(err instanceof Error ? err.message : "Invalid server URL");
++                retryTimer = setTimeout(connect, RECONNECT_BASE_DELAY_MS);
+                 return;
+             }
+             ws.binaryType = "arraybuffer";
+@@ -1456,6 +1462,7 @@ function isIceServer(value) {
+         connect();
+         return ()=>{
+             cancelled = true;
++            connectionAbort.abort();
+             if (retryTimer) clearTimeout(retryTimer);
+             clearGraceTimer();
+             closeDecoder();
+@@ -1478,7 +1485,8 @@ function isIceServer(value) {
+         targetDevice,
+         waitingForStreamMetadata,
+         useWebRtc,
+-        socketProtocols
++        socketProtocols,
++        transport
+     ]);
+     // ── WebRTC input WebSocket ──
+     // Video travels over the peer connection, but low-latency JSON input and
+diff --git a/dist/useIosDevice.mjs b/dist/useIosDevice.mjs
+index 270a047..99b6640 100644
+--- a/dist/useIosDevice.mjs
++++ b/dist/useIosDevice.mjs
+@@ -251,10 +251,11 @@ function configKey(config) {
+     });
+ }
+ /** @deprecated Use DeviceClientProvider with useDeviceClient or useDeviceScreenClient instead. */ export function useIosDeviceClient(options) {
+-    const { baseUrl, enabled = true, device: targetDevice = null, streamMode: requestedStreamMode, token = null } = options;
++    const { baseUrl, enabled = true, device: targetDevice = null, streamMode: requestedStreamMode, token = null, transport, inputEnabled = true } = options;
+     const active = enabled && !!baseUrl;
+-    const sessionFetch = useMemo(()=>sessionTokenFetch(token), [
+-        token
++    const sessionFetch = useMemo(()=>transport?.fetch ?? sessionTokenFetch(token), [
++        token,
++        transport
+     ]);
+     const socketProtocols = useMemo(()=>sessionTokenProtocols("ios", token), [
+         token
+@@ -350,10 +351,11 @@ function configKey(config) {
+     // Exec-ws details outlive a null config, so its subscriptions can await a replacement helper.
+     const controlWsUrl = connection?.middleware.execWsUrl ?? null;
+     const controlToken = connection?.middleware.execToken ?? null;
+-    const controlSocket = useMemo(()=>controlWsUrl && controlToken ? createControlSocket(controlWsUrl, controlToken, {
++    const controlSocket = useMemo(()=>!transport && controlWsUrl && controlToken ? createControlSocket(controlWsUrl, controlToken, {
+             retryMs: RECONNECT_MS,
+             openSocket: (address)=>new WebSocket(address, socketProtocols)
+         }) : null, [
++        transport,
+         controlWsUrl,
+         controlToken,
+         socketProtocols
+@@ -470,6 +472,12 @@ function configKey(config) {
+     const [mjpegImageElement, setMjpegImageElement] = useState(null);
+     const streamUrlRef = useRef(null);
+     const [avccFallback, dispatchAvccFallback] = useReducer(avccFallbackReducer, initialAvccFallback);
++    const avccStreamedRef = useRef(false);
++    useEffect(()=>{
++        avccStreamedRef.current = avccFallback.streamed;
++    }, [
++        avccFallback.streamed
++    ]);
+     const [webRtcCodec, setWebRtcCodecState] = useState("h264");
+     const [activeWebRtcCodec, setActiveWebRtcCodec] = useState("h264");
+     const deviceSettingWriteTrackerRef = useRef(new KeyedWriteTracker());
+@@ -485,7 +493,7 @@ function configKey(config) {
+     const streamTransportLocked = config?.transportLocked ?? false;
+     const useWebRtc = streamMode === "webrtc";
+     const wantsAvcc = streamMode === "h264";
+-    const useAvcc = wantsAvcc && isAvccSupported() && !avccFallback.fellBack;
++    const useAvcc = wantsAvcc && (!!transport || isAvccSupported() && !avccFallback.fellBack);
+     // ── iPhone Duo: hinge state, mirroring serve-sim's client ──
+     // Before native capability metadata arrives, recognize the Duo by Xcode's
+     // DeviceKit chrome identifiers (phone15 is the cover profile and phone14 the
+@@ -667,7 +675,12 @@ function configKey(config) {
+     // Every helper-socket message goes through here so a brief reconnect queues
+     // input instead of dropping it (matching serve-sim's client).
+     const sendWs = useCallback((tag, payload, onSent)=>{
+-        if (!ownsInput()) return false;
++        if (!ownsInput() || !inputEnabled) return false;
++        if (transport) {
++            if (!inputSocketRef.current?.trySend(tag, payload)) return false;
++            onSent?.();
++            return true;
++        }
+         const pending = pendingInputRef.current;
+         if (inputSocketRef.current && deviceSettingConfigRef.current) {
+             inputSocketRef.current.send(tag, payload, onSent);
+@@ -676,7 +689,9 @@ function configKey(config) {
+         }
+         return true;
+     }, [
+-        ownsInput
++        ownsInput,
++        inputEnabled,
++        transport
+     ]);
+     // The helper routes input to the display that native readback reports. A
+     // gesture that begins on another display would land on the wrong panel, so
+@@ -1680,13 +1695,14 @@ function configKey(config) {
+     ]);
+     useEffect(()=>{
+         if (!useAvcc || !config?.url || displayStreaming) return;
+-        const timer = setTimeout(()=>dispatchAvccFallback("timeout"), AVCC_FRAME_TIMEOUT_MS);
++        const timer = setTimeout(()=>{ if (transport) { if (!avccStreamedRef.current) { setStatus("error"); setError("H.264 preview unavailable"); } } else dispatchAvccFallback("timeout"); }, AVCC_FRAME_TIMEOUT_MS);
+         return ()=>clearTimeout(timer);
+     }, [
+         useAvcc,
+         config?.url,
+         displayStreaming,
+-        videoSessionKey
++        videoSessionKey,
++        transport
+     ]);
+     useAvccStream({
+         url: config?.url ?? "",
+@@ -1713,10 +1729,10 @@ function configKey(config) {
+             setStatus("error");
+             setError(message);
+         },
+-        onDecoderError: ()=>dispatchAvccFallback("error")
++        onDecoderError: ()=>{ if (transport) { setStatus("error"); setError("H.264 preview unavailable"); } else dispatchAvccFallback("error"); }
+     });
+     // ── MJPEG video (<img>) ──
+-    const streamUrl = useAvcc || useWebRtc || displayStreaming ? null : config?.streamUrl ?? null;
++    const streamUrl = transport || useAvcc || useWebRtc || displayStreaming ? null : config?.streamUrl ?? null;
+     // An unmount stops the visible request; a new config for the same screen may keep its frame.
+     const unmountedRef = useRef(false);
+     useLayoutEffect(()=>{
+@@ -1878,6 +1894,27 @@ function configKey(config) {
+         setError,
+         setStatus
+     ]);
++    useEffect(()=>{
++        if (!transport || inputEnabled || !active || !config?.url) return;
++        const controller = new AbortController();
++        let busy = false;
++        const refresh = async ()=>{
++            if (busy || controller.signal.aborted) return;
++            busy = true;
++            try {
++                const response = await sessionFetch(`${config.url}/config`, { signal: controller.signal });
++                if (!response.ok) return;
++                const value = await response.json();
++                if (!controller.signal.aborted && value.width > 0 && value.height > 0) {
++                    hasWsConfigRef.current = true;
++                    setScreen((prev)=>screenConfigsEqual(prev, value) ? prev : value);
++                }
++            } catch {} finally { busy = false; }
++        };
++        void refresh();
++        const timer = setInterval(refresh, 1500);
++        return ()=>{ controller.abort(); clearInterval(timer); };
++    }, [transport, inputEnabled, active, config?.url, sessionFetch]);
+     // ── Helper control WebSocket (touch/buttons out, screen config in) ──
+     const wsUrl = config?.wsUrl ?? null;
+     const requireInputAdmission = config?.inputAdmission ?? false;
+@@ -1921,7 +1958,7 @@ function configKey(config) {
+         // simulator's hinge state never classifies the next one.
+         hasWsConfigRef.current = false;
+         setScreen(null);
+-        if (!wsUrl) return;
++        if (!wsUrl || !inputEnabled) return;
+         hasWsConfigRef.current = false;
+         let refreshTimer;
+         const pendingOwner = pendingInputRef.current;
+@@ -2017,10 +2054,11 @@ function configKey(config) {
+                 setInputSocketError(null);
+             }
+         }, {
+-            initialMessages,
++            initialMessages: transport ? [] : initialMessages,
+             requireAdmission: requireInputAdmission,
+             reconnectDelayMs: RECONNECT_MS,
+-            openSocket: (address)=>new WebSocket(address, socketProtocols)
++            openSocket: transport ? (address, signal)=>transport.createWebSocket(address, signal) : (address)=>new WebSocket(address, socketProtocols),
++            flushQueue: !transport
+         });
+         inputSocketRef.current = input;
+         input.start();
+@@ -2047,7 +2085,9 @@ function configKey(config) {
+         keyboard,
+         emitHingeEvent,
+         landRotation,
+-        endRotation
++        endRotation,
++        inputEnabled,
++        transport
+     ]);
+     // ── iPhone Duo: pose bookkeeping and the displays' own streams ──
+     // The hinge queue belongs to one input socket. Every change that replaces
+@@ -2685,7 +2725,7 @@ function configKey(config) {
+     // ── Foreground app (middleware /appstate SSE) — the middleware bootstraps a
+     //    fresh subscriber with the current frontmost app, then pushes changes as
+     //    SpringBoard foregrounds apps. EventSource reconnects on its own. ──
+-    const appStateUrl = config?.appStateUrl ?? null;
++    const appStateUrl = transport ? null : config?.appStateUrl ?? null;
+     useEffect(()=>{
+         setForegroundApp(null);
+         if (!appStateUrl) return;
+diff --git a/src/DeviceScreen.tsx b/src/DeviceScreen.tsx
+index eb211cb..d0c31f8 100644
+--- a/src/DeviceScreen.tsx
++++ b/src/DeviceScreen.tsx
+@@ -101,6 +101,8 @@ export function DeviceScreen({
+   agentInteraction,
+   onCopy,
+   preserveKeyboardFocus = false,
++  interactive = true,
++  ariaLabel,
+ }: DeviceScreenInputProps) {
+   const {
+     videoKind,
+@@ -117,10 +119,18 @@ export function DeviceScreen({
+   const surfaceRef = useRef<HTMLDivElement | null>(null);
+   const scrollSenderRef = useRef<ReturnType<typeof createFrameScrollSender> | null>(null);
+ 
+-  const { onKeyDown, onKeyUp, onPaste, releasePressedKeys, resetShortcuts } = useDeviceKeyboard(
++  const { onKeyDown: keyboardKeyDown, onKeyUp: keyboardKeyUp, onPaste, releasePressedKeys, resetShortcuts } = useDeviceKeyboard(
+     client,
+     { onCopy },
+   );
++  const onKeyDown = (event: Parameters<typeof keyboardKeyDown>[0]) => {
++    if (event.key === "Tab" || (event.key === "Escape" && !event.shiftKey)) return;
++    keyboardKeyDown(event);
++  };
++  const onKeyUp = (event: Parameters<typeof keyboardKeyUp>[0]) => {
++    if (event.key === "Tab" || (event.key === "Escape" && !event.shiftKey)) return;
++    keyboardKeyUp(event);
++  };
+ 
+   // ── pointer state ──
+   const pointersRef = useRef(new Map<number, Point>());
+@@ -350,7 +360,7 @@ export function DeviceScreen({
+   // in-progress drag on the same surface.
+   useEffect(() => {
+     const el = surfaceRef.current;
+-    if (!el || !sendScroll) return;
++    if (!interactive || !el || !sendScroll) return;
+     const sender = createFrameScrollSender(sendScroll);
+     scrollSenderRef.current = sender;
+     const onWheel = (event: WheelEvent) => {
+@@ -384,7 +394,7 @@ export function DeviceScreen({
+       sender.cancel();
+       scrollSenderRef.current = null;
+     };
+-  }, [sendScroll]);
++  }, [sendScroll, interactive]);
+ 
+   // ── display geometry (rotation for non-portrait devices) ──
+   const geometry = streamGeometry(screen);
+@@ -399,21 +409,21 @@ export function DeviceScreen({
+   const mediaStyle = deviceScreenMediaStyle(rotation, framePresented);
+ 
+   return (
+-    <div style={surfaceStyle}>
++    <div style={surfaceStyle} role={interactive ? undefined : "img"} aria-label={interactive ? undefined : ariaLabel}>
+       {videoKind === "canvas" ? (
+         <canvas ref={attachVideo} style={mediaStyle} />
+       ) : videoKind === "video" ? (
+         <video ref={attachVideo} autoPlay muted playsInline style={mediaStyle} />
+       ) : (
+         // The input surface names the screen; an empty alt hides a broken image's text.
+-        <img ref={attachVideo} alt="" draggable={false} style={mediaStyle} />
++        <img ref={attachVideo} alt={ariaLabel ?? ""} draggable={false} style={mediaStyle} />
+       )}
+ 
+       {/* Input overlay: display-aligned, captures all pointer events. */}
+-      <div
++      {interactive && <div
+         ref={surfaceRef}
+         role="application"
+-        aria-label="Interactive device screen. Focus to control it with your keyboard. Press Shift and Escape to stop keyboard control."
++        aria-label={ariaLabel ?? "Interactive device screen. Focus to control it with your keyboard. Press Shift and Escape to stop keyboard control."}
+         tabIndex={0}
+         style={{
+           position: "absolute",
+@@ -456,7 +466,7 @@ export function DeviceScreen({
+           }
+         }}
+         onContextMenu={(event) => event.preventDefault()}
+-      />
++      />}
+ 
+       {/* Two-finger indicator dots. */}
+       {fingers && (
+diff --git a/src/input-socket.ts b/src/input-socket.ts
+index 6317913..23a31e4 100644
+--- a/src/input-socket.ts
++++ b/src/input-socket.ts
+@@ -34,10 +34,13 @@ export function createInputSocket(
+     // Longer than the server's HID_HEARTBEAT pong timeout plus one reconnect, so a slot held
+     // by a stranded socket frees up before the notice shows.
+     refusalDelayMs = 13_000,
+-    openSocket = (address: string) => new WebSocket(address),
++    openSocket = (address: string, _signal?: AbortSignal): WebSocket | Promise<WebSocket> => new WebSocket(address),
++    flushQueue = true,
+   } = {},
+ ) {
+   let socket: WebSocket | null = null;
++  let opening = false;
++  let connectionAbort: AbortController | null = null;
+   let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+   let refusalTimer: ReturnType<typeof setTimeout> | null = null;
+   let legacyTimer: ReturnType<typeof setTimeout> | null = null;
+@@ -46,19 +49,31 @@ export function createInputSocket(
+   let stopped = false;
+   let pendingMessages = initialMessages;
+ 
+-  const connect = () => {
+-    if (stopped || socket) return;
++  const connect = async () => {
++    if (stopped || socket || opening) return;
+     admitted = false;
++    opening = true;
++    const abort = new AbortController();
++    connectionAbort = abort;
+     let ws: WebSocket;
+     try {
+-      ws = openSocket(url);
++      ws = await openSocket(url, abort.signal);
+     } catch {
++      opening = false;
++      if (connectionAbort === abort) connectionAbort = null;
++      if (stopped) return;
+       reconnectTimer = setTimeout(() => {
+         reconnectTimer = null;
+-        connect();
++        void connect();
+       }, reconnectDelayMs);
+       return;
+     }
++    opening = false;
++    if (connectionAbort === abort) connectionAbort = null;
++    if (stopped || abort.signal.aborted) {
++      try { ws.close(); } catch {}
++      return;
++    }
+     ws.binaryType = "arraybuffer";
+     socket = ws;
+     const confirmAdmission = () => {
+@@ -76,7 +91,7 @@ export function createInputSocket(
+         ws.close();
+         return;
+       }
+-      pendingMessages = flushWsMessageQueue(ws, pendingMessages);
++      pendingMessages = flushQueue ? flushWsMessageQueue(ws, pendingMessages) : [];
+       if (confirmed) confirmAdmission();
+     };
+     ws.onopen = () => {
+@@ -134,6 +149,7 @@ export function createInputSocket(
+     ws.onerror = () => {
+       if (!stopped && socket === ws) ws.close();
+     };
++    if (ws.readyState === 1) ws.onopen?.(new Event("open"));
+   };
+ 
+   return {
+@@ -171,6 +187,8 @@ export function createInputSocket(
+     start: connect,
+     dispose() {
+       stopped = true;
++      connectionAbort?.abort();
++      connectionAbort = null;
+       if (reconnectTimer) clearTimeout(reconnectTimer);
+       if (refusalTimer) clearTimeout(refusalTimer);
+       if (legacyTimer) clearTimeout(legacyTimer);
+diff --git a/src/types.ts b/src/types.ts
+index 5ab6aae..6d04dcd 100644
+--- a/src/types.ts
++++ b/src/types.ts
+@@ -780,7 +780,14 @@ export interface AgentInteraction {
+   segments: AgentInteractionSegment[];
+ }
+ 
++export interface DeviceClientTransport {
++  fetch: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
++  createWebSocket: (url: string, signal: AbortSignal) => Promise<WebSocket>;
++}
++
+ export interface DeviceConnectionOptions {
++  transport?: DeviceClientTransport;
++  inputEnabled?: boolean;
+   /**
+    * Origin (and optional base path) of a running serve-sim / serve-emu server,
+    * e.g. `http://localhost:3100`. When empty/null the hook stays `idle`.
+@@ -1264,6 +1271,8 @@ export type DeviceScreenClient = Pick<
+ 
+ /** Props for the shared {@link DeviceScreen} component rendered inside PhoneFrame. */
+ export interface DeviceScreenProps {
++  interactive?: boolean;
++  ariaLabel?: string;
+   /** Keep a mobile viewer’s capture input focused while touching the stream. */
+   preserveKeyboardFocus?: boolean;
+   client: DeviceClient;
+diff --git a/src/useAndroidDevice.ts b/src/useAndroidDevice.ts
+index 84391b2..0ab91f9 100644
+--- a/src/useAndroidDevice.ts
++++ b/src/useAndroidDevice.ts
+@@ -284,9 +284,11 @@ export function useAndroidDeviceClient(options: DeviceConnectionOptions): Device
+     device: targetDevice = null,
+     streamMode,
+     token = null,
++    transport,
++    inputEnabled = true,
+   } = options;
+   const active = enabled && !!baseUrl;
+-  const sessionFetch = useMemo(() => sessionTokenFetch(token), [token]);
++  const sessionFetch = useMemo(() => transport?.fetch ?? sessionTokenFetch(token), [token, transport]);
+   const socketProtocols = useMemo(() => sessionTokenProtocols("android", token), [token]);
+ 
+   const [screen, setScreen] = useState<ScreenSize | null>(null);
+@@ -474,11 +476,11 @@ export function useAndroidDeviceClient(options: DeviceConnectionOptions): Device
+     (message: Record<string, unknown>): boolean => {
+       if (!active || committedInputIdentityRef.current !== inputIdentity) return false;
+       const ws = wsRef.current;
+-      if (!ws || ws.readyState !== WebSocket.OPEN) return false;
++      if (!ws || ws.readyState !== WebSocket.OPEN || (!inputEnabled && message.type !== "reset-video")) return false;
+       ws.send(JSON.stringify({ ack: false, ...message }));
+       return true;
+     },
+-    [active, inputIdentity],
++    [active, inputIdentity, inputEnabled],
+   );
+ 
+   const sendTouch = useCallback(
+@@ -1585,14 +1587,18 @@ export function useAndroidDeviceClient(options: DeviceConnectionOptions): Device
+       }
+     };
+ 
+-    const connect = () => {
++    const connectionAbort = new AbortController();
++    const connect = async () => {
+       if (cancelled) return;
+       let ws: WebSocket;
+       try {
+-        ws = new WebSocket(androidWsUrlFor(baseUrl, targetDevice, true), socketProtocols);
++        ws = transport ? await transport.createWebSocket(androidWsUrlFor(baseUrl, targetDevice, true), connectionAbort.signal) : new WebSocket(androidWsUrlFor(baseUrl, targetDevice, true), socketProtocols);
++        if (cancelled) { ws.close(); return; }
+       } catch (err) {
++        if (cancelled) return;
+         setStatus("error");
+         setError(err instanceof Error ? err.message : "Invalid server URL");
++        retryTimer = setTimeout(connect, RECONNECT_BASE_DELAY_MS);
+         return;
+       }
+       ws.binaryType = "arraybuffer";
+@@ -1683,6 +1689,7 @@ export function useAndroidDeviceClient(options: DeviceConnectionOptions): Device
+ 
+     return () => {
+       cancelled = true;
++      connectionAbort.abort();
+       if (retryTimer) clearTimeout(retryTimer);
+       clearGraceTimer();
+       closeDecoder();
+@@ -1699,7 +1706,7 @@ export function useAndroidDeviceClient(options: DeviceConnectionOptions): Device
+     // Reconnect only when the target device or server changes — not on every
+     // status/fps/screen state update this effect writes.
+     // eslint-disable-next-line react-hooks/exhaustive-deps
+-  }, [active, baseUrl, targetDevice, waitingForStreamMetadata, useWebRtc, socketProtocols]);
++  }, [active, baseUrl, targetDevice, waitingForStreamMetadata, useWebRtc, socketProtocols, transport]);
+ 
+   // ── WebRTC input WebSocket ──
+   // Video travels over the peer connection, but low-latency JSON input and
+diff --git a/src/useIosDevice.ts b/src/useIosDevice.ts
+index 3599958..eb41a8e 100644
+--- a/src/useIosDevice.ts
++++ b/src/useIosDevice.ts
+@@ -473,9 +473,11 @@ export function useIosDeviceClient(options: DeviceConnectionOptions): DeviceClie
+     device: targetDevice = null,
+     streamMode: requestedStreamMode,
+     token = null,
++    transport,
++    inputEnabled = true,
+   } = options;
+   const active = enabled && !!baseUrl;
+-  const sessionFetch = useMemo(() => sessionTokenFetch(token), [token]);
++  const sessionFetch = useMemo(() => transport?.fetch ?? sessionTokenFetch(token), [token, transport]);
+   const socketProtocols = useMemo(() => sessionTokenProtocols("ios", token), [token]);
+   const connectionScope = active ? JSON.stringify([baseUrl, targetDevice, token]) : null;
+   const { deviceSettingsStatus, resetRead, settleRead } =
+@@ -569,13 +571,13 @@ export function useIosDeviceClient(options: DeviceConnectionOptions): DeviceClie
+   const controlToken = connection?.middleware.execToken ?? null;
+   const controlSocket = useMemo(
+     () =>
+-      controlWsUrl && controlToken
++      !transport && controlWsUrl && controlToken
+         ? createControlSocket(controlWsUrl, controlToken, {
+             retryMs: RECONNECT_MS,
+             openSocket: (address) => new WebSocket(address, socketProtocols),
+           })
+         : null,
+-    [controlWsUrl, controlToken, socketProtocols],
++    [transport, controlWsUrl, controlToken, socketProtocols],
+   );
+   useEffect(() => {
+     controlSocket?.activate();
+@@ -676,6 +678,10 @@ export function useIosDeviceClient(options: DeviceConnectionOptions): DeviceClie
+   const [mjpegImageElement, setMjpegImageElement] = useState<HTMLImageElement | null>(null);
+   const streamUrlRef = useRef<string | null>(null);
+   const [avccFallback, dispatchAvccFallback] = useReducer(avccFallbackReducer, initialAvccFallback);
++  const avccStreamedRef = useRef(false);
++  useEffect(() => {
++    avccStreamedRef.current = avccFallback.streamed;
++  }, [avccFallback.streamed]);
+   const [webRtcCodec, setWebRtcCodecState] = useState<DeviceWebRtcCodec>("h264");
+   const [activeWebRtcCodec, setActiveWebRtcCodec] = useState<WebRtcCodec>("h264");
+   const deviceSettingWriteTrackerRef = useRef(new KeyedWriteTracker<DeviceSettingKey>());
+@@ -689,7 +695,7 @@ export function useIosDeviceClient(options: DeviceConnectionOptions): DeviceClie
+   const streamTransportLocked = config?.transportLocked ?? false;
+   const useWebRtc = streamMode === "webrtc";
+   const wantsAvcc = streamMode === "h264";
+-  const useAvcc = wantsAvcc && isAvccSupported() && !avccFallback.fellBack;
++  const useAvcc = wantsAvcc && (!!transport || (isAvccSupported() && !avccFallback.fellBack));
+ 
+   // ── iPhone Duo: hinge state, mirroring serve-sim's client ──
+   // Before native capability metadata arrives, recognize the Duo by Xcode's
+@@ -881,7 +887,12 @@ export function useIosDeviceClient(options: DeviceConnectionOptions): DeviceClie
+   // input instead of dropping it (matching serve-sim's client).
+   const sendWs = useCallback(
+     (tag: number, payload: WsMessagePayload, onSent?: WsMessageSent) => {
+-      if (!ownsInput()) return false;
++      if (!ownsInput() || !inputEnabled) return false;
++      if (transport) {
++        if (!inputSocketRef.current?.trySend(tag, payload)) return false;
++        onSent?.();
++        return true;
++      }
+       const pending = pendingInputRef.current;
+       if (inputSocketRef.current && deviceSettingConfigRef.current) {
+         inputSocketRef.current.send(tag, payload, onSent);
+@@ -897,7 +908,7 @@ export function useIosDeviceClient(options: DeviceConnectionOptions): DeviceClie
+       }
+       return true;
+     },
+-    [ownsInput],
++    [ownsInput, inputEnabled, transport],
+   );
+ 
+   // The helper routes input to the display that native readback reports. A
+@@ -1954,9 +1965,13 @@ export function useIosDeviceClient(options: DeviceConnectionOptions): DeviceClie
+ 
+   useEffect(() => {
+     if (!useAvcc || !config?.url || displayStreaming) return;
+-    const timer = setTimeout(() => dispatchAvccFallback("timeout"), AVCC_FRAME_TIMEOUT_MS);
++    const timer = setTimeout(() => {
++      if (transport) {
++        if (!avccStreamedRef.current) { setStatus("error"); setError("H.264 preview unavailable"); }
++      } else dispatchAvccFallback("timeout");
++    }, AVCC_FRAME_TIMEOUT_MS);
+     return () => clearTimeout(timer);
+-  }, [useAvcc, config?.url, displayStreaming, videoSessionKey]);
++  }, [useAvcc, config?.url, displayStreaming, videoSessionKey, transport]);
+ 
+   useAvccStream({
+     url: config?.url ?? "",
+@@ -1984,11 +1999,14 @@ export function useIosDeviceClient(options: DeviceConnectionOptions): DeviceClie
+       setStatus("error");
+       setError(message);
+     },
+-    onDecoderError: () => dispatchAvccFallback("error"),
++    onDecoderError: () => {
++      if (transport) { setStatus("error"); setError("H.264 preview unavailable"); }
++      else dispatchAvccFallback("error");
++    },
+   });
+ 
+   // ── MJPEG video (<img>) ──
+-  const streamUrl = useAvcc || useWebRtc || displayStreaming ? null : (config?.streamUrl ?? null);
++  const streamUrl = transport || useAvcc || useWebRtc || displayStreaming ? null : (config?.streamUrl ?? null);
+   // An unmount stops the visible request; a new config for the same screen may keep its frame.
+   const unmountedRef = useRef(false);
+   useLayoutEffect(() => {
+@@ -2150,6 +2168,28 @@ export function useIosDeviceClient(options: DeviceConnectionOptions): DeviceClie
+     };
+   }, [streamUrl, videoSessionKey, mjpegImageElement, setError, setStatus]);
+ 
++  useEffect(() => {
++    if (!transport || inputEnabled || !active || !config?.url) return;
++    const controller = new AbortController();
++    let busy = false;
++    const refresh = async () => {
++      if (busy || controller.signal.aborted) return;
++      busy = true;
++      try {
++        const response = await sessionFetch(`${config.url}/config`, { signal: controller.signal });
++        if (!response.ok) return;
++        const value = (await response.json()) as ScreenSize;
++        if (!controller.signal.aborted && value.width > 0 && value.height > 0) {
++          hasWsConfigRef.current = true;
++          setScreen((prev) => (screenConfigsEqual(prev, value) ? prev : value));
++        }
++      } catch {} finally { busy = false; }
++    };
++    void refresh();
++    const timer = setInterval(refresh, 1500);
++    return () => { controller.abort(); clearInterval(timer); };
++  }, [transport, inputEnabled, active, config?.url, sessionFetch]);
++
+   // ── Helper control WebSocket (touch/buttons out, screen config in) ──
+   const wsUrl = config?.wsUrl ?? null;
+   const requireInputAdmission = config?.inputAdmission ?? false;
+@@ -2185,7 +2225,7 @@ export function useIosDeviceClient(options: DeviceConnectionOptions): DeviceClie
+     // simulator's hinge state never classifies the next one.
+     hasWsConfigRef.current = false;
+     setScreen(null);
+-    if (!wsUrl) return;
++    if (!wsUrl || !inputEnabled) return;
+     hasWsConfigRef.current = false;
+     let refreshTimer: ReturnType<typeof setTimeout> | undefined;
+     const pendingOwner = pendingInputRef.current;
+@@ -2288,10 +2328,11 @@ export function useIosDeviceClient(options: DeviceConnectionOptions): DeviceClie
+         },
+       },
+       {
+-        initialMessages,
++        initialMessages: transport ? [] : initialMessages,
+         requireAdmission: requireInputAdmission,
+         reconnectDelayMs: RECONNECT_MS,
+-        openSocket: (address) => new WebSocket(address, socketProtocols),
++        openSocket: transport ? (address, signal) => transport.createWebSocket(address, signal) : (address) => new WebSocket(address, socketProtocols),
++        flushQueue: !transport,
+       },
+     );
+     inputSocketRef.current = input;
+@@ -2320,6 +2361,8 @@ export function useIosDeviceClient(options: DeviceConnectionOptions): DeviceClie
+     emitHingeEvent,
+     landRotation,
+     endRotation,
++    inputEnabled,
++    transport,
+   ]);
+ 
+   // ── iPhone Duo: pose bookkeeping and the displays' own streams ──
+@@ -2922,7 +2965,7 @@ export function useIosDeviceClient(options: DeviceConnectionOptions): DeviceClie
+   // ── Foreground app (middleware /appstate SSE) — the middleware bootstraps a
+   //    fresh subscriber with the current frontmost app, then pushes changes as
+   //    SpringBoard foregrounds apps. EventSource reconnects on its own. ──
+-  const appStateUrl = config?.appStateUrl ?? null;
++  const appStateUrl = transport ? null : (config?.appStateUrl ?? null);
+   useEffect(() => {
+     setForegroundApp(null);
+     if (!appStateUrl) return;

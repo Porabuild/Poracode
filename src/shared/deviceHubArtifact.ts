@@ -2,20 +2,21 @@ import { z } from "zod";
 
 // A deployed helper boundary, independent of the remote protocol. A changed
 // package, client adaptation or layout invalidates the disposable artifact.
-// Artifact 2 omits macOS native simulator payloads on other platforms.
-export const DEVICE_HUB_ARTIFACT_VERSION = 2 as const;
-// Adapter 2 adds the streamed-frame guard to the AVCC fallback timeout: a
-// preview that already decoded frames no longer errors when the timer fires.
-export const DEVICE_HUB_CLIENT_ADAPTER_VERSION = 2 as const;
-export const DEVICE_HUB_VERSION = "0.15.3";
-export const DEVICE_HUB_CLIENT_VERSION = "1.5.0";
-export const DEVICE_HUB_SOURCE_COMMIT = "42918bc8e66021da5a983aaa09b43365e58c3dce";
+// Artifact 3 omits additional macOS native simulator payloads (`capability-loader`,
+// `simax`, `simpb`) on other platforms alongside `bin`, `native`, and `simcam`.
+export const DEVICE_HUB_ARTIFACT_VERSION = 3 as const;
+// Adapter 3 updates the maintained transport/view-only patch for @expo/hub-client 1.12.2
+// (async input-socket open, skipping exec-ws/appstate under custom transport, host status overlay).
+export const DEVICE_HUB_CLIENT_ADAPTER_VERSION = 3 as const;
+export const DEVICE_HUB_VERSION = "0.23.2";
+export const DEVICE_HUB_CLIENT_VERSION = "1.12.2";
+export const DEVICE_HUB_SOURCE_COMMIT = "469524564f7d31c9450d0bd50b1c83d2b3c745b8";
 export const DEVICE_HUB_PACKAGE_INTEGRITY =
-  "sha512-fM3qIT9akHUgL20ejtjpelZPk7lzUursyb0G1bcNCiYeJXXqC0q4WwBUmg6OkSppVFk/0axZVIhSuhNoAv01xw==";
+  "sha512-j96m6mWj0w++zGWkMEpDidvFTwT8Pj7aUMtWlfPYrpvqsANZI8D/1ee2I7f2+sshFfvxYsclrrfuN2vJjLcBig==";
 export const DEVICE_HUB_CLIENT_INTEGRITY =
-  "sha512-viMiTybFWoxNShOw0C/78Ky479Hhl+cKysNv0ZPUN+F8n8lI8ECTFs+CCKQA3LI8En/ASFIuaaunD+1JUk6ipw==";
+  "sha512-cs27+un0dh63lJUybm/wlepF6D9BN1qFRwnj80Ju+RPi4TLp3uKX5MCIS4nnLYlbTIHM+M0M/DOPo7i280fPsg==";
 export const DEVICE_HUB_CLIENT_PATCH_SHA256 =
-  "7aa33622912ae03c70034b9ff9f2dfca70250415d4ac6db78a57b1ecb1294251";
+  "70ef1cce3e419488f9c99007e2e97c221fe007636e15509b35ccd0f39e6629be";
 export const DEVICE_HUB_ENTRY = "node_modules/expo-device-hub/dist/server/cli.mjs";
 export const DEVICE_HUB_BOOTSTRAP = "bootstrap.mjs";
 export const DEVICE_HUB_LOCKFILE = "package-lock.json";
@@ -30,11 +31,11 @@ export const DEVICE_HUB_NATIVE_PATCH_VERSION = 1 as const;
 export const DEVICE_HUB_NATIVE_MODULE_PATH =
   "node_modules/expo-device-hub/vendor/serve-emu/dist/scrcpy.js";
 export const DEVICE_HUB_NATIVE_UPSTREAM_SHA256 =
-  "a94853e492a024f85e985ee1e5f5c3059026cfa2bd05df7a62cb73a138a42961";
+  "7517679c3e0972c8d701f760382fd97d2f1ad01f7bd467f225cb511d94b36932";
 export const DEVICE_HUB_NATIVE_MODULE_SHA256 =
-  "52723d4e46c7e3189661aa53a5c0b96e86e8af1327ed6e4828b59f3cef6e9a16";
+  "9bb3c2845e164a01582266b8eb65037032648079dc420d56971389c69a76079c";
 export const DEVICE_HUB_NATIVE_PATCH_SHA256 =
-  "f0926cbcefa2af037470e7b7c2f609a97cf2d650a1e679c0ccc34ea874b4f5c5";
+  "1ea96cf1bbd5ec2641579ce1a922abaf12ab987d6d09f2b3a9ed725cf5191935";
 export const DEVICE_HUB_NATIVE_RECEIPT_PATH = "poracode-native-patch-v1.json";
 export const DEVICE_HUB_NATIVE_PATCH_RECEIPT = {
   version: DEVICE_HUB_NATIVE_PATCH_VERSION,

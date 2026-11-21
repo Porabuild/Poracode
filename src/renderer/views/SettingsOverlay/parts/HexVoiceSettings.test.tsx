@@ -148,7 +148,7 @@ it("explains unsupported hosts without offering installation", async () => {
   });
   render(<HexVoiceSettings language="en" />);
   fireEvent.click(await screen.findByRole("button", { name: "Set up…" }));
-  expect(await screen.findByText(/requires glibc 2\.39/)).toBeVisible();
+  expect(await screen.findByText(/requires glibc 2\.36/)).toBeVisible();
   expect(screen.queryByRole("button", { name: /^Install/ })).not.toBeInTheDocument();
 });
 

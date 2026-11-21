@@ -5435,6 +5435,7 @@ msgstr "Продовжити"
 msgid "Continue from where you left off."
 msgstr "Продовж з місця зупинки."
 
+#: src/renderer/components/thread/CompactThreadHeader.tsx
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/components/thread/ThreadView.tsx
 msgid "Continue in another provider"
@@ -22234,13 +22235,17 @@ msgstr "Ця папка порожня."
 msgid "This guide is out of date. Rewrite it to see excerpts for the current change."
 msgstr "Цей посібник застарів. Перепишіть його, щоб побачити уривки поточної зміни."
 
+#: src/renderer/views/SettingsOverlay/parts/HexSetupDialog.tsx
+msgid "This Hex release requires glibc 2.36 or newer on Linux. Use the built-in engine instead."
+msgstr "Ця версія Hex потребує glibc 2.36 або новішої в Linux. Натомість використовуйте вбудований рушій."
+
 #: src/renderer/views/SettingsOverlay/parts/HexEngineDialog.tsx
 #~ msgid "This Hex release requires glibc 2.39 or newer on Linux."
 #~ msgstr "Для цього випуску Hex потрібен glibc 2.39 або новішої версії для Linux."
 
 #: src/renderer/views/SettingsOverlay/parts/HexSetupDialog.tsx
-msgid "This Hex release requires glibc 2.39 or newer on Linux. Use the built-in engine instead."
-msgstr "Ця версія Hex потребує glibc 2.39 або новішої в Linux. Натомість використовуйте вбудований рушій."
+#~ msgid "This Hex release requires glibc 2.39 or newer on Linux. Use the built-in engine instead."
+#~ msgstr "Ця версія Hex потребує glibc 2.39 або новішої в Linux. Натомість використовуйте вбудований рушій."
 
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "This host"

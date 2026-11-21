@@ -6,7 +6,6 @@ import { useRenderer, type JSX } from "@opentui/solid"
 import type { TranscriptEntry, TranscriptRow } from "@opencode/plugin/tui/context"
 import { useNewDesigns } from "../../config"
 import { useData } from "../../context/data"
-import { usePromptRef } from "../../context/prompt"
 import { usePlugin } from "../../plugin/context"
 import { Slot } from "../../plugin/render"
 import { useDialog } from "../../ui/dialog"
@@ -81,7 +80,6 @@ export function useMessageActions() {
   const ctx = use()
   const dialog = useDialog()
   const renderer = useRenderer()
-  const promptRef = usePromptRef()
   const newDesigns = useNewDesigns()
   return (messageID: string) => {
     if (renderer.getSelection()?.getSelectedText()) return
@@ -103,13 +101,7 @@ export function useMessageActions() {
     }
     // The dialog outlives the row, whose props go stale when a resync drops the message.
     const sessionID = ctx.sessionID
-    dialog.replace(() => (
-      <DialogMessage
-        messageID={messageID}
-        sessionID={sessionID}
-        setPrompt={(value) => promptRef.current?.set(value)}
-      />
-    ))
+    dialog.replace(() => <DialogMessage messageID={messageID} sessionID={sessionID} />)
   }
 }
 

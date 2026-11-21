@@ -128,7 +128,7 @@ export async function prepareDeviceHub(options) {
       // CoreSimulator payloads are exclusive to macOS.
       if (
         platform !== "darwin" &&
-        ["bin", "native", "simcam"].some(
+        ["bin", "capability-loader", "native", "simax", "simcam", "simpb"].some(
           (directory) =>
             targetPath === `node_modules/expo-device-hub/vendor/serve-sim/dist/${directory}`,
         )
@@ -220,9 +220,13 @@ export async function prepareDeviceHub(options) {
     if (!targetInfo.isDirectory() || targetInfo.isSymbolicLink())
       throw new Error("Refusing to replace a linked or non-directory Hub resource target.");
     const previousManifest = JSON.parse(await readFile(join(target, "manifest.json"), "utf8"));
-    // Artifact 1 has the same manifest fields and the untrimmed native payloads.
-    // It can be replaced atomically, but is no longer admitted by the host.
-    if (previousManifest.version !== 1 && previousManifest.version !== DEVICE_HUB_ARTIFACT_VERSION)
+    // Artifacts 1 and 2 have the same manifest fields and older payload layouts.
+    // They can be replaced atomically, but are no longer admitted by the host.
+    if (
+      previousManifest.version !== 1 &&
+      previousManifest.version !== 2 &&
+      previousManifest.version !== DEVICE_HUB_ARTIFACT_VERSION
+    )
       throw new Error("Refusing to replace an unknown Hub artifact version.");
     // The previous artifact is being replaced, not admitted: check only its
     // identity fields. A full schema parse would refuse exactly the stale

@@ -5434,6 +5434,7 @@ msgstr "続ける"
 msgid "Continue from where you left off."
 msgstr "中断したところから続けてください。"
 
+#: src/renderer/components/thread/CompactThreadHeader.tsx
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/components/thread/ThreadView.tsx
 msgid "Continue in another provider"
@@ -22232,13 +22233,17 @@ msgstr "このフォルダーは空です。"
 msgid "This guide is out of date. Rewrite it to see excerpts for the current change."
 msgstr "このガイドは古くなっています。現在の変更の抜粋を見るには書き直してください。"
 
+#: src/renderer/views/SettingsOverlay/parts/HexSetupDialog.tsx
+msgid "This Hex release requires glibc 2.36 or newer on Linux. Use the built-in engine instead."
+msgstr "この Hex リリースは Linux で glibc 2.36 以降が必要です。代わりに内蔵エンジンを使用してください。"
+
 #: src/renderer/views/SettingsOverlay/parts/HexEngineDialog.tsx
 #~ msgid "This Hex release requires glibc 2.39 or newer on Linux."
 #~ msgstr "この Hex リリースでは、Linux 上で glibc 2.39 以降が必要です。"
 
 #: src/renderer/views/SettingsOverlay/parts/HexSetupDialog.tsx
-msgid "This Hex release requires glibc 2.39 or newer on Linux. Use the built-in engine instead."
-msgstr "この Hex リリースは Linux で glibc 2.39 以降が必要です。代わりに内蔵エンジンを使用してください。"
+#~ msgid "This Hex release requires glibc 2.39 or newer on Linux. Use the built-in engine instead."
+#~ msgstr "この Hex リリースは Linux で glibc 2.39 以降が必要です。代わりに内蔵エンジンを使用してください。"
 
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "This host"

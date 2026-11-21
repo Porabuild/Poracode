@@ -309,7 +309,7 @@ export function PluginProvider(
           optional: true,
         })),
         ...serverTuiPlugins().map((plugin) => ({
-          entry: plugin.source.type === "package" ? plugin.source.target : path.dirname(plugin.source.path),
+          entry: plugin.source.type === "package" ? plugin.source.target : plugin.source.path,
           install: false,
           optional: true,
         })),

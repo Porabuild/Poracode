@@ -18,18 +18,27 @@ function entry(id: string, name: string) {
   };
 }
 
-// The catalog the Hex 3.1.1 Windows engine returns for `GET /models?language=en`.
-const HEX_3_1_1_CATALOG = [
-  entry("parakeet_unified_en", "Parakeet Unified English"),
+// The catalog the Hex 3.4.0 engine returns for `GET /models?language=en`,
+// including models added after SDK 0.3.1 (3.1.1 through 3.4.0) and optional `source`.
+const HEX_3_4_0_CATALOG = [
+  { ...entry("parakeet_unified_en", "Parakeet Unified English"), source: "download" },
   entry("parakeet_v2", "Parakeet v2"),
   entry("parakeet_v3", "Parakeet v3"),
+  entry("orukeet", "Orukeet"),
   entry("whisper_large_v3_turbo", "Whisper large-v3-turbo"),
   entry("qwen3_asr06_b", "Qwen3-ASR 0.6B"),
   entry("qwencleo_asr_1_7b", "QwenCleo-ASR 1.7B"),
+  entry("ivrit_whisper_large_v3_turbo", "ivrit.ai Whisper large-v3-turbo"),
   entry("sense_voice_small", "SenseVoice Small"),
   entry("cohere_transcribe", "Cohere Transcribe"),
   entry("underdog_bark_3_pro", "Underdog Bark 3.0 Pro"),
   entry("underdog_bark_3_clean", "Underdog Bark 3.0 Clean"),
+  entry("parakeet_ultra", "Parakeet Ultra"),
+  entry("nemotron_3_5_asr", "Nemotron 3.5 ASR"),
+  entry("gigaam_v3", "GigaAM v3"),
+  entry("nb_whisper_medium", "NB-Whisper Medium"),
+  entry("granite_speech_5", "Granite Speech 5.0"),
+  entry("custom-0123456789abcdef", "Custom Model"),
 ];
 const SDK_KNOWN_IDS = [
   "parakeet_unified_en",
@@ -52,7 +61,7 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
 function engineTransport(catalog: unknown) {
   return vi.fn<typeof fetch>(async (input) => {
     const url = new URL(String(input));
-    if (url.pathname === "/health") return jsonResponse({ version: "3.1.1", apiVersion: "2" });
+    if (url.pathname === "/health") return jsonResponse({ version: "3.4.0", apiVersion: "2" });
     if (url.pathname === "/models") return jsonResponse(catalog);
     return new Response("not found", { status: 404 });
   });
@@ -78,13 +87,13 @@ afterEach(async () => {
 });
 
 describe("hexCatalogFetch", () => {
-  it("lets the pinned SDK read a Hex 3.1.1 catalog that lists models it does not know", async () => {
-    const unwrapped = await connect(engineTransport(HEX_3_1_1_CATALOG));
+  it("lets the pinned SDK read a Hex 3.4.0 catalog that lists models it does not know", async () => {
+    const unwrapped = await connect(engineTransport(HEX_3_4_0_CATALOG));
     await expect(unwrapped.models.list({ language: "en" })).rejects.toMatchObject({
       code: "invalid-response",
     });
 
-    const client = await connect(hexCatalogFetch(engineTransport(HEX_3_1_1_CATALOG)));
+    const client = await connect(hexCatalogFetch(engineTransport(HEX_3_4_0_CATALOG)));
     const models = await client.models.list({ language: "en" });
     expect(models.map((model) => model.id)).toEqual(SDK_KNOWN_IDS);
   });

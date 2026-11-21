@@ -96,7 +96,7 @@ export function HexSetupDialog({
       return {
         detail:
           setup?.platform === "linux" && engine.error === "incompatible"
-            ? t`This Hex release requires glibc 2.39 or newer on Linux. Use the built-in engine instead.`
+            ? t`This Hex release requires glibc 2.36 or newer on Linux. Use the built-in engine instead.`
             : t`Managed installation is not available on this host. Use a compatible external Hex engine or the built-in engine.`,
         tone: "muted" as const,
       };

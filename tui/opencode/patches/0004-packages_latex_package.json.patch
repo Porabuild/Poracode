@@ -1,0 +1,30 @@
+diff --git a/packages/latex/package.json b/packages/latex/package.json
+index 4d1f049..709924f 100644
+--- a/packages/latex/package.json
++++ b/packages/latex/package.json
+@@ -1,5 +1,4 @@
+ {
+-  "$schema": "https://json.schemastore.org/package.json",
+   "name": "@opencode/latex",
+   "version": "2.3.2",
+   "private": true,
+@@ -8,19 +7,9 @@
+     "./markdown": "./src/markdown.ts",
+     "./plugin": "./src/plugin.ts"
+   },
+-  "scripts": {
+-    "test": "bun test --timeout 30000 --only-failures",
+-    "typecheck": "bun check --no-script",
+-    "typecheck:tsc": "tsc --noEmit"
+-  },
+   "dependencies": {
+     "@opencode/plugin": "workspace:*",
+     "@opentui/core": "catalog:",
+     "string-width": "catalog:"
+-  },
+-  "devDependencies": {
+-    "@tsconfig/bun": "catalog:",
+-    "@types/bun": "catalog:",
+-    "@typescript/native": "catalog:"
+   }
+ }

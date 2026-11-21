@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { EventEmitter } from "node:events";
+import { existsSync } from "node:fs";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
@@ -18,6 +19,7 @@ import {
   DEVICE_HUB_NATIVE_RECEIPT_PATH,
   DEVICE_HUB_NATIVE_UPSTREAM_SHA256,
   DEVICE_HUB_SCRCPY_PATH,
+  DEVICE_HUB_VERSION,
 } from "../../src/shared/deviceHubArtifact.ts";
 
 // Qualification gate: npm ci --ignore-scripts in this toolchain, then stage
@@ -50,11 +52,12 @@ void test("stages the platform closure and replaces artifact 1 without dropping 
   await mkdir(target, { recursive: true });
   const previous = JSON.parse(await readFile(new URL("manifest.json", staged), "utf8"));
   await writeFile(join(target, "manifest.json"), JSON.stringify({ ...previous, version: 1 }));
+  const scrcpyPath = fileURLToPath(new URL(DEVICE_HUB_SCRCPY_PATH, staged));
   const result = await prepareDeviceHub({
     source: fileURLToPath(new URL("./", import.meta.url)),
     output,
     scratch,
-    scrcpyServer: fileURLToPath(new URL(DEVICE_HUB_SCRCPY_PATH, staged)),
+    ...(existsSync(scrcpyPath) ? { scrcpyServer: scrcpyPath } : {}),
     runtimeAbi: previous.runtimeAbi,
   });
   const manifest = JSON.parse(await readFile(join(result.target, "manifest.json"), "utf8"));
@@ -70,7 +73,7 @@ void test("stages the platform closure and replaces artifact 1 without dropping 
     process.platform === "darwin",
   );
   if (process.platform !== "darwin") {
-    for (const directory of ["bin", "native", "simcam"])
+    for (const directory of ["bin", "capability-loader", "native", "simax", "simcam", "simpb"])
       await assert.rejects(readFile(join(result.target, simulatorRoot, directory)), {
         code: "ENOENT",
       });
@@ -178,7 +181,7 @@ function fixture(cached, failure) {
 void test("pins the pristine source, maintained patch, result and versioned receipt", async () => {
   assert.equal(hash(await readFile(upstream)), DEVICE_HUB_NATIVE_UPSTREAM_SHA256);
   assert.equal(
-    hash(await readFile(new URL("patches/expo-device-hub@0.15.3.patch", root))),
+    hash(await readFile(new URL(`patches/expo-device-hub@${DEVICE_HUB_VERSION}.patch`, root))),
     DEVICE_HUB_NATIVE_PATCH_SHA256,
   );
   assert.equal(
@@ -205,6 +208,7 @@ void test("staging refuses unexpected or already-patched upstream bytes before p
       join(fixtureSource, "node_modules/expo-device-hub/package.json"),
       await readFile(new URL("node_modules/expo-device-hub/package.json", import.meta.url)),
     );
+    const scrcpyPath = fileURLToPath(new URL(DEVICE_HUB_SCRCPY_PATH, staged));
     for (const bytes of [
       Buffer.from("unexpected upstream"),
       await readFile(new URL(DEVICE_HUB_NATIVE_MODULE_PATH, staged)),
@@ -215,7 +219,7 @@ void test("staging refuses unexpected or already-patched upstream bytes before p
           source: fixtureSource,
           output: join(scratch, "output"),
           runtimeAbi: "149",
-          scrcpyServer: fileURLToPath(new URL(DEVICE_HUB_SCRCPY_PATH, staged)),
+          ...(existsSync(scrcpyPath) ? { scrcpyServer: scrcpyPath } : {}),
         }),
         /pristine upstream module differs/,
       );

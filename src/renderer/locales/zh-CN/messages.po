@@ -5435,6 +5435,7 @@ msgstr "继续"
 msgid "Continue from where you left off."
 msgstr "从上次中断的地方继续。"
 
+#: src/renderer/components/thread/CompactThreadHeader.tsx
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/components/thread/ThreadView.tsx
 msgid "Continue in another provider"
@@ -22233,13 +22234,17 @@ msgstr "此文件夹为空。"
 msgid "This guide is out of date. Rewrite it to see excerpts for the current change."
 msgstr "此指南已过期。请重写以查看当前更改的摘录。"
 
+#: src/renderer/views/SettingsOverlay/parts/HexSetupDialog.tsx
+msgid "This Hex release requires glibc 2.36 or newer on Linux. Use the built-in engine instead."
+msgstr "此 Hex 版本在 Linux 上需要 glibc 2.36 或更高版本。请改用内置引擎。"
+
 #: src/renderer/views/SettingsOverlay/parts/HexEngineDialog.tsx
 #~ msgid "This Hex release requires glibc 2.39 or newer on Linux."
 #~ msgstr "此 Hex 版本需要 Linux 上的 glibc 2.39 或更高版本。"
 
 #: src/renderer/views/SettingsOverlay/parts/HexSetupDialog.tsx
-msgid "This Hex release requires glibc 2.39 or newer on Linux. Use the built-in engine instead."
-msgstr "此 Hex 版本在 Linux 上需要 glibc 2.39 或更高版本。请改用内置引擎。"
+#~ msgid "This Hex release requires glibc 2.39 or newer on Linux. Use the built-in engine instead."
+#~ msgstr "此 Hex 版本在 Linux 上需要 glibc 2.39 或更高版本。请改用内置引擎。"
 
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "This host"

@@ -1,5 +1,5 @@
 diff --git a/packages/tui/src/component/dialog-config.tsx b/packages/tui/src/component/dialog-config.tsx
-index f2e3f28..31365a1 100644
+index 7f65a07..1c34e3a 100644
 --- a/packages/tui/src/component/dialog-config.tsx
 +++ b/packages/tui/src/component/dialog-config.tsx
 @@ -1,5 +1,6 @@
@@ -7,18 +7,18 @@ index f2e3f28..31365a1 100644
  import { useConfig, useNewDesigns } from "../config"
 +import { BRAND } from "../brand"
  import { useThemes } from "../context/theme"
- import { DialogSelect } from "../ui/dialog-select"
- import { useToast } from "../ui/toast"
-@@ -23,7 +24,7 @@ export const settings: Setting[] = [
-     title: "Theme",
+ import { useDialog, type DialogContext } from "../ui/dialog"
+ import { DialogSelect, DialogSelectChoice } from "../ui/dialog-select"
+@@ -30,7 +31,7 @@ export const settings: Setting[] = [
      category: "Appearance",
      path: ["theme", "name"],
+     description: "Color theme used across the interface",
 -    default: "opencode",
 +    default: BRAND.defaultTheme,
      keywords: ["color scheme", "colors"],
-   },
-   {
-@@ -289,15 +290,6 @@ export const settings: Setting[] = [
+     open: (dialog) =>
+       dialog.replace(() => (
+@@ -340,16 +341,6 @@ export const settings: Setting[] = [
      format: (value) => `${Math.round(Number(value) * 100)}%`,
      keywords: ["sound volume", "audio volume"],
    },
@@ -26,6 +26,7 @@ index f2e3f28..31365a1 100644
 -    title: "Release highlights",
 -    category: "Alerts",
 -    path: ["highlights"],
+-    description: "Whether release highlights are shown after an update",
 -    default: true,
 -    values: [false, true],
 -    labels: ["off", "on"],

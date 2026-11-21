@@ -5435,6 +5435,7 @@ msgstr "Devam et"
 msgid "Continue from where you left off."
 msgstr "Kaldığın yerden devam et."
 
+#: src/renderer/components/thread/CompactThreadHeader.tsx
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/components/thread/ThreadView.tsx
 msgid "Continue in another provider"
@@ -22234,13 +22235,17 @@ msgstr "Bu klasör boş."
 msgid "This guide is out of date. Rewrite it to see excerpts for the current change."
 msgstr "Bu rehber güncel değil. Mevcut değişikliğin alıntılarını görmek için yeniden yazın."
 
+#: src/renderer/views/SettingsOverlay/parts/HexSetupDialog.tsx
+msgid "This Hex release requires glibc 2.36 or newer on Linux. Use the built-in engine instead."
+msgstr "Bu Hex sürümü Linux'ta glibc 2.36 veya üstünü gerektirir. Bunun yerine yerleşik motoru kullanın."
+
 #: src/renderer/views/SettingsOverlay/parts/HexEngineDialog.tsx
 #~ msgid "This Hex release requires glibc 2.39 or newer on Linux."
 #~ msgstr "Bu Hex sürümü, Linux'ta glibc 2.39 veya daha yenisini gerektirir."
 
 #: src/renderer/views/SettingsOverlay/parts/HexSetupDialog.tsx
-msgid "This Hex release requires glibc 2.39 or newer on Linux. Use the built-in engine instead."
-msgstr "Bu Hex sürümü Linux'ta glibc 2.39 veya üstünü gerektirir. Bunun yerine yerleşik motoru kullanın."
+#~ msgid "This Hex release requires glibc 2.39 or newer on Linux. Use the built-in engine instead."
+#~ msgstr "Bu Hex sürümü Linux'ta glibc 2.39 veya üstünü gerektirir. Bunun yerine yerleşik motoru kullanın."
 
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "This host"
