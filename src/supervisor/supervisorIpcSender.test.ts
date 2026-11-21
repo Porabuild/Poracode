@@ -866,4 +866,98 @@ describe("SupervisorIpcSender canonical credit (B1)", () => {
     expect(sent).toHaveLength(1);
     expect((sent[0] as { flowSeq?: number }).flowSeq).toBeUndefined();
   });
+
+  it("caps canonicalSendCapacity by remaining bulk queue headroom and notifies after drain frees space", () => {
+    const callbacks: Array<(error: Error | null) => void> = [];
+    const observedAtNotify: number[] = [];
+    let sender!: SupervisorIpcSender;
+    sender = new SupervisorIpcSender({
+      send: (_message, callback) => {
+        callbacks.push(callback);
+        return false;
+      },
+      onError: vi.fn<(error: Error) => void>(),
+      onCanonicalCapacityChange: () => {
+        observedAtNotify.push(sender.canonicalSendCapacity());
+      },
+      maxQueuedMessages: 4,
+      maxQueuedBytes: 500,
+    });
+    const generation = sender.getCanonicalFlowGeneration();
+    sender.setCanonicalCredit({ windowBytes: 2_000, generation });
+    observedAtNotify.length = 0;
+
+    // Host window is 2000, but local bulk queue cap is 500.
+    expect(sender.canonicalSendCapacity()).toBe(500);
+
+    // 1st goes in-flight (waitingForDrain = true); 2nd and 3rd consume 400 of 500 bulk bytes.
+    sender.emit(runtimeEvent("t1", "in-flight"), { estimatedBytes: 200 });
+    expect(sender.canonicalSendCapacity()).toBe(500);
+    sender.emit(runtimeEvent("t1", "queued-1"), { estimatedBytes: 200 });
+    expect(sender.canonicalSendCapacity()).toBe(300);
+    sender.emit(runtimeEvent("t1", "queued-2"), { estimatedBytes: 200 });
+    expect(sender.canonicalSendCapacity()).toBe(100);
+    expect(sender.canonicalCreditRemaining()).toBe(1_400);
+
+    // Draining the in-flight send shifts queued-1 into flight BEFORE notifying capacity.
+    callbacks.shift()!(null);
+    expect(sender.queueDepth.messages).toBe(1);
+    expect(observedAtNotify).toEqual([300]);
+
+    callbacks.shift()!(null);
+    expect(sender.queueDepth.messages).toBe(0);
+    expect(observedAtNotify).toEqual([300, 500]);
+  });
+
+  it("caps canonicalSendCapacity to zero when bulk message slots are full even without host credit", () => {
+    const callbacks: Array<(error: Error | null) => void> = [];
+    const sender = new SupervisorIpcSender({
+      send: (_message, callback) => {
+        callbacks.push(callback);
+        return false;
+      },
+      onError: vi.fn<(error: Error) => void>(),
+      maxQueuedMessages: 2,
+      maxQueuedBytes: 10_000,
+    });
+
+    sender.emit(runtimeEvent("t1", "in-flight"), { estimatedBytes: 100 });
+    sender.emit(runtimeEvent("t1", "queued-1"), { estimatedBytes: 100 });
+    expect(sender.canonicalSendCapacity()).toBe(9_900);
+    sender.emit(runtimeEvent("t1", "queued-2"), { estimatedBytes: 100 });
+    expect(sender.canonicalSendCapacity()).toBe(0);
+
+    callbacks.shift()!(null);
+    expect(sender.canonicalSendCapacity()).toBe(9_900);
+  });
+
+  it("refuses an unmeasurable canonical message even when maxQueuedBytes exceeds the default 8 MiB", () => {
+    const onCanonicalOverflow = vi.fn<(error: Error, message: SupervisorEvent) => void>();
+    const onCanonicalDropped = vi.fn<(info: { bytes: number; type: string }) => void>();
+    const sender = new SupervisorIpcSender({
+      send: () => false,
+      onError: vi.fn<(error: Error) => void>(),
+      onCanonicalOverflow,
+      onCanonicalDropped,
+      maxQueuedBytes: 16 * 1024 * 1024,
+    });
+
+    sender.emit(runtimeEvent("t1", "in-flight"));
+    const circular: Record<string, unknown> = {};
+    circular.self = circular;
+    sender.emit({
+      type: "thread-runtime-event",
+      threadId: "t2",
+      event: {
+        type: "item.started",
+        threadId: "t2",
+        itemId: "bad",
+        itemType: "tool_call",
+        payload: circular,
+      },
+    });
+
+    expect(onCanonicalDropped).toHaveBeenCalledTimes(1);
+    expect(onCanonicalDropped.mock.calls[0]![0].bytes).toBeGreaterThan(16 * 1024 * 1024);
+  });
 });

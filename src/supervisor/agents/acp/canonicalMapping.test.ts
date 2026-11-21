@@ -1827,6 +1827,63 @@ describe("mapAcpSessionUpdate", () => {
     expect(started.payload.result).toContain("diff --git a/src/renderer/App.tsx");
     expect(started.payload.result).toContain("-const x = 1;");
     expect(started.payload.result).toContain("+const x = 2;");
+    expect(started.payload.editOldText).toBe("const x = 1;\n");
+    expect(started.payload.editNewText).toBe("const x = 2;\n");
+  });
+
+  it("omits oversized full-file editOldText/editNewText snapshots and clears earlier small snapshots on update", () => {
+    const state = createAcpMapperState("t-fc-large-diff");
+    const startedEvents = mapAcpSessionUpdate(
+      note({
+        sessionUpdate: "tool_call",
+        toolCallId: "tc-fc-large-diff",
+        title: "Editing locales/de/messages.po",
+        kind: "edit",
+        status: "in_progress",
+        rawInput: { file_path: "locales/de/messages.po" },
+        content: [
+          {
+            type: "diff",
+            path: "locales/de/messages.po",
+            oldText: 'msgid "a"\nmsgstr ""\n',
+            newText: 'msgid "a"\nmsgstr "A"\n',
+          },
+        ],
+      } as Parameters<typeof mapAcpSessionUpdate>[0]["update"]),
+      state,
+    );
+    const started = startedEvents[0] as { payload: Record<string, unknown> };
+    expect(started.payload.editOldText).toBe('msgid "a"\nmsgstr ""\n');
+    expect(started.payload.editNewText).toBe('msgid "a"\nmsgstr "A"\n');
+
+    const padding = "# catalog context line\n".repeat(4_000);
+    const updatedEvents = mapAcpSessionUpdate(
+      note({
+        sessionUpdate: "tool_call_update",
+        toolCallId: "tc-fc-large-diff",
+        title: "Edited locales/de/messages.po",
+        kind: "edit",
+        status: "completed",
+        content: [
+          {
+            type: "diff",
+            path: "locales/de/messages.po",
+            oldText: `${padding}msgid "final"\nmsgstr ""\n`,
+            newText: `${padding}msgid "final"\nmsgstr "Ende"\n`,
+          },
+        ],
+      } as Parameters<typeof mapAcpSessionUpdate>[0]["update"]),
+      state,
+    );
+    const completed = updatedEvents[0] as { type: string; payload: Record<string, unknown> };
+    expect(completed.type).toBe("item.completed");
+    expect(completed.payload.diffSummary).toEqual({ added: 1, removed: 1 });
+    expect(completed.payload.result).toContain('-msgstr ""');
+    expect(completed.payload.result).toContain('+msgstr "Ende"');
+    // Explicitly cleared with null so shallow payload merges drop the smaller started snapshot.
+    expect(completed.payload.editOldText).toBeNull();
+    expect(completed.payload.editNewText).toBeNull();
+    expect(JSON.stringify(completed.payload).length).toBeLessThan(4_096);
   });
 
   it("classifies empty-old-text ACP content diffs as creates", () => {

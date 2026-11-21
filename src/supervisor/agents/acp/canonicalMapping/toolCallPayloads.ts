@@ -28,6 +28,23 @@ import { flushTextStreamExtension } from "./textStreamExtension";
 import { readAcpCommandStatus } from "./commandStatus";
 
 /**
+ * Cap optional full-file `editOldText`/`editNewText` snapshots attached to ACP
+ * `file_change` payloads. Larger edits already carry their compact unified diff
+ * in `payload.result` and line counts in `payload.diffSummary`; embedding whole
+ * multi-megabyte files bloats IPC bursts, SQLite rows, and remote live streams.
+ *
+ * No schema or database version bump. Stored string snapshots stay valid, and
+ * readers accept only strings. `null` is a shallow-merge clear when a later
+ * update outgrows this cap; older string-only readers ignore it. Omitted keys
+ * mean the snapshot was never stored.
+ */
+const MAX_INLINE_EDIT_SNAPSHOT_CHARS = 128 * 1024;
+
+function shouldEmbedInlineEditSnapshot(change: { oldText: string; newText: string }): boolean {
+  return change.oldText.length + change.newText.length <= MAX_INLINE_EDIT_SNAPSHOT_CHARS;
+}
+
+/**
  * Build the canonical chat-item payload for an ACP `tool_call`.
  *
  * ACP carries a single `(name, rawInput, rawOutput, status)` shape for every
@@ -161,13 +178,14 @@ export function buildAcpToolCallPayload(
       primary,
       contentDiffText,
     );
+    const embedSnapshot = primary !== undefined && shouldEmbedInlineEditSnapshot(primary);
     return {
       ...base,
       ...(contentDiffText ? { result: contentDiffText } : {}),
       path: path ?? "",
       changeKind,
       ...(diffSummary ? { diffSummary: normalizeDiffSummaryForKind(changeKind, diffSummary) } : {}),
-      ...(primary ? { editOldText: primary.oldText, editNewText: primary.newText } : {}),
+      ...(embedSnapshot ? { editOldText: primary.oldText, editNewText: primary.newText } : {}),
     };
   }
   if (itemType === "web_search") {
@@ -316,8 +334,16 @@ export function buildAcpToolCallUpdatePayload(
     if (diffSummary) payload.diffSummary = normalizeDiffSummaryForKind(changeKind, diffSummary);
     payload.changeKind = changeKind;
     if (primary) {
-      payload.editOldText = primary.oldText;
-      payload.editNewText = primary.newText;
+      if (shouldEmbedInlineEditSnapshot(primary)) {
+        payload.editOldText = primary.oldText;
+        payload.editNewText = primary.newText;
+      } else if (
+        typeof item.payload.editOldText === "string" ||
+        typeof item.payload.editNewText === "string"
+      ) {
+        payload.editOldText = null;
+        payload.editNewText = null;
+      }
     }
   }
   if (item.itemType === "web_search") {
