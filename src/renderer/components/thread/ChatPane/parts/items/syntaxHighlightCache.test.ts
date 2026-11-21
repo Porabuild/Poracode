@@ -44,4 +44,15 @@ describe("syntax highlight string retention", () => {
     expect(cache.get("a")).toBe("1");
     expect(cache.get("c")).toBe("1234567");
   });
+
+  it("releases retained bytes when deleting superseded streaming prefixes", () => {
+    const cache = new SyntaxHighlightCache(2, 28);
+    cache.set("kept", "1234"); // 16 bytes
+    cache.set("a", "1234"); // 10 bytes (26/28)
+    cache.delete("a"); // 16/28
+    cache.set("ab", "1234"); // 12 bytes (28/28; would evict "kept" if "a" remained)
+    expect(cache.get("a")).toBeUndefined();
+    expect(cache.get("kept")).toBe("1234");
+    expect(cache.get("ab")).toBe("1234");
+  });
 });
