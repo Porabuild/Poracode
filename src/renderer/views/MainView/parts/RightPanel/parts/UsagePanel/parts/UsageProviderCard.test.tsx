@@ -11,13 +11,27 @@ const { sortableHandleRef, useSortableMock } = vi.hoisted(() => ({
 
 const loginState = vi.hoisted(() => ({
   canBrowserSignIn: false,
+  canApiKeySignIn: false,
+  canSignOut: false,
+  optionalBrowserSignIn: true,
+  apiKey: "",
+  setApiKey: vi.fn<(value: string) => void>(),
   handleSignIn: vi.fn<() => void>(),
+  handleSubmitApiKey: vi.fn<() => void>(),
+  handleSignOut: vi.fn<() => void>(),
   snapshot: undefined as UsageSnapshot | undefined,
 }));
 beforeEach(() => {
   loginState.canBrowserSignIn = false;
+  loginState.canApiKeySignIn = false;
+  loginState.canSignOut = false;
+  loginState.optionalBrowserSignIn = true;
+  loginState.apiKey = "";
   loginState.snapshot = undefined;
+  loginState.setApiKey.mockReset();
   loginState.handleSignIn.mockReset();
+  loginState.handleSubmitApiKey.mockReset();
+  loginState.handleSignOut.mockReset();
 });
 
 vi.mock("@dnd-kit/react/sortable", () => ({
@@ -43,7 +57,7 @@ vi.mock("@/renderer/components/providers/UsageWindowBars", () => ({
 
 vi.mock("@/renderer/components/providers/usageProviders", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/renderer/components/providers/usageProviders")>()),
-  browserSessionAddsDetails: () => true,
+  browserSessionAddsDetails: () => loginState.optionalBrowserSignIn,
 }));
 
 vi.mock("@/renderer/components/providers/useProviderUsageRefresh", () => ({
@@ -53,15 +67,15 @@ vi.mock("@/renderer/components/providers/useProviderUsageRefresh", () => ({
 vi.mock("@/renderer/components/providers/useUsageProviderLogin", () => ({
   useUsageProviderLogin: () => ({
     canBrowserSignIn: loginState.canBrowserSignIn,
-    canApiKeySignIn: false,
-    canSignOut: false,
+    canApiKeySignIn: loginState.canApiKeySignIn,
+    canSignOut: loginState.canSignOut,
     signingIn: false,
     signingOut: false,
-    apiKey: "",
-    setApiKey: vi.fn<(value: string) => void>(),
+    apiKey: loginState.apiKey,
+    setApiKey: loginState.setApiKey,
     handleSignIn: loginState.handleSignIn,
-    handleSubmitApiKey: vi.fn<() => void>(),
-    handleSignOut: vi.fn<() => void>(),
+    handleSubmitApiKey: loginState.handleSubmitApiKey,
+    handleSignOut: loginState.handleSignOut,
   }),
 }));
 
@@ -95,10 +109,43 @@ describe("UsageProviderCard", () => {
     const { container } = renderCard(false);
     const signIn = screen.getByRole("button", { name: "Browser sign-in" });
     expect(container.firstElementChild?.firstElementChild).toContainElement(signIn);
-    expect(signIn).toHaveClass("size-5");
+    expect(signIn).toHaveClass("button--ghost", "size-5");
     expect(signIn.textContent).toBe("");
     fireEvent.click(signIn);
     expect(loginState.handleSignIn).toHaveBeenCalledOnce();
+  });
+
+  it("renders themed ghost buttons and sized input for credential sign-in", () => {
+    loginState.canApiKeySignIn = true;
+    loginState.canBrowserSignIn = true;
+    loginState.optionalBrowserSignIn = false;
+    loginState.apiKey = "secret-key";
+
+    renderCard(false);
+
+    const input = screen.getByLabelText("Claude API key");
+    expect(input).toHaveClass("input");
+    expect(input).toHaveAttribute("data-control-size", "sm");
+
+    const submit = screen.getByRole("button", { name: "Sign in" });
+    expect(submit).toHaveClass("button--ghost", "button--sm");
+    fireEvent.submit(input.closest("form")!);
+    expect(loginState.handleSubmitApiKey).toHaveBeenCalledOnce();
+
+    const browserSignIn = screen.getByRole("button", { name: "Browser sign-in" });
+    expect(browserSignIn).toHaveClass("button--ghost", "button--sm");
+    fireEvent.click(browserSignIn);
+    expect(loginState.handleSignIn).toHaveBeenCalledOnce();
+  });
+
+  it("renders themed ghost button for sign-out action", () => {
+    loginState.canSignOut = true;
+    renderCard(false);
+
+    const signOut = screen.getByRole("button", { name: "Sign out Claude" });
+    expect(signOut).toHaveClass("button--ghost", "size-5");
+    fireEvent.click(signOut);
+    expect(loginState.handleSignOut).toHaveBeenCalledOnce();
   });
 
   it("uses finger-sized card actions and a touch drag handle in compact layout", () => {
@@ -108,7 +155,10 @@ describe("UsageProviderCard", () => {
       "size-11",
       "touch-none",
     );
-    expect(screen.getByRole("button", { name: "Refresh Claude" })).toHaveClass("size-11");
+    expect(screen.getByRole("button", { name: "Refresh Claude" })).toHaveClass(
+      "button--ghost",
+      "size-11",
+    );
     expect(
       screen
         .getAllByRole("button", { name: "Collapse Claude" })
@@ -122,7 +172,10 @@ describe("UsageProviderCard", () => {
 
     expect(screen.getByRole("button", { name: "Reorder Claude" })).toHaveClass("size-4");
     expect(screen.getByRole("button", { name: "Reorder Claude" })).not.toHaveClass("touch-none");
-    expect(screen.getByRole("button", { name: "Refresh Claude" })).toHaveClass("size-5");
+    expect(screen.getByRole("button", { name: "Refresh Claude" })).toHaveClass(
+      "button--ghost",
+      "size-5",
+    );
   });
 
   it("removes and disables dragging for the current provider card", () => {

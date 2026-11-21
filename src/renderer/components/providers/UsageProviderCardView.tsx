@@ -2,10 +2,11 @@ import { ContentSurface } from "@/renderer/components/common/ContentSurface";
 import { useState, type ReactNode } from "react";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useSortable } from "@dnd-kit/react/sortable";
-import { Button, Tooltip } from "@heroui/react";
+import { Tooltip } from "@heroui/react";
 import { ChevronDown, ChevronRight, GripVertical, RefreshCw, TriangleAlert } from "lucide-react";
-import { useLingui } from "@lingui/react/macro";
+import { Trans, useLingui } from "@lingui/react/macro";
 import type { UsageSnapshot } from "@poracode/agents-usage/types";
+import { Button } from "@/renderer/components/common";
 import { ProviderIcon } from "@/renderer/components/providers/ProviderIcon";
 import { UsageWindowBars } from "@/renderer/components/providers/UsageWindowBars";
 import { UsageCostLine } from "@/renderer/components/providers/UsageCostLine";
@@ -244,30 +245,38 @@ export function UsageProviderCardView(props: {
             compact={compact}
           />
         ) : null}
-        <button
-          type="button"
-          aria-label={t`Refresh ${label}`}
-          title={t`Refresh ${label}`}
-          onClick={onRefresh}
-          disabled={refreshing || refreshDisabled}
-          className={`flex shrink-0 items-center justify-center rounded-md text-muted/60 transition-colors hover:bg-muted/10 hover:text-foreground disabled:opacity-50 ${
-            compact ? "size-11" : "size-5"
-          }`}
-        >
-          <RefreshCw className={`size-3.5 ${refreshing ? "animate-spin" : ""}`} />
-        </button>
+        <Tooltip>
+          <Button
+            isIconOnly
+            size="sm"
+            variant="ghost"
+            aria-label={t`Refresh ${label}`}
+            onPress={onRefresh}
+            isDisabled={refreshing || refreshDisabled}
+            className={`min-w-0 shrink-0 rounded-md p-0 text-muted/60 hover:text-foreground ${
+              compact ? "size-11" : "size-5"
+            }`}
+          >
+            <RefreshCw className={`size-3.5 ${refreshing ? "animate-spin" : ""}`} />
+          </Button>
+          <Tooltip.Content placement="top">
+            <Trans>Refresh</Trans>
+          </Tooltip.Content>
+        </Tooltip>
         {props.credentialActions}
-        <button
-          type="button"
+        <Button
+          isIconOnly
+          size="sm"
+          variant="ghost"
           aria-expanded={!collapsed}
           aria-label={collapsed ? t`Expand ${label}` : t`Collapse ${label}`}
-          onClick={() => onToggleCollapse(id)}
-          className={`flex shrink-0 items-center justify-center rounded-md text-muted/60 transition-colors hover:bg-muted/10 hover:text-foreground ${
+          onPress={() => onToggleCollapse(id)}
+          className={`min-w-0 shrink-0 rounded-md p-0 text-muted/60 hover:text-foreground ${
             compact ? "size-11" : "size-5"
           }`}
         >
           <Chevron className="size-4" />
-        </button>
+        </Button>
       </div>
       {collapsed && hasWindows && snapshot ? (
         <div className="px-2.5 pb-2">
