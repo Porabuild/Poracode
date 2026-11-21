@@ -73,8 +73,20 @@ vi.mock("@/renderer/components/layout/PageLayout", () => ({
 }));
 
 vi.mock("@/renderer/components/common", () => ({
-  Button: (props: { children: ReactNode; onPress?: () => void; ref?: Ref<HTMLButtonElement> }) => (
-    <button type="button" onClick={props.onPress} ref={props.ref}>
+  Button: (props: {
+    children: ReactNode;
+    onPress?: () => void;
+    ref?: Ref<HTMLButtonElement>;
+    "aria-label"?: string;
+    isDisabled?: boolean;
+  }) => (
+    <button
+      type="button"
+      aria-label={props["aria-label"]}
+      disabled={props.isDisabled}
+      onClick={props.onPress}
+      ref={props.ref}
+    >
       {props.children}
     </button>
   ),
@@ -300,22 +312,29 @@ describe("SettingsOverlay", () => {
     usePanelStore.setState({ settingsSection: null, settingsAnchor: null });
   });
 
-  it("opens memory list management in a dialog and loads entries only when opened", async () => {
+  it("opens memory list management in a dialog and opens an editor modal to add a memory", async () => {
     usePanelStore.getState().openSettingsSection("memory");
     render(<SettingsOverlay onClose={() => undefined} />);
 
     expect(screen.getByRole("button", { name: "Dream now" })).toBeInTheDocument();
-    expect(screen.queryByRole("textbox", { name: "Add a memory" })).toBeNull();
+    expect(screen.queryByRole("dialog", { name: "Memories" })).toBeNull();
     expect(bridgeState.memoryCommand).not.toHaveBeenCalledWith({ action: "list" });
 
     fireEvent.click(screen.getByRole("button", { name: "Manage memories" }));
     const dialog = await screen.findByRole("dialog", { name: "Memories" });
-    expect(within(dialog).getByRole("textbox", { name: "Add a memory" })).toBeInTheDocument();
     expect(await within(dialog).findByText("No memories yet.")).toBeInTheDocument();
     expect(bridgeState.memoryCommand).toHaveBeenCalledWith({ action: "list" });
+
+    fireEvent.click(within(dialog).getByRole("button", { name: "Add" }));
+    const addDialog = await screen.findByRole("dialog", { name: "Add a memory" });
+    const textarea = within(addDialog).getByRole("textbox", { name: "Memory" });
+    expect(textarea).toHaveFocus();
+    fireEvent.keyDown(textarea, { key: "Escape" });
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "Add a memory" })).toBeNull());
+    expect(screen.getByRole("dialog", { name: "Memories" })).toBeInTheDocument();
   });
 
-  it("focuses the memory editor and returns focus to its row when editing is cancelled", async () => {
+  it("focuses the memory editor modal and returns focus to its row when editing is cancelled", async () => {
     bridgeState.memoryCommand
       .mockResolvedValueOnce(undefined)
       .mockResolvedValueOnce([{ id: "memory-1", scope: "global", summary: "Always use bun" }]);
@@ -325,9 +344,11 @@ describe("SettingsOverlay", () => {
 
     const dialog = await screen.findByRole("dialog", { name: "Memories" });
     fireEvent.click(await within(dialog).findByRole("button", { name: "Edit" }));
-    const editor = within(dialog).getByRole("textbox", { name: "Edit" });
+    const editDialog = await screen.findByRole("dialog", { name: "Edit memory" });
+    const editor = within(editDialog).getByRole("textbox", { name: "Memory" });
     expect(editor).toHaveFocus();
     fireEvent.keyDown(editor, { key: "Escape" });
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "Edit memory" })).toBeNull());
     expect(within(dialog).getByRole("button", { name: "Edit" })).toHaveFocus();
   });
 

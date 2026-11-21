@@ -1561,6 +1561,7 @@ msgstr "<0>{0}</0> でのアクティビティが今週 {1}% 増加しました"
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/StructuredCustomValues.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/ProjectTreeCreateMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemoryEditorDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SearchExcludeBody.tsx
@@ -1577,6 +1578,7 @@ msgid "Add a local project"
 msgstr "ローカルプロジェクトを追加"
 
 #: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemoryEditorDialog.tsx
 msgid "Add a memory"
 msgstr "メモリを追加"
 
@@ -2084,6 +2086,7 @@ msgstr "スレッドが対応を必要としたら通知"
 #: src/renderer/views/PullRequestsOverlay/timeline/TimelineTab.tsx
 #: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "All"
 msgstr "全期間"
@@ -2248,7 +2251,7 @@ msgstr "常に適用"
 msgid "Always excluded"
 msgstr "常に除外される"
 
-#: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemoryEditorDialog.tsx
 msgid "Always use bun"
 msgstr "常に bun を使う"
 
@@ -3516,6 +3519,7 @@ msgstr "この画面ではこのモデル設定を使用できません"
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/HexSetupDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemoryEditorDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
@@ -4269,6 +4273,7 @@ msgstr "フィルターをクリア"
 
 #: src/renderer/views/PullRequestsOverlay/list/PrListMenuSections.tsx
 #: src/renderer/views/PullRequestsOverlay/list/prListSheetSections.ts
+#: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
 msgid "Clear filters"
 msgstr "フィルターをクリア"
 
@@ -4279,6 +4284,7 @@ msgstr "目標をクリア"
 #: src/renderer/components/plugins/PluginMarketplace.tsx
 #: src/renderer/sidebar/ChatSidebarHeader.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProviderModelVisibilityPopover.tsx
 #: src/renderer/views/SettingsOverlay/parts/SidebarUsageVisibilityPopover.tsx
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
@@ -5896,6 +5902,10 @@ msgstr "プラグインを管理できませんでした。パッケージ名、
 #~ msgid "Couldn't reach the desktop. If the browser asked to access your local network, allow it and pair again. Otherwise open the pairing link directly from the desktop (LAN), or expose the desktop over HTTPS."
 #~ msgstr "デスクトップに接続できませんでした。ブラウザがローカルネットワークへのアクセスを求めた場合は、許可してから再度ペアリングしてください。それ以外の場合は、デスクトップ（LAN）からペアリングリンクを直接開くか、デスクトップを HTTPS で公開してください。"
 
+#: src/renderer/views/SettingsOverlay/parts/MemoryEditorDialog.tsx
+msgid "Couldn't save memory."
+msgstr "メモリを保存できませんでした。"
+
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Couldn't save the shortcut."
 msgstr "ショートカットを保存できませんでした。"
@@ -6296,6 +6306,7 @@ msgstr "AI で勝者を選ぶ"
 msgid "Crowned"
 msgstr "選定済み"
 
+#: src/renderer/views/SettingsOverlay/parts/MemoryEditorDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
 msgid "Ctrl+Enter"
 msgstr "Ctrl+Enter"
@@ -6731,6 +6742,10 @@ msgstr "環境を削除"
 #: src/renderer/components/thread/ChatPane/parts/items/FileChange.tsx
 msgid "Delete file"
 msgstr "ファイルの削除"
+
+#: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
+msgid "Delete memory?"
+msgstr "メモリを削除しますか？"
 
 #. Tooltip: permanently delete the archived thread
 #: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
@@ -7747,6 +7762,10 @@ msgstr "ラベルを編集"
 msgid "Edit MCP server"
 msgstr "MCPサーバーを編集"
 
+#: src/renderer/views/SettingsOverlay/parts/MemoryEditorDialog.tsx
+msgid "Edit memory"
+msgstr "メモリを編集"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
 msgid "Edit password"
 msgstr "パスワードを編集"
@@ -8679,6 +8698,10 @@ msgstr "お気に入り"
 msgid "Featured"
 msgstr "注目"
 
+#: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
+msgid "Feedback"
+msgstr "フィードバック"
+
 #: src/renderer/components/common/FeedbackDialog.tsx
 msgid "Feedback could not be sent. Your draft is kept."
 msgstr "フィードバックを送信できませんでした。下書きは保持されます。"
@@ -8810,6 +8833,10 @@ msgstr "絞り込みと並べ替え（{count} 件適用中）"
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectFilter.tsx
 msgid "Filter by project"
 msgstr "プロジェクトで絞り込み"
+
+#: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
+msgid "Filter by scope"
+msgstr "スコープで絞り込む"
 
 #: src/renderer/views/PullRequestsOverlay/summary/LabelPicker.tsx
 msgid "Filter labels"
@@ -9523,6 +9550,8 @@ msgstr "グローバル"
 #: src/renderer/components/providers/devin/sessionListings.tsx
 #: src/renderer/components/skills/SkillImportModal.tsx
 #: src/renderer/components/thread/ThreadCommandPanel.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemoryEditorDialog.tsx
 msgid "Global"
 msgstr "グローバル"
 
@@ -12281,6 +12310,7 @@ msgstr "メモリ"
 #: src/renderer/views/ProjectSettingsOverlay/parts/MobileProjectSettingsIndex.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/SettingsSidebar.tsx
 #: src/renderer/views/ProjectSettingsOverlay/ProjectSettingsOverlay.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemoryEditorDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
@@ -15506,6 +15536,7 @@ msgstr "{0} を上部に固定"
 #: src/renderer/components/thread/CompactThreadHeader.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemoryEditorDialog.tsx
 msgid "Pin to top"
 msgstr "トップにピン留めする"
 
@@ -16162,6 +16193,8 @@ msgstr "プロファイル"
 #: src/renderer/views/GitHubActionsView/GitHubActionsProjectPicker.tsx
 #: src/renderer/views/ProjectSettingsOverlay/ProjectSettingsOverlay.tsx
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemoryEditorDialog.tsx
 msgid "Project"
 msgstr "プロジェクト"
 
@@ -16885,6 +16918,7 @@ msgstr "視差効果を減らす"
 #: src/renderer/components/plugins/PluginCatalogBrowser.tsx
 #: src/renderer/components/plugins/PluginCatalogDetail.tsx
 #: src/renderer/components/plugins/PluginDetail.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
 msgid "Reference"
 msgstr "参照"
 
@@ -18484,7 +18518,7 @@ msgstr "彩度と明度"
 #: src/renderer/views/PullRequestsOverlay/parts/PrEditSheet.tsx
 #: src/renderer/views/PullRequestsOverlay/summary/DescriptionCard.tsx
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
-#: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemoryEditorDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Save"
@@ -18563,6 +18597,10 @@ msgstr "削除前に学びを保存"
 #: src/renderer/components/providers/settings/ProviderMcpServersSection.tsx
 msgid "Save MCP servers"
 msgstr "MCPサーバーを保存"
+
+#: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
+msgid "Save preferences, workflows, or project conventions to share across threads."
+msgstr "設定、ワークフロー、またはプロジェクト規約を保存してスレッド間で共有します。"
 
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Save shortcut"
@@ -18719,6 +18757,7 @@ msgid "Science & education"
 msgstr "科学と教育"
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemoryEditorDialog.tsx
 msgid "Scope"
 msgstr "スコープ"
 
@@ -18996,6 +19035,11 @@ msgstr "タイトル、メッセージ、フォルダーを検索"
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 msgid "Search: \"{query}\" in {scope}"
 msgstr "検索: 「{query}」({scope} 内)"
+
+#. placeholder {0}: query.trim()
+#: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
+msgid "Search: {0}"
+msgstr "検索: {0}"
 
 #: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
 #~ msgid "Search…"
@@ -22308,6 +22352,10 @@ msgstr "このマシン（ローカル）"
 msgid "This media preview is unavailable."
 msgstr "このメディアのプレビューは利用できません。"
 
+#: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
+msgid "This memory will be permanently removed."
+msgstr "このメモリは完全に削除されます。"
+
 #: src/renderer/components/thread/ThreadFollowUpQueue.tsx
 msgid "This message is no longer queued. Your edit is still available to copy."
 msgstr "このメッセージはキューから削除されました。編集中のテキストは引き続きコピーできます。"
@@ -22849,6 +22897,14 @@ msgstr "タイトルの生成"
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 msgid "Title, commit, and conflict models"
 msgstr "タイトル、コミット、競合用モデル"
+
+#: src/renderer/views/SettingsOverlay/parts/MemoryEditorDialog.tsx
+msgid "to add"
+msgstr "で追加"
+
+#: src/renderer/views/SettingsOverlay/parts/MemoryEditorDialog.tsx
+msgid "to save"
+msgstr "で保存"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/TodoList.tsx
 msgid "To-dos"
@@ -24003,6 +24059,10 @@ msgstr "更新日時"
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/UsagePanel.tsx
 msgid "Updated {0}"
 msgstr "{0}を更新しました"
+
+#: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
+msgid "Updated {formattedUpdatedAt}"
+msgstr "更新: {formattedUpdatedAt}"
 
 #: src/renderer/components/thread/ThreadAgentUpdateDock.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx

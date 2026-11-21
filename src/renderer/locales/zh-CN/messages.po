@@ -1562,6 +1562,7 @@ msgstr "本周 <0>{0}</0> 上的活动激增 {1}%"
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/StructuredCustomValues.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/ProjectTreeCreateMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemoryEditorDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SearchExcludeBody.tsx
@@ -1578,6 +1579,7 @@ msgid "Add a local project"
 msgstr "添加本地项目"
 
 #: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemoryEditorDialog.tsx
 msgid "Add a memory"
 msgstr "添加记忆"
 
@@ -2085,6 +2087,7 @@ msgstr "线程需要你时提醒"
 #: src/renderer/views/PullRequestsOverlay/timeline/TimelineTab.tsx
 #: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "All"
 msgstr "全部"
@@ -2249,7 +2252,7 @@ msgstr "始终应用"
 msgid "Always excluded"
 msgstr "总是被排除在外"
 
-#: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemoryEditorDialog.tsx
 msgid "Always use bun"
 msgstr "始终使用 bun"
 
@@ -3517,6 +3520,7 @@ msgstr "无法在此界面使用所选模型配置"
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/HexSetupDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemoryEditorDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
@@ -4270,6 +4274,7 @@ msgstr "清除筛选"
 
 #: src/renderer/views/PullRequestsOverlay/list/PrListMenuSections.tsx
 #: src/renderer/views/PullRequestsOverlay/list/prListSheetSections.ts
+#: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
 msgid "Clear filters"
 msgstr "清除筛选"
 
@@ -4280,6 +4285,7 @@ msgstr "清除目标"
 #: src/renderer/components/plugins/PluginMarketplace.tsx
 #: src/renderer/sidebar/ChatSidebarHeader.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProviderModelVisibilityPopover.tsx
 #: src/renderer/views/SettingsOverlay/parts/SidebarUsageVisibilityPopover.tsx
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
@@ -5897,6 +5903,10 @@ msgstr "无法管理插件。请检查包名、OpenCode 版本和网络连接，
 #~ msgid "Couldn't reach the desktop. If the browser asked to access your local network, allow it and pair again. Otherwise open the pairing link directly from the desktop (LAN), or expose the desktop over HTTPS."
 #~ msgstr "无法连接到桌面。如果浏览器请求访问你的本地网络，请允许后重新配对。否则请直接从桌面（LAN）打开配对链接，或通过 HTTPS 暴露桌面。"
 
+#: src/renderer/views/SettingsOverlay/parts/MemoryEditorDialog.tsx
+msgid "Couldn't save memory."
+msgstr "无法保存记忆。"
+
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Couldn't save the shortcut."
 msgstr "无法保存快捷键。"
@@ -6297,6 +6307,7 @@ msgstr "由 AI 选择优胜者"
 msgid "Crowned"
 msgstr "已选为优胜者"
 
+#: src/renderer/views/SettingsOverlay/parts/MemoryEditorDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
 msgid "Ctrl+Enter"
 msgstr "Ctrl+Enter"
@@ -6732,6 +6743,10 @@ msgstr "删除环境"
 #: src/renderer/components/thread/ChatPane/parts/items/FileChange.tsx
 msgid "Delete file"
 msgstr "删除文件"
+
+#: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
+msgid "Delete memory?"
+msgstr "删除记忆？"
 
 #. Tooltip: permanently delete the archived thread
 #: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
@@ -7748,6 +7763,10 @@ msgstr "编辑标签"
 msgid "Edit MCP server"
 msgstr "编辑 MCP 服务器"
 
+#: src/renderer/views/SettingsOverlay/parts/MemoryEditorDialog.tsx
+msgid "Edit memory"
+msgstr "编辑记忆"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
 msgid "Edit password"
 msgstr "编辑密码"
@@ -8680,6 +8699,10 @@ msgstr "收藏夹"
 msgid "Featured"
 msgstr "精选"
 
+#: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
+msgid "Feedback"
+msgstr "反馈"
+
 #: src/renderer/components/common/FeedbackDialog.tsx
 msgid "Feedback could not be sent. Your draft is kept."
 msgstr "无法发送反馈。草稿已保留。"
@@ -8811,6 +8834,10 @@ msgstr "筛选和排序（已启用 {count} 项）"
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectFilter.tsx
 msgid "Filter by project"
 msgstr "按项目筛选"
+
+#: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
+msgid "Filter by scope"
+msgstr "按作用域筛选"
 
 #: src/renderer/views/PullRequestsOverlay/summary/LabelPicker.tsx
 msgid "Filter labels"
@@ -9524,6 +9551,8 @@ msgstr "全局"
 #: src/renderer/components/providers/devin/sessionListings.tsx
 #: src/renderer/components/skills/SkillImportModal.tsx
 #: src/renderer/components/thread/ThreadCommandPanel.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemoryEditorDialog.tsx
 msgid "Global"
 msgstr "全局"
 
@@ -12282,6 +12311,7 @@ msgstr "记忆"
 #: src/renderer/views/ProjectSettingsOverlay/parts/MobileProjectSettingsIndex.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/SettingsSidebar.tsx
 #: src/renderer/views/ProjectSettingsOverlay/ProjectSettingsOverlay.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemoryEditorDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
@@ -15507,6 +15537,7 @@ msgstr "将 {0} 置顶"
 #: src/renderer/components/thread/CompactThreadHeader.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemoryEditorDialog.tsx
 msgid "Pin to top"
 msgstr "固定到顶部"
 
@@ -16163,6 +16194,8 @@ msgstr "配置文件"
 #: src/renderer/views/GitHubActionsView/GitHubActionsProjectPicker.tsx
 #: src/renderer/views/ProjectSettingsOverlay/ProjectSettingsOverlay.tsx
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemoryEditorDialog.tsx
 msgid "Project"
 msgstr "项目"
 
@@ -16886,6 +16919,7 @@ msgstr "减弱动态效果"
 #: src/renderer/components/plugins/PluginCatalogBrowser.tsx
 #: src/renderer/components/plugins/PluginCatalogDetail.tsx
 #: src/renderer/components/plugins/PluginDetail.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
 msgid "Reference"
 msgstr "引用"
 
@@ -18485,7 +18519,7 @@ msgstr "饱和度与亮度"
 #: src/renderer/views/PullRequestsOverlay/parts/PrEditSheet.tsx
 #: src/renderer/views/PullRequestsOverlay/summary/DescriptionCard.tsx
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
-#: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemoryEditorDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Save"
@@ -18564,6 +18598,10 @@ msgstr "删除前保存学到的内容"
 #: src/renderer/components/providers/settings/ProviderMcpServersSection.tsx
 msgid "Save MCP servers"
 msgstr "保存 MCP 服务器"
+
+#: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
+msgid "Save preferences, workflows, or project conventions to share across threads."
+msgstr "保存偏好、工作流或项目约定，以便在不同线程间共享。"
 
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Save shortcut"
@@ -18720,6 +18758,7 @@ msgid "Science & education"
 msgstr "科学与教育"
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemoryEditorDialog.tsx
 msgid "Scope"
 msgstr "作用域"
 
@@ -18997,6 +19036,11 @@ msgstr "搜索标题、消息和文件夹"
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 msgid "Search: \"{query}\" in {scope}"
 msgstr "搜索: \"{query}\" ({scope} 中)"
+
+#. placeholder {0}: query.trim()
+#: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
+msgid "Search: {0}"
+msgstr "搜索：{0}"
 
 #: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
 #~ msgid "Search…"
@@ -22309,6 +22353,10 @@ msgstr "本机（本地）"
 msgid "This media preview is unavailable."
 msgstr "此媒体预览不可用。"
 
+#: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
+msgid "This memory will be permanently removed."
+msgstr "此记忆将被永久删除。"
+
 #: src/renderer/components/thread/ThreadFollowUpQueue.tsx
 msgid "This message is no longer queued. Your edit is still available to copy."
 msgstr "此消息已不在队列中。你仍然可以复制正在编辑的内容。"
@@ -22850,6 +22898,14 @@ msgstr "标题生成"
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 msgid "Title, commit, and conflict models"
 msgstr "标题、提交和冲突模型"
+
+#: src/renderer/views/SettingsOverlay/parts/MemoryEditorDialog.tsx
+msgid "to add"
+msgstr "添加"
+
+#: src/renderer/views/SettingsOverlay/parts/MemoryEditorDialog.tsx
+msgid "to save"
+msgstr "保存"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/TodoList.tsx
 msgid "To-dos"
@@ -24004,6 +24060,10 @@ msgstr "更新时间"
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/UsagePanel.tsx
 msgid "Updated {0}"
 msgstr "更新了{0}"
+
+#: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
+msgid "Updated {formattedUpdatedAt}"
+msgstr "更新于 {formattedUpdatedAt}"
 
 #: src/renderer/components/thread/ThreadAgentUpdateDock.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
