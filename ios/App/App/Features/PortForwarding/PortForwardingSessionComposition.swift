@@ -110,7 +110,9 @@ final class PortForwardingSelectionStore {
       isReady: access.isReady,
       isForeground: access.isForeground,
       capabilities: access.capabilities.intersection(resolved.access.capabilities),
-      browserForwardEntry: access.browserForwardEntry && resolved.access.browserForwardEntry
+      // Credentials grant scopes. The current handshake owns browser entry
+      // and may arrive after this transport was resolved on foreground return.
+      browserForwardEntry: access.browserForwardEntry
     )
     return PortForwardingTransportSelection(access: exact, api: resolved.api)
   }
@@ -219,8 +221,10 @@ final class PortForwardingComposition {
       // `adopt` re-reads the live access and refuses a lease that is no longer
       // current, so a completion that outran a host switch changes nothing.
       store.adopt(selection, lease: lease)
+      guard store.selection()?.access.lease == lease else { return }
+      await controller.scan()
     } catch {
-      guard store.access?.lease == lease else { return }
+      guard !Task.isCancelled, store.access?.lease == lease else { return }
       store.invalidate()
     }
   }

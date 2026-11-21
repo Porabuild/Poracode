@@ -185,6 +185,15 @@ final class ProjectControllerNotesController {
     }
   }
 
+  func flushPendingEdit(for identity: ProjectIdentity) async {
+    guard let lease = session?.lease, identity.connectionId == lease.connectionId,
+      let revision = notesByProject[identity]?.revision,
+      let operation = scheduledWriteByProject.removeValue(forKey: identity)
+    else { return }
+    operation.cancel()
+    await flush(identity, revision: revision, activation: activationRevision, lease: lease)
+  }
+
   private func flush(
     _ identity: ProjectIdentity,
     revision: UInt64,

@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Shared two-line thread projection used by every native thread list. Its
+/// Shared adaptive thread projection used by every native thread list. Its
 /// information order mirrors the compact PWA row while retaining native text,
 /// accessibility, and theme behavior.
 struct PoracodeThreadRow: View {
@@ -12,8 +12,12 @@ struct PoracodeThreadRow: View {
   var agentLabel: String?
   var hasDraft = false
   var showsRelativeTime = true
+  var timeLabel: String?
   var isOpening = false
   var showsGitBranch = false
+  var hasBackgroundActivity = false
+
+  @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
   var body: some View {
     HStack(alignment: .center, spacing: 10) {
@@ -22,7 +26,7 @@ struct PoracodeThreadRow: View {
         status: ThreadStatusPresentation.resolvedStatus(
           status: thread.status,
           attention: thread.attention,
-          hasBackgroundActivity: false
+          hasBackgroundActivity: hasBackgroundActivity
         ),
         isDone: thread.isDone,
         agentLabel: agentLabel
@@ -36,8 +40,12 @@ struct PoracodeThreadRow: View {
         }
       }
     }
-    .frame(maxWidth: .infinity, minHeight: 44, maxHeight: 44, alignment: .leading)
+    .padding(.vertical, 5)
+    .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
     .contentShape(Rectangle())
+    .accessibilityValue(ThreadLifecycleStrings.status(ThreadStatusPresentation.resolvedStatus(
+      status: thread.status, attention: thread.attention, hasBackgroundActivity: hasBackgroundActivity),
+      hasSessionRef: thread.sessionRef != nil))
   }
 
   private var titleLine: some View {
@@ -46,7 +54,7 @@ struct PoracodeThreadRow: View {
         .font(.footnote.weight(.medium))
         .foregroundStyle(thread.isDone ? .secondary : .primary)
         .strikethrough(thread.isDone, color: .secondary)
-        .lineLimit(1)
+        .lineLimit(dynamicTypeSize.isAccessibilitySize ? 2 : 1)
         .multilineTextAlignment(.leading)
       if thread.isStarred {
         Image(systemName: "star.fill")
@@ -69,20 +77,37 @@ struct PoracodeThreadRow: View {
       Spacer(minLength: 8)
       if isOpening {
         ProgressView().controlSize(.mini)
-      } else if showsRelativeTime, let relativeTime {
-        Text(relativeTime)
+      } else if let timestamp = timeLabel ?? (showsRelativeTime ? relativeTime : nil) {
+        Text(timestamp)
           .font(.caption2.monospacedDigit())
-          .foregroundStyle(.tertiary)
+          .foregroundStyle(timeLabel == nil ? .tertiary : .secondary)
           .lineLimit(1)
       }
     }
   }
 
   private var metadataLine: some View {
+    ViewThatFits(in: .horizontal) {
+      metadataContents(compactGit: false, showsGit: true)
+        .fixedSize(horizontal: true, vertical: false)
+      metadataContents(compactGit: true, showsGit: true)
+        .fixedSize(horizontal: true, vertical: false)
+      VStack(alignment: .leading, spacing: 2) {
+        metadataContents(compactGit: true, showsGit: false)
+        ThreadGitSummaryBadge(summary: gitSummary, showsBranch: showsGitBranch, compact: true)
+      }
+    }
+    .font(.caption2)
+    .foregroundStyle(.secondary)
+    .lineLimit(1)
+  }
+
+  private func metadataContents(compactGit: Bool, showsGit: Bool) -> some View {
     HStack(alignment: .center, spacing: 6) {
       if let projectName {
         Text(projectName)
           .lineLimit(1)
+          .layoutPriority(1)
         if let hostName {
           PoracodeHostStatusGlyph(online: hostIsOnline)
             .accessibilityHidden(true)
@@ -91,12 +116,12 @@ struct PoracodeThreadRow: View {
         }
       }
       Spacer(minLength: 4)
-      ThreadGitSummaryBadge(summary: gitSummary, showsBranch: showsGitBranch)
-        .fixedSize(horizontal: true, vertical: false)
+      if showsGit {
+        ThreadGitSummaryBadge(
+          summary: gitSummary, showsBranch: showsGitBranch, compact: compactGit
+        )
+      }
     }
-    .font(.caption2)
-    .foregroundStyle(.secondary)
-    .lineLimit(1)
   }
 
   private var showsMetadataLine: Bool {
@@ -293,8 +318,12 @@ enum PoracodeThreadRelativeDate {
   private static let day = formatter(unit: .day)
   private static let year = formatter(unit: .year)
 
+  static func parse(_ value: String) -> Date? {
+    fractional.date(from: value) ?? standard.date(from: value)
+  }
+
   static func format(_ value: String) -> String? {
-    guard let date = fractional.date(from: value) ?? standard.date(from: value) else { return nil }
+    guard let date = parse(value) else { return nil }
     let seconds = max(60, abs(date.timeIntervalSinceNow))
     let formatter =
       seconds < 3_600

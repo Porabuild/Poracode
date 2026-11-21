@@ -23,8 +23,8 @@ class RichChatRemoteClient(
 
     val transport: RichChatRemoteTransport = GeneratedRichChatRemoteTransport(http, bodyExecutor)
 
-    suspend fun loadLocalImage(path: String): RemoteBinaryResponse {
-        val plan = transport.localImageRequest(path)
+    suspend fun loadLocalImage(path: String, variant: String? = null): RemoteBinaryResponse {
+        val plan = transport.localImageRequest(path, variant)
         return bodyExecutor.execute(plan)
     }
 
@@ -32,8 +32,9 @@ class RichChatRemoteClient(
         threadId: String,
         itemId: String,
         path: List<RuntimeImagePathSegment>,
+        variant: String? = null,
     ): RemoteBinaryResponse {
-        val plan = transport.runtimeImageRequest(threadId, itemId, path)
+        val plan = transport.runtimeImageRequest(threadId, itemId, path, variant)
         return bodyExecutor.execute(plan)
     }
 }

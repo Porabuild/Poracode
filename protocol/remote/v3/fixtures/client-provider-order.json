@@ -1,0 +1,41 @@
+{
+  "version": 1,
+  "cases": [
+    {
+      "id": "manifest-order-with-stable-profiles-and-unknowns",
+      "providers": ["future-b", "codex", "gemini", "claude", "future-a", "codex:work"],
+      "order": [],
+      "expected": ["claude", "codex", "codex:work", "gemini", "future-b", "future-a"]
+    },
+    {
+      "id": "explicit-order-precedes-manifest-tail",
+      "providers": ["future-b", "codex", "gemini", "claude", "future-a", "codex:work"],
+      "order": ["future-a", "gemini"],
+      "expected": ["future-a", "gemini", "claude", "codex", "codex:work", "future-b"]
+    },
+    {
+      "id": "empty-entries-and-duplicate-pins",
+      "providers": ["future-b", "codex", "gemini", "claude", "future-a", "codex:work"],
+      "order": ["", "gemini", "gemini", "future-a", ""],
+      "expected": ["gemini", "future-a", "claude", "codex", "codex:work", "future-b"]
+    },
+    {
+      "id": "profile-pin-is-an-exact-kind",
+      "providers": ["codex", "gemini", "claude", "codex:work"],
+      "order": ["codex:work"],
+      "expected": ["codex:work", "claude", "codex", "gemini"]
+    },
+    {
+      "id": "empty-preference-has-default-order",
+      "providers": ["gemini", "codex", "claude"],
+      "order": ["", ""],
+      "expected": ["claude", "codex", "gemini"]
+    },
+    {
+      "id": "absent-pins-retain-unknown-input-order",
+      "providers": ["future-b", "future-a"],
+      "order": ["uninstalled"],
+      "expected": ["future-b", "future-a"]
+    }
+  ]
+}

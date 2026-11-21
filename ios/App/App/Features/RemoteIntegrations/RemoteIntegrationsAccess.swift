@@ -11,7 +11,7 @@ enum RemoteIntegrationsCapability: String, CaseIterable, Hashable, Sendable {
   case sessionOperate = "session:operate"
 }
 
-struct RemoteIntegrationsHostAccess: Equatable, Sendable {
+struct RemoteIntegrationsHostAccess: Hashable, Sendable {
   let lease: RemoteIntegrationsHostLease
   let protocolVersion: Int
   let isOnline: Bool

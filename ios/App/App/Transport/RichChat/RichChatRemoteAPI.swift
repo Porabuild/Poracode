@@ -1,6 +1,32 @@
 import Foundation
 
 extension RichChatRemoteAPI {
+  func richHistoryChanges(
+    threadID _: String,
+    cursor _: String,
+    afterSeq _: Int?,
+    targetEntryCount _: Int?
+  ) async throws -> RemoteHistoryResumeOutcome {
+    throw RichChatTransportFailure.rawTransportUnavailable
+  }
+  func richLocalImage(path: String, variant _: RichImageVariant?) async throws -> RichChatBinaryPayload {
+    try await richLocalImage(path: path)
+  }
+  func richRuntimeImage(
+    _ reference: RichRemoteImageReference,
+    variant _: RichImageVariant?
+  ) async throws -> RichChatBinaryPayload {
+    try await richRuntimeImage(reference)
+  }
+  func richHistoryItem(threadID _: String, itemID _: String) async throws -> PersistedRuntimeItem {
+    throw RichChatTransportFailure.rawTransportUnavailable
+  }
+  func richRuntimeToolBodies(threadID _: String, requests _: [RichRuntimeItemHeadingRequest]) async throws -> [RichResolvedToolBodyRecord] {
+    throw RichChatTransportFailure.rawTransportUnavailable
+  }
+  func richRuntimeItemHeadings(threadID _: String, requests _: [RichRuntimeItemHeadingRequest]) async throws -> [RichRuntimeItemHeadingRecord] {
+    throw RichChatTransportFailure.rawTransportUnavailable
+  }
   func richControlMcpApp(payload _: [String: RichJSON]) async throws -> RichJSON {
     throw RichChatTransportFailure.rawTransportUnavailable
   }
@@ -15,6 +41,20 @@ extension RichChatRemoteAPI {
 }
 
 protocol RichChatRemoteAPI: Sendable {
+  func richHistoryChanges(
+    threadID: String,
+    cursor: String,
+    afterSeq: Int?,
+    targetEntryCount: Int?
+  ) async throws -> RemoteHistoryResumeOutcome
+  func richLocalImage(path: String, variant: RichImageVariant?) async throws -> RichChatBinaryPayload
+  func richRuntimeImage(
+    _ reference: RichRemoteImageReference,
+    variant: RichImageVariant?
+  ) async throws -> RichChatBinaryPayload
+  func richHistoryItem(threadID: String, itemID: String) async throws -> PersistedRuntimeItem
+  func richRuntimeToolBodies(threadID: String, requests: [RichRuntimeItemHeadingRequest]) async throws -> [RichResolvedToolBodyRecord]
+  func richRuntimeItemHeadings(threadID: String, requests: [RichRuntimeItemHeadingRequest]) async throws -> [RichRuntimeItemHeadingRecord]
   func richControlMcpApp(payload: [String: RichJSON]) async throws -> RichJSON
   func richHistory(threadID: String, targetEntryCount: Int?) async throws -> RemoteThreadSnapshot
   func richHistoryPage(
@@ -86,12 +126,10 @@ protocol RichChatRemoteAPI: Sendable {
   func richRestoreCheckpoint(
     threadID: String, itemID: String, projectLocation: ProjectLocation
   ) async throws
-  /// WS2 stage 4: one-call compound checkpoint revert. Throws `.revertFailed`
-  /// when the server reports a failed compound and `.ambiguousOutcome` when the
-  /// provider state is unknown.
+  /// Sends the one-call compound revert and returns the host's explicit outcome.
   func richCheckpointRevert(
     threadID: String, checkpointItemID: String, operationKey: String
-  ) async throws -> String
+  ) async throws -> RichChatCheckpointRevertOutcome
   func richStageInput(
     threadID: String, prompt: String, segments: [RichPromptSegment]?
   ) async throws
@@ -115,6 +153,30 @@ struct GeneratedRichChatRemoteAPI: RichChatRemoteAPI, Sendable {
   private let json: RemoteAPIClient
   private let raw: (any RichChatRawHTTPExecuting)?
 
+  func richHistoryItem(threadID: String, itemID: String) async throws -> PersistedRuntimeItem {
+    try await json.threadHistoryItem(threadID: threadID, itemID: itemID)
+  }
+
+  func richRuntimeItemHeadings(threadID: String, requests: [RichRuntimeItemHeadingRequest]) async throws -> [RichRuntimeItemHeadingRecord] {
+    let data = try await runtimeItemPresentationData(threadID: threadID, requests: requests)
+    return try GeneratedRemoteV3Contract.runtimeItemHeadingResponse(data, expectedVersion: requests.first?.version ?? 1)
+  }
+
+  func richRuntimeToolBodies(threadID: String, requests: [RichRuntimeItemHeadingRequest]) async throws -> [RichResolvedToolBodyRecord] {
+    guard requests.allSatisfy({ $0.version == 5 }) else { throw RichChatTransportFailure.invalidResponse }
+    let data = try await runtimeItemPresentationData(threadID: threadID, requests: requests)
+    return try GeneratedRemoteV3Contract.runtimeToolBodyResponse(data)
+  }
+
+  private func runtimeItemPresentationData(threadID: String, requests: [RichRuntimeItemHeadingRequest]) async throws -> Data {
+    let route = try prepare { try GeneratedRemoteV3Contract.runtimeItemHeadingRequest(threadID: threadID, requests: requests) }
+    let query = try prepare { try GeneratedRemoteV3Contract.runtimeItemHeadingQuery() }
+    let id = try Self.pathValue("threadId", in: route.pathValues)
+    let data = try await json.requestData(path: "/api/threads/\(RemoteAPIClient.encodePathSegment(id))/item-presentations",
+      method: "POST", queryItems: query, jsonBody: route.body)
+    return data
+  }
+
   func richControlMcpApp(payload: [String: RichJSON]) async throws -> RichJSON {
     let body = try prepare { try GeneratedRemoteV3Contract.mcpAppRequest(payload) }
     let data = try await mutationRequest(path: "/api/git/call", body: body)
@@ -135,9 +197,8 @@ struct GeneratedRichChatRemoteAPI: RichChatRemoteAPI, Sendable {
     threadID: String,
     targetEntryCount: Int?
   ) async throws -> RemoteThreadSnapshot {
-    let outcome = try await json.boundedThreadHistory(
+    let outcome = try await json.interactiveThreadHistory(
       threadId: threadID,
-      completedTurnsLimit: RemoteBoundedReads.defaultCompletedTurnsLimit,
       targetTimelineEntryCount: targetEntryCount
     )
     switch outcome {
@@ -154,7 +215,7 @@ struct GeneratedRichChatRemoteAPI: RichChatRemoteAPI, Sendable {
     limit: Int,
     targetEntryCount: Int?
   ) async throws -> RemoteRuntimeItemsPage {
-    let outcome = try await json.boundedHistoryItems(
+    let outcome = try await json.interactiveHistoryItems(
       threadId: threadID,
       beforePosition: beforePosition,
       limit: limit,
@@ -190,8 +251,28 @@ struct GeneratedRichChatRemoteAPI: RichChatRemoteAPI, Sendable {
     )
   }
 
+  func richHistoryChanges(
+    threadID: String,
+    cursor: String,
+    afterSeq: Int?,
+    targetEntryCount: Int?
+  ) async throws -> RemoteHistoryResumeOutcome {
+    try await json.threadHistoryChanges(
+      threadID: threadID,
+      cursor: cursor,
+      afterSeq: afterSeq,
+      targetTimelineEntryCount: targetEntryCount
+    )
+  }
+
   func richLocalImage(path: String) async throws -> RichChatBinaryPayload {
-    let route = try prepare { try GeneratedRemoteV3Contract.richLocalImage(path: path) }
+    try await richLocalImage(path: path, variant: nil)
+  }
+
+  func richLocalImage(path: String, variant: RichImageVariant?) async throws -> RichChatBinaryPayload {
+    let route = try prepare {
+      try GeneratedRemoteV3Contract.richLocalImage(path: path, variant: variant)
+    }
     guard let raw else { throw RichChatTransportFailure.rawTransportUnavailable }
     return try await raw.fetchImage(path: "/api/files/image", queryItems: route.queryItems)
   }
@@ -199,7 +280,16 @@ struct GeneratedRichChatRemoteAPI: RichChatRemoteAPI, Sendable {
   func richRuntimeImage(_ reference: RichRemoteImageReference) async throws
     -> RichChatBinaryPayload
   {
-    let route = try prepare { try GeneratedRemoteV3Contract.richRuntimeImage(reference) }
+    try await richRuntimeImage(reference, variant: nil)
+  }
+
+  func richRuntimeImage(
+    _ reference: RichRemoteImageReference,
+    variant: RichImageVariant?
+  ) async throws -> RichChatBinaryPayload {
+    let route = try prepare {
+      try GeneratedRemoteV3Contract.richRuntimeImage(reference, variant: variant)
+    }
     guard let raw else { throw RichChatTransportFailure.rawTransportUnavailable }
     let threadID = try Self.pathValue("threadId", in: route.pathValues)
     let itemID = try Self.pathValue("itemId", in: route.pathValues)
@@ -354,7 +444,7 @@ struct GeneratedRichChatRemoteAPI: RichChatRemoteAPI, Sendable {
 
   func richCheckpointRevert(
     threadID: String, checkpointItemID: String, operationKey: String
-  ) async throws -> String {
+  ) async throws -> RichChatCheckpointRevertOutcome {
     let route = try prepare {
       try GeneratedRemoteV3Contract.richCheckpointRevert(
         threadID: threadID,
@@ -369,15 +459,10 @@ struct GeneratedRichChatRemoteAPI: RichChatRemoteAPI, Sendable {
     )
     try GeneratedRemoteV3Contract.validateRichMutationResponse(.checkpointRevert, data: data)
     let json = try RichJSON.decode(data)
-    let outcome = json.objectValue?["outcome"]?.stringValue ?? ""
-    switch outcome {
-    case "completed", "completed_local_only", "noop":
-      return outcome
-    case "ambiguous":
-      throw RichChatTransportFailure.ambiguousOutcome
-    default:
-      throw RichChatTransportFailure.revertFailed
-    }
+    guard let value = json.objectValue?["outcome"]?.stringValue,
+      let outcome = RichChatCheckpointRevertOutcome(rawValue: value)
+    else { throw RichChatTransportFailure.invalidResponse }
+    return outcome
   }
 
   func richCommand(threadID: String, command: RichChatThreadCommand) async throws {

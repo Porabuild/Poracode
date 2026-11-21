@@ -182,6 +182,7 @@ class BoundedCatalogHostFixture: @unchecked Sendable {
   /// gaps. The default keeps the single "desk-a" identity every other suite
   /// already expects.
   var desktopIdForHost: (String) -> String = { _ in "desk-a" }
+  var workspaceNames: [[String: String]]?
   var snapshotSeq = 42
   var threadPageLimit = 100
   var projectPageLimit = 50
@@ -198,6 +199,11 @@ class BoundedCatalogHostFixture: @unchecked Sendable {
   /// Additional exact paths whose responses are withheld until `releaseWalks()`.
   var heldPaths: Set<String> = []
   private var heldResumers: [() -> Void] = []
+
+  var heldResponseCount: Int {
+    lock.lock(); defer { lock.unlock() }
+    return heldResumers.count
+  }
 
   func hold(_ resume: @escaping () -> Void) {
     lock.lock()
@@ -545,6 +551,7 @@ class BoundedCatalogHostFixture: @unchecked Sendable {
       "runtimeSummariesByThread": [:],
       "updatedAt": iso(milliseconds: 1_700_000_000_000),
     ]
+    if let workspaceNames { body["workspaces"] = workspaceNames }
     if declared {
       body["reads"] = echoOverride ?? RemoteBoundedReads.capability
       body["threadsNextCursor"] =

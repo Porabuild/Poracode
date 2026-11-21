@@ -36,13 +36,17 @@ struct HomeThreadSearchView: View {
   let open: (UnifiedThreadListItem) -> Void
   let drafts: RichChatComposerDraftStore
   let lifecycle: HomeThreadLifecycleCoordinator
+  var hasBackgroundActivity: (UnifiedThreadListItem) -> Bool = { _ in false }
+  var commands: [String]? = nil
+  var runCommand: (String) -> Void = { _ in }
 
   @State private var query = ""
+  @State private var searchPresented = false
 
   var body: some View {
     NavigationStack {
       Group {
-        if results.isEmpty {
+        if results.isEmpty && matchingCommands.isEmpty {
           if query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             ContentUnavailableView(
               HomeStrings.emptyThreadsTitle,
@@ -53,27 +57,39 @@ struct HomeThreadSearchView: View {
             ContentUnavailableView.search(text: query)
           }
         } else {
-          List(results) { item in
-            resultButton(item)
+          List {
+            if !matchingCommands.isEmpty {
+              Section(NativeShortcutStrings.other) {
+                ForEach(matchingCommands, id: \.self) { command in
+                  Button(NativeShortcutStrings.commandTitle(command)) { runCommand(command) }
+                    .accessibilityIdentifier("native-e2e.search-command.\(command)")
+                }
+              }
+            }
+            ForEach(results) { item in resultButton(item) }
           }
           .listStyle(.plain)
+          .poracodeReadableListMargins(700)
         }
       }
-      .navigationTitle(HomeStrings.searchThreads)
+      .navigationTitle(searchTitle)
       .navigationBarTitleDisplayMode(.inline)
       .searchable(
         text: $query,
+        isPresented: $searchPresented,
         placement: .navigationBarDrawer(displayMode: .always),
-        prompt: HomeStrings.searchThreads
+        prompt: searchTitle
       )
       .textInputAutocapitalization(.never)
       .autocorrectionDisabled()
+      .onAppear { if commands != nil { searchPresented = true } }
       .toolbar {
         ToolbarItem(placement: .confirmationAction) {
           Button(SettingsUIStrings.done) { dismiss() }
         }
       }
     }
+    .poracodeFormSheetSizing()
     .presentationDetents([.large])
     .presentationDragIndicator(.visible)
     .presentationCornerRadius(28)
@@ -83,10 +99,21 @@ struct HomeThreadSearchView: View {
     HomeThreadSearchPresentation.results(from: items, query: query)
   }
 
+  private var searchTitle: String {
+    commands == nil ? HomeStrings.searchThreads : NativeShortcutStrings.commandTitle("palette.open")
+  }
+
+  private var matchingCommands: [String] {
+    let search = query.trimmingCharacters(in: .whitespacesAndNewlines)
+    return (commands ?? []).filter {
+      search.isEmpty || NativeShortcutStrings.commandTitle($0).localizedCaseInsensitiveContains(search)
+    }
+  }
+
   private func resultButton(_ item: UnifiedThreadListItem) -> some View {
     Button {
+      open(item)
       dismiss()
-      DispatchQueue.main.async { open(item) }
     } label: {
       PoracodeThreadRow(
         thread: item.thread,
@@ -94,7 +121,8 @@ struct HomeThreadSearchView: View {
         hostName: item.hostName,
         hasDraft: hasDraft(item),
         showsRelativeTime: true,
-        showsGitBranch: item.thread.worktreePath?.isEmpty == false
+        showsGitBranch: item.thread.worktreePath?.isEmpty == false,
+        hasBackgroundActivity: hasBackgroundActivity(item)
       )
     }
     .buttonStyle(.plain)

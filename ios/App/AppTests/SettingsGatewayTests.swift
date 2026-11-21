@@ -4,6 +4,29 @@ import XCTest
 
 @MainActor
 final class SettingsGatewayTests: XCTestCase {
+  func testAgentDiscoveryRequiresOperateAndKeepsTheExactHostLease() async throws {
+    let api = SettingsRemoteAPIFake(), lease = settingsLease()
+    let readonly = gateway(api: api, lease: lease, capabilities: [.sessionRead])
+    do {
+      _ = try await readonly.discoverAgents(.init(wslDistros: []), lease: lease)
+      XCTFail("Read-only clients must not probe host CLIs")
+    } catch SettingsGatewayError.http(let status, _, let scope) {
+      XCTAssertEqual(status, 403); XCTAssertEqual(scope, "session:operate")
+    }
+    var calls = await api.calls
+    XCTAssertEqual(calls, 0)
+    let writable = gateway(api: api, lease: lease, capabilities: [.sessionRead, .sessionOperate])
+    _ = try await writable.discoverAgents(.init(wslDistros: ["Ubuntu"]), lease: lease)
+    calls = await api.calls
+    XCTAssertEqual(calls, 1)
+    do {
+      _ = try await writable.discoverAgents(.init(wslDistros: []), lease: settingsLease("2"))
+      XCTFail("A different host lease must fail before discovery")
+    } catch is CancellationError {}
+    calls = await api.calls
+    XCTAssertEqual(calls, 1)
+  }
+
   func testReadAndMutationRequireTheirExactScopesBeforeTransport() async throws {
     let api = SettingsRemoteAPIFake()
     let lease = settingsLease()
@@ -120,6 +143,48 @@ final class SettingsGatewayTests: XCTestCase {
     return SelectedSettingsSessionGateway { _ in selection }
   }
 
+  func testSettingsReadsDoNotInvalidateOtherScreensButWritesInvalidateOnlyTheirHost() async throws {
+    let changes = SettingsDocumentChanges(), lease = settingsLease("1"), other = settingsLease("2")
+    let api = SettingsRemoteAPIFake()
+    let gateway = SelectedSettingsSessionGateway(mutationSettled: { lease in
+      await changes.invalidate(lease.connectionID)
+    }) { _ in SettingsTransportSelection(
+      access: makeSettingsAccess(lease, capabilities: [.sessionRead, .sessionOperate]), api: api)
+    }
+    _ = try await gateway.readSettings(lease: lease)
+    XCTAssertEqual(changes.revision(for: lease.connectionID), 0)
+    _ = try await gateway.writeSettings(.init(values: [.disabledAgents: .array([.string("alpha")])]), lease: lease)
+    XCTAssertEqual(changes.revision(for: lease.connectionID), 1)
+    XCTAssertEqual(changes.revision(for: other.connectionID), 0)
+    let calls = await api.calls
+    XCTAssertEqual(calls, 2)
+    changes.invalidate(other.connectionID)
+    changes.retainConnections([other.connectionID])
+    XCTAssertEqual(changes.revision(for: lease.connectionID), 0)
+    XCTAssertEqual(changes.revision(for: other.connectionID), 1)
+  }
+
+  func testUncertainWritesInvalidateForAFreshReadWithoutReplayingTheMutation() async throws {
+    let failures: [any Error] = [CancellationError(), SettingsRemoteMutationError.ambiguousOutcome,
+      RemoteClientError(message: "Unavailable", status: 503, code: "unavailable")]
+    for failure in failures {
+      let changes = SettingsDocumentChanges(), lease = settingsLease()
+      let api = SettingsRemoteAPIFake(error: failure)
+      let gateway = SelectedSettingsSessionGateway(mutationSettled: { lease in
+        await changes.invalidate(lease.connectionID)
+      }) { _ in SettingsTransportSelection(
+        access: makeSettingsAccess(lease, capabilities: [.sessionRead, .sessionOperate]), api: api)
+      }
+      do {
+        _ = try await gateway.writeSettings(.init(values: [.providerOrder: .array([.string("alpha")])]), lease: lease)
+        XCTFail("The uncertain write must not be reported as acknowledged")
+      } catch {}
+      XCTAssertEqual(changes.revision(for: lease.connectionID), 1)
+      let calls = await api.calls
+      XCTAssertEqual(calls, 1)
+    }
+  }
+
   private func assertGatewayError(
     _ expected: SettingsGatewayError,
     operation: () async throws -> Void
@@ -184,6 +249,11 @@ private actor SettingsRemoteAPIFake: SettingsRemoteAPI {
     try respond(try JSONDecoder().decode(
       SettingsAgentStatuses.self, from: SettingsFixtures.data(SettingsFixtures.agentStatuses)
     ))
+  }
+  func settingsDiscoverAgents(_ request: SettingsAgentDiscoveryRequest) throws -> SettingsAgentDiscoveryResult {
+    let statuses = try JSONDecoder().decode(SettingsAgentStatuses.self,
+      from: SettingsFixtures.data(SettingsFixtures.agentStatuses))
+    return try respond(.init(windows: statuses.windows, wsl: statuses.wsl, fromCache: false))
   }
   func settingsProviderUsage() throws -> SettingsProviderUsage {
     try respond(try JSONDecoder().decode(

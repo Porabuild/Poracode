@@ -42,6 +42,7 @@ vi.mock("@/renderer/actions/gitCommandRunner", () => ({
 const utilityState = vi.hoisted(() => ({
   agents: [] as AgentStatus[],
   wslAgents: [] as AgentStatus[],
+  runtime: {} as Record<string, { agentStatuses: { windows: AgentStatus[]; wsl: AgentStatus[] } }>,
   settings: {
     commitGenProvider: "auto",
     commitGenModel: "stale",
@@ -61,6 +62,10 @@ const utilityState = vi.hoisted(() => ({
 vi.mock("@/renderer/state/agentStatusesStore", () => ({
   useAgentStatusesStore: (selector: (state: unknown) => unknown) =>
     selector({ agentStatuses: utilityState.agents, wslAgentStatuses: utilityState.wslAgents }),
+}));
+vi.mock("@/renderer/state/remoteServersStore", () => ({
+  useRemoteServersStore: (selector: (state: unknown) => unknown) =>
+    selector({ runtime: utilityState.runtime }),
 }));
 vi.mock("@/renderer/state/sharedSettingsStore", () => ({
   useSharedSettings: Object.assign(
@@ -163,6 +168,7 @@ describe("useGitReviewActions action phase", () => {
     vi.clearAllMocks();
     utilityState.agents = [];
     utilityState.wslAgents = [];
+    utilityState.runtime = {};
     useGitReviewActionStore.setState({ panels: {} });
     bridgeMock.gitCommit.mockResolvedValue({});
     bridgeMock.gitFetch.mockResolvedValue(undefined);
@@ -321,10 +327,38 @@ describe("utility caller transport", () => {
       utilityAgent("fixture-b", "default-b"),
     ];
     utilityState.wslAgents = [utilityAgent("fixture-wsl", "default-wsl")];
+    utilityState.runtime = {};
     utilityState.settings.commitGenSelection = undefined;
     utilityState.settings.wslCommitGenSelection = undefined;
     bridgeMock.generateCommitMessage.mockResolvedValue({ message: "generated" });
     bridgeMock.generatePrSummary.mockResolvedValue({ title: "generated", description: "body" });
+  });
+
+  it("generates the PR summary with a provider from the project's desktop", async () => {
+    utilityState.agents = [utilityAgent("desktop-a-agent", "desktop-a-model")];
+    utilityState.runtime = {
+      "desktop-a": { agentStatuses: { windows: utilityState.agents, wsl: [] } },
+      "desktop-b": {
+        agentStatuses: { windows: [utilityAgent("desktop-b-agent", "desktop-b-model")], wsl: [] },
+      },
+    };
+    const location = {
+      kind: "posix",
+      path: "/shared/checkout",
+      remoteServerId: "desktop-b",
+    } as const;
+    const actions = renderActions(location);
+
+    expect(actions.current.canGenerateMessage).toBe(true);
+    await act(() => actions.current.handleGeneratePrSummary());
+
+    expect(bridgeMock.generatePrSummary).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({
+        projectLocation: location,
+        agentKind: "desktop-b-agent",
+        selection: expect.objectContaining({ model: "desktop-b-model" }),
+      }),
+    );
   });
 
   it.each([

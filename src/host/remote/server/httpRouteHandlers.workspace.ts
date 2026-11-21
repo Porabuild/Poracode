@@ -228,7 +228,7 @@ export const WORKSPACE_ROUTE_HANDLERS: Pick<HttpRouteHandlerTable, WorkspaceRout
     } else {
       throw new RemoteHttpError("missing_access_token", "Missing access token.", 401);
     }
-    await writeLocalImageFile(res, imagePath, url.searchParams.get("variant"));
+    await writeLocalImageFile(res, imagePath, url.searchParams.get("variant"), req);
   },
 
   "local-image-ticket": async ({ req, res, session }) => {
@@ -286,6 +286,7 @@ export const WORKSPACE_ROUTE_HANDLERS: Pick<HttpRouteHandlerTable, WorkspaceRout
     // Gate 6 item 4.4 (S4): client-origin image bytes get the hardened header
     // set; SVG is forced to attachment.
     writeHardenedImageResponse(res, {
+      req,
       contentType: served.mime,
       data: served.data,
       // Immutable: a runtime item's image bytes never change under the same

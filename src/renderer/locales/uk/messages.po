@@ -10253,6 +10253,7 @@ msgid "Import selected"
 msgstr "Імпортувати вибрані"
 
 #: src/renderer/views/SettingsOverlay/parts/ImportSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 msgid "Import sessions"
 msgstr "Імпорт сесій"
 
@@ -11377,7 +11378,6 @@ msgstr "Зв’язано"
 msgid "Linux"
 msgstr "Linux"
 
-#: src/renderer/components/thread/ChatPane/parts/items/commandActionsDisplay.ts
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "List"
@@ -18838,7 +18838,6 @@ msgstr "SDK не встановлено"
 
 #: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/commands/registry.ts
-#: src/renderer/components/thread/ChatPane/parts/items/commandActionsDisplay.ts
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 #: src/renderer/views/MainView/parts/Sidebar/parts/MobileHomeActions.tsx
@@ -19033,7 +19032,6 @@ msgstr "Пошук тредів, команд, налаштувань і фай�
 msgid "Search titles, messages and folders"
 msgstr "Шукати в заголовках, повідомленнях і папках"
 
-#: src/renderer/components/thread/ChatPane/parts/items/commandActionsDisplay.ts
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 msgid "Search: \"{query}\" in {scope}"
 msgstr "Пошук: \"{query}\" у {scope}"
@@ -22232,8 +22230,8 @@ msgid "This desktop"
 msgstr "Цей комп'ютер"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
-msgid "This desktop's Poracode version doesn't support browser forwarding. Update Poracode on your desktop."
-msgstr "Версія Poracode на цьому комп'ютері не підтримує переспрямування через браузер. Оновіть Poracode на комп'ютері."
+#~ msgid "This desktop's Poracode version doesn't support browser forwarding. Update Poracode on your desktop."
+#~ msgstr "Версія Poracode на цьому комп'ютері не підтримує переспрямування через браузер. Оновіть Poracode на комп'ютері."
 
 #: src/renderer/views/ProfileOverlay/parts/ProfileHeader.tsx
 msgid "This device"

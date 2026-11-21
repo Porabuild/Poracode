@@ -178,10 +178,9 @@ export function ShortcutsSettings() {
         <Search className="pointer-events-none absolute left-3 top-1/2 z-10 size-4 -translate-y-1/2 text-muted" />
         <Input
           aria-label={t`Search shortcuts`}
-          className="w-full pl-9"
+          className="w-full rounded-[var(--content-surface-radius)] border border-[var(--hairline-soft)] pl-9"
           placeholder={t`Search shortcuts`}
           value={query}
-          variant="secondary"
           onChange={(event) => setQuery(event.target.value)}
         />
       </div>
@@ -199,10 +198,10 @@ export function ShortcutsSettings() {
                   <li key={section.id}>
                     <button
                       type="button"
-                      className={`flex w-full items-center justify-between gap-2 rounded px-2 py-1 text-left text-xs transition-colors ${
+                      className={`flex w-full items-center justify-between gap-2 rounded-[var(--content-surface-radius)] border px-2 py-1 text-left text-xs transition-colors ${
                         isActive
-                          ? "bg-foreground/[0.08] text-foreground"
-                          : "text-muted hover:bg-foreground/[0.04] hover:text-foreground"
+                          ? "border-[var(--hairline-soft)] bg-[var(--content-surface-fill)] text-foreground"
+                          : "border-transparent text-muted hover:bg-foreground/[0.04] hover:text-foreground"
                       }`}
                       onClick={() => jumpToSection(section.id)}
                     >

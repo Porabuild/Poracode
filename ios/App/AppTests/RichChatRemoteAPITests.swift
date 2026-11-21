@@ -188,7 +188,7 @@ final class RichChatRemoteAPITests: XCTestCase {
     // legacy outcome.
     XCTAssertEqual(
       RichChatCapturingURLProtocol.requests[0].url?.query,
-      "reads=bounded-v1&runtimePage=1&completedTurnsLimit=200"
+      "projection=details-v1&deferBodies=file_change&reads=bounded-v1&runtimePage=1&completedTurnsLimit=200"
         + "&targetTimelineEntryCount=50&maxBytes=33554432&maxDecodeBytes=67108864"
     )
     for index in 1...2 {

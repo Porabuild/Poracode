@@ -26,17 +26,6 @@ enum OnboardingBrand {
   }
 }
 
-extension View {
-  /// Inset surface shared by the pairing text inputs.
-  fileprivate func onboardingFieldSurface() -> some View {
-    let shape = RoundedRectangle(cornerRadius: 14, style: .continuous)
-    return background(.fill.quinary, in: shape)
-      .overlay {
-        shape.strokeBorder(.quaternary, lineWidth: 1)
-      }
-  }
-}
-
 /// What the hero puts in its title slot.
 ///
 /// The normal connect phase shows the brand wordmark — there is nothing wrong to
@@ -53,20 +42,21 @@ struct OnboardingHeroView: View {
   let title: OnboardingHeroTitle
   let subtitle: String
   let pairedLabel: String?
+  var isCompactHeight = false
 
   @ScaledMetric(relativeTo: .largeTitle) private var markSize: CGFloat = 76
 
   var body: some View {
-    VStack(spacing: 10) {
-      OnboardingAnimatedBrandMark(size: markSize)
-      VStack(spacing: 10) {
+    VStack(spacing: isCompactHeight ? 6 : 10) {
+      OnboardingAnimatedBrandMark(size: isCompactHeight ? min(markSize, 46) : markSize)
+      VStack(spacing: isCompactHeight ? 4 : 10) {
         titleView
         Text(subtitle)
           .font(.subheadline)
           .foregroundStyle(.white.opacity(0.58))
           .multilineTextAlignment(.center)
           .fixedSize(horizontal: false, vertical: true)
-          .frame(maxWidth: 310)
+          .frame(maxWidth: isCompactHeight ? 380 : 310)
         if let pairedLabel {
           Text(pairedLabel)
             .font(.footnote)
@@ -85,10 +75,10 @@ struct OnboardingHeroView: View {
     case .wordmark:
       // A step up from the worded headings: the wordmark is a lockup, not a
       // sentence, and this matches the web pairing screen's brand size.
-      BrandWordmark(textStyle: .title2)
+      BrandWordmark(textStyle: isCompactHeight ? .title3 : .title2)
     case .text(let value):
       Text(value)
-        .font(.title2.weight(.semibold))
+        .font((isCompactHeight ? Font.title3 : Font.title2).weight(.semibold))
         .foregroundStyle(.white)
         .multilineTextAlignment(.center)
     }
@@ -97,13 +87,18 @@ struct OnboardingHeroView: View {
 
 /// Primary pairing route: a large tappable target that opens the code scanner.
 struct OnboardingScanCard: View {
+  var isCompactHeight = false
   let action: () -> Void
 
   @Environment(\.dynamicTypeSize) private var dynamicTypeSize
   @ScaledMetric(relativeTo: .title) private var tileSize: CGFloat = 54
 
+  private var resolvedTileSize: CGFloat {
+    isCompactHeight ? min(tileSize, 42) : tileSize
+  }
+
   private var shape: RoundedRectangle {
-    RoundedRectangle(cornerRadius: 22, style: .continuous)
+    RoundedRectangle(cornerRadius: isCompactHeight ? 18 : 22, style: .continuous)
   }
 
   var body: some View {
@@ -116,7 +111,7 @@ struct OnboardingScanCard: View {
             copy
           }
         } else {
-          HStack(spacing: 16) {
+          HStack(spacing: isCompactHeight ? 12 : 16) {
             tile
             copy
             Spacer(minLength: 0)
@@ -126,7 +121,7 @@ struct OnboardingScanCard: View {
           }
         }
       }
-      .padding(16)
+      .padding(isCompactHeight ? 12 : 16)
       .frame(maxWidth: .infinity, alignment: .leading)
       .contentShape(shape)
     }
@@ -141,17 +136,17 @@ struct OnboardingScanCard: View {
 
   private var tile: some View {
     ZStack {
-      RoundedRectangle(cornerRadius: tileSize * 0.22, style: .continuous)
+      RoundedRectangle(cornerRadius: resolvedTileSize * 0.22, style: .continuous)
         .fill(OnboardingBrand.violet.opacity(0.13))
       Image(systemName: "qrcode.viewfinder")
-        .font(.system(size: tileSize * 0.52, weight: .semibold))
+        .font(.system(size: resolvedTileSize * 0.52, weight: .semibold))
         .foregroundStyle(OnboardingBrand.violet)
     }
-    .frame(width: tileSize, height: tileSize)
+    .frame(width: resolvedTileSize, height: resolvedTileSize)
   }
 
   private var copy: some View {
-    VStack(alignment: .leading, spacing: 4) {
+    VStack(alignment: .leading, spacing: isCompactHeight ? 2 : 4) {
       Text(OnboardingStrings.scanAction)
         .font(.headline)
         .foregroundStyle(.white)
@@ -165,6 +160,7 @@ struct OnboardingScanCard: View {
 
 /// Opens the secondary pairing routes in the native bottom sheet.
 struct OnboardingOtherWaysButton: View {
+  var isCompactHeight = false
   let action: () -> Void
 
   var body: some View {
@@ -179,7 +175,7 @@ struct OnboardingOtherWaysButton: View {
       }
       .padding(.horizontal, 16)
       .foregroundStyle(.white.opacity(0.56))
-      .frame(maxWidth: .infinity, minHeight: 48)
+      .frame(maxWidth: .infinity, minHeight: isCompactHeight ? 38 : 48)
       .contentShape(Rectangle())
     }
     .buttonStyle(.plain)
@@ -232,7 +228,7 @@ struct OnboardingOtherWaysForm: View {
         .font(.callout)
         .lineLimit(2...4)
         .padding(12)
-        .onboardingFieldSurface()
+        .poracodeInputSurface()
         .focused($focusedField, equals: .link)
         .accessibilityLabel(HostStrings.pairingLink)
         .accessibilityIdentifier("native-e2e.pairing-link")
@@ -240,7 +236,7 @@ struct OnboardingOtherWaysForm: View {
   }
 
   private var manualSection: some View {
-    VStack(alignment: .leading, spacing: 10) {
+    VStack(alignment: .leading, spacing: 12) {
       Label(OnboardingStrings.manualTitle, systemImage: "slider.horizontal.3")
         .font(.subheadline.weight(.semibold))
       TextField(HostStrings.serverURL, text: $baseURL)
@@ -248,16 +244,21 @@ struct OnboardingOtherWaysForm: View {
         .autocorrectionDisabled()
         .keyboardType(.URL)
         .padding(12)
-        .onboardingFieldSurface()
+        .poracodeInputSurface()
         .focused($focusedField, equals: .base)
         .accessibilityLabel(HostStrings.serverURL)
+        .accessibilityIdentifier("native-e2e.pair.base-url")
       SecureField(HostStrings.oneTimeToken, text: $token)
+        .textContentType(.oneTimeCode)
         .textInputAutocapitalization(.never)
         .autocorrectionDisabled()
         .padding(12)
-        .onboardingFieldSurface()
+        .poracodeInputSurface()
         .focused($focusedField, equals: .token)
+        .contentShape(.rect)
+        .simultaneousGesture(TapGesture().onEnded { focusedField = .token })
         .accessibilityLabel(HostStrings.oneTimeToken)
+        .accessibilityIdentifier("native-e2e.pair.token")
     }
   }
 

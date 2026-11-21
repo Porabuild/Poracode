@@ -1,5 +1,43 @@
 import SwiftUI
 
+private struct RichChatProviderLabelsKey: EnvironmentKey {
+  static let defaultValue: [String: String] = [:]
+}
+
+extension EnvironmentValues {
+  var richChatProviderLabels: [String: String] {
+    get { self[RichChatProviderLabelsKey.self] }
+    set { self[RichChatProviderLabelsKey.self] = newValue }
+  }
+}
+
+struct RichChatProviderHandoffRow: View {
+  let item: RichRuntimeItem
+  @Environment(\.richChatProviderLabels) private var providerLabels
+
+  var body: some View {
+    if let payload = item.payload?.objectValue,
+      let from = RichDecoding.requiredString(payload, "fromAgentKind", allowEmpty: false),
+      let to = RichDecoding.requiredString(payload, "toAgentKind", allowEmpty: false) {
+      let title = RichChatStrings.providerSwitched(from: providerLabels[from] ?? from, to: providerLabels[to] ?? to)
+      Label(title, systemImage: "arrow.left.arrow.right")
+        .poracodeChatText(.metadata)
+        .foregroundStyle(.secondary)
+        .padding(.horizontal, 12)
+        .accessibilityLabel(title)
+        .accessibilityIdentifier("native-e2e.transcript.provider-handoff")
+    }
+  }
+}
+
+/// A window-owned shortcut into the existing handoff flow. Both the host
+/// lease and provider session must still be the ones the roster displayed.
+struct ThreadProviderHandoffRequest: Equatable {
+  let id = UUID()
+  let target: ThreadLifecycleTarget
+  let owner: RichChatSessionActionOwner
+}
+
 enum ThreadProviderHandoffMode: String, Identifiable {
   case fork
   case move
@@ -9,10 +47,13 @@ enum ThreadProviderHandoffMode: String, Identifiable {
 
 struct ThreadProviderHandoffIntent: Identifiable {
   let mode: ThreadProviderHandoffMode
+  let source: ThreadLifecycleTarget
   let groupID: String?
   let groupName: String?
 
   var id: String { mode.rawValue }
+
+  func owns(_ target: ThreadLifecycleTarget?) -> Bool { target == source }
 }
 
 struct ThreadProviderHandoffTarget: Equatable {
@@ -53,7 +94,7 @@ enum ThreadProviderHandoffPresentation {
     let transcript =
       items
       .filter { $0.parentItemID == nil }
-      .compactMap(format)
+      .compactMap(contextRow)
       .filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
       .joined(separator: "\n\n")
     let source: String
@@ -83,14 +124,15 @@ enum ThreadProviderHandoffPresentation {
     }
   }
 
-  private static func format(_ item: RichRuntimeItem) -> String? {
+  static func contextRow(_ item: RichRuntimeItem) -> String? {
     let payload = item.payload?.objectValue
     switch item.type {
     case RichItemType.userMessage:
       let text = messageText(item)
       return text.isEmpty ? nil : "User:\n\(text)"
     case RichItemType.assistantMessage:
-      let text = messageText(item)
+      let text = [RichAssistantDisplayText.text(for: item), messageText(item, includingProse: false)]
+        .filter { !$0.isEmpty }.joined(separator: "\n")
       return text.isEmpty ? nil : "Assistant:\n\(text)"
     case RichItemType.plan:
       let steps =
@@ -133,11 +175,11 @@ enum ThreadProviderHandoffPresentation {
     }
   }
 
-  private static func messageText(_ item: RichRuntimeItem) -> String {
+  private static func messageText(_ item: RichRuntimeItem, includingProse: Bool = true) -> String {
     let blocks = RichContentDecoder.decodeMessageContent(item.payload) ?? []
     let text = blocks.compactMap { block -> String? in
       switch block {
-      case .text(let value): value
+      case .text(let value): includingProse ? value : nil
       case .file(let path, _, _, _): "@\(path)"
       case .image(_, _, let path?, _, _): "@\(path)"
       case .image(_, _, nil, let name?, _): "[image: \(name)]"
@@ -146,7 +188,7 @@ enum ThreadProviderHandoffPresentation {
       }
     }.filter { !$0.isEmpty }.joined(separator: "\n")
     if !text.isEmpty { return text }
-    return item.streams["assistant_text"] ?? ""
+    return includingProse ? item.streams["assistant_text"] ?? "" : ""
   }
 }
 
@@ -168,7 +210,7 @@ struct ThreadProviderHandoffSheet: View {
       VStack {
         Spacer(minLength: 0)
 
-        HomeQuickComposeView(
+        HomeQuickComposeSessionView(
           session: session,
           isExpanded: $isExpanded,
           launchSeed: launchSeed
@@ -184,11 +226,13 @@ struct ThreadProviderHandoffSheet: View {
       .toolbar {
         ToolbarItem(placement: .cancellationAction) {
           Button(RichChatStrings.cancel) { dismiss() }
+            .accessibilityIdentifier("native-e2e.thread.handoff-cancel")
         }
       }
     }
     .presentationDetents([.large])
     .presentationDragIndicator(.visible)
+    .modifier(PoracodeRetainNavigationWhilePresented())
   }
 
   private var launchSeed: HomeThreadLaunchSeed {
@@ -210,7 +254,10 @@ struct ThreadProviderHandoffSheet: View {
       groupID: intent.groupID,
       groupName: intent.groupName,
       title: thread.title,
-      excludedAgentKind: thread.agentKind
+      excludedAgentKind: thread.agentKind,
+      providerSwitchSource: intent.mode == .move && thread.presentationMode == "gui"
+        ? HomeProviderSwitchSource(target: intent.source, agentKind: thread.agentKind)
+        : nil
     )
   }
 

@@ -3,6 +3,7 @@ import { lingui } from "@lingui/vite-plugin";
 import babel from "@rolldown/plugin-babel";
 import { playwright } from "@vitest/browser-playwright";
 import { defineConfig } from "vitest/config";
+import { runtimePayloadProjectionVitePlugin } from "./src/build/runtimePayloadProjectionVitePlugin";
 
 /**
  * Real-browser tests (`*.chromium.test.tsx`) for layout-dependent renderer
@@ -12,7 +13,11 @@ import { defineConfig } from "vitest/config";
  * (needs `playwright install chromium` once).
  */
 export default defineConfig({
-  plugins: [babel({ plugins: ["@lingui/babel-plugin-lingui-macro"] }), lingui()],
+  plugins: [
+    runtimePayloadProjectionVitePlugin(import.meta.dirname),
+    babel({ plugins: ["@lingui/babel-plugin-lingui-macro"] }),
+    lingui(),
+  ],
   resolve: {
     alias: {
       "@": resolve(import.meta.dirname, "src"),

@@ -16,6 +16,7 @@ final class PortForwardingController {
   /// an open succeeds, a fatal failure replaces the page, or the lease changes.
   private(set) var notice: PortForwardingFailure?
   private let gateway: any PortForwardingGateway
+  private var scanRevision: UInt64 = 0
 
   init(lease: PortForwardingHostLease, gateway: any PortForwardingGateway) {
     self.lease = lease
@@ -33,23 +34,27 @@ final class PortForwardingController {
 
   func scan() async {
     let captured = lease
+    scanRevision &+= 1
+    let revision = scanRevision
     loadState = .scanning
     do {
       let value = try await gateway.scan(lease: captured)
       try Task.checkCancellation()
-      guard lease == captured else { return }
+      guard lease == captured, scanRevision == revision else { return }
       snapshot = value
       loadState = .ready
     } catch is CancellationError {
-      if lease == captured { loadState = snapshot == .empty ? .idle : .ready }
+      if lease == captured, scanRevision == revision {
+        loadState = snapshot == .empty ? .idle : .ready
+      }
     } catch {
-      guard lease == captured else { return }
+      guard lease == captured, scanRevision == revision else { return }
       loadState = .failed(.map(error))
     }
   }
 
-  func start(port: Int) async {
-    guard operation == .none else { return }
+  func start(port: Int, expectedLease: PortForwardingHostLease? = nil) async {
+    guard operation == .none, expectedLease == nil || expectedLease == lease else { return }
     let captured = lease
     operation = .starting(port: port)
     var startedForward: PortForward?

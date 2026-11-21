@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { toolPresentationCatalogSlotSchema } from "../../contracts/toolPresentation";
 import { terminalSizeSchema, threadContextUsageSchema } from "../../contracts";
 import { gitStatePatchSchema } from "../../gitState";
 
@@ -50,6 +51,9 @@ import { gitStatePatchSchema } from "../../gitState";
 export const PORACODE_REMOTE_PROTOCOL_VERSION = 14;
 // Optional provider-usage ringLayouts adds display metadata only: v14 readers
 // ignore unknown fields, and new readers accept previous responses without it.
+// Optional Crossagents visibility preferences are additive within v14. Old
+// hosts omit them; browser sync sends edits only after observing those keys.
+// Older readers strip them, and unrelated sparse patches never inject defaults.
 export const REMOTE_COMMAND_ID_HEADER = "x-poracode-command-id";
 
 /**
@@ -628,6 +632,8 @@ export const remoteEnvironmentDescriptorSchema = z.object({
    * version 1 is listed.
    */
   capabilities: remoteEnvironmentCapabilitiesSchema.optional(),
+  /** Read-only canonical tool layouts, sent once rather than copied per row. */
+  toolPresentation: toolPresentationCatalogSlotSchema.optional(),
 });
 export type RemoteEnvironmentDescriptor = z.infer<typeof remoteEnvironmentDescriptorSchema>;
 

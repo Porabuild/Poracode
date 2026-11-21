@@ -3,10 +3,10 @@
   "contract": "poracode.remote",
   "protocolVersion": 14,
   "bindingFormatVersion": 2,
-  "manifestHash": "sha256:3cf693869a4d32998ee3cf1df18297622750b7f840fc006c39b4c554cbf284b0",
-  "keyCount": 360,
+  "manifestHash": "sha256:9a015c6f0cb7b1decdaf26b44f4a8e9b71a10bdebded3bf004a8f60bd187343b",
+  "keyCount": 361,
   "counts": {
-    "route": 125,
+    "route": 126,
     "procedure": 179,
     "ws-client": 11,
     "ws-server": 12,
@@ -1245,6 +1245,10 @@
     "route:thread-interrupt": {
       "kind": "route",
       "id": "thread-interrupt"
+    },
+    "route:thread-item-presentations": {
+      "kind": "route",
+      "id": "thread-item-presentations"
     },
     "route:thread-list": {
       "kind": "route",

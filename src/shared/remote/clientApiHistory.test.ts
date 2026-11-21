@@ -60,7 +60,11 @@ describe("bounded historical reads", () => {
     expect(
       (await client.threadHistoryItem("thread space", "command/id")).streams.command_output,
     ).toBe("Stored");
-    await client.resumeThreadHistory("thread", "hr1.cursor", { afterSeq: 7 });
+    await client.resumeThreadHistory("thread", "hr1.cursor", {
+      afterSeq: 7,
+      targetTimelineEntryCount: 20,
+      omitScrollback: true,
+    });
     for (const [url, init] of fetchImpl.mock.calls) {
       const parsed = new URL(String(url));
       expect(parsed.searchParams.get("notices")).toBe("v1");
@@ -72,7 +76,11 @@ describe("bounded historical reads", () => {
     expect(String(fetchImpl.mock.calls[0]?.[0])).toContain(
       "thread%20space/history/items/command%2Fid",
     );
-    expect(new URL(String(fetchImpl.mock.calls[1]?.[0])).searchParams.get("afterSeq")).toBe("7");
+    const resumeUrl = new URL(String(fetchImpl.mock.calls[1]?.[0]));
+    expect(resumeUrl.searchParams.get("afterSeq")).toBe("7");
+    expect(resumeUrl.searchParams.get("deferBodies")).toBe("file_change");
+    expect(resumeUrl.searchParams.get("targetTimelineEntryCount")).toBe("20");
+    expect(resumeUrl.searchParams.get("omitScrollback")).toBe("1");
   });
 
   it("reads the prompt index from an authenticated, encoded route and validates it", async () => {

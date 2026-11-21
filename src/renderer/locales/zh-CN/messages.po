@@ -10253,6 +10253,7 @@ msgid "Import selected"
 msgstr "导入所选项"
 
 #: src/renderer/views/SettingsOverlay/parts/ImportSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 msgid "Import sessions"
 msgstr "导入会话"
 
@@ -11377,7 +11378,6 @@ msgstr "已链接"
 msgid "Linux"
 msgstr "Linux"
 
-#: src/renderer/components/thread/ChatPane/parts/items/commandActionsDisplay.ts
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "List"
@@ -18837,7 +18837,6 @@ msgstr "SDK 未安装"
 
 #: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/commands/registry.ts
-#: src/renderer/components/thread/ChatPane/parts/items/commandActionsDisplay.ts
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 #: src/renderer/views/MainView/parts/Sidebar/parts/MobileHomeActions.tsx
@@ -19032,7 +19031,6 @@ msgstr "搜索会话、命令、设置和文件…"
 msgid "Search titles, messages and folders"
 msgstr "搜索标题、消息和文件夹"
 
-#: src/renderer/components/thread/ChatPane/parts/items/commandActionsDisplay.ts
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 msgid "Search: \"{query}\" in {scope}"
 msgstr "搜索: \"{query}\" ({scope} 中)"
@@ -22231,8 +22229,8 @@ msgid "This desktop"
 msgstr "本桌面端"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
-msgid "This desktop's Poracode version doesn't support browser forwarding. Update Poracode on your desktop."
-msgstr "此桌面上的 Poracode 版本不支持浏览器转发。请在桌面上更新 Poracode。"
+#~ msgid "This desktop's Poracode version doesn't support browser forwarding. Update Poracode on your desktop."
+#~ msgstr "此桌面上的 Poracode 版本不支持浏览器转发。请在桌面上更新 Poracode。"
 
 #: src/renderer/views/ProfileOverlay/parts/ProfileHeader.tsx
 msgid "This device"

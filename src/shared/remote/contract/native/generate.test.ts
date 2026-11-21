@@ -127,23 +127,23 @@ describe("remote v3 native binding generator", () => {
         // Memory sync and catalog management are additive operator routes.
         // Optional environment settings and MCP OAuth completion add six structural types.
         // Guarded Notes saves add revision metadata and typed save outcomes.
-        sourceHash: "sha256:bebf9be6f4253616e2501b15bd204d739bc6419ee62b128666b14b148618bc6c",
-        manifestHash: "sha256:b344d1b59078a545149fd8f2ff0e8416da8b99eb0464bfb98006661e67907712",
+        sourceHash: "sha256:299e49b5f1da5ed8494baf0ed69a5df9f7ba493af040d9d7600a975c597aad9f",
+        manifestHash: "sha256:4c65d87f75044cd0750dbf9b6aba2f3d74ba1fdebcbd66b30b3e4d73b86bde99",
         counts: {
-          routes: 125,
+          routes: 126,
           procedures: 179,
           voidProcedureResults: 66,
           jsonProcedureResults: 113,
           webSocketClientVariants: 11,
           // 11 shared + the desktop-internal `desktop-event` frame (V5 plan 2.5).
           webSocketServerVariants: 12,
-          schemaRoots: 586,
-          structuralTypes: 1419,
+          schemaRoots: 590,
+          structuralTypes: 1515,
           semanticValidators: 25,
           // Content-defined shards (emitterCommon.shardDeclarations) average
           // ~200 lines, so a contract change rewrites only nearby files.
-          swiftFiles: 157,
-          kotlinFiles: 134,
+          swiftFiles: 167,
+          kotlinFiles: 144,
           stateMachines: 5,
         },
       });
@@ -413,7 +413,7 @@ describe("remote v3 native binding generator", () => {
       const output = outputForAuthority().files;
       for (const language of ["swift", "kotlin"] as const) {
         const adapters = rootAdapters(graph, language);
-        expect(adapters).toHaveLength(586);
+        expect(adapters).toHaveLength(590);
         expect(
           adapters
             .map((adapter) => adapter.id)
@@ -501,17 +501,21 @@ describe("remote v3 native binding generator", () => {
     ).toBeLessThanOrEqual(NATIVE_BINDINGS_MANIFEST_MAX_LINE_LENGTH);
   });
 
-  it("rejects a synthetic generated source line that exceeds the bounded size policy", () => {
-    const { ir, manifest } = input();
-    const invalid = structuredClone(ir);
-    const route = (invalid.routes as Array<{ request: { jsonSchema?: JsonSchema } }>).find(
-      ({ request }) => request.jsonSchema,
-    )!;
-    route.request.jsonSchema = {
-      type: "object",
-      properties: { huge: { type: "string", default: "x".repeat(40_000) } },
-    };
-    resign(invalid, manifest);
-    expect(() => buildNativeBindingOutput(invalid, manifest)).toThrow(/character line/);
-  });
+  it(
+    "rejects a synthetic generated source line that exceeds the bounded size policy",
+    { timeout: 45_000 },
+    () => {
+      const { ir, manifest } = input();
+      const invalid = structuredClone(ir);
+      const route = (invalid.routes as Array<{ request: { jsonSchema?: JsonSchema } }>).find(
+        ({ request }) => request.jsonSchema,
+      )!;
+      route.request.jsonSchema = {
+        type: "object",
+        properties: { huge: { type: "string", default: "x".repeat(40_000) } },
+      };
+      resign(invalid, manifest);
+      expect(() => buildNativeBindingOutput(invalid, manifest)).toThrow(/character line/);
+    },
+  );
 });

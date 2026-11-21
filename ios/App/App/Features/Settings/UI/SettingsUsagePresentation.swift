@@ -1,5 +1,60 @@
 import Foundation
 
+struct SettingsUsageDisplayPreferences: Codable, Equatable {
+  // v1 is local to the app. Seed only display fields from a legacy host
+  // document and leave the host document available to older clients.
+  static let storageKey = "ios.settings.usageDisplay.v1"
+
+  private var estimatedCost: Bool?
+  private var providerOrder: [String]?
+  private var collapsedOverrides: [String: Bool] = [:]
+  private var seededFromHost = false
+
+  var showEstimatedCost: Bool {
+    get { estimatedCost ?? true }
+    set { estimatedCost = newValue }
+  }
+
+  var order: [String] {
+    get { providerOrder ?? [] }
+    set { providerOrder = newValue }
+  }
+
+  func isCollapsed(_ providerID: String) -> Bool {
+    collapsedOverrides[providerID] == true
+  }
+
+  mutating func setCollapsed(_ collapsed: Bool, providerID: String) {
+    collapsedOverrides[providerID] = collapsed
+  }
+
+  static func decoded(_ stored: Data) -> Self? {
+    stored.isEmpty ? Self() : try? JSONDecoder().decode(Self.self, from: stored)
+  }
+
+  func seeding(from legacy: SettingsUsagePreferences?) -> Self {
+    guard !seededFromHost else { return self }
+    var seeded = self
+    seeded.showEstimatedCost = estimatedCost ?? legacy?.showEstimatedCost ?? true
+    let ranked = Set(order)
+    seeded.order = order + (legacy?.providerOrder ?? []).filter { !ranked.contains($0) }
+    for providerID in legacy?.collapsedProviders ?? [] where collapsedOverrides[providerID] == nil {
+      seeded.setCollapsed(true, providerID: providerID)
+    }
+    seeded.seededFromHost = true
+    return seeded
+  }
+
+  static func migrated(_ stored: Data, from legacy: SettingsUsagePreferences?) -> Data? {
+    guard let legacy, let current = decoded(stored), !current.seededFromHost else { return nil }
+    return try? JSONEncoder().encode(current.seeding(from: legacy))
+  }
+
+  static func resolved(_ stored: Data, legacy: SettingsUsagePreferences?) -> Self {
+    decoded(stored)?.seeding(from: legacy) ?? Self()
+  }
+}
+
 enum SettingsUsageTone: Equatable {
   case normal
   case warning
@@ -19,6 +74,20 @@ struct SettingsUsagePace: Equatable {
 }
 
 enum SettingsUsagePresentation {
+  static func sidebarSnapshots(
+    _ usage: SettingsProviderUsage,
+    preferences: SettingsUsagePreferences?,
+    providerOrder: [String]
+  ) -> [SettingsUsageSnapshot] {
+    guard preferences?.showInSidebar != false else { return [] }
+    let excluded = Set((preferences?.disabledProviders ?? []) + (preferences?.sidebarHiddenProviders ?? []))
+    return ordered(usage.snapshots.filter { snapshot in
+      guard !excluded.contains(snapshot.providerId), snapshot.status != .unsupported else { return false }
+      return snapshot.status != .authMissing || !snapshot.windows.isEmpty || snapshot.cost != nil
+        || snapshot.tokens != nil || snapshot.credits != nil
+    }, providerOrder: providerOrder)
+  }
+
   static func providerLabel(_ providerID: String) -> String {
     switch providerID.lowercased() {
     case "antigravity": "Antigravity"
@@ -42,7 +111,7 @@ enum SettingsUsagePresentation {
     _ snapshots: [SettingsUsageSnapshot],
     providerOrder: [String]
   ) -> [SettingsUsageSnapshot] {
-    let ranks = Dictionary(uniqueKeysWithValues: providerOrder.enumerated().map { ($1, $0) })
+    let ranks = Dictionary(providerOrder.enumerated().map { ($1, $0) }, uniquingKeysWith: min)
     let original = Dictionary(
       uniqueKeysWithValues: snapshots.enumerated().map { ($1.providerId, $0) }
     )

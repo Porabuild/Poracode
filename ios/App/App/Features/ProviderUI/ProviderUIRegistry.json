@@ -1,0 +1,84 @@
+{
+  "version": 2,
+  "defaultFastEnabled": true,
+  "providers": {
+    "antigravity": {
+      "order": 50,
+      "defaultFastEnabled": true
+    },
+    "claude": {
+      "order": 10,
+      "defaultFastEnabled": false
+    },
+    "codex": {
+      "order": 20,
+      "defaultFastEnabled": true
+    },
+    "commandcode": {
+      "order": 60,
+      "defaultFastEnabled": true
+    },
+    "copilot": {
+      "order": 90,
+      "defaultFastEnabled": true
+    },
+    "cursor": {
+      "order": 80,
+      "defaultFastEnabled": true,
+      "legacyTerminalRuntimeLabel": "CLI",
+      "legacyGuiRuntimeVariant": "acp"
+    },
+    "deepseek": {
+      "order": 49,
+      "defaultFastEnabled": true
+    },
+    "devin": {
+      "order": 48,
+      "defaultFastEnabled": false
+    },
+    "factory": {
+      "order": 100,
+      "defaultFastEnabled": true
+    },
+    "fx": {
+      "order": 110,
+      "defaultFastEnabled": true
+    },
+    "gemini": {
+      "order": 30,
+      "defaultFastEnabled": true
+    },
+    "grok": {
+      "order": 40,
+      "defaultFastEnabled": false
+    },
+    "kimi": {
+      "order": 45,
+      "defaultFastEnabled": true
+    },
+    "muse": {
+      "order": 47,
+      "defaultFastEnabled": true
+    },
+    "opencode": {
+      "order": 70,
+      "defaultFastEnabled": true
+    },
+    "opencode2": {
+      "order": 71,
+      "defaultFastEnabled": true
+    },
+    "pi": {
+      "order": 75,
+      "defaultFastEnabled": true
+    },
+    "qoder": {
+      "order": 37,
+      "defaultFastEnabled": true
+    },
+    "qwen": {
+      "order": 35,
+      "defaultFastEnabled": true
+    }
+  }
+}

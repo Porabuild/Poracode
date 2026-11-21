@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { applyAppTheme } from "./applyAppTheme";
 import { contrastRatio, mixHex, parseHex, relativeLuminance, toHex } from "./colorMath";
 import { APP_THEME_PRESETS, DEFAULT_THEME_ID, getThemePreset } from "./themePresets";
-import { MANAGED_THEME_VARS } from "./themeTokens";
+import { FIELD_TINT_PCT, MANAGED_THEME_VARS } from "./themeTokens";
 
 // Floors mirror themeTokens: text stays readable on the content background
 // (strict), while muted on panels (surface/sidebar) gets a relaxed floor so it
@@ -81,13 +81,23 @@ describe("theme presets", () => {
     }
   });
 
-  it("places editable fills toward the foreground relative to read-only surfaces", () => {
+  it("uses a translucent foreground wash for fields so they step cleanly from any surface", () => {
     for (const preset of APP_THEME_PRESETS) {
       for (const mode of ["light", "dark"] as const) {
         const vars = preset[mode];
-        const field = relativeLuminance(parseHex(vars["--field-background"]!));
+        const fg = vars["--foreground"]!;
+        const fraction = FIELD_TINT_PCT[mode] / 100;
+        expect(vars["--field-background"]).toContain("transparent");
+        const content = relativeLuminance(parseHex(vars["--content-background"]!));
         const panel = relativeLuminance(parseHex(vars["--content-surface-fill"]!));
-        expect(mode === "light" ? panel - field : field - panel).toBeGreaterThan(0);
+        const onContent = relativeLuminance(
+          parseHex(mixHex(fg, vars["--content-background"]!, fraction)),
+        );
+        const onPanel = relativeLuminance(
+          parseHex(mixHex(fg, vars["--content-surface-fill"]!, fraction)),
+        );
+        expect(mode === "light" ? content - onContent : onContent - content).toBeGreaterThan(0);
+        expect(mode === "light" ? panel - onPanel : onPanel - panel).toBeGreaterThan(0);
       }
     }
   });
@@ -114,7 +124,24 @@ describe("theme presets", () => {
         const fg = v["--foreground"]!;
         const checks: [string, string, string, number][] = [
           ["muted/panel", muted, v["--content-surface-fill"]!, BG_FLOOR],
-          ["placeholder/field", v["--field-placeholder"]!, v["--field-background"]!, BG_FLOOR],
+          [
+            "placeholder/field-content",
+            v["--field-placeholder"]!,
+            mixHex(fg, v["--content-background"]!, FIELD_TINT_PCT[mode] / 100),
+            BG_FLOOR,
+          ],
+          [
+            "placeholder/field-panel",
+            v["--field-placeholder"]!,
+            mixHex(fg, v["--content-surface-fill"]!, FIELD_TINT_PCT[mode] / 100),
+            BG_FLOOR,
+          ],
+          [
+            "placeholder/field-surface",
+            v["--field-placeholder"]!,
+            mixHex(fg, surface, FIELD_TINT_PCT[mode] / 100),
+            BG_FLOOR,
+          ],
           ["placeholder/composer", v["--field-placeholder"]!, v["--composer-surface"]!, BG_FLOOR],
           ["muted/bg", muted, bg, BG_FLOOR],
           ["muted/surface", muted, surface, PANEL_FLOOR],

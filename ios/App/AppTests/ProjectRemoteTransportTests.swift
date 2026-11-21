@@ -52,6 +52,52 @@ private final class ProjectCapturingURLProtocol: URLProtocol {
 }
 
 final class ProjectRemoteTransportTests: XCTestCase {
+  func testDraftPreferenceIntentRefusesUnadvertisedAndWithdrawnCatalogCapabilityBeforeHTTP() async throws {
+    let client = makeClient()
+    let command = ProjectCommand.setDraftConfig(projectId: "p", lastDraftConfig: .object([
+      "agentKind": .string("fixture"), "model": .string("plain"), "fast": .bool(false),
+    ]))
+    for versions: [Int]? in [nil, [2], [1], nil] {
+      var environment = makeEnvironment(projectCommandResults: true)
+      environment.capabilities?.catalogMutations = versions.map { .init(versions: $0) }
+      await client.observeEnvironmentCapabilities(environment)
+      if versions == [1] { continue }
+      do {
+        _ = try await client.remoteRunProjectCommand(command, operationId: "op-preference")
+        XCTFail("An unadvertised catalog intent reached the host")
+      } catch let error as RemoteClientError { XCTAssertEqual(error.code, "catalog_mutations_unavailable") }
+    }
+    XCTAssertTrue(ProjectCapturingURLProtocol.requests.isEmpty)
+  }
+
+  func testDraftPreferenceIntentAlwaysCarriesAnOperationIDAndExactFalsyFields() async throws {
+    let client = makeClient()
+    var environment = makeEnvironment(projectCommandResults: false)
+    environment.capabilities?.catalogMutations = .init(versions: [1])
+    await client.observeEnvironmentCapabilities(environment)
+    ProjectCapturingURLProtocol.responseStatus = 200
+    ProjectCapturingURLProtocol.responseBody = Data(#"{"ok":true}"#.utf8)
+    let value = JSONValue.object(["agentKind": .string("fixture"), "model": .string("plain"),
+      "effort": .string(""), "fast": .bool(false), "contextSize": .string(""), "crew": .null])
+    let outcome = try await client.remoteRunProjectCommand(.setDraftConfig(projectId: "p", lastDraftConfig: value),
+      operationId: "op-preference-falsy")
+    guard case .bounded = outcome else { return XCTFail("A catalog intent must use a bounded acknowledgement") }
+    XCTAssertEqual(ProjectCapturingURLProtocol.lastRequest?.value(forHTTPHeaderField: ProtocolConstants.commandIdHeader), "op-preference-falsy")
+    XCTAssertNil(ProjectCapturingURLProtocol.lastRequest?.value(forHTTPHeaderField: ProtocolConstants.projectCommandResultHeader))
+    let body = try JSONDecoder().decode(JSONValue.self, from: XCTUnwrap(ProjectCapturingURLProtocol.lastBody))
+    XCTAssertEqual(body.objectValue?["kind"], .string("set-draft-config"))
+    XCTAssertEqual(body.objectValue?["lastDraftConfig"], value)
+    XCTAssertEqual(ProjectCapturingURLProtocol.requests.count, 1)
+  }
+
+  func testMissingDraftPreferenceFieldCannotBecomeAnImplicitClear() throws {
+    XCTAssertThrowsError(try JSONDecoder().decode(ProjectCommand.self,
+      from: Data(#"{"kind":"set-draft-config","projectId":"p"}"#.utf8)))
+    let clear = ProjectCommand.setDraftConfig(projectId: "p", lastDraftConfig: nil)
+    let canonical = try GeneratedRemoteV3Contract.projectCommandRequest(JSONEncoder().encode(clear))
+    let value = try JSONDecoder().decode(JSONValue.self, from: canonical)
+    XCTAssertEqual(value.objectValue?["lastDraftConfig"], .null)
+  }
   override func tearDown() {
     ProjectCapturingURLProtocol.reset()
     super.tearDown()
@@ -266,7 +312,7 @@ final class ProjectRemoteTransportTests: XCTestCase {
       ),
       endpoints: .init(httpBaseUrl: "https://relay.test", wsBaseUrl: "wss://relay.test"),
       capabilities: .init(
-        projectCommandResults: .init(versions: [RemoteEnvironmentDescriptor.projectCommandResultsVersion])
+        projectCommandResults: projectCommandResults ? .init(versions: [RemoteEnvironmentDescriptor.projectCommandResultsVersion]) : nil
       )
     )
   }

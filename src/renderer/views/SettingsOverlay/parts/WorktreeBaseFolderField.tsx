@@ -64,7 +64,7 @@ export function WorktreeBaseFolderField(props: {
           <Button
             aria-label={t`Choose worktree base folder`}
             variant="tertiary"
-            className="min-w-0 flex-1 justify-start gap-2 font-normal"
+            className="form-field min-w-0 flex-1 justify-start gap-2 font-normal"
             isDisabled={!canPick}
             onPress={() => void pick()}
           >

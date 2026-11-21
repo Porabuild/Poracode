@@ -31,7 +31,9 @@ final class SettingsProfileController {
       async let core = gateway.profileCoreStats(request, lease: lease)
       async let tokens = gateway.profileTokenStats(request, lease: lease)
       return .information(
-        try await SettingsProfileInformation(devices: devices, core: core, tokens: tokens)
+        try await SettingsProfileInformation(
+          request: request, devices: devices, core: core, tokens: tokens
+        )
       )
     }
   }
@@ -62,7 +64,9 @@ final class SettingsProfileController {
         try Task.checkCancellation()
         guard self.requestOrdinal == ordinal, self.lease == lease else { return }
         switch result {
-        case .information(let value): self.information = value
+        case .information(let value):
+          self.information = value
+          self.identity = nil
         case .identity(let value): self.identity = value
         }
         self.state = .loaded

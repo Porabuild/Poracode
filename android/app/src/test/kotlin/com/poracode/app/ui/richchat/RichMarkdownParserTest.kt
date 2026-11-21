@@ -6,6 +6,30 @@ import org.junit.Test
 
 class RichMarkdownParserTest {
     @Test
+    fun longerAndTildeFencesPreserveCodeForCopying() {
+        val source = listOf(
+            "Intro",
+            "  ````kotlin option",
+            "    val result = \"café\"",
+            "  ```",
+            "  ````",
+            "~~~",
+            "  second marker",
+            "~~~",
+            "Done",
+        ).joinToString("\r\n")
+        assertEquals(
+            listOf(
+                RichMarkdownBlock.Paragraph("Intro"),
+                RichMarkdownBlock.Code("kotlin", "  val result = \"café\"\n```"),
+                RichMarkdownBlock.Code(null, "  second marker"),
+                RichMarkdownBlock.Paragraph("Done"),
+            ),
+            RichMarkdownParser.parse(source),
+        )
+    }
+
+    @Test
     fun parsesHeadingsListsQuotesAndParagraphs() {
         val blocks = RichMarkdownParser.parse(
             """

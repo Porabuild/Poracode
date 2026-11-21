@@ -1,358 +1,196 @@
 import SwiftUI
 
-struct SettingsAgentsView: View {
-  @Bindable var session: AppSession
-  let connectionID: ClientConnectionID?
-  @Bindable var controller: SettingsHostInformationController
+struct SettingsUsageSidebarFocus: Hashable, Sendable {
+  let lease: SettingsHostLease
+  let providerID: String
+}
+
+extension EnvironmentValues {
+  @Entry var settingsUsageSidebarFocus: SettingsUsageSidebarFocus? = nil
+}
+
+struct SettingsUsageView: View {
+  let selection: SettingsHostSelection?
   let composition: SettingsComposition
   let refresh: () -> Void
 
-  @State private var hiddenModels: [String: [String]] = [:]
-  @State private var providerOrder: [String] = []
+  @AppStorage(SettingsUsageDisplayPreferences.storageKey, store: .standard)
+  private var storedDisplay = Data()
+  @Environment(\.settingsUsageSidebarFocus) private var sidebarFocus
+  @State private var appliedFocus: SettingsUsageSidebarFocus?
+  @State private var expandedSidebarProvider: String?
+  @State private var editMode: EditMode = .inactive
+
+  private var display: SettingsUsageDisplayPreferences {
+    SettingsUsageDisplayPreferences.resolved(storedDisplay, legacy: legacyDocument?.usage)
+  }
+
+  private var legacyDocument: SettingsDocument? {
+    guard let lease = selection?.lease, composition.document.lease == lease else { return nil }
+    return composition.document.document
+  }
+
+  private var hostFailure: SettingsOperationFailure? {
+    guard let selection else { return .offline }
+    return selection.gate(.sessionRead)
+  }
+
+  private var hasCurrentHost: Bool {
+    guard let lease = selection?.lease else { return false }
+    return lease == composition.hostInformation.lease && hostFailure == nil
+  }
+
+  private var usage: SettingsProviderUsage? {
+    hasCurrentHost ? composition.hostInformation.providerUsage : nil
+  }
+
+  private var usageState: SettingsLoadState {
+    if let hostFailure { return .failed(hostFailure) }
+    return hasCurrentHost ? composition.hostInformation.usageState : .loading
+  }
 
   var body: some View {
-    let presentation = session.settingsAgentReplayPresentation(
-      for: connectionID,
-      fallbackConnectionID: controller.lease?.connectionID,
-      fallback: controller.agentStatuses
-    )
-    List {
-      modelVisibilitySection
-      modelOrderSection
-      replaySection(
-        SettingsUIStrings.windowsNative,
-        environment: presentation.windows
-      )
-      replaySection(
-        SettingsUIStrings.wsl,
-        environment: presentation.wsl
-      )
-    }
-    .listStyle(.insetGrouped)
-    .refreshable {
-      await controller.refresh(.agents)
-      await composition.document.load()
-    }
-    .toolbar {
-      if installedAgents.count > 1, composition.gate(.sessionOperate) == nil {
-        EditButton().disabled(composition.isMutating)
+    ScrollViewReader { scroll in
+      usageList.task(id: availableFocus) {
+        guard let focus = availableFocus, appliedFocus != focus else { return }
+        appliedFocus = focus
+        expandedSidebarProvider = focus.providerID
+        await Task.yield()
+        guard !Task.isCancelled, availableFocus == focus else { return }
+        scroll.scrollTo(focus.providerID, anchor: .center)
       }
     }
-    .onChange(of: composition.document.document, initial: true) { _, document in
-      guard let document else { return }
-      hiddenModels = document.hiddenModels
-      providerOrder = document.providerOrder
+  }
+
+  private var availableFocus: SettingsUsageSidebarFocus? {
+    guard let sidebarFocus, sidebarFocus.lease == selection?.lease,
+      usage?.snapshots.contains(where: { $0.providerId == sidebarFocus.providerID }) == true
+    else { return nil }
+    return sidebarFocus
+  }
+
+  private var usageList: some View {
+    List {
+      Toggle(SettingsUIStrings.cost, isOn: estimatedCostBinding)
+        .poracodeSwitchStyle()
+      if let usage {
+        quotaRows(usage)
+      } else {
+        switch usageState {
+        case .idle, .loading, .loaded:
+          SettingsLoadingView()
+        case .failed(let failure):
+          SettingsUnavailableView(failure: failure, retry: refresh)
+        }
+      }
+    }
+    .listStyle(.insetGrouped)
+    .contentMargins(.top, 0, for: .scrollContent)
+    .poracodeReadableListMargins(740)
+    .environment(\.editMode, $editMode)
+    .refreshable {
+      guard composition.selection == selection else { return }
+      await composition.refresh(route: .usage, query: SettingsProfileQuery())
     }
     .overlay(alignment: .bottom) {
-      if case .failed(let failure) = controller.agentsState {
+      if usage != nil, case .failed(let failure) = usageState {
         SettingsRefreshFailureBanner(failure: failure, retry: refresh)
           .padding()
       }
     }
-  }
-
-  @ViewBuilder
-  private var modelVisibilitySection: some View {
-    if !installedAgents.isEmpty {
-      Section(SettingsUIStrings.visibleModels) {
-        ForEach(installedAgents, id: \.kind) { agent in
-          if !agent.models.isEmpty {
-            DisclosureGroup {
-              ForEach(agent.models) { model in
-                Toggle(
-                  model.label,
-                  isOn: Binding(
-                    get: {
-                      !agent.effectiveHiddenModelIDs(overrides: hiddenModels).contains(model.id)
-                    },
-                    set: { visible in setModelVisible(visible, modelID: model.id, agent: agent) }
-                  )
-                )
-                .poracodeSwitchStyle()
-              }
-            } label: {
-              LabeledContent(agent.label) {
-                Text(visibleModelCount(agent))
-                  .monospacedDigit()
-                  .foregroundStyle(.secondary)
-              }
+    .toolbar {
+      if (usage?.snapshots.count ?? 0) > 1 {
+        ToolbarItem(placement: .bottomBar) {
+          Button(
+            editMode.isEditing ? SettingsUIStrings.done : SettingsUIStrings.edit,
+            systemImage: editMode.isEditing ? "checkmark" : "arrow.up.arrow.down"
+          ) {
+            withAnimation {
+              editMode = editMode.isEditing ? .inactive : .active
             }
           }
+          .accessibilityIdentifier("native-e2e.usage.reorder")
         }
       }
-      .disabled(composition.document.document == nil || composition.isMutating)
+    }
+    .onChange(of: legacyDocument, initial: true) { _, document in
+      if let document,
+        let migrated = SettingsUsageDisplayPreferences.migrated(currentDisplayData, from: document.usage)
+      {
+        storedDisplay = migrated
+      }
+    }
+    .onChange(of: selection?.lease) { _, _ in
+      editMode = .inactive
+      expandedSidebarProvider = nil
     }
   }
 
   @ViewBuilder
-  private var modelOrderSection: some View {
-    if !installedAgents.isEmpty {
-      Section(SettingsUIStrings.modelOrder) {
-        ForEach(orderedAgents, id: \.kind) { agent in
-          Label(agent.label, systemImage: "line.3.horizontal")
-        }
-        .onMove(perform: moveAgents)
-      }
-      .disabled(composition.document.document == nil || composition.isMutating)
+  private func quotaRows(_ usage: SettingsProviderUsage) -> some View {
+    if usage.fromCache {
+      Label(SettingsUIStrings.cached, systemImage: "clock.arrow.circlepath")
+        .foregroundStyle(.secondary)
     }
-  }
-
-  private var installedAgents: [SettingsAgentStatus] {
-    guard let statuses = controller.agentStatuses else { return [] }
-    var seen = Set<String>()
-    return (statuses.windows + statuses.wsl).filter { agent in
-      agent.installed && seen.insert(agent.kind).inserted
+    if usage.snapshots.isEmpty {
+      Text(SettingsUIStrings.noProvidersTracked)
+        .foregroundStyle(.secondary)
     }
-  }
-
-  private var orderedAgents: [SettingsAgentStatus] {
-    let ranks = Dictionary(uniqueKeysWithValues: providerOrder.enumerated().map { ($1, $0) })
-    return installedAgents.enumerated().sorted { left, right in
-      let leftRank = ranks[left.element.kind] ?? Int.max
-      let rightRank = ranks[right.element.kind] ?? Int.max
-      return leftRank == rightRank ? left.offset < right.offset : leftRank < rightRank
-    }.map(\.element)
-  }
-
-  private func visibleModelCount(_ agent: SettingsAgentStatus) -> String {
-    let hidden = agent.effectiveHiddenModelIDs(overrides: hiddenModels)
-    let visible = agent.models.filter { !hidden.contains($0.id) }.count
-    return "\(visible) / \(agent.models.count)"
-  }
-
-  private func setModelVisible(
-    _ visible: Bool,
-    modelID: String,
-    agent: SettingsAgentStatus
-  ) {
-    guard !composition.isMutating else { return }
-    var hidden = agent.effectiveHiddenModelIDs(overrides: hiddenModels)
-    if visible { hidden.remove(modelID) } else { hidden.insert(modelID) }
-    hiddenModels[agent.kind] = hidden.sorted()
-    Task {
-      await composition.writeSettings(
-        SettingsPatch(
-          values: [
-            .hiddenModels: .object(
-              hiddenModels.mapValues { .array($0.map(SettingsJSON.string)) }
-            )
-          ]
+    let snapshots = SettingsUsagePresentation.ordered(
+      usage.snapshots, providerOrder: display.order
+    )
+    ForEach(snapshots, id: \.providerId) { snapshot in
+      SettingsUsageProviderSection(
+        snapshot: snapshot,
+        showsEstimatedCost: display.showEstimatedCost,
+        isExpanded: Binding(
+          get: { expandedSidebarProvider == snapshot.providerId || !display.isCollapsed(snapshot.providerId) },
+          set: { expanded in
+            if expandedSidebarProvider == snapshot.providerId { expandedSidebarProvider = nil }
+            updateDisplay { $0.setCollapsed(!expanded, providerID: snapshot.providerId) }
+          }
         )
       )
-      if let authoritative = composition.document.document {
-        hiddenModels = authoritative.hiddenModels
+      .id(snapshot.providerId)
+    }
+    .onMove { offsets, destination in
+      var visible = snapshots.map(\.providerId)
+      visible.move(fromOffsets: offsets, toOffset: destination)
+      let visibleSet = Set(visible)
+      updateDisplay {
+        $0.order = visible + $0.order.filter { !visibleSet.contains($0) }
       }
     }
-  }
-
-  private func moveAgents(from offsets: IndexSet, to destination: Int) {
-    guard !composition.isMutating else { return }
-    var visible = orderedAgents.map(\.kind)
-    visible.move(fromOffsets: offsets, toOffset: destination)
-    let visibleSet = Set(visible)
-    providerOrder = visible + providerOrder.filter { !visibleSet.contains($0) }
-    Task {
-      await composition.writeSettings(
-        SettingsPatch(values: [.providerOrder: .array(providerOrder.map(SettingsJSON.string))])
-      )
-      if let authoritative = composition.document.document {
-        providerOrder = authoritative.providerOrder
-      }
-    }
-  }
-
-  @ViewBuilder
-  private func replaySection(
-    _ title: String,
-    environment: SettingsReplayAgentEnvironment
-  ) -> some View {
-    Section(title) {
-      switch environment.loadState {
-      case .notLoaded:
-        HStack(spacing: 10) {
-          ProgressView()
-          Text(SettingsUIStrings.agentStatusNotLoaded)
-        }
+    if let fetchedAt = usage.snapshots.map(\.fetchedAt).max() {
+      let date = Date(timeIntervalSince1970: TimeInterval(fetchedAt) / 1_000)
+      Text(SettingsUIStrings.updatedAgo(SettingsUsageRelative.format(date)))
+        .font(.footnote)
         .foregroundStyle(.secondary)
-      case .loadedEmpty:
-        Text(SettingsUIStrings.noAgentsDetected)
-          .foregroundStyle(.secondary)
-      case .populated:
-        ForEach(environment.agents) { agent in
-          HStack(spacing: 12) {
-            Image(systemName: agent.installed ? "checkmark.seal.fill" : "xmark.seal")
-              .foregroundStyle(agent.installed ? Color.green : Color.secondary)
-              .accessibilityHidden(true)
-            VStack(alignment: .leading, spacing: 3) {
-              Text(agent.label)
-                .font(.body.weight(.medium))
-              Text(agent.kind)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-              if let distro = agent.distro {
-                Label(distro, systemImage: "shippingbox")
-                  .font(.caption2)
-                  .foregroundStyle(.tertiary)
-              }
-            }
-            Spacer()
-            VStack(alignment: .trailing, spacing: 3) {
-              Text(agent.installed ? SettingsUIStrings.installed : SettingsUIStrings.notInstalled)
-              Text(authLabel(agent.authState))
-            }
-            .font(.caption)
-            .foregroundStyle(.secondary)
-          }
-          .accessibilityElement(children: .combine)
-        }
-      }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 4)
     }
-  }
-
-  private func authLabel(_ state: AgentStatusRecord.AuthState) -> String {
-    switch state {
-    case .authenticated: SettingsUIStrings.authenticated
-    case .missing: SettingsUIStrings.authenticationMissing
-    case .unknown: SettingsUIStrings.authenticationUnknown
-    }
-  }
-}
-
-struct SettingsUsageView: View {
-  @Bindable var controller: SettingsHostInformationController
-  let composition: SettingsComposition
-  let refresh: () -> Void
-
-  @State private var collapsedProviderIDs = Set<String>()
-  @State private var providerOrder: [String] = []
-  @State private var editMode: EditMode = .inactive
-
-  var body: some View {
-    SettingsHostInformationState(
-      state: controller.usageState,
-      value: controller.providerUsage,
-      refresh: refresh
-    ) { usage in
-      List {
-        if composition.document.document?.usage != nil {
-          Toggle(SettingsUIStrings.cost, isOn: estimatedCostBinding)
-            .disabled(composition.isMutating || composition.gate(.sessionOperate) != nil)
-            .poracodeSwitchStyle()
-        }
-        if usage.fromCache {
-          Label(SettingsUIStrings.cached, systemImage: "clock.arrow.circlepath")
-            .foregroundStyle(.secondary)
-        }
-        if usage.snapshots.isEmpty {
-          Text(SettingsUIStrings.noProvidersTracked)
-            .foregroundStyle(.secondary)
-        }
-        ForEach(ordered(usage.snapshots), id: \.providerId) { snapshot in
-          SettingsUsageProviderSection(
-            snapshot: snapshot,
-            showsEstimatedCost: composition.document.document?.usage?.showEstimatedCost ?? true,
-            isExpanded: Binding(
-              get: { !collapsedProviderIDs.contains(snapshot.providerId) },
-              set: { expanded in setExpanded(expanded, providerID: snapshot.providerId) }
-            )
-          )
-        }
-        .onMove { offsets, destination in
-          moveProviders(usage.snapshots, from: offsets, to: destination)
-        }
-        if let updated = latestUpdate(usage) {
-          Text(SettingsUIStrings.updatedAgo(SettingsUsageRelative.format(updated)))
-            .font(.footnote)
-            .foregroundStyle(.secondary)
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 4)
-        }
-      }
-      .listStyle(.insetGrouped)
-      .contentMargins(.top, 0, for: .scrollContent)
-      .environment(\.editMode, $editMode)
-      .refreshable {
-        await controller.refresh(.usage)
-        await composition.document.load()
-      }
-      .poracodeBottomBar {
-        if canReorder(usage) {
-          PoracodeBottomActionDock(placement: .trailing) {
-            PoracodeCircleButton {
-              withAnimation {
-                editMode = editMode.isEditing ? .inactive : .active
-              }
-            } label: {
-              Image(systemName: editMode.isEditing ? "checkmark" : "arrow.up.arrow.down")
-            }
-            .disabled(composition.isMutating)
-            .accessibilityLabel(
-              editMode.isEditing ? SettingsUIStrings.done : SettingsUIStrings.edit
-            )
-          }
-        }
-      }
-      .onChange(of: composition.document.document?.usage, initial: true) { _, value in
-        guard let value else { return }
-        collapsedProviderIDs = Set(value.collapsedProviders)
-        providerOrder = value.providerOrder
-      }
-    }
-  }
-
-  private func latestUpdate(_ usage: SettingsProviderUsage) -> Date? {
-    usage.snapshots
-      .map(\.fetchedAt)
-      .max()
-      .map { Date(timeIntervalSince1970: TimeInterval($0) / 1000) }
-  }
-
-  private func canReorder(_ usage: SettingsProviderUsage) -> Bool {
-    usage.snapshots.count > 1
-      && composition.document.document?.usage != nil
-      && composition.gate(.sessionOperate) == nil
-  }
-
-  private func ordered(_ snapshots: [SettingsUsageSnapshot]) -> [SettingsUsageSnapshot] {
-    SettingsUsagePresentation.ordered(snapshots, providerOrder: providerOrder)
   }
 
   private var estimatedCostBinding: Binding<Bool> {
     Binding(
-      get: { composition.document.document?.usage?.showEstimatedCost ?? true },
-      set: { show in setEstimatedCost(show) }
+      get: { display.showEstimatedCost },
+      set: { value in updateDisplay { $0.showEstimatedCost = value } }
     )
   }
 
-  private func setEstimatedCost(_ show: Bool) {
-    guard var usage = composition.document.document?.usage, !composition.isMutating else { return }
-    usage.showEstimatedCost = show
-    Task { await composition.writeSettings(SettingsPatch(values: [.usage: usage.settingsJSON])) }
-  }
-
-  private func setExpanded(_ expanded: Bool, providerID: String) {
-    guard var usage = composition.document.document?.usage, !composition.isMutating else { return }
-    if expanded {
-      collapsedProviderIDs.remove(providerID)
-    } else {
-      collapsedProviderIDs.insert(providerID)
+  private func updateDisplay(_ change: (inout SettingsUsageDisplayPreferences) -> Void) {
+    var updated = SettingsUsageDisplayPreferences.decoded(currentDisplayData) ?? .init()
+    if let legacy = legacyDocument?.usage {
+      updated = updated.seeding(from: legacy)
     }
-    usage.collapsedProviders = collapsedProviderIDs.sorted()
-    Task { await composition.writeSettings(SettingsPatch(values: [.usage: usage.settingsJSON])) }
+    change(&updated)
+    if let encoded = try? JSONEncoder().encode(updated) {
+      storedDisplay = encoded
+    }
   }
 
-  private func moveProviders(
-    _ snapshots: [SettingsUsageSnapshot],
-    from offsets: IndexSet,
-    to destination: Int
-  ) {
-    guard var usage = composition.document.document?.usage, !composition.isMutating else { return }
-    var visible = ordered(snapshots).map(\.providerId)
-    visible.move(fromOffsets: offsets, toOffset: destination)
-    let visibleSet = Set(visible)
-    providerOrder = visible + usage.providerOrder.filter { !visibleSet.contains($0) }
-    usage.providerOrder = providerOrder
-    Task { await composition.writeSettings(SettingsPatch(values: [.usage: usage.settingsJSON])) }
+  private var currentDisplayData: Data {
+    UserDefaults.standard.data(forKey: SettingsUsageDisplayPreferences.storageKey) ?? Data()
   }
 }
 
@@ -501,6 +339,7 @@ struct SettingsDevicesView: View {
         }
       }
       .listStyle(.insetGrouped)
+      .poracodeReadableListMargins(740)
       .refreshable { await controller.refresh(.devices) }
     }
   }

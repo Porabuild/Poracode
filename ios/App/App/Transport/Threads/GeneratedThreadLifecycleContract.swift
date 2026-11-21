@@ -53,16 +53,25 @@ extension GeneratedRemoteV3Contract {
     command: ThreadRemoteCommand,
     commandID: String?
   ) throws -> ThreadLifecyclePreparedRequest {
+    try threadCommandRequest(threadID: threadID, body: threadLifecycleData(command),
+      commandID: command.permitsCommandID ? commandID : nil)
+  }
+
+  static func threadCommandRequest(
+    threadID: String,
+    body: Data,
+    commandID: String?
+  ) throws -> ThreadLifecyclePreparedRequest {
     let route = try threadLifecycleRoute(
       id: "thread-command", expectedPath: "/api/threads/{threadId}/command")
     let pathID = try threadLifecyclePathThreadID(threadID)
-    let body = try canonicalData(
-      try threadLifecycleData(command),
+    let canonicalBody = try canonicalData(
+      body,
       codec: RemoteRootCodecs.routeU2EThreadU2DCommandU2ERequest,
       boundary: "thread command request"
     )
     let headers: [String: String]
-    if command.permitsCommandID, let commandID {
+    if let commandID {
       headers = [ProtocolConstants.commandIdHeader: commandID]
     } else {
       headers = [:]
@@ -71,7 +80,7 @@ extension GeneratedRemoteV3Contract {
       method: route.method,
       path: route.path.replacingOccurrences(
         of: "{threadId}", with: threadLifecycleEncodePathSegment(pathID)),
-      body: body,
+      body: canonicalBody,
       headers: headers
     )
   }

@@ -2,7 +2,6 @@ import { useEffect } from "react";
 import { toast } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import { type GitStatusResult, type Project, type ProjectLocation } from "@/shared/contracts";
-import { getProjectAgentStatuses } from "@/shared/agentStatus";
 import {
   classifyAnalyticsModel,
   classifyModelFamily,
@@ -15,7 +14,7 @@ import { msg, friendlyError, friendlyErrorWithDetail } from "@/shared/messages";
 import { readBridge } from "@/renderer/bridge";
 import { detectOSLocale } from "@/renderer/i18n/locales";
 import { captureProductEvent } from "@/renderer/analytics/productAnalytics";
-import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
+import { useHostAgentStatuses } from "@/renderer/hooks/useHostAgentStatuses";
 import {
   useGitReviewActionState,
   useGitReviewActionStore,
@@ -148,12 +147,9 @@ export function useGitReviewActions(args: UseGitReviewActionsArgs) {
     detectOSLocale(),
   );
 
-  const agentStatuses = useAgentStatusesStore((s) => s.agentStatuses);
-  const wslAgentStatuses = useAgentStatusesStore((s) => s.wslAgentStatuses);
-  const projectAgentStatuses = getProjectAgentStatuses(
+  const projectAgentStatuses = useHostAgentStatuses(
+    project.location.remoteServerId ?? project.remoteServerId,
     project.location,
-    agentStatuses,
-    wslAgentStatuses,
   );
 
   // The git review panel is keyed by `${projectId}:${worktreePath}` and fully
@@ -883,6 +879,7 @@ export function useGitReviewActions(args: UseGitReviewActionsArgs) {
   return {
     commitMessage,
     setCommitMessage,
+    canGenerateMessage,
     isCommitting,
     isGenerating,
     isSyncing,

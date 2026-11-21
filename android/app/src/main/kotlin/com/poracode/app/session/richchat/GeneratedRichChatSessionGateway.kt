@@ -324,9 +324,10 @@ class GeneratedRichChatSessionGateway(
     override suspend fun loadLocalImage(
         lease: RichChatHostLease,
         path: String,
+        variant: String?,
     ): RemoteBinaryResponse = invoke(lease, RichChatCapability.Read, false) {
         val executor = binary ?: unavailable("binary_transport")
-        executor.execute(rich.localImageRequest(path))
+        executor.execute(rich.localImageRequest(path, variant))
     }
 
     override suspend fun loadRuntimeImage(
@@ -334,9 +335,10 @@ class GeneratedRichChatSessionGateway(
         threadId: String,
         itemId: String,
         path: List<RuntimeImagePathSegment>,
+        variant: String?,
     ): RemoteBinaryResponse = invoke(lease, RichChatCapability.Read, false) {
         val executor = binary ?: unavailable("binary_transport")
-        executor.execute(rich.runtimeImageRequest(threadId, itemId, path))
+        executor.execute(rich.runtimeImageRequest(threadId, itemId, path, variant))
     }
 
     override suspend fun downloadRichFile(

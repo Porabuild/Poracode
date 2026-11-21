@@ -127,6 +127,7 @@ struct LiveConnectionController {
                 _ = host.state.liveLifecycle.decideSocketStart()
             }
             host.sessionPool.noteBackgroundGate()
+            host.workflowActivityStore?.pause()
             let cancelled = host.cancelBackgroundSensitiveTasks()
             host.state.pendingPairing = nil
             // Join every cancelled foreground network task, then stop every pooled socket.
@@ -139,6 +140,7 @@ struct LiveConnectionController {
             // Drop any pending background teardown; its generation gate is the backstop.
             host.backgroundSuspendTask.cancelCurrent()
             let actions = host.state.liveLifecycle.noteForeground()
+            host.workflowActivityStore?.resume()
             // Preserved-upgrade recovery: a precommit offline/cancel parks with
             // !bootstrapCompleted + connecting and no authority. Retry the
             // verified handshake through the existing bootstrap funnel; skip
@@ -235,7 +237,8 @@ struct LiveConnectionController {
                 // the first upgrade can declare. A failed read is not an
                 // answer: the socket then starts undeclared and the Online
                 // descriptor reconciles through the authoritative barrier.
-                if let descriptor = try await host.state.api?.environment() {
+                let descriptor = try await host.state.api?.environment()
+                if let descriptor {
                     await host.noteEnvironmentCapabilities(descriptor)
                 }
                 guard host.state.operationOwner.isCurrent(ownerEpoch),
@@ -251,13 +254,12 @@ struct LiveConnectionController {
                 guard host.state.operationOwner.isCurrent(ownerEpoch),
                       host.state.workGeneration == gen
                 else { return }
-                // F2: connect-time capability refresh is committed to the
-                // durable record so a host that gained host-owned environments
-                // after pairing surfaces them without re-pairing. A failed or
-                // stale read changes nothing.
+                // Refresh the stored environment advertisement and service flags
+                // independently so existing pairings discover newly available features.
                 await host.refreshStoredHostCapabilities(
                     generation: gen,
-                    ownerEpoch: ownerEpoch
+                    ownerEpoch: ownerEpoch,
+                    descriptor: descriptor
                 )
             } catch is CancellationError {
                 return

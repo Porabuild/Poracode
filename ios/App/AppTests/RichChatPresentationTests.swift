@@ -3,6 +3,292 @@ import XCTest
 @testable import App
 
 final class RichChatPresentationTests: XCTestCase {
+  func testEditRunsPreserveFindAndLimitTheRenderedRows() {
+    func node(_ id: String, _ type: String, path: String? = nil) -> RichVisibleTimelineNode {
+      RichVisibleTimelineNode(item: RichRuntimeItem(id: id, type: type, state: .completed,
+        payload: path.map { .object(["path": .string($0)]) }, streams: [:], parentItemID: nil), children: [])
+    }
+    let first = node("first", "file_change", path: " ./src//main.swift ")
+    let reasoning = node("middle-thought", RichItemType.reasoning)
+    let second = node("second", "file_change", path: "src\\main.swift")
+    let trailing = node("trailing", RichItemType.reasoning)
+    let different = node("different", "file_change", path: "docs/main.md")
+    let command = node("command", "command_execution")
+    let last = node("after-command", "file_change", path: "src/main.swift")
+    let members = [first, reasoning, second, trailing, different, command, last]
+    let rows = RichChatActivityRows(members: members, selectedItemID: nil, previewLimit: 4)
+    XCTAssertTrue(rows.hasOverflow)
+    XCTAssertNil(rows.wholeFile)
+    XCTAssertEqual(rows.visible(showingAll: false).map(\.id), ["trailing", "different", "command", "after-command"])
+    let selected = RichChatActivityRows(members: members, selectedItemID: reasoning.item.id, previewLimit: 4)
+    XCTAssertTrue(selected.containsSelection)
+    let run = selected.visible(showingAll: false).first
+    guard case .editRun(let edits)? = run else { return XCTFail("Find must retain the combined row") }
+    XCTAssertEqual(edits.members.map(\.item.id), ["first", "middle-thought", "second"])
+    XCTAssertEqual(selected.visible(showingAll: true).map(\.id), ["first", "trailing", "different", "command", "after-command"])
+
+    let sameFile = RichChatActivityRows(members: [trailing, first, reasoning, second],
+      selectedItemID: trailing.item.id, previewLimit: 1)
+    XCTAssertNotNil(sameFile.wholeFile)
+    XCTAssertTrue(sameFile.containsSelection)
+    XCTAssertFalse(sameFile.hasOverflow)
+  }
+
+  func testActivityPreviewAdaptsToTheViewportAndKeepsAnEarlierFindMatchInView() {
+    func node(_ id: String, children: [RichTimelineEntry] = []) -> RichVisibleTimelineNode {
+      RichVisibleTimelineNode(item: RichRuntimeItem(id: id, type: "reasoning", state: .completed,
+        payload: nil, streams: [:], parentItemID: nil), children: children)
+    }
+    let first = node("1", children: [.item(node("nested-match"))])
+    let members = [first] + (2...10).map { node(String($0)) }
+    let preview = RichChatActivityRows(members: members, selectedItemID: nil)
+    XCTAssertTrue(preview.hasOverflow)
+    XCTAssertEqual(preview.visible(showingAll: false).map(\.item.id), (3...10).map(String.init))
+    XCTAssertEqual(preview.visible(showingAll: true).count, 10)
+    let compact = RichChatActivityRows.previewLimit(availableHeight: 500)
+    XCTAssertEqual(compact, 4)
+    XCTAssertEqual(RichChatActivityRows.previewLimit(availableHeight: 650), 8)
+    let compactPreview = RichChatActivityRows(members: members, selectedItemID: nil, previewLimit: compact)
+    XCTAssertEqual(compactPreview.visible(showingAll: false).map(\.item.id), ["7", "8", "9", "10"])
+    XCTAssertEqual(compactPreview.visible(showingAll: true).count, 10)
+    let earlier = RichChatActivityRows(members: members, selectedItemID: "nested-match", previewLimit: compact)
+    XCTAssertTrue(earlier.containsSelection)
+    XCTAssertEqual(earlier.visible(showingAll: false).map(\.item.id), ["1", "2", "3", "4"])
+    let latest = RichChatActivityRows(members: members, selectedItemID: "10")
+    XCTAssertTrue(latest.containsSelection)
+    XCTAssertEqual(latest.visible(showingAll: false).count, 8)
+  }
+
+  func testOnlyTheTrailingActivityGroupDefaultsToExpandedAndEditsStayCollapsed() throws {
+    func node(_ id: String, type: String, text: String = "") -> RichVisibleTimelineNode {
+      RichVisibleTimelineNode(item: RichRuntimeItem(id: id, type: type, state: .started, payload: nil,
+        streams: type == RichItemType.reasoning ? ["reasoning_text": text] : [:], parentItemID: nil), children: [])
+    }
+    let command = node("run", type: "command_execution")
+    let edit = node("edit", type: "file_change")
+    let thought = node("thought", type: RichItemType.reasoning)
+    let group = RichTimelineEntry.group(stableID: "tools", members: [command, edit])
+    let beforeReply = RichTimelineProjection(rawItems: [], rawRoots: [],
+      visibleEntries: [group, .item(thought)], hiddenItemIDs: [])
+    XCTAssertEqual(beforeReply.activityTailID, "tools")
+    let reply = RichTimelineProjection(rawItems: [], rawRoots: [],
+      visibleEntries: [group, .item(node("reply", type: RichItemType.assistantMessage))], hiddenItemIDs: [])
+    XCTAssertNil(reply.activityTailID)
+    XCTAssertFalse(RichChatActivityGroupSummary(members: [command, edit]).isEditOnly)
+    XCTAssertTrue(RichChatActivityGroupSummary(members: [edit, thought]).isEditOnly)
+    XCTAssertFalse(RichChatActivityGroupSummary(members: [thought]).isEditOnly)
+  }
+
+  func testCompletedVideoToolLeavesTheCollapsedActivityGroup() {
+    let first = RichRuntimeItem(id: "first", type: "tool_call", state: .completed,
+      payload: .object(["name": .string("inspect"), "status": .string("success")]), streams: [:], parentItemID: nil)
+    var video = RichRuntimeItem(id: "video", type: "tool_call", state: .updated,
+      payload: .object(["name": .string("record"), "status": .string("success"), "result": .object([
+        "content": .array([.object(["type": .string("resource_link"), "uri": .string("/project/demo.mp4"), "mimeType": .string("video/mp4")])]),
+      ])]), streams: [:], parentItemID: nil)
+    XCTAssertEqual(RichTimeline.project([first, video]).visibleEntries.count, 1)
+    video.state = .completed
+    let entries = RichTimeline.project([first, video]).visibleEntries
+    XCTAssertEqual(entries.count, 2)
+    guard case .item(let standalone) = entries.last else { return XCTFail("Video must render directly") }
+    XCTAssertEqual(standalone.item.id, "video")
+  }
+
+  func testVideoMarkupIncludesImagesAndVisibleHTMLInDocumentOrder() {
+    let text = """
+      ![First](/project/first.mp4)
+
+      <video title="Second" src="https://example.test/second.mp4?a=1&amp;b=2"></video>
+
+      <template>
+
+      <video src="/project/hidden.mp4"></video>
+
+      </template>
+
+      ```html
+      <video src="/project/example.mp4"></video>
+      ```
+
+      <video>
+
+      <source src="/project/third" type="video/mp4">
+
+      </video>
+      """
+    XCTAssertEqual(RichChatVideoPresentation.markdownVideos(text).map(\.target), [
+      "/project/first.mp4", "https://example.test/second.mp4?a=1&b=2", "/project/third",
+    ])
+  }
+
+  func testMediaIndexReusesCompletedItemsDuringUnrelatedStreaming() {
+    var parsed: [String] = []
+    var index = RichChatMediaIndex { item in
+      parsed.append(item.id)
+      return RichChatVideoPresentation.videos(for: item)
+    }
+    let settled = RichRuntimeItem(id: "settled", type: RichItemType.assistantMessage, state: .completed,
+      payload: nil, streams: ["assistant_text": "[Watch](/project/demo.mp4)"], parentItemID: nil)
+    var active = RichRuntimeItem(id: "active", type: RichItemType.assistantMessage, state: .updated,
+      payload: nil, streams: ["assistant_text": "A"], parentItemID: nil)
+    XCTAssertEqual(index.media(in: [settled, active]).videos.count, 1)
+    active.streams["assistant_text"] = "Another streaming update"
+    _ = index.media(in: [settled, active])
+    XCTAssertEqual(parsed.filter { $0 == "settled" }.count, 1)
+    _ = index.media(in: [])
+    _ = index.media(in: [settled])
+    XCTAssertEqual(parsed.filter { $0 == "settled" }.count, 2, "Removed history is released")
+  }
+
+  func testExtensionlessVideoRetainsItsMIMEInTranscriptSupplements() throws {
+    let item = RichRuntimeItem(id: "video", type: RichItemType.assistantMessage, state: .completed,
+      payload: .object(["content": .array([.object([
+        "kind": .string("file"), "path": .string("/project/recording"), "mimeType": .string("video/mp4"),
+      ])])]), streams: [:], parentItemID: nil)
+    guard case .video(let video) = try XCTUnwrap(RichChatPresentation.messageSupplements(for: item).first)
+    else { return XCTFail("MIME-identified video must remain a playable transcript item") }
+    XCTAssertEqual(video.target, "/project/recording")
+  }
+
+  func testAssistantFinalDisplayMatchesDesktopWithoutResurrectingSuppressedStreams() {
+    var item = RichRuntimeItem(id: "final", type: RichItemType.assistantMessage, state: .updated,
+      payload: .object(["displayAuthoritative": .bool(true), "content": .array([
+        .object(["kind": .string("text"), "text": .string("Final answer")]),
+      ])]), streams: ["assistant_text": "Draft answer"], parentItemID: nil)
+    XCTAssertEqual(RichChatPresentation.messageBody(for: item), "Draft answer")
+    item.state = .completed
+    XCTAssertEqual(RichChatPresentation.messageBody(for: item), "Final answer")
+    XCTAssertEqual(RichChatPresentation.text(for: item), "Final answer")
+    XCTAssertTrue(RichTimeline.isVisible(item))
+    item.payload = .object(["displayAuthoritative": .bool(true), "content": .array([
+      .object(["kind": .string("text"), "text": .string("")]),
+    ])])
+    XCTAssertFalse(RichTimeline.isVisible(item), "Payload-only updates must invalidate visibility")
+    XCTAssertEqual(RichChatPresentation.messageBody(for: item), "")
+    item.payload = .object(["content": .array([
+      .object(["kind": .string("text"), "text": .string("Legacy payload")]),
+    ])])
+    XCTAssertEqual(RichChatPresentation.messageBody(for: item), "Draft answer", "Pre-flag history remains stream-first")
+    XCTAssertTrue(RichTimeline.isVisible(item))
+  }
+
+  func testVideoGalleryMatchesTypedFilesAndSuccessfulToolResources() throws {
+    let file = RichRuntimeItem(id: "file", type: RichItemType.assistantMessage, state: .completed,
+      payload: .object(["content": .array([
+        .object(["kind": .string("file"), "path": .string("/project/demo.mp4"), "mimeType": .string("video/mp4")]),
+      ])]), streams: [:], parentItemID: nil)
+    var tool = RichRuntimeItem(id: "tool", type: "tool_call", state: .completed,
+      payload: .object(["name": .string("record"), "status": .string("success"), "result": .object([
+        "content": .array([.object(["type": .string("resource_link"), "uri": .string("https://example.test/demo.mov"), "mimeType": .string("video/quicktime")])]),
+      ])]), streams: [:], parentItemID: nil)
+    XCTAssertTrue(RichTimeline.isVisible(file), "A video-only assistant message is visible on desktop")
+    XCTAssertEqual(RichChatVideoPresentation.videos(in: [file, file, tool]).map(\.target), ["https://example.test/demo.mov", "/project/demo.mp4"])
+    tool.state = .updated
+    XCTAssertTrue(RichChatVideoPresentation.videos(for: tool).isEmpty)
+    XCTAssertNil(RichVideoPresentation.resolve("javascript:demo.mp4"))
+    XCTAssertNil(RichVideoPresentation.resolve("data:video/mp4;base64,AAAA"))
+    XCTAssertNil(RichVideoPresentation.resolve("https://example.test/\nsecret.mp4"))
+  }
+
+  func testVideoMarkdownSkipsCodeAndHandlesReferenceLinks() {
+    let source = "[Watch](</project/demo clip.mp4>)\n\n`[Fake](/secret/fake.mp4)`\n\n[Recording][clip]\n\n[clip]: https://example.test/recording.mp4"
+    XCTAssertEqual(RichChatVideoPresentation.markdownVideos(source).map(\.target), ["/project/demo clip.mp4", "https://example.test/recording.mp4"])
+  }
+
+  func testInspectorPreferencesPreserveCollapseAndOrderAcrossLaunches() {
+    var preferences = RichChatInspectorPreferences(stored: "")
+    XCTAssertTrue(preferences.collapsed.contains(.context))
+    preferences.collapsed.insert(.goal)
+    preferences.move(.media, to: .goal)
+    let restored = RichChatInspectorPreferences(stored: preferences.encoded)
+    XCTAssertEqual(restored, preferences)
+    XCTAssertEqual(restored.order.first, .media)
+    XCTAssertEqual(Set(restored.order), Set(RichChatInspectorSectionID.allCases))
+    let older = RichChatInspectorPreferences(stored: #"{"order":["info","info"],"collapsed":["info"]}"#)
+    XCTAssertEqual(older.order.first, .info)
+    XCTAssertEqual(older.order.count, RichChatInspectorSectionID.allCases.count)
+  }
+
+  func testGoalMetadataAndActionsBelongToTheCurrentProviderEra() throws {
+    let goal = RichRuntimeItem(id: "goal", type: RichItemType.goal, state: .completed,
+      payload: .object(["objective": .string("Ship"), "status": .string("active"),
+        "availableActions": .array(["edit", "pause", "clear"].map(RichJSON.string)),
+        "tokenBudget": .number(1000), "tokensUsed": .number(250), "iterations": .number(3),
+        "lastReason": .string("Still testing")]), streams: [:], parentItemID: nil)
+    let value = try XCTUnwrap(RichChatPresentation.latestGoal(in: [goal]))
+    XCTAssertEqual(value.availableActions, ["edit", "pause", "clear"])
+    XCTAssertEqual(value.tokensUsed, 250)
+    XCTAssertEqual(value.tokenBudget, 1000)
+    XCTAssertEqual(value.iterations, 3)
+    XCTAssertEqual(value.lastReason, "Still testing")
+    let handoff = RichRuntimeItem(id: "handoff", type: "provider_handoff", state: .completed, payload: nil, streams: [:], parentItemID: nil)
+    XCTAssertNil(RichChatPresentation.latestGoal(in: [goal, handoff]))
+  }
+
+  func testMediaIndexKeepsLoadedImagesNewestFirstAndTracksHistoryChanges() {
+    func item(_ id: String, _ path: String, parent: String? = nil) -> RichRuntimeItem {
+      RichRuntimeItem(
+        id: id,
+        type: RichItemType.userMessage,
+        state: .completed,
+        payload: .object([
+          "content": .array([.object([
+            "kind": .string("file"), "path": .string(path), "mimeType": .string("image/png"),
+          ])]),
+        ]),
+        streams: [:],
+        parentItemID: parent
+      )
+    }
+
+    var index = RichChatMediaIndex()
+    let first = item("first", "/project/first.png")
+    let second = item("second", "/project/second.png")
+    let nested = item("nested", "/project/nested.png", parent: "first")
+    XCTAssertEqual(index.images(in: [first, second, nested]), [
+      .local(path: "/project/second.png"), .local(path: "/project/first.png"),
+    ])
+    XCTAssertEqual(index.images(in: [first, item("second", "/project/updated.png")]), [
+      .local(path: "/project/updated.png"), .local(path: "/project/first.png"),
+    ])
+    XCTAssertEqual(index.images(in: [first]), [.local(path: "/project/first.png")])
+    XCTAssertTrue(index.images(in: []).isEmpty)
+  }
+
+  func testRemoteMediaIDsDistinguishPathsWithTheSameDepth() {
+    func image(_ path: [RichImagePathPart]) -> RichImagePresentation {
+      .remote(RichRemoteImageReference(
+        threadID: "thread", itemID: "item", path: path, mimeType: "image/png",
+        bytes: 10, width: nil, height: nil, preview: nil
+      ))
+    }
+    XCTAssertNotEqual(image([.key("first")]).id, image([.key("second")]).id)
+    XCTAssertNotEqual(image([.index(0)]).id, image([.index(1)]).id)
+  }
+
+  func testGoalElapsedUsesTheReportedTimeAndTimestamp() {
+    let now = Date(timeIntervalSince1970: 2_000)
+    let active = RichGoalPresentation(
+      objective: "Ship", status: "active", availableActions: [],
+      timeUsedSeconds: 120, updatedAt: 1_990_000
+    )
+    // Values below the milliseconds threshold are seconds.
+    XCTAssertEqual(active.elapsedSeconds(at: now), 120)
+    var seconds = active
+    seconds.updatedAt = 1_990
+    XCTAssertEqual(seconds.elapsedSeconds(at: now), 130)
+    var milliseconds = active
+    milliseconds.updatedAt = 1_700_000_000_000
+    XCTAssertEqual(milliseconds.elapsedSeconds(at: Date(timeIntervalSince1970: 1_700_000_010)), 130)
+    var paused = RichGoalPresentation(
+      objective: "Ship", status: "paused", availableActions: [],
+      timeUsedSeconds: 120, updatedAt: 1_700_000_000_000
+    )
+    XCTAssertEqual(paused.elapsedSeconds(at: now), 120)
+    paused.timeUsedSeconds = -.infinity
+    XCTAssertNil(paused.elapsedSeconds(at: now))
+  }
+
   func testTimelineScrollPolicyReleasesHistoryButFollowsTheUsersOwnSend() {
     XCTAssertTrue(
       RichChatTimelineScrollPolicy.shouldFollowBottom(
@@ -631,6 +917,17 @@ final class RichChatPresentationTests: XCTestCase {
     XCTAssertEqual(presentation.snapshot?.windows.first?.usedPercent, 75)
   }
 
+  func testUsageStalenessPreservesQuotaDataAndUsesTheDesktopThreshold() {
+    let presentation = RichChatProviderUsagePresentation(
+      providerID: "agent", label: "Agent",
+      snapshot: providerUsageSnapshot("agent", percent: 12, fetchedAt: 1_000_000)
+    )
+    XCTAssertFalse(presentation.isStale(at: Date(timeIntervalSince1970: 1_119.999)))
+    XCTAssertTrue(presentation.isStale(at: Date(timeIntervalSince1970: 1_120)))
+    XCTAssertEqual(presentation.snapshot?.windows.first?.usedPercent, 12)
+    XCTAssertFalse(RichChatProviderUsagePresentation(providerID: "missing", label: "Missing", snapshot: nil).isStale())
+  }
+
   func testCanonicalActivityCategoriesMatchTheSharedPwaFixture() throws {
     let fixture = try loadRichChatFixture("rich-activity-categories.json")
     XCTAssertEqual(fixture["version"]?.exactInt64Value, 1)
@@ -830,9 +1127,18 @@ final class RichChatPresentationTests: XCTestCase {
     )
   }
 
+  func testCompactElapsedUsesLocalizedNarrowUnitsAndSafeTimestampClamping() {
+    let now = Date(timeIntervalSince1970: 1_000)
+    let locale = Locale(identifier: "en_US")
+    XCTAssertEqual(RichBackgroundTaskElapsed.compactText(startedAtMilliseconds: 710_000, now: now, locale: locale), "4m 50s")
+    XCTAssertEqual(RichBackgroundTaskElapsed.compactText(startedAtMilliseconds: 1e300, now: now, locale: locale), "0s")
+    XCTAssertFalse(RichBackgroundTaskElapsed.compactText(startedAtMilliseconds: -1e300, now: now, locale: locale).isEmpty)
+  }
+
   private func providerUsageSnapshot(
     _ providerID: String,
-    percent: Double
+    percent: Double,
+    fetchedAt: Int64 = 0
   ) -> SettingsUsageSnapshot {
     SettingsUsageSnapshot(
       providerId: providerID,
@@ -849,7 +1155,7 @@ final class RichChatPresentationTests: XCTestCase {
           resetsAt: nil
         )
       ],
-      fetchedAt: 0,
+      fetchedAt: fetchedAt,
       authenticatedAs: nil,
       plan: nil,
       error: nil,
@@ -880,5 +1186,113 @@ final class RichChatPresentationTests: XCTestCase {
         "authState": .string("authenticated"),
         "capabilities": .object(capabilities),
       ]))
+  }
+}
+
+@MainActor
+final class RichChatRequestFormTests: XCTestCase {
+  func testAgentQuestionRequiresEveryAnswerAndKeepsChoiceIdentifiers() throws {
+    let request = try question("""
+      {"userInputForm":{"questions":[
+        {"id":"color","question":"Choose a color","options":[{"optionId":"green","label":"Green"}]},
+        {"id":"caption","question":"Caption"}
+      ]}}
+      """)
+    let form = try XCTUnwrap(RichChatRequestForm(request: request))
+    XCTAssertEqual(form.fields.map(\.id), ["color", "caption"])
+    XCTAssertNil(form.submit(["color": .string("green"), "caption": .string("   ")]))
+    XCTAssertEqual(form.submit(["color": .string("green"), "caption": .string("Gallery draft")]),
+      .object(["answers": .object(["color": .string("green"), "caption": .string("Gallery draft")])]))
+    XCTAssertEqual(form.cancelResponse, .object(["action": .string("cancel")]))
+  }
+
+  func testLegacyPendingQuestionKeepsArrayEnvelopeAndSecureInput() throws {
+    let formRequest = try question("""
+      {"codexUserInput":{"questions":[{"id":"secret","question":"Code","isSecret":true}]}}
+      """)
+    let form = try XCTUnwrap(RichChatRequestForm(request: formRequest))
+    XCTAssertTrue(form.fields[0].secret)
+    XCTAssertEqual(form.submit(["secret": .string("test-only")]),
+      .object(["answers": .object(["secret": .object(["answers": .array([.string("test-only")])])])]))
+  }
+
+  func testCustomMultiAnswerUsesTheCanonicalScalarShape() throws {
+    let formRequest = try question("""
+      {"userInputForm":{"questions":[
+        {"id":"kit","question":"Choose components","multiSelect":true,"options":[{"label":"Motor"}]}
+      ]}}
+      """)
+    let form = try XCTUnwrap(RichChatRequestForm(request: formRequest))
+    let draft = RichChatRequestFormDraft(request: formRequest, form: form)
+    let field = try XCTUnwrap(form.fields.first)
+    draft.choose("Motor", in: field)
+    XCTAssertEqual(draft.response, .object(["answers": .object(["kit": .array([.string("Motor")])])]))
+    draft.editCustom("  My kit  ", in: field)
+    XCTAssertEqual(draft.response, .object(["answers": .object(["kit": .string("My kit")])]))
+  }
+
+  func testElicitationValidatesOnlyVisibleFieldsAndPreservesMetadata() throws {
+    let formRequest = try question("""
+      {"structuredElicitation":{
+        "mode":"form","sourceText":"Fixture MCP","message":"Preferences","_meta":null,
+        "requestedSchema":{"type":"object","required":["mode","limit","accepted"],"properties":{
+          "mode":{"type":"string","enum":["brief","detailed"]},
+          "limit":{"type":"integer","minimum":1,"maximum":3,"visibleWhen":[{"field":"mode","equals":"detailed"}]},
+          "accepted":{"type":"boolean","default":false},
+          "items":{"type":"array","items":{"oneOf":[{"const":"a","title":"Option A"}]},"minItems":1}
+        }}
+      }}
+      """)
+    let form = try XCTUnwrap(RichChatRequestForm(request: formRequest))
+    let draft = RichChatRequestFormDraft(request: formRequest, form: form)
+    let limit = try XCTUnwrap(form.fields.first { $0.id == "limit" })
+    draft.values["mode"] = .string("detailed")
+    XCTAssertNil(draft.response)
+    draft.editNumber("2x", in: limit)
+    XCTAssertNil(draft.response)
+    draft.values["limit"] = .number(4)
+    XCTAssertNil(draft.response)
+    draft.values["limit"] = .number(2)
+    draft.values["items"] = .array([.string("a")])
+    XCTAssertEqual(draft.response, .object([
+      "action": .string("accept"),
+      "content": .object(["mode": .string("detailed"), "limit": .number(2),
+        "accepted": .bool(false), "items": .array([.string("a")])]),
+      "_meta": .null,
+    ]))
+    draft.values["mode"] = .string("brief")
+    XCTAssertNil(draft.response?.objectValue?["content"]?.objectValue?["limit"])
+    XCTAssertEqual(form.cancelResponse, .object(["action": .string("decline")]))
+  }
+
+  func testURLRequestRequiresAWebLinkAndOffersExplicitDecline() throws {
+    let allowed = try question("""
+      {"mcpElicitation":{"mode":"url","message":"Open the connector","serverName":"Fixture",
+        "url":"https://example.com/authorize","elicitationId":"one"}}
+      """)
+    let form = try XCTUnwrap(RichChatRequestForm(request: allowed))
+    XCTAssertEqual(form.links.first?.url.host, "example.com")
+    XCTAssertEqual(form.links.first?.description, "example.com")
+    XCTAssertEqual(form.links.first?.title, RichChatStrings.openRequiredURL)
+    XCTAssertNil(form.submit([:]))
+    XCTAssertEqual(form.cancelResponse, .object(["action": .string("decline")]))
+    let malformed = try question("""
+      {"mcpElicitation":{"mode":"url","message":"Open","serverName":"Fixture","url":"file:///tmp/path"}}
+      """)
+    XCTAssertTrue(RichChatRequestForm.recognizesPayload(malformed))
+    XCTAssertNil(RichChatRequestForm(request: malformed))
+    let missingID = try question("""
+      {"mcpElicitation":{"mode":"url","message":"Open","serverName":"Fixture","url":"https://example.com/authorize"}}
+      """)
+    XCTAssertNil(RichChatRequestForm(request: missingID))
+  }
+
+  private func question(_ json: String) throws -> RichOpenRequest {
+    RichOpenRequest(
+      requestID: .text("form"), threadID: "thread", type: .toolUserInput,
+      payload: .init(summary: "Input requested", details: try RichJSON.decode(Data(json.utf8)),
+        options: nil, multiSelect: nil),
+      receivedAtMilliseconds: 0
+    )
   }
 }

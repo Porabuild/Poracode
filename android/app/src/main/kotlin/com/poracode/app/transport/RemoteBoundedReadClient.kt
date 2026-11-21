@@ -161,13 +161,14 @@ internal class RemoteBoundedReadClient(
         requireBudget(maxBytes, maxDecodeBytes)
         requireRange(completedTurnsLimit, 1, 500, "completedTurnsLimit")
         targetTimelineEntryCount?.let { requireRange(it, 1, 100, "targetTimelineEntryCount") }
+        val effectiveOmitScrollback = omitScrollback ?: if (client.terminalCursorSyncV2Advertised) true else null
         val raw = client.requestText(
             retryableRead = true,
             path = RemoteBoundedWire.threadHistoryPath(threadId),
             query = RemoteBoundedWire.threadHistoryQuery(
                 completedTurnsLimit = completedTurnsLimit,
                 targetTimelineEntryCount = targetTimelineEntryCount,
-                omitScrollback = omitScrollback,
+                omitScrollback = effectiveOmitScrollback,
                 maxBytes = maxBytes,
                 maxDecodeBytes = maxDecodeBytes,
                 notices = client.runtimeHistoryNoticesSupported,

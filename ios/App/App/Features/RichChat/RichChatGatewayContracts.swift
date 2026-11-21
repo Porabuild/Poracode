@@ -18,6 +18,10 @@ struct RichChatThreadTarget: Hashable, Sendable {
   let threadID: String
 }
 
+typealias RichChatWorkspaceBasenameResolver = @MainActor @Sendable (
+  _ filename: String, _ target: RichChatThreadTarget
+) async throws -> String
+
 struct RichChatSessionAccess: Equatable, Sendable {
   let lease: RichChatHostLease
   let isOnline: Bool
@@ -41,6 +45,26 @@ enum RichChatGatewayError: Error, Equatable, Sendable {
 }
 
 protocol RichChatHistoryGateway: Sendable {
+  func loadRichHistoryChanges(
+    target: RichChatThreadTarget,
+    cursor: String,
+    afterSeq: Int?,
+    targetEntryCount: Int?
+  ) async throws -> RemoteHistoryResumeOutcome
+  func refreshRichHistoryCache(target: RichChatThreadTarget, targetEntryCount: Int?) async
+  func loadLocalRichImage(
+    target: RichChatThreadTarget,
+    path: String,
+    variant: RichImageVariant?
+  ) async throws -> RichChatBinaryPayload
+  func loadRuntimeRichImage(
+    target: RichChatThreadTarget,
+    reference: RichRemoteImageReference,
+    variant: RichImageVariant?
+  ) async throws -> RichChatBinaryPayload
+  func loadRichHistoryItem(target: RichChatThreadTarget, itemID: String) async throws -> PersistedRuntimeItem
+  func loadRichRuntimeToolBodies(target: RichChatThreadTarget, requests: [RichRuntimeItemHeadingRequest]) async throws -> [RichResolvedToolBodyRecord]
+  func loadRichRuntimeItemHeadings(target: RichChatThreadTarget, requests: [RichRuntimeItemHeadingRequest]) async throws -> [RichRuntimeItemHeadingRecord]
   func loadRichHistory(
     target: RichChatThreadTarget,
     targetEntryCount: Int?
@@ -88,6 +112,38 @@ protocol RichChatHistoryGateway: Sendable {
 }
 
 extension RichChatHistoryGateway {
+  func loadRichHistoryChanges(
+    target _: RichChatThreadTarget,
+    cursor _: String,
+    afterSeq _: Int?,
+    targetEntryCount _: Int?
+  ) async throws -> RemoteHistoryResumeOutcome {
+    throw RichChatGatewayError.unavailable
+  }
+  func refreshRichHistoryCache(target _: RichChatThreadTarget, targetEntryCount _: Int?) async {}
+  func loadLocalRichImage(
+    target: RichChatThreadTarget,
+    path: String,
+    variant _: RichImageVariant?
+  ) async throws -> RichChatBinaryPayload {
+    try await loadLocalRichImage(target: target, path: path)
+  }
+  func loadRuntimeRichImage(
+    target: RichChatThreadTarget,
+    reference: RichRemoteImageReference,
+    variant _: RichImageVariant?
+  ) async throws -> RichChatBinaryPayload {
+    try await loadRuntimeRichImage(target: target, reference: reference)
+  }
+  func loadRichHistoryItem(target _: RichChatThreadTarget, itemID _: String) async throws -> PersistedRuntimeItem {
+    throw RichChatGatewayError.unavailable
+  }
+  func loadRichRuntimeToolBodies(target _: RichChatThreadTarget, requests _: [RichRuntimeItemHeadingRequest]) async throws -> [RichResolvedToolBodyRecord] {
+    throw RichChatGatewayError.unavailable
+  }
+  func loadRichRuntimeItemHeadings(target _: RichChatThreadTarget, requests _: [RichRuntimeItemHeadingRequest]) async throws -> [RichRuntimeItemHeadingRecord] {
+    throw RichChatGatewayError.unavailable
+  }
   /// Default for test fakes: fail closed, never fabricate a file.
   func downloadRichFile(
     target _: RichChatThreadTarget,
@@ -153,7 +209,7 @@ protocol RichChatConversationGateway: Sendable {
   /// reports a failed compound or an ambiguous provider state.
   func checkpointRevert(
     target: RichChatThreadTarget, itemID: String, operationKey: String
-  ) async throws
+  ) async throws -> RichChatCheckpointRevertOutcome
 }
 
 extension RichChatConversationGateway {

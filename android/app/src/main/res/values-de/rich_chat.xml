@@ -251,6 +251,7 @@
     <string name="rich_chat_background_task_last_progress">Letzter Fortschritt vor %1$s</string>
     <string name="rich_chat_background_task_close">Aufgabendetails schließen</string>
     <string name="rich_chat_background_task_report_missing">Die Aufgabe wurde ohne Abschlussbericht beendet.</string>
+    <string name="rich_chat_copy_code">Code kopieren</string>
     <string name="rich_chat_copy_message">Nachricht kopieren</string>
     <string name="rich_chat_add_to_composer">Zum Composer hinzufügen</string>
     <string name="rich_chat_file">Datei</string>

@@ -234,7 +234,7 @@ describe("PortsPanel", () => {
     expect(await screen.findByText("Port 3000")).toBeInTheDocument();
   });
 
-  it("reports an unsupported desktop when browser-forward support is authoritatively absent", async () => {
+  it("shows browser forwarding is not set up when the host does not advertise it", async () => {
     useRemoteServersStore.setState((state) => ({
       servers: state.servers.map((entry) => ({ ...entry, browserForwardAvailable: false })),
     }));
@@ -257,9 +257,7 @@ describe("PortsPanel", () => {
     fireEvent.click(await screen.findByRole("button", { name: /localhost:3000/u }));
 
     await waitFor(() =>
-      expect(warning).toHaveBeenCalledWith(
-        "This desktop's Poracode version doesn't support browser forwarding. Update Poracode on your desktop.",
-      ),
+      expect(warning).toHaveBeenCalledWith("Browser forwarding isn't set up on this desktop."),
     );
     expect(window.poracode.openExternal).not.toHaveBeenCalled();
   });

@@ -104,6 +104,15 @@ actor AdvancedOperationsExactHostTransportSource {
   }
 
   func resolve() async throws -> AdvancedOperationsResolvedHost? {
+    guard let resolved = try await resolve(using: makeAPI) else { return nil }
+    return .init(binding: resolved.binding, grantedScopes: resolved.grantedScopes, api: resolved.api)
+  }
+
+  /// Reuses the same custody checks for another read-only API without exposing
+  /// credential material to the caller or selecting a different host.
+  func resolve<API: Sendable>(
+    using factory: @Sendable (String, String, RemoteEnvironmentContext?) throws -> API
+  ) async throws -> (binding: AdvancedOperationsHostBinding, grantedScopes: Set<AdvancedOperationScope>, api: API)? {
     try Task.checkCancellation()
     guard let binding = await bindingProvider() else { return nil }
     guard binding.protocolVersion == ProtocolConstants.remoteProtocolVersion else {
@@ -128,10 +137,6 @@ actor AdvancedOperationsExactHostTransportSource {
         .intersection(credential.scopes)
         .compactMap(AdvancedOperationScope.init(rawValue:))
     )
-    return AdvancedOperationsResolvedHost(
-      binding: binding,
-      grantedScopes: granted,
-      api: try makeAPI(credential.endpoint, credential.credential, credential.environment)
-    )
+    return (binding, granted, try factory(credential.endpoint, credential.credential, credential.environment))
   }
 }

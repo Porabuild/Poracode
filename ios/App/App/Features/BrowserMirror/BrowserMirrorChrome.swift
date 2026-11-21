@@ -4,6 +4,8 @@
   struct BrowserMirrorTabStrip: View {
     let controller: BrowserMirrorController
     let projection: BrowserMirrorViewProjection
+    let showsNewTab: Bool
+    let createTab: () -> Void
 
     var body: some View {
       ScrollView(.horizontal, showsIndicators: false) {
@@ -11,17 +13,18 @@
           ForEach(projection.tabs) { tab in
             BrowserMirrorTabChip(controller: controller, tab: tab)
           }
-          BrowserMirrorToolbarButton {
-            Task { await controller.perform(.createTab) }
-          } label: {
-            Image(systemName: "plus")
-              .frame(width: 24, height: 24)
+          if showsNewTab {
+            BrowserMirrorToolbarButton(action: createTab) {
+              Image(systemName: "plus").frame(width: 24, height: 24)
+            }
+            .disabled(!projection.canCreateTab)
+            .accessibilityLabel(BrowserMirrorStrings.newTab)
+            .accessibilityIdentifier("native-e2e.browser.inspector-new-tab")
           }
-          .disabled(!projection.canCreateTab)
-          .accessibilityLabel(BrowserMirrorStrings.newTab)
         }
         .padding(.horizontal)
       }
+      .fixedSize(horizontal: false, vertical: true)
       .accessibilityLabel(BrowserMirrorStrings.tabs)
     }
   }
@@ -29,6 +32,8 @@
   struct BrowserMirrorTabSidebar: View {
     let controller: BrowserMirrorController
     let projection: BrowserMirrorViewProjection
+    let showsNewTab: Bool
+    let createTab: () -> Void
 
     var body: some View {
       VStack(alignment: .leading, spacing: 8) {
@@ -36,13 +41,14 @@
           Text(BrowserMirrorStrings.tabs)
             .font(.subheadline.weight(.semibold))
           Spacer()
-          BrowserMirrorToolbarButton {
-            Task { await controller.perform(.createTab) }
-          } label: {
-            Image(systemName: "plus")
+          if showsNewTab {
+            BrowserMirrorToolbarButton(action: createTab) {
+              Image(systemName: "plus")
+            }
+            .disabled(!projection.canCreateTab)
+            .accessibilityLabel(BrowserMirrorStrings.newTab)
+            .accessibilityIdentifier("native-e2e.browser.inspector-new-tab")
           }
-          .disabled(!projection.canCreateTab)
-          .accessibilityLabel(BrowserMirrorStrings.newTab)
         }
         ScrollView {
           VStack(alignment: .leading, spacing: 6) {
@@ -117,39 +123,55 @@
     }
   }
 
+  struct BrowserMirrorAddressTarget: Equatable {
+    let lease: BrowserMirrorHostLease
+    let tabID: String
+
+    @MainActor init?(_ controller: BrowserMirrorController) {
+      guard let lease = controller.currentLease, let tabID = controller.browserState.activeTabId else { return nil }
+      self.lease = lease
+      self.tabID = tabID
+    }
+  }
+
   struct BrowserMirrorAddressBar: View {
     let controller: BrowserMirrorController
     let projection: BrowserMirrorViewProjection
+    let target: BrowserMirrorAddressTarget?
     @Binding var address: String
-    @Binding var isEditing: Bool
-    @FocusState private var isFocused: Bool
+    @Binding var isFocused: Bool
 
     var body: some View {
-      BrowserMirrorControlSurface {
-        HStack(spacing: 8) {
-          TextField(BrowserMirrorStrings.address, text: $address)
-            .focused($isFocused)
-            .textInputAutocapitalization(.never)
-            .autocorrectionDisabled()
-            .keyboardType(.URL)
-            .submitLabel(.go)
-            .onSubmit { navigate() }
-            .onChange(of: isFocused) { _, value in isEditing = value }
-            .accessibilityLabel(BrowserMirrorStrings.address)
-          BrowserMirrorToolbarButton(action: navigate, onSurface: true) {
-            Image(systemName: "arrow.right")
-          }
-          .disabled(!projection.canSubmitAddress || address.isEmpty)
-          .accessibilityLabel(BrowserMirrorStrings.go)
+      HStack(spacing: 8) {
+        BrowserMirrorAddressField(text: $address, isFocused: $isFocused, onSubmit: navigate)
+          .padding(.horizontal, 12)
+          .poracodeInputSurface()
+        BrowserMirrorToolbarButton(action: navigate) {
+          Image(systemName: "arrow.right")
         }
+        .disabled(target == nil || !projection.canSubmitAddress || address.isEmpty)
+        .accessibilityLabel(BrowserMirrorStrings.go)
+        .accessibilityIdentifier("native-e2e.browser.go")
+        BrowserMirrorKeyboardProxy(
+          accessibilityLabel: BrowserMirrorStrings.focusInput,
+          insertText: { text in Task { await controller.sendText(text) } },
+          sendKey: { key in Task { await controller.sendKey(key) } }
+        )
+        .frame(width: 44, height: 44)
+        .disabled(!projection.acceptsInput)
+        .accessibilityHint(BrowserMirrorStrings.keyboardHint)
       }
       .padding(.horizontal)
     }
 
     private func navigate() {
-      guard projection.canSubmitAddress, !address.isEmpty else { return }
+      guard let target, projection.canSubmitAddress, !address.isEmpty else { return }
+      let destination = address
       isFocused = false
-      Task { await controller.perform(.navigate(address)) }
+      Task {
+        guard BrowserMirrorAddressTarget(controller) == target else { return }
+        await controller.perform(.navigate(destination))
+      }
     }
   }
 
@@ -159,42 +181,43 @@
 
     var body: some View {
       BrowserMirrorControlSurface {
-        ViewThatFits(in: .horizontal) {
-          HStack(spacing: 10) { controls }
-          HStack(spacing: 4) { controls }
+        HStack(spacing: 8) {
+          back
+          forward
+          reload
         }
+        .labelStyle(.iconOnly)
+        .poracodeSurfaceButtonStyle()
       }
       .padding(.horizontal)
     }
 
-    @ViewBuilder
-    private var controls: some View {
+    var back: some View {
       control(
         symbol: "chevron.backward",
         label: BrowserMirrorStrings.back,
         enabled: projection.canGoBack,
         action: .back
       )
+      .accessibilityIdentifier("native-e2e.browser.back")
+    }
+
+    var forward: some View {
       control(
         symbol: "chevron.forward",
         label: BrowserMirrorStrings.forward,
         enabled: projection.canGoForward,
         action: .forward
       )
+    }
+
+    var reload: some View {
       control(
         symbol: "arrow.clockwise",
         label: BrowserMirrorStrings.reload,
         enabled: projection.canReload,
         action: .reload
       )
-      BrowserMirrorKeyboardProxy(
-        accessibilityLabel: BrowserMirrorStrings.focusInput,
-        insertText: { text in Task { await controller.sendText(text) } },
-        sendKey: { key in Task { await controller.sendKey(key) } }
-      )
-      .frame(width: 44, height: 34)
-      .disabled(!projection.acceptsInput)
-      .accessibilityHint(BrowserMirrorStrings.keyboardHint)
     }
 
     private func control(
@@ -203,14 +226,10 @@
       enabled: Bool,
       action: BrowserMirrorUIAction
     ) -> some View {
-      BrowserMirrorToolbarButton(action: {
+      Button(label, systemImage: symbol) {
         Task { await controller.perform(action) }
-      }, onSurface: true) {
-        Image(systemName: symbol)
-          .frame(width: 24, height: 20)
       }
       .disabled(!enabled)
-      .accessibilityLabel(label)
     }
   }
 #endif

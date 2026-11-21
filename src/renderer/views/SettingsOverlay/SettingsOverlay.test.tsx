@@ -152,6 +152,10 @@ vi.mock("./parts/GeneralSettings", () => ({
   GeneralSettings: () => <div data-settings-anchor="general.language">General</div>,
 }));
 
+vi.mock("./parts/ImportSettings", () => ({
+  ImportSettings: () => <div>Import sessions</div>,
+}));
+
 const profileMounts = vi.hoisted(() => ({ count: 0 }));
 vi.mock("./parts/ProfileSettings", async () => {
   const { useEffect } = await import("react");
@@ -606,6 +610,7 @@ describe("SettingsOverlay", () => {
       "MCP ServersConfigured MCP servers",
       "AgentsEnabled agents, model visibility and order",
       "CrewsSaved crews for the model picker",
+      "Import sessions",
       "Archived ThreadsRestore or delete",
     ]);
 
@@ -649,7 +654,7 @@ describe("SettingsOverlay", () => {
       },
     });
 
-    render(<SettingsOverlay onClose={() => undefined} />);
+    const { container } = render(<SettingsOverlay onClose={() => undefined} />);
     const main = screen.getByRole("main");
     const desktopSettings = within(main).getByRole("button", { name: /Desktop Settings/ });
     expect(desktopSettings).toBeEnabled();
@@ -668,6 +673,20 @@ describe("SettingsOverlay", () => {
     expect(within(main).getByRole("button", { name: /^Git/ })).toHaveTextContent(
       "Pull request defaults",
     );
+    fireEvent.click(within(main).getByRole("button", { name: "Import sessions" }));
+    expect(container.querySelector("[data-compact-title]")).toHaveAttribute(
+      "data-compact-title",
+      "Import",
+    );
+    expect(within(main).getByText("Import sessions")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Mobile back" }));
+    expect(within(main).getByRole("button", { name: "Import sessions" })).toBeInTheDocument();
+    fireEvent.click(within(main).getByRole("button", { name: /^Archived Threads/ }));
+    expect(container.querySelector("[data-compact-title]")).toHaveAttribute(
+      "data-compact-title",
+      "Archived Threads",
+    );
+    expect(within(main).getByText("Archived")).toBeInTheDocument();
   });
 
   it("scopes a PWA's host-backed pages with the host bar and remounts them per host", () => {
@@ -835,6 +854,8 @@ describe("SettingsOverlay", () => {
     expect(screen.getByRole("button", { name: "Audio" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Remote Access" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Browser" })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Archived Threads" }));
+    expect(screen.getByText("Archived")).toBeInTheDocument();
   });
 
   it("keeps WSL-only installed agents reachable from the sidebar", () => {

@@ -86,12 +86,7 @@ final class HomeThreadLifecycleCoordinator {
     controller.activate(target)
     switch action {
     case .rename:
-      renameIntent = ThreadRenameIntent(
-        id: item.thread.id,
-        thread: item.thread,
-        target: target,
-        title: item.thread.title
-      )
+      requestRename(item.thread, target: target)
     case .relaunch:
       relaunchIntent = ThreadRelaunchIntent(
         id: item.thread.id,
@@ -113,6 +108,13 @@ final class HomeThreadLifecycleCoordinator {
     case .delete:
       controller.delete()
     }
+  }
+
+  func requestRename(_ thread: RemoteThread, target: ThreadLifecycleTarget) {
+    guard !controller.isBusy, !isClosing,
+      session.threadLifecycleTarget(threadID: thread.id) == target
+    else { return }
+    renameIntent = ThreadRenameIntent(id: thread.id, thread: thread, target: target, title: thread.title)
   }
 
   func submitRename() {
@@ -137,8 +139,8 @@ final class HomeThreadLifecycleCoordinator {
     run { [controller] in await controller.start(request, target: intent.target) }
   }
 
-  func confirmDestructiveIntent() {
-    run { [controller] in await controller.confirmDestructiveIntent() }
+  func confirmDestructiveIntent(_ intent: ThreadLifecycleDestructiveIntent) {
+    run { [controller] in await controller.confirmDestructiveIntent(intent) }
   }
 
   func cancelDestructiveIntent() {
@@ -178,8 +180,14 @@ struct HomeThreadLifecyclePresentationModifier: ViewModifier {
 
   func body(content: Content) -> some View {
     content
+      .environment(coordinator)
       .onDisappear { coordinator.deactivate() }
-      .threadRenameAlert(intent: $coordinator.renameIntent) {
+      .onChange(of: coordinator.session.currentThreadHostLease) { _, lease in
+        if let intent = coordinator.renameIntent, intent.target.lease != lease {
+          coordinator.renameIntent = nil
+        }
+      }
+      .threadRenameSheet(intent: $coordinator.renameIntent) {
         coordinator.submitRename()
       }
       .sheet(item: $coordinator.relaunchIntent) { intent in
@@ -192,8 +200,8 @@ struct HomeThreadLifecyclePresentationModifier: ViewModifier {
           submit: { coordinator.submitRelaunch(intent: intent, prompt: $0) }
         )
       }
-      .threadLifecycleDestructiveConfirmation(controller: coordinator.controller) {
-        coordinator.confirmDestructiveIntent()
+      .threadLifecycleDestructiveConfirmation(controller: coordinator.controller) { intent in
+        coordinator.confirmDestructiveIntent(intent)
       }
       .confirmationDialog(
         RichChatStrings.closeThreadConfirmationTitle,

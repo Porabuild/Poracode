@@ -29,6 +29,28 @@ struct RichChatMediaControllerState: Equatable, Sendable {
   var requiresAuthoritativeRefresh = false
 }
 
+private enum RichChatImageCacheTarget: Hashable, Sendable {
+  case local(String)
+  case remote(threadID: String, itemID: String, path: [String])
+
+  static func remote(_ reference: RichRemoteImageReference) -> Self {
+    let pathKey = reference.path.map { part -> String in
+      switch part {
+      case .key(let value): return "k:\(value)"
+      case .index(let value): return "i:\(value)"
+      }
+    }
+    return .remote(threadID: reference.threadID, itemID: reference.itemID, path: pathKey)
+  }
+}
+
+private struct RichChatImageCacheKey: Hashable, Sendable {
+  let lease: RichChatHostLease
+  let threadID: String
+  let target: RichChatImageCacheTarget
+  let variant: RichImageVariant?
+}
+
 @MainActor
 @Observable
 final class RichChatMediaController {
@@ -40,9 +62,16 @@ final class RichChatMediaController {
   private let uploadTask = RichChatControllerTaskSlot()
   private let imageTask = RichChatControllerTaskSlot()
   private var imageFetchTasks: [UUID: Task<RichChatBinaryPayload?, Never>] = [:]
+  private var inFlightImages: [RichChatImageCacheKey: Task<RichChatBinaryPayload?, Never>] = [:]
+  private var imageCache: [RichChatImageCacheKey: RichChatBinaryPayload] = [:]
+  private var imageCacheOrder: [RichChatImageCacheKey] = []
+  private var imageCacheBytes = 0
+  private static let maxCachedImages = 64
+  private static let maxCachedImageBytes = 24 * 1_024 * 1_024
   private var fileFetchTasks: [UUID: Task<RichChatFileDownload?, Never>] = [:]
   private var revision: UInt64 = 0
   private var isBackgrounded = false
+  private var memoryWarningSubscription: MemoryWarningSubscription?
 
   init(
     historyGateway: any RichChatHistoryGateway,
@@ -53,10 +82,19 @@ final class RichChatMediaController {
     self.historyGateway = historyGateway
     self.conversationGateway = conversationGateway
     self.refreshRequester = refreshRequester
+    self.memoryWarningSubscription = MemoryWarningSubscription { [weak self] in
+      Task { @MainActor [weak self] in
+        self?.clearImageCache()
+      }
+    }
   }
 
   func activate(access: RichChatSessionAccess, threadID: String) {
+    let previousLease = state.target?.lease
     cancelOwnedWork()
+    if previousLease != access.lease {
+      clearImageCache()
+    }
     revision &+= 1
     isBackgrounded = false
     state = RichChatMediaControllerState(
@@ -75,6 +113,7 @@ final class RichChatMediaController {
 
   func deactivate() {
     cancelOwnedWork()
+    clearImageCache()
     revision &+= 1
     isBackgrounded = false
     state = RichChatMediaControllerState()
@@ -82,6 +121,7 @@ final class RichChatMediaController {
 
   func enterBackground() {
     cancelOwnedWork()
+    clearImageCache()
     revision &+= 1
     isBackgrounded = true
     state.operation = nil
@@ -154,6 +194,7 @@ final class RichChatMediaController {
       return
     }
     state.operation = .uploadAttachment
+    state.uploadedAttachmentPath = nil
     state.failure = nil
     uploadTask.launch { [weak self] in
       guard let self else { return }
@@ -204,32 +245,63 @@ final class RichChatMediaController {
   }
 
   /// Timeline images load independently so several visible attachments cannot cancel each
-  /// other. The view owns each request, while this controller still cancels every request on
-  /// host replacement or backgrounding and suppresses stale results with the scoped revision.
-  func fetchImagePayload(_ plan: RichChatImageLoadPlan) async -> RichChatBinaryPayload? {
+  /// other. Identical requests coalesce and reuse a lease-scoped bounded memory cache.
+  func fetchImagePayload(
+    _ plan: RichChatImageLoadPlan,
+    variant: RichImageVariant? = nil
+  ) async -> RichChatBinaryPayload? {
+    let cacheTarget: RichChatImageCacheTarget
     switch plan {
-    case .local, .remote:
-      break
+    case .local(let path):
+      cacheTarget = .local(path)
+    case .remote(let reference):
+      cacheTarget = .remote(reference)
     case .inline, .rejected:
       return nil
     }
     guard let context = context(capability: .sessionRead) else { return nil }
+    let key = RichChatImageCacheKey(
+      lease: context.target.lease,
+      threadID: context.target.threadID,
+      target: cacheTarget,
+      variant: variant
+    )
+    if let cached = readCachedImage(for: key) {
+      return cached
+    }
+    if variant != nil {
+      let fullKey = RichChatImageCacheKey(
+        lease: context.target.lease,
+        threadID: context.target.threadID,
+        target: cacheTarget,
+        variant: nil
+      )
+      if let fullCached = readCachedImage(for: fullKey) {
+        return fullCached
+      }
+    }
+    if let existing = inFlightImages[key] {
+      return await existing.value
+    }
     let requestID = UUID()
     let task = Task { @MainActor [weak self] () -> RichChatBinaryPayload? in
       guard let self else { return nil }
+      defer { self.inFlightImages[key] = nil }
       do {
         let payload: RichChatBinaryPayload
         switch plan {
         case .local(let path):
           payload = try await self.historyGateway.loadLocalRichImage(
             target: context.target,
-            path: path
+            path: path,
+            variant: variant
           )
         case .remote(let reference):
           guard reference.threadID == context.target.threadID else { return nil }
           payload = try await self.historyGateway.loadRuntimeRichImage(
             target: context.target,
-            reference: reference
+            reference: reference,
+            variant: variant
           )
         case .inline, .rejected:
           return nil
@@ -238,11 +310,13 @@ final class RichChatMediaController {
         guard self.owns(context), !payload.data.isEmpty,
           payload.mimeType.lowercased().hasPrefix("image/")
         else { return nil }
+        self.storeCachedImage(payload, for: key)
         return payload
       } catch {
         return nil
       }
     }
+    inFlightImages[key] = task
     imageFetchTasks[requestID] = task
     let payload = await withTaskCancellationHandler {
       await task.value
@@ -260,7 +334,8 @@ final class RichChatMediaController {
   func fetchFileDownload(
     request: RichChatFileAccess,
     projectLocation: ProjectLocation,
-    suggestedName: String
+    suggestedName: String,
+    resolveWorkspaceBasename: RichChatWorkspaceBasenameResolver? = nil
   ) async -> RichChatFileDownload? {
     guard let context = context(capability: .sessionRead) else { return nil }
     let requestID = UUID()
@@ -268,9 +343,18 @@ final class RichChatMediaController {
       guard let self else { return nil }
       var owned: RichChatFileDownload?
       do {
+        let resolvedRequest: RichChatFileAccess
+        if let resolveWorkspaceBasename, case .project(let filename) = request {
+          let path = try await resolveWorkspaceBasename(filename, context.target)
+          try Task.checkCancellation()
+          guard self.owns(context) else { throw CancellationError() }
+          resolvedRequest = .project(relativePath: path)
+        } else {
+          resolvedRequest = request
+        }
         let download = try await self.historyGateway.downloadRichFile(
           target: context.target,
-          request: request,
+          request: resolvedRequest,
           projectLocation: projectLocation,
           suggestedName: suggestedName
         )
@@ -388,8 +472,46 @@ final class RichChatMediaController {
     imageTask.cancel()
     imageFetchTasks.values.forEach { $0.cancel() }
     imageFetchTasks.removeAll(keepingCapacity: false)
+    inFlightImages.values.forEach { $0.cancel() }
+    inFlightImages.removeAll(keepingCapacity: false)
     fileFetchTasks.values.forEach { $0.cancel() }
     fileFetchTasks.removeAll(keepingCapacity: false)
+  }
+
+  private func readCachedImage(for key: RichChatImageCacheKey) -> RichChatBinaryPayload? {
+    guard let payload = imageCache[key] else { return nil }
+    if let idx = imageCacheOrder.firstIndex(of: key) {
+      imageCacheOrder.remove(at: idx)
+      imageCacheOrder.append(key)
+    }
+    return payload
+  }
+
+  private func storeCachedImage(_ payload: RichChatBinaryPayload, for key: RichChatImageCacheKey) {
+    let byteCount = payload.data.count
+    guard byteCount <= Self.maxCachedImageBytes else { return }
+    if let existing = imageCache.removeValue(forKey: key) {
+      imageCacheBytes -= existing.data.count
+      if let idx = imageCacheOrder.firstIndex(of: key) { imageCacheOrder.remove(at: idx) }
+    }
+    while !imageCacheOrder.isEmpty
+      && (imageCacheBytes + byteCount > Self.maxCachedImageBytes
+        || imageCache.count >= Self.maxCachedImages)
+    {
+      let oldest = imageCacheOrder.removeFirst()
+      if let removed = imageCache.removeValue(forKey: oldest) {
+        imageCacheBytes -= removed.data.count
+      }
+    }
+    imageCache[key] = payload
+    imageCacheOrder.append(key)
+    imageCacheBytes += byteCount
+  }
+
+  private func clearImageCache() {
+    imageCache.removeAll(keepingCapacity: false)
+    imageCacheOrder.removeAll(keepingCapacity: false)
+    imageCacheBytes = 0
   }
 
 }

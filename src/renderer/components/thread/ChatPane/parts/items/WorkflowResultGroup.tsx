@@ -14,10 +14,9 @@ import {
 import { ItemMarkdown } from "./ItemMarkdown";
 import {
   pickLabel,
-  pickResultDetail,
-  safeStringify,
-  summarizeObject,
+  projectWorkflowResultRow,
   workflowResultView,
+  type WorkflowResultRowProjection,
 } from "./workflowResult";
 
 /**
@@ -141,11 +140,9 @@ function WorkflowResultRow({
 }) {
   const [isExpanded, setIsExpanded] = useState(false);
   const actions = useChatPaneActions();
-  const label = pickLabel(item, labelKey);
-  const detail = pickResultDetail(item, detailKeys);
-  const otherKeys = Object.keys(item).filter(
-    (key) => key !== labelKey && !detailKeys.includes(key) && item[key] !== undefined,
-  );
+  const row = projectWorkflowResultRow(item, labelKey, detailKeys);
+  const label = row.title;
+  const detail = row.detail;
 
   return (
     <li>
@@ -166,7 +163,7 @@ function WorkflowResultRow({
               <span className="min-w-0 flex-1 truncate text-[color:var(--muted)]">{detail}</span>
             ) : (
               <span className="min-w-0 flex-1 truncate text-[color:var(--muted)]">
-                {summarizeObject(item)}
+                {row.summary}
               </span>
             )}
             <Disclosure.Indicator className="size-3.5 shrink-0 text-[color:var(--muted)]" />
@@ -179,10 +176,10 @@ function WorkflowResultRow({
                 <ItemMarkdown text={detail} />
               </div>
             ) : null}
-            {otherKeys.length > 0 ? (
+            {row.fields.length > 0 ? (
               <dl className="grid grid-cols-[max-content_minmax(0,1fr)] gap-x-2 gap-y-0.5 text-[length:var(--lc-chat-font-size-meta)]">
-                {otherKeys.map((key) => (
-                  <ResultFieldRow key={key} fieldKey={key} value={item[key]} />
+                {row.fields.map((field) => (
+                  <ResultFieldRow key={field.label} field={field} />
                 ))}
               </dl>
             ) : null}
@@ -193,22 +190,19 @@ function WorkflowResultRow({
   );
 }
 
-function ResultFieldRow({ fieldKey, value }: { fieldKey: string; value: unknown }) {
+function ResultFieldRow({ field }: { field: WorkflowResultRowProjection["fields"][number] }) {
   return (
     <>
-      <dt className="font-mono text-foreground-muted">{fieldKey}</dt>
+      <dt className="font-mono text-foreground-muted">{field.label}</dt>
       <dd className="min-w-0 break-words text-foreground">
-        {typeof value === "string" ? value : <ResultJsonBlock value={value} compact />}
+        {field.kind === "text" ? (
+          field.text
+        ) : (
+          <pre className="whitespace-pre-wrap break-words rounded border border-[color:var(--border)] bg-[var(--composer-surface)] px-2 py-1 font-mono text-[length:var(--lc-chat-font-size-meta)] text-foreground/90">
+            {field.text}
+          </pre>
+        )}
       </dd>
     </>
-  );
-}
-
-function ResultJsonBlock({ value, compact = false }: { value: unknown; compact?: boolean }) {
-  const text = typeof value === "string" ? value : safeStringify(value, compact ? undefined : 2);
-  return (
-    <pre className="whitespace-pre-wrap break-words content-surface px-2 py-1 font-mono text-[length:var(--lc-chat-font-size-meta)] text-foreground/90">
-      {text}
-    </pre>
   );
 }

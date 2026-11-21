@@ -27,19 +27,28 @@ final class PairingScannerModel {
 
   private var camera: PairingScanCamera?
   private var noticeTask: Task<Void, Never>?
+  private var runRevision: UInt64 = 0
 
   var captureSession: AVCaptureSession? { camera?.captureSession }
 
   func start() async {
-    guard accepted == nil else { return }
+    guard accepted == nil, !Task.isCancelled else { return }
+    runRevision &+= 1
+    let revision = runRevision
     notice = nil
+    guard AVCaptureDevice.default(for: .video) != nil else {
+      phase = .noCamera
+      return
+    }
     switch AVCaptureDevice.authorizationStatus(for: .video) {
     case .authorized:
-      await activate()
+      await activate(revision: revision)
     case .notDetermined:
       phase = .preparing
-      if await AVCaptureDevice.requestAccess(for: .video) {
-        await activate()
+      let granted = await AVCaptureDevice.requestAccess(for: .video)
+      guard owns(revision) else { return }
+      if granted {
+        await activate(revision: revision)
       } else {
         phase = .permissionDenied
       }
@@ -52,13 +61,16 @@ final class PairingScannerModel {
 
   /// Stops the session and releases the camera.
   func stop() {
+    runRevision &+= 1
+    phase = .preparing
     noticeTask?.cancel()
     noticeTask = nil
     notice = nil
     camera?.stop()
   }
 
-  private func activate() async {
+  private func activate(revision: UInt64) async {
+    guard owns(revision) else { return }
     let camera =
       camera
       ?? PairingScanCamera { [weak self] payload in
@@ -68,12 +80,20 @@ final class PairingScannerModel {
     phase = .preparing
     do {
       try await camera.start()
+      guard owns(revision) else {
+        if revision == runRevision { camera.stop() }
+        return
+      }
       phase = .scanning
     } catch PairingScanCamera.Failure.noCamera {
-      phase = .noCamera
+      if owns(revision) { phase = .noCamera }
     } catch {
-      phase = .failed
+      if owns(revision) { phase = .failed }
     }
+  }
+
+  private func owns(_ revision: UInt64) -> Bool {
+    revision == runRevision && !Task.isCancelled
   }
 
   private func handle(payload: String) {

@@ -105,10 +105,16 @@ struct BrowserForwardRefreshPending: Equatable, Sendable {
 /// Mutable session domain state owned by `AppSession` and mutated by focused controllers.
 @MainActor
 struct SessionRuntimeState {
+    struct HostSelectionAttempt: Sendable, Equatable {
+        let connectionID: ClientConnectionID
+        let ownerEpoch: Int
+    }
     var phase: SessionPhase = .launching
     var profile: ConnectionProfile?
     var accessToken: String?
     var selectedConnectionId: ClientConnectionID?
+    /// Transient intent only. Durable selection remains owned by HostCatalog.
+    var pendingHostSelection: HostSelectionAttempt?
     var hosts: [HostRecord] = []
     var hostsLRU: [ClientConnectionID] = []
     var socketState: RemoteWebSocketClient.ConnectionState = .idle
@@ -136,6 +142,9 @@ struct SessionRuntimeState {
     /// authority. Connection-scoped (never persisted); reset with the host.
     var runtimeHistoryNoticesDeclared = false
     var threadForksSupported = false
+    var conversationSnapshotsSupported = false
+    var catalogMutationsSupported = false
+    var toolPresentationCatalog: RichToolPresentationCatalog?
 
     var snapshot: RemoteShellSnapshot?
     /// Latest authoritative shell snapshot for each paired host. The selected
@@ -262,6 +271,7 @@ struct SessionRuntimeState {
         accessToken = nil
         profile = nil
         selectedConnectionId = nil
+        pendingHostSelection = nil
         hosts = []
         hostsLRU = []
         hostSocketStates = [:]
@@ -270,6 +280,9 @@ struct SessionRuntimeState {
         browserForwardRefresh = nil
         runtimeHistoryNoticesDeclared = false
         threadForksSupported = false
+        conversationSnapshotsSupported = false
+        catalogMutationsSupported = false
+        toolPresentationCatalog = nil
         snapshot = nil
         hostSnapshots = [:]
         catalog.resetForHostChange()

@@ -258,6 +258,7 @@ protocol SessionLiveSocket: AnyObject {
     // `any SessionLiveSocket` dispatch to the conformer, with defaults below keeping
     // every existing conformance source-compatible.
     func attachBrowserMirrorSink(_ sink: (any BrowserMirrorSocketInboundSink)?) async
+    func detachBrowserMirrorSink(_ sink: any BrowserMirrorSocketInboundSink) async
     func sendBrowserMirrorMessage(_ data: Data, socketGeneration: UInt64) async throws
     func browserMirrorSocketGeneration() async -> UInt64
 }
@@ -275,6 +276,7 @@ extension SessionLiveSocket {
     func setGitStateInterests(_: [GitStateInterest]) async {}
 
     func attachBrowserMirrorSink(_: (any BrowserMirrorSocketInboundSink)?) async {}
+    func detachBrowserMirrorSink(_: any BrowserMirrorSocketInboundSink) async {}
 
     func sendBrowserMirrorMessage(_: Data, socketGeneration _: UInt64) async throws {
         throw BrowserMirrorFailure.transport
@@ -340,6 +342,10 @@ final class RemoteWebSocketClientBox: SessionLiveSocket {
         await client.setBrowserMirrorSink(sink)
     }
 
+    func detachBrowserMirrorSink(_ sink: any BrowserMirrorSocketInboundSink) async {
+        await client.removeBrowserMirrorSink(sink)
+    }
+
     func sendBrowserMirrorMessage(_ data: Data, socketGeneration: UInt64) async throws {
         try await client.sendBrowserMirrorMessage(data, socketGeneration: socketGeneration)
     }
@@ -375,6 +381,9 @@ struct SessionDependencies: Sendable {
     var hostCatalog: HostCatalog
     var makeAPI: @Sendable @MainActor (String, String?) -> any SessionRemoteAPI
     var makeSocket: @Sendable @MainActor (any SessionRemoteAPI) -> any SessionLiveSocket
+    var makeComposerPreferences: @Sendable @MainActor () -> ComposerPreferencesStore = { .shared }
+    var makeWorkflowAPI: AdvancedOperationsExactHostTransportSource.APIFactory =
+        AdvancedOperationsExactHostTransportSource.productionAPIFactory()
 
     /// Production composition: unified Keychain credentials + real HTTP/WS clients.
     @MainActor
@@ -410,13 +419,21 @@ struct SessionDependencies: Sendable {
         credentialStore: any SessionCredentialStore,
         hostCatalog: HostCatalog = HostCatalog.ephemeralForTests(),
         makeAPI: @escaping @Sendable @MainActor (String, String?) -> any SessionRemoteAPI,
-        makeSocket: @escaping @Sendable @MainActor (any SessionRemoteAPI) -> any SessionLiveSocket
+        makeSocket: @escaping @Sendable @MainActor (any SessionRemoteAPI) -> any SessionLiveSocket,
+        makeComposerPreferences: @escaping @Sendable @MainActor () -> ComposerPreferencesStore = {
+            ComposerPreferencesStore(defaults: nil)
+        },
+        makeWorkflowAPI: @escaping AdvancedOperationsExactHostTransportSource.APIFactory = {
+            _, _, _ in UnavailableWorkflowRemoteAPI()
+        }
     ) -> SessionDependencies {
         SessionDependencies(
             credentialStore: credentialStore,
             hostCatalog: hostCatalog,
             makeAPI: makeAPI,
-            makeSocket: makeSocket
+            makeSocket: makeSocket,
+            makeComposerPreferences: makeComposerPreferences,
+            makeWorkflowAPI: makeWorkflowAPI
         )
     }
 }

@@ -45,7 +45,7 @@ export function ThreadDraftCompactHeader({
         </span>
         <div className="flex shrink-0 items-center">
           {props.scopeLabel ? (
-            <span className="px-1 text-sm leading-tight text-muted/60">{props.scopeLabel}</span>
+            <span className="px-1 text-sm leading-tight text-foreground">{props.scopeLabel}</span>
           ) : (
             <ProjectSwitchMenu
               currentProjectId={props.projectId}

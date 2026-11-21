@@ -21,6 +21,10 @@ import {
 } from "@/renderer/components/common/ProjectEnvironment";
 import { switchDraftProject, type SwitchDraftProjectOptions } from "./switchDraftProject";
 
+/** Single-choice project/environment triggers stay disabled without dimming their label. */
+export const UNDIMMED_DISABLED_TRIGGER_CLASS =
+  "disabled:cursor-default disabled:opacity-100 aria-disabled:cursor-default aria-disabled:opacity-100 data-[disabled=true]:cursor-default data-[disabled=true]:opacity-100";
+
 /**
  * Where the new thread runs: the machines (Local, WSL distros, paired hosts)
  * that have the current project in the active workspace, with the same
@@ -78,7 +82,7 @@ export function ProjectEnvironmentMenu(
     if (current.machine.ref.host === "local") return null;
     return (
       <span
-        className="inline-flex min-w-0 shrink items-center gap-1 px-1 py-0.5 text-sm leading-tight text-muted/60"
+        className="inline-flex min-w-0 shrink items-center gap-1 px-1 py-0.5 text-sm leading-tight text-foreground"
         data-project-environment=""
       >
         <MachineIcon machine={current.machine} className="size-3.5" />
@@ -107,14 +111,14 @@ export function ProjectEnvironmentMenu(
       <MachineIcon machine={current.machine} className="size-3.5" />
       <span className="min-w-0 truncate">{currentLabel}</span>
       {environments.length > 2 ? (
-        <ChevronDown className="size-3 shrink-0 opacity-60 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100" />
+        <ChevronDown className="size-3 shrink-0 text-muted opacity-70 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100" />
       ) : null}
     </>
   );
   // Same type scale and treatment as the project trigger beside it, so the
   // machine reads as a control rather than metadata.
   const triggerClass =
-    "group inline-flex min-w-0 max-w-full items-center gap-1 rounded px-1 py-0.5 text-sm leading-tight text-muted/60 outline-none transition-colors hover:bg-[var(--row-hover)] hover:text-foreground focus-visible:bg-[var(--row-hover)]";
+    "group inline-flex min-w-0 max-w-full items-center gap-1 rounded px-1 py-0.5 text-sm leading-tight text-foreground outline-none transition-colors hover:bg-[var(--row-hover)] focus-visible:bg-[var(--row-hover)]";
 
   // Match the worktree control: two choices switch directly on every surface.
   // Use the same React Aria button and styles as Dropdown.Trigger, without
@@ -126,7 +130,7 @@ export function ProjectEnvironmentMenu(
         aria-label={triggerLabel}
         isDisabled={!isEntrySelectable(alternative)}
         className={dropdownVariants().trigger({
-          className: `${triggerClass} disabled:cursor-default disabled:hover:bg-transparent disabled:hover:text-muted/60`,
+          className: `${triggerClass} ${UNDIMMED_DISABLED_TRIGGER_CLASS} disabled:hover:bg-transparent`,
         })}
         onPress={() => select(alternative.project.id)}
       >

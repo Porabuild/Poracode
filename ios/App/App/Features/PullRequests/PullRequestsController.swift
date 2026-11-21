@@ -1,7 +1,12 @@
 import Foundation
 import Observation
 
-/// Loads pull requests for every synced project of the selected connection.
+struct PullRequestsScope: Equatable {
+  let host: ProjectControllerSession?
+  let projects: [RemoteProject]
+}
+
+/// Loads pull requests for the selected connection's active workspace.
 ///
 /// Loads run sequentially so the exact-host transport source sees exactly one
 /// active project lease at a time, mirroring the single-project workspace
@@ -17,10 +22,9 @@ final class PullRequestsController {
 
   private(set) var entries: [PullRequestsEntry] = []
   private(set) var failures: [ProjectFailure] = []
-  private(set) var projects: [RemoteProject] = []
+  private(set) var scope: PullRequestsScope?
   private(set) var isLoading = false
   private(set) var didLoad = false
-  private(set) var hasProjects = false
   private(set) var isCached = false
   private let cache = ForgeReviewDiskCache()
 
@@ -40,14 +44,11 @@ final class PullRequestsController {
     })
   }
 
-  func load() async {
+  func load(_ scope: PullRequestsScope) async {
+    guard !Task.isCancelled, scope.host == session.currentProjectControllerSession else { return }
     loadGeneration += 1
     let generation = loadGeneration
-    let projects = session.activeWorkspaceProjects.sorted {
-      $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending
-    }
-    self.projects = projects
-    hasProjects = !projects.isEmpty
+    self.scope = scope
     entries = []
     isCached = false
     failures = []
@@ -59,9 +60,13 @@ final class PullRequestsController {
       }
     }
 
-    for project in projects {
-      if Task.isCancelled || generation != loadGeneration { return }
-      guard let context = context(for: project) else {
+    func isCurrentLoad() -> Bool {
+      !Task.isCancelled && generation == loadGeneration && scope.host == session.currentProjectControllerSession
+    }
+
+    for project in scope.projects {
+      guard isCurrentLoad() else { return }
+      guard let context = context(for: project, host: scope.host) else {
         failures.append(
           ProjectFailure(
             projectName: project.name,
@@ -71,13 +76,16 @@ final class PullRequestsController {
         continue
       }
       activeContext = context
-      defer { activeContext = nil }
+      defer {
+        if generation == loadGeneration { activeContext = nil }
+      }
       do {
         let result: GitHubOperationResult
+        let fromCache: Bool
         if !context.isUsable {
           guard let cached = await cache.readPullRequests(context) else { throw GitHubOperationsFailure.notReady }
           result = cached
-          isCached = true
+          fromCache = true
         } else {
           do {
             result = try await gateway.call(
@@ -85,17 +93,18 @@ final class PullRequestsController {
               lease: context.lease
             )
             await cache.writePullRequests(context, result: result)
+            fromCache = false
           } catch GitHubOperationsFailure.transport {
             guard let cached = await cache.readPullRequests(context) else { throw GitHubOperationsFailure.transport }
             result = cached
-            isCached = true
+            fromCache = true
           }
         }
-        try Task.checkCancellation()
-        guard generation == loadGeneration else { return }
+        guard isCurrentLoad() else { return }
         guard let summaries = GitHubResultProjection.pullRequests(result) else {
           throw GitHubOperationsFailure.invalidResponse
         }
+        isCached = isCached || fromCache
         entries.append(
           contentsOf: summaries.map {
             PullRequestsEntry(
@@ -108,7 +117,7 @@ final class PullRequestsController {
       } catch is CancellationError {
         return
       } catch {
-        guard generation == loadGeneration else { return }
+        guard isCurrentLoad() else { return }
         failures.append(
           ProjectFailure(
             projectName: project.name,
@@ -122,21 +131,20 @@ final class PullRequestsController {
   /// Same exact-host contract as the project workspace's GitHub composition,
   /// parameterized by project. The project generation is local: this page
   /// reloads wholesale when the connection lease changes.
-  private func context(for project: RemoteProject) -> GitHubControllerContext? {
-    guard let connectionId = session.selectedConnectionId,
+  private func context(for project: RemoteProject, host: ProjectControllerSession?) -> GitHubControllerContext? {
+    guard let host,
+      let connectionId = session.selectedConnectionId, connectionId == host.lease.connectionId,
       let record = session.state.hosts.first(where: { $0.connectionId == connectionId }),
       let profile = session.state.profile,
       profile.desktopId == record.desktopId,
       profile.httpBaseURL == record.httpBaseURL,
       profile.protocolVersion == record.protocolVersion
     else { return nil }
-    let controllerSession = session.currentProjectControllerSession
     return GitHubControllerContext(
       lease: GitHubProjectLease(
         clientConnectionId: connectionId.uuid,
         desktopId: profile.desktopId,
-        hostGeneration: controllerSession?.lease.generation
-          ?? UInt64(max(0, session.state.workGeneration)),
+        hostGeneration: host.lease.generation,
         project: GitHubProjectIdentity(
           projectId: project.id,
           location: GitHubProjectLocation(project.location)
@@ -144,8 +152,8 @@ final class PullRequestsController {
         projectGeneration: 1
       ),
       grantedScopes: Set(profile.scopes).intersection(record.scopes),
-      isOnline: controllerSession?.isOnline ?? false,
-      isReady: controllerSession?.isReady ?? false,
+      isOnline: host.isOnline,
+      isReady: host.isReady,
       isForeground: !session.state.liveLifecycle.isInBackground,
       cacheEndpoint: profile.httpBaseURL
     )

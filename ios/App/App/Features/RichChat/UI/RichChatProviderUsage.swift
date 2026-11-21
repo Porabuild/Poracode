@@ -11,6 +11,13 @@ struct RichChatProviderUsagePresentation: Equatable {
   let snapshot: SettingsUsageSnapshot?
   var ringLayout: SettingsUsageRingLayout? = nil
 
+  /// The desktop marks quota data stale after two minutes; retain its bars
+  /// while offering Refresh instead of hiding the inspector section.
+  func isStale(at now: Date = Date()) -> Bool {
+    guard let snapshot else { return false }
+    return now.timeIntervalSince1970 * 1_000 - Double(snapshot.fetchedAt) >= 120_000
+  }
+
   var rings: RichChatUsageRings {
     let windows = snapshot?.windows ?? []
     // Older hosts omit presentation metadata. Keep the ring unknown rather
@@ -39,6 +46,53 @@ struct RichChatProviderUsagePresentation: Equatable {
       snapshot: snapshots.first { $0.providerId == providerID },
       ringLayout: usage?.ringLayouts?[providerID]
     )
+  }
+}
+
+struct RichChatProviderUsageCard: View {
+  let presentation: RichChatProviderUsagePresentation
+  let state: SettingsLoadState
+  var refresh: (@MainActor () async -> Void)? = nil
+  @State private var isRefreshing = false
+
+  var body: some View {
+    TimelineView(.periodic(from: .now, by: 30)) { context in
+      VStack(alignment: .leading, spacing: 8) {
+        if let snapshot = presentation.snapshot {
+          ForEach(snapshot.windows, id: \.id) { window in
+            SettingsUsageWindowMeter(window: window)
+          }
+          if snapshot.windows.isEmpty && snapshot.status == .ok {
+            Text(SettingsUIStrings.noData).foregroundStyle(.secondary)
+          }
+          if snapshot.status != .ok {
+            Text(SettingsUsagePresentation.statusLabel(snapshot.status)).foregroundStyle(.secondary)
+          }
+          if presentation.isStale(at: context.date) {
+            Text(RichChatStrings.usageStale).foregroundStyle(.secondary)
+          }
+        } else if state == .loading || state == .idle || isRefreshing {
+          ProgressView(SettingsUIStrings.loading)
+        } else if case .failed(let failure) = state {
+          Text(SettingsUIStrings.failure(failure)).foregroundStyle(.secondary)
+        } else {
+          Text(SettingsUIStrings.noProvidersTracked).foregroundStyle(.secondary)
+        }
+        if refresh != nil {
+          Button(SettingsUIStrings.refresh, systemImage: "arrow.clockwise", action: refreshNow)
+            .poracodeGlassButtonStyle()
+            .disabled(isRefreshing)
+        }
+      }
+      .poracodeChatText(.metadata)
+      .padding(12)
+    }
+  }
+
+  private func refreshNow() {
+    guard !isRefreshing, let refresh else { return }
+    isRefreshing = true
+    Task { await refresh(); isRefreshing = false }
   }
 }
 

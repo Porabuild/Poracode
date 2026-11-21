@@ -3,6 +3,7 @@ import {
   clearFindHighlights,
   FIND_HIGHLIGHT_CURRENT_NAME,
   FIND_HIGHLIGHT_NAME,
+  scrollRangeIntoView,
   setFindHighlights,
 } from "./findText";
 
@@ -24,6 +25,7 @@ beforeEach(() => {
     },
   );
 });
+
 afterEach(() => {
   clearFindHighlights();
   vi.unstubAllGlobals();
@@ -62,4 +64,37 @@ describe("find highlight style lifetime", () => {
     expect(document.documentElement).not.toHaveAttribute("data-poracode-find-highlights");
     expect(registry.size).toBe(0);
   });
+});
+
+it("reveals a match inside horizontal overflow when requested", () => {
+  const transcript = document.createElement("div");
+  const tableScroller = document.createElement("div");
+  tableScroller.style.overflowX = "auto";
+  const cell = document.createElement("span");
+  cell.textContent = "Needle Far";
+  tableScroller.append(cell);
+  transcript.append(tableScroller);
+  document.body.append(transcript);
+  try {
+    Object.defineProperties(tableScroller, {
+      clientWidth: { value: 100 },
+      scrollWidth: { value: 300 },
+    });
+    tableScroller.getBoundingClientRect = () => new DOMRect(0, 0, 100, 50);
+    transcript.getBoundingClientRect = () => new DOMRect(0, 0, 100, 300);
+    const range = document.createRange();
+    range.selectNodeContents(cell);
+    range.getBoundingClientRect = () => new DOMRect(200 - tableScroller.scrollLeft, 100, 40, 12);
+
+    scrollRangeIntoView(transcript, range);
+    expect(tableScroller.scrollLeft).toBe(0);
+    scrollRangeIntoView(transcript, range, { horizontally: true });
+    expect(tableScroller.scrollLeft).toBe(140);
+    expect(transcript.scrollLeft).toBe(0);
+    tableScroller.scrollLeft = 220;
+    scrollRangeIntoView(transcript, range, { horizontally: true });
+    expect(tableScroller.scrollLeft).toBe(200);
+  } finally {
+    transcript.remove();
+  }
 });

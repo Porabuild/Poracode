@@ -82,6 +82,7 @@ struct GitHubActionsPageView: View {
           }
         }
         .listStyle(.insetGrouped)
+        .poracodeReadableListMargins(760)
         .refreshable { await load() }
       }
     }
@@ -104,6 +105,7 @@ struct GitHubActionsPageView: View {
       ) { ref, inputs in
         await dispatch(selection, ref: ref, inputs: inputs)
       }
+      .poracodeFormSheetSizing()
     }
   }
 
@@ -157,7 +159,8 @@ struct GitHubActionsPageView: View {
     else { return }
     dispatchSelection = GitHubWorkflowDispatchSelection(
       workflow: workflow,
-      definition: definition
+      definition: definition,
+      lease: context.lease
     )
   }
 
@@ -166,28 +169,10 @@ struct GitHubActionsPageView: View {
     ref: String,
     inputs: [String: String]
   ) async -> GitHubOperationsFailure? {
-    guard let context, context.isUsable, context.permits(.operate) else {
-      return .capabilityMissing
-    }
     await mutations.submit(
-      .ghDispatchWorkflow(
-        .init(
-          projectLocation: context.lease.location,
-          workflowId: selection.workflow.id,
-          ref: ref,
-          inputs: inputs
-        )
-      )
+      selection.request(ref: ref, inputs: inputs), expectedLease: selection.lease
     )
-    return mutations.state.failure
   }
-}
-
-private struct GitHubWorkflowDispatchSelection: Identifiable {
-  var id: Int64 { workflow.id }
-
-  let workflow: GitHubWorkflowSummary
-  let definition: GitHubWorkflowDefinition
 }
 
 private struct GitHubWorkflowRow: View {

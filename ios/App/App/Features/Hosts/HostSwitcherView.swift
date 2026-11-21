@@ -24,6 +24,7 @@ struct HostSwitcherView: View {
         #endif
         .sheet(isPresented: $showAddHost) {
             AddHostSheet(session: session)
+                .poracodeFormSheetSizing()
         }
         .navigationDestination(item: $destination) { destination in
             HostDestinationView(session: session, destination: destination)
@@ -78,13 +79,11 @@ struct HostSwitcherView: View {
             hostSection(showsEmptyAction: false)
         }
         .listStyle(.insetGrouped)
-        .poracodeBottomBar {
-            PoracodeBottomActionDock(placement: .trailing) {
-                PoracodeCircleButton {
+        .poracodeReadableListMargins(720)
+        .toolbar {
+            ToolbarItem(placement: .bottomBar) {
+                Button(HostStrings.addHost, systemImage: "plus") {
                     showAddHost = true
-                } label: {
-                    Label(HostStrings.addHost, systemImage: "plus")
-                        .labelStyle(.iconOnly)
                 }
                 .accessibilityLabel(HostStrings.addHostAccessibility)
                 .accessibilityIdentifier("native-e2e.connections.add")
@@ -97,7 +96,8 @@ struct HostSwitcherView: View {
             hostSection(showsEmptyAction: true)
             addSection
         }
-        .listStyle(.sidebar)
+        .listStyle(.insetGrouped)
+        .poracodeReadableListMargins(720)
     }
 
     @ViewBuilder
@@ -136,6 +136,7 @@ struct HostSwitcherView: View {
                 Label(HostStrings.addHost, systemImage: "plus")
             }
             .accessibilityLabel(HostStrings.addHostAccessibility)
+            .accessibilityIdentifier("native-e2e.connections.add")
         }
     }
 
@@ -364,23 +365,14 @@ struct HostSwitcherEntry: View {
                         }
                     }
             }
-            .modifier(HostSheetSizing())
+            .poracodeFormSheetSizing()
         }
     }
 }
 
 private struct HostGlyphBackground: ViewModifier {
     func body(content: Content) -> some View {
-        content.background(.thinMaterial, in: Circle())
-    }
-}
-
-private struct HostSheetSizing: ViewModifier {
-    func body(content: Content) -> some View {
-        if #available(iOS 18.0, *) {
-            content.presentationSizing(.form)
-        } else {
-            content
-        }
+        content
+            .poracodeGlassBackground(in: Circle())
     }
 }

@@ -1,5 +1,18 @@
 import SwiftUI
 
+struct GitHubWorkflowDispatchSelection: Identifiable {
+  var id: Int64 { workflow.id }
+  let workflow: GitHubWorkflowSummary
+  let definition: GitHubWorkflowDefinition
+  let lease: GitHubProjectLease
+
+  func request(ref: String, inputs: [String: String]) -> GitHubOperationRequest {
+    .ghDispatchWorkflow(.init(
+      projectLocation: lease.location, workflowId: workflow.id, ref: ref, inputs: inputs
+    ))
+  }
+}
+
 struct GitHubWorkflowDispatchView: View {
   @Environment(\.dismiss) private var dismiss
 
@@ -11,6 +24,17 @@ struct GitHubWorkflowDispatchView: View {
   @State private var values: [String: String]
   @State private var isSubmitting = false
   @State private var failure: GitHubOperationsFailure?
+
+  private var trimmedRef: String { ref.trimmingCharacters(in: .whitespacesAndNewlines) }
+
+  private var dispatchInputs: [String: String] {
+    values.mapValues { $0.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.value.isEmpty }
+  }
+
+  private var hasMissingRequiredInputs: Bool {
+    let inputs = dispatchInputs
+    return definition.inputs.contains { $0.required && inputs[$0.name] == nil }
+  }
 
   init(
     workflow: GitHubWorkflowSummary,
@@ -52,13 +76,18 @@ struct GitHubWorkflowDispatchView: View {
           TextField(GitHubOperationsStrings.ref, text: $ref)
             .textInputAutocapitalization(.never)
             .autocorrectionDisabled()
+            .accessibilityIdentifier("native-e2e.github-actions.dispatch-ref")
         }
 
         if !definition.inputs.isEmpty {
-          Section(GitHubOperationsStrings.inputs) {
+          Section {
             ForEach(definition.inputs) { input in
               inputField(input)
             }
+          } header: {
+            Text(GitHubOperationsStrings.inputs)
+          } footer: {
+            if hasMissingRequiredInputs { Text(GitHubOperationsStrings.workflowInputsRequired) }
           }
         }
       }
@@ -66,18 +95,23 @@ struct GitHubWorkflowDispatchView: View {
       .navigationBarTitleDisplayMode(.inline)
       .toolbar {
         ToolbarItem(placement: .cancellationAction) {
-          Button(GitHubOperationsStrings.cancel) { dismiss() }
+          Button(GitHubOperationsStrings.cancel, systemImage: "xmark") { dismiss() }
+            .accessibilityIdentifier("native-e2e.github-actions.dispatch-cancel")
         }
         ToolbarItem(placement: .confirmationAction) {
-          Button(GitHubOperationsStrings.run) {
+          Button(GitHubOperationsStrings.run, systemImage: "play.fill") {
+            guard !isSubmitting else { return }
+            let branch = trimmedRef
+            let inputs = dispatchInputs
             isSubmitting = true
             Task {
-              failure = await dispatch(ref, values)
+              failure = await dispatch(branch, inputs)
               isSubmitting = false
               if failure == nil { dismiss() }
             }
           }
-          .disabled(isSubmitting || ref.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+          .disabled(isSubmitting || trimmedRef.isEmpty || hasMissingRequiredInputs)
+          .accessibilityIdentifier("native-e2e.github-actions.dispatch-submit")
         }
       }
     }
@@ -87,9 +121,10 @@ struct GitHubWorkflowDispatchView: View {
 
   @ViewBuilder
   private func inputField(_ input: GitHubWorkflowInput) -> some View {
+    let title = input.required ? GitHubOperationsStrings.requiredWorkflowInput(input.name) : input.name
     if input.type == "boolean" {
       Toggle(
-        input.name,
+        title,
         isOn: Binding(
           get: { values[input.name] == "true" },
           set: { values[input.name] = $0 ? "true" : "false" }
@@ -97,16 +132,19 @@ struct GitHubWorkflowDispatchView: View {
       )
       .poracodeSwitchStyle()
     } else if input.type == "choice", !input.options.isEmpty {
-      Picker(input.name, selection: valueBinding(input)) {
+      Picker(title, selection: valueBinding(input)) {
         ForEach(input.options, id: \.self) { option in
           Text(option).tag(option)
         }
       }
     } else {
-      TextField(input.name, text: valueBinding(input), prompt: Text(input.description))
-        .textInputAutocapitalization(.never)
-        .autocorrectionDisabled()
-        .keyboardType(input.type == "number" ? .numbersAndPunctuation : .default)
+      LabeledContent(title) {
+        TextField(title, text: valueBinding(input), prompt: Text(input.description))
+          .textInputAutocapitalization(.never)
+          .autocorrectionDisabled()
+          .keyboardType(input.type == "number" ? .numbersAndPunctuation : .default)
+          .accessibilityIdentifier("native-e2e.github-actions.dispatch-input.\(input.name)")
+      }
     }
   }
 

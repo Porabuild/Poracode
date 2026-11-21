@@ -95,6 +95,12 @@ final class AppSession {
     let projectSyncPreferences: ProjectSyncPreferences
     let remoteNotificationPresentations: RemoteUserNotificationPresentationCenter
     let richChatComposerDrafts = RichChatComposerDraftStore()
+    let composerPreferences: ComposerPreferencesStore
+    let settingsDocumentChanges = SettingsDocumentChanges()
+    let transcriptDisclosures = TranscriptDisclosureStore()
+    @ObservationIgnored var composerProjectPreferenceWriter: ComposerProjectPreferenceWriter?
+    @ObservationIgnored var workflowActivityStore: WorkflowActivityStore?
+    let sessionImportClaims = SessionImportClaims()
 
     private(set) var pairing: PairingCoordinator!
     private(set) var live: LiveConnectionController!
@@ -107,6 +113,10 @@ final class AppSession {
     /// The one rich GUI conversation currently subscribed to live runtime events.
     /// The owning screen explicitly attaches and detaches this suite.
     var activeRichChatSuite: RichChatControllerSuite?
+    var auxiliaryRichChatSuites: [ObjectIdentifier: RichChatControllerSuite] = [:]
+    var richChatPresentationOwners: [ObjectIdentifier: Set<UUID>] = [:]
+    let sideChats = SideChatStore()
+    let checkpointRevertAttempts = RichChatCheckpointRevertAttempts()
 
     // Tracked foreground tasks — cancelled on background / unpair / host swap.
     // Explicit unpair durable clear is NOT cancelled (runs as direct await).
@@ -153,6 +163,7 @@ final class AppSession {
           NativeE2EStateReset.applyIfRequested()
         #endif
         self.deps = dependencies
+        self.composerPreferences = dependencies.makeComposerPreferences()
         self.projectSyncPreferences = projectSyncPreferences
         self.remoteNotificationPresentations = remoteNotificationPresentations
         self.pairing = PairingCoordinator(host: self)
@@ -197,6 +208,10 @@ final class AppSession {
     }
 
     func pair(with input: PairingInput) async {
+        _ = await submitPairing(with: input)
+    }
+
+    func submitPairing(with input: PairingInput) async -> PairAttemptOutcome {
         await pairing.pair(with: input)
     }
 
@@ -207,6 +222,8 @@ final class AppSession {
 
     func refreshSnapshot() async {
         await live.refreshSnapshot()
+        sideChats.synchronizeOwners(session: self)
+        await sideChats.retryDisposals(session: self)
     }
 
     func threads(for projectId: String) -> [RemoteThread] {
@@ -255,6 +272,9 @@ final class AppSession {
         state.catalog.resetForHostChange()
         state.runtimeHistoryNoticesDeclared = false
         state.threadForksSupported = false
+        state.conversationSnapshotsSupported = false
+        state.catalogMutationsSupported = false
+        state.toolPresentationCatalog = nil
         reconcileAttemptedSocketID = nil
         // Invalidate any in-flight authoritative install so it cannot commit.
         state.replayInstallBuffer.discard()
@@ -486,11 +506,18 @@ final class AppSession {
     /// is never inferred from a network error.
     func noteEnvironmentCapabilities(_ descriptor: RemoteEnvironmentDescriptor) async {
         guard let api = state.api else { return }
+        let presentationOwner = state.selectedConnectionId
+        let presentationGeneration = state.workGeneration
         let notices = descriptor.advertisesRuntimeHistoryNotices
         await api.observeEnvironmentCapabilities(descriptor)
         await api.declareRuntimeHistoryNotices(notices)
+        guard state.selectedConnectionId == presentationOwner,
+              state.workGeneration == presentationGeneration, state.api === api else { return }
         state.runtimeHistoryNoticesDeclared = notices
         state.threadForksSupported = descriptor.capabilities?.threadForks?.versions.contains(1) == true
+        state.conversationSnapshotsSupported = descriptor.advertisesConversationSnapshots
+        state.catalogMutationsSupported = descriptor.capabilities?.catalogMutations?.versions.contains(1) == true
+        state.toolPresentationCatalog = RichToolPresentationCatalog(descriptor.toolPresentation)
     }
 
     /// Declares the bounded catalog-change signal intent from the current
@@ -593,7 +620,13 @@ extension AppSession: RemoteWebSocketClientDelegate {
     ) async {
         await MainActor.run {
             guard let key = self.socketKey(wrapping: client) else { return }
+            let isSecondary = key != self.sessionPool.currentKey()
+            guard isSecondary || self.sessionPool.acceptsSelectedEvents(for: key) else { return }
+            let wasOnline = key.connectionId.flatMap { self.state.hostSocketStates[$0] } == .online
             self.recordSocketState(state, for: key)
+            if isSecondary, state == .online, !wasOnline {
+                self.sessionPool.refreshSecondaryCatalog(for: key)
+            }
         }
         // Every fresh Online of the selected socket re-evaluates the actual
         // upgrade declarations against the current advertisement (one barrier
@@ -622,8 +655,11 @@ extension AppSession: RemoteWebSocketClientDelegate {
         event: JSONValue
     ) async -> Bool {
         await MainActor.run {
-            guard self.socketWraps(client) else { return false }
-            return self.events.applySequencedEvent(seq: seq, event: event)
+            guard let key = self.socketKey(wrapping: client) else { return false }
+            if self.sessionPool.acceptsSelectedEvents(for: key) {
+                return self.events.applySequencedEvent(seq: seq, event: event)
+            }
+            return self.sessionPool.acceptSecondaryEvent(event, seq: seq, for: key)
         }
     }
 
@@ -645,7 +681,11 @@ extension AppSession: RemoteWebSocketClientDelegate {
 
     nonisolated func webSocketNeedsResync(_ client: RemoteWebSocketClient, reason: String) async {
         await MainActor.run {
-            guard self.socketWraps(client) else { return }
+            guard let key = self.socketKey(wrapping: client) else { return }
+            guard self.sessionPool.acceptsSelectedEvents(for: key) else {
+                self.sessionPool.refreshSecondaryCatalog(for: key, resync: true)
+                return
+            }
             if self.state.isResyncing {
                 _ = self.state.resyncCoordinator.noteNeedsResync()
                 return

@@ -10,14 +10,21 @@
   struct BrowserMirrorSessionView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.poracodeEmbeddedInInspector) private var embeddedInInspector
 
     @Bindable var session: AppSession
     @State private var composition: BrowserMirrorComposition
     private let embeddedInNavigationStack: Bool
+    private let showsHostSelection: Bool
 
-    init(session: AppSession, embeddedInNavigationStack: Bool = false) {
+    init(
+      session: AppSession,
+      embeddedInNavigationStack: Bool = false,
+      showsHostSelection: Bool = true
+    ) {
       self.session = session
       self.embeddedInNavigationStack = embeddedInNavigationStack
+      self.showsHostSelection = showsHostSelection
       _composition = State(initialValue: session.makeBrowserMirrorComposition())
     }
 
@@ -34,12 +41,12 @@
       }
       .task { await composition.activate() }
       .onDisappear { Task { [composition] in await composition.deactivate() } }
-      .onChange(of: session.currentBrowserMirrorAccess) { _, access in
-        Task { await composition.synchronizeAccess(access) }
+      .onChange(of: session.currentBrowserMirrorAccess) { _, _ in
+        Task { await composition.synchronizeAccess(session.currentBrowserMirrorAccess) }
       }
-      .onChange(of: session.socketState) { _, state in
+      .onChange(of: session.socketState) { _, _ in
         Task {
-          if state == .online {
+          if session.socketState == .online {
             await composition.synchronizeSocket()
           } else {
             composition.socketDisconnected()
@@ -55,32 +62,46 @@
       }
     }
 
+    @ViewBuilder
     private var content: some View {
-      BrowserMirrorScreen(
+      let screen = BrowserMirrorScreen(
         controller: composition.controller,
-        onRetry: { Task { await composition.activate() } }
+        onRetry: { Task { await composition.activate() } },
+        isMirroring: composition.controller.watchIntent,
+        onToggleMirroring: toggleMirroring
       )
-      .toolbar {
-        if !embeddedInNavigationStack {
-          ToolbarItem(placement: .cancellationAction) {
-            Button(BrowserMirrorStrings.dismiss) { dismiss() }
-          }
-        }
-        ToolbarItemGroup(placement: .primaryAction) {
-          HostSelectionMenu(session: session)
-          Button(
-            composition.controller.watchIntent
-              ? BrowserMirrorStrings.stopMirroring
-              : BrowserMirrorStrings.startMirroring
-          ) {
-            Task {
-              if composition.controller.watchIntent {
-                await composition.deactivate()
-              } else {
-                await composition.activate()
+      if embeddedInInspector {
+        screen
+      } else {
+        screen
+          .toolbar {
+            if !embeddedInNavigationStack {
+              ToolbarItem(placement: .cancellationAction) {
+                Button(BrowserMirrorStrings.dismiss, systemImage: "xmark") { dismiss() }
               }
             }
+            ToolbarItemGroup(placement: .primaryAction) {
+              if showsHostSelection {
+                HostSelectionMenu(session: session)
+              }
+              Button(
+                composition.controller.watchIntent
+                  ? BrowserMirrorStrings.stopMirroring
+                  : BrowserMirrorStrings.startMirroring,
+                systemImage: composition.controller.watchIntent ? "stop.circle" : "play.circle",
+                action: toggleMirroring
+              )
+            }
           }
+      }
+    }
+
+    private func toggleMirroring() {
+      Task {
+        if composition.controller.watchIntent {
+          await composition.deactivate()
+        } else {
+          await composition.activate()
         }
       }
     }

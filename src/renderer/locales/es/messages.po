@@ -10253,6 +10253,7 @@ msgid "Import selected"
 msgstr "Importar seleccionados"
 
 #: src/renderer/views/SettingsOverlay/parts/ImportSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 msgid "Import sessions"
 msgstr "Importar sesiones"
 
@@ -11377,7 +11378,6 @@ msgstr "Vinculado"
 msgid "Linux"
 msgstr "Linux"
 
-#: src/renderer/components/thread/ChatPane/parts/items/commandActionsDisplay.ts
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "List"
@@ -18838,7 +18838,6 @@ msgstr "SDK no instalado"
 
 #: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/commands/registry.ts
-#: src/renderer/components/thread/ChatPane/parts/items/commandActionsDisplay.ts
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 #: src/renderer/views/MainView/parts/Sidebar/parts/MobileHomeActions.tsx
@@ -19033,7 +19032,6 @@ msgstr "Buscar hilos, comandos, ajustes y archivos…"
 msgid "Search titles, messages and folders"
 msgstr "Buscar títulos, mensajes y carpetas"
 
-#: src/renderer/components/thread/ChatPane/parts/items/commandActionsDisplay.ts
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 msgid "Search: \"{query}\" in {scope}"
 msgstr "Búsqueda: \"{query}\" en {scope}"
@@ -22232,8 +22230,8 @@ msgid "This desktop"
 msgstr "Este equipo"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
-msgid "This desktop's Poracode version doesn't support browser forwarding. Update Poracode on your desktop."
-msgstr "La versión de Poracode de este escritorio no admite el reenvío por navegador. Actualiza Poracode en tu escritorio."
+#~ msgid "This desktop's Poracode version doesn't support browser forwarding. Update Poracode on your desktop."
+#~ msgstr "La versión de Poracode de este escritorio no admite el reenvío por navegador. Actualiza Poracode en tu escritorio."
 
 #: src/renderer/views/ProfileOverlay/parts/ProfileHeader.tsx
 msgid "This device"

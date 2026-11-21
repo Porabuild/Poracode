@@ -1,71 +1,81 @@
 #if canImport(SwiftUI) && canImport(UIKit)
   import SwiftUI
 
-  /// Adaptive Browser Mirror surface. Compact widths stack the tab strip above the
-  /// viewport; regular widths (iPad, wide iPhone landscape) move tabs into a sidebar so
-  /// the mirrored page keeps the largest possible area.
+  /// Adaptive Browser Mirror surface with one address editor across layouts.
   struct BrowserMirrorScreen: View {
     let controller: BrowserMirrorController
     let onRetry: () -> Void
+    var isMirroring: Bool = false
+    var onToggleMirroring: (() -> Void)? = nil
 
-    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @Environment(\.poracodeEmbeddedInInspector) private var embeddedInInspector
     @State private var address = ""
+    @State private var addressTarget: BrowserMirrorAddressTarget?
     @State private var isEditingAddress = false
     @State private var viewportMode = BrowserMirrorViewportMode.fit
 
     var body: some View {
       let projection = BrowserMirrorViewProjection(controller: controller)
-      Group {
-        if horizontalSizeClass == .regular {
-          HStack(alignment: .top, spacing: 12) {
-            BrowserMirrorTabSidebar(controller: controller, projection: projection)
-              .frame(width: 260)
-            content(projection)
+      let target = BrowserMirrorAddressTarget(controller)
+      let navigation = BrowserMirrorNavigationControls(controller: controller, projection: projection)
+      GeometryReader { proxy in
+        let showsTabSidebar = proxy.size.width >= 660
+        let layout = showsTabSidebar ? AnyLayout(HStackLayout(alignment: .top, spacing: 12))
+          : AnyLayout(VStackLayout(spacing: 8))
+        layout {
+          Group {
+            if showsTabSidebar {
+              BrowserMirrorTabSidebar(controller: controller, projection: projection,
+                showsNewTab: embeddedInInspector, createTab: createTab)
+                .frame(width: min(260, floor(proxy.size.width * 0.34)))
+            } else {
+              BrowserMirrorTabStrip(controller: controller, projection: projection,
+                showsNewTab: embeddedInInspector, createTab: createTab)
+            }
           }
-        } else {
-          VStack(spacing: 10) {
+          VStack(spacing: 8) {
+            BrowserMirrorAddressBar(controller: controller, projection: projection,
+              target: addressTarget, address: $address, isFocused: $isEditingAddress)
+            if embeddedInInspector { navigation }
             viewportContent(projection)
           }
-          .poracodeBottomBar {
-            compactChrome(projection)
+        }
+        .padding(.top, embeddedInInspector ? 8 : 0)
+      }
+      .toolbar {
+        if !embeddedInInspector {
+          ToolbarItemGroup(placement: .bottomBar) {
+            navigation.back
+            navigation.forward
+            navigation.reload
+            Spacer()
+            Button(BrowserMirrorStrings.newTab, systemImage: "plus", action: createTab)
+              .disabled(!projection.canCreateTab)
+              .accessibilityIdentifier("native-e2e.browser.new-tab")
           }
         }
       }
-      .navigationTitle(BrowserMirrorStrings.title)
+      .poracodeNavigationTitle(
+        BrowserMirrorStrings.title,
+        inline: false,
+        suppressed: embeddedInInspector
+      )
       .onChange(of: projection.addressValue) { _, value in
         if !isEditingAddress { address = value }
       }
-      .onAppear { address = projection.addressValue }
+      .onChange(of: target, initial: true) { _, target in
+        if addressTarget?.lease != target?.lease { isEditingAddress = false }
+        addressTarget = target
+        address = projection.addressValue
+      }
+      .nativeCommands(identity: "browser", revision: ObjectIdentifier(controller), actions: [
+        "browser.focus-address-bar": .init(enabled: projection.canSubmitAddress) { _ in isEditingAddress = true },
+        "browser.tab.new": .init(enabled: projection.canCreateTab) { _ in createTab() },
+      ])
     }
 
-    @ViewBuilder
-    private func content(_ projection: BrowserMirrorViewProjection) -> some View {
-      VStack(spacing: 10) {
-        BrowserMirrorAddressBar(
-          controller: controller,
-          projection: projection,
-          address: $address,
-          isEditing: $isEditingAddress
-        )
-        BrowserMirrorNavigationControls(controller: controller, projection: projection)
-        viewportContent(projection)
-      }
-    }
-
-    @ViewBuilder
-    private func compactChrome(_ projection: BrowserMirrorViewProjection) -> some View {
-      VStack(spacing: 8) {
-        BrowserMirrorTabStrip(controller: controller, projection: projection)
-        BrowserMirrorAddressBar(
-          controller: controller,
-          projection: projection,
-          address: $address,
-          isEditing: $isEditingAddress
-        )
-        BrowserMirrorNavigationControls(controller: controller, projection: projection)
-      }
-      .padding(.vertical, 8)
-      .poracodeBarBackground(divider: .top)
+    private func createTab() {
+      Task { await controller.perform(.createTab) }
     }
 
     @ViewBuilder
@@ -73,7 +83,9 @@
       BrowserMirrorViewportControls(
         projection: projection,
         mode: $viewportMode,
-        onRefresh: onRetry
+        onRefresh: onRetry,
+        isMirroring: isMirroring,
+        onToggleMirroring: embeddedInInspector ? onToggleMirroring : nil
       )
       if let notice = projection.noticeMessage {
         BrowserMirrorNoticeBanner(message: notice) {

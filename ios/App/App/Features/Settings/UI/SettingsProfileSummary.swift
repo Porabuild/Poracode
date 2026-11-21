@@ -1,10 +1,16 @@
 import SwiftUI
 
 struct ProfileStatGrid: View {
+  @Environment(\.colorScheme) private var colorScheme
+  @Environment(\.poracodeTheme) private var theme
+  @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+
   let information: SettingsProfileInformation
   let window: SettingsProfileWindow
 
   var body: some View {
+    let palette = theme.variant(for: colorScheme)
+    let columnCount = horizontalSizeClass == .regular ? 3 : 2
     let tokens = information.tokens
     let totals = information.core.totals
     let entries = [
@@ -30,9 +36,10 @@ struct ProfileStatGrid: View {
         label: SettingsUIStrings.longestStreak
       ),
     ]
+    let fillerCount = (columnCount - (entries.count % columnCount)) % columnCount
 
     LazyVGrid(
-      columns: Array(repeating: GridItem(.flexible(), spacing: 1), count: 2),
+      columns: Array(repeating: GridItem(.flexible(), spacing: 1), count: columnCount),
       spacing: 1
     ) {
       ForEach(entries) { entry in
@@ -49,18 +56,20 @@ struct ProfileStatGrid: View {
             .lineLimit(1)
         }
         .frame(maxWidth: .infinity, minHeight: 96)
-        .background(Color(uiColor: .secondarySystemBackground))
+        .background(palette.surface)
         .accessibilityElement(children: .combine)
       }
-      Color(uiColor: .secondarySystemBackground)
-        .frame(minHeight: 96)
-        .accessibilityHidden(true)
+      ForEach(0..<fillerCount, id: \.self) { _ in
+        palette.surface
+          .frame(minHeight: 96)
+          .accessibilityHidden(true)
+      }
     }
-    .background(Color(uiColor: .separator))
-    .clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
+    .background(palette.border)
+    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
     .overlay {
-      RoundedRectangle(cornerRadius: 4, style: .continuous)
-        .stroke(Color(uiColor: .separator), lineWidth: 1)
+      RoundedRectangle(cornerRadius: 10, style: .continuous)
+        .stroke(palette.border, lineWidth: 1)
     }
   }
 }

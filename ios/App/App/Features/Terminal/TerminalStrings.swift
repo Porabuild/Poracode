@@ -6,6 +6,12 @@ enum TerminalStrings {
   }
 
   static let title = value("terminal.title", "Terminal")
+  static let fontTitle = value("terminal.font.title", "Terminal font")
+  static let defaultFont = value("terminal.font.default", "Default")
+  static let chooseFont = value("terminal.font.choose", "Choose font…")
+  static let fontDescription = value("terminal.font.description", "Choose a monospaced font for agent and project terminals.")
+  static let fontUnavailable = value("terminal.font.unavailable", "The saved font is unavailable. Using the default.")
+  static let fontPreview = value("terminal.font.preview", "Preview")
   static let output = value("terminal.output", "Terminal output")
   static let input = value("terminal.input", "Terminal input")
   static let inputPlaceholder = value("terminal.input.placeholder", "Enter a command")

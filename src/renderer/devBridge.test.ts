@@ -33,6 +33,12 @@ type SmokeGlobal = typeof globalThis & {
     loadLiveVoice(): Promise<typeof import("./speech/liveVoice")>;
     loadBrowserAttachInbox(): Promise<typeof import("./state/browserAttachInbox")>;
     loadThreadNavigation(): Promise<typeof import("./actions/threadActions")>;
+    loadWorkflowPresentation(): Promise<
+      typeof import("./components/thread/ChatPane/parts/items/workflowDisplay")
+    >;
+    loadToolPresentation(): Promise<
+      typeof import("./components/thread/ChatPane/parts/items/toolDisplay")
+    >;
   };
 };
 const target = globalThis as SmokeGlobal;
@@ -54,6 +60,32 @@ it("does not install renderer smoke module access in production", () => {
   vi.stubEnv("DEV", false);
   installDevBridge();
   expect(target.__poracodeDev).toBeUndefined();
+});
+
+it("loads the bundled tool display policy without Vite source URLs", async () => {
+  vi.stubEnv("DEV", true);
+  installDevBridge();
+  const { deriveToolDisplay } = await target.__poracodeDev!.loadToolPresentation();
+  expect(
+    deriveToolDisplay({ name: "search", serverId: "workspace_docs", status: "success" }).title,
+  ).toBe("workspace docs: search");
+});
+
+it("loads canonical workflow presentation through the frozen renderer bridge", async () => {
+  vi.stubEnv("DEV", true);
+  installDevBridge();
+  const { parseWorkflowInfo } = await target.__poracodeDev!.loadWorkflowPresentation();
+  expect(
+    parseWorkflowInfo({
+      name: "workflow.fixture",
+      status: "success",
+      workflow: {
+        runId: "run",
+        transcriptDir: "/session/subagents/workflows/run",
+        summary: "Review workspace",
+      },
+    }),
+  ).toMatchObject({ description: "Review workspace", manifestPath: "/session/workflows/run.json" });
 });
 
 it("loads real editor diagnostics lazily through the development bridge", async () => {

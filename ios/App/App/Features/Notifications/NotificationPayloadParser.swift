@@ -1,3 +1,4 @@
+import CoreFoundation
 import Foundation
 
 enum NotificationPayloadParser {
@@ -61,16 +62,11 @@ enum NotificationPayloadParser {
   }
 
   private static func exactInteger(_ value: Any?) -> Int? {
-    if value is Bool { return nil }
-    if let value = value as? Int { return value }
-    if let value = value as? NSNumber {
-      let double = value.doubleValue
-      guard double.isFinite, double.rounded(.towardZero) == double,
-        double >= Double(Int.min), double <= Double(Int.max)
-      else { return nil }
-      return Int(double)
-    }
-    return nil
+    // Foundation can bridge both a numeric NSNumber(1) and a CFBoolean to
+    // Swift Bool. The Core Foundation type keeps an APNs integer distinct.
+    guard let number = value as? NSNumber, CFGetTypeID(number) != CFBooleanGetTypeID()
+    else { return nil }
+    return Int(exactly: number.doubleValue)
   }
 
   private static func validIdentifier(_ value: Any?) -> String? {

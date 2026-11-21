@@ -52,6 +52,7 @@ final class SettingsControllerTests: XCTestCase {
 
     await controller.write(SettingsPatch(values: [.titleGenFast: .bool(true)]))
     XCTAssertEqual(controller.state, .failed(.ambiguousOutcome))
+    XCTAssertNil(controller.refreshFailure)
     let writeCount = await gateway.writeCount
     XCTAssertEqual(writeCount, 1)
   }

@@ -36,6 +36,11 @@ struct RichChatComposerAttachmentButton: View {
   let disabled: Bool
   var openSkills: (() -> Void)?
   var openControls: (() -> Void)?
+  @Binding var configuration: ThreadConfig
+  let launchConfiguration: ThreadConfig
+  var planModes: [RichChatComposerOption] = []
+  var openCrew: (() -> Void)?
+  var openSideChat: (() -> Void)?
   var compactToolbar = false
   var sessionActionEntries: [RichChatSessionActionEntryTarget] = []
   var sessionActionsDisabled = false
@@ -62,6 +67,7 @@ struct RichChatComposerAttachmentButton: View {
               .foregroundStyle(.primary.opacity(0.9))
               .frame(width: 32, height: 32)
               .background(Color.primary.opacity(0.12), in: Circle())
+              .frame(width: 44, height: 44)
               .contentShape(Circle())
           }
         }
@@ -76,7 +82,8 @@ struct RichChatComposerAttachmentButton: View {
       }
     }
     .disabled(disabled || importing)
-    .accessibilityLabel(RichChatStrings.addAttachment)
+    .accessibilityLabel(RichChatStrings.addAttachmentOrCapability)
+    .accessibilityIdentifier("native-e2e.composer.add")
     .photosPicker(
       isPresented: isPresenting(.photoPicker),
       selection: $photoItem,
@@ -115,16 +122,42 @@ struct RichChatComposerAttachmentButton: View {
 
   @ViewBuilder
   private var attachmentMenu: some View {
-    if let openControls {
-      Button(RichChatStrings.composerControls, systemImage: "slider.horizontal.3") {
-        openControls()
+    Section {
+      Button(HomeStrings.files, systemImage: "paperclip") { presentation = .files }
+      Menu(HomeStrings.photos, systemImage: "photo") {
+        Button(HomeStrings.photos, systemImage: "photo") { presentPhotos(.photo) }
+        Button(HomeStrings.screenshots, systemImage: "viewfinder") { presentPhotos(.screenshot) }
+        Button(HomeStrings.camera, systemImage: "camera") { presentation = .camera }
+          .disabled(!HomeComposerCameraPicker.isAvailable)
       }
     }
-    if let openSkills {
-      Button(SettingsIntegrationsStrings.skills, systemImage: "wand.and.stars") {
-        openSkills()
+    if planModes.contains(where: { $0.id == "plan" }),
+      RichChatComposerControlCatalog.nonPlanMode(in: planModes) != nil {
+      Button {
+        configuration.mode = RichChatComposerControlCatalog.modeAfterToggling("plan",
+          current: configuration.mode, options: planModes)
+      } label: {
+        Label(RichChatStrings.plan, systemImage: configuration.mode == "plan" ? "checkmark" : "list.bullet.clipboard")
       }
     }
+    if planModes.contains(where: { $0.id == "agent" }) {
+      ForEach(planModes.filter { $0.id != "agent" && $0.id != "plan" }) { option in
+        Button {
+          configuration.mode = RichChatComposerControlCatalog.modeAfterToggling(option.id,
+            current: configuration.mode, options: planModes)
+        } label: {
+          if configuration.mode == option.id { Label(option.label, systemImage: "checkmark") }
+          else { Text(option.label) }
+        }
+      }
+    }
+    RichChatComposerCapabilitiesMenu(configuration: launchConfiguration)
+    if let openSideChat {
+      Button(SideChatStrings.title, systemImage: "bubble.left.and.bubble.right", action: openSideChat)
+        .accessibilityIdentifier("native-e2e.composer.side-chat")
+    }
+    if let openCrew { Button(RichChatStrings.crew, systemImage: "person.2", action: openCrew) }
+    if let openSkills { Button(SettingsIntegrationsStrings.skills, systemImage: "wand.and.stars", action: openSkills) }
     if !sessionActionEntries.isEmpty || sessionActionsFailure != nil {
       Menu(RichChatSessionActionStrings.entryLabel) {
         ForEach(sessionActionEntries, id: \.panel) { entry in
@@ -139,16 +172,9 @@ struct RichChatComposerAttachmentButton: View {
         }
       }
     }
-    Button(HomeStrings.photos, systemImage: "photo") { presentPhotos(.photo) }
-    Button(HomeStrings.screenshots, systemImage: "viewfinder") { presentPhotos(.screenshot) }
-    Button(HomeStrings.camera, systemImage: "camera") {
-      guard HomeComposerCameraPicker.isAvailable else {
-        errorMessage = HomeStrings.cameraUnavailable
-        return
-      }
-      presentation = .camera
+    if let openControls {
+      Button(RichChatStrings.composerControls, systemImage: "slider.horizontal.3") { openControls() }
     }
-    Button(HomeStrings.files, systemImage: "folder") { presentation = .files }
   }
 
   @ViewBuilder

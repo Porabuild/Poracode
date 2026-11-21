@@ -74,7 +74,7 @@ struct SessionEventRouter {
             notification,
             route: route,
             isReplay: seq <= host.state.socketReplayCeiling,
-            isThreadOpen: host.activeRichChatSuite?.scope.threadID == notification.threadId
+            isThreadOpen: host.attachedRichChatSuite(threadID: notification.threadId) != nil
         )
     }
 
@@ -102,7 +102,9 @@ struct SessionEventRouter {
         if type == "thread-state" {
             // In-place row update under the per-row applied-seq guard; unknown
             // rows fall back to a coalesced catalog pass.
-            _ = host.catalog.applyThreadStateEvent(object, seq: seq)
+            if host.catalog.applyThreadStateEvent(object, seq: seq) {
+                host.receiveRichChatLaunchState(object, sequence: seq)
+            }
             return
         }
     }

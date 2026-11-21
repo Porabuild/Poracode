@@ -11,6 +11,7 @@ struct RichChatCheckpointView: View {
   let controller: RichChatCheckpointController
   let conversation: RichChatConversationController
   let canOperate: Bool
+  var embedded = false
 
   @State private var presentation: RichChatCheckpointPresentation?
 
@@ -18,13 +19,30 @@ struct RichChatCheckpointView: View {
     Button {
       presentation = .checkpoints
     } label: {
-      Label(
-        RichChatStrings.checkpoints,
-        systemImage: "clock.arrow.trianglehead.counterclockwise.rotate.90"
+      HStack(spacing: 8) {
+        Image(systemName: "clock.arrow.trianglehead.counterclockwise.rotate.90")
+          .font(.subheadline)
+          .foregroundStyle(.secondary)
+          .accessibilityHidden(true)
+        Text(embedded ? RichChatStrings.showDetails : RichChatStrings.checkpoints)
+          .poracodeChatText(.body, weight: .semibold)
+          .foregroundStyle(.primary)
+        Spacer(minLength: 4)
+        Image(systemName: "chevron.right")
+          .font(.caption2.weight(.semibold))
+          .foregroundStyle(.tertiary)
+          .accessibilityHidden(true)
+      }
+      .padding(12)
+      .frame(maxWidth: .infinity, alignment: .leading)
+      .poracodeGlassBackground(
+        in: RoundedRectangle(cornerRadius: 14, style: .continuous),
+        interactive: true
       )
-      .frame(maxWidth: .infinity)
+      .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
     }
-    .poracodeGlassButtonStyle()
+    .buttonStyle(.plain)
+    .accessibilityLabel(RichChatStrings.checkpoints)
     .disabled(controller.state.activeMutation != nil)
     .sheet(item: $presentation) { _ in
       RichChatCheckpointSheet(

@@ -121,7 +121,7 @@ export interface InventoryImportFilesOptions extends ImportFileOperationGuard {
   readonly skipRuntimeSingletonSymlinks?: boolean;
   /**
    * V6 C.4: skip Chromium cache directories (Cache, Code Cache, GPUCache,
-   * GPUPersistentCache, Service Worker, and Partitions/<profile>/Cache)
+   * GraphiteDawnCache, GPUPersistentCache, Service Worker, and Partitions/<profile>/Cache)
    * instead of hashing and copying them. Scoped to the root-level Electron
    * `userData` directory of the source — same-named directories at any other
    * depth are user data and stay. Promotion-only; offline backups keep a
@@ -142,6 +142,10 @@ const CHROMIUM_CACHE_DIRECTORY_NAMES = new Set([
   "Cache",
   "Code Cache",
   "GPUCache",
+  // Chromium writes this root-level Skia GPU cache during startup. It is not
+  // user data; including it makes a live desktop promotion's copy self-race.
+  // Existing receipts stay valid, and explicit offline inventories keep it.
+  "GraphiteDawnCache",
   "GPUPersistentCache",
   "Service Worker",
 ]);

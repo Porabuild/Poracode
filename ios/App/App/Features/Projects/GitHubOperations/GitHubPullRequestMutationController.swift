@@ -37,16 +37,20 @@ final class GitHubPullRequestMutationController {
     if runtime.leaveBackground(context) { state = GitHubMutationState() }
   }
 
-  func submit(_ request: GitHubOperationRequest) async {
+  @discardableResult
+  func submit(
+    _ request: GitHubOperationRequest, expectedLease: GitHubProjectLease? = nil
+  ) async -> GitHubOperationsFailure? {
     guard Self.supported.contains(request.procedure),
       request.procedure.metadata.scope == .operate
-    else { return }
+    else { return .notReady }
+    if let expectedLease, runtime.context?.lease != expectedLease { return .notReady }
     let capture: GitHubControllerCapture
     switch runtime.capture(for: request) {
     case .success(let value): capture = value
     case .failure(let value):
       state.failure = value
-      return
+      return value
     }
     let deliveryId = UUID()
     if request.procedure.requiresConfirmation {
@@ -55,9 +59,11 @@ final class GitHubPullRequestMutationController {
         request: request,
         capture: capture
       )
-      return
+      return nil
     }
     await run(request, capture: capture, deliveryId: deliveryId)
+    guard runtime.owns(capture) else { return .notReady }
+    return state.failure
   }
 
   func confirmPendingMutation() async {
@@ -91,6 +97,7 @@ final class GitHubPullRequestMutationController {
         try Task.checkCancellation()
         guard self.runtime.owns(capture) else { return }
         self.state.activeMutation = nil
+        self.state.failure = nil
         self.state.lastResult = result
         self.state.requiresAuthoritativeRefresh = false
       } catch is CancellationError {

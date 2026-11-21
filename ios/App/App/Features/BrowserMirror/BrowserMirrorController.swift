@@ -44,8 +44,16 @@ final class BrowserMirrorController {
   func updateAccess(_ next: BrowserMirrorHostAccess?) async {
     let previous = access
     let previousKey = subscription.key
-    let shouldUnwind = previous?.lease != next?.lease || !Self.canStream(next)
+    let leaseChanged = previous?.lease != next?.lease
+    let shouldUnwind = leaseChanged || !Self.canStream(next)
     access = next
+    if leaseChanged {
+      apply(.empty)
+      loadState = .idle
+      mirrorStatus = .starting(tabId: nil)
+      lastMutationOutcome = .none
+      isMutating = false
+    }
 
     if shouldUnwind, let lease = previous?.lease {
       subscription = .none
@@ -55,10 +63,13 @@ final class BrowserMirrorController {
       await socket.stop(lease: lease)
     }
 
+    guard access == next else { return }
     guard watchIntent, Self.canStream(next) else {
       if next?.isForeground == false { loadState = .unavailable }
       return
     }
+    if leaseChanged || loadState == .idle { await refresh() }
+    guard access == next, watchIntent else { return }
     if startedLease != next?.lease { await startSocketIfAllowed() }
   }
 

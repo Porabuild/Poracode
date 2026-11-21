@@ -3,7 +3,8 @@ import SwiftUI
 struct GitHubOperationFormView: View {
   let procedure: GitHubProcedure
   let location: GitHubProjectLocation
-  let submit: @MainActor (GitHubOperationRequest) async -> Void
+  let canSubmit: Bool
+  let submit: @MainActor (GitHubOperationRequest) async -> GitHubOperationsFailure?
 
   @Environment(\.dismiss) private var dismiss
   @State private var draft: GitHubOperationDraft
@@ -20,7 +21,11 @@ struct GitHubOperationFormView: View {
   ) {
     self.procedure = procedure
     self.location = location
-    self.submit = submit
+    self.canSubmit = true
+    self.submit = { request in
+      await submit(request)
+      return nil
+    }
     _draft = State(
       initialValue: GitHubOperationDraft(
         account: accounts.first,
@@ -32,26 +37,67 @@ struct GitHubOperationFormView: View {
     )
   }
 
+  init(
+    creation: ProjectGitPullRequestDraft,
+    canSubmit: Bool,
+    submit: @escaping @MainActor (GitHubOperationRequest) async -> GitHubOperationsFailure?
+  ) {
+    procedure = .ghCreatePr
+    location = creation.lease.location
+    self.canSubmit = canSubmit
+    self.submit = submit
+    _draft = State(initialValue: creation.fields)
+  }
+
   var body: some View {
     NavigationStack {
-      Form { fields }
+      Form {
+        fields
+        if let failure = draft.failure {
+          Text(GitHubOperationsStrings.failure(failure))
+            .foregroundStyle(.red)
+        }
+      }
+        .disabled(draft.isSubmitting)
         .navigationTitle(GitHubOperationsStrings.action(procedure))
         .gitHubInlineNavigationTitle()
         .toolbar {
           ToolbarItem(placement: .cancellationAction) {
-            Button(GitHubOperationsStrings.cancel) { dismiss() }
+            Button(GitHubOperationsStrings.cancel, systemImage: "xmark") { dismiss() }
+              .disabled(draft.isSubmitting)
           }
           ToolbarItem(placement: .confirmationAction) {
-            Button(GitHubOperationsStrings.run) {
-              guard let request else { return }
-              Task {
-                await submit(request)
-                dismiss()
+            Button {
+              guard let request, canRun else { return }
+              draft.isSubmitting = true
+              draft.failure = nil
+              Task { await submitForm(request) }
+            } label: {
+              if procedure == .ghCreatePr {
+                Label(GitHubOperationsStrings.action(.ghCreatePr), systemImage: "arrow.triangle.pull")
+              } else {
+                Label(GitHubOperationsStrings.run, systemImage: "checkmark")
               }
             }
-            .disabled(request == nil)
+            .disabled(!canRun)
+            .accessibilityIdentifier("native-e2e.github-operation.submit")
           }
         }
+    }
+    .interactiveDismissDisabled(draft.isSubmitting)
+  }
+
+  private var canRun: Bool {
+    canSubmit && request != nil && !draft.isSubmitting && draft.failure != .ambiguousOutcome
+  }
+
+  private func submitForm(_ request: GitHubOperationRequest) async {
+    let failure = await submit(request)
+    draft.isSubmitting = false
+    if let failure {
+      draft.failure = failure
+    } else {
+      dismiss()
     }
   }
 
@@ -81,11 +127,15 @@ struct GitHubOperationFormView: View {
       refField
     case .ghCreatePr:
       branchField
+        .accessibilityIdentifier("native-e2e.github-operation.pr-head")
       textField(GitHubOperationsStrings.baseBranch, text: $draft.baseBranch)
+        .accessibilityIdentifier("native-e2e.github-operation.pr-base")
       textField(GitHubOperationsStrings.pullRequestTitle, text: $draft.title)
+        .accessibilityIdentifier("native-e2e.github-operation.pr-title")
       bodyField
       Toggle(GitHubOperationsStrings.draft, isOn: $draft.isDraft)
-      .poracodeSwitchStyle()
+        .poracodeSwitchStyle()
+        .accessibilityIdentifier("native-e2e.github-operation.pr-draft")
     case .ghMergePr:
       pullRequestField
       Picker(GitHubOperationsStrings.mergeMethod, selection: $draft.mergeMethod) {
@@ -178,6 +228,7 @@ struct GitHubOperationFormView: View {
       TextEditor(text: $draft.body)
         .frame(minHeight: 100)
         .accessibilityLabel(GitHubOperationsStrings.body)
+        .accessibilityIdentifier("native-e2e.github-operation.body")
     }
   }
 
@@ -225,7 +276,10 @@ extension View {
   }
 }
 
-private struct GitHubOperationDraft {
+@Observable
+final class GitHubOperationDraft {
+  var isSubmitting = false
+  var failure: GitHubOperationsFailure?
   var availabilityDetail = GitHubAvailabilityDetail.summary
   var branch = ""
   var baseBranch = "main"

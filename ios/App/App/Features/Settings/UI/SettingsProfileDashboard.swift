@@ -4,7 +4,11 @@ import SwiftUI
 /// the controls idiomatic to iOS: menus for scope filters, a segmented range picker,
 /// and a vertically scrolling usage dashboard.
 struct SettingsProfileDashboard: View {
+  @Environment(\.colorScheme) private var colorScheme
+  @Environment(\.poracodeTheme) private var theme
+
   let information: SettingsProfileInformation
+  let identity: SettingsProfileIdentity
   @Binding var query: SettingsProfileQuery
   let canEdit: Bool
   let edit: () -> Void
@@ -28,12 +32,11 @@ struct SettingsProfileDashboard: View {
       .padding(.horizontal, 12)
       .padding(.top, 24)
       .padding(.bottom, 32)
+      .poracodeReadableWidth(760)
     }
-    .background(Color(uiColor: .systemBackground))
+    .background(theme.variant(for: colorScheme).background)
     .refreshable { refresh() }
   }
-
-  private var identity: SettingsProfileIdentity { information.core.identity }
 
   private var activeMetric: SettingsProfileHeatmapMetric {
     if selectedMetric == .tokens, !information.tokens.available { return .prompts }
@@ -62,7 +65,7 @@ struct SettingsProfileDashboard: View {
               Image(systemName: "pencil")
                 .font(.system(size: 13, weight: .medium))
                 .foregroundStyle(.secondary)
-                .frame(width: 28, height: 28)
+                .frame(width: 44, height: 44)
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)

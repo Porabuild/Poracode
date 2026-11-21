@@ -12,6 +12,17 @@ export const productionRoots = [
 
 export const functionalAreas = [
   {
+    id: "tool-headings",
+    title: "Shared tool headings and provider-owned display namespaces",
+    patterns: [
+      /toolPresentation/i,
+      /workflow(Presentation|Registration)/i,
+      /runtime(ItemPresentation|PresentationReads|HeaderInput)/i,
+    ],
+    automated: ["baseline", "tool-headings"],
+    manual: [],
+  },
+  {
     id: "shared-memory",
     title: "Opt-in memory capture, recall, settings, and environment sync",
     patterns: [
@@ -184,6 +195,8 @@ export const functionalAreas = [
       /ChatPane/,
       /composer/i,
       /runtimeEvent/i,
+      /toolPresentation/i,
+      /runtime(ItemPresentation|PresentationReads|HeaderInput)/i,
       /session/i,
       /agents\/acp\/canonicalMapping\//,
     ],

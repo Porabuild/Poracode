@@ -32,6 +32,12 @@ extension RemoteAPIClient: ProjectRemoteAPI {
     _ command: ProjectCommand,
     operationId: String
   ) async throws -> ProjectCommandOutcome {
+    if command.isCatalogMutation {
+      guard catalogMutationsAdvertised, !operationId.isEmpty else {
+        throw RemoteClientError(message: "Catalog mutation is not advertised by this host.",
+          status: 0, code: "catalog_mutations_unavailable")
+      }
+    }
     let body = try GeneratedRemoteV3Contract.projectCommandRequest(
       JSONDecoding.encoder.encode(command)
     )
@@ -40,6 +46,7 @@ extension RemoteAPIClient: ProjectRemoteAPI {
     // per-operation command id is required by the host under it and is the
     // receipt identity for this one operation.
     var headers: [String: String] = [:]
+    if command.isCatalogMutation { headers[ProtocolConstants.commandIdHeader] = operationId }
     if effectiveProjectCommandResultDeclaration {
       headers[ProtocolConstants.projectCommandResultHeader] =
         ProtocolConstants.projectCommandResultDeclaration

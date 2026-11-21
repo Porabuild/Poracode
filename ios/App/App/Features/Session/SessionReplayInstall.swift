@@ -123,11 +123,12 @@ extension AppSession {
     }
     // Buffered lifecycle events bypass the live router. Project their task
     // drains only after the install commits, using its accepted envelopes.
-    if let suite = activeRichChatSuite {
+    for suite in attachedRichChatSuites {
       for envelope in commit.appliedBoundary {
         switch envelope.event {
         case .threadExited(let threadId, _), .threadReset(let threadId):
           guard suite.scope.threadID == threadId else { continue }
+          suite.runtimeLaunch.clear(through: envelope.seq)
           suite.transcript.drainBackgroundTasks(sequence: envelope.seq)
         default:
           break

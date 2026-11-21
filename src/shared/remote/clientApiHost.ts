@@ -486,7 +486,9 @@ export abstract class RemoteClientHostApi extends RemoteClientDevicePreviewApi {
     });
     if (!("replacement" in notes)) return;
     const result = parseResponse(projectNotesWriteResultSchema, raw, "project notes save").result;
-    if (!result) throw new Error("The host did not confirm the guarded Notes save.");
+    if (!result || (result.notes && result.notes.projectId !== projectId)) {
+      throw new Error("The host did not confirm the guarded Notes save.");
+    }
     return result;
   }
 

@@ -253,6 +253,8 @@ public struct RoutesettingsU2DReadResponseU2DSettingsU2DCrewsU2DItem_261c257787:
   }
 }
 
+public typealias RoutesettingsU2DReadResponseU2DSettingsU2DCrossagentHiddenModels_86d5d72e84 = [String: [ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b]]
+
 public typealias RoutesettingsU2DReadResponseU2DSettingsU2DDisabledBuiltInMcpServers_65899fb957 = [String: Bool]
 
 public typealias RoutesettingsU2DReadResponseU2DSettingsU2DEnabledMcpServers_2d677fb041 = [String: Bool]
@@ -261,8 +263,6 @@ public enum RoutesettingsU2DReadResponseU2DSettingsU2DFollowUpBehavior_6fcb1a55c
   case `steer` = "steer"
   case `queue` = "queue"
 }
-
-public typealias RoutesettingsU2DReadResponseU2DSettingsU2DHiddenModels_86d5d72e84 = [String: [ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b]]
 
 public enum RoutesettingsU2DReadResponseU2DSettingsU2DMemoryU2DCaptureTiming_b0eed3c52a: String, Codable, Sendable {
   case `settleU2D2m` = "settle-2m"

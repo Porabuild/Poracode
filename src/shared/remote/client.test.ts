@@ -343,6 +343,48 @@ describe("RemoteDesktopClient", () => {
     ]);
   });
 
+  it.each([undefined, 1])(
+    "writes Notes with a host advertising guardedWrites=%s",
+    async (guardedWrites) => {
+      const replacement = { doc: null, todos: [] };
+      const post = vi.fn<(body: unknown) => void>();
+      const client = new RemoteDesktopClient(
+        "https://host.example.test/",
+        "lc_access_test",
+        async (_url, init) => {
+          if (init?.method !== "POST") return Response.json({ notes: null, guardedWrites });
+          post(JSON.parse(String(init.body)));
+          return Response.json(
+            guardedWrites === 1
+              ? {
+                  result: {
+                    status: "saved",
+                    notes: {
+                      projectId: "project",
+                      ...replacement,
+                      updatedAt: "now",
+                      revision: "next",
+                    },
+                  },
+                }
+              : {},
+          );
+        },
+      );
+      await expect(client.projectNotes("project")).resolves.toBeNull();
+      await expect(
+        client.setProjectNotes({ projectId: "project", baseRevision: null, replacement }),
+      ).resolves.toMatchObject({
+        status: "saved",
+        notes: { projectId: "project", ...replacement },
+      });
+      const legacyBody = { ...replacement, updatedAt: expect.any(String) };
+      expect(post).toHaveBeenCalledExactlyOnceWith(
+        guardedWrites === 1 ? { baseRevision: null, replacement } : legacyBody,
+      );
+    },
+  );
+
   it("reads, checks, enables, and deletes PR automation through the remote API", async () => {
     const requests: Array<{ url: string; method: string; body: unknown }> = [];
     const watch = {

@@ -334,3 +334,51 @@ private struct ForgeCommentEditor: View {
     }
   }
 }
+
+struct PullRequestSectionNavigator: View {
+  let sections: [PullRequestReviewSection]
+  @Binding var selection: PullRequestReviewSection
+
+  var body: some View {
+    ViewThatFits(in: .horizontal) {
+      Picker(PullRequestsStrings.title, selection: $selection) {
+        ForEach(sections) { section in
+          Text(PullRequestsStrings.reviewSection(section)).tag(section)
+        }
+      }
+      .pickerStyle(.segmented)
+      .fixedSize(horizontal: true, vertical: false)
+      .accessibilityIdentifier("native-e2e.pull-requests.sections.segmented")
+
+      Menu {
+        ForEach(sections) { section in
+          Button {
+            selection = section
+          } label: {
+            if selection == section {
+              Label(PullRequestsStrings.reviewSection(section), systemImage: "checkmark")
+            } else {
+              Text(PullRequestsStrings.reviewSection(section))
+            }
+          }
+          .accessibilityIdentifier("native-e2e.pull-requests.section.\(section.rawValue)")
+        }
+      } label: {
+        Label(PullRequestsStrings.reviewSection(selection), systemImage: "chevron.up.chevron.down")
+          .lineLimit(1)
+          .frame(maxWidth: .infinity, alignment: .leading)
+          .frame(minHeight: 44)
+          .contentShape(Rectangle())
+      }
+      .tint(.primary)
+      .accessibilityIdentifier("native-e2e.pull-requests.sections.menu")
+    }
+    .padding(.horizontal)
+    .padding(.vertical, 8)
+    .frame(maxWidth: .infinity)
+    .poracodeBarBackground()
+    .onChange(of: sections) { _, available in
+      if !available.contains(selection) { selection = .overview }
+    }
+  }
+}

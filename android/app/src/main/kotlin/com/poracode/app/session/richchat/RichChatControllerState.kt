@@ -19,6 +19,7 @@ data class RichChatControllerState(
     val olderCursor: Int? = null,
     /** `ct1.` continuation for older completed turns; null ends the walk. */
     val olderTurnsCursor: String? = null,
+    val runtimeResumeCursor: String? = null,
     val config: ThreadConfig? = null,
     val terminalScrollback: String? = null,
     val loadPhase: RichChatLoadPhase = RichChatLoadPhase.Idle,

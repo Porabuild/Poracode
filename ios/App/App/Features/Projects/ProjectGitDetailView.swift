@@ -1,5 +1,131 @@
 import SwiftUI
 
+enum ProjectGitDestination: Identifiable {
+  case gitOperations
+  case gitHubOperations
+  case review
+  case createPullRequest(ProjectGitPullRequestDraft)
+
+  var id: String {
+    switch self {
+    case .gitOperations: "gitOperations"
+    case .gitHubOperations: "gitHubOperations"
+    case .review: "review"
+    case .createPullRequest(let draft): draft.id.uuidString
+    }
+  }
+
+  var ownsGitConfirmation: Bool {
+    if case .gitOperations = self { return true }
+    return false
+  }
+}
+
+struct ProjectGitDestinationSheet: View {
+  @Environment(\.dismiss) private var dismiss
+  let destination: ProjectGitDestination
+  let context: ProjectWorkspaceContext?
+  @Bindable var operationsController: GitOperationsController
+  let gitHubContext: GitHubControllerContext?
+  let gitHubControllers: GitHubOperationsControllerSuite
+  let reviewDestination: ProjectReviewDetailsView?
+  let creation: ProjectGitPullRequestCreation
+  let refreshGit: () async -> Void
+
+  @ViewBuilder
+  var body: some View {
+    if case .createPullRequest(let draft) = destination {
+      ProjectGitPullRequestSheet(
+        draft: draft, creation: creation, context: gitHubContext,
+        controllers: gitHubControllers, refreshGit: refreshGit
+      )
+    } else {
+      NavigationStack {
+        pane.toolbar {
+          ToolbarItem(placement: .cancellationAction) {
+            Button(AdvancedOperationsStrings.close, systemImage: "xmark") { dismiss() }
+              .accessibilityIdentifier("native-e2e.git.destination.close")
+          }
+        }
+      }
+      .poracodePageSheetSizing()
+      .modifier(PoracodeRetainNavigationWhilePresented())
+      .nativeCommands(identity: "workspace.git-destination", blocksParentActions: true)
+    }
+  }
+
+  @ViewBuilder
+  private var pane: some View {
+    switch destination {
+    case .gitOperations:
+      GitOperationsPanel(context: context, controller: operationsController)
+    case .gitHubOperations:
+      GitHubOperationsPanel(context: gitHubContext, controllers: gitHubControllers)
+    case .review:
+      if let reviewDestination { reviewDestination }
+    case .createPullRequest:
+      EmptyView()
+    }
+  }
+}
+
+struct ProjectGitEmptyStatusSection: View {
+  var body: some View {
+    Section {
+      Label(ProjectWorkspaceStrings.noChanges, systemImage: "checkmark.circle")
+        .foregroundStyle(.secondary)
+      Text(ProjectWorkspaceStrings.noChangesDescription)
+        .font(.caption)
+        .foregroundStyle(.secondary)
+    }
+  }
+}
+
+enum ProjectGitOperationDispatcher {
+  @MainActor
+  static func submitFileAction(
+    _ procedure: GitOperationProcedure,
+    change: ProjectGitFileChange,
+    context: ProjectWorkspaceContext?,
+    operationsController: GitOperationsController
+  ) {
+    guard let context else { return }
+    let request: GitOperationRequest
+    switch procedure {
+    case .gitStage:
+      request = .gitStage(.init(projectLocation: context.lease.location, filePath: change.path))
+    case .gitUnstage:
+      request = .gitUnstage(.init(projectLocation: context.lease.location, filePath: change.path))
+    case .gitRevert:
+      request = .gitRevert(.init(projectLocation: context.lease.location, filePath: change.path))
+    default:
+      return
+    }
+    Task { await operationsController.submit(request, expectedLease: context.lease) }
+  }
+
+  @MainActor
+  static func submitGroupAction(
+    _ procedure: GitOperationProcedure,
+    context: ProjectWorkspaceContext?,
+    operationsController: GitOperationsController
+  ) {
+    guard let context else { return }
+    let request: GitOperationRequest
+    switch procedure {
+    case .gitStageAll:
+      request = .gitStageAll(.init(projectLocation: context.lease.location))
+    case .gitUnstageAll:
+      request = .gitUnstageAll(.init(projectLocation: context.lease.location))
+    case .gitRevertAll:
+      request = .gitRevertAll(.init(projectLocation: context.lease.location))
+    default:
+      return
+    }
+    Task { await operationsController.submit(request, expectedLease: context.lease) }
+  }
+}
+
 struct ProjectGitDetailView: View {
   @Bindable var controller: ProjectGitReadController
   let context: ProjectWorkspaceContext?
@@ -44,8 +170,8 @@ struct ProjectGitDetailView: View {
   }
 
   private func submit(_ request: GitOperationRequest) {
-    guard context?.lease.location == request.ownerLocation else { return }
-    Task { await operationsController.submit(request) }
+    guard let lease = context?.lease, lease.location == request.ownerLocation else { return }
+    Task { await operationsController.submit(request, expectedLease: lease) }
   }
 
   @ViewBuilder

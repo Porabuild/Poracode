@@ -11,6 +11,10 @@ extension RemoteWebSocketClient {
     browserSink = sink
   }
 
+  func removeBrowserMirrorSink(_ sink: any BrowserMirrorSocketInboundSink) {
+    if browserSink === sink { browserSink = nil }
+  }
+
   var browserMirrorSocketGeneration: UInt64 { UInt64(max(0, generationGate.generation)) }
 
   /// Sends one browser client message on the live generation. A superseded generation, a

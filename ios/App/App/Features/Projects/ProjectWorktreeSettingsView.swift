@@ -114,12 +114,24 @@ struct ProjectWorktreeSettingsView: View {
         Text(ProjectSettingsStrings.copyIgnoredFilesDescription)
       }
     }
+    .poracodeReadableListMargins(760)
+    .scrollDismissesKeyboard(.interactively)
     .navigationTitle(ProjectSettingsStrings.worktrees)
     .navigationBarTitleDisplayMode(.inline)
     .toolbar {
       ToolbarItem(placement: .confirmationAction) {
-        Button(ProjectManagementStrings.save) { save() }
-          .disabled(commandController.state.isExecuting || !hasChanges)
+        Button(ProjectManagementStrings.save, systemImage: "checkmark") { save() }
+          .disabled(
+            commandController.state.isExecuting || !hasChanges
+              || commandController.state.session?.lease == nil
+          )
+          .accessibilityIdentifier("native-e2e.projects.worktrees.save")
+      }
+    }
+    .overlay(alignment: .bottom) {
+      if let failure = commandController.state.failure {
+        ProjectFailureBanner(failure: failure)
+          .padding()
       }
     }
     .refreshable { await settingsComposition.document.load() }
@@ -199,16 +211,18 @@ struct ProjectWorktreeSettingsView: View {
       locationPatch = .clear
     }
 
+    guard let lease = commandController.state.session?.lease else { return }
     let patch = ProjectPatch(
       scripts: scripts == originalScripts ? .unchanged : .set(scripts),
       worktreeLocation: locationPatch
     )
     Task {
-      await commandController.perform(
+      let succeeded = await commandController.perform(
         .update(projectId: project.id, patch: patch),
-        detectSetup: false
+        detectSetup: false,
+        expectedLease: lease
       )
-      if commandController.state.failure == nil { dismiss() }
+      if succeeded, commandController.state.failure == nil { dismiss() }
     }
   }
 
