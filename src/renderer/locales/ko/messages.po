@@ -5441,6 +5441,7 @@ msgstr "계속"
 msgid "Continue from where you left off."
 msgstr "중단된 지점부터 계속 진행해 주세요."
 
+#: src/renderer/components/thread/CompactThreadHeader.tsx
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/components/thread/ThreadView.tsx
 msgid "Continue in another provider"
@@ -22282,13 +22283,17 @@ msgstr "이 폴더는 비어 있습니다."
 msgid "This guide is out of date. Rewrite it to see excerpts for the current change."
 msgstr "이 가이드는 오래되었습니다. 현재 변경의 발췌문을 보려면 다시 작성하세요."
 
+#: src/renderer/views/SettingsOverlay/parts/HexSetupDialog.tsx
+msgid "This Hex release requires glibc 2.36 or newer on Linux. Use the built-in engine instead."
+msgstr "이 Hex 릴리스는 Linux에서 glibc 2.36 이상이 필요합니다. 대신 내장 엔진을 사용하세요."
+
 #: src/renderer/views/SettingsOverlay/parts/HexEngineDialog.tsx
 #~ msgid "This Hex release requires glibc 2.39 or newer on Linux."
 #~ msgstr "이 Hex 릴리스에는 Linux에서 glibc 2.39 이상이 필요합니다."
 
 #: src/renderer/views/SettingsOverlay/parts/HexSetupDialog.tsx
-msgid "This Hex release requires glibc 2.39 or newer on Linux. Use the built-in engine instead."
-msgstr "이 Hex 릴리스는 Linux에서 glibc 2.39 이상이 필요합니다. 대신 내장 엔진을 사용하세요."
+#~ msgid "This Hex release requires glibc 2.39 or newer on Linux. Use the built-in engine instead."
+#~ msgstr "이 Hex 릴리스는 Linux에서 glibc 2.39 이상이 필요합니다. 대신 내장 엔진을 사용하세요."
 
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "This host"

@@ -1,0 +1,33 @@
+diff --git a/packages/merman/package.json b/packages/merman/package.json
+index 47f4922..0e9bcec 100644
+--- a/packages/merman/package.json
++++ b/packages/merman/package.json
+@@ -1,5 +1,4 @@
+ {
+-  "$schema": "https://json.schemastore.org/package.json",
+   "name": "@opencode/merman",
+   "version": "2.3.2",
+   "private": true,
+@@ -9,21 +8,10 @@
+     "./palette": "./src/palette.ts",
+     "./plugin": "./src/plugin.ts"
+   },
+-  "scripts": {
+-    "audit:layouts": "bun run script/layout-audit.ts",
+-    "test": "bun test --timeout 30000 --only-failures",
+-    "typecheck": "bun check --no-script",
+-    "typecheck:tsc": "tsc --noEmit"
+-  },
+   "dependencies": {
+     "@opencode/plugin": "workspace:*",
+     "@opentui/core": "catalog:",
+-    "entities": "7.0.1",
++    "entities": "catalog:",
+     "string-width": "catalog:"
+-  },
+-  "devDependencies": {
+-    "@tsconfig/bun": "catalog:",
+-    "@types/bun": "catalog:",
+-    "@typescript/native": "catalog:"
+   }
+ }

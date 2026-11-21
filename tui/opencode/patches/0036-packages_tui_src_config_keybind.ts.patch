@@ -1,0 +1,13 @@
+diff --git a/packages/tui/src/config/keybind.ts b/packages/tui/src/config/keybind.ts
+index 56728ed..8ec91b5 100644
+--- a/packages/tui/src/config/keybind.ts
++++ b/packages/tui/src/config/keybind.ts
+@@ -171,7 +171,7 @@ export const Definitions = {
+   "model.cycle_favorite_reverse": keybind("none", "Previous favorite model"),
+   "mcp.list": keybind("none", "List MCP servers"),
+   "usage.show": keybind("none", "View usage limits"),
+-  "provider.connect": keybind("none", "Connect integration"),
++  "provider.connect": keybind("none", "Deprecated: provider setup is managed by the host"),
+   "agent.list": keybind("<leader>a", "List agents"),
+   "agent.cycle": keybind("shift+tab", "Next agent"),
+   "agent.cycle.reverse": keybind("none", "Previous agent"),

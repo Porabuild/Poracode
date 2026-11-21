@@ -1,0 +1,13 @@
+diff --git a/packages/tui/src/component/terminal-pane.tsx b/packages/tui/src/component/terminal-pane.tsx
+index 2c0a1c3..469d1e9 100644
+--- a/packages/tui/src/component/terminal-pane.tsx
++++ b/packages/tui/src/component/terminal-pane.tsx
+@@ -235,7 +235,7 @@ export function TerminalPane(props: {
+       }
+       if (message.type !== "attached") return
+       if (message.inputProtocol !== 1) {
+-        setFailure("Persistent terminal server is out of date; restart OpenCode")
++        setFailure("Persistent terminal server is out of date; restart Poracode")
+         next.close()
+         return
+       }

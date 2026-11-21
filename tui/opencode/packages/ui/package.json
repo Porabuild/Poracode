@@ -1,6 +1,6 @@
 {
   "name": "@opencode/ui",
-  "version": "2.1.4",
+  "version": "2.3.2",
   "private": true,
   "type": "module",
   "exports": {

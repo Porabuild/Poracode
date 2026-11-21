@@ -43,8 +43,11 @@ function Screen({
         ...client,
         sendTouch: () => {},
         sendMultiTouch: () => {},
+        cancelInput: () => {},
         sendScroll: () => {},
         sendKey: () => false,
+        fold: null,
+        pasteText: async () => {},
       };
   useEffect(() => {
     onStatusChange?.(client.status);
@@ -112,9 +115,17 @@ function Screen({
               ? t`Interactive device preview. Tab moves to the next control; Escape closes the workspace.`
               : t`Live device preview, view only`
           }
-          statusLabel={status}
           borderRadius={framed ? 14 : 8}
         />
+        {client.status !== "streaming" ? (
+          <div
+            className={`pointer-events-none absolute inset-0 flex items-center justify-center p-4 text-center text-xs ${
+              client.status === "error" ? "text-red-300" : "text-white/70"
+            }`}
+          >
+            {status}
+          </div>
+        ) : null}
       </div>
       {bookOpen ? (
         <FoldableBookOverlay

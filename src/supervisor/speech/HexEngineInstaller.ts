@@ -9,7 +9,7 @@ import type { CreateOptions, HexHost } from "@kitlangton/hex";
 import type { HexVoiceErrorCode } from "@/shared/contracts/hexVoice";
 import { hexCatalogFetch } from "./hexCatalogFetch";
 
-export const HEX_ENGINE_VERSION = "3.1.1";
+export const HEX_ENGINE_VERSION = "3.4.0";
 const RELEASE_PREFIX = `https://github.com/anomalyco/hex/releases/download/v${HEX_ENGINE_VERSION}/`;
 const INSTALL_TIMEOUT_MS = 10 * 60_000;
 const PROBE_TIMEOUT_MS = 15_000;
@@ -35,41 +35,41 @@ export const HEX_ENGINE_ASSETS: readonly HexEngineAsset[] = [
   {
     platform: "linux",
     arch: "x64",
-    filename: "hex-3.1.1-linux-x64",
-    downloadBytes: 69_129_928,
-    sha256: "913fc3523c25194b24721fe1d6a59a28b9b0136ef0cdf9d55eed7f21b19201d2",
+    filename: "hex-3.4.0-linux-x64",
+    downloadBytes: 90_638_008,
+    sha256: "7f8132a2202338c1b52c36113d23d7403cf91f220bcdbd9eec82bc726f5f8029",
     archive: false,
   },
   {
     platform: "linux",
     arch: "arm64",
-    filename: "hex-3.1.1-linux-arm64",
-    downloadBytes: 61_295_344,
-    sha256: "f5b2c2e867348c4075f787a79f4673abd1b0c31e4c54cca867e53c795135dc7c",
+    filename: "hex-3.4.0-linux-arm64",
+    downloadBytes: 81_168_104,
+    sha256: "bd549e896874c417b841cd8e1e724bbaca59046978e0ad2b7e72921de4101e0c",
     archive: false,
   },
   {
     platform: "win32",
     arch: "x64",
-    filename: "hex-3.1.1-windows-x64.exe",
-    downloadBytes: 67_126_200,
-    sha256: "c5c0a6d2e60bd64a3968219d313330d33d469e3751a8b68c4ac0bd524eed71b5",
+    filename: "hex-3.4.0-windows-x64.exe",
+    downloadBytes: 87_241_648,
+    sha256: "90bf9543dee8c3c799de95cbb4ccd1c05bcb29863c7212c1bd641979e287af9e",
     archive: false,
   },
   {
     platform: "win32",
     arch: "arm64",
-    filename: "hex-3.1.1-windows-arm64.exe",
-    downloadBytes: 50_403_768,
-    sha256: "ca209c5e742a31622a6ad114f7741af25a403489efde8187b23b3b079ccfd06f",
+    filename: "hex-3.4.0-windows-arm64.exe",
+    downloadBytes: 67_292_592,
+    sha256: "9f31a38ced09e23d87d5a2e4977db3024de988275593f750f26ba6d8882b7a24",
     archive: false,
   },
   {
     platform: "darwin",
     arch: "arm64",
-    filename: "hex-3.1.1-macos-arm64.zip",
-    downloadBytes: 26_502_891,
-    sha256: "f07aeaa418521ef0253641dee24b95c884180bf41899bc1c5686f530f3668496",
+    filename: "hex-3.4.0-macos-arm64.zip",
+    downloadBytes: 35_098_476,
+    sha256: "1ab0242dc3bb011c88568903cbf1e9d30310867a46f5168309853d6f8b4ca650",
     archive: true,
   },
 ];
@@ -465,7 +465,7 @@ export class HexEngineInstaller {
     if (!asset) return { asset: undefined, error: "unsupported" };
     if (this.platform === "linux") {
       if (!this.glibcVersion) return { asset, error: "unsupported" };
-      if (compareVersion(this.glibcVersion, "2.39") < 0) {
+      if (compareVersion(this.glibcVersion, "2.36") < 0) {
         return { asset, error: "incompatible" };
       }
     }

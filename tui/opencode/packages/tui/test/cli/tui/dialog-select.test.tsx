@@ -13,6 +13,8 @@ import {
   type DialogSelectRef,
 } from "../../../src/ui/dialog-select"
 import { truncateFilePath } from "../../../src/ui/file-path"
+import { getPoracodeTheme } from "../../../src/theme"
+import { resolveThemeDocument } from "@opencode/theme/tui"
 import { stringWidth } from "../../../src/util/string-width"
 import { emptyThemeSource, tmpdir } from "../../fixture/fixture"
 import { TestTuiContexts } from "../../fixture/tui-environment"
@@ -24,10 +26,11 @@ async function renderSelect(
   onGlobal: () => void,
   onRow: (option: DialogSelectOption<string>) => void,
   current?: string,
+  settings: Parameters<typeof createTuiResolvedConfig>[0] = {},
 ) {
   const state = path.join(root, "state")
   await mkdir(state, { recursive: true })
-  const config = createTuiResolvedConfig()
+  const config = createTuiResolvedConfig(settings)
   const [{ ConfigProvider }, { ThemeProvider }, { Keymap }, { DialogProvider }, { DialogSelect }, { ToastProvider }] =
     await Promise.all([
       import("../../../src/config"),
@@ -396,6 +399,30 @@ test("dialog actions run without options while row actions still require a selec
   }
 })
 
+test("uses the base text color for the search cursor under new designs", async () => {
+  await using tmp = await tmpdir()
+  const theme = resolveThemeDocument(getPoracodeTheme(), "dark")
+  const app = await renderSelect(
+    tmp.path,
+    [{ title: "First", value: "first" }],
+    () => {},
+    () => {},
+    undefined,
+    { experimental: { "new-designs": true } },
+  )
+
+  try {
+    await app.waitFor(() => app.renderer.getCursorState().visible)
+    expect(app.renderer.getCursorState().color.toInts()).toEqual(theme.text.base.toInts())
+
+    await app.mockInput.typeText("f")
+    await app.renderOnce()
+    expect(app.renderer.getCursorState().color.toInts()).toEqual(theme.text.base.toInts())
+  } finally {
+    app.renderer.destroy()
+  }
+})
+
 test("renders one gap before an empty state", async () => {
   await using tmp = await tmpdir()
   const app = await renderSelect(
@@ -659,7 +686,9 @@ test("dialog rows do not add renderer resize listeners", async () => {
     const before = count()
     // Mounting 30 rows must not add one resize listener per row (Node warns
     // past 10 listeners on one emitter).
-    select.replaceOptions(Array.from({ length: 30 }, (_, index) => ({ title: `Item ${index}`, value: `item-${index}` })))
+    select.replaceOptions(
+      Array.from({ length: 30 }, (_, index) => ({ title: `Item ${index}`, value: `item-${index}` })),
+    )
     await select.app.waitForVisualIdle()
     expect(count()).toBe(before)
   } finally {

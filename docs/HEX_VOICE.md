@@ -1,17 +1,17 @@
 # Native Hex voice input
 
 Poracode's optional Hex backend uses the Hex service API version 2. Audio
-settings can install or remove the pinned Hex 3.1.1 engine on supported hosts.
+settings can install or remove the pinned Hex 3.4.0 engine on supported hosts.
 Downloads are verified against the release's pinned size and SHA-256 before
 execution. ELF/PE architecture and format checks, Authenticode on Windows,
 codesign/notarization and arm64 verification on macOS, and a bounded SDK service
 probe are required before an installation is promoted. Managed files live in the
 host's cache. Removing a managed engine does not remove Hex-owned model data.
-Linux managed assets require glibc 2.39 or newer. Other platforms and
+Linux managed assets require glibc 2.36 or newer. Other platforms and
 architectures do not have a managed release.
 
-Engines can list models newer than the pinned SDK's `MODEL_IDS` (Hex 3.1.1
-lists QwenCleo and Underdog Bark models that `@kitlangton/hex` 0.3.1 does not
+Engines can list models newer than the pinned SDK's `MODEL_IDS` (Hex 3.1.1+
+adds QwenCleo, Underdog Bark, and newer 3.2–3.4 models that `@kitlangton/hex` 0.3.1 does not
 know), and the SDK rejects a whole catalog when one id is unknown. The host
 passes `hexCatalogFetch` as the SDK transport so catalog entries the SDK cannot
 drive are dropped and the install probe and model list keep working; those
@@ -28,7 +28,7 @@ not cancel installation or model preparation.
 An externally installed executable remains supported. Resolution order is the
 host-only `PORACODE_HEX_EXECUTABLE` absolute path, the managed engine, then
 `PATH`; renderer settings cannot provide an executable or download URL. The
-managed release currently supports Linux x64/arm64 with glibc 2.39 or newer,
+managed release currently supports Linux x64/arm64 with glibc 2.36 or newer,
 Windows x64/arm64, and macOS arm64. Other platforms and architectures must use
 an externally installed compatible executable.
 

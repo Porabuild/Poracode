@@ -1,0 +1,34 @@
+diff --git a/packages/tui/src/plugin/api.tsx b/packages/tui/src/plugin/api.tsx
+index c79b86a..e726420 100644
+--- a/packages/tui/src/plugin/api.tsx
++++ b/packages/tui/src/plugin/api.tsx
+@@ -183,6 +183,10 @@ export function createPluginContext(input: {
+     get themeMode() {
+       return host.themes.mode()
+     },
++    // poracode: plugins render code and diffs with the host's syntax colors.
++    get syntax() {
++      return host.themes.currentSyntax()
++    },
+     markdown: {
+       registerCodeBlockRenderer(language, render) {
+         const name = infoStringToFiletype(language)
+@@ -303,6 +307,18 @@ export function createPluginContext(input: {
+           if (!selection) return
+           return { providerID: selection.providerID, modelID: selection.modelID, variant: selection.variant }
+         },
++        // poracode: programmatic selection for crew picks; skips recents, applies a known variant.
++        set(model) {
++          if (!host.local.model.available({ providerID: model.providerID, modelID: model.modelID }))
++            return false
++          host.local.model.set({ providerID: model.providerID, modelID: model.modelID })
++          if (
++            model.variant !== undefined &&
++            host.local.model.variant.list().includes(model.variant)
++          )
++            host.local.model.variant.set(model.variant)
++          return true
++        },
+         variant: {
+           list: () => host.local.model.variant.list(),
+           set(variant) {

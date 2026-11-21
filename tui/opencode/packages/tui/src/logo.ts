@@ -8,6 +8,11 @@ export const pora = ["                   ", "█▀▀█ █▀▀█ █▀▀
 export const code = ["             ▄     ", "█▀▀▀ █▀▀█ █▀▀█ █▀▀█", "█___ █__█ █__█ █^^^", "▀▀▀▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀"]
 export const mark = ["█^^█", "█▀▀▀", "▀  ."]
 
+export const go = {
+  left: ["    ", "█▀▀▀", "█_^█", "▀▀▀▀"],
+  right: ["    ", "█▀▀█", "█__█", "▀▀▀▀"],
+}
+
 export const WORDMARK_FULL_WIDTH = 41
 export const WORDMARK_STACKED_WIDTH = 21
 

@@ -1,14 +1,14 @@
 diff --git a/packages/tui/src/component/dialog-update.tsx b/packages/tui/src/component/dialog-update.tsx
-index 9dcf07b..a9437e2 100644
+index bd4a56c..744f527 100644
 --- a/packages/tui/src/component/dialog-update.tsx
 +++ b/packages/tui/src/component/dialog-update.tsx
 @@ -1,4 +1,5 @@
- import { createEffect, createMemo, createResource, createSignal, For, Match, onCleanup, Show, Switch } from "solid-js"
+ import { createEffect, createMemo, createResource, createSignal, Match, onCleanup, Show, Switch } from "solid-js"
 +import { BRAND } from "../brand"
  import { Keymap } from "../context/keymap"
- import { useNewDesigns } from "../config"
  import { useTheme } from "../context/theme"
-@@ -92,7 +93,7 @@ export function DialogUpdate(props: {
+ import type { UpdateState } from "../context/update-notification"
+@@ -85,7 +86,7 @@ export function DialogUpdate(props: {
          <DialogHeader
            title={
              state().type === "installing"
@@ -17,7 +17,7 @@ index 9dcf07b..a9437e2 100644
                : state().type === "available" || state().type === "failed"
                  ? "Update available"
                  : "Update"
-@@ -137,12 +138,12 @@ export function DialogUpdate(props: {
+@@ -110,12 +111,12 @@ export function DialogUpdate(props: {
              </Match>
              <Match when={current.type === "available"}>
                <text fg={theme.text.muted}>
@@ -32,7 +32,7 @@ index 9dcf07b..a9437e2 100644
                </Spinner>
              </Match>
              <Match when={current.type === "installed"}>
-@@ -151,7 +152,7 @@ export function DialogUpdate(props: {
+@@ -124,7 +125,7 @@ export function DialogUpdate(props: {
                </text>
              </Match>
              <Match when={current.type === "current"}>
