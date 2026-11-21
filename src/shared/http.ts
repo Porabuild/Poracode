@@ -1,6 +1,16 @@
 import type { ServerResponse } from "node:http";
 
 const LOCALHOST_ORIGIN_HOSTS = new Set(["localhost", "127.0.0.1", "::1", "[::1]"]);
+const SAFE_RETRYABLE_HTTP_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
+const STALE_KEEP_ALIVE_ERROR_CODES = new Set([
+  "ECONNRESET",
+  "EPIPE",
+  "ECONNABORTED",
+  "ERR_SOCKET_CLOSED",
+  "UND_ERR_SOCKET",
+]);
+const STALE_KEEP_ALIVE_MESSAGE_RE = /socket hang up|other side closed/i;
+const STALE_KEEP_ALIVE_CAUSE_DEPTH_LIMIT = 4;
 
 /** Collect a fetch `Headers` object into a plain record. */
 export function headersToRecord(headers: Headers): Record<string, string> {
@@ -59,6 +69,74 @@ export function writeJsonResponse(
   }
   const json = JSON.stringify(data);
   res.end(options?.trailingNewline ? `${json}\n` : json);
+}
+
+/**
+ * True for RFC 9110 safe/idempotent HTTP methods that may be retried once on a
+ * fresh socket when a pooled keep-alive connection resets before response
+ * headers arrive.
+ */
+export function isSafeRetryableHttpMethod(method: string | undefined): boolean {
+  return SAFE_RETRYABLE_HTTP_METHODS.has((method ?? "GET").toUpperCase());
+}
+
+/**
+ * True when an error (or its `cause` chain) indicates that a peer or
+ * intermediary closed a pooled keep-alive socket before delivering response
+ * headers (`ECONNRESET`, `EPIPE`, `ECONNABORTED`, `ERR_SOCKET_CLOSED`,
+ * undici's `UND_ERR_SOCKET`, `socket hang up`, `other side closed`). Never
+ * matches cancellations, certificate mismatches, DNS/connect refusals, or
+ * timeouts.
+ */
+export function isStaleKeepAliveSocketError(error: unknown): boolean {
+  let current: unknown = error;
+  for (let depth = 0; depth <= STALE_KEEP_ALIVE_CAUSE_DEPTH_LIMIT && current; depth += 1) {
+    if (typeof current !== "object") return false;
+    const record = current as {
+      readonly name?: unknown;
+      readonly code?: unknown;
+      readonly message?: unknown;
+      readonly cause?: unknown;
+    };
+    if (
+      record.name === "AbortError" ||
+      record.code === "ABORT_ERR" ||
+      record.message === "certificate_fingerprint_mismatch"
+    ) {
+      return false;
+    }
+    if (typeof record.code === "string" && STALE_KEEP_ALIVE_ERROR_CODES.has(record.code)) {
+      return true;
+    }
+    if (typeof record.message === "string" && STALE_KEEP_ALIVE_MESSAGE_RE.test(record.message)) {
+      return true;
+    }
+    current = record.cause;
+  }
+  return false;
+}
+
+/**
+ * Destroys every idle socket sitting in a Node HTTP/HTTPS `Agent`'s
+ * `freeSockets` pool without disturbing active in-flight requests. Used before
+ * retrying after a stale keep-alive reset so the retry opens a fresh socket
+ * even if the peer closed multiple pooled connections at once.
+ */
+export function destroyIdleAgentSockets(agent: {
+  readonly freeSockets?: Readonly<Record<string, readonly { destroy(): unknown }[] | undefined>>;
+}): void {
+  const buckets = agent.freeSockets;
+  if (!buckets) return;
+  for (const sockets of Object.values(buckets)) {
+    if (!sockets) continue;
+    for (const socket of [...sockets]) {
+      try {
+        socket.destroy();
+      } catch {
+        // Best-effort cleanup of stale idle sockets.
+      }
+    }
+  }
 }
 
 /**

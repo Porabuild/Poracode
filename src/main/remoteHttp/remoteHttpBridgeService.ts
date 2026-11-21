@@ -1,4 +1,5 @@
 import { closePinnedHttpsAgents, pinnedHttpsFetch } from "./pinnedHttpsFetch";
+import { isSafeRetryableHttpMethod, isStaleKeepAliveSocketError } from "@/shared/http";
 import {
   REMOTE_HTTP_BRIDGE_PORT_LINGER_MS,
   REMOTE_HTTP_BRIDGE_VERSION,
@@ -368,17 +369,38 @@ export class RemoteHttpBridgeService {
 
   private async runFetch(request: ActiveRequest, body: Uint8Array | undefined): Promise<void> {
     try {
-      const fetchRequest = request.descriptor.certFingerprint
-        ? (url: string, init: RequestInit) =>
-            pinnedHttpsFetch(url, init, request.descriptor.certFingerprint!)
+      const certFingerprint = request.descriptor.certFingerprint;
+      const fetchRequest = certFingerprint
+        ? (url: string, init: RequestInit) => pinnedHttpsFetch(url, init, certFingerprint)
         : this.fetchImpl;
-      const response = await fetchRequest(request.descriptor.url, {
+      const init: RequestInit = {
         method: request.descriptor.method,
         headers: request.descriptor.headers,
         ...(body !== undefined ? { body: body as unknown as BodyInit } : {}),
         signal: request.controller.signal,
         redirect: "follow",
-      });
+      };
+      let response: Response;
+      try {
+        response = await fetchRequest(request.descriptor.url, init);
+      } catch (error) {
+        // `pinnedHttpsFetch` owns its own reused-socket retry. For the default
+        // non-pinned `fetch` (Node undici), a peer/proxy idle keep-alive close
+        // surfaces as `UND_ERR_SOCKET` / `ECONNRESET` without retrying even
+        // safe bodyless methods. Retry once before headers on a fresh socket.
+        if (
+          !certFingerprint &&
+          !request.descriptor.hasBody &&
+          isSafeRetryableHttpMethod(request.descriptor.method) &&
+          !request.controller.signal.aborted &&
+          !this.isRetired(request) &&
+          isStaleKeepAliveSocketError(error)
+        ) {
+          response = await fetchRequest(request.descriptor.url, init);
+        } else {
+          throw error;
+        }
+      }
       await this.pumpResponse(request, response);
     } catch (error) {
       if (this.isRetired(request)) return;

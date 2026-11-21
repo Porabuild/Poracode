@@ -9,6 +9,11 @@ import { type Socket } from "node:net";
 import { pipeline, type Duplex } from "node:stream";
 import { AsyncWorkTracker } from "@/shared/asyncWorkTracker";
 import {
+  destroyIdleAgentSockets,
+  isSafeRetryableHttpMethod,
+  isStaleKeepAliveSocketError,
+} from "@/shared/http";
+import {
   orderedLoopbackHosts,
   rememberLoopbackHost,
   type LoopbackHost,
@@ -190,6 +195,10 @@ export async function proxyLoopbackHttpRequest(
   const headers = plan.headers(req, { forUpgrade: false });
   const upstreamPath = plan.httpPath ? plan.httpPath(req) : (req.url ?? "/");
   const badGatewayMessage = plan.badGatewayMessage ?? DEFAULT_BAD_GATEWAY_MESSAGE;
+  const canRetryStaleSocket =
+    isSafeRetryableHttpMethod(req.method) &&
+    req.headers["transfer-encoding"] === undefined &&
+    (req.headers["content-length"] === undefined || req.headers["content-length"] === "0");
 
   const sendBadGateway = () => {
     if (res.headersSent) {
@@ -200,6 +209,7 @@ export async function proxyLoopbackHttpRequest(
   };
 
   let current: ReturnType<typeof httpRequest> | undefined;
+  let retriedStaleSocket = false;
   // Revocation tears down both legs synchronously; destroying `current` here
   // also leaves no window where the attempt chain could consider a fallback.
   const onRevoke = (): void => {
@@ -221,11 +231,13 @@ export async function proxyLoopbackHttpRequest(
     current?.destroy();
   });
 
-  const attempt = (hosts: readonly LoopbackHost[], index: number): void => {
+  const attempt = (hosts: readonly LoopbackHost[], index: number, staleRetry = false): void => {
     const host = hosts[index]!;
+    let responded = false;
     const upstreamReq = httpRequest(
       { host, port: targetPort, method: req.method, path: upstreamPath, headers, agent },
       (upstreamRes) => {
+        responded = true;
         trackProxyStream(work, upstreamRes);
         rememberLoopbackHost(targetPort, host);
         const writeUpstreamResponse = (): void => {
@@ -268,6 +280,12 @@ export async function proxyLoopbackHttpRequest(
     let connected = false;
     const pipeBody = () => {
       connected = true;
+      if (staleRetry) {
+        // Safe bodyless retry: `req` was already piped to the first attempt, so
+        // finalize the fresh upstream request directly.
+        upstreamReq.end();
+        return;
+      }
       // `pipeline` destroys `upstreamReq` on any `req` error instead of
       // leaving an unhandled 'error' on `req` (an aborted upload vector).
       pipeline(req, upstreamReq, () => {});
@@ -280,12 +298,25 @@ export async function proxyLoopbackHttpRequest(
       socket.once("connect", pipeBody);
     });
 
-    upstreamReq.on("error", () => {
+    upstreamReq.on("error", (error) => {
       // Revocation or the visitor going away destroyed this request out from
       // under the attempt chain — never a connect failure.
       if (signal.aborted || res.destroyed) return;
+      if (
+        !responded &&
+        !res.headersSent &&
+        !retriedStaleSocket &&
+        canRetryStaleSocket &&
+        upstreamReq.reusedSocket &&
+        isStaleKeepAliveSocketError(error)
+      ) {
+        retriedStaleSocket = true;
+        destroyIdleAgentSockets(agent);
+        attempt(hosts, index, true);
+        return;
+      }
       if (!connected && index + 1 < hosts.length) {
-        attempt(hosts, index + 1);
+        attempt(hosts, index + 1, staleRetry);
         return;
       }
       sendBadGateway();

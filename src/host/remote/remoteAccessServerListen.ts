@@ -25,6 +25,16 @@ import { announceRemoteServerShutdown } from "./remoteAccessServerShutdown";
 import { releaseLoopbackPort, reserveLoopbackPort } from "./remoteAccessLoopbackGuard";
 import { reportEventInterestFailures } from "./server/eventInterestFailures";
 
+/**
+ * Keep idle HTTP/1.1 connections open longer than Node's 5s default so clients
+ * with persistent connection pools (pinned TLS agents, undici, native/browser
+ * clients, and environment proxies) do not constantly race server-side idle
+ * closes. Shutdown remains bounded by `HttpServerConnections.close(grace)`.
+ */
+export const REMOTE_ACCESS_KEEP_ALIVE_TIMEOUT_MS = 65_000;
+/** Must exceed `keepAliveTimeout` per Node's HTTP server guidance. */
+export const REMOTE_ACCESS_HEADERS_TIMEOUT_MS = 70_000;
+
 export function createRemoteAccessHttpServer(
   tls: RemoteAccessServerHost["tls"],
   requestHandler: (req: IncomingMessage, res: ServerResponse) => void,
@@ -33,6 +43,8 @@ export function createRemoteAccessHttpServer(
   const server = tls
     ? createHttpsServer({ cert: tls.cert, key: tls.key }, requestHandler)
     : createServer(requestHandler);
+  server.keepAliveTimeout = REMOTE_ACCESS_KEEP_ALIVE_TIMEOUT_MS;
+  server.headersTimeout = REMOTE_ACCESS_HEADERS_TIMEOUT_MS;
   const connections = new HttpServerConnections(server);
   server.on("upgrade", onUpgrade);
   return { server, connections };
