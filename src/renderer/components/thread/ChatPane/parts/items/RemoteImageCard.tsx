@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { memo, type ReactNode } from "react";
 import type { RemoteImageRefValue } from "@/shared/remote";
 import { cardVariantForRef } from "@/shared/remote/clientEnvironmentImages";
 import { useChatPaneActions } from "../../chatPaneActionsContext";
@@ -21,7 +21,7 @@ import { useImageViewportPriority } from "@/renderer/components/common/useImageV
  * fetched on demand for preview/copy/download. A full-resolution URL that
  * is already cached paints immediately while the variant loads.
  */
-export function RemoteImageCard(props: {
+export const RemoteImageCard = memo(function RemoteImageCard(props: {
   readonly source: ImageViewSource;
   readonly className?: string;
   readonly imageClassName?: string;
@@ -29,6 +29,9 @@ export function RemoteImageCard(props: {
   readonly layout?: "inline" | "tile";
   readonly overlay?: ReactNode;
   readonly overflowCount?: number;
+  readonly showActions?: boolean;
+  readonly persistPreviewUpgrade?: boolean;
+  readonly onPreviewOpen?: () => void;
 }) {
   const readiness = useChatPaneActions()?.remoteImageReadiness;
   const ref: RemoteImageRefValue | undefined = props.source.remoteRef;
@@ -66,6 +69,11 @@ export function RemoteImageCard(props: {
       {...(props.layout !== undefined ? { layout: props.layout } : {})}
       {...(props.overlay !== undefined ? { overlay: props.overlay } : {})}
       {...(props.overflowCount !== undefined ? { overflowCount: props.overflowCount } : {})}
+      {...(props.showActions !== undefined ? { showActions: props.showActions } : {})}
+      {...(props.persistPreviewUpgrade !== undefined
+        ? { persistPreviewUpgrade: props.persistPreviewUpgrade }
+        : {})}
+      {...(props.onPreviewOpen !== undefined ? { onPreviewOpen: props.onPreviewOpen } : {})}
     />
   );
-}
+});

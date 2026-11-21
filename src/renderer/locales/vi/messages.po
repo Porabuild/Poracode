@@ -14574,7 +14574,10 @@ msgid "Open git review as a right-side panel or a full page."
 msgstr "Mở đánh giá git dưới dạng bảng điều khiển bên phải hoặc toàn trang."
 
 #. placeholder {0}: index + 1
+#. placeholder {0}: itemIndex + 1
 #. placeholder {1}: gallery.length
+#. placeholder {1}: images.length
+#: src/renderer/components/composer/ImageLightbox.tsx
 #: src/renderer/components/thread/ThreadImagesDock.tsx
 msgid "Open image {0} of {1}"
 msgstr "Mở hình ảnh {0}/{1}"
@@ -14586,6 +14589,7 @@ msgid "Open image preview"
 msgstr "Mở xem trước hình ảnh"
 
 #: src/renderer/components/thread/ChatPane/parts/items/ImageCard.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/ImageMosaic.tsx
 msgid "Open image preview (+{overflowCount} more)"
 msgstr "Mở xem trước hình ảnh (+{overflowCount} ảnh nữa)"
 

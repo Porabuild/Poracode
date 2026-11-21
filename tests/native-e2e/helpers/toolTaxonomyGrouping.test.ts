@@ -169,7 +169,7 @@ describe("production grouping scenarios", () => {
     state.runtimeStructuralVersionByThread[threadId] = 3;
     expect(selectVisibleThreadTimelineEntries(state, threadId)).toEqual([
       { kind: "item", id: "read_full" },
-      { kind: "item", id: unnamed.id },
+      { kind: "image_group", id: `image-group:${unnamed.id}`, itemIds: [unnamed.id] },
     ]);
   });
 });

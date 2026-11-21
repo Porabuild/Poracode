@@ -8,9 +8,17 @@ import type { RemoteImageReadiness } from "@/renderer/state/remoteServers/enviro
 import type { ProjectLocation } from "@/shared/contracts";
 import { chatVideoFilePath } from "@/shared/chatVideo";
 import type { EnvironmentImagePriority } from "@/shared/remote/clientEnvironmentImages";
-import { memo, useEffect, useState, useSyncExternalStore } from "react";
+import { memo, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
-import { ChevronLeft, ChevronRight, X, ZoomIn, ZoomOut } from "lucide-react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  Film,
+  Image as ImageIcon,
+  X,
+  ZoomIn,
+  ZoomOut,
+} from "lucide-react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { Button } from "@heroui/react";
 import { useFileMediaSource } from "@/renderer/components/media/useFileMediaSource";
@@ -435,7 +443,7 @@ export function ImageLightboxView(props: {
 
       <div
         ref={stageRef}
-        className="poracode-image-lightbox__stage"
+        className={`poracode-image-lightbox__stage${images.length > 1 ? " poracode-image-lightbox__stage--with-strip" : ""}`}
         style={{ containerType: "size" }}
         {...(!isVideo
           ? {
@@ -491,42 +499,52 @@ export function ImageLightboxView(props: {
       ) : null}
 
       <div className="poracode-image-lightbox__footer">
-        {!isVideo ? (
-          <div className="poracode-image-lightbox__zoom">
-            <button
-              type="button"
-              className="poracode-image-lightbox__zoom-button"
-              aria-label={t`Zoom out`}
-              disabled={scale <= MIN_SCALE}
-              onClick={(event) => {
-                event.stopPropagation();
-                zoomBy(-SCALE_STEP);
-              }}
-            >
-              <ZoomOut className="size-4" />
-            </button>
-            <span className="poracode-image-lightbox__zoom-value" aria-live="polite">
-              {Math.round(scale * 100)}%
+        <div className="poracode-image-lightbox__footer-controls">
+          {!isVideo ? (
+            <div className="poracode-image-lightbox__zoom">
+              <button
+                type="button"
+                className="poracode-image-lightbox__zoom-button"
+                aria-label={t`Zoom out`}
+                disabled={scale <= MIN_SCALE}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  zoomBy(-SCALE_STEP);
+                }}
+              >
+                <ZoomOut className="size-4" />
+              </button>
+              <span className="poracode-image-lightbox__zoom-value" aria-live="polite">
+                {Math.round(scale * 100)}%
+              </span>
+              <button
+                type="button"
+                className="poracode-image-lightbox__zoom-button"
+                aria-label={t`Zoom in`}
+                disabled={scale >= MAX_SCALE}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  zoomBy(SCALE_STEP);
+                }}
+              >
+                <ZoomIn className="size-4" />
+              </button>
+              {current.src ? <ImageLightboxActions image={current} /> : null}
+            </div>
+          ) : null}
+          {images.length > 1 ? (
+            <span className="poracode-image-lightbox__counter">
+              {index + 1} / {images.length}
             </span>
-            <button
-              type="button"
-              className="poracode-image-lightbox__zoom-button"
-              aria-label={t`Zoom in`}
-              disabled={scale >= MAX_SCALE}
-              onClick={(event) => {
-                event.stopPropagation();
-                zoomBy(SCALE_STEP);
-              }}
-            >
-              <ZoomIn className="size-4" />
-            </button>
-            {current.src ? <ImageLightboxActions image={current} /> : null}
-          </div>
-        ) : null}
+          ) : null}
+        </div>
         {images.length > 1 ? (
-          <span className="poracode-image-lightbox__counter">
-            {index + 1} / {images.length}
-          </span>
+          <LightboxThumbnailStrip
+            images={images}
+            activeIndex={index}
+            activeSrc={current.src || previewSrc || ""}
+            onSelect={setIndex}
+          />
         ) : null}
       </div>
     </div>,
@@ -558,7 +576,7 @@ function LightboxVideoPlayer({ item }: { item: LightboxImage }) {
         playsInline
         autoPlay
         aria-label={item.alt || item.fileName || t`Video preview`}
-        className="max-h-[85vh] max-w-[90vw] rounded-lg bg-black object-contain"
+        className="max-h-full max-w-full rounded-lg bg-black object-contain"
         onError={() => setFailedUrl(resolvedUrl)}
       />
     );
@@ -601,4 +619,81 @@ const emptyImageSnapshot = () => "";
 
 function imageKey(image: LightboxImage | undefined): string | undefined {
   return image?.resource?.key ?? image?.src;
+}
+
+function LightboxThumbnailStrip({
+  images,
+  activeIndex,
+  activeSrc,
+  onSelect,
+}: {
+  images: readonly LightboxImage[];
+  activeIndex: number;
+  activeSrc: string;
+  onSelect: (index: number) => void;
+}) {
+  const { t } = useLingui();
+  const stripRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const el = stripRef.current?.querySelector<HTMLElement>(`[data-thumb-index="${activeIndex}"]`);
+    if (el && typeof el.scrollIntoView === "function") {
+      el.scrollIntoView({ block: "nearest", inline: "center", behavior: "smooth" });
+    }
+  }, [activeIndex]);
+
+  return (
+    <div
+      ref={stripRef}
+      className="poracode-image-lightbox__strip"
+      data-poracode-lightbox-strip="true"
+      role="list"
+      aria-label={t`Image preview`}
+    >
+      {images.map((item, itemIndex) => {
+        const isActive = itemIndex === activeIndex;
+        const isItemVideo = item.kind === "video";
+        // Read only already-available thumbnails/snapshots so non-selected
+        // remote items never trigger full-resolution original fetches.
+        const fallbackSrc =
+          item.previewSrc || (item.resource ? item.resource.getSnapshot() : item.src);
+        const thumbSrc = isItemVideo ? "" : isActive ? activeSrc || fallbackSrc : fallbackSrc;
+        const key = `${imageKey(item) ?? item.videoPath ?? "media"}:${itemIndex}`;
+        const label = isItemVideo
+          ? t`Video preview`
+          : t`Open image ${itemIndex + 1} of ${images.length}`;
+        return (
+          <div key={key} role="listitem" className="shrink-0">
+            <button
+              type="button"
+              data-thumb-index={itemIndex}
+              className={`poracode-image-lightbox__thumb${isActive ? " poracode-image-lightbox__thumb--active" : ""}`}
+              aria-label={label}
+              aria-current={isActive ? "true" : undefined}
+              title={item.alt || item.fileName || label}
+              onClick={(event) => {
+                event.stopPropagation();
+                onSelect(itemIndex);
+              }}
+            >
+              {isItemVideo ? (
+                <Film className="size-4 text-white/80" aria-hidden="true" />
+              ) : thumbSrc ? (
+                <img
+                  src={thumbSrc}
+                  alt=""
+                  draggable={false}
+                  loading="lazy"
+                  decoding="async"
+                  className="size-full object-cover"
+                />
+              ) : (
+                <ImageIcon className="size-3.5 text-white/50" aria-hidden="true" />
+              )}
+            </button>
+          </div>
+        );
+      })}
+    </div>
+  );
 }

@@ -45,6 +45,12 @@ interface ImageCardProps {
   overlay?: ReactNode;
   /** Number of additional hidden images represented by this overflow tile, for screen readers. */
   overflowCount?: number;
+  /** Whether to render the corner copy/download/preview toolbar (defaults to true). */
+  showActions?: boolean;
+  /** Keep an in-flight lightbox preview upgrade alive if an ephemeral host (e.g. hover popover) unmounts on click. */
+  persistPreviewUpgrade?: boolean;
+  /** Called right after the card opens the fullscreen preview. */
+  onPreviewOpen?: () => void;
   viewportRef?: Ref<HTMLSpanElement>;
   /**
    * Called when the user signals they may open the preview: the pointer
@@ -95,6 +101,9 @@ export const ImageCard = memo(function ImageCard({
   layout = "inline",
   overlay,
   overflowCount,
+  showActions = true,
+  persistPreviewUpgrade = false,
+  onPreviewOpen,
   viewportRef,
   resolveFullSrc,
   onPreviewIntent,
@@ -119,9 +128,9 @@ export const ImageCard = memo(function ImageCard({
     const owner = { src: source.src, threadId, version: 0 };
     previewRequest.current = owner;
     return () => {
-      owner.version++;
+      if (!persistPreviewUpgrade) owner.version++;
     };
-  }, [source.src, threadId]);
+  }, [persistPreviewUpgrade, source.src, threadId]);
   const fullSource = async (): Promise<ImageViewSource> => {
     if (!resolveFullSrc) return source;
     const full = await resolveFullSrc();
@@ -143,6 +152,7 @@ export const ImageCard = memo(function ImageCard({
   };
   const openPreview = () => {
     if (!source.src) return;
+    onPreviewOpen?.();
     const owner = previewRequest.current;
     const request = ++owner.version;
     // Without a display variant the preview opens synchronously, as before.
@@ -384,7 +394,7 @@ export const ImageCard = memo(function ImageCard({
         )}
         {overlay}
       </button>
-      {hasSource && !overlay ? (
+      {hasSource && !overlay && showActions ? (
         <span className="poracode-image-action-toolbar absolute right-1.5 top-1.5 flex items-center gap-0.5 rounded-lg bg-black/50 p-0.5 backdrop-blur-sm transition-opacity duration-150">
           <CopyImageButton resolveFullSource={fullSource} />
           <DownloadImageButton fileName={source.fileName} resolveFullSource={fullSource} />
