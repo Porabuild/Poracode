@@ -239,6 +239,20 @@ describe("MobileRemoteServersSettings", () => {
     expect(state.removeServer).toHaveBeenCalledWith("desk-1");
   });
 
+  it("re-pairs an existing connection with its endpoint prefilled", () => {
+    state.servers = [sampleServer];
+    state.runtime = { "desk-1": { status: "error" } };
+
+    render(<MobileRemoteServersSettings />);
+    fireEvent.contextMenu(screen.getByRole("button", { name: "amd-pc-12-25" }));
+    fireEvent.click(screen.getByRole("button", { name: "Pair again" }));
+
+    expect(screen.getByRole("dialog", { name: "Pair a connection" })).toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: "Server base URL" })).toHaveValue(
+      "http://127.0.0.1:49153/",
+    );
+  });
+
   it("renames a connection through the sheet and inline editor", () => {
     state.servers = [sampleServer];
     state.runtime = { "desk-1": { status: "online" } };
