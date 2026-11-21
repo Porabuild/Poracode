@@ -1365,6 +1365,18 @@ msgstr "Birleştirmeyi İptal Et"
 msgid "About"
 msgstr "Hakkında"
 
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "About cost breakdown"
+msgstr "Maliyet dökümü hakkında"
+
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "About recorded token categories"
+msgstr "Kaydedilen token kategorileri hakkında"
+
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "About subscription bill"
+msgstr "Abonelik faturası hakkında"
+
 #: src/renderer/components/providers/HostUsageInfo.tsx
 msgid "About usage"
 msgstr "Kullanım hakkında"

@@ -1365,6 +1365,18 @@ msgstr "Przerwij scalanie"
 msgid "About"
 msgstr "O programie"
 
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "About cost breakdown"
+msgstr "O podziale kosztów"
+
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "About recorded token categories"
+msgstr "O zarejestrowanych kategoriach tokenów"
+
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "About subscription bill"
+msgstr "O rachunku za subskrypcję"
+
 #: src/renderer/components/providers/HostUsageInfo.tsx
 msgid "About usage"
 msgstr "O użyciu"

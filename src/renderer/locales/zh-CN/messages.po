@@ -1365,6 +1365,18 @@ msgstr "中止合并"
 msgid "About"
 msgstr "关于"
 
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "About cost breakdown"
+msgstr "关于成本明细"
+
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "About recorded token categories"
+msgstr "关于已记录的 token 类别"
+
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "About subscription bill"
+msgstr "关于订阅账单"
+
 #: src/renderer/components/providers/HostUsageInfo.tsx
 msgid "About usage"
 msgstr "关于用量"

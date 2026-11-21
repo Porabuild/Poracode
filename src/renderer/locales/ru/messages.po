@@ -1365,6 +1365,18 @@ msgstr "Прервать слияние"
 msgid "About"
 msgstr "О программе"
 
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "About cost breakdown"
+msgstr "О разбивке затрат"
+
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "About recorded token categories"
+msgstr "О записанных категориях токенов"
+
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "About subscription bill"
+msgstr "О счёте за подписку"
+
 #: src/renderer/components/providers/HostUsageInfo.tsx
 msgid "About usage"
 msgstr "О статистике использования"

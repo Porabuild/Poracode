@@ -1365,6 +1365,18 @@ msgstr "Abandonner la fusion"
 msgid "About"
 msgstr "À propos"
 
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "About cost breakdown"
+msgstr "À propos du détail des coûts"
+
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "About recorded token categories"
+msgstr "À propos des catégories de jetons enregistrées"
+
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "About subscription bill"
+msgstr "À propos de la facture d’abonnement"
+
 #: src/renderer/components/providers/HostUsageInfo.tsx
 msgid "About usage"
 msgstr "À propos de l’utilisation"

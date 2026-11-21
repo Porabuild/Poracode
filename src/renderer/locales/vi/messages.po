@@ -1365,6 +1365,18 @@ msgstr "Hủy bỏ hợp nhất"
 msgid "About"
 msgstr "Giới thiệu"
 
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "About cost breakdown"
+msgstr "Về phân tích chi phí"
+
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "About recorded token categories"
+msgstr "Về các danh mục token đã ghi"
+
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "About subscription bill"
+msgstr "Về hóa đơn thuê bao"
+
 #: src/renderer/components/providers/HostUsageInfo.tsx
 msgid "About usage"
 msgstr "Thông tin sử dụng"

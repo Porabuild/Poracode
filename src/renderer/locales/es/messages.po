@@ -1365,6 +1365,18 @@ msgstr "Cancelar fusión"
 msgid "About"
 msgstr "Acerca de"
 
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "About cost breakdown"
+msgstr "Acerca del desglose de costes"
+
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "About recorded token categories"
+msgstr "Acerca de las categorías de tokens registradas"
+
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "About subscription bill"
+msgstr "Acerca de la factura de suscripción"
+
 #: src/renderer/components/providers/HostUsageInfo.tsx
 msgid "About usage"
 msgstr "Acerca del uso"

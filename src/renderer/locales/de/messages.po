@@ -1365,6 +1365,18 @@ msgstr "Zusammenführung abbrechen"
 msgid "About"
 msgstr "Über"
 
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "About cost breakdown"
+msgstr "Über die Kostenaufschlüsselung"
+
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "About recorded token categories"
+msgstr "Über erfasste Token-Kategorien"
+
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "About subscription bill"
+msgstr "Über die Abo-Rechnung"
+
 #: src/renderer/components/providers/HostUsageInfo.tsx
 msgid "About usage"
 msgstr "Über die Nutzung"
