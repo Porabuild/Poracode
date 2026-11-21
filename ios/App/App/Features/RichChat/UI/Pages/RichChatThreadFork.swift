@@ -20,15 +20,34 @@ struct RichChatForkPresentation: ViewModifier {
 
   func body(content: Content) -> some View {
     content
-      .poracodeTopBar { sourceLink }
       .sheet(
         isPresented: Binding(
           get: { page.fork.anchor != nil },
           set: { if !$0 && !page.fork.pending { page.fork.anchor = nil } }
         )
-      ) { sheet }
+      ) {
+        sheet
+          .poracodeFormSheetSizing()
+          .modifier(PoracodeRetainNavigationWhilePresented())
+      }
+      .modifier(
+        PoracodeRetainNavigationWhilePresented(
+          isPresented: page.fork.anchor != nil || page.fork.destination != nil
+        )
+      )
       .navigationDestination(item: page.$fork.destination) { destination in
-        RichChatThreadView(session: page.session, threadID: destination.id, title: destination.title)
+        let sourceConnection = page.session.selectedConnectionId
+        RichChatThreadView(
+          session: page.session, threadID: destination.id, title: destination.title,
+          returnToForkSource: { id in
+            guard id == page.threadID, page.session.selectedConnectionId == sourceConnection else {
+              return false
+            }
+            page.fork.destination = nil
+            return true
+          }
+        )
+        .modifier(PoracodeRetainNavigationWhilePresented())
       }
       .alert(
         RichChatMessageActionStrings.sourceUnavailable,
@@ -53,35 +72,32 @@ struct RichChatForkPresentation: ViewModifier {
       }
   }
 
-  @ViewBuilder
-  private var sourceLink: some View {
-    if let source = page.thread?.forkedFrom?.objectValue,
-      let sourceID = source["threadId"]?.stringValue,
-      let sourceTitle = source["title"]?.stringValue
-    {
-      Button(
-        RichChatMessageActionStrings.forkSource(sourceTitle), systemImage: "arrow.triangle.branch"
-      ) {
-        page.navigateToForkThread(sourceID)
-      }
-      .font(.caption)
-      .tint(.secondary)
-      .padding(8)
-    }
-  }
-
   private var sheet: some View {
     NavigationStack {
-      Form {
-        Text(RichChatMessageActionStrings.forkExplanation).foregroundStyle(.secondary)
-        TextField(RichChatMessageActionStrings.forkName, text: page.$fork.title)
-          .disabled(page.fork.pending || page.fork.attempt != nil)
-        if let failure = page.suite.conversation.state.failure {
-          Text(RichChatStrings.failure(failure)).foregroundStyle(.red)
+      VStack(spacing: 0) {
+        ScrollView {
+          VStack(alignment: .leading, spacing: 14) {
+            Text(RichChatMessageActionStrings.forkExplanation)
+              .font(.subheadline)
+              .foregroundStyle(Color.poracodeSecondaryLabel)
+            TextField(RichChatMessageActionStrings.forkName, text: page.$fork.title)
+              .padding(.horizontal, 12)
+              .frame(minHeight: 44)
+              .poracodeInputSurface()
+              .disabled(page.fork.pending || page.fork.attempt != nil)
+              .submitLabel(.done)
+              .onSubmit { page.createFork() }
+            if let failure = page.suite.conversation.state.failure {
+              Text(RichChatStrings.failure(failure)).foregroundStyle(.red)
+            }
+            if page.fork.navigationFailure {
+              Text(RichChatMessageActionStrings.sourceUnavailable).foregroundStyle(.red)
+            }
+          }
+          .poracodeReadableWidth(540)
+          .padding(16)
         }
-        if page.fork.navigationFailure {
-          Text(RichChatMessageActionStrings.sourceUnavailable).foregroundStyle(.red)
-        }
+        .clipped()
       }
       .navigationTitle(RichChatMessageActionStrings.forkTitle)
       .navigationBarTitleDisplayMode(.inline)
@@ -91,9 +107,7 @@ struct RichChatForkPresentation: ViewModifier {
         }
         ToolbarItem(placement: .confirmationAction) {
           Button(RichChatMessageActionStrings.forkCreate) { page.createFork() }
-            .disabled(
-              page.fork.pending
-                || page.fork.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            .disabled(!page.canSubmitFork)
         }
       }
       .interactiveDismissDisabled(page.fork.pending)
@@ -104,6 +118,16 @@ struct RichChatForkPresentation: ViewModifier {
 extension RichChatThreadView {
   var forkBoundaryID: String? { thread?.forkedFrom?["throughItemId"]?.stringValue }
 
+  var forkSourceLink: (title: String, open: () -> Void)? {
+    guard let source = thread?.forkedFrom?.objectValue,
+      let sourceID = source["threadId"]?.stringValue,
+      let sourceTitle = source["title"]?.stringValue
+    else { return nil }
+    return (
+      RichChatMessageActionStrings.forkSource(sourceTitle), { navigateToForkThread(sourceID) }
+    )
+  }
+
   /// The message-action callback, absent while the thread cannot be forked.
   var forkRequest: ((String) -> Void)? {
     guard canFork else { return nil }
@@ -111,7 +135,7 @@ extension RichChatThreadView {
       fork.id = UUID().uuidString
       fork.attempt = nil
       fork.navigationFailure = false
-      fork.title = thread?.title ?? title
+      fork.title = RichChatMessageActionStrings.forkDefaultName(thread?.title ?? title)
       fork.anchor = anchor
     }
   }
@@ -121,8 +145,13 @@ extension RichChatThreadView {
       && ["idle", "inactive", "error"].contains(thread?.status ?? "")
   }
 
+  var canSubmitFork: Bool {
+    !fork.pending && canOperate && (fork.attempt != nil || canFork)
+      && !fork.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+  }
+
   func createFork() {
-    guard let anchor = fork.anchor, !fork.pending, fork.attempt != nil || canFork else { return }
+    guard let anchor = fork.anchor, canSubmitFork else { return }
     if fork.attempt == nil {
       fork.attempt = RichChatThreadCommand(
         payload: [
@@ -150,7 +179,7 @@ extension RichChatThreadView {
         }
         if let destination {
           fork.anchor = nil
-          fork.destination = destination
+          showLinkedThread(destination)
         } else {
           fork.navigationFailure = true
         }
@@ -160,6 +189,7 @@ extension RichChatThreadView {
   }
 
   func navigateToForkThread(_ id: String) {
+    if returnToForkSource?(id) == true { return }
     let owner = activationID
     fork.navigationGeneration &+= 1
     let navigation = fork.navigationGeneration
@@ -170,10 +200,20 @@ extension RichChatThreadView {
         return
       }
       if let destination {
-        fork.destination = destination
+        showLinkedThread(destination)
       } else {
         fork.navigationFailure = true
       }
+    }
+  }
+
+  private func showLinkedThread(_ destination: RemoteThread) {
+    if let openLinkedThread {
+      if !openLinkedThread(destination) {
+        session.releasePendingNavigationPin(id: destination.id)
+      }
+    } else {
+      fork.destination = destination
     }
   }
 }

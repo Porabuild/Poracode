@@ -38,7 +38,14 @@ extension AppSession {
         self?.currentSettingsHostSelection?.access
       }
     )
-    return SelectedSettingsSessionGateway(source: source)
+    return SelectedSettingsSessionGateway(source: source, mutationSettled: { [weak self] lease in
+      await self?.noteSettingsDocumentChanged(on: lease.connectionID)
+    })
+  }
+
+  private func noteSettingsDocumentChanged(on connectionID: ClientConnectionID) {
+    guard state.hosts.contains(where: { $0.connectionId == connectionID }) else { return }
+    settingsDocumentChanges.invalidate(connectionID)
   }
 
   /// Reads only the selected host's installed replay cache. Backgrounding leaves
@@ -63,29 +70,47 @@ struct SettingsSessionView: View {
   @Environment(\.dismiss) private var dismiss
   @Bindable var session: AppSession
   private let gateway: any SettingsSessionGateway
-  private let initialRoute: SettingsScreenRoute?
+  private let initialPage: InitialPage
+
+  private enum InitialPage {
+    case index
+    case hostRoute(SettingsScreenRoute)
+    case destination(DeviceSettingsDestination)
+  }
 
   init(session: AppSession, initialRoute: SettingsScreenRoute? = nil) {
     self.session = session
-    self.initialRoute = initialRoute
+    initialPage = initialRoute.map(InitialPage.hostRoute) ?? .index
+    gateway = session.makeSettingsSessionGateway()
+  }
+
+  init(session: AppSession, destination: DeviceSettingsDestination) {
+    self.session = session
+    initialPage = .destination(destination)
     gateway = session.makeSettingsSessionGateway()
   }
 
   var body: some View {
     NavigationStack {
-      if let initialRoute {
-        SettingsMoreRouteView(session: session, route: initialRoute)
-      } else {
-        DeviceSettingsView(
-          session: session,
-          selection: session.currentSettingsHostSelection,
-          gateway: gateway
-        )
+      Group {
+        switch initialPage {
+        case .hostRoute(let route):
+          SettingsMoreRouteView(session: session, route: route)
+        case .destination(let destination):
+          DeviceSettingsDestinationView(session: session, destination: destination)
+        case .index:
+          DeviceSettingsView(
+            session: session,
+            selection: session.currentSettingsHostSelection,
+            gateway: gateway
+          )
+        }
       }
-    }
-    .toolbar {
-      ToolbarItem(placement: .cancellationAction) {
-        Button(SettingsUIStrings.done) { dismiss() }
+      .toolbar {
+        ToolbarItem(placement: .topBarTrailing) {
+          Button(SettingsUIStrings.done) { dismiss() }
+            .accessibilityIdentifier("native-e2e.settings.close")
+        }
       }
     }
   }
@@ -97,13 +122,15 @@ struct SettingsSessionView: View {
 struct SettingsMoreRouteView: View {
   @Bindable var session: AppSession
   let route: SettingsScreenRoute
+  let title: String?
 
   @State private var composition: SettingsComposition
-  @State private var query = SettingsProfileQuery()
+  @State private var query = SettingsProfileQuerySelection()
 
-  init(session: AppSession, route: SettingsScreenRoute) {
+  init(session: AppSession, route: SettingsScreenRoute, title: String? = nil) {
     self.session = session
     self.route = route
+    self.title = title
     _composition = State(
       initialValue: SettingsComposition(gateway: session.makeSettingsSessionGateway())
     )
@@ -115,7 +142,8 @@ struct SettingsMoreRouteView: View {
       route: route,
       selection: session.currentSettingsHostSelection,
       composition: composition,
-      query: $query
+      query: $query,
+      title: title
     )
     .overlay(alignment: .bottom) {
       SettingsMutationBanner(
@@ -126,10 +154,8 @@ struct SettingsMoreRouteView: View {
       .padding()
     }
     .toolbar {
-      if route == .usage {
-        ToolbarItem(placement: .topBarTrailing) {
-          HostSelectionMenu(session: session)
-        }
+      ToolbarItem(placement: .topBarTrailing) {
+        HostSelectionMenu(session: session)
       }
     }
   }

@@ -251,6 +251,7 @@
     <string name="rich_chat_background_task_last_progress">上次进度报告于 %1$s前</string>
     <string name="rich_chat_background_task_close">关闭任务详情</string>
     <string name="rich_chat_background_task_report_missing">任务已结束，但未收到完成报告。</string>
+    <string name="rich_chat_copy_code">复制代码</string>
     <string name="rich_chat_copy_message">复制消息</string>
     <string name="rich_chat_add_to_composer">添加到编写器</string>
     <string name="rich_chat_file">文件</string>

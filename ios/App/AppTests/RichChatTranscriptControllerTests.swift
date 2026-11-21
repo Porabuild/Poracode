@@ -580,7 +580,8 @@ final class RichChatTranscriptControllerTests: XCTestCase {
     XCTAssertNotEqual(
       controller.state.transcript?.openTurn, true,
       "the released sequence-100 batch must not replay over snapshotSeq 42")
-    XCTAssertEqual(RichChatStallingURLProtocol.startedCount, 2)
+    XCTAssertEqual(RichChatStallingURLProtocol.startedCount, 4,
+      "Three bounded timeout attempts plus the explicit successful reload must reach the transport")
   }
 
   // MARK: - history turn baseline (status-derived openTurn)

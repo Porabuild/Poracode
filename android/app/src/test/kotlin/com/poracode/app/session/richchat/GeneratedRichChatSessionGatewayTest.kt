@@ -505,11 +505,12 @@ private class FakeSpecializedTransport : RichChatRemoteTransport {
         body: AttachmentUploadBody,
     ): String = unused()
 
-    override fun localImageRequest(path: String): BinaryRequestPlan = unused()
+    override fun localImageRequest(path: String, variant: String?): BinaryRequestPlan = unused()
     override fun runtimeImageRequest(
         threadId: String,
         itemId: String,
         path: List<RuntimeImagePathSegment>,
+        variant: String?,
     ): BinaryRequestPlan = unused()
 
     private fun <T> unused(): T = throw UnsupportedOperationException("unused")

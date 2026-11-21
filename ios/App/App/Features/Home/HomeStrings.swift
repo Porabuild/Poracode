@@ -3,6 +3,17 @@ import Foundation
 /// Native String Catalog accessors for the home surface. Never interpolate
 /// secrets, endpoints, or credentials.
 enum HomeStrings {
+  static var manageProjects: String { homeText("home.projects.manage", "Manage projects") }
+  static var workspaces: String { homeText("home.workspace.title", "Workspaces") }
+  static var workspace: String { homeText("home.workspace.singular", "Workspace") }
+  static var switchWorkspace: String { homeText("home.workspace.switch", "Switch workspace") }
+  static var manageWorkspaces: String { homeText("home.workspace.manage", "Manage workspaces") }
+  static var addWorkspace: String { homeText("home.workspace.add", "Add workspace") }
+  static var workspaceName: String { homeText("home.workspace.name", "Name") }
+  static var unfiled: String { homeText("home.workspace.unfiled", "All workspaces") }
+  static var deleteWorkspace: String { homeText("home.workspace.delete", "Delete workspace") }
+  static var deleteWorkspaceMessage: String { homeText("home.workspace.deleteMessage", "Projects and threads will be moved to another workspace.") }
+
   static var loadingProjects: String {
     String(localized: "home.projects.loading", defaultValue: "Loading projects…")
   }
@@ -64,6 +75,15 @@ enum HomeStrings {
     String(localized: "home.action.filterProjects", defaultValue: "Filter projects")
   }
 
+  static var filterThreads: String { homeText("home.threadFilter.title", "Filter threads") }
+  static var activeThreads: String { homeText("home.threadFilter.active", "Active") }
+  static var doneThreads: String { homeText("home.threadFilter.done", "Done") }
+  static var noActiveThreads: String { homeText("home.threadFilter.emptyActive", "No active threads") }
+  static var noDoneThreads: String { homeText("home.threadFilter.emptyDone", "No done threads") }
+  static var noMatchingThreads: String { homeText("home.threadFilter.emptyMatches", "No matching threads") }
+  static var adjustProjectFilter: String { homeText("home.threadFilter.adjustProjects", "Adjust your project filter.") }
+  static var showDoneThreadsHint: String { homeText("home.threadFilter.showDoneHint", "Select Done in the filter to see finished threads.") }
+
   static var allProjects: String {
     String(localized: "home.project.all", defaultValue: "All projects")
   }
@@ -78,6 +98,66 @@ enum HomeStrings {
 
   static var searchThreads: String {
     String(localized: "home.action.searchThreads", defaultValue: "Search threads")
+  }
+
+  static var splitEmptyTitle: String {
+    homeText("home.split.emptyTitle", "Select a thread")
+  }
+
+  static var splitEmptyDescription: String {
+    homeText("home.split.emptyDescription", "Choose a thread from the sidebar or start a new task.")
+  }
+
+  static var splitNewTask: String {
+    homeText("home.split.newTask", "New Task")
+  }
+
+  static var toggleSidebar: String {
+    homeText("home.split.toggleSidebar", "Toggle sidebar")
+  }
+
+  static var hideSidebar: String {
+    homeText("home.split.hideSidebar", "Hide sidebar")
+  }
+
+  static var toggleInspector: String {
+    homeText("home.split.toggleInspector", "Toggle inspector")
+  }
+
+  static var resizeSidebar: String {
+    homeText("home.split.resizeSidebar", "Resize sidebar")
+  }
+
+  static var resizeInspector: String {
+    homeText("home.split.resizeInspector", "Resize inspector")
+  }
+
+  static var inspectorPanels: String {
+    homeText("home.split.inspectorPanels", "Inspector panels")
+  }
+
+  static var expandPanel: String {
+    homeText("home.split.expandPanel", "Expand panel")
+  }
+
+  static var recentThreads: String {
+    homeText("home.split.recentThreads", "Recent threads")
+  }
+
+  static var threadInfo: String {
+    homeText("home.split.threadInfo", "Thread info")
+  }
+
+  static var threadInfoWorkspace: String {
+    homeText("home.split.threadInfo.workspace", "Workspace")
+  }
+
+  static var threadInfoPath: String {
+    homeText("home.split.threadInfo.path", "Path")
+  }
+
+  static var threadInfoSessionID: String {
+    homeText("home.split.threadInfo.sessionId", "Session ID")
   }
 
   static var quickComposePrompt: String {

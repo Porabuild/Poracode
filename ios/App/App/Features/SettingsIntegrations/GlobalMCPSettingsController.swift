@@ -18,6 +18,7 @@ final class GlobalMCPSettingsController {
 
   @ObservationIgnored let gateway: any SettingsSessionGateway
   @ObservationIgnored let browser: any SettingsIntegrationsBrowserOpening
+  let operationScope: GlobalMCPSettingsScope
   @ObservationIgnored private var revision: UInt64 = 0
   @ObservationIgnored private var task: Task<Void, Never>?
   @ObservationIgnored var operationRevision: UInt64 = 0
@@ -26,10 +27,12 @@ final class GlobalMCPSettingsController {
 
   init(
     gateway: any SettingsSessionGateway,
-    browser: any SettingsIntegrationsBrowserOpening = SettingsIntegrationsSystemBrowser()
+    browser: any SettingsIntegrationsBrowserOpening = SettingsIntegrationsSystemBrowser(),
+    operationScope: GlobalMCPSettingsScope = .global
   ) {
     self.gateway = gateway
     self.browser = browser
+    self.operationScope = operationScope
   }
 
   func activate(_ selection: SettingsHostSelection?) {
@@ -75,8 +78,9 @@ final class GlobalMCPSettingsController {
     await pending.value
   }
 
-  func perform(_ command: GlobalMCPSettingsCommand) async {
+  func perform(_ command: GlobalMCPSettingsCommand, expectedLease: SettingsHostLease? = nil) async {
     guard !isMutating, let selection, selection.gate(.projectsManage) == nil else { return }
+    if let expectedLease, selection.lease != expectedLease { return }
     replaceTask()
     let captured = revision
     let lease = selection.lease

@@ -263,6 +263,9 @@ struct RichTranscriptState: Sendable, Equatable {
   private(set) var itemsByID: [String: RichRuntimeItem]
   private(set) var openRequests: [RichOpenRequest]
   private(set) var openTurn: Bool?
+  /// Small presentation index; stream deltas never scan or copy the history to
+  /// rediscover normalized workflow metadata. No provider payload is parsed.
+  private(set) var workflowRegistrations: [String: RichJSON]
 
   init(
     threadID: String,
@@ -278,6 +281,7 @@ struct RichTranscriptState: Sendable, Equatable {
     }
     orderedItemIDs = order
     itemsByID = byID
+    workflowRegistrations = byID.compactMapValues { Self.workflowMetadata($0) }
     openRequests = RichRequestDecoder.recoverOpenRequests(
       threadID: threadID,
       items: items,
@@ -307,11 +311,13 @@ struct RichTranscriptState: Sendable, Equatable {
         streams: [:],
         parentItemID: parentID
       )
+      updateWorkflowRegistration(itemID)
     case .itemUpdated(_, let itemID, let patch):
       guard var item = itemsByID[itemID] else { return }
       if item.state != .completed { item.state = .updated }
       item.payload = Self.apply(patch, to: item.payload)
       itemsByID[itemID] = item
+      updateWorkflowRegistration(itemID)
     case .itemCompleted(_, let itemID, let patch):
       guard var item = itemsByID[itemID] else { return }
       item.state = .completed
@@ -326,6 +332,7 @@ struct RichTranscriptState: Sendable, Equatable {
       } else {
         itemsByID[itemID] = item
       }
+      updateWorkflowRegistration(itemID)
     case .contentDelta(_, let itemID, let stream, let delta, let replace):
       guard var item = itemsByID[itemID] else { return }
       if item.state != .completed { item.state = .updated }
@@ -348,6 +355,7 @@ struct RichTranscriptState: Sendable, Equatable {
       guard let index = orderedItemIDs.firstIndex(of: itemID) else { return }
       for removedID in orderedItemIDs.dropFirst(index + 1) {
         itemsByID.removeValue(forKey: removedID)
+        workflowRegistrations.removeValue(forKey: removedID)
       }
       orderedItemIDs = Array(orderedItemIDs.prefix(index + 1))
     case .contextUpdated, .usageSpent, .warning, .backgroundTasksChanged, .sessionExited:
@@ -362,6 +370,17 @@ struct RichTranscriptState: Sendable, Equatable {
   static func shallowMerge(_ previous: RichJSON?, _ next: RichJSON) -> RichJSON {
     guard case .object(let old) = previous, case .object(let new) = next else { return next }
     return .object(old.merging(new) { _, replacement in replacement })
+  }
+
+  private static func workflowMetadata(_ item: RichRuntimeItem?) -> RichJSON? {
+    guard let item, RichItemType.toolLike.contains(item.type),
+      let metadata = item.payload?.objectValue?["workflow"], metadata.objectValue != nil else { return nil }
+    return metadata
+  }
+
+  private mutating func updateWorkflowRegistration(_ itemID: String) {
+    let value = Self.workflowMetadata(itemsByID[itemID])
+    if workflowRegistrations[itemID] != value { workflowRegistrations[itemID] = value }
   }
 
   private static func apply(_ patch: RichPayloadPatch, to previous: RichJSON?) -> RichJSON? {

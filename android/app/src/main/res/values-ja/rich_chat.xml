@@ -251,6 +251,7 @@
     <string name="rich_chat_background_task_last_progress">最後の進捗報告は%1$s前</string>
     <string name="rich_chat_background_task_close">タスクの詳細を閉じる</string>
     <string name="rich_chat_background_task_report_missing">タスクは完了レポートなしで終了しました。</string>
+    <string name="rich_chat_copy_code">コードをコピーする</string>
     <string name="rich_chat_copy_message">メッセージをコピー</string>
     <string name="rich_chat_add_to_composer">コンポーザーに追加</string>
     <string name="rich_chat_file">ファイル</string>

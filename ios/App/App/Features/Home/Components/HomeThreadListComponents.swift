@@ -125,15 +125,31 @@ struct HomeWorktreeRail: View {
 
 struct HomeThreadButtonStyle: ButtonStyle {
   let surface: Color
+  var isSelected: Bool = false
+  var selectedFill: Color? = nil
+
+  @Environment(\.colorScheme) private var colorScheme
 
   func makeBody(configuration: Configuration) -> some View {
+    let shape = RoundedRectangle(cornerRadius: 14, style: .continuous)
+    let fill: Color =
+      if configuration.isPressed {
+        Color.primary.opacity(0.12)
+      } else if isSelected {
+        selectedFill ?? Color.primary.opacity(colorScheme == .dark ? 0.14 : 0.085)
+      } else {
+        surface
+      }
     configuration.label
-      .background(
-        configuration.isPressed
-          ? Color.primary.opacity(0.09)
-          : surface,
-        in: RoundedRectangle(cornerRadius: 14, style: .continuous)
-      )
+      .background(fill, in: shape)
+      .overlay {
+        if isSelected {
+          shape.stroke(
+            Color.primary.opacity(colorScheme == .dark ? 0.22 : 0.14),
+            lineWidth: 1
+          )
+        }
+      }
       .scaleEffect(configuration.isPressed ? 0.992 : 1)
       .animation(.easeOut(duration: 0.12), value: configuration.isPressed)
   }

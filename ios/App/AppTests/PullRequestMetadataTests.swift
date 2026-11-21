@@ -325,6 +325,32 @@ final class PullRequestMetadataTests: XCTestCase {
     XCTAssertTrue(operations.contains(.forgeGetPrDetails))
   }
 
+  func testStagedMetadataCannotReadOrWriteAnotherAccountForTheSamePullRequest() async throws {
+    let gateway = MetadataGateway()
+    let controller = ForgeReviewController(gateway: gateway, cache: scratchCache())
+    let original = sourceData(Self.enabled)
+    await controller.select(context: GitHubOperationsSamples.context, sourceData: original, number: 7)
+    let target = try XCTUnwrap(controller.reviewTarget)
+    let otherAccount = Data(String(decoding: original, as: UTF8.self)
+      .replacingOccurrences(of: "alice", with: "another-account").utf8)
+    await controller.select(context: GitHubOperationsSamples.context, sourceData: otherAccount, number: 7)
+    await gateway.reset()
+
+    let candidates = await controller.candidates(.forgeListPrLabelCandidates, expectedTarget: target)
+    await controller.refreshGuide(expectedTarget: target)
+    let labels = await controller.setLabels(add: ["bug"], remove: [], expectedTarget: target)
+    let reviewer = GitHubReviewerSummary(id: "new", login: "new", name: nil, avatarURL: nil, isTeam: false)
+    let reviewers = await controller.requestReviewers(add: [reviewer], remove: [], expectedTarget: target)
+    XCTAssertNil(candidates)
+    XCTAssertFalse(labels || reviewers)
+    let staleCalls = await gateway.calls
+    XCTAssertTrue(staleCalls.isEmpty)
+
+    let replacement = try XCTUnwrap(controller.reviewTarget)
+    let accepted = await controller.setLabels(add: ["bug"], remove: [], expectedTarget: replacement)
+    XCTAssertTrue(accepted)
+  }
+
   func testAFailedWriteSurfacesTheFailureAndIsNotRepeated() async throws {
     let gateway = MetadataGateway()
     let controller = ForgeReviewController(gateway: gateway, cache: scratchCache())

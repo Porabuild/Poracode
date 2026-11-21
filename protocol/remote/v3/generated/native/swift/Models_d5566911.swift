@@ -66,7 +66,7 @@ public enum RoutethreadU2DGoalRequest_54c8350637: Codable, Sendable {
 
 public struct RoutethreadU2DHistoryQuery_598de4be53: Codable, Sendable, RemoteModelMetadata {
   public var completedTurnsLimit: RemoteField<Int64> = .missing
-  public var deferBodies: RemoteField<RoutethreadU2DHistoryU2DItemsQueryU2DDeferBodies_30a537a934> = .missing
+  public var deferBodies: RemoteField<RoutethreadU2DHistoryU2DChangesQueryU2DDeferBodies_30a537a934> = .missing
   public var historyCache: RemoteField<RoutethreadU2DHistoryU2DChangesQueryU2DNotices_f67f6cbe63> = .missing
   public var historyRevision: RemoteField<String> = .missing
   public var maxBytes: RemoteField<Int64> = .missing
@@ -80,7 +80,7 @@ public struct RoutethreadU2DHistoryQuery_598de4be53: Codable, Sendable, RemoteMo
   public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .strip
   public static let fields: [RemoteFieldDescriptor] = [
     .init(wireName: "completedTurnsLimit", typeName: "Int64", required: false, nullable: false, minimum: 1, maximum: 500, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
-    .init(wireName: "deferBodies", typeName: "RoutethreadU2DHistoryU2DItemsQueryU2DDeferBodies_30a537a934", required: false, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "deferBodies", typeName: "RoutethreadU2DHistoryU2DChangesQueryU2DDeferBodies_30a537a934", required: false, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "historyCache", typeName: "RoutethreadU2DHistoryU2DChangesQueryU2DNotices_f67f6cbe63", required: false, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "historyRevision", typeName: "String", required: false, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: 160, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "maxBytes", typeName: "Int64", required: false, nullable: false, minimum: 1, maximum: 9007199254740991, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
@@ -172,6 +172,10 @@ public struct RoutethreadU2DHistoryResponse_d1ba4ef10f: Codable, Sendable, Remot
   }
 }
 
+public enum RoutethreadU2DHistoryU2DChangesQueryU2DDeferBodies_30a537a934: String, Codable, Sendable {
+  case `fileU5FChange` = "file_change"
+}
+
 public enum RoutethreadU2DHistoryU2DChangesQueryU2DNotices_f67f6cbe63: String, Codable, Sendable {
   case `v1` = "v1"
 }
@@ -180,33 +184,42 @@ public enum RoutethreadU2DHistoryU2DChangesQueryU2DProjection_72a4409660: String
   case `detailsU2DV1` = "details-v1"
 }
 
-public struct RoutethreadU2DHistoryU2DChangesQuery_095b77a7c8: Codable, Sendable, RemoteModelMetadata {
+public struct RoutethreadU2DHistoryU2DChangesQuery_e52b25f4a0: Codable, Sendable, RemoteModelMetadata {
   public var afterSeq: RemoteField<Int64> = .missing
   public var cursor: String
+  public var deferBodies: RemoteField<RoutethreadU2DHistoryU2DChangesQueryU2DDeferBodies_30a537a934> = .missing
   public var maxBytes: RemoteField<Int64> = .missing
   public var maxDecodeBytes: RemoteField<Int64> = .missing
   public var notices: RoutethreadU2DHistoryU2DChangesQueryU2DNotices_f67f6cbe63
+  public var omitScrollback: RemoteField<Bool> = .missing
   public var projection: RemoteField<RoutethreadU2DHistoryU2DChangesQueryU2DProjection_72a4409660> = .missing
   public var reads: RouteprojectU2DListQueryU2DReads_4659e6d395
+  public var targetTimelineEntryCount: RemoteField<Int64> = .missing
   public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .strip
   public static let fields: [RemoteFieldDescriptor] = [
     .init(wireName: "afterSeq", typeName: "Int64", required: false, nullable: false, minimum: 0, maximum: 9007199254740991, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "cursor", typeName: "String", required: true, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: 4096, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "deferBodies", typeName: "RoutethreadU2DHistoryU2DChangesQueryU2DDeferBodies_30a537a934", required: false, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "maxBytes", typeName: "Int64", required: false, nullable: false, minimum: nil, maximum: 9007199254740991, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "maxDecodeBytes", typeName: "Int64", required: false, nullable: false, minimum: nil, maximum: 9007199254740991, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "notices", typeName: "RoutethreadU2DHistoryU2DChangesQueryU2DNotices_f67f6cbe63", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "omitScrollback", typeName: "Bool", required: false, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "projection", typeName: "RoutethreadU2DHistoryU2DChangesQueryU2DProjection_72a4409660", required: false, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "reads", typeName: "RouteprojectU2DListQueryU2DReads_4659e6d395", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "targetTimelineEntryCount", typeName: "Int64", required: false, nullable: false, minimum: 1, maximum: 100, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
   ]
   public static let semanticValidatorIds: [String] = []
   private enum CodingKeys: String, CodingKey {
     case afterSeq = "afterSeq"
     case cursor = "cursor"
+    case deferBodies = "deferBodies"
     case maxBytes = "maxBytes"
     case maxDecodeBytes = "maxDecodeBytes"
     case notices = "notices"
+    case omitScrollback = "omitScrollback"
     case projection = "projection"
     case reads = "reads"
+    case targetTimelineEntryCount = "targetTimelineEntryCount"
   }
 }
 

@@ -98,7 +98,7 @@ enum RichInlineVisualParser {
     var fence: (marker: Unicode.Scalar, length: Int)?
     var pending: (native: Bool, version: Int, title: String, body: String)?
     for line in lines(text) {
-      let match = fenceMatch(withoutLineEnding(line))
+      let match = RichChatMarkdownParser.fenceMatch(withoutLineEnding(line))
       if let open = fence {
         let closes =
           match.map {
@@ -167,29 +167,6 @@ enum RichInlineVisualParser {
     scalars.removeLast()
     if scalars.last == "\r" { scalars.removeLast() }
     return scalars
-  }
-
-  /// `/^ {0,3}(`{3,}|~{3,})(.*)$/` without the JavaScript line terminators `.` refuses.
-  private static func fenceMatch(_ body: String.UnicodeScalarView)
-    -> (marker: Unicode.Scalar, length: Int, info: String)?
-  {
-    var index = body.startIndex
-    var spaces = 0
-    while index < body.endIndex, body[index] == " ", spaces < 3 {
-      spaces += 1
-      index = body.index(after: index)
-    }
-    guard index < body.endIndex, body[index] == "`" || body[index] == "~" else { return nil }
-    let marker = body[index]
-    var length = 0
-    while index < body.endIndex, body[index] == marker {
-      length += 1
-      index = body.index(after: index)
-    }
-    let info = body[index...]
-    guard length >= 3, !info.contains(where: { ["\r", "\u{2028}", "\u{2029}"].contains($0) })
-    else { return nil }
-    return (marker, length, String(info))
   }
 
   /// `/^poracode-(html|visual)-v(\d+)(?:[\t ]+(.*))?$/` on a trimmed info string.

@@ -7,19 +7,24 @@
     let projection: BrowserMirrorViewProjection
     @Binding var mode: BrowserMirrorViewportMode
     let onRefresh: () -> Void
+    var isMirroring: Bool = false
+    var onToggleMirroring: (() -> Void)? = nil
+
+    @Environment(\.poracodeEmbeddedInInspector) private var embeddedInInspector
 
     var body: some View {
       BrowserMirrorControlSurface {
-        HStack(spacing: 10) {
+        HStack(spacing: embeddedInInspector ? 4 : 8) {
           Picker(BrowserMirrorStrings.viewport, selection: $mode) {
             ForEach(BrowserMirrorViewportMode.allCases, id: \.self) { value in
               Text(value.label).tag(value)
             }
           }
           .pickerStyle(.segmented)
+          .controlSize(embeddedInInspector ? .small : .regular)
           .accessibilityLabel(BrowserMirrorStrings.viewport)
 
-          if let label = projection.viewportLabel {
+          if !embeddedInInspector, let label = projection.viewportLabel {
             Text(label)
               .font(.caption2.monospacedDigit())
               .foregroundStyle(.secondary)
@@ -27,13 +32,26 @@
               .accessibilityLabel(label)
           }
 
+          if let onToggleMirroring {
+            BrowserMirrorToolbarButton(action: onToggleMirroring, onSurface: true) {
+              Image(systemName: isMirroring ? "stop.circle" : "play.circle")
+            }
+            .buttonBorderShape(.circle)
+            .controlSize(embeddedInInspector ? .small : .regular)
+            .accessibilityLabel(
+              isMirroring ? BrowserMirrorStrings.stopMirroring : BrowserMirrorStrings.startMirroring
+            )
+          }
+
           BrowserMirrorToolbarButton(action: onRefresh, onSurface: true) {
             Image(systemName: "arrow.triangle.2.circlepath")
           }
+          .buttonBorderShape(.circle)
+          .controlSize(embeddedInInspector ? .small : .regular)
           .accessibilityLabel(BrowserMirrorStrings.refresh)
         }
       }
-      .padding(.horizontal)
+      .padding(.horizontal, embeddedInInspector ? 12 : 16)
     }
   }
 

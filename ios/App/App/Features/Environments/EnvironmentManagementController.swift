@@ -52,6 +52,10 @@ final class EnvironmentManagementController {
         EnvironmentScopeCapabilities.from(scopes: boundRecord?.scopes ?? [])
     }
 
+    var canCreate: Bool {
+        availability == .available && capabilities.canManage
+    }
+
     /// A direct host can pair environments onto this device. An environment
     /// bound through a proxy is management-only: pairing from it would invent a
     /// second proxied hop.
@@ -126,7 +130,7 @@ final class EnvironmentManagementController {
         port: Int?,
         credentialRef: String?
     ) async -> Bool {
-        guard capabilities.canManage else { return false }
+        guard canCreate else { return false }
         guard let client = await boundClient() else { return false }
         failure = nil
         do {

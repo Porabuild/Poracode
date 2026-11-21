@@ -1,15 +1,19 @@
 import SwiftUI
 
 struct ProjectManagementView: View {
+  @Environment(\.homeWorkspace) private var workspace
+  @Environment(\.dismiss) private var dismiss
   @Bindable var session: AppSession
 
   @State private var commandController: ProjectControllerCommandController
   @State private var settingsController: ProjectControllerSettingsController
   @State private var directoryController: ProjectControllerDirectoryController
   @State private var notesController: ProjectControllerNotesController
-  @State private var showingCreation = false
+  @State private var creationTarget: ProjectCreationTarget?
   @State private var actionProject: RemoteProject?
   @State private var removalProject: RemoteProject?
+  @State private var selectedProjectID: String?
+  @State private var preferredCompactColumn: NavigationSplitViewColumn = .sidebar
   private let embeddedInNavigationStack: Bool
   private let initialProjectID: String?
 
@@ -45,16 +49,28 @@ struct ProjectManagementView: View {
       } else if embeddedInNavigationStack {
         projectList
       } else {
-        NavigationSplitView {
+        NavigationSplitView(preferredCompactColumn: $preferredCompactColumn) {
           projectList
         } detail: {
-          ContentUnavailableView(
-            ProjectManagementStrings.selectProject,
-            systemImage: "folder"
-          )
+          if let selectedProjectID {
+            NavigationStack {
+              projectDetail(selectedProjectID, insideProjectSplit: true)
+            }
+          } else {
+            ContentUnavailableView(
+              ProjectManagementStrings.selectProject,
+              systemImage: "folder"
+            )
+          }
         }
         .navigationSplitViewStyle(.balanced)
       }
+    }
+    .sheet(item: $creationTarget) { target in
+      ProjectCreationView(
+        controller: commandController, directoryController: directoryController, target: target
+      )
+      .poracodeFormSheetSizing()
     }
     .task(id: session.currentProjectControllerLease) {
       activateControllers()
@@ -71,7 +87,7 @@ struct ProjectManagementView: View {
   }
 
   @ViewBuilder
-  private func projectDetail(_ projectID: String) -> some View {
+  private func projectDetail(_ projectID: String, insideProjectSplit: Bool = false) -> some View {
     if let project = commandController.state.projects.first(where: { $0.id == projectID })
       ?? managedProjects.first(where: { $0.id == projectID })
     {
@@ -81,16 +97,25 @@ struct ProjectManagementView: View {
         commandController: commandController,
         settingsController: settingsController,
         directoryController: directoryController,
-        notesController: notesController
+        notesController: notesController,
+        workspaceUsesCompactNavigation: insideProjectSplit
       )
     } else {
       LoadingStateView(message: ProjectManagementStrings.loading)
     }
   }
 
+  private var visibleProjects: [RemoteProject] {
+    commandController.state.projects.filter { project in
+      workspace.activeID == nil || session.selectedConnectionId.map {
+        workspace.preferences.includes(projectID: project.identity(on: $0).id.rawValue, activeID: workspace.activeID)
+      } == true
+    }
+  }
+
   private var projectList: some View {
     Group {
-      if commandController.state.projects.isEmpty {
+      if visibleProjects.isEmpty {
         ContentUnavailableView {
           Label(ProjectManagementStrings.noProjects, systemImage: "folder.badge.plus")
         } description: {
@@ -99,7 +124,7 @@ struct ProjectManagementView: View {
           }
         }
       } else {
-        List(commandController.state.projects) { project in
+        List(visibleProjects) { project in
           Button {
             actionProject = project
           } label: {
@@ -112,34 +137,32 @@ struct ProjectManagementView: View {
           .accessibilityLabel(project.name)
         }
         .listStyle(.insetGrouped)
+        .poracodeReadableListMargins(760)
       }
     }
     .navigationTitle(ProjectManagementStrings.title)
     .navigationBarTitleDisplayMode(.inline)
     .toolbar {
+      if !embeddedInNavigationStack, initialProjectID == nil {
+        ToolbarItem(placement: .cancellationAction) {
+          Button(SettingsUIStrings.done, systemImage: "checkmark") { dismiss() }
+            .accessibilityIdentifier("native-e2e.projects.management.close")
+        }
+      }
       ToolbarItem(placement: .topBarTrailing) {
         HostSelectionMenu(session: session)
       }
-    }
-    .poracodeBottomBar {
       if hasManageCapability {
-        PoracodeBottomActionDock(placement: .trailing) {
-          PoracodeCircleButton {
-            showingCreation = true
-          } label: {
-            Label(ProjectManagementStrings.add, systemImage: "plus")
-              .labelStyle(.iconOnly)
+        ToolbarItem(placement: .bottomBar) {
+          Button(ProjectManagementStrings.add, systemImage: "plus") {
+            if let lease = session.currentProjectControllerLease {
+              creationTarget = .init(lease: lease)
+            }
           }
           .disabled(!canManageProjects)
           .accessibilityIdentifier("native-e2e.projects.add")
         }
       }
-    }
-    .sheet(isPresented: $showingCreation) {
-      ProjectCreationView(
-        controller: commandController,
-        directoryController: directoryController
-      )
     }
     .confirmationDialog(
       actionProject?.name ?? ProjectManagementStrings.title,
@@ -165,7 +188,12 @@ struct ProjectManagementView: View {
         }
         if hasManageCapability {
           Button(ProjectManagementStrings.edit) {
-            editorProject = project
+            if !embeddedInNavigationStack, initialProjectID == nil {
+              selectedProjectID = project.id
+              preferredCompactColumn = .detail
+            } else {
+              editorProjectID = project.id
+            }
           }
           .disabled(!canManageProjects)
           Button(ProjectManagementStrings.remove, role: .destructive) {
@@ -187,6 +215,13 @@ struct ProjectManagementView: View {
     ) {
       Button(ProjectManagementStrings.remove, role: .destructive) {
         if let project = removalProject {
+          if selectedProjectID == project.id {
+            selectedProjectID = nil
+            preferredCompactColumn = .sidebar
+          }
+          if editorProjectID == project.id {
+            editorProjectID = nil
+          }
           Task {
             await commandController.perform(.remove(projectId: project.id), detectSetup: false)
           }
@@ -201,15 +236,8 @@ struct ProjectManagementView: View {
         Text(ProjectManagementStrings.removeConfirmMessage(project.name))
       }
     }
-    .navigationDestination(item: $editorProject) { project in
-      ProjectEditView(
-        session: session,
-        project: project,
-        commandController: commandController,
-        settingsController: settingsController,
-        directoryController: directoryController,
-        notesController: notesController
-      )
+    .navigationDestination(item: $editorProjectID) { projectID in
+      projectDetail(projectID)
     }
     .overlay(alignment: .bottom) {
       if let failure = commandController.state.failure {
@@ -226,7 +254,7 @@ struct ProjectManagementView: View {
 
   /// The PWA mobile list keeps the full editor as iOS-native depth, reached
   /// from the row action sheet instead of the row itself.
-  @State private var editorProject: RemoteProject?
+  @State private var editorProjectID: String?
 
   private func isSynced(_ project: RemoteProject) -> Bool {
     session.selectedConnectionId.map {
@@ -282,10 +310,12 @@ struct ProjectManagementView: View {
     settingsController.deactivate()
     directoryController.deactivate()
     notesController.deactivate()
-    showingCreation = false
+    creationTarget = nil
     actionProject = nil
     removalProject = nil
-    editorProject = nil
+    editorProjectID = nil
+    selectedProjectID = nil
+    preferredCompactColumn = .sidebar
   }
 
   private func receiveSnapshot() {
@@ -332,6 +362,7 @@ private struct ProjectManagementRow: View {
       }
     }
     .padding(.vertical, 2)
+    .contentShape(Rectangle())
   }
 }
 

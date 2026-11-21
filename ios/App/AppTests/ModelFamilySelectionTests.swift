@@ -9,6 +9,52 @@ import XCTest
 /// controls to the member UID and one binding them to the saved config — no
 /// provider payload appears anywhere in this suite.
 final class ModelFamilySelectionTests: XCTestCase {
+  func testSettingsFamilyPicksResolveAndPreserveTheExactPortableBinding() throws {
+    var family = try XCTUnwrap(duoFamily().objectValue)
+    family["redundantValues"] = .object(["effort": .array([.string("")]), "fast": .array([.bool(false)])])
+    var capabilities = capability(families: [.object(family)])
+    capabilities["presentationCapabilities"] = .object([
+      "gui": .object(["models": .array([.object(["id": .string("solo"), "label": .string("Solo")])])]),
+    ])
+    let wire = JSONValue.object([
+      "kind": .string("fixture"), "label": .string("Fixture"),
+      "installed": .bool(true), "authState": .string("authenticated"),
+      "capabilities": .object(capabilities),
+    ])
+    let status = try JSONDecoder().decode(SettingsAgentStatus.self, from: JSONEncoder().encode(wire))
+    let catalog = SettingsGenerationModelCatalog(agent: status, presentation: .terminal)
+    let graphical = SettingsGenerationModelCatalog(agent: status, presentation: .gui)
+    XCTAssertEqual(graphical.models.map(\.id), ["solo"])
+    XCTAssertTrue(graphical.families.isEmpty)
+
+    var draft = SettingsGenerationDraft(provider: "fixture", model: "solo", effort: "medium", fast: false)
+    XCTAssertFalse(catalog.models.map(\.id).contains("duo-alpha-beta-fast"))
+    draft.chooseModelRow("duo-alpha-beta", catalog: catalog)
+    XCTAssertEqual(draft.model, "duo-alpha-beta")
+    XCTAssertEqual(catalog.displayedEffort(for: draft), "low")
+    XCTAssertEqual(draft.selection?.selectionBinding?.inertValues, [.effort: .string(""), .fast: .bool(false)])
+
+    draft.applyModelChoice(.effort("high"), catalog: catalog)
+    XCTAssertEqual(draft.model, "duo-alpha-beta-hi")
+    XCTAssertEqual(catalog.displayedEffort(for: draft), "high")
+    XCTAssertFalse(catalog.canEditFast(draft))
+    let high = draft
+    draft.applyModelChoice(.fast(true), catalog: catalog)
+    XCTAssertEqual(draft, high)
+
+    draft.applyModelChoice(.effort("low"), catalog: catalog)
+    draft.applyModelChoice(.fast(true), catalog: catalog)
+    XCTAssertEqual(draft.model, "duo-alpha-beta-fast")
+    XCTAssertTrue(catalog.displayedFast(for: draft))
+    XCTAssertEqual(draft.selection?.fast, false)
+    let encoded = draft
+    draft.chooseModelRow("duo-alpha-beta", catalog: catalog)
+    XCTAssertEqual(draft, encoded)
+    draft.chooseModel("duo-alpha-beta", for: status)
+    XCTAssertEqual(draft.model, "duo-alpha-beta")
+    XCTAssertNil(draft.selection?.selectionBinding)
+  }
+
   // MARK: - Fixtures
 
   /// Duo members are (lead, mate, effort, fast) tuples; `duo-alpha-delta` and

@@ -26,15 +26,18 @@ struct GitHubOperationsPanel: View {
     .navigationTitle(GitHubOperationsStrings.title)
     .task(id: GitHubOperationsActivationID(context)) { await loadInitialState() }
     .refreshable { await loadInitialState() }
+    .onChange(of: context?.lease) { _, _ in presentedProcedure = nil }
     .sheet(item: $presentedProcedure) { procedure in
+      let lease = context?.lease
       GitHubOperationFormView(
         procedure: procedure,
         location: location,
         accounts: controllers.availability.accounts,
         pullRequests: controllers.pullRequests.pullRequests,
-        workflows: controllers.workflows.workflows,
-        submit: submit
-      )
+        workflows: controllers.workflows.workflows
+      ) { request in
+        await submit(request, expectedLease: lease)
+      }
     }
     .confirmationDialog(
       confirmationTitle,
@@ -148,26 +151,28 @@ struct GitHubOperationsPanel: View {
     await controllers.workflows.load(.ghListWorkflows(.init(projectLocation: location)))
   }
 
-  private func submit(_ request: GitHubOperationRequest) async {
-    guard request.ownerLocation == context?.lease.location else { return }
+  private func submit(_ request: GitHubOperationRequest, expectedLease: GitHubProjectLease?) async {
+    guard let expectedLease, context?.lease == expectedLease,
+      request.ownerLocation == expectedLease.location
+    else { return }
     if request.procedure.metadata.scope == .read {
       if [.ghCheckAvailable, .ghListAccounts, .ghListRepos].contains(request.procedure) {
-        await controllers.availability.load(request)
+        await controllers.availability.load(request, expectedLease: expectedLease)
       } else if request.procedure.metadata.owner == .projectLocation,
         GitHubOperationsPresentation.actions(in: .pullRequests).contains(where: {
           $0.procedure == request.procedure
         })
       {
-        await controllers.pullRequests.load(request)
+        await controllers.pullRequests.load(request, expectedLease: expectedLease)
       } else {
         await controllers.workflows.load(request)
       }
     } else if GitHubOperationsPresentation.actions(in: .pullRequests).contains(where: {
       $0.procedure == request.procedure
     }) {
-      await controllers.pullRequestMutations.submit(request)
+      await controllers.pullRequestMutations.submit(request, expectedLease: expectedLease)
     } else {
-      await controllers.workflowMutations.submit(request)
+      await controllers.workflowMutations.submit(request, expectedLease: expectedLease)
     }
   }
 

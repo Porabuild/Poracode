@@ -38,6 +38,10 @@ enum GitHubOperationsStrings {
   static var commentDecision: String { localized("githubOperations.commentDecision") }
   static var inputs: String { localized("githubOperations.inputs") }
   static var inputsHint: String { localized("githubOperations.inputsHint") }
+  static var workflowInputsRequired: String { localized("githubOperations.workflowInputsRequired") }
+  static func requiredWorkflowInput(_ name: String) -> String {
+    String(format: localized("githubOperations.requiredWorkflowInput"), name)
+  }
   static var failedOnly: String { localized("githubOperations.failedOnly") }
   static var pinWorkflow: String { localized("githubOperations.pinWorkflow") }
   static var unpinWorkflow: String { localized("githubOperations.unpinWorkflow") }

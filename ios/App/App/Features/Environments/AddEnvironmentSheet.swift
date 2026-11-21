@@ -1,75 +1,97 @@
 import SwiftUI
 
+@MainActor
+@Observable
+final class AddEnvironmentDraft: Identifiable {
+    var label = ""
+    var target = ""
+    var port = ""
+    var credentialRef = ""
+    var isSubmitting = false
+    var isConfirming = false
+    var validationMessage: String?
+}
+
 /// Create one host-owned environment on the bound host. Creating is an
 /// explicit action: the confirmation names the first-install authorization
 /// before anything is written.
 struct AddEnvironmentSheet: View {
     let controller: EnvironmentManagementController
+    @Bindable var draft: AddEnvironmentDraft
     @Environment(\.dismiss) private var dismiss
-
-    @State private var label = ""
-    @State private var target = ""
-    @State private var port = ""
-    @State private var credentialRef = ""
-    @State private var isSubmitting = false
-    @State private var isConfirming = false
-    @State private var validationMessage: String?
 
     var body: some View {
         NavigationStack {
             Form {
                 Section(EnvironmentStrings.configurationSection) {
-                    TextField(EnvironmentStrings.addLabel, text: $label)
+                    TextField(EnvironmentStrings.addLabel, text: $draft.label)
                         .textInputAutocapitalization(.words)
+                        .accessibilityIdentifier("native-e2e.environment-editor.name")
                     TextField(
                         EnvironmentStrings.addTarget,
-                        text: $target,
+                        text: $draft.target,
                         prompt: Text(EnvironmentStrings.addTargetPlaceholder)
                     )
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
+                    .accessibilityIdentifier("native-e2e.environment-editor.target")
                     TextField(
                         EnvironmentStrings.addPort,
-                        text: $port,
+                        text: $draft.port,
                         prompt: Text(EnvironmentStrings.addPortPlaceholder)
                     )
                     .keyboardType(.numberPad)
+                    .accessibilityIdentifier("native-e2e.environment-editor.port")
                     TextField(
                         EnvironmentStrings.addCredential,
-                        text: $credentialRef,
+                        text: $draft.credentialRef,
                         prompt: Text(EnvironmentStrings.addCredentialPlaceholder)
                     )
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
+                    .accessibilityIdentifier("native-e2e.environment-editor.credential")
                 }
-                if let validationMessage {
+                if let validationMessage = draft.validationMessage {
                     Section {
                         Text(validationMessage)
                             .foregroundStyle(.red)
                     }
                 }
             }
+            .disabled(draft.isSubmitting)
             .navigationTitle(EnvironmentStrings.addTitle)
             #if os(iOS)
                 .navigationBarTitleDisplayMode(.inline)
             #endif
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button(HostStrings.cancel) { dismiss() }
+                    Button {
+                        dismiss()
+                    } label: {
+                        Label(HostStrings.cancel, systemImage: "xmark")
+                    }
+                    .disabled(draft.isSubmitting)
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button(EnvironmentStrings.addAction) { beginConfirmation() }
-                        .disabled(isSubmitting)
+                    Button {
+                        beginConfirmation()
+                    } label: {
+                        Label(EnvironmentStrings.addAction, systemImage: "plus")
+                    }
+                    .disabled(draft.isSubmitting || !controller.canCreate)
+                    .accessibilityIdentifier("native-e2e.environment-editor.confirm")
                 }
             }
+            .interactiveDismissDisabled(draft.isSubmitting)
             .confirmationDialog(
                 EnvironmentStrings.addConfirmTitle,
-                isPresented: $isConfirming,
+                isPresented: $draft.isConfirming,
                 titleVisibility: .visible
             ) {
                 Button(EnvironmentStrings.addAction, role: .destructive) {
                     Task { await submit() }
                 }
+                .accessibilityIdentifier("native-e2e.environment-editor.create")
                 Button(HostStrings.cancel, role: .cancel) {}
             } message: {
                 Text(EnvironmentStrings.addConfirmMessage)
@@ -78,38 +100,39 @@ struct AddEnvironmentSheet: View {
     }
 
     private func beginConfirmation() {
-        let trimmedLabel = label.trimmingCharacters(in: .whitespacesAndNewlines)
-        let trimmedTarget = target.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedLabel = draft.label.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedTarget = draft.target.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedLabel.isEmpty, !trimmedTarget.isEmpty else {
-            validationMessage = EnvironmentStrings.addRequired
+            draft.validationMessage = EnvironmentStrings.addRequired
             return
         }
-        if !port.isEmpty, parsedPort == nil {
-            validationMessage = EnvironmentStrings.addRequired
+        if !draft.port.isEmpty, parsedPort == nil {
+            draft.validationMessage = EnvironmentStrings.addRequired
             return
         }
-        validationMessage = nil
-        isConfirming = true
+        draft.validationMessage = nil
+        draft.isConfirming = true
     }
 
     private var parsedPort: Int? {
-        Int(port.trimmingCharacters(in: .whitespacesAndNewlines))
+        Int(draft.port.trimmingCharacters(in: .whitespacesAndNewlines))
     }
 
     private func submit() async {
-        isSubmitting = true
-        defer { isSubmitting = false }
-        let credential = credentialRef.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !draft.isSubmitting else { return }
+        draft.isSubmitting = true
+        defer { draft.isSubmitting = false }
+        let credential = draft.credentialRef.trimmingCharacters(in: .whitespacesAndNewlines)
         let created = await controller.create(
-            label: label.trimmingCharacters(in: .whitespacesAndNewlines),
-            target: target.trimmingCharacters(in: .whitespacesAndNewlines),
+            label: draft.label.trimmingCharacters(in: .whitespacesAndNewlines),
+            target: draft.target.trimmingCharacters(in: .whitespacesAndNewlines),
             port: parsedPort,
             credentialRef: credential.isEmpty ? nil : credential
         )
         if created {
             dismiss()
         } else {
-            validationMessage = controller.failure ?? EnvironmentStrings.operationFailed
+            draft.validationMessage = controller.failure ?? EnvironmentStrings.operationFailed
         }
     }
 }

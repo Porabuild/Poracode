@@ -3,114 +3,50 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 struct HomeQuickComposeView: View {
+  enum NewsPlacement {
+    case composer, listFooter, hidden
+  }
+
+  @Environment(\.homeWorkspace) var workspace
+  @Environment(\.verticalSizeClass) var verticalSizeClass
+  @Environment(\.poracodeSplitDetailContext) var splitDetailContext
   @Bindable var session: AppSession
   @Binding var isExpanded: Bool
+  let showsContextHeader: Bool
   let onStarted: (String) -> Void
-  let launchSeed: HomeThreadLaunchSeed?
-  var glassNamespace: Namespace.ID? = nil
+  let onNewsAction: ((HomeNewsCardAction) -> Void)?
+  let newsPlacement: NewsPlacement
+  @Environment(\.locale) var newsLocale
+  @AppStorage(HomeNewsPreferences.enabledKey) var newsEnabled = true
+  @AppStorage(HomeNewsPreferences.activityKey) var newsActivity = true
+  var newsHostData: HomeNewsHostData { draft.newsHostData }
+  var newsVisit: HomeNewsVisit { draft.newsVisit }
+  var launchSeed: HomeThreadLaunchSeed? { draft.launchSeed }
 
-  @State var lifecycle: ThreadLifecycleController
-  @State var mediaSuite: RichChatControllerSuite
-  @State var fileMentionController: RichChatFileMentionController
-  @State var projectID: String
-  @State var threadID = UUID().uuidString.lowercased()
-  @State var prompt = ""
-  @State var promptSelection: NSRange?
-  @State var selectedAgentKind: String?
-  @State var selectedModel: String?
-  @State var selectedEffort: String?
-  @State var fast = false
-  /// Per-draft workflow mode: never restored from a saved draft or earlier thread.
-  @State var workflows = false
-  @State var browserMcp: Bool?
-  @State var crossagentMcp: Bool?
-  @State var computerUse: Bool?
-  @State var chromeMcp: Bool?
-  @State var permissionMode = HomeComposerPermission.auto
-  @State var configuredConfiguration: ThreadLaunchConfiguration?
-  @State var controlsConfiguration = ThreadConfig.empty
-  @State var showingComposerControls = false
-  @State var presentationMode = ThreadPresentationMode.gui
-  @State var worktreeSelection = HomeComposerWorktree.branch
-  @State var worktreeBranchName =
-    "poracode/mobile-\(String(UUID().uuidString.lowercased().prefix(6)))"
-  @State var branchSelection: HomeComposerBranchSelection?
-  @State var branchProjectID: String?
-  @State var branchOptions: [ProjectGitBranchInfo] = []
-  @State var worktreeOptions: [ProjectGitWorktreeInfo] = []
-  @State var loadingBranches = false
-  @State var switchingBranch: String?
-  @State var branchSearch = ""
-  @State var creatingBranch = false
-  @State var newBranchName = ""
-  @State var modelSearch = ""
-  @State var photoItem: PhotosPickerItem?
-  @State var screenshotItem: PhotosPickerItem?
-  @State var showingCamera = false
-  @State var attachments: [RichChatUploadedAttachment] = []
-  @State var skills: [RichChatSelectedSkill] = []
-  @State var fileMentions: [String] = []
-  @State var mentionedMCPs: [RichChatSelectedMCP] = []
-  @State var selector: HomeComposerSelector?
-  /// User-saved per-agent visibility lists (see `loadVisibilityOverrides`).
-  @State var hiddenModels: [String: [String]] = [:]
-  @State var visibilityDocument: SettingsDocumentController
-  @State var showingImporter = false
-  @State var importing = false
-  @State var preparingWorktree = false
-  @State var failureMessage: String?
-  @State var promptFocused = false
+  @Bindable var draft: HomeQuickComposeState
+  @State var presentationID = UUID()
+  @State private var composerAvailableHeight: CGFloat = 0
+  @State private var restorePromptAfterSelector = false
 
-  init(
-    session: AppSession,
-    isExpanded: Binding<Bool>,
-    initialProjectID: String? = nil,
-    initialWorktree: HomeComposerBranchSelection? = nil,
-    launchSeed: HomeThreadLaunchSeed? = nil,
-    glassNamespace: Namespace.ID? = nil,
+  init(session: AppSession, isExpanded: Binding<Bool>, draft: HomeQuickComposeState, showsContextHeader: Bool = true,
+    newsPlacement: NewsPlacement = .composer, onNewsAction: ((HomeNewsCardAction) -> Void)?,
     onStarted: @escaping (String) -> Void
   ) {
     self.session = session
     _isExpanded = isExpanded
+    _draft = Bindable(wrappedValue: draft)
+    self.showsContextHeader = showsContextHeader
+    self.newsPlacement = newsPlacement
     self.onStarted = onStarted
-    self.launchSeed = launchSeed
-    self.glassNamespace = glassNamespace
-    _lifecycle = State(initialValue: session.makeThreadLifecycleController())
-    _mediaSuite = State(initialValue: session.makeRichChatControllerSuite())
-    _fileMentionController = State(initialValue: RichChatFileMentionController(session: session))
-    _visibilityDocument = State(
-      initialValue: SettingsDocumentController(gateway: session.makeSettingsSessionGateway()))
-    let latestProjectID = (session.state.snapshot?.threads ?? [])
-      .filter { !$0.isArchived && ThreadPresentationFilter.isVisibleInNativeList($0) }
-      .max(by: { $0.updatedAt < $1.updatedAt })?.projectId
-    _projectID = State(
-      initialValue: launchSeed?.fixedProjectID ?? initialProjectID ?? latestProjectID
-        ?? session.projects.first?.id ?? ""
-    )
-    let seededWorktree = launchSeed?.initialWorktree ?? initialWorktree
-    _worktreeSelection = State(initialValue: seededWorktree == nil ? .branch : .worktree)
-    _branchSelection = State(initialValue: seededWorktree)
-    _selectedAgentKind = State(initialValue: launchSeed?.initialAgentKind)
-    _selectedModel = State(initialValue: launchSeed?.initialModelID)
-    _prompt = State(initialValue: launchSeed?.initialPrompt ?? "")
-    let initialPresentationMode =
-      launchSeed?.presentationMode
-      ?? HomeComposerCatalog.preferredPresentationMode(
-        from: session.state.replay.agentStatuses.ordered
-      )
-    _presentationMode = State(initialValue: initialPresentationMode)
-  }
-
-  var projects: [RemoteProject] {
-    session.projects.filter { $0.disabled != true && launchDefaults(for: $0) != nil }
+    self.onNewsAction = onNewsAction
   }
 
   var selectedProject: RemoteProject? {
-    projects.first { $0.id == projectID } ?? projects.first
+    projects.first { $0.id == draft.projectID } ?? projects.first
   }
 
   var selectedHostLabel: String {
-    guard let connectionID = session.state.selectedConnectionId else { return "" }
+    guard let connectionID = draft.connectionID else { return "" }
     let label = session.state.hosts.first { $0.connectionId == connectionID }?.label ?? ""
     return HomeDeviceName.display(label)
   }
@@ -119,120 +55,127 @@ struct HomeQuickComposeView: View {
     session.state.replay.agentStatusRevision
   }
 
+  var ownsCurrentConnection: Bool { draft.connectionID == session.selectedConnectionId }
+  var isCurrentPresentation: Bool { draft.isPresented(presentationID) }
+  var isCompactHeight: Bool { splitDetailContext.isCompactHeight || verticalSizeClass == .compact || (composerAvailableHeight > 0 && composerAvailableHeight < 380) }
+
   var defaults: HomeThreadLaunchDefaults? {
     selectedProject.flatMap(launchDefaults)
   }
 
   var selectedAgent: AgentStatusRecord? {
-    let kind = selectedAgentKind ?? (launchSeed == nil ? defaults?.agentKind : nil)
+    guard ownsCurrentConnection else { return nil }
+    if let kind = draft.selectedAgentKind {
+      guard kind != launchSeed?.excludedAgentKind else { return nil }
+      return ComposerProviderCatalog.selected(kind, pinnedKind: launchSeed?.initialAgentKind,
+        agents: environmentAgents, presentation: draft.presentationMode,
+        settings: draft.visibilityDocument.document)
+    }
+    let kind = launchSeed == nil ? defaults?.agentKind : nil
     return availableAgents.first { $0.kind == kind } ?? availableAgents.first
   }
 
   var effectiveConfiguration: ThreadLaunchConfiguration? {
-    guard var configuration = targetConfiguration else { return nil }
+    guard let configuration = targetConfiguration else { return nil }
+    if draft.configuredConfiguration != nil || launchSeed?.initialConfiguration != nil || launchSeed == nil {
+      return ThreadLaunchConfiguration(ModelSelectionBindings.validated(ThreadConfig(configuration), owner: composerSelectionOwner))
+    }
     let capabilities = selectedAgent.map {
-      HomeComposerCatalog.capabilities(for: $0, presentationMode: presentationMode)
-    }
-    switch permissionMode {
-    case .auto:
-      configuration.approvalPolicy = permissionMode.approvalPolicy(capabilities: capabilities ?? [:])
-      configuration.approvalsReviewer = nil
-      configuration.sandboxMode = nil
-    case .bypass:
-      configuration.approvalPolicy = permissionMode.approvalPolicy(capabilities: capabilities ?? [:])
-      configuration.approvalsReviewer = nil
-      configuration.sandboxMode = "danger-full-access"
-    case .configured:
-      break
-    }
-    return configuration
+      HomeComposerCatalog.capabilities(for: $0, presentationMode: draft.presentationMode)
+    } ?? [:]
+    let saved = draft.restoredSelection != nil
+      || selectedProject?.lastDraftConfig?.objectValue?["agentKind"]?.stringValue == selectedAgent?.kind
+    let resolved = HomeQuickComposePermissionDefaults.resolve(configuration, saved: saved, capabilities: capabilities)
+    return ThreadLaunchConfiguration(ModelSelectionBindings.validated(ThreadConfig(resolved), owner: composerSelectionOwner))
   }
 
   var body: some View {
+    if newsPlacement == .listFooter {
+      if showsNews {
+        newsLine
+          .task(id: newsRefreshKey) { await refreshNews() }
+      }
+    } else {
+      composer
+    }
+  }
+
+  private var composer: some View {
     composerSurface
+      .modifier(NativeComposerCommands(ownerID: presentationID, configuration: composerControlsBinding, catalog: composerControlsCatalog,
+        enabled: ownsCurrentConnection && isCurrentPresentation && session.canOperate && selectedAgent != nil
+          && !draft.lifecycle.isBusy && !draft.preparingWorktree,
+        chooseModel: { restorePromptAfterSelector = true; draft.selector = .model }, stateOwnerID: ObjectIdentifier(draft)))
+      .modifier(ComposerVoiceHost(session: session))
+      // Home already owns a bottom inset. Translate its editor without
+      // growing that inset again when the keyboard covers it.
+      .poracodeAvoidKeyboard(isActive: draft.promptFocused, reservesSpace: false) { composerAvailableHeight = $0 }
       .onAppear {
+        draft.beginPresentation(presentationID)
         normalizePresentationMode()
         normalizeProject()
+        reconcileProjectPreferences()
         activateMedia()
         synchronizeFileMentions()
       }
-      .task { await loadVisibilityOverrides() }
+      .task(id: settingsRefreshKey) { await reloadComposerSettings() }
+      .task(id: newsRefreshKey) {
+        if newsPlacement == .composer { await refreshNews() }
+      }
+      .onChange(of: draft.prompt) { _, _ in newsVisit.noteTyping() }
+      .onChange(of: canStart) { _, ready in
+        if ready, launchSeed?.autoStart == true, !draft.didAutoStart {
+          draft.didAutoStart = true
+          start()
+        }
+      }
       .onChange(of: session.currentRichChatAccess?.lease) { activateMedia() }
       .onChange(of: agentStatusRevision) {
         normalizePresentationMode()
         normalizeProject()
       }
-      .onChange(of: isExpanded) { _, expanded in
+      .onChange(of: isExpanded, initial: true) { _, expanded in
         if expanded {
-          DispatchQueue.main.async { promptFocused = true }
+          DispatchQueue.main.async {
+            guard isExpanded, isCurrentPresentation, ownsCurrentConnection, draft.selector == nil else { return }
+            draft.promptFocused = true
+          }
         } else {
-          promptFocused = false
+          draft.promptFocused = false
         }
       }
-      .onChange(of: projectID) {
-        selectedAgentKind = nil
-        selectedModel = nil
-        selectedEffort = nil
-        fast = false
-        workflows = false
-        browserMcp = nil
-        crossagentMcp = nil
-        computerUse = nil
-        chromeMcp = nil
-        configuredConfiguration = nil
-        worktreeSelection = .branch
-        branchSelection = nil
-        branchProjectID = nil
-        branchOptions = []
-        worktreeOptions = []
-        branchSearch = ""
-        creatingBranch = false
-        newBranchName = ""
-        attachments = []
-        skills = []
-        fileMentions = []
-        mentionedMCPs = []
-        synchronizeFileMentions()
+      .onChange(of: draft.projectID) { synchronizeFileMentions(); reconcileProjectPreferences() }
+      .onChange(of: session.state.catalogMutationsSupported) { reconcileProjectPreferences() }
+      .onChange(of: draft.presentationMode) {
+        guard isCurrentPresentation, ownsCurrentConnection else { return }
+        let agent = availableAgents.first { $0.kind == draft.selectedAgentKind } ?? availableAgents.first
+        draft.selectAgent(agent?.kind)
+        draft.configuredConfiguration = nil
       }
-      .onChange(of: selectedAgentKind) {
-        skills = []
-        configuredConfiguration = nil
+      .onChange(of: draft.selector) { previous, destination in
+        if destination != nil { draft.promptFocused = false }
+        if destination != .model { draft.modelSearch = "" }
+        if destination == .add { Task { await loadComposerTools(servers: true) } }
+        if destination == .model || destination == .crew { Task { await reloadComposerSettings() } }
+        if previous == .crew && destination == nil { draft.crewRoster = nil }
       }
-      .onChange(of: presentationMode) {
-        let agent = availableAgents.first { $0.kind == selectedAgentKind } ?? availableAgents.first
-        selectedAgentKind = agent?.kind
-        selectedModel = agent.flatMap { modelOptions(for: $0).first?.modelID }
-        selectedEffort = agent.flatMap { candidate in
-          selectedModel.flatMap { defaultEffort(for: candidate, modelID: $0) }
-        }
-        fast = false
-        workflows = false
-        configuredConfiguration = nil
-      }
-      .onChange(of: selector) { _, destination in
-        if destination != .model { modelSearch = "" }
-      }
-      .onChange(of: photoItem) { _, item in
-        guard let item else { return }
+      .onChange(of: draft.photoItem) { _, item in
+        guard isCurrentPresentation, ownsCurrentConnection, let item else { return }
         Task {
           await upload(item, kind: .photo)
-          photoItem = nil
+          draft.photoItem = nil
         }
       }
-      .onChange(of: screenshotItem) { _, item in
-        guard let item else { return }
+      .onChange(of: draft.screenshotItem) { _, item in
+        guard isCurrentPresentation, ownsCurrentConnection, let item else { return }
         Task {
           await upload(item, kind: .screenshot)
-          screenshotItem = nil
+          draft.screenshotItem = nil
         }
       }
-      .onDisappear {
-        resignPromptFocus()
-        lifecycle.deactivate()
-        mediaSuite.deselect()
-      }
+      .onDisappear { draft.endPresentation(presentationID) }
       .fileImporter(
-        isPresented: $showingImporter,
+        isPresented: $draft.showingImporter,
         allowedContentTypes: [.data],
         allowsMultipleSelection: false
       ) { result in
@@ -240,59 +183,77 @@ struct HomeQuickComposeView: View {
           Task { await upload(url) }
         }
       }
-      .fullScreenCover(isPresented: $showingCamera) {
-        HomeComposerCameraPicker(isPresented: $showingCamera) { data in
+      .fullScreenCover(isPresented: $draft.showingCamera) {
+        HomeComposerCameraPicker(isPresented: $draft.showingCamera) { data in
           Task { await uploadCapturedPhoto(data) }
         }
         .ignoresSafeArea()
       }
-      .sheet(item: $selector) { destination in
+      .sheet(item: $draft.selector, onDismiss: {
+        guard restorePromptAfterSelector else { return }
+        restorePromptAfterSelector = false
+        if isCurrentPresentation && ownsCurrentConnection && isExpanded && session.canOperate {
+          draft.promptFocused = true
+        }
+      }) { destination in
         selectorSheet(destination)
+          .nativeCommands(identity: "home-composer-selector:\(destination)", blocksParentActions: true)
+          .poracodeFormSheetSizing()
           .presentationDetents(destination.detents)
           .presentationDragIndicator(.visible)
           .presentationCornerRadius(28)
       }
-      .sheet(isPresented: $showingComposerControls) {
-        RichChatComposerControlsSheet(
-          configuration: composerControlsBinding,
-          agentStatus: selectedAgent,
-          presentationMode: presentationMode,
-          hiddenModels: hiddenModels
-        )
-      }
+      .id(ObjectIdentifier(draft))
+  }
+
+  private func reconcileProjectPreferences() {
+    draft.reconcileProjectPreferenceAuthority(worktreeMode:
+      selectedProject?.lastDraftConfig?.objectValue?["worktreeMode"]?.boolValue == true)
   }
 
   var composerControlsBinding: Binding<ThreadConfig> {
     Binding(
-      get: { controlsConfiguration },
+      get: { effectiveConfiguration.map { ThreadConfig($0) }
+        ?? draft.configuredConfiguration.map { ThreadConfig($0) } ?? draft.restoredSelection?.configuration ?? .empty },
       set: { configuration in
-        controlsConfiguration = configuration
+        guard ownsCurrentConnection else { return }
         applyComposerControls(configuration)
       }
     )
   }
 
   var hasSendableContent: Bool {
-    !prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    !draft.prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
       || launchSeed?.defaultPrompt != nil
-      || !fileMentions.isEmpty
-      || !mentionedMCPs.isEmpty
-      || !skills.isEmpty
-      || !attachments.isEmpty
+      || !draft.fileMentions.isEmpty
+      || !draft.mentionedMCPs.isEmpty
+      || !draft.skills.isEmpty
+      || !draft.attachments.isEmpty
+      || !draft.additionalSegments.isEmpty
   }
 
   var compactPrompt: String {
-    let text = prompt.trimmingCharacters(in: .whitespacesAndNewlines)
-    let mentions = fileMentions.map { "@\($0)" } + mentionedMCPs.map { "@\($0.name)" } + skills.map(\.invocation)
+    let text = draft.prompt.trimmingCharacters(in: .whitespacesAndNewlines)
+    let mentions = draft.fileMentions.map { "@\($0)" } + draft.mentionedMCPs.map { "@\($0.name)" } + draft.skills.map(\.invocation) + draft.additionalSegments.compactMap(\.promptText)
     if !text.isEmpty { return text }
     if !mentions.isEmpty { return mentions.joined(separator: " ") }
-    return attachments.map(\.name).joined(separator: " ")
+    return draft.attachments.map(\.name).joined(separator: " ")
   }
 
   var canStart: Bool {
-    guard !lifecycle.isBusy, !preparingWorktree, hasSendableContent, selectedProject != nil,
-      effectiveConfiguration != nil, let access = session.currentThreadSessionAccess
+    guard ownsCurrentConnection, !draft.starting, !draft.importing, !draft.lifecycle.isBusy,
+      !draft.preparingWorktree, hasSendableContent, selectedProject != nil,
+      effectiveConfiguration != nil, draft.tools.document.document != nil, !draft.tools.isMutating,
+      let access = session.currentThreadSessionAccess
     else { return false }
+    if launchSeed?.providerSwitchSource != nil,
+      draft.lifecycle.lastOutcome == .failed(.start, .ambiguousOutcome) { return false }
+    if let source = draft.providerSwitch {
+      guard source.target.lease == access.lease,
+        let thread = session.richChatThread(id: source.target.threadID),
+        thread.agentKind == source.agentKind, thread.presentationMode == "gui"
+      else { return false }
+    }
     return access.isOnline && access.isReady && access.isForeground
       && access.scopes.contains("session:operate")
   }
@@ -300,7 +261,7 @@ struct HomeQuickComposeView: View {
   var skillPickerContext: RichChatSkillPickerContext? {
     guard let project = selectedProject,
       let connectionID = session.state.selectedConnectionId,
-      let agentKind = selectedAgentKind ?? defaults?.agentKind
+      let agentKind = draft.selectedAgentKind ?? defaults?.agentKind
     else { return nil }
     return RichChatSkillPickerContext(
       session: session,

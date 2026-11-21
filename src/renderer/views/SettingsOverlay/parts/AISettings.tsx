@@ -16,6 +16,7 @@ import {
   resolveModelSelectionEdit,
 } from "@/renderer/components/thread/buildModelPickerControls";
 import { ThreadComposer } from "@/renderer/components/thread/ThreadComposer";
+import { resolveFastValue } from "@/renderer/components/thread/threadDraftViewHelpers";
 import {
   getCommitGenCandidates,
   getCommitGenDefaultsHint,
@@ -74,6 +75,7 @@ export function GenConfigSection(props: {
   allowDisabled?: boolean;
   defaultsHint?: string | undefined;
   agentStatuses: AgentStatus[];
+  isReadOnly?: boolean;
   /** Deliberate preset edit: legacy scalars plus the eventful edit descriptor. */
   onConfigChange: (
     provider: string,
@@ -129,6 +131,7 @@ export function GenConfigSection(props: {
   // Guarded on the provider being *installed but ineligible* so it never fires
   // mid-detection (when the provider is merely absent from the list yet).
   const savedProviderIneligible =
+    !props.isReadOnly &&
     props.requireOneShot === true &&
     mode === "custom" &&
     customAgent === undefined &&
@@ -167,7 +170,7 @@ export function GenConfigSection(props: {
   });
 
   function changeMode(next: Mode) {
-    if (next === mode) return;
+    if (props.isReadOnly || next === mode) return;
     if (next === "auto") {
       onConfigChange("auto", "", "", false, { kind: "reset" });
       return;
@@ -179,11 +182,14 @@ export function GenConfigSection(props: {
     const first = sortByAutoPreference(eligibleAgents)[0];
     if (!first) return;
     const r = resolve(agentForPresentation(first), "", "");
-    onConfigChange(first.kind, r.model, r.effort, false, { kind: "model" });
+    onConfigChange(first.kind, r.model, r.effort, false, {
+      kind: "model",
+      patch: { effort: r.effort, fast: false },
+    });
   }
 
   const showToolbar = (mode === "custom" || mode === "auto") && displayAgent && displayResolved;
-  const isReadOnly = mode === "auto";
+  const isReadOnly = props.isReadOnly === true || mode === "auto";
   // Modern presets display their actual controls; legacy Auto keeps its
   // existing read-only default view.
   const resolvedFast = props.selection || mode === "custom" ? fast : false;
@@ -204,6 +210,7 @@ export function GenConfigSection(props: {
           isDisabled: isReadOnly,
           includeFastToggle: true,
           onProviderModelChange: (next) => {
+            if (isReadOnly) return;
             const nextAgent = installedAgents.find((a) => a.kind === next.agentKind);
             const presented = agentForPresentation(nextAgent);
             // A pick touching a family relation resolves through the shared
@@ -248,10 +255,20 @@ export function GenConfigSection(props: {
               );
               return;
             }
-            onConfigChange(next.agentKind, next.model, effort, fast, { kind: "model" });
+            if (!presented || (next.agentKind === provider && next.model === model)) {
+              onConfigChange(next.agentKind, next.model, effort, fast, { kind: "model" });
+              return;
+            }
+            const sameProvider = next.agentKind === provider;
+            const nextEffort = resolve(presented, next.model, sameProvider ? effort : "").effort;
+            const nextFast = resolveFastValue(presented, next.model, sameProvider && fast);
+            onConfigChange(next.agentKind, next.model, nextEffort, nextFast, {
+              kind: "model",
+              patch: { effort: nextEffort, fast: nextFast },
+            });
           },
           onConfigPatch: (patch, origin) => {
-            if (!customAgent || !displayResolved) return;
+            if (isReadOnly || !customAgent || !displayResolved) return;
             if (patch.model !== undefined) {
               // Only a member patch the shared edit helper resolved carries
               // its projected relation, so only that edit can mint.
@@ -313,6 +330,7 @@ export function GenConfigSection(props: {
             className="h-7 [&_button]:h-7 [&_button]:min-h-0 [&_button]:min-w-0 [&_button]:px-2"
             selectionMode="single"
             disallowEmptySelection
+            isDisabled={props.isReadOnly === true}
             size="sm"
             selectedKeys={[mode]}
             onSelectionChange={(keys) => {
@@ -357,6 +375,7 @@ export function GenConfigSection(props: {
 export function PresentationModeToggle(props: {
   ariaLabel: string;
   value: ThreadPresentationMode;
+  isDisabled?: boolean;
   onChange: (value: ThreadPresentationMode) => void;
 }) {
   return (
@@ -365,6 +384,7 @@ export function PresentationModeToggle(props: {
       className="h-7 [&_button]:h-7 [&_button]:min-h-0 [&_button]:min-w-0 [&_button]:px-2"
       selectionMode="single"
       disallowEmptySelection
+      isDisabled={props.isDisabled === true}
       size="sm"
       selectedKeys={[props.value]}
       onSelectionChange={(keys) => {

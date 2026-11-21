@@ -142,14 +142,9 @@ data class RoutethreadU2DHistoryU2DItemResponse_69f5ba498b(
 }
 
 @Serializable
-enum class RoutethreadU2DHistoryU2DItemsQueryU2DDeferBodies_30a537a934 {
-    @SerialName("file_change") FILEU5FCHANGE,
-}
-
-@Serializable
 data class RoutethreadU2DHistoryU2DItemsQuery_ad31e0c5f6(
     @SerialName("beforePosition") val beforePosition: RemoteField<Long> = RemoteField.Missing,
-    @SerialName("deferBodies") val deferBodies: RemoteField<RoutethreadU2DHistoryU2DItemsQueryU2DDeferBodies_30a537a934> = RemoteField.Missing,
+    @SerialName("deferBodies") val deferBodies: RemoteField<RoutethreadU2DHistoryU2DChangesQueryU2DDeferBodies_30a537a934> = RemoteField.Missing,
     @SerialName("limit") val limit: RemoteField<Long> = RemoteField.Missing,
     @SerialName("maxBytes") val maxBytes: RemoteField<Long> = RemoteField.Missing,
     @SerialName("maxDecodeBytes") val maxDecodeBytes: RemoteField<Long> = RemoteField.Missing,
@@ -161,7 +156,7 @@ data class RoutethreadU2DHistoryU2DItemsQuery_ad31e0c5f6(
     companion object {
         val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
             RemoteFieldDescriptor("beforePosition", "Long", false, false, 0.0, 9007199254740991.0, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("deferBodies", "RoutethreadU2DHistoryU2DItemsQueryU2DDeferBodies_30a537a934", false, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("deferBodies", "RoutethreadU2DHistoryU2DChangesQueryU2DDeferBodies_30a537a934", false, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("limit", "Long", false, false, 1.0, 500.0, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("maxBytes", "Long", false, false, 1.0, 9007199254740991.0, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("maxDecodeBytes", "Long", false, false, 1.0, 9007199254740991.0, null, null, null, null, null, null, listOf()),

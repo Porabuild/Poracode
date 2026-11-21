@@ -5,17 +5,54 @@ import XCTest
 
 @MainActor
 final class SettingsUICompositionTests: XCTestCase {
+  func testDesktopSettingsIntegrationsAvoidNestedSplitNavigation() throws {
+    let hostView = try String(contentsOfFile: "\(SettingsUICompositionTests.appRoot)/Features/Settings/UI/SettingsHostView.swift", encoding: .utf8)
+    let searchView = try String(contentsOfFile: "\(SettingsUICompositionTests.appRoot)/Features/Settings/UI/SettingsSearch.swift", encoding: .utf8)
+    XCTAssertTrue(hostView.contains("embeddedInNavigationStack: true"))
+    XCTAssertTrue(hostView.contains("allowsRouteSelection: true"))
+    XCTAssertTrue(searchView.contains("allowsRouteSelection: true"))
+  }
+
+  private static var appRoot: String {
+    URL(fileURLWithPath: #filePath)
+      .deletingLastPathComponent()
+      .deletingLastPathComponent()
+      .appendingPathComponent("App").path
+  }
+
+  func testSettingsSearchFindsFieldsWithContextAndKeepsDesktopResultsScoped() {
+    let hits = NativeSettingsSearch.results("  GIT merge METHOD ", desktopOnly: false,
+      hasDesktop: true, offersEnvironments: false)
+    XCTAssertEqual(hits.first?.id, .init(destination: .device(.git), field: .gitMergeMethod))
+    XCTAssertTrue(NativeSettingsSearch.results("merge method", desktopOnly: false,
+      hasDesktop: false, offersEnvironments: false).isEmpty)
+    XCTAssertTrue(NativeSettingsSearch.results("chat text size", desktopOnly: true,
+      hasDesktop: true, offersEnvironments: false).isEmpty)
+    let local = NativeSettingsSearch.results("chat text size", desktopOnly: false,
+      hasDesktop: false, offersEnvironments: false)
+    XCTAssertEqual(local.first?.id, .init(destination: .device(.appearance), field: .chatTextSize))
+  }
+
+  func testSettingsSearchHonorsEnvironmentAvailabilityAndIgnoresBlankQueries() {
+    XCTAssertTrue(NativeSettingsSearch.results("  \n ", desktopOnly: false,
+      hasDesktop: true, offersEnvironments: true).isEmpty)
+    XCTAssertFalse(NativeSettingsSearch.results("Environments", desktopOnly: true,
+      hasDesktop: true, offersEnvironments: false).contains { $0.id.destination == .environments })
+    XCTAssertTrue(NativeSettingsSearch.results("Environments", desktopOnly: true,
+      hasDesktop: true, offersEnvironments: true).contains { $0.id.destination == .environments })
+  }
+
   func testHomeShortcutPreferencesMatchPWADefaultsAndNormalizeStoredValues() {
     XCTAssertTrue(HomeShortcutPreferences.storageKey.hasSuffix(".v1"))
-    XCTAssertEqual(HomeShortcutPreferences.default.hidden, [.githubActions])
+    XCTAssertEqual(HomeShortcutPreferences.default.hidden.intersection(Set(HomeShortcutID.core)), [.githubActions])
     XCTAssertEqual(HomeShortcutPreferences.default.visible, [.pullRequests, .schedules])
 
     let decoded = HomeShortcutPreferences(
       storageValue:
         #"{"hidden":["pullRequests","future"],"order":["schedules","schedules","future"]}"#
     )
-    XCTAssertEqual(decoded.hidden, [.pullRequests])
-    XCTAssertEqual(decoded.order, [.schedules, .pullRequests, .githubActions])
+    XCTAssertEqual(decoded.hidden.intersection(Set(HomeShortcutID.core)), [.pullRequests])
+    XCTAssertEqual(Array(decoded.order.prefix(3)), [.schedules, .pullRequests, .githubActions])
     XCTAssertEqual(decoded.visible, [.schedules, .githubActions])
   }
 
@@ -24,9 +61,18 @@ final class SettingsUICompositionTests: XCTestCase {
     preferences.setVisible(true, for: .githubActions)
     preferences.move(fromOffsets: IndexSet(integer: 2), toOffset: 0)
 
-    XCTAssertEqual(preferences.order, [.schedules, .pullRequests, .githubActions])
+    XCTAssertEqual(Array(preferences.order.prefix(3)), [.schedules, .pullRequests, .githubActions])
     XCTAssertEqual(HomeShortcutPreferences(storageValue: preferences.encoded), preferences)
     XCTAssertEqual(HomeShortcutPreferences(storageValue: "not-json"), .default)
+  }
+
+  func testStoredGitAndImportShortcutsRetainTheirDesktopDestinations() {
+    let preferences = HomeShortcutPreferences(
+      storageValue: #"{"hidden":[],"order":["settings:git","settings:import"]}"#
+    )
+    XCTAssertEqual(Array(preferences.visible.prefix(2)), [.settings(.git), .settings(.sessionImport)])
+    XCTAssertTrue(DeviceSettingsDestination.git.requiresSelectedHost)
+    XCTAssertTrue(DeviceSettingsDestination.sessionImport.requiresSelectedHost)
   }
 
   func testAIContentLanguageMatchesPWAResolutionAndPrefillsGenerationDrafts() {
@@ -93,6 +139,26 @@ final class SettingsUICompositionTests: XCTestCase {
     XCTAssertEqual(SettingsUsagePresentation.providerLabel("custom-provider"), "Custom Provider")
   }
 
+  func testSidebarUsageUsesHostVisibilityAndDeviceOrder() {
+    let usage = SettingsProviderUsage(
+      snapshots: [usageSnapshot("claude"), usageSnapshot("codex"), usageSnapshot("gemini"),
+        usageSnapshot("cursor"), usageSnapshot("unavailable", status: .authMissing),
+        usageSnapshot("unsupported", status: .unsupported)],
+      fromCache: false
+    )
+    var preferences = SettingsUsagePreferences(
+      autoRefresh: true, refreshIntervalMinutes: 10, providerRefreshIntervals: [:],
+      showEstimatedCost: true, showInSidebar: true, sidebarHiddenProviders: ["claude"],
+      disabledProviders: ["gemini"], providerOrder: ["codex", "cursor"],
+      collapsedProviders: [], selectedRingGroups: [:]
+    )
+    XCTAssertEqual(SettingsUsagePresentation.sidebarSnapshots(
+      usage, preferences: preferences, providerOrder: ["cursor", "codex"]
+    ).map(\.providerId), ["cursor", "codex"])
+    preferences.showInSidebar = false
+    XCTAssertTrue(SettingsUsagePresentation.sidebarSnapshots(usage, preferences: preferences, providerOrder: []).isEmpty)
+  }
+
   func testUsageMeterMatchesPWAThresholdsValuesAndProjection() throws {
     XCTAssertEqual(SettingsUsagePresentation.tone(for: 69.9), .normal)
     XCTAssertEqual(SettingsUsagePresentation.tone(for: 70), .warning)
@@ -146,7 +212,7 @@ final class SettingsUICompositionTests: XCTestCase {
     )
   }
 
-  func testUsagePresentationHonorsSharedEstimatedCostPreferenceWithoutHidingTokens() {
+  func testUsagePresentationHonorsEstimatedCostPreferenceWithoutHidingTokens() {
     let snapshot = SettingsUsageSnapshot(
       providerId: "codex",
       status: .ok,
@@ -180,7 +246,7 @@ final class SettingsUICompositionTests: XCTestCase {
     XCTAssertNotNil(hidden)
   }
 
-  func testUsagePreferencePatchPreservesTheCompleteHostOwnedObject() throws {
+  func testUsageDisplayMigratesLegacyFieldsOnceAndKeepsThemAcrossHosts() throws {
     let usage = SettingsUsagePreferences(
       autoRefresh: true,
       refreshIntervalMinutes: 10,
@@ -194,15 +260,40 @@ final class SettingsUICompositionTests: XCTestCase {
       selectedRingGroups: ["antigravity": "gemini"]
     )
 
-    let object = try XCTUnwrap(usage.settingsJSON.objectValue)
-    XCTAssertEqual(object["autoRefresh"], .bool(true))
-    XCTAssertEqual(object["refreshIntervalMinutes"], .integer(10))
-    XCTAssertEqual(object["providerOrder"], .array([.string("codex"), .string("claude")]))
-    XCTAssertEqual(object["collapsedProviders"], .array([.string("claude")]))
-    XCTAssertEqual(
-      object["selectedRingGroups"],
-      .object(["antigravity": .string("gemini")])
-    )
+    XCTAssertNil(SettingsUsageDisplayPreferences.migrated(Data(), from: nil))
+    let migrated = try XCTUnwrap(SettingsUsageDisplayPreferences.migrated(Data(), from: usage))
+    let projected = SettingsUsageDisplayPreferences.resolved(migrated, legacy: nil)
+    XCTAssertTrue(projected.showEstimatedCost)
+    XCTAssertEqual(projected.order, ["codex", "claude"])
+    XCTAssertTrue(projected.isCollapsed("claude"))
+
+    let object = try XCTUnwrap(JSONSerialization.jsonObject(with: migrated) as? [String: Any])
+    XCTAssertEqual(Set(object.keys), ["estimatedCost", "providerOrder", "collapsedOverrides", "seededFromHost"])
+
+    var otherHost = usage
+    otherHost.showEstimatedCost = false
+    otherHost.collapsedProviders = []
+    XCTAssertNil(SettingsUsageDisplayPreferences.migrated(migrated, from: otherHost))
+    XCTAssertEqual(SettingsUsageDisplayPreferences.resolved(migrated, legacy: otherHost), projected)
+    XCTAssertEqual(SettingsUsageDisplayPreferences.resolved(Data([0xff]), legacy: otherHost), .init())
+
+    // Device edits can arrive before the first host document. The seed fills
+    // untouched fields and preserves even an explicit expansion.
+    var earlyEdit = SettingsUsageDisplayPreferences()
+    earlyEdit.showEstimatedCost = false
+    earlyEdit.setCollapsed(false, providerID: "claude")
+    earlyEdit.order = ["gemini"]
+    var legacy = usage
+    legacy.collapsedProviders = ["claude", "codex"]
+    let pending = try JSONEncoder().encode(earlyEdit)
+    XCTAssertNil(SettingsUsageDisplayPreferences.migrated(pending, from: nil))
+    let seeded = try XCTUnwrap(SettingsUsageDisplayPreferences.migrated(pending, from: legacy))
+    let updated = SettingsUsageDisplayPreferences.resolved(seeded, legacy: otherHost)
+    XCTAssertFalse(updated.showEstimatedCost)
+    XCTAssertEqual(updated.order, ["gemini", "codex", "claude"])
+    XCTAssertFalse(updated.isCollapsed("claude"))
+    XCTAssertTrue(updated.isCollapsed("codex"))
+    XCTAssertNil(SettingsUsageDisplayPreferences.migrated(seeded, from: otherHost))
   }
 
   func testEightRoutesRequireReadAndHostGateUsesVersionReadinessAndScope() {
@@ -224,15 +315,60 @@ final class SettingsUICompositionTests: XCTestCase {
   func testAmbiguousSettingsMutationAttemptsOnceThenRefreshesOnce() async {
     let gateway = SettingsUIFakeGateway(document: settingsDocument())
     let composition = SettingsComposition(gateway: gateway)
-    composition.activate(selection())
+    let host = selection()
+    composition.activate(host)
 
-    await composition.writeSettings(SettingsPatch(values: [.titleGenFast: .bool(true)]))
+    let saved = await composition.writeSettings(
+      SettingsPatch(values: [.titleGenFast: .bool(true)]), lease: host.lease
+    )
 
     let counts = await gateway.counts
+    XCTAssertFalse(saved)
     XCTAssertEqual(counts.writes, 1)
     XCTAssertEqual(counts.reads, 1)
     XCTAssertEqual(composition.mutationNotice, .ambiguousRefreshed)
     XCTAssertEqual(composition.document.state, .loaded)
+  }
+
+  func testSettingsSaveRejectsDraftFromAnEarlierLeaseOfTheSameDesktop() async {
+    let gateway = SettingsUIFakeGateway(document: settingsDocument())
+    let composition = SettingsComposition(gateway: gateway)
+    let original = selection(generation: 6)
+    let current = selection()
+    composition.activate(original)
+    composition.activate(current)
+    await composition.refresh(route: .workspace, query: SettingsProfileQuery())
+
+    let saved = await composition.writeSettings(
+      SettingsPatch(values: [.prMergeMethod: .string("rebase")]), lease: original.lease
+    )
+
+    let counts = await gateway.counts
+    XCTAssertFalse(saved)
+    XCTAssertEqual(counts.writes, 0)
+    XCTAssertEqual(composition.document.lease, current.lease)
+    XCTAssertNil(composition.mutationNotice)
+    XCTAssertNil(composition.mutationFailure)
+  }
+
+  func testSettingsRefreshReplacesPreviousSaveNoticeWithReadFailure() async {
+    let gateway = SettingsUIFakeGateway(
+      document: settingsDocument(), readError: .transport, writeError: nil
+    )
+    let composition = SettingsComposition(gateway: gateway)
+    let host = selection()
+    composition.activate(host)
+
+    let saved = await composition.writeSettings(
+      SettingsPatch(values: [.prMergeMethod: .string("rebase")]), lease: host.lease
+    )
+    XCTAssertTrue(saved)
+    XCTAssertEqual(composition.mutationNotice, .saved)
+
+    await composition.refresh(route: .workspace, query: SettingsProfileQuery())
+    XCTAssertNil(composition.mutationNotice)
+    XCTAssertEqual(composition.document.refreshFailure, .transport)
+    XCTAssertNotNil(composition.document.document)
   }
 
   func testInformationRoutesFetchOnlyTheirSelectedDataset() async throws {
@@ -262,16 +398,118 @@ final class SettingsUICompositionTests: XCTestCase {
     XCTAssertEqual(counts.devices, 1)
   }
 
+  func testProfileFiltersKeepDesktopIdentifiersSeparate() {
+    let first = ClientConnectionID(), second = ClientConnectionID()
+    var state = SettingsProfileQuerySelection()
+    state[first] = SettingsProfileQuery(
+      scope: .device, deviceID: "device-a", provider: "account-a", window: .sevenDays
+    )
+    let other = state[second].request()
+    XCTAssertEqual(other.scope, .device)
+    XCTAssertEqual(other.window, .sevenDays)
+    XCTAssertNil(other.deviceId)
+    XCTAssertNil(other.provider)
+    state[second] = SettingsProfileQuery(deviceID: "device-b", provider: "account-b", window: .thirtyDays)
+    XCTAssertEqual(state[first].deviceID, "device-a")
+    XCTAssertEqual(state[first].provider, "account-a")
+    XCTAssertEqual(state[first].window, .thirtyDays)
+  }
+
+  func testProfileSaveRejectsAnotherDesktopAndPublishesOnlyTheAcknowledgedIdentity() async throws {
+    let gateway = try SettingsInformationFakeGateway()
+    let composition = SettingsComposition(gateway: gateway)
+    let original = selection(), current = selection(connectionID: ClientConnectionID())
+    let query = SettingsProfileQuery()
+    let edit = SettingsProfileIdentityDraft(.init(name: "Updated", handle: "updated", avatarColor: "#123456"))
+    composition.activate(original)
+    await composition.refresh(route: .profile, query: query)
+    XCTAssertEqual(composition.profile.information?.request, query.request())
+    composition.activate(current)
+    XCTAssertNil(composition.profile.information)
+    let stale = await composition.setIdentity(edit, lease: original.lease, query: query)
+    XCTAssertFalse(stale)
+    let noWrites = await gateway.identityWrites
+    XCTAssertTrue(noWrites.isEmpty)
+
+    await composition.refresh(route: .profile, query: query)
+    let saved = await composition.setIdentity(edit, lease: current.lease, query: query)
+    XCTAssertTrue(saved)
+    XCTAssertEqual(composition.profile.identity?.identity, edit.value)
+    let accepted = await gateway.identityWrites
+    XCTAssertEqual(accepted, [current.lease])
+
+    await composition.refresh(route: .profile, query: query)
+    XCTAssertNil(composition.profile.identity)
+    XCTAssertEqual(composition.profile.information?.core.identity.name, "Ada")
+  }
+
   func testDraftOnlyPatchesSchemaBackedChangedFields() {
     let document = settingsDocument()
     var draft = SettingsDocumentDraft(document)
-    draft.title.fast.toggle()
+    draft.title.chooseFast(!draft.title.fast)
 
     let patch = draft.generationPatch(comparedTo: document)
 
     XCTAssertEqual(patch.values, [.titleGenFast: .bool(true)])
     XCTAssertNil(patch[.agentSettings])
     XCTAssertNil(patch[.providerOrder])
+  }
+
+  func testCanonicalGenerationSelectionBeatsLegacyMirrorsAndRoundTripsSelectiveEdit() throws {
+    var document = settingsDocument()
+    let owner = ModelSelectionOwner(agentKind: document.titleGenProvider, presentationMode: .terminal)
+    let binding = try XCTUnwrap(ModelSelectionBinding(
+      owner: owner, model: "bound-model", inertValues: [.effort: .string(""), .thinking: .bool(false)]
+    ))
+    document.titleGenSelection = ThreadConfig(
+      model: "bound-model", effort: "", contextSize: "wide", thinking: false,
+      selectionBinding: binding
+    )
+    document.commitGenSelection = ThreadConfig(model: "other-model", fast: false)
+    var draft = SettingsDocumentDraft(document)
+    XCTAssertEqual(draft.title.model, "bound-model")
+    XCTAssertEqual(draft.title.effort, "")
+    XCTAssertNil(draft.title.configuration.fast)
+    XCTAssertTrue(draft.generationPatch(comparedTo: document).values.isEmpty)
+
+    draft.title.chooseEffort("low")
+    let patch = draft.generationPatch(comparedTo: document)
+    XCTAssertEqual(patch[.titleGenModel], .string("bound-model"))
+    XCTAssertEqual(patch[.titleGenEffort], .string("low"))
+    XCTAssertNil(patch[.commitGenSelection])
+    let accepted = try SettingsRemoteV3Contract.settingsWriteRequest(JSONEncoder().encode(patch))
+    let wire = try JSONDecoder().decode(SettingsPatch.self, from: accepted)
+    let selection = try XCTUnwrap(wire[.titleGenSelection])
+    let outgoing = try JSONDecoder().decode(ThreadConfig.self, from: JSONEncoder().encode(selection))
+    XCTAssertEqual(outgoing.model, "bound-model")
+    XCTAssertEqual(outgoing.effort, "low")
+    XCTAssertNil(outgoing.fast)
+    XCTAssertEqual(outgoing.contextSize, "wide")
+    XCTAssertEqual(outgoing.thinking, false)
+    XCTAssertEqual(outgoing.selectionBinding?.inertValues, [.thinking: .bool(false)])
+  }
+
+  func testRetargetDropsWSLConflictBindingAndRetainsItsAdvancedFields() throws {
+    var document = settingsDocument()
+    let owner = ModelSelectionOwner(
+      agentKind: document.wslConflictResolverProvider, presentationMode: .terminal
+    )
+    let binding = try XCTUnwrap(ModelSelectionBinding(
+      owner: owner, model: "member", inertValues: [.fast: .bool(false)]
+    ))
+    document.wslConflictResolverSelection = ThreadConfig(
+      model: "member", contextSize: "", fast: false, selectionBinding: binding
+    )
+    var draft = SettingsDocumentDraft(document)
+    draft.wslConflict.choosePresentation(.gui)
+    let patch = draft.generationPatch(comparedTo: document)
+    XCTAssertEqual(patch[.wslConflictResolverPresentationMode], .string("gui"))
+    let selection = try XCTUnwrap(patch[.wslConflictResolverSelection]?.objectValue)
+    XCTAssertEqual(selection["contextSize"], .string(""))
+    XCTAssertEqual(selection["fast"], .bool(false))
+    XCTAssertNil(selection["effort"])
+    XCTAssertNil(selection["selectionBinding"])
+    XCTAssertNil(patch[.conflictResolverSelection])
   }
 
   func testGitDraftPatchesOnlyHostOwnedAutomationValues() {
@@ -290,6 +528,56 @@ final class SettingsUICompositionTests: XCTestCase {
         .prMergeMethod: .string("squash"),
       ]
     )
+  }
+
+  func testWorktreeDraftDoesNotWriteGitAutomationOrModelPreferences() {
+    let document = settingsDocument()
+    var draft = SettingsDocumentDraft(document)
+    draft.worktreeBasePath = "/workspace/checkouts"
+    draft.wslWorktreeBasePath = "/home/user/checkouts"
+    draft.prAutomationDefault = .merge
+    draft.prMergeMethod = .squash
+    draft.title.chooseProvider("auto", agent: nil)
+
+    XCTAssertEqual(draft.workspacePatch(comparedTo: document).values, [
+      .worktreeBasePath: .string("/workspace/checkouts"),
+      .wslWorktreeBasePath: .string("/home/user/checkouts"),
+    ])
+  }
+
+  func testWorktreeDraftPreservesEditedPathsAndRebasesUntouchedFields() {
+    let original = settingsDocument(worktreeBasePath: "/original", wslWorktreeBasePath: "/wsl-original")
+    let refreshed = settingsDocument(worktreeBasePath: "/desktop-edit", wslWorktreeBasePath: "/wsl-desktop-edit")
+    var draft = SettingsDocumentDraft(original)
+    draft.worktreeBasePath = "/phone-edit"
+
+    draft.rebaseWorkspace(from: original, to: refreshed)
+
+    XCTAssertEqual(draft.wslWorktreeBasePath, "/wsl-desktop-edit")
+    XCTAssertEqual(draft.workspacePatch(comparedTo: refreshed).values, [
+      .worktreeBasePath: .string("/phone-edit"),
+    ])
+
+    draft.wslWorktreeBasePath = "/wsl-phone-edit"
+    XCTAssertEqual(draft.workspacePatch(comparedTo: refreshed, includesWSL: false).values, [
+      .worktreeBasePath: .string("/phone-edit"),
+    ])
+
+    let projectRelative = settingsDocument(
+      worktreeStorageMode: .projectRelative, worktreeBasePath: "/desktop-edit",
+      wslWorktreeBasePath: "/wsl-desktop-edit"
+    )
+    draft.rebaseWorkspace(from: refreshed, to: projectRelative)
+
+    XCTAssertEqual(draft.worktreeStorageMode, .projectRelative)
+    XCTAssertTrue(draft.workspacePatch(comparedTo: projectRelative).values.isEmpty)
+
+    draft.worktreeStorageMode = .global
+    XCTAssertEqual(draft.workspacePatch(comparedTo: projectRelative).values, [
+      .worktreeStorageMode: .string(SettingsWorktreeStorageMode.global.rawValue),
+      .worktreeBasePath: .string("/phone-edit"),
+      .wslWorktreeBasePath: .string("/wsl-phone-edit"),
+    ])
   }
 
   func testFailurePresentationDoesNotRenderAssociatedRemoteValues() {
@@ -358,28 +646,48 @@ final class SettingsUICompositionTests: XCTestCase {
     XCTAssertEqual(status.fastModels, ["model-b"])
   }
 
-  func testAgentModelVisibilitySeedsFirstEditFromDefaultsAndHonorsExplicitShowAll() throws {
-    let status = try SettingsAgentStatus(
-      payload: .object([
-        "kind": .string("provider"),
-        "label": .string("Provider"),
-        "installed": .bool(true),
-        "authState": .string("authenticated"),
-        "capabilities": .object([
-          "defaultHiddenModels": .array([.string("old-a"), .string("old-b")])
+  func testGenerationModelEditUsesTheScopedEffortLadderAndFastCapability() throws {
+    let agent = try SettingsAgentStatus(payload: .object([
+      "kind": .string("fixture"),
+      "label": .string("Fixture"),
+      "installed": .bool(true),
+      "authState": .string("authenticated"),
+      "capabilities": .object([
+        "efforts": .array([.string("low"), .string("medium"), .string("high")]),
+        "modelEfforts": .object([
+          "quick": .array([.string("low"), .string("medium")]),
+          "no-effort": .array([]),
         ]),
-      ])
-    )
-    XCTAssertEqual(status.effectiveHiddenModelIDs(overrides: [:]), ["old-a", "old-b"])
-    XCTAssertEqual(status.effectiveHiddenModelIDs(overrides: ["provider": []]), [])
-    XCTAssertEqual(status.effectiveHiddenModelIDs(overrides: ["provider": ["custom"]]), ["custom"])
+        "defaultEffort": .string("medium"),
+        "fastModels": .array([.string("thorough")]),
+      ]),
+    ]))
+    var draft = SettingsGenerationDraft(provider: "fixture", model: "quick", effort: "high", fast: true)
+    XCTAssertEqual(draft.displayEffort(for: agent), "medium")
+    XCTAssertEqual(draft.effort, "high")
+    XCTAssertTrue(draft.fast)
 
-    var firstEdit = status.effectiveHiddenModelIDs(overrides: [:])
-    firstEdit.remove("old-a")
-    XCTAssertEqual(
-      status.effectiveHiddenModelIDs(overrides: ["provider": firstEdit.sorted()]), ["old-b"]
-    )
+    draft.chooseModel("thorough", for: agent)
+    XCTAssertEqual(draft.effort, "high")
+    XCTAssertTrue(draft.fast)
+    draft.chooseModel("quick", for: agent)
+    XCTAssertEqual(agent.efforts(forModel: draft.model), ["low", "medium"])
+    XCTAssertEqual(draft.effort, "medium")
+    XCTAssertFalse(draft.fast)
+    draft.chooseModel("no-effort", for: agent)
+    XCTAssertEqual(agent.efforts(forModel: draft.model), [])
+    XCTAssertEqual(draft.effort, "")
+
+    var gatedPayload = try XCTUnwrap(agent.payload.objectValue)
+    var gatedCapabilities = try XCTUnwrap(gatedPayload["capabilities"]?.objectValue)
+    gatedCapabilities["fastDisabledReason"] = .string("Fast is disabled for this account")
+    gatedPayload["capabilities"] = .object(gatedCapabilities)
+    let gatedAgent = try SettingsAgentStatus(payload: .object(gatedPayload))
+    draft.chooseFast(true)
+    draft.chooseModel("thorough", for: gatedAgent)
+    XCTAssertFalse(draft.fast)
   }
+
 
   func testReplayReducerProjectsInitialWindowsAndWSLDistroLists() throws {
     let host = selection().lease.connectionID
@@ -442,8 +750,12 @@ final class SettingsUICompositionTests: XCTestCase {
     )
     ReplayEventApplier.apply(
       .agentStatusUpdated(
-        try replayStatus(kind: "ignored", label: "POSIX", environment: .posix)
+        try replayStatus(kind: "posix-agent", label: "POSIX", environment: .posix)
       ),
+      to: &replay
+    )
+    ReplayEventApplier.apply(
+      .agentStatusUpdated(try replayStatus(kind: "legacy", label: "Legacy native", environment: nil)),
       to: &replay
     )
 
@@ -451,11 +763,11 @@ final class SettingsUICompositionTests: XCTestCase {
       requestedConnectionID: host, selectedConnectionID: host, replay: replay
     )
 
-    XCTAssertEqual(policy.windows.agents.map(\.label), ["Windows patched", "Gemini"])
+    XCTAssertEqual(policy.windows.agents.map(\.label), ["Windows patched", "Gemini", "POSIX", "Legacy native"])
     XCTAssertEqual(policy.windows.agents.first?.installed, false)
     XCTAssertEqual(policy.wsl.agents.map(\.label), ["Ubuntu patched", "Debian"])
-    XCTAssertFalse(policy.windows.agents.contains { $0.kind == "ignored" })
-    XCTAssertFalse(policy.wsl.agents.contains { $0.kind == "ignored" })
+    XCTAssertFalse(policy.wsl.agents.contains { $0.kind == "posix-agent" })
+    XCTAssertFalse(policy.wsl.agents.contains { $0.kind == "legacy" })
 
     ReplayEventApplier.apply(
       .windowsAgentStatuses([
@@ -577,14 +889,14 @@ final class SettingsUICompositionTests: XCTestCase {
     kind: String,
     label: String,
     installed: Bool = true,
-    environment: AgentStatusRecord.EnvironmentKind,
+    environment: AgentStatusRecord.EnvironmentKind?,
     distro: String? = nil
   ) throws -> AgentStatusRecord {
     var wire: [String: JSONValue] = [
       "kind": .string(kind), "label": .string(label), "installed": .bool(installed),
       "authState": .string("authenticated"), "capabilities": .object([:]),
-      "envKind": .string(environment.rawValue),
     ]
+    if let environment { wire["envKind"] = .string(environment.rawValue) }
     if let distro { wire["envDistro"] = .string(distro) }
     return try AgentStatusRecord(wire: .object(wire))
   }
@@ -593,16 +905,18 @@ final class SettingsUICompositionTests: XCTestCase {
     protocolVersion: Int = ProtocolConstants.remoteProtocolVersion,
     isOnline: Bool = true,
     isReady: Bool = true,
-    capabilities: Set<SettingsCapability> = [.sessionRead, .sessionOperate]
+    capabilities: Set<SettingsCapability> = [.sessionRead, .sessionOperate],
+    connectionID: ClientConnectionID = ClientConnectionID(
+      UUID(uuidString: "00000000-0000-4000-8000-000000000001")!
+    ),
+    generation: UInt64 = 7
   ) -> SettingsHostSelection {
     SettingsHostSelection(
       name: "Fixture Host",
       access: SettingsSessionAccess(
         lease: SettingsHostLease(
-          connectionID: ClientConnectionID(
-            UUID(uuidString: "00000000-0000-4000-8000-000000000001")!
-          ),
-          generation: 7
+          connectionID: connectionID,
+          generation: generation
         ),
         protocolVersion: protocolVersion,
         isOnline: isOnline,
@@ -615,15 +929,26 @@ final class SettingsUICompositionTests: XCTestCase {
 
 private actor SettingsUIFakeGateway: SettingsSessionGateway {
   private let document: SettingsDocument
+  private let readError: SettingsGatewayError?
+  private let writeError: SettingsGatewayError?
   private(set) var reads = 0
   private(set) var writes = 0
 
-  init(document: SettingsDocument) { self.document = document }
+  init(
+    document: SettingsDocument,
+    readError: SettingsGatewayError? = nil,
+    writeError: SettingsGatewayError? = .ambiguousOutcome
+  ) {
+    self.document = document
+    self.readError = readError
+    self.writeError = writeError
+  }
 
   var counts: (reads: Int, writes: Int) { (reads, writes) }
 
-  func readSettings(lease: SettingsHostLease) -> SettingsReadResponse {
+  func readSettings(lease: SettingsHostLease) throws -> SettingsReadResponse {
     reads += 1
+    if let readError { throw readError }
     return SettingsReadResponse(settings: document)
   }
 
@@ -632,7 +957,8 @@ private actor SettingsUIFakeGateway: SettingsSessionGateway {
     lease: SettingsHostLease
   ) throws -> SettingsReadResponse {
     writes += 1
-    throw SettingsGatewayError.ambiguousOutcome
+    if let writeError { throw writeError }
+    return SettingsReadResponse(settings: document)
   }
 
   func agentStatuses(lease: SettingsHostLease) throws -> SettingsAgentStatuses {
@@ -662,6 +988,9 @@ private actor SettingsInformationFakeGateway: SettingsSessionGateway {
   private let statuses: SettingsAgentStatuses
   private let usageValue: SettingsProviderUsage
   private let devicesValue: SettingsProfileDevices
+  private let coreValue: SettingsProfileCoreStats
+  private let tokensValue: SettingsProfileTokenStats
+  private(set) var identityWrites: [SettingsHostLease] = []
   private var agentsCalls = 0
   private var usageCalls = 0
   private var deviceCalls = 0
@@ -678,6 +1007,14 @@ private actor SettingsInformationFakeGateway: SettingsSessionGateway {
     devicesValue = try JSONDecoder().decode(
       SettingsProfileDevices.self,
       from: SettingsFixtures.data(SettingsFixtures.profileDevices)
+    )
+    coreValue = try JSONDecoder().decode(
+      SettingsProfileCoreStats.self,
+      from: SettingsFixtures.data(SettingsFixtures.profileCore)
+    )
+    tokensValue = try JSONDecoder().decode(
+      SettingsProfileTokenStats.self,
+      from: SettingsFixtures.data(SettingsFixtures.profileTokens)
     )
   }
 
@@ -703,17 +1040,20 @@ private actor SettingsInformationFakeGateway: SettingsSessionGateway {
   func profileCoreStats(
     _ request: SettingsProfileStatsRequest,
     lease: SettingsHostLease
-  ) throws -> SettingsProfileCoreStats { throw SettingsGatewayError.transport }
+  ) -> SettingsProfileCoreStats { coreValue }
 
   func profileTokenStats(
     _ request: SettingsProfileStatsRequest,
     lease: SettingsHostLease
-  ) throws -> SettingsProfileTokenStats { throw SettingsGatewayError.transport }
+  ) -> SettingsProfileTokenStats { tokensValue }
 
   func setProfileIdentity(
     _ identity: SettingsProfileIdentity,
     lease: SettingsHostLease
-  ) throws -> SettingsProfileIdentityResponse { throw SettingsGatewayError.transport }
+  ) -> SettingsProfileIdentityResponse {
+    identityWrites.append(lease)
+    return SettingsProfileIdentityResponse(identity: identity, device: coreValue.device)
+  }
 
   func readSettings(lease: SettingsHostLease) throws -> SettingsReadResponse {
     throw SettingsGatewayError.transport
@@ -725,7 +1065,11 @@ private actor SettingsInformationFakeGateway: SettingsSessionGateway {
   ) throws -> SettingsReadResponse { throw SettingsGatewayError.transport }
 }
 
-private func settingsDocument() -> SettingsDocument {
+private func settingsDocument(
+  worktreeStorageMode: SettingsWorktreeStorageMode = .global,
+  worktreeBasePath: String = "",
+  wslWorktreeBasePath: String = ""
+) -> SettingsDocument {
   SettingsDocument(
     agentSettings: [:],
     hiddenModels: [:],
@@ -759,18 +1103,18 @@ private func settingsDocument() -> SettingsDocument {
     wslConflictResolverEffort: "medium",
     wslConflictResolverFast: false,
     wslConflictResolverPresentationMode: .terminal,
-    worktreeStorageMode: .global,
-    worktreeBasePath: "",
-    wslWorktreeBasePath: "",
+    worktreeStorageMode: worktreeStorageMode,
+    worktreeBasePath: worktreeBasePath,
+    wslWorktreeBasePath: wslWorktreeBasePath,
     prAutomationDefault: .off,
     prMergeMethod: .merge
   )
 }
 
-private func usageSnapshot(_ providerID: String) -> SettingsUsageSnapshot {
+private func usageSnapshot(_ providerID: String, status: SettingsUsageStatus = .ok) -> SettingsUsageSnapshot {
   SettingsUsageSnapshot(
     providerId: providerID,
-    status: .ok,
+    status: status,
     windows: [],
     fetchedAt: 0,
     authenticatedAs: nil,

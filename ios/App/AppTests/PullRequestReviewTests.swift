@@ -4,6 +4,29 @@ import XCTest
 @testable import App
 
 final class PullRequestReviewTests: XCTestCase {
+  @MainActor
+  func testGuideRetainsPositionAcrossReentryAndResetsForANewGuideOrAccount() throws {
+    let lease = GitHubOperationsSamples.lease
+    let first = ForgeReviewTarget(lease: lease, source: try document(#"{"account":{"login":"first"}}"#), number: 12)
+    let second = ForgeReviewTarget(lease: lease, source: try document(#"{"account":{"login":"second"}}"#), number: 12)
+    let draft = PullRequestGuideDraft()
+    draft.synchronize(target: first, fingerprint: "current")
+    draft.instructions = "Preserve the review notes"
+    draft.move(by: 1, count: 2)
+    draft.synchronize(target: first, fingerprint: nil)
+    draft.synchronize(target: first, fingerprint: "current")
+    XCTAssertEqual(draft.index(for: 2), 1)
+    XCTAssertEqual(draft.instructions, "Preserve the review notes")
+
+    draft.synchronize(target: first, fingerprint: "new")
+    XCTAssertEqual(draft.index(for: 2), 0)
+    XCTAssertEqual(draft.instructions, "Preserve the review notes")
+    draft.move(by: 1, count: 2)
+    draft.synchronize(target: second, fingerprint: "new")
+    XCTAssertEqual(draft.index(for: 2), 0)
+    XCTAssertTrue(draft.instructions.isEmpty)
+  }
+
   func testProjectsTypedReviewDetailsFilesAndConversation() throws {
     let details = try document(
       """
@@ -123,8 +146,8 @@ final class PullRequestReviewTests: XCTestCase {
     XCTAssertTrue(list.contains("NavigationLink"))
     XCTAssertTrue(list.contains("entryPoint: .pullRequest"))
     XCTAssertTrue(list.contains("PullRequestsStrings.openExternally"))
-    XCTAssertTrue(list.contains("PoracodeBottomActionBar"))
-    XCTAssertTrue(list.contains("PoracodeCircleMenu"))
+    XCTAssertTrue(list.contains("ToolbarItemGroup(placement: .bottomBar)"))
+    XCTAssertTrue(list.contains("Menu {"))
     XCTAssertTrue(list.contains("native-e2e.pull-requests.filter"))
     XCTAssertTrue(list.contains("native-e2e.pull-requests.refresh"))
     XCTAssertFalse(list.contains("ToolbarItemGroup(placement: .topBarTrailing)"))

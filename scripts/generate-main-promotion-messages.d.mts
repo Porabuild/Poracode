@@ -14,3 +14,5 @@ export interface BuildPromotionMessagesOptions {
 export declare function buildPromotionMessages(
   options?: BuildPromotionMessagesOptions,
 ): Record<string, Record<string, string>>;
+
+export function parsePoMessages(poSource: string, description: string): Map<string, string>;

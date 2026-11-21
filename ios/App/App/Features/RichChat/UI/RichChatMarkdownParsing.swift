@@ -16,7 +16,9 @@ enum RichChatMarkdownBlock: Equatable {
 
 enum RichChatMarkdownParser {
   static func parse(_ source: String) -> [RichChatMarkdownBlock] {
-    let lines = source.components(separatedBy: .newlines)
+    let lines = source.replacingOccurrences(of: "\r\n", with: "\n")
+      .replacingOccurrences(of: "\r", with: "\n")
+      .components(separatedBy: "\n")
     var blocks: [RichChatMarkdownBlock] = []
     var index = 0
 
@@ -27,17 +29,23 @@ enum RichChatMarkdownParser {
         continue
       }
 
-      if line.hasPrefix("```") {
-        let language = String(line.dropFirst(3)).trimmingCharacters(in: .whitespaces)
+      if let fence = openingFence(line) {
+        let language = fence.info.split(whereSeparator: \.isWhitespace).first.map(String.init)
         index += 1
         var code: [String] = []
-        while index < lines.count, !lines[index].hasPrefix("```") {
-          code.append(lines[index])
+        while index < lines.count {
+          let candidate = lines[index]
           index += 1
+          if let close = fenceMatch(candidate.unicodeScalars),
+            close.marker == fence.marker, close.length >= fence.length,
+            close.info.allSatisfy({ $0 == " " || $0 == "\t" })
+          {
+            break
+          }
+          let indentation = min(fence.indent, candidate.prefix { $0 == " " }.count)
+          code.append(String(candidate.dropFirst(indentation)))
         }
-        if index < lines.count { index += 1 }
-        blocks.append(
-          .code(language: language.isEmpty ? nil : language, source: code.joined(separator: "\n")))
+        blocks.append(.code(language: language, source: code.joined(separator: "\n")))
         continue
       }
 
@@ -78,7 +86,14 @@ enum RichChatMarkdownParser {
           lines[index].hasPrefix("    ") || lines[index].hasPrefix("\t") ||
           lines[index].trimmingCharacters(in: .whitespaces).isEmpty
         {
-          code.append(lines[index])
+          let candidate = lines[index]
+          if candidate.hasPrefix("    ") {
+            code.append(String(candidate.dropFirst(4)))
+          } else if candidate.hasPrefix("\t") {
+            code.append(String(candidate.dropFirst()))
+          } else {
+            code.append("")
+          }
           index += 1
         }
         var source = code.joined(separator: "\n")
@@ -143,6 +158,37 @@ enum RichChatMarkdownParser {
     return blocks
   }
 
+  /// `/^ {0,3}(`{3,}|~{3,})(.*)$/` without the JavaScript line terminators `.` refuses.
+  static func fenceMatch(_ body: String.UnicodeScalarView)
+    -> (marker: Unicode.Scalar, length: Int, indent: Int, info: String)?
+  {
+    var index = body.startIndex
+    var spaces = 0
+    while index < body.endIndex, body[index] == " ", spaces < 3 {
+      spaces += 1
+      index = body.index(after: index)
+    }
+    guard index < body.endIndex, body[index] == "`" || body[index] == "~" else { return nil }
+    let marker = body[index]
+    var length = 0
+    while index < body.endIndex, body[index] == marker {
+      length += 1
+      index = body.index(after: index)
+    }
+    let info = body[index...]
+    guard length >= 3, !info.contains(where: { ["\r", "\u{2028}", "\u{2029}"].contains($0) })
+    else { return nil }
+    return (marker, length, spaces, String(info))
+  }
+
+  private static func openingFence(_ line: String)
+    -> (marker: Unicode.Scalar, length: Int, indent: Int, info: String)?
+  {
+    guard let fence = fenceMatch(line.unicodeScalars),
+      fence.marker != "`" || !fence.info.contains("`") else { return nil }
+    return fence
+  }
+
   private static func heading(from line: String) -> RichChatMarkdownBlock? {
     let prefix = line.prefix { $0 == "#" }
     guard (1...6).contains(prefix.count), line.dropFirst(prefix.count).first == " " else {
@@ -193,7 +239,7 @@ enum RichChatMarkdownParser {
 
   private static func startsBlock(_ line: String, next: String?) -> Bool {
     let trimmed = line.trimmingCharacters(in: .whitespaces)
-    return trimmed.isEmpty || line.hasPrefix("```") || heading(from: line) != nil
+    return trimmed.isEmpty || openingFence(line) != nil || heading(from: line) != nil
       || trimmed.hasPrefix(">") || orderedItem(from: line) != nil
       || unorderedItem(from: line) != nil
       || (next.map { isTableRow(line) && isTableDivider($0) } ?? false)

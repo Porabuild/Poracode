@@ -181,14 +181,19 @@ final class BrowserMirrorControllerTests: XCTestCase {
     controller.receive(.state(.empty), key: otherKey)
     XCTAssertEqual(controller.browserState, BrowserMirrorTestValues.state)
 
+    await controller.updateAccess(nil)
+    XCTAssertEqual(controller.browserState, .empty)
+    await gateway.setState(.empty)
     await controller.updateAccess(
       BrowserMirrorTestValues.access(lease: BrowserMirrorTestValues.otherLease))
     let oldKey = BrowserMirrorSocketKey(
       lease: BrowserMirrorTestValues.lease,
       socketGeneration: 3
     )
-    controller.receive(.state(.empty), key: oldKey)
-    XCTAssertEqual(controller.browserState, BrowserMirrorTestValues.state)
+    controller.receive(.state(BrowserMirrorTestValues.state), key: oldKey)
+    XCTAssertEqual(controller.browserState, .empty)
+    let reads = await gateway.recordedStateCalls()
+    XCTAssertEqual(reads, [BrowserMirrorTestValues.lease, BrowserMirrorTestValues.otherLease])
   }
 
   func testAmbiguousMutationTriggersAuthoritativeRefreshWithoutRetry() async {

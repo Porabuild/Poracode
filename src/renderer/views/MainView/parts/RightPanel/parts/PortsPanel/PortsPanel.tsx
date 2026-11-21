@@ -214,14 +214,7 @@ function ForwardedPortsPanel() {
   const direct = server ? isDirectEndpoint(server.endpoint) : false;
   const host = server ? new URL(server.endpoint).hostname : "";
 
-  // Definitive browser-entry unavailability. A host that last reported no
-  // browser-forward support needs an update; a capable host with an unconfigured
-  // origin deployment reports the same server code, so keep the copy distinct.
-  function browserUnavailableNotice(): string {
-    return server?.browserForwardAvailable === false
-      ? t`This desktop's Poracode version doesn't support browser forwarding. Update Poracode on your desktop.`
-      : t`Browser forwarding isn't set up on this desktop.`;
-  }
+  const browserUnavailable = t`Browser forwarding isn't set up on this desktop.`;
 
   function describeError(error: unknown): string {
     if (error instanceof RemoteClientError) {
@@ -229,7 +222,7 @@ function ForwardedPortsPanel() {
       if (error.code === "ports_unavailable") {
         return t`Port forwarding isn't available on this desktop.`;
       }
-      if (error.code === "forward_browser_unavailable") return browserUnavailableNotice();
+      if (error.code === "forward_browser_unavailable") return browserUnavailable;
     }
     return friendlyError(error);
   }
@@ -310,7 +303,7 @@ function ForwardedPortsPanel() {
       openForwardUrl(buildEnterUrl(server.endpoint, enterPath));
       return;
     }
-    toast.warning(browserUnavailableNotice());
+    toast.warning(browserUnavailable);
   }
 
   function startForward(targetPort: number): void {
@@ -349,7 +342,7 @@ function ForwardedPortsPanel() {
   function openActiveForward(forward: ActivePortForward): void {
     if (!server) return;
     if (server.browserForwardAvailable !== true) {
-      toast.warning(browserUnavailableNotice());
+      toast.warning(browserUnavailable);
       return;
     }
     setOpeningForwardId(forward.id);
@@ -372,7 +365,7 @@ function ForwardedPortsPanel() {
   function copyForwardUrl(forward: ActivePortForward): void {
     if (!server) return;
     if (server.browserForwardAvailable !== true) {
-      toast.warning(browserUnavailableNotice());
+      toast.warning(browserUnavailable);
       return;
     }
     setCopyingForwardId(forward.id);

@@ -8,6 +8,7 @@ struct AddHostSheet: View {
   @State private var baseURL = ""
   @State private var token = ""
   @State private var isSubmitting = false
+  @State private var pairingError: String?
   @State private var isShowingScanner = false
   /// mDNS discovery (V5 plan item P4): an explicit affordance; manual entry
   /// stays. Discovery only ever fills the endpoint — the one-time credential
@@ -21,53 +22,56 @@ struct AddHostSheet: View {
 
   var body: some View {
     NavigationStack {
-      ScrollView {
-        VStack(alignment: .leading, spacing: 20) {
-          Text(HostStrings.addSubtitle)
-            .font(.subheadline)
-            .foregroundStyle(.secondary)
-          Button {
-            focusedField = nil
-            isShowingScanner = true
-          } label: {
-            Label(OnboardingStrings.scanAction, systemImage: "qrcode.viewfinder")
-              .frame(maxWidth: .infinity)
-          }
-          .poracodeProminentButtonStyle()
-          .controlSize(.large)
-          .accessibilityIdentifier("native-e2e.add-host.scan")
-          pairingLinkSection
-          divider
-          nearbyHostsSection
-          divider
-          manualSection
-          if looksLikeCleartextLan {
-            Label {
-              Text(cleartextHint)
+      ScrollViewReader { scroll in
+        ScrollView {
+          VStack(alignment: .leading, spacing: 20) {
+            Text(HostStrings.addSubtitle)
+              .font(.subheadline)
+              .foregroundStyle(.secondary)
+            if let pairingError {
+              Text(pairingError)
                 .font(.footnote)
-            } icon: {
-              Image(systemName: "exclamationmark.triangle.fill")
-                .foregroundStyle(.orange)
+                .foregroundStyle(.red)
+                .fixedSize(horizontal: false, vertical: true)
+                .accessibilityLabel(OnboardingStrings.errorAccessibility(pairingError))
+                .accessibilityIdentifier("native-e2e.add-host.error")
+                .id("add-host-error")
             }
-            .accessibilityLabel(cleartextHint)
-          }
-          Button {
-            Task { await submit() }
-          } label: {
-            if isSubmitting {
-              ProgressView()
-                .frame(maxWidth: .infinity)
-            } else {
-              Text(HostStrings.connect)
+            Button {
+              focusedField = nil
+              isShowingScanner = true
+            } label: {
+              Label(OnboardingStrings.scanAction, systemImage: "qrcode.viewfinder")
                 .frame(maxWidth: .infinity)
             }
+            .poracodeProminentButtonStyle()
+            .controlSize(.large)
+            .accessibilityIdentifier("native-e2e.add-host.scan")
+            pairingLinkSection
+            divider
+            nearbyHostsSection
+            divider
+            manualSection
+            if looksLikeCleartextLan {
+              Label {
+                Text(cleartextHint)
+                  .font(.footnote)
+              } icon: {
+                Image(systemName: "exclamationmark.triangle.fill")
+                  .foregroundStyle(.orange)
+              }
+              .accessibilityLabel(cleartextHint)
+            }
           }
-          .poracodeGlassButtonStyle()
-          .controlSize(.large)
-          .disabled(isSubmitting)
-          .accessibilityLabel(HostStrings.addHostAccessibility)
+          .padding(20)
+          .poracodeReadableWidth(560)
         }
-        .padding(20)
+        .scrollDismissesKeyboard(.interactively)
+        .onChange(of: pairingError) { _, error in
+          if error != nil {
+            scroll.scrollTo("add-host-error", anchor: .top)
+          }
+        }
       }
       .navigationTitle(HostStrings.addHost)
       #if os(iOS)
@@ -77,8 +81,22 @@ struct AddHostSheet: View {
         ToolbarItem(placement: .cancellationAction) {
           Button(HostStrings.cancel) { dismiss() }
         }
+        ToolbarItem(placement: .confirmationAction) {
+          Button {
+            Task { await submit() }
+          } label: {
+            if isSubmitting {
+              ProgressView()
+            } else {
+              Label(HostStrings.connect, systemImage: "checkmark")
+            }
+          }
+          .disabled(isSubmitting)
+          .accessibilityLabel(HostStrings.connect)
+          .accessibilityIdentifier("native-e2e.pair.submit")
+        }
       }
-      .modifier(HostFormChrome())
+      .poracodeFormSheetSizing()
     }
     .fullScreenCover(isPresented: $isShowingScanner) {
       PairingScannerView(
@@ -99,9 +117,10 @@ struct AddHostSheet: View {
         .keyboardType(.URL)
         .lineLimit(3...6)
         .padding(12)
-        .poracodeGlassBackground()
+        .poracodeInputSurface()
         .focused($focusedField, equals: .link)
         .accessibilityLabel(HostStrings.pairingLink)
+        .accessibilityIdentifier("native-e2e.pairing-link")
     }
   }
 
@@ -179,14 +198,14 @@ struct AddHostSheet: View {
         .autocorrectionDisabled()
         .keyboardType(.URL)
         .padding(12)
-        .poracodeGlassBackground()
+        .poracodeInputSurface()
         .focused($focusedField, equals: .base)
         .accessibilityLabel(HostStrings.serverURL)
       SecureField(HostStrings.oneTimeToken, text: $token)
         .textInputAutocapitalization(.never)
         .autocorrectionDisabled()
         .padding(12)
-        .poracodeGlassBackground()
+        .poracodeInputSurface()
         .focused($focusedField, equals: .token)
         .accessibilityLabel(HostStrings.oneTimeToken)
     }
@@ -224,39 +243,32 @@ struct AddHostSheet: View {
     return (try? PairingURL.normalizeEndpoint(base)) ?? base
   }
 
-  private func submit() async {
-    focusedField = nil
-    await performPair()
-  }
-
   private func applyScannedCandidate(_ candidate: PairingURL.PairingCandidate) {
     pairingLink = candidate.pairingURLOrEmpty
     baseURL = candidate.manualBaseURL
     token = candidate.manualToken
   }
 
-  private func performPair() async {
+  private func submit() async {
+    guard !isSubmitting else { return }
+    focusedField = nil
+    pairingError = nil
     isSubmitting = true
     defer { isSubmitting = false }
-    await session.pair(
+    let outcome = await session.submitPairing(
       with: .init(
         pairingURLOrEmpty: pairingLink,
         manualBaseURL: baseURL,
         manualToken: token
       )
     )
-    if session.phase == .ready || session.phase == .connecting {
+    switch outcome {
+    case .installedLive:
       dismiss()
-    }
-  }
-}
-
-private struct HostFormChrome: ViewModifier {
-  func body(content: Content) -> some View {
-    if #available(iOS 18.0, *) {
-      content.presentationSizing(.form)
-    } else {
-      content
+    case .failed(let message):
+      pairingError = message
+    case .notApplied, .durableAppliedNotInstalled:
+      break
     }
   }
 }

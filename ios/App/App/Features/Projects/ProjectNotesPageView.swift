@@ -6,6 +6,7 @@ import SwiftUI
 struct ProjectNotesPageView: View {
   @Bindable var session: AppSession
   let initialProjectID: String?
+  @Environment(\.poracodeEmbeddedInInspector) private var embeddedInInspector
   @State private var controller: ProjectControllerNotesController
   @State private var selectedProjectID: String?
 
@@ -48,63 +49,80 @@ struct ProjectNotesPageView: View {
   }
 
   var body: some View {
-    Group {
-      if let project, let connectionId = session.selectedConnectionId {
-        ProjectNotesView(
-          session: session,
-          identity: project.identity(on: connectionId),
-          controller: controller
-        )
-      } else {
-        ContentUnavailableView(
-          ProjectManagementStrings.noProjects,
-          systemImage: "note.text",
-          description: Text(ProjectManagementStrings.notesEmptyProject)
-        )
-      }
-    }
-    .navigationTitle(ProjectManagementStrings.notes)
-    .navigationBarTitleDisplayMode(.inline)
-    .toolbar {
-      if initialProjectID == nil {
-        ToolbarItem(placement: .topBarTrailing) {
-          HostSelectionMenu(session: session)
+    navigationWrappedBody
+      .task(id: session.currentProjectControllerLease) {
+        if let controllerSession = session.currentProjectControllerSession {
+          controller.activate(controllerSession)
+        } else {
+          controller.deactivate()
         }
       }
-      if projects.count > 1, let project {
-        ToolbarItem(placement: .topBarTrailing) {
-          Menu {
-            ForEach(projects) { option in
-              Button {
-                selectedProjectID = option.id
-              } label: {
-                if option.id == project.id {
-                  Label(option.name, systemImage: "checkmark")
-                } else {
-                  Text(option.name)
-                }
-              }
+      .onChange(of: projects.map(\.id), initial: true) {
+        if let selectedProjectID, projects.contains(where: { $0.id == selectedProjectID }) {
+          return
+        }
+        selectedProjectID = projects.first?.id
+      }
+  }
+
+  @ViewBuilder
+  private var navigationWrappedBody: some View {
+    if embeddedInInspector {
+      notesContent
+    } else {
+      notesContent
+        .toolbar {
+          if initialProjectID == nil {
+            ToolbarItem(placement: .topBarTrailing) {
+              HostSelectionMenu(session: session)
             }
-          } label: {
-            Label(project.name, systemImage: "folder")
-              .labelStyle(.titleAndIcon)
           }
-          .accessibilityLabel(HomeStrings.project)
+          if projects.count > 1, let project {
+            ToolbarItem(placement: .topBarTrailing) {
+              projectPickerMenu(current: project)
+            }
+          }
+        }
+    }
+  }
+
+  @ViewBuilder
+  private var notesContent: some View {
+    if let project, let connectionId = session.selectedConnectionId {
+      let identity = project.identity(on: connectionId)
+      ProjectNotesView(
+        session: session,
+        identity: identity,
+        controller: controller
+      )
+      .id(identity)
+    } else {
+      ContentUnavailableView(
+        ProjectManagementStrings.noProjects,
+        systemImage: "note.text",
+        description: Text(ProjectManagementStrings.notesEmptyProject)
+      )
+      .poracodeNavigationTitle(ProjectManagementStrings.notes, suppressed: embeddedInInspector)
+    }
+  }
+
+  private func projectPickerMenu(current: RemoteProject) -> some View {
+    Menu {
+      ForEach(projects) { option in
+        Button {
+          selectedProjectID = option.id
+        } label: {
+          if option.id == current.id {
+            Label(option.name, systemImage: "checkmark")
+          } else {
+            Text(option.name)
+          }
         }
       }
+    } label: {
+      Label(current.name, systemImage: "folder")
+        .labelStyle(.titleAndIcon)
     }
-    .task(id: session.currentProjectControllerLease) {
-      if let controllerSession = session.currentProjectControllerSession {
-        controller.activate(controllerSession)
-      } else {
-        controller.deactivate()
-      }
-    }
-    .onChange(of: projects.map(\.id), initial: true) {
-      if let selectedProjectID, projects.contains(where: { $0.id == selectedProjectID }) {
-        return
-      }
-      selectedProjectID = projects.first?.id
-    }
+    .accessibilityLabel(HomeStrings.project)
   }
 }

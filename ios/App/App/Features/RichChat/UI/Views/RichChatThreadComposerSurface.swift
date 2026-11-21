@@ -3,6 +3,7 @@ import SwiftUI
 /// Leaf composer binding for a thread page. Draft edits invalidate this view,
 /// not the transcript, toolbar, or responsive page layout.
 struct RichChatThreadComposerSurface: View {
+  @Environment(\.composerPreferences) private var preferences
   @Bindable var state: RichChatThreadDraftState
   @Binding var isExpanded: Bool
   let baseConfiguration: ThreadConfig
@@ -14,6 +15,7 @@ struct RichChatThreadComposerSurface: View {
   let canResolveRequests: Bool
   let mediaController: RichChatMediaController
   let agentKind: String
+  var agentInstanceID: String? = nil
   let agentStatus: AgentStatusRecord?
   let threadSlashCommands: [RemoteSlashCommand]?
   /// Live negotiated session controls retained on the thread row; nil keeps
@@ -30,6 +32,10 @@ struct RichChatThreadComposerSurface: View {
   var onInsertIntoComposer: (String) -> Void = { _ in }
   /// Resume for a cut-off turn, gated on the thread and transcript by the page.
   var resumeContext = RichChatComposerResumeContext()
+  var openSideChat: (() -> Void)?
+  var sideQuestion: (@MainActor (String) async -> Bool)?
+  var crewContext: RichChatCrewComposerContext?
+  var isConnectingHost = false
 
   var body: some View {
     RichChatComposerView(
@@ -47,12 +53,14 @@ struct RichChatThreadComposerSurface: View {
       canResolveRequests: canResolveRequests,
       mediaController: mediaController,
       agentKind: agentKind,
+      agentInstanceID: agentInstanceID,
       configuration: configuration,
       agentStatus: agentStatus,
       threadSlashCommands: threadSlashCommands,
       sessionConfigOptions: sessionConfigOptions,
       canConfigure: canConfigure,
       hasStartedSession: hasStartedSession,
+      launchConfiguration: baseConfiguration,
       hiddenModels: hiddenModels,
       fileMentionController: fileMentionController,
       onSubmissionStarted: state.beginSubmission,
@@ -60,14 +68,48 @@ struct RichChatThreadComposerSurface: View {
       skillPickerContext: skillPickerContext,
       sessionActions: sessionActions,
       onInsertIntoComposer: onInsertIntoComposer,
-      resumeContext: resumeContext
+      resumeContext: resumeContext,
+      openSideChat: openSideChat,
+      sideQuestion: sideQuestion,
+      crewContext: crewContext,
+      controlsDestination: $state.composerControlDestination,
+      stateOwnerID: ObjectIdentifier(state),
+      isConnectingHost: isConnectingHost,
+      restoredPromptOrder: state.restoredPromptOrder,
+      draftRestoration: state.alternateDraftIsRevertedPrompt.map { isRevertedPrompt in
+        .init(isRevertedPrompt: isRevertedPrompt, activate: state.switchRestoredDraft)
+      }
     )
+    .onChange(of: restorablePromptID, initial: true) { _, id in
+      guard id != nil else { return }
+      let catalog = RichChatComposerControlCatalog(
+        agentStatus: agentStatus, presentationMode: .gui, configuration: configuration.wrappedValue,
+        threadSlashCommands: threadSlashCommands, sessionConfigOptions: sessionConfigOptions,
+        agentInstanceID: agentInstanceID
+      )
+      if state.restoreRevertedPrompt(availableSkills: catalog.slashCommands.compactMap(\.skill)) {
+        isExpanded = true
+      }
+    }
+  }
+
+  private var restorablePromptID: UUID? {
+    guard canOperate, controller.state.activeMutation == nil, !controller.state.isSending else { return nil }
+    return state.pendingRevertedPromptID
   }
 
   private var configuration: Binding<ThreadConfig> {
     Binding(
-      get: { state.configuration ?? baseConfiguration },
-      set: { state.configuration = $0 }
+      get: { ModelSelectionBindings.validated(state.configuration ?? baseConfiguration, owner: selectionOwner) },
+      set: {
+        let value = ModelSelectionBindings.validated($0, owner: selectionOwner)
+        state.configuration = value
+        if canOperate { preferences?.rememberModel(value, owner: selectionOwner) }
+      }
     )
+  }
+
+  private var selectionOwner: ModelSelectionOwner {
+    .init(agentKind: agentKind, agentInstanceID: agentInstanceID, presentationMode: .gui)
   }
 }

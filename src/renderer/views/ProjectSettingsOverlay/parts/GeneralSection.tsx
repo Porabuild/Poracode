@@ -108,7 +108,7 @@ export function GeneralSection(props: { projectId: string }) {
             <Button
               aria-label={t`Change project folder`}
               variant="tertiary"
-              className="w-[240px] shrink-0 justify-start gap-2 font-normal"
+              className="form-field w-[240px] shrink-0 justify-start gap-2 font-normal"
               onPress={() => {
                 if (isFolderChangeBlockedByRunningThread(project.id)) return;
                 // Another machine's folders are browsed on that host; this

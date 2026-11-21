@@ -1,134 +1,28 @@
-// @vitest-environment node
-
-import { describe, expect, it } from "vitest";
-import type { ToolCallPayload } from "@/shared/contracts";
+import { expect, it } from "vitest";
 import { parseWorkflowInfo } from "./workflowDisplay";
 
-function makePayload(overrides: Partial<ToolCallPayload>): ToolCallPayload {
-  return { name: "Workflow", status: "success", ...overrides };
-}
-
-const SCRIPT = `export const meta = {
-  name: 'test-todo-app',
-  description: 'Test the vanilla-JS todo app: review across dimensions',
-  phases: [
-    { title: 'Review', detail: 'one agent per test dimension' },
-    { title: 'Verify', detail: 'adversarially confirm each finding is real' },
-    { title: 'Synthesize', detail: 'merge into a single test report' },
-  ],
-}
-
-const FINDINGS_SCHEMA = {
-  properties: { detail: { type: 'string', description: 'trigger + observed vs expected' } },
-}
-
-const DIMENSIONS = [
-  { key: 'correctness', title: 'Correctness & logic' },
-  { key: 'security-compliance', title: 'Security & compliance' },
-]
-
-const reviewed = await pipeline(
-  DIMENSIONS,
-  d => agent(reviewPrompt(d), { label: 'review:' + d.key, phase: 'Review', model: 'claude-opus-4-8[1m]', schema: FINDINGS_SCHEMA }),
-)
-`;
-
-const RESULT = `Workflow launched in background. Task ID: wiaaqsf20
-Summary: Test the vanilla-JS todo app: review across dimensions
-Transcript dir: /home/x/.claude/projects/p/sess/subagents/workflows/wf_5478fde3-ae0
-Run ID: wf_5478fde3-ae0
-Use /workflows to watch live progress.`;
-
-describe("parseWorkflowInfo", () => {
-  it("prefers the structured workflow payload over text parsing", () => {
-    const info = parseWorkflowInfo(
-      makePayload({
-        progress: { description: "verify:runtimeItems.ts:altitude" },
-        workflow: {
-          name: "simplify-review",
-          runId: "wf_struct",
-          summary: "Four-angle simplify review",
-          transcriptDir: "/home/x/.claude/projects/p/sess/subagents/workflows/wf_struct",
-        },
-      }),
-    );
-    // The stable workflow summary wins over the live agent label.
-    expect(info.description).toBe("Four-angle simplify review");
-    expect(info.runId).toBe("wf_struct");
-    expect(info.transcriptDir).toBe(
-      "/home/x/.claude/projects/p/sess/subagents/workflows/wf_struct",
-    );
-    expect(info.manifestPath).toBe("/home/x/.claude/projects/p/sess/workflows/wf_struct.json");
+it("keeps canonical workflow metadata and leaves ordinary tool calls unclassified", () => {
+  const payload = {
+    name: "workflow.tool",
+    status: "success" as const,
+    workflow: {
+      summary: "Review this workspace",
+      runId: "run-1",
+      transcriptDir: "/session/subagents/workflows/run-1",
+    },
+  };
+  const before = structuredClone(payload);
+  expect(parseWorkflowInfo(payload)).toMatchObject({
+    description: "Review this workspace",
+    runId: "run-1",
+    manifestPath: "/session/workflows/run-1.json",
   });
-
-  it("uses progress.description when no structured summary exists", () => {
-    const info = parseWorkflowInfo(
-      makePayload({
-        args: { script: SCRIPT },
-        progress: { description: "Live description" },
-      }),
-    );
-    expect(info.description).toBe("Live description");
-  });
-
-  it("falls back to the result Summary line", () => {
-    const info = parseWorkflowInfo(makePayload({ result: RESULT }));
-    expect(info.description).toBe("Test the vanilla-JS todo app: review across dimensions");
-    expect(info.runId).toBe("wf_5478fde3-ae0");
-  });
-
-  it("falls back to meta.description parsed from the script", () => {
-    const info = parseWorkflowInfo(makePayload({ args: { script: SCRIPT } }));
-    expect(info.description).toBe("Test the vanilla-JS todo app: review across dimensions");
-  });
-
-  it("parses the planned phases from the script meta", () => {
-    const info = parseWorkflowInfo(makePayload({ args: { script: SCRIPT } }));
-    expect(info.phases).toEqual([
-      { title: "Review", detail: "one agent per test dimension" },
-      { title: "Verify", detail: "adversarially confirm each finding is real" },
-      { title: "Synthesize", detail: "merge into a single test report" },
-    ]);
-  });
-
-  it("parses planned pipeline agents from the script", () => {
-    const info = parseWorkflowInfo(makePayload({ args: { script: SCRIPT } }));
-    expect(info.plannedAgents).toEqual([
-      { label: "review:correctness", phaseTitle: "Review", model: "claude-opus-4-8[1m]" },
-      {
-        label: "review:security-compliance",
-        phaseTitle: "Review",
-        model: "claude-opus-4-8[1m]",
-      },
-    ]);
-  });
-
-  it("returns empty phases when no script is present", () => {
-    const info = parseWorkflowInfo(makePayload({ args: { description: "Run checklist" } }));
-    expect(info.phases).toEqual([]);
-    expect(info.plannedAgents).toEqual([]);
-    expect(info.description).toBe("Run checklist");
-  });
-
-  it("derives manifestPath from the transcript dir and runId in the result", () => {
-    const info = parseWorkflowInfo(makePayload({ result: RESULT }));
-    expect(info.transcriptDir).toBe(
-      "/home/x/.claude/projects/p/sess/subagents/workflows/wf_5478fde3-ae0",
-    );
-    expect(info.manifestPath).toBe(
-      "/home/x/.claude/projects/p/sess/workflows/wf_5478fde3-ae0.json",
-    );
-  });
-
-  it("supports Windows-style transcript paths", () => {
-    const info = parseWorkflowInfo(
-      makePayload({
-        result:
-          "Transcript dir: C:\\Users\\me\\.claude\\projects\\p\\sess\\subagents\\workflows\\wf_X\nRun ID: wf_X",
-      }),
-    );
-    expect(info.manifestPath).toBe(
-      "C:\\Users\\me\\.claude\\projects\\p\\sess\\workflows\\wf_X.json",
-    );
-  });
+  expect(payload).toEqual(before);
+  expect(
+    parseWorkflowInfo({
+      name: "ordinary.tool",
+      status: "success",
+      args: { description: "Not a workflow" },
+    }),
+  ).toEqual({ phases: [], plannedAgents: [], liveAgents: [] });
 });

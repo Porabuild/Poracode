@@ -5,18 +5,188 @@ import UIKit
 @testable import App
 
 final class RichChatComposerParityTests: XCTestCase {
-  func testHomePermissionsHonorAnExplicitProviderBypass() {
-    let capabilities: [String: JSONValue] = [
-      "defaultApprovalPolicy": .string("auto"),
-      "bypassPermissions": .object([
-        "approvalPolicy": .string("auto"),
-        "preferDeclaredApprovalPolicy": .bool(true),
-      ]),
+  @MainActor
+  func testBoundedEditorKeepsItsFinalCaretVisible() async throws {
+    let scene = try XCTUnwrap(UIApplication.shared.connectedScenes.first as? UIWindowScene)
+    let previous = scene.windows.first(where: \.isKeyWindow)
+    let window = UIWindow(windowScene: scene)
+    window.rootViewController = UIViewController()
+    let editor = RichChatComposerTextInput.makeEditor(pointSize: 17)
+    editor.frame = CGRect(x: 20, y: 80, width: 300, height: 100)
+    editor.text = (1...7).map { "Line \($0)" }.joined(separator: "\n")
+    editor.selectedRange = NSRange(location: editor.text.utf16.count, length: 0)
+    XCTAssertGreaterThan(editor.sizeThatFits(CGSize(width: 300, height: CGFloat.greatestFiniteMagnitude)).height, 100,
+      "Measuring must retain the complete document height even when its viewport is bounded")
+    window.rootViewController?.view.addSubview(editor)
+    window.makeKeyAndVisible()
+    defer {
+      editor.resignFirstResponder()
+      window.isHidden = true
+      previous?.makeKey()
+    }
+    editor.becomeFirstResponder()
+    editor.setNeedsLayout()
+    editor.layoutIfNeeded()
+    let deadline = ContinuousClock.now.advanced(by: .seconds(2))
+    while ContinuousClock.now < deadline {
+      let caret = editor.caretRect(for: editor.endOfDocument)
+      let insertionPoint = CGPoint(x: caret.midX, y: caret.midY)
+      if editor.isScrollEnabled, editor.bounds.contains(insertionPoint) { return }
+      try await Task.sleep(for: .milliseconds(10))
+    }
+    XCTFail("Caret did not enter viewport: scroll=\(editor.isScrollEnabled), size=\(editor.contentSize), bounds=\(editor.bounds), caret=\(editor.caretRect(for: editor.endOfDocument)), offset=\(editor.contentOffset), selection=\(editor.selectedRange)")
+  }
+
+  func testModeActionsUseDeclaredChoicesAndNormalizeOnlyLegacyPlanDefaults() {
+    let modes: [RichChatComposerOption] = [
+      .init(id: "autopilot", label: "Autopilot"), .init(id: "plan", label: "Plan"),
     ]
-    XCTAssertEqual(HomeComposerPermission.auto.approvalPolicy(capabilities: capabilities), "auto")
-    XCTAssertEqual(HomeComposerPermission.bypass.approvalPolicy(capabilities: capabilities), "auto")
-    XCTAssertNil(HomeComposerPermission.auto.approvalPolicy(capabilities: [:]))
-    XCTAssertEqual(HomeComposerPermission.bypass.approvalPolicy(capabilities: [:]), "never")
+    XCTAssertEqual(RichChatComposerControlCatalog.nonPlanMode(in: modes), "autopilot")
+    XCTAssertEqual(RichChatComposerControlCatalog.modeAfterToggling("plan", current: "autopilot", options: modes), "plan")
+    XCTAssertEqual(RichChatComposerControlCatalog.modeAfterToggling("plan", current: "plan", options: modes), "autopilot")
+    XCTAssertEqual(RichChatComposerControlCatalog.modeAfterToggling("unknown", current: "plan", options: modes), "plan")
+    let capabilities: [String: JSONValue] = ["modes": .array([.string("autopilot"), .string("plan")])]
+    XCTAssertEqual(RichChatComposerControlCatalog.restoredDraftMode("plan", capabilities: capabilities), "autopilot")
+    XCTAssertEqual(RichChatComposerControlCatalog.restoredDraftMode("autopilot", capabilities: capabilities), "autopilot")
+    XCTAssertEqual(RichChatComposerControlCatalog.restoredDraftMode("plan", capabilities: [:]), "agent")
+    XCTAssertNil(RichChatComposerControlCatalog.restoredDraftMode(nil, capabilities: capabilities))
+  }
+
+  @MainActor
+  func testNativeSelectionCallbackPublishesItsCurrentTextBeforeTheCaret() {
+    var text = "Before", selection: NSRange? = NSRange(location: 6, length: 0)
+    var textAtCaretPublication: String?
+    let input = RichChatComposerTextInput(
+      text: .init(get: { text }, set: { text = $0 }),
+      selection: .init(get: { selection }, set: {
+        selection = $0
+        textAtCaretPublication = text
+      }),
+      focused: .constant(true), lineLimit: 1...2, placeholder: "Message"
+    )
+    let coordinator = input.makeCoordinator()
+    let view = RichChatComposerTextView()
+    view.text = "Before!"
+    view.selectedRange = NSRange(location: 7, length: 0)
+    // UIKit can report selection while its native text storage already holds
+    // the edit. A render must not pair that caret with the previous text.
+    coordinator.textViewDidChangeSelection(view)
+    XCTAssertEqual(text, "Before!")
+    XCTAssertEqual(selection, NSRange(location: 7, length: 0))
+    XCTAssertEqual(textAtCaretPublication, "Before!")
+  }
+
+  @MainActor
+  func testNativeSelectionEchoDoesNotPublishWhileUpdatingOrAfterDismantling() {
+    var text = "Model", selection: NSRange? = NSRange(location: 5, length: 0)
+    var focused = true
+    let input = RichChatComposerTextInput(
+      text: .init(get: { text }, set: { text = $0 }),
+      selection: .init(get: { selection }, set: { selection = $0 }),
+      focused: .init(get: { focused }, set: { focused = $0 }),
+      lineLimit: 1...2, placeholder: "Message"
+    )
+    let coordinator = input.makeCoordinator()
+    let view = RichChatComposerTextView()
+    view.text = "Native"
+    view.selectedRange = NSRange(location: 6, length: 0)
+    coordinator.updating = true
+    coordinator.textViewDidChangeSelection(view)
+    coordinator.textViewDidChange(view)
+    XCTAssertEqual(text, "Model")
+    XCTAssertEqual(selection, NSRange(location: 5, length: 0))
+    coordinator.updating = false
+    RichChatComposerTextInput.dismantleUIView(view, coordinator: coordinator)
+    coordinator.textViewDidChangeSelection(view)
+    coordinator.textViewDidChange(view)
+    coordinator.textViewDidEndEditing(view)
+    XCTAssertEqual(text, "Model")
+    XCTAssertEqual(selection, NSRange(location: 5, length: 0))
+    XCTAssertTrue(focused)
+  }
+
+  @MainActor
+  func testNativeCaretIsCapturedBeforePublishingTextCanRefreshTheView() {
+    var text = "Before", selection: NSRange? = NSRange(location: 6, length: 0)
+    let view = RichChatComposerTextView()
+    view.text = "Before!"
+    view.selectedRange = NSRange(location: 7, length: 0)
+    let input = RichChatComposerTextInput(
+      text: .init(get: { text }, set: {
+        text = $0
+        // A binding observer may synchronously refresh UIKit's selection.
+        view.selectedRange = NSRange(location: 0, length: 0)
+      }),
+      selection: .init(get: { selection }, set: { selection = $0 }),
+      focused: .constant(true), lineLimit: 1...2, placeholder: "Message"
+    )
+    input.makeCoordinator().textViewDidChangeSelection(view)
+    XCTAssertEqual(text, "Before!")
+    XCTAssertEqual(selection, NSRange(location: 7, length: 0))
+  }
+
+  @MainActor
+  func testDeferredEditorRefreshReadsLatestBindingsAndRespectsDismantling() async {
+    var text = "Before", selection: NSRange? = NSRange(location: 6, length: 0)
+    let input = RichChatComposerTextInput(
+      text: .init(get: { text }, set: { text = $0 }),
+      selection: .init(get: { selection }, set: { selection = $0 }),
+      focused: .constant(false), lineLimit: 1...2, placeholder: "Message"
+    )
+    let coordinator = input.makeCoordinator()
+    let view = RichChatComposerTextView()
+    view.text = "Before!"
+    view.selectedRange = NSRange(location: 7, length: 0)
+    coordinator.scheduleViewUpdate(view)
+    text = "Before!"
+    selection = NSRange(location: 7, length: 0)
+    await withCheckedContinuation { continuation in
+      DispatchQueue.main.async { continuation.resume() }
+    }
+    XCTAssertEqual(view.text, "Before!")
+    XCTAssertEqual(view.selectedRange, NSRange(location: 7, length: 0))
+
+    text = "Programmatic replacement"
+    selection = NSRange(location: 0, length: 0)
+    coordinator.scheduleViewUpdate(view)
+    await withCheckedContinuation { continuation in
+      DispatchQueue.main.async { continuation.resume() }
+    }
+    XCTAssertEqual(view.text, text)
+    XCTAssertEqual(view.selectedRange, NSRange(location: 0, length: 0))
+
+    coordinator.scheduleViewUpdate(view)
+    RichChatComposerTextInput.dismantleUIView(view, coordinator: coordinator)
+    text = "Different owner"
+    await withCheckedContinuation { continuation in
+      DispatchQueue.main.async { continuation.resume() }
+    }
+    XCTAssertEqual(view.text, "Programmatic replacement")
+  }
+
+  func testComposerPermissionsHonorAnExplicitCompoundProviderBypass() throws {
+    let agent = try AgentStatusRecord(wire: .object([
+      "kind": .string("fixture"), "label": .string("Fixture"),
+      "installed": .bool(true), "authState": .string("authenticated"),
+      "capabilities": .object([
+        "defaultApprovalPolicy": .string("review"),
+        "approvalPolicies": .array([
+          .object(["id": .string("review"), "label": .string("Review")]),
+          .object(["id": .string("auto"), "label": .string("Automatic")]),
+        ]),
+        "bypassPermissions": .object([
+          "approvalPolicy": .string("auto"), "sandboxMode": .string("all-files"),
+          "preferDeclaredApprovalPolicy": .bool(true),
+        ]),
+      ]),
+    ]))
+    var configuration = ThreadConfig(model: "model")
+    let catalog = RichChatComposerControlCatalog(agentStatus: agent, presentationMode: .gui, configuration: configuration)
+    XCTAssertEqual(catalog.effectivePermissionPolicy(configuration), "review")
+    catalog.applyPermissionPolicy("auto", to: &configuration)
+    XCTAssertEqual(configuration.approvalPolicy, "auto")
+    XCTAssertEqual(configuration.sandboxMode, "all-files")
+    XCTAssertEqual(catalog.permissionSelectionLabel(configuration), RichChatStrings.fullAccess)
   }
 
   func testGuiPermissionsUseThePresentationOverride() throws {
@@ -393,8 +563,11 @@ final class RichChatComposerParityTests: XCTestCase {
     let mentions = try Self.source("App/Features/Home/HomeComposerMentions.swift")
     let selectors = try Self.source("App/Features/Home/HomeComposerSelectorSheets.swift")
     let support = try Self.source("App/Features/Home/HomeComposerSupport.swift")
+      + Self.source("App/Models/Threads/ThreadConfigurationConversions.swift")
 
-    XCTAssertTrue(composer.contains("RichChatComposerControlsSheet("))
+    let fields = try Self.source("App/Features/Home/QuickCompose/HomeQuickComposeControls.swift")
+    XCTAssertTrue(fields.contains("RichChatComposerConfigurationFields("))
+    XCTAssertTrue(composer.contains("effectiveConfiguration.map { ThreadConfig($0) }"))
     XCTAssertTrue(selectors.contains("RichChatStrings.composerControls"))
     XCTAssertTrue(support.contains("configuredConfiguration = ThreadLaunchConfiguration"))
     XCTAssertTrue(support.contains("contextSize: configuration.contextSize"))
@@ -418,34 +591,32 @@ final class RichChatComposerParityTests: XCTestCase {
   /// selected model offers it.
   func testHomeComposerKeepsWorkflowModePerDraftAndGatedByTheModel() throws {
     let composer = try Self.source("App/Features/Home/Pages/HomeQuickComposeView.swift")
-    let selectors = try Self.source("App/Features/Home/HomeComposerSelectorSheets.swift")
+    let state = try Self.source("App/Features/Home/QuickCompose/HomeQuickComposeState.swift")
     let support = try Self.source("App/Features/Home/HomeComposerSupport.swift")
+      + Self.source("App/Models/Threads/ThreadConfigurationConversions.swift")
 
-    XCTAssertTrue(composer.contains("@State var workflows = false"))
-    XCTAssertEqual(composer.components(separatedBy: "workflows = false").count - 1, 3)
-    XCTAssertTrue(selectors.contains("workflows = false"))
-    XCTAssertTrue(support.contains("private func draftWorkflows("))
-    XCTAssertTrue(support.contains("configuration.workflows = draftWorkflows(for: agent, model: model)"))
-    XCTAssertTrue(support.contains("workflows: draftWorkflows(for: agent, model: model)"))
-    XCTAssertTrue(support.contains("workflows = configuration.workflows == true"))
-    XCTAssertFalse(
-      support.contains(#"object["workflows"]"#),
-      "a saved draft never restores workflow mode")
+    XCTAssertTrue(state.contains("var configuredConfiguration: ThreadLaunchConfiguration?"))
+    XCTAssertTrue((composer + state).contains("configuredConfiguration = nil"))
+    XCTAssertTrue(support.contains("HomeComposerCatalog.supportsWorkflows("))
+    XCTAssertTrue(support.contains("configuration.workflows = nil"))
     XCTAssertTrue(support.contains(#""workflowModels", "workflowLabel""#))
   }
 
   func testComposerSurfaceOffersNativeControlsAndAllAttachmentSources() throws {
     let composer = try Self.source("App/Features/RichChat/UI/RichChatComposerView.swift")
     let mentions = try Self.source("App/Features/RichChat/UI/RichChatComposerMentions.swift")
-    let controls = try Self.source(
-      "App/Features/RichChat/UI/RichChatComposerConfiguration.swift"
-    )
+    let controls = try [
+      "App/Features/RichChat/UI/RichChatComposerConfiguration.swift",
+      "App/Features/RichChat/UI/RichChatComposerConfigurationFields.swift",
+    ].map(Self.source).joined(separator: "\n")
     let attachments = try Self.source(
       "App/Features/RichChat/UI/RichChatComposerAttachments.swift"
     )
     let context = try Self.source("App/Features/RichChat/UI/RichChatComposerContextBar.swift")
 
-    XCTAssertTrue(composer.contains("RichChatComposerControlsSheet("))
+    let sheets = try Self.source("App/Features/RichChat/UI/RichChatComposerSheets.swift")
+    XCTAssertTrue(composer.contains("composerControlsSheet(presentation)"))
+    XCTAssertTrue(sheets.contains("RichChatComposerControlsSheet("))
     XCTAssertTrue(composer.contains("configuration.richChatObject"))
     XCTAssertTrue(composer.contains("slashCommandPanel"))
     XCTAssertTrue(composer.contains(#"draft = "/\(command.displayID) ""#))
@@ -511,9 +682,10 @@ final class RichChatComposerParityTests: XCTestCase {
     )
     XCTAssertTrue(composer.contains("hasPrompt: canSend,"))
     XCTAssertTrue(composer.contains("guard !text.isEmpty || !attachmentSegments.isEmpty"))
-    XCTAssertTrue(home.contains("|| !attachments.isEmpty"))
-    XCTAssertTrue(home.contains("attachments.map(\\.name).joined(separator: \" \")"))
-    XCTAssertTrue(actions.contains("guard !text.isEmpty || !attachments.isEmpty"))
+    XCTAssertTrue(home.contains("|| !draft.attachments.isEmpty"))
+    XCTAssertTrue(home.contains("draft.attachments.map(\\.name).joined(separator: \" \")"))
+    XCTAssertTrue(home.contains("guard ownsCurrentConnection, !draft.starting, !draft.importing"))
+    XCTAssertTrue(actions.contains("guard canStart, RichPromptSegment.isSendable(prompt: text, segments: draft.additionalSegments) || !draft.attachments.isEmpty"))
     XCTAssertTrue(
       pendingSteer.contains(
         "static func isSendable(prompt: String, segments: [RichPromptSegment]?) -> Bool"
@@ -564,6 +736,7 @@ final class RichChatComposerParityTests: XCTestCase {
       "App/Features/RichChat/UI/Views/RichChatTranscriptSurface.swift"
     )
     let timeline = try Self.source("App/Features/RichChat/UI/RichChatTimelineView.swift")
+    let jumpControl = try Self.source("App/Features/RichChat/UI/RichChatTimelineJumpControl.swift")
     let pageState = try Self.source(
       "App/Features/RichChat/UI/Pages/RichChatThreadPageState.swift"
     )
@@ -571,48 +744,54 @@ final class RichChatComposerParityTests: XCTestCase {
     let infoControls = try Self.source(
       "App/Features/RichChat/UI/RichChatCompactInfoControls.swift"
     )
+    let inspector = try Self.source("App/Features/RichChat/UI/RichChatRightPanelView.swift")
     let providerUsage = try Self.source("App/Features/RichChat/UI/RichChatProviderUsage.swift")
     let checkpoints = try Self.source("App/Features/RichChat/UI/RichChatCheckpointView.swift")
     let poracodeGlass = try Self.source("App/Features/Components/PoracodeGlass.swift")
 
     XCTAssertTrue(thread.contains("RichChatResponsiveLayout"))
-    XCTAssertTrue(thread.contains("poracodeNavigationBarChrome"))
+    let navigation = try Self.source("App/Features/SideChat/RichChatSideChatPresentation.swift")
+    XCTAssertTrue(thread.contains("RichChatNavigationChrome("))
+    XCTAssertTrue(navigation.contains("poracodeNavigationBarChrome"))
     XCTAssertFalse(thread.contains(".toolbarBackground(.ultraThinMaterial"))
     XCTAssertTrue(poracodeGlass.contains("toolbarBackground(.hidden, for: .navigationBar)"))
     XCTAssertTrue(poracodeGlass.contains("if #available(iOS 26.0, *)"))
-    XCTAssertTrue(thread.contains("PoracodeToolbarInfoBubble {"))
-    XCTAssertTrue(layout.contains("if width >= breakpoint"))
-    XCTAssertTrue(layout.contains("maximumSidebarWidth: CGFloat = 350"))
+    XCTAssertTrue(thread.contains("PoracodeToolbarTitle {"))
+    XCTAssertTrue(layout.contains("size.width >= RichChatInspectorGeometry.minimumOverlayWidth"))
+    XCTAssertTrue(layout.contains("poracodeInspectorOverlaySurface(enabled:"))
     XCTAssertTrue(layout.contains("VStack(spacing: 0)"))
     XCTAssertTrue(layout.contains("RichChatCompactOverlayHeightPreferenceKey"))
-    XCTAssertTrue(layout.contains("proxy.size.height"))
-    XCTAssertTrue(
-      layout.contains(".environment(\\.richChatCompactOverlayClearance, compactOverlayHeight)")
-    )
+    XCTAssertTrue(layout.contains("availableHeight >= 500"))
+    XCTAssertTrue(layout.contains("\\.richChatCompactOverlayClearance"))
+    XCTAssertFalse(layout.contains("showsInspector ? 0 : compactOverlayHeight"))
     XCTAssertTrue(timeline.contains("@Environment(\\.richChatCompactOverlayClearance)"))
-    XCTAssertTrue(timeline.contains(".padding(.bottom, compactOverlayClearance + 12)"))
+    XCTAssertTrue(timeline.contains("guard find.isPresented, keyboardTop > 0 else { return compactOverlayClearance }"))
+    XCTAssertTrue(timeline.contains("bottomClearance: bottomClearance"))
+    XCTAssertTrue(jumpControl.contains(".padding(.bottom, bottomClearance + 12)"))
     XCTAssertTrue(thread.contains("RichChatCompactControlDock("))
     XCTAssertFalse(thread.contains(".frame(maxHeight: 250)"))
-    XCTAssertEqual(thread.components(separatedBy: "RichChatControlPanel(").count - 1, 1)
+    XCTAssertTrue(thread.contains("RichChatThreadInspector("))
+    XCTAssertEqual(inspector.components(separatedBy: "RichChatControlPanel(").count - 1, 1)
     XCTAssertTrue(transcript.contains("RichChatTimelineView("))
     XCTAssertLessThan(thread.split(separator: "\n").count, 300)
     XCTAssertTrue(dock.contains("prefix(1)"), "Only the first actionable request is docked")
     XCTAssertTrue(dock.contains("suite.conversation.clearPendingSteer()"))
     for destination in [
-      "destination: .context", "destination: .usage", "destination: .plan",
+      "destination: .plan", "destination: .backgroundTasks", "destination: .media",
       "destination: .errors", "destination: .goal",
       "destination: .git(projectLocation)",
     ] {
       XCTAssertTrue(dock.contains(destination), destination)
     }
-    XCTAssertTrue(dock.contains(".sheet(item: $destination)"))
+    XCTAssertTrue(dock.contains(".sheet(item: $destination, onDismiss: { workflowPresenter?.presentPending() })"),
+      "A roster must finish dismissing before the window opens its pending workflow viewer")
     XCTAssertTrue(infoControls.contains("PoracodeCompactControlGroup"))
     XCTAssertTrue(infoControls.contains(".buttonStyle(.plain)"))
     XCTAssertTrue(layout.contains(".overlay(alignment: .bottom)"))
     XCTAssertFalse(layout.contains("safeAreaBar("))
     XCTAssertTrue(layout.contains("PoracodeGlassGroup(spacing: 2)"))
-    XCTAssertTrue(layout.contains("richChatCompactOverlayClearance, compactOverlayHeight"))
-    XCTAssertTrue(layout.contains(".poracodeComposerInset"))
+    XCTAssertEqual(layout.components(separatedBy: "\n              composer\n").count - 1, 1,
+      "Panel toggles must retain one composer and its keyboard focus")
     XCTAssertTrue(dock.contains("poracodeZoomTransition(sourceID: destination.id"))
     XCTAssertTrue(infoControls.contains("poracodeZoomSource(id:"))
     XCTAssertFalse(layout.contains("compactScrimPresented"))
@@ -623,29 +802,21 @@ final class RichChatComposerParityTests: XCTestCase {
     XCTAssertTrue(dock.contains("gitSummary.totalDeletions"))
     XCTAssertTrue(dock.contains("thread?.worktreePath?.isEmpty == false"))
     XCTAssertTrue(dock.contains("point.3.connected.trianglepath.dotted"))
-    XCTAssertTrue(infoControls.contains(".frame(minWidth: 28, minHeight: 28)"))
+    XCTAssertTrue(infoControls.contains(".frame(minWidth: 44, minHeight: 44)"))
     XCTAssertTrue(infoControls.contains(".fixedSize(horizontal: true, vertical: false)"))
-    XCTAssertTrue(infoControls.contains("struct RichChatProgressRing: View"))
-    XCTAssertTrue(infoControls.contains("control.progressPercent.map"))
-    XCTAssertFalse(infoControls.contains("RichChatProgressRing(percent: control.progressPercent"))
-    XCTAssertTrue(
-      infoControls.contains(
-        "RichChatProgressRing(percent: rings.outerPercent, diameter: 22, lineWidth: 2)"
-      )
-    )
-    XCTAssertTrue(
-      infoControls.contains(
-        "RichChatProgressRing(percent: rings.innerPercent, diameter: 14, lineWidth: 2)"
-      )
-    )
-    XCTAssertTrue(infoControls.contains("controls.filter { !isContext($0.destination)"))
-    XCTAssertGreaterThanOrEqual(
-      infoControls.components(separatedBy: "PoracodeCompactControlGroup {").count - 1,
-      3
-    )
+    // Desktop keeps these secondary destinations in its panel/menu. Native
+    // header actions must still reach the same sheets after removing bubbles.
+    XCTAssertFalse(dock.contains("destination: .context"))
+    XCTAssertFalse(dock.contains("destination: .usage"))
+    XCTAssertFalse(dock.contains("destination: .threadInfo"))
+    XCTAssertTrue(thread.contains("RichChatThreadInformationMenu("))
+    XCTAssertTrue(thread.contains("destination: $compactControlDestination"))
+    XCTAssertTrue(infoControls.contains("HomeStrings.threadInfo"))
+    XCTAssertTrue(infoControls.contains("select(.context)"))
+    XCTAssertTrue(infoControls.contains("select(.usage)"))
+    XCTAssertTrue(dock.contains("case .context:"))
+    XCTAssertTrue(dock.contains("case .usage:"))
     XCTAssertFalse(infoControls.contains(".poracodeGlassBackground(in: Circle())"))
-    XCTAssertTrue(dock.contains("progressPercent: contextSummary.percent.map(Double.init)"))
-    XCTAssertFalse(dock.contains("badge: contextSummary.percent.map(percentBadge)"))
     XCTAssertTrue(infoControls.contains(".accessibilityLabel(control.accessibilityLabel)"))
     XCTAssertTrue(checkpoints.contains("struct RichChatCheckpointSheet"))
     XCTAssertTrue(checkpoints.contains("@Environment(\\.dismiss)"))
@@ -675,16 +846,13 @@ final class RichChatComposerParityTests: XCTestCase {
     XCTAssertTrue(composer.contains("RichChatAdaptiveComposer("))
     XCTAssertTrue(composer.contains("PoracodeStatusBubble {"))
     XCTAssertTrue(actions.contains("struct PoracodeStatusBubble<Content: View>"))
-    XCTAssertTrue(actions.contains("struct PoracodeToolbarInfoBubble<Content: View>"))
+    XCTAssertTrue(actions.contains("struct PoracodeToolbarTitle<Content: View>"))
     XCTAssertTrue(actions.contains("func poracodeNativeBubbleSurface"))
     XCTAssertTrue(actions.contains("glassEffect(.regular.interactive(), in: shape)"))
     XCTAssertTrue(actions.contains("glassEffect(.regular, in: shape)"))
     XCTAssertTrue(actions.contains("func poracodeNativeComposerSurface"))
-    XCTAssertTrue(
-      actions.contains("glassEffect(.regular.interactive(interactive), in: shape)")
-    )
-    XCTAssertTrue(actions.contains("interactive: Bool = false"))
-    XCTAssertTrue(actions.contains("interactive: true"))
+    XCTAssertTrue(actions.contains("if #available(iOS 26.0, *), interactive"))
+    XCTAssertTrue(actions.contains("content.poracodeInputSurface(in: shape, fill:"))
     XCTAssertTrue(
       actions.contains(".poracodeNativeBubbleSurface(in: Capsule(), interactive: true)")
     )
@@ -698,12 +866,13 @@ final class RichChatComposerParityTests: XCTestCase {
     XCTAssertTrue(context.contains("struct RichChatComposerContextBar: View"))
     XCTAssertTrue(glass.contains("color: Color = .secondary"))
     XCTAssertTrue(homeComposer.contains("collapseComposer()"))
-    XCTAssertTrue(homeComposer.contains("if supportsFast { fastButton }"))
-    let fastIndex = try XCTUnwrap(
-      homeComposer.range(of: "if supportsFast { fastButton }")?.lowerBound)
-    let effortIndex = try XCTUnwrap(
-      homeComposer.range(of: "if !effortOptions.isEmpty { effortMenu }")?.lowerBound)
-    XCTAssertLessThan(fastIndex, effortIndex)
+    let homeCrewControls = try Self.source("App/Features/Crews/HomeCrewComposer.swift")
+    XCTAssertTrue(homeComposer.contains("homeCrewAwareSelectors"))
+    XCTAssertTrue(homeCrewControls.contains("RichChatComposerSelectors("))
+    let common = try Self.source("App/Features/RichChat/UI/RichChatComposerSelectors.swift")
+    let effortIndex = try XCTUnwrap(common.range(of: "{ effortMenu }")?.lowerBound)
+    let fastIndex = try XCTUnwrap(common.range(of: "if catalog.supportsFast(configuration.model) { fastButton }")?.lowerBound)
+    XCTAssertLessThan(effortIndex, fastIndex)
     XCTAssertTrue(homeActions.contains("promptFocused = false"))
     XCTAssertTrue(homeActions.contains("window.endEditing(true)"))
     XCTAssertTrue(homeActions.contains("#selector(UIResponder.resignFirstResponder)"))
@@ -717,12 +886,17 @@ final class RichChatComposerParityTests: XCTestCase {
     let page = try Self.source("App/Features/Home/Pages/HomeQuickComposeView.swift")
     let content = try Self.source("App/Features/Home/Views/HomeQuickComposeContent.swift")
     let components = try Self.source("App/Features/Home/Components/HomeComposerComponents.swift")
+    let sharedControls = try Self.source("App/Features/Components/PoracodeComposerControls.swift")
+    let threadComposer = try Self.source("App/Features/RichChat/UI/RichChatComposerInlineControls.swift")
 
     XCTAssertTrue(page.contains("composerSurface"))
-    XCTAssertTrue(content.contains("HomeComposerSurface(isExpanded: isExpanded, glassNamespace: glassNamespace)"))
+    XCTAssertTrue(content.contains("HomeComposerSurface(isExpanded: isExpanded)"))
+    XCTAssertTrue(components.contains(".poracodeNativeComposerSurface(in: shape"))
     XCTAssertTrue(content.contains("HomeComposerCompactSurface("))
     XCTAssertTrue(content.contains("HomeComposerExpandedSurface"))
-    XCTAssertTrue(content.contains("HomeComposerActionBar"))
+    XCTAssertTrue(content.contains("PoracodeComposerControls"))
+    XCTAssertTrue(threadComposer.contains("PoracodeComposerControls"))
+    XCTAssertTrue(sharedControls.contains("ComposerControlsLayout"))
     XCTAssertTrue(content.contains("HomeComposerStartButton("))
     XCTAssertTrue(components.contains("struct HomeComposerSurface<Content: View>: View"))
     XCTAssertTrue(components.contains("struct HomeComposerStartButton: View"))
@@ -734,7 +908,9 @@ final class RichChatComposerParityTests: XCTestCase {
     let title = try Self.source("App/Features/Threads/ThreadDetailTitleView.swift")
     let workspace = try Self.source("App/Features/Threads/ThreadWorkspaceBar.swift")
 
-    XCTAssertTrue(thread.contains("ToolbarItem(placement: .principal)"))
+    let navigation = try Self.source("App/Features/SideChat/RichChatSideChatPresentation.swift")
+    XCTAssertTrue(thread.contains("RichChatNavigationChrome("))
+    XCTAssertTrue(navigation.contains(".toolbarRole(.editor)"))
     XCTAssertTrue(thread.contains("ThreadDetailTitleView("))
     XCTAssertTrue(title.contains("HomeProviderIcon(kind: thread.agentKind)"))
     XCTAssertTrue(title.contains("ThreadLifecycleStrings.status(resolvedStatus, hasSessionRef: thread.sessionRef != nil)"))
@@ -840,6 +1016,87 @@ final class RichChatComposerParityTests: XCTestCase {
   }
 
   @MainActor
+  func testRevertRestoresRichContentAndKeepsThePreviousDraftThroughReopening() throws {
+    let key = RichChatComposerDraftKey(connectionID: ClientConnectionID(), threadID: "same")
+    let other = RichChatComposerDraftKey(connectionID: ClientConnectionID(), threadID: "same")
+    let store = RichChatComposerDraftStore()
+    let origin = RichChatThreadDraftState(store: store)
+    origin.prepare(for: key, baseConfiguration: nil)
+    origin.text = "Unsent work"
+    let attachment = RichChatUploadedAttachment(name: "draft.pdf", mimeType: "application/pdf", remotePath: "/draft.pdf")
+    origin.attachments = [attachment]
+    let review = RichChatSelectedSkill(name: "review", path: "/skills/review/SKILL.md", invocation: "/review",
+      provider: "fixture", scope: .project, pluginID: "reviewer", pluginName: "Reviewer")
+    let content: [RichJSON] = [
+      .object(["kind": .string("text"), "text": .string("Please ")]),
+      .object(["kind": .string("skill"), "name": .string("review"), "invocation": .string("/review"),
+        "pluginId": .string("reviewer")]),
+      .object(["kind": .string("text"), "text": .string(" here ")]),
+      .object(["kind": .string("file"), "path": .string("Sources/App.swift"), "source": .string("mention")]),
+      .object(["kind": .string("mcp"), "name": .string("docs")]),
+      .object(["kind": .string("image"), "dataUrl": .string(""), "path": .string("/captures/shot"),
+        "name": .string("shot.png"), "mimeType": .string("image/png"), "source": .string("attachment")]),
+      .object(["kind": .string("skill"), "name": .string("review"), "invocation": .string("/other-review"),
+        "pluginId": .string("different")]),
+    ]
+    let prompt = try XCTUnwrap(RichChatRevertedPrompt(item: .init(id: "message", type: RichItemType.userMessage,
+      state: .completed, payload: .object(["content": .array(content)]), streams: [:], parentItemID: nil)))
+    store.enqueueRevertedPrompt(prompt, for: key)
+
+    let foreign = RichChatThreadDraftState(store: store)
+    foreign.prepare(for: other, baseConfiguration: nil)
+    XCTAssertFalse(foreign.restoreRevertedPrompt(availableSkills: [review]))
+    XCTAssertTrue(origin.restoreRevertedPrompt(availableSkills: [review]))
+    XCTAssertNil(origin.pendingRevertedPromptID)
+    XCTAssertEqual(origin.text, "Please  here `/other-review`")
+    XCTAssertEqual(origin.attachments.map(\.name), ["shot.png"])
+    XCTAssertEqual(origin.skills, [review])
+    XCTAssertEqual(origin.mcps, [.init(id: "docs", name: "docs")])
+    let context = origin.segments + origin.skills.map(\.segment) + origin.mcps.map(\.segment)
+    XCTAssertEqual(origin.restoredPromptOrder?.unchangedSegments(text: origin.text,
+      context: context, attachments: origin.attachments.map(\.segment)), [
+        .text(content: "Please "), review.segment, .text(content: " here "),
+        .file(path: "Sources/App.swift"), .mcp(id: "docs", name: "docs"),
+        .attachment(path: "/captures/shot", mimeType: "image/png"), .text(content: "`/other-review`"),
+      ])
+    XCTAssertNil(origin.restoredPromptOrder?.unchangedSegments(text: "Edited",
+      context: context, attachments: origin.attachments.map(\.segment)))
+    origin.park()
+
+    let reopened = RichChatThreadDraftState(store: store)
+    reopened.prepare(for: key, baseConfiguration: nil)
+    XCTAssertEqual(reopened.alternateDraftIsRevertedPrompt, false)
+    reopened.switchRestoredDraft()
+    XCTAssertEqual(reopened.text, "Unsent work")
+    XCTAssertEqual(reopened.attachments, [attachment])
+    XCTAssertEqual(reopened.alternateDraftIsRevertedPrompt, true)
+    reopened.switchRestoredDraft()
+    XCTAssertEqual(reopened.attachments.map(\.name), ["shot.png"])
+    XCTAssertNotNil(reopened.restoredPromptOrder)
+    store.clear(connectionID: key.connectionID)
+    XCTAssertNil(reopened.alternateDraftIsRevertedPrompt)
+  }
+
+  @MainActor
+  func testRevertWaitsForInFlightSubmissionAndAcceptsLegacyPrompt() throws {
+    let key = RichChatComposerDraftKey(connectionID: ClientConnectionID(), threadID: "thread")
+    let store = RichChatComposerDraftStore()
+    let draft = RichChatThreadDraftState(store: store)
+    draft.prepare(for: key, baseConfiguration: nil)
+    draft.beginSubmission()
+    let prompt = try XCTUnwrap(RichChatRevertedPrompt(item: .init(id: "legacy", type: RichItemType.userMessage,
+      state: .completed, payload: .object(["prompt": .string("Earlier message")]), streams: [:], parentItemID: nil)))
+    store.enqueueRevertedPrompt(prompt, for: key)
+    XCTAssertNil(draft.pendingRevertedPromptID)
+    XCTAssertFalse(draft.restoreRevertedPrompt(availableSkills: []))
+    draft.finishSubmission(succeeded: true)
+    XCTAssertNotNil(draft.pendingRevertedPromptID)
+    XCTAssertTrue(draft.restoreRevertedPrompt(availableSkills: []))
+    XCTAssertEqual(draft.text, "Earlier message")
+    XCTAssertNil(draft.alternateDraftIsRevertedPrompt)
+  }
+
+  @MainActor
   func testReviewCommentCanBeQueuedIntoAnExistingThreadDraft() {
     let host = ClientConnectionID(UUID(uuidString: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")!)
     let key = RichChatComposerDraftKey(connectionID: host, threadID: "thread-a")
@@ -872,7 +1129,7 @@ final class RichChatComposerParityTests: XCTestCase {
     let store = try Self.source("App/Features/RichChat/RichChatComposerDraftStore.swift")
 
     XCTAssertTrue(pageState.contains("RichChatComposerDraftKey("))
-    XCTAssertTrue(pageState.contains("draft.park()"))
+    XCTAssertTrue(pageState.contains("releaseState(draft, for: heldDraftKey)"))
     XCTAssertTrue(draftState.contains("submittingKey == nil"))
     XCTAssertTrue(surface.contains("onSubmissionStarted: state.beginSubmission"))
     XCTAssertTrue(surface.contains("state.finishSubmission(succeeded: $0)"))
@@ -910,6 +1167,62 @@ final class RichChatComposerParityTests: XCTestCase {
     retry.beginSubmission()
     retry.finishSubmission(succeeded: true)
     XCTAssertFalse(store.hasDraft(for: key))
+  }
+
+  @MainActor
+  func testOverlappingThreadPagesShareDraftThroughLayoutTransition() {
+    let host = ClientConnectionID(UUID(uuidString: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")!)
+    let key = RichChatComposerDraftKey(connectionID: host, threadID: "thread-a")
+    let otherKey = RichChatComposerDraftKey(connectionID: host, threadID: "thread-b")
+    let store = RichChatComposerDraftStore()
+    let outgoing = store.acquireState(for: key)
+    outgoing.prepare(for: key, baseConfiguration: .empty)
+    outgoing.text = "unsent prompt"
+    outgoing.segments = [.file(path: "README.md")]
+
+    let incoming = store.acquireState(for: key)
+    incoming.prepare(for: key, baseConfiguration: .empty)
+    XCTAssertTrue(outgoing === incoming)
+    store.releaseState(outgoing, for: key)
+    XCTAssertFalse(store.hasDraft(for: key))
+    XCTAssertEqual(incoming.text, "unsent prompt")
+    XCTAssertEqual(incoming.segments, [.file(path: "README.md")])
+
+    incoming.text += " continued"
+    let other = store.acquireState(for: otherKey)
+    XCTAssertFalse(other === incoming)
+    store.releaseState(other, for: otherKey)
+    store.releaseState(incoming, for: key)
+    XCTAssertEqual(store.take(for: key)?.text, "unsent prompt continued")
+  }
+
+  @MainActor
+  func testThreadDraftSurvivesEitherTransitionOrderAndFailedSubmission() {
+    let host = ClientConnectionID(UUID(uuidString: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")!)
+    let key = RichChatComposerDraftKey(connectionID: host, threadID: "thread-a")
+    let store = RichChatComposerDraftStore()
+    let outgoing = store.acquireState(for: key)
+    outgoing.prepare(for: key, baseConfiguration: .empty)
+    outgoing.text = "retry after rotation"
+
+    // The old page can disappear before the new page starts.
+    store.releaseState(outgoing, for: key)
+    XCTAssertTrue(store.hasDraft(for: key))
+    let incoming = store.acquireState(for: key)
+    incoming.prepare(for: key, baseConfiguration: .empty)
+    XCTAssertEqual(incoming.text, "retry after rotation")
+    XCTAssertFalse(store.hasDraft(for: key))
+
+    // A send can also finish after the old page leaves the hierarchy.
+    incoming.beginSubmission()
+    store.releaseState(incoming, for: key)
+    let next = store.acquireState(for: key)
+    next.prepare(for: key, baseConfiguration: .empty)
+    incoming.finishSubmission(succeeded: false)
+    XCTAssertTrue(incoming === next)
+    XCTAssertEqual(next.text, "retry after rotation")
+    store.releaseState(next, for: key)
+    XCTAssertEqual(store.take(for: key)?.text, "retry after rotation")
   }
 
   func testComposerSkillSelectionUsesTheProviderInvocationAndWireMetadata() {
@@ -971,7 +1284,9 @@ final class RichChatComposerParityTests: XCTestCase {
     let controller = try Self.source("App/Features/SettingsIntegrations/SkillsController.swift")
     let draftStore = try Self.source("App/Features/RichChat/RichChatComposerDraftStore.swift")
 
-    XCTAssertTrue(composer.contains("RichChatComposerSkillPicker("))
+    let sheets = try Self.source("App/Features/RichChat/UI/RichChatComposerSheets.swift")
+    XCTAssertTrue(composer.contains("composerSkillsSheet"))
+    XCTAssertTrue(sheets.contains("RichChatComposerSkillPicker("))
     XCTAssertTrue(
       composer.contains(
         "queuedSegments + skills.map(\\.segment) + mcps.map(\\.segment)"
@@ -990,15 +1305,18 @@ final class RichChatComposerParityTests: XCTestCase {
 
   func testHomeComposerSelectsAndLaunchesWithEffectiveSkills() throws {
     let home = try Self.source("App/Features/Home/Pages/HomeQuickComposeView.swift")
+    let state = try Self.source("App/Features/Home/QuickCompose/HomeQuickComposeState.swift")
     let selectors = try Self.source("App/Features/Home/HomeComposerSelectorSheets.swift")
+    let navigation = try Self.source("App/Features/Home/QuickCompose/HomeQuickComposeNavigation.swift")
     let actions = try Self.source("App/Features/Home/HomeComposerActions.swift")
     let picker = try Self.source("App/Features/RichChat/UI/RichChatComposerSkills.swift")
 
-    XCTAssertTrue(home.contains("@State var skills: [RichChatSelectedSkill] = []"))
+    XCTAssertTrue(state.contains("var skills: [RichChatSelectedSkill] = []"))
     XCTAssertTrue(home.contains("var skillPickerContext: RichChatSkillPickerContext?"))
-    XCTAssertTrue(selectors.contains("RichChatComposerSkillPicker("))
-    XCTAssertTrue(selectors.contains("embeddedInNavigationStack: true"))
-    XCTAssertTrue(actions.contains("+ skills.map(\\.threadSegment)"))
+    XCTAssertTrue(selectors.contains("NavigationLink(value: HomeComposerDestination.skills)"))
+    XCTAssertTrue(navigation.contains("RichChatComposerSkillPicker("))
+    XCTAssertTrue(navigation.contains("embeddedInNavigationStack: true"))
+    XCTAssertTrue(actions.contains("+ draft.skills.map(\\.threadSegment)"))
     XCTAssertTrue(picker.contains("var threadSegment: ThreadPromptSegment"))
   }
 
@@ -1010,7 +1328,7 @@ final class RichChatComposerParityTests: XCTestCase {
     let worktreeSheet = try Self.source(
       "App/Features/Threads/Views/ThreadWorktreeComposeSheet.swift"
     )
-    let composer = try Self.source("App/Features/Home/Pages/HomeQuickComposeView.swift")
+    let composer = try Self.source("App/Features/Home/QuickCompose/HomeQuickComposeState.swift")
     let launchSeed = try Self.source("App/Features/Home/Pages/HomeThreadLaunchSeed.swift")
 
     XCTAssertTrue(menuContent.contains("ThreadLifecycleStrings.newInWorktree"))
@@ -1018,7 +1336,7 @@ final class RichChatComposerParityTests: XCTestCase {
     XCTAssertTrue(worktreeSheet.contains("worktreePath: worktreePath"))
     XCTAssertTrue(actionMenu.contains("openedThreadID = threadID"))
     XCTAssertTrue(launchSeed.contains("initialWorktree: HomeComposerBranchSelection? = nil"))
-    XCTAssertTrue(composer.contains("_branchSelection = State(initialValue: seededWorktree)"))
+    XCTAssertTrue(composer.contains("branchSelection = seededWorktree"))
   }
 
   func testHomeComposerFiltersPresentationModesAtTheProviderBoundary() throws {
@@ -1078,15 +1396,19 @@ final class RichChatComposerParityTests: XCTestCase {
   func testHomeComposerFallsBackToACompatibleAgentForFreshProjectsAndModeChanges() throws {
     let home = try Self.source("App/Features/Home/Pages/HomeQuickComposeView.swift")
     let support = try Self.source("App/Features/Home/HomeComposerSupport.swift")
+      + Self.source("App/Models/Threads/ThreadConfigurationConversions.swift")
     let actions = try Self.source("App/Features/Home/HomeComposerActions.swift")
 
     XCTAssertTrue(
       home.contains("availableAgents.first { $0.kind == kind } ?? availableAgents.first")
     )
     XCTAssertTrue(support.contains("guard let agent = availableAgents.first"))
-    XCTAssertTrue(support.contains("private func launchModel("))
+    // Preference restoration now shares this helper across Home extensions;
+    // its access level is not part of the compatible-provider behavior.
+    XCTAssertTrue(support.contains("func launchModel("))
     XCTAssertTrue(support.contains("presentationMode: presentationMode"))
-    XCTAssertTrue(actions.contains("let launchAgentKind = selectedAgent?.kind"))
+    XCTAssertTrue(actions.contains("let launchAgent = selectedAgent"))
+    XCTAssertTrue(actions.contains("let launchAgentKind = launchAgent.kind"))
     XCTAssertTrue(actions.contains("agentKind: launchAgentKind"))
   }
 
@@ -1112,17 +1434,16 @@ final class RichChatComposerParityTests: XCTestCase {
     XCTAssertEqual(controls.fast, true)
   }
 
-  /// Guards the three hand-written copy sites in `HomeComposerSupport` —
-  /// the saved-draft rebuild and both `ThreadConfig` ↔
-  /// `ThreadLaunchConfiguration` wrappers — against dropping the v9 field in
-  /// a future field-by-field refactor.
+  /// Saved drafts now decode the complete config rather than rebuilding its
+  /// fields. Both conversion wrappers still need to carry the v9 environment.
   func testHomeComposerSourceForwardsExecutionEnvironmentThroughEveryConfigCopy() throws {
     let support = try Self.source("App/Features/Home/HomeComposerSupport.swift")
+      + Self.source("App/Models/Threads/ThreadConfigurationConversions.swift")
     XCTAssertTrue(
-      support.contains("executionEnvironment: Self.draftExecutionEnvironment(object)"),
+      support.contains("JSONDecoding.decode(ThreadConfig.self, from: data)"),
       "saved draft configs must restore the pinned execution environment")
     XCTAssertTrue(
-      support.contains("private static func draftExecutionEnvironment("))
+      support.contains("var configuration = ThreadLaunchConfiguration(config)"))
     XCTAssertEqual(
       support.components(
         separatedBy: "executionEnvironment: configuration.executionEnvironment"

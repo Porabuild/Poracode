@@ -4,6 +4,7 @@ import { I18nProvider } from "@lingui/react";
 import { i18n } from "@/renderer/i18n/i18n";
 import type { ComposerControl } from "@/renderer/components/thread/ThreadComposer";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
+import { resolveTitleGenConfig } from "@/renderer/components/providers/titleGen";
 import { setUtilityPresentation, utilitySettingsKeys } from "./utilityPreset";
 // @vitest-environment jsdom
 
@@ -442,6 +443,59 @@ describe("utility section event wiring", () => {
     capabilities: caps,
   } as AgentStatus;
   const second = { ...first, kind: "fixture-profile:second", label: "Second" };
+  it("saves the newly picked model with its supported effort and Fast setting in one edit", () => {
+    const agent: AgentStatus = {
+      ...first,
+      capabilities: {
+        ...first.capabilities,
+        models: [
+          { id: "thorough", label: "Thorough" },
+          { id: "quick", label: "Quick" },
+        ],
+        modelFamilies: [],
+        efforts: ["low", "high"],
+        modelEfforts: { thorough: ["high"], quick: ["low"] },
+        fastModels: ["thorough"],
+      },
+    };
+    const selection = { model: "thorough", effort: "high", fast: true, thinking: true };
+    const setScalars =
+      vi.fn<(provider: string, model: string, effort: string, fast: boolean) => void>();
+    useSharedSettings.setState({ titleGenProvider: agent.kind, titleGenSelection: selection });
+    render(
+      createElement(
+        I18nProvider,
+        { i18n },
+        createElement(GenConfigSection, {
+          heading: "Title Generation",
+          description: "Fixture",
+          provider: agent.kind,
+          ...selection,
+          selection,
+          agentStatuses: [agent],
+          resolve: resolveTitleGenConfig,
+          getCandidates: () => [agent],
+          onConfigChange: createUtilityPresetSetter({
+            keys: utilitySettingsKeys("titleGen", false),
+            presentation: ONE_SHOT_UTILITY_PRESENTATION,
+            setScalars,
+          }),
+        }),
+      ),
+    );
+    const picker = captured.controls.find((control) => control.kind === "provider-model");
+    if (!picker) throw new Error("missing model picker");
+    expect(setScalars).not.toHaveBeenCalled();
+    act(() => picker.onChange({ agentKind: agent.kind, model: "quick", selectionIntent: "exact" }));
+    expect(setScalars).toHaveBeenCalledExactlyOnceWith(agent.kind, "quick", "low", false);
+    expect(useSharedSettings.getState().titleGenSelection).toEqual({
+      model: "quick",
+      effort: "low",
+      fast: false,
+      thinking: true,
+    });
+  });
+
   function mount(
     selection: ModelSelection = tupleWithRecord({
       selectionBinding: {

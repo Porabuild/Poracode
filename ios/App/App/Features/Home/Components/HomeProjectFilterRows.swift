@@ -1,5 +1,42 @@
 import SwiftUI
 
+struct HomeThreadStatusFilterRow: View {
+  let status: HomeThreadListStatus
+  var count: Int? = nil
+  let isSelected: Bool
+  let select: () -> Void
+
+  var body: some View {
+    Button(action: select) {
+      HStack(spacing: 12) {
+        Image(systemName: status == .active ? "tray" : "checkmark.circle")
+          .foregroundStyle(.secondary)
+          .frame(width: 22)
+          .accessibilityHidden(true)
+        Text(status == .active ? HomeStrings.activeThreads : HomeStrings.doneThreads)
+          .font(.subheadline)
+        Spacer(minLength: 8)
+        if let count {
+          Text(count, format: .number)
+            .monospacedDigit()
+            .foregroundStyle(.secondary)
+        }
+        if isSelected {
+          Image(systemName: "checkmark")
+            .font(.caption.weight(.semibold))
+            .foregroundStyle(.primary)
+            .accessibilityHidden(true)
+        }
+      }
+      .contentShape(Rectangle())
+    }
+    .buttonStyle(.plain)
+    .poracodeDrawerRowSurface()
+    .accessibilityAddTraits(isSelected ? .isSelected : [])
+    .accessibilityIdentifier("native-e2e.thread-filter.\(status.rawValue)")
+  }
+}
+
 struct HomeAllProjectsFilterRow: View {
   let isSelected: Bool
   let select: () -> Void

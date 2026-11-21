@@ -208,6 +208,7 @@ enum ProjectCommand: Codable, Equatable, Sendable {
     case update(projectId: String, patch: ProjectPatch)
     case relocate(projectId: String, path: String)
     case remove(projectId: String)
+    case setDraftConfig(projectId: String, lastDraftConfig: JSONValue?)
 
     private enum CodingKeys: String, CodingKey {
         case kind
@@ -217,6 +218,7 @@ enum ProjectCommand: Codable, Equatable, Sendable {
         case source
         case projectId
         case patch
+        case lastDraftConfig
     }
 
     private enum Kind: String, Codable {
@@ -226,6 +228,7 @@ enum ProjectCommand: Codable, Equatable, Sendable {
         case update
         case relocate
         case remove
+        case setDraftConfig = "set-draft-config"
     }
 
     init(from decoder: Decoder) throws {
@@ -259,6 +262,10 @@ enum ProjectCommand: Codable, Equatable, Sendable {
             )
         case .remove:
             self = .remove(projectId: try values.decode(String.self, forKey: .projectId))
+        case .setDraftConfig:
+            let configuration = try values.decode(JSONValue.self, forKey: .lastDraftConfig)
+            self = .setDraftConfig(projectId: try values.decode(String.self, forKey: .projectId),
+              lastDraftConfig: configuration == .null ? nil : configuration)
         }
     }
 
@@ -289,7 +296,16 @@ enum ProjectCommand: Codable, Equatable, Sendable {
         case .remove(let projectId):
             try values.encode(Kind.remove, forKey: .kind)
             try values.encode(projectId, forKey: .projectId)
+        case .setDraftConfig(let projectId, let configuration):
+            try values.encode(Kind.setDraftConfig, forKey: .kind)
+            try values.encode(projectId, forKey: .projectId)
+            try values.encode(configuration, forKey: .lastDraftConfig)
         }
+    }
+
+    var isCatalogMutation: Bool {
+        if case .setDraftConfig = self { return true }
+        return false
     }
 }
 

@@ -1,4 +1,3 @@
-import PhotosUI
 import SwiftUI
 
 /// Dimmed surround with a clear scan window, accent corner brackets, where-to-look
@@ -131,16 +130,11 @@ struct PairingScannerGuidance: Equatable {
   let actionTitle: String?
 }
 
-/// Dead-end-free failure card: the state's own remedy (when there is one) plus both
-/// pairing fallbacks.
+/// Explains why the camera could not start and shows any camera-specific remedy.
 struct PairingScannerGuidanceCard: View {
   let guidance: PairingScannerGuidance
   let action: (() -> Void)?
-  @Binding var photoSelection: PhotosPickerItem?
-  let isDecodingPhoto: Bool
   let photoError: String?
-  let usePairingLink: () -> Void
-  let useManualEntry: () -> Void
 
   var body: some View {
     VStack(spacing: 18) {
@@ -167,34 +161,12 @@ struct PairingScannerGuidanceCard: View {
             .accessibilityLabel(actionTitle)
             .accessibilityIdentifier("native-e2e.pair.scan.action")
         }
-        PhotosPicker(selection: $photoSelection, matching: .images) {
-          Label(
-            isDecodingPhoto ? OnboardingStrings.scanPhotoReading : OnboardingStrings.scanPhoto,
-            systemImage: isDecodingPhoto ? "hourglass" : "photo"
-          )
-          .frame(maxWidth: .infinity)
-        }
-        .poracodeSurfaceButtonStyle()
-        .controlSize(.large)
-        .disabled(isDecodingPhoto)
         if let photoError {
           Text(photoError)
             .font(.footnote)
             .foregroundStyle(.secondary)
             .multilineTextAlignment(.center)
         }
-        Button(OnboardingStrings.scanUsePairingLink, action: usePairingLink)
-          .poracodeSurfaceButtonStyle()
-          .controlSize(.large)
-          .frame(maxWidth: .infinity)
-          .accessibilityLabel(OnboardingStrings.scanUsePairingLink)
-          .accessibilityIdentifier("native-e2e.pair.scan.use-link")
-        Button(OnboardingStrings.manualDisclosure, action: useManualEntry)
-          .buttonStyle(.borderless)
-          .controlSize(.large)
-          .frame(maxWidth: .infinity)
-          .accessibilityLabel(OnboardingStrings.manualTitle)
-          .accessibilityIdentifier("native-e2e.pair.scan.use-manual")
       }
     }
     .padding(24)

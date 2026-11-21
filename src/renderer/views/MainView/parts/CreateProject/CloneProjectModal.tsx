@@ -433,7 +433,7 @@ function CloneProjectForm() {
           <Button
             aria-label={t`Browse for parent folder`}
             variant="tertiary"
-            className="w-full justify-start gap-2 font-normal"
+            className="form-field w-full justify-start gap-2 font-normal"
             onPress={() => void handleBrowse()}
           >
             <FolderOpen className="size-4 shrink-0 text-muted" />

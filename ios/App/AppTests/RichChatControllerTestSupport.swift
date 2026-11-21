@@ -63,6 +63,12 @@ actor RichChatControllerGatewayFake: RichChatSessionGateway {
   private var terminalWatchTarget = 0
   private var terminalWatchWaiter: CheckedContinuation<Void, Never>?
 
+  func downloadRichFile(target: RichChatThreadTarget, request: RichChatFileAccess,
+    projectLocation: ProjectLocation, suggestedName: String) async throws -> RichChatFileDownload {
+    calls.append("file-download")
+    throw RichChatGatewayError.unavailable
+  }
+
   func configureHistory(
     _ response: RichChatControllerTestResponse<RemoteThreadSnapshot>,
     barrier: RichChatControllerTestBarrier? = nil
@@ -333,10 +339,19 @@ actor RichChatControllerGatewayFake: RichChatSessionGateway {
     try await mutation("checkpoint-restore")
   }
 
+  private(set) var checkpointRevertKeys: [String] = []
+  private var checkpointOutcome: RichChatCheckpointRevertOutcome = .completed
+
+  func configureCheckpointRevertOutcome(_ outcome: RichChatCheckpointRevertOutcome) {
+    checkpointOutcome = outcome
+  }
+
   func checkpointRevert(
-    target _: RichChatThreadTarget, itemID _: String, operationKey _: String
-  ) async throws {
+    target _: RichChatThreadTarget, itemID _: String, operationKey: String
+  ) async throws -> RichChatCheckpointRevertOutcome {
+    checkpointRevertKeys.append(operationKey)
     try await mutation("checkpoint-revert")
+    return checkpointOutcome
   }
 
   func resolveRichRequest(

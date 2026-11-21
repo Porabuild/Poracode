@@ -79,15 +79,19 @@ final class ProjectControllerCommandController {
     projectsChanged(lease)
   }
 
-  func perform(_ command: ProjectCommand, detectSetup: Bool = true) async {
-    guard let session = state.session else { return }
+  @discardableResult
+  func perform(
+    _ command: ProjectCommand, detectSetup: Bool = true, expectedLease: ProjectControllerHostLease? = nil
+  ) async -> Bool {
+    guard let session = state.session else { return false }
+    if let expectedLease, session.lease != expectedLease { return false }
     if let failure = session.gate(.projectsManage) {
       state.failure = failure
-      return
+      return false
     }
     guard !state.isExecuting, !state.isRunningSetupFollowUp else {
       state.failure = .busy
-      return
+      return false
     }
 
     operationRevision &+= 1
@@ -107,9 +111,9 @@ final class ProjectControllerCommandController {
       )
     } catch is CancellationError {
       finishSilentlyIfCurrent(revision: revision, lease: lease)
-      return
+      return false
     } catch {
-      guard owns(revision: revision, lease: lease) else { return }
+      guard owns(revision: revision, lease: lease) else { return false }
       state.isExecuting = false
       state.failure = .map(error)
       // A postresponse uncertainty may already have committed: reconcile
@@ -117,10 +121,10 @@ final class ProjectControllerCommandController {
       if state.failure == .ambiguousOutcome {
         await refreshScheduler.scheduleProjectRefresh(for: lease)
       }
-      return
+      return false
     }
 
-    guard owns(revision: revision, lease: lease) else { return }
+    guard owns(revision: revision, lease: lease) else { return false }
     let affected = apply(outcome)
     state.isExecuting = false
     let setupProject = detectSetup && command.needsSetupDetection ? affected : nil
@@ -128,8 +132,9 @@ final class ProjectControllerCommandController {
     projectsChanged(lease)
     await refreshScheduler.scheduleProjectRefresh(for: lease)
 
-    guard owns(revision: revision, lease: lease), let project = setupProject else { return }
-    await runSetupFollowUp(for: project, revision: revision, lease: lease)
+    guard owns(revision: revision, lease: lease) else { return false }
+    if let project = setupProject { await runSetupFollowUp(for: project, revision: revision, lease: lease) }
+    return owns(revision: revision, lease: lease)
   }
 
   /// Applies one command outcome to the local projection. A bounded
@@ -254,7 +259,7 @@ extension ProjectCommand {
   fileprivate var needsSetupDetection: Bool {
     switch self {
     case .addExisting, .create, .clone: true
-    case .update, .relocate, .remove: false
+    case .update, .relocate, .remove, .setDraftConfig: false
     }
   }
 }

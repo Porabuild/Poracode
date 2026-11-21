@@ -9,6 +9,31 @@ import XCTest
 final class RichChatFollowUpQueueTests: XCTestCase {
   private let fixtureName = "thread-follow-up-queue-envelope.json"
 
+  func testEditorRequiresTheStillQueuedPausedRevision() {
+    let item = RichPendingSteer(id: "item", prompt: "Plan", segments: nil, stagedAtMilliseconds: 10)
+    let edited = RichPendingSteer(id: "item", prompt: "Review", segments: nil, stagedAtMilliseconds: 11)
+    XCTAssertTrue(RichFollowUpQueue(items: [item], paused: true).containsEditableRevision(item))
+    XCTAssertFalse(RichFollowUpQueue(items: [item], paused: false).containsEditableRevision(item))
+    XCTAssertFalse(RichFollowUpQueue(items: [edited], paused: true).containsEditableRevision(item))
+    XCTAssertFalse(RichFollowUpQueue(items: [], paused: true).containsEditableRevision(item))
+  }
+
+  func testEditingTextPreservesOrderedQueueContext() throws {
+    let attachment = RichPromptSegment.attachment(path: "/repo/plan.txt", mimeType: "text/plain")
+    let mention = RichPromptSegment.file(path: "src/app.swift")
+    let item = RichPendingSteer(id: "item", prompt: "Start and review", segments: [
+      .text(content: "Start"), attachment, mention, .text(content: "and review"),
+    ], stagedAtMilliseconds: 10)
+    var draft = RichQueuedFollowUpDraft(item: item)
+    draft.updateText(at: 0, to: "Continue")
+    draft.updateText(at: 3, to: "and test")
+    let edit = try XCTUnwrap(draft.edit())
+    XCTAssertEqual(edit.id, item.id)
+    XCTAssertEqual(edit.expectedStagedAtMilliseconds, 10)
+    XCTAssertEqual(edit.prompt, "Continue and test")
+    XCTAssertEqual(edit.segments, [.text(content: "Continue"), attachment, mention, .text(content: "and test")])
+  }
+
   // MARK: - Fixture decoding
 
   func testFixtureBroadcastsApplyReplaceAndClear() throws {

@@ -1,6 +1,8 @@
 import SwiftUI
 
 struct ProjectThreadsView: View {
+  @Environment(\.colorScheme) private var colorScheme
+  @Environment(\.poracodeTheme) private var theme
   @Bindable var session: AppSession
   let project: RemoteProject
   @State private var lifecycle: ThreadLifecycleController
@@ -17,7 +19,9 @@ struct ProjectThreadsView: View {
   }
 
   private var threads: [RemoteThread] {
-    session.threads(for: project.id)
+    session.threads(for: project.id).filter { thread in
+      session.selectedConnectionId.map { !session.sideChats.isHidden(threadID: thread.id, connectionID: $0) } ?? false
+    }
   }
 
   private var entries: [HomeThreadListEntry] {
@@ -36,7 +40,10 @@ struct ProjectThreadsView: View {
 
   var body: some View {
     Group {
-      if threads.isEmpty {
+      if threads.isEmpty, session.phase == .connecting {
+        LoadingStateView(message: ProjectWorkspaceStrings.connecting)
+          .accessibilityIdentifier("native-e2e.project-connecting")
+      } else if threads.isEmpty {
         EmptyStateView(
           title: HomeStrings.emptyThreadsTitle,
           systemImage: "bubble.left.and.bubble.right",
@@ -120,6 +127,7 @@ struct ProjectThreadsView: View {
         .listStyle(.insetGrouped)
       }
     }
+    .poracodeThemeBackground(theme.variant(for: colorScheme).background)
     .navigationTitle(project.name)
     #if os(iOS)
       .navigationBarTitleDisplayMode(.inline)
@@ -135,7 +143,7 @@ struct ProjectThreadsView: View {
         break
       }
     }
-    .threadRenameAlert(intent: $renameIntent) {
+    .threadRenameSheet(intent: $renameIntent) {
       submitRename()
     }
     .alert(
@@ -168,8 +176,8 @@ struct ProjectThreadsView: View {
         submit: { submitRelaunch(intent: intent, prompt: $0) }
       )
     }
-    .threadLifecycleDestructiveConfirmation(controller: lifecycle) {
-      Task { await lifecycle.confirmDestructiveIntent() }
+    .threadLifecycleDestructiveConfirmation(controller: lifecycle) { intent in
+      Task { await lifecycle.confirmDestructiveIntent(intent) }
     }
     .threadLifecycleFailureAlert(message: $failureMessage) {
       failureMessage = nil
@@ -222,7 +230,8 @@ struct ProjectThreadsView: View {
             gitSummary: session.gitSummary(forThread: thread.id),
             hasDraft: hasDraft(thread),
             showsRelativeTime: true,
-            showsGitBranch: thread.worktreePath?.isEmpty == false
+            showsGitBranch: thread.worktreePath?.isEmpty == false,
+            hasBackgroundActivity: session.workflowActivity.isLive(connectionID: session.selectedConnectionId, threadID: thread.id)
           )
         }
         .accessibilityLabel(threadAccessibilityLabel(thread))

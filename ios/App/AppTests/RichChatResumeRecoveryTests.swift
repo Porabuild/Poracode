@@ -129,11 +129,51 @@ final class RichChatResumeRecoveryTests: XCTestCase {
     XCTAssertFalse(RichChatResumePlanner.relaunches(after: refused, latest: nil))
     for failure: RichChatControllerFailure? in [
       .ambiguousOutcome, .rejected(statusCode: 409, code: "conflict"),
+      .rejected(statusCode: 409, code: RichChatResumePlanner.sessionAbsenceRefusalCode),
       .rejected(statusCode: 422, code: nil), .transport, .offline, nil,
     ] {
       XCTAssertFalse(
         RichChatResumePlanner.relaunches(after: failure, latest: row()), "\(String(describing: failure))")
     }
+  }
+
+  func testRefusedComposedTurnRelaunchPreservesAllContextAndTheOriginalMessageIdentity() async throws {
+    let (conversation, gateway) = await refusedConversation()
+    let input = RichChatSendInput(prompt: "Review these changes", config: [:], segments: [
+      .selectedText(content: "selected code"), .file(path: "/project/App.swift"),
+      .attachment(path: "/uploads/reference.png", mimeType: "image/png"),
+      .mcp(id: "workspace:tools", name: "Tools"), .thread(threadID: "source-thread", title: "Earlier review"),
+      .skill(name: "Review", path: "/skills/review", invocation: "$review", provider: "fixture", scope: "project", pluginID: "review-kit", pluginName: "Review kit"),
+      .text(content: "Review these changes"),
+    ], userMessageItemID: "user-original", clientContext: .init(conversationSnapshot: .init(text: "Private context")))
+    var configuration = ThreadConfig(model: "exact-model", effort: "high", fast: true)
+    configuration.approvalPolicy = "on-request"
+    configuration.crew = .object(["version": .number(2)])
+    let api = ThreadLifecycleRemoteAPIFake()
+    let request = try RichChatResumePlanner.relaunchRequest(base(prompt: "discarded"), latest: row(), configuration: configuration, input: input)
+    let accepted = await RichChatResumeRelaunch.relaunch(request,
+      target: ThreadLifecycleTestValues.target(threadID: "thread-rich"), lifecycle: lifecycle(api),
+      replacing: try XCTUnwrap(conversation.state.failure), in: conversation)
+    XCTAssertTrue(accepted)
+    let starts = await api.starts()
+    XCTAssertEqual(starts.count, 1)
+    XCTAssertEqual(starts.first?.prompt, input.prompt)
+    XCTAssertEqual(starts.first?.segments, try input.segments?.map { try $0.lifecyclePromptSegment() })
+    XCTAssertEqual(starts.first?.userMessageItemID, "user-original")
+    XCTAssertEqual(starts.first?.clientContext, input.clientContext)
+    XCTAssertEqual(starts.first?.config, configuration.lifecycleLaunchConfiguration)
+    let calls = await gateway.calls
+    XCTAssertEqual(calls, ["send"], "the pre-effect refusal is replaced, never resent")
+
+    let plain = try RichChatResumePlanner.relaunchRequest(base(prompt: "base"), latest: row(), configuration: .empty,
+      input: .init(prompt: "plain", config: [:]))
+    XCTAssertNil(plain.segments)
+    XCTAssertNil(plain.userMessageItemID)
+    XCTAssertNil(plain.clientContext)
+    XCTAssertThrowsError(try RichChatResumePlanner.relaunchRequest(base(prompt: "base"), latest: row(), configuration: .empty,
+      input: .init(prompt: "invalid", config: [:], segments: [
+        .skill(name: "Future", path: "/future", invocation: "$future", provider: "fixture", scope: "future", pluginID: nil, pluginName: nil),
+      ])))
   }
 
   /// The page's row is the bounded catalog row a delivered `thread-state`
@@ -387,6 +427,7 @@ final class RichChatResumeRecoveryTests: XCTestCase {
   /// to the tested rules is pinned here.
   func testThePageAndComposerRouteTheResumeThroughTheseRules() throws {
     let page = try Self.source("App/Features/RichChat/UI/Pages/RichChatThreadView.swift")
+    let pageState = try Self.source("App/Features/RichChat/UI/Pages/RichChatThreadPageState.swift")
     let resume = try Self.source("App/Features/RichChat/UI/Pages/RichChatThreadResume.swift")
     let composer = try Self.source("App/Features/RichChat/UI/RichChatComposerResume.swift")
 
@@ -394,23 +435,50 @@ final class RichChatResumeRecoveryTests: XCTestCase {
     XCTAssertTrue(page.contains("resumeContext: composerResume"))
     // The relaunch is admitted against the live catalog row, and the offer is
     // gated on reconciliation through `canOperate`.
-    XCTAssertTrue(page.contains("var thread: RemoteThread? { session.richChatThread(id: threadID) }"))
-    XCTAssertTrue(page.contains("hasOperateAccess && !suite.requiresAuthoritativeRefresh"))
+    XCTAssertTrue(page.contains("var thread: RemoteThread? { pageState.thread }"))
+    XCTAssertTrue(pageState.contains("session.richChatThread(id: threadID)"))
+    XCTAssertTrue(pageState.contains("hasOperateAccess && !suite.requiresAuthoritativeRefresh"))
     XCTAssertTrue(resume.contains("canSubmit: canOperate && !suite.conversation.state.isSending"))
     XCTAssertTrue(resume.contains("guard let refusal = suite.conversation.state.failure, let latest = thread,"))
     XCTAssertTrue(resume.contains("RichChatResumePlanner.countsOpenTurn("))
     XCTAssertTrue(resume.contains("isTurnActive: isComposerTurnActive,"))
     XCTAssertTrue(resume.contains("RichChatResumePlanner.relaunches(after: refusal, latest: latest)"))
     XCTAssertTrue(
-      resume.contains("session.threadStartExistingRequest(threadID: threadID, prompt: prompt)"))
+      resume.contains("session.threadStartExistingRequest(threadID: threadID, prompt: input.prompt)"))
     XCTAssertTrue(resume.contains("lifecycle: session.makeThreadLifecycleController()"))
     XCTAssertTrue(resume.contains("&& !resumeState.isRelaunching"))
     XCTAssertTrue(composer.contains("var succeeded = await controller.send(input)"))
     XCTAssertTrue(
-      composer.contains("succeeded = await context.relaunchRefused(input.prompt, sentConfiguration)"))
+      composer.contains("succeeded = await context.relaunchRefused(input, sentConfiguration)"))
+    let ordinary = try Self.source("App/Features/RichChat/UI/RichChatComposerView.swift")
+    XCTAssertTrue(ordinary.contains("succeeded = await resume.relaunchRefused(input, sentConfiguration)"))
+    XCTAssertTrue(resume.contains("owner == conversationOwner"))
+    XCTAssertTrue(resume.contains("session.currentRichChatAccess?.lease == submittedTarget.lease"))
   }
 
   // MARK: - Fixtures
+
+  func testOnlyCurrentAcceptedThreadStatePublishesLiveCrewLaunchFacts() async throws {
+    let harness = try await catalogHarness(), session = harness.session
+    let access = try XCTUnwrap(session.currentRichChatAccess)
+    let suite = RichChatControllerSuite(gateway: RichChatControllerGatewayFake())
+    suite.select(access: access, threadID: "t00000")
+    session.attachRichChatSuite(suite)
+    defer { session.detachRichChatSuite(suite) }
+    let row = try XCTUnwrap(session.richChatThread(id: "t00000"))
+    deliverThreadState(harness, seq: 10, status: "idle", extra: [
+      "agentKind": .string(row.agentKind), "launchConfig": .object(["model": .string("runtime-model")]),
+    ])
+    XCTAssertEqual(suite.runtimeLaunch.snapshot?.configuration.model, "runtime-model")
+    deliverThreadState(harness, seq: 11, status: "idle", extra: [
+      "agentKind": .string("foreign-provider"), "launchConfig": .object(["model": .string("foreign-model")]),
+    ])
+    XCTAssertEqual(suite.runtimeLaunch.snapshot?.configuration.model, "runtime-model")
+    session.handleServerMessageForTests(.event(seq: 12, event: .object([
+      "type": .string("thread-exited"), "threadId": .string("t00000"), "exitCode": .null,
+    ])))
+    XCTAssertNil(suite.runtimeLaunch.snapshot)
+  }
 
   private func catalogHarness() async throws -> BoundedCatalogSessionHarness {
     let harness = try await BoundedCatalogSessionHarness.make(

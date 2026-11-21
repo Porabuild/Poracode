@@ -251,6 +251,7 @@
     <string name="rich_chat_background_task_last_progress">Последнее обновление %1$s назад</string>
     <string name="rich_chat_background_task_close">Закрыть сведения о задаче</string>
     <string name="rich_chat_background_task_report_missing">Задача завершилась без отчёта о выполнении.</string>
+    <string name="rich_chat_copy_code">Копировать код</string>
     <string name="rich_chat_copy_message">Копировать сообщение</string>
     <string name="rich_chat_add_to_composer">Добавить в Composer</string>
     <string name="rich_chat_file">Файл</string>

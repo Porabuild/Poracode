@@ -97,8 +97,8 @@ struct SettingsMetricRow: View {
 
 struct SettingsFilterBar: View {
   @Binding var query: SettingsProfileQuery
-  let devices: [SettingsProfileDevice]
-  let providers: [SettingsProfileBreakdown]
+  let devices: SettingsProfileDevices
+  let accounts: [SettingsProfileAccount]
 
   var body: some View {
     ViewThatFits(in: .horizontal) {
@@ -116,14 +116,16 @@ struct SettingsFilterBar: View {
       Text(SettingsUIStrings.allDevices).tag(SettingsProfileScope.all)
     }
     .pickerStyle(.menu)
+    .accessibilityIdentifier("native-e2e.profile-filter.scope")
 
-    Picker(SettingsUIStrings.provider, selection: $query.provider) {
-      Text(SettingsUIStrings.allProviders).tag(String?.none)
-      ForEach(providers, id: \.key) { provider in
-        Text(provider.label).tag(String?.some(provider.key))
+    Picker(SettingsUIStrings.account, selection: $query.provider) {
+      Text(SettingsUIStrings.allAccounts).tag(String?.none)
+      ForEach(accounts, id: \.key) { account in
+        Text(account.label).tag(String?.some(account.key))
       }
     }
     .pickerStyle(.menu)
+    .accessibilityIdentifier("native-e2e.profile-filter.account")
 
     Picker(SettingsUIStrings.period, selection: $query.window) {
       Text(SettingsUIStrings.sevenDays).tag(SettingsProfileWindow.sevenDays)
@@ -131,14 +133,19 @@ struct SettingsFilterBar: View {
       Text(SettingsUIStrings.allTime).tag(SettingsProfileWindow.all)
     }
     .pickerStyle(.menu)
+    .accessibilityIdentifier("native-e2e.profile-filter.period")
 
-    if query.scope == .device, devices.count > 1 {
-      Picker(SettingsUIStrings.devicesTitle, selection: $query.deviceID) {
-        ForEach(devices, id: \.id) { device in
-          Text(device.label).tag(String?.some(device.id))
+    if query.scope == .device, devices.devices.count > 1 {
+      Picker(SettingsUIStrings.devicesTitle, selection: Binding(
+        get: { query.deviceID ?? devices.currentDeviceId },
+        set: { query.deviceID = $0 }
+      )) {
+        ForEach(devices.devices, id: \.id) { device in
+          Text(device.label).tag(device.id)
         }
       }
       .pickerStyle(.menu)
+      .accessibilityIdentifier("native-e2e.profile-filter.device")
     }
   }
 }

@@ -1,10 +1,28 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { registerPrimaryModelChoices } from "@/renderer/components/providers/modelPickerLayout";
 import { afterEach, describe, expect, it } from "vitest";
 import { dynamicActivate } from "@/renderer/i18n/i18n";
 import type { ProviderModelMenuProvider } from "../ProviderModelMenu";
 import { registerModelDescriptionFormatter } from "@/renderer/components/providers/modelDescription";
 import type { ProviderModelItem } from "./types";
-import { buildProviderModelItems } from "./buildItems";
+import { buildProviderModelItems, makeProviderSortKey } from "./buildItems";
+
+it("pins native provider-menu order to the PWA's manifest and user-preference rules", () => {
+  const fixture = JSON.parse(
+    readFileSync(resolve("protocol/remote/v3/fixtures/client-provider-order.json"), "utf8"),
+  ) as {
+    version: number;
+    cases: { id: string; providers: string[]; order: string[]; expected: string[] }[];
+  };
+  expect(fixture.version).toBe(1);
+  for (const entry of fixture.cases) {
+    const rank = makeProviderSortKey(entry.order);
+    expect(entry.providers.toSorted((left, right) => rank(left) - rank(right))).toEqual(
+      entry.expected,
+    );
+  }
+});
 
 interface TestModel {
   id: string;

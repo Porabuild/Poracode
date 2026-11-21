@@ -211,13 +211,10 @@ private fun GenerationSlotGroup(
             enabled = enabled,
         ) { provider ->
             val agent = agents.firstOrNull { it.kind == provider }
+            val reset = slot.copy(provider = provider, model = "", effort = "", fast = false)
             onChange(
-                slot.copy(
-                    provider = provider,
-                    model = agent?.models?.firstOrNull()?.id.orEmpty(),
-                    effort = agent?.efforts?.firstOrNull().orEmpty(),
-                    fast = false,
-                ),
+                if (agent == null) reset
+                else reset.selectModel(agent.models.firstOrNull()?.id.orEmpty(), agent),
             )
         }
         val selectedAgent = agents.firstOrNull { it.kind == slot.provider }
@@ -228,21 +225,23 @@ private fun GenerationSlotGroup(
                     value = slot.model,
                     options = selectedAgent.models.map { it.id to it.label },
                     enabled = enabled,
-                ) { model -> onChange(slot.copy(model = model)) }
+                ) { model -> onChange(slot.selectModel(model, selectedAgent)) }
             }
-            if (selectedAgent.efforts.isNotEmpty()) {
+            val efforts = selectedAgent.effortsFor(slot.model)
+            if (efforts.isNotEmpty()) {
                 SettingsDropdownRow(
                     label = stringResource(R.string.settings_generation_effort),
-                    value = slot.effort,
-                    options = selectedAgent.efforts.map { it to it },
+                    value = selectedAgent.displayEffort(slot.model, slot.effort),
+                    options = efforts.map { it to it },
                     enabled = enabled,
                 ) { effort -> onChange(slot.copy(effort = effort)) }
             }
+            val supportsFast = slot.model in selectedAgent.fastModels
             SettingsSwitchRow(
                 label = stringResource(R.string.settings_generation_fast_mode),
-                checked = slot.fast,
+                checked = supportsFast && slot.fast,
                 onChange = { onChange(slot.copy(fast = it)) },
-                enabled = enabled && selectedAgent.fastModels.contains(slot.model),
+                enabled = enabled && supportsFast,
             )
         } else if (slot.provider == SettingsGenerationSlotDraft.PROVIDER_AUTO) {
             agents.firstOrNull()?.let { automatic ->

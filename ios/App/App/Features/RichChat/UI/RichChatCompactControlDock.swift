@@ -6,6 +6,8 @@ import SwiftUI
 struct RichChatCompactControlDock: View {
   @Bindable var session: AppSession
   let suite: RichChatControllerSuite
+  let turnClock: RichChatLiveTurnClock
+  @Binding var destination: RichChatCompactControlDestination?
   let thread: RemoteThread?
   let project: RemoteProject?
   let projectLocation: ProjectLocation?
@@ -18,8 +20,13 @@ struct RichChatCompactControlDock: View {
   let providerUsage: RichChatProviderUsagePresentation
   let providerUsageState: SettingsLoadState
   let refreshProviderUsage: @MainActor () async -> Void
+  var galleryImages: [RichImagePresentation] = []
+  var galleryVideos: [RichVideoPresentation] = []
+  var galleryIdentity = ""
+  var openWideGit: (() -> Void)? = nil
 
-  @State private var destination: RichChatCompactControlDestination?
+  @Environment(\.richChatInspectorVisible) private var showsWideInspector
+  @Environment(\.workflowViewerPresentation) private var workflowPresenter
   @Namespace private var glassNamespace
 
   var body: some View {
@@ -28,7 +35,8 @@ struct RichChatCompactControlDock: View {
         RichChatRequestsView(
           requests: requests,
           controller: suite.requests,
-          canResolve: canResolveRequests
+          canResolve: canResolveRequests,
+          surface: .dock
         )
         .padding(.horizontal, 12)
       }
@@ -38,29 +46,50 @@ struct RichChatCompactControlDock: View {
       if let followUpQueue, !followUpQueue.items.isEmpty || followUpQueue.paused {
         RichFollowUpQueueStrip(
           queue: followUpQueue,
-          canOperate: canOperate,
-          open: { destination = .followUpQueue }
+          canSteer: canOperate && suite.conversation.state.activeMutation == nil,
+          open: { destination = .followUpQueue },
+          steer: { id in Task { await suite.conversation.steerQueuedFollowUp(id: id) } }
         )
       }
 
-      if !infoControls.isEmpty {
-        RichChatCompactInfoControls(
-          controls: infoControls,
-          glassNamespace: glassNamespace
-        ) { selected in
-          destination = selected
+      if !infoControls.isEmpty || liveStartedAt != nil {
+        ViewThatFits(in: .horizontal) {
+          RichChatWideInfoControls(
+            controls: infoControls,
+            thread: thread,
+            liveStartedAt: liveStartedAt, isPaused: !requests.isEmpty, turnClock: turnClock,
+            glassNamespace: glassNamespace,
+            select: selectControl
+          )
+          RichChatCompactInfoControls(
+            controls: infoControls,
+            liveStartedAt: liveStartedAt, isPaused: !requests.isEmpty, turnClock: turnClock,
+            glassNamespace: glassNamespace,
+            select: selectControl
+          )
         }
       }
     }
-    .padding(.top, showsAnyContent ? 7 : 0)
-    .sheet(item: $destination) { destination in
+    .padding(.top, showsAnyContent ? 2 : 0)
+    .sheet(item: $destination, onDismiss: { workflowPresenter?.presentPending() }) { destination in
       destinationSheet(destination)
         .poracodeZoomTransition(sourceID: destination.id, in: glassNamespace)
     }
+    .modifier(PoracodeRetainNavigationWhilePresented(
+      isPresented: destination?.id == RichChatCompactControlDestination.followUpQueue.id
+    ))
   }
 
   private var transcript: RichTranscriptState? {
     suite.transcript.state.transcript
+  }
+
+  private var liveStartedAt: Int64? {
+    RichChatTurnTiming.liveStart(thread: thread, foregroundIsOpen: transcript?.openTurn,
+      // A provider's lingering task roster alone does not mean it is live.
+      // Workflow launch rows also need manifest liveness before extending an
+      // idle thread; only the still-running delegated calls prove it here.
+      hasBackgroundWork: delegatedAgents.contains { $0.kind != .workflow } || session.workflowActivity.isLive(for: suite.transcript.state.target))
   }
 
   private var requests: [RichOpenRequest] {
@@ -75,12 +104,12 @@ struct RichChatCompactControlDock: View {
     suite.transcript.state.followUpQueue
   }
 
-  private var contextSummary: RichContextUsagePresentation? {
-    RichChatPresentation.contextUsage(suite.transcript.state.contextUsage)
-  }
-
   private var delegatedAgents: [RichDelegatedAgentPresentation] {
-    transcript.map { RichChatPresentation.activeDelegatedAgents(in: $0.itemsInOrder) } ?? []
+    let delegated = transcript.map { RichChatPresentation.activeDelegatedAgents(in: $0.itemsInOrder) } ?? []
+    // A detached workflow's launch tool may remain marked running after its
+    // manifest ends. Only the session tracker proves background liveness.
+    return delegated.filter { $0.kind != .workflow }
+      + session.workflowActivity.delegatedPresentations(for: suite.transcript.state.target)
   }
 
   private var backgroundTasks: [RichBackgroundTaskPresentation] {
@@ -111,7 +140,7 @@ struct RichChatCompactControlDock: View {
   private var showsAnyContent: Bool {
     !requests.isEmpty || pendingSteer != nil
       || (followUpQueue.map { !$0.items.isEmpty || $0.paused } == true)
-      || !infoControls.isEmpty
+      || !infoControls.isEmpty || liveStartedAt != nil
   }
 
   private var infoControls: [RichChatCompactInfoControl] {
@@ -150,24 +179,6 @@ struct RichChatCompactControlDock: View {
         )
       )
     }
-    if let contextSummary {
-      controls.append(
-        RichChatCompactInfoControl(
-          destination: .context,
-          systemImage: "circle.dashed.inset.filled",
-          accessibilityLabel: contextLabel(contextSummary),
-          progressPercent: contextSummary.percent.map(Double.init)
-        )
-      )
-    }
-    controls.append(
-      RichChatCompactInfoControl(
-        destination: .usage,
-        systemImage: "gauge.with.dots.needle.67percent",
-        accessibilityLabel: "\(providerUsage.label) \(SettingsUIStrings.usageTitle)",
-        usageRings: providerUsage.rings
-      )
-    )
     if let plan {
       controls.append(
         RichChatCompactInfoControl(
@@ -184,7 +195,18 @@ struct RichChatCompactControlDock: View {
         RichChatCompactInfoControl(
           destination: .goal,
           systemImage: "scope",
-          accessibilityLabel: RichChatStrings.goal
+          accessibilityLabel: RichChatStrings.goal,
+          goal: goal
+        )
+      )
+    }
+    if !galleryImages.isEmpty || !galleryVideos.isEmpty {
+      controls.append(
+        RichChatCompactInfoControl(
+          destination: .media,
+          systemImage: "photo.on.rectangle",
+          accessibilityLabel: RichChatStrings.media,
+          badge: (galleryImages.count + galleryVideos.count).formatted()
         )
       )
     }
@@ -198,7 +220,9 @@ struct RichChatCompactControlDock: View {
           accessibilityLabel: ProjectWorkspaceStrings.git,
           gitChanges: RichChatGitChanges(
             insertions: gitSummary.totalInsertions,
-            deletions: gitSummary.totalDeletions
+            deletions: gitSummary.totalDeletions,
+            pullRequestNumber: gitSummary.pullRequest.flatMap { $0.state == .closed ? nil : $0.number },
+            branch: gitSummary.branch
           )
         )
       )
@@ -215,6 +239,14 @@ struct RichChatCompactControlDock: View {
       )
     }
     return controls
+  }
+
+  private func selectControl(_ selected: RichChatCompactControlDestination) {
+    if showsWideInspector, case .git = selected, let openWideGit {
+      openWideGit()
+    } else {
+      destination = selected
+    }
   }
 
   private func pendingSteerStrip(_ pending: RichPendingSteer) -> some View {
@@ -266,7 +298,7 @@ struct RichChatCompactControlDock: View {
       }
     case .delegatedAgents(let kind):
       RichChatInfoSheet(title: delegatedAgentLabel(kind)) {
-        RichChatDelegatedAgentsView(agents: delegatedAgents.filter { $0.kind == kind })
+        RichChatDelegatedAgentsView(agents: delegatedAgents.filter { $0.kind == kind }, defersWorkflowPresentation: true)
       }
     case .backgroundTasks:
       RichChatBackgroundTasksSheet(suite: suite, canOperate: canOperate)
@@ -295,14 +327,18 @@ struct RichChatCompactControlDock: View {
         conversation: suite.conversation,
         canOperate: canOperate
       )
-    case .followUpQueue:
-      if let followUpQueue {
-        RichFollowUpQueueSheet(
-          queue: followUpQueue,
-          conversation: suite.conversation,
-          canOperate: canOperate
-        )
+    case .media:
+      RichChatInfoSheet(title: RichChatStrings.media) {
+        RichChatMediaGallery(images: galleryImages, videos: galleryVideos, controller: suite.media, projectLocation: projectLocation)
+          .id(galleryIdentity)
       }
+    case .followUpQueue:
+      RichFollowUpQueueSheet(
+        transcript: suite.transcript,
+        conversation: suite.conversation,
+        canOperate: canOperate
+      )
+      .modifier(PoracodeRetainNavigationWhilePresented())
     case .git(let location):
       if let thread, let project {
         ThreadDetailDestinationView(
@@ -328,11 +364,6 @@ struct RichChatCompactControlDock: View {
     guard summary.isRepo else { return false }
     let hasVisiblePullRequest = summary.pullRequest.map { $0.state != .closed } ?? false
     return summary.hasLocalChanges || thread?.worktreePath != nil || hasVisiblePullRequest
-  }
-
-  private func contextLabel(_ summary: RichContextUsagePresentation) -> String {
-    guard let percent = summary.percent else { return RichChatStrings.contextWindow }
-    return RichChatStrings.contextPercent(percent)
   }
 
   private func delegatedAgentLabel(_ kind: RichDelegatedAgentKind) -> String {

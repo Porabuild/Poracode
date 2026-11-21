@@ -56,7 +56,11 @@ struct GeneratedThreadLifecycleRemoteAPI: ThreadLifecycleRemoteAPI, Sendable {
     }
     let response = try await dispatch(prepared, timeout: 600)
     do {
-      return try GeneratedRemoteV3Contract.threadStartExistingResponse(response)
+      let threadID = try GeneratedRemoteV3Contract.threadStartExistingResponse(response)
+      guard request.providerSwitch == nil || threadID == request.threadID else {
+        throw ThreadLifecycleTransportError.ambiguousOutcome
+      }
+      return threadID
     } catch is CancellationError {
       throw CancellationError()
     } catch {

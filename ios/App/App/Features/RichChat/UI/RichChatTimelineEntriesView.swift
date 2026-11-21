@@ -9,6 +9,34 @@ enum RichChatTimelineScrollPolicy {
   }
 }
 
+struct RichChatLoadOlderButton: View {
+  let isLoading: Bool
+  let load: () -> Void
+
+  var body: some View {
+    Button(action: load) {
+      if isLoading {
+        ProgressView(RichChatStrings.loadingOlder).frame(maxWidth: .infinity)
+      } else {
+        Text(RichChatStrings.loadOlder).frame(maxWidth: .infinity)
+      }
+    }
+    .poracodeGlassButtonStyle()
+    .disabled(isLoading)
+  }
+}
+
+struct RichChatForkBoundaryDivider: View {
+  var body: some View {
+    HStack {
+      Rectangle().frame(height: 1)
+      Text(RichChatMessageActionStrings.forkBoundary).font(.caption)
+      Rectangle().frame(height: 1)
+    }
+    .foregroundStyle(.secondary)
+    .padding(.vertical, 8)
+  }
+}
 
 /// Projects normalized transcript entries into the small reusable item
 /// components. Scroll ownership remains in `RichChatTimelineView`; this layer
@@ -17,8 +45,23 @@ struct RichChatTimelineEntryView: View {
   let entry: RichTimelineEntry
   let mediaController: RichChatMediaController
   let actions: RichChatTimelineActions
+  var isActivityTail = false
 
   var body: some View {
+    VStack(alignment: .leading, spacing: 6) {
+      entryContent
+      if let label = RichChatTurnTiming.completedLabel(for: entry, turns: actions.completedTurns) {
+        Text(label)
+          .poracodeChatText(.metadata)
+          .foregroundStyle(.secondary)
+          .padding(.horizontal, 12)
+          .accessibilityIdentifier("native-e2e.turn-completed-time")
+      }
+    }
+  }
+
+  @ViewBuilder
+  private var entryContent: some View {
     switch entry {
     case .item(let node):
       RichChatTimelineNodeView(
@@ -32,7 +75,8 @@ struct RichChatTimelineEntryView: View {
         stableID: stableID,
         members: members,
         mediaController: mediaController,
-        actions: actions
+        actions: actions,
+        isActivityTail: isActivityTail
       )
     }
   }
@@ -43,41 +87,65 @@ private struct RichChatTimelineGroupView: View {
   let members: [RichVisibleTimelineNode]
   let mediaController: RichChatMediaController
   let actions: RichChatTimelineActions
+  var isActivityTail = false
+  @Environment(\.runtimeItemHeadings) private var headings
+  @Environment(\.runtimeItemHeadingSnapshot) private var snapshot
+  @Environment(\.toolPresentationCatalog) private var catalog
 
-  @State private var expanded = false
+  @State private var localExpanded = false
+  @State private var localTailChoice: Bool?
+  @State private var localShowsAll = false
+  @Environment(\.transcriptDisclosures) private var disclosures
+  @Environment(\.richChatFindHighlight) private var find
+  @Environment(\.richChatActivityPreviewLimit) private var previewLimit
+  private func expansion(opensByDefault: Bool) -> Binding<Bool> {
+    if isActivityTail {
+      return disclosures?.tailBinding(id: stableID, opensByDefault: opensByDefault)
+        ?? Binding(get: { localTailChoice ?? opensByDefault }, set: { localTailChoice = $0 })
+    }
+    return TranscriptDisclosureContext.binding(disclosures, id: stableID, fallback: $localExpanded)
+  }
 
   private var summary: RichChatActivityGroupSummary {
-    RichChatActivityGroupSummary(members: members)
+    RichChatActivityGroupSummary(members: members) { item in
+      (snapshot[item.id]?.displayHeading(for: item, projection: catalog?.itemTypes[item.type]?.headerProjection)
+        ?? headings?.heading(item, projection: catalog?.itemTypes[item.type]?.headerProjection))?.category
+        ?? RichChatActivityGroupSummary.category(for: item)
+    }
   }
 
   var body: some View {
+    let summary = summary
+    let binding = expansion(opensByDefault: !summary.isEditOnly)
+    let rows = RichChatActivityRows(members: members, selectedItemID: find.active?.itemID, previewLimit: previewLimit) { item in
+      RichChatActivityEditRun.path(for: item, presentation: catalog?.itemTypes[item.type])
+    }
+    let showsAll = TranscriptDisclosureContext.binding(disclosures,
+      id: "activity-history:\(stableID)", fallback: $localShowsAll, focuses: false)
+    let expanded = binding.wrappedValue || rows.containsSelection
     VStack(alignment: .leading, spacing: 6) {
-      Button(action: toggleExpanded) {
+      Button {
+        withAnimation(.snappy(duration: 0.22)) { binding.wrappedValue = !expanded }
+      } label: {
         HStack(spacing: 6) {
-          RichChatActivityGroupSummaryView(summary: summary)
+          RichChatActivityGroupSummaryView(summary: summary, filePath: rows.wholeFile?.path)
           Image(systemName: "chevron.down")
             .font(.system(size: 9, weight: .semibold))
             .foregroundStyle(.tertiary)
             .rotationEffect(.degrees(expanded ? 180 : 0))
         }
-        .contentShape(Rectangle())
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .richChatActivityHeaderLayout()
       }
       .buttonStyle(.plain)
+      .accessibilityIdentifier("native-e2e.activity-group.\(members.first?.item.id ?? stableID)")
       .accessibilityLabel(
-        "\(expanded ? RichChatStrings.collapseActivity : RichChatStrings.expandActivity), \(RichChatStrings.activityCount(members.count))"
+        "\(expanded ? RichChatStrings.collapseActivity : RichChatStrings.expandActivity), \(summary.segments.map { RichChatStrings.activityCategoryCount($0.category, $0.count) }.joined(separator: ", "))"
+          + (rows.wholeFile.map { ", \($0.path)" } ?? "")
       )
 
       if expanded {
-        VStack(alignment: .leading, spacing: 6) {
-          ForEach(members, id: \.item.id) { member in
-            RichChatTimelineNodeView(
-              node: member,
-              mediaController: mediaController,
-              actions: actions,
-              depth: 0
-            )
-          }
-        }
+        expandedRows(rows, showsAll: showsAll, opensWholeFile: binding.wrappedValue)
         .padding(.leading, 12)
         .overlay(alignment: .leading) {
           Rectangle()
@@ -88,165 +156,80 @@ private struct RichChatTimelineGroupView: View {
       }
     }
     .padding(.leading, 10)
-    .padding(.bottom, 8)
+    .padding(.bottom, 2)
+    .onChange(of: isActivityTail) { _, isTail in
+      if !isTail { localTailChoice = nil }
+    }
+    .onChange(of: rows.count) { _, count in
+      if count <= RichChatActivityRows.compactLimit { showsAll.wrappedValue = false }
+    }
+    .modifier(RuntimeItemHeadingRequests(items: members.map(\.item)))
   }
 
-  private func toggleExpanded() {
-    withAnimation(.snappy(duration: 0.22)) { expanded.toggle() }
-  }
-}
-
-struct RichChatActivitySegment: Equatable {
-  let category: RichChatStrings.RichChatActivityCategory
-  let count: Int
-  /// Aggregated edit diff for the `.edit` segment only, mirroring the PWA and
-  /// Android summaries. `hasDiff` is false when any edit in the group lacks a
-  /// `diffSummary` or the totals are both zero, so a partial total is never
-  /// shown as if it were complete.
-  let added: Int
-  let removed: Int
-  let hasDiff: Bool
-
-  init(
-    category: RichChatStrings.RichChatActivityCategory,
-    count: Int,
-    added: Int = 0,
-    removed: Int = 0,
-    hasDiff: Bool = false
-  ) {
-    self.category = category
-    self.count = count
-    self.added = added
-    self.removed = removed
-    self.hasDiff = hasDiff
-  }
-}
-
-struct RichChatActivityGroupSummary: Equatable {
-  /// Segments ordered by count descending, then the shared PWA priority
-  /// (view, search, edit, command, tool, thought).
-  let segments: [RichChatActivitySegment]
-
-  init(members: [RichVisibleTimelineNode]) {
-    var counts: [RichChatStrings.RichChatActivityCategory: Int] = [:]
-    var editAdded = 0
-    var editRemoved = 0
-    var editSeen = false
-    var editMissingDiff = false
-    for member in members {
-      let category = Self.category(for: member.item)
-      counts[category, default: 0] += 1
-      guard category == .edit else { continue }
-      editSeen = true
-      if let diff = Self.editDiffSummary(for: member.item) {
-        editAdded += diff.added
-        editRemoved += diff.removed
+  @ViewBuilder
+  private func expandedRows(_ rows: RichChatActivityRows, showsAll: Binding<Bool>, opensWholeFile: Bool) -> some View {
+    if let run = rows.wholeFile {
+      if !opensWholeFile, let match = run.matchingMember(find.active?.itemID) {
+        nodeView(match)
       } else {
-        editMissingDiff = true
+        RichChatActivityEditRunBody(run: run, actions: actions, fallback: nodeView)
       }
-    }
-    let showEditDiff = editSeen && !editMissingDiff && (editAdded != 0 || editRemoved != 0)
-    let priority = RichChatStrings.RichChatActivityCategory.allCases
-    segments = counts
-      .map { entry in
-        let isEditDiff = entry.key == .edit && showEditDiff
-        return RichChatActivitySegment(
-          category: entry.key,
-          count: entry.value,
-          added: isEditDiff ? editAdded : 0,
-          removed: isEditDiff ? editRemoved : 0,
-          hasDiff: isEditDiff
-        )
+    } else {
+      VStack(alignment: .leading, spacing: 2) {
+        if rows.hasOverflow {
+          Button {
+            showsAll.wrappedValue.toggle()
+          } label: {
+            Text(showsAll.wrappedValue ? RichChatStrings.showLessActivity : RichChatStrings.showAllActivity)
+              .poracodeChatText(.metadata)
+              .foregroundStyle(.secondary)
+              .frame(maxWidth: .infinity, alignment: .leading)
+              .richChatActivityHeaderLayout()
+          }
+          .buttonStyle(.plain)
+          .accessibilityIdentifier("native-e2e.activity-reveal.\(members.first?.item.id ?? stableID)")
+        }
+        ForEach(rows.visible(showingAll: showsAll.wrappedValue)) { row in
+          switch row {
+          case .node(let member):
+            nodeView(member)
+          case .editRun(let run):
+            RichChatActivityEditRunRow(run: run, actions: actions, fallback: nodeView)
+          }
+        }
       }
-      .sorted { lhs, rhs in
-        lhs.count != rhs.count
-          ? lhs.count > rhs.count
-          : priority.firstIndex(of: lhs.category)! < priority.firstIndex(of: rhs.category)!
-      }
-  }
-
-  private static func editDiffSummary(for item: RichRuntimeItem) -> (added: Int, removed: Int)? {
-    guard let diff = item.payload?.objectValue?["diffSummary"]?.objectValue,
-      let added = diff["added"]?.exactInt64Value,
-      let removed = diff["removed"]?.exactInt64Value
-    else { return nil }
-    return (Int(clamping: added), Int(clamping: removed))
-  }
-
-  /// Canonical tool hints are already normalized at the provider boundary.
-  /// Missing/unknown hints retain the generic tool bucket for older hosts.
-  static func category(for item: RichRuntimeItem) -> RichChatStrings.RichChatActivityCategory {
-    guard ["tool_call", "dynamic_tool_call", "mcp_tool_call"].contains(item.type) else {
-      return category(for: item.type)
-    }
-    let payload = item.payload?.objectValue
-    if item.type == "mcp_tool_call" || !(payload?["serverId"]?.stringValue ?? "").isEmpty {
-      return .mcp
-    }
-    if payload?["isSubAgent"]?.boolValue == true || payload?["isCrossagent"]?.boolValue == true {
-      return .command
-    }
-    switch payload?["kind"]?.stringValue {
-    case "read": return .view
-    case "search", "fetch": return .search
-    case "edit", "delete", "move": return .edit
-    case "execute": return .command
-    default: return .tool
     }
   }
 
-  static func category(for type: String) -> RichChatStrings.RichChatActivityCategory {
-    switch type {
-    case RichItemType.reasoning: .thought
-    case "image_view": .view
-    case "web_search": .search
-    case "file_change": .edit
-    case "command_execution": .command
-    case "mcp_tool_call": .mcp
-    default: .tool
-    }
+  private func nodeView(_ member: RichVisibleTimelineNode) -> some View {
+    RichChatTimelineNodeView(node: member, mediaController: mediaController, actions: actions, depth: 0)
+      .environment(\.richChatActivityGrouped, true)
   }
 }
 
-private struct RichChatActivityGroupSummaryView: View {
-  let summary: RichChatActivityGroupSummary
+extension EnvironmentValues {
+  @Entry var richChatActivityGrouped = false
+  @Entry var richChatActivityPreviewLimit = RichChatActivityRows.regularLimit
+}
 
-  var body: some View {
-    HStack(spacing: 5) {
-      ForEach(Array(summary.segments.enumerated()), id: \.offset) { index, segment in
-        if index > 0 {
-          Text("·")
-            .foregroundStyle(.quaternary)
-        }
-        segmentView(segment)
-      }
-    }
-    .poracodeChatText(.metadata, weight: .medium)
-    .foregroundStyle(.secondary)
+extension View {
+  func richChatActivityPreview(coveredHeight: CGFloat = 0) -> some View {
+    modifier(RichChatActivityPreviewSizing(coveredHeight: coveredHeight))
   }
+}
 
-  private func segmentView(_ segment: RichChatActivitySegment) -> some View {
-    HStack(spacing: 4) {
-      Label {
-        Text(RichChatStrings.activityCategoryCount(segment.category, segment.count))
-      } icon: {
-        RichChatIcon(.init(category: segment.category))
-      }
-      if segment.hasDiff {
-        if segment.added > 0 {
-          Text("+\(segment.added)")
-            .monospacedDigit()
-            .foregroundStyle(.green)
-        }
-        if segment.removed > 0 {
-          Text("−\(segment.removed)")
-            .monospacedDigit()
-            .foregroundStyle(.red)
-        }
-      }
-    }
+private struct RichChatActivityPreviewSizing: ViewModifier {
+  let coveredHeight: CGFloat
+  @State private var viewportHeight: CGFloat?
+
+  func body(content: Content) -> some View {
+    let limit = viewportHeight.map {
+      RichChatActivityRows.previewLimit(availableHeight: $0 - coveredHeight)
+    } ?? RichChatActivityRows.regularLimit
+    content
+      .environment(\.richChatActivityPreviewLimit, limit)
+      .onGeometryChange(for: CGFloat.self) { $0.size.height.rounded() } action: { viewportHeight = $0 }
   }
-
 }
 
 private struct RichChatTimelineNodeView: View {
@@ -283,5 +266,35 @@ private struct RichChatTimelineNodeView: View {
       }
     }
     .padding(.leading, depth == 0 ? 0 : 12)
+  }
+}
+
+extension RichTimelineEntry {
+  var rootItemIDs: [String] {
+    switch self {
+    case .item(let node): [node.item.id]
+    case .group(_, let members): members.map { $0.item.id }
+    }
+  }
+  var stableID: String {
+    switch self {
+    case .item(let node): node.item.id
+    case .group(let stableID, _): stableID
+    }
+  }
+
+  /// Last addressable runtime item inside this entry, or `nil` when the entry
+  /// carries none. Group stable ids are presentation-only and never sent.
+  var lastItemID: String? {
+    switch self {
+    case .item(let node): node.lastItemID
+    case .group(_, let members): members.last?.lastItemID
+    }
+  }
+}
+
+extension RichVisibleTimelineNode {
+  var lastItemID: String? {
+    children.last?.lastItemID ?? item.id
   }
 }

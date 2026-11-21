@@ -214,7 +214,8 @@ extension ThreadConfig {
       executionEnvironment: executionEnvironment,
       mcpServerOverrides: mcpServerOverrides,
       pluginOverrides: pluginOverrides,
-      crew: crew
+      crew: crew,
+      selectionBinding: selectionBinding
     )
   }
 }

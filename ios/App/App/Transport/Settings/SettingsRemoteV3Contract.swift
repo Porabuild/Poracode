@@ -38,6 +38,33 @@ enum SettingsRemoteV3Contract {
     )
   }
 
+  /// Uses the existing remote procedure; no host protocol or persisted format
+  /// changes. An older host's explicit rejection must not become a cache read.
+  static var agentDiscoveryPath: String {
+    guard let procedure = RemoteContractMetadata.procedures.first(where: { $0.name == "refreshAgentStatuses" }),
+      procedure.scope == SettingsCapability.sessionOperate.rawValue,
+      procedure.owner == "desktop", procedure.resultKind == "json",
+      let route = RemoteContractMetadata.routes.first(where: { $0.id == "procedure-call" }),
+      route.method == "POST", route.auth == "bearer" else {
+      preconditionFailure("Generated agent discovery metadata is incompatible")
+    }
+    return route.path
+  }
+
+  // Matches LONG_REMOTE_REQUEST_TIMEOUT_MS in the shared PWA remote client.
+  static let agentDiscoveryTimeout: TimeInterval = 5 * 60
+
+  static func agentDiscoveryRequest(_ data: Data) throws -> Data {
+    let payload = try canonical(data, codec: RemoteRootCodecs.procedureU2ERefreshAgentStatusesU2ERequest,
+      boundary: "agent discovery request")
+    return try GeneratedRemoteV3Contract.procedureEnvelope(name: "refreshAgentStatuses", payload: payload)
+  }
+
+  static func agentDiscoveryResponse(_ data: Data) throws -> Data {
+    try GeneratedRemoteV3Contract.procedureResult(data,
+      codec: RemoteRootCodecs.procedureU2ERefreshAgentStatusesU2EResult, boundary: "agent discovery response")
+  }
+
   static func providerUsageResponse(_ data: Data) throws -> Data {
     try canonical(
       data, codec: RemoteRootCodecs.routeU2EProviderU2DUsageU2EResponse,

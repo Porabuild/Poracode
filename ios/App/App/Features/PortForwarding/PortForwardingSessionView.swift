@@ -11,20 +11,29 @@ import UIKit
 /// no longer on. Browser handoff goes through the system opener with the safe
 /// entry URL built by the transport; the URL is never rendered or logged.
 struct PortForwardingSessionView: View {
+  private struct Activation: Equatable {
+    let lease: PortForwardingHostLease?
+    let isReady: Bool
+  }
+
   @Environment(\.dismiss) private var dismiss
   @Environment(\.scenePhase) private var scenePhase
+  @Environment(\.poracodeEmbeddedInInspector) private var embeddedInInspector
 
   @Bindable var session: AppSession
   @State private var composition: PortForwardingComposition
   private let embeddedInNavigationStack: Bool
+  private let showsHostSelection: Bool
 
   init(
     session: AppSession,
     lease: PortForwardingHostLease,
-    embeddedInNavigationStack: Bool = false
+    embeddedInNavigationStack: Bool = false,
+    showsHostSelection: Bool = true
   ) {
     self.session = session
     self.embeddedInNavigationStack = embeddedInNavigationStack
+    self.showsHostSelection = showsHostSelection
     _composition = State(
       initialValue: session.makePortForwardingComposition(
         lease: lease,
@@ -46,7 +55,7 @@ struct PortForwardingSessionView: View {
         }
       }
     }
-    .task(id: session.currentPortForwardingAccess?.lease) {
+    .task(id: activation) {
       guard scenePhase != .background else { return }
       composition.scheduleActivation()
     }
@@ -60,23 +69,36 @@ struct PortForwardingSessionView: View {
     .onDisappear { composition.suspend() }
   }
 
+  private var activation: Activation {
+    let access = session.currentPortForwardingAccess
+    return Activation(lease: access?.lease, isReady: access?.isReady == true)
+  }
+
+  @ViewBuilder
   private var content: some View {
-    PortForwardingView(
+    let view = PortForwardingView(
       controller: composition.controller,
       access: session.currentPortForwardingAccess,
       copyAddress: { forwardID in
         await composition.entryAddress(forForwardID: forwardID)
       }
     )
-    .toolbar {
-      if !embeddedInNavigationStack {
-        ToolbarItem(placement: .cancellationAction) {
-          Button(PortForwardingStrings.close) { dismiss() }
+    if embeddedInInspector {
+      view
+    } else {
+      view
+        .toolbar {
+          if !embeddedInNavigationStack {
+            ToolbarItem(placement: .cancellationAction) {
+              Button(PortForwardingStrings.close) { dismiss() }
+            }
+          }
+          if showsHostSelection {
+            ToolbarItem(placement: .primaryAction) {
+              HostSelectionMenu(session: session)
+            }
+          }
         }
-      }
-      ToolbarItem(placement: .primaryAction) {
-        HostSelectionMenu(session: session)
-      }
     }
   }
 }

@@ -16,7 +16,9 @@ import { build } from "esbuild";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   createRuntimePayloadProjectionSource,
+  createToolPresentationAdapterSource,
   RUNTIME_PAYLOAD_PROJECTION_MODULE,
+  TOOL_PRESENTATION_ADAPTER_MODULE,
 } from "@/build/runtimePayloadProjectionSource.mjs";
 import {
   AsyncDatabaseReads,
@@ -78,6 +80,7 @@ beforeAll(async () => {
   mkdirSync(resolvePath("tmp"), { recursive: true });
   artifacts = mkdtempSync(resolvePath("tmp/async-database-workers-"));
   const source = createRuntimePayloadProjectionSource(process.cwd()).source;
+  const toolSource = createToolPresentationAdapterSource(process.cwd()).source;
   for (const name of ["databaseReadWorker", "databaseReadWorker.testFixtures"]) {
     await build({
       entryPoints: [fileURLToPath(new URL(`./${name}.ts`, import.meta.url))],
@@ -97,6 +100,15 @@ beforeAll(async () => {
             }));
             builder.onLoad({ filter: /.*/, namespace: "runtime-projection" }, () => ({
               contents: source,
+              loader: "ts",
+              resolveDir: process.cwd(),
+            }));
+            builder.onResolve({ filter: /^poracode:tool-presentation-adapters$/ }, () => ({
+              path: TOOL_PRESENTATION_ADAPTER_MODULE,
+              namespace: "tool-presentation-adapters",
+            }));
+            builder.onLoad({ filter: /.*/, namespace: "tool-presentation-adapters" }, () => ({
+              contents: toolSource,
               loader: "ts",
               resolveDir: process.cwd(),
             }));

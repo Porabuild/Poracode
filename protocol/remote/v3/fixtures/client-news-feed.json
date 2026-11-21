@@ -1,0 +1,212 @@
+{
+  "formatVersion": 1,
+  "knownFeatures": [
+    "crews",
+    "chrome-extension",
+    "computer-use",
+    "browser",
+    "crossagents",
+    "worktrees",
+    "schedules",
+    "pull-requests",
+    "skills",
+    "mcp-servers",
+    "plugins",
+    "custom-themes",
+    "remote-access",
+    "session-import",
+    "workspaces",
+    "ai-git",
+    "voice-input"
+  ],
+  "rawDocument": "{\"version\":1,\"paused\":false,\"items\":[{\"id\":\"hello-world\",\"kind\":\"announcement\",\"text\":{\"en\":\"Hello world\",\"pt-pt\":\"Primeiro português\",\"pt-br\":\"Português brasileiro\"},\"weight\":2,\"action\":{\"type\":\"url\",\"url\":\"https://poracode.com/docs\",\"label\":{\"en\":\"Read\",\"pt-br\":\"Ler\"}}},{\"id\":\"clean-text\",\"kind\":\"announcement\",\"text\":{\"en\":\"  Hello\\u0000  world\\nagain  \",\"de\":\"Hallo\"}},{\"id\":\"ios-only\",\"kind\":\"announcement\",\"text\":{\"en\":\"Hello world\",\"pt-pt\":\"Primeiro português\",\"pt-br\":\"Português brasileiro\"},\"platforms\":[\"ios\"],\"weight\":3},{\"id\":\"web-only\",\"kind\":\"announcement\",\"text\":{\"en\":\"Hello world\",\"pt-pt\":\"Primeiro português\",\"pt-br\":\"Português brasileiro\"},\"platforms\":[\"web\"]},{\"id\":\"future-date\",\"kind\":\"announcement\",\"text\":{\"en\":\"Hello world\",\"pt-pt\":\"Primeiro português\",\"pt-br\":\"Português brasileiro\"},\"start\":\"2026-12-01\"},{\"id\":\"expired-date\",\"kind\":\"announcement\",\"text\":{\"en\":\"Hello world\",\"pt-pt\":\"Primeiro português\",\"pt-br\":\"Português brasileiro\"},\"end\":\"2026-11-01\"},{\"id\":\"known-feature\",\"kind\":\"announcement\",\"text\":{\"en\":\"Hello world\",\"pt-pt\":\"Primeiro português\",\"pt-br\":\"Português brasileiro\"},\"action\":{\"type\":\"feature\",\"feature\":\"voice-input\"},\"unlessUsed\":[\"voice-input\"]},{\"id\":\"unknown-condition\",\"kind\":\"announcement\",\"text\":{\"en\":\"Hello world\",\"pt-pt\":\"Primeiro português\",\"pt-br\":\"Português brasileiro\"},\"onlyIfUsed\":[\"future-feature\"]},{\"id\":\"future-client\",\"kind\":\"announcement\",\"text\":{\"en\":\"Hello world\",\"pt-pt\":\"Primeiro português\",\"pt-br\":\"Português brasileiro\"},\"minAppVersion\":\"2.0.0\"},{\"id\":\"stars-count\",\"kind\":\"community\",\"template\":{\"name\":\"github-stars-milestone\",\"count\":1234},\"action\":{\"type\":\"whats-new\"}},{\"id\":\"bad-null\",\"kind\":\"announcement\",\"text\":null},{\"id\":\"bad-url\",\"kind\":\"announcement\",\"text\":{\"en\":\"Hello world\",\"pt-pt\":\"Primeiro português\",\"pt-br\":\"Português brasileiro\"},\"action\":{\"type\":\"url\",\"url\":\"javascript:alert(1)\"}},{\"id\":\"bad-template\",\"kind\":\"announcement\",\"template\":{\"name\":\"future-template\",\"count\":1}},{\"id\":\"bad-feature\",\"kind\":\"announcement\",\"text\":{\"en\":\"Hello world\",\"pt-pt\":\"Primeiro português\",\"pt-br\":\"Português brasileiro\"},\"action\":{\"type\":\"feature\",\"feature\":\"future-feature\"}},{\"id\":\"bad-platform\",\"kind\":\"announcement\",\"text\":{\"en\":\"Hello world\",\"pt-pt\":\"Primeiro português\",\"pt-br\":\"Português brasileiro\"},\"platforms\":[\"future-platform\"]},{\"id\":\"hello-world\",\"kind\":\"announcement\",\"text\":{\"en\":\"Duplicate must not replace first\"}}]}",
+  "expectedIDs": [
+    "hello-world",
+    "clean-text",
+    "ios-only",
+    "web-only",
+    "future-date",
+    "expired-date",
+    "known-feature",
+    "unknown-condition",
+    "future-client",
+    "stars-count"
+  ],
+  "selections": [
+    {
+      "context": {
+        "now": 1794830400000,
+        "version": "1.8.2",
+        "platform": "ios",
+        "locale": "pt-AO",
+        "used": {
+          "voice-input": false
+        }
+      },
+      "expected": [
+        {
+          "id": "ios-only",
+          "kind": "announcement",
+          "weight": 3,
+          "content": {
+            "text": "Primeiro português"
+          }
+        },
+        {
+          "id": "hello-world",
+          "kind": "announcement",
+          "weight": 2,
+          "content": {
+            "text": "Primeiro português"
+          },
+          "action": {
+            "type": "url",
+            "url": "https://poracode.com/docs",
+            "label": {
+              "en": "Read",
+              "pt-br": "Ler"
+            }
+          },
+          "actionLabel": "Ler"
+        },
+        {
+          "id": "clean-text",
+          "kind": "announcement",
+          "weight": 1,
+          "content": {
+            "text": "Hello world again"
+          }
+        },
+        {
+          "id": "known-feature",
+          "kind": "announcement",
+          "weight": 1,
+          "content": {
+            "text": "Primeiro português"
+          },
+          "action": {
+            "type": "feature",
+            "feature": "voice-input"
+          }
+        },
+        {
+          "id": "stars-count",
+          "kind": "community",
+          "weight": 1,
+          "content": {
+            "template": {
+              "name": "github-stars-milestone",
+              "count": 1234
+            }
+          },
+          "action": {
+            "type": "whats-new"
+          }
+        }
+      ]
+    },
+    {
+      "context": {
+        "now": 1794830400000,
+        "version": "2.0.0",
+        "platform": "web",
+        "locale": "de-AT",
+        "used": {
+          "voice-input": true
+        }
+      },
+      "expected": [
+        {
+          "id": "hello-world",
+          "kind": "announcement",
+          "weight": 2,
+          "content": {
+            "text": "Hello world"
+          },
+          "action": {
+            "type": "url",
+            "url": "https://poracode.com/docs",
+            "label": {
+              "en": "Read",
+              "pt-br": "Ler"
+            }
+          },
+          "actionLabel": "Read"
+        },
+        {
+          "id": "clean-text",
+          "kind": "announcement",
+          "weight": 1,
+          "content": {
+            "text": "Hallo"
+          }
+        },
+        {
+          "id": "web-only",
+          "kind": "announcement",
+          "weight": 1,
+          "content": {
+            "text": "Hello world"
+          }
+        },
+        {
+          "id": "future-client",
+          "kind": "announcement",
+          "weight": 1,
+          "content": {
+            "text": "Hello world"
+          }
+        },
+        {
+          "id": "stars-count",
+          "kind": "community",
+          "weight": 1,
+          "content": {
+            "template": {
+              "name": "github-stars-milestone",
+              "count": 1234
+            }
+          },
+          "action": {
+            "type": "whats-new"
+          }
+        }
+      ]
+    }
+  ],
+  "unusableDocuments": [
+    "{\"version\":2,\"items\":[]}",
+    "{\"version\":true,\"items\":[]}",
+    "{\"version\":1,\"paused\":null,\"items\":[]}"
+  ],
+  "urls": [
+    {
+      "url": "https://github.com/Porabuild/Poracode",
+      "allowed": true
+    },
+    {
+      "url": "https://github.com/Other/Repo",
+      "allowed": false
+    },
+    {
+      "url": "https://poracode.com/docs",
+      "allowed": true
+    },
+    {
+      "url": "https://user:secret@poracode.com/",
+      "allowed": false
+    },
+    {
+      "url": "http://poracode.com",
+      "allowed": false
+    },
+    {
+      "url": "https://github.com/Porabuild/../outside",
+      "allowed": false
+    },
+    {
+      "url": "https://x.com/poracode",
+      "allowed": true
+    }
+  ]
+}

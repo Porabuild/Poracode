@@ -10224,6 +10224,7 @@ msgid "Import selected"
 msgstr "Seçilenleri içe aktar"
 
 #: src/renderer/views/SettingsOverlay/parts/ImportSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 msgid "Import sessions"
 msgstr "Oturumları içe aktar"
 
@@ -11348,7 +11349,6 @@ msgstr "Bağlı"
 msgid "Linux"
 msgstr "Linux"
 
-#: src/renderer/components/thread/ChatPane/parts/items/commandActionsDisplay.ts
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "List"
@@ -18803,7 +18803,6 @@ msgstr "SDK yüklü değil"
 
 #: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/commands/registry.ts
-#: src/renderer/components/thread/ChatPane/parts/items/commandActionsDisplay.ts
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 #: src/renderer/views/MainView/parts/Sidebar/parts/MobileHomeActions.tsx
@@ -18998,7 +18997,6 @@ msgstr "Konuşmalarda, komutlarda, ayarlarda ve dosyalarda ara…"
 msgid "Search titles, messages and folders"
 msgstr "Başlıklarda, mesajlarda ve klasörlerde ara"
 
-#: src/renderer/components/thread/ChatPane/parts/items/commandActionsDisplay.ts
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 msgid "Search: \"{query}\" in {scope}"
 msgstr "Ara: \"{query}\" ({scope} içinde)"
@@ -22192,8 +22190,8 @@ msgid "This desktop"
 msgstr "Bu masaüstü"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
-msgid "This desktop's Poracode version doesn't support browser forwarding. Update Poracode on your desktop."
-msgstr "Bu masaüstündeki Poracode sürümü tarayıcı yönlendirmeyi desteklemiyor. Poracode'yi masaüstünde güncelleyin."
+#~ msgid "This desktop's Poracode version doesn't support browser forwarding. Update Poracode on your desktop."
+#~ msgstr "Bu masaüstündeki Poracode sürümü tarayıcı yönlendirmeyi desteklemiyor. Poracode'yi masaüstünde güncelleyin."
 
 #: src/renderer/views/ProfileOverlay/parts/ProfileHeader.tsx
 msgid "This device"

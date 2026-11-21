@@ -120,6 +120,7 @@ data class RichChatHistorySnapshot(
     val updatedAt: String,
     /** B1 declared-read notice; null when the wire omitted it, never a clear. */
     val runtimeNotice: com.poracode.app.model.RemoteRuntimeHistoryNotice? = null,
+    val runtimeResumeCursor: String? = null,
     /**
      * True when the wire snapshot carried an explicit `backgroundTasks` array.
      * Absent means an old host (or a host that omitted the field): the install
@@ -184,7 +185,7 @@ interface RichChatSessionGateway {
     suspend fun history(
         lease: RichChatHostLease,
         threadId: String,
-        targetTimelineEntryCount: Int = 40,
+        targetTimelineEntryCount: Int = 20,
     ): RichChatHistorySnapshot
 
     suspend fun olderItems(
@@ -344,6 +345,7 @@ interface RichChatSessionGateway {
     suspend fun loadLocalImage(
         lease: RichChatHostLease,
         path: String,
+        variant: String? = null,
     ): RemoteBinaryResponse = throw RichChatGatewayException(501, "binary_transport", false)
 
     suspend fun loadRuntimeImage(
@@ -351,6 +353,7 @@ interface RichChatSessionGateway {
         threadId: String,
         itemId: String,
         path: List<RuntimeImagePathSegment>,
+        variant: String? = null,
     ): RemoteBinaryResponse = throw RichChatGatewayException(501, "binary_transport", false)
 
     /**

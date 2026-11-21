@@ -10224,6 +10224,7 @@ msgid "Import selected"
 msgstr "Importer la sélection"
 
 #: src/renderer/views/SettingsOverlay/parts/ImportSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 msgid "Import sessions"
 msgstr "Importer des sessions"
 
@@ -11348,7 +11349,6 @@ msgstr "Liée"
 msgid "Linux"
 msgstr "Linux"
 
-#: src/renderer/components/thread/ChatPane/parts/items/commandActionsDisplay.ts
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "List"
@@ -18802,7 +18802,6 @@ msgstr "SDK non installé"
 
 #: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/commands/registry.ts
-#: src/renderer/components/thread/ChatPane/parts/items/commandActionsDisplay.ts
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 #: src/renderer/views/MainView/parts/Sidebar/parts/MobileHomeActions.tsx
@@ -18997,7 +18996,6 @@ msgstr "Rechercher des fils, commandes, paramètres et fichiers…"
 msgid "Search titles, messages and folders"
 msgstr "Rechercher dans les titres, messages et dossiers"
 
-#: src/renderer/components/thread/ChatPane/parts/items/commandActionsDisplay.ts
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 msgid "Search: \"{query}\" in {scope}"
 msgstr "Rechercher : « {query} » dans {scope}"
@@ -22191,8 +22189,8 @@ msgid "This desktop"
 msgstr "Ce poste"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
-msgid "This desktop's Poracode version doesn't support browser forwarding. Update Poracode on your desktop."
-msgstr "La version de Poracode de ce bureau ne prend pas en charge le transfert par navigateur. Mettez à jour Poracode sur votre bureau."
+#~ msgid "This desktop's Poracode version doesn't support browser forwarding. Update Poracode on your desktop."
+#~ msgstr "La version de Poracode de ce bureau ne prend pas en charge le transfert par navigateur. Mettez à jour Poracode sur votre bureau."
 
 #: src/renderer/views/ProfileOverlay/parts/ProfileHeader.tsx
 msgid "This device"

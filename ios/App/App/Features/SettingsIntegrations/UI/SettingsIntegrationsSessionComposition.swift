@@ -91,8 +91,10 @@ struct SettingsIntegrationsSessionView: View {
   @State private var selectedProjectIdentity: ProjectIdentity?
   @State private var accessSource: SettingsIntegrationsSessionAccessSource
   @State private var composition: SettingsIntegrationsComposition
+  @State private var mountedSurfaces = Set<String>()
   private let initialRoute: SettingsIntegrationsScreen.Route
   private let embeddedInNavigationStack: Bool
+  private let allowsRouteSelection: Bool
   private let requiredProjectIdentity: ProjectIdentity?
   private let configuredMCPServers: [SettingsMCPServer]
   private let onImportMCPServer: ((SettingsMCPServer) -> Void)?
@@ -103,6 +105,7 @@ struct SettingsIntegrationsSessionView: View {
     initialProjectIdentity: ProjectIdentity? = nil,
     initialRoute: SettingsIntegrationsScreen.Route = .skills,
     embeddedInNavigationStack: Bool = false,
+    allowsRouteSelection: Bool = false,
     configuredMCPServers: [SettingsMCPServer] = [],
     onImportMCPServer: ((SettingsMCPServer) -> Void)? = nil,
     onUpdateMCPServer: ((SettingsMCPServer) -> Void)? = nil
@@ -110,10 +113,11 @@ struct SettingsIntegrationsSessionView: View {
     self.session = session
     self.initialRoute = initialRoute
     self.embeddedInNavigationStack = embeddedInNavigationStack
+    self.allowsRouteSelection = allowsRouteSelection
     self.configuredMCPServers = configuredMCPServers
     self.onImportMCPServer = onImportMCPServer
     self.onUpdateMCPServer = onUpdateMCPServer
-    requiredProjectIdentity = embeddedInNavigationStack ? initialProjectIdentity : nil
+    requiredProjectIdentity = embeddedInNavigationStack && !allowsRouteSelection ? initialProjectIdentity : nil
     let accessSource = SettingsIntegrationsSessionAccessSource()
     let transport = SettingsIntegrationsExactHostTransportSource(
       credentials: session.deps.hostCatalog,
@@ -154,6 +158,18 @@ struct SettingsIntegrationsSessionView: View {
       ),
       initialRoute: initialRoute,
       embeddedInNavigationStack: embeddedInNavigationStack,
+      allowsRouteSelection: allowsRouteSelection,
+      onSurfaceChange: { surface, active in
+        if active {
+          mountedSurfaces.insert(surface)
+        } else {
+          mountedSurfaces.remove(surface)
+          if mountedSurfaces.isEmpty {
+            accessSource.access = nil
+            composition.deactivateTransientWork()
+          }
+        }
+      },
       onImportMCPServer: onImportMCPServer,
       onUpdateMCPServer: onUpdateMCPServer
     )
@@ -180,9 +196,15 @@ struct SettingsIntegrationsSessionView: View {
         composition.suspendForBackground()
       }
     }
+    .onAppear {
+      mountedSurfaces.insert("session")
+    }
     .onDisappear {
-      accessSource.access = nil
-      composition.deactivateTransientWork()
+      mountedSurfaces.remove("session")
+      if mountedSurfaces.isEmpty {
+        accessSource.access = nil
+        composition.deactivateTransientWork()
+      }
     }
     .toolbar {
       if requiredProjectIdentity == nil {

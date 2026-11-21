@@ -25,7 +25,7 @@ for (const [index, spec] of THEME_SPECS.entries()) {
       anchor.sidebar ?? anchor.surface,
       anchor.content ?? anchor.bg,
       vars["--content-surface-fill"],
-      vars["--field-background"],
+      vars["--composer-surface"],
       vars["--field-placeholder"],
     ];
     lines.push(

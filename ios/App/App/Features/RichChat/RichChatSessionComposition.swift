@@ -50,50 +50,19 @@ extension AppSession {
         return RichChatTerminalSocketEndpoint(lease: access.lease, api: box.client)
       }
     )
-    let gateway = SelectedRichChatSessionGateway { @MainActor [weak self] in
+    let gateway = SelectedRichChatSessionGateway(turnContextProvider: { [weak self] target in
+      try await self?.sideChatTurnContext(target: target)
+    }, selectionProvider: { @MainActor [weak self] in
       self?.currentRichChatTransportSelection(terminalSocket: terminalSocket)
-    }
+    })
     let requester = SelectedRichChatRefreshRequester { @MainActor [weak self] target, _ in
       guard let self, self.currentRichChatAccess?.lease == target.lease,
-        self.activeRichChatSuite?.scope.target == target
+        let suite = self.attachedRichChatSuite(target: target)
       else { return }
-      await self.activeRichChatSuite?.refreshAuthoritativeHistory()
+      await suite.refreshAuthoritativeHistory()
     }
-    return RichChatControllerSuite(gateway: gateway, refreshRequester: requester)
-  }
-
-  func attachRichChatSuite(_ suite: RichChatControllerSuite) {
-    guard let target = suite.scope.target, currentRichChatAccess?.lease == target.lease else {
-      return
-    }
-    if activeRichChatSuite === suite {
-      scheduleInterestFlush(threadIds: [target.threadID])
-      return
-    }
-    // The real GUI page is the open owner. Replacing a page for another thread
-    // releases that view's pin (a newer navigation for the same row stays
-    // pinned), and a successful navigation's pin for this target is handed
-    // over to the open owner instead of being retained by the navigation.
-    if let previous = activeRichChatSuite?.scope.threadID, previous != target.threadID {
-      catalog.releaseOpenPin(previous)
-    }
-    activeRichChatSuite?.deselect()
-    activeRichChatSuite = suite
-    catalog.pinThread(target.threadID, owner: .open)
-    catalog.releaseNavigationPin(target.threadID)
-    scheduleInterestFlush(threadIds: [target.threadID])
-  }
-
-  func detachRichChatSuite(_ suite: RichChatControllerSuite) {
-    guard activeRichChatSuite === suite else { return }
-    // View dismissal releases the open owner's pin; a pending navigation that
-    // still claims the row stays pinned through its own owner.
-    if let target = suite.scope.target {
-      catalog.releaseOpenPin(target.threadID)
-    }
-    activeRichChatSuite = nil
-    suite.deselect()
-    scheduleInterestFlush(threadIds: [])
+    return RichChatControllerSuite(gateway: gateway, refreshRequester: requester,
+      checkpointRevertAttempts: checkpointRevertAttempts)
   }
 
   func richChatThread(id: String) -> RemoteThread? {
@@ -133,12 +102,22 @@ extension AppSession {
   }
 
   func receiveRichChatSupervisoryEvent(_ event: JSONValue, sequence: Int) {
-    guard let suite = activeRichChatSuite, let target = suite.scope.target,
+    for suite in attachedRichChatSuites {
+      receiveRichChatEvent(event, sequence: sequence, suite: suite)
+    }
+  }
+
+  private func receiveRichChatEvent(_ event: JSONValue, sequence: Int, suite: RichChatControllerSuite) {
+    guard let target = suite.scope.target,
       currentRichChatAccess?.lease == target.lease,
       let richEvent = RichJSON(jsonValue: event)
     else { return }
 
     let eventType = richEvent.objectValue?["type"]?.stringValue
+    if eventType == "thread-exited", richEvent.objectValue?["threadId"]?.stringValue == target.threadID {
+      suite.runtimeLaunch.clear(through: sequence)
+      return
+    }
     if eventType == "thread-pending-steer" {
       try? suite.receivePendingSteerPayload(richEvent, target: target)
       return

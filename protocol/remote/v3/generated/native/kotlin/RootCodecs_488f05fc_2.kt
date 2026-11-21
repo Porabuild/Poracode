@@ -416,8 +416,8 @@ val RemoteRootCodecs.procedureU2EWaitMcpServerOauthU2EResult: RemoteRootCodec<Pr
 val RemoteRootCodecs.procedureU2EWorkflowAgentChatU2ERequest: RemoteRootCodec<ProcedureworkflowAgentChatRequest_014d2dfae8>
     get() = RemoteRootCodec("procedure.workflowAgentChat.request", serializer<ProcedureworkflowAgentChatRequest_014d2dfae8>(), schema_014d2dfae880067a)
 
-val RemoteRootCodecs.procedureU2EWorkflowAgentChatU2EResult: RemoteRootCodec<ProcedureworkflowAgentChatResult_f975b14607>
-    get() = RemoteRootCodec("procedure.workflowAgentChat.result", serializer<ProcedureworkflowAgentChatResult_f975b14607>(), schema_f975b14607ae3f63)
+val RemoteRootCodecs.procedureU2EWorkflowAgentChatU2EResult: RemoteRootCodec<ProcedureworkflowAgentChatResult_350a19ed30>
+    get() = RemoteRootCodec("procedure.workflowAgentChat.result", serializer<ProcedureworkflowAgentChatResult_350a19ed30>(), schema_350a19ed30bb6b81)
 
 val RemoteRootCodecs.procedureU2EWorkflowGetRunU2ERequest: RemoteRootCodec<ProcedureworkflowGetRunRequest_13324e3fec>
     get() = RemoteRootCodec("procedure.workflowGetRun.request", serializer<ProcedureworkflowGetRunRequest_13324e3fec>(), schema_13324e3fec19e623)

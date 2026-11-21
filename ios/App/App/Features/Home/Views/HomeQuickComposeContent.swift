@@ -2,8 +2,13 @@ import SwiftUI
 
 extension HomeQuickComposeView {
   var composerSurface: some View {
-    HomeComposerSurface(isExpanded: isExpanded, glassNamespace: glassNamespace) {
+    VStack(spacing: 6) {
+    HomeComposerSurface(isExpanded: isExpanded) {
       if isExpanded { expandedSurface } else { compactSurface }
+    }
+      if newsPlacement == .composer, showsNews, !isCompactHeight || !draft.promptFocused {
+        newsLine
+      }
     }
   }
 
@@ -26,7 +31,7 @@ extension HomeQuickComposeView {
   }
 
   var expandedSurface: some View {
-    HomeComposerExpandedSurface {
+    HomeComposerExpandedSurface(isCompactHeight: isCompactHeight, showsHeader: showsContextHeader) {
       HStack(spacing: 8) {
         if launchSeed == nil {
           projectButton
@@ -34,12 +39,14 @@ extension HomeQuickComposeView {
           fixedProjectLabel
         }
         Spacer(minLength: 8)
+        closeComposerButton
         // Presentation (Chat/CLI) lives in the + sheet's Mode section with
         // the other launch options, as on desktop — no separate header chip.
       }
-
-      if !skills.isEmpty || !attachments.isEmpty || !fileMentions.isEmpty
-        || !mentionedMCPs.isEmpty
+    } content: {
+      if !draft.skills.isEmpty || !draft.attachments.isEmpty || !draft.fileMentions.isEmpty
+        || !draft.mentionedMCPs.isEmpty
+        || !draft.additionalSegments.isEmpty
       {
         contextChips
       }
@@ -48,20 +55,20 @@ extension HomeQuickComposeView {
         mentionSuggestions
       }
 
-      if let reference = RichChatSkillReference.atCaret(in: prompt, selection: promptSelection) {
+      if let reference = RichChatSkillReference.atCaret(in: draft.prompt, selection: draft.promptSelection) {
         let catalog = RichChatComposerControlCatalog(
           agentStatus: selectedAgent,
-          presentationMode: presentationMode,
-          configuration: ThreadConfig(model: selectedModel ?? "")
+          presentationMode: draft.presentationMode,
+          configuration: ThreadConfig(model: draft.selectedModel ?? "")
         )
         VStack(spacing: 0) {
-          ForEach(Array(catalog.slashSuggestions(for: prompt, selection: promptSelection).prefix(6))) { command in
+          ForEach(Array(catalog.slashSuggestions(for: draft.prompt, selection: draft.promptSelection).prefix(6))) { command in
             Button {
               guard let skill = command.skill else { return }
-              if !skills.contains(where: { $0.id == skill.id }) { skills.append(skill) }
-              prompt = reference.removingToken(from: prompt)
-              promptSelection = NSRange(location: reference.range.location, length: 0)
-              promptFocused = true
+              if !draft.skills.contains(where: { $0.id == skill.id }) { draft.skills.append(skill) }
+              draft.prompt = reference.removingToken(from: draft.prompt)
+              draft.promptSelection = NSRange(location: reference.range.location, length: 0)
+              draft.promptFocused = true
             } label: {
               Label(command.displayID, systemImage: "wand.and.stars")
                 .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
@@ -72,40 +79,51 @@ extension HomeQuickComposeView {
       }
 
       RichChatComposerTextInput(
-        text: $prompt,
-        selection: $promptSelection,
-        focused: $promptFocused,
-        lineLimit: 4...7,
-        placeholder: launchSeed?.promptPlaceholder ?? HomeStrings.quickComposePrompt
+        text: $draft.prompt,
+        selection: $draft.promptSelection,
+        focused: $draft.promptFocused,
+        lineLimit: isCompactHeight ? 1...2 : 1...5,
+        placeholder: launchSeed?.promptPlaceholder ?? HomeStrings.quickComposePrompt,
+        keyboardOwnerID: presentationID
       )
       .foregroundStyle(.primary)
-      .frame(maxWidth: .infinity, minHeight: 96, alignment: .topLeading)
+      .frame(
+        maxWidth: .infinity,
+        minHeight: 34,
+        alignment: .topLeading
+      )
       .accessibilityIdentifier("native-e2e.new-thread-prompt")
-      .onChange(of: prompt) { _, value in fileMentionController.update(draft: value) }
+      .onChange(of: draft.prompt) { _, value in draft.fileMentionController.update(draft: value) }
 
-      worktreeButton
+      if draft.worktreeSelection != .branch { worktreeButton }
 
-      if let failureMessage {
-        Text(failureMessage)
+      if let failure = draft.failureMessage {
+        Text(failure)
           .font(.caption)
           .foregroundStyle(.red)
           .lineLimit(2)
       }
+      if case .failed(let failure) = draft.tools.document.state {
+        SettingsUnavailableView(failure: failure) {
+          Task { await loadComposerTools() }
+        }
+      }
 
+    } controls: {
       actionBar
     }
   }
 
   var worktreeButton: some View {
     Button {
-      selector = .add
+      draft.selector = .add
     } label: {
       HStack(spacing: 7) {
-        Label(worktreeSelection.label, systemImage: worktreeSelection.icon)
+        Label(draft.worktreeSelection.label, systemImage: draft.worktreeSelection.icon)
           .foregroundStyle(.primary)
-        if worktreeSelection == .branch, let branch = currentBranch {
+        if draft.worktreeSelection == .branch, let branch = currentBranch {
           Text(branch).foregroundStyle(.secondary).lineLimit(1)
-        } else if worktreeSelection != .branch {
+        } else if draft.worktreeSelection != .branch {
           Text(selectedWorktreeBranchLabel).foregroundStyle(.secondary).lineLimit(1)
         }
         Spacer(minLength: 4)
@@ -116,42 +134,53 @@ extension HomeQuickComposeView {
   }
 
   var actionBar: some View {
-    HomeComposerActionBar {
+    PoracodeComposerControls {
       Button {
-        collapseComposer()
+        draft.selector = .add
       } label: {
-        Image(systemName: "xmark")
-      }
-      .homeComposerCircleButton()
-      .accessibilityLabel(HomeStrings.cancel)
-
-      Button {
-        selector = .add
-      } label: {
-        if importing {
-          ProgressView().controlSize(.small)
-        } else {
-          Image(systemName: "plus")
+        Group {
+          if draft.importing {
+            ProgressView().controlSize(.small)
+          } else {
+            Image(systemName: "plus")
+          }
         }
+        .homeComposerCircleButton()
       }
-      .homeComposerCircleButton()
+      .buttonStyle(.plain)
       .accessibilityLabel(HomeStrings.add)
+      .accessibilityIdentifier("native-e2e.new-thread-add")
 
-      modelButton
-
-      if supportsFast { fastButton }
-      if !effortOptions.isEmpty { effortMenu }
-      permissionMenu
-
-      Spacer(minLength: 0)
-
+    } configuration: {
+      homeCrewAwareSelectors
+    } voice: {
+      ComposerVoiceButton(owner: session.currentRichChatAccess.map {
+        .init(lease: $0.lease, conversationID: draft.threadID)
+      }, text: $draft.prompt, selection: $draft.promptSelection,
+        isEnabled: session.canOperate && !draft.lifecycle.isBusy, visualSize: 38,
+        prepareToRecord: { draft.promptFocused = false }, keyboardOwnerID: presentationID, stateOwnerID: ObjectIdentifier(draft))
+    } trailing: {
       reservedStartButton
     }
   }
 
+  private var closeComposerButton: some View {
+    Button { collapseComposer() } label: {
+      Image(systemName: "xmark.circle.fill")
+        .symbolRenderingMode(.hierarchical)
+        .font(.title2)
+        .foregroundStyle(.secondary)
+        .frame(width: 44, height: 44)
+        .contentShape(Rectangle())
+    }
+    .buttonStyle(.plain)
+    .accessibilityLabel(HomeStrings.cancel)
+    .accessibilityIdentifier("native-e2e.new-thread-close")
+  }
+
   var projectButton: some View {
     Button {
-      selector = .project
+      draft.selector = .project
     } label: {
       HStack(spacing: 6) {
         HomeServerStatusIcon(online: session.socketState == .online)
@@ -186,95 +215,16 @@ extension HomeQuickComposeView {
   }
 
   var selectedWorktreeBranchLabel: String {
-    if worktreeSelection == .worktree, let branch = branchSelection?.branch {
+    if draft.worktreeSelection == .worktree, let branch = draft.branchSelection?.branch {
       return branch
     }
-    return worktreeBranchName
-  }
-
-  var modelButton: some View {
-    Button {
-      selector = .model
-    } label: {
-      HStack(spacing: 5) {
-        HomeProviderIcon(kind: selectedAgent?.kind ?? defaults?.agentKind ?? "")
-          .frame(width: 14, height: 14)
-          .foregroundStyle(.secondary)
-        Text(modelLabel)
-          .font(.caption)
-          .foregroundStyle(.primary)
-          .lineLimit(1)
-        Image(systemName: "chevron.down")
-          .font(.system(size: 8, weight: .semibold))
-          .foregroundStyle(.secondary)
-      }
-    }
-    .buttonStyle(.plain)
-    .accessibilityLabel(HomeStrings.model)
-  }
-
-  var effortMenu: some View {
-    Menu {
-      ForEach(effortOptions, id: \.self) { effort in
-        Button {
-          applyComposerEffort(effort)
-        } label: {
-          if composerDisplayedEffort == effort {
-            Label(effort.capitalized, systemImage: "checkmark")
-          } else {
-            Text(effort.capitalized)
-          }
-        }
-      }
-    } label: {
-      Image(systemName: "chart.bar.fill")
-        .font(.caption)
-        .foregroundStyle(.secondary)
-    }
-    .accessibilityLabel(HomeStrings.effort)
-  }
-
-  var fastButton: some View {
-    Button {
-      applyComposerFastToggle()
-    } label: {
-      Image(systemName: composerDisplayedFast ? "bolt.fill" : "bolt")
-        .font(.caption)
-        .foregroundStyle(composerDisplayedFast ? Color.yellow : Color.secondary)
-    }
-    .buttonStyle(.plain)
-    .accessibilityLabel(HomeStrings.fast)
-  }
-
-  var permissionMenu: some View {
-    Menu {
-      ForEach(
-        HomeComposerPermission.allCases.filter {
-          $0 != .configured || configuredConfiguration != nil
-        }
-      ) { option in
-        Button {
-          permissionMode = option
-        } label: {
-          if permissionMode == option {
-            Label(option.label, systemImage: "checkmark")
-          } else {
-            Text(option.label)
-          }
-        }
-      }
-    } label: {
-      Image(systemName: permissionMode == .auto ? "shield" : "shield.slash")
-        .font(.caption)
-        .foregroundStyle(.secondary)
-    }
-    .accessibilityLabel(HomeStrings.permissions)
+    return draft.worktreeBranchName
   }
 
   var startButton: some View {
     HomeComposerStartButton(
       canStart: canStart,
-      isBusy: lifecycle.isBusy || preparingWorktree,
+      isBusy: draft.lifecycle.isBusy || draft.preparingWorktree,
       start: start
     )
   }

@@ -13,11 +13,12 @@ import UIKit
 /// instead of the text-input system. Tapping the transcript claims first
 /// responder; on-screen typing keeps using the command field and key
 /// accessory, which remain the touch affordances for the PTY.
-final class TerminalTranscriptView: UITextView {
+final class TerminalTranscriptView: NativeFocusReportingTextView {
   /// Called with the PTY byte sequence for each handled hardware keypress.
   var onRawKeyInput: ((String) -> Void)?
 
   override var canBecomeFirstResponder: Bool { true }
+
 
   override init(frame: CGRect, textContainer: NSTextContainer?) {
     super.init(frame: frame, textContainer: textContainer)

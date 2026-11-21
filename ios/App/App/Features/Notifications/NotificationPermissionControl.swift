@@ -25,17 +25,24 @@ struct NotificationPermissionControl: View {
     case .usable:
       EmptyView()
     case .denied:
-      Button {
+      permissionButton(String(localized: "notifications.openSettings"), icon: "gear") {
         permissions.openSettings()
-      } label: {
-        Label(String(localized: "notifications.openSettings"), systemImage: "gear")
       }
     case .unknown, .notDetermined:
-      Button {
+      permissionButton(SettingsUIStrings.notificationSystemPermission, icon: "bell.badge") {
         Task { await permissions.requestFromUserAction() }
-      } label: {
-        Label(String(localized: "notifications.enable"), systemImage: "bell.badge")
       }
     }
+  }
+
+  private func permissionButton(
+    _ title: String, icon: String, action: @escaping () -> Void
+  ) -> some View {
+    Button(action: action) {
+      Label(title, systemImage: icon)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .contentShape(Rectangle())
+    }
+    .buttonStyle(.plain)
   }
 }

@@ -68,6 +68,7 @@ object RichChatHistoryMapper {
             config = value.thread.config,
             terminalScrollback = value.terminalScrollback,
             followUpQueuePresent = followUpQueuePresent,
+            runtimeResumeCursor = value.runtimeResumeCursor,
             updatedAt = value.updatedAt,
             runtimeNotice = value.runtimeNotice,
             backgroundTasksPresent = backgroundTasksPresent,

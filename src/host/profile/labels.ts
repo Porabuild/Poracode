@@ -1,4 +1,5 @@
 import { baseAgentKind } from "@/shared/contracts";
+import { normalizeMcpServerIdentifier } from "@/shared/toolPresentationAdapters";
 
 /** Display labels for base provider kinds. */
 const PROVIDER_LABELS: Record<string, string> = {
@@ -52,7 +53,7 @@ export function accountLabel(agentKind: string): string {
 export function mcpServerLabel(serverId: string): string {
   const known = MCP_SERVER_LABELS[serverId];
   if (known) return known;
-  const core = serverId.replace(/^claude_ai_/, "").replace(/^plugin_[^_]+_/, "");
+  const core = normalizeMcpServerIdentifier(serverId);
   return titleCase(core);
 }
 

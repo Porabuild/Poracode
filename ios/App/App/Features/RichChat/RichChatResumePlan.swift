@@ -86,7 +86,7 @@ enum RichChatResumePlanner {
   /// session qualifies, never one whose turn is running again, and never after
   /// an ambiguous failure.
   static func relaunches(after failure: RichChatControllerFailure?, latest: RemoteThread?) -> Bool {
-    guard case .rejected(_, let code)? = failure, code == sessionAbsenceRefusalCode,
+    guard case .rejected(let statusCode, let code)? = failure, statusCode == 422, code == sessionAbsenceRefusalCode,
       let latest, !turnActiveStatuses.contains(latest.status)
     else { return false }
     return latest.sessionRef != nil || latest.canResumeWithConfig == true
@@ -108,6 +108,23 @@ enum RichChatResumePlanner {
         executionIdentity: $0.executionIdentity
       )
     }
+    return request
+  }
+
+  /// A typed pre-effect refusal can recover an ordinary composed turn too.
+  /// Preserve the exact context and client message identity; rebuilding a
+  /// plain prompt would silently drop attachments, mentions and side context.
+  static func relaunchRequest(
+    _ base: ThreadStartExistingRequest,
+    latest: RemoteThread,
+    configuration: ThreadConfig,
+    input: RichChatSendInput
+  ) throws -> ThreadStartExistingRequest {
+    var request = relaunchRequest(base, latest: latest, configuration: configuration)
+    request.prompt = input.prompt
+    request.segments = try input.segments?.map { try $0.lifecyclePromptSegment() }
+    request.userMessageItemID = input.userMessageItemID
+    request.clientContext = input.clientContext
     return request
   }
 

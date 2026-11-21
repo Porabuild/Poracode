@@ -16,16 +16,49 @@ struct PairingScannerView: View {
   @Environment(\.dismiss) private var dismiss
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
   @State private var model = PairingScannerModel()
+  @State private var isShowingPhotoPicker = false
   @State private var selectedPhoto: PhotosPickerItem?
   @State private var isDecodingPhoto = false
   @State private var photoError: String?
 
   var body: some View {
-    ZStack {
-      Color.black.ignoresSafeArea()
-      content
+    NavigationStack {
+      ZStack {
+        Color.black.ignoresSafeArea()
+        content
+      }
+      .toolbar {
+        ToolbarItem(placement: .cancellationAction) {
+          Button(OnboardingStrings.scanClose, systemImage: "xmark") { dismiss() }
+            .accessibilityIdentifier("native-e2e.pair.scan.close")
+        }
+        if model.phase != .preparing {
+          ToolbarItemGroup(placement: .bottomBar) {
+            Button(
+              isDecodingPhoto ? OnboardingStrings.scanPhotoReading : OnboardingStrings.scanPhoto,
+              systemImage: isDecodingPhoto ? "hourglass" : "photo"
+            ) { isShowingPhotoPicker = true }
+              .disabled(isDecodingPhoto)
+              .accessibilityIdentifier("native-e2e.pair.scan.photo")
+            Button(OnboardingStrings.scanUsePairingLink, systemImage: "link") {
+              onUsePairingLink()
+              dismiss()
+            }
+            .accessibilityIdentifier("native-e2e.pair.scan.use-link")
+            if model.phase != .scanning {
+              Button(OnboardingStrings.manualTitle, systemImage: "keyboard") {
+                onUseManualEntry()
+                dismiss()
+              }
+              .accessibilityIdentifier("native-e2e.pair.scan.use-manual")
+            }
+          }
+        }
+      }
+      .photosPicker(isPresented: $isShowingPhotoPicker, selection: $selectedPhoto, matching: .images)
     }
-    .overlay(alignment: .topTrailing) { closeButton }
+    .foregroundStyle(.white, .white.opacity(0.7))
+    .tint(.white)
     .preferredColorScheme(.dark)
     .task { await model.start() }
     .onDisappear { model.stop() }
@@ -34,9 +67,8 @@ struct PairingScannerView: View {
       dismiss()
       onCandidate(candidate)
     }
-    .onChange(of: selectedPhoto) { _, item in
-      guard let item else { return }
-      Task { await decodePhoto(item) }
+    .task(id: selectedPhoto) {
+      if let selectedPhoto { await decodePhoto(selectedPhoto) }
     }
   }
 
@@ -60,12 +92,11 @@ struct PairingScannerView: View {
         }
         PairingScannerViewfinder(
           hint: OnboardingStrings.scanHint,
-          notice: model.notice,
+          notice: photoError ?? model.notice,
           animatesSweep: !reduceMotion
         )
       }
       .accessibilityIdentifier("native-e2e.pair.scan.viewfinder")
-      .poracodeBottomBar { scannerFallbackBar }
     case .permissionDenied:
       guidanceCard(
         PairingScannerGuidance(
@@ -103,56 +134,8 @@ struct PairingScannerView: View {
     _ guidance: PairingScannerGuidance,
     action: (() -> Void)?
   ) -> some View {
-    PairingScannerGuidanceCard(
-      guidance: guidance,
-      action: action,
-      photoSelection: $selectedPhoto,
-      isDecodingPhoto: isDecodingPhoto,
-      photoError: photoError,
-      usePairingLink: {
-        dismiss()
-        onUsePairingLink()
-      },
-      useManualEntry: {
-        dismiss()
-        onUseManualEntry()
-      }
-    )
-    .padding(24)
-  }
-
-  private var scannerFallbackBar: some View {
-    let decodingPhoto = isDecodingPhoto
-    return VStack(spacing: 8) {
-      if let photoError {
-        Text(photoError)
-          .font(.footnote)
-          .foregroundStyle(.white.opacity(0.8))
-          .multilineTextAlignment(.center)
-      }
-      HStack(spacing: 12) {
-        PhotosPicker(selection: $selectedPhoto, matching: .images) {
-          Label(
-            decodingPhoto ? OnboardingStrings.scanPhotoReading : OnboardingStrings.scanPhoto,
-            systemImage: decodingPhoto ? "hourglass" : "photo"
-          )
-          .frame(maxWidth: .infinity)
-        }
-        .poracodeGlassButtonStyle()
-        .disabled(decodingPhoto)
-        Button {
-          dismiss()
-          onUsePairingLink()
-        } label: {
-          Label(OnboardingStrings.scanUsePairingLink, systemImage: "link")
-            .frame(maxWidth: .infinity)
-        }
-        .poracodeGlassButtonStyle()
-      }
-    }
-    .padding(.horizontal, 20)
-    .padding(.vertical, 14)
-    .background(.ultraThinMaterial)
+    PairingScannerGuidanceCard(guidance: guidance, action: action, photoError: photoError)
+      .padding(24)
   }
 
   private func decodePhoto(_ item: PhotosPickerItem) async {
@@ -168,29 +151,14 @@ struct PairingScannerView: View {
         return
       }
       let payload = try await PairingPhotoCodeDecoder.decode(data)
+      try Task.checkCancellation()
       if !model.propose(payload: payload) {
         photoError = OnboardingStrings.scanPhotoInvalid
       }
     } catch is CancellationError {
     } catch {
-      photoError = OnboardingStrings.scanPhotoNoCode
+      if !Task.isCancelled { photoError = OnboardingStrings.scanPhotoNoCode }
     }
-  }
-
-  private var closeButton: some View {
-    Button {
-      dismiss()
-    } label: {
-      Image(systemName: "xmark")
-        .font(.headline)
-        .foregroundStyle(.white)
-        .padding(12)
-        .background(.black.opacity(0.4), in: Circle())
-    }
-    .buttonStyle(.plain)
-    .padding(16)
-    .accessibilityLabel(OnboardingStrings.scanClose)
-    .accessibilityIdentifier("native-e2e.pair.scan.close")
   }
 
   private func openSystemSettings() {

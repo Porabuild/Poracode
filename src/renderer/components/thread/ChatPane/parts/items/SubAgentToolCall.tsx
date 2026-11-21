@@ -40,6 +40,7 @@ import {
 } from "./toolDisplay";
 import { parseWorkflowInfo } from "./workflowDisplay";
 import { WorkflowResultGroup } from "./WorkflowResultGroup";
+import { workflowResultErrorText } from "@/shared/toolPresentationAdapters";
 import { useShimmer } from "@/renderer/thinkingAnimator";
 import { useCompactLayout } from "@/renderer/adaptiveLayout";
 
@@ -126,7 +127,7 @@ export const SubAgentToolCall = memo(function SubAgentToolCall({
   // error icon — the user explicitly does not want an inline error banner.
   const workflowErrorText =
     workflow && payload.status === "error"
-      ? (extractToolUseErrorText(completedResultText) ?? completedResultText)
+      ? workflowResultErrorText(completedResultText) || completedResultText
       : "";
   const status = resolveStatus(
     item,
@@ -246,13 +247,6 @@ export const SubAgentToolCall = memo(function SubAgentToolCall({
     </div>
   );
 });
-
-function extractToolUseErrorText(text: string): string | null {
-  const match = /<tool_use_error>([\s\S]*?)<\/tool_use_error>/i.exec(text);
-  if (!match) return null;
-  const inner = (match[1] ?? "").trim();
-  return inner.length > 0 ? inner : null;
-}
 
 function SubAgentResultDisclosure({
   text,

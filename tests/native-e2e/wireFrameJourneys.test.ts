@@ -89,6 +89,33 @@ describe("wire-lab control-plane journeys", () => {
     await waitForJournal(harness, "runtime:request.resolved", 1);
   });
 
+  it("preserves a pending approval in history until the runtime resolves it", async () => {
+    const lab = await startLab();
+    harness = lab;
+    const { accessToken } = await pairAndAuth(lab, ["session:read"]);
+    const itemId = "pending_request:request-fixture-001";
+    const history = async () => {
+      const response = await fetch(
+        new URL(`/api/threads/${FIXTURE_THREAD_ID}/history`, lab.httpBaseUrl),
+        { headers: { authorization: `Bearer ${accessToken}` } },
+      );
+      expect(response.status).toBe(200);
+      return (await response.json()) as { runtimeItems: Array<{ id: string }> };
+    };
+    await controlJson(lab, "/v1/checkpoints/long-approval-ready", { method: "POST" });
+    const pending = (await history()).runtimeItems.find(({ id }) => id === itemId);
+    expect(pending).toMatchObject({
+      type: "pending_request",
+      state: "started",
+      payload: {
+        requestId: "request-fixture-001",
+        payload: { summary: expect.stringContaining("Inspection step 24") },
+      },
+    });
+    await controlJson(lab, "/v1/checkpoints/long-approval-resolved", { method: "POST" });
+    expect((await history()).runtimeItems.some(({ id }) => id === itemId)).toBe(false);
+  });
+
   it("steer journey: set stores and broadcasts the pending envelope, clear releases it", async () => {
     harness = await startLab();
     const { accessToken } = await pairAndAuth(harness, ["session:read", "session:operate"]);
@@ -194,7 +221,13 @@ describe("wire-lab control-plane journeys", () => {
       cursorSync: { version: number; toCursor: number; data: string };
     };
     expect(baseline.type).toBe("terminal-watch-baseline-chunk");
-    expect(baseline.cursorSync).toMatchObject({ version: 2, toCursor: 11, data: "hello world" });
+    expect(baseline.cursorSync).toMatchObject({
+      version: 2,
+      chunkIndex: 0,
+      chunkCount: 2,
+      toCursor: 11,
+      data: "hello world",
+    });
     ws.send(
       JSON.stringify({
         type: "terminal-watch-baseline-ack",
@@ -210,9 +243,22 @@ describe("wire-lab control-plane journeys", () => {
     expect(window.cursorSync).toMatchObject({
       fromCursor: 11,
       toCursor: 22,
+      chunkIndex: 1,
+      chunkCount: 2,
       data: "live window",
     });
     await waitForJournal(harness, "ws-client:terminal-watch-baseline-ack", 1);
+    for (const throughCursor of [22, 11]) {
+      ws.send(
+        JSON.stringify({
+          type: "terminal-watch-baseline-ack",
+          id: FIXTURE_TERMINAL_ID,
+          cursorSync: { version: 2, watchId: "watch-fixture-002", throughCursor },
+        }),
+      );
+    }
+    ws.send(JSON.stringify({ type: "ping", id: "terminal-baseline-complete" }));
+    expect(await next()).toMatchObject({ type: "pong", id: "terminal-baseline-complete" });
     ws.send(JSON.stringify({ type: "terminal-unwatch", id: FIXTURE_TERMINAL_ID }));
 
     // Desktop-internal gate: the frame fixture delivers only to opted-in

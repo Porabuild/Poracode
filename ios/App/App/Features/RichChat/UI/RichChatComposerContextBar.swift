@@ -1,8 +1,41 @@
 import SwiftUI
 
+struct RichChatUploadedAttachment: Identifiable, Equatable {
+  let id = UUID()
+  let name: String
+  let mimeType: String
+  let remotePath: String
+
+  var segment: RichPromptSegment { .attachment(path: remotePath, mimeType: mimeType) }
+}
+
+struct RichChatDraftRestorationAction: View {
+  let isRevertedPrompt: Bool
+  let activate: () -> Void
+
+  var body: some View {
+    Button(action: activate) {
+      Label(
+        isRevertedPrompt ? RichChatStrings.restoreRevertedPrompt : RichChatStrings.restorePreviousDraft,
+        systemImage: isRevertedPrompt ? "arrow.uturn.forward" : "arrow.uturn.backward"
+      )
+      .poracodeChatText(.metadata, weight: .medium)
+      .padding(.horizontal, 10)
+      .padding(.vertical, 5)
+      .background(Color.primary.opacity(0.09), in: Capsule())
+      .frame(minHeight: 44)
+      .contentShape(Rectangle())
+    }
+    .buttonStyle(.plain)
+    .accessibilityIdentifier("native-e2e.composer-alternate-draft")
+    .frame(maxWidth: .infinity, alignment: .leading)
+  }
+}
+
 enum RichChatComposerControlsPresentation: String, Identifiable {
   case controls
   case crew
+  case models
   var id: String { rawValue }
 }
 
@@ -76,6 +109,7 @@ struct RichChatComposerContextBar: View {
 extension RichPromptSegment {
   var composerChipLabel: String? {
     switch self {
+    case .selectedText(let text): "“\(text.prefix(80))”"
     case .file(let path): path
     case .diffComment(let path, let lineNumber, _, _, _): "\(path):\(lineNumber)"
     case .thread(_, let title): title
@@ -84,12 +118,16 @@ extension RichPromptSegment {
   }
 
   var composerRemovalLabel: String {
+    if case .selectedText = self { return SideChatStrings.removeQuote }
     if case .file = self { return RichChatStrings.removeFile }
     return RichChatStrings.removeReviewComment
   }
 
   var promptText: String? {
     switch self {
+    case .text(let text), .selectedText(let text): text
+    case .skill(_, _, let invocation, _, _, _, _): invocation
+    case .mcp(_, let name): "@\(name)"
     case .file(let path): "@\(path)"
     case .diffComment(_, _, _, _, let body): body
     case .thread(_, let title): "@\(title)"

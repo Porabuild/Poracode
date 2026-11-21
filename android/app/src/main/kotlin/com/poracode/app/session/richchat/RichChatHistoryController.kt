@@ -241,6 +241,7 @@ fun RichChatController.installAuthoritativeSnapshot(
             snapshotSeq = snapshot.snapshotSeq,
             olderCursor = snapshot.olderCursor,
             olderTurnsCursor = snapshot.completedTurnsNextCursor,
+            runtimeResumeCursor = snapshot.runtimeResumeCursor,
             config = snapshot.config,
             terminalScrollback = snapshot.terminalScrollback,
             activeOperations = it.activeOperations - OP_HISTORY,

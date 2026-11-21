@@ -83,9 +83,10 @@ struct ResyncEngine {
         // older-turn level and both continuations are no longer provable and
         // any held older page is fenced. The commit below refreshes the
         // transcript authoritatively on the existing requester.
-        host.activeRichChatSuite?.transcript.invalidateForDeliveredReplacement(
-            requiresRefresh: false
-        )
+        for suite in host.attachedRichChatSuites {
+            suite.runtimeLaunch.clear()
+            suite.transcript.invalidateForDeliveredReplacement(requiresRefresh: false)
+        }
 
         do {
             // Declared hosts serve one bounded page 1 (never assembled); a
@@ -242,7 +243,7 @@ struct ResyncEngine {
                 // The rich native transcript owns its own history surface. Refresh it while
                 // the socket is still resync-gated so post-reconnect deltas cannot race an
                 // older transcript baseline.
-                if let richSuite = host.activeRichChatSuite {
+                for richSuite in host.attachedRichChatSuites {
                     await richSuite.refreshAuthoritativeHistory()
                 }
 

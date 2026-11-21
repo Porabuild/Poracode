@@ -75,7 +75,14 @@ export async function handleLabHttp(
         await handleForwardEnter(runtime, req, res, url, matched.params);
         return;
       default: {
-        runtime.requireRouteAuth(req, url, matched.route.auth, matched.route.scopes);
+        // A preview or download may carry the grant minted by its
+        // authenticated ticket route. Other requests use normal auth.
+        if (
+          matched.route.id !== "file-media" ||
+          !runtime.routes.fileMediaForTicket(url.searchParams.get("ticket"))
+        ) {
+          runtime.requireRouteAuth(req, url, matched.route.auth, matched.route.scopes);
+        }
         if (await handleLifecycleHttp(runtime, req, res, matched.route.id, url, matched.params)) {
           return;
         }
@@ -177,6 +184,10 @@ async function handleProcedureCall(
     );
   }
   parseWithSchema(schemas.requestSchema, envelope.payload, `${envelope.procedure} payload`);
+  runtime.observationLedger.recordOperation(`procedure:${envelope.procedure}`, {
+    method: req.method ?? "POST",
+    path: url.pathname,
+  });
   if (!isConfiguredProcedureName(fixture.name)) {
     throw new LabHttpError("unconfigured_contract_case", "Fixture name is not configured.", 501);
   }

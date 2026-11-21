@@ -53,7 +53,7 @@ struct PoracodeGlassTabs<Value: Hashable>: View {
       Label(tab.title, systemImage: tab.systemImage)
         .labelStyle(.titleAndIcon)
         .font(.subheadline.weight(.semibold))
-        .foregroundStyle(isSelected ? Color.primary : Color.secondary)
+        .foregroundStyle(isSelected ? Color.primary : Color.poracodeSecondaryLabel)
         .frame(maxWidth: .infinity)
         .frame(height: 44)
         .background {

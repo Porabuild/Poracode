@@ -23,8 +23,19 @@ struct RichTimelineProjectionCache {
 
   mutating func projection(for transcript: RichTranscriptState?) -> RichTimelineProjection? {
     if transcript != self.transcript {
+      let previousItems = self.transcript?.itemsInOrder
       self.transcript = transcript
-      projection = transcript.map { RichTimeline.project($0.itemsInOrder) }
+      if let transcript, let existing = projection, let previousItems,
+        let patched = RichTimeline.updatingStreamOnly(
+          in: existing,
+          previousItems: previousItems,
+          newItems: transcript.itemsInOrder
+        )
+      {
+        projection = patched
+      } else {
+        projection = transcript.map { RichTimeline.project($0.itemsInOrder) }
+      }
       rebuildCount += 1
     }
     return projection
@@ -55,6 +66,7 @@ struct RichChatTranscriptControllerState: Equatable, Sendable {
   /// continuations, the spinner and the last page failure.
   var olderCursor: Int?
   var olderTurnsCursor: String?
+  var runtimeResumeCursor: String?
   var snapshotSequence: Int?
   var liveSequence: Int = -1
   var loadState: RichChatTranscriptLoadState = .idle
@@ -64,6 +76,16 @@ struct RichChatTranscriptControllerState: Equatable, Sendable {
 
   var timeline: RichTimelineProjection? {
     transcript.map { RichTimeline.project($0.itemsInOrder) }
+  }
+
+  func canDisplayHistory(for lease: RichChatHostLease?) -> Bool {
+    guard let lease, target?.lease == lease else { return false }
+    switch loadState {
+    case .loaded: return true
+    case .idle, .loading:
+      return snapshotSequence != nil && (transcript?.itemsInOrder.isEmpty == false || !completedTurns.isEmpty)
+    case .empty, .failed: return false
+    }
   }
 
   func displayedCompletedTurns(in projection: RichTimelineProjection?) -> [RichCompletedTurn] {
@@ -97,8 +119,8 @@ final class RichChatTranscriptController {
     projectionCache.projection(for: state.transcript)
   }
 
-  /// Test-only proof that background-task metadata updates leave the timeline
-  /// projection cache untouched.
+  /// Revision of the cached projection after reading `timeline`. Metadata-only
+  /// updates leave it unchanged, so transcript Find can reuse its results.
   var timelineProjectionRebuildCount: Int { projectionCache.rebuildCount }
 
   /// Retained history-read batches (accounting; exposed for tests). B6/F-D1:
@@ -116,6 +138,7 @@ final class RichChatTranscriptController {
   private let clock: () -> Int64
   private let refreshTask = RichChatControllerTaskSlot()
   private let historyTask = RichChatControllerTaskSlot()
+  private let cacheRefreshTask = RichChatControllerTaskSlot()
   /// Owns older-paging state, task and epoch fences; the controller mirrors it
   /// into `state` after every paging mutation (`syncOlderPagingState`).
   private let olderPaging = RichChatOlderPaging()
@@ -160,6 +183,7 @@ final class RichChatTranscriptController {
     revision &+= 1
     refreshTask.cancel()
     historyTask.cancel()
+    cacheRefreshTask.cancel()
     olderPaging.reset()
     bufferedBatches.removeAll(keepingCapacity: true)
     bufferedSequences.removeAll(keepingCapacity: true)
@@ -188,6 +212,7 @@ final class RichChatTranscriptController {
     revision &+= 1
     refreshTask.cancel()
     historyTask.cancel()
+    cacheRefreshTask.cancel()
     olderPaging.reset()
     bufferedBatches.removeAll(keepingCapacity: false)
     bufferedSequences.removeAll(keepingCapacity: false)
@@ -201,6 +226,7 @@ final class RichChatTranscriptController {
   func enterBackground() {
     revision &+= 1
     refreshTask.cancel()
+    cacheRefreshTask.cancel()
     isBackgrounded = true
     historyTask.cancel()
     olderPaging.beginEpoch()
@@ -219,7 +245,7 @@ final class RichChatTranscriptController {
     isBackgrounded = false
   }
 
-  func loadHistory(targetEntryCount: Int? = 40) async {
+  func loadHistory(targetEntryCount: Int? = RemoteBoundedReads.interactiveTargetTimelineEntryCount) async {
     guard let target = state.target, let access = state.access else { return }
     if let failure = access.controllerGate(.sessionRead) {
       state.loadState = .failed(failure)
@@ -244,6 +270,8 @@ final class RichChatTranscriptController {
     }
     await historyTask.wait()
   }
+
+  func waitForCurrentHistoryRead() async { await historyTask.wait() }
 
   /// One user action advances both older continuations; owned by
   /// `RichChatOlderPaging` (epoch/task/cursor fences) with page loading and
@@ -280,6 +308,7 @@ final class RichChatTranscriptController {
   func invalidateForDeliveredReplacement(requiresRefresh: Bool) {
     olderPaging.invalidateAll()
     syncOlderPagingState()
+    state.runtimeResumeCursor = nil
     state.completedTurns.removeAll(keepingCapacity: true)
     // A delivered replacement installs a new host runtime; the session-scoped
     // background roster from the retired runtime is no longer provable, and the
@@ -417,10 +446,45 @@ final class RichChatTranscriptController {
     owner: UInt64
   ) async {
     do {
-      let history = try await gateway.loadRichHistory(
-        target: target,
-        targetEntryCount: targetEntryCount
-      )
+      let history: RemoteThreadSnapshot
+      if let resumeCursor = state.runtimeResumeCursor,
+        !resumeCursor.isEmpty,
+        let baselineSeq = state.snapshotSequence,
+        state.transcript != nil
+      {
+        let afterSeq = max(baselineSeq, state.liveSequence)
+        do {
+          let outcome = try await gateway.loadRichHistoryChanges(
+            target: target,
+            cursor: resumeCursor,
+            afterSeq: afterSeq,
+            targetEntryCount: targetEntryCount
+          )
+          try Task.checkCancellation()
+          switch outcome {
+          case .events(let resumed):
+            try applyHistoryResumeEvents(resumed, target: target, owner: owner)
+            return
+          case .snapshot(let snapshot):
+            history = snapshot
+          }
+        } catch RichChatGatewayError.unavailable {
+          history = try await gateway.loadRichHistory(
+            target: target,
+            targetEntryCount: targetEntryCount
+          )
+        } catch RichChatGatewayError.http(let statusCode, _, _) where statusCode == 404 {
+          history = try await gateway.loadRichHistory(
+            target: target,
+            targetEntryCount: targetEntryCount
+          )
+        }
+      } else {
+        history = try await gateway.loadRichHistory(
+          target: target,
+          targetEntryCount: targetEntryCount
+        )
+      }
       try Task.checkCancellation()
       let items = try RichChatRemoteModelBridge.items(history.runtimeItems)
       var turns = try RichChatRemoteModelBridge.completedTurns(history.completedTurns)
@@ -569,6 +633,7 @@ final class RichChatTranscriptController {
         bufferedTruncation: bufferedTruncation
       )
       syncOlderPagingState()
+      state.runtimeResumeCursor = history.runtimeResumeCursor
       state.snapshotSequence = history.snapshotSeq
       state.liveSequence = liveSequence
       // An item-less transcript of completed turns is a loaded transcript: the
@@ -598,6 +663,173 @@ final class RichChatTranscriptController {
       // owner decides whether the capability-gated descriptor read is allowed.
       noticeProjection?.noticeProjectionReadFailed(failure)
       releaseRetainedHistoryRead()
+    }
+  }
+
+  /// Applies an incremental `thread-history-changes` replay over the already-loaded
+  /// warm transcript without discarding older paged items or re-decoding the full tail.
+  private func applyHistoryResumeEvents(
+    _ resumed: RemoteHistoryResumeEvents,
+    target: RichChatThreadTarget,
+    owner: UInt64
+  ) throws {
+    let turns = try RichChatRemoteModelBridge.completedTurns(resumed.completedTurns)
+    let context = try RichChatRemoteModelBridge.contextUsage(resumed.contextUsage)
+    guard owns(target: target, revision: owner), var transcript = state.transcript else { return }
+    guard resumed.thread.id == target.threadID else {
+      state.loadState = .failed(.invalidResponse)
+      noticeProjection?.noticeProjectionReadFailed(.invalidResponse)
+      releaseRetainedHistoryRead()
+      return
+    }
+    var updatedTurns = turns
+    var mergedContext = context ?? state.contextUsage
+    var liveSequence = max(state.liveSequence, resumed.snapshotSeq)
+    var needsCatchup = false
+    var sawTruncation = false
+    let resumeAppliedThrough = max(state.snapshotSequence ?? -1, state.liveSequence)
+
+    for batch in resumed.batches where batch.seq > resumeAppliedThrough {
+      sawTruncation =
+        Self.containsRuntimeTruncation(batch.events, threadID: target.threadID) || sawTruncation
+      needsCatchup =
+        Self.applyEvents(
+          batch.events, to: &transcript, turns: &updatedTurns,
+          receivedAtMilliseconds: 0
+        ) || needsCatchup
+      mergedContext = Self.mergeContextUsage(
+        batch.events,
+        threadID: target.threadID,
+        into: mergedContext
+      )
+      liveSequence = max(liveSequence, batch.seq)
+    }
+
+    var installedQueue = state.followUpQueue
+    if resumed.followUpQueuePresent {
+      installedQueue = try resumed.followUpQueue.map { rawQueue in
+        try RichFollowUpQueueDecoder.decodeQueue(try RichChatRemoteModelBridge.json(rawQueue))
+      }
+    }
+    installedQueue = followUpQueueReplay.replay(
+      over: installedQueue,
+      snapshotSequence: resumed.snapshotSeq,
+      target: target
+    )
+
+    var installedBackgroundTasks = state.backgroundTasks
+    var installedBackgroundTaskSequence = state.backgroundTaskSequence
+    let resumeIsAtLeastBackgroundHighWater =
+      state.backgroundTaskSequence.map { resumed.snapshotSeq >= $0 } ?? true
+    if resumed.backgroundTasksPresent, let rawTasks = resumed.backgroundTasks,
+      let decodedTasks = RuntimeEventDecoder.decodeBackgroundTasks(.array(rawTasks)),
+      resumeIsAtLeastBackgroundHighWater
+    {
+      installedBackgroundTasks = RemoteBackgroundTaskReduce.apply(
+        eventType: "background_tasks.changed",
+        incoming: decodedTasks,
+        previous: installedBackgroundTasks
+      )
+      installedBackgroundTaskSequence = max(
+        installedBackgroundTaskSequence ?? resumed.snapshotSeq,
+        resumed.snapshotSeq
+      )
+    }
+
+    let commitNow = clock()
+    var expired = false
+    while let head = bufferedBatches.first,
+      bufferedBatchLedger.isExpired(
+        arrivalMilliseconds: head.arrivalMonotonicMilliseconds,
+        nowMilliseconds: commitNow
+      )
+    {
+      let dropped = bufferedBatches.removeFirst()
+      bufferedSequences.remove(dropped.sequence)
+      bufferedBatchLedger.recordDropped(bytes: dropped.byteCount)
+      expired = true
+    }
+    if expired { bufferOverflowed = true }
+    for batch in bufferedBatches.sorted(by: { $0.sequence < $1.sequence })
+    where batch.sequence > resumed.snapshotSeq {
+      sawTruncation =
+        Self.containsRuntimeTruncation(batch.events, threadID: target.threadID) || sawTruncation
+      needsCatchup =
+        Self.applyEvents(
+          batch.events, to: &transcript, turns: &updatedTurns,
+          receivedAtMilliseconds: batch.receivedAtMilliseconds
+        ) || needsCatchup
+      mergedContext = Self.mergeContextUsage(
+        batch.events,
+        threadID: target.threadID,
+        into: mergedContext
+      )
+      let appliesBackgroundMetadata =
+        installedBackgroundTaskSequence.map { batch.sequence > $0 } ?? true
+      if appliesBackgroundMetadata,
+        Self.applyBackgroundTaskEvents(
+          batch.events,
+          threadID: target.threadID,
+          to: &installedBackgroundTasks
+        )
+      {
+        installedBackgroundTaskSequence = max(
+          installedBackgroundTaskSequence ?? batch.sequence,
+          batch.sequence
+        )
+      }
+      liveSequence = max(liveSequence, batch.sequence)
+    }
+
+    state.transcript = transcript
+    noticeProjection?.noticeProjectionSnapshotNotice(resumed.runtimeNotice)
+    if resumed.completedTurnsNextCursor == nil {
+      state.completedTurns = CompletedTurnsMerge.replaceTail(tail: updatedTurns)
+    } else {
+      state.completedTurns = CompletedTurnsMerge.mergeTail(
+        existing: state.completedTurns, tail: updatedTurns
+      )
+    }
+    state.contextUsage = mergedContext
+    state.followUpQueue = installedQueue
+    state.backgroundTasks = installedBackgroundTasks
+    state.backgroundTaskSequence = installedBackgroundTaskSequence
+    if sawTruncation {
+      olderPaging.invalidateTurns()
+    } else {
+      olderPaging.noteAuthoritativeTail(
+        runtimeCursor: state.olderCursor,
+        turnsCursor: resumed.completedTurnsNextCursor,
+        bufferedTruncation: false
+      )
+    }
+    syncOlderPagingState()
+    state.runtimeResumeCursor = resumed.runtimeResumeCursor
+    state.snapshotSequence = resumed.snapshotSeq
+    state.liveSequence = liveSequence
+    state.loadState =
+      transcript.itemsInOrder.isEmpty && state.completedTurns.isEmpty ? .empty : .loaded
+    if needsCatchup || bufferOverflowed {
+      demandAuthoritativeRefresh()
+    } else {
+      state.requiresAuthoritativeRefresh = false
+    }
+    releaseRetainedHistoryRead()
+    if state.requiresAuthoritativeRefresh { scheduleAuthoritativeRefresh() }
+  }
+
+  /// Debounced best-effort refresh of the durable recent-history cache after a
+  /// live turn settles so the next cold open validates with `unchanged: true`.
+  private func scheduleRecentHistoryCacheRefresh() {
+    guard !isBackgrounded, let target = state.target else { return }
+    let owner = revision
+    cacheRefreshTask.launch { [weak self] in
+      try? await Task.sleep(for: .milliseconds(250))
+      guard !Task.isCancelled, let self, self.owns(target: target, revision: owner) else { return }
+      await self.gateway.refreshRichHistoryCache(
+        target: target,
+        targetEntryCount: RemoteBoundedReads.interactiveTargetTimelineEntryCount
+      )
     }
   }
 
@@ -632,7 +864,14 @@ final class RichChatTranscriptController {
     if Self.containsRuntimeTruncation(events, threadID: transcript.threadID) {
       // A live truncation renumbers the host's turn indices: the held cursor is
       // no longer meaningful and any older page in flight is fenced.
+      state.runtimeResumeCursor = nil
       invalidateOlderTurns()
+    }
+    let turnCompleted = events.contains { event in
+      if case .turnCompleted(let tid, _, _) = event {
+        return tid == transcript.threadID
+      }
+      return false
     }
     var turns = state.completedTurns
     let needsCatchup = Self.applyEvents(
@@ -642,6 +881,7 @@ final class RichChatTranscriptController {
     state.completedTurns = turns
     if needsCatchup { demandAuthoritativeRefresh() }
     state.transcript = transcript
+    if turnCompleted { scheduleRecentHistoryCacheRefresh() }
     state.contextUsage = Self.mergeContextUsage(
       events,
       threadID: transcript.threadID,

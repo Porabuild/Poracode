@@ -285,8 +285,8 @@ class GeneratedRichChatRemoteTransport(
         return (response["path"] as JsonPrimitive).content
     }
 
-    override fun localImageRequest(path: String): BinaryRequestPlan {
-        val route = prepare { GeneratedRemoteV3RichChatContract.localImage(path) }
+    override fun localImageRequest(path: String, variant: String?): BinaryRequestPlan {
+        val route = prepare { GeneratedRemoteV3RichChatContract.localImage(path, variant) }
         val metadata = wireMetadata("local-image", "empty", "binary")
         return BinaryRequestPlan(
             method = metadata.method,
@@ -302,12 +302,11 @@ class GeneratedRichChatRemoteTransport(
         threadId: String,
         itemId: String,
         path: List<RuntimeImagePathSegment>,
+        variant: String?,
     ): BinaryRequestPlan {
         val route = prepare {
             GeneratedRemoteV3RichChatContract.runtimeImage(
-                threadId,
-                itemId,
-                path.map(RuntimeImagePathSegment::toJson),
+                threadId, itemId, path.map(RuntimeImagePathSegment::toJson), variant,
             )
         }
         val metadata = wireMetadata("runtime-image", "empty", "binary")

@@ -1,48 +1,86 @@
 import SwiftUI
 
+@MainActor @Observable
+final class PullRequestGuideDraft {
+  var writer = ""
+  var model = ""
+  var instructions = ""
+  private var target: ForgeReviewTarget?
+  private var fingerprint: String?
+  private var stopIndex = 0
+
+  func synchronize(target: ForgeReviewTarget, fingerprint: String?) {
+    if self.target != target {
+      self.target = target
+      self.fingerprint = nil
+      stopIndex = 0
+      writer = ""
+      model = ""
+      instructions = ""
+    }
+    if let fingerprint, self.fingerprint != fingerprint {
+      self.fingerprint = fingerprint
+      stopIndex = 0
+    }
+  }
+
+  func index(for count: Int) -> Int {
+    min(stopIndex, max(0, count - 1))
+  }
+
+  func move(by offset: Int, count: Int) {
+    stopIndex = max(0, min(index(for: count) + offset, max(0, count - 1)))
+  }
+}
+
 struct PullRequestGuideView: View {
   @Bindable var forge: ForgeReviewController
+  let target: ForgeReviewTarget
+  @Bindable var draft: PullRequestGuideDraft
   let writers: [AgentStatusRecord]
   let finish: () -> Void
-  @State private var writer = ""
-  @State private var model = ""
-  @State private var instructions = ""
-  @State private var stopIndex = 0
 
-  private var document: GitHubDocument? { forge.documents[.forgeGetPrReviewGuide] }
+  private var document: GitHubDocument? {
+    forge.reviewTarget == target ? forge.documents[.forgeGetPrReviewGuide] : nil
+  }
   private var guide: [String: GitHubJSONValue]? { document?["guide"]?.objectValue }
   private var stops: [[String: GitHubJSONValue]] { guide?["stops"]?.arrayValue?.compactMap(\.objectValue) ?? [] }
-  private var index: Int { min(stopIndex, max(0, stops.count - 1)) }
+  private var index: Int { draft.index(for: stops.count) }
   private var isGenerating: Bool { document?["status"]?.stringValue == "generating" }
   private var stale: Bool { document?["stale"]?.boolValue != false || document.map { !forge.matchesDisplayedDiff($0) } != false }
   private var writerKinds: [String] { Array(Set(writers.map(\.kind))).sorted() }
-  private var selectedWriter: String { writerKinds.contains(writer) ? writer : writerKinds.first ?? "" }
+  private var selectedWriter: String {
+    writerKinds.contains(draft.writer) ? draft.writer : writerKinds.first ?? ""
+  }
+  private var fingerprint: String? { guide?["fingerprint"]?.stringValue }
+  private var canWrite: Bool {
+    forge.reviewTarget == target && forge.canMutate && !selectedWriter.isEmpty
+      && !isGenerating && draft.instructions.utf16.count <= 16_000
+  }
+  private var canFinish: Bool {
+    forge.reviewTarget == target && forge.canMutate
+      && forge.capabilities["reviewDecisions"]?.arrayValue?.isEmpty == false
+  }
 
   var body: some View {
     List {
       Section {
-        Picker(PullRequestsStrings.guideText("Guide writer"), selection: $writer) {
+        Picker(PullRequestsStrings.guideText("Guide writer"), selection: Binding(get: { selectedWriter }, set: { draft.writer = $0 })) {
           ForEach(writerKinds, id: \.self) { kind in
             Text(writers.first { $0.kind == kind }?.label ?? kind).tag(kind)
           }
         }
-        TextField(PullRequestsStrings.guideText("Guide model"), text: $model)
+        TextField(PullRequestsStrings.guideText("Guide model"), text: $draft.model)
           .textInputAutocapitalization(.never)
           .autocorrectionDisabled()
-        TextField(PullRequestsStrings.guideText("Review guide instructions"), text: $instructions, axis: .vertical)
+        TextField(PullRequestsStrings.guideText("Review guide instructions"), text: $draft.instructions, axis: .vertical)
           .lineLimit(2...6)
+          .accessibilityIdentifier("native-e2e.pull-requests.guide.instructions")
         Button(PullRequestsStrings.guideText(guide == nil ? "Write guide" : "Rewrite guide")) {
-          Task {
-            var fields: [String: GitHubJSONValue] = [
-              "agentKind": .string(selectedWriter),
-              "instructions": .string(instructions),
-              "language": .string(Locale.current.localizedString(forLanguageCode: Locale.current.language.languageCode?.identifier ?? "en") ?? "English"),
-            ]
-            if !model.isEmpty { fields["selection"] = .object(["model": .string(model)]) }
-            await forge.mutate(.forgeWritePrReviewGuide, fields: fields)
-          }
+          writeGuide()
         }
-        .disabled(!forge.canMutate || selectedWriter.isEmpty || isGenerating || instructions.count > 16000)
+        .disabled(!canWrite)
+        .accessibilityIdentifier("native-e2e.pull-requests.guide.write")
         if selectedWriter.isEmpty {
           Text(PullRequestsStrings.guideText("Select a guide writer that supports an enforced read-only workspace."))
             .foregroundStyle(.secondary)
@@ -96,28 +134,58 @@ struct PullRequestGuideView: View {
       }
     }
     .listStyle(.insetGrouped)
-    .poracodeBottomBar {
+    .toolbar {
       if !stops.isEmpty {
-        PoracodeBottomActionBar {
-          Button(PullRequestsStrings.guideText("Back")) { stopIndex = index - 1 }.disabled(index == 0)
-        } trailing: {
+        ToolbarItemGroup(placement: .bottomBar) {
+          Button(PullRequestsStrings.guideText("Back"), systemImage: "chevron.left") {
+            draft.move(by: -1, count: stops.count)
+          }
+          .disabled(index == 0)
+          .accessibilityIdentifier("native-e2e.pull-requests.guide.back")
           if index < stops.count - 1 {
-            Button(PullRequestsStrings.guideText("Next")) { stopIndex = index + 1 }
+            Button(PullRequestsStrings.guideText("Next"), systemImage: "chevron.right") {
+              draft.move(by: 1, count: stops.count)
+            }
+            .accessibilityIdentifier("native-e2e.pull-requests.guide.next")
           } else {
-            Button(PullRequestsStrings.guideText("Finish review"), action: finish).disabled(!forge.canMutate)
+            Button(PullRequestsStrings.guideText("Finish review"), systemImage: "checkmark.bubble") {
+              if canFinish { finish() }
+            }
+            .disabled(!canFinish)
+            .accessibilityIdentifier("native-e2e.pull-requests.guide.finish")
           }
         }
       }
     }
-    .onAppear { writer = selectedWriter }
-    .onChange(of: guide?["fingerprint"]) { _, _ in stopIndex = 0 }
-    .task(id: "\(isGenerating):\(forge.isCached)") {
+    .scrollDismissesKeyboard(.interactively)
+    .onChange(of: target, initial: true) { _, target in
+      draft.synchronize(target: target, fingerprint: fingerprint)
+    }
+    .onChange(of: fingerprint, initial: true) { _, fingerprint in
+      draft.synchronize(target: target, fingerprint: fingerprint)
+    }
+    .task(id: isGenerating && !forge.isCached ? target : nil) {
       while isGenerating && !forge.isCached && !Task.isCancelled {
         do { try await Task.sleep(for: .seconds(5)) } catch { return }
-        await forge.refreshGuide()
+        await forge.refreshGuide(expectedTarget: target)
       }
     }
   }
+
+  private func writeGuide() {
+    guard canWrite else { return }
+    var fields: [String: GitHubJSONValue] = [
+      "agentKind": .string(selectedWriter),
+      "instructions": .string(draft.instructions),
+      "language": .string(Locale.current.localizedString(
+        forLanguageCode: Locale.current.language.languageCode?.identifier ?? "en"
+      ) ?? "English"),
+    ]
+    let model = draft.model.trimmingCharacters(in: .whitespacesAndNewlines)
+    if !model.isEmpty { fields["selection"] = .object(["model": .string(model)]) }
+    Task { await forge.mutate(.forgeWritePrReviewGuide, fields: fields, expectedTarget: target) }
+  }
+
 }
 
 extension PullRequestGuideView {

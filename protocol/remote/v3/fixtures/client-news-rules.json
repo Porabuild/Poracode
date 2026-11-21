@@ -1,0 +1,872 @@
+{
+  "formatVersion": 1,
+  "stats": [
+    {
+      "input": {
+        "scope": "device",
+        "device": {
+          "id": "device-1",
+          "label": "Fixture Host",
+          "platform": "darwin",
+          "isCurrent": true
+        },
+        "generatedAt": 1786555200000,
+        "timezoneOffsetMinutes": -420,
+        "identity": {
+          "name": "Fixture User",
+          "handle": "fixture",
+          "avatarColor": "#663399"
+        },
+        "totals": {
+          "totalThreads": 1,
+          "totalPrompts": 9,
+          "messagesSent": 2,
+          "goalsSet": 0,
+          "longestTaskMs": 540000,
+          "currentStreakDays": 1,
+          "longestStreakDays": 0,
+          "activeDays": 1
+        },
+        "promptHeatmap": {
+          "metric": "prompts",
+          "windowDays": 7,
+          "cells": [
+            {
+              "day": "2026-11-09",
+              "count": 0,
+              "intensity": 0
+            },
+            {
+              "day": "2026-11-10",
+              "count": 0,
+              "intensity": 0
+            },
+            {
+              "day": "2026-11-11",
+              "count": 0,
+              "intensity": 0
+            },
+            {
+              "day": "2026-11-12",
+              "count": 0,
+              "intensity": 0
+            },
+            {
+              "day": "2026-11-13",
+              "count": 0,
+              "intensity": 0
+            },
+            {
+              "day": "2026-11-14",
+              "count": 0,
+              "intensity": 0
+            },
+            {
+              "day": "2026-11-15",
+              "count": 0,
+              "intensity": 0
+            }
+          ],
+          "max": 0
+        },
+        "insights": {
+          "topModel": {
+            "key": "fixture",
+            "label": "Fixture model",
+            "count": 2,
+            "percent": 24.9
+          },
+          "fastModePercent": 0,
+          "mostActiveHour": {
+            "hour": 9,
+            "label": "09:00",
+            "count": 1
+          },
+          "skillsExplored": 0,
+          "totalSkillsUsed": 0,
+          "workflowRuns": 0,
+          "subagentRuns": 0,
+          "mcpToolCalls": 0
+        },
+        "providers": [],
+        "accounts": [],
+        "models": [],
+        "modes": [],
+        "skills": [],
+        "mcps": [],
+        "aiActions": [],
+        "availableAccounts": []
+      },
+      "expected": []
+    },
+    {
+      "input": {
+        "scope": "device",
+        "device": {
+          "id": "device-1",
+          "label": "Fixture Host",
+          "platform": "darwin",
+          "isCurrent": true
+        },
+        "generatedAt": 1786555200000,
+        "timezoneOffsetMinutes": -420,
+        "identity": {
+          "name": "Fixture User",
+          "handle": "fixture",
+          "avatarColor": "#663399"
+        },
+        "totals": {
+          "totalThreads": 1,
+          "totalPrompts": 20,
+          "messagesSent": 2,
+          "goalsSet": 0,
+          "longestTaskMs": 570000,
+          "currentStreakDays": 4,
+          "longestStreakDays": 2,
+          "activeDays": 1
+        },
+        "promptHeatmap": {
+          "metric": "prompts",
+          "windowDays": 7,
+          "cells": [
+            {
+              "day": "2026-11-07",
+              "count": 99,
+              "intensity": 1
+            },
+            {
+              "day": "2026-11-08",
+              "count": 99,
+              "intensity": 1
+            },
+            {
+              "day": "2026-11-09",
+              "count": 1,
+              "intensity": 1
+            },
+            {
+              "day": "2026-11-10",
+              "count": 2,
+              "intensity": 1
+            },
+            {
+              "day": "2026-11-11",
+              "count": 3,
+              "intensity": 1
+            },
+            {
+              "day": "2026-11-12",
+              "count": 3,
+              "intensity": 1
+            },
+            {
+              "day": "2026-11-13",
+              "count": 0,
+              "intensity": 1
+            },
+            {
+              "day": "2026-11-14",
+              "count": 1,
+              "intensity": 1
+            },
+            {
+              "day": "2026-11-15",
+              "count": 1,
+              "intensity": 1
+            }
+          ],
+          "max": 0
+        },
+        "insights": {
+          "topModel": {
+            "key": "fixture",
+            "label": "Fixture model 東京",
+            "count": 5,
+            "percent": 25.5
+          },
+          "fastModePercent": 0,
+          "mostActiveHour": {
+            "hour": 23,
+            "label": "23:00",
+            "count": 1
+          },
+          "skillsExplored": 0,
+          "totalSkillsUsed": 0,
+          "workflowRuns": 0,
+          "subagentRuns": 0,
+          "mcpToolCalls": 0
+        },
+        "providers": [],
+        "accounts": [],
+        "models": [],
+        "modes": [],
+        "skills": [],
+        "mcps": [],
+        "aiActions": [],
+        "availableAccounts": []
+      },
+      "expected": [
+        {
+          "id": "insight:streak",
+          "current": 4,
+          "longest": 4
+        },
+        {
+          "id": "insight:week-prompts",
+          "prompts": 11,
+          "daily": [1, 2, 3, 3, 0, 1, 1],
+          "busiestDay": "2026-11-11"
+        },
+        {
+          "id": "insight:top-model",
+          "label": "Fixture model 東京",
+          "percent": 26
+        },
+        {
+          "id": "insight:active-hour",
+          "hour": 23
+        },
+        {
+          "id": "insight:longest-task",
+          "minutes": 10
+        }
+      ]
+    },
+    {
+      "input": {
+        "scope": "device",
+        "device": {
+          "id": "device-1",
+          "label": "Fixture Host",
+          "platform": "darwin",
+          "isCurrent": true
+        },
+        "generatedAt": 1786555200000,
+        "timezoneOffsetMinutes": -420,
+        "identity": {
+          "name": "Fixture User",
+          "handle": "fixture",
+          "avatarColor": "#663399"
+        },
+        "totals": {
+          "totalThreads": 1,
+          "totalPrompts": 20,
+          "messagesSent": 2,
+          "goalsSet": 0,
+          "longestTaskMs": 570000,
+          "currentStreakDays": 4,
+          "longestStreakDays": 2,
+          "activeDays": 1
+        },
+        "promptHeatmap": {
+          "metric": "tokens",
+          "windowDays": 7,
+          "cells": [
+            {
+              "day": "2026-11-07",
+              "count": 99,
+              "intensity": 1
+            },
+            {
+              "day": "2026-11-08",
+              "count": 99,
+              "intensity": 1
+            },
+            {
+              "day": "2026-11-09",
+              "count": 1,
+              "intensity": 1
+            },
+            {
+              "day": "2026-11-10",
+              "count": 2,
+              "intensity": 1
+            },
+            {
+              "day": "2026-11-11",
+              "count": 3,
+              "intensity": 1
+            },
+            {
+              "day": "2026-11-12",
+              "count": 3,
+              "intensity": 1
+            },
+            {
+              "day": "2026-11-13",
+              "count": 0,
+              "intensity": 1
+            },
+            {
+              "day": "2026-11-14",
+              "count": 1,
+              "intensity": 1
+            },
+            {
+              "day": "2026-11-15",
+              "count": 1,
+              "intensity": 1
+            }
+          ],
+          "max": 0
+        },
+        "insights": {
+          "topModel": {
+            "key": "fixture",
+            "label": "Fixture model 東京",
+            "count": 5,
+            "percent": 25.5
+          },
+          "fastModePercent": 0,
+          "mostActiveHour": {
+            "hour": 23,
+            "label": "23:00",
+            "count": 1
+          },
+          "skillsExplored": 0,
+          "totalSkillsUsed": 0,
+          "workflowRuns": 0,
+          "subagentRuns": 0,
+          "mcpToolCalls": 0
+        },
+        "providers": [],
+        "accounts": [],
+        "models": [],
+        "modes": [],
+        "skills": [],
+        "mcps": [],
+        "aiActions": [],
+        "availableAccounts": []
+      },
+      "expected": [
+        {
+          "id": "insight:streak",
+          "current": 4,
+          "longest": 4
+        },
+        {
+          "id": "insight:top-model",
+          "label": "Fixture model 東京",
+          "percent": 26
+        },
+        {
+          "id": "insight:active-hour",
+          "hour": 23
+        },
+        {
+          "id": "insight:longest-task",
+          "minutes": 10
+        }
+      ]
+    }
+  ],
+  "playlists": [
+    {
+      "seed": 0,
+      "sources": {
+        "insights": [
+          {
+            "id": "streak",
+            "kind": "insight"
+          },
+          {
+            "id": "prompts",
+            "kind": "insight"
+          }
+        ],
+        "changelog": [
+          {
+            "id": "change1",
+            "kind": "changelog"
+          },
+          {
+            "id": "change2",
+            "kind": "changelog"
+          }
+        ],
+        "announcements": [
+          {
+            "id": "remote1",
+            "kind": "announcement"
+          }
+        ],
+        "discovery": [
+          {
+            "id": "feature1",
+            "kind": "discovery"
+          }
+        ],
+        "usage": [
+          {
+            "id": "limit",
+            "kind": "usage",
+            "urgent": true
+          },
+          {
+            "id": "other-limit",
+            "kind": "usage",
+            "urgent": false
+          }
+        ],
+        "tips": [
+          {
+            "id": "tip1",
+            "kind": "tip"
+          }
+        ],
+        "promotions": [
+          {
+            "id": "star",
+            "kind": "promotion"
+          },
+          {
+            "id": "follow",
+            "kind": "promotion"
+          },
+          {
+            "id": "creator",
+            "kind": "promotion"
+          }
+        ]
+      },
+      "expected": [
+        "limit",
+        "star",
+        "change1",
+        "feature1",
+        "remote1",
+        "streak",
+        "creator",
+        "tip1",
+        "other-limit",
+        "change2",
+        "prompts",
+        "follow"
+      ]
+    },
+    {
+      "seed": 1,
+      "sources": {
+        "insights": [
+          {
+            "id": "streak",
+            "kind": "insight"
+          },
+          {
+            "id": "prompts",
+            "kind": "insight"
+          }
+        ],
+        "changelog": [
+          {
+            "id": "change1",
+            "kind": "changelog"
+          },
+          {
+            "id": "change2",
+            "kind": "changelog"
+          }
+        ],
+        "announcements": [
+          {
+            "id": "remote1",
+            "kind": "announcement"
+          }
+        ],
+        "discovery": [
+          {
+            "id": "feature1",
+            "kind": "discovery"
+          }
+        ],
+        "usage": [
+          {
+            "id": "limit",
+            "kind": "usage",
+            "urgent": true
+          },
+          {
+            "id": "other-limit",
+            "kind": "usage",
+            "urgent": false
+          }
+        ],
+        "tips": [
+          {
+            "id": "tip1",
+            "kind": "tip"
+          }
+        ],
+        "promotions": [
+          {
+            "id": "star",
+            "kind": "promotion"
+          },
+          {
+            "id": "follow",
+            "kind": "promotion"
+          },
+          {
+            "id": "creator",
+            "kind": "promotion"
+          }
+        ]
+      },
+      "expected": [
+        "limit",
+        "star",
+        "change1",
+        "other-limit",
+        "remote1",
+        "streak",
+        "creator",
+        "tip1",
+        "feature1",
+        "change2",
+        "prompts",
+        "follow"
+      ]
+    },
+    {
+      "seed": 4294967295,
+      "sources": {
+        "insights": [
+          {
+            "id": "streak",
+            "kind": "insight"
+          },
+          {
+            "id": "prompts",
+            "kind": "insight"
+          }
+        ],
+        "changelog": [
+          {
+            "id": "change1",
+            "kind": "changelog"
+          },
+          {
+            "id": "change2",
+            "kind": "changelog"
+          }
+        ],
+        "announcements": [
+          {
+            "id": "remote1",
+            "kind": "announcement"
+          }
+        ],
+        "discovery": [
+          {
+            "id": "feature1",
+            "kind": "discovery"
+          }
+        ],
+        "usage": [
+          {
+            "id": "limit",
+            "kind": "usage",
+            "urgent": true
+          },
+          {
+            "id": "other-limit",
+            "kind": "usage",
+            "urgent": false
+          }
+        ],
+        "tips": [
+          {
+            "id": "tip1",
+            "kind": "tip"
+          }
+        ],
+        "promotions": [
+          {
+            "id": "star",
+            "kind": "promotion"
+          },
+          {
+            "id": "follow",
+            "kind": "promotion"
+          },
+          {
+            "id": "creator",
+            "kind": "promotion"
+          }
+        ]
+      },
+      "expected": [
+        "limit",
+        "follow",
+        "change1",
+        "other-limit",
+        "remote1",
+        "tip1",
+        "star",
+        "streak",
+        "feature1",
+        "change2",
+        "prompts",
+        "creator"
+      ]
+    },
+    {
+      "seed": 305419896,
+      "sources": {
+        "insights": [
+          {
+            "id": "streak",
+            "kind": "insight"
+          },
+          {
+            "id": "prompts",
+            "kind": "insight"
+          }
+        ],
+        "changelog": [
+          {
+            "id": "change1",
+            "kind": "changelog"
+          },
+          {
+            "id": "change2",
+            "kind": "changelog"
+          }
+        ],
+        "announcements": [
+          {
+            "id": "remote1",
+            "kind": "announcement"
+          }
+        ],
+        "discovery": [
+          {
+            "id": "feature1",
+            "kind": "discovery"
+          }
+        ],
+        "usage": [
+          {
+            "id": "limit",
+            "kind": "usage",
+            "urgent": true
+          },
+          {
+            "id": "other-limit",
+            "kind": "usage",
+            "urgent": false
+          }
+        ],
+        "tips": [
+          {
+            "id": "tip1",
+            "kind": "tip"
+          }
+        ],
+        "promotions": [
+          {
+            "id": "star",
+            "kind": "promotion"
+          },
+          {
+            "id": "follow",
+            "kind": "promotion"
+          },
+          {
+            "id": "creator",
+            "kind": "promotion"
+          }
+        ]
+      },
+      "expected": [
+        "limit",
+        "follow",
+        "streak",
+        "feature1",
+        "other-limit",
+        "tip1",
+        "creator",
+        "remote1",
+        "change1",
+        "prompts",
+        "change2",
+        "star"
+      ]
+    },
+    {
+      "seed": 3,
+      "sources": {
+        "insights": [],
+        "changelog": [],
+        "announcements": [],
+        "discovery": [],
+        "usage": [],
+        "tips": [],
+        "promotions": [
+          {
+            "id": "star",
+            "kind": "promotion"
+          },
+          {
+            "id": "follow",
+            "kind": "promotion"
+          },
+          {
+            "id": "creator",
+            "kind": "promotion"
+          }
+        ]
+      },
+      "expected": ["creator", "star", "follow"]
+    }
+  ],
+  "randomCases": [
+    {
+      "seed": 0,
+      "values": [
+        0.26642920868471265, 0.0003297457005828619, 0.2232720274478197, 0.1462021479383111,
+        0.46732782293111086, 0.5450490827206522, 0.6152513844426721, 0.6489853798411787,
+        0.45600721263326705, 0.581218967679888, 0.24625753005966544, 0.09785169479437172
+      ],
+      "shuffled": ["e", "c", "d", "a", "b"]
+    },
+    {
+      "seed": 1,
+      "values": [
+        0.6270739405881613, 0.002735721180215478, 0.5274470399599522, 0.9810509674716741,
+        0.9683778982143849, 0.281103502959013, 0.6128388606011868, 0.7207431411370635,
+        0.425796952098608, 0.9948229456786066, 0.45527112716808915, 0.48878831742331386
+      ],
+      "shuffled": ["e", "c", "b", "a", "d"]
+    },
+    {
+      "seed": 4294967295,
+      "values": [
+        0.8964226141106337, 0.189478256739676, 0.7156526781618595, 0.9440599093213677,
+        0.8452364315744489, 0.5391399988438934, 0.6804977387655526, 0.4755720964167267,
+        0.13585773925296962, 0.9884445976931602, 0.8714674517977983, 0.18934845877811313
+      ],
+      "shuffled": ["d", "b", "c", "a", "e"]
+    }
+  ],
+  "highlights": {
+    "releases": [
+      {
+        "version": "1.9.0",
+        "date": "2026-02-01",
+        "title": "Earlier improvements",
+        "summary": "Earlier release details.",
+        "changes": [
+          {
+            "kind": "fixed",
+            "label": "Navigation",
+            "text": "Keep the selected project visible."
+          }
+        ]
+      },
+      {
+        "version": "1.10.0",
+        "date": "2026-03-10",
+        "title": "Workspace improvements",
+        "tagline": "Workspace Flow",
+        "summary": "Keep related work together across devices.",
+        "changes": [
+          {
+            "kind": "fixed",
+            "label": "Files",
+            "text": "Preserve paths such as 東京 / notes.md."
+          },
+          {
+            "kind": "added",
+            "label": "Workspaces",
+            "text": "Group projects for the task at hand.",
+            "headline": "Group related projects",
+            "feature": "future-unknown-feature"
+          },
+          {
+            "kind": "improved",
+            "text": "Keep every release detail available when the window changes."
+          }
+        ]
+      },
+      {
+        "version": "v1.10.0-preview.3",
+        "date": "unknown",
+        "title": "Equal numeric version",
+        "summary": "Input order breaks equal-version ties.",
+        "changes": []
+      }
+    ],
+    "currentVersion": "1.10.0",
+    "expectedPool": [
+      {
+        "id": "1.10.0:15u0mvl",
+        "version": "1.10.0",
+        "change": {
+          "kind": "fixed",
+          "label": "Files",
+          "text": "Preserve paths such as 東京 / notes.md."
+        },
+        "position": 1,
+        "total": 3
+      },
+      {
+        "id": "1.10.0:1ihluy5",
+        "version": "1.10.0",
+        "change": {
+          "kind": "added",
+          "label": "Workspaces",
+          "text": "Group projects for the task at hand.",
+          "headline": "Group related projects",
+          "feature": "future-unknown-feature"
+        },
+        "position": 2,
+        "total": 3
+      },
+      {
+        "id": "1.10.0:1iule14",
+        "version": "1.10.0",
+        "change": {
+          "kind": "improved",
+          "text": "Keep every release detail available when the window changes."
+        },
+        "position": 3,
+        "total": 3
+      },
+      {
+        "id": "1.9.0:llxf9n",
+        "version": "1.9.0",
+        "change": {
+          "kind": "fixed",
+          "label": "Navigation",
+          "text": "Keep the selected project visible."
+        },
+        "position": 1,
+        "total": 1
+      }
+    ],
+    "cases": [
+      {
+        "history": {
+          "shown": {},
+          "retired": []
+        },
+        "seed": 305419896,
+        "expected": ["1.10.0:1ihluy5", "1.10.0:1iule14", "1.10.0:15u0mvl"]
+      },
+      {
+        "history": {
+          "shown": {
+            "1.10.0:15u0mvl": 0,
+            "1.10.0:1ihluy5": 1,
+            "1.10.0:1iule14": 2,
+            "1.9.0:llxf9n": 0
+          },
+          "retired": ["1.10.0:15u0mvl"]
+        },
+        "seed": 305419896,
+        "expected": ["1.9.0:llxf9n", "1.10.0:1ihluy5"]
+      }
+    ]
+  }
+}

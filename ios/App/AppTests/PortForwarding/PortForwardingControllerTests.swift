@@ -32,6 +32,38 @@ final class PortForwardingControllerTests: XCTestCase {
     XCTAssertEqual(calls, [.portsRead, .portForward, .portEnter, .portEnter, .portUnforward])
   }
 
+  func testCancelledScanCannotClearTheResultOfANewerScanOnTheSameHost() async {
+    let api = PortForwardingRemoteAPISpy()
+    let box = PortForwardingSelectionBox(.init(access: PortForwardingTestValues.access(), api: api))
+    let controller = PortForwardingController(
+      lease: PortForwardingTestValues.lease(),
+      gateway: SelectedPortForwardingGateway { box.selection }
+    )
+    await api.setOutcome(.blocked)
+    let earlier = Task { await controller.scan() }
+    while await api.recordedCalls().isEmpty { await Task.yield() }
+
+    await api.setOutcome(.failure(.certificateMismatch))
+    await controller.scan()
+    XCTAssertEqual(controller.loadState, .failed(.certificateMismatch))
+
+    earlier.cancel()
+    await api.release()
+    await earlier.value
+    XCTAssertEqual(controller.loadState, .failed(.certificateMismatch))
+  }
+
+  func testManualForwardCannotStartOnAReplacementLease() async {
+    let gateway = PortForwardingGatewaySpy()
+    let original = PortForwardingTestValues.lease()
+    let controller = PortForwardingController(lease: original, gateway: gateway)
+    controller.rebind(to: PortForwardingTestValues.lease(generation: original.connectionGeneration + 1))
+    await controller.start(port: 3000, expectedLease: original)
+    let calls = await gateway.calls
+    XCTAssertTrue(calls.isEmpty)
+    XCTAssertEqual(controller.operation, .none)
+  }
+
   func testAmbiguousMutationIsVisibleWithoutOptimisticStateChange() async throws {
     let gateway = PortForwardingGatewaySpy()
     let controller = PortForwardingController(

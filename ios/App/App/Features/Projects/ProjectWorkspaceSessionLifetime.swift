@@ -19,6 +19,12 @@ struct ProjectWorkspaceSessionID: Hashable {
   let workspaceLocation: ProjectLocation
 }
 
+struct ProjectWorkspaceFileTarget: Hashable, Sendable {
+  let path: String
+  var line: Int? = nil
+  var resolvesBareName = false
+}
+
 enum ProjectWorkspaceEntryPoint: Hashable, Sendable {
   case workspace(ProjectWorkspaceMode)
   case gitHubActions

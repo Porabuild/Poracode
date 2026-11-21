@@ -1,5 +1,9 @@
 import Foundation
 
+enum RichImageVariant: String, Hashable, Sendable {
+  case card
+}
+
 /// Stable, hash-free access to generated rich-chat route roots.
 ///
 /// No caller outside this file mentions generator-derived model names. Values cross the
@@ -16,6 +20,7 @@ extension GeneratedRemoteV3Contract {
       body["segments"] = .array(segments.map(\.richChatWireValue))
     }
     if let itemID = input.userMessageItemID { body["userMessageItemId"] = .string(itemID) }
+    if let context = input.clientContext { body["clientContext"] = context.richChatWireValue }
     return try richThreadRoute(
       threadID: threadID,
       body: .object(body),
@@ -117,6 +122,7 @@ extension GeneratedRemoteV3Contract {
     if let segments = input.segments {
       body["segments"] = .array(segments.map(\.richChatWireValue))
     }
+    if let context = input.clientContext { body["clientContext"] = context.richChatWireValue }
     return try richThreadRoute(
       threadID: threadID,
       body: .object(body),
@@ -239,20 +245,25 @@ extension GeneratedRemoteV3Contract {
     return path
   }
 
-  static func richLocalImage(path: String) throws -> RichChatPreparedQueryRoute {
+  static func richLocalImage(path: String, variant: RichImageVariant? = nil) throws
+    -> RichChatPreparedQueryRoute
+  {
+    var queryObject: [String: RichJSON] = ["path": .string(path)]
+    if let variant { queryObject["variant"] = .string(variant.rawValue) }
     let data = try canonicalData(
-      try richData(.object(["path": .string(path)])),
+      try richData(.object(queryObject)),
       codec: RemoteRootCodecs.routeU2ELocalU2DImageU2EQuery,
       boundary: "local image query"
     )
     return RichChatPreparedQueryRoute(
-      pathValues: [:], queryItems: try richQueryItems(data, order: ["path"])
+      pathValues: [:], queryItems: try richQueryItems(data, order: ["path", "variant"])
     )
   }
 
-  static func richRuntimeImage(_ reference: RichRemoteImageReference) throws
-    -> RichChatPreparedQueryRoute
-  {
+  static func richRuntimeImage(
+    _ reference: RichRemoteImageReference,
+    variant: RichImageVariant? = nil
+  ) throws -> RichChatPreparedQueryRoute {
     let pathData = try canonicalData(
       try richData(
         .object([
@@ -269,14 +280,16 @@ extension GeneratedRemoteV3Contract {
       case .index(let value): .number(Decimal(value))
       }
     }
+    var queryObject: [String: RichJSON] = ["path": .array(path)]
+    if let variant { queryObject["variant"] = .string(variant.rawValue) }
     let queryData = try canonicalData(
-      try richData(.object(["path": .array(path)])),
+      try richData(.object(queryObject)),
       codec: RemoteRootCodecs.routeU2ERuntimeU2DImageU2EQuery,
       boundary: "runtime image query"
     )
     return RichChatPreparedQueryRoute(
       pathValues: pathValues,
-      queryItems: try richQueryItems(queryData, order: ["path"])
+      queryItems: try richQueryItems(queryData, order: ["path", "variant"])
     )
   }
 

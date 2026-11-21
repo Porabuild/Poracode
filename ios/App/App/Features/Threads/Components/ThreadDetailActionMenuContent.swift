@@ -5,7 +5,7 @@ struct ThreadDetailWorktreeContext {
   let branch: String
 }
 
-struct ThreadDetailActionMenuContent<LifecycleButtons: View>: View {
+struct ThreadDetailActionMenuContent<InformationControls: View, LifecycleButtons: View>: View {
   let thread: RemoteThread
   let worktree: ThreadDetailWorktreeContext?
   let canMoveToWorktree: Bool
@@ -21,10 +21,25 @@ struct ThreadDetailActionMenuContent<LifecycleButtons: View>: View {
   let refresh: () -> Void
   let perform: (ThreadLifecycleMenuAction) -> Void
   let requestClose: () -> Void
+  @ViewBuilder let informationControls: () -> InformationControls
   @ViewBuilder let lifecycleButtons: () -> LifecycleButtons
 
   var body: some View {
     Menu {
+      informationControls()
+
+      if hasHandoffTarget {
+        Button(action: chooseHandoff) {
+          PoracodeActionLabel(
+            RichChatStrings.continueInProvider,
+            systemImage: "arrow.trianglehead.2.clockwise"
+          )
+        }
+        .buttonStyle(.plain)
+        .disabled(!canOperateLifecycle)
+        .accessibilityIdentifier("native-e2e.thread.handoff")
+      }
+
       // Shared PWA/Android order: Rename · Notes & to-dos · Open terminal ·
       // worktree moves · Mark Done · Pin to top.
       Section {
@@ -47,8 +62,7 @@ struct ThreadDetailActionMenuContent<LifecycleButtons: View>: View {
         )
       }
 
-      // iOS extras, then the remaining lifecycle actions and Close thread.
-      Section {
+      Menu(HomeStrings.more, systemImage: "ellipsis.circle") {
         destinationButton(ProjectWorkspaceStrings.files, systemImage: "folder", .files)
         destinationButton(
           ProjectWorkspaceStrings.git,
@@ -60,18 +74,6 @@ struct ThreadDetailActionMenuContent<LifecycleButtons: View>: View {
           systemImage: "slider.horizontal.3",
           .advanced
         )
-        if hasHandoffTarget {
-          Button {
-            chooseHandoff()
-          } label: {
-            PoracodeActionLabel(
-              RichChatStrings.continueInProvider,
-              systemImage: "arrow.trianglehead.2.clockwise"
-            )
-          }
-          .buttonStyle(.plain)
-          .disabled(!canOperateLifecycle)
-        }
         Button(action: refresh) {
           PoracodeActionLabel(
             RichChatStrings.refreshTranscript,
@@ -132,10 +134,11 @@ struct ThreadDetailActionMenuContent<LifecycleButtons: View>: View {
       if isBusy {
         ProgressView().controlSize(.small)
       } else {
-        Image(systemName: "ellipsis")
-          .foregroundStyle(.secondary)
+        Label(ThreadLifecycleStrings.actions, systemImage: "ellipsis")
       }
     }
+    .labelStyle(.iconOnly)
+    .foregroundStyle(.secondary)
     .tint(.secondary)
     .accessibilityLabel(ThreadLifecycleStrings.actions)
   }

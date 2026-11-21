@@ -13,6 +13,10 @@ public extension RemoteSchemas {
 }
 
 public extension RemoteSchemas {
+  static let schema_9909a6f0ceffadb2 = RemoteSchema(type: "object", required: Set(["fields", "summary"]), properties: ["detail": RemoteSchemas.schema_7673f46694e3b986, "fields": RemoteSchemas.schema_ddc83cdddf708141, "summary": RemoteSchemas.schema_7673f46694e3b986, "title": RemoteSchemas.schema_7673f46694e3b986], additionalAllowed: true, unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
   static let schema_995ee3e349270afe = RemoteSchema(type: "string", literals: [.string("remote-reachable")], unknownPolicy: .strip)
 }
 
@@ -33,6 +37,10 @@ public extension RemoteSchemas {
 }
 
 public extension RemoteSchemas {
+  static let schema_9a15c840683620a4 = RemoteSchema(unionKind: "oneOf", options: [RemoteSchemas.schema_e42ea2046849510b, RemoteSchemas.schema_bf88f4ab17c45df7, RemoteSchemas.schema_0ae85718844e0018], unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
   static let schema_9a8b3412f7d55317 = RemoteSchema(type: "string", literals: [.string("webrtc")], unknownPolicy: .strip)
 }
 
@@ -50,6 +58,10 @@ public extension RemoteSchemas {
 
 public extension RemoteSchemas {
   static let schema_9b963a4b704c492d = RemoteSchema(type: "object", required: Set(["expectedHeadSha", "prNumber", "projectLocation"]), properties: ["admin": RemoteSchemas.schema_f8b6dd8128e8bfe0, "expectedHeadSha": RemoteSchemas.schema_89303c6cbb3ecd9a, "forgeAccount": RemoteSchemas.schema_c2bb40b82b330cd4, "forgeRepository": RemoteSchemas.schema_36fea325bf1aca70, "method": RemoteSchemas.schema_72373308389f2027, "prNumber": RemoteSchemas.schema_f58a8b771657d037, "projectLocation": RemoteSchemas.schema_080f9cc154af9e27], additionalAllowed: true, unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
+  static let schema_9b9783ff6af74430 = RemoteSchema(type: "object", required: Set(["inputDigest", "itemId"]), properties: ["inputDigest": RemoteSchemas.schema_ec221fdc1494d0b1, "itemId": RemoteSchemas.schema_85c1db78d5c7dc29], additionalAllowed: true, unknownPolicy: .strip)
 }
 
 public extension RemoteSchemas {

@@ -256,6 +256,7 @@
     <string name="rich_chat_background_task_last_progress">Last progress %1$s ago</string>
     <string name="rich_chat_background_task_close">Close task details</string>
     <string name="rich_chat_background_task_report_missing">The task ended without a completion report.</string>
+    <string name="rich_chat_copy_code">Copy code</string>
     <string name="rich_chat_copy_message">Copy message</string>
     <string name="rich_chat_add_to_composer">Add to composer</string>
     <string name="rich_chat_file">File</string>

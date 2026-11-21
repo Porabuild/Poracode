@@ -1,10 +1,20 @@
+import { randomUUID } from "node:crypto";
 import type { IncomingMessage, ServerResponse } from "node:http";
+import type { EnvironmentPublicProjection } from "../../../src/shared/environments.ts";
 import { writeValidatedRoute } from "./contractResponse.ts";
 import { generatedRoute } from "./generatedContract.ts";
 import { LabHttpError } from "./labAuth.ts";
 import type { LabRuntime } from "./labRuntime.ts";
 import { validateRouteRequest, type ValidatedRouteRequest } from "./requestValidation.ts";
-import { FIXTURE_MEDIA_TICKET, schemaExample } from "./schemaExamples.ts";
+import { schemaExample } from "./schemaExamples.ts";
+import { CREW_FIXTURE } from "./crewFixtures.ts";
+import type { AgentDiscoveryFixture } from "./agentDiscoveryFixture.ts";
+import type { NewsFixture } from "./newsFixture.ts";
+import {
+  FIXTURE_ATTACHMENT_BYTES,
+  LabTranscriptMediaFixtures,
+  type FixtureFileMedia,
+} from "./routeMediaFixtures.ts";
 
 const PNG_1X1 = Buffer.from(
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
@@ -12,6 +22,7 @@ const PNG_1X1 = Buffer.from(
 );
 
 const SPECIAL_ROUTES = new Set(["forward-enter", "local-image", "runtime-image", "file-media"]);
+export { FIXTURE_ATTACHMENT_BYTES };
 const MUTATION_FOLLOW_UPS: Readonly<Record<string, string>> = {
   "browser-command": "browser-state",
   "host-update-check": "host-update",
@@ -35,7 +46,12 @@ const MUTATION_FOLLOW_UPS: Readonly<Record<string, string>> = {
 };
 
 export class LabRouteWorkspace {
+  constructor(
+    private readonly agentDiscovery?: AgentDiscoveryFixture,
+    private readonly news?: NewsFixture,
+  ) {}
   private settings: Record<string, unknown> | undefined;
+  private readonly agentStatusesByIdentity = new Map<string, Record<string, unknown>>();
   private browserState = {
     tabs: [] as Record<string, unknown>[],
     activeTabId: null as string | null,
@@ -45,53 +61,198 @@ export class LabRouteWorkspace {
   private watch: Record<string, unknown> | null = null;
   private pushRegistered = false;
   private readonly pendingFollowUps = new Set<string>();
+  private environments: EnvironmentPublicProjection[] | undefined;
+  private readonly media = new LabTranscriptMediaFixtures();
+
+  fileMediaForTicket(ticket: unknown): FixtureFileMedia | undefined {
+    return this.media.fileMediaForTicket(ticket);
+  }
+
+  prepareTranscriptVideo(): void {
+    this.media.prepareTranscriptVideo();
+  }
+
+  prepareTranscriptPdf(): void {
+    this.media.prepareTranscriptPdf();
+  }
+
+  prepareTranscriptTextDownload(path: string, content: string): void {
+    this.media.prepareTranscriptTextDownload(path, content);
+  }
+
+  holdAttachment(): void {
+    this.media.holdAttachment();
+  }
+
+  releaseAttachment(): void {
+    this.media.releaseAttachment();
+  }
+
+  async waitForAttachment(): Promise<void> {
+    await this.media.waitForAttachment();
+  }
+
+  get environmentManagementEnabled(): boolean {
+    return this.environments !== undefined;
+  }
+
+  prepareEnvironmentManagement(): void {
+    this.environments = [];
+  }
+
+  noteAgentStatus(status: Record<string, unknown>): void {
+    if (typeof status.kind === "string")
+      this.agentStatusesByIdentity.set(
+        JSON.stringify([status.kind, status.envKind ?? "", status.envDistro ?? ""]),
+        structuredClone(status),
+      );
+  }
+
+  prepareComposerTools(): void {
+    const baseline = generatedJsonResponse("settings-read") as {
+      settings: Record<string, unknown>;
+    };
+    this.settings = {
+      settings: { ...baseline.settings, enabledMcpServers: { browser: false, chrome: true } },
+    };
+  }
+
+  prepareCrews(): void {
+    const baseline = generatedJsonResponse("settings-read") as {
+      settings: Record<string, unknown>;
+    };
+    this.settings = {
+      settings: {
+        ...baseline.settings,
+        providerOrder: ["codex", "fixture-reviewer"],
+        crews: [structuredClone(CREW_FIXTURE)],
+      },
+    };
+  }
+
+  setWorktreeSettingsFixture(desktopEdited: boolean): void {
+    const baseline = (this.settings ?? generatedJsonResponse("settings-read")) as {
+      settings: Record<string, unknown>;
+    };
+    this.settings = {
+      settings: {
+        ...baseline.settings,
+        worktreeStorageMode: desktopEdited ? "project-relative" : "global",
+        worktreeBasePath: desktopEdited ? "/worktrees/host-a-desktop" : "/worktrees/host-a",
+        wslWorktreeBasePath: desktopEdited ? "/worktrees/wsl-desktop" : "/worktrees/wsl-before",
+      },
+    };
+  }
 
   reset(): void {
+    this.media.reset();
+    this.news?.reset();
     this.settings = undefined;
+    this.agentStatusesByIdentity.clear();
     this.browserState = { tabs: [], activeTabId: null };
     this.forwards.clear();
     this.enterTokens.clear();
     this.watch = null;
     this.pushRegistered = false;
     this.pendingFollowUps.clear();
+    this.environments = undefined;
   }
 
   response(routeId: string, input: ValidatedRouteRequest): unknown {
+    const news = this.news?.response(routeId);
+    if (news !== undefined) return news;
     const body = input.body as Record<string, unknown>;
     switch (routeId) {
-      case "file-media-ticket":
-        // The wire lab proves contract-shaped mock I/O, not playback-grant authorization.
-        return {
-          ticket: FIXTURE_MEDIA_TICKET,
-          expiresAt: "2099-01-01T00:00:00.000Z",
-          sizeBytes: PNG_1X1.length,
-          modifiedAtMs: 1,
-          contentType: "image/png",
+      case "environment-list":
+        return this.environments
+          ? { environments: this.environments }
+          : generatedJsonResponse(routeId);
+      case "environment-create": {
+        if (!this.environments) return generatedJsonResponse(routeId);
+        const environment: EnvironmentPublicProjection = {
+          environmentId: randomUUID(),
+          revision: 1,
+          label: String(body.label),
+          target: String(body.target),
+          ...(typeof body.port === "number" ? { port: body.port } : {}),
+          credential: body.credentialRef ? "configured" : "none",
+          trust: { state: "unknown" },
+          runtime: { hash: "a".repeat(64) },
+          legacyConnectionIds: [],
+          desired: body.desired === "disabled" ? "disabled" : "enabled",
+          createdAt: 1,
+          updatedAt: 1,
+          state: "disconnected",
         };
+        this.environments.push(environment);
+        return { environment };
+      }
+      case "environment-trust-probe": {
+        if (!this.environments) return generatedJsonResponse(routeId);
+        return {
+          keyType: "ssh-ed25519",
+          fingerprint: "SHA256:NativeE2ETrustFixtureFingerprint0123456789A",
+        };
+      }
+      case "environment-trust-accept": {
+        if (!this.environments) return generatedJsonResponse(routeId);
+        const env = this.environments.find((e) => e.environmentId === input.params.environmentId);
+        if (env) {
+          env.revision += 1;
+          env.trust = {
+            state: "pinned",
+            hostKeyFingerprint: "SHA256:NativeE2ETrustFixtureFingerprint0123456789A",
+          };
+          return { environment: env };
+        }
+        return generatedJsonResponse(routeId);
+      }
+      case "environment-upgrade": {
+        if (!this.environments) return generatedJsonResponse(routeId);
+        const env = this.environments.find((e) => e.environmentId === input.params.environmentId);
+        if (env) {
+          env.revision += 1;
+          return { environment: env };
+        }
+        return generatedJsonResponse(routeId);
+      }
+      case "file-media-ticket":
+        return this.media.issueTicket(body, PNG_1X1);
+      case "file-media-release":
+        this.media.releaseTicket(body.ticket);
+        return { ok: true };
       case "settings-read":
         return this.settings ?? generatedJsonResponse(routeId);
-      case "agent-statuses":
+      case "agent-statuses": {
+        if (this.agentDiscovery?.enabled) return this.agentDiscovery.cachedStatuses();
         // Cached native (POSIX) record rides in the legacy `windows` array.
         // The foundation scenario emits no agent-status socket events, so a
         // native client can only hydrate its catalog through this HTTP base.
         // Capabilities match the fixture thread (gui-capable, gpt-5 model).
+        const foundation = [
+          {
+            kind: "codex",
+            label: "Codex",
+            installed: true,
+            authState: "authenticated",
+            envKind: "posix",
+            capabilities: {
+              presentationModes: ["gui", "terminal"],
+              models: [{ id: "gpt-5", label: "Fixture model" }],
+            },
+          },
+        ];
+        const recorded = [...this.agentStatusesByIdentity.values()];
+        const native = recorded.filter((status) => status.envKind !== "wsl");
+        const nativeKinds = new Set(native.map((status) => status.kind));
         return {
           updatedAt: "2026-08-12T10:03:00.000Z",
-          windows: [
-            {
-              kind: "codex",
-              label: "Codex",
-              installed: true,
-              authState: "authenticated",
-              envKind: "posix",
-              capabilities: {
-                presentationModes: ["gui", "terminal"],
-                models: [{ id: "gpt-5", label: "Fixture model" }],
-              },
-            },
-          ],
-          wsl: [],
+          // A reconnect must hydrate the same catalog that socket clients
+          // observed, including the composer's model/effort capabilities.
+          windows: [...foundation.filter((status) => !nativeKinds.has(status.kind)), ...native],
+          wsl: recorded.filter((status) => status.envKind === "wsl"),
         };
+      }
       case "settings-write": {
         const baseline = this.settings ?? (generatedJsonResponse("settings-read") as object);
         const previous = (baseline as { settings: Record<string, unknown> }).settings;
@@ -156,7 +317,7 @@ export class LabRouteWorkspace {
 
   private browserCommand(body: Record<string, unknown>): Record<string, unknown> {
     if (body.kind === "create-tab") {
-      const tabId = "tab-fixture-001";
+      const tabId = `tab-fixture-${String(this.browserState.tabs.length + 1).padStart(3, "0")}`;
       this.browserState.tabs.push({
         tabId,
         url: body.url ?? "https://example.test/fixture",
@@ -166,8 +327,25 @@ export class LabRouteWorkspace {
         canGoForward: false,
       });
       this.browserState.activeTabId = tabId;
+    } else if (body.kind === "navigate" && typeof body.url === "string") {
+      const tab = this.browserState.tabs.find((entry) => entry.tabId === body.tabId);
+      if (tab) {
+        tab.url = body.url;
+        tab.canGoBack = true;
+        tab.canGoForward = false;
+      }
     }
     return { state: structuredClone(this.browserState) };
+  }
+
+  browserStateForWatch(seed: { tabs: readonly Record<string, unknown>[]; activeTabId: string }) {
+    if (this.browserState.activeTabId === null) {
+      this.browserState = {
+        tabs: seed.tabs.map((tab) => ({ ...tab })),
+        activeTabId: seed.activeTabId,
+      };
+    }
+    return structuredClone(this.browserState);
   }
 
   private forward(targetPort: number): Record<string, unknown> {
@@ -210,6 +388,22 @@ export async function handleDeterministicRoute(
     return true;
   }
   if (SPECIAL_ROUTES.has(routeId)) {
+    const media =
+      routeId === "file-media" ? runtime.routes.fileMediaForTicket(input.query.ticket) : undefined;
+    if (media) {
+      await runtime.routes.waitForAttachment();
+      if (res.destroyed) return true;
+      runtime.ledger.observeHttpRoute(routeId, { statusCode: 200, source: "mock" });
+      res.writeHead(200, {
+        "content-type": media.contentType,
+        ...(media.attachmentName
+          ? { "content-disposition": `attachment; filename="${media.attachmentName}"` }
+          : {}),
+        "content-length": media.bytes.length,
+      });
+      res.end(media.bytes);
+      return true;
+    }
     runtime.ledger.observeHttpRoute(routeId, { statusCode: 200, source: "mock" });
     res.writeHead(200, { "content-type": "image/png", "content-length": PNG_1X1.length });
     res.end(PNG_1X1);

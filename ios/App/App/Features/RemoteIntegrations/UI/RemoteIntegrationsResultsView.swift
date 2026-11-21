@@ -16,6 +16,7 @@ struct RemoteIntegrationsResultsView: View {
         }
         .pickerStyle(.segmented)
         .padding()
+        .poracodeReadableWidth(740)
         content
       }
       .navigationTitle(RemoteAutomationsStrings.results)
@@ -88,6 +89,7 @@ struct RemoteIntegrationsResultsView: View {
           RemoteIntegrationsUnavailableView(failure: failure)
         }
       }
+      .poracodeReadableListMargins(740)
     }
   }
 }
@@ -145,6 +147,7 @@ struct RemoteIntegrationsResultDetails: View {
         }.disabled(controller.busy)
       }
     }
+    .poracodeReadableListMargins(740)
     .navigationTitle(RemoteAutomationsStrings.result)
     .navigationBarTitleDisplayMode(.inline)
     .task(id: run.id) {

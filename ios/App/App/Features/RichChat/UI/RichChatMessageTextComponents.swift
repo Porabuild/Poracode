@@ -7,16 +7,19 @@ struct RichChatMessageText: View {
   let collapses: Bool
 
   @State private var expanded = false
+  @Environment(\.richChatFindHighlight) private var find
   @State private var fullHeight: CGFloat = 0
   @State private var collapsedHeight: CGFloat = 0
 
   var body: some View {
     VStack(alignment: .leading, spacing: 5) {
-      styledText(lineLimit: expanded || !collapses ? nil : 4)
+      find.text(text, part: .body)
+        .poracodeChatText(role)
+        .lineLimit(expanded || !collapses || find.revealsItem ? nil : 4)
         .textSelection(.enabled)
         .frame(maxWidth: .infinity, alignment: .leading)
 
-      if collapses && isOverflowing {
+      if collapses && isOverflowing && !find.revealsItem {
         Button(action: toggleExpanded) {
           Image(systemName: expanded ? "chevron.up" : "chevron.down")
             .font(.caption.weight(.semibold))
@@ -90,21 +93,25 @@ enum RichChatAttributedText {
     types: NSTextCheckingResult.CheckingType.link.rawValue
   )
 
-  static func presentation(_ source: String) -> AttributedString {
-    var result =
-      (try? AttributedString(
+  static func plainText(_ source: String) -> String { String(inlineMarkdown(source).characters) }
+
+  private static func inlineMarkdown(_ source: String) -> AttributedString {
+    (try? AttributedString(
         markdown: source,
         options: AttributedString.MarkdownParsingOptions(
           interpretedSyntax: .inlineOnlyPreservingWhitespace
         )
-      )) ?? AttributedString(source)
+    )) ?? AttributedString(source)
+  }
 
-    guard let linkDetector else { return result }
-    let matches = linkDetector.matches(
+  static func presentation(_ source: String, projectLocation: ProjectLocation? = nil) -> AttributedString {
+    var result = inlineMarkdown(source)
+
+    let matches = linkDetector?.matches(
       in: source,
       options: [],
       range: NSRange(source.startIndex..., in: source)
-    )
+    ) ?? []
     let rendered = String(result.characters)
     for match in matches {
       guard let url = match.url,
@@ -123,7 +130,35 @@ enum RichChatAttributedText {
         searchStart = renderedRange.upperBound
       }
     }
+    guard let projectLocation else { return result }
+    for run in Array(result.runs) {
+      let target: ProjectWorkspaceFileTarget?
+      if let link = run.link {
+        target = RichChatProjectFileLink.target(link.relativeString, in: projectLocation, markdown: true)
+        if target == nil, !RichChatProjectFileLink.isExternal(link) {
+          result[run.range].link = nil
+        }
+      } else if run.inlinePresentationIntent?.contains(.code) == true {
+        let code = String(result[run.range].characters)
+        target = RichChatProjectFileLink.target(code, in: projectLocation, markdown: false)
+      } else {
+        target = nil
+      }
+      if let target, let url = RichChatProjectFileLink.url(for: target) {
+        result[run.range].link = url
+      }
+    }
     return result
+  }
+
+  static func standaloneSourceReference(
+    in text: AttributedString, projectLocation: ProjectLocation?
+  ) -> RichChatSourceReference? {
+    guard let projectLocation, let url = text.runs.first?.link,
+      let target = RichChatProjectFileLink.target(from: url, in: projectLocation),
+      text.runs.allSatisfy({ $0.link == url })
+    else { return nil }
+    return RichChatSourceReference(target: target, url: url, authoredLabel: String(text.characters))
   }
 }
 
@@ -132,15 +167,19 @@ struct RichChatMessageSupplementView: View {
   /// Only assistant-produced files become download cards; user message file
   /// references keep the compact attachment row.
   var isAssistant: Bool = false
+  var findPart: RichChatFindPart? = nil
+  @Environment(\.richChatFindHighlight) private var find
 
   var body: some View {
     switch supplement {
+    case .video(let video):
+      RichChatInlineVideo(video: video)
     case .skill(let name, let pluginName):
       compactRow(systemImage: "sparkles", title: pluginName ?? name, subtitle: "/\(name)")
     case .mcp(let name):
       compactRow(systemImage: "externaldrive.connected.to.line.below", title: "@\(name)")
-    case .thread(_, let title):
-      compactRow(systemImage: "bubble.left.and.bubble.right", title: "@\(title)")
+    case .thread(let threadID, let title):
+      compactRow(systemImage: "bubble.left.and.bubble.right", title: "@\(title.isEmpty ? threadID : title)")
     case .diffComment(let target, let body):
       VStack(alignment: .leading, spacing: 4) {
         Label(target, systemImage: "text.bubble")
@@ -156,7 +195,9 @@ struct RichChatMessageSupplementView: View {
         Rectangle().fill(.quaternary).frame(width: 1)
       }
     case .file(let path, let name, let isAttachment):
-      if isAssistant, let ref = RichChatFilePolicy.typedFileRef(path: path, name: name) {
+      if let video = RichVideoPresentation.resolve(path, name: name) {
+        RichChatInlineVideo(video: video)
+      } else if isAssistant, let ref = RichChatFilePolicy.typedFileRef(path: path, name: name) {
         RichChatFileCard(ref: ref)
       } else {
         compactRow(
@@ -179,19 +220,24 @@ struct RichChatMessageSupplementView: View {
         .foregroundStyle(.secondary)
         .frame(width: 16)
       VStack(alignment: .leading, spacing: 1) {
-        Text(title)
+        highlight(title, searchable: subtitle == nil || subtitle == title)
           .poracodeChatText(.metadata, weight: .medium)
-          .lineLimit(1)
+          .lineLimit(find.revealsItem && find.active?.part == findPart ? nil : 1)
         if let subtitle, subtitle != title {
-          Text(subtitle)
+          highlight(subtitle, searchable: true)
             .poracodeChatText(.metadata)
             .foregroundStyle(.tertiary)
-            .lineLimit(1)
+            .lineLimit(find.revealsItem && find.active?.part == findPart ? nil : 1)
             .truncationMode(.middle)
         }
       }
       Spacer(minLength: 0)
     }
     .padding(.leading, 4)
+  }
+
+  private func highlight(_ text: String, searchable: Bool) -> Text {
+    let source = AttributedString(text)
+    return find.text(source, part: searchable && supplement.findText == text ? findPart : nil)
   }
 }

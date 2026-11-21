@@ -30,7 +30,7 @@ struct ProjectNotesThreadComposeSheet: View {
         if ready {
           VStack {
             Spacer(minLength: 0)
-            HomeQuickComposeView(
+            HomeQuickComposeSessionView(
               session: session,
               isExpanded: $isExpanded,
               launchSeed: HomeThreadLaunchSeed(
