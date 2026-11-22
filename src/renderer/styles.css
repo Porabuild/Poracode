@@ -1474,6 +1474,13 @@ html[data-compact-layout] [data-sticky-windowed-header] .poracode-model-menu-hea
     --overlay-muted: color-mix(in srgb, var(--muted) 75%, var(--foreground));
     --hairline-soft: color-mix(in oklab, var(--foreground) 3%, transparent);
     --hairline-strong: color-mix(in oklab, var(--foreground) 15%, transparent);
+    /* Desaturated accent-foreground wash for prompt/mention/slash/attachment
+       chips: separates cleanly over both plain canvas and raised composer /
+       user-message surfaces without competing with violet/colored chip icons. */
+    --prompt-chip-tint: color-mix(in oklab, var(--accent) 45%, var(--foreground));
+    --prompt-chip-fill: color-mix(in oklab, var(--prompt-chip-tint) 12%, transparent);
+    --prompt-chip-hover: color-mix(in oklab, var(--prompt-chip-tint) 20%, transparent);
+    --prompt-chip-active: color-mix(in oklab, var(--prompt-chip-tint) 26%, transparent);
   }
 
   .light,
@@ -5336,7 +5343,7 @@ html[data-app-unfocused] .poracode-provider-icon--finished {
   padding: 0.1em 0.3em;
   margin: 0 1px;
   border-radius: 0.25rem;
-  background: color-mix(in oklab, var(--accent) 12%, var(--surface));
+  background: var(--prompt-chip-fill);
   color: var(--foreground);
   font-family: inherit;
   font-size: 0.875em;
@@ -5378,7 +5385,7 @@ html[data-app-unfocused] .poracode-provider-icon--finished {
   width: 1rem;
   height: 1rem;
   border-radius: 50%;
-  background: var(--surface);
+  background: var(--overlay);
   border: 1px solid var(--border);
   color: var(--muted);
   cursor: var(--interactive-cursor);
@@ -5386,7 +5393,7 @@ html[data-app-unfocused] .poracode-provider-icon--finished {
 
 .poracode-mention-chip__delete:hover {
   color: var(--foreground);
-  background: color-mix(in oklab, var(--accent) 20%, var(--surface));
+  background: color-mix(in oklab, var(--accent) 22%, var(--overlay));
 }
 
 .poracode-mention-chip:hover .poracode-mention-chip__delete {
@@ -5403,7 +5410,7 @@ html[data-app-unfocused] .poracode-provider-icon--finished {
   margin: 0 1px;
   border: 0;
   border-radius: 0.25rem;
-  background: color-mix(in oklab, var(--accent) 12%, var(--surface));
+  background: var(--prompt-chip-fill);
   color: var(--foreground);
   font-family: inherit;
   font-size: 0.875em;
@@ -5428,11 +5435,11 @@ button.poracode-thread-mention-chip {
 }
 
 button.poracode-thread-mention-chip:hover {
-  background: color-mix(in oklab, var(--accent) 22%, var(--surface));
+  background: var(--prompt-chip-hover);
 }
 
 button.poracode-thread-mention-chip:active {
-  background: color-mix(in oklab, var(--accent) 28%, var(--surface));
+  background: var(--prompt-chip-active);
 }
 
 html[data-keyboard-navigation] .poracode-thread-mention-chip:focus-visible {
@@ -5524,18 +5531,6 @@ html[data-keyboard-navigation] .poracode-thread-mention-chip:focus-visible {
   height: 0.8em;
 }
 
-.poracode-user-message-inline-content .poracode-inline-path-chip {
-  background: var(--surface-secondary);
-}
-
-.poracode-user-message-inline-content .poracode-inline-path-chip:hover {
-  background: color-mix(in oklab, var(--surface-secondary) 86%, var(--foreground) 14%);
-}
-
-.poracode-user-message-inline-content .poracode-inline-path-chip--inert:hover {
-  background: var(--surface-secondary);
-}
-
 /* ── Inline File Path Chip (clickable, in chat markdown) ────── */
 
 .poracode-inline-path-chip {
@@ -5548,7 +5543,7 @@ html[data-keyboard-navigation] .poracode-thread-mention-chip:focus-visible {
   margin: 0 1px;
   border: 0;
   border-radius: 0.25rem;
-  background: color-mix(in oklab, var(--accent) 12%, var(--surface));
+  background: var(--prompt-chip-fill);
   color: var(--foreground);
   font-family: inherit;
   font-size: 0.875em;
@@ -5559,7 +5554,7 @@ html[data-keyboard-navigation] .poracode-thread-mention-chip:focus-visible {
 }
 
 .poracode-inline-path-chip:hover {
-  background: color-mix(in oklab, var(--accent) 22%, var(--surface));
+  background: var(--prompt-chip-hover);
 }
 
 .poracode-inline-path-chip--inert {
@@ -5568,14 +5563,14 @@ html[data-keyboard-navigation] .poracode-thread-mention-chip:focus-visible {
 }
 
 .poracode-inline-path-chip--inert:hover {
-  background: color-mix(in oklab, var(--accent) 12%, var(--surface));
+  background: var(--prompt-chip-fill);
 }
 
 /* Display-only twin for rows that already sit inside a button. */
 .poracode-inline-path-chip--static,
 .poracode-inline-path-chip--static:hover {
   cursor: inherit;
-  background: color-mix(in oklab, var(--accent) 12%, var(--surface));
+  background: var(--prompt-chip-fill);
 }
 
 .poracode-inline-path-chip__icon {
@@ -5620,7 +5615,7 @@ html[data-keyboard-navigation] .poracode-thread-mention-chip:focus-visible {
   gap: 0.3rem;
   padding: 0.25em 0.45em;
   border-radius: 0.4rem;
-  background: color-mix(in oklab, var(--accent) 12%, var(--surface));
+  background: var(--prompt-chip-fill);
   color: var(--foreground);
   font-size: 0.8125rem;
   line-height: 1.4;
@@ -5681,7 +5676,7 @@ html[data-keyboard-navigation] .poracode-thread-mention-chip:focus-visible {
   height: 1rem;
   padding: 0;
   border-radius: 50%;
-  background: var(--surface);
+  background: var(--overlay);
   border: 1px solid var(--border);
   color: var(--muted);
   cursor: var(--interactive-cursor);
@@ -5696,7 +5691,7 @@ html[data-keyboard-navigation] .poracode-thread-mention-chip:focus-visible {
 
 .poracode-attachment-chip__delete:hover {
   color: var(--foreground);
-  background: color-mix(in oklab, var(--accent) 20%, var(--surface));
+  background: color-mix(in oklab, var(--accent) 22%, var(--overlay));
 }
 
 .poracode-attachment-chip:hover .poracode-attachment-chip__delete {
@@ -6079,7 +6074,7 @@ html[data-keyboard-navigation] .poracode-thread-mention-chip:focus-visible {
 }
 
 .poracode-mention-popover__item--active {
-  background: color-mix(in oklab, var(--accent) 12%, var(--surface));
+  background: var(--prompt-chip-fill);
 }
 
 .poracode-overlay-header {

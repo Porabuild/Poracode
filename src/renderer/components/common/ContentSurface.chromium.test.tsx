@@ -2,11 +2,25 @@ import { Button, Card, Input, Surface, TextArea } from "@heroui/react";
 import { cleanup, render } from "@testing-library/react";
 import { afterEach, expect, it } from "vitest";
 import "@/renderer/tailwind.css";
-import { relativeLuminance } from "@/renderer/theme/colorMath";
+import { applyAppTheme } from "@/renderer/theme/applyAppTheme";
+import { contrastRatio, relativeLuminance, toHex } from "@/renderer/theme/colorMath";
+import { APP_THEME_PRESETS } from "@/renderer/theme/themePresets";
 import { readCompositedCssRgba, readCssRgba } from "@/renderer/testUtils/cssColor";
 import { ContentSurface } from "./ContentSurface";
 
 afterEach(cleanup);
+
+function compositedHex(fgCss: string, bgCss: string) {
+  const [red, green, blue, alpha] = readCompositedCssRgba(fgCss, bgCss);
+  expect(alpha).toBe(255);
+  return toHex([red, green, blue]);
+}
+
+function hexOf(css: string) {
+  const [red, green, blue, alpha] = readCssRgba(css);
+  expect(alpha).toBe(255);
+  return toHex([red, green, blue]);
+}
 
 it.each(["light", "dark"] as const)(
   "shares the flat material across content roots in %s mode",
@@ -116,6 +130,94 @@ it.each(["light", "dark"] as const)(
       expect((panelFieldLum - plainLum) * direction).toBeGreaterThan(0);
       expect((panelFieldLum - panelLum) * direction).toBeGreaterThan(0);
     } finally {
+      if (previousTheme === null) html.removeAttribute("data-theme");
+      else html.setAttribute("data-theme", previousTheme);
+    }
+  },
+);
+
+it.each(["light", "dark"] as const)(
+  "separates mention, slash, file path, and attachment badges from composer and user message surfaces across all themes in %s mode",
+  (mode) => {
+    const html = document.documentElement;
+    const previousTheme = html.getAttribute("data-theme");
+    const hadLight = html.classList.contains("light");
+    const hadDark = html.classList.contains("dark");
+    html.setAttribute("data-theme", mode);
+    html.classList.toggle("light", mode === "light");
+    html.classList.toggle("dark", mode === "dark");
+    try {
+      const view = render(
+        <>
+          <div data-testid="composer" className="poracode-composer-shell content-surface">
+            <span data-testid="composer-mention" className="poracode-mention-chip">
+              file.ts
+            </span>
+            <span data-testid="composer-slash" className="poracode-slash-chip">
+              /goal
+            </span>
+            <span data-testid="composer-attachment" className="poracode-attachment-chip">
+              spec.pdf
+            </span>
+          </div>
+          <ContentSurface
+            data-testid="user-message"
+            variant="row"
+            className="poracode-user-message-inline-content"
+          >
+            <button
+              type="button"
+              data-testid="message-thread-chip"
+              className="poracode-slash-chip poracode-thread-mention-chip"
+            >
+              Thread mention
+            </button>
+            <button
+              type="button"
+              data-testid="message-path-chip"
+              className="poracode-inline-path-chip"
+            >
+              src/index.ts
+            </button>
+          </ContentSurface>
+        </>,
+      );
+
+      const composer = view.getByTestId("composer");
+      const userMessage = view.getByTestId("user-message");
+      const badges = [
+        [view.getByTestId("composer-mention"), composer, "composer mention"],
+        [view.getByTestId("composer-slash"), composer, "composer slash"],
+        [view.getByTestId("composer-attachment"), composer, "composer attachment"],
+        [view.getByTestId("message-thread-chip"), userMessage, "user-message thread mention"],
+        [view.getByTestId("message-path-chip"), userMessage, "user-message inline path"],
+      ] as const;
+
+      for (const { id } of APP_THEME_PRESETS) {
+        applyAppTheme(html, mode, id);
+        for (const [badge, surface, label] of badges) {
+          const surfaceBgCss = getComputedStyle(surface).backgroundColor;
+          const surfaceHex = hexOf(surfaceBgCss);
+          const badgeStyle = getComputedStyle(badge);
+          const [, , , badgeAlpha] = readCssRgba(badgeStyle.backgroundColor);
+          // Translucent accent tint adapts over whatever surface hosts the badge.
+          expect(badgeAlpha, `${id}/${mode} ${label} alpha`).toBeGreaterThan(0);
+          expect(badgeAlpha, `${id}/${mode} ${label} alpha`).toBeLessThan(255);
+          const paintedBadgeHex = compositedHex(badgeStyle.backgroundColor, surfaceBgCss);
+          expect(
+            contrastRatio(paintedBadgeHex, surfaceHex),
+            `${id}/${mode} ${label} vs surface`,
+          ).toBeGreaterThanOrEqual(1.11);
+          expect(
+            contrastRatio(hexOf(badgeStyle.color), paintedBadgeHex),
+            `${id}/${mode} ${label} text contrast`,
+          ).toBeGreaterThanOrEqual(4.5);
+        }
+      }
+    } finally {
+      applyAppTheme(html, mode, "default");
+      html.classList.toggle("light", hadLight);
+      html.classList.toggle("dark", hadDark);
       if (previousTheme === null) html.removeAttribute("data-theme");
       else html.setAttribute("data-theme", previousTheme);
     }

@@ -14,6 +14,8 @@ const PANEL_FLOOR = 4.0;
 const MUTED_FG_GAP_FLOOR = 1.9;
 const UI_BOUNDARY_FLOOR = 3.0;
 const UI_FILL_FLOOR = 1.25;
+const BADGE_FILL_FLOOR = 1.11;
+const BADGE_HOVER_FLOOR = 1.2;
 
 const semanticTokens = {
   light: {
@@ -221,6 +223,14 @@ describe("theme presets", () => {
         const buttonHoverContent = mixHex(buttonTint, content, buttonHoverPct);
         const buttonBgPanel = mixHex(buttonTint, panel, buttonRestPct);
         const buttonHoverPanel = mixHex(buttonTint, panel, buttonHoverPct);
+        // Mention, slash, file path, and attachment badges use a desaturated
+        // translucent accent-foreground wash (45% accent + fg at 12% rest, 20%
+        // hover) so they separate cleanly over both plain canvas and raised
+        // composer / user-message surfaces without competing with violet icons.
+        const badgeTint = mixHex(accent, fg, 0.45);
+        const badgeBgContent = mixHex(badgeTint, content, 0.12);
+        const badgeBgPanel = mixHex(badgeTint, panel, 0.12);
+        const badgeHoverPanel = mixHex(badgeTint, panel, 0.2);
         // Soft-accent label (--color-accent-soft-foreground): styles.css deepens
         // HeroUI's raw --accent toward fg so explicitly accent-tinted controls
         // such as selected toggles, badges, chips, and calendar states stay
@@ -244,6 +254,12 @@ describe("theme presets", () => {
           ["button text/hover content", fg, buttonHoverContent, BG_FLOOR],
           ["button text/bg panel", fg, buttonBgPanel, BG_FLOOR],
           ["button text/hover panel", fg, buttonHoverPanel, BG_FLOOR],
+          ["badge bg/content", badgeBgContent, content, BADGE_FILL_FLOOR],
+          ["badge bg/panel", badgeBgPanel, panel, BADGE_FILL_FLOOR],
+          ["badge hover/panel", badgeHoverPanel, panel, BADGE_HOVER_FLOOR],
+          ["badge text/bg content", fg, badgeBgContent, BG_FLOOR],
+          ["badge text/bg panel", fg, badgeBgPanel, BG_FLOOR],
+          ["badge text/hover panel", fg, badgeHoverPanel, BG_FLOOR],
           ["soft-accent label/accent-soft", softLabel, accentSoftFill, UI_BOUNDARY_FLOOR],
           ["soft-accent label/default", softLabel, defaultFill, UI_BOUNDARY_FLOOR],
         ];
