@@ -16,9 +16,16 @@ identities, and transport metadata.
 - Use `defineAppControlTool` in `src/host/app-controls/mcp/defineTools.ts` to
   derive both the MCP JSON schema and dispatch validator. Use `pick`, `omit`,
   and `extend` to adapt the shared public schema at the tool boundary.
-- Register the tool in the host domain and in `BUILT_IN_MCP_SERVER_TOOL_NAMES`
-  for the app's permission controls. Update the shipped `app-controls` skill.
-  Follow the [bundled plugin versioning rule](../../docs/versioning.md#bundled-plugin-versions)
+- Register the tool in its `DOMAIN_ENTRIES` domain in
+  `src/host/app-controls/mcp/toolRegistry.ts` and in
+  `BUILT_IN_MCP_SERVER_TOOL_NAMES` for the app's permission controls. Only
+  high-frequency hot-path operations belong in `DIRECT_TOOL_NAMES`; all other
+  operations are discovered via `poracode_discover` and dispatched through
+  `poracode_read` (read-only) or `poracode_run` (mutating). Shared nested
+  sub-schemas (composer config, selection bindings, segments, forge accounts)
+  are compacted centrally in `src/host/app-controls/mcp/wireSchemas.ts`. Update
+  the shipped `app-controls` skill and follow the
+  [bundled plugin versioning rule](../../docs/versioning.md#bundled-plugin-versions)
   when the catalog or guidance changes.
 - Add its effect to `src/host/app-controls/mcp/toolAnnotations.ts`. MCP
   advertises hints for the whole schema. For a multi-action tool, inspect

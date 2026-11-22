@@ -7,11 +7,13 @@ Use Poracode's Devices panel and tools for simulator and emulator work. Never la
 
 The Devices plugin is enabled by default and can be disabled in Plugins; when it is disabled the tools refuse and say so. Tools are scoped to the current thread's host and attached device — they cannot borrow another thread's session, run shell commands, control the host desktop, or power off a device.
 
+Device operations live under the `devices` domain of the `poracode` MCP gateway — never call them as bare top-level tool names. Discover schemas with `poracode_discover({ domain: "devices" })`, invoke read-only operations (`list_devices`, `screenshot_device`, `inspect_device`) via `poracode_read({ operation, params })`, and invoke mutating operations (`open_device`, `control_device`) via `poracode_run({ operation, params })`.
+
 ## Opening a device in the panel
 
-1. Call `list_devices` to discover this host's iOS Simulators and Android Emulators, their running state, and prerequisites. It does not attach anything.
-2. Call `open_device` with a `deviceId` from `list_devices` (add `access: "view"` only when you will not send input; the default is `control`). This attaches the device to this thread and opens it in the user's Poracode panel so you work side by side. A stopped device is started only with `control` access (the default) — `view` does not start it, so use `control` for a stopped device. You do not need to ask the user to pick a device first.
-3. If the user already attached a device in the panel, `screenshot_device`, `inspect_device`, and `control_device` act on that same session — do not open a second one.
+1. Call `poracode_read({ operation: "list_devices" })` to discover this host's iOS Simulators and Android Emulators, their running state, and prerequisites. It does not attach anything.
+2. Call `poracode_run({ operation: "open_device", params: { deviceId } })` with a `deviceId` from `list_devices` (add `access: "view"` only when you will not send input; the default is `control`). This attaches the device to this thread and opens it in the user's Poracode panel so you work side by side. A stopped device is started only with `control` access (the default) — `view` does not start it, so use `control` for a stopped device. You do not need to ask the user to pick a device first.
+3. If the user already attached a device in the panel, `screenshot_device` / `inspect_device` (via `poracode_read`) and `control_device` (via `poracode_run`) act on that same session — do not open a second one.
 
 ## Tools
 

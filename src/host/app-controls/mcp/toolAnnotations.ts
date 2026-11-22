@@ -17,6 +17,9 @@ const effects = {
 // Hints apply to the whole callable schema. Use the strongest effect if any
 // accepted action can execute code, publish data, stop work, or remove state.
 const toolEffects = {
+  poracode_discover: "localRead",
+  poracode_read: "externalRead",
+  poracode_run: "externalChange",
   list_devices: "localRead",
   open_device: "localChange",
   screenshot_device: "localRead",

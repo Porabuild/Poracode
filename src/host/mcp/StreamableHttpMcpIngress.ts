@@ -100,9 +100,14 @@ export class StreamableHttpMcpIngress<TContext> {
   private closing: Promise<void> | undefined;
   private stopping = false;
   private resolvePooledIdentity: PooledMcpIdentityResolver | undefined;
+  private readonly publishedTools: readonly StreamableHttpMcpToolSpec[];
 
   constructor(private readonly options: StreamableHttpMcpIngressOptions<TContext>) {
     this.resolvePooledIdentity = options.resolvePooledIdentity;
+    this.publishedTools = options.tools.map((tool) => ({
+      ...tool,
+      inputSchema: publishToolInputSchema(tool.inputSchema),
+    }));
     this.server = createServer((req, res) => {
       if (this.stopping) {
         this.sendJson(res, 503, { error: "MCP ingress is shutting down." });
@@ -384,9 +389,7 @@ export class StreamableHttpMcpIngress<TContext> {
           jsonrpc: "2.0",
           id,
           result: {
-            tools: this.options.tools
-              .filter((tool) => !disabled.has(normalize(tool.name)))
-              .map((tool) => ({ ...tool, inputSchema: publishToolInputSchema(tool.inputSchema) })),
+            tools: this.publishedTools.filter((tool) => !disabled.has(normalize(tool.name))),
           },
         };
       }

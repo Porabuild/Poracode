@@ -8,21 +8,28 @@ export interface ToolSpec {
   annotations?: McpToolAnnotations;
 }
 
+/** All fields that may appear on a returned window object (used for inlined-window diagnostics). */
+export const WINDOW_FIELD_NAMES = [
+  "app",
+  "id",
+  "title",
+  "x",
+  "y",
+  "width",
+  "height",
+  "pid",
+  "displayName",
+  "minimized",
+  "source",
+] as const;
+
 export const WINDOW_SCHEMA = {
   type: "object",
   required: ["app", "id"],
+  description: "Window object returned by list_windows or get_window_state.",
   properties: {
     app: { type: "string" },
     id: { type: "number" },
-    title: { type: "string" },
-    x: { type: "number" },
-    y: { type: "number" },
-    width: { type: "number" },
-    height: { type: "number" },
-    pid: { type: "number" },
-    displayName: { type: "string" },
-    minimized: { type: "boolean" },
-    source: { type: "string", enum: ["win32", "cg", "x11", "atspi"] },
   },
 };
 
@@ -30,8 +37,7 @@ export const MODE_SCHEMA = {
   type: "string",
   enum: ["background", "foreground"],
   default: "background",
-  description:
-    'Leave this at "background" unless the user asked for a takeover. "foreground" seizes the user\'s real mouse, keyboard, and window focus.',
+  description: '"background" (default) or "foreground" (takeover; ask user first).',
 };
 
 const VERIFY_SCHEMA = {
@@ -44,8 +50,7 @@ const OBSERVE_SCHEMA = {
   type: "string",
   enum: ["none", "text", "screenshot", "both"],
   default: "none",
-  description:
-    "Return observation.state to avoid a separate inspection call. Prefer text for semantic checks; screenshot or both for visual checks.",
+  description: 'Post-action observation ("none", "text", "screenshot", or "both").',
 };
 
 const inputProperties = {
@@ -94,26 +99,22 @@ export const PERFORM_STEP_SCHEMA = {
 const RAW_TOOLS: ToolSpec[] = [
   {
     name: "api",
-    description:
-      "Return native-helper status, capabilities, permissions, platform, and the plugin core-skill name. Call only when capability or permission details are needed.",
+    description: "Return helper status, capabilities, permissions, and platform.",
     inputSchema: { type: "object", additionalProperties: false, properties: {} },
   },
   {
     name: "enable",
-    description:
-      "Begin one uninterrupted Computer Use session. Keeps a background-control badge visible between related actions.",
+    description: "Begin a Computer Use session and show the background-control badge.",
     inputSchema: { type: "object", additionalProperties: false, properties: {} },
   },
   {
     name: "disable",
-    description:
-      "End the current Computer Use session and hide its badge or takeover overlay. Always call before pausing or finishing.",
+    description: "End the Computer Use session. Call before pausing or finishing.",
     inputSchema: { type: "object", additionalProperties: false, properties: {} },
   },
   {
     name: "list_apps",
-    description:
-      "List apps that currently have targetable windows. Pass query to also search installed apps by name and receive a launchable id.",
+    description: "List apps with targetable windows, or pass query to search installed apps.",
     inputSchema: {
       type: "object",
       additionalProperties: false,
@@ -122,13 +123,12 @@ const RAW_TOOLS: ToolSpec[] = [
   },
   {
     name: "list_windows",
-    description: "List currently targetable windows without changing focus.",
+    description: "List targetable windows without changing focus.",
     inputSchema: { type: "object", additionalProperties: false, properties: {} },
   },
   {
     name: "launch_app",
-    description:
-      'Launch an app by a list_apps id, known app name, or explicit app path. mode:"background" (the default) launches without taking the user\'s focus; mode:"foreground" activates the app and is a takeover.',
+    description: 'Launch an app by list_apps id, name, or path. Defaults to mode:"background".',
     inputSchema: {
       type: "object",
       additionalProperties: false,
@@ -138,8 +138,7 @@ const RAW_TOOLS: ToolSpec[] = [
   },
   {
     name: "get_window",
-    description:
-      "Refresh a returned window object. Use this after a stale-window error or when the window may have moved or resized.",
+    description: "Refresh a window object after a stale-window error or move/resize.",
     inputSchema: {
       type: "object",
       additionalProperties: false,
@@ -150,7 +149,7 @@ const RAW_TOOLS: ToolSpec[] = [
   {
     name: "get_window_state",
     description:
-      "Passively inspect a window. For semantic tasks, use include_text:true with include_screenshot:false; request a screenshot for visual checks or coordinates. The response reports capture method and scale for coordinate conversion.",
+      "Inspect a window (use include_text:true, include_screenshot:false for semantic tasks; screenshot for visuals/coordinates).",
     inputSchema: {
       type: "object",
       additionalProperties: false,
@@ -168,7 +167,7 @@ const RAW_TOOLS: ToolSpec[] = [
   {
     name: "find_elements",
     description:
-      "Find accessibility elements by role, name, text, or automation id without changing focus. Pass get_window_state's accessibility.snapshotId or a previous find_elements result's snapshotId as snapshot_id to filter that tree without rebuilding it.",
+      "Find accessibility elements by role, name, text, or automation_id. Reuse snapshot_id to filter without rebuilding the tree.",
     inputSchema: {
       type: "object",
       additionalProperties: false,
@@ -186,8 +185,7 @@ const RAW_TOOLS: ToolSpec[] = [
   },
   {
     name: "invoke_element",
-    description:
-      "Perform a supported accessibility action on an element id from the latest tree or find_elements result. Runs in the background.",
+    description: "Invoke an accessibility action on element_id in the background.",
     inputSchema: {
       type: "object",
       additionalProperties: false,
@@ -205,8 +203,7 @@ const RAW_TOOLS: ToolSpec[] = [
   },
   {
     name: "set_element_value",
-    description:
-      "Set an accessibility element's value without focusing or activating the target window.",
+    description: "Set an accessibility element's text value in the background.",
     inputSchema: {
       type: "object",
       additionalProperties: false,
@@ -222,7 +219,7 @@ const RAW_TOOLS: ToolSpec[] = [
   {
     name: "activate_window",
     description:
-      "Explicitly bring a returned window to the foreground. Takeover: it interrupts the user, takes focus, and shows the takeover overlay. Element actions reach a window without it, so never call it to make a background action land; ask the user first.",
+      "Bring a window to foreground (takeover — interrupts user; ask first, never use as a workaround).",
     inputSchema: {
       type: "object",
       additionalProperties: false,
@@ -233,7 +230,7 @@ const RAW_TOOLS: ToolSpec[] = [
   {
     name: "perform",
     description:
-      "Run 1 to 32 deterministic background element, value, key, or text actions against one window. Stops on refusal, error, or unexpected foreground delivery and can return one final observation.",
+      "Run 1-32 deterministic background element/value/key/text steps on one window; stops on refusal/error.",
     inputSchema: {
       type: "object",
       additionalProperties: false,
@@ -247,8 +244,7 @@ const RAW_TOOLS: ToolSpec[] = [
   },
   {
     name: "click",
-    description:
-      "Click frame-relative coordinates in the background by default. Read delivery/refused: a refusal names the background route to use instead, so follow it rather than taking the window over.",
+    description: "Click frame-relative coordinates (background default; follow any refused hint).",
     inputSchema: {
       type: "object",
       additionalProperties: false,
@@ -265,8 +261,7 @@ const RAW_TOOLS: ToolSpec[] = [
   },
   {
     name: "press_key",
-    description:
-      "Press a key or + separated chord in the target window in the background by default.",
+    description: "Press a key or + chord in the target window (background default).",
     inputSchema: {
       type: "object",
       additionalProperties: false,
@@ -276,7 +271,7 @@ const RAW_TOOLS: ToolSpec[] = [
   },
   {
     name: "type_text",
-    description: "Type literal Unicode text into the target window in the background by default.",
+    description: "Type literal Unicode text into the target window (background default).",
     inputSchema: {
       type: "object",
       additionalProperties: false,
@@ -287,7 +282,7 @@ const RAW_TOOLS: ToolSpec[] = [
   {
     name: "scroll",
     description:
-      'Scroll at frame-relative coordinates in the background by default. Read delivery/refused before continuing; on macOS a browser or Electron page scrolls in the background through invoke_element with action "scroll".',
+      'Scroll at coordinates (background default; on macOS browsers use invoke_element action "scroll").',
     inputSchema: {
       type: "object",
       additionalProperties: false,
@@ -304,8 +299,7 @@ const RAW_TOOLS: ToolSpec[] = [
   },
   {
     name: "drag",
-    description:
-      "Drag between frame-relative coordinates in the background by default. Optional steps controls interpolation.",
+    description: "Drag between frame-relative coordinates (background default).",
     inputSchema: {
       type: "object",
       additionalProperties: false,

@@ -3,7 +3,7 @@ import type { McpToolResult, SubagentWaitOptions, SubagentWaitResult } from "./t
 
 /** Shared `timeout_s` schema description for the blocking wait tools. */
 export const TIMEOUT_S_DESCRIPTION =
-  'Max seconds for this wait call (default and cap 480). Returns immediately when the required work is done or needs input. Omit for routine waits; short values repeatedly wake the coordinator. A timeout leaves the subagent running; status "running" means call wait_for_agent again when its result is still required, not steer or cancel it because time elapsed.';
+  "Max seconds to wait (default/cap 480). Timeout leaves the subagent running; call wait_for_agent again if still required.";
 
 export const WAIT_AGAIN_INSTRUCTION =
   "Call crossagents.wait_for_agent with only required running IDs. Do not poll status or steer just because the worker is still running. Do not end the turn expecting a completion notification.";

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
-import { TOOLS } from "@/host/app-controls/mcp/toolRegistry";
+import { ALL_OPERATIONS, TOOLS } from "@/host/app-controls/mcp/toolRegistry";
 import { publishToolInputSchema } from "./publishToolInputSchema";
 
 function advertised(schema: z.ZodType): Record<string, unknown> {
@@ -154,7 +154,7 @@ describe("publishToolInputSchema", () => {
   it("advertises every app-controls tool without a provider-rejected keyword", () => {
     const hits: string[] = [];
     const history = publishToolInputSchema(
-      TOOLS.find((tool) => tool.name === "read_thread_history")!.inputSchema,
+      ALL_OPERATIONS.find((tool) => tool.name === "read_thread_history")!.inputSchema,
     );
     expect(history).toMatchObject({
       type: "object",
@@ -167,7 +167,7 @@ describe("publishToolInputSchema", () => {
     expect(history.required).toEqual(expect.arrayContaining(["action", "threadId"]));
     expect(history.required).not.toContain("itemId");
 
-    for (const tool of TOOLS) {
+    for (const tool of [...TOOLS, ...ALL_OPERATIONS]) {
       rejectedKeywords(publishToolInputSchema(tool.inputSchema), tool.name, hits);
     }
     expect(hits).toEqual([]);

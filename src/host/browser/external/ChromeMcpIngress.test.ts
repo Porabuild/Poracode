@@ -151,6 +151,10 @@ describe("ChromeMcpIngress", () => {
       destructiveHint: true,
       openWorldHint: true,
     });
+    expect(listBody.result.tools.length).toBeLessThanOrEqual(18);
+    expect(Buffer.byteLength(JSON.stringify(listBody.result.tools), "utf8")).toBeLessThan(9_500);
+    expect(listBody.result.tools.some((tool) => tool.name === "select")).toBe(false);
+    expect(listBody.result.tools.some((tool) => tool.name === "perform")).toBe(true);
   });
 
   it("routes Chrome tool calls and formats their result", async () => {

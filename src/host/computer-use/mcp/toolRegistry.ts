@@ -6,7 +6,7 @@ import type {
 import { WINDOW_SHAPE_ERROR } from "../drivers/common";
 import { dispatchTool as dispatchNormalizedTool } from "./dispatch";
 import { compactStateNotes, omitLaneMode } from "./resultTrim";
-import { TOOLS, WINDOW_SCHEMA } from "./toolSpecs";
+import { TOOLS, WINDOW_FIELD_NAMES } from "./toolSpecs";
 
 export { COMPUTER_USE_MCP_INSTRUCTIONS } from "./instructions";
 export { TOOLS, type ToolSpec } from "./toolSpecs";
@@ -147,7 +147,7 @@ function rejectUnknownArguments(name: string, args: Record<string, unknown>): vo
     (key) => !key.startsWith("_") && !accepted.includes(key),
   );
   if (unknown.length === 0) return;
-  const windowFields = Object.keys(WINDOW_SCHEMA.properties);
+  const windowFields: readonly string[] = WINDOW_FIELD_NAMES;
   const inlinedWindow =
     accepted.includes("window") && unknown.every((key) => windowFields.includes(key));
   throw new Error(

@@ -43,6 +43,17 @@ describe("BrowserMcpIngress", () => {
     expect(body.result.instructions).toContain("browser.disable");
     expect(body.result.instructions).toContain("browser.api");
     expect(body.result.instructions).toContain("@e refs");
+
+    const listResponse = await fetch(`${info.url}/mcp`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${info.token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ jsonrpc: "2.0", id: 2, method: "tools/list", params: {} }),
+    });
+    const listBody = (await listResponse.json()) as { result: { tools: Array<{ name: string }> } };
+    expect(listBody.result.tools.length).toBeLessThanOrEqual(25);
+    expect(Buffer.byteLength(JSON.stringify(listBody.result.tools), "utf8")).toBeLessThan(13_000);
+    expect(listBody.result.tools.some((t) => t.name === "inspect")).toBe(false);
+    expect(listBody.result.tools.some((t) => t.name === "perform")).toBe(true);
   });
 
   it("routes MCP reload, get_url, and fill through the browser panel tab", async () => {
@@ -170,5 +181,51 @@ describe("BrowserMcpIngress", () => {
       image: `data:image/jpeg;base64,${Buffer.from("painted browser frame").toString("base64")}`,
     });
     expect(tab.webContents.capturePage).toHaveBeenCalledTimes(3);
+  });
+
+  it("blocks disabled extended page actions inside perform batches", async () => {
+    ingress = new BrowserMcpIngress();
+    const executeJavaScript = vi.fn<() => Promise<unknown>>();
+    const tab = {
+      tabId: "tab-1",
+      isDestroyed: () => false,
+      isAttached: () => true,
+      snapshot: () => ({ url: "https://example.test", title: "Example" }),
+      webContents: { executeJavaScript, focus: vi.fn<() => void>() },
+      cdp: {
+        attach: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+        send: vi.fn<() => Promise<unknown>>(),
+      },
+    };
+    ingress.setManagerAccessor(
+      () =>
+        ({
+          snapshot: () => ({ tabs: [{ tabId: "tab-1" }], activeTabId: "tab-1" }),
+          getActiveTab: () => tab,
+          getTab: () => tab,
+          ensureTabReady: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+        }) as unknown as BrowserPanelManager,
+    );
+    const info = await ingress.start();
+
+    const response = await fetch(`${info.url}/mcp?thread=t-1&disable=select`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${info.token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        id: 1,
+        method: "tools/call",
+        params: {
+          name: "perform",
+          arguments: { steps: [{ action: "select", selector: "#country", value: "US" }] },
+        },
+      }),
+    });
+    const body = (await response.json()) as {
+      result: { isError?: boolean; content: Array<{ text: string }> };
+    };
+    expect(body.result.isError).toBe(true);
+    expect(body.result.content[0]?.text).toContain("Tool disabled by Poracode: select");
+    expect(executeJavaScript).not.toHaveBeenCalled();
   });
 });

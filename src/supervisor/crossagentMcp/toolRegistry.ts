@@ -88,69 +88,67 @@ export function buildSubagentInstructions(
   return guide ? `${base}\n\n${guide}` : base;
 }
 
+const NESTED_SELECTION_PROPERTIES = {
+  provider: { type: "string" },
+  model: { type: "string" },
+  reasoning: { type: "string" },
+  fast: { type: "boolean" },
+  permissions: { type: "string", enum: ["full-access"] },
+} as const;
+
 const SUBAGENT_SELECTION_PROPERTIES = {
-  provider: {
-    type: "string",
-    description:
-      "Provider id from list_agents (for example `codex`). Omit when the user did not specify one to use the highest-ranked available provider.",
-  },
-  model: {
-    type: "string",
-    description:
-      "Model value from get_agent. Omit when the user did not specify one to use the provider's preferred model.",
-  },
-  reasoning: {
-    type: "string",
-    description:
-      "Reasoning value listed on the selected get_agent model. Omit when the user did not specify one to use the preferred or model-default value.",
-  },
-  fast: {
-    type: "boolean",
-    description:
-      "Enable Fast when the selected model reports fast.available=true. Omit to use the learned preference when applicable, otherwise false.",
-  },
-  permissions: {
-    type: "string",
-    enum: ["full-access"],
-    description: "Permission preset from get_agent. Defaults to full-access for subagents.",
-  },
+  provider: { type: "string", description: "Provider id from list_agents; omit for auto-rank." },
+  model: { type: "string", description: "Model id from get_agent; omit for provider default." },
+  reasoning: { type: "string", description: "Reasoning level from get_agent." },
+  fast: { type: "boolean", description: "Enable Fast when supported." },
+  permissions: { type: "string", enum: ["full-access"], description: "Default full-access." },
 } as const;
 
 const OUTPUT_MODE_PROPERTY = {
   type: "string",
   enum: ["quiet", "progress"],
-  description:
-    "quiet is the default: running reads contain status, unread cursor, errors and pending request counts, without worker narration. Settled evidence is unchanged. progress restores narration; full_output retrieves the complete transcript.",
+  description: "quiet (default) omits worker narration; progress restores it.",
 } as const;
 
 const FULL_OUTPUT_PROPERTY = {
   type: "boolean",
-  description:
-    "Return the run's complete accumulated output instead of a cursor-based tail. Costly on long runs; leave unset unless the earlier text is genuinely needed.",
+  description: "Return full accumulated output instead of tail.",
 } as const;
 
 const AFTER_OUTPUT_CHARS_PROPERTY = {
   type: "integer",
   minimum: 0,
-  description:
-    "Return text produced after this character offset. Pass the previous result's total_output_chars to receive only newer output; repeat the same offset to retry safely.",
+  description: "Return output produced after this char offset (previous total_output_chars).",
 } as const;
 
 const AFTER_OUTPUT_CHARS_BY_RUN_PROPERTY = {
   type: "object",
   additionalProperties: { type: "integer", minimum: 0 },
-  description:
-    "Per-run character offsets for run_ids waits, keyed by run_id. Pass each previous result's total_output_chars so every run returns only newer output.",
+  description: "Per-run char offsets keyed by run_id.",
 } as const;
 
-const TASK_TAGS_PROPERTY = {
+const NESTED_TAGS_PROPERTY = {
   type: "array",
   minItems: 1,
   maxItems: 5,
   uniqueItems: true,
   items: { type: "string", minLength: 1, maxLength: 32 },
-  description:
-    "1-5 concise task classifications used for contextual routing and learning. Prefer: frontend, ui, design, backend, mobile, simulator, implementation, bugfix, review, testing, research, refactor, docs, devops, data.",
+} as const;
+
+const TASK_TAGS_PROPERTY = {
+  ...NESTED_TAGS_PROPERTY,
+  description: "1-5 task tags (e.g. frontend, backend, review, testing, research, refactor, docs).",
+} as const;
+
+const FALLBACKS_PROPERTY = {
+  type: "array",
+  maxItems: 3,
+  description: "Ordered fallback selections.",
+  items: {
+    type: "object",
+    required: ["provider"],
+    properties: NESTED_SELECTION_PROPERTIES,
+  },
 } as const;
 
 const SUBAGENT_TASK_PROPERTIES = {
@@ -162,66 +160,66 @@ const SUBAGENT_TASK_PROPERTIES = {
   },
   user_requested: {
     type: "boolean",
-    description:
-      "Set true only when the user explicitly requests agents or models outside the crew. Allows that request without a role even in Crew only mode. Choosing a crew or granting general delegation permission does not qualify. Omit for automatic delegation; never use this to bypass crew routing on your own.",
+    description: "True only when the user explicitly asked for an agent/model outside the crew.",
   },
   fresh_session: {
     type: "boolean",
-    description:
-      "With role: start a new helper session instead of continuing that role's previous one. Use only for unrelated work.",
+    description: "With role: start a fresh session instead of continuing.",
   },
-  prompt: { type: "string", description: "Self-contained task for the subagent." },
+  prompt: { type: "string", description: "Self-contained task prompt." },
   result_mode: {
     type: "string",
     enum: ["compact"],
-    description:
-      "Worker authors a structured final report. Reads return that report, not narration; full_output retrieves evidence. Missing/invalid reports are explicit errors. Omit for legacy output.",
+    description: "Structured final report instead of narration.",
   },
   tags: TASK_TAGS_PROPERTY,
   name: {
     type: "string",
-    description:
-      "Short action + target describing what this run does (its task or goal), summarizing the actual work (for example `Fix crew model labels`), shown to the user in the thread. Always provide one. Do not copy permission or `New task` instruction boilerplate into it; provider/model details are appended automatically.",
+    description: "Short action + target describing what this run does.",
   },
-  fallbacks: {
-    type: "array",
-    maxItems: 3,
-    description:
-      "Ordered alternate provider/model selections for failed attempts. Startup failures retry safely by default.",
-    items: {
-      type: "object",
-      required: ["provider"],
-      properties: SUBAGENT_SELECTION_PROPERTIES,
-    },
-  },
+  fallbacks: FALLBACKS_PROPERTY,
   retry_on: {
     type: "string",
     enum: ["startup", "any-failure"],
-    description:
-      "Retry only before turn dispatch (default), or retry any failure even when work may have side effects.",
+    description: "Retry startup failures only (default) or any failure.",
   },
+} as const;
+
+const NESTED_SUBAGENT_TASK_PROPERTIES = {
+  ...NESTED_SELECTION_PROPERTIES,
+  role: { type: "string" },
+  user_requested: { type: "boolean" },
+  fresh_session: { type: "boolean" },
+  prompt: { type: "string" },
+  result_mode: { type: "string", enum: ["compact"] },
+  tags: NESTED_TAGS_PROPERTY,
+  name: { type: "string" },
+  fallbacks: {
+    type: "array",
+    maxItems: 3,
+    items: { type: "object", required: ["provider"], properties: NESTED_SELECTION_PROPERTIES },
+  },
+  retry_on: { type: "string", enum: ["startup", "any-failure"] },
 } as const;
 
 const SUBAGENT_REQUEST_PROPERTIES = {
   ...SUBAGENT_TASK_PROPERTIES,
   background: {
     type: "boolean",
-    description:
-      "Return immediately with a run_id so the parent can continue useful work. The result is never injected as a message; call wait_for_agent at a synchronization point if it is required. Default false waits for completion. Background runs survive parent-turn interruption but stop when the parent thread closes.",
+    description: "Return run_id immediately instead of waiting; join later with wait_for_agent.",
   },
 } as const;
 
 const INCLUDE_TRACE_PROPERTY = {
   type: "boolean",
-  description:
-    "Opt in to a bounded dispatch-time selection/fallback trace with normalized attempt outcomes. Excludes prompts, output, raw errors and environment values. Omitted/false keeps the normal response. Retained only while this host retains the run.",
+  description: "Include bounded selection/fallback trace.",
 } as const;
 
 const RAW_TOOLS: ToolSpec[] = [
   {
     name: "run_workflow",
     description:
-      "Manage a host-scheduled task graph (native macOS/Linux only; Windows/WSL unsupported). start validates all stages and declared write scopes before launch; dependencies receive worker-authored compact reports. Failed checks, important findings or invalid reports block downstream work. No automatic publication or parent-message injection. Requires the same delegation authorization as spawn_agent.",
+      "Run a host-scheduled task graph (macOS/Linux only). Validates stages and disjoint write_scope before launch; passes compact reports to dependents. Requires delegation authorization.",
     inputSchema: {
       type: "object",
       properties: {
@@ -230,15 +228,11 @@ const RAW_TOOLS: ToolSpec[] = [
           enum: ["start", "status", "wait", "cancel", "list"],
           default: "start",
         },
-        workflow_id: { type: "string", description: "Required for status, wait and cancel." },
-        background: {
-          type: "boolean",
-          description:
-            "On start, return immediately only when useful independent work remains. Default waits for completion, attention or timeout.",
-        },
-        ...SUBAGENT_SELECTION_PROPERTIES,
-        role: SUBAGENT_TASK_PROPERTIES.role,
-        user_requested: SUBAGENT_TASK_PROPERTIES.user_requested,
+        workflow_id: { type: "string", description: "Required for status/wait/cancel." },
+        background: { type: "boolean", description: "Return immediately instead of waiting." },
+        ...NESTED_SELECTION_PROPERTIES,
+        role: { type: "string" },
+        user_requested: { type: "boolean" },
         tasks: {
           type: "array",
           minItems: 1,
@@ -247,19 +241,15 @@ const RAW_TOOLS: ToolSpec[] = [
             type: "object",
             required: ["id", "prompt", "write_scope"],
             properties: {
-              ...SUBAGENT_TASK_PROPERTIES,
-              retry_on: {
-                type: "string",
-                enum: ["startup"],
-                description: "Workflows retry startup failures only.",
-              },
+              ...NESTED_SUBAGENT_TASK_PROPERTIES,
+              retry_on: { type: "string", enum: ["startup"] },
               id: { type: "string" },
               depends_on: { type: "array", items: { type: "string" } },
               write_scope: {
                 type: "array",
                 items: { type: "string" },
                 description:
-                  "Exact project-relative files/directories owned by this task. [] means read-only. Concurrent scopes must not overlap.",
+                  "Owned relative paths ([] = read-only; must not overlap concurrently).",
               },
             },
           },
@@ -267,7 +257,7 @@ const RAW_TOOLS: ToolSpec[] = [
         timeout_s: {
           type: "number",
           description:
-            "Max seconds for this call (default and cap 480). Returns when the workflow finishes or needs attention. Timeout leaves stages running; continue with run_workflow action=wait and workflow_id when results remain required.",
+            "Max seconds (default/cap 480). On timeout stages keep running; resume with run_workflow action=wait.",
         },
       },
     },
@@ -275,7 +265,7 @@ const RAW_TOOLS: ToolSpec[] = [
   {
     name: "list_agents",
     description:
-      "Choose an unknown provider from the ranked roster. When this thread has a crew, also returns its roles. Skip when the provider is already known: get_agent supplies its options, or spawn directly with known selection values.",
+      "List ranked providers (and crew roles if active). Skip when the provider is already known.",
     inputSchema: {
       type: "object",
       properties: { tags: TASK_TAGS_PROPERTY },
@@ -284,24 +274,21 @@ const RAW_TOOLS: ToolSpec[] = [
   {
     name: "get_agent",
     description:
-      "Get one provider's models, reasoning, Fast and permission options directly by ID; no list_agents prerequisite. Supply model to return only that exact model. Skip this call when the required selection values are already known.",
+      "Get one provider's models, reasoning, Fast, and permission options by ID. Pass model to narrow.",
     inputSchema: {
       type: "object",
       required: ["id"],
       properties: {
-        id: { type: "string", description: "Known provider ID, or one chosen from list_agents." },
-        model: {
-          type: "string",
-          description: "Optional exact model value to limit returned model details.",
-        },
-        tags: TASK_TAGS_PROPERTY,
+        id: { type: "string", description: "Provider ID." },
+        model: { type: "string", description: "Optional exact model filter." },
+        tags: NESTED_TAGS_PROPERTY,
       },
     },
   },
   {
     name: "spawn_agent",
     description:
-      "Call only after the user has explicitly asked to delegate work to another agent in this thread (for example via an @Crossagents mention or by giving the thread a crew); that ask covers the rest of the thread, but never spawn before it. Spawn one task-tagged agent and wait for its result by default. Omitted selection fields resolve from contextual rank. With tasks=[...], root provider/model/reasoning/fast/permissions/role/user_requested are batch defaults and each task may override them. Set background=true to return a run_id immediately, or pass tasks=[...] to launch several agents in parallel.",
+      "Call only after the user explicitly asked to delegate in this thread; never spawn before it. Spawns one task or parallel tasks=[...] and waits by default (background=true returns run_id). With tasks=[...], root provider/model/reasoning/fast/permissions/role/user_requested are batch defaults.",
     inputSchema: {
       type: "object",
       properties: {
@@ -313,7 +300,7 @@ const RAW_TOOLS: ToolSpec[] = [
           items: {
             type: "object",
             required: ["prompt"],
-            properties: SUBAGENT_TASK_PROPERTIES,
+            properties: NESTED_SUBAGENT_TASK_PROPERTIES,
           },
         },
         timeout_s: {
@@ -330,57 +317,52 @@ const RAW_TOOLS: ToolSpec[] = [
   },
   {
     name: "list_routing_preferences",
-    description:
-      "List persistent user-pinned task-tag routes. Use this when the user asks what manual Crossagents preferences are active.",
+    description: "List persistent user-pinned task-tag routes.",
     inputSchema: { type: "object", properties: {} },
   },
   {
     name: "set_routing_preference",
-    description:
-      "Create or replace a persistent manual route for an exact task-tag set. Call only when the user clearly asks to always prefer or remember this route.",
+    description: "Save a persistent route for an exact task-tag set when the user asks.",
     inputSchema: {
       type: "object",
       required: ["tags", "provider"],
       properties: {
-        tags: TASK_TAGS_PROPERTY,
-        provider: SUBAGENT_SELECTION_PROPERTIES.provider,
-        model: SUBAGENT_SELECTION_PROPERTIES.model,
-        reasoning: SUBAGENT_SELECTION_PROPERTIES.reasoning,
-        fast: SUBAGENT_SELECTION_PROPERTIES.fast,
+        tags: NESTED_TAGS_PROPERTY,
+        provider: NESTED_SELECTION_PROPERTIES.provider,
+        model: NESTED_SELECTION_PROPERTIES.model,
+        reasoning: NESTED_SELECTION_PROPERTIES.reasoning,
+        fast: NESTED_SELECTION_PROPERTIES.fast,
         fallbacks: {
           type: "array",
           maxItems: 3,
-          description:
-            "Ordered alternate provider/model selections for this route. Tried in order if the primary fails.",
           items: {
             type: "object",
             required: ["provider"],
             properties: {
-              provider: SUBAGENT_SELECTION_PROPERTIES.provider,
-              model: SUBAGENT_SELECTION_PROPERTIES.model,
-              reasoning: SUBAGENT_SELECTION_PROPERTIES.reasoning,
-              fast: SUBAGENT_SELECTION_PROPERTIES.fast,
+              provider: { type: "string" },
+              model: { type: "string" },
+              reasoning: { type: "string" },
+              fast: { type: "boolean" },
             },
           },
         },
-        retry_on: SUBAGENT_TASK_PROPERTIES.retry_on,
+        retry_on: { type: "string", enum: ["startup", "any-failure"] },
       },
     },
   },
   {
     name: "remove_routing_preference",
-    description:
-      "Remove the persistent manual route for an exact task-tag set. Call only when the user clearly asks to forget or reset that preference.",
+    description: "Remove a persistent route for an exact task-tag set.",
     inputSchema: {
       type: "object",
       required: ["tags"],
-      properties: { tags: TASK_TAGS_PROPERTY },
+      properties: { tags: NESTED_TAGS_PROPERTY },
     },
   },
   {
     name: "wait_for_agent",
     description:
-      'Wait for one background run_id or several run_ids concurrently, returning their status and output. For incremental output, pass the previous total_output_chars as after_output_chars for one run or in after_output_chars_by_run for several; repeating the same offsets returns the same text. Output is tail-clipped while the run is working. A "running" result means the wait call timed out while the child stayed active; keep waiting when its result is required.',
+      'Wait for run_id or run_ids concurrently; pass after_output_chars / after_output_chars_by_run for incremental output. A "running" result means the wait call timed out while the child stayed active.',
     inputSchema: {
       type: "object",
       properties: {
@@ -404,8 +386,7 @@ const RAW_TOOLS: ToolSpec[] = [
           type: "string",
           enum: ["all", "any"],
           default: "all",
-          description:
-            "For run_ids, all waits for every run; any returns when one run settles, with a status snapshot for every requested run. Already-settled or unknown runs return immediately. Pass only remaining running IDs on the next any wait.",
+          description: "all waits for every run; any returns when one settles.",
         },
       },
       // No root-level union — see the spawn_agent schema above.
@@ -414,7 +395,7 @@ const RAW_TOOLS: ToolSpec[] = [
   {
     name: "get_status",
     description:
-      "Check a spawned subagent without blocking. Pass the previous total_output_chars as after_output_chars for incremental output; repeating the same offset returns the same text.",
+      "Check a subagent without blocking. Pass after_output_chars for incremental output.",
     inputSchema: {
       type: "object",
       required: ["run_id"],
@@ -430,13 +411,13 @@ const RAW_TOOLS: ToolSpec[] = [
   {
     name: "list_runs",
     description:
-      "List this parent thread's subagent runs, including background work, current status, and retry attempt. With include_capacity=true, return { runs, capacity: { running, stopping?, limit, available_slots } }; stopping workers retain their slots until cleanup succeeds.",
+      "List this parent thread's subagent runs (pass include_capacity=true for slot counts).",
     inputSchema: { type: "object", properties: { include_capacity: { type: "boolean" } } },
   },
   {
     name: "steer_agent",
     description:
-      "Send a follow-up after the complete result, or rarely correct active work. A completed structured worker resumes the same provider session ID and conversation; returns a new run_id with continued_from. Use the new ID for waiting/cancel/steering; old reports and workflows stay unchanged. Only the latest completed run of a resumable worker can continue. Crew model/provider/context changes require spawn_agent with the current role and a self-contained task brief; compatible follow-ups use current effort, Fast and role instructions. Coordinate its write ownership first. Active steering is only for a material requirement, verified invalid assumption or ownership conflict that cannot wait; never for status or reminders. It may interrupt/restart a turn. Waits for the result by default; background=true returns after acceptance. If still running, wait_for_agent on the returned run_id; do not resend.",
+      "Continue a completed structured worker (resumes session, returns new run_id) or rarely correct active work for a material blocker. Waits by default; background=true returns after acceptance.",
     inputSchema: {
       type: "object",
       required: ["run_id", "prompt"],
@@ -444,15 +425,10 @@ const RAW_TOOLS: ToolSpec[] = [
         run_id: { type: "string" },
         prompt: { type: "string", minLength: 1 },
         name: {
-          ...SUBAGENT_TASK_PROPERTIES.name,
-          description:
-            "For a completed worker's next task: a short action + target summarizing the new work (for example `Fix crew model labels`). Always provide one for a new task; do not copy permission or `New task` boilerplate. Provider/model details are appended automatically. Omit for a live correction, which keeps the current task label.",
+          type: "string",
+          description: "Task label for a completed worker's next task; omit for live correction.",
         },
-        background: {
-          type: "boolean",
-          description:
-            "Return accepted when useful independent work remains. Default false waits for the worker result. Accepted does not mean the message has been processed; wait_for_agent on the returned run_id. A completed follow-up starts in the background only when true.",
-        },
+        background: { type: "boolean", description: "Return after acceptance instead of waiting." },
         timeout_s: { type: "number", description: TIMEOUT_S_DESCRIPTION },
         full_output: FULL_OUTPUT_PROPERTY,
         output_mode: OUTPUT_MODE_PROPERTY,
@@ -463,7 +439,7 @@ const RAW_TOOLS: ToolSpec[] = [
   {
     name: "cancel",
     description:
-      "Interrupt and dispose a running subagent by run_id. Never cancel solely because a wait timed out, no final answer exists yet, or the subagent is still investigating; cancel only at the user's request or when the task became unnecessary for a reason unrelated to elapsed time.",
+      "Interrupt and dispose a running subagent by run_id. Never cancel solely because a wait timed out.",
     inputSchema: {
       type: "object",
       required: ["run_id"],

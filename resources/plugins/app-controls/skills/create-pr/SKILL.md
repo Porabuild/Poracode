@@ -17,7 +17,8 @@ opening a duplicate. A PR request alone does not authorize merging.
    QA for changed interactions. Record what ran and what remains unverified. Capture UI evidence as described below.
 2. Use the `commit` skill for any intended uncommitted work. Preserve unrelated work and stay on the current branch.
 3. Resolve `projectId` and the exact `worktreePath` from `get_current_thread`. Prefer Poracode's `git_sync` with
-   `action: push` and `setUpstream: true`, then `gh_create_pr` with the same worktree and explicit branch and base.
+   `action: push` and `setUpstream: true`, then `poracode_run` with `operation: "gh_create_pr"` (same worktree and
+   explicit branch and base; call `poracode_discover({ operations: ["gh_create_pr"] })` if you need its schema).
    Create a draft unless the user requested readiness or invoked Finalize through merge.
 4. Use `gh_get_pr` to read back the result and synchronize Poracode's UI. Verify the head, base, draft state, title,
    body, and URL. Inspect live schemas; older hosts may lack some tools or omit core `pr` state.

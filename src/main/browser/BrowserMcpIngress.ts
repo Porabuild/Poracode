@@ -8,8 +8,8 @@ import {
   type StreamableHttpMcpIngressInfo,
 } from "@/host/mcp/StreamableHttpMcpIngress";
 import {
+  ADVERTISED_TOOLS,
   BROWSER_MCP_INSTRUCTIONS,
-  TOOLS,
   dispatchTool,
   formatToolResult,
   isKnownToolName,
@@ -34,7 +34,7 @@ export class BrowserMcpIngress {
     serverId: "browser",
     serverInfo: { name: "browser", version: "2.0.0" },
     instructions: BROWSER_MCP_INSTRUCTIONS,
-    tools: TOOLS,
+    tools: ADVERTISED_TOOLS,
     isKnownToolName,
     normalizeToolName,
     // Agent tool calls no longer force the browser panel open — the tab's

@@ -30,9 +30,11 @@ const PREFERRED_DISCRIMINATORS = ["action", "kind"];
 
 type Json = Record<string, unknown>;
 
-function isJson(value: unknown): value is Json {
+export function isJsonRecord(value: unknown): value is Json {
   return !!value && typeof value === "object" && !Array.isArray(value);
 }
+
+const isJson = isJsonRecord;
 
 function unique(values: readonly unknown[]): unknown[] {
   const seen = new Set<string>();

@@ -18,10 +18,19 @@ import {
   resolveMcpLaunchSnapshot,
   type McpServer,
 } from "./mcpServer";
-import { TOOLS as browserTools } from "@/host/browser/mcp/tools/specs";
-import { CHROME_TOOLS as chromeTools } from "@/host/browser/external/chromeTools";
+import {
+  ADVERTISED_TOOLS as advertisedBrowserTools,
+  TOOLS as browserTools,
+} from "@/host/browser/mcp/tools/specs";
+import {
+  ADVERTISED_CHROME_TOOLS as advertisedChromeTools,
+  CHROME_TOOLS as chromeTools,
+} from "@/host/browser/external/chromeTools";
 import { TOOLS as computerUseTools } from "@/host/computer-use/mcp/toolRegistry";
-import { TOOLS as appControlsTools } from "@/host/app-controls/mcp/toolRegistry";
+import {
+  APP_CONTROL_CATALOG_NAMES,
+  TOOLS as advertisedAppControlsTools,
+} from "@/host/app-controls/mcp/toolRegistry";
 import { TOOLS as crossagentTools } from "@/supervisor/crossagentMcp/toolRegistry";
 
 function server(id: string, name: string, enabled = true): McpServer {
@@ -213,21 +222,30 @@ describe("mcpServerSchema", () => {
     expect(builtInMcpServerDisabledSchema.parse({ browser: true })).toEqual({ browser: true });
   });
 
-  it("keeps built-in tool counts aligned with the advertised catalogs", () => {
+  it("keeps built-in tool counts aligned with full permission catalogs and advertised subsets", () => {
     expect(BUILT_IN_MCP_SERVER_TOOL_NAMES).toEqual({
       browser: browserTools.map((tool) => tool.name),
       crossagents: crossagentTools.map((tool) => tool.name),
       chrome: chromeTools.map((tool) => tool.name),
       "computer-use": computerUseTools.map((tool) => tool.name),
-      "app-controls": appControlsTools.map((tool) => tool.name),
+      "app-controls": APP_CONTROL_CATALOG_NAMES,
     });
     expect(BUILT_IN_MCP_SERVER_TOOL_COUNTS).toEqual({
       browser: browserTools.length,
       crossagents: crossagentTools.length,
       chrome: chromeTools.length,
       "computer-use": computerUseTools.length,
-      "app-controls": appControlsTools.length,
+      "app-controls": APP_CONTROL_CATALOG_NAMES.length,
     });
+    expect(BUILT_IN_MCP_SERVER_TOOL_NAMES.browser).toEqual(
+      expect.arrayContaining(advertisedBrowserTools.map((tool) => tool.name)),
+    );
+    expect(BUILT_IN_MCP_SERVER_TOOL_NAMES.chrome).toEqual(
+      expect.arrayContaining(advertisedChromeTools.map((tool) => tool.name)),
+    );
+    expect(BUILT_IN_MCP_SERVER_TOOL_NAMES["app-controls"]).toEqual(
+      expect.arrayContaining(advertisedAppControlsTools.map((tool) => tool.name)),
+    );
   });
 });
 
