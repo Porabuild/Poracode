@@ -217,11 +217,23 @@ struct ProjectGitSidebarView: View {
       let branch = controller.status.value?.branch,
       !branch.isEmpty
     {
+      let batchBranches = Array(
+        Set(
+          [branch] + (operationsController.state.authoritative.worktrees ?? []).compactMap(\.branch)
+        )
+      )
       await operationsController.read(
-        .gitGetWorktreeSourceBranch(
-          .init(projectLocation: workspace.lease.location, branch: branch)
+        .gitWorktreeSourceBranchBatch(
+          .init(projectLocation: workspace.lease.location, branches: batchBranches)
         ), expectedLease: workspace.lease
       )
+      if operationsController.state.authoritative.worktreeSourceBranches[branch] == nil {
+        await operationsController.read(
+          .gitGetWorktreeSourceBranch(
+            .init(projectLocation: workspace.lease.location, branch: branch)
+          ), expectedLease: workspace.lease
+        )
+      }
     }
   }
 

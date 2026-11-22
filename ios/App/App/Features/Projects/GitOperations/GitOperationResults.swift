@@ -79,6 +79,10 @@ struct GitWorktreeStatusBatchResult: Codable, Equatable, Sendable {
   let statuses: [String: ProjectGitStatus]
 }
 
+struct GitWorktreeSourceBranchBatchResult: Codable, Equatable, Sendable {
+  let results: [String: GitWorktreeSourceBranchResult]
+}
+
 enum GitOperationResult: Equatable, Sendable {
   case omitted
   case abortMerge(GitAbortMergeResult)
@@ -87,6 +91,7 @@ enum GitOperationResult: Equatable, Sendable {
   case finishMerge(GitFinishMergeResult)
   case worktreeOwner(GitWorktreeOwnerResult)
   case worktreeSourceBranch(GitWorktreeSourceBranchResult)
+  case worktreeSourceBranches(GitWorktreeSourceBranchBatchResult)
   case branches(ProjectGitBranchList)
   case worktrees(GitWorktreeListResult)
   case mergeToSource(GitMergeToSourceResult)

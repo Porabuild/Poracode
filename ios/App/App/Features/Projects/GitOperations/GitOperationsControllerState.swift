@@ -11,6 +11,7 @@ struct GitOperationsAuthoritativeState: Equatable, Sendable {
   var branches: ProjectGitBranchList?
   var worktrees: [ProjectGitWorktreeInfo]?
   var worktreeStatuses: [String: ProjectGitStatus] = [:]
+  var worktreeSourceBranches: [String: GitWorktreeSourceBranchResult] = [:]
   var owner: GitWorktreeOwnerResult?
   var sourceBranch: GitWorktreeSourceBranchResult?
 }

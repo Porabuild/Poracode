@@ -744,6 +744,58 @@ final class NativeRecentHistoryTests: XCTestCase {
     XCTAssertTrue(requests.allSatisfy { $0.variant == .card })
   }
 
+  func testConversationSearchAndThreadPromptsDecodeGeneratedContractsAndBatchGitBuilds() async throws {
+    let batchReq = GitOperationRequest.gitWorktreeSourceBranchBatch(
+      .init(projectLocation: .posix(path: "/repo"), branches: ["feat/a", "feat/b"])
+    )
+    let encodedBatch = try GitOperationsRemoteV3Contract.request(batchReq)
+    let decodedEnvelope = try JSONSerialization.jsonObject(with: encodedBatch) as? [String: Any]
+    XCTAssertEqual(decodedEnvelope?["procedure"] as? String, "gitWorktreeSourceBranchBatch")
+
+    let batchPayload = try JSONSerialization.data(withJSONObject: [
+      "result": [
+        "results": [
+          "feat/a": ["sourceBranch": "main", "commitsAhead": 2, "sourceAhead": 0]
+        ]
+      ]
+    ])
+    let batchResult = try GitOperationsRemoteV3Contract.result(
+      for: .gitWorktreeSourceBranchBatch,
+      response: batchPayload
+    )
+    guard case .worktreeSourceBranches(let mapped) = batchResult else {
+      return XCTFail("Expected worktreeSourceBranches")
+    }
+    XCTAssertEqual(mapped.results["feat/a"]?.sourceBranch, "main")
+
+    let searchData = try JSONSerialization.data(withJSONObject: [
+      "version": 1,
+      "indexing": false,
+      "nextCursor": NSNull(),
+      "entries": [
+        [
+          "threadId": "t1",
+          "projectId": "p1",
+          "projectName": "Poracode",
+          "title": "Warm cache",
+          "itemId": "item-1",
+          "role": "assistant",
+          "excerpt": "Found match",
+          "archived": false,
+        ]
+      ],
+    ])
+    let searchPage = try RemoteRootCodecs.routeU2EConversationU2DSearchU2EResponse.decode(searchData)
+    XCTAssertEqual(searchPage.value.entries.first?.threadId, "t1")
+
+    let promptsData = try JSONSerialization.data(withJSONObject: [
+      "prompts": [["itemId": "u1", "position": 0, "text": "Hello"]],
+      "truncated": false,
+    ])
+    let promptsPage = try RemoteRootCodecs.routeU2EThreadU2DHistoryU2DPromptsU2EResponse.decode(promptsData)
+    XCTAssertEqual(promptsPage.value.prompts.first?.itemId, "u1")
+  }
+
   private func makeClient(endpoint: String = "https://a.test", token: String = "grant-a", cursorVersions: [Int]? = nil,
     historyCache: NativeRecentHistoryCache? = nil, environment: RemoteEnvironmentContext? = nil) async throws -> RemoteAPIClient {
     let client = RemoteAPIClient(endpoint: endpoint, accessToken: token, session: BoundedCatalogURLProtocol.makeSession(),

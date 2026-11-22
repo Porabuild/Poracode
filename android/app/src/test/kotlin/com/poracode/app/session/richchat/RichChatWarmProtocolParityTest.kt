@@ -25,6 +25,8 @@ import com.poracode.app.storage.MultiHostCredentialRepository
 import com.poracode.app.storage.SessionCredentialLoadOutcome
 import com.poracode.app.storage.SessionCredentials
 import com.poracode.app.transport.RemoteBinaryResponse
+import com.poracode.app.transport.searchConversations
+import com.poracode.app.transport.threadHistoryPrompts
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
@@ -386,6 +388,49 @@ class RichChatWarmProtocolParityTest {
             server.takeRequest()
             val req2 = server.takeRequest()
             assertEquals("\"etag-1\"", req2.getHeader("If-None-Match"))
+        } finally {
+            server.shutdown()
+        }
+    }
+
+    @Test
+    fun conversationSearchThreadPromptsAndSourceBranchBatchWireContractsRoundTrip() = runTest {
+        val server = MockWebServer()
+        server.start()
+        try {
+            server.enqueue(
+                MockResponse()
+                    .addHeader("Content-Type", "application/json")
+                    .setBody(
+                        """{"version":1,"indexing":false,"nextCursor":null,"entries":[{"threadId":"t1","projectId":"p1","projectName":"Poracode","title":"Warm","itemId":"i1","role":"assistant","excerpt":"Found","archived":false}]}""",
+                    ),
+            )
+            server.enqueue(
+                MockResponse()
+                    .addHeader("Content-Type", "application/json")
+                    .setBody("""{"prompts":[{"itemId":"u1","position":0,"text":"First prompt"}],"truncated":false}"""),
+            )
+            val api = com.poracode.app.transport.RemoteApiClient(
+                endpoint = server.url("/").toString().trimEnd('/'),
+                accessToken = "tok-1",
+                client = OkHttpClient(),
+            )
+            val search = api.searchConversations("warm")
+            assertEquals("t1", search.entries.single().threadId)
+            val prompts = api.threadHistoryPrompts("t1")
+            assertEquals("u1", prompts.prompts.single().itemId)
+
+            val batchRaw = com.poracode.app.protocol.git.RemoteV3GitContract.request(
+                com.poracode.app.protocol.git.GitProcedure.WorktreeSourceBranchBatch,
+                kotlinx.serialization.json.buildJsonObject {
+                    put("projectLocation", kotlinx.serialization.json.buildJsonObject {
+                        put("kind", kotlinx.serialization.json.JsonPrimitive("posix"))
+                        put("path", kotlinx.serialization.json.JsonPrimitive("/repo"))
+                    })
+                    put("branches", kotlinx.serialization.json.JsonArray(listOf(kotlinx.serialization.json.JsonPrimitive("feat/a"))))
+                },
+            )
+            assertTrue(batchRaw.contains("gitWorktreeSourceBranchBatch"))
         } finally {
             server.shutdown()
         }

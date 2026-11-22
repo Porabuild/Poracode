@@ -16,6 +16,8 @@ extension GitOperationsController {
       state.authoritative.owner = value
     case (.gitGetWorktreeSourceBranch, .worktreeSourceBranch(let value)):
       state.authoritative.sourceBranch = value
+    case (.gitWorktreeSourceBranchBatch, .worktreeSourceBranches(let value)):
+      state.authoritative.worktreeSourceBranches.merge(value.results) { _, new in new }
     case (.gitSwitchBranch, .switchBranch), (.gitAddWorktree, .addWorktree),
       (.gitCommit, .commit), (.gitAbortMerge, .abortMerge),
       (.gitFinishMerge, .finishMerge), (.gitMergeToSource, .mergeToSource),

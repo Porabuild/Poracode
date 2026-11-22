@@ -262,20 +262,15 @@ const PLANNED_ABSENCE_TOKENS: Record<
   ReadonlyArray<{ platform: Platform; token: string }>
 > = {
   ...Object.fromEntries(
-    [
-      "conversation-search",
-      "thread-history-prompts",
-      "thread-transfer-command",
-      "thread-transfer-upload",
-      "memory-catalog",
-      "memory-sync",
-    ].map((id) => [
-      id,
-      [
-        { platform: "ios" as Platform, token: `"${id}"` },
-        { platform: "android" as Platform, token: `"${id}"` },
+    ["thread-transfer-command", "thread-transfer-upload", "memory-catalog", "memory-sync"].map(
+      (id) => [
+        id,
+        [
+          { platform: "ios" as Platform, token: `"${id}"` },
+          { platform: "android" as Platform, token: `"${id}"` },
+        ],
       ],
-    ]),
+    ),
   ),
   // Quoted procedure identifiers distinguish the new wire calls from existing UI method names.
   ...Object.fromEntries(
@@ -369,10 +364,6 @@ const PLANNED_ABSENCE_TOKENS: Record<
   "local-image-ticket": [
     { platform: "ios", token: "LocalImageTicket" },
     { platform: "android", token: "LocalImageTicket" },
-  ],
-  gitWorktreeSourceBranchBatch: [
-    { platform: "ios", token: "gitWorktreeSourceBranchBatch" },
-    { platform: "android", token: "gitWorktreeSourceBranchBatch" },
   ],
 };
 type LedgerEntry = z.infer<typeof entrySchema>;

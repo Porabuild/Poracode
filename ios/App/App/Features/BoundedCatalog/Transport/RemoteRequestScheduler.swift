@@ -85,6 +85,7 @@ enum RemoteRequestClassification {
         "gitListWorktrees",
         "gitProjectSnapshot",
         "gitWorktreeStatusBatch",
+        "gitWorktreeSourceBranchBatch",
         "gitGetWorktreeSourceBranch",
         "gitGetWorktreeOwner",
         "ghCheckAvailable",

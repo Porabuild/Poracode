@@ -55,6 +55,7 @@ enum GitOperationsPresentation {
     action(.gitSyncRebase, "arrow.triangle.2.circlepath.circle", .standard, .repository),
     action(.gitUnstage, "minus.circle", .standard, .file),
     action(.gitUnstageAll, "minus.circle.fill", .standard, .repository),
+    action(.gitWorktreeSourceBranchBatch, "arrow.triangle.branch", .standard, .authoritativeRefresh),
     action(.gitWorktreeStatusBatch, "checklist", .standard, .authoritativeRefresh),
   ]
 

@@ -34,6 +34,7 @@ private val BACKGROUND_REMOTE_PROCEDURES = setOf(
     "gitListWorktrees",
     "gitProjectSnapshot",
     "gitWorktreeStatusBatch",
+    "gitWorktreeSourceBranchBatch",
     "gitGetWorktreeSourceBranch",
     "gitGetWorktreeOwner",
     "ghCheckAvailable",
