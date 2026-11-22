@@ -11,6 +11,30 @@ import kotlinx.serialization.encodeToString
 
 enum class DeviceAppearanceMode { System, Light, Dark }
 enum class HomeShortcut { PullRequests, GithubActions, Schedules }
+
+/**
+ * Pinnable settings destinations for the split sidebar footer and More sheet,
+ * mirroring iOS `HomeShortcutID.settings(...)` while keeping the v2 core
+ * [HomeShortcut] list intact.
+ */
+enum class PinnedSettingsShortcut(val wireId: String) {
+    Usage("settings:usage"),
+    Profile("settings:profile"),
+    Agents("settings:agents"),
+    Appearance("settings:appearance"),
+    Environments("settings:environments"),
+    GlobalMcp("settings:globalMcp"),
+    ArchivedThreads("settings:archivedThreads"),
+    Notifications("settings:notifications"),
+    Terminal("settings:terminal"),
+    Git("settings:git"),
+    ;
+
+    companion object {
+        fun fromWireId(id: String): PinnedSettingsShortcut? =
+            entries.firstOrNull { it.wireId == id }
+    }
+}
 enum class ContentLanguage(val languageTag: String?) {
     MatchApp(null),
     English("en"),
@@ -74,6 +98,9 @@ data class DeviceSettingsState(
     val projectTerminalTextSizeSp: Int = DEFAULT_TERMINAL_TEXT_SIZE_SP,
     val homeShortcutOrder: List<HomeShortcut> = HomeShortcut.entries,
     val hiddenHomeShortcuts: Set<HomeShortcut> = setOf(HomeShortcut.GithubActions),
+    val pinnedSettingsShortcuts: List<PinnedSettingsShortcut> = emptyList(),
+    val sidebarWidthDp: Int = 0,
+    val inspectorWidthDp: Int = 0,
     val contentLanguage: ContentLanguage = ContentLanguage.MatchApp,
     val notificationsEnabled: Boolean = true,
     val notificationSoundEnabled: Boolean = true,
@@ -81,6 +108,8 @@ data class DeviceSettingsState(
     val notifyDone: Boolean = true,
     val notifyNeedsAttention: Boolean = true,
     val notifyError: Boolean = true,
+    val showDictationButton: Boolean = true,
+    val voiceBackend: String = "hex",
 ) {
     companion object {
         const val DEFAULT_THEME_ID = "default"
@@ -101,6 +130,9 @@ private data class DeviceSettingsDocument(
     val projectTerminalTextSizeSp: Int = DeviceSettingsState.DEFAULT_TERMINAL_TEXT_SIZE_SP,
     val homeShortcutOrder: List<String> = HomeShortcut.entries.map(HomeShortcut::name),
     val hiddenHomeShortcuts: List<String> = listOf(HomeShortcut.GithubActions.name),
+    val pinnedSettingsShortcuts: List<String> = emptyList(),
+    val sidebarWidthDp: Int = 0,
+    val inspectorWidthDp: Int = 0,
     val contentLanguage: String = ContentLanguage.MatchApp.name,
     val notificationsEnabled: Boolean = true,
     val notificationSoundEnabled: Boolean = true,
@@ -108,6 +140,8 @@ private data class DeviceSettingsDocument(
     val notifyDone: Boolean = true,
     val notifyNeedsAttention: Boolean = true,
     val notifyError: Boolean = true,
+    val showDictationButton: Boolean = true,
+    val voiceBackend: String = "hex",
 )
 
 interface DeviceSettingsDocumentStore {
@@ -179,6 +213,24 @@ class DeviceSettingsPreferences(
         }
     }
 
+    fun setPinnedSettingsShortcutVisible(shortcut: PinnedSettingsShortcut, visible: Boolean) = update { state ->
+        val next = if (visible) {
+            if (shortcut in state.pinnedSettingsShortcuts) state.pinnedSettingsShortcuts
+            else state.pinnedSettingsShortcuts + shortcut
+        } else {
+            state.pinnedSettingsShortcuts - shortcut
+        }
+        state.copy(pinnedSettingsShortcuts = next)
+    }
+
+    fun setSidebarWidthDp(widthDp: Int) = update {
+        it.copy(sidebarWidthDp = widthDp.coerceIn(0, 480))
+    }
+
+    fun setInspectorWidthDp(widthDp: Int) = update {
+        it.copy(inspectorWidthDp = widthDp.coerceIn(0, 520))
+    }
+
     fun setContentLanguage(language: ContentLanguage) = update {
         it.copy(contentLanguage = language)
     }
@@ -200,6 +252,8 @@ class DeviceSettingsPreferences(
         it.copy(notifyNeedsAttention = enabled)
     }
     fun setNotifyError(enabled: Boolean) = update { it.copy(notifyError = enabled) }
+    fun setShowDictationButton(enabled: Boolean) = update { it.copy(showDictationButton = enabled) }
+    fun setVoiceBackend(backend: String) = update { it.copy(voiceBackend = backend) }
 
     private fun update(transform: (DeviceSettingsState) -> DeviceSettingsState) {
         if (preservesFutureDocument) return
@@ -227,6 +281,11 @@ class DeviceSettingsPreferences(
                 hiddenHomeShortcuts = document.hiddenHomeShortcuts.mapNotNullTo(mutableSetOf()) {
                     name -> HomeShortcut.entries.firstOrNull { it.name == name }
                 },
+                pinnedSettingsShortcuts = document.pinnedSettingsShortcuts
+                    .mapNotNull(PinnedSettingsShortcut::fromWireId)
+                    .distinct(),
+                sidebarWidthDp = document.sidebarWidthDp.coerceIn(0, 480),
+                inspectorWidthDp = document.inspectorWidthDp.coerceIn(0, 520),
                 contentLanguage = ContentLanguage.entries.firstOrNull {
                     it.name == document.contentLanguage
                 } ?: ContentLanguage.MatchApp,
@@ -236,6 +295,8 @@ class DeviceSettingsPreferences(
                 notifyDone = document.notifyDone,
                 notifyNeedsAttention = document.notifyNeedsAttention,
                 notifyError = document.notifyError,
+                showDictationButton = document.showDictationButton,
+                voiceBackend = document.voiceBackend,
             )
             document.version > DOCUMENT_VERSION -> preservesFutureDocument = true
             else -> Unit
@@ -252,6 +313,9 @@ class DeviceSettingsPreferences(
             projectTerminalTextSizeSp = state.projectTerminalTextSizeSp,
             homeShortcutOrder = state.homeShortcutOrder.map(HomeShortcut::name),
             hiddenHomeShortcuts = state.hiddenHomeShortcuts.map(HomeShortcut::name).sorted(),
+            pinnedSettingsShortcuts = state.pinnedSettingsShortcuts.map(PinnedSettingsShortcut::wireId),
+            sidebarWidthDp = state.sidebarWidthDp,
+            inspectorWidthDp = state.inspectorWidthDp,
             contentLanguage = state.contentLanguage.name,
             notificationsEnabled = state.notificationsEnabled,
             notificationSoundEnabled = state.notificationSoundEnabled,
@@ -259,6 +323,8 @@ class DeviceSettingsPreferences(
             notifyDone = state.notifyDone,
             notifyNeedsAttention = state.notifyNeedsAttention,
             notifyError = state.notifyError,
+            showDictationButton = state.showDictationButton,
+            voiceBackend = state.voiceBackend,
         )
         store.write(RemoteJson.encodeToString(document))
     }

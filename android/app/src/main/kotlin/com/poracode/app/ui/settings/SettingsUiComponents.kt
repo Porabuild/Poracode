@@ -58,15 +58,12 @@ internal fun SettingsAccessBanner(
             stringResource(R.string.settings_manage_projects_denied)
         else -> null
     } ?: return
-    Card(
-        Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)
+    com.poracode.app.ui.components.PoracodeCard(
+        modifier = Modifier
+            .padding(horizontal = 16.dp, vertical = 8.dp)
             .semantics { liveRegion = LiveRegionMode.Polite },
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant,
-        ),
     ) {
         Row(
-            Modifier.padding(12.dp),
             horizontalArrangement = Arrangement.spacedBy(10.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -85,41 +82,22 @@ internal fun SettingsSection(
     modifier: Modifier = Modifier,
     content: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit,
 ) {
-    Column(
-        modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(PoracodeRadius.contentSurface))
-            .background(PoracodeTheme.colors.listRow)
-            .padding(12.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
-    ) {
-        Text(
-            title,
-            style = PoracodeTextStyles.sheetTitle,
-            color = PoracodeTheme.colors.foreground,
-            modifier = Modifier.semantics { heading() },
-        )
-        content()
-    }
+    com.poracode.app.ui.components.PoracodeCard(
+        modifier = modifier,
+        title = title,
+        verticalSpacing = 10.dp,
+        content = content,
+    )
 }
 
-/**
- * Same Card/padding recipe as [SettingsSection] but with no heading. Use this for a pane whose
- * single section would otherwise repeat the `TopAppBar` title as an in-content header (e.g. a
- * "General" pane under a "General" nav title) — the nav bar already carries that title.
- */
 @Composable
 internal fun SettingsCard(
     modifier: Modifier = Modifier,
     content: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit,
 ) {
-    Column(
-        modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(PoracodeRadius.contentSurface))
-            .background(PoracodeTheme.colors.listRow)
-            .padding(12.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
+    com.poracode.app.ui.components.PoracodeCard(
+        modifier = modifier,
+        verticalSpacing = 10.dp,
         content = content,
     )
 }

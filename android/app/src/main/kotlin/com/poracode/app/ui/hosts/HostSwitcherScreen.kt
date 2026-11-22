@@ -137,31 +137,28 @@ fun HostSwitcherScreen(
         PoracodeHazeHost { backdrop ->
         Box(Modifier.fillMaxSize().padding(padding)) {
         BoxWithConstraints(Modifier.fillMaxSize().then(backdrop)) {
-            if (maxWidth >= 840.dp) {
-                Row(Modifier.fillMaxSize()) {
+            val fontScale = androidx.compose.ui.platform.LocalDensity.current.fontScale
+            val bookHinge = com.poracode.app.ui.components.rememberBookHingeSplit(
+                containerWidthDp = maxWidth,
+                defaultSidebarWidthDp = if (maxWidth >= 900.dp) 340.dp else 280.dp,
+            )
+            if ((maxWidth >= 720.dp || bookHinge.isBookPosture) && fontScale < 1.5f) {
+                val detailState = if (selectedDetail == catalog.selectedConnectionId) {
+                    selectedConnectionState
+                } else {
+                    catalog.connectionStates[selectedDetail]
+                }
+                Row(Modifier.fillMaxSize().background(com.poracode.app.ui.theme.PoracodeTheme.colors.paneShell).padding(end = 8.dp, bottom = 8.dp)) {
                     HostList(
                         catalog, selectedDetail, { selectedDetail = it.connectionId }, selectHost,
                         { pendingRemoval = it }, { pendingRename = it }, onOpenProjects,
                         onOpenDesktopSettings, selectedConnectionState, actionsEnabled,
-                        openDetails = true,
-                        modifier = Modifier.width(360.dp),
+                        openDetails = true, modifier = Modifier.width(bookHinge.sidebarWidthDp),
                     )
-                    HorizontalDivider(Modifier.fillMaxSize().width(1.dp))
-                    if (showAdd) {
-                        AddHostPanel(
-                            onPair, { showScanner = true }, pairingBusy, Modifier.weight(1f),
-                        )
-                    } else {
-                        HostDetail(
-                            catalog.hosts.firstOrNull { it.connectionId == selectedDetail },
-                            selectedDetail == catalog.selectedConnectionId,
-                            if (selectedDetail == catalog.selectedConnectionId) {
-                                selectedConnectionState
-                            } else {
-                                catalog.connectionStates[selectedDetail]
-                            },
-                            Modifier.weight(1f),
-                        )
+                    androidx.compose.foundation.layout.Spacer(Modifier.width(if (bookHinge.hingeGapDp > 0.dp) bookHinge.hingeGapDp else 8.dp))
+                    com.poracode.app.ui.components.PoracodePaneContainer(Modifier.weight(1f)) {
+                        if (showAdd) AddHostPanel(onPair, { showScanner = true }, pairingBusy, Modifier.fillMaxSize())
+                        else HostDetail(catalog.hosts.firstOrNull { it.connectionId == selectedDetail }, selectedDetail == catalog.selectedConnectionId, detailState, Modifier.fillMaxSize())
                     }
                 }
             } else if (showAdd) {
@@ -382,10 +379,11 @@ private fun AddHostPanel(
     var link by remember { mutableStateOf("") }
     var endpoint by remember { mutableStateOf("") }
     var token by remember { mutableStateOf("") }
-    Column(
-        modifier.padding(24.dp).verticalScroll(rememberScrollState()),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
+    com.poracode.app.ui.components.PoracodeCenteredDetail(modifier = modifier, maxWidth = 540.dp) {
+        Column(
+            Modifier.fillMaxSize().padding(24.dp).verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
         Text(stringResource(R.string.hosts_add), style = MaterialTheme.typography.headlineSmall)
         Text(stringResource(R.string.hosts_add_description))
         PoracodeAccentButton(onClick = onScan, enabled = !pairingBusy, modifier = Modifier.fillMaxWidth()) {
@@ -422,6 +420,7 @@ private fun AddHostPanel(
             ),
             modifier = Modifier.fillMaxWidth(),
         ) { Text(stringResource(R.string.hosts_add_action)) }
+        }
     }
 }
 

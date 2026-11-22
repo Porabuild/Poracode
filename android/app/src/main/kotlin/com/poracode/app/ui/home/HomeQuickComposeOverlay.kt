@@ -1,5 +1,8 @@
 package com.poracode.app.ui.home
 
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -14,6 +17,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -69,6 +73,8 @@ internal fun HomeQuickComposeOverlay(
     richChat: RichChatSessionRuntime,
     projectRuntime: ProjectSessionRuntime,
     excludedProjectIds: Map<String, Set<String>>,
+    initialProjectId: String? = null,
+    centeredModal: Boolean = false,
     onDismiss: () -> Unit,
     onStarted: (String) -> Unit,
 ) {
@@ -94,8 +100,12 @@ internal fun HomeQuickComposeOverlay(
             .sortedBy { it.name.lowercase() }
     }
     val latestProjectId = currentItems.firstOrNull()?.project?.id
-    var projectId by rememberSaveable {
-        mutableStateOf(latestProjectId ?: projects.firstOrNull()?.id.orEmpty())
+    var projectId by rememberSaveable(initialProjectId) {
+        mutableStateOf(
+            initialProjectId?.takeIf { id -> projects.any { it.id == id } }
+                ?: latestProjectId
+                ?: projects.firstOrNull()?.id.orEmpty(),
+        )
     }
     val threadId = rememberSaveable { UUID.randomUUID().toString().lowercase() }
     var prompt by rememberSaveable { mutableStateOf("") }
@@ -128,35 +138,20 @@ internal fun HomeQuickComposeOverlay(
     val focusRequester = remember { FocusRequester() }
     val keyboardController = LocalSoftwareKeyboardController.current
     val context = LocalContext.current
+    val uploadUri: (android.net.Uri) -> Unit = { uri ->
+        uploadAttachmentForThread(
+            uri = uri, context = context, runtime = richChat, threadId = threadId, scope = scope,
+            onStart = { uploading = true; attachmentError = null },
+            onFinish = { uploading = false },
+            onFailure = { attachmentError = it },
+            onSuccess = { attachments += it },
+        )
+    }
     val attachmentLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) {
-        it?.let { uri ->
-            uploadAttachmentForThread(
-                uri = uri,
-                context = context,
-                runtime = richChat,
-                threadId = threadId,
-                scope = scope,
-                onStart = { uploading = true; attachmentError = null },
-                onFinish = { uploading = false },
-                onFailure = { attachmentError = it },
-                onSuccess = { attachment -> attachments += attachment },
-            )
-        }
+        it?.let(uploadUri)
     }
     val captureFromCamera = rememberCameraCapture(
-        onCaptured = { uri ->
-            uploadAttachmentForThread(
-                uri = uri,
-                context = context,
-                runtime = richChat,
-                threadId = threadId,
-                scope = scope,
-                onStart = { uploading = true; attachmentError = null },
-                onFinish = { uploading = false },
-                onFailure = { attachmentError = it },
-                onSuccess = { attachment -> attachments += attachment },
-            )
-        },
+        onCaptured = uploadUri,
         onUnavailable = { attachmentError = AttachmentUiError.CameraUnavailable },
     )
     val project = projects.firstOrNull { it.id == projectId } ?: projects.firstOrNull()
@@ -257,24 +252,24 @@ internal fun HomeQuickComposeOverlay(
         )
         val colors = PoracodeTheme.colors
         val paneTitleText = stringResource(R.string.home_new_thread)
-        val sheetShape = RoundedCornerShape(
-            topStart = PoracodeRadius.sheet,
-            topEnd = PoracodeRadius.sheet,
-        )
+        val sheetShape = if (centeredModal) RoundedCornerShape(PoracodeRadius.sheet)
+        else RoundedCornerShape(topStart = PoracodeRadius.sheet, topEnd = PoracodeRadius.sheet)
         androidx.compose.material3.Surface(
             modifier = Modifier
-                .align(Alignment.BottomCenter)
+                .align(if (centeredModal) Alignment.Center else Alignment.BottomCenter)
+                .statusBarsPadding()
                 .imePadding()
                 .navigationBarsPadding()
+                .then(if (centeredModal) Modifier.padding(horizontal = 24.dp, vertical = 16.dp).widthIn(max = 640.dp) else Modifier)
                 .fillMaxWidth(),
             shape = sheetShape,
             color = colors.surface,
-            shadowElevation = 18.dp,
+            shadowElevation = if (centeredModal) 8.dp else 12.dp,
         ) {
             Column(
-                modifier = Modifier.semantics {
-                    paneTitle = paneTitleText
-                },
+                modifier = Modifier
+                    .semantics { paneTitle = paneTitleText }
+                    .verticalScroll(rememberScrollState()),
             ) {
                 Box(
                     Modifier

@@ -1,5 +1,6 @@
 package com.poracode.app.ui.settingsintegrations
 
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -42,7 +43,12 @@ internal fun SettingsIntegrationsScreen(
 ) {
     var page by rememberSaveable(initialPage) { mutableStateOf(initialPage) }
     BoxWithConstraints(modifier.fillMaxSize()) {
-        val expanded = maxWidth >= 840.dp
+        val fontScale = androidx.compose.ui.platform.LocalDensity.current.fontScale
+        val bookHinge = com.poracode.app.ui.components.rememberBookHingeSplit(
+            containerWidthDp = maxWidth,
+            defaultSidebarWidthDp = 88.dp,
+        )
+        val expanded = (maxWidth >= 840.dp || bookHinge.isBookPosture) && fontScale < 1.5f
         if (expanded) {
             Row(Modifier.fillMaxSize()) {
                 NavigationRail {
@@ -59,10 +65,18 @@ internal fun SettingsIntegrationsScreen(
                         label = { Text(stringResource(R.string.settings_integrations_mcp)) },
                     )
                 }
-                Content(
-                    page, state, access, globalOwner, projectOwner, callbacks,
-                    lockProjectOwner, Modifier.weight(1f),
-                )
+                if (bookHinge.hingeGapDp > 0.dp) {
+                    androidx.compose.foundation.layout.Spacer(Modifier.width(bookHinge.hingeGapDp))
+                }
+                com.poracode.app.ui.components.PoracodeCenteredDetail(
+                    modifier = Modifier.weight(1f),
+                    maxWidth = 840.dp,
+                ) {
+                    Content(
+                        page, state, access, globalOwner, projectOwner, callbacks,
+                        lockProjectOwner, Modifier.fillMaxSize(),
+                    )
+                }
             }
         } else {
             Column(Modifier.fillMaxSize()) {
@@ -80,10 +94,15 @@ internal fun SettingsIntegrationsScreen(
                         icon = { Icon(PoracodeIcons.SettingsEthernet, null) },
                     )
                 }
-                Content(
-                    page, state, access, globalOwner, projectOwner, callbacks,
-                    lockProjectOwner, Modifier.weight(1f),
-                )
+                com.poracode.app.ui.components.PoracodeCenteredDetail(
+                    modifier = Modifier.weight(1f),
+                    maxWidth = 840.dp,
+                ) {
+                    Content(
+                        page, state, access, globalOwner, projectOwner, callbacks,
+                        lockProjectOwner, Modifier.fillMaxSize(),
+                    )
+                }
             }
         }
     }

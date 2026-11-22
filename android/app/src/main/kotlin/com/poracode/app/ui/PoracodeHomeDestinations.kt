@@ -168,6 +168,7 @@ internal fun SettingsDestinationContent(
     navigation: PoracodeNavigationState,
     settings: SettingsUiComposition,
     deviceSettings: DeviceSettingsPreferences,
+    customThemes: com.poracode.app.ui.theme.CustomThemeStore,
     pushState: PushUiState,
     onPushAction: () -> Unit,
     openExternalUrl: (String) -> Unit,
@@ -179,9 +180,11 @@ internal fun SettingsDestinationContent(
     SettingsScreen(
         composition = settings,
         deviceSettings = deviceSettings,
+        customThemes = customThemes,
         pushState = pushState,
         expectedConnectionId = destination.connectionId,
         initialPane = destination.pane,
+        initialRouteOverride = destination.routeOverride,
         onBack = {
             navigation.settingsPane = null
             navigation.settingsConnectionId = null
@@ -397,94 +400,5 @@ internal fun HostsDestinationContent(
         selectedConnectionState = state.socketState,
         pairingBusy = state.isPairing,
         navigationBusy = navigation.pendingHostConnectionId != null,
-    )
-}
-
-@Composable
-internal fun HomeDestinationScreenContent(
-    navigation: PoracodeNavigationState,
-    session: AppSession,
-    state: AppSession.UiState,
-    richChat: RichChatSessionRuntime,
-    threads: ThreadSessionRuntime,
-    projects: ProjectSessionRuntime,
-    excludedProjectIds: Map<String, Set<String>>,
-    pushState: PushUiState,
-    onPushAction: () -> Unit,
-    notificationBanner: RemoteUserNotificationBanner?,
-    deviceSettingsState: DeviceSettingsState,
-    userHiddenModels: kotlinx.serialization.json.JsonObject?,
-    onRefreshModelVisibility: () -> Unit,
-    providerUsageControl: @Composable (com.poracode.app.model.RemoteThread?, com.poracode.app.model.AgentStatusEntry?) -> Unit,
-) {
-    androidx.compose.runtime.LaunchedEffect(state.hostCatalog.selectedConnectionId, state.openThreadId) {
-        onRefreshModelVisibility()
-    }
-    HomeScreen(
-        providerUsageControl = providerUsageControl,
-        userHiddenModels = userHiddenModels,
-        onRefreshModelVisibility = onRefreshModelVisibility,
-        state = state,
-        threads = session.unifiedThreads().filter { item ->
-            item.project.id !in excludedProjectIds[item.connectionId.value].orEmpty()
-        },
-        onRefresh = session::refreshSnapshot,
-        onUnpair = session::unpair,
-        onOpenThread = session::openThread,
-        onCloseThread = {
-            richChat.closeThread()
-            session.closeThread()
-        },
-        richChat = richChat,
-        threadRuntime = threads,
-        projectRuntime = projects,
-        onManageHosts = { navigation.showHosts = true },
-        onManageProjects = { navigation.showProjects = true },
-        onManagePorts = { navigation.showPorts = true },
-        onOpenBrowserMirror = {
-            navigation.browserMirrorConnectionId = state.hostCatalog.selectedConnectionId?.value
-            navigation.showBrowserMirror = true
-        },
-        onOpenSchedules = {
-            navigation.remoteIntegrationsConnectionId = state.hostCatalog.selectedConnectionId?.value
-            navigation.remoteIntegrationsSection = RemoteIntegrationsSection.Schedules.name
-        },
-        onOpenProfile = {
-            navigation.settingsConnectionId = state.hostCatalog.selectedConnectionId?.value
-            navigation.settingsPane = SettingsPane.Profile.name
-        },
-        onOpenUsage = {
-            navigation.settingsConnectionId = state.hostCatalog.selectedConnectionId?.value
-            navigation.settingsPane = SettingsPane.Usage.name
-        },
-        onOpenSettings = {
-            navigation.settingsConnectionId = null
-            navigation.settingsPane = SettingsRoute.DeviceIndex.name
-        },
-        onOpenAgentSettings = {
-            navigation.settingsConnectionId = state.hostCatalog.selectedConnectionId?.value
-            navigation.settingsPane = SettingsPane.Agents.name
-        },
-        onOpenProjectUtility = { connectionId, projectId, utility ->
-            if (utility.clearsThreadSelection) {
-                richChat.closeThread()
-                session.closeThread()
-            }
-            navigation.openProjectUtility(projectId, connectionId.value, utility, null)
-        },
-        excludedProjectIds = excludedProjectIds,
-        selectedPresentedThreadId = HostPresentation.presentedId(
-            state.hostCatalog.selectedConnectionId,
-            state.openThreadId,
-        ),
-        pushState = pushState,
-        onPushAction = onPushAction,
-        visibleShortcuts = deviceSettingsState.homeShortcutOrder.filterNot {
-            it in deviceSettingsState.hiddenHomeShortcuts
-        },
-        terminalTextSizeSp = deviceSettingsState.agentTerminalTextSizeSp,
-        notificationBanner = notificationBanner,
-        onOpenNotification = { session.openRemoteNotification(it) },
-        onDismissNotification = session::dismissRemoteNotification,
     )
 }

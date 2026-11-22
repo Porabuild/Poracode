@@ -22,6 +22,7 @@ import com.poracode.app.session.richchat.RichChatSessionRuntime
 import com.poracode.app.session.threads.ThreadSessionRuntime
 import com.poracode.app.storage.DeviceAppearanceMode
 import com.poracode.app.storage.DeviceSettingsPreferences
+import com.poracode.app.storage.HomeWorkspacePreferences
 import com.poracode.app.ui.components.BrandLaunchView
 import com.poracode.app.ui.components.rememberReducedMotion
 import com.poracode.app.ui.components.sharedAxisX
@@ -29,8 +30,10 @@ import com.poracode.app.ui.home.HomeProjectUtility
 import com.poracode.app.ui.onboarding.OnboardingScreen
 import com.poracode.app.ui.projects.ProjectInheritedSettings
 import com.poracode.app.ui.remoteintegrations.RemoteIntegrationsComposition
+import com.poracode.app.ui.richchat.RichChatComposerDraftStore
 import com.poracode.app.ui.settings.SettingsUiComposition
 import com.poracode.app.ui.settingsintegrations.SettingsIntegrationsComposition
+import com.poracode.app.ui.theme.CustomThemeStore
 import com.poracode.app.ui.theme.PoracodeTheme
 import kotlinx.coroutines.flow.StateFlow
 
@@ -47,6 +50,9 @@ fun PoracodeApp(
     settingsIntegrations: SettingsIntegrationsComposition,
     browserMirror: BrowserMirrorComposition,
     deviceSettings: DeviceSettingsPreferences,
+    workspaces: HomeWorkspacePreferences,
+    customThemes: CustomThemeStore,
+    composerDrafts: RichChatComposerDraftStore,
     localNetworkPermissionUi: StateFlow<LocalNetworkPermissionUi>,
     requestLocalNetworkPermission: (String, () -> Unit) -> Unit,
     continueLocalNetworkPermission: () -> Unit,
@@ -66,6 +72,7 @@ fun PoracodeApp(
     val pendingRoute by pendingPushRoute.collectAsStateWithLifecycle()
     val notificationBanner by session.notificationBanners.collectAsStateWithLifecycle()
     val deviceSettingsState by deviceSettings.state.collectAsStateWithLifecycle()
+    val customThemeState by customThemes.state.collectAsStateWithLifecycle()
     val excludedProjectIds by projects.syncPreferences.excludedProjectIds
         .collectAsStateWithLifecycle()
     val settingsHostLease by settings.hostLease.collectAsStateWithLifecycle()
@@ -108,6 +115,7 @@ fun PoracodeApp(
         darkTheme = useDarkTheme,
         chatTextSizeSp = deviceSettingsState.chatTextSizeSp,
         themeId = deviceSettingsState.themeId,
+        customThemes = customThemeState.themes,
     ) {
         Surface(modifier = Modifier.fillMaxSize()) {
             when (rootPresentation) {
@@ -182,6 +190,7 @@ fun PoracodeApp(
                                 navigation = navigation,
                                 settings = settings,
                                 deviceSettings = deviceSettings,
+                                customThemes = customThemes,
                                 pushState = pushState,
                                 onPushAction = onPushAction,
                                 openExternalUrl = openExternalUrl,
@@ -225,6 +234,10 @@ fun PoracodeApp(
                                 state = state,
                                 pairWithPermission = pairWithPermission,
                             )
+                            is HomeDestination.Workspaces -> WorkspacesDestinationContent(
+                                navigation = navigation,
+                                workspaces = workspaces,
+                            )
                             is HomeDestination.Home -> HomeDestinationScreenContent(
                                 navigation = navigation,
                                 session = session,
@@ -232,6 +245,13 @@ fun PoracodeApp(
                                 richChat = richChat,
                                 threads = threads,
                                 projects = projects,
+                                settings = settings,
+                                browserMirror = browserMirror,
+                                ports = ports,
+                                deviceSettings = deviceSettings,
+                                workspaces = workspaces,
+                                draftStore = composerDrafts,
+                                openExternalUrl = openExternalUrl,
                                 excludedProjectIds = excludedProjectIds,
                                 pushState = pushState,
                                 onPushAction = onPushAction,

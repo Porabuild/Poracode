@@ -1,5 +1,7 @@
 package com.poracode.app.ui.terminal
 
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.background
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.interaction.DragInteraction
@@ -248,6 +250,7 @@ fun RichTerminalPane(
                 }
             },
         )
+        val horizontalScroll = rememberScrollState()
         SelectionContainer(Modifier.weight(1f)) {
             LazyColumn(
                 state = listState,
@@ -255,6 +258,7 @@ fun RichTerminalPane(
                     .fillMaxWidth()
                     .background(Color(0xFF101214))
                     .onSizeChanged { measuredSize = it.width to it.height }
+                    .horizontalScroll(horizontalScroll)
                     // Raw hardware-keyboard passthrough: tapping the output claims focus, and
                     // every recognized key press is encoded straight onto the PTY write path
                     // (matching the iOS transcript surface). Touch typing keeps using the

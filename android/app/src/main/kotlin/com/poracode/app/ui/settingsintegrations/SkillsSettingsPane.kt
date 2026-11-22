@@ -189,51 +189,53 @@ private fun SkillCard(
     onDelete: () -> Unit,
     onImport: (() -> Unit)?,
 ) {
-    Card(Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
-                    Text(skill.name, style = MaterialTheme.typography.titleMedium)
-                    Text(
-                        if (skill.scope == SkillScope.Project) stringResource(R.string.settings_integrations_project)
-                        else stringResource(R.string.settings_integrations_global),
-                        style = MaterialTheme.typography.labelMedium,
-                    )
-                }
-                PoracodeSwitch(
-                    checked = skill.enabled,
-                    enabled = canOperate && skill.mutable && skill.valid,
-                    onCheckedChange = onEnabled,
+    com.poracode.app.ui.components.PoracodeCard {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text(skill.name, style = MaterialTheme.typography.titleMedium)
+                Text(
+                    if (skill.scope == SkillScope.Project) stringResource(R.string.settings_integrations_project)
+                    else stringResource(R.string.settings_integrations_global),
+                    style = MaterialTheme.typography.labelMedium,
                 )
-                if (skill.mutable) IconButton(enabled = canOperate, onClick = onDelete) {
-                    Icon(PoracodeIcons.Delete, stringResource(R.string.settings_integrations_delete))
-                }
             }
-            if (skill.description.isNotEmpty()) Text(skill.description)
-            if (!skill.valid) Text(
-                stringResource(R.string.settings_integrations_invalid_skill),
-                color = MaterialTheme.colorScheme.error,
+            PoracodeSwitch(
+                checked = skill.enabled,
+                enabled = canOperate && skill.mutable && skill.valid,
+                onCheckedChange = onEnabled,
             )
-            if (onImport != null && skill.importState == "available") OutlinedButton(
+            if (skill.mutable) IconButton(enabled = canOperate, onClick = onDelete) {
+                Icon(PoracodeIcons.Delete, stringResource(R.string.settings_integrations_delete))
+            }
+        }
+        if (skill.description.isNotEmpty()) Text(skill.description)
+        if (!skill.valid) Text(
+            stringResource(R.string.settings_integrations_invalid_skill),
+            color = MaterialTheme.colorScheme.error,
+        )
+        if (onImport != null && skill.importState == "available") {
+            com.poracode.app.ui.components.PoracodeActionButton(
+                label = stringResource(R.string.settings_integrations_import),
+                variant = com.poracode.app.ui.components.PoracodeButtonVariant.Outlined,
                 enabled = canOperate,
                 onClick = onImport,
-            ) { Text(stringResource(R.string.settings_integrations_import)) }
+            )
         }
     }
 }
 
 @Composable
 private fun MarketplaceCard(skill: MarketplaceSkill, enabled: Boolean, onInstall: () -> Unit) {
-    Card(Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text(skill.name, style = MaterialTheme.typography.titleMedium)
-            skill.description?.let { Text(it) }
-            val grade = skill.securityGrade
-            if (grade != null) Text(stringResource(R.string.settings_integrations_security_grade, grade))
-            FilledTonalButton(enabled = enabled, onClick = onInstall) {
-                Text(stringResource(R.string.settings_integrations_install))
-            }
-        }
+    com.poracode.app.ui.components.PoracodeCard(title = skill.name) {
+        skill.description?.let { Text(it) }
+        val grade = skill.securityGrade
+        if (grade != null) Text(stringResource(R.string.settings_integrations_security_grade, grade))
+        com.poracode.app.ui.components.PoracodeActionButton(
+            label = stringResource(R.string.settings_integrations_install),
+            variant = com.poracode.app.ui.components.PoracodeButtonVariant.Tonal,
+            enabled = enabled,
+            onClick = onInstall,
+        )
     }
 }
 
@@ -245,8 +247,8 @@ internal fun SectionTitle(value: String) = Text(
 )
 
 @Composable
-internal fun EmptyCard(value: String) = Card(Modifier.fillMaxWidth()) {
-    Text(value, Modifier.padding(16.dp), color = MaterialTheme.colorScheme.onSurfaceVariant)
+internal fun EmptyCard(value: String) = com.poracode.app.ui.components.PoracodeCard {
+    Text(value, color = MaterialTheme.colorScheme.onSurfaceVariant)
 }
 
 @Composable

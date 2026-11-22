@@ -24,7 +24,22 @@ class RichChatSessionComposition(
         terminalScope = scope,
     )
     private val gateway = GeneratedRichChatSessionGateway(hostLease, provider)
-    val runtime = RichChatSessionRuntime(hostLease, gateway)
+    val runtime = RichChatSessionRuntime(
+        session = hostLease,
+        gateway = gateway,
+        advisoryClientProvider = {
+            val lease = hostLease.value ?: return@RichChatSessionRuntime null
+            val creds = runCatching {
+                kotlinx.coroutines.withContext(dispatcher) { repository.credentialsFor(lease.connectionId) }
+            }.getOrNull() ?: return@RichChatSessionRuntime null
+            com.poracode.app.transport.richchat.RichChatAdvisoryClient(
+                com.poracode.app.transport.RemoteApiClient(
+                    endpoint = creds.profile.httpBaseUrl,
+                    accessToken = creds.accessToken,
+                ),
+            )
+        },
+    )
     init {
         provider.setTerminalObserver(runtime.terminalObserver)
     }

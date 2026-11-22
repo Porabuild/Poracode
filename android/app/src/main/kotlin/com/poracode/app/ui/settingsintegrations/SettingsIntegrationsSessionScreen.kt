@@ -1,5 +1,7 @@
 package com.poracode.app.ui.settingsintegrations
 
+import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -129,10 +131,15 @@ internal fun SettingsIntegrationsSessionScreen(
                     if (projects.isNotEmpty() && initialProjectIdentity == null) {
                         val selectedName = projects.firstOrNull { it.id == selectedProjectId }?.name
                         Box {
-                            TextButton(onClick = { projectMenuExpanded = true }) {
+                            TextButton(
+                                onClick = { projectMenuExpanded = true },
+                                modifier = Modifier.widthIn(max = 160.dp),
+                            ) {
                                 Text(
                                     selectedName
                                         ?: stringResource(R.string.settings_integrations_global),
+                                    maxLines = 1,
+                                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                                 )
                             }
                             DropdownMenu(

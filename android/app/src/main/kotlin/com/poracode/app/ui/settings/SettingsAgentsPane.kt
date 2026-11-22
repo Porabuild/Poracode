@@ -147,6 +147,17 @@ private fun SettingsAgentsAndUsagePane(
         ) {
             when (page) {
                 SettingsAgentsUsagePage.Agents -> {
+                    if (access.canRead) {
+                        item(key = "agents-refresh-action") {
+                            com.poracode.app.ui.components.PoracodeActionButton(
+                                label = stringResource(R.string.settings_refresh),
+                                icon = PoracodeIcons.Refresh,
+                                variant = com.poracode.app.ui.components.PoracodeButtonVariant.Tonal,
+                                enabled = !loading,
+                                onClick = onRetry,
+                            )
+                        }
+                    }
                     authoritative.sections.forEach { section ->
                         item(key = "env-${section.environment}") {
                             SettingsAgentEnvironmentSection(section)

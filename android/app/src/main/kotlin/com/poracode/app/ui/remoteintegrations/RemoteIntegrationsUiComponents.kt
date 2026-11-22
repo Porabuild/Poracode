@@ -44,13 +44,12 @@ internal fun RemoteIntegrationsAccessBanner(
         missingScope -> stringResource(R.string.remote_integrations_missing_scope)
         else -> null
     } ?: return
-    Card(
-        Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)
+    com.poracode.app.ui.components.PoracodeCard(
+        modifier = Modifier
+            .padding(horizontal = 16.dp, vertical = 8.dp)
             .semantics { liveRegion = LiveRegionMode.Polite },
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
     ) {
         Row(
-            Modifier.padding(12.dp),
             horizontalArrangement = Arrangement.spacedBy(10.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -66,16 +65,11 @@ internal fun IntegrationSectionCard(
     modifier: Modifier = Modifier,
     content: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit,
 ) {
-    Card(modifier.fillMaxWidth()) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text(
-                title,
-                style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.semantics { heading() },
-            )
-            content()
-        }
-    }
+    com.poracode.app.ui.components.PoracodeCard(
+        modifier = modifier,
+        title = title,
+        content = content,
+    )
 }
 
 @Composable

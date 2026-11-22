@@ -17,29 +17,39 @@ import androidx.compose.ui.unit.dp
 
 val LocalChatTextSizeSp = staticCompositionLocalOf { 14 }
 
-/** Corner radii shared with the compact PWA (`--content-surface-radius`, sheets, menus). */
+/** Corner radii aligned to Android Material 3 + Poracode Soft Hairline surfaces. */
 object PoracodeRadius {
     val small = 6.dp
-    val field = 10.dp
-    val contentSurface = 8.dp
-    val sheet = 16.dp
-    val composer = 22.dp
+    val contentSurface = 10.dp
+    val field = 12.dp
+    val control = 12.dp
+    val pane = 16.dp
+    val composer = 20.dp
+    val sheet = 24.dp
 }
 
-/** Spacing and control metrics shared with the compact PWA (`--m-*` tokens). */
+/** Spacing and control metrics on the Android 4dp/8dp baseline grid. */
 object PoracodeMetrics {
-    /** Horizontal page inset (`--m-page-inline`). */
-    val pageInline = 11.dp
-    /** Minimum touch target and floating control height (`--m-tap-min`). */
+    /** Compact phone horizontal screen margin (Material 3 Compact: 16dp). */
+    val pageInline = 16.dp
+    /** Medium/Expanded/Large canvas margin (Material 3: 24dp). */
+    val pageInlineExpanded = 24.dp
+    /** Narrow sidebar / inspector pane horizontal inset. */
+    val paneInline = 12.dp
+    /** Minimum touch target (Android accessibility: 48dp; 44dp in dense docks). */
     val tapTarget = 44.dp
-    /** Page header height (`--m-header-height`). */
-    val headerHeight = 48.dp
-    /** Gap between floating bottom controls (`--m-floating-control-gap`). */
-    val floatingGap = 10.dp
-    /** Distance from the bottom safe area to the floating controls. */
+    /** Standard compact Material 3 inline control height (search, buttons, pickers). */
+    val controlHeight = 38.dp
+    /** Top app bar height (Material 3 compact-friendly 52dp). */
+    val headerHeight = 52.dp
+    /** Gap between floating bottom controls. */
+    val floatingGap = 8.dp
+    /** Distance from the bottom safe area to floating controls. */
     val floatingBottom = 12.dp
-    /** Vertical gap between list rows. */
+    /** Vertical gap between sibling list rows. */
     val rowGap = 6.dp
+    /** Vertical gap between cards / sections. */
+    val sectionGap = 12.dp
 }
 
 object PoracodeTheme {
@@ -106,9 +116,11 @@ fun PoracodeTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     chatTextSizeSp: Int = 14,
     themeId: String = DEFAULT_PORACODE_THEME_ID,
+    customThemes: List<NativeCustomTheme> = emptyList(),
     content: @Composable () -> Unit,
 ) {
-    val preset = poracodeThemePreset(themeId)
+    val preset = customThemes.firstOrNull { it.id == themeId }?.toThemePreset()
+        ?: poracodeThemePreset(themeId)
     val colors = if (darkTheme) preset.dark else preset.light
     CompositionLocalProvider(
         LocalChatTextSizeSp provides chatTextSizeSp,

@@ -230,6 +230,7 @@ fun PoracodeListRow(
     onClickLabel: String? = null,
     selected: Boolean = false,
     enabled: Boolean = true,
+    containerColor: Color? = null,
     contentPadding: PaddingValues = PaddingValues(horizontal = 12.dp, vertical = 10.dp),
     content: @Composable RowScope.() -> Unit,
 ) {
@@ -238,6 +239,7 @@ fun PoracodeListRow(
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
     val shape = RoundedCornerShape(PoracodeRadius.contentSurface)
+    val baseFill = containerColor ?: colors.listRow
     val clickable = if (onClick != null || onLongClick != null) {
         Modifier.combinedClickable(
             interactionSource = interaction,
@@ -263,7 +265,14 @@ fun PoracodeListRow(
             .heightIn(min = PoracodeMetrics.tapTarget)
             .clip(shape)
             .background(
-                if (pressed || selected) colors.rowActive.compositeOver(colors.listRow) else colors.listRow,
+                when {
+                    pressed || selected -> if (baseFill == Color.Transparent) {
+                        colors.rowActive
+                    } else {
+                        colors.rowActive.compositeOver(baseFill)
+                    }
+                    else -> baseFill
+                },
             )
             .then(clickable)
             .padding(contentPadding),
@@ -397,7 +406,7 @@ fun PoracodeSwitch(
                 change(value)
             }
         },
-        modifier = modifier,
+        modifier = modifier.scale(0.84f),
         enabled = enabled,
         colors = SwitchDefaults.colors(
             checkedThumbColor = colors.accentForeground,

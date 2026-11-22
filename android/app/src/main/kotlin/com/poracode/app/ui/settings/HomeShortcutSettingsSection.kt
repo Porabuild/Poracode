@@ -38,7 +38,9 @@ import com.poracode.app.R
 import com.poracode.app.storage.DeviceSettingsPreferences
 import com.poracode.app.storage.DeviceSettingsState
 import com.poracode.app.storage.HomeShortcut
+import com.poracode.app.storage.PinnedSettingsShortcut
 import com.poracode.app.ui.components.PoracodeSwitch
+import com.poracode.app.ui.home.labelRes
 import com.poracode.app.ui.theme.PoracodeIcons
 import com.poracode.app.ui.theme.PoracodeTheme
 
@@ -86,6 +88,25 @@ internal fun HomeShortcutSettingsSection(
                     dragOffset = 0f
                 },
             )
+        }
+        androidx.compose.foundation.layout.Spacer(Modifier.padding(top = 6.dp))
+        com.poracode.app.ui.components.PoracodeSectionLabel(
+            stringResource(R.string.settings_pinned_shortcuts),
+        )
+        PinnedSettingsShortcut.entries.forEach { shortcut ->
+            Row(
+                Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp),
+            ) {
+                Text(stringResource(shortcut.labelRes()), Modifier.weight(1f))
+                PoracodeSwitch(
+                    checked = shortcut in state.pinnedSettingsShortcuts,
+                    onCheckedChange = { visible ->
+                        preferences.setPinnedSettingsShortcutVisible(shortcut, visible)
+                    },
+                )
+            }
         }
     }
 }

@@ -26,6 +26,7 @@ class RichChatSessionRuntime(
     gateway: RichChatSessionGateway,
     watchIdFactory: () -> String = { java.util.UUID.randomUUID().toString() },
     private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate),
+    advisoryClientProvider: suspend () -> com.poracode.app.transport.richchat.RichChatAdvisoryClient? = { null },
 ) {
     val hostLease: StateFlow<RichChatHostLease?> get() = session
     private val lifecycle = ForegroundOperationRegistry()
@@ -33,6 +34,7 @@ class RichChatSessionRuntime(
     private var refreshJob: Job? = null
     private var terminalJob: Job? = null
     val chat = RichChatController(session, gateway, lifecycle)
+    val advisory = RichChatAdvisoryController(advisoryClientProvider)
     val checkpoints = RichCheckpointController(session, chat.selection, gateway, lifecycle)
     val media = RichChatMediaController(session, chat.selection, gateway, lifecycle)
     val sessionActions = RichChatSessionActionsController(session, chat.selection, gateway, lifecycle)
@@ -84,6 +86,7 @@ class RichChatSessionRuntime(
 
     fun selectThread(threadId: String): RichChatOperationResult<RichChatThreadLease> {
         cancelRefresh()
+        advisory.reset(threadId)
         checkpoints.reset()
         sessionActions.reset()
         backgroundTasks.reset()
@@ -93,6 +96,7 @@ class RichChatSessionRuntime(
     fun closeThread() {
         cancelRefresh()
         dismissTerminal()
+        advisory.reset()
         checkpoints.reset()
         sessionActions.reset()
         backgroundTasks.reset()

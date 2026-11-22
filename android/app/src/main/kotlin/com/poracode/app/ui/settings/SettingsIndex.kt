@@ -43,8 +43,11 @@ internal enum class SettingsRoute {
     General,
     Appearance,
     Notifications,
+    Audio,
     Terminal,
     Git,
+    KeyboardShortcuts,
+    ReleaseNotes,
     DesktopIndex,
     Host,
     Agents,
@@ -83,8 +86,11 @@ internal fun SettingsRoute.parent(): SettingsRoute? = when (this) {
     SettingsRoute.General,
     SettingsRoute.Appearance,
     SettingsRoute.Notifications,
+    SettingsRoute.Audio,
     SettingsRoute.Terminal,
     SettingsRoute.Git,
+    SettingsRoute.KeyboardShortcuts,
+    SettingsRoute.ReleaseNotes,
     SettingsRoute.DesktopIndex,
     -> SettingsRoute.DeviceIndex
     else -> SettingsRoute.DesktopIndex
@@ -95,11 +101,29 @@ internal fun SettingsRoute.depth(): Int = when (this) {
     SettingsRoute.General,
     SettingsRoute.Appearance,
     SettingsRoute.Notifications,
+    SettingsRoute.Audio,
     SettingsRoute.Terminal,
     SettingsRoute.Git,
+    SettingsRoute.KeyboardShortcuts,
+    SettingsRoute.ReleaseNotes,
     SettingsRoute.DesktopIndex,
     -> 1
     else -> 2
+}
+
+internal fun SettingsRoute.isDesktopRoute(): Boolean = when (this) {
+    SettingsRoute.DesktopIndex,
+    SettingsRoute.Host,
+    SettingsRoute.Agents,
+    SettingsRoute.Usage,
+    SettingsRoute.Profile,
+    SettingsRoute.Preferences,
+    SettingsRoute.Workspace,
+    SettingsRoute.Environments,
+    SettingsRoute.GlobalMcp,
+    SettingsRoute.ArchivedThreads,
+    -> true
+    else -> false
 }
 
 @Composable
@@ -126,6 +150,11 @@ internal fun DeviceSettingsIndex(
             R.string.settings_device_notifications_description,
         ) { onOpen(SettingsRoute.Notifications) }
         SettingsIndexRow(
+            PoracodeIcons.Mic,
+            R.string.settings_device_audio,
+            R.string.settings_device_audio_description,
+        ) { onOpen(SettingsRoute.Audio) }
+        SettingsIndexRow(
             PoracodeIcons.Terminal,
             R.string.settings_device_terminal,
             R.string.settings_device_terminal_description,
@@ -135,6 +164,11 @@ internal fun DeviceSettingsIndex(
             R.string.settings_device_git,
             R.string.settings_device_git_description,
         ) { onOpen(SettingsRoute.Git) }
+        SettingsIndexRow(
+            PoracodeIcons.Keyboard,
+            R.string.settings_keyboard_shortcuts,
+            R.string.settings_keyboard_shortcuts_description,
+        ) { onOpen(SettingsRoute.KeyboardShortcuts) }
         SettingsIndexSection(R.string.settings_desktop_section)
         SettingsIndexRow(
             PoracodeIcons.Computer,
@@ -142,6 +176,11 @@ internal fun DeviceSettingsIndex(
             R.string.settings_desktop_index_description,
         ) { onOpen(SettingsRoute.DesktopIndex) }
         SettingsIndexSection(R.string.settings_help_section)
+        SettingsIndexRow(
+            PoracodeIcons.Newspaper,
+            R.string.changelog_title,
+            R.string.changelog_description,
+        ) { onOpen(SettingsRoute.ReleaseNotes) }
         SettingsIndexRow(
             PoracodeIcons.PrivacyTip,
             R.string.settings_privacy,

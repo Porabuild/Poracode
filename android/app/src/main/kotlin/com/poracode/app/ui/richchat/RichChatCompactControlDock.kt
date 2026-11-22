@@ -112,33 +112,35 @@ internal fun RichChatCompactControlDock(
             horizontalArrangement = Arrangement.spacedBy(6.dp),
         ) {
             compactInfoLabels(items, agentStatus).forEach { label ->
-                AssistChip(onClick = { showDetails = true }, label = { Text(label) })
-            }
-            if (projectLocation != null && selection != null) {
-                FilterChip(
-                    selected = false,
+                com.poracode.app.ui.components.PoracodeActionButton(
+                    label = label,
+                    variant = com.poracode.app.ui.components.PoracodeButtonVariant.Tonal,
                     onClick = { showDetails = true },
-                    label = { Text(stringResource(R.string.rich_chat_checkpoints)) },
                 )
             }
-            AssistChip(
+            if (projectLocation != null && selection != null) {
+                com.poracode.app.ui.components.PoracodeActionButton(
+                    label = stringResource(R.string.rich_chat_checkpoints),
+                    variant = com.poracode.app.ui.components.PoracodeButtonVariant.Outlined,
+                    onClick = { showDetails = true },
+                )
+            }
+            com.poracode.app.ui.components.PoracodeActionButton(
+                label = stringResource(R.string.rich_chat_composer_controls),
+                variant = com.poracode.app.ui.components.PoracodeButtonVariant.Tonal,
                 onClick = { showDetails = true },
-                label = { Text(stringResource(R.string.rich_chat_composer_controls)) },
             )
         }
     }
     if (showDetails) {
-        ModalBottomSheet(onDismissRequest = { showDetails = false }) {
-            Text(
-                stringResource(R.string.rich_chat_composer_controls),
-                style = MaterialTheme.typography.headlineSmall,
-                modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
-            )
+        com.poracode.app.ui.components.PoracodeSheet(
+            onDismissRequest = { showDetails = false },
+            title = stringResource(R.string.rich_chat_composer_controls),
+        ) {
             Column(
                 Modifier
                     .fillMaxWidth()
-                    .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 12.dp),
+                    .verticalScroll(rememberScrollState()),
             ) {
                 RichChatControlPanel(
                     runtime = runtime,
@@ -157,7 +159,7 @@ internal fun RichChatCompactControlDock(
                     canOperate = canOperate,
                     busy = busy,
                     onOpenAgentSettings = onOpenAgentSettings,
-                    modifier = Modifier.padding(bottom = 24.dp),
+                    modifier = Modifier.padding(bottom = 16.dp),
                 )
             }
         }

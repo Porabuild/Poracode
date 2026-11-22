@@ -52,6 +52,8 @@ import com.poracode.app.session.richchat.RichChatSessionRuntime
 import com.poracode.app.session.threads.ThreadLifecycleController
 import com.poracode.app.session.threads.ThreadSessionRuntime
 import com.poracode.app.storage.HomeShortcut
+import com.poracode.app.storage.HomeWorkspace
+import com.poracode.app.storage.PinnedSettingsShortcut
 import com.poracode.app.transport.RemoteWebSocketClient
 import com.poracode.app.ui.GitSummaryResolver
 import com.poracode.app.ui.components.BrandWordmark
@@ -98,6 +100,13 @@ internal fun ThreadListPane(
     pushState: PushUiState,
     onPushAction: () -> Unit,
     visibleShortcuts: List<HomeShortcut>,
+    pinnedSettingsShortcuts: List<PinnedSettingsShortcut> = emptyList(),
+    onOpenPinnedSettings: (PinnedSettingsShortcut) -> Unit = {},
+    workspaces: List<HomeWorkspace> = emptyList(),
+    activeWorkspaceId: String? = null,
+    onSelectWorkspace: (String) -> Unit = {},
+    onManageWorkspaces: () -> Unit = {},
+    draftKeys: Set<String> = emptySet(),
     modifier: Modifier = Modifier,
 ) {
     val colors = PoracodeTheme.colors
@@ -105,6 +114,7 @@ internal fun ThreadListPane(
     var searchText by rememberSaveable { mutableStateOf("") }
     var filterExpanded by remember { mutableStateOf(false) }
     var selectedProjects by remember { mutableStateOf(emptySet<String>()) }
+    var statusFilter by rememberSaveable { mutableStateOf(HomeThreadStatusFilter.Active) }
     var expandedWorktrees by remember { mutableStateOf(emptySet<String>()) }
     var showMore by rememberSaveable { mutableStateOf(false) }
     var showQuickCompose by rememberSaveable { mutableStateOf(false) }
@@ -128,10 +138,18 @@ internal fun ThreadListPane(
     LaunchedEffect(projectOptions.map(HomeProjectFilterOption::id)) {
         selectedProjects = selectedProjects.intersect(projectOptions.mapTo(mutableSetOf()) { it.id })
     }
-    val visibleItems = remember(threads, searchText, selectedProjects) {
-        HomeThreadListPresentation.filter(threads, searchText, selectedProjects)
+    val scope = remember(threads, searchText, selectedProjects) {
+        HomeThreadListScope.from(threads, searchText, selectedProjects)
     }
-    val entries = remember(visibleItems) { HomeThreadListPresentation.entries(visibleItems) }
+    val visibleItems = scope[statusFilter]
+    val entries = remember(visibleItems, statusFilter) {
+        if (statusFilter == HomeThreadStatusFilter.Done) {
+            visibleItems.map { HomeThreadListEntry.Thread(it) }
+        } else {
+            HomeThreadListPresentation.entries(visibleItems)
+        }
+    }
+    val isFiltered = selectedProjects.isNotEmpty() || statusFilter == HomeThreadStatusFilter.Done
     val agentLabels = remember(state.hostReplay.agentMergedStatuses) {
         state.hostReplay.agentMergedStatuses.values.associate { it.kind to it.label }
     }
@@ -152,14 +170,17 @@ internal fun ThreadListPane(
                     Box {
                         PoracodeIconButton(
                             icon = PoracodeIcons.FilterList,
-                            contentDescription = stringResource(R.string.home_filter_projects),
+                            contentDescription = stringResource(R.string.home_filter_threads),
                             onClick = { filterExpanded = true },
-                            tint = if (selectedProjects.isEmpty()) colors.muted else colors.foreground,
+                            tint = if (isFiltered) colors.accent else colors.muted,
                         )
                         HomeProjectFilterMenu(
                             expanded = filterExpanded,
                             options = projectOptions,
                             selectedProjects = selectedProjects,
+                            statusFilter = statusFilter,
+                            doneCount = scope.done.count(),
+                            onSelectStatus = { statusFilter = it },
                             onDismiss = { filterExpanded = false },
                             onSelectAll = {
                                 selectedProjects = emptySet()
@@ -194,6 +215,7 @@ internal fun ThreadListPane(
                     gitSummaries = state.hostReplay.gitSummariesByThread,
                     gitSummaryByTarget = state.hostReplay.gitSummaryByTarget,
                     agentLabels = agentLabels,
+                    draftKeys = draftKeys,
                     expandedWorktrees = expandedWorktrees,
                     onToggleWorktree = remember {
                         { id: String ->
@@ -209,7 +231,7 @@ internal fun ThreadListPane(
                     canOperateThreads = canOperateThreads,
                     modifier = Modifier.weight(1f),
                 )
-                visibleItems.isEmpty() && (searchText.isNotBlank() || selectedProjects.isNotEmpty()) -> {
+                visibleItems.isEmpty() && (searchText.isNotBlank() || isFiltered) -> {
                     EmptyStateView(
                         title = stringResource(R.string.home_no_matching_threads),
                         message = stringResource(R.string.home_no_matching_threads_message),
@@ -293,6 +315,13 @@ internal fun ThreadListPane(
                 onManagePorts = { showMore = false; onManagePorts() },
                 onOpenSettings = { showMore = false; onOpenSettings() },
                 visibleShortcuts = visibleShortcuts,
+                pinnedSettingsShortcuts = pinnedSettingsShortcuts,
+                onOpenPinnedSettings = { showMore = false; onOpenPinnedSettings(it) },
+                onManageWorkspaces = if (workspaces.isNotEmpty()) {
+                    { showMore = false; onManageWorkspaces() }
+                } else {
+                    null
+                },
                 remoteAvailable = state.canSessionRead &&
                     state.phase == AppSession.Phase.Ready &&
                     !state.sessionExpired &&
@@ -345,6 +374,7 @@ private fun HomeThreadEntryList(
     gitSummaries: Map<String, RemoteGitSummary>,
     gitSummaryByTarget: Map<GitSummaryTargetKey, RemoteGitSummary>,
     agentLabels: Map<String, String>,
+    draftKeys: Set<String>,
     expandedWorktrees: Set<String>,
     onToggleWorktree: (String) -> Unit,
     onOpenThread: (String) -> Unit,
@@ -386,6 +416,7 @@ private fun HomeThreadEntryList(
                         },
                         agentLabel = if (sameHost) agentLabels[entry.item.thread.agentKind] else null,
                         online = sameHost && hostOnline,
+                        hasDraft = entry.item.id in draftKeys || entry.item.thread.id in draftKeys,
                         lifecycleController = lifecycleController,
                         canOperateThreads = canOperateThreads,
                         onClick = { onOpenThread(entry.item.id) },

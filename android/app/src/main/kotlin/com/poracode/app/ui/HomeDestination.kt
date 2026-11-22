@@ -25,6 +25,7 @@ internal enum class HomeDestinationKind {
     Projects,
     Ports,
     Hosts,
+    Workspaces,
 }
 
 /**
@@ -72,6 +73,7 @@ internal sealed interface HomeDestination {
     data class Settings(
         val pane: SettingsPane?,
         val connectionId: String?,
+        val routeOverride: String? = null,
     ) : HomeDestination {
         override val kind = HomeDestinationKind.Settings
         override val depth = 1
@@ -99,6 +101,11 @@ internal sealed interface HomeDestination {
 
     data object Hosts : HomeDestination {
         override val kind = HomeDestinationKind.Hosts
+        override val depth = 1
+    }
+
+    data object Workspaces : HomeDestination {
+        override val kind = HomeDestinationKind.Workspaces
         override val depth = 1
     }
 
@@ -155,7 +162,14 @@ internal fun homeDestination(
     }
     if (navigation.settingsPane != null) {
         val pane = SettingsPane.entries.firstOrNull { it.name == navigation.settingsPane }
-        return HomeDestination.Settings(pane = pane, connectionId = navigation.settingsConnectionId)
+        val routeOverride = navigation.settingsPane.takeIf { raw ->
+            pane == null && com.poracode.app.ui.settings.SettingsRoute.entries.any { it.name == raw }
+        }
+        return HomeDestination.Settings(
+            pane = pane,
+            connectionId = navigation.settingsConnectionId,
+            routeOverride = routeOverride,
+        )
     }
     val projectUtilityProjectId = navigation.projectUtilityProjectId
     val projectUtilityConnectionId = navigation.projectUtilityConnectionId
@@ -177,5 +191,6 @@ internal fun homeDestination(
     if (navigation.showProjects) return HomeDestination.Projects
     if (navigation.showPorts) return HomeDestination.Ports
     if (navigation.showHosts) return HomeDestination.Hosts
+    if (navigation.showWorkspaces) return HomeDestination.Workspaces
     return HomeDestination.Home
 }

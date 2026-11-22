@@ -171,7 +171,7 @@ internal fun PoracodeProjectHostLine(
             project,
             modifier = Modifier.widthIn(max = 180.dp),
             style = PoracodeTextStyles.rowMeta,
-            color = colors.muted.copy(alpha = 0.7f),
+            color = colors.muted,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
@@ -179,7 +179,7 @@ internal fun PoracodeProjectHostLine(
             Icon(
                 PoracodeIcons.Computer,
                 contentDescription = null,
-                tint = colors.muted.copy(alpha = 0.6f),
+                tint = colors.muted,
                 modifier = Modifier.size(10.dp),
             )
             if (online) {
@@ -195,7 +195,7 @@ internal fun PoracodeProjectHostLine(
         Text(
             host,
             style = PoracodeTextStyles.rowMeta,
-            color = colors.muted.copy(alpha = 0.6f),
+            color = colors.muted,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )

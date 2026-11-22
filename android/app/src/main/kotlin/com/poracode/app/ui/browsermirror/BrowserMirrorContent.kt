@@ -15,6 +15,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -62,54 +64,77 @@ private fun BrowserToolbar(
     controller: BrowserMirrorController,
 ) {
     val tab = state.browser.activeTab
-    Row(
-        Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        IconButton(
-            onClick = { tab?.let { controller.launchCommand(BrowserMirrorUiAction.Back(it.tabId).toCommand()) } },
-            enabled = tab?.canGoBack == true,
+    val fontScale = androidx.compose.ui.platform.LocalDensity.current.fontScale
+    var navMenuOpen by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
+    androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxWidth()) {
+        val compactNav = maxWidth < 420.dp || fontScale >= 1.3f
+        Row(
+            Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Icon(
-                PoracodeIcons.ArrowBack,
-                contentDescription = stringResource(R.string.browser_mirror_back),
-            )
-        }
-        IconButton(
-            onClick = { tab?.let { controller.launchCommand(BrowserMirrorUiAction.Forward(it.tabId).toCommand()) } },
-            enabled = tab?.canGoForward == true,
-        ) {
-            Icon(
-                PoracodeIcons.ArrowForward,
-                contentDescription = stringResource(R.string.browser_mirror_forward),
-            )
-        }
-        IconButton(
-            onClick = { tab?.let { controller.launchCommand(BrowserMirrorUiAction.Reload(it.tabId).toCommand()) } },
-            enabled = tab != null,
-        ) {
-            Icon(
-                PoracodeIcons.Refresh,
-                contentDescription = stringResource(R.string.browser_mirror_reload),
-            )
-        }
-        PoracodeTextField(
-            value = address,
-            onValueChange = setAddress,
-            label = { Text(stringResource(R.string.browser_mirror_address)) },
-            singleLine = true,
-            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Go),
-            keyboardActions = KeyboardActions(
-                onGo = {
-                    tab?.takeIf { address.isNotBlank() }?.let {
-                        controller.launchCommand(
-                            BrowserMirrorUiAction.Navigate(it.tabId, address).toCommand(),
+            if (compactNav) {
+                androidx.compose.foundation.layout.Box {
+                    IconButton(onClick = { navMenuOpen = true }, enabled = tab != null) {
+                        Icon(PoracodeIcons.MoreVert, contentDescription = stringResource(R.string.browser_mirror_back))
+                    }
+                    androidx.compose.material3.DropdownMenu(
+                        expanded = navMenuOpen,
+                        onDismissRequest = { navMenuOpen = false },
+                    ) {
+                        androidx.compose.material3.DropdownMenuItem(
+                            text = { Text(stringResource(R.string.browser_mirror_back)) },
+                            enabled = tab?.canGoBack == true,
+                            onClick = {
+                                navMenuOpen = false
+                                tab?.let { controller.launchCommand(BrowserMirrorUiAction.Back(it.tabId).toCommand()) }
+                            },
+                        )
+                        androidx.compose.material3.DropdownMenuItem(
+                            text = { Text(stringResource(R.string.browser_mirror_forward)) },
+                            enabled = tab?.canGoForward == true,
+                            onClick = {
+                                navMenuOpen = false
+                                tab?.let { controller.launchCommand(BrowserMirrorUiAction.Forward(it.tabId).toCommand()) }
+                            },
                         )
                     }
-                },
-            ),
-            modifier = Modifier.weight(1f),
-        )
+                }
+            } else {
+                IconButton(
+                    onClick = { tab?.let { controller.launchCommand(BrowserMirrorUiAction.Back(it.tabId).toCommand()) } },
+                    enabled = tab?.canGoBack == true,
+                ) {
+                    Icon(PoracodeIcons.ArrowBack, contentDescription = stringResource(R.string.browser_mirror_back))
+                }
+                IconButton(
+                    onClick = { tab?.let { controller.launchCommand(BrowserMirrorUiAction.Forward(it.tabId).toCommand()) } },
+                    enabled = tab?.canGoForward == true,
+                ) {
+                    Icon(PoracodeIcons.ArrowForward, contentDescription = stringResource(R.string.browser_mirror_forward))
+                }
+            }
+            IconButton(
+                onClick = { tab?.let { controller.launchCommand(BrowserMirrorUiAction.Reload(it.tabId).toCommand()) } },
+                enabled = tab != null,
+            ) {
+                Icon(PoracodeIcons.Refresh, contentDescription = stringResource(R.string.browser_mirror_reload))
+            }
+            PoracodeTextField(
+                value = address,
+                onValueChange = setAddress,
+                label = { Text(stringResource(R.string.browser_mirror_address)) },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Go),
+                keyboardActions = KeyboardActions(
+                    onGo = {
+                        tab?.takeIf { address.isNotBlank() }?.let {
+                            controller.launchCommand(BrowserMirrorUiAction.Navigate(it.tabId, address).toCommand())
+                        }
+                    },
+                ),
+                modifier = Modifier.weight(1f),
+            )
+        }
     }
 }
 

@@ -1,5 +1,7 @@
 package com.poracode.app.ui.advancedops
 
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -61,7 +63,12 @@ fun AdvancedOperationsScreen(
     }
 
     BoxWithConstraints(Modifier.fillMaxSize()) {
-        val expanded = maxWidth >= 840.dp
+        val fontScale = androidx.compose.ui.platform.LocalDensity.current.fontScale
+        val bookHinge = com.poracode.app.ui.components.rememberBookHingeSplit(
+            containerWidthDp = maxWidth,
+            defaultSidebarWidthDp = 300.dp,
+        )
+        val expanded = (maxWidth >= 840.dp || bookHinge.isBookPosture) && fontScale < 1.5f
         val navigateBack = {
             if (!expanded && showDetail) showDetail = false else onBack()
         }
@@ -83,21 +90,33 @@ fun AdvancedOperationsScreen(
             },
         ) { padding ->
             if (expanded) {
-                Row(Modifier.fillMaxSize().padding(padding)) {
+                Row(
+                    Modifier
+                        .fillMaxSize()
+                        .background(com.poracode.app.ui.theme.PoracodeTheme.colors.paneShell)
+                        .padding(padding)
+                        .padding(end = 8.dp, bottom = 8.dp),
+                ) {
                     AdvancedActionList(
                         selected,
                         onSelect = { selectedName = it.name },
-                        Modifier.width(320.dp).fillMaxHeight(),
+                        Modifier.width(bookHinge.sidebarWidthDp).fillMaxHeight(),
                     )
-                    HorizontalDivider(Modifier.fillMaxHeight().width(1.dp))
-                    AdvancedOperationDetail(
-                        selected,
-                        composition,
-                        projects,
-                        owners.project?.projectId,
-                        defaultContentLanguage,
-                        Modifier.weight(1f),
+                    androidx.compose.foundation.layout.Spacer(
+                        Modifier.width(if (bookHinge.hingeGapDp > 0.dp) bookHinge.hingeGapDp else 8.dp),
                     )
+                    com.poracode.app.ui.components.PoracodePaneContainer(Modifier.weight(1f)) {
+                        com.poracode.app.ui.components.PoracodeCenteredDetail(maxWidth = 760.dp) {
+                            AdvancedOperationDetail(
+                                selected,
+                                composition,
+                                projects,
+                                owners.project?.projectId,
+                                defaultContentLanguage,
+                                Modifier.fillMaxSize().imePadding(),
+                            )
+                        }
+                    }
                 }
             } else if (showDetail) {
                 AdvancedOperationDetail(
@@ -106,7 +125,7 @@ fun AdvancedOperationsScreen(
                     projects,
                     owners.project?.projectId,
                     defaultContentLanguage,
-                    Modifier.fillMaxSize().padding(padding),
+                    Modifier.fillMaxSize().padding(padding).imePadding(),
                 )
             } else {
                 AdvancedActionList(
@@ -128,29 +147,25 @@ private fun AdvancedActionList(
     onSelect: (AdvancedAction) -> Unit,
     modifier: Modifier,
 ) {
-    LazyColumn(modifier) {
+    LazyColumn(
+        modifier = modifier,
+        contentPadding = androidx.compose.foundation.layout.PaddingValues(12.dp),
+        verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(4.dp),
+    ) {
         item {
             Text(
                 stringResource(R.string.advanced_ops_choose_action),
                 style = MaterialTheme.typography.titleSmall,
-                modifier = Modifier.padding(16.dp),
+                modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp),
             )
         }
         items(AdvancedAction.entries, key = { it.operation.wireName }) { action ->
-            ListItem(
-                headlineContent = { Text(actionLabel(action)) },
-                trailingContent = {
-                    if (selected == action) Text(stringResource(R.string.advanced_ops_selected))
-                },
-                modifier = Modifier.fillMaxWidth(),
-            )
-            FilledTonalButton(
+            com.poracode.app.ui.components.PoracodeDrawerNavItem(
+                label = actionLabel(action),
+                icon = PoracodeIcons.Build,
+                selected = selected == action,
                 onClick = { onSelect(action) },
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-            ) {
-                Text(stringResource(R.string.advanced_ops_open_action, actionLabel(action)))
-            }
-            HorizontalDivider(Modifier.padding(top = 8.dp))
+            )
         }
     }
 }

@@ -81,6 +81,34 @@ class DeviceSettingsPreferencesTest {
         val state = DeviceSettingsPreferences(MemoryStore(released)).state.value
 
         assertEquals("default", state.themeId)
+        assertEquals(emptyList<PinnedSettingsShortcut>(), state.pinnedSettingsShortcuts)
+        assertEquals(0, state.sidebarWidthDp)
+        assertEquals(0, state.inspectorWidthDp)
+    }
+
+    @Test
+    fun pinnedSettingsShortcutsAndPanelWidthsPersistAndClamp() {
+        val store = MemoryStore()
+        val preferences = DeviceSettingsPreferences(store)
+
+        preferences.setPinnedSettingsShortcutVisible(PinnedSettingsShortcut.Usage, true)
+        preferences.setPinnedSettingsShortcutVisible(PinnedSettingsShortcut.Appearance, true)
+        preferences.setSidebarWidthDp(320)
+        preferences.setInspectorWidthDp(999)
+
+        val reloaded = DeviceSettingsPreferences(store).state.value
+        assertEquals(
+            listOf(PinnedSettingsShortcut.Usage, PinnedSettingsShortcut.Appearance),
+            reloaded.pinnedSettingsShortcuts,
+        )
+        assertEquals(320, reloaded.sidebarWidthDp)
+        assertEquals(520, reloaded.inspectorWidthDp)
+
+        preferences.setPinnedSettingsShortcutVisible(PinnedSettingsShortcut.Usage, false)
+        assertEquals(
+            listOf(PinnedSettingsShortcut.Appearance),
+            DeviceSettingsPreferences(store).state.value.pinnedSettingsShortcuts,
+        )
     }
 
     @Test

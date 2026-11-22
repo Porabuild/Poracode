@@ -89,18 +89,27 @@ fun PoracodePageHeader(
     subtitle: (@Composable () -> Unit)? = null,
     onTitleClick: (() -> Unit)? = null,
     background: Color = PoracodeTheme.colors.background,
+    applyStatusBarsPadding: Boolean = true,
+    leadingAccessory: (@Composable RowScope.() -> Unit)? = null,
     trailing: @Composable RowScope.() -> Unit = {},
 ) {
     Row(
         modifier
             .fillMaxWidth()
             .background(background)
-            .statusBarsPadding()
+            .then(if (applyStatusBarsPadding) Modifier.statusBarsPadding() else Modifier)
             .height(PoracodeMetrics.headerHeight)
-            .padding(start = PoracodeMetrics.pageInline - 8.dp, end = PoracodeMetrics.pageInline),
+            .padding(start = PoracodeMetrics.pageInline - 8.dp, end = PoracodeMetrics.pageInline - 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         val stacked = subtitle != null || onTitleClick != null
+        if (leadingAccessory != null) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(2.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                content = leadingAccessory,
+            )
+        }
         if (onBack != null) {
             HeaderBackButton(
                 label = backLabel,

@@ -39,14 +39,18 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -176,6 +180,13 @@ fun RichTimelineView(
             }
         }
     }
+    val advisoryState by runtime.advisory.state.collectAsStateWithLifecycle()
+    val advisoryScope = rememberCoroutineScope()
+    var activeWorkflowPlan by remember { mutableStateOf<com.poracode.app.protocol.richchat.WorkflowViewPlan?>(null) }
+    val activeThreadId = transcript.key.threadId
+    activeWorkflowPlan?.let { plan ->
+        RichWorkflowViewerSheet(plan = plan, onDismiss = { activeWorkflowPlan = null })
+    }
     RichTimelineScrollContainer(listState, initialScrollComplete, modifier, bottomOverlayClearance) {
         LazyColumn(
             modifier = backdrop
@@ -209,24 +220,26 @@ fun RichTimelineView(
                 when (entry) {
                     is RichTimelineEntry.Item -> item(key = entry.node.item.id) {
                         Column {
-                            RichTimelineNode(
-                                entry.node,
-                                runtime,
-                                canMutate && entry.node.item.id !in inheritedIds,
-                                onTruncateItem,
-                                revertableItemIds,
-                                onRevertItem,
-                                canTruncateItem = canTruncateItem,
-                                depth = 0,
-                                trailingActions = { forkFooter(entry) },
-                            )
-                            workedForLabel(entry, displayedTurns)?.let { label ->
-                                Text(
-                                    label,
-                                    modifier = Modifier.padding(top = 2.dp),
-                                    style = PoracodeTextStyles.rowDescription,
-                                    color = colors.muted,
+                            RichTimelineAdvisoryChrome(
+                                item = entry.node.item,
+                                advisoryState = advisoryState,
+                                onOpenWorkflow = { activeWorkflowPlan = it },
+                                onLoadFull = {
+                                    advisoryScope.launch {
+                                        runtime.advisory.loadDeferredHistoryItem(activeThreadId, entry.node.item.id)
+                                    }
+                                },
+                            ) { resolvedItem ->
+                                val node = if (resolvedItem === entry.node.item) entry.node else entry.node.copy(item = resolvedItem)
+                                RichTimelineNode(
+                                    node, runtime, canMutate && entry.node.item.id !in inheritedIds,
+                                    onTruncateItem, revertableItemIds, onRevertItem,
+                                    canTruncateItem = canTruncateItem, depth = 0,
+                                    trailingActions = { forkFooter(entry) },
                                 )
+                            }
+                            workedForLabel(entry, displayedTurns)?.let { label ->
+                                Text(label, Modifier.padding(top = 2.dp), style = PoracodeTextStyles.rowDescription, color = colors.muted)
                             }
                         }
                     }
@@ -280,6 +293,7 @@ private fun RichTimelineGroup(
     Column(Modifier.fillMaxWidth()) {
         Row(
             Modifier
+                .minimumInteractiveComponentSize()
                 .clip(RoundedCornerShape(8.dp))
                 .clickable(role = Role.Button, onClickLabel = toggleLabel) { expanded = !expanded }
                 .semantics(mergeDescendants = true) { contentDescription = description }

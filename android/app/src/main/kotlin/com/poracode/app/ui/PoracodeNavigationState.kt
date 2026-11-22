@@ -18,6 +18,7 @@ internal class PoracodeNavigationState {
     var showHosts by mutableStateOf(false)
     var showProjects by mutableStateOf(false)
     var showPorts by mutableStateOf(false)
+    var showWorkspaces by mutableStateOf(false)
     var settingsPane by mutableStateOf<String?>(null)
     var settingsConnectionId by mutableStateOf<String?>(null)
     var pendingHostDestination by mutableStateOf<String?>(null)
@@ -77,6 +78,7 @@ internal class PoracodeNavigationState {
         showHosts = false
         showProjects = false
         showPorts = false
+        showWorkspaces = false
         settingsPane = null
         settingsConnectionId = null
         if (!preservePendingHostDestination) {
@@ -120,6 +122,7 @@ internal class PoracodeNavigationState {
                     state.projectUtilityConnectionId.orEmpty(),
                     state.projectUtilityName.orEmpty(),
                     state.settingsIntegrationsPage.orEmpty(),
+                    state.showWorkspaces,
                 )
             },
             restore = { values ->
@@ -145,6 +148,7 @@ internal class PoracodeNavigationState {
                     projectUtilityName = (values[18] as String).ifEmpty { null }
                     settingsIntegrationsPage = (values.getOrNull(19) as? String)
                         ?.ifEmpty { null }
+                    showWorkspaces = (values.getOrNull(20) as? Boolean) ?: false
                 }
             },
         )

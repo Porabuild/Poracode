@@ -68,7 +68,7 @@ internal fun PairingScanOverlay(
 
     Box(modifier = modifier.fillMaxSize()) {
         Canvas(modifier = Modifier.fillMaxSize()) {
-            val windowSide = minOf(size.width, size.height) * 0.68f
+            val windowSide = minOf(minOf(size.width, size.height) * 0.68f, 340.dp.toPx())
             val left = (size.width - windowSide) / 2f
             val top = (size.height - windowSide) / 2f - size.height * 0.04f
             val window = Rect(Offset(left, top), Size(windowSide, windowSide))

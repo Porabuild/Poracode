@@ -1,5 +1,6 @@
 package com.poracode.app.ui.projects
 
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
@@ -33,44 +34,60 @@ internal fun ProjectNotesScreen(
     identity: ProjectIdentity,
     access: ProjectUiAccess,
     onBack: () -> Unit,
+    embeddedInInspector: Boolean = false,
 ) {
-    val backModifier = rememberPredictiveBackModifier(onBack = onBack)
+    val backModifier = rememberPredictiveBackModifier(enabled = !embeddedInInspector, onBack = onBack)
     Scaffold(
         modifier = backModifier,
-        topBar = {
-            PoracodeTopAppBar(
-                title = { Text(stringResource(R.string.projects_notes)) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(
-                            PoracodeIcons.ArrowBack,
-                            contentDescription = stringResource(R.string.back),
-                        )
-                    }
-                },
-            )
+        contentWindowInsets = if (embeddedInInspector) {
+            androidx.compose.foundation.layout.WindowInsets(0, 0, 0, 0)
+        } else {
+            androidx.compose.material3.ScaffoldDefaults.contentWindowInsets
         },
-    ) { padding ->
-        LazyColumn(Modifier.fillMaxSize().padding(padding)) {
-            item("access") { ProjectAccessBanner(lease, access) }
-            item("project") {
-                Text(
-                    project.name,
-                    style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+        topBar = {
+            if (!embeddedInInspector) {
+                PoracodeTopAppBar(
+                    title = { Text(stringResource(R.string.projects_notes)) },
+                    navigationIcon = {
+                        IconButton(onClick = onBack) {
+                            Icon(
+                                PoracodeIcons.ArrowBack,
+                                contentDescription = stringResource(R.string.back),
+                            )
+                        }
+                    },
                 )
             }
-            item("notes-${identity.connectionId.value}:${identity.projectId}") {
-                Box(Modifier.padding(horizontal = 16.dp)) {
-                    ProjectNotesSection(
-                        runtime = runtime,
-                        identity = identity,
-                        access = access,
+        },
+    ) { padding ->
+        com.poracode.app.ui.components.PoracodeCenteredDetail(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .imePadding(),
+            maxWidth = 760.dp,
+        ) {
+            LazyColumn(Modifier.fillMaxSize()) {
+                item("access") { ProjectAccessBanner(lease, access) }
+                item("project") {
+                    Text(
+                        project.name,
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                     )
                 }
-            }
-            item("bottom-space") {
-                androidx.compose.foundation.layout.Spacer(Modifier.height(24.dp))
+                item("notes-${identity.connectionId.value}:${identity.projectId}") {
+                    Box(Modifier.padding(horizontal = 16.dp)) {
+                        ProjectNotesSection(
+                            runtime = runtime,
+                            identity = identity,
+                            access = access,
+                        )
+                    }
+                }
+                item("bottom-space") {
+                    androidx.compose.foundation.layout.Spacer(Modifier.height(24.dp))
+                }
             }
         }
     }

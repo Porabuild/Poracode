@@ -85,9 +85,8 @@ fun RuntimeContextUsageDock(
             controls()
         }
         if (expanded) {
-            OutlinedCard(Modifier.fillMaxWidth()) {
+            com.poracode.app.ui.components.PoracodeCard(Modifier.fillMaxWidth()) {
                 Column(
-                    Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     Row(

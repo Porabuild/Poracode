@@ -261,11 +261,9 @@ const PLANNED_ABSENCE_TOKENS: Record<
   string,
   ReadonlyArray<{ platform: Platform; token: string }>
 > = {
-  "thread-item-presentations": [{ platform: "android", token: "/item-presentations" }],
   ...Object.fromEntries(
     [
       "conversation-search",
-      "thread-history-item",
       "thread-history-prompts",
       "thread-transfer-command",
       "thread-transfer-upload",
@@ -287,7 +285,6 @@ const PLANNED_ABSENCE_TOKENS: Record<
       "resolveLinkMetadata",
       "getLatestAgentVersion",
       "resolveAgentAccount",
-      "refreshAgentStatuses",
       "listAcpRegistry",
       "installAcpRegistryAgent",
       "removeAcpRegistryAgent",
@@ -308,9 +305,6 @@ const PLANNED_ABSENCE_TOKENS: Record<
       ],
     ]),
   ),
-  refreshAgentStatuses: [{ platform: "android", token: '"refreshAgentStatuses"' }],
-  listImportableSessions: [{ platform: "android", token: '"listImportableSessions"' }],
-  hexVoice: [{ platform: "android", token: '"hexVoice"' }],
   // Scoped review operations that a native platform has not wired keep their quoted wire
   // name out of that platform's tree until the ledger records the implementation.
   ...Object.fromEntries(
