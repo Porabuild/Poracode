@@ -1,8 +1,17 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 import { COMPUTER_USE_CORE_SKILL, COMPUTER_USE_MCP_INSTRUCTIONS } from "./instructions";
 import computerUsePlugin from "../../../../resources/plugins/computer-use/plugin.json";
 import { PORACODE_EXTENSION_NAMESPACE } from "@/shared/plugins/spec/extensions";
+
+const CORE_SKILL_BODY = readFileSync(
+  new URL(
+    "../../../../resources/plugins/computer-use/skills/computer-use/SKILL.md",
+    import.meta.url,
+  ),
+  "utf8",
+);
 
 describe("computer use instructions", () => {
   // Wording order is the whole mechanism here: an agent that reads about
@@ -38,29 +47,25 @@ describe("computer use instructions", () => {
   });
 
   it("does not promise a macOS-only scroll walk on every platform", () => {
-    const walk = COMPUTER_USE_MCP_INSTRUCTIONS.indexOf("the host walks up");
+    const walk = CORE_SKILL_BODY.indexOf("the host walks up");
     expect(walk).toBeGreaterThan(-1);
-    expect(COMPUTER_USE_MCP_INSTRUCTIONS.slice(0, walk)).toContain("on macOS");
-    expect(COMPUTER_USE_MCP_INSTRUCTIONS).toContain(
-      "On Windows and Linux, use a node whose find_elements actions list includes scroll",
+    expect(CORE_SKILL_BODY.slice(0, walk)).toContain("On macOS");
+    expect(CORE_SKILL_BODY).toContain(
+      "On Windows and Linux, use a node whose `find_elements` actions list includes `scroll`",
     );
   });
 
   it("treats set_value and clipped nodes as tree conventions, not click targets", () => {
-    expect(COMPUTER_USE_MCP_INSTRUCTIONS).toContain(
-      "scroll, context_menu and set_value on every node",
-    );
-    expect(COMPUTER_USE_MCP_INSTRUCTIONS).toContain("A node marked clipped");
-    expect(COMPUTER_USE_MCP_INSTRUCTIONS).toContain(
-      "consecutive clipped siblings collapse to a count",
-    );
-    expect(COMPUTER_USE_MCP_INSTRUCTIONS).toContain(
+    expect(CORE_SKILL_BODY).toContain("`scroll`, `context_menu` and `set_value` on every node");
+    expect(CORE_SKILL_BODY).toContain("A node marked `clipped`");
+    expect(CORE_SKILL_BODY).toContain("consecutive clipped siblings collapse to a count");
+    expect(CORE_SKILL_BODY).toContain(
       "When a webarea sits beside browser chrome the text starts at the page",
     );
   });
 
   it("does not treat unverified invoke as a reason to fire the button twice", () => {
-    expect(COMPUTER_USE_MCP_INSTRUCTIONS).toContain(
+    expect(CORE_SKILL_BODY).toContain(
       "if a bundled observation already shows the effect, treat that as the check and do not retry",
     );
   });
@@ -76,7 +81,7 @@ describe("computer use instructions", () => {
       "If locked, call enable once before inspection",
     );
     expect(COMPUTER_USE_MCP_INSTRUCTIONS).toContain(
-      "If still screen_locked or a locked_use_ note, stop and ask the user to unlock.",
+      "if still screen_locked or a locked_use_ note, stop and ask the user to unlock.",
     );
   });
 
@@ -95,7 +100,7 @@ describe("computer use instructions", () => {
   });
 
   // Testers paid this string on every session before the first tool call.
-  // Keep the safety wording; do not grow the tax back to a second page.
+  // Keep the safety wording; detailed tree/scroll reference stays in the core skill.
   it("tells the agent to load the plugin core skill before acting", () => {
     expect(COMPUTER_USE_CORE_SKILL).toBe(
       computerUsePlugin.extensions[PORACODE_EXTENSION_NAMESPACE].coreSkill,
@@ -108,8 +113,8 @@ describe("computer use instructions", () => {
     );
   });
 
-  it("stays short enough to leave room for the task", () => {
-    expect(COMPUTER_USE_MCP_INSTRUCTIONS.length).toBeLessThan(5_800);
-    expect(COMPUTER_USE_MCP_INSTRUCTIONS.length).toBeGreaterThan(4_000);
+  it("keeps bootstrap instructions compact while preserving safety rules", () => {
+    expect(COMPUTER_USE_MCP_INSTRUCTIONS.length).toBeLessThan(2_200);
+    expect(COMPUTER_USE_MCP_INSTRUCTIONS.length).toBeGreaterThan(900);
   });
 });

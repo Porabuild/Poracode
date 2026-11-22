@@ -160,6 +160,9 @@ export const BUILT_IN_MCP_SERVER_TOOL_NAMES = {
     "drag",
   ],
   "app-controls": [
+    "poracode_discover",
+    "poracode_read",
+    "poracode_run",
     "list_devices",
     "open_device",
     "screenshot_device",

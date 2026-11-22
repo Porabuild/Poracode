@@ -7,6 +7,7 @@ import {
   type StreamableHttpMcpIngressInfo,
 } from "../../mcp/StreamableHttpMcpIngress";
 import {
+  ADVERTISED_CHROME_TOOLS,
   CHROME_MCP_INSTRUCTIONS,
   CHROME_TOOLS,
   dispatchChromeTool,
@@ -37,7 +38,7 @@ export class ChromeMcpIngress {
     serverId: "chrome",
     serverInfo: { name: "chrome", version: "1.0.0" },
     instructions: CHROME_MCP_INSTRUCTIONS,
-    tools: CHROME_TOOLS,
+    tools: ADVERTISED_CHROME_TOOLS,
     normalizeToolName: normalizeChromeToolName,
     isKnownToolName: (name) => CHROME_TOOLS.some((tool) => tool.name === name),
     buildContext: (identity) => this.buildContext(identity),

@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { expect, it } from "vitest";
-import { CROSSAGENT_MCP_INSTRUCTIONS_BASE } from "./toolRegistry";
+import { CROSSAGENT_MCP_INSTRUCTIONS_BASE, TOOLS } from "./toolRegistry";
 
 // Real hosts repeat initialize instructions in discovered tool descriptions.
 // Budget the maintained source so detailed policies cannot silently move back there.
@@ -20,6 +20,7 @@ it("bounds repeated bootstrap and once-loaded coordination guidance", () => {
     "utf8",
   );
   expect(CROSSAGENT_MCP_INSTRUCTIONS_BASE.length * 5).toBeLessThan(3250);
+  expect(Buffer.byteLength(JSON.stringify(TOOLS), "utf8")).toBeLessThan(13_500);
   expect(core.length).toBeLessThan(5500);
   expect(review.length).toBeLessThan(1600);
   expect(core).toContain("Active steering is rare");

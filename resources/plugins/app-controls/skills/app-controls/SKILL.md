@@ -7,6 +7,8 @@ description: Inspect and drive Poracode itself — the Terminal panel, other thr
 
 Use Poracode's `poracode` MCP when the task is about the running app rather than the code in front of you: what a Terminal pane is printing, what another thread is doing, the project's git or pull-request state, or the user's schedules and settings. Prefer ordinary file and shell work for anything that is really a code change.
 
+Hot-path tools (`get_current_thread`, `list_threads`, `get_thread`, `read_thread`, `create_thread`, `send_to_thread`, `wait_for_thread`, `update_thread`, `stop_thread`, `list_terminals`, `read_terminal`, `list_projects`, `search`, `git_status`, `git_diff`, `git_stage`, `git_commit`, `git_sync`, `gh_list_prs`, `gh_get_pr`) are advertised directly. Every other operation named below is **not** a bare top-level tool: call `poracode_discover` (by `domain`, `query`, or `operations`) to inspect names and input schemas, then pass that operation name as `operation` to `poracode_read({ operation, params })` (read-only) or `poracode_run({ operation, params })` (mutating).
+
 Schedule results are persistent: use `list_schedule_run_inbox` with `filter`, optional
 `search`, and a `cursor` from the last row (`startedAt|id`) to review older results.
 Use `mark_schedule_run_read`, `mark_schedule_run_unread`, `archive_schedule_run`,
@@ -21,15 +23,14 @@ same-agent GUI conversation. Use `pr_watch` for PR-watch configuration and
 automated fixes or merging, or changing a workflow run.
 
 `create_thread` inherits the New thread page's plugin/MCP defaults. Override
-`browserMcp`, `crossagentMcp`, `chromeMcp`, and `computerUse` with booleans;
-`mcpServers` maps configured server ids to booleans, and `plugins` maps installed
-manifest names to booleans. These choices are per thread and survive resume;
-global hard disables and provider/platform restrictions still apply. Discover
-custom server ids with `list_mcp_servers` (pass the target `projectId`) and installed plugin names
-with `list_plugins` on hosts that advertise it. On older hosts, use
-`get_settings` (`section: "installedPlugins"`). Attach files or images to
-the first message with `attachments: [{path, mimeType?}]`; paths must be absolute
-files on this host, and image MIME types are inferred from their extension.
+`browserMcp`, `crossagentMcp`, `chromeMcp`, `computerUse`, `mcpServerOverrides`,
+and `pluginOverrides` inside `config`. These choices are per thread and survive
+resume; global hard disables and provider/platform restrictions still apply.
+Discover custom server ids with `list_mcp_servers` (pass the target `projectId`)
+and installed plugin names with `list_plugins`. Attach files or images to the
+first message with `segments: [{kind: "attachment", path, mimeType?}]`; paths
+must be absolute files on this host, and image MIME types are inferred from
+their extension.
 
 Custom MCP servers are global (shared settings) or belong to one project; a
 project server overrides a global one with the same name in that project. The

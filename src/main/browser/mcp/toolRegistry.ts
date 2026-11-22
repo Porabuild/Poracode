@@ -10,6 +10,7 @@
 export { dispatchTool } from "./tools/dispatch";
 export { formatToolResult } from "./tools/formatResult";
 export {
+  ADVERTISED_TOOLS,
   BROWSER_MCP_INSTRUCTIONS,
   isKnownToolName,
   normalizeToolName,

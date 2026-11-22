@@ -7,7 +7,7 @@ import {
   scheduleRunsArgsSchema,
 } from "./scheduleSchemas";
 import { isHomeProjectId } from "@/shared/homeScope";
-import { type ScheduledTask, type ScheduledTaskInput } from "@/shared/contracts";
+import { type ScheduledTask } from "@/shared/contracts";
 import { appControlToolDomain, defineAppControlTool } from "../defineTools";
 import {
   assertNotSelf,
@@ -19,18 +19,14 @@ import {
 const createSchedule = defineAppControlTool({
   name: "create_schedule",
   description:
-    "Create a schedule with the app's model config and recurrence. Pass projectId to choose its project, or null for Home. When omitted, the caller's project, agent and model supply the defaults. Legacy model and effort inputs are also accepted.",
+    "Create a schedule with model config and recurrence. Pass projectId or null for Home; omitted project, agent, and config inherit caller defaults.",
   input: createArgsSchema,
-  run: ({ projectId, config, model, effort, agentKind, ...fields }, ctx) => {
-    rejectMixedConfig(config, model, effort);
+  run: ({ projectId, config, agentKind, ...fields }, ctx) => {
     const source = ctx.identity.threadId ? ctx.getThread(ctx.identity.threadId) : null;
     const resolvedAgent = agentKind ?? source?.agentKind;
-    const resolvedModel = model ?? source?.config.model;
+    const resolvedModel = source?.config.model;
     if (!resolvedAgent || (!config && !resolvedModel))
-      throw new Error(
-        "Provide agentKind and config or model when the calling thread has no defaults.",
-      );
-    const inheritedEffort = effort ?? source?.config.effort;
+      throw new Error("Provide agentKind and config when the calling thread has no defaults.");
     return ctx.scheduleService.create({
       ...fields,
       agentKind: resolvedAgent,
@@ -42,7 +38,7 @@ const createSchedule = defineAppControlTool({
           : scheduleProject(ctx, projectId),
       config: config ?? {
         model: resolvedModel!,
-        ...(inheritedEffort !== undefined ? { effort: inheritedEffort } : {}),
+        ...(source?.config.effort !== undefined ? { effort: source.config.effort } : {}),
         ...(source?.config.fast !== undefined ? { fast: source.config.fast } : {}),
       },
     });
@@ -52,13 +48,10 @@ const createSchedule = defineAppControlTool({
 const updateSchedule = defineAppControlTool({
   name: "update_schedule",
   description:
-    "Update selected schedule fields. Pass projectId: null to move it to Home, or config to set the complete model selection. Omitted fields retain their saved values.",
+    "Update selected schedule fields. Pass projectId: null for Home or config for model selection; omitted fields keep saved values.",
   input: updateArgsSchema,
-  run: ({ id, projectId, config, model, effort, ...patch }, ctx) => {
-    rejectMixedConfig(config, model, effort);
+  run: ({ id, projectId, config, ...patch }, ctx) => {
     const current = requireSchedule(ctx, id);
-    const { effort: previousEffort, ...baseConfig } = current.config;
-    const nextEffort = effort === undefined ? previousEffort : effort;
     return ctx.scheduleService.update(id, {
       name: patch.name ?? current.name,
       prompt: patch.prompt ?? current.prompt,
@@ -70,23 +63,10 @@ const updateSchedule = defineAppControlTool({
       ...((patch.automation ?? current.automation)
         ? { automation: patch.automation ?? current.automation }
         : {}),
-      config: config ?? {
-        ...baseConfig,
-        model: model ?? baseConfig.model,
-        ...(nextEffort != null ? { effort: nextEffort } : {}),
-      },
+      config: config ?? current.config,
     });
   },
 });
-
-function rejectMixedConfig(
-  config: ScheduledTaskInput["config"] | undefined,
-  model: string | undefined,
-  effort: string | null | undefined,
-): void {
-  if (config && (model !== undefined || effort !== undefined))
-    throw new Error("Pass config or the legacy model and effort fields.");
-}
 
 function scheduleProject(ctx: AppControlsToolContext, projectId: string | null | undefined) {
   return !projectId || isHomeProjectId(projectId) ? null : requireProject(ctx, projectId).id;

@@ -178,6 +178,14 @@ describe("ComputerUseMcpIngress", () => {
     expect(body.result.instructions).toContain('mode:"background" by default');
     expect(body.result.instructions).toContain("Use perform for a short deterministic sequence");
     expect(body.result.instructions).toContain("delivery or refused");
+
+    const listResponse = await fetch(`${info.url}/mcp`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${info.token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ jsonrpc: "2.0", id: 2, method: "tools/list", params: {} }),
+    });
+    const listBody = (await listResponse.json()) as { result: { tools: Array<{ name: string }> } };
+    expect(Buffer.byteLength(JSON.stringify(listBody.result.tools), "utf8")).toBeLessThan(13_500);
   });
 
   it("requires bearer auth before listing tools", async () => {

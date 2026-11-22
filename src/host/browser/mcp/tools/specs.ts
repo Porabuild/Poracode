@@ -2,12 +2,12 @@ import {
   loadPluginCoreSkillPhrase,
   uniqueCoreSkillForBuiltInMcp,
 } from "@/shared/plugins/builtInCoreSkills";
-import { PERFORM_TOOL } from "./perform";
+import { PERFORM_EXTENDED_PAGE_ACTIONS_SUMMARY, PERFORM_TOOL } from "./perform";
 import type { ToolSpec } from "./types";
 
 const BROWSER_CORE_SKILL = uniqueCoreSkillForBuiltInMcp("browser");
 
-export const BROWSER_MCP_INSTRUCTIONS = `Use the browser MCP server for browsing, inspecting, clicking, typing, screenshots, network/console checks, and local web app verification inside Poracode. Before the first browsing action, ${loadPluginCoreSkillPhrase(BROWSER_CORE_SKILL)}, then call browser.enable once and keep it enabled across the whole uninterrupted browser session so agent presence stays consistent between calls. Always call browser.disable before pausing to ask for user input, waiting for an external event, or finishing, and enable again when you resume. Use browser.perform to batch known page actions and a condition wait with one final compact observation; split at decisions and navigation and never replay completed actions after partial failure. Prefer browser.snapshot or browser.find before browser.click/fill/type, use @e refs from snapshots when possible, and call browser.api when you need the complete API map.`;
+export const BROWSER_MCP_INSTRUCTIONS = `Use the browser MCP server for browsing, inspecting, clicking, typing, screenshots, and web verification in Poracode. Before the first action, ${loadPluginCoreSkillPhrase(BROWSER_CORE_SKILL)}, call browser.enable once, and call browser.disable before pausing or finishing. Prefer browser.snapshot or browser.find (@e refs) before click/fill/type. Use browser.perform to batch actions or run extended page actions (${PERFORM_EXTENDED_PAGE_ACTIONS_SUMMARY}; pass observe:"none" to skip snapshot); split at decisions/navigation and never replay completed steps after partial failure, and call browser.api for the complete API map.`;
 
 const RAW_TOOLS: ToolSpec[] = [
   {
@@ -655,6 +655,44 @@ export const TOOLS: ToolSpec[] = RAW_TOOLS.map((tool) => ({
           openWorldHint: true,
         },
 }));
+
+/**
+ * Compact hot-path set advertised in `tools/list`. Eliminates redundant aliases
+ * (`inspect`, `wait_for*`, `get_url`, `get_title`) and routes rare page actions
+ * (`select`, `check`, `uncheck`, `hover`, `dblclick`, `focus`, `back`, `forward`,
+ * `get`, `is`, `query`, `frames`, `cookies`, `storage`, `eval`) through `perform`.
+ */
+export const ADVERTISED_BROWSER_TOOL_NAMES = new Set([
+  "api",
+  "perform",
+  "enable",
+  "disable",
+  "list_tabs",
+  "open",
+  "new_tab",
+  "activate_tab",
+  "close_tab",
+  "navigate",
+  "reload",
+  "screenshot",
+  "snapshot",
+  "find",
+  "click",
+  "fill",
+  "type",
+  "press",
+  "wait",
+  "scroll",
+  "console",
+  "requests",
+  "dialog",
+  "addscript",
+  "addstyle",
+]);
+
+export const ADVERTISED_TOOLS: ToolSpec[] = TOOLS.filter((tool) =>
+  ADVERTISED_BROWSER_TOOL_NAMES.has(tool.name),
+);
 
 export const TOOL_NAMES = new Set(TOOLS.map((t) => t.name));
 

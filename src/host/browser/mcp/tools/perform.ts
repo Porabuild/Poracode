@@ -1,10 +1,12 @@
 import { dispatchPageTool, PAGE_TOOL_NAMES, type PageToolContext } from "./page";
 import type { ToolSpec } from "./types";
 
+export const PERFORM_EXTENDED_PAGE_ACTIONS_SUMMARY =
+  "select, check, uncheck, hover, dblclick, focus, back, forward, get, is, query, frames, cookies, storage, eval";
+
 export const PERFORM_TOOL: ToolSpec = {
   name: "perform",
-  description:
-    "Run up to 20 known page actions in order, stop on the first failure, and return one final compact snapshot. Use only previously observed targets; split at decisions or navigation. Include a condition wait before observing asynchronous changes. Completed actions are not rolled back; never replay the entire batch after a partial failure.",
+  description: `Run 1-20 ordered page actions on one tab, stop on failure, and return one compact snapshot (observe:'none' skips it). Also runs extended page actions (${PERFORM_EXTENDED_PAGE_ACTIONS_SUMMARY}). Never replay completed steps after partial failure.`,
   inputSchema: {
     type: "object",
     required: ["steps"],
@@ -21,7 +23,7 @@ export const PERFORM_TOOL: ToolSpec = {
           additionalProperties: true,
         },
         description:
-          "Each step has action plus that command's arguments, e.g. {action:'fill',ref:'@e1',text:'Ada'}. All steps target the same tab. Nested batches and tab changes are not allowed.",
+          "Ordered actions on one tab, e.g. {action:'fill',ref:'@e1',text:'Ada'} or {action:'select',ref:'@e2',value:'US'}.",
       },
       observe: { type: "string", enum: ["text", "none"], default: "text" },
     },

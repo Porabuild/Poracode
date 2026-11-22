@@ -43,22 +43,23 @@ describe("bundled computer-use skills", () => {
     }
   });
 
-  // Tree conventions and verified/refusal semantics are the MCP contract: they
-  // are paid on every attached session. Skills that copy them drift and double
-  // the token tax when a mention loads both layers.
-  it("leaves the tree and verified contract to the MCP instructions", () => {
+  // Tree conventions and verified/refusal semantics live once in the core
+  // computer-use skill (loaded on demand) instead of being paid on every
+  // session's MCP initialize instructions or duplicated into secondary skills.
+  it("keeps the tree and verified contract once in the core skill, not duplicated in secondary skills", () => {
     for (const [path, body] of SKILLS) {
-      expect({ path, restates: body.includes("consecutive clipped") }).toEqual({
+      const isCore = path.endsWith("skills/computer-use/SKILL.md");
+      expect({ path, hasContract: body.includes("consecutive clipped") }).toEqual({
         path,
-        restates: false,
+        hasContract: isCore,
       });
-      expect({ path, restates: body.includes("webarea sits beside") }).toEqual({
+      expect({ path, hasContract: body.includes("webarea sits beside") }).toEqual({
         path,
-        restates: false,
+        hasContract: isCore,
       });
-      expect({ path, restates: /"confirmed" means it watched/i.test(body) }).toEqual({
+      expect({ path, hasContract: /`?"confirmed"`? means it watched/i.test(body) }).toEqual({
         path,
-        restates: false,
+        hasContract: isCore,
       });
     }
   });

@@ -51,6 +51,7 @@ import type {
 } from "../../threads/appThreadLauncher";
 import { ThreadStateBroker } from "../../threads/threadStateBroker";
 import {
+  ALL_OPERATIONS,
   APP_CONTROLS_MCP_INSTRUCTIONS,
   TOOLS,
   dispatchTool,
@@ -770,42 +771,58 @@ describe("Poracode app control tools — threads", () => {
     });
   });
 
-  it("create_thread requests a worktree only when enabled", async () => {
+  it("create_thread requests a worktree with canonical branch fields", async () => {
     const { ctx, createThread } = context();
     await dispatchTool(
       "create_thread",
-      { projectId: "p", prompt: "x", worktree: { enabled: true, branch: "feature/x" } },
+      { projectId: "p", prompt: "x", worktreeBranch: "feature/x", worktreeIsNewBranch: true },
       ctx,
     );
     expect(createThread).toHaveBeenCalledWith(
-      expect.objectContaining({ worktree: { branch: "feature/x" } }),
+      expect.objectContaining({ worktree: { branch: "feature/x", createBranch: true } }),
     );
   });
 
-  it("create_thread carries explicit tool choices and attachments without changing app defaults", async () => {
+  it("create_thread carries explicit tool choices in config and attachments in segments without changing app defaults", async () => {
     const { ctx, createThread, settingsWrite } = context();
-    const choices = {
+    const config = {
+      model: "gpt-5.6",
       browserMcp: true,
       crossagentMcp: false,
       chromeMcp: true,
       computerUse: true,
-      mcpServers: { custom: true, other: false },
-      plugins: { github: true, mail: false },
-      attachments: [{ path: "/tmp/image.png", mimeType: "image/png" }, { path: "/tmp/notes.txt" }],
+      mcpServerOverrides: { custom: true, other: false },
+      pluginOverrides: { github: true, mail: false },
     };
-    await dispatchTool("create_thread", { projectId: "p", prompt: "Read these", ...choices }, ctx);
-    expect(createThread).toHaveBeenCalledWith(expect.objectContaining(choices));
+    const segments = [
+      { kind: "attachment", path: "/tmp/image.png", mimeType: "image/png" },
+      { kind: "attachment", path: "/tmp/notes.txt" },
+    ];
+    await dispatchTool(
+      "create_thread",
+      { projectId: "p", prompt: "Read these", config, segments },
+      ctx,
+    );
+    expect(createThread).toHaveBeenCalledWith(expect.objectContaining({ config, segments }));
     expect(settingsWrite).not.toHaveBeenCalled();
     const spec = TOOLS.find((tool) => tool.name === "create_thread")!;
     expect(spec.inputSchema.properties).toMatchObject({
-      browserMcp: { type: "boolean" },
-      crossagentMcp: { type: "boolean" },
-      chromeMcp: { type: "boolean" },
-      computerUse: { type: "boolean" },
-      plugins: { type: "object" },
-      mcpServers: { type: "object" },
-      attachments: { type: "array" },
+      config: {
+        type: "object",
+        properties: {
+          browserMcp: { type: "boolean" },
+          crossagentMcp: { type: "boolean" },
+          chromeMcp: { type: "boolean" },
+          computerUse: { type: "boolean" },
+          pluginOverrides: { type: "object" },
+          mcpServerOverrides: { type: "object" },
+        },
+      },
+      segments: { type: "array" },
     });
+    expect(spec.inputSchema.properties).not.toHaveProperty("browserMcp");
+    expect(spec.inputSchema.properties).not.toHaveProperty("attachments");
+    expect(spec.inputSchema.properties).not.toHaveProperty("worktree");
   });
 
   it("advertises and validates the composer-shaped thread launch", async () => {
@@ -821,7 +838,6 @@ describe("Poracode app control tools — threads", () => {
     };
     expect(TOOLS.find(({ name }) => name === "create_thread")?.inputSchema).toMatchObject({
       type: "object",
-      additionalProperties: false,
       properties: {
         config: { type: "object", properties: { fast: { type: "boolean" } } },
         existingWorktreePath: { type: "string" },
@@ -2210,13 +2226,13 @@ describe("Poracode app control tools — terminal / steer / rollback", () => {
     expect(APP_CONTROLS_MCP_INSTRUCTIONS).toContain(
       "omitting worktreePath targets the project root",
     );
-    expect(TOOLS.find((tool) => tool.name === "list_workspaces")?.description).toContain(
+    expect(ALL_OPERATIONS.find((tool) => tool.name === "list_workspaces")?.description).toContain(
       "Distinct from git worktrees",
     );
     expect(TOOLS.find((tool) => tool.name === "update_thread")?.description).toContain(
       "ungroupAll",
     );
-    expect(TOOLS.find((tool) => tool.name === "update_project")?.description).toContain(
+    expect(ALL_OPERATIONS.find((tool) => tool.name === "update_project")?.description).toContain(
       "file it into a workspace",
     );
   });

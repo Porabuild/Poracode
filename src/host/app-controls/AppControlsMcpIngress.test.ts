@@ -67,6 +67,8 @@ import { nativeBindingEnv, sqliteAvailable } from "@/host/db/runtimeItems.testFi
 import type { ScheduleService } from "../schedules/ScheduleService";
 import type { CreateAppThreadRequest, CreateAppThreadResult } from "../threads/appThreadLauncher";
 import { AppControlsMcpIngress, type AppControlsMcpIngressDeps } from "./AppControlsMcpIngress";
+import { appControlAnnotations } from "./mcp/toolAnnotations";
+import { ALL_OPERATIONS, isKnownToolName, TOOLS } from "./mcp/toolRegistry";
 
 type SC = AppControlsMcpIngressDeps["supervisor"];
 
@@ -351,15 +353,18 @@ function deps(overrides: Partial<AppControlsMcpIngressDeps> = {}): AppControlsMc
   };
 }
 
-async function callTool(
+async function rawCallTool(
   url: string,
   token: string,
   name: string,
   args: Record<string, unknown>,
-  proof?: string,
+  options?: { proof?: string; disabledTools?: readonly string[] },
 ) {
   const endpoint = new URL(`${url}/mcp?thread=thread-1`);
-  if (proof) endpoint.searchParams.set("deviceProof", proof);
+  if (options?.proof) endpoint.searchParams.set("deviceProof", options.proof);
+  for (const disabled of options?.disabledTools ?? []) {
+    endpoint.searchParams.append("disable", disabled);
+  }
   const response = await fetch(endpoint, {
     method: "POST",
     headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
@@ -372,19 +377,43 @@ async function callTool(
   });
   expect(response.status).toBe(200);
   const body = (await response.json()) as {
-    result?: { isError?: boolean; content?: Array<{ text?: string }> };
+    result?: {
+      isError?: boolean;
+      content?: Array<{ type?: string; text?: string; data?: string; mimeType?: string }>;
+    };
   };
   const text = body.result?.content?.[0]?.text;
   const isError = body.result?.isError === true;
   return {
     isError,
     error: isError ? text : undefined,
+    content: body.result?.content ?? [],
     payload: text && !isError ? (JSON.parse(text) as Record<string, unknown>) : undefined,
   };
 }
 
+async function callTool(
+  url: string,
+  token: string,
+  name: string,
+  args: Record<string, unknown>,
+  proof?: string,
+) {
+  if (isKnownToolName(name)) {
+    return rawCallTool(url, token, name, args, proof ? { proof } : undefined);
+  }
+  const gateway = appControlAnnotations(name).readOnlyHint ? "poracode_read" : "poracode_run";
+  return rawCallTool(
+    url,
+    token,
+    gateway,
+    { operation: name, params: args },
+    proof ? { proof } : undefined,
+  );
+}
+
 describe("AppControlsMcpIngress", () => {
-  it("advertises the complete tool catalog to a standard MCP client", async () => {
+  it("advertises the compact hot-path + gateway catalog and exposes all operations via poracode_discover", async () => {
     ingress = new AppControlsMcpIngress(deps());
     const info = await ingress.start();
     const client = new Client({ name: "catalog-regression", version: "1.0.0" });
@@ -395,36 +424,50 @@ describe("AppControlsMcpIngress", () => {
         }) as Transport,
       );
       const { tools } = await client.listTools();
+      expect(tools.map(({ name }) => name)).toEqual(TOOLS.map(({ name }) => name));
       expect(tools.every(({ annotations }) => annotations !== undefined)).toBe(true);
       const annotations = (name: string) => tools.find((tool) => tool.name === name)?.annotations;
-      expect(annotations("read_project_file")).toEqual({
+      expect(annotations("poracode_discover")).toEqual({
         readOnlyHint: true,
         destructiveHint: false,
         openWorldHint: false,
       });
-      expect(annotations("review_get_pr")).toEqual({
+      expect(annotations("poracode_read")).toEqual({
         readOnlyHint: true,
         destructiveHint: false,
         openWorldHint: true,
       });
-      expect(annotations("remove_workspace")).toEqual({
+      expect(annotations("poracode_run")).toEqual({
         readOnlyHint: false,
         destructiveHint: true,
+        openWorldHint: true,
+      });
+      expect(annotations("list_terminals")).toEqual({
+        readOnlyHint: true,
+        destructiveHint: false,
         openWorldHint: false,
       });
-      for (const name of [
-        "manage_experiment",
-        "manage_provider_auth",
-        "probe_mcp_server",
-        "close_local_port",
-      ]) {
-        expect(annotations(name)).toEqual({
-          readOnlyHint: false,
-          destructiveHint: true,
-          openWorldHint: true,
-        });
-      }
-      expect(tools.map(({ name }) => name)).toEqual(
+      expect(annotations("gh_get_pr")).toEqual({
+        readOnlyHint: true,
+        destructiveHint: false,
+        openWorldHint: true,
+      });
+      expect(annotations("create_thread")).toEqual({
+        readOnlyHint: false,
+        destructiveHint: true,
+        openWorldHint: true,
+      });
+
+      const discoverAll = await client.callTool({ name: "poracode_discover", arguments: {} });
+      const domainIndex = JSON.parse(
+        (discoverAll.content as Array<{ text?: string }>)[0]?.text ?? "{}",
+      ) as { domains: Array<{ domain: string; read?: string[]; write?: string[] }> };
+      const allDiscoveredNames = domainIndex.domains.flatMap((entry) => [
+        ...(entry.read ?? []),
+        ...(entry.write ?? []),
+      ]);
+      expect(allDiscoveredNames).toHaveLength(ALL_OPERATIONS.length);
+      expect(allDiscoveredNames).toEqual(
         expect.arrayContaining([
           "list_plugins",
           "list_plugin_catalogs",
@@ -483,7 +526,31 @@ describe("AppControlsMcpIngress", () => {
         ]),
       );
       expect(client.getServerVersion()?.version).toBe(appControlsManifest.version);
-      expect(tools.find((tool) => tool.name === "git_file_content")?.inputSchema).toMatchObject({
+
+      const inspectSchemas = async (names: string[]) => {
+        const res = await client.callTool({
+          name: "poracode_discover",
+          arguments: { operations: names },
+        });
+        const parsed = JSON.parse((res.content as Array<{ text?: string }>)[0]?.text ?? "{}") as {
+          operations: Array<{ name: string; inputSchema: Record<string, unknown> }>;
+        };
+        return new Map(parsed.operations.map((op) => [op.name, op.inputSchema]));
+      };
+
+      const schemas = await inspectSchemas([
+        "git_file_content",
+        "git_sync",
+        "merge_worktree",
+        "git_repository",
+        "git_branch",
+        "read_thread_history",
+        "delete_worktree_group",
+        "manage_terminal",
+        "thread_follow_ups",
+        "control_device",
+      ]);
+      expect(schemas.get("git_file_content")).toMatchObject({
         type: "object",
         required: ["filePath", "staged", "projectId"],
         properties: {
@@ -494,14 +561,14 @@ describe("AppControlsMcpIngress", () => {
         },
       });
       for (const name of ["git_sync", "merge_worktree", "git_repository", "git_branch"]) {
-        const schema = tools.find((tool) => tool.name === name)?.inputSchema;
+        const schema = schemas.get(name);
         expect(schema).toMatchObject({
           type: "object",
           properties: { action: { type: "string", enum: expect.any(Array) } },
         });
         expect(schema).not.toHaveProperty("oneOf");
       }
-      expect(tools.find((tool) => tool.name === "read_thread_history")?.inputSchema).toMatchObject({
+      expect(schemas.get("read_thread_history")).toMatchObject({
         type: "object",
         required: expect.arrayContaining(["action", "threadId"]),
         properties: {
@@ -509,26 +576,22 @@ describe("AppControlsMcpIngress", () => {
           itemId: { type: "string" },
         },
       });
-      expect(
-        tools.find((tool) => tool.name === "read_thread_history")?.inputSchema,
-      ).not.toHaveProperty("oneOf");
-      expect(
-        tools.find((tool) => tool.name === "delete_worktree_group")?.inputSchema,
-      ).toMatchObject({
+      expect(schemas.get("read_thread_history")).not.toHaveProperty("oneOf");
+      expect(schemas.get("delete_worktree_group")).toMatchObject({
         type: "object",
         required: ["projectId", "worktreePath", "threadIds"],
       });
-      expect(tools.find((tool) => tool.name === "manage_terminal")?.inputSchema).toMatchObject({
+      expect(schemas.get("manage_terminal")).toMatchObject({
         type: "object",
         properties: { action: { type: "string", enum: expect.arrayContaining(["list", "start"]) } },
       });
-      expect(tools.find((tool) => tool.name === "thread_follow_ups")?.inputSchema).toMatchObject({
+      expect(schemas.get("thread_follow_ups")).toMatchObject({
         type: "object",
         properties: {
           action: { type: "string", enum: expect.arrayContaining(["list", "enqueue", "steer"]) },
         },
       });
-      expect(tools.find((tool) => tool.name === "control_device")?.inputSchema).toMatchObject({
+      expect(schemas.get("control_device")).toMatchObject({
         type: "object",
         properties: {
           kind: { type: "string", enum: expect.arrayContaining(["tap", "text", "fold"]) },
@@ -537,6 +600,73 @@ describe("AppControlsMcpIngress", () => {
     } finally {
       await client.close();
     }
+  });
+
+  it("enforces gateway read-only guards, disabledTools, strict advertised surface, and self-healing schema errors", async () => {
+    ingress = new AppControlsMcpIngress(deps());
+    const info = await ingress.start();
+
+    // Unadvertised extended operation cannot be called directly by name
+    const directExtended = await rawCallTool(info.url, info.token, "list_schedules", {});
+    expect(directExtended.isError).toBe(true);
+    expect(directExtended.error).toContain("Unknown tool");
+
+    // Mutating operation is rejected by poracode_read
+    const writeViaRead = await rawCallTool(info.url, info.token, "poracode_read", {
+      operation: "create_schedule",
+      params: {},
+    });
+    expect(writeViaRead.isError).toBe(true);
+    expect(writeViaRead.error).toContain("poracode_run");
+
+    // Disabled operation is omitted from poracode_discover and blocked by poracode_read / poracode_run
+    const discoveredWithDisable = await rawCallTool(
+      info.url,
+      info.token,
+      "poracode_discover",
+      { operations: ["list_schedules", "create_schedule"] },
+      { disabledTools: ["create_schedule"] },
+    );
+    expect(discoveredWithDisable.isError).toBe(false);
+    expect(discoveredWithDisable.payload?.disabled).toEqual(["create_schedule"]);
+    const discoveredOps = discoveredWithDisable.payload?.operations as
+      | Array<{ name: string }>
+      | undefined;
+    expect(discoveredOps?.map((o) => o.name)).toEqual(["list_schedules"]);
+
+    const blockedRun = await rawCallTool(
+      info.url,
+      info.token,
+      "poracode_run",
+      { operation: "create_schedule", params: {} },
+      { disabledTools: ["create_schedule"] },
+    );
+    expect(blockedRun.isError).toBe(true);
+    expect(blockedRun.error).toContain("Tool disabled by Poracode: create_schedule");
+
+    // Narrow query auto-includes compacted inputSchema (<= 5 matches)
+    const notesQuery = await rawCallTool(info.url, info.token, "poracode_discover", {
+      query: "project notes",
+    });
+    expect(notesQuery.isError).toBe(false);
+    const noteOps = notesQuery.payload?.operations as Array<{
+      name: string;
+      inputSchema?: unknown;
+    }>;
+    expect(noteOps.map((op) => op.name)).toEqual(
+      expect.arrayContaining(["get_project_notes", "update_project_notes"]),
+    );
+    expect(noteOps.length).toBeLessThanOrEqual(5);
+    expect(noteOps.every((op) => op.inputSchema !== undefined)).toBe(true);
+
+    // Self-healing validation error returns expected inputSchema for immediate retry
+    const invalidParams = await rawCallTool(info.url, info.token, "poracode_read", {
+      operation: "get_project_notes",
+      params: {},
+    });
+    expect(invalidParams.isError).toBe(true);
+    expect(invalidParams.error).toContain("Expected inputSchema:");
+    expect(invalidParams.error).toContain("projectId");
   });
 
   it("reads staged and unstaged comparisons from the app's Git service over MCP", async () => {

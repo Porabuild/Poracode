@@ -58,8 +58,9 @@ commit, all applicable checks have completed successfully, required reviews are 
 merge. If a repository intentionally has no checks, establish that from its configuration and branch rules and
 report it explicitly. Resolve in-scope base conflicts and rerun affected verification; do not bypass protection.
 
-Call `gh_merge_pr` with the configured merge method and `expectedHeadSha` set to the verified SHA to reject a
-concurrent push atomically. On older hosts without that
+Call `poracode_run` with `operation: "gh_merge_pr"`, the configured merge method, and `expectedHeadSha` set to the
+verified SHA to reject a concurrent push atomically (call `poracode_discover({ operations: ["gh_merge_pr"] })` if you
+need its schema). On older hosts without that
 field, use `gh pr merge <number> --<method> --match-head-commit <verifiedSha>`, then refresh internally.
 A successful command may only queue a merge. Read back with `gh_get_pr` until GitHub actually reports `pr.state: merged`
 (or use an exact-number CLI read on an older host), and

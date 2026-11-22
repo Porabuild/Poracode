@@ -1,14 +1,11 @@
 import { z } from "zod";
 import { scheduledTaskInputSchema, scheduleRunInboxQuerySchema } from "@/shared/contracts";
 
-const legacyModel = z.string().min(1);
 export const createScheduleArgsSchema = scheduledTaskInputSchema
   .extend({
     enabled: scheduledTaskInputSchema.shape.enabled.default(true),
     agentKind: scheduledTaskInputSchema.shape.agentKind.optional(),
     config: scheduledTaskInputSchema.shape.config.optional(),
-    model: legacyModel.optional(),
-    effort: z.string().optional(),
   })
   .strict();
 
@@ -16,8 +13,6 @@ export const updateScheduleArgsSchema = scheduledTaskInputSchema
   .partial()
   .extend({
     id: z.string().uuid(),
-    model: legacyModel.optional(),
-    effort: z.string().nullable().optional(),
   })
   .strict();
 

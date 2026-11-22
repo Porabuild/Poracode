@@ -2,7 +2,11 @@ import {
   loadPluginCoreSkillPhrase,
   uniqueCoreSkillForBuiltInMcp,
 } from "@/shared/plugins/builtInCoreSkills";
-import { performPageActions, readPerformSteps } from "../mcp/tools/perform";
+import {
+  PERFORM_EXTENDED_PAGE_ACTIONS_SUMMARY,
+  performPageActions,
+  readPerformSteps,
+} from "../mcp/tools/perform";
 import { dispatchPageTool, PAGE_TOOL_NAMES } from "../mcp/tools/page";
 import { TOOLS } from "../mcp/tools/specs";
 import { threadGroupColor } from "@/shared/browserMcpThread";
@@ -37,18 +41,11 @@ export interface ChromeToolContext {
 const CHROME_CORE_SKILL = uniqueCoreSkillForBuiltInMcp("chrome");
 
 export const CHROME_MCP_INSTRUCTIONS = [
-  "These tools control the USER'S OWN Chrome browser through the Poracode companion extension —",
-  "real tabs, real cookies, real logged-in sessions. Treat every action as if the user performed it themselves.",
-  "By default you work in a BACKGROUND 'Poracode' tab group that does NOT steal the user's foreground tab:",
-  "open reuses your single background workspace tab (navigating it in place) and navigate/click/etc. run",
-  "there; tabs are never auto-closed. Pass newTab:true only when you truly need a second tab. Use attach",
-  "(with a tabId from list_tabs) only when the user asks you to act on a specific tab they already have open.",
-  "Prefer snapshot / find to discover elements (they return @e refs) before click / fill.",
-  `Use status first to confirm the extension is connected, then ${loadPluginCoreSkillPhrase(CHROME_CORE_SKILL)} and call chrome.enable once before the first browser action.`,
-  "Page commands use the same names and arguments as browser: snapshot, find, fill, type, click, press, wait, and perform. Batch known steps with perform for one final compact observation; split at decisions and navigation.",
-  "Keep Chrome enabled across the whole uninterrupted session so agent presence stays consistent between calls.",
-  "Always call chrome.disable before pausing to ask for user input, waiting for an external event, or finishing, and call chrome.enable again when you resume.",
-  "Destructive or account-affecting actions (purchases, deletions, messages) should be confirmed with the user first.",
+  "Controls the USER'S OWN Chrome browser via the Poracode companion extension (real tabs, cookies, logins).",
+  "Work in a BACKGROUND 'Poracode' tab group by default: open reuses one workspace tab (newTab:true opens another); use attach only when the user asks to act on an existing tab.",
+  `Call status first, ${loadPluginCoreSkillPhrase(CHROME_CORE_SKILL)}, call chrome.enable before actions, and call chrome.disable before pausing or finishing.`,
+  `Prefer snapshot/find (@e refs) before click/fill/type. Use perform to batch actions or run extended page actions (${PERFORM_EXTENDED_PAGE_ACTIONS_SUMMARY}; observe:'none' skips snapshot).`,
+  "Confirm destructive or account-affecting actions with the user first.",
 ].join(" ");
 
 /** Adapt a CdpSession to the `pageDriver` executor seam (pure JS injection). */
@@ -346,3 +343,34 @@ export const CHROME_TOOLS: ToolSpec[] = [
     },
   ),
 ];
+
+/**
+ * Compact hot-path set advertised in Chrome `tools/list`. All remaining page
+ * actions (`select`, `check`, `uncheck`, `hover`, `dblclick`, `focus`, `back`,
+ * `forward`, `get`, `is`, `query`, `frames`, `cookies`, `storage`, `eval`) run
+ * through `perform`.
+ */
+export const ADVERTISED_CHROME_TOOL_NAMES = new Set([
+  "status",
+  "enable",
+  "disable",
+  "list_tabs",
+  "open",
+  "attach",
+  "navigate",
+  "reload",
+  "screenshot",
+  "perform",
+  "snapshot",
+  "find",
+  "click",
+  "fill",
+  "type",
+  "press",
+  "wait",
+  "scroll",
+]);
+
+export const ADVERTISED_CHROME_TOOLS: ToolSpec[] = CHROME_TOOLS.filter((tool) =>
+  ADVERTISED_CHROME_TOOL_NAMES.has(tool.name),
+);
