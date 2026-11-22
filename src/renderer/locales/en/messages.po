@@ -8805,6 +8805,10 @@ msgstr "Hourly"
 msgid "Hours"
 msgstr "Hours"
 
+#: src/renderer/views/SettingsOverlay/parts/CrewsSettings.tsx
+msgid "How crews work"
+msgstr "How crews work"
+
 #: src/renderer/components/thread/MoveThreadDialog.tsx
 msgid "How moving works"
 msgstr "How moving works"
@@ -9243,14 +9247,6 @@ msgstr "Install {0}."
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Install {badge}"
 msgstr "Install {badge}"
-
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-#~ msgid "Install {env}"
-#~ msgstr "Install {env}"
-
-#: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
-#~ msgid "Install @cursor/sdk to configure its API key."
-#~ msgstr "Install @cursor/sdk to configure its API key."
 
 #: src/renderer/components/providers/antigravity/index.tsx
 #: src/renderer/views/SettingsOverlay/parts/antigravityRuntimeInstall.ts
@@ -11457,10 +11453,6 @@ msgstr "New Codex profile home directory"
 #: src/renderer/views/SettingsOverlay/parts/CrewsSettings.tsx
 msgid "New crew"
 msgstr "New crew"
-
-#: src/renderer/views/SettingsOverlay/parts/CrewsSettings.tsx
-msgid "New crews start as Crew only."
-msgstr "New crews start as Crew only."
 
 #: src/renderer/views/SettingsOverlay/parts/CursorProfileSettings.tsx
 msgid "New Cursor profile API key"

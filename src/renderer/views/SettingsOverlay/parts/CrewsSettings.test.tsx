@@ -202,4 +202,40 @@ describe("CrewsSettings", () => {
     expect(screen.queryByRole("button", { name: "Add fallback" })).not.toBeInTheDocument();
     expect(useSharedSettings.getState().crews[0]?.roles[0]?.id).toBe(saved.roles[0]?.id);
   });
+
+  it("moves the crew explanations into the header info tooltip", async () => {
+    function pointerPress(element: HTMLElement) {
+      fireEvent.pointerDown(element, { pointerType: "mouse", button: 0 });
+      fireEvent.click(element);
+    }
+
+    renderWithI18n(<CrewsSettings />);
+    fireEvent.click(document.querySelector('button[aria-label="New crew"]')!);
+    fireEvent.click(await screen.findByRole("option", { name: /^Blank crew/u }));
+    await waitFor(() => expect(useSharedSettings.getState().crews).toHaveLength(1));
+
+    expect(screen.queryByText("New crews start as Crew only.")).not.toBeInTheDocument();
+    expect(screen.queryByText(/If a role's agent is unavailable/)).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/The pencil-off icon marks a role told not to edit files:/),
+    ).not.toBeInTheDocument();
+
+    const info = screen.getByRole("button", { name: "How crews work" });
+    expect(info).toHaveAttribute("aria-expanded", "false");
+    pointerPress(info);
+    expect(info).toHaveAttribute("aria-expanded", "true");
+    expect(
+      await screen.findByText(/If a role's agent is unavailable, its fallbacks run\./),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/The pencil-off icon marks a role told not to edit files:/),
+    ).toBeInTheDocument();
+
+    pointerPress(info);
+    await waitFor(() => expect(info).toHaveAttribute("aria-expanded", "false"));
+    expect(screen.queryByText(/If a role's agent is unavailable/)).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/The pencil-off icon marks a role told not to edit files:/),
+    ).not.toBeInTheDocument();
+  });
 });

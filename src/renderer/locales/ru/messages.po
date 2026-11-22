@@ -8805,6 +8805,10 @@ msgstr "Ежечасно"
 msgid "Hours"
 msgstr "Часы"
 
+#: src/renderer/views/SettingsOverlay/parts/CrewsSettings.tsx
+msgid "How crews work"
+msgstr "Как работают команды"
+
 #: src/renderer/components/thread/MoveThreadDialog.tsx
 msgid "How moving works"
 msgstr "Как работает перенос"
@@ -9243,14 +9247,6 @@ msgstr "Установить {0}."
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Install {badge}"
 msgstr "Установить {badge}"
-
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-#~ msgid "Install {env}"
-#~ msgstr "Установить {env}"
-
-#: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
-#~ msgid "Install @cursor/sdk to configure its API key."
-#~ msgstr "Установите @cursor/sdk, чтобы настроить API-ключ."
 
 #: src/renderer/components/providers/antigravity/index.tsx
 #: src/renderer/views/SettingsOverlay/parts/antigravityRuntimeInstall.ts
@@ -11457,10 +11453,6 @@ msgstr "Домашний каталог нового профиля Codex"
 #: src/renderer/views/SettingsOverlay/parts/CrewsSettings.tsx
 msgid "New crew"
 msgstr "Новая Crew"
-
-#: src/renderer/views/SettingsOverlay/parts/CrewsSettings.tsx
-msgid "New crews start as Crew only."
-msgstr "Новые команды начинают в режиме «Только Crew»."
 
 #: src/renderer/views/SettingsOverlay/parts/CursorProfileSettings.tsx
 msgid "New Cursor profile API key"
