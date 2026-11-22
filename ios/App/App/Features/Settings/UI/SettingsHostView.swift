@@ -132,6 +132,7 @@ struct SettingsHostView: View {
       }
       .accessibilityIdentifier("native-e2e.settings.host-update")
       routeLink(.generation, stackNavigation: stackNavigation)
+      routeLink(.memory, stackNavigation: stackNavigation)
       routeLink(.agents, stackNavigation: stackNavigation)
       NavigationLink { CrewsSettingsView(session: session) } label: {
         Label(CrewStrings.title, systemImage: "person.2")
@@ -289,7 +290,7 @@ struct SettingsRouteView: View {
 
   var body: some View {
     Group {
-      if (route == .generation || route == .workspace), composition.selection != selection {
+      if (route == .generation || route == .memory || route == .workspace), composition.selection != selection {
         SettingsLoadingView()
       } else if route != .usage, !usesProfile, let failure = composition.gate(route.requiredCapability) {
         SettingsUnavailableView(failure: failure)
@@ -334,6 +335,12 @@ struct SettingsRouteView: View {
       )
     case .generation:
       SettingsGenerationView(
+        composition: composition,
+        agentStatuses: composition.hostInformation.agentStatuses,
+        refresh: refresh
+      )
+    case .memory:
+      SettingsMemoryView(
         composition: composition,
         agentStatuses: composition.hostInformation.agentStatuses,
         refresh: refresh

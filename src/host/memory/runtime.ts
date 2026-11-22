@@ -53,8 +53,7 @@ import {
   MEMORY_DREAM_PROMPT,
   MEMORY_EXTRACT_PROMPT,
   observationsFromUserLines,
-  parseDreamConsolidation,
-  parseModelObservations,
+  parseDreamConsolidationWithStatus,
   redactSecrets,
   renderMemoryPromptWithIds,
   transcriptFromItems,
@@ -205,26 +204,42 @@ function memoryStatus(threadId: string | undefined, projectId: string | undefine
   };
 }
 
+const MAX_DREAM_EXISTING = 100;
+const MAX_DREAM_CANDIDATES = 60;
+const DREAM_PROMPT_BUDGET_CHARS = 18_000;
+
+function fitJsonItems<T>(items: readonly T[], maxChars: number): T[] {
+  const result: T[] = [];
+  let used = 2;
+  for (const item of items) {
+    const encoded = JSON.stringify(item);
+    const added = encoded.length + (result.length > 0 ? 1 : 0);
+    if (used + added > maxChars && result.length > 0) break;
+    result.push(item);
+    used += added;
+  }
+  return result;
+}
+
+export async function runScheduledMemoryDream(
+  now = new Date().toISOString(),
+): Promise<{ report: string; runId: string }> {
+  return (dreamFlight ??= runDream(now, false).finally(() => {
+    dreamFlight = null;
+  }));
+}
+
 async function runDream(now: string, manual = false): Promise<{ report: string; runId: string }> {
   const settings = readMemorySettings();
-  let consolidated: ReturnType<typeof parseModelObservations> = [];
+  let consolidated: ReturnType<typeof parseDreamConsolidationWithStatus>["observations"] = [];
   let retireIds: string[] = [];
+  let reviewedCandidateIds: string[] = [];
   const pending = dbListPendingCandidates();
   const existingEntries = dbListMemoryEntries();
   if (modelCaller && (pending.length > 0 || (manual && existingEntries.length >= 2))) {
-    try {
-      const existing = existingEntries.slice(0, 30).map((entry) => ({
-        id: entry.id,
-        scope: entry.scope,
-        projectId: entry.projectId,
-        repoKey: entry.repoKey ?? null,
-        category: entry.category,
-        summary: redactSecrets(entry.summary).slice(0, 220),
-        polarity: entry.polarity,
-        lockedByUser: entry.lockedByUser,
-        pinned: entry.pinned,
-      }));
-      const candidates = pending.slice(0, 60).map((item) => ({
+    const pendingItems = pending.slice(0, MAX_DREAM_CANDIDATES).map((item) => ({
+      id: item.id,
+      payload: {
         scope: item.scope,
         projectId: item.projectId,
         category: item.category,
@@ -232,28 +247,48 @@ async function runDream(now: string, manual = false): Promise<{ report: string; 
         polarity: item.polarity,
         confidence: item.confidence,
         explicit: item.explicit,
-      }));
-      const candidateProjectId =
-        pending
-          .map((item) => item.projectId)
-          .find((id): id is string => Boolean(id && dbGetProject(id))) ??
-        existingEntries
-          .map((entry) => entry.projectId)
-          .find((id): id is string => Boolean(id && dbGetProject(id))) ??
-        null;
-      const raw = await modelCaller.complete({
-        projectId: candidateProjectId,
-        purpose: "dream",
-        prompt: `${MEMORY_DREAM_PROMPT}\n\nExisting:\n${JSON.stringify(existing)}\n\nPending:\n${JSON.stringify(candidates)}`,
-      });
-      const parsed = parseDreamConsolidation(raw);
-      consolidated = parsed.observations;
-      retireIds = parsed.retireIds.filter((id) => existing.some((entry) => entry.id === id));
-    } catch (error) {
-      console.error("[memory] dream model skipped:", error);
+      },
+    }));
+    const existingItems = existingEntries.slice(0, MAX_DREAM_EXISTING).map((entry) => ({
+      id: entry.id,
+      scope: entry.scope,
+      projectId: entry.projectId,
+      repoKey: entry.repoKey ?? null,
+      category: entry.category,
+      summary: redactSecrets(entry.summary).slice(0, 220),
+      polarity: entry.polarity,
+      lockedByUser: entry.lockedByUser,
+      pinned: entry.pinned,
+    }));
+    const overhead = MEMORY_DREAM_PROMPT.length + 32;
+    const available = Math.max(4_000, DREAM_PROMPT_BUDGET_CHARS - overhead);
+    const pendingBudget = Math.floor(available * 0.45);
+    const fittedPending = fitJsonItems(pendingItems, pendingBudget);
+    const candidatesJson = JSON.stringify(fittedPending.map((item) => item.payload));
+    const existingBudget = Math.max(2_000, available - candidatesJson.length);
+    const existing = fitJsonItems(existingItems, existingBudget);
+    const candidateProjectId =
+      pending
+        .map((item) => item.projectId)
+        .find((id): id is string => Boolean(id && dbGetProject(id))) ??
+      existingEntries
+        .map((entry) => entry.projectId)
+        .find((id): id is string => Boolean(id && dbGetProject(id))) ??
+      null;
+    const raw = await modelCaller.complete({
+      projectId: candidateProjectId,
+      purpose: "dream",
+      prompt: `${MEMORY_DREAM_PROMPT}\n\nExisting:\n${JSON.stringify(existing)}\n\nPending:\n${candidatesJson}`,
+    });
+    const parsed = parseDreamConsolidationWithStatus(raw);
+    if (!parsed.valid) {
+      throw new Error("Dream model returned an invalid response.");
     }
+    consolidated = parsed.observations;
+    retireIds = parsed.retireIds.filter((id) => existing.some((entry) => entry.id === id));
+    reviewedCandidateIds = fittedPending.map((item) => item.id);
   }
-  const outcome = dreamMemories(settings, now, consolidated, retireIds);
+  const outcome = dreamMemories(settings, now, consolidated, retireIds, reviewedCandidateIds);
   const runId = randomUUID();
   dbInsertMemoryDreamRun({
     id: runId,
@@ -392,6 +427,7 @@ async function captureOnce(nowMs: number): Promise<{ captured: number; spooled: 
         threadId: spool.threadId,
         projectId: spool.projectId,
         nowMs,
+        allowModelFailureFallback: true,
       });
       spooled += 1;
     }
@@ -472,6 +508,7 @@ async function ingestText(input: {
   threadId: string | null;
   projectId: string | null;
   nowMs: number;
+  allowModelFailureFallback?: boolean;
 }): Promise<void> {
   const deterministic = observationsFromUserLines(input.text);
   const userText = input.text
@@ -489,8 +526,14 @@ async function ingestText(input: {
         purpose: "capture",
         prompt: `${MEMORY_EXTRACT_PROMPT}\n\n${input.text}`,
       });
-      observations = parseModelObservations(raw);
+      const parsed = parseDreamConsolidationWithStatus(raw);
+      if (parsed.valid) {
+        observations = parsed.observations;
+      } else {
+        console.warn("[memory] capture model returned invalid JSON; falling back to rules");
+      }
     } catch (error) {
+      if (!input.allowModelFailureFallback) throw error;
       console.error("[memory] model capture skipped:", error);
     }
   }

@@ -4635,6 +4635,14 @@ msgstr "Connections"
 msgid "Console"
 msgstr "Console"
 
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Consolidating memories…"
+msgstr "Consolidating memories…"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Consolidating memories… ({dreamElapsedSec}s)"
+msgstr "Consolidating memories… ({dreamElapsedSec}s)"
+
 #: src/renderer/components/devices/DeviceTools.tsx
 msgid "Contacts"
 msgstr "Contacts"
@@ -5139,6 +5147,16 @@ msgstr "Couldn't scan MCP server configurations."
 #: src/renderer/components/common/QrScanner.tsx
 msgid "Couldn't start the camera"
 msgstr "Couldn't start the camera"
+
+#. placeholder {0}: friendlyError(err)
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Couldn't sync memories: {0}"
+msgstr "Couldn't sync memories: {0}"
+
+#. placeholder {0}: friendlyError(err)
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Couldn't undo the last Dream run: {0}"
+msgstr "Couldn't undo the last Dream run: {0}"
 
 #: src/renderer/components/composer/MemoryAddMenu.tsx
 msgid "Couldn't update memory mode for this thread."
@@ -6612,6 +6630,19 @@ msgstr "Drag to reorder; double-click to edit"
 msgid "Draggable model"
 msgstr "Draggable model"
 
+#. placeholder {0}: friendlyError(err)
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Dream failed: {0}"
+msgstr "Dream failed: {0}"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Dream finished: {report}"
+msgstr "Dream finished: {report}"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Dream finished."
+msgstr "Dream finished."
+
 #: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Dream model"
@@ -6625,6 +6656,10 @@ msgstr "Dream now"
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Dream schedule"
 msgstr "Dream schedule"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Dreaming…"
+msgstr "Dreaming…"
 
 #: src/renderer/views/SettingsOverlay/parts/MobileHostFolderPicker.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
@@ -7513,6 +7548,10 @@ msgstr "Failed to record frozen source metadata: {detail}. Rollback left {rollba
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Failed to record owned branch metadata: {detail}. Rollback left branch {branch}: {rollback}"
 msgstr "Failed to record owned branch metadata: {detail}. Rollback left branch {branch}: {rollback}"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Failed: {failedList}."
+msgstr "Failed: {failedList}."
 
 #: src/renderer/views/PullRequestsOverlay/list/PrListMenuSections.tsx
 msgid "Failing"
@@ -10044,6 +10083,10 @@ msgstr "Loading matched message…"
 msgid "Loading media preview…"
 msgstr "Loading media preview…"
 
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Loading memory settings…"
+msgstr "Loading memory settings…"
+
 #: src/renderer/components/composer/VoiceInputButton.tsx
 msgid "Loading model…"
 msgstr "Loading model…"
@@ -11971,6 +12014,10 @@ msgstr "No model is available for {agent}. Check the agent in Settings."
 msgid "No models found"
 msgstr "No models found"
 
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "No online paired hosts to sync with."
+msgstr "No online paired hosts to sync with."
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "No other agents installed"
 msgstr "No other agents installed"
@@ -13838,6 +13885,10 @@ msgstr "Preparing {preparingName}… {0}%. Continues if you close this dialog."
 #: src/renderer/views/SettingsOverlay/parts/HexSetupDialog.tsx
 msgid "Preparing {preparingName}… Continues if you close this dialog."
 msgstr "Preparing {preparingName}… Continues if you close this dialog."
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Preparing local memories…"
+msgstr "Preparing local memories…"
 
 #: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
 msgid "Preparing remote environment…"
@@ -16903,6 +16954,7 @@ msgid "Settings aren't available yet, so your changes couldn't be saved. Please 
 msgstr "Settings aren't available yet, so your changes couldn't be saved. Please try again."
 
 #: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SearchSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
@@ -17483,6 +17535,14 @@ msgstr "Skip missed runs"
 #: src/renderer/views/SchedulesView/parts/scheduleRunStatus.ts
 msgid "Skipped"
 msgstr "Skipped"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Skipped {skippedList} — memory or sync is turned off there."
+msgstr "Skipped {skippedList} — memory or sync is turned off there."
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Skipped {skippedList} (memory or sync off)."
+msgstr "Skipped {skippedList} (memory or sync off)."
 
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "Skipped {target} because it points outside the plugin folder."
@@ -18290,6 +18350,21 @@ msgstr "Sync now"
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CommitSyncPanel.tsx
 msgid "Sync options"
 msgstr "Sync options"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Synced with {count} hosts; memories updated."
+msgstr "Synced with {count} hosts; memories updated."
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Synced with 1 host; memories updated."
+msgstr "Synced with 1 host; memories updated."
+
+#. placeholder {0}: syncProgress.hostLabel
+#. placeholder {1}: syncProgress.current
+#. placeholder {2}: syncProgress.total
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Syncing with {0} ({1}/{2})…"
+msgstr "Syncing with {0} ({1}/{2})…"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ActionPhaseLabel.tsx
 #: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
@@ -20651,8 +20726,20 @@ msgid "Unchecked providers and models are excluded from automatic Crossagents ro
 msgstr "Unchecked providers and models are excluded from automatic Crossagents routing, but remain available for manual agent threads."
 
 #: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Undid the last Dream run."
+msgstr "Undid the last Dream run."
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
 msgid "Undo"
 msgstr "Undo"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Undoing last Dream run…"
+msgstr "Undoing last Dream run…"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Undoing…"
+msgstr "Undoing…"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabGroupMenu.tsx
 msgid "Ungroup"
@@ -20825,6 +20912,14 @@ msgstr "Unverified"
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
 msgid "Up one level"
 msgstr "Up one level"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Up to date across {count} hosts."
+msgstr "Up to date across {count} hosts."
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Up to date with 1 host."
+msgstr "Up to date with 1 host."
 
 #: src/renderer/views/LoginTerminalOverlay/LoginTerminalOverlay.tsx
 msgid "update"
@@ -21001,6 +21096,13 @@ msgstr "Updating ({0}/{1})"
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Updating {0}"
 msgstr "Updating {0}"
+
+#. placeholder {0}: syncProgress.hostLabel
+#. placeholder {1}: syncProgress.current
+#. placeholder {2}: syncProgress.total
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Updating {0} ({1}/{2})…"
+msgstr "Updating {0} ({1}/{2})…"
 
 #. placeholder {0}: agent.label
 #. placeholder {1}: update.targetVersion

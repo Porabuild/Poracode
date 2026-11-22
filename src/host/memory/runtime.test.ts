@@ -673,4 +673,186 @@ describe("memory store", () => {
       setMemoryModelCaller(undefined);
     }
   });
+
+  it("clears rewritten and dropped pending candidates after Dream and restores them on undo", async () => {
+    const { setMemoryModelCaller } = await import("./runtime");
+    const { dbInsertMemoryCandidate } = await import("@/host/db/memoryStore");
+    for (let i = 0; i < 4; i += 1) {
+      dbInsertMemoryCandidate({
+        id: `implicit-${i}`,
+        threadId: null,
+        projectId: null,
+        scope: "global",
+        category: "feedback",
+        statement: `Implicit note variant ${i}`,
+        quote: null,
+        polarity: "positive",
+        confidence: 0.45,
+        explicit: false,
+        status: "pending",
+        createdAt: "2026-11-16T00:00:00.000Z",
+      });
+    }
+    setMemoryModelCaller({
+      complete: async () =>
+        JSON.stringify({
+          observations: [
+            {
+              scope: "global",
+              category: "feedback",
+              statement: "Consolidated preference across variants",
+              quote: null,
+              polarity: "positive",
+              explicit: true,
+            },
+          ],
+          retireIds: [],
+        }),
+    });
+    try {
+      const result = (await handleMemoryCommand({ action: "dream" })) as {
+        runId: string;
+        report: string;
+      };
+      const statusAfter = (await handleMemoryCommand({ action: "status" })) as {
+        pendingCandidates: number;
+      };
+      expect(statusAfter.pendingCandidates).toBe(0);
+      const entries = (await handleMemoryCommand({ action: "list" })) as Array<{ summary: string }>;
+      expect(entries.map((entry) => entry.summary)).toEqual([
+        "Consolidated preference across variants",
+      ]);
+
+      await handleMemoryCommand({ action: "undo", runId: result.runId });
+      const statusUndone = (await handleMemoryCommand({ action: "status" })) as {
+        pendingCandidates: number;
+      };
+      expect(statusUndone.pendingCandidates).toBe(4);
+    } finally {
+      setMemoryModelCaller(undefined);
+    }
+  });
+
+  it("surfaces Dream model failures and invalid JSON without recording a fake dream run", async () => {
+    const { setMemoryModelCaller } = await import("./runtime");
+    const { dbInsertMemoryCandidate, dbMemoryMeta } = await import("@/host/db/memoryStore");
+    dbInsertMemoryCandidate({
+      id: "pending-fail-1",
+      threadId: null,
+      projectId: null,
+      scope: "global",
+      category: "feedback",
+      statement: "Prefer crisp diffs",
+      quote: null,
+      polarity: "positive",
+      confidence: 0.45,
+      explicit: false,
+      status: "pending",
+      createdAt: "2026-11-16T00:00:00.000Z",
+    });
+    setMemoryModelCaller({
+      complete: async () => {
+        throw new Error("provider timed out");
+      },
+    });
+    try {
+      await expect(handleMemoryCommand({ action: "dream" })).rejects.toThrow("provider timed out");
+      expect(dbMemoryMeta("lastDreamAt")).toBeNull();
+      expect(
+        ((await handleMemoryCommand({ action: "status" })) as { pendingCandidates: number })
+          .pendingCandidates,
+      ).toBe(1);
+
+      setMemoryModelCaller({
+        complete: async () => "sorry, I cannot output JSON right now",
+      });
+      await expect(handleMemoryCommand({ action: "dream" })).rejects.toThrow("invalid response");
+      expect(dbMemoryMeta("lastDreamAt")).toBeNull();
+    } finally {
+      setMemoryModelCaller(undefined);
+    }
+  });
+
+  it("includes more than 30 existing memories in Dream consolidation within budget", async () => {
+    const { setMemoryModelCaller } = await import("./runtime");
+    const { dbUpsertMemoryEntry } = await import("@/host/db/memoryStore");
+    for (let i = 0; i < 36; i += 1) {
+      dbUpsertMemoryEntry({
+        id: `entry-${i}`,
+        scope: "global",
+        projectId: null,
+        category: "feedback",
+        summary: `Rule number ${i} for coding style`,
+        body: `Rule number ${i} for coding style`,
+        confidence: 0.8,
+        polarity: "positive",
+        quote: null,
+        lockedByUser: false,
+        pinned: false,
+        archived: false,
+        usageCount: 0,
+        lastUsedAt: null,
+        createdAt: "2026-11-16T00:00:00.000Z",
+        updatedAt: "2026-11-16T00:00:00.000Z",
+        source: "learned",
+      });
+    }
+    let capturedPrompt = "";
+    setMemoryModelCaller({
+      complete: async (input) => {
+        capturedPrompt = input.prompt;
+        return JSON.stringify({ observations: [], retireIds: ["entry-35"] });
+      },
+    });
+    try {
+      const result = (await handleMemoryCommand({ action: "dream" })) as { report: string };
+      expect(capturedPrompt).toContain("entry-35");
+      expect(result.report).toContain("Retired 1");
+    } finally {
+      setMemoryModelCaller(undefined);
+    }
+  });
+
+  it("backs off without advancing cursor when capture model fails, and falls back to rules on bad JSON", async () => {
+    const { setMemoryModelCaller } = await import("./runtime");
+    const { dbGetMemoryThreadState } = await import("@/host/db/memoryStore");
+    dbUpsertThread(thread("thread-retry"), 0);
+    getSqlite()
+      .prepare(
+        `INSERT INTO thread_runtime_items (thread_id, item_id, position, type, state, payload)
+         VALUES ('thread-retry', 'u1', 0, 'user_message', 'completed', ?)`,
+      )
+      .run(
+        JSON.stringify({
+          text: "Always use strict mode in TypeScript. Also prefer small focused modules.",
+        }),
+      );
+
+    setMemoryModelCaller({
+      complete: async () => {
+        throw new Error("temporary 429");
+      },
+    });
+    try {
+      const failed = await runMemoryCapturePass(Date.parse("2026-11-16T00:05:00.000Z"));
+      expect(failed.captured).toBe(0);
+      const stateAfterFail = dbGetMemoryThreadState("thread-retry");
+      expect(stateAfterFail.cursor).toBe(-1);
+      expect(stateAfterFail.nextAttemptAt).toBe("2026-11-16T00:15:00.000Z");
+
+      setMemoryModelCaller({
+        complete: async () => "not valid json",
+      });
+      const retried = await runMemoryCapturePass(Date.parse("2026-11-16T00:16:00.000Z"));
+      expect(retried.captured).toBe(1);
+      expect(dbGetMemoryThreadState("thread-retry").cursor).toBe(0);
+      expect(
+        ((await handleMemoryCommand({ action: "list" })) as Array<{ summary: string }>).some(
+          (entry) => entry.summary.includes("Always use strict mode"),
+        ),
+      ).toBe(true);
+    } finally {
+      setMemoryModelCaller(undefined);
+    }
+  });
 });

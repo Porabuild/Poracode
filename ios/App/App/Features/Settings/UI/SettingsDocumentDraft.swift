@@ -165,6 +165,7 @@ struct SettingsDocumentDraft: Equatable, Sendable {
   var wslWorktreeBasePath: String
   var prAutomationDefault: SettingsPRAutomationDefault
   var prMergeMethod: SettingsPRMergeMethod
+  var memory: SettingsMemoryPreferences?
 
   init(_ document: SettingsDocument) {
     title = .init(
@@ -216,6 +217,7 @@ struct SettingsDocumentDraft: Equatable, Sendable {
     wslWorktreeBasePath = document.wslWorktreeBasePath
     prAutomationDefault = document.prAutomationDefault
     prMergeMethod = document.prMergeMethod
+    memory = document.memory
   }
 
   func generationPatch(comparedTo document: SettingsDocument) -> SettingsPatch {
@@ -262,6 +264,16 @@ struct SettingsDocumentDraft: Equatable, Sendable {
       .prAutomationDefault, prAutomationDefault.rawValue, document.prAutomationDefault.rawValue
     )
     patch.setString(.prMergeMethod, prMergeMethod.rawValue, document.prMergeMethod.rawValue)
+    return patch
+  }
+
+  func memoryPatch(comparedTo document: SettingsDocument) -> SettingsPatch {
+    var patch = SettingsPatch()
+    guard let memory, memory != document.memory,
+      let encoded = try? JSONEncoder().encode(memory),
+      let json = try? JSONDecoder().decode(SettingsJSON.self, from: encoded)
+    else { return patch }
+    patch[.memory] = json
     return patch
   }
 }

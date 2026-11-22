@@ -4635,6 +4635,14 @@ msgstr "Bağlantılar"
 msgid "Console"
 msgstr "Konsol"
 
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Consolidating memories…"
+msgstr "Bellekler birleştiriliyor…"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Consolidating memories… ({dreamElapsedSec}s)"
+msgstr "Bellekler birleştiriliyor… ({dreamElapsedSec}sn)"
+
 #: src/renderer/components/devices/DeviceTools.tsx
 msgid "Contacts"
 msgstr "Kişiler"
@@ -5139,6 +5147,16 @@ msgstr "MCP sunucusu yapılandırmaları taranamadı."
 #: src/renderer/components/common/QrScanner.tsx
 msgid "Couldn't start the camera"
 msgstr "Kamera başlatılamadı"
+
+#. placeholder {0}: friendlyError(err)
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Couldn't sync memories: {0}"
+msgstr "Bellekler senkronize edilemedi: {0}"
+
+#. placeholder {0}: friendlyError(err)
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Couldn't undo the last Dream run: {0}"
+msgstr "Son düzenleme geri alınamadı: {0}"
 
 #: src/renderer/components/composer/MemoryAddMenu.tsx
 msgid "Couldn't update memory mode for this thread."
@@ -6612,6 +6630,19 @@ msgstr "Yeniden sıralamak için sürükleyin; düzenlemek için çift tıklayı
 msgid "Draggable model"
 msgstr "Sürüklenebilir model"
 
+#. placeholder {0}: friendlyError(err)
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Dream failed: {0}"
+msgstr "Düzenleme başarısız oldu: {0}"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Dream finished: {report}"
+msgstr "Düzenleme tamamlandı: {report}"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Dream finished."
+msgstr "Düzenleme tamamlandı."
+
 #: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Dream model"
@@ -6625,6 +6656,10 @@ msgstr "Şimdi düzenle"
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Dream schedule"
 msgstr "Düzenleme takvimi"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Dreaming…"
+msgstr "Düzenleniyor…"
 
 #: src/renderer/views/SettingsOverlay/parts/MobileHostFolderPicker.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
@@ -7513,6 +7548,10 @@ msgstr "Dondurulmuş kaynak meta verileri kaydedilemedi: {detail}. Geri alma iş
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Failed to record owned branch metadata: {detail}. Rollback left branch {branch}: {rollback}"
 msgstr "Sahipli şube meta verileri kaydedilemedi: {detail}. Geri alma işlemi {branch} şubesini bıraktı: {rollback}"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Failed: {failedList}."
+msgstr "Başarısız: {failedList}."
 
 #: src/renderer/views/PullRequestsOverlay/list/PrListMenuSections.tsx
 msgid "Failing"
@@ -10044,6 +10083,10 @@ msgstr "Eşleşen mesaj yükleniyor…"
 msgid "Loading media preview…"
 msgstr "Medya önizlemesi yükleniyor…"
 
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Loading memory settings…"
+msgstr "Bellek ayarları yükleniyor…"
+
 #: src/renderer/components/composer/VoiceInputButton.tsx
 msgid "Loading model…"
 msgstr "Model yükleniyor…"
@@ -11971,6 +12014,10 @@ msgstr "{agent} için kullanılabilir model yok. Ayarlar'da ajanı kontrol edin.
 msgid "No models found"
 msgstr "Hiçbir model bulunamadı"
 
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "No online paired hosts to sync with."
+msgstr "Senkronize edilecek çevrimiçi eşleştirilmiş ana bilgisayar yok."
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "No other agents installed"
 msgstr "Başka aracı yüklü değil"
@@ -13838,6 +13885,10 @@ msgstr "Hazırlanıyor: {preparingName}… %{0}. Bu iletişim kutusunu kapatsan�
 #: src/renderer/views/SettingsOverlay/parts/HexSetupDialog.tsx
 msgid "Preparing {preparingName}… Continues if you close this dialog."
 msgstr "Hazırlanıyor: {preparingName}… Bu iletişim kutusunu kapatsanız da devam eder."
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Preparing local memories…"
+msgstr "Yerel bellekler hazırlanıyor…"
 
 #: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
 msgid "Preparing remote environment…"
@@ -16903,6 +16954,7 @@ msgid "Settings aren't available yet, so your changes couldn't be saved. Please 
 msgstr "Ayarlar henüz kullanılamadığı için değişiklikleriniz kaydedilemedi. Lütfen tekrar deneyin."
 
 #: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SearchSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
@@ -17483,6 +17535,14 @@ msgstr "Kaçırılan çalıştırmaları atla"
 #: src/renderer/views/SchedulesView/parts/scheduleRunStatus.ts
 msgid "Skipped"
 msgstr "Atlandı"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Skipped {skippedList} — memory or sync is turned off there."
+msgstr "{skippedList} atlandı — orada bellek veya senkronizasyon kapalı."
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Skipped {skippedList} (memory or sync off)."
+msgstr "{skippedList} atlandı (bellek veya senkronizasyon kapalı)."
 
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "Skipped {target} because it points outside the plugin folder."
@@ -18290,6 +18350,21 @@ msgstr "Şimdi eşitle"
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CommitSyncPanel.tsx
 msgid "Sync options"
 msgstr "Senkronizasyon seçenekleri"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Synced with {count} hosts; memories updated."
+msgstr "{count} ana bilgisayarla senkronize edildi; bellekler güncellendi."
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Synced with 1 host; memories updated."
+msgstr "1 ana bilgisayarla senkronize edildi; bellekler güncellendi."
+
+#. placeholder {0}: syncProgress.hostLabel
+#. placeholder {1}: syncProgress.current
+#. placeholder {2}: syncProgress.total
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Syncing with {0} ({1}/{2})…"
+msgstr "{0} ile senkronize ediliyor ({1}/{2})…"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ActionPhaseLabel.tsx
 #: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
@@ -20651,8 +20726,20 @@ msgid "Unchecked providers and models are excluded from automatic Crossagents ro
 msgstr "İşareti kaldırılan sağlayıcılar ve modeller, otomatik Crossagents yönlendirmesinin dışında tutulur ancak elle başlatılan aracı iş parçacıkları için kullanılabilir olmaya devam eder."
 
 #: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Undid the last Dream run."
+msgstr "Son düzenleme geri alındı."
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
 msgid "Undo"
 msgstr "Geri al"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Undoing last Dream run…"
+msgstr "Son düzenleme geri alınıyor…"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Undoing…"
+msgstr "Geri alınıyor…"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabGroupMenu.tsx
 msgid "Ungroup"
@@ -20825,6 +20912,14 @@ msgstr "Doğrulanmadı"
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
 msgid "Up one level"
 msgstr "Bir seviye yukarı"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Up to date across {count} hosts."
+msgstr "{count} ana bilgisayarda güncel."
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Up to date with 1 host."
+msgstr "1 ana bilgisayarla güncel."
 
 #: src/renderer/views/LoginTerminalOverlay/LoginTerminalOverlay.tsx
 msgid "update"
@@ -21001,6 +21096,13 @@ msgstr "Güncelleniyor ({0}/{1})"
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Updating {0}"
 msgstr "{0} güncelleniyor"
+
+#. placeholder {0}: syncProgress.hostLabel
+#. placeholder {1}: syncProgress.current
+#. placeholder {2}: syncProgress.total
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Updating {0} ({1}/{2})…"
+msgstr "{0} güncelleniyor ({1}/{2})…"
 
 #. placeholder {0}: agent.label
 #. placeholder {1}: update.targetVersion

@@ -11,6 +11,7 @@ enum class SettingsPane {
     Usage,
     Profile,
     Preferences,
+    Memory,
     Workspace,
     Environments,
 }

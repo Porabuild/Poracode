@@ -262,18 +262,33 @@ export interface DreamConsolidation {
   retireIds: string[];
 }
 
-export function parseDreamConsolidation(raw: string): DreamConsolidation {
+export interface ParsedDreamConsolidation extends DreamConsolidation {
+  valid: boolean;
+}
+
+export function parseDreamConsolidationWithStatus(raw: string): ParsedDreamConsolidation {
   const start = raw.indexOf("{");
   const end = raw.lastIndexOf("}");
-  if (start < 0 || end <= start) return { observations: [], retireIds: [] };
+  if (start < 0 || end <= start) return { observations: [], retireIds: [], valid: false };
   try {
-    const parsed = JSON.parse(raw.slice(start, end + 1)) as {
-      observations?: Array<Record<string, unknown>>;
-      retireIds?: unknown[];
-    };
+    const parsed = JSON.parse(raw.slice(start, end + 1)) as Record<string, unknown> | null;
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      return { observations: [], retireIds: [], valid: false };
+    }
+    const rawObservations = parsed.observations;
+    const rawRetireIds = parsed.retireIds;
+    if (
+      (rawObservations !== undefined && !Array.isArray(rawObservations)) ||
+      (rawRetireIds !== undefined && !Array.isArray(rawRetireIds)) ||
+      (rawObservations === undefined && rawRetireIds === undefined)
+    ) {
+      return { observations: [], retireIds: [], valid: false };
+    }
     const observations: MemoryObservation[] = [];
-    if (Array.isArray(parsed.observations)) {
-      for (const item of parsed.observations) {
+    if (Array.isArray(rawObservations)) {
+      for (const entry of rawObservations) {
+        if (!entry || typeof entry !== "object") continue;
+        const item = entry as Record<string, unknown>;
         const statement =
           typeof item.statement === "string" ? sanitizeMemorySummary(item.statement) : "";
         if (statement.length < 8 || statement.length > 400) continue;
@@ -303,13 +318,18 @@ export function parseDreamConsolidation(raw: string): DreamConsolidation {
         });
       }
     }
-    const retireIds = Array.isArray(parsed.retireIds)
-      ? parsed.retireIds.filter((id): id is string => typeof id === "string" && id.length > 0)
+    const retireIds = Array.isArray(rawRetireIds)
+      ? rawRetireIds.filter((id): id is string => typeof id === "string" && id.length > 0)
       : [];
-    return { observations, retireIds };
+    return { observations, retireIds, valid: true };
   } catch {
-    return { observations: [], retireIds: [] };
+    return { observations: [], retireIds: [], valid: false };
   }
+}
+
+export function parseDreamConsolidation(raw: string): DreamConsolidation {
+  const { observations, retireIds } = parseDreamConsolidationWithStatus(raw);
+  return { observations, retireIds };
 }
 
 export function parseModelObservations(raw: string): MemoryObservation[] {

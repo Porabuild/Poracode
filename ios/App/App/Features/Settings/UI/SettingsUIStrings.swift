@@ -459,6 +459,63 @@ enum SettingsUIStrings {
     )
   }
 
+  static var memoryTitle: String { text("settings.memory.title", "Memory") }
+  static var memoryDescription: String {
+    text(
+      "settings.memory.description",
+      "Poracode remembers preferences and corrections across providers."
+    )
+  }
+  static var memoryUnavailable: String {
+    text("settings.memory.unavailable", "Memory settings are unavailable on this desktop.")
+  }
+  static var memoryUseMemory: String { text("settings.memory.useMemory", "Use memory") }
+  static var memoryLearnFromChats: String { text("settings.memory.learnFromChats", "Learn from chats") }
+  static var memoryModelsSection: String { text("settings.memory.modelsSection", "Models") }
+  static var memoryCaptureModel: String { text("settings.memory.captureModel", "Capture model") }
+  static var memoryDreamModel: String { text("settings.memory.dreamModel", "Dream model") }
+  static var memoryEffortDefault: String { text("settings.memory.effortDefault", "Default") }
+  static var memoryCaptureAndDreamSection: String {
+    text("settings.memory.captureAndDreamSection", "Capture & Dream")
+  }
+  static var memoryWhenToCapture: String { text("settings.memory.whenToCapture", "When to capture") }
+  static var memoryCaptureSettle2m: String {
+    text("settings.memory.captureSettle2m", "After the turn settles (2 min)")
+  }
+  static var memoryCaptureSettle90s: String {
+    text("settings.memory.captureSettle90s", "After the turn settles (90 sec)")
+  }
+  static var memoryCaptureCustom: String { text("settings.memory.captureCustom", "Custom idle delay") }
+  static var memoryCaptureLifecycle: String {
+    text("settings.memory.captureLifecycle", "Only when a thread is done or archived")
+  }
+  static var memoryCustomIdleMinutes: String {
+    text("settings.memory.customIdleMinutes", "Custom idle minutes")
+  }
+  static var memoryWhenDeleted: String { text("settings.memory.whenDeleted", "When a thread is deleted") }
+  static var memoryDeleteSpool: String {
+    text("settings.memory.deleteSpool", "Save learnings before deleting")
+  }
+  static var memoryDeleteLifecycle: String {
+    text("settings.memory.deleteLifecycle", "Only on archive or done")
+  }
+  static var memoryDeleteNever: String {
+    text("settings.memory.deleteNever", "Never capture deleted threads")
+  }
+  static var memoryDreamSchedule: String { text("settings.memory.dreamSchedule", "Dream schedule") }
+  static var memoryDreamDaily: String { text("settings.memory.dreamDaily", "Once per day") }
+  static var memoryDream3d: String { text("settings.memory.dream3d", "Every 3 days") }
+  static var memoryDreamWeekly: String { text("settings.memory.dreamWeekly", "Weekly") }
+  static var memoryDreamManual: String { text("settings.memory.dreamManual", "Manual only") }
+  static var memoryBehaviorSection: String { text("settings.memory.behaviorSection", "Behavior & Sync") }
+  static var memorySuggestSkills: String { text("settings.memory.suggestSkills", "Suggest skills") }
+  static var memoryPreferPoracode: String {
+    text("settings.memory.preferPoracode", "Prefer Poracode memory")
+  }
+  static var memorySyncAcrossEnvironments: String {
+    text("settings.memory.syncAcrossEnvironments", "Sync across environments")
+  }
+
   static func routeTitle(_ route: SettingsScreenRoute) -> String {
     switch route {
     case .agents: agentsTitle
@@ -468,6 +525,7 @@ enum SettingsUIStrings {
     case .tokens: tokensTitle
     case .profile: profileTitle
     case .generation: generationTitle
+    case .memory: memoryTitle
     case .workspace: workspaceTitle
     }
   }
@@ -481,6 +539,7 @@ enum SettingsUIStrings {
     case .tokens: tokensDescription
     case .profile: profileDescription
     case .generation: generationDescription
+    case .memory: memoryDescription
     case .workspace: workspaceDescription
     }
   }

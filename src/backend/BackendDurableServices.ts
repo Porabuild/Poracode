@@ -1,3 +1,4 @@
+import { homedir } from "node:os";
 import { assertRemoteGitMutationExperimentSafe } from "@/host/remote/experimentOwnership";
 import { msg } from "@/shared/messages";
 import { joinRuntimeShutdown } from "./joinRuntimeShutdown";
@@ -49,7 +50,13 @@ import {
 } from "@/host/schedules";
 import type { SupervisorClient } from "@/host/supervisor/SupervisorClient";
 import { SupervisorUnavailableError } from "@/host/supervisor/SupervisorClient";
-import type { PrData, PrDetails, PrWatch, RemoteThreadCommand } from "@/shared/contracts";
+import type {
+  PrData,
+  PrDetails,
+  PrWatch,
+  ProjectLocation,
+  RemoteThreadCommand,
+} from "@/shared/contracts";
 import { isThreadTurnActive } from "@/shared/contracts";
 import { gitProjectKey, type GitStatePatch } from "@/shared/gitState";
 import { repoIdentityKey } from "@/shared/repoIdentity";
@@ -61,9 +68,9 @@ import { observeRoutingSettingsEvent } from "./BackendRoutingSettings";
 import { observeSupervisorSettingsEditsEvent } from "./BackendSupervisorSettingsEdits";
 import { runThreadHousekeeping } from "./ThreadHousekeepingService";
 import {
-  handleMemoryCommand,
   installMemoryDeleteHook,
   runMemoryCapturePass,
+  runScheduledMemoryDream,
   setMemoryModelCaller,
 } from "@/host/memory/runtime";
 import { setMemoryRepoKeyReader } from "@/host/memory/repoKeyReader";
@@ -182,6 +189,7 @@ export class BackendDurableServices {
   private memoryTimer: ReturnType<typeof setInterval> | null = null;
   private memoryPass: Promise<void> | null = null;
   private memoryWasEnabled: boolean;
+  private scheduledDreamBackoffUntilMs = 0;
 
   constructor(private readonly options: BackendDurableServicesOptions) {
     const memory = options.getSharedSettings()?.memory;
@@ -529,43 +537,88 @@ export class BackendDurableServices {
     const model = input.purpose === "dream" ? settings.dreamModel : settings.captureModel;
     const effort = input.purpose === "dream" ? settings.dreamEffort : settings.captureEffort;
     const fast = input.purpose === "dream" ? settings.dreamFast : settings.captureFast;
-    const project = (input.projectId ? dbGetProject(input.projectId) : null) ?? dbGetProjects()[0];
+    const allProjects = dbGetProjects();
+    const project = (input.projectId ? dbGetProject(input.projectId) : null) ?? allProjects[0];
     if (!project) throw new Error("No project is available for a memory model call.");
     const wslDistro = project.location.kind === "wsl" ? project.location.distro : undefined;
-    const wslDistros = wslDistro ? [wslDistro] : [];
-    const statuses = await this.options.supervisor.call("getAgentStatuses", { wslDistros });
+    const statuses = await this.options.supervisor.call("getAgentStatuses", {
+      wslDistros: wslDistro ? [wslDistro] : [],
+    });
     if (this.disposed) throw new Error("Backend durable services are shutting down.");
-    const rawPool = wslDistro
-      ? statuses.wsl.filter((agent) => agent.envDistro === wslDistro)
-      : statuses.windows;
     const disabled = new Set(shared?.disabledAgents ?? []);
     const hiddenModels = shared?.hiddenModels ?? {};
-    const agents = rawPool.filter((agent) => isEligibleMemoryOneShotAgent(agent, disabled));
-    const candidates = collectMemoryModelCandidates(agents, {
-      hiddenModelsByAgent: hiddenModels,
-      explicitProvider: provider,
-      explicitModel: model,
-    });
     const role = input.purpose === "dream" ? "dream" : "capture";
-    const attempts: MemoryModelCandidate[] = [];
-    if (provider !== "auto") {
-      const scoped = candidates.filter((candidate) => candidate.agentKind === provider);
-      const explicit =
-        model && scoped.some((candidate) => candidate.model === model)
-          ? scoped.find((candidate) => candidate.model === model)
-          : undefined;
-      const chosen = explicit ?? pickMemoryModel(scoped, role);
-      if (chosen) attempts.push(chosen);
-    } else {
+    const buildAttempts = (pool: typeof statuses.windows): MemoryModelCandidate[] => {
+      const agents = pool.filter((agent) => isEligibleMemoryOneShotAgent(agent, disabled));
+      const candidates = collectMemoryModelCandidates(agents, {
+        hiddenModelsByAgent: hiddenModels,
+        explicitProvider: provider,
+        explicitModel: model,
+      });
+      const built: MemoryModelCandidate[] = [];
+      if (provider !== "auto") {
+        const scoped = candidates.filter((candidate) => candidate.agentKind === provider);
+        const explicit =
+          model && scoped.some((candidate) => candidate.model === model)
+            ? scoped.find((candidate) => candidate.model === model)
+            : undefined;
+        const chosen = explicit ?? pickMemoryModel(scoped, role);
+        if (chosen) built.push(chosen);
+        return built;
+      }
       const remaining = [...candidates];
       const triedProviders = new Set<string>();
       while (remaining.length > 0) {
         const next = pickMemoryModel(remaining, role);
         if (!next) break;
-        attempts.push(next);
+        built.push(next);
         triedProviders.add(next.agentKind);
         for (let i = remaining.length - 1; i >= 0; i -= 1) {
           if (triedProviders.has(remaining[i]!.agentKind)) remaining.splice(i, 1);
+        }
+      }
+      return built;
+    };
+
+    const primaryPool = wslDistro
+      ? statuses.wsl.filter((agent) => agent.envDistro === wslDistro)
+      : statuses.windows;
+    let executionLocation: ProjectLocation = project.location;
+    let attempts = buildAttempts(primaryPool);
+    if (attempts.length === 0 && wslDistro) {
+      const hostAttempts = buildAttempts(statuses.windows);
+      if (hostAttempts.length > 0) {
+        attempts = hostAttempts;
+        const hostProject = allProjects.find((item) => item.location.kind !== "wsl");
+        executionLocation = hostProject?.location ?? {
+          kind: process.platform === "win32" ? "windows" : "posix",
+          path: homedir(),
+        };
+      }
+    } else if (attempts.length === 0 && !wslDistro) {
+      const allWslDistros = [
+        ...new Set(
+          allProjects
+            .map((item) => (item.location.kind === "wsl" ? item.location.distro : undefined))
+            .filter((distro): distro is string => Boolean(distro)),
+        ),
+      ];
+      if (allWslDistros.length > 0) {
+        const wslStatuses = await this.options.supervisor.call("getAgentStatuses", {
+          wslDistros: allWslDistros,
+        });
+        if (this.disposed) throw new Error("Backend durable services are shutting down.");
+        for (const item of allProjects) {
+          if (item.location.kind !== "wsl") continue;
+          const distro = item.location.distro;
+          const wslAttempts = buildAttempts(
+            wslStatuses.wsl.filter((agent) => agent.envDistro === distro),
+          );
+          if (wslAttempts.length > 0) {
+            attempts = wslAttempts;
+            executionLocation = item.location;
+            break;
+          }
         }
       }
     }
@@ -576,7 +629,7 @@ export class BackendDurableServices {
       const startedAt = Date.now();
       try {
         const result = await this.options.supervisor.call("generateMemoryText", {
-          projectLocation: project.location,
+          projectLocation: executionLocation,
           agentKind: chosen.agentKind,
           prompt: input.prompt,
           selection: {
@@ -634,13 +687,23 @@ export class BackendDurableServices {
 
   private async maybeDream(): Promise<void> {
     if (this.disposed) return;
+    if (Date.now() < this.scheduledDreamBackoffUntilMs) return;
     const settings = this.options.getSharedSettings()?.memory ?? defaultMemorySettings;
     const interval = memoryDreamIntervalMs(settings);
     if (!settings.enabled || !settings.learning || !interval || dbCountPendingCandidates() === 0)
       return;
     const last = dbMemoryMeta("lastDreamAt");
     if (last && Date.now() - Date.parse(last) < interval) return;
-    await handleMemoryCommand({ action: "dream" });
+    try {
+      await runScheduledMemoryDream();
+      this.scheduledDreamBackoffUntilMs = 0;
+    } catch (error) {
+      this.scheduledDreamBackoffUntilMs = Date.now() + 15 * 60_000;
+      console.warn(
+        "[memory] scheduled dream failed; retrying in 15m:",
+        error instanceof Error ? error.message : String(error),
+      );
+    }
   }
 
   getSupervisorExtraEnv(): Record<string, string> {

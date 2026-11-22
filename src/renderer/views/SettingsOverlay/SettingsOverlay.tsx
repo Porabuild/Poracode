@@ -188,6 +188,13 @@ function renderSection(
             ? SearchSettings
             : ThreadSettings;
     section = <Page key={mcpMachine?.id} {...target} />;
+  } else if (activeSection === "memory" && !isRemoteSession()) {
+    const target = mcpMachine?.desktopId
+      ? { connectionKey: mcpMachine.desktopId }
+      : mcpMachine && mcpMachine.kind !== "local"
+        ? { unavailable: true }
+        : {};
+    section = <MemorySettings key={mcpMachine?.id ?? "local"} {...target} />;
   } else if (activeSection === "crews") {
     const key = mcpMachine?.desktopId
       ? machineKey({ host: "remote", desktopId: mcpMachine.desktopId, env: mcpMachine.ref.env })
@@ -386,7 +393,8 @@ export function SettingsOverlay(props: { onClose: () => void; onBack?: () => voi
       activeSection === "git" ||
       activeSection === "worktrees" ||
       activeSection === "search" ||
-      activeSection === "threads") &&
+      activeSection === "threads" ||
+      (!remoteSession && activeSection === "memory")) &&
     (scopedMachines.length > 1 || (scopedMachines.length === 1 && !mcpMachine));
   const scopeBar =
     activeSection === "archived" ? (

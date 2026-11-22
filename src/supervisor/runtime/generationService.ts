@@ -142,7 +142,7 @@ export class GenerationService {
         adapter,
         selection,
         isolateCwd: !textOnly,
-        timeoutMs: 60_000,
+        timeoutMs: 120_000,
         logTag: "memory",
         attempts,
       }),

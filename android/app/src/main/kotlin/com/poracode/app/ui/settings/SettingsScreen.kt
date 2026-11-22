@@ -424,6 +424,17 @@ private fun SettingsPaneContent(
             onRetry = { composition.controller.refresh(SettingsPane.Preferences) },
             modifier = modifier,
         )
+        SettingsPane.Memory -> SettingsMemoryPane(
+            entry = entry,
+            access = access,
+            mutation = mutation,
+            leaseKey = leaseKey,
+            onSave = { draft, baseline ->
+                draft.patchFrom(baseline)?.let(composition.controller::saveSettings)
+            },
+            onRetry = { composition.controller.refresh(SettingsPane.Memory) },
+            modifier = modifier,
+        )
         SettingsPane.Workspace -> SettingsWorkspacePane(
             entry = entry,
             access = access,
@@ -457,6 +468,7 @@ private fun settingsRouteTitle(route: SettingsRoute): String = stringResource(
         SettingsRoute.Usage -> R.string.settings_usage_title
         SettingsRoute.Profile -> R.string.settings_profile_title
         SettingsRoute.Preferences -> R.string.settings_generation_title
+        SettingsRoute.Memory -> R.string.settings_memory_title
         SettingsRoute.Workspace -> R.string.settings_workspace_defaults
         SettingsRoute.Environments -> R.string.environments_settings_title
         SettingsRoute.GlobalMcp -> R.string.settings_global_mcp_title

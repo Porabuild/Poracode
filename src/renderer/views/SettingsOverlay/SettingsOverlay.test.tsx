@@ -351,6 +351,34 @@ describe("SettingsOverlay", () => {
     );
   });
 
+  it("offers a host picker on desktop Memory settings to inspect a paired host", () => {
+    useRemoteServersStore.setState({
+      servers: [
+        {
+          connectionId: "studio-connection",
+          desktopId: "studio-desktop",
+          label: "Studio",
+          endpoint: "https://studio.example.test",
+          accessToken: "token",
+          scopes: ["session:read", "session:operate"],
+          memoryCatalogAvailable: true,
+        },
+      ],
+      runtime: {
+        "studio-connection": { status: "online", projects: [], threads: [] },
+      },
+    });
+    usePanelStore.getState().openSettingsSection("memory");
+    render(<SettingsOverlay onClose={() => undefined} />);
+
+    expect(screen.getByRole("button", { name: "Studio" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Dream now" })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Studio" }));
+
+    expect(screen.queryByRole("button", { name: "Dream now" })).toBeNull();
+  });
+
   it("opens memory list management in a dialog and opens an editor modal to add a memory", async () => {
     usePanelStore.getState().openSettingsSection("memory");
     render(<SettingsOverlay onClose={() => undefined} />);

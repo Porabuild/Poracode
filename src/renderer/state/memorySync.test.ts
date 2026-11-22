@@ -3,7 +3,11 @@ import type { MemorySyncResponse, MemorySyncState } from "@/shared/memory";
 import { defaultMemorySettings } from "@/shared/memory";
 import { useSharedSettings } from "./sharedSettingsStore";
 import { useRemoteServersStore } from "./remoteServersStore";
-import { syncMemoryAcrossEnvironments } from "./memorySync";
+import {
+  syncMemoryAcrossEnvironments,
+  syncMemoryAcrossEnvironmentsDetailed,
+  useMemoryOperationsStore,
+} from "./memorySync";
 
 const bridgeMock = vi.hoisted(() => ({
   memoryCommand: vi.fn<(payload: unknown) => Promise<unknown>>(),
@@ -139,5 +143,52 @@ describe("syncMemoryAcrossEnvironments", () => {
     );
     await expect(background).resolves.toEqual({ syncedHosts: 0, changed: false });
     expect(peerSync).toHaveBeenCalledTimes(2);
+  });
+
+  it("reports skipped peers and live sync progress via useMemoryOperationsStore", async () => {
+    let observedProgress: unknown = null;
+    const peerSync = vi.fn<(state: MemorySyncState) => Promise<MemorySyncResponse>>(async () => {
+      observedProgress = useMemoryOperationsStore.getState().syncProgress;
+      return { synced: false, state: { entries: [], tombstones: [] } };
+    });
+
+    useRemoteServersStore.setState({
+      servers: [
+        {
+          connectionId: "mac-peer",
+          desktopId: "mac-peer",
+          label: "Mac Studio",
+          endpoint: "http://127.0.0.1:49154",
+          scopes: ["session:operate"],
+          pairedAt: "2026-11-17T00:00:00.000Z",
+          transport: { kind: "direct", endpoint: "http://127.0.0.1:49154" },
+        },
+      ] as never,
+      runtime: {
+        "mac-peer": { status: "online" },
+      } as never,
+      withClient: vi.fn<
+        (_id: string, invoke: (client: unknown) => Promise<unknown>) => Promise<unknown>
+      >(async (_id, invoke) => invoke({ memorySync: peerSync })) as never,
+    });
+
+    bridgeMock.memoryCommand.mockResolvedValue(localState);
+
+    const details = await syncMemoryAcrossEnvironmentsDetailed({ force: true });
+    expect(observedProgress).toEqual({
+      phase: "syncing",
+      current: 1,
+      total: 1,
+      hostLabel: "Mac Studio",
+    });
+    expect(useMemoryOperationsStore.getState().syncing).toBe(false);
+    expect(useMemoryOperationsStore.getState().syncProgress).toBeNull();
+    expect(details).toEqual({
+      syncedHosts: 0,
+      changed: false,
+      onlineHosts: 1,
+      skippedDisabledHosts: ["Mac Studio"],
+      failedHosts: [],
+    });
   });
 });

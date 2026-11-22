@@ -9,6 +9,7 @@ enum SettingsSearchField: Hashable, Sendable {
   case notificationDone, notificationAttention, notificationError
   case gitDefaultAction, gitMergeMethod, worktreeStorage
   case titleGeneration, commitGeneration, conflictResolution
+  case memoryEnabled, memorySync
 }
 
 enum SettingsSearchDestination: Hashable {
@@ -59,6 +60,8 @@ enum SettingsSearchDestination: Hashable {
     case .device(.worktrees), .host(.workspace): [(.worktreeStorage, SettingsUIStrings.storageMode)]
     case .device(.aiHelpers), .host(.generation): [(.titleGeneration, SettingsUIStrings.titleGeneration),
       (.commitGeneration, SettingsUIStrings.commitGeneration), (.conflictResolution, SettingsUIStrings.conflictResolution)]
+    case .host(.memory): [(.memoryEnabled, SettingsUIStrings.memoryUseMemory),
+      (.memorySync, SettingsUIStrings.memorySyncAcrossEnvironments)]
     default: []
     }
   }
@@ -70,6 +73,7 @@ extension SettingsScreenRoute {
     case .profile: "person.crop.circle"
     case .usage: "gauge.with.dots.needle.67percent"
     case .generation: "sparkles"
+    case .memory: "brain"
     case .agents: "cpu"
     case .devices: "desktopcomputer"
     case .activity: "chart.bar.xaxis"
@@ -104,7 +108,7 @@ enum NativeSettingsSearch {
         + [.device(.git), .device(.crews), .device(.archived), .device(.sessionImport)] + common
     } else {
       routes = DeviceSettingsDestination.allCases.map(SettingsSearchDestination.device)
-        + [.desktop, .createPRAction, .host(.devices), .host(.activity), .host(.tokens)] + common
+        + [.desktop, .createPRAction, .host(.memory), .host(.devices), .host(.activity), .host(.tokens)] + common
     }
     let candidates = (routes + (offersEnvironments ? [.environments] : [])).flatMap { destination -> [SettingsSearchHit] in
       guard hasDesktop || !destination.requiresHost else { return [] }

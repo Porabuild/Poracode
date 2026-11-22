@@ -16,6 +16,7 @@ import type { BackendDurableServicesOptions } from "./BackendDurableServices";
 import {
   dbArchiveDoneThreads,
   dbDeleteThread,
+  dbGetProject,
   dbGetThread,
   dbIsThreadPurgeEligible,
   dbReconcileProjectWorktrees,
@@ -1206,6 +1207,73 @@ describe("BackendDurableServices project watch re-apply on real supervisor resta
       expect(dreamCalls[0]!.payload).toMatchObject({
         agentKind: "top-authed",
         selection: { model: "top-pro" },
+      });
+    } finally {
+      await durable.dispose();
+    }
+  });
+
+  it("falls back to host one-shot agents when a WSL project has no eligible agent for memory", async () => {
+    vi.mocked(dbGetProject).mockReturnValueOnce({
+      id: "wsl-proj",
+      name: "WSL Repo",
+      location: {
+        kind: "wsl",
+        distro: "Ubuntu",
+        linuxPath: "/home/dev/repo",
+        uncPath: "\\\\wsl.localhost\\Ubuntu\\home\\dev\\repo",
+      },
+      createdAt: "2026-01-01T00:00:00.000Z",
+    });
+    const calls: Array<{ name: string; payload: unknown }> = [];
+    const supervisor = {
+      call: vi.fn<(name: string, payload: unknown) => Promise<unknown>>(async (name, payload) => {
+        calls.push({ name, payload });
+        if (name === "getAgentStatuses") {
+          return {
+            windows: [
+              {
+                kind: "host-agent",
+                label: "Host Agent",
+                installed: true,
+                authState: "authenticated",
+                capabilities: {
+                  supportsOneShot: true,
+                  utilityRank: 10,
+                  models: [{ id: "host-pro", label: "Pro" }],
+                },
+              },
+            ],
+            wsl: [],
+          };
+        }
+        if (name === "generateMemoryText") {
+          return { text: '{"observations":[]}' };
+        }
+        return null;
+      }),
+    };
+    const durable = createDurable({
+      supervisor: supervisor as unknown as BackendDurableServicesOptions["supervisor"],
+      getSharedSettings: () => ({
+        ...defaultSharedSettings,
+        memory: {
+          ...defaultMemorySettings,
+          enabled: true,
+          dreamProvider: "host-agent",
+          dreamModel: "host-pro",
+        },
+      }),
+    });
+    try {
+      const caller = getMemoryModelCaller();
+      expect(caller).toBeDefined();
+      await caller!.complete({ projectId: "wsl-proj", purpose: "dream", prompt: "merge" });
+      const genCall = calls.find((c) => c.name === "generateMemoryText");
+      expect(genCall?.payload).toMatchObject({
+        agentKind: "host-agent",
+        selection: { model: "host-pro" },
+        projectLocation: { kind: expect.not.stringMatching(/^wsl$/) },
       });
     } finally {
       await durable.dispose();

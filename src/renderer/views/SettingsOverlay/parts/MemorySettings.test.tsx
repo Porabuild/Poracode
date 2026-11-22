@@ -1,16 +1,56 @@
 import "fake-indexeddb/auto";
-import { cleanup, fireEvent, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
+import { useMemoryOperationsStore, type MemorySyncDetails } from "@/renderer/state/memorySync";
+import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { renderWithI18n } from "@/renderer/testUtils/i18n";
 import { agentStatusSchema } from "@/shared/contracts/agent";
 import { defaultMemorySettings } from "@/shared/memory";
 import { MemorySettings } from "./MemorySettings";
 
+const mocks = vi.hoisted(() => ({
+  memoryCommand: vi.fn<(payload: unknown) => Promise<unknown>>(),
+  runMemoryCatalogCommand: vi.fn<(...args: unknown[]) => Promise<unknown>>(
+    () => new Promise(() => {}),
+  ),
+  syncDetailed: vi.fn<(options?: { force?: boolean }) => Promise<MemorySyncDetails>>(),
+  syncBasic: vi.fn<() => Promise<{ syncedHosts: number; changed: boolean }>>(async () => ({
+    syncedHosts: 0,
+    changed: false,
+  })),
+  editPairedHostSettings: vi.fn<
+    (key: string, edit: (current: Record<string, unknown>) => unknown) => Promise<void>
+  >(async () => undefined),
+  usePairedHostSettings: vi.fn<
+    (
+      key: string | undefined,
+    ) => { generation: number; settings?: Record<string, unknown>; error?: unknown } | undefined
+  >(() => undefined),
+}));
+
+vi.mock("@/renderer/bridge", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/renderer/bridge")>()),
+  isRemoteSession: () => false,
+  readBridge: () => ({ memoryCommand: mocks.memoryCommand }),
+}));
+
 vi.mock("@/renderer/state/memoryCatalog", () => ({
-  // Keep the unrelated catalog status request pending in these settings tests.
-  runMemoryCatalogCommand: () => new Promise(() => {}),
+  runMemoryCatalogCommand: (...args: unknown[]) => mocks.runMemoryCatalogCommand(...args),
+}));
+
+vi.mock("@/renderer/state/memorySync", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/renderer/state/memorySync")>()),
+  syncMemoryAcrossEnvironments: () => mocks.syncBasic(),
+  syncMemoryAcrossEnvironmentsDetailed: (options?: { force?: boolean }) =>
+    mocks.syncDetailed(options),
+}));
+
+vi.mock("@/renderer/state/pairedHostSettings", () => ({
+  editPairedHostSettings: (key: string, edit: (current: Record<string, unknown>) => unknown) =>
+    mocks.editPairedHostSettings(key, edit),
+  usePairedHostSettings: (key: string | undefined) => mocks.usePairedHostSettings(key),
 }));
 
 const agent = agentStatusSchema.parse({
@@ -56,6 +96,21 @@ describe("Memory model reasoning", () => {
 
   afterEach(() => {
     cleanup();
+    mocks.memoryCommand.mockReset();
+    mocks.runMemoryCatalogCommand.mockReset().mockImplementation(() => new Promise(() => {}));
+    mocks.syncDetailed.mockReset();
+    mocks.syncBasic.mockReset().mockResolvedValue({ syncedHosts: 0, changed: false });
+    mocks.editPairedHostSettings.mockReset().mockResolvedValue(undefined);
+    mocks.usePairedHostSettings.mockReset().mockReturnValue(undefined);
+    useMemoryOperationsStore.setState({
+      syncing: false,
+      syncProgress: null,
+      dreaming: false,
+      dreamStartedAt: null,
+      undoing: false,
+      notice: null,
+    });
+    useRemoteServersStore.setState({ servers: [], runtime: {} });
     useAgentStatusesStore.setState({ agentStatuses: [], wslAgentStatuses: [] });
     useSharedSettings.setState({ memory: defaultMemorySettings });
     localStorage.clear();
@@ -158,5 +213,114 @@ describe("Memory model reasoning", () => {
       dreamModel: "plain",
       dreamEffort: "",
     });
+  });
+
+  it("shows loading state, live progress, and outcome feedback for Dream and Sync", async () => {
+    let resolveDream!: (value: unknown) => void;
+    mocks.memoryCommand.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveDream = resolve;
+        }),
+    );
+    mocks.runMemoryCatalogCommand.mockResolvedValue({
+      enabled: true,
+      learning: true,
+      syncEnabled: true,
+      captureTiming: "settle-2m",
+      pendingCandidates: 0,
+      entryCount: 12,
+      suggestionCount: 0,
+      lastDreamAt: null,
+      lastDreamSummary: null,
+      lastDreamRunId: null,
+      lastDreamCounts: null,
+      threadMode: null,
+    });
+
+    renderWithI18n(<MemorySettings />);
+    fireEvent.click(screen.getByRole("button", { name: "Dream now" }));
+
+    expect(screen.getByRole("button", { name: "Dreaming…" })).toBeDisabled();
+    expect(screen.getByRole("status")).toHaveTextContent("Consolidating memories…");
+
+    resolveDream({ report: "Promoted 2. Suggested 0 skills.", runId: "dream-1" });
+    await waitFor(() =>
+      expect(
+        screen.getByText("Dream finished: Promoted 2. Suggested 0 skills."),
+      ).toBeInTheDocument(),
+    );
+
+    mocks.syncDetailed.mockResolvedValueOnce({
+      syncedHosts: 0,
+      changed: false,
+      onlineHosts: 1,
+      skippedDisabledHosts: ["Mac Studio"],
+      failedHosts: [],
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Sync now" }));
+    await waitFor(() =>
+      expect(
+        screen.getByText("Skipped Mac Studio — memory or sync is turned off there."),
+      ).toBeInTheDocument(),
+    );
+  });
+
+  it("reads and patches memory settings for a selected paired host", async () => {
+    useRemoteServersStore.setState({
+      servers: [
+        {
+          desktopId: "mac-studio",
+          label: "Mac Studio",
+          endpoint: "https://mac.test",
+          accessToken: "fixture",
+          scopes: ["session:operate"],
+          memoryCatalogAvailable: true,
+        },
+      ] as never,
+      runtime: {
+        "mac-studio": {
+          status: "online",
+          projects: [],
+          threads: [],
+          agentStatuses: { windows: [agent], wsl: [], updatedAt: "now" },
+        },
+      } as never,
+    });
+    mocks.usePairedHostSettings.mockReturnValue({
+      generation: 1,
+      settings: {
+        memory: { ...defaultMemorySettings, enabled: false },
+        disabledAgents: [],
+        hiddenModels: {},
+      },
+    });
+    mocks.runMemoryCatalogCommand.mockResolvedValue({
+      enabled: false,
+      learning: true,
+      syncEnabled: true,
+      captureTiming: "settle-2m",
+      pendingCandidates: 0,
+      entryCount: 2,
+      suggestionCount: 0,
+      lastDreamAt: null,
+      lastDreamSummary: null,
+      lastDreamRunId: null,
+      lastDreamCounts: null,
+      threadMode: null,
+    });
+
+    renderWithI18n(<MemorySettings connectionKey="mac-studio" />);
+    const toggle = screen.getByRole("switch", { name: "Use memory" });
+    expect(toggle).not.toBeChecked();
+    fireEvent.click(toggle);
+
+    await waitFor(() => expect(mocks.editPairedHostSettings).toHaveBeenCalledTimes(1));
+    const [hostKey, updater] = mocks.editPairedHostSettings.mock.calls[0]!;
+    expect(hostKey).toBe("mac-studio");
+    expect(updater({ memory: { ...defaultMemorySettings, enabled: false } })).toEqual({
+      memory: expect.objectContaining({ enabled: true }),
+    });
+    expect(useSharedSettings.getState().memory.enabled).toBe(true);
   });
 });
