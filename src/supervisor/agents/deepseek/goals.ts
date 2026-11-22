@@ -24,6 +24,8 @@ const goalResultSchema = z.object({
   activation: z.enum(["armed", "disarmed"]).optional(),
 });
 
+const GOAL_TOOL_NAMES = new Set(["create_goal", "get_goal", "update_goal"]);
+
 interface DeepSeekGoalState {
   toolCallIds: Set<string>;
   itemId?: string;
@@ -42,9 +44,13 @@ export const deepSeekGoalExtension: AcpTextStreamExtension = {
     const goals = getExtensionStore<DeepSeekGoalState>(state, this.id, () => ({
       toolCallIds: new Set(),
     }));
+    // The provider transform sets the programmatic ACP tool name and a human
+    // title; prefer the stable name so display labels may change independently.
+    const toolName = update.name?.trim() || update.title || undefined;
     if (
       update.sessionUpdate === "tool_call" &&
-      ["create_goal", "get_goal", "update_goal"].includes(update.title)
+      toolName !== undefined &&
+      GOAL_TOOL_NAMES.has(toolName)
     ) {
       goals.toolCallIds.add(update.toolCallId);
     }

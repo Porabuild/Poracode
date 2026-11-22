@@ -12,6 +12,7 @@ import {
 } from "../base";
 import { resolveAgentBinaryPath } from "../binaryResolver";
 import { buildDeepSeekCommand } from "./argv";
+import { transformDeepSeekAcpSessionUpdate } from "./acpToolCalls";
 import { deepSeekDefaultCapabilities, deepSeekDetectionSpec } from "./detection";
 import { runDeepSeekOneShot } from "./oneShot";
 import {
@@ -110,12 +111,16 @@ export function createDeepSeekAdapter(): AgentAdapter {
           behavior: DEEPSEEK_ACP_SESSION_BEHAVIOR,
           textStreamExtension: deepSeekGoalExtension,
         };
+        const sessionInput = {
+          ...input,
+          acpSessionUpdateTransform: transformDeepSeekAcpSessionUpdate,
+        };
         const session =
           location.kind === "wsl"
-            ? createAcpStructuredSession(command, input, overrides)
+            ? createAcpStructuredSession(command, sessionInput, overrides)
             : await createSharedAcpStructuredSession(
                 command,
-                input,
+                sessionInput,
                 { scope: deepSeekDetectionSpec.kind },
                 overrides,
               );
