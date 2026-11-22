@@ -945,7 +945,7 @@ describe("createHeadlessRemoteHost", () => {
       });
       const reorder = vi.spyOn(host.server, "editAppCatalog").mockResolvedValue({ changed: true });
       await host.start();
-      const invoke = (name: string, args: Record<string, unknown>) =>
+      const invoke = (operation: string, params: Record<string, unknown>) =>
         fetch(`${ingressEnv?.PORACODE_APP_CONTROLS_MCP_URL}/mcp?thread=caller`, {
           method: "POST",
           headers: {
@@ -956,7 +956,7 @@ describe("createHeadlessRemoteHost", () => {
             jsonrpc: "2.0",
             id: 1,
             method: "tools/call",
-            params: { name, arguments: args },
+            params: { name: "poracode_run", arguments: { operation, params } },
           }),
         });
       const response = await invoke("move_thread_to_worktree", {
