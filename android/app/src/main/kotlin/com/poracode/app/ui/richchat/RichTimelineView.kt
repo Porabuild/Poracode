@@ -110,9 +110,16 @@ fun RichTimelineView(
     bottomOverlayClearance: Dp = 0.dp,
     contentPadding: PaddingValues = PaddingValues(start = 12.dp, top = 8.dp, end = 12.dp, bottom = 16.dp),
 ) {
-    val projection = RichTimeline.project(transcript.itemsInOrder)
+    val projectionCache = remember(transcript.key) {
+        com.poracode.app.chat.RichTimelineProjectionCache()
+    }
+    val projection = remember(transcript.itemsInOrder) {
+        projectionCache.project(transcript.itemsInOrder)
+    }
     val entries = projection.visibleEntries
-    val displayedTurns = RichTimeline.resolveCompletedTurnAnchors(transcript.completedTurns, projection)
+    val displayedTurns = remember(transcript.completedTurns, projection) {
+        RichTimeline.resolveCompletedTurnAnchors(transcript.completedTurns, projection)
+    }
     val lastVisibleItemId = entries.lastOrNull()?.let { entry ->
         when (entry) {
             is RichTimelineEntry.Item -> entry.node.item.id
@@ -184,33 +191,34 @@ fun RichTimelineView(
     val advisoryScope = rememberCoroutineScope()
     var activeWorkflowPlan by remember { mutableStateOf<com.poracode.app.protocol.richchat.WorkflowViewPlan?>(null) }
     val activeThreadId = transcript.key.threadId
-    activeWorkflowPlan?.let { plan ->
-        RichWorkflowViewerSheet(plan = plan, onDismiss = { activeWorkflowPlan = null })
+    val galleryImages = remember(transcript.itemsInOrder) {
+        transcript.itemsInOrder.flatMap { RichChatUiLogic.images(it) }
     }
+    LaunchedEffect(transcript.key, galleryImages.size) {
+        runtime.media.prefetchNewestImages(
+            galleryImages.mapNotNull {
+                when (it) {
+                    is RichImageSource.Local -> com.poracode.app.session.richchat.RichImagePrefetchTarget.Local(it.path)
+                    is RichImageSource.Runtime -> com.poracode.app.session.richchat.RichImagePrefetchTarget.Runtime(it.ref)
+                    is RichImageSource.Inline -> null
+                }
+            },
+        )
+    }
+    activeWorkflowPlan?.let { RichWorkflowViewerSheet(plan = it, onDismiss = { activeWorkflowPlan = null }) }
+    androidx.compose.runtime.CompositionLocalProvider(LocalRichChatImageGallery provides galleryImages) {
     RichTimelineScrollContainer(listState, initialScrollComplete, modifier, bottomOverlayClearance) {
         LazyColumn(
-            modifier = backdrop
-                .fillMaxSize()
-                .semantics { contentDescription = timelineDescription },
+            modifier = backdrop.fillMaxSize().semantics { contentDescription = timelineDescription },
             state = listState,
             contentPadding = contentPadding,
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             if (hasOlder || loadingOlder) {
                 item(key = "older") {
-                    TextButton(
-                        onClick = onLoadOlder,
-                        enabled = !loadingOlder,
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
+                    TextButton(onClick = onLoadOlder, enabled = !loadingOlder, modifier = Modifier.fillMaxWidth()) {
                         Text(
-                            stringResource(
-                                if (loadingOlder) {
-                                    R.string.rich_chat_loading_older
-                                } else {
-                                    R.string.rich_chat_load_older
-                                },
-                            ),
+                            stringResource(if (loadingOlder) R.string.rich_chat_loading_older else R.string.rich_chat_load_older),
                             color = PoracodeTheme.colors.muted,
                         )
                     }
@@ -270,6 +278,7 @@ fun RichTimelineView(
             item(key = "bottom-space") { Spacer(Modifier.height(8.dp)) }
         }
         }
+    }
 }
 
 /** Collapsed activity summary (`1 view · 1 search · 1 thought ⌄`) that expands into its rows. */

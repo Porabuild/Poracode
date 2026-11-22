@@ -17,7 +17,10 @@ export function isDirectEndpoint(endpoint: string): boolean {
  * network as the desktop; never a substitute for the isolated browser entry URL.
  */
 export function buildRawTcpUrl(advertisedHost: string, listenPort: number): string {
-  return `http://${advertisedHost}:${listenPort}/`;
+  const trimmed = advertisedHost.trim();
+  const formattedHost =
+    trimmed.includes(":") && !trimmed.startsWith("[") ? `[${trimmed}]` : trimmed;
+  return `http://${formattedHost}:${listenPort}/`;
 }
 
 export function buildEnterUrl(endpoint: string, enterPath: string): string {

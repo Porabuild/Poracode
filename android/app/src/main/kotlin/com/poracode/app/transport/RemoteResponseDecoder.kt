@@ -74,12 +74,14 @@ internal class RemoteResponseDecoder(private val maxBytes: Long) {
             RemoteJson.decodeFromString(RemoteHttpErrorPayload.serializer(), body)
         }.getOrNull()
         val authority = response.header(EnvironmentProtocol.AUTH_AUTHORITY_HEADER)
+        val retryAfterMs = parseRetryAfterMs(response.header("Retry-After"))
         if (payload != null) {
             throw RemoteClientException(
                 payload.error.message,
                 status = response.code,
                 code = payload.error.code,
                 environmentAuthAuthority = authority,
+                retryAfterMs = retryAfterMs,
             )
         }
         val htmlLike = body.trimStart().startsWith("<")
@@ -93,6 +95,7 @@ internal class RemoteResponseDecoder(private val maxBytes: Long) {
             status = response.code,
             code = "request_failed",
             environmentAuthAuthority = authority,
+            retryAfterMs = retryAfterMs,
         )
     }
 

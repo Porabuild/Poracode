@@ -31,6 +31,7 @@ internal class LiveCapabilityAuthority(
                     liveRuntimeHistoryNoticeVersions = emptySet(),
                     liveProjectCommandResultVersions = emptySet(),
                     liveThreadForkVersions = emptySet(),
+                    liveTerminalCursorSyncVersions = emptySet(),
                 )
             }
         }

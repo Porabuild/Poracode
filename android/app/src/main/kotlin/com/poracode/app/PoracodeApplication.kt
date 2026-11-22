@@ -97,6 +97,9 @@ class PoracodeApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         PushChannels.create(this)
+        com.poracode.app.session.history.NativeRecentHistoryCache.shared.configureDirectory(
+            java.io.File(cacheDir, com.poracode.app.session.history.NativeRecentHistoryCache.DIRECTORY_NAME),
+        )
         deviceSettings = DeviceSettingsPreferences(
             SharedPreferencesDeviceSettingsDocumentStore(this),
         )
@@ -136,8 +139,11 @@ class PoracodeApplication : Application() {
             hasEndpointPermission = ::hasEndpointPermission,
             beforeHostRemoval = { id, credentials ->
                 push.beforeHostRemoval(id, credentials)
-                // Review snapshots hold private diffs and comments; removing a host removes them all.
+                // Review snapshots and cached recent history tails hold private host data; purge them all.
                 java.io.File(cacheDir, "reviews-v1").deleteRecursively()
+                com.poracode.app.session.history.NativeRecentHistoryCache.shared.purgeAll()
+                com.poracode.app.ui.richchat.RichDecodedImageCache.clear()
+                richChatComposition.clearCaches()
             },
             remoteNotifications = RemoteUserNotificationPresentationCenter { notification ->
                 deviceSettings.state.value.allowsForegroundNotification(notification.category)
@@ -331,6 +337,7 @@ class PoracodeApplication : Application() {
         settingsIntegrations.onBackground()
         settings.onBackground()
         onRichChatBackground()
+        com.poracode.app.ui.richchat.RichDecodedImageCache.clear()
         ports.enterBackground()
         onAdvancedOperationsBackground()
         onBrowserMirrorBackground()
@@ -361,6 +368,18 @@ class PoracodeApplication : Application() {
      * emulated environments drive. The composition's [BrowserMirrorController] also closes
      * itself when its scope is cancelled, so this is robust to either path.
      */
+    override fun onTrimMemory(level: Int) {
+        super.onTrimMemory(level)
+        @Suppress("DEPRECATION")
+        if (level >= TRIM_MEMORY_RUNNING_LOW || level == TRIM_MEMORY_UI_HIDDEN) {
+            if (::richChatComposition.isInitialized) {
+                richChatComposition.trimMemory()
+            }
+            com.poracode.app.ui.richchat.RichDecodedImageCache.clear()
+            com.poracode.app.session.history.NativeRecentHistoryCache.shared.trimMemory()
+        }
+    }
+
     override fun onTerminate() {
         super.onTerminate()
         browserMirror.close()

@@ -20,9 +20,9 @@ import org.junit.Test
 
 class RemoteV3GitContractTest {
     @Test
-    fun allTwentyNineProceduresUseGeneratedRequestAndResultCodecs() {
-        assertEquals(29, GitProcedure.entries.size)
-        assertEquals(29, GitProcedure.entries.map { it.wireName }.toSet().size)
+    fun allThirtyProceduresUseGeneratedRequestAndResultCodecs() {
+        assertEquals(30, GitProcedure.entries.size)
+        assertEquals(30, GitProcedure.entries.map { it.wireName }.toSet().size)
         val bundle = schemaBundle()
         GitProcedure.entries.forEach { procedure ->
             val requestSchema = bundle.getValue("procedure.${procedure.wireName}.request").jsonObject

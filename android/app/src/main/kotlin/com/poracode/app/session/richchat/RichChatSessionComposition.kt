@@ -29,15 +29,7 @@ class RichChatSessionComposition(
         gateway = gateway,
         advisoryClientProvider = {
             val lease = hostLease.value ?: return@RichChatSessionRuntime null
-            val creds = runCatching {
-                kotlinx.coroutines.withContext(dispatcher) { repository.credentialsFor(lease.connectionId) }
-            }.getOrNull() ?: return@RichChatSessionRuntime null
-            com.poracode.app.transport.richchat.RichChatAdvisoryClient(
-                com.poracode.app.transport.RemoteApiClient(
-                    endpoint = creds.profile.httpBaseUrl,
-                    accessToken = creds.accessToken,
-                ),
-            )
+            runCatching { provider.advisoryClientFor(lease) }.getOrNull()
         },
     )
     init {
@@ -59,6 +51,16 @@ class RichChatSessionComposition(
         runtime.enterForeground()
         provider.enterForeground()
         synchronizeSelection(appState.value, forceRefresh = true)
+    }
+
+    fun clearCaches() {
+        provider.clearCaches()
+        runtime.clearCaches()
+    }
+
+    fun trimMemory() {
+        provider.trimMemory()
+        runtime.trimMemory()
     }
 
     fun close() {

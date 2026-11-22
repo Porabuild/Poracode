@@ -44,9 +44,17 @@ actor GitHubOperationsExactHostTransportSource {
   typealias APIFactory =
     @Sendable (URL, String, RemoteEnvironmentContext?) -> any GitHubOperationsRemoteAPI
 
+  private struct CachedAPIKey: Equatable {
+    let connectionId: ClientConnectionID
+    let endpoint: URL
+    let token: String
+    let environmentId: String?
+  }
+
   private let credentials: any GitHubOperationsCredentialRepository
   private let contextProvider: ContextProvider
   private let makeAPI: APIFactory
+  private var cachedAPI: (key: CachedAPIKey, api: any GitHubOperationsRemoteAPI)?
 
   /// The one production factory: bound endpoint + child bearer + resolved
   /// parent context. Tests inject a URLProtocol-backed session to capture the
@@ -56,7 +64,7 @@ actor GitHubOperationsExactHostTransportSource {
       GitHubOperationsHTTPTransport(
         endpoint: endpoint,
         accessToken: token,
-        session: session ?? .shared,
+        session: session,
         environmentAuthority: EnvironmentParentAuthority(context: environment)
       )
     }
@@ -98,9 +106,23 @@ actor GitHubOperationsExactHostTransportSource {
       isReady: context.isReady,
       isForeground: context.isForeground
     )
+    let key = CachedAPIKey(
+      connectionId: credential.connectionId,
+      endpoint: endpoint,
+      token: credential.token,
+      environmentId: credential.environment?.environmentId
+    )
+    let api: any GitHubOperationsRemoteAPI
+    if let cachedAPI, cachedAPI.key == key {
+      api = cachedAPI.api
+    } else {
+      let created = makeAPI(endpoint, credential.token, credential.environment)
+      cachedAPI = (key, created)
+      api = created
+    }
     return GitHubTransportSelection(
       context: exactContext,
-      api: makeAPI(endpoint, credential.token, credential.environment)
+      api: api
     )
   }
 }

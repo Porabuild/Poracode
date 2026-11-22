@@ -157,6 +157,26 @@ internal class RemoteBoundedReadClient(
         omitScrollback: Boolean?,
         maxBytes: Long,
         maxDecodeBytes: Long,
+    ): RemoteBoundedReadResult<RemoteThreadSnapshot, RemoteThreadSnapshot> =
+        readBoundedThreadHistory(
+            threadId = threadId,
+            completedTurnsLimit = completedTurnsLimit,
+            targetTimelineEntryCount = targetTimelineEntryCount,
+            omitScrollback = omitScrollback,
+            maxBytes = maxBytes,
+            maxDecodeBytes = maxDecodeBytes,
+        )
+
+    internal suspend fun readBoundedThreadHistory(
+        threadId: String,
+        completedTurnsLimit: Int = RemoteBoundedReadGateway.DEFAULT_COMPLETED_TURNS_LIMIT,
+        targetTimelineEntryCount: Int? = null,
+        omitScrollback: Boolean? = null,
+        maxBytes: Long = RemoteBoundedReadGateway.DEFAULT_MAX_WIRE_BYTES,
+        maxDecodeBytes: Long = RemoteBoundedReadGateway.DEFAULT_MAX_DECODE_BYTES,
+        historyCache: Boolean = false,
+        historyRevision: String? = null,
+        compactDetails: Boolean = false,
     ): RemoteBoundedReadResult<RemoteThreadSnapshot, RemoteThreadSnapshot> {
         requireBudget(maxBytes, maxDecodeBytes)
         requireRange(completedTurnsLimit, 1, 500, "completedTurnsLimit")
@@ -172,6 +192,9 @@ internal class RemoteBoundedReadClient(
                 maxBytes = maxBytes,
                 maxDecodeBytes = maxDecodeBytes,
                 notices = client.runtimeHistoryNoticesSupported,
+                historyCache = historyCache,
+                historyRevision = historyRevision,
+                compactDetails = compactDetails,
             ),
         )
         return RemoteBoundedWire.threadHistory(raw)
@@ -184,6 +207,24 @@ internal class RemoteBoundedReadClient(
         targetTimelineEntryCount: Int?,
         maxBytes: Long,
         maxDecodeBytes: Long,
+    ): RemoteBoundedReadResult<RemoteRuntimeItemsPage, RemoteRuntimeItemsPage> =
+        readBoundedHistoryItems(
+            threadId = threadId,
+            beforePosition = beforePosition,
+            limit = limit,
+            targetTimelineEntryCount = targetTimelineEntryCount,
+            maxBytes = maxBytes,
+            maxDecodeBytes = maxDecodeBytes,
+        )
+
+    internal suspend fun readBoundedHistoryItems(
+        threadId: String,
+        beforePosition: Int? = null,
+        limit: Int = RemoteBoundedReadGateway.DEFAULT_HISTORY_ITEMS_LIMIT,
+        targetTimelineEntryCount: Int? = null,
+        maxBytes: Long = RemoteBoundedReadGateway.DEFAULT_MAX_WIRE_BYTES,
+        maxDecodeBytes: Long = RemoteBoundedReadGateway.DEFAULT_MAX_DECODE_BYTES,
+        compactDetails: Boolean = false,
     ): RemoteBoundedReadResult<RemoteRuntimeItemsPage, RemoteRuntimeItemsPage> {
         requireBudget(maxBytes, maxDecodeBytes)
         requireRange(limit, 1, 500, "limit")
@@ -199,6 +240,7 @@ internal class RemoteBoundedReadClient(
                 maxBytes = maxBytes,
                 maxDecodeBytes = maxDecodeBytes,
                 notices = client.runtimeHistoryNoticesSupported,
+                compactDetails = compactDetails,
             ),
         )
         return RemoteBoundedWire.historyItems(raw, firstPage = beforePosition == null)

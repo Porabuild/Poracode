@@ -44,6 +44,8 @@ internal fun openThread(state: AppSession.UiState): RemoteThread? {
     val id = state.openThreadId ?: return null
     return state.threadSnapshot?.thread?.takeIf { it.id == id }
         ?: state.snapshot?.threads?.firstOrNull { it.id == id }
+        ?: state.hostCatalog.selectedConnectionId?.let { state.hostSnapshots[it] }
+            ?.threads?.firstOrNull { it.id == id }
 }
 
 internal fun AppSession.UiState.openCatalogThread(): RemoteThread? {
@@ -57,6 +59,8 @@ internal fun openAgentStatus(state: AppSession.UiState) = openThread(state)?.let
 
 internal fun openProjectLocation(state: AppSession.UiState) = openThread(state)?.projectId?.let { id ->
     state.snapshot?.projects?.firstOrNull { it.id == id }?.location
+        ?: state.hostCatalog.selectedConnectionId?.let { state.hostSnapshots[it] }
+            ?.projects?.firstOrNull { it.id == id }?.location
 }
 
 internal fun openProjectTarget(state: AppSession.UiState): ProjectWorkspaceTarget? {

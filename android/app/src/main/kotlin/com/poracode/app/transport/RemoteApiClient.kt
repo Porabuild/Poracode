@@ -61,7 +61,10 @@ class RemoteApiClient(
      * authorities without a second client stack.
      */
     private val explicitEnvironmentAuthority: EnvironmentAuthority? = null,
-) : RemoteApiGateway, RemoteBoundedReadGateway, RemoteHistoryNoticeGateway {
+    private val recentHistoryCache: com.poracode.app.session.history.NativeRecentHistoryCache =
+        com.poracode.app.session.history.NativeRecentHistoryCache.shared,
+    private val scheduler: RemoteRequestScheduler = RemoteRequestScheduler.default,
+) : RemoteApiGateway, RemoteBoundedReadGateway, RemoteHistoryNoticeGateway, RemoteInteractiveHistoryGateway {
     private val endpoint: String = endpoint.trimEnd('/')
     // The same client carries non-idempotent mutations. OkHttp's transparent connection retry
     // cannot distinguish those from safe reads, so all replay decisions stay in our domain layer.
@@ -75,6 +78,8 @@ class RemoteApiClient(
     /** Unpinned base for transports that re-resolve the pin per use (event socket). */
     internal val baseOkHttpClient: OkHttpClient get() = baseClient
     internal val httpEndpoint: String get() = endpoint
+    @Volatile private var historyDesktopId: String? = null
+    private val historyAuthorityEpoch = java.util.concurrent.atomic.AtomicLong(0L)
     private val environment = EnvironmentRequestCoordinator(endpoint, explicitEnvironmentAuthority)
     private val http = RemoteHttpExecutor(
         endpoint = endpoint,
@@ -83,10 +88,23 @@ class RemoteApiClient(
         networkGate = networkGate,
         maxResponseBytes = maxResponseBytes,
         environment = environment,
+        scheduler = scheduler,
     )
 
+    private val boundedClient = RemoteBoundedReadClient(this)
+
     /** B4 bounded reads on the same transport; see [RemoteBoundedReadClient]. */
-    val bounded: RemoteBoundedReadGateway = RemoteBoundedReadClient(this)
+    val bounded: RemoteBoundedReadGateway = boundedClient
+
+    private val interactiveHistory = RemoteInteractiveHistoryClient(
+        client = this,
+        boundedClient = boundedClient,
+        environment = environment,
+        recentHistoryCache = recentHistoryCache,
+        readAuthorityEpoch = { historyAuthorityEpoch.get() },
+        readDesktopId = { historyDesktopId },
+        readAccessToken = { accessToken },
+    )
 
     /** Every per-client upgrade declaration; see [ClientCapabilityDeclaration]. */
     private val declarations = ClientCapabilityDeclaration()
@@ -95,94 +113,77 @@ class RemoteApiClient(
     override val runtimeHistoryNoticesSupported: Boolean get() = declarations.noticesDeclared
     internal val terminalCursorSyncV2Advertised: Boolean get() = declarations.terminalCursorSyncV2Advertised
 
+    fun clearReadCache() = http.clearReadCache()
+
+    internal fun declareTerminalCursorSyncV2(enabled: Boolean) =
+        declarations.declareTerminalCursorSyncV2(enabled)
+
+    internal fun observeDesktopId(desktopId: String?) {
+        val normalized = desktopId?.takeIf { it.isNotEmpty() }
+        if (historyDesktopId != normalized) {
+            historyAuthorityEpoch.incrementAndGet()
+            http.clearReadCache()
+            historyDesktopId = normalized
+        }
+    }
+
+    override suspend fun interactiveThreadHistory(threadId: String, targetTimelineEntryCount: Int?) =
+        interactiveHistory.interactiveThreadHistory(threadId, targetTimelineEntryCount)
+
+    override suspend fun interactiveHistoryItems(
+        threadId: String, beforePosition: Int?, limit: Int, targetTimelineEntryCount: Int?,
+    ) = interactiveHistory.interactiveHistoryItems(threadId, beforePosition, limit, targetTimelineEntryCount)
+
+    override suspend fun interactiveThreadTurns(threadId: String, cursor: String?, limit: Int) =
+        interactiveHistory.interactiveThreadTurns(threadId, cursor, limit)
+
+    override suspend fun threadHistoryChanges(
+        threadId: String, cursor: String, afterSeq: Int?, targetTimelineEntryCount: Int?,
+    ) = interactiveHistory.threadHistoryChanges(threadId, cursor, afterSeq, targetTimelineEntryCount)
+
     override fun declareRuntimeHistoryNotices(enabled: Boolean) = declarations.declareNotices(enabled)
 
     override fun declareBoundedCatalogChanges(enabled: Boolean) =
         declarations.declareCatalogChanges(enabled)
 
-    override suspend fun threadRuntimeGap(threadId: String) =
-        historyNotices.threadRuntimeGap(threadId)
+    override suspend fun threadRuntimeGap(threadId: String) = historyNotices.threadRuntimeGap(threadId)
 
     override suspend fun acknowledgeThreadRuntimeGap(
-        threadId: String,
-        episodeToken: String,
-        commandId: String,
+        threadId: String, episodeToken: String, commandId: String,
     ) = historyNotices.acknowledgeThreadRuntimeGap(threadId, episodeToken, commandId)
 
     override suspend fun boundedShellSnapshot(
-        order: String,
-        threadLimit: Int?,
-        projectLimit: Int,
-        summaries: Boolean,
-        maxBytes: Long,
-        maxDecodeBytes: Long,
+        order: String, threadLimit: Int?, projectLimit: Int, summaries: Boolean, maxBytes: Long, maxDecodeBytes: Long,
     ) = bounded.boundedShellSnapshot(order, threadLimit, projectLimit, summaries, maxBytes, maxDecodeBytes)
 
     override suspend fun boundedThreadPage(
-        mode: String,
-        order: String,
-        cursor: String?,
-        limit: Int,
-        summaries: Boolean,
-        maxBytes: Long,
-        maxDecodeBytes: Long,
+        mode: String, order: String, cursor: String?, limit: Int, summaries: Boolean, maxBytes: Long, maxDecodeBytes: Long,
     ) = bounded.boundedThreadPage(mode, order, cursor, limit, summaries, maxBytes, maxDecodeBytes)
 
     override suspend fun boundedProjectPage(
-        mode: String,
-        cursor: String?,
-        projectLimit: Int,
-        maxBytes: Long,
-        maxDecodeBytes: Long,
+        mode: String, cursor: String?, projectLimit: Int, maxBytes: Long, maxDecodeBytes: Long,
     ) = bounded.boundedProjectPage(mode, cursor, projectLimit, maxBytes, maxDecodeBytes)
 
-    override suspend fun boundedCatalogMembership(
-        threadIds: List<String>,
-        projectIds: List<String>,
-    ) = bounded.boundedCatalogMembership(threadIds, projectIds)
+    override suspend fun boundedCatalogMembership(threadIds: List<String>, projectIds: List<String>) =
+        bounded.boundedCatalogMembership(threadIds, projectIds)
 
     override suspend fun boundedThreadHistory(
-        threadId: String,
-        completedTurnsLimit: Int,
-        targetTimelineEntryCount: Int?,
-        omitScrollback: Boolean?,
-        maxBytes: Long,
-        maxDecodeBytes: Long,
-    ) = bounded.boundedThreadHistory(
-        threadId,
-        completedTurnsLimit,
-        targetTimelineEntryCount,
-        omitScrollback,
-        maxBytes,
-        maxDecodeBytes,
-    )
+        threadId: String, completedTurnsLimit: Int, targetTimelineEntryCount: Int?,
+        omitScrollback: Boolean?, maxBytes: Long, maxDecodeBytes: Long,
+    ) = bounded.boundedThreadHistory(threadId, completedTurnsLimit, targetTimelineEntryCount, omitScrollback, maxBytes, maxDecodeBytes)
 
     override suspend fun boundedThreadHistoryItems(
-        threadId: String,
-        beforePosition: Int?,
-        limit: Int,
-        targetTimelineEntryCount: Int?,
-        maxBytes: Long,
-        maxDecodeBytes: Long,
-    ) = bounded.boundedThreadHistoryItems(
-        threadId,
-        beforePosition,
-        limit,
-        targetTimelineEntryCount,
-        maxBytes,
-        maxDecodeBytes,
-    )
+        threadId: String, beforePosition: Int?, limit: Int,
+        targetTimelineEntryCount: Int?, maxBytes: Long, maxDecodeBytes: Long,
+    ) = bounded.boundedThreadHistoryItems(threadId, beforePosition, limit, targetTimelineEntryCount, maxBytes, maxDecodeBytes)
 
     override suspend fun boundedThreadTurns(
-        threadId: String,
-        cursor: String?,
-        limit: Int,
-        maxBytes: Long,
-        maxDecodeBytes: Long,
+        threadId: String, cursor: String?, limit: Int, maxBytes: Long, maxDecodeBytes: Long,
     ) = bounded.boundedThreadTurns(threadId, cursor, limit, maxBytes, maxDecodeBytes)
 
     override fun setAccessToken(token: String?) {
         if (token != accessToken) {
+            historyAuthorityEpoch.incrementAndGet()
             http.clearReadCache()
             accessToken = token
         }
@@ -213,6 +214,7 @@ class RemoteApiClient(
         val descriptor = RemoteV3TransportAdapters.environment(raw, legacy)
         // This authoritative descriptor gates every upgrade declaration on this
         // client; absence is authoritative too (older/no-store stays undeclared).
+        observeDesktopId(descriptor.desktopId)
         declarations.observe(descriptor)
         return descriptor.copy(
             auth = descriptor.auth.copy(

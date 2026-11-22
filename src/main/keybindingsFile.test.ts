@@ -330,6 +330,18 @@ describe("readKeybindingsFile", () => {
     expect(readFileSync(path, "utf8")).toEqual(`${JSON.stringify(result, null, 2)}\n`);
   });
 
+  it("falls back to defaults in memory without overwriting malformed keybindings.json", () => {
+    tempDir = mkdtempSync(join(tmpdir(), "poracode-keybindings-"));
+    const path = join(tempDir, "keybindings.json");
+    const corrupt = "{ not valid json";
+    writeFileSync(path, corrupt, "utf8");
+
+    const config = readKeybindingsFile(path);
+
+    expect(config.file).toEqual(DEFAULT_KEYBINDINGS);
+    expect(readFileSync(path, "utf8")).toBe(corrupt);
+  });
+
   it("does not override a customized composer binding", () => {
     tempDir = mkdtempSync(join(tmpdir(), "poracode-keybindings-"));
     const path = join(tempDir, "keybindings.json");

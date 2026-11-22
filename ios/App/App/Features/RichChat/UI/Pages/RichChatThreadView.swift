@@ -53,6 +53,9 @@ struct RichChatThreadView: View {
       }
     }
     .environment(\.richChatImageSources) { pageState.galleryImages }
+    .onChange(of: pageState.galleryImages.map(\.id)) { _, _ in
+      suite.media.prefetchNewestImages(pageState.galleryImages.map(\.imageLoadPlan), limit: 4)
+    }
     .modifier(RichChatRequestFormPresentation(suite: suite, canResolve: pageState.canResolveRequests))
     .poracodeThemeBackground(theme.variant(for: inheritedColorScheme).background)
     .trackWorkflowActivity(session: session, controller: suite.transcript, headings: suite.runtimeItemHeadings, location: pageState.projectLocation)

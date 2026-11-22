@@ -614,6 +614,188 @@ final class NativeRecentHistoryTests: XCTestCase {
     XCTAssertNil(RichTimeline.updatingStreamOnly(in: patched, previousItems: nextItems, newItems: completedItems))
   }
 
+  func testRequestSchedulerPrioritizesControlOverInteractiveOverBackgroundAndPausesOnOverload() async throws {
+    XCTAssertEqual(
+      RemoteRequestClassification.classifyPriority(method: "POST", path: "/api/threads/t1/interrupt"),
+      .control
+    )
+    XCTAssertEqual(
+      RemoteRequestClassification.classifyPriority(
+        method: "POST",
+        path: "/api/environments/env-1/proxy/api/threads/t1/close"
+      ),
+      .control
+    )
+    XCTAssertEqual(
+      RemoteRequestClassification.classifyPriority(method: "GET", path: "/api/threads/t1/history"),
+      .interactive
+    )
+    XCTAssertEqual(
+      RemoteRequestClassification.classifyPriority(
+        method: "POST",
+        path: "/api/git/call",
+        jsonBody: Data(#"{"procedure":"getGitStatus"}"#.utf8)
+      ),
+      .background
+    )
+    XCTAssertEqual(RemoteRequestClassification.parseRetryAfterMs("2"), 2_000)
+    XCTAssertTrue(
+      RemoteRequestClassification.isRetryableAdmissionError(
+        RemoteClientError(message: "busy", status: 429, code: "overloaded")
+      )
+    )
+    XCTAssertTrue(
+      RemoteRequestClassification.isRetryableAdmissionError(
+        RemoteClientError(message: "busy", status: 503, code: "host_busy")
+      )
+    )
+    XCTAssertFalse(
+      RemoteRequestClassification.isRetryableAdmissionError(
+        RemoteClientError(message: "auth", status: 401, code: "unauthorized")
+      )
+    )
+
+    let scheduler = RemoteRequestScheduler(
+      limits: RemoteRequestSchedulerLimits(maxTotal: 2, maxBulk: 1, maxBackground: 1)
+    )
+    let origin = "https://host.local"
+    let heldControl = try XCTUnwrap(scheduler.tryAcquire(origin: origin, priority: .control))
+    let heldBulk = try XCTUnwrap(scheduler.tryAcquire(origin: origin, priority: .interactive))
+
+    let orderBox = LockedOrderBox()
+    let bgTask = Task {
+      let lease = try await scheduler.acquire(origin: origin, priority: .background)
+      orderBox.append("bg")
+      return lease
+    }
+    let interactiveTask = Task {
+      let lease = try await scheduler.acquire(origin: origin, priority: .interactive)
+      orderBox.append("interactive")
+      return lease
+    }
+    let controlTask = Task {
+      let lease = try await scheduler.acquire(origin: origin, priority: .control)
+      orderBox.append("control")
+      return lease
+    }
+    try await Task.sleep(for: .milliseconds(25))
+    XCTAssertTrue(orderBox.snapshot().isEmpty)
+
+    heldControl.release()
+    let controlLease = try await controlTask.value
+    XCTAssertEqual(orderBox.snapshot(), ["control"])
+
+    heldBulk.release()
+    let interactiveLease = try await interactiveTask.value
+    XCTAssertEqual(orderBox.snapshot(), ["control", "interactive"])
+
+    interactiveLease.release()
+    let bgLease = try await bgTask.value
+    XCTAssertEqual(orderBox.snapshot(), ["control", "interactive", "bg"])
+
+    controlLease.release()
+    bgLease.release()
+    XCTAssertEqual(scheduler.stats(origin: origin).activeTotal, 0)
+  }
+
+  @MainActor
+  func testWarmThreadCacheRestoresInstantlyOnSwitchAndPrefetchesNewestFourImages() async throws {
+    let gateway = WarmResumeAndImageTestGateway()
+    let leaseA = RichChatHostLease(connectionID: ClientConnectionID(), generation: 1)
+    let accessA = RichChatSessionAccess(
+      lease: leaseA,
+      isOnline: true,
+      isReady: true,
+      capabilities: [.sessionRead],
+      runtimeHistoryNotices: true
+    )
+    let controller = RichChatTranscriptController(gateway: gateway)
+    controller.activate(access: accessA, threadID: "t1")
+    await controller.loadHistory()
+    XCTAssertEqual(controller.state.loadState, .loaded)
+    XCTAssertEqual(controller.state.runtimeResumeCursor, "hr1.initial")
+
+    // Switch to t2 then back to t1 on the same host lease -> instant .loaded restore!
+    controller.activate(access: accessA, threadID: "t2")
+    XCTAssertEqual(controller.state.loadState, .idle)
+    controller.activate(access: accessA, threadID: "t1")
+    XCTAssertEqual(controller.state.loadState, .loaded)
+    XCTAssertEqual(controller.state.runtimeResumeCursor, "hr1.initial")
+    XCTAssertEqual(controller.state.snapshotSequence, 10)
+
+    // Switching to another host lease evicts warm cache.
+    let leaseB = RichChatHostLease(connectionID: ClientConnectionID(), generation: 2)
+    let accessB = RichChatSessionAccess(lease: leaseB, isOnline: true, isReady: true, capabilities: [.sessionRead])
+    controller.activate(access: accessB, threadID: "t1")
+    XCTAssertEqual(controller.state.loadState, .idle)
+
+    // Prefetch newest 4 images only with .card variant
+    let media = RichChatMediaController(
+      historyGateway: gateway,
+      conversationGateway: WarmResumeNoopConversationGateway()
+    )
+    media.activate(access: accessA, threadID: "t1")
+    let plans: [RichChatImageLoadPlan] = (1...6).map { .local(path: "/tmp/p\($0).png") }
+    media.prefetchNewestImages(plans, limit: 4)
+    try await Task.sleep(for: .milliseconds(80))
+    let requests = await gateway.localImageRequests
+    XCTAssertEqual(requests.count, 4)
+    XCTAssertEqual(Set(requests.map(\.path)), Set(["/tmp/p6.png", "/tmp/p5.png", "/tmp/p4.png", "/tmp/p3.png"]))
+    XCTAssertTrue(requests.allSatisfy { $0.variant == .card })
+  }
+
+  func testConversationSearchAndThreadPromptsDecodeGeneratedContractsAndBatchGitBuilds() async throws {
+    let batchReq = GitOperationRequest.gitWorktreeSourceBranchBatch(
+      .init(projectLocation: .posix(path: "/repo"), branches: ["feat/a", "feat/b"])
+    )
+    let encodedBatch = try GitOperationsRemoteV3Contract.request(batchReq)
+    let decodedEnvelope = try JSONSerialization.jsonObject(with: encodedBatch) as? [String: Any]
+    XCTAssertEqual(decodedEnvelope?["procedure"] as? String, "gitWorktreeSourceBranchBatch")
+
+    let batchPayload = try JSONSerialization.data(withJSONObject: [
+      "result": [
+        "results": [
+          "feat/a": ["sourceBranch": "main", "commitsAhead": 2, "sourceAhead": 0]
+        ]
+      ]
+    ])
+    let batchResult = try GitOperationsRemoteV3Contract.result(
+      for: .gitWorktreeSourceBranchBatch,
+      response: batchPayload
+    )
+    guard case .worktreeSourceBranches(let mapped) = batchResult else {
+      return XCTFail("Expected worktreeSourceBranches")
+    }
+    XCTAssertEqual(mapped.results["feat/a"]?.sourceBranch, "main")
+
+    let searchData = try JSONSerialization.data(withJSONObject: [
+      "version": 1,
+      "indexing": false,
+      "nextCursor": NSNull(),
+      "entries": [
+        [
+          "threadId": "t1",
+          "projectId": "p1",
+          "projectName": "Poracode",
+          "title": "Warm cache",
+          "itemId": "item-1",
+          "role": "assistant",
+          "excerpt": "Found match",
+          "archived": false,
+        ]
+      ],
+    ])
+    let searchPage = try RemoteRootCodecs.routeU2EConversationU2DSearchU2EResponse.decode(searchData)
+    XCTAssertEqual(searchPage.value.entries.first?.threadId, "t1")
+
+    let promptsData = try JSONSerialization.data(withJSONObject: [
+      "prompts": [["itemId": "u1", "position": 0, "text": "Hello"]],
+      "truncated": false,
+    ])
+    let promptsPage = try RemoteRootCodecs.routeU2EThreadU2DHistoryU2DPromptsU2EResponse.decode(promptsData)
+    XCTAssertEqual(promptsPage.value.prompts.first?.itemId, "u1")
+  }
+
   private func makeClient(endpoint: String = "https://a.test", token: String = "grant-a", cursorVersions: [Int]? = nil,
     historyCache: NativeRecentHistoryCache? = nil, environment: RemoteEnvironmentContext? = nil) async throws -> RemoteAPIClient {
     let client = RemoteAPIClient(endpoint: endpoint, accessToken: token, session: BoundedCatalogURLProtocol.makeSession(),
@@ -634,6 +816,23 @@ final class NativeRecentHistoryTests: XCTestCase {
   private func milliseconds(_ duration: Duration) -> Double {
     let components = duration.components
     return Double(components.seconds) * 1_000 + Double(components.attoseconds) / 1e15
+  }
+}
+
+private final class LockedOrderBox: @unchecked Sendable {
+  private let lock = NSLock()
+  private var items: [String] = []
+
+  func append(_ value: String) {
+    lock.lock()
+    items.append(value)
+    lock.unlock()
+  }
+
+  func snapshot() -> [String] {
+    lock.lock()
+    defer { lock.unlock() }
+    return items
   }
 }
 

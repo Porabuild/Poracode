@@ -17,7 +17,7 @@ actor GitHubOperationsHTTPTransport: GitHubOperationsRemoteAPI, ForgeReviewRemot
   init(
     endpoint: URL,
     accessToken: String,
-    session: URLSession = .shared,
+    session: URLSession? = nil,
     timeout: TimeInterval = 30,
     maximumResponseBytes: Int = 4 * 1_024 * 1_024,
     environmentAuthority: EnvironmentParentAuthority = .direct
@@ -27,7 +27,28 @@ actor GitHubOperationsHTTPTransport: GitHubOperationsRemoteAPI, ForgeReviewRemot
     self.timeout = timeout
     self.maximumResponseBytes = maximumResponseBytes
     self.authorization = environmentAuthority
-    self.loader = { request in try await session.data(for: request) }
+    #if !SWIFT_PACKAGE
+      let apiSession = session ?? RemoteURLSessions.makeAPISession(requestTimeout: timeout)
+      let origin = RemoteRequestClassification.originKey(for: endpoint.absoluteString)
+      self.loader = { request in
+        let priority = RemoteRequestClassification.classifyPriority(
+          method: request.httpMethod ?? "POST",
+          path: request.url?.path ?? GitHubOperationsRemoteV3Contract.procedurePath,
+          jsonBody: request.httpBody
+        )
+        let lease = try await RemoteRequestScheduler.shared.acquire(origin: origin, priority: priority)
+        defer { lease.release() }
+        return try await StreamingHTTPBody.perform(
+          session: apiSession,
+          request: request,
+          maxBytes: maximumResponseBytes,
+          resourceTimeout: timeout
+        )
+      }
+    #else
+      let fallbackSession = session ?? .shared
+      self.loader = { request in try await fallbackSession.data(for: request) }
+    #endif
   }
 
   init(
@@ -114,6 +135,11 @@ actor GitHubOperationsHTTPTransport: GitHubOperationsRemoteAPI, ForgeReviewRemot
       throw CancellationError()
     } catch {
       if Task.isCancelled { throw CancellationError() }
+      #if !SWIFT_PACKAGE
+        if TlsCertPinStore.lastDecisionMismatched(endpoint: endpoint.absoluteString) {
+          throw GitHubOperationsFailure.rejected(statusCode: 502, code: TlsCertPin.mismatchCode)
+        }
+      #endif
       if isMutation { throw GitHubOperationsFailure.ambiguousOutcome }
       throw GitHubOperationsFailure.transport
     }

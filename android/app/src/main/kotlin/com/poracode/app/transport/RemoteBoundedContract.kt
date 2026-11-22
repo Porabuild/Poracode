@@ -177,12 +177,9 @@ internal object RemoteBoundedWire {
     }
 
     fun threadHistoryQuery(
-        completedTurnsLimit: Int,
-        targetTimelineEntryCount: Int?,
-        omitScrollback: Boolean?,
-        maxBytes: Long,
-        maxDecodeBytes: Long,
-        notices: Boolean,
+        completedTurnsLimit: Int, targetTimelineEntryCount: Int?, omitScrollback: Boolean?,
+        maxBytes: Long, maxDecodeBytes: Long, notices: Boolean,
+        historyCache: Boolean = false, historyRevision: String? = null, compactDetails: Boolean = false,
     ): List<Pair<String, String>> = query(
         RemoteRootCodecs.routeU2EThreadU2DHistoryU2EQuery,
         buildJsonObject {
@@ -191,28 +188,25 @@ internal object RemoteBoundedWire {
             put("completedTurnsLimit", completedTurnsLimit)
             targetTimelineEntryCount?.let { put("targetTimelineEntryCount", it) }
             omitScrollback?.let { put("omitScrollback", it) }
+            if (historyCache) put("historyCache", "v1")
+            historyRevision?.let { put("historyRevision", it) }
+            if (compactDetails) {
+                put("projection", "details-v1")
+                put("deferBodies", "file_change")
+            }
             put("maxBytes", maxBytes)
             put("maxDecodeBytes", maxDecodeBytes)
         },
         listOf(
-            "reads",
-            "runtimePage",
-            "completedTurnsLimit",
-            "targetTimelineEntryCount",
-            "omitScrollback",
-            "maxBytes",
-            "maxDecodeBytes",
+            "historyCache", "historyRevision", "projection", "deferBodies", "reads", "runtimePage",
+            "completedTurnsLimit", "targetTimelineEntryCount", "omitScrollback", "maxBytes", "maxDecodeBytes",
         ),
         notices = notices,
     )
 
     fun historyItemsQuery(
-        beforePosition: Int?,
-        limit: Int,
-        targetTimelineEntryCount: Int?,
-        maxBytes: Long,
-        maxDecodeBytes: Long,
-        notices: Boolean,
+        beforePosition: Int?, limit: Int, targetTimelineEntryCount: Int?,
+        maxBytes: Long, maxDecodeBytes: Long, notices: Boolean, compactDetails: Boolean = false,
     ): List<Pair<String, String>> = query(
         RemoteRootCodecs.routeU2EThreadU2DHistoryU2DItemsU2EQuery,
         buildJsonObject {
@@ -220,16 +214,16 @@ internal object RemoteBoundedWire {
             put("limit", limit)
             beforePosition?.let { put("beforePosition", it) }
             targetTimelineEntryCount?.let { put("targetTimelineEntryCount", it) }
+            if (compactDetails) {
+                put("projection", "details-v1")
+                put("deferBodies", "file_change")
+            }
             put("maxBytes", maxBytes)
             put("maxDecodeBytes", maxDecodeBytes)
         },
         listOf(
-            "reads",
-            "limit",
-            "beforePosition",
-            "targetTimelineEntryCount",
-            "maxBytes",
-            "maxDecodeBytes",
+            "projection", "deferBodies", "reads", "limit",
+            "beforePosition", "targetTimelineEntryCount", "maxBytes", "maxDecodeBytes",
         ),
         notices = notices,
     )

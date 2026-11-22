@@ -24,6 +24,16 @@ enum RichChatImageDecoder {
   }
 }
 
+extension RichImagePresentation {
+  var imageLoadPlan: RichChatImageLoadPlan {
+    switch self {
+    case .inline(let value, let classification): .inline(source: value, classification: classification)
+    case .local(let path): .local(path: path)
+    case .remote(let ref): .remote(ref)
+    }
+  }
+}
+
 private struct RichChatImageSourcesKey: EnvironmentKey {
   static let defaultValue: @MainActor () -> [RichImagePresentation] = { [] }
 }
@@ -32,6 +42,55 @@ extension EnvironmentValues {
   var richChatImageSources: @MainActor () -> [RichImagePresentation] {
     get { self[RichChatImageSourcesKey.self] }
     set { self[RichChatImageSourcesKey.self] = newValue }
+  }
+}
+
+/// Bounded decoded `UIImage` cache so scrolling a SwiftUI `LazyVStack` reuses
+/// decoded bitmaps immediately without `ProgressView` flicker or repeated
+/// ImageIO work. Automatically evicted on iOS memory warnings.
+@MainActor
+final class RichChatDecodedImageCache {
+  static let shared = RichChatDecodedImageCache()
+
+  private let cache: NSCache<NSString, UIImage> = {
+    let c = NSCache<NSString, UIImage>()
+    c.countLimit = 64
+    c.totalCostLimit = 24 * 1_024 * 1_024
+    return c
+  }()
+  private var memoryWarningSubscription: MemoryWarningSubscription?
+
+  private init() {
+    memoryWarningSubscription = MemoryWarningSubscription { [weak self] in
+      Task { @MainActor [weak self] in
+        self?.clear()
+      }
+    }
+  }
+
+  func image(for source: RichImagePresentation, variant: RichImageVariant?) -> UIImage? {
+    if let exact = cache.object(forKey: key(for: source, variant: variant)) {
+      return exact
+    }
+    if variant != nil {
+      return cache.object(forKey: key(for: source, variant: nil))
+    }
+    return nil
+  }
+
+  func store(_ image: UIImage, for source: RichImagePresentation, variant: RichImageVariant?) {
+    let pixelWidth = Int(image.size.width * image.scale)
+    let pixelHeight = Int(image.size.height * image.scale)
+    let cost = max(1, pixelWidth * pixelHeight * 4)
+    cache.setObject(image, forKey: key(for: source, variant: variant), cost: cost)
+  }
+
+  func clear() {
+    cache.removeAllObjects()
+  }
+
+  private func key(for source: RichImagePresentation, variant: RichImageVariant?) -> NSString {
+    "\(source.id):\(variant?.rawValue ?? "full")" as NSString
   }
 }
 
@@ -46,6 +105,9 @@ private enum RichChatImageLoadPhase {
     controller: RichChatMediaController,
     variant: RichImageVariant? = nil
   ) async -> Self {
+    if let cached = RichChatDecodedImageCache.shared.image(for: source, variant: variant) {
+      return .loaded(cached)
+    }
     let payload: Data?
     switch source {
     case .inline(let source, let classification):
@@ -65,6 +127,7 @@ private enum RichChatImageLoadPhase {
     guard !Task.isCancelled, let image else {
       return .unavailable
     }
+    RichChatDecodedImageCache.shared.store(image, for: source, variant: variant)
     return .loaded(image)
   }
 
@@ -124,6 +187,10 @@ struct RichChatImageView: View {
     }
     .clipShape(PoracodeShapes.content)
     .task(id: source.id) {
+      if let cached = RichChatDecodedImageCache.shared.image(for: source, variant: .card) {
+        phase = .loaded(cached)
+        return
+      }
       phase = .loading
       let resolved = await RichChatImageLoadPhase.load(
         source,
@@ -264,7 +331,13 @@ private struct RichChatImagePreview: View {
     let target = sources[(position + offset + sources.count) % sources.count]
     guard target.id != selected.id else { return }
     selected = target
-    phase = target.id == opened.id ? .loaded(opened.image) : .loading
+    if target.id == opened.id {
+      phase = .loaded(opened.image)
+    } else if let previewImage = RichChatDecodedImageCache.shared.image(for: target, variant: .card) {
+      phase = .loaded(previewImage)
+    } else {
+      phase = .loading
+    }
   }
 }
 

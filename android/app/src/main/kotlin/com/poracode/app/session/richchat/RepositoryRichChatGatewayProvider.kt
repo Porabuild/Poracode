@@ -26,15 +26,44 @@ class RepositoryRichChatGatewayProvider(
     private val terminalWatch: RichTerminalWatchTransport? = null,
     private val terminalScope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO),
 ) : RichChatGatewayProvider {
+    private data class CachedClientKey(
+        val hostKey: RichChatHostKey,
+        val endpoint: String,
+        val token: String,
+        val desktopId: String,
+    )
+
+    private data class CachedClientEntry(
+        val key: CachedClientKey,
+        val http: RemoteApiClient,
+        val rich: RichChatRemoteClient,
+        val advisory: com.poracode.app.transport.richchat.RichChatAdvisoryClient,
+    )
+
     private val terminalObserver = AtomicReference<TerminalTransportObserver>(
         NoOpTerminalTransportObserver,
     )
     private val terminalLock = Any()
+    private val clientLock = Any()
+    private var cachedClient: CachedClientEntry? = null
     private var productionTerminal: Pair<RichChatHostKey, ProductionTerminalWatchTransport>? = null
     private var foreground = true
 
     fun setTerminalObserver(observer: TerminalTransportObserver?) {
         terminalObserver.set(observer ?: NoOpTerminalTransportObserver)
+    }
+
+    fun clearCaches() {
+        synchronized(clientLock) {
+            cachedClient?.http?.clearReadCache()
+            cachedClient = null
+        }
+    }
+
+    fun trimMemory() {
+        synchronized(clientLock) {
+            cachedClient?.http?.clearReadCache()
+        }
     }
 
     fun enterBackground() = synchronized(terminalLock) {
@@ -47,31 +76,22 @@ class RepositoryRichChatGatewayProvider(
         productionTerminal?.second?.enterForeground()
     }
 
-    fun close() = synchronized(terminalLock) {
-        productionTerminal?.second?.close()
-        productionTerminal = null
-        terminalObserver.set(NoOpTerminalTransportObserver)
+    fun close() {
+        clearCaches()
+        synchronized(terminalLock) {
+            productionTerminal?.second?.close()
+            productionTerminal = null
+            terminalObserver.set(NoOpTerminalTransportObserver)
+        }
     }
 
+    suspend fun advisoryClientFor(lease: RichChatHostLease): com.poracode.app.transport.richchat.RichChatAdvisoryClient? =
+        resolveCachedClient(lease)?.advisory
+
     override suspend fun bundleFor(lease: RichChatHostLease): RichChatGatewayBundle? {
-        val credentials = withContext(ioDispatcher) {
-            repository.credentialsFor(lease.connectionId)
-        } ?: return null
-        if (credentials.profile.protocolVersion != ProtocolConstants.REMOTE_PROTOCOL_VERSION) return null
-        val endpoint = credentials.profile.httpBaseUrl
-        val token = credentials.accessToken
-        val http = RemoteApiClient(
-            endpoint = endpoint,
-            accessToken = token,
-            client = client.newBuilder().retryOnConnectionFailure(false).build(),
-            networkGate = networkGate,
-        )
-        val rich = RichChatRemoteClient(
-            endpoint = endpoint,
-            accessToken = token,
-            client = client,
-            networkGate = networkGate,
-        )
+        val entry = resolveCachedClient(lease) ?: return null
+        val http = entry.http
+        val rich = entry.rich
         return RichChatGatewayBundle(
             core = http,
             rich = rich.transport,
@@ -83,6 +103,38 @@ class RepositoryRichChatGatewayProvider(
             binary = rich.binary,
             files = com.poracode.app.transport.richchat.RichChatRemoteFileExecutor(http),
         )
+    }
+
+    private suspend fun resolveCachedClient(lease: RichChatHostLease): CachedClientEntry? {
+        val credentials = withContext(ioDispatcher) {
+            repository.credentialsFor(lease.connectionId)
+        } ?: return null
+        if (credentials.profile.protocolVersion != ProtocolConstants.REMOTE_PROTOCOL_VERSION) return null
+        val endpoint = credentials.profile.httpBaseUrl
+        val token = credentials.accessToken
+        val desktopId = lease.desktopId.ifEmpty { credentials.profile.desktopId }
+        val key = CachedClientKey(lease.key, endpoint, token, desktopId)
+        return synchronized(clientLock) {
+            val existing = cachedClient
+            val resolved = if (existing != null && existing.key == key) {
+                existing
+            } else {
+                existing?.http?.clearReadCache()
+                val http = RemoteApiClient(
+                    endpoint = endpoint,
+                    accessToken = token,
+                    client = client.newBuilder().retryOnConnectionFailure(false).build(),
+                    networkGate = networkGate,
+                )
+                if (desktopId.isNotEmpty()) http.observeDesktopId(desktopId)
+                val rich = RichChatRemoteClient(http)
+                val advisory = com.poracode.app.transport.richchat.RichChatAdvisoryClient(http)
+                CachedClientEntry(key, http, rich, advisory).also { cachedClient = it }
+            }
+            resolved.http.declareRuntimeHistoryNotices(lease.noticesSupported)
+            resolved.http.declareTerminalCursorSyncV2(lease.terminalCursorSyncV2Supported)
+            resolved
+        }
     }
 
     private fun productionTerminalFor(

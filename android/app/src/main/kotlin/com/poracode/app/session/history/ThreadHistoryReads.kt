@@ -92,6 +92,10 @@ internal suspend fun RemoteApiGateway.historyTurns(
     cursor: String,
     limit: Int,
 ): RemoteThreadTurnsPage {
+    val interactive = this as? com.poracode.app.transport.RemoteInteractiveHistoryGateway
+    if (interactive != null) {
+        return interactive.interactiveThreadTurns(threadId = threadId, cursor = cursor, limit = limit)
+    }
     val gateway = this as? RemoteBoundedReadGateway
         ?: throw com.poracode.app.model.RemoteClientException(
             "This host does not provide older completed turns.",
@@ -142,6 +146,13 @@ internal suspend fun RemoteApiGateway.historyTail(
     threadId: String,
     targetTimelineEntryCount: Int,
 ): com.poracode.app.model.RemoteThreadSnapshot {
+    val interactive = this as? com.poracode.app.transport.RemoteInteractiveHistoryGateway
+    if (interactive != null) {
+        return when (val result = interactive.interactiveThreadHistory(threadId, targetTimelineEntryCount)) {
+            is RemoteBoundedReadResult.Bounded -> result.page
+            is RemoteBoundedReadResult.Legacy -> result.page
+        }
+    }
     val bounded = this as? RemoteBoundedReadGateway
         ?: return threadHistory(threadId, targetTimelineEntryCount)
     return when (
@@ -162,6 +173,20 @@ internal suspend fun RemoteApiGateway.historyItems(
     limit: Int,
     targetTimelineEntryCount: Int,
 ): com.poracode.app.model.RemoteRuntimeItemsPage {
+    val interactive = this as? com.poracode.app.transport.RemoteInteractiveHistoryGateway
+    if (interactive != null) {
+        return when (
+            val result = interactive.interactiveHistoryItems(
+                threadId = threadId,
+                beforePosition = beforePosition,
+                limit = limit,
+                targetTimelineEntryCount = targetTimelineEntryCount,
+            )
+        ) {
+            is RemoteBoundedReadResult.Bounded -> result.page
+            is RemoteBoundedReadResult.Legacy -> result.page
+        }
+    }
     val bounded = this as? RemoteBoundedReadGateway
         ?: return threadRuntimeItemsPage(threadId, beforePosition, limit, targetTimelineEntryCount)
     return when (
@@ -175,4 +200,25 @@ internal suspend fun RemoteApiGateway.historyItems(
         is RemoteBoundedReadResult.Bounded -> result.page
         is RemoteBoundedReadResult.Legacy -> result.page
     }
+}
+
+/** Incremental warm resume via `thread-history-changes`; throws `route_unavailable` on non-capable fakes. */
+internal suspend fun RemoteApiGateway.historyChanges(
+    threadId: String,
+    cursor: String,
+    afterSeq: Int?,
+    targetTimelineEntryCount: Int?,
+): com.poracode.app.transport.RemoteHistoryResumeOutcome {
+    val interactive = this as? com.poracode.app.transport.RemoteInteractiveHistoryGateway
+        ?: throw com.poracode.app.model.RemoteClientException(
+            "This host does not support incremental history resume.",
+            status = 404,
+            code = com.poracode.app.model.RemoteBoundedReadCodes.ROUTE_UNAVAILABLE,
+        )
+    return interactive.threadHistoryChanges(
+        threadId = threadId,
+        cursor = cursor,
+        afterSeq = afterSeq,
+        targetTimelineEntryCount = targetTimelineEntryCount,
+    )
 }

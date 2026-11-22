@@ -14,6 +14,7 @@ import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 
 const DATABASE = "poracode-review-cache";
 const MAXIMUM_CHARACTERS = 8 * 1024 * 1024;
+const MAXIMUM_TOTAL_CHARACTERS = 16 * 1024 * 1024;
 let database: Promise<IDBDatabase> | undefined;
 
 export const browserReviewBundleSchema = z.object({
@@ -149,21 +150,27 @@ export async function writeBrowserReviewCache(key: string, value: unknown): Prom
         )
           return;
         store.put({ id: key, version: 1, updatedAt: Date.now(), serialized });
-        const count = store.count();
-        count.onsuccess = () => {
-          let remaining = count.result - 60;
-          if (remaining <= 0) return;
-          const cursor = store.index("updatedAt").openCursor();
-          cursor.onsuccess = () => {
-            const entry = cursor.result;
-            if (!entry || remaining <= 0) return;
-            const row: unknown = entry.value;
-            if (row && typeof row === "object" && "version" in row && row.version === 1) {
+        let keptCount = 0;
+        let keptChars = 0;
+        const cursor = store.index("updatedAt").openCursor(null, "prev");
+        cursor.onsuccess = () => {
+          const entry = cursor.result;
+          if (!entry) return;
+          const row: unknown = entry.value;
+          if (row && typeof row === "object" && "version" in row && row.version === 1) {
+            const chars =
+              "serialized" in row && typeof row.serialized === "string" ? row.serialized.length : 0;
+            if (
+              keptCount < 60 &&
+              (keptCount === 0 || keptChars + chars <= MAXIMUM_TOTAL_CHARACTERS)
+            ) {
+              keptCount += 1;
+              keptChars += chars;
+            } else {
               entry.delete();
-              remaining--;
             }
-            entry.continue();
-          };
+          }
+          entry.continue();
         };
       };
       transaction.oncomplete = () => {

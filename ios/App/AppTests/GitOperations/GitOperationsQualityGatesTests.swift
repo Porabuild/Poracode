@@ -4,8 +4,8 @@ import XCTest
 @testable import App
 
 final class GitOperationsQualityGatesTests: XCTestCase {
-  func testUIActionMappingCoversExactly29Procedures() {
-    XCTAssertEqual(GitOperationsPresentation.actions.count, 29)
+  func testUIActionMappingCoversExactly30Procedures() {
+    XCTAssertEqual(GitOperationsPresentation.actions.count, 30)
     XCTAssertEqual(
       Set(GitOperationsPresentation.actions.map(\.procedure)),
       Set(GitOperationProcedure.allCases)
@@ -20,7 +20,7 @@ final class GitOperationsQualityGatesTests: XCTestCase {
     XCTAssertEqual(
       Dictionary(grouping: GitOperationsPresentation.actions, by: \.surface).mapValues(\.count),
       [
-        .authoritativeRefresh: 3,
+        .authoritativeRefresh: 4,
         .repositoryQuick: 4,
         .repository: 10,
         .branch: 4,

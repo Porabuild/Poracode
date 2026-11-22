@@ -29,6 +29,7 @@ enum GitOperationRequest: Equatable, Sendable {
   case gitSyncRebase(GitRemoteRequest)
   case gitUnstage(GitFileRequest)
   case gitUnstageAll(GitLocationRequest)
+  case gitWorktreeSourceBranchBatch(GitWorktreeSourceBranchBatchRequest)
   case gitWorktreeStatusBatch(GitWorktreeStatusBatchRequest)
 }
 
@@ -63,6 +64,7 @@ extension GitOperationRequest {
     case .gitSyncRebase: .gitSyncRebase
     case .gitUnstage: .gitUnstage
     case .gitUnstageAll: .gitUnstageAll
+    case .gitWorktreeSourceBranchBatch: .gitWorktreeSourceBranchBatch
     case .gitWorktreeStatusBatch: .gitWorktreeStatusBatch
     }
   }
@@ -91,6 +93,7 @@ extension GitOperationRequest {
       value.projectLocation
     case .gitSwitchBranch(let value): value.projectLocation
     case .gitSync(let value), .gitSyncRebase(let value): value.projectLocation
+    case .gitWorktreeSourceBranchBatch(let value): value.projectLocation
     case .gitWorktreeStatusBatch(let value): value.projectLocation
     }
   }

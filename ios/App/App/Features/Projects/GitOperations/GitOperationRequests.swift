@@ -124,6 +124,11 @@ struct GitRemoteRequest: Codable, Equatable, Sendable {
   var remote: String?
 }
 
+struct GitWorktreeSourceBranchBatchRequest: Codable, Equatable, Sendable {
+  let projectLocation: ProjectLocation
+  let branches: [String]
+}
+
 struct GitWorktreeStatusBatchRequest: Codable, Equatable, Sendable {
   let projectLocation: ProjectLocation
   let worktreePaths: [String]

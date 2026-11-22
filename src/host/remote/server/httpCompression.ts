@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from "node:crypto";
 import type { IncomingMessage, ServerResponse } from "node:http";
-import { gzip } from "node:zlib";
+import { brotliCompress, constants as zlibConstants, gzip } from "node:zlib";
 
 /**
  * Content encoding + conditional GET for the remote JSON API.
@@ -33,11 +33,22 @@ const MIN_COMPRESS_BYTES = 1024;
 const BOOT_ID = randomUUID().slice(0, 8);
 
 const GZIP_OPTIONS = { level: 6 } as const;
+const BROTLI_OPTIONS = {
+  params: {
+    [zlibConstants.BROTLI_PARAM_QUALITY]: 4,
+  },
+} as const;
 
-export function acceptsGzip(req: IncomingMessage): boolean {
+function parseAcceptedEncoding(req: IncomingMessage): "br" | "gzip" | null {
   const header = req.headers["accept-encoding"];
   const value = Array.isArray(header) ? header.join(",") : (header ?? "");
-  return /\bgzip\b/i.test(value);
+  if (/\bbr\b/i.test(value)) return "br";
+  if (/\bgzip\b/i.test(value)) return "gzip";
+  return null;
+}
+
+export function acceptsGzip(req: IncomingMessage): boolean {
+  return parseAcceptedEncoding(req) === "gzip";
 }
 
 export function computeEtag(body: string | Uint8Array): string {
@@ -57,12 +68,27 @@ export function etagMatches(req: IncomingMessage, etag: string): boolean {
     .some((candidate) => candidate === etag || candidate === `W/${etag}`);
 }
 
-async function gzipAsync(body: string): Promise<Buffer> {
+async function compressAsync(body: string, encoding: "br" | "gzip"): Promise<Buffer> {
   return await new Promise((resolve, reject) => {
-    gzip(body, GZIP_OPTIONS, (error, result) => {
+    const cb = (error: Error | null, result: Buffer) => {
       if (error) reject(error);
       else resolve(result);
-    });
+    };
+    if (encoding === "br") {
+      brotliCompress(
+        body,
+        {
+          ...BROTLI_OPTIONS,
+          params: {
+            ...BROTLI_OPTIONS.params,
+            [zlibConstants.BROTLI_PARAM_SIZE_HINT]: Buffer.byteLength(body, "utf8"),
+          },
+        },
+        cb,
+      );
+    } else {
+      gzip(body, GZIP_OPTIONS, cb);
+    }
   });
 }
 
@@ -72,8 +98,10 @@ async function writeMaybeGzippedBody(
   status: number,
   body: string,
 ): Promise<void> {
+  if (res.destroyed || res.writableEnded) return;
   const rawBytes = Buffer.byteLength(body, "utf8");
-  if (!acceptsGzip(req) || rawBytes < MIN_COMPRESS_BYTES) {
+  const encoding = parseAcceptedEncoding(req);
+  if (!encoding || rawBytes < MIN_COMPRESS_BYTES) {
     res.statusCode = status;
     res.setHeader("Content-Length", String(rawBytes));
     res.end(body);
@@ -82,14 +110,16 @@ async function writeMaybeGzippedBody(
 
   let compressed: Buffer;
   try {
-    compressed = await gzipAsync(body);
+    compressed = await compressAsync(body, encoding);
   } catch {
+    if (res.destroyed || res.writableEnded) return;
     // Never fail a response because compression failed.
     res.statusCode = status;
     res.setHeader("Content-Length", String(rawBytes));
     res.end(body);
     return;
   }
+  if (res.destroyed || res.writableEnded) return;
   // A compressed body that grew (already-entropic payloads: base64 images) is
   // pointless overhead on both ends.
   if (compressed.byteLength >= rawBytes) {
@@ -99,7 +129,7 @@ async function writeMaybeGzippedBody(
     return;
   }
   res.statusCode = status;
-  res.setHeader("Content-Encoding", "gzip");
+  res.setHeader("Content-Encoding", encoding);
   res.setHeader("Content-Length", String(compressed.byteLength));
   res.end(compressed);
 }

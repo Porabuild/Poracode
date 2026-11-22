@@ -72,6 +72,11 @@ extension GitOperationsRemoteV3Contract {
         try decode(
           data, procedure, GitSyncResult.self,
           RemoteRootCodecs.procedureU2EGitSyncRebaseU2EResult))
+    case .gitWorktreeSourceBranchBatch:
+      return .worktreeSourceBranches(
+        try decode(
+          data, procedure, GitWorktreeSourceBranchBatchResult.self,
+          RemoteRootCodecs.procedureU2EGitWorktreeSourceBranchBatchU2EResult))
     case .gitWorktreeStatusBatch:
       return .worktreeStatuses(
         try decode(

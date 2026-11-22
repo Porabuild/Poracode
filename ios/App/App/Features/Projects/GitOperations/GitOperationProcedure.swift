@@ -54,6 +54,7 @@ enum GitOperationProcedure: String, CaseIterable, Codable, Sendable {
   case gitSyncRebase
   case gitUnstage
   case gitUnstageAll
+  case gitWorktreeSourceBranchBatch
   case gitWorktreeStatusBatch
 }
 
@@ -87,6 +88,7 @@ extension GitOperationProcedure {
     entry(.gitSyncRebase, .operate, .projectLocation, .json, long: true),
     entry(.gitUnstage, .operate, .projectLocation, .omitted),
     entry(.gitUnstageAll, .operate, .projectLocation, .omitted),
+    entry(.gitWorktreeSourceBranchBatch, .read, .projectLocation, .json),
     entry(.gitWorktreeStatusBatch, .read, .projectLocation, .json),
   ]
 

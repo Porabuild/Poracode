@@ -35,6 +35,10 @@ data class RichChatHostLease(
      * is observed; an undeclared connection makes zero gap calls.
      */
     val noticesSupported: Boolean = false,
+    /** Live descriptor advertised `capabilities.terminalCursorSync` version 2 (`omitScrollback=1`). */
+    val terminalCursorSyncV2Supported: Boolean = false,
+    /** Verified host `desktopId` for cache namespace isolation. */
+    val desktopId: String = "",
 ) {
     val key: RichChatHostKey get() = RichChatHostKey(connectionId, generation)
 }
@@ -187,6 +191,26 @@ interface RichChatSessionGateway {
         threadId: String,
         targetTimelineEntryCount: Int = 20,
     ): RichChatHistorySnapshot
+
+    /**
+     * Warm incremental history resume via `GET /api/threads/:id/history/changes`.
+     * Default throws `404 route_unavailable` so legacy/test gateways fall back
+     * seamlessly to [history].
+     */
+    suspend fun historyChanges(
+        lease: RichChatHostLease,
+        threadId: String,
+        cursor: String,
+        afterSeq: Int?,
+        targetTimelineEntryCount: Int = 20,
+    ): RichChatHistoryResumeOutcome = throw RichChatGatewayException(404, "route_unavailable", false)
+
+    /** Best-effort durable recent-history tail refresh after a live turn settles. */
+    suspend fun refreshHistoryCache(
+        lease: RichChatHostLease,
+        threadId: String,
+        targetTimelineEntryCount: Int = 20,
+    ) {}
 
     suspend fun olderItems(
         lease: RichChatHostLease,

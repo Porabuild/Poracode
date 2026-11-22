@@ -83,6 +83,7 @@ enum GitOperationsStrings {
     case .gitSyncRebase: "Sync with Rebase"
     case .gitUnstage: "Unstage File"
     case .gitUnstageAll: "Unstage All"
+    case .gitWorktreeSourceBranchBatch: "Refresh Source Branches"
     case .gitWorktreeStatusBatch: "Refresh Worktree Status"
     }
   }

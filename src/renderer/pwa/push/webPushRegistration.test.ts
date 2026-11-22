@@ -3,9 +3,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { RemotePushRegistration } from "@/shared/remote";
 import type { RemoteDesktopClient } from "@/shared/remote/client";
-import { syncWebPushRegistration, unregisterWebPush } from "./webPushRegistration";
+import {
+  supportsWebPushRegistration,
+  syncWebPushRegistration,
+  unregisterWebPush,
+} from "./webPushRegistration";
 
-vi.mock("../install", () => ({ isStandaloneDisplay: () => true }));
+const display = vi.hoisted(() => ({ standalone: true }));
+vi.mock("../install", () => ({ isStandaloneDisplay: () => display.standalone }));
 
 function subscription(applicationServerKey = new Uint8Array([1, 2, 3]).buffer) {
   return {
@@ -49,6 +54,13 @@ describe("web Push API registration", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
     Reflect.deleteProperty(navigator, "serviceWorker");
+  });
+
+  it("supports PushManager in standard desktop tabs while keeping standalone gate on iOS WebKit", () => {
+    display.standalone = false;
+    expect(supportsWebPushRegistration()).toBe(true);
+    display.standalone = true;
+    expect(supportsWebPushRegistration()).toBe(true);
   });
 
   it("reuses the browser subscription and registers it with the desktop", async () => {

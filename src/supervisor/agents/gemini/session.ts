@@ -1,4 +1,4 @@
-import { readdirSync, statSync } from "node:fs";
+import { readdir, stat } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import type { ProjectLocation } from "@/shared/contracts";
@@ -63,14 +63,17 @@ function isGeminiChatArtifact(name: string, shortId: string, fullId: string): bo
   return lower.includes(shortId) || lower.includes(fullId);
 }
 
-function findNativeGeminiResumeArtifact(configDir: string, sessionId: string): string | undefined {
+async function findNativeGeminiResumeArtifact(
+  configDir: string,
+  sessionId: string,
+): Promise<string | undefined> {
   const tmpDir = join(configDir, "tmp");
   const { lowerFull, shortId } = shortSessionId(sessionId);
   if (!shortId) return undefined;
 
   let projectDirs: string[];
   try {
-    projectDirs = readdirSync(tmpDir);
+    projectDirs = await readdir(tmpDir);
   } catch {
     return undefined;
   }
@@ -79,7 +82,7 @@ function findNativeGeminiResumeArtifact(configDir: string, sessionId: string): s
     const chatsDir = join(tmpDir, projectEntry, "chats");
     let chatFiles: string[];
     try {
-      chatFiles = readdirSync(chatsDir);
+      chatFiles = await readdir(chatsDir);
     } catch {
       continue;
     }
@@ -87,7 +90,7 @@ function findNativeGeminiResumeArtifact(configDir: string, sessionId: string): s
       if (!isGeminiChatArtifact(file, shortId, lowerFull)) continue;
       const fullPath = join(chatsDir, file);
       try {
-        if (statSync(fullPath).size > 0) return fullPath;
+        if ((await stat(fullPath)).size > 0) return fullPath;
       } catch {
         continue;
       }
@@ -167,7 +170,7 @@ export async function waitForGeminiResumeArtifact(
       }
     } else {
       const configDir = resolveGeminiConfigDir(options.env, options.hostHomeDir);
-      if (findNativeGeminiResumeArtifact(configDir, trimmedId)) {
+      if (await findNativeGeminiResumeArtifact(configDir, trimmedId)) {
         return true;
       }
     }

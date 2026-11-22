@@ -10,9 +10,17 @@ actor PortForwardingExactHostTransportSource {
   typealias APIFactory =
     @Sendable (String, String, RemoteEnvironmentContext?) throws -> any PortForwardingRemoteAPI
 
+  private struct CachedAPIKey: Equatable {
+    let connectionID: ClientConnectionID
+    let endpoint: String
+    let token: String
+    let environmentId: String?
+  }
+
   private let credentials: any PortForwardingCredentialRepository
   private let accessProvider: AccessProvider
   private let makeAPI: APIFactory
+  private var cachedAPI: (key: CachedAPIKey, api: any PortForwardingRemoteAPI)?
 
   /// Production factory: the parent authority for a host-owned environment
   /// record is attached to every port-forwarding HTTP dispatch; a direct host
@@ -77,9 +85,23 @@ actor PortForwardingExactHostTransportSource {
       // the host's own handshake and carries through unchanged.
       browserForwardEntry: access.browserForwardEntry
     )
+    let key = CachedAPIKey(
+      connectionID: credential.connectionID,
+      endpoint: credential.endpoint,
+      token: credential.token,
+      environmentId: credential.environment?.environmentId
+    )
+    let api: any PortForwardingRemoteAPI
+    if let cachedAPI, cachedAPI.key == key {
+      api = cachedAPI.api
+    } else {
+      let created = try makeAPI(credential.endpoint, credential.token, credential.environment)
+      cachedAPI = (key, created)
+      api = created
+    }
     return PortForwardingTransportSelection(
       access: exact,
-      api: try makeAPI(credential.endpoint, credential.token, credential.environment)
+      api: api
     )
   }
 }

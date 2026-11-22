@@ -548,6 +548,7 @@ actor RemoteWebSocketClient {
         connectTimeoutTask?.cancel()
         connectTimeoutTask = nil
         pendingPingId = nil
+        lastInboundAtMs = nil
         readyReceived = false
         task?.cancel()
         task = nil

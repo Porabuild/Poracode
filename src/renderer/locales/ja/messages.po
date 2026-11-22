@@ -251,7 +251,7 @@ msgid "{0} hooks installed for {envName}."
 msgstr "{0}フックが{envName}用にインストールされました。"
 
 #. placeholder {0}: props.selectedAgent.label
-#: src/renderer/components/thread/ThreadDraftComposerArea.tsx
+#: src/renderer/components/thread/DraftHookInstallProposal.tsx
 msgid "{0} hooks installed."
 msgstr "{0}フックがインストールされました。"
 
@@ -2620,7 +2620,7 @@ msgstr "Poracode を作っている本人による舞台裏"
 msgid "Better (Whisper base)"
 msgstr "ベター (ウィスパーベース)"
 
-#: src/renderer/components/thread/ThreadDraftComposerArea.tsx
+#: src/renderer/components/thread/DraftHookInstallProposal.tsx
 msgid "Better status updates while agents run."
 msgstr "エージェントの実行中のステータス更新が改善されました。"
 
@@ -3186,7 +3186,7 @@ msgid "Change project icon"
 msgstr "プロジェクトアイコンを変更"
 
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
-#: src/renderer/components/thread/ThreadDraftComposerArea.tsx
+#: src/renderer/components/thread/DraftHookInstallProposal.tsx
 msgid "Change servers in provider settings"
 msgstr "プロバイダー設定でサーバーを変更"
 
@@ -6387,7 +6387,7 @@ msgstr "発見が完了しました"
 
 #: src/renderer/components/composer/VoiceInputFeedback.tsx
 #: src/renderer/components/skills/MemorySkillSuggestions.tsx
-#: src/renderer/components/thread/ThreadDraftComposerArea.tsx
+#: src/renderer/components/thread/DraftHookInstallProposal.tsx
 #: src/renderer/components/thread/ThreadErrorDock.tsx
 #: src/renderer/components/thread/ThreadHistoryNoticeDock.tsx
 msgid "Dismiss"
@@ -6464,7 +6464,7 @@ msgstr "今後表示しない"
 msgid "Don't show again"
 msgstr "今後表示しない"
 
-#: src/renderer/components/thread/ThreadDraftComposerArea.tsx
+#: src/renderer/components/thread/DraftHookInstallProposal.tsx
 msgid "Don't show hook install proposal"
 msgstr "フックのインストール提案を表示しない"
 
@@ -9218,7 +9218,7 @@ msgstr "インストールする"
 #: src/renderer/components/providers/opencode/OpenCodePluginCards.tsx
 #: src/renderer/components/providers/opencode/OpenCodePluginManager.tsx
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
-#: src/renderer/components/thread/ThreadDraftComposerArea.tsx
+#: src/renderer/components/thread/DraftHookInstallProposal.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/CursorSdkRuntimeSetup.tsx
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
@@ -9297,7 +9297,7 @@ msgstr "Agent Plugins 仕様に基づいて作られたスキルとMCPサーバ�
 msgid "Install Chrome extension"
 msgstr "Chrome 拡張機能をインストール"
 
-#: src/renderer/components/thread/ThreadDraftComposerArea.tsx
+#: src/renderer/components/thread/DraftHookInstallProposal.tsx
 msgid "Install CLI hooks"
 msgstr "CLIフックをインストールする"
 
@@ -20321,7 +20321,7 @@ msgid "Unable to import browser data."
 msgstr "ブラウザ データをインポートできませんでした。"
 
 #. placeholder {0}: props.selectedAgent.label
-#: src/renderer/components/thread/ThreadDraftComposerArea.tsx
+#: src/renderer/components/thread/DraftHookInstallProposal.tsx
 msgid "Unable to install {0} hooks."
 msgstr "{0}フックをインストールできません。"
 

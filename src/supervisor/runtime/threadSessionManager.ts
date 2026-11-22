@@ -114,7 +114,7 @@ import {
   USER_INTERRUPT_RECOVERY_GRACE_MS,
 } from "./threadSession/userInterrupt";
 import { writeSubmittedPrompt } from "./threadSession/promptWrite";
-import { resolveTerminalColorEnv } from "./threadSession/terminalEnv";
+import { resolveTerminalColorEnvAsync } from "./threadSession/terminalEnv";
 import {
   fenceSessionForRetirement,
   requireSessionPty,
@@ -162,24 +162,15 @@ import {
   type RetainedShellSnapshot,
 } from "./retainedShellSnapshots";
 
+import {
+  isTerminalPtySession,
+  requireThreadMentionTools,
+} from "./threadSession/shellManagerHelpers";
+
 export { isUserInterruptKeystroke, USER_INTERRUPT_RECOVERY_GRACE_MS, writeSubmittedPrompt };
 export type { ThreadSessionManagerOptions };
 
 const RECENTLY_REMOVED_THREAD_LIMIT = 256;
-
-function requireThreadMentionTools(
-  session: SessionRuntime,
-  segments: readonly PromptSegment[] | undefined,
-): void {
-  if (
-    segments?.some((segment) => segment.kind === "thread") &&
-    session.threadMentionToolsAvailable !== true
-  ) {
-    throw new Error(
-      "Thread mentions require the Poracode read_thread tool, but it is unavailable for this session.",
-    );
-  }
-}
 
 export class ThreadSessionManager {
   readonly sessions = new Map<string, SessionRuntime>();
@@ -2379,8 +2370,8 @@ export class ThreadSessionManager {
     const shellCommand = buildShellCommand(payload.projectLocation, windowsShell, {
       startInHome: payload.startInHome === true,
     });
+    const terminalEnv = await resolveTerminalColorEnvAsync(payload.projectLocation);
     this.options.emit({ type: "thread-reset", threadId: payload.shellId });
-    const terminalEnv = resolveTerminalColorEnv(payload.projectLocation);
 
     // node-pty's C binding expects every env value to be a string. process.env
     // is typed `Record<string, string | undefined>` and spreading can carry
@@ -2833,13 +2824,5 @@ export class ThreadSessionManager {
       ...effectiveAgentSettings(settings, localMachineKey(env), adapter.kind),
     };
   }
-}
-
-/** True when the session backs a real terminal-presentation PTY (not GUI/structured-only). */
-function isTerminalPtySession(session: SessionRuntime): boolean {
-  if (!session.pty) return false;
-  const presentationMode =
-    session.presentationMode ?? session.adapter.capabilities.presentationMode;
-  return presentationMode === "terminal";
 }
 import { stripRuntimeEventPayloadOrigin } from "@/shared/runtimePayloadOriginProtocol";

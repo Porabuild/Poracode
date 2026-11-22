@@ -111,25 +111,30 @@
         "batch": "thread-lifecycle",
         "ios": {
           "wire": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "implemented",
+            "evidence": [
+              "ios/App/App/Features/BoundedCatalog/Transport/RemoteConversationSearchTransport.swift"
+            ]
           },
           "ui": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "partial",
+            "evidence": ["ios/App/App/Features/Home/HomeThreadSearchView.swift"],
+            "note": "Wire transport uses generated conversation-search query/response codecs; HomeThreadSearchView full-text search integration and dedicated UI tests remain separate."
           }
         },
         "android": {
           "wire": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "implemented",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/transport/RemoteConversationSearchClient.kt"
+            ]
           },
           "ui": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "partial",
+            "evidence": ["android/app/src/main/kotlin/com/poracode/app/ui/home/HomeActionDock.kt"],
+            "note": "Wire transport uses generated conversation-search query/response codecs; HomeActionDock remote saved-message search UI remains separate."
           }
-        },
-        "note": "Capability-gated saved-message search is available to the shared renderer and app controls; native search UI is planned."
+        }
       },
       {
         "id": "environment",
@@ -3679,24 +3684,30 @@
         "batch": "thread-lifecycle",
         "ios": {
           "wire": {
-            "disposition": "planned",
-            "evidence": ["src/shared/remote/contract/routes/threads.ts"]
+            "disposition": "implemented",
+            "evidence": [
+              "ios/App/App/Features/BoundedCatalog/Transport/RemoteConversationSearchTransport.swift"
+            ]
           },
           "ui": {
-            "disposition": "planned",
-            "evidence": [],
-            "note": "Desktop prompt-rail navigation over history that paging has not loaded. Native adoption of this opt-in history route is pending; native clients retain complete compatible history responses."
+            "disposition": "partial",
+            "evidence": ["ios/App/App/Features/RichChat/UI/Pages/RichChatThreadView.swift"],
+            "note": "Generated thread-history-prompts wire client is implemented; prompt-rail jump sheet UI remains separate."
           }
         },
         "android": {
           "wire": {
-            "disposition": "planned",
-            "evidence": ["src/shared/remote/contract/routes/threads.ts"]
+            "disposition": "implemented",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/transport/RemoteConversationSearchClient.kt"
+            ]
           },
           "ui": {
-            "disposition": "planned",
-            "evidence": [],
-            "note": "Desktop prompt-rail navigation over history that paging has not loaded. Native adoption of this opt-in history route is pending; native clients retain complete compatible history responses."
+            "disposition": "partial",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/ui/richchat/RichTimelineView.kt"
+            ],
+            "note": "Generated thread-history-prompts wire client is implemented; prompt-rail jump sheet UI remains separate."
           }
         }
       },
@@ -3727,15 +3738,19 @@
           "wire": {
             "disposition": "implemented",
             "evidence": [
-              "android/app/src/main/kotlin/com/poracode/app/transport/RemoteHistoryChangesContract.kt"
+              "android/app/src/main/kotlin/com/poracode/app/transport/RemoteHistoryChangesContract.kt",
+              "android/app/src/main/kotlin/com/poracode/app/transport/RemoteInteractiveHistoryClient.kt",
+              "android/app/src/main/kotlin/com/poracode/app/session/richchat/GeneratedRichChatSessionGateway.kt"
             ]
           },
           "ui": {
             "disposition": "partial",
             "evidence": [
-              "android/app/src/main/kotlin/com/poracode/app/session/history/ThreadHistoryReads.kt"
+              "android/app/src/main/kotlin/com/poracode/app/session/history/ThreadHistoryReads.kt",
+              "android/app/src/main/kotlin/com/poracode/app/session/richchat/RichChatHistoryController.kt",
+              "android/app/src/main/kotlin/com/poracode/app/session/richchat/RichChatHistoryResumeModels.kt"
             ],
-            "note": "Wire query/path contract is implemented in RemoteHistoryChangesContract; Android transcript controller currently uses bounded thread-history tail reads until warm-resume controller wiring lands."
+            "note": "Warm incremental thread-history-changes resume, durable recent-history tail cache, and fallback to bounded thread-history are wired in production and unit-tested; a dedicated Android device-journey instrumentation case remains separate."
           }
         }
       },
@@ -7796,25 +7811,33 @@
         "batch": "projects",
         "ios": {
           "wire": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "implemented",
+            "evidence": [
+              "ios/App/App/Transport/Projects/GitOperations/GitOperationsRemoteV3Requests.swift",
+              "ios/App/App/Transport/Projects/GitOperations/GitOperationsRemoteV3Results.swift"
+            ]
           },
           "ui": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "partial",
+            "evidence": ["ios/App/App/Features/Projects/ProjectGitWorkspaceViews.swift"],
+            "note": "ProjectGitWorkspaceViews batches worktree source-branch lookups with single-branch fallback; dedicated device-journey coverage remains separate."
           }
         },
         "android": {
           "wire": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "implemented",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/protocol/git/RemoteV3GitContract.kt"
+            ]
           },
           "ui": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "partial",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/ProjectGitPane.kt"
+            ],
+            "note": "RemoteV3GitContract implements the generated batch codec; ProjectGitPane batch adoption and device-journey tests remain separate."
           }
-        },
-        "note": "Additive desktop/web batch read for worktree source branches; native clients still call gitGetWorktreeSourceBranch per opened worktree."
+        }
       },
       {
         "id": "gitGetWorktreeSourceBranch",

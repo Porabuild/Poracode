@@ -78,13 +78,24 @@ async function subscribeWithPermissionRetry(
   }
 }
 
+function isAppleMobileBrowser(): boolean {
+  if (typeof navigator === "undefined") return false;
+  const ua = navigator.userAgent;
+  return /iPhone|iPad|iPod/i.test(ua) || (ua.includes("Macintosh") && navigator.maxTouchPoints > 1);
+}
+
 export function supportsWebPushRegistration(): boolean {
-  return (
-    isStandaloneDisplay() &&
-    typeof Notification !== "undefined" &&
-    "serviceWorker" in navigator &&
-    typeof PushManager !== "undefined"
-  );
+  if (
+    typeof Notification === "undefined" ||
+    typeof navigator === "undefined" ||
+    !("serviceWorker" in navigator) ||
+    typeof PushManager === "undefined"
+  ) {
+    return false;
+  }
+  // iOS Safari only exposes Web Push to installed Home Screen web apps;
+  // desktop & Android browsers support standard PushManager in normal tabs.
+  return !isAppleMobileBrowser() || isStandaloneDisplay();
 }
 
 /**

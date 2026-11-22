@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.asStateFlow
 class SelectedRichChatHostLeaseSource(initial: AppSession.UiState) {
     private data class HostBinding(
         val connectionId: ClientConnectionId,
+        val desktopId: String,
         val endpoint: String,
         val websocketEndpoint: String,
         val pairedAtEpochMs: Long,
@@ -18,6 +19,7 @@ class SelectedRichChatHostLeaseSource(initial: AppSession.UiState) {
         val tokenExpiresAt: String?,
         val scopes: Set<String>,
         val noticesSupported: Boolean,
+        val terminalCursorSyncV2Supported: Boolean,
     )
 
     private val mutableState = MutableStateFlow<RichChatHostLease?>(null)
@@ -45,6 +47,7 @@ class SelectedRichChatHostLeaseSource(initial: AppSession.UiState) {
         }
         val nextBinding = HostBinding(
             connectionId = connectionId,
+            desktopId = profile.desktopId,
             endpoint = profile.httpBaseUrl,
             websocketEndpoint = profile.wsBaseUrl,
             pairedAtEpochMs = profile.pairedAtEpochMs,
@@ -53,6 +56,9 @@ class SelectedRichChatHostLeaseSource(initial: AppSession.UiState) {
             scopes = profile.scopes.toSet(),
             noticesSupported = appState.liveRuntimeHistoryNoticeVersions.contains(
                 com.poracode.app.model.RemoteEnvironmentDescriptor.RUNTIME_HISTORY_NOTICES_VERSION,
+            ),
+            terminalCursorSyncV2Supported = appState.liveTerminalCursorSyncVersions.contains(
+                com.poracode.app.model.RemoteEnvironmentDescriptor.TERMINAL_CURSOR_SYNC_V2,
             ),
         )
         val ready = appState.phase == AppSession.Phase.Ready && !appState.sessionExpired
@@ -76,6 +82,8 @@ class SelectedRichChatHostLeaseSource(initial: AppSession.UiState) {
             ready = ready,
             bindingGeneration = bindingGeneration,
             noticesSupported = nextBinding.noticesSupported,
+            terminalCursorSyncV2Supported = nextBinding.terminalCursorSyncV2Supported,
+            desktopId = nextBinding.desktopId,
         )
     }
 }

@@ -296,8 +296,9 @@ internal fun RichTimelineAdvisoryChrome(
     val resolved = advisoryState.fullItemsByItemId[item.id] ?: item
     val heading = advisoryState.headingsByItemId[item.id]
     val resolvedBody = advisoryState.bodiesByItemId[item.id]
-    val isDeferred = (resolved.payload as? kotlinx.serialization.json.JsonObject)
-        ?.get("detailsDeferred") == kotlinx.serialization.json.JsonPrimitive(true)
+    val isDeferred = resolved.detailsDeferred == true ||
+        (resolved.payload as? kotlinx.serialization.json.JsonObject)
+            ?.get("detailsDeferred") == kotlinx.serialization.json.JsonPrimitive(true)
     Column {
         if (heading != null) {
             RichToolHeadingRow(

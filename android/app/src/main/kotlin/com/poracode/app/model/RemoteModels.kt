@@ -34,78 +34,27 @@ data class RemoteEnvironmentDescriptor(
     )
 
     @Serializable
-    data class Endpoints(
-        val httpBaseUrl: String,
-        val wsBaseUrl: String,
-    )
+    data class Endpoints(val httpBaseUrl: String, val wsBaseUrl: String)
 
     @Serializable
     data class Capabilities(
         val threadForks: VersionedCapability? = null,
-        /**
-         * Origin-bound browser entry (`versions` contains
-         * [BROWSER_FORWARD_ENTRY_VERSION]). Declares protocol support only — a
-         * supporting host may still be deployment-unconfigured and reject entry
-         * with 503 `forward_browser_unavailable`. Absence must never be read as
-         * raw-TCP unavailability or as origin isolation.
-         */
         val browserForward: VersionedCapability? = null,
-        /**
-         * Host-owned environments (`versions` contains
-         * [SSH_ENVIRONMENTS_VERSION]). Emitted only when the host composed the
-         * environment management routes and every route is usable; absence
-         * hides the feature and means zero environment calls, never a fallback.
-         */
         val sshEnvironments: VersionedCapability? = null,
-        /**
-         * Durable runtime-history-notice support (`versions` contains
-         * [RUNTIME_HISTORY_NOTICES_VERSION]). Emitted only when the host
-         * composed the durable store; absence means zero notice declarations
-         * and no gap-route calls, never a fallback read.
-         */
         val runtimeHistoryNotices: VersionedCapability? = null,
-        /**
-         * Bounded catalog-change notifications (`versions` contains
-         * [BOUNDED_CATALOG_CHANGES_VERSION]). Emitted only when the host
-         * canonicalizes catalog changes to the bounded signal; absence means no
-         * `catalogChanges=bounded-v1` upgrade declaration, never a fallback
-         * declaration.
-         */
         val boundedCatalogChanges: VersionedCapability? = null,
         val terminalCursorSync: VersionedCapability? = null,
-        /**
-         * Bounded project-command results (`versions` contains
-         * [PROJECT_COMMAND_RESULTS_VERSION]). Emitted only when the host can
-         * answer `POST /api/projects/command` with the bounded acknowledgement
-         * under `x-poracode-project-command-result: bounded-v1`; absence means
-         * the legacy complete-list result is kept, never a speculative
-         * declaration.
-         */
         val projectCommandResults: VersionedCapability? = null,
     )
 
     @Serializable
-    data class VersionedCapability(
-        val versions: List<Int> = emptyList(),
-    )
+    data class VersionedCapability(val versions: List<Int> = emptyList())
 
     companion object {
-        /**
-         * App-side pin of the host's `REMOTE_BROWSER_FORWARD_VERSION`: the
-         * entry path guaranteed to be origin-bound and isolated.
-         */
         const val BROWSER_FORWARD_ENTRY_VERSION = 1
-
-        /** App-side pin of the host's `REMOTE_SSH_ENVIRONMENTS_VERSION`. */
         const val SSH_ENVIRONMENTS_VERSION = 1
-
-        /** App-side pin of the host's `REMOTE_RUNTIME_HISTORY_NOTICES_VERSION`. */
         const val RUNTIME_HISTORY_NOTICES_VERSION = 1
-
-        /** App-side pin of the host's `REMOTE_BOUNDED_CATALOG_CHANGES_VERSION`. */
         const val BOUNDED_CATALOG_CHANGES_VERSION = 1
-
-        /** App-side pin of the host's `REMOTE_PROJECT_COMMAND_RESULTS_VERSION`. */
         const val PROJECT_COMMAND_RESULTS_VERSION = 1
         const val TERMINAL_CURSOR_SYNC_V2 = 2
     }
@@ -291,6 +240,7 @@ data class PersistedRuntimeItem(
     val payload: JsonElement? = null,
     val streams: Map<String, String> = emptyMap(),
     val parentItemId: String? = null,
+    val detailsDeferred: Boolean? = null,
 ) {
     /**
      * Canonical transcript text: preferred streams, then payload content blocks
@@ -333,6 +283,9 @@ data class RemoteThreadSnapshot(
      */
     val runtimeNotice: RemoteRuntimeHistoryNotice? = null,
     val runtimeResumeCursor: String? = null,
+    val reads: String? = null,
+    val historyCache: JsonObject? = null,
+    val historyProjection: String? = null,
     val updatedAt: String,
 )
 
@@ -432,6 +385,7 @@ class RemoteClientException(
      * client must never infer authority from status alone (R1).
      */
     val environmentAuthAuthority: String? = null,
+    val retryAfterMs: Long? = null,
 ) : Exception(message) {
     val isUnauthorized: Boolean get() = status == 401 || status == 403
     val isNotFound: Boolean get() = status == 404

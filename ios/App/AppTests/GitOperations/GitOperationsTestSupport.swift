@@ -57,6 +57,9 @@ enum GitOperationsSamples {
     .gitSyncRebase(.init(projectLocation: posix, remote: "origin")),
     .gitUnstage(.init(projectLocation: posix, filePath: "README.md")),
     .gitUnstageAll(.init(projectLocation: posix)),
+    .gitWorktreeSourceBranchBatch(
+      .init(projectLocation: posix, branches: ["feature"])
+    ),
     .gitWorktreeStatusBatch(
       .init(projectLocation: wsl, worktreePaths: ["/home/dev/repo"], detail: .full)
     ),
@@ -108,6 +111,8 @@ enum GitOperationsSamples {
       ]
     case .gitSync, .gitSyncRebase:
       result = ["pulled": true, "pushed": true]
+    case .gitWorktreeSourceBranchBatch:
+      result = ["results": ["feature": ["sourceBranch": "main", "commitsAhead": 1, "sourceAhead": 0]]]
     case .gitWorktreeStatusBatch:
       result = ["statuses": ["/repo": status()]]
     default:

@@ -58,6 +58,10 @@ internal class ClientCapabilityDeclaration {
         notices = enabled
     }
 
+    fun declareTerminalCursorSyncV2(enabled: Boolean) {
+        cursorSyncV2 = enabled
+    }
+
     /** The bounded catalog owner's negotiation result on this client. */
     fun declareCatalogChanges(enabled: Boolean) {
         catalogDeclared = enabled

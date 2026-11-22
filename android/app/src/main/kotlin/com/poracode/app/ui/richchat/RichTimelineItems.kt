@@ -37,9 +37,12 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -207,33 +210,42 @@ private fun RichAssistantContent(item: RichRuntimeItem, text: String, runtime: R
 @Composable
 private fun RichActivityRow(item: RichRuntimeItem, text: String, runtime: RichChatSessionRuntime) {
     val colors = PoracodeTheme.colors
-    val mcpApp = com.poracode.app.chat.McpAppPresentation.from(item)
-    val images = RichChatUiLogic.images(item)
-    val isError = item.type == RichItemTypes.ERROR
-    val expandedByDefault = isError || item.type == RichItemTypes.PLAN || item.type == RichItemTypes.GOAL
-    var expanded by rememberSaveable(item.id) { mutableStateOf(expandedByDefault) }
-    val typeLabel = itemTypeLabel(item.type)
-    val title = RichChatUiLogic.activityTitle(item).ifBlank { typeLabel }
-    val typePrefix = if (item.type in TYPE_PREFIXED_ACTIVITIES && title != typeLabel) {
-        typeLabel
-    } else {
-        null
+    val advisoryState by runtime.advisory.state.collectAsStateWithLifecycle()
+    val resolvedItem = advisoryState.fullItemsByItemId[item.id] ?: item
+    val resolvedText = if (resolvedItem === item) text else RichChatUiLogic.itemText(resolvedItem)
+    val isDeferred = resolvedItem.detailsDeferred == true ||
+        (resolvedItem.payload as? kotlinx.serialization.json.JsonObject)
+            ?.get("detailsDeferred") == kotlinx.serialization.json.JsonPrimitive(true)
+    val needsDeferredFetch = isDeferred && resolvedItem.id !in advisoryState.fullItemsByItemId
+    val mcpApp = com.poracode.app.chat.McpAppPresentation.from(resolvedItem)
+    val images = RichChatUiLogic.images(resolvedItem)
+    val isError = resolvedItem.type == RichItemTypes.ERROR
+    val expandedByDefault = isError || resolvedItem.type == RichItemTypes.PLAN || resolvedItem.type == RichItemTypes.GOAL
+    var expanded by rememberSaveable(resolvedItem.id) { mutableStateOf(expandedByDefault) }
+    val threadId = runtime.chat.state.collectAsStateWithLifecycle().value.selection?.threadId
+    val scope = rememberCoroutineScope()
+    LaunchedEffect(expanded, needsDeferredFetch, threadId, resolvedItem.id) {
+        if (expanded && needsDeferredFetch && !threadId.isNullOrEmpty() &&
+            resolvedItem.id !in advisoryState.loadingItemIds &&
+            resolvedItem.id !in advisoryState.failedItemIds
+        ) {
+            runtime.advisory.loadDeferredHistoryItem(threadId, resolvedItem.id)
+        }
     }
-    val hasDetails = mcpApp != null || images.isNotEmpty() || text.trim() != title.trim()
+    val typeLabel = itemTypeLabel(resolvedItem.type)
+    val title = RichChatUiLogic.activityTitle(resolvedItem).ifBlank { typeLabel }
+    val typePrefix = typeLabel.takeIf { resolvedItem.type in TYPE_PREFIXED_ACTIVITIES && title != typeLabel }
+    val hasDetails = needsDeferredFetch || mcpApp != null || images.isNotEmpty() || resolvedText.trim() != title.trim()
     val tint = if (isError) colors.danger else colors.muted
-    val titleStyle = if (item.type == RichItemTypes.COMMAND_EXECUTION) {
+    val titleStyle = if (resolvedItem.type == RichItemTypes.COMMAND_EXECUTION) {
         PoracodeTextStyles.monoSummary.copy(fontSize = 12.sp)
     } else {
         MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp)
     }
     val displayTitle: AnnotatedString = if (typePrefix != null) {
         buildAnnotatedString {
-            withStyle(SpanStyle(color = colors.foreground.copy(alpha = 0.85f), fontSize = 13.sp)) {
-                append(typePrefix)
-            }
-            withStyle(SpanStyle(color = tint)) {
-                append(" · $title")
-            }
+            withStyle(SpanStyle(color = colors.foreground.copy(alpha = 0.85f), fontSize = 13.sp)) { append(typePrefix) }
+            withStyle(SpanStyle(color = tint)) { append(" · $title") }
         }
     } else {
         AnnotatedString(title)
@@ -242,24 +254,13 @@ private fun RichActivityRow(item: RichRuntimeItem, text: String, runtime: RichCh
         Row(
             Modifier
                 .clip(RoundedCornerShape(8.dp))
-                .then(
-                    if (hasDetails) {
-                        Modifier.clickable(role = Role.Button) { expanded = !expanded }
-                    } else {
-                        Modifier
-                    },
-                )
+                .then(if (hasDetails) Modifier.clickable(role = Role.Button) { expanded = !expanded } else Modifier)
                 .heightIn(min = 30.dp)
                 .padding(horizontal = 8.dp, vertical = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Icon(
-                activityIcon(activityIconKey(item)),
-                contentDescription = null,
-                modifier = Modifier.size(13.dp),
-                tint = tint,
-            )
+            Icon(activityIcon(activityIconKey(resolvedItem)), null, Modifier.size(13.dp), tint)
             Text(
                 displayTitle,
                 modifier = Modifier.weight(1f, fill = false),
@@ -268,20 +269,13 @@ private fun RichActivityRow(item: RichRuntimeItem, text: String, runtime: RichCh
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
-            if (item.state != RichItemState.COMPLETED) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(11.dp),
-                    strokeWidth = 1.5.dp,
-                    color = colors.muted,
-                    trackColor = Color.Transparent,
-                )
+            if (resolvedItem.state != RichItemState.COMPLETED) {
+                CircularProgressIndicator(Modifier.size(11.dp), strokeWidth = 1.5.dp, color = colors.muted, trackColor = Color.Transparent)
             }
             if (hasDetails) {
                 Icon(
                     if (expanded) PoracodeIcons.ExpandLess else PoracodeIcons.ExpandMore,
-                    contentDescription = stringResource(
-                        if (expanded) R.string.rich_chat_collapse_activity else R.string.rich_chat_expand_activity,
-                    ),
+                    contentDescription = stringResource(if (expanded) R.string.rich_chat_collapse_activity else R.string.rich_chat_expand_activity),
                     modifier = Modifier.size(14.dp),
                     tint = colors.muted,
                 )
@@ -298,15 +292,22 @@ private fun RichActivityRow(item: RichRuntimeItem, text: String, runtime: RichCh
                 verticalArrangement = Arrangement.spacedBy(6.dp),
             ) {
                 when {
-                    mcpApp != null -> RichMcpAppView(mcpApp, runtime, text)
-                    item.type == RichItemTypes.PLAN || item.type == RichItemTypes.GOAL -> RichMarkdownView(text)
-                    text.isNotBlank() -> SelectionContainer {
+                    mcpApp != null -> RichMcpAppView(mcpApp, runtime, resolvedText)
+                    resolvedItem.type == RichItemTypes.PLAN || resolvedItem.type == RichItemTypes.GOAL -> RichMarkdownView(resolvedText)
+                    resolvedText.isNotBlank() -> SelectionContainer {
                         Text(
-                            text,
-                            style = TextStyleForActivity(item),
+                            resolvedText,
+                            style = TextStyleForActivity(resolvedItem),
                             color = if (isError) colors.danger else colors.foreground.copy(alpha = 0.85f),
                         )
                     }
+                }
+                if (needsDeferredFetch && !threadId.isNullOrEmpty()) {
+                    RichDeferredItemRow(
+                        loading = resolvedItem.id in advisoryState.loadingItemIds,
+                        failed = resolvedItem.id in advisoryState.failedItemIds,
+                        onLoadFull = { scope.launch { runtime.advisory.loadDeferredHistoryItem(threadId, resolvedItem.id) } },
+                    )
                 }
                 images.forEach { RichRemoteImage(it, runtime) }
             }

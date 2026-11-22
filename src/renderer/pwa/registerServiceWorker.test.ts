@@ -148,6 +148,17 @@ describe("canonical service-worker build assets", () => {
     expect(active.postMessage).not.toHaveBeenCalled();
   });
 
+  it("retries service-worker registration once connectivity returns after an offline boot", async () => {
+    localMarker();
+    const onlineSpy = vi.spyOn(navigator, "onLine", "get").mockReturnValue(false);
+    registerCanonicalServiceWorker();
+    expect(register).not.toHaveBeenCalled();
+
+    onlineSpy.mockReturnValue(true);
+    window.dispatchEvent(new Event("online"));
+    await vi.waitFor(() => expect(register).toHaveBeenCalledTimes(1));
+  });
+
   it.each(["development", "electron", "insecure", "missing-api", "offline"])(
     "skips %s delivery",
     (mode) => {

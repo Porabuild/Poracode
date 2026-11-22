@@ -251,7 +251,7 @@ msgid "{0} hooks installed for {envName}."
 msgstr "{envName}에 {0} 후크가 설치되었습니다."
 
 #. placeholder {0}: props.selectedAgent.label
-#: src/renderer/components/thread/ThreadDraftComposerArea.tsx
+#: src/renderer/components/thread/DraftHookInstallProposal.tsx
 msgid "{0} hooks installed."
 msgstr "{0} 후크가 설치되었습니다."
 
@@ -2621,7 +2621,7 @@ msgstr "Poracode를 만드는 사람의 비하인드 스토리"
 msgid "Better (Whisper base)"
 msgstr "Better (위스퍼 베이스)"
 
-#: src/renderer/components/thread/ThreadDraftComposerArea.tsx
+#: src/renderer/components/thread/DraftHookInstallProposal.tsx
 msgid "Better status updates while agents run."
 msgstr "에이전트 실행 중 더 나은 상태 업데이트"
 
@@ -3187,7 +3187,7 @@ msgid "Change project icon"
 msgstr "프로젝트 아이콘 변경"
 
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
-#: src/renderer/components/thread/ThreadDraftComposerArea.tsx
+#: src/renderer/components/thread/DraftHookInstallProposal.tsx
 msgid "Change servers in provider settings"
 msgstr "제공업체 설정에서 서버 변경"
 
@@ -6388,7 +6388,7 @@ msgstr "검색 완료"
 
 #: src/renderer/components/composer/VoiceInputFeedback.tsx
 #: src/renderer/components/skills/MemorySkillSuggestions.tsx
-#: src/renderer/components/thread/ThreadDraftComposerArea.tsx
+#: src/renderer/components/thread/DraftHookInstallProposal.tsx
 #: src/renderer/components/thread/ThreadErrorDock.tsx
 #: src/renderer/components/thread/ThreadHistoryNoticeDock.tsx
 msgid "Dismiss"
@@ -6465,7 +6465,7 @@ msgstr "다시 묻지 마세요"
 msgid "Don't show again"
 msgstr "다시 표시하지 않음"
 
-#: src/renderer/components/thread/ThreadDraftComposerArea.tsx
+#: src/renderer/components/thread/DraftHookInstallProposal.tsx
 msgid "Don't show hook install proposal"
 msgstr "후크 설치 제안을 표시하지 않음"
 
@@ -9219,7 +9219,7 @@ msgstr "설치"
 #: src/renderer/components/providers/opencode/OpenCodePluginCards.tsx
 #: src/renderer/components/providers/opencode/OpenCodePluginManager.tsx
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
-#: src/renderer/components/thread/ThreadDraftComposerArea.tsx
+#: src/renderer/components/thread/DraftHookInstallProposal.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/CursorSdkRuntimeSetup.tsx
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
@@ -9298,7 +9298,7 @@ msgstr "Agent Plugins 사양으로 만든 스킬과 MCP 서버 번들을 설치�
 msgid "Install Chrome extension"
 msgstr "Chrome 확장 프로그램 설치"
 
-#: src/renderer/components/thread/ThreadDraftComposerArea.tsx
+#: src/renderer/components/thread/DraftHookInstallProposal.tsx
 msgid "Install CLI hooks"
 msgstr "CLI 후크 설치"
 
@@ -20323,7 +20323,7 @@ msgid "Unable to import browser data."
 msgstr "브라우저 데이터를 가져올 수 없습니다."
 
 #. placeholder {0}: props.selectedAgent.label
-#: src/renderer/components/thread/ThreadDraftComposerArea.tsx
+#: src/renderer/components/thread/DraftHookInstallProposal.tsx
 msgid "Unable to install {0} hooks."
 msgstr "{0} 후크를 설치할 수 없습니다."
 

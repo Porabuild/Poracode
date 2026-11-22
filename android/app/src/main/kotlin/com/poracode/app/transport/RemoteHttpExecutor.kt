@@ -29,10 +29,12 @@ internal class RemoteHttpExecutor(
     private val networkGate: ForegroundNetworkGate,
     maxResponseBytes: Long,
     private val environment: EnvironmentRequestCoordinator,
+    private val scheduler: RemoteRequestScheduler = RemoteRequestScheduler.default,
 ) {
     private val responseDecoder = RemoteResponseDecoder(maxResponseBytes)
     private val readCache = RemoteReadCache()
     private val binaryReadCache = RemoteBinaryReadCache()
+    private val originKey = originKeyForEndpoint(endpoint)
 
     fun clearReadCache() {
         synchronized(readCache) { readCache.clear() }
@@ -100,29 +102,36 @@ internal class RemoteHttpExecutor(
                 if (cachedRead != null) readCache.store(cachedRead, response, text)
             }
         }
+        val priority = classifyRemoteRequestPriority(method, path, jsonBody)
         try {
-            val result = executeRemoteRequest(
-                liveClient,
-                networkGate,
-                request,
-                deadlineNanos,
-                retryableRead = retryableRead,
-            ) { response ->
-                if (response.code == 304 && cachedRead != null) {
-                    response.close()
-                    readCache.body(cachedRead)
-                } else decode(response)
+            return scheduler.withScheduledOverloadRetry(
+                origin = originKey,
+                priority = priority,
+                deadlineNanos = deadlineNanos,
+            ) {
+                val result = executeRemoteRequest(
+                    liveClient,
+                    networkGate,
+                    request,
+                    deadlineNanos,
+                    retryableRead = retryableRead,
+                ) { response ->
+                    if (response.code == 304 && cachedRead != null) {
+                        response.close()
+                        readCache.body(cachedRead)
+                    } else decode(response)
+                }
+                // A body may have been invalidated while the request was in flight.
+                // Retry only this safe GET, once, without its validator.
+                result ?: executeRemoteRequest(
+                    liveClient,
+                    networkGate,
+                    request.newBuilder().removeHeader("If-None-Match").build(),
+                    deadlineNanos,
+                    retryableRead = retryableRead,
+                    process = decode,
+                )
             }
-            // A body may have been invalidated while the request was in flight.
-            // Retry only this safe GET, once, without its validator.
-            return result ?: executeRemoteRequest(
-                liveClient,
-                networkGate,
-                request.newBuilder().removeHeader("If-None-Match").build(),
-                deadlineNanos,
-                retryableRead = retryableRead,
-                process = decode,
-            )
         } catch (error: RemoteClientException) {
             throw environment.normalizeFailure(error)
         }
@@ -140,9 +149,12 @@ internal class RemoteHttpExecutor(
         retryableRead: Boolean = false,
     ): String {
         val request = buildRawRequest(path, method, query, body, authorized, extraHeaders)
+        val priority = classifyRemoteRequestPriority(method, path)
         return try {
-            executeRemoteRequest(clientForRequest(), networkGate, request, retryableRead = retryableRead) {
-                responseDecoder.text(it, expectedStatus)
+            scheduler.withScheduledOverloadRetry(origin = originKey, priority = priority) {
+                executeRemoteRequest(clientForRequest(), networkGate, request, retryableRead = retryableRead) {
+                    responseDecoder.text(it, expectedStatus)
+                }
             }
         } catch (error: RemoteClientException) {
             throw environment.normalizeFailure(error)
@@ -175,35 +187,38 @@ internal class RemoteHttpExecutor(
         cachedRead?.entry?.let { requestBuilder.header("If-None-Match", it.etag) }
         environment.applyAuthority(requestBuilder)
         val request = requestBuilder.build()
+        val priority = classifyRemoteRequestPriority("GET", path)
         return try {
-            val outcome = executeRemoteRequest(
-                clientForRequest(),
-                networkGate,
-                request,
-                retryableRead = retryableRead,
-            ) { response ->
-                if (response.code == 304 && cachedRead != null) {
-                    val cached = binaryReadCache.value(cachedRead)
-                    response.close()
-                    return@executeRemoteRequest cached
+            scheduler.withScheduledOverloadRetry(origin = originKey, priority = priority) {
+                val outcome = executeRemoteRequest(
+                    clientForRequest(),
+                    networkGate,
+                    request,
+                    retryableRead = retryableRead,
+                ) { response ->
+                    if (response.code == 304 && cachedRead != null) {
+                        val cached = binaryReadCache.value(cachedRead)
+                        response.close()
+                        return@executeRemoteRequest cached
+                    }
+                    val decoded = responseDecoder.binary(response, expectedStatus)
+                    if (cachedRead != null) {
+                        binaryReadCache.store(cachedRead, response, decoded)
+                    }
+                    decoded
                 }
-                val decoded = responseDecoder.binary(response, expectedStatus)
-                if (cachedRead != null) {
-                    binaryReadCache.store(cachedRead, response, decoded)
+                outcome ?: executeRemoteRequest(
+                    clientForRequest(),
+                    networkGate,
+                    request.newBuilder().removeHeader("If-None-Match").build(),
+                    retryableRead = retryableRead,
+                ) { response ->
+                    val decoded = responseDecoder.binary(response, expectedStatus)
+                    if (cachedRead != null) {
+                        binaryReadCache.store(cachedRead, response, decoded)
+                    }
+                    decoded
                 }
-                decoded
-            }
-            outcome ?: executeRemoteRequest(
-                clientForRequest(),
-                networkGate,
-                request.newBuilder().removeHeader("If-None-Match").build(),
-                retryableRead = retryableRead,
-            ) { response ->
-                val decoded = responseDecoder.binary(response, expectedStatus)
-                if (cachedRead != null) {
-                    binaryReadCache.store(cachedRead, response, decoded)
-                }
-                decoded
             }
         } catch (error: RemoteClientException) {
             throw environment.normalizeFailure(error)

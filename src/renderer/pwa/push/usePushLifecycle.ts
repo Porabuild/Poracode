@@ -70,10 +70,25 @@ export function usePushLifecycle(input: PushLifecycleInput): void {
   // as a genuine input instead of a trigger-only dependency.
   const pushBindingKey = `${desktopId ?? ""}\0${endpoint ?? ""}\0${accessToken ?? ""}\0${connected}\0${notificationsEnabled}\0${browserPermissionRevision}`;
   const activeBindingKeyRef = useRef(pushBindingKey);
+  const lastRegisteredHostRef = useRef<{
+    desktopId: string;
+    endpoint: string;
+    accessToken: string;
+    deviceId: string;
+  } | null>(null);
   useEffect(() => {
     activeBindingKeyRef.current = pushBindingKey;
     const capturedKey = pushBindingKey;
     const keyFresh = () => activeBindingKeyRef.current === capturedKey;
+    const previous = lastRegisteredHostRef.current;
+    if (
+      previous &&
+      (!desktopId || previous.desktopId !== desktopId || previous.endpoint !== endpoint)
+    ) {
+      lastRegisteredHostRef.current = null;
+      const prevClient = createBackgroundRemoteClient(previous.endpoint, previous.accessToken);
+      void unregisterWebPush(prevClient, previous.deviceId).catch(() => {});
+    }
     if (!desktopId || !endpoint || !accessToken) return;
     let cancelled = false;
     const client = createBackgroundRemoteClient(endpoint, accessToken);
@@ -81,6 +96,7 @@ export function usePushLifecycle(input: PushLifecycleInput): void {
       const deviceId = await getOrCreateBrowserDeviceId();
       if (cancelled || !keyFresh()) return;
       if (!notificationsEnabled) {
+        lastRegisteredHostRef.current = null;
         await unregisterWebPush(client, deviceId);
         return;
       }
@@ -90,7 +106,10 @@ export function usePushLifecycle(input: PushLifecycleInput): void {
       }
       if (!connected) return;
       try {
-        await syncWebPushRegistration(client, { deviceId });
+        const synced = await syncWebPushRegistration(client, { deviceId });
+        if (synced && keyFresh()) {
+          lastRegisteredHostRef.current = { desktopId, endpoint, accessToken, deviceId };
+        }
       } catch (error) {
         setBrowserWebPushActive(false);
         console.warn("[push] Web Push registration failed", error);

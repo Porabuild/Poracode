@@ -76,6 +76,7 @@ data class RichRuntimeItem(
     val payload: JsonElement? = null,
     val streams: Map<String, String> = emptyMap(),
     val parentItemId: String? = null,
+    val detailsDeferred: Boolean? = null,
 ) {
     init {
         require(id.isNotEmpty()) { "item id must not be empty" }

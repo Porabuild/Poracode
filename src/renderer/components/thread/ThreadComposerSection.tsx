@@ -13,7 +13,6 @@ import {
   useLayoutEffect,
   useRef,
   useState,
-  type ReactNode,
   type RefObject,
 } from "react";
 import { toast } from "@heroui/react";
@@ -149,10 +148,10 @@ import {
 } from "@/renderer/components/skills/useSkills";
 import { useDelayedPendingSteer } from "./useDelayedPendingSteer";
 import { useCompactLayout } from "@/renderer/adaptiveLayout";
-import { FloatingComposerDock } from "@/renderer/components/mobileComposer/FloatingComposerDock";
 import { ComposerActionDocks } from "@/renderer/components/mobileComposer/ComposerActionDocks";
 import { ComposerCompactSummary } from "@/renderer/components/mobileComposer/ComposerCompactSummary";
 import { ComposerInfoChips } from "@/renderer/components/mobileComposer/ComposerInfoChips";
+import { AdaptiveThreadComposerDock, ComposerAfterControls } from "./AdaptiveThreadComposerDock";
 import { revertedPromptToDraft, useRevertedPromptStore } from "./revertedPrompt";
 import { usePromptRecall } from "./usePromptRecall";
 
@@ -215,64 +214,9 @@ type ThreadComposerSectionProps = {
   onTodoDockRetire?: () => void;
 };
 
-function AdaptiveThreadComposerDock(props: {
-  compact: boolean;
-  collapsed: boolean;
-  keyboardKey: string;
-  scrimLabel: string;
-  collapsedTapLabel: string;
-  children: ReactNode;
-  aboveBubble?: ReactNode;
-  summary?: ReactNode;
-  inputHasContent?: boolean;
-  working?: boolean;
-  expansionLocked?: boolean;
-  onDockHeightChange?: (height: number, dock: HTMLElement) => void;
-  onExpandedChange: (expanded: boolean) => void;
-}) {
-  if (!props.compact) return props.children;
-  return (
-    <FloatingComposerDock
-      dockClassName="m-thread-compose-dock"
-      keyboardKey={props.keyboardKey}
-      scrimLabel={props.scrimLabel}
-      collapsedTapLabel={props.collapsedTapLabel}
-      expanded={!props.collapsed}
-      focusOnExpand
-      // The thread pill's compact content swaps in early — inside the 25-45%
-      // transparent window of m-thread-compose-content-collapse — so the
-      // one-line placeholder and summary read around the tween's middle.
-      collapseContentSwapMs={60}
-      inputHasContent={props.inputHasContent}
-      working={props.working}
-      aboveBubble={props.aboveBubble}
-      expansionLocked={props.expansionLocked}
-      onDockHeightChange={props.onDockHeightChange}
-      onExpandedChange={props.onExpandedChange}
-    >
-      {props.children}
-      {props.summary}
-    </FloatingComposerDock>
-  );
-}
-
 export function ThreadComposerSection(props: ThreadComposerSectionProps) {
   const thread = useThread(props.threadId) ?? props.fallbackThread;
   return <ThreadComposerSectionInner {...props} thread={thread} />;
-}
-
-type ComposerAfterControlsProps = {
-  renderExtras: () => ReactNode;
-  renderVoiceInput: () => ReactNode;
-};
-
-function ComposerAfterControls({ renderExtras, renderVoiceInput }: ComposerAfterControlsProps) {
-  return (
-    <>
-      {renderExtras()}
-      {renderVoiceInput()}
-    </>
-  );
 }
 
 function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread: Thread }) {

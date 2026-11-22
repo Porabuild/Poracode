@@ -14,14 +14,40 @@ function cacheLoadedBuildAssets(
   registration: ServiceWorkerRegistration,
   buildBasePath: string,
 ): void {
-  const notify = (worker: ServiceWorker | null | undefined) => {
+  const sendUrls = (urls: string[]) => {
+    if (urls.length === 0) return;
+    const message = { type: "cache-build-assets", urls };
+    registration.active?.postMessage(message);
+    registration.waiting?.postMessage(message);
+    registration.installing?.postMessage(message);
+  };
+  const notifyAll = (worker: ServiceWorker | null | undefined) => {
     worker?.postMessage({ type: "cache-build-assets", urls: loadedBuildAssetUrls(buildBasePath) });
   };
-  notify(registration.active);
-  notify(registration.waiting);
-  notify(registration.installing);
-  registration.addEventListener("updatefound", () => notify(registration.installing));
-  void navigator.serviceWorker.ready.then((ready) => notify(ready.active));
+  notifyAll(registration.active);
+  notifyAll(registration.waiting);
+  notifyAll(registration.installing);
+  registration.addEventListener("updatefound", () => notifyAll(registration.installing));
+  void navigator.serviceWorker.ready.then((ready) => notifyAll(ready.active));
+
+  if (typeof PerformanceObserver !== "undefined") {
+    const assetPrefix = new URL(`${buildBasePath}assets/`, document.baseURI).href;
+    const seen = new Set<string>(loadedBuildAssetUrls(buildBasePath));
+    try {
+      const observer = new PerformanceObserver((list) => {
+        const fresh = list
+          .getEntries()
+          .map((entry) => entry.name)
+          .filter((url) => url.startsWith(assetPrefix) && !seen.has(url));
+        if (fresh.length === 0) return;
+        for (const url of fresh) seen.add(url);
+        sendUrls(fresh);
+      });
+      observer.observe({ type: "resource", buffered: false });
+    } catch {
+      // Unsupported entryType in older engines; initial resource scan still ran.
+    }
+  }
 }
 
 /** Registers the one canonical app shell. Electron and insecure LAN origins
@@ -30,9 +56,12 @@ function cacheLoadedBuildAssets(
 export function registerCanonicalServiceWorker(): void {
   if (import.meta.env.DEV || hasElectronHostBridge()) return;
   if (!("serviceWorker" in navigator) || window.isSecureContext === false) return;
-  if (navigator.onLine === false) return;
 
   const register = () => {
+    if (navigator.onLine === false) {
+      window.addEventListener("online", register, { once: true });
+      return;
+    }
     const buildBasePath = getBuildAssetBase();
     const scriptUrl = buildBasePath.startsWith("/")
       ? `${buildBasePath}service-worker.js`

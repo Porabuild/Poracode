@@ -6,18 +6,23 @@ import com.poracode.app.transport.RemoteBinaryResponse
 import okhttp3.OkHttpClient
 
 /** Production rich-chat client. Its API client disables transparent connection retries. */
-class RichChatRemoteClient(
-    endpoint: String,
-    accessToken: String,
-    client: OkHttpClient = RemoteApiClient.defaultClient(),
-    networkGate: ForegroundNetworkGate = ForegroundNetworkGate.shared,
+class RichChatRemoteClient internal constructor(
+    private val http: RemoteApiClient,
 ) {
-    private val http = RemoteApiClient(
-        endpoint = endpoint,
-        accessToken = accessToken,
-        client = client,
-        networkGate = networkGate,
+    constructor(
+        endpoint: String,
+        accessToken: String,
+        client: OkHttpClient = RemoteApiClient.defaultClient(),
+        networkGate: ForegroundNetworkGate = ForegroundNetworkGate.shared,
+    ) : this(
+        http = RemoteApiClient(
+            endpoint = endpoint,
+            accessToken = accessToken,
+            client = client,
+            networkGate = networkGate,
+        ),
     )
+
     private val bodyExecutor = RichChatRemoteBodyExecutor(http)
     val binary: RichChatBinaryBodyExecutor = bodyExecutor
 

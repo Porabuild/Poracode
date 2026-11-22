@@ -90,12 +90,25 @@ internal fun buildSessionControllerGraph(
             return
         }
         live.installApi(selected.profile.httpBaseUrl, selected.accessToken).let { client ->
+            // Fast-open remote thread before host handshake (iOS parity): present
+            // the target thread immediately from cached host metadata while
+            // keeping operations gated until preflight + snapshot finish.
+            val pendingThreadId = pendingOpen.takeIfSelected(state().hostCatalog.selectedConnectionId)
+            if (pendingThreadId != null) {
+                updateState {
+                    it.copy(
+                        openThreadId = pendingThreadId,
+                        threadLoadState = AppSession.LoadState.Loading,
+                        threadLoadError = null,
+                    )
+                }
+            }
             // B1: the first switched socket must declare from the authority
             // descriptor, not after an unrelated reconnect.
             live.preflightCapabilitiesAndStart(client)
-        }
-        pendingOpen.takeIfSelected(state().hostCatalog.selectedConnectionId)?.let { threadId ->
-            threads.openThread(threadId)
+            if (pendingThreadId != null && live.api === client && state().openThreadId == pendingThreadId) {
+                threads.openThread(pendingThreadId)
+            }
         }
     }
 
@@ -249,6 +262,7 @@ internal fun buildSessionControllerGraph(
         applyLiveEvent = { event, seq -> events.applyLiveEvent(event, seq) },
         catalog = catalog,
         currentEventSeq = { live.lastSeenSeq?.toLong() ?: 0L },
+        richChatOwnsGuiHistory = { sinks.richChatEventSink != null },
     )
     hosts = HostSessionController(
         repository = credentials,

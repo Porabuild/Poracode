@@ -365,8 +365,8 @@ class LiveConnectionController(
                                         liveBrowserForwardVersions = versions,
                                         liveRuntimeHistoryNoticeVersions = noticeVersions,
                                         liveThreadForkVersions = capabilities?.threadForks?.versions.orEmpty().toSet(),
-                                        liveProjectCommandResultVersions =
-                                            projectCommandResultVersions,
+                                        liveTerminalCursorSyncVersions = capabilities?.terminalCursorSync?.versions.orEmpty().toSet(),
+                                        liveProjectCommandResultVersions = projectCommandResultVersions,
                                     )
                                 }
                                 // B1: a capable descriptor for a connection

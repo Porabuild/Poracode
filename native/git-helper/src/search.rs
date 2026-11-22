@@ -6,10 +6,10 @@ use crate::git_exec::{SubprocessLimiter, run_git_command};
 use crate::parser::to_forward_slash;
 use crate::protocol::{NativeFileEntry, NativeProjectTreeEntry};
 use std::cmp::Ordering;
-use std::collections::{HashSet, VecDeque};
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::fs;
 use std::path::Path;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Condvar, Mutex};
 use std::time::{Duration, Instant};
 use unicode_normalization::{UnicodeNormalization, char::is_combining_mark};
 
@@ -160,11 +160,19 @@ struct CachedSlot {
     index: Arc<CompactPathIndex>,
 }
 
+#[derive(Debug)]
+struct InFlightBuild {
+    state: Mutex<Option<Arc<CompactPathIndex>>>,
+    ready: Condvar,
+}
+
 ///Bounded LRU cache for tree (`ProjectSearchIndex`) and `@file` (`FileIndexService`) indexes.
 #[derive(Debug, Default)]
 pub struct NativeSearchCache {
     tree_slots: Mutex<VecDeque<CachedSlot>>,
     file_slots: Mutex<VecDeque<CachedSlot>>,
+    in_flight_tree: Mutex<HashMap<String, Arc<InFlightBuild>>>,
+    in_flight_file: Mutex<HashMap<String, Arc<InFlightBuild>>>,
 }
 
 /// Parameters for a `searchTree` or `searchFiles` request.
@@ -396,10 +404,14 @@ impl NativeSearchCache {
         if let Some(hit) = lookup_lru(&self.tree_slots, &cache_key, TREE_CACHE_TTL) {
             return hit;
         }
-
-        let built = Arc::new(build_tree_index(params, limiter));
-        insert_lru(&self.tree_slots, cache_key, root_key, Arc::clone(&built));
-        built
+        get_or_build_singleflight(
+            &self.tree_slots,
+            &self.in_flight_tree,
+            cache_key,
+            root_key,
+            TREE_CACHE_TTL,
+            || build_tree_index(params, limiter),
+        )
     }
 
     fn get_or_build_files_index(
@@ -414,11 +426,80 @@ impl NativeSearchCache {
         if let Some(hit) = lookup_lru(&self.file_slots, &cache_key, FILES_CACHE_TTL) {
             return hit;
         }
-
-        let built = Arc::new(build_files_index(params, limiter));
-        insert_lru(&self.file_slots, cache_key, root_key, Arc::clone(&built));
-        built
+        get_or_build_singleflight(
+            &self.file_slots,
+            &self.in_flight_file,
+            cache_key,
+            root_key,
+            FILES_CACHE_TTL,
+            || build_files_index(params, limiter),
+        )
     }
+}
+
+fn get_or_build_singleflight<F>(
+    slots: &Mutex<VecDeque<CachedSlot>>,
+    in_flight: &Mutex<HashMap<String, Arc<InFlightBuild>>>,
+    cache_key: String,
+    root_key: String,
+    ttl: Duration,
+    build: F,
+) -> Arc<CompactPathIndex>
+where
+    F: FnOnce() -> CompactPathIndex,
+{
+    let (flight, is_leader) = {
+        let mut map = match in_flight.lock() {
+            Ok(g) => g,
+            Err(p) => p.into_inner(),
+        };
+        if let Some(hit) = lookup_lru(slots, &cache_key, ttl) {
+            return hit;
+        }
+        if let Some(existing) = map.get(&cache_key) {
+            (Arc::clone(existing), false)
+        } else {
+            let created = Arc::new(InFlightBuild {
+                state: Mutex::new(None),
+                ready: Condvar::new(),
+            });
+            map.insert(cache_key.clone(), Arc::clone(&created));
+            (created, true)
+        }
+    };
+
+    if !is_leader {
+        let mut guard = match flight.state.lock() {
+            Ok(g) => g,
+            Err(p) => p.into_inner(),
+        };
+        loop {
+            if let Some(ref index) = *guard {
+                return Arc::clone(index);
+            }
+            guard = match flight.ready.wait(guard) {
+                Ok(g) => g,
+                Err(p) => p.into_inner(),
+            };
+        }
+    }
+
+    let built = Arc::new(build());
+    insert_lru(slots, cache_key.clone(), root_key, Arc::clone(&built));
+    {
+        let mut guard = match flight.state.lock() {
+            Ok(g) => g,
+            Err(p) => p.into_inner(),
+        };
+        *guard = Some(Arc::clone(&built));
+        flight.ready.notify_all();
+    }
+    let mut map = match in_flight.lock() {
+        Ok(g) => g,
+        Err(p) => p.into_inner(),
+    };
+    map.remove(&cache_key);
+    built
 }
 
 fn lookup_lru(

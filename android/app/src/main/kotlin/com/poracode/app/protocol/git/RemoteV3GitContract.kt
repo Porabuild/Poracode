@@ -46,6 +46,8 @@ import com.poracode.remote.v3.generated.procedureU2EGitSyncU2ERequest
 import com.poracode.remote.v3.generated.procedureU2EGitSyncU2EResult
 import com.poracode.remote.v3.generated.procedureU2EGitUnstageAllU2ERequest
 import com.poracode.remote.v3.generated.procedureU2EGitUnstageU2ERequest
+import com.poracode.remote.v3.generated.procedureU2EGitWorktreeSourceBranchBatchU2ERequest
+import com.poracode.remote.v3.generated.procedureU2EGitWorktreeSourceBranchBatchU2EResult
 import com.poracode.remote.v3.generated.procedureU2EGitWorktreeStatusBatchU2ERequest
 import com.poracode.remote.v3.generated.procedureU2EGitWorktreeStatusBatchU2EResult
 import com.poracode.remote.v3.generated.routeU2EProcedureU2DCallU2ERequest
@@ -100,6 +102,12 @@ enum class GitProcedure(
     SyncRebase("gitSyncRebase", "session:operate", GitOwner.ProjectLocation, "json"),
     Unstage("gitUnstage", "session:operate", GitOwner.ProjectLocation, "omitted"),
     UnstageAll("gitUnstageAll", "session:operate", GitOwner.ProjectLocation, "omitted"),
+    WorktreeSourceBranchBatch(
+        "gitWorktreeSourceBranchBatch",
+        "session:read",
+        GitOwner.ProjectLocation,
+        "json",
+    ),
     WorktreeStatusBatch(
         "gitWorktreeStatusBatch",
         "session:read",
@@ -224,6 +232,8 @@ private fun GitProcedure.requestCodec(): RemoteRootCodec<*> = when (this) {
     GitProcedure.SyncRebase -> RemoteRootCodecs.procedureU2EGitSyncRebaseU2ERequest
     GitProcedure.Unstage -> RemoteRootCodecs.procedureU2EGitUnstageU2ERequest
     GitProcedure.UnstageAll -> RemoteRootCodecs.procedureU2EGitUnstageAllU2ERequest
+    GitProcedure.WorktreeSourceBranchBatch ->
+        RemoteRootCodecs.procedureU2EGitWorktreeSourceBranchBatchU2ERequest
     GitProcedure.WorktreeStatusBatch ->
         RemoteRootCodecs.procedureU2EGitWorktreeStatusBatchU2ERequest
 }
@@ -243,6 +253,8 @@ private fun GitProcedure.resultCodec(): RemoteRootCodec<*>? = when (this) {
     GitProcedure.SwitchBranch -> RemoteRootCodecs.procedureU2EGitSwitchBranchU2EResult
     GitProcedure.Sync -> RemoteRootCodecs.procedureU2EGitSyncU2EResult
     GitProcedure.SyncRebase -> RemoteRootCodecs.procedureU2EGitSyncRebaseU2EResult
+    GitProcedure.WorktreeSourceBranchBatch ->
+        RemoteRootCodecs.procedureU2EGitWorktreeSourceBranchBatchU2EResult
     GitProcedure.WorktreeStatusBatch ->
         RemoteRootCodecs.procedureU2EGitWorktreeStatusBatchU2EResult
     GitProcedure.AddRemote,

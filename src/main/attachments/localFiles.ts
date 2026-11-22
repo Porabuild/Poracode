@@ -209,7 +209,8 @@ export function installLocalFileProtocolHandler(): void {
       }
       const normalized = resolve(filePath);
       const thumbPx = readLocalImageThumbPx(request.url);
-      const thumb = thumbPx === null ? null : await createLocalImageThumb(normalized, thumbPx);
+      const thumb =
+        thumbPx === null ? null : await createLocalImageThumb(normalized, thumbPx, request.signal);
       if (thumb) {
         return new Response(new Uint8Array(thumb), { headers: { "content-type": "image/png" } });
       }

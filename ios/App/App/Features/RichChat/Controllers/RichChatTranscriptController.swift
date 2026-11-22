@@ -164,6 +164,8 @@ final class RichChatTranscriptController {
   /// A cap drop while buffering lost replay coverage; must survive until the
   /// history install folds it into `requiresAuthoritativeRefresh` (WS7 P1-14).
   private var bufferOverflowed = false
+  private let warmCache = RichChatWarmThreadCache()
+  private var memoryWarningSubscription: MemoryWarningSubscription?
 
   init(
     gateway: any RichChatHistoryGateway,
@@ -177,9 +179,21 @@ final class RichChatTranscriptController {
     self.noticeProjection = noticeProjection
     self.clock = clock
     bufferedBatchLedger = RecoveryBufferLedger(budget: transcriptBatchBudget)
+    memoryWarningSubscription = MemoryWarningSubscription { [weak self] in
+      Task { @MainActor [weak self] in
+        self?.warmCache.clear()
+      }
+    }
   }
 
   func activate(access: RichChatSessionAccess, threadID: String) {
+    if let previousTarget = state.target,
+       previousTarget.lease == access.lease,
+       previousTarget.threadID != threadID
+    {
+      warmCache.store(from: state)
+    }
+    warmCache.evictMismatchedLease(access.lease)
     revision &+= 1
     refreshTask.cancel()
     historyTask.cancel()
@@ -192,11 +206,36 @@ final class RichChatTranscriptController {
     bufferOverflowed = false
     isBackgrounded = false
     let target = RichChatThreadTarget(lease: access.lease, threadID: threadID)
-    state = RichChatTranscriptControllerState(
-      access: access,
-      target: target,
-      transcript: RichTranscriptState(threadID: threadID)
-    )
+    if let warm = warmCache.entry(for: access.lease, threadID: threadID) {
+      olderPaging.noteAuthoritativeTail(
+        runtimeCursor: warm.olderCursor,
+        turnsCursor: warm.olderTurnsCursor,
+        bufferedTruncation: false
+      )
+      state = RichChatTranscriptControllerState(
+        access: access,
+        target: target,
+        transcript: warm.transcript,
+        backgroundTasks: warm.backgroundTasks,
+        backgroundTaskSequence: warm.backgroundTaskSequence,
+        completedTurns: warm.completedTurns,
+        contextUsage: warm.contextUsage,
+        followUpQueue: warm.followUpQueue,
+        terminalScrollback: warm.terminalScrollback,
+        olderCursor: warm.olderCursor,
+        olderTurnsCursor: warm.olderTurnsCursor,
+        runtimeResumeCursor: warm.runtimeResumeCursor,
+        snapshotSequence: warm.snapshotSequence,
+        liveSequence: warm.liveSequence,
+        loadState: warm.transcript.itemsInOrder.isEmpty && warm.completedTurns.isEmpty ? .empty : .loaded
+      )
+    } else {
+      state = RichChatTranscriptControllerState(
+        access: access,
+        target: target,
+        transcript: RichTranscriptState(threadID: threadID)
+      )
+    }
     syncOlderPagingState()
   }
 
@@ -214,6 +253,7 @@ final class RichChatTranscriptController {
     historyTask.cancel()
     cacheRefreshTask.cancel()
     olderPaging.reset()
+    warmCache.clear()
     bufferedBatches.removeAll(keepingCapacity: false)
     bufferedSequences.removeAll(keepingCapacity: false)
     bufferedBatchLedger.reset()
@@ -227,6 +267,7 @@ final class RichChatTranscriptController {
     revision &+= 1
     refreshTask.cancel()
     cacheRefreshTask.cancel()
+    warmCache.clear()
     isBackgrounded = true
     historyTask.cancel()
     olderPaging.beginEpoch()

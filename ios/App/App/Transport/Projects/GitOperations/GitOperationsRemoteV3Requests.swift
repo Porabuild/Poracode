@@ -66,6 +66,10 @@ extension GitOperationsRemoteV3Contract {
       try encode(value, .gitUnstage, RemoteRootCodecs.procedureU2EGitUnstageU2ERequest)
     case .gitUnstageAll(let value):
       try encode(value, .gitUnstageAll, RemoteRootCodecs.procedureU2EGitUnstageAllU2ERequest)
+    case .gitWorktreeSourceBranchBatch(let value):
+      try encode(
+        value, .gitWorktreeSourceBranchBatch,
+        RemoteRootCodecs.procedureU2EGitWorktreeSourceBranchBatchU2ERequest)
     case .gitWorktreeStatusBatch(let value):
       try encode(
         value, .gitWorktreeStatusBatch,

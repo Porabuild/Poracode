@@ -13,6 +13,7 @@ import {
   cpSync,
   chmodSync,
 } from "node:fs";
+import { lstat, readFile, readdir, stat as statAsync } from "node:fs/promises";
 import { basename, dirname, isAbsolute, join, resolve } from "node:path";
 import { promisify } from "node:util";
 import { z } from "zod";
@@ -115,6 +116,38 @@ export function pluginPackageDigest(root: string): string {
     }
   };
   visit(root, "");
+  return hash.digest("hex");
+}
+
+export async function pluginPackageDigestAsync(root: string): Promise<string> {
+  if ((await lstat(root)).isSymbolicLink())
+    throw new Error("Linked package roots are not supported by the installer.");
+  const hash = createHash("sha256");
+  let bytes = 0;
+  let files = 0;
+  const visit = async (directory: string, prefix: string): Promise<void> => {
+    for (const name of (await readdir(directory)).sort()) {
+      if (name === ".git" || name === RECEIPT_FILE) continue;
+      const file = join(directory, name);
+      const path = `${prefix}${name}`;
+      const info = await lstat(file);
+      if (info.isSymbolicLink())
+        throw new Error("Linked package files are not supported by the installer.");
+      if (info.isDirectory()) {
+        await visit(file, `${path}/`);
+        continue;
+      }
+      if (!info.isFile()) throw new Error("Unsupported package file type.");
+      bytes += info.size;
+      files += 1;
+      if (bytes > 100 * 1024 * 1024 || files > 10_000)
+        throw new Error("Plugin package exceeds installation limits.");
+      const content = await readFile(file);
+      hash.update(JSON.stringify([path, content.length, info.mode & 0o111]));
+      hash.update(content);
+    }
+  };
+  await visit(root, "");
   return hash.digest("hex");
 }
 
@@ -273,7 +306,7 @@ export class PluginCatalogService {
     if (entry.unavailable.length > 0)
       throw new Error("This catalog entry requires unsupported installation capabilities.");
     const materialized = await this.packageRoot(catalog, entry);
-    const digest = pluginPackageDigest(materialized.root);
+    const digest = await pluginPackageDigestAsync(materialized.root);
     const loaded = loadPluginFromDirectory(materialized.root, "user", true);
     if (!loaded.plugin || loaded.plugin.name !== entry.name)
       throw new Error("Package manifest does not match its catalog entry.");
@@ -289,7 +322,7 @@ export class PluginCatalogService {
       if (existsSync(target) || this.options.registry.getPlugin(entry.name))
         throw new Error("A plugin with this name is already present.");
     } else {
-      this.ownedInstallation(entry.name);
+      await this.ownedInstallationAsync(entry.name);
     }
     const staging = join(userDir, `.install-${randomUUID()}`);
     const backup = join(userDir, `.previous-${randomUUID()}`);
@@ -299,7 +332,7 @@ export class PluginCatalogService {
         dereference: false,
         filter: (file) => basename(file) !== ".git" && basename(file) !== RECEIPT_FILE,
       });
-      if (pluginPackageDigest(staging) !== digest)
+      if ((await pluginPackageDigestAsync(staging)) !== digest)
         throw new Error("Package contents changed during installation.");
       const receipt = pluginInstallationSchema.parse({
         formatVersion: 1,
@@ -317,9 +350,11 @@ export class PluginCatalogService {
         encoding: "utf8",
         mode: 0o600,
       });
+      const previousDigest =
+        payload.action === "update" ? await pluginPackageDigestAsync(target) : undefined;
       writeFileAtomic(
         this.replacementPath,
-        `${JSON.stringify({ version: 1, pluginName: entry.name, staging: basename(staging), backup: basename(backup), digest, ...(payload.action === "update" ? { previousDigest: pluginPackageDigest(target) } : {}) })}\n`,
+        `${JSON.stringify({ version: 1, pluginName: entry.name, staging: basename(staging), backup: basename(backup), digest, ...(previousDigest ? { previousDigest } : {}) })}\n`,
         { encoding: "utf8", mode: 0o600 },
       );
       if (payload.action === "update") {
@@ -422,6 +457,27 @@ export class PluginCatalogService {
     rmSync(root, { recursive: true });
   }
 
+  private async ownedInstallationAsync(name: string): Promise<string> {
+    const root = this.options.registry.ensureUserPluginsDir();
+    const target = containedPackagePath(root, name);
+    if ((await lstat(target)).isSymbolicLink())
+      throw new Error("Cannot modify a linked plugin directory.");
+    const receipt = pluginInstallationSchema.parse(
+      JSON.parse(await readFile(join(target, RECEIPT_FILE), "utf8")),
+    );
+    if (
+      receipt.pluginName !== name ||
+      this.options.registry.getPlugin(name)?.root !== realpathSync.native(target)
+    )
+      throw new Error("Plugin is not owned by this catalog installer.");
+    // Do not destroy locally edited packages during update or removal.
+    if ((await pluginPackageDigestAsync(target)) !== receipt.digest)
+      throw new Error(
+        "Plugin files have local changes. Preserve them before updating or removing this package.",
+      );
+    return target;
+  }
+
   private ownedInstallation(name: string): string {
     const root = this.options.registry.ensureUserPluginsDir();
     const target = containedPackagePath(root, name);
@@ -443,11 +499,20 @@ export class PluginCatalogService {
     return target;
   }
 
+  private setCachedArtwork(key: string, icon: string | undefined): void {
+    this.artworkCache.delete(key);
+    while (this.artworkCache.size >= 128) {
+      const oldest = this.artworkCache.keys().next().value;
+      if (oldest === undefined) break;
+      this.artworkCache.delete(oldest);
+    }
+    this.artworkCache.set(key, icon);
+  }
+
   private async artwork(
     target: PluginArtworkTarget,
     catalogs: StoredCatalog[],
   ): Promise<string | undefined> {
-    if (this.artworkCache.size >= 256) this.artworkCache.clear();
     let root: string;
     let declarations: string[];
     let key: string;
@@ -456,15 +521,25 @@ export class PluginCatalogService {
         const plugin = this.options.registry.getPlugin(target.pluginName, target.projectFsPath);
         if (!plugin) return undefined;
         root = plugin.root;
-        key = JSON.stringify([target, root, statSync(root).mtimeMs]);
-        if (this.artworkCache.has(key)) return this.artworkCache.get(key);
+        key = JSON.stringify([target, root, (await statAsync(root)).mtimeMs]);
+        if (this.artworkCache.has(key)) {
+          const hit = this.artworkCache.get(key);
+          this.artworkCache.delete(key);
+          this.artworkCache.set(key, hit);
+          return hit;
+        }
         declarations = await packageArtworkDeclarations(root);
       } else {
         const catalog = catalogs.find((item) => item.id === target.catalogId);
         const entry = catalog?.entries.find((item) => item.name === target.entryName);
         if (!catalog || !entry) return undefined;
         key = JSON.stringify([target, catalog.revision, catalog.refreshedAt]);
-        if (this.artworkCache.has(key)) return this.artworkCache.get(key);
+        if (this.artworkCache.has(key)) {
+          const hit = this.artworkCache.get(key);
+          this.artworkCache.delete(key);
+          this.artworkCache.set(key, hit);
+          return hit;
+        }
         root = catalog.root;
         const manifest = MANIFEST_PATHS.find((path) => existsSync(join(root, path)));
         if (!manifest) return undefined;
@@ -486,14 +561,13 @@ export class PluginCatalogService {
           const packageDeclarations = await packageArtworkDeclarations(packageRoot).catch(() => []);
           const packageIcon = await loadPluginArtwork(packageRoot, packageDeclarations);
           if (packageIcon) {
-            this.artworkCache.set(key, packageIcon);
+            this.setCachedArtwork(key, packageIcon);
             return packageIcon;
           }
         }
       }
       const icon = await loadPluginArtwork(root, declarations);
-      if (this.artworkCache.size >= 256) this.artworkCache.clear();
-      this.artworkCache.set(key, icon);
+      this.setCachedArtwork(key, icon);
       return icon;
     } catch {
       return undefined;

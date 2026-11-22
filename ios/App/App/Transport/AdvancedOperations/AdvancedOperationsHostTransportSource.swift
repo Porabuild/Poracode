@@ -72,9 +72,35 @@ actor AdvancedOperationsExactHostTransportSource {
   typealias APIFactory =
     @Sendable (String, String, RemoteEnvironmentContext?) throws -> any AdvancedOperationsRemoteAPI
 
+  private struct CachedAPIKey: Equatable {
+    let endpoint: String
+    let credential: String
+    let environmentId: String?
+  }
+
   private let credentials: any AdvancedOperationsCredentialRepository
   private let bindingProvider: BindingProvider
   private let makeAPI: APIFactory
+  private let cacheBox = LockedAPICache()
+
+  private final class LockedAPICache: @unchecked Sendable {
+    private let lock = NSLock()
+    private var entry: (key: CachedAPIKey, api: any AdvancedOperationsRemoteAPI)?
+
+    func getOrCreate(
+      key: CachedAPIKey,
+      create: () throws -> any AdvancedOperationsRemoteAPI
+    ) rethrows -> any AdvancedOperationsRemoteAPI {
+      lock.lock()
+      defer { lock.unlock() }
+      if let entry, entry.key == key {
+        return entry.api
+      }
+      let created = try create()
+      entry = (key, created)
+      return created
+    }
+  }
 
   /// The one production factory: bound endpoint + child bearer + resolved
   /// parent context. Tests inject a URLProtocol-backed session to capture the
@@ -104,7 +130,19 @@ actor AdvancedOperationsExactHostTransportSource {
   }
 
   func resolve() async throws -> AdvancedOperationsResolvedHost? {
-    guard let resolved = try await resolve(using: makeAPI) else { return nil }
+    let factory = makeAPI
+    let cache = cacheBox
+    guard let resolved = try await resolve(using: { endpoint, credential, environment in
+      let key = CachedAPIKey(
+        endpoint: endpoint,
+        credential: credential,
+        environmentId: environment?.environmentId
+      )
+      // Key on (endpoint, credential, environmentId) which uniquely binds the host/token.
+      return try cache.getOrCreate(key: key) {
+        try factory(endpoint, credential, environment)
+      }
+    }) else { return nil }
     return .init(binding: resolved.binding, grantedScopes: resolved.grantedScopes, api: resolved.api)
   }
 

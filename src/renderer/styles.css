@@ -2004,6 +2004,16 @@ html[data-compact-layout] .poracode-menu-action {
   min-height: var(--m-tap-min);
 }
 
+/* Isolate horizontal scrolling inside code blocks, diffs, and wide tables so
+   touch pans do not fight compact edge/drawer gestures on mobile browsers. */
+html[data-compact-layout] .poracode-code-block pre,
+html[data-compact-layout] .diff-split-scroll,
+html[data-compact-layout] .markdown-body table,
+html[data-compact-layout] pre:has(> code) {
+  touch-action: pan-x pan-y;
+  overscroll-behavior-x: contain;
+}
+
 /* The dark Poracode preset uses true black for mobile page backgrounds so the
    shared shell, full-screen routes, and safe-area backdrop stay OLED-friendly. */
 html[data-compact-layout][data-theme="dark"][data-theme-preset="default"] {

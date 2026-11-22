@@ -14,12 +14,14 @@ const PINNED_AGENT_MAX_SOCKETS = 32;
 const PINNED_AGENT_MAX_FREE_SOCKETS = 16;
 const PINNED_AGENT_KEEP_ALIVE_MS = 30_000;
 /**
- * Idle free-socket TTL strictly shorter than Node's default 5s server
- * `keepAliveTimeout`, so pooled sockets retire cleanly on the client side
- * before an older remote host or intermediary drops them. Active requests are
- * never timed out because `ClientRequest` does not attach a `timeout` listener.
+ * Idle free-socket TTL matched below `RemoteAccessServer`'s 65 s
+ * `keepAliveTimeout` so persistent TLS connections stay warm across turns
+ * while still retiring ahead of host-side idle drops. Active requests are
+ * never timed out because `ClientRequest` does not attach a `timeout` listener,
+ * and safe bodyless GET/HEAD/OPTIONS requests already retry on a fresh socket
+ * if an older host drops an idle connection early.
  */
-const PINNED_AGENT_FREE_SOCKET_IDLE_MS = 4_000;
+const PINNED_AGENT_FREE_SOCKET_IDLE_MS = 55_000;
 const PINNED_AGENT_IDLE_SWEEP_MS = 120_000;
 
 interface PooledPinnedAgent {

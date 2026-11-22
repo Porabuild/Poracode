@@ -1,10 +1,11 @@
-import { spawnSync } from "node:child_process";
+import { execFile, spawnSync } from "node:child_process";
 import type { ProjectLocation } from "@/shared/contracts";
 import { type AgentAdapter, getWslCommand } from "../../agents/base";
 
 const GHOSTTY_TERM = "xterm-ghostty";
 const FALLBACK_TERM = "xterm-256color";
 const terminfoTermCache = new Map<string, string>();
+const terminfoInFlight = new Map<string, Promise<string>>();
 
 export type TerminalColorEnv = {
   TERM: string;
@@ -43,6 +44,51 @@ export function resolveTerminalColorEnv(location: ProjectLocation): TerminalColo
   const term = hasGhosttyTerminfo(location) ? GHOSTTY_TERM : FALLBACK_TERM;
   terminfoTermCache.set(key, term);
   return { TERM: term, COLORTERM: "truecolor" };
+}
+
+function execProbeAsync(command: string, args: readonly string[]): Promise<boolean> {
+  return new Promise((resolve) => {
+    execFile(command, args, { timeout: 250, windowsHide: true }, (error) => {
+      resolve(error == null);
+    });
+  });
+}
+
+export async function resolveTerminalColorEnvAsync(
+  location: ProjectLocation,
+): Promise<TerminalColorEnv> {
+  const key = terminalTermCacheKey(location);
+  const cached = terminfoTermCache.get(key);
+  if (cached) {
+    return { TERM: cached, COLORTERM: "truecolor" };
+  }
+  let pending = terminfoInFlight.get(key);
+  if (!pending) {
+    pending = (async () => {
+      let ok = false;
+      if (location.kind === "wsl") {
+        ok =
+          process.platform === "win32" &&
+          (await execProbeAsync(getWslCommand(), [
+            "-d",
+            location.distro,
+            "--",
+            "sh",
+            "-lc",
+            `infocmp -x ${GHOSTTY_TERM} >/dev/null 2>&1`,
+          ]));
+      } else if (process.platform !== "win32") {
+        ok = await execProbeAsync("infocmp", ["-x", GHOSTTY_TERM]);
+      }
+      const term = ok ? GHOSTTY_TERM : FALLBACK_TERM;
+      terminfoTermCache.set(key, term);
+      return term;
+    })().finally(() => {
+      terminfoInFlight.delete(key);
+    });
+    terminfoInFlight.set(key, pending);
+  }
+  return { TERM: await pending, COLORTERM: "truecolor" };
 }
 
 const ITERM2_STATUS_ENV = {
