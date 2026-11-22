@@ -1,10 +1,13 @@
 import type { SessionNotification } from "@agentclientprotocol/sdk";
+import { PORACODE_ACP_TOOL_NAME_META_KEY } from "../acp/canonicalMapping/toolCallPayloads";
 import { record } from "./acpRecord";
 
 const INFERENCE_TOOL_NAME_META_KEY = "cognition.ai/inferenceToolName";
+const CANONICAL_TOOL_NAME_META_KEY = "cognition.ai/toolName";
 const RESULT_URLS_META_KEY = "cognition.ai/resultUrls";
 const ASK_USER_QUESTION_TOOL_NAME = "ask_user_question";
 const READ_LINE_COUNT_SUMMARY = /^\d+ lines?(?: \(truncated\))?$/;
+const MCP_TOOL_NAME = /^mcp__[^_].*?__.+$/;
 
 /**
  * Normalize live-captured read summaries and paths, question tool names, and
@@ -47,6 +50,20 @@ export function normalizeDevinToolCall(notification: SessionNotification): Sessi
       };
       changed = true;
     }
+  }
+
+  const meta = record(normalized._meta);
+  const canonicalToolName = nonEmptyString(meta[CANONICAL_TOOL_NAME_META_KEY]);
+  if (
+    canonicalToolName &&
+    MCP_TOOL_NAME.test(canonicalToolName) &&
+    meta[PORACODE_ACP_TOOL_NAME_META_KEY] !== canonicalToolName
+  ) {
+    normalized = {
+      ...normalized,
+      _meta: { ...meta, [PORACODE_ACP_TOOL_NAME_META_KEY]: canonicalToolName },
+    };
+    changed = true;
   }
 
   if (toolName === "web_search" && update.status === "completed") {

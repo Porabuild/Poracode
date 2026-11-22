@@ -1239,6 +1239,14 @@ export interface AgentAdapter
   readonly mcpMaxSchemaDepth?: number;
 
   /**
+   * Maximum duration (ms) a blocking host MCP tool call may hold an HTTP
+   * response open for this provider. Declare this when the provider's native
+   * HTTP MCP client enforces a hard request timeout shorter than Poracode's
+   * default wait window and ignores per-server timeout configuration.
+   */
+  readonly mcpMaxBlockingCallMs?: number;
+
+  /**
    * Refresh shared OAuth on MCP connection instead of before launch. Requires a
    * qualified connection budget and tools becoming usable after delayed startup.
    * Other providers retain eager authorization so native connection deadlines

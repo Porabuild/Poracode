@@ -832,6 +832,61 @@ describe("GUI resume initial prompt admission", () => {
     expect(session.crewBriefDelivered).toBe(crewFingerprint(crew));
   });
 
+  it("exposes the launch crew through getThreadConfig during openThread for MCP initialize and clears it on failure", async () => {
+    const crew = {
+      version: 1 as const,
+      name: "Ship crew",
+      policy: "crew-only" as const,
+      roles: [
+        { id: "sidekick", label: "Sidekick", selection: { agentKind: "codex", model: "gpt-5.5" } },
+      ],
+    };
+    let crewDuringOpen: unknown;
+    let shouldFailOpen = false;
+    const structured = createStructuredSession();
+    structured.openThread.mockImplementation(async () => {
+      crewDuringOpen = manager.getThreadConfig(THREAD_ID)?.crew;
+      if (shouldFailOpen) throw new Error("open failed");
+      return "session-1";
+    });
+    const { adapter } = createAdapter(structured);
+    const manager = createManager(adapter, () => {});
+
+    await manager.startThread({
+      threadId: THREAD_ID,
+      projectLocation: PROJECT_LOCATION,
+      agentKind: AGENT_KIND,
+      config: { model: "fixture-model", crew },
+      prompt: "/goal Ship feature",
+      initialSize: INITIAL_SIZE,
+      presentationMode: "gui",
+    });
+    expect(crewDuringOpen).toEqual(crew);
+
+    // Once live, removing the crew from the session config is immediately visible.
+    const session = manager.sessions.get(THREAD_ID)!;
+    session.config = { ...session.config, crew: null };
+    expect(manager.getThreadConfig(THREAD_ID)?.crew).toBeNull();
+
+    // A failed openThread must not leak a stale pending launch config.
+    await manager.closeThread({ threadId: THREAD_ID });
+    crewDuringOpen = undefined;
+    shouldFailOpen = true;
+    await expect(
+      manager.startThread({
+        threadId: THREAD_ID,
+        projectLocation: PROJECT_LOCATION,
+        agentKind: AGENT_KIND,
+        config: { model: "fixture-model", crew },
+        prompt: "/goal Retry",
+        initialSize: INITIAL_SIZE,
+        presentationMode: "gui",
+      }),
+    ).rejects.toThrow("open failed");
+    expect(crewDuringOpen).toEqual(crew);
+    expect(manager.getThreadConfig(THREAD_ID)).toBeUndefined();
+  });
+
   it("admits an explicit resume prompt exactly once against the exact owned reference", async () => {
     const structured = createStructuredSession();
     const { adapter, createStructuredSession: structuredFactory } = createAdapter(structured);

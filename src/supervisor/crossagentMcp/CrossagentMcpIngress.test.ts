@@ -54,9 +54,11 @@ const PROVIDER_SESSION_THREADS: Record<string, string> = {
 function makeRunManager(): {
   runManager: SubagentRunManager;
   spawned: Array<{ parentThreadId: string } & SpawnAgentRequest>;
+  waitTimeouts: number[];
   setWaitFor: (next: () => Promise<{ status: "completed"; output: string }>) => void;
 } {
   const spawned: Array<{ parentThreadId: string } & SpawnAgentRequest> = [];
+  const waitTimeouts: number[] = [];
   let waitFor = async () => ({ status: "completed" as const, output: "done" });
   const runManager = {
     spawn: (parentThreadId: string, request: SpawnAgentRequest) => {
@@ -68,9 +70,18 @@ function makeRunManager(): {
         spawned.push({ parentThreadId, ...request });
         return { runId: `run-${index + 1}` };
       }),
-    waitFor: () => waitFor(),
-    waitForMany: async (runIds: string[]) =>
-      runIds.map((runId) => ({ run_id: runId, status: "completed" as const, output: "done" })),
+    waitFor: (_runId: string, timeoutMs: number) => {
+      waitTimeouts.push(timeoutMs);
+      return waitFor();
+    },
+    waitForMany: async (runIds: string[], timeoutMs: number) => {
+      waitTimeouts.push(timeoutMs);
+      return runIds.map((runId) => ({
+        run_id: runId,
+        status: "completed" as const,
+        output: "done",
+      }));
+    },
     getStatus: () => ({ status: "completed" as const, output: "done" }),
     listRuns: () => [],
     cancel: async () => {},
@@ -79,6 +90,7 @@ function makeRunManager(): {
   return {
     runManager,
     spawned,
+    waitTimeouts,
     setWaitFor: (next) => {
       waitFor = next;
     },
@@ -92,12 +104,14 @@ describe("CrossagentMcpIngress", () => {
   let providerToken: string;
   let providerMcpUrl: string;
   let spawned: Array<{ parentThreadId: string } & SpawnAgentRequest>;
+  let waitTimeouts: number[];
   let setWaitFor: ReturnType<typeof makeRunManager>["setWaitFor"];
   let crews: Map<string, ThreadCrewBinding>;
 
   beforeEach(async () => {
     const rm = makeRunManager();
     spawned = rm.spawned;
+    waitTimeouts = rm.waitTimeouts;
     setWaitFor = rm.setWaitFor;
     crews = new Map();
     ingress = new CrossagentMcpIngress({
@@ -634,6 +648,76 @@ describe("CrossagentMcpIngress", () => {
     });
     const body = await res.json();
     expect(body.result.isError).toBe(true);
+  });
+
+  it("clamps blocking wait timeouts and advertises the cap for threads with a shorter HTTP deadline", async () => {
+    ingress.registerThread("thread-1", [], { maxWaitTimeoutMs: 90_000 });
+    const listBody = await (await rpc("tools/list")).json();
+    const timeoutDescriptionOf = (name: string) =>
+      (
+        listBody.result.tools as Array<{
+          name: string;
+          inputSchema: { properties?: { timeout_s?: { description?: string } } };
+        }>
+      ).find((tool) => tool.name === name)?.inputSchema.properties?.timeout_s?.description;
+
+    expect(timeoutDescriptionOf("spawn_agent")).toContain("default/cap 90");
+    expect(timeoutDescriptionOf("wait_for_agent")).toContain("default/cap 90");
+    expect(timeoutDescriptionOf("steer_agent")).toContain("default/cap 90");
+    expect(timeoutDescriptionOf("run_workflow")).toContain("default/cap 90");
+
+    // Provider-session discovery stays shared/uncapped, while tools/call still
+    // enforces the resolved thread's cap.
+    const providerListBody = await (await providerRpc("tools/list")).json();
+    const providerSpawnTimeout = (
+      providerListBody.result.tools as Array<{
+        name: string;
+        inputSchema: { properties?: { timeout_s?: { description?: string } } };
+      }>
+    ).find((tool) => tool.name === "spawn_agent")?.inputSchema.properties?.timeout_s?.description;
+    expect(providerSpawnTimeout).toContain("default/cap 480");
+
+    await (
+      await rpc("tools/call", {
+        name: "spawn_agent",
+        arguments: { provider: "codex", prompt: "work" },
+      })
+    ).json();
+    await (
+      await rpc("tools/call", {
+        name: "wait_for_agent",
+        arguments: { run_id: "run-xyz", timeout_s: 300 },
+      })
+    ).json();
+    await (
+      await rpc("tools/call", {
+        name: "wait_for_agent",
+        arguments: { run_ids: ["run-xyz"], timeout_s: 30 },
+      })
+    ).json();
+    expect(waitTimeouts[0]).toBeLessThanOrEqual(90_000);
+    expect(waitTimeouts[0]).toBeGreaterThan(85_000);
+    expect(waitTimeouts[1]).toBe(90_000);
+    expect(waitTimeouts[2]).toBe(30_000);
+
+    // Re-registering without a cap restores the full wait window.
+    ingress.registerThread("thread-1", []);
+    waitTimeouts.length = 0;
+    await (
+      await rpc("tools/call", {
+        name: "wait_for_agent",
+        arguments: { run_id: "run-xyz" },
+      })
+    ).json();
+    expect(waitTimeouts).toEqual([480_000]);
+  });
+
+  it("acknowledges Streamable HTTP DELETE /mcp session teardown with 204", async () => {
+    const res = await fetch(mcpUrl, {
+      method: "DELETE",
+      headers: { authorization: `Bearer ${token}` },
+    });
+    expect(res.status).toBe(204);
   });
 
   it("stops routing a thread after unregister", async () => {

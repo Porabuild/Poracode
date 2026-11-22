@@ -345,6 +345,11 @@ describe("Devin provider", () => {
       "summarizer",
     ]);
   });
+  it("caps blocking host MCP calls below Devin CLI's 120s HTTP request timeout", () => {
+    const adapter = createDevinAdapter();
+    expect(adapter.mcpMaxBlockingCallMs).toBe(90_000);
+    expect(adapter.mcpMaxBlockingCallMs).toBeLessThan(120_000);
+  });
   it("probes the profile's declared agent type on the LOCAL shape and volatile-scopes the catalog", async () => {
     mocks.probeAcpCapabilities.mockClear();
     mocks.loadDevinModelsForKey.mockClear();

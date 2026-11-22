@@ -1,6 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_WAIT_TIMEOUT_MS, MAX_WAIT_TIMEOUT_MS } from "./SubagentRunManager";
-import { jsonResult, parseWaitOptions, parseWaitTimeoutMs, runToolResult } from "./toolResult";
+import {
+  jsonResult,
+  parseWaitOptions,
+  parseWaitTimeoutMs,
+  runToolResult,
+  waitTimeoutDescription,
+  workflowTimeoutDescription,
+  workflowToolResult,
+} from "./toolResult";
 
 describe("parseWaitTimeoutMs", () => {
   it("reads timeout_s, clamped to [0, cap]", () => {
@@ -21,6 +29,16 @@ describe("parseWaitTimeoutMs", () => {
     expect(parseWaitTimeoutMs({})).toBe(DEFAULT_WAIT_TIMEOUT_MS);
     expect(parseWaitTimeoutMs({ timeout_s: "soon" })).toBe(DEFAULT_WAIT_TIMEOUT_MS);
     expect(parseWaitTimeoutMs({ timeout_s: Number.NaN })).toBe(DEFAULT_WAIT_TIMEOUT_MS);
+  });
+
+  it("clamps both default and explicit waits to a per-caller cap", () => {
+    expect(parseWaitTimeoutMs({}, 90_000)).toBe(90_000);
+    expect(parseWaitTimeoutMs({ timeout_s: 300 }, 90_000)).toBe(90_000);
+    expect(parseWaitTimeoutMs({ timeout_ms: 120_000 }, 90_000)).toBe(90_000);
+    expect(parseWaitTimeoutMs({ timeout_s: 30 }, 90_000)).toBe(30_000);
+    expect(parseWaitTimeoutMs({}, 999_000)).toBe(MAX_WAIT_TIMEOUT_MS);
+    expect(waitTimeoutDescription(90_000)).toContain("default/cap 90");
+    expect(workflowTimeoutDescription(90_000)).toContain("default/cap 90");
   });
 });
 
@@ -93,5 +111,18 @@ describe("compact wire serialization", () => {
     expect(JSON.parse(jsonResult({ error: "bad\nvalue" }).content[0]!.text)).toEqual({
       error: "bad\nvalue",
     });
+  });
+
+  it("attaches workflow continuation cues only when running or awaiting approval", () => {
+    const running = workflowToolResult({ status: "running", tasks: [{}] });
+    expect(running.content).toHaveLength(2);
+    expect(running.content[1]!.text).toContain('run_workflow with action="wait"');
+
+    const pending = workflowToolResult({ status: "running", tasks: [{ pending_requests: 1 }] });
+    expect(pending.content).toHaveLength(2);
+    expect(pending.content[1]!.text).toContain("pending request");
+
+    const done = workflowToolResult({ status: "completed", tasks: [{}] });
+    expect(done.content).toHaveLength(1);
   });
 });

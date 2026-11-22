@@ -1,5 +1,7 @@
 import type { SessionNotification } from "@agentclientprotocol/sdk";
 import { describe, expect, it } from "vitest";
+import { isCrossagentSpawnAgentTool, parseMcpName } from "@/shared/toolCallClassification";
+import type { ToolCallPayload } from "@/shared/contracts";
 import { createAcpMapperState, mapAcpSessionUpdate } from "../acp/canonicalMapping";
 import toolCallsFixture from "./fixtures/tool-calls.json";
 import { createDevinAcpTransform } from "./acpTransform";
@@ -223,6 +225,50 @@ describe("normalizeDevinToolCall", () => {
       _meta: { [INFERENCE_TOOL_NAME_META_KEY]: "read" },
     });
     expect(normalizeDevinToolCall(other)).toBe(other);
+  });
+
+  it("preserves canonical MCP tool names across display-only title updates for classification", () => {
+    const transform = createDevinAcpTransform();
+    const state = createAcpMapperState("thread-1");
+    const started = mapAcpSessionUpdate(
+      transform(
+        note({
+          sessionUpdate: "tool_call",
+          toolCallId: "call-spawn",
+          title: "Calling spawn_agent from crossagents",
+          rawInput: { role: "sidekick", prompt: "Work" },
+          _meta: {
+            "cognition.ai/toolName": "mcp__crossagents__spawn_agent",
+            "cognition.ai/eventType": "mcp_tool_call",
+            [INFERENCE_TOOL_NAME_META_KEY]: "mcp_call_tool",
+          },
+        }),
+      ),
+      state,
+    );
+    const updated = mapAcpSessionUpdate(
+      transform(
+        note({
+          sessionUpdate: "tool_call_update",
+          toolCallId: "call-spawn",
+          status: "completed",
+          title: "Called spawn_agent from crossagents",
+        }),
+      ),
+      state,
+    );
+    const startedPayload = (started[0] as { payload: ToolCallPayload }).payload;
+    const completedDelta = (updated[0] as { payload: Partial<ToolCallPayload> }).payload;
+    const completedPayload = { ...startedPayload, ...completedDelta };
+
+    expect(startedPayload.name).toBe("mcp__crossagents__spawn_agent");
+    expect(startedPayload.title).toBe("Calling spawn_agent from crossagents");
+    expect(isCrossagentSpawnAgentTool(startedPayload)).toBe(true);
+    expect(parseMcpName(startedPayload)).toEqual({ server: "crossagents", tool: "spawn_agent" });
+    expect(completedDelta.name).toBeUndefined();
+    expect(completedPayload.name).toBe("mcp__crossagents__spawn_agent");
+    expect(completedPayload.title).toBe("Called spawn_agent from crossagents");
+    expect(isCrossagentSpawnAgentTool(completedPayload)).toBe(true);
   });
 
   it("appends at most twenty HTTP(S) result URLs after existing content", () => {
