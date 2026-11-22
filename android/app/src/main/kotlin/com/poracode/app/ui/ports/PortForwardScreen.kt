@@ -1,5 +1,6 @@
 package com.poracode.app.ui.ports
 
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -67,6 +68,7 @@ fun PortForwardScreen(
     controller: PortForwardController,
     onBack: () -> Unit,
     openBrowser: (String) -> Unit,
+    embeddedInInspector: Boolean = false,
 ) {
     val state by controller.state.collectAsStateWithLifecycle()
     var portText by rememberSaveable { mutableStateOf("") }
@@ -77,29 +79,60 @@ fun PortForwardScreen(
     LaunchedEffect(controller) { controller.refresh() }
 
     Scaffold(
+        contentWindowInsets = if (embeddedInInspector) {
+            androidx.compose.foundation.layout.WindowInsets(0, 0, 0, 0)
+        } else {
+            androidx.compose.material3.ScaffoldDefaults.contentWindowInsets
+        },
         topBar = {
-            PoracodeTopAppBar(
-                title = { Text(stringResource(R.string.ports_title)) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(
-                            PoracodeIcons.ArrowBack,
-                            contentDescription = stringResource(R.string.ports_back),
-                        )
-                    }
-                },
-            )
+            if (!embeddedInInspector) {
+                PoracodeTopAppBar(
+                    title = { Text(stringResource(R.string.ports_title)) },
+                    navigationIcon = {
+                        IconButton(onClick = onBack) {
+                            Icon(
+                                PoracodeIcons.ArrowBack,
+                                contentDescription = stringResource(R.string.ports_back),
+                            )
+                        }
+                    },
+                )
+            }
         },
     ) { padding ->
         PoracodeHazeHost { backdrop ->
-        Box(Modifier.fillMaxSize().padding(padding)) {
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = PoracodeMetrics.pageInline)
-                    .then(backdrop),
-                verticalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
+        androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxSize().padding(padding)) {
+            val isExpanded = maxWidth >= 840.dp
+            com.poracode.app.ui.components.PoracodeCenteredDetail(maxWidth = 720.dp) {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = if (isExpanded) 24.dp else PoracodeMetrics.pageInline)
+                        .then(backdrop),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    if (isExpanded) {
+                        item("tablet-actions") {
+                            Row(
+                                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
+                            ) {
+                                com.poracode.app.ui.components.PoracodeActionButton(
+                                    label = stringResource(R.string.ports_refresh),
+                                    icon = PoracodeIcons.Refresh,
+                                    variant = com.poracode.app.ui.components.PoracodeButtonVariant.Tonal,
+                                    enabled = !state.loading,
+                                    onClick = controller::refresh,
+                                )
+                                com.poracode.app.ui.components.PoracodeActionButton(
+                                    label = stringResource(R.string.ports_forward_port),
+                                    icon = PoracodeIcons.Add,
+                                    variant = com.poracode.app.ui.components.PoracodeButtonVariant.PrimaryNeutral,
+                                    onClick = { showStart = true },
+                                )
+                            }
+                        }
+                    }
                 item {
                     Spacer(Modifier.height(4.dp))
                     Text(
@@ -178,59 +211,60 @@ fun PortForwardScreen(
                         )
                     }
                 }
-                item { Spacer(Modifier.height(96.dp)) }
+                item { Spacer(Modifier.height(if (isExpanded) 24.dp else 96.dp)) }
+                }
             }
-            PoracodeBottomBar(
-                Modifier.align(Alignment.BottomCenter),
-                leading = {
-                    PoracodeCircleButton(
-                        icon = PoracodeIcons.Refresh,
-                        contentDescription = stringResource(R.string.ports_refresh),
-                        onClick = controller::refresh,
-                        enabled = !state.loading,
-                    )
-                },
-                trailing = {
-                    PoracodeCircleButton(
-                        icon = PoracodeIcons.Add,
-                        contentDescription = stringResource(R.string.ports_forward_port),
-                        onClick = { showStart = true },
-                    )
-                },
-            )
+            if (!isExpanded) {
+                PoracodeBottomBar(
+                    Modifier.align(Alignment.BottomCenter),
+                    leading = {
+                        PoracodeCircleButton(
+                            icon = PoracodeIcons.Refresh,
+                            contentDescription = stringResource(R.string.ports_refresh),
+                            onClick = controller::refresh,
+                            enabled = !state.loading,
+                        )
+                    },
+                    trailing = {
+                        PoracodeCircleButton(
+                            icon = PoracodeIcons.Add,
+                            contentDescription = stringResource(R.string.ports_forward_port),
+                            onClick = { showStart = true },
+                        )
+                    },
+                )
+            }
             if (showStart) {
                 PoracodeSheet(
                     onDismissRequest = { showStart = false },
                     title = stringResource(R.string.ports_forward_a_port),
                 ) {
-                    PoracodeTextField(
-                        value = portText,
-                        onValueChange = { value ->
-                            portText = value.filter(Char::isDigit).take(5)
-                        },
-                        label = { Text(stringResource(R.string.ports_target_port)) },
-                        singleLine = true,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                    Spacer(Modifier.height(10.dp))
-                    FilledTonalButton(
-                        onClick = {
-                            port?.let { controller.start(it, openBrowser) }
-                            showStart = false
-                        },
-                        enabled = port in 1..65_535 && !state.starting,
-                        modifier = Modifier.fillMaxWidth(),
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .imePadding(),
+                        verticalArrangement = Arrangement.spacedBy(10.dp),
                     ) {
-                        if (state.starting) {
-                            CircularProgressIndicator(
-                                modifier = Modifier
-                                    .padding(end = 8.dp)
-                                    .size(16.dp),
-                                strokeWidth = 2.dp,
-                            )
-                        }
-                        Text(stringResource(R.string.ports_start_open))
+                        PoracodeTextField(
+                            value = portText,
+                            onValueChange = { value ->
+                                portText = value.filter(Char::isDigit).take(5)
+                            },
+                            label = { Text(stringResource(R.string.ports_target_port)) },
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                        com.poracode.app.ui.components.PoracodeActionButton(
+                            label = stringResource(R.string.ports_start_open),
+                            variant = com.poracode.app.ui.components.PoracodeButtonVariant.PrimaryNeutral,
+                            enabled = port in 1..65_535 && !state.starting,
+                            onClick = {
+                                port?.let { controller.start(it, openBrowser) }
+                                showStart = false
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                        )
                     }
                 }
             }

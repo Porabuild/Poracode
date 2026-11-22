@@ -30,6 +30,7 @@ internal fun HomeThreadRowWithActions(
     modifier: Modifier = Modifier,
     agentLabel: String? = null,
     online: Boolean = false,
+    hasDraft: Boolean = false,
 ) {
     var actionsOpen by rememberSaveable(item.id) { mutableStateOf(false) }
     HomeThreadRow(
@@ -41,6 +42,7 @@ internal fun HomeThreadRowWithActions(
         modifier = modifier,
         agentLabel = agentLabel,
         online = online,
+        hasDraft = hasDraft,
         onLongClick = if (canOperateThreads) ({ actionsOpen = true }) else null,
         onLongClickLabel = stringResource(R.string.thread_lifecycle_actions),
     )

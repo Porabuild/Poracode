@@ -2,6 +2,7 @@ package com.poracode.app.ui.richchat
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -58,6 +59,12 @@ internal fun RichChatThreadTopBar(
     projectName: String? = null,
     hostName: String? = null,
     hostOnline: Boolean = false,
+    leadingAccessory: (@Composable RowScope.() -> Unit)? = null,
+    applyStatusBarsPadding: Boolean = true,
+    showInspectorToggle: Boolean = false,
+    inspectorOpen: Boolean = false,
+    onToggleInspector: () -> Unit = {},
+    onToggleFind: (() -> Unit)? = null,
 ) {
     val colors = PoracodeTheme.colors
     var actionsOpen by rememberSaveable(thread?.id) { mutableStateOf(false) }
@@ -65,6 +72,9 @@ internal fun RichChatThreadTopBar(
         title = title,
         onBack = if (showBack) onBack else null,
         backLabel = stringResource(R.string.rich_chat_back),
+        background = if (applyStatusBarsPadding) colors.background else colors.paneSurface,
+        applyStatusBarsPadding = applyStatusBarsPadding,
+        leadingAccessory = leadingAccessory,
         subtitle = {
             Row(
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -89,7 +99,7 @@ internal fun RichChatThreadTopBar(
                                 ),
                             ),
                             style = PoracodeTextStyles.headerSubtitle,
-                            color = colors.muted.copy(alpha = 0.7f),
+                            color = colors.muted,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                             modifier = androidx.compose.ui.Modifier.weight(1f, fill = false),
@@ -102,7 +112,7 @@ internal fun RichChatThreadTopBar(
                                 it.status,
                             ),
                             style = PoracodeTextStyles.headerSubtitle,
-                            color = colors.muted.copy(alpha = 0.7f),
+                            color = colors.muted,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                             modifier = androidx.compose.ui.Modifier.weight(1f, fill = false),
@@ -112,6 +122,16 @@ internal fun RichChatThreadTopBar(
             }
         },
         trailing = {
+            if (showInspectorToggle) {
+                PoracodeIconButton(
+                    icon = PoracodeIcons.PanelRight,
+                    contentDescription = stringResource(
+                        if (inspectorOpen) R.string.inspector_hide else R.string.inspector_show,
+                    ),
+                    onClick = onToggleInspector,
+                    tint = if (inspectorOpen) colors.foreground else colors.muted,
+                )
+            }
             PoracodeIconButton(
                 icon = PoracodeIcons.MoreHoriz,
                 contentDescription = stringResource(R.string.thread_lifecycle_actions),
@@ -181,6 +201,16 @@ internal fun RichChatThreadTopBar(
         }
     }
     val nativeActions = buildList {
+        onToggleFind?.let { toggleFind ->
+            add(
+                ThreadSheetAction(
+                    label = stringResource(R.string.rich_chat_find_in_thread),
+                    icon = PoracodeIcons.Search,
+                    enabled = hasSelection,
+                    onClick = toggleFind,
+                ),
+            )
+        }
         add(
             ThreadSheetAction(
                 label = stringResource(R.string.rich_chat_refresh_transcript),

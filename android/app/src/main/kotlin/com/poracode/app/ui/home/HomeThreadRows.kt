@@ -144,6 +144,8 @@ internal fun HomeThreadRow(
     modifier: Modifier = Modifier,
     agentLabel: String? = null,
     online: Boolean = false,
+    hasDraft: Boolean = false,
+    containerColor: Color? = null,
     onLongClick: (() -> Unit)? = null,
     onLongClickLabel: String? = null,
 ) {
@@ -165,6 +167,7 @@ internal fun HomeThreadRow(
         onLongClick = onLongClick,
         onLongClickLabel = onLongClickLabel,
         selected = selected,
+        containerColor = containerColor,
         contentPadding = RowPadding,
     ) {
         HomeProviderGlyph(thread, agentLabel)
@@ -188,6 +191,14 @@ internal fun HomeThreadRow(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
+                if (hasDraft) {
+                    Icon(
+                        PoracodeIcons.Edit,
+                        contentDescription = stringResource(R.string.home_thread_draft),
+                        tint = colors.muted,
+                        modifier = Modifier.size(11.dp),
+                    )
+                }
                 if (thread.isStarred) {
                     Icon(
                         PoracodeIcons.Star,

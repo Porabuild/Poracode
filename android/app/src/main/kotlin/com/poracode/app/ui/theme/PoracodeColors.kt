@@ -3,6 +3,7 @@ package com.poracode.app.ui.theme
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.compositeOver
 
 /**
  * Poracode design tokens, mirrored from the compact PWA's default theme preset
@@ -60,8 +61,52 @@ data class PoracodeColors(
     val floatingShadow: Color,
     /** Scrim behind sheets and the focused composer. */
     val scrim: Color,
+    /** Optional authored sidebar panel fill (used by custom themes on split layouts). */
+    val sidebarBackground: Color? = null,
+    /** Optional authored active row fill in the sidebar (used by custom themes). */
+    val sidebarRowActive: Color? = null,
 ) {
-    val hairlineSoft: Color get() = foreground.copy(alpha = 0.03f)
+    val hairlineSoft: Color get() = foreground.copy(alpha = if (isDark) 0.04f else 0.08f)
+
+    /**
+     * Outermost multi-pane window & navigation rail shell, matching Poracode Desktop:
+     * - Default dark (`background == #000000` compact OLED override): lifts cleanly to
+     *   Desktop Moonlight `--background` (`#070709`) so multi-pane screens share the exact
+     *   cool midnight hue of `--surface` (`#0E0E14`) and `--content-surface-fill` (`#1B1B20`)
+     *   with zero pitch-black holes. Other presets use their authored `sidebarBackground ?: background`.
+     * - Light: uses `surfaceTertiary` (matching Desktop `--sidebar-background`).
+     */
+    val paneShell: Color
+        get() = sidebarBackground ?: when {
+            isDark && background == Color.Black -> surface.copy(alpha = 0.50f).compositeOver(background)
+            !isDark -> surfaceTertiary
+            else -> background
+        }
+
+    /**
+     * Elevated rounded Material 3 pane surface (`PoracodePaneContainer`): uses Poracode
+     * Desktop `--surface` (`#0E0E14` in dark Moonlight, `#FAFAFB` in light) so the entire
+     * palette steps seamlessly: `paneShell` -> `paneSurface` -> `paneCard` -> `paneControl`.
+     */
+    val paneSurface: Color get() = surface
+
+    /**
+     * Framed card surface (`PoracodeCard`) sitting on [paneSurface]: uses Poracode Desktop
+     * `--content-surface-fill` (`listRow`, `#1B1B20`) in dark mode and `surfaceSecondary`
+     * (`#F0F0F2`) in light mode.
+     */
+    val paneCard: Color get() = if (isDark) listRow else surfaceSecondary
+
+    /**
+     * Quiet neutral control fill inside cards/panes (`PoracodeActionButton`, tonal icon buttons):
+     * uses Poracode Desktop `--default` (`#242429`) in dark mode and softened `default` in light.
+     */
+    val paneControl: Color
+        get() = if (isDark) {
+            default
+        } else {
+            default.copy(alpha = 0.72f).compositeOver(surfaceSecondary)
+        }
 }
 
 // The default palette is generated from the PWA theme source of truth by

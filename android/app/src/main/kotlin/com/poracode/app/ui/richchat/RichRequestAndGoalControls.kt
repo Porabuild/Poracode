@@ -79,92 +79,77 @@ private fun RichRequestCard(
         options.map(RichRequestOption::optionId),
         stateSaver = requestOptionSetSaver,
     ) { mutableStateOf(emptySet()) }
-    Card(
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.tertiaryContainer,
-        ),
+    com.poracode.app.ui.components.PoracodeCard(
         modifier = Modifier.fillMaxWidth(),
+        title = request.payload.summary,
     ) {
-        Column(
-            Modifier.padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            Text(request.payload.summary, style = MaterialTheme.typography.titleSmall)
-            if (request.payload.details != null) {
-                TextButton(onClick = { showDetails = !showDetails }) {
-                    Text(
-                        stringResource(
-                            if (showDetails) {
-                                R.string.rich_chat_hide_details
-                            } else {
-                                R.string.rich_chat_show_details
-                            },
-                        ),
-                    )
-                }
-                if (showDetails) {
-                    Text(
-                        request.payload.details.toString().take(MAX_DETAILS_CHARS),
-                        style = MaterialTheme.typography.bodySmall,
-                    )
-                }
+        if (request.payload.details != null) {
+            com.poracode.app.ui.components.PoracodeActionButton(
+                label = stringResource(
+                    if (showDetails) R.string.rich_chat_hide_details
+                    else R.string.rich_chat_show_details,
+                ),
+                variant = com.poracode.app.ui.components.PoracodeButtonVariant.Outlined,
+                onClick = { showDetails = !showDetails },
+            )
+            if (showDetails) {
+                Text(
+                    request.payload.details.toString().take(MAX_DETAILS_CHARS),
+                    style = MaterialTheme.typography.bodySmall,
+                )
             }
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                if (multiSelect) {
-                    options.forEach { option ->
-                        FilterChip(
-                            selected = option.optionId in selectedOptionIds,
-                            onClick = {
-                                selectedOptionIds = if (option.optionId in selectedOptionIds) {
-                                    selectedOptionIds - option.optionId
-                                } else {
-                                    selectedOptionIds + option.optionId
-                                }
-                            },
-                            enabled = !resolving,
-                            label = { Text(option.label) },
+        }
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            if (multiSelect) {
+                options.forEach { option ->
+                    FilterChip(
+                        selected = option.optionId in selectedOptionIds,
+                        onClick = {
+                            selectedOptionIds = if (option.optionId in selectedOptionIds) {
+                                selectedOptionIds - option.optionId
+                            } else {
+                                selectedOptionIds + option.optionId
+                            }
+                        },
+                        enabled = !resolving,
+                        label = { Text(option.label) },
+                    )
+                }
+                com.poracode.app.ui.components.PoracodeActionButton(
+                    label = stringResource(R.string.rich_chat_submit),
+                    variant = com.poracode.app.ui.components.PoracodeButtonVariant.PrimaryNeutral,
+                    enabled = !resolving && selectedOptionIds.isNotEmpty(),
+                    onClick = {
+                        onResolve(
+                            RichChatUiLogic.requestResolution(
+                                request.id.jsonValue,
+                                options.map(RichRequestOption::optionId)
+                                    .filter(selectedOptionIds::contains),
+                            ),
+                        )
+                    },
+                )
+            } else {
+                options.forEachIndexed { index, option ->
+                    val action = {
+                        onResolve(
+                            RichChatUiLogic.requestResolution(
+                                request.id.jsonValue,
+                                option.optionId,
+                            ),
                         )
                     }
-                    FilledTonalButton(
-                        onClick = {
-                            onResolve(
-                                RichChatUiLogic.requestResolution(
-                                    request.id.jsonValue,
-                                    options.map(RichRequestOption::optionId)
-                                        .filter(selectedOptionIds::contains),
-                                ),
-                            )
-                        },
-                        enabled = !resolving && selectedOptionIds.isNotEmpty(),
-                    ) {
-                        Text(stringResource(R.string.rich_chat_submit))
-                    }
-                } else {
-                    options.forEachIndexed { index, option ->
-                        val action = {
-                            onResolve(
-                                RichChatUiLogic.requestResolution(
-                                    request.id.jsonValue,
-                                    option.optionId,
-                                ),
-                            )
-                        }
-                        if (index == 0) {
-                            FilledTonalButton(
-                                onClick = action,
-                                enabled = !resolving,
-                                modifier = Modifier.testTag("request_option_${option.optionId}"),
-                            ) { Text(option.label) }
+                    com.poracode.app.ui.components.PoracodeActionButton(
+                        label = option.label,
+                        variant = if (index == 0) {
+                            com.poracode.app.ui.components.PoracodeButtonVariant.PrimaryNeutral
                         } else {
-                            OutlinedButton(
-                                onClick = action,
-                                enabled = !resolving,
-                                modifier = Modifier.testTag("request_option_${option.optionId}"),
-                            ) {
-                                Text(option.label)
-                            }
-                        }
-                    }
+                            com.poracode.app.ui.components.PoracodeButtonVariant.Outlined
+                        },
+                        enabled = !resolving,
+                        onClick = action,
+                        modifier = Modifier.testTag("request_option_${option.optionId}"),
+                    )
                 }
             }
         }
@@ -181,37 +166,37 @@ fun RichGoalCard(
     val goal = RichChatUiLogic.latestGoal(items) ?: return
     var editing by rememberSaveable(goal.objective) { mutableStateOf(false) }
     var draft by rememberSaveable(goal.objective) { mutableStateOf(goal.objective) }
-    Card(modifier.fillMaxWidth()) {
-        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text(stringResource(R.string.rich_chat_goal), style = MaterialTheme.typography.titleSmall)
-                Text(
-                    goalStatusLabel(goal.status),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+    com.poracode.app.ui.components.PoracodeCard(
+        modifier = modifier,
+        title = stringResource(R.string.rich_chat_goal),
+        trailing = {
+            Text(
+                goalStatusLabel(goal.status),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        },
+    ) {
+        Text(goal.objective, style = MaterialTheme.typography.bodyMedium)
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            if ("edit" in goal.availableActions) {
+                TextButton(onClick = { draft = goal.objective; editing = true }, enabled = !busy) {
+                    Text(stringResource(R.string.rich_chat_edit_goal))
+                }
             }
-            Text(goal.objective, style = MaterialTheme.typography.bodyMedium)
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                if ("edit" in goal.availableActions) {
-                    TextButton(onClick = { draft = goal.objective; editing = true }, enabled = !busy) {
-                        Text(stringResource(R.string.rich_chat_edit_goal))
-                    }
+            if ("pause" in goal.availableActions) {
+                TextButton(onClick = { onUpdate(ThreadGoalUpdate.Pause) }, enabled = !busy) {
+                    Text(stringResource(R.string.rich_chat_pause_goal))
                 }
-                if ("pause" in goal.availableActions) {
-                    TextButton(onClick = { onUpdate(ThreadGoalUpdate.Pause) }, enabled = !busy) {
-                        Text(stringResource(R.string.rich_chat_pause_goal))
-                    }
+            }
+            if ("resume" in goal.availableActions) {
+                TextButton(onClick = { onUpdate(ThreadGoalUpdate.Resume) }, enabled = !busy) {
+                    Text(stringResource(R.string.rich_chat_resume_goal))
                 }
-                if ("resume" in goal.availableActions) {
-                    TextButton(onClick = { onUpdate(ThreadGoalUpdate.Resume) }, enabled = !busy) {
-                        Text(stringResource(R.string.rich_chat_resume_goal))
-                    }
-                }
-                if ("clear" in goal.availableActions) {
-                    TextButton(onClick = { onUpdate(ThreadGoalUpdate.Clear) }, enabled = !busy) {
-                        Text(stringResource(R.string.rich_chat_clear_goal))
-                    }
+            }
+            if ("clear" in goal.availableActions) {
+                TextButton(onClick = { onUpdate(ThreadGoalUpdate.Clear) }, enabled = !busy) {
+                    Text(stringResource(R.string.rich_chat_clear_goal))
                 }
             }
         }
@@ -254,44 +239,39 @@ fun RichPendingSteerCard(
 ) {
     var editing by rememberSaveable(pending?.id) { mutableStateOf(false) }
     var draft by rememberSaveable(pending?.id) { mutableStateOf(pending?.prompt.orEmpty()) }
-    Card(modifier.fillMaxWidth()) {
-        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+    com.poracode.app.ui.components.PoracodeCard(
+        modifier = modifier,
+        title = stringResource(R.string.rich_chat_pending_steer),
+    ) {
+        if (pending == null) {
             Text(
-                stringResource(R.string.rich_chat_pending_steer),
-                style = MaterialTheme.typography.titleSmall,
+                stringResource(R.string.rich_chat_no_pending_steer),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            if (pending == null) {
-                Text(
-                    stringResource(R.string.rich_chat_no_pending_steer),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            } else {
+        } else {
                 Text(pending.prompt, style = MaterialTheme.typography.bodyMedium)
             }
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                TextButton(
-                    onClick = { draft = pending?.prompt.orEmpty(); editing = true },
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                com.poracode.app.ui.components.PoracodeActionButton(
+                    label = stringResource(
+                        if (pending == null) R.string.rich_chat_add_steer
+                        else R.string.rich_chat_edit_steer,
+                    ),
+                    variant = com.poracode.app.ui.components.PoracodeButtonVariant.Tonal,
                     enabled = !busy,
-                ) {
-                    Text(
-                        stringResource(
-                            if (pending == null) {
-                                R.string.rich_chat_add_steer
-                            } else {
-                                R.string.rich_chat_edit_steer
-                            },
-                        ),
-                    )
-                }
+                    onClick = { draft = pending?.prompt.orEmpty(); editing = true },
+                )
                 if (pending != null) {
-                    TextButton(onClick = onClear, enabled = !busy) {
-                        Text(stringResource(R.string.rich_chat_clear_steer))
-                    }
+                    com.poracode.app.ui.components.PoracodeActionButton(
+                        label = stringResource(R.string.rich_chat_clear_steer),
+                        variant = com.poracode.app.ui.components.PoracodeButtonVariant.Outlined,
+                        enabled = !busy,
+                        onClick = onClear,
+                    )
                 }
             }
         }
-    }
     if (editing) {
         AlertDialog(
             onDismissRequest = { if (!busy) editing = false },

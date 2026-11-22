@@ -258,6 +258,7 @@ data class RemoteShellSnapshot(
     val snapshotSeq: Int,
     val projects: List<RemoteProject> = emptyList(),
     val threads: List<RemoteThread> = emptyList(),
+    val workspaces: List<RemoteHostWorkspace>? = null,
     val runtimeSummariesByThread: Map<String, RemoteRuntimeSummary> = emptyMap(),
     /**
      * Optional per-thread Git/PR summaries. Absent on legacy hosts. Carried as

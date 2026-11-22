@@ -11,6 +11,7 @@
          installable and fully usable on camera-less devices: pairing also works by
          pasted link or manual endpoint + token. -->
     <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-feature android:name="android.hardware.camera" android:required="false" />
     <uses-feature android:name="android.hardware.camera.autofocus" android:required="false" />
     <uses-feature android:name="android.hardware.camera.any" android:required="false" />

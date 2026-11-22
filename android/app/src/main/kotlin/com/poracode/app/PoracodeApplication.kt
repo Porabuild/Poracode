@@ -34,9 +34,14 @@ import com.poracode.app.session.threads.ThreadSessionRuntime
 import com.poracode.app.storage.HostCatalog
 import com.poracode.app.storage.HostCatalogCredentialRepository
 import com.poracode.app.storage.DeviceSettingsPreferences
+import com.poracode.app.storage.HomeWorkspacePreferences
 import com.poracode.app.storage.ProjectSyncPreferences
 import com.poracode.app.storage.SharedPreferencesDeviceSettingsDocumentStore
+import com.poracode.app.storage.SharedPreferencesHomeWorkspaceDocumentStore
 import com.poracode.app.storage.SharedPreferencesProjectSyncDocumentStore
+import com.poracode.app.ui.richchat.RichChatComposerDraftStore
+import com.poracode.app.ui.theme.CustomThemeStore
+import com.poracode.app.ui.theme.SharedPreferencesCustomThemeDocumentStore
 import com.poracode.app.transport.ProjectRemoteApiClient
 import com.poracode.app.transport.ProjectRemoteGatewayFactory
 import com.poracode.app.transport.environments.CatalogEnvironmentAuthorityFactory
@@ -80,6 +85,11 @@ class PoracodeApplication : Application() {
         private set
     lateinit var deviceSettings: DeviceSettingsPreferences
         private set
+    lateinit var workspaces: HomeWorkspacePreferences
+        private set
+    lateinit var customThemes: CustomThemeStore
+        private set
+    val composerDrafts = RichChatComposerDraftStore()
     private lateinit var richChatComposition: RichChatSessionComposition
     private val heavyReviewSource = HeavyReviewInterestSource()
     private val runtimeScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
@@ -89,6 +99,12 @@ class PoracodeApplication : Application() {
         PushChannels.create(this)
         deviceSettings = DeviceSettingsPreferences(
             SharedPreferencesDeviceSettingsDocumentStore(this),
+        )
+        workspaces = HomeWorkspacePreferences(
+            SharedPreferencesHomeWorkspaceDocumentStore(this),
+        )
+        customThemes = CustomThemeStore(
+            SharedPreferencesCustomThemeDocumentStore(this),
         )
         val hostCatalog = HostCatalog(this)
         val environmentAuthorityFactory = CatalogEnvironmentAuthorityFactory(

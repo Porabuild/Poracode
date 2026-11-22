@@ -68,26 +68,6 @@ internal fun RichChatLoadedTranscript(
     val revertableItemIds = remember(transcript.itemsInOrder) {
         RichChatUiLogic.revertableUserItemIds(transcript.itemsInOrder)
     }
-    val controlContent: @Composable (Modifier) -> Unit = { controlModifier ->
-        RichChatControlPanel(
-            runtime = runtime,
-            items = transcript.itemsInOrder,
-            agentStatus = agentStatus,
-            requests = transcript.openRequests,
-            pendingSteer = transcript.pendingSteer,
-            backgroundTasks = state.backgroundTasks.orEmpty(),
-            sessionActionIds = sessionActionsState.actionIds,
-            onOpenBackgroundTask = openBackgroundTask,
-            checkpointState = checkpointState,
-            projectLocation = projectLocation,
-            selection = state.selection,
-            config = state.config,
-            canOperate = canOperate,
-            busy = mutating || refreshing,
-            onOpenAgentSettings = onOpenAgentSettings,
-            modifier = controlModifier,
-        )
-    }
     val timelineContent: @Composable (Modifier) -> Unit = { timelineModifier ->
         RichTimelineView(
             transcript,
@@ -120,22 +100,6 @@ internal fun RichChatLoadedTranscript(
     CompositionLocalProvider(
         LocalRichChatFileActions provides fileActions,
     ) {
-        if (!layout.compact) {
-            Row(Modifier.fillMaxSize()) {
-                timelineContent(Modifier.weight(1f))
-                VerticalDivider()
-                Column(
-                    Modifier
-                        .width(320.dp)
-                        .verticalScroll(rememberScrollState())
-                        .padding(12.dp),
-                ) {
-                    RuntimeContextUsageDock(threadId, transcript.contextUsage) {}
-                    controlContent(Modifier)
-                }
-            }
-        } else {
-            timelineContent(Modifier.fillMaxSize())
-        }
+        timelineContent(Modifier.fillMaxSize())
     }
 }

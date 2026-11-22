@@ -67,6 +67,7 @@ fun ProjectWorkspaceScreen(
     guideWriters: List<com.poracode.app.model.AgentStatusEntry> = emptyList(),
     initialSection: ProjectWorkspaceSection = ProjectWorkspaceSection.Files,
     initialGithubSection: ProjectGithubSection = ProjectGithubSection.PullRequests,
+    embeddedInInspector: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
     val workspace by controller.state.collectAsStateWithLifecycle()
@@ -218,6 +219,7 @@ fun ProjectWorkspaceScreen(
         }
     }
     val backModifier = rememberPredictiveBackModifier(
+        enabled = !embeddedInInspector,
         onBack = { requestAction(EditorExitAction.Back, null) },
     )
     val refreshSection: () -> Unit = {
@@ -242,17 +244,24 @@ fun ProjectWorkspaceScreen(
 
     Scaffold(
         modifier = modifier.then(backModifier),
+        contentWindowInsets = if (embeddedInInspector) {
+            androidx.compose.foundation.layout.WindowInsets(0, 0, 0, 0)
+        } else {
+            androidx.compose.material3.ScaffoldDefaults.contentWindowInsets
+        },
         topBar = {
-            ProjectWorkspaceTopBar(
-                projectName = projectName,
-                section = section,
-                access = access,
-                actions = actions,
-                onBack = { requestAction(EditorExitAction.Back, null) },
-                onShowBranches = { showingBranches = true },
-                onShowWorktrees = { showingWorktrees = true },
-                onRefresh = refreshSection,
-            )
+            if (!embeddedInInspector) {
+                ProjectWorkspaceTopBar(
+                    projectName = projectName,
+                    section = section,
+                    access = access,
+                    actions = actions,
+                    onBack = { requestAction(EditorExitAction.Back, null) },
+                    onShowBranches = { showingBranches = true },
+                    onShowWorktrees = { showingWorktrees = true },
+                    onRefresh = refreshSection,
+                )
+            }
         },
     ) { padding ->
         PoracodeHazeHost { backdrop ->
@@ -274,7 +283,12 @@ fun ProjectWorkspaceScreen(
                 )
             }
             BoxWithConstraints(Modifier.weight(1f).fillMaxWidth()) {
-                val expanded = maxWidth >= 900.dp
+                val fontScale = androidx.compose.ui.platform.LocalDensity.current.fontScale
+                val bookHinge = com.poracode.app.ui.components.rememberBookHingeSplit(
+                    containerWidthDp = maxWidth,
+                    defaultSidebarWidthDp = 320.dp,
+                )
+                val expanded = (maxWidth >= 900.dp || bookHinge.isBookPosture) && fontScale < 1.5f
                 if (section == ProjectWorkspaceSection.Files) {
                     FilesWorkspaceContent(
                         entry = entry,
@@ -385,18 +399,20 @@ fun ProjectWorkspaceScreen(
                 }
             }
         }
-                ProjectWorkspaceBottomBar(
-                    section = section,
-                    refreshEnabled = when (section) {
-                        ProjectWorkspaceSection.Files -> actions.canBrowse
-                        ProjectWorkspaceSection.Git -> actions.canRefreshGit
-                        ProjectWorkspaceSection.Github -> access.canRead
-                    },
-                    onBack = { requestAction(EditorExitAction.Back, null) },
-                    onRefresh = refreshSection,
-                    onSelectSection = { sectionName = it.name },
-                    modifier = Modifier.align(Alignment.BottomCenter),
-                )
+                if (!embeddedInInspector) {
+                    ProjectWorkspaceBottomBar(
+                        section = section,
+                        refreshEnabled = when (section) {
+                            ProjectWorkspaceSection.Files -> actions.canBrowse
+                            ProjectWorkspaceSection.Git -> actions.canRefreshGit
+                            ProjectWorkspaceSection.Github -> access.canRead
+                        },
+                        onBack = { requestAction(EditorExitAction.Back, null) },
+                        onRefresh = refreshSection,
+                        onSelectSection = { sectionName = it.name },
+                        modifier = Modifier.align(Alignment.BottomCenter),
+                    )
+                }
             }
         }
     }

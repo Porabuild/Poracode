@@ -17,6 +17,7 @@ import com.poracode.app.push.PushAvailability
 import com.poracode.app.push.PushPermissionCard
 import com.poracode.app.push.PushUiState
 import com.poracode.app.storage.HomeShortcut
+import com.poracode.app.storage.PinnedSettingsShortcut
 import com.poracode.app.ui.components.PoracodeSheet
 import com.poracode.app.ui.components.PoracodeSheetAction
 import com.poracode.app.ui.components.PoracodeSheetDivider
@@ -42,6 +43,9 @@ internal fun HomeMoreSheet(
     onManagePorts: () -> Unit,
     onOpenSettings: () -> Unit,
     visibleShortcuts: List<HomeShortcut>,
+    pinnedSettingsShortcuts: List<PinnedSettingsShortcut> = emptyList(),
+    onOpenPinnedSettings: (PinnedSettingsShortcut) -> Unit = {},
+    onManageWorkspaces: (() -> Unit)? = null,
     remoteAvailable: Boolean,
     availableUtilities: Set<HomeProjectUtility>,
     onRefresh: () -> Unit,
@@ -66,6 +70,9 @@ internal fun HomeMoreSheet(
                 enabled = remoteAvailable,
             )
             HomeMoreRow(R.string.home_connections, PoracodeIcons.Computer, onManageHosts)
+            onManageWorkspaces?.let { manageWorkspaces ->
+                HomeMoreRow(R.string.home_workspaces_title, PoracodeIcons.Layers, manageWorkspaces)
+            }
             HomeMoreRow(
                 R.string.projects_manage_title,
                 PoracodeIcons.FolderOpen,
@@ -118,6 +125,13 @@ internal fun HomeMoreSheet(
                 onOpenBrowserMirror,
                 enabled = remoteAvailable,
             )
+            pinnedSettingsShortcuts.forEach { shortcut ->
+                HomeMoreRow(
+                    shortcut.labelRes(),
+                    shortcut.icon(),
+                    { onOpenPinnedSettings(shortcut) },
+                )
+            }
             HomeMoreRow(R.string.settings_title, PoracodeIcons.Settings, onOpenSettings)
             HomeMoreRow(R.string.home_more_refresh, PoracodeIcons.Refresh, onRefresh)
             // Pairing lifecycle stays reachable from Home: the one action that

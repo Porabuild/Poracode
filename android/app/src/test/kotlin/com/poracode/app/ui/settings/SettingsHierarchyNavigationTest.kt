@@ -11,8 +11,11 @@ class SettingsHierarchyNavigationTest {
             SettingsRoute.General,
             SettingsRoute.Appearance,
             SettingsRoute.Notifications,
+            SettingsRoute.Audio,
             SettingsRoute.Terminal,
             SettingsRoute.Git,
+            SettingsRoute.KeyboardShortcuts,
+            SettingsRoute.ReleaseNotes,
         )
 
         deviceDetails.forEach { route ->
@@ -27,8 +30,11 @@ class SettingsHierarchyNavigationTest {
             SettingsRoute.General,
             SettingsRoute.Appearance,
             SettingsRoute.Notifications,
+            SettingsRoute.Audio,
             SettingsRoute.Terminal,
             SettingsRoute.Git,
+            SettingsRoute.KeyboardShortcuts,
+            SettingsRoute.ReleaseNotes,
             SettingsRoute.DesktopIndex,
         )
 

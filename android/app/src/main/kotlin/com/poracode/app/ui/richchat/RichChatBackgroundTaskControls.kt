@@ -57,19 +57,16 @@ internal fun RichBackgroundTasksCard(
     modifier: Modifier = Modifier,
 ) {
     if (tasks.isEmpty()) return
-    Card(modifier.fillMaxWidth().testTag("background-tasks-panel")) {
+    com.poracode.app.ui.components.PoracodeCard(
+        modifier = modifier.testTag("background-tasks-panel"),
+        title = stringResource(R.string.rich_chat_background_tasks),
+    ) {
         Column(
             Modifier
                 .heightIn(max = 240.dp)
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 12.dp, vertical = 10.dp),
+                .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(2.dp),
         ) {
-            Text(
-                stringResource(R.string.rich_chat_background_tasks),
-                style = MaterialTheme.typography.titleSmall,
-                modifier = Modifier.padding(bottom = 4.dp),
-            )
             tasks.forEach { task ->
                 RichBackgroundTaskRow(
                     task = task,
@@ -145,20 +142,16 @@ private fun RichBackgroundTaskRow(
                 }
             }
             if (stopListed) {
-                IconButton(
-                    onClick = onStop,
+                com.poracode.app.ui.components.PoracodeTonalIconButton(
+                    icon = PoracodeIcons.Stop,
+                    contentDescription = stringResource(
+                        if (stopping) R.string.rich_chat_background_task_stopping
+                        else R.string.rich_chat_background_task_stop,
+                    ),
                     enabled = canOperate && !busy && !stopping,
+                    onClick = onStop,
                     modifier = Modifier.testTag("background-task-stop-row:${task.taskId}"),
-                ) {
-                    Icon(
-                        PoracodeIcons.Stop,
-                        contentDescription = stringResource(
-                            if (stopping) R.string.rich_chat_background_task_stopping
-                            else R.string.rich_chat_background_task_stop,
-                        ),
-                        modifier = Modifier.size(18.dp),
-                    )
-                }
+                )
             }
         }
         stopFailure?.let { failure ->

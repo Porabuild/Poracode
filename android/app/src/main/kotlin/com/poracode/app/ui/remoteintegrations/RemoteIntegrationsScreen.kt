@@ -1,5 +1,6 @@
 package com.poracode.app.ui.remoteintegrations
 
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -101,22 +102,41 @@ fun RemoteIntegrationsScreen(
         Column(Modifier.fillMaxSize().padding(padding)) {
             RemoteIntegrationsAccessBanner(access, section)
             BoxWithConstraints(Modifier.fillMaxSize()) {
-                if (maxWidth >= 840.dp) {
+                val fontScale = androidx.compose.ui.platform.LocalDensity.current.fontScale
+                val bookHinge = com.poracode.app.ui.components.rememberBookHingeSplit(
+                    containerWidthDp = maxWidth,
+                    defaultSidebarWidthDp = 88.dp,
+                )
+                if ((maxWidth >= 840.dp || bookHinge.isBookPosture) && fontScale < 1.5f) {
                     Row(Modifier.fillMaxSize()) {
                         IntegrationNavigationRail(section) { sectionName = it.name }
-                        VerticalDivider()
-                        SectionContent(
-                            section, access, state, composition, scheduleThreads, completionAgentKinds,
-                            onOpenThread, Modifier.weight(1f),
-                        )
+                        if (bookHinge.hingeGapDp > 0.dp) {
+                            androidx.compose.foundation.layout.Spacer(Modifier.width(bookHinge.hingeGapDp))
+                        } else {
+                            VerticalDivider()
+                        }
+                        com.poracode.app.ui.components.PoracodeCenteredDetail(
+                            modifier = Modifier.weight(1f),
+                            maxWidth = 840.dp,
+                        ) {
+                            SectionContent(
+                                section, access, state, composition, scheduleThreads, completionAgentKinds,
+                                onOpenThread, Modifier.fillMaxSize(),
+                            )
+                        }
                     }
                 } else {
                     Column(Modifier.fillMaxSize()) {
                         IntegrationTabs(section) { sectionName = it.name }
-                        SectionContent(
-                            section, access, state, composition, scheduleThreads, completionAgentKinds,
-                            onOpenThread, Modifier.weight(1f),
-                        )
+                        com.poracode.app.ui.components.PoracodeCenteredDetail(
+                            modifier = Modifier.weight(1f),
+                            maxWidth = 840.dp,
+                        ) {
+                            SectionContent(
+                                section, access, state, composition, scheduleThreads, completionAgentKinds,
+                                onOpenThread, Modifier.fillMaxSize(),
+                            )
+                        }
                     }
                 }
             }

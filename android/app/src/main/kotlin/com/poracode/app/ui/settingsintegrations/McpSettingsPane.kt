@@ -143,9 +143,8 @@ private fun McpGroupCard(
     access: SettingsIntegrationsAccess,
     callbacks: SettingsIntegrationsCallbacks,
 ) {
-    Card(Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text(group.providerLabel, style = MaterialTheme.typography.titleMedium)
+    com.poracode.app.ui.components.PoracodeCard(title = group.providerLabel) {
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             group.servers.forEach { external ->
                 McpServerRow(
                     external,

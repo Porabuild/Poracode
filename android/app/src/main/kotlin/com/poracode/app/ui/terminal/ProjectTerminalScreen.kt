@@ -36,6 +36,7 @@ fun ProjectTerminalScreen(
     initialCommand: String? = null,
     terminalTextSizeSp: Int = 13,
     onBack: () -> Unit,
+    embeddedInInspector: Boolean = false,
 ) {
     val initialTerminalLease = remember(activationKey, initialCommand) {
         runtime.terminal.state.value.lease
@@ -62,25 +63,32 @@ fun ProjectTerminalScreen(
             runtime.terminal.write("${command.trimEnd()}\n")
         }
     }
-    val backModifier = rememberPredictiveBackModifier(onBack = onBack)
+    val backModifier = rememberPredictiveBackModifier(enabled = !embeddedInInspector, onBack = onBack)
     DisposableEffect(runtime) {
         runtime.presentProjectTerminalSurface()
         onDispose(runtime::dismissProjectTerminalSurface)
     }
     Scaffold(
         modifier = backModifier,
+        contentWindowInsets = if (embeddedInInspector) {
+            androidx.compose.foundation.layout.WindowInsets(0, 0, 0, 0)
+        } else {
+            androidx.compose.material3.ScaffoldDefaults.contentWindowInsets
+        },
         topBar = {
-            PoracodeTopAppBar(
-                title = { Text(projectName ?: stringResource(R.string.terminal_title)) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(
-                            PoracodeIcons.ArrowBack,
-                            contentDescription = stringResource(R.string.back),
-                        )
-                    }
-                },
-            )
+            if (!embeddedInInspector) {
+                PoracodeTopAppBar(
+                    title = { Text(projectName ?: stringResource(R.string.terminal_title)) },
+                    navigationIcon = {
+                        IconButton(onClick = onBack) {
+                            Icon(
+                                PoracodeIcons.ArrowBack,
+                                contentDescription = stringResource(R.string.back),
+                            )
+                        }
+                    },
+                )
+            }
         },
     ) { padding ->
         RichTerminalPane(

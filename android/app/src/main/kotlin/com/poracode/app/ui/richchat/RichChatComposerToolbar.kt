@@ -1,5 +1,6 @@
 package com.poracode.app.ui.richchat
 
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -48,6 +49,7 @@ internal fun ComposerModelControl(
     val description = stringResource(R.string.rich_chat_composer_controls_summary, summary)
     Row(
         modifier
+            .minimumInteractiveComponentSize()
             .heightIn(min = 36.dp)
             .clip(RoundedCornerShape(8.dp))
             .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
@@ -86,6 +88,7 @@ internal fun ComposerCircleAction(
     val colors = PoracodeTheme.colors
     Box(
         modifier
+            .minimumInteractiveComponentSize()
             .size(36.dp)
             .clip(CircleShape)
             .background(if (enabled) colors.foreground else colors.default.copy(alpha = 0.6f))

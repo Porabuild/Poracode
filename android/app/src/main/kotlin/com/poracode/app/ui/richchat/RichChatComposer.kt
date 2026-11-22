@@ -1,5 +1,6 @@
 package com.poracode.app.ui.richchat
 
+import androidx.compose.material3.minimumInteractiveComponentSize
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -124,6 +125,7 @@ fun RichChatComposer(
     var showControls by rememberSaveable(contextKey) { mutableStateOf(false) }
     var controlsFocus by remember { mutableStateOf<RichChatComposerControlsFocus?>(null) }
     var showCrewRoster by rememberSaveable(contextKey) { mutableStateOf(false) }
+    var showVoiceDictation by rememberSaveable(contextKey) { mutableStateOf(false) }
     val crewPresentation = remember(configuration.crew) { decodeReadOnlyCrew(configuration.crew) }
     var editorValue by remember(contextKey) { mutableStateOf(TextFieldValue(draft, TextRange(draft.length))) }
     val inputValue = if (editorValue.text == draft) editorValue else TextFieldValue(draft, TextRange(draft.length))
@@ -232,13 +234,7 @@ fun RichChatComposer(
                             onClick = { onRemoveAttachment(attachment) },
                             label = { Text(attachment.name) },
                             trailingIcon = {
-                                Icon(
-                                    PoracodeIcons.Close,
-                                    contentDescription = stringResource(
-                                        R.string.rich_chat_remove_attachment,
-                                        attachment.name,
-                                    ),
-                                )
+                                Icon(PoracodeIcons.Close, stringResource(R.string.rich_chat_remove_attachment, attachment.name))
                             },
                         )
                     }
@@ -253,13 +249,7 @@ fun RichChatComposer(
                                 onClick = { onRemoveSegment(segment) },
                                 label = { Text(label, maxLines = 1) },
                                 trailingIcon = {
-                                    Icon(
-                                        PoracodeIcons.Close,
-                                        contentDescription = stringResource(
-                                            R.string.rich_chat_remove_context,
-                                            label,
-                                        ),
-                                    )
+                                    Icon(PoracodeIcons.Close, stringResource(R.string.rich_chat_remove_context, label))
                                 },
                             )
                         }
@@ -331,6 +321,7 @@ fun RichChatComposer(
                         contentAlignment = Alignment.Center,
                         modifier = Modifier
                             .testTag("rich_chat_send_message")
+                            .minimumInteractiveComponentSize()
                             .size(36.dp)
                             .clip(CircleShape)
                             .background(if (canSend) colors.accentSoft else colors.default.copy(alpha = 0.6f))
@@ -453,10 +444,27 @@ fun RichChatComposer(
                             )
                         }
                         Spacer(Modifier.weight(1f))
+                        com.poracode.app.ui.components.PoracodeIconButton(
+                            icon = PoracodeIcons.Mic,
+                            contentDescription = stringResource(R.string.voice_dictation_title),
+                            enabled = enabled && !sending,
+                            onClick = { showVoiceDictation = true },
+                            tint = colors.muted,
+                            iconSize = 18.dp,
+                        )
                         primaryAction()
                     }
                 }
             }
+    }
+    if (showVoiceDictation) {
+        com.poracode.app.ui.voice.VoiceDictationSheet(
+            languageTag = null,
+            onInsertTranscript = { spoken ->
+                onDraftChange(if (draft.isBlank()) spoken else "${draft.trimEnd()} $spoken")
+            },
+            onDismiss = { showVoiceDictation = false },
+        )
     }
     if (showControls && catalog != null) {
         RichChatComposerControlsSheet(

@@ -48,6 +48,7 @@ internal fun ProjectDetailPane(
     onOpenWorkspace: () -> Unit,
     onOpenTerminal: () -> Unit,
     onOpenAdvanced: () -> Unit,
+    onOpenImportSession: (() -> Unit)? = null,
     onRemoved: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -84,6 +85,15 @@ internal fun ProjectDetailPane(
                         color = MaterialTheme.colorScheme.error,
                         style = MaterialTheme.typography.bodySmall,
                         modifier = Modifier.padding(top = 8.dp),
+                    )
+                }
+                if (onOpenImportSession != null && access.canOperate) {
+                    com.poracode.app.ui.components.PoracodeActionButton(
+                        label = stringResource(R.string.session_import_title),
+                        icon = com.poracode.app.ui.theme.PoracodeIcons.Download,
+                        variant = com.poracode.app.ui.components.PoracodeButtonVariant.Tonal,
+                        onClick = onOpenImportSession,
+                        modifier = Modifier.padding(top = 10.dp),
                     )
                 }
             }

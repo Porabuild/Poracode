@@ -1,9 +1,19 @@
 package com.poracode.app.ui.richchat
 
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import androidx.compose.ui.res.stringResource
+import com.poracode.app.R
+import com.poracode.app.chat.RichHandoffSummary
+import com.poracode.app.chat.RichRuntimeItem
+import com.poracode.app.model.AgentStatusEntry
+import com.poracode.app.model.RemoteThread
 import com.poracode.app.session.richchat.RichChatOperationResult
 import com.poracode.app.session.richchat.RichChatSessionRuntime
-import com.poracode.app.chat.RichRuntimeItem
+import com.poracode.app.session.threads.ThreadLifecycleController
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
@@ -74,6 +84,65 @@ internal fun RichChatThreadConfirmDialogs(
                     }
                 }
             },
+        )
+    }
+}
+
+@Composable
+internal fun RichChatMoveAndHandoffOverlays(
+    pendingMoveBringChanges: Boolean?,
+    onDismissMove: () -> Unit,
+    onConfirmMove: (Boolean) -> Unit,
+    showHandoff: Boolean,
+    thread: RemoteThread?,
+    transcriptItems: List<RichRuntimeItem>,
+    agentStatus: AgentStatusEntry?,
+    handoffAgents: List<AgentStatusEntry>,
+    controller: ThreadLifecycleController,
+    onDismissHandoff: () -> Unit,
+    onOpenThread: (String) -> Unit,
+) {
+    pendingMoveBringChanges?.let { bringChanges ->
+        AlertDialog(
+            onDismissRequest = onDismissMove,
+            title = { Text(stringResource(R.string.thread_lifecycle_move_worktree_title)) },
+            text = {
+                Text(
+                    stringResource(
+                        if (bringChanges) {
+                            R.string.thread_lifecycle_move_worktree_changes_message
+                        } else {
+                            R.string.thread_lifecycle_move_worktree_clean_message
+                        },
+                    ),
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = { onDismissMove(); onConfirmMove(bringChanges) }) {
+                    Text(stringResource(R.string.thread_lifecycle_move_confirm))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = onDismissMove) {
+                    Text(stringResource(android.R.string.cancel))
+                }
+            },
+        )
+    }
+    if (showHandoff && thread != null) {
+        val handoffSummary = remember(transcriptItems, agentStatus?.label, thread.agentKind) {
+            RichHandoffSummary.transcriptSummary(
+                items = transcriptItems,
+                sourceLabel = agentStatus?.label ?: thread.agentKind,
+            )
+        }
+        RichChatHandoffSheet(
+            thread = thread,
+            agents = handoffAgents,
+            summary = handoffSummary,
+            controller = controller,
+            onDismiss = onDismissHandoff,
+            onOpenThread = onOpenThread,
         )
     }
 }

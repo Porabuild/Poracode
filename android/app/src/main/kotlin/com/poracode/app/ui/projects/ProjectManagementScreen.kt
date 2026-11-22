@@ -1,5 +1,6 @@
 package com.poracode.app.ui.projects
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -205,7 +206,14 @@ internal fun ProjectManagementScreen(
     }
 
     BoxWithConstraints(Modifier.fillMaxSize()) {
-        val expanded = maxWidth >= 840.dp
+        val containerWidth = maxWidth
+        val fontScale = androidx.compose.ui.platform.LocalDensity.current.fontScale
+        val listWidth = if (containerWidth >= 900.dp) 360.dp else 300.dp
+        val bookHinge = com.poracode.app.ui.components.rememberBookHingeSplit(
+            containerWidthDp = containerWidth,
+            defaultSidebarWidthDp = listWidth,
+        )
+        val expanded = (containerWidth >= 720.dp || bookHinge.isBookPosture) && fontScale < 1.5f
         val selected = catalog.project(selectedProjectId)
         val navigateBack = {
             when {
@@ -247,7 +255,13 @@ internal fun ProjectManagementScreen(
                 if (busy) LinearProgressIndicator(Modifier.fillMaxWidth())
                 ProjectAccessBanner(lease, access)
                 if (expanded) {
-                    Row(Modifier.fillMaxWidth().weight(1f)) {
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .weight(1f)
+                            .background(com.poracode.app.ui.theme.PoracodeTheme.colors.paneShell)
+                            .padding(end = 8.dp, bottom = 8.dp),
+                    ) {
                         ProjectListPane(
                             projects = projects,
                             selectedProjectId = selectedProjectId,
@@ -280,51 +294,55 @@ internal fun ProjectManagementScreen(
                             manageEnabled = access.canManage && !busy,
                             workspaceEnabled = access.canRead,
                             terminalEnabled = access.canOperate && canOpenTerminal,
-                            modifier = Modifier.width(360.dp).fillMaxHeight(),
+                            modifier = Modifier.width(bookHinge.sidebarWidthDp).fillMaxHeight(),
                             hostName = hostName,
                         )
-                        HorizontalDivider(Modifier.fillMaxHeight().width(1.dp))
-                        if (selected != null) {
-                            ProjectDetailPane(
-                                runtime = runtime,
-                                lease = lease!!,
-                                project = selected,
-                                identity = lease.identity(selected.id)!!,
-                                access = access,
-                                commandBusy = busy,
-                                inheritedSettings = exactInheritedSettings,
-                                canOpenTerminal = canOpenTerminal,
-                                page = detailPage,
-                                synced = selected.id !in excludedProjectIds[
-                                    lease!!.connectionId.value
-                                ].orEmpty(),
-                                onSetSynced = { synced ->
-                                    runtime.syncPreferences.setSynced(
-                                        lease!!.connectionId,
-                                        selected.id,
-                                        synced,
-                                    )
-                                },
-                                onOpenPage = { detailPage = it },
-                                onOpenIntegrations = { page ->
-                                    onOpenIntegrations(lease.identity(selected.id)!!, page)
-                                },
-                                mcpController = mcpController,
-                                onOpenWorkspace = { workspaceProjectId = selected.id },
-                                onOpenTerminal = {
-                                    onOpenTerminal(lease.identity(selected.id)!!, null)
-                                },
-                                onOpenAdvanced = {
-                                    onOpenAdvanced(lease.identity(selected.id)!!)
-                                },
-                                onRemoved = {
-                                    detailPage = ProjectSettingsPage.Index
-                                    selectedProjectId = null
-                                },
-                                modifier = Modifier.weight(1f),
-                            )
-                        } else {
-                            ProjectEmptyDetail(Modifier.weight(1f))
+                        androidx.compose.foundation.layout.Spacer(
+                            Modifier.width(if (bookHinge.hingeGapDp > 0.dp) bookHinge.hingeGapDp else 8.dp),
+                        )
+                        com.poracode.app.ui.components.PoracodePaneContainer(Modifier.weight(1f)) {
+                            if (selected != null) {
+                                ProjectDetailPane(
+                                    runtime = runtime,
+                                    lease = lease!!,
+                                    project = selected,
+                                    identity = lease.identity(selected.id)!!,
+                                    access = access,
+                                    commandBusy = busy,
+                                    inheritedSettings = exactInheritedSettings,
+                                    canOpenTerminal = canOpenTerminal,
+                                    page = detailPage,
+                                    synced = selected.id !in excludedProjectIds[
+                                        lease!!.connectionId.value
+                                    ].orEmpty(),
+                                    onSetSynced = { synced ->
+                                        runtime.syncPreferences.setSynced(
+                                            lease!!.connectionId,
+                                            selected.id,
+                                            synced,
+                                        )
+                                    },
+                                    onOpenPage = { detailPage = it },
+                                    onOpenIntegrations = { page ->
+                                        onOpenIntegrations(lease.identity(selected.id)!!, page)
+                                    },
+                                    mcpController = mcpController,
+                                    onOpenWorkspace = { workspaceProjectId = selected.id },
+                                    onOpenTerminal = {
+                                        onOpenTerminal(lease.identity(selected.id)!!, null)
+                                    },
+                                    onOpenAdvanced = {
+                                        onOpenAdvanced(lease.identity(selected.id)!!)
+                                    },
+                                    onRemoved = {
+                                        detailPage = ProjectSettingsPage.Index
+                                        selectedProjectId = null
+                                    },
+                                    modifier = Modifier.fillMaxSize(),
+                                )
+                            } else {
+                                ProjectEmptyDetail(Modifier.fillMaxSize())
+                            }
                         }
                     }
                 } else if (selected != null) {

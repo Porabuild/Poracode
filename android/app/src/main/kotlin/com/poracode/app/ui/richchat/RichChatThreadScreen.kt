@@ -1,17 +1,16 @@
 package com.poracode.app.ui.richchat
 
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -20,19 +19,20 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.poracode.app.R
-import com.poracode.app.chat.RichHandoffSummary
 import com.poracode.app.model.AgentStatusEntry
 import com.poracode.app.model.ProjectFileEntry
 import com.poracode.app.model.ProjectLocation
 import com.poracode.app.model.ProjectWorkspaceTarget
 import com.poracode.app.model.RemoteGitSummary
+import com.poracode.app.model.RemoteProject
 import com.poracode.app.model.RemoteThread
 import com.poracode.app.model.ThreadConfig
 import com.poracode.app.protocol.ThreadPresentationPolicy
-import com.poracode.app.session.projects.ProjectOperationResult
+import com.poracode.app.session.browsermirror.BrowserMirrorComposition
+import com.poracode.app.session.ports.PortForwardRuntime
+import com.poracode.app.session.projects.ProjectSessionRuntime
 import com.poracode.app.session.projects.ProjectWorkspaceController
 import com.poracode.app.session.richchat.RichChatLoadPhase
 import com.poracode.app.session.richchat.RichChatOperationResult
@@ -47,10 +47,9 @@ import com.poracode.app.ui.components.rememberPredictiveBackModifier
 import com.poracode.app.ui.home.HomeProjectUtility
 import com.poracode.app.ui.home.canMoveThreadToWorktree
 import com.poracode.app.ui.terminal.RichTerminalPane
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonPrimitive
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -79,6 +78,26 @@ internal fun RichChatThreadScreen(
     handoffAgents: List<AgentStatusEntry> = emptyList(),
     onOpenProjectUtility: (HomeProjectUtility) -> Unit = {},
     projectName: String? = null, hostName: String? = null, hostOnline: Boolean = false,
+    project: RemoteProject? = null,
+    projectRuntime: ProjectSessionRuntime? = null,
+    browserMirror: BrowserMirrorComposition? = null,
+    ports: PortForwardRuntime? = null,
+    openExternalUrl: (String) -> Unit = {},
+    onOpenBrowserMirror: () -> Unit = {},
+    onManagePorts: () -> Unit = {},
+    draftStore: RichChatComposerDraftStore? = null,
+    draftKey: String? = null,
+    leadingToolbarControls: (@Composable RowScope.() -> Unit)? = null,
+    inSplitShell: Boolean = false,
+    tabletopTopHeightDp: Float = 0f,
+    tabletopHingeHeightDp: Float = 0f,
+    findToggleSeq: Int = 0,
+    inspectorOpen: Boolean = false,
+    onToggleInspector: () -> Unit = {},
+    onCloseInspector: () -> Unit = {},
+    preferredInspectorWidthDp: Int = 0,
+    onCommitInspectorWidthDp: (Int) -> Unit = {},
+    onResetInspectorWidth: () -> Unit = {},
     modifier: Modifier = Modifier,
     providerUsageControl: @Composable (RemoteThread?, AgentStatusEntry?) -> Unit = { _, _ -> },
 ) {
@@ -89,29 +108,26 @@ internal fun RichChatThreadScreen(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val threadId = state.selection?.threadId ?: thread?.id.orEmpty()
+    val resolvedDraftKey = draftKey ?: threadId
     val initialConfiguration = thread?.config ?: ThreadConfig()
-    var draft by rememberSaveable(threadId) { mutableStateOf("") }
-    var composerConfiguration by rememberSaveable(
-        threadId,
-        stateSaver = threadConfigSaver,
-    ) { mutableStateOf(initialConfiguration) }
-    var baseConfiguration by rememberSaveable(
-        threadId,
-        stateSaver = threadConfigSaver,
-    ) { mutableStateOf(initialConfiguration) }
-    var attachments by rememberSaveable(threadId, stateSaver = attachmentSaver) {
-        mutableStateOf(emptyList())
+    var draft by rememberSaveable(resolvedDraftKey) {
+        mutableStateOf(draftStore?.get(resolvedDraftKey).orEmpty())
     }
-    var queuedSegments by rememberSaveable(threadId, stateSaver = promptSegmentsSaver) {
-        mutableStateOf(emptyList())
+    val findState = rememberRichChatFindState(threadId, state.transcript?.itemsInOrder.orEmpty())
+    LaunchedEffect(findToggleSeq) {
+        if (findToggleSeq > 0) findState.toggle()
     }
+    var composerConfiguration by rememberSaveable(threadId, stateSaver = threadConfigSaver) {
+        mutableStateOf(initialConfiguration)
+    }
+    var baseConfiguration by rememberSaveable(threadId, stateSaver = threadConfigSaver) {
+        mutableStateOf(initialConfiguration)
+    }
+    var attachments by rememberSaveable(threadId, stateSaver = attachmentSaver) { mutableStateOf(emptyList()) }
+    var queuedSegments by rememberSaveable(threadId, stateSaver = promptSegmentsSaver) { mutableStateOf(emptyList()) }
     var uploading by rememberSaveable(threadId) { mutableStateOf(false) }
-    var attachmentError by rememberSaveable(threadId) {
-        mutableStateOf<AttachmentUiError?>(null)
-    }
-    var workspaceFiles by remember(threadId) {
-        mutableStateOf(emptyList<ProjectFileEntry>())
-    }
+    var attachmentError by rememberSaveable(threadId) { mutableStateOf<AttachmentUiError?>(null) }
+    var workspaceFiles by remember(threadId) { mutableStateOf(emptyList<ProjectFileEntry>()) }
     val currentThreadForComposer = RichChatResumePlanner.threadForComposer(
         catalogThread,
         thread ?: mentionThreads.firstOrNull { it.id == state.selection?.threadId },
@@ -144,77 +160,24 @@ internal fun RichChatThreadScreen(
     val resumePlan = resume.plan(currentThreadForComposer, state, canOperate && !uploading,
         composerEmpty = draft.isBlank() && queuedSegments.isEmpty() && attachments.isEmpty())
 
-    LaunchedEffect(
-        RichChatMentionCatalog.trailingMentionQuery(draft),
-        state.selection?.generation,
-        workspaceController,
-        workspaceTarget,
-    ) {
-        workspaceFiles = emptyList()
-        val query = RichChatMentionCatalog.trailingMentionQuery(draft) ?: return@LaunchedEffect
-        val controller = workspaceController ?: return@LaunchedEffect
-        val target = workspaceTarget ?: return@LaunchedEffect
-        if (query.isNotEmpty()) delay(150)
-        when (val result = controller.searchFiles(target, query, limit = 20)) {
-            is ProjectOperationResult.Success -> workspaceFiles = result.value.entries
-            else -> Unit
-        }
-    }
-
-    LaunchedEffect(state.config, thread?.config) {
-        val currentBase = state.config ?: thread?.config ?: return@LaunchedEffect
-        composerConfiguration = synchronizeComposerConfiguration(
-            composerConfiguration,
-            baseConfiguration,
-            currentBase,
-        )
-        baseConfiguration = currentBase
-    }
-
-    LaunchedEffect(state.selection?.generation, projectLocation) {
-        val selection = state.selection ?: return@LaunchedEffect
-        val location = projectLocation ?: return@LaunchedEffect
-        runtime.checkpoints.refresh(
-            RichChatUiLogic.checkpointListPayload(selection.threadId, location),
-        )
-    }
-    LaunchedEffect(state.needsAuthoritativeRefresh) {
-        if (state.needsAuthoritativeRefresh) runtime.refreshSelectedThread()
-    }
-    // Session-action inventory: one live read per selected thread, status
-    // change, and owner-axis change (host, presentation, provider instance,
-    // live SessionRef). Only the typed old-host answer collapses the inventory
-    // quietly — every other failure stays visible with a retry.
-    LaunchedEffect(
-        state.selection?.generation,
-        state.selection?.host?.key,
-        state.selection?.threadId,
-        thread?.status,
-        RichChatUiLogic.sessionActionOwnerKey(thread),
-    ) {
-        if (state.selection != null) runtime.sessionActions.refreshInventory()
-    }
-    LaunchedEffect(sessionActionsState.needsAuthoritativeRefresh) {
-        if (sessionActionsState.needsAuthoritativeRefresh) {
-            runtime.refreshSelectedThread()
-            runtime.sessionActions.acknowledgeAuthoritativeRefresh()
-            // The ambiguous mutation may have replaced the session; the
-            // inventory is read fresh instead of trusting the old list.
-            runtime.sessionActions.refreshInventory()
-        }
-    }
-    LaunchedEffect(checkpointState.needsAuthoritativeRefresh) {
-        if (checkpointState.needsAuthoritativeRefresh) {
-            runtime.refreshSelectedThread()
-            val selection = state.selection
-            val location = projectLocation
-            if (selection != null && location != null) {
-                runtime.checkpoints.refresh(
-                    RichChatUiLogic.checkpointListPayload(selection.threadId, location),
-                )
-            }
-        }
-    }
+    RichChatThreadEffects(
+        runtime = runtime,
+        state = state,
+        checkpointState = checkpointState,
+        sessionActionsState = sessionActionsState,
+        thread = thread,
+        draft = draft,
+        projectLocation = projectLocation,
+        workspaceController = workspaceController,
+        workspaceTarget = workspaceTarget,
+        composerConfiguration = composerConfiguration,
+        baseConfiguration = baseConfiguration,
+        onWorkspaceFilesChange = { workspaceFiles = it },
+        onConfigurationSynchronized = { nextComposer, nextBase ->
+            composerConfiguration = nextComposer
+            baseConfiguration = nextBase
+        },
+    )
 
     /** Sends, or while a turn is active steers by default / queues on the
      * long-press affordance — desktop parity through followUpSubmitAction. */
@@ -235,6 +198,7 @@ internal fun RichChatThreadScreen(
             ) {
                 is RichChatOperationResult.Success -> {
                     draft = ""
+                    draftStore?.clear(resolvedDraftKey)
                     attachments = emptyList()
                     queuedSegments = emptyList()
                 }
@@ -250,50 +214,19 @@ internal fun RichChatThreadScreen(
         onDismiss = { forkIntent = null },
         onOpenThread = onOpenThread,
     )
-    pendingMoveBringChanges?.let { bringChanges ->
-        AlertDialog(
-            onDismissRequest = { pendingMoveBringChanges = null },
-            title = { Text(stringResource(R.string.thread_lifecycle_move_worktree_title)) },
-            text = {
-                Text(
-                    stringResource(
-                        if (bringChanges) {
-                            R.string.thread_lifecycle_move_worktree_changes_message
-                        } else {
-                            R.string.thread_lifecycle_move_worktree_clean_message
-                        },
-                    ),
-                )
-            },
-            confirmButton = {
-                TextButton(onClick = {
-                    pendingMoveBringChanges = null
-                    onMoveToWorktree?.invoke(bringChanges)
-                }) { Text(stringResource(R.string.thread_lifecycle_move_confirm)) }
-            },
-            dismissButton = {
-                TextButton(onClick = { pendingMoveBringChanges = null }) {
-                    Text(stringResource(android.R.string.cancel))
-                }
-            },
-        )
-    }
-    if (showHandoff && thread != null) {
-        val handoffSummary = remember(state.transcript, agentStatus?.label, thread.agentKind) {
-            RichHandoffSummary.transcriptSummary(
-                items = state.transcript?.itemsInOrder.orEmpty(),
-                sourceLabel = agentStatus?.label ?: thread.agentKind,
-            )
-        }
-        RichChatHandoffSheet(
-            thread = thread,
-            agents = handoffAgents,
-            summary = handoffSummary,
-            controller = threadLifecycleController,
-            onDismiss = { showHandoff = false },
-            onOpenThread = onOpenThread,
-        )
-    }
+    RichChatMoveAndHandoffOverlays(
+        pendingMoveBringChanges = pendingMoveBringChanges,
+        onDismissMove = { pendingMoveBringChanges = null },
+        onConfirmMove = { bringChanges -> onMoveToWorktree?.invoke(bringChanges) },
+        showHandoff = showHandoff,
+        thread = thread,
+        transcriptItems = state.transcript?.itemsInOrder.orEmpty(),
+        agentStatus = agentStatus,
+        handoffAgents = handoffAgents,
+        controller = threadLifecycleController,
+        onDismissHandoff = { showHandoff = false },
+        onOpenThread = onOpenThread,
+    )
     RichChatThreadSurface(
         modifier = modifier.then(backModifier),
         hasComposer = !ThreadPresentationPolicy.isTerminal(thread?.presentationMode),
@@ -303,9 +236,51 @@ internal fun RichChatThreadScreen(
         auxiliaryControls = {
             RichChatCompactRuntimeDock(runtime, agentStatus, projectLocation, canOperate, onOpenAgentSettings)
         },
-        containerColor = com.poracode.app.ui.theme.PoracodeTheme.colors.background,
+        containerColor = if (inSplitShell) {
+            com.poracode.app.ui.theme.PoracodeTheme.colors.paneSurface
+        } else {
+            com.poracode.app.ui.theme.PoracodeTheme.colors.background
+        },
         snackbarHost = { SnackbarHost(fileDownloadSnackbarHost) },
-        topBar = {
+        inSplitShell = inSplitShell,
+        tabletopTopHeightDp = tabletopTopHeightDp,
+        tabletopHingeHeightDp = tabletopHingeHeightDp,
+        inspectorOpen = inspectorOpen,
+        onCloseInspector = onCloseInspector,
+        preferredInspectorWidthDp = preferredInspectorWidthDp,
+        onCommitInspectorWidthDp = onCommitInspectorWidthDp,
+        onResetInspectorWidth = onResetInspectorWidth,
+        inspectorContent = { panelWidthDp ->
+            RichChatRightPanel(
+                panelWidthDp = panelWidthDp,
+                threadId = threadId,
+                thread = thread,
+                project = project,
+                projectName = projectName,
+                projectLocation = projectLocation,
+                workspaceTarget = workspaceTarget,
+                gitSummary = gitSummary,
+                agentStatus = agentStatus,
+                canOperate = canOperate,
+                terminalTextSizeSp = terminalTextSizeSp,
+                runtime = runtime,
+                projectRuntime = projectRuntime,
+                browserMirror = browserMirror,
+                ports = ports,
+                openExternalUrl = openExternalUrl,
+                onOpenProjectUtility = onOpenProjectUtility,
+                onOpenBrowserMirror = onOpenBrowserMirror,
+                onManagePorts = onManagePorts,
+                onOpenAgentSettings = onOpenAgentSettings,
+                onOpenBackgroundTask = openBackgroundTask,
+                onTransferSideChat = { text ->
+                    draft = if (draft.isBlank()) text else "$draft\n$text"
+                    draftStore?.set(resolvedDraftKey, draft)
+                },
+                onClose = onCloseInspector,
+            )
+        },
+        topBar = { capability ->
             RichChatThreadTopBar(
                 title = title,
                 agentLabel = agentStatus?.label,
@@ -342,6 +317,12 @@ internal fun RichChatThreadScreen(
                     null
                 },
                 projectName = projectName, hostName = hostName, hostOnline = hostOnline,
+                leadingAccessory = leadingToolbarControls,
+                applyStatusBarsPadding = !inSplitShell,
+                showInspectorToggle = capability.supportsInspector,
+                inspectorOpen = inspectorOpen,
+                onToggleInspector = onToggleInspector,
+                onToggleFind = findState.toggle,
             )
         },
         bottomBar = {
@@ -382,12 +363,14 @@ internal fun RichChatThreadScreen(
                     },
 
                     onInsertIntoComposer = { suggestion ->
-                        // Explicit draft insertion only; the suggestion is
-                        // never sent by the app itself.
-                        draft = if (draft.isBlank()) suggestion else "$draft\n$suggestion"
+                        val next = if (draft.isBlank()) suggestion else "$draft\n$suggestion"
+                        draft = next
+                        draftStore?.set(resolvedDraftKey, next)
                     },
-
-                    onDraftChange = { draft = it },
+                    onDraftChange = { next ->
+                        draft = next
+                        draftStore?.set(resolvedDraftKey, next)
+                    },
                     onConfigurationChange = { composerConfiguration = it },
                     onQueueSegment = { segment ->
                         if (queuedSegments.none { it == segment }) queuedSegments += segment
@@ -433,6 +416,17 @@ internal fun RichChatThreadScreen(
                 .fillMaxSize()
                 .padding(padding).then(layout.backdrop),
         ) {
+            if (findState.open) {
+                RichChatFindBar(
+                    query = findState.query,
+                    matchCount = findState.matchCount,
+                    currentMatchIndex = findState.currentMatchIndex,
+                    onQueryChange = findState.onQueryChange,
+                    onPrevious = findState.onPrevious,
+                    onNext = findState.onNext,
+                    onClose = findState.onClose,
+                )
+            }
             RichChatForkOrigin(thread, onOpenThread)
             // Mirrors iOS's merged status view: a checkpoint restore/rollback/load failure is
             // otherwise only visible if the checkpoints sheet happens to be open.

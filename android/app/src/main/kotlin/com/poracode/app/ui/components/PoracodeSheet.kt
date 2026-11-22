@@ -75,7 +75,7 @@ fun PoracodeSheet(
             Text(
                 title,
                 modifier = Modifier
-                    .padding(start = 16.dp, end = 14.dp, bottom = 8.dp)
+                    .padding(start = 16.dp, end = 16.dp, bottom = 8.dp)
                     .semantics { heading() },
                 style = PoracodeTextStyles.sheetTitle,
                 color = colors.foreground,
@@ -84,7 +84,7 @@ fun PoracodeSheet(
         androidx.compose.foundation.layout.Column(
             Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 12.dp)
+                .padding(horizontal = 16.dp)
                 .navigationBarsPadding(),
         ) {
             content()

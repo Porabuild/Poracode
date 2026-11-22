@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
@@ -62,13 +63,39 @@ internal fun HomeProjectFilterMenu(
     onDismiss: () -> Unit,
     onSelectAll: () -> Unit,
     onToggle: (String) -> Unit,
+    statusFilter: HomeThreadStatusFilter? = null,
+    doneCount: Int = 0,
+    onSelectStatus: ((HomeThreadStatusFilter) -> Unit)? = null,
 ) {
     if (!expanded) return
     val colors = PoracodeTheme.colors
     PoracodeSheet(
         onDismissRequest = onDismiss,
-        title = stringResource(R.string.home_filter_by_project),
+        title = stringResource(
+            if (statusFilter != null) R.string.home_filter_threads else R.string.home_filter_by_project,
+        ),
     ) {
+        if (statusFilter != null && onSelectStatus != null) {
+            HomeProjectFilterRow(
+                label = stringResource(R.string.home_active_threads),
+                selected = statusFilter == HomeThreadStatusFilter.Active,
+                onClick = { onSelectStatus(HomeThreadStatusFilter.Active) },
+            )
+            HomeProjectFilterRow(
+                label = stringResource(R.string.home_done_threads),
+                selected = statusFilter == HomeThreadStatusFilter.Done,
+                onClick = { onSelectStatus(HomeThreadStatusFilter.Done) },
+                meta = {
+                    Text(
+                        doneCount.toString(),
+                        style = PoracodeTextStyles.monoMeta.copy(fontSize = 11.sp),
+                        color = colors.muted,
+                        maxLines = 1,
+                    )
+                },
+            )
+            PoracodeSheetDivider()
+        }
         HomeProjectFilterRow(
             label = stringResource(R.string.home_all_projects),
             selected = selectedProjects.isEmpty(),
@@ -178,43 +205,78 @@ internal fun HomeActionDock(
     modifier: Modifier = Modifier,
 ) {
     val colors = PoracodeTheme.colors
-    PoracodeBottomBar(
-        modifier = modifier,
-        leading = {
-            PoracodeCircleButton(
+    val shape = RoundedCornerShape(PoracodeRadius.sheet)
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .navigationBarsPadding()
+            .padding(
+                start = PoracodeMetrics.pageInline,
+                end = PoracodeMetrics.pageInline,
+                bottom = PoracodeMetrics.floatingBottom,
+                top = 8.dp,
+            ),
+        contentAlignment = Alignment.Center,
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .widthIn(max = 560.dp)
+                .height(52.dp)
+                .poracodeFloatingSurface(shape = shape)
+                .padding(horizontal = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            com.poracode.app.ui.components.PoracodeIconButton(
                 icon = if (searchVisible) PoracodeIcons.Close else PoracodeIcons.Search,
                 contentDescription = stringResource(R.string.home_search_threads),
                 onClick = onToggleSearch,
+                tint = if (searchVisible) colors.foreground else colors.muted,
             )
-        },
-        trailing = {
-            PoracodeCircleButton(
+            if (searchVisible) {
+                HomeSearchField(
+                    value = searchText,
+                    onValueChange = onSearchTextChange,
+                    modifier = Modifier.weight(1f),
+                )
+            } else {
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(48.dp)
+                        .combinedClickable(
+                            enabled = newThreadEnabled,
+                            role = Role.Button,
+                            onClick = onNewThread,
+                        ),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(38.dp)
+                            .clip(RoundedCornerShape(PoracodeRadius.control))
+                            .background(colors.fieldBackground)
+                            .padding(horizontal = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            stringResource(R.string.home_quick_compose_prompt),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = if (newThreadEnabled) colors.muted else colors.muted.copy(alpha = 0.5f),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                }
+            }
+            com.poracode.app.ui.components.PoracodeIconButton(
                 icon = PoracodeIcons.MoreHoriz,
                 contentDescription = stringResource(R.string.home_more),
                 onClick = onMore,
+                tint = colors.muted,
             )
-        },
-    ) {
-        if (searchVisible) {
-            HomeSearchField(
-                value = searchText,
-                onValueChange = onSearchTextChange,
-                modifier = Modifier.weight(1f),
-            )
-        } else {
-            PoracodeFloatingPill(
-                onClick = onNewThread,
-                enabled = newThreadEnabled,
-                modifier = Modifier.weight(1f),
-            ) {
-                Text(
-                    stringResource(R.string.home_quick_compose_prompt),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = if (newThreadEnabled) colors.muted else colors.muted.copy(alpha = 0.5f),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
         }
     }
 }
@@ -231,13 +293,13 @@ private fun HomeSearchField(
     LaunchedEffect(Unit) { focusRequester.requestFocus() }
     Row(
         modifier
-            .height(PoracodeMetrics.tapTarget)
-            .poracodeFloatingSurface()
+            .height(38.dp)
+            .clip(RoundedCornerShape(PoracodeRadius.control))
+            .background(colors.fieldBackground)
+            .padding(horizontal = 12.dp)
             .semantics { contentDescription = label },
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Box(Modifier.size(18.dp))
         Box(Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
             if (value.isEmpty()) {
                 Text(
@@ -259,6 +321,5 @@ private fun HomeSearchField(
                     .focusRequester(focusRequester),
             )
         }
-        Box(Modifier.size(10.dp))
     }
 }

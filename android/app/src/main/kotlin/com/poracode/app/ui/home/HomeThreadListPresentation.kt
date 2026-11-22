@@ -26,6 +26,31 @@ internal sealed interface HomeThreadListEntry {
     }
 }
 
+internal enum class HomeThreadStatusFilter { Active, Done }
+
+internal data class HomeThreadListScope(
+    val active: List<HostPresentation.UnifiedThreadItem>,
+    val done: List<HostPresentation.UnifiedThreadItem>,
+) {
+    operator fun get(status: HomeThreadStatusFilter): List<HostPresentation.UnifiedThreadItem> =
+        when (status) {
+            HomeThreadStatusFilter.Active -> active
+            HomeThreadStatusFilter.Done -> done
+        }
+
+    companion object {
+        fun from(
+            items: List<HostPresentation.UnifiedThreadItem>,
+            query: String,
+            projectIds: Set<String>,
+        ): HomeThreadListScope {
+            val filtered = HomeThreadListPresentation.filter(items, query, projectIds)
+            val (done, active) = filtered.partition { it.thread.isDone }
+            return HomeThreadListScope(active = active, done = done)
+        }
+    }
+}
+
 internal data class HomeThreadLaunchDefaults(
     val agentKind: String,
     val agentInstanceId: String?,

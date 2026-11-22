@@ -1,5 +1,6 @@
 package com.poracode.app.ui.onboarding
 
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -147,22 +148,18 @@ fun OnboardingScreen(
     }
 
     if (otherWaysVisible) {
-        ModalBottomSheet(
+        com.poracode.app.ui.components.PoracodeSheet(
             onDismissRequest = { otherWaysVisible = false },
-            sheetState = otherWaysSheetState,
+            title = stringResource(R.string.pair_other_ways),
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .imePadding()
                     .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 24.dp)
-                    .padding(bottom = 24.dp),
-                verticalArrangement = Arrangement.spacedBy(18.dp),
+                    .padding(bottom = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
-                Text(
-                    stringResource(R.string.pair_other_ways),
-                    style = MaterialTheme.typography.titleLarge,
-                )
                 OtherWaysSheetContent(
                     pairingLink = pairingLink,
                     onPairingLinkChange = {
@@ -264,33 +261,39 @@ fun OnboardingScreen(
                 }
             }
         } else {
-            Column(
+            Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .windowInsetsPadding(WindowInsets.safeDrawing)
-                    .padding(horizontal = 20.dp, vertical = 16.dp)
-                    .widthIn(max = 560.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
+                    .windowInsetsPadding(WindowInsets.safeDrawing),
+                contentAlignment = Alignment.Center,
             ) {
-                Spacer(Modifier.weight(1f))
-                OnboardingHero()
-                Spacer(Modifier.weight(1f))
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    ScanPairingCard(
-                        enabled = !state.isPairing,
-                        onScan = {
-                            clipboardEmpty = false
-                            scannerVisible = true
-                        },
-                    )
-                    OtherWaysButton(
-                        enabled = !state.isPairing,
-                        onClick = { otherWaysVisible = true },
-                    )
-                    state.globalError?.let { error -> PairingErrorText(error) }
-                    // Match the compact web screen's reserved space beneath
-                    // the first-launch actions without shifting repair flows.
-                    Spacer(Modifier.height(120.dp))
+                Column(
+                    modifier = Modifier
+                        .widthIn(max = 560.dp)
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState())
+                        .padding(horizontal = 20.dp, vertical = 24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(24.dp),
+                ) {
+                    OnboardingHero()
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        ScanPairingCard(
+                            enabled = !state.isPairing,
+                            onScan = {
+                                clipboardEmpty = false
+                                scannerVisible = true
+                            },
+                        )
+                        OtherWaysButton(
+                            enabled = !state.isPairing,
+                            onClick = { otherWaysVisible = true },
+                        )
+                        state.globalError?.let { error -> PairingErrorText(error) }
+                    }
                 }
             }
         }

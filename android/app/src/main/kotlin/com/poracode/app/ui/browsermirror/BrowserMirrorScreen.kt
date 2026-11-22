@@ -34,10 +34,11 @@ import com.poracode.app.ui.theme.PoracodeIcons
 fun BrowserMirrorScreen(
     controller: BrowserMirrorController,
     onBack: () -> Unit,
+    embeddedInInspector: Boolean = false,
 ) {
     val state by controller.state.collectAsStateWithLifecycle()
     var address by rememberSaveable { mutableStateOf("") }
-    val backModifier = rememberPredictiveBackModifier(onBack = onBack)
+    val backModifier = rememberPredictiveBackModifier(enabled = !embeddedInInspector, onBack = onBack)
 
     LaunchedEffect(controller) {
         controller.requestWatch()
@@ -49,18 +50,24 @@ fun BrowserMirrorScreen(
 
     Scaffold(
         modifier = backModifier,
+        contentWindowInsets = if (embeddedInInspector) {
+            androidx.compose.foundation.layout.WindowInsets(0, 0, 0, 0)
+        } else {
+            androidx.compose.material3.ScaffoldDefaults.contentWindowInsets
+        },
         topBar = {
-            PoracodeTopAppBar(
-                title = { Text(stringResource(R.string.browser_mirror_title)) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(
-                            PoracodeIcons.ArrowBack,
-                            contentDescription = stringResource(R.string.browser_mirror_back_nav),
-                        )
-                    }
-                },
-                actions = {
+            if (!embeddedInInspector) {
+                PoracodeTopAppBar(
+                    title = { Text(stringResource(R.string.browser_mirror_title)) },
+                    navigationIcon = {
+                        IconButton(onClick = onBack) {
+                            Icon(
+                                PoracodeIcons.ArrowBack,
+                                contentDescription = stringResource(R.string.browser_mirror_back_nav),
+                            )
+                        }
+                    },
+                    actions = {
                     IconButton(onClick = {
                         if (state.watching) controller.stopWatch() else controller.requestWatch()
                     }) {
@@ -88,20 +95,29 @@ fun BrowserMirrorScreen(
                         )
                     }
                 },
-            )
+                )
+            }
         },
     ) { padding ->
         BoxWithConstraints(
             Modifier.fillMaxSize().padding(padding),
         ) {
-            if (maxWidth >= 840.dp) {
+            val fontScale = androidx.compose.ui.platform.LocalDensity.current.fontScale
+            val bookHinge = com.poracode.app.ui.components.rememberBookHingeSplit(
+                containerWidthDp = maxWidth,
+                defaultSidebarWidthDp = 280.dp,
+            )
+            if ((maxWidth >= 840.dp || bookHinge.isBookPosture) && fontScale < 1.5f) {
                 Row(Modifier.fillMaxSize()) {
                     BrowserTabList(
                         state = state,
                         controller = controller,
-                        modifier = Modifier.width(280.dp).fillMaxHeight(),
+                        modifier = Modifier.width(bookHinge.sidebarWidthDp).fillMaxHeight(),
                         vertical = true,
                     )
+                    if (bookHinge.hingeGapDp > 0.dp) {
+                        androidx.compose.foundation.layout.Spacer(Modifier.width(bookHinge.hingeGapDp))
+                    }
                     BrowserContent(
                         state,
                         address,

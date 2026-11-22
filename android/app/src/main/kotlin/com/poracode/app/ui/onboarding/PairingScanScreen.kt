@@ -1,5 +1,8 @@
 package com.poracode.app.ui.onboarding
 
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.layout.widthIn
 import android.Manifest
 import android.app.Activity
 import android.content.Context
@@ -340,15 +343,22 @@ private fun ScanMessagePane(
     onPrimary: (() -> Unit)?,
     onUseLinkInstead: () -> Unit,
 ) {
-    Column(
+    Box(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.surface)
-            .windowInsetsPadding(WindowInsets.safeDrawing)
-            .padding(horizontal = 28.dp, vertical = 24.dp),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally,
+            .windowInsetsPadding(WindowInsets.safeDrawing),
+        contentAlignment = Alignment.Center,
     ) {
+        Column(
+            modifier = Modifier
+                .widthIn(max = 520.dp)
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 28.dp, vertical = 24.dp),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
         Icon(
             icon,
             contentDescription = null,
@@ -385,6 +395,7 @@ private fun ScanMessagePane(
             modifier = Modifier.testTag("qr_scanner_use_link"),
         ) {
             Text(stringResource(R.string.scan_use_link_instead))
+        }
         }
     }
 }

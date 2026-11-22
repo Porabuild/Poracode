@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.AlertDialog
@@ -62,38 +63,52 @@ fun RichCheckpointControls(
     var open by rememberSaveable { mutableStateOf(false) }
     var pending by remember { mutableStateOf<PendingCheckpointAction?>(null) }
     val busy = state.activeOperations.isNotEmpty()
-    Column(modifier, verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        OutlinedButton(
-            onClick = { open = true; onRefresh() },
-            enabled = !busy,
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Icon(PoracodeIcons.History, contentDescription = null)
-            Text(
-                stringResource(R.string.rich_chat_checkpoints),
-                modifier = Modifier.padding(start = 8.dp),
-            )
-        }
+    com.poracode.app.ui.components.PoracodeListRow(
+        modifier = modifier,
+        enabled = !busy,
+        containerColor = com.poracode.app.ui.theme.PoracodeTheme.colors.paneCard,
+        onClick = { open = true; onRefresh() },
+        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp, vertical = 12.dp),
+    ) {
+        Icon(
+            PoracodeIcons.History,
+            contentDescription = null,
+            modifier = androidx.compose.ui.Modifier.size(16.dp),
+            tint = com.poracode.app.ui.theme.PoracodeTheme.colors.muted,
+        )
+        Text(
+            stringResource(R.string.rich_chat_checkpoints),
+            style = com.poracode.app.ui.theme.PoracodeTextStyles.sheetTitle,
+            color = com.poracode.app.ui.theme.PoracodeTheme.colors.foreground,
+            modifier = Modifier.weight(1f),
+        )
+        Icon(
+            PoracodeIcons.KeyboardArrowRight,
+            contentDescription = null,
+            modifier = androidx.compose.ui.Modifier.size(15.dp),
+            tint = com.poracode.app.ui.theme.PoracodeTheme.colors.muted,
+        )
     }
     if (open) {
-        ModalBottomSheet(onDismissRequest = { if (!busy) open = false }) {
-            Column(Modifier.padding(bottom = 24.dp)) {
+        com.poracode.app.ui.components.PoracodeSheet(
+            onDismissRequest = { if (!busy) open = false },
+            title = stringResource(R.string.rich_chat_checkpoints),
+        ) {
+            Column(Modifier.padding(bottom = 12.dp)) {
                 Row(
                     Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp),
+                        .padding(bottom = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.End,
                 ) {
-                    Text(
-                        stringResource(R.string.rich_chat_checkpoints),
-                        style = MaterialTheme.typography.titleLarge,
-                        modifier = Modifier.weight(1f),
+                    com.poracode.app.ui.components.PoracodeActionButton(
+                        label = stringResource(R.string.rich_chat_refresh_checkpoints),
+                        icon = PoracodeIcons.Refresh,
+                        variant = com.poracode.app.ui.components.PoracodeButtonVariant.Tonal,
+                        enabled = !busy,
+                        onClick = onRefresh,
                     )
-                    IconButton(onClick = onRefresh, enabled = !busy) {
-                        Icon(
-                            PoracodeIcons.Refresh,
-                            contentDescription = stringResource(R.string.rich_chat_refresh_checkpoints),
-                        )
-                    }
                 }
                 state.failure?.let { failure ->
                     Text(

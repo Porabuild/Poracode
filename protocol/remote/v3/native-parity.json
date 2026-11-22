@@ -35,12 +35,20 @@
         },
         "android": {
           "wire": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "implemented",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/protocol/richchat/RuntimeItemPresentationContract.kt",
+              "android/app/src/main/kotlin/com/poracode/app/transport/richchat/RichChatAdvisoryClient.kt",
+              "android/app/src/main/kotlin/com/poracode/app/session/richchat/RichChatAdvisoryController.kt"
+            ]
           },
           "ui": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "implemented",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/ui/richchat/RichToolPresentationViews.kt",
+              "android/app/src/main/kotlin/com/poracode/app/ui/richchat/RichTimelineView.kt",
+              "android/app/src/androidTest/kotlin/com/poracode/app/ParityModulesInstrumentedTest.kt"
+            ]
           }
         },
         "note": "Opt-in advisory V1 command, V2 MCP, V3 legacy workflow registration and V4 workflow viewer plan reads. Old peers retain base headers/bodies; Android UI adoption is outside the current native iOS scope."
@@ -3005,7 +3013,7 @@
               "ios/App/App/Features/Terminal/TerminalRawKeyInput.swift",
               "screen:ios.terminal-write"
             ],
-            "note": "E.2 device keystroke-to-PTY journey landed (`NativeFamilyJourneyUITests.testTerminalKeystrokeFamilyWritesToPty`). On-screen (touch) typing remains line-buffered through the command field plus the modifier key row \u0432\u0402\u201d the standard mobile-terminal compromise."
+            "note": "E.2 device keystroke-to-PTY journey landed (`NativeFamilyJourneyUITests.testTerminalKeystrokeFamilyWritesToPty`). On-screen (touch) typing remains line-buffered through the command field plus the modifier key row вЂ” the standard mobile-terminal compromise."
           }
         },
         "android": {
@@ -3024,7 +3032,7 @@
               "android/app/src/main/kotlin/com/poracode/app/ui/terminal/TerminalKeyAccessory.kt",
               "screen:android.terminal-write"
             ],
-            "note": "E.2 device keystroke-to-PTY journey landed (`Android37WireLabFamilyInstrumentedTest.familyTerminalKeystrokeWritesToPty`). On-screen (touch) typing remains line-buffered through the command field plus the modifier key row \u0432\u0402\u201d the standard mobile-terminal compromise."
+            "note": "E.2 device keystroke-to-PTY journey landed (`Android37WireLabFamilyInstrumentedTest.familyTerminalKeystrokeWritesToPty`). On-screen (touch) typing remains line-buffered through the command field plus the modifier key row вЂ” the standard mobile-terminal compromise."
           }
         }
       },
@@ -3648,13 +3656,20 @@
         },
         "android": {
           "wire": {
-            "disposition": "planned",
-            "evidence": ["src/shared/remote/contract/routes/threads.ts"]
+            "disposition": "implemented",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/protocol/richchat/RuntimeItemPresentationContract.kt",
+              "android/app/src/main/kotlin/com/poracode/app/transport/richchat/RichChatAdvisoryClient.kt",
+              "android/app/src/main/kotlin/com/poracode/app/session/richchat/RichChatAdvisoryController.kt"
+            ]
           },
           "ui": {
-            "disposition": "planned",
-            "evidence": [],
-            "note": "Android adoption of this opt-in history detail route remains planned. Android keeps complete compatible history responses; the current adoption is scoped to Apple clients."
+            "disposition": "implemented",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/ui/richchat/RichToolPresentationViews.kt",
+              "android/app/src/main/kotlin/com/poracode/app/ui/richchat/RichTimelineView.kt",
+              "android/app/src/androidTest/kotlin/com/poracode/app/ParityModulesInstrumentedTest.kt"
+            ]
           }
         }
       },
@@ -5388,13 +5403,19 @@
         },
         "android": {
           "wire": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "implemented",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/protocol/voice/HexVoiceContract.kt",
+              "android/app/src/main/kotlin/com/poracode/app/transport/voice/VoiceHexClient.kt"
+            ]
           },
           "ui": {
-            "disposition": "planned",
-            "evidence": [],
-            "note": "Native Android voice capture and Hex transport are outside the current scope."
+            "disposition": "partial",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/ui/voice/VoiceDictationSheet.kt",
+              "android/app/src/main/kotlin/com/poracode/app/ui/settings/DeviceAudioPane.kt"
+            ],
+            "note": "Generated-codec hexVoice contract, WAV encoder, Audio & Voice device settings pane, and voice dictation sheet are implemented; hardware microphone streaming into host hexVoice remains device-qualified separately."
           }
         },
         "note": "Generated codecs include the additive supportsWait capability and wait action for host dictation. Native clients do not yet invoke Hex capture or transcription; the shared renderer uses this procedure."
@@ -5495,18 +5516,24 @@
               "ios/App/App/Features/Settings/UI/DeviceSettingsView.swift",
               "ios/App/NativeE2ETests/NativeFamilyJourneyUITests.swift"
             ],
-            "note": "Native Import settings lists and filters the selected host\u2019s CLI sessions; generated-contract-backed import-session commands create resumable inactive threads. Exact-host claims join overlapping imports and retain thread IDs after ambiguous delivery. Android remains outside the explicit iPad/Duo scope."
+            "note": "Native Import settings lists and filters the selected host’s CLI sessions; generated-contract-backed import-session commands create resumable inactive threads. Exact-host claims join overlapping imports and retain thread IDs after ambiguous delivery. Android remains outside the explicit iPad/Duo scope."
           }
         },
         "android": {
           "wire": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "implemented",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/protocol/projects/SessionImportContract.kt",
+              "android/app/src/main/kotlin/com/poracode/app/transport/projects/SessionImportClient.kt"
+            ]
           },
           "ui": {
-            "disposition": "planned",
-            "evidence": [],
-            "note": "Remote import is served to the shared browser renderer (PWA) through the procedure passthrough and the import-session thread command; Android has no import surface yet."
+            "disposition": "implemented",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/ui/projects/SessionImportSheet.kt",
+              "android/app/src/main/kotlin/com/poracode/app/ui/projects/ProjectDetailPane.kt",
+              "android/app/src/androidTest/kotlin/com/poracode/app/ParityModulesInstrumentedTest.kt"
+            ]
           }
         }
       },
@@ -5586,13 +5613,19 @@
         },
         "android": {
           "wire": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "implemented",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/protocol/settings/RefreshAgentStatusesContract.kt",
+              "android/app/src/main/kotlin/com/poracode/app/transport/settings/RefreshAgentStatusesClient.kt"
+            ]
           },
           "ui": {
-            "disposition": "planned",
-            "evidence": [],
-            "note": "Manual host discovery is available in the shared desktop and PWA Agents General page; native clients have no agent management surface yet."
+            "disposition": "implemented",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/ui/settings/SettingsAgentsPane.kt",
+              "android/app/src/main/kotlin/com/poracode/app/ui/settings/SettingsScreen.kt",
+              "android/app/src/androidTest/kotlin/com/poracode/app/ParityModulesInstrumentedTest.kt"
+            ]
           }
         }
       },
@@ -5652,7 +5685,10 @@
         "id": "installAcpRegistryAgent",
         "batch": "settings-integrations",
         "ios": {
-          "wire": { "disposition": "planned", "evidence": [] },
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
           "ui": {
             "disposition": "planned",
             "evidence": [],
@@ -5660,7 +5696,10 @@
           }
         },
         "android": {
-          "wire": { "disposition": "planned", "evidence": [] },
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
           "ui": {
             "disposition": "planned",
             "evidence": [],
@@ -5672,7 +5711,10 @@
         "id": "removeAcpRegistryAgent",
         "batch": "settings-integrations",
         "ios": {
-          "wire": { "disposition": "planned", "evidence": [] },
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
           "ui": {
             "disposition": "planned",
             "evidence": [],
@@ -5680,7 +5722,10 @@
           }
         },
         "android": {
-          "wire": { "disposition": "planned", "evidence": [] },
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
           "ui": {
             "disposition": "planned",
             "evidence": [],
@@ -5692,7 +5737,10 @@
         "id": "setAcpRegistryAgentAuth",
         "batch": "settings-integrations",
         "ios": {
-          "wire": { "disposition": "planned", "evidence": [] },
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
           "ui": {
             "disposition": "planned",
             "evidence": [],
@@ -5700,7 +5748,10 @@
           }
         },
         "android": {
-          "wire": { "disposition": "planned", "evidence": [] },
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
           "ui": {
             "disposition": "planned",
             "evidence": [],
@@ -5712,7 +5763,10 @@
         "id": "authenticateAcpAgent",
         "batch": "settings-integrations",
         "ios": {
-          "wire": { "disposition": "planned", "evidence": [] },
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
           "ui": {
             "disposition": "planned",
             "evidence": [],
@@ -5720,7 +5774,10 @@
           }
         },
         "android": {
-          "wire": { "disposition": "planned", "evidence": [] },
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
           "ui": {
             "disposition": "planned",
             "evidence": [],
@@ -5732,7 +5789,10 @@
         "id": "logoutAcpAgent",
         "batch": "settings-integrations",
         "ios": {
-          "wire": { "disposition": "planned", "evidence": [] },
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
           "ui": {
             "disposition": "planned",
             "evidence": [],
@@ -5740,7 +5800,10 @@
           }
         },
         "android": {
-          "wire": { "disposition": "planned", "evidence": [] },
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
           "ui": {
             "disposition": "planned",
             "evidence": [],
@@ -5752,7 +5815,10 @@
         "id": "resolveAgentAccount",
         "batch": "settings-integrations",
         "ios": {
-          "wire": { "disposition": "planned", "evidence": [] },
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
           "ui": {
             "disposition": "planned",
             "evidence": [],
@@ -5760,7 +5826,10 @@
           }
         },
         "android": {
-          "wire": { "disposition": "planned", "evidence": [] },
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
           "ui": {
             "disposition": "planned",
             "evidence": [],
@@ -12504,5 +12573,5 @@
       }
     ]
   },
-  "migrationNote": "Format 2 splits each platform claim into independent wire and ui columns so the ledger can no longer present wire coverage as UI parity. Migrated from format 1 (2026-09-18, V5 plan item 5.4): every format-1 claim became the wire claim unchanged, and the ui column was seeded by mirroring it, with the UI-surface subset of the evidence as ui evidence (falling back to the full list for protocol-plumbing entries that have no distinct UI file). ui dispositions: implemented = reachable from a user-visible native surface; partial = reachable in part, with a mandatory reason note; planned = wire present, no UI surface yet; desktop-only and unsupported-by-wire mirror the wire claim. The ui column is now maintained separately from wire: flipping one must not flip the other. E.1 re-derivation (2026-09-20, V6): ui implemented additionally requires independent device evidence \u0432\u0402\u201d a screen-registry entry or a checked-in device test; a note is commentary and grants nothing. Every ui claim failing that rule was honestly downgraded to partial with the evidence gap in its note."
+  "migrationNote": "Format 2 splits each platform claim into independent wire and ui columns so the ledger can no longer present wire coverage as UI parity. Migrated from format 1 (2026-09-18, V5 plan item 5.4): every format-1 claim became the wire claim unchanged, and the ui column was seeded by mirroring it, with the UI-surface subset of the evidence as ui evidence (falling back to the full list for protocol-plumbing entries that have no distinct UI file). ui dispositions: implemented = reachable from a user-visible native surface; partial = reachable in part, with a mandatory reason note; planned = wire present, no UI surface yet; desktop-only and unsupported-by-wire mirror the wire claim. The ui column is now maintained separately from wire: flipping one must not flip the other. E.1 re-derivation (2026-09-20, V6): ui implemented additionally requires independent device evidence вЂ” a screen-registry entry or a checked-in device test; a note is commentary and grants nothing. Every ui claim failing that rule was honestly downgraded to partial with the evidence gap in its note."
 }
