@@ -4,9 +4,9 @@ import XCTest
 @testable import App
 
 final class GitOperationsContractTests: XCTestCase {
-  func testAll29ProceduresCrossGeneratedRequestAndResultRoots() throws {
-    XCTAssertEqual(GitOperationsSamples.requests.count, 29)
-    XCTAssertEqual(Set(GitOperationsSamples.requests.map(\.procedure)).count, 29)
+  func testAll30ProceduresCrossGeneratedRequestAndResultRoots() throws {
+    XCTAssertEqual(GitOperationsSamples.requests.count, 30)
+    XCTAssertEqual(Set(GitOperationsSamples.requests.map(\.procedure)).count, 30)
 
     for request in GitOperationsSamples.requests {
       let body = try GitOperationsRemoteV3Contract.request(request)
@@ -28,11 +28,11 @@ final class GitOperationsContractTests: XCTestCase {
 
   func testMetadataExactlyMatchesGeneratedManifest() {
     XCTAssertTrue(GitOperationProcedure.gitAddWorktree.metadata.isLongRunning)
-    XCTAssertEqual(GitOperationProcedure.allCases.count, 29)
-    XCTAssertEqual(GitOperationProcedure.metadata.count, 29)
-    XCTAssertEqual(GitOperationProcedure.metadata.filter { $0.scope == .read }.count, 5)
+    XCTAssertEqual(GitOperationProcedure.allCases.count, 30)
+    XCTAssertEqual(GitOperationProcedure.metadata.count, 30)
+    XCTAssertEqual(GitOperationProcedure.metadata.filter { $0.scope == .read }.count, 6)
     XCTAssertEqual(GitOperationProcedure.metadata.filter { $0.scope == .operate }.count, 24)
-    XCTAssertEqual(GitOperationProcedure.metadata.filter { $0.resultKind == .json }.count, 14)
+    XCTAssertEqual(GitOperationProcedure.metadata.filter { $0.resultKind == .json }.count, 15)
     XCTAssertEqual(GitOperationProcedure.metadata.filter { $0.resultKind == .omitted }.count, 15)
     XCTAssertEqual(
       Set(GitOperationProcedure.metadata.filter { $0.owner == .worktreeLocation }.map(\.procedure)),

@@ -24,6 +24,16 @@ enum RichChatImageDecoder {
   }
 }
 
+extension RichImagePresentation {
+  var imageLoadPlan: RichChatImageLoadPlan {
+    switch self {
+    case .inline(let value, let classification): .inline(source: value, classification: classification)
+    case .local(let path): .local(path: path)
+    case .remote(let ref): .remote(ref)
+    }
+  }
+}
+
 private struct RichChatImageSourcesKey: EnvironmentKey {
   static let defaultValue: @MainActor () -> [RichImagePresentation] = { [] }
 }

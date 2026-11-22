@@ -54,14 +54,7 @@ struct RichChatThreadView: View {
     }
     .environment(\.richChatImageSources) { pageState.galleryImages }
     .onChange(of: pageState.galleryImages.map(\.id)) { _, _ in
-      let plans: [RichChatImageLoadPlan] = pageState.galleryImages.map { source in
-        switch source {
-        case .inline(let value, let classification): return .inline(source: value, classification: classification)
-        case .local(let path): return .local(path: path)
-        case .remote(let ref): return .remote(ref)
-        }
-      }
-      suite.media.prefetchNewestImages(plans, limit: 4)
+      suite.media.prefetchNewestImages(pageState.galleryImages.map(\.imageLoadPlan), limit: 4)
     }
     .modifier(RichChatRequestFormPresentation(suite: suite, canResolve: pageState.canResolveRequests))
     .poracodeThemeBackground(theme.variant(for: inheritedColorScheme).background)
