@@ -24,12 +24,12 @@ import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.longOrNull
 import kotlinx.serialization.json.put
 
-internal data class RemoteHistoryResumeBatch(
+data class RemoteHistoryResumeBatch(
     val seq: Int,
     val events: List<JsonObject>,
 )
 
-internal sealed interface RemoteHistoryResumeOutcome {
+sealed interface RemoteHistoryResumeOutcome {
     data class Snapshot(val snapshot: RemoteThreadSnapshot) : RemoteHistoryResumeOutcome
     data class Events(
         val snapshotSeq: Int,

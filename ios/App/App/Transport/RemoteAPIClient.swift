@@ -13,6 +13,8 @@ actor RemoteAPIClient: PushRemoteAPI {
     private let environment: RemoteEnvironmentContext?
     private let responseEvidenceHeaders: [String]
     private let recentHistoryCache: NativeRecentHistoryCache
+    private let requestScheduler: RemoteRequestScheduler
+    private let originKey: String
     private var readCache = RemoteReadCache()
     private var memoryWarningSubscription: MemoryWarningSubscription?
     private var recentHistoryEpoch: UInt64 = 0
@@ -100,7 +102,8 @@ actor RemoteAPIClient: PushRemoteAPI {
         requestTimeout: TimeInterval = RemoteSocketPolicy.requestTimeoutSeconds,
         maxResponseBodyBytes: Int = ProtocolConstants.maxResponseBodyBytes,
         environment: RemoteEnvironmentContext? = nil,
-        recentHistoryCache: NativeRecentHistoryCache = .shared
+        recentHistoryCache: NativeRecentHistoryCache = .shared,
+        requestScheduler: RemoteRequestScheduler = .shared
     ) {
         self.endpoint = endpoint
         self.accessToken = accessToken
@@ -110,6 +113,8 @@ actor RemoteAPIClient: PushRemoteAPI {
         self.maxResponseBodyBytes = maxResponseBodyBytes
         self.environment = environment
         self.recentHistoryCache = recentHistoryCache
+        self.requestScheduler = requestScheduler
+        self.originKey = RemoteRequestClassification.originKey(for: endpoint)
         self.responseEvidenceHeaders = environment == nil
             ? []
             : [ProtocolConstants.environmentAuthAuthorityHeader]
@@ -582,6 +587,33 @@ actor RemoteAPIClient: PushRemoteAPI {
         }
 
         let isCacheableGet = method == "GET" && jsonBody == nil && extraHeaders.isEmpty
+        let priority = RemoteRequestClassification.classifyPriority(
+            method: method,
+            path: path,
+            jsonBody: jsonBody
+        )
+        return try await requestScheduler.withScheduledOverloadRetry(
+            origin: originKey,
+            priority: priority
+        ) {
+            try await executeRequestDataOnce(
+                request: request,
+                url: url,
+                isCacheableGet: isCacheableGet,
+                authorized: authorized,
+                timeout: timeout
+            )
+        }
+    }
+
+    private func executeRequestDataOnce(
+        request baseRequest: URLRequest,
+        url: URL,
+        isCacheableGet: Bool,
+        authorized: Bool,
+        timeout: TimeInterval?
+    ) async throws -> Data {
+        var request = baseRequest
         let cachedRead = isCacheableGet ? readCache.capture(url: url.absoluteString) : nil
         if let etag = cachedRead?.entry?.etag {
             request.setValue(etag, forHTTPHeaderField: "If-None-Match")
@@ -590,7 +622,11 @@ actor RemoteAPIClient: PushRemoteAPI {
         let data: Data
         let response: URLResponse
         do {
-            let initial = try await performBoundedRequest(request, resourceTimeout: timeout)
+            let initial = try await performBoundedRequest(
+                request,
+                resourceTimeout: timeout,
+                retryableSafeRead: isCacheableGet
+            )
             if let initialHttp = initial.1 as? HTTPURLResponse,
                initialHttp.statusCode == 304,
                let cachedRead
@@ -601,7 +637,9 @@ actor RemoteAPIClient: PushRemoteAPI {
                 var uncachedRequest = request
                 uncachedRequest.setValue(nil, forHTTPHeaderField: "If-None-Match")
                 (data, response) = try await performBoundedRequest(
-                    uncachedRequest, resourceTimeout: timeout
+                    uncachedRequest,
+                    resourceTimeout: timeout,
+                    retryableSafeRead: isCacheableGet
                 )
             } else {
                 (data, response) = initial
@@ -633,18 +671,23 @@ actor RemoteAPIClient: PushRemoteAPI {
 
         if !(200 ... 299).contains(http.statusCode) {
             let evidence = responseEvidence(from: http)
+            let retryAfterMs = RemoteRequestClassification.parseRetryAfterMs(
+                http.value(forHTTPHeaderField: "Retry-After")
+            )
             if let payload = try? JSONDecoding.decode(RemoteHttpErrorPayload.self, from: data) {
-                throw environmentAwareError(
+                var err = environmentAwareError(
                     message: payload.error.message,
                     status: http.statusCode,
                     code: payload.error.code,
                     evidence: evidence,
                     authorized: authorized
                 )
+                err.retryAfterMs = retryAfterMs
+                throw err
             }
             let text = String(data: data, encoding: .utf8) ?? ""
             let htmlLike = text.trimmingCharacters(in: .whitespacesAndNewlines).hasPrefix("<")
-            throw environmentAwareError(
+            var err = environmentAwareError(
                 message: htmlLike
                     ? "That endpoint returned HTML instead of the desktop API. Use the desktop API endpoint from Remote Access settings."
                     : "Remote request failed.",
@@ -653,6 +696,8 @@ actor RemoteAPIClient: PushRemoteAPI {
                 evidence: evidence,
                 authorized: authorized
             )
+            err.retryAfterMs = retryAfterMs
+            throw err
         }
 
         if let cachedRead {
@@ -695,13 +740,16 @@ actor RemoteAPIClient: PushRemoteAPI {
     /// Fetch with Content-Length early rejection and incremental size enforcement
     /// for unknown/chunked bodies (64 MiB cap). Uses chunked streaming — not per-byte loops.
     private func performBoundedRequest(
-        _ request: URLRequest, resourceTimeout: TimeInterval? = nil
+        _ request: URLRequest,
+        resourceTimeout: TimeInterval? = nil,
+        retryableSafeRead: Bool = false
     ) async throws -> (Data, URLResponse) {
         try await StreamingHTTPBody.perform(
             session: session,
             request: request,
             maxBytes: maxResponseBodyBytes,
-            resourceTimeout: resourceTimeout
+            resourceTimeout: resourceTimeout,
+            retryableSafeRead: retryableSafeRead
         )
     }
 

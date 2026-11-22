@@ -252,6 +252,7 @@ enum RemoteURLSessions {
         // The default cache declines larger history responses. Keep enough
         // memory for useful conditional reads, without persisting API bodies.
         config.urlCache = URLCache(memoryCapacity: 16 * 1024 * 1024, diskCapacity: 0)
+        config.httpMaximumConnectionsPerHost = 24
         config.timeoutIntervalForRequest = requestTimeout
         config.timeoutIntervalForResource = requestTimeout
         config.httpShouldSetCookies = false

@@ -42,6 +42,16 @@ object RichContentDecoder {
         val streams = decodeStreams(objectValue["streams"]) ?: return null
         val parentField = objectValue.optionalString("parentItemId")
         if (parentField is RichField.Invalid) return null
+        val detailsDeferred: Boolean? = if (!objectValue.containsKey("detailsDeferred")) {
+            null
+        } else {
+            val raw = objectValue["detailsDeferred"]
+            if (raw == null || raw is JsonNull) {
+                null
+            } else {
+                raw.booleanOrStrictNull() ?: return null
+            }
+        }
         return RichRuntimeItem(
             id = id,
             type = type,
@@ -49,6 +59,7 @@ object RichContentDecoder {
             payload = objectValue["payload"]?.takeUnless { it is JsonNull },
             streams = streams,
             parentItemId = parentField.valueOrNull(),
+            detailsDeferred = detailsDeferred,
         )
     }
 

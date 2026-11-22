@@ -19,7 +19,40 @@ suspend fun RichChatController.refreshHistory(): RichChatOperationResult<RichCha
     val token = owner.begin(OP_HISTORY, prepared)
     markActive(OP_HISTORY)
     val result = runOperation(prepared, token, RichChatCapability.Read, false) {
-        val snapshot = sessionGateway.history(prepared.host, prepared.threadId)
+        val current = mutableState.value
+        val resumeCursor = current.runtimeResumeCursor?.takeIf { it.isNotEmpty() }
+        val baselineSeq = current.snapshotSeq
+        val snapshot = if (
+            current.transcript != null &&
+            resumeCursor != null &&
+            baselineSeq != null &&
+            current.selection == prepared
+        ) {
+            val afterSeq = maxOf(baselineSeq, frameBuffer.lastAcceptedSequence ?: baselineSeq)
+            try {
+                when (
+                    val outcome = sessionGateway.historyChanges(
+                        lease = prepared.host,
+                        threadId = prepared.threadId,
+                        cursor = resumeCursor,
+                        afterSeq = afterSeq,
+                    )
+                ) {
+                    is RichChatHistoryResumeOutcome.Events -> {
+                        if (!canPublish(prepared, token)) return@runOperation RichChatOperationResult.Stale
+                        val installed = installWarmResumeEvents(prepared, outcome.resumed, afterSeq)
+                            ?: return@runOperation settleRefusedHistorySnapshot(prepared, token)
+                        return@runOperation RichChatOperationResult.Success(installed)
+                    }
+                    is RichChatHistoryResumeOutcome.Snapshot -> outcome.snapshot
+                }
+            } catch (error: RichChatGatewayException) {
+                if (!error.fallsBackToFullHistory()) throw error
+                sessionGateway.history(prepared.host, prepared.threadId)
+            }
+        } else {
+            sessionGateway.history(prepared.host, prepared.threadId)
+        }
         if (!canPublish(prepared, token)) return@runOperation RichChatOperationResult.Stale
         if (!installAuthoritativeSnapshot(prepared, snapshot)) {
             return@runOperation settleRefusedHistorySnapshot(prepared, token)
@@ -33,6 +66,9 @@ suspend fun RichChatController.refreshHistory(): RichChatOperationResult<RichCha
     }
     return result
 }
+
+private fun RichChatGatewayException.fallsBackToFullHistory(): Boolean =
+    statusCode == 404 || statusCode == 501 || code == "route_unavailable"
 
 /**
  * The production load-older action (timeline scroll and "Load older messages"
@@ -257,6 +293,110 @@ fun RichChatController.installAuthoritativeSnapshot(
     // The installed transcript supersedes every page requested before it.
     invalidateOlderPaging()
     true
+}
+
+/**
+ * Applies an incremental `thread-history-changes` event replay over the warm
+ * in-memory transcript, preserving already-loaded older pages and avoiding
+ * full-tail re-decoding. Replays any newer live frames buffered while the
+ * resume read was in flight.
+ */
+internal fun RichChatController.installWarmResumeEvents(
+    source: RichChatThreadLease,
+    resumed: RichChatHistoryResumeEvents,
+    appliedThroughSeq: Int,
+): RichChatHistorySnapshot? = synchronized(this) {
+    if (!isSelected(source) || resumed.key != source.key || !session.isCurrent(source.host)) {
+        return@synchronized null
+    }
+    val currentState = mutableState.value
+    var transcript = currentState.transcript ?: return@synchronized null
+    var truncationCatchup = false
+    var sawTruncation = false
+    var backgroundTasks = currentState.backgroundTasks
+    var backgroundTaskSequence = currentState.backgroundTaskSequence
+
+    val bgAtLeastHighWater = backgroundTaskSequence?.let { resumed.snapshotSeq >= it } ?: true
+    if (resumed.backgroundTasksPresent && bgAtLeastHighWater) {
+        backgroundTasks = resumed.backgroundTasks?.takeIf { it.isNotEmpty() }
+        backgroundTaskSequence = backgroundTaskSequence?.let { maxOf(it, resumed.snapshotSeq) }
+            ?: resumed.snapshotSeq
+    }
+
+    for (batch in resumed.batches) {
+        if (batch.seq <= appliedThroughSeq) continue
+        if (batch.events.any { it is com.poracode.app.chat.RichRuntimeEvent.RuntimeTruncated }) {
+            sawTruncation = true
+        }
+        val frame = RichChatLiveFrame(
+            sequence = batch.seq,
+            events = batch.events,
+            backgroundTaskChanges = batch.backgroundTaskChanges,
+        )
+        transcript = reduceLiveFrame(transcript, frame)
+        if (!truncationCatchup && frameNeedsTruncationCatchup(transcript, frame)) {
+            truncationCatchup = true
+        }
+        val applyBg = backgroundTaskSequence?.let { batch.seq > it } ?: true
+        if (applyBg && batch.backgroundTaskChanges.isNotEmpty()) {
+            backgroundTasks = applyBackgroundTaskChanges(backgroundTasks, batch.backgroundTaskChanges)
+            backgroundTaskSequence = backgroundTaskSequence?.let { maxOf(it, batch.seq) } ?: batch.seq
+        }
+    }
+
+    val mergedTurns = if (resumed.completedTurnsNextCursor == null) {
+        resumed.completedTurns
+    } else {
+        CompletedTurns.mergeTail(
+            loaded = transcript.completedTurns,
+            tail = resumed.completedTurns,
+        )
+    }
+    val base = transcript.copy(
+        completedTurns = mergedTurns,
+        contextUsage = resumed.contextUsage ?: transcript.contextUsage,
+        followUpQueue = if (resumed.followUpQueuePresent) resumed.followUpQueue else transcript.followUpQueue,
+    )
+    val replayed = frameBuffer.replayAfterBaseline(
+        baselineSeq = resumed.snapshotSeq,
+        base = base,
+        baseBackgroundTasks = backgroundTasks,
+        baseBackgroundTaskSequence = backgroundTaskSequence,
+    )
+    val finalTranscript = replayed.transcript
+    val needsRefresh = replayed.hadOverflow || truncationCatchup || replayed.truncationCatchup
+    if (sawTruncation) invalidateOlderPaging()
+    mutableState.update { state ->
+        state.copy(
+            transcript = finalTranscript,
+            backgroundTasks = replayed.backgroundTasks,
+            backgroundTaskSequence = replayed.backgroundTaskSequence,
+            snapshotSeq = resumed.snapshotSeq,
+            olderTurnsCursor = if (sawTruncation) null else resumed.completedTurnsNextCursor,
+            runtimeResumeCursor = resumed.runtimeResumeCursor,
+            config = resumed.config,
+            activeOperations = state.activeOperations - OP_HISTORY,
+            loadPhase = richChatLoadPhase(finalTranscript),
+            failure = null,
+            needsAuthoritativeRefresh = needsRefresh,
+            historyNotice = state.historyNotice.afterAuthoritativeRead(resumed.runtimeNotice),
+        )
+    }
+    RichChatHistorySnapshot(
+        key = resumed.key,
+        snapshotSeq = resumed.snapshotSeq,
+        state = finalTranscript,
+        olderCursor = currentState.olderCursor,
+        completedTurnsNextCursor = if (sawTruncation) null else resumed.completedTurnsNextCursor,
+        config = resumed.config,
+        terminalScrollback = currentState.terminalScrollback,
+        followUpQueuePresent = resumed.followUpQueuePresent,
+        updatedAt = "",
+        runtimeNotice = resumed.runtimeNotice,
+        runtimeResumeCursor = resumed.runtimeResumeCursor,
+        backgroundTasksPresent = resumed.backgroundTasksPresent,
+        backgroundTasks = replayed.backgroundTasks,
+    )
 }
 
 /**

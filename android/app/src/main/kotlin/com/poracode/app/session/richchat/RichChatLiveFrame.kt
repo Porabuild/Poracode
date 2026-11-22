@@ -167,6 +167,18 @@ internal class RichChatLiveFrameBuffer(
         base: RichThreadState = snapshot.state,
         baseBackgroundTasks: List<BackgroundTask>? = snapshot.backgroundTasks,
         baseBackgroundTaskSequence: Int? = null,
+    ): RichChatBufferedReplay = replayAfterBaseline(
+        baselineSeq = snapshot.snapshotSeq,
+        base = base,
+        baseBackgroundTasks = baseBackgroundTasks,
+        baseBackgroundTaskSequence = baseBackgroundTaskSequence,
+    )
+
+    fun replayAfterBaseline(
+        baselineSeq: Int,
+        base: RichThreadState,
+        baseBackgroundTasks: List<BackgroundTask>? = null,
+        baseBackgroundTaskSequence: Int? = null,
     ): RichChatBufferedReplay {
         val now = arrivalClockMs()
         var hadOverflow = overflow
@@ -184,12 +196,8 @@ internal class RichChatLiveFrameBuffer(
         var backgroundTaskSequence = baseBackgroundTaskSequence
         var truncationCatchup = false
         replay.forEach { frame ->
-            if (frame.sequence == null || frame.sequence > snapshot.snapshotSeq) {
+            if (frame.sequence == null || frame.sequence > baselineSeq) {
                 transcript = reduceLiveFrame(transcript, frame)
-                // A background change at or below the carried watermark was
-                // already folded into the retained level (including a
-                // thread-exit drain), so replay must not resurrect it. Text
-                // still reduces; unrelated events never advance this watermark.
                 val replayBackgroundLevel = baseBackgroundTaskSequence == null ||
                     frame.sequence == null ||
                     frame.sequence > baseBackgroundTaskSequence
@@ -210,8 +218,8 @@ internal class RichChatLiveFrameBuffer(
             }
         }
         lastAcceptedSequence = maxOf(
-            snapshot.snapshotSeq,
-            lastAcceptedSequence ?: snapshot.snapshotSeq,
+            baselineSeq,
+            lastAcceptedSequence ?: baselineSeq,
         )
         return RichChatBufferedReplay(
             transcript = transcript,

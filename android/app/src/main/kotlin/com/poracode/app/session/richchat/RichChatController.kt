@@ -25,6 +25,7 @@ class RichChatController(
     internal val session: StateFlow<RichChatHostLease?>,
     private val gateway: RichChatSessionGateway,
     internal val lifecycle: ForegroundOperationRegistry = ForegroundOperationRegistry(),
+    private val onTurnCompleted: ((RichChatThreadLease) -> Unit)? = null,
 ) : RichChatEventSink {
     internal val mutableState = MutableStateFlow(RichChatControllerState())
     val state: StateFlow<RichChatControllerState> = mutableState.asStateFlow()
@@ -52,17 +53,15 @@ class RichChatController(
     }
     private var threadGeneration = 0L
     internal val frameBuffer = RichChatLiveFrameBuffer()
+    private val warmThreads = RichChatWarmThreadCache()
 
-    /**
-     * Fences older-history paging against authoritative installs, truncation
-     * and selection changes: a page requested before the transcript changed
-     * must never publish (or move the cursor backwards) afterwards.
-     */
     internal val olderPagingEpoch = java.util.concurrent.atomic.AtomicLong(0L)
 
     internal fun invalidateOlderPaging() {
         olderPagingEpoch.incrementAndGet()
     }
+
+    fun clearWarmCache() = warmThreads.clear()
 
     @Synchronized
     fun selectThread(threadId: String): RichChatOperationResult<RichChatThreadLease> {
@@ -72,21 +71,39 @@ class RichChatController(
         }
         val (host, failure) = session.currentLease(RichChatCapability.Read)
         if (failure != null || host == null) return rejected(failure!!)
+        val previousSelection = mutableSelection.value
+        val previousState = mutableState.value
+        if (
+            previousSelection != null &&
+            previousSelection.threadId != threadId &&
+            previousSelection.host.connectionId == host.connectionId &&
+            previousSelection.host.bindingGeneration == host.bindingGeneration
+        ) {
+            warmThreads.put(previousSelection, previousState, frameBuffer.lastAcceptedSequence)
+        }
+        warmThreads.evictHostMismatch(host)
         threadGeneration += 1L
         val lease = RichChatThreadLease(host, threadId, threadGeneration)
         owner.invalidateAll()
         invalidateOlderPaging()
         frameBuffer.reset()
         mutableSelection.value = lease
-        mutableState.value = RichChatControllerState(
-            selection = lease,
-            loadPhase = RichChatLoadPhase.Loading,
-        )
+        mutableState.value = warmThreads.initialStateFor(lease, host, threadId) {
+            frameBuffer.markAccepted(it)
+        }
         return RichChatOperationResult.Success(lease)
     }
 
     @Synchronized
     fun closeThread() {
+        val prev = mutableSelection.value
+        val host = session.value
+        if (prev != null && host != null && host.online && host.ready &&
+            prev.host.connectionId == host.connectionId &&
+            prev.host.bindingGeneration == host.bindingGeneration
+        ) {
+            warmThreads.put(prev, mutableState.value, frameBuffer.lastAcceptedSequence)
+        }
         threadGeneration += 1L
         owner.invalidateAll()
         invalidateOlderPaging()
@@ -96,8 +113,9 @@ class RichChatController(
     }
 
     fun reconcileSession() {
-        val selected = mutableSelection.value ?: return
         val current = session.value
+        warmThreads.evictHostMismatch(current)
+        val selected = mutableSelection.value ?: return
         if (current == null || current.key != selected.host.key || !current.ready) closeThread()
     }
 
@@ -137,6 +155,7 @@ class RichChatController(
         val frame = RichChatLiveFrame(sequence, events, pendingSteer, followUpQueue, backgroundTaskChanges)
         var accepted = false
         val truncated = events.any { it is RichRuntimeEvent.RuntimeTruncated }
+        val turnCompleted = events.any { it is RichRuntimeEvent.TurnCompleted }
         mutableState.update { current ->
             val transcript = current.transcript
             val nextBackgroundTasks = applyBackgroundTaskChanges(
@@ -162,23 +181,13 @@ class RichChatController(
             if (OP_HISTORY in current.activeOperations) frameBuffer.buffer(frame)
             accepted = true
             val next = reduceLiveFrame(transcript, frame)
-            // Missing checkpoint on a loaded transcript → one authoritative
-            // catchup via the existing flag. Deduped (boolean OR) and bounded
-            // downstream by MAX_CONSECUTIVE_REFRESHES; the install path clears
-            // it on success and replays buffered frames with the snapshotSeq
-            // filter, so no loops and no lost newer events. Old replays never
-            // reach here (sequence <= lastAcceptedSequence dropped above).
-            // While OP_HISTORY is active the frame is also buffered, and the
-            // post-install replay recomputes this flag from the fresh window,
-            // so a stale-window false positive is discarded, not re-requested.
             val truncationCatchup = frameNeedsTruncationCatchup(next, frame)
             current.copy(
                 transcript = next,
                 backgroundTasks = nextBackgroundTasks,
                 backgroundTaskSequence = nextBackgroundTaskSequence,
-                // A truncate renumbers/removes turn rows: the held `ct1.`
-                // continuation is dropped and in-flight older pages are fenced.
                 olderTurnsCursor = if (truncated) null else current.olderTurnsCursor,
+                runtimeResumeCursor = if (truncated) null else current.runtimeResumeCursor,
                 needsAuthoritativeRefresh = current.needsAuthoritativeRefresh ||
                     frameBuffer.overflow ||
                     truncationCatchup,
@@ -186,6 +195,7 @@ class RichChatController(
         }
         if (accepted && truncated) invalidateOlderPaging()
         if (accepted) frameBuffer.markAccepted(sequence)
+        if (accepted && turnCompleted) onTurnCompleted?.invoke(lease)
         return accepted
     }
 

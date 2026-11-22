@@ -5,6 +5,7 @@ import com.poracode.app.chat.RichSnapshotMapping
 import com.poracode.app.model.RemoteClientException
 import com.poracode.app.model.RemoteRuntimeGapAck
 import com.poracode.app.model.RemoteRuntimeGapRead
+import com.poracode.app.session.history.historyChanges
 import com.poracode.app.session.history.historyItems
 import com.poracode.app.session.history.historyTail
 import com.poracode.app.session.history.historyTurns
@@ -46,55 +47,61 @@ class GeneratedRichChatSessionGateway(
         ).also { if (it.key.threadId != threadId) invalidResponse() }
     }
 
-    override suspend fun olderItems(
-        lease: RichChatHostLease,
-        threadId: String,
-        beforePosition: Int,
-        limit: Int,
-        targetTimelineEntryCount: Int,
-    ): RichChatHistoryPage = invoke(lease, RichChatCapability.Read, false) {
-        RichChatHistoryMapper.page(
-            core.historyItems(
-                threadId,
-                beforePosition,
-                limit,
-                targetTimelineEntryCount,
-            ),
-        )
-    }
-
-    override suspend fun olderTurns(
+    override suspend fun historyChanges(
         lease: RichChatHostLease,
         threadId: String,
         cursor: String,
-        limit: Int,
+        afterSeq: Int?,
+        targetTimelineEntryCount: Int,
+    ): RichChatHistoryResumeOutcome = invoke(lease, RichChatCapability.Read, false) {
+        val raw = core.historyChanges(threadId, cursor, afterSeq, targetTimelineEntryCount)
+        RichChatHistoryResumeMapper.outcome(lease.connectionId, raw, receivedAtEpochMs()).also { out ->
+            val ownerThread = when (out) {
+                is RichChatHistoryResumeOutcome.Events -> out.resumed.key.threadId
+                is RichChatHistoryResumeOutcome.Snapshot -> out.snapshot.key.threadId
+            }
+            if (ownerThread != threadId) invalidResponse()
+        }
+    }
+
+    override suspend fun refreshHistoryCache(
+        lease: RichChatHostLease,
+        threadId: String,
+        targetTimelineEntryCount: Int,
+    ) {
+        runCatching {
+            invoke(lease, RichChatCapability.Read, false) {
+                core.historyTail(threadId, targetTimelineEntryCount)
+            }
+        }.onFailure { error ->
+            if (error is CancellationException) throw error
+        }
+    }
+
+    override suspend fun olderItems(
+        lease: RichChatHostLease, threadId: String, beforePosition: Int, limit: Int, targetTimelineEntryCount: Int,
+    ): RichChatHistoryPage = invoke(lease, RichChatCapability.Read, false) {
+        RichChatHistoryMapper.page(core.historyItems(threadId, beforePosition, limit, targetTimelineEntryCount))
+    }
+
+    override suspend fun olderTurns(
+        lease: RichChatHostLease, threadId: String, cursor: String, limit: Int,
     ): RichChatTurnsPage = invoke(lease, RichChatCapability.Read, false) {
         RichChatHistoryMapper.turnPage(core.historyTurns(threadId, cursor, limit))
     }
 
-    override suspend fun runtimeGap(
-        lease: RichChatHostLease,
-        threadId: String,
-    ): RemoteRuntimeGapRead = invoke(lease, RichChatCapability.Read, false) {
-        noticeCore().threadRuntimeGap(threadId)
-    }
+    override suspend fun runtimeGap(lease: RichChatHostLease, threadId: String): RemoteRuntimeGapRead =
+        invoke(lease, RichChatCapability.Read, false) { noticeCore().threadRuntimeGap(threadId) }
 
     override suspend fun acknowledgeRuntimeGap(
-        lease: RichChatHostLease,
-        threadId: String,
-        episodeToken: String,
-        commandId: String,
+        lease: RichChatHostLease, threadId: String, episodeToken: String, commandId: String,
     ): RemoteRuntimeGapAck = invoke(lease, RichChatCapability.Operate, true) {
         noticeCore().acknowledgeThreadRuntimeGap(threadId, episodeToken, commandId)
     }
 
     override suspend fun send(
-        lease: RichChatHostLease,
-        threadId: String,
-        prompt: String,
-        config: com.poracode.app.model.ThreadConfig,
-        segments: JsonArray?,
-        userMessageItemId: String?,
+        lease: RichChatHostLease, threadId: String, prompt: String,
+        config: com.poracode.app.model.ThreadConfig, segments: JsonArray?, userMessageItemId: String?,
     ) = invoke(lease, RichChatCapability.Operate, true) {
         core.sendThreadInput(threadId, prompt, config, segments, userMessageItemId)
     }
@@ -102,27 +109,14 @@ class GeneratedRichChatSessionGateway(
     override suspend fun interrupt(lease: RichChatHostLease, threadId: String) =
         invoke(lease, RichChatCapability.Operate, true) { core.interruptThread(threadId) }
 
-    override suspend fun truncate(
-        lease: RichChatHostLease,
-        threadId: String,
-        itemId: String,
-    ) = invoke(lease, RichChatCapability.Operate, true) {
-        rich.truncateRuntime(threadId, itemId)
-    }
+    override suspend fun truncate(lease: RichChatHostLease, threadId: String, itemId: String) =
+        invoke(lease, RichChatCapability.Operate, true) { rich.truncateRuntime(threadId, itemId) }
 
-    override suspend fun updateGoal(
-        lease: RichChatHostLease,
-        threadId: String,
-        update: ThreadGoalUpdate,
-    ) = invoke(lease, RichChatCapability.Operate, true) {
-        rich.updateThreadGoal(threadId, update)
-    }
+    override suspend fun updateGoal(lease: RichChatHostLease, threadId: String, update: ThreadGoalUpdate) =
+        invoke(lease, RichChatCapability.Operate, true) { rich.updateThreadGoal(threadId, update) }
 
-    override suspend fun setSteer(
-        lease: RichChatHostLease,
-        threadId: String,
-        input: ThreadSteerInput,
-    ) = invoke(lease, RichChatCapability.Operate, true) { rich.setSteer(threadId, input) }
+    override suspend fun setSteer(lease: RichChatHostLease, threadId: String, input: ThreadSteerInput) =
+        invoke(lease, RichChatCapability.Operate, true) { rich.setSteer(threadId, input) }
 
     override suspend fun clearSteer(lease: RichChatHostLease, threadId: String) =
         invoke(lease, RichChatCapability.Operate, true) { rich.clearSteer(threadId) }

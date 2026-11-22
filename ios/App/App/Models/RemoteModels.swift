@@ -672,6 +672,8 @@ struct RemoteClientError: LocalizedError, Sendable, Equatable {
     /// Allowlisted response headers captured for a failed request (C1 R1).
     /// Only evidence a caller explicitly asked for is ever retained.
     var responseEvidence: [String: String]?
+    /// Optional parsed `Retry-After` delay in milliseconds for 429/503 admission refusals.
+    var retryAfterMs: Int? = nil
 
     var errorDescription: String? { message }
 

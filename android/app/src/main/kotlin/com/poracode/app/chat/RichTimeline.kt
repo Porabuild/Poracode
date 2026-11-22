@@ -60,6 +60,129 @@ object RichTimeline {
         )
     }
 
+    /**
+     * O(1) fast-path for high-frequency live streaming deltas (iOS parity):
+     * when only a single existing item's `streams` changed without altering
+     * hierarchy, type, state, payload, deferred marker, or visibility, patch
+     * that node in place from the tail instead of rebuilding the full
+     * dictionary/parent/grouping projection on every token.
+     */
+    fun updatingStreamOnly(
+        projection: RichTimelineProjection,
+        previousItems: List<RichRuntimeItem>,
+        newItems: List<RichRuntimeItem>,
+    ): RichTimelineProjection? {
+        if (previousItems.size != newItems.size || newItems.isEmpty()) return null
+        var changedIndex = -1
+        for (i in newItems.indices.reversed()) {
+            if (previousItems[i] != newItems[i]) {
+                if (changedIndex != -1) return null
+                changedIndex = i
+            }
+        }
+        if (changedIndex == -1) return projection
+        val oldItem = previousItems[changedIndex]
+        val newItem = newItems[changedIndex]
+        if (
+            oldItem.id != newItem.id ||
+            oldItem.type != newItem.type ||
+            oldItem.state != newItem.state ||
+            oldItem.parentItemId != newItem.parentItemId ||
+            oldItem.payload != newItem.payload ||
+            oldItem.detailsDeferred != newItem.detailsDeferred ||
+            oldItem.type == RichItemTypes.REASONING ||
+            oldItem.type == RichItemTypes.USER_MESSAGE ||
+            (oldItem.type == RichItemTypes.ASSISTANT_MESSAGE && oldItem.state == RichItemState.COMPLETED) ||
+            newItem.id in projection.hiddenItemIds
+        ) {
+            return null
+        }
+
+        val rawItems = projection.rawItems.toMutableList()
+        if (changedIndex < rawItems.size && rawItems[changedIndex].id == newItem.id) {
+            rawItems[changedIndex] = newItem
+        } else {
+            val rawIdx = rawItems.indexOfLast { it.id == newItem.id }
+            if (rawIdx < 0) return null
+            rawItems[rawIdx] = newItem
+        }
+
+        fun replaceRaw(nodes: List<RichRawTimelineNode>): Pair<List<RichRawTimelineNode>, Boolean> {
+            for (i in nodes.indices.reversed()) {
+                val node = nodes[i]
+                if (node.item.id == newItem.id) {
+                    val copy = nodes.toMutableList()
+                    copy[i] = RichRawTimelineNode(newItem, node.children)
+                    return copy to true
+                }
+                if (node.children.isNotEmpty()) {
+                    val (updatedChildren, hit) = replaceRaw(node.children)
+                    if (hit) {
+                        val copy = nodes.toMutableList()
+                        copy[i] = RichRawTimelineNode(node.item, updatedChildren)
+                        return copy to true
+                    }
+                }
+            }
+            return nodes to false
+        }
+
+        fun replaceVisible(entries: List<RichTimelineEntry>): Pair<List<RichTimelineEntry>, Boolean> {
+            for (i in entries.indices.reversed()) {
+                when (val entry = entries[i]) {
+                    is RichTimelineEntry.Item -> {
+                        if (entry.node.item.id == newItem.id) {
+                            val copy = entries.toMutableList()
+                            copy[i] = RichTimelineEntry.Item(RichVisibleTimelineNode(newItem, entry.node.children))
+                            return copy to true
+                        }
+                        if (entry.node.children.isNotEmpty()) {
+                            val (updatedChildren, hit) = replaceVisible(entry.node.children)
+                            if (hit) {
+                                val copy = entries.toMutableList()
+                                copy[i] = RichTimelineEntry.Item(RichVisibleTimelineNode(entry.node.item, updatedChildren))
+                                return copy to true
+                            }
+                        }
+                    }
+                    is RichTimelineEntry.Group -> {
+                        for (m in entry.members.indices.reversed()) {
+                            val member = entry.members[m]
+                            if (member.item.id == newItem.id) {
+                                val updatedMembers = entry.members.toMutableList()
+                                updatedMembers[m] = RichVisibleTimelineNode(newItem, member.children)
+                                val copy = entries.toMutableList()
+                                copy[i] = RichTimelineEntry.Group(entry.stableId, updatedMembers)
+                                return copy to true
+                            }
+                            if (member.children.isNotEmpty()) {
+                                val (updatedChildren, hit) = replaceVisible(member.children)
+                                if (hit) {
+                                    val updatedMembers = entry.members.toMutableList()
+                                    updatedMembers[m] = RichVisibleTimelineNode(member.item, updatedChildren)
+                                    val copy = entries.toMutableList()
+                                    copy[i] = RichTimelineEntry.Group(entry.stableId, updatedMembers)
+                                    return copy to true
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            return entries to false
+        }
+
+        val (rawRoots, rawHit) = replaceRaw(projection.rawRoots)
+        val (visibleEntries, visibleHit) = replaceVisible(projection.visibleEntries)
+        if (!rawHit || !visibleHit) return null
+        return RichTimelineProjection(
+            rawItems = rawItems,
+            rawRoots = rawRoots,
+            visibleEntries = visibleEntries,
+            hiddenItemIds = projection.hiddenItemIds,
+        )
+    }
+
     fun visibleItemIds(projection: RichTimelineProjection): List<String> {
         val result = mutableListOf<String>()
         fun visit(entries: List<RichTimelineEntry>) {
@@ -260,5 +383,46 @@ object RichTimeline {
             "crossagents-mcp-server-spawn_agent",
             "crossagents-mcp-server-run_agent",
         )
+    }
+}
+
+/**
+ * Memoizes timeline projections across recompositions and applies the O(1)
+ * streaming fast-path when only one active item's streams changed.
+ */
+class RichTimelineProjectionCache {
+    private var lastItems: List<RichRuntimeItem>? = null
+    private var lastProjection: RichTimelineProjection? = null
+
+    /** Full O(N) rebuild counter (exposed for unit tests). */
+    var fullRebuildCount: Int = 0
+        private set
+
+    /** In-place O(1) stream patch counter (exposed for unit tests). */
+    var streamFastPathCount: Int = 0
+        private set
+
+    fun project(items: List<RichRuntimeItem>): RichTimelineProjection {
+        val prevItems = lastItems
+        val prevProjection = lastProjection
+        if (prevItems === items && prevProjection != null) return prevProjection
+        if (prevItems != null && prevProjection != null) {
+            if (prevItems == items) {
+                lastItems = items
+                return prevProjection
+            }
+            val patched = RichTimeline.updatingStreamOnly(prevProjection, prevItems, items)
+            if (patched != null) {
+                lastItems = items
+                lastProjection = patched
+                streamFastPathCount += 1
+                return patched
+            }
+        }
+        val rebuilt = RichTimeline.project(items)
+        lastItems = items
+        lastProjection = rebuilt
+        fullRebuildCount += 1
+        return rebuilt
     }
 }

@@ -129,6 +129,19 @@ actor RichChatRawHTTPClient: RichChatRawHTTPExecuting {
     path: String,
     queryItems: [URLQueryItem]
   ) async throws -> RichChatBinaryPayload {
+    let payload = try await RemoteRequestScheduler.shared.withScheduledOverloadRetry(
+      origin: RemoteRequestClassification.originKey(for: endpoint),
+      priority: .background
+    ) {
+      try await fetchImageOnce(path: path, queryItems: queryItems)
+    }
+    return payload
+  }
+
+  private func fetchImageOnce(
+    path: String,
+    queryItems: [URLQueryItem]
+  ) async throws -> RichChatBinaryPayload {
     try Task.checkCancellation()
     var request = try await makeRequest(path: path, queryItems: queryItems, method: "GET")
     let cacheKey = request.url?.absoluteString ?? ""
@@ -139,7 +152,11 @@ actor RichChatRawHTTPClient: RichChatRawHTTPExecuting {
     }
     let data: Data
     let response: URLResponse
-    let initial = try await perform(request, maximumResponseBytes: Self.maximumImageBytes)
+    let initial = try await perform(
+      request,
+      maximumResponseBytes: Self.maximumImageBytes,
+      retryableSafeRead: true
+    )
     try Task.checkCancellation()
     if let http = initial.1 as? HTTPURLResponse, http.statusCode == 304 {
       if let cached, capturedGeneration == imageCacheGeneration {
@@ -147,7 +164,11 @@ actor RichChatRawHTTPClient: RichChatRawHTTPExecuting {
       }
       var uncached = request
       uncached.setValue(nil, forHTTPHeaderField: "If-None-Match")
-      (data, response) = try await perform(uncached, maximumResponseBytes: Self.maximumImageBytes)
+      (data, response) = try await perform(
+        uncached,
+        maximumResponseBytes: Self.maximumImageBytes,
+        retryableSafeRead: true
+      )
       try Task.checkCancellation()
     } else {
       (data, response) = initial
@@ -295,13 +316,15 @@ actor RichChatRawHTTPClient: RichChatRawHTTPExecuting {
 
   private func perform(
     _ request: URLRequest,
-    maximumResponseBytes: Int
+    maximumResponseBytes: Int,
+    retryableSafeRead: Bool = false
   ) async throws -> (Data, URLResponse) {
     do {
       return try await StreamingHTTPBody.perform(
         session: session,
         request: request,
-        maxBytes: maximumResponseBytes
+        maxBytes: maximumResponseBytes,
+        retryableSafeRead: retryableSafeRead
       )
     } catch is CancellationError {
       throw CancellationError()
@@ -348,17 +371,22 @@ actor RichChatRawHTTPClient: RichChatRawHTTPExecuting {
           authorized: true
         )
       }
+      let retryAfterMs = RemoteRequestClassification.parseRetryAfterMs(
+        http.value(forHTTPHeaderField: "Retry-After")
+      )
       if let payload = try? JSONDecoding.decode(RemoteHttpErrorPayload.self, from: data) {
         throw RemoteClientError(
           message: payload.error.message,
           status: http.statusCode,
-          code: payload.error.code
+          code: payload.error.code,
+          retryAfterMs: retryAfterMs
         )
       }
       throw RemoteClientError(
         message: "Remote request failed.",
         status: http.statusCode,
-        code: "request_failed"
+        code: "request_failed",
+        retryAfterMs: retryAfterMs
       )
     }
   }

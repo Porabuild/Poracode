@@ -3727,15 +3727,19 @@
           "wire": {
             "disposition": "implemented",
             "evidence": [
-              "android/app/src/main/kotlin/com/poracode/app/transport/RemoteHistoryChangesContract.kt"
+              "android/app/src/main/kotlin/com/poracode/app/transport/RemoteHistoryChangesContract.kt",
+              "android/app/src/main/kotlin/com/poracode/app/transport/RemoteInteractiveHistoryClient.kt",
+              "android/app/src/main/kotlin/com/poracode/app/session/richchat/GeneratedRichChatSessionGateway.kt"
             ]
           },
           "ui": {
             "disposition": "partial",
             "evidence": [
-              "android/app/src/main/kotlin/com/poracode/app/session/history/ThreadHistoryReads.kt"
+              "android/app/src/main/kotlin/com/poracode/app/session/history/ThreadHistoryReads.kt",
+              "android/app/src/main/kotlin/com/poracode/app/session/richchat/RichChatHistoryController.kt",
+              "android/app/src/main/kotlin/com/poracode/app/session/richchat/RichChatHistoryResumeModels.kt"
             ],
-            "note": "Wire query/path contract is implemented in RemoteHistoryChangesContract; Android transcript controller currently uses bounded thread-history tail reads until warm-resume controller wiring lands."
+            "note": "Warm incremental thread-history-changes resume, durable recent-history tail cache, and fallback to bounded thread-history are wired in production and unit-tested; a dedicated Android device-journey instrumentation case remains separate."
           }
         }
       },

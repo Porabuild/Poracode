@@ -281,9 +281,8 @@ final class RichChatMediaController {
       }
     }
     if let existing = inFlightImages[key] {
-      return await existing.value
+      return await awaitUnlinked(existing)
     }
-    let requestID = UUID()
     let task = Task { @MainActor [weak self] () -> RichChatBinaryPayload? in
       guard let self else { return nil }
       defer { self.inFlightImages[key] = nil }
@@ -317,14 +316,45 @@ final class RichChatMediaController {
       }
     }
     inFlightImages[key] = task
-    imageFetchTasks[requestID] = task
-    let payload = await withTaskCancellationHandler {
-      await task.value
-    } onCancel: {
-      task.cancel()
+    return await awaitUnlinked(task)
+  }
+
+  /// Warms up to `limit` (default 4, matching PWA `#1361`) newest uncached card
+  /// images for the active thread in the background without blocking UI.
+  func prefetchNewestImages(
+    _ plans: [RichChatImageLoadPlan],
+    limit: Int = 4
+  ) {
+    guard !isBackgrounded, limit > 0, context(capability: .sessionRead) != nil else { return }
+    let candidates = plans.reversed().prefix(limit)
+    for plan in candidates {
+      switch plan {
+      case .local, .remote:
+        let requestID = UUID()
+        let task = Task { @MainActor [weak self] () -> RichChatBinaryPayload? in
+          guard let self else { return nil }
+          defer { self.imageFetchTasks[requestID] = nil }
+          return await self.fetchImagePayload(plan, variant: .card)
+        }
+        imageFetchTasks[requestID] = task
+      case .inline, .rejected:
+        continue
+      }
     }
-    imageFetchTasks[requestID] = nil
-    return payload
+  }
+
+  /// Awaits a shared in-flight image task without propagating a single caller's
+  /// cancellation onto the shared download (so scrolling one tile off screen
+  /// never aborts another visible waiter). Shared tasks still cancel on
+  /// `deactivate()`, `enterBackground()`, or host/thread switch via `cancelOwnedWork()`.
+  private func awaitUnlinked(
+    _ sharedTask: Task<RichChatBinaryPayload?, Never>
+  ) async -> RichChatBinaryPayload? {
+    await withTaskGroup(of: RichChatBinaryPayload?.self) { group in
+      group.addTask { await sharedTask.value }
+      let result = await group.next() ?? nil
+      return Task.isCancelled ? nil : result
+    }
   }
 
   /// Chat file cards download independently so several visible cards cannot
@@ -512,6 +542,7 @@ final class RichChatMediaController {
     imageCache.removeAll(keepingCapacity: false)
     imageCacheOrder.removeAll(keepingCapacity: false)
     imageCacheBytes = 0
+    RichChatDecodedImageCache.shared.clear()
   }
 
 }

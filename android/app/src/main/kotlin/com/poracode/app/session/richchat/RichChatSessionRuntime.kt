@@ -32,8 +32,15 @@ class RichChatSessionRuntime(
     private val lifecycle = ForegroundOperationRegistry()
     @Volatile private var projectTerminalSurfacePresented = false
     private var refreshJob: Job? = null
+    private var cacheRefreshJob: Job? = null
     private var terminalJob: Job? = null
-    val chat = RichChatController(session, gateway, lifecycle)
+    private val sessionGateway = gateway
+    val chat = RichChatController(
+        session = session,
+        gateway = gateway,
+        lifecycle = lifecycle,
+        onTurnCompleted = { lease -> scheduleRecentHistoryCacheRefresh(lease) },
+    )
     val advisory = RichChatAdvisoryController(advisoryClientProvider)
     val checkpoints = RichCheckpointController(session, chat.selection, gateway, lifecycle)
     val media = RichChatMediaController(session, chat.selection, gateway, lifecycle)
@@ -316,9 +323,11 @@ class RichChatSessionRuntime(
     }
 
     fun enterBackground() {
+        cancelRefresh()
         terminalJob?.cancel()
         terminalJob = null
         mutableForeground.value = false
+        media.enterBackground()
         backgroundTasks.reset()
         terminal.enterBackground()
         chat.enterBackground()
@@ -330,6 +339,16 @@ class RichChatSessionRuntime(
         lifecycle.enterForeground()
         mutableForeground.value = true
         chat.enterForeground()
+    }
+
+    fun clearCaches() {
+        chat.clearWarmCache()
+        media.clearImageCache()
+    }
+
+    fun trimMemory() {
+        chat.clearWarmCache()
+        media.clearImageCache()
     }
 
     fun reconcileSession() {
@@ -376,12 +395,26 @@ class RichChatSessionRuntime(
     }
 
     @Synchronized
+    private fun scheduleRecentHistoryCacheRefresh(lease: RichChatThreadLease) {
+        if (!lifecycle.isForeground) return
+        cacheRefreshJob?.cancel()
+        cacheRefreshJob = scope.launch {
+            kotlinx.coroutines.delay(POST_TURN_CACHE_REFRESH_DEBOUNCE_MS)
+            if (!lifecycle.isForeground || chat.selection.value != lease) return@launch
+            sessionGateway.refreshHistoryCache(lease.host, lease.threadId)
+        }
+    }
+
+    @Synchronized
     private fun cancelRefresh() {
         refreshJob?.cancel()
         refreshJob = null
+        cacheRefreshJob?.cancel()
+        cacheRefreshJob = null
     }
 
     private companion object {
         const val MAX_CONSECUTIVE_REFRESHES = 2
+        const val POST_TURN_CACHE_REFRESH_DEBOUNCE_MS = 250L
     }
 }

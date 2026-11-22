@@ -9,9 +9,19 @@ import com.poracode.app.transport.richchat.MAX_IMAGE_RESPONSE_BYTES
 import com.poracode.app.transport.richchat.RuntimeImagePathSegment
 import com.poracode.app.transport.RemoteBinaryResponse
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.launch
 import java.util.concurrent.ConcurrentHashMap
+
+sealed interface RichImagePrefetchTarget {
+    data class Local(val path: String) : RichImagePrefetchTarget
+    data class Runtime(val ref: RichRemoteImageRef) : RichImagePrefetchTarget
+}
 
 /** Validates attachment/image ownership before exposing any network request plan. */
 class RichChatMediaController(
@@ -19,6 +29,7 @@ class RichChatMediaController(
     private val selection: StateFlow<RichChatThreadLease?>,
     private val gateway: RichChatSessionGateway,
     private val lifecycle: ForegroundOperationRegistry,
+    private val fetchScope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO),
 ) {
     val isReadyForUpload: Boolean
         get() = lifecycle.isForeground &&
@@ -139,13 +150,36 @@ class RichChatMediaController(
     private val imageCacheLock = Any()
     private val imageCache = LinkedHashMap<ImageCacheKey, RemoteBinaryResponse>(16, 0.75f, true)
     private var imageCacheBytes = 0L
+    private var cachedHostKey: RichChatHostKey? = null
     private val inFlightImages =
-        ConcurrentHashMap<ImageCacheKey, CompletableDeferred<RichChatOperationResult<RemoteBinaryResponse>>>()
+        ConcurrentHashMap<ImageCacheKey, Deferred<RichChatOperationResult<RemoteBinaryResponse>>>()
+
+    fun enterBackground() {
+        cancelInFlightImages()
+        clearImageCache()
+    }
 
     fun clearImageCache() {
         synchronized(imageCacheLock) {
             imageCache.clear()
             imageCacheBytes = 0L
+            cachedHostKey = null
+        }
+    }
+
+    private fun cancelInFlightImages() {
+        val active = inFlightImages.values.toList()
+        inFlightImages.clear()
+        active.forEach { it.cancel() }
+    }
+
+    private fun ensureCacheHost(hostKey: RichChatHostKey) {
+        synchronized(imageCacheLock) {
+            if (cachedHostKey != null && cachedHostKey != hostKey) {
+                imageCache.clear()
+                imageCacheBytes = 0L
+            }
+            cachedHostKey = hostKey
         }
     }
 
@@ -153,33 +187,38 @@ class RichChatMediaController(
         imageCache[key]
     }
 
+    /**
+     * Coalesces concurrent requests for the same image on a decoupled
+     * supervisor scope so cancelling one caller (for example scrolling a tile
+     * off screen) never aborts the download for another active waiter. Shared
+     * fetches cancel on [enterBackground] or host/lease invalidation.
+     */
     private suspend fun loadCoalescedImage(
         cacheKey: ImageCacheKey,
         host: RichChatHostLease,
         fetch: suspend () -> RemoteBinaryResponse,
     ): RichChatOperationResult<RemoteBinaryResponse> {
+        ensureCacheHost(host.key)
         readCachedImage(cacheKey)?.let { return RichChatOperationResult.Success(it) }
         if (cacheKey.variant != null) {
             readCachedImage(cacheKey.copy(variant = null))?.let {
                 return RichChatOperationResult.Success(it)
             }
         }
-        val created = CompletableDeferred<RichChatOperationResult<RemoteBinaryResponse>>()
-        val existing = inFlightImages.putIfAbsent(cacheKey, created)
-        if (existing != null) return existing.await()
-        return try {
-            val result = load(host, fetch)
-            if (result is RichChatOperationResult.Success) {
-                storeCachedImage(cacheKey, result.value)
+        val deferred = inFlightImages.computeIfAbsent(cacheKey) { key ->
+            fetchScope.async {
+                try {
+                    val result = load(host, fetch)
+                    if (result is RichChatOperationResult.Success) {
+                        storeCachedImage(key, result.value)
+                    }
+                    result
+                } finally {
+                    inFlightImages.remove(key)
+                }
             }
-            created.complete(result)
-            result
-        } catch (error: Throwable) {
-            created.completeExceptionally(error)
-            throw error
-        } finally {
-            inFlightImages.remove(cacheKey, created)
         }
+        return deferred.await()
     }
 
     private fun storeCachedImage(key: ImageCacheKey, value: RemoteBinaryResponse) {
@@ -236,9 +275,32 @@ class RichChatMediaController(
         }
     }
 
+    /**
+     * Warms up to [limit] (default 4, matching PWA `#1361`) newest uncached
+     * card images for the active thread in the background without blocking UI.
+     */
+    fun prefetchNewestImages(
+        targets: List<RichImagePrefetchTarget>,
+        limit: Int = DEFAULT_IMAGE_PREFETCH_LIMIT,
+    ) {
+        if (!lifecycle.isForeground || limit <= 0 || targets.isEmpty()) return
+        val recent = targets.takeLast(limit).asReversed()
+        for (target in recent) {
+            fetchScope.launch {
+                runCatching {
+                    when (target) {
+                        is RichImagePrefetchTarget.Local -> loadLocalImage(target.path, variant = "card")
+                        is RichImagePrefetchTarget.Runtime -> loadRuntimeImage(target.ref, variant = "card")
+                    }
+                }
+            }
+        }
+    }
+
     private companion object {
         const val MAX_CACHED_IMAGES = 64
         const val MAX_CACHED_IMAGE_BYTES = 24L * 1024L * 1024L
+        const val DEFAULT_IMAGE_PREFETCH_LIMIT = 4
     }
 
     /**

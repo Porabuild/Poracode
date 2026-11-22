@@ -103,6 +103,7 @@ object RichChatHistoryMapper {
             payload = value.payload,
             streams = value.streams,
             parentItemId = value.parentItemId,
+            detailsDeferred = value.detailsDeferred,
         )
         // Exercise the same strict persisted-item boundary used by shared fixtures.
         val canonical = kotlinx.serialization.json.buildJsonObject {
@@ -117,6 +118,9 @@ object RichChatHistoryMapper {
                 ),
             )
             projected.parentItemId?.let { put("parentItemId", kotlinx.serialization.json.JsonPrimitive(it)) }
+            projected.detailsDeferred?.let {
+                put("detailsDeferred", kotlinx.serialization.json.JsonPrimitive(it))
+            }
         }
         return RichContentDecoder.decodePersistedItem(canonical) ?: invalid("runtime item")
     }

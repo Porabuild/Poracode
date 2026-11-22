@@ -190,6 +190,38 @@ interface RemoteBoundedReadGateway {
 }
 
 /**
+ * Optional fast-path interactive history reads implemented by [RemoteApiClient]
+ * (durable recent-history tail cache, compact `details-v1` + `deferBodies=file_change`,
+ * incremental `thread-history-changes` resume, and bounded transient retries).
+ */
+internal interface RemoteInteractiveHistoryGateway {
+    suspend fun interactiveThreadHistory(
+        threadId: String,
+        targetTimelineEntryCount: Int? = null,
+    ): RemoteBoundedReadResult<RemoteThreadSnapshot, RemoteThreadSnapshot>
+
+    suspend fun interactiveHistoryItems(
+        threadId: String,
+        beforePosition: Int?,
+        limit: Int = RemoteBoundedReadGateway.DEFAULT_HISTORY_ITEMS_LIMIT,
+        targetTimelineEntryCount: Int? = null,
+    ): RemoteBoundedReadResult<RemoteRuntimeItemsPage, RemoteRuntimeItemsPage>
+
+    suspend fun interactiveThreadTurns(
+        threadId: String,
+        cursor: String?,
+        limit: Int = RemoteBoundedReadGateway.DEFAULT_TURNS_LIMIT,
+    ): RemoteThreadTurnsPage
+
+    suspend fun threadHistoryChanges(
+        threadId: String,
+        cursor: String,
+        afterSeq: Int? = null,
+        targetTimelineEntryCount: Int? = null,
+    ): RemoteHistoryResumeOutcome
+}
+
+/**
  * B1 declared history-notice surface (`notices=v1`). Additive optional
  * surface: a gateway that predates B1 does not implement it, and the session
  * treats gap recovery as unsupported exactly like a host that never
