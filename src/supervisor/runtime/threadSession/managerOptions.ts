@@ -157,6 +157,7 @@ export interface ThreadSessionManagerOptions {
       threadId: string,
       servers: McpServer[],
       location: ProjectLocation,
+      options?: { pooled?: boolean },
     ): Promise<McpServer[]>;
     releaseThread(threadId: string): Promise<void>;
     modelContext(threadId: string): string | undefined;

@@ -1,161 +1,80 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ProjectLocation } from "@/shared/contracts";
 import type { DetectProbeCtx } from "../base";
-import type { OpenCodeSdkInventory } from "./sdkProbe";
 
-const probeOpenCodeInventoryViaSdk = vi.hoisted(() =>
-  vi.fn<
-    (location: ProjectLocation, signal?: AbortSignal) => Promise<OpenCodeSdkInventory | undefined>
-  >(),
+const acquireOpenCodeServer = vi.hoisted(() =>
+  vi.fn<(input: { projectLocation: ProjectLocation }) => Promise<never>>(),
 );
 
-vi.mock("./sdkProbe", () => ({ probeOpenCodeInventoryViaSdk }));
-
-const readAgentCommandOutput = vi.hoisted(() =>
-  vi.fn<typeof import("../base").readAgentCommandOutput>(),
-);
-vi.mock("../base", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("../base")>()),
-  readAgentCommandOutput,
+vi.mock("./client", () => ({
+  listOpenCodeLegacyOAuthCredentials: vi
+    .fn<typeof import("./client").listOpenCodeLegacyOAuthCredentials>()
+    .mockResolvedValue([]),
+  acquireOpenCodeServer,
+  resolveOpenCodeSessionDirectory: (location: ProjectLocation) =>
+    location.kind === "wsl" ? location.linuxPath : location.path,
 }));
 
-import { opencodeDetectionSpec } from "./detection";
+import { openCodeDetectionSpec } from "./detection";
 
-const inventory = { providers: [], connected: [], agents: [] };
-
-function probeContext(location: ProjectLocation, signal: AbortSignal): DetectProbeCtx {
+function probeContext(location: ProjectLocation): DetectProbeCtx {
   return {
     location,
     executablePath: "opencode",
-    version: "1.14.19",
-    signal,
+    version: "2.0.26",
   };
 }
 
 beforeEach(() => {
-  probeOpenCodeInventoryViaSdk.mockReset();
-  readAgentCommandOutput.mockReset().mockResolvedValue({ ok: true, stdout: "", stderr: "" });
+  acquireOpenCodeServer.mockReset().mockRejectedValue(new Error("probe closed"));
 });
 
-afterEach(() => vi.restoreAllMocks());
-
 describe("OpenCode detection probe sharing", () => {
-  it("shares status and capability work only when callers share a cancellation signal", async () => {
-    probeOpenCodeInventoryViaSdk.mockResolvedValue(inventory);
-    const signal = new AbortController().signal;
-    const ctx = probeContext({ kind: "posix", path: "/same-signal" }, signal);
+  it("shares one pooled sidecar across concurrent detections of the same target", async () => {
+    const location: ProjectLocation = { kind: "posix", path: "/same-target" };
 
     await Promise.all([
-      opencodeDetectionSpec.statusProbe?.(ctx),
-      opencodeDetectionSpec.capabilitiesProbe?.(ctx),
+      openCodeDetectionSpec.capabilitiesProbe?.(probeContext(location)),
+      openCodeDetectionSpec.capabilitiesProbe?.(probeContext(location)),
     ]);
 
-    expect(probeOpenCodeInventoryViaSdk).toHaveBeenCalledOnce();
-    expect(readAgentCommandOutput).toHaveBeenCalledExactlyOnceWith(
-      ctx.location,
-      "opencode",
-      ["models", "--refresh"],
-      expect.objectContaining({ signal, timeoutMs: 15_000 }),
-    );
+    expect(acquireOpenCodeServer).toHaveBeenCalledOnce();
   });
 
-  it("does not share pending work between independently cancellable detections", async () => {
-    let resolveFirst: ((value: typeof inventory) => void) | undefined;
-    probeOpenCodeInventoryViaSdk
-      .mockImplementationOnce(
-        () =>
-          new Promise<typeof inventory>((resolve) => {
-            resolveFirst = resolve;
-          }),
-      )
-      .mockResolvedValueOnce(inventory);
-    const location: ProjectLocation = { kind: "posix", path: "/different-signals" };
-    const first = opencodeDetectionSpec.statusProbe?.(
-      probeContext(location, new AbortController().signal),
-    );
-    await vi.waitFor(() => expect(probeOpenCodeInventoryViaSdk).toHaveBeenCalledOnce());
+  it("does not share pending work between different detection targets", async () => {
+    await Promise.all([
+      openCodeDetectionSpec.capabilitiesProbe?.(probeContext({ kind: "posix", path: "/first" })),
+      openCodeDetectionSpec.capabilitiesProbe?.(probeContext({ kind: "posix", path: "/second" })),
+    ]);
 
-    const second = opencodeDetectionSpec.statusProbe?.(
-      probeContext(location, new AbortController().signal),
-    );
-    await vi.waitFor(() => expect(probeOpenCodeInventoryViaSdk).toHaveBeenCalledTimes(2));
-    resolveFirst?.(inventory);
-
-    await Promise.all([first, second]);
+    expect(acquireOpenCodeServer).toHaveBeenCalledTimes(2);
   });
 
-  it("waits for cache refresh before reading the updated SDK inventory", async () => {
-    let finishRefresh: (() => void) | undefined;
-    readAgentCommandOutput.mockImplementationOnce(
-      () =>
-        new Promise((resolve) => {
-          finishRefresh = () => resolve({ ok: true, stdout: "Models cache refreshed", stderr: "" });
-        }),
+  it("keeps the default capabilities when the probe fails", async () => {
+    const result = await openCodeDetectionSpec.capabilitiesProbe?.(
+      probeContext({ kind: "posix", path: "/failing" }),
     );
-    probeOpenCodeInventoryViaSdk.mockResolvedValue({
-      providers: [
-        {
-          id: "opencode",
-          name: "OpenCode",
-          models: [{ id: "new-model", name: "New Model", variants: ["high"] }],
-        },
-      ],
-      connected: ["opencode"],
-      agents: [],
+
+    // `undefined` means "no capability override", so the spec defaults win.
+    expect(result).toBeUndefined();
+    expect(acquireOpenCodeServer).toHaveBeenCalledOnce();
+  });
+
+  it("does not launch an incompatible pre-permissions beta", async () => {
+    await openCodeDetectionSpec.capabilitiesProbe?.({
+      ...probeContext({ kind: "posix", path: "/old" }),
+      version: "0.0.0-beta-19425",
     });
-    const ctx = probeContext({ kind: "posix", path: "/refresh" }, new AbortController().signal);
-    const probe = opencodeDetectionSpec.capabilitiesProbe!(ctx);
-    expect(probeOpenCodeInventoryViaSdk).not.toHaveBeenCalled();
-    finishRefresh?.();
-    expect(await probe).toMatchObject({
-      models: [{ id: "opencode/new-model", label: "New Model" }],
-    });
+    expect(acquireOpenCodeServer).not.toHaveBeenCalled();
   });
 
-  it("keeps cached inventory available after a failed refresh", async () => {
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
-    readAgentCommandOutput.mockResolvedValue({ ok: false, stdout: "", stderr: "offline" });
-    probeOpenCodeInventoryViaSdk.mockResolvedValue(inventory);
-    const ctx = probeContext({ kind: "posix", path: "/offline" }, new AbortController().signal);
-    await expect(opencodeDetectionSpec.capabilitiesProbe!(ctx)).resolves.toMatchObject({
-      models: [],
+  it("skips the probe when no executable was resolved", async () => {
+    const result = await openCodeDetectionSpec.capabilitiesProbe?.({
+      location: { kind: "posix", path: "/missing" },
+      executablePath: undefined,
     });
-    expect(probeOpenCodeInventoryViaSdk).toHaveBeenCalledOnce();
-    expect(warn).toHaveBeenCalledWith(expect.stringContaining("model cache refresh failed"));
-  });
 
-  it("does not start a server when detection is cancelled during refresh", async () => {
-    const abort = new AbortController();
-    readAgentCommandOutput.mockImplementationOnce(async () => {
-      abort.abort(new Error("cancelled"));
-      return { ok: false, stdout: "", stderr: "aborted" };
-    });
-    const ctx = probeContext({ kind: "posix", path: "/cancelled" }, abort.signal);
-    await expect(opencodeDetectionSpec.capabilitiesProbe!(ctx)).rejects.toThrow("cancelled");
-    expect(probeOpenCodeInventoryViaSdk).not.toHaveBeenCalled();
-  });
-
-  it("refreshes in the detected WSL environment using its executable and probe env", async () => {
-    probeOpenCodeInventoryViaSdk.mockResolvedValue(inventory);
-    const ctx = {
-      ...probeContext(
-        {
-          kind: "wsl",
-          distro: "Ubuntu",
-          linuxPath: "/home/test",
-          uncPath: "\\\\wsl$\\Ubuntu\\home\\test",
-        },
-        new AbortController().signal,
-      ),
-      executablePath: "/home/test/bin/opencode",
-      probeEnv: { OPENCODE_CONFIG_DIR: "/home/test/config" },
-    };
-    await opencodeDetectionSpec.capabilitiesProbe!(ctx);
-    expect(readAgentCommandOutput).toHaveBeenCalledWith(
-      ctx.location,
-      ctx.executablePath,
-      ["models", "--refresh"],
-      expect.objectContaining({ env: ctx.probeEnv, signal: ctx.signal }),
-    );
+    expect(result).toBeUndefined();
+    expect(acquireOpenCodeServer).not.toHaveBeenCalled();
   });
 });

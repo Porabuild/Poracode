@@ -111,7 +111,7 @@ import { isRemoteProcedure } from "../remote/procedures";
 // (the rail shows the loaded transcript), so hop 18 stays compatible.
 // Per-thread token usage adds one main-local database read name. Older peers
 // reject the unknown name before any effect, existing names and payloads are
-// unchanged, and it stays out of the remote allowlist, so hop 18 stays.
+// unchanged, and it stays out of the remote allowlist, so hop 18 stays compatible.
 // Agent config defaults: `getAgentConfigDefaults` is an additive supervisor-local,
 // read-only name with a closed `{ agentKind }` request. It is outside the remote
 // allowlist (the browser bridge answers empty), and an older supervisor rejects
@@ -145,22 +145,35 @@ import { isRemoteProcedure } from "../remote/procedures";
 // Batched worktree source-branch lookup adds one read-only supervisor name
 // (`gitWorktreeSourceBranchBatch`); older hosts reject it by name with 403 and
 // callers fall back to `gitGetWorktreeSourceBranch`, so hop 19 stays.
-const HOP_PIN = `${IPC_PROCEDURE_MAP_VERSION}:01083209f50c6394d9e21a3355c4e19ad49801e03c18831ae854a5d743121c24`;
+// Pooled MCP session identity adds one internal supervisor-only name
+// (`resolveMcpSessionIdentity`, outside the remote allowlist); older supervisors
+// reject the unknown name before lookup and callers fall back to unscoped ingress,
+// so hop 19 stays compatible.
+const HOP_PIN = `${IPC_PROCEDURE_MAP_VERSION}:7e763b417c935fd0aa19169f7a9550f25948f449c538f87826854d1c87a4e8ae`;
 
 const preWorkspaceTerminalMap = (line: string) =>
-  !/^(controlWorkspaceTerminal|appThreadRequests|gitWorktreeSourceBranchBatch):/u.test(line);
+  !/^(controlWorkspaceTerminal|appThreadRequests|gitWorktreeSourceBranchBatch|resolveMcpSessionIdentity):/u.test(
+    line,
+  );
 
 describe("IPC procedure map versioning", () => {
   it("preserves earlier procedures and keeps live request reply custody on the supervisor", () => {
     const prior = ipcProcedureMapFingerprint()
       .split("\n")
-      .filter((line) => !/^(appThreadRequests|gitWorktreeSourceBranchBatch):/u.test(line))
+      .filter(
+        (line) =>
+          !/^(appThreadRequests|gitWorktreeSourceBranchBatch|resolveMcpSessionIdentity):/u.test(
+            line,
+          ),
+      )
       .join("\n");
     expect(createHash("sha256").update(prior).digest("hex")).toBe(
       "2baa89a686dc74f6a2f2dd2acf8cd4a778a958590e754969eb8e014cdb62dad9",
     );
     expect(ipcProcedureMap.appThreadRequests.transport).toBe("supervisor");
     expect(isRemoteProcedure("appThreadRequests")).toBe(false);
+    expect(ipcProcedureMap.resolveMcpSessionIdentity.transport).toBe("supervisor");
+    expect(isRemoteProcedure("resolveMcpSessionIdentity")).toBe(false);
   });
   it("preserves the pre-ports map while keeping port termination off remote transports", () => {
     const previous = ipcProcedureMapFingerprint()

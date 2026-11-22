@@ -32,6 +32,11 @@ import { setTimeout as sleep } from "node:timers/promises";
 import { spawn } from "node-pty";
 import type { TerminalPtyFactory } from "../pty/managedPty";
 import type { McpThreadIdentity } from "@/shared/browserMcpThread";
+import type {
+  ResolveMcpSessionIdentityPayload,
+  ResolveMcpSessionIdentityResult,
+  SupervisorEvent,
+} from "@/shared/ipc";
 import {
   type ClearPendingSteerPayload,
   type ControlThreadGoalPayload,
@@ -125,7 +130,6 @@ import {
   type StartThreadAttemptOutcome,
 } from "./threadSession/unpublishedStartFailure";
 import type { RuntimeEventBufferOverflow } from "./threadSession/runtimeEventBuffer";
-import type { SupervisorEvent } from "@/shared/ipc";
 import { SessionRuntimeLifecycle } from "./threadSession/sessionRuntimeLifecycle";
 import type { ThreadSessionManagerOptions } from "./threadSession/managerOptions";
 import { PtyLifecycle } from "./threadSession/ptyLifecycle";
@@ -490,6 +494,60 @@ export class ThreadSessionManager {
     return undefined;
   }
 
+  async resolveMcpSessionIdentity(
+    payload: ResolveMcpSessionIdentityPayload,
+  ): Promise<ResolveMcpSessionIdentityResult> {
+    const threadId = this.getThreadIdByProviderMcpMetadata(payload.metadata);
+    const session = threadId ? this.sessions.get(threadId) : undefined;
+    if (!session) return null;
+    const presentationMode =
+      session.presentationMode ?? session.adapter.capabilities.presentationMode;
+    const effectiveConfig =
+      presentationMode === "gui"
+        ? this.spawnPipeline.resolveMcpLaunchConfig(
+            workspaceLaunchConfig(
+              session.projectLocation,
+              session.config,
+              session.adapter,
+              session.mcpLaunchSnapshot.disabledBuiltInMcpServerIds,
+              session.mcpLaunchSnapshot.pluginBuiltInMcpServerIds,
+              effectiveProjectLocation(session),
+            ),
+            session.mcpLaunchSnapshot,
+            session.adapter,
+            session.threadId,
+            session.projectLocation,
+            presentationMode,
+          )
+        : (session.launchConfig ?? session.config);
+    const disabledServers = session.mcpLaunchSnapshot.disabledBuiltInMcpServerIds;
+    const disabledByServer = session.mcpLaunchSnapshot.disabledBuiltInMcpTools;
+    let disabledTools: readonly string[] | undefined;
+    if (payload.serverId === "browser") {
+      if (disabledServers.includes("browser") || effectiveConfig.browserMcp !== true) {
+        return null;
+      }
+      disabledTools = disabledByServer?.browser;
+    } else if (payload.serverId === "chrome") {
+      if (disabledServers.includes("chrome") || effectiveConfig.chromeMcp !== true) {
+        return null;
+      }
+      disabledTools = disabledByServer?.chrome;
+    } else if (payload.serverId === "computer-use") {
+      if (disabledServers.includes("computer-use") || effectiveConfig.computerUse !== true) {
+        return null;
+      }
+      disabledTools = disabledByServer?.["computer-use"];
+    } else if (payload.serverId === "app-controls") {
+      disabledTools = disabledByServer?.["app-controls"];
+    }
+    return {
+      threadId: session.threadId,
+      ...(session.mcpTitle ? { title: session.mcpTitle } : {}),
+      ...(disabledTools && disabledTools.length > 0 ? { disabledTools: [...disabledTools] } : {}),
+    };
+  }
+
   /** Provider parsers cannot route calls to a different adapter's sessions. */
   getThreadIdByProviderMcpMetadata(
     metadata: Readonly<Record<string, unknown>>,
@@ -848,7 +906,9 @@ export class ThreadSessionManager {
       identity,
       adapter: targetAdapter,
     });
-    return mcpServers.length > 0 || targetAdapter.capabilities.mcpConfigSource === "agentSettings"
+    return mcpServers.length > 0 ||
+      targetAdapter.capabilities.mcpConfigSource === "agentSettings" ||
+      targetAdapter.poolsDirectoryMcp === true
       ? { mcpServers }
       : {};
   }
@@ -1529,6 +1589,10 @@ export class ThreadSessionManager {
       }
       if (session.status !== "inactive" && session.structuredSession) {
         assertWorkspaceLiveConfig(session, effectiveConfig);
+      }
+      if (!session.mcpTitle) {
+        const firstLine = prompt.split("\n", 1)[0]?.trim();
+        if (firstLine) session.mcpTitle = firstLine;
       }
       // Restart receives its own candidate config; leave the predecessor unchanged.
       if (!session.workspaceScope || (session.status !== "inactive" && session.structuredSession))

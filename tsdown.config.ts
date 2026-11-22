@@ -59,7 +59,6 @@ const deps = {
     "sharp",
     "@anthropic-ai/claude-agent-sdk",
     "@cursor/sdk",
-    "@opencode-ai/sdk",
   ],
 };
 

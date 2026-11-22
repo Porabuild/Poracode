@@ -64,10 +64,6 @@
       "order": 70,
       "defaultFastEnabled": true
     },
-    "opencode2": {
-      "order": 71,
-      "defaultFastEnabled": true
-    },
     "pi": {
       "order": 75,
       "defaultFastEnabled": true

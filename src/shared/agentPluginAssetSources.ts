@@ -1,7 +1,7 @@
 import { existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 
-const PROVIDER_RUNTIME_ASSETS = ["forward.mjs", "poracode-status.mjs"];
+const PROVIDER_RUNTIME_ASSETS = ["forward.mjs"];
 
 export interface AgentPluginSource {
   kind: string;

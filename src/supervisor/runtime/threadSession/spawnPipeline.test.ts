@@ -446,6 +446,16 @@ describe("usesProviderSessionCrossagentRouting", () => {
     expect(usesProviderSessionCrossagentRouting(adapter, undefined, "thread-1")).toBe(false);
   });
 
+  it("allows provider-session routing on terminal threads when poolsDirectoryMcp is true", () => {
+    expect(
+      usesProviderSessionCrossagentRouting(
+        { ...adapter, poolsDirectoryMcp: true },
+        "terminal",
+        "thread-1",
+      ),
+    ).toBe(true);
+  });
+
   it("requires a thread id and provider support", () => {
     expect(usesProviderSessionCrossagentRouting(adapter, "gui", undefined)).toBe(false);
     expect(

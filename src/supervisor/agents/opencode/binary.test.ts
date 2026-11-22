@@ -1,130 +1,99 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { mkdtempSync, mkdirSync, rmSync, realpathSync, symlinkSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { afterEach, describe, expect, it } from "vitest";
 import {
-  acceptOpenCode1Binary,
-  clearOpenCode1BinaryCache,
-  isOpenCode1CliVersion,
-  isOpenCode2ForeignInstallPath,
-  resolveOpenCode1Binary,
+  acceptOpenCodeBinary,
+  isOpenCode1PackagePath,
+  isOpenCodeStub,
+  parseOpenCodeVersion,
+  requireOpenCodeVersion,
+  unwrapOpenCodeBinary,
 } from "./binary";
-import {
-  acceptOpenCode2Binary,
-  parseOpenCode2Version,
-  supportsOpenCode2Version,
-} from "../opencode2/binary";
 
-const mocks = vi.hoisted(() => ({
-  readAgentCommandOutput: vi.fn<() => Promise<{ ok: boolean; stdout: string; stderr: string }>>(),
-  resolveExecutablePathAsync: vi.fn<() => Promise<string | undefined>>(),
-  resolveAgentBinaryPath: vi.fn<() => string | undefined>(),
-}));
-
-vi.mock("../base", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("../base")>()),
-  readAgentCommandOutput: mocks.readAgentCommandOutput,
-  resolveExecutablePathAsync: mocks.resolveExecutablePathAsync,
-}));
-
-vi.mock("../binaryResolver", () => ({
-  resolveAgentBinaryPath: mocks.resolveAgentBinaryPath,
-}));
-
+const roots: string[] = [];
 afterEach(() => {
-  clearOpenCode1BinaryCache();
+  for (const path of roots.splice(0)) rmSync(path, { recursive: true, force: true });
 });
 
-describe("OpenCode 1 vs OpenCode 2 CLI identity", () => {
-  it("accepts only the 1.x version line as OpenCode 1", () => {
-    expect(isOpenCode1CliVersion("1.18.30")).toBe(true);
-    expect(isOpenCode1CliVersion("v1.14.19")).toBe(true);
-    expect(isOpenCode1CliVersion("1.18.30-beta.1")).toBe(true);
-    expect(isOpenCode1CliVersion("2.0.0")).toBe(false);
-    expect(isOpenCode1CliVersion("v2.0.0")).toBe(false);
-    expect(isOpenCode1CliVersion("0.0.0-beta-19500")).toBe(false);
-    expect(isOpenCode1CliVersion("0.0.0-beta")).toBe(false);
-    expect(isOpenCode1CliVersion(undefined)).toBe(false);
-  });
+function root() {
+  const path = mkdtempSync(join(tmpdir(), "opencode-binary-"));
+  roots.push(path);
+  return path;
+}
 
-  it("treats the V2 managed prefix and @opencode/cli package as foreign", () => {
-    expect(
-      isOpenCode2ForeignInstallPath(
-        "/Users/me/.opencode2/node_modules/@opencode/cli/bin/opencode.exe",
-      ),
-    ).toBe(true);
-    expect(
-      isOpenCode2ForeignInstallPath(
-        "C:\\Users\\me\\.opencode2\\node_modules\\@opencode\\cli\\bin\\opencode.exe",
-      ),
-    ).toBe(true);
-    expect(
-      isOpenCode2ForeignInstallPath("/usr/local/lib/node_modules/@opencode/cli/bin/opencode.exe"),
-    ).toBe(true);
-    expect(isOpenCode2ForeignInstallPath("/Users/me/.opencode/bin/opencode")).toBe(false);
-    expect(isOpenCode2ForeignInstallPath("/opt/homebrew/bin/opencode")).toBe(false);
-  });
-
-  it("never lets both adapters accept the same binary", () => {
-    const cases: Array<{ path: string; v1: string | undefined; v2Output: string }> = [
-      { path: "/opt/homebrew/bin/opencode", v1: "1.18.30", v2Output: "opencode v1.18.30" },
-      {
-        path: "/Users/me/.opencode2/node_modules/@opencode/cli/bin/opencode.exe",
-        v1: "2.0.0",
-        v2Output: "opencode v2.0.0",
-      },
-      {
-        path: "/usr/local/lib/node_modules/opencode-ai/bin/opencode",
-        v1: "1.18.27",
-        v2Output: "1.18.27",
-      },
-      { path: "/usr/bin/opencode", v1: "2.0.0", v2Output: "opencode v2.0.0" },
-      {
-        path: "/tmp/opencode2.cjs",
-        v1: undefined,
-        v2Output: "opencode2 is now just opencode. run opencode",
-      },
-    ];
-    for (const row of cases) {
-      const v1 = acceptOpenCode1Binary(row.path, row.v1);
-      const v2 = acceptOpenCode2Binary(row.path, parseOpenCode2Version(row.v2Output));
-      expect(v1 && v2, `${row.path} ${row.v1}`).toBe(false);
-    }
-  });
-
-  it("lets OpenCode 2 take a PATH `opencode` that reports 2.0.26", () => {
-    expect(acceptOpenCode1Binary("/usr/bin/opencode", "2.0.26")).toBe(false);
-    expect(supportsOpenCode2Version("2.0.26")).toBe(true);
-    expect(acceptOpenCode2Binary("/usr/bin/opencode", "2.0.26")).toBe(true);
-  });
-});
-
-describe("resolveOpenCode1Binary", () => {
-  it("keeps a 1.x PATH binary and ignores a 2.0.0 PATH binary", async () => {
-    mocks.resolveExecutablePathAsync.mockReset().mockResolvedValue("/opt/homebrew/bin/opencode");
-    mocks.resolveAgentBinaryPath.mockReset().mockReturnValue("/opt/homebrew/bin/opencode");
-    mocks.readAgentCommandOutput.mockReset().mockResolvedValue({
-      ok: true,
-      stdout: "opencode v1.18.30\n",
-      stderr: "",
-    });
-    await expect(resolveOpenCode1Binary({ kind: "posix", path: "/repo" })).resolves.toBe(
-      "/opt/homebrew/bin/opencode",
+describe("OpenCode executable migration", () => {
+  it("unwraps the current npm migration stub without running it", () => {
+    const path = root();
+    const stub = join(path, "opencode2.cjs");
+    const binary = join(path, "opencode.exe");
+    const alias = join(path, "opencode2");
+    writeFileSync(
+      stub,
+      'console.log("opencode2 is now just opencode. run opencode")\nprocess.exit(1)\n',
     );
-
-    mocks.readAgentCommandOutput.mockResolvedValue({
-      ok: true,
-      stdout: "opencode v2.0.0\n",
-      stderr: "",
-    });
-    await expect(
-      resolveOpenCode1Binary({ kind: "posix", path: "/other" }),
-    ).resolves.toBeUndefined();
+    writeFileSync(binary, "binary");
+    symlinkSync(stub, alias);
+    expect(isOpenCodeStub(alias)).toBe(true);
+    expect(unwrapOpenCodeBinary(alias)).toBe(realpathSync(binary));
+    expect(isOpenCodeStub(unwrapOpenCodeBinary(alias))).toBe(false);
   });
 
-  it("does not probe --version on a managed OpenCode 2 prefix path", async () => {
-    const v2 = "/Users/me/.opencode2/node_modules/@opencode/cli/bin/opencode.exe";
-    mocks.resolveExecutablePathAsync.mockReset().mockResolvedValue(v2);
-    mocks.resolveAgentBinaryPath.mockReset().mockReturnValue(v2);
-    mocks.readAgentCommandOutput.mockReset();
-    await expect(resolveOpenCode1Binary({ kind: "posix", path: "/repo" })).resolves.toBeUndefined();
-    expect(mocks.readAgentCommandOutput).not.toHaveBeenCalled();
+  it("resolves Windows npm shims to the package executable", () => {
+    const path = root();
+    const shim = join(path, "opencode2.cmd");
+    const bin = join(path, "node_modules", "@opencode", "cli", "bin");
+    mkdirSync(bin, { recursive: true });
+    writeFileSync(shim, "shim");
+    writeFileSync(join(bin, "opencode.exe"), "binary");
+    expect(unwrapOpenCodeBinary(shim)).toBe(realpathSync(join(bin, "opencode.exe")));
   });
+
+  it("keeps a standalone legacy binary separate from an adjacent executable", () => {
+    const path = root();
+    const binary = join(path, "opencode2.exe");
+    writeFileSync(binary, "legacy beta");
+    writeFileSync(join(path, "opencode.exe"), "other provider");
+    expect(unwrapOpenCodeBinary(binary)).toBe(binary);
+    expect(isOpenCodeStub(binary)).toBe(false);
+  });
+
+  it("rejects the V1 npm package layout even if the filename is opencode", () => {
+    expect(isOpenCode1PackagePath("/usr/local/lib/node_modules/opencode-ai/bin/opencode")).toBe(
+      true,
+    );
+    expect(
+      acceptOpenCodeBinary("/usr/local/lib/node_modules/opencode-ai/bin/opencode", "1.18.30"),
+    ).toBe(false);
+    expect(
+      isOpenCode1PackagePath("/Users/me/.opencode2/node_modules/@opencode/cli/bin/opencode.exe"),
+    ).toBe(false);
+  });
+
+  it("does not treat a lone npm stub as a runnable binary", () => {
+    const path = root();
+    const stub = join(path, "opencode2.cjs");
+    writeFileSync(
+      stub,
+      'console.log("opencode2 is now just opencode. run opencode")\nprocess.exit(1)\n',
+    );
+    expect(isOpenCodeStub(stub)).toBe(true);
+    expect(unwrapOpenCodeBinary(stub)).toBe(stub);
+  });
+});
+
+it("accepts published 2.0.26 and rejects older protocols", () => {
+  expect(parseOpenCodeVersion("opencode v2.0.26\n")).toBe("2.0.26");
+  expect(parseOpenCodeVersion("opencode v0.0.0-beta-19500\n")).toBe("0.0.0-beta-19500");
+  expect(parseOpenCodeVersion("opencode v1.18.30\n")).toBeUndefined();
+  expect(() => requireOpenCodeVersion("0.0.0-beta-19425")).toThrow(
+    "Update it in provider settings",
+  );
+  expect(() => requireOpenCodeVersion("0.0.0-beta-19500")).toThrow(
+    "Update it in provider settings",
+  );
+  expect(() => requireOpenCodeVersion("2.0.25")).toThrow("Update it in provider settings");
+  expect(() => requireOpenCodeVersion("2.1.0")).not.toThrow();
+  expect(() => requireOpenCodeVersion("2.0.26")).not.toThrow();
+  expect(() => requireOpenCodeVersion("1.18.30")).toThrow("Update it in provider settings");
 });

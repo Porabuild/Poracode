@@ -174,7 +174,20 @@ vi.mock("@heroui/react", () => {
     Content: Wrapper,
   });
 
+  const Modal = Object.assign(Wrapper, {
+    Backdrop: (props: { children?: ReactNode; isOpen?: boolean }) =>
+      props.isOpen ? <div>{props.children}</div> : null,
+    Container: Wrapper,
+    Dialog: Wrapper,
+    CloseTrigger: () => null,
+    Header: Wrapper,
+    Heading: Wrapper,
+    Body: Wrapper,
+    Footer: Wrapper,
+  });
+
   return {
+    Modal,
     Button,
     Card,
     Disclosure,

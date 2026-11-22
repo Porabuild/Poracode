@@ -14,7 +14,7 @@ export const SUPERVISOR_SETTINGS_SERVICE_VERSION = 0 as const;
 
 export const SSH_RUNTIME_ENTRY_CONFIG = {
   server: [],
-  supervisor: ["@opencode-ai/sdk", "@opencode/client", "@sentry/node"],
+  supervisor: ["@opencode/client", "@sentry/node"],
   claudeSdkProbeWorker: [],
   cursorSdkWorker: [],
 } as const satisfies Record<string, readonly string[]>;

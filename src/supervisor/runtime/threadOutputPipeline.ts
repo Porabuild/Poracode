@@ -512,7 +512,8 @@ export class ThreadOutputPipeline {
 
     const strippedData = stripAnsiPreservingLayout(dataAfterOsc);
     session.lastStrippedPtyChunk = strippedData;
-    const usesTerminalPresentation = session.adapter.capabilities.presentationMode === "terminal";
+    const usesTerminalPresentation =
+      (session.presentationMode ?? session.adapter.capabilities.presentationMode) === "terminal";
 
     if (
       usesTerminalPresentation &&
@@ -758,7 +759,7 @@ export class ThreadOutputPipeline {
       session.status !== "launching" ||
       !session.sessionRef ||
       !session.adapter.detectInvalidSessionRef ||
-      session.adapter.capabilities.presentationMode !== "terminal"
+      (session.presentationMode ?? session.adapter.capabilities.presentationMode) !== "terminal"
     ) {
       return false;
     }

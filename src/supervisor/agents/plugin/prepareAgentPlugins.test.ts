@@ -24,7 +24,6 @@ const EXPECTED_PLUGIN_KINDS = [
   "cursor",
   "gemini",
   "grok",
-  "opencode",
   "qoder",
 ] as const;
 
@@ -58,13 +57,10 @@ describe("agent plugin asset discovery", () => {
     expect(new Set(kinds).size).toBe(kinds.length);
   });
 
-  it("selects forward.mjs for forwarders and OpenCode's in-process asset", () => {
+  it("selects forward.mjs for every forwarder plugin", () => {
     const sources = discoverAgentPluginSources(agentsDir);
-    const byKind = new Map(sources.map((source) => [source.kind, source.assets]));
 
-    expect(byKind.get("opencode")).toEqual(["plugin.json", "poracode-status.mjs"]);
     for (const source of sources) {
-      if (source.kind === "opencode") continue;
       expect(source.assets).toEqual(["plugin.json", "forward.mjs"]);
     }
   });
@@ -79,7 +75,7 @@ describe("agent plugin asset discovery", () => {
     expect(runtime.destRel).toBe(join("_runtime", "poracode-hook-runtime.mjs"));
   });
 
-  it("rejects provider plugins without exactly one supported runtime asset", () => {
+  it("rejects provider plugins without a supported runtime asset", () => {
     const sourceAgentsDir = mkdtempSync(join(tmpdir(), "poracode-agent-sources-"));
     tempDirs.push(sourceAgentsDir);
     const pluginDir = join(sourceAgentsDir, "example", "plugin");
@@ -90,7 +86,6 @@ describe("agent plugin asset discovery", () => {
       "example must provide exactly one runtime asset",
     );
 
-    writeFileSync(join(pluginDir, "forward.mjs"), "export {};\n");
     writeFileSync(join(pluginDir, "poracode-status.mjs"), "export {};\n");
     expect(() => discoverAgentPluginSources(sourceAgentsDir)).toThrow(
       "example must provide exactly one runtime asset",

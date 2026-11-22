@@ -31,7 +31,6 @@ const EXPECTED_PROVIDER_ORDER = [
   "antigravity",
   "commandcode",
   "opencode",
-  "opencode2",
   "pi",
   "cursor",
   "copilot",

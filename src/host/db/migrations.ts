@@ -13,6 +13,7 @@ import {
   normalizePersistedAntigravityModelSelection,
   sanitizePersistedAntigravityContextUsage,
 } from "@/shared/agents/antigravity";
+import { LEGACY_OPENCODE2_KIND, OPENCODE_PROVIDER_KIND } from "@/shared/agents/opencode";
 import { repairDuplicateProjects } from "./projectDeduplication";
 import { HEAD_CHARS } from "./runtimeStreamCap";
 import { createRuntimeStreamHeadSchema } from "./runtimeStreamHeadSchema";
@@ -1281,6 +1282,173 @@ export const DATABASE_MIGRATIONS = [
     // A rollback to an unguarded writer could overwrite newer notes.
     rollback: "forward-only",
     migrate: (sqlite) => addColumnIfMissing(sqlite, "project_notes", "revision", "TEXT"),
+  },
+  {
+    version: 79,
+    name: "adopt OpenCode provider",
+    // Rewrites legacy opencode2 rows onto the unified OpenCode provider ID;
+    // older binaries still map that ID to OpenCode 1, so rollback is unsafe.
+    rollback: "forward-only",
+    migrate: (sqlite) => {
+      const migrateConfigRecord = (value: unknown): boolean => {
+        if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+        const record = value as Record<string, unknown>;
+        let changed = false;
+        if (record.agentKind === LEGACY_OPENCODE2_KIND) {
+          record.agentKind = OPENCODE_PROVIDER_KIND;
+          changed = true;
+        }
+        const binding = record.selectionBinding;
+        if (binding && typeof binding === "object" && !Array.isArray(binding)) {
+          const owner = (binding as Record<string, unknown>).owner;
+          if (
+            owner &&
+            typeof owner === "object" &&
+            !Array.isArray(owner) &&
+            (owner as Record<string, unknown>).agentKind === LEGACY_OPENCODE2_KIND
+          ) {
+            (owner as Record<string, unknown>).agentKind = OPENCODE_PROVIDER_KIND;
+            changed = true;
+          }
+        }
+        const crew = record.crew;
+        if (crew && typeof crew === "object" && !Array.isArray(crew)) {
+          const crewObj = crew as Record<string, unknown>;
+          if (migrateConfigRecord(crewObj.lead)) changed = true;
+          if (Array.isArray(crewObj.roles)) {
+            for (const role of crewObj.roles) {
+              if (!role || typeof role !== "object" || Array.isArray(role)) continue;
+              const roleObj = role as Record<string, unknown>;
+              if (migrateConfigRecord(roleObj.selection)) changed = true;
+              if (Array.isArray(roleObj.fallbacks)) {
+                for (const fallback of roleObj.fallbacks) {
+                  if (migrateConfigRecord(fallback)) changed = true;
+                }
+              }
+            }
+          }
+        }
+        return changed;
+      };
+      const migrateJsonColumn = (table: string, idColumn: string, jsonColumn: string) => {
+        if (!columnNames(sqlite, table).has(jsonColumn)) return;
+        const rows = sqlite
+          .prepare(
+            `SELECT ${idColumn} AS id, ${jsonColumn} AS raw FROM ${table} WHERE ${jsonColumn} IS NOT NULL AND ${jsonColumn} LIKE '%' || ? || '%'`,
+          )
+          .all(LEGACY_OPENCODE2_KIND) as { id: string | number; raw: string }[];
+        const update = sqlite.prepare(
+          `UPDATE ${table} SET ${jsonColumn} = ? WHERE ${idColumn} = ?`,
+        );
+        for (const row of rows) {
+          try {
+            const parsed = JSON.parse(row.raw) as unknown;
+            if (!migrateConfigRecord(parsed)) continue;
+            update.run(JSON.stringify(parsed), row.id);
+          } catch {
+            // Unparseable JSON stays untouched; readers fall back safely.
+          }
+        }
+      };
+
+      for (const table of ["threads", "scheduled_tasks", "pr_watches"] as const) {
+        if (columnNames(sqlite, table).has("agent_kind")) {
+          sqlite
+            .prepare(`UPDATE ${table} SET agent_kind = ? WHERE agent_kind = ?`)
+            .run(OPENCODE_PROVIDER_KIND, LEGACY_OPENCODE2_KIND);
+        }
+      }
+
+      migrateJsonColumn("projects", "id", "last_draft_config");
+      migrateJsonColumn("threads", "id", "config");
+      migrateJsonColumn("scheduled_tasks", "id", "config");
+      if (columnNames(sqlite, "pr_watches").has("config")) {
+        const rows = sqlite
+          .prepare(
+            `SELECT project_id, pr_number, config AS raw FROM pr_watches WHERE config IS NOT NULL AND config LIKE '%' || ? || '%'`,
+          )
+          .all(LEGACY_OPENCODE2_KIND) as { project_id: string; pr_number: number; raw: string }[];
+        const updateWatch = sqlite.prepare(
+          "UPDATE pr_watches SET config = ? WHERE project_id = ? AND pr_number = ?",
+        );
+        for (const row of rows) {
+          try {
+            const parsed = JSON.parse(row.raw) as unknown;
+            if (!migrateConfigRecord(parsed)) continue;
+            updateWatch.run(JSON.stringify(parsed), row.project_id, row.pr_number);
+          } catch {
+            // Unparseable watch config stays untouched.
+          }
+        }
+      }
+
+      if (columnNames(sqlite, "usage_events").has("provider")) {
+        sqlite
+          .prepare("UPDATE usage_events SET provider = ? WHERE provider = ?")
+          .run(OPENCODE_PROVIDER_KIND, LEGACY_OPENCODE2_KIND);
+      }
+
+      const ledgerCols = columnNames(sqlite, "usage_token_ledger");
+      if (ledgerCols.has("provider")) {
+        if (ledgerCols.has("cost_details")) {
+          sqlite
+            .prepare(
+              `INSERT INTO usage_token_ledger (provider, scope_id, epoch, last_counter, cost_details)
+               SELECT ?, scope_id, epoch, last_counter, cost_details
+               FROM usage_token_ledger
+               WHERE provider = ?
+               ON CONFLICT(provider, scope_id, epoch) DO UPDATE SET
+                 cost_details = CASE
+                   WHEN excluded.last_counter > usage_token_ledger.last_counter
+                     THEN excluded.cost_details
+                   ELSE usage_token_ledger.cost_details
+                 END,
+                 last_counter = MAX(usage_token_ledger.last_counter, excluded.last_counter)`,
+            )
+            .run(OPENCODE_PROVIDER_KIND, LEGACY_OPENCODE2_KIND);
+        } else {
+          sqlite
+            .prepare(
+              `INSERT INTO usage_token_ledger (provider, scope_id, epoch, last_counter)
+               SELECT ?, scope_id, epoch, last_counter
+               FROM usage_token_ledger
+               WHERE provider = ?
+               ON CONFLICT(provider, scope_id, epoch) DO UPDATE SET
+                 last_counter = MAX(usage_token_ledger.last_counter, excluded.last_counter)`,
+            )
+            .run(OPENCODE_PROVIDER_KIND, LEGACY_OPENCODE2_KIND);
+        }
+        sqlite
+          .prepare("DELETE FROM usage_token_ledger WHERE provider = ?")
+          .run(LEGACY_OPENCODE2_KIND);
+      }
+
+      if (columnNames(sqlite, "thread_token_usage").has("provider")) {
+        sqlite
+          .prepare(
+            `INSERT INTO thread_token_usage
+               (thread_id, member, provider, model, input, output, cache_read, cache_write, total,
+                cost_usd, priced_total, updated_at)
+             SELECT thread_id, member, ?, model, input, output, cache_read, cache_write, total,
+                    cost_usd, priced_total, updated_at
+             FROM thread_token_usage
+             WHERE provider = ?
+             ON CONFLICT(thread_id, member, provider, model) DO UPDATE SET
+               input = thread_token_usage.input + excluded.input,
+               output = thread_token_usage.output + excluded.output,
+               cache_read = thread_token_usage.cache_read + excluded.cache_read,
+               cache_write = thread_token_usage.cache_write + excluded.cache_write,
+               total = thread_token_usage.total + excluded.total,
+               cost_usd = thread_token_usage.cost_usd + excluded.cost_usd,
+               priced_total = thread_token_usage.priced_total + excluded.priced_total,
+               updated_at = MAX(thread_token_usage.updated_at, excluded.updated_at)`,
+          )
+          .run(OPENCODE_PROVIDER_KIND, LEGACY_OPENCODE2_KIND);
+        sqlite
+          .prepare("DELETE FROM thread_token_usage WHERE provider = ?")
+          .run(LEGACY_OPENCODE2_KIND);
+      }
+    },
   },
 ] as const satisfies readonly DatabaseMigration[];
 

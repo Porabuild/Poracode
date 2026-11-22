@@ -419,6 +419,19 @@ export class BackendDurableServices {
       getProject: dbGetProject,
       getProjectNotes: dbGetProjectNotes,
       compareAndSetProjectNotes: dbCompareAndSetProjectNotes,
+      resolvePooledIdentity: async (metadata, serverId) => {
+        const resolved = await supervisor.call("resolveMcpSessionIdentity", {
+          metadata,
+          serverId,
+        });
+        if (!resolved) return null;
+        const thread = dbGetThread(resolved.threadId);
+        return {
+          ...resolved,
+          ...(thread?.title ? { title: thread.title } : {}),
+          deviceProof: this.deviceWorkspace.issueThreadProof(resolved.threadId),
+        };
+      },
       ...(options.reopenThread ? { reopenThread: options.reopenThread } : {}),
       ...(options.importSession ? { importSession: options.importSession } : {}),
       ...(options.editCatalog ? { editCatalog: options.editCatalog } : {}),
@@ -780,8 +793,7 @@ export class BackendDurableServices {
     }
     // H4: cancel the sweep synchronously, before any join starts, and join its
     // in-flight operation in the same shutdown barrier. The composition stops
-    // the supervisor concurrently, so a held retirement call settles promptly
-    // instead of stalling the close.
+    // the supervisor concurrently while keeping SQLite open.
     this.housekeepingCancelled = true;
     const barrier = Promise.withResolvers<void>();
     this.disposal = barrier.promise;

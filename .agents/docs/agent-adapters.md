@@ -404,7 +404,7 @@ Before selecting a reference implementation, apply the [cross-provider integrati
   [Provider Isolation — Hard Rules](#provider-isolation--hard-rules).
 - L1 hook plugin → `pluginId`/`installPlugin`/`pluginLaunchExtras` plus a
   `plugin/` dir containing `plugin.json` and exactly one staged runtime
-  (`forward.mjs`, or OpenCode's `poracode-status.mjs`). Packaging discovers
+  (`forward.mjs`). Packaging discovers
   these automatically; `prepareAgentPlugins.test.ts` pins the provider set and
   staged asset shape. Hook Node resolution:
   [Provider Runtime](provider-runtime.md#hook-runtime-resolution).

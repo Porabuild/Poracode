@@ -1,33 +1,76 @@
 import { homedir } from "node:os";
 import { join } from "node:path";
-import { describe, expect, it } from "vitest";
+import { resolveSharedUpdateCommand } from "@/shared/agents/updateResolver";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createOpenCodeAdapter } from ".";
-import { buildOpenCodeArgs } from "./argv";
+import { createKnownSessionRef } from "../base";
+import { buildOpenCodeArgs, buildOpenCodeServerCommand } from "./argv";
+import { acquireOpenCodeServer } from "./client";
+import type { V2Event } from "./clientTypes";
+import { clearOpenCodeSessionDatabases, rememberOpenCodeSessionDatabase } from "./database";
 import {
-  attachOpenCodeProviderIds,
-  buildOpenCodeStatusFromSdkInventory,
-  humanizeOpenCodeModelId,
-  mapOpenCodeSlashCommands,
-  parseOpenCodeProvidersList,
-  humanizeOpenCodeSubProviderId,
-  parseOpenCodeVerboseModels,
+  buildOpenCodeCapabilityPartialFromInventory,
+  openCodeDetectionSpec,
+  type OpenCodeInventory,
 } from "./detection";
-import { opencodeIntentFor } from "./plugin/intentMap";
+import { subscribeOpenCodeServerEvents } from "./eventHub";
+import { OpenCodeSession } from "./session";
 import { detectOpenCodeTerminalStatus, opencodeOscHint, opencodeOscTitleHint } from "./terminal";
 
+vi.mock("./binary", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./binary")>()),
+  cachedOpenCodeBinary: () => undefined,
+  resolveOpenCodeBinary: async () => undefined,
+}));
+
+vi.mock("./client", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./client")>()),
+  acquireOpenCodeServer: vi.fn<typeof acquireOpenCodeServer>(),
+}));
+
+vi.mock("./eventHub", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./eventHub")>()),
+  subscribeOpenCodeServerEvents: vi.fn<typeof subscribeOpenCodeServerEvents>(),
+}));
+
+const disposeTerminalServer = vi.fn<() => Promise<void>>();
+const interruptTerminalSession = vi.fn<() => Promise<void>>();
+const updateTerminalSession = vi.fn<() => Promise<void>>();
+const unsubscribeTerminalEvents = vi.fn<() => void>();
+beforeEach(() => {
+  disposeTerminalServer.mockReset().mockResolvedValue(undefined);
+  interruptTerminalSession.mockReset().mockResolvedValue(undefined);
+  updateTerminalSession.mockReset().mockResolvedValue(undefined);
+  unsubscribeTerminalEvents.mockReset();
+  vi.mocked(subscribeOpenCodeServerEvents).mockReset().mockReturnValue(unsubscribeTerminalEvents);
+  vi.mocked(acquireOpenCodeServer)
+    .mockReset()
+    .mockResolvedValue({
+      baseUrl: "http://127.0.0.1:4300",
+      handle: { password: Promise.resolve("fixture-password") },
+      client: {
+        session: {
+          interrupt: interruptTerminalSession,
+          update: updateTerminalSession,
+        },
+        event: {
+          subscribe: vi.fn<() => void>(),
+        },
+      },
+      getDirectoryMcpNames: () => [],
+      onDirectoryMcpChanged: () => () => undefined,
+      dispose: disposeTerminalServer,
+    } as unknown as Awaited<ReturnType<typeof acquireOpenCodeServer>>);
+});
+
+afterEach(clearOpenCodeSessionDatabases);
+
 describe("buildOpenCodeArgs", () => {
-  it("emits no flags for a fresh launch with no model and no prompt", () => {
+  it("emits no flags for a fresh launch with no prompt", () => {
     expect(buildOpenCodeArgs({ model: "" }, "")).toEqual([]);
   });
 
-  it("forwards model in provider/model form via --model", () => {
-    expect(buildOpenCodeArgs({ model: "opencode/claude-haiku-4-5" }, "")).toEqual([
-      "--model",
-      "opencode/claude-haiku-4-5",
-    ]);
-  });
-
-  it("encodes initial prompt via --prompt instead of positional", () => {
+  it("encodes initial prompt via --prompt", () => {
     expect(buildOpenCodeArgs({ model: "" }, "hello world")).toEqual(["--prompt", "hello world"]);
   });
 
@@ -35,14 +78,10 @@ describe("buildOpenCodeArgs", () => {
     expect(buildOpenCodeArgs({ model: "" }, "", "ses_abc123")).toEqual(["--session", "ses_abc123"]);
   });
 
-  it("composes session, model, and prompt in order", () => {
-    expect(
-      buildOpenCodeArgs({ model: "opencode/gpt-5.4-mini" }, "continue please", "ses_abc"),
-    ).toEqual([
+  it("composes session and prompt in order", () => {
+    expect(buildOpenCodeArgs({ model: "" }, "continue please", "ses_abc")).toEqual([
       "--session",
       "ses_abc",
-      "--model",
-      "opencode/gpt-5.4-mini",
       "--prompt",
       "continue please",
     ]);
@@ -52,196 +91,184 @@ describe("buildOpenCodeArgs", () => {
     expect(buildOpenCodeArgs({ model: "" }, "   ")).toEqual([]);
   });
 
-  it("does not forward effort/variant — opencode CLI does not accept --variant", () => {
-    expect(buildOpenCodeArgs({ model: "opencode/claude-sonnet-4-6", effort: "high" }, "")).toEqual([
-      "--model",
-      "opencode/claude-sonnet-4-6",
-    ]);
-  });
-
-  it("does not forward an empty effort either", () => {
-    expect(buildOpenCodeArgs({ model: "opencode/big-pickle", effort: "" }, "")).toEqual([
-      "--model",
-      "opencode/big-pickle",
-    ]);
-  });
-
-  it("forwards plan mode via --agent plan", () => {
-    expect(buildOpenCodeArgs({ model: "opencode/big-pickle", mode: "plan" }, "")).toEqual([
-      "--model",
-      "opencode/big-pickle",
-      "--agent",
-      "plan",
-    ]);
-  });
-
-  it("does not pass --agent for the default (agent) mode", () => {
-    expect(buildOpenCodeArgs({ model: "opencode/big-pickle", mode: "agent" }, "")).toEqual([
-      "--model",
-      "opencode/big-pickle",
-    ]);
-  });
-});
-
-describe("parseOpenCodeVerboseModels", () => {
-  it("extracts variant keys and context limit per model from --verbose output", () => {
-    const sample = `opencode/big-pickle
-{
-  "id": "big-pickle",
-  "providerID": "opencode",
-  "variants": {}
-}
-opencode/claude-haiku-4-5
-{
-  "id": "claude-haiku-4-5",
-  "providerID": "opencode",
-  "variants": {
-    "high": { "thinking": { "type": "enabled" } },
-    "max": { "thinking": { "type": "enabled" } }
-  },
-  "limit": { "context": 200000, "output": 8192 }
-}
-opencode/claude-opus-4-6
-{
-  "id": "claude-opus-4-6",
-  "providerID": "opencode",
-  "variants": {
-    "low": { "effort": "low" },
-    "medium": { "effort": "medium" },
-    "high": { "effort": "high" },
-    "max": { "effort": "max" }
-  },
-  "limit": { "context": 1000000, "output": 64000 }
-}
-opencode/deepseek-v4
-{
-  "id": "deepseek-v4",
-  "providerID": "opencode",
-  "variants": {},
-  "limit": { "context": 131072, "output": 8192 }
-}
-`;
-    expect(parseOpenCodeVerboseModels(sample)).toEqual([
-      { id: "opencode/big-pickle", variants: [] },
-      { id: "opencode/claude-haiku-4-5", variants: ["high", "max"], contextLimit: 200000 },
-      {
-        id: "opencode/claude-opus-4-6",
-        variants: ["low", "medium", "high", "max"],
-        contextLimit: 1000000,
-      },
-      { id: "opencode/deepseek-v4", variants: [], contextLimit: 131072 },
-    ]);
-  });
-
-  it("returns empty list for unparseable JSON without throwing", () => {
-    const sample = `opencode/broken
-{ this is not json
-`;
-    expect(parseOpenCodeVerboseModels(sample)).toEqual([{ id: "opencode/broken", variants: [] }]);
-  });
-
-  it("returns no entries when stdout is empty", () => {
-    expect(parseOpenCodeVerboseModels("")).toEqual([]);
-  });
-});
-
-describe("parseOpenCodeProvidersList", () => {
-  it("extracts connected upstream providers and auth type", () => {
+  it("does not forward model, effort, or mode — the V2 TUI has no --model/--agent flags", () => {
     expect(
-      parseOpenCodeProvidersList(`┌  Credentials ~/.local/share/opencode/auth.json
-│
-●  OpenCode Zen api
-│
-●  GitHub Copilot oauth
-│
-●  OpenAI oauth
-│
-└  3 credentials`),
-    ).toEqual([
-      { label: "OpenCode Zen", detail: "API" },
-      { label: "Copilot", detail: "OAuth" },
-      { label: "OpenAI", detail: "OAuth" },
-    ]);
-  });
-});
-
-describe("attachOpenCodeProviderIds", () => {
-  it("zips auth.json ids onto providers by index", () => {
-    expect(
-      attachOpenCodeProviderIds(
-        [
-          { label: "OpenCode Zen", detail: "API" },
-          { label: "Copilot", detail: "OAuth" },
-          { label: "OpenAI", detail: "OAuth" },
-        ],
-        ["opencode", "github-copilot", "openai"],
+      buildOpenCodeArgs(
+        { model: "opencode-go/deepseek-v4.1-flash", effort: "max", mode: "plan" },
+        "",
       ),
-    ).toEqual([
-      { label: "OpenCode Zen", detail: "API", id: "opencode" },
-      { label: "Copilot", detail: "OAuth", id: "github-copilot" },
-      { label: "OpenAI", detail: "OAuth", id: "openai" },
-    ]);
-  });
-
-  it("leaves ids off when counts differ (avoids logging out the wrong provider)", () => {
-    expect(
-      attachOpenCodeProviderIds([{ label: "OpenCode Zen", detail: "API" }], ["opencode", "openai"]),
-    ).toEqual([{ label: "OpenCode Zen", detail: "API" }]);
-  });
-
-  it("returns a fresh array for an empty provider list", () => {
-    expect(attachOpenCodeProviderIds([], ["opencode"])).toEqual([]);
+    ).toEqual([]);
   });
 });
 
-describe("buildOpenCodeStatusFromSdkInventory", () => {
-  it("derives connected-provider status without launching a second OpenCode process", () => {
-    expect(
-      buildOpenCodeStatusFromSdkInventory({
-        providers: [
-          { id: "opencode", name: "OpenCode Zen", models: [] },
-          { id: "github-copilot", name: "", models: [] },
-        ],
-        connected: ["opencode", "github-copilot"],
-        agents: [],
-      }),
-    ).toEqual({
-      authState: "authenticated",
-      providerMetadata: {
-        connectedProviders: [
-          { id: "opencode", label: "OpenCode Zen" },
-          { id: "github-copilot", label: "Copilot" },
-        ],
-      },
+describe("buildOpenCodeServerCommand", () => {
+  it("serves on loopback with an ephemeral port from the runtime home", () => {
+    const spec = buildOpenCodeServerCommand(
+      { kind: "posix", path: "/repo" },
+      "/usr/local/bin/opencode",
+    );
+
+    // An absolute exec path takes buildAgentCommand's direct-spawn fast path.
+    expect(spec).toEqual({
+      command: "/usr/local/bin/opencode",
+      args: ["serve", "--hostname=127.0.0.1", "--port=0", "--print-logs"],
+      cwd: homedir(),
     });
   });
 
-  it("reports missing auth when the SDK has no connected providers", () => {
-    expect(
-      buildOpenCodeStatusFromSdkInventory({ providers: [], connected: [], agents: [] }),
-    ).toEqual({ authState: "missing" });
+  it("bypasses the login shell for WSL servers and prepends the binary dir to PATH", () => {
+    const spec = buildOpenCodeServerCommand(
+      {
+        kind: "wsl",
+        distro: "Ubuntu",
+        linuxPath: "/repo",
+        uncPath: "\\\\wsl.localhost\\Ubuntu\\repo",
+      },
+      "/home/dev/.opencode2/bin/opencode",
+      { OPENCODE_SERVER_PASSWORD: "secret" },
+    );
+
+    const systemRoot = process.env.SystemRoot ?? process.env.windir ?? "C:\\Windows";
+    expect(spec.command).toBe(join(systemRoot, "System32", "wsl.exe"));
+    expect(spec.args).toEqual([
+      "-d",
+      "Ubuntu",
+      "--cd",
+      "~",
+      "--",
+      "/usr/bin/env",
+      "PATH=/home/dev/.opencode2/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+      "OPENCODE_SERVER_PASSWORD=secret",
+      "/home/dev/.opencode2/bin/opencode",
+      "serve",
+      "--hostname=127.0.0.1",
+      "--port=0",
+      "--print-logs",
+    ]);
   });
 });
 
-describe("mapOpenCodeSlashCommands", () => {
-  it("normalizes OpenCode command-list entries to slash commands", () => {
-    expect(
-      mapOpenCodeSlashCommands([
-        {
-          name: "review",
-          description: "Review the current diff",
-          hints: ["<scope>", " --fix"],
-          template: "",
-        },
-        { name: "   ", template: "" },
-      ]),
-    ).toEqual([
+describe("buildOpenCodeCapabilityPartialFromInventory", () => {
+  const inventory: OpenCodeInventory = {
+    models: [
       {
-        id: "review",
-        label: "review — Review the current diff",
-        description: "Review the current diff",
-        argumentHint: "<scope> --fix",
+        id: "opencode-go/deepseek-v4.1-flash",
+        label: "DeepSeek V4.1 Flash",
+        variants: ["low", "high", "max"],
+        contextLimit: 1_000_000,
       },
+      {
+        id: "opencode/gpt-6-astra",
+        label: "GPT-6 Astra",
+        variants: ["low", "medium", "high", "xhigh"],
+        contextLimit: 400_000,
+      },
+      {
+        id: "opencode/tiny",
+        label: "Tiny",
+        variants: [],
+      },
+    ],
+    providers: [
+      { id: "opencode-go", name: "OpenCode Go" },
+      { id: "opencode", name: "OpenCode Zen" },
+    ],
+    integrations: [],
+    agents: [
+      { id: "build", mode: "primary", hidden: false },
+      { id: "general", mode: "subagent", hidden: false },
+      { id: "compaction", mode: "primary", hidden: true },
+      { id: "plan", mode: "primary", hidden: false },
+    ],
+    defaultModel: { providerID: "opencode-go", id: "deepseek-v4.1-flash" },
+  };
+
+  it("maps catalog models to composite ids with server-supplied labels", () => {
+    const capabilities = buildOpenCodeCapabilityPartialFromInventory(inventory);
+    expect(capabilities.models).toEqual(
+      [
+        { id: "opencode-go/deepseek-v4.1-flash", label: "DeepSeek V4.1 Flash" },
+        { id: "opencode/gpt-6-astra", label: "GPT-6 Astra" },
+        { id: "opencode/tiny", label: "Tiny" },
+      ].toSorted((left, right) => left.label.localeCompare(right.label)),
+    );
+  });
+
+  it("maps providers to sub-provider groups by server name", () => {
+    const capabilities = buildOpenCodeCapabilityPartialFromInventory(inventory);
+    expect(capabilities.subProviders).toEqual([
+      { id: "opencode-go", label: "OpenCode Go" },
+      { id: "opencode", label: "OpenCode Zen" },
+    ]);
+  });
+
+  it("falls back to the composite id when a provider has no name", () => {
+    const capabilities = buildOpenCodeCapabilityPartialFromInventory({
+      ...inventory,
+      providers: [{ id: "opencode-go", name: "" }],
+    });
+    expect(capabilities.subProviders).toEqual([{ id: "opencode-go", label: "opencode-go" }]);
+  });
+
+  it("takes the effort ladder from the default model's variants", () => {
+    const capabilities = buildOpenCodeCapabilityPartialFromInventory(inventory);
+    expect(capabilities.efforts).toEqual(["low", "high", "max"]);
+    expect(capabilities.defaultEffort).toBe("max");
+    expect(capabilities.modelEfforts).toEqual({
+      "opencode-go/deepseek-v4.1-flash": ["low", "high", "max"],
+      "opencode/gpt-6-astra": ["low", "medium", "high", "xhigh"],
+      "opencode/tiny": [],
+    });
+  });
+
+  it("falls back to the weakest variant when the default ladder has no max tier", () => {
+    const capabilities = buildOpenCodeCapabilityPartialFromInventory({
+      ...inventory,
+      defaultModel: { providerID: "opencode", id: "gpt-6-astra" },
+    });
+    expect(capabilities.efforts).toEqual(["low", "medium", "high", "xhigh"]);
+    expect(capabilities.defaultEffort).toBe("low");
+  });
+
+  it("reports no efforts when the catalog has no default model", () => {
+    const capabilities = buildOpenCodeCapabilityPartialFromInventory({
+      ...inventory,
+      defaultModel: undefined,
+    });
+    expect(capabilities.efforts).toEqual([]);
+    expect(capabilities.defaultEffort).toBeUndefined();
+  });
+
+  it("advertises plan mode when the built-in plan agent is visible", () => {
+    const capabilities = buildOpenCodeCapabilityPartialFromInventory(inventory);
+    expect(capabilities.modes).toEqual(["agent", "plan"]);
+  });
+
+  it("omits plan mode when the plan agent is hidden or absent", () => {
+    const hidden = buildOpenCodeCapabilityPartialFromInventory({
+      ...inventory,
+      agents: inventory.agents.map((agent) =>
+        agent.id === "plan" ? { ...agent, hidden: true } : agent,
+      ),
+    });
+    expect(hidden.modes).toEqual(["agent"]);
+
+    const absent = buildOpenCodeCapabilityPartialFromInventory({
+      ...inventory,
+      agents: [{ id: "build", mode: "primary", hidden: false }],
+    });
+    expect(absent.modes).toEqual(["agent"]);
+  });
+
+  it("maps per-model context limits to context size options", () => {
+    const capabilities = buildOpenCodeCapabilityPartialFromInventory(inventory);
+    expect(capabilities.modelContextSizes).toEqual({
+      "opencode-go/deepseek-v4.1-flash": ["1M"],
+      "opencode/gpt-6-astra": ["400K"],
+    });
+    expect(capabilities.contextSizes).toEqual([
+      { id: "400K", label: "400K" },
+      { id: "1M", label: "1M" },
     ]);
   });
 });
@@ -260,37 +287,20 @@ describe("OpenCode prompt formatting", () => {
 
   it("wraps multiline prompts in bracketed paste in buildDirectInput", () => {
     const adapter = createOpenCodeAdapter();
-    const result = adapter.buildDirectInput?.("line one\nline two");
-
-    expect(result).toEqual(["\x1b[200~line one\nline two\x1b[201~", "@wait:60", "\r"]);
+    expect(adapter.buildDirectInput?.("line one\nline two")).toEqual([
+      "\x1b[200~line one\nline two\x1b[201~",
+      "@wait:60",
+      "\r",
+    ]);
   });
 
   it("does not wrap single-line prompts in bracketed paste", () => {
     const adapter = createOpenCodeAdapter();
-    const result = adapter.buildDirectInput?.("just one line");
-
-    expect(result).toEqual(["just one line", "@wait:60", "\r"]);
-  });
-});
-
-describe("humanizeOpenCodeModelId", () => {
-  it("strips the sub-provider prefix from provider/model IDs", () => {
-    expect(humanizeOpenCodeModelId("opencode/big-pickle")).toBe("Big Pickle");
-    expect(humanizeOpenCodeModelId("github-copilot/gpt-5.4-mini")).toBe("GPT 5.4 Mini");
-  });
-
-  it("normalizes common model title tokens", () => {
-    expect(humanizeOpenCodeModelId("anthropic/claude-haiku-4-5")).toBe("Claude Haiku 4.5");
-    expect(humanizeOpenCodeModelId("openrouter/gpt-oss-120b")).toBe("GPT OSS 120B");
-    expect(humanizeOpenCodeModelId("openai/o3-mini")).toBe("o3 Mini");
-  });
-});
-
-describe("humanizeOpenCodeSubProviderId", () => {
-  it("normalizes sub-provider labels", () => {
-    expect(humanizeOpenCodeSubProviderId("opencode")).toBe("OpenCode");
-    expect(humanizeOpenCodeSubProviderId("github-copilot")).toBe("Copilot");
-    expect(humanizeOpenCodeSubProviderId("openrouter")).toBe("OpenRouter");
+    expect(adapter.buildDirectInput?.("just one line")).toEqual([
+      "just one line",
+      "@wait:60",
+      "\r",
+    ]);
   });
 });
 
@@ -330,12 +340,6 @@ describe("opencodeOscHint", () => {
     });
   });
 
-  it("ignores progress sub-protocol bodies on non-9 OSC codes", () => {
-    // 777 / 99 carriers don't trigger the iTerm2 4;<state> path even if their
-    // body looks like a progress payload, because progress is OSC-9 specific.
-    expect(opencodeOscHint({ code: 777, body: "4;1", title: "", payload: undefined })).toBeNull();
-  });
-
   it("falls back to needs_approval on permission keywords in non-progress notifications", () => {
     expect(
       opencodeOscHint({
@@ -353,6 +357,24 @@ describe("detectOpenCodeTerminalStatus", () => {
     expect(detectOpenCodeTerminalStatus("Working... (esc to interrupt)")?.status).toBe("working");
   });
 
+  it("detects working from the V2 TUI's 'esc interrupt' status bar", () => {
+    // Live-verified against 0.0.0-beta-19425: while a turn runs, the status
+    // bar shows "esc interrupt" without the V1 "to".
+    expect(
+      detectOpenCodeTerminalStatus(
+        "Build · DeepSeek V4.1 Flash · 4.9s · 237.6 tok/s — esc interrupt",
+      )?.status,
+    ).toBe("working");
+  });
+
+  it("recognizes completion before a large sidebar redraw", () => {
+    expect(
+      detectOpenCodeTerminalStatus(
+        "Build · Muse Spark 1.3 Free · 2.6s · 77.7 tok/s" + " ".repeat(5000),
+      )?.status,
+    ).toBe("idle");
+  });
+
   it("detects needs_approval from a [y/n] prompt", () => {
     expect(detectOpenCodeTerminalStatus("Allow this tool? [y/n]")?.status).toBe("needs_approval");
   });
@@ -366,8 +388,6 @@ describe("detectOpenCodeTerminalStatus", () => {
   });
 
   it("detects idle from the keybind footer painted only in input state", () => {
-    // The TUI renders the keybind hints right next to each other without a
-    // space, e.g. `…tab agentsctrl+p commands`. Either substring is enough.
     const text = "                                  tab agentsctrl+p commands";
     expect(detectOpenCodeTerminalStatus(text)).toEqual({
       status: "idle",
@@ -386,228 +406,411 @@ describe("detectOpenCodeTerminalStatus", () => {
   });
 });
 
-describe("opencodeIntentFor", () => {
-  it("maps OpenCode lifecycle hooks to Poracode intents", () => {
-    expect(opencodeIntentFor("session.created")).toBe("session.started");
-    expect(opencodeIntentFor("tool.execute.before")).toBe("session.turn_started");
-    expect(opencodeIntentFor("permission.asked")).toBe("session.needs_approval");
-    expect(opencodeIntentFor("permission.updated")).toBe("session.needs_approval");
-    expect(opencodeIntentFor("session.idle")).toBe("session.turn_finished");
-    expect(opencodeIntentFor("session.error")).toBe("session.turn_errored");
-  });
-
-  it("returns undefined for unmapped events", () => {
-    expect(opencodeIntentFor("tool.execute.after")).toBeUndefined();
-    expect(opencodeIntentFor("session.updated")).toBeUndefined();
-  });
-});
-
 describe("createOpenCodeAdapter", () => {
-  it("declares the in-process plugin metadata and identity", () => {
+  it.each(["posix", "windows", "wsl"] as const)(
+    "updates the managed CLI within the supported major on %s",
+    (envKind) => {
+      expect(
+        resolveSharedUpdateCommand({
+          update: openCodeDetectionSpec.update,
+          executablePath: "/usr/local/lib/node_modules/@opencode/cli/bin/opencode.exe",
+          envKind,
+          skipBuiltIn: true,
+        }),
+      ).toMatchObject({
+        strategy: "installer",
+        args: expect.arrayContaining([
+          expect.stringContaining(
+            envKind === "windows"
+              ? 'npm install --ignore-scripts --include=optional --prefix "$env:USERPROFILE/.opencode2" "@opencode/cli@^2.0.26"'
+              : 'npm install --ignore-scripts --include=optional --prefix "$HOME/.opencode2" "@opencode/cli@^2.0.26"',
+          ),
+        ]),
+      });
+    },
+  );
+
+  it("declares identity, install/update metadata, and shared skill roots", () => {
     const adapter = createOpenCodeAdapter();
     expect(adapter.kind).toBe("opencode");
     expect(adapter.label).toBe("OpenCode");
-    expect(adapter.pluginId).toBe("poracode-status@opencode");
-    expect(adapter.minProtocolVersion).toBe(1);
-    expect(adapter.capabilities.crossagentMcpRouting).toBe("provider-session");
-    expect(adapter.capabilities.agentSettingsDefaults?.crossagentMcp).toBe(true);
-  });
-
-  it("returns no extra args/env from pluginLaunchExtras (in-process plugin)", async () => {
-    const adapter = createOpenCodeAdapter();
-    const extras = await adapter.pluginLaunchExtras?.({ envKind: "posix" });
-    expect(extras).toEqual({});
-    expect(extras?.args).toBeUndefined();
-    expect(extras?.env).toBeUndefined();
-  });
-
-  it("only allows hook-active terminal fallback for needs_approval", () => {
-    const adapter = createOpenCodeAdapter();
-    expect(
-      adapter.shouldApplyTerminalStatusWhileHookActive?.({
-        status: "needs_approval",
-        attention: "needs_approval",
-      }),
-    ).toBe(true);
-    expect(
-      adapter.shouldApplyTerminalStatusWhileHookActive?.({
-        status: "working",
-        attention: "working",
-      }),
-    ).toBe(false);
-    expect(
-      adapter.shouldApplyTerminalStatusWhileHookActive?.({ status: "idle", attention: "none" }),
-    ).toBe(false);
-  });
-
-  it("builds a `run --format json` one-shot command piped via stdin", () => {
-    const adapter = createOpenCodeAdapter();
-    const cmd = adapter.buildOneShotCommand?.("opencode/claude-haiku-4-5", undefined, "say hi");
-    expect(cmd).toEqual({
-      command: "opencode",
-      args: ["run", "--format", "json", "--model", "opencode/claude-haiku-4-5", "say hi"],
-      stdin: "",
+    expect(adapter.binary).toBe("opencode");
+    expect(adapter.poolsDirectoryMcp).toBe(true);
+    expect(adapter.listNativePlugins).toBeTypeOf("function");
+    expect(adapter.update?.latestVersionUrls).toEqual([
+      "https://registry.npmjs.org/@opencode%2Fcli/latest",
+    ]);
+    expect(adapter.update?.builtIn).toBeUndefined();
+    const login =
+      typeof openCodeDetectionSpec.loginCommand === "function"
+        ? openCodeDetectionSpec.loginCommand({
+            location: { kind: "posix", path: "/repo" },
+            executablePath: "/path with spaces/opencode.exe",
+          })
+        : undefined;
+    expect(login).toBe("'/path with spaces/opencode.exe' auth login");
+    expect(adapter.skillSupport?.roots.map((root) => root.id)).toEqual([
+      "opencode",
+      "opencode-singular",
+      "claude",
+      "agents",
+    ]);
+    expect(adapter.skillSupport?.precedence).toEqual({
+      global: ["opencode", "opencode-singular", "agents", "claude"],
+      project: ["opencode", "opencode-singular", "agents", "claude"],
     });
   });
 
-  it("returns undefined for buildOneShotCommand when no prompt is supplied", () => {
+  it("ships GUI default presentation, dynamic per-thread MCP defaults, and native one-shot support", () => {
     const adapter = createOpenCodeAdapter();
-    expect(
-      adapter.buildOneShotCommand?.("opencode/claude-haiku-4-5", undefined, undefined),
-    ).toBeUndefined();
+    expect(adapter.capabilities).toMatchObject({
+      presentationMode: "gui",
+      presentationModes: ["terminal", "gui"],
+      defaultApprovalPolicy: "yolo",
+      bypassPermissions: { approvalPolicy: "yolo" },
+      mcpScope: { terminal: "launch", gui: "always" },
+      crossagentMcpRouting: "provider-session",
+      supportsResume: true,
+      supportsOneShot: true,
+    });
+    expect(adapter.capabilities.mcpConfigSource).toBeUndefined();
+    expect(adapter.pluginId).toBeUndefined();
+    expect(adapter.runOneShot).toBeTypeOf("function");
+    expect(adapter.createInitialSessionRef()).toBeUndefined();
   });
 
-  it("skips SDK session setup when resuming an existing session", async () => {
-    // On resume the providerSessionId is already known — no need to ask
-    // `opencode serve` to allocate a new one. Returning undefined keeps the
-    // existing flow (just `opencode --session <id>`).
+  it("uses structured preparation for terminal resume configuration", async () => {
     const adapter = createOpenCodeAdapter();
-    await expect(
-      adapter.createStructuredSession?.({
-        threadId: "thread-1",
-        projectLocation: { kind: "windows", path: "C:\\repo" },
-        config: { model: "opencode/big-pickle" },
-        sessionRef: {
-          providerSessionId: "ses_existing",
-          discoveredAt: new Date().toISOString(),
-        },
-      }),
-    ).resolves.toBeUndefined();
+    const create = vi.spyOn(OpenCodeSession, "create").mockRejectedValueOnce(new Error("prepared"));
+    try {
+      await expect(
+        adapter.createStructuredSession?.({
+          threadId: "thread-terminal",
+          projectLocation: { kind: "posix", path: "/repo" },
+          config: { model: "" },
+          presentationMode: "terminal",
+          sessionRef: { providerSessionId: "ses_resume", discoveredAt: "2026-01-01T00:00:00.000Z" },
+        }),
+      ).rejects.toThrow("prepared");
+      expect(create).toHaveBeenCalledTimes(1);
+      await expect(
+        adapter.buildResumeArgv(
+          { kind: "posix", path: "/repo" },
+          { model: "" },
+          "",
+          createKnownSessionRef("ses_resume"),
+          undefined,
+        ),
+      ).rejects.toThrow("database was not resolved");
+    } finally {
+      create.mockRestore();
+    }
   });
 
-  it("buildLaunchArgv returns no --session and no sessionRef when launchOptions is empty", async () => {
-    // Defensive path: if SDK allocation never ran (failed, skipped, structured
-    // session disabled), the TUI is launched without `--session` and OpenCode
-    // creates a fresh session itself — same as before Shape A.
+  it("launches through the managed server with the deferred prompt path", async () => {
     const adapter = createOpenCodeAdapter();
-    const argv = await adapter.buildLaunchArgv(
-      { kind: "windows", path: "C:\\repo" },
-      { model: "" },
-      "",
+    const launch = await adapter.buildLaunchArgv(
+      { kind: "posix", path: "/repo" },
+      { model: "", approvalPolicy: "yolo" },
+      "first prompt",
       undefined,
       undefined,
     );
-    expect(argv.args).not.toContain("--session");
-    expect(argv.sessionRef).toBeUndefined();
-    expect(argv.preferShell).toBe(true);
+    expect(launch).toEqual({
+      binary: "opencode",
+      args: ["--server", "http://127.0.0.1:4300", "--prompt", "first prompt"],
+      env: { OPENCODE_PASSWORD: "fixture-password" },
+      cleanup: expect.any(Function),
+      preferShell: true,
+    });
+    expect(adapter.shouldDeferPromptToTerminal?.({ model: "" })).toBe(true);
+    expect(disposeTerminalServer).not.toHaveBeenCalled();
+    await launch.cleanup?.();
+    expect(disposeTerminalServer).toHaveBeenCalledExactlyOnceWith({ closeServerIfIdle: true });
   });
 
-  it("isReadyForInitialPrompt fires on the keybind footer", () => {
-    // The hook-fast-path uses this to gate flushing the deferred initial
-    // prompt. The footer painted only in input-ready state is enough.
+  it("interrupts the prepared terminal session before releasing its server", async () => {
     const adapter = createOpenCodeAdapter();
-    expect(adapter.isReadyForInitialPrompt?.("...tab agentsctrl+p commands")).toBe(true);
-    expect(adapter.isReadyForInitialPrompt?.("...esc to interrupt")).toBe(false);
-  });
-
-  it("buildLaunchArgv promotes launchOptions.resumeThreadId to --session and sessionRef", async () => {
-    // This is the post-SDK path: the structured session captured a freshly
-    // allocated session id and stashed it in launchOptions before disposing.
-    const adapter = createOpenCodeAdapter();
-    const argv = await adapter.buildLaunchArgv(
-      { kind: "windows", path: "C:\\repo" },
-      { model: "opencode/big-pickle" },
-      "hello",
-      undefined,
-      { resumeThreadId: "ses_sdk_allocated" },
+    const location = { kind: "posix" as const, path: "/repo" };
+    rememberOpenCodeSessionDatabase(location, "ses_terminal", "native");
+    const launch = await adapter.buildLaunchArgv(location, { model: "" }, "", undefined, {
+      resumeThreadId: "ses_terminal",
+    });
+    await launch.cleanup?.();
+    await launch.cleanup?.();
+    expect(interruptTerminalSession).toHaveBeenCalledExactlyOnceWith(
+      { sessionID: "ses_terminal" },
+      { signal: expect.any(AbortSignal) },
     );
-    expect(argv.args).toEqual([
-      "--session",
-      "ses_sdk_allocated",
-      "--model",
-      "opencode/big-pickle",
-      "--prompt",
-      "hello",
-    ]);
-    expect(argv.sessionRef?.providerSessionId).toBe("ses_sdk_allocated");
-    expect(argv.preferShell).toBe(true);
+    expect(interruptTerminalSession.mock.invocationCallOrder[0]).toBeLessThan(
+      disposeTerminalServer.mock.invocationCallOrder[0]!,
+    );
+    expect(disposeTerminalServer).toHaveBeenCalledExactlyOnceWith({ closeServerIfIdle: true });
   });
 
-  it("injects custom MCPs through a per-launch OpenCode config overlay", async () => {
+  it("releases the terminal server even if interruption fails", async () => {
+    interruptTerminalSession.mockRejectedValue(new Error("server exited"));
     const adapter = createOpenCodeAdapter();
-    const argv = await adapter.buildLaunchArgv(
-      { kind: "windows", path: "C:\\repo" },
+    const location = { kind: "posix" as const, path: "/repo" };
+    rememberOpenCodeSessionDatabase(location, "ses_terminal", "native");
+    const launch = await adapter.buildResumeArgv(
+      location,
+      { model: "" },
+      "",
+      createKnownSessionRef("ses_terminal"),
+      undefined,
+    );
+    await expect(launch.cleanup?.()).rejects.toThrow("server exited");
+    expect(disposeTerminalServer).toHaveBeenCalledWith({ closeServerIfIdle: true });
+  });
+
+  it("resumes on the pooled MCP server instead of the native background service", async () => {
+    const adapter = createOpenCodeAdapter();
+    rememberOpenCodeSessionDatabase({ kind: "posix", path: "/repo" }, "ses_launch", "native");
+    rememberOpenCodeSessionDatabase({ kind: "posix", path: "/repo" }, "ses_resume", "native");
+    const launch = await adapter.buildLaunchArgv(
+      { kind: "posix", path: "/repo" },
       { model: "" },
       "",
       undefined,
+      { resumeThreadId: "ses_launch" },
+    );
+    expect(launch.args).toEqual(["--server", "http://127.0.0.1:4300", "--session", "ses_launch"]);
+    expect(launch.sessionRef).toMatchObject({ providerSessionId: "ses_launch" });
+
+    const resume = await adapter.buildResumeArgv(
+      { kind: "posix", path: "/repo" },
+      { model: "" },
+      "next",
+      createKnownSessionRef("ses_resume"),
       {
         mcpServers: [
           {
-            id: "vercel-id",
-            name: "vercel",
+            id: "browser",
+            name: "browser",
             timeoutMs: 30_000,
-            transport: {
-              type: "http",
-              url: "https://mcp.vercel.test",
-              headers: { Authorization: "Bearer secret" },
-            },
+            transport: { type: "http", url: "http://127.0.0.1:9/mcp", headers: {} },
           },
         ],
       },
     );
-
-    expect(argv.env?.OPENCODE_CONFIG_CONTENT).toBeDefined();
-    expect(argv.env?.OPENCODE_CONFIG_CONTENT).not.toContain("Bearer secret");
-    expect(argv.env?.OPENCODE_CONFIG_CONTENT).toContain("{env:PORACODE_MCP_OPENCODE_");
-    expect(Object.values(argv.env ?? {})).toContain("Bearer secret");
-  });
-
-  it("enables trusted session routing when a terminal launch hosts Crossagents", async () => {
-    const adapter = createOpenCodeAdapter();
-    const argv = await adapter.buildLaunchArgv(
-      { kind: "windows", path: "C:\\repo" },
-      { model: "" },
-      "",
-      undefined,
-      {
-        mcpServers: [
-          {
-            id: "crossagents",
-            name: "crossagents",
-            timeoutMs: 300_000,
-            transport: {
-              type: "http",
-              url: "http://127.0.0.1:43123/mcp",
-              headers: { Authorization: "Bearer shared" },
-            },
-          },
-        ],
-      },
+    expect(resume.args).toEqual([
+      "--server",
+      "http://127.0.0.1:4300",
+      "--session",
+      "ses_resume",
+      "--prompt",
+      "next",
+    ]);
+    expect(acquireOpenCodeServer).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        resumeSessionId: "ses_resume",
+        mcpServers: [expect.objectContaining({ name: "browser" })],
+      }),
     );
-
-    expect(argv.env?.PORACODE_OPENCODE_SESSION_ROUTING).toBe("1");
+    expect(resume.env?.OPENCODE_CONFIG_CONTENT).toBeUndefined();
+    expect(resume.args.join(" ")).not.toContain("fixture-password");
   });
 
-  it("does not override OpenCode config when no custom MCP is selected", async () => {
+  it("keeps the legacy database when attaching both launch and resume terminals", async () => {
     const adapter = createOpenCodeAdapter();
-    const argv = await adapter.buildResumeArgv(
-      { kind: "windows", path: "C:\\repo" },
+    const location = { kind: "posix", path: "/repo" } as const;
+    rememberOpenCodeSessionDatabase(location, "ses_old", "legacy-isolated");
+    const options = {
+      resumeThreadId: "ses_old",
+      mcpServers: [
+        {
+          id: "browser",
+          name: "browser",
+          timeoutMs: 30_000,
+          transport: { type: "http" as const, url: "http://127.0.0.1:9/mcp", headers: {} },
+        },
+      ],
+    };
+    const launch = await adapter.buildLaunchArgv(location, { model: "" }, "", undefined, options);
+    const resume = await adapter.buildResumeArgv(
+      location,
       { model: "" },
       "",
-      { providerSessionId: "ses_existing", discoveredAt: new Date().toISOString() },
+      createKnownSessionRef("ses_old"),
+      options,
+    );
+    expect(launch.env).toEqual(resume.env);
+    expect(launch.env?.OPENCODE_DB).toBe("opencode-v2.db");
+    expect(launch.env?.OPENCODE_PASSWORD).toBe("fixture-password");
+  });
+
+  it("attaches to the managed server even with an explicitly empty MCP set", async () => {
+    const adapter = createOpenCodeAdapter();
+    rememberOpenCodeSessionDatabase({ kind: "posix", path: "/repo" }, "ses_resume", "native");
+    const resume = await adapter.buildResumeArgv(
+      { kind: "posix", path: "/repo" },
+      { model: "", approvalPolicy: "yolo" },
+      "next",
+      createKnownSessionRef("ses_resume"),
       { mcpServers: [] },
     );
-
-    expect(argv.env).toBeUndefined();
+    expect(resume.env).toEqual({ OPENCODE_PASSWORD: "fixture-password" });
+    expect(acquireOpenCodeServer).toHaveBeenCalledWith(
+      expect.objectContaining({
+        mcpServers: [],
+      }),
+    );
   });
 
-  it("buildResumeArgv opts into shell resolution for the terminal TUI", async () => {
-    const adapter = createOpenCodeAdapter();
-    const argv = await adapter.buildResumeArgv(
-      { kind: "windows", path: "C:\\repo" },
-      { model: "opencode/big-pickle" },
-      "continue",
-      { providerSessionId: "ses_existing", discoveredAt: new Date().toISOString() },
+  it("releases the terminal lease if constructing authenticated argv fails", async () => {
+    const password = Promise.reject(new Error("password unavailable"));
+    void password.catch(() => undefined);
+    vi.mocked(acquireOpenCodeServer).mockResolvedValueOnce({
+      baseUrl: "http://127.0.0.1:4300",
+      handle: { password },
+      dispose: disposeTerminalServer,
+    } as unknown as Awaited<ReturnType<typeof acquireOpenCodeServer>>);
+    await expect(
+      createOpenCodeAdapter().buildLaunchArgv(
+        { kind: "posix", path: "/repo" },
+        { model: "" },
+        "",
+        undefined,
+      ),
+    ).rejects.toThrow("password unavailable");
+    expect(disposeTerminalServer).toHaveBeenCalledOnce();
+  });
+
+  it("dynamically refreshes terminal session permissions when sibling threads change directory MCPs", async () => {
+    let directoryListeners: Array<() => void> = [];
+    let directoryNames = ["poracode", "browser"];
+    const unsubscribeMcp = vi.fn<() => void>();
+    vi.mocked(acquireOpenCodeServer).mockResolvedValueOnce({
+      baseUrl: "http://127.0.0.1:4300",
+      handle: { password: Promise.resolve("fixture-password") },
+      client: {
+        session: {
+          interrupt: interruptTerminalSession,
+          update: updateTerminalSession,
+        },
+        event: {
+          subscribe: vi.fn<() => void>(),
+        },
+      },
+      getDirectoryMcpNames: () => directoryNames,
+      onDirectoryMcpChanged: (listener: () => void) => {
+        directoryListeners.push(listener);
+        return unsubscribeMcp;
+      },
+      dispose: disposeTerminalServer,
+    } as unknown as Awaited<ReturnType<typeof acquireOpenCodeServer>>);
+
+    const location = { kind: "posix" as const, path: "/repo" };
+    rememberOpenCodeSessionDatabase(location, "ses_terminal", "native");
+    const launch = await createOpenCodeAdapter().buildLaunchArgv(
+      location,
+      { model: "", approvalPolicy: "yolo" },
+      "",
+      undefined,
+      {
+        resumeThreadId: "ses_terminal",
+        mcpServers: [
+          {
+            id: "app-controls",
+            name: "poracode",
+            timeoutMs: 30_000,
+            transport: { type: "http", url: "http://127.0.0.1:9/mcp", headers: {} },
+          },
+        ],
+      },
     );
 
-    expect(argv.args).toEqual([
-      "--session",
-      "ses_existing",
-      "--model",
-      "opencode/big-pickle",
-      "--prompt",
-      "continue",
+    expect(directoryListeners).toHaveLength(1);
+    directoryListeners[0]?.();
+    await Promise.resolve();
+    expect(updateTerminalSession).toHaveBeenCalledWith({
+      sessionID: "ses_terminal",
+      permissions: [
+        { action: "*", resource: "*", effect: "allow" },
+        { action: "question", resource: "*", effect: "allow" },
+        { action: "browser_*", resource: "*", effect: "deny" },
+      ],
+    });
+
+    // Duplicate notifications with identical permissions are deduped.
+    directoryListeners[0]?.();
+    await Promise.resolve();
+    expect(updateTerminalSession).toHaveBeenCalledTimes(1);
+
+    // Sibling thread adds chrome MCP; terminal session denies chrome_* dynamically.
+    directoryNames = ["poracode", "browser", "chrome"];
+    directoryListeners[0]?.();
+    await Promise.resolve();
+    expect(updateTerminalSession).toHaveBeenCalledTimes(2);
+    expect(updateTerminalSession).toHaveBeenLastCalledWith({
+      sessionID: "ses_terminal",
+      permissions: [
+        { action: "*", resource: "*", effect: "allow" },
+        { action: "question", resource: "*", effect: "allow" },
+        { action: "browser_*", resource: "*", effect: "deny" },
+        { action: "chrome_*", resource: "*", effect: "deny" },
+      ],
+    });
+
+    await launch.cleanup?.();
+    expect(unsubscribeMcp).toHaveBeenCalledOnce();
+  });
+
+  it("streams L1 terminal status updates from the pooled server SSE hub and unsubscribes on cleanup", async () => {
+    const location = { kind: "posix" as const, path: "/repo" };
+    rememberOpenCodeSessionDatabase(location, "ses_terminal", "native");
+    const statusUpdates: Array<{ status: string; attention: string }> = [];
+    const launch = await createOpenCodeAdapter().buildLaunchArgv(
+      location,
+      { model: "", approvalPolicy: "default" },
+      "",
+      undefined,
+      {
+        resumeThreadId: "ses_terminal",
+        onTerminalStatusUpdate: (change) => statusUpdates.push(change),
+      },
+    );
+
+    expect(subscribeOpenCodeServerEvents).toHaveBeenCalledOnce();
+    const sub = vi.mocked(subscribeOpenCodeServerEvents).mock.calls[0]?.[0]?.subscription;
+    expect(sub?.sessionId()).toBe("ses_terminal");
+
+    sub?.onEvent({
+      type: "session.execution.started",
+      data: { sessionID: "ses_terminal" },
+    } as unknown as V2Event);
+    sub?.onEvent({
+      type: "permission.asked",
+      data: { id: "perm_1", sessionID: "ses_terminal" },
+    } as unknown as V2Event);
+    sub?.onEvent({
+      type: "form.created",
+      data: { form: { id: "form_1", sessionID: "ses_terminal" } },
+    } as unknown as V2Event);
+    sub?.onEvent({
+      type: "permission.replied",
+      data: { requestID: "perm_1", sessionID: "ses_terminal" },
+    } as unknown as V2Event);
+    sub?.onEvent({
+      type: "form.replied",
+      data: { id: "form_1", sessionID: "ses_terminal" },
+    } as unknown as V2Event);
+    sub?.onEvent({
+      type: "session.idle",
+      data: { sessionID: "ses_terminal" },
+    } as unknown as V2Event);
+
+    expect(statusUpdates).toEqual([
+      { status: "working", attention: "working" },
+      { status: "needs_approval", attention: "needs_approval" },
+      { status: "needs_approval", attention: "needs_approval" },
+      { status: "needs_reply", attention: "needs_reply" },
+      { status: "working", attention: "working" },
+      { status: "idle", attention: "none" },
     ]);
-    expect(argv.preferShell).toBe(true);
+
+    await launch.cleanup?.();
+    expect(unsubscribeTerminalEvents).toHaveBeenCalledOnce();
   });
 });

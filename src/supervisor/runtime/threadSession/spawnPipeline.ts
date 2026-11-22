@@ -163,6 +163,7 @@ export interface SpawnThreadInput {
   initialAttention?: ThreadAttention;
   suppressInitialStructuredIdle?: boolean;
   mcpLaunchSnapshot: McpLaunchSnapshot;
+  mcpTitle?: string;
   threadMentionToolsAvailable?: boolean;
   launchConfig?: ThreadConfig;
   crewBriefDelivered?: string;
@@ -275,6 +276,7 @@ export function applyAgentSettingsMcpFlags(
 export function usesProviderSessionCrossagentRouting(
   adapter:
     | {
+        poolsDirectoryMcp?: boolean | undefined;
         capabilities: {
           presentationMode: ThreadPresentationMode;
           crossagentMcpRouting?: AgentAdapter["capabilities"]["crossagentMcpRouting"];
@@ -286,7 +288,8 @@ export function usesProviderSessionCrossagentRouting(
 ): boolean {
   return (
     adapter?.capabilities.crossagentMcpRouting === "provider-session" &&
-    (presentationMode ?? adapter.capabilities.presentationMode) !== "terminal" &&
+    (adapter.poolsDirectoryMcp === true ||
+      (presentationMode ?? adapter.capabilities.presentationMode) !== "terminal") &&
     crossagentThreadId !== undefined
   );
 }
@@ -649,16 +652,22 @@ export class SpawnPipeline {
         { defer: adapter.supportsDeferredMcpAuthorization === true },
       );
     }
-    if (requestedPresentation === "gui" && this.ctx.options.mcpApps) {
+    if (
+      (requestedPresentation === "gui" || adapter.poolsDirectoryMcp === true) &&
+      this.ctx.options.mcpApps
+    ) {
       mcpServers = await this.ctx.options.mcpApps.prepare(
         payload.threadId,
         mcpServers,
         executionLocation,
+        adapter.poolsDirectoryMcp ? { pooled: true } : undefined,
       );
     }
     if (this.ctx.options.prepareMcpToolFilters) {
       mcpServers = await this.ctx.options.prepareMcpToolFilters(mcpServers, executionLocation, {
-        ...(requestedPresentation === "gui" && this.ctx.options.mcpApps
+        ...(requestedPresentation === "gui" &&
+        !adapter.poolsDirectoryMcp &&
+        this.ctx.options.mcpApps
           ? { remoteViaStdio: true }
           : {}),
         ...(adapter.mcpRequiresStdioCwdProxy ? { proxyStdioCwd: true } : {}),
@@ -941,6 +950,7 @@ export class SpawnPipeline {
           suppressInitialStructuredIdle:
             optimisticUserMessageItemId !== undefined && !startInterrupted,
           mcpLaunchSnapshot,
+          ...(mcpIdentity.title ? { mcpTitle: mcpIdentity.title } : {}),
           threadMentionToolsAvailable,
           launchConfig,
           crossagentsMcpAttached: hasCrossagentsMcp(resolvedMcpServers),
@@ -1059,6 +1069,7 @@ export class SpawnPipeline {
       structuredSession?.launchOptions,
       resolvedMcpServers,
       executionLocation,
+      payload.threadId,
     );
     const argv = payload.sessionRef
       ? await adapter.buildResumeArgv(
@@ -1155,6 +1166,7 @@ export class SpawnPipeline {
         ...(payload.resourceLease ? { resourceLease: payload.resourceLease } : {}),
         ...(resolvedSessionRef ? { sessionRef: resolvedSessionRef } : {}),
         mcpLaunchSnapshot,
+        ...(mcpIdentity.title ? { mcpTitle: mcpIdentity.title } : {}),
         threadMentionToolsAvailable,
         launchConfig,
         crossagentsMcpAttached: hasCrossagentsMcp(resolvedMcpServers),
@@ -1272,7 +1284,11 @@ export class SpawnPipeline {
       return;
     }
 
-    const mcpIdentity = { threadId: session.threadId };
+    const mcpTitle = session.mcpTitle || prompt.split("\n", 1)[0]?.trim() || "";
+    const mcpIdentity = {
+      threadId: session.threadId,
+      ...(mcpTitle ? { title: mcpTitle } : {}),
+    };
     const launchConfig = this.resolveMcpLaunchConfig(
       workspaceLaunchConfig(
         executionLocation,
@@ -1386,6 +1402,7 @@ export class SpawnPipeline {
           resourceLease,
           sessionRef: session.sessionRef,
           mcpLaunchSnapshot,
+          ...(mcpTitle ? { mcpTitle } : {}),
           threadMentionToolsAvailable: hasThreadMentionTools(resolvedMcpServers),
           launchConfig,
           crossagentsMcpAttached: hasCrossagentsMcp(resolvedMcpServers),
@@ -1484,6 +1501,7 @@ export class SpawnPipeline {
         structuredSession?.launchOptions,
         resolvedMcpServers,
         executionLocation,
+        session.threadId,
       ),
     );
     if (cliHookExtras.extraArgs.length > 0) {
@@ -1552,6 +1570,7 @@ export class SpawnPipeline {
         resourceLease,
         sessionRef: session.sessionRef,
         mcpLaunchSnapshot,
+        ...(mcpTitle ? { mcpTitle } : {}),
         threadMentionToolsAvailable: hasThreadMentionTools(resolvedMcpServers),
         launchConfig,
         crossagentsMcpAttached: hasCrossagentsMcp(resolvedMcpServers),
@@ -1745,6 +1764,7 @@ export class SpawnPipeline {
         ? { crossagentsMcpAvailable: input.crossagentsMcpAvailable }
         : {}),
       mcpLaunchSnapshot,
+      ...(input.mcpTitle ? { mcpTitle: input.mcpTitle } : {}),
       ...(input.threadMentionToolsAvailable !== undefined
         ? { threadMentionToolsAvailable: input.threadMentionToolsAvailable }
         : {}),
@@ -1805,11 +1825,28 @@ export class SpawnPipeline {
     launchOptions: AgentLaunchOptions | undefined,
     mcpServers: readonly ResolvedMcpServer[],
     location?: ProjectLocation,
+    threadId?: string,
   ): AgentLaunchOptions {
     return {
       ...(launchOptions ?? {}),
       agentSettings: this.ctx.resolveAgentSettings(adapter, location),
       ...(mcpServers.length > 0 ? { mcpServers } : {}),
+      ...(threadId
+        ? {
+            onTerminalStatusUpdate: (change: {
+              status: ThreadStatus;
+              attention: ThreadAttention;
+            }) => {
+              if (this.ctx.options.readDisableCliHookPlugin()) return;
+              const target = this.ctx.sessions.get(threadId);
+              if (!target || target.ignoreExit) return;
+              target.hasCliHookPluginActivity = true;
+              target.lastCliHookPluginActivityAt = Date.now();
+              this.ctx.cliHookPlugin.noteCliHookPluginActivity(target);
+              this.ctx.cliHookPlugin.applyCliHookPluginState(target, change);
+            },
+          }
+        : {}),
     };
   }
 
@@ -1855,11 +1892,12 @@ export class SpawnPipeline {
         crossagentThreadId = undefined;
       }
     }
+    const effectiveIdentity = adapter?.poolsDirectoryMcp ? { pooled: true } : identity;
     const browserMcp = await this.resolveBrowserMcpForLaunch(
       location,
       config,
       mcpLaunchSnapshot,
-      identity,
+      effectiveIdentity,
     );
     if (isCurrent && !isCurrent()) return [];
     const crossagentMcp = crossagentThreadId
@@ -1875,13 +1913,18 @@ export class SpawnPipeline {
       location,
       config,
       mcpLaunchSnapshot,
-      identity,
+      effectiveIdentity,
     );
-    const chromeMcp = this.resolveChromeMcpForLaunch(location, config, mcpLaunchSnapshot, identity);
+    const chromeMcp = this.resolveChromeMcpForLaunch(
+      location,
+      config,
+      mcpLaunchSnapshot,
+      effectiveIdentity,
+    );
     const appControlsMcp = await this.resolveAppControlsMcpForLaunch(
       location,
       mcpLaunchSnapshot,
-      identity,
+      effectiveIdentity,
     );
     return composeResolvedMcpServers(
       mcpLaunchSnapshot,
@@ -1903,7 +1946,7 @@ export class SpawnPipeline {
   ): ThreadConfig {
     const crossagentRoutingAvailable =
       adapter.capabilities.crossagentMcpRouting === "provider-session" &&
-      presentationMode === "gui" &&
+      (adapter.poolsDirectoryMcp === true || presentationMode === "gui") &&
       crossagentThreadId !== undefined;
     const withProviderSettings =
       adapter.capabilities.mcpConfigSource === "agentSettings"
@@ -2087,7 +2130,9 @@ export class SpawnPipeline {
         agentSettings: this.ctx.resolveAgentSettings(adapter, projectLocation),
         ...(adapter.baseSpawnEnv ? { baseSpawnEnv: adapter.baseSpawnEnv } : {}),
         ...(mcpIdentity ? { mcpIdentity } : {}),
-        ...(mcpServers.length > 0 || adapter.capabilities.mcpConfigSource === "agentSettings"
+        ...(mcpServers.length > 0 ||
+        adapter.capabilities.mcpConfigSource === "agentSettings" ||
+        adapter.poolsDirectoryMcp === true
           ? { mcpServers }
           : {}),
         resolveMcpServersForTurn: async (turnConfig, isCurrent) => {

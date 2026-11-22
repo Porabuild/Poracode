@@ -49,6 +49,7 @@ import {
   LEGACY_ANTIGRAVITY_ACP_KIND,
   normalizePersistedAntigravityModelSelection,
 } from "./agents/antigravity";
+import { LEGACY_OPENCODE2_KIND, OPENCODE_PROVIDER_KIND } from "./agents/opencode";
 import {
   MAX_SAVED_CREWS,
   normalizeCrewRoles,
@@ -1775,6 +1776,301 @@ function migrateAntigravityAcpAliasState(settings: SharedSettings): {
  * supervisor's `persistAcpRegistrySettingsMigrations` overlays exactly these
  * onto the raw file, so the migration and the persist path cannot drift.
  */
+function migrateLegacyOpenCode2Kind(settings: SharedSettings): SharedSettings {
+  const migrateProvider = (provider: string) =>
+    provider === LEGACY_OPENCODE2_KIND ? OPENCODE_PROVIDER_KIND : provider;
+  const migrateSelectionBinding = <
+    T extends {
+      selectionBinding?: SharedSettings["commitGenSelection"] extends infer S
+        ? S extends { selectionBinding?: infer B }
+          ? B
+          : never
+        : never;
+    },
+  >(
+    entry: T,
+  ): T => {
+    const binding = entry.selectionBinding;
+    if (!binding || binding.owner.agentKind !== LEGACY_OPENCODE2_KIND) return entry;
+    return {
+      ...entry,
+      selectionBinding: {
+        ...binding,
+        owner: {
+          ...binding.owner,
+          agentKind: OPENCODE_PROVIDER_KIND,
+        },
+      },
+    };
+  };
+  const migrateOptionalSelection = (
+    selection: SharedSettings["commitGenSelection"],
+  ): SharedSettings["commitGenSelection"] =>
+    selection ? migrateSelectionBinding(selection) : undefined;
+  const migrateCrewSelection = (selection: CrewMemberSelection): CrewMemberSelection =>
+    selection.agentKind === LEGACY_OPENCODE2_KIND
+      ? { ...selection, agentKind: OPENCODE_PROVIDER_KIND }
+      : selection;
+  const migrateCrewList = (crews: readonly SavedCrew[]): SavedCrew[] =>
+    mapSavedCrewSelections(crews, migrateCrewSelection);
+  const migrateOrder = (values: readonly string[]): string[] => {
+    const hasLegacy = values.includes(LEGACY_OPENCODE2_KIND);
+    const filtered = hasLegacy ? values.filter((kind) => kind !== OPENCODE_PROVIDER_KIND) : values;
+    return [...new Set(filtered.map(migrateProvider))];
+  };
+  const hasCrewOpenCode2 = (crews: readonly SavedCrew[]): boolean =>
+    crews.some(
+      (crew) =>
+        crew.lead.agentKind === LEGACY_OPENCODE2_KIND ||
+        crew.roles.some(
+          (role) =>
+            role.selection.agentKind === LEGACY_OPENCODE2_KIND ||
+            role.fallbacks?.some((fallback) => fallback.agentKind === LEGACY_OPENCODE2_KIND) ===
+              true,
+        ),
+    );
+  const hasOpenCode2Activity =
+    [
+      settings.providerConfigs,
+      settings.providerModelPreferences,
+      settings.lastPresentationModeByAgent,
+      settings.agentSettings,
+      settings.hiddenModels,
+      settings.crossagentHiddenModels,
+    ].some((byKind) => LEGACY_OPENCODE2_KIND in byKind) ||
+    settings.providerOrder.includes(LEGACY_OPENCODE2_KIND) ||
+    [
+      settings.favoriteModels,
+      settings.recentModels,
+      settings.agentSelectionUsage,
+      settings.crossagentSelectionUsage,
+    ].some((entries) => entries.some((entry) => entry.agentKind === LEGACY_OPENCODE2_KIND)) ||
+    hasCrewOpenCode2(settings.crews) ||
+    Object.values(settings.wslCrews).some(hasCrewOpenCode2) ||
+    settings.crossagentRoutingOverrides.some(
+      (entry) =>
+        entry.agentKind === LEGACY_OPENCODE2_KIND ||
+        entry.fallbacks?.some((fallback) => fallback.agentKind === LEGACY_OPENCODE2_KIND) === true,
+    ) ||
+    [
+      settings.commitGenProvider,
+      settings.titleGenProvider,
+      settings.conflictResolverProvider,
+      settings.experimentJudgeProvider,
+      settings.wslCommitGenProvider,
+      settings.wslTitleGenProvider,
+      settings.wslConflictResolverProvider,
+    ].includes(LEGACY_OPENCODE2_KIND) ||
+    Object.values(settings.machineSettings).some(
+      (entry) =>
+        entry.providerOrder?.includes(LEGACY_OPENCODE2_KIND) ||
+        LEGACY_OPENCODE2_KIND in (entry.hiddenModels ?? {}) ||
+        LEGACY_OPENCODE2_KIND in (entry.agentSettings ?? {}),
+    );
+  const migrateDisabled = (values: readonly string[]): string[] => {
+    const hasLegacyDisable = values.includes(LEGACY_OPENCODE2_KIND);
+    const filtered =
+      !hasLegacyDisable && hasOpenCode2Activity
+        ? values.filter((kind) => kind !== OPENCODE_PROVIDER_KIND)
+        : values;
+    return [...new Set(filtered.map(migrateProvider))];
+  };
+  const preferLegacy = <T>(legacy: T, _current: T): T => legacy;
+  const mergePrefs = (
+    legacy: Record<string, ProviderModelPreference>,
+    current: Record<string, ProviderModelPreference>,
+  ): Record<string, ProviderModelPreference> => ({ ...current, ...legacy });
+  const mergeModelIds = (legacy: string[], current: string[]): string[] => [
+    ...new Set([...current, ...legacy]),
+  ];
+  const migrateHookSupport = (
+    record: SharedSettings["agentHookSupport"],
+  ): SharedSettings["agentHookSupport"] => {
+    const keys = Object.keys(record);
+    if (
+      !keys.some(
+        (key) => key === LEGACY_OPENCODE2_KIND || key.startsWith(`${LEGACY_OPENCODE2_KIND}:`),
+      )
+    ) {
+      return record;
+    }
+    const next = { ...record };
+    for (const key of keys) {
+      if (key === LEGACY_OPENCODE2_KIND) {
+        next[OPENCODE_PROVIDER_KIND] = next[key]!;
+        delete next[key];
+      } else if (key.startsWith(`${LEGACY_OPENCODE2_KIND}:`)) {
+        const target = `${OPENCODE_PROVIDER_KIND}${key.slice(LEGACY_OPENCODE2_KIND.length)}`;
+        next[target] = next[key]!;
+        delete next[key];
+      }
+    }
+    return next;
+  };
+  const dedupeModelPickerEntries = <
+    T extends {
+      agentKind: string;
+      modelId: string;
+      presentationMode: string;
+      lastUsedAt?: number | undefined;
+    },
+  >(
+    entries: readonly T[],
+  ): T[] => {
+    const seen = new Map<string, number>();
+    const result: T[] = [];
+    for (const rawEntry of entries) {
+      const entry =
+        rawEntry.agentKind === LEGACY_OPENCODE2_KIND
+          ? { ...rawEntry, agentKind: OPENCODE_PROVIDER_KIND }
+          : rawEntry;
+      const key = `${entry.agentKind}\0${entry.modelId}\0${entry.presentationMode}`;
+      const existingIndex = seen.get(key);
+      if (existingIndex === undefined) {
+        seen.set(key, result.length);
+        result.push(entry);
+      } else if ((entry.lastUsedAt ?? -1) > (result[existingIndex]!.lastUsedAt ?? -1)) {
+        result[existingIndex] = entry;
+      }
+    }
+    return result;
+  };
+  const migrateAgentKindEntry = <T extends { agentKind: string }>(entry: T): T =>
+    entry.agentKind === LEGACY_OPENCODE2_KIND
+      ? { ...entry, agentKind: OPENCODE_PROVIDER_KIND }
+      : entry;
+
+  const movedProviderConfigs = moveRecordKey(
+    settings.providerConfigs,
+    LEGACY_OPENCODE2_KIND,
+    OPENCODE_PROVIDER_KIND,
+    preferLegacy,
+  );
+  const migratedProviderConfigs = Object.fromEntries(
+    Object.entries(movedProviderConfigs).map(([kind, config]) => [
+      kind,
+      migrateSelectionBinding(config),
+    ]),
+  );
+
+  const migratedMachineSettings = Object.fromEntries(
+    Object.entries(settings.machineSettings).map(([key, entry]) => [
+      key,
+      {
+        ...entry,
+        ...(entry.providerOrder ? { providerOrder: migrateOrder(entry.providerOrder) } : {}),
+        ...(entry.disabledAgents ? { disabledAgents: migrateDisabled(entry.disabledAgents) } : {}),
+        ...(entry.hiddenModels
+          ? {
+              hiddenModels: moveRecordKey(
+                entry.hiddenModels,
+                LEGACY_OPENCODE2_KIND,
+                OPENCODE_PROVIDER_KIND,
+                mergeModelIds,
+              ),
+            }
+          : {}),
+        ...(entry.agentSettings
+          ? {
+              agentSettings: moveRecordKey(
+                entry.agentSettings,
+                LEGACY_OPENCODE2_KIND,
+                OPENCODE_PROVIDER_KIND,
+                preferLegacy,
+              ),
+            }
+          : {}),
+      },
+    ]),
+  );
+
+  const migratedWslCrews = Object.fromEntries(
+    Object.entries(settings.wslCrews).map(([distro, crews]) => [distro, migrateCrewList(crews)]),
+  );
+
+  const result: SharedSettings = {
+    ...settings,
+    acpRegistryInstalledAgents: Object.fromEntries(
+      Object.entries(settings.acpRegistryInstalledAgents).map(([id, record]) => [
+        id,
+        record.adapterKind === LEGACY_OPENCODE2_KIND
+          ? { ...record, adapterKind: OPENCODE_PROVIDER_KIND }
+          : record,
+      ]),
+    ),
+    providerConfigs: migratedProviderConfigs,
+    providerModelPreferences: moveRecordKey(
+      settings.providerModelPreferences,
+      LEGACY_OPENCODE2_KIND,
+      OPENCODE_PROVIDER_KIND,
+      mergePrefs,
+    ),
+    lastPresentationModeByAgent: moveRecordKey(
+      settings.lastPresentationModeByAgent,
+      LEGACY_OPENCODE2_KIND,
+      OPENCODE_PROVIDER_KIND,
+      preferLegacy,
+    ),
+    agentSettings: moveRecordKey(
+      settings.agentSettings,
+      LEGACY_OPENCODE2_KIND,
+      OPENCODE_PROVIDER_KIND,
+      preferLegacy,
+    ),
+    hiddenModels: moveRecordKey(
+      settings.hiddenModels,
+      LEGACY_OPENCODE2_KIND,
+      OPENCODE_PROVIDER_KIND,
+      mergeModelIds,
+    ),
+    crossagentHiddenModels: moveRecordKey(
+      settings.crossagentHiddenModels,
+      LEGACY_OPENCODE2_KIND,
+      OPENCODE_PROVIDER_KIND,
+      mergeModelIds,
+    ),
+    machineSettings: migratedMachineSettings,
+    disabledAgents: migrateDisabled(settings.disabledAgents),
+    providerOrder: migrateOrder(settings.providerOrder),
+    crossagentPausedProviders: migrateDisabled(settings.crossagentPausedProviders),
+    agentHookSupport: migrateHookSupport(settings.agentHookSupport),
+    favoriteModels: dedupeModelPickerEntries(settings.favoriteModels),
+    recentModels: dedupeModelPickerEntries(settings.recentModels),
+    agentSelectionUsage: settings.agentSelectionUsage.map(migrateAgentKindEntry),
+    crossagentSelectionUsage: settings.crossagentSelectionUsage.map(migrateAgentKindEntry),
+    crossagentRoutingOverrides: settings.crossagentRoutingOverrides.map((entry) => ({
+      ...migrateAgentKindEntry(entry),
+      ...(entry.fallbacks
+        ? { fallbacks: entry.fallbacks.map((fallback) => migrateAgentKindEntry(fallback)) }
+        : {}),
+    })),
+    crews: migrateCrewList(settings.crews),
+    wslCrews: migratedWslCrews,
+    commitGenProvider: migrateProvider(settings.commitGenProvider),
+    titleGenProvider: migrateProvider(settings.titleGenProvider),
+    conflictResolverProvider: migrateProvider(settings.conflictResolverProvider),
+    experimentJudgeProvider: migrateProvider(settings.experimentJudgeProvider),
+    wslCommitGenProvider: migrateProvider(settings.wslCommitGenProvider),
+    wslTitleGenProvider: migrateProvider(settings.wslTitleGenProvider),
+    wslConflictResolverProvider: migrateProvider(settings.wslConflictResolverProvider),
+  };
+  for (const key of [
+    "commitGenSelection",
+    "titleGenSelection",
+    "conflictResolverSelection",
+    "experimentJudgeSelection",
+    "wslCommitGenSelection",
+    "wslTitleGenSelection",
+    "wslConflictResolverSelection",
+  ] as const) {
+    if (Object.hasOwn(result, key)) {
+      const migratedSelection = migrateOptionalSelection(result[key]);
+      if (migratedSelection) result[key] = migratedSelection;
+    }
+  }
+  return result;
+}
+
 export const ANTIGRAVITY_ACP_ALIAS_MIGRATED_KEYS = [
   "acpRegistryInstalledAgents",
   "providerConfigs",
@@ -1923,7 +2219,7 @@ export function migrateSharedSettingsValues(
   const disabledProviders = usage.success
     ? settingsStringListSchema.safeParse(usage.data.disabledProviders)
     : undefined;
-  return migrateAntigravityAcpAliasState(
+  const antigravityMigrated = migrateAntigravityAcpAliasState(
     migrateRetiredModels({
       ...normalized,
       sidebarShortcutOrder: normalizeSidebarShortcutOrder(normalized.sidebarShortcutOrder),
@@ -1952,6 +2248,10 @@ export function migrateSharedSettingsValues(
       },
     }),
   );
+  return {
+    ...antigravityMigrated,
+    settings: migrateLegacyOpenCode2Kind(antigravityMigrated.settings),
+  };
 }
 
 /**

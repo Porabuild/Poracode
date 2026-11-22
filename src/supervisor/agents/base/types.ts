@@ -88,6 +88,11 @@ export interface AgentLaunchOptions {
   resumeThreadId?: string;
   agentSettings?: Record<string, boolean | string>;
   mcpServers?: readonly ResolvedMcpServer[];
+  /**
+   * Authoritative L1 status callback for terminal (CLI) launches backed by a
+   * provider sidecar stream (e.g. `opencode serve` SSE events).
+   */
+  onTerminalStatusUpdate?: (change: { status: ThreadStatus; attention: ThreadAttention }) => void;
 }
 
 export interface StructuredSessionUpdate {
@@ -1217,6 +1222,9 @@ export interface AgentAdapter
   readonly skillSupport?: AgentSkillSupport;
   /** Release provider-owned shared processes after all thread sessions have closed. */
   shutdown?(): void | Promise<void>;
+
+  /** Share one directory-scoped MCP URL per pooled runtime and isolate callers by session permissions + request metadata. */
+  readonly poolsDirectoryMcp?: boolean;
 
   /** Route stdio MCPs with an explicit cwd through the proxy when the native runtime ignores cwd. */
   readonly mcpRequiresStdioCwdProxy?: boolean;

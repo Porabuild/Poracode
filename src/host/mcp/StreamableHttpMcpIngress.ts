@@ -33,6 +33,11 @@ export interface StreamableHttpMcpToolResult {
   isError?: boolean;
 }
 
+export type PooledMcpIdentityResolver = (
+  metadata: Readonly<Record<string, unknown>>,
+  serverId: string,
+) => Promise<McpThreadIdentity | null> | McpThreadIdentity | null;
+
 export interface StreamableHttpMcpIngressOptions<TContext> {
   /**
    * Network interface to bind. Defaults to `0.0.0.0` so WSL agents can reach the
@@ -41,6 +46,8 @@ export interface StreamableHttpMcpIngressOptions<TContext> {
    * `"127.0.0.1"` to bind loopback only.
    */
   bindHost?: string;
+  serverId?: string;
+  resolvePooledIdentity?: PooledMcpIdentityResolver;
   contextUnavailableMessage?: string;
   dispatchTool(name: string, args: Record<string, unknown>, ctx: TContext): Promise<unknown>;
   formatToolResult(name: string, result: unknown): StreamableHttpMcpToolResult;
@@ -92,8 +99,10 @@ export class StreamableHttpMcpIngress<TContext> {
   private starting: Promise<StreamableHttpMcpIngressInfo> | undefined;
   private closing: Promise<void> | undefined;
   private stopping = false;
+  private resolvePooledIdentity: PooledMcpIdentityResolver | undefined;
 
   constructor(private readonly options: StreamableHttpMcpIngressOptions<TContext>) {
+    this.resolvePooledIdentity = options.resolvePooledIdentity;
     this.server = createServer((req, res) => {
       if (this.stopping) {
         this.sendJson(res, 503, { error: "MCP ingress is shutting down." });
@@ -102,6 +111,10 @@ export class StreamableHttpMcpIngress<TContext> {
       void this.work.run(() => this.handle(req, res)).catch(() => res.destroy());
     });
     this.connections = new HttpServerConnections(this.server);
+  }
+
+  setResolvePooledIdentity(resolver: PooledMcpIdentityResolver | undefined): void {
+    this.resolvePooledIdentity = resolver;
   }
 
   start(): Promise<StreamableHttpMcpIngressInfo> {
@@ -385,7 +398,32 @@ export class StreamableHttpMcpIngress<TContext> {
         const normalize = this.options.normalizeToolName ?? ((name: string) => name);
         const name = normalize(String(p.name ?? ""));
         const args = (p.arguments ?? {}) as Record<string, unknown>;
-        if (identity.disabledTools?.some((disabled) => normalize(disabled) === name)) {
+        let effectiveIdentity = identity;
+        if (identity.pooled) {
+          const rawMeta = (p as { _meta?: unknown })._meta;
+          const metadata =
+            rawMeta && typeof rawMeta === "object" && !Array.isArray(rawMeta)
+              ? (rawMeta as Readonly<Record<string, unknown>>)
+              : {};
+          const serverId = this.options.serverId ?? this.options.serverInfo.name;
+          const resolved = await this.resolvePooledIdentity?.(metadata, serverId);
+          if (!resolved?.threadId) {
+            return {
+              jsonrpc: "2.0",
+              id,
+              result: {
+                isError: true,
+                content: [{ type: "text", text: "Pooled MCP session could not be resolved." }],
+              },
+            };
+          }
+          effectiveIdentity = {
+            ...identity,
+            ...resolved,
+            disabledTools: resolved.disabledTools ?? identity.disabledTools,
+          };
+        }
+        if (effectiveIdentity.disabledTools?.some((disabled) => normalize(disabled) === name)) {
           return {
             jsonrpc: "2.0",
             id,
@@ -405,7 +443,7 @@ export class StreamableHttpMcpIngress<TContext> {
             },
           };
         }
-        const ctx = this.options.buildContext(identity);
+        const ctx = this.options.buildContext(effectiveIdentity);
         if (!ctx) {
           return {
             jsonrpc: "2.0",

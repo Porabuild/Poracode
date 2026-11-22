@@ -7,10 +7,11 @@
  */
 
 export interface McpThreadIdentity {
-  threadId?: string;
-  title?: string;
-  disabledTools?: readonly string[];
-  deviceProof?: string;
+  threadId?: string | undefined;
+  title?: string | undefined;
+  pooled?: boolean | undefined;
+  disabledTools?: readonly string[] | undefined;
+  deviceProof?: string | undefined;
 }
 
 const MAX_TITLE = 80;
@@ -22,13 +23,17 @@ export function encodeThreadQuery(
 ): string {
   if (!identity) return baseUrl;
   const params = new URLSearchParams();
-  if (identity.threadId) params.set("thread", identity.threadId);
-  const title = identity.title?.trim();
-  if (identity.threadId && title) params.set("title", title.slice(0, MAX_TITLE));
+  if (identity.pooled) {
+    params.set("pooled", "1");
+  } else {
+    if (identity.threadId) params.set("thread", identity.threadId);
+    const title = identity.title?.trim();
+    if (identity.threadId && title) params.set("title", title.slice(0, MAX_TITLE));
+    if (identity.deviceProof) params.set("deviceProof", identity.deviceProof);
+  }
   for (const tool of identity.disabledTools ?? []) {
     params.append("disable", tool);
   }
-  if (identity.deviceProof) params.set("deviceProof", identity.deviceProof);
   const query = params.toString();
   return query ? `${baseUrl}${baseUrl.includes("?") ? "&" : "?"}${query}` : baseUrl;
 }
@@ -38,11 +43,13 @@ export function decodeThreadIdentity(url: string | undefined): McpThreadIdentity
   if (!url) return {};
   try {
     const params = new URL(url, "http://x").searchParams;
+    const pooled = params.get("pooled") === "1";
     const threadId = params.get("thread") ?? undefined;
     const title = params.get("title") ?? undefined;
     const disabledTools = params.getAll("disable").filter(Boolean);
     const deviceProof = params.get("deviceProof") ?? undefined;
     return {
+      ...(pooled ? { pooled: true } : {}),
       ...(threadId ? { threadId } : {}),
       ...(title ? { title } : {}),
       ...(disabledTools.length > 0 ? { disabledTools } : {}),
@@ -71,9 +78,10 @@ export type ThreadGroupColor = (typeof THREAD_GROUP_COLORS)[number];
 
 /** Stable color for a thread's tab group, hashed from its id. */
 export function threadGroupColor(threadId: string): ThreadGroupColor {
-  let hash = 0;
-  for (let i = 0; i < threadId.length; i++) {
-    hash = (hash * 31 + threadId.charCodeAt(i)) >>> 0;
+  let hash = 2166136261;
+  for (let i = 0; i < threadId.length; i += 1) {
+    hash ^= threadId.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
   }
-  return THREAD_GROUP_COLORS[hash % THREAD_GROUP_COLORS.length]!;
+  return THREAD_GROUP_COLORS[(hash >>> 0) % THREAD_GROUP_COLORS.length]!;
 }

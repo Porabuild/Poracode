@@ -234,7 +234,7 @@ describe("deriveToolDisplay", () => {
 
   it("names a crew follow-up for the crew instead of the Crossagents tool", () => {
     const payload = makePayload({
-      name: "Fence stale shell pages — OpenCode 2 · DeepSeek V4.1 Flash · Max",
+      name: "Fence stale shell pages — OpenCode · DeepSeek V4.1 Flash · Max",
       title: "Fence stale shell pages",
       isCrossagent: true,
       isSubAgentResume: true,
@@ -248,7 +248,7 @@ describe("deriveToolDisplay", () => {
     );
 
     const withoutRole = makePayload({
-      name: "Fence stale shell pages — OpenCode 2 · DeepSeek V4.1 Flash · Max",
+      name: "Fence stale shell pages — OpenCode · DeepSeek V4.1 Flash · Max",
       title: "Fence stale shell pages",
       isCrossagent: true,
       isSubAgentResume: true,
@@ -259,7 +259,7 @@ describe("deriveToolDisplay", () => {
 
     // A row persisted before follow-ups were recognized keeps its old label.
     const persisted = makePayload({
-      name: "Fence stale shell pages — OpenCode 2 · DeepSeek V4.1 Flash · Max",
+      name: "Fence stale shell pages — OpenCode · DeepSeek V4.1 Flash · Max",
       title: "Fence stale shell pages",
       isCrossagent: true,
       subAgentType: "Sidekick",

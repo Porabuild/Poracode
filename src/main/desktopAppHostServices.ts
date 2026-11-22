@@ -116,6 +116,8 @@ export function createDesktopHostServices(deps: DesktopHostServicesDeps): Deskto
       baseDir: deps.paths.baseDir,
       getChatBootstrap: () =>
         deps.backendHost.callService("getManagedLoopbackBootstrap", { browserExtension: true }),
+      resolvePooledIdentity: (metadata, serverId) =>
+        deps.backendHost.call("resolveMcpSessionIdentity", { metadata, serverId }),
       // Unpacked dev and smoke runs must not repoint the installed app's launcher.
       ...(chromeNativeHostEnabled(app.isPackaged, process.env)
         ? { chromeNativeHost: { homeDir: homedir() } }

@@ -189,7 +189,7 @@ describe("Crew follow-up rows", () => {
     id: "sidekick",
     label: "Sidekick",
     selection: {
-      agentKind: "opencode2",
+      agentKind: "opencode",
       model: "opencode-go/deepseek-v4.1-flash",
       effort: "max",
     },
@@ -217,7 +217,7 @@ describe("Crew follow-up rows", () => {
               type: "tool_call",
               state: "started",
               payload: {
-                name: "OpenCode 2 · DeepSeek V4.1 Flash · Max",
+                name: "OpenCode · DeepSeek V4.1 Flash · Max",
                 title: row.title,
                 status: "running",
                 isCrossagent: true,

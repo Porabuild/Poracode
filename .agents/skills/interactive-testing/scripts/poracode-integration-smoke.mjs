@@ -1536,7 +1536,6 @@ async function runMockGate(client, gate, fixture) {
         codex: "dollar",
         gemini: "prompt",
         opencode: "prompt",
-        opencode2: "prompt",
         copilot: "slash",
         commandcode: "slash",
         cursor: "slash",

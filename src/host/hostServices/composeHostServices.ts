@@ -41,6 +41,7 @@ import {
   ComputerUseMcpIngress,
   type ComputerUseActivityEvent,
 } from "../computer-use/ComputerUseMcpIngress";
+import type { PooledMcpIdentityResolver } from "../mcp/StreamableHttpMcpIngress";
 import { isComputerUseBackendAvailable } from "../computer-use/drivers";
 import { resolveLockedComputerUseResourcesDir } from "../computer-use/lockedUse/constants";
 import { LockedComputerUseService } from "../computer-use/lockedUse/LockedComputerUseService";
@@ -51,6 +52,7 @@ export interface HostServicesCore {
   /** Owned profile root: SSH runtime cache + the Chrome bridge pairing file. */
   readonly baseDir: string;
   readonly getChatBootstrap?: () => Promise<ManagedLoopbackBootstrap | null>;
+  readonly resolvePooledIdentity?: PooledMcpIdentityResolver;
   /**
    * Publish the Chrome bridge token through the per-user native messaging
    * host and (re)register that host with installed Chromium browsers. Only
@@ -195,9 +197,15 @@ export function composeHostServices(
   const chromeMcpIngress = new ChromeMcpIngress();
   chromeMcpIngress.setAgentVision(agentVision);
   chromeMcpIngress.setConnectionAccessor(() => chromeBridgeServer.getConnection());
+  if (core.resolvePooledIdentity) {
+    chromeMcpIngress.setResolvePooledIdentity(core.resolvePooledIdentity);
+  }
 
   const browserMcpIngress = nativeShell?.browserMcpIngress ?? null;
   browserMcpIngress?.setAgentVision?.(agentVision);
+  if (core.resolvePooledIdentity) {
+    browserMcpIngress?.setResolvePooledIdentity?.(core.resolvePooledIdentity);
+  }
   if (nativeShell) {
     browserMcpIngress?.setManagerAccessor(() => nativeShell.browserPanelManager);
   }
@@ -235,6 +243,9 @@ export function composeHostServices(
     computerUseSupported && core.computerUse
       ? new ComputerUseMcpIngress({
           vision: agentVision,
+          ...(core.resolvePooledIdentity
+            ? { resolvePooledIdentity: core.resolvePooledIdentity }
+            : {}),
           lockedUse: {
             isSettingEnabled: isLockedUseSettingEnabled,
             shouldDimDisplay: () => {

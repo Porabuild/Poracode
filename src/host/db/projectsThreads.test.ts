@@ -632,6 +632,163 @@ describe("projectsThreads (real sqlite round-trip)", () => {
     expect(dbGetState("schema_version")).toBe(String(LATEST_SCHEMA_VERSION));
   });
 
+  it("adopts opencode2 threads, drafts, schedules, watches, crews, bindings, and usage rows during the v79 migration", () => {
+    const crewConfig = {
+      id: "ship",
+      name: "Ship",
+      lead: { agentKind: "opencode2", model: "opencode-go/deepseek-v4.1-flash" },
+      policy: "crew-only",
+      roles: [
+        {
+          id: "reviewer",
+          label: "Reviewer",
+          selection: { agentKind: "opencode2", model: "opencode-go/kimi-k2.5" },
+          fallbacks: [{ agentKind: "opencode2", model: "opencode/big-pickle" }],
+        },
+      ],
+    };
+    const selectionBinding = {
+      version: 1,
+      kind: "family-member",
+      owner: { agentKind: "opencode2", presentationMode: "gui" },
+      model: "opencode-go/deepseek-v4.1-flash",
+      inertValues: { effort: "", fast: false },
+    };
+    dbUpsertThread(
+      testThread({
+        id: "thread-oc2",
+        agentKind: "opencode2",
+        config: {
+          model: "opencode-go/deepseek-v4.1-flash",
+          crew: crewConfig,
+          selectionBinding,
+        } as unknown as Thread["config"],
+        presentationMode: "gui",
+      }),
+      0,
+    );
+    getSqlite()
+      .prepare(
+        `INSERT INTO scheduled_tasks
+          (id, name, prompt, agent_kind, config, recurrence, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      )
+      .run(
+        "schedule-oc2",
+        "OpenCode 2 schedule",
+        "Run",
+        "opencode2",
+        JSON.stringify({ model: "opencode-go/deepseek-v4.1-flash", crew: crewConfig }),
+        JSON.stringify({ type: "daily", hour: 9, minute: 0 }),
+        "2026-08-01T00:00:00.000Z",
+        "2026-08-01T00:00:00.000Z",
+      );
+    getSqlite()
+      .prepare(
+        `INSERT INTO pr_watches (project_id, pr_number, head_branch, agent_kind, config)
+         VALUES (?, ?, ?, ?, ?)`,
+      )
+      .run(
+        "project-1",
+        99,
+        "feature-oc2",
+        "opencode2",
+        JSON.stringify({ model: "opencode-go/deepseek-v4.1-flash", selectionBinding }),
+      );
+    getSqlite()
+      .prepare("UPDATE projects SET last_draft_config = ? WHERE id = ?")
+      .run(
+        JSON.stringify({
+          agentKind: "opencode2",
+          model: "opencode-go/deepseek-v4.1-flash",
+          crew: crewConfig,
+        }),
+        "project-1",
+      );
+    getSqlite()
+      .prepare("INSERT INTO usage_events (ts, kind, provider, value) VALUES (?, ?, ?, ?)")
+      .run(Date.now(), "tokens_v2", "opencode2", 42);
+    getSqlite()
+      .prepare(
+        "INSERT INTO usage_token_ledger (provider, scope_id, epoch, last_counter, cost_details) VALUES (?, ?, ?, ?, ?)",
+      )
+      .run("opencode2", "session-oc2", 1, 500, "{}");
+    getSqlite()
+      .prepare(
+        `INSERT INTO thread_token_usage
+          (thread_id, member, provider, model, input, output, cache_read, cache_write, total,
+           cost_usd, priced_total, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      )
+      .run(
+        "thread-oc2",
+        "lead",
+        "opencode2",
+        "opencode-go/deepseek-v4.1-flash",
+        10,
+        5,
+        0,
+        0,
+        15,
+        0,
+        0,
+        1000,
+      );
+    dbSetState("schema_version", "78");
+
+    closeDatabase();
+    initDatabase(join(dir, "state.sqlite"));
+
+    const migratedThread = dbGetThread("thread-oc2");
+    expect(migratedThread?.agentKind).toBe("opencode");
+    expect(
+      (migratedThread?.config as unknown as { selectionBinding?: { owner: { agentKind: string } } })
+        ?.selectionBinding?.owner.agentKind,
+    ).toBe("opencode");
+    expect(
+      (migratedThread?.config as unknown as { crew?: typeof crewConfig })?.crew?.lead.agentKind,
+    ).toBe("opencode");
+    expect(
+      (migratedThread?.config as unknown as { crew?: typeof crewConfig })?.crew?.roles[0]?.selection
+        .agentKind,
+    ).toBe("opencode");
+    expect(
+      (migratedThread?.config as unknown as { crew?: typeof crewConfig })?.crew?.roles[0]
+        ?.fallbacks?.[0]?.agentKind,
+    ).toBe("opencode");
+
+    const draft = dbGetProject("project-1")?.lastDraftConfig as
+      | { agentKind?: string; crew?: typeof crewConfig }
+      | undefined;
+    expect(draft?.agentKind).toBe("opencode");
+    expect(draft?.crew?.lead.agentKind).toBe("opencode");
+
+    expect(
+      getSqlite()
+        .prepare("SELECT agent_kind FROM scheduled_tasks WHERE id = ?")
+        .get("schedule-oc2"),
+    ).toEqual({ agent_kind: "opencode" });
+    expect(
+      getSqlite()
+        .prepare("SELECT agent_kind FROM pr_watches WHERE project_id = ? AND pr_number = ?")
+        .get("project-1", 99),
+    ).toEqual({ agent_kind: "opencode" });
+    expect(getSqlite().prepare("SELECT provider FROM usage_events").get()).toEqual({
+      provider: "opencode",
+    });
+    expect(
+      getSqlite()
+        .prepare("SELECT provider, last_counter FROM usage_token_ledger WHERE scope_id = ?")
+        .get("session-oc2"),
+    ).toEqual({ provider: "opencode", last_counter: 500 });
+    expect(
+      getSqlite()
+        .prepare("SELECT provider, total FROM thread_token_usage WHERE thread_id = ?")
+        .get("thread-oc2"),
+    ).toEqual({ provider: "opencode", total: 15 });
+    expect(dbGetState("schema_version")).toBe(String(LATEST_SCHEMA_VERSION));
+  });
+
   it("round-trips project MCP servers through the projects table", () => {
     dbUpsertProject(
       {

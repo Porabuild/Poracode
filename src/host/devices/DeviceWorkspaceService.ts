@@ -1,6 +1,7 @@
 import { randomBytes, randomUUID } from "node:crypto";
 import {
   DEVICE_WORKSPACE_AGENT_KEY_ENV,
+  deviceThreadProof,
   verifyDeviceThreadProof,
 } from "@/shared/deviceWorkspaceAgentProof";
 import { loadSharp } from "../attachments/loadSharp";
@@ -113,6 +114,9 @@ export class DeviceWorkspaceService {
   }
   supervisorExtraEnv(): Record<string, string> {
     return { [DEVICE_WORKSPACE_AGENT_KEY_ENV]: this.agentKey };
+  }
+  issueThreadProof(threadId: string): string {
+    return deviceThreadProof(this.agentKey, threadId);
   }
   preparePreview(): Promise<void> {
     return this.previews?.prepare() ?? Promise.resolve();

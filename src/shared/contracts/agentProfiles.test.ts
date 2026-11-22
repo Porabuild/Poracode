@@ -74,7 +74,7 @@ describe("stripAgentProfileBasePrefix", () => {
   it("keeps labels without the driver prefix whole", () => {
     expect(stripAgentProfileBasePrefix("Work account", "claude:work")).toBe("Work account");
     expect(stripAgentProfileBasePrefix("Claude", "claude:work")).toBe("Claude");
-    expect(stripAgentProfileBasePrefix("OpenCode 2", "acp-generic:opencode-2")).toBe("OpenCode 2");
+    expect(stripAgentProfileBasePrefix("Goose CLI", "acp-generic:goose-cli")).toBe("Goose CLI");
   });
 });
 

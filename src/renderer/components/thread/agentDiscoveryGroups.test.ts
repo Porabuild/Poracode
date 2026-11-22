@@ -61,12 +61,12 @@ describe("groupDiscoveredAgents", () => {
 
   it("keeps standalone registry agents as their own cards", () => {
     const groups = groupDiscoveredAgents([
-      makeStatus({ kind: "acp-generic:opencode-2", label: "OpenCode 2" }),
+      makeStatus({ kind: "acp-generic:goose-cli", label: "Goose CLI" }),
       makeStatus({ kind: "acp-generic:muse-code", label: "Muse Code" }),
     ]);
 
     expect(groups.map((group) => group.kind)).toEqual([
-      "acp-generic:opencode-2",
+      "acp-generic:goose-cli",
       "acp-generic:muse-code",
     ]);
   });
@@ -193,7 +193,7 @@ describe("countDiscoveredAgentGroups", () => {
         makeStatus({ kind: "claude" }),
         makeStatus({ kind: "claude:qwen", label: "Claude Qwen" }),
         makeStatus({ kind: "claude", envKind: "wsl", envDistro: "Ubuntu" }),
-        makeStatus({ kind: "acp-generic:opencode-2", label: "OpenCode 2" }),
+        makeStatus({ kind: "acp-generic:goose-cli", label: "Goose CLI" }),
         makeStatus({ kind: "gemini", label: "Gemini", installed: false }),
       ]),
     ).toBe(2);

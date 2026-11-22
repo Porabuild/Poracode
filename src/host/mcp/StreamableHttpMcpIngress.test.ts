@@ -2,7 +2,7 @@ import { request } from "node:http";
 import { afterEach, describe, expect, it } from "vitest";
 import { StreamableHttpMcpIngress } from "./StreamableHttpMcpIngress";
 
-let ingress: StreamableHttpMcpIngress<{ ok: true }> | null = null;
+let ingress: { dispose(): Promise<void> } | null = null;
 
 function makeIngress(): StreamableHttpMcpIngress<{ ok: true }> {
   return new StreamableHttpMcpIngress<{ ok: true }>({
@@ -43,8 +43,9 @@ afterEach(async () => {
 
 describe("StreamableHttpMcpIngress auth + host guards", () => {
   it("filters disabled tools from discovery and calls", async () => {
-    ingress = makeIngress();
-    const info = await ingress.start();
+    const server = makeIngress();
+    ingress = server;
+    const info = await server.start();
     const headers = {
       authorization: `Bearer ${info.token}`,
       "content-type": "application/json",
@@ -70,8 +71,9 @@ describe("StreamableHttpMcpIngress auth + host guards", () => {
   });
 
   it("accepts a valid bearer token and rejects a wrong one", async () => {
-    ingress = makeIngress();
-    const info = await ingress.start();
+    const server = makeIngress();
+    ingress = server;
+    const info = await server.start();
 
     const ok = await rawRequest(info.port, {
       Host: `127.0.0.1:${info.port}`,
@@ -98,8 +100,9 @@ describe("StreamableHttpMcpIngress auth + host guards", () => {
   });
 
   it("rejects a foreign DNS Host but allows loopback and IP-literal hosts", async () => {
-    ingress = makeIngress();
-    const info = await ingress.start();
+    const server = makeIngress();
+    ingress = server;
+    const info = await server.start();
 
     const base = { Authorization: `Bearer ${info.token}`, "Content-Type": "application/json" };
 
@@ -114,5 +117,81 @@ describe("StreamableHttpMcpIngress auth + host guards", () => {
 
     const loopbackIp = await rawRequest(info.port, { ...base, Host: `127.0.0.1:${info.port}` });
     expect(loopbackIp.status).toBe(200);
+  });
+
+  it("resolves pooled identity from _meta on tools/call and enforces per-thread gates", async () => {
+    const calls: string[] = [];
+    const server = new StreamableHttpMcpIngress<{ threadId: string }>({
+      bindHost: "127.0.0.1",
+      serverId: "browser",
+      resolvePooledIdentity: (meta, serverId) => {
+        if (serverId !== "browser") return null;
+        if (meta["ai.opencode/sessionID"] === "ses-allowed") {
+          return { threadId: "thread-1", title: "First" };
+        }
+        if (meta["ai.opencode/sessionID"] === "ses-restricted") {
+          return { threadId: "thread-2", disabledTools: ["noop"] };
+        }
+        return null;
+      },
+      serverInfo: { name: "test", version: "0.0.0" },
+      instructions: "test",
+      tools: [{ name: "noop", description: "noop", inputSchema: { type: "object" } }],
+      isKnownToolName: (name) => name === "noop",
+      buildContext: (identity) => (identity.threadId ? { threadId: identity.threadId } : null),
+      dispatchTool: (_name, _args, ctx) => {
+        calls.push(ctx.threadId);
+        return Promise.resolve({ ok: true });
+      },
+      formatToolResult: () => ({ content: [{ type: "text", text: "ok" }] }),
+    });
+    ingress = server;
+    const info = await server.start();
+    const headers = {
+      authorization: `Bearer ${info.token}`,
+      "content-type": "application/json",
+    };
+
+    const allowed = await fetch(`${info.url}/mcp?pooled=1`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        id: 1,
+        method: "tools/call",
+        params: { name: "noop", arguments: {}, _meta: { "ai.opencode/sessionID": "ses-allowed" } },
+      }),
+    });
+    expect((await allowed.json()).result.isError).toBeUndefined();
+    expect(calls).toEqual(["thread-1"]);
+
+    const denied = await fetch(`${info.url}/mcp?pooled=1`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        id: 2,
+        method: "tools/call",
+        params: {
+          name: "noop",
+          arguments: {},
+          _meta: { "ai.opencode/sessionID": "ses-restricted" },
+        },
+      }),
+    });
+    expect((await denied.json()).result).toMatchObject({ isError: true });
+
+    const unresolved = await fetch(`${info.url}/mcp?pooled=1`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        id: 3,
+        method: "tools/call",
+        params: { name: "noop", arguments: {}, _meta: { "ai.opencode/sessionID": "unknown" } },
+      }),
+    });
+    expect((await unresolved.json()).result).toMatchObject({ isError: true });
+    expect(calls).toEqual(["thread-1"]);
   });
 });

@@ -1,4 +1,5 @@
 import type { BrowserEvent, BrowserState, BrowserTabInfo } from "@/shared/ipc";
+import type { PooledMcpIdentityResolver } from "@/host/mcp/StreamableHttpMcpIngress";
 
 /**
  * Electron-free browser surfaces consumed by the host HTTP/data plane.
@@ -52,6 +53,7 @@ export interface BrowserMcpIngressInfo {
 export interface BrowserMcpIngress {
   setAgentVision?(vision: import("../AgentVisionService").AgentVisionService): void;
   setManagerAccessor(getter: () => BrowserPanelManager | null): void;
+  setResolvePooledIdentity?(resolver: PooledMcpIdentityResolver | undefined): void;
   setAllowEval(allow: boolean): void;
   setAllowDataAccess(allow: boolean): void;
   start(): Promise<BrowserMcpIngressInfo>;

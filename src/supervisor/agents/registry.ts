@@ -31,7 +31,6 @@ import { createGrokAdapter } from "./grok";
 import { createKimiAdapter } from "./kimi";
 import { createMuseAdapter } from "./muse";
 import { createOpenCodeAdapter } from "./opencode";
-import { createOpenCode2Adapter } from "./opencode2";
 import { createPiAdapter } from "./pi";
 import { createQoderAdapter } from "./qoder";
 import { createQwenAdapter } from "./qwen";
@@ -100,7 +99,6 @@ export function buildAgentRegistryEntries(
     builtIn(createCommandCodeAdapter()),
     builtIn(createCursorAdapter()),
     builtIn(createOpenCodeAdapter()),
-    builtIn(createOpenCode2Adapter()),
     builtIn(createPiAdapter()),
     builtIn(createFactoryAdapter()),
     builtIn(createDevinAdapter()),

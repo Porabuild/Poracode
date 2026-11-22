@@ -455,6 +455,10 @@ export async function composeHeadlessRemoteHost(
       : null;
     const hostServices = composeHostServices({
       baseDir: paths.baseDir,
+      resolvePooledIdentity: (metadata, serverId) => {
+        if (supervisorClient.isSupervisorProvenAbsent()) return Promise.resolve(null);
+        return supervisorClient.call("resolveMcpSessionIdentity", { metadata, serverId });
+      },
       getChatBootstrap: async () => {
         const credential = serverRef?.mintLoopbackRendererCredential({ browserExtension: true });
         return credential
