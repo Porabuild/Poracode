@@ -303,7 +303,10 @@ describe("DeepSeek Harness", () => {
       args: ["acp", "--patch", expect.stringContaining("permissions.json")],
       cwd: process.cwd(),
     });
-    expect(input).toMatchObject({ threadId: "deepseek-thread" });
+    expect(input).toMatchObject({
+      threadId: "deepseek-thread",
+      acpSessionUpdateTransform: expect.any(Function),
+    });
     expect(shared).toEqual({ scope: "deepseek" });
     expect(overrides).toMatchObject({
       behavior: { inlineImagePrompts: false },
@@ -324,6 +327,9 @@ describe("DeepSeek Harness", () => {
     );
     expect(wslSession).toBe(wsl.session);
     expect(acpMocks.createSharedAcpStructuredSession).toHaveBeenCalledTimes(1);
+    expect(create.mock.calls.at(-1)?.[3]).toMatchObject({
+      sessionUpdateTransform: expect.any(Function),
+    });
     expect(stage).toHaveBeenCalledWith(
       wslLocation,
       "deepseek-session",
