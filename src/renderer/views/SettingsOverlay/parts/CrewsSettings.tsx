@@ -1,9 +1,9 @@
 import { ContentSurface } from "@/renderer/components/common/ContentSurface";
 import { useState } from "react";
 import { Trans, useLingui } from "@lingui/react/macro";
-import { Modal, Separator } from "@heroui/react";
+import { Modal, Separator, Tooltip } from "@heroui/react";
 import { LightballTabs } from "@/renderer/components/common/LightballTabs";
-import { Copy, Lock, LockOpen, Pencil, PencilOff, Plus, Trash2, Zap } from "lucide-react";
+import { Copy, Info, Lock, LockOpen, Pencil, PencilOff, Plus, Trash2, Zap } from "lucide-react";
 import { Button } from "@/renderer/components/common/Button";
 import { ConfirmDialog } from "@/renderer/components/common/ConfirmDialog";
 import { Input } from "@/renderer/components/common/Input";
@@ -307,6 +307,7 @@ function CrewEditorModal(props: {
   const { t } = useLingui();
   const { crew, helperOptions, onUpsert } = props;
   const [editingRoleId, setEditingRoleId] = useState<string | undefined>();
+  const [infoOpen, setInfoOpen] = useState(false);
   const binding = crewBindingFromSavedCrew(crew);
   const defaultHelper = helperOptions.defaultSelectionFor(crew.lead);
   const model: CrewRosterModel = {
@@ -334,7 +335,44 @@ function CrewEditorModal(props: {
         <Modal.Dialog className="sm:max-w-xl">
           <Modal.CloseTrigger />
           <Modal.Header>
-            <Modal.Heading>{t`Edit crew`}</Modal.Heading>
+            <div className="flex items-center gap-1">
+              <Modal.Heading>{t`Edit crew`}</Modal.Heading>
+              <Tooltip
+                delay={300}
+                isOpen={infoOpen}
+                onOpenChange={setInfoOpen}
+                shouldCloseOnPress={false}
+              >
+                <Button
+                  isIconOnly
+                  size="sm"
+                  variant="ghost"
+                  aria-label={t`How crews work`}
+                  aria-expanded={infoOpen}
+                  className="size-7 min-h-7 min-w-7 text-muted"
+                  onPress={() => setInfoOpen((open) => !open)}
+                >
+                  <Info className="size-3.5" aria-hidden />
+                </Button>
+                <Tooltip.Content
+                  placement="bottom"
+                  className="max-w-72 space-y-1.5 text-xs leading-relaxed"
+                >
+                  <p>
+                    <Trans>
+                      If a role's agent is unavailable, its fallbacks run. Crew first may also use
+                      the next ranked agent.
+                    </Trans>
+                  </p>
+                  <p>
+                    <Trans>
+                      The pencil-off icon marks a role told not to edit files: an instruction in its
+                      brief, not a permission.
+                    </Trans>
+                  </p>
+                </Tooltip.Content>
+              </Tooltip>
+            </div>
           </Modal.Header>
           <Modal.Body className="space-y-3 p-4">
             <div className="flex min-w-0 flex-col gap-1">
@@ -348,24 +386,21 @@ function CrewEditorModal(props: {
                 onChange={(event) => onUpsert({ ...crew, name: event.target.value })}
               />
             </div>
-            <div>
-              <LightballTabs
-                tabs={[
-                  { id: "crew-only", label: t`Crew only`, icon: <Lock className="size-3.5" /> },
-                  {
-                    id: "crew-first",
-                    label: t`Crew first`,
-                    icon: <LockOpen className="size-3.5" />,
-                  },
-                ]}
-                active={crew.policy}
-                onChange={(policy) => onUpsert({ ...crew, policy })}
-                ariaLabel={t`Crew policy`}
-                className="w-fit"
-                shape="rounded"
-              />
-              <p className="mt-1 text-[11px] text-muted">{t`New crews start as Crew only.`}</p>
-            </div>
+            <LightballTabs
+              tabs={[
+                { id: "crew-only", label: t`Crew only`, icon: <Lock className="size-3.5" /> },
+                {
+                  id: "crew-first",
+                  label: t`Crew first`,
+                  icon: <LockOpen className="size-3.5" />,
+                },
+              ]}
+              active={crew.policy}
+              onChange={(policy) => onUpsert({ ...crew, policy })}
+              ariaLabel={t`Crew policy`}
+              className="w-fit"
+              shape="rounded"
+            />
             <ContentSurface className="overflow-hidden px-1.5 py-1">
               <CrewMemberRow
                 model={model}
@@ -425,18 +460,6 @@ function CrewEditorModal(props: {
                 <Trans>Add role</Trans>
               </Button>
             </ContentSurface>
-            <p className="text-[11px] text-muted">
-              <Trans>
-                If a role's agent is unavailable, its fallbacks run. Crew first may also use the
-                next ranked agent.
-              </Trans>
-            </p>
-            <p className="text-[11px] text-muted">
-              <Trans>
-                The pencil-off icon marks a role told not to edit files: an instruction in its
-                brief, not a permission.
-              </Trans>
-            </p>
           </Modal.Body>
           <Modal.Footer>
             <Button slot="close" variant="ghost" onPress={props.onClose}>
