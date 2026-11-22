@@ -260,8 +260,7 @@ void test("Android unit tests use two isolated JVM forks and Gradle build cachin
   assert.match(iosBuild.run, /-only-testing:AppTests/u);
   assert.match(iosBuild.run, /COMPILER_INDEX_STORE_ENABLE=NO/u);
   const iosTest = workflow.jobs.ios.steps.find((item) => item.name === "Run AppTests");
-  assert.match(iosTest.run, /-parallel-testing-enabled YES/u);
-  assert.match(iosTest.run, /-parallel-testing-worker-count 2/u);
+  assert.match(iosTest.run, /-parallel-testing-enabled NO/u);
   const contractSteps = workflow.jobs.remote_v3_contract.steps;
   const gradleCacheIdx = contractSteps.findIndex((item) =>
     item.uses?.startsWith("gradle/actions/setup-gradle@"),
