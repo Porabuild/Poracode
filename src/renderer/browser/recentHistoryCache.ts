@@ -113,6 +113,29 @@ export async function purgeRecentHistoryForConnection(connectionKey: string): Pr
   }
 }
 
+function utf8ByteLength(text: string): number {
+  let bytes = 0;
+  for (let i = 0; i < text.length; i += 1) {
+    const code = text.charCodeAt(i);
+    if (code < 0x80) {
+      bytes += 1;
+    } else if (code < 0x800) {
+      bytes += 2;
+    } else if (code >= 0xd800 && code <= 0xdbff) {
+      const next = i + 1 < text.length ? text.charCodeAt(i + 1) : 0;
+      if (next >= 0xdc00 && next <= 0xdfff) {
+        bytes += 4;
+        i += 1;
+      } else {
+        bytes += 3;
+      }
+    } else {
+      bytes += 3;
+    }
+  }
+  return bytes;
+}
+
 /** Reading a candidate grants no display authority; the owning host must validate it. */
 export async function readRecentHistory(
   authority: string,
@@ -136,7 +159,7 @@ export async function readRecentHistory(
             parsed.data.key !== recentHistoryCacheKey(authority, threadId)
           )
             return resolve(null);
-          const bytes = new TextEncoder().encode(JSON.stringify(parsed.data.history)).byteLength;
+          const bytes = utf8ByteLength(JSON.stringify(parsed.data.history));
           resolve(
             bytes <= RECENT_HISTORY_MAX_BYTES && bytes === parsed.data.bytes
               ? parsed.data.history
@@ -164,7 +187,7 @@ export async function cacheRecentHistory(
     const bytes =
       history.runtimeItems.length > MAX_ITEMS
         ? RECENT_HISTORY_MAX_BYTES + 1
-        : new TextEncoder().encode(JSON.stringify(history)).byteLength;
+        : utf8ByteLength(JSON.stringify(history));
     const key = recentHistoryCacheKey(authority, threadId);
     const db = await database();
     if (!isCurrent()) return;

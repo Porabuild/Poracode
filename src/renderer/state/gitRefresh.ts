@@ -78,9 +78,21 @@ export const PR_POST_PUSH_STATUS_POLL_MS = 5_000;
 const alwaysActive = () => true;
 
 const BRANCH_PR_PREFETCH_THROTTLE_MS = 10_000;
+const MAX_BRANCH_PR_PREFETCH_PROJECTS = 32;
 const branchPrPrefetchLastRun = new Map<string, number>();
 const branchPrPrefetchInFlight = new Map<string, Promise<Record<string, PrData> | null>>();
 const branchPrPrefetchCache = new Map<string, Record<string, PrData>>();
+
+function setBranchPrPrefetchCache(projectId: string, prs: Record<string, PrData>): void {
+  branchPrPrefetchCache.delete(projectId);
+  while (branchPrPrefetchCache.size >= MAX_BRANCH_PR_PREFETCH_PROJECTS) {
+    const oldest = branchPrPrefetchCache.keys().next().value;
+    if (oldest === undefined) break;
+    branchPrPrefetchCache.delete(oldest);
+    branchPrPrefetchLastRun.delete(oldest);
+  }
+  branchPrPrefetchCache.set(projectId, prs);
+}
 
 function shouldApplyPrefetchedPr(
   existing: PrData | null | undefined,
@@ -189,7 +201,7 @@ export async function prefetchBranchPrData(project: {
       const result = await pollPullRequests({ projectLocation: project.location }, project.id);
       if (result.status === "blocked") return null;
       const { prs } = result;
-      branchPrPrefetchCache.set(project.id, prs);
+      setBranchPrPrefetchCache(project.id, prs);
       applyPrefetchedPrData(project.id, prs, false);
       return prs;
     } catch (err) {
@@ -948,6 +960,12 @@ export function cleanupGitRefreshProjects(activeProjectIds: ReadonlySet<string>)
   }
   for (const projectId of activeRefreshTokens.keys()) {
     if (!activeProjectIds.has(projectId)) activeRefreshTokens.delete(projectId);
+  }
+  for (const key of singlePrRefreshTokens.keys()) {
+    const projectId = key.split("\u0000")[0] ?? "";
+    if (!activeProjectIds.has(projectId) && !watchedWorktreePaths.has(projectId)) {
+      singlePrRefreshTokens.delete(key);
+    }
   }
   const stalePrefetchProjectIds = new Set([
     ...branchPrPrefetchCache.keys(),

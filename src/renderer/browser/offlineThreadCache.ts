@@ -6,11 +6,13 @@ const DATABASE_NAME = "poracode-browser-cache";
 const STORE_NAME = "threadSnapshots";
 const CACHE_ACCESS_TIMEOUT_MS = 5_000;
 const MAX_CACHED_THREAD_SNAPSHOTS = 20;
+const MAX_CACHED_THREAD_SNAPSHOT_BYTES = 16 * 1024 * 1024;
 
 interface CachedThreadSnapshot {
   readonly threadId: string;
   readonly snapshot: RemoteThreadSnapshot;
   readonly updatedAt: number;
+  readonly bytes?: number;
 }
 
 const UPDATED_AT_INDEX = "updatedAt";
@@ -50,7 +52,15 @@ function openDatabase(): Promise<IDBDatabase> {
         store.createIndex(UPDATED_AT_INDEX, "updatedAt");
       }
     };
-    request.onsuccess = () => finish(null, request.result);
+    request.onsuccess = () => {
+      if (!settled) {
+        request.result.onversionchange = () => {
+          request.result.close();
+          databasePromise = null;
+        };
+      }
+      finish(null, request.result);
+    };
     request.onerror = () => finish(request.error ?? new Error("Unable to open browser cache."));
   }).catch((error: unknown) => {
     databasePromise = null;
@@ -141,21 +151,39 @@ async function updateCachedSnapshot(
           const parsed = remoteThreadSnapshotSchema.safeParse(current);
           const snapshot = update(parsed.success ? parsed.data : null);
           if (!snapshot) return;
+          const sanitized = stripVolatileSessionConfigOptionsFromSnapshot(snapshot);
+          const entryBytes = JSON.stringify(sanitized).length;
+          if (entryBytes > MAX_CACHED_THREAD_SNAPSHOT_BYTES) {
+            store.delete(threadId);
+            return;
+          }
           store.put({
             threadId,
-            snapshot: stripVolatileSessionConfigOptionsFromSnapshot(snapshot),
+            snapshot: sanitized,
             updatedAt: Date.now(),
+            bytes: entryBytes,
           } satisfies CachedThreadSnapshot);
           // Prune over the updatedAt index newest-first in the SAME transaction —
-          // no full-table read or in-memory sort. The row just written has the
-          // newest timestamp, so the retention window always keeps it.
+          // enforcing both the entry count and byte ceiling.
           let kept = 0;
+          let keptBytes = 0;
           const cursorRequest = store.index(UPDATED_AT_INDEX).openCursor(null, "prev");
           cursorRequest.onsuccess = () => {
             const cursor = cursorRequest.result;
             if (!cursor) return;
-            if (kept < MAX_CACHED_THREAD_SNAPSHOTS) {
+            const row = cursor.value as CachedThreadSnapshot | undefined;
+            const rowBytes =
+              typeof row?.bytes === "number"
+                ? row.bytes
+                : row
+                  ? JSON.stringify(row.snapshot).length
+                  : 0;
+            if (
+              kept < MAX_CACHED_THREAD_SNAPSHOTS &&
+              (kept === 0 || keptBytes + rowBytes <= MAX_CACHED_THREAD_SNAPSHOT_BYTES)
+            ) {
               kept += 1;
+              keptBytes += rowBytes;
             } else {
               cursor.delete();
             }
