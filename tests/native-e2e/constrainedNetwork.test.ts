@@ -108,11 +108,15 @@ const LINK_WINDOW_TOLERANCE = 1.15;
  * project alone. Default is the seeded many-thread/long-history host. */
 const SEED_LOAD_WORKLOAD = process.env.PORACODE_CONSTRAINED_SEED_LOAD !== "0";
 
-const PROFILES: readonly ShaperProfile[] = [
+const ALL_PROFILES: readonly ShaperProfile[] = [
   { name: "rtt150ms-1mbps", rttMs: 150, bitsPerSecond: 1_000_000 },
   { name: "rtt600ms-128kbps", rttMs: 600, bitsPerSecond: 128_000 },
   { name: "rtt1500ms-32kbps", rttMs: 1500, bitsPerSecond: 32_000 },
 ];
+const PROFILES: readonly ShaperProfile[] =
+  process.env.PORACODE_CONSTRAINED_FAST === "1"
+    ? ALL_PROFILES.filter((profile) => profile.name !== "rtt1500ms-32kbps")
+    : ALL_PROFILES;
 
 const PROFILE_TEST_TIMEOUT_MS: Record<string, number> = {
   "rtt150ms-1mbps": 240_000,

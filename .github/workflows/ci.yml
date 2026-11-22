@@ -27,6 +27,12 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       core: ${{ steps.scope.outputs.core }}
+      tui: ${{ steps.scope.outputs.tui }}
+      test_perf: ${{ steps.scope.outputs.test_perf }}
+      test_projects: ${{ steps.scope.outputs.test_projects }}
+      rust_helper: ${{ steps.scope.outputs.rust_helper }}
+      mcp_relay: ${{ steps.scope.outputs.mcp_relay }}
+      git_helper: ${{ steps.scope.outputs.git_helper }}
     steps:
       # Only the classifier script is needed; it fetches the PR's two commits.
       - name: Checkout the change classifier
@@ -52,6 +58,8 @@ jobs:
 
       - name: Setup Bun
         uses: ./.github/actions/setup-bun
+        with:
+          registry-cache: bun
 
       - name: Install dependencies
         run: bun install --frozen-lockfile --ignore-scripts && node node_modules/bun/install.js
@@ -73,6 +81,8 @@ jobs:
 
       - name: Setup Bun
         uses: ./.github/actions/setup-bun
+        with:
+          registry-cache: bun
 
       - name: Install dependencies
         run: bun install --frozen-lockfile --ignore-scripts && node node_modules/bun/install.js
@@ -125,7 +135,7 @@ jobs:
   tui:
     name: TUI
     needs: changes
-    if: ${{ needs.changes.outputs.core == 'true' }}
+    if: ${{ needs.changes.outputs.tui == 'true' }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -133,6 +143,8 @@ jobs:
 
       - name: Setup Bun
         uses: ./.github/actions/setup-bun
+        with:
+          registry-cache: bun
 
       - name: Install dependencies
         run: bun install --frozen-lockfile --ignore-scripts && node node_modules/bun/install.js
@@ -166,12 +178,13 @@ jobs:
 
       - name: Setup Bun
         uses: ./.github/actions/setup-bun
+        with:
+          registry-cache: none
 
-      - name: Install dependencies
-        run: bun install --frozen-lockfile --ignore-scripts && node node_modules/bun/install.js
-
+      # `bun fmt --check` is built into the pinned Bun binary and reads
+      # .oxfmtrc.json directly; skip restoring packages or installing node_modules.
       - name: Format check
-        run: bun run fmt:check
+        run: bun fmt --check
 
   web_build:
     name: Canonical web build
@@ -184,6 +197,8 @@ jobs:
 
       - name: Setup Bun
         uses: ./.github/actions/setup-bun
+        with:
+          registry-cache: bun
 
       - name: Install dependencies
         run: bun install --frozen-lockfile --ignore-scripts && node node_modules/bun/install.js
@@ -202,34 +217,16 @@ jobs:
           test -f dist/web/poracode-ssh-runtime/manifest.json
           test -f dist/web/poracode-ssh-runtime/runtime.bin
 
-  runtime_deps:
-    name: Runtime dependencies
-    needs: changes
-    if: ${{ needs.changes.outputs.core == 'true' }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
-
-      - name: Setup Bun
-        uses: ./.github/actions/setup-bun
-
-      - name: Install dependencies
-        run: bun install --frozen-lockfile --ignore-scripts && node node_modules/bun/install.js
-
-      - name: Generate Codex protocol types
-        run: bun run codex-protocol:gen
-
-      - name: Build Electron bundles
-        run: bun run build:electron
-
+      # `build:web` already compiled the Electron main/supervisor bundles via
+      # `prepare:web:ssh`; validate the packaged runtime dependency closure
+      # against those exact outputs instead of compiling them again in a second job.
       - name: Validate packaged runtime dependencies
         run: node scripts/build-desktop-artifact.mjs --skip-build --check-runtime-deps
 
   rust_helper:
     name: Rust helper (${{ matrix.os }})
     needs: changes
-    if: ${{ needs.changes.outputs.core == 'true' }}
+    if: ${{ needs.changes.outputs.rust_helper == 'true' }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -305,7 +302,7 @@ jobs:
   mcp_relay:
     name: MCP relay (${{ matrix.os }})
     needs: changes
-    if: ${{ needs.changes.outputs.core == 'true' }}
+    if: ${{ needs.changes.outputs.mcp_relay == 'true' }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -356,6 +353,8 @@ jobs:
       - name: Setup Bun
         if: runner.os == 'Linux'
         uses: ./.github/actions/setup-bun
+        with:
+          registry-cache: bun
 
       - name: Install dependencies
         if: runner.os == 'Linux'
@@ -377,7 +376,7 @@ jobs:
   git_helper:
     name: Git helper (${{ matrix.os }})
     needs: changes
-    if: ${{ needs.changes.outputs.core == 'true' }}
+    if: ${{ needs.changes.outputs.git_helper == 'true' }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -431,6 +430,8 @@ jobs:
       - name: Setup Bun
         if: runner.os == 'Linux'
         uses: ./.github/actions/setup-bun
+        with:
+          registry-cache: bun
 
       - name: Install dependencies
         if: runner.os == 'Linux'
@@ -450,14 +451,14 @@ jobs:
         run: node scripts/prepare-git-helper.mjs --platform linux --host-only --require
 
   test_shard:
-    name: Test shard (${{ matrix.shard }}/8)
+    name: Test shard (${{ matrix.shard }}/6)
     needs: changes
     if: ${{ needs.changes.outputs.core == 'true' }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3, 4, 5, 6, 7, 8]
+        shard: [1, 2, 3, 4, 5, 6]
     # Unit tests run via vitest in node/jsdom and never launch the Electron
     # runtime, so skip the flaky Chromium binary download and the root
     # postinstall, which validates native dependencies under Electron. SQLite
@@ -474,6 +475,8 @@ jobs:
 
       - name: Setup Bun
         uses: ./.github/actions/setup-bun
+        with:
+          registry-cache: bun
 
       - name: Install dependencies
         run: bun install --frozen-lockfile --ignore-scripts && node node_modules/bun/install.js
@@ -481,6 +484,8 @@ jobs:
       - name: Build test native dependencies
         # Compile against setup-node's local headers; CI must not download the
         # same Node headers independently in every isolated test job.
+        # Renderer-only shards never touch node-pty.
+        if: ${{ needs.changes.outputs.test_projects != 'renderer' }}
         run: scripts/ci-rebuild-node-pty.sh
 
       - name: Test shard
@@ -489,12 +494,13 @@ jobs:
         # most of their critical path compiling native fixtures.
         env:
           PORACODE_TEST_LANE: core
-        run: bun run test --shard=${{ matrix.shard }}/8
+          PORACODE_TEST_PROJECTS: ${{ needs.changes.outputs.test_projects }}
+        run: bun run test --shard=${{ matrix.shard }}/6
 
   test_perf:
     name: Perf suites (uncontended)
     needs: changes
-    if: ${{ needs.changes.outputs.core == 'true' }}
+    if: ${{ needs.changes.outputs.test_perf == 'true' }}
     runs-on: ubuntu-latest
     # Absolute latency budgets are only meaningful on an unloaded runner, so
     # the perf suites are excluded from the sharded unit run and executed
@@ -509,6 +515,8 @@ jobs:
 
       - name: Setup Bun
         uses: ./.github/actions/setup-bun
+        with:
+          registry-cache: bun
 
       - name: Install dependencies
         run: bun install --frozen-lockfile --ignore-scripts && node node_modules/bun/install.js
@@ -542,7 +550,6 @@ jobs:
         fmt,
         tui,
         web_build,
-        runtime_deps,
         rust_helper,
         mcp_relay,
         git_helper,
@@ -556,14 +563,33 @@ jobs:
         env:
           JOB_RESULTS: ${{ toJSON(needs) }}
           CORE_REQUIRED: ${{ needs.changes.outputs.core }}
+          TUI_REQUIRED: ${{ needs.changes.outputs.tui }}
+          TEST_PERF_REQUIRED: ${{ needs.changes.outputs.test_perf }}
+          RUST_HELPER_REQUIRED: ${{ needs.changes.outputs.rust_helper }}
+          MCP_RELAY_REQUIRED: ${{ needs.changes.outputs.mcp_relay }}
+          GIT_HELPER_REQUIRED: ${{ needs.changes.outputs.git_helper }}
         run: |
           node - <<'NODE'
           const jobs = JSON.parse(process.env.JOB_RESULTS);
-          if (!["true", "false"].includes(process.env.CORE_REQUIRED)) throw new Error("core change scope is missing");
+          for (const key of [
+            "CORE_REQUIRED",
+            "TUI_REQUIRED",
+            "TEST_PERF_REQUIRED",
+            "RUST_HELPER_REQUIRED",
+            "MCP_RELAY_REQUIRED",
+            "GIT_HELPER_REQUIRED",
+          ]) {
+            if (!["true", "false"].includes(process.env[key])) throw new Error(`${key} change scope is missing`);
+          }
           const required = new Set(["changes", "fmt"]);
           if (process.env.CORE_REQUIRED === "true") {
-            for (const name of ["typecheck", "lint", "tui", "web_build", "runtime_deps", "rust_helper", "mcp_relay", "git_helper", "test_shard", "test_perf"]) required.add(name);
+            for (const name of ["typecheck", "lint", "web_build", "test_shard"]) required.add(name);
           }
+          if (process.env.TUI_REQUIRED === "true") required.add("tui");
+          if (process.env.TEST_PERF_REQUIRED === "true") required.add("test_perf");
+          if (process.env.RUST_HELPER_REQUIRED === "true") required.add("rust_helper");
+          if (process.env.MCP_RELAY_REQUIRED === "true") required.add("mcp_relay");
+          if (process.env.GIT_HELPER_REQUIRED === "true") required.add("git_helper");
           for (const [name, job] of Object.entries(jobs)) {
             const expected = required.has(name) ? "success" : "skipped";
             if (job.result !== expected) throw new Error(`${name}: expected ${expected}, received ${job.result}`);

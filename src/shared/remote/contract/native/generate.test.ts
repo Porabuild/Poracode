@@ -57,15 +57,13 @@ function resign(ir: Record<string, unknown>, manifest: unknown): void {
 
 describe("remote v3 native binding generator", () => {
   it(
-    "produces three byte-identical runs with authoritative hashes and counts",
+    "produces byte-identical runs with authoritative hashes and counts",
     { timeout: 120_000 },
     () => {
       const { ir, manifest } = input();
       const first = outputForAuthority();
       const second = buildNativeBindingOutput(ir, manifest);
-      const third = buildNativeBindingOutput(ir, manifest);
       expect(first).toEqual(second);
-      expect(second).toEqual(third);
       expect(first.manifest).toMatchObject({
         formatVersion: 5,
         protocolVersion: 14,

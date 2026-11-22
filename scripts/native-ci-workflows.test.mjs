@@ -238,12 +238,38 @@ void test("portable Swift suites run concurrently, join every suite, and propaga
   }
 });
 
-void test("Android unit tests use two isolated JVM forks", async () => {
-  const gradle = await readFile(
-    new URL("../android/app/build.gradle.kts", import.meta.url),
-    "utf8",
-  );
+void test("Android unit tests use two isolated JVM forks and Gradle build caching", async () => {
+  const [gradle, properties, native] = await Promise.all([
+    readFile(new URL("../android/app/build.gradle.kts", import.meta.url), "utf8"),
+    readFile(new URL("../android/gradle.properties", import.meta.url), "utf8"),
+    readFile(new URL("../.github/workflows/native-ci.yml", import.meta.url), "utf8"),
+  ]);
   assert.match(gradle, /unitTests\s*\{[\s\S]*?all\s*\{\s*it\.maxParallelForks = 2\s*\}/u);
+  assert.match(properties, /^org\.gradle\.caching=true$/mu);
+  const workflow = parse(native);
+  const androidBuild = workflow.jobs.android.steps.find(
+    (item) => item.name === "Test, assemble, and lint Android",
+  );
+  assert.doesNotMatch(androidBuild.run, /\bclean\b/u);
+  assert.equal(androidBuild.env.FULL_QUALIFICATION, "${{ needs.changes.outputs.full }}");
+  assert.match(androidBuild.run, /testDebugUnitTest assembleDebug/u);
+  assert.match(androidBuild.run, /lintDebug/u);
+  const iosBuild = workflow.jobs.ios.steps.find(
+    (item) => item.name === "Build iOS tests for Simulator",
+  );
+  assert.match(iosBuild.run, /-only-testing:AppTests/u);
+  assert.match(iosBuild.run, /COMPILER_INDEX_STORE_ENABLE=NO/u);
+  const iosTest = workflow.jobs.ios.steps.find((item) => item.name === "Run AppTests");
+  assert.match(iosTest.run, /-parallel-testing-enabled YES/u);
+  assert.match(iosTest.run, /-parallel-testing-worker-count 2/u);
+  const contractSteps = workflow.jobs.remote_v3_contract.steps;
+  const gradleCacheIdx = contractSteps.findIndex((item) =>
+    item.uses?.startsWith("gradle/actions/setup-gradle@"),
+  );
+  const compileIdx = contractSteps.findIndex(
+    (item) => item.name === "Compile generated Swift and Kotlin runtime fixtures",
+  );
+  assert.ok(gradleCacheIdx >= 0 && gradleCacheIdx < compileIdx);
 });
 
 void test("API 37 workflow preserves shell state, joins its harness, and propagates failures", async () => {
@@ -558,11 +584,13 @@ void test("native host load suites are isolated without serializing the whole fo
   );
   const load = steps.find((item) => item.name === "Run isolated native load qualifications");
   assert.ok(foundation && load);
+  assert.equal(workflow.jobs.native_e2e_foundation.needs, "changes");
   assert.equal(workflow.jobs.native_e2e_foundation["timeout-minutes"], 35);
   assert.doesNotMatch(foundation.run, /--no-file-parallelism/u);
   assert.match(foundation.run, /--exclude='\*\*\/gitBurstQualification\.test\.ts'/u);
   assert.match(foundation.run, /--exclude='\*\*\/sharedHostLoadProfile\.test\.ts'/u);
   assert.match(foundation.run, /--exclude='\*\*\/largePayloadCompression\.test\.ts'/u);
+  assert.match(foundation.run, /PORACODE_CONSTRAINED_FAST=1/u);
   assert.match(foundation.run, /FULL_QUALIFICATION/u);
   assert.equal(foundation.env.FULL_QUALIFICATION, "${{ needs.changes.outputs.full }}");
   assert.match(load.run, /gitBurstQualification\.test\.ts/u);

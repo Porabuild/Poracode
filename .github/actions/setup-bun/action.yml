@@ -72,6 +72,4 @@ runs:
       if: inputs.registry-cache == 'bun'
       with:
         path: ${{ steps.registry-cache.outputs.bun }}
-        key: registry-bun-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('bun.lock') }}
-        restore-keys: |
-          registry-bun-${{ runner.os }}-${{ runner.arch }}-
+        key: registry-bun-${{ runner.os }}-${{ runner.arch }}-v2-${{ hashFiles('bun.lock') }}

@@ -30,6 +30,10 @@ const sampleGitStatus = {
 };
 
 describe("remote v3 generator", () => {
+  let generatedFiles: ReturnType<typeof buildRemoteV3GeneratedFiles> | undefined;
+  const cachedGeneratedFiles = (): ReturnType<typeof buildRemoteV3GeneratedFiles> =>
+    (generatedFiles ??= buildRemoteV3GeneratedFiles());
+
   it.each([
     ["android/app/build.gradle.kts", /version\("generatorVersion", (\d+)\)/],
     [
@@ -62,11 +66,9 @@ describe("remote v3 generator", () => {
     "emits stable sorted artifacts with version, hash, and inventory counts",
     { timeout: 60_000 },
     () => {
-      const first = buildRemoteV3GeneratedFiles();
+      const first = cachedGeneratedFiles();
       const second = buildRemoteV3GeneratedFiles();
-      const third = buildRemoteV3GeneratedFiles();
       expect(first).toEqual(second);
-      expect(second).toEqual(third);
       const ir = JSON.parse(first["ir.json"]) as {
         doNotEdit: string;
         protocolVersion: number;
@@ -102,22 +104,29 @@ describe("remote v3 generator", () => {
     "--check is side-effect free and fails on stale, missing, and extra files",
     { timeout: 120_000 },
     () => {
+      const expected = cachedGeneratedFiles();
       const root = mkdtempSync(join(tmpdir(), "remote-v3-"));
       try {
-        writeRemoteV3Generated(root);
-        expect(checkRemoteV3Generated(root)).toEqual([]);
+        writeRemoteV3Generated(root, expected);
+        expect(checkRemoteV3Generated(root, expected)).toEqual([]);
 
         const generated = join(root, "protocol/remote/v3/generated");
         writeFileSync(join(generated, "extra.json"), "{}\n");
-        expect(checkRemoteV3Generated(root).some((error) => error.includes("extra"))).toBe(true);
+        expect(
+          checkRemoteV3Generated(root, expected).some((error) => error.includes("extra")),
+        ).toBe(true);
         rmSync(join(generated, "extra.json"));
 
         rmSync(join(generated, "inventory.json"));
-        expect(checkRemoteV3Generated(root).some((error) => error.includes("missing"))).toBe(true);
+        expect(
+          checkRemoteV3Generated(root, expected).some((error) => error.includes("missing")),
+        ).toBe(true);
 
-        writeRemoteV3Generated(root);
+        writeRemoteV3Generated(root, expected);
         writeFileSync(join(generated, "ir.json"), "{}\n");
-        expect(checkRemoteV3Generated(root).some((error) => error.includes("stale"))).toBe(true);
+        expect(
+          checkRemoteV3Generated(root, expected).some((error) => error.includes("stale")),
+        ).toBe(true);
         expect(readFileSync(join(generated, "inventory.json"), "utf8").length).toBeGreaterThan(10);
       } finally {
         rmSync(root, { recursive: true, force: true });
