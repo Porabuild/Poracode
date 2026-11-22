@@ -480,8 +480,10 @@ private struct SettingsMemoryEditor: View {
       Form {
         Section {
           Toggle(SettingsUIStrings.memoryUseMemory, isOn: memoryBinding(\.enabled))
+            .poracodeSwitchStyle()
             .settingsSearchAnchor(.memoryEnabled)
           Toggle(SettingsUIStrings.memoryLearnFromChats, isOn: memoryBinding(\.learning))
+            .poracodeSwitchStyle()
             .disabled(!enabled)
         } header: {
           Text(composition.selection?.name ?? SettingsUIStrings.memoryTitle)
@@ -548,8 +550,11 @@ private struct SettingsMemoryEditor: View {
 
         Section(SettingsUIStrings.memoryBehaviorSection) {
           Toggle(SettingsUIStrings.memorySuggestSkills, isOn: memoryBinding(\.suggestSkills))
+            .poracodeSwitchStyle()
           Toggle(SettingsUIStrings.memoryPreferPoracode, isOn: memoryBinding(\.suppressNative))
+            .poracodeSwitchStyle()
           Toggle(SettingsUIStrings.memorySyncAcrossEnvironments, isOn: memoryBinding(\.syncEnabled))
+            .poracodeSwitchStyle()
             .settingsSearchAnchor(.memorySync)
         }
         .disabled(!enabled)
