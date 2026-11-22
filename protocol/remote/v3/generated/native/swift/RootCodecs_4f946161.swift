@@ -425,6 +425,14 @@ public extension RemoteRootCodecs {
 }
 
 public extension RemoteRootCodecs {
+  static let procedureU2EListPluginsU2ERequest: RemoteRootCodec<ProcedurelistPluginsRequest_16b775effb> = .init(id: "procedure.listPlugins.request", schema: RemoteSchemas.schema_16b775effb3d19e7)
+}
+
+public extension RemoteRootCodecs {
+  static let procedureU2EListPluginsU2EResult: RemoteRootCodec<ProcedurelistPluginsResult_c8fcec3264> = .init(id: "procedure.listPlugins.result", schema: RemoteSchemas.schema_c8fcec3264ef36ec)
+}
+
+public extension RemoteRootCodecs {
   static let procedureU2EListProjectTreeU2ERequest: RemoteRootCodec<ProcedurelistProjectTreeRequest_26cfea8cde> = .init(id: "procedure.listProjectTree.request", schema: RemoteSchemas.schema_26cfea8cde59ada2)
 }
 
@@ -438,12 +446,4 @@ public extension RemoteRootCodecs {
 
 public extension RemoteRootCodecs {
   static let procedureU2EListSkillMarketplaceU2EResult: RemoteRootCodec<ProcedurelistSkillMarketplaceResult_89033d459d> = .init(id: "procedure.listSkillMarketplace.result", schema: RemoteSchemas.schema_89033d459dedce3c)
-}
-
-public extension RemoteRootCodecs {
-  static let procedureU2EListThreadSessionActionsU2ERequest: RemoteRootCodec<ProcedurecancelExtractContextRequest_09b78d9c1d> = .init(id: "procedure.listThreadSessionActions.request", schema: RemoteSchemas.schema_09b78d9c1d4c3a6b)
-}
-
-public extension RemoteRootCodecs {
-  static let procedureU2EListThreadSessionActionsU2EResult: RemoteRootCodec<ProcedurelistThreadSessionActionsResult_825afc62b8> = .init(id: "procedure.listThreadSessionActions.result", schema: RemoteSchemas.schema_825afc62b855f7e6)
 }

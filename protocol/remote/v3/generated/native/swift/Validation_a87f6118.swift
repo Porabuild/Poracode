@@ -21,11 +21,19 @@ public extension RemoteSchemas {
 }
 
 public extension RemoteSchemas {
+  static let schema_12d1900fc0e7e57d = RemoteSchema(type: "string", literals: [.string("select"), .string("logout")], unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
   static let schema_12f751ee47b47fbd = RemoteSchema(unionKind: "oneOf", options: [RemoteSchemas.schema_a467b0ed1c0ea208, RemoteSchemas.schema_ac7865b2a567eb07, RemoteSchemas.schema_d1c4cb16ae4c331e, RemoteSchemas.schema_84ccfb83d8334510, RemoteSchemas.schema_0a49efe270718ab9], unknownPolicy: .strip)
 }
 
 public extension RemoteSchemas {
   static let schema_13324e3fec19e623 = RemoteSchema(type: "object", required: Set(["location", "manifestPath"]), properties: ["includeAgentChats": RemoteSchemas.schema_feeb8bb50144d96d, "location": RemoteSchemas.schema_080f9cc154af9e27, "manifestPath": RemoteSchemas.schema_36fea325bf1aca70, "transcriptDir": RemoteSchemas.schema_36fea325bf1aca70], additionalAllowed: true, unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
+  static let schema_1342a7c5641b1f5e = RemoteSchema(type: "object", required: Set(["$schema", "name"]), properties: ["$schema": RemoteSchemas.schema_36fea325bf1aca70, "author": RemoteSchemas.schema_dfdd62dd3d4c4d45, "description": RemoteSchemas.schema_36fea325bf1aca70, "extensions": RemoteSchemas.schema_9cc5cbbf927c24c1, "homepage": RemoteSchemas.schema_36fea325bf1aca70, "keywords": RemoteSchemas.schema_515482d2104d1efa, "license": RemoteSchemas.schema_36fea325bf1aca70, "name": RemoteSchemas.schema_84c77ee2ad6c219b, "repository": RemoteSchemas.schema_36fea325bf1aca70, "version": RemoteSchemas.schema_36fea325bf1aca70], additionalAllowed: false, unknownPolicy: .reject)
 }
 
 public extension RemoteSchemas {
@@ -58,40 +66,4 @@ public extension RemoteSchemas {
 
 public extension RemoteSchemas {
   static let schema_13f43aaaf56911fa = RemoteSchema(type: "string", literals: [.string("browser"), .string("crossagents"), .string("chrome"), .string("computer-use"), .string("app-controls")], unknownPolicy: .strip)
-}
-
-public extension RemoteSchemas {
-  static let schema_14221269d858a2f5 = RemoteSchema(type: "string", literals: [.string("key")], unknownPolicy: .strip)
-}
-
-public extension RemoteSchemas {
-  static let schema_14377f176c4dfd2a = RemoteSchema(type: "string", minLength: 1, maxLength: 500, unknownPolicy: .strip, semanticIds: ["string.trim"], transformIds: ["string.trim"])
-}
-
-public extension RemoteSchemas {
-  static let schema_1468dfe9a2db9c9d = RemoteSchema(type: "object", required: Set(["acknowledgedCount", "firstAcknowledgedAt", "kind", "lastAcknowledgedAt", "reason", "refusedBytes", "refusedEvents", "source"]), properties: ["acknowledgedCount": RemoteSchemas.schema_23e05d248383ea40, "firstAcknowledgedAt": RemoteSchemas.schema_56aa0e45cbdce0d0, "kind": RemoteSchemas.schema_f8afe6df005d2978, "lastAcknowledgedAt": RemoteSchemas.schema_56aa0e45cbdce0d0, "reason": RemoteSchemas.schema_9780f521bc1dee38, "refusedBytes": RemoteSchemas.schema_56aa0e45cbdce0d0, "refusedEvents": RemoteSchemas.schema_56aa0e45cbdce0d0, "source": RemoteSchemas.schema_77a7dec7edfc464f], additionalAllowed: true, unknownPolicy: .strip)
-}
-
-public extension RemoteSchemas {
-  static let schema_149c9d9dd2191aa3 = RemoteSchema(type: "object", required: Set(["environmentId"]), properties: ["environmentId": RemoteSchemas.schema_36fea325bf1aca70], additionalAllowed: true, unknownPolicy: .strip)
-}
-
-public extension RemoteSchemas {
-  static let schema_14ca57bfe938f3d4 = RemoteSchema(unionKind: "oneOf", options: [RemoteSchemas.schema_9eaa25e68d8e4cf4, RemoteSchemas.schema_107db71e1696908a, RemoteSchemas.schema_1709690cf0edf961, RemoteSchemas.schema_2b7b34c95b23bb0d, RemoteSchemas.schema_0e8f58f429bb1135, RemoteSchemas.schema_d550ef9994fd388f, RemoteSchemas.schema_838adcbcaff5f551, RemoteSchemas.schema_5af10e67b405a136, RemoteSchemas.schema_3f58316dbb160752, RemoteSchemas.schema_d2299af726097d6c, RemoteSchemas.schema_93bef3a552bf787e], unknownPolicy: .strip)
-}
-
-public extension RemoteSchemas {
-  static let schema_14f3c332d545bff0 = RemoteSchema(type: "object", required: Set(["applicationId", "type"]), properties: ["applicationId": RemoteSchemas.schema_bab85ee50a59610a, "type": RemoteSchemas.schema_bd9ee7d62499d1b2], additionalAllowed: false, unknownPolicy: .reject)
-}
-
-public extension RemoteSchemas {
-  static let schema_14f6b52f84064da4 = RemoteSchema(type: "object", required: Set(["agentKind", "config", "createdAt", "enabled", "id", "lastCompletedAt", "lastError", "lastResult", "lastRunAt", "lastStatus", "name", "nextRunAt", "prompt", "recurrence", "updatedAt"]), properties: ["agentKind": RemoteSchemas.schema_36fea325bf1aca70, "automation": RemoteSchemas.schema_fdddba9ec6ce269e, "config": RemoteSchemas.schema_f69100925fc0e774, "createdAt": RemoteSchemas.schema_38adcf16c79023ce, "enabled": RemoteSchemas.schema_feeb8bb50144d96d, "id": RemoteSchemas.schema_d855999aed5e6438, "iterationCount": RemoteSchemas.schema_56aa0e45cbdce0d0, "lastCompletedAt": RemoteSchemas.schema_595da89b21b7ca56, "lastError": RemoteSchemas.schema_2d0b6ec9f2b2decf, "lastResult": RemoteSchemas.schema_2d0b6ec9f2b2decf, "lastRunAt": RemoteSchemas.schema_595da89b21b7ca56, "lastStatus": RemoteSchemas.schema_aa5449703b29a615, "name": RemoteSchemas.schema_b89c357946c21293, "nextRunAt": RemoteSchemas.schema_595da89b21b7ca56, "projectId": RemoteSchemas.schema_2d0b6ec9f2b2decf, "prompt": RemoteSchemas.schema_30cc89214bd9dffb, "recurrence": RemoteSchemas.schema_12f751ee47b47fbd, "updatedAt": RemoteSchemas.schema_38adcf16c79023ce], additionalAllowed: true, unknownPolicy: .strip)
-}
-
-public extension RemoteSchemas {
-  static let schema_150828825a4ec4d6 = RemoteSchema(type: "array", items: RemoteSchemas.schema_95bca512ea5c155a, unknownPolicy: .strip)
-}
-
-public extension RemoteSchemas {
-  static let schema_15179deb98a23815 = RemoteSchema(type: "object", required: Set(["payload", "requestId", "requestType", "threadId", "type"]), properties: ["payload": RemoteSchemas.schema_fd95a83e5b156564, "requestId": RemoteSchemas.schema_bf0b727f7b1c6d07, "requestType": RemoteSchemas.schema_c733570a5a247812, "threadId": RemoteSchemas.schema_bf0b727f7b1c6d07, "type": RemoteSchemas.schema_fcb2eed91b3e89ce], additionalAllowed: true, unknownPolicy: .strip)
 }

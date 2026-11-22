@@ -3,11 +3,11 @@
   "contract": "poracode.remote",
   "protocolVersion": 14,
   "bindingFormatVersion": 2,
-  "manifestHash": "sha256:ce67578c8849f9487556626c5ff719b734b1f1860ec0ab17b62ed84f304c45be",
-  "keyCount": 362,
+  "manifestHash": "sha256:8408d4919e1581b07c5d0fdd89d185d6ecde3feb1eb4b2db17eb95c071d279f8",
+  "keyCount": 366,
   "counts": {
     "route": 126,
-    "procedure": 180,
+    "procedure": 184,
     "ws-client": 11,
     "ws-server": 12,
     "replay": 17,
@@ -550,6 +550,10 @@
       "kind": "procedure",
       "id": "listImportableSessions"
     },
+    "procedure:listPlugins": {
+      "kind": "procedure",
+      "id": "listPlugins"
+    },
     "procedure:listProjectTree": {
       "kind": "procedure",
       "id": "listProjectTree"
@@ -577,6 +581,14 @@
     "procedure:pauseThreadFollowUps": {
       "kind": "procedure",
       "id": "pauseThreadFollowUps"
+    },
+    "procedure:pluginAccounts": {
+      "kind": "procedure",
+      "id": "pluginAccounts"
+    },
+    "procedure:pluginCatalog": {
+      "kind": "procedure",
+      "id": "pluginCatalog"
     },
     "procedure:probeMcpServer": {
       "kind": "procedure",
@@ -617,6 +629,10 @@
     "procedure:refreshAgentStatuses": {
       "kind": "procedure",
       "id": "refreshAgentStatuses"
+    },
+    "procedure:refreshPlugins": {
+      "kind": "procedure",
+      "id": "refreshPlugins"
     },
     "procedure:refreshProviderUsage": {
       "kind": "procedure",

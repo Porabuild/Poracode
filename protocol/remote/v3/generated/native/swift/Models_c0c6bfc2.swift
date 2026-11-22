@@ -54,7 +54,7 @@ public struct RoutesettingsU2DReadResponseU2DSettingsU2DUsage_18dc352c9a: Codabl
 
 public typealias RoutesettingsU2DReadResponseU2DSettingsU2DWslCrews_1af2c4430c = [String: [RoutesettingsU2DReadResponseU2DSettingsU2DCrewsU2DItem_261c257787]]
 
-public struct RoutesettingsU2DReadResponseU2DSettings_5cf8e37513: Codable, Sendable, RemoteModelMetadata {
+public struct RoutesettingsU2DReadResponseU2DSettings_9e69a11cc2: Codable, Sendable, RemoteModelMetadata {
   public var agentSettings: RoutesettingsU2DReadResponseU2DSettingsU2DAgentSettings_deb61378c1
   public var autoArchiveDoneAfterDays: RemoteField<Int64> = .missing
   public var commitGenEffort: ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b
@@ -77,6 +77,7 @@ public struct RoutesettingsU2DReadResponseU2DSettings_5cf8e37513: Codable, Senda
   public var experimentJudgeSelection: RemoteField<ProcedureextractContextRequestU2DSelection_32c3720f64> = .missing
   public var followUpBehavior: RoutesettingsU2DReadResponseU2DSettingsU2DFollowUpBehavior_6fcb1a55c0
   public var hiddenModels: RoutesettingsU2DReadResponseU2DSettingsU2DCrossagentHiddenModels_86d5d72e84
+  public var installedPlugins: RemoteField<RoutesettingsU2DReadResponseU2DSettingsU2DInstalledPlugins_e356e4b5f6> = .missing
   public var memory: RemoteField<RoutesettingsU2DReadResponseU2DSettingsU2DMemory_df5d50a751> = .missing
   public var prAutomationDefault: RoutesettingsU2DReadResponseU2DSettingsU2DPrAutomationDefault_6df05d56a8
   public var prCreateMode: RemoteField<RoutesettingsU2DReadResponseU2DSettingsU2DPrCreateMode_bed2580f4e> = .missing
@@ -134,6 +135,7 @@ public struct RoutesettingsU2DReadResponseU2DSettings_5cf8e37513: Codable, Senda
     .init(wireName: "experimentJudgeSelection", typeName: "ProcedureextractContextRequestU2DSelection_32c3720f64", required: false, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "followUpBehavior", typeName: "RoutesettingsU2DReadResponseU2DSettingsU2DFollowUpBehavior_6fcb1a55c0", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "hiddenModels", typeName: "RoutesettingsU2DReadResponseU2DSettingsU2DCrossagentHiddenModels_86d5d72e84", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "installedPlugins", typeName: "RoutesettingsU2DReadResponseU2DSettingsU2DInstalledPlugins_e356e4b5f6", required: false, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "memory", typeName: "RoutesettingsU2DReadResponseU2DSettingsU2DMemory_df5d50a751", required: false, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "prAutomationDefault", typeName: "RoutesettingsU2DReadResponseU2DSettingsU2DPrAutomationDefault_6df05d56a8", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "prCreateMode", typeName: "RoutesettingsU2DReadResponseU2DSettingsU2DPrCreateMode_bed2580f4e", required: false, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
@@ -192,6 +194,7 @@ public struct RoutesettingsU2DReadResponseU2DSettings_5cf8e37513: Codable, Senda
     case experimentJudgeSelection = "experimentJudgeSelection"
     case followUpBehavior = "followUpBehavior"
     case hiddenModels = "hiddenModels"
+    case installedPlugins = "installedPlugins"
     case memory = "memory"
     case prAutomationDefault = "prAutomationDefault"
     case prCreateMode = "prCreateMode"

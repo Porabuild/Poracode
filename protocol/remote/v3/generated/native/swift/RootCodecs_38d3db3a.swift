@@ -1,6 +1,22 @@
 // GENERATED FILE. Do not edit by hand.
 import Foundation
 public extension RemoteRootCodecs {
+  static let routeU2EDeviceU2DPreviewU2DAndroidU2DDevicesU2EPath: RemoteRootCodec<RoutedeviceU2DActionPath_eef64882a7> = .init(id: "route.device-preview-android-devices.path", schema: RemoteSchemas.schema_eef64882a7b017fb)
+}
+
+public extension RemoteRootCodecs {
+  static let routeU2EDeviceU2DPreviewU2DAndroidU2DDevicesU2EQuery: RemoteRootCodec<RoutedeviceU2DPreviewU2DAndroidU2DApiQuery_bb755d8d8c> = .init(id: "route.device-preview-android-devices.query", schema: RemoteSchemas.schema_bb755d8d8c6227a7)
+}
+
+public extension RemoteRootCodecs {
+  static let routeU2EDeviceU2DPreviewU2DAndroidU2DDevicesU2EResponse: RemoteRootCodec<RoutedeviceU2DPreviewU2DAndroidU2DDevicesResponse_cd0f418250> = .init(id: "route.device-preview-android-devices.response", schema: RemoteSchemas.schema_cd0f41825028e154)
+}
+
+public extension RemoteRootCodecs {
+  static let routeU2EDeviceU2DPreviewU2DCloseU2EPath: RemoteRootCodec<RoutedeviceU2DActionPath_eef64882a7> = .init(id: "route.device-preview-close.path", schema: RemoteSchemas.schema_eef64882a7b017fb)
+}
+
+public extension RemoteRootCodecs {
   static let routeU2EDeviceU2DPreviewU2DCloseU2ERequest: RemoteRootCodec<RoutedeviceU2DPreviewU2DCloseRequest_8bcac1a204> = .init(id: "route.device-preview-close.request", schema: RemoteSchemas.schema_8bcac1a2041bc3a6)
 }
 

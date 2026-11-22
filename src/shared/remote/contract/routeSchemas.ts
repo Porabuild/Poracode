@@ -346,6 +346,7 @@ const remoteSettingsKeys = [
   "searchExclude",
   "prAutomationDefault",
   "prMergeMethod",
+  "installedPlugins",
 ] as const;
 
 const remoteSettingsWireBaseSchema = sharedSettingsSchema.pick(
@@ -372,6 +373,7 @@ export const remoteSettingsWireSchema = remoteSettingsWireBaseSchema.extend({
   searchUseIgnoreFiles: sharedSettingsSchema.shape.searchUseIgnoreFiles.optional(),
   searchExclude: sharedSettingsSchema.shape.searchExclude.optional(),
   memory: sharedSettingsSchema.shape.memory.removeDefault().optional(),
+  installedPlugins: sharedSettingsSchema.shape.installedPlugins.removeDefault().optional(),
 });
 
 export const settingsReadResultWireSchema = z.object({

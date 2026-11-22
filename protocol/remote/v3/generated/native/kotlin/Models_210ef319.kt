@@ -181,7 +181,7 @@ data class ProcedureforgeSubmitPrReviewDraftRequest_5aba12c8b8(
             RemoteFieldDescriptor("body", "String", true, false, null, null, null, 65536, null, null, null, null, listOf()),
             RemoteFieldDescriptor("comments", "List<ProcedureforgeSubmitPrReviewDraftRequestU2DCommentsU2DItem_2ebee6ffa3>", true, false, null, null, null, null, 1, 100, null, null, listOf()),
             RemoteFieldDescriptor("decision", "ProcedureforgeCreatePrResultU2DSourceU2DCapabilitiesU2DReviewDecisionsU2DItem_c0551fbf08", true, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("expectedHeadSha", "String", true, false, null, null, null, null, null, null, "^[0-9a-f]{7,64}$", null, listOf()),
+            RemoteFieldDescriptor("expectedHeadSha", "String", true, false, null, null, null, null, null, null, "^[0-9a-f]{7,64}\$", null, listOf()),
             RemoteFieldDescriptor("forgeAccount", "ProcedureforgeClosePrRequestU2DForgeAccount_c2bb40b82b", true, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("forgeRepository", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("prNumber", "Long", true, false, null, 9007199254740991.0, null, null, null, null, null, null, listOf()),

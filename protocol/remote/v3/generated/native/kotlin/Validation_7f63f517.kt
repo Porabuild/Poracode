@@ -26,7 +26,7 @@ internal val schema_fa41f0033e95da89: RemoteSchema by lazy {
 }
 
 internal val schema_fa4a387c10f5125f: RemoteSchema by lazy {
-    RemoteSchema(type = "string", minLength = 1, maxLength = 120, pattern = "^[a-z0-9][a-z0-9_\\-:.]*$", unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
+    RemoteSchema(type = "string", minLength = 1, maxLength = 120, pattern = "^[a-z0-9][a-z0-9_\\-:.]*\$", unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
 
 internal val schema_fae23683c505297d: RemoteSchema by lazy {

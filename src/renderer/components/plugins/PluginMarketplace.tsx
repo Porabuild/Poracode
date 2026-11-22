@@ -3,8 +3,6 @@ import { Plural, Trans, useLingui } from "@lingui/react/macro";
 import { FolderOpen, Search, Settings2 } from "lucide-react";
 import { useState } from "react";
 import { Button, LightballTabs, OptionMenu } from "@/renderer/components/common";
-import { readBridge } from "@/renderer/bridge";
-import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { isPluginSupportedOnHost, resolveInstalledPluginState } from "@/shared/plugins/catalog";
 import {
   canonicalPluginCategory,
@@ -14,6 +12,7 @@ import {
 } from "@/shared/plugins/categories";
 import type { PluginCatalogSnapshot } from "@/shared/contracts/pluginCatalog";
 import { PluginIcon } from "./PluginIcon";
+import { usePluginHostInstalledPlugins, usePluginHostTransport } from "./PluginHostContext";
 import { usePluginCategoryLabel } from "./pluginCategories";
 import type { LocalizedPlugin } from "./pluginCopy";
 import { PluginCatalogBrowser } from "./PluginCatalogBrowser";
@@ -67,7 +66,8 @@ export function PluginMarketplace(props: {
   const [sourcesOpen, setSourcesOpen] = useState(false);
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({});
   const categoryLabel = usePluginCategoryLabel();
-  const installedPlugins = useSharedSettings((state) => state.installedPlugins);
+  const { openPluginsFolder } = usePluginHostTransport();
+  const installedPlugins = usePluginHostInstalledPlugins();
   const { catalogs, installations } = props.catalog.result;
   const selectedSource = catalogs.some((item) => item.id === sourceId) ? sourceId : "all";
   const normalizedQuery = query.trim().toLowerCase();
@@ -231,22 +231,24 @@ export function PluginMarketplace(props: {
             </p>
           </div>
           <div className="flex shrink-0 items-center gap-1.5">
-            <Tooltip>
-              <Tooltip.Trigger>
-                <Button
-                  isIconOnly
-                  size="sm"
-                  variant="tertiary"
-                  aria-label={t`Plugin folder`}
-                  onPress={() => void readBridge().openPluginsFolder()}
-                >
-                  <FolderOpen className="size-4" />
-                </Button>
-              </Tooltip.Trigger>
-              <Tooltip.Content>
-                <Trans>Plugin folder</Trans>
-              </Tooltip.Content>
-            </Tooltip>
+            {openPluginsFolder ? (
+              <Tooltip>
+                <Tooltip.Trigger>
+                  <Button
+                    isIconOnly
+                    size="sm"
+                    variant="tertiary"
+                    aria-label={t`Plugin folder`}
+                    onPress={() => void openPluginsFolder()}
+                  >
+                    <FolderOpen className="size-4" />
+                  </Button>
+                </Tooltip.Trigger>
+                <Tooltip.Content>
+                  <Trans>Plugin folder</Trans>
+                </Tooltip.Content>
+              </Tooltip>
+            ) : null}
             <Button size="sm" variant="tertiary" onPress={() => setSourcesOpen(true)}>
               <Settings2 className="size-4" />
               <Trans>Marketplace sources</Trans>
@@ -519,14 +521,12 @@ function PluginRow(props: {
   isCatalogInstalled: boolean;
   onOpen: (name: string) => void;
 }) {
-  const installPlugin = useSharedSettings((state) => state.installPlugin);
+  const { installPlugin } = usePluginHostTransport();
+  const installedPlugins = usePluginHostInstalledPlugins();
   const { entry } = props;
   const plugin = entry.plugin;
-  const installed = useSharedSettings(
-    (state) =>
-      props.isCatalogInstalled ||
-      resolveInstalledPluginState(plugin, state.installedPlugins) !== undefined,
-  );
+  const installed =
+    props.isCatalogInstalled || resolveInstalledPluginState(plugin, installedPlugins) !== undefined;
   const supported = isPluginSupportedOnHost(plugin, props.hostPlatform);
   const serverCount = entry.mcpServers.length;
   const titleId = `plugin-${plugin.name}-title`;
@@ -576,7 +576,7 @@ function PluginRow(props: {
         isDisabled={!supported}
         aria-labelledby={`${titleId} ${actionId}`}
         onPress={() => {
-          if (!installed) installPlugin(plugin);
+          if (!installed) void installPlugin(plugin);
           props.onOpen(plugin.name);
         }}
       >

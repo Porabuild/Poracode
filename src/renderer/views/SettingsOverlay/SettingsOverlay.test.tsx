@@ -155,6 +155,11 @@ vi.mock("./parts/GeneralSettings", () => ({
 vi.mock("./parts/ImportSettings", () => ({
   ImportSettings: () => <div>Import sessions</div>,
 }));
+vi.mock("./parts/PluginsSettings", () => ({
+  PluginsSettings: (props: { connectionKey?: string }) => (
+    <div data-testid="plugin-host" data-plugin-host={props.connectionKey ?? "local"} />
+  ),
+}));
 
 const profileMounts = vi.hoisted(() => ({ count: 0 }));
 vi.mock("./parts/ProfileSettings", async () => {
@@ -314,6 +319,36 @@ describe("SettingsOverlay", () => {
     useSettingsHostStore.setState({ desktopId: null });
     __resetBrowserBridgeForTest();
     usePanelStore.setState({ settingsSection: null, settingsAnchor: null });
+  });
+
+  it("offers a host picker on Plugins so a paired machine's packages can be managed", () => {
+    useRemoteServersStore.setState({
+      servers: [
+        {
+          connectionId: "studio-connection",
+          desktopId: "studio-desktop",
+          label: "Studio",
+          endpoint: "https://studio.example.test",
+          accessToken: "token",
+          scopes: ["session:read", "session:operate"],
+        },
+      ],
+      runtime: {
+        "studio-connection": { status: "online", projects: [], threads: [] },
+      },
+    });
+    usePanelStore.getState().openSettingsSection("plugins");
+    render(<SettingsOverlay onClose={() => undefined} />);
+
+    expect(screen.getByTestId("machine-select")).toBeInTheDocument();
+    expect(screen.getByTestId("plugin-host")).toHaveAttribute("data-plugin-host", "local");
+
+    fireEvent.click(screen.getByRole("button", { name: "Studio" }));
+
+    expect(screen.getByTestId("plugin-host")).toHaveAttribute(
+      "data-plugin-host",
+      "studio-connection",
+    );
   });
 
   it("opens memory list management in a dialog and opens an editor modal to add a memory", async () => {

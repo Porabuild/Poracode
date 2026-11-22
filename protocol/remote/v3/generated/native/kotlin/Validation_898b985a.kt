@@ -22,7 +22,7 @@ internal val schema_0200f968d21b338b: RemoteSchema by lazy {
 }
 
 internal val schema_020cad6f356d7c67: RemoteSchema by lazy {
-    RemoteSchema(type = "string", pattern = "^[a-z0-9][a-z0-9-]{0,31}$", unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
+    RemoteSchema(type = "string", pattern = "^[a-z0-9][a-z0-9-]{0,31}\$", unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
 
 internal val schema_02179e6a4b6545d5: RemoteSchema by lazy {

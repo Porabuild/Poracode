@@ -180,78 +180,263 @@ public struct ProcedurelistImportableSessionsResult_078fcc8515: Codable, Sendabl
   }
 }
 
-public struct ProcedurelistProjectTreeRequest_26cfea8cde: Codable, Sendable, RemoteModelMetadata {
-  public var directoryPath: RemoteField<String> = .missing
-  public var projectLocation: ProcedurebeginMcpServerOauthRequestU2DProjectLocation_080f9cc154
-  public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .strip
+public struct ProcedurelistPluginsRequest_16b775effb: Codable, Sendable, RemoteModelMetadata {
+  public var projectLocation: RemoteField<ProcedurebeginMcpServerOauthRequestU2DProjectLocation_080f9cc154> = .missing
+  public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .reject
   public static let fields: [RemoteFieldDescriptor] = [
-    .init(wireName: "directoryPath", typeName: "String", required: false, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
-    .init(wireName: "projectLocation", typeName: "ProcedurebeginMcpServerOauthRequestU2DProjectLocation_080f9cc154", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "projectLocation", typeName: "ProcedurebeginMcpServerOauthRequestU2DProjectLocation_080f9cc154", required: false, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
   ]
   public static let semanticValidatorIds: [String] = []
   private enum CodingKeys: String, CodingKey {
-    case directoryPath = "directoryPath"
     case projectLocation = "projectLocation"
   }
+  public init(from decoder: Decoder) throws {
+    let all = try decoder.container(keyedBy: RemoteCodingKey.self).allKeys.map(\.stringValue)
+    let known = Set(Self.fields.map(\.wireName))
+    guard all.allSatisfy(known.contains) else { throw DecodingError.dataCorrupted(.init(codingPath: decoder.codingPath, debugDescription: "Unknown field in strict object")) }
+    let container = try decoder.container(keyedBy: CodingKeys.self)
+    self.projectLocation = try container.decode(RemoteField<ProcedurebeginMcpServerOauthRequestU2DProjectLocation_080f9cc154>.self, forKey: .projectLocation)
+  }
+  public func encode(to encoder: Encoder) throws {
+    var container = encoder.container(keyedBy: CodingKeys.self)
+    try container.encode(projectLocation, forKey: .projectLocation)
+  }
 }
 
-public struct ProcedurelistProjectTreeResultU2DEntriesU2DItem_c073582d4f: Codable, Sendable, RemoteModelMetadata {
-  public var hasChildren: RemoteField<Bool> = .missing
-  public var name: ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b
-  public var path: ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b
-  public var typeValue: ProcedurebrowseHostDirectoryResultU2DEntriesU2DItemU2DType_8d3732b59a
-  public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .strip
+public enum ProcedurelistPluginsResultU2DPluginsU2DItemU2DDiagnosticsU2DItemU2DScope_b414b8c354: String, Codable, Sendable {
+  case `plugin` = "plugin"
+  case `componentU2DType` = "component-type"
+  case `skill` = "skill"
+  case `mcpU2DServer` = "mcp-server"
+}
+
+public enum ProcedurelistPluginsResultU2DPluginsU2DItemU2DDiagnosticsU2DItemU2DSeverity_b966eed60d: String, Codable, Sendable {
+  case `error` = "error"
+  case `warning` = "warning"
+}
+
+public struct ProcedurelistPluginsResultU2DPluginsU2DItemU2DDiagnosticsU2DItem_5a704f7ccb: Codable, Sendable, RemoteModelMetadata {
+  public var code: String
+  public var message: String
+  public var scope: ProcedurelistPluginsResultU2DPluginsU2DItemU2DDiagnosticsU2DItemU2DScope_b414b8c354
+  public var severity: ProcedurelistPluginsResultU2DPluginsU2DItemU2DDiagnosticsU2DItemU2DSeverity_b966eed60d
+  public var target: RemoteField<String> = .missing
+  public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .reject
   public static let fields: [RemoteFieldDescriptor] = [
-    .init(wireName: "hasChildren", typeName: "Bool", required: false, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
-    .init(wireName: "name", typeName: "ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
-    .init(wireName: "path", typeName: "ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
-    .init(wireName: "type", typeName: "ProcedurebrowseHostDirectoryResultU2DEntriesU2DItemU2DType_8d3732b59a", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "code", typeName: "String", required: true, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "message", typeName: "String", required: true, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "scope", typeName: "ProcedurelistPluginsResultU2DPluginsU2DItemU2DDiagnosticsU2DItemU2DScope_b414b8c354", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "severity", typeName: "ProcedurelistPluginsResultU2DPluginsU2DItemU2DDiagnosticsU2DItemU2DSeverity_b966eed60d", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "target", typeName: "String", required: false, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
   ]
   public static let semanticValidatorIds: [String] = []
   private enum CodingKeys: String, CodingKey {
-    case hasChildren = "hasChildren"
+    case code = "code"
+    case message = "message"
+    case scope = "scope"
+    case severity = "severity"
+    case target = "target"
+  }
+  public init(from decoder: Decoder) throws {
+    let all = try decoder.container(keyedBy: RemoteCodingKey.self).allKeys.map(\.stringValue)
+    let known = Set(Self.fields.map(\.wireName))
+    guard all.allSatisfy(known.contains) else { throw DecodingError.dataCorrupted(.init(codingPath: decoder.codingPath, debugDescription: "Unknown field in strict object")) }
+    let container = try decoder.container(keyedBy: CodingKeys.self)
+    self.code = try container.decode(String.self, forKey: .code)
+    self.message = try container.decode(String.self, forKey: .message)
+    self.scope = try container.decode(ProcedurelistPluginsResultU2DPluginsU2DItemU2DDiagnosticsU2DItemU2DScope_b414b8c354.self, forKey: .scope)
+    self.severity = try container.decode(ProcedurelistPluginsResultU2DPluginsU2DItemU2DDiagnosticsU2DItemU2DSeverity_b966eed60d.self, forKey: .severity)
+    self.target = try container.decode(RemoteField<String>.self, forKey: .target)
+  }
+  public func encode(to encoder: Encoder) throws {
+    var container = encoder.container(keyedBy: CodingKeys.self)
+    try container.encode(code, forKey: .code)
+    try container.encode(message, forKey: .message)
+    try container.encode(scope, forKey: .scope)
+    try container.encode(severity, forKey: .severity)
+    try container.encode(target, forKey: .target)
+  }
+}
+
+public struct ProcedurelistPluginsResultU2DPluginsU2DItemU2DManifestU2DAuthor_dfdd62dd3d: Codable, Sendable, RemoteModelMetadata {
+  public var email: RemoteField<String> = .missing
+  public var name: RemoteField<String> = .missing
+  public var url: RemoteField<String> = .missing
+  public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .reject
+  public static let fields: [RemoteFieldDescriptor] = [
+    .init(wireName: "email", typeName: "String", required: false, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "name", typeName: "String", required: false, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "url", typeName: "String", required: false, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+  ]
+  public static let semanticValidatorIds: [String] = []
+  private enum CodingKeys: String, CodingKey {
+    case email = "email"
     case name = "name"
-    case path = "path"
+    case url = "url"
+  }
+  public init(from decoder: Decoder) throws {
+    let all = try decoder.container(keyedBy: RemoteCodingKey.self).allKeys.map(\.stringValue)
+    let known = Set(Self.fields.map(\.wireName))
+    guard all.allSatisfy(known.contains) else { throw DecodingError.dataCorrupted(.init(codingPath: decoder.codingPath, debugDescription: "Unknown field in strict object")) }
+    let container = try decoder.container(keyedBy: CodingKeys.self)
+    self.email = try container.decode(RemoteField<String>.self, forKey: .email)
+    self.name = try container.decode(RemoteField<String>.self, forKey: .name)
+    self.url = try container.decode(RemoteField<String>.self, forKey: .url)
+  }
+  public func encode(to encoder: Encoder) throws {
+    var container = encoder.container(keyedBy: CodingKeys.self)
+    try container.encode(email, forKey: .email)
+    try container.encode(name, forKey: .name)
+    try container.encode(url, forKey: .url)
+  }
+}
+
+public typealias ProcedurelistPluginsResultU2DPluginsU2DItemU2DManifestU2DExtensions_9cc5cbbf92 = [String: RemoteJSONValue]
+
+public struct ProcedurelistPluginsResultU2DPluginsU2DItemU2DManifest_1342a7c564: Codable, Sendable, RemoteModelMetadata {
+  public var u24Schema: String
+  public var author: RemoteField<ProcedurelistPluginsResultU2DPluginsU2DItemU2DManifestU2DAuthor_dfdd62dd3d> = .missing
+  public var description: RemoteField<String> = .missing
+  public var extensions: RemoteField<ProcedurelistPluginsResultU2DPluginsU2DItemU2DManifestU2DExtensions_9cc5cbbf92> = .missing
+  public var homepage: RemoteField<String> = .missing
+  public var keywords: RemoteField<[String]> = .missing
+  public var license: RemoteField<String> = .missing
+  public var name: String
+  public var repository: RemoteField<String> = .missing
+  public var version: RemoteField<String> = .missing
+  public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .reject
+  public static let fields: [RemoteFieldDescriptor] = [
+    .init(wireName: "$schema", typeName: "String", required: true, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "author", typeName: "ProcedurelistPluginsResultU2DPluginsU2DItemU2DManifestU2DAuthor_dfdd62dd3d", required: false, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "description", typeName: "String", required: false, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "extensions", typeName: "ProcedurelistPluginsResultU2DPluginsU2DItemU2DManifestU2DExtensions_9cc5cbbf92", required: false, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "homepage", typeName: "String", required: false, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "keywords", typeName: "[String]", required: false, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "license", typeName: "String", required: false, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "name", typeName: "String", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: ["plugin.valid-name"]),
+    .init(wireName: "repository", typeName: "String", required: false, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "version", typeName: "String", required: false, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+  ]
+  public static let semanticValidatorIds: [String] = []
+  private enum CodingKeys: String, CodingKey {
+    case u24Schema = "$schema"
+    case author = "author"
+    case description = "description"
+    case extensions = "extensions"
+    case homepage = "homepage"
+    case keywords = "keywords"
+    case license = "license"
+    case name = "name"
+    case repository = "repository"
+    case version = "version"
+  }
+  public init(from decoder: Decoder) throws {
+    let all = try decoder.container(keyedBy: RemoteCodingKey.self).allKeys.map(\.stringValue)
+    let known = Set(Self.fields.map(\.wireName))
+    guard all.allSatisfy(known.contains) else { throw DecodingError.dataCorrupted(.init(codingPath: decoder.codingPath, debugDescription: "Unknown field in strict object")) }
+    let container = try decoder.container(keyedBy: CodingKeys.self)
+    self.u24Schema = try container.decode(String.self, forKey: .u24Schema)
+    self.author = try container.decode(RemoteField<ProcedurelistPluginsResultU2DPluginsU2DItemU2DManifestU2DAuthor_dfdd62dd3d>.self, forKey: .author)
+    self.description = try container.decode(RemoteField<String>.self, forKey: .description)
+    self.extensions = try container.decode(RemoteField<ProcedurelistPluginsResultU2DPluginsU2DItemU2DManifestU2DExtensions_9cc5cbbf92>.self, forKey: .extensions)
+    self.homepage = try container.decode(RemoteField<String>.self, forKey: .homepage)
+    self.keywords = try container.decode(RemoteField<[String]>.self, forKey: .keywords)
+    self.license = try container.decode(RemoteField<String>.self, forKey: .license)
+    self.name = try container.decode(String.self, forKey: .name)
+    self.repository = try container.decode(RemoteField<String>.self, forKey: .repository)
+    self.version = try container.decode(RemoteField<String>.self, forKey: .version)
+  }
+  public func encode(to encoder: Encoder) throws {
+    var container = encoder.container(keyedBy: CodingKeys.self)
+    try container.encode(u24Schema, forKey: .u24Schema)
+    try container.encode(author, forKey: .author)
+    try container.encode(description, forKey: .description)
+    try container.encode(extensions, forKey: .extensions)
+    try container.encode(homepage, forKey: .homepage)
+    try container.encode(keywords, forKey: .keywords)
+    try container.encode(license, forKey: .license)
+    try container.encode(name, forKey: .name)
+    try container.encode(repository, forKey: .repository)
+    try container.encode(version, forKey: .version)
+  }
+}
+
+public struct ProcedurelistPluginsResultU2DPluginsU2DItemU2DMcpServersU2DItemU2DEntryU2DOptionU2D1_72afaeed40: Codable, Sendable, RemoteModelMetadata {
+  public var args: [ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b]
+  public var command: String
+  public var cwd: RemoteField<String> = .missing
+  public var env: ProcedureghDispatchWorkflowRequestU2DInputs_fd056ca894
+  public var typeValue: ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DType_01f71c4e26
+  public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .reject
+  public static let fields: [RemoteFieldDescriptor] = [
+    .init(wireName: "args", typeName: "[ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b]", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "command", typeName: "String", required: true, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "cwd", typeName: "String", required: false, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "env", typeName: "ProcedureghDispatchWorkflowRequestU2DInputs_fd056ca894", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "type", typeName: "ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DType_01f71c4e26", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+  ]
+  public static let semanticValidatorIds: [String] = []
+  private enum CodingKeys: String, CodingKey {
+    case args = "args"
+    case command = "command"
+    case cwd = "cwd"
+    case env = "env"
     case typeValue = "type"
   }
-}
-
-public struct ProcedurelistProjectTreeResult_ccd3eb53d3: Codable, Sendable, RemoteModelMetadata {
-  public var directoryPath: ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b
-  public var entries: [ProcedurelistProjectTreeResultU2DEntriesU2DItem_c073582d4f]
-  public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .strip
-  public static let fields: [RemoteFieldDescriptor] = [
-    .init(wireName: "directoryPath", typeName: "ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
-    .init(wireName: "entries", typeName: "[ProcedurelistProjectTreeResultU2DEntriesU2DItem_c073582d4f]", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
-  ]
-  public static let semanticValidatorIds: [String] = []
-  private enum CodingKeys: String, CodingKey {
-    case directoryPath = "directoryPath"
-    case entries = "entries"
+  public init(from decoder: Decoder) throws {
+    let all = try decoder.container(keyedBy: RemoteCodingKey.self).allKeys.map(\.stringValue)
+    let known = Set(Self.fields.map(\.wireName))
+    guard all.allSatisfy(known.contains) else { throw DecodingError.dataCorrupted(.init(codingPath: decoder.codingPath, debugDescription: "Unknown field in strict object")) }
+    let container = try decoder.container(keyedBy: CodingKeys.self)
+    self.args = try container.decode([ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b].self, forKey: .args)
+    self.command = try container.decode(String.self, forKey: .command)
+    self.cwd = try container.decode(RemoteField<String>.self, forKey: .cwd)
+    self.env = try container.decode(ProcedureghDispatchWorkflowRequestU2DInputs_fd056ca894.self, forKey: .env)
+    self.typeValue = try container.decode(ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DType_01f71c4e26.self, forKey: .typeValue)
+  }
+  public func encode(to encoder: Encoder) throws {
+    var container = encoder.container(keyedBy: CodingKeys.self)
+    try container.encode(args, forKey: .args)
+    try container.encode(command, forKey: .command)
+    try container.encode(cwd, forKey: .cwd)
+    try container.encode(env, forKey: .env)
+    try container.encode(typeValue, forKey: .typeValue)
   }
 }
 
-public enum ProcedurelistSkillMarketplaceRequestU2DSort_1eaf563a1e: String, Codable, Sendable {
-  case `rank` = "rank"
-  case `stars` = "stars"
-  case `recent` = "recent"
-  case `votes` = "votes"
+public enum ProcedurelistPluginsResultU2DPluginsU2DItemU2DMcpServersU2DItemU2DEntryU2DOptionU2D2U2DType_d72afeeef5: String, Codable, Sendable {
+  case `streamableU2DHttp` = "streamable-http"
 }
 
-public struct ProcedurelistSkillMarketplaceRequest_828172bf17: Codable, Sendable, RemoteModelMetadata {
-  public var marketplace: ProcedureinstallMarketplaceSkillRequestU2DMarketplace_118f67a0fa
-  public var query: RemoteField<String> = .missing
-  public var sort: RemoteField<ProcedurelistSkillMarketplaceRequestU2DSort_1eaf563a1e> = .missing
-  public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .strip
+public struct ProcedurelistPluginsResultU2DPluginsU2DItemU2DMcpServersU2DItemU2DEntryU2DOptionU2D2_f42512df14: Codable, Sendable, RemoteModelMetadata {
+  public var headers: ProcedureghDispatchWorkflowRequestU2DInputs_fd056ca894
+  public var typeValue: ProcedurelistPluginsResultU2DPluginsU2DItemU2DMcpServersU2DItemU2DEntryU2DOptionU2D2U2DType_d72afeeef5
+  public var url: String
+  public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .reject
   public static let fields: [RemoteFieldDescriptor] = [
-    .init(wireName: "marketplace", typeName: "ProcedureinstallMarketplaceSkillRequestU2DMarketplace_118f67a0fa", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
-    .init(wireName: "query", typeName: "String", required: false, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: 200, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
-    .init(wireName: "sort", typeName: "ProcedurelistSkillMarketplaceRequestU2DSort_1eaf563a1e", required: false, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "headers", typeName: "ProcedureghDispatchWorkflowRequestU2DInputs_fd056ca894", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "type", typeName: "ProcedurelistPluginsResultU2DPluginsU2DItemU2DMcpServersU2DItemU2DEntryU2DOptionU2D2U2DType_d72afeeef5", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "url", typeName: "String", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: ["plugin.valid-url"]),
   ]
   public static let semanticValidatorIds: [String] = []
   private enum CodingKeys: String, CodingKey {
-    case marketplace = "marketplace"
-    case query = "query"
-    case sort = "sort"
+    case headers = "headers"
+    case typeValue = "type"
+    case url = "url"
+  }
+  public init(from decoder: Decoder) throws {
+    let all = try decoder.container(keyedBy: RemoteCodingKey.self).allKeys.map(\.stringValue)
+    let known = Set(Self.fields.map(\.wireName))
+    guard all.allSatisfy(known.contains) else { throw DecodingError.dataCorrupted(.init(codingPath: decoder.codingPath, debugDescription: "Unknown field in strict object")) }
+    let container = try decoder.container(keyedBy: CodingKeys.self)
+    self.headers = try container.decode(ProcedureghDispatchWorkflowRequestU2DInputs_fd056ca894.self, forKey: .headers)
+    self.typeValue = try container.decode(ProcedurelistPluginsResultU2DPluginsU2DItemU2DMcpServersU2DItemU2DEntryU2DOptionU2D2U2DType_d72afeeef5.self, forKey: .typeValue)
+    self.url = try container.decode(String.self, forKey: .url)
+  }
+  public func encode(to encoder: Encoder) throws {
+    var container = encoder.container(keyedBy: CodingKeys.self)
+    try container.encode(headers, forKey: .headers)
+    try container.encode(typeValue, forKey: .typeValue)
+    try container.encode(url, forKey: .url)
   }
 }

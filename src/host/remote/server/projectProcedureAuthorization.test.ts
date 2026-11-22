@@ -131,6 +131,66 @@ describe("project procedure authorization", () => {
     authorizeProjectProcedurePayload("readProjectFile", { projectLocation: root }, () => true);
   });
 
+  it("enforces project-management scope on local plugin catalogs and registered roots on remote plugin artwork", () => {
+    expect(() =>
+      authorizeProjectProcedurePayload("pluginCatalog", {
+        action: "add",
+        source: { type: "local", path: "/private/marketplace" },
+      }),
+    ).toThrow(
+      expect.objectContaining({ code: "plugin_catalog_local_source_forbidden", status: 403 }),
+    );
+
+    authorizeProjectProcedurePayload(
+      "pluginCatalog",
+      { action: "add", source: { type: "local", path: "/private/marketplace" } },
+      () => true,
+    );
+    authorizeProjectProcedurePayload("pluginCatalog", {
+      action: "add",
+      source: { type: "git", url: "https://example.com/marketplace.git" },
+    });
+
+    expect(() =>
+      authorizeProjectProcedurePayload("pluginCatalog", {
+        action: "artwork",
+        version: 1,
+        target: { type: "plugin", pluginName: "demo", projectFsPath: "/private" },
+      }),
+    ).toThrow(expect.objectContaining({ code: "project_location_not_registered", status: 403 }));
+
+    const registeredArtwork = {
+      action: "artwork",
+      version: 1,
+      target: { type: "plugin", pluginName: "demo", projectFsPath: "/repo/src/.." },
+    };
+    authorizeProjectProcedurePayload("pluginCatalog", registeredArtwork);
+    expect(registeredArtwork.target.projectFsPath).toBe("/repo");
+
+    authorizeProjectProcedurePayload(
+      "pluginCatalog",
+      {
+        action: "artwork",
+        version: 1,
+        target: { type: "plugin", pluginName: "demo", projectFsPath: "/private" },
+      },
+      () => true,
+    );
+
+    expect(() =>
+      authorizeProjectProcedurePayload("listPlugins", {
+        projectLocation: { kind: "posix", path: "/private" },
+      }),
+    ).toThrow(expect.objectContaining({ code: "project_location_not_registered", status: 403 }));
+    expect(() =>
+      authorizeProjectProcedurePayload("refreshPlugins", {
+        projectLocation: { kind: "posix", path: "/private" },
+      }),
+    ).toThrow(expect.objectContaining({ code: "project_location_not_registered", status: 403 }));
+    authorizeProjectProcedurePayload("listPlugins", {});
+    authorizeProjectProcedurePayload("refreshPlugins", { projectLocation: root });
+  });
+
   it("fails closed when the registry cannot be read", () => {
     vi.mocked(dbGetProjects).mockImplementation(() => {
       throw new Error("database unavailable");

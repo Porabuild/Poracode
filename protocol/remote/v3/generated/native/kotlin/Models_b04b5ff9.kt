@@ -145,7 +145,7 @@ data class ProcedureforgeGetPrReviewGuideResult_5915279035(
 ) {
     companion object {
         val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
-            RemoteFieldDescriptor("diffHash", "String", false, false, null, null, null, null, null, null, "^[a-f0-9]{64}$", null, listOf()),
+            RemoteFieldDescriptor("diffHash", "String", false, false, null, null, null, null, null, null, "^[a-f0-9]{64}\$", null, listOf()),
             RemoteFieldDescriptor("guide", "ProcedureforgeGetPrReviewGuideResultU2DGuideU2DOptionU2D1_160c1ab9b7", true, true, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("stale", "Boolean", true, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("status", "ProcedureforgeGetPrReviewGuideResultU2DStatus_e25509dad8", true, false, null, null, null, null, null, null, null, null, listOf()),
@@ -176,7 +176,7 @@ data class ProcedureforgeGetPrViewedFilesResult_6c5abb4203(
     companion object {
         val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
             RemoteFieldDescriptor("currentFiles", "List<ProcedureforgeGetPrViewedFilesResultU2DCurrentFilesU2DItem_cac7783fa7>", false, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("diffHash", "String", false, false, null, null, null, null, null, null, "^[a-f0-9]{64}$", null, listOf()),
+            RemoteFieldDescriptor("diffHash", "String", false, false, null, null, null, null, null, null, "^[a-f0-9]{64}\$", null, listOf()),
             RemoteFieldDescriptor("files", "List<ProcedureforgeGetPrViewedFilesResultU2DCurrentFilesU2DItem_cac7783fa7>", true, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("storage", "ProcedureforgeCreatePrResultU2DSourceU2DCapabilitiesU2DViewedFiles_ae682752b1", true, false, null, null, null, null, null, null, null, null, listOf()),
         ), listOf())

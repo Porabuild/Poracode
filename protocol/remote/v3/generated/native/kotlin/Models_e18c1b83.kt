@@ -280,7 +280,7 @@ data class ProcedureforgeGetPrCommitDiffRequest_c70a9f8632(
 ) {
     companion object {
         val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
-            RemoteFieldDescriptor("commit", "String", true, false, null, null, null, null, null, null, "^[0-9a-f]{7,64}$", null, listOf()),
+            RemoteFieldDescriptor("commit", "String", true, false, null, null, null, null, null, null, "^[0-9a-f]{7,64}\$", null, listOf()),
             RemoteFieldDescriptor("forgeAccount", "ProcedureforgeClosePrRequestU2DForgeAccount_c2bb40b82b", true, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("forgeRepository", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("prNumber", "Long", true, false, null, 9007199254740991.0, null, null, null, null, null, null, listOf()),
@@ -380,7 +380,7 @@ data class ProcedureforgeGetPrDetailsResultU2DDetailsU2DLabelsU2DItem_2e20b523bd
 ) {
     companion object {
         val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
-            RemoteFieldDescriptor("color", "String", false, false, null, null, null, null, null, null, "^[0-9a-f]{6}$", null, listOf()),
+            RemoteFieldDescriptor("color", "String", false, false, null, null, null, null, null, null, "^[0-9a-f]{6}\$", null, listOf()),
             RemoteFieldDescriptor("description", "ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b", false, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("name", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
         ), listOf())

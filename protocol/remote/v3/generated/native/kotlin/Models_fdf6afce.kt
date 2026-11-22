@@ -78,7 +78,7 @@ data class RoutethreadU2DTransferU2DUploadQuery_1b36bab0d2(
     companion object {
         val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
             RemoteFieldDescriptor("offset", "Long", true, false, 0.0, 9007199254740991.0, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("sha256", "String", true, false, null, null, null, null, null, null, "^[0-9a-f]{64}$", null, listOf()),
+            RemoteFieldDescriptor("sha256", "String", true, false, null, null, null, null, null, null, "^[0-9a-f]{64}\$", null, listOf()),
             RemoteFieldDescriptor("total", "Long", true, false, 1.0, 536870912.0, null, null, null, null, null, null, listOf()),
         ), listOf())
     }

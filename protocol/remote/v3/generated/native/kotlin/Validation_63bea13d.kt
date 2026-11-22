@@ -81,6 +81,10 @@ internal val schema_6cf695d23ae995e6: RemoteSchema by lazy {
     RemoteSchema(type = "string", literals = listOf(JsonPrimitive("interval")), unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
 
+internal val schema_6d0b14c439689ee7: RemoteSchema by lazy {
+    RemoteSchema(type = "object", properties = mapOf("disabledMcpServerNames" to schema_242a5ef77d1f8924, "disabledSkillIds" to schema_242a5ef77d1f8924, "enabled" to schema_a6ba34cd39bf30c5, "version" to schema_362e75234d94c7e4), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
+}
+
 internal val schema_6d1b9ceb7012b646: RemoteSchema by lazy {
     RemoteSchema(type = "array", defaultValue = JsonArray(listOf()), items = schema_a59d7f7afd3350b1, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }

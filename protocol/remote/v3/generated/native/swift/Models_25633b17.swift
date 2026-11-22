@@ -231,7 +231,7 @@ public struct RouteenvironmentU2DLegacyResponse_29860e4152: Codable, Sendable, R
   public var endpoints: RouteenvironmentU2DLegacyResponseU2DEndpoints_17c2b8a253
   public var hostMode: RemoteField<RouteenvironmentU2DLegacyResponseU2DHostMode_d1d1696e7d> = .missing
   public var label: String
-  public var platform: RemoteField<RouteenvironmentU2DLegacyResponseU2DPlatform_7583b8d37f> = .missing
+  public var platform: RemoteField<ProcedurelistPluginsResultU2DPluginsU2DItemU2DPoracodeU2DPlatformsU2DItem_7583b8d37f> = .missing
   public var protocolVersion: RouteenvironmentU2DLegacyResponseU2DProtocolVersion_8d7cbafc0e
   public var toolPresentation: RemoteField<RouteenvironmentU2DLegacyResponseU2DToolPresentation_b5b89821db> = .missing
   public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .strip
@@ -243,7 +243,7 @@ public struct RouteenvironmentU2DLegacyResponse_29860e4152: Codable, Sendable, R
     .init(wireName: "endpoints", typeName: "RouteenvironmentU2DLegacyResponseU2DEndpoints_17c2b8a253", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "hostMode", typeName: "RouteenvironmentU2DLegacyResponseU2DHostMode_d1d1696e7d", required: false, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "label", typeName: "String", required: true, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
-    .init(wireName: "platform", typeName: "RouteenvironmentU2DLegacyResponseU2DPlatform_7583b8d37f", required: false, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "platform", typeName: "ProcedurelistPluginsResultU2DPluginsU2DItemU2DPoracodeU2DPlatformsU2DItem_7583b8d37f", required: false, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "protocolVersion", typeName: "RouteenvironmentU2DLegacyResponseU2DProtocolVersion_8d7cbafc0e", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "toolPresentation", typeName: "RouteenvironmentU2DLegacyResponseU2DToolPresentation_b5b89821db", required: false, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
   ]

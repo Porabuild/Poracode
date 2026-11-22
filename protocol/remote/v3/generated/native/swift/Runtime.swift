@@ -89,6 +89,8 @@ public enum RemoteSemanticValidator {
     "git.remove-worktree.owner-requires-branch",
     "mcp.reserved-name",
     "mcp.valid-url",
+    "plugin.valid-name",
+    "plugin.valid-url",
     "pr-watch.agent-required-when-enabled",
     "push.registration.platform-fields",
     "push.routing.identifier-no-controls",
@@ -110,6 +112,53 @@ public enum RemoteSemanticValidator {
   private static func fail(_ id: String, _ path: String) throws -> Never { throw RemoteValidationError.invalid("\(path): semantic validator \(id) failed") }
   private static func object(_ value: RemoteJSONValue) -> [String: RemoteJSONValue]? { if case .object(let value) = value { return value }; return nil }
   private static func string(_ value: RemoteJSONValue?) -> String? { if case .string(let value)? = value { return value }; return nil }
+  private static func validPluginName(_ value: String) -> Bool {
+    let scalars = Array(value.unicodeScalars)
+    guard !scalars.isEmpty, scalars.count <= 64 else { return false }
+    func alphanumeric(_ scalar: Unicode.Scalar) -> Bool { (scalar.value >= 97 && scalar.value <= 122) || (scalar.value >= 48 && scalar.value <= 57) }
+    guard alphanumeric(scalars.first!), alphanumeric(scalars.last!) else { return false }
+    guard !value.contains("--"), !value.contains("..") else { return false }
+    return scalars.allSatisfy { alphanumeric($0) || $0.value == 45 || $0.value == 46 }
+  }
+  private static func validPluginUrl(_ value: String) -> Bool {
+    let trimmed = RemoteECMAScriptTrim.trim(value)
+    guard RemoteSchemaValidatorValidURL(trimmed, schemes: ["http", "https"]) else { return false }
+    guard let colon = trimmed.firstIndex(of: ":") else { return false }
+    let scheme = String(trimmed[..<colon]).lowercased()
+    var rest = String(trimmed[trimmed.index(after: colon)...].dropFirst(2))
+    while rest.hasPrefix("/") { rest.removeFirst() }
+    let authority = rest.prefix { !"/?#\\".contains($0) }
+    guard !authority.isEmpty else { return false }
+    let hostPort = String(authority.split(separator: "@", omittingEmptySubsequences: false).last ?? "")
+    func validPort(_ port: Substring) -> Bool { port.isEmpty || (port.allSatisfy { $0.isASCII && $0.isNumber } && (Int(port) ?? -1) >= 0 && (Int(port) ?? -1) <= 65535) }
+    let bracketed = hostPort.hasPrefix("[")
+    let host: String
+    if bracketed {
+      guard let close = hostPort.firstIndex(of: "]") else { return false }
+      let after = hostPort[hostPort.index(after: close)...]
+      if !after.isEmpty && (!after.hasPrefix(":") || !validPort(after.dropFirst())) { return false }
+      let inner = String(hostPort[hostPort.index(after: hostPort.startIndex)..<close])
+      guard !inner.isEmpty, inner.contains(":"), inner.unicodeScalars.allSatisfy({ ($0.value >= 48 && $0.value <= 57) || ($0.value >= 97 && $0.value <= 102) || ($0.value >= 65 && $0.value <= 70) || $0.value == 58 || $0.value == 46 }) else { return false }
+      host = inner
+    } else {
+      if hostPort.contains("[") || hostPort.contains("]") { return false }
+      let rawHost: String
+      if let portSep = hostPort.firstIndex(of: ":") {
+        guard validPort(hostPort[hostPort.index(after: portSep)...]) else { return false }
+        rawHost = String(hostPort[..<portSep])
+      } else { rawHost = hostPort }
+      guard !rawHost.isEmpty, !rawHost.unicodeScalars.contains(where: { $0.value <= 0x20 || $0.value == 0x7F || "#/:<>?@[\\]^|".unicodeScalars.contains($0) }) else { return false }
+      host = rawHost
+    }
+    let normalized = host.lowercased()
+    let octet = "(?:25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])"
+    if !bracketed && normalized.range(of: #"^[0-9.]+$"#, options: .regularExpression) != nil {
+      guard normalized.range(of: "^\(octet)(?:\\.\(octet)){0,3}$", options: .regularExpression) != nil else { return false }
+    }
+    if scheme == "https" { return true }
+    if bracketed { return normalized.range(of: #"^(?:::(?:0{0,3}1)|(?:0{1,4}:){1,6}:(?:0{0,3}1)|(?:0{1,4}:){7}(?:0{0,3}1))$"#, options: .regularExpression) != nil }
+    return normalized == "localhost" || normalized.hasSuffix(".localhost") || normalized.range(of: "^127(?:\\.\(octet)){1,3}$", options: .regularExpression) != nil
+  }
   private static func bool(_ value: RemoteJSONValue?) -> Bool? { if case .bool(let value)? = value { return value }; return nil }
   private static func int(_ value: RemoteJSONValue?) -> Int64? { if case .int(let value)? = value { return value }; if case .double(let value)? = value, value.rounded(.towardZero) == value { return Int64(value) }; return nil }
 
@@ -155,6 +204,8 @@ public enum RemoteSemanticValidator {
     case "git.remove-worktree.owner-requires-branch": if string(item?["expectedOwnerToken"]) != nil && string(item?["expectedBranch"]) == nil { try fail(id, path) }
     case "mcp.reserved-name": if let name = string(item?["name"]).map(RemoteECMAScriptTrim.trim)?.lowercased(), ["browser", "crossagents", "chrome", "computer_use", "poracode"].contains(name) { try fail(id, path) }
     case "mcp.valid-url": let candidate = string(value) ?? string(item?["url"]); if candidate == nil || !RemoteSchemaValidatorValidURL(candidate!, schemes: ["http", "https"]) { try fail(id, path) }
+    case "plugin.valid-name": guard let text = string(value), validPluginName(text) else { try fail(id, path) }
+    case "plugin.valid-url": guard let text = string(value), validPluginUrl(text) else { try fail(id, path) }
     case "pr-watch.agent-required-when-enabled": if bool(item?["watchEnabled"]) == true && (string(item?["agentKind"]) == nil || object(item?["config"] ?? .null) == nil) { try fail(id, path) }
     case "push.registration.platform-fields": guard let platform = string(item?["platform"]) else { try fail(id, path) }; let has: (String) -> Bool = { item?[$0] != nil }; if platform == "android" && (has("pushToStartToken") || has("activityTokens")) { try fail(id, path) }; if platform != "web" && (has("webPushSubscription") || has("webAppBasePath")) { try fail(id, path) }; if platform == "web" && (has("routing") || !has("webPushSubscription") || !has("webAppBasePath") || has("deviceToken") || has("pushToStartToken") || has("activityTokens")) { try fail(id, path) }
     case "push.routing.identifier-no-controls": guard let text = string(value), !text.unicodeScalars.contains(where: { $0.value < 0x20 || $0.value == 0x7f }) else { try fail(id, path) }

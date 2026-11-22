@@ -30,7 +30,7 @@ data class RoutedeviceU2DActionRequestU2DOptionU2D7U2DControlU2DOptionU2D10_14f3
 ) {
     companion object {
         val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.REJECT, listOf(
-            RemoteFieldDescriptor("applicationId", "String", true, false, null, null, 3, 255, null, null, "^[A-Za-z][A-Za-z0-9_]*(?:\\.[A-Za-z][A-Za-z0-9_]*)+$", null, listOf()),
+            RemoteFieldDescriptor("applicationId", "String", true, false, null, null, 3, 255, null, null, "^[A-Za-z][A-Za-z0-9_]*(?:\\.[A-Za-z][A-Za-z0-9_]*)+\$", null, listOf()),
             RemoteFieldDescriptor("type", "RoutedeviceU2DActionRequestU2DOptionU2D7U2DControlU2DOptionU2D10U2DType_bd9ee7d624", true, false, null, null, null, null, null, null, null, null, listOf()),
         ), listOf())
     }
@@ -245,7 +245,7 @@ data class RoutedeviceU2DActionRequestU2DOptionU2D7U2DControlU2DOptionU2D8_861b7
 ) {
     companion object {
         val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.REJECT, listOf(
-            RemoteFieldDescriptor("applicationId", "String", true, false, null, null, 3, 255, null, null, "^[A-Za-z][A-Za-z0-9_]*(?:\\.[A-Za-z][A-Za-z0-9_]*)+$", null, listOf()),
+            RemoteFieldDescriptor("applicationId", "String", true, false, null, null, 3, 255, null, null, "^[A-Za-z][A-Za-z0-9_]*(?:\\.[A-Za-z][A-Za-z0-9_]*)+\$", null, listOf()),
             RemoteFieldDescriptor("decision", "RoutedeviceU2DActionRequestU2DOptionU2D7U2DControlU2DOptionU2D8U2DDecision_ff4e0a6efa", true, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("permission", "RoutedeviceU2DActionRequestU2DOptionU2D7U2DControlU2DOptionU2D8U2DPermission_f6dd22a2a9", true, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("type", "RoutedeviceU2DActionRequestU2DOptionU2D7U2DControlU2DOptionU2D8U2DType_592634b895", true, false, null, null, null, null, null, null, null, null, listOf()),

@@ -9,7 +9,7 @@ import {
   type IpcProcedureName,
 } from "./procedureMap";
 import { PREVIOUS_IPC_PROCEDURE_MAP_VERSION } from "../clientHostHop";
-import { isRemoteProcedure } from "../remote/procedures";
+import { REMOTE_PROCEDURE_SPECS, isRemoteProcedure } from "../remote/procedures";
 
 /**
  * Compat pin for the procedure map (V5 plan 2.6): `<version>:<sha256>`. ANY
@@ -407,11 +407,18 @@ describe("IPC procedure map versioning", () => {
     expect(ipcProcedureMap.manageModelProviders.transport).toBe("supervisor");
   });
 
-  it("keeps plugin package and account custody local to the supervisor", () => {
-    for (const name of ["pluginCatalog", "pluginAccounts"] as const) {
+  it("exposes plugin listing to read-scoped and catalog/account custody to operate-scoped remote clients", () => {
+    for (const [name, scope] of [
+      ["listPlugins", "session:read"],
+      ["refreshPlugins", "session:read"],
+      ["pluginCatalog", "session:operate"],
+      ["pluginAccounts", "session:operate"],
+    ] as const) {
       expect(ipcProcedureMap[name].transport).toBe("supervisor");
-      expect(isRemoteProcedure(name)).toBe(false);
+      expect(isRemoteProcedure(name)).toBe(true);
+      expect(REMOTE_PROCEDURE_SPECS[name].scope).toBe(scope);
     }
+    expect(REMOTE_PROCEDURE_SPECS.pluginCatalog.timeout).toBe("long");
   });
 
   it("keeps guarded merges internal and requires their expected head", () => {

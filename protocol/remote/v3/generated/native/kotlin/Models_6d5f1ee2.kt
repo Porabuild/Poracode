@@ -57,7 +57,7 @@ data class RouteshellU2DSnapshotResponseU2DThreadsU2DItem_b37f60804a(
         val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
             RemoteFieldDescriptor("activeTurnStartedAt", "String", false, false, null, null, 1, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("additionalDirectories", "List<RouteshellU2DSnapshotResponseU2DThreadsU2DItemU2DAdditionalDirectoriesU2DItem_137445efd1>", false, false, null, null, null, null, null, 16, null, null, listOf()),
-            RemoteFieldDescriptor("agentInstanceId", "String", false, false, null, null, 1, 120, null, null, "^[a-z0-9][a-z0-9_\\-:.]*$", null, listOf()),
+            RemoteFieldDescriptor("agentInstanceId", "String", false, false, null, null, 1, 120, null, null, "^[a-z0-9][a-z0-9_\\-:.]*\$", null, listOf()),
             RemoteFieldDescriptor("agentKind", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("archived", "Boolean", true, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("archivedAt", "String", false, false, null, null, 1, null, null, null, null, null, listOf()),
@@ -227,7 +227,7 @@ data class RoutethreadU2DAgentU2DVisionResponseU2DOptionU2D1_1e25c599a6(
     companion object {
         val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
             RemoteFieldDescriptor("capturedAt", "Double", false, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("image", "String", false, false, null, null, null, 3145728, null, null, "^data:image\\/(?:png|jpeg);base64,[A-Za-z0-9+/=]+$", null, listOf()),
+            RemoteFieldDescriptor("image", "String", false, false, null, null, null, 3145728, null, null, "^data:image\\/(?:png|jpeg);base64,[A-Za-z0-9+/=]+\$", null, listOf()),
             RemoteFieldDescriptor("source", "RoutethreadU2DAgentU2DVisionResponseU2DOptionU2D1U2DSource_9addfc34d2", true, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("status", "RoutethreadU2DAgentU2DVisionResponseU2DOptionU2D1U2DStatus_cf7eae9345", true, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("streamVersion", "ProcedureconnectThreadVoiceRequestU2DConfigU2DCrewU2DOptionU2D1U2DOptionU2D1U2DVersion_7f9f5a0d72", false, false, null, null, null, null, null, null, null, null, listOf()),
@@ -249,7 +249,7 @@ data class RoutethreadU2DCheckpointU2DRevertRequest_40f9a6009b(
     companion object {
         val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
             RemoteFieldDescriptor("checkpointItemId", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("operationKey", "String", true, false, null, null, 8, 110, null, null, "^[A-Za-z0-9._:-]+$", null, listOf()),
+            RemoteFieldDescriptor("operationKey", "String", true, false, null, null, 8, 110, null, null, "^[A-Za-z0-9._:-]+\$", null, listOf()),
         ), listOf())
     }
 }

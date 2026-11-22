@@ -205,7 +205,7 @@ data class RouteenvironmentU2DLegacyResponse_29860e4152(
     @SerialName("endpoints") val endpoints: RouteenvironmentU2DLegacyResponseU2DEndpoints_17c2b8a253,
     @SerialName("hostMode") val hostMode: RemoteField<RouteenvironmentU2DLegacyResponseU2DHostMode_d1d1696e7d> = RemoteField.Missing,
     @SerialName("label") val label: String,
-    @SerialName("platform") val platform: RemoteField<RouteenvironmentU2DLegacyResponseU2DPlatform_7583b8d37f> = RemoteField.Missing,
+    @SerialName("platform") val platform: RemoteField<ProcedurelistPluginsResultU2DPluginsU2DItemU2DPoracodeU2DPlatformsU2DItem_7583b8d37f> = RemoteField.Missing,
     @SerialName("protocolVersion") val protocolVersion: RouteenvironmentU2DLegacyResponseU2DProtocolVersion_8d7cbafc0e,
     @SerialName("toolPresentation") val toolPresentation: RemoteField<RouteenvironmentU2DLegacyResponseU2DToolPresentation_b5b89821db> = RemoteField.Missing,
 ) {
@@ -218,7 +218,7 @@ data class RouteenvironmentU2DLegacyResponse_29860e4152(
             RemoteFieldDescriptor("endpoints", "RouteenvironmentU2DLegacyResponseU2DEndpoints_17c2b8a253", true, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("hostMode", "RouteenvironmentU2DLegacyResponseU2DHostMode_d1d1696e7d", false, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("label", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("platform", "RouteenvironmentU2DLegacyResponseU2DPlatform_7583b8d37f", false, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("platform", "ProcedurelistPluginsResultU2DPluginsU2DItemU2DPoracodeU2DPlatformsU2DItem_7583b8d37f", false, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("protocolVersion", "RouteenvironmentU2DLegacyResponseU2DProtocolVersion_8d7cbafc0e", true, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("toolPresentation", "RouteenvironmentU2DLegacyResponseU2DToolPresentation_b5b89821db", false, false, null, null, null, null, null, null, null, null, listOf()),
         ), listOf())

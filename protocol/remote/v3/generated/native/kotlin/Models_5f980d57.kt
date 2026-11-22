@@ -108,7 +108,7 @@ data class ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D10U2DUsa
     companion object {
         val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
             RemoteFieldDescriptor("amount", "Double", true, false, 0.0, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("currency", "String", true, false, null, null, null, null, null, null, "^[A-Z]{3}$", null, listOf()),
+            RemoteFieldDescriptor("currency", "String", true, false, null, null, null, null, null, null, "^[A-Z]{3}\$", null, listOf()),
         ), listOf())
     }
 }

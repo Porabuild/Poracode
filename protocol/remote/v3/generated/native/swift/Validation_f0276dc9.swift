@@ -53,6 +53,10 @@ public extension RemoteSchemas {
 }
 
 public extension RemoteSchemas {
+  static let schema_52056f3d09c28e34 = RemoteSchema(unionKind: "oneOf", options: [RemoteSchemas.schema_ad589020ee828b02, RemoteSchemas.schema_9c3b27dde4a10a2d], unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
   static let schema_522013c70826ee65 = RemoteSchema(type: "string", literals: [.string("unavailable"), .string("busy"), .string("invalid_request"), .string("not_ready"), .string("failed"), .string("cancelled"), .string("timeout"), .string("disconnected"), .string("incompatible"), .string("unsupported"), .string("download_failed"), .string("integrity"), .string("permission_denied")], unknownPolicy: .strip)
 }
 
@@ -69,7 +73,15 @@ public extension RemoteSchemas {
 }
 
 public extension RemoteSchemas {
+  static let schema_52dd882a20f0ac1f = RemoteSchema(unionKind: "oneOf", options: [RemoteSchemas.schema_72afaeed401df991, RemoteSchemas.schema_f42512df14240efa, RemoteSchemas.schema_850ee37b3a4f4467], unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
   static let schema_52fb827fec8a0504 = RemoteSchema(unionKind: "anyOf", options: [RemoteSchemas.schema_5cddec4454f9cd6a, RemoteSchemas.schema_b7c373d0981a5441], unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
+  static let schema_536ec91da82d55b6 = RemoteSchema(type: "array", items: RemoteSchemas.schema_5a51ebab1f5d6f1a, unknownPolicy: .strip)
 }
 
 public extension RemoteSchemas {

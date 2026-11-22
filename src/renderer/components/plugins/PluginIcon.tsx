@@ -1,8 +1,8 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { usePlugins } from "@/renderer/state/pluginsStore";
-import { readBridge } from "@/renderer/bridge";
 import type { PluginArtworkTarget } from "@/shared/contracts/pluginCatalog";
 import { Globe, Monitor, Network, Smartphone, TerminalSquare } from "lucide-react";
+import { usePluginHostTransport } from "./PluginHostContext";
 import appIcon from "../../../../build/icon.png";
 
 /**
@@ -23,8 +23,9 @@ export function PluginIcon(props: {
 }) {
   const anchor = useRef<HTMLSpanElement>(null);
   const [artwork, setArtwork] = useState<{ key: string; dataUrl: string }>();
-  const scope = usePlugins((state) =>
-    props.pluginRoot
+  const { isRemote, projectFsPath, pluginCatalog } = usePluginHostTransport();
+  const localScope = usePlugins((state) =>
+    props.pluginRoot && !isRemote
       ? Object.entries(state.pluginsByScope).find(([, plugins]) =>
           plugins.some(
             (plugin) => plugin.name === props.pluginId && plugin.root === props.pluginRoot,
@@ -32,21 +33,25 @@ export function PluginIcon(props: {
         )?.[0]
       : undefined,
   );
+  const scope = isRemote ? (props.pluginRoot ? projectFsPath : undefined) : localScope;
   const target = props.target ?? {
     type: "plugin",
     pluginName: props.pluginId,
     ...(scope ? { projectFsPath: scope } : {}),
   };
   const key = JSON.stringify(target);
+  const fetchArtwork = useEffectEvent((targetKey: string) =>
+    pluginCatalog({
+      action: "artwork",
+      version: 1,
+      target: JSON.parse(targetKey) as PluginArtworkTarget,
+    }),
+  );
   useEffect(() => {
     let active = true;
     const load = async () => {
       try {
-        const result = await readBridge().pluginCatalog({
-          action: "artwork",
-          version: 1,
-          target: JSON.parse(key) as PluginArtworkTarget,
-        });
+        const result = await fetchArtwork(key);
         const dataUrl = result.artwork?.dataUrl;
         if (active && dataUrl?.startsWith("data:image/png;base64,")) setArtwork({ key, dataUrl });
       } catch {

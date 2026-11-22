@@ -4594,6 +4594,7 @@ msgstr "Connecting..."
 #: src/renderer/components/providers/HostUsageView.tsx
 #: src/renderer/views/ProfileOverlay/parts/ProfileHeader.tsx
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/PluginsSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Connecting…"
 msgstr "Connecting…"
@@ -12378,6 +12379,7 @@ msgstr "Official sources only"
 #: src/renderer/views/ProfileOverlay/parts/ProfileHeader.tsx
 #: src/renderer/views/PullRequestsOverlay/list/PrListPanel.tsx
 #: src/renderer/views/SettingsOverlay/parts/McpServersSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/PluginsSettings.tsx
 msgid "Offline"
 msgstr "Offline"
 
@@ -17292,6 +17294,7 @@ msgstr "Sign in and configure usage tracking on this host. Credentials stay on t
 msgid "Sign in needed"
 msgstr "Sign in needed"
 
+#: src/renderer/components/plugins/PluginServiceAccounts.tsx
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
 msgid "Sign in on the paired desktop, then refresh this status."
 msgstr "Sign in on the paired desktop, then refresh this status."
@@ -20937,6 +20940,7 @@ msgid "Update the remote host to use side chat with hidden context."
 msgstr "Update the remote host to use side chat with hidden context."
 
 #: src/renderer/state/crewLibrary.ts
+#: src/renderer/views/SettingsOverlay/parts/PluginsSettings.tsx
 msgid "Update the remote server first."
 msgstr "Update the remote server first."
 

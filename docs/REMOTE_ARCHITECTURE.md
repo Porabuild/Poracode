@@ -109,7 +109,7 @@ typecheck. The `v3` directory name is retained; the current wire protocol
 version is 14. The inventory describes:
 
 - 126 HTTP routes;
-- 180 supervisor procedures;
+- 184 supervisor procedures;
 - 11 client-to-server WebSocket messages; and
 - 12 server-to-client WebSocket messages (including the admission-gated `desktop-event` stream).
 

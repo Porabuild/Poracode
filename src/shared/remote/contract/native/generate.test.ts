@@ -130,23 +130,23 @@ describe("remote v3 native binding generator", () => {
         // Batched worktree source-branch reads add one read procedure and its request/result roots.
         // Additive optional cost-history fields (`cacheSavingsUsd`, `categoryCostUsd`,
         // `dayProviders`, `dayModels`) add three structural types while keeping older peers valid.
-        sourceHash: "sha256:319ec2f6eb20376cc124737298bfe6b3226c9c1dd93c20606dd7e364b2e841a7",
-        manifestHash: "sha256:0e0e82e3c9b7cd9e0dd1f089c2eafa868fd3507f2ff28691107dbc29e82a5809",
+        sourceHash: "sha256:bd55bc23e6375092e34eaa5e4c349ef0d7e28b675aec97c754f9240b2eee8de4",
+        manifestHash: "sha256:754173aae61aafe0ae07e0eb9552b293f4f28de51db590166830b1d5a9b85daf",
         counts: {
           routes: 126,
-          procedures: 180,
+          procedures: 184,
           voidProcedureResults: 66,
-          jsonProcedureResults: 114,
+          jsonProcedureResults: 118,
           webSocketClientVariants: 11,
           // 11 shared + the desktop-internal `desktop-event` frame (V5 plan 2.5).
           webSocketServerVariants: 12,
-          schemaRoots: 592,
-          structuralTypes: 1521,
-          semanticValidators: 25,
+          schemaRoots: 600,
+          structuralTypes: 1592,
+          semanticValidators: 27,
           // Content-defined shards (emitterCommon.shardDeclarations) average
           // ~200 lines, so a contract change rewrites only nearby files.
-          swiftFiles: 169,
-          kotlinFiles: 145,
+          swiftFiles: 178,
+          kotlinFiles: 149,
           stateMachines: 5,
         },
       });
@@ -416,7 +416,7 @@ describe("remote v3 native binding generator", () => {
       const output = outputForAuthority().files;
       for (const language of ["swift", "kotlin"] as const) {
         const adapters = rootAdapters(graph, language);
-        expect(adapters).toHaveLength(592);
+        expect(adapters).toHaveLength(600);
         expect(
           adapters
             .map((adapter) => adapter.id)

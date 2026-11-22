@@ -4594,6 +4594,7 @@ msgstr "Connexion..."
 #: src/renderer/components/providers/HostUsageView.tsx
 #: src/renderer/views/ProfileOverlay/parts/ProfileHeader.tsx
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/PluginsSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Connecting…"
 msgstr "Connexion…"
@@ -12377,6 +12378,7 @@ msgstr "Sources officielles uniquement"
 #: src/renderer/views/ProfileOverlay/parts/ProfileHeader.tsx
 #: src/renderer/views/PullRequestsOverlay/list/PrListPanel.tsx
 #: src/renderer/views/SettingsOverlay/parts/McpServersSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/PluginsSettings.tsx
 msgid "Offline"
 msgstr "Hors ligne"
 
@@ -17291,6 +17293,7 @@ msgstr "Connectez-vous et configurez le suivi de l’utilisation sur cet hôte. 
 msgid "Sign in needed"
 msgstr "Connexion nécessaire"
 
+#: src/renderer/components/plugins/PluginServiceAccounts.tsx
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
 msgid "Sign in on the paired desktop, then refresh this status."
 msgstr "Connectez-vous sur le bureau appairé, puis actualisez cet état."
@@ -20936,6 +20939,7 @@ msgid "Update the remote host to use side chat with hidden context."
 msgstr "Mettez à jour l’hôte distant pour utiliser la conversation parallèle avec un contexte masqué."
 
 #: src/renderer/state/crewLibrary.ts
+#: src/renderer/views/SettingsOverlay/parts/PluginsSettings.tsx
 msgid "Update the remote server first."
 msgstr "Mettez d’abord à jour le serveur distant."
 

@@ -41,14 +41,14 @@ export interface LocalizedPlugin {
   mcpServers: LocalizedPluginContribution[];
 }
 
-export function useLocalizedPluginCatalog(projectLocation?: ProjectLocation): LocalizedPlugin[] {
+/**
+ * Builds display copy for loaded packages. Pure over the packages so a page
+ * that reads a paired host's inventory can localize it without the local
+ * plugin store.
+ */
+export function usePluginLocalizer(): (plugin: LoadedPlugin) => LocalizedPlugin {
   const { t } = useLingui();
-  // Project packages are only visible to their own project, so the catalog is
-  // read for that scope; without a project only the app-global roots show.
-  const plugins = usePlugins((state) => selectPluginsForScope(state, projectLocation));
-  useProjectPluginScope(projectLocation);
-
-  return plugins.map((plugin): LocalizedPlugin => {
+  return (plugin): LocalizedPlugin => {
     const fallbackName = plugin.poracode.title ?? plugin.name;
     let name: string;
     let description: string;
@@ -209,7 +209,16 @@ export function useLocalizedPluginCatalog(projectLocation?: ProjectLocation): Lo
             : t`Productivity`;
 
     return { plugin, name, description, category, skills, mcpServers };
-  });
+  };
+}
+
+export function useLocalizedPluginCatalog(projectLocation?: ProjectLocation): LocalizedPlugin[] {
+  // Project packages are only visible to their own project, so the catalog is
+  // read for that scope; without a project only the app-global roots show.
+  const plugins = usePlugins((state) => selectPluginsForScope(state, projectLocation));
+  useProjectPluginScope(projectLocation);
+  const localize = usePluginLocalizer();
+  return plugins.map(localize);
 }
 
 export function resolveLocalizedPluginSkill(

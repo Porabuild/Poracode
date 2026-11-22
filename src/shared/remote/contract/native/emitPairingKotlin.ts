@@ -1,3 +1,4 @@
+import { kotlinQuote as quote } from "./emitterCommon";
 import { portablePascalName } from "./names";
 import { PAIRING_MACHINE_SPEC, validatePairingMachineSpec } from "../pairingMachineSpec";
 
@@ -11,10 +12,6 @@ const HEADER = [
   "import java.security.MessageDigest",
   "",
 ];
-
-function quote(value: string): string {
-  return JSON.stringify(value);
-}
 
 function kotlinPhase(phase: string): string {
   return portablePascalName(phase);

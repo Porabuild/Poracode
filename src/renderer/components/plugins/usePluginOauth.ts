@@ -3,12 +3,14 @@ import { useLingui } from "@lingui/react/macro";
 import type { LoadedPlugin } from "@/shared/contracts";
 import type { PluginAccount } from "@/shared/contracts/pluginCatalog";
 import { readBridge } from "@/renderer/bridge";
+import { usePluginHostTransport } from "./PluginHostContext";
 
 type ConnectionState = "unknown" | "connected" | "disconnected" | "connecting";
 
 /** Plugin service accounts use supervisor-owned credential slots, never provider accounts or URL-global tokens. */
 export function usePluginOauth(plugin: LoadedPlugin) {
   const { t } = useLingui();
+  const host = usePluginHostTransport();
   const [accounts, setAccounts] = useState<PluginAccount[]>();
   const [pending, setPending] = useState<{ serverName: string; kind: "connect" | "disconnect" }>();
   const pendingRef = useRef(false);
@@ -21,7 +23,7 @@ export function usePluginOauth(plugin: LoadedPlugin) {
 
   const refresh = async () => {
     try {
-      const result = await readBridge().pluginAccounts({ action: "list", pluginName: plugin.name });
+      const result = await host.pluginAccounts({ action: "list", pluginName: plugin.name });
       setAccounts(result.accounts);
     } catch {
       setAccounts(undefined);
@@ -51,13 +53,12 @@ export function usePluginOauth(plugin: LoadedPlugin) {
     newAccount = false,
     accountId?: string,
   ) => {
-    if (pendingRef.current) return;
+    if (!host.canStartOauth || pendingRef.current) return;
     pendingRef.current = true;
     cancelled.current = false;
     setPending({ serverName, kind: "connect" });
     setError(undefined);
     try {
-      const bridge = readBridge();
       const selected = newAccount
         ? undefined
         : accounts?.find(
@@ -65,7 +66,7 @@ export function usePluginOauth(plugin: LoadedPlugin) {
               account.serverName === serverName &&
               (accountId ? account.id === accountId : account.selected),
           );
-      const result = await bridge.pluginAccounts({
+      const result = await host.pluginAccounts({
         action: "begin",
         pluginName: plugin.name,
         serverName,
@@ -80,8 +81,8 @@ export function usePluginOauth(plugin: LoadedPlugin) {
         return;
       }
       if (begin.status === "redirect") {
-        await bridge.openExternalNative(begin.authorizationUrl);
-        const completed = await bridge.waitMcpServerOauth({ flowId: begin.flowId });
+        await readBridge().openExternalNative(begin.authorizationUrl);
+        const completed = await host.waitMcpServerOauth(begin.flowId);
         if (completed.status === "error" && !cancelled.current)
           setError(t`Could not sign in to ${serverName}.`);
       }
@@ -106,7 +107,7 @@ export function usePluginOauth(plugin: LoadedPlugin) {
     setPending({ serverName, kind: "disconnect" });
     setError(undefined);
     try {
-      const result = await readBridge().pluginAccounts({
+      const result = await host.pluginAccounts({
         action: "logout",
         pluginName: plugin.name,
         serverName,
@@ -127,7 +128,7 @@ export function usePluginOauth(plugin: LoadedPlugin) {
     setPending({ serverName: account.serverName, kind: "connect" });
     setError(undefined);
     try {
-      const result = await readBridge().pluginAccounts({
+      const result = await host.pluginAccounts({
         action: "select",
         pluginName: plugin.name,
         serverName: account.serverName,
@@ -147,7 +148,7 @@ export function usePluginOauth(plugin: LoadedPlugin) {
     if (!account) return;
     cancelled.current = true;
     try {
-      await readBridge().pluginAccounts({ action: "logout", pluginName: plugin.name, ...account });
+      await host.pluginAccounts({ action: "logout", pluginName: plugin.name, ...account });
     } catch {
       setError(t`Could not sign out of ${account.serverName}.`);
     }
@@ -166,6 +167,7 @@ export function usePluginOauth(plugin: LoadedPlugin) {
       ),
     isBusy: pending !== undefined,
     isPending: (serverName: string) => pending?.serverName === serverName,
+    canBegin: host.canStartOauth,
     canCancel: pendingAccount.current !== undefined,
     connect,
     disconnect,

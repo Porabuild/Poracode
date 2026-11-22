@@ -41,7 +41,7 @@ export function isPluginMcpUrlAllowed(value: string): boolean {
   );
 }
 
-const pluginMcpUrlSchema = z.string().refine(isPluginMcpUrlAllowed, {
+export const pluginMcpUrlSchema = z.string().refine(isPluginMcpUrlAllowed, {
   message: "MCP server url must be an absolute https URL (http is allowed only for localhost)",
 });
 

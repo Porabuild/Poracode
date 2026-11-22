@@ -250,6 +250,8 @@ function syntheticRoots(): NativeSchemaRoot[] {
         completionPolicy: { type: "object", properties: { kind: { type: "string" } } },
       },
     }),
+    semantic("plugin.valid-name", { type: "string" }),
+    semantic("plugin.valid-url", { type: "string" }),
     semantic("schedule.run-state", {
       type: "object",
       properties: {
@@ -748,6 +750,44 @@ function mutationCases(wsFixtures: readonly string[]): HarnessCodecCase[] {
         { raw: json({ id: "run", archived: false }) },
       ],
       negatives: [json({ id: "run" })],
+    },
+    {
+      id: "synthetic.semantic.plugin.valid-name",
+      positives: ["browser-tools", "a", "a.b", "github"].map((value) => ({
+        raw: json(value),
+      })),
+      negatives: ["Browser", "-a", "a-", "a--b", "a..b", "a_b", "", "a".repeat(65)].map(json),
+    },
+    {
+      id: "synthetic.semantic.plugin.valid-url",
+      positives: [
+        "https://example.com/packages/notes",
+        "https:///example.com/mcp",
+        "http://localhost:1234",
+        "http://sub.localhost/mcp",
+        "http://localhost\\path",
+        "http://127.0.0.1",
+        "http://127.1/mcp",
+        "http://[::1]",
+        "http://[0:0:0:0:0:0:0:1]/mcp",
+      ].map((value) => ({ raw: json(value) })),
+      negatives: [
+        "http://example.com",
+        "http://evil.com\\@localhost/mcp",
+        "ftp://example.com",
+        "https://",
+        "https://exa mple.com",
+        "https://example.com:abc",
+        "https://example.com:99999",
+        "http://localhost:99999",
+        "http://[::1/mcp",
+        "http://[::1]evil.com/mcp",
+        "https://[not-ipv6]/mcp",
+        "http://127.999.0.1/mcp",
+        "http://127.256.0.1/mcp",
+        "not a url",
+        "http://10.0.0.1",
+      ].map(json),
     },
     {
       id: "synthetic.semantic.forge.host.https",

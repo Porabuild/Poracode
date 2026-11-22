@@ -132,7 +132,7 @@ data class ProcedureforgeMergePrAtHeadRequest_9b963a4b70(
     companion object {
         val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
             RemoteFieldDescriptor("admin", "Boolean", false, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("expectedHeadSha", "String", true, false, null, null, null, null, null, null, "^(?:[0-9a-fA-F]{40}|[0-9a-fA-F]{64})$", null, listOf()),
+            RemoteFieldDescriptor("expectedHeadSha", "String", true, false, null, null, null, null, null, null, "^(?:[0-9a-fA-F]{40}|[0-9a-fA-F]{64})\$", null, listOf()),
             RemoteFieldDescriptor("forgeAccount", "ProcedureforgeClosePrRequestU2DForgeAccount_c2bb40b82b", false, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("forgeRepository", "String", false, false, null, null, 1, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("method", "ProcedureforgeMergePrAtHeadRequestU2DMethod_7237330838", false, false, null, null, null, null, null, null, null, null, listOf()),

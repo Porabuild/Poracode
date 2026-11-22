@@ -16,6 +16,8 @@ import {
   mcpServerSchema,
   mcpSseTransportSchema,
 } from "../../contracts/mcpServer";
+import { pluginNameSchema } from "../../plugins/spec/manifest";
+import { pluginMcpUrlSchema } from "../../plugins/spec/mcpConfig";
 import {
   prWatchInputSchema,
   prWatchSchema,
@@ -158,6 +160,20 @@ const REGISTERED: ReadonlyArray<{
     validator: {
       id: "mcp.valid-url",
       reason: "MCP SSE URL must be http(s)",
+    },
+  },
+  {
+    schema: pluginNameSchema,
+    validator: {
+      id: "plugin.valid-name",
+      reason: "Agent Plugin names use the specification's lowercase punctuation rules",
+    },
+  },
+  {
+    schema: pluginMcpUrlSchema,
+    validator: {
+      id: "plugin.valid-url",
+      reason: "Agent Plugin MCP URLs must be absolute https or loopback http",
     },
   },
   {
