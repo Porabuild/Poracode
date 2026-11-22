@@ -94,6 +94,7 @@ function pathHitsIgnoredName(path: string, ignored: Set<string>): boolean {
  */
 export class ProjectSearchIndex {
   private cache = new Map<string, CachedSearchIndex>();
+  private inFlightBuilds = new Map<string, Promise<ProjectTreeEntry[]>>();
   private nativeWarmTimestamps = new Map<string, number>();
   private wslClient: WslBridgeClient | undefined;
 
@@ -201,12 +202,25 @@ export class ProjectSearchIndex {
       return { entries: cached.entries };
     }
 
-    const entries = await this.buildSearchIndex(location, config);
-    if (this.cache.size >= MAX_CACHE_ENTRIES) {
-      const oldest = this.cache.keys().next().value;
-      if (oldest !== undefined) this.cache.delete(oldest);
+    let buildPromise = this.inFlightBuilds.get(key);
+    if (!buildPromise) {
+      buildPromise = this.buildSearchIndex(location, config)
+        .then((built) => {
+          if (this.cache.size >= MAX_CACHE_ENTRIES) {
+            const oldest = this.cache.keys().next().value;
+            if (oldest !== undefined) this.cache.delete(oldest);
+          }
+          this.cache.set(key, { entries: built, createdAt: Date.now() });
+          return built;
+        })
+        .finally(() => {
+          if (this.inFlightBuilds.get(key) === buildPromise) {
+            this.inFlightBuilds.delete(key);
+          }
+        });
+      this.inFlightBuilds.set(key, buildPromise);
     }
-    this.cache.set(key, { entries, createdAt: Date.now() });
+    const entries = await buildPromise;
     return { entries };
   }
 

@@ -7,7 +7,7 @@ import {
   readdirSync,
   statSync,
 } from "node:fs";
-import { open } from "node:fs/promises";
+import { open, readFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import type { ProjectLocation } from "@/shared/contracts";
@@ -170,7 +170,16 @@ export async function readCodexSessionIndexForLocationAsync(
   homes?: readonly string[],
 ): Promise<Array<{ id: string; updatedAt: number; threadName: string }>> {
   if (location.kind !== "wsl") {
-    return readCodexSessionIndexForLocation(location, homes);
+    const reads = await Promise.all(
+      nativeCodexHomeCandidates(homes).map(async (home) => {
+        try {
+          return parseCodexSessionIndex(await readFile(join(home, "session_index.jsonl"), "utf8"));
+        } catch {
+          return [];
+        }
+      }),
+    );
+    return dedupeSessionIndex(reads.flat());
   }
   const home = await resolveWslHomeDirectoryAsync(location.distro);
   const privateHome = codexPrivateHomeFrom(home);

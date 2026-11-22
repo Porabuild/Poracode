@@ -7,6 +7,7 @@
  */
 
 import { readFileSync, statSync } from "node:fs";
+import { readFile, stat } from "node:fs/promises";
 import { extname } from "node:path";
 import type { CanonicalItemType, CommandAction } from "@/shared/contracts";
 import { extractLeadingPath } from "@/shared/extractLeadingPath";
@@ -279,9 +280,9 @@ export async function readCodexImageViewPreview(
   try {
     // Snapshot at tool completion: agents often overwrite the same screenshot
     // path while an earlier preview is still being encoded.
-    const info = statSync(hostPath);
+    const info = await stat(hostPath);
     if (!info.isFile() || info.size <= 0 || info.size > MAX_PREVIEW_SOURCE_BYTES) return undefined;
-    const bytes = readFileSync(hostPath);
+    const bytes = await readFile(hostPath);
     if (bytes.length > MAX_PREVIEW_SOURCE_BYTES) return undefined;
     const { default: sharp } = await import("sharp");
     for (const width of [1600, 800]) {

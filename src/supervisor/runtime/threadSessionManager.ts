@@ -114,7 +114,7 @@ import {
   USER_INTERRUPT_RECOVERY_GRACE_MS,
 } from "./threadSession/userInterrupt";
 import { writeSubmittedPrompt } from "./threadSession/promptWrite";
-import { resolveTerminalColorEnv } from "./threadSession/terminalEnv";
+import { resolveTerminalColorEnvAsync } from "./threadSession/terminalEnv";
 import {
   fenceSessionForRetirement,
   requireSessionPty,
@@ -2380,7 +2380,7 @@ export class ThreadSessionManager {
       startInHome: payload.startInHome === true,
     });
     this.options.emit({ type: "thread-reset", threadId: payload.shellId });
-    const terminalEnv = resolveTerminalColorEnv(payload.projectLocation);
+    const terminalEnv = await resolveTerminalColorEnvAsync(payload.projectLocation);
 
     // node-pty's C binding expects every env value to be a string. process.env
     // is typed `Record<string, string | undefined>` and spreading can carry

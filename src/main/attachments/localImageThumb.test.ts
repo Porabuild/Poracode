@@ -56,10 +56,25 @@ describe("createLocalImageThumb", () => {
   it("shrinks a screenshot so its shorter side covers the tile", async () => {
     const thumb = await createLocalImageThumb(await writePng("shot.png", 1600, 1000), 64);
     expect(await sharp(thumb!).metadata()).toMatchObject({
-      format: "png",
+      format: "webp",
       width: 102,
       height: 64,
     });
+  });
+
+  it("reuses cached thumbnails when mtime and size are unchanged and respects AbortSignal", async () => {
+    const path = await writePng("cached.png", 400, 300);
+    const first = await createLocalImageThumb(path, 48);
+    expect(first).not.toBeNull();
+    expect(reads.peak).toBe(1);
+    reads.peak = 0;
+    const second = await createLocalImageThumb(path, 48);
+    expect(second).toEqual(first);
+    expect(reads.peak).toBe(0);
+
+    const controller = new AbortController();
+    controller.abort();
+    expect(await createLocalImageThumb(path, 96, controller.signal)).toBeNull();
   });
 
   it("never enlarges an image smaller than the tile", async () => {

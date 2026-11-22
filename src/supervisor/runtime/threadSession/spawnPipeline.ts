@@ -124,7 +124,11 @@ import {
 import { describeSpawnFailure, sanitizeEnv, sanitizedProcessEnv } from "./spawnDiagnostics";
 import type { SessionRuntimeLifecycle } from "./sessionRuntimeLifecycle";
 import type { StructuredTurnQueue } from "./structuredTurnQueue";
-import { getIterm2StatusL2TerminalEnv, resolveTerminalColorEnv } from "./terminalEnv";
+import {
+  getIterm2StatusL2TerminalEnv,
+  resolveTerminalColorEnv,
+  resolveTerminalColorEnvAsync,
+} from "./terminalEnv";
 
 export interface SpawnThreadInput {
   threadId: string;
@@ -932,6 +936,7 @@ export class SpawnPipeline {
           structuredSession?.getSessionRef?.() ??
           (openedStructuredThreadId ? createKnownSessionRef(openedStructuredThreadId) : undefined);
         const startInterrupted = ctx.pendingStartInterrupts.delete(payload.threadId);
+        await resolveTerminalColorEnvAsync(payload.projectLocation);
         let session: SessionRuntime;
         try {
           session = this.spawnThread({
@@ -1151,6 +1156,7 @@ export class SpawnPipeline {
       }
 
       const resolvedSessionRef = payload.sessionRef ?? command.sessionRef;
+      await resolveTerminalColorEnvAsync(payload.projectLocation);
       try {
         this.spawnThread({
           threadId: payload.threadId,
@@ -1392,6 +1398,7 @@ export class SpawnPipeline {
         }
         let replacement: SessionRuntime;
         const hasPrompt = prompt.trim().length > 0 && structuredSession.startTurn !== undefined;
+        await resolveTerminalColorEnvAsync(session.projectLocation);
         try {
           replacement = this.spawnThread({
             threadId: session.threadId,
@@ -1568,6 +1575,7 @@ export class SpawnPipeline {
         return;
       }
 
+      await resolveTerminalColorEnvAsync(session.projectLocation);
       try {
         this.spawnThread({
           threadId: session.threadId,

@@ -1,12 +1,14 @@
 import { describe, expect, it, vi } from "vitest";
 
 const spawnSyncMock = vi.hoisted(() => vi.fn<(...args: unknown[]) => unknown>());
+const execFileMock = vi.hoisted(() => vi.fn<(...args: unknown[]) => unknown>());
 
 vi.mock("node:child_process", async (importActual) => {
   const actual = await importActual<typeof import("node:child_process")>();
   return {
     ...actual,
     spawnSync: spawnSyncMock,
+    execFile: execFileMock,
   };
 });
 
@@ -89,6 +91,30 @@ describe("resolveTerminalColorEnv", () => {
       );
     },
   );
+
+  it("coalesces concurrent async terminfo probes via resolveTerminalColorEnvAsync", async () => {
+    execFileMock.mockClear().mockImplementation((_cmd, _args, _opts, cb) => {
+      setTimeout(() => (cb as (err: Error | null) => void)(null), 10);
+    });
+    const { resolveTerminalColorEnvAsync } = await loadTerminalEnv();
+    const location =
+      process.platform === "win32"
+        ? {
+            kind: "wsl" as const,
+            distro: "Ubuntu",
+            linuxPath: "/repo",
+            uncPath: "\\\\wsl.localhost\\Ubuntu\\repo",
+          }
+        : { kind: "posix" as const, path: "/repo" };
+    const [a, b] = await Promise.all([
+      resolveTerminalColorEnvAsync(location),
+      resolveTerminalColorEnvAsync(location),
+    ]);
+    expect(a).toEqual({ TERM: "xterm-ghostty", COLORTERM: "truecolor" });
+    expect(b).toEqual({ TERM: "xterm-ghostty", COLORTERM: "truecolor" });
+    expect(execFileMock).toHaveBeenCalledTimes(1);
+    expect(spawnSyncMock).not.toHaveBeenCalled();
+  });
 });
 
 describe("getIterm2StatusL2TerminalEnv", () => {

@@ -51,10 +51,14 @@ interface CacheEntry {
  * Returns `undefined` (never throws) for anything that is not a readable,
  * small, allow-listed raster image on this host's filesystem.
  */
+const MAX_CACHED_LOCAL_IMAGES = 64;
+const MAX_CACHED_LOCAL_IMAGE_CHARS = 16 * 1024 * 1024;
+
 export function createAcpLocalImageResolver(
   location: ProjectLocation,
 ): (pathOrFileUri: string) => string | undefined {
   const cache = new Map<string, CacheEntry>();
+  let totalChars = 0;
   return (pathOrFileUri: string): string | undefined => {
     try {
       const filePath = toLocalImagePath(pathOrFileUri);
@@ -70,10 +74,29 @@ export function createAcpLocalImageResolver(
       // previously inlined bytes instead of replaying a stale picture.
       const cached = cache.get(hostPath);
       if (cached && cached.mtimeMs === stats.mtimeMs && cached.size === stats.size) {
+        cache.delete(hostPath);
+        cache.set(hostPath, cached);
         return cached.dataUrl;
       }
+      if (cached) {
+        totalChars -= cached.dataUrl.length;
+        cache.delete(hostPath);
+      }
       const dataUrl = `data:${mimeType};base64,${readFileSync(hostPath).toString("base64")}`;
-      cache.set(hostPath, { mtimeMs: stats.mtimeMs, size: stats.size, dataUrl });
+      if (dataUrl.length <= MAX_CACHED_LOCAL_IMAGE_CHARS) {
+        while (
+          cache.size > 0 &&
+          (cache.size >= MAX_CACHED_LOCAL_IMAGES ||
+            totalChars + dataUrl.length > MAX_CACHED_LOCAL_IMAGE_CHARS)
+        ) {
+          const oldest = cache.entries().next().value;
+          if (!oldest) break;
+          totalChars -= oldest[1].dataUrl.length;
+          cache.delete(oldest[0]);
+        }
+        cache.set(hostPath, { mtimeMs: stats.mtimeMs, size: stats.size, dataUrl });
+        totalChars += dataUrl.length;
+      }
       return dataUrl;
     } catch {
       return undefined;

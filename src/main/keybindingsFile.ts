@@ -17,8 +17,16 @@ export function readKeybindingsFile(keybindingsPath: string): KeybindingsConfig 
     writeFileAtomic(keybindingsPath, serializeDefaultKeybindings(), { encoding: "utf8" });
   }
 
-  const raw = readFileSync(keybindingsPath, "utf8");
-  const parsed = keybindingsFileSchema.parse(JSON.parse(raw));
+  let raw: string;
+  let parsed: KeybindingsFile;
+  try {
+    raw = readFileSync(keybindingsPath, "utf8");
+    parsed = keybindingsFileSchema.parse(JSON.parse(raw));
+  } catch (error) {
+    // Preserve user-edited corrupt JSON on disk rather than crashing startup or clobbering it.
+    console.warn(`[keybindings] Invalid ${keybindingsPath}; using defaults in memory:`, error);
+    return { path: keybindingsPath, file: DEFAULT_KEYBINDINGS };
+  }
   const migrated = migrateThreadSearchCommand(
     migrateToggleFastOffFind(backfillNewDefaults(parsed)),
   );
