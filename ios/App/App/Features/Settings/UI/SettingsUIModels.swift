@@ -8,6 +8,7 @@ enum SettingsScreenRoute: String, CaseIterable, Hashable, Identifiable, Sendable
   case tokens
   case profile
   case generation
+  case memory
   case workspace
 
   var id: Self { self }

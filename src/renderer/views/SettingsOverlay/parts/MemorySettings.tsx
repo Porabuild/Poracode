@@ -1,6 +1,7 @@
 import { startTransition, useEffect, useState, type ReactNode } from "react";
-import { NumberField } from "@heroui/react";
+import { NumberField, toast } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
+import { Loader2, RefreshCw, Sparkles } from "lucide-react";
 import { isRemoteSession, readBridge } from "@/renderer/bridge";
 import {
   Button,
@@ -19,20 +20,29 @@ import { getProviderUtilityRank } from "@/renderer/components/providers/provider
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import { useAppStore } from "@/renderer/state/appStore";
 import { runMemoryCatalogCommand } from "@/renderer/state/memoryCatalog";
-import { syncMemoryAcrossEnvironments } from "@/renderer/state/memorySync";
+import {
+  syncMemoryAcrossEnvironments,
+  syncMemoryAcrossEnvironmentsDetailed,
+  useMemoryOperationsStore,
+} from "@/renderer/state/memorySync";
+import { editPairedHostSettings } from "@/renderer/state/pairedHostSettings";
 import { isProjectedRemoteEntityId, remoteOwner } from "@/renderer/state/remoteProjection";
 import { remoteConnectionKey } from "@/renderer/state/remoteServers/types";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { useSettingsHostServer, useSettingsHostStore } from "@/renderer/state/settingsHostStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import type { AgentStatus } from "@/shared/contracts";
-import type {
-  MemoryCaptureTiming,
-  MemoryDeletePolicy,
-  MemoryDreamCadence,
-  MemoryStatus,
+import {
+  defaultMemorySettings,
+  memorySettingsSchema,
+  type MemoryCaptureTiming,
+  type MemoryDeletePolicy,
+  type MemoryDreamCadence,
+  type MemorySettings as MemorySettingsValue,
+  type MemoryStatus,
 } from "@/shared/memory";
 import { pickMemoryModel, type MemoryModelCandidate } from "@/shared/memoryModelChoice";
+import { friendlyError } from "@/shared/messages";
 import {
   modelFamilyDisplayConfig,
   modelFamilyEfforts,
@@ -41,6 +51,7 @@ import {
 import type { ProviderModelMenuProvider } from "@/renderer/components/common/ProviderModelMenu/parts/buildItems";
 import { MemoryCatalogDialog } from "./MemoryCatalogDialog";
 import { SettingRow, SettingsPage } from "./SettingsForm";
+import { useScopedHostSettings, type SettingsHostTarget } from "./useScopedHostSettings";
 
 const DEFAULT_EFFORT = "__memory_default__";
 
@@ -181,7 +192,10 @@ function MemoryModelPicker(props: {
   );
 }
 
-type MemorySettingsProps = { projectId?: string; onOpenGlobalSettings?: () => void };
+type MemorySettingsProps = SettingsHostTarget & {
+  projectId?: string;
+  onOpenGlobalSettings?: () => void;
+};
 
 export function MemorySettings(props: MemorySettingsProps) {
   const project = useAppStore((state) =>
@@ -191,19 +205,34 @@ export function MemorySettings(props: MemorySettingsProps) {
   const projectHost = useRemoteServersStore((state) =>
     state.servers.find((server) => remoteConnectionKey(server) === owner?.desktopId),
   );
+  const scopedHost = useRemoteServersStore((state) =>
+    props.connectionKey
+      ? state.servers.find((server) => remoteConnectionKey(server) === props.connectionKey)
+      : undefined,
+  );
   const settingsHost = useSettingsHostServer();
   const remoteSession = isRemoteSession();
+  const pairedHost = Boolean(props.connectionKey || props.unavailable);
   const remote =
     remoteSession ||
+    pairedHost ||
     Boolean(project?.remoteServerId) ||
     isProjectedRemoteEntityId(props.projectId ?? "", "project");
-  const server = remote ? (props.projectId ? projectHost : settingsHost) : undefined;
-  const connectionKey = server && remoteConnectionKey(server);
+  const server = remote
+    ? props.connectionKey
+      ? scopedHost
+      : props.projectId
+        ? projectHost
+        : settingsHost
+    : undefined;
+  const connectionKey = props.connectionKey ?? (server && remoteConnectionKey(server));
   const ownerProjectId = remote ? owner?.remoteId : props.projectId;
   const canManage =
     !remote || Boolean(server?.memoryCatalogAvailable && server.scopes.includes("session:operate"));
   const scopeKey = JSON.stringify([
     remote,
+    pairedHost,
+    props.unavailable ?? false,
     props.projectId,
     connectionKey,
     server?.desktopId,
@@ -216,6 +245,7 @@ export function MemorySettings(props: MemorySettingsProps) {
       key={scopeKey}
       {...props}
       remote={remote}
+      pairedHost={pairedHost}
       remoteSession={remoteSession}
       canManage={canManage}
       connectionKey={connectionKey}
@@ -225,8 +255,9 @@ export function MemorySettings(props: MemorySettingsProps) {
 }
 
 function MemorySettingsView(
-  props: MemorySettingsProps & {
+  props: Omit<MemorySettingsProps, "connectionKey"> & {
     remote: boolean;
+    pairedHost: boolean;
     remoteSession: boolean;
     canManage: boolean;
     connectionKey: string | undefined;
@@ -234,12 +265,60 @@ function MemorySettingsView(
   },
 ) {
   const { t } = useLingui();
-  const memory = useSharedSettings((state) => state.memory);
-  const disabledAgents = useSharedSettings((state) => state.disabledAgents);
-  const hiddenModels = useSharedSettings((state) => state.hiddenModels);
-  const setMemorySettings = useSharedSettings((state) => state.setMemorySettings);
-  const agentStatuses = useAgentStatusesStore((state) => state.agentStatuses);
-  const wslAgentStatuses = useAgentStatusesStore((state) => state.wslAgentStatuses);
+  const localMemory = useSharedSettings((state) => state.memory);
+  const localDisabledAgents = useSharedSettings((state) => state.disabledAgents);
+  const localHiddenModels = useSharedSettings((state) => state.hiddenModels);
+  const localSetMemorySettings = useSharedSettings((state) => state.setMemorySettings);
+  const localAgentStatuses = useAgentStatusesStore((state) => state.agentStatuses);
+  const localWslAgentStatuses = useAgentStatusesStore((state) => state.wslAgentStatuses);
+  const scopedHost = useScopedHostSettings({
+    ...(props.pairedHost && props.connectionKey ? { connectionKey: props.connectionKey } : {}),
+    ...(props.unavailable ? { unavailable: true } : {}),
+  });
+  const pairedHostStatus = useRemoteServersStore((state) =>
+    props.pairedHost && props.connectionKey
+      ? state.runtime[props.connectionKey]?.status
+      : undefined,
+  );
+  const pairedHostAgents = useRemoteServersStore((state) =>
+    props.pairedHost && props.connectionKey
+      ? state.runtime[props.connectionKey]?.agentStatuses
+      : undefined,
+  );
+  const memory: MemorySettingsValue | undefined = props.pairedHost
+    ? scopedHost.settings?.memory
+    : localMemory;
+  const disabledAgents = props.pairedHost
+    ? (scopedHost.settings?.disabledAgents ?? [])
+    : localDisabledAgents;
+  const hiddenModels = props.pairedHost
+    ? (scopedHost.settings?.hiddenModels ?? {})
+    : localHiddenModels;
+  const agentStatuses = props.pairedHost ? (pairedHostAgents?.windows ?? []) : localAgentStatuses;
+  const wslAgentStatuses = props.pairedHost ? (pairedHostAgents?.wsl ?? []) : localWslAgentStatuses;
+
+  function setMemorySettings(patch: Partial<MemorySettingsValue>) {
+    if (props.pairedHost) {
+      if (!props.connectionKey) return;
+      void editPairedHostSettings(props.connectionKey, (current) => ({
+        memory: memorySettingsSchema.parse({
+          ...(current.memory ?? defaultMemorySettings),
+          ...patch,
+        }),
+      }))
+        .then(() => {
+          if (patch.enabled === true || patch.syncEnabled === true) {
+            void syncMemoryAcrossEnvironments()
+              .then((result) => (result.changed ? reloadStatus() : undefined))
+              .catch(() => undefined);
+          }
+        })
+        .catch((err: unknown) => toast.danger(friendlyError(err)));
+      return;
+    }
+    localSetMemorySettings(patch);
+  }
+
   const isEligible = (agent: (typeof agentStatuses)[number]) =>
     agent.installed &&
     agent.authState !== "missing" &&
@@ -255,15 +334,33 @@ function MemorySettingsView(
     const raw = oneShotAgents.find((agent) => agent.kind === provider.kind);
     return raw ? { ...provider, capabilities: raw.capabilities } : provider;
   });
-  const { remote, canManage, connectionKey, ownerProjectId } = props;
-  const childDisabled = !memory.enabled;
+  const { remote, pairedHost, canManage, connectionKey, ownerProjectId } = props;
+  const childDisabled = !memory?.enabled;
   const childRowClass = childDisabled ? "opacity-55 transition-opacity" : "transition-opacity";
   const [status, setStatus] = useState<MemoryStatus | undefined>();
   const [catalogOpen, setCatalogOpen] = useState(false);
-  const [syncing, setSyncing] = useState(false);
-  const [dreaming, setDreaming] = useState(false);
-  const [undoing, setUndoing] = useState(false);
-  const [error, setError] = useState(false);
+  const [statusError, setStatusError] = useState(false);
+  const syncing = useMemoryOperationsStore((state) => state.syncing);
+  const syncProgress = useMemoryOperationsStore((state) => state.syncProgress);
+  const dreaming = useMemoryOperationsStore((state) => state.dreaming);
+  const dreamStartedAt = useMemoryOperationsStore((state) => state.dreamStartedAt);
+  const undoing = useMemoryOperationsStore((state) => state.undoing);
+  const notice = useMemoryOperationsStore((state) => state.notice);
+  const setDreaming = useMemoryOperationsStore((state) => state.setDreaming);
+  const setUndoing = useMemoryOperationsStore((state) => state.setUndoing);
+  const setNotice = useMemoryOperationsStore((state) => state.setNotice);
+  const [dreamTickMs, setDreamTickMs] = useState(0);
+
+  useEffect(() => {
+    if (!dreaming || dreamStartedAt === null) return;
+    const timer = window.setInterval(() => setDreamTickMs(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, [dreaming, dreamStartedAt]);
+
+  const dreamElapsedSec =
+    dreaming && dreamStartedAt !== null && dreamTickMs > dreamStartedAt
+      ? Math.floor((dreamTickMs - dreamStartedAt) / 1000)
+      : 0;
 
   useEffect(() => {
     if (!canManage) return;
@@ -276,7 +373,7 @@ function MemorySettingsView(
         if (active) setStatus(next as MemoryStatus);
       })
       .catch(() => {
-        if (active) setError(true);
+        if (active) setStatusError(true);
       });
     return () => {
       active = false;
@@ -309,11 +406,48 @@ function MemorySettingsView(
     setStatus(nextStatus as MemoryStatus);
   }
 
+  function refreshStatusBestEffort() {
+    void reloadStatus().catch(() => setStatusError(true));
+  }
+
   function syncAfterChange() {
     void syncMemoryAcrossEnvironments()
       .then((result) => (result.changed ? reloadStatus() : undefined))
-      .catch(() => setError(true));
+      .catch(() => setStatusError(true));
   }
+
+  const loadingPairedSettings =
+    pairedHost &&
+    memory === undefined &&
+    pairedHostStatus === "online" &&
+    scopedHost.settings === undefined &&
+    scopedHost.error === undefined;
+
+  const isLocalActions = !props.projectId && !remote;
+  const activeProgressText = (() => {
+    if (!isLocalActions) return null;
+    if (dreaming) {
+      return dreamElapsedSec > 0
+        ? t`Consolidating memories… (${dreamElapsedSec}s)`
+        : t`Consolidating memories…`;
+    }
+    if (undoing) return t`Undoing last Dream run…`;
+    if (syncing) {
+      if (syncProgress?.phase === "syncing" && syncProgress.hostLabel) {
+        return t`Syncing with ${syncProgress.hostLabel} (${syncProgress.current}/${syncProgress.total})…`;
+      }
+      if (syncProgress?.phase === "propagating" && syncProgress.hostLabel) {
+        return t`Updating ${syncProgress.hostLabel} (${syncProgress.current}/${syncProgress.total})…`;
+      }
+      return t`Preparing local memories…`;
+    }
+    return null;
+  })();
+
+  const syncProgressFraction =
+    syncing && syncProgress && syncProgress.total > 0
+      ? Math.min(1, Math.max(0.08, syncProgress.current / syncProgress.total))
+      : null;
 
   return (
     <SettingsPage
@@ -339,6 +473,17 @@ function MemorySettingsView(
             <Trans>Memory settings</Trans>
           </Button>
         ) : null
+      ) : memory === undefined ? (
+        loadingPairedSettings ? (
+          <div role="status" className="flex items-center gap-2 text-xs text-muted">
+            <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />
+            <Trans>Loading memory settings…</Trans>
+          </div>
+        ) : (
+          <p role="status" className="text-xs text-muted">
+            <Trans>Settings unavailable</Trans>
+          </p>
+        )
       ) : (
         <>
           <SettingRow
@@ -609,75 +754,187 @@ function MemorySettingsView(
             <Button size="sm" variant="secondary" onPress={() => setCatalogOpen(true)}>
               <Trans>Manage memories</Trans>
             </Button>
-            {!props.projectId && !remote ? (
+            {isLocalActions ? (
               <div className="flex flex-wrap items-center gap-2">
                 {status?.lastDreamRunId ? (
                   <Button
                     size="sm"
                     variant="ghost"
+                    isPending={undoing}
                     isDisabled={undoing || dreaming}
                     onPress={() => {
                       const runId = status.lastDreamRunId;
                       if (!runId) return;
                       setUndoing(true);
-                      setError(false);
+                      setStatusError(false);
+                      setNotice(null);
                       void readBridge()
                         .memoryCommand({ action: "undo", runId })
                         .then(() => {
                           syncAfterChange();
-                          return reloadStatus();
+                          setNotice({ kind: "info", text: t`Undid the last Dream run.` });
+                          refreshStatusBestEffort();
                         })
-                        .catch(() => setError(true))
+                        .catch((err: unknown) =>
+                          setNotice({
+                            kind: "error",
+                            text: t`Couldn't undo the last Dream run: ${friendlyError(err)}`,
+                          }),
+                        )
                         .finally(() => setUndoing(false));
                     }}
                   >
-                    <Trans>Undo</Trans>
+                    {undoing ? (
+                      <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />
+                    ) : null}
+                    {undoing ? <Trans>Undoing…</Trans> : <Trans>Undo</Trans>}
                   </Button>
                 ) : null}
                 <Button
                   size="sm"
                   variant="ghost"
-                  isDisabled={childDisabled || !memory.syncEnabled || syncing}
+                  isPending={syncing}
+                  isDisabled={childDisabled || !memory?.syncEnabled || syncing}
                   onPress={() => {
-                    setSyncing(true);
-                    setError(false);
-                    void syncMemoryAcrossEnvironments({ force: true })
-                      .then(() => reloadStatus())
-                      .catch(() => setError(true))
-                      .finally(() => setSyncing(false));
+                    setStatusError(false);
+                    setNotice(null);
+                    void syncMemoryAcrossEnvironmentsDetailed({ force: true })
+                      .then((details) => {
+                        const skippedList = details.skippedDisabledHosts.join(", ");
+                        const failedList = details.failedHosts.map((host) => host.label).join(", ");
+                        if (details.onlineHosts === 0) {
+                          setNotice({
+                            kind: "info",
+                            text: t`No online paired hosts to sync with.`,
+                          });
+                        } else if (
+                          details.syncedHosts === 0 &&
+                          details.skippedDisabledHosts.length > 0
+                        ) {
+                          setNotice({
+                            kind: "warning",
+                            text: t`Skipped ${skippedList} — memory or sync is turned off there.`,
+                          });
+                        } else if (details.syncedHosts > 0) {
+                          const count = details.syncedHosts;
+                          const parts = [
+                            details.changed
+                              ? count === 1
+                                ? t`Synced with 1 host; memories updated.`
+                                : t`Synced with ${count} hosts; memories updated.`
+                              : count === 1
+                                ? t`Up to date with 1 host.`
+                                : t`Up to date across ${count} hosts.`,
+                          ];
+                          if (skippedList) {
+                            parts.push(t`Skipped ${skippedList} (memory or sync off).`);
+                          }
+                          if (failedList) {
+                            parts.push(t`Failed: ${failedList}.`);
+                          }
+                          setNotice({
+                            kind: skippedList || failedList ? "warning" : "success",
+                            text: parts.join(" "),
+                          });
+                        }
+                        refreshStatusBestEffort();
+                      })
+                      .catch((err: unknown) =>
+                        setNotice({
+                          kind: "error",
+                          text: t`Couldn't sync memories: ${friendlyError(err)}`,
+                        }),
+                      );
                   }}
                 >
+                  <RefreshCw
+                    className={`size-3.5 ${syncing ? "animate-spin" : ""}`}
+                    aria-hidden="true"
+                  />
                   {syncing ? <Trans>Syncing…</Trans> : <Trans>Sync now</Trans>}
                 </Button>
                 <Button
                   size="sm"
                   variant="tertiary"
+                  isPending={dreaming}
                   isDisabled={childDisabled || dreaming || undoing}
                   onPress={() => {
                     setDreaming(true);
-                    setError(false);
+                    setStatusError(false);
+                    setNotice(null);
                     void readBridge()
                       .memoryCommand({ action: "dream" })
-                      .then(() => {
+                      .then((raw) => {
+                        const report =
+                          raw && typeof raw === "object" && "report" in raw
+                            ? (raw as { report?: unknown }).report
+                            : undefined;
                         syncAfterChange();
-                        return reloadStatus();
+                        setNotice({
+                          kind: "success",
+                          text:
+                            typeof report === "string" && report.length > 0
+                              ? t`Dream finished: ${report}`
+                              : t`Dream finished.`,
+                        });
+                        refreshStatusBestEffort();
                       })
-                      .catch(() => setError(true))
+                      .catch((err: unknown) =>
+                        setNotice({
+                          kind: "error",
+                          text: t`Dream failed: ${friendlyError(err)}`,
+                        }),
+                      )
                       .finally(() => setDreaming(false));
                   }}
                 >
-                  <Trans>Dream now</Trans>
+                  {dreaming ? (
+                    <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />
+                  ) : (
+                    <Sparkles className="size-3.5" aria-hidden="true" />
+                  )}
+                  {dreaming ? <Trans>Dreaming…</Trans> : <Trans>Dream now</Trans>}
                 </Button>
               </div>
             ) : null}
           </div>
+          {activeProgressText ? (
+            <div role="status" aria-live="polite" className="space-y-1.5 pt-0.5">
+              <div className="flex items-center gap-2 text-xs text-muted">
+                <Loader2 className="size-3.5 shrink-0 animate-spin" aria-hidden="true" />
+                <span>{activeProgressText}</span>
+              </div>
+              {syncProgressFraction !== null ? (
+                <div className="h-1 w-full max-w-xs overflow-hidden rounded-full bg-default">
+                  <div
+                    className="h-full rounded-full bg-accent transition-[width] duration-200"
+                    style={{ width: `${Math.round(syncProgressFraction * 100)}%` }}
+                  />
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+          {isLocalActions && !activeProgressText && notice ? (
+            <p
+              role={notice.kind === "error" ? "alert" : "status"}
+              className={`text-xs ${
+                notice.kind === "error"
+                  ? "text-danger"
+                  : notice.kind === "warning"
+                    ? "text-warning"
+                    : "text-muted"
+              }`}
+            >
+              {notice.text}
+            </p>
+          ) : null}
           {status ? (
             <p className="text-xs text-muted">
               {t`${status.entryCount} memories · ${status.pendingCandidates} waiting · ${status.suggestionCount} skill suggestions`}
               {status.lastDreamSummary ? ` · ${status.lastDreamSummary}` : ""}
             </p>
           ) : null}
-          {error ? (
+          {statusError ? (
             <p className="text-xs text-danger">
               <Trans>Couldn't load memory.</Trans>
             </p>

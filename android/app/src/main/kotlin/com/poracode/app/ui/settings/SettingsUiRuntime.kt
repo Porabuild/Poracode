@@ -139,7 +139,7 @@ class SettingsUiController internal constructor(
             SettingsPane.Profile -> scope.launch { refreshProfile() }
             // The generation editor's provider/model/effort pickers need the installed-agent
             // capability catalog in addition to the host settings document.
-            SettingsPane.Preferences -> scope.launch {
+            SettingsPane.Preferences, SettingsPane.Memory -> scope.launch {
                 supervisorScope {
                     val settings = async { information.loadSettings() }
                     val agents = async { information.loadAgentStatuses() }

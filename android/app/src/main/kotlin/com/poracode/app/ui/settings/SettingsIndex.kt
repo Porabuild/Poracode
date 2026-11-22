@@ -54,6 +54,7 @@ internal enum class SettingsRoute {
     Usage,
     Profile,
     Preferences,
+    Memory,
     Workspace,
     Environments,
     GlobalMcp,
@@ -66,6 +67,7 @@ internal fun SettingsPane.route(): SettingsRoute = when (this) {
     SettingsPane.Usage -> SettingsRoute.Usage
     SettingsPane.Profile -> SettingsRoute.Profile
     SettingsPane.Preferences -> SettingsRoute.Preferences
+    SettingsPane.Memory -> SettingsRoute.Memory
     SettingsPane.Workspace -> SettingsRoute.Workspace
     SettingsPane.Environments -> SettingsRoute.Environments
 }
@@ -76,6 +78,7 @@ internal fun SettingsRoute.pane(): SettingsPane? = when (this) {
     SettingsRoute.Usage -> SettingsPane.Usage
     SettingsRoute.Profile -> SettingsPane.Profile
     SettingsRoute.Preferences -> SettingsPane.Preferences
+    SettingsRoute.Memory -> SettingsPane.Memory
     SettingsRoute.Workspace -> SettingsPane.Workspace
     SettingsRoute.Environments -> SettingsPane.Environments
     else -> null
@@ -118,6 +121,7 @@ internal fun SettingsRoute.isDesktopRoute(): Boolean = when (this) {
     SettingsRoute.Usage,
     SettingsRoute.Profile,
     SettingsRoute.Preferences,
+    SettingsRoute.Memory,
     SettingsRoute.Workspace,
     SettingsRoute.Environments,
     SettingsRoute.GlobalMcp,
@@ -239,6 +243,11 @@ internal fun DesktopSettingsIndex(
             R.string.settings_generation_title,
             R.string.settings_generation_description,
         ) { onOpen(SettingsRoute.Preferences) }
+        SettingsIndexRow(
+            PoracodeIcons.Brain,
+            R.string.settings_memory_title,
+            R.string.settings_memory_description,
+        ) { onOpen(SettingsRoute.Memory) }
         SettingsIndexRow(PoracodeIcons.SmartToy, R.string.settings_agents_title) {
             onOpen(SettingsRoute.Agents)
         }

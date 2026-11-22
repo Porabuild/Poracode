@@ -39,6 +39,49 @@ enum SettingsPRMergeMethod: String, Codable, Sendable {
   case merge, squash, rebase
 }
 
+enum SettingsMemoryCaptureTiming: String, Codable, CaseIterable, Sendable {
+  case settle2m = "settle-2m"
+  case settle90s = "settle-90s"
+  case custom
+  case lifecycle
+}
+
+enum SettingsMemoryDeletePolicy: String, Codable, CaseIterable, Sendable {
+  case spool
+  case lifecycle
+  case never
+}
+
+enum SettingsMemoryDreamCadence: String, Codable, CaseIterable, Sendable {
+  case daily
+  case threeDays = "3d"
+  case weekly
+  case manual
+}
+
+struct SettingsMemoryPreferences: Codable, Equatable, Sendable {
+  var enabled: Bool
+  var learning: Bool
+  var syncEnabled: Bool
+  var captureTiming: SettingsMemoryCaptureTiming
+  var captureCustomMinutes: Int
+  var deletePolicy: SettingsMemoryDeletePolicy
+  var dreamCadence: SettingsMemoryDreamCadence
+  var suggestSkills: Bool
+  var skillThreshold: Int
+  var sessionTokenBudget: Int
+  var archiveUnusedDays: Int
+  var suppressNative: Bool
+  var captureProvider: String
+  var captureModel: String
+  var captureEffort: String
+  var captureFast: Bool
+  var dreamProvider: String
+  var dreamModel: String
+  var dreamEffort: String
+  var dreamFast: Bool
+}
+
 struct SettingsUsagePreferences: Codable, Equatable, Sendable {
   var autoRefresh: Bool
   var refreshIntervalMinutes: Int
@@ -63,6 +106,7 @@ struct SettingsDocument: Codable, Equatable, Sendable {
   var crossagentPausedProviders: [String]? = nil
   var crossagentHiddenModels: [String: [String]]? = nil
   var usage: SettingsUsagePreferences? = nil
+  var memory: SettingsMemoryPreferences? = nil
   let enabledMcpServers: [String: Bool]
   let disabledBuiltInMcpServers: [String: Bool]
   let titleGenProvider: String
@@ -112,7 +156,7 @@ struct SettingsReadResponse: Codable, Equatable, Sendable {
 }
 
 enum SettingsPatchKey: String, Codable, CaseIterable, Sendable {
-  case agentSettings, hiddenModels, disabledAgents, providerOrder, usage
+  case agentSettings, hiddenModels, disabledAgents, providerOrder, usage, memory
   case crews
   case enabledMcpServers, disabledBuiltInMcpServers
   case titleGenProvider, titleGenModel, titleGenEffort, titleGenFast

@@ -43,6 +43,33 @@ struct SettingsGitView: View {
   }
 }
 
+struct SettingsMemoryView: View {
+  let composition: SettingsComposition
+  let agentStatuses: SettingsAgentStatuses?
+  let refresh: () -> Void
+
+  var body: some View {
+    SettingsDocumentState(composition: composition, refresh: refresh) { document, lease in
+      if let memory = document.memory {
+        SettingsMemoryEditor(
+          document: document,
+          initialMemory: memory,
+          lease: lease,
+          composition: composition,
+          agentStatuses: agentStatuses,
+          refresh: refresh
+        )
+      } else {
+        ContentUnavailableView(
+          SettingsUIStrings.memoryTitle,
+          systemImage: "brain",
+          description: Text(SettingsUIStrings.memoryUnavailable)
+        )
+      }
+    }
+  }
+}
+
 private struct SettingsGenerationEditor: View {
   let document: SettingsDocument
   let lease: SettingsHostLease
@@ -417,6 +444,229 @@ private struct SettingsGitEditor: View {
       ) { draft = SettingsDocumentDraft($0) }
     }
     .onChange(of: document) { _, value in draft = SettingsDocumentDraft(value) }
+  }
+}
+
+private struct SettingsMemoryEditor: View {
+  let document: SettingsDocument
+  let lease: SettingsHostLease
+  let composition: SettingsComposition
+  let agentStatuses: SettingsAgentStatuses?
+  let refresh: () -> Void
+
+  @State private var draft: SettingsDocumentDraft
+
+  init(
+    document: SettingsDocument,
+    initialMemory: SettingsMemoryPreferences,
+    lease: SettingsHostLease,
+    composition: SettingsComposition,
+    agentStatuses: SettingsAgentStatuses?,
+    refresh: @escaping () -> Void
+  ) {
+    self.document = document
+    self.lease = lease
+    self.composition = composition
+    self.agentStatuses = agentStatuses
+    self.refresh = refresh
+    var initial = SettingsDocumentDraft(document)
+    initial.memory = initialMemory
+    _draft = State(initialValue: initial)
+  }
+
+  var body: some View {
+    if let memory = draft.memory {
+      let enabled = memory.enabled
+      Form {
+        Section {
+          Toggle(SettingsUIStrings.memoryUseMemory, isOn: memoryBinding(\.enabled))
+            .settingsSearchAnchor(.memoryEnabled)
+          Toggle(SettingsUIStrings.memoryLearnFromChats, isOn: memoryBinding(\.learning))
+            .disabled(!enabled)
+        } header: {
+          Text(composition.selection?.name ?? SettingsUIStrings.memoryTitle)
+        } footer: {
+          Text(SettingsUIStrings.memoryDescription)
+        }
+
+        if !eligibleAgents.isEmpty {
+          Section(SettingsUIStrings.memoryModelsSection) {
+            SettingsMemoryModelGroup(
+              title: SettingsUIStrings.memoryCaptureModel,
+              provider: memoryBinding(\.captureProvider),
+              model: memoryBinding(\.captureModel),
+              effort: memoryBinding(\.captureEffort),
+              fast: memoryBinding(\.captureFast),
+              agents: eligibleAgents
+            )
+            SettingsMemoryModelGroup(
+              title: SettingsUIStrings.memoryDreamModel,
+              provider: memoryBinding(\.dreamProvider),
+              model: memoryBinding(\.dreamModel),
+              effort: memoryBinding(\.dreamEffort),
+              fast: memoryBinding(\.dreamFast),
+              agents: eligibleAgents
+            )
+          }
+          .disabled(!enabled)
+        }
+
+        Section(SettingsUIStrings.memoryCaptureAndDreamSection) {
+          Picker(SettingsUIStrings.memoryWhenToCapture, selection: memoryBinding(\.captureTiming)) {
+            Text(SettingsUIStrings.memoryCaptureSettle2m).tag(SettingsMemoryCaptureTiming.settle2m)
+            Text(SettingsUIStrings.memoryCaptureSettle90s).tag(SettingsMemoryCaptureTiming.settle90s)
+            Text(SettingsUIStrings.memoryCaptureCustom).tag(SettingsMemoryCaptureTiming.custom)
+            Text(SettingsUIStrings.memoryCaptureLifecycle).tag(SettingsMemoryCaptureTiming.lifecycle)
+          }
+          if memory.captureTiming == .custom {
+            Stepper(
+              value: memoryBinding(\.captureCustomMinutes),
+              in: 1...240
+            ) {
+              HStack {
+                Text(SettingsUIStrings.memoryCustomIdleMinutes)
+                Spacer()
+                Text("\(memory.captureCustomMinutes)")
+                  .foregroundStyle(.secondary)
+                  .monospacedDigit()
+              }
+            }
+          }
+          Picker(SettingsUIStrings.memoryWhenDeleted, selection: memoryBinding(\.deletePolicy)) {
+            Text(SettingsUIStrings.memoryDeleteSpool).tag(SettingsMemoryDeletePolicy.spool)
+            Text(SettingsUIStrings.memoryDeleteLifecycle).tag(SettingsMemoryDeletePolicy.lifecycle)
+            Text(SettingsUIStrings.memoryDeleteNever).tag(SettingsMemoryDeletePolicy.never)
+          }
+          Picker(SettingsUIStrings.memoryDreamSchedule, selection: memoryBinding(\.dreamCadence)) {
+            Text(SettingsUIStrings.memoryDreamDaily).tag(SettingsMemoryDreamCadence.daily)
+            Text(SettingsUIStrings.memoryDream3d).tag(SettingsMemoryDreamCadence.threeDays)
+            Text(SettingsUIStrings.memoryDreamWeekly).tag(SettingsMemoryDreamCadence.weekly)
+            Text(SettingsUIStrings.memoryDreamManual).tag(SettingsMemoryDreamCadence.manual)
+          }
+        }
+        .disabled(!enabled)
+
+        Section(SettingsUIStrings.memoryBehaviorSection) {
+          Toggle(SettingsUIStrings.memorySuggestSkills, isOn: memoryBinding(\.suggestSkills))
+          Toggle(SettingsUIStrings.memoryPreferPoracode, isOn: memoryBinding(\.suppressNative))
+          Toggle(SettingsUIStrings.memorySyncAcrossEnvironments, isOn: memoryBinding(\.syncEnabled))
+            .settingsSearchAnchor(.memorySync)
+        }
+        .disabled(!enabled)
+      }
+      .poracodeReadableListMargins(740)
+      .settingsSearchScroll()
+      .disabled(composition.gate(.sessionOperate) != nil || composition.isMutating)
+      .refreshable { refresh() }
+      .toolbar {
+        SettingsDocumentSaveButton(
+          composition: composition, lease: lease, patch: draft.memoryPatch(comparedTo: document)
+        ) { draft = SettingsDocumentDraft($0) }
+      }
+      .onChange(of: document) { _, value in draft = SettingsDocumentDraft(value) }
+    }
+  }
+
+  private func memoryBinding<Value>(
+    _ keyPath: WritableKeyPath<SettingsMemoryPreferences, Value>
+  ) -> Binding<Value> {
+    Binding(
+      get: { (draft.memory ?? document.memory)![keyPath: keyPath] },
+      set: { newValue in
+        guard var current = draft.memory ?? document.memory else { return }
+        current[keyPath: keyPath] = newValue
+        draft.memory = current
+      }
+    )
+  }
+
+  private var eligibleAgents: [SettingsAgentStatus] {
+    let disabled = Set(document.disabledAgents)
+    let isEligible: (SettingsAgentStatus) -> Bool = { agent in
+      agent.installed
+        && agent.authState != .missing
+        && !disabled.contains(agent.kind)
+        && agent.supportsOneShot
+        && !agent.models.isEmpty
+    }
+    let host = (agentStatuses?.windows ?? []).filter(isEligible)
+    return host.isEmpty ? (agentStatuses?.wsl ?? []).filter(isEligible) : host
+  }
+}
+
+private struct SettingsMemoryModelGroup: View {
+  @State private var isExpanded = false
+  let title: String
+  @Binding var provider: String
+  @Binding var model: String
+  @Binding var effort: String
+  @Binding var fast: Bool
+  let agents: [SettingsAgentStatus]
+
+  var body: some View {
+    DisclosureGroup(title, isExpanded: $isExpanded) {
+      Picker(SettingsUIStrings.providerID, selection: providerSelection) {
+        Text(SettingsUIStrings.automatic).tag("auto")
+        ForEach(agents, id: \.kind) { agent in
+          Text(agent.label).tag(agent.kind)
+        }
+      }
+      if let selectedAgent {
+        let models = selectedAgent.models
+        if !models.isEmpty {
+          Picker(SettingsUIStrings.modelID, selection: modelSelection(for: selectedAgent)) {
+            ForEach(models, id: \.id) { entry in
+              Text(entry.label).tag(entry.id)
+            }
+          }
+        }
+        let efforts = selectedAgent.efforts(forModel: model)
+        if efforts.count > 1 {
+          Picker(SettingsUIStrings.effort, selection: $effort) {
+            Text(SettingsUIStrings.memoryEffortDefault).tag("")
+            ForEach(efforts, id: \.self) { choice in
+              Text(choice).tag(choice)
+            }
+          }
+        }
+      }
+    }
+  }
+
+  private var selectedAgent: SettingsAgentStatus? {
+    guard provider != "auto" else { return nil }
+    return agents.first { $0.kind == provider }
+  }
+
+  private var providerSelection: Binding<String> {
+    Binding(
+      get: { provider },
+      set: { next in
+        guard next != provider else { return }
+        provider = next
+        if next == "auto" {
+          model = ""
+          effort = ""
+          fast = false
+        } else if let agent = agents.first(where: { $0.kind == next }) {
+          model = agent.models.first?.id ?? ""
+          effort = ""
+          fast = false
+        }
+      }
+    )
+  }
+
+  private func modelSelection(for agent: SettingsAgentStatus) -> Binding<String> {
+    Binding(
+      get: { model.isEmpty ? (agent.models.first?.id ?? "") : model },
+      set: { next in
+        guard next != model else { return }
+        model = next
+        effort = ""
+        fast = false
+      }
+    )
   }
 }
 

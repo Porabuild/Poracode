@@ -184,6 +184,7 @@ export function dreamMemories(
   now: string,
   consolidated: readonly MemoryObservation[] = [],
   retireIds: readonly string[] = [],
+  reviewedCandidateIds: readonly string[] = [],
 ): DreamOutcome {
   const pending = dbListPendingCandidates();
   const currentEntries = dbListMemoryEntries();
@@ -193,6 +194,7 @@ export function dreamMemories(
   const candidateIds: string[] = [];
   let promoted = 0;
   let retired = 0;
+  const reviewedSet = new Set(reviewedCandidateIds);
   const knownProjects = new Set([
     ...pending.map((candidate) => candidate.projectId).filter((id): id is string => Boolean(id)),
     ...currentEntries.map((entry) => entry.projectId).filter((id): id is string => Boolean(id)),
@@ -267,11 +269,8 @@ export function dreamMemories(
     }
   }
   for (const group of groups.values()) {
-    const strongest = group.reduce((best, item) =>
-      item.confidence > best.confidence ? item : best,
-    );
-    const groupKey = `${strongest.scope}\0${strongest.projectId ?? ""}\0${readMemoryRepoKey(strongest.projectId) ?? ""}\0${statementKey(strongest.statement)}`;
-    const promote = strongest.explicit || strongest.confidence >= 0.7 || group.length >= 2;
+    const sample = group[0]!;
+    const groupKey = `${sample.scope}\0${sample.projectId ?? ""}\0${readMemoryRepoKey(sample.projectId) ?? ""}\0${statementKey(sample.statement)}`;
     if (acceptedConsolidated.has(groupKey)) {
       for (const item of group) {
         dbSetCandidateStatus(item.id, "promoted");
@@ -279,6 +278,23 @@ export function dreamMemories(
       }
       continue;
     }
+    let activeGroup = group;
+    if (reviewedSet.size > 0) {
+      activeGroup = [];
+      for (const item of group) {
+        if (reviewedSet.has(item.id)) {
+          dbSetCandidateStatus(item.id, "reviewed");
+          candidateIds.push(item.id);
+        } else {
+          activeGroup.push(item);
+        }
+      }
+      if (activeGroup.length === 0) continue;
+    }
+    const strongest = activeGroup.reduce((best, item) =>
+      item.confidence > best.confidence ? item : best,
+    );
+    const promote = strongest.explicit || strongest.confidence >= 0.7 || activeGroup.length >= 2;
     if (!promote) continue;
     const existing = listScopedMemoryEntriesForProject(strongest.projectId).find(
       (entry) =>
@@ -286,7 +302,7 @@ export function dreamMemories(
         statementKey(entry.summary) === statementKey(strongest.statement),
     );
     if (existing?.lockedByUser) {
-      for (const item of group) dbSetCandidateStatus(item.id, "kept");
+      for (const item of activeGroup) dbSetCandidateStatus(item.id, "kept");
       continue;
     }
     if (existing) pushRestore(restore, existing);
@@ -302,13 +318,13 @@ export function dreamMemories(
       },
       strongest.scope,
       strongest.projectId,
-      Math.min(0.95, strongest.confidence + Math.max(0, group.length - 1) * 0.05),
+      Math.min(0.95, strongest.confidence + Math.max(0, activeGroup.length - 1) * 0.05),
       now,
       "dream",
     );
     if (!existing) createdIds.push(entry.id);
     dbUpsertMemoryEntry(entry);
-    for (const item of group) {
+    for (const item of activeGroup) {
       dbSetCandidateStatus(item.id, "promoted");
       candidateIds.push(item.id);
     }

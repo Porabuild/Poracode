@@ -50,6 +50,16 @@ struct DeviceSettingsView: View {
       ForEach(DeviceSettingsDestination.agents, id: \.self) { destination in
         DeviceSettingsDestinationLink(session: session, destination: destination)
       }
+      NavigationLink {
+        SettingsMoreRouteView(session: session, route: .memory)
+      } label: {
+        DeviceSettingsLabel(
+          title: SettingsUIStrings.memoryTitle,
+          systemImage: "brain"
+        )
+      }
+      .disabled(selection == nil)
+      .accessibilityIdentifier("native-e2e.settings.memory")
     }
     Section {
       DeviceSettingsDestinationLink(session: session, destination: .connections)

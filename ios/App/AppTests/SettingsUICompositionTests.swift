@@ -297,7 +297,7 @@ final class SettingsUICompositionTests: XCTestCase {
   }
 
   func testEightRoutesRequireReadAndHostGateUsesVersionReadinessAndScope() {
-    XCTAssertEqual(SettingsScreenRoute.allCases.count, 8)
+    XCTAssertEqual(SettingsScreenRoute.allCases.count, 9)
     XCTAssertTrue(SettingsScreenRoute.allCases.allSatisfy { $0.requiredCapability == .sessionRead })
 
     XCTAssertEqual(selection(protocolVersion: 4).gate(.sessionRead), .protocolIncompatible)
@@ -396,6 +396,46 @@ final class SettingsUICompositionTests: XCTestCase {
     XCTAssertEqual(counts.agents, 1)
     XCTAssertEqual(counts.usage, 1)
     XCTAssertEqual(counts.devices, 1)
+  }
+
+  func testMemorySettingsDraftPatchesOnlyOnChangeAndPreservesOlderHosts() throws {
+    let legacy = settingsDocument()
+    XCTAssertNil(legacy.memory)
+    XCTAssertTrue(SettingsDocumentDraft(legacy).memoryPatch(comparedTo: legacy).values.isEmpty)
+
+    var withMemory = legacy
+    withMemory.memory = SettingsMemoryPreferences(
+      enabled: false,
+      learning: true,
+      syncEnabled: true,
+      captureTiming: .settle2m,
+      captureCustomMinutes: 10,
+      deletePolicy: .spool,
+      dreamCadence: .daily,
+      suggestSkills: true,
+      skillThreshold: 3,
+      sessionTokenBudget: 2000,
+      archiveUnusedDays: 60,
+      suppressNative: false,
+      captureProvider: "auto",
+      captureModel: "",
+      captureEffort: "",
+      captureFast: false,
+      dreamProvider: "auto",
+      dreamModel: "",
+      dreamEffort: "",
+      dreamFast: false
+    )
+    var draft = SettingsDocumentDraft(withMemory)
+    XCTAssertTrue(draft.memoryPatch(comparedTo: withMemory).values.isEmpty)
+
+    draft.memory?.enabled = true
+    draft.memory?.dreamCadence = .weekly
+    let patch = draft.memoryPatch(comparedTo: withMemory)
+    XCTAssertEqual(Set(patch.values.keys), [.memory])
+    XCTAssertEqual(patch[.memory]?.objectValue?["enabled"]?.boolValue, true)
+    XCTAssertEqual(patch[.memory]?.objectValue?["dreamCadence"]?.stringValue, "weekly")
+    XCTAssertEqual(patch[.memory]?.objectValue?["sessionTokenBudget"], .integer(2000))
   }
 
   func testProfileFiltersKeepDesktopIdentifiersSeparate() {

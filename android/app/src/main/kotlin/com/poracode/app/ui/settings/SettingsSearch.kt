@@ -107,6 +107,12 @@ internal object SettingsSearchIndex {
             keywords = listOf("ai", "helpers", "title", "commit", "conflict", "generation"),
         ),
         SettingsSearchEntry(
+            target = SettingsSearchTarget.Route(SettingsRoute.Memory),
+            titleRes = R.string.settings_memory_title,
+            icon = PoracodeIcons.Brain,
+            keywords = listOf("memory", "capture", "dream", "sync", "skills", "notes"),
+        ),
+        SettingsSearchEntry(
             target = SettingsSearchTarget.Route(SettingsRoute.Agents),
             titleRes = R.string.settings_agents_title,
             icon = PoracodeIcons.SmartToy,

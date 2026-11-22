@@ -58,7 +58,7 @@ final class SettingsComposition {
       if !isMutating {
         await profile.load(query.request(timeZone: timeZone, date: date))
       }
-    case .generation:
+    case .generation, .memory:
       await hostInformation.refresh(.agents)
       await refreshDocumentIfSafe(lease: lease)
     case .workspace:
