@@ -7,9 +7,14 @@ import type { ThreadCrewBinding } from "@/shared/crew";
 import type { SubagentRunManager } from "./SubagentRunManager";
 import { crewSetBriefText, crewToolDescriptionNote } from "./crewBrief";
 import { buildSubagentInstructions, dispatchTool, isKnownToolName, TOOLS } from "./toolRegistry";
-import { errorResult } from "./toolResult";
+import { errorResult, waitTimeoutDescription, workflowTimeoutDescription } from "./toolResult";
 import { keepJsonResponseAlive } from "./jsonResponseKeepalive";
-import type { ExplicitSpawnAgentSelection, SpawnableAgent } from "./types";
+import { MAX_WAIT_TIMEOUT_MS } from "./waitTiming";
+import type { ExplicitSpawnAgentSelection, SpawnableAgent, ToolSpec } from "./types";
+
+export interface RegisterCrossagentThreadOptions {
+  readonly maxWaitTimeoutMs?: number | undefined;
+}
 
 export interface CrossagentMcpIngressInfo {
   url: string;
@@ -96,6 +101,7 @@ export class CrossagentMcpIngress {
   private readonly providerSessionToken = randomBytes(32).toString("hex");
   private readonly providerSessionThreads = new Set<string>();
   private readonly disabledToolsByThread = new Map<string, Set<string>>();
+  private readonly maxWaitTimeoutMsByThread = new Map<string, number>();
 
   constructor(private readonly deps: CrossagentMcpIngressDeps) {}
 
@@ -123,6 +129,18 @@ export class CrossagentMcpIngress {
     return this.info;
   }
 
+  private setThreadMaxWaitTimeoutMs(threadId: string, maxWaitTimeoutMs: number | undefined): void {
+    if (
+      maxWaitTimeoutMs !== undefined &&
+      Number.isFinite(maxWaitTimeoutMs) &&
+      maxWaitTimeoutMs >= 0
+    ) {
+      this.maxWaitTimeoutMsByThread.set(threadId, Math.min(maxWaitTimeoutMs, MAX_WAIT_TIMEOUT_MS));
+    } else {
+      this.maxWaitTimeoutMsByThread.delete(threadId);
+    }
+  }
+
   /**
    * Register (or re-register) a parent thread. Mints a token on first call and
    * reuses it thereafter. Returns the ready-to-use MCP http config; returns
@@ -131,6 +149,7 @@ export class CrossagentMcpIngress {
   registerThread(
     threadId: string,
     disabledTools: readonly string[] = [],
+    options?: RegisterCrossagentThreadOptions,
   ): CrossagentMcpHttpConfig | undefined {
     if (!this.info) return undefined;
     let token = this.threadToToken.get(threadId);
@@ -140,6 +159,7 @@ export class CrossagentMcpIngress {
       this.tokenToThread.set(token, threadId);
     }
     this.disabledToolsByThread.set(threadId, new Set(disabledTools));
+    this.setThreadMaxWaitTimeoutMs(threadId, options?.maxWaitTimeoutMs);
     return {
       url: `${this.info.url.replace(/\/$/, "")}/mcp`,
       token,
@@ -157,10 +177,12 @@ export class CrossagentMcpIngress {
   registerProviderSessionThread(
     threadId: string,
     disabledTools: readonly string[] = [],
+    options?: RegisterCrossagentThreadOptions,
   ): CrossagentMcpHttpConfig | undefined {
     if (!this.info) return undefined;
     this.providerSessionThreads.add(threadId);
     this.disabledToolsByThread.set(threadId, new Set(disabledTools));
+    this.setThreadMaxWaitTimeoutMs(threadId, options?.maxWaitTimeoutMs);
     return {
       url: `${this.info.url.replace(/\/$/, "")}/mcp`,
       token: this.providerSessionToken,
@@ -175,6 +197,7 @@ export class CrossagentMcpIngress {
     this.threadToToken.delete(threadId);
     this.providerSessionThreads.delete(threadId);
     this.disabledToolsByThread.delete(threadId);
+    this.maxWaitTimeoutMsByThread.delete(threadId);
   }
 
   dispose(): void {
@@ -182,6 +205,7 @@ export class CrossagentMcpIngress {
     this.threadToToken.clear();
     this.providerSessionThreads.clear();
     this.disabledToolsByThread.clear();
+    this.maxWaitTimeoutMsByThread.clear();
     try {
       this.server?.closeAllConnections?.();
     } catch {}
@@ -274,9 +298,14 @@ export class CrossagentMcpIngress {
       }
 
       if (path === "/mcp" || path === "/mcp/") {
+        if (req.method === "DELETE") {
+          res.statusCode = 204;
+          res.end();
+          return;
+        }
         if (req.method !== "POST") {
           res.statusCode = 405;
-          res.setHeader("Allow", "POST");
+          res.setHeader("Allow", "POST, DELETE");
           res.end();
           return;
         }
@@ -379,6 +408,8 @@ export class CrossagentMcpIngress {
             : new Set<string>();
         const crew = auth.mode === "thread" ? this.deps.getThreadCrew?.(auth.threadId) : undefined;
         const crewNote = crew ? crewToolDescriptionNote(crew) : undefined;
+        const maxWaitTimeoutMs =
+          auth.mode === "thread" ? this.maxWaitTimeoutMsByThread.get(auth.threadId) : undefined;
         return {
           jsonrpc: "2.0",
           id,
@@ -387,11 +418,16 @@ export class CrossagentMcpIngress {
               (tool) =>
                 !disabled.has(tool.name) &&
                 !disabled.has(TOOL_PERMISSION_ALIASES.get(tool.name) ?? ""),
-            ).map((tool) =>
-              crewNote && (tool.name === "spawn_agent" || tool.name === "run_workflow")
-                ? { ...tool, description: `${tool.description} ${crewNote}` }
-                : tool,
-            ),
+            ).map((tool) => {
+              let next =
+                crewNote && (tool.name === "spawn_agent" || tool.name === "run_workflow")
+                  ? { ...tool, description: `${tool.description} ${crewNote}` }
+                  : tool;
+              if (maxWaitTimeoutMs !== undefined && maxWaitTimeoutMs < MAX_WAIT_TIMEOUT_MS) {
+                next = withToolTimeoutCap(next, maxWaitTimeoutMs);
+              }
+              return next;
+            }),
           },
         };
       }
@@ -424,6 +460,7 @@ export class CrossagentMcpIngress {
         if (!isKnownToolName(name)) {
           return { jsonrpc: "2.0", id, result: errorResult(`Unknown tool: ${name}`) };
         }
+        const maxWaitTimeoutMs = this.maxWaitTimeoutMsByThread.get(threadId);
         const result = await dispatchTool(name, args, {
           parentThreadId: threadId,
           runManager: this.deps.runManager,
@@ -431,6 +468,7 @@ export class CrossagentMcpIngress {
           ...(this.deps.getThreadCrew
             ? { getCrew: () => this.deps.getThreadCrew?.(threadId) }
             : {}),
+          ...(maxWaitTimeoutMs !== undefined ? { maxWaitTimeoutMs } : {}),
           ...(this.deps.recordExplicitSelections
             ? { recordExplicitSelections: this.deps.recordExplicitSelections }
             : {}),
@@ -459,6 +497,29 @@ export class CrossagentMcpIngress {
       };
     }
   }
+}
+
+function withToolTimeoutCap(tool: ToolSpec, maxWaitTimeoutMs: number): ToolSpec {
+  const properties = tool.inputSchema.properties as Record<string, unknown> | undefined;
+  if (!properties || !("timeout_s" in properties)) return tool;
+  const timeoutProp = properties.timeout_s;
+  if (!timeoutProp || typeof timeoutProp !== "object" || Array.isArray(timeoutProp)) return tool;
+  return {
+    ...tool,
+    inputSchema: {
+      ...tool.inputSchema,
+      properties: {
+        ...properties,
+        timeout_s: {
+          ...timeoutProp,
+          description:
+            tool.name === "run_workflow"
+              ? workflowTimeoutDescription(maxWaitTimeoutMs)
+              : waitTimeoutDescription(maxWaitTimeoutMs),
+        },
+      },
+    },
+  };
 }
 
 function isJsonRpcRequest(value: unknown): value is JsonRpcRequest {

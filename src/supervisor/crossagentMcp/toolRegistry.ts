@@ -34,6 +34,7 @@ import {
   parseWaitOptions,
   parseWaitTimeoutMs,
   TIMEOUT_S_DESCRIPTION,
+  workflowTimeoutDescription,
 } from "./toolResult";
 import { parseRunIds, parseSpawnRequests } from "./toolRequests";
 import { crewListDescription } from "./crewRoles";
@@ -256,8 +257,7 @@ const RAW_TOOLS: ToolSpec[] = [
         },
         timeout_s: {
           type: "number",
-          description:
-            "Max seconds (default/cap 480). On timeout stages keep running; resume with run_workflow action=wait.",
+          description: workflowTimeoutDescription(),
         },
       },
     },
@@ -631,6 +631,8 @@ export interface SubagentToolContext {
   runManager: SubagentRunManager;
   listSpawnableAgents: (tags?: readonly string[]) => Promise<SpawnableAgent[]>;
   getCrew?: () => ThreadCrewBinding | undefined;
+  /** Optional per-parent cap (ms) for blocking wait calls when the caller's transport has a shorter HTTP deadline. */
+  maxWaitTimeoutMs?: number | undefined;
   recordExplicitSelections?: (selections: readonly ExplicitSpawnAgentSelection[]) => void;
   listRoutingOverrides?: () => readonly CrossagentRoutingOverride[];
   setRoutingOverride?: (override: CrossagentRoutingOverride) => void | Promise<void>;
@@ -821,7 +823,7 @@ export async function dispatchTool(
           return runToolResult(
             await ctx.runManager.waitForMany(
               runIds,
-              parseWaitTimeoutMs(args),
+              parseWaitTimeoutMs(args, ctx.maxWaitTimeoutMs),
               ctx.parentThreadId,
               (runId) => parseWaitOptions(args, runId),
               args.wait_mode === "any" ? "any" : "all",
@@ -833,7 +835,7 @@ export async function dispatchTool(
         return runToolResult(
           await ctx.runManager.waitFor(
             runId,
-            parseWaitTimeoutMs(args),
+            parseWaitTimeoutMs(args, ctx.maxWaitTimeoutMs),
             ctx.parentThreadId,
             waitOptions,
           ),
@@ -845,7 +847,7 @@ export async function dispatchTool(
         return runToolResult(
           await ctx.runManager.waitForMany(
             runIds,
-            parseWaitTimeoutMs(args),
+            parseWaitTimeoutMs(args, ctx.maxWaitTimeoutMs),
             ctx.parentThreadId,
             (runId) => parseWaitOptions(args, runId),
           ),

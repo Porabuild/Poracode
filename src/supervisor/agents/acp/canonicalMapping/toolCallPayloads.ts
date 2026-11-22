@@ -40,6 +40,20 @@ import { readAcpCommandStatus } from "./commandStatus";
  */
 const MAX_INLINE_EDIT_SNAPSHOT_CHARS = 128 * 1024;
 
+/**
+ * Neutral `_meta` key a provider transform sets when the wire `title` is
+ * display copy (for example `"Calling spawn_agent from crossagents"`) and a
+ * separate field carries the canonical tool identifier (`mcp__server__tool`).
+ */
+export const PORACODE_ACP_TOOL_NAME_META_KEY = "poracodeToolName";
+
+export function readAcpToolName(meta: unknown): string | undefined {
+  if (!meta || typeof meta !== "object" || Array.isArray(meta)) return undefined;
+  if (!Object.hasOwn(meta, PORACODE_ACP_TOOL_NAME_META_KEY)) return undefined;
+  const value = (meta as Record<string, unknown>)[PORACODE_ACP_TOOL_NAME_META_KEY];
+  return typeof value === "string" ? normalizeToolText(value) : undefined;
+}
+
 function shouldEmbedInlineEditSnapshot(change: { oldText: string; newText: string }): boolean {
   return change.oldText.length + change.newText.length <= MAX_INLINE_EDIT_SNAPSHOT_CHARS;
 }
@@ -80,7 +94,8 @@ export function buildAcpToolCallPayload(
   // `!payload.name` hide-unnamed guards and paints an anonymous accordion row.
   // Omitting `name` defers the row until a later update carries a real label;
   // finalization (`finalizeToolCallPayload`) guarantees it never stays nameless.
-  const name = title ?? kind;
+  const canonicalName = readAcpToolName(toolCall._meta);
+  const name = canonicalName ?? title ?? kind;
   const contentResult = extractToolCallContentText(toolCall.content, resolveTerminalOutput);
   const resourceResult = extractToolCallResourceResult(
     toolCall.content,
@@ -291,11 +306,14 @@ export function buildAcpToolCallUpdatePayload(
     (item.itemType === "tool_call" && searchKind?.toLowerCase() === "search"
       ? item.payload.result
       : undefined);
-  // Never let a kind-only update clobber a better title-derived name. A `title`
-  // always wins; a bare `kind` only sets the name when the tracked item has none
-  // yet (Cursor emits `title`/`kind` piecemeal across updates, and a late `kind`
-  // must not overwrite the human label an earlier `title` already established).
-  const nameUpdate = title ?? (kind && !hasToolCallName(item.payload) ? kind : undefined);
+  const canonicalName = readAcpToolName(toolCall._meta);
+  // Never let a kind-only update clobber a better title-derived name, and never
+  // let a later display-only title clobber a provider-declared canonical name.
+  const nameUpdate =
+    canonicalName ??
+    (item.hasCanonicalName
+      ? undefined
+      : (title ?? (kind && !hasToolCallName(item.payload) ? kind : undefined)));
   const payload: Record<string, unknown> = {
     status,
     ...(result !== undefined ? { result } : {}),

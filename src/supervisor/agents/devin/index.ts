@@ -78,6 +78,13 @@ export function createDevinAdapter(options: DevinAdapterOptions = {}): AgentAdap
     binary: "devin",
     // Cloud sessions cannot connect to the host's loopback OAuth relay.
     supportsDeferredMcpAuthorization: profile?.runtimeTarget !== "cloud",
+    // Devin CLI's Streamable HTTP MCP client (rmcp/reqwest) enforces a hard
+    // 120s total request timeout on POST /mcp (both JSON and SSE) and ignores
+    // per-server timeouts; on a JSON body timeout rmcp treats the error as
+    // HTTP 202 Accepted and hangs the tool call forever. Keep blocking
+    // Crossagents waits at 90s (30s headroom) so calls return a clean
+    // "running" checkpoint before the client times out.
+    mcpMaxBlockingCallMs: 90_000,
     ...(detectionSpec.update && !isProfile ? { update: detectionSpec.update } : {}),
     get capabilities() {
       return capabilities;

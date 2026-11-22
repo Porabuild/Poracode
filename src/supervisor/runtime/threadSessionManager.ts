@@ -202,6 +202,7 @@ export class ThreadSessionManager {
   private readonly workspaceStarts = new Map<string, StartThreadRuntimeInput>();
   private readonly pendingStartInterrupts = new Set<string>();
   private readonly pendingStartAborts = new Set<string>();
+  private readonly pendingLaunchConfigs = new Map<string, ThreadConfig>();
   /**
    * Custody for sessions/shells whose retirement was not confirmed after they
    * left the live maps (close, replacement failure). Entries are bounded by
@@ -422,6 +423,7 @@ export class ThreadSessionManager {
       sessions: this.sessions,
       pendingStartInterrupts: this.pendingStartInterrupts,
       pendingStartAborts: this.pendingStartAborts,
+      pendingLaunchConfigs: this.pendingLaunchConfigs,
       ptyLifecycle: this.ptyLifecycle,
       admission: this.hostResourceAdmission,
       retirement: this.sessionRetirement,
@@ -841,7 +843,7 @@ export class ThreadSessionManager {
   }
 
   getThreadConfig(threadId: string): ThreadConfig | undefined {
-    return this.sessions.get(threadId)?.config;
+    return this.pendingLaunchConfigs.get(threadId) ?? this.sessions.get(threadId)?.config;
   }
 
   /**

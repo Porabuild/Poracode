@@ -583,10 +583,14 @@ export class SupervisorRuntime {
       resolvePluginEnvForSpawn: (input) =>
         this.cliHookPluginCoordinator.resolvePluginEnvForSpawn(input),
       crossagentMcp: {
-        register: (threadId, disabledTools) =>
-          this.crossagentMcpIngress.registerThread(threadId, disabledTools),
-        registerProviderSession: (threadId, disabledTools) =>
-          this.crossagentMcpIngress.registerProviderSessionThread(threadId, disabledTools),
+        register: (threadId, disabledTools, registerOptions) =>
+          this.crossagentMcpIngress.registerThread(threadId, disabledTools, registerOptions),
+        registerProviderSession: (threadId, disabledTools, registerOptions) =>
+          this.crossagentMcpIngress.registerProviderSessionThread(
+            threadId,
+            disabledTools,
+            registerOptions,
+          ),
         unregister: (threadId) => this.crossagentMcpIngress.unregisterThread(threadId),
         cancelForeground: (threadId) => this.subagentRunManager.cancelForegroundForThread(threadId),
         cancelAll: (threadId) => this.subagentRunManager.cancelAllForThread(threadId),

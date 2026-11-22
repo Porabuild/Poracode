@@ -2,7 +2,7 @@ import { normalizeCrossagentTags } from "@/shared/crossagentRanking";
 import { SubagentWorkflowManager, type WorkflowTask } from "./SubagentWorkflowManager";
 import type { SubagentRunManager } from "./SubagentRunManager";
 import { parseSpawnRequest } from "./toolRequests";
-import { jsonResult, parseWaitTimeoutMs } from "./toolResult";
+import { jsonResult, parseWaitTimeoutMs, workflowToolResult } from "./toolResult";
 import { resolveSelectionArgs } from "./toolSpawn";
 import { resolveCrewRoleSpawn } from "./crewRoles";
 import type { SubagentToolContext } from "./toolRegistry";
@@ -48,6 +48,7 @@ export async function dispatchWorkflow(
   args: Record<string, unknown>,
   ctx: SubagentToolContext,
 ): Promise<McpToolResult> {
+  const startedAt = Date.now();
   const action = args.action === undefined ? "start" : args.action;
   if (
     typeof action !== "string" ||
@@ -63,11 +64,12 @@ export async function dispatchWorkflow(
     const id = typeof args.workflow_id === "string" ? args.workflow_id : "";
     if (!id) throw new Error("workflow_id is required");
     if (action === "cancel") await manager.cancel(parent, id);
-    return jsonResult(
-      action === "wait"
-        ? await manager.waitFor(parent, id, parseWaitTimeoutMs(args))
-        : manager.getStatus(parent, id),
-    );
+    if (action === "wait") {
+      return workflowToolResult(
+        await manager.waitFor(parent, id, parseWaitTimeoutMs(args, ctx.maxWaitTimeoutMs)),
+      );
+    }
+    return jsonResult(manager.getStatus(parent, id));
   }
   if (args.workflow_id !== undefined) throw new Error("workflow_id is not accepted for start");
   if (!Array.isArray(args.tasks) || args.tasks.length < 1 || args.tasks.length > 16) {
@@ -139,9 +141,14 @@ export async function dispatchWorkflow(
   );
   const { workflowId } = manager.start(parent, tasks);
   if (selections.length) ctx.recordExplicitSelections?.(selections);
-  return jsonResult(
+  const timeoutMs = parseWaitTimeoutMs(args, ctx.maxWaitTimeoutMs);
+  return workflowToolResult(
     args.background === true
       ? manager.getStatus(parent, workflowId)
-      : await manager.waitFor(parent, workflowId, parseWaitTimeoutMs(args)),
+      : await manager.waitFor(
+          parent,
+          workflowId,
+          Math.max(0, timeoutMs - (Date.now() - startedAt)),
+        ),
   );
 }

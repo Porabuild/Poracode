@@ -137,7 +137,9 @@ export async function spawnAgent(
 ): Promise<McpToolResult> {
   parseResultMode(args);
   const outputOptions = { outputMode: parseOutputMode(args) };
-  const timeoutMs = parseWaitTimeoutMs(args);
+  const startedAt = Date.now();
+  const timeoutMs = parseWaitTimeoutMs(args, ctx.maxWaitTimeoutMs);
+  const remainingWaitMs = () => Math.max(0, timeoutMs - (Date.now() - startedAt));
   const background = args.background === true;
   const crew = ctx.getCrew?.();
   if (args.role !== undefined && (typeof args.role !== "string" || args.role.length === 0)) {
@@ -252,7 +254,7 @@ export async function spawnAgent(
     return runToolResult({
       runs: await ctx.runManager.waitForMany(
         runs.map(({ runId }) => runId),
-        timeoutMs,
+        remainingWaitMs(),
         ctx.parentThreadId,
         { ...outputOptions, fullOutput: args.full_output === true, currentAttemptOnly: true },
       ),
@@ -280,7 +282,7 @@ export async function spawnAgent(
       if (background) {
         return runToolResult({ run_id: runId, status: "running", output: "", ...continuedFrom });
       }
-      const result = await ctx.runManager.waitFor(runId, timeoutMs, ctx.parentThreadId, {
+      const result = await ctx.runManager.waitFor(runId, remainingWaitMs(), ctx.parentThreadId, {
         ...outputOptions,
         fullOutput: args.full_output === true,
         currentAttemptOnly: true,
@@ -305,7 +307,7 @@ export async function spawnAgent(
   if (background) {
     return runToolResult({ run_id: runId, status: "running", output: "" });
   }
-  const result = await ctx.runManager.waitFor(runId, timeoutMs, ctx.parentThreadId, {
+  const result = await ctx.runManager.waitFor(runId, remainingWaitMs(), ctx.parentThreadId, {
     ...outputOptions,
     fullOutput: args.full_output === true,
     currentAttemptOnly: true,

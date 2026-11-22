@@ -359,6 +359,8 @@ export interface SpawnPipelineContext {
   sessions: Map<string, SessionRuntime>;
   pendingStartInterrupts: Set<string>;
   pendingStartAborts: Set<string>;
+  /** Launch-time config visible to host MCP `initialize` before the session attaches. */
+  pendingLaunchConfigs?: Map<string, ThreadConfig>;
   ptyLifecycle: PtyLifecycle;
   /** One host execution-slot owner shared with every counted launch funnel. */
   admission: HostResourceAdmission;
@@ -699,233 +701,458 @@ export class SpawnPipeline {
       executionLocation,
       requestedPresentation,
     );
-    const resolvedMcpServers = await this.resolveMcpServersForLaunch({
-      location: executionLocation,
-      config: launchConfig,
-      mcpLaunchSnapshot,
-      identity: mcpIdentity,
-      crossagentThreadId: payload.threadId,
-      adapter,
-      presentationMode: requestedPresentation,
-    });
-    const threadMentionToolsAvailable = hasThreadMentionTools(resolvedMcpServers);
-    // A fork handoff reads its source thread through the mention in its own
-    // prompt (see `buildForkMentionLaunchInput`), so its whole context rides on
-    // `read_thread` resolving. When it does not, no mention is readable, so
-    // degrade the way a "thread-transcript" switch does — drop them all, start
-    // anyway, and say so — rather than failing a launch the user did not
-    // hand-write. Launches without the marker (a mention the user typed
-    // themselves) still fail loudly below.
-    const handoffMentionUnresolved =
-      payload.mentionHandoff === true &&
-      !threadMentionToolsAvailable &&
-      payload.segments?.some((segment) => segment.kind === "thread") === true;
-    if (handoffMentionUnresolved) {
-      effectiveSegments = effectiveSegments?.filter(
-        (segment) => !isResolvedThreadMentionSegment(segment),
-      );
-      initialPrompt =
-        effectiveSegments && effectiveSegments.length > 0
-          ? formatPrompt(effectiveSegments)
-          : payload.prompt.trim();
-    }
-    // A "thread-transcript" switch (chat → chat) keeps the thread id and the
-    // whole transcript, so the incoming provider reads the prior conversation
-    // straight from the app database instead of being handed a summary. Every
-    // other handoff already carries its context in the prompt and must not get
-    // the instruction on top of it.
-    const handsOverTranscript = payload.providerSwitch?.contextStrategy === "thread-transcript";
-    const handoffInstruction =
-      handsOverTranscript && payload.providerSwitch && threadMentionToolsAvailable
-        ? buildProviderHandoffInstruction(payload.threadId, payload.providerSwitch.fromAgentKind)
-        : undefined;
-    // The client skipped extraction because it expected this session to resolve
-    // `read_thread`, and it did not. Nothing here can rebuild the context (the
-    // previous provider's session is already closed), so the thread says so
-    // instead of leaving the user with a provider that silently lost the
-    // conversation. Emitted below, after the handoff divider and the user's
-    // message, so it reads as a note on the new provider's first turn.
-    const transcriptHandoffLost = handsOverTranscript && !threadMentionToolsAvailable;
-    const inlineInstructions =
-      inlineSkillInstructions && handoffInstruction
-        ? `${handoffInstruction}\n\n${inlineSkillInstructions}`
-        : (handoffInstruction ?? inlineSkillInstructions);
-    // Context for the initial prompt only; never stored on the session.
-    const initialTurnContext = useStructuredFlow
-      ? formatTurnClientContext(payload.clientContext)
-      : undefined;
-    const initialTurnText = {
-      prompt: initialPrompt,
-      ...(inlineInstructions ? { inlineInstructions } : {}),
-      ...(initialTurnContext ? { turnContext: initialTurnContext } : {}),
-    };
-    if (
-      payload.segments?.some((segment) => segment.kind === "thread") &&
-      !threadMentionToolsAvailable &&
-      payload.mentionHandoff !== true
-    ) {
-      throw new Error(
-        "Thread mentions require the Poracode read_thread tool, but it is unavailable for this session.",
-      );
-    }
-    const structuredSession = await this.createStructuredSession(
-      adapter,
-      payload.threadId,
-      payload.agentKind,
-      executionLocation,
-      launchConfig,
-      resolvedMcpServers,
-      mcpIdentity,
-      mcpLaunchSnapshot,
-      payload.sessionRef,
-      requestedPresentation,
-      executionWorkspaceScope,
-    );
-    // Tracks a created-but-unpublished provider handle so every escape path
-    // retires it before the admission slot is settled: a rejected dispose
-    // retains the slot instead of freeing capacity for a possibly-live process.
-    const unpublishedAttempt = this.trackUnpublishedHandle(
-      payload.resourceLease,
-      structuredSession,
-    );
-    if (executionWorkspaceScope?.additionalDirectories.length && !structuredSession?.openThread) {
-      await unpublishedAttempt.abandon();
-      throw new Error("Approved workspace factory must provide a structured GUI open.");
-    }
-    const abortPendingStart = async (): Promise<boolean> => {
-      if (!ctx.pendingStartAborts.delete(payload.threadId)) {
-        return false;
-      }
-      ctx.pendingStartInterrupts.delete(payload.threadId);
-      await unpublishedAttempt.abandon();
-      return true;
-    };
-    if (await abortPendingStart()) {
-      return { threadId: payload.threadId };
-    }
-
-    if (structuredSession?.activate) {
-      try {
-        await structuredSession.activate();
-      } catch (error) {
-        await unpublishedAttempt.abandon();
-        if (ctx.pendingStartInterrupts.delete(payload.threadId)) {
-          return { threadId: payload.threadId };
-        }
-        throw error;
-      }
-    }
-    if (await abortPendingStart()) {
-      return { threadId: payload.threadId };
-    }
-
-    let openedStructuredThreadId: string | undefined;
-    if (structuredSession?.openThread) {
-      try {
-        openedStructuredThreadId = structuredSession.supportsOpenCancellation
-          ? await this.awaitPendingStart(payload.threadId, () =>
-              structuredSession.openThread!(launchConfig, payload.sessionRef),
-            )
-          : await structuredSession.openThread(launchConfig, payload.sessionRef);
-        if (payload.attemptOutcome) payload.attemptOutcome.providerSessionTouched = true;
-      } catch (error) {
-        // Capture before dispose: some handles retire their getter with their
-        // transport. Failed configuration must not lose an allocated identity.
-        let allocatedRef: SessionRef | undefined;
-        try {
-          allocatedRef = structuredSession.getSessionRef?.();
-        } catch {
-          // A broken optional getter must not bypass owned-handle retirement.
-        }
-        if (allocatedRef && payload.attemptOutcome) {
-          payload.attemptOutcome.providerSessionTouched = true;
-        }
-        // Custody follows the presentation this pipeline actually opened, not
-        // the base terminal capability: a GUI runtime's declared resume support
-        // decides whether its retained native ref stays usable.
-        const canResumeWithConfig = capabilitiesForPresentation(
-          adapter.capabilities,
-          requestedPresentation,
-        ).supportsResume;
-        const failure = retainUnpublishedStartSessionRef(
-          error,
-          payload.threadId,
-          payload.agentKind,
-          allocatedRef,
-          canResumeWithConfig,
+    ctx.pendingLaunchConfigs?.set(payload.threadId, launchConfig);
+    try {
+      const resolvedMcpServers = await this.resolveMcpServersForLaunch({
+        location: executionLocation,
+        config: launchConfig,
+        mcpLaunchSnapshot,
+        identity: mcpIdentity,
+        crossagentThreadId: payload.threadId,
+        adapter,
+        presentationMode: requestedPresentation,
+      });
+      const threadMentionToolsAvailable = hasThreadMentionTools(resolvedMcpServers);
+      // A fork handoff reads its source thread through the mention in its own
+      // prompt (see `buildForkMentionLaunchInput`), so its whole context rides on
+      // `read_thread` resolving. When it does not, no mention is readable, so
+      // degrade the way a "thread-transcript" switch does — drop them all, start
+      // anyway, and say so — rather than failing a launch the user did not
+      // hand-write. Launches without the marker (a mention the user typed
+      // themselves) still fail loudly below.
+      const handoffMentionUnresolved =
+        payload.mentionHandoff === true &&
+        !threadMentionToolsAvailable &&
+        payload.segments?.some((segment) => segment.kind === "thread") === true;
+      if (handoffMentionUnresolved) {
+        effectiveSegments = effectiveSegments?.filter(
+          (segment) => !isResolvedThreadMentionSegment(segment),
         );
+        initialPrompt =
+          effectiveSegments && effectiveSegments.length > 0
+            ? formatPrompt(effectiveSegments)
+            : payload.prompt.trim();
+      }
+      // A "thread-transcript" switch (chat → chat) keeps the thread id and the
+      // whole transcript, so the incoming provider reads the prior conversation
+      // straight from the app database instead of being handed a summary. Every
+      // other handoff already carries its context in the prompt and must not get
+      // the instruction on top of it.
+      const handsOverTranscript = payload.providerSwitch?.contextStrategy === "thread-transcript";
+      const handoffInstruction =
+        handsOverTranscript && payload.providerSwitch && threadMentionToolsAvailable
+          ? buildProviderHandoffInstruction(payload.threadId, payload.providerSwitch.fromAgentKind)
+          : undefined;
+      // The client skipped extraction because it expected this session to resolve
+      // `read_thread`, and it did not. Nothing here can rebuild the context (the
+      // previous provider's session is already closed), so the thread says so
+      // instead of leaving the user with a provider that silently lost the
+      // conversation. Emitted below, after the handoff divider and the user's
+      // message, so it reads as a note on the new provider's first turn.
+      const transcriptHandoffLost = handsOverTranscript && !threadMentionToolsAvailable;
+      const inlineInstructions =
+        inlineSkillInstructions && handoffInstruction
+          ? `${handoffInstruction}\n\n${inlineSkillInstructions}`
+          : (handoffInstruction ?? inlineSkillInstructions);
+      // Context for the initial prompt only; never stored on the session.
+      const initialTurnContext = useStructuredFlow
+        ? formatTurnClientContext(payload.clientContext)
+        : undefined;
+      const initialTurnText = {
+        prompt: initialPrompt,
+        ...(inlineInstructions ? { inlineInstructions } : {}),
+        ...(initialTurnContext ? { turnContext: initialTurnContext } : {}),
+      };
+      if (
+        payload.segments?.some((segment) => segment.kind === "thread") &&
+        !threadMentionToolsAvailable &&
+        payload.mentionHandoff !== true
+      ) {
+        throw new Error(
+          "Thread mentions require the Poracode read_thread tool, but it is unavailable for this session.",
+        );
+      }
+      const structuredSession = await this.createStructuredSession(
+        adapter,
+        payload.threadId,
+        payload.agentKind,
+        executionLocation,
+        launchConfig,
+        resolvedMcpServers,
+        mcpIdentity,
+        mcpLaunchSnapshot,
+        payload.sessionRef,
+        requestedPresentation,
+        executionWorkspaceScope,
+      );
+      // Tracks a created-but-unpublished provider handle so every escape path
+      // retires it before the admission slot is settled: a rejected dispose
+      // retains the slot instead of freeing capacity for a possibly-live process.
+      const unpublishedAttempt = this.trackUnpublishedHandle(
+        payload.resourceLease,
+        structuredSession,
+      );
+      if (executionWorkspaceScope?.additionalDirectories.length && !structuredSession?.openThread) {
+        await unpublishedAttempt.abandon();
+        throw new Error("Approved workspace factory must provide a structured GUI open.");
+      }
+      const abortPendingStart = async (): Promise<boolean> => {
+        if (!ctx.pendingStartAborts.delete(payload.threadId)) {
+          return false;
+        }
+        ctx.pendingStartInterrupts.delete(payload.threadId);
+        await unpublishedAttempt.abandon();
+        return true;
+      };
+      if (await abortPendingStart()) {
+        return { threadId: payload.threadId };
+      }
+
+      if (structuredSession?.activate) {
         try {
+          await structuredSession.activate();
+        } catch (error) {
           await unpublishedAttempt.abandon();
-        } catch (retirementError) {
-          retainUnpublishedStartSessionRef(failure, payload.threadId, payload.agentKind, undefined);
-          throw retainUnpublishedStartSessionRef(
-            retirementError,
+          if (ctx.pendingStartInterrupts.delete(payload.threadId)) {
+            return { threadId: payload.threadId };
+          }
+          throw error;
+        }
+      }
+      if (await abortPendingStart()) {
+        return { threadId: payload.threadId };
+      }
+
+      let openedStructuredThreadId: string | undefined;
+      if (structuredSession?.openThread) {
+        try {
+          openedStructuredThreadId = structuredSession.supportsOpenCancellation
+            ? await this.awaitPendingStart(payload.threadId, () =>
+                structuredSession.openThread!(launchConfig, payload.sessionRef),
+              )
+            : await structuredSession.openThread(launchConfig, payload.sessionRef);
+          if (payload.attemptOutcome) payload.attemptOutcome.providerSessionTouched = true;
+        } catch (error) {
+          // Capture before dispose: some handles retire their getter with their
+          // transport. Failed configuration must not lose an allocated identity.
+          let allocatedRef: SessionRef | undefined;
+          try {
+            allocatedRef = structuredSession.getSessionRef?.();
+          } catch {
+            // A broken optional getter must not bypass owned-handle retirement.
+          }
+          if (allocatedRef && payload.attemptOutcome) {
+            payload.attemptOutcome.providerSessionTouched = true;
+          }
+          // Custody follows the presentation this pipeline actually opened, not
+          // the base terminal capability: a GUI runtime's declared resume support
+          // decides whether its retained native ref stays usable.
+          const canResumeWithConfig = capabilitiesForPresentation(
+            adapter.capabilities,
+            requestedPresentation,
+          ).supportsResume;
+          const failure = retainUnpublishedStartSessionRef(
+            error,
             payload.threadId,
             payload.agentKind,
             allocatedRef,
             canResumeWithConfig,
           );
+          try {
+            await unpublishedAttempt.abandon();
+          } catch (retirementError) {
+            retainUnpublishedStartSessionRef(
+              failure,
+              payload.threadId,
+              payload.agentKind,
+              undefined,
+            );
+            throw retainUnpublishedStartSessionRef(
+              retirementError,
+              payload.threadId,
+              payload.agentKind,
+              allocatedRef,
+              canResumeWithConfig,
+            );
+          }
+          if (error instanceof PendingStartCancelledError) return { threadId: payload.threadId };
+          if (ctx.pendingStartInterrupts.delete(payload.threadId)) {
+            publishUnpublishedStartInterruption(payload.threadId, failure, ctx.runtimeEventRouter);
+            return { threadId: payload.threadId };
+          }
+          throw failure;
         }
-        if (error instanceof PendingStartCancelledError) return { threadId: payload.threadId };
-        if (ctx.pendingStartInterrupts.delete(payload.threadId)) {
-          publishUnpublishedStartInterruption(payload.threadId, failure, ctx.runtimeEventRouter);
-          return { threadId: payload.threadId };
-        }
-        throw failure;
       }
-    }
-    if (await abortPendingStart()) {
-      return { threadId: payload.threadId };
-    }
+      if (await abortPendingStart()) {
+        return { threadId: payload.threadId };
+      }
 
-    if (!usesTerminalPresentation) {
-      if (!structuredSession) {
-        throw new Error(
-          `Agent ${payload.agentKind} does not support ${requestedPresentation} presentation.`,
-        );
+      if (!usesTerminalPresentation) {
+        if (!structuredSession) {
+          throw new Error(
+            `Agent ${payload.agentKind} does not support ${requestedPresentation} presentation.`,
+          );
+        }
+        if (payload.providerSwitch) {
+          ctx.emitProviderHandoff(
+            payload.threadId,
+            payload.providerSwitch.fromAgentKind,
+            payload.agentKind,
+            payload.providerSwitch.handoffItemId,
+          );
+        }
+        // Provider-switch input follows the handoff divider, once the provider
+        // session has opened. Fresh and resumed GUI prompts admitted above keep
+        // their existing canonical row; reuse the client's id on this delayed
+        // path too, so every explicit prompt is shown and sent exactly once.
+        // A prompt-less reopen paints nothing and starts no turn.
+        if (optimisticUserMessageItemId === undefined && initialPrompt.length > 0) {
+          optimisticUserMessageItemId = ctx.emitOptimisticUserMessage(
+            payload.threadId,
+            initialPrompt,
+            payload.segments,
+            payload.userMessageItemId,
+            ...(payload.questionAnswer
+              ? ([{ questionAnswer: payload.questionAnswer }] as const)
+              : []),
+          );
+          this.emitOptimisticWorkingState(payload.threadId, runtimeConfig, optimisticLaunchConfig);
+        }
+        if (transcriptHandoffLost || handoffMentionUnresolved) {
+          ctx.runtimeEventRouter.append(payload.threadId, {
+            type: "warning",
+            threadId: payload.threadId,
+            message: handoffMentionUnresolved
+              ? msg("supervisor.forkTranscriptUnavailable", { agent: adapter.label })
+              : msg("supervisor.handoffTranscriptUnavailable", { agent: adapter.label }),
+          });
+        }
+        const resolvedSessionRef =
+          payload.sessionRef ??
+          structuredSession?.getSessionRef?.() ??
+          (openedStructuredThreadId ? createKnownSessionRef(openedStructuredThreadId) : undefined);
+        const startInterrupted = ctx.pendingStartInterrupts.delete(payload.threadId);
+        let session: SessionRuntime;
+        try {
+          session = this.spawnThread({
+            threadId: payload.threadId,
+            adapter,
+            agentKind: payload.agentKind,
+            ...(executionLocation !== payload.projectLocation
+              ? { logicalProjectLocation: payload.projectLocation }
+              : {}),
+            projectLocation: executionLocation,
+            ...(payload.workspaceScope ? { workspaceScope: payload.workspaceScope } : {}),
+            ...(executionWorkspaceScope ? { executionWorkspaceScope } : {}),
+            config: runtimeConfig,
+            initialSize: payload.initialSize,
+            launchPrompt: "",
+            ...(payload.initialInstructions
+              ? { initialInstructions: payload.initialInstructions }
+              : {}),
+            structuredSession,
+            ...(payload.resourceLease ? { resourceLease: payload.resourceLease } : {}),
+            ...(resolvedSessionRef ? { sessionRef: resolvedSessionRef } : {}),
+            presentationMode: requestedPresentation,
+            initialStatus: optimisticUserMessageItemId && !startInterrupted ? "working" : "idle",
+            initialAttention: optimisticUserMessageItemId && !startInterrupted ? "working" : "none",
+            suppressInitialStructuredIdle:
+              optimisticUserMessageItemId !== undefined && !startInterrupted,
+            mcpLaunchSnapshot,
+            ...(mcpIdentity.title ? { mcpTitle: mcpIdentity.title } : {}),
+            threadMentionToolsAvailable,
+            launchConfig,
+            crossagentsMcpAttached: hasCrossagentsMcp(resolvedMcpServers),
+            crossagentsMcpAvailable: ctx.options.crossagentMcp !== undefined,
+            nativePlugins,
+          });
+        } catch (error) {
+          await unpublishedAttempt.abandon();
+          throw error;
+        }
+        unpublishedAttempt.detach();
+        // Initial admission after a successful open — a first turn or a resume
+        // whose payload carries an explicit new prompt. Paired with the
+        // optimistic emission above so the canonical user row and this turn
+        // share one id (the renderer's when it supplied one). An empty-prompt
+        // resume stays load-only.
+        if (!startInterrupted && initialPrompt.length > 0 && structuredSession.startTurn) {
+          const startOptions = {
+            ...(optimisticUserMessageItemId
+              ? { userMessageItemId: optimisticUserMessageItemId }
+              : {}),
+            ...(payload.questionAnswer ? { questionAnswer: payload.questionAnswer } : {}),
+            ...structuredTurnTextOptions(session, { ...initialTurnText, config: launchConfig }),
+          };
+          void structuredSession
+            .startTurn(
+              initialPrompt,
+              launchConfig,
+              effectiveSegments,
+              Object.keys(startOptions).length > 0 ? startOptions : undefined,
+            )
+            .then(
+              (result) => {
+                if (ctx.isCurrentSession(session)) {
+                  settleStructuredStartupWithoutTurn(session, result, ctx.outputPipeline);
+                  if (!session.ignoreExit && isCompletedWithoutTurn(result))
+                    ctx.onStructuredTurnCompletedWithoutTurn(session);
+                }
+              },
+              (error) => {
+                if (!session.ignoreExit && ctx.isCurrentSession(session))
+                  ctx.failStructuredSession(session, error);
+              },
+            );
+        }
+        return { threadId: payload.threadId };
       }
-      if (payload.providerSwitch) {
-        ctx.emitProviderHandoff(
-          payload.threadId,
-          payload.providerSwitch.fromAgentKind,
-          payload.agentKind,
-          payload.providerSwitch.handoffItemId,
-        );
-      }
-      // Provider-switch input follows the handoff divider, once the provider
-      // session has opened. Fresh and resumed GUI prompts admitted above keep
-      // their existing canonical row; reuse the client's id on this delayed
-      // path too, so every explicit prompt is shown and sent exactly once.
-      // A prompt-less reopen paints nothing and starts no turn.
-      if (optimisticUserMessageItemId === undefined && initialPrompt.length > 0) {
-        optimisticUserMessageItemId = ctx.emitOptimisticUserMessage(
-          payload.threadId,
-          initialPrompt,
-          payload.segments,
-          payload.userMessageItemId,
-          ...(payload.questionAnswer
-            ? ([{ questionAnswer: payload.questionAnswer }] as const)
-            : []),
-        );
-        this.emitOptimisticWorkingState(payload.threadId, runtimeConfig, optimisticLaunchConfig);
-      }
-      if (transcriptHandoffLost || handoffMentionUnresolved) {
-        ctx.runtimeEventRouter.append(payload.threadId, {
-          type: "warning",
-          threadId: payload.threadId,
-          message: handoffMentionUnresolved
-            ? msg("supervisor.forkTranscriptUnavailable", { agent: adapter.label })
-            : msg("supervisor.handoffTranscriptUnavailable", { agent: adapter.label }),
+
+      let initialInstructionsApplied = false;
+      if (
+        !payload.sessionRef &&
+        useStructuredFlow &&
+        initialPrompt.length > 0 &&
+        !shouldQueueInitialPrompt &&
+        structuredSession?.startTurn
+      ) {
+        const initialTarget = {
+          structuredSession,
+          slashCommands: ctx.sessions.get(payload.threadId)?.slashCommands,
+          config: runtimeConfig,
+          launchConfig,
+          mcpLaunchSnapshot,
+          adapter,
+          presentationMode: requestedPresentation,
+          ...(pendingInitialInstructions ? { pendingInitialInstructions } : {}),
+          onInitialInstructionsApplied: () => {
+            pendingInitialInstructions = undefined;
+            initialInstructionsApplied = true;
+            const active = ctx.sessions.get(payload.threadId);
+            if (active && active.pendingInitialInstructions === payload.initialInstructions) {
+              active.pendingInitialInstructions = undefined;
+              active.onInitialInstructionsApplied?.();
+            }
+          },
+          crossagentsMcpAttached: hasCrossagentsMcp(resolvedMcpServers),
+          crossagentsMcpAvailable: ctx.options.crossagentMcp !== undefined,
+          onCrewBriefDelivered: (fingerprint: string) => {
+            pendingCrewBriefDelivered = fingerprint;
+            const active = ctx.sessions.get(payload.threadId);
+            if (active) active.crewBriefDelivered = fingerprint;
+          },
+        };
+        const initialTextOptions = structuredTurnTextOptions(initialTarget, {
+          ...initialTurnText,
+          config: launchConfig,
         });
+        if (payload.attemptOutcome) payload.attemptOutcome.launchTurnDispatched = true;
+        void structuredSession
+          .startTurn(
+            initialPrompt,
+            launchConfig,
+            effectiveSegments,
+            Object.keys(initialTextOptions).length > 0 ? initialTextOptions : undefined,
+          )
+          .catch((error) => {
+            console.error("[supervisor] initial turn failed:", error);
+            const activeSession = ctx.sessions.get(payload.threadId);
+            if (!activeSession) {
+              return;
+            }
+            ctx.failStructuredSession(activeSession, error);
+          });
       }
-      const resolvedSessionRef =
-        payload.sessionRef ??
-        structuredSession?.getSessionRef?.() ??
-        (openedStructuredThreadId ? createKnownSessionRef(openedStructuredThreadId) : undefined);
-      const startInterrupted = ctx.pendingStartInterrupts.delete(payload.threadId);
-      let session: SessionRuntime;
+
+      if (shouldQueueInitialPrompt) {
+        await structuredSession?.ensureResumeArtifacts?.();
+      }
+
+      const deferToTerminal = adapter.shouldDeferPromptToTerminal?.(runtimeConfig) ?? false;
+      // Use `initialPrompt` (the adapter-formatted version with `~/` shortening
+      // and WSL path rewriting) so attachments hand off cleanly as the launch
+      // arg instead of being staged for a deferred PTY-write.
+      const launchPrompt = useStructuredFlow || deferToTerminal ? "" : initialPrompt;
+      const launchOptionsWithMcp = this.composeLaunchOptions(
+        adapter,
+        structuredSession?.launchOptions,
+        resolvedMcpServers,
+        executionLocation,
+        payload.threadId,
+      );
+      const argv = payload.sessionRef
+        ? await adapter.buildResumeArgv(
+            executionLocation,
+            launchConfig,
+            launchPrompt,
+            payload.sessionRef,
+            launchOptionsWithMcp,
+          )
+        : await adapter.buildLaunchArgv(
+            executionLocation,
+            launchConfig,
+            launchPrompt,
+            payload.sessionRef,
+            launchOptionsWithMcp,
+          );
+
+      // Append CLI hook plugin args (e.g. Claude `--settings <path>`); env vars
+      // (`PORACODE_HOOK_URL`, `PORACODE_HOOK_SECRET`, `PORACODE_THREAD_ID`,
+      // `PORACODE_AGENT_KIND`, `PORACODE_HOOK_PROTOCOL_VERSION`) flow through
+      // `spawnThread` → `agentEnv` so they end up in the PTY env on every
+      // platform (WSL, win32, posix). Failure to resolve plugin extras silently
+      // degrades to L2 — the supervisor must never block thread creation on
+      // the hook-plugin plumbing.
+      const cliHookExtras = await ctx.cliHookPlugin.resolveCliHookPluginExtras(
+        payload.threadId,
+        payload.agentKind,
+        executionLocation,
+        resolvedMcpServers,
+      );
+      if (cliHookExtras.extraArgs.length > 0) {
+        argv.args = mergeCliHookExtraArgs(
+          adapter,
+          argv.args,
+          cliHookExtras.extraArgs,
+          launchPrompt,
+          payload.sessionRef,
+        );
+      }
       try {
-        session = this.spawnThread({
+        argv.args = await applyLaunchArgsConfigRewrite(
+          adapter,
+          argv.args,
+          runtimeConfig,
+          executionLocation,
+        );
+      } catch (error) {
+        await argv.cleanup?.();
+        await unpublishedAttempt.abandon();
+        throw error;
+      }
+      if (shouldPrimeNativeProjectShellEnv(executionLocation)) {
+        await primeProjectShellEnv(executionLocation.path);
+      }
+      const command = await resolveLaunchSpec(executionLocation, argv);
+
+      const keepStructuredSession = structuredSession && useStructuredFlow;
+      if (structuredSession && !keepStructuredSession) {
+        unpublishedAttempt.detach();
+        // Discarding a non-kept handle must not silently drop a failed
+        // disposal: a rejection retains {lease, handle} custody so a later
+        // start can retry the cleanup instead of leaking the reservation.
+        await ctx.retirement.discardStructuredHandle(payload.resourceLease, structuredSession);
+      }
+      if (ctx.pendingStartAborts.delete(payload.threadId)) {
+        ctx.pendingStartInterrupts.delete(payload.threadId);
+        await unpublishedAttempt.abandon();
+        await command.cleanup?.();
+        return { threadId: payload.threadId };
+      }
+
+      const resolvedSessionRef = payload.sessionRef ?? command.sessionRef;
+      try {
+        this.spawnThread({
           threadId: payload.threadId,
           adapter,
           agentKind: payload.agentKind,
@@ -937,264 +1164,51 @@ export class SpawnPipeline {
           ...(executionWorkspaceScope ? { executionWorkspaceScope } : {}),
           config: runtimeConfig,
           initialSize: payload.initialSize,
-          launchPrompt: "",
-          ...(payload.initialInstructions
-            ? { initialInstructions: payload.initialInstructions }
+          launchPrompt,
+          command,
+          ...(Object.keys(cliHookExtras.env).length > 0 ? { extraEnv: cliHookExtras.env } : {}),
+          ...(keepStructuredSession ? { structuredSession } : {}),
+          ...(keepStructuredSession && pendingInitialInstructions
+            ? { initialInstructions: pendingInitialInstructions }
             : {}),
-          structuredSession,
+          ...(initialInstructionsApplied ? { initialInstructionsApplied: true } : {}),
           ...(payload.resourceLease ? { resourceLease: payload.resourceLease } : {}),
           ...(resolvedSessionRef ? { sessionRef: resolvedSessionRef } : {}),
-          presentationMode: requestedPresentation,
-          initialStatus: optimisticUserMessageItemId && !startInterrupted ? "working" : "idle",
-          initialAttention: optimisticUserMessageItemId && !startInterrupted ? "working" : "none",
-          suppressInitialStructuredIdle:
-            optimisticUserMessageItemId !== undefined && !startInterrupted,
           mcpLaunchSnapshot,
           ...(mcpIdentity.title ? { mcpTitle: mcpIdentity.title } : {}),
           threadMentionToolsAvailable,
           launchConfig,
           crossagentsMcpAttached: hasCrossagentsMcp(resolvedMcpServers),
           crossagentsMcpAvailable: ctx.options.crossagentMcp !== undefined,
+          ...(pendingCrewBriefDelivered !== undefined
+            ? { crewBriefDelivered: pendingCrewBriefDelivered }
+            : {}),
           nativePlugins,
+          ...(shouldQueueInitialPrompt ? { pendingLaunchPrompt: initialPrompt } : {}),
+          presentationMode: requestedPresentation,
+          ...(deferToTerminal && !useStructuredFlow
+            ? (() => {
+                const preInputs = adapter.buildTerminalPreInputs?.(runtimeConfig);
+                return {
+                  ...(preInputs ? { pendingTerminalPreInputs: preInputs } : {}),
+                  pendingTerminalPrompt: initialPrompt,
+                  ...(effectiveSegments ? { pendingTerminalSegments: effectiveSegments } : {}),
+                };
+              })()
+            : {}),
         });
       } catch (error) {
         await unpublishedAttempt.abandon();
         throw error;
       }
       unpublishedAttempt.detach();
-      // Initial admission after a successful open — a first turn or a resume
-      // whose payload carries an explicit new prompt. Paired with the
-      // optimistic emission above so the canonical user row and this turn
-      // share one id (the renderer's when it supplied one). An empty-prompt
-      // resume stays load-only.
-      if (!startInterrupted && initialPrompt.length > 0 && structuredSession.startTurn) {
-        const startOptions = {
-          ...(optimisticUserMessageItemId
-            ? { userMessageItemId: optimisticUserMessageItemId }
-            : {}),
-          ...(payload.questionAnswer ? { questionAnswer: payload.questionAnswer } : {}),
-          ...structuredTurnTextOptions(session, { ...initialTurnText, config: launchConfig }),
-        };
-        void structuredSession
-          .startTurn(
-            initialPrompt,
-            launchConfig,
-            effectiveSegments,
-            Object.keys(startOptions).length > 0 ? startOptions : undefined,
-          )
-          .then(
-            (result) => {
-              if (ctx.isCurrentSession(session)) {
-                settleStructuredStartupWithoutTurn(session, result, ctx.outputPipeline);
-                if (!session.ignoreExit && isCompletedWithoutTurn(result))
-                  ctx.onStructuredTurnCompletedWithoutTurn(session);
-              }
-            },
-            (error) => {
-              if (!session.ignoreExit && ctx.isCurrentSession(session))
-                ctx.failStructuredSession(session, error);
-            },
-          );
+
+      return { threadId: payload.threadId };
+    } finally {
+      if (ctx.pendingLaunchConfigs?.get(payload.threadId) === launchConfig) {
+        ctx.pendingLaunchConfigs.delete(payload.threadId);
       }
-      return { threadId: payload.threadId };
     }
-
-    let initialInstructionsApplied = false;
-    if (
-      !payload.sessionRef &&
-      useStructuredFlow &&
-      initialPrompt.length > 0 &&
-      !shouldQueueInitialPrompt &&
-      structuredSession?.startTurn
-    ) {
-      const initialTarget = {
-        structuredSession,
-        slashCommands: ctx.sessions.get(payload.threadId)?.slashCommands,
-        config: runtimeConfig,
-        launchConfig,
-        mcpLaunchSnapshot,
-        adapter,
-        presentationMode: requestedPresentation,
-        ...(pendingInitialInstructions ? { pendingInitialInstructions } : {}),
-        onInitialInstructionsApplied: () => {
-          pendingInitialInstructions = undefined;
-          initialInstructionsApplied = true;
-          const active = ctx.sessions.get(payload.threadId);
-          if (active && active.pendingInitialInstructions === payload.initialInstructions) {
-            active.pendingInitialInstructions = undefined;
-            active.onInitialInstructionsApplied?.();
-          }
-        },
-        crossagentsMcpAttached: hasCrossagentsMcp(resolvedMcpServers),
-        crossagentsMcpAvailable: ctx.options.crossagentMcp !== undefined,
-        onCrewBriefDelivered: (fingerprint: string) => {
-          pendingCrewBriefDelivered = fingerprint;
-          const active = ctx.sessions.get(payload.threadId);
-          if (active) active.crewBriefDelivered = fingerprint;
-        },
-      };
-      const initialTextOptions = structuredTurnTextOptions(initialTarget, {
-        ...initialTurnText,
-        config: launchConfig,
-      });
-      if (payload.attemptOutcome) payload.attemptOutcome.launchTurnDispatched = true;
-      void structuredSession
-        .startTurn(
-          initialPrompt,
-          launchConfig,
-          effectiveSegments,
-          Object.keys(initialTextOptions).length > 0 ? initialTextOptions : undefined,
-        )
-        .catch((error) => {
-          console.error("[supervisor] initial turn failed:", error);
-          const activeSession = ctx.sessions.get(payload.threadId);
-          if (!activeSession) {
-            return;
-          }
-          ctx.failStructuredSession(activeSession, error);
-        });
-    }
-
-    if (shouldQueueInitialPrompt) {
-      await structuredSession?.ensureResumeArtifacts?.();
-    }
-
-    const deferToTerminal = adapter.shouldDeferPromptToTerminal?.(runtimeConfig) ?? false;
-    // Use `initialPrompt` (the adapter-formatted version with `~/` shortening
-    // and WSL path rewriting) so attachments hand off cleanly as the launch
-    // arg instead of being staged for a deferred PTY-write.
-    const launchPrompt = useStructuredFlow || deferToTerminal ? "" : initialPrompt;
-    const launchOptionsWithMcp = this.composeLaunchOptions(
-      adapter,
-      structuredSession?.launchOptions,
-      resolvedMcpServers,
-      executionLocation,
-      payload.threadId,
-    );
-    const argv = payload.sessionRef
-      ? await adapter.buildResumeArgv(
-          executionLocation,
-          launchConfig,
-          launchPrompt,
-          payload.sessionRef,
-          launchOptionsWithMcp,
-        )
-      : await adapter.buildLaunchArgv(
-          executionLocation,
-          launchConfig,
-          launchPrompt,
-          payload.sessionRef,
-          launchOptionsWithMcp,
-        );
-
-    // Append CLI hook plugin args (e.g. Claude `--settings <path>`); env vars
-    // (`PORACODE_HOOK_URL`, `PORACODE_HOOK_SECRET`, `PORACODE_THREAD_ID`,
-    // `PORACODE_AGENT_KIND`, `PORACODE_HOOK_PROTOCOL_VERSION`) flow through
-    // `spawnThread` → `agentEnv` so they end up in the PTY env on every
-    // platform (WSL, win32, posix). Failure to resolve plugin extras silently
-    // degrades to L2 — the supervisor must never block thread creation on
-    // the hook-plugin plumbing.
-    const cliHookExtras = await ctx.cliHookPlugin.resolveCliHookPluginExtras(
-      payload.threadId,
-      payload.agentKind,
-      executionLocation,
-      resolvedMcpServers,
-    );
-    if (cliHookExtras.extraArgs.length > 0) {
-      argv.args = mergeCliHookExtraArgs(
-        adapter,
-        argv.args,
-        cliHookExtras.extraArgs,
-        launchPrompt,
-        payload.sessionRef,
-      );
-    }
-    try {
-      argv.args = await applyLaunchArgsConfigRewrite(
-        adapter,
-        argv.args,
-        runtimeConfig,
-        executionLocation,
-      );
-    } catch (error) {
-      await argv.cleanup?.();
-      await unpublishedAttempt.abandon();
-      throw error;
-    }
-    if (shouldPrimeNativeProjectShellEnv(executionLocation)) {
-      await primeProjectShellEnv(executionLocation.path);
-    }
-    const command = await resolveLaunchSpec(executionLocation, argv);
-
-    const keepStructuredSession = structuredSession && useStructuredFlow;
-    if (structuredSession && !keepStructuredSession) {
-      unpublishedAttempt.detach();
-      // Discarding a non-kept handle must not silently drop a failed
-      // disposal: a rejection retains {lease, handle} custody so a later
-      // start can retry the cleanup instead of leaking the reservation.
-      await ctx.retirement.discardStructuredHandle(payload.resourceLease, structuredSession);
-    }
-    if (ctx.pendingStartAborts.delete(payload.threadId)) {
-      ctx.pendingStartInterrupts.delete(payload.threadId);
-      await unpublishedAttempt.abandon();
-      await command.cleanup?.();
-      return { threadId: payload.threadId };
-    }
-
-    const resolvedSessionRef = payload.sessionRef ?? command.sessionRef;
-    try {
-      this.spawnThread({
-        threadId: payload.threadId,
-        adapter,
-        agentKind: payload.agentKind,
-        ...(executionLocation !== payload.projectLocation
-          ? { logicalProjectLocation: payload.projectLocation }
-          : {}),
-        projectLocation: executionLocation,
-        ...(payload.workspaceScope ? { workspaceScope: payload.workspaceScope } : {}),
-        ...(executionWorkspaceScope ? { executionWorkspaceScope } : {}),
-        config: runtimeConfig,
-        initialSize: payload.initialSize,
-        launchPrompt,
-        command,
-        ...(Object.keys(cliHookExtras.env).length > 0 ? { extraEnv: cliHookExtras.env } : {}),
-        ...(keepStructuredSession ? { structuredSession } : {}),
-        ...(keepStructuredSession && pendingInitialInstructions
-          ? { initialInstructions: pendingInitialInstructions }
-          : {}),
-        ...(initialInstructionsApplied ? { initialInstructionsApplied: true } : {}),
-        ...(payload.resourceLease ? { resourceLease: payload.resourceLease } : {}),
-        ...(resolvedSessionRef ? { sessionRef: resolvedSessionRef } : {}),
-        mcpLaunchSnapshot,
-        ...(mcpIdentity.title ? { mcpTitle: mcpIdentity.title } : {}),
-        threadMentionToolsAvailable,
-        launchConfig,
-        crossagentsMcpAttached: hasCrossagentsMcp(resolvedMcpServers),
-        crossagentsMcpAvailable: ctx.options.crossagentMcp !== undefined,
-        ...(pendingCrewBriefDelivered !== undefined
-          ? { crewBriefDelivered: pendingCrewBriefDelivered }
-          : {}),
-        nativePlugins,
-        ...(shouldQueueInitialPrompt ? { pendingLaunchPrompt: initialPrompt } : {}),
-        presentationMode: requestedPresentation,
-        ...(deferToTerminal && !useStructuredFlow
-          ? (() => {
-              const preInputs = adapter.buildTerminalPreInputs?.(runtimeConfig);
-              return {
-                ...(preInputs ? { pendingTerminalPreInputs: preInputs } : {}),
-                pendingTerminalPrompt: initialPrompt,
-                ...(effectiveSegments ? { pendingTerminalSegments: effectiveSegments } : {}),
-              };
-            })()
-          : {}),
-      });
-    } catch (error) {
-      await unpublishedAttempt.abandon();
-      throw error;
-    }
-    unpublishedAttempt.detach();
-
-    return { threadId: payload.threadId };
   }
 
   async restartThread(
@@ -1304,78 +1318,258 @@ export class SpawnPipeline {
       executionLocation,
       session.presentationMode ?? session.adapter.capabilities.presentationMode,
     );
-    const resolvedMcpServers = await this.resolveMcpServersForLaunch({
-      location: executionLocation,
-      config: launchConfig,
-      mcpLaunchSnapshot,
-      identity: mcpIdentity,
-      crossagentThreadId: session.threadId,
-      adapter: session.adapter,
-      ...(session.presentationMode ? { presentationMode: session.presentationMode } : {}),
-    });
-    const structuredSession = await this.createStructuredSession(
-      session.adapter,
-      session.threadId,
-      session.agentKind,
-      executionLocation,
-      launchConfig,
-      resolvedMcpServers,
-      mcpIdentity,
-      mcpLaunchSnapshot,
-      session.sessionRef,
-      session.presentationMode,
-      executionWorkspaceScope,
-    ).catch((error: unknown) => {
-      // A refused factory returned no handle to track. Retire the unused
-      // successor reservation; the predecessor lease has its own custody.
-      resourceLease.cancel();
-      throw error;
-    });
-    const unpublishedAttempt = this.trackUnpublishedHandle(resourceLease, structuredSession);
-    if (executionWorkspaceScope?.additionalDirectories.length && !structuredSession?.openThread) {
-      await unpublishedAttempt.abandon();
-      throw new Error("Approved workspace factory must provide a structured GUI open.");
-    }
-    if (!ctx.isCurrentSession(session)) {
-      await unpublishedAttempt.abandon();
-      return;
-    }
-
-    if (structuredSession?.activate) {
-      try {
-        await structuredSession.activate();
-      } catch (error) {
-        await unpublishedAttempt.abandon();
-        throw error;
-      }
-    }
-    if (!ctx.isCurrentSession(session)) {
-      await unpublishedAttempt.abandon();
-      return;
-    }
-
-    if (structuredSession?.openThread) {
-      try {
-        await structuredSession.openThread(launchConfig, session.sessionRef);
-      } catch (error) {
-        await unpublishedAttempt.abandon();
-        throw error;
-      }
-    }
-    if (!ctx.isCurrentSession(session)) {
-      await unpublishedAttempt.abandon();
-      return;
-    }
-
-    if (!usesTerminalPresentation) {
-      if (!structuredSession) {
+    ctx.pendingLaunchConfigs?.set(session.threadId, launchConfig);
+    try {
+      const resolvedMcpServers = await this.resolveMcpServersForLaunch({
+        location: executionLocation,
+        config: launchConfig,
+        mcpLaunchSnapshot,
+        identity: mcpIdentity,
+        crossagentThreadId: session.threadId,
+        adapter: session.adapter,
+        ...(session.presentationMode ? { presentationMode: session.presentationMode } : {}),
+      });
+      const structuredSession = await this.createStructuredSession(
+        session.adapter,
+        session.threadId,
+        session.agentKind,
+        executionLocation,
+        launchConfig,
+        resolvedMcpServers,
+        mcpIdentity,
+        mcpLaunchSnapshot,
+        session.sessionRef,
+        session.presentationMode,
+        executionWorkspaceScope,
+      ).catch((error: unknown) => {
+        // A refused factory returned no handle to track. Retire the unused
+        // successor reservation; the predecessor lease has its own custody.
         resourceLease.cancel();
-        throw new Error(`Thread ${session.threadId} cannot restart without a structured session.`);
+        throw error;
+      });
+      const unpublishedAttempt = this.trackUnpublishedHandle(resourceLease, structuredSession);
+      if (executionWorkspaceScope?.additionalDirectories.length && !structuredSession?.openThread) {
+        await unpublishedAttempt.abandon();
+        throw new Error("Approved workspace factory must provide a structured GUI open.");
       }
-      let replacement: SessionRuntime;
-      const hasPrompt = prompt.trim().length > 0 && structuredSession.startTurn !== undefined;
+      if (!ctx.isCurrentSession(session)) {
+        await unpublishedAttempt.abandon();
+        return;
+      }
+
+      if (structuredSession?.activate) {
+        try {
+          await structuredSession.activate();
+        } catch (error) {
+          await unpublishedAttempt.abandon();
+          throw error;
+        }
+      }
+      if (!ctx.isCurrentSession(session)) {
+        await unpublishedAttempt.abandon();
+        return;
+      }
+
+      if (structuredSession?.openThread) {
+        try {
+          await structuredSession.openThread(launchConfig, session.sessionRef);
+        } catch (error) {
+          await unpublishedAttempt.abandon();
+          throw error;
+        }
+      }
+      if (!ctx.isCurrentSession(session)) {
+        await unpublishedAttempt.abandon();
+        return;
+      }
+
+      if (!usesTerminalPresentation) {
+        if (!structuredSession) {
+          resourceLease.cancel();
+          throw new Error(
+            `Thread ${session.threadId} cannot restart without a structured session.`,
+          );
+        }
+        let replacement: SessionRuntime;
+        const hasPrompt = prompt.trim().length > 0 && structuredSession.startTurn !== undefined;
+        try {
+          replacement = this.spawnThread({
+            threadId: session.threadId,
+            agentKind: session.agentKind,
+            adapter: session.adapter,
+            ...withLogicalProjectLocation(session),
+            ...(session.workspaceScope
+              ? {
+                  workspaceScope: session.workspaceScope,
+                  logicalProjectLocation: session.workspaceScope.primaryLocation,
+                }
+              : {}),
+            ...(executionWorkspaceScope ? { executionWorkspaceScope } : {}),
+            projectLocation: executionLocation,
+            config,
+            initialSize: session.terminalSize,
+            launchPrompt: "",
+            structuredSession,
+            initialStatus: hasPrompt ? "working" : "idle",
+            ...(session.pendingInitialInstructions
+              ? { initialInstructions: session.pendingInitialInstructions }
+              : {}),
+            ...(session.crewLeadEditedFiles ? { crewLeadEditedFiles: true } : {}),
+            initialAttention: hasPrompt ? "working" : "none",
+            suppressInitialStructuredIdle: hasPrompt,
+            resourceLease,
+            sessionRef: session.sessionRef,
+            mcpLaunchSnapshot,
+            ...(mcpTitle ? { mcpTitle } : {}),
+            threadMentionToolsAvailable: hasThreadMentionTools(resolvedMcpServers),
+            launchConfig,
+            crossagentsMcpAttached: hasCrossagentsMcp(resolvedMcpServers),
+            crossagentsMcpAvailable: ctx.options.crossagentMcp !== undefined,
+            ...(session.nativePlugins ? { nativePlugins: session.nativePlugins } : {}),
+            presentationMode:
+              session.presentationMode ?? session.adapter.capabilities.presentationMode,
+          });
+        } catch (error) {
+          await unpublishedAttempt.abandon();
+          throw error;
+        }
+        unpublishedAttempt.detach();
+        if (ctx.pendingLaunchConfigs?.get(session.threadId) === launchConfig) {
+          ctx.pendingLaunchConfigs.delete(session.threadId);
+        }
+        if (prompt.trim().length > 0 && structuredSession.startTurn) {
+          // Retry/recovery callers preserve the id of a user message that was
+          // already broadcast before the old session stopped. Reuse it without
+          // emitting another turn.started + item pair. A missing id means this
+          // path owns the first canonical paint and must emit it now. A form
+          // reply's id may be client-only; ensure its first durable paint carries
+          // the answer metadata, without starting another turn for an existing id.
+          const optimisticItemId =
+            (turn.questionAnswer ? undefined : turn.userMessageItemId) ??
+            ctx.emitOptimisticUserMessage(
+              session.threadId,
+              prompt,
+              turn.displaySegments ?? turn.segments,
+              turn.userMessageItemId,
+              turn.questionAnswer
+                ? {
+                    questionAnswer: turn.questionAnswer,
+                    ...(turn.userMessageItemId ? { includeTurn: false } : {}),
+                  }
+                : undefined,
+            );
+          const textOptions = structuredTurnTextOptions(replacement, turn);
+          const onPromptSubmitted =
+            textOptions.onPromptSubmitted || options.onPromptSubmitted
+              ? () => {
+                  textOptions.onPromptSubmitted?.();
+                  options.onPromptSubmitted?.();
+                }
+              : undefined;
+          const startOptions = {
+            userMessageItemId: optimisticItemId,
+            ...(turn.questionAnswer ? { questionAnswer: turn.questionAnswer } : {}),
+            ...textOptions,
+            ...(onPromptSubmitted ? { onPromptSubmitted } : {}),
+          };
+          try {
+            const result = await structuredSession.startTurn(
+              prompt,
+              launchConfig,
+              turn.segments,
+              startOptions,
+            );
+            if (ctx.isCurrentSession(replacement)) {
+              settleStructuredStartupWithoutTurn(replacement, result, ctx.outputPipeline);
+              if (!replacement.ignoreExit && isCompletedWithoutTurn(result))
+                ctx.onStructuredTurnCompletedWithoutTurn(replacement);
+            }
+            return result;
+          } catch (error) {
+            // `spawnThread` has already replaced the old runtime in `sessions`.
+            // Settle a failed replacement here, where its identity is still
+            // available; the outer restart wrapper only knows the old session.
+            // A newer replacement may have won the race, so never mutate a
+            // runtime that is no longer current.
+            if (replacement.ignoreExit) return;
+            if (ctx.isCurrentSession(replacement)) {
+              ctx.failStructuredSession(replacement, error);
+            }
+            throw error;
+          }
+        }
+        return;
+      }
+
+      const launchPrompt = useStructuredFlow ? "" : prompt;
+      const cliHookExtras = await ctx.cliHookPlugin.resolveCliHookPluginExtras(
+        session.threadId,
+        session.agentKind,
+        executionLocation,
+        resolvedMcpServers,
+      );
+      if (!ctx.isCurrentSession(session)) {
+        await unpublishedAttempt.abandon();
+        return;
+      }
+      const argv = await session.adapter.buildResumeArgv(
+        executionLocation,
+        launchConfig,
+        launchPrompt,
+        session.sessionRef,
+        this.composeLaunchOptions(
+          session.adapter,
+          structuredSession?.launchOptions,
+          resolvedMcpServers,
+          executionLocation,
+          session.threadId,
+        ),
+      );
+      if (cliHookExtras.extraArgs.length > 0) {
+        argv.args = mergeCliHookExtraArgs(
+          session.adapter,
+          argv.args,
+          cliHookExtras.extraArgs,
+          launchPrompt,
+          session.sessionRef,
+        );
+      }
       try {
-        replacement = this.spawnThread({
+        argv.args = await applyLaunchArgsConfigRewrite(
+          session.adapter,
+          argv.args,
+          config,
+          executionLocation,
+        );
+      } catch (error) {
+        await argv.cleanup?.();
+        await unpublishedAttempt.abandon();
+        throw error;
+      }
+      if (shouldPrimeNativeProjectShellEnv(executionLocation)) {
+        await primeProjectShellEnv(executionLocation.path);
+      }
+      if (!ctx.isCurrentSession(session)) {
+        await unpublishedAttempt.abandon();
+        await argv.cleanup?.();
+        return;
+      }
+      const command = await resolveLaunchSpec(executionLocation, argv);
+
+      const keepStructuredSession = structuredSession && useStructuredFlow;
+      if (structuredSession && !keepStructuredSession) {
+        unpublishedAttempt.detach();
+        // See `startThreadInner`: a failed disposal is retained, not dropped.
+        await ctx.retirement.discardStructuredHandle(resourceLease, structuredSession);
+      }
+      if (!ctx.isCurrentSession(session)) {
+        await unpublishedAttempt.abandon();
+        await command.cleanup?.();
+        return;
+      }
+
+      try {
+        this.spawnThread({
           threadId: session.threadId,
           agentKind: session.agentKind,
           adapter: session.adapter,
@@ -1390,15 +1584,10 @@ export class SpawnPipeline {
           projectLocation: executionLocation,
           config,
           initialSize: session.terminalSize,
-          launchPrompt: "",
-          structuredSession,
-          initialStatus: hasPrompt ? "working" : "idle",
-          ...(session.pendingInitialInstructions
-            ? { initialInstructions: session.pendingInitialInstructions }
-            : {}),
-          ...(session.crewLeadEditedFiles ? { crewLeadEditedFiles: true } : {}),
-          initialAttention: hasPrompt ? "working" : "none",
-          suppressInitialStructuredIdle: hasPrompt,
+          launchPrompt,
+          command,
+          ...(Object.keys(cliHookExtras.env).length > 0 ? { extraEnv: cliHookExtras.env } : {}),
+          ...(keepStructuredSession ? { structuredSession } : {}),
           resourceLease,
           sessionRef: session.sessionRef,
           mcpLaunchSnapshot,
@@ -1406,181 +1595,18 @@ export class SpawnPipeline {
           threadMentionToolsAvailable: hasThreadMentionTools(resolvedMcpServers),
           launchConfig,
           crossagentsMcpAttached: hasCrossagentsMcp(resolvedMcpServers),
-          crossagentsMcpAvailable: ctx.options.crossagentMcp !== undefined,
+          crossagentsMcpAvailable: this.ctx.options.crossagentMcp !== undefined,
           ...(session.nativePlugins ? { nativePlugins: session.nativePlugins } : {}),
-          presentationMode:
-            session.presentationMode ?? session.adapter.capabilities.presentationMode,
+          ...(session.presentationMode ? { presentationMode: session.presentationMode } : {}),
         });
       } catch (error) {
         await unpublishedAttempt.abandon();
         throw error;
       }
-      unpublishedAttempt.detach();
-      if (prompt.trim().length > 0 && structuredSession.startTurn) {
-        // Retry/recovery callers preserve the id of a user message that was
-        // already broadcast before the old session stopped. Reuse it without
-        // emitting another turn.started + item pair. A missing id means this
-        // path owns the first canonical paint and must emit it now. A form
-        // reply's id may be client-only; ensure its first durable paint carries
-        // the answer metadata, without starting another turn for an existing id.
-        const optimisticItemId =
-          (turn.questionAnswer ? undefined : turn.userMessageItemId) ??
-          ctx.emitOptimisticUserMessage(
-            session.threadId,
-            prompt,
-            turn.displaySegments ?? turn.segments,
-            turn.userMessageItemId,
-            turn.questionAnswer
-              ? {
-                  questionAnswer: turn.questionAnswer,
-                  ...(turn.userMessageItemId ? { includeTurn: false } : {}),
-                }
-              : undefined,
-          );
-        const textOptions = structuredTurnTextOptions(replacement, turn);
-        const onPromptSubmitted =
-          textOptions.onPromptSubmitted || options.onPromptSubmitted
-            ? () => {
-                textOptions.onPromptSubmitted?.();
-                options.onPromptSubmitted?.();
-              }
-            : undefined;
-        const startOptions = {
-          userMessageItemId: optimisticItemId,
-          ...(turn.questionAnswer ? { questionAnswer: turn.questionAnswer } : {}),
-          ...textOptions,
-          ...(onPromptSubmitted ? { onPromptSubmitted } : {}),
-        };
-        try {
-          const result = await structuredSession.startTurn(
-            prompt,
-            launchConfig,
-            turn.segments,
-            startOptions,
-          );
-          if (ctx.isCurrentSession(replacement)) {
-            settleStructuredStartupWithoutTurn(replacement, result, ctx.outputPipeline);
-            if (!replacement.ignoreExit && isCompletedWithoutTurn(result))
-              ctx.onStructuredTurnCompletedWithoutTurn(replacement);
-          }
-          return result;
-        } catch (error) {
-          // `spawnThread` has already replaced the old runtime in `sessions`.
-          // Settle a failed replacement here, where its identity is still
-          // available; the outer restart wrapper only knows the old session.
-          // A newer replacement may have won the race, so never mutate a
-          // runtime that is no longer current.
-          if (replacement.ignoreExit) return;
-          if (ctx.isCurrentSession(replacement)) {
-            ctx.failStructuredSession(replacement, error);
-          }
-          throw error;
-        }
+    } finally {
+      if (ctx.pendingLaunchConfigs?.get(session.threadId) === launchConfig) {
+        ctx.pendingLaunchConfigs.delete(session.threadId);
       }
-      return;
-    }
-
-    const launchPrompt = useStructuredFlow ? "" : prompt;
-    const cliHookExtras = await ctx.cliHookPlugin.resolveCliHookPluginExtras(
-      session.threadId,
-      session.agentKind,
-      executionLocation,
-      resolvedMcpServers,
-    );
-    if (!ctx.isCurrentSession(session)) {
-      await unpublishedAttempt.abandon();
-      return;
-    }
-    const argv = await session.adapter.buildResumeArgv(
-      executionLocation,
-      launchConfig,
-      launchPrompt,
-      session.sessionRef,
-      this.composeLaunchOptions(
-        session.adapter,
-        structuredSession?.launchOptions,
-        resolvedMcpServers,
-        executionLocation,
-        session.threadId,
-      ),
-    );
-    if (cliHookExtras.extraArgs.length > 0) {
-      argv.args = mergeCliHookExtraArgs(
-        session.adapter,
-        argv.args,
-        cliHookExtras.extraArgs,
-        launchPrompt,
-        session.sessionRef,
-      );
-    }
-    try {
-      argv.args = await applyLaunchArgsConfigRewrite(
-        session.adapter,
-        argv.args,
-        config,
-        executionLocation,
-      );
-    } catch (error) {
-      await argv.cleanup?.();
-      await unpublishedAttempt.abandon();
-      throw error;
-    }
-    if (shouldPrimeNativeProjectShellEnv(executionLocation)) {
-      await primeProjectShellEnv(executionLocation.path);
-    }
-    if (!ctx.isCurrentSession(session)) {
-      await unpublishedAttempt.abandon();
-      await argv.cleanup?.();
-      return;
-    }
-    const command = await resolveLaunchSpec(executionLocation, argv);
-
-    const keepStructuredSession = structuredSession && useStructuredFlow;
-    if (structuredSession && !keepStructuredSession) {
-      unpublishedAttempt.detach();
-      // See `startThreadInner`: a failed disposal is retained, not dropped.
-      await ctx.retirement.discardStructuredHandle(resourceLease, structuredSession);
-    }
-    if (!ctx.isCurrentSession(session)) {
-      await unpublishedAttempt.abandon();
-      await command.cleanup?.();
-      return;
-    }
-
-    try {
-      this.spawnThread({
-        threadId: session.threadId,
-        agentKind: session.agentKind,
-        adapter: session.adapter,
-        ...withLogicalProjectLocation(session),
-        ...(session.workspaceScope
-          ? {
-              workspaceScope: session.workspaceScope,
-              logicalProjectLocation: session.workspaceScope.primaryLocation,
-            }
-          : {}),
-        ...(executionWorkspaceScope ? { executionWorkspaceScope } : {}),
-        projectLocation: executionLocation,
-        config,
-        initialSize: session.terminalSize,
-        launchPrompt,
-        command,
-        ...(Object.keys(cliHookExtras.env).length > 0 ? { extraEnv: cliHookExtras.env } : {}),
-        ...(keepStructuredSession ? { structuredSession } : {}),
-        resourceLease,
-        sessionRef: session.sessionRef,
-        mcpLaunchSnapshot,
-        ...(mcpTitle ? { mcpTitle } : {}),
-        threadMentionToolsAvailable: hasThreadMentionTools(resolvedMcpServers),
-        launchConfig,
-        crossagentsMcpAttached: hasCrossagentsMcp(resolvedMcpServers),
-        crossagentsMcpAvailable: this.ctx.options.crossagentMcp !== undefined,
-        ...(session.nativePlugins ? { nativePlugins: session.nativePlugins } : {}),
-        ...(session.presentationMode ? { presentationMode: session.presentationMode } : {}),
-      });
-    } catch (error) {
-      await unpublishedAttempt.abandon();
-      throw error;
     }
   }
 
@@ -1907,6 +1933,7 @@ export class SpawnPipeline {
           config,
           mcpLaunchSnapshot,
           providerSessionCrossagents,
+          adapter?.mcpMaxBlockingCallMs,
         )
       : undefined;
     const computerUseMcp = this.resolveComputerUseMcpForLaunch(
@@ -2060,15 +2087,21 @@ export class SpawnPipeline {
     config: ThreadConfig,
     mcpLaunchSnapshot: McpLaunchSnapshot,
     providerSessionRouting = false,
+    maxWaitTimeoutMs?: number,
   ): Promise<CrossagentMcpHttpConfig | undefined> {
     if (config.crossagentMcp !== true) {
       this.ctx.options.crossagentMcp?.unregister(threadId);
       return undefined;
     }
     const disabledTools = mcpLaunchSnapshot.disabledBuiltInMcpTools?.crossagents ?? [];
+    const options = maxWaitTimeoutMs !== undefined ? { maxWaitTimeoutMs } : undefined;
     const native = providerSessionRouting
-      ? this.ctx.options.crossagentMcp?.registerProviderSession(threadId, disabledTools)
-      : this.ctx.options.crossagentMcp?.register(threadId, disabledTools);
+      ? options
+        ? this.ctx.options.crossagentMcp?.registerProviderSession(threadId, disabledTools, options)
+        : this.ctx.options.crossagentMcp?.registerProviderSession(threadId, disabledTools)
+      : options
+        ? this.ctx.options.crossagentMcp?.register(threadId, disabledTools, options)
+        : this.ctx.options.crossagentMcp?.register(threadId, disabledTools);
     return resolveCrossagentMcpHttpConfigForLaunch(
       native,
       location,

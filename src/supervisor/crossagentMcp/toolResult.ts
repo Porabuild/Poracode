@@ -1,12 +1,30 @@
 import { DEFAULT_WAIT_TIMEOUT_MS, MAX_WAIT_TIMEOUT_MS } from "./waitTiming";
 import type { McpToolResult, SubagentWaitOptions, SubagentWaitResult } from "./types";
 
+function clampWaitTimeoutCapMs(maxWaitTimeoutMs: number): number {
+  return Number.isFinite(maxWaitTimeoutMs)
+    ? Math.max(0, Math.min(maxWaitTimeoutMs, MAX_WAIT_TIMEOUT_MS))
+    : MAX_WAIT_TIMEOUT_MS;
+}
+
+export function waitTimeoutDescription(maxWaitTimeoutMs: number = MAX_WAIT_TIMEOUT_MS): string {
+  const seconds = Math.floor(clampWaitTimeoutCapMs(maxWaitTimeoutMs) / 1000);
+  return `Max seconds to wait (default/cap ${seconds}). Timeout leaves the subagent running; call wait_for_agent again if still required.`;
+}
+
+export function workflowTimeoutDescription(maxWaitTimeoutMs: number = MAX_WAIT_TIMEOUT_MS): string {
+  const seconds = Math.floor(clampWaitTimeoutCapMs(maxWaitTimeoutMs) / 1000);
+  return `Max seconds (default/cap ${seconds}). On timeout stages keep running; resume with run_workflow action=wait.`;
+}
+
 /** Shared `timeout_s` schema description for the blocking wait tools. */
-export const TIMEOUT_S_DESCRIPTION =
-  "Max seconds to wait (default/cap 480). Timeout leaves the subagent running; call wait_for_agent again if still required.";
+export const TIMEOUT_S_DESCRIPTION = waitTimeoutDescription();
 
 export const WAIT_AGAIN_INSTRUCTION =
   "Call crossagents.wait_for_agent with only required running IDs. Do not poll status or steer just because the worker is still running. Do not end the turn expecting a completion notification.";
+
+export const WORKFLOW_WAIT_AGAIN_INSTRUCTION =
+  'Call crossagents.run_workflow with action="wait" and this workflow_id. Do not poll status just because stages are still running. Do not end the turn expecting a completion notification.';
 
 export function jsonResult(value: unknown, instruction?: string): McpToolResult {
   return {
@@ -34,6 +52,20 @@ export function runToolResult(
   );
 }
 
+export function workflowToolResult(snapshot: {
+  status: string;
+  tasks: readonly { pending_requests?: number }[];
+}): McpToolResult {
+  return jsonResult(
+    snapshot,
+    snapshot.tasks.some((task) => (task.pending_requests ?? 0) > 0)
+      ? "A workflow worker needs input or approval. Attend to its pending request before waiting again; do not resend the task or steer it."
+      : snapshot.status === "running"
+        ? WORKFLOW_WAIT_AGAIN_INSTRUCTION
+        : undefined,
+  );
+}
+
 export function errorResult(message: string): McpToolResult {
   return { content: [{ type: "text", text: message }], isError: true };
 }
@@ -49,13 +81,18 @@ function finiteNumber(value: unknown): number | undefined {
 }
 
 /**
- * Caller-supplied wait timeout → ms, clamped to [0, {@link MAX_WAIT_TIMEOUT_MS}].
+ * Caller-supplied wait timeout → ms, clamped to [0, `maxWaitTimeoutMs`]
+ * (itself bounded by {@link MAX_WAIT_TIMEOUT_MS}).
  * Reads `timeout_s` plus the aliases calling agents guess in practice
  * (`timeout_seconds`, `timeout_ms`) — a misnamed field used to fall back
  * silently to the default, so the caller waited a different duration than it
  * believed for the run's whole lifetime.
  */
-export function parseWaitTimeoutMs(args: Record<string, unknown>): number {
+export function parseWaitTimeoutMs(
+  args: Record<string, unknown>,
+  maxWaitTimeoutMs: number = MAX_WAIT_TIMEOUT_MS,
+): number {
+  const capMs = clampWaitTimeoutCapMs(maxWaitTimeoutMs);
   const seconds = finiteNumber(args.timeout_s) ?? finiteNumber(args.timeout_seconds);
   const ms = finiteNumber(args.timeout_ms);
   const requestedMs =
@@ -63,8 +100,8 @@ export function parseWaitTimeoutMs(args: Record<string, unknown>): number {
       ? Math.max(0, seconds * 1000)
       : ms !== undefined
         ? Math.max(0, ms)
-        : DEFAULT_WAIT_TIMEOUT_MS;
-  return Math.min(requestedMs, MAX_WAIT_TIMEOUT_MS);
+        : Math.min(DEFAULT_WAIT_TIMEOUT_MS, capMs);
+  return Math.min(requestedMs, capMs);
 }
 
 export function parseWaitOptions(

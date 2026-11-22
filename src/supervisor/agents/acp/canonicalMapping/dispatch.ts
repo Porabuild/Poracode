@@ -26,6 +26,7 @@ import {
   findTerminalIdInContent,
   mergeProgressForEmission,
   mergeToolPayload,
+  readAcpToolName,
 } from "./toolCallPayloads";
 import { isAcpAskUserQuestionToolCall } from "../acpQuestionPermissions";
 import { mapAcpTextStreamSnapshot } from "./textStreamSnapshots";
@@ -576,6 +577,7 @@ export function mapAcpSessionUpdate(
         state.resolveTerminalOutputByCommand,
         state.resolveLocalImage,
       );
+      const hasCanonicalName = readAcpToolName(toolCall._meta) !== undefined;
       const terminalId = findTerminalIdInContent((toolCall as { content?: unknown }).content);
       state.toolCallItems.set(toolCall.toolCallId, {
         itemId,
@@ -583,6 +585,7 @@ export function mapAcpSessionUpdate(
         payload,
         isSubAgent,
         detached,
+        ...(hasCanonicalName ? { hasCanonicalName: true } : {}),
         ...(terminalId ? { terminalId } : {}),
       });
       events.push({
@@ -676,6 +679,7 @@ export function mapAcpSessionUpdate(
             : "running";
       const updateTerminalId = findTerminalIdInContent((toolCall as { content?: unknown }).content);
       if (updateTerminalId) item.terminalId = updateTerminalId;
+      if (readAcpToolName(toolCall._meta) !== undefined) item.hasCanonicalName = true;
       const payload = buildAcpToolCallUpdatePayload(
         item,
         toolCall,

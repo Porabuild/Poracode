@@ -336,6 +336,55 @@ describe("crew Crossagents launch policy", () => {
       ).crossagentMcp,
     ).toBe(false);
   });
+
+  it("forwards adapter mcpMaxBlockingCallMs when registering Crossagents", async () => {
+    const calls: unknown[][] = [];
+    const pipeline = new SpawnPipeline({
+      options: {
+        crossagentMcp: {
+          register: (...args: unknown[]) => {
+            calls.push(args);
+            return { url: "http://127.0.0.1:1/mcp", token: "tok", headers: {} };
+          },
+          registerProviderSession: () => undefined,
+          unregister: () => {},
+          cancelForeground: () => {},
+          cancelAll: () => {},
+          resolveChildRequest: async () => false,
+        },
+      },
+      resolveAgentSettings: () => ({}),
+    } as never);
+    const location = { kind: "posix" as const, path: "/repo" };
+    const config = { model: "m", crossagentMcp: true };
+    const cappedAdapter = {
+      capabilities: { presentationMode: "gui" },
+      mcpMaxBlockingCallMs: 90_000,
+    } as unknown as import("../../agents/base").AgentAdapter;
+    const uncappedAdapter = {
+      capabilities: { presentationMode: "gui" },
+    } as unknown as import("../../agents/base").AgentAdapter;
+
+    await pipeline.resolveMcpServersForLaunch({
+      location,
+      config,
+      mcpLaunchSnapshot: snapshot,
+      crossagentThreadId: "thread-capped",
+      adapter: cappedAdapter,
+    });
+    await pipeline.resolveMcpServersForLaunch({
+      location,
+      config,
+      mcpLaunchSnapshot: snapshot,
+      crossagentThreadId: "thread-uncapped",
+      adapter: uncappedAdapter,
+    });
+
+    expect(calls).toEqual([
+      ["thread-capped", [], { maxWaitTimeoutMs: 90_000 }],
+      ["thread-uncapped", []],
+    ]);
+  });
 });
 
 describe("workspaceLaunchConfig — Home scope unrestricted for every agent", () => {

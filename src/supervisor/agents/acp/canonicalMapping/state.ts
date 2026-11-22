@@ -14,6 +14,8 @@ export interface AcpToolCallItemState {
   isSubAgent: boolean;
   /** Keep this subagent open across the foreground prompt's turn boundary. */
   detached: boolean;
+  /** True once a provider-supplied canonical tool name owns `payload.name`. */
+  hasCanonicalName?: boolean;
   subAgentProgressItemId?: string;
   subAgentProgressText?: string;
   /** Latest progress text folded into `subAgentProgressText`. */

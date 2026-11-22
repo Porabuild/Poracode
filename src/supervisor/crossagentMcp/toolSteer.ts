@@ -28,7 +28,7 @@ export async function steerAgent(
   }
   // Validate reads before delivering a correction that cannot be rolled back.
   const options = parseWaitOptions(args);
-  const timeoutMs = parseWaitTimeoutMs(args);
+  const timeoutMs = parseWaitTimeoutMs(args, ctx.maxWaitTimeoutMs);
   const startedAt = Date.now();
   // Every new provider turn uses the current crew, just like spawn_agent.
   // Native corrections stay in the running turn and retain its admitted config.

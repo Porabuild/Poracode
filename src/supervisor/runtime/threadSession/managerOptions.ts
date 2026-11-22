@@ -10,6 +10,7 @@ import type {
   ThreadPresentationMode,
 } from "@/shared/contracts";
 import type { CrossagentMcpHttpConfig } from "@/supervisor/agents/crossagentMcp";
+import type { RegisterCrossagentThreadOptions } from "@/supervisor/crossagentMcp/CrossagentMcpIngress";
 import type { WslHostAccessResolver } from "@/supervisor/wsl/hostAccess";
 import type { DirtySetSnapshot } from "../../git/dirtySetSnapshot";
 import type { HostResourceAdmission } from "../hostResourceAdmission";
@@ -86,10 +87,12 @@ export interface ThreadSessionManagerOptions {
     register(
       threadId: string,
       disabledTools?: readonly string[],
+      options?: RegisterCrossagentThreadOptions,
     ): CrossagentMcpHttpConfig | undefined;
     registerProviderSession(
       threadId: string,
       disabledTools?: readonly string[],
+      options?: RegisterCrossagentThreadOptions,
     ): CrossagentMcpHttpConfig | undefined;
     unregister(threadId: string): void;
     cancelForeground(threadId: string): void;
