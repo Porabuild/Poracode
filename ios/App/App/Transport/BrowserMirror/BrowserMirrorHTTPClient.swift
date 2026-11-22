@@ -42,7 +42,11 @@ actor BrowserMirrorHTTPClient: BrowserMirrorHTTPExecuting {
   ) {
     self.endpoint = endpoint
     self.token = token
-    self.session = session ?? RemoteURLSessions.makeAPISession(requestTimeout: timeout)
+    #if !SWIFT_PACKAGE
+      self.session = session ?? RemoteURLSessions.makeAPISession(requestTimeout: timeout)
+    #else
+      self.session = session ?? .shared
+    #endif
     self.timeout = timeout
     self.maximumResponseBytes = maximumResponseBytes
     self.authorization = environmentAuthority
@@ -76,33 +80,47 @@ actor BrowserMirrorHTTPClient: BrowserMirrorHTTPExecuting {
 
     let data: Data
     let response: URLResponse
-    let origin = RemoteRequestClassification.originKey(for: endpoint)
-    let priority = RemoteRequestClassification.classifyPriority(
-      method: metadata.method,
-      path: metadata.path,
-      jsonBody: request.body
-    )
     do {
-      let lease = try await RemoteRequestScheduler.shared.acquire(origin: origin, priority: priority)
-      defer { lease.release() }
-      (data, response) = try await StreamingHTTPBody.perform(
-        session: session,
-        request: value,
-        maxBytes: maximumResponseBytes,
-        resourceTimeout: timeout,
-        retryableSafeRead: metadata.method.uppercased() == "GET"
-      )
+      #if !SWIFT_PACKAGE
+        let origin = RemoteRequestClassification.originKey(for: endpoint)
+        let priority = RemoteRequestClassification.classifyPriority(
+          method: metadata.method,
+          path: metadata.path,
+          jsonBody: request.body
+        )
+        let lease = try await RemoteRequestScheduler.shared.acquire(
+          origin: origin,
+          priority: priority
+        )
+        defer { lease.release() }
+        (data, response) = try await StreamingHTTPBody.perform(
+          session: session,
+          request: value,
+          maxBytes: maximumResponseBytes,
+          resourceTimeout: timeout,
+          retryableSafeRead: metadata.method.uppercased() == "GET"
+        )
+      #else
+        (data, response) = try await BrowserMirrorBoundedRequest.perform(
+          baseSession: session,
+          request: value,
+          maximumBytes: maximumResponseBytes
+        )
+      #endif
     } catch is CancellationError {
       throw CancellationError()
-    } catch let error as RemoteClientError where error.code == "response_too_large" {
-      throw BrowserMirrorHTTPError.responseTooLarge
     } catch BrowserMirrorHTTPError.responseTooLarge {
       throw BrowserMirrorHTTPError.responseTooLarge
     } catch {
       if Task.isCancelled { throw CancellationError() }
-      if TlsCertPinStore.lastDecisionMismatched(endpoint: endpoint) {
-        throw BrowserMirrorHTTPError.certificateMismatch
-      }
+      #if !SWIFT_PACKAGE
+        if let remote = error as? RemoteClientError, remote.code == "response_too_large" {
+          throw BrowserMirrorHTTPError.responseTooLarge
+        }
+        if TlsCertPinStore.lastDecisionMismatched(endpoint: endpoint) {
+          throw BrowserMirrorHTTPError.certificateMismatch
+        }
+      #endif
       throw BrowserMirrorHTTPError.transport
     }
 

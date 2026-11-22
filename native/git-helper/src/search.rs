@@ -473,13 +473,15 @@ where
             Ok(g) => g,
             Err(p) => p.into_inner(),
         };
-        while guard.is_none() {
+        loop {
+            if let Some(ref index) = *guard {
+                return Arc::clone(index);
+            }
             guard = match flight.ready.wait(guard) {
                 Ok(g) => g,
                 Err(p) => p.into_inner(),
             };
         }
-        return Arc::clone(guard.as_ref().expect("in-flight index populated"));
     }
 
     let built = Arc::new(build());

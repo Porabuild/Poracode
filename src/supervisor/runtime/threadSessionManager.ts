@@ -2370,8 +2370,8 @@ export class ThreadSessionManager {
     const shellCommand = buildShellCommand(payload.projectLocation, windowsShell, {
       startInHome: payload.startInHome === true,
     });
-    this.options.emit({ type: "thread-reset", threadId: payload.shellId });
     const terminalEnv = await resolveTerminalColorEnvAsync(payload.projectLocation);
+    this.options.emit({ type: "thread-reset", threadId: payload.shellId });
 
     // node-pty's C binding expects every env value to be a string. process.env
     // is typed `Record<string, string | undefined>` and spreading can carry

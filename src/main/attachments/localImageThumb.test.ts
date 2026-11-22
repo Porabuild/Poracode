@@ -56,7 +56,7 @@ describe("createLocalImageThumb", () => {
   it("shrinks a screenshot so its shorter side covers the tile", async () => {
     const thumb = await createLocalImageThumb(await writePng("shot.png", 1600, 1000), 64);
     expect(await sharp(thumb!).metadata()).toMatchObject({
-      format: "webp",
+      format: "png",
       width: 102,
       height: 64,
     });

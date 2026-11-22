@@ -212,7 +212,7 @@ export function installLocalFileProtocolHandler(): void {
       const thumb =
         thumbPx === null ? null : await createLocalImageThumb(normalized, thumbPx, request.signal);
       if (thumb) {
-        return new Response(new Uint8Array(thumb), { headers: { "content-type": "image/webp" } });
+        return new Response(new Uint8Array(thumb), { headers: { "content-type": "image/png" } });
       }
       return net.fetch(pathToFileURL(normalized).href);
     });

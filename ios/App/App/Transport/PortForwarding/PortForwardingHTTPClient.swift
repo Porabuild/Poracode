@@ -101,30 +101,44 @@ final class PortForwardingURLSessionHTTPClient: PortForwardingHTTPExecuting, @un
 
     let data: Data
     let response: URLResponse
-    let origin = RemoteRequestClassification.originKey(for: endpoint)
-    let priority = RemoteRequestClassification.classifyPriority(
-      method: metadata.method,
-      path: metadata.path,
-      jsonBody: request.body
-    )
     do {
-      let lease = try await RemoteRequestScheduler.shared.acquire(origin: origin, priority: priority)
-      defer { lease.release() }
-      (data, response) = try await StreamingHTTPBody.perform(
-        session: session,
-        request: value,
-        maxBytes: maximumResponseBytes,
-        resourceTimeout: timeout,
-        retryableSafeRead: metadata.method.uppercased() == "GET"
-      )
+      #if !SWIFT_PACKAGE
+        let origin = RemoteRequestClassification.originKey(for: endpoint)
+        let priority = RemoteRequestClassification.classifyPriority(
+          method: metadata.method,
+          path: metadata.path,
+          jsonBody: request.body
+        )
+        let lease = try await RemoteRequestScheduler.shared.acquire(
+          origin: origin,
+          priority: priority
+        )
+        defer { lease.release() }
+        (data, response) = try await StreamingHTTPBody.perform(
+          session: session,
+          request: value,
+          maxBytes: maximumResponseBytes,
+          resourceTimeout: timeout,
+          retryableSafeRead: metadata.method.uppercased() == "GET"
+        )
+      #else
+        (data, response) = try await PortForwardingStreamingBody.perform(
+          session: session,
+          request: value,
+          maximumBytes: maximumResponseBytes
+        )
+      #endif
     } catch is CancellationError {
       throw CancellationError()
-    } catch let error as RemoteClientError where error.code == "response_too_large" {
-      throw PortForwardingHTTPError.responseTooLarge
     } catch PortForwardingHTTPError.responseTooLarge {
       throw PortForwardingHTTPError.responseTooLarge
     } catch {
       if Task.isCancelled { throw CancellationError() }
+      #if !SWIFT_PACKAGE
+        if let remote = error as? RemoteClientError, remote.code == "response_too_large" {
+          throw PortForwardingHTTPError.responseTooLarge
+        }
+      #endif
       // A pin-refused handshake surfaces as URLError.cancelled from the
       // streaming task; only an actual failed trust evaluation for this
       // endpoint upgrades it — timeout/reset stay plain transport errors.

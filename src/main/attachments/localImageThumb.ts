@@ -148,7 +148,7 @@ export async function createLocalImageThumb(
       const out = await image
         .autoOrient()
         .resize({ width: px, height: px, fit: "outside", withoutEnlargement: true })
-        .webp({ quality: 82 })
+        .png()
         .toBuffer();
       setCachedThumb(filePath, px, info.mtimeMs, info.size, out);
       return out;
