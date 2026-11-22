@@ -10,6 +10,8 @@ describe("PWA port forwarding URLs", () => {
 
   it("builds the explicit raw TCP address and the authenticated enter URL", () => {
     expect(buildRawTcpUrl("192.168.1.10", 4100)).toBe("http://192.168.1.10:4100/");
+    expect(buildRawTcpUrl("fd7a:115c:a1e0::1", 4100)).toBe("http://[fd7a:115c:a1e0::1]:4100/");
+    expect(buildRawTcpUrl("[::1]", 4100)).toBe("http://[::1]:4100/");
     expect(
       buildEnterUrl("https://relay.example.test/s/desktop-1/", "/forward/fwd-1/enter?fwt=token"),
     ).toBe("https://relay.example.test/s/desktop-1/forward/fwd-1/enter?fwt=token");

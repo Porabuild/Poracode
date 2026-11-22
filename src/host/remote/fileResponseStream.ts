@@ -56,9 +56,10 @@ export async function pipeOwnedFileResponse(
     res.destroy();
   };
   const onStreamError = () => {
+    stream.destroy();
     compressor?.destroy();
     if (res.headersSent) res.destroy();
-    else {
+    else if (!res.destroyed && !res.writableEnded) {
       res.writeHead(500, { "content-type": "text/plain; charset=utf-8" });
       res.end("Internal Server Error");
     }
@@ -72,13 +73,15 @@ export async function pipeOwnedFileResponse(
     stream.destroy();
     compressor?.destroy();
   }
-  if (compressor) {
-    compressor.pipe(res);
-    if (prefix?.length) compressor.write(prefix);
-    stream.pipe(compressor);
-  } else {
-    if (prefix?.length) res.write(prefix);
-    stream.pipe(res);
+  if (!stream.destroyed && !res.destroyed && !res.writableEnded) {
+    if (compressor) {
+      compressor.pipe(res);
+      if (prefix?.length) compressor.write(prefix);
+      stream.pipe(compressor);
+    } else {
+      if (prefix?.length) res.write(prefix);
+      stream.pipe(res);
+    }
   }
   await Promise.allSettled([
     finished(stream, { error: false, cleanup: true }),

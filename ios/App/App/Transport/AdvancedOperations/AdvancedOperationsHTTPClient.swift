@@ -82,11 +82,20 @@ actor AdvancedOperationsHTTPClient: AdvancedOperationsHTTPExecuting {
 
     let data: Data
     let response: URLResponse
+    let origin = RemoteRequestClassification.originKey(for: endpoint)
+    let priority = RemoteRequestClassification.classifyPriority(
+      method: "POST",
+      path: path,
+      jsonBody: body
+    )
     do {
+      let lease = try await RemoteRequestScheduler.shared.acquire(origin: origin, priority: priority)
+      defer { lease.release() }
       (data, response) = try await StreamingHTTPBody.perform(
         session: session,
         request: request,
-        maxBytes: maximumResponseBytes
+        maxBytes: maximumResponseBytes,
+        resourceTimeout: interval(for: timeout)
       )
     } catch is CancellationError {
       throw CancellationError()

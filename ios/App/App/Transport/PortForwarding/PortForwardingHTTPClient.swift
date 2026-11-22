@@ -101,11 +101,26 @@ final class PortForwardingURLSessionHTTPClient: PortForwardingHTTPExecuting, @un
 
     let data: Data
     let response: URLResponse
+    let origin = RemoteRequestClassification.originKey(for: endpoint)
+    let priority = RemoteRequestClassification.classifyPriority(
+      method: metadata.method,
+      path: metadata.path,
+      jsonBody: request.body
+    )
     do {
-      (data, response) = try await PortForwardingStreamingBody.perform(
-        session: session, request: value, maximumBytes: maximumResponseBytes)
+      let lease = try await RemoteRequestScheduler.shared.acquire(origin: origin, priority: priority)
+      defer { lease.release() }
+      (data, response) = try await StreamingHTTPBody.perform(
+        session: session,
+        request: value,
+        maxBytes: maximumResponseBytes,
+        resourceTimeout: timeout,
+        retryableSafeRead: metadata.method.uppercased() == "GET"
+      )
     } catch is CancellationError {
       throw CancellationError()
+    } catch let error as RemoteClientError where error.code == "response_too_large" {
+      throw PortForwardingHTTPError.responseTooLarge
     } catch PortForwardingHTTPError.responseTooLarge {
       throw PortForwardingHTTPError.responseTooLarge
     } catch {

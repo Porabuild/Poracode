@@ -51,7 +51,7 @@ enum BrowserMirrorTransportFactory {
           http: BrowserMirrorHTTPClient(
             endpoint: endpoint,
             token: token,
-            session: session ?? .shared,
+            session: session,
             environmentAuthority: EnvironmentParentAuthority(context: environment)
           )
         )

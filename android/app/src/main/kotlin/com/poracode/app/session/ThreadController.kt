@@ -41,6 +41,12 @@ class ThreadController(
     private val catalog: com.poracode.app.session.catalog.CatalogSyncController? = null,
     /** Newest live event seq; fences a history row install against a newer live row. */
     private val currentEventSeq: () -> Long = { 0L },
+    /**
+     * When [RichChatSessionComposition] owns rich-chat history for GUI threads,
+     * [openThread] skips the duplicate legacy [loadThreadHistory] call while
+     * keeping selection, catalog pinning, and `threadItemInterests` intact.
+     */
+    private val richChatOwnsGuiHistory: () -> Boolean = { false },
 ) {
     fun openThread(id: String) {
         if (!requireSessionRead()) return
@@ -75,6 +81,11 @@ class ThreadController(
             )
         }
         applyThreadInterests(listOf(id), epoch)
+        if (richChatOwnsGuiHistory() &&
+            !com.poracode.app.protocol.ThreadPresentationPolicy.isTerminal(presentation)
+        ) {
+            return
+        }
         val job = scope.launch {
             loadThreadHistory(id, openGeneration = openGen)
         }

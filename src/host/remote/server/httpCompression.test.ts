@@ -82,6 +82,14 @@ describe("writeNegotiatedJson", () => {
     expect(await response.text()).toBe(bigBody);
   });
 
+  it("compresses with brotli when the client prefers br", async () => {
+    const url = await serve(bigBody);
+    const response = await fetch(url, { headers: { "accept-encoding": "br, gzip" } });
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-encoding")).toBe("br");
+    expect(await response.text()).toBe(bigBody);
+  });
+
   it("compresses substantially", async () => {
     const url = await serve(bigBody);
     // `fetch` hides the encoded length, so read the raw socket response.

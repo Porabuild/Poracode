@@ -262,6 +262,7 @@ internal fun buildSessionControllerGraph(
         applyLiveEvent = { event, seq -> events.applyLiveEvent(event, seq) },
         catalog = catalog,
         currentEventSeq = { live.lastSeenSeq?.toLong() ?: 0L },
+        richChatOwnsGuiHistory = { sinks.richChatEventSink != null },
     )
     hosts = HostSessionController(
         repository = credentials,

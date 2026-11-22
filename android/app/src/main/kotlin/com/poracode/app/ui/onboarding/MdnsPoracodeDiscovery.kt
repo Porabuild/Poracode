@@ -66,9 +66,11 @@ object PoracodeServiceRecords {
         text(attributes["fp"])?.takeIf { it.startsWith("sha256:") }?.substringAfter("sha256:")
 
     fun endpoint(host: String?, port: Int?): String? {
-        val trimmedHost = host?.trim().takeUnless { it.isNullOrEmpty() } ?: return null
+        val raw = host?.trim()?.substringBefore('%')?.trim().takeUnless { it.isNullOrEmpty() }
+            ?: return null
         if (port == null || port <= 0 || port > 65535) return null
-        return "https://$trimmedHost:$port"
+        val formattedHost = if (':' in raw && !raw.startsWith("[")) "[$raw]" else raw
+        return "https://$formattedHost:$port"
     }
 
     private fun text(raw: ByteArray?): String? =
@@ -91,6 +93,8 @@ class PoracodeNsdDiscovery(context: Context) {
     val scanning: StateFlow<Boolean> = mutableScanning.asStateFlow()
 
     private var discoveryListener: NsdManager.DiscoveryListener? = null
+    private val serviceInfoLock = Any()
+    private val serviceInfoCallbacks = mutableMapOf<String, NsdManager.ServiceInfoCallback>()
 
     fun start() {
         val manager = nsdManager ?: return
@@ -120,6 +124,7 @@ class PoracodeNsdDiscovery(context: Context) {
             }
 
             override fun onServiceLost(serviceInfo: NsdServiceInfo) {
+                unregisterServiceCallback(serviceInfo.serviceName)
                 mutableHosts.value = mutableHosts.value.filterNot {
                     it.serviceName == serviceInfo.serviceName
                 }
@@ -136,6 +141,7 @@ class PoracodeNsdDiscovery(context: Context) {
 
     fun stop() {
         val manager = nsdManager ?: return
+        clearServiceCallbacks(manager)
         val listener = discoveryListener ?: run {
             mutableHosts.value = emptyList()
             return
@@ -151,30 +157,60 @@ class PoracodeNsdDiscovery(context: Context) {
 
     private fun resolve(serviceInfo: NsdServiceInfo) {
         val manager = nsdManager ?: return
-        try {
-            manager.resolveService(
-                serviceInfo,
-                object : NsdManager.ResolveListener {
-                    override fun onResolveFailed(info: NsdServiceInfo, errorCode: Int) = Unit
-
-                    override fun onServiceResolved(info: NsdServiceInfo) {
-                        val attributes: Map<String, ByteArray> = info.attributes
-                        val resolved = DiscoveredPoracodeHost(
-                            serviceName = info.serviceName,
-                            desktopId = PoracodeServiceRecords.desktopId(attributes),
-                            host = info.host?.hostAddress,
-                            port = info.port,
-                            tlsFingerprint = PoracodeServiceRecords.tlsFingerprint(attributes),
-                        )
-                        val next = mutableHosts.value
-                            .filterNot { it.serviceName == resolved.serviceName } + resolved
-                        mutableHosts.value = next.sortedBy { it.serviceName }
-                    }
-                },
-            )
-        } catch (_: Exception) {
-            // Resolution is best effort; the entry stays whatever it was.
+        val name = serviceInfo.serviceName
+        synchronized(serviceInfoLock) {
+            if (name in serviceInfoCallbacks) return
         }
+        val callback = object : NsdManager.ServiceInfoCallback {
+            override fun onServiceInfoCallbackRegistrationFailed(errorCode: Int) {
+                synchronized(serviceInfoLock) { serviceInfoCallbacks.remove(name) }
+            }
+
+            override fun onServiceUpdated(info: NsdServiceInfo) {
+                val attributes: Map<String, ByteArray> = info.attributes
+                val addresses = info.hostAddresses
+                val preferredHost = addresses.firstOrNull { it is java.net.Inet4Address }?.hostAddress
+                    ?: addresses.firstOrNull()?.hostAddress
+                val resolved = DiscoveredPoracodeHost(
+                    serviceName = info.serviceName,
+                    desktopId = PoracodeServiceRecords.desktopId(attributes),
+                    host = preferredHost?.substringBefore('%'),
+                    port = info.port,
+                    tlsFingerprint = PoracodeServiceRecords.tlsFingerprint(attributes),
+                )
+                val next = mutableHosts.value
+                    .filterNot { it.serviceName == resolved.serviceName } + resolved
+                mutableHosts.value = next.sortedBy { it.serviceName }
+            }
+
+            override fun onServiceLost() {
+                synchronized(serviceInfoLock) { serviceInfoCallbacks.remove(name) }
+                mutableHosts.value = mutableHosts.value.filterNot { it.serviceName == name }
+            }
+
+            override fun onServiceInfoCallbackUnregistered() {
+                synchronized(serviceInfoLock) { serviceInfoCallbacks.remove(name) }
+            }
+        }
+        synchronized(serviceInfoLock) { serviceInfoCallbacks[name] = callback }
+        try {
+            manager.registerServiceInfoCallback(serviceInfo, { runnable -> runnable.run() }, callback)
+        } catch (_: Exception) {
+            synchronized(serviceInfoLock) { serviceInfoCallbacks.remove(name) }
+        }
+    }
+
+    private fun unregisterServiceCallback(serviceName: String) {
+        val manager = nsdManager ?: return
+        val callback = synchronized(serviceInfoLock) { serviceInfoCallbacks.remove(serviceName) } ?: return
+        runCatching { manager.unregisterServiceInfoCallback(callback) }
+    }
+
+    private fun clearServiceCallbacks(manager: NsdManager) {
+        val callbacks = synchronized(serviceInfoLock) {
+            serviceInfoCallbacks.values.toList().also { serviceInfoCallbacks.clear() }
+        }
+        callbacks.forEach { runCatching { manager.unregisterServiceInfoCallback(it) } }
     }
 }
 
