@@ -16,8 +16,11 @@ export function generatedDirectory(repositoryRoot: string): string {
   return join(repositoryRoot, "protocol/remote/v3/generated");
 }
 
-export function writeRemoteV3Generated(repositoryRoot: string): Record<string, string> {
-  const files = buildRemoteV3GeneratedFiles();
+export function writeRemoteV3Generated(
+  repositoryRoot: string,
+  precomputed?: Readonly<Record<string, string>>,
+): Record<string, string> {
+  const files = precomputed ? { ...precomputed } : buildRemoteV3GeneratedFiles();
   const directory = generatedDirectory(repositoryRoot);
   const parent = dirname(directory);
   mkdirSync(parent, { recursive: true });
@@ -59,8 +62,11 @@ function generatedFilesOnDisk(directory: string): string[] {
   return files.sort(compareUnicodeCodePoints);
 }
 
-export function checkRemoteV3Generated(repositoryRoot: string): string[] {
-  const expected = buildRemoteV3GeneratedFiles();
+export function checkRemoteV3Generated(
+  repositoryRoot: string,
+  precomputed?: Readonly<Record<string, string>>,
+): string[] {
+  const expected = precomputed ?? buildRemoteV3GeneratedFiles();
   const directory = generatedDirectory(repositoryRoot);
   const errors: string[] = [];
   let onDisk: string[] = [];

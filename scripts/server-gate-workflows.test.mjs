@@ -145,6 +145,11 @@ void test("release Windows jobs install from the registry instead of restoring a
   );
   assert.equal(bunOnly.if, "inputs.registry-cache == 'bun'");
   assert.equal(bunOnly.with.path, "${{ steps.registry-cache.outputs.bun }}");
+  assert.equal(
+    bunOnly.with["restore-keys"],
+    undefined,
+    "exact-key Bun caches must not snowball stale lockfile packages via prefix restore-keys",
+  );
 
   // Unpacking the Bun cache archive on Windows took 3 minutes; a cold install
   // took 80 to 100 seconds. Every registry cache step is opt-in by value, so

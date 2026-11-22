@@ -23,6 +23,13 @@ void test("documentation-only changes skip expensive CI lanes", () => {
     ]),
     {
       core: false,
+      tui: false,
+      testPerf: false,
+      testProjects: "all",
+      rustHelper: false,
+      mcpRelay: false,
+      gitHelper: false,
+      nativeContract: false,
       nativeAndroid: false,
       nativeIos: false,
       nativeShared: false,
@@ -46,49 +53,284 @@ void test("markdown that ships or feeds tests runs the core lanes", () => {
 void test("platform-only changes run only the affected native clients", () => {
   assert.deepEqual(classifyChanges(["android/app/build.gradle.kts", "docs/MOBILE_DEV.md"]), {
     core: false,
+    tui: false,
+    testPerf: false,
+    testProjects: "all",
+    rustHelper: false,
+    mcpRelay: false,
+    gitHelper: false,
+    nativeContract: false,
     nativeAndroid: true,
     nativeIos: false,
     nativeShared: false,
   });
   assert.deepEqual(classifyChanges(["ios/App/App/App.swift"]), {
     core: false,
+    tui: false,
+    testPerf: false,
+    testProjects: "all",
+    rustHelper: false,
+    mcpRelay: false,
+    gitHelper: false,
+    nativeContract: false,
     nativeAndroid: false,
     nativeIos: true,
     nativeShared: false,
   });
   assert.deepEqual(classifyChanges(["android/app/build.gradle.kts", "ios/App/App/App.swift"]), {
     core: false,
+    tui: false,
+    testPerf: false,
+    testProjects: "all",
+    rustHelper: false,
+    mcpRelay: false,
+    gitHelper: false,
+    nativeContract: false,
     nativeAndroid: true,
     nativeIos: true,
     nativeShared: false,
   });
 });
 
-void test("shared and uncertain changes run every qualification lane", () => {
-  for (const path of [
-    "src/server/server.ts",
-    "protocol/remote/v3/generated/schema.json",
-    "bun.lock",
-    ".github/workflows/native-ci.yml",
-  ]) {
+void test("uncertain and classifier changes run every qualification lane", () => {
+  for (const path of ["scripts/ci-change-scope.mjs", "unrecognized-root/file.txt"]) {
     assert.deepEqual(classifyChanges([path]), fullScope(), path);
   }
   assert.deepEqual(classifyChanges([]), fullScope());
 });
 
-void test("renderer and separately shipped surfaces do not start native clients", () => {
+void test("protocol and native workflow changes run native contract, foundation, and mobile clients", () => {
+  assert.deepEqual(classifyChanges(["protocol/remote/v3/generated/schema.json"]), {
+    core: true,
+    tui: false,
+    testPerf: false,
+    testProjects: "node",
+    rustHelper: false,
+    mcpRelay: false,
+    gitHelper: false,
+    nativeContract: true,
+    nativeAndroid: true,
+    nativeIos: true,
+    nativeShared: true,
+  });
+  assert.deepEqual(classifyChanges([".github/workflows/native-ci.yml"]), {
+    core: true,
+    tui: false,
+    testPerf: false,
+    testProjects: "all",
+    rustHelper: false,
+    mcpRelay: false,
+    gitHelper: false,
+    nativeContract: true,
+    nativeAndroid: true,
+    nativeIos: true,
+    nativeShared: true,
+  });
+});
+
+void test("server, provider, shared, and lockfile changes scope native, perf, TUI, and test projects", () => {
+  assert.deepEqual(classifyChanges(["src/server/server.ts"]), {
+    core: true,
+    tui: false,
+    testPerf: false,
+    testProjects: "node",
+    rustHelper: false,
+    mcpRelay: false,
+    gitHelper: false,
+    nativeContract: false,
+    nativeAndroid: false,
+    nativeIos: false,
+    nativeShared: true,
+  });
+  assert.deepEqual(classifyChanges(["src/supervisor/agents/devin/adapter.ts"]), {
+    core: true,
+    tui: false,
+    testPerf: true,
+    testProjects: "node",
+    rustHelper: false,
+    mcpRelay: false,
+    gitHelper: false,
+    nativeContract: false,
+    nativeAndroid: false,
+    nativeIos: false,
+    nativeShared: false,
+  });
+  assert.deepEqual(classifyChanges(["src/main/window.ts"]), {
+    core: true,
+    tui: false,
+    testPerf: false,
+    testProjects: "node",
+    rustHelper: false,
+    mcpRelay: false,
+    gitHelper: false,
+    nativeContract: false,
+    nativeAndroid: false,
+    nativeIos: false,
+    nativeShared: false,
+  });
+  assert.deepEqual(classifyChanges(["src/shared/remote/protocol.ts"]), {
+    core: true,
+    tui: true,
+    testPerf: true,
+    testProjects: "all",
+    rustHelper: false,
+    mcpRelay: false,
+    gitHelper: false,
+    nativeContract: true,
+    nativeAndroid: false,
+    nativeIos: false,
+    nativeShared: true,
+  });
+  assert.deepEqual(classifyChanges(["bun.lock"]), {
+    core: true,
+    tui: true,
+    testPerf: true,
+    testProjects: "all",
+    rustHelper: false,
+    mcpRelay: true,
+    gitHelper: true,
+    nativeContract: true,
+    nativeAndroid: false,
+    nativeIos: false,
+    nativeShared: true,
+  });
+  assert.deepEqual(classifyChanges(["package.json"]), {
+    core: true,
+    tui: true,
+    testPerf: true,
+    testProjects: "all",
+    rustHelper: false,
+    mcpRelay: true,
+    gitHelper: true,
+    nativeContract: true,
+    nativeAndroid: true,
+    nativeIos: false,
+    nativeShared: true,
+  });
+  assert.equal(
+    classifyChanges(["src/renderer/App.tsx", "src/server/server.ts"]).testProjects,
+    "all",
+  );
+});
+
+void test("Rust helper jobs run only for their own helper or parity surfaces", () => {
+  assert.deepEqual(classifyChanges(["native/computer-use-helper/src/lib.rs"]), {
+    core: true,
+    tui: false,
+    testPerf: false,
+    testProjects: "node",
+    rustHelper: true,
+    mcpRelay: false,
+    gitHelper: false,
+    nativeContract: false,
+    nativeAndroid: false,
+    nativeIos: false,
+    nativeShared: false,
+  });
+  assert.deepEqual(classifyChanges(["native/mcp-relay/src/main.rs"]), {
+    core: true,
+    tui: false,
+    testPerf: false,
+    testProjects: "node",
+    rustHelper: false,
+    mcpRelay: true,
+    gitHelper: false,
+    nativeContract: false,
+    nativeAndroid: false,
+    nativeIos: false,
+    nativeShared: true,
+  });
+  assert.deepEqual(classifyChanges(["src/supervisor/mcp/mcpHttpRelay.ts"]), {
+    core: true,
+    tui: false,
+    testPerf: true,
+    testProjects: "node",
+    rustHelper: false,
+    mcpRelay: true,
+    gitHelper: false,
+    nativeContract: false,
+    nativeAndroid: false,
+    nativeIos: false,
+    nativeShared: true,
+  });
+  assert.deepEqual(classifyChanges(["native/git-helper/src/lib.rs"]), {
+    core: true,
+    tui: false,
+    testPerf: false,
+    testProjects: "node",
+    rustHelper: false,
+    mcpRelay: false,
+    gitHelper: true,
+    nativeContract: false,
+    nativeAndroid: false,
+    nativeIos: false,
+    nativeShared: true,
+  });
+  assert.deepEqual(classifyChanges(["src/supervisor/git/gitNativeHelperClient.ts"]), {
+    core: true,
+    tui: false,
+    testPerf: true,
+    testProjects: "node",
+    rustHelper: false,
+    mcpRelay: false,
+    gitHelper: true,
+    nativeContract: false,
+    nativeAndroid: false,
+    nativeIos: false,
+    nativeShared: true,
+  });
+});
+
+void test("renderer and separately shipped surfaces do not start native clients or Rust helpers", () => {
   for (const path of [
     "src/renderer/App.tsx",
     "chrome-extension/manifest.json",
     "branding/assets/icon.svg",
-    "website/package.json",
   ]) {
     assert.deepEqual(
       classifyChanges([path]),
-      { core: true, nativeAndroid: false, nativeIos: false, nativeShared: false },
+      {
+        core: true,
+        tui: false,
+        testPerf: false,
+        testProjects: "renderer",
+        rustHelper: false,
+        mcpRelay: false,
+        gitHelper: false,
+        nativeContract: false,
+        nativeAndroid: false,
+        nativeIos: false,
+        nativeShared: false,
+      },
       path,
     );
   }
+  assert.deepEqual(classifyChanges(["website/package.json"]), {
+    core: true,
+    tui: false,
+    testPerf: false,
+    testProjects: "all",
+    rustHelper: false,
+    mcpRelay: false,
+    gitHelper: false,
+    nativeContract: false,
+    nativeAndroid: false,
+    nativeIos: false,
+    nativeShared: false,
+  });
+  assert.deepEqual(classifyChanges(["tui/src/index.ts"]), {
+    core: true,
+    tui: true,
+    testPerf: false,
+    testProjects: "node",
+    rustHelper: false,
+    mcpRelay: false,
+    gitHelper: false,
+    nativeContract: false,
+    nativeAndroid: false,
+    nativeIos: false,
+    nativeShared: false,
+  });
 });
 
 void test("required gates remain present and validate intentionally skipped jobs", async () => {
@@ -98,17 +340,19 @@ void test("required gates remain present and validate intentionally skipped jobs
     ),
   );
 
-  for (const name of [
-    "typecheck",
-    "lint",
-    "web_build",
-    "runtime_deps",
-    "rust_helper",
-    "test_shard",
-    "test_perf",
+  for (const [name, output] of [
+    ["typecheck", "core"],
+    ["lint", "core"],
+    ["tui", "tui"],
+    ["web_build", "core"],
+    ["test_shard", "core"],
+    ["test_perf", "test_perf"],
+    ["rust_helper", "rust_helper"],
+    ["mcp_relay", "mcp_relay"],
+    ["git_helper", "git_helper"],
   ]) {
     assert.equal(core.jobs[name].needs, "changes", name);
-    assert.match(core.jobs[name].if, /needs\.changes\.outputs\.core/u, name);
+    assert.match(core.jobs[name].if, new RegExp(`needs\\.changes\\.outputs\\.${output}`), name);
   }
   assert.ok(core.jobs.ci_gate.needs.includes("changes"));
   assert.match(core.jobs.ci_gate.steps.at(-1).run, /expected = required\.has/u);
@@ -116,7 +360,8 @@ void test("required gates remain present and validate intentionally skipped jobs
   for (const [name, output] of [
     ["android", "android"],
     ["ios", "ios"],
-    ["remote_v3_contract", "shared"],
+    ["remote_v3_contract", "contract"],
+    ["native_e2e_foundation", "shared"],
   ]) {
     assert.equal(native.jobs[name].needs, "changes", name);
     assert.match(native.jobs[name].if, new RegExp(`outputs\\.${output}`), name);
@@ -132,10 +377,9 @@ void test("CI prepares pinned Bun before typechecking, linting and formatting", 
   for (const [job, command] of [
     ["typecheck", "bun run typecheck"],
     ["lint", "bun run lint"],
-    ["fmt", "bun run fmt:check"],
     ["web_build", "bun run build:web"],
-    ["runtime_deps", "bun run codex-protocol:gen"],
-    ["test_shard", "bun run test --shard=${{ matrix.shard }}/8"],
+    ["web_build", "node scripts/build-desktop-artifact.mjs --skip-build --check-runtime-deps"],
+    ["test_shard", "bun run test --shard=${{ matrix.shard }}/6"],
     ["test_perf", "bun run test:perf:cli-hook"],
   ]) {
     const steps = core.jobs[job].steps;
@@ -147,9 +391,22 @@ void test("CI prepares pinned Bun before typechecking, linting and formatting", 
     );
     const check = steps.findIndex((step) => step.run === command);
     assert.ok(setup >= 0, job);
+    assert.equal(steps[setup].with?.["registry-cache"], "bun", job);
     assert.ok(install > setup, job);
     assert.ok(check > install, job);
   }
+
+  // Format uses Bun's built-in formatter directly without restoring packages or installing node_modules.
+  const fmtSteps = core.jobs.fmt.steps;
+  const fmtSetup = fmtSteps.findIndex((step) => step.uses === "./.github/actions/setup-bun");
+  const fmtCheck = fmtSteps.findIndex((step) => step.run === "bun fmt --check");
+  assert.ok(fmtSetup >= 0);
+  assert.equal(fmtSteps[fmtSetup].with?.["registry-cache"], "none");
+  assert.ok(fmtCheck > fmtSetup);
+  assert.equal(
+    fmtSteps.some((step) => step.run?.includes("bun install")),
+    false,
+  );
 });
 
 void test("pinned Bun installation preserves platform binaries across rebuilds", async (t) => {
@@ -459,7 +716,7 @@ void test("native compiler fixtures run only in the scoped contract lane", async
     (step) => step.name === "Compile generated Swift and Kotlin runtime fixtures",
   );
   assert.match(nativeCompile.run, /native\/runtime\.test\.ts/u);
-  assert.match(native.jobs.remote_v3_contract.if, /outputs\.shared == 'true'/u);
+  assert.match(native.jobs.remote_v3_contract.if, /outputs\.contract == 'true'/u);
 
   const compilerFile = "src/shared/remote/contract/native/runtime.test.ts";
   const collect = promisify(execFile);
@@ -506,6 +763,37 @@ void test("native compiler fixtures run only in the scoped contract lane", async
           `${name} still collects ordinary node tests`,
         );
       }
+    }),
+  );
+});
+
+void test("PORACODE_TEST_PROJECTS scopes Vitest projects cleanly for single-layer PRs", async () => {
+  const collect = promisify(execFile);
+  const repository = fileURLToPath(new URL("../", import.meta.url));
+  const vitest = fileURLToPath(new URL("../node_modules/vitest/vitest.mjs", import.meta.url));
+  const baseEnv = { ...process.env };
+  delete baseEnv.PORACODE_TEST_PROJECTS;
+  const rendererSample = "src/renderer/state/remoteServersStore.test.ts";
+  const nodeSample = "src/build/durationShardSequencer.test.ts";
+
+  const runs = [
+    { scope: "renderer", expectRenderer: true, expectNode: false },
+    { scope: "node", expectRenderer: false, expectNode: true },
+    { scope: "all", expectRenderer: true, expectNode: true },
+  ];
+  await Promise.all(
+    runs.map(async ({ scope, expectRenderer, expectNode }) => {
+      const { stdout } = await collect(
+        process.execPath,
+        [vitest, "list", "--configLoader", "runner", "--filesOnly", rendererSample, nodeSample],
+        {
+          cwd: repository,
+          env: { ...baseEnv, PORACODE_TEST_PROJECTS: scope },
+          timeout: 30_000,
+        },
+      );
+      assert.equal(stdout.includes(rendererSample), expectRenderer, `${scope}: renderer`);
+      assert.equal(stdout.includes(nodeSample), expectNode, `${scope}: node`);
     }),
   );
 });

@@ -1,8 +1,9 @@
-import { execFileSync, spawnSync } from "node:child_process";
+import { execFile, spawnSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { promisify } from "node:util";
 import { describe, expect, it } from "vitest";
 import { buildRemoteProtocolManifest, buildRemoteV3IrDocument } from "../generate";
 import { emitKotlinBindings } from "./emitKotlin";
@@ -1357,6 +1358,12 @@ function prepareHarness(): {
   };
 }
 
+const execFileAsync = promisify(execFile);
+let cachedHarness: ReturnType<typeof prepareHarness> | undefined;
+function getHarness(): ReturnType<typeof prepareHarness> {
+  return (cachedHarness ??= prepareHarness());
+}
+
 const swiftVersion = spawnSync("swiftc", ["--version"], { encoding: "utf8" });
 const hasSwift6 = swiftVersion.status === 0 && /Swift version 6\./.test(swiftVersion.stdout);
 
@@ -1372,8 +1379,8 @@ describe("generated native union runtime wire format", () => {
     }
   });
 
-  it("compiles with Kotlin 2.4.10 / serialization 1.11.0 and runs flat union fixtures", () => {
-    const harness = prepareHarness();
+  it.concurrent("compiles with Kotlin 2.4.10 / serialization 1.11.0 and runs flat union fixtures", async () => {
+    const harness = getHarness();
     const directory = mkdtempSync(join(tmpdir(), "poracode-kotlin-union-"));
     try {
       const sourceDirectory = join(directory, "src/main/kotlin");
@@ -1411,8 +1418,8 @@ application { mainClass.set("HarnessKt") }
 `,
         "utf8",
       );
-      expect(() =>
-        execFileSync(
+      await expect(
+        execFileAsync(
           process.platform === "win32"
             ? process.env.JAVA_HOME
               ? join(process.env.JAVA_HOME, "bin/java.exe")
@@ -1435,20 +1442,20 @@ application { mainClass.set("HarnessKt") }
           {
             cwd: repositoryRoot,
             encoding: "utf8",
-            stdio: "pipe",
+            maxBuffer: 16 * 1024 * 1024,
             timeout: 300_000,
           },
         ),
-      ).not.toThrow();
+      ).resolves.toBeDefined();
     } finally {
       rmSync(directory, { recursive: true, force: true });
     }
   }, 360_000);
 
-  it.runIf(hasSwift6)(
+  it.runIf(hasSwift6).concurrent(
     "compiles in Swift 6 mode and runs the same flat union fixtures",
-    () => {
-      const harness = prepareHarness();
+    async () => {
+      const harness = getHarness();
       const directory = mkdtempSync(join(tmpdir(), "poracode-swift-union-"));
       try {
         writeLanguageSources(directory, "swift", harness.input.files);
@@ -1462,22 +1469,22 @@ application { mainClass.set("HarnessKt") }
           .map((path) => join(directory, path.slice("swift/".length)))
           .sort();
         const executable = join(directory, "native-union-runtime");
-        expect(() => {
-          execFileSync(
-            "swiftc",
-            ["-swift-version", "6", ...sources, join(directory, "Harness.swift"), "-o", executable],
-            {
-              encoding: "utf8",
-              stdio: "pipe",
-              timeout: 300_000,
-            },
-          );
-          execFileSync(executable, [], {
+        await execFileAsync(
+          "swiftc",
+          ["-swift-version", "6", ...sources, join(directory, "Harness.swift"), "-o", executable],
+          {
             encoding: "utf8",
-            stdio: "pipe",
+            maxBuffer: 16 * 1024 * 1024,
+            timeout: 300_000,
+          },
+        );
+        await expect(
+          execFileAsync(executable, [], {
+            encoding: "utf8",
+            maxBuffer: 16 * 1024 * 1024,
             timeout: 30_000,
-          });
-        }).not.toThrow();
+          }),
+        ).resolves.toBeDefined();
       } finally {
         rmSync(directory, { recursive: true, force: true });
       }

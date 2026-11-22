@@ -38,14 +38,21 @@ function rendererProject(
   };
 }
 
-// A single run keeps half the cores. When scripts/heavy-run-gate.mjs reports
-// peers (other worktrees running heavy tasks), split that same budget so the
-// machine is not oversubscribed. CI and ungated runs keep the plain 50%.
+// Dedicated CI shard runners only execute Vitest, so they can use all vCPUs.
+// Local runs keep half the cores and split further when heavy-run-gate.mjs
+// reports sibling worktrees so developer machines stay responsive.
 const gatePeers = Number.parseInt(process.env.PORACODE_HEAVY_GATE_PEERS ?? "", 10);
-const maxWorkers =
-  !process.env.CI && gatePeers > 1
+const maxWorkers = process.env.CI
+  ? "100%"
+  : gatePeers > 1
     ? Math.max(2, Math.floor(availableParallelism() / 2 / gatePeers))
     : "50%";
+
+// PR runs can scope unit shards to the architecture layer touched ("renderer"
+// or "node"); master pushes, shared edits, and local runs keep all projects.
+const testProjectScope = process.env.PORACODE_TEST_PROJECTS;
+const includeRendererProjects = testProjectScope !== "node";
+const includeNodeProjects = testProjectScope !== "renderer";
 
 // CI retries a failed test once so a timing flake cannot turn a landed commit
 // red; FlakyTestReporter turns every pass-on-retry into a warning annotation
@@ -89,57 +96,73 @@ export default defineConfig({
     // and run via the `test:perf:*` scripts / the dedicated CI perf job.
     exclude: ["dist", "node_modules", "tui/**", "**/*.perf.test.ts"],
     projects: [
-      rendererProject({
-        name: "renderer",
-        include: ["src/renderer/**/*.test.{ts,tsx}", "website/src/**/*.test.tsx"],
-        // Real-browser layout tests run through vitest.browser.config.ts.
-        exclude: ["**/*.perf.test.ts", "**/*.chromium.test.tsx", ...monacoTestFiles],
-      }),
-      rendererProject({
-        name: "renderer-monaco",
-        include: monacoTestFiles,
-        // Keep prebundling isolated from renderer tests that mock dependency identities.
-        deps: {
-          optimizer: {
-            client: {
-              enabled: true,
-              include: [
-                "monaco-editor",
-                "monaco-editor/languages/features/common/lspLanguageFeatures.js",
-              ],
-              extensions: [".css"],
-              rolldownOptions: { moduleTypes: { ".css": "empty" } },
+      ...(includeRendererProjects
+        ? [
+            rendererProject({
+              name: "renderer",
+              include: ["src/renderer/**/*.test.{ts,tsx}", "website/src/**/*.test.tsx"],
+              // Real-browser layout tests run through vitest.browser.config.ts.
+              exclude: ["**/*.perf.test.ts", "**/*.chromium.test.tsx", ...monacoTestFiles],
+            }),
+            rendererProject({
+              name: "renderer-monaco",
+              include: monacoTestFiles,
+              // Keep prebundling isolated from renderer tests that mock dependency identities.
+              deps: {
+                optimizer: {
+                  client: {
+                    enabled: true,
+                    include: [
+                      "monaco-editor",
+                      "monaco-editor/languages/features/common/lspLanguageFeatures.js",
+                    ],
+                    extensions: [".css"],
+                    rolldownOptions: { moduleTypes: { ".css": "empty" } },
+                  },
+                },
+              },
+            }),
+          ]
+        : []),
+      ...(includeNodeProjects
+        ? [
+            {
+              extends: true,
+              resolve: {
+                alias: {
+                  "@": resolve(import.meta.dirname, "src"),
+                },
+              },
+              test: {
+                name: "node",
+                // Protocol conformance lives under protocol/ but needs the same node
+                // environment and `@` alias as src. Folded into this project so
+                // `pnpm run test --shard=N/4` never shards a one-file project.
+                include: [
+                  "src/**/*.test.{ts,tsx}",
+                  "protocol/**/*.test.ts",
+                  "website/src/**/*.test.ts",
+                ],
+                // Project-level exclude replaces the inherited root exclude, so the
+                // perf-suite pattern is restated here.
+                exclude: [
+                  "src/renderer/**/*.test.{ts,tsx}",
+                  "**/*.perf.test.ts",
+                  ...coreShardExcludes,
+                ],
+                environment: "node",
+              },
             },
-          },
-        },
-      }),
-      {
-        extends: true,
-        resolve: {
-          alias: {
-            "@": resolve(import.meta.dirname, "src"),
-          },
-        },
-        test: {
-          name: "node",
-          // Protocol conformance lives under protocol/ but needs the same node
-          // environment and `@` alias as src. Folded into this project so
-          // `pnpm run test --shard=N/4` never shards a one-file project.
-          include: ["src/**/*.test.{ts,tsx}", "protocol/**/*.test.ts", "website/src/**/*.test.ts"],
-          // Project-level exclude replaces the inherited root exclude, so the
-          // perf-suite pattern is restated here.
-          exclude: ["src/renderer/**/*.test.{ts,tsx}", "**/*.perf.test.ts", ...coreShardExcludes],
-          environment: "node",
-        },
-      },
-      {
-        extends: true,
-        test: {
-          name: "packages",
-          include: ["packages/*/src/**/*.test.{ts,tsx}"],
-          environment: "node",
-        },
-      },
+            {
+              extends: true,
+              test: {
+                name: "packages",
+                include: ["packages/*/src/**/*.test.{ts,tsx}"],
+                environment: "node",
+              },
+            },
+          ]
+        : []),
     ],
   },
 });

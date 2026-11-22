@@ -27,6 +27,7 @@ jobs:
     outputs:
       android: ${{ steps.scope.outputs.native_android }}
       ios: ${{ steps.scope.outputs.native_ios }}
+      contract: ${{ steps.scope.outputs.native_contract }}
       shared: ${{ steps.scope.outputs.native_shared }}
       full: ${{ steps.mode.outputs.full }}
     steps:
@@ -60,15 +61,28 @@ jobs:
   remote_v3_contract:
     name: Remote v3 generated artifacts
     needs: changes
-    if: ${{ needs.changes.outputs.shared == 'true' }}
+    if: ${{ needs.changes.outputs.contract == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
       - name: Checkout
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
 
+      - name: Setup Java
+        uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9 # v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Setup Gradle cache
+        uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a # v4
+        with:
+          cache-read-only: ${{ github.event_name == 'pull_request' }}
+
       - name: Setup Bun
         uses: ./.github/actions/setup-bun
+        with:
+          registry-cache: bun
 
       - name: Install JavaScript dependencies
         run: bun install --frozen-lockfile --ignore-scripts && node node_modules/bun/install.js
@@ -137,7 +151,14 @@ jobs:
 
       - name: Test, assemble, and lint Android
         working-directory: android
-        run: ./gradlew clean testDebugUnitTest assembleDebug lintDebug --no-daemon --stacktrace
+        env:
+          FULL_QUALIFICATION: ${{ needs.changes.outputs.full }}
+        run: |
+          tasks=(testDebugUnitTest assembleDebug)
+          if [ "$FULL_QUALIFICATION" = "true" ]; then
+            tasks+=(lintDebug)
+          fi
+          ./gradlew "${tasks[@]}" --no-daemon --stacktrace
 
       - name: Upload Android evidence
         if: ${{ !cancelled() }}
@@ -224,12 +245,11 @@ jobs:
           xcodebuild -version
           test "$(xcodebuild -version | sed -n '1s/^Xcode //p')" = "26.6"
           test "$(xcrun --sdk iphonesimulator --show-sdk-version)" = "26.5"
-          for target in App AppTests PoracodeActivities; do
-            deployment_target="$(xcodebuild -project ios/App/App.xcodeproj -target "$target" \
-              -showBuildSettings \
-              | awk '/^[[:space:]]*IPHONEOS_DEPLOYMENT_TARGET = / { print $3; exit }')"
-            awk -v version="$deployment_target" 'BEGIN { exit !(version + 0 >= 17) }'
-          done
+          targets="$(sed -n 's/.*IPHONEOS_DEPLOYMENT_TARGET = \([0-9.]*\);/\1/p' ios/App/App.xcodeproj/project.pbxproj)"
+          test -n "$targets"
+          while IFS= read -r version; do
+            awk -v version="$version" 'BEGIN { exit !(version + 0 >= 17) }'
+          done <<< "$targets"
 
       - name: Build iOS tests for Simulator
         working-directory: ios/App
@@ -237,8 +257,10 @@ jobs:
           xcodebuild build-for-testing -quiet \
             -project App.xcodeproj \
             -scheme App \
+            -only-testing:AppTests \
             -destination "$IOS_DESTINATION" \
-            -derivedDataPath "$RUNNER_TEMP/PoracodeDerivedData"
+            -derivedDataPath "$RUNNER_TEMP/PoracodeDerivedData" \
+            COMPILER_INDEX_STORE_ENABLE=NO
 
       - name: Run AppTests
         working-directory: ios/App
@@ -273,6 +295,8 @@ jobs:
 
       - name: Setup Bun
         uses: ./.github/actions/setup-bun
+        with:
+          registry-cache: bun
 
       - name: Install JavaScript dependencies
         run: bun install --frozen-lockfile --ignore-scripts && node node_modules/bun/install.js
@@ -385,6 +409,8 @@ jobs:
 
       - name: Setup Bun
         uses: ./.github/actions/setup-bun
+        with:
+          registry-cache: bun
 
       - name: Install native harness dependencies
         run: bun install --frozen-lockfile --ignore-scripts && node node_modules/bun/install.js
@@ -652,7 +678,7 @@ jobs:
 
   native_e2e_foundation:
     name: Native wire and real-host foundation
-    needs: [changes, remote_v3_contract]
+    needs: changes
     if: ${{ needs.changes.outputs.shared == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 35
@@ -662,6 +688,8 @@ jobs:
 
       - name: Setup Bun
         uses: ./.github/actions/setup-bun
+        with:
+          registry-cache: bun
 
       - name: Install JavaScript dependencies
         run: bun install --frozen-lockfile --ignore-scripts && node node_modules/bun/install.js
@@ -698,9 +726,10 @@ jobs:
             --reporter=junit
             --outputFile.junit="$RUNNER_TEMP/native-e2e-junit.xml"
           )
-          # The 32 Kbps payload case takes about four minutes by design. Keep
-          # it in master/release proof and out of per-commit qualification.
+          # The 32 Kbps payload cases take several minutes by design. Keep them
+          # in master/release proof and out of per-commit qualification.
           if [ "$FULL_QUALIFICATION" != "true" ]; then
+            export PORACODE_CONSTRAINED_FAST=1
             args+=(--exclude='**/largePayloadCompression.test.ts')
           fi
           bun run vitest run "${args[@]}"
@@ -772,7 +801,7 @@ jobs:
 
   server_install_qualification:
     name: Server install qualification
-    needs: [changes, remote_v3_contract]
+    needs: changes
     if: ${{ needs.changes.outputs.shared == 'true' && needs.changes.outputs.full == 'true' }}
     # Plan D3: qualification runs the one reusable artifact workflow, on the
     # exact bytes the release job promotes (release.yml calls the same file).
@@ -807,17 +836,18 @@ jobs:
           JOB_RESULTS: ${{ toJSON(needs) }}
           ANDROID_REQUIRED: ${{ needs.changes.outputs.android }}
           IOS_REQUIRED: ${{ needs.changes.outputs.ios }}
+          CONTRACT_REQUIRED: ${{ needs.changes.outputs.contract }}
           SHARED_REQUIRED: ${{ needs.changes.outputs.shared }}
           FULL_REQUIRED: ${{ needs.changes.outputs.full }}
         run: |
           node - <<'NODE'
           const jobs = JSON.parse(process.env.JOB_RESULTS);
-          for (const name of ["ANDROID_REQUIRED", "IOS_REQUIRED", "SHARED_REQUIRED", "FULL_REQUIRED"]) {
+          for (const name of ["ANDROID_REQUIRED", "IOS_REQUIRED", "CONTRACT_REQUIRED", "SHARED_REQUIRED", "FULL_REQUIRED"]) {
             if (!["true", "false"].includes(process.env[name])) throw new Error(`${name} change scope is missing`);
           }
           const expected = {
             changes: true,
-            remote_v3_contract: process.env.SHARED_REQUIRED === "true",
+            remote_v3_contract: process.env.CONTRACT_REQUIRED === "true",
             android: process.env.ANDROID_REQUIRED === "true",
             android_api34_runtime: process.env.ANDROID_REQUIRED === "true" && process.env.FULL_REQUIRED === "true",
             android_api37_runtime: process.env.ANDROID_REQUIRED === "true" && process.env.FULL_REQUIRED === "true",

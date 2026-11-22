@@ -35,12 +35,27 @@ void test("core qualification has an unconditional gate covering every CI job", 
   const script = /node - <<'NODE'\n([\s\S]*?)\nNODE/u.exec(step.run)?.[1];
   assert.ok(script, "Execute the actual aggregate gate against failure fixtures");
   const good = Object.fromEntries(jobs.ci_gate.needs.map((name) => [name, { result: "success" }]));
-  const evaluate = (results, coreRequired = true) =>
+  const evaluate = (
+    results,
+    {
+      core = true,
+      tui = true,
+      testPerf = true,
+      rustHelper = true,
+      mcpRelay = true,
+      gitHelper = true,
+    } = {},
+  ) =>
     spawnSync(process.execPath, ["-e", script], {
       env: {
         ...process.env,
         JOB_RESULTS: JSON.stringify(results),
-        CORE_REQUIRED: String(coreRequired),
+        CORE_REQUIRED: String(core),
+        TUI_REQUIRED: String(tui),
+        TEST_PERF_REQUIRED: String(testPerf),
+        RUST_HELPER_REQUIRED: String(rustHelper),
+        MCP_RELAY_REQUIRED: String(mcpRelay),
+        GIT_HELPER_REQUIRED: String(gitHelper),
       },
     }).status;
   assert.equal(evaluate(good), 0);
@@ -49,14 +64,45 @@ void test("core qualification has an unconditional gate covering every CI job", 
       assert.equal(evaluate({ ...good, [name]: { result } }), 1, `${name}: ${result}`);
     }
   }
+  const rendererOnlyCore = Object.fromEntries(
+    jobs.ci_gate.needs.map((name) => [
+      name,
+      {
+        result: ["tui", "test_perf", "rust_helper", "mcp_relay", "git_helper"].includes(name)
+          ? "skipped"
+          : "success",
+      },
+    ]),
+  );
+  assert.equal(
+    evaluate(rendererOnlyCore, {
+      core: true,
+      tui: false,
+      testPerf: false,
+      rustHelper: false,
+      mcpRelay: false,
+      gitHelper: false,
+    }),
+    0,
+  );
   const documentationOnly = Object.fromEntries(
     jobs.ci_gate.needs.map((name) => [
       name,
       { result: name === "changes" || name === "fmt" ? "success" : "skipped" },
     ]),
   );
-  assert.equal(evaluate(documentationOnly, false), 0);
-  assert.equal(evaluate(documentationOnly, null), 1);
+  assert.equal(
+    evaluate(documentationOnly, {
+      core: false,
+      tui: false,
+      testPerf: false,
+      rustHelper: false,
+      mcpRelay: false,
+      gitHelper: false,
+    }),
+    0,
+  );
+  assert.equal(evaluate(documentationOnly, { core: null }), 1);
 });
 
 void test("nightly publication is triggered by qualification, with one serialized alias owner", async () => {
@@ -121,10 +167,12 @@ void test("native qualification preserves every existing contract, build, and fo
   ]);
   const script = /node - <<'NODE'\n([\s\S]*?)\nNODE/u.exec(jobs.native_gate.steps[0].run)?.[1];
   assert.ok(script, "Execute the native aggregate gate against scope fixtures");
-  const evaluate = ({ android, ios, shared, full }, overrides = {}) => {
+  const evaluate = (scope, overrides = {}) => {
+    const { android, ios, shared, full } = scope;
+    const contract = "contract" in scope ? scope.contract : shared;
     const required = {
       changes: true,
-      remote_v3_contract: shared,
+      remote_v3_contract: contract,
       android,
       android_api34_runtime: android && full,
       android_api37_runtime: android && full,
@@ -147,17 +195,20 @@ void test("native qualification preserves every existing contract, build, and fo
         JOB_RESULTS: JSON.stringify(results),
         ANDROID_REQUIRED: String(android),
         IOS_REQUIRED: String(ios),
+        CONTRACT_REQUIRED: String(contract),
         SHARED_REQUIRED: String(shared),
         FULL_REQUIRED: String(full),
       },
     }).status;
   };
   for (const scope of [
-    { android: false, ios: false, shared: false, full: false },
-    { android: true, ios: false, shared: false, full: false },
-    { android: false, ios: true, shared: false, full: false },
-    { android: true, ios: true, shared: true, full: false },
-    { android: true, ios: true, shared: true, full: true },
+    { android: false, ios: false, contract: false, shared: false, full: false },
+    { android: true, ios: false, contract: false, shared: false, full: false },
+    { android: false, ios: true, contract: false, shared: false, full: false },
+    { android: false, ios: false, contract: false, shared: true, full: false },
+    { android: false, ios: false, contract: true, shared: true, full: false },
+    { android: true, ios: true, contract: true, shared: true, full: false },
+    { android: true, ios: true, contract: true, shared: true, full: true },
   ]) {
     assert.equal(evaluate(scope), 0, JSON.stringify(scope));
   }
@@ -169,6 +220,10 @@ void test("native qualification preserves every existing contract, build, and fo
     1,
   );
   assert.equal(evaluate({ android: undefined, ios: false, shared: false, full: false }), 1);
+  assert.equal(
+    evaluate({ android: false, ios: false, contract: undefined, shared: false, full: false }),
+    1,
+  );
   assert.equal(evaluate({ android: false, ios: false, shared: false, full: undefined }), 1);
   const iosScope = { android: false, ios: true, shared: false, full: false };
   for (const result of ["failure", "cancelled", "skipped"]) {
