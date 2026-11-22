@@ -75,6 +75,8 @@ object RemoteSemanticValidator {
         "git.remove-worktree.owner-requires-branch",
         "mcp.reserved-name",
         "mcp.valid-url",
+        "plugin.valid-name",
+        "plugin.valid-url",
         "pr-watch.agent-required-when-enabled",
         "push.registration.platform-fields",
         "push.routing.identifier-no-controls",
@@ -96,6 +98,51 @@ object RemoteSemanticValidator {
     private fun fail(id: String, path: String): Nothing = throw RemoteValidationException("$path: semantic validator $id failed")
     private fun obj(value: JsonElement?): JsonObject? = value as? JsonObject
     private fun str(value: JsonElement?): String? = (value as? JsonPrimitive)?.takeIf { it.isString }?.content
+    private fun validPluginName(value: String): Boolean {
+        if (value.isEmpty() || value.length > 64) return false
+        fun alphanumeric(char: Char): Boolean = (char in 'a'..'z') || (char in '0'..'9')
+        if (!alphanumeric(value.first()) || !alphanumeric(value.last())) return false
+        if (value.contains("--") || value.contains("..")) return false
+        return value.all { alphanumeric(it) || it == '-' || it == '.' }
+    }
+    private fun validPluginUrl(value: String): Boolean {
+        val trimmed = RemoteECMAScriptTrim.trim(value)
+        if (!RemoteSchemaValidator.validUrl(trimmed, setOf("http", "https"))) return false
+        val colonIndex = trimmed.indexOf(':')
+        val scheme = trimmed.substring(0, colonIndex).lowercase()
+        val rest = trimmed.substring(colonIndex + 1).drop(2).dropWhile { it == '/' }
+        val authority = rest.takeWhile { it !in "/?#\\" }
+        if (authority.isEmpty()) return false
+        val hostPort = authority.substringAfterLast('@')
+        fun validPort(port: String): Boolean = port.isEmpty() || (port.all { it in '0'..'9' } && (port.toIntOrNull() ?: -1) in 0..65535)
+        val bracketed = hostPort.startsWith("[")
+        val host = if (bracketed) {
+            val close = hostPort.indexOf(']')
+            if (close < 0) return false
+            val after = hostPort.substring(close + 1)
+            if (after.isNotEmpty() && (!after.startsWith(":") || !validPort(after.drop(1)))) return false
+            val inner = hostPort.substring(1, close)
+            if (inner.isEmpty() || ':' !in inner || inner.any { it !in '0'..'9' && it !in 'a'..'f' && it !in 'A'..'F' && it != ':' && it != '.' }) return false
+            inner
+        } else {
+            if ('[' in hostPort || ']' in hostPort) return false
+            val portSep = hostPort.indexOf(':')
+            val rawHost = if (portSep >= 0) {
+                if (!validPort(hostPort.substring(portSep + 1))) return false
+                hostPort.substring(0, portSep)
+            } else hostPort
+            if (rawHost.isEmpty() || rawHost.any { it.code <= 0x20 || it.code == 0x7f || it in "#/:<>?@[\\]^|" }) return false
+            rawHost
+        }
+        val normalized = host.lowercase()
+        val octet = "(?:25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])"
+        if (!bracketed && Regex("^[0-9.]+$").matches(normalized)) {
+            if (!Regex("^$octet(?:\\.$octet){0,3}$").matches(normalized)) return false
+        }
+        if (scheme == "https") return true
+        if (bracketed) return Regex("^(?:::(?:0{0,3}1)|(?:0{1,4}:){1,6}:(?:0{0,3}1)|(?:0{1,4}:){7}(?:0{0,3}1))$").matches(normalized)
+        return normalized == "localhost" || normalized.endsWith(".localhost") || Regex("^127(?:\\.$octet){1,3}$").matches(normalized)
+    }
     private fun bool(value: JsonElement?): Boolean? = (value as? JsonPrimitive)?.takeUnless { it.isString }?.booleanOrNull
     private fun long(value: JsonElement?): Long? = (value as? JsonPrimitive)?.takeUnless { it.isString || it.booleanOrNull != null }?.doubleOrNull?.takeIf { it % 1.0 == 0.0 }?.toLong()
     private fun validUrl(value: String, schemes: Set<String>): Boolean = RemoteSchemaValidator.validUrl(RemoteECMAScriptTrim.trim(value), schemes)
@@ -145,6 +192,8 @@ object RemoteSemanticValidator {
         "git.remove-worktree.owner-requires-branch" -> if (str(item?.get("expectedOwnerToken")) != null && str(item?.get("expectedBranch")) == null) fail(id, path)
         "mcp.reserved-name" -> if (str(item?.get("name"))?.let(RemoteECMAScriptTrim::trim)?.lowercase() in setOf("browser", "crossagents", "chrome", "computer_use", "poracode")) fail(id, path)
         "mcp.valid-url" -> if ((str(value) ?: str(item?.get("url")))?.let { validUrl(it, setOf("http", "https")) } != true) fail(id, path)
+        "plugin.valid-name" -> if (str(value)?.let { validPluginName(it) } != true) fail(id, path)
+        "plugin.valid-url" -> if (str(value)?.let { validPluginUrl(it) } != true) fail(id, path)
         "pr-watch.agent-required-when-enabled" -> if (bool(item?.get("watchEnabled")) == true && (str(item?.get("agentKind")) == null || obj(item?.get("config")) == null)) fail(id, path)
         "push.registration.platform-fields" -> { val platform = str(item?.get("platform")) ?: fail(id, path); if (platform == "android" && (has("pushToStartToken") || has("activityTokens"))) fail(id, path); if (platform != "web" && (has("webPushSubscription") || has("webAppBasePath"))) fail(id, path); if (platform == "web" && (has("routing") || !has("webPushSubscription") || !has("webAppBasePath") || has("deviceToken") || has("pushToStartToken") || has("activityTokens"))) fail(id, path) }
         "push.routing.identifier-no-controls" -> if (str(value)?.any { it.code < 0x20 || it.code == 0x7f } != false) fail(id, path)

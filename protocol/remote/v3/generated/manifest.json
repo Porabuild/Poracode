@@ -1617,6 +1617,27 @@
       "scope": "session:operate"
     },
     {
+      "name": "listPlugins",
+      "owner": "optionalProjectLocation",
+      "scope": "session:read"
+    },
+    {
+      "name": "refreshPlugins",
+      "owner": "optionalProjectLocation",
+      "scope": "session:read"
+    },
+    {
+      "name": "pluginCatalog",
+      "owner": "desktop",
+      "scope": "session:operate",
+      "timeout": "long"
+    },
+    {
+      "name": "pluginAccounts",
+      "owner": "desktop",
+      "scope": "session:operate"
+    },
+    {
       "name": "discoverExternalMcpServers",
       "owner": "optionalProjectLocation",
       "scope": "session:read"

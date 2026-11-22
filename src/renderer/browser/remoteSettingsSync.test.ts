@@ -199,6 +199,55 @@ describe("pushDesktopSettingsDiff push ordering", () => {
     expect(updateSettings).toHaveBeenCalledWith({ crews: [crew] });
   });
 
+  it("does not push installedPlugins to a host that omitted the additive field", () => {
+    applyDesktopSettings(settings("v0"));
+    const client = {
+      updateSettings: vi.fn<RemoteDesktopClient["updateSettings"]>(),
+    } as unknown as RemoteDesktopClient;
+
+    pushDesktopSettingsDiff(client, {
+      ...input("v0"),
+      installedPlugins: {
+        github: {
+          version: "1.0.0",
+          enabled: false,
+          disabledSkillIds: [],
+          disabledMcpServerNames: [],
+        },
+      },
+    } as SharedSettingsInput);
+
+    expect(client.updateSettings).not.toHaveBeenCalled();
+  });
+
+  it("hydrates and forwards installedPlugins when the host advertises the field", async () => {
+    const installedPlugins = {
+      github: {
+        version: "1.0.0",
+        enabled: false,
+        disabledSkillIds: ["triage"],
+        disabledMcpServerNames: [],
+      },
+    };
+    const initial = { ...settings("v0"), installedPlugins: {} } as RemoteSettings;
+    applyDesktopSettings(initial);
+    expect(h.applyExternalSharedSettings).toHaveBeenCalledWith(initial);
+
+    const committed = { ...settings("v0"), installedPlugins } as RemoteSettings;
+    const updateSettings = vi.fn<(patch: RemoteSettingsPatch) => Promise<RemoteSettings>>(
+      async () => committed,
+    );
+    const client = { updateSettings } as unknown as RemoteDesktopClient;
+
+    pushDesktopSettingsDiff(client, {
+      ...input("v0"),
+      installedPlugins,
+    } as SharedSettingsInput);
+    await flush();
+
+    expect(updateSettings).toHaveBeenCalledWith({ installedPlugins });
+  });
+
   it("forwards follow-up behavior changes to the desktop", async () => {
     applyDesktopSettings({ ...settings("v0"), followUpBehavior: "steer" } as RemoteSettings);
     const updateSettings = vi.fn<(patch: RemoteSettingsPatch) => Promise<RemoteSettings>>(

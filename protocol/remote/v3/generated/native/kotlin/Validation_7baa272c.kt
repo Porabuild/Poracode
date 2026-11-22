@@ -29,6 +29,10 @@ internal val schema_f26d9689fe341b94: RemoteSchema by lazy {
     RemoteSchema(unionKind = "anyOf", options = listOf(schema_515482d2104d1efa, schema_b7c373d0981a5441), unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
 
+internal val schema_f277d5baa233edfd: RemoteSchema by lazy {
+    RemoteSchema(type = "object", required = setOf("action", "label", "pluginName", "serverName"), properties = mapOf("accountId" to schema_d855999aed5e6438, "action" to schema_236e9131b013f10b, "label" to schema_b89c357946c21293, "pluginName" to schema_84c77ee2ad6c219b, "serverName" to schema_36fea325bf1aca70), additionalAllowed = false, unknownPolicy = RemoteUnknownFieldPolicy.REJECT)
+}
+
 internal val schema_f27f5fbb460b4424: RemoteSchema by lazy {
     RemoteSchema(type = "object", required = setOf("activeDays", "aiActions", "days", "effortTurns", "efforts", "fastTurns", "goals", "hours", "longestTaskMs", "mcpToolCalls", "mcps", "messages", "models", "modes", "prompts", "providers", "skills", "skillsUsed", "subagentRuns", "threads", "totalTurnMs", "weekdayPrompts", "weekendPrompts", "workflowRuns"), properties = mapOf("activeDays" to schema_56aa0e45cbdce0d0, "aiActions" to schema_62392c6d6ccb4368, "days" to schema_56aa0e45cbdce0d0, "effortTurns" to schema_56aa0e45cbdce0d0, "efforts" to schema_195974ed118a4217, "fastTurns" to schema_56aa0e45cbdce0d0, "goals" to schema_56aa0e45cbdce0d0, "hours" to schema_8d9ba30ef23e1585, "longestTaskMs" to schema_56aa0e45cbdce0d0, "mcpToolCalls" to schema_56aa0e45cbdce0d0, "mcps" to schema_8c71be0e7fdf9e1a, "messages" to schema_56aa0e45cbdce0d0, "models" to schema_195974ed118a4217, "modes" to schema_195974ed118a4217, "prompts" to schema_56aa0e45cbdce0d0, "providers" to schema_195974ed118a4217, "skills" to schema_8c71be0e7fdf9e1a, "skillsUsed" to schema_56aa0e45cbdce0d0, "subagentRuns" to schema_56aa0e45cbdce0d0, "threads" to schema_56aa0e45cbdce0d0, "totalTurnMs" to schema_56aa0e45cbdce0d0, "weekdayPrompts" to schema_56aa0e45cbdce0d0, "weekendPrompts" to schema_56aa0e45cbdce0d0, "workflowRuns" to schema_56aa0e45cbdce0d0), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
@@ -75,6 +79,10 @@ internal val schema_f3d89ffd4842a73f: RemoteSchema by lazy {
 
 internal val schema_f3e06411e2a7b1ac: RemoteSchema by lazy {
     RemoteSchema(type = "array", maxItems = 32, items = schema_74fc41a249149142, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
+}
+
+internal val schema_f42512df14240efa: RemoteSchema by lazy {
+    RemoteSchema(type = "object", required = setOf("headers", "type", "url"), properties = mapOf("headers" to schema_fd056ca894e30f21, "type" to schema_d72afeeef5ea550e, "url" to schema_598e1d78689cb03b), additionalAllowed = false, unknownPolicy = RemoteUnknownFieldPolicy.REJECT)
 }
 
 internal val schema_f450768848c5befd: RemoteSchema by lazy {

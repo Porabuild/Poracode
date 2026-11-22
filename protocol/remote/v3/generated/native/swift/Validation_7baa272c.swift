@@ -25,6 +25,10 @@ public extension RemoteSchemas {
 }
 
 public extension RemoteSchemas {
+  static let schema_f277d5baa233edfd = RemoteSchema(type: "object", required: Set(["action", "label", "pluginName", "serverName"]), properties: ["accountId": RemoteSchemas.schema_d855999aed5e6438, "action": RemoteSchemas.schema_236e9131b013f10b, "label": RemoteSchemas.schema_b89c357946c21293, "pluginName": RemoteSchemas.schema_84c77ee2ad6c219b, "serverName": RemoteSchemas.schema_36fea325bf1aca70], additionalAllowed: false, unknownPolicy: .reject)
+}
+
+public extension RemoteSchemas {
   static let schema_f27f5fbb460b4424 = RemoteSchema(type: "object", required: Set(["activeDays", "aiActions", "days", "effortTurns", "efforts", "fastTurns", "goals", "hours", "longestTaskMs", "mcpToolCalls", "mcps", "messages", "models", "modes", "prompts", "providers", "skills", "skillsUsed", "subagentRuns", "threads", "totalTurnMs", "weekdayPrompts", "weekendPrompts", "workflowRuns"]), properties: ["activeDays": RemoteSchemas.schema_56aa0e45cbdce0d0, "aiActions": RemoteSchemas.schema_62392c6d6ccb4368, "days": RemoteSchemas.schema_56aa0e45cbdce0d0, "effortTurns": RemoteSchemas.schema_56aa0e45cbdce0d0, "efforts": RemoteSchemas.schema_195974ed118a4217, "fastTurns": RemoteSchemas.schema_56aa0e45cbdce0d0, "goals": RemoteSchemas.schema_56aa0e45cbdce0d0, "hours": RemoteSchemas.schema_8d9ba30ef23e1585, "longestTaskMs": RemoteSchemas.schema_56aa0e45cbdce0d0, "mcpToolCalls": RemoteSchemas.schema_56aa0e45cbdce0d0, "mcps": RemoteSchemas.schema_8c71be0e7fdf9e1a, "messages": RemoteSchemas.schema_56aa0e45cbdce0d0, "models": RemoteSchemas.schema_195974ed118a4217, "modes": RemoteSchemas.schema_195974ed118a4217, "prompts": RemoteSchemas.schema_56aa0e45cbdce0d0, "providers": RemoteSchemas.schema_195974ed118a4217, "skills": RemoteSchemas.schema_8c71be0e7fdf9e1a, "skillsUsed": RemoteSchemas.schema_56aa0e45cbdce0d0, "subagentRuns": RemoteSchemas.schema_56aa0e45cbdce0d0, "threads": RemoteSchemas.schema_56aa0e45cbdce0d0, "totalTurnMs": RemoteSchemas.schema_56aa0e45cbdce0d0, "weekdayPrompts": RemoteSchemas.schema_56aa0e45cbdce0d0, "weekendPrompts": RemoteSchemas.schema_56aa0e45cbdce0d0, "workflowRuns": RemoteSchemas.schema_56aa0e45cbdce0d0], additionalAllowed: true, unknownPolicy: .strip)
 }
 
@@ -70,6 +74,10 @@ public extension RemoteSchemas {
 
 public extension RemoteSchemas {
   static let schema_f3e06411e2a7b1ac = RemoteSchema(type: "array", maxItems: 32, items: RemoteSchemas.schema_74fc41a249149142, unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
+  static let schema_f42512df14240efa = RemoteSchema(type: "object", required: Set(["headers", "type", "url"]), properties: ["headers": RemoteSchemas.schema_fd056ca894e30f21, "type": RemoteSchemas.schema_d72afeeef5ea550e, "url": RemoteSchemas.schema_598e1d78689cb03b], additionalAllowed: false, unknownPolicy: .reject)
 }
 
 public extension RemoteSchemas {

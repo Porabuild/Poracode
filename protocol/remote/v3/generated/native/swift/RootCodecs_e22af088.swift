@@ -1,6 +1,14 @@
 // GENERATED FILE. Do not edit by hand.
 import Foundation
 public extension RemoteRootCodecs {
+  static let procedureU2EListThreadSessionActionsU2ERequest: RemoteRootCodec<ProcedurecancelExtractContextRequest_09b78d9c1d> = .init(id: "procedure.listThreadSessionActions.request", schema: RemoteSchemas.schema_09b78d9c1d4c3a6b)
+}
+
+public extension RemoteRootCodecs {
+  static let procedureU2EListThreadSessionActionsU2EResult: RemoteRootCodec<ProcedurelistThreadSessionActionsResult_825afc62b8> = .init(id: "procedure.listThreadSessionActions.result", schema: RemoteSchemas.schema_825afc62b855f7e6)
+}
+
+public extension RemoteRootCodecs {
   static let procedureU2ELogoutAcpAgentU2ERequest: RemoteRootCodec<ProcedurelogoutAcpAgentRequest_afbd186700> = .init(id: "procedure.logoutAcpAgent.request", schema: RemoteSchemas.schema_afbd18670080eac5)
 }
 
@@ -14,6 +22,22 @@ public extension RemoteRootCodecs {
 
 public extension RemoteRootCodecs {
   static let procedureU2EPauseThreadFollowUpsU2ERequest: RemoteRootCodec<ProcedurepauseThreadFollowUpsRequest_d42717fff2> = .init(id: "procedure.pauseThreadFollowUps.request", schema: RemoteSchemas.schema_d42717fff211bd92)
+}
+
+public extension RemoteRootCodecs {
+  static let procedureU2EPluginAccountsU2ERequest: RemoteRootCodec<ProcedurepluginAccountsRequest_1dd12d57c3> = .init(id: "procedure.pluginAccounts.request", schema: RemoteSchemas.schema_1dd12d57c3c2d220)
+}
+
+public extension RemoteRootCodecs {
+  static let procedureU2EPluginAccountsU2EResult: RemoteRootCodec<ProcedurepluginAccountsResult_609b25af4b> = .init(id: "procedure.pluginAccounts.result", schema: RemoteSchemas.schema_609b25af4bb3252a)
+}
+
+public extension RemoteRootCodecs {
+  static let procedureU2EPluginCatalogU2ERequest: RemoteRootCodec<ProcedurepluginCatalogRequest_ded6409c4e> = .init(id: "procedure.pluginCatalog.request", schema: RemoteSchemas.schema_ded6409c4e09c24c)
+}
+
+public extension RemoteRootCodecs {
+  static let procedureU2EPluginCatalogU2EResult: RemoteRootCodec<ProcedurepluginCatalogResult_e5c9a0e5d2> = .init(id: "procedure.pluginCatalog.result", schema: RemoteSchemas.schema_e5c9a0e5d29c7881)
 }
 
 public extension RemoteRootCodecs {
@@ -90,6 +114,14 @@ public extension RemoteRootCodecs {
 
 public extension RemoteRootCodecs {
   static let procedureU2ERefreshAgentStatusesU2EResult: RemoteRootCodec<ProcedurerefreshAgentStatusesResult_8c4b8eeb10> = .init(id: "procedure.refreshAgentStatuses.result", schema: RemoteSchemas.schema_8c4b8eeb107b4505)
+}
+
+public extension RemoteRootCodecs {
+  static let procedureU2ERefreshPluginsU2ERequest: RemoteRootCodec<ProcedurelistPluginsRequest_16b775effb> = .init(id: "procedure.refreshPlugins.request", schema: RemoteSchemas.schema_16b775effb3d19e7)
+}
+
+public extension RemoteRootCodecs {
+  static let procedureU2ERefreshPluginsU2EResult: RemoteRootCodec<ProcedurelistPluginsResult_c8fcec3264> = .init(id: "procedure.refreshPlugins.result", schema: RemoteSchemas.schema_c8fcec3264ef36ec)
 }
 
 public extension RemoteRootCodecs {
@@ -414,20 +446,4 @@ public extension RemoteRootCodecs {
 
 public extension RemoteRootCodecs {
   static let routeU2EDeviceU2DPreviewU2DAndroidU2DApiU2EResponse: RemoteRootCodec<RoutedeviceU2DPreviewU2DAndroidU2DApiResponse_0b7e529d3a> = .init(id: "route.device-preview-android-api.response", schema: RemoteSchemas.schema_0b7e529d3af3c3cd)
-}
-
-public extension RemoteRootCodecs {
-  static let routeU2EDeviceU2DPreviewU2DAndroidU2DDevicesU2EPath: RemoteRootCodec<RoutedeviceU2DActionPath_eef64882a7> = .init(id: "route.device-preview-android-devices.path", schema: RemoteSchemas.schema_eef64882a7b017fb)
-}
-
-public extension RemoteRootCodecs {
-  static let routeU2EDeviceU2DPreviewU2DAndroidU2DDevicesU2EQuery: RemoteRootCodec<RoutedeviceU2DPreviewU2DAndroidU2DApiQuery_bb755d8d8c> = .init(id: "route.device-preview-android-devices.query", schema: RemoteSchemas.schema_bb755d8d8c6227a7)
-}
-
-public extension RemoteRootCodecs {
-  static let routeU2EDeviceU2DPreviewU2DAndroidU2DDevicesU2EResponse: RemoteRootCodec<RoutedeviceU2DPreviewU2DAndroidU2DDevicesResponse_cd0f418250> = .init(id: "route.device-preview-android-devices.response", schema: RemoteSchemas.schema_cd0f41825028e154)
-}
-
-public extension RemoteRootCodecs {
-  static let routeU2EDeviceU2DPreviewU2DCloseU2EPath: RemoteRootCodec<RoutedeviceU2DActionPath_eef64882a7> = .init(id: "route.device-preview-close.path", schema: RemoteSchemas.schema_eef64882a7b017fb)
 }

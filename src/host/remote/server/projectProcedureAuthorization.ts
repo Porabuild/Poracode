@@ -3,8 +3,87 @@ import type { ProjectLocation } from "@/shared/contracts";
 import { REMOTE_PROCEDURE_SPECS, type RemoteProcedureName } from "@/shared/remote";
 import { buildWorktreeLocation } from "@/shared/worktree";
 import { isHomeProject } from "@/shared/homeScope";
+import { getProjectFsPath } from "@/shared/wsl";
 import { dbGetProjects, dbGetThreads } from "@/host/db";
 import { RemoteHttpError } from "../auth";
+
+function collectRegisteredLocations(
+  includeHomeProject: boolean,
+): { location: ProjectLocation; projectId: string }[] {
+  try {
+    const projects = dbGetProjects().filter(
+      (project) => includeHomeProject || !isHomeProject(project),
+    );
+    const projectById = new Map(projects.map((project) => [project.id, project]));
+    const locations = projects.map((project) => ({
+      location: project.location,
+      projectId: project.id,
+    }));
+    for (const thread of dbGetThreads()) {
+      const project = projectById.get(thread.projectId);
+      if (project && thread.worktreePath) {
+        locations.push({
+          location: buildWorktreeLocation(project.location, thread.worktreePath),
+          projectId: project.id,
+        });
+      }
+    }
+    return locations;
+  } catch {
+    throw new RemoteHttpError(
+      "project_registry_unavailable",
+      "Project ownership could not be verified.",
+      503,
+    );
+  }
+}
+
+function canonicalFsPath(fsPath: string, windowsStyle: boolean): string {
+  return windowsStyle ? win32.resolve(fsPath).toLowerCase() : posix.resolve(fsPath);
+}
+
+function authorizePluginCatalogPayload(
+  record: Record<string, unknown>,
+  canManageHostFiles: () => boolean,
+): void {
+  if (record.action === "add") {
+    const source = record.source as { type?: unknown } | undefined;
+    if (source?.type === "local" && !canManageHostFiles()) {
+      throw new RemoteHttpError(
+        "plugin_catalog_local_source_forbidden",
+        "Adding a local plugin marketplace requires projects:manage scope.",
+        403,
+      );
+    }
+    return;
+  }
+  if (record.action === "artwork") {
+    const target = record.target as { type?: unknown; projectFsPath?: unknown } | undefined;
+    if (
+      target?.type === "plugin" &&
+      typeof target.projectFsPath === "string" &&
+      !canManageHostFiles()
+    ) {
+      const requested = target.projectFsPath;
+      const locations = collectRegisteredLocations(false);
+      const matched = locations.find(({ location }) => {
+        const storedFsPath = getProjectFsPath(location);
+        const windowsStyle = location.kind !== "posix";
+        return (
+          canonicalFsPath(storedFsPath, windowsStyle) === canonicalFsPath(requested, windowsStyle)
+        );
+      });
+      if (!matched) {
+        throw new RemoteHttpError(
+          "project_location_not_registered",
+          "Project location is not registered on this desktop.",
+          403,
+        );
+      }
+      target.projectFsPath = getProjectFsPath(matched.location);
+    }
+  }
+}
 
 /** Session scopes address registered projects and their durable worktrees.
  * Use the stored location after matching, so caller-supplied WSL UNC paths
@@ -19,6 +98,10 @@ export function authorizeProjectProcedurePayload(
 ): Readonly<Record<string, string>> | undefined {
   const spec = REMOTE_PROCEDURE_SPECS[procedure];
   if (spec.scope === "projects:manage") return;
+  if (procedure === "pluginCatalog") {
+    authorizePluginCatalogPayload(payload as Record<string, unknown>, canManageHostFiles);
+    return;
+  }
   const fields =
     spec.owner === "projectLocation" || spec.owner === "optionalProjectLocation"
       ? ["projectLocation"]
@@ -30,36 +113,9 @@ export function authorizeProjectProcedurePayload(
   if (fields.length === 0) return;
   const record = payload as Record<string, unknown>;
   if (spec.owner === "optionalProjectLocation" && record.projectLocation === undefined) return;
-  let locations: { location: ProjectLocation; projectId: string }[];
-  try {
-    const projects = dbGetProjects().filter(
-      (project) =>
-        !isHomeProject(project) ||
-        spec.scope !== "session:read" ||
-        spec.owner !== "projectLocation" ||
-        canManageHostFiles(),
-    );
-    const projectById = new Map(projects.map((project) => [project.id, project]));
-    locations = projects.map((project) => ({
-      location: project.location,
-      projectId: project.id,
-    }));
-    for (const thread of dbGetThreads()) {
-      const project = projectById.get(thread.projectId);
-      if (project && thread.worktreePath) {
-        locations.push({
-          location: buildWorktreeLocation(project.location, thread.worktreePath),
-          projectId: project.id,
-        });
-      }
-    }
-  } catch {
-    throw new RemoteHttpError(
-      "project_registry_unavailable",
-      "Project ownership could not be verified.",
-      503,
-    );
-  }
+  const locations = collectRegisteredLocations(
+    spec.scope !== "session:read" || spec.owner !== "projectLocation" || canManageHostFiles(),
+  );
   const owners: Record<string, string> = {};
   for (const field of fields) {
     const requested = record[field] as ProjectLocation | undefined;

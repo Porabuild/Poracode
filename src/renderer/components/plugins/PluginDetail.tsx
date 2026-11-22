@@ -27,6 +27,11 @@ import {
 } from "@/shared/plugins/catalog";
 import { PluginIcon } from "./PluginIcon";
 import { PluginTag } from "./PluginTag";
+import {
+  usePluginHostDisabledBuiltInMcpServers,
+  usePluginHostInstalledPlugins,
+  usePluginHostTransport,
+} from "./PluginHostContext";
 import { usePluginOauth } from "./usePluginOauth";
 import { PluginServiceAccounts } from "./PluginServiceAccounts";
 import { ComputerUsePluginSettings } from "./ComputerUsePluginSettings";
@@ -71,18 +76,18 @@ export function PluginDetail(props: {
   const { t } = useLingui();
   const plugin = props.plugin.plugin;
   const displayCategory = props.catalogPackage?.entryCategory ?? props.plugin.category;
-  const installedPlugins = useSharedSettings((settings) => settings.installedPlugins);
-  const disabledBuiltInMcpServers = useSharedSettings(
-    (settings) => settings.disabledBuiltInMcpServers,
-  );
+  const host = usePluginHostTransport();
+  const installedPlugins = usePluginHostInstalledPlugins();
+  const disabledBuiltInMcpServers = usePluginHostDisabledBuiltInMcpServers();
+  const {
+    installPlugin,
+    enablePlugin,
+    uninstallPlugin,
+    setPluginEnabled,
+    setPluginSkillEnabled,
+    setPluginMcpServerEnabled,
+  } = host;
   const state = resolveInstalledPluginState(plugin, installedPlugins);
-  const installPlugin = useSharedSettings((settings) => settings.installPlugin);
-  const uninstallPlugin = useSharedSettings((settings) => settings.uninstallPlugin);
-  const setPluginEnabled = useSharedSettings((settings) => settings.setPluginEnabled);
-  const setPluginSkillEnabled = useSharedSettings((settings) => settings.setPluginSkillEnabled);
-  const setPluginMcpServerEnabled = useSharedSettings(
-    (settings) => settings.setPluginMcpServerEnabled,
-  );
   const supported = isPluginSupportedOnHost(plugin, props.hostPlatform);
   const backButtonRef = useRef<HTMLButtonElement>(null);
   const titleId = useId();
@@ -110,7 +115,7 @@ export function PluginDetail(props: {
   // Seeds a draft composer rather than sending anything, so the user still
   // reviews the prompt and picks a model before the thread starts.
   const tryNow = async () => {
-    if (!examplePrompt || !coreSkill || !canTryNow) return;
+    if (!examplePrompt || !coreSkill || !canTryNow || host.isRemote) return;
     const project = await ensureHomeScopeProject();
     const latestSettings = useSharedSettings.getState();
     if (
@@ -182,9 +187,10 @@ export function PluginDetail(props: {
                   <Trans>Install Chrome extension</Trans>
                 </Button>
               ) : null}
-              {/* "Try now" opens a home-scope thread, which cannot see a
-                  package that belongs to one project's repository. */}
-              {examplePrompt && coreSkill && plugin.source !== "project" ? (
+              {/* "Try now" opens a home-scope thread on this client. It
+                  cannot see a project package, and a remote host's package is
+                  not available to a local thread at all. */}
+              {examplePrompt && coreSkill && plugin.source !== "project" && !host.isRemote ? (
                 <Button
                   size="sm"
                   variant="tertiary"
@@ -203,10 +209,7 @@ export function PluginDetail(props: {
                       size="sm"
                       variant="tertiary"
                       isDisabled={catalogPackage.busy}
-                      onPress={() => {
-                        installPlugin(plugin);
-                        setPluginEnabled(plugin, true);
-                      }}
+                      onPress={() => void enablePlugin(plugin)}
                     >
                       <Trans>Enable plugin</Trans>
                     </Button>
@@ -227,7 +230,7 @@ export function PluginDetail(props: {
                   <Trans>Unavailable on this device</Trans>
                 </Button>
               ) : !state ? (
-                <Button size="sm" onPress={() => installPlugin(plugin)}>
+                <Button size="sm" onPress={() => void installPlugin(plugin)}>
                   <Trans>Install</Trans>
                 </Button>
               ) : canUninstallPlugin(plugin) ? (
@@ -235,7 +238,7 @@ export function PluginDetail(props: {
                   size="sm"
                   variant="tertiary"
                   className="text-danger transition-colors hover:bg-danger hover:text-white"
-                  onPress={() => uninstallPlugin(plugin)}
+                  onPress={() => void uninstallPlugin(plugin)}
                 >
                   <Trans>Uninstall</Trans>
                 </Button>
@@ -278,7 +281,7 @@ export function PluginDetail(props: {
         </div>
       </div>
 
-      {examplePrompt && coreSkill ? (
+      {examplePrompt && coreSkill && plugin.source !== "project" && !host.isRemote ? (
         <Button
           variant="tertiary"
           isDisabled={!canTryNow || trying}
@@ -340,12 +343,14 @@ export function PluginDetail(props: {
             aria-labelledby={`${titleId} ${pluginToggleLabelId}`}
             isSelected={state.enabled}
             isDisabled={!supported}
-            onChange={(enabled) => setPluginEnabled(plugin, enabled)}
+            onChange={(enabled) => void setPluginEnabled(plugin, enabled)}
           />
         </section>
       ) : null}
 
-      {plugin.source === "bundled" && plugin.name === "computer-use" ? (
+      {plugin.source === "bundled" &&
+      plugin.name === "computer-use" &&
+      host.canManageLocalHelpers ? (
         <ComputerUsePluginSettings />
       ) : null}
 
@@ -379,7 +384,8 @@ export function PluginDetail(props: {
                 control={
                   state && declared ? (
                     <div className="flex items-center gap-2">
-                      {oauth.isRemoteServer(server.id) ? (
+                      {oauth.isRemoteServer(server.id) &&
+                      (oauth.canBegin || oauth.stateFor(server.id) === "connected") ? (
                         <ConnectControl
                           state={oauth.stateFor(server.id)}
                           isPending={oauth.isPending(server.id)}
@@ -393,7 +399,7 @@ export function PluginDetail(props: {
                         aria-labelledby={`${labelId} ${badgeId}`}
                         isSelected={enabled}
                         isDisabled={!supported || !state.enabled}
-                        onChange={(next) => setPluginMcpServerEnabled(plugin, server.id, next)}
+                        onChange={(next) => void setPluginMcpServerEnabled(plugin, server.id, next)}
                       />
                     </div>
                   ) : undefined
@@ -439,7 +445,7 @@ export function PluginDetail(props: {
                       aria-labelledby={`${labelId} ${badgeId}`}
                       isSelected={enabled}
                       isDisabled={!supported || !state.enabled}
-                      onChange={(next) => setPluginSkillEnabled(plugin, skill.id, next)}
+                      onChange={(next) => void setPluginSkillEnabled(plugin, skill.id, next)}
                     />
                   ) : undefined
                 }

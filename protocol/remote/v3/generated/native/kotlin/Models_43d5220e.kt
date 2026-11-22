@@ -24,13 +24,6 @@ enum class RouteenvironmentU2DLegacyResponseU2DHostMode_d1d1696e7d {
     @SerialName("helper") HELPER,
 }
 
-@Serializable
-enum class RouteenvironmentU2DLegacyResponseU2DPlatform_7583b8d37f {
-    @SerialName("win32") WIN32,
-    @SerialName("darwin") DARWIN,
-    @SerialName("linux") LINUX,
-}
-
 typealias RouteenvironmentU2DLegacyResponseU2DProtocolVersion_8d7cbafc0e = Double
 
 @Serializable(with = RouteenvironmentU2DLegacyResponseU2DToolPresentationU2DOptionU2D1U2DItemTypesU2DItemU2DPresentationU2DBodyProjectionU2DConditionsU2DItemU2DPathU2DItem_ed6b68dea9.Serializer::class)

@@ -362,13 +362,9 @@ export const NON_ROUTER_PROJECT_PROCEDURES = {
   getResourceAdmissionStatus:
     "local-shell: internal managed-supervisor diagnostics; network diagnostics are restricted to loopback metrics, not the remote procedure allowlist",
 
-  // Local language clients and plugins
+  // Local language clients
   lspStop: "local-shell: language-client lifetime is bound to this renderer window",
   lspSendMessage: "local-shell: LSP JSON-RPC is a per-window language client",
-  listPlugins: "local-shell: plugin package scan is this window's disk catalog",
-  pluginCatalog: "local-shell: catalog installation changes this host's plugin packages",
-  pluginAccounts: "local-shell: plugin service accounts and OAuth are owned by this host",
-  refreshPlugins: "local-shell: plugin package rescan is this window's disk catalog",
 
   // New-project local prep
   createProjectDirectory:

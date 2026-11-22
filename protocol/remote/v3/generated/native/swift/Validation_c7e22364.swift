@@ -33,6 +33,10 @@ public extension RemoteSchemas {
 }
 
 public extension RemoteSchemas {
+  static let schema_3a8039d5ad693c16 = RemoteSchema(type: "string", literals: [.string("bundled"), .string("user"), .string("project")], unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
   static let schema_3ac0e8087f32acdf = RemoteSchema(type: "string", literals: [.string("reduceMotion")], unknownPolicy: .strip)
 }
 
@@ -54,6 +58,10 @@ public extension RemoteSchemas {
 
 public extension RemoteSchemas {
   static let schema_3b681a533b5fa621 = RemoteSchema(type: "object", required: Set(["notices"]), properties: ["notices": RemoteSchemas.schema_f67f6cbe63879b24], additionalAllowed: true, unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
+  static let schema_3b8bae8666a9159e = RemoteSchema(type: "string", literals: [.string("path")], unknownPolicy: .strip)
 }
 
 public extension RemoteSchemas {

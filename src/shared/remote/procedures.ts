@@ -110,6 +110,15 @@ export const REMOTE_PROCEDURE_SPECS = {
   deleteSkill: operate("optionalProjectLocation"),
   importSkills: operate("skillLocations"),
   installMarketplaceSkill: operate("optionalProjectLocation"),
+  // Plugin packages live on the addressed host. Reads stay scoped to a
+  // registered project when one is supplied; catalog and account operations
+  // change that host's packages and credentials, so they require operate.
+  // Catalog refreshes and installs clone remote Git repositories, so they use
+  // the long request timeout.
+  listPlugins: read("optionalProjectLocation"),
+  refreshPlugins: read("optionalProjectLocation"),
+  pluginCatalog: mutating(longRunning(operate("desktop"))),
+  pluginAccounts: mutating(operate("desktop")),
   discoverExternalMcpServers: read("optionalProjectLocation"),
   probeMcpServer: operate("optionalProjectLocation"),
   getMcpOauthStatus: read("optionalProjectLocation"),

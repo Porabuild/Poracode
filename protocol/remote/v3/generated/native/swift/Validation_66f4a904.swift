@@ -245,6 +245,10 @@ public extension RemoteSchemas {
 }
 
 public extension RemoteSchemas {
+  static let schema_4cba70490147a86e = RemoteSchema(type: "object", required: Set(["alwaysEnabled", "builtInMcpServerIds", "category", "communityMaintained", "defaultEnabled", "featured", "nativePluginNames", "skills"]), properties: ["alwaysEnabled": RemoteSchemas.schema_f8b6dd8128e8bfe0, "builtInMcpServerIds": RemoteSchemas.schema_6290c0f9d5a1b8b5, "category": RemoteSchemas.schema_7b4d49cacb8e1430, "communityMaintained": RemoteSchemas.schema_f8b6dd8128e8bfe0, "coreSkill": RemoteSchemas.schema_36fea325bf1aca70, "defaultEnabled": RemoteSchemas.schema_a6ba34cd39bf30c5, "examplePrompt": RemoteSchemas.schema_36fea325bf1aca70, "featured": RemoteSchemas.schema_f8b6dd8128e8bfe0, "nativeCoreSkill": RemoteSchemas.schema_36fea325bf1aca70, "nativePluginNames": RemoteSchemas.schema_242a5ef77d1f8924, "platforms": RemoteSchemas.schema_62925923e85a96d9, "projectKinds": RemoteSchemas.schema_443cfbe0562322a3, "skills": RemoteSchemas.schema_b199f691eb557bbf, "title": RemoteSchemas.schema_36fea325bf1aca70], additionalAllowed: false, unknownPolicy: .reject)
+}
+
+public extension RemoteSchemas {
   static let schema_4cd2587996458d8d = RemoteSchema(type: "object", required: Set(["distro", "kind"]), properties: ["distro": RemoteSchemas.schema_36fea325bf1aca70, "kind": RemoteSchemas.schema_2d8274eae552cc51], additionalAllowed: true, unknownPolicy: .strip)
 }
 

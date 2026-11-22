@@ -88,7 +88,7 @@ data class RoutethreadU2DItemU2DPresentationsResponseU2DOptionU2D4U2DItemsU2DIte
     companion object {
         val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
             RemoteFieldDescriptor("header", "RoutethreadU2DItemU2DPresentationsResponseU2DOptionU2D4U2DItemsU2DItemU2DOptionU2D1U2DHeader_547dd82d60", true, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("inputDigest", "String", true, false, null, null, null, null, null, null, "^[a-f0-9]{64}$", null, listOf()),
+            RemoteFieldDescriptor("inputDigest", "String", true, false, null, null, null, null, null, null, "^[a-f0-9]{64}\$", null, listOf()),
             RemoteFieldDescriptor("itemId", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("status", "ProcedureghPollPullRequestsResultU2DOptionU2D1U2DStatus_0200f968d2", true, false, null, null, null, null, null, null, null, null, listOf()),
         ), listOf())

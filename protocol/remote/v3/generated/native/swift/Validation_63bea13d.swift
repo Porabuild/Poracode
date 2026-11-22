@@ -77,6 +77,10 @@ public extension RemoteSchemas {
 }
 
 public extension RemoteSchemas {
+  static let schema_6d0b14c439689ee7 = RemoteSchema(type: "object", properties: ["disabledMcpServerNames": RemoteSchemas.schema_242a5ef77d1f8924, "disabledSkillIds": RemoteSchemas.schema_242a5ef77d1f8924, "enabled": RemoteSchemas.schema_a6ba34cd39bf30c5, "version": RemoteSchemas.schema_362e75234d94c7e4], additionalAllowed: true, unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
   static let schema_6d1b9ceb7012b646 = RemoteSchema(type: "array", defaultValue: .array([]), items: RemoteSchemas.schema_a59d7f7afd3350b1, unknownPolicy: .strip)
 }
 

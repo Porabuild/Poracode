@@ -26,11 +26,14 @@ function jsonPointer(root: JsonSchema, reference: string): JsonSchema {
   return current as JsonSchema;
 }
 
+const SCHEMA_MAP_KEYS = new Set(["properties", "patternProperties", "dependentSchemas"]);
+const LITERAL_SCHEMA_KEYS = new Set(["default", "const", "enum"]);
+
 /** Resolve a schema's private `$defs` namespace and reject external or cyclic references. */
 export function resolveLocalSchemaReferences(schema: JsonSchema): JsonSchema {
   const resolving = new Set<string>();
-  const visit = (value: unknown): unknown => {
-    if (Array.isArray(value)) return value.map(visit);
+  const visitSchema = (value: unknown): unknown => {
+    if (Array.isArray(value)) return value.map(visitSchema);
     if (!value || typeof value !== "object") return value;
     const item = value as Record<string, unknown>;
     if (typeof item.$ref === "string") {
@@ -38,23 +41,44 @@ export function resolveLocalSchemaReferences(schema: JsonSchema): JsonSchema {
       if (resolving.has(reference))
         throw new Error(`Cyclic local JSON Schema reference: ${reference}`);
       resolving.add(reference);
-      const resolved = visit(jsonPointer(schema, reference));
+      const resolved = visitSchema(jsonPointer(schema, reference));
       resolving.delete(reference);
       if (!resolved || typeof resolved !== "object" || Array.isArray(resolved)) return resolved;
-      const siblings = Object.fromEntries(
-        Object.entries(item)
-          .filter(([key]) => key !== "$ref")
-          .map(([key, nested]) => [key, visit(nested)]),
-      );
+      const siblings = visitSchemaObject(item, true);
       return { ...(resolved as Record<string, unknown>), ...siblings };
     }
-    return Object.fromEntries(
-      Object.entries(item)
-        .filter(([key]) => key !== "$defs" && key !== "$schema")
-        .map(([key, nested]) => [key, visit(nested)]),
-    );
+    return visitSchemaObject(item, false);
   };
-  return visit(schema) as JsonSchema;
+  const visitSchemaObject = (
+    item: Record<string, unknown>,
+    skipRef: boolean,
+  ): Record<string, unknown> => {
+    const result: Record<string, unknown> = {};
+    for (const [key, nested] of Object.entries(item)) {
+      if (key === "$defs" || key === "$schema" || (skipRef && key === "$ref")) continue;
+      if (LITERAL_SCHEMA_KEYS.has(key)) {
+        result[key] = nested;
+      } else if (
+        SCHEMA_MAP_KEYS.has(key) &&
+        nested &&
+        typeof nested === "object" &&
+        !Array.isArray(nested)
+      ) {
+        // Keys inside `properties` etc. are wire property names (for example
+        // `$schema` in AgentPluginManifest), never JSON Schema meta-keywords.
+        result[key] = Object.fromEntries(
+          Object.entries(nested as Record<string, unknown>).map(([propName, propSchema]) => [
+            propName,
+            visitSchema(propSchema),
+          ]),
+        );
+      } else {
+        result[key] = visitSchema(nested);
+      }
+    }
+    return result;
+  };
+  return visitSchema(schema) as JsonSchema;
 }
 
 export function structuralSchemaHash(schema: JsonSchema): string {

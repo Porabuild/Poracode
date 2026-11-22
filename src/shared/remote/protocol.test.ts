@@ -72,6 +72,28 @@ describe("device-local terminal settings", () => {
     );
   });
 
+  it("round-trips host plugin enablement and tolerates hosts that predate it", () => {
+    const installedPlugins = {
+      github: {
+        version: "1.2.0",
+        enabled: false,
+        disabledSkillIds: ["triage"],
+        disabledMcpServerNames: [],
+      },
+    };
+    const settings = pickRemoteSettings({ ...defaultSharedSettings, installedPlugins });
+    expect(remoteSettingsSchema.parse(settings).installedPlugins).toEqual(installedPlugins);
+    expect(remoteSettingsPatchSchema.parse({ installedPlugins }).installedPlugins).toEqual(
+      installedPlugins,
+    );
+    const legacy = { ...settings };
+    delete legacy.installedPlugins;
+    expect(remoteSettingsSchema.parse(legacy)).not.toHaveProperty("installedPlugins");
+    expect(remoteSettingsPatchSchema.parse({ titleGenProvider: "claude" })).not.toHaveProperty(
+      "installedPlugins",
+    );
+  });
+
   it("keeps sidebar preferences outside the remote-editable projection", () => {
     const settings = pickRemoteSettings({
       ...defaultSharedSettings,

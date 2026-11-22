@@ -4594,6 +4594,7 @@ msgstr "Подключение..."
 #: src/renderer/components/providers/HostUsageView.tsx
 #: src/renderer/views/ProfileOverlay/parts/ProfileHeader.tsx
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/PluginsSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Connecting…"
 msgstr "Подключение…"
@@ -12378,6 +12379,7 @@ msgstr "Только официальные источники"
 #: src/renderer/views/ProfileOverlay/parts/ProfileHeader.tsx
 #: src/renderer/views/PullRequestsOverlay/list/PrListPanel.tsx
 #: src/renderer/views/SettingsOverlay/parts/McpServersSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/PluginsSettings.tsx
 msgid "Offline"
 msgstr "Офлайн"
 
@@ -17292,6 +17294,7 @@ msgstr "Войдите в систему и настройте отслежив�
 msgid "Sign in needed"
 msgstr "Требуется вход"
 
+#: src/renderer/components/plugins/PluginServiceAccounts.tsx
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
 msgid "Sign in on the paired desktop, then refresh this status."
 msgstr "Войдите на сопряжённом рабочем столе, затем обновите этот статус."
@@ -20937,6 +20940,7 @@ msgid "Update the remote host to use side chat with hidden context."
 msgstr "Обновите удалённый хост, чтобы использовать дополнительный чат со скрытым контекстом."
 
 #: src/renderer/state/crewLibrary.ts
+#: src/renderer/views/SettingsOverlay/parts/PluginsSettings.tsx
 msgid "Update the remote server first."
 msgstr "Сначала обновите удалённый сервер."
 

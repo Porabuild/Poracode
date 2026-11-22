@@ -1,5 +1,6 @@
 import { compareUnicodeCodePoints } from "../unicodeOrder";
 import {
+  kotlinQuote as quote,
   nodeForSchema,
   objectFields,
   rootAdapters,
@@ -29,10 +30,6 @@ const HEADER = [
   "import kotlinx.serialization.json.*",
 ];
 
-function quote(value: string): string {
-  return JSON.stringify(value);
-}
-
 function kotlinLiteral(value: NativeJsonLiteral): string {
   if (value === null) return "JsonNull";
   if (typeof value === "string") return `JsonPrimitive(${quote(value)})`;
@@ -42,7 +39,8 @@ function kotlinLiteral(value: NativeJsonLiteral): string {
 
 function kotlinJsonValue(value: unknown): string {
   if (value === null) return "JsonNull";
-  if (typeof value === "string" || typeof value === "boolean" || typeof value === "number")
+  if (typeof value === "string") return `JsonPrimitive(${quote(value)})`;
+  if (typeof value === "boolean" || typeof value === "number")
     return `JsonPrimitive(${JSON.stringify(value)})`;
   if (Array.isArray(value)) return `JsonArray(listOf(${value.map(kotlinJsonValue).join(", ")}))`;
   if (value && typeof value === "object")

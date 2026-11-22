@@ -93,7 +93,6 @@ const SECTION_VIEWS: Partial<Record<SettingsSection, () => ReactNode>> = {
   agents: () => <AgentSettingsEmpty />,
   skills: () => <SkillsSettings />,
   memory: () => <MemorySettings />,
-  plugins: () => <PluginsSettings />,
   browser: () => <BrowserSettings />,
   usage: () => <UsageSettings />,
   import: () => <ImportSettings />,
@@ -111,6 +110,7 @@ const MACHINE_BACKED_SECTIONS = new Set<SettingsSection>([
   "ai",
   "skills",
   "memory",
+  "plugins",
   "usage",
   "import",
 ]);
@@ -152,6 +152,17 @@ function renderSection(
     );
   } else if (activeSection === "archived") {
     section = <ArchivedThreadsSettings {...archiveScope} />;
+  } else if (activeSection === "plugins") {
+    // A paired host is reached through its own client; this client's bridge
+    // host (including a remote client's host) answers the local path.
+    const connectionKey = mcpMachine?.ref.host === "remote" ? mcpMachine.ref.desktopId : undefined;
+    section = (
+      <PluginsSettings
+        key={mcpMachine?.id ?? "local"}
+        {...(connectionKey ? { connectionKey } : {})}
+        {...(mcpMachine?.platform ? { hostPlatform: mcpMachine.platform } : {})}
+      />
+    );
   } else if (activeSection === "mcpServers") {
     section = (
       <McpServersSettings
@@ -370,6 +381,7 @@ export function SettingsOverlay(props: { onClose: () => void; onBack?: () => voi
   const mcpMachine = scopedMachines.find((machine) => machine.id === scopedMachineId);
   const showMcpHostBar =
     (activeSection === "mcpServers" ||
+      activeSection === "plugins" ||
       crewScope ||
       activeSection === "git" ||
       activeSection === "worktrees" ||

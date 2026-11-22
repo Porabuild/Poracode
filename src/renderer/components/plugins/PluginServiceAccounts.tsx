@@ -75,18 +75,20 @@ export function PluginServiceAccounts({
                           <Trans>Use account</Trans>
                         </Button>
                       )}
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        isDisabled={oauth.isBusy}
-                        onPress={() =>
-                          account.status === "connected"
-                            ? void oauth.disconnect(service.name, account.id)
-                            : void oauth.connect(service.name, account.label, false, account.id)
-                        }
-                      >
-                        {account.status === "connected" ? t`Sign out` : t`Sign in`}
-                      </Button>
+                      {account.status === "connected" || oauth.canBegin ? (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          isDisabled={oauth.isBusy}
+                          onPress={() =>
+                            account.status === "connected"
+                              ? void oauth.disconnect(service.name, account.id)
+                              : void oauth.connect(service.name, account.label, false, account.id)
+                          }
+                        >
+                          {account.status === "connected" ? t`Sign out` : t`Sign in`}
+                        </Button>
+                      ) : null}
                     </div>
                     <p className="break-all text-[11px] text-muted">
                       {t`Granted scopes`}:{" "}
@@ -96,25 +98,33 @@ export function PluginServiceAccounts({
                     </p>
                   </div>
                 ))}
-              <div className="flex items-stretch gap-2">
-                <Input
-                  aria-label={t`Account label for ${service.name}`}
-                  placeholder={t`Account label`}
-                  value={labels[service.name] ?? ""}
-                  maxLength={120}
-                  className="min-w-0 flex-1"
-                  onChange={(event) => setLabels({ ...labels, [service.name]: event.target.value })}
-                />
-                <Button
-                  size="sm"
-                  variant="tertiary"
-                  className="h-auto"
-                  isDisabled={oauth.isBusy || !labels[service.name]?.trim()}
-                  onPress={() => void oauth.connect(service.name, labels[service.name], true)}
-                >
-                  <Trans>Add account</Trans>
-                </Button>
-              </div>
+              {oauth.canBegin ? (
+                <div className="flex items-stretch gap-2">
+                  <Input
+                    aria-label={t`Account label for ${service.name}`}
+                    placeholder={t`Account label`}
+                    value={labels[service.name] ?? ""}
+                    maxLength={120}
+                    className="min-w-0 flex-1"
+                    onChange={(event) =>
+                      setLabels({ ...labels, [service.name]: event.target.value })
+                    }
+                  />
+                  <Button
+                    size="sm"
+                    variant="tertiary"
+                    className="h-auto"
+                    isDisabled={oauth.isBusy || !labels[service.name]?.trim()}
+                    onPress={() => void oauth.connect(service.name, labels[service.name], true)}
+                  >
+                    <Trans>Add account</Trans>
+                  </Button>
+                </div>
+              ) : (
+                <p className="text-xs text-muted">
+                  <Trans>Sign in on the paired desktop, then refresh this status.</Trans>
+                </p>
+              )}
             </>
           )}
         </ContentSurface>

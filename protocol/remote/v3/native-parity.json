@@ -6671,6 +6671,106 @@
         }
       },
       {
+        "id": "listPlugins",
+        "batch": "settings-integrations",
+        "ios": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": []
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": []
+          }
+        },
+        "note": "Generated contract only; native clients do not yet expose plugin package management."
+      },
+      {
+        "id": "refreshPlugins",
+        "batch": "settings-integrations",
+        "ios": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": []
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": []
+          }
+        },
+        "note": "Generated contract only; native clients do not yet expose plugin package management."
+      },
+      {
+        "id": "pluginCatalog",
+        "batch": "settings-integrations",
+        "ios": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": []
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": []
+          }
+        },
+        "note": "Generated contract only; native clients do not yet expose plugin package management."
+      },
+      {
+        "id": "pluginAccounts",
+        "batch": "settings-integrations",
+        "ios": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": []
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": []
+          }
+        },
+        "note": "Generated contract only; native clients do not yet expose plugin package management."
+      },
+      {
         "id": "discoverExternalMcpServers",
         "batch": "settings-integrations",
         "ios": {

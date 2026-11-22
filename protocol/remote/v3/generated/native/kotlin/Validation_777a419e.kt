@@ -57,6 +57,10 @@ internal val schema_38041bf5caec6644: RemoteSchema by lazy {
     RemoteSchema(type = "string", literals = listOf(JsonPrimitive("transcript")), unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
 
+internal val schema_381c05761db90d0c: RemoteSchema by lazy {
+    RemoteSchema(type = "object", required = setOf("description", "name", "source", "unavailable"), properties = mapOf("category" to schema_e4b74b1dc0c53202, "description" to schema_bf0b727f7b1c6d07, "name" to schema_84c77ee2ad6c219b, "source" to schema_c9da5a75bfff1852, "unavailable" to schema_0f732b9fceb2c6ac, "version" to schema_bf0b727f7b1c6d07), additionalAllowed = false, unknownPolicy = RemoteUnknownFieldPolicy.REJECT)
+}
+
 internal val schema_38462ff398fbe205: RemoteSchema by lazy {
     RemoteSchema(type = "object", required = setOf("absolutePath", "enabled"), properties = mapOf("absolutePath" to schema_36fea325bf1aca70, "enabled" to schema_feeb8bb50144d96d, "projectLocation" to schema_080f9cc154af9e27, "wslDistro" to schema_36fea325bf1aca70), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
@@ -74,7 +78,7 @@ internal val schema_3897f50212cb0b25: RemoteSchema by lazy {
 }
 
 internal val schema_38adcf16c79023ce: RemoteSchema by lazy {
-    RemoteSchema(type = "string", pattern = "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$", format = "date-time", unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
+    RemoteSchema(type = "string", pattern = "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))\$", format = "date-time", unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
 
 internal val schema_38b68e422d630291: RemoteSchema by lazy {

@@ -20,12 +20,6 @@ public enum RouteenvironmentU2DLegacyResponseU2DHostMode_d1d1696e7d: String, Cod
   case `helper` = "helper"
 }
 
-public enum RouteenvironmentU2DLegacyResponseU2DPlatform_7583b8d37f: String, Codable, Sendable {
-  case `win32` = "win32"
-  case `darwin` = "darwin"
-  case `linux` = "linux"
-}
-
 public typealias RouteenvironmentU2DLegacyResponseU2DProtocolVersion_8d7cbafc0e = Double
 
 public enum RouteenvironmentU2DLegacyResponseU2DToolPresentationU2DOptionU2D1U2DItemTypesU2DItemU2DPresentationU2DBodyProjectionU2DConditionsU2DItemU2DPathU2DItem_ed6b68dea9: Codable, Sendable {

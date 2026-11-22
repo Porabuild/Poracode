@@ -120,6 +120,37 @@ export const REMOTE_PROCEDURE_RESULT_FIXTURES = {
   deleteSkill: undefined,
   importSkills: { imported: [] },
   installMarketplaceSkill: { installed: "/skills/demo" },
+  listPlugins: {
+    plugins: [
+      {
+        name: "github",
+        source: "bundled",
+        root: "/Users/dev/.poracode/plugins/github",
+        manifest: {
+          $schema: "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+          name: "github",
+          version: "1.0.0",
+        },
+        poracode: {
+          category: "developer-tools",
+          featured: false,
+          defaultEnabled: false,
+          alwaysEnabled: false,
+          builtInMcpServerIds: [],
+          nativePluginNames: [],
+          communityMaintained: false,
+          skills: {},
+        },
+        skills: [],
+        mcpServers: [],
+        diagnostics: [],
+      },
+    ],
+    userPluginsDir: "/Users/dev/.poracode/plugins",
+  },
+  refreshPlugins: { plugins: [], userPluginsDir: "/Users/dev/.poracode/plugins" },
+  pluginCatalog: { catalogs: [], installations: [] },
+  pluginAccounts: { accounts: [] },
   discoverExternalMcpServers: { groups: [] },
   controlMcpApp: { result: { tools: [] } },
   probeMcpServer: {

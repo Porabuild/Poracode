@@ -1,10 +1,10 @@
 // GENERATED FILE. Do not edit by hand.
 import Foundation
-public struct RoutesettingsU2DReadResponse_cb9d238b82: Codable, Sendable, RemoteModelMetadata {
-  public var settings: RoutesettingsU2DReadResponseU2DSettings_5cf8e37513
+public struct RoutesettingsU2DReadResponse_0fd2c621ec: Codable, Sendable, RemoteModelMetadata {
+  public var settings: RoutesettingsU2DReadResponseU2DSettings_9e69a11cc2
   public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .strip
   public static let fields: [RemoteFieldDescriptor] = [
-    .init(wireName: "settings", typeName: "RoutesettingsU2DReadResponseU2DSettings_5cf8e37513", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "settings", typeName: "RoutesettingsU2DReadResponseU2DSettings_9e69a11cc2", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
   ]
   public static let semanticValidatorIds: [String] = []
   private enum CodingKeys: String, CodingKey {
@@ -18,6 +18,29 @@ public enum RoutesettingsU2DWriteRequestU2DFollowUpBehavior_49162371ff: String, 
   case `steer` = "steer"
   case `queue` = "queue"
 }
+
+public struct RoutesettingsU2DWriteRequestU2DInstalledPluginsU2DValue_6d0b14c439: Codable, Sendable, RemoteModelMetadata {
+  public var disabledMcpServerNames: RemoteField<[String]> = .missing
+  public var disabledSkillIds: RemoteField<[String]> = .missing
+  public var enabled: RemoteField<Bool> = .missing
+  public var version: RemoteField<String> = .missing
+  public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .strip
+  public static let fields: [RemoteFieldDescriptor] = [
+    .init(wireName: "disabledMcpServerNames", typeName: "[String]", required: false, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "disabledSkillIds", typeName: "[String]", required: false, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "enabled", typeName: "Bool", required: false, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "version", typeName: "String", required: false, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+  ]
+  public static let semanticValidatorIds: [String] = []
+  private enum CodingKeys: String, CodingKey {
+    case disabledMcpServerNames = "disabledMcpServerNames"
+    case disabledSkillIds = "disabledSkillIds"
+    case enabled = "enabled"
+    case version = "version"
+  }
+}
+
+public typealias RoutesettingsU2DWriteRequestU2DInstalledPlugins_9ec28a7798 = [String: RoutesettingsU2DWriteRequestU2DInstalledPluginsU2DValue_6d0b14c439]
 
 public struct RoutesettingsU2DWriteRequestU2DMemory_5b89bc4512: Codable, Sendable, RemoteModelMetadata {
   public var archiveUnusedDays: RemoteField<Int64> = .missing
@@ -127,7 +150,7 @@ public struct RoutesettingsU2DWriteRequestU2DUsage_b6aaa17d32: Codable, Sendable
   }
 }
 
-public struct RoutesettingsU2DWriteRequest_b009c5487e: Codable, Sendable, RemoteModelMetadata {
+public struct RoutesettingsU2DWriteRequest_292a46aa73: Codable, Sendable, RemoteModelMetadata {
   public var agentSettings: RemoteField<RoutesettingsU2DReadResponseU2DSettingsU2DAgentSettings_deb61378c1> = .missing
   public var autoArchiveDoneAfterDays: RemoteField<Int64> = .missing
   public var commitGenEffort: RemoteField<ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b> = .missing
@@ -150,6 +173,7 @@ public struct RoutesettingsU2DWriteRequest_b009c5487e: Codable, Sendable, Remote
   public var experimentJudgeSelection: RemoteField<ProcedureextractContextRequestU2DSelection_32c3720f64> = .missing
   public var followUpBehavior: RemoteField<RoutesettingsU2DWriteRequestU2DFollowUpBehavior_49162371ff> = .missing
   public var hiddenModels: RemoteField<RoutesettingsU2DReadResponseU2DSettingsU2DCrossagentHiddenModels_86d5d72e84> = .missing
+  public var installedPlugins: RemoteField<RoutesettingsU2DWriteRequestU2DInstalledPlugins_9ec28a7798> = .missing
   public var memory: RemoteField<RoutesettingsU2DWriteRequestU2DMemory_5b89bc4512> = .missing
   public var prAutomationDefault: RemoteField<RoutesettingsU2DReadResponseU2DSettingsU2DPrAutomationDefault_6df05d56a8> = .missing
   public var prCreateMode: RemoteField<RoutesettingsU2DReadResponseU2DSettingsU2DPrCreateMode_bed2580f4e> = .missing
@@ -207,6 +231,7 @@ public struct RoutesettingsU2DWriteRequest_b009c5487e: Codable, Sendable, Remote
     .init(wireName: "experimentJudgeSelection", typeName: "ProcedureextractContextRequestU2DSelection_32c3720f64", required: false, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "followUpBehavior", typeName: "RoutesettingsU2DWriteRequestU2DFollowUpBehavior_49162371ff", required: false, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "hiddenModels", typeName: "RoutesettingsU2DReadResponseU2DSettingsU2DCrossagentHiddenModels_86d5d72e84", required: false, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "installedPlugins", typeName: "RoutesettingsU2DWriteRequestU2DInstalledPlugins_9ec28a7798", required: false, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "memory", typeName: "RoutesettingsU2DWriteRequestU2DMemory_5b89bc4512", required: false, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "prAutomationDefault", typeName: "RoutesettingsU2DReadResponseU2DSettingsU2DPrAutomationDefault_6df05d56a8", required: false, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "prCreateMode", typeName: "RoutesettingsU2DReadResponseU2DSettingsU2DPrCreateMode_bed2580f4e", required: false, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
@@ -265,6 +290,7 @@ public struct RoutesettingsU2DWriteRequest_b009c5487e: Codable, Sendable, Remote
     case experimentJudgeSelection = "experimentJudgeSelection"
     case followUpBehavior = "followUpBehavior"
     case hiddenModels = "hiddenModels"
+    case installedPlugins = "installedPlugins"
     case memory = "memory"
     case prAutomationDefault = "prAutomationDefault"
     case prCreateMode = "prCreateMode"

@@ -32,6 +32,7 @@ const additiveRemoteSettingsKeys = new Set<keyof RemoteSettings>([
   "autoArchiveDoneAfterDays",
   "prCreateMode",
   "memory",
+  "installedPlugins",
 ]);
 // Monotonic id of the most recent push. Only its resolution may write back to
 // desktopSettings, so a slow or failed earlier push can't clobber the value a
@@ -65,6 +66,7 @@ export function applyDesktopSettings(settings: RemoteSettings): void {
     autoArchiveDoneAfterDays,
     prCreateMode,
     memory,
+    installedPlugins,
     ...requiredSettings
   } = settings;
   applyExternalSharedSettings({
@@ -79,6 +81,7 @@ export function applyDesktopSettings(settings: RemoteSettings): void {
     ...(autoArchiveDoneAfterDays !== undefined ? { autoArchiveDoneAfterDays } : {}),
     ...(prCreateMode !== undefined ? { prCreateMode } : {}),
     ...(memory !== undefined ? { memory } : {}),
+    ...(installedPlugins !== undefined ? { installedPlugins } : {}),
   });
 }
 

@@ -20,6 +20,8 @@ const PORTABLE_VALIDATORS = new Set([
   "git.remove-worktree.owner-requires-branch",
   "mcp.reserved-name",
   "mcp.valid-url",
+  "plugin.valid-name",
+  "plugin.valid-url",
   "pr-watch.agent-required-when-enabled",
   "push.registration.platform-fields",
   "push.routing.identifier-no-controls",

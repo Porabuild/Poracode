@@ -264,6 +264,29 @@ public enum RoutesettingsU2DReadResponseU2DSettingsU2DFollowUpBehavior_6fcb1a55c
   case `queue` = "queue"
 }
 
+public struct RoutesettingsU2DReadResponseU2DSettingsU2DInstalledPluginsU2DValue_343472a6ca: Codable, Sendable, RemoteModelMetadata {
+  public var disabledMcpServerNames: [String]
+  public var disabledSkillIds: [String]
+  public var enabled: Bool
+  public var version: String
+  public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .strip
+  public static let fields: [RemoteFieldDescriptor] = [
+    .init(wireName: "disabledMcpServerNames", typeName: "[String]", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "disabledSkillIds", typeName: "[String]", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "enabled", typeName: "Bool", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "version", typeName: "String", required: true, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+  ]
+  public static let semanticValidatorIds: [String] = []
+  private enum CodingKeys: String, CodingKey {
+    case disabledMcpServerNames = "disabledMcpServerNames"
+    case disabledSkillIds = "disabledSkillIds"
+    case enabled = "enabled"
+    case version = "version"
+  }
+}
+
+public typealias RoutesettingsU2DReadResponseU2DSettingsU2DInstalledPlugins_e356e4b5f6 = [String: RoutesettingsU2DReadResponseU2DSettingsU2DInstalledPluginsU2DValue_343472a6ca]
+
 public enum RoutesettingsU2DReadResponseU2DSettingsU2DMemoryU2DCaptureTiming_b0eed3c52a: String, Codable, Sendable {
   case `settleU2D2m` = "settle-2m"
   case `settleU2D90s` = "settle-90s"

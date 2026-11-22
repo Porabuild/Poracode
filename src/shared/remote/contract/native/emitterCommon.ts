@@ -13,6 +13,8 @@ export const NATIVE_SEMANTIC_VALIDATOR_IDS = [
   "git.remove-worktree.owner-requires-branch",
   "mcp.reserved-name",
   "mcp.valid-url",
+  "plugin.valid-name",
+  "plugin.valid-url",
   "pr-watch.agent-required-when-enabled",
   "schedule.automation",
   "schedule.time-zone",
@@ -83,6 +85,16 @@ export function assertNativeSchemaKeywordCoverage(graph: NativeSchemaGraph): voi
 
 export function supportedNativeSchemaKeywords(): readonly string[] {
   return [...SUPPORTED_SCHEMA_KEYWORDS].sort(compareUnicodeCodePoints);
+}
+
+/**
+ * Quote a JS string as a Kotlin string literal. Kotlin treats `$` as a
+ * template introducer and rejects JSON's `\f` escape, so both need escaping.
+ */
+export function kotlinQuote(value: string): string {
+  return JSON.stringify(value).replace(/\\(?:["\\/bfnrt]|u[0-9a-fA-F]{4})|\$/g, (match) =>
+    match === "$" ? "\\$" : match === "\\f" ? "\\u000c" : match,
+  );
 }
 
 export function validationSchemaMemberName(schema: JsonSchema): string {

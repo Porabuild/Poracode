@@ -127,6 +127,7 @@ export const remoteSettingsSchema = sharedSettingsSchema
     prAutomationDefault: true,
     prMergeMethod: true,
     memory: true,
+    installedPlugins: true,
   })
   .extend({
     agentSettings: remoteAgentSettingsSchema,
@@ -150,6 +151,9 @@ export const remoteSettingsSchema = sharedSettingsSchema
     searchExclude: sharedSettingsSchema.shape.searchExclude.optional(),
     followUpBehavior: sharedSettingsSchema.shape.followUpBehavior.optional().default("steer"),
     memory: sharedSettingsSchema.shape.memory.removeDefault().optional(),
+    // Additive: older hosts omit it, and older clients strip it. Plugin
+    // enablement is host-owned, so a paired machine reports its own record.
+    installedPlugins: sharedSettingsSchema.shape.installedPlugins.removeDefault().optional(),
   });
 export type RemoteSettings = z.infer<typeof remoteSettingsSchema>;
 

@@ -4593,6 +4593,7 @@ msgstr "接続中..."
 #: src/renderer/components/providers/HostUsageView.tsx
 #: src/renderer/views/ProfileOverlay/parts/ProfileHeader.tsx
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/PluginsSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Connecting…"
 msgstr "接続中…"
@@ -12376,6 +12377,7 @@ msgstr "公式ソースのみ"
 #: src/renderer/views/ProfileOverlay/parts/ProfileHeader.tsx
 #: src/renderer/views/PullRequestsOverlay/list/PrListPanel.tsx
 #: src/renderer/views/SettingsOverlay/parts/McpServersSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/PluginsSettings.tsx
 msgid "Offline"
 msgstr "オフライン"
 
@@ -17290,6 +17292,7 @@ msgstr "このホストでサインインし、使用量の追跡を設定して
 msgid "Sign in needed"
 msgstr "サインインが必要です"
 
+#: src/renderer/components/plugins/PluginServiceAccounts.tsx
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
 msgid "Sign in on the paired desktop, then refresh this status."
 msgstr "ペアリング済みのデスクトップでサインインしてから、この状態を更新してください。"
@@ -20935,6 +20938,7 @@ msgid "Update the remote host to use side chat with hidden context."
 msgstr "非表示のコンテキストでサイドチャットを使用するには、リモートホストを更新してください。"
 
 #: src/renderer/state/crewLibrary.ts
+#: src/renderer/views/SettingsOverlay/parts/PluginsSettings.tsx
 msgid "Update the remote server first."
 msgstr "先にリモートサーバーを更新してください。"
 
