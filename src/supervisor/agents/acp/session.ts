@@ -17,7 +17,6 @@ import { isDeepStrictEqual } from "node:util";
 import { Readable, Writable } from "node:stream";
 import {
   ClientSideConnection,
-  PROTOCOL_VERSION,
   RequestError,
   type AnyMessage,
   type Client,
@@ -26,7 +25,6 @@ import {
   type CreateElicitationRequest,
   type CreateElicitationResponse,
   type CreateTerminalRequest,
-  type InitializeRequest,
   type InitializeResponse,
   type KillTerminalRequest,
   type McpCapabilities,
@@ -107,7 +105,15 @@ import {
 import { describeConfigOptionsWithRoles } from "./sessionConfigOptions";
 import { buildTerminalCommandLine, normalizeTerminalCommandText } from "./sessionTerminalLaunch";
 
-// ── Helpers ──────────────────────────────────────────────────────
+import {
+  buildAcpInitializeRequest,
+  DroppedSessionUnrecoverableError,
+  isAssumedMcpCompatibilityError,
+  isOrphanTurnActivity,
+  isReplacementOnlyDeltaBatch,
+} from "./sessionProtocolHelpers";
+
+export { buildAcpInitializeRequest };
 
 import {
   acpAdditionalDirectoriesParams,
@@ -181,81 +187,6 @@ export { normalizeAcpStopReason, rewriteLoadSessionError };
  * still open, which is what covers the multi-minute cases.
  */
 const ORPHAN_TURN_IDLE_MS = 20_000;
-
-/**
- * Old Droid builds reject `session/new` with JSON-RPC invalid-params or
- * internal-error when handed an HTTP MCP server. Retry only those protocol
- * compatibility failures; transport, auth, and other session-open failures
- * must remain visible instead of silently launching without requested MCPs.
- */
-function isAssumedMcpCompatibilityError(error: unknown): error is RequestError {
-  if (!(error instanceof RequestError) || (error.code !== -32602 && error.code !== -32603)) {
-    return false;
-  }
-  const data = error.data as Record<string, unknown> | null | undefined;
-  const evidence = [error.message, data?.message, data?.details, data?.detail, data?.field]
-    .filter((value): value is string => typeof value === "string")
-    .join(" ");
-  if (/\bmcp(?:\s+server|servers)?\b/i.test(evidence)) return true;
-  return error.code === -32603 && error.message.trim().toLowerCase() === "internal error" && !data;
-}
-
-/**
- * Whether a `session/update` that arrives with no turn of ours open is the
- * agent doing real work.
- *
- * Some ACP agents start a whole turn on their own initiative after
- * `session/prompt` has already resolved. Qwen does it to process a backgrounded
- * subagent's report: it settles our prompt and immediately opens a turn under
- * its own `notification<epoch>` prompt id, which can run for tens of minutes,
- * ask questions, and edit files. No stop reason ever follows, so the session has
- * to recognise the work from the notifications themselves.
- *
- * Empty text chunks and metadata-only updates are excluded — that trailing
- * chatter is exactly what must not reopen a turn. The raw shape alone is not
- * the whole answer, though: the caller additionally checks the update's
- * canonical effects, so a batch that only replays text into already-allocated
- * items (see `isReplacementOnlyDeltaBatch`) counts as history revision, not
- * work.
- */
-function isOrphanTurnActivity(update: SessionUpdate): boolean {
-  switch (update.sessionUpdate) {
-    case "agent_message_chunk": {
-      const content = (update as { content?: ContentBlock }).content;
-      return content?.type !== "text" || content.text.length > 0;
-    }
-    case "tool_call":
-    case "tool_call_update": {
-      // A tool notification that arrives already finished is a completion ping,
-      // not work in progress. Qwen sends those for background tasks well after
-      // a turn has ended, and they must not resurrect one.
-      const status = (update as { status?: string }).status;
-      return status !== "completed" && status !== "failed";
-    }
-    case "agent_thought_chunk":
-    case "plan":
-      return true;
-    default:
-      return false;
-  }
-}
-
-/**
- * Whether a mapped update batch is replacement-only: nonempty, and every event
- * repaints text of an already-allocated item (`content.delta` with
- * `replace: true`) — no item allocated, nothing appended. A provider that
- * re-sends a full-text snapshot after its prompt settled lands here, and that
- * is history revision, not new work: opening an orphan turn for it would paint
- * a phantom "working" thread over an already-completed answer. Real appends
- * stream a plain `content.delta` or allocate via `item.started`, and
- * tools/plan updates produce item lifecycle events, so none of them match.
- */
-function isReplacementOnlyDeltaBatch(events: RuntimeEvent[]): boolean {
-  return (
-    events.length > 0 &&
-    events.every((event) => event.type === "content.delta" && event.replace === true)
-  );
-}
 
 // ── Session ──────────────────────────────────────────────────────
 
@@ -521,13 +452,6 @@ export interface AcpStructuredSessionOptions {
   isDroppedSessionError?: (error: unknown) => boolean;
 }
 
-class DroppedSessionUnrecoverableError extends Error {
-  constructor(readonly originalError: unknown) {
-    super(toErrorMessage(originalError), { cause: originalError });
-    this.name = "DroppedSessionUnrecoverableError";
-  }
-}
-
 export interface AcpExternalSessionUpdateSource {
   /** Return true when the source will re-ingest this notification after deferred work. */
   onSessionUpdate(notification: SessionNotification): boolean | void;
@@ -546,38 +470,6 @@ export interface AcpExternalSessionUpdateSource {
    */
   onTurnStart?(): void;
   dispose(): void;
-}
-
-/**
- * Build the ACP `initialize` request Poracode sends. Shared between the
- * dedicated per-thread transport and pooled shared processes so every
- * transport advertises identical client capabilities.
- */
-export function buildAcpInitializeRequest(input: {
-  readonly fsTextCapability: boolean;
-  readonly terminalCapability: boolean;
-  readonly booleanConfigOptions: boolean;
-  readonly clientCapabilitiesMeta?: Record<string, unknown>;
-  readonly initializeMeta?: Record<string, unknown>;
-}): InitializeRequest {
-  return {
-    protocolVersion: PROTOCOL_VERSION,
-    clientInfo: { name: "poracode", version: "0.1.0" },
-    clientCapabilities: {
-      fs: {
-        readTextFile: input.fsTextCapability,
-        writeTextFile: input.fsTextCapability,
-      },
-      elicitation: { form: {}, url: {} },
-      terminal: input.terminalCapability,
-      // Only advertised when the provider declares it: the shared session
-      // records boolean config options it observes but cannot yet drive a
-      // generic boolean control, so the default stays off.
-      ...(input.booleanConfigOptions ? { session: { configOptions: { boolean: {} } } } : {}),
-      ...(input.clientCapabilitiesMeta ? { _meta: input.clientCapabilitiesMeta } : {}),
-    },
-    ...(input.initializeMeta ? { _meta: input.initializeMeta } : {}),
-  };
 }
 
 export class AcpStructuredSession implements StructuredSessionHandle {

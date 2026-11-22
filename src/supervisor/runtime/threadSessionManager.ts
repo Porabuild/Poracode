@@ -162,24 +162,15 @@ import {
   type RetainedShellSnapshot,
 } from "./retainedShellSnapshots";
 
+import {
+  isTerminalPtySession,
+  requireThreadMentionTools,
+} from "./threadSession/shellManagerHelpers";
+
 export { isUserInterruptKeystroke, USER_INTERRUPT_RECOVERY_GRACE_MS, writeSubmittedPrompt };
 export type { ThreadSessionManagerOptions };
 
 const RECENTLY_REMOVED_THREAD_LIMIT = 256;
-
-function requireThreadMentionTools(
-  session: SessionRuntime,
-  segments: readonly PromptSegment[] | undefined,
-): void {
-  if (
-    segments?.some((segment) => segment.kind === "thread") &&
-    session.threadMentionToolsAvailable !== true
-  ) {
-    throw new Error(
-      "Thread mentions require the Poracode read_thread tool, but it is unavailable for this session.",
-    );
-  }
-}
 
 export class ThreadSessionManager {
   readonly sessions = new Map<string, SessionRuntime>();
@@ -2833,13 +2824,5 @@ export class ThreadSessionManager {
       ...effectiveAgentSettings(settings, localMachineKey(env), adapter.kind),
     };
   }
-}
-
-/** True when the session backs a real terminal-presentation PTY (not GUI/structured-only). */
-function isTerminalPtySession(session: SessionRuntime): boolean {
-  if (!session.pty) return false;
-  const presentationMode =
-    session.presentationMode ?? session.adapter.capabilities.presentationMode;
-  return presentationMode === "terminal";
 }
 import { stripRuntimeEventPayloadOrigin } from "@/shared/runtimePayloadOriginProtocol";

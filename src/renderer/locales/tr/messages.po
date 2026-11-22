@@ -251,7 +251,7 @@ msgid "{0} hooks installed for {envName}."
 msgstr "{envName} için {0} kancaları kuruldu."
 
 #. placeholder {0}: props.selectedAgent.label
-#: src/renderer/components/thread/ThreadDraftComposerArea.tsx
+#: src/renderer/components/thread/DraftHookInstallProposal.tsx
 msgid "{0} hooks installed."
 msgstr "{0} kancaları kuruldu."
 
@@ -2621,7 +2621,7 @@ msgstr "Poracode'u geliştiren kişiden perde arkası"
 msgid "Better (Whisper base)"
 msgstr "Daha iyi (Whisper base)"
 
-#: src/renderer/components/thread/ThreadDraftComposerArea.tsx
+#: src/renderer/components/thread/DraftHookInstallProposal.tsx
 msgid "Better status updates while agents run."
 msgstr "Temsilciler çalışırken daha iyi durum güncellemeleri."
 
@@ -3187,7 +3187,7 @@ msgid "Change project icon"
 msgstr "Proje simgesini değiştir"
 
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
-#: src/renderer/components/thread/ThreadDraftComposerArea.tsx
+#: src/renderer/components/thread/DraftHookInstallProposal.tsx
 msgid "Change servers in provider settings"
 msgstr "Sunucuları sağlayıcı ayarlarından değiştirin"
 
@@ -6388,7 +6388,7 @@ msgstr "Keşif tamamlandı"
 
 #: src/renderer/components/composer/VoiceInputFeedback.tsx
 #: src/renderer/components/skills/MemorySkillSuggestions.tsx
-#: src/renderer/components/thread/ThreadDraftComposerArea.tsx
+#: src/renderer/components/thread/DraftHookInstallProposal.tsx
 #: src/renderer/components/thread/ThreadErrorDock.tsx
 #: src/renderer/components/thread/ThreadHistoryNoticeDock.tsx
 msgid "Dismiss"
@@ -6465,7 +6465,7 @@ msgstr "Bir daha sorma"
 msgid "Don't show again"
 msgstr "Bir daha gösterme"
 
-#: src/renderer/components/thread/ThreadDraftComposerArea.tsx
+#: src/renderer/components/thread/DraftHookInstallProposal.tsx
 msgid "Don't show hook install proposal"
 msgstr "Kanca yükleme teklifini gösterme"
 
@@ -9219,7 +9219,7 @@ msgstr "yükle"
 #: src/renderer/components/providers/opencode/OpenCodePluginCards.tsx
 #: src/renderer/components/providers/opencode/OpenCodePluginManager.tsx
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
-#: src/renderer/components/thread/ThreadDraftComposerArea.tsx
+#: src/renderer/components/thread/DraftHookInstallProposal.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/CursorSdkRuntimeSetup.tsx
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
@@ -9298,7 +9298,7 @@ msgstr "Agent Plugins şartnamesine göre hazırlanmış beceri ve MCP sunucusu 
 msgid "Install Chrome extension"
 msgstr "Chrome uzantısını yükle"
 
-#: src/renderer/components/thread/ThreadDraftComposerArea.tsx
+#: src/renderer/components/thread/DraftHookInstallProposal.tsx
 msgid "Install CLI hooks"
 msgstr "CLI kancalarını yükle"
 
@@ -20323,7 +20323,7 @@ msgid "Unable to import browser data."
 msgstr "Tarayıcı verileri içe aktarılamadı."
 
 #. placeholder {0}: props.selectedAgent.label
-#: src/renderer/components/thread/ThreadDraftComposerArea.tsx
+#: src/renderer/components/thread/DraftHookInstallProposal.tsx
 msgid "Unable to install {0} hooks."
 msgstr "{0} kancaları yüklenemiyor."
 

@@ -1,23 +1,20 @@
 import { RemoteClientError } from "@/shared/remote/clientErrors";
 import { DraftRecoveryNotice } from "@/renderer/components/composer/DraftRecoveryNotice";
 import { mergeDraftContent, composerSeedQueue } from "@/renderer/state/projectReferences";
-import { useEffect, useId, useLayoutEffect, useRef, useState, type RefObject } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { toast } from "@heroui/react";
-import { Download, Monitor, Settings2, Webhook, X } from "lucide-react";
-import { Trans, useLingui } from "@lingui/react/macro";
+import { Monitor, Settings2, Webhook } from "lucide-react";
+import { useLingui } from "@lingui/react/macro";
 import type {
-  AgentHookPluginStatus,
   AgentStatus,
   GitBranchInfo,
   Project,
   PromptSegment,
   ThreadConfig,
   ThreadPresentationMode,
-  TurnClientContext,
 } from "@/shared/contracts";
 import { MAX_EXPERIMENT_CANDIDATES } from "@/shared/contracts";
 import { hasSelectableReasoning } from "@/shared/agentSelection";
-import { hookEnvForProject, hookEnvKey } from "@/shared/agentHookPluginEnv";
 import { mergeMcpServers } from "@/shared/contracts/mcpServer";
 import { isHomeProject } from "@/shared/homeScope";
 import { hasSendablePromptContent, skillSegmentFromSlashCommand } from "@/shared/promptContent";
@@ -32,12 +29,7 @@ import {
   ComputerUseChip,
   McpChip,
 } from "@/renderer/components/composer/AttachmentBar";
-import {
-  ComposerAddMenu,
-  type ComposerCustomMcpItem,
-  type ComposerMcpMenuItem,
-} from "@/renderer/components/composer/ComposerAddMenu";
-import { ComposerVoiceInput } from "@/renderer/components/composer/ComposerVoiceInput";
+import { type ComposerCustomMcpItem } from "@/renderer/components/composer/ComposerAddMenu";
 import { LiveVoiceButton } from "@/renderer/components/composer/LiveVoiceControls";
 import { useImplicitMcpServers } from "@/renderer/components/composer/implicitMcpServers";
 import {
@@ -81,11 +73,8 @@ import {
   generateWorktreeBranch,
   type BranchSelection,
 } from "@/renderer/components/common/BranchSelector/BranchSelector";
-import { Button } from "@/renderer/components/common/Button";
-import { PixelLoader } from "@/renderer/components/common/PixelLoader";
 import { resolveModelLabel } from "@/renderer/components/providers/modelDisplay";
 import { launchExperiment } from "@/renderer/actions/experimentActions";
-import { openMcpServersSettings } from "@/renderer/actions/panelActions";
 import { updateProjectWorktreeBaseBranch } from "@/renderer/actions/projectActions";
 import {
   ExperimentDraftTargets,
@@ -130,7 +119,6 @@ import { RemoteHostUpdateDock } from "./RemoteHostUpdateDock";
 import { ThreadAuthRequiredDock } from "./ThreadAuthRequiredDock";
 import { composerRuntimeRequirement } from "../providers/composerRuntimeRequirement";
 import { ThreadRuntimeInstallDock } from "./ThreadRuntimeInstallDock";
-import { ThreadDockHeader, ThreadDockIconButton, ThreadDockSection } from "./ThreadDockUI";
 import { ThreadComposer, type ComposerControl } from "./ThreadComposer";
 import { isPlanModeControl } from "../providers/composerControlBuilders";
 import { supportsUsableFastMode } from "./threadDraftViewHelpers";
@@ -151,186 +139,19 @@ import {
   localBranchNameFromRef,
   resolveWorktreeOriginRef,
 } from "@/shared/worktreeBaseRef";
+import { resolveImplicitThreadWorktreeBase } from "@/shared/threadWorktreeLaunch";
+
 import {
-  resolveImplicitThreadWorktreeBase,
-  type ThreadWorktreeDraftFields,
-} from "@/shared/threadWorktreeLaunch";
+  DraftComposerAfterControls,
+  HookInstallProposal,
+  type DraftStartInput,
+  type DraftStartOutcome,
+  type DraftStartResult,
+} from "./DraftHookInstallProposal";
 
 const EMPTY_BRANCHES: GitBranchInfo[] = [];
 
-// Optional fields admit explicit `undefined` so wire shapes with
-// `prop?: T | undefined` (e.g. the zod-parsed quick-composer submission)
-// pass through without field-by-field copying.
-export type DraftStartOutcome = "accepted" | "cancelled";
-export type DraftStartResult = DraftStartOutcome | void;
-export type DraftStartInput = ThreadWorktreeDraftFields & {
-  /** Optional caller-owned identity for features that attach after launch. */
-  threadId?: string | undefined;
-  /** Client-only outbox identity; stripped before provider/host dispatch. */
-  clientSubmissionId?: string | undefined;
-  agentKind: AgentStatus["kind"];
-  config: ThreadConfig;
-  prompt: string;
-  segments?: PromptSegment[] | undefined;
-  presentationMode?: ThreadPresentationMode | undefined;
-  /** Per-turn context the launching surface captured for the initial prompt. */
-  clientContext?: TurnClientContext | undefined;
-};
-
-function HookInstallProposal(props: {
-  project: Project;
-  selectedAgent: AgentStatus;
-  presentationMode: ThreadPresentationMode;
-}) {
-  const { t } = useLingui();
-  const env = hookEnvForProject(props.project);
-  const envKey = hookEnvKey(env);
-  const agentKind = props.selectedAgent.kind;
-  const proposalKey = `${agentKind}:${envKey}`;
-  const dismissed = useSharedSettings((s) => s.dismissedHookInstallProposals[proposalKey] === true);
-  const dismissHookInstallProposal = useSharedSettings((s) => s.dismissHookInstallProposal);
-  const [status, setStatus] = useState<AgentHookPluginStatus | undefined>(undefined);
-  const [pending, setPending] = useState(false);
-
-  useEffect(() => {
-    if (props.presentationMode !== "terminal" || dismissed || !hasAnyClientBridge()) {
-      setStatus(undefined);
-      return;
-    }
-    const requestEnv = env;
-    let cancelled = false;
-    readBridge()
-      .getAgentHookPluginStatuses({ agentKind, envs: [requestEnv] })
-      .then((statuses) => {
-        if (!cancelled) setStatus(statuses[0]);
-      })
-      .catch(() => {
-        if (!cancelled) setStatus(undefined);
-      });
-    return () => {
-      cancelled = true;
-    };
-    // `env` is keyed by `envKey` (a string) — depend on the key, not the
-    // freshly-built env object, to avoid re-firing the IPC on every render.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dismissed, props.presentationMode, agentKind, envKey]);
-
-  if (
-    dismissed ||
-    props.presentationMode !== "terminal" ||
-    !status ||
-    !status.supported ||
-    status.installed
-  ) {
-    return null;
-  }
-
-  const install = () => {
-    setPending(true);
-    readBridge()
-      .installAgentHookPlugin({ agentKind: props.selectedAgent.kind, env })
-      .then((result) => {
-        setStatus(result.status);
-        toast.success(t`${props.selectedAgent.label} hooks installed.`);
-      })
-      .catch((error) =>
-        toast.danger(
-          error instanceof Error
-            ? error.message
-            : t`Unable to install ${props.selectedAgent.label} hooks.`,
-        ),
-      )
-      .finally(() => setPending(false));
-  };
-
-  return (
-    <ThreadDockSection placement="composer" collapsed={false} ariaLabel={t`Install CLI hooks`}>
-      <ThreadDockHeader
-        icon={Webhook}
-        iconClassName="text-foreground"
-        title={t`Install CLI hooks`}
-        actions={
-          <div className="flex shrink-0 items-center gap-1">
-            <Button
-              size="sm"
-              variant="ghost"
-              className="h-6 min-w-0 px-2 text-xs text-foreground"
-              isDisabled={pending}
-              isPending={pending}
-              onPress={install}
-            >
-              {pending ? <PixelLoader size="xs" /> : <Download className="size-3.5" />}
-              <Trans>Install</Trans>
-            </Button>
-            <ThreadDockIconButton
-              label={t`Don't show hook install proposal`}
-              tooltip={t`Dismiss`}
-              danger
-              onPress={() => dismissHookInstallProposal(proposalKey)}
-            >
-              <X className="size-3.5" />
-            </ThreadDockIconButton>
-          </div>
-        }
-      >
-        <span className="min-w-0 flex-1 truncate leading-5 text-[color:var(--muted)]">
-          <Trans>Better status updates while agents run.</Trans>
-        </span>
-      </ThreadDockHeader>
-    </ThreadDockSection>
-  );
-}
-
-function DraftComposerAfterControls(props: {
-  planControl?: Extract<ComposerControl, { kind: "toggle" }> | undefined;
-  mcpServers: readonly ComposerMcpMenuItem[];
-  customMcpServers: readonly ComposerCustomMcpItem[];
-  pluginLabels: Readonly<Record<string, string>>;
-  onPickFiles: () => void;
-  showVoiceInputButton: boolean;
-  isDisabled: boolean;
-  readOnlyMcp?: boolean;
-  experiment?: {
-    enabled: boolean;
-    disabled: boolean;
-    onToggle: (next: boolean) => void;
-  };
-  mentionRef: RefObject<MentionInputHandle | null>;
-  voiceInputRef: RefObject<VoiceInputHandle | null>;
-  computerUse: {
-    enabled: boolean;
-    visible: boolean;
-    onToggle: (next: boolean) => void;
-  };
-}) {
-  return (
-    <>
-      <ComposerAddMenu
-        planControl={props.planControl}
-        mcpServers={props.mcpServers}
-        customMcpServers={props.customMcpServers}
-        onManageMcpServers={openMcpServersSettings}
-        pluginLabels={props.pluginLabels}
-        {...(props.readOnlyMcp
-          ? {
-              readOnly: true,
-              readOnlyCaption: <Trans>Change servers in provider settings</Trans>,
-            }
-          : {})}
-        showFileOption
-        onPickFiles={props.onPickFiles}
-        computerUse={props.computerUse}
-        {...(props.experiment ? { experiment: props.experiment } : {})}
-      />
-      <ComposerVoiceInput
-        show={props.showVoiceInputButton}
-        isDisabled={props.isDisabled}
-        mentionRef={props.mentionRef}
-        voiceInputRef={props.voiceInputRef}
-      />
-    </>
-  );
-}
+export type { DraftStartInput, DraftStartOutcome, DraftStartResult };
 
 export function ThreadDraftComposerArea(props: {
   project: Project;

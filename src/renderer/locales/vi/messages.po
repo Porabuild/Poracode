@@ -251,7 +251,7 @@ msgid "{0} hooks installed for {envName}."
 msgstr "Đã cài đặt hook {0} cho {envName}."
 
 #. placeholder {0}: props.selectedAgent.label
-#: src/renderer/components/thread/ThreadDraftComposerArea.tsx
+#: src/renderer/components/thread/DraftHookInstallProposal.tsx
 msgid "{0} hooks installed."
 msgstr "Đã cài đặt hook {0}."
 
@@ -2621,7 +2621,7 @@ msgstr "Hậu trường từ người xây dựng Poracode"
 msgid "Better (Whisper base)"
 msgstr "Tốt hơn (Whisper base)"
 
-#: src/renderer/components/thread/ThreadDraftComposerArea.tsx
+#: src/renderer/components/thread/DraftHookInstallProposal.tsx
 msgid "Better status updates while agents run."
 msgstr "Cập nhật trạng thái tốt hơn trong khi tác nhân chạy."
 
@@ -3187,7 +3187,7 @@ msgid "Change project icon"
 msgstr "Đổi biểu tượng dự án"
 
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
-#: src/renderer/components/thread/ThreadDraftComposerArea.tsx
+#: src/renderer/components/thread/DraftHookInstallProposal.tsx
 msgid "Change servers in provider settings"
 msgstr "Thay đổi máy chủ trong phần cài đặt nhà cung cấp"
 
@@ -6388,7 +6388,7 @@ msgstr "Đã khám phá xong"
 
 #: src/renderer/components/composer/VoiceInputFeedback.tsx
 #: src/renderer/components/skills/MemorySkillSuggestions.tsx
-#: src/renderer/components/thread/ThreadDraftComposerArea.tsx
+#: src/renderer/components/thread/DraftHookInstallProposal.tsx
 #: src/renderer/components/thread/ThreadErrorDock.tsx
 #: src/renderer/components/thread/ThreadHistoryNoticeDock.tsx
 msgid "Dismiss"
@@ -6465,7 +6465,7 @@ msgstr "Đừng hỏi lại"
 msgid "Don't show again"
 msgstr "Không hiển thị lại"
 
-#: src/renderer/components/thread/ThreadDraftComposerArea.tsx
+#: src/renderer/components/thread/DraftHookInstallProposal.tsx
 msgid "Don't show hook install proposal"
 msgstr "Không hiển thị đề xuất cài đặt hook"
 
@@ -9219,7 +9219,7 @@ msgstr "cài đặt"
 #: src/renderer/components/providers/opencode/OpenCodePluginCards.tsx
 #: src/renderer/components/providers/opencode/OpenCodePluginManager.tsx
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
-#: src/renderer/components/thread/ThreadDraftComposerArea.tsx
+#: src/renderer/components/thread/DraftHookInstallProposal.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/CursorSdkRuntimeSetup.tsx
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
@@ -9298,7 +9298,7 @@ msgstr "Cài các gói skill và máy chủ MCP được xây dựng theo đặc
 msgid "Install Chrome extension"
 msgstr "Cài đặt tiện ích Chrome"
 
-#: src/renderer/components/thread/ThreadDraftComposerArea.tsx
+#: src/renderer/components/thread/DraftHookInstallProposal.tsx
 msgid "Install CLI hooks"
 msgstr "Cài đặt móc CLI"
 
@@ -20323,7 +20323,7 @@ msgid "Unable to import browser data."
 msgstr "Không thể nhập dữ liệu trình duyệt."
 
 #. placeholder {0}: props.selectedAgent.label
-#: src/renderer/components/thread/ThreadDraftComposerArea.tsx
+#: src/renderer/components/thread/DraftHookInstallProposal.tsx
 msgid "Unable to install {0} hooks."
 msgstr "Không thể cài đặt hook {0}."
 

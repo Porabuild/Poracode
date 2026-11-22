@@ -1,5 +1,5 @@
 import { composerDraftStorage } from "@/renderer/state/composerDraftStorage";
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "@heroui/react";
 import { msg } from "@lingui/core/macro";
 import { Trans } from "@lingui/react/macro";
@@ -107,151 +107,11 @@ import {
   ThreadDraftHero,
   type ThreadDraftDropIndicator,
 } from "./ThreadDraftChrome";
-
-function clampNumber(value: number, min: number, max: number) {
-  return Math.min(Math.max(value, min), max);
-}
-
-function withoutDraftCrew(config: ProviderDraftConfig): ProviderDraftConfig {
-  const { crew: _crew, ...providerConfig } = config;
-  return providerConfig;
-}
-
-function projectDraftWithCrew(
-  config: ProjectDraftConfig,
-  crew: ThreadCrewBinding | null | undefined,
-  explicitlyCleared: boolean,
-): ProjectDraftConfig {
-  const { crew: _previousCrew, ...draft } = config;
-  if (crew) return { ...draft, crew };
-  return explicitlyCleared ? { ...draft, crew: null } : draft;
-}
-
-/** Minimum gap kept above the composer once it can no longer stay centered. */
-const COMPOSER_ANCHOR_MIN_TOP = 8;
-
-/**
- * Keeps the centered draft composer visually *stable* instead of re-centering on
- * every height change. The composer starts vertically centered, then the top
- * edge of the input is locked to that initial line: typing extra rows grows the
- * box downward (top stays put), while rows that appear above the input (slash
- * command panel, attachments, docks) grow the box upward (the input + toolbar
- * stay put). Implemented by driving the height of a spacer above the block so
- * the input's top edge holds a fixed fraction of the container height.
- */
-function useStableComposerAnchor(enabled: boolean) {
-  const containerRef = useRef<HTMLDivElement | null>(null);
-  const blockRef = useRef<HTMLDivElement | null>(null);
-  const spacerRef = useRef<HTMLDivElement | null>(null);
-  // Fraction of the container height where the input's top edge is pinned.
-  // Captured once from the initial centered layout so window resizes keep the
-  // composer at the same relative position.
-  const anchorRatioRef = useRef<number | null>(null);
-  const activeBindingRef = useRef<{
-    container: HTMLDivElement;
-    block: HTMLDivElement;
-    spacer: HTMLDivElement;
-    observer: ResizeObserver;
-  } | null>(null);
-
-  // Re-bind whenever the anchor elements mount or remount (for example, when
-  // a remote host transitions through connecting/error and back to online
-  // while `enabled` stays true).
-  useLayoutEffect(() => {
-    if (!enabled) {
-      anchorRatioRef.current = null;
-    }
-    const container = enabled ? containerRef.current : null;
-    const block = enabled ? blockRef.current : null;
-    const spacer = enabled ? spacerRef.current : null;
-    const active = activeBindingRef.current;
-
-    if (!container || !block || !spacer) {
-      if (active) {
-        active.observer.disconnect();
-        activeBindingRef.current = null;
-      }
-      return;
-    }
-    if (
-      active &&
-      active.container === container &&
-      active.block === block &&
-      active.spacer === spacer
-    ) {
-      return;
-    }
-
-    active?.observer.disconnect();
-    activeBindingRef.current = null;
-
-    const apply = () => {
-      const height = container.clientHeight;
-      if (height <= 0) return;
-      const containerTop = container.getBoundingClientRect().top;
-      const blockTop = block.getBoundingClientRect().top;
-      const inputEl = block.querySelector<HTMLElement>("[data-composer-input-anchor]");
-      const inputTop = (inputEl ?? block).getBoundingClientRect().top;
-      // Distance from the block's top to the input's top — grows when rows are
-      // inserted above the input (command panel, attachments, docks).
-      const aboveInput = inputTop - blockTop;
-      const blockHeight = block.offsetHeight;
-      const currentInputOffset = inputTop - containerTop;
-      const currentSpacer = spacer.offsetHeight;
-
-      // Establish the anchor once from the initial (centered) layout: the line
-      // the input's top edge would sit on if the block were centered. Wait
-      // until the container actually has room to center so a temporarily
-      // cramped layout never freezes a top-clamped ratio.
-      const centeredInputOffset = (height - blockHeight) / 2 + aboveInput;
-      const centeredRatio = clampNumber(centeredInputOffset / height, 0, 1);
-      if (
-        anchorRatioRef.current === null &&
-        currentSpacer + (centeredInputOffset - currentInputOffset) > COMPOSER_ANCHOR_MIN_TOP
-      ) {
-        anchorRatioRef.current = centeredRatio;
-      }
-
-      const desiredInputOffset = Math.round((anchorRatioRef.current ?? centeredRatio) * height);
-      const styles = getComputedStyle(container);
-      const verticalPadding =
-        (Number.parseFloat(styles.paddingTop) || 0) +
-        (Number.parseFloat(styles.paddingBottom) || 0);
-      const maxSpacer = Math.max(COMPOSER_ANCHOR_MIN_TOP, height - verticalPadding - blockHeight);
-      // Snap to whole pixels. A fractional spacer height (e.g. 443.5px) reads
-      // back from offsetHeight rounded, so the next correction measures a stale
-      // value and the input/toolbar drift by a sub-pixel each time the box
-      // changes height (the toolbar visibly creeping up as the slash panel opens).
-      const nextSpacer = Math.round(
-        clampNumber(
-          currentSpacer + (desiredInputOffset - currentInputOffset),
-          COMPOSER_ANCHOR_MIN_TOP,
-          maxSpacer,
-        ),
-      );
-      // Integer guard: only write on a whole-pixel change, never feed a fraction
-      // back into the ResizeObserver loop.
-      if (Math.abs(nextSpacer - currentSpacer) >= 1) {
-        spacer.style.height = `${nextSpacer}px`;
-      }
-    };
-
-    apply();
-    const observer = new ResizeObserver(apply);
-    observer.observe(container);
-    observer.observe(block);
-    activeBindingRef.current = { container, block, spacer, observer };
-  });
-
-  useLayoutEffect(() => {
-    return () => {
-      activeBindingRef.current?.observer.disconnect();
-      activeBindingRef.current = null;
-    };
-  }, []);
-
-  return { containerRef, blockRef, spacerRef };
-}
+import {
+  projectDraftWithCrew,
+  useStableComposerAnchor,
+  withoutDraftCrew,
+} from "./draftViewHelpers";
 
 export function ThreadDraftView(props: {
   project: Project;

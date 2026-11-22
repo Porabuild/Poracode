@@ -251,7 +251,7 @@ msgid "{0} hooks installed for {envName}."
 msgstr "Hooks de {0} instalados para {envName}."
 
 #. placeholder {0}: props.selectedAgent.label
-#: src/renderer/components/thread/ThreadDraftComposerArea.tsx
+#: src/renderer/components/thread/DraftHookInstallProposal.tsx
 msgid "{0} hooks installed."
 msgstr "Hooks de {0} instalados."
 
@@ -2621,7 +2621,7 @@ msgstr "Detrás de escena con la persona que crea Poracode"
 msgid "Better (Whisper base)"
 msgstr "Mejor (Whisper base)"
 
-#: src/renderer/components/thread/ThreadDraftComposerArea.tsx
+#: src/renderer/components/thread/DraftHookInstallProposal.tsx
 msgid "Better status updates while agents run."
 msgstr "Mejores actualizaciones de estado mientras los agentes se ejecutan."
 
@@ -3187,7 +3187,7 @@ msgid "Change project icon"
 msgstr "Cambiar el icono del proyecto"
 
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
-#: src/renderer/components/thread/ThreadDraftComposerArea.tsx
+#: src/renderer/components/thread/DraftHookInstallProposal.tsx
 msgid "Change servers in provider settings"
 msgstr "Cambia los servidores en la configuración del proveedor"
 
@@ -6388,7 +6388,7 @@ msgstr "Descubrimiento completado"
 
 #: src/renderer/components/composer/VoiceInputFeedback.tsx
 #: src/renderer/components/skills/MemorySkillSuggestions.tsx
-#: src/renderer/components/thread/ThreadDraftComposerArea.tsx
+#: src/renderer/components/thread/DraftHookInstallProposal.tsx
 #: src/renderer/components/thread/ThreadErrorDock.tsx
 #: src/renderer/components/thread/ThreadHistoryNoticeDock.tsx
 msgid "Dismiss"
@@ -6465,7 +6465,7 @@ msgstr "No volver a preguntar"
 msgid "Don't show again"
 msgstr "No volver a mostrar"
 
-#: src/renderer/components/thread/ThreadDraftComposerArea.tsx
+#: src/renderer/components/thread/DraftHookInstallProposal.tsx
 msgid "Don't show hook install proposal"
 msgstr "No mostrar la propuesta de instalación de hooks"
 
@@ -9219,7 +9219,7 @@ msgstr "instalación"
 #: src/renderer/components/providers/opencode/OpenCodePluginCards.tsx
 #: src/renderer/components/providers/opencode/OpenCodePluginManager.tsx
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
-#: src/renderer/components/thread/ThreadDraftComposerArea.tsx
+#: src/renderer/components/thread/DraftHookInstallProposal.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/CursorSdkRuntimeSetup.tsx
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
@@ -9298,7 +9298,7 @@ msgstr "Instala paquetes de skills y servidores MCP creados según la especifica
 msgid "Install Chrome extension"
 msgstr "Instalar extensión de Chrome"
 
-#: src/renderer/components/thread/ThreadDraftComposerArea.tsx
+#: src/renderer/components/thread/DraftHookInstallProposal.tsx
 msgid "Install CLI hooks"
 msgstr "Instalar hooks de CLI"
 
@@ -20323,7 +20323,7 @@ msgid "Unable to import browser data."
 msgstr "No se pudieron importar los datos del navegador."
 
 #. placeholder {0}: props.selectedAgent.label
-#: src/renderer/components/thread/ThreadDraftComposerArea.tsx
+#: src/renderer/components/thread/DraftHookInstallProposal.tsx
 msgid "Unable to install {0} hooks."
 msgstr "No se pueden instalar los hooks de {0}."
 
