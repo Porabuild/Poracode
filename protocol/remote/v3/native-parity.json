@@ -56,28 +56,34 @@
       {
         "id": "thread-agent-vision",
         "scopes": ["session:read"],
-        "batch": "explicitly-desktop-only",
+        "batch": "rich-chat-requests",
         "ios": {
           "wire": {
-            "disposition": "desktop-only",
-            "evidence": ["src/renderer/components/thread/ThreadAgentVisionDock.tsx"]
+            "disposition": "implemented",
+            "evidence": ["ios/App/App/Features/RichChat/Notices/RichChatParitySurfaces.swift"]
           },
           "ui": {
-            "disposition": "desktop-only",
-            "evidence": ["src/renderer/components/thread/ThreadAgentVisionDock.tsx"]
+            "disposition": "partial",
+            "evidence": ["ios/App/App/Features/RichChat/Notices/RichChatParitySurfaces.swift"],
+            "note": "Agent Vision snapshot viewer is implemented on iOS; device qualification remains pending."
           }
         },
         "android": {
           "wire": {
-            "disposition": "desktop-only",
-            "evidence": ["src/renderer/components/thread/ThreadAgentVisionDock.tsx"]
+            "disposition": "implemented",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/ui/richchat/RichChatParitySurfaces.kt"
+            ]
           },
           "ui": {
-            "disposition": "desktop-only",
-            "evidence": ["src/renderer/components/thread/ThreadAgentVisionDock.tsx"]
+            "disposition": "partial",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/ui/richchat/RichChatParitySurfaces.kt"
+            ],
+            "note": "Agent Vision snapshot viewer is implemented on Android; device qualification remains pending."
           }
         },
-        "note": "Agent Vision is a renderer Thread Info right-panel dock. Native clients have no Thread Info panel; their production transports do not invoke this optional read route."
+        "note": "Agent Vision live snapshot viewer implemented on iOS and Android; device qualification remains pending."
       },
       {
         "id": "pr-watch-scoped-upsert",
@@ -10640,53 +10646,63 @@
     "webSocketClientMessages": [
       {
         "id": "agent-vision-watch",
-        "batch": "explicitly-desktop-only",
+        "batch": "rich-chat-requests",
         "ios": {
           "wire": {
-            "disposition": "desktop-only",
-            "evidence": ["src/renderer/components/thread/ThreadAgentVisionDock.tsx"]
+            "disposition": "implemented",
+            "evidence": ["ios/App/App/Features/RichChat/Notices/RichChatParitySurfaces.swift"]
           },
           "ui": {
-            "disposition": "desktop-only",
-            "evidence": ["src/renderer/components/thread/ThreadAgentVisionDock.tsx"]
+            "disposition": "partial",
+            "evidence": ["ios/App/App/Features/RichChat/Notices/RichChatParitySurfaces.swift"],
+            "note": "Agent Vision watch wire frame and sheet viewer are implemented on iOS; device qualification remains pending."
           }
         },
         "android": {
           "wire": {
-            "disposition": "desktop-only",
-            "evidence": ["src/renderer/components/thread/ThreadAgentVisionDock.tsx"]
+            "disposition": "implemented",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/ui/richchat/RichChatParitySurfaces.kt"
+            ]
           },
           "ui": {
-            "disposition": "desktop-only",
-            "evidence": ["src/renderer/components/thread/ThreadAgentVisionDock.tsx"]
+            "disposition": "partial",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/ui/richchat/RichChatParitySurfaces.kt"
+            ],
+            "note": "Agent Vision watch wire frame and sheet viewer are implemented on Android; device qualification remains pending."
           }
-        },
-        "note": "Agent Vision streaming is opt-in from the renderer Thread Info panel or its picture-in-picture window. Native clients have no Thread Info panel and never subscribe; generated wire models remain available."
+        }
       },
       {
         "id": "agent-vision-unwatch",
-        "batch": "explicitly-desktop-only",
+        "batch": "rich-chat-requests",
         "ios": {
           "wire": {
-            "disposition": "desktop-only",
-            "evidence": ["src/renderer/components/thread/ThreadAgentVisionDock.tsx"]
+            "disposition": "implemented",
+            "evidence": ["ios/App/App/Features/RichChat/Notices/RichChatParitySurfaces.swift"]
           },
           "ui": {
-            "disposition": "desktop-only",
-            "evidence": ["src/renderer/components/thread/ThreadAgentVisionDock.tsx"]
+            "disposition": "partial",
+            "evidence": ["ios/App/App/Features/RichChat/Notices/RichChatParitySurfaces.swift"],
+            "note": "Agent Vision unwatch wire frame and sheet viewer are implemented on iOS; device qualification remains pending."
           }
         },
         "android": {
           "wire": {
-            "disposition": "desktop-only",
-            "evidence": ["src/renderer/components/thread/ThreadAgentVisionDock.tsx"]
+            "disposition": "implemented",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/ui/richchat/RichChatParitySurfaces.kt"
+            ]
           },
           "ui": {
-            "disposition": "desktop-only",
-            "evidence": ["src/renderer/components/thread/ThreadAgentVisionDock.tsx"]
+            "disposition": "partial",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/ui/richchat/RichChatParitySurfaces.kt"
+            ],
+            "note": "Agent Vision unwatch wire frame and sheet viewer are implemented on Android; device qualification remains pending."
           }
-        },
-        "note": "Agent Vision streaming is opt-in from the renderer Thread Info panel or its picture-in-picture window. Native clients have no Thread Info panel and never subscribe; generated wire models remain available."
+        }
       },
       {
         "id": "ping",
@@ -11010,28 +11026,33 @@
     "webSocketServerMessages": [
       {
         "id": "agent-vision-frame",
-        "batch": "explicitly-desktop-only",
+        "batch": "rich-chat-requests",
         "ios": {
           "wire": {
-            "disposition": "desktop-only",
-            "evidence": ["src/renderer/components/thread/ThreadAgentVisionDock.tsx"]
+            "disposition": "implemented",
+            "evidence": ["ios/App/App/Features/RichChat/Notices/RichChatParitySurfaces.swift"]
           },
           "ui": {
-            "disposition": "desktop-only",
-            "evidence": ["src/renderer/components/thread/ThreadAgentVisionDock.tsx"]
+            "disposition": "partial",
+            "evidence": ["ios/App/App/Features/RichChat/Notices/RichChatParitySurfaces.swift"],
+            "note": "Agent Vision frame decoding and viewer are implemented on iOS; device qualification remains pending."
           }
         },
         "android": {
           "wire": {
-            "disposition": "desktop-only",
-            "evidence": ["src/renderer/components/thread/ThreadAgentVisionDock.tsx"]
+            "disposition": "implemented",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/ui/richchat/RichChatParitySurfaces.kt"
+            ]
           },
           "ui": {
-            "disposition": "desktop-only",
-            "evidence": ["src/renderer/components/thread/ThreadAgentVisionDock.tsx"]
+            "disposition": "partial",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/ui/richchat/RichChatParitySurfaces.kt"
+            ],
+            "note": "Agent Vision frame decoding and viewer are implemented on Android; device qualification remains pending."
           }
-        },
-        "note": "Agent Vision streaming is opt-in from the renderer Thread Info panel or its picture-in-picture window. Native clients have no Thread Info panel and never subscribe; generated wire models remain available."
+        }
       },
       {
         "id": "ready",

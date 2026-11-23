@@ -205,9 +205,41 @@ fun RichTimelineView(
             },
         )
     }
+    val promptEntries = remember(transcript.itemsInOrder) {
+        transcript.itemsInOrder
+            .filter { it.type == com.poracode.app.chat.RichItemTypes.USER_MESSAGE }
+            .mapNotNull { item ->
+                RichChatUiLogic.itemText(item).trim().takeIf(String::isNotEmpty)?.let { text ->
+                    item.id to text
+                }
+            }
+            .mapIndexed { idx, (id, text) -> RichPromptIndexEntry(id = id, text = text, index = idx) }
+    }
+    var showPromptRail by rememberSaveable(transcript.key.threadId) { mutableStateOf(false) }
+    if (showPromptRail && promptEntries.isNotEmpty()) {
+        RichPromptRailSheet(
+            prompts = promptEntries,
+            onSelect = { selected ->
+                val targetIndex = entries.indexOfFirst { e -> selected.id in timelineEntryItemIds(e) }
+                if (targetIndex >= 0) {
+                    advisoryScope.launch { listState.animateScrollToItem(headerCount + targetIndex) }
+                }
+            },
+            onDismiss = { showPromptRail = false },
+        )
+    }
     activeWorkflowPlan?.let { RichWorkflowViewerSheet(plan = it, onDismiss = { activeWorkflowPlan = null }) }
+    Column(modifier = modifier) {
+        if (promptEntries.size > 1) {
+            RichStickyPromptBar(
+                activePrompt = promptEntries.last(),
+                totalPrompts = promptEntries.size,
+                onOpenRail = { showPromptRail = true },
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+            )
+        }
     androidx.compose.runtime.CompositionLocalProvider(LocalRichChatImageGallery provides galleryImages) {
-    RichTimelineScrollContainer(listState, initialScrollComplete, modifier, bottomOverlayClearance) {
+    RichTimelineScrollContainer(listState, initialScrollComplete, Modifier.weight(1f).fillMaxWidth(), bottomOverlayClearance) {
         LazyColumn(
             modifier = backdrop.fillMaxSize().semantics { contentDescription = timelineDescription },
             state = listState,
@@ -278,6 +310,7 @@ fun RichTimelineView(
             item(key = "bottom-space") { Spacer(Modifier.height(8.dp)) }
         }
         }
+    }
     }
 }
 
