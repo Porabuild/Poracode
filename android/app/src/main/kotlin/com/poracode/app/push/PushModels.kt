@@ -91,12 +91,30 @@ object PushCapabilityParser {
 }
 
 @Serializable
+data class PushAlertPreferences(
+    val sound: Boolean = true,
+    val statuses: Statuses = Statuses(),
+) {
+    @Serializable
+    data class Statuses(
+        val done: Boolean = true,
+        val needsAttention: Boolean = true,
+        val error: Boolean = true,
+    )
+
+    companion object {
+        val ALL = PushAlertPreferences()
+    }
+}
+
+@Serializable
 data class PushRegistrationBody(
     val deviceId: String,
     val platform: String = "android",
     val deviceToken: String,
     val appVersion: String,
     val routing: PushRegistrationRouteV1,
+    val alertPreferences: PushAlertPreferences = PushAlertPreferences.ALL,
 )
 
 @Serializable

@@ -13,9 +13,11 @@ import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.compositeOver
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 
 val LocalChatTextSizeSp = staticCompositionLocalOf { 14 }
+val LocalTerminalFontFamily = staticCompositionLocalOf<FontFamily> { FontFamily.Monospace }
 
 /** Corner radii aligned to Android Material 3 + Poracode Soft Hairline surfaces. */
 object PoracodeRadius {
@@ -115,6 +117,7 @@ private fun PoracodeColors.toColorScheme(): ColorScheme {
 fun PoracodeTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     chatTextSizeSp: Int = 14,
+    terminalFontFamily: FontFamily = FontFamily.Monospace,
     themeId: String = DEFAULT_PORACODE_THEME_ID,
     customThemes: List<NativeCustomTheme> = emptyList(),
     content: @Composable () -> Unit,
@@ -124,6 +127,7 @@ fun PoracodeTheme(
     val colors = if (darkTheme) preset.dark else preset.light
     CompositionLocalProvider(
         LocalChatTextSizeSp provides chatTextSizeSp,
+        LocalTerminalFontFamily provides terminalFontFamily,
         LocalPoracodeColors provides colors,
     ) {
         MaterialTheme(

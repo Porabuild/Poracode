@@ -115,7 +115,11 @@ object TlsCertPin {
 
     private const val PINNED_CLIENT_CACHE_LIMIT = 8
 
-    private val pinnedClientCache = LinkedHashMap<PinnedClientKey, OkHttpClient>()
+    private val pinnedClientCache = LinkedHashMap<PinnedClientKey, OkHttpClient>(
+        PINNED_CLIENT_CACHE_LIMIT + 1,
+        0.75f,
+        true,
+    )
 
     /** Cache identity: base client plus the normalized `host:port` and enforced fingerprint. */
     private data class PinnedClientKey(

@@ -117,8 +117,18 @@ class PushRegistrationCoordinatorTest {
             routing = route(),
         )
         assertEquals(
-            setOf("deviceId", "platform", "deviceToken", "appVersion", "routing"),
+            setOf("deviceId", "platform", "deviceToken", "appVersion", "routing", "alertPreferences"),
             json.parseToJsonElement(json.encodeToString(registration)).jsonObject.keys,
+        )
+        assertEquals(
+            setOf("sound", "statuses"),
+            json.parseToJsonElement(json.encodeToString(registration)).jsonObject
+                .getValue("alertPreferences").jsonObject.keys,
+        )
+        assertEquals(
+            setOf("done", "needsAttention", "error"),
+            json.parseToJsonElement(json.encodeToString(registration)).jsonObject
+                .getValue("alertPreferences").jsonObject.getValue("statuses").jsonObject.keys,
         )
         assertEquals(
             setOf("version", "clientConnectionId", "desktopId"),
@@ -132,11 +142,32 @@ class PushRegistrationCoordinatorTest {
         )
     }
 
+    @Test
+    fun alertPreferenceChangesReRegisterWithUpdatedPreferences() = runBlocking {
+        var prefs = PushAlertPreferences.ALL
+        val fixture = fixture("prefs", listOf(1), alertPreferencesProvider = { prefs })
+        fixture.coordinator.onForeground()
+        fixture.coordinator.onToken("fcm-token")
+        fixture.coordinator.reconcile()
+        fixture.coordinator.reconcile()
+        assertEquals(1, fixture.gateway.registered.size)
+        assertEquals(PushAlertPreferences.ALL, fixture.gateway.registered.single().alertPreferences)
+
+        prefs = PushAlertPreferences(
+            sound = false,
+            statuses = PushAlertPreferences.Statuses(done = false, needsAttention = true, error = true),
+        )
+        fixture.coordinator.reconcile()
+        assertEquals(2, fixture.gateway.registered.size)
+        assertEquals(prefs, fixture.gateway.registered.last().alertPreferences)
+    }
+
     private fun fixture(
         name: String,
         versions: List<Int>?,
         register: PushHttpResult = PushHttpResult.Success(1),
         unregister: PushHttpResult = PushHttpResult.Success(null),
+        alertPreferencesProvider: () -> PushAlertPreferences = { PushAlertPreferences.ALL },
     ): Fixture {
         val directory = temporary.newFolder(name)
         val state = PushClientStateStore(directory.resolve("state"), uuid = { deviceId })
@@ -165,6 +196,7 @@ class PushRegistrationCoordinatorTest {
                 gateway
             },
             appVersion = "1.5.0",
+            alertPreferencesProvider = alertPreferencesProvider,
         )
         return Fixture(coordinator, outbox, gateway)
     }

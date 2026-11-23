@@ -194,6 +194,11 @@ internal fun SettingsDestinationContent(
             navigation.settingsConnectionId = state.hostCatalog.selectedConnectionId?.value
         },
         onLeaveDesktopSettings = { navigation.settingsConnectionId = null },
+        onOpenWorkspaces = {
+            navigation.settingsPane = null
+            navigation.settingsConnectionId = null
+            navigation.showWorkspaces = true
+        },
         onOpenSchedules = {
             navigation.remoteIntegrationsConnectionId = navigation.settingsConnectionId
             navigation.remoteIntegrationsSection = RemoteIntegrationsSection.Schedules.name

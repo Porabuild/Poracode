@@ -115,10 +115,20 @@ class PushClientStateStore(
             route: PushRegistrationRouteV1,
             appVersion: String,
             endpoint: String = "",
+            alertPreferences: PushAlertPreferences = PushAlertPreferences.ALL,
         ): String {
             val digest = MessageDigest.getInstance("SHA-256")
-            listOf(token, route.clientConnectionId, route.desktopId, appVersion, endpoint)
-                .forEach {
+            listOf(
+                token,
+                route.clientConnectionId,
+                route.desktopId,
+                appVersion,
+                endpoint,
+                alertPreferences.sound.toString(),
+                alertPreferences.statuses.done.toString(),
+                alertPreferences.statuses.needsAttention.toString(),
+                alertPreferences.statuses.error.toString(),
+            ).forEach {
                 val bytes = it.toByteArray(Charsets.UTF_8)
                 digest.update(bytes.size.toString().toByteArray(Charsets.UTF_8))
                 digest.update(0)

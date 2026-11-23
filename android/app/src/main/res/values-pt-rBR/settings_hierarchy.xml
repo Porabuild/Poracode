@@ -54,4 +54,7 @@
     <string name="settings_notifications_enabled_description">Mostrar notificações quando o status do tópico for alterado.</string>
     <string name="settings_notification_sound_description">Reproduzir um som quando uma notificação for exibida.</string>
     <string name="settings_home_shortcut_reorder">Reordenar %1$s</string>
+    <string name="settings_terminal_font">Fonte do terminal</string>
+    <string name="settings_terminal_font_system">Monoespaçada do sistema</string>
+    <string name="settings_terminal_font_geist_mono">Geist Mono</string>
 </resources>

@@ -6,6 +6,7 @@ import com.poracode.app.ui.theme.PoracodeIcons
 
 internal sealed interface SettingsSearchTarget {
     data class Route(val route: SettingsRoute) : SettingsSearchTarget
+    data object Workspaces : SettingsSearchTarget
     data object Schedules : SettingsSearchTarget
     data object Integrations : SettingsSearchTarget
     data object Advanced : SettingsSearchTarget
@@ -33,6 +34,12 @@ internal object SettingsSearchIndex {
             titleRes = R.string.settings_device_general,
             icon = PoracodeIcons.Info,
             keywords = listOf("general", "language", "version", "shortcuts", "pinned", "home"),
+        ),
+        SettingsSearchEntry(
+            target = SettingsSearchTarget.Workspaces,
+            titleRes = R.string.home_workspaces_title,
+            icon = PoracodeIcons.Layers,
+            keywords = listOf("workspaces", "groups", "projects", "filter"),
         ),
         SettingsSearchEntry(
             target = SettingsSearchTarget.Route(SettingsRoute.Appearance),

@@ -87,6 +87,12 @@ class PushRuntime(
         }
     }
 
+    fun onAlertPreferencesChanged() {
+        if (foreground.get() && permissionAction() == PushPermissionPolicy.Action.Enabled) {
+            scheduleReconcile()
+        }
+    }
+
     fun route(route: PushRouteV1) {
         scope.launch { routes.route(route) }
     }

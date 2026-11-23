@@ -78,6 +78,7 @@ fun SettingsScreen(
     onPushAction: () -> Unit,
     onEnterDesktopSettings: () -> Unit,
     onLeaveDesktopSettings: () -> Unit,
+    onOpenWorkspaces: () -> Unit = {},
     onOpenSchedules: () -> Unit,
     onOpenSettingsIntegrations: () -> Unit,
     onOpenAdvancedOperations: () -> Unit,
@@ -205,6 +206,12 @@ fun SettingsScreen(
                 } else when (current) {
                     SettingsRoute.DeviceIndex -> DeviceSettingsIndex(
                         onOpen = openRoute,
+                        onOpenWorkspaces = onOpenWorkspaces,
+                        onOpenSchedules = onOpenSchedules,
+                        onOpenIntegrations = onOpenSettingsIntegrations,
+                        onOpenAdvanced = onOpenAdvancedOperations,
+                        onOpenBrowser = onOpenBrowserMirror,
+                        environmentsAvailable = environmentsAvailable,
                         onOpenPrivacy = onOpenPrivacy,
                         onOpenSupport = onOpenSupport,
                     )
@@ -302,6 +309,7 @@ fun SettingsScreen(
                             selected = effectiveRoute,
                             environmentsAvailable = environmentsAvailable,
                             onSelect = openRoute,
+                            onOpenWorkspaces = onOpenWorkspaces,
                             onOpenSchedules = onOpenSchedules,
                             onOpenIntegrations = onOpenSettingsIntegrations,
                             onOpenAdvanced = onOpenAdvancedOperations,

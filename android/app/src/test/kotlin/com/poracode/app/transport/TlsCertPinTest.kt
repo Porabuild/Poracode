@@ -90,4 +90,27 @@ class TlsCertPinTest {
         assertSame(base, TlsCertPin.clientForEndpoint(null, base))
         assertSame(base, TlsCertPin.clientForEndpoint("https://never-pinned.test", base))
     }
+
+    @Test
+    fun pinnedClientCacheEvictsLeastRecentlyUsedEntry() {
+        TlsCertPinStore.resetForTests()
+        try {
+            val base = OkHttpClient.Builder().build()
+            val endpoints = (0..8).map { "https://lru-$it.test:8443" }
+            val clients = endpoints.take(8).mapIndexed { i, ep ->
+                TlsCertPinStore.register(ep, TlsCertPin.sha256Hex("leaf-$i".toByteArray()))
+                TlsCertPin.clientForEndpoint(ep, base)
+            }
+            // Touch entry 0 so entry 1 becomes least recently used.
+            assertSame(clients[0], TlsCertPin.clientForEndpoint(endpoints[0], base))
+            TlsCertPinStore.register(endpoints[8], TlsCertPin.sha256Hex("leaf-8".toByteArray()))
+            TlsCertPin.clientForEndpoint(endpoints[8], base)
+
+            // Entry 0 stayed cached; entry 1 was evicted and rebuilt.
+            assertSame(clients[0], TlsCertPin.clientForEndpoint(endpoints[0], base))
+            assertNotSame(clients[1], TlsCertPin.clientForEndpoint(endpoints[1], base))
+        } finally {
+            TlsCertPinStore.resetForTests()
+        }
+    }
 }

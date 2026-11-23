@@ -30,6 +30,7 @@ internal fun SplitSettingsSidebar(
     selected: SettingsRoute,
     environmentsAvailable: Boolean,
     onSelect: (SettingsRoute) -> Unit,
+    onOpenWorkspaces: () -> Unit,
     onOpenSchedules: () -> Unit,
     onOpenIntegrations: () -> Unit,
     onOpenAdvanced: () -> Unit,
@@ -48,6 +49,7 @@ internal fun SplitSettingsSidebar(
     val openTarget: (SettingsSearchTarget) -> Unit = { target ->
         when (target) {
             is SettingsSearchTarget.Route -> onSelect(target.route)
+            SettingsSearchTarget.Workspaces -> onOpenWorkspaces()
             SettingsSearchTarget.Schedules -> onOpenSchedules()
             SettingsSearchTarget.Integrations -> onOpenIntegrations()
             SettingsSearchTarget.Advanced -> onOpenAdvanced()
@@ -95,6 +97,7 @@ internal fun SplitSettingsSidebar(
             } else {
                 item { PoracodeSectionLabel(stringResource(R.string.settings_device_section), Modifier.padding(vertical = 6.dp)) }
                 item { PoracodeDrawerNavItem(stringResource(R.string.settings_device_general), PoracodeIcons.Info, selected == SettingsRoute.General) { onSelect(SettingsRoute.General) } }
+                item { PoracodeDrawerNavItem(stringResource(R.string.home_workspaces_title), PoracodeIcons.Layers, false, onClick = onOpenWorkspaces) }
                 item { PoracodeDrawerNavItem(stringResource(R.string.settings_device_appearance), PoracodeIcons.ColorLens, selected == SettingsRoute.Appearance) { onSelect(SettingsRoute.Appearance) } }
                 item { PoracodeDrawerNavItem(stringResource(R.string.settings_device_notifications), PoracodeIcons.Notifications, selected == SettingsRoute.Notifications) { onSelect(SettingsRoute.Notifications) } }
                 item { PoracodeDrawerNavItem(stringResource(R.string.settings_device_audio), PoracodeIcons.Mic, selected == SettingsRoute.Audio) { onSelect(SettingsRoute.Audio) } }

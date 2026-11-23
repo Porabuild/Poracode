@@ -112,11 +112,12 @@ fun RichTerminalPane(
     val scope = rememberCoroutineScope()
     val density = LocalDensity.current
     val textMeasurer = rememberTextMeasurer()
-    val terminalCellSize = remember(textSizeSp, density.density, density.fontScale) {
+    val terminalFontFamily = com.poracode.app.ui.theme.LocalTerminalFontFamily.current
+    val terminalCellSize = remember(textSizeSp, terminalFontFamily, density.density, density.fontScale) {
         textMeasurer.measure(
             text = AnnotatedString("M"),
             style = TextStyle(
-                fontFamily = FontFamily.Monospace,
+                fontFamily = terminalFontFamily,
                 fontSize = textSizeSp.sp,
                 lineHeight = (textSizeSp + 5).sp,
             ),
@@ -300,7 +301,7 @@ fun RichTerminalPane(
                 itemsIndexed(document.styledLines, key = { index, _ -> index }) { index, runs ->
                     Text(
                         text = terminalLineAnnotatedString(runs, document.lines.getOrElse(index) { "" }),
-                        fontFamily = FontFamily.Monospace,
+                        fontFamily = terminalFontFamily,
                         fontSize = textSizeSp.sp,
                         lineHeight = (textSizeSp + 5).sp,
                         softWrap = false,

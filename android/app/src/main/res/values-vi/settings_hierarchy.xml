@@ -54,4 +54,7 @@
     <string name="settings_notifications_enabled_description">Hiển thị thông báo khi trạng thái luồng thay đổi.</string>
     <string name="settings_notification_sound_description">Phát âm thanh khi thông báo được hiển thị.</string>
     <string name="settings_home_shortcut_reorder">Sắp xếp lại %1$s</string>
+    <string name="settings_terminal_font">Phông chữ terminal</string>
+    <string name="settings_terminal_font_system">Đơn cách hệ thống</string>
+    <string name="settings_terminal_font_geist_mono">Geist Mono</string>
 </resources>

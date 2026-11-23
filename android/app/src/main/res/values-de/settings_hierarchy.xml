@@ -54,4 +54,7 @@
     <string name="settings_notifications_enabled_description">Benachrichtigungen anzeigen, wenn sich der Thread-Status ändert.</string>
     <string name="settings_notification_sound_description">Spielen Sie einen Ton ab, wenn eine Benachrichtigung angezeigt wird.</string>
     <string name="settings_home_shortcut_reorder">%1$s neu anordnen</string>
+    <string name="settings_terminal_font">Terminal-Schriftart</string>
+    <string name="settings_terminal_font_system">System-Monospace</string>
+    <string name="settings_terminal_font_geist_mono">Geist Mono</string>
 </resources>

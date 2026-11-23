@@ -132,6 +132,17 @@ class PoracodeApplication : Application() {
                 PushHostClient(endpoint, token, parentAuthority = parentAuthority)
             },
             appVersion = BuildConfig.VERSION_NAME,
+            alertPreferencesProvider = {
+                val s = deviceSettings.state.value
+                com.poracode.app.push.PushAlertPreferences(
+                    sound = s.notificationsEnabled && s.notificationSoundEnabled,
+                    statuses = com.poracode.app.push.PushAlertPreferences.Statuses(
+                        done = s.notificationsEnabled && s.notifyDone,
+                        needsAttention = s.notificationsEnabled && s.notifyNeedsAttention,
+                        error = s.notificationsEnabled && s.notifyError,
+                    ),
+                )
+            },
             hasEndpointPermission = { endpoint -> hasEndpointPermission(endpoint) },
         )
         session = AppSession(
@@ -259,6 +270,23 @@ class PoracodeApplication : Application() {
                 PushRouteHostCatalog(catalog.selectedConnectionId, catalog.hosts)
             },
         )
+        runtimeScope.launch {
+            var previousPrefs: com.poracode.app.push.PushAlertPreferences? = null
+            deviceSettings.state.collect { s ->
+                val nextPrefs = com.poracode.app.push.PushAlertPreferences(
+                    sound = s.notificationsEnabled && s.notificationSoundEnabled,
+                    statuses = com.poracode.app.push.PushAlertPreferences.Statuses(
+                        done = s.notificationsEnabled && s.notifyDone,
+                        needsAttention = s.notificationsEnabled && s.notifyNeedsAttention,
+                        error = s.notificationsEnabled && s.notifyError,
+                    ),
+                )
+                if (previousPrefs != null && previousPrefs != nextPrefs) {
+                    push.onAlertPreferencesChanged()
+                }
+                previousPrefs = nextPrefs
+            }
+        }
         registerAppForegroundCallbacks()
     }
 

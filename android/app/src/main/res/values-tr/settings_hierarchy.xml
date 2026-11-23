@@ -54,4 +54,7 @@
     <string name="settings_notifications_enabled_description">Konu durumu değiştiğinde bildirimleri göster.</string>
     <string name="settings_notification_sound_description">Bir bildirim gösterildiğinde ses çalın.</string>
     <string name="settings_home_shortcut_reorder">%1$s öğesini yeniden sırala</string>
+    <string name="settings_terminal_font">Terminal yazı tipi</string>
+    <string name="settings_terminal_font_system">Sistem sabit genişlikli</string>
+    <string name="settings_terminal_font_geist_mono">Geist Mono</string>
 </resources>

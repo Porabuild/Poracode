@@ -54,4 +54,7 @@
     <string name="settings_notifications_enabled_description">Afficher les notifications lorsque l\'état du fil change.</string>
     <string name="settings_notification_sound_description">Émettre un son lorsqu\'une notification est affichée.</string>
     <string name="settings_home_shortcut_reorder">Réorganiser %1$s</string>
+    <string name="settings_terminal_font">Police du terminal</string>
+    <string name="settings_terminal_font_system">Chasse fixe système</string>
+    <string name="settings_terminal_font_geist_mono">Geist Mono</string>
 </resources>

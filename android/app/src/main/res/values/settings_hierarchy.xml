@@ -54,4 +54,7 @@
     <string name="settings_notifications_enabled_description">Show notifications when thread status changes.</string>
     <string name="settings_notification_sound_description">Play a sound when a notification is shown.</string>
     <string name="settings_home_shortcut_reorder">Reorder %1$s</string>
+    <string name="settings_terminal_font">Terminal font</string>
+    <string name="settings_terminal_font_system">System monospace</string>
+    <string name="settings_terminal_font_geist_mono">Geist Mono</string>
 </resources>

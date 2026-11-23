@@ -111,9 +111,14 @@ fun PoracodeApp(
         DeviceAppearanceMode.Dark -> true
     }
     LaunchedEffect(useDarkTheme) { onThemeDarkChanged(useDarkTheme) }
+    val terminalFontFamily = when (deviceSettingsState.terminalFont) {
+        com.poracode.app.storage.TerminalFontChoice.GeistMono -> com.poracode.app.ui.theme.GeistMono
+        com.poracode.app.storage.TerminalFontChoice.SystemMonospace -> androidx.compose.ui.text.font.FontFamily.Monospace
+    }
     PoracodeTheme(
         darkTheme = useDarkTheme,
         chatTextSizeSp = deviceSettingsState.chatTextSizeSp,
+        terminalFontFamily = terminalFontFamily,
         themeId = deviceSettingsState.themeId,
         customThemes = customThemeState.themes,
     ) {
