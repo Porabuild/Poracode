@@ -85,7 +85,7 @@ export function createKimiAdapter(): AgentAdapter {
         project: ["kimi", "agents"],
       },
     },
-    // Surface the update spec on the adapter so the shared updater and the npm
+    // Surface the update spec on the adapter so the shared updater and the
     // "latest version" probe behind the Settings registry card can read
     // `adapter.update` (the not-installed card shows no version otherwise).
     ...(kimiDetectionSpec.update ? { update: kimiDetectionSpec.update } : {}),

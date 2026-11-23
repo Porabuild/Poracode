@@ -1,6 +1,13 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import type { AgentStatus, AgentUpdateInfo } from "@/shared/contracts";
 import { resolveUnrestrictedPermissionConfig } from "@/shared/agents/unrestrictedPermissions";
 import { capabilitiesForPresentation } from "@/shared/agentSelection";
+import {
+  clearLatestVersionCache,
+  getLatestVersionForAdapter,
+  resolveUpdateCommand,
+} from "../updateAgent";
+import { createKimiAdapter } from "./index";
 import {
   buildKimiProbeCapabilities,
   hasKimiCredential,
@@ -89,10 +96,16 @@ describe("kimiDetectionSpec", () => {
     ).toBe("'/home/demo/.kimi-code/bin/kimi' acp --login");
   });
 
-  it("ships a non-interactive installer update and the npm version probe", () => {
+  it("ships a non-interactive installer update and probes the installers' channel", () => {
     // `kimi upgrade` is an interactive TUI, so there is no `builtIn` updater.
     expect(kimiDetectionSpec.update?.builtIn).toBeUndefined();
+    // `npm` remains the updater for a package-manager install.
     expect(kimiDetectionSpec.update?.npm).toBe("@moonshot-ai/kimi-code");
+    // The version probe reads the endpoint both installers resolve. npm leads
+    // that channel, so a version advertised from npm has no binary to install.
+    expect(kimiDetectionSpec.update?.latestVersionUrls).toEqual([
+      "https://code.kimi.com/kimi-code/latest",
+    ]);
     expect(kimiDetectionSpec.update?.installer).toEqual({
       posix: {
         binary: "sh",
@@ -114,6 +127,93 @@ describe("kimiDetectionSpec", () => {
   it("reports credential state through the capabilities probe", () => {
     expect(kimiDetectionSpec.authProbes).toBeUndefined();
     expect(typeof kimiDetectionSpec.capabilitiesProbe).toBe("function");
+  });
+});
+
+describe("Kimi latest-version probe", () => {
+  const originalFetch = globalThis.fetch;
+
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+    clearLatestVersionCache();
+  });
+
+  /** npm ahead of the binary channel, as during every Kimi release. */
+  function mockRegistries() {
+    const fetchSpy = vi
+      .fn<typeof fetch>()
+      .mockImplementation(async (input) =>
+        String(input).includes("registry.npmjs.org")
+          ? ({ ok: true, json: async () => ({ version: "2.7.3" }) } as Response)
+          : ({ ok: true, text: async () => "2.7.2\n" } as Response),
+      );
+    globalThis.fetch = fetchSpy as unknown as typeof fetch;
+    return fetchSpy;
+  }
+
+  it("reads the installers' release channel instead of npm", async () => {
+    // While npm is ahead, the installer can only reinstall the binary
+    // channel's version, so advertising npm's ended a successful update in
+    // "Unable to update".
+    const fetchSpy = mockRegistries();
+
+    const result = await getLatestVersionForAdapter(createKimiAdapter());
+
+    expect(result).toEqual({ version: "2.7.2", source: "version-url" });
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    expect(String(fetchSpy.mock.calls[0]?.[0])).toBe("https://code.kimi.com/kimi-code/latest");
+  });
+
+  it.each([
+    { outcome: "unreachable", response: { ok: false, status: 503 } as Response },
+    {
+      outcome: "a sign-in page",
+      response: { ok: true, text: async () => "<html>Sign in</html>" } as Response,
+    },
+  ])(
+    "offers no version when the channel is $outcome instead of using npm",
+    async ({ response }) => {
+      // An update advertised from npm may have no binary to install, so a probe
+      // that cannot read the channel must advertise nothing.
+      const fetchSpy = vi.fn<typeof fetch>().mockResolvedValue(response);
+      globalThis.fetch = fetchSpy as unknown as typeof fetch;
+
+      const result = await getLatestVersionForAdapter(createKimiAdapter());
+
+      expect(result).toEqual({ source: "unknown" });
+      expect(fetchSpy).toHaveBeenCalledTimes(1);
+      expect(String(fetchSpy.mock.calls[0]?.[0])).toBe("https://code.kimi.com/kimi-code/latest");
+    },
+  );
+
+  it("is unaffected by a status cached by the previous release", async () => {
+    // The status cache persists `update`. An entry written before the channel
+    // was declared carries the spec without `latestVersionUrls`. The probe
+    // reads the live adapter, and the resolver never reads that field, so the
+    // cached copy still resolves to the installer.
+    const previousUpdate: AgentUpdateInfo = { ...kimiDetectionSpec.update };
+    delete previousUpdate.latestVersionUrls;
+    const cachedByPreviousRelease: AgentStatus = {
+      kind: "kimi",
+      label: "Kimi Code",
+      installed: true,
+      authState: "unknown",
+      executablePath: "C:\\Users\\demo\\.kimi-code\\bin\\kimi.exe",
+      capabilities: kimiDefaultCapabilities,
+      update: previousUpdate,
+    };
+    mockRegistries();
+    const adapter = createKimiAdapter();
+
+    const result = await getLatestVersionForAdapter(adapter, {
+      getNativeStatus: () => cachedByPreviousRelease,
+    });
+    expect(result).toEqual({ version: "2.7.2", source: "version-url" });
+
+    expect(resolveUpdateCommand(adapter, cachedByPreviousRelease, { envKind: "windows" })).toEqual({
+      ...kimiDetectionSpec.update?.installer?.windows,
+      strategy: "installer",
+    });
   });
 });
 
