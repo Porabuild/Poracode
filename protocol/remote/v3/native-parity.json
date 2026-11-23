@@ -3322,25 +3322,31 @@
         "batch": "thread-lifecycle",
         "ios": {
           "wire": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "implemented",
+            "evidence": ["ios/App/App/Features/BoundedCatalog/ThreadTransferClient.swift"]
           },
           "ui": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "partial",
+            "evidence": ["ios/App/App/Features/BoundedCatalog/ThreadTransferClient.swift"],
+            "note": "Cross-host thread transfer wire client and sheet UI are implemented on iOS; device qualification remains pending."
           }
         },
         "android": {
           "wire": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "implemented",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/transport/threads/ThreadTransferClient.kt"
+            ]
           },
           "ui": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "partial",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/ui/thread/ThreadTransferAndSearchSheets.kt"
+            ],
+            "note": "Cross-host thread transfer wire client and sheet UI are implemented on Android; device qualification remains pending."
           }
         },
-        "note": "Thread transfer (Move to another machine) is driven by the shared browser renderer (Electron and web/PWA), which holds grants for both hosts. Native clients can open and continue a moved thread on its new host but have no move surface yet."
+        "note": "Cross-host thread transfer client and UI are implemented on iOS and Android; device qualification remains pending."
       },
       {
         "id": "thread-transfer-upload",
@@ -3348,25 +3354,31 @@
         "batch": "thread-lifecycle",
         "ios": {
           "wire": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "implemented",
+            "evidence": ["ios/App/App/Features/BoundedCatalog/ThreadTransferClient.swift"]
           },
           "ui": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "partial",
+            "evidence": ["ios/App/App/Features/BoundedCatalog/ThreadTransferClient.swift"],
+            "note": "Cross-host thread transfer bundle upload and sheet UI are implemented on iOS; device qualification remains pending."
           }
         },
         "android": {
           "wire": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "implemented",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/transport/threads/ThreadTransferClient.kt"
+            ]
           },
           "ui": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "partial",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/ui/thread/ThreadTransferAndSearchSheets.kt"
+            ],
+            "note": "Cross-host thread transfer bundle upload and sheet UI are implemented on Android; device qualification remains pending."
           }
         },
-        "note": "Thread transfer (Move to another machine) is driven by the shared browser renderer (Electron and web/PWA), which holds grants for both hosts. Native clients can open and continue a moved thread on its new host but have no move surface yet."
+        "note": "Cross-host thread transfer bundle upload is implemented on iOS and Android; device qualification remains pending."
       },
       {
         "id": "experiment-state",

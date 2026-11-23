@@ -262,15 +262,13 @@ const PLANNED_ABSENCE_TOKENS: Record<
   ReadonlyArray<{ platform: Platform; token: string }>
 > = {
   ...Object.fromEntries(
-    ["thread-transfer-command", "thread-transfer-upload", "memory-catalog", "memory-sync"].map(
-      (id) => [
-        id,
-        [
-          { platform: "ios" as Platform, token: `"${id}"` },
-          { platform: "android" as Platform, token: `"${id}"` },
-        ],
+    ["memory-catalog", "memory-sync"].map((id) => [
+      id,
+      [
+        { platform: "ios" as Platform, token: `"${id}"` },
+        { platform: "android" as Platform, token: `"${id}"` },
       ],
-    ),
+    ]),
   ),
   // Quoted procedure identifiers distinguish the new wire calls from existing UI method names.
   ...Object.fromEntries(
