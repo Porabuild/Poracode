@@ -94,6 +94,21 @@ final class RichChatPresentationTests: XCTestCase {
     XCTAssertEqual(standalone.item.id, "video")
   }
 
+  func testSearchHitOnAVideoStaysInsideTheCollapsedActivityGroup() {
+    let first = RichRuntimeItem(id: "first", type: "tool_call", state: .completed,
+      payload: .object(["name": .string("inspect"), "status": .string("success")]), streams: [:], parentItemID: nil)
+    func search(kind: String) -> RichRuntimeItem {
+      RichRuntimeItem(id: "search", type: "tool_call", state: .completed,
+        payload: .object(["name": .string("find"), "kind": .string(kind), "status": .string("success"), "result": .object([
+          "content": .array([.object(["type": .string("resource_link"), "uri": .string("/project/demo.mp4"), "mimeType": .string("video/mp4")])]),
+        ])]), streams: [:], parentItemID: nil)
+    }
+    XCTAssertTrue(RichChatVideoPresentation.videos(for: search(kind: "search")).isEmpty)
+    XCTAssertEqual(RichTimeline.project([first, search(kind: "search")]).visibleEntries.count, 1)
+    // The desktop guard trims and lower-cases the kind; the mirror does the same.
+    XCTAssertTrue(RichChatVideoPresentation.videos(for: search(kind: " Search\n")).isEmpty)
+  }
+
   func testVideoMarkupIncludesImagesAndVisibleHTMLInDocumentOrder() {
     let text = """
       ![First](/project/first.mp4)

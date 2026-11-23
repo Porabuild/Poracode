@@ -22,7 +22,8 @@ struct RichVideoPresentation: Equatable, Sendable, Identifiable {
 }
 
 /// Mirrors desktop's typed files, completed Markdown links, and successful
-/// MCP resource/resource_link video results. Code examples never become media.
+/// MCP resource/resource_link video results. Code examples never become media,
+/// and a search's resource links are hits it found rather than media it produced.
 enum RichChatVideoPresentation {
   static func videos(in items: [RichRuntimeItem]) -> [RichVideoPresentation] {
     var seen = Set<String>()
@@ -45,6 +46,8 @@ enum RichChatVideoPresentation {
     } else if item.state == .completed,
       ["tool_call", "mcp_tool_call", "dynamic_tool_call", "image_view", "command_execution", "file_change", "web_search"].contains(item.type),
       let payload = item.payload?.objectValue, payload["status"]?.stringValue == "success",
+      payload["kind"]?.stringValue?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        != "search",
       let value = payload["result"], value.objectValue?["isError"]?.boolValue != true {
       let content = value.arrayValue ?? value.objectValue?["content"]?.arrayValue ?? []
       for block in content.reversed() {

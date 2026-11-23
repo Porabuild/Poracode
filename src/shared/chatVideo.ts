@@ -29,6 +29,10 @@ export function completedToolVideoSources(item: {
     | { status?: unknown; result?: unknown; kind?: unknown; locations?: unknown }
     | undefined;
   if (payload?.status !== "success") return [];
+  // A search reports hits on things it found as resource links, so none of them
+  // reaches a player. That includes results saved before the mapper flattened
+  // them into a path list: they keep their saved shape, so no migration is needed.
+  if (typeof payload.kind === "string" && payload.kind.trim().toLowerCase() === "search") return [];
   const resultVideos = readToolVideoSources(payload.result);
   if (resultVideos.length > 0) return resultVideos;
   if (

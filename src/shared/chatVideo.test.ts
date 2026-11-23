@@ -129,4 +129,23 @@ describe("chat video references", () => {
       }),
     ).toEqual([]);
   });
+
+  it("never turns a search hit on a video into a player", () => {
+    // Search results persisted before the mapper flattened them still carry
+    // the hit as a resource link, so the guard reads the tool kind.
+    expect(
+      completedToolVideoSources({
+        type: "tool_call",
+        state: "completed",
+        payload: {
+          name: "Find files matching `*e2e*`",
+          kind: "search",
+          status: "success",
+          result: {
+            content: [{ type: "resource_link", name: "clip.mp4", uri: "file:///tmp/clip.mp4" }],
+          },
+        },
+      }),
+    ).toEqual([]);
+  });
 });
