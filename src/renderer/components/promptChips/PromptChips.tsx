@@ -76,7 +76,7 @@ export function PromptSlashChip({
   const resolvedAriaLabel = pluginId ? label : skillName ? t`Skill: ${skill}` : undefined;
   return (
     <span
-      className="poracode-slash-chip mr-1.5"
+      className="poracode-slash-chip"
       title={title ?? label}
       {...(resolvedAriaLabel ? { "aria-label": resolvedAriaLabel } : {})}
       {...(skillName ? { "data-skill-name": skillName } : {})}

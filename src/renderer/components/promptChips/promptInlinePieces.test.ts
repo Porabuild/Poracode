@@ -50,16 +50,22 @@ describe("inlinePiecesFromContent", () => {
     ]);
   });
 
-  it("turns a leading slash command typed as text into one chip", () => {
+  it("turns a leading slash command typed as text into one chip and keeps its separating space", () => {
     const pieces = inlinePiecesFromContent([{ kind: "text", text: "/goal ship it" }]);
-    expect(shape(pieces)).toEqual(['[{"kind":"command","command":"goal"}]', "ship it"]);
+    expect(shape(pieces)).toEqual(['[{"kind":"command","command":"goal"}]', " ship it"]);
+  });
+
+  it("drops trailing-only whitespace after a standalone leading slash command", () => {
+    expect(shape(inlinePiecesFromContent([{ kind: "text", text: "/goal   " }]))).toEqual([
+      '[{"kind":"command","command":"goal"}]',
+    ]);
   });
 
   it("shows an ACP /skill: command as a skill-flavoured command chip", () => {
     const pieces = inlinePiecesFromContent([{ kind: "text", text: "/skill:review please" }]);
     expect(shape(pieces)).toEqual([
       '[{"kind":"command","command":"review","skillName":"review"}]',
-      "please",
+      " please",
     ]);
   });
 
@@ -103,10 +109,13 @@ describe("inlinePiecesFromText", () => {
     ]);
   });
 
-  it("chips a leading slash command", () => {
+  it("chips a leading slash command and keeps its separating space", () => {
     expect(shape(inlinePiecesFromText("/code-review fix login"))).toEqual([
       '[{"kind":"command","command":"code-review"}]',
-      "fix login",
+      " fix login",
+    ]);
+    expect(shape(inlinePiecesFromText("/goal   "))).toEqual([
+      '[{"kind":"command","command":"goal"}]',
     ]);
   });
 

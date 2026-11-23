@@ -5358,7 +5358,7 @@ html[data-app-unfocused] .poracode-provider-icon--finished {
   font-family: inherit;
   font-size: 0.875em;
   line-height: 1.3;
-  vertical-align: middle;
+  vertical-align: text-top;
   user-select: none;
   cursor: default;
   max-width: 100%;
@@ -5366,7 +5366,7 @@ html[data-app-unfocused] .poracode-provider-icon--finished {
 }
 
 .poracode-mention-input .poracode-mention-chip {
-  margin-block: -0.25em;
+  margin-bottom: -0.25em;
 }
 
 .poracode-mention-chip__icon {
@@ -5425,7 +5425,7 @@ html[data-app-unfocused] .poracode-provider-icon--finished {
   font-family: inherit;
   font-size: 0.875em;
   line-height: 1.3;
-  vertical-align: middle;
+  vertical-align: text-top;
   user-select: none;
   cursor: default;
   max-width: 100%;
@@ -5433,7 +5433,7 @@ html[data-app-unfocused] .poracode-provider-icon--finished {
 }
 
 .poracode-mention-input .poracode-slash-chip {
-  margin-block: -0.25em;
+  margin-bottom: -0.25em;
 }
 
 /* Cursor + hover/active + transition only on the clickable message chip; the
@@ -5460,7 +5460,7 @@ html[data-keyboard-navigation] .poracode-thread-mention-chip:focus-visible {
 .poracode-slash-chip[data-skill-name],
 .poracode-slash-chip[data-mcp-name],
 .poracode-slash-chip[data-slash-command="goal"],
-.poracode-slash-chip:has(> .poracode-slash-chip__slash > .lucide-target),
+.poracode-slash-chip:has(> .poracode-slash-chip__slash > svg),
 .poracode-thread-mention-chip {
   gap: 0.25em;
 }
@@ -5548,7 +5548,7 @@ html[data-keyboard-navigation] .poracode-thread-mention-chip:focus-visible {
   max-width: 100%;
   min-width: 0;
   align-items: center;
-  gap: 0.2rem;
+  gap: 0.25em;
   padding: 0.1em 0.3em;
   margin: 0 1px;
   border: 0;
@@ -5558,7 +5558,7 @@ html[data-keyboard-navigation] .poracode-thread-mention-chip:focus-visible {
   font-family: inherit;
   font-size: 0.875em;
   line-height: 1.3;
-  vertical-align: middle;
+  vertical-align: text-top;
   cursor: var(--interactive-cursor, pointer);
   transition: background 120ms ease;
 }
