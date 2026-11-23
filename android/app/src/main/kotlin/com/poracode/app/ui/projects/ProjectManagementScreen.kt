@@ -64,6 +64,7 @@ internal fun ProjectManagementScreen(
     mcpController: GlobalMcpSettingsController,
     onOpenTerminal: (com.poracode.app.model.ProjectIdentity, String?) -> Unit,
     onOpenAdvanced: (com.poracode.app.model.ProjectIdentity) -> Unit,
+    onOpenImportSession: ((com.poracode.app.model.RemoteProject) -> Unit)? = null,
     initialProjectId: String? = null,
     initialDestination: ProjectManagementDestination = ProjectManagementDestination.Detail,
     hostName: String? = null,
@@ -334,6 +335,9 @@ internal fun ProjectManagementScreen(
                                     onOpenAdvanced = {
                                         onOpenAdvanced(lease.identity(selected.id)!!)
                                     },
+                                    onOpenImportSession = onOpenImportSession?.let { open ->
+                                        { open(selected) }
+                                    },
                                     onRemoved = {
                                         detailPage = ProjectSettingsPage.Index
                                         selectedProjectId = null
@@ -377,6 +381,9 @@ internal fun ProjectManagementScreen(
                         },
                         onOpenAdvanced = {
                             onOpenAdvanced(lease.identity(selected.id)!!)
+                        },
+                        onOpenImportSession = onOpenImportSession?.let { open ->
+                            { open(selected) }
                         },
                         onRemoved = {
                             detailPage = ProjectSettingsPage.Index

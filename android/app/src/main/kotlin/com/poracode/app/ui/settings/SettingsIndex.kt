@@ -53,6 +53,8 @@ internal enum class SettingsRoute {
     DesktopIndex,
     Host,
     Agents,
+    Crews,
+    SessionImport,
     Usage,
     Profile,
     Preferences,
@@ -66,6 +68,7 @@ internal enum class SettingsRoute {
 internal fun SettingsPane.route(): SettingsRoute = when (this) {
     SettingsPane.Host -> SettingsRoute.Host
     SettingsPane.Agents -> SettingsRoute.Agents
+    SettingsPane.Crews -> SettingsRoute.Crews
     SettingsPane.Usage -> SettingsRoute.Usage
     SettingsPane.Profile -> SettingsRoute.Profile
     SettingsPane.Preferences -> SettingsRoute.Preferences
@@ -77,6 +80,7 @@ internal fun SettingsPane.route(): SettingsRoute = when (this) {
 internal fun SettingsRoute.pane(): SettingsPane? = when (this) {
     SettingsRoute.Host -> SettingsPane.Host
     SettingsRoute.Agents -> SettingsPane.Agents
+    SettingsRoute.Crews -> SettingsPane.Crews
     SettingsRoute.Usage -> SettingsPane.Usage
     SettingsRoute.Profile -> SettingsPane.Profile
     SettingsRoute.Preferences -> SettingsPane.Preferences
@@ -120,6 +124,8 @@ internal fun SettingsRoute.isDesktopRoute(): Boolean = when (this) {
     SettingsRoute.DesktopIndex,
     SettingsRoute.Host,
     SettingsRoute.Agents,
+    SettingsRoute.Crews,
+    SettingsRoute.SessionImport,
     SettingsRoute.Usage,
     SettingsRoute.Profile,
     SettingsRoute.Preferences,
@@ -310,6 +316,15 @@ internal fun DesktopSettingsIndex(
         SettingsIndexRow(PoracodeIcons.SmartToy, R.string.settings_agents_title) {
             onOpen(SettingsRoute.Agents)
         }
+        SettingsIndexRow(
+            PoracodeIcons.Groups,
+            R.string.crews_title,
+            R.string.crews_description,
+        ) { onOpen(SettingsRoute.Crews) }
+        SettingsIndexRow(
+            PoracodeIcons.Download,
+            R.string.session_import_title,
+        ) { onOpen(SettingsRoute.SessionImport) }
         SettingsIndexRow(
             PoracodeIcons.Extension,
             R.string.settings_integrations_title,

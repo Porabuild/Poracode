@@ -235,6 +235,36 @@ internal fun SettingsDestinationContent(
                 modifier = archivedModifier,
             )
         },
+        sessionImportPane = { importModifier ->
+            val selectedConnectionId = state.hostCatalog.selectedConnectionId
+            val hostProjects = state.snapshot?.projects.orEmpty().filterNot { it.disabled == true }
+            val hostThreads = session.unifiedThreads()
+                .filter { it.connectionId == selectedConnectionId }
+                .map { it.thread }
+            val hostAgents = (state.hostReplay.agentWindowsStatuses + state.hostReplay.agentWslStatuses + state.hostReplay.agentMergedStatuses.values)
+                .distinctBy { it.kind }
+            com.poracode.app.ui.projects.SessionImportPane(
+                projects = hostProjects,
+                existingThreads = hostThreads,
+                agents = hostAgents,
+                canOperate = state.canSessionOperate,
+                onLoadSessions = { filter -> settings.listImportableSessions(filter) },
+                onImportSession = { projectId, cliSession, model ->
+                    settings.importSession(projectId, cliSession, model, cliSession.displayTitle).also { res ->
+                        if (res.isSuccess) session.refreshSnapshot()
+                    }
+                },
+                onOpenThread = { threadId ->
+                    navigation.settingsPane = null
+                    navigation.settingsConnectionId = null
+                    val match = session.unifiedThreads().firstOrNull {
+                        it.connectionId == selectedConnectionId && it.thread.id == threadId
+                    }
+                    if (match != null) session.openThread(match.id)
+                },
+                modifier = importModifier,
+            )
+        },
     )
 }
 
@@ -308,6 +338,11 @@ internal fun ProjectUtilityDestinationContent(
                 navigation.advancedOperationsConnectionId = identity.connectionId.value
                 navigation.showAdvancedOperations = true
             },
+            onOpenImportSession = { project ->
+                navigation.clearProjectUtility()
+                navigation.settingsConnectionId = state.hostCatalog.selectedConnectionId?.value
+                navigation.settingsPane = com.poracode.app.ui.settings.SettingsRoute.SessionImport.name
+            },
             hostName = state.hostCatalog.hosts
                 .firstOrNull { it.connectionId == state.hostCatalog.selectedConnectionId }
                 ?.label,
@@ -354,6 +389,11 @@ internal fun ProjectsDestinationContent(
             advanced.selectProject(identity.projectId)
             navigation.advancedOperationsConnectionId = identity.connectionId.value
             navigation.showAdvancedOperations = true
+        },
+        onOpenImportSession = { _ ->
+            navigation.showProjects = false
+            navigation.settingsConnectionId = state.hostCatalog.selectedConnectionId?.value
+            navigation.settingsPane = com.poracode.app.ui.settings.SettingsRoute.SessionImport.name
         },
         hostName = state.hostCatalog.hosts
             .firstOrNull { it.connectionId == state.hostCatalog.selectedConnectionId }

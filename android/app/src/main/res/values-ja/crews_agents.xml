@@ -1,0 +1,27 @@
+<resources>
+    <string name="crews_title">クルー</string>
+    <string name="crews_description">モデルピッカー用の保存済みクルー</string>
+    <string name="crews_new">新しいクルー</string>
+    <string name="crews_default_name">新しいクルー</string>
+    <string name="crews_default_role">ヘルパー</string>
+    <string name="crews_empty_title">クルーはまだありません</string>
+    <string name="crews_empty_description">リードモデルとヘルパーエージェントを連携させるクルーを作成します。</string>
+    <string name="crews_favorite">お気に入り</string>
+    <string name="crews_edit">クルーを編集</string>
+    <string name="crews_duplicate">複製</string>
+    <string name="crews_name_label">クルー名</string>
+    <string name="crews_lead_model">リードモデル</string>
+    <string name="crews_policy">ポリシー</string>
+    <string name="crews_role_label">役割名</string>
+    <string name="crews_role_agent">役割エージェント</string>
+    <string name="crews_role_model">役割モデル</string>
+    <string name="crews_add_role">ヘルパー役割を追加</string>
+    <string name="crews_clear_selection">クルーを解除</string>
+    <string name="crews_use">使用</string>
+    <string name="crews_selected">選択中</string>
+    <string name="settings_agents_enabled_title">有効なエージェント</string>
+    <string name="settings_agents_visible_models">表示モデル</string>
+    <string name="settings_agents_visible_models_count">%2$d 件中 %1$d 件のモデルを表示</string>
+    <string name="settings_agents_manage_models">管理</string>
+    <string name="settings_agents_provider_order">プロバイダーの順序</string>
+</resources>

@@ -113,6 +113,8 @@ internal fun SplitSettingsSidebar(
                 item { PoracodeDrawerNavItem(stringResource(R.string.settings_generation_title), PoracodeIcons.AutoAwesome, selected == SettingsRoute.Preferences) { onSelect(SettingsRoute.Preferences) } }
                 item { PoracodeDrawerNavItem(stringResource(R.string.settings_memory_title), PoracodeIcons.Brain, selected == SettingsRoute.Memory) { onSelect(SettingsRoute.Memory) } }
                 item { PoracodeDrawerNavItem(stringResource(R.string.settings_agents_title), PoracodeIcons.SmartToy, selected == SettingsRoute.Agents) { onSelect(SettingsRoute.Agents) } }
+                item { PoracodeDrawerNavItem(stringResource(R.string.crews_title), PoracodeIcons.Groups, selected == SettingsRoute.Crews) { onSelect(SettingsRoute.Crews) } }
+                item { PoracodeDrawerNavItem(stringResource(R.string.session_import_title), PoracodeIcons.Download, selected == SettingsRoute.SessionImport) { onSelect(SettingsRoute.SessionImport) } }
                 item { PoracodeDrawerNavItem(stringResource(R.string.settings_integrations_title), PoracodeIcons.Extension, false, onClick = onOpenIntegrations) }
                 item { PoracodeDrawerNavItem(stringResource(R.string.settings_global_mcp_title), PoracodeIcons.Extension, selected == SettingsRoute.GlobalMcp) { onSelect(SettingsRoute.GlobalMcp) } }
                 if (environmentsAvailable) {

@@ -86,6 +86,7 @@ fun SettingsScreen(
     onOpenPrivacy: () -> Unit,
     onOpenSupport: () -> Unit,
     archivedThreads: @Composable (Modifier) -> Unit,
+    sessionImportPane: (@Composable (Modifier) -> Unit)? = null,
     onRefreshHostAgentStatuses: (suspend () -> Unit)? = null,
     onUseEnvironmentHost: (com.poracode.app.model.ClientConnectionId) -> Unit = {},
     modifier: Modifier = Modifier,
@@ -244,6 +245,8 @@ fun SettingsScreen(
                         onOpenEnvironments = { openRoute(SettingsRoute.Environments) },
                     )
                     SettingsRoute.ArchivedThreads -> archivedThreads(Modifier.fillMaxSize())
+                    SettingsRoute.SessionImport -> sessionImportPane?.invoke(Modifier.fillMaxSize())
+                        ?: SettingsLoading(stringResource(R.string.settings_not_ready))
                     SettingsRoute.GlobalMcp -> GlobalMcpSettingsPane(
                         state = globalMcp,
                         projects = globalMcpProjects,
@@ -402,7 +405,18 @@ private fun SettingsPaneContent(
             entry = entry,
             access = access,
             replayCache = replayCache,
+            mutation = mutation,
+            onSaveSettings = composition.controller::saveSettings,
             onRetry = { composition.controller.refresh(SettingsPane.Agents) },
+            modifier = modifier,
+        )
+        SettingsPane.Crews -> com.poracode.app.ui.crews.CrewsSettingsPane(
+            entry = entry,
+            access = access,
+            mutation = mutation,
+            replayCache = replayCache,
+            onSave = composition.controller::saveSettings,
+            onRetry = { composition.controller.refresh(SettingsPane.Crews) },
             modifier = modifier,
         )
         SettingsPane.Usage -> SettingsUsagePane(
@@ -473,6 +487,8 @@ private fun settingsRouteTitle(route: SettingsRoute): String = stringResource(
         SettingsRoute.DesktopIndex -> R.string.hosts_desktop_settings
         SettingsRoute.Host -> R.string.settings_host_title
         SettingsRoute.Agents -> R.string.settings_agents_title
+        SettingsRoute.Crews -> R.string.crews_title
+        SettingsRoute.SessionImport -> R.string.session_import_title
         SettingsRoute.Usage -> R.string.settings_usage_title
         SettingsRoute.Profile -> R.string.settings_profile_title
         SettingsRoute.Preferences -> R.string.settings_generation_title

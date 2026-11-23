@@ -1,0 +1,27 @@
+<resources>
+    <string name="crews_title">Zespoły</string>
+    <string name="crews_description">Zapisane zespoły dla selektora modeli</string>
+    <string name="crews_new">Nowy zespół</string>
+    <string name="crews_default_name">Nowy zespół</string>
+    <string name="crews_default_role">Pomocnik</string>
+    <string name="crews_empty_title">Brak zespołów</string>
+    <string name="crews_empty_description">Utwórz zespół, aby koordynować agentów pomocniczych z modelem głównym.</string>
+    <string name="crews_favorite">Ulubiony</string>
+    <string name="crews_edit">Edytuj zespół</string>
+    <string name="crews_duplicate">Duplikuj</string>
+    <string name="crews_name_label">Nazwa zespołu</string>
+    <string name="crews_lead_model">Model główny</string>
+    <string name="crews_policy">Zasady</string>
+    <string name="crews_role_label">Etykieta roli</string>
+    <string name="crews_role_agent">Agent roli</string>
+    <string name="crews_role_model">Model roli</string>
+    <string name="crews_add_role">Dodaj rolę pomocniczą</string>
+    <string name="crews_clear_selection">Wyczyść zespół</string>
+    <string name="crews_use">Użyj</string>
+    <string name="crews_selected">Wybrano</string>
+    <string name="settings_agents_enabled_title">Włączeni agenci</string>
+    <string name="settings_agents_visible_models">Widoczne modele</string>
+    <string name="settings_agents_visible_models_count">Widoczne %1$d z %2$d modeli</string>
+    <string name="settings_agents_manage_models">Zarządzaj</string>
+    <string name="settings_agents_provider_order">Kolejność dostawców</string>
+</resources>

@@ -125,6 +125,11 @@ fun RichChatComposer(
     var showControls by rememberSaveable(contextKey) { mutableStateOf(false) }
     var controlsFocus by remember { mutableStateOf<RichChatComposerControlsFocus?>(null) }
     var showCrewRoster by rememberSaveable(contextKey) { mutableStateOf(false) }
+    var showCrewPicker by rememberSaveable(contextKey) { mutableStateOf(false) }
+    val savedCrews = com.poracode.app.ui.crews.LocalSavedCrews.current
+    val currentCrewId = (configuration.crew as? kotlinx.serialization.json.JsonObject)
+        ?.get("crewId")
+        ?.let { (it as? kotlinx.serialization.json.JsonPrimitive)?.content }
     var showVoiceDictation by rememberSaveable(contextKey) { mutableStateOf(false) }
     val crewPresentation = remember(configuration.crew) { decodeReadOnlyCrew(configuration.crew) }
     var editorValue by remember(contextKey) { mutableStateOf(TextFieldValue(draft, TextRange(draft.length))) }
@@ -440,9 +445,24 @@ fun RichChatComposer(
                             RichChatCrewChip(
                                 crew = crew,
                                 enabled = controlsEnabled,
-                                onClick = { showCrewRoster = true },
+                                onClick = {
+                                    if (currentThread?.sessionRef == null && savedCrews.isNotEmpty()) {
+                                        showCrewPicker = true
+                                    } else {
+                                        showCrewRoster = true
+                                    }
+                                },
                             )
-                        }
+                        } ?: if (currentThread?.sessionRef == null && savedCrews.isNotEmpty()) {
+                            com.poracode.app.ui.components.PoracodeIconButton(
+                                icon = PoracodeIcons.Groups,
+                                contentDescription = stringResource(R.string.crews_title),
+                                enabled = controlsEnabled,
+                                onClick = { showCrewPicker = true },
+                                tint = colors.muted,
+                                iconSize = 18.dp,
+                            )
+                        } else Unit
                         Spacer(Modifier.weight(1f))
                         com.poracode.app.ui.components.PoracodeIconButton(
                             icon = PoracodeIcons.Mic,
@@ -492,6 +512,25 @@ fun RichChatComposer(
                 onDismiss = { showCrewRoster = false },
             )
         }
+    }
+    if (showCrewPicker) {
+        com.poracode.app.ui.crews.SavedCrewPickerSheet(
+            crews = savedCrews,
+            selectedCrewId = currentCrewId,
+            onSelect = { crew ->
+                onConfigurationChange(
+                    if (crew == null) configuration.copy(crew = null)
+                    else configuration.copy(
+                        model = crew.lead.model,
+                        effort = crew.lead.effort,
+                        fast = crew.lead.fast,
+                        crew = crew.toThreadBindingJson(),
+                    ),
+                )
+                showCrewPicker = false
+            },
+            onDismiss = { showCrewPicker = false },
+        )
     }
 }
 

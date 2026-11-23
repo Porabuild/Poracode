@@ -126,6 +126,18 @@ internal object SettingsSearchIndex {
             keywords = listOf("agents", "providers", "models", "claude", "codex", "gemini", "opencode"),
         ),
         SettingsSearchEntry(
+            target = SettingsSearchTarget.Route(SettingsRoute.Crews),
+            titleRes = R.string.crews_title,
+            icon = PoracodeIcons.Groups,
+            keywords = listOf("crews", "team", "helpers", "multi-agent", "lead"),
+        ),
+        SettingsSearchEntry(
+            target = SettingsSearchTarget.Route(SettingsRoute.SessionImport),
+            titleRes = R.string.session_import_title,
+            icon = PoracodeIcons.Download,
+            keywords = listOf("import", "sessions", "cli", "history"),
+        ),
+        SettingsSearchEntry(
             target = SettingsSearchTarget.Integrations,
             titleRes = R.string.settings_integrations_title,
             icon = PoracodeIcons.Extension,

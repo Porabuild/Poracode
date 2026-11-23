@@ -1,0 +1,27 @@
+<resources>
+    <string name="crews_title">Équipes</string>
+    <string name="crews_description">Équipes enregistrées pour le sélecteur de modèles</string>
+    <string name="crews_new">Nouvelle équipe</string>
+    <string name="crews_default_name">Nouvelle équipe</string>
+    <string name="crews_default_role">Assistant</string>
+    <string name="crews_empty_title">Aucune équipe</string>
+    <string name="crews_empty_description">Créez une équipe pour coordonner des agents assistants avec un modèle principal.</string>
+    <string name="crews_favorite">Favori</string>
+    <string name="crews_edit">Modifier l\'équipe</string>
+    <string name="crews_duplicate">Dupliquer</string>
+    <string name="crews_name_label">Nom de l\'équipe</string>
+    <string name="crews_lead_model">Modèle principal</string>
+    <string name="crews_policy">Politique</string>
+    <string name="crews_role_label">Libellé du rôle</string>
+    <string name="crews_role_agent">Agent du rôle</string>
+    <string name="crews_role_model">Modèle du rôle</string>
+    <string name="crews_add_role">Ajouter un rôle assistant</string>
+    <string name="crews_clear_selection">Retirer l\'équipe</string>
+    <string name="crews_use">Utiliser</string>
+    <string name="crews_selected">Sélectionné</string>
+    <string name="settings_agents_enabled_title">Agents activés</string>
+    <string name="settings_agents_visible_models">Modèles visibles</string>
+    <string name="settings_agents_visible_models_count">%1$d modèles visibles sur %2$d</string>
+    <string name="settings_agents_manage_models">Gérer</string>
+    <string name="settings_agents_provider_order">Ordre des fournisseurs</string>
+</resources>

@@ -1,0 +1,27 @@
+<resources>
+    <string name="crews_title">Nhóm</string>
+    <string name="crews_description">Nhóm đã lưu cho bộ chọn mô hình</string>
+    <string name="crews_new">Nhóm mới</string>
+    <string name="crews_default_name">Nhóm mới</string>
+    <string name="crews_default_role">Trợ lý</string>
+    <string name="crews_empty_title">Chưa có nhóm nào</string>
+    <string name="crews_empty_description">Tạo nhóm để điều phối các tác tử trợ lý cùng mô hình chính.</string>
+    <string name="crews_favorite">Yêu thích</string>
+    <string name="crews_edit">Chỉnh sửa nhóm</string>
+    <string name="crews_duplicate">Nhân bản</string>
+    <string name="crews_name_label">Tên nhóm</string>
+    <string name="crews_lead_model">Mô hình chính</string>
+    <string name="crews_policy">Chính sách</string>
+    <string name="crews_role_label">Tên vai trò</string>
+    <string name="crews_role_agent">Tác tử vai trò</string>
+    <string name="crews_role_model">Mô hình vai trò</string>
+    <string name="crews_add_role">Thêm vai trò trợ lý</string>
+    <string name="crews_clear_selection">Bỏ chọn nhóm</string>
+    <string name="crews_use">Dùng</string>
+    <string name="crews_selected">Đã chọn</string>
+    <string name="settings_agents_enabled_title">Tác tử đã bật</string>
+    <string name="settings_agents_visible_models">Mô hình hiển thị</string>
+    <string name="settings_agents_visible_models_count">Hiển thị %1$d trên %2$d mô hình</string>
+    <string name="settings_agents_manage_models">Quản lý</string>
+    <string name="settings_agents_provider_order">Thứ tự nhà cung cấp</string>
+</resources>

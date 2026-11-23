@@ -209,7 +209,7 @@ class SettingsUiControllerTest {
                 "profile-core-stats" to 1,
                 "profile-token-stats" to 1,
                 "profile-identity" to 1,
-                "settings-read" to 1,
+                "settings-read" to 2,
                 "settings-write" to 1,
             ),
             calls,

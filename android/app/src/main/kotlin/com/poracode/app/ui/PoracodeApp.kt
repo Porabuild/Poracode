@@ -243,7 +243,16 @@ fun PoracodeApp(
                                 navigation = navigation,
                                 workspaces = workspaces,
                             )
-                            is HomeDestination.Home -> HomeDestinationScreenContent(
+                            is HomeDestination.Home -> {
+                                val savedCrews = settingsHostLease?.let { lease ->
+                                    com.poracode.app.ui.crews.SavedCrew.decodeAll(
+                                        settingsInformation.entries[lease.key]?.settings,
+                                    )
+                                }.orEmpty()
+                                androidx.compose.runtime.CompositionLocalProvider(
+                                    com.poracode.app.ui.crews.LocalSavedCrews provides savedCrews,
+                                ) {
+                                HomeDestinationScreenContent(
                                 navigation = navigation,
                                 session = session,
                                 state = state,
@@ -280,6 +289,8 @@ fun PoracodeApp(
                                     )
                                 },
                             )
+                                }
+                            }
                         }
                     }
                 }

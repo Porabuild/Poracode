@@ -1,0 +1,27 @@
+<resources>
+    <string name="crews_title">크루</string>
+    <string name="crews_description">모델 선택기에 저장된 크루</string>
+    <string name="crews_new">새 크루</string>
+    <string name="crews_default_name">새 크루</string>
+    <string name="crews_default_role">도우미</string>
+    <string name="crews_empty_title">크루가 없습니다</string>
+    <string name="crews_empty_description">리드 모델과 도우미 에이전트를 조율할 크루를 만드세요.</string>
+    <string name="crews_favorite">즐겨찾기</string>
+    <string name="crews_edit">크루 편집</string>
+    <string name="crews_duplicate">복제</string>
+    <string name="crews_name_label">크루 이름</string>
+    <string name="crews_lead_model">리드 모델</string>
+    <string name="crews_policy">정책</string>
+    <string name="crews_role_label">역할 이름</string>
+    <string name="crews_role_agent">역할 에이전트</string>
+    <string name="crews_role_model">역할 모델</string>
+    <string name="crews_add_role">도우미 역할 추가</string>
+    <string name="crews_clear_selection">크루 해제</string>
+    <string name="crews_use">사용</string>
+    <string name="crews_selected">선택됨</string>
+    <string name="settings_agents_enabled_title">활성화된 에이전트</string>
+    <string name="settings_agents_visible_models">표시 모델</string>
+    <string name="settings_agents_visible_models_count">%2$d개 중 %1$d개 모델 표시</string>
+    <string name="settings_agents_manage_models">관리</string>
+    <string name="settings_agents_provider_order">공급자 순서</string>
+</resources>

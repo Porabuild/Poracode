@@ -94,6 +94,49 @@ class SettingsUiComposition(
         }
     }
 
+    private val repositoryRef = repository
+    private val ioDispatcherRef = ioDispatcher
+
+    suspend fun listImportableSessions(
+        filter: com.poracode.app.protocol.projects.SessionImportFilter = com.poracode.app.protocol.projects.SessionImportFilter(),
+    ): Result<com.poracode.app.protocol.projects.SessionImportListing> = runCatching {
+        val lease = hostLease.value ?: error("No host connected")
+        val creds = repositoryRef.credentialsFor(lease.connectionId) ?: error("No credentials for host")
+        val api = com.poracode.app.transport.RemoteApiClient(creds.profile.httpBaseUrl, creds.accessToken)
+        kotlinx.coroutines.withContext(ioDispatcherRef) {
+            com.poracode.app.transport.projects.SessionImportClient(api).listImportableSessions(filter)
+        }
+    }
+
+    suspend fun importSession(
+        projectId: String,
+        session: com.poracode.app.protocol.projects.ImportableCliSession,
+        model: String,
+        fallbackTitle: String,
+    ): Result<String?> = runCatching {
+        val lease = hostLease.value ?: error("No host connected")
+        val creds = repositoryRef.credentialsFor(lease.connectionId) ?: error("No credentials for host")
+        val api = com.poracode.app.transport.RemoteApiClient(creds.profile.httpBaseUrl, creds.accessToken)
+        val payload = com.poracode.app.protocol.projects.SessionImportContract.importCommandPayload(
+            projectId = projectId,
+            session = session,
+            model = model,
+            fallbackTitle = fallbackTitle,
+        )
+        kotlinx.coroutines.withContext(ioDispatcherRef) {
+            val raw = api.requestText(
+                path = "/api/threads/command",
+                method = "POST",
+                jsonBody = payload.toString(),
+                timeoutMs = 30_000L,
+            )
+            val parsed = com.poracode.app.model.RemoteJson.parseToJsonElement(raw) as? kotlinx.serialization.json.JsonObject
+            (parsed?.get("thread") as? kotlinx.serialization.json.JsonObject)
+                ?.get("id")
+                ?.let { (it as? kotlinx.serialization.json.JsonPrimitive)?.content }
+        }
+    }
+
     fun close() {
         observation.cancel()
         visibilityObservation.cancel()
@@ -134,12 +177,11 @@ class SettingsUiController internal constructor(
     fun refresh(pane: SettingsPane) {
         when (pane) {
             SettingsPane.Host -> Unit
-            SettingsPane.Agents -> scope.launch { information.loadAgentStatuses() }
-            SettingsPane.Usage -> scope.launch { information.loadProviderUsage() }
-            SettingsPane.Profile -> scope.launch { refreshProfile() }
-            // The generation editor's provider/model/effort pickers need the installed-agent
-            // capability catalog in addition to the host settings document.
-            SettingsPane.Preferences, SettingsPane.Memory -> scope.launch {
+            SettingsPane.Agents,
+            SettingsPane.Crews,
+            SettingsPane.Preferences,
+            SettingsPane.Memory,
+            -> scope.launch {
                 supervisorScope {
                     val settings = async { information.loadSettings() }
                     val agents = async { information.loadAgentStatuses() }
@@ -147,6 +189,8 @@ class SettingsUiController internal constructor(
                     agents.await()
                 }
             }
+            SettingsPane.Usage -> scope.launch { information.loadProviderUsage() }
+            SettingsPane.Profile -> scope.launch { refreshProfile() }
             SettingsPane.Workspace -> scope.launch { information.loadSettings() }
             // The host-owned environment pane owns its own bound-host controller.
             SettingsPane.Environments -> Unit
