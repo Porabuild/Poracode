@@ -640,6 +640,73 @@ describe("mapOpenCodeEvent", () => {
     expect(typesOf(repeat)).toEqual(["turn.started", "turn.completed", "error"]);
   });
 
+  it("treats an aborted step as a normal stop instead of an error", () => {
+    const state = stateFor();
+    // The server's own Stop sequence: running tools and the in-flight step
+    // fail with `type: "aborted"`, then the execution reports the interrupt.
+    const events = mapAll(state, [
+      event("session.execution.started", { sessionID: SESSION }),
+      event("session.text.delta", {
+        sessionID: SESSION,
+        assistantMessageID: ASSISTANT,
+        ordinal: 0,
+        delta: "partial",
+      }),
+      event("session.tool.input.started", {
+        sessionID: SESSION,
+        assistantMessageID: ASSISTANT,
+        id: "call_1",
+        name: "bash",
+      }),
+      event("session.tool.failed", {
+        sessionID: SESSION,
+        assistantMessageID: ASSISTANT,
+        id: "call_1",
+        error: { type: "aborted", message: "Tool execution interrupted" },
+      }),
+      event("session.step.failed", {
+        sessionID: SESSION,
+        assistantMessageID: ASSISTANT,
+        error: { type: "aborted", message: "Step interrupted" },
+      }),
+      event("session.execution.interrupted", { sessionID: SESSION, reason: "user" }),
+    ]);
+
+    expect(events.filter((entry) => entry.type === "error")).toEqual([]);
+    // Open rows still close, and the turn settles as an interruption.
+    expect(events.filter((entry) => entry.type === "item.completed")).toHaveLength(2);
+    expect(events.at(-1)).toMatchObject({ type: "turn.completed", state: "interrupted" });
+    expect(state.turnActive).toBe(false);
+  });
+
+  it("keeps reporting a real step failure after an aborted one", () => {
+    const state = stateFor();
+    // The guard is per event, never per turn: a non-abort step failure later
+    // in the same execution still paints its row.
+    const events = mapAll(state, [
+      event("session.execution.started", { sessionID: SESSION }),
+      event("session.step.failed", {
+        sessionID: SESSION,
+        assistantMessageID: "msg_aborted",
+        error: { type: "aborted", message: "Step interrupted" },
+      }),
+      event("session.step.failed", {
+        sessionID: SESSION,
+        assistantMessageID: ASSISTANT,
+        error: { type: "ProviderAuthError", message: "auth expired" },
+      }),
+      event("session.execution.failed", {
+        sessionID: SESSION,
+        error: { type: "ProviderAuthError", message: "auth expired" },
+      }),
+    ]);
+
+    expect(events.filter((entry) => entry.type === "error")).toEqual([
+      { type: "error", threadId: "thread-1", message: "auth expired" },
+    ]);
+    expect(events.at(-1)).toMatchObject({ type: "turn.completed", state: "failed" });
+  });
+
   it.each(["completed", "failed"] as const)(
     "keeps retry notices non-fatal when the turn ends %s",
     (outcome) => {
