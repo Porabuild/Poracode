@@ -53,6 +53,7 @@ internal fun ProjectFileEditorPane(
     onReload: () -> Unit,
     onDiscard: () -> Unit,
     modifier: Modifier = Modifier,
+    selectedLine: Int? = null,
 ) {
     if (loading) {
         LoadingStateView(stringResource(R.string.workspace_loading_file), modifier)
@@ -93,6 +94,7 @@ internal fun ProjectFileEditorPane(
             onSave,
             onReload,
             onDiscard,
+            selectedLine,
             modifier,
         )
     }
@@ -113,6 +115,7 @@ private fun TextFileEditor(
     onSave: () -> Unit,
     onReload: () -> Unit,
     onDiscard: () -> Unit,
+    selectedLine: Int?,
     modifier: Modifier,
 ) {
     val canPreviewMarkdown = isMarkdownPath(file.path)
@@ -207,11 +210,29 @@ private fun TextFileEditor(
                     ),
             )
         } else {
+            val lineRange = remember(draft, selectedLine) { lineCharacterRange(draft, selectedLine) }
+            val scrollState = rememberScrollState()
+            androidx.compose.runtime.LaunchedEffect(file.path, selectedLine) {
+                if (selectedLine != null && selectedLine > 1) {
+                    val totalLines = draft.count { it == '\n' }.coerceAtLeast(1)
+                    val fraction = ((selectedLine - 1).toFloat() / totalLines.toFloat()).coerceIn(0f, 1f)
+                    scrollState.scrollTo((scrollState.maxValue * fraction).toInt())
+                }
+            }
+            if (selectedLine != null && lineRange != null) {
+                Text(
+                    "L$selectedLine",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = com.poracode.app.ui.theme.PoracodeTheme.colors.accent,
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+                )
+            }
             PoracodeTextField(
                 value = draft,
                 onValueChange = onDraftChange,
                 modifier = Modifier
                     .fillMaxSize()
+                    .verticalScroll(scrollState)
                     .padding(
                         start = 12.dp,
                         end = 12.dp,
@@ -227,6 +248,19 @@ private fun TextFileEditor(
             )
         }
     }
+}
+
+internal fun lineCharacterRange(text: String, oneBasedLine: Int?): IntRange? {
+    if (oneBasedLine == null || oneBasedLine < 1) return null
+    var line = 1
+    var index = 0
+    while (line < oneBasedLine && index < text.length) {
+        if (text[index] == '\n') line += 1
+        index += 1
+    }
+    if (line != oneBasedLine) return null
+    val end = text.indexOf('\n', index).let { if (it < 0) text.length else it }
+    return index..end
 }
 
 @Composable

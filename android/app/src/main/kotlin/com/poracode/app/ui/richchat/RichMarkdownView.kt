@@ -109,12 +109,23 @@ private fun RichMarkdownBlockView(block: RichMarkdownBlock) {
 @Composable
 private fun MarkdownBodyText(text: String) {
     val size = LocalChatTextSizeSp.current
-    Text(
-        text = richInlineMarkdown(text, linkColor = PoracodeTheme.colors.accent),
-        style = MaterialTheme.typography.bodyMedium,
-        fontSize = size.sp,
-        lineHeight = (size + 6).sp,
-    )
+    val citations = remember(text) { RichSourceCitationParser.extract(text) }
+    val display = remember(text, citations) {
+        if (citations.isEmpty()) text else RichSourceCitationParser.stripTags(text)
+    }
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        if (display.isNotBlank()) {
+            Text(
+                text = richInlineMarkdown(display, linkColor = PoracodeTheme.colors.accent),
+                style = MaterialTheme.typography.bodyMedium,
+                fontSize = size.sp,
+                lineHeight = (size + 6).sp,
+            )
+        }
+        if (citations.isNotEmpty()) {
+            RichChatSourceCitationRow(citations)
+        }
+    }
 }
 
 @Composable
@@ -180,8 +191,12 @@ internal fun MarkdownCodeBlock(block: RichMarkdownBlock.Code, showsCopyAction: B
                 }
             }
         }
+        val isDark = PoracodeTheme.colors.isDark
+        val highlighted = remember(block.source, block.language, isDark) {
+            RichMarkdownCodeHighlighter.highlight(block.source, block.language, isDark)
+        }
         Text(
-            text = block.source,
+            text = highlighted,
             style = MaterialTheme.typography.bodySmall,
             fontFamily = FontFamily.Monospace,
             fontSize = 12.sp,
