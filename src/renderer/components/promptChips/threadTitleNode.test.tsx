@@ -27,6 +27,7 @@ describe("threadTitleNode", () => {
     const chip = container.querySelector(".poracode-slash-chip");
     expect(chip?.querySelector(".lucide-target")).toHaveAttribute("aria-hidden", "true");
     expect(chip?.querySelector(".poracode-slash-chip__name")).toHaveTextContent("goal");
+    expect(container).toHaveTextContent("goal ship it");
   });
 
   it("never nests a button inside the row's button", () => {

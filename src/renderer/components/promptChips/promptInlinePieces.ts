@@ -79,7 +79,7 @@ export function inlinePiecesFromContent(content: CanonicalContentBlock[]): Promp
   let remainingSkip = 0;
   if (slashCommand && !leadingSlashFromSkill) {
     pieces.push({ kind: "chip", key: "command", chip: commandChip(slashCommand) });
-    remainingSkip = rawText.length - body.length;
+    remainingSkip = body.length > 0 ? slashCommand.length + 1 : rawText.length;
   }
 
   content.forEach((block, index) => {
@@ -182,7 +182,7 @@ export function inlinePiecesFromText(text: string): PromptInlinePiece[] {
   const { slashCommand, body } = extractLeadingSlashCommand(text);
   if (slashCommand) {
     pieces.push({ kind: "chip", key: "command", chip: commandChip(slashCommand) });
-    rest = body;
+    rest = body.length > 0 ? text.slice(slashCommand.length + 1) : "";
   }
 
   let cursor = 0;

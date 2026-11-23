@@ -38,7 +38,7 @@ export function ChatExternalLink({ href, children, resolveTitle = false }: ChatE
     <Tooltip delay={500} closeDelay={100}>
       <Tooltip.Trigger
         render={(props) => <span {...props} />}
-        className="max-w-full align-middle"
+        className="max-w-full align-text-top"
         tabIndex={-1}
         role="none"
       >

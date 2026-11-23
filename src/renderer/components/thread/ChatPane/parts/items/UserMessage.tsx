@@ -424,10 +424,10 @@ function UserMessageThreadChip({
       {/* tabIndex={-1} role="none" neutralize the trigger's own button semantics —
           the inner button is the single tab stop. Inline layout comes from the
           global .tooltip__trigger rule; don't let the wrapper become block. */}
-      <Tooltip.Trigger className="max-w-full align-middle" tabIndex={-1} role="none">
+      <Tooltip.Trigger className="max-w-full align-text-top" tabIndex={-1} role="none">
         <button
           type="button"
-          className="poracode-slash-chip poracode-thread-mention-chip mr-1.5"
+          className="poracode-slash-chip poracode-thread-mention-chip"
           aria-label={t`Open ${label}`}
           data-thread-mention-id={threadId}
           {...(threadTitle ? { "data-thread-mention-title": threadTitle } : {})}

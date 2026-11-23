@@ -7,16 +7,16 @@ const styles = readFileSync(join(process.cwd(), "src/renderer/styles.css"), "utf
 describe("composer chip line height", () => {
   it("keeps inline slash chips out of the composer line-box height", () => {
     expect(styles).toMatch(
-      /\.poracode-mention-input \.poracode-slash-chip\s*\{\s*margin-block: -0\.25em;\s*\}/,
+      /\.poracode-mention-input \.poracode-slash-chip\s*\{\s*margin-bottom: -0\.25em;\s*\}/,
     );
-    expect(styles).toMatch(/\.poracode-slash-chip\s*\{[^}]*vertical-align: middle;/);
+    expect(styles).toMatch(/\.poracode-slash-chip\s*\{[^}]*vertical-align: text-top;/);
   });
 
   it("aligns file mention chips identically to slash chips inside the composer", () => {
     expect(styles).toMatch(
-      /\.poracode-mention-input \.poracode-mention-chip\s*\{\s*margin-block: -0\.25em;\s*\}/,
+      /\.poracode-mention-input \.poracode-mention-chip\s*\{\s*margin-bottom: -0\.25em;\s*\}/,
     );
-    expect(styles).toMatch(/\.poracode-mention-chip\s*\{[^}]*vertical-align: middle;/);
+    expect(styles).toMatch(/\.poracode-mention-chip\s*\{[^}]*vertical-align: text-top;/);
     expect(styles).toMatch(/\.poracode-mention-chip\s*\{[^}]*line-height: 1\.3;/);
   });
 });
