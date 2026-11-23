@@ -146,7 +146,7 @@ export function DeepSeekAdvancedSettings(props: { agentKind: string }) {
       ]),
     );
     for (const [key, value] of Object.entries(updates)) {
-      settingsHost.setAgentSetting(agentKind, key, value);
+      await settingsHost.setAgentSetting(agentKind, key, value);
     }
     try {
       await flushSharedSettings({ requireSuccess: true });
@@ -154,7 +154,9 @@ export function DeepSeekAdvancedSettings(props: { agentKind: string }) {
       // A newer save may already own a key; only undo values this save still holds.
       const current = useSharedSettings.getState().agentSettings[agentKind];
       for (const [key, value] of Object.entries(previous)) {
-        if (current?.[key] === updates[key]) settingsHost.setAgentSetting(agentKind, key, value);
+        if (current?.[key] === updates[key]) {
+          await settingsHost.setAgentSetting(agentKind, key, value);
+        }
       }
       toast.danger(friendlyError(error));
     }
