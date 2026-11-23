@@ -1,0 +1,27 @@
+<resources>
+    <string name="crews_title">Crews</string>
+    <string name="crews_description">Gespeicherte Crews für die Modellauswahl</string>
+    <string name="crews_new">Neue Crew</string>
+    <string name="crews_default_name">Neue Crew</string>
+    <string name="crews_default_role">Helfer</string>
+    <string name="crews_empty_title">Noch keine Crews</string>
+    <string name="crews_empty_description">Erstelle eine Crew, um Helfer-Agenten mit einem Leitmodell zu koordinieren.</string>
+    <string name="crews_favorite">Favorit</string>
+    <string name="crews_edit">Crew bearbeiten</string>
+    <string name="crews_duplicate">Duplizieren</string>
+    <string name="crews_name_label">Crew-Name</string>
+    <string name="crews_lead_model">Leitmodell</string>
+    <string name="crews_policy">Richtlinie</string>
+    <string name="crews_role_label">Rollenbezeichnung</string>
+    <string name="crews_role_agent">Rollen-Agent</string>
+    <string name="crews_role_model">Rollen-Modell</string>
+    <string name="crews_add_role">Helferrolle hinzufügen</string>
+    <string name="crews_clear_selection">Crew entfernen</string>
+    <string name="crews_use">Verwenden</string>
+    <string name="crews_selected">Ausgewählt</string>
+    <string name="settings_agents_enabled_title">Aktivierte Agenten</string>
+    <string name="settings_agents_visible_models">Sichtbare Modelle</string>
+    <string name="settings_agents_visible_models_count">%1$d von %2$d Modellen sichtbar</string>
+    <string name="settings_agents_manage_models">Verwalten</string>
+    <string name="settings_agents_provider_order">Anbieterreihenfolge</string>
+</resources>

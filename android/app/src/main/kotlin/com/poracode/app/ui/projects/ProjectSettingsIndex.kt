@@ -44,6 +44,12 @@ internal fun ProjectSettingsIndex(
         ProjectIndexRow(R.string.settings_global_mcp_title, PoracodeIcons.SettingsEthernet) {
             onOpenPage(ProjectSettingsPage.Mcp)
         }
+        ProjectIndexRow(R.string.settings_memory_title, PoracodeIcons.Brain) {
+            onOpenPage(ProjectSettingsPage.Memory)
+        }
+        ProjectIndexRow(R.string.settings_integrations_title, PoracodeIcons.Extension) {
+            onOpenPage(ProjectSettingsPage.Plugins)
+        }
         ProjectIndexRow(R.string.projects_search, PoracodeIcons.Search) {
             onOpenPage(ProjectSettingsPage.Search)
         }

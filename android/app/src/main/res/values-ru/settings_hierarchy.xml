@@ -54,4 +54,7 @@
     <string name="settings_notifications_enabled_description">Показывать уведомления при изменении статуса треда.</string>
     <string name="settings_notification_sound_description">Воспроизводить звук при показе уведомления.</string>
     <string name="settings_home_shortcut_reorder">Изменить порядок %1$s</string>
+    <string name="settings_terminal_font">Шрифт терминала</string>
+    <string name="settings_terminal_font_system">Системный моноширинный</string>
+    <string name="settings_terminal_font_geist_mono">Geist Mono</string>
 </resources>

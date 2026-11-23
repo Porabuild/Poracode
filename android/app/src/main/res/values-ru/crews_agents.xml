@@ -1,0 +1,27 @@
+<resources>
+    <string name="crews_title">Команды</string>
+    <string name="crews_description">Сохранённые команды для выбора модели</string>
+    <string name="crews_new">Новая команда</string>
+    <string name="crews_default_name">Новая команда</string>
+    <string name="crews_default_role">Помощник</string>
+    <string name="crews_empty_title">Команд пока нет</string>
+    <string name="crews_empty_description">Создайте команду для координации вспомогательных агентов с основной моделью.</string>
+    <string name="crews_favorite">Избранное</string>
+    <string name="crews_edit">Редактировать команду</string>
+    <string name="crews_duplicate">Дублировать</string>
+    <string name="crews_name_label">Название команды</string>
+    <string name="crews_lead_model">Основная модель</string>
+    <string name="crews_policy">Политика</string>
+    <string name="crews_role_label">Название роли</string>
+    <string name="crews_role_agent">Агент роли</string>
+    <string name="crews_role_model">Модель роли</string>
+    <string name="crews_add_role">Добавить роль помощника</string>
+    <string name="crews_clear_selection">Убрать команду</string>
+    <string name="crews_use">Выбрать</string>
+    <string name="crews_selected">Выбрано</string>
+    <string name="settings_agents_enabled_title">Включённые агенты</string>
+    <string name="settings_agents_visible_models">Видимые модели</string>
+    <string name="settings_agents_visible_models_count">Видно %1$d из %2$d моделей</string>
+    <string name="settings_agents_manage_models">Настроить</string>
+    <string name="settings_agents_provider_order">Порядок провайдеров</string>
+</resources>

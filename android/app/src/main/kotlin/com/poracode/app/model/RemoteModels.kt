@@ -120,6 +120,8 @@ data class ThreadConfig(
     val executionEnvironment: RemoteExecutionEnvironment? = null,
     @Serializable(with = OpaqueJsonElementSerializer::class)
     val crew: JsonElement? = null,
+    @Serializable(with = OpaqueJsonElementSerializer::class)
+    val selectionBinding: JsonElement? = null,
 ) {
     fun toJsonObject(): JsonObject = buildJsonObject {
         put("model", model)
@@ -158,6 +160,7 @@ data class ThreadConfig(
             )
         }
         crew?.let { put("crew", it) }
+        selectionBinding?.let { put("selectionBinding", it) }
     }
 }
 

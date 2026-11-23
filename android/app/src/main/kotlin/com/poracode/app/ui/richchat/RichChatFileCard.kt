@@ -66,6 +66,14 @@ internal val LocalRichChatFileActions =
  */
 @Composable
 internal fun RichChatFileCard(ref: RichChatFileRef, modifier: Modifier = Modifier) {
+    if (isVideoFileRef(ref)) {
+        RichChatInlineVideoCard(ref = ref, modifier = modifier)
+        return
+    }
+    if (isHtmlFileRef(ref)) {
+        RichChatHtmlFilePreviewCard(ref = ref, modifier = modifier)
+        return
+    }
     val actions = LocalRichChatFileActions.current
     val context = LocalContext.current
     val scope = rememberCoroutineScope()

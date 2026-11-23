@@ -147,105 +147,123 @@ class PairingCoordinator(
                     return@launch
                 }
 
+                if (!owner.isCurrent(sessionToken)) return@launch
+                val previousPin = TlsCertPinStore.fingerprintForEndpoint(endpoint)
                 if (pin != null) {
                     TlsCertPinStore.register(endpoint, pin)
                 } else {
                     TlsCertPinStore.remove(endpoint)
                 }
-                val client = apiFactory.create(endpoint, null)
-                val environment = withContext(ioDispatcher) { client.environment() }
-                if (!owner.isCurrent(sessionToken)) return@launch
-                val requestedScopes = RemoteAccessScopes.scopesToRequest(environment.auth.scopes)
-                if (requestedScopes.isEmpty()) {
-                    throw RemoteClientException(
-                        NO_KNOWN_SCOPES_MESSAGE,
-                        status = 400,
-                        code = "no_known_scopes",
-                    )
+                fun restoreSpeculativePin() {
+                    if (TlsCertPinStore.fingerprintForEndpoint(endpoint) != pin) return
+                    if (previousPin != null) {
+                        TlsCertPinStore.register(endpoint, previousPin)
+                    } else {
+                        TlsCertPinStore.remove(endpoint)
+                    }
                 }
-                val tokenResult = withContext(ioDispatcher) {
-                    client.exchangePairingCredential(credential, scopes = requestedScopes)
-                }
-                if (!owner.isCurrent(sessionToken)) return@launch
+                var pinCommitted = false
+                try {
+                    val client = apiFactory.create(endpoint, null)
+                    val environment = withContext(ioDispatcher) { client.environment() }
+                    if (!owner.isCurrent(sessionToken)) return@launch
+                    val requestedScopes = RemoteAccessScopes.scopesToRequest(environment.auth.scopes)
+                    if (requestedScopes.isEmpty()) {
+                        throw RemoteClientException(
+                            NO_KNOWN_SCOPES_MESSAGE,
+                            status = 400,
+                            code = "no_known_scopes",
+                        )
+                    }
+                    val tokenResult = withContext(ioDispatcher) {
+                        client.exchangePairingCredential(credential, scopes = requestedScopes)
+                    }
+                    if (!owner.isCurrent(sessionToken)) return@launch
 
-                client.setAccessToken(tokenResult.accessToken)
-                val hostCapabilities = withContext(ioDispatcher) {
-                    try {
-                        client.describeHost()
+                    client.setAccessToken(tokenResult.accessToken)
+                    val hostCapabilities = withContext(ioDispatcher) {
+                        try {
+                            client.describeHost()
+                        } catch (e: CancellationException) {
+                            throw e
+                        } catch (_: Exception) {
+                            // Describe is best-effort: server errors, transport failures,
+                            // and undecodable payloads all degrade to UNKNOWN and pairing
+                            // still proceeds to Ready.
+                            HostServiceCapabilities.UNKNOWN
+                        }
+                    }
+                    if (!owner.isCurrent(sessionToken)) return@launch
+
+                    val wsBase = PairingUrl.toWebSocketBaseUrl(endpoint)
+                    val profile = ConnectionProfile(
+                        desktopId = environment.desktopId,
+                        label = environment.label,
+                        httpBaseUrl = endpoint,
+                        wsBaseUrl = wsBase,
+                        appVersion = environment.appVersion,
+                        hostMode = environment.hostMode,
+                        platform = environment.platform,
+                        scopes = tokenResult.scopes,
+                        tokenExpiresAt = tokenResult.expiresAt,
+                        pairedAtEpochMs = System.currentTimeMillis(),
+                        protocolVersion = ProtocolConstants.REMOTE_PROTOCOL_VERSION,
+                        // Authoritative absence (older host) downgrades to no browser entry
+                        // and to no host-owned environment management.
+                        browserForwardVersions =
+                            environment.capabilities?.browserForward?.versions.orEmpty(),
+                        sshEnvironmentsVersions =
+                            environment.capabilities?.sshEnvironments?.versions.orEmpty(),
+                        certFingerprint = pin,
+                        hostCapabilities = hostCapabilities,
+                    )
+
+                    if (!owner.isCurrent(sessionToken)) return@launch
+
+                    val outcome = try {
+                        withContext(NonCancellable + ioDispatcher) {
+                            credentials.commit(profile, tokenResult.accessToken, owning = durable)
+                        }
                     } catch (e: CancellationException) {
                         throw e
-                    } catch (_: Exception) {
-                        // Describe is best-effort: server errors, transport failures,
-                        // and undecodable payloads all degrade to UNKNOWN and pairing
-                        // still proceeds to Ready.
-                        HostServiceCapabilities.UNKNOWN
+                    } catch (e: Exception) {
+                        reconcileFromDisk(
+                            sessionToken,
+                            previousPhase,
+                            retainedProfile,
+                            retainedToken,
+                            error = e.message ?: "Pairing failed",
+                        )
+                        return@launch
                     }
-                }
-                if (!owner.isCurrent(sessionToken)) return@launch
 
-                val wsBase = PairingUrl.toWebSocketBaseUrl(endpoint)
-                val profile = ConnectionProfile(
-                    desktopId = environment.desktopId,
-                    label = environment.label,
-                    httpBaseUrl = endpoint,
-                    wsBaseUrl = wsBase,
-                    appVersion = environment.appVersion,
-                    hostMode = environment.hostMode,
-                    platform = environment.platform,
-                    scopes = tokenResult.scopes,
-                    tokenExpiresAt = tokenResult.expiresAt,
-                    pairedAtEpochMs = System.currentTimeMillis(),
-                    protocolVersion = ProtocolConstants.REMOTE_PROTOCOL_VERSION,
-                    // Authoritative absence (older host) downgrades to no browser entry
-                    // and to no host-owned environment management.
-                    browserForwardVersions =
-                        environment.capabilities?.browserForward?.versions.orEmpty(),
-                    sshEnvironmentsVersions =
-                        environment.capabilities?.sshEnvironments?.versions.orEmpty(),
-                    certFingerprint = pin,
-                    hostCapabilities = hostCapabilities,
-                )
-
-                if (!owner.isCurrent(sessionToken)) return@launch
-
-                val outcome = try {
-                    withContext(NonCancellable + ioDispatcher) {
-                        credentials.commit(profile, tokenResult.accessToken, owning = durable)
+                    if (outcome.applied) {
+                        pinCommitted = true
+                        consumedPairFingerprints.add(fp)
                     }
-                } catch (e: CancellationException) {
-                    throw e
-                } catch (e: Exception) {
-                    reconcileFromDisk(
-                        sessionToken,
-                        previousPhase,
-                        retainedProfile,
-                        retainedToken,
-                        error = e.message ?: "Pairing failed",
-                    )
-                    return@launch
-                }
-
-                if (outcome.applied) {
-                    consumedPairFingerprints.add(fp)
-                }
-                if (!owner.isCurrent(sessionToken)) return@launch
-                when (outcome) {
-                    CredentialMutationOutcome.AppliedCurrent ->
-                        installCommittedPair(profile, tokenResult.accessToken)
-                    CredentialMutationOutcome.AppliedSuperseded,
-                    CredentialMutationOutcome.RejectedBeforeApply,
-                    is CredentialMutationOutcome.Failed,
-                    -> reconcileFromDisk(
-                        sessionToken,
-                        previousPhase,
-                        retainedProfile,
-                        retainedToken,
-                        error = if (outcome is CredentialMutationOutcome.Failed) {
-                            outcome.reason ?: "Pairing failed"
-                        } else {
-                            null
-                        },
-                    )
+                    if (!owner.isCurrent(sessionToken)) return@launch
+                    when (outcome) {
+                        CredentialMutationOutcome.AppliedCurrent ->
+                            installCommittedPair(profile, tokenResult.accessToken)
+                        CredentialMutationOutcome.AppliedSuperseded,
+                        CredentialMutationOutcome.RejectedBeforeApply,
+                        is CredentialMutationOutcome.Failed,
+                        -> reconcileFromDisk(
+                            sessionToken,
+                            previousPhase,
+                            retainedProfile,
+                            retainedToken,
+                            error = if (outcome is CredentialMutationOutcome.Failed) {
+                                outcome.reason ?: "Pairing failed"
+                            } else {
+                                null
+                            },
+                        )
+                    }
+                } finally {
+                    if (!pinCommitted) {
+                        restoreSpeculativePin()
+                    }
                 }
             } catch (e: CancellationException) {
                 withContext(NonCancellable + ioDispatcher) {

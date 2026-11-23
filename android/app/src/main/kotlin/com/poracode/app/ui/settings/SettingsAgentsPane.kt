@@ -61,6 +61,8 @@ internal fun SettingsAgentsPane(
     entry: SettingsHostInformationEntry?,
     access: SettingsUiAccess,
     replayCache: com.poracode.app.session.replay.HostReplayCacheUi,
+    mutation: SettingsMutationState = SettingsMutationState(),
+    onSaveSettings: (com.poracode.app.model.settings.HostSettingsPatch) -> Unit = {},
     onRetry: () -> Unit,
     modifier: Modifier = Modifier,
 ) = SettingsAgentsAndUsagePane(
@@ -68,6 +70,8 @@ internal fun SettingsAgentsPane(
     entry = entry,
     access = access,
     replayCache = replayCache,
+    mutation = mutation,
+    onSaveSettings = onSaveSettings,
     onRetry = onRetry,
     modifier = modifier,
 )
@@ -84,6 +88,8 @@ internal fun SettingsUsagePane(
     entry = entry,
     access = access,
     replayCache = replayCache,
+    mutation = SettingsMutationState(),
+    onSaveSettings = {},
     onRetry = onRetry,
     modifier = modifier,
 )
@@ -96,6 +102,8 @@ private fun SettingsAgentsAndUsagePane(
     entry: SettingsHostInformationEntry?,
     access: SettingsUiAccess,
     replayCache: com.poracode.app.session.replay.HostReplayCacheUi,
+    mutation: SettingsMutationState,
+    onSaveSettings: (com.poracode.app.model.settings.HostSettingsPatch) -> Unit,
     onRetry: () -> Unit,
     modifier: Modifier,
 ) {
@@ -157,6 +165,9 @@ private fun SettingsAgentsAndUsagePane(
                                 onClick = onRetry,
                             )
                         }
+                    }
+                    item(key = "agents-controls") {
+                        SettingsAgentsControlsSection(entry?.settings, replayCache, access.canWrite && !mutation.settingsSaving, onSaveSettings)
                     }
                     authoritative.sections.forEach { section ->
                         item(key = "env-${section.environment}") {

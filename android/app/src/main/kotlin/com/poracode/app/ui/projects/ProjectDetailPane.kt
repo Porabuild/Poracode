@@ -143,6 +143,14 @@ internal fun ProjectDetailPane(
                     onDiscover = { onOpenIntegrations(SettingsIntegrationsPage.Mcp) },
                     mcpController = mcpController,
                 )
+                ProjectSettingsPage.Memory -> com.poracode.app.ui.settings.HostMemoryCatalogPane(
+                    projectId = project.id,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                ProjectSettingsPage.Plugins -> com.poracode.app.ui.settings.HostPluginsManagementPane(
+                    projectId = project.id,
+                    modifier = Modifier.fillMaxWidth(),
+                )
                 ProjectSettingsPage.Search -> ProjectSearchSettingsSection(
                     runtime = runtime,
                     project = project,

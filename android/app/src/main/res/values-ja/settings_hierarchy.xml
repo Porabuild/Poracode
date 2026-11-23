@@ -54,4 +54,7 @@
     <string name="settings_notifications_enabled_description">スレッドのステータスが変化したときに通知を表示します。</string>
     <string name="settings_notification_sound_description">通知が表示されたときに音を鳴らします。</string>
     <string name="settings_home_shortcut_reorder">%1$sを並べ替える</string>
+    <string name="settings_terminal_font">ターミナルフォント</string>
+    <string name="settings_terminal_font_system">システム等幅</string>
+    <string name="settings_terminal_font_geist_mono">Geist Mono</string>
 </resources>

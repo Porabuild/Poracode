@@ -1,0 +1,9 @@
+<resources>
+    <string name="diagnostics_title">Діагностика</string>
+    <string name="diagnostics_description">Локальні звіти про збої та завершення</string>
+    <string name="diagnostics_capture_toggle">Збирати локальну діагностику збоїв</string>
+    <string name="diagnostics_capture_description">Звіти залишаються на цьому пристрої (до 20 звітів, 30 днів) і ніколи не надсилаються автоматично. Вимкнення видаляє збережені звіти.</string>
+    <string name="diagnostics_share">Поділитися JSON</string>
+    <string name="diagnostics_delete_all">Видалити все</string>
+    <string name="diagnostics_empty">Звіти про збої відсутні.</string>
+</resources>

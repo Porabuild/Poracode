@@ -54,4 +54,7 @@
     <string name="settings_notifications_enabled_description">Pokazuj powiadomienia, gdy zmieni się status wątku.</string>
     <string name="settings_notification_sound_description">Odtwórz dźwięk po wyświetleniu powiadomienia.</string>
     <string name="settings_home_shortcut_reorder">Zmień kolejność %1$s</string>
+    <string name="settings_terminal_font">Czcionka terminala</string>
+    <string name="settings_terminal_font_system">Systemowa o stałej szerokości</string>
+    <string name="settings_terminal_font_geist_mono">Geist Mono</string>
 </resources>

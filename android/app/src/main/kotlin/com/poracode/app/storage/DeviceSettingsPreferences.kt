@@ -10,6 +10,16 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 
 enum class DeviceAppearanceMode { System, Light, Dark }
+enum class TerminalFontChoice(val wireId: String) {
+    SystemMonospace("system"),
+    GeistMono("geist-mono"),
+    ;
+
+    companion object {
+        fun fromWireId(id: String?): TerminalFontChoice =
+            entries.firstOrNull { it.wireId == id } ?: SystemMonospace
+    }
+}
 enum class HomeShortcut { PullRequests, GithubActions, Schedules }
 
 /**
@@ -96,6 +106,7 @@ data class DeviceSettingsState(
     val chatTextSizeSp: Int = DEFAULT_CHAT_TEXT_SIZE_SP,
     val agentTerminalTextSizeSp: Int = DEFAULT_TERMINAL_TEXT_SIZE_SP,
     val projectTerminalTextSizeSp: Int = DEFAULT_TERMINAL_TEXT_SIZE_SP,
+    val terminalFont: TerminalFontChoice = TerminalFontChoice.SystemMonospace,
     val homeShortcutOrder: List<HomeShortcut> = HomeShortcut.entries,
     val hiddenHomeShortcuts: Set<HomeShortcut> = setOf(HomeShortcut.GithubActions),
     val pinnedSettingsShortcuts: List<PinnedSettingsShortcut> = emptyList(),
@@ -128,6 +139,7 @@ private data class DeviceSettingsDocument(
     val chatTextSizeSp: Int = DeviceSettingsState.DEFAULT_CHAT_TEXT_SIZE_SP,
     val agentTerminalTextSizeSp: Int = DeviceSettingsState.DEFAULT_TERMINAL_TEXT_SIZE_SP,
     val projectTerminalTextSizeSp: Int = DeviceSettingsState.DEFAULT_TERMINAL_TEXT_SIZE_SP,
+    val terminalFont: String = TerminalFontChoice.SystemMonospace.wireId,
     val homeShortcutOrder: List<String> = HomeShortcut.entries.map(HomeShortcut::name),
     val hiddenHomeShortcuts: List<String> = listOf(HomeShortcut.GithubActions.name),
     val pinnedSettingsShortcuts: List<String> = emptyList(),
@@ -190,6 +202,10 @@ class DeviceSettingsPreferences(
 
     fun setProjectTerminalTextSizeSp(size: Int) = update {
         it.copy(projectTerminalTextSizeSp = size.clampTerminalSize())
+    }
+
+    fun setTerminalFont(font: TerminalFontChoice) = update {
+        it.copy(terminalFont = font)
     }
 
     fun setHomeShortcutVisible(shortcut: HomeShortcut, visible: Boolean) = update { state ->
@@ -277,6 +293,7 @@ class DeviceSettingsPreferences(
                 chatTextSizeSp = document.chatTextSizeSp.clampTerminalSize(),
                 agentTerminalTextSizeSp = document.agentTerminalTextSizeSp.clampTerminalSize(),
                 projectTerminalTextSizeSp = document.projectTerminalTextSizeSp.clampTerminalSize(),
+                terminalFont = TerminalFontChoice.fromWireId(document.terminalFont),
                 homeShortcutOrder = document.homeShortcutOrder.normalizedHomeShortcutOrder(),
                 hiddenHomeShortcuts = document.hiddenHomeShortcuts.mapNotNullTo(mutableSetOf()) {
                     name -> HomeShortcut.entries.firstOrNull { it.name == name }
@@ -311,6 +328,7 @@ class DeviceSettingsPreferences(
             chatTextSizeSp = state.chatTextSizeSp,
             agentTerminalTextSizeSp = state.agentTerminalTextSizeSp,
             projectTerminalTextSizeSp = state.projectTerminalTextSizeSp,
+            terminalFont = state.terminalFont.wireId,
             homeShortcutOrder = state.homeShortcutOrder.map(HomeShortcut::name),
             hiddenHomeShortcuts = state.hiddenHomeShortcuts.map(HomeShortcut::name).sorted(),
             pinnedSettingsShortcuts = state.pinnedSettingsShortcuts.map(PinnedSettingsShortcut::wireId),

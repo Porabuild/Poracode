@@ -98,6 +98,7 @@ class PushRegistrationCoordinator(
     private val hosts: PushHostSource,
     private val clientFactory: PushHostGatewayFactory,
     private val appVersion: String,
+    private val alertPreferencesProvider: () -> PushAlertPreferences = { PushAlertPreferences.ALL },
     private val hasEndpointPermission: (String) -> Boolean = { true },
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) {
@@ -150,11 +151,13 @@ class PushRegistrationCoordinator(
                     clientConnectionId = host.connectionId.value,
                     desktopId = host.desktopId,
                 )
+                val alertPreferences = alertPreferencesProvider()
                 val fingerprint = PushClientStateStore.registrationFingerprint(
                     token,
                     route,
                     appVersion,
                     endpoint = host.endpoint,
+                    alertPreferences = alertPreferences,
                 )
                 val freshState = (stateStore.load() as? PushClientStateLoadResult.Loaded)?.state
                     ?: return@withLock PushUiState(PushAvailability.StorageUnavailable)
@@ -177,6 +180,7 @@ class PushRegistrationCoordinator(
                         deviceToken = token,
                         appVersion = appVersion,
                         routing = route,
+                        alertPreferences = alertPreferences,
                     ),
                 )
                 if (result is PushHttpResult.Success &&

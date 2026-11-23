@@ -16,7 +16,11 @@ struct RichChatInlineVisualBlocksView: View {
         case .html(let visual):
           RichChatHtmlVisualView(visual: visual).id(visual)
         case .source(let language, let source):
-          RichChatMarkdownCodeBlock(language: language, source: source, findPart: .visualSource(index))
+          if let doc = NativeVisualDocument.parse(language: language, source: source) {
+            RichChatNativeVisualView(document: doc, rawLanguage: language, rawSource: source)
+          } else {
+            RichChatMarkdownCodeBlock(language: language, source: source, findPart: .visualSource(index))
+          }
         }
       }
     }

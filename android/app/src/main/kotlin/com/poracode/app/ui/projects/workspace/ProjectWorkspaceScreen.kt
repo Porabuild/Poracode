@@ -88,6 +88,7 @@ fun ProjectWorkspaceScreen(
     var diffRequest by rememberSaveable(target.identity) { mutableIntStateOf(0) }
     var editorEpoch by rememberSaveable(target.identity) { mutableIntStateOf(0) }
     var saveFailed by rememberSaveable(target.identity) { mutableStateOf(false) }
+    var showReviewDetails by rememberSaveable(target.identity) { mutableStateOf(false) }
     var showingBranches by rememberSaveable(target.identity) { mutableStateOf(false) }
     var showingWorktrees by rememberSaveable(target.identity) { mutableStateOf(false) }
 
@@ -375,6 +376,10 @@ fun ProjectWorkspaceScreen(
                                 busy = gitEntry?.activeMutation != null,
                                 outcome = gitEntry?.lastOutcome,
                                 onRequest = submitGit,
+                                onAutoCreatePr = if (access.canWrite) {
+                                    { sectionName = ProjectWorkspaceSection.Github.name }
+                                } else null,
+                                onOpenReviewDetails = { showReviewDetails = true },
                             )
                         },
                         onRetry = if (actions.canRefreshGit) {
@@ -467,4 +472,18 @@ fun ProjectWorkspaceScreen(
         onDismissBranches = { showingBranches = false },
         onDismissWorktrees = { showingWorktrees = false },
     )
+    if (showReviewDetails) {
+        com.poracode.app.ui.components.PoracodeSheet(
+            onDismissRequest = { showReviewDetails = false },
+            title = stringResource(R.string.review_details_title),
+        ) {
+            ProjectReviewDetailsPane(
+                projectName = projectName,
+                status = entry.gitSnapshot?.status,
+                pullRequest = null,
+                sourceBranch = null,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
+    }
 }

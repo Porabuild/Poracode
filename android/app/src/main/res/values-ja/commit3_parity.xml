@@ -1,0 +1,13 @@
+<resources>
+    <string name="thread_lifecycle_ungroup">グループ解除</string>
+    <string name="git_auto_create_pr">PRを作成</string>
+    <string name="review_details_title">レビュー詳細</string>
+    <string name="review_details_no_pr_title">オープンなプルリクエストはありません</string>
+    <string name="review_details_no_pr_description">このブランチに関連付けられたアクティブなプルリクエストはまだありません。</string>
+    <string name="review_details_changes_summary">ステージ済み %1$d · 未ステージ %2$d · 競合 %3$d</string>
+    <string name="hub_search_placeholder">検索…</string>
+    <string name="hub_filter_all">すべて</string>
+    <string name="hub_filter_open">オープン</string>
+    <string name="hub_filter_draft">ドラフト</string>
+    <string name="hub_select_project_hint">プロジェクトを選択してプルリクエストを表示</string>
+</resources>

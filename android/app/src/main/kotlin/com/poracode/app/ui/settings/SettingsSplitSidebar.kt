@@ -30,6 +30,7 @@ internal fun SplitSettingsSidebar(
     selected: SettingsRoute,
     environmentsAvailable: Boolean,
     onSelect: (SettingsRoute) -> Unit,
+    onOpenWorkspaces: () -> Unit,
     onOpenSchedules: () -> Unit,
     onOpenIntegrations: () -> Unit,
     onOpenAdvanced: () -> Unit,
@@ -48,6 +49,7 @@ internal fun SplitSettingsSidebar(
     val openTarget: (SettingsSearchTarget) -> Unit = { target ->
         when (target) {
             is SettingsSearchTarget.Route -> onSelect(target.route)
+            SettingsSearchTarget.Workspaces -> onOpenWorkspaces()
             SettingsSearchTarget.Schedules -> onOpenSchedules()
             SettingsSearchTarget.Integrations -> onOpenIntegrations()
             SettingsSearchTarget.Advanced -> onOpenAdvanced()
@@ -95,6 +97,7 @@ internal fun SplitSettingsSidebar(
             } else {
                 item { PoracodeSectionLabel(stringResource(R.string.settings_device_section), Modifier.padding(vertical = 6.dp)) }
                 item { PoracodeDrawerNavItem(stringResource(R.string.settings_device_general), PoracodeIcons.Info, selected == SettingsRoute.General) { onSelect(SettingsRoute.General) } }
+                item { PoracodeDrawerNavItem(stringResource(R.string.home_workspaces_title), PoracodeIcons.Layers, false, onClick = onOpenWorkspaces) }
                 item { PoracodeDrawerNavItem(stringResource(R.string.settings_device_appearance), PoracodeIcons.ColorLens, selected == SettingsRoute.Appearance) { onSelect(SettingsRoute.Appearance) } }
                 item { PoracodeDrawerNavItem(stringResource(R.string.settings_device_notifications), PoracodeIcons.Notifications, selected == SettingsRoute.Notifications) { onSelect(SettingsRoute.Notifications) } }
                 item { PoracodeDrawerNavItem(stringResource(R.string.settings_device_audio), PoracodeIcons.Mic, selected == SettingsRoute.Audio) { onSelect(SettingsRoute.Audio) } }
@@ -110,6 +113,8 @@ internal fun SplitSettingsSidebar(
                 item { PoracodeDrawerNavItem(stringResource(R.string.settings_generation_title), PoracodeIcons.AutoAwesome, selected == SettingsRoute.Preferences) { onSelect(SettingsRoute.Preferences) } }
                 item { PoracodeDrawerNavItem(stringResource(R.string.settings_memory_title), PoracodeIcons.Brain, selected == SettingsRoute.Memory) { onSelect(SettingsRoute.Memory) } }
                 item { PoracodeDrawerNavItem(stringResource(R.string.settings_agents_title), PoracodeIcons.SmartToy, selected == SettingsRoute.Agents) { onSelect(SettingsRoute.Agents) } }
+                item { PoracodeDrawerNavItem(stringResource(R.string.crews_title), PoracodeIcons.Groups, selected == SettingsRoute.Crews) { onSelect(SettingsRoute.Crews) } }
+                item { PoracodeDrawerNavItem(stringResource(R.string.session_import_title), PoracodeIcons.Download, selected == SettingsRoute.SessionImport) { onSelect(SettingsRoute.SessionImport) } }
                 item { PoracodeDrawerNavItem(stringResource(R.string.settings_integrations_title), PoracodeIcons.Extension, false, onClick = onOpenIntegrations) }
                 item { PoracodeDrawerNavItem(stringResource(R.string.settings_global_mcp_title), PoracodeIcons.Extension, selected == SettingsRoute.GlobalMcp) { onSelect(SettingsRoute.GlobalMcp) } }
                 if (environmentsAvailable) {
@@ -122,6 +127,7 @@ internal fun SplitSettingsSidebar(
 
                 item { PoracodeSectionLabel(stringResource(R.string.settings_help_section), Modifier.padding(top = 12.dp, bottom = 6.dp)) }
                 item { PoracodeDrawerNavItem(stringResource(R.string.changelog_title), PoracodeIcons.Newspaper, selected == SettingsRoute.ReleaseNotes) { onSelect(SettingsRoute.ReleaseNotes) } }
+                item { PoracodeDrawerNavItem(stringResource(R.string.diagnostics_title), PoracodeIcons.ErrorOutline, selected == SettingsRoute.Diagnostics) { onSelect(SettingsRoute.Diagnostics) } }
                 item { PoracodeDrawerNavItem(stringResource(R.string.settings_privacy), PoracodeIcons.PrivacyTip, false, onClick = onOpenPrivacy) }
                 item { PoracodeDrawerNavItem(stringResource(R.string.settings_support), PoracodeIcons.SupportAgent, false, onClick = onOpenSupport) }
             }

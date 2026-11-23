@@ -1,0 +1,9 @@
+<resources>
+    <string name="diagnostics_title">Diagnose</string>
+    <string name="diagnostics_description">Lokale Absturz- und Beendigungsberichte</string>
+    <string name="diagnostics_capture_toggle">Lokale Absturzdiagnose erfassen</string>
+    <string name="diagnostics_capture_description">Berichte bleiben auf diesem Gerät (max. 20 Berichte, 30 Tage) und werden nie automatisch gesendet. Das Deaktivieren löscht gespeicherte Berichte.</string>
+    <string name="diagnostics_share">JSON teilen</string>
+    <string name="diagnostics_delete_all">Alle löschen</string>
+    <string name="diagnostics_empty">Keine Absturzdiagnosen aufgezeichnet.</string>
+</resources>

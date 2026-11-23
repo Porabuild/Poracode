@@ -546,6 +546,10 @@ struct HomeView: View {
         runCommand: { command in
           commandSearch?.selection = command
           sheetDestination = nil
+        },
+        searchRemoteMessages: { query in
+          guard let api = await session.currentBoundAPIClient() else { return [] }
+          return (try? await api.searchConversations(query: query))?.entries ?? []
         }
       )
       .poracodeZoomTransition(sourceID: "home.search", in: glassNamespace)

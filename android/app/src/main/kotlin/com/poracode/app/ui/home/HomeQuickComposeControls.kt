@@ -63,6 +63,14 @@ internal fun HomeQuickComposeControlsSheet(
         mutableStateOf(catalog.normalize(configuration))
     }
     var modelQuery by remember { mutableStateOf("") }
+    var showCrewPicker by remember { mutableStateOf(false) }
+    val savedCrews = com.poracode.app.ui.crews.LocalSavedCrews.current
+    val currentCrewId = (draft.crew as? kotlinx.serialization.json.JsonObject)
+        ?.get("crewId")
+        ?.let { (it as? kotlinx.serialization.json.JsonPrimitive)?.content }
+    val currentCrewName = (draft.crew as? kotlinx.serialization.json.JsonObject)
+        ?.get("name")
+        ?.let { (it as? kotlinx.serialization.json.JsonPrimitive)?.content }
     val colors = PoracodeTheme.colors
     PoracodeSheet(
         onDismissRequest = onDismiss,
@@ -80,6 +88,51 @@ internal fun HomeQuickComposeControlsSheet(
                 color = colors.muted,
                 modifier = Modifier.padding(start = 4.dp),
             )
+            if (savedCrews.isNotEmpty() || draft.crew != null) {
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    androidx.compose.material3.OutlinedButton(
+                        onClick = { showCrewPicker = true },
+                        enabled = enabled,
+                        modifier = Modifier.weight(1f),
+                    ) {
+                        Text(
+                            currentCrewName?.takeIf(String::isNotBlank)
+                                ?: stringResource(R.string.crews_title),
+                        )
+                    }
+                    if (draft.crew != null) {
+                        TextButton(
+                            onClick = { draft = draft.copy(crew = null) },
+                            enabled = enabled,
+                        ) {
+                            Text(stringResource(R.string.crews_clear_selection))
+                        }
+                    }
+                }
+            }
+            if (showCrewPicker) {
+                com.poracode.app.ui.crews.SavedCrewPickerSheet(
+                    crews = savedCrews,
+                    selectedCrewId = currentCrewId,
+                    onSelect = { crew ->
+                        draft = if (crew == null) {
+                            draft.copy(crew = null)
+                        } else {
+                            draft.copy(
+                                model = crew.lead.model,
+                                effort = crew.lead.effort,
+                                fast = crew.lead.fast,
+                                crew = crew.toThreadBindingJson(),
+                            )
+                        }
+                        showCrewPicker = false
+                    },
+                    onDismiss = { showCrewPicker = false },
+                )
+            }
             if (availableModes.size > 1) {
                 PoracodeChoiceSection(
                     label = stringResource(R.string.home_quick_compose_presentation),

@@ -125,6 +125,9 @@ fun RichChatComposer(
     var showControls by rememberSaveable(contextKey) { mutableStateOf(false) }
     var controlsFocus by remember { mutableStateOf<RichChatComposerControlsFocus?>(null) }
     var showCrewRoster by rememberSaveable(contextKey) { mutableStateOf(false) }
+    var showCrewPicker by rememberSaveable(contextKey) { mutableStateOf(false) }
+    val savedCrews = com.poracode.app.ui.crews.LocalSavedCrews.current
+    val currentCrewId = remember(configuration.crew) { (configuration.crew as? kotlinx.serialization.json.JsonObject)?.get("crewId")?.let { (it as? kotlinx.serialization.json.JsonPrimitive)?.content } }
     var showVoiceDictation by rememberSaveable(contextKey) { mutableStateOf(false) }
     val crewPresentation = remember(configuration.crew) { decodeReadOnlyCrew(configuration.crew) }
     var editorValue by remember(contextKey) { mutableStateOf(TextFieldValue(draft, TextRange(draft.length))) }
@@ -436,13 +439,14 @@ fun RichChatComposer(
                             )
                         }
                         modelControl(Modifier.weight(1f, fill = false))
-                        crewPresentation?.let { crew ->
-                            RichChatCrewChip(
-                                crew = crew,
-                                enabled = controlsEnabled,
-                                onClick = { showCrewRoster = true },
-                            )
-                        }
+                        RichChatComposerCrewControl(
+                            crewPresentation = crewPresentation,
+                            hasStartedSession = currentThread?.sessionRef != null,
+                            savedCrews = savedCrews,
+                            controlsEnabled = controlsEnabled,
+                            onOpenPicker = { showCrewPicker = true },
+                            onOpenRoster = { showCrewRoster = true },
+                        )
                         Spacer(Modifier.weight(1f))
                         com.poracode.app.ui.components.PoracodeIconButton(
                             icon = PoracodeIcons.Mic,
@@ -481,18 +485,7 @@ fun RichChatComposer(
             },
         )
     }
-    if (showCrewRoster) {
-        crewPresentation?.let { crew ->
-            ReadOnlyCrewRosterSheet(
-                crew = crew,
-                leadAgentKind = currentThread?.agentKind.orEmpty(),
-                leadModel = configuration.model,
-                leadEffort = configuration.effort,
-                leadFast = configuration.fast == true,
-                onDismiss = { showCrewRoster = false },
-            )
-        }
-    }
+    RichChatComposerCrewOverlays(showCrewRoster, showCrewPicker, crewPresentation, savedCrews, currentCrewId, currentThread, configuration, onConfigurationChange, { showCrewRoster = false }, { showCrewPicker = false })
 }
 
 private const val MAX_SUGGESTIONS = 6

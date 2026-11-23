@@ -1,0 +1,27 @@
+<resources>
+    <string name="crews_title">Crews</string>
+    <string name="crews_description">Saved crews for the model picker</string>
+    <string name="crews_new">New crew</string>
+    <string name="crews_default_name">New crew</string>
+    <string name="crews_default_role">Helper</string>
+    <string name="crews_empty_title">No crews yet</string>
+    <string name="crews_empty_description">Create a crew to coordinate helper agents with a lead model.</string>
+    <string name="crews_favorite">Favorite</string>
+    <string name="crews_edit">Edit crew</string>
+    <string name="crews_duplicate">Duplicate</string>
+    <string name="crews_name_label">Crew name</string>
+    <string name="crews_lead_model">Lead model</string>
+    <string name="crews_policy">Policy</string>
+    <string name="crews_role_label">Role label</string>
+    <string name="crews_role_agent">Role agent</string>
+    <string name="crews_role_model">Role model</string>
+    <string name="crews_add_role">Add helper role</string>
+    <string name="crews_clear_selection">Clear crew</string>
+    <string name="crews_use">Use</string>
+    <string name="crews_selected">Selected</string>
+    <string name="settings_agents_enabled_title">Enabled agents</string>
+    <string name="settings_agents_visible_models">Visible models</string>
+    <string name="settings_agents_visible_models_count">%1$d of %2$d models visible</string>
+    <string name="settings_agents_manage_models">Manage</string>
+    <string name="settings_agents_provider_order">Provider order</string>
+</resources>

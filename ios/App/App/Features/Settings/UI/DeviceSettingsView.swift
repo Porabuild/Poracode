@@ -78,6 +78,11 @@ struct DeviceSettingsView: View {
     }
     Section {
       DeviceSettingsDestinationLink(session: session, destination: .changelog)
+      NavigationLink {
+        CrashDiagnosticsSettingsView()
+      } label: {
+        Label("Diagnostics", systemImage: "stethoscope")
+      }
       externalLink(SettingsUIStrings.privacyPolicy, systemImage: "hand.raised", urlString: "https://poracode.com/privacy")
       externalLink(SettingsUIStrings.support, systemImage: "questionmark.circle", urlString: "https://poracode.com/support")
     }

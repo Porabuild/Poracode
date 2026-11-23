@@ -206,8 +206,9 @@ fun RichTimelineView(
         )
     }
     activeWorkflowPlan?.let { RichWorkflowViewerSheet(plan = it, onDismiss = { activeWorkflowPlan = null }) }
+    RichTimelinePromptRailChrome(transcript, entries, headerCount, listState, advisoryScope, modifier) { innerModifier ->
     androidx.compose.runtime.CompositionLocalProvider(LocalRichChatImageGallery provides galleryImages) {
-    RichTimelineScrollContainer(listState, initialScrollComplete, modifier, bottomOverlayClearance) {
+    RichTimelineScrollContainer(listState, initialScrollComplete, innerModifier, bottomOverlayClearance) {
         LazyColumn(
             modifier = backdrop.fillMaxSize().semantics { contentDescription = timelineDescription },
             state = listState,
@@ -278,6 +279,7 @@ fun RichTimelineView(
             item(key = "bottom-space") { Spacer(Modifier.height(8.dp)) }
         }
         }
+    }
     }
 }
 
@@ -460,7 +462,7 @@ private fun RichTimelineNode(
     }
 }
 
-private fun timelineEntryItemIds(entry: RichTimelineEntry): List<String> = when (entry) {
+internal fun timelineEntryItemIds(entry: RichTimelineEntry): List<String> = when (entry) {
     is RichTimelineEntry.Item -> listOf(entry.node.item.id)
     is RichTimelineEntry.Group -> entry.members.map { it.item.id }
 }

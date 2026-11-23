@@ -41,6 +41,7 @@ struct PoracodeApp: App {
 
   init() {
     GeneratedRemoteV3Contract.assertCompatibility()
+    _ = CrashDiagnosticsStore.shared
   }
 
   var body: some Scene {

@@ -17,6 +17,8 @@ import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -48,9 +50,12 @@ internal enum class SettingsRoute {
     Git,
     KeyboardShortcuts,
     ReleaseNotes,
+    Diagnostics,
     DesktopIndex,
     Host,
     Agents,
+    Crews,
+    SessionImport,
     Usage,
     Profile,
     Preferences,
@@ -64,6 +69,7 @@ internal enum class SettingsRoute {
 internal fun SettingsPane.route(): SettingsRoute = when (this) {
     SettingsPane.Host -> SettingsRoute.Host
     SettingsPane.Agents -> SettingsRoute.Agents
+    SettingsPane.Crews -> SettingsRoute.Crews
     SettingsPane.Usage -> SettingsRoute.Usage
     SettingsPane.Profile -> SettingsRoute.Profile
     SettingsPane.Preferences -> SettingsRoute.Preferences
@@ -75,6 +81,7 @@ internal fun SettingsPane.route(): SettingsRoute = when (this) {
 internal fun SettingsRoute.pane(): SettingsPane? = when (this) {
     SettingsRoute.Host -> SettingsPane.Host
     SettingsRoute.Agents -> SettingsPane.Agents
+    SettingsRoute.Crews -> SettingsPane.Crews
     SettingsRoute.Usage -> SettingsPane.Usage
     SettingsRoute.Profile -> SettingsPane.Profile
     SettingsRoute.Preferences -> SettingsPane.Preferences
@@ -118,6 +125,8 @@ internal fun SettingsRoute.isDesktopRoute(): Boolean = when (this) {
     SettingsRoute.DesktopIndex,
     SettingsRoute.Host,
     SettingsRoute.Agents,
+    SettingsRoute.Crews,
+    SettingsRoute.SessionImport,
     SettingsRoute.Usage,
     SettingsRoute.Profile,
     SettingsRoute.Preferences,
@@ -133,70 +142,132 @@ internal fun SettingsRoute.isDesktopRoute(): Boolean = when (this) {
 @Composable
 internal fun DeviceSettingsIndex(
     onOpen: (SettingsRoute) -> Unit,
+    onOpenWorkspaces: () -> Unit = {},
+    onOpenSchedules: () -> Unit = {},
+    onOpenIntegrations: () -> Unit = {},
+    onOpenAdvanced: () -> Unit = {},
+    onOpenBrowser: () -> Unit = {},
+    environmentsAvailable: Boolean = false,
     onOpenPrivacy: () -> Unit,
     onOpenSupport: () -> Unit,
 ) {
-    SettingsIndexList {
-        SettingsIndexSection(R.string.settings_device_section)
-        SettingsIndexRow(
-            PoracodeIcons.Info,
-            R.string.settings_device_general,
-            R.string.settings_device_general_description,
-        ) { onOpen(SettingsRoute.General) }
-        SettingsIndexRow(
-            PoracodeIcons.ColorLens,
-            R.string.settings_device_appearance,
-            R.string.settings_device_appearance_description,
-        ) { onOpen(SettingsRoute.Appearance) }
-        SettingsIndexRow(
-            PoracodeIcons.Notifications,
-            R.string.settings_device_notifications,
-            R.string.settings_device_notifications_description,
-        ) { onOpen(SettingsRoute.Notifications) }
-        SettingsIndexRow(
-            PoracodeIcons.Mic,
-            R.string.settings_device_audio,
-            R.string.settings_device_audio_description,
-        ) { onOpen(SettingsRoute.Audio) }
-        SettingsIndexRow(
-            PoracodeIcons.Terminal,
-            R.string.settings_device_terminal,
-            R.string.settings_device_terminal_description,
-        ) { onOpen(SettingsRoute.Terminal) }
-        SettingsIndexRow(
-            PoracodeIcons.Commit,
-            R.string.settings_device_git,
-            R.string.settings_device_git_description,
-        ) { onOpen(SettingsRoute.Git) }
-        SettingsIndexRow(
-            PoracodeIcons.Keyboard,
-            R.string.settings_keyboard_shortcuts,
-            R.string.settings_keyboard_shortcuts_description,
-        ) { onOpen(SettingsRoute.KeyboardShortcuts) }
-        SettingsIndexSection(R.string.settings_desktop_section)
-        SettingsIndexRow(
-            PoracodeIcons.Computer,
-            R.string.hosts_desktop_settings,
-            R.string.settings_desktop_index_description,
-        ) { onOpen(SettingsRoute.DesktopIndex) }
-        SettingsIndexSection(R.string.settings_help_section)
-        SettingsIndexRow(
-            PoracodeIcons.Newspaper,
-            R.string.changelog_title,
-            R.string.changelog_description,
-        ) { onOpen(SettingsRoute.ReleaseNotes) }
-        SettingsIndexRow(
-            PoracodeIcons.PrivacyTip,
-            R.string.settings_privacy,
-            R.string.settings_privacy_description,
-            onOpenPrivacy,
+    val resources = androidx.compose.ui.platform.LocalResources.current
+    var query by androidx.compose.runtime.saveable.rememberSaveable { androidx.compose.runtime.mutableStateOf("") }
+    val searchResults = if (query.isNotBlank()) {
+        SettingsSearchIndex.search(query, environmentsAvailable) { resources.getString(it) }
+    } else {
+        emptyList()
+    }
+    val openTarget: (SettingsSearchTarget) -> Unit = { target ->
+        when (target) {
+            is SettingsSearchTarget.Route -> onOpen(target.route)
+            SettingsSearchTarget.Workspaces -> onOpenWorkspaces()
+            SettingsSearchTarget.Schedules -> onOpenSchedules()
+            SettingsSearchTarget.Integrations -> onOpenIntegrations()
+            SettingsSearchTarget.Advanced -> onOpenAdvanced()
+            SettingsSearchTarget.Browser -> onOpenBrowser()
+            SettingsSearchTarget.Privacy -> onOpenPrivacy()
+            SettingsSearchTarget.Support -> onOpenSupport()
+        }
+    }
+    Column(Modifier.fillMaxSize()) {
+        com.poracode.app.ui.components.PoracodeInlineSearchField(
+            value = query,
+            onValueChange = { query = it },
+            placeholder = stringResource(R.string.settings_search_placeholder),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = PoracodeMetrics.pageInline, vertical = 6.dp),
         )
-        SettingsIndexRow(
-            PoracodeIcons.SupportAgent,
-            R.string.settings_support,
-            R.string.settings_support_description,
-            onOpenSupport,
-        )
+        SettingsIndexList {
+            if (query.isNotBlank()) {
+                if (searchResults.isEmpty()) {
+                    item {
+                        Text(
+                            stringResource(R.string.settings_search_no_results),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = com.poracode.app.ui.theme.PoracodeTheme.colors.muted,
+                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 12.dp),
+                        )
+                    }
+                } else {
+                    searchResults.forEach { hit ->
+                        SettingsIndexRow(hit.icon, hit.titleRes) { openTarget(hit.target) }
+                    }
+                }
+            } else {
+                SettingsIndexSection(R.string.settings_device_section)
+                SettingsIndexRow(
+                    PoracodeIcons.Info,
+                    R.string.settings_device_general,
+                    R.string.settings_device_general_description,
+                ) { onOpen(SettingsRoute.General) }
+                SettingsIndexRow(
+                    PoracodeIcons.Layers,
+                    R.string.home_workspaces_title,
+                    onClick = onOpenWorkspaces,
+                )
+                SettingsIndexRow(
+                    PoracodeIcons.ColorLens,
+                    R.string.settings_device_appearance,
+                    R.string.settings_device_appearance_description,
+                ) { onOpen(SettingsRoute.Appearance) }
+                SettingsIndexRow(
+                    PoracodeIcons.Notifications,
+                    R.string.settings_device_notifications,
+                    R.string.settings_device_notifications_description,
+                ) { onOpen(SettingsRoute.Notifications) }
+                SettingsIndexRow(
+                    PoracodeIcons.Mic,
+                    R.string.settings_device_audio,
+                    R.string.settings_device_audio_description,
+                ) { onOpen(SettingsRoute.Audio) }
+                SettingsIndexRow(
+                    PoracodeIcons.Terminal,
+                    R.string.settings_device_terminal,
+                    R.string.settings_device_terminal_description,
+                ) { onOpen(SettingsRoute.Terminal) }
+                SettingsIndexRow(
+                    PoracodeIcons.Commit,
+                    R.string.settings_device_git,
+                    R.string.settings_device_git_description,
+                ) { onOpen(SettingsRoute.Git) }
+                SettingsIndexRow(
+                    PoracodeIcons.Keyboard,
+                    R.string.settings_keyboard_shortcuts,
+                    R.string.settings_keyboard_shortcuts_description,
+                ) { onOpen(SettingsRoute.KeyboardShortcuts) }
+                SettingsIndexSection(R.string.settings_desktop_section)
+                SettingsIndexRow(
+                    PoracodeIcons.Computer,
+                    R.string.hosts_desktop_settings,
+                    R.string.settings_desktop_index_description,
+                ) { onOpen(SettingsRoute.DesktopIndex) }
+                SettingsIndexSection(R.string.settings_help_section)
+                SettingsIndexRow(
+                    PoracodeIcons.Newspaper,
+                    R.string.changelog_title,
+                    R.string.changelog_description,
+                ) { onOpen(SettingsRoute.ReleaseNotes) }
+                SettingsIndexRow(
+                    PoracodeIcons.ErrorOutline,
+                    R.string.diagnostics_title,
+                    R.string.diagnostics_description,
+                ) { onOpen(SettingsRoute.Diagnostics) }
+                SettingsIndexRow(
+                    PoracodeIcons.PrivacyTip,
+                    R.string.settings_privacy,
+                    R.string.settings_privacy_description,
+                    onOpenPrivacy,
+                )
+                SettingsIndexRow(
+                    PoracodeIcons.SupportAgent,
+                    R.string.settings_support,
+                    R.string.settings_support_description,
+                    onOpenSupport,
+                )
+            }
+        }
     }
 }
 
@@ -252,6 +323,15 @@ internal fun DesktopSettingsIndex(
             onOpen(SettingsRoute.Agents)
         }
         SettingsIndexRow(
+            PoracodeIcons.Groups,
+            R.string.crews_title,
+            R.string.crews_description,
+        ) { onOpen(SettingsRoute.Crews) }
+        SettingsIndexRow(
+            PoracodeIcons.Download,
+            R.string.session_import_title,
+        ) { onOpen(SettingsRoute.SessionImport) }
+        SettingsIndexRow(
             PoracodeIcons.Extension,
             R.string.settings_integrations_title,
             onClick = onOpenIntegrations,
@@ -286,66 +366,7 @@ internal fun DesktopSettingsIndex(
 }
 
 @Composable
-internal fun DeviceGeneralPane(
-    state: DeviceSettingsState,
-    preferences: DeviceSettingsPreferences,
-) {
-    val locale = LocalConfiguration.current.locales[0]
-    val language = locale.getDisplayName(locale)
-    LazyColumn(
-        Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-    ) {
-        item {
-            SettingsCard {
-                SettingsValueRow(stringResource(R.string.settings_app_language), language)
-                SettingsValueRow(
-                    stringResource(R.string.settings_app_version),
-                    BuildConfig.VERSION_NAME,
-                )
-                Text(
-                    stringResource(R.string.settings_language_system_description),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-        }
-        item {
-            HomeShortcutSettingsSection(state, preferences)
-        }
-    }
-}
-
-@Composable
-internal fun DeviceTerminalPane(
-    state: DeviceSettingsState,
-    preferences: DeviceSettingsPreferences,
-) {
-    LazyColumn(
-        Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-    ) {
-        item {
-            SettingsCard {
-                SettingsStepperRow(
-                    stringResource(R.string.settings_agent_terminal_size),
-                    state.agentTerminalTextSizeSp,
-                    preferences::setAgentTerminalTextSizeSp,
-                )
-                SettingsStepperRow(
-                    stringResource(R.string.settings_project_terminal_size),
-                    state.projectTerminalTextSizeSp,
-                    preferences::setProjectTerminalTextSizeSp,
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun SettingsStepperRow(label: String, value: Int, onChange: (Int) -> Unit) {
+internal fun SettingsStepperRow(label: String, value: Int, onChange: (Int) -> Unit) {
     Row(
         Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(8.dp),

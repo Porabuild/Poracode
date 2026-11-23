@@ -1,0 +1,13 @@
+<resources>
+    <string name="thread_lifecycle_ungroup">그룹 해제</string>
+    <string name="git_auto_create_pr">PR 만들기</string>
+    <string name="review_details_title">리뷰 세부정보</string>
+    <string name="review_details_no_pr_title">열린 Pull Request 없음</string>
+    <string name="review_details_no_pr_description">이 브랜치와 연결된 활성 Pull Request가 아직 없습니다.</string>
+    <string name="review_details_changes_summary">스테이징 %1$d · 미스테이징 %2$d · 충돌 %3$d</string>
+    <string name="hub_search_placeholder">검색…</string>
+    <string name="hub_filter_all">전체</string>
+    <string name="hub_filter_open">열림</string>
+    <string name="hub_filter_draft">초안</string>
+    <string name="hub_select_project_hint">Pull Request를 보려면 프로젝트를 선택하세요</string>
+</resources>

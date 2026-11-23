@@ -1,0 +1,13 @@
+<resources>
+    <string name="thread_lifecycle_ungroup">Gruppierung aufheben</string>
+    <string name="git_auto_create_pr">PR erstellen</string>
+    <string name="review_details_title">Review-Details</string>
+    <string name="review_details_no_pr_title">Kein offener Pull Request</string>
+    <string name="review_details_no_pr_description">Diesem Branch ist noch kein aktiver Pull Request zugeordnet.</string>
+    <string name="review_details_changes_summary">%1$d vorgemerkt · %2$d nicht vorgemerkt · %3$d Konflikte</string>
+    <string name="hub_search_placeholder">Suchen…</string>
+    <string name="hub_filter_all">Alle</string>
+    <string name="hub_filter_open">Offen</string>
+    <string name="hub_filter_draft">Entwurf</string>
+    <string name="hub_select_project_hint">Projekt auswählen, um Pull Requests anzuzeigen</string>
+</resources>

@@ -198,6 +198,10 @@ sealed interface ThreadLifecycleCommand {
         }
     }
 
+    data class ClearGroup(override val threadId: String) : ThreadLifecycleCommand {
+        override fun wireBody() = body("clear-group")
+    }
+
     data class Archive(override val threadId: String) : ThreadLifecycleCommand {
         override fun wireBody() = body("archive")
     }

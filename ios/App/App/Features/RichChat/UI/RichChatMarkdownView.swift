@@ -102,7 +102,10 @@ struct RichChatMarkdownView: View {
 
   private func inlineText(_ text: String, block: Int, piece: Int = 0) -> some View {
     RichChatInlineLinkText(
-      text: RichChatAttributedText.presentation(text, projectLocation: projectLinkLocation),
+      text: RichChatAttributedText.presentation(
+        RichChatMathFormatter.expandInlineMath(text),
+        projectLocation: projectLinkLocation
+      ),
       part: part(block: block, piece: piece)
     )
   }
@@ -112,16 +115,24 @@ struct RichChatMarkdownView: View {
   }
 
   private func listRow(marker: String, text: String, block: Int, piece: Int) -> some View {
-    let attributed = RichChatAttributedText.presentation(text, projectLocation: projectLinkLocation)
+    let parsed = RichChatMathFormatter.parseListItem(text)
+    let displayText = RichChatMathFormatter.expandInlineMath(parsed.text)
+    let attributed = RichChatAttributedText.presentation(displayText, projectLocation: projectLinkLocation)
     let reference = RichChatAttributedText.standaloneSourceReference(
       in: attributed, projectLocation: projectLinkLocation
     )
     let findPart = part(block: block, piece: piece)
     return HStack(alignment: reference == nil ? .firstTextBaseline : .center, spacing: 8) {
-      Text(marker)
-        .poracodeChatText(.body, weight: .medium)
-        .foregroundStyle(.secondary)
-        .frame(width: 20, alignment: .trailing)
+      if let checked = parsed.checked {
+        Image(systemName: checked ? "checkmark.square.fill" : "square")
+          .foregroundStyle(checked ? Color.primary : .secondary)
+          .frame(width: 20, alignment: .trailing)
+      } else {
+        Text(marker)
+          .poracodeChatText(.body, weight: .medium)
+          .foregroundStyle(.secondary)
+          .frame(width: 20, alignment: .trailing)
+      }
       if let reference {
         RichChatSourceReferenceChip(reference: reference, findPart: findPart, isListItem: true)
           .frame(maxWidth: .infinity, alignment: .leading)
@@ -131,6 +142,7 @@ struct RichChatMarkdownView: View {
           .frame(maxWidth: .infinity, alignment: .leading)
       }
     }
+    .padding(.leading, CGFloat(parsed.depth * 14))
   }
 
   private func headingRole(_ level: Int) -> PoracodeChatTextRole {

@@ -78,6 +78,7 @@ fun SettingsScreen(
     onPushAction: () -> Unit,
     onEnterDesktopSettings: () -> Unit,
     onLeaveDesktopSettings: () -> Unit,
+    onOpenWorkspaces: () -> Unit = {},
     onOpenSchedules: () -> Unit,
     onOpenSettingsIntegrations: () -> Unit,
     onOpenAdvancedOperations: () -> Unit,
@@ -85,6 +86,7 @@ fun SettingsScreen(
     onOpenPrivacy: () -> Unit,
     onOpenSupport: () -> Unit,
     archivedThreads: @Composable (Modifier) -> Unit,
+    sessionImportPane: (@Composable (Modifier) -> Unit)? = null,
     onRefreshHostAgentStatuses: (suspend () -> Unit)? = null,
     onUseEnvironmentHost: (com.poracode.app.model.ClientConnectionId) -> Unit = {},
     modifier: Modifier = Modifier,
@@ -205,6 +207,12 @@ fun SettingsScreen(
                 } else when (current) {
                     SettingsRoute.DeviceIndex -> DeviceSettingsIndex(
                         onOpen = openRoute,
+                        onOpenWorkspaces = onOpenWorkspaces,
+                        onOpenSchedules = onOpenSchedules,
+                        onOpenIntegrations = onOpenSettingsIntegrations,
+                        onOpenAdvanced = onOpenAdvancedOperations,
+                        onOpenBrowser = onOpenBrowserMirror,
+                        environmentsAvailable = environmentsAvailable,
                         onOpenPrivacy = onOpenPrivacy,
                         onOpenSupport = onOpenSupport,
                     )
@@ -226,6 +234,7 @@ fun SettingsScreen(
                     SettingsRoute.Git -> DeviceGitPane(localSettings, deviceSettings)
                     SettingsRoute.KeyboardShortcuts -> DeviceKeyboardShortcutsPane(Modifier.fillMaxSize())
                     SettingsRoute.ReleaseNotes -> ReleaseNotesPane(Modifier.fillMaxSize())
+                    SettingsRoute.Diagnostics -> DeviceDiagnosticsPane(Modifier.fillMaxSize())
                     SettingsRoute.DesktopIndex -> DesktopSettingsIndex(
                         host = host,
                         onOpen = openRoute,
@@ -237,6 +246,8 @@ fun SettingsScreen(
                         onOpenEnvironments = { openRoute(SettingsRoute.Environments) },
                     )
                     SettingsRoute.ArchivedThreads -> archivedThreads(Modifier.fillMaxSize())
+                    SettingsRoute.SessionImport -> sessionImportPane?.invoke(Modifier.fillMaxSize())
+                        ?: SettingsLoading(stringResource(R.string.settings_not_ready))
                     SettingsRoute.GlobalMcp -> GlobalMcpSettingsPane(
                         state = globalMcp,
                         projects = globalMcpProjects,
@@ -302,6 +313,7 @@ fun SettingsScreen(
                             selected = effectiveRoute,
                             environmentsAvailable = environmentsAvailable,
                             onSelect = openRoute,
+                            onOpenWorkspaces = onOpenWorkspaces,
                             onOpenSchedules = onOpenSchedules,
                             onOpenIntegrations = onOpenSettingsIntegrations,
                             onOpenAdvanced = onOpenAdvancedOperations,
@@ -394,7 +406,18 @@ private fun SettingsPaneContent(
             entry = entry,
             access = access,
             replayCache = replayCache,
+            mutation = mutation,
+            onSaveSettings = composition.controller::saveSettings,
             onRetry = { composition.controller.refresh(SettingsPane.Agents) },
+            modifier = modifier,
+        )
+        SettingsPane.Crews -> com.poracode.app.ui.crews.CrewsSettingsPane(
+            entry = entry,
+            access = access,
+            mutation = mutation,
+            replayCache = replayCache,
+            onSave = composition.controller::saveSettings,
+            onRetry = { composition.controller.refresh(SettingsPane.Crews) },
             modifier = modifier,
         )
         SettingsPane.Usage -> SettingsUsagePane(
@@ -449,29 +472,3 @@ private fun SettingsPaneContent(
         SettingsPane.Environments -> Unit
     }
 }
-
-@Composable
-private fun settingsRouteTitle(route: SettingsRoute): String = stringResource(
-    when (route) {
-        SettingsRoute.DeviceIndex -> R.string.settings_title
-        SettingsRoute.General -> R.string.settings_device_general
-        SettingsRoute.Appearance -> R.string.settings_device_appearance
-        SettingsRoute.Notifications -> R.string.settings_device_notifications
-        SettingsRoute.Audio -> R.string.settings_device_audio
-        SettingsRoute.Terminal -> R.string.settings_device_terminal
-        SettingsRoute.Git -> R.string.settings_device_git
-        SettingsRoute.KeyboardShortcuts -> R.string.settings_keyboard_shortcuts
-        SettingsRoute.ReleaseNotes -> R.string.changelog_title
-        SettingsRoute.DesktopIndex -> R.string.hosts_desktop_settings
-        SettingsRoute.Host -> R.string.settings_host_title
-        SettingsRoute.Agents -> R.string.settings_agents_title
-        SettingsRoute.Usage -> R.string.settings_usage_title
-        SettingsRoute.Profile -> R.string.settings_profile_title
-        SettingsRoute.Preferences -> R.string.settings_generation_title
-        SettingsRoute.Memory -> R.string.settings_memory_title
-        SettingsRoute.Workspace -> R.string.settings_workspace_defaults
-        SettingsRoute.Environments -> R.string.environments_settings_title
-        SettingsRoute.GlobalMcp -> R.string.settings_global_mcp_title
-        SettingsRoute.ArchivedThreads -> R.string.archived_threads_title
-    },
-)

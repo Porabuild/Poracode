@@ -1,0 +1,27 @@
+<resources>
+    <string name="crews_title">协作组</string>
+    <string name="crews_description">用于模型选择器的已保存协作组</string>
+    <string name="crews_new">新建协作组</string>
+    <string name="crews_default_name">新建协作组</string>
+    <string name="crews_default_role">助手</string>
+    <string name="crews_empty_title">暂无协作组</string>
+    <string name="crews_empty_description">创建协作组以让主模型协调多个助手代理。</string>
+    <string name="crews_favorite">收藏</string>
+    <string name="crews_edit">编辑协作组</string>
+    <string name="crews_duplicate">复制</string>
+    <string name="crews_name_label">协作组名称</string>
+    <string name="crews_lead_model">主模型</string>
+    <string name="crews_policy">策略</string>
+    <string name="crews_role_label">角色名称</string>
+    <string name="crews_role_agent">角色代理</string>
+    <string name="crews_role_model">角色模型</string>
+    <string name="crews_add_role">添加助手角色</string>
+    <string name="crews_clear_selection">清除协作组</string>
+    <string name="crews_use">使用</string>
+    <string name="crews_selected">已选择</string>
+    <string name="settings_agents_enabled_title">已启用的代理</string>
+    <string name="settings_agents_visible_models">可见模型</string>
+    <string name="settings_agents_visible_models_count">已显示 %1$d / %2$d 个模型</string>
+    <string name="settings_agents_manage_models">管理</string>
+    <string name="settings_agents_provider_order">提供商顺序</string>
+</resources>

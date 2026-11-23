@@ -6,6 +6,7 @@ import com.poracode.app.ui.theme.PoracodeIcons
 
 internal sealed interface SettingsSearchTarget {
     data class Route(val route: SettingsRoute) : SettingsSearchTarget
+    data object Workspaces : SettingsSearchTarget
     data object Schedules : SettingsSearchTarget
     data object Integrations : SettingsSearchTarget
     data object Advanced : SettingsSearchTarget
@@ -33,6 +34,12 @@ internal object SettingsSearchIndex {
             titleRes = R.string.settings_device_general,
             icon = PoracodeIcons.Info,
             keywords = listOf("general", "language", "version", "shortcuts", "pinned", "home"),
+        ),
+        SettingsSearchEntry(
+            target = SettingsSearchTarget.Workspaces,
+            titleRes = R.string.home_workspaces_title,
+            icon = PoracodeIcons.Layers,
+            keywords = listOf("workspaces", "groups", "projects", "filter"),
         ),
         SettingsSearchEntry(
             target = SettingsSearchTarget.Route(SettingsRoute.Appearance),
@@ -77,6 +84,12 @@ internal object SettingsSearchIndex {
             keywords = listOf("release", "notes", "changelog", "whats new", "updates"),
         ),
         SettingsSearchEntry(
+            target = SettingsSearchTarget.Route(SettingsRoute.Diagnostics),
+            titleRes = R.string.diagnostics_title,
+            icon = PoracodeIcons.ErrorOutline,
+            keywords = listOf("diagnostics", "crash", "reports", "logs", "exit"),
+        ),
+        SettingsSearchEntry(
             target = SettingsSearchTarget.Route(SettingsRoute.Host),
             titleRes = R.string.settings_host_title,
             icon = PoracodeIcons.Computer,
@@ -117,6 +130,18 @@ internal object SettingsSearchIndex {
             titleRes = R.string.settings_agents_title,
             icon = PoracodeIcons.SmartToy,
             keywords = listOf("agents", "providers", "models", "claude", "codex", "gemini", "opencode"),
+        ),
+        SettingsSearchEntry(
+            target = SettingsSearchTarget.Route(SettingsRoute.Crews),
+            titleRes = R.string.crews_title,
+            icon = PoracodeIcons.Groups,
+            keywords = listOf("crews", "team", "helpers", "multi-agent", "lead"),
+        ),
+        SettingsSearchEntry(
+            target = SettingsSearchTarget.Route(SettingsRoute.SessionImport),
+            titleRes = R.string.session_import_title,
+            icon = PoracodeIcons.Download,
+            keywords = listOf("import", "sessions", "cli", "history"),
         ),
         SettingsSearchEntry(
             target = SettingsSearchTarget.Integrations,

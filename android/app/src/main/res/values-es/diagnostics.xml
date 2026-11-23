@@ -1,0 +1,9 @@
+<resources>
+    <string name="diagnostics_title">Diagnóstico</string>
+    <string name="diagnostics_description">Informes locales de fallos y cierres</string>
+    <string name="diagnostics_capture_toggle">Capturar diagnósticos locales de fallos</string>
+    <string name="diagnostics_capture_description">Los informes permanecen en este dispositivo (máx. 20 informes, 30 días) y nunca se envían automáticamente. Desactivar esto elimina los informes guardados.</string>
+    <string name="diagnostics_share">Compartir JSON</string>
+    <string name="diagnostics_delete_all">Eliminar todo</string>
+    <string name="diagnostics_empty">No hay diagnósticos de fallos registrados.</string>
+</resources>

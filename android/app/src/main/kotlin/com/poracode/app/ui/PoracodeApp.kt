@@ -111,9 +111,14 @@ fun PoracodeApp(
         DeviceAppearanceMode.Dark -> true
     }
     LaunchedEffect(useDarkTheme) { onThemeDarkChanged(useDarkTheme) }
+    val terminalFontFamily = when (deviceSettingsState.terminalFont) {
+        com.poracode.app.storage.TerminalFontChoice.GeistMono -> com.poracode.app.ui.theme.GeistMono
+        com.poracode.app.storage.TerminalFontChoice.SystemMonospace -> androidx.compose.ui.text.font.FontFamily.Monospace
+    }
     PoracodeTheme(
         darkTheme = useDarkTheme,
         chatTextSizeSp = deviceSettingsState.chatTextSizeSp,
+        terminalFontFamily = terminalFontFamily,
         themeId = deviceSettingsState.themeId,
         customThemes = customThemeState.themes,
     ) {
@@ -238,7 +243,19 @@ fun PoracodeApp(
                                 navigation = navigation,
                                 workspaces = workspaces,
                             )
-                            is HomeDestination.Home -> HomeDestinationScreenContent(
+                            is HomeDestination.Home -> {
+                                val savedCrews = settingsHostLease?.let { lease ->
+                                    com.poracode.app.ui.crews.SavedCrew.decodeAll(
+                                        settingsInformation.entries[lease.key]?.settings,
+                                    )
+                                }.orEmpty()
+                                androidx.compose.runtime.CompositionLocalProvider(
+                                    com.poracode.app.ui.crews.LocalSavedCrews provides savedCrews,
+                                    com.poracode.app.ui.settings.LocalHostApiClientProvider provides {
+                                        settings.createBoundApiClient()
+                                    },
+                                ) {
+                                HomeDestinationScreenContent(
                                 navigation = navigation,
                                 session = session,
                                 state = state,
@@ -275,6 +292,8 @@ fun PoracodeApp(
                                     )
                                 },
                             )
+                                }
+                            }
                         }
                     }
                 }

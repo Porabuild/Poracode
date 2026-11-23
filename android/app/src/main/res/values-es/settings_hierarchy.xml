@@ -54,4 +54,7 @@
     <string name="settings_notifications_enabled_description">Mostrar notificaciones cuando cambie el estado de un hilo.</string>
     <string name="settings_notification_sound_description">Reproducir un sonido cuando se muestre una notificación.</string>
     <string name="settings_home_shortcut_reorder">Reordenar %1$s</string>
+    <string name="settings_terminal_font">Fuente de terminal</string>
+    <string name="settings_terminal_font_system">Monoespaciada del sistema</string>
+    <string name="settings_terminal_font_geist_mono">Geist Mono</string>
 </resources>

@@ -1,0 +1,13 @@
+<resources>
+    <string name="thread_lifecycle_ungroup">Grubu çöz</string>
+    <string name="git_auto_create_pr">PR oluştur</string>
+    <string name="review_details_title">İnceleme ayrıntıları</string>
+    <string name="review_details_no_pr_title">Açık pull request yok</string>
+    <string name="review_details_no_pr_description">Bu dal ile ilişkili etkin bir pull request henüz yok.</string>
+    <string name="review_details_changes_summary">%1$d hazırlandı · %2$d hazırlanmadı · %3$d çakışma</string>
+    <string name="hub_search_placeholder">Ara…</string>
+    <string name="hub_filter_all">Tümü</string>
+    <string name="hub_filter_open">Açık</string>
+    <string name="hub_filter_draft">Taslak</string>
+    <string name="hub_select_project_hint">Pull requestleri incelemek için bir proje seçin</string>
+</resources>

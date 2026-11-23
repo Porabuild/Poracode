@@ -54,4 +54,7 @@
     <string name="settings_notifications_enabled_description">스레드 상태가 변경되면 알림을 표시합니다.</string>
     <string name="settings_notification_sound_description">알림이 표시되면 소리를 재생합니다.</string>
     <string name="settings_home_shortcut_reorder">%1$s 재정렬</string>
+    <string name="settings_terminal_font">터미널 글꼴</string>
+    <string name="settings_terminal_font_system">시스템 고정폭</string>
+    <string name="settings_terminal_font_geist_mono">Geist Mono</string>
 </resources>

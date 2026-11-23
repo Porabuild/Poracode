@@ -121,7 +121,9 @@ class ThreadLifecycleController(
 private fun operationFor(command: ThreadLifecycleCommand): ThreadLifecycleOperation = when (command) {
     is ThreadLifecycleCommand.PrepareWorktree -> ThreadLifecycleOperation.PrepareWorktree
     is ThreadLifecycleCommand.Start -> ThreadLifecycleOperation.Relaunch
-    is ThreadLifecycleCommand.SetGroup -> ThreadLifecycleOperation.Group
+    is ThreadLifecycleCommand.SetGroup,
+    is ThreadLifecycleCommand.ClearGroup,
+    -> ThreadLifecycleOperation.Group
     is ThreadLifecycleCommand.Rename -> ThreadLifecycleOperation.Rename
     is ThreadLifecycleCommand.Acknowledge -> ThreadLifecycleOperation.Acknowledge
     is ThreadLifecycleCommand.SetDone -> ThreadLifecycleOperation.Done

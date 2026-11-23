@@ -1,0 +1,27 @@
+<resources>
+    <string name="crews_title">Ekipler</string>
+    <string name="crews_description">Model seçici için kayıtlı ekipler</string>
+    <string name="crews_new">Yeni ekip</string>
+    <string name="crews_default_name">Yeni ekip</string>
+    <string name="crews_default_role">Yardımcı</string>
+    <string name="crews_empty_title">Henüz ekip yok</string>
+    <string name="crews_empty_description">Lider model ile yardımcı ajanları koordine etmek için bir ekip oluşturun.</string>
+    <string name="crews_favorite">Favori</string>
+    <string name="crews_edit">Ekibi düzenle</string>
+    <string name="crews_duplicate">Çoğalt</string>
+    <string name="crews_name_label">Ekip adı</string>
+    <string name="crews_lead_model">Lider model</string>
+    <string name="crews_policy">Politika</string>
+    <string name="crews_role_label">Rol etiketi</string>
+    <string name="crews_role_agent">Rol ajanı</string>
+    <string name="crews_role_model">Rol modeli</string>
+    <string name="crews_add_role">Yardımcı rol ekle</string>
+    <string name="crews_clear_selection">Ekibi temizle</string>
+    <string name="crews_use">Kullan</string>
+    <string name="crews_selected">Seçili</string>
+    <string name="settings_agents_enabled_title">Etkin ajanlar</string>
+    <string name="settings_agents_visible_models">Görünür modeller</string>
+    <string name="settings_agents_visible_models_count">%2$d modelden %1$d tanesi görünür</string>
+    <string name="settings_agents_manage_models">Yönet</string>
+    <string name="settings_agents_provider_order">Sağlayıcı sırası</string>
+</resources>

@@ -48,12 +48,14 @@ class DeviceSettingsPreferencesTest {
         preferences.setContentLanguage(ContentLanguage.Japanese)
         preferences.setNotificationSoundEnabled(false)
         preferences.setNotifyDone(false)
+        preferences.setTerminalFont(TerminalFontChoice.GeistMono)
 
         val state = DeviceSettingsPreferences(store).state.value
         assertEquals(DeviceAppearanceMode.Dark, state.appearanceMode)
         assertEquals(18, state.chatTextSizeSp)
         assertEquals(8, state.agentTerminalTextSizeSp)
         assertEquals(20, state.projectTerminalTextSizeSp)
+        assertEquals(TerminalFontChoice.GeistMono, state.terminalFont)
         assertEquals(
             listOf(HomeShortcut.Schedules, HomeShortcut.PullRequests, HomeShortcut.GithubActions),
             state.homeShortcutOrder,
@@ -81,6 +83,7 @@ class DeviceSettingsPreferencesTest {
         val state = DeviceSettingsPreferences(MemoryStore(released)).state.value
 
         assertEquals("default", state.themeId)
+        assertEquals(TerminalFontChoice.SystemMonospace, state.terminalFont)
         assertEquals(emptyList<PinnedSettingsShortcut>(), state.pinnedSettingsShortcuts)
         assertEquals(0, state.sidebarWidthDp)
         assertEquals(0, state.inspectorWidthDp)

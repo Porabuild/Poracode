@@ -75,7 +75,16 @@ internal fun RichAssistantMarkdown(source: String, settled: Boolean) {
             when (block) {
                 is RichInlineVisualBlock.Markdown -> RichMarkdownView(block.text)
                 is RichInlineVisualBlock.Html -> RichHtmlVisualView(block.visual)
-                is RichInlineVisualBlock.Source -> MarkdownCodeBlock(RichMarkdownBlock.Code(block.language, block.source))
+                is RichInlineVisualBlock.Source -> {
+                    val doc = remember(block.language, block.source) {
+                        NativeVisualDocument.parse(block.language, block.source)
+                    }
+                    if (doc != null) {
+                        RichNativeVisualView(doc, block.language, block.source)
+                    } else {
+                        MarkdownCodeBlock(RichMarkdownBlock.Code(block.language, block.source))
+                    }
+                }
             }
         }
     }

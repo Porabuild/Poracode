@@ -1,0 +1,13 @@
+<resources>
+    <string name="thread_lifecycle_ungroup">Dissocier</string>
+    <string name="git_auto_create_pr">Créer une PR</string>
+    <string name="review_details_title">Détails de révision</string>
+    <string name="review_details_no_pr_title">Aucune pull request ouverte</string>
+    <string name="review_details_no_pr_description">Aucune pull request active n\'est encore associée à cette branche.</string>
+    <string name="review_details_changes_summary">%1$d indexés · %2$d non indexés · %3$d conflits</string>
+    <string name="hub_search_placeholder">Rechercher…</string>
+    <string name="hub_filter_all">Tout</string>
+    <string name="hub_filter_open">Ouvertes</string>
+    <string name="hub_filter_draft">Brouillon</string>
+    <string name="hub_select_project_hint">Sélectionnez un projet pour voir les pull requests</string>
+</resources>

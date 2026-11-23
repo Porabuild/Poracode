@@ -39,14 +39,16 @@ struct HomeThreadSearchView: View {
   var hasBackgroundActivity: (UnifiedThreadListItem) -> Bool = { _ in false }
   var commands: [String]? = nil
   var runCommand: (String) -> Void = { _ in }
+  var searchRemoteMessages: ((String) async -> [RemoteConversationSearchEntry])? = nil
 
   @State private var query = ""
   @State private var searchPresented = false
+  @State private var messageHits: [RemoteConversationSearchEntry] = []
 
   var body: some View {
     NavigationStack {
       Group {
-        if results.isEmpty && matchingCommands.isEmpty {
+        if results.isEmpty && matchingCommands.isEmpty && messageHits.isEmpty {
           if query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             ContentUnavailableView(
               HomeStrings.emptyThreadsTitle,
@@ -67,6 +69,28 @@ struct HomeThreadSearchView: View {
               }
             }
             ForEach(results) { item in resultButton(item) }
+            if !messageHits.isEmpty {
+              Section("Messages") {
+                ForEach(messageHits, id: \.itemID) { hit in
+                  Button {
+                    if let matched = items.first(where: { $0.thread.id == hit.threadID }) {
+                      open(matched)
+                      dismiss()
+                    }
+                  } label: {
+                    VStack(alignment: .leading, spacing: 2) {
+                      Text(hit.title.isEmpty ? hit.projectName : hit.title)
+                        .font(.footnote.weight(.medium))
+                        .lineLimit(1)
+                      Text(hit.excerpt)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                    }
+                  }
+                }
+              }
+            }
           }
           .listStyle(.plain)
           .poracodeReadableListMargins(700)
@@ -83,6 +107,16 @@ struct HomeThreadSearchView: View {
       .textInputAutocapitalization(.never)
       .autocorrectionDisabled()
       .onAppear { if commands != nil { searchPresented = true } }
+      .task(id: query) {
+        let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let searchRemoteMessages, trimmed.count >= 2 else {
+          messageHits = []
+          return
+        }
+        try? await Task.sleep(nanoseconds: 250_000_000)
+        guard !Task.isCancelled else { return }
+        messageHits = await searchRemoteMessages(trimmed)
+      }
       .toolbar {
         ToolbarItem(placement: .confirmationAction) {
           Button(SettingsUIStrings.done) { dismiss() }

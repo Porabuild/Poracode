@@ -1,0 +1,27 @@
+<resources>
+    <string name="crews_title">Команди</string>
+    <string name="crews_description">Збережені команди для вибору моделі</string>
+    <string name="crews_new">Нова команда</string>
+    <string name="crews_default_name">Нова команда</string>
+    <string name="crews_default_role">Помічник</string>
+    <string name="crews_empty_title">Команд ще немає</string>
+    <string name="crews_empty_description">Створіть команду для координації допоміжних агентів з основною моделлю.</string>
+    <string name="crews_favorite">Обране</string>
+    <string name="crews_edit">Редагувати команду</string>
+    <string name="crews_duplicate">Дублювати</string>
+    <string name="crews_name_label">Назва команди</string>
+    <string name="crews_lead_model">Основна модель</string>
+    <string name="crews_policy">Політика</string>
+    <string name="crews_role_label">Назва ролі</string>
+    <string name="crews_role_agent">Агент ролі</string>
+    <string name="crews_role_model">Модель ролі</string>
+    <string name="crews_add_role">Додати роль помічника</string>
+    <string name="crews_clear_selection">Прибрати команду</string>
+    <string name="crews_use">Вибрати</string>
+    <string name="crews_selected">Вибрано</string>
+    <string name="settings_agents_enabled_title">Увімкнені агенти</string>
+    <string name="settings_agents_visible_models">Видимі моделі</string>
+    <string name="settings_agents_visible_models_count">Видно %1$d з %2$d моделей</string>
+    <string name="settings_agents_manage_models">Керувати</string>
+    <string name="settings_agents_provider_order">Порядок постачальників</string>
+</resources>

@@ -91,6 +91,20 @@ fun ThreadLifecycleActionsSheet(
                     onClick = { select(action.onClick) },
                 )
             }
+            if (!thread.groupId.isNullOrBlank()) {
+                PoracodeSheetAction(
+                    label = stringResource(R.string.thread_lifecycle_ungroup),
+                    icon = PoracodeIcons.CallSplit,
+                    enabled = actionsEnabled,
+                    onClick = {
+                        select {
+                            launch(scope, { failure = it }) {
+                                controller.execute(ThreadLifecycleCommand.ClearGroup(thread.id))
+                            }
+                        }
+                    },
+                )
+            }
             PoracodeSheetAction(
                 label = stringResource(
                     if (thread.isDone) R.string.thread_lifecycle_not_done else R.string.thread_lifecycle_done,

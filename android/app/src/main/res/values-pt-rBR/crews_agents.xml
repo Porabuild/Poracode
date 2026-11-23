@@ -1,0 +1,27 @@
+<resources>
+    <string name="crews_title">Equipes</string>
+    <string name="crews_description">Equipes salvas para o seletor de modelos</string>
+    <string name="crews_new">Nova equipe</string>
+    <string name="crews_default_name">Nova equipe</string>
+    <string name="crews_default_role">Auxiliar</string>
+    <string name="crews_empty_title">Nenhuma equipe ainda</string>
+    <string name="crews_empty_description">Crie uma equipe para coordenar agentes auxiliares com um modelo líder.</string>
+    <string name="crews_favorite">Favorito</string>
+    <string name="crews_edit">Editar equipe</string>
+    <string name="crews_duplicate">Duplicar</string>
+    <string name="crews_name_label">Nome da equipe</string>
+    <string name="crews_lead_model">Modelo líder</string>
+    <string name="crews_policy">Política</string>
+    <string name="crews_role_label">Rótulo da função</string>
+    <string name="crews_role_agent">Agente da função</string>
+    <string name="crews_role_model">Modelo da função</string>
+    <string name="crews_add_role">Adicionar função auxiliar</string>
+    <string name="crews_clear_selection">Remover equipe</string>
+    <string name="crews_use">Usar</string>
+    <string name="crews_selected">Selecionado</string>
+    <string name="settings_agents_enabled_title">Agentes ativados</string>
+    <string name="settings_agents_visible_models">Modelos visíveis</string>
+    <string name="settings_agents_visible_models_count">%1$d de %2$d modelos visíveis</string>
+    <string name="settings_agents_manage_models">Gerenciar</string>
+    <string name="settings_agents_provider_order">Ordem dos provedores</string>
+</resources>

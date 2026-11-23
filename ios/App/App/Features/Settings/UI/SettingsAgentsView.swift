@@ -41,6 +41,13 @@ struct SettingsAgentsView: View {
         SettingsUIStrings.wsl,
         environment: presentation.wsl
       )
+      Section {
+        NavigationLink {
+          AcpRegistryManagementView { await session.currentBoundAPIClient() }
+        } label: {
+          Label("ACP Registry", systemImage: "shippingbox")
+        }
+      }
     }
     .accessibilityIdentifier("native-e2e.settings.agents.list")
     .listStyle(.insetGrouped)

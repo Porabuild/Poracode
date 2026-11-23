@@ -8,6 +8,7 @@ import com.poracode.app.session.settings.SettingsOperationFailure
 enum class SettingsPane {
     Host,
     Agents,
+    Crews,
     Usage,
     Profile,
     Preferences,
