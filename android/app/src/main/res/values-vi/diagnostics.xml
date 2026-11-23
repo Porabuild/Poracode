@@ -1,0 +1,9 @@
+<resources>
+    <string name="diagnostics_title">Chẩn đoán</string>
+    <string name="diagnostics_description">Báo cáo sự cố và thoát cục bộ</string>
+    <string name="diagnostics_capture_toggle">Ghi lại chẩn đoán sự cố cục bộ</string>
+    <string name="diagnostics_capture_description">Báo cáo chỉ lưu trên thiết bị này (tối đa 20 báo cáo, 30 ngày) và không bao giờ tự động gửi đi. Tắt tùy chọn này sẽ xóa các báo cáo đã lưu.</string>
+    <string name="diagnostics_share">Chia sẻ JSON</string>
+    <string name="diagnostics_delete_all">Xóa tất cả</string>
+    <string name="diagnostics_empty">Chưa có báo cáo sự cố nào.</string>
+</resources>

@@ -1,0 +1,9 @@
+<resources>
+    <string name="diagnostics_title">Tanılama</string>
+    <string name="diagnostics_description">Yerel çökme ve çıkış raporları</string>
+    <string name="diagnostics_capture_toggle">Yerel çökme tanılamasını yakala</string>
+    <string name="diagnostics_capture_description">Raporlar bu cihazda kalır (en fazla 20 rapor, 30 gün) ve asla otomatik gönderilmez. Kapatmak kayıtlı raporları siler.</string>
+    <string name="diagnostics_share">JSON paylaş</string>
+    <string name="diagnostics_delete_all">Tümünü sil</string>
+    <string name="diagnostics_empty">Kayıtlı çökme tanılaması yok.</string>
+</resources>

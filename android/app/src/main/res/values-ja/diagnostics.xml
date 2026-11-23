@@ -1,0 +1,9 @@
+<resources>
+    <string name="diagnostics_title">診断</string>
+    <string name="diagnostics_description">ローカルのクラッシュおよび終了レポート</string>
+    <string name="diagnostics_capture_toggle">ローカルのクラッシュ診断を記録</string>
+    <string name="diagnostics_capture_description">レポートはこの端末内に保存され（最大20件・30日間）、自動送信されません。オフにすると保存済みレポートが削除されます。</string>
+    <string name="diagnostics_share">JSONを共有</string>
+    <string name="diagnostics_delete_all">すべて削除</string>
+    <string name="diagnostics_empty">クラッシュ診断はまだ記録されていません。</string>
+</resources>

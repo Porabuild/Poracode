@@ -240,6 +240,7 @@ jobs:
           path: |
             android/app/build/outputs/bundle/release/*.aab
             android/app/build/outputs/bundle/release/*.sha256
+            android/app/build/outputs/mapping/release/mapping.txt
             android/app/build/reports/lint-results-release.*
             android/app/build/test-results/testDebugUnitTest/**
           if-no-files-found: error

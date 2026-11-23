@@ -84,6 +84,12 @@ internal object SettingsSearchIndex {
             keywords = listOf("release", "notes", "changelog", "whats new", "updates"),
         ),
         SettingsSearchEntry(
+            target = SettingsSearchTarget.Route(SettingsRoute.Diagnostics),
+            titleRes = R.string.diagnostics_title,
+            icon = PoracodeIcons.ErrorOutline,
+            keywords = listOf("diagnostics", "crash", "reports", "logs", "exit"),
+        ),
+        SettingsSearchEntry(
             target = SettingsSearchTarget.Route(SettingsRoute.Host),
             titleRes = R.string.settings_host_title,
             icon = PoracodeIcons.Computer,

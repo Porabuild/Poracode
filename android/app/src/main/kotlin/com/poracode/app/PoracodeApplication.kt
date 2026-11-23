@@ -85,6 +85,8 @@ class PoracodeApplication : Application() {
         private set
     lateinit var deviceSettings: DeviceSettingsPreferences
         private set
+    lateinit var diagnostics: com.poracode.app.diagnostics.CrashDiagnosticsManager
+        private set
     lateinit var workspaces: HomeWorkspacePreferences
         private set
     lateinit var customThemes: CustomThemeStore
@@ -103,6 +105,10 @@ class PoracodeApplication : Application() {
         deviceSettings = DeviceSettingsPreferences(
             SharedPreferencesDeviceSettingsDocumentStore(this),
         )
+        diagnostics = com.poracode.app.diagnostics.CrashDiagnosticsManager(
+            directory = noBackupFilesDir.resolve("diagnostics"),
+            enabledStore = com.poracode.app.diagnostics.SharedPreferencesDiagnosticsEnabledStore(this),
+        ).also { it.installHandlers(this) }
         workspaces = HomeWorkspacePreferences(
             SharedPreferencesHomeWorkspaceDocumentStore(this),
         )

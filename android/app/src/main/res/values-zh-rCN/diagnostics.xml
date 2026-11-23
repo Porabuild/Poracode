@@ -1,0 +1,9 @@
+<resources>
+    <string name="diagnostics_title">诊断</string>
+    <string name="diagnostics_description">本地崩溃和退出报告</string>
+    <string name="diagnostics_capture_toggle">捕获本地崩溃诊断</string>
+    <string name="diagnostics_capture_description">报告仅保留在此设备上（最多 20 份，保留 30 天），绝不会自动发送。关闭后会删除已保存的报告。</string>
+    <string name="diagnostics_share">分享 JSON</string>
+    <string name="diagnostics_delete_all">全部删除</string>
+    <string name="diagnostics_empty">暂无崩溃诊断记录。</string>
+</resources>

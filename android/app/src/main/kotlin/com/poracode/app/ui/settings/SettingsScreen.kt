@@ -234,6 +234,7 @@ fun SettingsScreen(
                     SettingsRoute.Git -> DeviceGitPane(localSettings, deviceSettings)
                     SettingsRoute.KeyboardShortcuts -> DeviceKeyboardShortcutsPane(Modifier.fillMaxSize())
                     SettingsRoute.ReleaseNotes -> ReleaseNotesPane(Modifier.fillMaxSize())
+                    SettingsRoute.Diagnostics -> DeviceDiagnosticsPane(Modifier.fillMaxSize())
                     SettingsRoute.DesktopIndex -> DesktopSettingsIndex(
                         host = host,
                         onOpen = openRoute,
@@ -484,6 +485,7 @@ private fun settingsRouteTitle(route: SettingsRoute): String = stringResource(
         SettingsRoute.Git -> R.string.settings_device_git
         SettingsRoute.KeyboardShortcuts -> R.string.settings_keyboard_shortcuts
         SettingsRoute.ReleaseNotes -> R.string.changelog_title
+        SettingsRoute.Diagnostics -> R.string.diagnostics_title
         SettingsRoute.DesktopIndex -> R.string.hosts_desktop_settings
         SettingsRoute.Host -> R.string.settings_host_title
         SettingsRoute.Agents -> R.string.settings_agents_title

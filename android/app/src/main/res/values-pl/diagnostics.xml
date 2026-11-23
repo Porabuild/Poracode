@@ -1,0 +1,9 @@
+<resources>
+    <string name="diagnostics_title">Diagnostyka</string>
+    <string name="diagnostics_description">Lokalne raporty awarii i zamknięć</string>
+    <string name="diagnostics_capture_toggle">Zbieraj lokalną diagnostykę awarii</string>
+    <string name="diagnostics_capture_description">Raporty pozostają na tym urządzeniu (maks. 20 raportów, 30 dni) i nigdy nie są wysyłane automatycznie. Wyłączenie usuwa zapisane raporty.</string>
+    <string name="diagnostics_share">Udostępnij JSON</string>
+    <string name="diagnostics_delete_all">Usuń wszystko</string>
+    <string name="diagnostics_empty">Brak zarejestrowanych raportów awarii.</string>
+</resources>

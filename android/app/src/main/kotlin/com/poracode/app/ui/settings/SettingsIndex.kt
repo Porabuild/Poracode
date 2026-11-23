@@ -50,6 +50,7 @@ internal enum class SettingsRoute {
     Git,
     KeyboardShortcuts,
     ReleaseNotes,
+    Diagnostics,
     DesktopIndex,
     Host,
     Agents,
@@ -248,6 +249,11 @@ internal fun DeviceSettingsIndex(
                     R.string.changelog_title,
                     R.string.changelog_description,
                 ) { onOpen(SettingsRoute.ReleaseNotes) }
+                SettingsIndexRow(
+                    PoracodeIcons.ErrorOutline,
+                    R.string.diagnostics_title,
+                    R.string.diagnostics_description,
+                ) { onOpen(SettingsRoute.Diagnostics) }
                 SettingsIndexRow(
                     PoracodeIcons.PrivacyTip,
                     R.string.settings_privacy,

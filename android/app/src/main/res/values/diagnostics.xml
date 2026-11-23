@@ -1,0 +1,9 @@
+<resources>
+    <string name="diagnostics_title">Diagnostics</string>
+    <string name="diagnostics_description">Local crash and exit reports</string>
+    <string name="diagnostics_capture_toggle">Capture local crash diagnostics</string>
+    <string name="diagnostics_capture_description">Reports stay on this device (max 20 reports, 30 days) and are never sent automatically. Turning this off deletes stored reports.</string>
+    <string name="diagnostics_share">Share JSON</string>
+    <string name="diagnostics_delete_all">Delete all</string>
+    <string name="diagnostics_empty">No crash diagnostics recorded.</string>
+</resources>

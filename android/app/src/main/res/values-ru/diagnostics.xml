@@ -1,0 +1,9 @@
+<resources>
+    <string name="diagnostics_title">Диагностика</string>
+    <string name="diagnostics_description">Локальные отчёты о сбоях и завершениях</string>
+    <string name="diagnostics_capture_toggle">Сохранять локальную диагностику сбоев</string>
+    <string name="diagnostics_capture_description">Отчёты хранятся только на этом устройстве (не более 20 отчётов, 30 дней) и никогда не отправляются автоматически. Отключение удаляет сохранённые отчёты.</string>
+    <string name="diagnostics_share">Поделиться JSON</string>
+    <string name="diagnostics_delete_all">Удалить все</string>
+    <string name="diagnostics_empty">Отчёты о сбоях отсутствуют.</string>
+</resources>

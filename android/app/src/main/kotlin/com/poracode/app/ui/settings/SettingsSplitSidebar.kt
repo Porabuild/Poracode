@@ -127,6 +127,7 @@ internal fun SplitSettingsSidebar(
 
                 item { PoracodeSectionLabel(stringResource(R.string.settings_help_section), Modifier.padding(top = 12.dp, bottom = 6.dp)) }
                 item { PoracodeDrawerNavItem(stringResource(R.string.changelog_title), PoracodeIcons.Newspaper, selected == SettingsRoute.ReleaseNotes) { onSelect(SettingsRoute.ReleaseNotes) } }
+                item { PoracodeDrawerNavItem(stringResource(R.string.diagnostics_title), PoracodeIcons.ErrorOutline, selected == SettingsRoute.Diagnostics) { onSelect(SettingsRoute.Diagnostics) } }
                 item { PoracodeDrawerNavItem(stringResource(R.string.settings_privacy), PoracodeIcons.PrivacyTip, false, onClick = onOpenPrivacy) }
                 item { PoracodeDrawerNavItem(stringResource(R.string.settings_support), PoracodeIcons.SupportAgent, false, onClick = onOpenSupport) }
             }

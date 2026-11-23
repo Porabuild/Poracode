@@ -1,0 +1,9 @@
+<resources>
+    <string name="diagnostics_title">Diagnostics</string>
+    <string name="diagnostics_description">Rapports locaux de plantage et d\'arrêt</string>
+    <string name="diagnostics_capture_toggle">Capturer les diagnostics locaux</string>
+    <string name="diagnostics_capture_description">Les rapports restent sur cet appareil (max. 20 rapports, 30 jours) et ne sont jamais envoyés automatiquement. La désactivation supprime les rapports stockés.</string>
+    <string name="diagnostics_share">Partager le JSON</string>
+    <string name="diagnostics_delete_all">Tout supprimer</string>
+    <string name="diagnostics_empty">Aucun diagnostic de plantage enregistré.</string>
+</resources>
