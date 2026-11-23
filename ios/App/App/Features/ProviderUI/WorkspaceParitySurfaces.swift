@@ -138,7 +138,7 @@ struct EditorMultiTabStrip: View {
           .padding(.horizontal, 10)
           .padding(.vertical, 6)
           .background(
-            active ? Color.accentColor.opacity(0.16) : Color(.secondarySystemBackground),
+            active ? Color.primary.opacity(0.16) : Color(.secondarySystemBackground),
             in: Capsule()
           )
         }
@@ -167,7 +167,7 @@ struct EditorFindReplaceBar: View {
         TextField("Replace…", text: $replacement).textFieldStyle(.roundedBorder).font(.caption)
         Button("Replace all", action: onReplaceAll)
           .font(.caption.weight(.medium))
-          .buttonStyle(.bordered)
+          .poracodeSurfaceButtonStyle()
           .disabled(query.isEmpty || matchCount == 0)
       }
     }
@@ -280,7 +280,7 @@ struct PullRequestAskAiSheet: View {
               .font(.footnote)
               .padding(10)
               .background(
-                msg.isUser ? Color.accentColor.opacity(0.16) : Color(.secondarySystemBackground),
+                msg.isUser ? Color.primary.opacity(0.16) : Color(.secondarySystemBackground),
                 in: RoundedRectangle(cornerRadius: 10)
               )
             if !msg.isUser { Spacer() }
@@ -303,7 +303,7 @@ struct PullRequestAskAiSheet: View {
               sending = false
             }
           }
-          .buttonStyle(.borderedProminent)
+          .poracodeSurfaceButtonStyle()
           .disabled(prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || sending)
         }
         .padding(12)
@@ -331,18 +331,18 @@ struct GitReviewAiActionBar: View {
     VStack(spacing: 8) {
       HStack(spacing: 8) {
         Button("AI Commit Msg", systemImage: "sparkles", action: onGenerateCommitMessage)
-          .buttonStyle(.bordered)
+          .poracodeSurfaceButtonStyle()
           .disabled(busy)
         Button("Commit & Push", action: onCommitAndPush)
-          .buttonStyle(.bordered)
+          .poracodeSurfaceButtonStyle()
           .disabled(busy)
         Button("Commit + PR", action: onCommitPushAndPr)
-          .buttonStyle(.borderedProminent)
+          .poracodeSurfaceButtonStyle()
           .disabled(busy)
       }
       if hasConflicts {
         Button("Fix conflicts in Agent", systemImage: "sparkles", action: onFixConflictsInAgent)
-          .buttonStyle(.borderedProminent)
+          .poracodeSurfaceButtonStyle()
           .frame(maxWidth: .infinity)
           .disabled(busy)
       }
@@ -388,12 +388,12 @@ struct TerminalMultiTabBar: View {
             }
             .padding(.horizontal, 10)
             .padding(.vertical, 5)
-            .background(active ? Color.accentColor.opacity(0.18) : Color(.secondarySystemBackground), in: Capsule())
+            .background(active ? Color.primary.opacity(0.18) : Color(.secondarySystemBackground), in: Capsule())
           }
         }
       }
       Button { onAdd() } label: { Image(systemName: "plus") }
-        .buttonStyle(.bordered)
+        .poracodeSurfaceButtonStyle()
         .controlSize(.small)
       Toggle("Raw", isOn: $directKeyMode)
         .toggleStyle(.button)

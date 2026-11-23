@@ -128,3 +128,78 @@ private fun ReadOnlyCrewMember(
         )
     }
 }
+
+@Composable
+internal fun RichChatComposerCrewControl(
+    crewPresentation: ReadOnlyCrew?,
+    hasStartedSession: Boolean,
+    savedCrews: List<com.poracode.app.ui.crews.SavedCrew>,
+    controlsEnabled: Boolean,
+    onOpenPicker: () -> Unit,
+    onOpenRoster: () -> Unit,
+) {
+    crewPresentation?.let { crew ->
+        RichChatCrewChip(
+            crew = crew,
+            enabled = controlsEnabled,
+            onClick = {
+                if (!hasStartedSession && savedCrews.isNotEmpty()) onOpenPicker() else onOpenRoster()
+            },
+        )
+    } ?: if (!hasStartedSession && savedCrews.isNotEmpty()) {
+        com.poracode.app.ui.components.PoracodeIconButton(
+            icon = PoracodeIcons.Groups,
+            contentDescription = stringResource(R.string.crews_title),
+            enabled = controlsEnabled,
+            onClick = onOpenPicker,
+            tint = com.poracode.app.ui.theme.PoracodeTheme.colors.muted,
+            iconSize = 18.dp,
+        )
+    } else Unit
+}
+
+@Composable
+internal fun RichChatComposerCrewOverlays(
+    showRoster: Boolean,
+    showPicker: Boolean,
+    crewPresentation: ReadOnlyCrew?,
+    savedCrews: List<com.poracode.app.ui.crews.SavedCrew>,
+    currentCrewId: String?,
+    currentThread: com.poracode.app.model.RemoteThread?,
+    configuration: com.poracode.app.model.ThreadConfig,
+    onConfigurationChange: (com.poracode.app.model.ThreadConfig) -> Unit,
+    onDismissRoster: () -> Unit,
+    onDismissPicker: () -> Unit,
+) {
+    if (showRoster) {
+        crewPresentation?.let { crew ->
+            ReadOnlyCrewRosterSheet(
+                crew = crew,
+                leadAgentKind = currentThread?.agentKind.orEmpty(),
+                leadModel = configuration.model,
+                leadEffort = configuration.effort,
+                leadFast = configuration.fast == true,
+                onDismiss = onDismissRoster,
+            )
+        }
+    }
+    if (showPicker) {
+        com.poracode.app.ui.crews.SavedCrewPickerSheet(
+            crews = savedCrews,
+            selectedCrewId = currentCrewId,
+            onSelect = { crew ->
+                onConfigurationChange(
+                    if (crew == null) configuration.copy(crew = null)
+                    else configuration.copy(
+                        model = crew.lead.model,
+                        effort = crew.lead.effort,
+                        fast = crew.lead.fast,
+                        crew = crew.toThreadBindingJson(),
+                    ),
+                )
+                onDismissPicker()
+            },
+            onDismiss = onDismissPicker,
+        )
+    }
+}

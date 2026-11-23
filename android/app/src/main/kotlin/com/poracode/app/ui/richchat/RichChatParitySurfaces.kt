@@ -49,6 +49,7 @@ import com.poracode.app.ui.theme.PoracodeTextStyles
 import com.poracode.app.ui.theme.PoracodeTheme
 import java.net.URLEncoder
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
@@ -187,6 +188,52 @@ internal fun RichStickyPromptBar(
             style = PoracodeTextStyles.rowMeta,
             color = colors.muted,
         )
+    }
+}
+
+@Composable
+internal fun RichTimelinePromptRailChrome(
+    transcript: com.poracode.app.chat.RichThreadState,
+    entries: List<com.poracode.app.chat.RichTimelineEntry>,
+    headerCount: Int,
+    listState: androidx.compose.foundation.lazy.LazyListState,
+    scope: kotlinx.coroutines.CoroutineScope,
+    modifier: Modifier,
+    content: @Composable (Modifier) -> Unit,
+) {
+    val promptEntries = remember(transcript.itemsInOrder) {
+        transcript.itemsInOrder
+            .filter { it.type == com.poracode.app.chat.RichItemTypes.USER_MESSAGE }
+            .mapNotNull { item ->
+                RichChatUiLogic.itemText(item).trim().takeIf(String::isNotEmpty)?.let { item.id to it }
+            }
+            .mapIndexed { idx, (id, text) -> RichPromptIndexEntry(id = id, text = text, index = idx) }
+    }
+    var showPromptRail by androidx.compose.runtime.saveable.rememberSaveable(transcript.key.threadId) {
+        mutableStateOf(false)
+    }
+    if (showPromptRail && promptEntries.isNotEmpty()) {
+        RichPromptRailSheet(
+            prompts = promptEntries,
+            onSelect = { selected ->
+                val targetIndex = entries.indexOfFirst { e -> selected.id in timelineEntryItemIds(e) }
+                if (targetIndex >= 0) {
+                    scope.launch { listState.animateScrollToItem(headerCount + targetIndex) }
+                }
+            },
+            onDismiss = { showPromptRail = false },
+        )
+    }
+    Column(modifier = modifier) {
+        if (promptEntries.size > 1) {
+            RichStickyPromptBar(
+                activePrompt = promptEntries.last(),
+                totalPrompts = promptEntries.size,
+                onOpenRail = { showPromptRail = true },
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+            )
+        }
+        content(Modifier.weight(1f).fillMaxWidth())
     }
 }
 

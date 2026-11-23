@@ -167,12 +167,7 @@ private fun SettingsAgentsAndUsagePane(
                         }
                     }
                     item(key = "agents-controls") {
-                        SettingsAgentsControlsSection(
-                            settings = entry?.settings,
-                            replayCache = replayCache,
-                            canWrite = access.canWrite && !mutation.settingsSaving,
-                            onSaveSettings = onSaveSettings,
-                        )
+                        SettingsAgentsControlsSection(entry?.settings, replayCache, access.canWrite && !mutation.settingsSaving, onSaveSettings)
                     }
                     authoritative.sections.forEach { section ->
                         item(key = "env-${section.environment}") {

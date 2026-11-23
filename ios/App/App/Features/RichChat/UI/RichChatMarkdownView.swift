@@ -125,7 +125,7 @@ struct RichChatMarkdownView: View {
     return HStack(alignment: reference == nil ? .firstTextBaseline : .center, spacing: 8) {
       if let checked = parsed.checked {
         Image(systemName: checked ? "checkmark.square.fill" : "square")
-          .foregroundStyle(checked ? Color.accentColor : .secondary)
+          .foregroundStyle(checked ? Color.primary : .secondary)
           .frame(width: 20, alignment: .trailing)
       } else {
         Text(marker)

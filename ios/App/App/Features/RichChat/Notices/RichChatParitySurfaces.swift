@@ -56,7 +56,7 @@ struct RichChatAsyncQuestionReplyForm: View {
             } label: {
               HStack(spacing: 8) {
                 Image(systemName: picked ? "checkmark.circle.fill" : "circle")
-                  .foregroundStyle(picked ? Color.accentColor : .secondary)
+                  .foregroundStyle(picked ? Color.primary : .secondary)
                 Text(option).font(.footnote)
                 Spacer()
               }
@@ -73,7 +73,7 @@ struct RichChatAsyncQuestionReplyForm: View {
         let map = selections.mapValues { Array($0).sorted() }
         onSubmit(AsyncQuestionReplySubmission(sourceItemId: sourceItemId, answers: map, customText: customText))
       }
-      .buttonStyle(.borderedProminent)
+      .poracodeSurfaceButtonStyle()
       .controlSize(.small)
       .disabled(!canSubmit)
     }

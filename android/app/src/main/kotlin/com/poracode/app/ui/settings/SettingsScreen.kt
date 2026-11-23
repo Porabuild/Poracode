@@ -472,32 +472,3 @@ private fun SettingsPaneContent(
         SettingsPane.Environments -> Unit
     }
 }
-
-@Composable
-private fun settingsRouteTitle(route: SettingsRoute): String = stringResource(
-    when (route) {
-        SettingsRoute.DeviceIndex -> R.string.settings_title
-        SettingsRoute.General -> R.string.settings_device_general
-        SettingsRoute.Appearance -> R.string.settings_device_appearance
-        SettingsRoute.Notifications -> R.string.settings_device_notifications
-        SettingsRoute.Audio -> R.string.settings_device_audio
-        SettingsRoute.Terminal -> R.string.settings_device_terminal
-        SettingsRoute.Git -> R.string.settings_device_git
-        SettingsRoute.KeyboardShortcuts -> R.string.settings_keyboard_shortcuts
-        SettingsRoute.ReleaseNotes -> R.string.changelog_title
-        SettingsRoute.Diagnostics -> R.string.diagnostics_title
-        SettingsRoute.DesktopIndex -> R.string.hosts_desktop_settings
-        SettingsRoute.Host -> R.string.settings_host_title
-        SettingsRoute.Agents -> R.string.settings_agents_title
-        SettingsRoute.Crews -> R.string.crews_title
-        SettingsRoute.SessionImport -> R.string.session_import_title
-        SettingsRoute.Usage -> R.string.settings_usage_title
-        SettingsRoute.Profile -> R.string.settings_profile_title
-        SettingsRoute.Preferences -> R.string.settings_generation_title
-        SettingsRoute.Memory -> R.string.settings_memory_title
-        SettingsRoute.Workspace -> R.string.settings_workspace_defaults
-        SettingsRoute.Environments -> R.string.environments_settings_title
-        SettingsRoute.GlobalMcp -> R.string.settings_global_mcp_title
-        SettingsRoute.ArchivedThreads -> R.string.archived_threads_title
-    },
-)

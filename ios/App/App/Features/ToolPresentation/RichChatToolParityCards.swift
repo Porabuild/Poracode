@@ -43,7 +43,7 @@ struct RichChatToolDiffPreviewCard: View {
   private func lineColor(_ line: String) -> Color {
     if line.hasPrefix("+") && !line.hasPrefix("+++") { return .green }
     if line.hasPrefix("-") && !line.hasPrefix("---") { return .red }
-    if line.hasPrefix("@@") { return .accentColor }
+    if line.hasPrefix("@@") { return .secondary }
     return .primary
   }
 }

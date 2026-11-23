@@ -126,7 +126,7 @@ struct RichChatHtmlFilePreviewCard: View {
             }
           }
           .font(.caption.weight(.medium))
-          .buttonStyle(.bordered)
+          .poracodeSurfaceButtonStyle()
         }
       }
       if expanded, let html = loadedHTML {

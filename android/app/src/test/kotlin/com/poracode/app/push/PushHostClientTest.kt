@@ -62,7 +62,7 @@ class PushHostClientTest {
             assertEquals("Bearer access-secret", register.getHeader("Authorization"))
             val body = JSONObject(register.body.readUtf8())
             assertEquals(
-                setOf("deviceId", "platform", "deviceToken", "appVersion", "routing"),
+                setOf("deviceId", "platform", "deviceToken", "appVersion", "routing", "alertPreferences"),
                 body.keys().asSequence().toSet(),
             )
             assertFalse(body.getJSONObject("routing").has("threadId"))

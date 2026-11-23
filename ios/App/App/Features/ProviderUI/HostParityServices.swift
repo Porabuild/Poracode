@@ -81,12 +81,12 @@ struct AcpRegistryManagementView: View {
           Spacer()
           if entry.installed {
             Button("Update") { perform { try await HostAgentRegistryWire.updateAcpRegistryAgent(agentId: entry.id, api: $0) } }
-              .buttonStyle(.bordered)
+              .poracodeSurfaceButtonStyle()
             Button("Remove", role: .destructive) { perform { try await HostAgentRegistryWire.removeAcpRegistryAgent(agentId: entry.id, api: $0) } }
-              .buttonStyle(.bordered)
+              .poracodeSurfaceButtonStyle()
           } else {
             Button("Install") { perform { try await HostAgentRegistryWire.installAcpRegistryAgent(agentId: entry.id, api: $0) } }
-              .buttonStyle(.borderedProminent)
+              .poracodeSurfaceButtonStyle()
           }
         }
       }

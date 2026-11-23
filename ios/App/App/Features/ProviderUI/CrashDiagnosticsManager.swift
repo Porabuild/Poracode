@@ -255,6 +255,7 @@ struct CrashDiagnosticsSettingsView: View {
     List {
       Section {
         Toggle("Capture local crash diagnostics", isOn: $store.captureEnabled)
+          .poracodeSwitchStyle()
       } footer: {
         Text("Reports stay on this device (max 20 reports, 30 days) and are never sent automatically. Turning this off deletes stored reports.")
       }

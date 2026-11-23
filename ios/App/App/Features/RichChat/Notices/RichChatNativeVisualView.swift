@@ -380,7 +380,7 @@ struct RichChatNativeVisualView: View {
               }
               GeometryReader { geo in
                 RoundedRectangle(cornerRadius: 3)
-                  .fill(Color.accentColor.opacity(0.85))
+                  .fill(Color.primary.opacity(0.85))
                   .frame(width: max(4, geo.size.width * ratio), height: 8)
               }
               .frame(height: 8)
@@ -403,7 +403,7 @@ struct RichChatNativeVisualView: View {
           } label: {
             HStack(spacing: 8) {
               Image(systemName: isChecked ? "checkmark.square.fill" : "square")
-                .foregroundStyle(isChecked ? Color.accentColor : .secondary)
+                .foregroundStyle(isChecked ? Color.primary : .secondary)
               Text(item.label)
                 .font(.footnote)
                 .strikethrough(isChecked)
