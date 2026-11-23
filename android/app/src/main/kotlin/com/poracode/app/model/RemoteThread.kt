@@ -32,6 +32,7 @@ data class RemoteThread(
     /** Live negotiated session controls (`RemoteSessionConfigOption`); null/absent keeps static fallback. */
     val sessionConfigOptions: List<RemoteSessionConfigOption>? = null,
     val parentThreadId: String? = null,
+    val groupId: String? = null,
     /** Live structured-session identity; absent on older hosts. */
     val sessionRef: RemoteSessionRef? = null,
     /** Readonly host projection; absence is unknown, never launch or mutation authority. */

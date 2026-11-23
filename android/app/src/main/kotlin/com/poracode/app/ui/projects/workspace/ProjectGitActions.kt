@@ -3,6 +3,7 @@ package com.poracode.app.ui.projects.workspace
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
@@ -50,6 +51,8 @@ internal fun ProjectGitActions(
     busy: Boolean,
     outcome: GitMutationOutcome?,
     onRequest: (GitOperationRequest) -> Unit,
+    onAutoCreatePr: (() -> Unit)? = null,
+    onOpenReviewDetails: (() -> Unit)? = null,
 ) {
     var expanded by rememberSaveable { mutableStateOf(false) }
     Column(
@@ -61,6 +64,24 @@ internal fun ProjectGitActions(
             enabled = enabled && !busy,
             modifier = Modifier.fillMaxWidth().testTag("git_actions_open"),
         ) { Text(stringResource(R.string.git_actions)) }
+        if (onAutoCreatePr != null || onOpenReviewDetails != null) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (onAutoCreatePr != null) {
+                    FilledTonalButton(
+                        onClick = onAutoCreatePr,
+                        enabled = enabled && !busy,
+                        modifier = Modifier.weight(1f),
+                    ) { Text(stringResource(R.string.git_auto_create_pr)) }
+                }
+                if (onOpenReviewDetails != null) {
+                    OutlinedButton(
+                        onClick = onOpenReviewDetails,
+                        enabled = !busy,
+                        modifier = Modifier.weight(1f),
+                    ) { Text(stringResource(R.string.review_details_title)) }
+                }
+            }
+        }
         when (outcome) {
             is GitMutationOutcome.Applied -> GitOutcomeText(R.string.git_change_applied)
             is GitMutationOutcome.Reconciled -> GitOutcomeText(

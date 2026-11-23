@@ -198,6 +198,13 @@ data class RelocateProject(
 @SerialName("remove")
 data class RemoveProject(val projectId: String) : ProjectCommand
 
+@Serializable
+@SerialName("set-draft-config")
+data class SetProjectDraftConfig(
+    val projectId: String,
+    val draftConfig: ProjectDraftConfig,
+) : ProjectCommand
+
 /**
  * Decoded `POST /api/projects/command` response union.
  *

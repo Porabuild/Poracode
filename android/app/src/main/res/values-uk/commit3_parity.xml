@@ -1,0 +1,13 @@
+<resources>
+    <string name="thread_lifecycle_ungroup">Розгрупувати</string>
+    <string name="git_auto_create_pr">Створити PR</string>
+    <string name="review_details_title">Деталі рев\'ю</string>
+    <string name="review_details_no_pr_title">Немає відкритого pull request</string>
+    <string name="review_details_no_pr_description">З цією гілкою ще не пов\'язано активного pull request.</string>
+    <string name="review_details_changes_summary">%1$d в індексі · %2$d не в індексі · %3$d конфліктів</string>
+    <string name="hub_search_placeholder">Пошук…</string>
+    <string name="hub_filter_all">Усі</string>
+    <string name="hub_filter_open">Відкриті</string>
+    <string name="hub_filter_draft">Чернетка</string>
+    <string name="hub_select_project_hint">Виберіть проєкт для перегляду pull request</string>
+</resources>

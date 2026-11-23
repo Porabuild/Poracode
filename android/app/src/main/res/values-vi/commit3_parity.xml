@@ -1,0 +1,13 @@
+<resources>
+    <string name="thread_lifecycle_ungroup">Bỏ nhóm</string>
+    <string name="git_auto_create_pr">Tạo PR</string>
+    <string name="review_details_title">Chi tiết đánh giá</string>
+    <string name="review_details_no_pr_title">Không có pull request nào đang mở</string>
+    <string name="review_details_no_pr_description">Chưa có pull request nào liên kết với nhánh này.</string>
+    <string name="review_details_changes_summary">%1$d đã staged · %2$d chưa staged · %3$d xung đột</string>
+    <string name="hub_search_placeholder">Tìm kiếm…</string>
+    <string name="hub_filter_all">Tất cả</string>
+    <string name="hub_filter_open">Đang mở</string>
+    <string name="hub_filter_draft">Bản nháp</string>
+    <string name="hub_select_project_hint">Chọn dự án để xem pull request</string>
+</resources>

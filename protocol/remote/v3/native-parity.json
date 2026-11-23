@@ -1042,11 +1042,14 @@
             ]
           },
           "ui": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "partial",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/ui/home/HomeThreadListPane.kt"
+            ],
+            "note": "The production Android catalog consumer is wired through RemoteBoundedReadClient. Independent large-catalog device qualification remains pending."
           }
         },
-        "note": "B4 bounded catalog/history transport is implemented in the handwritten Android and iOS clients through generated codecs. Native UI and large-catalog device qualification remain separate from wire implementation."
+        "note": "B4 bounded catalog/history transport is implemented in the handwritten Android and iOS clients through generated codecs. Large-catalog device qualification remains pending."
       },
       {
         "id": "catalog-membership",
@@ -1081,11 +1084,14 @@
             ]
           },
           "ui": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "partial",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/ui/home/HomeThreadListPane.kt"
+            ],
+            "note": "The production Android catalog consumer is wired through RemoteBoundedReadClient. Independent large-catalog device qualification remains pending."
           }
         },
-        "note": "B4 bounded catalog/history transport is implemented in the handwritten Android and iOS clients through generated codecs. Native UI and large-catalog device qualification remain separate from wire implementation."
+        "note": "B4 bounded catalog/history transport is implemented in the handwritten Android and iOS clients through generated codecs. Large-catalog device qualification remains pending."
       },
       {
         "id": "local-image",
@@ -2413,11 +2419,14 @@
             ]
           },
           "ui": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "partial",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/ui/home/HomeThreadListPane.kt"
+            ],
+            "note": "The production Android catalog consumer is wired through RemoteBoundedReadClient. Independent large-catalog device qualification remains pending."
           }
         },
-        "note": "B4 bounded catalog/history transport is implemented in the handwritten Android and iOS clients through generated codecs. Native UI and large-catalog device qualification remain separate from wire implementation. Readonly optional saved-workspace roots/revision are retained in order, including unknown legacy versus explicit empty. No workspace-grant capability, mutation API, authorization from cache, or native grant UI is advertised."
+        "note": "B4 bounded catalog/history transport is implemented in the handwritten Android and iOS clients through generated codecs. Large-catalog device qualification remains pending. Readonly optional saved-workspace roots/revision are retained in order, including unknown legacy versus explicit empty. No workspace-grant capability, mutation API, authorization from cache, or native grant UI is advertised."
       },
       {
         "id": "thread-history-items",
@@ -2526,11 +2535,15 @@
             ]
           },
           "ui": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "partial",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/ui/richchat/RichTimelineView.kt",
+              "android/app/src/main/kotlin/com/poracode/app/session/richchat/RichChatHistoryController.kt"
+            ],
+            "note": "RichTimelineView and RichChatHistoryController page older completed turns through olderTurnsCursor. Independent large-catalog device qualification remains pending."
           }
         },
-        "note": "B4 bounded catalog/history transport is implemented in the handwritten Android and iOS clients through generated codecs. Native UI and large-catalog device qualification remain separate from wire implementation."
+        "note": "B4 bounded catalog/history transport and older-turn paging UI are implemented on both iOS and Android. Large-catalog device qualification remains pending."
       },
       {
         "id": "thread-start-existing",

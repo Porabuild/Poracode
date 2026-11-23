@@ -1,0 +1,13 @@
+<resources>
+    <string name="thread_lifecycle_ungroup">取消分组</string>
+    <string name="git_auto_create_pr">创建 PR</string>
+    <string name="review_details_title">审查详情</string>
+    <string name="review_details_no_pr_title">没有打开的拉取请求</string>
+    <string name="review_details_no_pr_description">此分支尚未关联活动的拉取请求。</string>
+    <string name="review_details_changes_summary">%1$d 已暂存 · %2$d 未暂存 · %3$d 冲突</string>
+    <string name="hub_search_placeholder">搜索…</string>
+    <string name="hub_filter_all">全部</string>
+    <string name="hub_filter_open">打开</string>
+    <string name="hub_filter_draft">草稿</string>
+    <string name="hub_select_project_hint">选择一个项目以查看拉取请求</string>
+</resources>

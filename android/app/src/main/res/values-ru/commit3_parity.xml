@@ -1,0 +1,13 @@
+<resources>
+    <string name="thread_lifecycle_ungroup">Разгруппировать</string>
+    <string name="git_auto_create_pr">Создать PR</string>
+    <string name="review_details_title">Детали ревью</string>
+    <string name="review_details_no_pr_title">Нет открытого pull request</string>
+    <string name="review_details_no_pr_description">С этой веткой пока не связан активный pull request.</string>
+    <string name="review_details_changes_summary">%1$d в индексе · %2$d не в индексе · %3$d конфликтов</string>
+    <string name="hub_search_placeholder">Поиск…</string>
+    <string name="hub_filter_all">Все</string>
+    <string name="hub_filter_open">Открытые</string>
+    <string name="hub_filter_draft">Черновики</string>
+    <string name="hub_select_project_hint">Выберите проект для просмотра pull request</string>
+</resources>

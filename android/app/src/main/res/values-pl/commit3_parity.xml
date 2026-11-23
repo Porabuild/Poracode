@@ -1,0 +1,13 @@
+<resources>
+    <string name="thread_lifecycle_ungroup">Rozgrupuj</string>
+    <string name="git_auto_create_pr">Utwórz PR</string>
+    <string name="review_details_title">Szczegóły przeglądu</string>
+    <string name="review_details_no_pr_title">Brak otwartego pull requestu</string>
+    <string name="review_details_no_pr_description">Do tej gałęzi nie przypisano jeszcze aktywnego pull requestu.</string>
+    <string name="review_details_changes_summary">%1$d w poczekalni · %2$d poza poczekalnią · %3$d konfliktów</string>
+    <string name="hub_search_placeholder">Szukaj…</string>
+    <string name="hub_filter_all">Wszystkie</string>
+    <string name="hub_filter_open">Otwarte</string>
+    <string name="hub_filter_draft">Szkic</string>
+    <string name="hub_select_project_hint">Wybierz projekt, aby sprawdzić pull requesty</string>
+</resources>

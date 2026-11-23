@@ -1,0 +1,13 @@
+<resources>
+    <string name="thread_lifecycle_ungroup">Ungroup</string>
+    <string name="git_auto_create_pr">Create PR</string>
+    <string name="review_details_title">Review details</string>
+    <string name="review_details_no_pr_title">No open pull request</string>
+    <string name="review_details_no_pr_description">No active pull request is associated with this branch yet.</string>
+    <string name="review_details_changes_summary">%1$d staged · %2$d unstaged · %3$d conflicts</string>
+    <string name="hub_search_placeholder">Search…</string>
+    <string name="hub_filter_all">All</string>
+    <string name="hub_filter_open">Open</string>
+    <string name="hub_filter_draft">Draft</string>
+    <string name="hub_select_project_hint">Select a project to inspect pull requests</string>
+</resources>

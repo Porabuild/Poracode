@@ -348,17 +348,12 @@ internal fun ThreadListPane(
         }
         val utility = HomeProjectUtility.entries.firstOrNull { it.name == projectUtilityName }
         if (utility != null) {
-            HomeProjectUtilityPicker(
+            com.poracode.app.ui.projects.HomeUtilityOverlay(
                 utility = utility,
-                projects = projectOptions.filter {
-                    it.connectionId == state.hostCatalog.selectedConnectionId &&
-                        utility.supports(it.project)
-                },
+                state = state,
+                projectOptions = projectOptions,
                 onDismiss = { projectUtilityName = null },
-                onSelect = { option ->
-                    projectUtilityName = null
-                    onOpenProjectUtility(option.connectionId, option.project.id, utility)
-                },
+                onOpenProjectUtility = onOpenProjectUtility,
             )
         }
     }

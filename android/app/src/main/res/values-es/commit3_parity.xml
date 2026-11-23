@@ -1,0 +1,13 @@
+<resources>
+    <string name="thread_lifecycle_ungroup">Desagrupar</string>
+    <string name="git_auto_create_pr">Crear PR</string>
+    <string name="review_details_title">Detalles de revisión</string>
+    <string name="review_details_no_pr_title">Sin solicitud de cambios abierta</string>
+    <string name="review_details_no_pr_description">Aún no hay una solicitud de cambios activa asociada a esta rama.</string>
+    <string name="review_details_changes_summary">%1$d preparados · %2$d sin preparar · %3$d conflictos</string>
+    <string name="hub_search_placeholder">Buscar…</string>
+    <string name="hub_filter_all">Todos</string>
+    <string name="hub_filter_open">Abiertos</string>
+    <string name="hub_filter_draft">Borrador</string>
+    <string name="hub_select_project_hint">Selecciona un proyecto para ver las solicitudes de cambios</string>
+</resources>
