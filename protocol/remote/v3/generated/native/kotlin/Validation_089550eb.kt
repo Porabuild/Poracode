@@ -21,6 +21,10 @@ internal val schema_149c9d9dd2191aa3: RemoteSchema by lazy {
     RemoteSchema(type = "object", required = setOf("environmentId"), properties = mapOf("environmentId" to schema_36fea325bf1aca70), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
 
+internal val schema_14a995c93889f1e1: RemoteSchema by lazy {
+    RemoteSchema(type = "string", literals = listOf(JsonPrimitive("openai-completions"), JsonPrimitive("openai-responses"), JsonPrimitive("anthropic-messages")), unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
+}
+
 internal val schema_14ca57bfe938f3d4: RemoteSchema by lazy {
     RemoteSchema(unionKind = "oneOf", options = listOf(schema_9eaa25e68d8e4cf4, schema_107db71e1696908a, schema_1709690cf0edf961, schema_2b7b34c95b23bb0d, schema_0e8f58f429bb1135, schema_d550ef9994fd388f, schema_838adcbcaff5f551, schema_5af10e67b405a136, schema_3f58316dbb160752, schema_d2299af726097d6c, schema_93bef3a552bf787e), unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
@@ -87,6 +91,10 @@ internal val schema_16b775effb3d19e7: RemoteSchema by lazy {
 
 internal val schema_1709690cf0edf961: RemoteSchema by lazy {
     RemoteSchema(type = "object", required = setOf("type"), properties = mapOf("id" to schema_36fea325bf1aca70, "sentAt" to schema_80c415b6e27c6ebd, "type" to schema_fe79d48b8af45e7d), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
+}
+
+internal val schema_172d5c08125b0df4: RemoteSchema by lazy {
+    RemoteSchema(type = "string", minLength = 1, maxLength = 512, unknownPolicy = RemoteUnknownFieldPolicy.STRIP, semanticIds = listOf("string.trim"), transformIds = listOf("string.trim"))
 }
 
 internal val schema_174bab0c7c772746: RemoteSchema by lazy {

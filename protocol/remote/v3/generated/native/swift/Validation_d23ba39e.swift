@@ -1,6 +1,14 @@
 // GENERATED FILE. Do not edit by hand.
 import Foundation
 public extension RemoteSchemas {
+  static let schema_6350bebbf3d13115 = RemoteSchema(type: "string", minLength: 1, maxLength: 24, unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
+  static let schema_636da2bdcbf5818d = RemoteSchema(unionKind: "anyOf", options: [RemoteSchemas.schema_6db96506f253ef73, RemoteSchemas.schema_b7c373d0981a5441], unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
   static let schema_637f685cb2418b8c = RemoteSchema(unionKind: "anyOf", options: [RemoteSchemas.schema_9ff1236d4782edc7, RemoteSchemas.schema_b7c373d0981a5441], unknownPolicy: .strip)
 }
 
@@ -53,6 +61,10 @@ public extension RemoteSchemas {
 }
 
 public extension RemoteSchemas {
+  static let schema_6554493bfa61b085 = RemoteSchema(type: "object", required: Set(["action", "agentKind", "create", "env", "provider", "revision"]), properties: ["action": RemoteSchemas.schema_a2bcbae622b18cea, "agentKind": RemoteSchemas.schema_8e43cad70cd70de7, "apiKey": RemoteSchemas.schema_d48d13740c8803d4, "create": RemoteSchemas.schema_feeb8bb50144d96d, "env": RemoteSchemas.schema_2583fd799237ae71, "provider": RemoteSchemas.schema_9b6b648329c17d0e, "revision": RemoteSchemas.schema_8e43cad70cd70de7], additionalAllowed: true, unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
   static let schema_65899fb957cb9421 = RemoteSchema(type: "object", defaultValue: .object([:]), additionalSchema: RemoteSchemas.schema_feeb8bb50144d96d, propertyNames: RemoteSchemas.schema_13f43aaaf56911fa, unknownPolicy: .strip)
 }
 
@@ -62,6 +74,10 @@ public extension RemoteSchemas {
 
 public extension RemoteSchemas {
   static let schema_65e6698fa7640db4 = RemoteSchema(type: "object", properties: ["gui": RemoteSchemas.schema_38b68e422d630291, "terminal": RemoteSchemas.schema_38b68e422d630291], additionalAllowed: true, unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
+  static let schema_65ec808e7a55f981 = RemoteSchema(type: "object", required: Set(["providers"]), properties: ["providers": RemoteSchemas.schema_7fdc1b397391e8f3], additionalAllowed: true, unknownPolicy: .strip)
 }
 
 public extension RemoteSchemas {

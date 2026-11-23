@@ -5,6 +5,30 @@ import kotlinx.serialization.*
 import kotlinx.serialization.descriptors.*
 import kotlinx.serialization.encoding.*
 import kotlinx.serialization.json.*
+val RemoteRootCodecs.procedureU2EGhListWorkflowsU2ERequest: RemoteRootCodec<ProcedureghListWorkflowsRequest_72429c4be5>
+    get() = RemoteRootCodec("procedure.ghListWorkflows.request", serializer<ProcedureghListWorkflowsRequest_72429c4be5>(), schema_72429c4be55ff8fc)
+
+val RemoteRootCodecs.procedureU2EGhListWorkflowsU2EResult: RemoteRootCodec<ProcedureghListWorkflowsResult_3994629a32>
+    get() = RemoteRootCodec("procedure.ghListWorkflows.result", serializer<ProcedureghListWorkflowsResult_3994629a32>(), schema_3994629a32a97c9b)
+
+val RemoteRootCodecs.procedureU2EGhMarkPrReadyU2ERequest: RemoteRootCodec<ProcedureghClosePrRequest_868bf1042a>
+    get() = RemoteRootCodec("procedure.ghMarkPrReady.request", serializer<ProcedureghClosePrRequest_868bf1042a>(), schema_868bf1042a1bbba1)
+
+val RemoteRootCodecs.procedureU2EGhMergePrU2ERequest: RemoteRootCodec<ProcedureghMergePrRequest_39d6579ca7>
+    get() = RemoteRootCodec("procedure.ghMergePr.request", serializer<ProcedureghMergePrRequest_39d6579ca7>(), schema_39d6579ca7450396)
+
+val RemoteRootCodecs.procedureU2EGhPollPullRequestsU2ERequest: RemoteRootCodec<ProcedureghPollPullRequestsRequest_559c498a02>
+    get() = RemoteRootCodec("procedure.ghPollPullRequests.request", serializer<ProcedureghPollPullRequestsRequest_559c498a02>(), schema_559c498a020be6ad)
+
+val RemoteRootCodecs.procedureU2EGhPollPullRequestsU2EResult: RemoteRootCodec<ProcedureghPollPullRequestsResult_729d8ec224>
+    get() = RemoteRootCodec("procedure.ghPollPullRequests.result", serializer<ProcedureghPollPullRequestsResult_729d8ec224>(), schema_729d8ec2243ca0f3)
+
+val RemoteRootCodecs.procedureU2EGhPostPrCommentU2ERequest: RemoteRootCodec<ProcedureghPostPrCommentRequest_189279e83c>
+    get() = RemoteRootCodec("procedure.ghPostPrComment.request", serializer<ProcedureghPostPrCommentRequest_189279e83c>(), schema_189279e83c3a2ce4)
+
+val RemoteRootCodecs.procedureU2EGhPostPrCommentU2EResult: RemoteRootCodec<ProcedureforgeGetPrDetailsResultU2DDetailsU2DCommentsU2DItem_cb95bf43ec>
+    get() = RemoteRootCodec("procedure.ghPostPrComment.result", serializer<ProcedureforgeGetPrDetailsResultU2DDetailsU2DCommentsU2DItem_cb95bf43ec>(), schema_cb95bf43ec62db01)
+
 val RemoteRootCodecs.procedureU2EGhReopenPrU2ERequest: RemoteRootCodec<ProcedureghClosePrRequest_868bf1042a>
     get() = RemoteRootCodec("procedure.ghReopenPr.request", serializer<ProcedureghClosePrRequest_868bf1042a>(), schema_868bf1042a1bbba1)
 
@@ -185,6 +209,12 @@ val RemoteRootCodecs.procedureU2EInstallAcpRegistryAgentU2ERequest: RemoteRootCo
 val RemoteRootCodecs.procedureU2EInstallAcpRegistryAgentU2EResult: RemoteRootCodec<ProcedureinstallAcpRegistryAgentResult_4e9b40f602>
     get() = RemoteRootCodec("procedure.installAcpRegistryAgent.result", serializer<ProcedureinstallAcpRegistryAgentResult_4e9b40f602>(), schema_4e9b40f6024250fb)
 
+val RemoteRootCodecs.procedureU2EInstallAgentHookPluginU2ERequest: RemoteRootCodec<ProceduregetNativeMcpSetupRequest_cb16458180>
+    get() = RemoteRootCodec("procedure.installAgentHookPlugin.request", serializer<ProceduregetNativeMcpSetupRequest_cb16458180>(), schema_cb164581809b29f0)
+
+val RemoteRootCodecs.procedureU2EInstallAgentHookPluginU2EResult: RemoteRootCodec<ProcedureinstallAgentHookPluginResult_482260ac5d>
+    get() = RemoteRootCodec("procedure.installAgentHookPlugin.result", serializer<ProcedureinstallAgentHookPluginResult_482260ac5d>(), schema_482260ac5dd3cc4f)
+
 val RemoteRootCodecs.procedureU2EInstallMarketplaceSkillU2ERequest: RemoteRootCodec<ProcedureinstallMarketplaceSkillRequest_0093611cbb>
     get() = RemoteRootCodec("procedure.installMarketplaceSkill.request", serializer<ProcedureinstallMarketplaceSkillRequest_0093611cbb>(), schema_0093611cbbbd16a0)
 
@@ -245,6 +275,24 @@ val RemoteRootCodecs.procedureU2ELogoutAcpAgentU2ERequest: RemoteRootCodec<Proce
 val RemoteRootCodecs.procedureU2ELspStartU2ERequest: RemoteRootCodec<ProcedurelspStartRequest_0fbb6754fb>
     get() = RemoteRootCodec("procedure.lspStart.request", serializer<ProcedurelspStartRequest_0fbb6754fb>(), schema_0fbb6754fb3c4dd0)
 
+val RemoteRootCodecs.procedureU2EManageAgentCredentialsU2ERequest: RemoteRootCodec<ProceduremanageAgentCredentialsRequest_ca5c527c98>
+    get() = RemoteRootCodec("procedure.manageAgentCredentials.request", serializer<ProceduremanageAgentCredentialsRequest_ca5c527c98>(), schema_ca5c527c986f0628)
+
+val RemoteRootCodecs.procedureU2EManageAgentCredentialsU2EResult: RemoteRootCodec<ProceduremanageAgentCredentialsResult_65ec808e7a>
+    get() = RemoteRootCodec("procedure.manageAgentCredentials.result", serializer<ProceduremanageAgentCredentialsResult_65ec808e7a>(), schema_65ec808e7a55f981)
+
+val RemoteRootCodecs.procedureU2EManageAgentPluginsU2ERequest: RemoteRootCodec<ProceduremanageAgentPluginsRequest_c61abfd0f3>
+    get() = RemoteRootCodec("procedure.manageAgentPlugins.request", serializer<ProceduremanageAgentPluginsRequest_c61abfd0f3>(), schema_c61abfd0f3a8ad5d)
+
+val RemoteRootCodecs.procedureU2EManageAgentPluginsU2EResult: RemoteRootCodec<ProceduremanageAgentPluginsResult_940863a47c>
+    get() = RemoteRootCodec("procedure.manageAgentPlugins.result", serializer<ProceduremanageAgentPluginsResult_940863a47c>(), schema_940863a47ce0d148)
+
+val RemoteRootCodecs.procedureU2EManageModelProvidersU2ERequest: RemoteRootCodec<ProceduremanageModelProvidersRequest_925f63aff8>
+    get() = RemoteRootCodec("procedure.manageModelProviders.request", serializer<ProceduremanageModelProvidersRequest_925f63aff8>(), schema_925f63aff8376636)
+
+val RemoteRootCodecs.procedureU2EManageModelProvidersU2EResult: RemoteRootCodec<ProceduremanageModelProvidersResult_7fdba00683>
+    get() = RemoteRootCodec("procedure.manageModelProviders.result", serializer<ProceduremanageModelProvidersResult_7fdba00683>(), schema_7fdba00683eb9654)
+
 val RemoteRootCodecs.procedureU2EMoveProjectEntryU2ERequest: RemoteRootCodec<ProceduremoveProjectEntryRequest_47c3f1ae81>
     get() = RemoteRootCodec("procedure.moveProjectEntry.request", serializer<ProceduremoveProjectEntryRequest_47c3f1ae81>(), schema_47c3f1ae81cfac00)
 
@@ -293,8 +341,8 @@ val RemoteRootCodecs.procedureU2EReadProjectFileU2EResult: RemoteRootCodec<Proce
 val RemoteRootCodecs.procedureU2EReadTerminalScrollbackU2ERequest: RemoteRootCodec<ProcedurecancelExtractContextRequest_09b78d9c1d>
     get() = RemoteRootCodec("procedure.readTerminalScrollback.request", serializer<ProcedurecancelExtractContextRequest_09b78d9c1d>(), schema_09b78d9c1d4c3a6b)
 
-val RemoteRootCodecs.procedureU2EReadTerminalScrollbackU2EResult: RemoteRootCodec<ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b>
-    get() = RemoteRootCodec("procedure.readTerminalScrollback.result", serializer<ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b>(), schema_bf0b727f7b1c6d07)
+val RemoteRootCodecs.procedureU2EReadTerminalScrollbackU2EResult: RemoteRootCodec<ProcedureapplyNativeMcpSetupResultU2DCandidatesU2DItemU2DId_bf0b727f7b>
+    get() = RemoteRootCodec("procedure.readTerminalScrollback.result", serializer<ProcedureapplyNativeMcpSetupResultU2DCandidatesU2DItemU2DId_bf0b727f7b>(), schema_bf0b727f7b1c6d07)
 
 val RemoteRootCodecs.procedureU2EReadTerminalSizeU2ERequest: RemoteRootCodec<ProcedurecancelExtractContextRequest_09b78d9c1d>
     get() = RemoteRootCodec("procedure.readTerminalSize.request", serializer<ProcedurecancelExtractContextRequest_09b78d9c1d>(), schema_09b78d9c1d4c3a6b)
@@ -331,6 +379,9 @@ val RemoteRootCodecs.procedureU2ERefreshProviderUsageU2ERequest: RemoteRootCodec
 
 val RemoteRootCodecs.procedureU2ERefreshProviderUsageU2EResult: RemoteRootCodec<ProceduregetProviderUsageResult_4c22b67e11>
     get() = RemoteRootCodec("procedure.refreshProviderUsage.result", serializer<ProceduregetProviderUsageResult_4c22b67e11>(), schema_4c22b67e111cba1f)
+
+val RemoteRootCodecs.procedureU2EReloadAgentMcpServersU2ERequest: RemoteRootCodec<ProceduregetAgentConfigDefaultsRequest_d8b98c8024>
+    get() = RemoteRootCodec("procedure.reloadAgentMcpServers.request", serializer<ProceduregetAgentConfigDefaultsRequest_d8b98c8024>(), schema_d8b98c802420b030)
 
 val RemoteRootCodecs.procedureU2ERelocateProjectU2ERequest: RemoteRootCodec<ProcedurerelocateProjectRequest_51fc061b3e>
     get() = RemoteRootCodec("procedure.relocateProject.request", serializer<ProcedurerelocateProjectRequest_51fc061b3e>(), schema_51fc061b3ecc735c)
@@ -397,54 +448,3 @@ val RemoteRootCodecs.procedureU2ESearchProjectTreeU2EResult: RemoteRootCodec<Pro
 
 val RemoteRootCodecs.procedureU2ESetAcpRegistryAgentAuthU2ERequest: RemoteRootCodec<ProceduresetAcpRegistryAgentAuthRequest_abad7b87a3>
     get() = RemoteRootCodec("procedure.setAcpRegistryAgentAuth.request", serializer<ProceduresetAcpRegistryAgentAuthRequest_abad7b87a3>(), schema_abad7b87a3edad5d)
-
-val RemoteRootCodecs.procedureU2ESetAcpRegistryAgentAuthU2EResult: RemoteRootCodec<ProcedureinstallAcpRegistryAgentResult_4e9b40f602>
-    get() = RemoteRootCodec("procedure.setAcpRegistryAgentAuth.result", serializer<ProcedureinstallAcpRegistryAgentResult_4e9b40f602>(), schema_4e9b40f6024250fb)
-
-val RemoteRootCodecs.procedureU2ESetSkillEnabledU2ERequest: RemoteRootCodec<ProceduresetSkillEnabledRequest_38462ff398>
-    get() = RemoteRootCodec("procedure.setSkillEnabled.request", serializer<ProceduresetSkillEnabledRequest_38462ff398>(), schema_38462ff398fbe205)
-
-val RemoteRootCodecs.procedureU2EStageThreadInputU2ERequest: RemoteRootCodec<ProcedurestageThreadInputRequest_d4db039cba>
-    get() = RemoteRootCodec("procedure.stageThreadInput.request", serializer<ProcedurestageThreadInputRequest_d4db039cba>(), schema_d4db039cbac5831c)
-
-val RemoteRootCodecs.procedureU2EStartThreadU2ERequest: RemoteRootCodec<ProcedureensureThreadRunningRequest_6e1a462e69>
-    get() = RemoteRootCodec("procedure.startThread.request", serializer<ProcedureensureThreadRunningRequest_6e1a462e69>(), schema_6e1a462e69bece35)
-
-val RemoteRootCodecs.procedureU2EStartThreadU2EResult: RemoteRootCodec<ProcedurecancelExtractContextRequest_09b78d9c1d>
-    get() = RemoteRootCodec("procedure.startThread.result", serializer<ProcedurecancelExtractContextRequest_09b78d9c1d>(), schema_09b78d9c1d4c3a6b)
-
-val RemoteRootCodecs.procedureU2ESteerQueuedThreadFollowUpU2ERequest: RemoteRootCodec<ProcedurepauseThreadFollowUpsRequest_d42717fff2>
-    get() = RemoteRootCodec("procedure.steerQueuedThreadFollowUp.request", serializer<ProcedurepauseThreadFollowUpsRequest_d42717fff2>(), schema_d42717fff211bd92)
-
-val RemoteRootCodecs.procedureU2ESubagentSubscribeU2ERequest: RemoteRootCodec<ProceduresubagentSubscribeRequest_ff495aee3e>
-    get() = RemoteRootCodec("procedure.subagentSubscribe.request", serializer<ProceduresubagentSubscribeRequest_ff495aee3e>(), schema_ff495aee3e719fab)
-
-val RemoteRootCodecs.procedureU2ESubagentSubscribeU2EResult: RemoteRootCodec<ProceduresubagentSubscribeResult_d4ae5f8c2b>
-    get() = RemoteRootCodec("procedure.subagentSubscribe.result", serializer<ProceduresubagentSubscribeResult_d4ae5f8c2b>(), schema_d4ae5f8c2be25c3f)
-
-val RemoteRootCodecs.procedureU2ESubagentUnsubscribeU2ERequest: RemoteRootCodec<ProceduresubagentSubscribeRequest_ff495aee3e>
-    get() = RemoteRootCodec("procedure.subagentUnsubscribe.request", serializer<ProceduresubagentSubscribeRequest_ff495aee3e>(), schema_ff495aee3e719fab)
-
-val RemoteRootCodecs.procedureU2EUpdateAcpRegistryAgentU2ERequest: RemoteRootCodec<ProcedureinstallAcpRegistryAgentRequest_e484765a09>
-    get() = RemoteRootCodec("procedure.updateAcpRegistryAgent.request", serializer<ProcedureinstallAcpRegistryAgentRequest_e484765a09>(), schema_e484765a09e242ad)
-
-val RemoteRootCodecs.procedureU2EUpdateAcpRegistryAgentU2EResult: RemoteRootCodec<ProcedureinstallAcpRegistryAgentResult_4e9b40f602>
-    get() = RemoteRootCodec("procedure.updateAcpRegistryAgent.result", serializer<ProcedureinstallAcpRegistryAgentResult_4e9b40f602>(), schema_4e9b40f6024250fb)
-
-val RemoteRootCodecs.procedureU2EUpdateAgentBinaryU2ERequest: RemoteRootCodec<ProcedureupdateAgentBinaryRequest_580654e207>
-    get() = RemoteRootCodec("procedure.updateAgentBinary.request", serializer<ProcedureupdateAgentBinaryRequest_580654e207>(), schema_580654e20740047f)
-
-val RemoteRootCodecs.procedureU2EUpdateAgentBinaryU2EResult: RemoteRootCodec<ProcedureupdateAgentBinaryResult_0d863fe350>
-    get() = RemoteRootCodec("procedure.updateAgentBinary.result", serializer<ProcedureupdateAgentBinaryResult_0d863fe350>(), schema_0d863fe3501fe68f)
-
-val RemoteRootCodecs.procedureU2EWaitMcpServerOauthU2ERequest: RemoteRootCodec<ProcedurewaitMcpServerOauthRequest_58cefff26a>
-    get() = RemoteRootCodec("procedure.waitMcpServerOauth.request", serializer<ProcedurewaitMcpServerOauthRequest_58cefff26a>(), schema_58cefff26ad3774a)
-
-val RemoteRootCodecs.procedureU2EWaitMcpServerOauthU2EResult: RemoteRootCodec<ProcedurewaitMcpServerOauthResult_51cc694dc5>
-    get() = RemoteRootCodec("procedure.waitMcpServerOauth.result", serializer<ProcedurewaitMcpServerOauthResult_51cc694dc5>(), schema_51cc694dc5da9f2a)
-
-val RemoteRootCodecs.procedureU2EWorkflowAgentChatU2ERequest: RemoteRootCodec<ProcedureworkflowAgentChatRequest_014d2dfae8>
-    get() = RemoteRootCodec("procedure.workflowAgentChat.request", serializer<ProcedureworkflowAgentChatRequest_014d2dfae8>(), schema_014d2dfae880067a)
-
-val RemoteRootCodecs.procedureU2EWorkflowAgentChatU2EResult: RemoteRootCodec<ProcedureworkflowAgentChatResult_350a19ed30>
-    get() = RemoteRootCodec("procedure.workflowAgentChat.result", serializer<ProcedureworkflowAgentChatResult_350a19ed30>(), schema_350a19ed30bb6b81)

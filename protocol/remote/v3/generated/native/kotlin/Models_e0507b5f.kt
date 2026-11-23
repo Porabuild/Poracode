@@ -24,12 +24,12 @@ data class ProcedurerefreshAgentStatusesResultU2DWindowsU2DItemU2DSessionRuntime
 
 @Serializable
 data class ProcedurerefreshAgentStatusesResultU2DWindowsU2DItemU2DUpdateU2DBuiltIn_685dee710c(
-    @SerialName("args") val args: List<ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b>,
+    @SerialName("args") val args: List<ProcedureapplyNativeMcpSetupResultU2DCandidatesU2DItemU2DId_bf0b727f7b>,
     @SerialName("binary") val binary: String,
 ) {
     companion object {
         val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
-            RemoteFieldDescriptor("args", "List<ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b>", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("args", "List<ProcedureapplyNativeMcpSetupResultU2DCandidatesU2DItemU2DId_bf0b727f7b>", true, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("binary", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
         ), listOf())
     }
@@ -65,7 +65,7 @@ data class ProcedurerefreshAgentStatusesResultU2DWindowsU2DItemU2DUpdate_892eceb
     @SerialName("npm") val npm: RemoteField<String> = RemoteField.Missing,
     @SerialName("preferPackageManagerOnWindows") val preferPackageManagerOnWindows: RemoteField<List<ProcedurerefreshAgentStatusesResultU2DWindowsU2DItemU2DUpdateU2DPreferPackageManagerOnWindowsU2DItem_4721d11b49>> = RemoteField.Missing,
     @SerialName("verifyBuiltInVersionChange") val verifyBuiltInVersionChange: RemoteField<Boolean> = RemoteField.Missing,
-    @SerialName("windowsNpmInstallArgs") val windowsNpmInstallArgs: RemoteField<List<ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b>> = RemoteField.Missing,
+    @SerialName("windowsNpmInstallArgs") val windowsNpmInstallArgs: RemoteField<List<ProcedureapplyNativeMcpSetupResultU2DCandidatesU2DItemU2DId_bf0b727f7b>> = RemoteField.Missing,
     @SerialName("winget") val winget: RemoteField<String> = RemoteField.Missing,
 ) {
     companion object {
@@ -78,7 +78,7 @@ data class ProcedurerefreshAgentStatusesResultU2DWindowsU2DItemU2DUpdate_892eceb
             RemoteFieldDescriptor("npm", "String", false, false, null, null, 1, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("preferPackageManagerOnWindows", "List<ProcedurerefreshAgentStatusesResultU2DWindowsU2DItemU2DUpdateU2DPreferPackageManagerOnWindowsU2DItem_4721d11b49>", false, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("verifyBuiltInVersionChange", "Boolean", false, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("windowsNpmInstallArgs", "List<ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b>", false, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("windowsNpmInstallArgs", "List<ProcedureapplyNativeMcpSetupResultU2DCandidatesU2DItemU2DId_bf0b727f7b>", false, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("winget", "String", false, false, null, null, 1, null, null, null, null, null, listOf()),
         ), listOf())
     }
@@ -91,10 +91,10 @@ data class ProcedurerefreshAgentStatusesResultU2DWindowsU2DItem_def077222f(
     @SerialName("authMethods") val authMethods: RemoteField<List<ProcedurerefreshAgentStatusesResultU2DWindowsU2DItemU2DAuthMethodsU2DItem_9dee5b4966>> = RemoteField.Missing,
     @SerialName("authState") val authState: ProcedurerefreshAgentStatusesResultU2DWindowsU2DItemU2DAuthState_2363c4dd0a,
     @SerialName("capabilities") val capabilities: ProcedurerefreshAgentStatusesResultU2DWindowsU2DItemU2DCapabilities_de2055b6e4,
-    @SerialName("envDistro") val envDistro: RemoteField<ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b> = RemoteField.Missing,
+    @SerialName("envDistro") val envDistro: RemoteField<ProcedureapplyNativeMcpSetupResultU2DCandidatesU2DItemU2DId_bf0b727f7b> = RemoteField.Missing,
     @SerialName("envKind") val envKind: RemoteField<ProcedureauthenticateAcpAgentRequestU2DEnvKind_9eed5c4959> = RemoteField.Missing,
-    @SerialName("executablePath") val executablePath: RemoteField<ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b> = RemoteField.Missing,
-    @SerialName("icon") val icon: RemoteField<ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b> = RemoteField.Missing,
+    @SerialName("executablePath") val executablePath: RemoteField<ProcedureapplyNativeMcpSetupResultU2DCandidatesU2DItemU2DId_bf0b727f7b> = RemoteField.Missing,
+    @SerialName("icon") val icon: RemoteField<ProcedureapplyNativeMcpSetupResultU2DCandidatesU2DItemU2DId_bf0b727f7b> = RemoteField.Missing,
     @SerialName("installed") val installed: Boolean,
     @SerialName("kind") val kind: String,
     @SerialName("label") val label: String,
@@ -107,7 +107,7 @@ data class ProcedurerefreshAgentStatusesResultU2DWindowsU2DItem_def077222f(
     @SerialName("runtimeVariants") val runtimeVariants: RemoteField<ProcedurerefreshAgentStatusesResultU2DWindowsU2DItemU2DRuntimeVariants_5376f6dc7a> = RemoteField.Missing,
     @SerialName("sessionRuntimeRouting") val sessionRuntimeRouting: RemoteField<ProcedurerefreshAgentStatusesResultU2DWindowsU2DItemU2DSessionRuntimeRouting_d221b1853e> = RemoteField.Missing,
     @SerialName("update") val update: RemoteField<ProcedurerefreshAgentStatusesResultU2DWindowsU2DItemU2DUpdate_892eceb2ac> = RemoteField.Missing,
-    @SerialName("version") val version: RemoteField<ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b> = RemoteField.Missing,
+    @SerialName("version") val version: RemoteField<ProcedureapplyNativeMcpSetupResultU2DCandidatesU2DItemU2DId_bf0b727f7b> = RemoteField.Missing,
 ) {
     companion object {
         val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
@@ -116,10 +116,10 @@ data class ProcedurerefreshAgentStatusesResultU2DWindowsU2DItem_def077222f(
             RemoteFieldDescriptor("authMethods", "List<ProcedurerefreshAgentStatusesResultU2DWindowsU2DItemU2DAuthMethodsU2DItem_9dee5b4966>", false, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("authState", "ProcedurerefreshAgentStatusesResultU2DWindowsU2DItemU2DAuthState_2363c4dd0a", true, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("capabilities", "ProcedurerefreshAgentStatusesResultU2DWindowsU2DItemU2DCapabilities_de2055b6e4", true, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("envDistro", "ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b", false, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("envDistro", "ProcedureapplyNativeMcpSetupResultU2DCandidatesU2DItemU2DId_bf0b727f7b", false, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("envKind", "ProcedureauthenticateAcpAgentRequestU2DEnvKind_9eed5c4959", false, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("executablePath", "ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b", false, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("icon", "ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b", false, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("executablePath", "ProcedureapplyNativeMcpSetupResultU2DCandidatesU2DItemU2DId_bf0b727f7b", false, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("icon", "ProcedureapplyNativeMcpSetupResultU2DCandidatesU2DItemU2DId_bf0b727f7b", false, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("installed", "Boolean", true, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("kind", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("label", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
@@ -132,7 +132,7 @@ data class ProcedurerefreshAgentStatusesResultU2DWindowsU2DItem_def077222f(
             RemoteFieldDescriptor("runtimeVariants", "ProcedurerefreshAgentStatusesResultU2DWindowsU2DItemU2DRuntimeVariants_5376f6dc7a", false, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("sessionRuntimeRouting", "ProcedurerefreshAgentStatusesResultU2DWindowsU2DItemU2DSessionRuntimeRouting_d221b1853e", false, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("update", "ProcedurerefreshAgentStatusesResultU2DWindowsU2DItemU2DUpdate_892eceb2ac", false, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("version", "ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b", false, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("version", "ProcedureapplyNativeMcpSetupResultU2DCandidatesU2DItemU2DId_bf0b727f7b", false, false, null, null, null, null, null, null, null, null, listOf()),
         ), listOf())
     }
 }

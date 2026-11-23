@@ -5,7 +5,7 @@ import { Download, Trash2 } from "lucide-react";
 import type { AgentHookPluginEnv, AgentHookPluginStatus, AgentStatus } from "@/shared/contracts";
 import { hookEnvForAgentStatus, hookEnvKey } from "@/shared/agentHookPluginEnv";
 import { localEnvLabel } from "@/renderer/utils/machineLabels";
-import { readBridge } from "@/renderer/bridge";
+import { useAgentSettingsHost } from "@/renderer/components/providers/settings/AgentSettingsHostContext";
 
 function HookPluginEnvironmentRow(props: {
   agentKind: string;
@@ -16,6 +16,7 @@ function HookPluginEnvironmentRow(props: {
   onPending: (pending: boolean) => void;
 }) {
   const { t } = useLingui();
+  const settingsHost = useAgentSettingsHost();
   const { status } = props;
   const versionText = status.installed
     ? status.version
@@ -39,12 +40,11 @@ function HookPluginEnvironmentRow(props: {
   const actionLabel =
     mode === "install" ? t`Install` : mode === "update" ? t`Update` : t`Uninstall`;
   const runAction = () => {
+    if (!settingsHost.isOnline) return;
     props.onPending(true);
-    const action =
-      mode === "uninstall"
-        ? readBridge().uninstallAgentHookPlugin
-        : readBridge().installAgentHookPlugin;
-    action({ agentKind: props.agentKind, env: status.env })
+    const procedure = mode === "uninstall" ? "uninstallAgentHookPlugin" : "installAgentHookPlugin";
+    settingsHost
+      .callProcedure(procedure, { agentKind: props.agentKind, env: status.env })
       .then((result) => {
         props.onRefresh(result.status);
         const envName = localEnvLabel(status.env);
@@ -78,7 +78,7 @@ function HookPluginEnvironmentRow(props: {
           size="sm"
           variant={mode === "uninstall" ? "tertiary" : "secondary"}
           className="h-7 min-h-7 gap-1 px-2 text-[11px]"
-          isDisabled={!status.supported || props.pending}
+          isDisabled={!status.supported || props.pending || !settingsHost.isOnline}
           isPending={props.pending}
           onPress={runAction}
         >
@@ -99,6 +99,7 @@ export function HookPluginSettings(props: {
   agentLabel: string;
   statuses: readonly AgentStatus[];
 }) {
+  const settingsHost = useAgentSettingsHost();
   const [pluginStatuses, setPluginStatuses] = useState<AgentHookPluginStatus[]>([]);
   const [pendingKey, setPendingKey] = useState<string | undefined>(undefined);
 
@@ -110,6 +111,10 @@ export function HookPluginSettings(props: {
     .join("|");
 
   useEffect(() => {
+    if (!settingsHost.isOnline) {
+      setPluginStatuses([]);
+      return;
+    }
     const envs = new Map<string, AgentHookPluginEnv>();
     for (const status of props.statuses) {
       const env = hookEnvForAgentStatus(status);
@@ -121,8 +126,8 @@ export function HookPluginSettings(props: {
       return;
     }
     let cancelled = false;
-    readBridge()
-      .getAgentHookPluginStatuses({ agentKind: props.agentKind, envs: envList })
+    settingsHost
+      .callProcedure("getAgentHookPluginStatuses", { agentKind: props.agentKind, envs: envList })
       .then((statuses) => {
         if (!cancelled) setPluginStatuses(statuses);
       })
@@ -133,7 +138,7 @@ export function HookPluginSettings(props: {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [props.agentKind, envsKey]);
+  }, [settingsHost.key, settingsHost.isOnline, props.agentKind, envsKey]);
 
   if (pluginStatuses.length === 0 || pluginStatuses.every((status) => !status.supported)) {
     return null;

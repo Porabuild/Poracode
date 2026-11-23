@@ -28,6 +28,9 @@ import {
   forgeEditPrPayloadSchema,
   forgeReviewScopeSchema,
 } from "../../contracts/forge";
+import { manageAgentPluginsPayloadSchema } from "../../contracts/agentPlugins";
+import { manageAgentCredentialsPayloadSchema } from "../../contracts/agentCredentials";
+import { modelProviderIdSchema, modelProviderUrlSchema } from "../../contracts/modelProviders";
 import { threadGoalControlSchema, startThreadPayloadSchema } from "../../contracts/thread";
 import {
   remotePushRegistrationRoutingSchema,
@@ -84,6 +87,34 @@ const REGISTERED: ReadonlyArray<{
   readonly schema: z.ZodType;
   readonly validator: SemanticValidator;
 }> = [
+  {
+    schema: manageAgentPluginsPayloadSchema,
+    validator: {
+      id: "agent-plugins.target-required",
+      reason: "install, update, and remove actions require a non-empty package target",
+    },
+  },
+  {
+    schema: manageAgentCredentialsPayloadSchema,
+    validator: {
+      id: "agent-credentials.id-required",
+      reason: "remove action requires a non-empty credential identifier",
+    },
+  },
+  {
+    schema: modelProviderIdSchema,
+    validator: {
+      id: "model-provider.id-safe",
+      reason: "model provider id must not be a reserved prototype property name",
+    },
+  },
+  {
+    schema: modelProviderUrlSchema,
+    validator: {
+      id: "model-provider.valid-url",
+      reason: "model provider baseURL must be credential-free http(s)",
+    },
+  },
   {
     schema: forgeAccountRefSchema.shape.host,
     validator: {

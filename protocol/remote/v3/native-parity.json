@@ -10912,6 +10912,256 @@
           }
         },
         "note": "Generated native codecs, authenticated transports, exact-host gateways, and account-scoped review UI; device verification remains open."
+      },
+      {
+        "id": "getAgentConfigDefaults",
+        "batch": "settings-integrations",
+        "ios": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": []
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": []
+          }
+        },
+        "note": "Generated remote-v3 bindings include this agent settings procedure; desktop/web remote settings use it while native iOS and Android UI adoption remains planned."
+      },
+      {
+        "id": "getNativeMcpSetup",
+        "batch": "settings-integrations",
+        "ios": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": []
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": []
+          }
+        },
+        "note": "Generated remote-v3 bindings include this agent settings procedure; desktop/web remote settings use it while native iOS and Android UI adoption remains planned."
+      },
+      {
+        "id": "applyNativeMcpSetup",
+        "batch": "settings-integrations",
+        "ios": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": []
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": []
+          }
+        },
+        "note": "Generated remote-v3 bindings include this agent settings procedure; desktop/web remote settings use it while native iOS and Android UI adoption remains planned."
+      },
+      {
+        "id": "reloadAgentMcpServers",
+        "batch": "settings-integrations",
+        "ios": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": []
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": []
+          }
+        },
+        "note": "Generated remote-v3 bindings include this agent settings procedure; desktop/web remote settings use it while native iOS and Android UI adoption remains planned."
+      },
+      {
+        "id": "getAgentHookPluginStatuses",
+        "batch": "settings-integrations",
+        "ios": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": []
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": []
+          }
+        },
+        "note": "Generated remote-v3 bindings include this agent settings procedure; desktop/web remote settings use it while native iOS and Android UI adoption remains planned."
+      },
+      {
+        "id": "installAgentHookPlugin",
+        "batch": "settings-integrations",
+        "ios": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": []
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": []
+          }
+        },
+        "note": "Generated remote-v3 bindings include this agent settings procedure; desktop/web remote settings use it while native iOS and Android UI adoption remains planned."
+      },
+      {
+        "id": "uninstallAgentHookPlugin",
+        "batch": "settings-integrations",
+        "ios": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": []
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": []
+          }
+        },
+        "note": "Generated remote-v3 bindings include this agent settings procedure; desktop/web remote settings use it while native iOS and Android UI adoption remains planned."
+      },
+      {
+        "id": "manageAgentPlugins",
+        "batch": "settings-integrations",
+        "ios": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": []
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": []
+          }
+        },
+        "note": "Generated remote-v3 bindings include this agent settings procedure; desktop/web remote settings use it while native iOS and Android UI adoption remains planned."
+      },
+      {
+        "id": "manageAgentCredentials",
+        "batch": "settings-integrations",
+        "ios": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": []
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": []
+          }
+        },
+        "note": "Generated remote-v3 bindings include this agent settings procedure; desktop/web remote settings use it while native iOS and Android UI adoption remains planned."
+      },
+      {
+        "id": "manageModelProviders",
+        "batch": "settings-integrations",
+        "ios": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": []
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": []
+          }
+        },
+        "note": "Generated remote-v3 bindings include this agent settings procedure; desktop/web remote settings use it while native iOS and Android UI adoption remains planned."
       }
     ],
     "webSocketClientMessages": [

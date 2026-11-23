@@ -36,7 +36,9 @@ import {
   createRevertAnchorResultSchema,
   extractContextPayloadSchema,
   extractContextResultSchema,
+  agentHookPluginMutationResultSchema,
   agentHookPluginPayloadSchema,
+  agentHookPluginStatusSchema,
   getAgentHookPluginStatusesPayloadSchema,
   getAgentStatusesPayloadSchema,
   agentStatusesResponseSchema,
@@ -74,6 +76,7 @@ import {
   updateAgentBinaryResultSchema,
   getLatestAgentVersionResultSchema,
   getAgentConfigDefaultsPayloadSchema,
+  getAgentConfigDefaultsResultSchema,
   resolveAgentAccountPayloadSchema,
   resolveAgentAccountResultSchema,
   writeTerminalPayloadSchema,
@@ -255,17 +258,32 @@ export const threadProcedures = {
     GetAgentHookPluginStatusesPayload,
     AgentHookPluginStatus[],
     "supervisor"
-  >("getAgentHookPluginStatuses", "supervisor", getAgentHookPluginStatusesPayloadSchema),
+  >(
+    "getAgentHookPluginStatuses",
+    "supervisor",
+    getAgentHookPluginStatusesPayloadSchema,
+    z.array(agentHookPluginStatusSchema),
+  ),
   installAgentHookPlugin: definePayloadProcedure<
     AgentHookPluginPayload,
     AgentHookPluginMutationResult,
     "supervisor"
-  >("installAgentHookPlugin", "supervisor", agentHookPluginPayloadSchema),
+  >(
+    "installAgentHookPlugin",
+    "supervisor",
+    agentHookPluginPayloadSchema,
+    agentHookPluginMutationResultSchema,
+  ),
   uninstallAgentHookPlugin: definePayloadProcedure<
     AgentHookPluginPayload,
     AgentHookPluginMutationResult,
     "supervisor"
-  >("uninstallAgentHookPlugin", "supervisor", agentHookPluginPayloadSchema),
+  >(
+    "uninstallAgentHookPlugin",
+    "supervisor",
+    agentHookPluginPayloadSchema,
+    agentHookPluginMutationResultSchema,
+  ),
   listAcpRegistry: defineNoArgProcedure<AcpRegistryListResult, "supervisor">(
     "listAcpRegistry",
     "supervisor",
@@ -325,7 +343,12 @@ export const threadProcedures = {
     GetAgentConfigDefaultsPayload,
     GetAgentConfigDefaultsResult,
     "supervisor"
-  >("getAgentConfigDefaults", "supervisor", getAgentConfigDefaultsPayloadSchema),
+  >(
+    "getAgentConfigDefaults",
+    "supervisor",
+    getAgentConfigDefaultsPayloadSchema,
+    getAgentConfigDefaultsResultSchema,
+  ),
   removeAcpRegistryAgent: definePayloadProcedure<
     RemoveAcpRegistryAgentPayload,
     AcpRegistryMutationResult,

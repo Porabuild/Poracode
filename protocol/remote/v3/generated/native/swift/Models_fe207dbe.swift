@@ -1,5 +1,43 @@
 // GENERATED FILE. Do not edit by hand.
 import Foundation
+public struct ProcedurepluginAccountsRequestU2DOptionU2D3_9a9f19f594: Codable, Sendable, RemoteModelMetadata {
+  public var accountId: String
+  public var action: ProcedurepluginAccountsRequestU2DOptionU2D3U2DAction_12d1900fc0
+  public var pluginName: String
+  public var serverName: String
+  public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .reject
+  public static let fields: [RemoteFieldDescriptor] = [
+    .init(wireName: "accountId", typeName: "String", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$", format: "uuid", semanticValidatorIds: []),
+    .init(wireName: "action", typeName: "ProcedurepluginAccountsRequestU2DOptionU2D3U2DAction_12d1900fc0", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "pluginName", typeName: "String", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: ["plugin.valid-name"]),
+    .init(wireName: "serverName", typeName: "String", required: true, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+  ]
+  public static let semanticValidatorIds: [String] = []
+  private enum CodingKeys: String, CodingKey {
+    case accountId = "accountId"
+    case action = "action"
+    case pluginName = "pluginName"
+    case serverName = "serverName"
+  }
+  public init(from decoder: Decoder) throws {
+    let all = try decoder.container(keyedBy: RemoteCodingKey.self).allKeys.map(\.stringValue)
+    let known = Set(Self.fields.map(\.wireName))
+    guard all.allSatisfy(known.contains) else { throw DecodingError.dataCorrupted(.init(codingPath: decoder.codingPath, debugDescription: "Unknown field in strict object")) }
+    let container = try decoder.container(keyedBy: CodingKeys.self)
+    self.accountId = try container.decode(String.self, forKey: .accountId)
+    self.action = try container.decode(ProcedurepluginAccountsRequestU2DOptionU2D3U2DAction_12d1900fc0.self, forKey: .action)
+    self.pluginName = try container.decode(String.self, forKey: .pluginName)
+    self.serverName = try container.decode(String.self, forKey: .serverName)
+  }
+  public func encode(to encoder: Encoder) throws {
+    var container = encoder.container(keyedBy: CodingKeys.self)
+    try container.encode(accountId, forKey: .accountId)
+    try container.encode(action, forKey: .action)
+    try container.encode(pluginName, forKey: .pluginName)
+    try container.encode(serverName, forKey: .serverName)
+  }
+}
+
 public enum ProcedurepluginAccountsRequest_1dd12d57c3: Codable, Sendable {
   case option1(ProcedurepluginAccountsRequestU2DOptionU2D1_eb2d4e479c)
   case option2(ProcedurepluginAccountsRequestU2DOptionU2D2_f277d5baa2)
@@ -42,7 +80,7 @@ public struct ProcedurepluginAccountsResultU2DAccountsU2DItem_8a3bbd41df: Codabl
   public var id: String
   public var label: String
   public var pluginName: String
-  public var scopes: [ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b]
+  public var scopes: [ProcedureapplyNativeMcpSetupResultU2DCandidatesU2DItemU2DId_bf0b727f7b]
   public var selected: Bool
   public var serverName: String
   public var status: ProcedurepluginAccountsResultU2DAccountsU2DItemU2DStatus_894deff77e
@@ -51,7 +89,7 @@ public struct ProcedurepluginAccountsResultU2DAccountsU2DItem_8a3bbd41df: Codabl
     .init(wireName: "id", typeName: "String", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$", format: "uuid", semanticValidatorIds: []),
     .init(wireName: "label", typeName: "String", required: true, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: 120, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: ["string.trim"]),
     .init(wireName: "pluginName", typeName: "String", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: ["plugin.valid-name"]),
-    .init(wireName: "scopes", typeName: "[ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b]", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "scopes", typeName: "[ProcedureapplyNativeMcpSetupResultU2DCandidatesU2DItemU2DId_bf0b727f7b]", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "selected", typeName: "Bool", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "serverName", typeName: "String", required: true, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "status", typeName: "ProcedurepluginAccountsResultU2DAccountsU2DItemU2DStatus_894deff77e", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
@@ -74,7 +112,7 @@ public struct ProcedurepluginAccountsResultU2DAccountsU2DItem_8a3bbd41df: Codabl
     self.id = try container.decode(String.self, forKey: .id)
     self.label = try container.decode(String.self, forKey: .label)
     self.pluginName = try container.decode(String.self, forKey: .pluginName)
-    self.scopes = try container.decode([ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b].self, forKey: .scopes)
+    self.scopes = try container.decode([ProcedureapplyNativeMcpSetupResultU2DCandidatesU2DItemU2DId_bf0b727f7b].self, forKey: .scopes)
     self.selected = try container.decode(Bool.self, forKey: .selected)
     self.serverName = try container.decode(String.self, forKey: .serverName)
     self.status = try container.decode(ProcedurepluginAccountsResultU2DAccountsU2DItemU2DStatus_894deff77e.self, forKey: .status)
@@ -407,40 +445,4 @@ public struct ProcedurepluginCatalogRequestU2DOptionU2D3_5a7fa7d249: Codable, Se
     try container.encode(action, forKey: .action)
     try container.encode(source, forKey: .source)
   }
-}
-
-public enum ProcedurepluginCatalogRequestU2DOptionU2D4U2DAction_231ec8a79b: String, Codable, Sendable {
-  case `refresh` = "refresh"
-}
-
-public struct ProcedurepluginCatalogRequestU2DOptionU2D4_8fd899986e: Codable, Sendable, RemoteModelMetadata {
-  public var action: ProcedurepluginCatalogRequestU2DOptionU2D4U2DAction_231ec8a79b
-  public var catalogId: String
-  public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .reject
-  public static let fields: [RemoteFieldDescriptor] = [
-    .init(wireName: "action", typeName: "ProcedurepluginCatalogRequestU2DOptionU2D4U2DAction_231ec8a79b", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
-    .init(wireName: "catalogId", typeName: "String", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$", format: "uuid", semanticValidatorIds: []),
-  ]
-  public static let semanticValidatorIds: [String] = []
-  private enum CodingKeys: String, CodingKey {
-    case action = "action"
-    case catalogId = "catalogId"
-  }
-  public init(from decoder: Decoder) throws {
-    let all = try decoder.container(keyedBy: RemoteCodingKey.self).allKeys.map(\.stringValue)
-    let known = Set(Self.fields.map(\.wireName))
-    guard all.allSatisfy(known.contains) else { throw DecodingError.dataCorrupted(.init(codingPath: decoder.codingPath, debugDescription: "Unknown field in strict object")) }
-    let container = try decoder.container(keyedBy: CodingKeys.self)
-    self.action = try container.decode(ProcedurepluginCatalogRequestU2DOptionU2D4U2DAction_231ec8a79b.self, forKey: .action)
-    self.catalogId = try container.decode(String.self, forKey: .catalogId)
-  }
-  public func encode(to encoder: Encoder) throws {
-    var container = encoder.container(keyedBy: CodingKeys.self)
-    try container.encode(action, forKey: .action)
-    try container.encode(catalogId, forKey: .catalogId)
-  }
-}
-
-public enum ProcedurepluginCatalogRequestU2DOptionU2D5U2DAction_a29fb46577: String, Codable, Sendable {
-  case `removeU2DSource` = "remove-source"
 }

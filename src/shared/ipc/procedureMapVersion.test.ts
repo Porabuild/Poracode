@@ -402,9 +402,25 @@ describe("IPC procedure map versioning", () => {
       }).success,
     ).toBe(true);
   });
-  it("keeps write-only model provider management outside the remote allowlist", () => {
-    expect(isRemoteProcedure("manageModelProviders")).toBe(false);
-    expect(ipcProcedureMap.manageModelProviders.transport).toBe("supervisor");
+  it("exposes agent settings procedures to read-scoped or operate-scoped remote clients", () => {
+    for (const [name, scope] of [
+      ["getAgentConfigDefaults", "session:read"],
+      ["getNativeMcpSetup", "session:read"],
+      ["applyNativeMcpSetup", "session:operate"],
+      ["reloadAgentMcpServers", "session:operate"],
+      ["getAgentHookPluginStatuses", "session:read"],
+      ["installAgentHookPlugin", "session:operate"],
+      ["uninstallAgentHookPlugin", "session:operate"],
+      ["manageAgentPlugins", "session:operate"],
+      ["manageAgentCredentials", "session:operate"],
+      ["manageModelProviders", "session:operate"],
+    ] as const) {
+      expect(ipcProcedureMap[name].transport).toBe("supervisor");
+      expect(isRemoteProcedure(name)).toBe(true);
+      expect(REMOTE_PROCEDURE_SPECS[name].scope).toBe(scope);
+      expect(REMOTE_PROCEDURE_SPECS[name].owner).toBe("desktop");
+    }
+    expect(REMOTE_PROCEDURE_SPECS.manageAgentPlugins.timeout).toBe("long");
   });
 
   it("exposes plugin listing to read-scoped and catalog/account custody to operate-scoped remote clients", () => {

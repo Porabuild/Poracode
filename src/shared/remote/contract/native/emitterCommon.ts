@@ -5,6 +5,8 @@ import { structuralSchemaHash } from "./schemaGraph";
 import type { JsonSchema, NativeBindingIr, NativeSchemaGraph, NativeTypeNode } from "./types";
 
 export const NATIVE_SEMANTIC_VALIDATOR_IDS = [
+  "agent-credentials.id-required",
+  "agent-plugins.target-required",
   "forge.host.https",
   "forge.watch.scope-identity",
   "forge.edit.fields",
@@ -13,6 +15,8 @@ export const NATIVE_SEMANTIC_VALIDATOR_IDS = [
   "git.remove-worktree.owner-requires-branch",
   "mcp.reserved-name",
   "mcp.valid-url",
+  "model-provider.id-safe",
+  "model-provider.valid-url",
   "plugin.valid-name",
   "plugin.valid-url",
   "pr-watch.agent-required-when-enabled",

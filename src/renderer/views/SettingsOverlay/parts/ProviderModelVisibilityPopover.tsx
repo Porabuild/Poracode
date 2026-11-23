@@ -28,6 +28,7 @@ export function ProviderModelVisibilityPopover(props: {
   onHiddenIdsChange: (updates: ReadonlyMap<string, string[]>) => void;
   listAriaLabel: string;
   triggerClassName?: string;
+  isDisabled?: boolean;
 }) {
   const { groups, hiddenIdsByKey, onHiddenIdsChange, listAriaLabel } = props;
   const { t } = useLingui();
@@ -158,13 +159,21 @@ export function ProviderModelVisibilityPopover(props: {
     }
   }
 
+  const isDisabled = props.isDisabled === true;
   const trigger = (
     <Button
       variant="secondary"
       size="sm"
       aria-label={listAriaLabel}
+      isDisabled={isDisabled}
       className={props.triggerClassName ?? "tabular-nums"}
-      {...(mobile ? { onPress: () => setIsOpen(true) } : {})}
+      {...(mobile
+        ? {
+            onPress: () => {
+              if (!isDisabled) setIsOpen(true);
+            },
+          }
+        : {})}
     >
       <span className="tabular-nums">{`${visibleCount} / ${totalCount}`}</span>
     </Button>
@@ -695,8 +704,8 @@ export function ProviderModelVisibilityPopover(props: {
 
   return (
     <ResponsiveMenuSurface
-      isOpen={isOpen}
-      onOpenChange={setIsOpen}
+      isOpen={isOpen && !isDisabled}
+      onOpenChange={(open) => setIsOpen(open && !isDisabled)}
       label={listAriaLabel}
       trigger={trigger}
       placement="bottom end"

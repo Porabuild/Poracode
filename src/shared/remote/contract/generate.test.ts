@@ -87,9 +87,9 @@ describe("remote v3 generator", () => {
       expect(ir.sourceHash).toMatch(/^sha256:[a-f0-9]{64}$/);
       expect(ir.manifestHash).toMatch(/^sha256:[a-f0-9]{64}$/);
       expect(ir.inventory.routes).toBe(126);
-      expect(ir.inventory.procedures).toBe(184);
-      expect(ir.inventory.voidProcedureResults).toBe(66);
-      expect(ir.inventory.jsonProcedureResults).toBe(118);
+      expect(ir.inventory.procedures).toBe(194);
+      expect(ir.inventory.voidProcedureResults).toBe(67);
+      expect(ir.inventory.jsonProcedureResults).toBe(127);
       expect(ir.routes.map((route) => route.id)).toEqual(
         [...ir.routes.map((route) => route.id)].sort(compareUnicodeCodePoints),
       );

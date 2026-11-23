@@ -251,6 +251,16 @@ function syntheticRoots(): NativeSchemaRoot[] {
         completionPolicy: { type: "object", properties: { kind: { type: "string" } } },
       },
     }),
+    semantic("agent-credentials.id-required", {
+      type: "object",
+      properties: { action: { type: "string" }, credentialId: { type: "string" } },
+    }),
+    semantic("agent-plugins.target-required", {
+      type: "object",
+      properties: { action: { type: "string" }, target: { type: "string" } },
+    }),
+    semantic("model-provider.id-safe", { type: "string" }),
+    semantic("model-provider.valid-url", { type: "string" }),
     semantic("plugin.valid-name", { type: "string" }),
     semantic("plugin.valid-url", { type: "string" }),
     semantic("schedule.run-state", {
@@ -751,6 +761,47 @@ function mutationCases(wsFixtures: readonly string[]): HarnessCodecCase[] {
         { raw: json({ id: "run", archived: false }) },
       ],
       negatives: [json({ id: "run" })],
+    },
+    {
+      id: "synthetic.semantic.agent-credentials.id-required",
+      positives: [{ action: "list" }, { action: "remove", credentialId: "openai" }].map(
+        (value) => ({ raw: json(value) }),
+      ),
+      negatives: [{ action: "remove" }, { action: "remove", credentialId: "   " }].map(json),
+    },
+    {
+      id: "synthetic.semantic.agent-plugins.target-required",
+      positives: [
+        { action: "list" },
+        { action: "check" },
+        { action: "install", target: "@scope/plugin" },
+        { action: "update", target: "@scope/plugin" },
+        { action: "remove", target: "@scope/plugin" },
+      ].map((value) => ({ raw: json(value) })),
+      negatives: [
+        { action: "install" },
+        { action: "update", target: "  " },
+        { action: "remove", target: "" },
+      ].map(json),
+    },
+    {
+      id: "synthetic.semantic.model-provider.id-safe",
+      positives: ["openai", "custom-1"].map((value) => ({ raw: json(value) })),
+      negatives: ["__proto__", "constructor", "prototype"].map(json),
+    },
+    {
+      id: "synthetic.semantic.model-provider.valid-url",
+      positives: [
+        "https://api.example.com/v1",
+        "http://localhost:11434/v1",
+        "http://10.0.0.5:8000/v1",
+      ].map((value) => ({ raw: json(value) })),
+      negatives: [
+        "ftp://example.com",
+        "https://user:pass@api.example.com/v1",
+        "https://user@api.example.com/v1",
+        "not a url",
+      ].map(json),
     },
     {
       id: "synthetic.semantic.plugin.valid-name",

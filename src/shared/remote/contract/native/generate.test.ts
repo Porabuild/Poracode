@@ -128,23 +128,25 @@ describe("remote v3 native binding generator", () => {
         // Batched worktree source-branch reads add one read procedure and its request/result roots.
         // Additive optional cost-history fields (`cacheSavingsUsd`, `categoryCostUsd`,
         // `dayProviders`, `dayModels`) add three structural types while keeping older peers valid.
-        sourceHash: "sha256:bd55bc23e6375092e34eaa5e4c349ef0d7e28b675aec97c754f9240b2eee8de4",
-        manifestHash: "sha256:754173aae61aafe0ae07e0eb9552b293f4f28de51db590166830b1d5a9b85daf",
+        // Remote agent settings allowlists 10 additive desktop procedures (config defaults,
+        // native MCP/hook setup, agent plugins, credentials, model providers) with 4 semantic validators.
+        sourceHash: "sha256:304f017a89b237fa49935567a5df0dd994ee7b0d85914d6a71f40341e3b4e704",
+        manifestHash: "sha256:19f4a08ede24abc0be2f2824381a01fb4e83d71e9380cc3113f6725a5fc75732",
         counts: {
           routes: 126,
-          procedures: 184,
-          voidProcedureResults: 66,
-          jsonProcedureResults: 118,
+          procedures: 194,
+          voidProcedureResults: 67,
+          jsonProcedureResults: 127,
           webSocketClientVariants: 11,
           // 11 shared + the desktop-internal `desktop-event` frame (V5 plan 2.5).
           webSocketServerVariants: 12,
-          schemaRoots: 600,
-          structuralTypes: 1592,
-          semanticValidators: 27,
+          schemaRoots: 619,
+          structuralTypes: 1626,
+          semanticValidators: 31,
           // Content-defined shards (emitterCommon.shardDeclarations) average
           // ~200 lines, so a contract change rewrites only nearby files.
-          swiftFiles: 178,
-          kotlinFiles: 149,
+          swiftFiles: 183,
+          kotlinFiles: 153,
           stateMachines: 5,
         },
       });
@@ -414,7 +416,7 @@ describe("remote v3 native binding generator", () => {
       const output = outputForAuthority().files;
       for (const language of ["swift", "kotlin"] as const) {
         const adapters = rootAdapters(graph, language);
-        expect(adapters).toHaveLength(600);
+        expect(adapters).toHaveLength(619);
         expect(
           adapters
             .map((adapter) => adapter.id)

@@ -6,6 +6,10 @@ import type {
   ManageAgentPluginsPayload,
   ManageAgentPluginsResult,
 } from "@/shared/contracts";
+import {
+  AgentSettingsHostProvider,
+  type AgentSettingsHost,
+} from "@/renderer/components/providers/settings/AgentSettingsHostContext";
 import { OpenCodePluginsSettings } from "./OpenCodePluginsSettings";
 
 const bridge = vi.hoisted(() => ({
@@ -25,6 +29,33 @@ const goal = {
   server: true,
   terminal: true,
 };
+
+function makeRemoteHost(overrides?: Partial<AgentSettingsHost>) {
+  const callProcedure = vi.fn<AgentSettingsHost["callProcedure"]>(
+    async () => ({ packages: [] }) as never,
+  );
+  const host: AgentSettingsHost = {
+    key: "conn-1",
+    connectionKey: "conn-1",
+    isRemote: true,
+    isOnline: true,
+    machineProject: undefined,
+    canManageProfiles: false,
+    canEditSecrets: false,
+    callProcedure,
+    rediscoverAgents: vi.fn<AgentSettingsHost["rediscoverAgents"]>(async () => ({
+      windows: [],
+      wsl: [],
+    })),
+    setAgentSetting: vi.fn<AgentSettingsHost["setAgentSetting"]>(),
+    saveAgentSettings: vi.fn<AgentSettingsHost["saveAgentSettings"]>(async () => undefined),
+    setAgentDisabled: vi.fn<AgentSettingsHost["setAgentDisabled"]>(),
+    setHiddenModels: vi.fn<AgentSettingsHost["setHiddenModels"]>(),
+    ...overrides,
+  };
+  return { host, callProcedure };
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
   bridge.manageAgentPlugins.mockResolvedValue({ packages: [] });
@@ -117,6 +148,53 @@ describe("OpenCode plugin settings", () => {
     render(<OpenCodePluginsSettings agentKind="opencode" statuses={[]} />);
     fireEvent.click(screen.getByRole("button", { name: "Manage plugins" }));
     expect(screen.getByText("Install OpenCode to manage its plugins.")).toBeInTheDocument();
+    expect(bridge.manageAgentPlugins).not.toHaveBeenCalled();
+  });
+
+  it("routes plugin listing and installation through the remote settings host without calling readBridge", async () => {
+    const { host, callProcedure } = makeRemoteHost();
+    callProcedure.mockResolvedValueOnce({ packages: [] } as never);
+    render(
+      <AgentSettingsHostProvider host={host}>
+        <OpenCodePluginsSettings agentKind="opencode" statuses={statuses} />
+      </AgentSettingsHostProvider>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Manage plugins" }));
+    await screen.findByText("No package plugins installed.");
+    expect(callProcedure).toHaveBeenCalledWith("manageAgentPlugins", {
+      agentKind: "opencode",
+      env: { kind: "native" },
+      action: "list",
+    });
+
+    callProcedure.mockResolvedValueOnce({ packages: [goal] } as never);
+    fireEvent.click(screen.getByRole("tab", { name: "Discover" }));
+    const install = screen
+      .getAllByRole("button", { name: "Install" })
+      .find((button) => !button.hasAttribute("disabled"))!;
+    fireEvent.click(install);
+    await waitFor(() =>
+      expect(callProcedure).toHaveBeenLastCalledWith("manageAgentPlugins", {
+        agentKind: "opencode",
+        env: { kind: "native" },
+        action: "install",
+        target: goal.target,
+      }),
+    );
+    await screen.findByRole("button", { name: `Remove ${goal.target}` });
+    expect(bridge.manageAgentPlugins).not.toHaveBeenCalled();
+  });
+
+  it("disables Manage plugins when the remote host is offline", () => {
+    const { host, callProcedure } = makeRemoteHost({ isOnline: false });
+    render(
+      <AgentSettingsHostProvider host={host}>
+        <OpenCodePluginsSettings agentKind="opencode" statuses={statuses} />
+      </AgentSettingsHostProvider>,
+    );
+    expect(screen.getByRole("button", { name: "Manage plugins" })).toBeDisabled();
+    expect(callProcedure).not.toHaveBeenCalled();
     expect(bridge.manageAgentPlugins).not.toHaveBeenCalled();
   });
 });

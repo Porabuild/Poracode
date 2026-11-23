@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { agentEnvSchema } from "../machines";
+import { agentConnectedProviderSchema } from "./agent";
 
 /**
  * Per-upstream-provider credential management for agents that authenticate
@@ -24,7 +25,8 @@ export const manageAgentCredentialsPayloadSchema = z
   });
 export type ManageAgentCredentialsPayload = z.infer<typeof manageAgentCredentialsPayloadSchema>;
 
-export interface ManageAgentCredentialsResult {
+export const manageAgentCredentialsResultSchema = z.object({
   /** The connected providers left after the action, ready for display. */
-  providers: import("./agent").AgentConnectedProvider[];
-}
+  providers: z.array(agentConnectedProviderSchema),
+});
+export type ManageAgentCredentialsResult = z.infer<typeof manageAgentCredentialsResultSchema>;

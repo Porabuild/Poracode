@@ -10,6 +10,7 @@ import {
   reserveCursorSdkPackage,
   useCursorSdkPackageOperations,
 } from "@/renderer/components/providers/cursor/sdkPackageOperation";
+import { useAgentSettingsHost } from "@/renderer/components/providers/settings/AgentSettingsHostContext";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import {
@@ -97,10 +98,15 @@ function SdkPackageRow(props: {
   refreshStatus: () => Promise<unknown>;
 }) {
   const { t } = useLingui();
+  const settingsHost = useAgentSettingsHost();
   const projects = useAppStore((state) => state.projects);
   const { status } = props;
-  const project = findProjectForStatus(status, projects);
-  const hostKey = project?.remoteServerId ?? project?.location.remoteServerId;
+  const project = settingsHost.isRemote
+    ? settingsHost.machineProject
+    : (settingsHost.machineProject ?? findProjectForStatus(status, projects));
+  const hostKey = settingsHost.isRemote
+    ? settingsHost.connectionKey
+    : (project?.remoteServerId ?? project?.location.remoteServerId);
   const envKey = cursorSdkPackageEnvKey(status, hostKey);
   const pending = useCursorSdkPackageOperations((state) => state.pendingEnvKeys.has(envKey));
   const [latestSupportedVersion, setLatestSupportedVersion] = useState<string | undefined>(
@@ -113,10 +119,14 @@ function SdkPackageRow(props: {
   // solely when there is something newer to install — same rule the Cursor CLI
   // row uses. Offline / probe failure leaves it hidden.
   useEffect(() => {
+    if (!settingsHost.isOnline) {
+      setLatestSupportedVersion(undefined);
+      return;
+    }
     let cancelled = false;
     const agentKind = props.agentKind;
-    readBridge()
-      .getLatestAgentVersion({
+    settingsHost
+      .callProcedure("getLatestAgentVersion", {
         agentKind,
         npmPackage: {
           name: CURSOR_SDK_PACKAGE_NAME,
@@ -136,7 +146,8 @@ function SdkPackageRow(props: {
     return () => {
       cancelled = true;
     };
-  }, [props.agentKind]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- host key identifies the target machine.
+  }, [settingsHost.key, settingsHost.isOnline, props.agentKind]);
 
   const availableVersion =
     latestSupportedVersion !== undefined &&
@@ -147,7 +158,13 @@ function SdkPackageRow(props: {
   const canUpdate = status ? canUpdateCursorSdk(status) && availableVersion !== undefined : false;
 
   const runPackageCommand = (purpose: "install" | "update") => {
-    if (pending || (purpose === "update" && (!status || !canUpdate || !availableVersion))) return;
+    if (
+      !settingsHost.isOnline ||
+      pending ||
+      (purpose === "update" && (!status || !canUpdate || !availableVersion))
+    ) {
+      return;
+    }
     const targetVersion = availableVersion;
     if (
       purpose === "update" &&
@@ -221,6 +238,7 @@ function SdkPackageRow(props: {
           variant="tertiary"
           className="h-7 min-h-7 shrink-0 gap-1 px-2 text-[11px]"
           aria-label={t`Install Cursor SDK`}
+          isDisabled={!settingsHost.isOnline}
           isPending={pending}
           onPress={() => runPackageCommand("install")}
         >
@@ -233,6 +251,7 @@ function SdkPackageRow(props: {
           variant="tertiary"
           className="h-7 min-h-7 shrink-0 gap-1 px-2 text-[11px]"
           aria-label={t`Update Cursor SDK to v${availableVersion}`}
+          isDisabled={!settingsHost.isOnline}
           isPending={pending}
           onPress={() => runPackageCommand("update")}
         >
@@ -254,9 +273,15 @@ function SdkApiKeyRow(props: {
   onApiKeyCleared: () => Promise<void> | void;
 }) {
   const { t } = useLingui();
-  const savedAgentSettings = useSharedSettings((state) => state.agentSettings[props.agentKind]);
+  const settingsHost = useAgentSettingsHost();
+  const canEditSecrets = settingsHost.canEditSecrets;
+  const savedAgentSettings = useSharedSettings((state) =>
+    canEditSecrets ? state.agentSettings[props.agentKind] : undefined,
+  );
   const profileInstance = useSharedSettings((state) =>
-    props.profileInstanceId ? state.agentInstances[props.profileInstanceId] : undefined,
+    canEditSecrets && props.profileInstanceId
+      ? state.agentInstances[props.profileInstanceId]
+      : undefined,
   );
   const setAgentSecretSetting = useSharedSettings((state) => state.setAgentSecretSetting);
   const setAgentInstance = useSharedSettings((state) => state.setAgentInstance);
@@ -265,16 +290,20 @@ function SdkApiKeyRow(props: {
   // starts a replacement; the mask returns when the field is left empty.
   const [isEditing, setIsEditing] = useState(false);
   const [pending, setPending] = useState(false);
-  const hasSavedApiKey = props.profileInstanceId
-    ? typeof profileInstance?.environment?.CURSOR_API_KEY?.value === "string" &&
-      profileInstance.environment.CURSOR_API_KEY.value.length > 0
-    : typeof savedAgentSettings?.sdkApiKey === "string" && savedAgentSettings.sdkApiKey.length > 0;
-  const canEditApiKey = props.profileInstanceId !== undefined || props.isInstalled;
+  const hasSavedApiKey =
+    canEditSecrets &&
+    (props.profileInstanceId
+      ? typeof profileInstance?.environment?.CURSOR_API_KEY?.value === "string" &&
+        profileInstance.environment.CURSOR_API_KEY.value.length > 0
+      : typeof savedAgentSettings?.sdkApiKey === "string" &&
+        savedAgentSettings.sdkApiKey.length > 0);
+  const canEditApiKey =
+    canEditSecrets && (props.profileInstanceId !== undefined || props.isInstalled);
   const isMasked = hasSavedApiKey && !isEditing;
 
   const saveApiKey = async () => {
     const value = apiKey.trim();
-    if (!value || pending) return;
+    if (!canEditSecrets || !value || pending) return;
     setPending(true);
     try {
       if (props.profileInstanceId) {
@@ -307,7 +336,7 @@ function SdkApiKeyRow(props: {
   };
 
   const clearApiKey = async () => {
-    if (!hasSavedApiKey || pending) return;
+    if (!canEditSecrets || !hasSavedApiKey || pending) return;
     setPending(true);
     try {
       await setAgentSecretSetting(props.agentKind, "sdkApiKey", "");

@@ -5,6 +5,10 @@ import kotlinx.serialization.*
 import kotlinx.serialization.descriptors.*
 import kotlinx.serialization.encoding.*
 import kotlinx.serialization.json.*
+internal val schema_9083db8e32ed061a: RemoteSchema by lazy {
+    RemoteSchema(type = "string", literals = listOf(JsonPrimitive("release")), unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
+}
+
 internal val schema_9108deb639290751: RemoteSchema by lazy {
     RemoteSchema(type = "object", required = setOf("config", "prompt"), properties = mapOf("clientContext" to schema_b23ca9582f16c4d7, "config" to schema_281d24bbbaa46745, "prompt" to schema_bf0b727f7b1c6d07, "questionAnswer" to schema_4d59c815dfec80c4, "segments" to schema_4392338ffc80bed7, "userMessageItemId" to schema_36fea325bf1aca70), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
@@ -55,6 +59,10 @@ internal val schema_922ae6d8b34c9e29: RemoteSchema by lazy {
 
 internal val schema_924966fa567a66ae: RemoteSchema by lazy {
     RemoteSchema(type = "object", required = setOf("sections", "version"), properties = mapOf("bodyProjection" to schema_273d6c9ed6ba49d8, "header" to schema_e39d2c7b7e26e3b5, "headerProjection" to schema_81073d419643b803, "mediaSources" to schema_d598182dcda51b91, "sections" to schema_3798323cdbb80b80, "version" to schema_7f9f5a0d72de0d9a, "workflowProjection" to schema_9f9b81965a83d13f, "workflowViewProjection" to schema_2aeaf8ab36ef2176), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
+}
+
+internal val schema_925f63aff8376636: RemoteSchema by lazy {
+    RemoteSchema(unionKind = "oneOf", options = listOf(schema_7345318207d92755, schema_6554493bfa61b085, schema_f51831115e82a52f), unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
 
 internal val schema_9262f6553ee2010b: RemoteSchema by lazy {
@@ -111,6 +119,10 @@ internal val schema_93ea7778107ef974: RemoteSchema by lazy {
 
 internal val schema_93f8fa8787f246fe: RemoteSchema by lazy {
     RemoteSchema(type = "string", literals = listOf(JsonPrimitive("set-draft-config")), unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
+}
+
+internal val schema_940863a47ce0d148: RemoteSchema by lazy {
+    RemoteSchema(type = "object", required = setOf("packages"), properties = mapOf("packages" to schema_2039f004e1d20419), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
 
 internal val schema_941a12a3ce0aadca: RemoteSchema by lazy {

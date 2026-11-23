@@ -2,13 +2,13 @@ import { ContentSurface } from "@/renderer/components/common/ContentSurface";
 import type { ReactNode } from "react";
 import { RadioGroup, toast } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
-import { readBridge } from "@/renderer/bridge";
 import { useProviderUsage } from "@/renderer/state/providerUsageStore";
-import { flushSharedSettings, useSharedSettings } from "@/renderer/state/sharedSettingsStore";
+import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import {
   cursorProfileKind,
   extractCursorProfileInstanceId,
   type AgentCapability,
+  type AgentInstanceConfig,
   type AgentStatus,
   type AuthState,
 } from "@/shared/contracts";
@@ -19,11 +19,18 @@ import { CursorProfileIdentity } from "./CursorProfileIdentity";
 import { cursorProfileSupport } from "../../../views/SettingsOverlay/parts/CursorProfileSettings";
 import { CursorSdkRuntimeSetup } from "../../../views/SettingsOverlay/parts/CursorSdkRuntimeSetup";
 import { cursorRuntimeInstallState } from "../../../views/SettingsOverlay/parts/cursorRuntimeInstall";
+import {
+  useAgentSettingsHost,
+  useHostAgentSettingValues,
+  useHostSettingsReady,
+} from "./AgentSettingsHostContext";
 
 type CursorStructuredRuntime = "acp" | "sdk";
 
+const EMPTY_AGENT_INSTANCES: Record<string, AgentInstanceConfig> = Object.freeze({});
+
 function readStructuredRuntime(
-  settings: Record<string, boolean | string> | undefined,
+  settings: Readonly<Record<string, boolean | string>> | undefined,
   fallback: CursorStructuredRuntime = "acp",
 ): CursorStructuredRuntime {
   if (settings?.structuredRuntime === "sdk") return "sdk";
@@ -49,9 +56,13 @@ export function CursorProviderSettings(props: {
 }) {
   const { t } = useLingui();
   const { agentKind, statuses, wslDistros } = props;
+  const settingsHost = useAgentSettingsHost();
   const profileInstanceId = extractCursorProfileInstanceId(agentKind);
-  const savedAgentSettings = useSharedSettings((state) => state.agentSettings[agentKind]);
-  const agentInstances = useSharedSettings((state) => state.agentInstances);
+  const savedAgentSettings = useHostAgentSettingValues(agentKind);
+  const ready = useHostSettingsReady();
+  const agentInstances = useSharedSettings((state) =>
+    settingsHost.canManageProfiles ? state.agentInstances : EMPTY_AGENT_INSTANCES,
+  );
   const cursorProfileKinds = Object.values(agentInstances)
     .filter((instance) => instance.driver === "cursor" && instance.enabled !== false)
     .map((instance) => cursorProfileKind(instance.id));
@@ -59,7 +70,6 @@ export function CursorProviderSettings(props: {
     savedAgentSettings,
     profileInstanceId ? "sdk" : "acp",
   );
-  const setAgentSetting = useSharedSettings((state) => state.setAgentSetting);
 
   const firstStatus = statuses?.[0];
   const acpStatus =
@@ -75,7 +85,7 @@ export function CursorProviderSettings(props: {
   const providerUsage = useProviderUsage(agentKind);
   const sdkAccountEmail =
     sdkVariant?.providerMetadata?.authenticatedAs?.trim() ||
-    (profileInstanceId && providerUsage?.status === "ok"
+    (!settingsHost.isRemote && profileInstanceId && providerUsage?.status === "ok"
       ? providerUsage.authenticatedAs?.trim()
       : undefined);
 
@@ -114,9 +124,9 @@ export function CursorProviderSettings(props: {
   const sdkDetailLine = detailLine(sdkVariant?.capabilities);
 
   const refreshStatus = () =>
-    readBridge().refreshAgentStatuses(wslDistros, { agentKinds: [agentKind] });
+    settingsHost.rediscoverAgents(wslDistros, { agentKinds: [agentKind] });
   const refreshPackageStatus = () =>
-    readBridge().refreshAgentStatuses(wslDistros, {
+    settingsHost.rediscoverAgents(wslDistros, {
       agentKinds: ["cursor", ...cursorProfileKinds],
     });
 
@@ -125,21 +135,21 @@ export function CursorProviderSettings(props: {
    * The selected card is its own confirmation, so success stays silent.
    */
   const selectRuntime = async (next: CursorStructuredRuntime) => {
-    if (next === selectedRuntime) return;
-    setAgentSetting(agentKind, "structuredRuntime", next);
+    if (next === selectedRuntime || !ready) return;
     try {
-      await flushSharedSettings();
+      await settingsHost.saveAgentSettings(agentKind, { structuredRuntime: next });
       await refreshStatus();
     } catch (error) {
-      setAgentSetting(agentKind, "structuredRuntime", selectedRuntime);
+      if (!settingsHost.isRemote) {
+        await settingsHost.setAgentSetting(agentKind, "structuredRuntime", selectedRuntime);
+      }
       toast.danger(friendlyError(error));
     }
   };
 
   const fallBackToAcp = async () => {
     if (selectedRuntime !== "sdk") return;
-    setAgentSetting(agentKind, "structuredRuntime", "acp");
-    await flushSharedSettings();
+    await settingsHost.saveAgentSettings(agentKind, { structuredRuntime: "acp" });
   };
 
   const sdkSetup = (
@@ -209,6 +219,7 @@ export function CursorProviderSettings(props: {
         aria-label={t`Structured runtime`}
         className="!grid items-stretch gap-2 py-1.5 sm:grid-cols-2 [&_[data-slot=radio]]:!mt-0"
         value={selectedRuntime}
+        isDisabled={!ready}
         onChange={(value) => void selectRuntime(value === "sdk" ? "sdk" : "acp")}
       >
         <CursorRuntimeCard

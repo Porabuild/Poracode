@@ -65,5 +65,9 @@ public extension RemoteSchemas {
 }
 
 public extension RemoteSchemas {
+  static let schema_9b6b648329c17d0e = RemoteSchema(type: "object", required: Set(["baseURL", "id", "modelIds", "name", "protocol"]), properties: ["baseURL": RemoteSchemas.schema_088c86edf1b9e904, "id": RemoteSchemas.schema_2b88aa8e662682aa, "modelIds": RemoteSchemas.schema_d8c10d781ed40d8c, "name": RemoteSchemas.schema_dcbc5c3920ad5890, "protocol": RemoteSchemas.schema_14a995c93889f1e1], additionalAllowed: true, unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
   static let schema_9b963a4b704c492d = RemoteSchema(type: "object", required: Set(["expectedHeadSha", "prNumber", "projectLocation"]), properties: ["admin": RemoteSchemas.schema_f8b6dd8128e8bfe0, "expectedHeadSha": RemoteSchemas.schema_89303c6cbb3ecd9a, "forgeAccount": RemoteSchemas.schema_c2bb40b82b330cd4, "forgeRepository": RemoteSchemas.schema_36fea325bf1aca70, "method": RemoteSchemas.schema_72373308389f2027, "prNumber": RemoteSchemas.schema_f58a8b771657d037, "projectLocation": RemoteSchemas.schema_080f9cc154af9e27], additionalAllowed: true, unknownPolicy: .strip)
 }

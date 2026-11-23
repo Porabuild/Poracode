@@ -11,23 +11,190 @@
   "generatorVersion": 7,
   "inventory": {
     "blockedProcedureResults": [],
-    "jsonProcedureResults": 118,
-    "procedures": 184,
+    "jsonProcedureResults": 127,
+    "procedures": 194,
     "replayableEventTypes": 17,
     "routes": 126,
     "runtimeEventTypes": 16,
-    "voidProcedureResults": 66,
+    "voidProcedureResults": 67,
     "webSocketClientMessages": 11,
     "webSocketServerMessages": 12
   },
   "manifestFormatVersion": 1,
-  "manifestHash": "sha256:754173aae61aafe0ae07e0eb9552b293f4f28de51db590166830b1d5a9b85daf",
+  "manifestHash": "sha256:19f4a08ede24abc0be2f2824381a01fb4e83d71e9380cc3113f6725a5fc75732",
   "portableTransformIds": [
     "agent-settings.strip-sensitive",
     "push.routing.client-connection-id.lowercase",
     "string.trim"
   ],
   "procedures": [
+    {
+      "name": "applyNativeMcpSetup",
+      "owner": "desktop",
+      "request": {
+        "$defs": {
+          "__schema0": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "__schema1": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": true,
+        "properties": {
+          "agentKind": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "env": {
+            "oneOf": [
+              {
+                "additionalProperties": true,
+                "properties": {
+                  "kind": {
+                    "const": "native",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind"
+                ],
+                "type": "object",
+                "x-poracode-unknownFields": "strip"
+              },
+              {
+                "additionalProperties": true,
+                "properties": {
+                  "distro": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "kind": {
+                    "const": "wsl",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "distro"
+                ],
+                "type": "object",
+                "x-poracode-unknownFields": "strip"
+              }
+            ]
+          },
+          "installIds": {
+            "items": {
+              "$ref": "#/$defs/__schema0"
+            },
+            "maxItems": 200,
+            "type": "array"
+          },
+          "removeNames": {
+            "items": {
+              "$ref": "#/$defs/__schema1"
+            },
+            "maxItems": 200,
+            "type": "array"
+          },
+          "revision": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "agentKind",
+          "env",
+          "revision",
+          "installIds",
+          "removeNames"
+        ],
+        "type": "object",
+        "x-poracode-unknownFields": "strip"
+      },
+      "result": {
+        "kind": "json",
+        "schema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "additionalProperties": true,
+          "properties": {
+            "candidates": {
+              "items": {
+                "additionalProperties": true,
+                "properties": {
+                  "conflict": {
+                    "type": "boolean"
+                  },
+                  "eligible": {
+                    "type": "boolean"
+                  },
+                  "id": {
+                    "type": "string"
+                  },
+                  "installed": {
+                    "type": "boolean"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "target": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "name",
+                  "target",
+                  "eligible",
+                  "conflict",
+                  "installed"
+                ],
+                "type": "object",
+                "x-poracode-unknownFields": "strip"
+              },
+              "type": "array"
+            },
+            "configPath": {
+              "type": "string"
+            },
+            "installedNames": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "issue": {
+              "const": "invalid-config",
+              "type": "string"
+            },
+            "modifiedNames": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "revision": {
+              "type": "string"
+            },
+            "supported": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "supported",
+            "candidates",
+            "installedNames",
+            "modifiedNames"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        }
+      },
+      "scope": "session:operate"
+    },
     {
       "name": "authenticateAcpAgent",
       "owner": "desktop",
@@ -14802,6 +14969,191 @@
       "timeout": "long"
     },
     {
+      "name": "getAgentConfigDefaults",
+      "owner": "desktop",
+      "request": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": true,
+        "properties": {
+          "agentKind": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "agentKind"
+        ],
+        "type": "object",
+        "x-poracode-unknownFields": "strip"
+      },
+      "result": {
+        "kind": "json",
+        "schema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "additionalProperties": true,
+          "properties": {
+            "defaults": {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "propertyNames": {
+                "type": "string"
+              },
+              "type": "object"
+            }
+          },
+          "required": [
+            "defaults"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        }
+      },
+      "scope": "session:read"
+    },
+    {
+      "name": "getAgentHookPluginStatuses",
+      "owner": "desktop",
+      "request": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": true,
+        "properties": {
+          "agentKind": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "envs": {
+            "items": {
+              "oneOf": [
+                {
+                  "additionalProperties": true,
+                  "properties": {
+                    "kind": {
+                      "const": "native",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "kind"
+                  ],
+                  "type": "object",
+                  "x-poracode-unknownFields": "strip"
+                },
+                {
+                  "additionalProperties": true,
+                  "properties": {
+                    "distro": {
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "kind": {
+                      "const": "wsl",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "distro"
+                  ],
+                  "type": "object",
+                  "x-poracode-unknownFields": "strip"
+                }
+              ]
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "agentKind",
+          "envs"
+        ],
+        "type": "object",
+        "x-poracode-unknownFields": "strip"
+      },
+      "result": {
+        "kind": "json",
+        "schema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "items": {
+            "additionalProperties": true,
+            "properties": {
+              "agentKind": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "bundledVersion": {
+                "type": "string"
+              },
+              "canUninstall": {
+                "type": "boolean"
+              },
+              "env": {
+                "oneOf": [
+                  {
+                    "additionalProperties": true,
+                    "properties": {
+                      "kind": {
+                        "const": "native",
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "kind"
+                    ],
+                    "type": "object",
+                    "x-poracode-unknownFields": "strip"
+                  },
+                  {
+                    "additionalProperties": true,
+                    "properties": {
+                      "distro": {
+                        "minLength": 1,
+                        "type": "string"
+                      },
+                      "kind": {
+                        "const": "wsl",
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "distro"
+                    ],
+                    "type": "object",
+                    "x-poracode-unknownFields": "strip"
+                  }
+                ]
+              },
+              "installed": {
+                "type": "boolean"
+              },
+              "reason": {
+                "type": "string"
+              },
+              "supported": {
+                "type": "boolean"
+              },
+              "version": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "agentKind",
+              "env",
+              "supported",
+              "installed",
+              "bundledVersion",
+              "canUninstall"
+            ],
+            "type": "object",
+            "x-poracode-unknownFields": "strip"
+          },
+          "type": "array"
+        }
+      },
+      "scope": "session:read"
+    },
+    {
       "name": "getGitDiff",
       "owner": "projectLocation",
       "request": {
@@ -15633,6 +15985,142 @@
           },
           "required": [
             "authenticatedUrls"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        }
+      },
+      "scope": "session:read"
+    },
+    {
+      "name": "getNativeMcpSetup",
+      "owner": "desktop",
+      "request": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": true,
+        "properties": {
+          "agentKind": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "env": {
+            "oneOf": [
+              {
+                "additionalProperties": true,
+                "properties": {
+                  "kind": {
+                    "const": "native",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind"
+                ],
+                "type": "object",
+                "x-poracode-unknownFields": "strip"
+              },
+              {
+                "additionalProperties": true,
+                "properties": {
+                  "distro": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "kind": {
+                    "const": "wsl",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "distro"
+                ],
+                "type": "object",
+                "x-poracode-unknownFields": "strip"
+              }
+            ]
+          }
+        },
+        "required": [
+          "agentKind",
+          "env"
+        ],
+        "type": "object",
+        "x-poracode-unknownFields": "strip"
+      },
+      "result": {
+        "kind": "json",
+        "schema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "additionalProperties": true,
+          "properties": {
+            "candidates": {
+              "items": {
+                "additionalProperties": true,
+                "properties": {
+                  "conflict": {
+                    "type": "boolean"
+                  },
+                  "eligible": {
+                    "type": "boolean"
+                  },
+                  "id": {
+                    "type": "string"
+                  },
+                  "installed": {
+                    "type": "boolean"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "target": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "name",
+                  "target",
+                  "eligible",
+                  "conflict",
+                  "installed"
+                ],
+                "type": "object",
+                "x-poracode-unknownFields": "strip"
+              },
+              "type": "array"
+            },
+            "configPath": {
+              "type": "string"
+            },
+            "installedNames": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "issue": {
+              "const": "invalid-config",
+              "type": "string"
+            },
+            "modifiedNames": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "revision": {
+              "type": "string"
+            },
+            "supported": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "supported",
+            "candidates",
+            "installedNames",
+            "modifiedNames"
           ],
           "type": "object",
           "x-poracode-unknownFields": "strip"
@@ -28321,6 +28809,152 @@
       "timeout": "long"
     },
     {
+      "name": "installAgentHookPlugin",
+      "owner": "desktop",
+      "request": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": true,
+        "properties": {
+          "agentKind": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "env": {
+            "oneOf": [
+              {
+                "additionalProperties": true,
+                "properties": {
+                  "kind": {
+                    "const": "native",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind"
+                ],
+                "type": "object",
+                "x-poracode-unknownFields": "strip"
+              },
+              {
+                "additionalProperties": true,
+                "properties": {
+                  "distro": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "kind": {
+                    "const": "wsl",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "distro"
+                ],
+                "type": "object",
+                "x-poracode-unknownFields": "strip"
+              }
+            ]
+          }
+        },
+        "required": [
+          "agentKind",
+          "env"
+        ],
+        "type": "object",
+        "x-poracode-unknownFields": "strip"
+      },
+      "result": {
+        "kind": "json",
+        "schema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "additionalProperties": true,
+          "properties": {
+            "status": {
+              "additionalProperties": true,
+              "properties": {
+                "agentKind": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "bundledVersion": {
+                  "type": "string"
+                },
+                "canUninstall": {
+                  "type": "boolean"
+                },
+                "env": {
+                  "oneOf": [
+                    {
+                      "additionalProperties": true,
+                      "properties": {
+                        "kind": {
+                          "const": "native",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "kind"
+                      ],
+                      "type": "object",
+                      "x-poracode-unknownFields": "strip"
+                    },
+                    {
+                      "additionalProperties": true,
+                      "properties": {
+                        "distro": {
+                          "minLength": 1,
+                          "type": "string"
+                        },
+                        "kind": {
+                          "const": "wsl",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "kind",
+                        "distro"
+                      ],
+                      "type": "object",
+                      "x-poracode-unknownFields": "strip"
+                    }
+                  ]
+                },
+                "installed": {
+                  "type": "boolean"
+                },
+                "reason": {
+                  "type": "string"
+                },
+                "supported": {
+                  "type": "boolean"
+                },
+                "version": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "agentKind",
+                "env",
+                "supported",
+                "installed",
+                "bundledVersion",
+                "canUninstall"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
+            }
+          },
+          "required": [
+            "status"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        }
+      },
+      "scope": "session:operate"
+    },
+    {
       "name": "installMarketplaceSkill",
       "owner": "optionalProjectLocation",
       "request": {
@@ -30150,6 +30784,687 @@
         "kind": "omitted",
         "never": "null",
         "presence": "omitted"
+      },
+      "scope": "session:operate"
+    },
+    {
+      "name": "manageAgentCredentials",
+      "owner": "desktop",
+      "request": {
+        "$defs": {
+          "__schema0": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "__schema1": {
+            "oneOf": [
+              {
+                "additionalProperties": true,
+                "properties": {
+                  "kind": {
+                    "const": "native",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind"
+                ],
+                "type": "object",
+                "x-poracode-unknownFields": "strip"
+              },
+              {
+                "additionalProperties": true,
+                "properties": {
+                  "distro": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "kind": {
+                    "const": "wsl",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "distro"
+                ],
+                "type": "object",
+                "x-poracode-unknownFields": "strip"
+              }
+            ]
+          },
+          "__schema2": {
+            "enum": [
+              "list",
+              "remove"
+            ],
+            "type": "string"
+          },
+          "__schema3": {
+            "maxLength": 512,
+            "minLength": 1,
+            "type": "string",
+            "x-poracode-semanticValidators": [
+              "string.trim"
+            ],
+            "x-poracode-transforms": [
+              "string.trim"
+            ]
+          }
+        },
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": true,
+        "properties": {
+          "action": {
+            "$ref": "#/$defs/__schema2"
+          },
+          "agentKind": {
+            "$ref": "#/$defs/__schema0"
+          },
+          "credentialId": {
+            "$ref": "#/$defs/__schema3"
+          },
+          "env": {
+            "$ref": "#/$defs/__schema1"
+          }
+        },
+        "required": [
+          "agentKind",
+          "env",
+          "action"
+        ],
+        "type": "object",
+        "x-poracode-semanticValidators": [
+          "agent-credentials.id-required"
+        ],
+        "x-poracode-unknownFields": "strip"
+      },
+      "result": {
+        "kind": "json",
+        "schema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "additionalProperties": true,
+          "properties": {
+            "providers": {
+              "items": {
+                "additionalProperties": true,
+                "properties": {
+                  "detail": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "id": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "label": {
+                    "minLength": 1,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "label"
+                ],
+                "type": "object",
+                "x-poracode-unknownFields": "strip"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "providers"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        }
+      },
+      "scope": "session:operate"
+    },
+    {
+      "name": "manageAgentPlugins",
+      "owner": "desktop",
+      "request": {
+        "$defs": {
+          "__schema0": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "__schema1": {
+            "oneOf": [
+              {
+                "additionalProperties": true,
+                "properties": {
+                  "kind": {
+                    "const": "native",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind"
+                ],
+                "type": "object",
+                "x-poracode-unknownFields": "strip"
+              },
+              {
+                "additionalProperties": true,
+                "properties": {
+                  "distro": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "kind": {
+                    "const": "wsl",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "distro"
+                ],
+                "type": "object",
+                "x-poracode-unknownFields": "strip"
+              }
+            ]
+          },
+          "__schema2": {
+            "enum": [
+              "list",
+              "check",
+              "install",
+              "update",
+              "remove"
+            ],
+            "type": "string"
+          },
+          "__schema3": {
+            "maxLength": 512,
+            "minLength": 1,
+            "type": "string",
+            "x-poracode-semanticValidators": [
+              "string.trim"
+            ],
+            "x-poracode-transforms": [
+              "string.trim"
+            ]
+          }
+        },
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": true,
+        "properties": {
+          "action": {
+            "$ref": "#/$defs/__schema2"
+          },
+          "agentKind": {
+            "$ref": "#/$defs/__schema0"
+          },
+          "env": {
+            "$ref": "#/$defs/__schema1"
+          },
+          "target": {
+            "$ref": "#/$defs/__schema3"
+          }
+        },
+        "required": [
+          "agentKind",
+          "env",
+          "action"
+        ],
+        "type": "object",
+        "x-poracode-semanticValidators": [
+          "agent-plugins.target-required"
+        ],
+        "x-poracode-unknownFields": "strip"
+      },
+      "result": {
+        "kind": "json",
+        "schema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "additionalProperties": true,
+          "properties": {
+            "packages": {
+              "items": {
+                "additionalProperties": true,
+                "properties": {
+                  "id": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "outdated": {
+                    "type": "boolean"
+                  },
+                  "server": {
+                    "type": "boolean"
+                  },
+                  "status": {
+                    "enum": [
+                      "active",
+                      "failed",
+                      "configured"
+                    ],
+                    "type": "string"
+                  },
+                  "target": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "terminal": {
+                    "type": "boolean"
+                  },
+                  "version": {
+                    "minLength": 1,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "target",
+                  "status",
+                  "outdated",
+                  "server",
+                  "terminal"
+                ],
+                "type": "object",
+                "x-poracode-unknownFields": "strip"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "packages"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        }
+      },
+      "scope": "session:operate",
+      "timeout": "long"
+    },
+    {
+      "name": "manageModelProviders",
+      "owner": "desktop",
+      "request": {
+        "$defs": {
+          "__schema0": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "__schema1": {
+            "oneOf": [
+              {
+                "additionalProperties": true,
+                "properties": {
+                  "kind": {
+                    "const": "native",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind"
+                ],
+                "type": "object",
+                "x-poracode-unknownFields": "strip"
+              },
+              {
+                "additionalProperties": true,
+                "properties": {
+                  "distro": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "kind": {
+                    "const": "wsl",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "distro"
+                ],
+                "type": "object",
+                "x-poracode-unknownFields": "strip"
+              }
+            ]
+          },
+          "__schema2": {
+            "maxLength": 512,
+            "minLength": 1,
+            "type": "string",
+            "x-poracode-semanticValidators": [
+              "string.trim"
+            ],
+            "x-poracode-transforms": [
+              "string.trim"
+            ]
+          }
+        },
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "oneOf": [
+          {
+            "additionalProperties": true,
+            "properties": {
+              "action": {
+                "const": "list",
+                "type": "string"
+              },
+              "agentKind": {
+                "$ref": "#/$defs/__schema0"
+              },
+              "env": {
+                "$ref": "#/$defs/__schema1"
+              }
+            },
+            "required": [
+              "action",
+              "agentKind",
+              "env"
+            ],
+            "type": "object",
+            "x-poracode-unknownFields": "strip"
+          },
+          {
+            "additionalProperties": true,
+            "properties": {
+              "action": {
+                "const": "save",
+                "type": "string"
+              },
+              "agentKind": {
+                "$ref": "#/$defs/__schema0"
+              },
+              "apiKey": {
+                "maxLength": 16384,
+                "type": "string",
+                "x-poracode-transforms": [
+                  "string.trim"
+                ]
+              },
+              "create": {
+                "type": "boolean"
+              },
+              "env": {
+                "$ref": "#/$defs/__schema1"
+              },
+              "provider": {
+                "additionalProperties": true,
+                "properties": {
+                  "baseURL": {
+                    "anyOf": [
+                      {
+                        "const": "",
+                        "type": "string"
+                      },
+                      {
+                        "format": "uri",
+                        "maxLength": 2048,
+                        "type": "string",
+                        "x-poracode-semanticValidators": [
+                          "model-provider.valid-url"
+                        ]
+                      }
+                    ]
+                  },
+                  "id": {
+                    "maxLength": 128,
+                    "minLength": 1,
+                    "pattern": "^[^\\p{Cc}]+$",
+                    "type": "string",
+                    "x-poracode-semanticValidators": [
+                      "model-provider.id-safe"
+                    ]
+                  },
+                  "modelIds": {
+                    "items": {
+                      "$ref": "#/$defs/__schema2"
+                    },
+                    "maxItems": 200,
+                    "type": "array"
+                  },
+                  "name": {
+                    "maxLength": 256,
+                    "type": "string",
+                    "x-poracode-transforms": [
+                      "string.trim"
+                    ]
+                  },
+                  "protocol": {
+                    "enum": [
+                      "openai-completions",
+                      "openai-responses",
+                      "anthropic-messages"
+                    ],
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "name",
+                  "baseURL",
+                  "protocol",
+                  "modelIds"
+                ],
+                "type": "object",
+                "x-poracode-unknownFields": "strip"
+              },
+              "revision": {
+                "maxLength": 128,
+                "minLength": 1,
+                "type": "string"
+              }
+            },
+            "required": [
+              "action",
+              "create",
+              "revision",
+              "provider",
+              "agentKind",
+              "env"
+            ],
+            "type": "object",
+            "x-poracode-unknownFields": "strip"
+          },
+          {
+            "additionalProperties": true,
+            "properties": {
+              "action": {
+                "const": "remove",
+                "type": "string"
+              },
+              "agentKind": {
+                "$ref": "#/$defs/__schema0"
+              },
+              "env": {
+                "$ref": "#/$defs/__schema1"
+              },
+              "providerId": {
+                "maxLength": 128,
+                "minLength": 1,
+                "type": "string"
+              },
+              "revision": {
+                "maxLength": 128,
+                "minLength": 1,
+                "type": "string"
+              }
+            },
+            "required": [
+              "action",
+              "revision",
+              "providerId",
+              "agentKind",
+              "env"
+            ],
+            "type": "object",
+            "x-poracode-unknownFields": "strip"
+          }
+        ]
+      },
+      "result": {
+        "kind": "json",
+        "schema": {
+          "$defs": {
+            "__schema0": {
+              "maxLength": 512,
+              "minLength": 1,
+              "type": "string",
+              "x-poracode-semanticValidators": [
+                "string.trim"
+              ],
+              "x-poracode-transforms": [
+                "string.trim"
+              ]
+            }
+          },
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "oneOf": [
+            {
+              "additionalProperties": true,
+              "properties": {
+                "ok": {
+                  "const": false,
+                  "type": "boolean"
+                },
+                "reason": {
+                  "enum": [
+                    "conflict",
+                    "rejected",
+                    "credential"
+                  ],
+                  "type": "string"
+                }
+              },
+              "required": [
+                "ok",
+                "reason"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
+            },
+            {
+              "additionalProperties": true,
+              "properties": {
+                "catalog": {
+                  "items": {
+                    "additionalProperties": true,
+                    "properties": {
+                      "baseURL": {
+                        "type": "string"
+                      },
+                      "id": {
+                        "type": "string"
+                      },
+                      "name": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "name",
+                      "baseURL"
+                    ],
+                    "type": "object",
+                    "x-poracode-unknownFields": "strip"
+                  },
+                  "type": "array"
+                },
+                "ok": {
+                  "const": true,
+                  "type": "boolean"
+                },
+                "providers": {
+                  "items": {
+                    "additionalProperties": true,
+                    "properties": {
+                      "baseURL": {
+                        "anyOf": [
+                          {
+                            "const": "",
+                            "type": "string"
+                          },
+                          {
+                            "format": "uri",
+                            "maxLength": 2048,
+                            "type": "string",
+                            "x-poracode-semanticValidators": [
+                              "model-provider.valid-url"
+                            ]
+                          }
+                        ]
+                      },
+                      "credentialConfigured": {
+                        "type": "boolean"
+                      },
+                      "custom": {
+                        "type": "boolean"
+                      },
+                      "id": {
+                        "maxLength": 128,
+                        "minLength": 1,
+                        "pattern": "^[^\\p{Cc}]+$",
+                        "type": "string",
+                        "x-poracode-semanticValidators": [
+                          "model-provider.id-safe"
+                        ]
+                      },
+                      "modelIds": {
+                        "items": {
+                          "$ref": "#/$defs/__schema0"
+                        },
+                        "maxItems": 200,
+                        "type": "array"
+                      },
+                      "name": {
+                        "maxLength": 256,
+                        "type": "string",
+                        "x-poracode-transforms": [
+                          "string.trim"
+                        ]
+                      },
+                      "protocol": {
+                        "enum": [
+                          "openai-completions",
+                          "openai-responses",
+                          "anthropic-messages"
+                        ],
+                        "type": "string"
+                      },
+                      "removable": {
+                        "type": "boolean"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "name",
+                      "baseURL",
+                      "protocol",
+                      "modelIds",
+                      "custom",
+                      "removable",
+                      "credentialConfigured"
+                    ],
+                    "type": "object",
+                    "x-poracode-unknownFields": "strip"
+                  },
+                  "type": "array"
+                },
+                "revision": {
+                  "maxLength": 128,
+                  "minLength": 1,
+                  "type": "string"
+                }
+              },
+              "required": [
+                "ok",
+                "revision",
+                "catalog",
+                "providers"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
+            }
+          ]
+        }
       },
       "scope": "session:operate"
     },
@@ -35935,6 +37250,31 @@
       "scope": "session:operate"
     },
     {
+      "name": "reloadAgentMcpServers",
+      "owner": "desktop",
+      "request": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": true,
+        "properties": {
+          "agentKind": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "agentKind"
+        ],
+        "type": "object",
+        "x-poracode-unknownFields": "strip"
+      },
+      "result": {
+        "kind": "omitted",
+        "never": "null",
+        "presence": "omitted"
+      },
+      "scope": "session:operate"
+    },
+    {
       "name": "relocateProject",
       "owner": "project",
       "request": {
@@ -40884,6 +42224,152 @@
       "scope": "session:read"
     },
     {
+      "name": "uninstallAgentHookPlugin",
+      "owner": "desktop",
+      "request": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": true,
+        "properties": {
+          "agentKind": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "env": {
+            "oneOf": [
+              {
+                "additionalProperties": true,
+                "properties": {
+                  "kind": {
+                    "const": "native",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind"
+                ],
+                "type": "object",
+                "x-poracode-unknownFields": "strip"
+              },
+              {
+                "additionalProperties": true,
+                "properties": {
+                  "distro": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "kind": {
+                    "const": "wsl",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "distro"
+                ],
+                "type": "object",
+                "x-poracode-unknownFields": "strip"
+              }
+            ]
+          }
+        },
+        "required": [
+          "agentKind",
+          "env"
+        ],
+        "type": "object",
+        "x-poracode-unknownFields": "strip"
+      },
+      "result": {
+        "kind": "json",
+        "schema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "additionalProperties": true,
+          "properties": {
+            "status": {
+              "additionalProperties": true,
+              "properties": {
+                "agentKind": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "bundledVersion": {
+                  "type": "string"
+                },
+                "canUninstall": {
+                  "type": "boolean"
+                },
+                "env": {
+                  "oneOf": [
+                    {
+                      "additionalProperties": true,
+                      "properties": {
+                        "kind": {
+                          "const": "native",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "kind"
+                      ],
+                      "type": "object",
+                      "x-poracode-unknownFields": "strip"
+                    },
+                    {
+                      "additionalProperties": true,
+                      "properties": {
+                        "distro": {
+                          "minLength": 1,
+                          "type": "string"
+                        },
+                        "kind": {
+                          "const": "wsl",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "kind",
+                        "distro"
+                      ],
+                      "type": "object",
+                      "x-poracode-unknownFields": "strip"
+                    }
+                  ]
+                },
+                "installed": {
+                  "type": "boolean"
+                },
+                "reason": {
+                  "type": "string"
+                },
+                "supported": {
+                  "type": "boolean"
+                },
+                "version": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "agentKind",
+                "env",
+                "supported",
+                "installed",
+                "bundledVersion",
+                "canUninstall"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
+            }
+          },
+          "required": [
+            "status"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        }
+      },
+      "scope": "session:operate"
+    },
+    {
       "name": "updateAcpRegistryAgent",
       "owner": "desktop",
       "request": {
@@ -43374,6 +44860,7 @@
     }
   ],
   "proceduresAllowlist": [
+    "applyNativeMcpSetup",
     "authenticateAcpAgent",
     "beginMcpServerOauth",
     "browseHostDirectory",
@@ -43430,12 +44917,15 @@
     "generateCommitMessage",
     "generatePrSummary",
     "generateTitle",
+    "getAgentConfigDefaults",
+    "getAgentHookPluginStatuses",
     "getGitDiff",
     "getGitDiffBatch",
     "getGitFileContent",
     "getGitStatus",
     "getLatestAgentVersion",
     "getMcpOauthStatus",
+    "getNativeMcpSetup",
     "getProviderUsage",
     "getThreadFollowUpQueue",
     "ghCancelWorkflowRun",
@@ -43503,6 +44993,7 @@
     "hexVoice",
     "importSkills",
     "installAcpRegistryAgent",
+    "installAgentHookPlugin",
     "installMarketplaceSkill",
     "invokeThreadSessionAction",
     "listAcpRegistry",
@@ -43514,6 +45005,9 @@
     "listThreadSessionActions",
     "logoutAcpAgent",
     "lspStart",
+    "manageAgentCredentials",
+    "manageAgentPlugins",
+    "manageModelProviders",
     "moveProjectEntry",
     "pauseThreadFollowUps",
     "pluginAccounts",
@@ -43530,6 +45024,7 @@
     "refreshAgentStatuses",
     "refreshPlugins",
     "refreshProviderUsage",
+    "reloadAgentMcpServers",
     "relocateProject",
     "removeAcpRegistryAgent",
     "removeQueuedThreadFollowUp",
@@ -43551,6 +45046,7 @@
     "steerQueuedThreadFollowUp",
     "subagentSubscribe",
     "subagentUnsubscribe",
+    "uninstallAgentHookPlugin",
     "updateAcpRegistryAgent",
     "updateAgentBinary",
     "waitMcpServerOauth",
@@ -93725,6 +95221,8 @@
     }
   ],
   "semanticValidatorIds": [
+    "agent-credentials.id-required",
+    "agent-plugins.target-required",
     "forge.edit.fields",
     "forge.host.https",
     "forge.watch.scope-identity",
@@ -93733,6 +95231,8 @@
     "git.remove-worktree.owner-requires-branch",
     "mcp.reserved-name",
     "mcp.valid-url",
+    "model-provider.id-safe",
+    "model-provider.valid-url",
     "plugin.valid-name",
     "plugin.valid-url",
     "pr-watch.agent-required-when-enabled",
@@ -93753,7 +95253,7 @@
     "void-envelope.omit-result",
     "void-result.omit-field"
   ],
-  "sourceHash": "sha256:bd55bc23e6375092e34eaa5e4c349ef0d7e28b675aec97c754f9240b2eee8de4",
+  "sourceHash": "sha256:304f017a89b237fa49935567a5df0dd994ee7b0d85914d6a71f40341e3b4e704",
   "unknownObjectFields": "ignore",
   "webSocket": {
     "clientMessages": [

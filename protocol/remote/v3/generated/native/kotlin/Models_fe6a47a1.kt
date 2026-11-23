@@ -50,20 +50,15 @@ enum class RouteexperimentU2DCommandRequestU2DOptionU2D3U2DCandidateDisposition_
 }
 
 @Serializable
-enum class RouteexperimentU2DCommandRequestU2DOptionU2D3U2DKind_034741cb26 {
-    @SerialName("remove") REMOVE,
-}
-
-@Serializable
 data class RouteexperimentU2DCommandRequestU2DOptionU2D3_c133c6f7b7(
     @SerialName("candidateDisposition") val candidateDisposition: RouteexperimentU2DCommandRequestU2DOptionU2D3U2DCandidateDisposition_60232db9c6,
-    @SerialName("kind") val kind: RouteexperimentU2DCommandRequestU2DOptionU2D3U2DKind_034741cb26,
+    @SerialName("kind") val kind: ProceduremanageModelProvidersRequestU2DOptionU2D3U2DAction_034741cb26,
     @SerialName("revision") val revision: String,
 ) {
     companion object {
         val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
             RemoteFieldDescriptor("candidateDisposition", "RouteexperimentU2DCommandRequestU2DOptionU2D3U2DCandidateDisposition_60232db9c6", true, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("kind", "RouteexperimentU2DCommandRequestU2DOptionU2D3U2DKind_034741cb26", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("kind", "ProceduremanageModelProvidersRequestU2DOptionU2D3U2DAction_034741cb26", true, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("revision", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
         ), listOf())
     }

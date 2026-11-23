@@ -1,6 +1,6 @@
 import { Trans } from "@lingui/react/macro";
 import type { NativeAgentSettingsPanelProps } from "@/renderer/views/SettingsOverlay/parts/agentRegistryNative";
-import { readBridge } from "@/renderer/bridge";
+import { useAgentSettingsHost } from "../settings/AgentSettingsHostContext";
 import { ModelProvidersSettings } from "../settings/ModelProvidersSettings";
 
 export function DeepSeekProviderSettings({
@@ -8,6 +8,7 @@ export function DeepSeekProviderSettings({
   statuses,
   wslDistros,
 }: NativeAgentSettingsPanelProps) {
+  const settingsHost = useAgentSettingsHost();
   return (
     <ModelProvidersSettings
       agentKind={agentKind}
@@ -18,9 +19,7 @@ export function DeepSeekProviderSettings({
         </Trans>
       }
       onChanged={() => {
-        void readBridge()
-          .refreshAgentStatuses(wslDistros, { agentKinds: [agentKind] })
-          .catch(() => {});
+        void settingsHost.rediscoverAgents(wslDistros, { agentKinds: [agentKind] }).catch(() => {});
       }}
     />
   );

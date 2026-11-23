@@ -1430,6 +1430,57 @@
       "scope": "session:read"
     },
     {
+      "name": "getAgentConfigDefaults",
+      "owner": "desktop",
+      "scope": "session:read"
+    },
+    {
+      "name": "getNativeMcpSetup",
+      "owner": "desktop",
+      "scope": "session:read"
+    },
+    {
+      "name": "applyNativeMcpSetup",
+      "owner": "desktop",
+      "scope": "session:operate"
+    },
+    {
+      "name": "reloadAgentMcpServers",
+      "owner": "desktop",
+      "scope": "session:operate"
+    },
+    {
+      "name": "getAgentHookPluginStatuses",
+      "owner": "desktop",
+      "scope": "session:read"
+    },
+    {
+      "name": "installAgentHookPlugin",
+      "owner": "desktop",
+      "scope": "session:operate"
+    },
+    {
+      "name": "uninstallAgentHookPlugin",
+      "owner": "desktop",
+      "scope": "session:operate"
+    },
+    {
+      "name": "manageAgentPlugins",
+      "owner": "desktop",
+      "scope": "session:operate",
+      "timeout": "long"
+    },
+    {
+      "name": "manageAgentCredentials",
+      "owner": "desktop",
+      "scope": "session:operate"
+    },
+    {
+      "name": "manageModelProviders",
+      "owner": "desktop",
+      "scope": "session:operate"
+    },
+    {
       "name": "refreshAgentStatuses",
       "owner": "desktop",
       "scope": "session:operate",

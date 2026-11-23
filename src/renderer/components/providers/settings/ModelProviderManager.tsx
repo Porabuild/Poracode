@@ -2,14 +2,14 @@ import { ContentSurface } from "@/renderer/components/common/ContentSurface";
 import { useEffect, useState } from "react";
 import { Button } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
-import type { AgentEnv } from "@/shared/machines";
+import { agentEnvKey, type AgentEnv } from "@/shared/machines";
 import type {
   ConfiguredModelProvider,
   ManageModelProvidersPayload,
   ManageModelProvidersResult,
 } from "@/shared/contracts";
-import { readBridge } from "@/renderer/bridge";
 import { ConfirmDialog } from "@/renderer/components/common";
+import { useAgentSettingsHost } from "./AgentSettingsHostContext";
 import { ModelProviderEditor } from "./ModelProviderEditor";
 
 export function ModelProviderManager({
@@ -22,15 +22,24 @@ export function ModelProviderManager({
   onChanged: () => void;
 }) {
   const { t } = useLingui();
+  const settingsHost = useAgentSettingsHost();
   const [data, setData] = useState<Extract<ManageModelProvidersResult, { ok: true }>>();
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(true);
   const [editing, setEditing] = useState<ConfiguredModelProvider | "new">();
   const [removing, setRemoving] = useState<ConfiguredModelProvider>();
+  const envKey = agentEnvKey(env);
+  const disabled = busy || !settingsHost.isOnline;
+
   useEffect(() => {
+    if (!settingsHost.isOnline) {
+      setBusy(false);
+      return;
+    }
     let active = true;
-    void readBridge()
-      .manageModelProviders({ agentKind, env, action: "list" })
+    setBusy(true);
+    void settingsHost
+      .callProcedure("manageModelProviders", { agentKind, env, action: "list" })
       .then((result) => {
         if (!active) return;
         if (result.ok) {
@@ -47,13 +56,15 @@ export function ModelProviderManager({
     return () => {
       active = false;
     };
-  }, [agentKind, env, t]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- host & environment identity are stable across status refreshes.
+  }, [settingsHost.key, settingsHost.isOnline, agentKind, envKey, t]);
 
   const mutate = async (request: ManageModelProvidersPayload) => {
+    if (!settingsHost.isOnline) return;
     setBusy(true);
     setError("");
     try {
-      const result = await readBridge().manageModelProviders(request);
+      const result = await settingsHost.callProcedure("manageModelProviders", request);
       if (result.ok) {
         setData(result);
         setEditing(undefined);
@@ -83,7 +94,7 @@ export function ModelProviderManager({
         <Button
           size="sm"
           variant="tertiary"
-          isDisabled={busy}
+          isDisabled={disabled}
           onPress={() => {
             setEditing(undefined);
             void mutate({ agentKind, env, action: "list" });
@@ -94,7 +105,7 @@ export function ModelProviderManager({
         <Button
           size="sm"
           variant="secondary"
-          isDisabled={busy || !data || editing !== undefined}
+          isDisabled={disabled || !data || editing !== undefined}
           onPress={() => setEditing("new")}
         >
           <Trans>Add provider</Trans>
@@ -129,7 +140,7 @@ export function ModelProviderManager({
             <Button
               size="sm"
               variant="tertiary"
-              isDisabled={busy || editing !== undefined}
+              isDisabled={disabled || editing !== undefined}
               onPress={() => setEditing(provider)}
             >
               <Trans>Edit</Trans>
@@ -137,7 +148,7 @@ export function ModelProviderManager({
             <Button
               size="sm"
               variant="danger-soft"
-              isDisabled={busy || editing !== undefined || !provider.removable}
+              isDisabled={disabled || editing !== undefined || !provider.removable}
               onPress={() => setRemoving(provider)}
             >
               <Trans>Remove</Trans>
@@ -152,7 +163,7 @@ export function ModelProviderManager({
           catalog={data.catalog.filter(
             (entry) => !data.providers.some((provider) => provider.id === entry.id),
           )}
-          busy={busy}
+          busy={disabled}
           onCancel={() => setEditing(undefined)}
           onSave={(provider, apiKey) => {
             void mutate({

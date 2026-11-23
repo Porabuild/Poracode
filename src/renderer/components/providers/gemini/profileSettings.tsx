@@ -17,6 +17,7 @@ import { readBridge } from "@/renderer/bridge";
 import { useAppStore } from "@/renderer/state/appStore";
 import { flushSharedSettings, useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { currentWslDistros } from "@/renderer/utils/acpRegistryAuth";
+import { useAgentSettingsHost } from "@/renderer/components/providers/settings/AgentSettingsHostContext";
 import { AgentProfileList } from "@/renderer/views/SettingsOverlay/parts/AgentProfileList";
 import type {
   NativeAgentProfileSupport,
@@ -42,8 +43,11 @@ export function defaultGeminiHomeDir(profileId: string): string {
  * unknown / non-Gemini id — the generic page chrome still shows install/auth.
  */
 export function GeminiProfileProviderSettings(props: { instanceId: string }) {
-  const instance = useSharedSettings((s) => s.agentInstances?.[props.instanceId]);
-  if (!instance || instance.driver !== "gemini") return null;
+  const { canManageProfiles } = useAgentSettingsHost();
+  const instance = useSharedSettings((s) =>
+    canManageProfiles ? s.agentInstances?.[props.instanceId] : undefined,
+  );
+  if (!canManageProfiles || !instance || instance.driver !== "gemini") return null;
   let parsedConfig: GeminiProfileInstanceConfig | undefined;
   let invalidConfig = false;
   try {

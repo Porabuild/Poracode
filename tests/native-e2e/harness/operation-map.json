@@ -3,17 +3,21 @@
   "contract": "poracode.remote",
   "protocolVersion": 14,
   "bindingFormatVersion": 2,
-  "manifestHash": "sha256:8408d4919e1581b07c5d0fdd89d185d6ecde3feb1eb4b2db17eb95c071d279f8",
-  "keyCount": 366,
+  "manifestHash": "sha256:35321444d754d70729acb3c2a5dc159507ee2d665b44e0c8a2fc510bd8181c1b",
+  "keyCount": 376,
   "counts": {
     "route": 126,
-    "procedure": 184,
+    "procedure": 194,
     "ws-client": 11,
     "ws-server": 12,
     "replay": 17,
     "runtime": 16
   },
   "operations": {
+    "procedure:applyNativeMcpSetup": {
+      "kind": "procedure",
+      "id": "applyNativeMcpSetup"
+    },
     "procedure:authenticateAcpAgent": {
       "kind": "procedure",
       "id": "authenticateAcpAgent"
@@ -238,6 +242,14 @@
       "kind": "procedure",
       "id": "generateTitle"
     },
+    "procedure:getAgentConfigDefaults": {
+      "kind": "procedure",
+      "id": "getAgentConfigDefaults"
+    },
+    "procedure:getAgentHookPluginStatuses": {
+      "kind": "procedure",
+      "id": "getAgentHookPluginStatuses"
+    },
     "procedure:getGitDiff": {
       "kind": "procedure",
       "id": "getGitDiff"
@@ -261,6 +273,10 @@
     "procedure:getMcpOauthStatus": {
       "kind": "procedure",
       "id": "getMcpOauthStatus"
+    },
+    "procedure:getNativeMcpSetup": {
+      "kind": "procedure",
+      "id": "getNativeMcpSetup"
     },
     "procedure:getProviderUsage": {
       "kind": "procedure",
@@ -530,6 +546,10 @@
       "kind": "procedure",
       "id": "installAcpRegistryAgent"
     },
+    "procedure:installAgentHookPlugin": {
+      "kind": "procedure",
+      "id": "installAgentHookPlugin"
+    },
     "procedure:installMarketplaceSkill": {
       "kind": "procedure",
       "id": "installMarketplaceSkill"
@@ -573,6 +593,18 @@
     "procedure:lspStart": {
       "kind": "procedure",
       "id": "lspStart"
+    },
+    "procedure:manageAgentCredentials": {
+      "kind": "procedure",
+      "id": "manageAgentCredentials"
+    },
+    "procedure:manageAgentPlugins": {
+      "kind": "procedure",
+      "id": "manageAgentPlugins"
+    },
+    "procedure:manageModelProviders": {
+      "kind": "procedure",
+      "id": "manageModelProviders"
     },
     "procedure:moveProjectEntry": {
       "kind": "procedure",
@@ -637,6 +669,10 @@
     "procedure:refreshProviderUsage": {
       "kind": "procedure",
       "id": "refreshProviderUsage"
+    },
+    "procedure:reloadAgentMcpServers": {
+      "kind": "procedure",
+      "id": "reloadAgentMcpServers"
     },
     "procedure:relocateProject": {
       "kind": "procedure",
@@ -721,6 +757,10 @@
     "procedure:subagentUnsubscribe": {
       "kind": "procedure",
       "id": "subagentUnsubscribe"
+    },
+    "procedure:uninstallAgentHookPlugin": {
+      "kind": "procedure",
+      "id": "uninstallAgentHookPlugin"
     },
     "procedure:updateAcpRegistryAgent": {
       "kind": "procedure",

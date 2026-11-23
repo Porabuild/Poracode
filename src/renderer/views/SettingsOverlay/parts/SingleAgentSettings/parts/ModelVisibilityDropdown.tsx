@@ -1,6 +1,12 @@
+import { toast } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
-import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { baseAgentKind, type AgentStatus } from "@/shared/contracts";
+import { friendlyError } from "@/shared/messages";
+import {
+  useAgentSettingsHost,
+  useHostHiddenModels,
+  useHostSettingsReady,
+} from "@/renderer/components/providers/settings/AgentSettingsHostContext";
 import {
   buildProviderVisibilityCatalog,
   resolveEffectiveHiddenIdsByKey,
@@ -13,8 +19,9 @@ export function ModelVisibilityDropdown(props: {
   runtimeSlots?: NativeAgentRuntimeSlots;
 }) {
   const { t } = useLingui();
-  const hiddenModels = useSharedSettings((state) => state.hiddenModels);
-  const setHiddenModels = useSharedSettings((state) => state.setHiddenModels);
+  const settingsHost = useAgentSettingsHost();
+  const hiddenModels = useHostHiddenModels();
+  const ready = useHostSettingsReady();
   const { groups, surfaceProviders } = buildProviderVisibilityCatalog({
     agents: [props.agent],
     ...(props.runtimeSlots
@@ -39,8 +46,12 @@ export function ModelVisibilityDropdown(props: {
       <ProviderModelVisibilityPopover
         groups={groups}
         hiddenIdsByKey={hiddenIdsByKey}
+        isDisabled={!ready}
         onHiddenIdsChange={(updates) => {
-          for (const [key, next] of updates) setHiddenModels(key, next);
+          const pending = settingsHost.setHiddenModels(updates);
+          if (pending) {
+            void pending.catch((error) => toast.danger(friendlyError(error)));
+          }
         }}
         listAriaLabel={t`Visible models`}
         triggerClassName="min-w-[4.5rem] tabular-nums"

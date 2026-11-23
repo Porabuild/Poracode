@@ -67,6 +67,8 @@ object RemotePortableTransform {
 }
 object RemoteSemanticValidator {
     val supportedIds: Set<String> = setOf(
+        "agent-credentials.id-required",
+        "agent-plugins.target-required",
         "forge.edit.fields",
         "forge.host.https",
         "forge.watch.scope-identity",
@@ -75,6 +77,8 @@ object RemoteSemanticValidator {
         "git.remove-worktree.owner-requires-branch",
         "mcp.reserved-name",
         "mcp.valid-url",
+        "model-provider.id-safe",
+        "model-provider.valid-url",
         "plugin.valid-name",
         "plugin.valid-url",
         "pr-watch.agent-required-when-enabled",
@@ -98,6 +102,21 @@ object RemoteSemanticValidator {
     private fun fail(id: String, path: String): Nothing = throw RemoteValidationException("$path: semantic validator $id failed")
     private fun obj(value: JsonElement?): JsonObject? = value as? JsonObject
     private fun str(value: JsonElement?): String? = (value as? JsonPrimitive)?.takeIf { it.isString }?.content
+    private fun validModelProviderUrl(value: String): Boolean {
+        val trimmed = RemoteECMAScriptTrim.trim(value)
+        if (!RemoteSchemaValidator.validUrl(trimmed, setOf("http", "https"))) return false
+        val colonIndex = trimmed.indexOf(':')
+        if (colonIndex < 0) return false
+        val rest = trimmed.substring(colonIndex + 1).drop(2).dropWhile { it == '/' }
+        val authority = rest.takeWhile { it !in "/?#\\" }
+        if (authority.isEmpty()) return false
+        val at = authority.lastIndexOf('@')
+        if (at >= 0) {
+            val userInfo = authority.substring(0, at)
+            if (userInfo.isNotEmpty() && userInfo != ":") return false
+        }
+        return true
+    }
     private fun validPluginName(value: String): Boolean {
         if (value.isEmpty() || value.length > 64) return false
         fun alphanumeric(char: Char): Boolean = (char in 'a'..'z') || (char in '0'..'9')
@@ -184,6 +203,8 @@ object RemoteSemanticValidator {
         "schedule.cron" -> if (str(value)?.let(::validScheduleCron) != true) fail(id, path)
 
         "string.trim" -> Unit
+        "agent-credentials.id-required" -> if (str(item?.get("action")) == "remove" && str(item?.get("credentialId"))?.let(RemoteECMAScriptTrim::trim).isNullOrEmpty()) fail(id, path)
+        "agent-plugins.target-required" -> if (str(item?.get("action")) in setOf("install", "update", "remove") && str(item?.get("target"))?.let(RemoteECMAScriptTrim::trim).isNullOrEmpty()) fail(id, path)
         "forge.host.https" -> { val text = str(value); if (text == null || !validUrl(text, setOf("https")) || !text.startsWith("https://", ignoreCase = true) || text.any { it.code <= 32 || it.code in setOf(127, 92, 63, 35) } || '@' in text.drop(8).substringBefore('/')) fail(id, path) }
         "forge.watch.scope-identity" -> { val account = obj(item?.get("account")); if (account == null || str(item?.get("forge")) != str(account["forge"]) || str(item?.get("host")) != str(account["host"])) fail(id, path) }
         "forge.edit.fields" -> if (!has("title") && !has("body") && !has("baseBranch")) fail(id, path)
@@ -192,6 +213,8 @@ object RemoteSemanticValidator {
         "git.remove-worktree.owner-requires-branch" -> if (str(item?.get("expectedOwnerToken")) != null && str(item?.get("expectedBranch")) == null) fail(id, path)
         "mcp.reserved-name" -> if (str(item?.get("name"))?.let(RemoteECMAScriptTrim::trim)?.lowercase() in setOf("browser", "crossagents", "chrome", "computer_use", "poracode")) fail(id, path)
         "mcp.valid-url" -> if ((str(value) ?: str(item?.get("url")))?.let { validUrl(it, setOf("http", "https")) } != true) fail(id, path)
+        "model-provider.id-safe" -> if (str(value).let { it == null || it in setOf("__proto__", "constructor", "prototype") }) fail(id, path)
+        "model-provider.valid-url" -> if (str(value)?.let { validModelProviderUrl(it) } != true) fail(id, path)
         "plugin.valid-name" -> if (str(value)?.let { validPluginName(it) } != true) fail(id, path)
         "plugin.valid-url" -> if (str(value)?.let { validPluginUrl(it) } != true) fail(id, path)
         "pr-watch.agent-required-when-enabled" -> if (bool(item?.get("watchEnabled")) == true && (str(item?.get("agentKind")) == null || obj(item?.get("config")) == null)) fail(id, path)

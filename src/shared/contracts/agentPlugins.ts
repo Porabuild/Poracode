@@ -14,15 +14,19 @@ export const manageAgentPluginsPayloadSchema = z
       ctx.addIssue({ code: "custom", message: "A package target is required.", path: ["target"] });
   });
 export type ManageAgentPluginsPayload = z.infer<typeof manageAgentPluginsPayloadSchema>;
-export interface AgentPluginPackage {
-  target: string;
-  id?: string;
-  version?: string;
-  status: "active" | "failed" | "configured";
-  outdated: boolean;
-  server: boolean;
-  terminal: boolean;
-}
-export interface ManageAgentPluginsResult {
-  packages: AgentPluginPackage[];
-}
+
+export const agentPluginPackageSchema = z.object({
+  target: z.string().min(1),
+  id: z.string().min(1).optional(),
+  version: z.string().min(1).optional(),
+  status: z.enum(["active", "failed", "configured"]),
+  outdated: z.boolean(),
+  server: z.boolean(),
+  terminal: z.boolean(),
+});
+export type AgentPluginPackage = z.infer<typeof agentPluginPackageSchema>;
+
+export const manageAgentPluginsResultSchema = z.object({
+  packages: z.array(agentPluginPackageSchema),
+});
+export type ManageAgentPluginsResult = z.infer<typeof manageAgentPluginsResultSchema>;

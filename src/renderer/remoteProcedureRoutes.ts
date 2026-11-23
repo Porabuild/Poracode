@@ -251,22 +251,12 @@ export const NON_ROUTER_PROJECT_PROCEDURES = {
     "local-shell: this machine's CLI agent inventory; remote clients read via the agent-statuses registry route",
   cancelAgentDiscovery: "local-shell: cancels this machine's full agent discovery sweep",
   probeSelectedAgent: "local-shell: local administration probes an exact provider on this machine",
-  getAgentHookPluginStatuses: "local-shell: this machine's agent hook plugin inventory",
-  installAgentHookPlugin: "local-shell: installs into this machine's CLI hook plugins",
-  uninstallAgentHookPlugin: "local-shell: uninstalls from this machine's CLI hook plugins",
   confirmSupervisorSettingsEdits: "local-shell: this device's settings owner acknowledgement",
   controlAcpAuthentication:
     "local-shell: supervisor-owned authentication operation IDs and cancellation stay on this host",
   controlMcpAuthentication:
     "local-shell: supervisor-owned integration OAuth operations and cancellation stay on this host",
-  getAgentConfigDefaults: "local-shell: reads this machine's agent config file, read-only",
-  manageAgentPlugins: "local-shell: manages this machine's agent plugin packages",
-  manageAgentCredentials: "local-shell: this machine's keychain-stored agent credentials",
-  manageModelProviders: "local-shell: edits this machine's native model routes and credentials",
   setAgentSecretSetting: "local-shell: writes a secret into this machine's keychain",
-  getNativeMcpSetup: "local-shell: reads this machine's CLI MCP config files",
-  applyNativeMcpSetup: "local-shell: rewrites this machine's CLI MCP config files",
-  reloadAgentMcpServers: "local-shell: reloads CLI servers registered on this machine",
   resolveMcpSessionIdentity:
     "local-shell: resolves a pooled provider MCP session back to its live thread and policy on this host",
 

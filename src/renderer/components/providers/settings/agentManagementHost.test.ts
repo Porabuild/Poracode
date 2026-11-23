@@ -44,6 +44,8 @@ const bridge = {
   setAcpRegistryAgentAuth: vi.fn<() => Promise<{ installed: never[] }>>(),
   authenticateAcpAgent: vi.fn<() => Promise<void>>(),
   logoutAcpAgent: vi.fn<() => Promise<void>>(),
+  manageAgentPlugins: vi.fn<() => Promise<{ packages: unknown[] }>>(),
+  reloadAgentMcpServers: vi.fn<() => Promise<void>>(),
   focusWindow: vi.fn<() => Promise<void>>(),
   refreshAgentStatuses: vi.fn<() => Promise<AgentStatusesResponse>>(),
 };
@@ -149,6 +151,8 @@ describe("agent management hosts", () => {
     bridge.setAcpRegistryAgentAuth.mockReset();
     bridge.authenticateAcpAgent.mockReset();
     bridge.logoutAcpAgent.mockReset();
+    bridge.manageAgentPlugins.mockReset();
+    bridge.reloadAgentMcpServers.mockReset();
     bridge.focusWindow.mockReset();
     bridge.refreshAgentStatuses.mockReset();
     callRemoteProcedure.mockReset();
@@ -180,6 +184,64 @@ describe("agent management hosts", () => {
     bridge.refreshAgentStatuses.mockResolvedValue({ windows, wsl, fromCache: false });
     await expect(host.refreshAgentStatuses(["Ubuntu"])).resolves.toEqual({ windows, wsl });
     expect(bridge.refreshAgentStatuses).toHaveBeenCalledWith(["Ubuntu"], undefined);
+  });
+
+  it("dispatches generic callProcedure through readBridge locally and validates remote results", async () => {
+    const pluginPayload = {
+      agentKind: "opencode",
+      env: { kind: "native" as const },
+      action: "list" as const,
+    };
+    const pluginResult = {
+      packages: [
+        {
+          target: "@prevalentware/opencode-goal-plugin",
+          status: "active" as const,
+          outdated: false,
+          server: true,
+          terminal: true,
+        },
+      ],
+    };
+
+    bridge.manageAgentPlugins.mockResolvedValueOnce(pluginResult);
+    await expect(
+      LOCAL_AGENT_MANAGEMENT_HOST.callProcedure("manageAgentPlugins", pluginPayload),
+    ).resolves.toEqual(pluginResult);
+    expect(bridge.manageAgentPlugins).toHaveBeenCalledExactlyOnceWith(pluginPayload);
+    expect(callRemoteProcedure).not.toHaveBeenCalled();
+
+    const remoteHost = agentManagementHostForMachine(REMOTE_MACHINE);
+    callRemoteProcedure.mockResolvedValueOnce(pluginResult);
+    await expect(remoteHost.callProcedure("manageAgentPlugins", pluginPayload)).resolves.toEqual(
+      pluginResult,
+    );
+    expect(withClientCalls).toEqual(["conn-1"]);
+    expect(callRemoteProcedure).toHaveBeenCalledWith("manageAgentPlugins", pluginPayload);
+    expect(bridge.manageAgentPlugins).toHaveBeenCalledTimes(1);
+
+    callRemoteProcedure.mockResolvedValueOnce(undefined);
+    await expect(
+      remoteHost.callProcedure("reloadAgentMcpServers", { agentKind: "opencode" }),
+    ).resolves.toBeUndefined();
+    expect(callRemoteProcedure).toHaveBeenLastCalledWith("reloadAgentMcpServers", {
+      agentKind: "opencode",
+    });
+    expect(bridge.reloadAgentMcpServers).not.toHaveBeenCalled();
+
+    // Schema validation rejects malformed payloads from a misbehaving host.
+    callRemoteProcedure.mockResolvedValueOnce({ packages: "not-an-array" });
+    await expect(remoteHost.callProcedure("manageAgentPlugins", pluginPayload)).rejects.toThrow(
+      /expected array/i,
+    );
+
+    // Older remote host rejecting an unknown procedure surfaces the error without local fallback.
+    const unsupported = new RemoteClientError("not allowed", 403, "git_procedure_not_allowed");
+    callRemoteProcedure.mockRejectedValueOnce(unsupported);
+    await expect(remoteHost.callProcedure("manageAgentPlugins", pluginPayload)).rejects.toBe(
+      unsupported,
+    );
+    expect(bridge.manageAgentPlugins).toHaveBeenCalledTimes(1);
   });
 
   it("runs paired-host probes, updates, and registry reads on the connection", async () => {

@@ -2,11 +2,10 @@ import { useEffect, useState } from "react";
 import { Button, Disclosure, toast } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { RotateCcw } from "lucide-react";
+import type { AgentStatus } from "@/shared/contracts";
 import { Input } from "@/renderer/components/common";
 import { Select, type SelectOption } from "@/renderer/components/common/Select";
-import { readBridge } from "@/renderer/bridge";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
-import { flushSharedSettings, useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { SettingRow } from "@/renderer/views/SettingsOverlay/parts/SettingsForm";
 import {
   CODEX_AGENT_SETTING_KEYS,
@@ -21,6 +20,11 @@ import {
   parseMaxSubagents,
 } from "@/shared/agents/codexAgentSettings";
 import { friendlyError } from "@/shared/messages";
+import {
+  useAgentSettingsHost,
+  useHostAgentSettingValues,
+  useHostSettingsReady,
+} from "./AgentSettingsHostContext";
 
 /** Select option id meaning "no Poracode override". */
 const UNSET = "__unset__";
@@ -37,14 +41,20 @@ function withCurrent(options: SelectOption[], current: string): SelectOption[] {
  * passed to Codex as `-c` overrides at launch; `config.toml` values the host
  * reads are shown as read-only hints for whatever is left empty.
  */
-export function CodexAdvancedSettings(props: { agentKind: string }) {
+export function CodexAdvancedSettings(props: {
+  agentKind: string;
+  statuses?: readonly AgentStatus[];
+}) {
   const { agentKind } = props;
   const { t } = useLingui();
-  const stored = useSharedSettings((state) => state.agentSettings[agentKind]);
-  const setAgentSetting = useSharedSettings((state) => state.setAgentSetting);
-  const status = useAgentStatusesStore((state) =>
-    state.agentStatuses.find((entry) => entry.kind === agentKind),
+  const settingsHost = useAgentSettingsHost();
+  const stored = useHostAgentSettingValues(agentKind);
+  const ready = useHostSettingsReady();
+  const localStatus = useAgentStatusesStore((state) =>
+    props.statuses ? undefined : state.agentStatuses.find((entry) => entry.kind === agentKind),
   );
+  const status =
+    props.statuses?.find((entry) => entry.kind === agentKind) ?? props.statuses?.[0] ?? localStatus;
   const capabilities = status?.capabilities;
   const isAgentsConfigUnsupported =
     status?.version !== undefined &&
@@ -54,19 +64,25 @@ export function CodexAdvancedSettings(props: { agentKind: string }) {
   const [maxDraft, setMaxDraft] = useState<string | undefined>();
 
   useEffect(() => {
+    if (!settingsHost.isOnline) {
+      setConfigDefaults({});
+      return;
+    }
     let cancelled = false;
-    void readBridge()
-      .getAgentConfigDefaults({ agentKind })
+    void settingsHost
+      .callProcedure("getAgentConfigDefaults", { agentKind })
       .then((result) => {
         if (!cancelled) setConfigDefaults(result.defaults);
       })
       .catch(() => {
         // Hints only: a failed read leaves the fields without config.toml context.
+        if (!cancelled) setConfigDefaults({});
       });
     return () => {
       cancelled = true;
     };
-  }, [agentKind]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- host key identifies the target machine.
+  }, [settingsHost.key, settingsHost.isOnline, agentKind]);
 
   const valueOf = (key: string) => (typeof stored?.[key] === "string" ? stored[key] : "");
   const subagentModel = valueOf(CODEX_SUBAGENT_MODEL_SETTING_KEY);
@@ -76,16 +92,10 @@ export function CodexAdvancedSettings(props: { agentKind: string }) {
   const hasOverrides = CODEX_AGENT_SETTING_KEYS.some((key) => valueOf(key) !== "");
 
   const save = async (updates: Record<string, string>) => {
-    const previous = Object.fromEntries(Object.keys(updates).map((key) => [key, valueOf(key)]));
-    for (const [key, value] of Object.entries(updates)) setAgentSetting(agentKind, key, value);
+    if (!ready) return;
     try {
-      await flushSharedSettings({ requireSuccess: true });
+      await settingsHost.saveAgentSettings(agentKind, updates, { requireSuccess: true });
     } catch (error) {
-      // A newer save may already own a key; only undo values this save still holds.
-      const current = useSharedSettings.getState().agentSettings[agentKind];
-      for (const [key, value] of Object.entries(previous)) {
-        if (current?.[key] === updates[key]) setAgentSetting(agentKind, key, value);
-      }
       toast.danger(friendlyError(error));
     }
   };
@@ -192,6 +202,7 @@ export function CodexAdvancedSettings(props: { agentKind: string }) {
                   className="w-[160px] shrink-0"
                   options={modelOptions}
                   value={selectValue(subagentModel)}
+                  isDisabled={!ready}
                   onChange={(value) => changeSubagentModel(fromSelect(value))}
                 />
               </SettingRow>
@@ -209,6 +220,7 @@ export function CodexAdvancedSettings(props: { agentKind: string }) {
                   className="w-[160px] shrink-0"
                   options={effortOptions(effortChoices(subagentModel), subagentEffort)}
                   value={selectValue(subagentEffort)}
+                  isDisabled={!ready}
                   onChange={(value) =>
                     void save({ [CODEX_SUBAGENT_EFFORT_SETTING_KEY]: fromSelect(value) })
                   }
@@ -225,6 +237,7 @@ export function CodexAdvancedSettings(props: { agentKind: string }) {
                   inputMode="numeric"
                   placeholder={configDefaults[CODEX_MAX_SUBAGENTS_SETTING_KEY] ?? t`Default`}
                   value={maxDraft ?? maxSubagents}
+                  disabled={!ready}
                   onChange={(event) => setMaxDraft(event.currentTarget.value)}
                   onBlur={commitMax}
                   onKeyDown={(event) => {
@@ -242,6 +255,7 @@ export function CodexAdvancedSettings(props: { agentKind: string }) {
                   className="w-[160px] shrink-0"
                   options={effortOptions(capabilities?.efforts ?? [], planEffort)}
                   value={selectValue(planEffort)}
+                  isDisabled={!ready}
                   onChange={(value) =>
                     void save({ [CODEX_PLAN_MODE_EFFORT_SETTING_KEY]: fromSelect(value) })
                   }
@@ -256,7 +270,7 @@ export function CodexAdvancedSettings(props: { agentKind: string }) {
           variant="ghost"
           className="h-7 min-h-7 shrink-0 gap-1 px-2 text-[11px]"
           aria-label={t`Reset advanced settings`}
-          isDisabled={!hasOverrides}
+          isDisabled={!hasOverrides || !ready}
           onPress={() =>
             void save(Object.fromEntries(CODEX_AGENT_SETTING_KEYS.map((key) => [key, ""])))
           }

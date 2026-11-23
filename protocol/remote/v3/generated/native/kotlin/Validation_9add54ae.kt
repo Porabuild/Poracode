@@ -25,6 +25,10 @@ internal val schema_0093611cbbbd16a0: RemoteSchema by lazy {
     RemoteSchema(type = "object", required = setOf("destinationScope", "marketplace", "marketplaceSkillId"), properties = mapOf("availability" to schema_9c8337f42f233534, "destinationScope" to schema_ac6ea0fc110d7efb, "marketplace" to schema_118f67a0fa6bb27d, "marketplaceSkillId" to schema_36fea325bf1aca70, "projectLocation" to schema_080f9cc154af9e27, "replace" to schema_f8b6dd8128e8bfe0, "wslDistro" to schema_36fea325bf1aca70), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
 
+internal val schema_00abdaf4c5a182d1: RemoteSchema by lazy {
+    RemoteSchema(type = "object", required = setOf("agentKind", "env", "installIds", "removeNames", "revision"), properties = mapOf("agentKind" to schema_36fea325bf1aca70, "env" to schema_2583fd799237ae71, "installIds" to schema_39d8d7cbf4384109, "removeNames" to schema_39d8d7cbf4384109, "revision" to schema_36fea325bf1aca70), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
+}
+
 internal val schema_00b1d6328e3a57b5: RemoteSchema by lazy {
     RemoteSchema(type = "object", required = setOf("deletions", "insertions", "path", "staged", "status"), properties = mapOf("deletions" to schema_3d06117798bf5171, "insertions" to schema_3d06117798bf5171, "oldPath" to schema_bf0b727f7b1c6d07, "path" to schema_bf0b727f7b1c6d07, "staged" to schema_feeb8bb50144d96d, "status" to schema_bf0b727f7b1c6d07), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }

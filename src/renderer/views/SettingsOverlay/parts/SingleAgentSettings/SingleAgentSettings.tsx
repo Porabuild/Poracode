@@ -1,6 +1,6 @@
 import { ContentSurface } from "@/renderer/components/common/ContentSurface";
 import { NativeMcpSettings } from "./parts/NativeMcpSettings";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Button, toast } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { AlertTriangle, LogIn, LogOut, RefreshCw, Save } from "lucide-react";
@@ -25,6 +25,7 @@ import { useMachines, useSelectedMachine } from "@/renderer/state/machines";
 import { buildWslProjectDistrosKey } from "@/renderer/state/projectKeys";
 import { useProviderUsage } from "@/renderer/state/providerUsageStore";
 import { isWindows } from "@/renderer/bridge";
+import { usePairedHostSettings } from "@/renderer/state/pairedHostSettings";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import {
   agentAuthTarget,
@@ -48,6 +49,10 @@ import {
   distrosForAgentHost,
   useHostRegistryInstalledAgents,
 } from "@/renderer/components/providers/settings/agentManagementHost";
+import {
+  AgentSettingsHostProvider,
+  createAgentSettingsHost,
+} from "@/renderer/components/providers/settings/AgentSettingsHostContext";
 import { SettingsPage } from "../SettingsForm";
 import { NATIVE_AGENT_REGISTRY_ENTRIES } from "../agentRegistryNative";
 import {
@@ -140,7 +145,7 @@ export function SingleAgentSettings(props: {
   const providerUsage = useProviderUsage(props.agentKind);
   const projects = useAppStore((state) => state.projects);
   const wslProjectDistrosKey = buildWslProjectDistrosKey(projects);
-  const platform = isWindows() ? "win32" : "posix";
+  const localIsWindows = isWindows();
   // Instance-scoped kind of any multi-profile provider (`claude:work`).
   const profileKindParts = parseAgentProfileKind(props.agentKind);
   const profileInstance = useSharedSettings((s) =>
@@ -193,10 +198,19 @@ export function SingleAgentSettings(props: {
   // Header and capabilities fall back to any machine's install so the page
   // stays usable while the selected machine has nothing detected yet.
   const agent = installedStatuses[0] ?? installedAnywhere[0] ?? machineStatuses[0];
+  const isRemoteHost = agentHost.isRemote;
+  const remoteHostSettings = usePairedHostSettings(agentHost.connectionKey);
+  const localDisabled = useSharedSettings((s) =>
+    isRemoteHost ? false : s.disabledAgents.includes(props.agentKind),
+  );
+  const isHostSettingsReady = isRemoteHost
+    ? isMachineOnline && remoteHostSettings?.settings !== undefined
+    : isMachineOnline;
   const isDisabled =
-    useSharedSettings((s) => s.disabledAgents.includes(props.agentKind)) ||
-    (!isRemoteMachine && profileInstance?.enabled === false);
-  const setAgentDisabled = useSharedSettings((s) => s.setAgentDisabled);
+    (isRemoteHost
+      ? (remoteHostSettings?.settings?.disabledAgents?.includes(props.agentKind) ?? false)
+      : localDisabled) ||
+    (!isRemoteHost && profileInstance?.enabled === false);
   const installedRegistryRecord =
     useHostRegistryInstalledAgents(agentHost)[extractAcpGenericInstanceId(props.agentKind) ?? ""];
   const projectWslDistros = wslProjectDistrosKey ? wslProjectDistrosKey.split("\0") : [];
@@ -215,6 +229,47 @@ export function SingleAgentSettings(props: {
       wslDistros,
     );
   const distrosForMachine = distrosForAgentHost(agentHost, selectedMachine.ref.env, wslDistros);
+  const hostPlatform: "win32" | "posix" =
+    selectedMachine.ref.env.kind === "wsl"
+      ? "posix"
+      : selectedMachine.platform === "win32"
+        ? "win32"
+        : selectedMachine.platform
+          ? "posix"
+          : localIsWindows
+            ? "win32"
+            : "posix";
+  const machineProject = findProjectForMachine(
+    selectedMachine,
+    projects,
+    localIsWindows,
+    machineStatuses,
+  );
+  const distrosForMachineKey = distrosForMachine.join("\0");
+  const settingsHost = useMemo(
+    () =>
+      createAgentSettingsHost({
+        host: agentHost,
+        isOnline: isMachineOnline,
+        ...(machineProject ? { machineProject } : {}),
+        wslDistros: distrosForMachineKey ? distrosForMachineKey.split("\0") : [],
+      }),
+    [agentHost, isMachineOnline, machineProject, distrosForMachineKey],
+  );
+  const handleSetAgentDisabled = (agentKind: string, disabled: boolean) => {
+    void (async () => {
+      try {
+        await settingsHost.setAgentDisabled(agentKind, disabled);
+        if (!disabled && settingsHost.isOnline) {
+          await settingsHost
+            .rediscoverAgents(undefined, { agentKinds: [agentKind] })
+            .catch(() => undefined);
+        }
+      } catch (error) {
+        toast.danger(friendlyError(error));
+      }
+    })();
+  };
 
   const registryAgentId = extractAcpGenericInstanceId(props.agentKind);
   // Read-side guards: any stored "latest version" only counts when its owner
@@ -293,8 +348,8 @@ export function SingleAgentSettings(props: {
   // take a moment; it stays undefined (no account line) when unavailable.
   const accountResolver = providerEntry?.accountResolver;
   useEffect(() => {
+    setProviderAccount(undefined);
     if (!accountResolver || !isMachineOnline) {
-      setProviderAccount(undefined);
       return;
     }
     let cancelled = false;
@@ -302,7 +357,9 @@ export function SingleAgentSettings(props: {
       .then((account) => {
         if (!cancelled) setProviderAccount(account);
       })
-      .catch(() => undefined);
+      .catch(() => {
+        if (!cancelled) setProviderAccount(undefined);
+      });
     return () => {
       cancelled = true;
     };
@@ -315,12 +372,7 @@ export function SingleAgentSettings(props: {
     if (isRefreshing || selectedMachine.status !== "online") return;
     setRefreshingAgents((current) => [...current, refreshKey]);
     try {
-      const refreshDistros = agentHost.isRemote
-        ? selectedMachine.ref.env.kind === "wsl"
-          ? [selectedMachine.ref.env.distro]
-          : []
-        : wslDistros;
-      await agentHost.rediscoverAgents(refreshDistros, {
+      await agentHost.rediscoverAgents(distrosForMachine, {
         agentKinds: [props.agentKind],
         envs: [selectedMachine.ref.env],
       });
@@ -351,6 +403,7 @@ export function SingleAgentSettings(props: {
     // provider registry, so this holds for every multi-profile provider.
     const ProfilePanel = providerEntry?.settingsPanel;
     if (
+      !isRemoteHost &&
       profileKindParts &&
       profileInstance?.driver === profileKindParts.driver &&
       providerEntry?.profiles &&
@@ -365,21 +418,24 @@ export function SingleAgentSettings(props: {
       const providerLabel =
         profileKindParts.driver.charAt(0).toUpperCase() + profileKindParts.driver.slice(1);
       return (
-        <SettingsPage
-          title={`${providerLabel} ${profileInstance.displayName ?? profileInstance.id}`}
-          bodyClassName=""
-          actions={refreshButton}
-        >
-          <ProfilePanel
-            agentKind={props.agentKind}
-            statuses={profileStatuses}
-            wslDistros={wslDistros}
-            onOpenProfile={props.onOpenProfile}
-          />
-        </SettingsPage>
+        <AgentSettingsHostProvider host={settingsHost}>
+          <SettingsPage
+            title={`${providerLabel} ${profileInstance.displayName ?? profileInstance.id}`}
+            bodyClassName=""
+            actions={refreshButton}
+          >
+            <ProfilePanel
+              key={settingsHost.key}
+              agentKind={props.agentKind}
+              statuses={profileStatuses}
+              wslDistros={wslDistros}
+              onOpenProfile={props.onOpenProfile}
+            />
+          </SettingsPage>
+        </AgentSettingsHostProvider>
       );
     }
-    if (!isRemoteMachine && profileInstance)
+    if (!isRemoteHost && profileInstance)
       return (
         <SettingsPage
           title={profileInstance.displayName ?? profileInstance.id}
@@ -407,7 +463,7 @@ export function SingleAgentSettings(props: {
   }
 
   const defs = (agent.capabilities.settingDefs ?? []).filter(
-    (def) => !def.platforms || def.platforms.includes(platform),
+    (def) => !def.platforms || def.platforms.includes(hostPlatform),
   );
 
   const missingAuthStatuses = installedStatuses.filter((status) => status.authState === "missing");
@@ -455,12 +511,6 @@ export function SingleAgentSettings(props: {
   const canSaveEnvAuth =
     acpInstanceId !== undefined &&
     requiredAuthVars?.every((variable) => authValues[variable.name]?.trim()) === true;
-  const machineProject = findProjectForMachine(
-    selectedMachine,
-    projects,
-    platform === "win32",
-    machineStatuses,
-  );
   const saveEnvAuth = () => {
     if (!envVarAuthMethod || !acpInstanceId || !canSaveEnvAuth || !isMachineOnline) return;
     const environment = Object.fromEntries(
@@ -809,9 +859,7 @@ export function SingleAgentSettings(props: {
   // belong to, so leaving them above the panel would strand one runtime's setup
   // outside the grouping.
   const panelOwnsInstallRows =
-    !isRemoteMachine &&
-    providerEntry?.settingsPanel !== undefined &&
-    providerEntry.ownsInstallRows === true;
+    providerEntry?.settingsPanel !== undefined && providerEntry.ownsInstallRows === true;
   // A panel that owns the install rows already presents its provider's runtimes
   // (Cursor groups its CLI-backed ACP runtime itself), so only providers
   // without one fold their slots into the row.
@@ -1057,257 +1105,260 @@ export function SingleAgentSettings(props: {
   );
 
   return (
-    <div className="mx-auto max-w-[720px]">
-      <div className={panelOwnsInstallRows ? "mb-2" : "mb-6"}>
-        <AgentHeader
-          agent={agent}
-          isDisabled={isDisabled}
-          updateAvailable={updateAvailable}
-          updatePending={updatePending}
-          latestRegistryVersion={latestRegistryVersion}
-          toggleDisabled={
-            binaryUpdatePendingEnvKeys.size > 0 ||
-            combinedRuntimeEntries.some(({ entry }) => entry.pending)
-          }
-          wslDistros={wslDistros}
-          onPerformUpdate={performUpdate}
-          onSetAgentDisabled={setAgentDisabled}
-          refreshButton={refreshButton}
-        />
-
-        {panelOwnsInstallRows ? null : (
-          <div className="space-y-0.5 border-t border-border/10 pt-3">{environmentRows}</div>
-        )}
-      </div>
-
-      <div className="space-y-4">
-        {providerEntry?.settingsPanel && !isRemoteMachine ? (
-          <providerEntry.settingsPanel
-            agentKind={props.agentKind}
-            statuses={installedStatuses}
-            wslDistros={wslDistros}
-            onOpenProfile={props.onOpenProfile}
-            {...(panelOwnsInstallRows ? { installRows: environmentRows } : {})}
+    <AgentSettingsHostProvider host={settingsHost}>
+      <div className="mx-auto max-w-[720px]">
+        <div className={panelOwnsInstallRows ? "mb-2" : "mb-6"}>
+          <AgentHeader
+            agent={agent}
+            isDisabled={isDisabled}
+            updateAvailable={updateAvailable}
+            updatePending={updatePending}
+            latestRegistryVersion={latestRegistryVersion}
+            toggleDisabled={
+              !isHostSettingsReady ||
+              binaryUpdatePendingEnvKeys.size > 0 ||
+              combinedRuntimeEntries.some(({ entry }) => entry.pending)
+            }
+            onPerformUpdate={performUpdate}
+            onSetAgentDisabled={handleSetAgentDisabled}
+            refreshButton={refreshButton}
           />
-        ) : null}
 
-        {/* Panels that own auth UI (e.g. OpenCode's per-AI-provider sign-in)
-            make the generic single sign-in row redundant. On remote machines the
-            settingsPanel itself isn't rendered, so keep generic auth available. */}
-        {hasAuthSettings && (isRemoteMachine || providerEntry?.ownsAuthUi !== true) && (
-          <div className="space-y-2">
-            {envVarAuthMethod && acpInstanceId ? (
-              <ContentSurface
-                variant="row"
-                className="flex items-start justify-between gap-4 px-3 py-2 text-foreground"
-              >
-                <div className="flex min-w-0 items-start gap-2">
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium">{envVarAuthMethod.name}</p>
-                    <p className="text-xs text-muted">
-                      <Trans>Saved credentials are shared across all machines.</Trans>
-                    </p>
-                    <div className="mt-3 flex flex-col gap-2">
-                      {envVarAuthMethod.vars.map((variable) => {
-                        const hasAuthValue = Object.prototype.hasOwnProperty.call(
-                          authValues,
-                          variable.name,
-                        );
-                        const allEnvVarSaved =
-                          missingAuthStatuses.length === 0 && installedStatuses.length > 0;
-                        return (
-                          <Input
-                            key={variable.name}
-                            aria-label={variable.label ?? variable.name}
-                            className="w-full"
-                            placeholder={variable.label ?? variable.name}
-                            type={
-                              variable.secret === false || (!hasAuthValue && allEnvVarSaved)
-                                ? "text"
-                                : "password"
-                            }
-                            value={
-                              hasAuthValue
-                                ? (authValues[variable.name] ?? "")
-                                : allEnvVarSaved
-                                  ? SAVED_CREDENTIAL_MASK
-                                  : ""
-                            }
-                            onFocus={() => {
-                              if (allEnvVarSaved && !hasAuthValue) {
+          {panelOwnsInstallRows ? null : (
+            <div className="space-y-0.5 border-t border-border/10 pt-3">{environmentRows}</div>
+          )}
+        </div>
+
+        <div className="space-y-4">
+          {providerEntry?.settingsPanel ? (
+            <providerEntry.settingsPanel
+              key={settingsHost.key}
+              agentKind={props.agentKind}
+              statuses={installedStatuses}
+              wslDistros={distrosForMachine}
+              onOpenProfile={props.onOpenProfile}
+              {...(panelOwnsInstallRows ? { installRows: environmentRows } : {})}
+            />
+          ) : null}
+
+          {/* Panels that own auth UI (e.g. OpenCode's per-AI-provider sign-in)
+            make the generic single sign-in row redundant. */}
+          {hasAuthSettings && providerEntry?.ownsAuthUi !== true && (
+            <div className="space-y-2">
+              {envVarAuthMethod && acpInstanceId ? (
+                <ContentSurface
+                  variant="row"
+                  className="flex items-start justify-between gap-4 px-3 py-2 text-foreground"
+                >
+                  <div className="flex min-w-0 items-start gap-2">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium">{envVarAuthMethod.name}</p>
+                      <p className="text-xs text-muted">
+                        <Trans>Saved credentials are shared across all machines.</Trans>
+                      </p>
+                      <div className="mt-3 flex flex-col gap-2">
+                        {envVarAuthMethod.vars.map((variable) => {
+                          const hasAuthValue = Object.prototype.hasOwnProperty.call(
+                            authValues,
+                            variable.name,
+                          );
+                          const allEnvVarSaved =
+                            missingAuthStatuses.length === 0 && installedStatuses.length > 0;
+                          return (
+                            <Input
+                              key={variable.name}
+                              aria-label={variable.label ?? variable.name}
+                              className="w-full"
+                              placeholder={variable.label ?? variable.name}
+                              type={
+                                variable.secret === false || (!hasAuthValue && allEnvVarSaved)
+                                  ? "text"
+                                  : "password"
+                              }
+                              value={
+                                hasAuthValue
+                                  ? (authValues[variable.name] ?? "")
+                                  : allEnvVarSaved
+                                    ? SAVED_CREDENTIAL_MASK
+                                    : ""
+                              }
+                              onFocus={() => {
+                                if (allEnvVarSaved && !hasAuthValue) {
+                                  setAuthValues((current) => ({
+                                    ...current,
+                                    [variable.name]: "",
+                                  }));
+                                }
+                              }}
+                              onBlur={(event) => {
+                                if (!allEnvVarSaved) return;
+                                if (
+                                  event.relatedTarget instanceof HTMLElement &&
+                                  event.relatedTarget.closest("[data-acp-auth-save]")
+                                ) {
+                                  return;
+                                }
+                                setAuthValues((current) => {
+                                  if (
+                                    !Object.prototype.hasOwnProperty.call(current, variable.name)
+                                  ) {
+                                    return current;
+                                  }
+                                  const next = { ...current };
+                                  delete next[variable.name];
+                                  return next;
+                                });
+                              }}
+                              onChange={(event) =>
                                 setAuthValues((current) => ({
                                   ...current,
-                                  [variable.name]: "",
-                                }));
+                                  [variable.name]: event.target.value,
+                                }))
                               }
-                            }}
-                            onBlur={(event) => {
-                              if (!allEnvVarSaved) return;
-                              if (
-                                event.relatedTarget instanceof HTMLElement &&
-                                event.relatedTarget.closest("[data-acp-auth-save]")
-                              ) {
-                                return;
-                              }
-                              setAuthValues((current) => {
-                                if (!Object.prototype.hasOwnProperty.call(current, variable.name)) {
-                                  return current;
-                                }
-                                const next = { ...current };
-                                delete next[variable.name];
-                                return next;
-                              });
-                            }}
-                            onChange={(event) =>
-                              setAuthValues((current) => ({
-                                ...current,
-                                [variable.name]: event.target.value,
-                              }))
-                            }
-                          />
-                        );
-                      })}
+                            />
+                          );
+                        })}
+                      </div>
                     </div>
                   </div>
-                </div>
-                <div className="flex shrink-0 flex-row items-center gap-2">
-                  <Button
-                    size="sm"
-                    variant="tertiary"
-                    isIconOnly
-                    aria-label={t`Save`}
-                    isDisabled={!canSaveEnvAuth || !isMachineOnline}
-                    isPending={authPending}
-                    data-acp-auth-save=""
-                    onPress={saveEnvAuth}
-                  >
-                    <Save className="size-4" />
-                  </Button>
-                  {!usePerEnvAuthRows && (
+                  <div className="flex shrink-0 flex-row items-center gap-2">
                     <Button
                       size="sm"
                       variant="tertiary"
                       isIconOnly
-                      aria-label={t`Logout`}
-                      isDisabled={!isMachineOnline}
+                      aria-label={t`Save`}
+                      isDisabled={!canSaveEnvAuth || !isMachineOnline}
                       isPending={authPending}
-                      onPress={clearEnvVarCredentials}
+                      data-acp-auth-save=""
+                      onPress={saveEnvAuth}
                     >
-                      <LogOut className="size-4 text-danger" />
+                      <Save className="size-4" />
                     </Button>
-                  )}
-                </div>
-              </ContentSurface>
-            ) : null}
+                    {!usePerEnvAuthRows && (
+                      <Button
+                        size="sm"
+                        variant="tertiary"
+                        isIconOnly
+                        aria-label={t`Logout`}
+                        isDisabled={!isMachineOnline}
+                        isPending={authPending}
+                        onPress={clearEnvVarCredentials}
+                      >
+                        <LogOut className="size-4 text-danger" />
+                      </Button>
+                    )}
+                  </div>
+                </ContentSurface>
+              ) : null}
 
-            {!usePerEnvAuthRows &&
-            !showEnvVarOnly &&
-            (agentAuth || loginStatus || logoutStatuses.length > 0) ? (
-              <div className="flex items-start justify-between gap-4 py-1">
-                <div className="flex min-w-0 items-start gap-2">
-                  <div className="min-w-0 flex-1">
-                    <p className={`text-sm font-medium ${authMissing ? "text-warning" : ""}`}>
-                      {authMissing ? (
-                        <AlertTriangle className="mr-1.5 inline size-4 -translate-y-px text-warning" />
-                      ) : null}
-                      {authMissing ? t`Login required` : t`Authentication`}
-                    </p>
-                    <p className="text-xs text-muted truncate">
-                      {authPendingMessage ??
-                        (authMissing
-                          ? `${missingAuthLabel ? `${t`${missingAuthLabel} needs authentication.`} ` : ""}${
-                              envVarAuthMethod
-                                ? agentAuth
-                                  ? t`Complete ${agentAuth.method.name} sign-in or save ${envVarAuthMethod.name} credentials.`
-                                  : t`Save ${envVarAuthMethod.name} credentials.`
-                                : agentAuth
-                                  ? t`Complete ${agentAuth.method.name} sign-in.`
-                                  : loginCommandDisplay
-                                    ? t`Run ${loginCommandDisplay} to sign in.`
-                                    : t`Sign in with the agent CLI.`
-                            }`
-                          : t`Credentials are configured.`)}
-                    </p>
+              {!usePerEnvAuthRows &&
+              !showEnvVarOnly &&
+              (agentAuth || loginStatus || logoutStatuses.length > 0) ? (
+                <div className="flex items-start justify-between gap-4 py-1">
+                  <div className="flex min-w-0 items-start gap-2">
+                    <div className="min-w-0 flex-1">
+                      <p className={`text-sm font-medium ${authMissing ? "text-warning" : ""}`}>
+                        {authMissing ? (
+                          <AlertTriangle className="mr-1.5 inline size-4 -translate-y-px text-warning" />
+                        ) : null}
+                        {authMissing ? t`Login required` : t`Authentication`}
+                      </p>
+                      <p className="text-xs text-muted truncate">
+                        {authPendingMessage ??
+                          (authMissing
+                            ? `${missingAuthLabel ? `${t`${missingAuthLabel} needs authentication.`} ` : ""}${
+                                envVarAuthMethod
+                                  ? agentAuth
+                                    ? t`Complete ${agentAuth.method.name} sign-in or save ${envVarAuthMethod.name} credentials.`
+                                    : t`Save ${envVarAuthMethod.name} credentials.`
+                                  : agentAuth
+                                    ? t`Complete ${agentAuth.method.name} sign-in.`
+                                    : loginCommandDisplay
+                                      ? t`Run ${loginCommandDisplay} to sign in.`
+                                      : t`Sign in with the agent CLI.`
+                              }`
+                            : t`Credentials are configured.`)}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex shrink-0 flex-col items-end gap-2">
+                    {agentAuth && supportsAcpAgentAuth ? (
+                      (agentAuthEntries.length > 0 ? agentAuthEntries : [agentAuth]).map(
+                        (entry, index) => (
+                          <Button
+                            key={`${entry.status.kind}-${entry.status.envKind ?? "native"}-${entry.status.envDistro ?? index}`}
+                            size="sm"
+                            variant="tertiary"
+                            className="h-7 min-h-7 gap-1 px-2 text-[11px]"
+                            isDisabled={!isMachineOnline}
+                            isPending={authPending}
+                            onPress={() => authenticateAgent(entry)}
+                          >
+                            <LogIn className="size-3" />
+                            {authMissing ? t`Login` : t`Re-login`}
+                          </Button>
+                        ),
+                      )
+                    ) : loginStatus && loginCommand ? (
+                      <Button
+                        size="sm"
+                        variant="tertiary"
+                        className="h-7 min-h-7 gap-1 px-2 text-[11px]"
+                        isDisabled={!isMachineOnline}
+                        onPress={() => runTerminalLogin(loginStatus, terminalLoginMethod)}
+                      >
+                        <LogIn className="size-3" />
+                        {authMissing ? t`Login` : t`Re-login`}
+                      </Button>
+                    ) : null}
+                    {logoutStatuses.map((status, index) => (
+                      <Button
+                        key={`${status.kind}-${status.envKind ?? "native"}-${status.envDistro ?? index}-logout`}
+                        size="sm"
+                        variant="tertiary"
+                        className="h-7 min-h-7 gap-1 px-2 text-[11px]"
+                        isDisabled={!isMachineOnline}
+                        isPending={authPending}
+                        onPress={() => logoutAgent(status)}
+                      >
+                        <LogOut className="size-3 text-danger" />
+                        <Trans>Logout</Trans>
+                      </Button>
+                    ))}
                   </div>
                 </div>
-                <div className="flex shrink-0 flex-col items-end gap-2">
-                  {agentAuth && supportsAcpAgentAuth ? (
-                    (agentAuthEntries.length > 0 ? agentAuthEntries : [agentAuth]).map(
-                      (entry, index) => (
-                        <Button
-                          key={`${entry.status.kind}-${entry.status.envKind ?? "native"}-${entry.status.envDistro ?? index}`}
-                          size="sm"
-                          variant="tertiary"
-                          className="h-7 min-h-7 gap-1 px-2 text-[11px]"
-                          isDisabled={!isMachineOnline}
-                          isPending={authPending}
-                          onPress={() => authenticateAgent(entry)}
-                        >
-                          <LogIn className="size-3" />
-                          {authMissing ? t`Login` : t`Re-login`}
-                        </Button>
-                      ),
-                    )
-                  ) : loginStatus && loginCommand ? (
-                    <Button
-                      size="sm"
-                      variant="tertiary"
-                      className="h-7 min-h-7 gap-1 px-2 text-[11px]"
-                      isDisabled={!isMachineOnline}
-                      onPress={() => runTerminalLogin(loginStatus, terminalLoginMethod)}
-                    >
-                      <LogIn className="size-3" />
-                      {authMissing ? t`Login` : t`Re-login`}
-                    </Button>
-                  ) : null}
-                  {logoutStatuses.map((status, index) => (
-                    <Button
-                      key={`${status.kind}-${status.envKind ?? "native"}-${status.envDistro ?? index}-logout`}
-                      size="sm"
-                      variant="tertiary"
-                      className="h-7 min-h-7 gap-1 px-2 text-[11px]"
-                      isDisabled={!isMachineOnline}
-                      isPending={authPending}
-                      onPress={() => logoutAgent(status)}
-                    >
-                      <LogOut className="size-3 text-danger" />
-                      <Trans>Logout</Trans>
-                    </Button>
-                  ))}
-                </div>
-              </div>
-            ) : null}
-          </div>
-        )}
-      </div>
+              ) : null}
+            </div>
+          )}
+        </div>
 
-      <div className={`transition-opacity ${isDisabled ? "pointer-events-none opacity-40" : ""}`}>
-        {defs.length > 0 && (
-          <div className="mt-6">
-            {defs.map((def) => (
-              <AgentSettingRow key={def.key} agentKind={agent.kind} def={def} />
-            ))}
-          </div>
-        )}
+        <div className={`transition-opacity ${isDisabled ? "pointer-events-none opacity-40" : ""}`}>
+          {defs.length > 0 && (
+            <div className="mt-6">
+              {defs.map((def) => (
+                <AgentSettingRow key={def.key} agentKind={agent.kind} def={def} />
+              ))}
+            </div>
+          )}
 
-        <ModelVisibilityDropdown
-          agent={agent}
-          {...(providerEntry?.runtimeSlots ? { runtimeSlots: providerEntry.runtimeSlots } : {})}
-        />
-      </div>
+          <ModelVisibilityDropdown
+            agent={agent}
+            {...(providerEntry?.runtimeSlots ? { runtimeSlots: providerEntry.runtimeSlots } : {})}
+          />
+        </div>
 
-      {isRemoteMachine ? null : (
         <NativeMcpSettings agentKind={agent.kind} statuses={installedStatuses} />
-      )}
 
-      {isCursorProfileKind(agent.kind) || isRemoteMachine ? null : (
-        <HookPluginSettings
-          agentKind={agent.kind}
-          agentLabel={agent.label}
-          statuses={installedStatuses}
-        />
-      )}
-    </div>
+        {isCursorProfileKind(agent.kind) ? null : (
+          <HookPluginSettings
+            key={settingsHost.key}
+            agentKind={agent.kind}
+            agentLabel={agent.label}
+            statuses={installedStatuses}
+          />
+        )}
+      </div>
+    </AgentSettingsHostProvider>
   );
 }
 

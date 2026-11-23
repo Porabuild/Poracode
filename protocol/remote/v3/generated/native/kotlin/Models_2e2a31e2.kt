@@ -106,11 +106,6 @@ data class RoutememoryU2DCatalogRequestU2DOptionU2D2_649f2dd010(
 }
 
 @Serializable
-enum class RoutememoryU2DCatalogRequestU2DOptionU2D3U2DAction_a2bcbae622 {
-    @SerialName("save") SAVE,
-}
-
-@Serializable
 enum class RoutememoryU2DCatalogRequestU2DOptionU2D3U2DEntryU2DCategory_e3c6a49a61 {
     @SerialName("user") USER,
     @SerialName("feedback") FEEDBACK,
@@ -127,25 +122,25 @@ enum class RoutememoryU2DCatalogRequestU2DOptionU2D3U2DEntryU2DPolarity_6c042b49
 
 @Serializable
 data class RoutememoryU2DCatalogRequestU2DOptionU2D3U2DEntry_3cbfa576c3(
-    @SerialName("body") val body: ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b,
+    @SerialName("body") val body: ProcedureapplyNativeMcpSetupResultU2DCandidatesU2DItemU2DId_bf0b727f7b,
     @SerialName("category") val category: RoutememoryU2DCatalogRequestU2DOptionU2D3U2DEntryU2DCategory_e3c6a49a61,
     @SerialName("id") val id: RemoteField<String> = RemoteField.Missing,
     @SerialName("pinned") val pinned: Boolean,
     @SerialName("polarity") val polarity: RoutememoryU2DCatalogRequestU2DOptionU2D3U2DEntryU2DPolarity_6c042b493a,
     @SerialName("projectId") val projectId: RemoteField<String> = RemoteField.Missing,
-    @SerialName("quote") val quote: RemoteField<ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b> = RemoteField.Missing,
+    @SerialName("quote") val quote: RemoteField<ProcedureapplyNativeMcpSetupResultU2DCandidatesU2DItemU2DId_bf0b727f7b> = RemoteField.Missing,
     @SerialName("scope") val scope: ProcedureeditQueuedThreadFollowUpRequestU2DSegmentsU2DItemU2DOptionU2D5U2DScope_ac6ea0fc11,
     @SerialName("summary") val summary: String,
 ) {
     companion object {
         val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.REJECT, listOf(
-            RemoteFieldDescriptor("body", "ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("body", "ProcedureapplyNativeMcpSetupResultU2DCandidatesU2DItemU2DId_bf0b727f7b", true, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("category", "RoutememoryU2DCatalogRequestU2DOptionU2D3U2DEntryU2DCategory_e3c6a49a61", true, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("id", "String", false, false, null, null, 1, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("pinned", "Boolean", true, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("polarity", "RoutememoryU2DCatalogRequestU2DOptionU2D3U2DEntryU2DPolarity_6c042b493a", true, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("projectId", "String", false, true, null, null, 1, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("quote", "ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b", false, true, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("quote", "ProcedureapplyNativeMcpSetupResultU2DCandidatesU2DItemU2DId_bf0b727f7b", false, true, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("scope", "ProcedureeditQueuedThreadFollowUpRequestU2DSegmentsU2DItemU2DOptionU2D5U2DScope_ac6ea0fc11", true, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("summary", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
         ), listOf())
@@ -154,12 +149,12 @@ data class RoutememoryU2DCatalogRequestU2DOptionU2D3U2DEntry_3cbfa576c3(
 
 @Serializable
 data class RoutememoryU2DCatalogRequestU2DOptionU2D3_3fc597689b(
-    @SerialName("action") val action: RoutememoryU2DCatalogRequestU2DOptionU2D3U2DAction_a2bcbae622,
+    @SerialName("action") val action: ProceduremanageModelProvidersRequestU2DOptionU2D2U2DAction_a2bcbae622,
     @SerialName("entry") val entry: RoutememoryU2DCatalogRequestU2DOptionU2D3U2DEntry_3cbfa576c3,
 ) {
     companion object {
         val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.REJECT, listOf(
-            RemoteFieldDescriptor("action", "RoutememoryU2DCatalogRequestU2DOptionU2D3U2DAction_a2bcbae622", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("action", "ProceduremanageModelProvidersRequestU2DOptionU2D2U2DAction_a2bcbae622", true, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("entry", "RoutememoryU2DCatalogRequestU2DOptionU2D3U2DEntry_3cbfa576c3", true, false, null, null, null, null, null, null, null, null, listOf()),
         ), listOf())
     }
