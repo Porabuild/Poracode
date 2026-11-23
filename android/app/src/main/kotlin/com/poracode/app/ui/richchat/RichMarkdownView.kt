@@ -111,7 +111,8 @@ private fun MarkdownBodyText(text: String) {
     val size = LocalChatTextSizeSp.current
     val citations = remember(text) { RichSourceCitationParser.extract(text) }
     val display = remember(text, citations) {
-        if (citations.isEmpty()) text else RichSourceCitationParser.stripTags(text)
+        val stripped = if (citations.isEmpty()) text else RichSourceCitationParser.stripTags(text)
+        RichMathAndTaskHelper.expandInlineMath(stripped)
     }
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         if (display.isNotBlank()) {
@@ -131,21 +132,34 @@ private fun MarkdownBodyText(text: String) {
 @Composable
 private fun MarkdownList(items: List<String>, ordered: Boolean) {
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        items.forEachIndexed { index, item ->
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(
-                    text = if (ordered) "${index + 1}." else "•",
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.Medium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.widthIn(min = 20.dp),
-                )
-                val cardRef = com.poracode.app.chat.RichChatFilePolicy.markdownLink(item)
+        items.forEachIndexed { index, rawItem ->
+            val parsed = RichMathAndTaskHelper.parseListItem(rawItem)
+            Row(
+                modifier = Modifier.padding(start = (parsed.depth * 14).dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                if (!ordered && parsed.taskChecked != null) {
+                    Text(
+                        text = if (parsed.taskChecked) "☑" else "☐",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = if (parsed.taskChecked) PoracodeTheme.colors.accent else MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.widthIn(min = 20.dp),
+                    )
+                } else {
+                    Text(
+                        text = if (ordered) "${index + 1}." else "•",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.widthIn(min = 20.dp),
+                    )
+                }
+                val cardRef = com.poracode.app.chat.RichChatFilePolicy.markdownLink(parsed.text)
                     ?.let { (_, dest) -> com.poracode.app.chat.RichChatFilePolicy.markdownFileRef(dest) }
                 if (cardRef != null) {
                     RichChatFileCard(cardRef, Modifier.weight(1f))
                 } else {
-                    MarkdownBodyText(item)
+                    MarkdownBodyText(parsed.text)
                 }
             }
         }

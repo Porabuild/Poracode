@@ -64,6 +64,9 @@ struct RichChatFileCard: View {
   private var fileExtension: String { (ref.path as NSString).pathExtension.lowercased() }
 
   var body: some View {
+    if fileExtension == "html" || fileExtension == "htm" {
+      RichChatHtmlFilePreviewCard(ref: ref)
+    } else {
     HStack(spacing: 8) {
       if let openProjectFile, let projectLinkLocation,
         let target = RichChatProjectFileLink.attachmentTarget(ref.path, in: projectLinkLocation)
@@ -129,6 +132,7 @@ struct RichChatFileCard: View {
     .onChange(of: downloads?.location) { _ in cancelAndCleanup() }
     .onChange(of: downloads?.controller.state.target) { _ in cancelAndCleanup() }
     .onChange(of: ref) { _ in cancelAndCleanup() }
+    }
   }
 
   private var fileOpenLabel: some View {

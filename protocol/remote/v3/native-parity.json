@@ -5505,24 +5505,28 @@
         "batch": "rich-chat-requests",
         "ios": {
           "wire": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "implemented",
+            "evidence": ["ios/App/App/Features/RichChat/Notices/RichChatLinkMetadataClient.swift"]
           },
           "ui": {
-            "disposition": "planned",
-            "evidence": [],
-            "note": "Link metadata previews are available to shared chat renderers; native clients do not invoke this host-side metadata read."
+            "disposition": "partial",
+            "evidence": ["ios/App/App/Features/RichChat/Notices/RichChatLinkMetadataClient.swift"],
+            "note": "Link metadata client is implemented on iOS; device qualification remains pending."
           }
         },
         "android": {
           "wire": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "implemented",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/transport/richchat/LinkMetadataClient.kt"
+            ]
           },
           "ui": {
-            "disposition": "planned",
-            "evidence": [],
-            "note": "Link metadata previews are available to shared chat renderers; native clients do not invoke this host-side metadata read."
+            "disposition": "partial",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/transport/richchat/LinkMetadataClient.kt"
+            ],
+            "note": "Link metadata client is implemented on Android; device qualification remains pending."
           }
         }
       },

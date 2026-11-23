@@ -277,7 +277,6 @@ const PLANNED_ABSENCE_TOKENS: Record<
     [
       "getProviderUsage",
       "refreshProviderUsage",
-      "resolveLinkMetadata",
       "getLatestAgentVersion",
       "resolveAgentAccount",
       "listAcpRegistry",
