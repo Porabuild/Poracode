@@ -1081,6 +1081,35 @@ describe("getLatestVersionForAdapter", () => {
     );
   });
 
+  it("offers no version when a plain-text version URL answers with a page", async () => {
+    // An intercepting proxy's block or sign-in page arrives as a 200 body.
+    const fetchSpy = vi.fn<typeof fetch>().mockResolvedValue({
+      ok: true,
+      text: async () => "<!doctype html><html><body>Sign in to continue</body></html>",
+    } as Response);
+    globalThis.fetch = fetchSpy as unknown as typeof fetch;
+
+    const result = await getLatestVersionForAdapter(makeAdapter("fx"));
+
+    expect(result).toEqual({ source: "unknown" });
+  });
+
+  it("moves past a plain-text version URL that answers with a page", async () => {
+    const fetchSpy = vi.fn<typeof fetch>();
+    fetchSpy
+      .mockResolvedValueOnce({
+        ok: true,
+        text: async () => "<html><body>Blocked by policy</body></html>",
+      } as Response)
+      .mockResolvedValueOnce({ ok: true, text: async () => "0.2.4" } as Response);
+    globalThis.fetch = fetchSpy as unknown as typeof fetch;
+
+    const result = await getLatestVersionForAdapter(makeAdapter("grok"));
+
+    expect(result).toEqual({ version: "0.2.4", source: "version-url" });
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+  });
+
   it("returns version: undefined for adapters without update metadata", async () => {
     const fetchSpy = vi.fn<typeof fetch>();
     globalThis.fetch = fetchSpy as unknown as typeof fetch;

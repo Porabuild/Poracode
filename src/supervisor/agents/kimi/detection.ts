@@ -30,6 +30,8 @@ const KIMI_GUI_APPROVAL_POLICIES = [
   { id: "never", label: "Ask When Needed" },
   { id: "auto", label: "Never Ask" },
 ] as const;
+// The installers and the latest-version probe below read this one channel.
+const KIMI_DOWNLOAD_BASE = "https://code.kimi.com/kimi-code";
 
 // Models fill in from the ACP capabilities probe (k3 / kimi-for-coding /
 // kimi-for-coding-highspeed). Efforts are probed too; Kimi has no
@@ -324,14 +326,23 @@ export const kimiDetectionSpec: DetectionSpec = {
   // so it can't run through the supervisor's non-interactive updater — hence no
   // `builtIn`. Re-run the official install script instead: the same
   // non-interactive path the Settings "Install" card uses, for both Unix
-  // (`curl … | bash`) and Windows (`irm … | iex`). `npm` stays only as the
-  // latest-version probe that decides whether to surface the update button.
+  // (`curl … | bash`) and Windows (`irm … | iex`).
+  //
+  // The latest-version probe reads the `latest` endpoint those installers
+  // resolve, never npm. Kimi publishes to npm first and its binary channel
+  // follows 11–65 minutes later (2.6.0–2.7.2), so an npm probe advertised a
+  // version with no binary yet: the installer reinstalled the binary channel's
+  // version and the update dock reported that successful run as a failure.
+  // An unreachable channel offers no update instead of falling back to npm.
+  // `npm` stays the updater for a package-manager install: npm `latest` leads
+  // the binary channel, so that update installs at least the advertised version.
   update: {
     npm: "@moonshot-ai/kimi-code",
+    latestVersionUrls: [`${KIMI_DOWNLOAD_BASE}/latest`],
     installer: {
       posix: {
         binary: "sh",
-        args: ["-c", "curl -fsSL https://code.kimi.com/kimi-code/install.sh | bash"],
+        args: ["-c", `curl -fsSL ${KIMI_DOWNLOAD_BASE}/install.sh | bash`],
       },
       windows: {
         binary: "powershell.exe",
@@ -347,7 +358,7 @@ export const kimiDetectionSpec: DetectionSpec = {
           [
             "$env:PSModulePath = (Join-Path $PSHOME 'Modules') + [IO.Path]::PathSeparator + $env:PSModulePath",
             "Import-Module (Join-Path $PSHOME 'Modules/Microsoft.PowerShell.Utility/Microsoft.PowerShell.Utility.psd1') -Force -ErrorAction Stop",
-            "irm https://code.kimi.com/kimi-code/install.ps1 | iex",
+            `irm ${KIMI_DOWNLOAD_BASE}/install.ps1 | iex`,
           ].join("; "),
         ],
       },
