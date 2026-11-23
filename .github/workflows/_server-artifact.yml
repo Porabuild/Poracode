@@ -74,7 +74,7 @@ jobs:
             require_targets: ${{ inputs.require_targets }}
             cross_build: true
           - name: darwin
-            os: macos-15
+            os: macos-26
             # node-pty and better-sqlite3 publish both macOS arch prebuilds, so
             # one arm64-assembled tarball covers darwin-arm64 and darwin-x64.
             require_targets: darwin-arm64,darwin-x64
@@ -107,7 +107,18 @@ jobs:
           registry-cache: ${{ runner.os == 'Windows' && 'none' || 'all' }}
 
       - name: Install JavaScript dependencies
-        run: bun install --frozen-lockfile --ignore-scripts && node node_modules/bun/install.js
+        run: |
+          for attempt in 1 2 3; do
+            if bun install --frozen-lockfile --ignore-scripts && node node_modules/bun/install.js; then
+              exit 0
+            fi
+            if [ "$attempt" -eq 3 ]; then
+              echo "::error::Dependency installation failed after $attempt attempts."
+              exit 1
+            fi
+            echo "::warning::Dependency installation attempt $attempt failed; retrying."
+            sleep $((attempt * 10))
+          done
 
       - name: Set the release version
         if: ${{ inputs.version != '' }}
@@ -117,7 +128,18 @@ jobs:
 
       - name: Install Linux helper build tools
         if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install --yes musl-tools
+        run: |
+          for attempt in 1 2 3; do
+            if sudo apt-get update && sudo apt-get install --yes musl-tools; then
+              exit 0
+            fi
+            if [ "$attempt" -eq 3 ]; then
+              echo "::error::apt-get install failed after $attempt attempts."
+              exit 1
+            fi
+            echo "::warning::apt-get install attempt $attempt failed; retrying."
+            sleep $((attempt * 10))
+          done
 
       - name: Setup Rust for the computer-use helper
         # Pinned to the verified `stable` head (2026-09-03); the previous SHA did
@@ -313,7 +335,7 @@ jobs:
       - name: Upload the qualified server artifact
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: ${{ inputs.artifact_name }}-build-${{ matrix.name }}-${{ github.run_attempt }}
+          name: ${{ inputs.artifact_name }}-build-${{ matrix.name }}
           path: |
             dist/poracode-server-*.tar.gz
             dist/poracode-server-*.tar.gz.sha256
@@ -321,6 +343,7 @@ jobs:
           # A missing tarball or metadata file must fail the leg here, not
           # silently pass qualification and break the release `ls` later.
           if-no-files-found: error
+          overwrite: true
           retention-days: ${{ inputs.retention_days }}
 
   # ── Native execution of the exact uploaded bytes ─────────────────
@@ -365,7 +388,7 @@ jobs:
       - name: Download the build leg's exact bytes
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
-          name: ${{ inputs.artifact_name }}-build-${{ matrix.build_leg }}-${{ github.run_attempt }}
+          name: ${{ inputs.artifact_name }}-build-${{ matrix.build_leg }}
           path: ${{ runner.temp }}/qualified
 
       - name: Install and qualify the native target from the qualified tarball
@@ -409,7 +432,7 @@ jobs:
             build_leg: linux
             computer_use: false
           - target: darwin-arm64
-            os: macos-15
+            os: macos-26
             build_leg: darwin
             computer_use: true
           - target: darwin-x64
@@ -445,7 +468,7 @@ jobs:
       - name: Download the build leg's exact bytes
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
-          name: ${{ inputs.artifact_name }}-build-${{ matrix.build_leg }}-${{ github.run_attempt }}
+          name: ${{ inputs.artifact_name }}-build-${{ matrix.build_leg }}
           path: ${{ runner.temp }}/qualified
 
       - name: Build the self-contained archive from the qualified tarball
@@ -492,11 +515,12 @@ jobs:
       - name: Upload the qualified self-contained archive
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: ${{ inputs.artifact_name }}-standalone-${{ matrix.target }}-${{ github.run_attempt }}
+          name: ${{ inputs.artifact_name }}-standalone-${{ matrix.target }}
           path: |
             dist/standalone/poracode-*
             dist/standalone/standalone-*.json
           if-no-files-found: error
+          overwrite: true
           retention-days: ${{ inputs.retention_days }}
           # The archive is already gzip or zip.
           compression-level: 0
@@ -523,13 +547,13 @@ jobs:
       - name: Download every build leg
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
-          pattern: ${{ inputs.artifact_name }}-build-*-${{ github.run_attempt }}
+          pattern: ${{ inputs.artifact_name }}-build-*
           path: ${{ runner.temp }}/legs
 
       - name: Download every self-contained archive
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
-          pattern: ${{ inputs.artifact_name }}-standalone-*-${{ github.run_attempt }}
+          pattern: ${{ inputs.artifact_name }}-standalone-*
           path: ${{ runner.temp }}/standalone
 
       - name: Merge, verify, and emit the aggregate artifact
@@ -588,7 +612,8 @@ jobs:
         with:
           # Distinct from the per-leg `-build-*` artifacts so release can
           # download exactly the verified aggregate set.
-          name: ${{ inputs.artifact_name }}-qualified-${{ github.run_attempt }}
+          name: ${{ inputs.artifact_name }}-qualified
           path: dist/qualified/*
           if-no-files-found: error
+          overwrite: true
           retention-days: ${{ inputs.retention_days }}

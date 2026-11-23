@@ -130,8 +130,7 @@ jobs:
         uses: actions/download-artifact@v8
         with:
           path: ${{ runner.temp }}/release-assets
-          pattern: poracode-server-artifact-qualified-*
-          merge-multiple: true
+          name: poracode-server-artifact-qualified
 
       # The per-target compiled TUI binaries ship as release assets; the CLI
       # downloads and verifies them against the staged manifest on first use.

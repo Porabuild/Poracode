@@ -116,10 +116,21 @@ jobs:
 
       - name: Install Linux helper build tools
         if: matrix.platform == 'linux'
-        run: sudo apt-get update && sudo apt-get install --yes musl-tools libarchive-tools zstd
+        run: |
+          for attempt in 1 2 3; do
+            if sudo apt-get update && sudo apt-get install --yes musl-tools libarchive-tools zstd; then
+              exit 0
+            fi
+            if [ "$attempt" -eq 3 ]; then
+              echo "::error::apt-get install failed after $attempt attempts."
+              exit 1
+            fi
+            echo "::warning::apt-get install attempt $attempt failed; retrying."
+            sleep $((attempt * 10))
+          done
 
       - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
         with:
           toolchain: ${{ matrix.rust-version }}
           components: rustfmt, clippy
@@ -167,7 +178,19 @@ jobs:
             electron-${{ runner.os }}-${{ runner.arch }}-
 
       - name: Install dependencies
-        run: bun install --frozen-lockfile
+        run: |
+          for attempt in 1 2 3; do
+            if bun install --frozen-lockfile; then
+              exit 0
+            fi
+            if [ "$attempt" -eq 3 ]; then
+              echo "::error::bun install failed after $attempt attempts."
+              exit 1
+            fi
+            echo "::warning::bun install attempt $attempt failed; retrying."
+            sleep $((attempt * 10))
+          done
+        shell: bash
         env:
           # The packaging pipeline never launches Electron from the project's
           # node_modules: `bun run build` only bundles, and packaging runs
@@ -497,6 +520,7 @@ jobs:
             release/nightly*.yml
             release/*.blockmap
           if-no-files-found: error
+          overwrite: true
           retention-days: 7
 
       - name: Upload macOS DMG artifacts
@@ -506,4 +530,5 @@ jobs:
           name: ${{ matrix.artifact }}
           path: release/Poracode-*.dmg
           if-no-files-found: error
+          overwrite: true
           retention-days: 7

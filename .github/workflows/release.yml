@@ -167,8 +167,7 @@ jobs:
         uses: actions/download-artifact@v8
         with:
           path: ${{ runner.temp }}/release-assets
-          pattern: poracode-server-artifact-qualified-*
-          merge-multiple: true
+          name: poracode-server-artifact-qualified
 
       # The per-target compiled TUI binaries ship as release assets; the CLI
       # downloads and verifies them against the staged manifest on first use.
@@ -229,7 +228,18 @@ jobs:
         uses: ./.github/actions/setup-bun
 
       - name: Install upgrade qualification dependencies
-        run: bun install --frozen-lockfile --ignore-scripts && node node_modules/bun/install.js
+        run: |
+          for attempt in 1 2 3; do
+            if bun install --frozen-lockfile --ignore-scripts && node node_modules/bun/install.js; then
+              exit 0
+            fi
+            if [ "$attempt" -eq 3 ]; then
+              echo "::error::Dependency installation failed after $attempt attempts."
+              exit 1
+            fi
+            echo "::warning::Dependency installation attempt $attempt failed; retrying."
+            sleep $((attempt * 10))
+          done
 
       # Same-bytes gate (plan D3): every downloaded tarball must hash to the
       # value its leg recorded, and the launcher manifest must point at those

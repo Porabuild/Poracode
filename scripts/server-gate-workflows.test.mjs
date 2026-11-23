@@ -264,7 +264,8 @@ void test("Windows desktop build stages the Linux x64 MCP relay for WSL without 
     for (const step of release.jobs.release.steps.filter((candidate) =>
       candidate.uses?.startsWith("actions/download-artifact@"),
     )) {
-      const pattern = new RegExp(`^${step.with.pattern.replace("*", ".*")}$`, "u");
+      const matcher = step.with.name ?? step.with.pattern;
+      const pattern = new RegExp(`^${matcher.replace("*", ".*")}$`, "u");
       assert.doesNotMatch("mcp-relay-linux-x64", pattern);
     }
   }
@@ -361,7 +362,7 @@ void test("the reusable workflow builds once, qualifies the exact artifact, and 
   const defaultLinuxTargets = String(trigger.workflow_call.inputs.require_targets.default);
   assert.match(defaultLinuxTargets, /linux-x64/u);
   assert.match(defaultLinuxTargets, /linux-arm64/u);
-  assert.ok(darwinLeg && darwinLeg.os === "macos-15");
+  assert.ok(darwinLeg && darwinLeg.os === "macos-26");
   assert.match(String(darwinLeg.require_targets), /darwin-arm64/u);
   assert.match(String(darwinLeg.require_targets), /darwin-x64/u);
 
@@ -506,14 +507,15 @@ void test("the reusable workflow builds once, qualifies the exact artifact, and 
     (step) => step.name === "Upload the aggregate qualified artifact",
   );
   assert.equal(aggregateUpload.with["if-no-files-found"], "error");
-  assert.match(String(aggregateUpload.with.name), /-qualified-/u);
+  assert.equal(aggregateUpload.with.overwrite, true);
+  assert.equal(aggregateUpload.with.name, "${{ inputs.artifact_name }}-qualified");
   for (const releaseName of ["release.yml", "release-nightly.yml"]) {
     const release = await readWorkflow(releaseName);
     const downloads = release.jobs.release.steps.filter((step) =>
       step.uses?.startsWith("actions/download-artifact"),
     );
     assert.ok(
-      downloads.some((step) => /poracode-server-artifact-qualified-/u.test(step.with.pattern)),
+      downloads.some((step) => step.with.name === "poracode-server-artifact-qualified"),
       `${releaseName} must download the verified aggregate, not the per-leg builds`,
     );
   }
@@ -897,7 +899,7 @@ void test("self-contained archives are built and qualified natively from the qua
   const expected = {
     "linux-x64": ["ubuntu-latest", "linux"],
     "linux-arm64": ["ubuntu-24.04-arm", "linux"],
-    "darwin-arm64": ["macos-15", "darwin"],
+    "darwin-arm64": ["macos-26", "darwin"],
     "darwin-x64": ["macos-15-intel", "darwin"],
     "win32-x64": ["windows-latest", "windows"],
   };
@@ -923,7 +925,8 @@ void test("self-contained archives are built and qualified natively from the qua
   assert.match(String(qualify.env.PORACODE_EXPECT_COMPUTER_USE), /matrix\.computer_use/u);
   const upload = steps.find((step) => step.name === "Upload the qualified self-contained archive");
   assert.equal(upload.with["if-no-files-found"], "error");
-  assert.match(String(upload.with.name), /-standalone-\$\{\{ matrix\.target \}\}-/u);
+  assert.equal(upload.with.overwrite, true);
+  assert.equal(upload.with.name, "${{ inputs.artifact_name }}-standalone-${{ matrix.target }}");
 
   const aggregate = workflow.jobs.aggregate;
   assert.ok(aggregate.needs.includes("standalone"));
@@ -976,4 +979,44 @@ void test("standalone qualification PATH holds the bundled runtime but no host N
   assert.equal(entries[0], "C:\\p\\current\\runtime");
   assert.ok(entries.includes("C:\\Windows\\System32\\WindowsPowerShell\\v1.0"), windows);
   assert.ok(!entries.includes("C:\\hostedtoolcache\\node"), windows);
+});
+
+void test("release workflows support partial --failed reruns and pin Rust setup", async () => {
+  const serverArtifactRaw = await readFile(workflowUrl("_server-artifact.yml"), "utf8");
+  assert.doesNotMatch(
+    serverArtifactRaw,
+    /github\.run_attempt/u,
+    "attempt-suffixed artifact names break partial --failed reruns when prior build legs are reused",
+  );
+  const serverArtifact = parse(serverArtifactRaw);
+  for (const [jobName, job] of Object.entries(serverArtifact.jobs)) {
+    for (const step of job.steps ?? []) {
+      if (step.uses?.startsWith("actions/upload-artifact@")) {
+        assert.equal(
+          step.with?.overwrite,
+          true,
+          `_server-artifact.yml ${jobName}/${step.name} must overwrite on rerun`,
+        );
+      }
+    }
+  }
+
+  const build = await readWorkflow("_build.yml");
+  const setupRust = build.jobs.build.steps.find((step) => step.name === "Setup Rust");
+  assert.match(
+    setupRust.uses,
+    /^dtolnay\/rust-toolchain@[0-9a-f]{40}$/u,
+    "_build.yml must pin dtolnay/rust-toolchain to a full commit SHA",
+  );
+  for (const stepName of ["Upload built artifacts", "Upload macOS DMG artifacts"]) {
+    const upload = build.jobs.build.steps.find((step) => step.name === stepName);
+    assert.equal(upload.with.overwrite, true, `_build.yml ${stepName} must overwrite on rerun`);
+  }
+
+  const publish = await readWorkflow("publish-npm.yml");
+  const download = publish.jobs.publish.steps.find(
+    (step) => step.name === "Download the aggregate qualified artifact",
+  );
+  const pattern = new RegExp(`^${download.with.pattern.replace("*", ".*")}$`, "u");
+  assert.match("poracode-server-artifact-qualified", pattern);
 });
