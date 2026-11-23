@@ -120,6 +120,10 @@ private fun TextFileEditor(
 ) {
     val canPreviewMarkdown = isMarkdownPath(file.path)
     var previewing by remember(file.path) { mutableStateOf(false) }
+    var finding by remember(file.path) { mutableStateOf(false) }
+    var findQuery by remember(file.path) { mutableStateOf("") }
+    var replaceText by remember(file.path) { mutableStateOf("") }
+    val conflictHunks = remember(draft) { MergeConflictResolver.findHunks(draft) }
     Column(modifier.fillMaxSize()) {
         Row(
             Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
@@ -146,6 +150,9 @@ private fun TextFileEditor(
                     MaterialTheme.colorScheme.onSurfaceVariant
                 },
             )
+            IconButton(onClick = { finding = !finding }) {
+                Icon(PoracodeIcons.Search, contentDescription = "Find and replace")
+            }
             if (canPreviewMarkdown) {
                 IconButton(onClick = { previewing = !previewing }) {
                     Icon(
@@ -183,6 +190,45 @@ private fun TextFileEditor(
             }
         }
         HorizontalDivider()
+        if (finding) {
+            val matchCount = remember(draft, findQuery) {
+                if (findQuery.isEmpty()) 0 else Regex(Regex.escape(findQuery), RegexOption.IGNORE_CASE).findAll(draft).count()
+            }
+            EditorFindReplaceBar(
+                query = findQuery,
+                replacement = replaceText,
+                matchCount = matchCount,
+                onQueryChange = { findQuery = it },
+                onReplacementChange = { replaceText = it },
+                onReplaceAll = {
+                    if (findQuery.isNotEmpty() && canWrite) {
+                        onDraftChange(draft.replace(findQuery, replaceText, ignoreCase = true))
+                    }
+                },
+                onClose = { finding = false },
+            )
+            HorizontalDivider()
+        }
+        if (conflictHunks.isNotEmpty() && canWrite) {
+            val first = conflictHunks.first()
+            Row(
+                Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text("${conflictHunks.size} conflict(s)", style = MaterialTheme.typography.labelSmall, modifier = Modifier.weight(1f))
+                FilledTonalButton(onClick = { onDraftChange(MergeConflictResolver.resolve(draft, first, MergeConflictChoice.Current)) }) {
+                    Text("Current")
+                }
+                FilledTonalButton(onClick = { onDraftChange(MergeConflictResolver.resolve(draft, first, MergeConflictChoice.Incoming)) }) {
+                    Text("Incoming")
+                }
+                FilledTonalButton(onClick = { onDraftChange(MergeConflictResolver.resolve(draft, first, MergeConflictChoice.Both)) }) {
+                    Text("Both")
+                }
+            }
+            HorizontalDivider()
+        }
         if (!canWrite) {
             Text(
                 stringResource(R.string.workspace_write_denied),

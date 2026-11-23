@@ -260,49 +260,6 @@ const PLANNED_ABSENCE_TOKENS: Record<
   string,
   ReadonlyArray<{ platform: Platform; token: string }>
 > = {
-  // Scoped review operations that a native platform has not wired keep their quoted wire
-  // name out of that platform's tree until the ledger records the implementation.
-  ...Object.fromEntries(
-    [
-      "forgeListPullRequestsInState",
-      "forgeGetPrCommitDiff",
-      "forgeSetPrReaction",
-      "forgeSubmitPrReviewDraft",
-      "ghPollPullRequests",
-    ].map((token) => [
-      token,
-      [
-        { platform: "ios" as Platform, token: `"${token}"` },
-        { platform: "android" as Platform, token: `"${token}"` },
-      ],
-    ]),
-  ),
-  ...Object.fromEntries(
-    ["pr-watch-scoped-upsert"].map((id) => [
-      id,
-      [
-        { platform: "ios" as Platform, token: `"${id}"` },
-        { platform: "android" as Platform, token: `"${id}"` },
-      ],
-    ]),
-  ),
-  ...Object.fromEntries(
-    [
-      "file-media-ticket",
-      "file-media",
-      "file-media-release",
-      "file-media-renew",
-      "environment-media-ticket",
-      "environment-media-release",
-      "environment-media-renew",
-    ].map((id) => [
-      id,
-      [
-        { platform: "ios" as Platform, token: id },
-        { platform: "android" as Platform, token: id },
-      ],
-    ]),
-  ),
   // B5b one-time image tickets: contracted for the web client's <img> flow,
   // not yet implemented natively (natives still use the legacy query-token
   // GET, which remains on the wire). The tokens are the generated binding

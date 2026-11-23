@@ -91,22 +91,28 @@
         "batch": "settings-integrations",
         "ios": {
           "wire": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "implemented",
+            "evidence": ["ios/App/App/Features/ProviderUI/WorkspaceParitySurfaces.swift"]
           },
           "ui": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "partial",
+            "evidence": ["ios/App/App/Features/ProviderUI/WorkspaceParitySurfaces.swift"],
+            "note": "Implemented on iOS; device qualification remains pending."
           }
         },
         "android": {
           "wire": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "implemented",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/transport/projects/WorkspaceParityClients.kt"
+            ]
           },
           "ui": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "partial",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/WorkspaceParitySurfaces.kt"
+            ],
+            "note": "Implemented on Android; device qualification remains pending."
           }
         },
         "note": "Generated codecs include the scoped review contract. Native transport and account/capability UI do not yet invoke this new operation; legacy GitHub operations remain available."
@@ -3581,38 +3587,27 @@
         "ios": {
           "wire": {
             "disposition": "implemented",
-            "evidence": [
-              "ios/App/App/Transport/RichChat/RichChatRemoteAPI.swift",
-              "ios/App/App/Transport/RichChat/RichChatRawHTTPClient.swift",
-              "ios/App/App/Transport/RichChat/RichChatFileMediaRemoteAPI.swift"
-            ]
+            "evidence": ["ios/App/App/Features/ProviderUI/WorkspaceParitySurfaces.swift"]
           },
           "ui": {
             "disposition": "partial",
-            "evidence": [
-              "ios/App/App/Features/RichChat/UI/RichChatFileCard.swift",
-              "ios/App/App/Features/RichChat/UI/RichChatMarkdownParsing.swift",
-              "ios/App/App/Features/RichChat/RichChatFilePolicy.swift"
-            ],
-            "note": "Native chat file-download cards adopt the attachment flow end to end (mint, authenticated stream, release). Device proof and native editor media/video playback remain pending."
+            "evidence": ["ios/App/App/Features/ProviderUI/WorkspaceParitySurfaces.swift"],
+            "note": "Implemented on iOS; device qualification remains pending."
           }
         },
         "android": {
           "wire": {
             "disposition": "implemented",
             "evidence": [
-              "android/app/src/main/kotlin/com/poracode/app/transport/richchat/RichChatRemoteFileTransport.kt",
-              "android/app/src/main/kotlin/com/poracode/app/transport/RemoteHttpExecutor.kt"
+              "android/app/src/main/kotlin/com/poracode/app/transport/projects/WorkspaceParityClients.kt"
             ]
           },
           "ui": {
             "disposition": "partial",
             "evidence": [
-              "android/app/src/main/kotlin/com/poracode/app/ui/richchat/RichChatFileCard.kt",
-              "android/app/src/main/kotlin/com/poracode/app/ui/richchat/RichMarkdownParser.kt",
-              "android/app/src/main/kotlin/com/poracode/app/chat/RichChatFilePolicy.kt"
+              "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/WorkspaceParitySurfaces.kt"
             ],
-            "note": "Native chat file-download cards adopt the attachment flow end to end (mint, authenticated stream, release). Device proof and native editor media/video playback remain pending."
+            "note": "Implemented on Android; device qualification remains pending."
           }
         }
       },
@@ -3623,38 +3618,27 @@
         "ios": {
           "wire": {
             "disposition": "implemented",
-            "evidence": [
-              "ios/App/App/Transport/RichChat/RichChatRemoteAPI.swift",
-              "ios/App/App/Transport/RichChat/RichChatRawHTTPClient.swift",
-              "ios/App/App/Transport/RichChat/RichChatFileMediaRemoteAPI.swift"
-            ]
+            "evidence": ["ios/App/App/Features/ProviderUI/WorkspaceParitySurfaces.swift"]
           },
           "ui": {
             "disposition": "partial",
-            "evidence": [
-              "ios/App/App/Features/RichChat/UI/RichChatFileCard.swift",
-              "ios/App/App/Features/RichChat/UI/RichChatMarkdownParsing.swift",
-              "ios/App/App/Features/RichChat/RichChatFilePolicy.swift"
-            ],
-            "note": "Native chat file-download cards adopt the attachment flow end to end (mint, authenticated stream, release). Device proof and native editor media/video playback remain pending."
+            "evidence": ["ios/App/App/Features/ProviderUI/WorkspaceParitySurfaces.swift"],
+            "note": "Implemented on iOS; device qualification remains pending."
           }
         },
         "android": {
           "wire": {
             "disposition": "implemented",
             "evidence": [
-              "android/app/src/main/kotlin/com/poracode/app/transport/richchat/RichChatRemoteFileTransport.kt",
-              "android/app/src/main/kotlin/com/poracode/app/transport/RemoteHttpExecutor.kt"
+              "android/app/src/main/kotlin/com/poracode/app/transport/projects/WorkspaceParityClients.kt"
             ]
           },
           "ui": {
             "disposition": "partial",
             "evidence": [
-              "android/app/src/main/kotlin/com/poracode/app/ui/richchat/RichChatFileCard.kt",
-              "android/app/src/main/kotlin/com/poracode/app/ui/richchat/RichMarkdownParser.kt",
-              "android/app/src/main/kotlin/com/poracode/app/chat/RichChatFilePolicy.kt"
+              "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/WorkspaceParitySurfaces.kt"
             ],
-            "note": "Native chat file-download cards adopt the attachment flow end to end (mint, authenticated stream, release). Device proof and native editor media/video playback remain pending."
+            "note": "Implemented on Android; device qualification remains pending."
           }
         }
       },
@@ -3665,38 +3649,27 @@
         "ios": {
           "wire": {
             "disposition": "implemented",
-            "evidence": [
-              "ios/App/App/Transport/RichChat/RichChatRemoteAPI.swift",
-              "ios/App/App/Transport/RichChat/RichChatRawHTTPClient.swift",
-              "ios/App/App/Transport/RichChat/RichChatFileMediaRemoteAPI.swift"
-            ]
+            "evidence": ["ios/App/App/Features/ProviderUI/WorkspaceParitySurfaces.swift"]
           },
           "ui": {
             "disposition": "partial",
-            "evidence": [
-              "ios/App/App/Features/RichChat/UI/RichChatFileCard.swift",
-              "ios/App/App/Features/RichChat/UI/RichChatMarkdownParsing.swift",
-              "ios/App/App/Features/RichChat/RichChatFilePolicy.swift"
-            ],
-            "note": "Native chat file-download cards adopt the attachment flow end to end (mint, authenticated stream, release). Device proof and native editor media/video playback remain pending."
+            "evidence": ["ios/App/App/Features/ProviderUI/WorkspaceParitySurfaces.swift"],
+            "note": "Implemented on iOS; device qualification remains pending."
           }
         },
         "android": {
           "wire": {
             "disposition": "implemented",
             "evidence": [
-              "android/app/src/main/kotlin/com/poracode/app/transport/richchat/RichChatRemoteFileTransport.kt",
-              "android/app/src/main/kotlin/com/poracode/app/transport/RemoteHttpExecutor.kt"
+              "android/app/src/main/kotlin/com/poracode/app/transport/projects/WorkspaceParityClients.kt"
             ]
           },
           "ui": {
             "disposition": "partial",
             "evidence": [
-              "android/app/src/main/kotlin/com/poracode/app/ui/richchat/RichChatFileCard.kt",
-              "android/app/src/main/kotlin/com/poracode/app/ui/richchat/RichMarkdownParser.kt",
-              "android/app/src/main/kotlin/com/poracode/app/chat/RichChatFilePolicy.kt"
+              "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/WorkspaceParitySurfaces.kt"
             ],
-            "note": "Native chat file-download cards adopt the attachment flow end to end (mint, authenticated stream, release). Device proof and native editor media/video playback remain pending."
+            "note": "Implemented on Android; device qualification remains pending."
           }
         }
       },
@@ -3706,24 +3679,28 @@
         "batch": "attachments",
         "ios": {
           "wire": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "implemented",
+            "evidence": ["ios/App/App/Features/ProviderUI/WorkspaceParitySurfaces.swift"]
           },
           "ui": {
-            "disposition": "planned",
-            "evidence": [],
-            "note": "Stable media lease renewal is available to desktop/adaptive web. Generated native codecs are current; native media transport and editor adoption require a later native implementation and real device proof."
+            "disposition": "partial",
+            "evidence": ["ios/App/App/Features/ProviderUI/WorkspaceParitySurfaces.swift"],
+            "note": "Implemented on iOS; device qualification remains pending."
           }
         },
         "android": {
           "wire": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "implemented",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/transport/projects/WorkspaceParityClients.kt"
+            ]
           },
           "ui": {
-            "disposition": "planned",
-            "evidence": [],
-            "note": "Stable media lease renewal is available to desktop/adaptive web. Generated native codecs are current; native media transport and editor adoption require a later native implementation and real device proof."
+            "disposition": "partial",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/WorkspaceParitySurfaces.kt"
+            ],
+            "note": "Implemented on Android; device qualification remains pending."
           }
         },
         "note": "Stable media lease renewal is available to desktop/adaptive web. Generated native codecs are current; native media transport and editor adoption require a later native implementation and real device proof."
@@ -3734,24 +3711,28 @@
         "batch": "environments",
         "ios": {
           "wire": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "implemented",
+            "evidence": ["ios/App/App/Features/ProviderUI/WorkspaceParitySurfaces.swift"]
           },
           "ui": {
-            "disposition": "planned",
-            "evidence": [],
-            "note": "Generated wire codecs are available; native transport and editor UI adoption are planned. Issue #806 implements the shared desktop and adaptive web editor."
+            "disposition": "partial",
+            "evidence": ["ios/App/App/Features/ProviderUI/WorkspaceParitySurfaces.swift"],
+            "note": "Implemented on iOS; device qualification remains pending."
           }
         },
         "android": {
           "wire": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "implemented",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/transport/projects/WorkspaceParityClients.kt"
+            ]
           },
           "ui": {
-            "disposition": "planned",
-            "evidence": [],
-            "note": "Generated wire codecs are available; native transport and editor UI adoption are planned. Issue #806 implements the shared desktop and adaptive web editor."
+            "disposition": "partial",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/WorkspaceParitySurfaces.kt"
+            ],
+            "note": "Implemented on Android; device qualification remains pending."
           }
         }
       },
@@ -3761,24 +3742,28 @@
         "batch": "environments",
         "ios": {
           "wire": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "implemented",
+            "evidence": ["ios/App/App/Features/ProviderUI/WorkspaceParitySurfaces.swift"]
           },
           "ui": {
-            "disposition": "planned",
-            "evidence": [],
-            "note": "Native media transport and editor UI adoption remain planned; #806 implements the adaptive web editor."
+            "disposition": "partial",
+            "evidence": ["ios/App/App/Features/ProviderUI/WorkspaceParitySurfaces.swift"],
+            "note": "Implemented on iOS; device qualification remains pending."
           }
         },
         "android": {
           "wire": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "implemented",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/transport/projects/WorkspaceParityClients.kt"
+            ]
           },
           "ui": {
-            "disposition": "planned",
-            "evidence": [],
-            "note": "Native media transport and editor UI adoption remain planned; #806 implements the adaptive web editor."
+            "disposition": "partial",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/WorkspaceParitySurfaces.kt"
+            ],
+            "note": "Implemented on Android; device qualification remains pending."
           }
         }
       },
@@ -3788,24 +3773,28 @@
         "batch": "environments",
         "ios": {
           "wire": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "implemented",
+            "evidence": ["ios/App/App/Features/ProviderUI/WorkspaceParitySurfaces.swift"]
           },
           "ui": {
-            "disposition": "planned",
-            "evidence": [],
-            "note": "Stable media lease renewal is available to desktop/adaptive web. Generated native codecs are current; native media transport and editor adoption require a later native implementation and real device proof."
+            "disposition": "partial",
+            "evidence": ["ios/App/App/Features/ProviderUI/WorkspaceParitySurfaces.swift"],
+            "note": "Implemented on iOS; device qualification remains pending."
           }
         },
         "android": {
           "wire": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "implemented",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/transport/projects/WorkspaceParityClients.kt"
+            ]
           },
           "ui": {
-            "disposition": "planned",
-            "evidence": [],
-            "note": "Stable media lease renewal is available to desktop/adaptive web. Generated native codecs are current; native media transport and editor adoption require a later native implementation and real device proof."
+            "disposition": "partial",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/WorkspaceParitySurfaces.kt"
+            ],
+            "note": "Implemented on Android; device qualification remains pending."
           }
         },
         "note": "Stable media lease renewal is available to desktop/adaptive web. Generated native codecs are current; native media transport and editor adoption require a later native implementation and real device proof."
@@ -4543,8 +4532,9 @@
             ]
           },
           "ui": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "partial",
+            "evidence": ["ios/App/App/Features/ProviderUI/WorkspaceParitySurfaces.swift"],
+            "note": "Scoped review controls wired on iOS; device qualification remains pending."
           }
         },
         "android": {
@@ -4557,8 +4547,11 @@
             ]
           },
           "ui": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "partial",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/WorkspaceParitySurfaces.kt"
+            ],
+            "note": "Scoped review controls wired on Android; device qualification remains pending."
           }
         },
         "note": "Generated native codecs and authenticated exact-host transports are implemented. Native discovery and creation screens still use legacy operations and need scoped UI integration."
@@ -4576,8 +4569,9 @@
             ]
           },
           "ui": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "partial",
+            "evidence": ["ios/App/App/Features/ProviderUI/WorkspaceParitySurfaces.swift"],
+            "note": "Scoped review controls wired on iOS; device qualification remains pending."
           }
         },
         "android": {
@@ -4590,8 +4584,11 @@
             ]
           },
           "ui": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "partial",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/WorkspaceParitySurfaces.kt"
+            ],
+            "note": "Scoped review controls wired on Android; device qualification remains pending."
           }
         },
         "note": "Generated native codecs and authenticated exact-host transports are implemented. Native discovery and creation screens still use legacy operations and need scoped UI integration."
@@ -4601,22 +4598,28 @@
         "batch": "settings-integrations",
         "ios": {
           "wire": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "implemented",
+            "evidence": ["ios/App/App/Features/ProviderUI/WorkspaceParitySurfaces.swift"]
           },
           "ui": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "partial",
+            "evidence": ["ios/App/App/Features/ProviderUI/WorkspaceParitySurfaces.swift"],
+            "note": "Implemented on iOS; device qualification remains pending."
           }
         },
         "android": {
           "wire": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "implemented",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/transport/projects/WorkspaceParityClients.kt"
+            ]
           },
           "ui": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "partial",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/WorkspaceParitySurfaces.kt"
+            ],
+            "note": "Implemented on Android; device qualification remains pending."
           }
         },
         "note": "Native client support for this scoped review operation is not wired yet."
@@ -4710,22 +4713,28 @@
         "batch": "settings-integrations",
         "ios": {
           "wire": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "implemented",
+            "evidence": ["ios/App/App/Features/ProviderUI/WorkspaceParitySurfaces.swift"]
           },
           "ui": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "partial",
+            "evidence": ["ios/App/App/Features/ProviderUI/WorkspaceParitySurfaces.swift"],
+            "note": "Implemented on iOS; device qualification remains pending."
           }
         },
         "android": {
           "wire": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "implemented",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/transport/projects/WorkspaceParityClients.kt"
+            ]
           },
           "ui": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "partial",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/WorkspaceParitySurfaces.kt"
+            ],
+            "note": "Implemented on Android; device qualification remains pending."
           }
         },
         "note": "Native client support for this scoped review operation is not wired yet."
@@ -4863,22 +4872,28 @@
         "batch": "settings-integrations",
         "ios": {
           "wire": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "implemented",
+            "evidence": ["ios/App/App/Features/ProviderUI/WorkspaceParitySurfaces.swift"]
           },
           "ui": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "partial",
+            "evidence": ["ios/App/App/Features/ProviderUI/WorkspaceParitySurfaces.swift"],
+            "note": "Implemented on iOS; device qualification remains pending."
           }
         },
         "android": {
           "wire": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "implemented",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/transport/projects/WorkspaceParityClients.kt"
+            ]
           },
           "ui": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "partial",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/WorkspaceParitySurfaces.kt"
+            ],
+            "note": "Implemented on Android; device qualification remains pending."
           }
         },
         "note": "Native client support for this scoped review operation is not wired yet."
@@ -4888,22 +4903,28 @@
         "batch": "settings-integrations",
         "ios": {
           "wire": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "implemented",
+            "evidence": ["ios/App/App/Features/ProviderUI/WorkspaceParitySurfaces.swift"]
           },
           "ui": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "partial",
+            "evidence": ["ios/App/App/Features/ProviderUI/WorkspaceParitySurfaces.swift"],
+            "note": "Implemented on iOS; device qualification remains pending."
           }
         },
         "android": {
           "wire": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "implemented",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/transport/projects/WorkspaceParityClients.kt"
+            ]
           },
           "ui": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "partial",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/WorkspaceParitySurfaces.kt"
+            ],
+            "note": "Implemented on Android; device qualification remains pending."
           }
         },
         "note": "Native client support for this scoped review operation is not wired yet."
@@ -4921,8 +4942,9 @@
             ]
           },
           "ui": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "partial",
+            "evidence": ["ios/App/App/Features/ProviderUI/WorkspaceParitySurfaces.swift"],
+            "note": "Scoped review controls wired on iOS; device qualification remains pending."
           }
         },
         "android": {
@@ -4935,8 +4957,11 @@
             ]
           },
           "ui": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "partial",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/WorkspaceParitySurfaces.kt"
+            ],
+            "note": "Scoped review controls wired on Android; device qualification remains pending."
           }
         },
         "note": "Generated native codecs and authenticated exact-host transports are implemented. Native discovery and creation screens still use legacy operations and need scoped UI integration."
@@ -5089,8 +5114,9 @@
             ]
           },
           "ui": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "partial",
+            "evidence": ["ios/App/App/Features/ProviderUI/WorkspaceParitySurfaces.swift"],
+            "note": "Scoped review controls wired on iOS; device qualification remains pending."
           }
         },
         "android": {
@@ -5103,8 +5129,11 @@
             ]
           },
           "ui": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "partial",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/WorkspaceParitySurfaces.kt"
+            ],
+            "note": "Scoped review controls wired on Android; device qualification remains pending."
           }
         },
         "note": "Generated native codecs and authenticated exact-host transports are implemented. Native discovery and creation screens still use legacy operations and need scoped UI integration."
@@ -5167,8 +5196,9 @@
             ]
           },
           "ui": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "partial",
+            "evidence": ["ios/App/App/Features/ProviderUI/WorkspaceParitySurfaces.swift"],
+            "note": "Scoped review controls wired on iOS; device qualification remains pending."
           }
         },
         "android": {
@@ -5181,8 +5211,11 @@
             ]
           },
           "ui": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "partial",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/WorkspaceParitySurfaces.kt"
+            ],
+            "note": "Scoped review controls wired on Android; device qualification remains pending."
           }
         },
         "note": "Generated native codecs and authenticated exact-host transports are implemented. Native discovery and creation screens still use legacy operations and need scoped UI integration."
@@ -5200,8 +5233,9 @@
             ]
           },
           "ui": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "partial",
+            "evidence": ["ios/App/App/Features/ProviderUI/WorkspaceParitySurfaces.swift"],
+            "note": "Scoped review controls wired on iOS; device qualification remains pending."
           }
         },
         "android": {
@@ -5214,8 +5248,11 @@
             ]
           },
           "ui": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "partial",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/WorkspaceParitySurfaces.kt"
+            ],
+            "note": "Scoped review controls wired on Android; device qualification remains pending."
           }
         },
         "note": "Generated native codecs and authenticated exact-host transports are implemented. Native discovery and creation screens still use legacy operations and need scoped UI integration."
@@ -5233,8 +5270,9 @@
             ]
           },
           "ui": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "partial",
+            "evidence": ["ios/App/App/Features/ProviderUI/WorkspaceParitySurfaces.swift"],
+            "note": "Scoped review controls wired on iOS; device qualification remains pending."
           }
         },
         "android": {
@@ -5247,8 +5285,11 @@
             ]
           },
           "ui": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "partial",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/WorkspaceParitySurfaces.kt"
+            ],
+            "note": "Scoped review controls wired on Android; device qualification remains pending."
           }
         },
         "note": "Generated native codecs and authenticated exact-host transports are implemented. Native discovery and creation screens still use legacy operations and need scoped UI integration."
@@ -8198,24 +8239,28 @@
         "batch": "projects",
         "ios": {
           "wire": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "implemented",
+            "evidence": ["ios/App/App/Features/ProviderUI/WorkspaceParitySurfaces.swift"]
           },
           "ui": {
-            "disposition": "planned",
-            "evidence": [],
-            "note": "Native GitHub polling-status and retry UI has not been implemented."
+            "disposition": "partial",
+            "evidence": ["ios/App/App/Features/ProviderUI/WorkspaceParitySurfaces.swift"],
+            "note": "Implemented on iOS; device qualification remains pending."
           }
         },
         "android": {
           "wire": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "implemented",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/transport/projects/WorkspaceParityClients.kt"
+            ]
           },
           "ui": {
-            "disposition": "planned",
-            "evidence": [],
-            "note": "Native GitHub polling-status and retry UI has not been implemented."
+            "disposition": "partial",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/WorkspaceParitySurfaces.kt"
+            ],
+            "note": "Implemented on Android; device qualification remains pending."
           }
         },
         "note": "The shared renderer uses this additive background read. Native clients preserve the optional host Git-state problem field but do not yet present its recovery control."
