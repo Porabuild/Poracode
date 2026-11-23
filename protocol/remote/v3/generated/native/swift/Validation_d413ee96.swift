@@ -105,6 +105,10 @@ public extension RemoteSchemas {
 }
 
 public extension RemoteSchemas {
+  static let schema_7345318207d92755 = RemoteSchema(type: "object", required: Set(["action", "agentKind", "env"]), properties: ["action": RemoteSchemas.schema_862e6a81a05c9f92, "agentKind": RemoteSchemas.schema_8e43cad70cd70de7, "env": RemoteSchemas.schema_2583fd799237ae71], additionalAllowed: true, unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
   static let schema_73994aff28325b85 = RemoteSchema(type: "object", required: Set(["platform", "status"]), properties: ["diagnostic": RemoteSchemas.schema_d3abf2cfac530357, "foldableDeviceExists": RemoteSchemas.schema_feeb8bb50144d96d, "foldableRuntimeAvailable": RemoteSchemas.schema_feeb8bb50144d96d, "platform": RemoteSchemas.schema_61e54b5f6751c7a6, "status": RemoteSchemas.schema_9ab386636c31e53c], additionalAllowed: true, unknownPolicy: .strip)
 }
 

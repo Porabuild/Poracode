@@ -8,16 +8,19 @@ import {
   type ContextWindowOption,
 } from "@/shared/contextWindowOptions";
 import { Input } from "@/renderer/components/common";
-import { readBridge } from "@/renderer/bridge";
-import { flushSharedSettings, useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { friendlyError } from "@/shared/messages";
+import {
+  useAgentSettingsHost,
+  useHostAgentSettingValues,
+  useHostSettingsReady,
+} from "./AgentSettingsHostContext";
 
 export interface ProviderContextWindowSettingsProps {
   agentKind: string;
   wslDistros: string[];
   settingKey: string;
   defaults: readonly ContextWindowOption[];
-  resolveWindows: (stored?: Record<string, boolean | string>) => ContextWindowOption[];
+  resolveWindows: (stored?: Readonly<Record<string, boolean | string>>) => ContextWindowOption[];
   parseWindow: (raw: string) => ContextWindowOption | undefined;
   description: ReactNode;
   invalidSizeMessage: string;
@@ -26,26 +29,32 @@ export interface ProviderContextWindowSettingsProps {
 export function ProviderContextWindowSettings(props: ProviderContextWindowSettingsProps) {
   const { t } = useLingui();
   const { agentKind, wslDistros, settingKey, defaults } = props;
-  const stored = useSharedSettings((state) => state.agentSettings[agentKind]);
-  const setAgentSetting = useSharedSettings((state) => state.setAgentSetting);
+  const settingsHost = useAgentSettingsHost();
+  const stored = useHostAgentSettingValues(agentKind);
+  const ready = useHostSettingsReady();
   const windows = props.resolveWindows(stored);
   const [draft, setDraft] = useState("");
   const [pendingAction, setPendingAction] = useState<string | undefined>();
   const isBusy = pendingAction !== undefined;
+  const isDisabled = isBusy || !ready || !settingsHost.isOnline;
   const isDefaultList = contextWindowsEqual(windows, defaults);
 
   const persist = async (next: ContextWindowOption[], action: string) => {
+    if (!ready || !settingsHost.isOnline) return;
     setPendingAction(action);
     const previous = stored?.[settingKey];
-    setAgentSetting(agentKind, settingKey, serializeContextWindows(next));
     try {
-      await flushSharedSettings({ requireSuccess: true });
-      await readBridge().refreshAgentStatuses(wslDistros, { agentKinds: [agentKind] });
+      await settingsHost.saveAgentSettings(
+        agentKind,
+        { [settingKey]: serializeContextWindows(next) },
+        { requireSuccess: true },
+      );
+      await settingsHost.rediscoverAgents(wslDistros, { agentKinds: [agentKind] });
     } catch (error) {
-      if (typeof previous === "string") {
-        setAgentSetting(agentKind, settingKey, previous);
-      } else {
-        setAgentSetting(agentKind, settingKey, serializeContextWindows(defaults));
+      if (!settingsHost.isRemote) {
+        const fallback =
+          typeof previous === "string" ? previous : serializeContextWindows(defaults);
+        await settingsHost.setAgentSetting(agentKind, settingKey, fallback);
       }
       toast.danger(friendlyError(error));
     } finally {
@@ -54,7 +63,7 @@ export function ProviderContextWindowSettings(props: ProviderContextWindowSettin
   };
 
   const addWindow = () => {
-    if (!draft.trim()) return;
+    if (!draft.trim() || isDisabled) return;
     const parsed = props.parseWindow(draft);
     if (!parsed) {
       toast.warning(props.invalidSizeMessage);
@@ -70,7 +79,7 @@ export function ProviderContextWindowSettings(props: ProviderContextWindowSettin
   };
 
   const removeWindow = (id: string) => {
-    if (windows.length <= 1) return;
+    if (windows.length <= 1 || isDisabled) return;
     void persist(
       windows.filter((window) => window.id !== id),
       `remove:${id}`,
@@ -91,7 +100,7 @@ export function ProviderContextWindowSettings(props: ProviderContextWindowSettin
           variant="ghost"
           className="h-7 min-h-7 shrink-0 gap-1 px-2 text-[11px]"
           aria-label={t`Reset context windows`}
-          isDisabled={isDefaultList || isBusy}
+          isDisabled={isDefaultList || isDisabled}
           isPending={pendingAction === "reset"}
           onPress={() => void persist([...defaults], "reset")}
         >
@@ -113,7 +122,7 @@ export function ProviderContextWindowSettings(props: ProviderContextWindowSettin
               variant="ghost"
               className="h-6 w-6 min-h-6 min-w-6 text-muted"
               aria-label={t`Remove ${window.label}`}
-              isDisabled={windows.length <= 1 || isBusy}
+              isDisabled={windows.length <= 1 || isDisabled}
               isPending={pendingAction === `remove:${window.id}`}
               onPress={() => removeWindow(window.id)}
             >
@@ -135,7 +144,7 @@ export function ProviderContextWindowSettings(props: ProviderContextWindowSettin
           className="h-8 min-h-8 max-w-[180px]"
           placeholder={t`e.g. 512k or 1m`}
           value={draft}
-          disabled={isBusy}
+          disabled={isDisabled}
           onChange={(event) => setDraft(event.currentTarget.value)}
         />
         <Button
@@ -144,7 +153,7 @@ export function ProviderContextWindowSettings(props: ProviderContextWindowSettin
           className="h-8 min-h-8 gap-1 px-2.5 text-[11px]"
           type="submit"
           aria-label={t`Add context window`}
-          isDisabled={isBusy || draft.trim().length === 0}
+          isDisabled={isDisabled || draft.trim().length === 0}
           isPending={pendingAction === "add"}
         >
           <Plus className="size-3" />

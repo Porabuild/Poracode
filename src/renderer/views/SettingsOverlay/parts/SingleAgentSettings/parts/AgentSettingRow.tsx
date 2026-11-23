@@ -1,14 +1,31 @@
 import { startTransition } from "react";
+import { toast } from "@heroui/react";
 import type { AgentSettingDef } from "@/shared/contracts";
-import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
+import { friendlyError } from "@/shared/messages";
 import { Select, ToggleSwitch } from "@/renderer/components/common";
+import {
+  useAgentSettingsHost,
+  useHostAgentSettingValues,
+  useHostSettingsReady,
+} from "@/renderer/components/providers/settings/AgentSettingsHostContext";
 
 export function AgentSettingRow(props: { agentKind: string; def: AgentSettingDef }) {
   const { agentKind, def } = props;
-  const value = useSharedSettings((s) => s.agentSettings[agentKind]?.[def.key] ?? def.default);
-  const setAgentSetting = useSharedSettings((s) => s.setAgentSetting);
+  const settingsHost = useAgentSettingsHost();
+  const values = useHostAgentSettingValues(agentKind);
+  const ready = useHostSettingsReady();
+  const value = values?.[def.key] ?? def.default;
 
   if (def.type !== "toggle" && def.type !== "select") return null;
+
+  const commit = (next: boolean | string) => {
+    startTransition(() => {
+      const pending = settingsHost.setAgentSetting(agentKind, def.key, next);
+      if (pending) {
+        void pending.catch((error) => toast.danger(friendlyError(error)));
+      }
+    });
+  };
 
   return (
     <div className="flex items-center justify-between gap-4 py-2 border-b border-border/10 last:border-0 group">
@@ -22,12 +39,9 @@ export function AgentSettingRow(props: { agentKind: string; def: AgentSettingDef
         <ToggleSwitch
           aria-label={def.label}
           isSelected={value as boolean}
+          isDisabled={!ready}
           size="sm"
-          onChange={(selected) => {
-            startTransition(() => {
-              setAgentSetting(agentKind, def.key, selected);
-            });
-          }}
+          onChange={commit}
         />
       ) : (
         <Select
@@ -35,11 +49,8 @@ export function AgentSettingRow(props: { agentKind: string; def: AgentSettingDef
           className="w-[140px] shrink-0"
           options={def.options}
           value={String(value)}
-          onChange={(v) => {
-            startTransition(() => {
-              setAgentSetting(agentKind, def.key, v);
-            });
-          }}
+          isDisabled={!ready}
+          onChange={commit}
         />
       )}
     </div>

@@ -12,7 +12,9 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useLingui } from "@lingui/react/macro";
 import { baseAgentKind, stripAgentProfileBasePrefix, type AgentStatus } from "@/shared/contracts";
 import { useFindFocusStore } from "@/renderer/state/findFocusStore";
-import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
+import { agentManagementHostForMachine } from "@/renderer/components/providers/settings/agentManagementHost";
+import { useSelectedMachine } from "@/renderer/state/machines";
+import { useHostSetting } from "@/renderer/state/pairedHostSettings";
 import {
   overlaySidebarColumnClass,
   overlaySidebarSurfaceClass,
@@ -111,7 +113,16 @@ export function SettingsSidebar(props: {
   const { activeSection, onSectionChange, onClose, installedAgents, attentionAgentKinds } = props;
   const { t } = useLingui();
   const { isCollapsed, collapse, expand } = useSidebar();
-  const disabledAgents = useSharedSettings((s) => s.disabledAgents);
+  const isAgentsActive =
+    activeSection === "agents" ||
+    activeSection === "acpRegistry" ||
+    activeSection === "agentsGeneral" ||
+    activeSection.startsWith("agents:");
+  const selectedMachine = useSelectedMachine();
+  const agentsConnectionKey = isAgentsActive
+    ? agentManagementHostForMachine(selectedMachine).connectionKey
+    : undefined;
+  const disabledAgents = useHostSetting(agentsConnectionKey, "disabledAgents");
   // Instance-scoped kinds (e.g. Claude profiles "claude:<id>") nest under
   // their base agent's sidebar entry when the base itself is installed;
   // instance kinds without an installed base (ACP registry agents) stay
@@ -126,11 +137,6 @@ export function SettingsSidebar(props: {
     installedAgents.filter(
       (agent) => nestsUnderBase(agent) && baseAgentKind(agent.kind) === baseKind,
     );
-  const isAgentsActive =
-    activeSection === "agents" ||
-    activeSection === "acpRegistry" ||
-    activeSection === "agentsGeneral" ||
-    activeSection.startsWith("agents:");
   const devMode = isDevApp();
   // Remote (PWA) sessions hide the sections that cannot work remotely
   // (search indexing, the remote-access server, agent installs/auth,

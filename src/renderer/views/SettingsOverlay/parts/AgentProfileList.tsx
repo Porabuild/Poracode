@@ -8,6 +8,7 @@ import { friendlyError } from "@/shared/messages";
 import { assertAgentProfileDependencies } from "@/shared/agentProfileDependencies";
 import { readBridge } from "@/renderer/bridge";
 import { ConfirmDialog, Input, PixelLoader } from "@/renderer/components/common";
+import { useAgentSettingsHost } from "@/renderer/components/providers/settings/AgentSettingsHostContext";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import { flushSharedSettings, useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { currentWslDistros } from "@/renderer/utils/acpRegistryAuth";
@@ -29,6 +30,15 @@ import { isDuplicateProfileName, uniqueProfileId } from "./profileIds";
 export function AgentProfileList(props: {
   profiles: NativeAgentProfileSupport;
   /** The base provider's detected statuses, forwarded to `onCreated`. */
+  statuses?: readonly AgentStatus[] | undefined;
+  onOpenProfile?: ((profileKind: string) => void) | undefined;
+}) {
+  if (!useAgentSettingsHost().canManageProfiles) return null;
+  return <AgentProfileListBody {...props} />;
+}
+
+function AgentProfileListBody(props: {
+  profiles: NativeAgentProfileSupport;
   statuses?: readonly AgentStatus[] | undefined;
   onOpenProfile?: ((profileKind: string) => void) | undefined;
 }) {

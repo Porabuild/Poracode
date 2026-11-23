@@ -1,5 +1,6 @@
 import {
   manageAgentCredentialsPayloadSchema,
+  manageAgentCredentialsResultSchema,
   type ManageAgentCredentialsPayload,
   type ManageAgentCredentialsResult,
 } from "../../contracts";
@@ -15,5 +16,10 @@ export const agentCredentialProcedures = {
     ManageAgentCredentialsPayload,
     ManageAgentCredentialsResult,
     "supervisor"
-  >("manageAgentCredentials", "supervisor", manageAgentCredentialsPayloadSchema),
+  >(
+    "manageAgentCredentials",
+    "supervisor",
+    manageAgentCredentialsPayloadSchema,
+    manageAgentCredentialsResultSchema,
+  ),
 } as const;

@@ -1,6 +1,7 @@
 import { buildRemoteV3AuthorityInput, manifestHashOf, sourceHashOf } from "../hashes";
 import { compareUnicodeCodePoints } from "../unicodeOrder";
 import { REMOTE_PROTOCOL_VERSION, REMOTE_GENERATOR_VERSION } from "../versions";
+import { NATIVE_SEMANTIC_VALIDATOR_IDS } from "./emitterCommon";
 import type {
   JsonSchema,
   NativeBindingIr,
@@ -11,35 +12,7 @@ import type {
 
 const SHA256 = /^sha256:[a-f0-9]{64}$/;
 const QUERY_KINDS = new Set(["string", "int", "decimal", "0-or-1", "JSON-string"]);
-const PORTABLE_VALIDATORS = new Set([
-  "forge.host.https",
-  "forge.watch.scope-identity",
-  "forge.edit.fields",
-  "git.add-worktree.frozen-source",
-  "git.delete-branch.remote-cannot-have-owner",
-  "git.remove-worktree.owner-requires-branch",
-  "mcp.reserved-name",
-  "mcp.valid-url",
-  "plugin.valid-name",
-  "plugin.valid-url",
-  "pr-watch.agent-required-when-enabled",
-  "push.registration.platform-fields",
-  "push.routing.identifier-no-controls",
-  "push.web.endpoint-https",
-  "schedule.automation",
-  "schedule.time-zone",
-  "schedule.cron",
-  "schedule.run-state",
-  "string.trim",
-  "terminal.cursor.baseline-chunk-utf16",
-  "terminal.cursor.output-data-utf16",
-  "terminal.cursor.output-range",
-  "terminal.cursor.ready-range-utf16",
-  "thread.goal.objective.trim",
-  "thread.start.provider-switch",
-  "void-envelope.omit-result",
-  "void-result.omit-field",
-]);
+const PORTABLE_VALIDATORS: ReadonlySet<string> = new Set(NATIVE_SEMANTIC_VALIDATOR_IDS);
 const PORTABLE_TRANSFORMS = new Set([
   "agent-settings.strip-sensitive",
   "push.routing.client-connection-id.lowercase",

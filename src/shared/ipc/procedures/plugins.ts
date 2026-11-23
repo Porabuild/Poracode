@@ -1,5 +1,6 @@
 import {
   manageAgentPluginsPayloadSchema,
+  manageAgentPluginsResultSchema,
   type ManageAgentPluginsPayload,
   type ManageAgentPluginsResult,
   listPluginsPayloadSchema,
@@ -41,7 +42,12 @@ export const pluginProcedures = {
     ManageAgentPluginsPayload,
     ManageAgentPluginsResult,
     "supervisor"
-  >("manageAgentPlugins", "supervisor", manageAgentPluginsPayloadSchema),
+  >(
+    "manageAgentPlugins",
+    "supervisor",
+    manageAgentPluginsPayloadSchema,
+    manageAgentPluginsResultSchema,
+  ),
   listPlugins: definePayloadProcedure<ListPluginsPayload, ListPluginsResult, "supervisor">(
     "listPlugins",
     "supervisor",

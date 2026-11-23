@@ -3,10 +3,11 @@ import { Button, Checkbox, Disclosure, toast } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { AgentStatus, NativeMcpSetupPayload, NativeMcpSetupStatus } from "@/shared/contracts";
 import { hookEnvForAgentStatus, hookEnvKey } from "@/shared/agentHookPluginEnv";
-import { readBridge } from "@/renderer/bridge";
+import { useAgentSettingsHost } from "@/renderer/components/providers/settings/AgentSettingsHostContext";
 
 function NativeMcpEnvironment({ input }: { input: NativeMcpSetupPayload }) {
   const { t } = useLingui();
+  const settingsHost = useAgentSettingsHost();
   const [status, setStatus] = useState<NativeMcpSetupStatus>();
   const [selected, setSelected] = useState<string[]>([]);
   const [pending, setPending] = useState(false);
@@ -15,11 +16,16 @@ function NativeMcpEnvironment({ input }: { input: NativeMcpSetupPayload }) {
   const [isExpanded, setIsExpanded] = useState(false);
   const envKey = hookEnvKey(input.env);
   useEffect(() => {
+    if (!settingsHost.isOnline) {
+      setStatus(undefined);
+      setFailed(false);
+      return;
+    }
     let cancelled = false;
     setSelected([]);
     setFailed(false);
-    readBridge()
-      .getNativeMcpSetup(input)
+    settingsHost
+      .callProcedure("getNativeMcpSetup", input)
       .then((next) => {
         if (!cancelled) setStatus(next);
       })
@@ -29,16 +35,22 @@ function NativeMcpEnvironment({ input }: { input: NativeMcpSetupPayload }) {
     return () => {
       cancelled = true;
     };
-    // The parent keys this component by provider and environment.
+    // The parent keys this component by host, provider, and environment.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [input.agentKind, envKey, refresh]);
+  }, [settingsHost.key, settingsHost.isOnline, input.agentKind, envKey, refresh]);
 
   if (!failed && !status?.supported) return null;
+  const disabled = pending || !settingsHost.isOnline;
   const apply = (installIds: string[], removeNames: string[]) => {
-    if (!status?.revision) return;
+    if (!status?.revision || !settingsHost.isOnline) return;
     setPending(true);
-    readBridge()
-      .applyNativeMcpSetup({ ...input, revision: status.revision, installIds, removeNames })
+    settingsHost
+      .callProcedure("applyNativeMcpSetup", {
+        ...input,
+        revision: status.revision,
+        installIds,
+        removeNames,
+      })
       .then((next) => {
         setStatus(next);
         setSelected([]);
@@ -80,7 +92,7 @@ function NativeMcpEnvironment({ input }: { input: NativeMcpSetupPayload }) {
             <Button
               size="sm"
               variant="tertiary"
-              isDisabled={pending}
+              isDisabled={disabled}
               onPress={() => {
                 setStatus(undefined);
                 setRefresh((value) => value + 1);
@@ -109,7 +121,7 @@ function NativeMcpEnvironment({ input }: { input: NativeMcpSetupPayload }) {
                   <div key={candidate.id}>
                     <Checkbox
                       isSelected={selected.includes(candidate.id)}
-                      isDisabled={pending || !candidate.eligible || candidate.conflict}
+                      isDisabled={disabled || !candidate.eligible || candidate.conflict}
                       onChange={(checked) =>
                         setSelected((current) =>
                           checked
@@ -143,7 +155,7 @@ function NativeMcpEnvironment({ input }: { input: NativeMcpSetupPayload }) {
                   className="mt-3"
                   size="sm"
                   variant="secondary"
-                  isDisabled={pending || !selected.length}
+                  isDisabled={disabled || !selected.length}
                   isPending={pending}
                   onPress={() => apply(selected, [])}
                 >
@@ -158,7 +170,7 @@ function NativeMcpEnvironment({ input }: { input: NativeMcpSetupPayload }) {
                   <Button
                     size="sm"
                     variant="tertiary"
-                    isDisabled={pending}
+                    isDisabled={disabled}
                     aria-label={t`Uninstall ${name}`}
                     onPress={() => apply([], [name])}
                   >
@@ -179,7 +191,9 @@ function NativeMcpEnvironment({ input }: { input: NativeMcpSetupPayload }) {
     </Disclosure>
   );
 }
+
 export function NativeMcpSettings(props: { agentKind: string; statuses: readonly AgentStatus[] }) {
+  const settingsHost = useAgentSettingsHost();
   const envs = new Map(
     props.statuses.map((status) => {
       const env = hookEnvForAgentStatus(status);
@@ -188,7 +202,7 @@ export function NativeMcpSettings(props: { agentKind: string; statuses: readonly
   );
   return [...envs].map(([key, env]) => (
     <NativeMcpEnvironment
-      key={`${props.agentKind}:${key}`}
+      key={`${settingsHost.key}:${props.agentKind}:${key}`}
       input={{ agentKind: props.agentKind, env }}
     />
   ));

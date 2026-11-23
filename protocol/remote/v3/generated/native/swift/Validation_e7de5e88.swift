@@ -1,6 +1,10 @@
 // GENERATED FILE. Do not edit by hand.
 import Foundation
 public extension RemoteSchemas {
+  static let schema_9108deb639290751 = RemoteSchema(type: "object", required: Set(["config", "prompt"]), properties: ["clientContext": RemoteSchemas.schema_b23ca9582f16c4d7, "config": RemoteSchemas.schema_281d24bbbaa46745, "prompt": RemoteSchemas.schema_bf0b727f7b1c6d07, "questionAnswer": RemoteSchemas.schema_4d59c815dfec80c4, "segments": RemoteSchemas.schema_4392338ffc80bed7, "userMessageItemId": RemoteSchemas.schema_36fea325bf1aca70], additionalAllowed: true, unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
   static let schema_91181085efd88304 = RemoteSchema(type: "array", maxItems: 24, items: RemoteSchemas.schema_261c25778789d884, unknownPolicy: .strip)
 }
 
@@ -46,6 +50,10 @@ public extension RemoteSchemas {
 
 public extension RemoteSchemas {
   static let schema_924966fa567a66ae = RemoteSchema(type: "object", required: Set(["sections", "version"]), properties: ["bodyProjection": RemoteSchemas.schema_273d6c9ed6ba49d8, "header": RemoteSchemas.schema_e39d2c7b7e26e3b5, "headerProjection": RemoteSchemas.schema_81073d419643b803, "mediaSources": RemoteSchemas.schema_d598182dcda51b91, "sections": RemoteSchemas.schema_3798323cdbb80b80, "version": RemoteSchemas.schema_7f9f5a0d72de0d9a, "workflowProjection": RemoteSchemas.schema_9f9b81965a83d13f, "workflowViewProjection": RemoteSchemas.schema_2aeaf8ab36ef2176], additionalAllowed: true, unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
+  static let schema_925f63aff8376636 = RemoteSchema(unionKind: "oneOf", options: [RemoteSchemas.schema_7345318207d92755, RemoteSchemas.schema_6554493bfa61b085, RemoteSchemas.schema_f51831115e82a52f], unknownPolicy: .strip)
 }
 
 public extension RemoteSchemas {
@@ -102,6 +110,10 @@ public extension RemoteSchemas {
 
 public extension RemoteSchemas {
   static let schema_93f8fa8787f246fe = RemoteSchema(type: "string", literals: [.string("set-draft-config")], unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
+  static let schema_940863a47ce0d148 = RemoteSchema(type: "object", required: Set(["packages"]), properties: ["packages": RemoteSchemas.schema_2039f004e1d20419], additionalAllowed: true, unknownPolicy: .strip)
 }
 
 public extension RemoteSchemas {

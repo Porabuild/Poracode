@@ -121,6 +121,91 @@ describe("authenticated host agent management", () => {
       { agentId: "registry-agent", environment: { API_KEY: "secret" } },
       { installed: [] },
     ],
+    [
+      "applyNativeMcpSetup",
+      {
+        agentKind: "opencode",
+        env: { kind: "native" },
+        revision: "rev-1",
+        installIds: ["mcp-1"],
+        removeNames: [],
+      },
+      {
+        supported: true,
+        revision: "rev-2",
+        candidates: [
+          {
+            id: "mcp-1",
+            name: "poracode",
+            target: "stdio",
+            eligible: true,
+            conflict: false,
+            installed: true,
+          },
+        ],
+        installedNames: ["poracode"],
+        modifiedNames: [],
+      },
+    ],
+    [
+      "installAgentHookPlugin",
+      { agentKind: "opencode", env: { kind: "native" } },
+      {
+        status: {
+          agentKind: "opencode",
+          env: { kind: "native" },
+          supported: true,
+          installed: true,
+          version: "1.0.0",
+          bundledVersion: "1.0.0",
+          canUninstall: true,
+        },
+      },
+    ],
+    [
+      "uninstallAgentHookPlugin",
+      { agentKind: "opencode", env: { kind: "native" } },
+      {
+        status: {
+          agentKind: "opencode",
+          env: { kind: "native" },
+          supported: true,
+          installed: false,
+          bundledVersion: "1.0.0",
+          canUninstall: true,
+        },
+      },
+    ],
+    [
+      "manageAgentPlugins",
+      { agentKind: "opencode", env: { kind: "native" }, action: "list" },
+      {
+        packages: [
+          {
+            target: "@prevalentware/opencode-goal-plugin",
+            status: "active",
+            outdated: false,
+            server: true,
+            terminal: true,
+          },
+        ],
+      },
+    ],
+    [
+      "manageAgentCredentials",
+      {
+        agentKind: "opencode",
+        env: { kind: "native" },
+        action: "remove",
+        credentialId: "cred_1",
+      },
+      { providers: [] },
+    ],
+    [
+      "manageModelProviders",
+      { agentKind: "deepseek", env: { kind: "native" }, action: "list" },
+      { ok: true, revision: "rev-1", catalog: [], providers: [] },
+    ],
   ] as const)(
     "dispatches an operator's %s to the addressed host and returns its parsed result",
     async (procedure, payload, result) => {
@@ -136,6 +221,7 @@ describe("authenticated host agent management", () => {
   it.each([
     ["authenticateAcpAgent", { agentKind: "acp-generic:demo", methodId: "sso" }],
     ["logoutAcpAgent", { agentKind: "acp-generic:demo" }],
+    ["reloadAgentMcpServers", { agentKind: "opencode" }],
   ] as const)(
     "dispatches an operator's void %s to the addressed host",
     async (procedure, payload) => {
@@ -161,11 +247,64 @@ describe("authenticated host agent management", () => {
   });
 
   it.each([
+    [
+      "getAgentConfigDefaults",
+      { agentKind: "codex" },
+      { defaults: { planModeReasoningEffort: "high" } },
+    ],
+    [
+      "getNativeMcpSetup",
+      { agentKind: "opencode", env: { kind: "native" } },
+      { supported: true, candidates: [], installedNames: [], modifiedNames: [] },
+    ],
+    [
+      "getAgentHookPluginStatuses",
+      { agentKind: "opencode", envs: [{ kind: "native" }] },
+      [
+        {
+          agentKind: "opencode",
+          env: { kind: "native" },
+          supported: true,
+          installed: false,
+          bundledVersion: "1.0.0",
+          canUninstall: true,
+        },
+      ],
+    ],
+  ] as const)(
+    "reads %s from the addressed host with a viewer token",
+    async (procedure, payload, result) => {
+      const { call, callSupervisor } = await fixture("viewer");
+      callSupervisor.mockResolvedValueOnce(result as never);
+      const response = await call(procedure, payload);
+      expect(response.status).toBe(200);
+      await expect(response.json()).resolves.toEqual({ result });
+      expect(callSupervisor).toHaveBeenCalledWith(procedure, payload);
+    },
+  );
+
+  it.each([
     ["installAcpRegistryAgent", { agentId: "registry-agent" }],
     ["removeAcpRegistryAgent", { agentId: "registry-agent" }],
     ["setAcpRegistryAgentAuth", { agentId: "registry-agent", environment: { KEY: "v" } }],
     ["authenticateAcpAgent", { agentKind: "acp-generic:demo", methodId: "sso" }],
     ["logoutAcpAgent", { agentKind: "acp-generic:demo" }],
+    [
+      "applyNativeMcpSetup",
+      {
+        agentKind: "opencode",
+        env: { kind: "native" },
+        revision: "rev-1",
+        installIds: ["mcp-1"],
+        removeNames: [],
+      },
+    ],
+    ["reloadAgentMcpServers", { agentKind: "opencode" }],
+    ["installAgentHookPlugin", { agentKind: "opencode", env: { kind: "native" } }],
+    ["uninstallAgentHookPlugin", { agentKind: "opencode", env: { kind: "native" } }],
+    ["manageAgentPlugins", { agentKind: "opencode", env: { kind: "native" }, action: "list" }],
+    ["manageAgentCredentials", { agentKind: "opencode", env: { kind: "native" }, action: "list" }],
+    ["manageModelProviders", { agentKind: "deepseek", env: { kind: "native" }, action: "list" }],
   ] as const)(
     "rejects a viewer's %s by scope before invoking the supervisor",
     async (proc, payload) => {
@@ -173,6 +312,56 @@ describe("authenticated host agent management", () => {
       const response = await call(proc, payload);
       expect(response.status).toBe(403);
       await expect(response.json()).resolves.toMatchObject({ error: { code: "missing_scope" } });
+      expect(callSupervisor.mock.calls.some(([name]) => name === proc)).toBe(false);
+    },
+  );
+
+  it.each([
+    ["manageAgentPlugins", { agentKind: "opencode", env: { kind: "native" }, action: "install" }],
+    [
+      "manageAgentCredentials",
+      { agentKind: "opencode", env: { kind: "native" }, action: "remove" },
+    ],
+    [
+      "manageModelProviders",
+      {
+        agentKind: "deepseek",
+        env: { kind: "native" },
+        action: "save",
+        create: true,
+        revision: "rev-1",
+        provider: {
+          id: "__proto__",
+          name: "Bad",
+          baseURL: "https://example.com",
+          protocol: "openai-completions",
+          modelIds: [],
+        },
+      },
+    ],
+    [
+      "manageModelProviders",
+      {
+        agentKind: "deepseek",
+        env: { kind: "native" },
+        action: "save",
+        create: true,
+        revision: "rev-1",
+        provider: {
+          id: "acme",
+          name: "Credentialed URL",
+          baseURL: "https://user:pass@example.com/v1",
+          protocol: "openai-completions",
+          modelIds: [],
+        },
+      },
+    ],
+  ] as const)(
+    "rejects malformed %s payloads before invoking the supervisor",
+    async (proc, payload) => {
+      const { call, callSupervisor } = await fixture("operator");
+      const response = await call(proc, payload);
+      expect(response.status).toBe(400);
       expect(callSupervisor.mock.calls.some(([name]) => name === proc)).toBe(false);
     },
   );

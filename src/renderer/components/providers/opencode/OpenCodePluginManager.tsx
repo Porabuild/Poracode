@@ -3,9 +3,9 @@ import { Button, Input, Label, TextField } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { AgentPluginPackage, ManageAgentPluginsPayload } from "@/shared/contracts";
 import { agentEnvKey, type AgentEnv } from "@/shared/machines";
-import { readBridge } from "@/renderer/bridge";
 import { ConfirmDialog, PixelLoader } from "@/renderer/components/common";
 import { LightballTabs } from "@/renderer/components/common/LightballTabs";
+import { useAgentSettingsHost } from "@/renderer/components/providers/settings/AgentSettingsHostContext";
 import { OpenCodePluginRow, OpenCodeFeaturedPlugin } from "./OpenCodePluginCards";
 
 const GOAL_PACKAGE = "@prevalentware/opencode-goal-plugin";
@@ -16,6 +16,7 @@ type PendingAction = { action: PluginAction; target?: string };
 
 export function OpenCodePluginManager({ agentKind, env }: { agentKind: string; env: AgentEnv }) {
   const { t } = useLingui();
+  const settingsHost = useAgentSettingsHost();
   const [packages, setPackages] = useState<AgentPluginPackage[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [pending, setPending] = useState<PendingAction | undefined>();
@@ -27,14 +28,19 @@ export function OpenCodePluginManager({ agentKind, env }: { agentKind: string; e
   const [tab, setTab] = useState<"installed" | "discover">("installed");
   const environmentKey = agentEnvKey(env);
   const busy = pending !== undefined;
+  const disabled = busy || !settingsHost.isOnline;
   const isPending = (action: PluginAction, packageTarget?: string) =>
     pending?.action === action && pending.target === packageTarget;
 
   useEffect(() => {
+    if (!settingsHost.isOnline) {
+      setPending(undefined);
+      return;
+    }
     let current = true;
     setPending({ action: "list" });
-    void readBridge()
-      .manageAgentPlugins({ agentKind, env, action: "list" })
+    void settingsHost
+      .callProcedure("manageAgentPlugins", { agentKind, env, action: "list" })
       .then((result) => {
         if (current) {
           setPackages(result.packages);
@@ -51,15 +57,16 @@ export function OpenCodePluginManager({ agentKind, env }: { agentKind: string; e
     return () => {
       current = false;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- environment identity is stable across status refreshes.
-  }, [agentKind, environmentKey]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- host & environment identity are stable across status refreshes.
+  }, [settingsHost.key, settingsHost.isOnline, agentKind, environmentKey]);
 
   const run = async (action: PluginAction, packageTarget?: string) => {
+    if (!settingsHost.isOnline) return;
     setPending({ action, ...(packageTarget ? { target: packageTarget } : {}) });
     setError(undefined);
     setUpToDate(false);
     try {
-      const result = await readBridge().manageAgentPlugins({
+      const result = await settingsHost.callProcedure("manageAgentPlugins", {
         agentKind,
         env,
         action,
@@ -117,7 +124,7 @@ export function OpenCodePluginManager({ agentKind, env }: { agentKind: string; e
               size="sm"
               variant="tertiary"
               className="h-7 min-h-7 px-2 text-xs"
-              isDisabled={busy}
+              isDisabled={disabled}
               isPending={isPending("list")}
               onPress={() => void run("list")}
             >
@@ -127,7 +134,7 @@ export function OpenCodePluginManager({ agentKind, env }: { agentKind: string; e
               size="sm"
               variant="tertiary"
               className="h-7 min-h-7 px-2 text-xs"
-              isDisabled={busy || !loaded}
+              isDisabled={disabled || !loaded}
               isPending={isPending("check")}
               aria-label={t`Check agent plugin updates`}
               onPress={() => void run("check")}
@@ -171,7 +178,7 @@ export function OpenCodePluginManager({ agentKind, env }: { agentKind: string; e
               <OpenCodePluginRow
                 key={pkg.target}
                 pkg={pkg}
-                busy={busy}
+                busy={disabled}
                 updating={isPending("update", pkg.target)}
                 removing={isPending("remove", pkg.target)}
                 onUpdate={() => void run("update", pkg.target)}
@@ -184,7 +191,7 @@ export function OpenCodePluginManager({ agentKind, env }: { agentKind: string; e
         <div role="tabpanel" aria-label={t`Discover`} className="space-y-4">
           <OpenCodeFeaturedPlugin
             status={goal?.status}
-            disabled={busy || !loaded}
+            disabled={disabled || !loaded}
             pending={isPending("install", GOAL_PACKAGE)}
             onInstall={() => void run("install", GOAL_PACKAGE)}
           />
@@ -193,14 +200,14 @@ export function OpenCodePluginManager({ agentKind, env }: { agentKind: string; e
             className="flex items-end gap-2 border-t border-border/10 pt-4"
             onSubmit={(event) => {
               event.preventDefault();
-              if (!busy && target.trim()) void run("install", target.trim());
+              if (!disabled && target.trim()) void run("install", target.trim());
             }}
           >
             <TextField
               className="min-w-0 flex-1"
               value={target}
               onChange={setTarget}
-              isDisabled={busy}
+              isDisabled={disabled}
             >
               <Label>
                 <Trans>Package name or Git URL</Trans>
@@ -211,7 +218,7 @@ export function OpenCodePluginManager({ agentKind, env }: { agentKind: string; e
               type="submit"
               size="sm"
               variant="secondary"
-              isDisabled={busy || !target.trim()}
+              isDisabled={disabled || !target.trim()}
               isPending={isPending("install", target.trim())}
             >
               <Trans>Install</Trans>

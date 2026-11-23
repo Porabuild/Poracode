@@ -32,25 +32,10 @@ data class ProcedurerefreshAgentStatusesResultU2DWindowsU2DItemU2DPresentationAu
 }
 
 @Serializable
-data class ProcedurerefreshAgentStatusesResultU2DWindowsU2DItemU2DProviderMetadataU2DConnectedProvidersU2DItem_0a5d0a3885(
-    @SerialName("detail") val detail: RemoteField<String> = RemoteField.Missing,
-    @SerialName("id") val id: RemoteField<String> = RemoteField.Missing,
-    @SerialName("label") val label: String,
-) {
-    companion object {
-        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
-            RemoteFieldDescriptor("detail", "String", false, false, null, null, 1, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("id", "String", false, false, null, null, 1, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("label", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
-        ), listOf())
-    }
-}
-
-@Serializable
 data class ProcedurerefreshAgentStatusesResultU2DWindowsU2DItemU2DProviderMetadata_197c2b8c01(
     @SerialName("authMethod") val authMethod: RemoteField<String> = RemoteField.Missing,
     @SerialName("authenticatedAs") val authenticatedAs: RemoteField<String> = RemoteField.Missing,
-    @SerialName("connectedProviders") val connectedProviders: RemoteField<List<ProcedurerefreshAgentStatusesResultU2DWindowsU2DItemU2DProviderMetadataU2DConnectedProvidersU2DItem_0a5d0a3885>> = RemoteField.Missing,
+    @SerialName("connectedProviders") val connectedProviders: RemoteField<List<ProceduremanageAgentCredentialsResultU2DProvidersU2DItem_0a5d0a3885>> = RemoteField.Missing,
     @SerialName("organization") val organization: RemoteField<String> = RemoteField.Missing,
     @SerialName("plan") val plan: RemoteField<String> = RemoteField.Missing,
 ) {
@@ -58,7 +43,7 @@ data class ProcedurerefreshAgentStatusesResultU2DWindowsU2DItemU2DProviderMetada
         val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
             RemoteFieldDescriptor("authMethod", "String", false, false, null, null, 1, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("authenticatedAs", "String", false, false, null, null, 1, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("connectedProviders", "List<ProcedurerefreshAgentStatusesResultU2DWindowsU2DItemU2DProviderMetadataU2DConnectedProvidersU2DItem_0a5d0a3885>", false, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("connectedProviders", "List<ProceduremanageAgentCredentialsResultU2DProvidersU2DItem_0a5d0a3885>", false, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("organization", "String", false, false, null, null, 1, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("plan", "String", false, false, null, null, 1, null, null, null, null, null, listOf()),
         ), listOf())

@@ -13,19 +13,23 @@ export const applyNativeMcpSetupPayloadSchema = nativeMcpSetupPayloadSchema.exte
   removeNames: z.array(z.string().min(1)).max(200),
 });
 export type ApplyNativeMcpSetupPayload = z.infer<typeof applyNativeMcpSetupPayloadSchema>;
-export interface NativeMcpSetupStatus {
-  supported: boolean;
-  configPath?: string;
-  revision?: string;
-  issue?: "invalid-config";
-  candidates: {
-    id: string;
-    name: string;
-    target: string;
-    eligible: boolean;
-    conflict: boolean;
-    installed: boolean;
-  }[];
-  installedNames: string[];
-  modifiedNames: string[];
-}
+
+export const nativeMcpSetupCandidateSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  target: z.string(),
+  eligible: z.boolean(),
+  conflict: z.boolean(),
+  installed: z.boolean(),
+});
+
+export const nativeMcpSetupStatusSchema = z.object({
+  supported: z.boolean(),
+  configPath: z.string().optional(),
+  revision: z.string().optional(),
+  issue: z.literal("invalid-config").optional(),
+  candidates: z.array(nativeMcpSetupCandidateSchema),
+  installedNames: z.array(z.string()),
+  modifiedNames: z.array(z.string()),
+});
+export type NativeMcpSetupStatus = z.infer<typeof nativeMcpSetupStatusSchema>;

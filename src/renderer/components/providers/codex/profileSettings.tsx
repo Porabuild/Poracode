@@ -20,6 +20,7 @@ import type {
   NativeAgentProfileSupport,
   NativeAgentSettingsPanelProps,
 } from "@/renderer/views/SettingsOverlay/parts/agentRegistryNative";
+import { useAgentSettingsHost } from "@/renderer/components/providers/settings/AgentSettingsHostContext";
 import { CodexProviderSettings } from "@/renderer/components/providers/settings/CodexProviderSettings";
 
 /**
@@ -56,8 +57,11 @@ function refreshCodexProfile(kind?: string): void {
  * unknown / non-Codex id — the generic page chrome still shows install/auth.
  */
 export function CodexProfileProviderSettings(props: { instanceId: string }) {
-  const instance = useSharedSettings((s) => s.agentInstances?.[props.instanceId]);
-  if (!instance || instance.driver !== "codex") return null;
+  const { canManageProfiles } = useAgentSettingsHost();
+  const instance = useSharedSettings((s) =>
+    canManageProfiles ? s.agentInstances?.[props.instanceId] : undefined,
+  );
+  if (!canManageProfiles || !instance || instance.driver !== "codex") return null;
   let config: CodexProfileInstanceConfig;
   try {
     config = parseCodexProfileInstanceConfig(instance.config);
@@ -247,7 +251,11 @@ export function CodexAgentSettingsPanel(props: NativeAgentSettingsPanelProps) {
   }
   return (
     <>
-      <CodexProviderSettings agentKind={props.agentKind} wslDistros={props.wslDistros} />
+      <CodexProviderSettings
+        agentKind={props.agentKind}
+        statuses={props.statuses}
+        wslDistros={props.wslDistros}
+      />
       <CodexProfileSettings onOpenProfile={props.onOpenProfile} />
     </>
   );

@@ -26,8 +26,10 @@ export function ProviderAccountsSection(props: {
   providers: readonly AgentConnectedProvider[];
   /** Row key (or {@link ADD_PROVIDER_KEY}) whose action is in flight. */
   pendingKey: string | undefined;
-  /** When true, Add is shown but cannot start a login (no login command). */
+  /** When true, Add is shown but cannot start a login (no login command or host offline). */
   addDisabled?: boolean;
+  /** When true, Logout actions are disabled (for example while a remote host is offline). */
+  signOutDisabled?: boolean;
   /**
    * Accounts the agent signs in to one at a time. When set, Add opens a menu of
    * these and passes the chosen id to onAdd; otherwise Add starts the agent's
@@ -38,7 +40,7 @@ export function ProviderAccountsSection(props: {
   onSignOut: (provider: AgentConnectedProvider, index: number) => void;
 }) {
   const { t } = useLingui();
-  const { agentKind, providers, pendingKey, addDisabled = false } = props;
+  const { agentKind, providers, pendingKey, addDisabled = false, signOutDisabled = false } = props;
   const isBusy = pendingKey !== undefined;
   const [isAddMenuOpen, setIsAddMenuOpen] = useState(false);
   const addMenuDisabled = isBusy || addDisabled || props.addOptions?.length === 0;
@@ -112,7 +114,7 @@ export function ProviderAccountsSection(props: {
                           variant="tertiary"
                           className="h-6 min-h-6 shrink-0 gap-1 px-2 text-[10px] text-muted hover:text-foreground"
                           aria-label={t`Sign out of ${provider.label}`}
-                          isDisabled={isBusy}
+                          isDisabled={isBusy || signOutDisabled}
                           isPending={pendingKey === key}
                           onPress={() => props.onSignOut(provider, index)}
                         >

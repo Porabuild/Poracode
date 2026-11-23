@@ -58,7 +58,7 @@ const UI_DISPOSITIONS = [
 
 const EXPECTED_COUNTS = {
   httpRoutes: 126,
-  procedures: 184,
+  procedures: 194,
   webSocketClientMessages: 11,
   // 10 shared + the desktop-internal `desktop-event` frame (V5 plan 2.5).
   webSocketServerMessages: 12,
@@ -267,6 +267,46 @@ const PLANNED_ABSENCE_TOKENS: Record<
   "local-image-ticket": [
     { platform: "ios", token: "LocalImageTicket" },
     { platform: "android", token: "LocalImageTicket" },
+  ],
+  getAgentConfigDefaults: [
+    { platform: "ios", token: "getAgentConfigDefaults" },
+    { platform: "android", token: "getAgentConfigDefaults" },
+  ],
+  getNativeMcpSetup: [
+    { platform: "ios", token: "getNativeMcpSetup" },
+    { platform: "android", token: "getNativeMcpSetup" },
+  ],
+  applyNativeMcpSetup: [
+    { platform: "ios", token: "applyNativeMcpSetup" },
+    { platform: "android", token: "applyNativeMcpSetup" },
+  ],
+  reloadAgentMcpServers: [
+    { platform: "ios", token: "reloadAgentMcpServers" },
+    { platform: "android", token: "reloadAgentMcpServers" },
+  ],
+  getAgentHookPluginStatuses: [
+    { platform: "ios", token: "getAgentHookPluginStatuses" },
+    { platform: "android", token: "getAgentHookPluginStatuses" },
+  ],
+  installAgentHookPlugin: [
+    { platform: "ios", token: "installAgentHookPlugin" },
+    { platform: "android", token: "installAgentHookPlugin" },
+  ],
+  uninstallAgentHookPlugin: [
+    { platform: "ios", token: "uninstallAgentHookPlugin" },
+    { platform: "android", token: "uninstallAgentHookPlugin" },
+  ],
+  manageAgentPlugins: [
+    { platform: "ios", token: "manageAgentPlugins" },
+    { platform: "android", token: "manageAgentPlugins" },
+  ],
+  manageAgentCredentials: [
+    { platform: "ios", token: "manageAgentCredentials" },
+    { platform: "android", token: "manageAgentCredentials" },
+  ],
+  manageModelProviders: [
+    { platform: "ios", token: "manageModelProviders" },
+    { platform: "android", token: "manageModelProviders" },
   ],
 };
 type LedgerEntry = z.infer<typeof entrySchema>;

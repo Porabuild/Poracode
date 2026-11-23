@@ -61,6 +61,24 @@ const workflowRun = {
   jobs: [],
 };
 
+const hookPluginStatus = {
+  agentKind: "sample-agent",
+  env: { kind: "native" as const },
+  supported: true,
+  installed: false,
+  bundledVersion: "1.0.0",
+  canUninstall: false,
+};
+
+const nativeMcpSetupStatus = {
+  supported: true,
+  configPath: "/Users/dev/.agent.json",
+  revision: "rev-1",
+  candidates: [],
+  installedNames: [],
+  modifiedNames: [],
+};
+
 /**
  * One producer-shaped success value per remote procedure. Void procedures use
  * the shared omitted codec (`undefined` on the wire).
@@ -385,6 +403,46 @@ export const REMOTE_PROCEDURE_RESULT_FIXTURES = {
   refreshAgentStatuses: { windows: [], wsl: [], fromCache: false },
   getLatestAgentVersion: { version: "1.2.3", source: "npm" },
   resolveAgentAccount: { account: { authenticatedAs: "demo@example.com", plan: "Pro" } },
+  getAgentConfigDefaults: { defaults: { model: "gpt-5" } },
+  getNativeMcpSetup: nativeMcpSetupStatus,
+  applyNativeMcpSetup: nativeMcpSetupStatus,
+  reloadAgentMcpServers: undefined,
+  getAgentHookPluginStatuses: [hookPluginStatus],
+  installAgentHookPlugin: { status: { ...hookPluginStatus, installed: true, canUninstall: true } },
+  uninstallAgentHookPlugin: { status: hookPluginStatus },
+  manageAgentPlugins: {
+    packages: [
+      {
+        target: "demo-plugin@1.0.0",
+        id: "demo-plugin",
+        version: "1.0.0",
+        status: "active" as const,
+        outdated: false,
+        server: true,
+        terminal: false,
+      },
+    ],
+  },
+  manageAgentCredentials: {
+    providers: [{ id: "openai", label: "OpenAI", detail: "API key" }],
+  },
+  manageModelProviders: {
+    ok: true as const,
+    revision: "rev-1",
+    catalog: [{ id: "openai", name: "OpenAI", baseURL: "https://api.openai.com/v1" }],
+    providers: [
+      {
+        id: "openai",
+        name: "OpenAI",
+        baseURL: "https://api.openai.com/v1",
+        protocol: "openai-completions" as const,
+        modelIds: ["gpt-5"],
+        custom: false,
+        removable: false,
+        credentialConfigured: true,
+      },
+    ],
+  },
   listAcpRegistry: {
     version: "1.0.0",
     agents: [

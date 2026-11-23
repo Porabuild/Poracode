@@ -4,6 +4,10 @@ import { Trans, useLingui } from "@lingui/react/macro";
 import { RotateCcw } from "lucide-react";
 import { Input, ToggleSwitch } from "@/renderer/components/common";
 import { Select, type SelectOption } from "@/renderer/components/common/Select";
+import {
+  useAgentSettingsHost,
+  useHostAgentSettingValues,
+} from "../settings/AgentSettingsHostContext";
 import { flushSharedSettings, useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { SettingRow } from "@/renderer/views/SettingsOverlay/parts/SettingsForm";
 import {
@@ -101,8 +105,8 @@ function NumericSettingRow(props: {
 export function DeepSeekAdvancedSettings(props: { agentKind: string }) {
   const { agentKind } = props;
   const { t } = useLingui();
-  const stored = useSharedSettings((state) => state.agentSettings[agentKind]);
-  const setAgentSetting = useSharedSettings((state) => state.setAgentSetting);
+  const settingsHost = useAgentSettingsHost();
+  const stored = useHostAgentSettingValues(agentKind);
   const [drafts, setDrafts] = useState<Record<string, string | undefined>>({});
 
   // Derive displayed values from the same resolver the supervisor uses so
@@ -126,6 +130,14 @@ export function DeepSeekAdvancedSettings(props: { agentKind: string }) {
   const hasOverrides = hasDeepSeekAgentSettingOverrides(stored);
 
   const save = async (updates: Readonly<Record<string, boolean | string>>) => {
+    if (settingsHost.isRemote) {
+      try {
+        await settingsHost.saveAgentSettings(agentKind, updates, { requireSuccess: true });
+      } catch (error) {
+        toast.danger(friendlyError(error));
+      }
+      return;
+    }
     const before = useSharedSettings.getState().agentSettings[agentKind];
     const previous = Object.fromEntries(
       Object.entries(updates).map(([key]) => [
@@ -134,7 +146,7 @@ export function DeepSeekAdvancedSettings(props: { agentKind: string }) {
       ]),
     );
     for (const [key, value] of Object.entries(updates)) {
-      setAgentSetting(agentKind, key, value);
+      await settingsHost.setAgentSetting(agentKind, key, value);
     }
     try {
       await flushSharedSettings({ requireSuccess: true });
@@ -142,7 +154,9 @@ export function DeepSeekAdvancedSettings(props: { agentKind: string }) {
       // A newer save may already own a key; only undo values this save still holds.
       const current = useSharedSettings.getState().agentSettings[agentKind];
       for (const [key, value] of Object.entries(previous)) {
-        if (current?.[key] === updates[key]) setAgentSetting(agentKind, key, value);
+        if (current?.[key] === updates[key]) {
+          await settingsHost.setAgentSetting(agentKind, key, value);
+        }
       }
       toast.danger(friendlyError(error));
     }

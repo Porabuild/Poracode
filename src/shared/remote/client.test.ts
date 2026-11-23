@@ -1743,6 +1743,7 @@ describe("RemoteDesktopClient", () => {
       "installAcpRegistryAgent",
       "removeAcpRegistryAgent",
       "authenticateAcpAgent",
+      "manageAgentPlugins",
     ] as const) {
       await expect(client.callRemoteProcedure(procedure, {})).rejects.toBe(sentinel);
     }
@@ -1757,7 +1758,8 @@ describe("RemoteDesktopClient", () => {
     expect(timeoutFor(3)).toBe(AGENT_UPDATE_REQUEST_TIMEOUT_MS);
     expect(timeoutFor(4)).toBe(AGENT_UPDATE_REQUEST_TIMEOUT_MS);
     expect(timeoutFor(5)).toBe(AGENT_UPDATE_REQUEST_TIMEOUT_MS);
-    expect(timeoutFor(6)).toBe(LONG_REMOTE_REQUEST_TIMEOUT_MS);
+    expect(timeoutFor(6)).toBe(AGENT_UPDATE_REQUEST_TIMEOUT_MS);
+    expect(timeoutFor(7)).toBe(LONG_REMOTE_REQUEST_TIMEOUT_MS);
   });
 
   it("gives repository clones the long-running request timeout", async () => {

@@ -9,7 +9,7 @@ public enum ProcedurelistSkillMarketplaceResultU2DSkillsU2DItemU2DSecurityGrade_
 }
 
 public struct ProcedurelistSkillMarketplaceResultU2DSkillsU2DItem_4dea101cb6: Codable, Sendable, RemoteModelMetadata {
-  public var description: RemoteField<ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b> = .missing
+  public var description: RemoteField<ProcedureapplyNativeMcpSetupResultU2DCandidatesU2DItemU2DId_bf0b727f7b> = .missing
   public var id: String
   public var installs: RemoteField<Int64> = .missing
   public var marketplace: ProcedureinstallMarketplaceSkillRequestU2DMarketplace_118f67a0fa
@@ -29,7 +29,7 @@ public struct ProcedurelistSkillMarketplaceResultU2DSkillsU2DItem_4dea101cb6: Co
   public var weeklyInstalls: RemoteField<[Int64]> = .missing
   public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .strip
   public static let fields: [RemoteFieldDescriptor] = [
-    .init(wireName: "description", typeName: "ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b", required: false, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "description", typeName: "ProcedureapplyNativeMcpSetupResultU2DCandidatesU2DItemU2DId_bf0b727f7b", required: false, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "id", typeName: "String", required: true, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "installs", typeName: "Int64", required: false, nullable: false, minimum: 0, maximum: 9007199254740991, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "marketplace", typeName: "ProcedureinstallMarketplaceSkillRequestU2DMarketplace_118f67a0fa", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
@@ -149,149 +149,87 @@ public struct ProcedurelspStartRequest_0fbb6754fb: Codable, Sendable, RemoteMode
   }
 }
 
-public struct ProceduremoveProjectEntryRequest_47c3f1ae81: Codable, Sendable, RemoteModelMetadata {
-  public var nextParentPath: RemoteField<String> = .missing
-  public var path: String
-  public var projectLocation: ProcedurebeginMcpServerOauthRequestU2DProjectLocation_080f9cc154
-  public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .strip
-  public static let fields: [RemoteFieldDescriptor] = [
-    .init(wireName: "nextParentPath", typeName: "String", required: false, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
-    .init(wireName: "path", typeName: "String", required: true, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
-    .init(wireName: "projectLocation", typeName: "ProcedurebeginMcpServerOauthRequestU2DProjectLocation_080f9cc154", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
-  ]
-  public static let semanticValidatorIds: [String] = []
-  private enum CodingKeys: String, CodingKey {
-    case nextParentPath = "nextParentPath"
-    case path = "path"
-    case projectLocation = "projectLocation"
-  }
+public enum ProceduremanageAgentCredentialsRequestU2DAction_336de6f9a1: String, Codable, Sendable {
+  case `list` = "list"
+  case `remove` = "remove"
 }
 
-public struct ProcedurepauseThreadFollowUpsRequest_d42717fff2: Codable, Sendable, RemoteModelMetadata {
-  public var id: String
-  public var threadId: String
+public struct ProceduremanageAgentCredentialsRequest_ca5c527c98: Codable, Sendable, RemoteModelMetadata {
+  public var action: ProceduremanageAgentCredentialsRequestU2DAction_336de6f9a1
+  public var agentKind: String
+  public var credentialId: RemoteField<String> = .missing
+  public var env: ProcedureapplyNativeMcpSetupRequestU2DEnv_2583fd7992
   public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .strip
   public static let fields: [RemoteFieldDescriptor] = [
-    .init(wireName: "id", typeName: "String", required: true, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
-    .init(wireName: "threadId", typeName: "String", required: true, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "action", typeName: "ProceduremanageAgentCredentialsRequestU2DAction_336de6f9a1", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "agentKind", typeName: "String", required: true, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: 128, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "credentialId", typeName: "String", required: false, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: 512, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: ["string.trim"]),
+    .init(wireName: "env", typeName: "ProcedureapplyNativeMcpSetupRequestU2DEnv_2583fd7992", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
   ]
-  public static let semanticValidatorIds: [String] = []
-  private enum CodingKeys: String, CodingKey {
-    case id = "id"
-    case threadId = "threadId"
-  }
-}
-
-public struct ProcedurepluginAccountsRequestU2DOptionU2D1_eb2d4e479c: Codable, Sendable, RemoteModelMetadata {
-  public var action: ProcedurehexVoiceRequestU2DOptionU2D5U2DAction_862e6a81a0
-  public var pluginName: String
-  public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .reject
-  public static let fields: [RemoteFieldDescriptor] = [
-    .init(wireName: "action", typeName: "ProcedurehexVoiceRequestU2DOptionU2D5U2DAction_862e6a81a0", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
-    .init(wireName: "pluginName", typeName: "String", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: ["plugin.valid-name"]),
-  ]
-  public static let semanticValidatorIds: [String] = []
+  public static let semanticValidatorIds: [String] = ["agent-credentials.id-required"]
   private enum CodingKeys: String, CodingKey {
     case action = "action"
-    case pluginName = "pluginName"
-  }
-  public init(from decoder: Decoder) throws {
-    let all = try decoder.container(keyedBy: RemoteCodingKey.self).allKeys.map(\.stringValue)
-    let known = Set(Self.fields.map(\.wireName))
-    guard all.allSatisfy(known.contains) else { throw DecodingError.dataCorrupted(.init(codingPath: decoder.codingPath, debugDescription: "Unknown field in strict object")) }
-    let container = try decoder.container(keyedBy: CodingKeys.self)
-    self.action = try container.decode(ProcedurehexVoiceRequestU2DOptionU2D5U2DAction_862e6a81a0.self, forKey: .action)
-    self.pluginName = try container.decode(String.self, forKey: .pluginName)
-  }
-  public func encode(to encoder: Encoder) throws {
-    var container = encoder.container(keyedBy: CodingKeys.self)
-    try container.encode(action, forKey: .action)
-    try container.encode(pluginName, forKey: .pluginName)
+    case agentKind = "agentKind"
+    case credentialId = "credentialId"
+    case env = "env"
   }
 }
 
-public struct ProcedurepluginAccountsRequestU2DOptionU2D2_f277d5baa2: Codable, Sendable, RemoteModelMetadata {
-  public var accountId: RemoteField<String> = .missing
-  public var action: ProcedurehexVoiceRequestU2DOptionU2D7U2DAction_236e9131b0
+public struct ProceduremanageAgentCredentialsResultU2DProvidersU2DItem_0a5d0a3885: Codable, Sendable, RemoteModelMetadata {
+  public var detail: RemoteField<String> = .missing
+  public var id: RemoteField<String> = .missing
   public var label: String
-  public var pluginName: String
-  public var serverName: String
-  public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .reject
+  public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .strip
   public static let fields: [RemoteFieldDescriptor] = [
-    .init(wireName: "accountId", typeName: "String", required: false, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$", format: "uuid", semanticValidatorIds: []),
-    .init(wireName: "action", typeName: "ProcedurehexVoiceRequestU2DOptionU2D7U2DAction_236e9131b0", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
-    .init(wireName: "label", typeName: "String", required: true, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: 120, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: ["string.trim"]),
-    .init(wireName: "pluginName", typeName: "String", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: ["plugin.valid-name"]),
-    .init(wireName: "serverName", typeName: "String", required: true, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "detail", typeName: "String", required: false, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "id", typeName: "String", required: false, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "label", typeName: "String", required: true, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
   ]
   public static let semanticValidatorIds: [String] = []
   private enum CodingKeys: String, CodingKey {
-    case accountId = "accountId"
-    case action = "action"
+    case detail = "detail"
+    case id = "id"
     case label = "label"
-    case pluginName = "pluginName"
-    case serverName = "serverName"
-  }
-  public init(from decoder: Decoder) throws {
-    let all = try decoder.container(keyedBy: RemoteCodingKey.self).allKeys.map(\.stringValue)
-    let known = Set(Self.fields.map(\.wireName))
-    guard all.allSatisfy(known.contains) else { throw DecodingError.dataCorrupted(.init(codingPath: decoder.codingPath, debugDescription: "Unknown field in strict object")) }
-    let container = try decoder.container(keyedBy: CodingKeys.self)
-    self.accountId = try container.decode(RemoteField<String>.self, forKey: .accountId)
-    self.action = try container.decode(ProcedurehexVoiceRequestU2DOptionU2D7U2DAction_236e9131b0.self, forKey: .action)
-    self.label = try container.decode(String.self, forKey: .label)
-    self.pluginName = try container.decode(String.self, forKey: .pluginName)
-    self.serverName = try container.decode(String.self, forKey: .serverName)
-  }
-  public func encode(to encoder: Encoder) throws {
-    var container = encoder.container(keyedBy: CodingKeys.self)
-    try container.encode(accountId, forKey: .accountId)
-    try container.encode(action, forKey: .action)
-    try container.encode(label, forKey: .label)
-    try container.encode(pluginName, forKey: .pluginName)
-    try container.encode(serverName, forKey: .serverName)
   }
 }
 
-public enum ProcedurepluginAccountsRequestU2DOptionU2D3U2DAction_12d1900fc0: String, Codable, Sendable {
-  case `select` = "select"
-  case `logout` = "logout"
-}
-
-public struct ProcedurepluginAccountsRequestU2DOptionU2D3_9a9f19f594: Codable, Sendable, RemoteModelMetadata {
-  public var accountId: String
-  public var action: ProcedurepluginAccountsRequestU2DOptionU2D3U2DAction_12d1900fc0
-  public var pluginName: String
-  public var serverName: String
-  public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .reject
+public struct ProceduremanageAgentCredentialsResult_65ec808e7a: Codable, Sendable, RemoteModelMetadata {
+  public var providers: [ProceduremanageAgentCredentialsResultU2DProvidersU2DItem_0a5d0a3885]
+  public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .strip
   public static let fields: [RemoteFieldDescriptor] = [
-    .init(wireName: "accountId", typeName: "String", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$", format: "uuid", semanticValidatorIds: []),
-    .init(wireName: "action", typeName: "ProcedurepluginAccountsRequestU2DOptionU2D3U2DAction_12d1900fc0", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
-    .init(wireName: "pluginName", typeName: "String", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: ["plugin.valid-name"]),
-    .init(wireName: "serverName", typeName: "String", required: true, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "providers", typeName: "[ProceduremanageAgentCredentialsResultU2DProvidersU2DItem_0a5d0a3885]", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
   ]
   public static let semanticValidatorIds: [String] = []
   private enum CodingKeys: String, CodingKey {
-    case accountId = "accountId"
+    case providers = "providers"
+  }
+}
+
+public enum ProceduremanageAgentPluginsRequestU2DAction_5deb110d95: String, Codable, Sendable {
+  case `list` = "list"
+  case `check` = "check"
+  case `install` = "install"
+  case `update` = "update"
+  case `remove` = "remove"
+}
+
+public struct ProceduremanageAgentPluginsRequest_c61abfd0f3: Codable, Sendable, RemoteModelMetadata {
+  public var action: ProceduremanageAgentPluginsRequestU2DAction_5deb110d95
+  public var agentKind: String
+  public var env: ProcedureapplyNativeMcpSetupRequestU2DEnv_2583fd7992
+  public var target: RemoteField<String> = .missing
+  public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .strip
+  public static let fields: [RemoteFieldDescriptor] = [
+    .init(wireName: "action", typeName: "ProceduremanageAgentPluginsRequestU2DAction_5deb110d95", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "agentKind", typeName: "String", required: true, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: 128, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "env", typeName: "ProcedureapplyNativeMcpSetupRequestU2DEnv_2583fd7992", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "target", typeName: "String", required: false, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: 512, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: ["string.trim"]),
+  ]
+  public static let semanticValidatorIds: [String] = ["agent-plugins.target-required"]
+  private enum CodingKeys: String, CodingKey {
     case action = "action"
-    case pluginName = "pluginName"
-    case serverName = "serverName"
-  }
-  public init(from decoder: Decoder) throws {
-    let all = try decoder.container(keyedBy: RemoteCodingKey.self).allKeys.map(\.stringValue)
-    let known = Set(Self.fields.map(\.wireName))
-    guard all.allSatisfy(known.contains) else { throw DecodingError.dataCorrupted(.init(codingPath: decoder.codingPath, debugDescription: "Unknown field in strict object")) }
-    let container = try decoder.container(keyedBy: CodingKeys.self)
-    self.accountId = try container.decode(String.self, forKey: .accountId)
-    self.action = try container.decode(ProcedurepluginAccountsRequestU2DOptionU2D3U2DAction_12d1900fc0.self, forKey: .action)
-    self.pluginName = try container.decode(String.self, forKey: .pluginName)
-    self.serverName = try container.decode(String.self, forKey: .serverName)
-  }
-  public func encode(to encoder: Encoder) throws {
-    var container = encoder.container(keyedBy: CodingKeys.self)
-    try container.encode(accountId, forKey: .accountId)
-    try container.encode(action, forKey: .action)
-    try container.encode(pluginName, forKey: .pluginName)
-    try container.encode(serverName, forKey: .serverName)
+    case agentKind = "agentKind"
+    case env = "env"
+    case target = "target"
   }
 }

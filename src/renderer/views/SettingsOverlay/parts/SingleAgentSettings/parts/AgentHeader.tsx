@@ -2,7 +2,6 @@ import { startTransition, type ReactNode } from "react";
 import { Button } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { ArrowUpCircle } from "lucide-react";
-import { readBridge } from "@/renderer/bridge";
 import { ToggleSwitch } from "@/renderer/components/common";
 import { ProviderIcon } from "@/renderer/components/providers/ProviderIcon";
 import type { AgentStatus } from "@/shared/contracts";
@@ -15,7 +14,6 @@ export function AgentHeader(props: {
   updatePending: boolean;
   latestRegistryVersion: string | undefined;
   toggleDisabled: boolean;
-  wslDistros: readonly string[];
   onPerformUpdate: () => void;
   onSetAgentDisabled: (agentKind: string, disabled: boolean) => void;
   refreshButton: ReactNode;
@@ -61,11 +59,6 @@ export function AgentHeader(props: {
             startTransition(() => {
               props.onSetAgentDisabled(agent.kind, !selected);
             });
-            if (selected) {
-              void readBridge()
-                .refreshAgentStatuses([...props.wslDistros], { agentKinds: [agent.kind] })
-                .catch(() => undefined);
-            }
           }}
         />
       </div>

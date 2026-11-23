@@ -1,3 +1,4 @@
+import type { z } from "zod";
 import { readBridge } from "@/renderer/bridge";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import type { MachineDescriptor } from "@/renderer/state/machines";
@@ -7,11 +8,7 @@ import { refreshSlashCommandCatalogs } from "@/renderer/state/remoteServers/slas
 import type { HostAgentStatusPools } from "@/renderer/hooks/useHostAgentStatuses";
 import {
   acpRegistryListResultSchema,
-  acpRegistryMutationResultSchema,
   agentStatusesResponseSchema,
-  getLatestAgentVersionResultSchema,
-  resolveAgentAccountResultSchema,
-  updateAgentBinaryResultSchema,
   type AcpRegistryListResult,
   type AcpRegistryMutationResult,
   type AgentStatus,
@@ -31,6 +28,30 @@ import {
   type UpdateAgentBinaryPayload,
   type UpdateAgentBinaryResult,
 } from "@/shared/contracts";
+import {
+  ipcProcedureMap,
+  parseRemoteProcedureResultValue,
+  type IpcProcedurePayload,
+  type IpcProcedureResult,
+} from "@/shared/ipc";
+import type { REMOTE_PROCEDURE_SPECS, RemoteProcedureName } from "@/shared/remote/procedures";
+
+type RemoteProcedureArgs<Name extends RemoteProcedureName> =
+  (typeof ipcProcedureMap)[Name]["__types"]["args"];
+
+/**
+ * Any allowlisted desktop-owned remote supervisor procedure that accepts a
+ * single typed payload object. Adding a new agent-settings procedure to
+ * `REMOTE_PROCEDURE_SPECS` automatically unlocks it here without per-procedure
+ * boilerplate wrappers.
+ */
+export type AgentHostProcedureName = {
+  [Name in RemoteProcedureName]: (typeof REMOTE_PROCEDURE_SPECS)[Name]["owner"] extends "desktop"
+    ? RemoteProcedureArgs<Name> extends [IpcProcedurePayload<Name>]
+      ? Name
+      : never
+    : never;
+}[RemoteProcedureName];
 
 /** One key namespace for per-host probe results, cache entries, and pending jobs. */
 export function hostScopedKey(hostKey: string, id: string): string {
@@ -38,10 +59,11 @@ export function hostScopedKey(hostKey: string, id: string): string {
 }
 
 /**
- * The host that owns one machine's CLI agents: version probes and updates run
- * where the agents are installed. The local host is this client's own bridge
- * (the desktop's supervisor, or a remote client's bridge host); a paired
- * machine is reached through its connection's authenticated client.
+ * The host that owns one machine's CLI agents: version probes, settings
+ * mutations, plugin/provider management, and updates run where the agents are
+ * installed. The local host is this client's own bridge (the desktop's
+ * supervisor, or a remote client's bridge host); a paired machine is reached
+ * through its connection's authenticated client.
  */
 export interface AgentManagementHost {
   /** `"local"` or the paired connection key; stable, for effect deps and cache keys. */
@@ -54,6 +76,16 @@ export interface AgentManagementHost {
    * client's settings.
    */
   readonly isRemote: boolean;
+  /**
+   * Generic typed supervisor procedure call scoped to this host. Locally it
+   * invokes the corresponding method on `readBridge()`; remotely it forwards
+   * through `client.callRemoteProcedure` and validates the response against
+   * the procedure's canonical result schema.
+   */
+  callProcedure<Name extends AgentHostProcedureName>(
+    procedure: Name,
+    payload: IpcProcedurePayload<Name>,
+  ): Promise<IpcProcedureResult<Name>>;
   getLatestAgentVersion(
     payload: GetLatestAgentVersionPayload,
   ): Promise<GetLatestAgentVersionResult>;
@@ -94,20 +126,32 @@ export interface AgentManagementHost {
   rediscoverAgents(wslDistros: string[], scope?: RefreshAgentScope): Promise<HostAgentStatusPools>;
 }
 
+function callLocalProcedure<Name extends AgentHostProcedureName>(
+  procedure: Name,
+  payload: IpcProcedurePayload<Name>,
+): Promise<IpcProcedureResult<Name>> {
+  const bridge = readBridge();
+  const fn = bridge[procedure] as (
+    input: IpcProcedurePayload<Name>,
+  ) => Promise<IpcProcedureResult<Name>>;
+  return fn(payload);
+}
+
 export const LOCAL_AGENT_MANAGEMENT_HOST: AgentManagementHost = {
   key: "local",
   connectionKey: undefined,
   isRemote: false,
-  getLatestAgentVersion: (payload) => readBridge().getLatestAgentVersion(payload),
-  resolveAgentAccount: (payload) => readBridge().resolveAgentAccount(payload),
+  callProcedure: callLocalProcedure,
+  getLatestAgentVersion: (payload) => callLocalProcedure("getLatestAgentVersion", payload),
+  resolveAgentAccount: (payload) => callLocalProcedure("resolveAgentAccount", payload),
   listAcpRegistry: () => readBridge().listAcpRegistry(),
-  installAcpRegistryAgent: (payload) => readBridge().installAcpRegistryAgent(payload),
-  removeAcpRegistryAgent: (payload) => readBridge().removeAcpRegistryAgent(payload),
-  updateAgentBinary: (payload) => readBridge().updateAgentBinary(payload),
-  updateAcpRegistryAgent: (payload) => readBridge().updateAcpRegistryAgent(payload),
-  setAcpRegistryAgentAuth: (payload) => readBridge().setAcpRegistryAgentAuth(payload),
-  authenticateAcpAgent: (payload) => readBridge().authenticateAcpAgent(payload),
-  logoutAcpAgent: (payload) => readBridge().logoutAcpAgent(payload),
+  installAcpRegistryAgent: (payload) => callLocalProcedure("installAcpRegistryAgent", payload),
+  removeAcpRegistryAgent: (payload) => callLocalProcedure("removeAcpRegistryAgent", payload),
+  updateAgentBinary: (payload) => callLocalProcedure("updateAgentBinary", payload),
+  updateAcpRegistryAgent: (payload) => callLocalProcedure("updateAcpRegistryAgent", payload),
+  setAcpRegistryAgentAuth: (payload) => callLocalProcedure("setAcpRegistryAgentAuth", payload),
+  authenticateAcpAgent: (payload) => callLocalProcedure("authenticateAcpAgent", payload),
+  logoutAcpAgent: (payload) => callLocalProcedure("logoutAcpAgent", payload),
   focusAfterAuth: () => readBridge().focusWindow(),
   recordRegistryInstalls: (installed, agentIds) =>
     useSharedSettings
@@ -115,7 +159,7 @@ export const LOCAL_AGENT_MANAGEMENT_HOST: AgentManagementHost = {
       .syncAcpRegistryInstalledAgents(installed, ...(agentIds !== undefined ? [agentIds] : [])),
   refreshAgentStatuses: async (wslDistros, scope) => {
     const response = await readBridge().refreshAgentStatuses(wslDistros, scope);
-    return { windows: response.windows, wsl: response.wsl };
+    return { windows: response?.windows ?? [], wsl: response?.wsl ?? [] };
   },
   rediscoverAgents: (wslDistros, scope) =>
     LOCAL_AGENT_MANAGEMENT_HOST.refreshAgentStatuses(wslDistros, scope),
@@ -165,43 +209,49 @@ async function refreshRemoteAgentStatuses(
 }
 
 function createRemoteAgentManagementHost(connectionKey: string): AgentManagementHost {
-  const call = (procedure: string, payload: unknown) =>
+  const callRaw = (procedure: string, payload: unknown) =>
     useRemoteServersStore
       .getState()
       .withClient(connectionKey, (client) => client.callRemoteProcedure(procedure, payload));
+
+  async function callProcedure<Name extends AgentHostProcedureName>(
+    procedure: Name,
+    payload: IpcProcedurePayload<Name>,
+  ): Promise<IpcProcedureResult<Name>> {
+    const raw = await callRaw(procedure, payload);
+    const descriptor = ipcProcedureMap[procedure];
+    if ("resultSchema" in descriptor && descriptor.resultSchema) {
+      return parseRemoteProcedureResultValue(
+        descriptor.resultSchema as z.ZodType<IpcProcedureResult<Name>>,
+        raw,
+      );
+    }
+    return raw as IpcProcedureResult<Name>;
+  }
+
   return {
     key: connectionKey,
     connectionKey,
     isRemote: true,
-    getLatestAgentVersion: async (payload) =>
-      getLatestAgentVersionResultSchema.parse(await call("getLatestAgentVersion", payload)),
-    resolveAgentAccount: async (payload) =>
-      resolveAgentAccountResultSchema.parse(await call("resolveAgentAccount", payload)),
+    callProcedure,
+    getLatestAgentVersion: (payload) => callProcedure("getLatestAgentVersion", payload),
+    resolveAgentAccount: (payload) => callProcedure("resolveAgentAccount", payload),
     listAcpRegistry: async () =>
-      acpRegistryListResultSchema.parse(await call("listAcpRegistry", {})),
-    installAcpRegistryAgent: async (payload) =>
-      acpRegistryMutationResultSchema.parse(await call("installAcpRegistryAgent", payload)),
-    removeAcpRegistryAgent: async (payload) =>
-      acpRegistryMutationResultSchema.parse(await call("removeAcpRegistryAgent", payload)),
-    updateAgentBinary: async (payload) =>
-      updateAgentBinaryResultSchema.parse(await call("updateAgentBinary", payload)),
-    updateAcpRegistryAgent: async (payload) =>
-      acpRegistryMutationResultSchema.parse(await call("updateAcpRegistryAgent", payload)),
-    setAcpRegistryAgentAuth: async (payload) =>
-      acpRegistryMutationResultSchema.parse(await call("setAcpRegistryAgentAuth", payload)),
-    authenticateAcpAgent: async (payload) => {
-      await call("authenticateAcpAgent", payload);
-    },
-    logoutAcpAgent: async (payload) => {
-      await call("logoutAcpAgent", payload);
-    },
+      acpRegistryListResultSchema.parse(await callRaw("listAcpRegistry", {})),
+    installAcpRegistryAgent: (payload) => callProcedure("installAcpRegistryAgent", payload),
+    removeAcpRegistryAgent: (payload) => callProcedure("removeAcpRegistryAgent", payload),
+    updateAgentBinary: (payload) => callProcedure("updateAgentBinary", payload),
+    updateAcpRegistryAgent: (payload) => callProcedure("updateAcpRegistryAgent", payload),
+    setAcpRegistryAgentAuth: (payload) => callProcedure("setAcpRegistryAgentAuth", payload),
+    authenticateAcpAgent: (payload) => callProcedure("authenticateAcpAgent", payload),
+    logoutAcpAgent: (payload) => callProcedure("logoutAcpAgent", payload),
     focusAfterAuth: () => Promise.resolve(),
     recordRegistryInstalls: () => undefined,
     refreshAgentStatuses: () => refreshRemoteAgentStatuses(connectionKey),
     rediscoverAgents: async (wslDistros, scope) => {
       const generation = currentRemoteServerGeneration(connectionKey);
       const response = agentStatusesResponseSchema.parse(
-        await call("refreshAgentStatuses", { wslDistros, ...(scope ? { scope } : {}) }),
+        await callRaw("refreshAgentStatuses", { wslDistros, ...(scope ? { scope } : {}) }),
       );
       return refreshRemoteAgentStatuses(connectionKey, {
         generation,

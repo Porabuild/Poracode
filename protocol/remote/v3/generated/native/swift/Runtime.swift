@@ -81,6 +81,8 @@ public enum RemotePortableTransform {
 }
 public enum RemoteSemanticValidator {
   public static let supportedIds: Set<String> = [
+    "agent-credentials.id-required",
+    "agent-plugins.target-required",
     "forge.edit.fields",
     "forge.host.https",
     "forge.watch.scope-identity",
@@ -89,6 +91,8 @@ public enum RemoteSemanticValidator {
     "git.remove-worktree.owner-requires-branch",
     "mcp.reserved-name",
     "mcp.valid-url",
+    "model-provider.id-safe",
+    "model-provider.valid-url",
     "plugin.valid-name",
     "plugin.valid-url",
     "pr-watch.agent-required-when-enabled",
@@ -112,6 +116,19 @@ public enum RemoteSemanticValidator {
   private static func fail(_ id: String, _ path: String) throws -> Never { throw RemoteValidationError.invalid("\(path): semantic validator \(id) failed") }
   private static func object(_ value: RemoteJSONValue) -> [String: RemoteJSONValue]? { if case .object(let value) = value { return value }; return nil }
   private static func string(_ value: RemoteJSONValue?) -> String? { if case .string(let value)? = value { return value }; return nil }
+  private static func validModelProviderUrl(_ value: String) -> Bool {
+    let trimmed = RemoteECMAScriptTrim.trim(value)
+    guard RemoteSchemaValidatorValidURL(trimmed, schemes: ["http", "https"]), let colon = trimmed.firstIndex(of: ":") else { return false }
+    var rest = String(trimmed[trimmed.index(after: colon)...].dropFirst(2))
+    while rest.hasPrefix("/") { rest.removeFirst() }
+    let authority = rest.prefix { !"/?#\\".contains($0) }
+    guard !authority.isEmpty else { return false }
+    if let at = authority.lastIndex(of: "@") {
+      let userInfo = authority[..<at]
+      if !userInfo.isEmpty && userInfo != ":" { return false }
+    }
+    return true
+  }
   private static func validPluginName(_ value: String) -> Bool {
     let scalars = Array(value.unicodeScalars)
     guard !scalars.isEmpty, scalars.count <= 64 else { return false }
@@ -196,6 +213,8 @@ public enum RemoteSemanticValidator {
     case "schedule.cron": guard let expression = string(value), validScheduleCron(expression) else { try fail(id, path) }
 
     case "string.trim": break
+    case "agent-credentials.id-required": if string(item?["action"]) == "remove" && string(item?["credentialId"]).map({ RemoteECMAScriptTrim.trim($0).isEmpty }) != false { try fail(id, path) }
+    case "agent-plugins.target-required": if let action = string(item?["action"]), ["install", "update", "remove"].contains(action), string(item?["target"]).map({ RemoteECMAScriptTrim.trim($0).isEmpty }) != false { try fail(id, path) }
     case "forge.host.https": guard let text = string(value), RemoteSchemaValidatorValidURL(text, schemes: ["https"]), text.lowercased().hasPrefix("https://"), !text.unicodeScalars.contains(where: { $0.value <= 32 || [127, 92, 63, 35].contains($0.value) }), !text.dropFirst(8).prefix(while: { $0 != "/" }).contains("@") else { try fail(id, path) }
     case "forge.watch.scope-identity": guard let account = object(item?["account"] ?? .null), string(item?["forge"]) == string(account["forge"]), string(item?["host"]) == string(account["host"]) else { try fail(id, path) }
     case "forge.edit.fields": if item?["title"] == nil && item?["body"] == nil && item?["baseBranch"] == nil { try fail(id, path) }
@@ -204,6 +223,8 @@ public enum RemoteSemanticValidator {
     case "git.remove-worktree.owner-requires-branch": if string(item?["expectedOwnerToken"]) != nil && string(item?["expectedBranch"]) == nil { try fail(id, path) }
     case "mcp.reserved-name": if let name = string(item?["name"]).map(RemoteECMAScriptTrim.trim)?.lowercased(), ["browser", "crossagents", "chrome", "computer_use", "poracode"].contains(name) { try fail(id, path) }
     case "mcp.valid-url": let candidate = string(value) ?? string(item?["url"]); if candidate == nil || !RemoteSchemaValidatorValidURL(candidate!, schemes: ["http", "https"]) { try fail(id, path) }
+    case "model-provider.id-safe": guard let text = string(value), !["__proto__", "constructor", "prototype"].contains(text) else { try fail(id, path) }
+    case "model-provider.valid-url": guard let text = string(value), validModelProviderUrl(text) else { try fail(id, path) }
     case "plugin.valid-name": guard let text = string(value), validPluginName(text) else { try fail(id, path) }
     case "plugin.valid-url": guard let text = string(value), validPluginUrl(text) else { try fail(id, path) }
     case "pr-watch.agent-required-when-enabled": if bool(item?["watchEnabled"]) == true && (string(item?["agentKind"]) == nil || object(item?["config"] ?? .null) == nil) { try fail(id, path) }

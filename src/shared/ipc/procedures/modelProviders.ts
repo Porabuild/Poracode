@@ -1,5 +1,6 @@
 import {
   manageModelProvidersPayloadSchema,
+  manageModelProvidersResultSchema,
   type ManageModelProvidersPayload,
   type ManageModelProvidersResult,
 } from "../../contracts";
@@ -10,5 +11,10 @@ export const modelProviderProcedures = {
     ManageModelProvidersPayload,
     ManageModelProvidersResult,
     "supervisor"
-  >("manageModelProviders", "supervisor", manageModelProvidersPayloadSchema),
+  >(
+    "manageModelProviders",
+    "supervisor",
+    manageModelProvidersPayloadSchema,
+    manageModelProvidersResultSchema,
+  ),
 } as const;

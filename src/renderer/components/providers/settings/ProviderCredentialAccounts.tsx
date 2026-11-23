@@ -4,12 +4,12 @@ import { Trans, useLingui } from "@lingui/react/macro";
 import type { AgentConnectedProvider, AgentStatus } from "@/shared/contracts";
 import { agentEnvForStatus } from "@/shared/machines";
 import { runAgentLoginCommand } from "@/renderer/actions/agentLoginActions";
-import { readBridge } from "@/renderer/bridge";
 import { useAppStore } from "@/renderer/state/appStore";
 import { findProjectForStatus } from "@/renderer/utils/acpRegistryAuth";
 import { ConfirmDialog } from "@/renderer/components/common";
 import { friendlyError, localizeMessageSource } from "@/shared/messages";
 import { SHARED_MESSAGE_DESCRIPTORS } from "@/renderer/i18n/sharedMessages";
+import { useAgentSettingsHost } from "./AgentSettingsHostContext";
 import {
   ADD_PROVIDER_KEY,
   ProviderAccountsSection,
@@ -33,6 +33,7 @@ export function ProviderCredentialAccounts(props: {
   signInOptions?: readonly { id: string; label: string }[];
 }) {
   const { t } = useLingui();
+  const settingsHost = useAgentSettingsHost();
   const { agentKind, statuses, wslDistros, signInOptions } = props;
   const [pendingKey, setPendingKey] = useState<string | undefined>();
   const [signingOut, setSigningOut] = useState<
@@ -59,14 +60,20 @@ export function ProviderCredentialAccounts(props: {
     setPendingKey((current) => (current === key ? undefined : current));
 
   const refreshStatuses = () =>
-    readBridge().refreshAgentStatuses(wslDistros, { agentKinds: [agentKind] });
+    settingsHost.rediscoverAgents(wslDistros, { agentKinds: [agentKind] });
 
   const addProvider = (optionId?: string) => {
     const command = status?.loginCommand;
-    if (!command) return;
+    if (!command || !settingsHost.isOnline) return;
     if (signInOptions && !optionId) return;
-    const project = findProjectForStatus(status, useAppStore.getState().projects);
-    if (!project && (status?.envKind === "windows" || status?.envKind === "wsl")) {
+    const project = settingsHost.isRemote
+      ? settingsHost.machineProject
+      : (settingsHost.machineProject ??
+        findProjectForStatus(status, useAppStore.getState().projects));
+    if (
+      !project &&
+      (settingsHost.isRemote || status?.envKind === "windows" || status?.envKind === "wsl")
+    ) {
       toast.warning(t`Add a project in this environment before signing in.`);
       return;
     }
@@ -90,10 +97,10 @@ export function ProviderCredentialAccounts(props: {
 
   const signOut = async (provider: AgentConnectedProvider, key: string) => {
     // Rows come from the credential list, so every one carries its removal id.
-    if (!provider.id || !status) return;
+    if (!provider.id || !status || !settingsHost.isOnline) return;
     setPendingKey(key);
     try {
-      await readBridge().manageAgentCredentials({
+      await settingsHost.callProcedure("manageAgentCredentials", {
         agentKind,
         env: agentEnvForStatus(status),
         action: "remove",
@@ -115,7 +122,8 @@ export function ProviderCredentialAccounts(props: {
         providers={providers}
         pendingKey={pendingKey}
         {...(addOptions ? { addOptions } : {})}
-        {...(!status?.loginCommand ? { addDisabled: true } : {})}
+        {...(!status?.loginCommand || !settingsHost.isOnline ? { addDisabled: true } : {})}
+        {...(!settingsHost.isOnline ? { signOutDisabled: true } : {})}
         onAdd={addProvider}
         onSignOut={(provider, index) =>
           setSigningOut({ provider, key: providerActionKey(provider, index) })

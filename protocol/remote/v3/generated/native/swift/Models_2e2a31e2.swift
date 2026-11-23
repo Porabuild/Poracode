@@ -145,10 +145,6 @@ public struct RoutememoryU2DCatalogRequestU2DOptionU2D2_649f2dd010: Codable, Sen
   }
 }
 
-public enum RoutememoryU2DCatalogRequestU2DOptionU2D3U2DAction_a2bcbae622: String, Codable, Sendable {
-  case `save` = "save"
-}
-
 public enum RoutememoryU2DCatalogRequestU2DOptionU2D3U2DEntryU2DCategory_e3c6a49a61: String, Codable, Sendable {
   case `user` = "user"
   case `feedback` = "feedback"
@@ -163,24 +159,24 @@ public enum RoutememoryU2DCatalogRequestU2DOptionU2D3U2DEntryU2DPolarity_6c042b4
 }
 
 public struct RoutememoryU2DCatalogRequestU2DOptionU2D3U2DEntry_3cbfa576c3: Codable, Sendable, RemoteModelMetadata {
-  public var body: ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b
+  public var body: ProcedureapplyNativeMcpSetupResultU2DCandidatesU2DItemU2DId_bf0b727f7b
   public var category: RoutememoryU2DCatalogRequestU2DOptionU2D3U2DEntryU2DCategory_e3c6a49a61
   public var id: RemoteField<String> = .missing
   public var pinned: Bool
   public var polarity: RoutememoryU2DCatalogRequestU2DOptionU2D3U2DEntryU2DPolarity_6c042b493a
   public var projectId: RemoteField<String> = .missing
-  public var quote: RemoteField<ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b> = .missing
+  public var quote: RemoteField<ProcedureapplyNativeMcpSetupResultU2DCandidatesU2DItemU2DId_bf0b727f7b> = .missing
   public var scope: ProcedureeditQueuedThreadFollowUpRequestU2DSegmentsU2DItemU2DOptionU2D5U2DScope_ac6ea0fc11
   public var summary: String
   public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .reject
   public static let fields: [RemoteFieldDescriptor] = [
-    .init(wireName: "body", typeName: "ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "body", typeName: "ProcedureapplyNativeMcpSetupResultU2DCandidatesU2DItemU2DId_bf0b727f7b", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "category", typeName: "RoutememoryU2DCatalogRequestU2DOptionU2D3U2DEntryU2DCategory_e3c6a49a61", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "id", typeName: "String", required: false, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "pinned", typeName: "Bool", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "polarity", typeName: "RoutememoryU2DCatalogRequestU2DOptionU2D3U2DEntryU2DPolarity_6c042b493a", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "projectId", typeName: "String", required: false, nullable: true, minimum: nil, maximum: nil, minLength: 1, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
-    .init(wireName: "quote", typeName: "ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b", required: false, nullable: true, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "quote", typeName: "ProcedureapplyNativeMcpSetupResultU2DCandidatesU2DItemU2DId_bf0b727f7b", required: false, nullable: true, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "scope", typeName: "ProcedureeditQueuedThreadFollowUpRequestU2DSegmentsU2DItemU2DOptionU2D5U2DScope_ac6ea0fc11", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "summary", typeName: "String", required: true, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
   ]
@@ -201,13 +197,13 @@ public struct RoutememoryU2DCatalogRequestU2DOptionU2D3U2DEntry_3cbfa576c3: Coda
     let known = Set(Self.fields.map(\.wireName))
     guard all.allSatisfy(known.contains) else { throw DecodingError.dataCorrupted(.init(codingPath: decoder.codingPath, debugDescription: "Unknown field in strict object")) }
     let container = try decoder.container(keyedBy: CodingKeys.self)
-    self.body = try container.decode(ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b.self, forKey: .body)
+    self.body = try container.decode(ProcedureapplyNativeMcpSetupResultU2DCandidatesU2DItemU2DId_bf0b727f7b.self, forKey: .body)
     self.category = try container.decode(RoutememoryU2DCatalogRequestU2DOptionU2D3U2DEntryU2DCategory_e3c6a49a61.self, forKey: .category)
     self.id = try container.decode(RemoteField<String>.self, forKey: .id)
     self.pinned = try container.decode(Bool.self, forKey: .pinned)
     self.polarity = try container.decode(RoutememoryU2DCatalogRequestU2DOptionU2D3U2DEntryU2DPolarity_6c042b493a.self, forKey: .polarity)
     self.projectId = try container.decode(RemoteField<String>.self, forKey: .projectId)
-    self.quote = try container.decode(RemoteField<ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b>.self, forKey: .quote)
+    self.quote = try container.decode(RemoteField<ProcedureapplyNativeMcpSetupResultU2DCandidatesU2DItemU2DId_bf0b727f7b>.self, forKey: .quote)
     self.scope = try container.decode(ProcedureeditQueuedThreadFollowUpRequestU2DSegmentsU2DItemU2DOptionU2D5U2DScope_ac6ea0fc11.self, forKey: .scope)
     self.summary = try container.decode(String.self, forKey: .summary)
   }
@@ -226,11 +222,11 @@ public struct RoutememoryU2DCatalogRequestU2DOptionU2D3U2DEntry_3cbfa576c3: Coda
 }
 
 public struct RoutememoryU2DCatalogRequestU2DOptionU2D3_3fc597689b: Codable, Sendable, RemoteModelMetadata {
-  public var action: RoutememoryU2DCatalogRequestU2DOptionU2D3U2DAction_a2bcbae622
+  public var action: ProceduremanageModelProvidersRequestU2DOptionU2D2U2DAction_a2bcbae622
   public var entry: RoutememoryU2DCatalogRequestU2DOptionU2D3U2DEntry_3cbfa576c3
   public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .reject
   public static let fields: [RemoteFieldDescriptor] = [
-    .init(wireName: "action", typeName: "RoutememoryU2DCatalogRequestU2DOptionU2D3U2DAction_a2bcbae622", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "action", typeName: "ProceduremanageModelProvidersRequestU2DOptionU2D2U2DAction_a2bcbae622", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "entry", typeName: "RoutememoryU2DCatalogRequestU2DOptionU2D3U2DEntry_3cbfa576c3", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
   ]
   public static let semanticValidatorIds: [String] = []
@@ -243,7 +239,7 @@ public struct RoutememoryU2DCatalogRequestU2DOptionU2D3_3fc597689b: Codable, Sen
     let known = Set(Self.fields.map(\.wireName))
     guard all.allSatisfy(known.contains) else { throw DecodingError.dataCorrupted(.init(codingPath: decoder.codingPath, debugDescription: "Unknown field in strict object")) }
     let container = try decoder.container(keyedBy: CodingKeys.self)
-    self.action = try container.decode(RoutememoryU2DCatalogRequestU2DOptionU2D3U2DAction_a2bcbae622.self, forKey: .action)
+    self.action = try container.decode(ProceduremanageModelProvidersRequestU2DOptionU2D2U2DAction_a2bcbae622.self, forKey: .action)
     self.entry = try container.decode(RoutememoryU2DCatalogRequestU2DOptionU2D3U2DEntry_3cbfa576c3.self, forKey: .entry)
   }
   public func encode(to encoder: Encoder) throws {

@@ -63,12 +63,22 @@ export const REMOTE_PROCEDURE_SPECS = {
   resolveLinkMetadata: read("desktop"),
   // Host CLI transcripts: paths and first prompts, so project-management scope.
   listImportableSessions: manageProjects("desktop"),
-  // Host agent management: version probes are reads, while registry listing and
-  // updates change the host (install/update agents, write settings) and are
-  // therefore operate-scoped, so a paired machine's agents can only be changed
-  // by a client holding session:operate.
+  // Host agent management: version probes, config defaults, native MCP and hook
+  // status reads stay read-scoped, while mutations (installs, updates, native
+  // plugins, credentials, model providers, CLI MCP/hook writes) require operate.
+  // Additive names: older hosts reject unknown procedures without local fallback.
   getLatestAgentVersion: read("desktop"),
   resolveAgentAccount: read("desktop"),
+  getAgentConfigDefaults: read("desktop"),
+  getNativeMcpSetup: read("desktop"),
+  applyNativeMcpSetup: mutating(operate("desktop")),
+  reloadAgentMcpServers: mutating(operate("desktop")),
+  getAgentHookPluginStatuses: read("desktop"),
+  installAgentHookPlugin: mutating(operate("desktop")),
+  uninstallAgentHookPlugin: mutating(operate("desktop")),
+  manageAgentPlugins: mutating(longRunning(operate("desktop"))),
+  manageAgentCredentials: mutating(operate("desktop")),
+  manageModelProviders: mutating(operate("desktop")),
   // Additive: older hosts reject this name; clients report the failure without a local fallback.
   refreshAgentStatuses: mutating(longRunning(operate("desktop"))),
   listAcpRegistry: mutating(longRunning(operate("desktop"))),
@@ -320,6 +330,7 @@ export const REMOTE_AGENT_UPDATE_PROCEDURES = [
   "updateAgentBinary",
   "updateAcpRegistryAgent",
   "authenticateAcpAgent",
+  "manageAgentPlugins",
 ] as const satisfies readonly RemoteProcedureName[];
 
 const remoteAgentUpdateProcedures: ReadonlySet<string> = new Set(REMOTE_AGENT_UPDATE_PROCEDURES);

@@ -15,6 +15,7 @@ import { runAgentLoginCommand } from "@/renderer/actions/agentLoginActions";
 import { flushSharedSettings, useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { currentWslDistros } from "@/renderer/utils/acpRegistryAuth";
 import { AgentProfileList } from "../../../views/SettingsOverlay/parts/AgentProfileList";
+import { useAgentSettingsHost } from "../settings/AgentSettingsHostContext";
 import type { NativeAgentProfileSupport } from "../../../views/SettingsOverlay/parts/agentRegistryNative";
 import {
   devinCloudDefaultsFormFromConfig,
@@ -244,8 +245,11 @@ export function DevinProfileProviderSettings(props: {
   instanceId: string;
   statuses: readonly AgentStatus[];
 }) {
-  const instance = useSharedSettings((s) => s.agentInstances?.[props.instanceId]);
-  if (!instance || instance.driver !== DEVIN_PROFILE_DRIVER) return null;
+  const { canManageProfiles } = useAgentSettingsHost();
+  const instance = useSharedSettings((s) =>
+    canManageProfiles ? s.agentInstances?.[props.instanceId] : undefined,
+  );
+  if (!canManageProfiles || !instance || instance.driver !== DEVIN_PROFILE_DRIVER) return null;
   const view = devinProfileConfigView(instance.config);
   return (
     <DevinProfileEditor

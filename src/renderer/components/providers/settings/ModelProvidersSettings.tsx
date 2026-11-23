@@ -6,6 +6,7 @@ import { agentEnvForStatus, agentEnvKey } from "@/shared/machines";
 import { Select } from "@/renderer/components/common/Select";
 import { localEnvLabel } from "@/renderer/utils/machineLabels";
 import { SettingRow } from "@/renderer/views/SettingsOverlay/parts/SettingsForm";
+import { useAgentSettingsHost } from "./AgentSettingsHostContext";
 import { ModelProviderManager } from "./ModelProviderManager";
 
 /** Shared presentation; each agent adapter owns its native config and credentials. */
@@ -21,6 +22,7 @@ export function ModelProvidersSettings({
   onChanged: () => void;
 }) {
   const { t } = useLingui();
+  const settingsHost = useAgentSettingsHost();
   const [open, setOpen] = useState(false);
   const [selected, setSelected] = useState("native");
   const environments = new Map(
@@ -36,7 +38,12 @@ export function ModelProvidersSettings({
   return (
     <div className="border-t border-border/10 pt-3">
       <SettingRow title={t`AI providers`} description={description} className="py-1.5">
-        <Button size="sm" variant="secondary" isDisabled={!env} onPress={() => setOpen(true)}>
+        <Button
+          size="sm"
+          variant="secondary"
+          isDisabled={!env || !settingsHost.isOnline}
+          onPress={() => setOpen(true)}
+        >
           <Trans>Manage providers</Trans>
         </Button>
       </SettingRow>
@@ -66,7 +73,7 @@ export function ModelProvidersSettings({
               ) : null}
               {open && env ? (
                 <ModelProviderManager
-                  key={`${agentKind}:${activeKey}`}
+                  key={`${settingsHost.key}:${agentKind}:${activeKey}`}
                   agentKind={agentKind}
                   env={env}
                   onChanged={onChanged}

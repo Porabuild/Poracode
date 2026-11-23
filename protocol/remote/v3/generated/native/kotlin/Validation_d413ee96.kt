@@ -109,6 +109,10 @@ internal val schema_7336226743fca7c0: RemoteSchema by lazy {
     RemoteSchema(unionKind = "oneOf", options = listOf(schema_d59ce91ef6d00c30, schema_f6e7e7b61d75b459, schema_1a2e4e377d4c675b, schema_0700d342f3ced655, schema_8c108b5dbef930ae), unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
 
+internal val schema_7345318207d92755: RemoteSchema by lazy {
+    RemoteSchema(type = "object", required = setOf("action", "agentKind", "env"), properties = mapOf("action" to schema_862e6a81a05c9f92, "agentKind" to schema_8e43cad70cd70de7, "env" to schema_2583fd799237ae71), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
+}
+
 internal val schema_73994aff28325b85: RemoteSchema by lazy {
     RemoteSchema(type = "object", required = setOf("platform", "status"), properties = mapOf("diagnostic" to schema_d3abf2cfac530357, "foldableDeviceExists" to schema_feeb8bb50144d96d, "foldableRuntimeAvailable" to schema_feeb8bb50144d96d, "platform" to schema_61e54b5f6751c7a6, "status" to schema_9ab386636c31e53c), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }

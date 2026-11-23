@@ -21,6 +21,10 @@ public extension RemoteSchemas {
 }
 
 public extension RemoteSchemas {
+  static let schema_00abdaf4c5a182d1 = RemoteSchema(type: "object", required: Set(["agentKind", "env", "installIds", "removeNames", "revision"]), properties: ["agentKind": RemoteSchemas.schema_36fea325bf1aca70, "env": RemoteSchemas.schema_2583fd799237ae71, "installIds": RemoteSchemas.schema_39d8d7cbf4384109, "removeNames": RemoteSchemas.schema_39d8d7cbf4384109, "revision": RemoteSchemas.schema_36fea325bf1aca70], additionalAllowed: true, unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
   static let schema_00b1d6328e3a57b5 = RemoteSchema(type: "object", required: Set(["deletions", "insertions", "path", "staged", "status"]), properties: ["deletions": RemoteSchemas.schema_3d06117798bf5171, "insertions": RemoteSchemas.schema_3d06117798bf5171, "oldPath": RemoteSchemas.schema_bf0b727f7b1c6d07, "path": RemoteSchemas.schema_bf0b727f7b1c6d07, "staged": RemoteSchemas.schema_feeb8bb50144d96d, "status": RemoteSchemas.schema_bf0b727f7b1c6d07], additionalAllowed: true, unknownPolicy: .strip)
 }
 

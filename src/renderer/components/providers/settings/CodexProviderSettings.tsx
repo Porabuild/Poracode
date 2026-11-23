@@ -1,4 +1,5 @@
 import { Trans, useLingui } from "@lingui/react/macro";
+import type { AgentStatus } from "@/shared/contracts";
 import {
   CODEX_CONTEXT_WINDOWS_SETTING_KEY,
   DEFAULT_CODEX_CONTEXT_WINDOWS,
@@ -8,12 +9,17 @@ import {
 import { CodexAdvancedSettings } from "./CodexAdvancedSettings";
 import { ProviderContextWindowSettings } from "./ProviderContextWindowSettings";
 
-export function CodexProviderSettings(props: { agentKind: string; wslDistros: string[] }) {
+export function CodexProviderSettings(props: {
+  agentKind: string;
+  statuses?: readonly AgentStatus[];
+  wslDistros: string[];
+}) {
   const { t } = useLingui();
   return (
     <>
       <ProviderContextWindowSettings
-        {...props}
+        agentKind={props.agentKind}
+        wslDistros={props.wslDistros}
         settingKey={CODEX_CONTEXT_WINDOWS_SETTING_KEY}
         defaults={DEFAULT_CODEX_CONTEXT_WINDOWS}
         resolveWindows={resolveCodexContextWindows}
@@ -26,7 +32,10 @@ export function CodexProviderSettings(props: { agentKind: string; wslDistros: st
           </Trans>
         }
       />
-      <CodexAdvancedSettings agentKind={props.agentKind} />
+      <CodexAdvancedSettings
+        agentKind={props.agentKind}
+        {...(props.statuses ? { statuses: props.statuses } : {})}
+      />
     </>
   );
 }

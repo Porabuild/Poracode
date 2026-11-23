@@ -4,6 +4,7 @@ import { Trans, useLingui } from "@lingui/react/macro";
 import type { AgentStatus } from "@/shared/contracts";
 import { agentEnvForStatus, agentEnvKey } from "@/shared/machines";
 import { Select } from "@/renderer/components/common/Select";
+import { useAgentSettingsHost } from "@/renderer/components/providers/settings/AgentSettingsHostContext";
 import { localEnvLabel } from "@/renderer/utils/machineLabels";
 import { SettingRow } from "@/renderer/views/SettingsOverlay/parts/SettingsForm";
 import { OpenCodePluginManager } from "./OpenCodePluginManager";
@@ -16,6 +17,7 @@ export function OpenCodePluginsSettings({
   statuses: readonly AgentStatus[];
 }) {
   const { t } = useLingui();
+  const settingsHost = useAgentSettingsHost();
   const [open, setOpen] = useState(false);
   const [selectedEnvironment, setSelectedEnvironment] = useState("native");
   const environments = new Map(
@@ -42,6 +44,7 @@ export function OpenCodePluginsSettings({
           size="sm"
           variant="tertiary"
           className="h-7 min-h-7 shrink-0 px-3 text-[11px]"
+          isDisabled={!settingsHost.isOnline}
           onPress={() => setOpen(true)}
         >
           <Trans>Manage plugins</Trans>
@@ -78,7 +81,7 @@ export function OpenCodePluginsSettings({
               </div>
               {open && env ? (
                 <OpenCodePluginManager
-                  key={`${agentKind}:${activeKey}`}
+                  key={`${settingsHost.key}:${agentKind}:${activeKey}`}
                   agentKind={agentKind}
                   env={env}
                 />

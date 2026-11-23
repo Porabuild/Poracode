@@ -438,15 +438,12 @@ const remoteBridgeOverrides = {
     link.href = url;
     link.download = suggestedName;
     link.rel = "noopener";
-    document.body.append(link);
+    document.body.appendChild(link);
     link.click();
     link.remove();
     window.setTimeout(() => URL.revokeObjectURL(url), 0);
     return Promise.resolve(null);
   },
-  getAgentHookPluginStatuses: () => Promise.resolve([]),
-  // The config file lives on the paired host, which this client cannot read.
-  getAgentConfigDefaults: () => Promise.resolve({ defaults: {} }),
 
   // Runtime history hydration pages the paired host's bounded routes instead
   // of the local DB. The selected thread's tail arrives with its snapshot;

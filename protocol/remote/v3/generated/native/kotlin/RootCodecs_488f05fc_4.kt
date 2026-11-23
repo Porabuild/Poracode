@@ -5,6 +5,63 @@ import kotlinx.serialization.*
 import kotlinx.serialization.descriptors.*
 import kotlinx.serialization.encoding.*
 import kotlinx.serialization.json.*
+val RemoteRootCodecs.routeU2EMcpU2DSettingsU2DReadU2EResponse: RemoteRootCodec<RoutemcpU2DSettingsU2DCommandResponse_e761211b82>
+    get() = RemoteRootCodec("route.mcp-settings-read.response", serializer<RoutemcpU2DSettingsU2DCommandResponse_e761211b82>(), schema_e761211b82c40573)
+
+val RemoteRootCodecs.routeU2EMemoryU2DCatalogU2ERequest: RemoteRootCodec<RoutememoryU2DCatalogRequest_0eb986e669>
+    get() = RemoteRootCodec("route.memory-catalog.request", serializer<RoutememoryU2DCatalogRequest_0eb986e669>(), schema_0eb986e669e438e8)
+
+val RemoteRootCodecs.routeU2EMemoryU2DCatalogU2EResponse: RemoteRootCodec<RoutememoryU2DCatalogResponse_d2a9e452ab>
+    get() = RemoteRootCodec("route.memory-catalog.response", serializer<RoutememoryU2DCatalogResponse_d2a9e452ab>(), schema_d2a9e452ab6ec4b9)
+
+val RemoteRootCodecs.routeU2EMemoryU2DSyncU2ERequest: RemoteRootCodec<RoutememoryU2DSyncRequest_e391f3a6d9>
+    get() = RemoteRootCodec("route.memory-sync.request", serializer<RoutememoryU2DSyncRequest_e391f3a6d9>(), schema_e391f3a6d93daf46)
+
+val RemoteRootCodecs.routeU2EMemoryU2DSyncU2EResponse: RemoteRootCodec<RoutememoryU2DSyncResponse_ac0baafa13>
+    get() = RemoteRootCodec("route.memory-sync.response", serializer<RoutememoryU2DSyncResponse_ac0baafa13>(), schema_ac0baafa13683390)
+
+val RemoteRootCodecs.routeU2EMetricsU2EResponse: RemoteRootCodec<RoutemetricsResponse_e9b9e3e75f>
+    get() = RemoteRootCodec("route.metrics.response", serializer<RoutemetricsResponse_e9b9e3e75f>(), schema_e9b9e3e75ffe2b01)
+
+val RemoteRootCodecs.routeU2EPortU2DEnterU2ERequest: RemoteRootCodec<RouteportU2DEnterRequest_4067ad04bf>
+    get() = RemoteRootCodec("route.port-enter.request", serializer<RouteportU2DEnterRequest_4067ad04bf>(), schema_4067ad04bfbe200c)
+
+val RemoteRootCodecs.routeU2EPortU2DEnterU2EResponse: RemoteRootCodec<RouteportU2DEnterResponse_72ce7899de>
+    get() = RemoteRootCodec("route.port-enter.response", serializer<RouteportU2DEnterResponse_72ce7899de>(), schema_72ce7899de7d8b9d)
+
+val RemoteRootCodecs.routeU2EPortU2DForwardU2ERequest: RemoteRootCodec<RouteportU2DForwardRequest_a26f77dd4a>
+    get() = RemoteRootCodec("route.port-forward.request", serializer<RouteportU2DForwardRequest_a26f77dd4a>(), schema_a26f77dd4ad13e5b)
+
+val RemoteRootCodecs.routeU2EPortU2DForwardU2EResponse: RemoteRootCodec<RouteportU2DForwardResponse_04de8f3da1>
+    get() = RemoteRootCodec("route.port-forward.response", serializer<RouteportU2DForwardResponse_04de8f3da1>(), schema_04de8f3da1a2ece8)
+
+val RemoteRootCodecs.routeU2EPortU2DUnforwardU2ERequest: RemoteRootCodec<RouteportU2DEnterRequest_4067ad04bf>
+    get() = RemoteRootCodec("route.port-unforward.request", serializer<RouteportU2DEnterRequest_4067ad04bf>(), schema_4067ad04bfbe200c)
+
+val RemoteRootCodecs.routeU2EPortU2DUnforwardU2EResponse: RemoteRootCodec<RoutedeviceU2DDetachResponse_badd682f35>
+    get() = RemoteRootCodec("route.port-unforward.response", serializer<RoutedeviceU2DDetachResponse_badd682f35>(), schema_badd682f3501e022)
+
+val RemoteRootCodecs.routeU2EPortsU2DReadU2EResponse: RemoteRootCodec<RouteportsU2DReadResponse_ea993e5b2d>
+    get() = RemoteRootCodec("route.ports-read.response", serializer<RouteportsU2DReadResponse_ea993e5b2d>(), schema_ea993e5b2d87f77f)
+
+val RemoteRootCodecs.routeU2EPrU2DWatchU2DAgentU2DSyncU2ERequest: RemoteRootCodec<RouteprU2DWatchU2DAgentU2DSyncRequest_b2c8fd1712>
+    get() = RemoteRootCodec("route.pr-watch-agent-sync.request", serializer<RouteprU2DWatchU2DAgentU2DSyncRequest_b2c8fd1712>(), schema_b2c8fd1712ed6830)
+
+val RemoteRootCodecs.routeU2EPrU2DWatchU2DAgentU2DSyncU2EResponse: RemoteRootCodec<RoutedeviceU2DDetachResponse_badd682f35>
+    get() = RemoteRootCodec("route.pr-watch-agent-sync.response", serializer<RoutedeviceU2DDetachResponse_badd682f35>(), schema_badd682f3501e022)
+
+val RemoteRootCodecs.routeU2EPrU2DWatchU2DCheckU2ERequest: RemoteRootCodec<RouteprU2DWatchU2DCheckRequest_22fb635ee9>
+    get() = RemoteRootCodec("route.pr-watch-check.request", serializer<RouteprU2DWatchU2DCheckRequest_22fb635ee9>(), schema_22fb635ee9412c65)
+
+val RemoteRootCodecs.routeU2EPrU2DWatchU2DCheckU2EResponse: RemoteRootCodec<RoutedeviceU2DDetachResponse_badd682f35>
+    get() = RemoteRootCodec("route.pr-watch-check.response", serializer<RoutedeviceU2DDetachResponse_badd682f35>(), schema_badd682f3501e022)
+
+val RemoteRootCodecs.routeU2EPrU2DWatchU2DDeleteU2ERequest: RemoteRootCodec<RouteprU2DWatchU2DCheckRequest_22fb635ee9>
+    get() = RemoteRootCodec("route.pr-watch-delete.request", serializer<RouteprU2DWatchU2DCheckRequest_22fb635ee9>(), schema_22fb635ee9412c65)
+
+val RemoteRootCodecs.routeU2EPrU2DWatchU2DDeleteU2EResponse: RemoteRootCodec<RoutedeviceU2DDetachResponse_badd682f35>
+    get() = RemoteRootCodec("route.pr-watch-delete.response", serializer<RoutedeviceU2DDetachResponse_badd682f35>(), schema_badd682f3501e022)
+
 val RemoteRootCodecs.routeU2EPrU2DWatchU2DReadU2EQuery: RemoteRootCodec<RouteprU2DWatchU2DCheckRequest_22fb635ee9>
     get() = RemoteRootCodec("route.pr-watch-read.query", serializer<RouteprU2DWatchU2DCheckRequest_22fb635ee9>(), schema_22fb635ee9412c65)
 
@@ -391,60 +448,3 @@ val RemoteRootCodecs.routeU2EThreadU2DTurnsU2EResponse: RemoteRootCodec<Routethr
 
 val RemoteRootCodecs.routeU2ETokenU2DExchangeU2ERequest: RemoteRootCodec<RoutetokenU2DExchangeRequest_39bc2baf33>
     get() = RemoteRootCodec("route.token-exchange.request", serializer<RoutetokenU2DExchangeRequest_39bc2baf33>(), schema_39bc2baf33179ca7)
-
-val RemoteRootCodecs.routeU2ETokenU2DExchangeU2EResponse: RemoteRootCodec<RoutetokenU2DExchangeResponse_22f14841c0>
-    get() = RemoteRootCodec("route.token-exchange.response", serializer<RoutetokenU2DExchangeResponse_22f14841c0>(), schema_22f14841c064490b)
-
-val RemoteRootCodecs.routeU2EWebsocketU2DTicketU2EResponse: RemoteRootCodec<RouteenvironmentU2DWebsocketU2DTicketResponse_b9dfb5a053>
-    get() = RemoteRootCodec("route.websocket-ticket.response", serializer<RouteenvironmentU2DWebsocketU2DTicketResponse_b9dfb5a053>(), schema_b9dfb5a053707da9)
-
-val RemoteRootCodecs.websocketU2EClient: RemoteRootCodec<WebSocketClientMessage_14ca57bfe9>
-    get() = RemoteRootCodec("websocket.client", serializer<WebSocketClientMessage_14ca57bfe9>(), schema_14ca57bfe938f3d4)
-
-val RemoteRootCodecs.websocketU2EClientU2EAgentU2DVisionU2DUnwatch: RemoteRootCodec<WebSocketClientMessageU2DOptionU2D2_107db71e16>
-    get() = RemoteRootCodec("websocket.client.agent-vision-unwatch", serializer<WebSocketClientMessageU2DOptionU2D2_107db71e16>(), schema_107db71e1696908a)
-
-val RemoteRootCodecs.websocketU2EClientU2EAgentU2DVisionU2DWatch: RemoteRootCodec<WebSocketClientMessageU2DOptionU2D1_9eaa25e68d>
-    get() = RemoteRootCodec("websocket.client.agent-vision-watch", serializer<WebSocketClientMessageU2DOptionU2D1_9eaa25e68d>(), schema_9eaa25e68d8e4cf4)
-
-val RemoteRootCodecs.websocketU2EClientU2EBrowserU2DInput: RemoteRootCodec<WebSocketClientMessageU2DOptionU2D6_d550ef9994>
-    get() = RemoteRootCodec("websocket.client.browser-input", serializer<WebSocketClientMessageU2DOptionU2D6_d550ef9994>(), schema_d550ef9994fd388f)
-
-val RemoteRootCodecs.websocketU2EClientU2EBrowserU2DUnwatch: RemoteRootCodec<WebSocketClientMessageU2DOptionU2D5_0e8f58f429>
-    get() = RemoteRootCodec("websocket.client.browser-unwatch", serializer<WebSocketClientMessageU2DOptionU2D5_0e8f58f429>(), schema_0e8f58f429bb1135)
-
-val RemoteRootCodecs.websocketU2EClientU2EBrowserU2DWatch: RemoteRootCodec<WebSocketClientMessageU2DOptionU2D4_2b7b34c95b>
-    get() = RemoteRootCodec("websocket.client.browser-watch", serializer<WebSocketClientMessageU2DOptionU2D4_2b7b34c95b>(), schema_2b7b34c95b23bb0d)
-
-val RemoteRootCodecs.websocketU2EClientU2EGitU2DStateU2DInterests: RemoteRootCodec<WebSocketClientMessageU2DOptionU2D10_d2299af726>
-    get() = RemoteRootCodec("websocket.client.git-state-interests", serializer<WebSocketClientMessageU2DOptionU2D10_d2299af726>(), schema_d2299af726097d6c)
-
-val RemoteRootCodecs.websocketU2EClientU2EPing: RemoteRootCodec<WebSocketClientMessageU2DOptionU2D3_1709690cf0>
-    get() = RemoteRootCodec("websocket.client.ping", serializer<WebSocketClientMessageU2DOptionU2D3_1709690cf0>(), schema_1709690cf0edf961)
-
-val RemoteRootCodecs.websocketU2EClientU2ETerminalU2DUnwatch: RemoteRootCodec<WebSocketClientMessageU2DOptionU2D8_5af10e67b4>
-    get() = RemoteRootCodec("websocket.client.terminal-unwatch", serializer<WebSocketClientMessageU2DOptionU2D8_5af10e67b4>(), schema_5af10e67b405a136)
-
-val RemoteRootCodecs.websocketU2EClientU2ETerminalU2DWatch: RemoteRootCodec<WebSocketClientMessageU2DOptionU2D7_838adcbcaf>
-    get() = RemoteRootCodec("websocket.client.terminal-watch", serializer<WebSocketClientMessageU2DOptionU2D7_838adcbcaf>(), schema_838adcbcaff5f551)
-
-val RemoteRootCodecs.websocketU2EClientU2ETerminalU2DWatchU2DBaselineU2DAck: RemoteRootCodec<WebSocketClientMessageU2DOptionU2D9_3f58316dbb>
-    get() = RemoteRootCodec("websocket.client.terminal-watch-baseline-ack", serializer<WebSocketClientMessageU2DOptionU2D9_3f58316dbb>(), schema_3f58316dbb160752)
-
-val RemoteRootCodecs.websocketU2EClientU2EThreadU2DItemU2DInterests: RemoteRootCodec<WebSocketClientMessageU2DOptionU2D11_93bef3a552>
-    get() = RemoteRootCodec("websocket.client.thread-item-interests", serializer<WebSocketClientMessageU2DOptionU2D11_93bef3a552>(), schema_93bef3a552bf787e)
-
-val RemoteRootCodecs.websocketU2EServer: RemoteRootCodec<WebSocketServerMessage_b176186fb3>
-    get() = RemoteRootCodec("websocket.server", serializer<WebSocketServerMessage_b176186fb3>(), schema_b176186fb3da3d3b)
-
-val RemoteRootCodecs.websocketU2EServerU2EAgentU2DVisionU2DFrame: RemoteRootCodec<WebSocketServerMessageU2DOptionU2D1_48916cddaa>
-    get() = RemoteRootCodec("websocket.server.agent-vision-frame", serializer<WebSocketServerMessageU2DOptionU2D1_48916cddaa>(), schema_48916cddaaeb3b09)
-
-val RemoteRootCodecs.websocketU2EServerU2EBrowserU2DFrame: RemoteRootCodec<WebSocketServerMessageU2DOptionU2D7_8f58c1d1ac>
-    get() = RemoteRootCodec("websocket.server.browser-frame", serializer<WebSocketServerMessageU2DOptionU2D7_8f58c1d1ac>(), schema_8f58c1d1acd8bc3c)
-
-val RemoteRootCodecs.websocketU2EServerU2EBrowserU2DMirrorU2DStatus: RemoteRootCodec<WebSocketServerMessageU2DOptionU2D8_0ad133ee58>
-    get() = RemoteRootCodec("websocket.server.browser-mirror-status", serializer<WebSocketServerMessageU2DOptionU2D8_0ad133ee58>(), schema_0ad133ee5894107b)
-
-val RemoteRootCodecs.websocketU2EServerU2EBrowserU2DState: RemoteRootCodec<WebSocketServerMessageU2DOptionU2D6_bd23acb1d6>
-    get() = RemoteRootCodec("websocket.server.browser-state", serializer<WebSocketServerMessageU2DOptionU2D6_bd23acb1d6>(), schema_bd23acb1d60bc91b)

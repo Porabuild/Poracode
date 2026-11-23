@@ -8,6 +8,7 @@ import { flushSharedSettings, useSharedSettings } from "@/renderer/state/sharedS
 import { CursorRuntimeCardRow } from "../../../views/SettingsOverlay/parts/CursorRuntimeCard";
 import { CursorProfileApiKeySetup } from "../../../views/SettingsOverlay/parts/CursorSdkRuntimeSetup";
 import { isDuplicateProfileName } from "../../../views/SettingsOverlay/parts/profileIds";
+import { useAgentSettingsHost } from "./AgentSettingsHostContext";
 
 /**
  * A Cursor profile's own identity: the name every surface labels it with, and
@@ -20,6 +21,16 @@ export function CursorProfileIdentity(props: {
   agentKind: string;
   profileInstanceId: string;
   /** Detected auth state for this profile's key, rendered on the key row. */
+  authDescription: string;
+  refreshStatus: () => Promise<unknown>;
+}) {
+  if (!useAgentSettingsHost().canManageProfiles) return null;
+  return <CursorProfileIdentityBody {...props} />;
+}
+
+function CursorProfileIdentityBody(props: {
+  agentKind: string;
+  profileInstanceId: string;
   authDescription: string;
   refreshStatus: () => Promise<unknown>;
 }) {

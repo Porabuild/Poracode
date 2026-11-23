@@ -81,7 +81,7 @@ export interface DeepSeekAgentSettings {
 }
 
 function readEnum<T extends string>(
-  settings: Record<string, boolean | string> | undefined,
+  settings: Readonly<Record<string, boolean | string>> | undefined,
   key: string,
   allowed: readonly T[],
   defaultValue?: T,
@@ -105,7 +105,7 @@ export function parseDeepSeekIntSetting(
 }
 
 function readInt(
-  settings: Record<string, boolean | string> | undefined,
+  settings: Readonly<Record<string, boolean | string>> | undefined,
   key: DeepSeekIntSettingKey,
 ): number | undefined {
   const value = settings?.[key];
@@ -113,7 +113,7 @@ function readInt(
 }
 
 export function resolveDeepSeekAgentSettings(
-  settings?: Record<string, boolean | string>,
+  settings?: Readonly<Record<string, boolean | string>>,
 ): DeepSeekAgentSettings {
   const webSearchProvider = readEnum(
     settings,
@@ -162,7 +162,7 @@ export function resolveDeepSeekAgentSettings(
 }
 
 export function hasDeepSeekAgentSettingOverrides(
-  settings?: Record<string, boolean | string>,
+  settings?: Readonly<Record<string, boolean | string>>,
 ): boolean {
   const resolved = resolveDeepSeekAgentSettings(settings);
   return (

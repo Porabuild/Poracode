@@ -1,4 +1,4 @@
-import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { dynamicActivate } from "@/renderer/i18n/i18n";
 import type {
@@ -9,6 +9,7 @@ import type {
 } from "@/shared/contracts";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import { useAppStore } from "@/renderer/state/appStore";
+import { AgentSettingsHostProvider, type AgentSettingsHost } from "./AgentSettingsHostContext";
 import { OpenCodeProviderSettings } from "./OpenCodeProviderSettings";
 
 vi.mock("@/renderer/components/providers/opencode/OpenCodePluginsSettings", () => ({
@@ -16,7 +17,14 @@ vi.mock("@/renderer/components/providers/opencode/OpenCodePluginsSettings", () =
 }));
 
 const runAgentLoginCommandMock = vi.hoisted(() =>
-  vi.fn<(input: { label: string; command: string }) => boolean>(),
+  vi.fn<
+    (input: {
+      label: string;
+      command: string;
+      project?: Project;
+      onCommandComplete?: (exitCode: number) => void;
+    }) => boolean
+  >(),
 );
 vi.mock("@/renderer/actions/agentLoginActions", () => ({
   runAgentLoginCommand: runAgentLoginCommandMock,
@@ -54,6 +62,39 @@ const renderPanel = (agentStatuses = statuses) => {
   fireEvent.click(screen.getByRole("button", { name: /AI providers/ }));
   return result;
 };
+
+function makeRemoteHost(overrides?: Partial<AgentSettingsHost>) {
+  const callProcedure = vi.fn<AgentSettingsHost["callProcedure"]>(
+    async () => ({ providers: [] }) as never,
+  );
+  const rediscoverAgents = vi.fn<AgentSettingsHost["rediscoverAgents"]>(async () => ({
+    windows: [],
+    wsl: [],
+  }));
+  const machineProject = {
+    id: "__machine__:remote:conn-1:posix",
+    name: "MacBook",
+    remoteServerId: "conn-1",
+    location: { kind: "posix", path: "~", remoteServerId: "conn-1" },
+  } as Project;
+  const host: AgentSettingsHost = {
+    key: "conn-1",
+    connectionKey: "conn-1",
+    isRemote: true,
+    isOnline: true,
+    machineProject,
+    canManageProfiles: false,
+    canEditSecrets: false,
+    callProcedure,
+    rediscoverAgents,
+    setAgentSetting: vi.fn<AgentSettingsHost["setAgentSetting"]>(),
+    saveAgentSettings: vi.fn<AgentSettingsHost["saveAgentSettings"]>(async () => undefined),
+    setAgentDisabled: vi.fn<AgentSettingsHost["setAgentDisabled"]>(),
+    setHiddenModels: vi.fn<AgentSettingsHost["setHiddenModels"]>(),
+    ...overrides,
+  };
+  return { host, callProcedure, rediscoverAgents, machineProject };
+}
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -195,5 +236,53 @@ describe("OpenCode provider settings", () => {
     expect(screen.getByRole("button", { name: /Add provider/ })).toBeDisabled();
     fireEvent.click(screen.getByRole("button", { name: /Add provider/ }));
     expect(runAgentLoginCommandMock).not.toHaveBeenCalled();
+  });
+
+  it("routes Add provider and Sign out through the remote settings host without touching readBridge", async () => {
+    const { host, callProcedure, rediscoverAgents, machineProject } = makeRemoteHost();
+    render(
+      <AgentSettingsHostProvider host={host}>
+        <OpenCodeProviderSettings agentKind="opencode" statuses={statuses} wslDistros={[]} />
+      </AgentSettingsHostProvider>,
+    );
+    fireEvent.click(screen.getByRole("button", { name: /AI providers/ }));
+
+    fireEvent.click(screen.getByRole("button", { name: /Add provider/ }));
+    const loginCall = runAgentLoginCommandMock.mock.calls.at(-1)?.[0];
+    expect(loginCall).toEqual(
+      expect.objectContaining({
+        command: "opencode auth login",
+        project: machineProject,
+      }),
+    );
+    await act(async () => loginCall?.onCommandComplete?.(0));
+    await waitFor(() => expect(rediscoverAgents).toHaveBeenCalledTimes(1));
+
+    fireEvent.click(screen.getByRole("button", { name: "Sign out of Anthropic" }));
+    await screen.findByText("Sign out of Anthropic");
+    fireEvent.click(screen.getByRole("button", { name: "Logout" }));
+    await waitFor(() =>
+      expect(callProcedure).toHaveBeenCalledWith("manageAgentCredentials", {
+        agentKind: "opencode",
+        env: { kind: "native" },
+        action: "remove",
+        credentialId: "cred_2",
+      }),
+    );
+    await waitFor(() => expect(rediscoverAgents).toHaveBeenCalledTimes(2));
+    expect(bridge.manageAgentCredentials).not.toHaveBeenCalled();
+    expect(bridge.refreshAgentStatuses).not.toHaveBeenCalled();
+  });
+
+  it("disables Add provider and Sign out when the remote host is offline", () => {
+    const { host } = makeRemoteHost({ isOnline: false });
+    render(
+      <AgentSettingsHostProvider host={host}>
+        <OpenCodeProviderSettings agentKind="opencode" statuses={statuses} wslDistros={[]} />
+      </AgentSettingsHostProvider>,
+    );
+    fireEvent.click(screen.getByRole("button", { name: /AI providers/ }));
+    expect(screen.getByRole("button", { name: /Add provider/ })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Sign out of Anthropic" })).toBeDisabled();
   });
 });

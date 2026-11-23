@@ -18,6 +18,7 @@ import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { currentWslDistros } from "@/renderer/utils/acpRegistryAuth";
 import { AgentProfileList } from "../../../views/SettingsOverlay/parts/AgentProfileList";
+import { useAgentSettingsHost } from "./AgentSettingsHostContext";
 import type { NativeAgentProfileSupport } from "../../../views/SettingsOverlay/parts/agentRegistryNative";
 import {
   applyPresetEnvRows,
@@ -207,8 +208,11 @@ function PresetMenu(props: { onApply: (preset: ProfilePreset) => void }) {
  * nothing for an unknown / non-Claude id.
  */
 export function ClaudeProfileProviderSettings(props: { instanceId: string }) {
-  const instance = useSharedSettings((s) => s.agentInstances?.[props.instanceId]);
-  if (!instance || instance.driver !== "claude") return null;
+  const { canManageProfiles } = useAgentSettingsHost();
+  const instance = useSharedSettings((s) =>
+    canManageProfiles ? s.agentInstances?.[props.instanceId] : undefined,
+  );
+  if (!canManageProfiles || !instance || instance.driver !== "claude") return null;
   let config: ClaudeProfileInstanceConfig;
   try {
     config = parseClaudeProfileInstanceConfig(instance.config);

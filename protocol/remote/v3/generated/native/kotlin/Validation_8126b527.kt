@@ -13,6 +13,10 @@ internal val schema_a1f40266b6e1acfa: RemoteSchema by lazy {
     RemoteSchema(type = "string", literals = listOf(JsonPrimitive("prepare-worktree")), unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
 
+internal val schema_a1fd91a863ec97fa: RemoteSchema by lazy {
+    RemoteSchema(type = "object", required = setOf("outdated", "server", "status", "target", "terminal"), properties = mapOf("id" to schema_36fea325bf1aca70, "outdated" to schema_feeb8bb50144d96d, "server" to schema_feeb8bb50144d96d, "status" to schema_0488c0e7c6c7a315, "target" to schema_36fea325bf1aca70, "terminal" to schema_feeb8bb50144d96d, "version" to schema_36fea325bf1aca70), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
+}
+
 internal val schema_a20681cb358b7044: RemoteSchema by lazy {
     RemoteSchema(type = "object", required = setOf("project", "pullRequestKeys", "refreshedAt"), properties = mapOf("project" to schema_83470ce63973b6e2, "pullRequestKeys" to schema_0f732b9fceb2c6ac, "refreshedAt" to schema_bf0b727f7b1c6d07, "viewerLogin" to schema_bf0b727f7b1c6d07), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
@@ -155,6 +159,10 @@ internal val schema_a833fbd1b781b53c: RemoteSchema by lazy {
 
 internal val schema_a8565e7811b17010: RemoteSchema by lazy {
     RemoteSchema(type = "string", literals = listOf(JsonPrimitive("h264")), unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
+}
+
+internal val schema_a8610758db8004df: RemoteSchema by lazy {
+    RemoteSchema(type = "object", required = setOf("ok", "reason"), properties = mapOf("ok" to schema_b1c287ee97c19775, "reason" to schema_ca6c162ad500c53d), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
 
 internal val schema_a8b4490d4a4f6745: RemoteSchema by lazy {
@@ -413,6 +421,10 @@ internal val schema_b199f691eb557bbf: RemoteSchema by lazy {
     RemoteSchema(type = "object", defaultValue = JsonObject(mapOf()), additionalSchema = schema_34136f63df3d4c70, propertyNames = schema_36fea325bf1aca70, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
 
+internal val schema_b1c287ee97c19775: RemoteSchema by lazy {
+    RemoteSchema(type = "boolean", literals = listOf(JsonPrimitive(false)), unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
+}
+
 internal val schema_b1ddb87a9b03649a: RemoteSchema by lazy {
     RemoteSchema(unionKind = "anyOf", options = listOf(schema_3cdb2ff0de916278, schema_b7c373d0981a5441), unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
@@ -435,16 +447,4 @@ internal val schema_b2c8fd1712ed6830: RemoteSchema by lazy {
 
 internal val schema_b2ca36e3fa7743ad: RemoteSchema by lazy {
     RemoteSchema(type = "object", properties = mapOf("maxBytes" to schema_f58a8b771657d037, "maxDecodeBytes" to schema_f58a8b771657d037, "order" to schema_42146530bc4d74c4, "projectLimit" to schema_85b777c0c99bbbca, "reads" to schema_4659e6d395f41e16, "summaries" to schema_feeb8bb50144d96d, "threadLimit" to schema_85b777c0c99bbbca), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
-}
-
-internal val schema_b2d5bb9fac49f2fc: RemoteSchema by lazy {
-    RemoteSchema(type = "object", required = setOf("condition", "confidence", "evaluatedAt", "reason", "stopMatched"), properties = mapOf("condition" to schema_5c6957eaa59e2ae2, "confidence" to schema_5d4b39004bf5c532, "evaluatedAt" to schema_38adcf16c79023ce, "reason" to schema_89c223893a706cf8, "stopMatched" to schema_feeb8bb50144d96d), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
-}
-
-internal val schema_b305c5dcc2d06cc2: RemoteSchema by lazy {
-    RemoteSchema(type = "string", pattern = "^gemini:.+", unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
-}
-
-internal val schema_b313ad72a5d78585: RemoteSchema by lazy {
-    RemoteSchema(type = "object", required = setOf("resourceUri", "sessionId", "toolName", "version"), properties = mapOf("resourceUri" to schema_1d58a09e28f725df, "sessionId" to schema_d855999aed5e6438, "toolName" to schema_97d85a5eaee82b97, "version" to schema_7f9f5a0d72de0d9a), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }

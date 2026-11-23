@@ -105,6 +105,10 @@ public extension RemoteSchemas {
 }
 
 public extension RemoteSchemas {
+  static let schema_263fd4191f415e73 = RemoteSchema(type: "object", required: Set(["baseURL", "credentialConfigured", "custom", "id", "modelIds", "name", "protocol", "removable"]), properties: ["baseURL": RemoteSchemas.schema_088c86edf1b9e904, "credentialConfigured": RemoteSchemas.schema_feeb8bb50144d96d, "custom": RemoteSchemas.schema_feeb8bb50144d96d, "id": RemoteSchemas.schema_2b88aa8e662682aa, "modelIds": RemoteSchemas.schema_d8c10d781ed40d8c, "name": RemoteSchemas.schema_dcbc5c3920ad5890, "protocol": RemoteSchemas.schema_14a995c93889f1e1, "removable": RemoteSchemas.schema_feeb8bb50144d96d], additionalAllowed: true, unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
   static let schema_26b6bf09ccab2775 = RemoteSchema(unionKind: "oneOf", options: [RemoteSchemas.schema_dc69d1c3f1fc465e, RemoteSchemas.schema_c1a108aae42275ff, RemoteSchemas.schema_02f5d10d12c9f077], unknownPolicy: .strip)
 }
 

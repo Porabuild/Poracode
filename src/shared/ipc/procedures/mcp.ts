@@ -1,5 +1,6 @@
 import {
   nativeMcpSetupPayloadSchema,
+  nativeMcpSetupStatusSchema,
   applyNativeMcpSetupPayloadSchema,
   type NativeMcpSetupPayload,
   type ApplyNativeMcpSetupPayload,
@@ -91,12 +92,17 @@ export const mcpProcedures = {
     NativeMcpSetupPayload,
     NativeMcpSetupStatus,
     "supervisor"
-  >("getNativeMcpSetup", "supervisor", nativeMcpSetupPayloadSchema),
+  >("getNativeMcpSetup", "supervisor", nativeMcpSetupPayloadSchema, nativeMcpSetupStatusSchema),
   applyNativeMcpSetup: definePayloadProcedure<
     ApplyNativeMcpSetupPayload,
     NativeMcpSetupStatus,
     "supervisor"
-  >("applyNativeMcpSetup", "supervisor", applyNativeMcpSetupPayloadSchema),
+  >(
+    "applyNativeMcpSetup",
+    "supervisor",
+    applyNativeMcpSetupPayloadSchema,
+    nativeMcpSetupStatusSchema,
+  ),
   confirmCrossagentRoutingOverride: definePayloadProcedure<
     ConfirmCrossagentRoutingOverridePayload,
     void,
@@ -136,6 +142,7 @@ export const mcpProcedures = {
     "reloadAgentMcpServers",
     "supervisor",
     reloadAgentMcpServersPayloadSchema,
+    omittedResultSchema,
   ),
   beginMcpServerOauth: definePayloadProcedure<
     McpOauthBeginPayload,

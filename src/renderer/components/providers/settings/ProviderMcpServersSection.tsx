@@ -2,13 +2,20 @@ import { useState } from "react";
 import type { ReactNode } from "react";
 import { Button, Disclosure, toast } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
-import { readBridge } from "@/renderer/bridge";
 import { ToggleSwitch } from "@/renderer/components/common";
 import type { ComposerMcpConfigKey } from "@/renderer/components/composer/composerMcpServers";
 import { mcpTransportSummary } from "@/renderer/components/mcp/mcpFormUtils";
 import { flushSharedSettings, useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { friendlyError } from "@/shared/messages";
 import { SettingRow } from "@/renderer/views/SettingsOverlay/parts/SettingsForm";
+import {
+  useAgentSettingsHost,
+  useHostAgentSettingValues,
+  useHostSettingsReady,
+} from "./AgentSettingsHostContext";
+
+type CustomMcpServers = ReturnType<typeof useSharedSettings.getState>["mcpServers"];
+const EMPTY_CUSTOM_MCP: CustomMcpServers = [];
 
 /**
  * Poracode's own built-in MCP servers. They are host features rather than
@@ -24,7 +31,7 @@ const BUILT_IN_MCP_KEYS = [
 type BuiltInMcpKey = (typeof BUILT_IN_MCP_KEYS)[number];
 
 function readMcpSettings(
-  settings: Record<string, boolean | string> | undefined,
+  settings: Readonly<Record<string, boolean | string>> | undefined,
 ): Record<BuiltInMcpKey, boolean> {
   return {
     browserMcp: settings?.browserMcp === true,
@@ -46,37 +53,69 @@ function readMcpSettings(
 export function ProviderMcpServersSection(props: { agentKind: string; description: ReactNode }) {
   const { t } = useLingui();
   const { agentKind } = props;
+  const settingsHost = useAgentSettingsHost();
+  const ready = useHostSettingsReady();
 
   // MCP servers are staged locally so a batch of toggles applies to running
   // directory instances with a single Save.
-  const savedMcp = readMcpSettings(useSharedSettings((state) => state.agentSettings[agentKind]));
-  const setAgentSetting = useSharedSettings((state) => state.setAgentSetting);
-  const savedCustomMcp = useSharedSettings((state) => state.mcpServers) ?? [];
+  const savedMcp = readMcpSettings(useHostAgentSettingValues(agentKind));
+  const savedCustomMcp = useSharedSettings((state) =>
+    settingsHost.isRemote ? EMPTY_CUSTOM_MCP : (state.mcpServers ?? EMPTY_CUSTOM_MCP),
+  );
   const setMcpServers = useSharedSettings((state) => state.setMcpServers);
   const [mcpBaseline, setMcpBaseline] = useState(savedMcp);
   const [draftMcp, setDraftMcp] = useState(savedMcp);
   const [customMcpBaseline, setCustomMcpBaseline] = useState(savedCustomMcp);
   const [draftCustomMcp, setDraftCustomMcp] = useState(savedCustomMcp);
   const [mcpSaving, setMcpSaving] = useState(false);
+
   const customMcpDirty =
-    draftCustomMcp.length !== customMcpBaseline.length ||
-    draftCustomMcp.some((server, index) => server.enabled !== customMcpBaseline[index]?.enabled);
+    !settingsHost.isRemote &&
+    (draftCustomMcp.length !== customMcpBaseline.length ||
+      draftCustomMcp.some((server, index) => server.enabled !== customMcpBaseline[index]?.enabled));
   const mcpDirty =
     customMcpDirty || BUILT_IN_MCP_KEYS.some((key) => draftMcp[key] !== mcpBaseline[key]);
+
+  // Re-sync staged baselines when switching hosts or when a remote host's
+  // settings document finishes loading while the form is still clean.
+  const savedSyncKey = `${settingsHost.key}:${ready ? "ready" : "loading"}:${JSON.stringify(savedMcp)}`;
+  const [prevHostKey, setPrevHostKey] = useState(settingsHost.key);
+  const [prevSyncKey, setPrevSyncKey] = useState(savedSyncKey);
+  if (prevHostKey !== settingsHost.key || prevSyncKey !== savedSyncKey) {
+    const switchedHost = prevHostKey !== settingsHost.key;
+    setPrevHostKey(settingsHost.key);
+    setPrevSyncKey(savedSyncKey);
+    if (switchedHost || !mcpDirty) {
+      setMcpBaseline(savedMcp);
+      setDraftMcp(savedMcp);
+      setCustomMcpBaseline(savedCustomMcp);
+      setDraftCustomMcp(savedCustomMcp);
+    }
+  }
+
   const builtInMcpCount = BUILT_IN_MCP_KEYS.length;
+  const isDisabled = mcpSaving || !ready || !settingsHost.isOnline;
 
   const saveMcpSettings = async () => {
+    if (isDisabled) return;
     setMcpSaving(true);
     try {
-      BUILT_IN_MCP_KEYS.filter((key) => draftMcp[key] !== mcpBaseline[key]).forEach((key) =>
-        setAgentSetting(agentKind, key, draftMcp[key]),
-      );
-      if (customMcpDirty) setMcpServers(draftCustomMcp);
-      // The store's setter fires-and-forgets the settings-file write, but the
-      // reload below re-reads that same file from the supervisor — flush
-      // first so the reload can't race the write and pick up stale flags.
-      await flushSharedSettings();
-      await readBridge().reloadAgentMcpServers({ agentKind });
+      const builtInUpdates: Record<string, boolean> = {};
+      for (const key of BUILT_IN_MCP_KEYS) {
+        if (draftMcp[key] !== mcpBaseline[key]) {
+          builtInUpdates[key] = draftMcp[key];
+        }
+      }
+      if (!settingsHost.isRemote && customMcpDirty) {
+        setMcpServers(draftCustomMcp);
+      }
+      if (Object.keys(builtInUpdates).length > 0) {
+        // Persist settings before reloading so the host supervisor reads the updated flags.
+        await settingsHost.saveAgentSettings(agentKind, builtInUpdates);
+      } else if (!settingsHost.isRemote && customMcpDirty) {
+        await flushSharedSettings();
+      }
+      await settingsHost.callProcedure("reloadAgentMcpServers", { agentKind });
       setMcpBaseline(draftMcp);
       setCustomMcpBaseline(draftCustomMcp);
       toast.success(t`MCP servers updated.`);
@@ -100,7 +139,7 @@ export function ProviderMcpServersSection(props: { agentKind: string; descriptio
                 <p className="text-xs text-muted">{props.description}</p>
               </div>
               <span className="rounded-full bg-foreground/10 px-2 py-0.5 text-xs tabular-nums text-muted">
-                {builtInMcpCount + draftCustomMcp.length}
+                {builtInMcpCount + (settingsHost.isRemote ? 0 : draftCustomMcp.length)}
               </span>
               <Disclosure.Indicator className="mt-1 size-3.5 shrink-0 text-muted" />
             </Disclosure.Trigger>
@@ -113,7 +152,7 @@ export function ProviderMcpServersSection(props: { agentKind: string; descriptio
                   title={t`Browser`}
                   description={<Trans>Poracode's built-in browser tools.</Trans>}
                   isSelected={draftMcp.browserMcp}
-                  isDisabled={mcpSaving}
+                  isDisabled={isDisabled}
                   onChange={(value) =>
                     setDraftMcp((current) => ({ ...current, browserMcp: value }))
                   }
@@ -122,7 +161,7 @@ export function ProviderMcpServersSection(props: { agentKind: string; descriptio
                   title={t`Crossagents`}
                   description={<Trans>Delegate work to other AI agents.</Trans>}
                   isSelected={draftMcp.crossagentMcp}
-                  isDisabled={mcpSaving}
+                  isDisabled={isDisabled}
                   onChange={(value) =>
                     setDraftMcp((current) => ({ ...current, crossagentMcp: value }))
                   }
@@ -131,59 +170,61 @@ export function ProviderMcpServersSection(props: { agentKind: string; descriptio
                   title={t`Chrome`}
                   description={<Trans>Control an external Chrome browser.</Trans>}
                   isSelected={draftMcp.chromeMcp}
-                  isDisabled={mcpSaving}
+                  isDisabled={isDisabled}
                   onChange={(value) => setDraftMcp((current) => ({ ...current, chromeMcp: value }))}
                 />
                 <McpToggleRow
                   title={t`Computer Use`}
                   description={<Trans>Control the desktop.</Trans>}
                   isSelected={draftMcp.computerUse}
-                  isDisabled={mcpSaving}
+                  isDisabled={isDisabled}
                   onChange={(value) =>
                     setDraftMcp((current) => ({ ...current, computerUse: value }))
                   }
                 />
               </div>
 
-              <div className="border-t border-border/10 pt-3">
-                <div className="mb-1 flex items-baseline gap-2">
-                  <p className="text-xs font-semibold text-foreground">
-                    <Trans>Configured MCP servers</Trans>
-                  </p>
-                  <span className="text-xs tabular-nums text-muted">{draftCustomMcp.length}</span>
-                </div>
-                {draftCustomMcp.length === 0 ? (
-                  <p className="py-2 text-[11px] text-muted/60">
-                    <Trans>No configured MCP servers yet</Trans>
-                  </p>
-                ) : (
-                  <div className="space-y-0.5">
-                    {draftCustomMcp.map((server) => (
-                      <McpToggleRow
-                        key={server.id}
-                        title={server.name}
-                        description={
-                          <span className="truncate font-mono text-[11px]">
-                            {server.description || mcpTransportSummary(server.transport)}
-                          </span>
-                        }
-                        ariaLabel={
-                          server.enabled ? t`Disable ${server.name}` : t`Enable ${server.name}`
-                        }
-                        isSelected={server.enabled}
-                        isDisabled={mcpSaving}
-                        onChange={(enabled) =>
-                          setDraftCustomMcp((current) =>
-                            current.map((item) =>
-                              item.id === server.id ? { ...item, enabled } : item,
-                            ),
-                          )
-                        }
-                      />
-                    ))}
+              {!settingsHost.isRemote ? (
+                <div className="border-t border-border/10 pt-3">
+                  <div className="mb-1 flex items-baseline gap-2">
+                    <p className="text-xs font-semibold text-foreground">
+                      <Trans>Configured MCP servers</Trans>
+                    </p>
+                    <span className="text-xs tabular-nums text-muted">{draftCustomMcp.length}</span>
                   </div>
-                )}
-              </div>
+                  {draftCustomMcp.length === 0 ? (
+                    <p className="py-2 text-[11px] text-muted/60">
+                      <Trans>No configured MCP servers yet</Trans>
+                    </p>
+                  ) : (
+                    <div className="space-y-0.5">
+                      {draftCustomMcp.map((server) => (
+                        <McpToggleRow
+                          key={server.id}
+                          title={server.name}
+                          description={
+                            <span className="truncate font-mono text-[11px]">
+                              {server.description || mcpTransportSummary(server.transport)}
+                            </span>
+                          }
+                          ariaLabel={
+                            server.enabled ? t`Disable ${server.name}` : t`Enable ${server.name}`
+                          }
+                          isSelected={server.enabled}
+                          isDisabled={isDisabled}
+                          onChange={(enabled) =>
+                            setDraftCustomMcp((current) =>
+                              current.map((item) =>
+                                item.id === server.id ? { ...item, enabled } : item,
+                              ),
+                            )
+                          }
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ) : null}
             </Disclosure.Body>
           </Disclosure.Content>
         </Disclosure>
@@ -193,7 +234,7 @@ export function ProviderMcpServersSection(props: { agentKind: string; descriptio
           variant="primary"
           className="h-7 min-h-7 shrink-0 px-3 text-[11px]"
           aria-label={t`Save MCP servers`}
-          isDisabled={!mcpDirty || mcpSaving}
+          isDisabled={!mcpDirty || isDisabled}
           isPending={mcpSaving}
           onPress={() => void saveMcpSettings()}
         >

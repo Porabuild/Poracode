@@ -2,25 +2,32 @@ import { useState } from "react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { toast } from "@heroui/react";
 import { ToggleSwitch } from "@/renderer/components/common";
-import { flushSharedSettings, useSharedSettings } from "@/renderer/state/sharedSettingsStore";
+import {
+  useAgentSettingsHost,
+  useHostAgentSettingValues,
+  useHostSettingsReady,
+} from "@/renderer/components/providers/settings/AgentSettingsHostContext";
 import { SettingRow } from "@/renderer/views/SettingsOverlay/parts/SettingsForm";
 import { friendlyError } from "@/shared/messages";
 
 export function ClaudeChromeSettings({ agentKind }: { agentKind: string }) {
   const { t } = useLingui();
-  const stored = useSharedSettings((state) => state.agentSettings[agentKind]?.chromeIntegration);
-  const setAgentSetting = useSharedSettings((state) => state.setAgentSetting);
+  const settingsHost = useAgentSettingsHost();
+  const stored = useHostAgentSettingValues(agentKind)?.chromeIntegration;
+  const ready = useHostSettingsReady();
   const [isSaving, setIsSaving] = useState(false);
   const value = stored !== false;
 
   async function save(next: boolean) {
-    if (next === value) return;
+    if (next === value || !ready) return;
     setIsSaving(true);
-    setAgentSetting(agentKind, "chromeIntegration", next);
     try {
-      await flushSharedSettings({ requireSuccess: true });
+      await settingsHost.saveAgentSettings(
+        agentKind,
+        { chromeIntegration: next },
+        { requireSuccess: true },
+      );
     } catch (error) {
-      setAgentSetting(agentKind, "chromeIntegration", value);
       toast.danger(friendlyError(error));
     } finally {
       setIsSaving(false);
@@ -42,7 +49,7 @@ export function ClaudeChromeSettings({ agentKind }: { agentKind: string }) {
         aria-label={t`Claude in Chrome`}
         isSelected={value}
         size="sm"
-        isDisabled={isSaving}
+        isDisabled={isSaving || !ready}
         onChange={(next) => void save(next)}
       />
     </SettingRow>

@@ -109,6 +109,10 @@ internal val schema_262f4ae53753f0fb: RemoteSchema by lazy {
     RemoteSchema(type = "string", literals = listOf(JsonPrimitive("image/jpeg")), unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
 
+internal val schema_263fd4191f415e73: RemoteSchema by lazy {
+    RemoteSchema(type = "object", required = setOf("baseURL", "credentialConfigured", "custom", "id", "modelIds", "name", "protocol", "removable"), properties = mapOf("baseURL" to schema_088c86edf1b9e904, "credentialConfigured" to schema_feeb8bb50144d96d, "custom" to schema_feeb8bb50144d96d, "id" to schema_2b88aa8e662682aa, "modelIds" to schema_d8c10d781ed40d8c, "name" to schema_dcbc5c3920ad5890, "protocol" to schema_14a995c93889f1e1, "removable" to schema_feeb8bb50144d96d), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
+}
+
 internal val schema_26b6bf09ccab2775: RemoteSchema by lazy {
     RemoteSchema(unionKind = "oneOf", options = listOf(schema_dc69d1c3f1fc465e, schema_c1a108aae42275ff, schema_02f5d10d12c9f077), unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
