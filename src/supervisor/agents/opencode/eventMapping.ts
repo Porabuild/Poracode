@@ -335,6 +335,10 @@ export function mapOpenCodeEvent(event: V2Event, state: OpenCodeMapperState): Ru
       );
     case "session.step.failed": {
       const events = closeOpenCodeStep(state, event.data.assistantMessageID);
+      // An aborted step was cut short on purpose (the user's Stop, a declined
+      // tool call) — a normal stop, not a fault. The execution-level event
+      // that follows owns the turn's outcome, so no error row is painted.
+      if (isOpenCodeAbortError(event.data.error)) return events;
       return [...events, ...openCodeErrorEvents(state, readSessionError(event.data.error))];
     }
 
@@ -935,6 +939,17 @@ function readSessionError(error: unknown): string {
   const type = record.type;
   if (typeof type === "string" && type.length > 0) return type;
   return "OpenCode session error";
+}
+
+/**
+ * True for the server's aborted-step marker: `session.step.failed` carries
+ * the structured `type: "aborted"` only when the step was cut short (the
+ * user's Stop, a declined tool call, another interrupt), never for a provider
+ * fault. The same type also appears on tool and execution failures — do not
+ * reuse this predicate for those events.
+ */
+function isOpenCodeAbortError(error: unknown): boolean {
+  return readOpenCodeRecord(error)?.type === "aborted";
 }
 
 /**
