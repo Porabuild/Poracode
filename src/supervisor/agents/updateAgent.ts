@@ -454,7 +454,10 @@ async function fetchLatestVersionFromUrls(urls: readonly string[]): Promise<stri
             : data.name;
       return typeof value === "string" && value.length > 0 ? value.replace(/^v/, "") : undefined;
     } catch {
-      return trimmed.replace(/^v(?=\d)/, "");
+      // A plain-text feed names a version. Anything else served with a 200 —
+      // a block or sign-in page from an intercepting proxy — is not one, and
+      // must not be advertised as an update that cannot be installed.
+      return /^v?\d/.test(trimmed) ? trimmed.replace(/^v(?=\d)/, "") : undefined;
     }
   };
 

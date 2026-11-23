@@ -16,6 +16,7 @@ import * as base from "../base";
 import * as binaryResolver from "../binaryResolver";
 import * as launchFiles from "../base/launchFiles";
 import {
+  buildDeepSeekLaunchPatch,
   createDeepSeekPolicyHome,
   createDeepSeekSessionPolicyWriter,
   DEEPSEEK_SESSION_POLICY,
@@ -323,7 +324,11 @@ describe("DeepSeek Harness", () => {
     const wsl = makeFakeSession();
     create.mockReturnValue(wsl.session);
     const wslSession = await adapter.createStructuredSession!(
-      guiInput({ threadId: "deepseek-wsl", projectLocation: wslLocation }),
+      guiInput({
+        threadId: "deepseek-wsl",
+        projectLocation: wslLocation,
+        agentSettings: { codeMode: true },
+      }),
     );
     expect(wslSession).toBe(wsl.session);
     expect(acpMocks.createSharedAcpStructuredSession).toHaveBeenCalledTimes(1);
@@ -333,7 +338,10 @@ describe("DeepSeek Harness", () => {
     expect(stage).toHaveBeenCalledWith(
       wslLocation,
       "deepseek-session",
-      expect.objectContaining({ "policy.mjs": DEEPSEEK_SESSION_POLICY }),
+      expect.objectContaining({
+        "policy.mjs": DEEPSEEK_SESSION_POLICY,
+        "permissions.json": expect.stringContaining('"id":"tool-executor-ptc","disabled":false'),
+      }),
     );
     await wslSession!.dispose();
     expect(cleanup).toHaveBeenCalledOnce();
@@ -672,9 +680,11 @@ describe("DeepSeek Harness", () => {
       expect(files["policy.mjs"]).toBe(DEEPSEEK_SESSION_POLICY);
       expect(JSON.parse(files["permissions.json"]!)).toEqual([
         { id: "acp", inject: ["acpAppStartup", "poracodeSessionPolicy"] },
+        { id: "session-telemetry-otel", config: { mode: "DISABLED" } },
         {
           insert: [
             { id: "auto-review", name: "@deepseek-ai/dsh-experimental-auto-review" },
+            { id: "time-context", name: "@deepseek-ai/dsh-time-context" },
             {
               id: "poracode-session-policy",
               name: "./policy.mjs",
@@ -694,6 +704,176 @@ describe("DeepSeek Harness", () => {
       ).toEqual({ sandboxMode: expected, autoReview: false });
     },
   );
+
+  it("compiles DeepSeek Harness agent settings into the launch patch", () => {
+    const posixLocation: ProjectLocation = { kind: "posix", path: "/projects/app" };
+    const full = buildDeepSeekLaunchPatch(posixLocation, {
+      codeMode: true,
+      applyPatch: true,
+      readBeforeEdit: true,
+      sessionSearch: true,
+      ralphLoop: true,
+      officeTools: true,
+      subagentInterrupt: true,
+      webSearchProvider: "deepseek-search-api",
+      webFetchProvider: "deepseek-fetch-api",
+      webBilling: "api-key",
+      webSearchCount: "20",
+      maxSubagentDepth: "3",
+      maxActiveSubagents: "12",
+      maxParallelToolCalls: "6",
+      shellTimeoutSeconds: "120",
+      uploadSessionLog: false,
+    });
+
+    expect(full).toEqual([
+      { id: "acp", inject: ["acpAppStartup", "poracodeSessionPolicy"] },
+      { id: "session-telemetry-otel", config: { mode: "DISABLED" } },
+      { id: "tool-executor-native", disabled: true },
+      { id: "tool-executor-ptc", disabled: false, config: { maxParallelSubCalls: 6 } },
+      { id: "tool-fs", config: { applyPatch: true } },
+      { id: "fs-observation-policy", disabled: false },
+      { id: "tool-subagent-control", config: { interrupt: true } },
+      {
+        id: "web",
+        config: { fetchProvider: "deepseek-fetch-api", searchProvider: "deepseek-search-api" },
+      },
+      {
+        id: "web-deepseek-api",
+        config: { searchBilling: "api-key", fetchBilling: "api-key", count: 20 },
+      },
+      { id: "subagent", config: { maxDepth: 3, maxActiveSubagents: 12 } },
+      { id: "agent-loop", config: { agents: [], maxParallelToolCalls: 6 } },
+      { id: "bash-sandbox", config: { timeoutMs: 120_000 } },
+      { id: "session-log-deepseek", config: { enabled: false } },
+      {
+        insert: [
+          { id: "auto-review", name: "@deepseek-ai/dsh-experimental-auto-review" },
+          { id: "time-context", name: "@deepseek-ai/dsh-time-context" },
+          {
+            id: "poracode-session-policy",
+            name: "./policy.mjs",
+            config: { sessionPolicyDir: "./" },
+          },
+          {
+            id: "optional-session-search",
+            name: "cordis:group",
+            group: true,
+            isolate: { sessionQuery: true },
+            config: [
+              {
+                id: "optional-session-query-sqlite",
+                name: "@deepseek-ai/dsh-session-query-sqlite",
+                config: { path: ":memory:", openAt: "first-search" },
+              },
+              {
+                id: "optional-tool-session-query",
+                name: "@deepseek-ai/dsh-tool-session-query",
+              },
+            ],
+          },
+          {
+            id: "optional-ralph",
+            name: "cordis:group",
+            group: true,
+            isolate: { workflowEngine: true },
+            config: [
+              {
+                id: "optional-ralph-workflow",
+                name: "@deepseek-ai/dsh-workflow-ptc",
+                config: { provider: "spawn" },
+              },
+              {
+                id: "tool-ralph",
+                name: "@deepseek-ai/dsh-tool-ralph",
+                config: { subagentProvider: "spawn", maxRounds: 64 },
+              },
+            ],
+          },
+          { id: "office-kit", name: "@deepseek-ai/dsh-office-kit" },
+          {
+            id: "skill-office",
+            name: "@deepseek-ai/dsh-skill-office",
+            config: { pythonEnvironment: "user" },
+          },
+          { id: "tool-office", name: "@deepseek-ai/dsh-tool-office" },
+        ],
+      },
+    ]);
+
+    // Overriding only searchProvider must preserve dsh-base's fetchProvider: "http".
+    const searchOnly = buildDeepSeekLaunchPatch(posixLocation, {
+      webSearchProvider: "deepseek-official",
+    });
+    expect(searchOnly).toContainEqual({
+      id: "web",
+      config: { fetchProvider: "http", searchProvider: "deepseek-official" },
+    });
+
+    // Default-equivalent enum values ("http", "auto") produce the exact default patch.
+    expect(
+      buildDeepSeekLaunchPatch(posixLocation, {
+        webFetchProvider: "http",
+        webBilling: "auto",
+      }),
+    ).toEqual(buildDeepSeekLaunchPatch(posixLocation));
+
+    // Windows projects target pwsh-sandbox rather than bash-sandbox.
+    const winPatch = buildDeepSeekLaunchPatch(
+      { kind: "windows", path: "C:\\projects\\app" },
+      { shellTimeoutSeconds: "90" },
+    );
+    expect(winPatch).toContainEqual({
+      id: "pwsh-sandbox",
+      config: { timeoutMs: 90_000 },
+    });
+  });
+
+  it("isolates policy homes and pooled launches when agentSettings differ", async () => {
+    const cleanupA = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
+    const cleanupB = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
+    const stage = vi
+      .spyOn(launchFiles, "stageLaunchFiles")
+      .mockResolvedValueOnce({ directory: "/staged-default", cleanup: cleanupA })
+      .mockResolvedValueOnce({ directory: "/staged-ptc", cleanup: cleanupB });
+
+    const home = createDeepSeekPolicyHome();
+    const defaultLease = await home.acquire(location);
+    const ptcLease = await home.acquire(location, { codeMode: true });
+    const ptcLease2 = await home.acquire(location, { codeMode: true });
+
+    expect(stage).toHaveBeenCalledTimes(2);
+    expect(defaultLease.directory).toBe("/staged-default");
+    expect(ptcLease.directory).toBe("/staged-ptc");
+    expect(ptcLease2.directory).toBe("/staged-ptc");
+
+    await defaultLease.release();
+    expect(cleanupA).toHaveBeenCalledOnce();
+    expect(cleanupB).not.toHaveBeenCalled();
+
+    await ptcLease.release();
+    expect(cleanupB).not.toHaveBeenCalled();
+    await ptcLease2.release();
+    expect(cleanupB).toHaveBeenCalledOnce();
+
+    stage.mockRestore();
+    armBinaryResolver();
+    vi.spyOn(AcpStructuredSession, "create").mockImplementation(() => makeFakeSession().session);
+    const adapter = createDeepSeekAdapter();
+    const sessionDefault = await adapter.createStructuredSession!(guiInput({ threadId: "t-def" }));
+    const sessionPtc = await adapter.createStructuredSession!(
+      guiInput({ threadId: "t-ptc", agentSettings: { codeMode: true } }),
+    );
+    const dirDefault = sharedPatchDir(0);
+    const dirPtc = sharedPatchDir(1);
+    expect(dirDefault).not.toBe(dirPtc);
+    expect(JSON.parse(readFileSync(join(dirPtc, "permissions.json"), "utf8"))).toContainEqual({
+      id: "tool-executor-ptc",
+      disabled: false,
+    });
+    await sessionDefault!.dispose();
+    await sessionPtc!.dispose();
+  });
 
   it("applies each session's own policy file inside one shared policy directory", async () => {
     const dir = mkdtempSync(join(tmpdir(), "deepseek-plugin-"));

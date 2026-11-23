@@ -1615,6 +1615,7 @@ msgstr "Eski bağlantıyı devral"
 msgid "Advanced"
 msgstr "Gelişmiş"
 
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
 #: src/renderer/components/providers/devin/profileSettings.tsx
 #: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
 msgid "Advanced settings"
@@ -1930,6 +1931,10 @@ msgstr "Çakışan yönetilen becerilerin değiştirilmesine izin ver"
 msgid "Allow the browser to show notifications while the app is in the background."
 msgstr "Uygulama arka plandayken tarayıcının bildirim göstermesine izin verin."
 
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
+msgid "Allow the main agent to interrupt running sub-agents with interrupt_agent."
+msgstr "Ana ajanın çalışan alt ajanları interrupt_agent ile kesmesine izin verir."
+
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Already configured"
 msgstr "Zaten yapılandırılmış"
@@ -2095,6 +2100,10 @@ msgstr "Görünüm modu"
 #: src/renderer/components/common/ProviderModelMenu/ModelConfigurationPanel.tsx
 msgid "Applies to both models"
 msgstr "Her iki modele uygulanır"
+
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
+msgid "Apply patch tool"
+msgstr "apply_patch aracı"
 
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Apply provider preset"
@@ -2426,10 +2435,15 @@ msgstr "Otomatik seçim"
 msgid "Auto-show terminal panel"
 msgstr "Terminal panelini otomatik göster"
 
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 #: src/renderer/views/SettingsOverlay/parts/CustomThemeColorField.tsx
 msgid "Automatic"
 msgstr "Otomatik"
+
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
+msgid "Automatic uses DeepSeek server-side search on DeepSeek models and DeepSeek Search API on other models."
+msgstr "Otomatik, DeepSeek modellerinde DeepSeek sunucu tarafı aramasını, diğer modellerde DeepSeek Search API’yi kullanır."
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
@@ -2645,6 +2659,10 @@ msgstr "İkili dosyalar burada düzenlenemez."
 #: src/renderer/components/crew/crewTemplates.ts
 msgid "Blank crew"
 msgstr "Boş ekip"
+
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
+msgid "Block edits or overwrites on files the session has not read yet, and reject stale edits after external changes."
+msgstr "Oturumun henüz okumadığı dosyalardaki düzenleme veya üzerine yazmaları engeller ve harici değişikliklerden sonra güncel olmayan düzenlemeleri reddeder."
 
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
 msgid "Blocked by the browser. Allow notifications for this site in the browser settings to get alerts while the app is in the background."
@@ -3122,6 +3140,10 @@ msgstr "Dal adı olmadan varsayılan çalışma ağacı yolu oluşturulamıyor"
 msgid "Cannot switch branches — commit or stash your changes first"
 msgstr "Dallar değiştirilemiyor; önce değişikliklerinizi commit edin veya saklayın (stash)"
 
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
+msgid "Capabilities"
+msgstr "Özellikler"
+
 #: src/renderer/components/devices/DeviceWorkspace.tsx
 msgid "Capture and view controls"
 msgstr "Yakalama ve görünüm kontrolleri"
@@ -3531,6 +3553,10 @@ msgstr "{label} için renk seç"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserImportModal.tsx
 msgid "Choose data to bring over to the built-in browser."
 msgstr "Yerleşik tarayıcıya aktarılacak verileri seçin."
+
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
+msgid "Choose direct HTTP fetching from this machine or DeepSeek Fetch API."
+msgstr "Bu makineden doğrudan HTTP getirmeyi veya DeepSeek Fetch API’yi seçin."
 
 #: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -4046,6 +4072,14 @@ msgstr "Cmd+Enter"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 msgid "Code copied. "
 msgstr "Kod kopyalandı."
+
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
+msgid "Code mode (PTC)"
+msgstr "Kod modu (PTC)"
+
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
+msgid "Code mode, optional Harness tools, web providers, execution limits, and session log sharing. Applies to new or restarted threads."
+msgstr "Kod modu, isteğe bağlı Harness araçları, web sağlayıcıları, yürütme sınırları ve oturum günlüğü paylaşımı. Yeni veya yeniden başlatılan konular için geçerlidir."
 
 #: src/renderer/components/providers/codex/manifest.ts
 msgid "Codex"
@@ -5316,6 +5350,10 @@ msgstr "X'te geliştirici"
 msgid "Credential missing"
 msgstr "Kimlik bilgisi eksik"
 
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
+msgid "Credential used when calling DeepSeek Search API or Fetch API."
+msgstr "DeepSeek Search API veya Fetch API çağrılırken kullanılan kimlik bilgisi."
+
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Credentials are configured."
 msgstr "Kimlik bilgileri yapılandırıldı."
@@ -5733,6 +5771,18 @@ msgstr "Reddet"
 msgid "DeepSeek"
 msgstr "DeepSeek"
 
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
+msgid "DeepSeek account"
+msgstr "DeepSeek hesabı"
+
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
+msgid "DeepSeek API key"
+msgstr "DeepSeek API anahtarı"
+
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
+msgid "DeepSeek Fetch API"
+msgstr "DeepSeek Fetch API"
+
 #: src/renderer/components/providers/deepseek/manifest.ts
 msgid "DeepSeek Harness"
 msgstr "DeepSeek Harness"
@@ -5740,6 +5790,18 @@ msgstr "DeepSeek Harness"
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
 msgid "DeepSeek Harness chat with persistent sessions, reasoning controls, and MCP tools. Configure credentials with dsh web."
 msgstr "Kalıcı oturumlar, akıl yürütme ayarları ve MCP araçlarıyla DeepSeek Harness sohbeti. Kimlik bilgilerini dsh web ile yapılandırın."
+
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
+msgid "DeepSeek Search API"
+msgstr "DeepSeek Search API"
+
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
+msgid "DeepSeek server-side search"
+msgstr "DeepSeek sunucu tarafı araması"
+
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
+msgid "DeepSeek Web API billing"
+msgstr "DeepSeek Web API faturalandırması"
 
 #: src/renderer/components/devices/DeviceTools.tsx
 #: src/renderer/components/providers/deepseek/index.tsx
@@ -5789,6 +5851,10 @@ msgstr "Varsayılan PR otomasyonu"
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
 msgid "Default thread removal"
 msgstr "Varsayılan konu kaldırma"
+
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
+msgid "Default timeout for shell commands (5–600 seconds, Harness default 60)."
+msgstr "Kabuk komutları için varsayılan zaman aşımı (5–600 saniye, Harness varsayılanı 60)."
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectWorktreeBaseBranch.tsx
 msgid "Default worktree base"
@@ -6242,6 +6308,10 @@ msgstr "Kilitli Bilgisayar Kullanımı sırasında ekranları karart"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
 msgid "Dimensions:"
 msgstr "Boyutlar:"
+
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
+msgid "Direct fetch (default)"
+msgstr "Doğrudan getirme (varsayılan)"
 
 #. placeholder {0}: server.name
 #. placeholder {0}: skill.name
@@ -6903,6 +6973,10 @@ msgstr "{tool} aracını etkinleştir"
 msgid "Enable automation again"
 msgstr "Otomasyonu yeniden etkinleştir"
 
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
+msgid "Enable experimental tools for searching and tracing prior Harness sessions in the same workspace."
+msgstr "Aynı çalışma alanındaki önceki Harness oturumlarını arama ve izleme için deneysel araçları etkinleştirir."
+
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Enable language server support for type checking, completions, and diagnostics. Requires a language server installed."
@@ -6933,6 +7007,14 @@ msgstr "Projeyi Etkinleştir"
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/UsagePanel.tsx
 msgid "Enable providers in settings"
 msgstr "Ayarlarda sağlayıcıları etkinleştirin"
+
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
+msgid "Enable skill-activated LibreOffice tools for rendering, converting, and recalculating documents."
+msgstr "Belgeleri işleme, dönüştürme ve yeniden hesaplama için beceriyle etkinleşen LibreOffice araçlarını açar."
+
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
+msgid "Enable the experimental ralph tool for multi-round fresh-agent iteration."
+msgstr "Çok turlu yeni ajan yinelemesi için deneysel ralph aracını etkinleştirir."
 
 #: src/renderer/components/plugins/PluginDetail.tsx
 msgid "Enable this plugin's skills and servers for new threads."
@@ -7055,6 +7137,10 @@ msgstr "Geçerli bir zamanlama girin"
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/StructuredElicitationField.tsx
 msgid "Enter a valid value."
 msgstr "Geçerli bir değer girin."
+
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
+msgid "Enter a whole number from {min} to {max}."
+msgstr "{min} ile {max} arasında bir tam sayı girin."
 
 #: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
 msgid "Enter a whole number from 1 to {CODEX_MAX_SUBAGENTS_LIMIT}."
@@ -7228,6 +7314,10 @@ msgstr "Kalıpları hariç tut"
 #: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
 msgid "Execution"
 msgstr "Çalıştırma"
+
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
+msgid "Execution limits"
+msgstr "Yürütme sınırları"
 
 #: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
 msgid "Execution mode"
@@ -7457,6 +7547,10 @@ msgstr "MCP sunucularını gizli bilgiler olmadan dışa aktar"
 #: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
 msgid "Export theme"
 msgstr "Temayı dışa aktar"
+
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
+msgid "Expose the apply_patch file-editing tool alongside edit."
+msgstr "edit ile birlikte apply_patch dosya düzenleme aracını kullanıma sunar."
 
 #: src/renderer/components/newsLine/featureCatalog.ts
 msgid "Extend Poracode with plugins"
@@ -9117,6 +9211,10 @@ msgstr "Senkronizasyona ekle"
 msgid "Include memory when a thread starts."
 msgstr "İş parçacığı başlarken belleği ekle."
 
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
+msgid "Include session logs with official DeepSeek API requests. Enabled by default in DeepSeek Harness."
+msgstr "Resmi DeepSeek API isteklerine oturum günlüklerini ekler. DeepSeek Harness’ta varsayılan olarak etkindir."
+
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Include your streaks, prompt counts, and usage limits in the news line."
@@ -10597,9 +10695,18 @@ msgstr "Maksimum etkin terminal kabuğu"
 msgid "Max active terminal shells, 0 for unlimited"
 msgstr "Maksimum etkin terminal kabuğu, 0 sınırsız"
 
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
 #: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
 msgid "Max concurrent sub-agents"
 msgstr "Eşzamanlı alt aracı üst sınırı"
+
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
+msgid "Max parallel tool calls"
+msgstr "Maks. paralel araç çağrısı"
+
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
+msgid "Max sub-agent depth"
+msgstr "Maks. alt ajan derinliği"
 
 #: src/renderer/components/layout/UnifiedRightPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
@@ -10619,9 +10726,21 @@ msgstr "En fazla deneme"
 msgid "Maximum characters: {0}"
 msgstr "En fazla karakter sayısı: {0}"
 
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
+msgid "Maximum concurrent read-safe tool calls per step (1–64, Harness default 10)."
+msgstr "Adım başına en fazla eşzamanlı okuma güvenli araç çağrısı (1–64, Harness varsayılanı 10)."
+
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
+msgid "Maximum delegation nesting depth (0–16, Harness default 1)."
+msgstr "Maksimum yetki devri iç içe geçme derinliği (0–16, Harness varsayılanı 1)."
+
 #: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
 msgid "Maximum iterations"
 msgstr "En fazla yineleme"
+
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
+msgid "Maximum live sub-agents per session (1–64, Harness default 8)."
+msgstr "Oturum başına en fazla etkin alt ajan sayısı (1–64, Harness varsayılanı 8)."
 
 #: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
 msgid "Maximum retry delay"
@@ -12385,6 +12504,10 @@ msgstr "npx"
 msgid "Number copied"
 msgstr "Numara kopyalandı"
 
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
+msgid "Number of DeepSeek Search API results per query (1–50, default 10)."
+msgstr "Sorgu başına DeepSeek Search API sonuç sayısı (1–50, varsayılan 10)."
+
 #: src/renderer/components/thread/ThreadAgentVisionDock.tsx
 msgid "Observe"
 msgstr "Gözlemle"
@@ -12404,6 +12527,10 @@ msgstr "kapalı"
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Off"
 msgstr "Kapalı"
+
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
+msgid "Office document tools"
+msgstr "Office belge araçları"
 
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "Official"
@@ -13989,6 +14116,10 @@ msgstr "Fiyatların kaynağı"
 msgid "Print"
 msgstr "Yazdır"
 
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
+msgid "Privacy"
+msgstr "Gizlilik"
+
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 msgid "Privacy Policy"
 msgstr "Gizlilik Politikası"
@@ -14480,6 +14611,10 @@ msgstr "Qwen Code"
 #: src/renderer/components/providers/settings/ClaudeProfileSettingsModel.ts
 msgid "Qwen Token Plan"
 msgstr "Qwen Token Planı"
+
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
+msgid "Ralph autonomous loop"
+msgstr "Ralph otonom döngüsü"
 
 #: src/renderer/components/providers/usageFormat.ts
 msgid "Ran out"
@@ -15315,6 +15450,10 @@ msgstr "talep edilen değişiklikler"
 msgid "Requested changes"
 msgstr "Değişiklik istendi"
 
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
+msgid "Require read before edit"
+msgstr "Düzenlemeden önce okuma zorunluluğu"
+
 #: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
 msgid "Required confidence before stopping."
 msgstr "Durdurmadan önce gereken güven düzeyi."
@@ -15331,12 +15470,14 @@ msgstr "Son mesajı yeniden gönder"
 msgid "reset"
 msgstr "sıfırlama"
 
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
 #: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
 #: src/renderer/components/providers/settings/ProviderContextWindowSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
 msgid "Reset"
 msgstr "Sıfırla"
 
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
 #: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
 msgid "Reset advanced settings"
 msgstr "Gelişmiş ayarları sıfırla"
@@ -15510,6 +15651,10 @@ msgstr "{targetLabel} üzerinde geri yükleniyor…"
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Results"
 msgstr "Sonuçlar"
+
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
+msgid "Results per search"
+msgstr "Arama başına sonuç"
 
 #: src/renderer/views/SchedulesView/parts/ScheduleRow.tsx
 msgid "Resume"
@@ -16040,6 +16185,10 @@ msgstr "Kaçırılan en son çalıştırmayı gerçekleştir"
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Run this schedule automatically on the schedule below."
 msgstr "Bu zamanlamayı aşağıdaki zamanlamaya göre otomatik olarak çalıştır."
+
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
+msgid "Run tools through sandboxed TypeScript programs (run_code) instead of direct tool calls. Reduces intermediate context usage."
+msgstr "Araçları doğrudan çağrılar yerine korumalı alan içindeki TypeScript programlarıyla (run_code) çalıştırır. Ara bağlam kullanımını azaltır."
 
 #: src/renderer/views/GitHubActionsView/GitHubActionsDispatchPopover.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsMobileWorkflowList.tsx
@@ -16888,6 +17037,10 @@ msgstr "Oturum işlemleri"
 msgid "Session actions are unavailable for this thread."
 msgstr "Bu konu için oturum eylemleri kullanılamıyor."
 
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
+msgid "Session history search"
+msgstr "Oturum geçmişi araması"
+
 #: src/renderer/components/thread/ThreadDetailsDocks.tsx
 msgid "Session ID"
 msgstr "Oturum kimliği"
@@ -17021,6 +17174,10 @@ msgstr "Başka bir profilin yalıtılmış girişini paylaşır. Oturum açmayı
 #: src/renderer/components/providers/devin/profileSettings.tsx
 msgid "Shares missing owner {0}"
 msgstr "Kayıp sahip {0} ile paylaşır"
+
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
+msgid "Shell command timeout (seconds)"
+msgstr "Kabuk komutu zaman aşımı (saniye)"
 
 #: src/renderer/components/crew/crewTemplates.ts
 msgid "Ship crew"
@@ -18104,6 +18261,10 @@ msgstr "Yapılandırılmış çalışma zamanı"
 #: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
 msgid "Sub-agent and planning defaults. They override config.toml and apply when a Codex session starts; running sessions keep their current values."
 msgstr "Alt aracı ve planlama varsayılanları. config.toml'u geçersiz kılar ve bir Codex oturumu başlarken uygulanır; çalışan oturumlar mevcut değerlerini korur."
+
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
+msgid "Sub-agent interruption"
+msgstr "Alt ajan kesme"
 
 #: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
 msgid "Sub-agent model"
@@ -21137,6 +21298,10 @@ msgstr "Ortam sahibini yükselt"
 msgid "Upgrade owner"
 msgstr "Sahibi yükselt"
 
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
+msgid "Upload session log"
+msgstr "Oturum günlüğünü yükle"
+
 #. placeholder {0}: progress.upload
 #: src/renderer/components/common/FeedbackDialog.tsx
 msgid "Uploading attachment {0}…"
@@ -21734,10 +21899,22 @@ msgstr "Uyarılar"
 msgid "We have a winner!"
 msgstr "Bir kazananımız var!"
 
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
+msgid "Web fetch provider"
+msgstr "Web getirme sağlayıcısı"
+
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 #: src/renderer/components/thread/ChatPane/parts/items/webSearchDisplay.ts
 msgid "Web search"
 msgstr "Web araması"
+
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
+msgid "Web search & fetch"
+msgstr "Web arama ve getirme"
+
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
+msgid "Web search provider"
+msgstr "Web arama sağlayıcısı"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 msgid "Web server"

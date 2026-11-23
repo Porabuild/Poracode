@@ -1459,6 +1459,42 @@ describe("OpenCodeSession", () => {
     expect(events.at(-1)).toMatchObject({ state: "completed" });
   });
 
+  it("stops a turn as a normal interruption when the user interrupts it", async () => {
+    const { session, client, subscription, updates, events, errors } = await makeSession();
+    const sessionID = "ses_new";
+    await session.startTurn("hello", config);
+    subscription?.onEvent(
+      event("session.text.delta", {
+        sessionID,
+        assistantMessageID: "msg_a",
+        ordinal: 0,
+        delta: "Let me ",
+      }),
+    );
+
+    await session.interruptTurn();
+    expect(client.session.interrupt).toHaveBeenCalledWith({ sessionID });
+    updates.length = 0;
+    events.length = 0;
+
+    // The server fails the in-flight step with its abort marker, then reports
+    // the interrupt itself.
+    subscription?.onEvent(
+      event("session.step.failed", {
+        sessionID,
+        assistantMessageID: "msg_a",
+        error: { type: "aborted", message: "Step interrupted" },
+      }),
+    );
+    subscription?.onEvent(event("session.execution.interrupted", { sessionID, reason: "user" }));
+
+    // The open assistant row closes and the turn settles — with no error row.
+    expect(typesOf(events)).toEqual(["item.completed", "turn.completed"]);
+    expect(events.at(-1)).toMatchObject({ state: "interrupted" });
+    expect(updates).toEqual([expect.objectContaining({ status: "idle", attention: "none" })]);
+    expect(errors).toEqual([]);
+  });
+
   it("reads a chronological history with user text at the top level", async () => {
     const client = makeClientWith({
       "message.list": vi.fn<() => Promise<{ data: unknown[]; cursor: {} }>>().mockResolvedValue({

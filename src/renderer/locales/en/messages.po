@@ -1615,6 +1615,7 @@ msgstr "Adopt legacy connection"
 msgid "Advanced"
 msgstr "Advanced"
 
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
 #: src/renderer/components/providers/devin/profileSettings.tsx
 #: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
 msgid "Advanced settings"
@@ -1930,6 +1931,10 @@ msgstr "Allow replacing conflicting managed skills"
 msgid "Allow the browser to show notifications while the app is in the background."
 msgstr "Allow the browser to show notifications while the app is in the background."
 
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
+msgid "Allow the main agent to interrupt running sub-agents with interrupt_agent."
+msgstr "Allow the main agent to interrupt running sub-agents with interrupt_agent."
+
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Already configured"
 msgstr "Already configured"
@@ -2095,6 +2100,10 @@ msgstr "Appearance mode"
 #: src/renderer/components/common/ProviderModelMenu/ModelConfigurationPanel.tsx
 msgid "Applies to both models"
 msgstr "Applies to both models"
+
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
+msgid "Apply patch tool"
+msgstr "Apply patch tool"
 
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Apply provider preset"
@@ -2426,10 +2435,15 @@ msgstr "Auto-selection"
 msgid "Auto-show terminal panel"
 msgstr "Auto-show terminal panel"
 
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 #: src/renderer/views/SettingsOverlay/parts/CustomThemeColorField.tsx
 msgid "Automatic"
 msgstr "Automatic"
+
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
+msgid "Automatic uses DeepSeek server-side search on DeepSeek models and DeepSeek Search API on other models."
+msgstr "Automatic uses DeepSeek server-side search on DeepSeek models and DeepSeek Search API on other models."
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
@@ -2645,6 +2659,10 @@ msgstr "Binary files can't be edited here."
 #: src/renderer/components/crew/crewTemplates.ts
 msgid "Blank crew"
 msgstr "Blank crew"
+
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
+msgid "Block edits or overwrites on files the session has not read yet, and reject stale edits after external changes."
+msgstr "Block edits or overwrites on files the session has not read yet, and reject stale edits after external changes."
 
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
 msgid "Blocked by the browser. Allow notifications for this site in the browser settings to get alerts while the app is in the background."
@@ -3122,6 +3140,10 @@ msgstr "Cannot create a default worktree path without a branch name"
 msgid "Cannot switch branches — commit or stash your changes first"
 msgstr "Cannot switch branches — commit or stash your changes first"
 
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
+msgid "Capabilities"
+msgstr "Capabilities"
+
 #: src/renderer/components/devices/DeviceWorkspace.tsx
 msgid "Capture and view controls"
 msgstr "Capture and view controls"
@@ -3531,6 +3553,10 @@ msgstr "Choose color for {label}"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserImportModal.tsx
 msgid "Choose data to bring over to the built-in browser."
 msgstr "Choose data to bring over to the built-in browser."
+
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
+msgid "Choose direct HTTP fetching from this machine or DeepSeek Fetch API."
+msgstr "Choose direct HTTP fetching from this machine or DeepSeek Fetch API."
 
 #: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -4046,6 +4072,14 @@ msgstr "Cmd+Enter"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 msgid "Code copied. "
 msgstr "Code copied. "
+
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
+msgid "Code mode (PTC)"
+msgstr "Code mode (PTC)"
+
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
+msgid "Code mode, optional Harness tools, web providers, execution limits, and session log sharing. Applies to new or restarted threads."
+msgstr "Code mode, optional Harness tools, web providers, execution limits, and session log sharing. Applies to new or restarted threads."
 
 #: src/renderer/components/providers/codex/manifest.ts
 msgid "Codex"
@@ -5316,6 +5350,10 @@ msgstr "Creator on X"
 msgid "Credential missing"
 msgstr "Credential missing"
 
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
+msgid "Credential used when calling DeepSeek Search API or Fetch API."
+msgstr "Credential used when calling DeepSeek Search API or Fetch API."
+
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Credentials are configured."
 msgstr "Credentials are configured."
@@ -5733,6 +5771,18 @@ msgstr "Decline"
 msgid "DeepSeek"
 msgstr "DeepSeek"
 
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
+msgid "DeepSeek account"
+msgstr "DeepSeek account"
+
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
+msgid "DeepSeek API key"
+msgstr "DeepSeek API key"
+
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
+msgid "DeepSeek Fetch API"
+msgstr "DeepSeek Fetch API"
+
 #: src/renderer/components/providers/deepseek/manifest.ts
 msgid "DeepSeek Harness"
 msgstr "DeepSeek Harness"
@@ -5740,6 +5790,18 @@ msgstr "DeepSeek Harness"
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
 msgid "DeepSeek Harness chat with persistent sessions, reasoning controls, and MCP tools. Configure credentials with dsh web."
 msgstr "DeepSeek Harness chat with persistent sessions, reasoning controls, and MCP tools. Configure credentials with dsh web."
+
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
+msgid "DeepSeek Search API"
+msgstr "DeepSeek Search API"
+
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
+msgid "DeepSeek server-side search"
+msgstr "DeepSeek server-side search"
+
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
+msgid "DeepSeek Web API billing"
+msgstr "DeepSeek Web API billing"
 
 #: src/renderer/components/devices/DeviceTools.tsx
 #: src/renderer/components/providers/deepseek/index.tsx
@@ -5789,6 +5851,10 @@ msgstr "Default PR automation"
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
 msgid "Default thread removal"
 msgstr "Default thread removal"
+
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
+msgid "Default timeout for shell commands (5–600 seconds, Harness default 60)."
+msgstr "Default timeout for shell commands (5–600 seconds, Harness default 60)."
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectWorktreeBaseBranch.tsx
 msgid "Default worktree base"
@@ -6242,6 +6308,10 @@ msgstr "Dim displays during Locked Computer Use"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
 msgid "Dimensions:"
 msgstr "Dimensions:"
+
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
+msgid "Direct fetch (default)"
+msgstr "Direct fetch (default)"
 
 #. placeholder {0}: server.name
 #. placeholder {0}: skill.name
@@ -6903,6 +6973,10 @@ msgstr "Enable {tool}"
 msgid "Enable automation again"
 msgstr "Enable automation again"
 
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
+msgid "Enable experimental tools for searching and tracing prior Harness sessions in the same workspace."
+msgstr "Enable experimental tools for searching and tracing prior Harness sessions in the same workspace."
+
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Enable language server support for type checking, completions, and diagnostics. Requires a language server installed."
@@ -6933,6 +7007,14 @@ msgstr "Enable Project"
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/UsagePanel.tsx
 msgid "Enable providers in settings"
 msgstr "Enable providers in settings"
+
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
+msgid "Enable skill-activated LibreOffice tools for rendering, converting, and recalculating documents."
+msgstr "Enable skill-activated LibreOffice tools for rendering, converting, and recalculating documents."
+
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
+msgid "Enable the experimental ralph tool for multi-round fresh-agent iteration."
+msgstr "Enable the experimental ralph tool for multi-round fresh-agent iteration."
 
 #: src/renderer/components/plugins/PluginDetail.tsx
 msgid "Enable this plugin's skills and servers for new threads."
@@ -7055,6 +7137,10 @@ msgstr "Enter a valid schedule"
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/StructuredElicitationField.tsx
 msgid "Enter a valid value."
 msgstr "Enter a valid value."
+
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
+msgid "Enter a whole number from {min} to {max}."
+msgstr "Enter a whole number from {min} to {max}."
 
 #: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
 msgid "Enter a whole number from 1 to {CODEX_MAX_SUBAGENTS_LIMIT}."
@@ -7228,6 +7314,10 @@ msgstr "Exclude patterns"
 #: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
 msgid "Execution"
 msgstr "Execution"
+
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
+msgid "Execution limits"
+msgstr "Execution limits"
 
 #: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
 msgid "Execution mode"
@@ -7457,6 +7547,10 @@ msgstr "Export MCP servers without secrets"
 #: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
 msgid "Export theme"
 msgstr "Export theme"
+
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
+msgid "Expose the apply_patch file-editing tool alongside edit."
+msgstr "Expose the apply_patch file-editing tool alongside edit."
 
 #: src/renderer/components/newsLine/featureCatalog.ts
 msgid "Extend Poracode with plugins"
@@ -9117,6 +9211,10 @@ msgstr "Include in sync"
 msgid "Include memory when a thread starts."
 msgstr "Include memory when a thread starts."
 
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
+msgid "Include session logs with official DeepSeek API requests. Enabled by default in DeepSeek Harness."
+msgstr "Include session logs with official DeepSeek API requests. Enabled by default in DeepSeek Harness."
+
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Include your streaks, prompt counts, and usage limits in the news line."
@@ -10597,9 +10695,18 @@ msgstr "Max active terminal shells"
 msgid "Max active terminal shells, 0 for unlimited"
 msgstr "Max active terminal shells, 0 for unlimited"
 
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
 #: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
 msgid "Max concurrent sub-agents"
 msgstr "Max concurrent sub-agents"
+
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
+msgid "Max parallel tool calls"
+msgstr "Max parallel tool calls"
+
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
+msgid "Max sub-agent depth"
+msgstr "Max sub-agent depth"
 
 #: src/renderer/components/layout/UnifiedRightPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
@@ -10619,9 +10726,21 @@ msgstr "Maximum attempts"
 msgid "Maximum characters: {0}"
 msgstr "Maximum characters: {0}"
 
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
+msgid "Maximum concurrent read-safe tool calls per step (1–64, Harness default 10)."
+msgstr "Maximum concurrent read-safe tool calls per step (1–64, Harness default 10)."
+
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
+msgid "Maximum delegation nesting depth (0–16, Harness default 1)."
+msgstr "Maximum delegation nesting depth (0–16, Harness default 1)."
+
 #: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
 msgid "Maximum iterations"
 msgstr "Maximum iterations"
+
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
+msgid "Maximum live sub-agents per session (1–64, Harness default 8)."
+msgstr "Maximum live sub-agents per session (1–64, Harness default 8)."
 
 #: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
 msgid "Maximum retry delay"
@@ -12385,6 +12504,10 @@ msgstr "npx"
 msgid "Number copied"
 msgstr "Number copied"
 
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
+msgid "Number of DeepSeek Search API results per query (1–50, default 10)."
+msgstr "Number of DeepSeek Search API results per query (1–50, default 10)."
+
 #: src/renderer/components/thread/ThreadAgentVisionDock.tsx
 msgid "Observe"
 msgstr "Observe"
@@ -12404,6 +12527,10 @@ msgstr "off"
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Off"
 msgstr "Off"
+
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
+msgid "Office document tools"
+msgstr "Office document tools"
 
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "Official"
@@ -13989,6 +14116,10 @@ msgstr "Pricing provenance"
 msgid "Print"
 msgstr "Print"
 
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
+msgid "Privacy"
+msgstr "Privacy"
+
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 msgid "Privacy Policy"
 msgstr "Privacy Policy"
@@ -14480,6 +14611,10 @@ msgstr "Qwen Code"
 #: src/renderer/components/providers/settings/ClaudeProfileSettingsModel.ts
 msgid "Qwen Token Plan"
 msgstr "Qwen Token Plan"
+
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
+msgid "Ralph autonomous loop"
+msgstr "Ralph autonomous loop"
 
 #: src/renderer/components/providers/usageFormat.ts
 msgid "Ran out"
@@ -15315,6 +15450,10 @@ msgstr "requested changes"
 msgid "Requested changes"
 msgstr "Requested changes"
 
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
+msgid "Require read before edit"
+msgstr "Require read before edit"
+
 #: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
 msgid "Required confidence before stopping."
 msgstr "Required confidence before stopping."
@@ -15331,12 +15470,14 @@ msgstr "Resend last message"
 msgid "reset"
 msgstr "reset"
 
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
 #: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
 #: src/renderer/components/providers/settings/ProviderContextWindowSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
 msgid "Reset"
 msgstr "Reset"
 
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
 #: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
 msgid "Reset advanced settings"
 msgstr "Reset advanced settings"
@@ -15510,6 +15651,10 @@ msgstr "Restoring it on {targetLabel}…"
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Results"
 msgstr "Results"
+
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
+msgid "Results per search"
+msgstr "Results per search"
 
 #: src/renderer/views/SchedulesView/parts/ScheduleRow.tsx
 msgid "Resume"
@@ -16040,6 +16185,10 @@ msgstr "Run the latest missed run"
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Run this schedule automatically on the schedule below."
 msgstr "Run this schedule automatically on the schedule below."
+
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
+msgid "Run tools through sandboxed TypeScript programs (run_code) instead of direct tool calls. Reduces intermediate context usage."
+msgstr "Run tools through sandboxed TypeScript programs (run_code) instead of direct tool calls. Reduces intermediate context usage."
 
 #: src/renderer/views/GitHubActionsView/GitHubActionsDispatchPopover.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsMobileWorkflowList.tsx
@@ -16888,6 +17037,10 @@ msgstr "Session actions"
 msgid "Session actions are unavailable for this thread."
 msgstr "Session actions are unavailable for this thread."
 
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
+msgid "Session history search"
+msgstr "Session history search"
+
 #: src/renderer/components/thread/ThreadDetailsDocks.tsx
 msgid "Session ID"
 msgstr "Session ID"
@@ -17021,6 +17174,10 @@ msgstr "Shares another profile's isolated login. Manage sign-in on that profile'
 #: src/renderer/components/providers/devin/profileSettings.tsx
 msgid "Shares missing owner {0}"
 msgstr "Shares missing owner {0}"
+
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
+msgid "Shell command timeout (seconds)"
+msgstr "Shell command timeout (seconds)"
 
 #: src/renderer/components/crew/crewTemplates.ts
 msgid "Ship crew"
@@ -18104,6 +18261,10 @@ msgstr "Structured runtime"
 #: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
 msgid "Sub-agent and planning defaults. They override config.toml and apply when a Codex session starts; running sessions keep their current values."
 msgstr "Sub-agent and planning defaults. They override config.toml and apply when a Codex session starts; running sessions keep their current values."
+
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
+msgid "Sub-agent interruption"
+msgstr "Sub-agent interruption"
 
 #: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
 msgid "Sub-agent model"
@@ -21137,6 +21298,10 @@ msgstr "Upgrade environment owner"
 msgid "Upgrade owner"
 msgstr "Upgrade owner"
 
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
+msgid "Upload session log"
+msgstr "Upload session log"
+
 #. placeholder {0}: progress.upload
 #: src/renderer/components/common/FeedbackDialog.tsx
 msgid "Uploading attachment {0}…"
@@ -21734,10 +21899,22 @@ msgstr "Warnings"
 msgid "We have a winner!"
 msgstr "We have a winner!"
 
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
+msgid "Web fetch provider"
+msgstr "Web fetch provider"
+
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 #: src/renderer/components/thread/ChatPane/parts/items/webSearchDisplay.ts
 msgid "Web search"
 msgstr "Web search"
+
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
+msgid "Web search & fetch"
+msgstr "Web search & fetch"
+
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
+msgid "Web search provider"
+msgstr "Web search provider"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 msgid "Web server"

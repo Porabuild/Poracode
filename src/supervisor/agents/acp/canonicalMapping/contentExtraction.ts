@@ -24,13 +24,28 @@ export function firstNonEmptyLine(text: string): string | undefined {
     .find((line) => line.length > 0);
 }
 
+/**
+ * Optional context for a tool result's terminal text and search-hit links.
+ * All fields are optional.
+ */
+export interface ToolCallResourceContext {
+  /**
+   * ACP tool `kind`. A `search` reports its hits as `resource_link`s in its
+   * `content`; those name things the tool found, not media it produced, so they
+   * never make the result a video result.
+   */
+  kind?: string | null | undefined;
+  resolveTerminalOutput?: ((terminalId: string) => string | undefined) | undefined;
+  terminalIdHint?: string | undefined;
+}
+
 /** Preserve standard renderable resource blocks instead of flattening them to text. */
 export function extractToolCallResourceResult(
   content: unknown,
   rawOutput?: unknown,
-  resolveTerminalOutput?: (terminalId: string) => string | undefined,
-  terminalIdHint?: string,
+  context: ToolCallResourceContext = {},
 ): (Record<string, unknown> & { content: unknown[] }) | undefined {
+  const { kind, resolveTerminalOutput, terminalIdHint } = context;
   if (readMcpAppResource(rawOutput))
     return rawOutput as Record<string, unknown> & { content: unknown[] };
   if (!Array.isArray(content) && readToolVideoSources(rawOutput).length === 0) return;
@@ -38,20 +53,25 @@ export function extractToolCallResourceResult(
     rawOutput && typeof rawOutput === "object" && !Array.isArray(rawOutput)
       ? (rawOutput as Record<string, unknown>)
       : {};
-  const result = {
-    ...rawResult,
-    content: [
-      ...(Array.isArray(rawResult.content) ? rawResult.content : []),
-      ...(Array.isArray(rawOutput) ? rawOutput : []),
-      ...(typeof rawOutput === "string" && rawOutput ? [{ type: "text", text: rawOutput }] : []),
-      ...(Array.isArray(content) ? content : []).flatMap((entry) =>
-        entry && typeof entry === "object" && entry.type === "content" && entry.content
-          ? [entry.content]
-          : [],
-      ),
-    ],
-  };
-  if (!readMcpAppResource(result) && readToolVideoSources(result).length === 0) return;
+  const outputBlocks = [
+    ...(Array.isArray(rawResult.content) ? rawResult.content : []),
+    ...(Array.isArray(rawOutput) ? rawOutput : []),
+    ...(typeof rawOutput === "string" && rawOutput ? [{ type: "text", text: rawOutput }] : []),
+  ];
+  const contentBlocks = (Array.isArray(content) ? content : []).flatMap((entry) =>
+    entry && typeof entry === "object" && entry.type === "content" && entry.content
+      ? [entry.content]
+      : [],
+  );
+  const result = { ...rawResult, content: [...outputBlocks, ...contentBlocks] };
+  const produced =
+    (kind ?? "").toLowerCase() === "search"
+      ? {
+          ...result,
+          content: [...outputBlocks, ...contentBlocks.filter((block) => !isResourceLink(block))],
+        }
+      : result;
+  if (!readMcpAppResource(result) && readToolVideoSources(produced).length === 0) return;
   const terminalText = extractToolCallContentText(
     Array.isArray(content) ? content.filter((entry) => entry?.type === "terminal") : undefined,
     resolveTerminalOutput,
@@ -59,6 +79,15 @@ export function extractToolCallResourceResult(
   );
   if (terminalText) result.content.push({ type: "text", text: terminalText });
   return result;
+}
+
+function isResourceLink(block: unknown): boolean {
+  return (
+    !!block &&
+    typeof block === "object" &&
+    !Array.isArray(block) &&
+    (block as { type?: unknown }).type === "resource_link"
+  );
 }
 
 export function extractToolLocations(
@@ -194,9 +223,8 @@ export function extractToolCallResourceLinkResult(content: unknown): string | un
     const contentEntry = entry as Record<string, unknown>;
     if (contentEntry.type !== "content") continue;
     const block = contentEntry.content;
-    if (!block || typeof block !== "object" || Array.isArray(block)) continue;
+    if (!isResourceLink(block)) continue;
     const resourceLink = block as Record<string, unknown>;
-    if (resourceLink.type !== "resource_link") continue;
     const uri =
       typeof resourceLink.uri === "string" && resourceLink.uri.trim().length > 0
         ? resourceLink.uri

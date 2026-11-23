@@ -97,11 +97,10 @@ export function buildAcpToolCallPayload(
   const canonicalName = readAcpToolName(toolCall._meta);
   const name = canonicalName ?? title ?? kind;
   const contentResult = extractToolCallContentText(toolCall.content, resolveTerminalOutput);
-  const resourceResult = extractToolCallResourceResult(
-    toolCall.content,
-    toolCall.rawOutput,
+  const resourceResult = extractToolCallResourceResult(toolCall.content, toolCall.rawOutput, {
+    kind,
     resolveTerminalOutput,
-  );
+  });
   const resourceLinkResult =
     itemType === "tool_call" &&
     kind?.toLowerCase() === "search" &&
@@ -286,12 +285,11 @@ export function buildAcpToolCallUpdatePayload(
   const contentDiffs = isFileChange ? extractAcpFileChangesFromContent(toolCall.content) : [];
   const contentDiffText = isFileChange ? joinAcpContentFileChangeDiffs(contentDiffs) : undefined;
   const mappedResult =
-    extractToolCallResourceResult(
-      toolCall.content,
-      toolCall.rawOutput,
+    extractToolCallResourceResult(toolCall.content, toolCall.rawOutput, {
+      kind: searchKind,
       resolveTerminalOutput,
-      item.terminalId,
-    ) ??
+      terminalIdHint: item.terminalId,
+    }) ??
     pickAcpToolCallResult({
       contentDiffText,
       rawOutput: toolCall.rawOutput,
