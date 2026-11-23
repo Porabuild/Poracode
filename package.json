@@ -110,6 +110,7 @@
     "native:e2e:mock-host": "node scripts/native-e2e.mjs mock",
     "native:e2e:real-host": "node scripts/native-e2e.mjs real",
     "smoke:integration": "node .agents/skills/interactive-testing/scripts/run-poracode-smoke.mjs",
+    "smoke:mobile": "node scripts/mobile-manual-smoke.mjs",
     "update-server": "node scripts/update-server.mjs",
     "db:clone": "node scripts/clone-db.mjs",
     "db:clone:nightly": "node scripts/clone-db.mjs nightly",

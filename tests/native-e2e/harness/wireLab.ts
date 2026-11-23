@@ -187,6 +187,7 @@ export class WireLab {
       const origin = req.headers.origin;
       if (origin && this.options.browserOrigins?.includes(origin)) {
         res.setHeader("Access-Control-Allow-Origin", origin);
+        res.setHeader("Access-Control-Expose-Headers", "x-poracode-environment-auth-authority");
         res.setHeader("Vary", "Origin");
         res.setHeader("Access-Control-Allow-Credentials", "true");
         if (req.method === "OPTIONS") {
