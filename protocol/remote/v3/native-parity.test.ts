@@ -3,7 +3,6 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
-import { ENVIRONMENT_MANAGEMENT_ROUTE_IDS } from "../../../src/shared/remote/contract/routes/environments";
 import { PORACODE_REMOTE_PROTOCOL_VERSION } from "../../../src/shared/remote/protocol";
 
 import { iosSourceIsCompiled, isNativeDeviceTest } from "./native-source-evidence";
@@ -261,42 +260,6 @@ const PLANNED_ABSENCE_TOKENS: Record<
   string,
   ReadonlyArray<{ platform: Platform; token: string }>
 > = {
-  ...Object.fromEntries(
-    ["memory-catalog", "memory-sync"].map((id) => [
-      id,
-      [
-        { platform: "ios" as Platform, token: `"${id}"` },
-        { platform: "android" as Platform, token: `"${id}"` },
-      ],
-    ]),
-  ),
-  // Quoted procedure identifiers distinguish the new wire calls from existing UI method names.
-  ...Object.fromEntries(
-    [
-      "getProviderUsage",
-      "refreshProviderUsage",
-      "getLatestAgentVersion",
-      "resolveAgentAccount",
-      "listAcpRegistry",
-      "installAcpRegistryAgent",
-      "removeAcpRegistryAgent",
-      "updateAgentBinary",
-      "updateAcpRegistryAgent",
-      "setAcpRegistryAgentAuth",
-      "authenticateAcpAgent",
-      "logoutAcpAgent",
-      "listPlugins",
-      "refreshPlugins",
-      "pluginCatalog",
-      "pluginAccounts",
-    ].map((token) => [
-      token,
-      [
-        { platform: "ios" as Platform, token: `"${token}"` },
-        { platform: "android" as Platform, token: `"${token}"` },
-      ],
-    ]),
-  ),
   // Scoped review operations that a native platform has not wired keep their quoted wire
   // name out of that platform's tree until the ledger records the implementation.
   ...Object.fromEntries(
@@ -320,20 +283,6 @@ const PLANNED_ABSENCE_TOKENS: Record<
       [
         { platform: "ios" as Platform, token: `"${id}"` },
         { platform: "android" as Platform, token: `"${id}"` },
-      ],
-    ]),
-  ),
-  // C1 server-owned environments: managed through the parent proxy by all
-  // clients, but no native transport/UI exists yet (native clients land after
-  // the client slice). The route id is the token a native implementation must
-  // contain to address the route descriptor, so finding it fails this check
-  // until the disposition is flipped with production evidence.
-  ...Object.fromEntries(
-    ENVIRONMENT_MANAGEMENT_ROUTE_IDS.map((id) => [
-      id,
-      [
-        { platform: "ios" as Platform, token: id },
-        { platform: "android" as Platform, token: id },
       ],
     ]),
   ),

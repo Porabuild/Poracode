@@ -9,6 +9,8 @@ internal enum class ProjectSettingsPage(@param:StringRes val title: Int) {
     Worktrees(R.string.projects_worktrees),
     Actions(R.string.projects_actions),
     Mcp(R.string.settings_global_mcp_title),
+    Memory(R.string.settings_memory_title),
+    Plugins(R.string.settings_integrations_title),
     Search(R.string.projects_search),
     Notes(R.string.projects_notes),
 }

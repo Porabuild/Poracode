@@ -75,6 +75,18 @@ struct ProjectEditView: View {
             Label(ProjectSettingsStrings.mcpServers, systemImage: "server.rack")
           }
           .accessibilityIdentifier("native-e2e.settings.project-mcp")
+
+          NavigationLink {
+            HostMemoryCatalogView(api: nil, projectId: currentProject.id)
+          } label: {
+            Label("Memory", systemImage: "brain")
+          }
+
+          NavigationLink {
+            HostPluginsManagementView(api: nil, projectId: currentProject.id)
+          } label: {
+            Label("Plugins", systemImage: "puzzlepiece.extension")
+          }
         }
 
         NavigationLink {

@@ -228,22 +228,32 @@
         "batch": "environments",
         "ios": {
           "wire": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "implemented",
+            "evidence": [
+              "ios/App/App/Features/Environments/EnvironmentsView.swift",
+              "ios/App/App/Features/ProviderUI/HostParityServices.swift"
+            ]
           },
           "ui": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "partial",
+            "evidence": ["ios/App/App/Features/Environments/EnvironmentsView.swift"],
+            "note": "Implemented on iOS; device qualification remains pending."
           }
         },
         "android": {
           "wire": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "implemented",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/ui/settings/SettingsEnvironmentsPane.kt",
+              "android/app/src/main/kotlin/com/poracode/app/transport/settings/HostParityClients.kt"
+            ]
           },
           "ui": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "partial",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/ui/settings/SettingsEnvironmentsPane.kt"
+            ],
+            "note": "Implemented on Android; device qualification remains pending."
           }
         }
       },
@@ -253,22 +263,32 @@
         "batch": "environments",
         "ios": {
           "wire": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "implemented",
+            "evidence": [
+              "ios/App/App/Features/Environments/EnvironmentsView.swift",
+              "ios/App/App/Features/ProviderUI/HostParityServices.swift"
+            ]
           },
           "ui": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "partial",
+            "evidence": ["ios/App/App/Features/Environments/EnvironmentsView.swift"],
+            "note": "Implemented on iOS; device qualification remains pending."
           }
         },
         "android": {
           "wire": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "implemented",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/ui/settings/SettingsEnvironmentsPane.kt",
+              "android/app/src/main/kotlin/com/poracode/app/transport/settings/HostParityClients.kt"
+            ]
           },
           "ui": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "partial",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/ui/settings/SettingsEnvironmentsPane.kt"
+            ],
+            "note": "Implemented on Android; device qualification remains pending."
           }
         }
       },
@@ -278,22 +298,32 @@
         "batch": "environments",
         "ios": {
           "wire": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "implemented",
+            "evidence": [
+              "ios/App/App/Features/Environments/EnvironmentsView.swift",
+              "ios/App/App/Features/ProviderUI/HostParityServices.swift"
+            ]
           },
           "ui": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "partial",
+            "evidence": ["ios/App/App/Features/Environments/EnvironmentsView.swift"],
+            "note": "Implemented on iOS; device qualification remains pending."
           }
         },
         "android": {
           "wire": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "implemented",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/ui/settings/SettingsEnvironmentsPane.kt",
+              "android/app/src/main/kotlin/com/poracode/app/transport/settings/HostParityClients.kt"
+            ]
           },
           "ui": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "partial",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/ui/settings/SettingsEnvironmentsPane.kt"
+            ],
+            "note": "Implemented on Android; device qualification remains pending."
           }
         }
       },
@@ -303,22 +333,32 @@
         "batch": "environments",
         "ios": {
           "wire": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "implemented",
+            "evidence": [
+              "ios/App/App/Features/Environments/EnvironmentsView.swift",
+              "ios/App/App/Features/ProviderUI/HostParityServices.swift"
+            ]
           },
           "ui": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "partial",
+            "evidence": ["ios/App/App/Features/Environments/EnvironmentsView.swift"],
+            "note": "Implemented on iOS; device qualification remains pending."
           }
         },
         "android": {
           "wire": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "implemented",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/ui/settings/SettingsEnvironmentsPane.kt",
+              "android/app/src/main/kotlin/com/poracode/app/transport/settings/HostParityClients.kt"
+            ]
           },
           "ui": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "partial",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/ui/settings/SettingsEnvironmentsPane.kt"
+            ],
+            "note": "Implemented on Android; device qualification remains pending."
           }
         }
       },
@@ -328,22 +368,32 @@
         "batch": "environments",
         "ios": {
           "wire": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "implemented",
+            "evidence": [
+              "ios/App/App/Features/Environments/EnvironmentsView.swift",
+              "ios/App/App/Features/ProviderUI/HostParityServices.swift"
+            ]
           },
           "ui": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "partial",
+            "evidence": ["ios/App/App/Features/Environments/EnvironmentsView.swift"],
+            "note": "Implemented on iOS; device qualification remains pending."
           }
         },
         "android": {
           "wire": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "implemented",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/ui/settings/SettingsEnvironmentsPane.kt",
+              "android/app/src/main/kotlin/com/poracode/app/transport/settings/HostParityClients.kt"
+            ]
           },
           "ui": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "partial",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/ui/settings/SettingsEnvironmentsPane.kt"
+            ],
+            "note": "Implemented on Android; device qualification remains pending."
           }
         }
       },
@@ -353,22 +403,32 @@
         "batch": "environments",
         "ios": {
           "wire": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "implemented",
+            "evidence": [
+              "ios/App/App/Features/Environments/EnvironmentsView.swift",
+              "ios/App/App/Features/ProviderUI/HostParityServices.swift"
+            ]
           },
           "ui": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "partial",
+            "evidence": ["ios/App/App/Features/Environments/EnvironmentsView.swift"],
+            "note": "Implemented on iOS; device qualification remains pending."
           }
         },
         "android": {
           "wire": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "implemented",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/ui/settings/SettingsEnvironmentsPane.kt",
+              "android/app/src/main/kotlin/com/poracode/app/transport/settings/HostParityClients.kt"
+            ]
           },
           "ui": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "partial",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/ui/settings/SettingsEnvironmentsPane.kt"
+            ],
+            "note": "Implemented on Android; device qualification remains pending."
           }
         }
       },
@@ -378,22 +438,32 @@
         "batch": "environments",
         "ios": {
           "wire": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "implemented",
+            "evidence": [
+              "ios/App/App/Features/Environments/EnvironmentsView.swift",
+              "ios/App/App/Features/ProviderUI/HostParityServices.swift"
+            ]
           },
           "ui": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "partial",
+            "evidence": ["ios/App/App/Features/Environments/EnvironmentsView.swift"],
+            "note": "Implemented on iOS; device qualification remains pending."
           }
         },
         "android": {
           "wire": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "implemented",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/ui/settings/SettingsEnvironmentsPane.kt",
+              "android/app/src/main/kotlin/com/poracode/app/transport/settings/HostParityClients.kt"
+            ]
           },
           "ui": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "partial",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/ui/settings/SettingsEnvironmentsPane.kt"
+            ],
+            "note": "Implemented on Android; device qualification remains pending."
           }
         }
       },
@@ -403,22 +473,32 @@
         "batch": "environments",
         "ios": {
           "wire": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "implemented",
+            "evidence": [
+              "ios/App/App/Features/Environments/EnvironmentsView.swift",
+              "ios/App/App/Features/ProviderUI/HostParityServices.swift"
+            ]
           },
           "ui": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "partial",
+            "evidence": ["ios/App/App/Features/Environments/EnvironmentsView.swift"],
+            "note": "Implemented on iOS; device qualification remains pending."
           }
         },
         "android": {
           "wire": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "implemented",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/ui/settings/SettingsEnvironmentsPane.kt",
+              "android/app/src/main/kotlin/com/poracode/app/transport/settings/HostParityClients.kt"
+            ]
           },
           "ui": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "partial",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/ui/settings/SettingsEnvironmentsPane.kt"
+            ],
+            "note": "Implemented on Android; device qualification remains pending."
           }
         }
       },
@@ -428,22 +508,32 @@
         "batch": "environments",
         "ios": {
           "wire": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "implemented",
+            "evidence": [
+              "ios/App/App/Features/Environments/EnvironmentsView.swift",
+              "ios/App/App/Features/ProviderUI/HostParityServices.swift"
+            ]
           },
           "ui": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "partial",
+            "evidence": ["ios/App/App/Features/Environments/EnvironmentsView.swift"],
+            "note": "Implemented on iOS; device qualification remains pending."
           }
         },
         "android": {
           "wire": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "implemented",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/ui/settings/SettingsEnvironmentsPane.kt",
+              "android/app/src/main/kotlin/com/poracode/app/transport/settings/HostParityClients.kt"
+            ]
           },
           "ui": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "partial",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/ui/settings/SettingsEnvironmentsPane.kt"
+            ],
+            "note": "Implemented on Android; device qualification remains pending."
           }
         }
       },
@@ -453,22 +543,32 @@
         "batch": "environments",
         "ios": {
           "wire": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "implemented",
+            "evidence": [
+              "ios/App/App/Features/Environments/EnvironmentsView.swift",
+              "ios/App/App/Features/ProviderUI/HostParityServices.swift"
+            ]
           },
           "ui": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "partial",
+            "evidence": ["ios/App/App/Features/Environments/EnvironmentsView.swift"],
+            "note": "Implemented on iOS; device qualification remains pending."
           }
         },
         "android": {
           "wire": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "implemented",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/ui/settings/SettingsEnvironmentsPane.kt",
+              "android/app/src/main/kotlin/com/poracode/app/transport/settings/HostParityClients.kt"
+            ]
           },
           "ui": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "partial",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/ui/settings/SettingsEnvironmentsPane.kt"
+            ],
+            "note": "Implemented on Android; device qualification remains pending."
           }
         }
       },
@@ -478,22 +578,32 @@
         "batch": "environments",
         "ios": {
           "wire": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "implemented",
+            "evidence": [
+              "ios/App/App/Features/Environments/EnvironmentsView.swift",
+              "ios/App/App/Features/ProviderUI/HostParityServices.swift"
+            ]
           },
           "ui": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "partial",
+            "evidence": ["ios/App/App/Features/Environments/EnvironmentsView.swift"],
+            "note": "Implemented on iOS; device qualification remains pending."
           }
         },
         "android": {
           "wire": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "implemented",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/ui/settings/SettingsEnvironmentsPane.kt",
+              "android/app/src/main/kotlin/com/poracode/app/transport/settings/HostParityClients.kt"
+            ]
           },
           "ui": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "partial",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/ui/settings/SettingsEnvironmentsPane.kt"
+            ],
+            "note": "Implemented on Android; device qualification remains pending."
           }
         }
       },
@@ -503,22 +613,32 @@
         "batch": "environments",
         "ios": {
           "wire": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "implemented",
+            "evidence": [
+              "ios/App/App/Features/Environments/EnvironmentsView.swift",
+              "ios/App/App/Features/ProviderUI/HostParityServices.swift"
+            ]
           },
           "ui": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "partial",
+            "evidence": ["ios/App/App/Features/Environments/EnvironmentsView.swift"],
+            "note": "Implemented on iOS; device qualification remains pending."
           }
         },
         "android": {
           "wire": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "implemented",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/ui/settings/SettingsEnvironmentsPane.kt",
+              "android/app/src/main/kotlin/com/poracode/app/transport/settings/HostParityClients.kt"
+            ]
           },
           "ui": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "partial",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/ui/settings/SettingsEnvironmentsPane.kt"
+            ],
+            "note": "Implemented on Android; device qualification remains pending."
           }
         }
       },
@@ -528,22 +648,32 @@
         "batch": "environments",
         "ios": {
           "wire": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "implemented",
+            "evidence": [
+              "ios/App/App/Features/Environments/EnvironmentsView.swift",
+              "ios/App/App/Features/ProviderUI/HostParityServices.swift"
+            ]
           },
           "ui": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "partial",
+            "evidence": ["ios/App/App/Features/Environments/EnvironmentsView.swift"],
+            "note": "Implemented on iOS; device qualification remains pending."
           }
         },
         "android": {
           "wire": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "implemented",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/ui/settings/SettingsEnvironmentsPane.kt",
+              "android/app/src/main/kotlin/com/poracode/app/transport/settings/HostParityClients.kt"
+            ]
           },
           "ui": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "partial",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/ui/settings/SettingsEnvironmentsPane.kt"
+            ],
+            "note": "Implemented on Android; device qualification remains pending."
           }
         }
       },
@@ -1567,22 +1697,28 @@
         "note": "Authenticated host catalog management in the shared desktop and browser/PWA renderer. Native client adoption is planned.",
         "ios": {
           "wire": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "implemented",
+            "evidence": ["ios/App/App/Features/ProviderUI/HostParityServices.swift"]
           },
           "ui": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "partial",
+            "evidence": ["ios/App/App/Features/ProviderUI/HostParityServices.swift"],
+            "note": "Implemented on iOS; device qualification remains pending."
           }
         },
         "android": {
           "wire": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "implemented",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/transport/settings/HostParityClients.kt"
+            ]
           },
           "ui": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "partial",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/ui/settings/HostParityManagementPanes.kt"
+            ],
+            "note": "Implemented on Android; device qualification remains pending."
           }
         }
       },
@@ -1593,22 +1729,28 @@
         "note": "Cross-environment memory merge endpoint used by paired desktop hosts; native client adoption is planned.",
         "ios": {
           "wire": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "implemented",
+            "evidence": ["ios/App/App/Features/ProviderUI/HostParityServices.swift"]
           },
           "ui": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "partial",
+            "evidence": ["ios/App/App/Features/ProviderUI/HostParityServices.swift"],
+            "note": "Implemented on iOS; device qualification remains pending."
           }
         },
         "android": {
           "wire": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "implemented",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/transport/settings/HostParityClients.kt"
+            ]
           },
           "ui": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "partial",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/ui/settings/HostParityManagementPanes.kt"
+            ],
+            "note": "Implemented on Android; device qualification remains pending."
           }
         }
       },
@@ -5471,24 +5613,28 @@
         "batch": "settings-integrations",
         "ios": {
           "wire": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "implemented",
+            "evidence": ["ios/App/App/Features/ProviderUI/HostParityServices.swift"]
           },
           "ui": {
-            "disposition": "planned",
-            "evidence": [],
-            "note": "Per-host usage settings and explicit refresh are scoped to desktop and the shared browser renderer in issue #755."
+            "disposition": "partial",
+            "evidence": ["ios/App/App/Features/ProviderUI/HostParityServices.swift"],
+            "note": "Implemented on iOS; device qualification remains pending."
           }
         },
         "android": {
           "wire": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "implemented",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/transport/settings/HostParityClients.kt"
+            ]
           },
           "ui": {
-            "disposition": "planned",
-            "evidence": [],
-            "note": "Per-host usage settings and explicit refresh are scoped to desktop and the shared browser renderer in issue #755."
+            "disposition": "partial",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/ui/settings/HostParityManagementPanes.kt"
+            ],
+            "note": "Implemented on Android; device qualification remains pending."
           }
         }
       },
@@ -5497,24 +5643,28 @@
         "batch": "settings-integrations",
         "ios": {
           "wire": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "implemented",
+            "evidence": ["ios/App/App/Features/ProviderUI/HostParityServices.swift"]
           },
           "ui": {
-            "disposition": "planned",
-            "evidence": [],
-            "note": "Per-host usage settings and explicit refresh are scoped to desktop and the shared browser renderer in issue #755."
+            "disposition": "partial",
+            "evidence": ["ios/App/App/Features/ProviderUI/HostParityServices.swift"],
+            "note": "Implemented on iOS; device qualification remains pending."
           }
         },
         "android": {
           "wire": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "implemented",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/transport/settings/HostParityClients.kt"
+            ]
           },
           "ui": {
-            "disposition": "planned",
-            "evidence": [],
-            "note": "Per-host usage settings and explicit refresh are scoped to desktop and the shared browser renderer in issue #755."
+            "disposition": "partial",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/ui/settings/HostParityManagementPanes.kt"
+            ],
+            "note": "Implemented on Android; device qualification remains pending."
           }
         }
       },
@@ -5592,24 +5742,28 @@
         "batch": "settings-integrations",
         "ios": {
           "wire": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "implemented",
+            "evidence": ["ios/App/App/Features/ProviderUI/HostParityServices.swift"]
           },
           "ui": {
-            "disposition": "planned",
-            "evidence": [],
-            "note": "Host agent management is served to desktop and the shared browser renderer (PWA) through the procedure passthrough; native clients have no agent update surface yet."
+            "disposition": "partial",
+            "evidence": ["ios/App/App/Features/ProviderUI/HostParityServices.swift"],
+            "note": "Implemented on iOS; device qualification remains pending."
           }
         },
         "android": {
           "wire": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "implemented",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/transport/settings/HostParityClients.kt"
+            ]
           },
           "ui": {
-            "disposition": "planned",
-            "evidence": [],
-            "note": "Host agent management is served to desktop and the shared browser renderer (PWA) through the procedure passthrough; native clients have no agent update surface yet."
+            "disposition": "partial",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/ui/settings/HostParityManagementPanes.kt"
+            ],
+            "note": "Implemented on Android; device qualification remains pending."
           }
         }
       },
@@ -5618,24 +5772,28 @@
         "batch": "settings-integrations",
         "ios": {
           "wire": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "implemented",
+            "evidence": ["ios/App/App/Features/ProviderUI/HostParityServices.swift"]
           },
           "ui": {
-            "disposition": "planned",
-            "evidence": [],
-            "note": "Host agent management is served to desktop and the shared browser renderer (PWA) through the procedure passthrough; native clients have no agent registry surface yet."
+            "disposition": "partial",
+            "evidence": ["ios/App/App/Features/ProviderUI/HostParityServices.swift"],
+            "note": "Implemented on iOS; device qualification remains pending."
           }
         },
         "android": {
           "wire": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "implemented",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/transport/settings/HostParityClients.kt"
+            ]
           },
           "ui": {
-            "disposition": "planned",
-            "evidence": [],
-            "note": "Host agent management is served to desktop and the shared browser renderer (PWA) through the procedure passthrough; native clients have no agent registry surface yet."
+            "disposition": "partial",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/ui/settings/HostParityManagementPanes.kt"
+            ],
+            "note": "Implemented on Android; device qualification remains pending."
           }
         }
       },
@@ -5684,24 +5842,28 @@
         "batch": "settings-integrations",
         "ios": {
           "wire": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "implemented",
+            "evidence": ["ios/App/App/Features/ProviderUI/HostParityServices.swift"]
           },
           "ui": {
-            "disposition": "planned",
-            "evidence": [],
-            "note": "Host agent management is served to desktop and the shared browser renderer (PWA) through the procedure passthrough; native clients have no agent update surface yet."
+            "disposition": "partial",
+            "evidence": ["ios/App/App/Features/ProviderUI/HostParityServices.swift"],
+            "note": "Implemented on iOS; device qualification remains pending."
           }
         },
         "android": {
           "wire": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "implemented",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/transport/settings/HostParityClients.kt"
+            ]
           },
           "ui": {
-            "disposition": "planned",
-            "evidence": [],
-            "note": "Host agent management is served to desktop and the shared browser renderer (PWA) through the procedure passthrough; native clients have no agent update surface yet."
+            "disposition": "partial",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/ui/settings/HostParityManagementPanes.kt"
+            ],
+            "note": "Implemented on Android; device qualification remains pending."
           }
         }
       },
@@ -5710,24 +5872,28 @@
         "batch": "settings-integrations",
         "ios": {
           "wire": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "implemented",
+            "evidence": ["ios/App/App/Features/ProviderUI/HostParityServices.swift"]
           },
           "ui": {
-            "disposition": "planned",
-            "evidence": [],
-            "note": "Host agent management is served to desktop and the shared browser renderer (PWA) through the procedure passthrough; native clients have no agent registry surface yet."
+            "disposition": "partial",
+            "evidence": ["ios/App/App/Features/ProviderUI/HostParityServices.swift"],
+            "note": "Implemented on iOS; device qualification remains pending."
           }
         },
         "android": {
           "wire": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "implemented",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/transport/settings/HostParityClients.kt"
+            ]
           },
           "ui": {
-            "disposition": "planned",
-            "evidence": [],
-            "note": "Host agent management is served to desktop and the shared browser renderer (PWA) through the procedure passthrough; native clients have no agent registry surface yet."
+            "disposition": "partial",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/ui/settings/HostParityManagementPanes.kt"
+            ],
+            "note": "Implemented on Android; device qualification remains pending."
           }
         }
       },
@@ -5736,24 +5902,28 @@
         "batch": "settings-integrations",
         "ios": {
           "wire": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "implemented",
+            "evidence": ["ios/App/App/Features/ProviderUI/HostParityServices.swift"]
           },
           "ui": {
-            "disposition": "planned",
-            "evidence": [],
-            "note": "Host agent management is served to desktop and the shared browser renderer (PWA) through the procedure passthrough; native clients have no agent registry surface yet."
+            "disposition": "partial",
+            "evidence": ["ios/App/App/Features/ProviderUI/HostParityServices.swift"],
+            "note": "Implemented on iOS; device qualification remains pending."
           }
         },
         "android": {
           "wire": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "implemented",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/transport/settings/HostParityClients.kt"
+            ]
           },
           "ui": {
-            "disposition": "planned",
-            "evidence": [],
-            "note": "Host agent management is served to desktop and the shared browser renderer (PWA) through the procedure passthrough; native clients have no agent registry surface yet."
+            "disposition": "partial",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/ui/settings/HostParityManagementPanes.kt"
+            ],
+            "note": "Implemented on Android; device qualification remains pending."
           }
         }
       },
@@ -5762,24 +5932,28 @@
         "batch": "settings-integrations",
         "ios": {
           "wire": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "implemented",
+            "evidence": ["ios/App/App/Features/ProviderUI/HostParityServices.swift"]
           },
           "ui": {
-            "disposition": "planned",
-            "evidence": [],
-            "note": "Host agent management is served to desktop and the shared browser renderer (PWA) through the procedure passthrough; native clients have no agent registry surface yet."
+            "disposition": "partial",
+            "evidence": ["ios/App/App/Features/ProviderUI/HostParityServices.swift"],
+            "note": "Implemented on iOS; device qualification remains pending."
           }
         },
         "android": {
           "wire": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "implemented",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/transport/settings/HostParityClients.kt"
+            ]
           },
           "ui": {
-            "disposition": "planned",
-            "evidence": [],
-            "note": "Host agent management is served to desktop and the shared browser renderer (PWA) through the procedure passthrough; native clients have no agent registry surface yet."
+            "disposition": "partial",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/ui/settings/HostParityManagementPanes.kt"
+            ],
+            "note": "Implemented on Android; device qualification remains pending."
           }
         }
       },
@@ -5788,24 +5962,28 @@
         "batch": "settings-integrations",
         "ios": {
           "wire": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "implemented",
+            "evidence": ["ios/App/App/Features/ProviderUI/HostParityServices.swift"]
           },
           "ui": {
-            "disposition": "planned",
-            "evidence": [],
-            "note": "Host agent management is served to desktop and the shared browser renderer (PWA) through the procedure passthrough; native clients have no agent management surface yet."
+            "disposition": "partial",
+            "evidence": ["ios/App/App/Features/ProviderUI/HostParityServices.swift"],
+            "note": "Implemented on iOS; device qualification remains pending."
           }
         },
         "android": {
           "wire": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "implemented",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/transport/settings/HostParityClients.kt"
+            ]
           },
           "ui": {
-            "disposition": "planned",
-            "evidence": [],
-            "note": "Host agent management is served to desktop and the shared browser renderer (PWA) through the procedure passthrough; native clients have no agent management surface yet."
+            "disposition": "partial",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/ui/settings/HostParityManagementPanes.kt"
+            ],
+            "note": "Implemented on Android; device qualification remains pending."
           }
         }
       },
@@ -5814,24 +5992,28 @@
         "batch": "settings-integrations",
         "ios": {
           "wire": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "implemented",
+            "evidence": ["ios/App/App/Features/ProviderUI/HostParityServices.swift"]
           },
           "ui": {
-            "disposition": "planned",
-            "evidence": [],
-            "note": "Host agent management is served to desktop and the shared browser renderer (PWA) through the procedure passthrough; native clients have no agent management surface yet."
+            "disposition": "partial",
+            "evidence": ["ios/App/App/Features/ProviderUI/HostParityServices.swift"],
+            "note": "Implemented on iOS; device qualification remains pending."
           }
         },
         "android": {
           "wire": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "implemented",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/transport/settings/HostParityClients.kt"
+            ]
           },
           "ui": {
-            "disposition": "planned",
-            "evidence": [],
-            "note": "Host agent management is served to desktop and the shared browser renderer (PWA) through the procedure passthrough; native clients have no agent management surface yet."
+            "disposition": "partial",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/ui/settings/HostParityManagementPanes.kt"
+            ],
+            "note": "Implemented on Android; device qualification remains pending."
           }
         }
       },
@@ -5840,24 +6022,28 @@
         "batch": "settings-integrations",
         "ios": {
           "wire": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "implemented",
+            "evidence": ["ios/App/App/Features/ProviderUI/HostParityServices.swift"]
           },
           "ui": {
-            "disposition": "planned",
-            "evidence": [],
-            "note": "Host agent management is served to desktop and the shared browser renderer (PWA) through the procedure passthrough; native clients have no agent management surface yet."
+            "disposition": "partial",
+            "evidence": ["ios/App/App/Features/ProviderUI/HostParityServices.swift"],
+            "note": "Implemented on iOS; device qualification remains pending."
           }
         },
         "android": {
           "wire": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "implemented",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/transport/settings/HostParityClients.kt"
+            ]
           },
           "ui": {
-            "disposition": "planned",
-            "evidence": [],
-            "note": "Host agent management is served to desktop and the shared browser renderer (PWA) through the procedure passthrough; native clients have no agent management surface yet."
+            "disposition": "partial",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/ui/settings/HostParityManagementPanes.kt"
+            ],
+            "note": "Implemented on Android; device qualification remains pending."
           }
         }
       },
@@ -5866,24 +6052,28 @@
         "batch": "settings-integrations",
         "ios": {
           "wire": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "implemented",
+            "evidence": ["ios/App/App/Features/ProviderUI/HostParityServices.swift"]
           },
           "ui": {
-            "disposition": "planned",
-            "evidence": [],
-            "note": "Host agent management is served to desktop and the shared browser renderer (PWA) through the procedure passthrough; native clients have no agent management surface yet."
+            "disposition": "partial",
+            "evidence": ["ios/App/App/Features/ProviderUI/HostParityServices.swift"],
+            "note": "Implemented on iOS; device qualification remains pending."
           }
         },
         "android": {
           "wire": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "implemented",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/transport/settings/HostParityClients.kt"
+            ]
           },
           "ui": {
-            "disposition": "planned",
-            "evidence": [],
-            "note": "Host agent management is served to desktop and the shared browser renderer (PWA) through the procedure passthrough; native clients have no agent management surface yet."
+            "disposition": "partial",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/ui/settings/HostParityManagementPanes.kt"
+            ],
+            "note": "Implemented on Android; device qualification remains pending."
           }
         }
       },
@@ -6794,22 +6984,28 @@
         "batch": "settings-integrations",
         "ios": {
           "wire": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "implemented",
+            "evidence": ["ios/App/App/Features/ProviderUI/HostParityServices.swift"]
           },
           "ui": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "partial",
+            "evidence": ["ios/App/App/Features/ProviderUI/HostParityServices.swift"],
+            "note": "Implemented on iOS; device qualification remains pending."
           }
         },
         "android": {
           "wire": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "implemented",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/transport/settings/HostParityClients.kt"
+            ]
           },
           "ui": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "partial",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/ui/settings/HostParityManagementPanes.kt"
+            ],
+            "note": "Implemented on Android; device qualification remains pending."
           }
         },
         "note": "Generated contract only; native clients do not yet expose plugin package management."
@@ -6819,22 +7015,28 @@
         "batch": "settings-integrations",
         "ios": {
           "wire": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "implemented",
+            "evidence": ["ios/App/App/Features/ProviderUI/HostParityServices.swift"]
           },
           "ui": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "partial",
+            "evidence": ["ios/App/App/Features/ProviderUI/HostParityServices.swift"],
+            "note": "Implemented on iOS; device qualification remains pending."
           }
         },
         "android": {
           "wire": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "implemented",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/transport/settings/HostParityClients.kt"
+            ]
           },
           "ui": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "partial",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/ui/settings/HostParityManagementPanes.kt"
+            ],
+            "note": "Implemented on Android; device qualification remains pending."
           }
         },
         "note": "Generated contract only; native clients do not yet expose plugin package management."
@@ -6844,22 +7046,28 @@
         "batch": "settings-integrations",
         "ios": {
           "wire": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "implemented",
+            "evidence": ["ios/App/App/Features/ProviderUI/HostParityServices.swift"]
           },
           "ui": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "partial",
+            "evidence": ["ios/App/App/Features/ProviderUI/HostParityServices.swift"],
+            "note": "Implemented on iOS; device qualification remains pending."
           }
         },
         "android": {
           "wire": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "implemented",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/transport/settings/HostParityClients.kt"
+            ]
           },
           "ui": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "partial",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/ui/settings/HostParityManagementPanes.kt"
+            ],
+            "note": "Implemented on Android; device qualification remains pending."
           }
         },
         "note": "Generated contract only; native clients do not yet expose plugin package management."
@@ -6869,22 +7077,28 @@
         "batch": "settings-integrations",
         "ios": {
           "wire": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "implemented",
+            "evidence": ["ios/App/App/Features/ProviderUI/HostParityServices.swift"]
           },
           "ui": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "partial",
+            "evidence": ["ios/App/App/Features/ProviderUI/HostParityServices.swift"],
+            "note": "Implemented on iOS; device qualification remains pending."
           }
         },
         "android": {
           "wire": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "implemented",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/transport/settings/HostParityClients.kt"
+            ]
           },
           "ui": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "partial",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/ui/settings/HostParityManagementPanes.kt"
+            ],
+            "note": "Implemented on Android; device qualification remains pending."
           }
         },
         "note": "Generated contract only; native clients do not yet expose plugin package management."
