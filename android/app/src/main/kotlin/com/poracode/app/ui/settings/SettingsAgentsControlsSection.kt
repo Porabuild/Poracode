@@ -83,6 +83,7 @@ internal fun SettingsAgentsControlsSection(
             .sortedBy { it.label.lowercase() }
     }
     var showModelVisibility by remember { mutableStateOf(false) }
+    var showAcpRegistry by remember { mutableStateOf(false) }
 
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         SettingsSection(stringResource(R.string.settings_agents_enabled_title)) {
@@ -199,8 +200,16 @@ internal fun SettingsAgentsControlsSection(
                 }
             }
         }
+        OutlinedButton(onClick = { showAcpRegistry = true }, modifier = Modifier.fillMaxWidth()) {
+            Text("ACP Registry")
+        }
     }
 
+    if (showAcpRegistry) {
+        PoracodeSheet(onDismissRequest = { showAcpRegistry = false }, title = "ACP Registry") {
+            AcpRegistryManagementPane(modifier = Modifier.fillMaxWidth().heightIn(max = 460.dp))
+        }
+    }
     if (showModelVisibility) {
         ModelVisibilitySheet(
             agents = orderedAgents,

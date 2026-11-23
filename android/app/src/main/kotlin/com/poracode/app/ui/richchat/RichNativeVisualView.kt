@@ -310,7 +310,7 @@ internal fun RichNativeVisualView(
                         Text("%.2f".format(current).trimEnd('0').trimEnd('.'), style = PoracodeTextStyles.rowTitle)
                     }
                     Slider(
-                        value = current.toFloat(),
+                        value = current.toFloat().coerceIn(input.min.toFloat(), input.max.toFloat()),
                         onValueChange = { inputValues[input.id] = it.toDouble() },
                         valueRange = input.min.toFloat()..input.max.toFloat(),
                     )

@@ -263,7 +263,9 @@ struct RichChatNativeVisualView: View {
     self.rawLanguage = rawLanguage
     self.rawSource = rawSource
     var initial: [String: Double] = [:]
-    for input in document.inputs { initial[input.id] = input.defaultValue }
+    for input in document.inputs {
+      initial[input.id] = min(max(input.defaultValue, input.min), input.max)
+    }
     _inputValues = State(initialValue: initial)
   }
 

@@ -144,12 +144,10 @@ internal fun ProjectDetailPane(
                     mcpController = mcpController,
                 )
                 ProjectSettingsPage.Memory -> com.poracode.app.ui.settings.HostMemoryCatalogPane(
-                    api = null,
                     projectId = project.id,
                     modifier = Modifier.fillMaxWidth(),
                 )
                 ProjectSettingsPage.Plugins -> com.poracode.app.ui.settings.HostPluginsManagementPane(
-                    api = null,
                     projectId = project.id,
                     modifier = Modifier.fillMaxWidth(),
                 )

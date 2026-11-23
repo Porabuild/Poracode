@@ -97,6 +97,12 @@ class SettingsUiComposition(
     private val repositoryRef = repository
     private val ioDispatcherRef = ioDispatcher
 
+    suspend fun createBoundApiClient(): com.poracode.app.transport.RemoteApiClient? {
+        val lease = hostLease.value ?: return null
+        val creds = repositoryRef.credentialsFor(lease.connectionId) ?: return null
+        return com.poracode.app.transport.RemoteApiClient(creds.profile.httpBaseUrl, creds.accessToken)
+    }
+
     suspend fun listImportableSessions(
         filter: com.poracode.app.protocol.projects.SessionImportFilter = com.poracode.app.protocol.projects.SessionImportFilter(),
     ): Result<com.poracode.app.protocol.projects.SessionImportListing> = runCatching {

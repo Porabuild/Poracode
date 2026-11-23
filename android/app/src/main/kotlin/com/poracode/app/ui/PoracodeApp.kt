@@ -251,6 +251,9 @@ fun PoracodeApp(
                                 }.orEmpty()
                                 androidx.compose.runtime.CompositionLocalProvider(
                                     com.poracode.app.ui.crews.LocalSavedCrews provides savedCrews,
+                                    com.poracode.app.ui.settings.LocalHostApiClientProvider provides {
+                                        settings.createBoundApiClient()
+                                    },
                                 ) {
                                 HomeDestinationScreenContent(
                                 navigation = navigation,

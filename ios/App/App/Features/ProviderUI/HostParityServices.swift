@@ -58,11 +58,37 @@ struct AcpRegistryEntry: Identifiable, Equatable {
   let version: String?
 }
 
+extension AppSession {
+  /// Builds an authenticated `RemoteAPIClient` for the currently selected host,
+  /// honoring parent-proxy environment authority and failing closed if missing.
+  func currentBoundAPIClient() async -> RemoteAPIClient? {
+    guard let selectedId = selectedConnectionId,
+      let record = hosts.first(where: { $0.connectionId == selectedId }),
+      let token = try? await deps.hostCatalog.token(for: record.connectionId),
+      !token.isEmpty
+    else { return nil }
+    let environment = record.isDirectConnection
+      ? nil
+      : EnvironmentConnectionRegistry.shared.context(forEndpoint: record.httpBaseURL)
+    if !record.isDirectConnection, environment == nil { return nil }
+    return RemoteAPIClient(
+      endpoint: record.httpBaseURL,
+      accessToken: token,
+      environment: environment
+    )
+  }
+}
+
 struct AcpRegistryManagementView: View {
-  let api: RemoteAPIClient?
+  let loadClient: @MainActor () async -> RemoteAPIClient?
+  @State private var resolvedAPI: RemoteAPIClient?
   @State private var entries: [AcpRegistryEntry] = []
   @State private var loading = false
   @State private var statusMessage: String?
+
+  init(api: RemoteAPIClient? = nil, loadClient: (@MainActor () async -> RemoteAPIClient?)? = nil) {
+    self.loadClient = loadClient ?? { api }
+  }
 
   var body: some View {
     List {
@@ -96,6 +122,13 @@ struct AcpRegistryManagementView: View {
   }
 
   private func refresh() async {
+    let api: RemoteAPIClient?
+    if let resolvedAPI {
+      api = resolvedAPI
+    } else {
+      api = await loadClient()
+      resolvedAPI = api
+    }
     guard let api else { return }
     loading = true
     defer { loading = false }
@@ -115,8 +148,15 @@ struct AcpRegistryManagementView: View {
   }
 
   private func perform(_ action: @escaping (RemoteAPIClient) async throws -> [String: Any]) {
-    guard let api else { return }
     Task {
+      let api: RemoteAPIClient?
+      if let resolvedAPI {
+        api = resolvedAPI
+      } else {
+        api = await loadClient()
+        resolvedAPI = api
+      }
+      guard let api else { return }
       statusMessage = nil
       do {
         _ = try await action(api)
@@ -151,10 +191,16 @@ enum HostPluginManagementWire {
 }
 
 struct HostPluginsManagementView: View {
-  let api: RemoteAPIClient?
+  let loadClient: @MainActor () async -> RemoteAPIClient?
   var projectId: String? = nil
+  @State private var resolvedAPI: RemoteAPIClient?
   @State private var plugins: [(id: String, name: String, enabled: Bool)] = []
   @State private var loading = false
+
+  init(api: RemoteAPIClient? = nil, projectId: String? = nil, loadClient: (@MainActor () async -> RemoteAPIClient?)? = nil) {
+    self.projectId = projectId
+    self.loadClient = loadClient ?? { api }
+  }
 
   var body: some View {
     List {
@@ -177,6 +223,13 @@ struct HostPluginsManagementView: View {
       ToolbarItem(placement: .topBarTrailing) {
         Button {
           Task {
+            let api: RemoteAPIClient?
+            if let resolvedAPI {
+              api = resolvedAPI
+            } else {
+              api = await loadClient()
+              resolvedAPI = api
+            }
             guard let api else { return }
             _ = try? await HostPluginManagementWire.refreshPlugins(api: api)
             await load()
@@ -188,6 +241,13 @@ struct HostPluginsManagementView: View {
   }
 
   private func load() async {
+    let api: RemoteAPIClient?
+    if let resolvedAPI {
+      api = resolvedAPI
+    } else {
+      api = await loadClient()
+      resolvedAPI = api
+    }
     guard let api else { return }
     loading = true
     defer { loading = false }
@@ -262,26 +322,40 @@ enum HostMemoryAndUsageWire {
 }
 
 struct HostMemoryCatalogView: View {
-  let api: RemoteAPIClient?
+  let loadClient: @MainActor () async -> RemoteAPIClient?
   var projectId: String? = nil
+  @State private var resolvedAPI: RemoteAPIClient?
   @State private var entries: [(id: String, summary: String)] = []
   @State private var loading = false
   @State private var syncing = false
+
+  init(api: RemoteAPIClient? = nil, projectId: String? = nil, loadClient: (@MainActor () async -> RemoteAPIClient?)? = nil) {
+    self.projectId = projectId
+    self.loadClient = loadClient ?? { api }
+  }
 
   var body: some View {
     List {
       if loading { ProgressView() }
       Section {
         Button(syncing ? "Syncing…" : "Sync across environments") {
-          guard let api, !syncing else { return }
+          guard !syncing else { return }
           syncing = true
           Task {
             defer { syncing = false }
+            let api: RemoteAPIClient?
+            if let resolvedAPI {
+              api = resolvedAPI
+            } else {
+              api = await loadClient()
+              resolvedAPI = api
+            }
+            guard let api else { return }
             _ = try? await HostMemoryAndUsageWire.runMemorySync(payload: [:], api: api)
             await load()
           }
         }
-        .disabled(syncing || api == nil)
+        .disabled(syncing)
       }
       Section("Learned memories") {
         if entries.isEmpty && !loading {
@@ -297,6 +371,13 @@ struct HostMemoryCatalogView: View {
   }
 
   private func load() async {
+    let api: RemoteAPIClient?
+    if let resolvedAPI {
+      api = resolvedAPI
+    } else {
+      api = await loadClient()
+      resolvedAPI = api
+    }
     guard let api else { return }
     loading = true
     defer { loading = false }

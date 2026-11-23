@@ -77,13 +77,17 @@ struct ProjectEditView: View {
           .accessibilityIdentifier("native-e2e.settings.project-mcp")
 
           NavigationLink {
-            HostMemoryCatalogView(api: nil, projectId: currentProject.id)
+            HostMemoryCatalogView(projectId: currentProject.id) {
+              await session.currentBoundAPIClient()
+            }
           } label: {
             Label("Memory", systemImage: "brain")
           }
 
           NavigationLink {
-            HostPluginsManagementView(api: nil, projectId: currentProject.id)
+            HostPluginsManagementView(projectId: currentProject.id) {
+              await session.currentBoundAPIClient()
+            }
           } label: {
             Label("Plugins", systemImage: "puzzlepiece.extension")
           }
