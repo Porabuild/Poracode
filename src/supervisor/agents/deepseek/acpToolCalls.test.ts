@@ -40,6 +40,116 @@ describe("DeepSeek Harness ACP tool-call presentation", () => {
     });
   });
 
+  it("maps code-mode run_code and workflow calls as tool_call rows without misclassifying descriptions", () => {
+    expect(
+      started({
+        sessionUpdate: "tool_call",
+        toolCallId: "ptc-call",
+        title: "run_code",
+        kind: "other",
+        status: "in_progress",
+        rawInput: { code: "return 1;", description: "Analyze workspace files" },
+      }),
+    ).toMatchObject({
+      itemType: "tool_call",
+      payload: {
+        name: "Code execution: Analyze workspace files",
+        kind: "other",
+        args: { code: "return 1;", description: "Analyze workspace files" },
+      },
+    });
+
+    expect(
+      started({
+        sessionUpdate: "tool_call",
+        toolCallId: "ptc-bare",
+        title: "run_code",
+        kind: "other",
+        status: "in_progress",
+        rawInput: { code: "return 1;" },
+      }),
+    ).toMatchObject({
+      itemType: "tool_call",
+      payload: { name: "Code execution", kind: "other", args: { code: "return 1;" } },
+    });
+
+    expect(
+      started({
+        sessionUpdate: "tool_call",
+        toolCallId: "ptc-keyword",
+        title: "run_code",
+        kind: "other",
+        status: "in_progress",
+        rawInput: { code: "return 1;", description: "Create and edit migration files" },
+      }),
+    ).toMatchObject({
+      itemType: "tool_call",
+      payload: { name: "Code execution", kind: "other" },
+    });
+
+    expect(
+      started({
+        sessionUpdate: "tool_call",
+        toolCallId: "wf-meta",
+        title: "workflow",
+        kind: "other",
+        status: "in_progress",
+        rawInput: {
+          script: "return [];",
+          meta: { name: "audit", description: "Batch audit" },
+        },
+      }),
+    ).toMatchObject({
+      itemType: "tool_call",
+      payload: { name: "Workflow: Batch audit", kind: "other" },
+    });
+
+    expect(
+      started({
+        sessionUpdate: "tool_call",
+        toolCallId: "wf-meta-keyword",
+        title: "workflow",
+        kind: "other",
+        status: "in_progress",
+        rawInput: {
+          script: "return [];",
+          meta: { name: "audit", description: "Create and delete stale caches" },
+        },
+      }),
+    ).toMatchObject({
+      itemType: "tool_call",
+      payload: { name: "Workflow", kind: "other" },
+    });
+
+    expect(
+      started({
+        sessionUpdate: "tool_call",
+        toolCallId: "wf-legacy",
+        title: "run_workflow",
+        kind: "other",
+        status: "in_progress",
+        rawInput: { name: "ralph" },
+      }),
+    ).toMatchObject({
+      itemType: "tool_call",
+      payload: { name: "Workflow: ralph", kind: "other" },
+    });
+
+    expect(
+      started({
+        sessionUpdate: "tool_call",
+        toolCallId: "wf-bare",
+        title: "workflow",
+        kind: "other",
+        status: "in_progress",
+        rawInput: {},
+      }),
+    ).toMatchObject({
+      itemType: "tool_call",
+      payload: { name: "Workflow", kind: "other" },
+    });
+  });
+
   it("settles the command row through its completion update", () => {
     const state = createAcpMapperState("deepseek-thread");
     mapAcpSessionUpdate(

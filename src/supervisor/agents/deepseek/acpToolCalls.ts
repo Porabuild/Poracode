@@ -93,6 +93,21 @@ function presentDeepSeekTool(
           : {}),
       };
     }
+    case "run_code": {
+      const description = readString(args, "description");
+      return {
+        title: safeToolCallTitle("Code execution", description),
+      };
+    }
+    case "workflow":
+    case "run_workflow": {
+      const meta = readRecord(args?.meta);
+      const description =
+        readString(meta, "description", "name") ?? readString(args, "description", "name");
+      return {
+        title: safeToolCallTitle("Workflow", description),
+      };
+    }
     case "read": {
       const path = readString(args, "file_path");
       return withFile("read", "Read", path, readLine(args));
@@ -293,6 +308,20 @@ function readSearchTitle(args: ToolInput | undefined, fallback: string): string 
 function withArg(prefix: string, args: ToolInput | undefined, key: string): string {
   const value = readString(args, key);
   return value ? `${prefix} ${value}` : prefix;
+}
+
+/**
+ * Formats a `tool_call` title with a model-authored detail only when the detail
+ * will not trip `classifyToolCallItemType`'s keyword regexes on `kind: "other"`
+ * rows (which would otherwise misclassify the call as `file_change`,
+ * `command_execution`, or `web_search`).
+ */
+const TOOL_CALL_CLASSIFIER_KEYWORDS =
+  /\b(edit|write|create|delete|patch|move|rename|apply[_-]?patch|web[_ ]search|search(?:ing)? the web|internet search|search online)\b/i;
+
+function safeToolCallTitle(prefix: string, detail: string | undefined): string {
+  if (!detail || TOOL_CALL_CLASSIFIER_KEYWORDS.test(detail)) return prefix;
+  return `${prefix}: ${detail}`;
 }
 
 function readQueries(args: ToolInput | undefined): string | undefined {

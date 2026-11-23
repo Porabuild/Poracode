@@ -1615,6 +1615,7 @@ msgstr "采用旧版连接"
 msgid "Advanced"
 msgstr "高级"
 
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
 #: src/renderer/components/providers/devin/profileSettings.tsx
 #: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
 msgid "Advanced settings"
@@ -1930,6 +1931,10 @@ msgstr "允许替换存在冲突的托管技能"
 msgid "Allow the browser to show notifications while the app is in the background."
 msgstr "允许浏览器在应用处于后台时显示通知。"
 
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
+msgid "Allow the main agent to interrupt running sub-agents with interrupt_agent."
+msgstr "允许主智能体通过 interrupt_agent 中断正在运行的子智能体。"
+
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Already configured"
 msgstr "已配置"
@@ -2095,6 +2100,10 @@ msgstr "外观模式"
 #: src/renderer/components/common/ProviderModelMenu/ModelConfigurationPanel.tsx
 msgid "Applies to both models"
 msgstr "适用于两个模型"
+
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
+msgid "Apply patch tool"
+msgstr "apply_patch 工具"
 
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Apply provider preset"
@@ -2426,10 +2435,15 @@ msgstr "自动选择"
 msgid "Auto-show terminal panel"
 msgstr "自动显示终端面板"
 
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 #: src/renderer/views/SettingsOverlay/parts/CustomThemeColorField.tsx
 msgid "Automatic"
 msgstr "自动"
+
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
+msgid "Automatic uses DeepSeek server-side search on DeepSeek models and DeepSeek Search API on other models."
+msgstr "自动模式在 DeepSeek 模型上使用 DeepSeek 服务端搜索，在其他模型上使用 DeepSeek Search API。"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
@@ -2645,6 +2659,10 @@ msgstr "此处无法编辑二进制文件。"
 #: src/renderer/components/crew/crewTemplates.ts
 msgid "Blank crew"
 msgstr "空白团队"
+
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
+msgid "Block edits or overwrites on files the session has not read yet, and reject stale edits after external changes."
+msgstr "阻止编辑或覆盖会话尚未读取的文件，并在文件被外部修改后拒绝过期编辑。"
 
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
 msgid "Blocked by the browser. Allow notifications for this site in the browser settings to get alerts while the app is in the background."
@@ -3122,6 +3140,10 @@ msgstr "无法创建没有分支名称的默认工作树路径"
 msgid "Cannot switch branches — commit or stash your changes first"
 msgstr "无法切换分支 - 首先提交或存储您的更改"
 
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
+msgid "Capabilities"
+msgstr "能力"
+
 #: src/renderer/components/devices/DeviceWorkspace.tsx
 msgid "Capture and view controls"
 msgstr "捕获与视图控制"
@@ -3531,6 +3553,10 @@ msgstr "为{label}选择颜色"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserImportModal.tsx
 msgid "Choose data to bring over to the built-in browser."
 msgstr "选择要导入内置浏览器的数据。"
+
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
+msgid "Choose direct HTTP fetching from this machine or DeepSeek Fetch API."
+msgstr "选择从本机直接进行 HTTP 抓取或使用 DeepSeek Fetch API。"
 
 #: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -4046,6 +4072,14 @@ msgstr "Cmd+Enter"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 msgid "Code copied. "
 msgstr "代码已复制。"
+
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
+msgid "Code mode (PTC)"
+msgstr "代码模式（PTC）"
+
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
+msgid "Code mode, optional Harness tools, web providers, execution limits, and session log sharing. Applies to new or restarted threads."
+msgstr "代码模式、可选 Harness 工具、网页提供方、执行限制和会话日志共享。适用于新建或重启的线程。"
 
 #: src/renderer/components/providers/codex/manifest.ts
 msgid "Codex"
@@ -5316,6 +5350,10 @@ msgstr "作者的 X"
 msgid "Credential missing"
 msgstr "缺少凭据"
 
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
+msgid "Credential used when calling DeepSeek Search API or Fetch API."
+msgstr "调用 DeepSeek Search API 或 Fetch API 时使用的凭据。"
+
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Credentials are configured."
 msgstr "凭证已配置。"
@@ -5733,6 +5771,18 @@ msgstr "拒绝"
 msgid "DeepSeek"
 msgstr "DeepSeek"
 
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
+msgid "DeepSeek account"
+msgstr "DeepSeek 账号"
+
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
+msgid "DeepSeek API key"
+msgstr "DeepSeek API 密钥"
+
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
+msgid "DeepSeek Fetch API"
+msgstr "DeepSeek Fetch API"
+
 #: src/renderer/components/providers/deepseek/manifest.ts
 msgid "DeepSeek Harness"
 msgstr "DeepSeek Harness"
@@ -5740,6 +5790,18 @@ msgstr "DeepSeek Harness"
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
 msgid "DeepSeek Harness chat with persistent sessions, reasoning controls, and MCP tools. Configure credentials with dsh web."
 msgstr "DeepSeek Harness 聊天，支持持久会话、推理设置和 MCP 工具。使用 dsh web 配置凭据。"
+
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
+msgid "DeepSeek Search API"
+msgstr "DeepSeek Search API"
+
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
+msgid "DeepSeek server-side search"
+msgstr "DeepSeek 服务端搜索"
+
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
+msgid "DeepSeek Web API billing"
+msgstr "DeepSeek Web API 计费"
 
 #: src/renderer/components/devices/DeviceTools.tsx
 #: src/renderer/components/providers/deepseek/index.tsx
@@ -5789,6 +5851,10 @@ msgstr "默认 PR 自动化"
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
 msgid "Default thread removal"
 msgstr "默认线程删除"
+
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
+msgid "Default timeout for shell commands (5–600 seconds, Harness default 60)."
+msgstr "Shell 命令的默认超时时间（5–600 秒，Harness 默认 60 秒）。"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectWorktreeBaseBranch.tsx
 msgid "Default worktree base"
@@ -6242,6 +6308,10 @@ msgstr "锁屏电脑操作期间调暗显示器"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
 msgid "Dimensions:"
 msgstr "尺寸："
+
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
+msgid "Direct fetch (default)"
+msgstr "直接抓取（默认）"
 
 #. placeholder {0}: server.name
 #. placeholder {0}: skill.name
@@ -6903,6 +6973,10 @@ msgstr "启用 {tool}"
 msgid "Enable automation again"
 msgstr "重新启用自动化"
 
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
+msgid "Enable experimental tools for searching and tracing prior Harness sessions in the same workspace."
+msgstr "启用实验性工具，用于搜索和追踪同一工作区中的历史 Harness 会话。"
+
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Enable language server support for type checking, completions, and diagnostics. Requires a language server installed."
@@ -6933,6 +7007,14 @@ msgstr "启用项目"
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/UsagePanel.tsx
 msgid "Enable providers in settings"
 msgstr "在设置中启用提供商"
+
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
+msgid "Enable skill-activated LibreOffice tools for rendering, converting, and recalculating documents."
+msgstr "启用按技能激活的 LibreOffice 工具，用于渲染、转换和重算文档。"
+
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
+msgid "Enable the experimental ralph tool for multi-round fresh-agent iteration."
+msgstr "启用实验性 ralph 工具，用于多轮全新智能体迭代。"
 
 #: src/renderer/components/plugins/PluginDetail.tsx
 msgid "Enable this plugin's skills and servers for new threads."
@@ -7055,6 +7137,10 @@ msgstr "请输入有效的计划"
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/StructuredElicitationField.tsx
 msgid "Enter a valid value."
 msgstr "请输入有效值。"
+
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
+msgid "Enter a whole number from {min} to {max}."
+msgstr "请输入 {min} 到 {max} 之间的整数。"
 
 #: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
 msgid "Enter a whole number from 1 to {CODEX_MAX_SUBAGENTS_LIMIT}."
@@ -7228,6 +7314,10 @@ msgstr "排除模式"
 #: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
 msgid "Execution"
 msgstr "执行"
+
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
+msgid "Execution limits"
+msgstr "执行限制"
 
 #: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
 msgid "Execution mode"
@@ -7457,6 +7547,10 @@ msgstr "导出 MCP 服务器（不含密钥）"
 #: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
 msgid "Export theme"
 msgstr "导出主题"
+
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
+msgid "Expose the apply_patch file-editing tool alongside edit."
+msgstr "在 edit 之外同时提供 apply_patch 文件编辑工具。"
 
 #: src/renderer/components/newsLine/featureCatalog.ts
 msgid "Extend Poracode with plugins"
@@ -9117,6 +9211,10 @@ msgstr "加入同步"
 msgid "Include memory when a thread starts."
 msgstr "会话开始时带上记忆。"
 
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
+msgid "Include session logs with official DeepSeek API requests. Enabled by default in DeepSeek Harness."
+msgstr "在官方 DeepSeek API 请求中附带会话日志。DeepSeek Harness 默认启用。"
+
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Include your streaks, prompt counts, and usage limits in the news line."
@@ -10597,9 +10695,18 @@ msgstr "最大活跃终端 shell 数"
 msgid "Max active terminal shells, 0 for unlimited"
 msgstr "最大活跃终端 shell 数，0 表示不限制"
 
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
 #: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
 msgid "Max concurrent sub-agents"
 msgstr "最大并发子代理数"
+
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
+msgid "Max parallel tool calls"
+msgstr "最大并行工具调用数"
+
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
+msgid "Max sub-agent depth"
+msgstr "最大子智能体深度"
 
 #: src/renderer/components/layout/UnifiedRightPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
@@ -10619,9 +10726,21 @@ msgstr "最大尝试次数"
 msgid "Maximum characters: {0}"
 msgstr "最多字符数：{0}"
 
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
+msgid "Maximum concurrent read-safe tool calls per step (1–64, Harness default 10)."
+msgstr "每步允许的最大并发只读安全工具调用数（1–64，Harness 默认 10）。"
+
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
+msgid "Maximum delegation nesting depth (0–16, Harness default 1)."
+msgstr "最大委派嵌套深度（0–16，Harness 默认 1）。"
+
 #: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
 msgid "Maximum iterations"
 msgstr "最大迭代次数"
+
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
+msgid "Maximum live sub-agents per session (1–64, Harness default 8)."
+msgstr "每个会话允许的最大并发子智能体数（1–64，Harness 默认 8）。"
 
 #: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
 msgid "Maximum retry delay"
@@ -12384,6 +12503,10 @@ msgstr "npx"
 msgid "Number copied"
 msgstr "编号已复制"
 
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
+msgid "Number of DeepSeek Search API results per query (1–50, default 10)."
+msgstr "每次 DeepSeek Search API 查询返回的结果数量（1–50，默认 10）。"
+
 #: src/renderer/components/thread/ThreadAgentVisionDock.tsx
 msgid "Observe"
 msgstr "观察"
@@ -12403,6 +12526,10 @@ msgstr "关闭"
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Off"
 msgstr "关闭"
+
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
+msgid "Office document tools"
+msgstr "Office 文档工具"
 
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "Official"
@@ -13988,6 +14115,10 @@ msgstr "价格来源"
 msgid "Print"
 msgstr "打印"
 
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
+msgid "Privacy"
+msgstr "隐私"
+
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 msgid "Privacy Policy"
 msgstr "隐私政策"
@@ -14479,6 +14610,10 @@ msgstr "Qwen Code"
 #: src/renderer/components/providers/settings/ClaudeProfileSettingsModel.ts
 msgid "Qwen Token Plan"
 msgstr "Qwen Token 套餐"
+
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
+msgid "Ralph autonomous loop"
+msgstr "Ralph 自主循环"
 
 #: src/renderer/components/providers/usageFormat.ts
 msgid "Ran out"
@@ -15314,6 +15449,10 @@ msgstr "要求更改"
 msgid "Requested changes"
 msgstr "已请求更改"
 
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
+msgid "Require read before edit"
+msgstr "编辑前要求先读取"
+
 #: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
 msgid "Required confidence before stopping."
 msgstr "停止前所需的置信度。"
@@ -15330,12 +15469,14 @@ msgstr "重新发送上一条消息"
 msgid "reset"
 msgstr "重置"
 
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
 #: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
 #: src/renderer/components/providers/settings/ProviderContextWindowSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
 msgid "Reset"
 msgstr "重置"
 
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
 #: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
 msgid "Reset advanced settings"
 msgstr "重置高级设置"
@@ -15509,6 +15650,10 @@ msgstr "正在 {targetLabel} 上恢复…"
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Results"
 msgstr "结果"
+
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
+msgid "Results per search"
+msgstr "每次搜索结果数"
 
 #: src/renderer/views/SchedulesView/parts/ScheduleRow.tsx
 msgid "Resume"
@@ -16039,6 +16184,10 @@ msgstr "运行最近一次错过的运行"
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Run this schedule automatically on the schedule below."
 msgstr "按照下方的计划自动运行此计划。"
+
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
+msgid "Run tools through sandboxed TypeScript programs (run_code) instead of direct tool calls. Reduces intermediate context usage."
+msgstr "通过沙盒化的 TypeScript 程序（run_code）调用工具而非直接工具调用，可减少中间上下文占用。"
 
 #: src/renderer/views/GitHubActionsView/GitHubActionsDispatchPopover.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsMobileWorkflowList.tsx
@@ -16887,6 +17036,10 @@ msgstr "会话操作"
 msgid "Session actions are unavailable for this thread."
 msgstr "此线程的会话操作不可用。"
 
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
+msgid "Session history search"
+msgstr "会话历史搜索"
+
 #: src/renderer/components/thread/ThreadDetailsDocks.tsx
 msgid "Session ID"
 msgstr "会话 ID"
@@ -17020,6 +17173,10 @@ msgstr "共享另一个配置文件的独立登录。请在该配置文件的页
 #: src/renderer/components/providers/devin/profileSettings.tsx
 msgid "Shares missing owner {0}"
 msgstr "共享的所有者 {0} 已丢失"
+
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
+msgid "Shell command timeout (seconds)"
+msgstr "Shell 命令超时（秒）"
 
 #: src/renderer/components/crew/crewTemplates.ts
 msgid "Ship crew"
@@ -18103,6 +18260,10 @@ msgstr "结构化运行时"
 #: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
 msgid "Sub-agent and planning defaults. They override config.toml and apply when a Codex session starts; running sessions keep their current values."
 msgstr "子代理和规划的默认值。它们会覆盖 config.toml，并在 Codex 会话启动时生效；运行中的会话保持当前值。"
+
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
+msgid "Sub-agent interruption"
+msgstr "子智能体中断"
 
 #: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
 msgid "Sub-agent model"
@@ -21136,6 +21297,10 @@ msgstr "升级环境所有者"
 msgid "Upgrade owner"
 msgstr "升级所有者"
 
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
+msgid "Upload session log"
+msgstr "上传会话日志"
+
 #. placeholder {0}: progress.upload
 #: src/renderer/components/common/FeedbackDialog.tsx
 msgid "Uploading attachment {0}…"
@@ -21733,10 +21898,22 @@ msgstr "警告"
 msgid "We have a winner!"
 msgstr "优胜者诞生了！"
 
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
+msgid "Web fetch provider"
+msgstr "网页抓取提供方"
+
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 #: src/renderer/components/thread/ChatPane/parts/items/webSearchDisplay.ts
 msgid "Web search"
 msgstr "网页搜索"
+
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
+msgid "Web search & fetch"
+msgstr "网页搜索与抓取"
+
+#: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
+msgid "Web search provider"
+msgstr "网页搜索提供方"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 msgid "Web server"
