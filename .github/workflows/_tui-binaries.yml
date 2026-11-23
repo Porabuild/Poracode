@@ -32,9 +32,31 @@ jobs:
         with:
           registry-cache: bun
       - name: Install JavaScript dependencies
-        run: bun install --frozen-lockfile --ignore-scripts && node node_modules/bun/install.js
+        run: |
+          for attempt in 1 2 3; do
+            if bun install --frozen-lockfile --ignore-scripts && node node_modules/bun/install.js; then
+              exit 0
+            fi
+            if [ "$attempt" -eq 3 ]; then
+              echo "::error::Dependency installation failed after $attempt attempts."
+              exit 1
+            fi
+            echo "::warning::Dependency installation attempt $attempt failed; retrying."
+            sleep $((attempt * 10))
+          done
       - name: Install TUI workspace dependencies
-        run: bun run tui:install
+        run: |
+          for attempt in 1 2 3; do
+            if bun run tui:install; then
+              exit 0
+            fi
+            if [ "$attempt" -eq 3 ]; then
+              echo "::error::TUI workspace dependency installation failed after $attempt attempts."
+              exit 1
+            fi
+            echo "::warning::TUI workspace dependency installation attempt $attempt failed; retrying."
+            sleep $((attempt * 10))
+          done
       # --require fails the job when any target fails to compile, so the
       # manifest — the sha256/size trust root staged inside the server tarball
       # and desktop CLI resources — always lists all six binaries.

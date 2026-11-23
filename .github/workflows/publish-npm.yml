@@ -112,7 +112,7 @@ jobs:
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           path: ${{ runner.temp }}/release-assets
-          pattern: poracode-server-artifact-qualified-*
+          pattern: poracode-server-artifact-qualified*
           merge-multiple: true
           run-id: ${{ inputs.source_run_id }}
           github-token: ${{ github.token }}
