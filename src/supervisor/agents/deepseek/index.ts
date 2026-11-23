@@ -89,18 +89,18 @@ export function createDeepSeekAdapter(): AgentAdapter {
     async createStructuredSession(input) {
       await prepareAgentLocationEnvironment(input.projectLocation);
       const location = input.projectLocation;
-      // Native threads share one refcounted policy directory so pooled `dsh`
-      // processes launch with an identical `--patch` path; each session still
-      // gets its own `session-<id>.json`. WSL keeps a dedicated directory per
-      // thread because its launch already stays off the shared pool.
+      // Native threads with matching settings share one refcounted policy
+      // directory so pooled `dsh` processes launch with an identical `--patch`
+      // path; each session still gets its own `session-<id>.json`. WSL keeps a
+      // dedicated directory per thread because its launch stays off the pool.
       const files: { directory: string; patchPath: string; release(): Awaitable<void> } =
         location.kind === "wsl"
-          ? await stageDeepSeekPolicyFiles(location).then((staged) => ({
+          ? await stageDeepSeekPolicyFiles(location, input.agentSettings).then((staged) => ({
               directory: staged.directory,
               patchPath: staged.patchPath,
               release: staged.cleanup,
             }))
-          : await policyHome.acquire(location);
+          : await policyHome.acquire(location, input.agentSettings);
       try {
         const command = buildDeepSeekCommand(
           location,
