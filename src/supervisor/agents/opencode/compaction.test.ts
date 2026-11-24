@@ -18,7 +18,8 @@ describe("OpenCode compaction", () => {
     );
     expect(opened[0]).toMatchObject({
       type: "item.started",
-      payload: { name: "compact", status: "running" },
+      itemType: "tool_call",
+      payload: { name: "ContextCompaction", status: "running", args: { trigger: "manual" } },
     });
     const closed = mapOpenCodeEvent(
       event(`session.compaction.${outcome}`, {
@@ -29,10 +30,31 @@ describe("OpenCode compaction", () => {
       }),
       state,
     );
+    // The compacted row cannot show a failure, so one that did not finish
+    // keeps a name the shared pane does not treat as a completed compaction.
     expect(closed[0]).toMatchObject({
       type: "item.completed",
-      payload: { name: "compact", status: outcome === "ended" ? "success" : "error" },
+      itemId: (opened[0] as { itemId: string }).itemId,
+      payload:
+        outcome === "ended"
+          ? {
+              name: "ContextCompaction",
+              status: "success",
+              args: { trigger: "manual" },
+              result: "summary",
+            }
+          : { name: "Compaction failed", status: "error", result: "failed" },
     });
     expect(closeOpenCodeItems(state)).toEqual([]);
+  });
+
+  it("closes an unfinished compaction as a failed row", () => {
+    const state = createOpenCodeMapperState("t");
+    setOpenCodeSessionId(state, "s");
+    mapOpenCodeEvent(event("session.compaction.started", { reason: "auto" }), state);
+    expect(closeOpenCodeItems(state)[0]).toMatchObject({
+      type: "item.completed",
+      payload: { name: "Compaction failed", status: "error" },
+    });
   });
 });

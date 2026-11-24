@@ -1,5 +1,6 @@
 import type { RuntimeEvent } from "@/shared/contracts";
 import type { V2Event } from "./clientTypes";
+import { SKILL_ROW_NAME } from "./toolPayload";
 
 /** Native session operations outside assistant steps still belong in the transcript. */
 export class OpenCodeOperations {
@@ -17,7 +18,7 @@ export class OpenCodeOperations {
           itemId,
           itemType: "tool_call",
           payload: {
-            name: "Skill",
+            name: SKILL_ROW_NAME,
             args: { skill: event.data.name },
             status: "success",
             result: event.data.text,

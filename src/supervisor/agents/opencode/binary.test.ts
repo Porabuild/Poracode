@@ -82,8 +82,8 @@ describe("OpenCode executable migration", () => {
   });
 });
 
-it("accepts published 2.0.26 and rejects older protocols", () => {
-  expect(parseOpenCodeVersion("opencode v2.0.26\n")).toBe("2.0.26");
+it("accepts published 2.4.1 and rejects older protocols", () => {
+  expect(parseOpenCodeVersion("opencode v2.4.1\n")).toBe("2.4.1");
   expect(parseOpenCodeVersion("opencode v0.0.0-beta-19500\n")).toBe("0.0.0-beta-19500");
   expect(parseOpenCodeVersion("opencode v1.18.30\n")).toBeUndefined();
   expect(() => requireOpenCodeVersion("0.0.0-beta-19425")).toThrow(
@@ -93,7 +93,10 @@ it("accepts published 2.0.26 and rejects older protocols", () => {
     "Update it in provider settings",
   );
   expect(() => requireOpenCodeVersion("2.0.25")).toThrow("Update it in provider settings");
-  expect(() => requireOpenCodeVersion("2.1.0")).not.toThrow();
-  expect(() => requireOpenCodeVersion("2.0.26")).not.toThrow();
+  // The previous pin predates the deprecated MCP aliases this adapter no longer calls.
+  expect(() => requireOpenCodeVersion("2.0.26")).toThrow("Update it in provider settings");
+  expect(() => requireOpenCodeVersion("2.4.0")).toThrow("Update it in provider settings");
+  expect(() => requireOpenCodeVersion("2.4.1")).not.toThrow();
+  expect(() => requireOpenCodeVersion("2.5.0")).not.toThrow();
   expect(() => requireOpenCodeVersion("1.18.30")).toThrow("Update it in provider settings");
 });

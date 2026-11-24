@@ -28,7 +28,7 @@ if [ "$1" = install ]; then
 else
   [ "$FAILURE" != postinstall ] || exit 18
   if [ "$FAILURE" = version ]; then exit 0; fi
-  printf '#!/bin/sh\\necho "opencode v2.0.27"\\n' > "$HOME/.opencode2/node_modules/@opencode/cli/bin/opencode.exe"
+  printf '#!/bin/sh\\necho "opencode v2.4.1"\\n' > "$HOME/.opencode2/node_modules/@opencode/cli/bin/opencode.exe"
 fi
 chmod +x "$HOME/.opencode2/node_modules/@opencode/cli/bin/opencode.exe"
 `,
@@ -47,9 +47,9 @@ describe.skipIf(process.platform === "win32")("OpenCode managed installation", (
   it("finishes a lifecycle-blocked install and verifies the managed executable", () => {
     const { result, commands } = runInstaller();
     expect(result.status).toBe(0);
-    expect(result.stdout).toContain("opencode v2.0.27");
+    expect(result.stdout).toContain("opencode v2.4.1");
     expect(commands).toContain("install --ignore-scripts --include=optional --prefix");
-    expect(commands).toContain("@opencode/cli@^2.0.26");
+    expect(commands).toContain("@opencode/cli@^2.4.1");
     expect(commands.trim().split("\n")).toHaveLength(2);
     expect(commands).toContain("run postinstall");
   });

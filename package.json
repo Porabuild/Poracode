@@ -145,7 +145,7 @@
     "@modelcontextprotocol/server": "2.4.0",
     "@monaco-editor/react": "^4.7.0",
     "@number-flow/react": "^0.6.2",
-    "@opencode/client": "2.0.26",
+    "@opencode/client": "2.4.1",
     "@poracode/agents-usage": "workspace:*",
     "@poracode/codex-protocol": "workspace:*",
     "@sentry/electron": "8.4.0",

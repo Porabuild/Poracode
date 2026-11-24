@@ -13,6 +13,7 @@ import { isChatVideoSource } from "@/shared/chatVideo";
 import { isUserAttachmentImageReadPayload } from "@/shared/inlineImagePayload";
 import { readNonNegativeInteger } from "../contextUsage";
 import { readDiffSummary } from "../fileChangeSummary";
+import { GOAL_TOOL_TITLES } from "./goals";
 import { readOpenCodeNumber, readOpenCodeRecord, readOpenCodeString } from "./readers";
 
 export interface OpenCodeToolItemState {
@@ -41,6 +42,8 @@ export interface OpenCodeToolItemState {
   background?: boolean;
   /** Lifecycle of the subagent a launch row tracks, once its run ended. */
   subAgentStatus?: SubAgentStatus;
+  /** Tool paths a Code Mode script invoked, from the finished call; call order, no repeats. */
+  scriptCalls?: string[];
 }
 
 export function createOpenCodeToolItem(itemId: string, toolName: string): OpenCodeToolItemState {
@@ -77,7 +80,7 @@ function classifyOpenCodeToolItemType(toolName: string): CanonicalItemType {
 /** Canonical payload for a tool row; mirrors OpenCode 1's `toolPayload`. */
 export function openCodeToolPayload(tool: OpenCodeToolItemState): Record<string, unknown> {
   const input = tool.input;
-  const title = openCodeToolTitle(tool.name, input);
+  const title = openCodeToolTitle(tool);
   const kind = openCodeToolKind(tool.name);
   const locations = openCodeToolLocations(tool.name, input);
   const suppressUserAttachmentImages = isUserAttachmentImageReadPayload({
@@ -104,6 +107,15 @@ export function openCodeToolPayload(tool: OpenCodeToolItemState): Record<string,
     ...(tool.errorMessage ? { errorMessage: tool.errorMessage } : {}),
     ...(Object.keys(tool.progress).length > 0 ? { progress: tool.progress } : {}),
   };
+  if (isSkillLoad(tool.name)) {
+    // The canonical skill row is what the shared pane renders as "Skill: <name>".
+    const skill = readOpenCodeString(input, "id", "name");
+    return {
+      ...base,
+      name: SKILL_ROW_NAME,
+      ...(skill ? { title: `${SKILL_ROW_NAME}: ${skill}`, args: { skill, ...(input ?? {}) } } : {}),
+    };
+  }
   if (tool.itemType === "command_execution") {
     const command = readOpenCodeString(input, "command", "cmd") ?? "";
     const cwd = readOpenCodeString(input, "cwd");
@@ -204,6 +216,23 @@ export function applyOpenCodeToolMetadata(
 ): void {
   const progress = readOpenCodeToolProgress(metadata);
   if (progress) tool.progress = { ...tool.progress, ...progress };
+  const scriptCalls = readOpenCodeScriptCalls(metadata);
+  if (scriptCalls) tool.scriptCalls = scriptCalls;
+}
+
+/**
+ * Tool paths a Code Mode `execute` call invoked (`metadata.toolCalls`), in
+ * call order without repeats. Undefined until the server reports a call.
+ */
+export function readOpenCodeScriptCalls(metadata: unknown): string[] | undefined {
+  const calls = readOpenCodeRecord(metadata)?.toolCalls;
+  if (!Array.isArray(calls)) return undefined;
+  const names: string[] = [];
+  for (const call of calls) {
+    const name = readOpenCodeString(readOpenCodeRecord(call), "tool", "name");
+    if (name && !names.includes(name)) names.push(name);
+  }
+  return names.length > 0 ? names : undefined;
 }
 
 /**
@@ -256,8 +285,36 @@ function openCodeToolKind(
   }
 }
 
-function openCodeToolTitle(toolName: string, input: Record<string, unknown> | undefined): string {
-  switch (toolName.trim().toLowerCase()) {
+/** Tool paths listed in a Code Mode row's title before the rest fold into "+N". */
+const SCRIPT_CALLS_SHOWN = 3;
+
+/**
+ * Wire names that are identifiers rather than labels, and the title their row
+ * carries instead. The other titles depend on the call's input.
+ */
+const TOOL_TITLES: Readonly<Record<string, string>> = {
+  // The row stays visible: this adapter emits no `question_answer` row, so
+  // the tool row's arguments and result are the only record of the exchange.
+  question: "Question",
+  todowrite: "Update todo list",
+  generate_image: "Generate image",
+  image_generate: "Generate image",
+  experimental_image_generate: "Generate image",
+  generate_video: "Generate video",
+  ...GOAL_TOOL_TITLES,
+};
+
+/** Row name of the canonical skill load; the shared pane renders `args.skill`. */
+export const SKILL_ROW_NAME = "Skill";
+
+function isSkillLoad(toolName: string): boolean {
+  return toolName.trim().toLowerCase() === "skill";
+}
+
+function openCodeToolTitle(tool: OpenCodeToolItemState): string {
+  const name = tool.name.trim().toLowerCase();
+  const input = tool.input;
+  switch (name) {
     case "read":
     case "view":
       return readOpenCodeString(input, "filePath", "file_path", "path") ?? "Read";
@@ -271,8 +328,19 @@ function openCodeToolTitle(toolName: string, input: Record<string, unknown> | un
     case "task":
     case "subagent":
       return readOpenCodeString(input, "description", "prompt") ?? "Agent";
+    case "execute": {
+      // The script's own calls are what a collapsed row can usefully say:
+      // its arguments are code, and MCP calls inside it are otherwise invisible.
+      const calls = tool.scriptCalls;
+      if (!calls) return "Execute";
+      const shown = calls.slice(0, SCRIPT_CALLS_SHOWN).join(", ");
+      const rest = calls.length - SCRIPT_CALLS_SHOWN;
+      return `Execute: ${shown}${rest > 0 ? ` +${rest}` : ""}`;
+    }
     default:
-      return toolName;
+      // A plain property read would answer with `Object.prototype` members
+      // for a tool named `constructor` or `__proto__`.
+      return Object.hasOwn(TOOL_TITLES, name) ? TOOL_TITLES[name]! : tool.name;
   }
 }
 

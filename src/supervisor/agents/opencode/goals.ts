@@ -20,6 +20,29 @@ const statuses = {
 type GoalSource = "plugin" | "native";
 
 /**
+ * The goal plugin's tools. Their wire names are identifiers, so this table
+ * titles their transcript rows and doubles as the list of tools whose result
+ * may carry the session's goal.
+ */
+export const GOAL_TOOL_TITLES: Readonly<Record<string, string>> = {
+  get_goal: "Get goal",
+  create_goal: "Create goal",
+  set_goal: "Set goal",
+  update_goal: "Update goal",
+  update_goal_plan: "Update goal plan",
+  update_goal_status: "Update goal status",
+  update_goal_objective: "Update goal objective",
+  stop_goal: "Stop goal",
+  replace_goal: "Replace goal",
+  clear_goal: "Clear goal",
+  list_all_goals: "List goals",
+  get_goal_history: "Get goal history",
+};
+
+/** Their results are listings rather than the session's goal, so never parse them as one. */
+const GOAL_LISTING_TOOLS: ReadonlySet<string> = new Set(["list_all_goals", "get_goal_history"]);
+
+/**
  * Goal owners keep persistence; Poracode only projects their snapshots. Two
  * owners exist: the prevalentWare goal plugin (state file + tools) and
  * OpenCode 2.2.1+'s built-in `/goal` (RPC `opencode.goal` + change events).
@@ -158,12 +181,7 @@ export class OpenCodeGoals {
   }
 
   toolResult(name: string, result: unknown, sessionID: string): RuntimeEvent[] {
-    if (
-      !/^(get_goal|create_goal|set_goal|update_goal|update_goal_plan|update_goal_status|update_goal_objective|stop_goal|replace_goal|clear_goal)$/.test(
-        name,
-      )
-    )
-      return [];
+    if (!Object.hasOwn(GOAL_TOOL_TITLES, name) || GOAL_LISTING_TOOLS.has(name)) return [];
     const record = typeof result === "string" ? parseOpenCodeJsonRecord(result) : undefined;
     return this.map(record?.goal, sessionID);
   }

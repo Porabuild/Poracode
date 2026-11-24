@@ -8,7 +8,7 @@ import { readAgentCommandOutput, resolveExecutablePathAsync } from "../base";
 import { resolveAgentBinaryPath } from "../binaryResolver";
 
 /** HTTP contract used by the pinned client, including session forms and MCP configuration. */
-export const OPENCODE_MIN_VERSION = "2.0.26";
+export const OPENCODE_MIN_VERSION = "2.4.1";
 
 const OPENCODE_LEGACY_STUB = /opencode2\.(?:cjs|cmd|ps1)$/;
 
