@@ -12,6 +12,7 @@ import {
 import type { AcpExternalSessionUpdateSource, AcpStructuredSession } from "../acp/session";
 import {
   PORACODE_ACP_DETACHED_SUBAGENT_META_KEY,
+  PORACODE_ACP_SUBAGENT_PROGRESS_META_KEY,
   PORACODE_ACP_SUBAGENT_STATUS_META_KEY,
   PORACODE_ACP_TOP_LEVEL_TOOL_CALL_META_KEY,
 } from "../acp/canonicalMapping/subagents";
@@ -19,6 +20,7 @@ import {
   factoryBackgroundTaskSessionId,
   factoryRecord,
   factoryString,
+  isFactoryBackgroundTaskStatus,
   isFactoryTaskTool,
   mapFactoryTranscriptRecord,
 } from "./subagentTranscriptMapping";
@@ -28,6 +30,7 @@ interface FactoryTaskInvocation {
   parentToolUseId: string;
   childSessionId: string;
   status?: string;
+  runInBackground: boolean;
 }
 
 interface TrackedFactoryChild {
@@ -51,6 +54,8 @@ export class FactorySubagentTranscriptBridge implements AcpExternalSessionUpdate
   private readonly sessionByTaskToolCallId = new Map<string, string>();
   private readonly trackedChildren = new Map<string, TrackedFactoryChild>();
   private readonly backgroundTaskSessionIds = new Map<string, string>();
+  private readonly detachedTaskIds = new Set<string>();
+  private readonly lastToolNameByOwner = new Map<string, string>();
   private pollTimer: ReturnType<typeof setInterval> | undefined;
   private stopWatching: (() => void) | undefined;
   private syncPromise: Promise<void> | undefined;
@@ -91,33 +96,43 @@ export class FactorySubagentTranscriptBridge implements AcpExternalSessionUpdate
         },
       });
       this.startMonitoring();
-      if (this.monitor) queueMicrotask(() => void this.sync());
+      this.scheduleSync();
+      return true;
+    }
+
+    const trackedParentSessionId = this.sessionByTaskToolCallId.get(toolCallId);
+    // Droid keeps a background Task open by replacing its launch receipt with
+    // the display-only `Running in background` status. Forward only the
+    // keep-open/detached shape so the generic mapper never shows that string
+    // as the subagent's live label or as a synthetic progress message. The
+    // status is expected on an in-progress row, but some vendor versions finish
+    // the launch update; the registry still owns when the child really ends.
+    if (
+      update.sessionUpdate === "tool_call_update" &&
+      trackedParentSessionId === notification.sessionId &&
+      isFactoryBackgroundTaskStatus(update)
+    ) {
+      if (this.keepTaskDetached(notification.sessionId, toolCallId, factoryRecord(update._meta))) {
+        this.scheduleSync();
+      }
       return true;
     }
 
     if (
       update.sessionUpdate === "tool_call_update" &&
       isTerminalToolStatus(update.status) &&
-      this.sessionByTaskToolCallId.get(toolCallId) === notification.sessionId
+      trackedParentSessionId === notification.sessionId
     ) {
       const childSessionId = factoryBackgroundTaskSessionId(update);
       if (update.status === "completed" && childSessionId) {
         this.backgroundTaskSessionIds.set(toolCallId, childSessionId);
         // The launch receipt completes the tool invocation, not the child.
         // Promote it before the foreground prompt can close its turn.
-        this.ingest({
-          sessionId: notification.sessionId,
-          update: {
-            sessionUpdate: "tool_call_update",
-            toolCallId,
-            status: "in_progress",
-            _meta: {
-              ...factoryRecord(update._meta),
-              [PORACODE_ACP_DETACHED_SUBAGENT_META_KEY]: true,
-            },
-          },
-        });
-        if (this.monitor) queueMicrotask(() => void this.sync());
+        if (
+          this.keepTaskDetached(notification.sessionId, toolCallId, factoryRecord(update._meta))
+        ) {
+          this.scheduleSync();
+        }
         return true;
       }
       if (!this.finishingToolCallIds.has(toolCallId)) {
@@ -131,6 +146,32 @@ export class FactorySubagentTranscriptBridge implements AcpExternalSessionUpdate
       }
       return true;
     }
+  }
+
+  private keepTaskDetached(
+    sessionId: string,
+    toolCallId: string,
+    meta: Record<string, unknown> = {},
+  ): boolean {
+    if (this.detachedTaskIds.has(toolCallId)) return false;
+    this.detachedTaskIds.add(toolCallId);
+    this.ingest({
+      sessionId,
+      update: {
+        sessionUpdate: "tool_call_update",
+        toolCallId,
+        status: "in_progress",
+        _meta: {
+          ...meta,
+          [PORACODE_ACP_DETACHED_SUBAGENT_META_KEY]: true,
+        },
+      },
+    });
+    return true;
+  }
+
+  private scheduleSync(): void {
+    if (this.monitor) queueMicrotask(() => void this.sync());
   }
 
   sync(flushTail = false): Promise<void> {
@@ -211,6 +252,8 @@ export class FactorySubagentTranscriptBridge implements AcpExternalSessionUpdate
     this.sessionByTaskToolCallId.clear();
     this.trackedChildren.clear();
     this.backgroundTaskSessionIds.clear();
+    this.detachedTaskIds.clear();
+    this.lastToolNameByOwner.clear();
     this.finishingToolCallIds.clear();
   }
 
@@ -252,12 +295,19 @@ export class FactorySubagentTranscriptBridge implements AcpExternalSessionUpdate
     home: string,
   ): Promise<void> {
     for (const invocation of invocations) {
-      if (this.trackedChildren.has(invocation.childSessionId)) continue;
       if (
         this.sessionByTaskToolCallId.get(invocation.parentToolUseId) !== invocation.parentSessionId
       ) {
         continue;
       }
+      // Droid's registry is the reliable source for a background child now
+      // that its ACP launch update carries only `Running in background`. Keep
+      // the row detached even when that status update never reaches the bridge.
+      if (invocation.runInBackground) {
+        this.keepTaskDetached(invocation.parentSessionId, invocation.parentToolUseId);
+        this.backgroundTaskSessionIds.set(invocation.parentToolUseId, invocation.childSessionId);
+      }
+      if (this.trackedChildren.has(invocation.childSessionId)) continue;
       const child: TrackedFactoryChild = {
         childSessionId: invocation.childSessionId,
         ownerToolCallId: invocation.parentToolUseId,
@@ -274,6 +324,7 @@ export class FactorySubagentTranscriptBridge implements AcpExternalSessionUpdate
   }
 
   private async readTrackedChildren(flushTail: boolean): Promise<void> {
+    const lastToolByOwner = new Map<string, string>();
     for (const child of this.trackedChildren.values()) {
       if (!this.sessionByTaskToolCallId.has(child.ownerToolCallId)) continue;
       if (!child.filePath && this.factoryHome) {
@@ -285,7 +336,13 @@ export class FactorySubagentTranscriptBridge implements AcpExternalSessionUpdate
       }
       if (!child.filePath) continue;
       const text = await readSessionFileText(this.location, child.filePath);
-      if (text !== undefined) this.ingestChildText(child, text, flushTail);
+      if (text !== undefined) {
+        this.ingestChildText(child, text, flushTail, lastToolByOwner);
+      }
+    }
+    // Batch one live label per owner per sync instead of one per replayed tool.
+    for (const [ownerToolCallId, lastToolName] of lastToolByOwner) {
+      this.ingestChildToolProgress(ownerToolCallId, lastToolName);
     }
   }
 
@@ -307,6 +364,8 @@ export class FactorySubagentTranscriptBridge implements AcpExternalSessionUpdate
   private releaseTask(toolCallId: string): void {
     this.sessionByTaskToolCallId.delete(toolCallId);
     this.backgroundTaskSessionIds.delete(toolCallId);
+    this.detachedTaskIds.delete(toolCallId);
+    this.lastToolNameByOwner.delete(toolCallId);
     this.finishingToolCallIds.delete(toolCallId);
     for (const [childSessionId, child] of this.trackedChildren) {
       if (child.ownerToolCallId !== toolCallId) continue;
@@ -320,7 +379,12 @@ export class FactorySubagentTranscriptBridge implements AcpExternalSessionUpdate
     if (this.sessionByTaskToolCallId.size === 0) this.stopMonitoring();
   }
 
-  private ingestChildText(child: TrackedFactoryChild, text: string, flushTail = false): void {
+  private ingestChildText(
+    child: TrackedFactoryChild,
+    text: string,
+    flushTail: boolean,
+    lastToolByOwner: Map<string, string>,
+  ): void {
     if (!this.sessionByTaskToolCallId.has(child.ownerToolCallId)) return;
     if (text.length < child.processedLength) child.processedLength = 0;
     const unread = text.slice(child.processedLength);
@@ -351,9 +415,36 @@ export class FactorySubagentTranscriptBridge implements AcpExternalSessionUpdate
         record,
       )) {
         if (!this.sessionByTaskToolCallId.has(child.ownerToolCallId)) return;
+        const update = notification.update as Record<string, unknown>;
+        if (update.sessionUpdate === "tool_call") {
+          const lastToolName = factoryString(update.name);
+          if (lastToolName) lastToolByOwner.set(child.ownerToolCallId, lastToolName);
+        }
         if (this.handleTaskUpdate(notification, false) !== true) this.ingest(notification);
       }
     }
+  }
+
+  /**
+   * Surface the child's latest tool on the parent task row the way structured
+   * providers report `lastToolName`. Droid transcripts carry the tool calls
+   * separately from the parent ACP update, so relay the newest direct child
+   * tool after each sync batch. Match other providers, whose live label is the
+   * tool name (`Read`, `Grep`, `Execute`) rather than a full title.
+   */
+  private ingestChildToolProgress(ownerToolCallId: string, lastToolName: string): void {
+    const parentSessionId = this.sessionByTaskToolCallId.get(ownerToolCallId);
+    if (!parentSessionId) return;
+    if (this.lastToolNameByOwner.get(ownerToolCallId) === lastToolName) return;
+    this.lastToolNameByOwner.set(ownerToolCallId, lastToolName);
+    this.ingest({
+      sessionId: parentSessionId,
+      update: {
+        sessionUpdate: "tool_call_update",
+        toolCallId: ownerToolCallId,
+        _meta: { [PORACODE_ACP_SUBAGENT_PROGRESS_META_KEY]: { lastToolName } },
+      },
+    });
   }
 }
 
@@ -390,6 +481,7 @@ function parseTaskInvocations(text: string | undefined): FactoryTaskInvocation[]
         parentSessionId,
         parentToolUseId,
         childSessionId,
+        runInBackground: invocation.runInBackground === true,
         ...(status ? { status } : {}),
       },
     ];

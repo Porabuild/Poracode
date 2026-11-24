@@ -3,7 +3,10 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { SessionNotification } from "@agentclientprotocol/sdk";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { PORACODE_ACP_PARENT_TOOL_CALL_ID_META_KEY } from "../acp/canonicalMapping/subagents";
+import {
+  PORACODE_ACP_PARENT_TOOL_CALL_ID_META_KEY,
+  PORACODE_ACP_SUBAGENT_PROGRESS_META_KEY,
+} from "../acp/canonicalMapping/subagents";
 import {
   closeOpenTurnItems,
   createAcpMapperState,
@@ -22,6 +25,14 @@ afterEach(() => {
     rmSync(path, { recursive: true, force: true });
   }
 });
+
+function makeFactoryHome(prefix: string): { factoryHome: string; sessionsDir: string } {
+  const factoryHome = mkdtempSync(join(tmpdir(), prefix));
+  temporaryDirectories.push(factoryHome);
+  const sessionsDir = join(factoryHome, "sessions", "project-key");
+  mkdirSync(sessionsDir, { recursive: true });
+  return { factoryHome, sessionsDir };
+}
 
 describe("Factory subagent transcripts", () => {
   it("maps child reasoning, tool calls, results, and assistant text into parented ACP updates", () => {
@@ -99,10 +110,7 @@ describe("Factory subagent transcripts", () => {
   });
 
   it("recovers the full child transcript correlated through Factory's task registry", async () => {
-    const factoryHome = mkdtempSync(join(tmpdir(), "poracode-factory-subagents-"));
-    temporaryDirectories.push(factoryHome);
-    const sessionsDir = join(factoryHome, "sessions", "project-key");
-    mkdirSync(sessionsDir, { recursive: true });
+    const { factoryHome, sessionsDir } = makeFactoryHome("poracode-factory-subagents-");
     writeFileSync(
       join(factoryHome, "task-invocations.json"),
       JSON.stringify({
@@ -227,8 +235,20 @@ describe("Factory subagent transcripts", () => {
       "tool_call",
       "tool_call_update",
       "tool_call",
+      "tool_call_update",
       "agent_message_chunk",
     ]);
+    expect(recovered[4]).toMatchObject({
+      sessionId: "parent-session",
+      update: {
+        toolCallId: "parent-task",
+        _meta: {
+          [PORACODE_ACP_SUBAGENT_PROGRESS_META_KEY]: {
+            lastToolName: "Task",
+          },
+        },
+      },
+    });
     expect(recovered.at(-1)).toMatchObject({
       sessionId: "grandchild-session",
       update: {
@@ -267,10 +287,12 @@ describe("Factory subagent transcripts", () => {
     expect(recovered).toHaveLength(recoveredCount);
 
     expect(
-      recovered.slice(0, -1).every(({ update }) => {
-        const meta = update._meta as Record<string, unknown>;
-        return typeof meta[PORACODE_ACP_PARENT_TOOL_CALL_ID_META_KEY] === "string";
-      }),
+      recovered
+        .filter(({ sessionId }) => sessionId !== "parent-session")
+        .every(({ update }) => {
+          const meta = update._meta as Record<string, unknown>;
+          return typeof meta[PORACODE_ACP_PARENT_TOOL_CALL_ID_META_KEY] === "string";
+        }),
     ).toBe(true);
     expect(runtimeEvents).toContainEqual(
       expect.objectContaining({
@@ -298,13 +320,346 @@ describe("Factory subagent transcripts", () => {
     bridge.dispose();
   });
 
+  it.each(["in_progress", "completed"] as const)(
+    "swallows Droid's background status (%s) and reports the child's latest tool instead",
+    async (launchStatus) => {
+      const { factoryHome, sessionsDir } = makeFactoryHome("poracode-factory-background-status-");
+      const invocations = [
+        {
+          parentSessionId: "parent-session",
+          parentToolUseId: "parent-task",
+          childSessionId: "child-session",
+          runInBackground: true,
+          status: "running",
+        },
+      ];
+      const writeRegistry = () =>
+        writeFileSync(join(factoryHome, "task-invocations.json"), JSON.stringify({ invocations }));
+      writeRegistry();
+      writeFileSync(
+        join(sessionsDir, "child-session.jsonl"),
+        [
+          JSON.stringify({
+            type: "message",
+            message: {
+              role: "assistant",
+              content: [
+                { type: "thinking", thinking: "Checking the README." },
+                { type: "tool_use", id: "read-1", name: "Read", input: { file_path: "README.md" } },
+              ],
+            },
+          }),
+          JSON.stringify({
+            type: "message",
+            message: {
+              role: "user",
+              content: [
+                {
+                  type: "tool_result",
+                  tool_use_id: "read-1",
+                  is_error: false,
+                  content: "README content",
+                },
+              ],
+            },
+          }),
+        ].join("\n"),
+      );
+
+      const state = createAcpMapperState("thread-background-status");
+      const events: ReturnType<typeof mapAcpSessionUpdate> = [];
+      const bridge = new FactorySubagentTranscriptBridge(
+        { kind: "windows", path: "E:\\repo" },
+        (notification) => events.push(...mapAcpSessionUpdate(notification, state)),
+        { factoryHome, monitor: false },
+      );
+      bridge.onSessionUpdate(
+        makeNotification("parent-session", {
+          sessionUpdate: "tool_call",
+          toolCallId: "parent-task",
+          title: "Explorer: Review mobile PWA UI",
+          status: "in_progress",
+          rawInput: { subagent_type: "explorer", description: "Review mobile PWA UI" },
+        }),
+      );
+      const parentItemId = state.toolCallItems.get("parent-task")!.itemId;
+      // Droid's ACP translator replaces the launch receipt with this display-only
+      // status on the Task row, whether the row reports in-progress or completed.
+      expect(
+        bridge.onSessionUpdate(
+          makeNotification("parent-session", {
+            sessionUpdate: "tool_call_update",
+            toolCallId: "parent-task",
+            status: launchStatus,
+            rawOutput: { text: "Running in background" },
+          }),
+        ),
+      ).toBe(true);
+
+      await bridge.sync();
+      await bridge.sync();
+
+      const item = state.toolCallItems.get("parent-task");
+      expect(item).toBeDefined();
+      expect(item!.detached).toBe(true);
+      expect(item!.payload).toMatchObject({
+        status: "running",
+        progress: { lastToolName: "Read", stepCount: 2 },
+      });
+      expect((item!.payload.progress as Record<string, unknown>).description).toBeUndefined();
+      expect(events).toContainEqual(
+        expect.objectContaining({
+          type: "item.updated",
+          itemId: parentItemId,
+          payload: expect.objectContaining({
+            progress: expect.objectContaining({ lastToolName: "Read" }),
+          }),
+        }),
+      );
+      expect(events).not.toContainEqual(
+        expect.objectContaining({ type: "content.delta", delta: "Running in background" }),
+      );
+
+      invocations[0]!.status = "completed";
+      writeRegistry();
+      await bridge.sync();
+      expect(state.toolCallItems.has("parent-task")).toBe(false);
+      expect(events).toContainEqual(
+        expect.objectContaining({
+          type: "item.completed",
+          itemId: parentItemId,
+          payload: expect.objectContaining({ status: "success" }),
+        }),
+      );
+      bridge.dispose();
+    },
+  );
+
+  it("keeps a registry-only background task detached before any launch status", async () => {
+    const { factoryHome, sessionsDir } = makeFactoryHome("poracode-factory-registry-detach-");
+    const invocations = [
+      {
+        parentSessionId: "parent-session",
+        parentToolUseId: "parent-task",
+        childSessionId: "child-session",
+        runInBackground: true,
+        status: "running",
+      },
+    ];
+    const writeRegistry = () =>
+      writeFileSync(join(factoryHome, "task-invocations.json"), JSON.stringify({ invocations }));
+    writeRegistry();
+    writeFileSync(join(sessionsDir, "child-session.jsonl"), "");
+
+    const state = createAcpMapperState("thread-registry-detach");
+    const events: ReturnType<typeof mapAcpSessionUpdate> = [];
+    const bridge = new FactorySubagentTranscriptBridge(
+      { kind: "windows", path: "E:\\repo" },
+      (notification) => events.push(...mapAcpSessionUpdate(notification, state)),
+      { factoryHome, monitor: false },
+    );
+    bridge.onSessionUpdate(
+      makeNotification("parent-session", {
+        sessionUpdate: "tool_call",
+        toolCallId: "parent-task",
+        title: "Explorer: Registry-only background",
+        status: "in_progress",
+        rawInput: { subagent_type: "explorer", description: "Registry-only background" },
+      }),
+    );
+    const parentItemId = state.toolCallItems.get("parent-task")!.itemId;
+
+    await bridge.sync();
+    expect(state.toolCallItems.get("parent-task")?.detached).toBe(true);
+    expect(closeOpenTurnItems(state)).not.toContainEqual(
+      expect.objectContaining({ type: "item.completed", itemId: parentItemId }),
+    );
+
+    invocations[0]!.status = "completed";
+    writeRegistry();
+    await bridge.sync();
+    expect(state.toolCallItems.has("parent-task")).toBe(false);
+    expect(events).toContainEqual(
+      expect.objectContaining({
+        type: "item.completed",
+        itemId: parentItemId,
+        payload: expect.objectContaining({ status: "success" }),
+      }),
+    );
+    bridge.dispose();
+  });
+
+  it("dedupes a repeated child tool label across syncs", async () => {
+    const { factoryHome, sessionsDir } = makeFactoryHome("poracode-factory-tool-label-dedupe-");
+    const invocations = [
+      {
+        parentSessionId: "parent-session",
+        parentToolUseId: "parent-task",
+        childSessionId: "child-session",
+        status: "running",
+      },
+    ];
+    writeFileSync(join(factoryHome, "task-invocations.json"), JSON.stringify({ invocations }));
+    const childPath = join(sessionsDir, "child-session.jsonl");
+    writeFileSync(
+      childPath,
+      `${JSON.stringify({
+        type: "message",
+        message: {
+          role: "assistant",
+          content: [{ type: "tool_use", id: "read-1", name: "Read", input: { file_path: "a" } }],
+        },
+      })}\n`,
+    );
+
+    const state = createAcpMapperState("thread-tool-label-dedupe");
+    const progressNotifications: SessionNotification[] = [];
+    const bridge = new FactorySubagentTranscriptBridge(
+      { kind: "windows", path: "E:\\repo" },
+      (notification) => {
+        if (
+          (notification.update as { _meta?: Record<string, unknown> })._meta?.[
+            PORACODE_ACP_SUBAGENT_PROGRESS_META_KEY
+          ]
+        ) {
+          progressNotifications.push(notification);
+        }
+        mapAcpSessionUpdate(notification, state);
+      },
+      { factoryHome, monitor: false },
+    );
+    bridge.onSessionUpdate(
+      makeNotification("parent-session", {
+        sessionUpdate: "tool_call",
+        toolCallId: "parent-task",
+        title: "Explorer: Dedupe labels",
+        status: "in_progress",
+        rawInput: { subagent_type: "explorer", description: "Dedupe labels" },
+      }),
+    );
+    const parentItemId = state.toolCallItems.get("parent-task")!.itemId;
+
+    await bridge.sync();
+    appendFileSync(
+      childPath,
+      `${JSON.stringify({
+        type: "message",
+        message: {
+          role: "assistant",
+          content: [{ type: "tool_use", id: "read-2", name: "Read", input: { file_path: "b" } }],
+        },
+      })}\n`,
+    );
+    await bridge.sync();
+
+    expect(parentItemId).toBeDefined();
+    expect(progressNotifications).toHaveLength(1);
+    expect(progressNotifications[0]?.update).toMatchObject({
+      toolCallId: "parent-task",
+      _meta: { [PORACODE_ACP_SUBAGENT_PROGRESS_META_KEY]: { lastToolName: "Read" } },
+    });
+    bridge.dispose();
+  });
+
+  it("keeps a nested background task open when its transcript reports the status", async () => {
+    const { factoryHome, sessionsDir } = makeFactoryHome("poracode-factory-nested-status-");
+    const invocations = [
+      {
+        parentSessionId: "parent-session",
+        parentToolUseId: "parent-task",
+        childSessionId: "child-session",
+        status: "running",
+      },
+      {
+        parentSessionId: "child-session",
+        parentToolUseId: "nested-task",
+        childSessionId: "grandchild-session",
+        runInBackground: true,
+        status: "running",
+      },
+    ];
+    const writeRegistry = () =>
+      writeFileSync(join(factoryHome, "task-invocations.json"), JSON.stringify({ invocations }));
+    writeRegistry();
+    writeFileSync(
+      join(sessionsDir, "child-session.jsonl"),
+      `${[
+        JSON.stringify({
+          type: "message",
+          message: {
+            role: "assistant",
+            content: [
+              {
+                type: "tool_use",
+                id: "nested-task",
+                name: "Task",
+                input: { subagent_type: "explorer", description: "Nested review" },
+              },
+            ],
+          },
+        }),
+        JSON.stringify({
+          type: "message",
+          message: {
+            role: "user",
+            content: [
+              {
+                type: "tool_result",
+                tool_use_id: "nested-task",
+                is_error: false,
+                content: "Running in background",
+              },
+            ],
+          },
+        }),
+      ].join("\n")}\n`,
+    );
+    writeFileSync(join(sessionsDir, "grandchild-session.jsonl"), "");
+
+    const state = createAcpMapperState("thread-nested-status");
+    const events: ReturnType<typeof mapAcpSessionUpdate> = [];
+    const bridge = new FactorySubagentTranscriptBridge(
+      { kind: "windows", path: "E:\\repo" },
+      (notification) => events.push(...mapAcpSessionUpdate(notification, state)),
+      { factoryHome, monitor: false },
+    );
+    bridge.onSessionUpdate(
+      makeNotification("parent-session", {
+        sessionUpdate: "tool_call",
+        toolCallId: "parent-task",
+        title: "Explorer: Nested status",
+        status: "in_progress",
+        rawInput: { subagent_type: "explorer", description: "Nested status" },
+      }),
+    );
+    await bridge.sync();
+    await bridge.sync();
+
+    const nested = state.toolCallItems.get("nested-task");
+    expect(nested).toBeDefined();
+    expect(nested!.detached).toBe(true);
+    expect(events).not.toContainEqual(
+      expect.objectContaining({ type: "item.completed", itemId: nested!.itemId }),
+    );
+
+    invocations[1]!.status = "completed";
+    writeRegistry();
+    await bridge.sync();
+    expect(state.toolCallItems.has("nested-task")).toBe(false);
+    expect(events).toContainEqual(
+      expect.objectContaining({
+        type: "item.completed",
+        itemId: nested!.itemId,
+        payload: expect.objectContaining({ status: "success" }),
+      }),
+    );
+    bridge.dispose();
+  });
+
   it.each(["completed", "failed", "cancelled"])(
     "keeps background siblings alive across foreground turns until the registry reports %s",
     async (status) => {
-      const factoryHome = mkdtempSync(join(tmpdir(), "poracode-factory-background-"));
-      temporaryDirectories.push(factoryHome);
-      const sessionsDir = join(factoryHome, "sessions", "project-key");
-      mkdirSync(sessionsDir, { recursive: true });
+      const { factoryHome, sessionsDir } = makeFactoryHome("poracode-factory-background-");
       const invocations = ["first", "second"].map((name) => ({
         parentSessionId: "parent-session",
         parentToolUseId: `${name}-task`,
@@ -455,10 +810,7 @@ describe("Factory subagent transcripts", () => {
   it.each([false, true])(
     "keeps nested background reports after parent completion (late receipt: %s)",
     async (lateReceipt) => {
-      const factoryHome = mkdtempSync(join(tmpdir(), "poracode-factory-nested-background-"));
-      temporaryDirectories.push(factoryHome);
-      const sessionsDir = join(factoryHome, "sessions", "project-key");
-      mkdirSync(sessionsDir, { recursive: true });
+      const { factoryHome, sessionsDir } = makeFactoryHome("poracode-factory-nested-background-");
       const invocations = [
         {
           parentSessionId: "parent-session",
