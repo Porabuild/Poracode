@@ -86,6 +86,9 @@ function makeClient(): OpenCodeClient {
     agent: { list: vi.fn<() => Promise<{ data: unknown[] }>>().mockResolvedValue({ data: [] }) },
     skill: { list: vi.fn<() => Promise<{ data: unknown[] }>>().mockResolvedValue({ data: [] }) },
     command: { list: vi.fn<() => Promise<{ data: unknown[] }>>().mockResolvedValue({ data: [] }) },
+    model: {
+      list: vi.fn<() => Promise<{ data: unknown[] }>>().mockResolvedValue({ data: [] }),
+    },
     config: { get: vi.fn<() => Promise<unknown[]>>().mockResolvedValue([]) },
     permission: {
       list: vi.fn<() => Promise<unknown>>().mockResolvedValue([]),
@@ -163,6 +166,7 @@ interface Harness {
 async function makeSession(options?: {
   client?: OpenCodeClient;
   acquired?: AcquiredOpenCodeServer;
+  config?: ThreadConfig;
   presentationMode?: "gui" | "terminal";
   mcpServers?: readonly ResolvedMcpServer[];
   resolveMcpServersForTurn?: NonNullable<
@@ -170,6 +174,7 @@ async function makeSession(options?: {
   >;
 }): Promise<Harness> {
   const client = options?.client ?? makeClient();
+  const threadConfig = options?.config ?? config;
   const acquired = options?.acquired ?? (makeAcquired(client).acquired as AcquiredOpenCodeServer);
   mocks.acquireOpenCodeServer.mockResolvedValue(acquired);
 
@@ -182,7 +187,7 @@ async function makeSession(options?: {
   const session = await OpenCodeSession.create({
     threadId: "thread-abc12345",
     projectLocation,
-    config,
+    config: threadConfig,
     presentationMode: options?.presentationMode ?? "gui",
     ...(options?.mcpServers !== undefined ? { mcpServers: options.mcpServers } : {}),
     ...(options?.resolveMcpServersForTurn
@@ -199,7 +204,7 @@ async function makeSession(options?: {
     onUpdate: (update) => updates.push(update),
     onRuntimeEvent: (entry) => events.push(entry),
   });
-  await session.openThread(config);
+  await session.openThread(threadConfig);
 
   return { session, client, subscription, updates, events, errors };
 }
@@ -217,6 +222,10 @@ function makeClientWith(overrides: OpenCodeServerOverrides): OpenCodeClient {
     target[method] = value;
   }
   return client as OpenCodeClient;
+}
+
+function catalogModel(providerID: string, id: string, context: number) {
+  return { providerID, id, limit: { context, output: 64_000 } };
 }
 
 function remoteMcp(name: string, url: string, disabledTools?: string[]): ResolvedMcpServer {
@@ -1454,21 +1463,43 @@ describe("OpenCodeSession", () => {
       ],
     });
     expect(mocks.subscribeOpenCodeServerEvents).not.toHaveBeenCalled();
+    // Terminal presentation has no context dock; its window read must not run.
+    expect(client.model.list).not.toHaveBeenCalled();
   });
 
   it("resumes an existing session without creating one", async () => {
-    const { session, client } = await makeSession();
+    const client = makeClientWith({
+      "model.list": vi.fn<() => Promise<unknown>>().mockResolvedValue({
+        data: [catalogModel("opencode-go", "glm-5.3-flash", 1_048_576)],
+      }),
+    });
+    const { session, events } = await makeSession({ client });
     vi.mocked(client.session.create).mockClear();
 
-    const id = await session.openThread(config, {
-      providerSessionId: "ses_resume",
-      discoveredAt: "2026-01-01T00:00:00.000Z",
-    });
+    const id = await session.openThread(
+      { model: "opencode-go/glm-5.3-flash" },
+      {
+        providerSessionId: "ses_resume",
+        discoveredAt: "2026-01-01T00:00:00.000Z",
+      },
+    );
 
     expect(id).toBe("ses_resume");
     expect(client.session.get).toHaveBeenCalledWith({ sessionID: "ses_resume" });
     expect(client.session.create).not.toHaveBeenCalled();
     expect(session.launchOptions.resumeThreadId).toBe("ses_resume");
+    // A resumed thread announces the window of the model it will run.
+    await vi.waitFor(() =>
+      expect(events).toEqual(
+        expect.arrayContaining([
+          {
+            type: "context.updated",
+            threadId: "thread-abc12345",
+            usage: { maxTokens: 1_048_576 },
+          },
+        ]),
+      ),
+    );
   });
 
   it("surfaces missing resume targets without silently replacing their history", async () => {
@@ -1526,6 +1557,191 @@ describe("OpenCodeSession", () => {
     vi.mocked(client.session.switchModel).mockRejectedValueOnce(new Error("bad model"));
     await expect(session.startTurn("fourth", config)).rejects.toThrow("bad model");
     expect(client.session.prompt).toHaveBeenCalledTimes(3);
+  });
+
+  it("announces the catalog context window and stamps it on every step sample", async () => {
+    const client = makeClientWith({
+      "model.list": vi.fn<() => Promise<unknown>>().mockResolvedValue({
+        data: [
+          catalogModel("opencode-go", "deepseek-v4.1-flash", 1_000_000),
+          catalogModel("zai-coding-plan", "glm-5.4", 200_000),
+        ],
+      }),
+    });
+    const { session, subscription, events } = await makeSession({ client });
+    try {
+      // The window is announced as soon as the catalog answers, before any step
+      // sample, so a thread handed off to OpenCode stops showing the window its
+      // previous provider reported.
+      await vi.waitFor(() =>
+        expect(events).toEqual(
+          expect.arrayContaining([
+            {
+              type: "context.updated",
+              threadId: "thread-abc12345",
+              usage: { maxTokens: 1_000_000 },
+            },
+          ]),
+        ),
+      );
+
+      // A prompt on the same model never waits for or repeats the announcement.
+      events.length = 0;
+      await session.startTurn("hello", config);
+      const turnEvents = events.splice(0);
+      expect(turnEvents.filter((mapped) => mapped.type === "context.updated")).toEqual([]);
+
+      subscription?.onEvent(
+        event("session.step.ended", {
+          sessionID: "ses_new",
+          assistantMessageID: "msg_a",
+          tokens: { input: 10, output: 1, reasoning: 0, cache: { read: 3, write: 0 } },
+        }),
+      );
+      const stepEvents = events.splice(0);
+      expect(stepEvents.find((mapped) => mapped.type === "context.updated")).toMatchObject({
+        type: "context.updated",
+        usage: { usedTokens: 14, maxTokens: 1_000_000 },
+      });
+
+      // Selecting another model republishes that model's window; the lookup is
+      // display-only, so the announcement lands after the prompt was admitted.
+      await session.startTurn("next", { model: "zai-coding-plan/glm-5.4" });
+      await vi.waitFor(() =>
+        expect(events).toEqual(
+          expect.arrayContaining([
+            {
+              type: "context.updated",
+              threadId: "thread-abc12345",
+              usage: { maxTokens: 200_000 },
+            },
+          ]),
+        ),
+      );
+    } finally {
+      await session.dispose();
+    }
+  });
+
+  it("drops a superseded model window when the newer switch resolves first", async () => {
+    const first = Promise.withResolvers<{ data: unknown[] }>();
+    const second = Promise.withResolvers<{ data: unknown[] }>();
+    let calls = 0;
+    const client = makeClientWith({
+      "model.list": vi.fn<() => Promise<{ data: unknown[] }>>(() =>
+        ++calls === 1 ? first.promise : second.promise,
+      ),
+    });
+    const now = vi.spyOn(Date, "now");
+    try {
+      now.mockReturnValue(1_000_000);
+      const { session, events } = await makeSession({ client });
+      try {
+        // Age the open lookup's snapshot out so the switch issues its own
+        // request; the older answer then arrives after the newer one.
+        now.mockReturnValue(1_000_000 + 5 * 60_000);
+        await session.startTurn("switch", { model: "zai-coding-plan/glm-5.4" });
+        now.mockRestore();
+
+        second.resolve({
+          data: [
+            catalogModel("opencode-go", "deepseek-v4.1-flash", 1_000_000),
+            catalogModel("zai-coding-plan", "glm-5.4", 200_000),
+          ],
+        });
+        await vi.waitFor(() =>
+          expect(events).toContainEqual({
+            type: "context.updated",
+            threadId: "thread-abc12345",
+            usage: { maxTokens: 200_000 },
+          }),
+        );
+
+        first.resolve({ data: [catalogModel("opencode-go", "deepseek-v4.1-flash", 1_000_000)] });
+        await new Promise<void>((resolve) => setImmediate(resolve));
+        expect(
+          events.flatMap((mapped) =>
+            mapped.type === "context.updated" ? [mapped.usage.maxTokens] : [],
+          ),
+        ).toEqual([200_000]);
+      } finally {
+        await session.dispose();
+      }
+    } finally {
+      now.mockRestore();
+    }
+  });
+
+  it("drops a context window that resolves after disposal", async () => {
+    const pending = Promise.withResolvers<{ data: unknown[] }>();
+    const client = makeClientWith({
+      "model.list": vi.fn<() => Promise<{ data: unknown[] }>>(() => pending.promise),
+    });
+    const { session, events } = await makeSession({ client });
+    await session.dispose();
+    pending.resolve({ data: [catalogModel("opencode-go", "deepseek-v4.1-flash", 1_000_000)] });
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    expect(events.filter((mapped) => mapped.type === "context.updated")).toEqual([]);
+  });
+
+  it("falls back to the configured context size when the catalog omits the model", async () => {
+    // A model that the catalog never lists (e.g. its provider was signed out)
+    // must not inherit the previous provider's window through the usage row.
+    const client = makeClientWith({
+      "model.list": vi.fn<() => Promise<unknown>>().mockResolvedValue({ data: [] }),
+    });
+    const configured: ThreadConfig = { ...config, contextSize: "1M" };
+    const { session, events } = await makeSession({ client, config: configured });
+    try {
+      await vi.waitFor(() =>
+        expect(events).toEqual(
+          expect.arrayContaining([
+            {
+              type: "context.updated",
+              threadId: "thread-abc12345",
+              usage: { maxTokens: 1_000_000 },
+            },
+          ]),
+        ),
+      );
+    } finally {
+      await session.dispose();
+    }
+  });
+
+  it("keeps turns running when the context-window catalog fails", async () => {
+    const warning = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const client = makeClientWith({
+        "model.list": vi.fn<() => Promise<never>>().mockRejectedValue(new Error("catalog down")),
+      });
+      const configured: ThreadConfig = { ...config, contextSize: "1M" };
+      const { session, events } = await makeSession({ client, config: configured });
+      try {
+        await session.startTurn("hello", configured);
+        expect(client.session.prompt).toHaveBeenCalledWith({
+          sessionID: "ses_new",
+          text: "hello",
+        });
+        // The thread's own configured size still replaces an inherited window.
+        await vi.waitFor(() =>
+          expect(events).toEqual(
+            expect.arrayContaining([
+              {
+                type: "context.updated",
+                threadId: "thread-abc12345",
+                usage: { maxTokens: 1_000_000 },
+              },
+            ]),
+          ),
+        );
+        await vi.waitFor(() => expect(warning).toHaveBeenCalled());
+      } finally {
+        await session.dispose();
+      }
+    } finally {
+      warning.mockRestore();
+    }
   });
 
   it("applies plan and build agent changes before admitting prompts", async () => {

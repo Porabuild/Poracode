@@ -105,6 +105,12 @@ export interface OpenCodeMapperState {
   turnCount: number;
   /** Canonical turn id of the open turn; mirrors `turnActive`. */
   turnId: string | undefined;
+  /**
+   * Context window (`limit.context`) of the session's current model, in tokens.
+   * V2 reports token counts but never the window they fill, so the session
+   * supplies it from the catalog and every usage sample carries its own window.
+   */
+  contextWindowTokens: number | undefined;
   /** True when the mapped session was freshly created (usage baseline 0). */
   usageScopeFresh: boolean;
   /** True once a `usage.spent` sample marked the scope as no longer fresh. */
@@ -129,6 +135,7 @@ export function createOpenCodeMapperState(threadId: string): OpenCodeMapperState
     turnActive: false,
     turnCount: 0,
     turnId: undefined,
+    contextWindowTokens: undefined,
     usageScopeFresh: false,
     usageScopeSampled: false,
     usageSpentMessages: new Set(),
@@ -149,6 +156,28 @@ export function setOpenCodeSessionId(
   state.sessionID = sessionID;
   state.usageScopeFresh = options?.fresh === true;
   state.usageScopeSampled = false;
+}
+
+/**
+ * Publish the session model's context window.
+ *
+ * Emits a window-only `context.updated` when the value changes. The renderer
+ * prefers a reported window over the configured one, so announcing the model's
+ * own value is how a thread that arrived from another provider stops showing the
+ * window that provider reported (a handoff never clears that row). Per-step
+ * samples carry the value from then on. Passing `undefined` only forgets the
+ * in-memory value — the merge-sticky usage row keeps the last reported window
+ * until a later announcement replaces it.
+ */
+export function setOpenCodeContextWindowTokens(
+  state: OpenCodeMapperState,
+  tokens: number | undefined,
+): RuntimeEvent[] {
+  if (tokens === state.contextWindowTokens) return [];
+  state.contextWindowTokens = tokens;
+  if (tokens === undefined) return [];
+  const event = createContextUsageEvent(state.threadId, { maxTokens: tokens });
+  return event ? [event] : [];
 }
 
 /** True when the session may hand the event to this mapper. */
@@ -846,6 +875,7 @@ function openCodeContextUsageEvents(state: OpenCodeMapperState, tokens: unknown)
     thoughtTokens: readOpenCodeTokenField(tokens, "reasoning"),
     cachedReadTokens: readOpenCodeCacheField(tokens, "read"),
     cachedWriteTokens: readOpenCodeCacheField(tokens, "write"),
+    ...(state.contextWindowTokens !== undefined ? { maxTokens: state.contextWindowTokens } : {}),
   });
   const event = createContextUsageEvent(state.threadId, usage);
   return event ? [event] : [];
