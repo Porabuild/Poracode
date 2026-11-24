@@ -186,6 +186,8 @@ interface PanelState {
   activeSettingsSection: string | null;
   /** Optional setting row to scroll to after opening a deep-linked section. */
   settingsAnchor: string | null;
+  /** Machine a cross-section Settings deep link wants scoped (e.g. a remote crew). */
+  settingsMachineId: string | null;
   projectSettingsId: string | null;
   /** Section the project settings view opens on (e.g. "mcp"); null = its default page. */
   projectSettingsSection: ProjectSettingsSection | null;
@@ -243,7 +245,7 @@ interface PanelState {
   setBrowserOverlayDrawerWidth: (v: number) => void;
   openBrowserPanel: () => void;
   openSettings: () => void;
-  openSettingsSection: (section: string, anchor?: string) => void;
+  openSettingsSection: (section: string, anchor?: string, machineId?: string) => void;
   clearSettingsSection: () => void;
   setActiveSettingsSection: (section: string) => void;
   closeSettings: () => void;
@@ -392,6 +394,7 @@ export const usePanelStore = create<PanelState>()((set, get) => ({
   settingsSection: null,
   activeSettingsSection: null,
   settingsAnchor: null,
+  settingsMachineId: null,
   projectSettingsId: null,
   projectSettingsSection: null,
   threadSortMode: sanitizeThreadSortMode(initialPersisted?.threadSortMode),
@@ -724,15 +727,17 @@ export const usePanelStore = create<PanelState>()((set, get) => ({
         settingsSection: null,
         activeSettingsSection: "general",
         settingsAnchor: null,
+        settingsMachineId: null,
         ...(compact ? { mobileUtilityPage: "settings" as const } : {}),
       };
     }),
-  openSettingsSection: (section, anchor) =>
+  openSettingsSection: (section, anchor, machineId) =>
     set((state) => {
       const compact = isCompactLayoutViewport();
       if (
         state.settingsSection === section &&
         state.settingsAnchor === (anchor ?? null) &&
+        state.settingsMachineId === (machineId ?? null) &&
         (compact ? state.mobileUtilityPage === "settings" : state.settingsOpen)
       )
         return {};
@@ -741,14 +746,17 @@ export const usePanelStore = create<PanelState>()((set, get) => ({
         settingsSection: section,
         activeSettingsSection: section,
         settingsAnchor: anchor ?? null,
+        settingsMachineId: machineId ?? null,
         ...(compact ? { mobileUtilityPage: "settings" as const } : {}),
       };
     }),
   clearSettingsSection: () =>
     set((state) =>
-      state.settingsSection === null && state.settingsAnchor === null
+      state.settingsSection === null &&
+      state.settingsAnchor === null &&
+      state.settingsMachineId === null
         ? {}
-        : { settingsSection: null, settingsAnchor: null },
+        : { settingsSection: null, settingsAnchor: null, settingsMachineId: null },
     ),
   setActiveSettingsSection: (section) =>
     set((state) =>

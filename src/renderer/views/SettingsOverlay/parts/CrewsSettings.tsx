@@ -33,9 +33,15 @@ import { ThreadDockIconButton } from "@/renderer/components/thread/ThreadDockUI"
 import { useHostAgentStatusPools } from "@/renderer/hooks/useHostAgentStatuses";
 import { useCrewLibrary } from "@/renderer/state/crewLibrary";
 import { parseMachineKey } from "@/shared/machines";
+import { useHostSetting } from "@/renderer/state/pairedHostSettings";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { buildProviderModelMenuProviders } from "@/renderer/components/thread/buildModelPickerControls";
-import { capabilitiesForPresentation, modelSelectionFor } from "@/shared/agentSelection";
+import {
+  capabilitiesForPresentation,
+  filterHiddenModels,
+  modelSelectionFor,
+  withModelVisible,
+} from "@/shared/agentSelection";
 import { getSettingsInstalledAgents } from "@/shared/agentStatus";
 import {
   CREW_BINDING_VERSION,
@@ -58,6 +64,10 @@ export function CrewsSettings({ machineKey }: { machineKey?: string }) {
     ? pools.wsl.filter((status) => status.envDistro === distro)
     : pools.windows;
   const providerOrder = useSharedSettings((state) => state.providerOrder);
+  const hiddenModels = useHostSetting(
+    machine?.host === "remote" ? machine.desktopId : undefined,
+    "hiddenModels",
+  );
   const helperOptions = useCrewHelperOptions(machineKey);
   const [editorCrewId, setEditorCrewId] = useState<string | undefined>();
   const [deleteTarget, setDeleteTarget] = useState<SavedCrew | undefined>();
@@ -74,12 +84,29 @@ export function CrewsSettings({ machineKey }: { machineKey?: string }) {
     label: t(label),
     ...(brief ? { brief: t(brief) } : {}),
   }));
-  const leadProviders = buildProviderModelMenuProviders(installed, {
+  const editingCrew = crews.find((crew) => crew.id === editorCrewId);
+  // Build once from the unfiltered surface so the editor's current lead model
+  // can be re-admitted after hiding, exactly like the composer's running model.
+  const unfilteredLeadProviders = buildProviderModelMenuProviders(installed, {
     presentationMode: "gui",
     filterAgent: (agent) =>
       canLeadCrew(capabilitiesForPresentation(agent.capabilities, "gui"), "gui"),
   });
-  const editingCrew = crews.find((crew) => crew.id === editorCrewId);
+  function visibleLeadProviders(currentLead: CrewMemberSelection | undefined) {
+    return unfilteredLeadProviders.map((provider) => ({
+      ...provider,
+      capabilities: withModelVisible(
+        filterHiddenModels(
+          provider.capabilities,
+          hiddenModels[provider.hiddenModelsKey ?? provider.kind],
+        ),
+        provider.capabilities,
+        currentLead?.agentKind === provider.kind ? currentLead.model : undefined,
+      ),
+    }));
+  }
+  const leadProviders = visibleLeadProviders(undefined);
+  const editorLeadProviders = visibleLeadProviders(editingCrew?.lead);
   const templateOptions = CREW_TEMPLATE_DESCRIPTORS.map((template) => ({
     id: template.id,
     label: t(template.name),
@@ -87,7 +114,9 @@ export function CrewsSettings({ machineKey }: { machineKey?: string }) {
   }));
 
   function defaultLeadSelection(): SavedCrew["lead"] | undefined {
-    const provider = leadProviders[0];
+    // Hiding every model of the first installed provider must not disable new
+    // crews while another provider still has a visible lead model.
+    const provider = leadProviders.find((candidate) => candidate.capabilities.models.length > 0);
     const model = provider?.capabilities.models[0];
     if (!provider || !model) return undefined;
     const selected = modelSelectionFor(provider.capabilities, model.id);
@@ -156,7 +185,7 @@ export function CrewsSettings({ machineKey }: { machineKey?: string }) {
           icon={<Plus className="size-4" />}
           options={templateOptions}
           buttonVariant="tertiary"
-          isDisabled={!ready || !newCrewHelper}
+          isDisabled={!ready || !newCrewLead || !newCrewHelper}
           onChange={(template) => createFromTemplate(template)}
         />
       }
@@ -278,7 +307,7 @@ export function CrewsSettings({ machineKey }: { machineKey?: string }) {
           key={editingCrew.id}
           crew={editingCrew}
           helperOptions={helperOptions}
-          leadProviders={leadProviders}
+          leadProviders={editorLeadProviders}
           roleTemplates={roleTemplates}
           onUpsert={upsertCrew}
           onClose={() => setEditorCrewId(undefined)}

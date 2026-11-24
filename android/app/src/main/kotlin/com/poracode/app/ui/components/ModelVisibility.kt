@@ -46,6 +46,21 @@ internal object ModelVisibility {
     }
 
     /**
+     * Crossagents helpers consume the provider root surface: the plain list,
+     * the legacy `-acp` surface when one exists, and the Crossagents-only
+     * additions. Provider `defaultHiddenModels` do not apply on this path.
+     */
+    fun helperHiddenModelIds(
+        userHiddenModels: JsonObject?,
+        crossagentHiddenModels: JsonObject?,
+        agentKind: String,
+    ): Set<String> = buildSet {
+        addAll(userHiddenModels?.stringListOrNull(agentKind).orEmpty())
+        addAll(userHiddenModels?.stringListOrNull("$agentKind-acp").orEmpty())
+        addAll(crossagentHiddenModels?.stringListOrNull(agentKind).orEmpty())
+    }
+
+    /**
      * Picker rows that survive the hidden set: every non-hidden id in source
      * order, plus the current model re-admitted at its advertised position so
      * a hidden configured model keeps its row, label, and launchability.
