@@ -1142,6 +1142,24 @@ function providerLabel(context: Plugin.Context, sessionID: string, kind: string)
   return providers?.find((provider) => provider.id === kind)?.name ?? kind;
 }
 
+/** Model display label from the location's provider catalogs, else the raw id. */
+function modelLabel(context: Plugin.Context, sessionID: string, model: string) {
+  const location = context.data.session.get(sessionID)?.location;
+  const providers = context.data.location.provider.list(location) ?? [];
+  for (const provider of providers) {
+    const models = (provider as { models?: unknown }).models;
+    if (!models || typeof models !== "object") continue;
+    const entry = (models as Record<string, unknown>)[model];
+    if (entry && typeof entry === "object") {
+      const name = (entry as { name?: unknown; label?: unknown }).name;
+      const label = (entry as { name?: unknown; label?: unknown }).label;
+      if (typeof name === "string" && name) return name;
+      if (typeof label === "string" && label) return label;
+    }
+  }
+  return model;
+}
+
 function MessageRow(props: Props & { messageID: string }) {
   const message = createMemo(() => messageOf(props, props.messageID));
   const type = createMemo(() => poracodeType(message()));
@@ -1164,6 +1182,17 @@ function MessageRow(props: Props & { messageID: string }) {
           return <NoticeLine {...props} glyph={GLYPH.handoff} text={text} />;
         }}
       </Match>
+      <Match when={type() === "model_switch" ? message() : undefined}>
+        {(notice) => {
+          const models = switchModels(notice());
+          const text = models
+            ? `Switched model from ${modelLabel(props.context, props.input.sessionID, models.from)} to ${modelLabel(props.context, props.input.sessionID, models.to)}`
+            : "text" in notice()
+              ? String((notice() as { text: string }).text)
+              : "";
+          return <NoticeLine {...props} glyph={GLYPH.modelSwitch} text={text} />;
+        }}
+      </Match>
     </Switch>
   );
 }
@@ -1174,6 +1203,15 @@ function handoffKinds(message: SessionMessageInfo | undefined) {
   const record = payload as Record<string, unknown>;
   const from = record.fromAgentKind;
   const to = record.toAgentKind;
+  return typeof from === "string" && typeof to === "string" ? { from, to } : undefined;
+}
+
+function switchModels(message: SessionMessageInfo | undefined) {
+  const payload = poracodeItem(message)?.payload;
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) return undefined;
+  const record = payload as Record<string, unknown>;
+  const from = record.fromModel;
+  const to = record.toModel;
   return typeof from === "string" && typeof to === "string" ? { from, to } : undefined;
 }
 

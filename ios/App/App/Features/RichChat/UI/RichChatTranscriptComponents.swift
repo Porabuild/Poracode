@@ -51,6 +51,8 @@ struct RichChatTranscriptItemView: View {
         RichChatReasoningRow(text: bodyText, isWorking: isWorking, disclosureID: "item:\(item.id)")
       case RichItemType.providerHandoff:
         RichChatProviderHandoffRow(item: item)
+      case RichItemType.modelSwitch:
+        RichChatModelSwitchRow(item: item)
       case "question_answer":
         RichChatQuestionAnswerView(
           entries: RichQuestionAnswerPresentation.entries(for: item),

@@ -416,6 +416,9 @@ enum RichChatStrings {
   static func providerSwitched(from: String, to: String) -> String {
     String(format: value("rich_chat_provider_switched", "Switched from %1$@ to %2$@"), locale: .current, from, to)
   }
+  static func modelSwitched(from: String, to: String) -> String {
+    String(format: value("rich_chat_model_switched", "Switched model from %1$@ to %2$@"), locale: .current, from, to)
+  }
   static let handoffPrompt = value(
     "rich_chat_handoff_prompt", "Tell the new provider what to do next…"
   )

@@ -110,6 +110,11 @@ export function formatHandoffRow(
       const to = typeof payload?.toAgentKind === "string" ? payload.toAgentKind : "";
       return from && to ? row("conversation", `[Thread switched provider: ${from} → ${to}]`) : null;
     }
+    case "model_switch": {
+      const from = typeof payload?.fromModel === "string" ? payload.fromModel : "";
+      const to = typeof payload?.toModel === "string" ? payload.toModel : "";
+      return from && to ? row("conversation", `[Thread switched model: ${from} → ${to}]`) : null;
+    }
     case "command_execution": {
       // The command line only. Its output is the largest stream a thread
       // carries and the one thing the new provider can regenerate by rerunning.

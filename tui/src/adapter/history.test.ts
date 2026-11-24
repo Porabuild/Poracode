@@ -281,6 +281,27 @@ describe("runtime history projection", () => {
     });
   });
 
+  test("model_switch carries the model ids in its Poracode metadata", () => {
+    const messages = historyMessages(thread, [
+      {
+        id: "switch-1",
+        type: "model_switch",
+        state: "completed",
+        payload: {
+          fromModel: "model-a",
+          toModel: "model-b",
+          at: "2026-01-01T00:00:00.500Z",
+        },
+        streams: {},
+      },
+    ]);
+    const system = messages.find((message) => message.type === "system");
+    expect(system?.metadata?.poracode).toEqual({
+      type: "model_switch",
+      payload: { fromModel: "model-a", toModel: "model-b" },
+    });
+  });
+
   test("completed turns stamp per-turn times and idle markers through history", () => {
     const text = (
       id: string,

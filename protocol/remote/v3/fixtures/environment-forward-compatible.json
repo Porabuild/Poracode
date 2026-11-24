@@ -1,5 +1,5 @@
 {
-  "protocolVersion": 14,
+  "protocolVersion": 15,
   "hostMode": "helper",
   "desktopId": "desktop-fixture-forward",
   "label": "Future Fixture Host",

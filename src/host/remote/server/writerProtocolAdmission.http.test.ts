@@ -75,7 +75,7 @@ function rawRequest(
 const VALID_NOTES = { doc: null, todos: [], updatedAt: "2026-10-09T00:00:00.000Z" };
 
 /**
- * Fence 1 (remote 14): per-request generation admission on the real
+ * Fence 1 (remote 15): per-request generation admission on the real
  * HTTP dispatcher. Direct declared routes and non-read generic procedures
  * refuse any missing/old/future/malformed/duplicate generation AFTER bearer
  * authentication and scope authorization but BEFORE payload parsing, audit,
@@ -83,7 +83,7 @@ const VALID_NOTES = { doc: null, todos: [], updatedAt: "2026-10-09T00:00:00.000Z
  * clients; a raw (non-TS-client) request is never synthesized into a current
  * one by the host.
  */
-describe.skipIf(!sqliteAvailable)("remote14 writer-generation admission", () => {
+describe.skipIf(!sqliteAvailable)("remote15 writer-generation admission", () => {
   let dir: string;
   let info: RemoteAccessServerInfo;
   let token: string;
@@ -189,8 +189,8 @@ describe.skipIf(!sqliteAvailable)("remote14 writer-generation admission", () => 
 
   it("refuses old, future, and malformed generations with the same typed 409", async () => {
     // A trailing-space value never reaches the fence: the HTTP parser strips
-    // surrounding whitespace, so "14 " is exactly "14" on the wire.
-    for (const version of ["13", "15", "abc", "014", "14.0"]) {
+    // surrounding whitespace, so "15 " is exactly "15" on the wire.
+    for (const version of ["13", "14", "16", "abc", "015", "15.0"]) {
       const response = await post("/api/projects/project-1/notes", VALID_NOTES, {
         [REMOTE_PROTOCOL_VERSION_HEADER]: version,
       });

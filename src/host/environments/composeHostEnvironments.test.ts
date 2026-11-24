@@ -132,7 +132,7 @@ class FakeSshManager implements HostEnvironmentSshManager {
 
 function descriptor(): RemoteEnvironmentDescriptor {
   return {
-    protocolVersion: 14,
+    protocolVersion: 15,
     hostMode: "helper",
     desktopId: childDesktopId,
     label: "Remote",

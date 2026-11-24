@@ -22,8 +22,8 @@
       "/.well-known/lightcode/environment"
     ],
     "endpointPathPolicy": "append-to-preserved-base-path",
-    "maximumAcceptedProtocolVersion": 14,
-    "minimumAcceptedProtocolVersion": 14,
+    "maximumAcceptedProtocolVersion": 15,
+    "minimumAcceptedProtocolVersion": 15,
     "pairingCredential": {
       "singleUse": true,
       "transport": "url-fragment-or-request-body"
@@ -2401,7 +2401,7 @@
       "scope": "session:read"
     }
   ],
-  "protocolVersion": 14,
+  "protocolVersion": 15,
   "scopes": [
     "session:read",
     "session:operate",

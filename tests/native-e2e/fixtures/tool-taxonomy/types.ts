@@ -4,6 +4,7 @@ import type {
   FileChangePayload,
   GoalItemPayload,
   MessageItemPayload,
+  ModelSwitchItemPayload,
   PlanItemPayload,
   ProviderHandoffItemPayload,
   QuestionAnswerItemPayload,
@@ -40,6 +41,7 @@ export type Payloads = {
   goal: GoalItemPayload;
   error: ErrorItemPayload;
   provider_handoff: ProviderHandoffItemPayload;
+  model_switch: ModelSwitchItemPayload;
 };
 export interface TaxonomyExpectation {
   category: GroupCategory;

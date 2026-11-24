@@ -18460,6 +18460,10 @@ msgstr "Chuyển không gian làm việc"
 msgid "Switched from {fromLabel} to {toLabel}"
 msgstr "Đã chuyển từ {fromLabel} sang {toLabel}"
 
+#: src/renderer/components/thread/ChatPane/parts/items/ModelSwitchRow.tsx
+msgid "Switched model from {fromLabel} to {toLabel}"
+msgstr "Đã chuyển mô hình từ {fromLabel} sang {toLabel}"
+
 #: src/renderer/views/PullRequestsOverlay/detail/header/usePrCheckout.ts
 msgid "Switched to {headBranch}"
 msgstr "Đã chuyển sang {headBranch}"

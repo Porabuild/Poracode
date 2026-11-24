@@ -18460,6 +18460,10 @@ msgstr "Switch workspace"
 msgid "Switched from {fromLabel} to {toLabel}"
 msgstr "Switched from {fromLabel} to {toLabel}"
 
+#: src/renderer/components/thread/ChatPane/parts/items/ModelSwitchRow.tsx
+msgid "Switched model from {fromLabel} to {toLabel}"
+msgstr "Switched model from {fromLabel} to {toLabel}"
+
 #: src/renderer/views/PullRequestsOverlay/detail/header/usePrCheckout.ts
 msgid "Switched to {headBranch}"
 msgstr "Switched to {headBranch}"

@@ -73,7 +73,7 @@ final class RichChatContentFixtureTests: XCTestCase {
     let turns = try RichTimeline.decodeCompletedTurns(
       try XCTUnwrap(fixture["completedTurns"])
     )
-    XCTAssertEqual(items.count, 6)
+    XCTAssertEqual(items.count, 8)
     XCTAssertEqual(items.filter { $0.parentItemID == "rich-parent-tool" }.count, 2)
     XCTAssertEqual(items[1].streams["assistant_text"], "Starting review.")
     XCTAssertEqual(turns.map(\.anchorItemID), ["rich-assistant-1", "rich-assistant-2"])
@@ -82,7 +82,10 @@ final class RichChatContentFixtureTests: XCTestCase {
     let projection = RichTimeline.project(items)
     XCTAssertEqual(
       projection.rawRoots.map(\.item.id),
-      ["rich-user-1", "rich-assistant-1", "rich-parent-tool", "rich-assistant-2"]
+      [
+        "rich-user-1", "rich-assistant-1", "rich-parent-tool", "rich-assistant-2",
+        "rich-model-switch-1", "rich-user-2",
+      ]
     )
     XCTAssertEqual(
       projection.rawRoots[2].children.map(\.item.id),

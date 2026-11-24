@@ -23,6 +23,7 @@ export type ThreadResumePlan =
 const NON_OUTPUT_ITEM_TYPES: ReadonlySet<CanonicalItemType> = new Set([
   "error",
   "provider_handoff",
+  "model_switch",
 ]);
 
 const CONTINUE_PLAN: ThreadResumePlan = { kind: "continue" };

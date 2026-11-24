@@ -27,6 +27,7 @@ export const canonicalItemTypeSchema = z.enum([
   "web_search",
   "question_answer",
   "provider_handoff",
+  "model_switch",
   "error",
 ]);
 export type CanonicalItemType = z.infer<typeof canonicalItemTypeSchema>;
@@ -178,6 +179,16 @@ export const messageItemPayloadSchema = z.object({
    * messages from older apps retain the normal turn-activity behavior.
    */
   turnIndependent: z.boolean().optional(),
+  /**
+   * The thread-config model selection this `user_message` was submitted
+   * with, recorded by the supervisor when it paints the message. It is the
+   * durable per-turn model record a later launch reads to tell whether the
+   * answering model changed (see `model_switch`). Optional and additive:
+   * messages persisted before this field existed, provider-imported history,
+   * and assistant messages have no value, and older readers strip it. No
+   * storage or wire version bump is needed for this field alone.
+   */
+  model: z.string().min(1).optional(),
 });
 export type MessageItemPayload = z.infer<typeof messageItemPayloadSchema>;
 
@@ -443,6 +454,21 @@ export const providerHandoffItemPayloadSchema = z.object({
   at: z.string(),
 });
 export type ProviderHandoffItemPayload = z.infer<typeof providerHandoffItemPayloadSchema>;
+
+/**
+ * Marks the point in a transcript where the model answering the thread
+ * changed within the same provider. Unlike a provider handoff it is NOT an
+ * era boundary: the session, its goals, and its plans continue across the
+ * row — only the model that answers below it differs. Model values are the
+ * selection ids from the thread config; clients resolve display labels from
+ * the provider's model catalog and fall back to the raw id.
+ */
+export const modelSwitchItemPayloadSchema = z.object({
+  fromModel: z.string().min(1),
+  toModel: z.string().min(1),
+  at: z.string(),
+});
+export type ModelSwitchItemPayload = z.infer<typeof modelSwitchItemPayloadSchema>;
 
 export const contextUsageBreakdownEntrySchema = z.object({
   id: z.string().min(1),

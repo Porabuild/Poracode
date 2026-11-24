@@ -775,9 +775,15 @@ function buildResolvedCompletedTurns(
   let lastAnchorable: string | null = null;
   for (const itemId of itemIds) {
     const anchorType = items?.[itemId]?.type;
-    // A provider-handoff divider records no work of its own, so hanging a
-    // "Worked for X" line on it would misattribute the turn it separates.
-    if (visible.has(itemId) && anchorType !== "user_message" && anchorType !== "provider_handoff") {
+    // A provider-handoff or model-switch divider records no work of its own,
+    // so hanging a "Worked for X" line on it would misattribute the turn it
+    // separates.
+    if (
+      visible.has(itemId) &&
+      anchorType !== "user_message" &&
+      anchorType !== "provider_handoff" &&
+      anchorType !== "model_switch"
+    ) {
       lastAnchorable = itemId;
     }
     if (rawAnchors.has(itemId)) anchorResolution.set(itemId, lastAnchorable);

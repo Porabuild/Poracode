@@ -18460,6 +18460,10 @@ msgstr "Змінити робочу область"
 msgid "Switched from {fromLabel} to {toLabel}"
 msgstr "Перемкнено з {fromLabel} на {toLabel}"
 
+#: src/renderer/components/thread/ChatPane/parts/items/ModelSwitchRow.tsx
+msgid "Switched model from {fromLabel} to {toLabel}"
+msgstr "Модель перемкнено з {fromLabel} на {toLabel}"
+
 #: src/renderer/views/PullRequestsOverlay/detail/header/usePrCheckout.ts
 msgid "Switched to {headBranch}"
 msgstr "Перемкнуто на {headBranch}"

@@ -25,14 +25,6 @@ public extension RemoteSchemas {
 }
 
 public extension RemoteSchemas {
-  static let schema_23b45e35f743c6ce = RemoteSchema(type: "array", items: RemoteSchemas.schema_9262f6553ee2010b, unknownPolicy: .strip)
-}
-
-public extension RemoteSchemas {
-  static let schema_23c74d6e00fed957 = RemoteSchema(unionKind: "oneOf", options: [RemoteSchemas.schema_d5e402f736e2ff98, RemoteSchemas.schema_c5dd90237864dee9], unknownPolicy: .strip)
-}
-
-public extension RemoteSchemas {
   static let schema_23e05d248383ea40 = RemoteSchema(type: "integer", maximum: 9007199254740991.0, exclusiveMinimum: 0.0, unknownPolicy: .strip)
 }
 

@@ -118,7 +118,7 @@ extra, or stale generated artifacts, including a hand-edited manifest.
 
 The generated inventory carries separate compatibility identities:
 
-- wire `protocolVersion` (currently 14);
+- wire `protocolVersion` (currently 15);
 - generator and binding-format versions (binding format currently 2); and
 - hashes of the source contract and manifest.
 

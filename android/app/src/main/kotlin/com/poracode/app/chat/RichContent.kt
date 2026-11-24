@@ -117,6 +117,8 @@ object RichItemTypes {
     const val WEB_SEARCH = "web_search"
     const val QUESTION_ANSWER = "question_answer"
     const val ERROR = "error"
+    const val PROVIDER_HANDOFF = "provider_handoff"
+    const val MODEL_SWITCH = "model_switch"
     const val PENDING_REQUEST = "pending_request"
 
     val canonical: Set<String> = setOf(
@@ -134,6 +136,7 @@ object RichItemTypes {
         WEB_SEARCH,
         QUESTION_ANSWER,
         ERROR,
+        MODEL_SWITCH,
     )
 
     val toolLike: Set<String> = setOf(TOOL_CALL, MCP_TOOL_CALL, IMAGE_VIEW, DYNAMIC_TOOL_CALL)

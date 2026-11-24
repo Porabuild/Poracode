@@ -42,6 +42,7 @@ import {
 import { peekPendingThreadLaunch } from "@/renderer/state/threadLaunchIntents";
 import { performInitialThreadLaunch } from "./threadLaunchActions";
 import {
+  paintOptimisticModelSwitch,
   takePreparedOptimisticThreadInput,
   type PreparedOptimisticThreadInput,
 } from "./optimisticThreadInput";
@@ -100,6 +101,8 @@ export async function performThreadInputSubmit(input: {
     prompt: string;
     segments?: PromptSegment[];
     userMessageItemId?: string;
+    modelSwitchItemId?: string;
+    previousTurnModel?: string;
     questionAnswer?: QuestionAnswerItemPayload;
     clientContext?: TurnClientContext;
   }) => Promise<void>;
@@ -131,6 +134,8 @@ async function performThreadInputSubmitPending(
   // dropped by the renderer's per-id dedupe in `applyRuntimeEvent`.
   const presentation = thread.presentationMode ?? "terminal";
   let optimisticUserMessageItemId = input.optimisticInput?.userMessageItemId;
+  let optimisticModelSwitchItemId = input.optimisticInput?.modelSwitchItemId;
+  let optimisticPreviousTurnModel = input.optimisticInput?.previousTurnModel;
   let markedWorking = input.optimisticInput !== undefined;
   const interruptedTurnStatementsAtSend =
     input.optimisticInput?.interruptedTurnStatementsAtSend ??
@@ -145,6 +150,7 @@ async function performThreadInputSubmitPending(
         payload: {
           content: buildPromptContentBlocks(prompt, segments),
           ...(questionAnswer ? { questionAnswer } : {}),
+          ...(thread.config.model.trim() ? { model: thread.config.model } : {}),
           clientInputDelivery: "pending",
         },
       });
@@ -152,6 +158,9 @@ async function performThreadInputSubmitPending(
   } else if (presentation === "gui" && hasSendablePromptContent(prompt, segments)) {
     optimisticUserMessageItemId = `user-${crypto.randomUUID()}`;
     notePendingThreadInputMessage(thread.id, optimisticUserMessageItemId);
+    const modelSwitch = paintOptimisticModelSwitch(thread);
+    optimisticModelSwitchItemId = modelSwitch?.itemId;
+    optimisticPreviousTurnModel = modelSwitch?.fromModel;
     store.applyRuntimeEvent(thread.id, {
       type: "item.started",
       threadId: thread.id,
@@ -160,6 +169,7 @@ async function performThreadInputSubmitPending(
       payload: {
         content: buildPromptContentBlocks(prompt, segments),
         ...(questionAnswer ? { questionAnswer } : {}),
+        ...(thread.config.model.trim() ? { model: thread.config.model } : {}),
         clientInputDelivery: "pending",
       },
     });
@@ -220,6 +230,8 @@ async function performThreadInputSubmitPending(
         prompt,
         ...(segments ? { segments } : {}),
         ...(optimisticUserMessageItemId ? { userMessageItemId: optimisticUserMessageItemId } : {}),
+        ...(optimisticModelSwitchItemId ? { modelSwitchItemId: optimisticModelSwitchItemId } : {}),
+        ...(optimisticPreviousTurnModel ? { previousTurnModel: optimisticPreviousTurnModel } : {}),
         ...(clientContext ? { clientContext } : {}),
         ...(questionAnswer ? { questionAnswer } : {}),
       });
@@ -252,6 +264,7 @@ async function performThreadInputSubmitPending(
         ...(wireSegments ? { segments: wireSegments } : {}),
         config: thread.config,
         ...(optimisticUserMessageItemId ? { userMessageItemId: optimisticUserMessageItemId } : {}),
+        ...(optimisticModelSwitchItemId ? { modelSwitchItemId: optimisticModelSwitchItemId } : {}),
         ...(questionAnswer ? { questionAnswer } : {}),
         ...(clientContext ? { clientContext } : {}),
       }),
@@ -287,6 +300,12 @@ async function performThreadInputSubmitPending(
           ...(segments ? { segments } : {}),
           ...(optimisticUserMessageItemId
             ? { userMessageItemId: optimisticUserMessageItemId }
+            : {}),
+          ...(optimisticModelSwitchItemId
+            ? { modelSwitchItemId: optimisticModelSwitchItemId }
+            : {}),
+          ...(optimisticPreviousTurnModel
+            ? { previousTurnModel: optimisticPreviousTurnModel }
             : {}),
           ...(clientContext ? { clientContext } : {}),
           ...(questionAnswer ? { questionAnswer } : {}),
@@ -376,6 +395,8 @@ export async function submitThreadInput(
         prompt: resume.prompt,
         ...(resume.segments ? { segments: resume.segments } : {}),
         ...(resume.userMessageItemId ? { userMessageItemId: resume.userMessageItemId } : {}),
+        ...(resume.modelSwitchItemId ? { modelSwitchItemId: resume.modelSwitchItemId } : {}),
+        ...(resume.previousTurnModel ? { previousTurnModel: resume.previousTurnModel } : {}),
         ...(resume.questionAnswer ? { questionAnswer: resume.questionAnswer } : {}),
         ...(resume.clientContext ? { clientContext: resume.clientContext } : {}),
         initialSize: DEFAULT_TERMINAL_SIZE,

@@ -18460,6 +18460,10 @@ msgstr "Cambiar de espacio de trabajo"
 msgid "Switched from {fromLabel} to {toLabel}"
 msgstr "Se cambió de {fromLabel} a {toLabel}"
 
+#: src/renderer/components/thread/ChatPane/parts/items/ModelSwitchRow.tsx
+msgid "Switched model from {fromLabel} to {toLabel}"
+msgstr "Se cambió el modelo de {fromLabel} a {toLabel}"
+
 #: src/renderer/views/PullRequestsOverlay/detail/header/usePrCheckout.ts
 msgid "Switched to {headBranch}"
 msgstr "Se cambió a {headBranch}"
