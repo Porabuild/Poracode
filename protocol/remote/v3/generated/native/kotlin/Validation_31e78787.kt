@@ -45,6 +45,10 @@ internal val schema_1c60a16c12c10c8f: RemoteSchema by lazy {
     RemoteSchema(type = "object", required = setOf("forgeAccount", "forgeRepository", "prNumber", "projectLocation"), properties = mapOf("forgeAccount" to schema_c2bb40b82b330cd4, "forgeRepository" to schema_36fea325bf1aca70, "prNumber" to schema_23e05d248383ea40, "projectLocation" to schema_080f9cc154af9e27), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
 
+internal val schema_1caa7842d12d0d9e: RemoteSchema by lazy {
+    RemoteSchema(type = "object", required = setOf("history"), properties = mapOf("history" to schema_d61b8c82caefd0af), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
+}
+
 internal val schema_1ce2b8f166790746: RemoteSchema by lazy {
     RemoteSchema(type = "object", required = setOf("session"), properties = mapOf("session" to schema_f0ec1e30fb464ad3), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
@@ -151,10 +155,6 @@ internal val schema_1fcbd5bc41d865ae: RemoteSchema by lazy {
 
 internal val schema_202f40856ac8b683: RemoteSchema by lazy {
     RemoteSchema(type = "object", additionalSchema = schema_d576db41e56d6d9a, propertyNames = schema_8f8e73cb353005a1, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
-}
-
-internal val schema_2039f004e1d20419: RemoteSchema by lazy {
-    RemoteSchema(type = "array", items = schema_a1fd91a863ec97fa, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
 
 internal val schema_203e1407dc2d843e: RemoteSchema by lazy {

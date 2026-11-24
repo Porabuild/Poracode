@@ -66,7 +66,7 @@ describe("remote v3 native binding generator", () => {
       expect(first).toEqual(second);
       expect(first.manifest).toMatchObject({
         formatVersion: 5,
-        protocolVersion: 14,
+        protocolVersion: 15,
         bindingFormatVersion: 2,
         generatorVersion: 7,
         // Optional readonly workspace-grant fields change generated bindings
@@ -131,8 +131,12 @@ describe("remote v3 native binding generator", () => {
         // Remote agent settings allowlists 10 additive desktop procedures (config defaults,
         // native MCP/hook setup, agent plugins, credentials, model providers) with 4 semantic validators.
         // Remote agent profile management adds agent-profiles-read and agent-profiles-command.
-        sourceHash: "sha256:13dc2b96108b6cd5b4439ceec2d8a30aa34c6cd144170365dc7fb08743038e66",
-        manifestHash: "sha256:0f81ac0cc02c279c908b92bcda3ea498c7aa42395ce932ac881cc905789024f0",
+        // Agent-plugin packages gained additive optional latestVersion/updating fields.
+        // Protocol 15 adds the model_switch item type and the optional
+        // previousTurnModel/model start+payload fields; both authority hashes
+        // move and the native mirrors re-chunk.
+        sourceHash: "sha256:44eb1792ece9df2088e58795ba84689d1f8eaa71dd7b804e904ffb5d0ccbd854",
+        manifestHash: "sha256:d497d2d7a7342cb2f7d21370f6abb514ec08f9024ffa152546cbb2b4da7735c2",
         counts: {
           routes: 128,
           procedures: 194,
@@ -146,8 +150,8 @@ describe("remote v3 native binding generator", () => {
           semanticValidators: 31,
           // Content-defined shards (emitterCommon.shardDeclarations) average
           // ~200 lines, so a contract change rewrites only nearby files.
-          swiftFiles: 184,
-          kotlinFiles: 154,
+          swiftFiles: 182,
+          kotlinFiles: 152,
           stateMachines: 5,
         },
       });

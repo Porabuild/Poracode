@@ -67,7 +67,7 @@ beforeEach(() => {
 });
 
 describe("OpenCode plugin settings", () => {
-  it("loads native packages and installs the featured goal package explicitly", async () => {
+  it("loads native packages and installs a package named in Discover", async () => {
     render(<OpenCodePluginsSettings agentKind="opencode" statuses={statuses} />);
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     expect(bridge.manageAgentPlugins).not.toHaveBeenCalled();
@@ -80,10 +80,11 @@ describe("OpenCode plugin settings", () => {
     });
     bridge.manageAgentPlugins.mockResolvedValue({ packages: [goal] });
     fireEvent.click(screen.getByRole("tab", { name: "Discover" }));
-    const install = screen
-      .getAllByRole("button", { name: "Install" })
-      .find((button) => !button.hasAttribute("disabled"))!;
-    fireEvent.click(install);
+    expect(screen.queryByText("OpenCode Goal Plugin")).not.toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Package name or Git URL"), {
+      target: { value: goal.target },
+    });
+    fireEvent.submit(screen.getByLabelText("Package name or Git URL").closest("form")!);
     await waitFor(() =>
       expect(bridge.manageAgentPlugins).toHaveBeenLastCalledWith({
         agentKind: "opencode",
@@ -93,28 +94,18 @@ describe("OpenCode plugin settings", () => {
       }),
     );
     await screen.findByRole("button", { name: `Remove ${goal.target}` });
-    fireEvent.click(screen.getByRole("tab", { name: "Discover" }));
-    expect(screen.getByRole("button", { name: "Installed" })).toBeDisabled();
   });
 
-  it("lets a failed featured package be retried", async () => {
+  it("shows a failed package on Installed without a Discover retry card", async () => {
     bridge.manageAgentPlugins.mockResolvedValue({
       packages: [{ ...goal, status: "failed" }],
     });
     render(<OpenCodePluginsSettings agentKind="opencode" statuses={statuses} />);
     fireEvent.click(screen.getByRole("button", { name: "Manage plugins" }));
-    fireEvent.click(await screen.findByRole("tab", { name: "Discover" }));
-    const retry = await screen.findByRole("button", { name: "Retry" });
-    expect(retry).not.toBeDisabled();
-    fireEvent.click(retry);
-    await waitFor(() =>
-      expect(bridge.manageAgentPlugins).toHaveBeenLastCalledWith({
-        agentKind: "opencode",
-        env: { kind: "native" },
-        action: "install",
-        target: goal.target,
-      }),
-    );
+    await screen.findByText("Failed to load");
+    fireEvent.click(screen.getByRole("tab", { name: "Discover" }));
+    expect(screen.queryByText("OpenCode Goal Plugin")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Retry" })).not.toBeInTheDocument();
   });
   it("keeps failed installation actionable and does not claim it is installed", async () => {
     render(<OpenCodePluginsSettings agentKind="opencode" statuses={statuses} />);
@@ -149,6 +140,61 @@ describe("OpenCode plugin settings", () => {
       }),
     );
   });
+  it("shows installed and update versions and a loader while updating", async () => {
+    const installed = { ...goal, version: "0.1.67", outdated: true };
+    const outdated = { ...installed, latestVersion: "0.1.101" };
+    const updated = { ...goal, version: "0.1.101", outdated: false };
+    let updateGate: Promise<{ packages: (typeof updated)[] }> | undefined;
+    bridge.manageAgentPlugins.mockImplementation(async (payload) => {
+      if (payload.action === "check") return { packages: [outdated] };
+      if (payload.action === "update" && updateGate) return updateGate;
+      return { packages: [installed] };
+    });
+    render(<OpenCodePluginsSettings agentKind="opencode" statuses={statuses} />);
+    fireEvent.click(screen.getByRole("button", { name: "Manage plugins" }));
+    // `list` never carries latestVersion; only the explicit check resolves it.
+    await screen.findByText("v0.1.67");
+    expect(screen.queryByText(/→ v0\.1\.101/)).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Check agent plugin updates" }));
+    await screen.findByText("v0.1.67 → v0.1.101");
+    expect(screen.getByText(/Update available/)).toBeInTheDocument();
+
+    const pending = Promise.withResolvers<{ packages: (typeof updated)[] }>();
+    updateGate = pending.promise;
+    fireEvent.click(screen.getByRole("button", { name: `Update ${goal.target}` }));
+    await screen.findByText("Updating to v0.1.101");
+    expect(screen.queryByRole("button", { name: `Update ${goal.target}` })).not.toBeInTheDocument();
+    expect(bridge.manageAgentPlugins).toHaveBeenLastCalledWith({
+      agentKind: "opencode",
+      env: { kind: "native" },
+      action: "update",
+      target: goal.target,
+    });
+
+    pending.resolve({ packages: [updated] });
+    await screen.findByText("v0.1.101");
+    expect(screen.queryByText("Updating to v0.1.101")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: `Update ${goal.target}` })).not.toBeInTheDocument();
+  });
+
+  it("shows a server-reported in-progress update with a shortened hash version", async () => {
+    bridge.manageAgentPlugins.mockResolvedValue({
+      packages: [
+        {
+          ...goal,
+          version: "a".repeat(40),
+          outdated: true,
+          latestVersion: "0.1.101",
+          updating: true,
+        },
+      ],
+    });
+    render(<OpenCodePluginsSettings agentKind="opencode" statuses={statuses} />);
+    fireEvent.click(screen.getByRole("button", { name: "Manage plugins" }));
+    await screen.findByText("Updating to v0.1.101");
+    expect(screen.getByText(/aaaaaaa → v0\.1\.101/)).toBeInTheDocument();
+  });
+
   it("does not launch plugin processes when the provider is absent", () => {
     render(<OpenCodePluginsSettings agentKind="opencode" statuses={[]} />);
     fireEvent.click(screen.getByRole("button", { name: "Manage plugins" }));
@@ -175,10 +221,10 @@ describe("OpenCode plugin settings", () => {
 
     callProcedure.mockResolvedValueOnce({ packages: [goal] } as never);
     fireEvent.click(screen.getByRole("tab", { name: "Discover" }));
-    const install = screen
-      .getAllByRole("button", { name: "Install" })
-      .find((button) => !button.hasAttribute("disabled"))!;
-    fireEvent.click(install);
+    fireEvent.change(screen.getByLabelText("Package name or Git URL"), {
+      target: { value: goal.target },
+    });
+    fireEvent.submit(screen.getByLabelText("Package name or Git URL").closest("form")!);
     await waitFor(() =>
       expect(callProcedure).toHaveBeenLastCalledWith("manageAgentPlugins", {
         agentKind: "opencode",

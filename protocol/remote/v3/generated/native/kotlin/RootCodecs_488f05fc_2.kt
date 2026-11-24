@@ -284,8 +284,8 @@ val RemoteRootCodecs.procedureU2EManageAgentCredentialsU2EResult: RemoteRootCode
 val RemoteRootCodecs.procedureU2EManageAgentPluginsU2ERequest: RemoteRootCodec<ProceduremanageAgentPluginsRequest_c61abfd0f3>
     get() = RemoteRootCodec("procedure.manageAgentPlugins.request", serializer<ProceduremanageAgentPluginsRequest_c61abfd0f3>(), schema_c61abfd0f3a8ad5d)
 
-val RemoteRootCodecs.procedureU2EManageAgentPluginsU2EResult: RemoteRootCodec<ProceduremanageAgentPluginsResult_940863a47c>
-    get() = RemoteRootCodec("procedure.manageAgentPlugins.result", serializer<ProceduremanageAgentPluginsResult_940863a47c>(), schema_940863a47ce0d148)
+val RemoteRootCodecs.procedureU2EManageAgentPluginsU2EResult: RemoteRootCodec<ProceduremanageAgentPluginsResult_50c013e0fb>
+    get() = RemoteRootCodec("procedure.manageAgentPlugins.result", serializer<ProceduremanageAgentPluginsResult_50c013e0fb>(), schema_50c013e0fba2aefa)
 
 val RemoteRootCodecs.procedureU2EManageModelProvidersU2ERequest: RemoteRootCodec<ProceduremanageModelProvidersRequest_925f63aff8>
     get() = RemoteRootCodec("procedure.manageModelProviders.request", serializer<ProceduremanageModelProvidersRequest_925f63aff8>(), schema_925f63aff8376636)

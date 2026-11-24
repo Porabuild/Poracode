@@ -38,6 +38,7 @@ export const GLYPH = {
   error: ICON_GLYPHS.CircleAlert!,
   fileChange: ICON_GLYPHS.FileEdit!,
   handoff: "⇄",
+  modelSwitch: "⇄",
   running: "◌",
   thought: ICON_GLYPHS.Brain!,
   web: ICON_GLYPHS.Globe!,

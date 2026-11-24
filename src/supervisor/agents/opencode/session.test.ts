@@ -86,6 +86,9 @@ function makeClient(): OpenCodeClient {
     agent: { list: vi.fn<() => Promise<{ data: unknown[] }>>().mockResolvedValue({ data: [] }) },
     skill: { list: vi.fn<() => Promise<{ data: unknown[] }>>().mockResolvedValue({ data: [] }) },
     command: { list: vi.fn<() => Promise<{ data: unknown[] }>>().mockResolvedValue({ data: [] }) },
+    model: {
+      list: vi.fn<() => Promise<{ data: unknown[] }>>().mockResolvedValue({ data: [] }),
+    },
     config: { get: vi.fn<() => Promise<unknown[]>>().mockResolvedValue([]) },
     permission: {
       list: vi.fn<() => Promise<unknown>>().mockResolvedValue([]),
@@ -163,6 +166,7 @@ interface Harness {
 async function makeSession(options?: {
   client?: OpenCodeClient;
   acquired?: AcquiredOpenCodeServer;
+  config?: ThreadConfig;
   presentationMode?: "gui" | "terminal";
   mcpServers?: readonly ResolvedMcpServer[];
   resolveMcpServersForTurn?: NonNullable<
@@ -170,6 +174,7 @@ async function makeSession(options?: {
   >;
 }): Promise<Harness> {
   const client = options?.client ?? makeClient();
+  const threadConfig = options?.config ?? config;
   const acquired = options?.acquired ?? (makeAcquired(client).acquired as AcquiredOpenCodeServer);
   mocks.acquireOpenCodeServer.mockResolvedValue(acquired);
 
@@ -182,7 +187,7 @@ async function makeSession(options?: {
   const session = await OpenCodeSession.create({
     threadId: "thread-abc12345",
     projectLocation,
-    config,
+    config: threadConfig,
     presentationMode: options?.presentationMode ?? "gui",
     ...(options?.mcpServers !== undefined ? { mcpServers: options.mcpServers } : {}),
     ...(options?.resolveMcpServersForTurn
@@ -199,7 +204,7 @@ async function makeSession(options?: {
     onUpdate: (update) => updates.push(update),
     onRuntimeEvent: (entry) => events.push(entry),
   });
-  await session.openThread(config);
+  await session.openThread(threadConfig);
 
   return { session, client, subscription, updates, events, errors };
 }
@@ -219,6 +224,10 @@ function makeClientWith(overrides: OpenCodeServerOverrides): OpenCodeClient {
   return client as OpenCodeClient;
 }
 
+function catalogModel(providerID: string, id: string, context: number) {
+  return { providerID, id, limit: { context, output: 64_000 } };
+}
+
 function remoteMcp(name: string, url: string, disabledTools?: string[]): ResolvedMcpServer {
   return {
     id: name,
@@ -228,6 +237,49 @@ function remoteMcp(name: string, url: string, disabledTools?: string[]): Resolve
     ...(disabledTools ? { disabledTools } : {}),
   };
 }
+
+/** Launch a subagent whose call returns at once while its child keeps working. */
+function launchBackgroundSubagent(harness: Harness) {
+  const send = harness.subscription!.onEvent;
+  send(
+    event("session.tool.input.started", {
+      sessionID: "ses_new",
+      assistantMessageID: "m",
+      id: "call",
+      name: "subagent",
+    }),
+  );
+  send(
+    event("session.tool.called", {
+      sessionID: "ses_new",
+      assistantMessageID: "m",
+      id: "call",
+      input: { description: "Review" },
+      executed: true,
+    }),
+  );
+  send(event("session.created", { sessionID: "ses_child", parentID: "ses_new" }));
+  send(
+    event("session.tool.success", {
+      sessionID: "ses_new",
+      assistantMessageID: "m",
+      id: "call",
+      content: [{ type: "text", text: "working in the background" }],
+      metadata: { sessionID: "ses_child", status: "running" },
+      executed: true,
+    }),
+  );
+  const launchRow = harness.events.find(
+    (entry) =>
+      entry.type === "item.started" &&
+      (entry.payload as { isSubAgent?: boolean } | undefined)?.isSubAgent === true,
+  );
+  if (launchRow?.type !== "item.started") throw new Error("missing launch row");
+  return launchRow;
+}
+
+const launchCompletions = (harness: Harness, itemId: string) =>
+  harness.events.filter((entry) => entry.type === "item.completed" && entry.itemId === itemId);
 
 describe("OpenCodeSession", () => {
   afterEach(clearOpenCodeSessionDatabases);
@@ -377,6 +429,101 @@ describe("OpenCodeSession", () => {
       mocks.readOpenCodeGoalState.mockResolvedValue(undefined);
       mocks.resolveOpenCodeGoalStatePath.mockReset();
       mocks.resolveOpenCodeGoalStatePath.mockResolvedValue("/goals.json");
+    }
+  });
+
+  it("hydrates the built-in goal through its RPC and follows its change events", async () => {
+    const native = {
+      id: "goal-native",
+      objective: "Native objective",
+      status: "active",
+      rounds: 1,
+      maxRounds: 50,
+      boot: "boot-1",
+      updatedAt: 1_700_000_000_000,
+    };
+    const call = vi.fn<() => Promise<unknown>>().mockResolvedValue({ output: native });
+    const command = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
+    const client = makeClientWith({
+      // The plugin is installed under a renamed command; native controls must
+      // still dispatch through the built-in `goal` command, not `mission`.
+      "config.get": vi.fn<() => Promise<unknown>>().mockResolvedValue([
+        {
+          type: "document",
+          info: {
+            plugins: [
+              {
+                package: "@prevalentware/opencode-goal-plugin",
+                options: { command_name: "mission" },
+              },
+            ],
+          },
+        },
+      ]),
+      "command.list": vi.fn<() => Promise<unknown>>().mockResolvedValue({
+        data: [{ name: "goal" }, { name: "mission" }, { name: "pause_goal" }],
+      }),
+      "session.command": command,
+    });
+    (client as unknown as Record<string, unknown>).rpc = { call };
+    const h = await makeSession({ client });
+    try {
+      await vi.waitFor(() =>
+        expect(h.events).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({
+              type: "item.started",
+              itemType: "goal",
+              payload: expect.objectContaining({
+                objective: "Native objective",
+                status: "active",
+                iterations: 1,
+                availableActions: ["pause", "clear"],
+              }),
+            }),
+          ]),
+        ),
+      );
+      expect(call).toHaveBeenCalledWith(
+        expect.objectContaining({ rpcID: "opencode.goal", method: "get" }),
+        expect.anything(),
+      );
+      h.subscription?.onEvent(
+        event("rpc.opencode.goal.changed", {
+          sessionID: "ses_new",
+          goal: { ...native, status: "paused", rounds: 2, updatedAt: 1_700_000_060_000 },
+        }),
+      );
+      expect(h.events).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            type: "item.updated",
+            payload: expect.objectContaining({ status: "paused", iterations: 2 }),
+          }),
+        ]),
+      );
+      // The plugin state-file poll reporting "no goal" must not clear the native goal.
+      const before = h.events.length;
+      mocks.readOpenCodeGoalState.mockResolvedValue(null);
+      await h.session.controlGoal({ action: "pause" }).catch(() => undefined);
+      // A native goal pauses through `/goal pause`, never the plugin's pause_goal.
+      expect(command).toHaveBeenLastCalledWith({
+        sessionID: "ses_new",
+        name: "goal",
+        text: "pause",
+      });
+      expect(
+        h.events
+          .slice(before)
+          .some(
+            (entry) =>
+              "payload" in entry &&
+              (entry.payload as { action?: string } | undefined)?.action === "cleared",
+          ),
+      ).toBe(false);
+    } finally {
+      await h.session.dispose();
+      mocks.readOpenCodeGoalState.mockResolvedValue(undefined);
     }
   });
 
@@ -855,6 +1002,349 @@ describe("OpenCodeSession", () => {
     await harness.session.dispose();
   });
 
+  it("keeps a background subagent row running until its child session finishes", async () => {
+    const harness = await makeSession();
+    const launchRow = launchBackgroundSubagent(harness);
+    const send = harness.subscription!.onEvent;
+    send(
+      event("session.step.ended", {
+        sessionID: "ses_new",
+        assistantMessageID: "m",
+        finish: "stop",
+      }),
+    );
+    send(event("session.execution.succeeded", { sessionID: "ses_new" }));
+    // The parent's turn is over; the launch row still tracks the child's run.
+    expect(launchCompletions(harness, launchRow.itemId)).toEqual([]);
+    expect(harness.events).toContainEqual(
+      expect.objectContaining({
+        type: "item.updated",
+        itemId: launchRow.itemId,
+        payload: expect.objectContaining({ status: "running", isSubAgent: true }),
+      }),
+    );
+    const idleUpdates = harness.updates.filter((update) => update.status === "idle").length;
+    send(
+      event("session.tool.input.started", {
+        sessionID: "ses_child",
+        assistantMessageID: "c",
+        id: "cread",
+        name: "read",
+      }),
+    );
+    send(
+      event("session.text.ended", {
+        sessionID: "ses_child",
+        assistantMessageID: "c2",
+        ordinal: 0,
+        text: "Report",
+      }),
+    );
+    expect(launchCompletions(harness, launchRow.itemId)).toEqual([]);
+    send(event("session.execution.succeeded", { sessionID: "ses_child" }));
+    expect(launchCompletions(harness, launchRow.itemId)).toEqual([
+      expect.objectContaining({
+        payload: expect.objectContaining({
+          isSubAgent: true,
+          status: "success",
+          subAgentStatus: "completed",
+          result: "Report",
+          progress: expect.objectContaining({ stepCount: 2, lastToolName: "read" }),
+        }),
+      }),
+    ]);
+    // The child's lifecycle leaves the thread's own status alone.
+    expect(harness.updates.filter((update) => update.status === "idle")).toHaveLength(idleUpdates);
+    await harness.session.dispose();
+  });
+
+  it("settles a background subagent row after reconnect once its child stopped running", async () => {
+    const harness = await makeSession();
+    const launchRow = launchBackgroundSubagent(harness);
+    vi.mocked(harness.client.session.active).mockResolvedValue({});
+    vi.mocked(harness.client.session.get).mockImplementation(async ({ sessionID }) =>
+      sessionID === "ses_child"
+        ? ({ id: "ses_child", outcome: "succeeded" } as never)
+        : ({ id: "ses_resume" } as never),
+    );
+    vi.mocked(harness.client.message.list).mockImplementation(
+      async ({ sessionID }) =>
+        ({
+          data:
+            sessionID === "ses_new"
+              ? [
+                  {
+                    id: "m",
+                    type: "assistant",
+                    time: { created: 1 },
+                    content: [
+                      {
+                        type: "tool",
+                        id: "call",
+                        name: "subagent",
+                        state: {
+                          status: "completed",
+                          input: { description: "Review" },
+                          content: [{ type: "text", text: "working in the background" }],
+                          metadata: { sessionID: "ses_child", status: "running" },
+                        },
+                      },
+                    ],
+                  },
+                ]
+              : sessionID === "ses_child"
+                ? [
+                    {
+                      id: "c2",
+                      type: "assistant",
+                      time: { created: 1, completed: 2 },
+                      content: [{ type: "text", text: "Report" }],
+                    },
+                  ]
+                : [],
+          cursor: {},
+        }) as never,
+    );
+    await harness.subscription!.onReconnect();
+    expect(launchCompletions(harness, launchRow.itemId)).toEqual([
+      expect.objectContaining({
+        payload: expect.objectContaining({ subAgentStatus: "completed", result: "Report" }),
+      }),
+    ]);
+    await harness.session.dispose();
+  });
+
+  it("cancels a background subagent row still running when its turn is force-completed", async () => {
+    const harness = await makeSession();
+    const launchRow = launchBackgroundSubagent(harness);
+    harness.events.length = 0;
+    harness.session.forceCompleteTurn();
+    expect(launchCompletions(harness, launchRow.itemId)).toEqual([
+      expect.objectContaining({
+        payload: expect.objectContaining({
+          status: "error",
+          subAgentStatus: "cancelled",
+          result: { error: "Interrupted: agent session ended before completion." },
+        }),
+      }),
+    ]);
+    expect(harness.session.ownsProviderSession("ses_child")).toBe(false);
+    await harness.session.dispose();
+  });
+
+  it("interrupts the background subagents it still tracks when the thread is interrupted", async () => {
+    const harness = await makeSession();
+    launchBackgroundSubagent(harness);
+    await harness.session.interruptTurn();
+    expect(harness.client.session.interrupt).toHaveBeenCalledWith({ sessionID: "ses_new" });
+    expect(harness.client.session.interrupt).toHaveBeenCalledWith({ sessionID: "ses_child" });
+    await harness.session.dispose();
+  });
+
+  it("still interrupts the agents when the parent reports its interruption first", async () => {
+    const harness = await makeSession();
+    launchBackgroundSubagent(harness);
+    const interrupted: string[] = [];
+    vi.mocked(harness.client.session.interrupt).mockImplementation(async ({ sessionID }) => {
+      interrupted.push(sessionID);
+      // The server can deliver the parent's interrupted event before the RPC
+      // resolves; that settles the rows and forgets the agents.
+      if (sessionID === "ses_new")
+        harness.subscription!.onEvent(
+          event("session.execution.interrupted", { sessionID: "ses_new", reason: "user" }),
+        );
+      return { interrupted: true };
+    });
+    await harness.session.interruptTurn();
+    expect(interrupted.sort()).toEqual(["ses_child", "ses_new"]);
+    await harness.session.dispose();
+  });
+
+  it("keeps interrupting the other agents when one interrupt is refused", async () => {
+    const harness = await makeSession();
+    const send = harness.subscription!.onEvent;
+    for (const [call, child] of [
+      ["call", "ses_child"],
+      ["call-2", "ses_child-2"],
+    ] as const) {
+      send(
+        event("session.tool.input.started", {
+          sessionID: "ses_new",
+          assistantMessageID: "m",
+          id: call,
+          name: "subagent",
+        }),
+      );
+      send(event("session.created", { sessionID: child, parentID: "ses_new" }));
+      send(
+        event("session.tool.success", {
+          sessionID: "ses_new",
+          assistantMessageID: "m",
+          id: call,
+          content: [{ type: "text", text: "working in the background" }],
+          metadata: { sessionID: child, status: "running" },
+          executed: true,
+        }),
+      );
+    }
+    const interrupted: string[] = [];
+    vi.mocked(harness.client.session.interrupt).mockImplementation(async ({ sessionID }) => {
+      interrupted.push(sessionID);
+      if (sessionID === "ses_child") throw new Error("Session not found");
+      return { interrupted: true };
+    });
+    await harness.session.interruptTurn();
+    expect(interrupted.sort()).toEqual(["ses_child", "ses_child-2", "ses_new"]);
+    await harness.session.dispose();
+  });
+
+  it("keeps the interruption notice for a run recovery finds interrupted", async () => {
+    const harness = await makeSession();
+    const launchRow = launchBackgroundSubagent(harness);
+    vi.mocked(harness.client.session.active).mockResolvedValue({});
+    vi.mocked(harness.client.session.get).mockImplementation(async ({ sessionID }) =>
+      sessionID === "ses_child"
+        ? ({ id: "ses_child", outcome: "interrupted" } as never)
+        : ({ id: "ses_resume" } as never),
+    );
+    vi.mocked(harness.client.message.list).mockImplementation(
+      async ({ sessionID }) =>
+        ({
+          data:
+            sessionID === "ses_child"
+              ? // An earlier step of the child failed; the run itself was interrupted.
+                [
+                  {
+                    id: "c1",
+                    type: "assistant",
+                    time: { created: 1 },
+                    error: { type: "provider_error", message: "Stale step failure" },
+                    content: [],
+                  },
+                ]
+              : [],
+          cursor: {},
+        }) as never,
+    );
+    await harness.subscription!.onReconnect();
+    expect(launchCompletions(harness, launchRow.itemId)).toEqual([
+      expect.objectContaining({
+        payload: expect.objectContaining({
+          status: "error",
+          subAgentStatus: "cancelled",
+          result: { error: "Interrupted: agent session ended before completion." },
+        }),
+      }),
+    ]);
+    await harness.session.dispose();
+  });
+
+  it("keeps tracking background subagents when the parent's execution fails", async () => {
+    const harness = await makeSession();
+    const launchRow = launchBackgroundSubagent(harness);
+    const send = harness.subscription!.onEvent;
+    send(
+      event("session.execution.failed", {
+        sessionID: "ses_new",
+        error: { message: "Parent provider error" },
+      }),
+    );
+    // The server keeps the child sessions running; their rows must keep tracking.
+    expect(launchCompletions(harness, launchRow.itemId)).toEqual([]);
+    expect(harness.session.ownsProviderSession("ses_child")).toBe(true);
+    send(
+      event("session.text.ended", {
+        sessionID: "ses_child",
+        assistantMessageID: "c2",
+        ordinal: 0,
+        text: "Report",
+      }),
+    );
+    send(event("session.execution.succeeded", { sessionID: "ses_child" }));
+    expect(launchCompletions(harness, launchRow.itemId)).toEqual([
+      expect.objectContaining({
+        payload: expect.objectContaining({ subAgentStatus: "completed", result: "Report" }),
+      }),
+    ]);
+    await harness.session.dispose();
+  });
+
+  it("settles background subagents as cancelled when the parent's execution is interrupted", async () => {
+    const harness = await makeSession();
+    const launchRow = launchBackgroundSubagent(harness);
+    harness.subscription!.onEvent(
+      event("session.execution.interrupted", { sessionID: "ses_new", reason: "user" }),
+    );
+    expect(launchCompletions(harness, launchRow.itemId)).toEqual([
+      expect.objectContaining({
+        payload: expect.objectContaining({ status: "error", subAgentStatus: "cancelled" }),
+      }),
+    ]);
+    expect(harness.session.ownsProviderSession("ses_child")).toBe(false);
+    await harness.session.dispose();
+  });
+
+  it("reports a failed child run with the server's own failure text after reconnect", async () => {
+    const harness = await makeSession();
+    const launchRow = launchBackgroundSubagent(harness);
+    vi.mocked(harness.client.session.active).mockResolvedValue({});
+    vi.mocked(harness.client.session.get).mockImplementation(async ({ sessionID }) =>
+      sessionID === "ses_child"
+        ? ({ id: "ses_child", outcome: "failed" } as never)
+        : ({ id: "ses_resume" } as never),
+    );
+    vi.mocked(harness.client.message.list).mockImplementation(
+      async ({ sessionID }) =>
+        ({
+          data:
+            sessionID === "ses_new"
+              ? [
+                  {
+                    id: "m",
+                    type: "assistant",
+                    time: { created: 1 },
+                    content: [
+                      {
+                        type: "tool",
+                        id: "call",
+                        name: "subagent",
+                        state: {
+                          status: "completed",
+                          input: { description: "Review" },
+                          content: [{ type: "text", text: "working in the background" }],
+                          metadata: { sessionID: "ses_child", status: "running" },
+                        },
+                      },
+                    ],
+                  },
+                ]
+              : sessionID === "ses_child"
+                ? [
+                    {
+                      id: "c2",
+                      type: "assistant",
+                      time: { created: 1 },
+                      error: { type: "provider_error", message: "Rate limit reached" },
+                      content: [],
+                    },
+                  ]
+                : [],
+          cursor: {},
+        }) as never,
+    );
+    await harness.subscription!.onReconnect();
+    expect(launchCompletions(harness, launchRow.itemId)).toEqual([
+      expect.objectContaining({
+        payload: expect.objectContaining({
+          status: "error",
+          subAgentStatus: "failed",
+          result: "Rate limit reached",
+        }),
+      }),
+    ]);
+    await harness.session.dispose();
+  });
+
   it("restores missed approvals and settles a turn after reconnect", async () => {
     const harness = await makeSession();
     await harness.session.startTurn("hello", config);
@@ -1068,21 +1558,43 @@ describe("OpenCodeSession", () => {
       ],
     });
     expect(mocks.subscribeOpenCodeServerEvents).not.toHaveBeenCalled();
+    // Terminal presentation has no context dock; its window read must not run.
+    expect(client.model.list).not.toHaveBeenCalled();
   });
 
   it("resumes an existing session without creating one", async () => {
-    const { session, client } = await makeSession();
+    const client = makeClientWith({
+      "model.list": vi.fn<() => Promise<unknown>>().mockResolvedValue({
+        data: [catalogModel("opencode-go", "glm-5.3-flash", 1_048_576)],
+      }),
+    });
+    const { session, events } = await makeSession({ client });
     vi.mocked(client.session.create).mockClear();
 
-    const id = await session.openThread(config, {
-      providerSessionId: "ses_resume",
-      discoveredAt: "2026-01-01T00:00:00.000Z",
-    });
+    const id = await session.openThread(
+      { model: "opencode-go/glm-5.3-flash" },
+      {
+        providerSessionId: "ses_resume",
+        discoveredAt: "2026-01-01T00:00:00.000Z",
+      },
+    );
 
     expect(id).toBe("ses_resume");
     expect(client.session.get).toHaveBeenCalledWith({ sessionID: "ses_resume" });
     expect(client.session.create).not.toHaveBeenCalled();
     expect(session.launchOptions.resumeThreadId).toBe("ses_resume");
+    // A resumed thread announces the window of the model it will run.
+    await vi.waitFor(() =>
+      expect(events).toEqual(
+        expect.arrayContaining([
+          {
+            type: "context.updated",
+            threadId: "thread-abc12345",
+            usage: { maxTokens: 1_048_576 },
+          },
+        ]),
+      ),
+    );
   });
 
   it("surfaces missing resume targets without silently replacing their history", async () => {
@@ -1140,6 +1652,191 @@ describe("OpenCodeSession", () => {
     vi.mocked(client.session.switchModel).mockRejectedValueOnce(new Error("bad model"));
     await expect(session.startTurn("fourth", config)).rejects.toThrow("bad model");
     expect(client.session.prompt).toHaveBeenCalledTimes(3);
+  });
+
+  it("announces the catalog context window and stamps it on every step sample", async () => {
+    const client = makeClientWith({
+      "model.list": vi.fn<() => Promise<unknown>>().mockResolvedValue({
+        data: [
+          catalogModel("opencode-go", "deepseek-v4.1-flash", 1_000_000),
+          catalogModel("zai-coding-plan", "glm-5.4", 200_000),
+        ],
+      }),
+    });
+    const { session, subscription, events } = await makeSession({ client });
+    try {
+      // The window is announced as soon as the catalog answers, before any step
+      // sample, so a thread handed off to OpenCode stops showing the window its
+      // previous provider reported.
+      await vi.waitFor(() =>
+        expect(events).toEqual(
+          expect.arrayContaining([
+            {
+              type: "context.updated",
+              threadId: "thread-abc12345",
+              usage: { maxTokens: 1_000_000 },
+            },
+          ]),
+        ),
+      );
+
+      // A prompt on the same model never waits for or repeats the announcement.
+      events.length = 0;
+      await session.startTurn("hello", config);
+      const turnEvents = events.splice(0);
+      expect(turnEvents.filter((mapped) => mapped.type === "context.updated")).toEqual([]);
+
+      subscription?.onEvent(
+        event("session.step.ended", {
+          sessionID: "ses_new",
+          assistantMessageID: "msg_a",
+          tokens: { input: 10, output: 1, reasoning: 0, cache: { read: 3, write: 0 } },
+        }),
+      );
+      const stepEvents = events.splice(0);
+      expect(stepEvents.find((mapped) => mapped.type === "context.updated")).toMatchObject({
+        type: "context.updated",
+        usage: { usedTokens: 14, maxTokens: 1_000_000 },
+      });
+
+      // Selecting another model republishes that model's window; the lookup is
+      // display-only, so the announcement lands after the prompt was admitted.
+      await session.startTurn("next", { model: "zai-coding-plan/glm-5.4" });
+      await vi.waitFor(() =>
+        expect(events).toEqual(
+          expect.arrayContaining([
+            {
+              type: "context.updated",
+              threadId: "thread-abc12345",
+              usage: { maxTokens: 200_000 },
+            },
+          ]),
+        ),
+      );
+    } finally {
+      await session.dispose();
+    }
+  });
+
+  it("drops a superseded model window when the newer switch resolves first", async () => {
+    const first = Promise.withResolvers<{ data: unknown[] }>();
+    const second = Promise.withResolvers<{ data: unknown[] }>();
+    let calls = 0;
+    const client = makeClientWith({
+      "model.list": vi.fn<() => Promise<{ data: unknown[] }>>(() =>
+        ++calls === 1 ? first.promise : second.promise,
+      ),
+    });
+    const now = vi.spyOn(Date, "now");
+    try {
+      now.mockReturnValue(1_000_000);
+      const { session, events } = await makeSession({ client });
+      try {
+        // Age the open lookup's snapshot out so the switch issues its own
+        // request; the older answer then arrives after the newer one.
+        now.mockReturnValue(1_000_000 + 5 * 60_000);
+        await session.startTurn("switch", { model: "zai-coding-plan/glm-5.4" });
+        now.mockRestore();
+
+        second.resolve({
+          data: [
+            catalogModel("opencode-go", "deepseek-v4.1-flash", 1_000_000),
+            catalogModel("zai-coding-plan", "glm-5.4", 200_000),
+          ],
+        });
+        await vi.waitFor(() =>
+          expect(events).toContainEqual({
+            type: "context.updated",
+            threadId: "thread-abc12345",
+            usage: { maxTokens: 200_000 },
+          }),
+        );
+
+        first.resolve({ data: [catalogModel("opencode-go", "deepseek-v4.1-flash", 1_000_000)] });
+        await new Promise<void>((resolve) => setImmediate(resolve));
+        expect(
+          events.flatMap((mapped) =>
+            mapped.type === "context.updated" ? [mapped.usage.maxTokens] : [],
+          ),
+        ).toEqual([200_000]);
+      } finally {
+        await session.dispose();
+      }
+    } finally {
+      now.mockRestore();
+    }
+  });
+
+  it("drops a context window that resolves after disposal", async () => {
+    const pending = Promise.withResolvers<{ data: unknown[] }>();
+    const client = makeClientWith({
+      "model.list": vi.fn<() => Promise<{ data: unknown[] }>>(() => pending.promise),
+    });
+    const { session, events } = await makeSession({ client });
+    await session.dispose();
+    pending.resolve({ data: [catalogModel("opencode-go", "deepseek-v4.1-flash", 1_000_000)] });
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    expect(events.filter((mapped) => mapped.type === "context.updated")).toEqual([]);
+  });
+
+  it("falls back to the configured context size when the catalog omits the model", async () => {
+    // A model that the catalog never lists (e.g. its provider was signed out)
+    // must not inherit the previous provider's window through the usage row.
+    const client = makeClientWith({
+      "model.list": vi.fn<() => Promise<unknown>>().mockResolvedValue({ data: [] }),
+    });
+    const configured: ThreadConfig = { ...config, contextSize: "1M" };
+    const { session, events } = await makeSession({ client, config: configured });
+    try {
+      await vi.waitFor(() =>
+        expect(events).toEqual(
+          expect.arrayContaining([
+            {
+              type: "context.updated",
+              threadId: "thread-abc12345",
+              usage: { maxTokens: 1_000_000 },
+            },
+          ]),
+        ),
+      );
+    } finally {
+      await session.dispose();
+    }
+  });
+
+  it("keeps turns running when the context-window catalog fails", async () => {
+    const warning = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const client = makeClientWith({
+        "model.list": vi.fn<() => Promise<never>>().mockRejectedValue(new Error("catalog down")),
+      });
+      const configured: ThreadConfig = { ...config, contextSize: "1M" };
+      const { session, events } = await makeSession({ client, config: configured });
+      try {
+        await session.startTurn("hello", configured);
+        expect(client.session.prompt).toHaveBeenCalledWith({
+          sessionID: "ses_new",
+          text: "hello",
+        });
+        // The thread's own configured size still replaces an inherited window.
+        await vi.waitFor(() =>
+          expect(events).toEqual(
+            expect.arrayContaining([
+              {
+                type: "context.updated",
+                threadId: "thread-abc12345",
+                usage: { maxTokens: 1_000_000 },
+              },
+            ]),
+          ),
+        );
+        await vi.waitFor(() => expect(warning).toHaveBeenCalled());
+      } finally {
+        await session.dispose();
+      }
+    } finally {
+      warning.mockRestore();
+    }
   });
 
   it("applies plan and build agent changes before admitting prompts", async () => {

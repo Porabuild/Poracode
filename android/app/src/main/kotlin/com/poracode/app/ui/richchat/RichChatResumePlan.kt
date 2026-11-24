@@ -31,7 +31,8 @@ internal object RichChatResumePlanner {
     private val TURN_ACTIVE_STATUSES = setOf("launching", "working", "needs_approval", "needs_reply")
 
     /** Rows that are not the agent's own work on the turn. */
-    private val NON_OUTPUT_ITEM_TYPES = setOf(RichItemTypes.ERROR, "provider_handoff")
+    private val NON_OUTPUT_ITEM_TYPES =
+        setOf(RichItemTypes.ERROR, RichItemTypes.PROVIDER_HANDOFF, RichItemTypes.MODEL_SWITCH)
 
     fun isInterrupted(thread: RemoteThread?): Boolean = thread?.interruptedTurn in INTERRUPTIONS
 

@@ -2792,7 +2792,7 @@ msgstr "既存の CLI エージェントとの会話を Poracode に取り込み
 msgid "Browse"
 msgstr "参照"
 
-#: src/renderer/components/providers/opencode/OpenCodePluginCards.tsx
+#: src/renderer/components/providers/opencode/OpenCodePluginManager.tsx
 msgid "Browse ecosystem"
 msgstr "エコシステムを見る"
 
@@ -4362,10 +4362,6 @@ msgstr "コミュニケーション"
 #: src/renderer/components/plugins/PluginDetail.tsx
 msgid "Community"
 msgstr "コミュニティ"
-
-#: src/renderer/components/providers/opencode/OpenCodePluginCards.tsx
-msgid "Community plugin; compatibility depends on your OpenCode version."
-msgstr "コミュニティ製プラグインです。互換性は OpenCode のバージョンによって異なります。"
 
 #: src/renderer/components/providers/muse/index.tsx
 msgid "Compact the conversation context"
@@ -7712,10 +7708,6 @@ msgstr "お気に入り"
 msgid "Favorites"
 msgstr "お気に入り"
 
-#: src/renderer/components/providers/opencode/OpenCodePluginCards.tsx
-msgid "Featured"
-msgstr "注目"
-
 #: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
 msgid "Feedback"
 msgstr "フィードバック"
@@ -9357,7 +9349,6 @@ msgstr "インストールする"
 
 #: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/components/plugins/PluginMarketplace.tsx
-#: src/renderer/components/providers/opencode/OpenCodePluginCards.tsx
 #: src/renderer/components/providers/opencode/OpenCodePluginManager.tsx
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 #: src/renderer/components/thread/DraftHookInstallProposal.tsx
@@ -13076,10 +13067,6 @@ msgstr "パネルで iOS シミュレータ（折りたたみ式 iPhone Duo を�
 msgid "OpenCode"
 msgstr "OpenCode"
 
-#: src/renderer/components/providers/opencode/OpenCodePluginCards.tsx
-msgid "OpenCode Goal Plugin"
-msgstr "OpenCode Goal プラグイン"
-
 #: src/renderer/components/providers/opencode/OpenCodePluginsSettings.tsx
 msgid "OpenCode plugins"
 msgstr "OpenCode プラグイン"
@@ -13581,10 +13568,6 @@ msgstr "許可"
 msgid "Permission"
 msgstr "権限"
 
-#: src/renderer/components/providers/opencode/OpenCodePluginCards.tsx
-msgid "Persistent goals, budgets, and automatic continuation with /goal."
-msgstr "/goal による永続的な目標、予算、自動継続。"
-
 #: src/renderer/components/providers/devin/cloudProfileSettings.tsx
 msgid "Persona (optional)"
 msgstr "ペルソナ（省略可）"
@@ -13718,10 +13701,6 @@ msgstr "通知音を鳴らす"
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "Plugin"
 msgstr "プラグイン"
-
-#: src/renderer/components/providers/opencode/OpenCodePluginCards.tsx
-msgid "Plugin details"
-msgstr "プラグインの詳細"
 
 #: src/renderer/components/plugins/PluginMarketplace.tsx
 msgid "Plugin folder"
@@ -15704,7 +15683,6 @@ msgstr "このホストに保存された使用量のみです。"
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 #: src/renderer/components/mcp/RemoteMcpServersManager.tsx
 #: src/renderer/components/plugins/PluginMarketplace.tsx
-#: src/renderer/components/providers/opencode/OpenCodePluginCards.tsx
 #: src/renderer/components/skills/SkillsManager.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/MarkdownVideo.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/useHistoryItemDetails.tsx
@@ -18466,6 +18444,10 @@ msgstr "ワークスペースを切り替え"
 msgid "Switched from {fromLabel} to {toLabel}"
 msgstr "{fromLabel} から {toLabel} に切り替えました"
 
+#: src/renderer/components/thread/ChatPane/parts/items/ModelSwitchRow.tsx
+msgid "Switched model from {fromLabel} to {toLabel}"
+msgstr "モデルを {fromLabel} から {toLabel} に切り替えました"
+
 #: src/renderer/views/PullRequestsOverlay/detail/header/usePrCheckout.ts
 msgid "Switched to {headBranch}"
 msgstr "{headBranch} に切り替えました"
@@ -21135,6 +21117,7 @@ msgstr "マシン間でスレッドを移動するには {label} を更新して
 msgid "Update all ({outdatedCount})"
 msgstr "すべて更新（{outdatedCount}）"
 
+#: src/renderer/components/providers/opencode/OpenCodePluginCards.tsx
 #: src/renderer/components/thread/ThreadAgentUpdateDock.tsx
 msgid "Update available"
 msgstr "利用可能なアップデート"
@@ -21249,6 +21232,7 @@ msgstr "{0}を更新しました"
 msgid "Updated {formattedUpdatedAt}"
 msgstr "更新: {formattedUpdatedAt}"
 
+#: src/renderer/components/providers/opencode/OpenCodePluginCards.tsx
 #: src/renderer/components/thread/ThreadAgentUpdateDock.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
@@ -21291,7 +21275,9 @@ msgstr "このターミナルで更新中です。完了すると閉じます。
 msgid "Updating providers ({0} of {1} complete)"
 msgstr "プロバイダーを更新中（{1} 件中 {0} 件完了）"
 
+#. placeholder {0}: pkg.latestVersion
 #. placeholder {0}: update.targetVersion
+#: src/renderer/components/providers/opencode/OpenCodePluginCards.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 msgid "Updating to v{0}"
 msgstr "v{0}に更新しています"

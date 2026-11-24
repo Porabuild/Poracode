@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type {
+  ModelSwitchItemPayload,
   PromptSegment,
   ProviderHandoffItemPayload,
   QuestionAnswerItemPayload,
@@ -35,6 +36,16 @@ export class StructuredTurnQueue {
     SessionRuntime,
     Promise<void | StructuredTurnResult>
   >();
+  /**
+   * The model that answered each thread's latest GUI turn, retained across
+   * session restarts for the host's lifetime so a switch made while a thread
+   * was stopped still records its divider on the next launch. A launch can
+   * also seed the baseline from the client's stored items
+   * (`previousTurnModel`) for threads this host has not run since startup.
+   * Entries are one short string per thread ever run; thread ids are never
+   * reused, so no eviction is needed.
+   */
+  private readonly lastTurnModelByThread = new Map<string, string>();
 
   constructor(private readonly ctx: StructuredTurnQueueContext) {}
 
@@ -52,13 +63,21 @@ export class StructuredTurnQueue {
       // applying settings, before their canonical working/turn-start edge.
       session.suppressInitialStructuredIdle = true;
       this.ctx.outputPipeline.updateState(session, "working", "working");
+      // A changed answering model records its divider ahead of the prompt,
+      // like the provider-handoff divider at a launch.
+      this.noteTurnModel(session.threadId, turn.config.model, {
+        requestedItemId: turn.modelSwitchItemId,
+      });
       // Broadcast the renderer's row ID so paired clients see the same prompt.
       optimisticItemId = this.emitOptimisticUserMessage(
         session.threadId,
         turn.prompt,
         turn.displaySegments ?? turn.segments,
         turn.userMessageItemId,
-        ...(turn.questionAnswer ? ([{ questionAnswer: turn.questionAnswer }] as const) : []),
+        {
+          ...(turn.questionAnswer ? { questionAnswer: turn.questionAnswer } : {}),
+          ...(turn.config.model.trim() ? { model: turn.config.model } : {}),
+        },
       );
     }
     const startOptions = {
@@ -106,6 +125,9 @@ export class StructuredTurnQueue {
     this.ctx.beginFailureEpisode(session);
     const prompt = session.pendingLaunchPrompt;
     session.pendingLaunchPrompt = undefined;
+    if (session.presentationMode === "gui" && prompt.length > 0) {
+      this.noteTurnModel(session.threadId, session.config.model);
+    }
     void session.structuredSession.startTurn(prompt, session.config).catch((error) => {
       if (this.ctx.sessions.get(session.threadId)?.instanceId !== session.instanceId) {
         return;
@@ -127,7 +149,12 @@ export class StructuredTurnQueue {
     prompt: string,
     segments?: PromptSegment[],
     requestedItemId?: string,
-    options?: { includeTurn?: boolean; questionAnswer?: QuestionAnswerItemPayload },
+    options?: {
+      includeTurn?: boolean;
+      questionAnswer?: QuestionAnswerItemPayload;
+      /** Thread-config model this message was submitted with (see the payload field). */
+      model?: string;
+    },
   ): string {
     const itemId = requestedItemId ?? `user-${randomUUID()}`;
     const events: RuntimeEvent[] = [
@@ -139,6 +166,7 @@ export class StructuredTurnQueue {
         payload: {
           content: buildPromptContentBlocks(prompt, segments),
           ...(options?.questionAnswer ? { questionAnswer: options.questionAnswer } : {}),
+          ...(options?.model?.trim() ? { model: options.model } : {}),
         },
       },
       { type: "item.completed", threadId, itemId },
@@ -180,6 +208,68 @@ export class StructuredTurnQueue {
         threadId,
         itemId,
         itemType: "provider_handoff",
+        payload,
+      },
+    });
+    this.ctx.emit({
+      type: "thread-runtime-event",
+      threadId,
+      event: { type: "item.completed", threadId, itemId },
+    });
+    return itemId;
+  }
+
+  /**
+   * Note the model a GUI turn is about to be answered with, recording a
+   * `model_switch` divider when it differs from the model that answered the
+   * thread's previous turn. Callers emit then paint the prompt, so the
+   * divider lands ahead of it on the durable event path. `seedModel` is a
+   * launch's client-supplied previous model, consulted only when this host
+   * has not run a turn for the thread yet. `resetBaseline` marks a provider
+   * switch, whose model ids are not comparable with the previous provider's:
+   * the baseline restarts silently with the new provider's model.
+   */
+  noteTurnModel(
+    threadId: string,
+    model: string | undefined,
+    options?: {
+      seedModel?: string | undefined;
+      resetBaseline?: boolean | undefined;
+      requestedItemId?: string | undefined;
+    },
+  ): void {
+    const next = model?.trim();
+    if (!next) return;
+    const previous = options?.resetBaseline
+      ? undefined
+      : (this.lastTurnModelByThread.get(threadId) ?? options?.seedModel?.trim());
+    if (previous && previous !== next) {
+      this.emitModelSwitch(threadId, previous, next, options?.requestedItemId);
+    }
+    this.lastTurnModelByThread.set(threadId, next);
+  }
+
+  /** Record where a thread's answering model changed within one provider. */
+  emitModelSwitch(
+    threadId: string,
+    fromModel: string,
+    toModel: string,
+    requestedItemId?: string,
+  ): string {
+    const itemId = requestedItemId ?? `model-switch-${randomUUID()}`;
+    const payload: ModelSwitchItemPayload = {
+      fromModel,
+      toModel,
+      at: new Date().toISOString(),
+    };
+    this.ctx.emit({
+      type: "thread-runtime-event",
+      threadId,
+      event: {
+        type: "item.started",
+        threadId,
+        itemId,
+        itemType: "model_switch",
         payload,
       },
     });

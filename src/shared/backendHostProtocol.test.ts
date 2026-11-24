@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
   BACKEND_HOST_PROTOCOL_VERSION,
+  BACKEND_SERVICE_PROCEDURE_NAMES,
   createBackendDatabaseRequest,
   createBackendServiceRequest,
   isBackendHostRequest,
   isBackendHostOutboundMessage,
+  isDirectRendererServiceProcedure,
 } from "./backendHostProtocol";
 
 describe("backendHostProtocol", () => {
@@ -297,5 +299,10 @@ describe("backendHostProtocol", () => {
     expect(isBackendHostRequest(request({ id: "r1", payload: {} }))).toBe(false);
     expect(isBackendHostRequest(request({ type: "startShell", payload: {} }))).toBe(false);
     expect(isBackendHostRequest(request({ id: "r1", type: "startShell" }))).toBe(false);
+  });
+  it("admits the additive renderer-window presence service and refuses unknown names", () => {
+    expect(BACKEND_SERVICE_PROCEDURE_NAMES).toContain("setRendererWindowPresent");
+    expect(isDirectRendererServiceProcedure("setRendererWindowPresent")).toBe(true);
+    expect(isDirectRendererServiceProcedure("setRendererWindowPresence")).toBe(false);
   });
 });

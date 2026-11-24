@@ -20,6 +20,7 @@ enum RuntimeEventDecoder {
         "dynamic_tool_call",
         "web_search",
         "question_answer",
+        "model_switch",
         "error",
     ]
 

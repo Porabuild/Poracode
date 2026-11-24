@@ -268,6 +268,7 @@
     <string name="rich_chat_handoff_fork">Rozgałęź rozmowę</string>
     <string name="rich_chat_handoff_prompt">Powiedz nowemu dostawcy, co zrobić dalej…</string>
     <string name="rich_chat_handoff_switch">Przełącz</string>
+    <string name="rich_chat_model_switched">Przełączono model z %1$s na %2$s</string>
     <string name="rich_chat_html_visual_title">Podgląd HTML</string>
     <string name="rich_chat_html_visual_source">Źródło</string>
     <string name="rich_chat_html_visual_preview">Podgląd</string>

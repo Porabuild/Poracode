@@ -44,10 +44,6 @@ const inThreadWindow = () => hasAnyClientBridge() && readBridge().windowKind ===
 export function livesInAnotherWindow(threadId: string): boolean {
   return ownWindowIds.has(threadId) && !inThreadWindow();
 }
-/** A thread in its own window records usage there, so no turn counts twice. */
-export function recordsUsageInThisWindow(threadId: string): boolean {
-  return inThreadWindow() ? ownWindowIds.has(threadId) : !ownWindowIds.has(threadId);
-}
 export function retainAuxiliaryThreadId(threadId: string): () => void {
   retainedHere.set(threadId, (retainedHere.get(threadId) ?? 0) + 1);
   publish();

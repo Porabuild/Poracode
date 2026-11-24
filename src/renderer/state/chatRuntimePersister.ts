@@ -113,10 +113,23 @@ export function boundSettledThreadRuntimeWindows(threadIds: readonly string[]): 
  * an orphaned row there is settled by nothing, and a live one recovers on
  * its next progress frame.
  */
-function hydrationReconcileOptions(): { preserveObservedLive: true; preserveCrossagent?: boolean } {
-  return hasClientCapability("localBackend")
-    ? { preserveObservedLive: true, preserveCrossagent: true }
-    : { preserveObservedLive: true };
+function hydrationReconcileOptions(threadId: string): {
+  preserveObservedLive: true;
+  preserveCrossagent?: boolean;
+  sessionEnded?: true;
+} {
+  return {
+    ...(hasClientCapability("localBackend")
+      ? { preserveObservedLive: true, preserveCrossagent: true }
+      : { preserveObservedLive: true }),
+    // `inactive` is the persisted status of a thread whose session is gone
+    // (closed, exited). It can no longer settle the background agent rows it
+    // held, so a copy read back from storage is an orphan after all.
+    ...(useAppStore.getState().threads.find((thread) => thread.id === threadId)?.status ===
+    "inactive"
+      ? { sessionEnded: true as const }
+      : {}),
+  };
 }
 
 /**
@@ -369,7 +382,9 @@ export async function loadOlderThreadRuntimeItems(threadId: string): Promise<boo
         boundary.needsRebase = false;
         boundary.scan = null;
         useAppStore.getState().prependThreadRuntimeItems(threadId, items, sparseControls);
-        useAppStore.getState().reconcileStaleSubAgents(threadId, hydrationReconcileOptions());
+        useAppStore
+          .getState()
+          .reconcileStaleSubAgents(threadId, hydrationReconcileOptions(threadId));
         const state = useAppStore.getState();
         observeRuntimeHistoryGoalEra(
           boundary,
@@ -793,7 +808,7 @@ function installHydratedRuntimeItems(
   // Cached rows describe last-known work, not an authoritative orphan verdict.
   // The host refresh reconciles them after reconnect.
   if (!options.provisional) {
-    useAppStore.getState().reconcileStaleSubAgents(threadId, hydrationReconcileOptions());
+    useAppStore.getState().reconcileStaleSubAgents(threadId, hydrationReconcileOptions(threadId));
   }
 }
 

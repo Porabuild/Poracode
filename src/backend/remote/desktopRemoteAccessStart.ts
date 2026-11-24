@@ -356,7 +356,7 @@ export async function performDesktopRemoteAccessStart(
             forwardDispatchKey: randomBytes(32).toString("base64url"),
           }
         : {}),
-      gitSummaries: () => refs.remoteGitSummaries,
+      gitSummaries: () => options.getGitSummaries?.() ?? refs.remoteGitSummaries,
       gitState: options.gitStateService,
       ...(options.projectWatchLeases ? { projectWatches: options.projectWatchLeases } : {}),
       settings: {

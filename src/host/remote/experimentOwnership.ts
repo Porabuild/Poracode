@@ -238,24 +238,29 @@ export function assertRemoteThreadCommandExperimentSafe(command: RemoteThreadCom
       return;
   }
 
-  const protectedThreadIds = new Set(threadIds);
-  if (
-    readPersistedExperiments().some((experiment) =>
-      experiment.candidates.some((candidate) => protectedThreadIds.has(candidate.threadId)),
-    )
-  ) {
-    conflict();
-  }
+  if (hasExperimentCandidateThread(new Set(threadIds))) conflict();
 }
 
 export function assertRemoteThreadStartExperimentSafe(threadId: string): void {
-  if (
-    readPersistedExperiments().some((experiment) =>
-      experiment.candidates.some((candidate) => candidate.threadId === threadId),
-    )
-  ) {
-    conflict();
-  }
+  if (isExperimentCandidateThread(threadId)) conflict();
+}
+
+/**
+ * True when a persisted experiment owns this thread as a candidate. Callers
+ * must treat an unreadable experiment store as unsafe (the reader throws) and
+ * never apply a destructive action to a possible candidate.
+ */
+export function isExperimentCandidateThread(threadId: string): boolean {
+  return readPersistedExperiments().some((experiment) =>
+    experiment.candidates.some((candidate) => candidate.threadId === threadId),
+  );
+}
+
+/** The multi-thread form of {@link isExperimentCandidateThread}. */
+export function hasExperimentCandidateThread(threadIds: ReadonlySet<string>): boolean {
+  return readPersistedExperiments().some((experiment) =>
+    experiment.candidates.some((candidate) => threadIds.has(candidate.threadId)),
+  );
 }
 
 function normalizedPath(path: string, caseInsensitive: boolean): string {

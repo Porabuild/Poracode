@@ -26,7 +26,7 @@ object RuntimeEventSchema {
     val CANONICAL_ITEM_TYPES: Set<String> = setOf(
         "user_message", "assistant_message", "reasoning", "plan", "goal",
         "command_execution", "file_change", "tool_call", "mcp_tool_call",
-        "image_view", "dynamic_tool_call", "web_search", "question_answer", "error",
+        "image_view", "dynamic_tool_call", "web_search", "question_answer", "model_switch", "error",
     )
 
     val CANONICAL_STREAMS: Set<String> = setOf(

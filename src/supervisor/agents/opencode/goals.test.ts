@@ -164,6 +164,71 @@ describe("OpenCode goal plugin projection", () => {
     });
   });
 
+  it("projects native goals with rounds, reasons and second-based timestamps", () => {
+    const goals = createGoals();
+    const native = {
+      id: "goal-native",
+      objective: "Ship the release",
+      status: "active",
+      reason: "Reviewer asked for another pass",
+      rounds: 3,
+      maxRounds: 50,
+      boot: "boot-1",
+      updatedAt: 1_700_000_000_000,
+    };
+    expect(goals.mapNative(native, "ses-1")[0]).toMatchObject({
+      type: "item.started",
+      itemId: "opencode-goal-thread-1-native:goal-native",
+      payload: {
+        action: "set",
+        objective: "Ship the release",
+        status: "active",
+        iterations: 3,
+        lastReason: "Reviewer asked for another pass",
+        updatedAt: 1_700_000_000,
+        availableActions: ["pause", "clear"],
+      },
+    });
+    expect(goals.mapNative(native, "ses-1")).toEqual([]);
+    expect(
+      goals.mapNative({ ...native, status: "paused", updatedAt: 1_700_000_060_000 }, "ses-1")[0],
+    ).toMatchObject({
+      type: "item.updated",
+      payload: { status: "paused", availableActions: ["resume", "clear"] },
+    });
+    expect(
+      goals.mapNative({ ...native, status: "complete", updatedAt: 1_700_000_120_000 }, "ses-1")[0],
+    ).toMatchObject({
+      payload: { status: "complete", availableActions: ["clear"] },
+    });
+    expect(goals.mapNative(null, "ses-1")[0]).toMatchObject({
+      payload: { action: "cleared" },
+    });
+    expect(goals.mapNative(undefined, "ses-1")).toEqual([]);
+    expect(goals.mapNative("junk", "ses-1")).toEqual([]);
+  });
+
+  it("never lets one goal owner's empty store clear the other's live goal", () => {
+    const goals = createGoals();
+    goals.mapNative(
+      { id: "n1", objective: "Native goal", status: "active", rounds: 0, updatedAt: 500 },
+      "ses-1",
+    );
+    // The plugin state file has no goal for this session; its poll must not clear the native goal.
+    expect(goals.map(null, "ses-1")).toEqual([]);
+    expect(goals.mapNative(null, "ses-1")[0]).toMatchObject({
+      payload: { action: "cleared" },
+    });
+
+    const pluginGoals = createGoals();
+    pluginGoals.map(snapshot, "ses-1");
+    // A native "no goal" answer must not clear the plugin's live goal either.
+    expect(pluginGoals.mapNative(null, "ses-1")).toEqual([]);
+    expect(pluginGoals.map(null, "ses-1")[0]).toMatchObject({
+      payload: { action: "cleared" },
+    });
+  });
+
   it("resolves renamed commands and keeps tool-only goals read-only", () => {
     expect(
       openCodeGoalCommand(

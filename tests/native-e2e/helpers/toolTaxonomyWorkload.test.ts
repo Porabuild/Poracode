@@ -18,6 +18,7 @@ import {
   goalStatusSchema,
   messageItemPayloadSchema,
   planItemPayloadSchema,
+  modelSwitchItemPayloadSchema,
   providerHandoffItemPayloadSchema,
   questionAnswerItemPayloadSchema,
   reasoningItemPayloadSchema,
@@ -79,6 +80,7 @@ const payloadSchemas: Record<CanonicalItemType, z.ZodType> = {
   question_answer: questionAnswerItemPayloadSchema,
   error: errorItemPayloadSchema,
   provider_handoff: providerHandoffItemPayloadSchema,
+  model_switch: modelSwitchItemPayloadSchema,
 };
 
 function source(path: string): string {
@@ -110,8 +112,8 @@ describe("finite normalized taxonomy declarations", () => {
     const links = [...PAYLOAD_CASES, ...REQUEST_CASES]
       .flatMap((c) => c.inventoryIds)
       .concat("background_tasks_dock");
-    expect(links).toHaveLength(85);
-    expect(new Set(links).size).toBe(85);
+    expect(links).toHaveLength(86);
+    expect(new Set(links).size).toBe(86);
     expect(links).not.toContain("image_jpeg_synthetic");
     expect(links).toContain("image_jpeg_photo");
     for (const [id, refs] of EXECUTION_SCENARIOS_NOT_RUN) {

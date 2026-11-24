@@ -1,5 +1,10 @@
 // GENERATED FILE. Do not edit by hand.
 import Foundation
+public enum ProcedurepluginAccountsRequestU2DOptionU2D3U2DAction_12d1900fc0: String, Codable, Sendable {
+  case `select` = "select"
+  case `logout` = "logout"
+}
+
 public struct ProcedurepluginAccountsRequestU2DOptionU2D3_9a9f19f594: Codable, Sendable, RemoteModelMetadata {
   public var accountId: String
   public var action: ProcedurepluginAccountsRequestU2DOptionU2D3U2DAction_12d1900fc0
@@ -416,33 +421,5 @@ public enum ProcedurepluginCatalogRequestU2DOptionU2D3U2DSource_52056f3d09: Coda
     case .option1(let value): try container.encode(value)
     case .option2(let value): try container.encode(value)
     }
-  }
-}
-
-public struct ProcedurepluginCatalogRequestU2DOptionU2D3_5a7fa7d249: Codable, Sendable, RemoteModelMetadata {
-  public var action: ProcedurepluginCatalogRequestU2DOptionU2D3U2DAction_d296b974b4
-  public var source: ProcedurepluginCatalogRequestU2DOptionU2D3U2DSource_52056f3d09
-  public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .reject
-  public static let fields: [RemoteFieldDescriptor] = [
-    .init(wireName: "action", typeName: "ProcedurepluginCatalogRequestU2DOptionU2D3U2DAction_d296b974b4", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
-    .init(wireName: "source", typeName: "ProcedurepluginCatalogRequestU2DOptionU2D3U2DSource_52056f3d09", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
-  ]
-  public static let semanticValidatorIds: [String] = []
-  private enum CodingKeys: String, CodingKey {
-    case action = "action"
-    case source = "source"
-  }
-  public init(from decoder: Decoder) throws {
-    let all = try decoder.container(keyedBy: RemoteCodingKey.self).allKeys.map(\.stringValue)
-    let known = Set(Self.fields.map(\.wireName))
-    guard all.allSatisfy(known.contains) else { throw DecodingError.dataCorrupted(.init(codingPath: decoder.codingPath, debugDescription: "Unknown field in strict object")) }
-    let container = try decoder.container(keyedBy: CodingKeys.self)
-    self.action = try container.decode(ProcedurepluginCatalogRequestU2DOptionU2D3U2DAction_d296b974b4.self, forKey: .action)
-    self.source = try container.decode(ProcedurepluginCatalogRequestU2DOptionU2D3U2DSource_52056f3d09.self, forKey: .source)
-  }
-  public func encode(to encoder: Encoder) throws {
-    var container = encoder.container(keyedBy: CodingKeys.self)
-    try container.encode(action, forKey: .action)
-    try container.encode(source, forKey: .source)
   }
 }

@@ -1,7 +1,7 @@
 {
   "formatVersion": 2,
   "contract": "poracode.remote.native-parity",
-  "protocolVersion": 14,
+  "protocolVersion": 15,
   "entries": {
     "httpRoutes": [
       {

@@ -35,6 +35,8 @@ export interface QueuedStructuredTurn {
   /** Original renderer segments used for the durable/optimistic user message. */
   displaySegments?: PromptSegment[];
   userMessageItemId?: string;
+  /** Renderer-allocated `model_switch` divider id painted with this turn's prompt. */
+  modelSwitchItemId?: string;
   questionAnswer?: QuestionAnswerItemPayload;
   /** Inlined SKILL.md instructions for skills the provider can't load natively. */
   inlineInstructions?: string;

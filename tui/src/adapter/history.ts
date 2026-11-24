@@ -15,6 +15,7 @@ import {
   errorItemPayloadSchema,
   goalItemPayloadSchema,
   messageItemPayloadSchema,
+  modelSwitchItemPayloadSchema,
   providerHandoffItemPayloadSchema,
   reasoningItemPayloadSchema,
 } from "@/shared/contracts/runtimeEvent";
@@ -300,6 +301,29 @@ export function historyMessages(
               payload: {
                 fromAgentKind: payload.data.fromAgentKind,
                 toAgentKind: payload.data.toAgentKind,
+              },
+            },
+          },
+        } satisfies SessionMessageSystem);
+      continue;
+    }
+
+    if (item.type === "model_switch") {
+      flushAssistant();
+      const payload = modelSwitchItemPayloadSchema.safeParse(item.payload);
+      if (payload.success)
+        messages.push({
+          id: messageId(item.id),
+          time: { created: timestampOrUndefined(payload.data.at) ?? fallbackTime },
+          type: "system",
+          text: `Model changed from ${payload.data.fromModel} to ${payload.data.toModel}.`,
+          description: "Model switch",
+          metadata: {
+            [PORACODE_ITEM_KEY]: {
+              type: item.type,
+              payload: {
+                fromModel: payload.data.fromModel,
+                toModel: payload.data.toModel,
               },
             },
           },

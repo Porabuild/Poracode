@@ -104,6 +104,7 @@ export interface DesktopRemoteAccessControllerOptions {
   readonly scheduleService: ScheduleService;
   readonly prWatchService: PrWatchService;
   readonly gitStateService: GitStateService;
+  readonly getGitSummaries?: () => RemoteGitSummaries;
   /** Durable per-owner watch leases; every rebuilt server receives the same registry. */
   readonly projectWatchLeases?: ProjectWatchLeases;
   readonly updates: NonNullable<RemoteAccessServerOptions["updates"]>;

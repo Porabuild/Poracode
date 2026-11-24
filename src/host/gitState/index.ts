@@ -36,6 +36,11 @@ export function createGitStateExecutor(call: GitStateSupervisorCaller): GitState
 
 export { GitStateService, type GitStateExecutor, type GitStateServiceOptions };
 export {
+  buildRemoteGitSummaries,
+  HostGitSummariesController,
+  type HostGitSummariesControllerOptions,
+} from "./gitSummariesProjection";
+export {
   HOST_WORKTREE_WATCH_OWNER,
   ProjectWatchLeases,
   type ProjectWatchCallOptions,

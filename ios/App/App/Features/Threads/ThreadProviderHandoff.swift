@@ -4,11 +4,42 @@ private struct RichChatProviderLabelsKey: EnvironmentKey {
   static let defaultValue: [String: String] = [:]
 }
 
+private struct RichChatModelLabelsKey: EnvironmentKey {
+  static let defaultValue: [String: String] = [:]
+}
+
 extension EnvironmentValues {
   var richChatProviderLabels: [String: String] {
     get { self[RichChatProviderLabelsKey.self] }
     set { self[RichChatProviderLabelsKey.self] = newValue }
   }
+  var richChatModelLabels: [String: String] {
+    get { self[RichChatModelLabelsKey.self] }
+    set { self[RichChatModelLabelsKey.self] = newValue }
+  }
+}
+
+/// Model id → display label across every provider's GUI model catalog, so a
+/// model-switch divider reads with picker names instead of raw ids.
+func richChatModelLabels(from providers: [AgentStatusRecord]) -> [String: String] {
+  var labels: [String: String] = [:]
+  for provider in providers {
+    let capabilities = provider.capabilities
+    var catalogs = [capabilities["models"]]
+    if let gui = capabilities["presentationCapabilities"]?.objectValue?["gui"]?.objectValue {
+      catalogs.append(gui["models"])
+    }
+    for catalog in catalogs {
+      for entry in catalog?.arrayValue ?? [] {
+        guard let object = entry.objectValue,
+          let id = object["id"]?.stringValue,
+          let label = object["label"]?.stringValue
+        else { continue }
+        if labels[id] == nil { labels[id] = label }
+      }
+    }
+  }
+  return labels
 }
 
 struct RichChatProviderHandoffRow: View {
@@ -26,6 +57,25 @@ struct RichChatProviderHandoffRow: View {
         .padding(.horizontal, 12)
         .accessibilityLabel(title)
         .accessibilityIdentifier("native-e2e.transcript.provider-handoff")
+    }
+  }
+}
+
+struct RichChatModelSwitchRow: View {
+  let item: RichRuntimeItem
+  @Environment(\.richChatModelLabels) private var modelLabels
+
+  var body: some View {
+    if let payload = item.payload?.objectValue,
+      let from = RichDecoding.requiredString(payload, "fromModel", allowEmpty: false),
+      let to = RichDecoding.requiredString(payload, "toModel", allowEmpty: false) {
+      let title = RichChatStrings.modelSwitched(from: modelLabels[from] ?? from, to: modelLabels[to] ?? to)
+      Label(title, systemImage: "arrow.left.arrow.right")
+        .poracodeChatText(.metadata)
+        .foregroundStyle(.secondary)
+        .padding(.horizontal, 12)
+        .accessibilityLabel(title)
+        .accessibilityIdentifier("native-e2e.transcript.model-switch")
     }
   }
 }

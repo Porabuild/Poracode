@@ -41,6 +41,8 @@ interface StartRemoteThreadCommon {
   readonly segments?: readonly PromptSegment[] | undefined;
   readonly presentationMode?: ThreadPresentationMode | undefined;
   readonly userMessageItemId?: StartThreadPayload["userMessageItemId"] | undefined;
+  readonly previousTurnModel?: StartThreadPayload["previousTurnModel"] | undefined;
+  readonly modelSwitchItemId?: StartThreadPayload["modelSwitchItemId"] | undefined;
   readonly providerSwitch?: StartThreadPayload["providerSwitch"] | undefined;
   /** Per-turn client context for the initial prompt; an older host strips it. */
   readonly clientContext?: StartThreadPayload["clientContext"] | undefined;

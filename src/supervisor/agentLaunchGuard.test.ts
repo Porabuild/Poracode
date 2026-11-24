@@ -101,6 +101,7 @@ function stubPipeline(): { pipeline: SpawnPipeline; attach: ReturnType<typeof vi
     isCurrentSession: () => true,
     resolveAgentSettings: () => ({}),
     emitOptimisticUserMessage: vi.fn<() => string>(),
+    noteTurnModel: vi.fn<() => void>(),
     emitProviderHandoff: vi.fn<() => string>(),
   } as unknown as SpawnPipelineContext;
   return { pipeline: new SpawnPipeline(ctx), attach };

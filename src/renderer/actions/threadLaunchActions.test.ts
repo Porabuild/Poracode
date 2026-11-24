@@ -349,7 +349,7 @@ describe("startThreadFromDraft host transport", () => {
         type: "item.started",
         itemId: optimisticItemId,
         itemType: "user_message",
-        payload: { content: [{ kind: "text", text: "build it" }] },
+        payload: { content: [{ kind: "text", text: "build it" }], model: "gpt-5.6" },
       }),
     );
     expect(mocks.appState.updateThreadRuntime).not.toHaveBeenCalled();

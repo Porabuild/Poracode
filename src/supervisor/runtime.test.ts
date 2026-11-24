@@ -2303,7 +2303,7 @@ describe("SupervisorRuntime thread input", () => {
         threadId: "thread-gui-activate-stop",
         itemId: "user-gui-activate-stop",
         itemType: "user_message",
-        payload: { content: [{ kind: "text", text: "hi" }] },
+        payload: { content: [{ kind: "text", text: "hi" }], model: "model-a" },
       },
       {
         type: "item.completed",

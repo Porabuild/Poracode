@@ -51,7 +51,7 @@ data class ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D4_85d2dd
 }
 
 @Serializable
-enum class ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D5U2DItemType_5455d14071 {
+enum class ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D5U2DItemType_53c82495b0 {
     @SerialName("user_message") USERU5FMESSAGE,
     @SerialName("assistant_message") ASSISTANTU5FMESSAGE,
     @SerialName("reasoning") REASONING,
@@ -66,6 +66,7 @@ enum class ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D5U2DItem
     @SerialName("web_search") WEBU5FSEARCH,
     @SerialName("question_answer") QUESTIONU5FANSWER,
     @SerialName("provider_handoff") PROVIDERU5FHANDOFF,
+    @SerialName("model_switch") MODELU5FSWITCH,
     @SerialName("error") ERROR,
 }
 
@@ -75,9 +76,9 @@ enum class ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D5U2DType
 }
 
 @Serializable
-data class ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D5_fe7522595f(
+data class ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D5_f92e78d240(
     @SerialName("itemId") val itemId: ProcedureapplyNativeMcpSetupResultU2DCandidatesU2DItemU2DId_bf0b727f7b,
-    @SerialName("itemType") val itemType: ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D5U2DItemType_5455d14071,
+    @SerialName("itemType") val itemType: ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D5U2DItemType_53c82495b0,
     @SerialName("parentItemId") val parentItemId: RemoteField<ProcedureapplyNativeMcpSetupResultU2DCandidatesU2DItemU2DId_bf0b727f7b> = RemoteField.Missing,
     @SerialName("payload") val payload: RemoteField<JsonElement> = RemoteField.Missing,
     @SerialName("threadId") val threadId: ProcedureapplyNativeMcpSetupResultU2DCandidatesU2DItemU2DId_bf0b727f7b,
@@ -86,7 +87,7 @@ data class ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D5_fe7522
     companion object {
         val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
             RemoteFieldDescriptor("itemId", "ProcedureapplyNativeMcpSetupResultU2DCandidatesU2DItemU2DId_bf0b727f7b", true, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("itemType", "ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D5U2DItemType_5455d14071", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("itemType", "ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D5U2DItemType_53c82495b0", true, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("parentItemId", "ProcedureapplyNativeMcpSetupResultU2DCandidatesU2DItemU2DId_bf0b727f7b", false, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("payload", "JsonElement", false, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("threadId", "ProcedureapplyNativeMcpSetupResultU2DCandidatesU2DItemU2DId_bf0b727f7b", true, false, null, null, null, null, null, null, null, null, listOf()),

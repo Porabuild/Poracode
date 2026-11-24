@@ -114,12 +114,12 @@ public enum ProcedureworkflowAgentChatResultU2DItemPresentations_ef4fe17bb3: Cod
   }
 }
 
-public struct ProcedureworkflowAgentChatResult_350a19ed30: Codable, Sendable, RemoteModelMetadata {
-  public var events: [ProceduresubagentSubscribeResultU2DHistoryU2DItem_9262f6553e]
+public struct ProcedureworkflowAgentChatResult_039f0a59e6: Codable, Sendable, RemoteModelMetadata {
+  public var events: [ProceduresubagentSubscribeResultU2DHistoryU2DItem_db70082117]
   public var itemPresentations: RemoteField<ProcedureworkflowAgentChatResultU2DItemPresentations_ef4fe17bb3> = .missing
   public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .strip
   public static let fields: [RemoteFieldDescriptor] = [
-    .init(wireName: "events", typeName: "[ProceduresubagentSubscribeResultU2DHistoryU2DItem_9262f6553e]", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "events", typeName: "[ProceduresubagentSubscribeResultU2DHistoryU2DItem_db70082117]", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "itemPresentations", typeName: "ProcedureworkflowAgentChatResultU2DItemPresentations_ef4fe17bb3", required: false, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
   ]
   public static let semanticValidatorIds: [String] = []

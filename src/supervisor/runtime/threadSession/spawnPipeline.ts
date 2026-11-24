@@ -384,6 +384,7 @@ export interface SpawnPipelineContext {
     location?: ProjectLocation,
   ): Record<string, boolean | string>;
   emitOptimisticUserMessage: StructuredTurnQueue["emitOptimisticUserMessage"];
+  noteTurnModel: StructuredTurnQueue["noteTurnModel"];
   emitProviderHandoff(
     threadId: string,
     fromAgentKind: string,
@@ -581,6 +582,14 @@ export class SpawnPipeline {
     // load-only. When the renderer has already painted an optimistic message
     // and shipped its id with the payload, we reuse that id end-to-end so the
     // chat pane never sees a duplicate.
+    // A changed answering model records its divider ahead of the prompt; the
+    // launch's `previousTurnModel` seeds threads this host has not run yet.
+    if (!payload.providerSwitch && !usesTerminalPresentation && initialPrompt.length > 0) {
+      ctx.noteTurnModel(payload.threadId, runtimeConfig.model, {
+        seedModel: payload.previousTurnModel,
+        requestedItemId: payload.modelSwitchItemId,
+      });
+    }
     let optimisticUserMessageItemId =
       !payload.providerSwitch && !usesTerminalPresentation && initialPrompt.length > 0
         ? ctx.emitOptimisticUserMessage(
@@ -588,9 +597,10 @@ export class SpawnPipeline {
             initialPrompt,
             payload.segments,
             payload.userMessageItemId,
-            ...(payload.questionAnswer
-              ? ([{ questionAnswer: payload.questionAnswer }] as const)
-              : []),
+            {
+              ...(payload.questionAnswer ? { questionAnswer: payload.questionAnswer } : {}),
+              ...(runtimeConfig.model.trim() ? { model: runtimeConfig.model } : {}),
+            },
           )
         : undefined;
     const mcpLaunchSnapshotBase = {
@@ -911,14 +921,28 @@ export class SpawnPipeline {
         // path too, so every explicit prompt is shown and sent exactly once.
         // A prompt-less reopen paints nothing and starts no turn.
         if (optimisticUserMessageItemId === undefined && initialPrompt.length > 0) {
+          // The early paint above already noted the model for ordinary
+          // launches; this delayed path covers provider switches, whose
+          // baseline restarts with the new provider's model.
+          ctx.noteTurnModel(
+            payload.threadId,
+            runtimeConfig.model,
+            payload.providerSwitch
+              ? { resetBaseline: true }
+              : {
+                  seedModel: payload.previousTurnModel,
+                  requestedItemId: payload.modelSwitchItemId,
+                },
+          );
           optimisticUserMessageItemId = ctx.emitOptimisticUserMessage(
             payload.threadId,
             initialPrompt,
             payload.segments,
             payload.userMessageItemId,
-            ...(payload.questionAnswer
-              ? ([{ questionAnswer: payload.questionAnswer }] as const)
-              : []),
+            {
+              ...(payload.questionAnswer ? { questionAnswer: payload.questionAnswer } : {}),
+              ...(runtimeConfig.model.trim() ? { model: runtimeConfig.model } : {}),
+            },
           );
           this.emitOptimisticWorkingState(payload.threadId, runtimeConfig, optimisticLaunchConfig);
         }
@@ -1445,6 +1469,13 @@ export class SpawnPipeline {
           ctx.pendingLaunchConfigs.delete(session.threadId);
         }
         if (prompt.trim().length > 0 && structuredSession.startTurn) {
+          // A changed answering model records its divider ahead of the
+          // prompt. Turn admission already noted it when the session was
+          // live; noting again here is a no-op for the same model and covers
+          // restarts admitted straight into this path.
+          ctx.noteTurnModel(session.threadId, launchConfig.model, {
+            requestedItemId: turn.modelSwitchItemId,
+          });
           // Retry/recovery callers preserve the id of a user message that was
           // already broadcast before the old session stopped. Reuse it without
           // emitting another turn.started + item pair. A missing id means this
@@ -1458,12 +1489,15 @@ export class SpawnPipeline {
               prompt,
               turn.displaySegments ?? turn.segments,
               turn.userMessageItemId,
-              turn.questionAnswer
-                ? {
-                    questionAnswer: turn.questionAnswer,
-                    ...(turn.userMessageItemId ? { includeTurn: false } : {}),
-                  }
-                : undefined,
+              {
+                ...(turn.questionAnswer
+                  ? {
+                      questionAnswer: turn.questionAnswer,
+                      ...(turn.userMessageItemId ? { includeTurn: false } : {}),
+                    }
+                  : {}),
+                ...(launchConfig.model.trim() ? { model: launchConfig.model } : {}),
+              },
             );
           const textOptions = structuredTurnTextOptions(replacement, turn);
           const onPromptSubmitted =

@@ -27,8 +27,8 @@ class RichTimelineFixtureTest {
         val turns = RichSnapshotMapping.decodeCompletedTurns(fixture.getValue("completedTurns"))!!
         val projection = RichTimeline.project(items)
 
-        assertEquals(6, projection.rawItems.size)
-        assertEquals(4, projection.rawRoots.size)
+        assertEquals(8, projection.rawItems.size)
+        assertEquals(6, projection.rawRoots.size)
         val parent = projection.rawRoots.single { it.item.id == "rich-parent-tool" }
         assertEquals(listOf("rich-child-reasoning", "rich-child-answer"), parent.children.map { it.item.id })
         assertEquals(items.map { it.id }, RichTimeline.visibleItemIds(projection))

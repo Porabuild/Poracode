@@ -69,7 +69,7 @@ public extension RemoteRootCodecs {
 }
 
 public extension RemoteRootCodecs {
-  static let procedureU2EManageAgentPluginsU2EResult: RemoteRootCodec<ProceduremanageAgentPluginsResult_940863a47c> = .init(id: "procedure.manageAgentPlugins.result", schema: RemoteSchemas.schema_940863a47ce0d148)
+  static let procedureU2EManageAgentPluginsU2EResult: RemoteRootCodec<ProceduremanageAgentPluginsResult_50c013e0fb> = .init(id: "procedure.manageAgentPlugins.result", schema: RemoteSchemas.schema_50c013e0fba2aefa)
 }
 
 public extension RemoteRootCodecs {
@@ -301,7 +301,7 @@ public extension RemoteRootCodecs {
 }
 
 public extension RemoteRootCodecs {
-  static let procedureU2EStartThreadU2ERequest: RemoteRootCodec<ProcedureensureThreadRunningRequest_6e1a462e69> = .init(id: "procedure.startThread.request", schema: RemoteSchemas.schema_6e1a462e69bece35)
+  static let procedureU2EStartThreadU2ERequest: RemoteRootCodec<ProcedureensureThreadRunningRequest_f948b00041> = .init(id: "procedure.startThread.request", schema: RemoteSchemas.schema_f948b0004158f5ef)
 }
 
 public extension RemoteRootCodecs {
@@ -317,7 +317,7 @@ public extension RemoteRootCodecs {
 }
 
 public extension RemoteRootCodecs {
-  static let procedureU2ESubagentSubscribeU2EResult: RemoteRootCodec<ProceduresubagentSubscribeResult_d4ae5f8c2b> = .init(id: "procedure.subagentSubscribe.result", schema: RemoteSchemas.schema_d4ae5f8c2be25c3f)
+  static let procedureU2ESubagentSubscribeU2EResult: RemoteRootCodec<ProceduresubagentSubscribeResult_1caa7842d1> = .init(id: "procedure.subagentSubscribe.result", schema: RemoteSchemas.schema_1caa7842d12d0d9e)
 }
 
 public extension RemoteRootCodecs {
@@ -361,7 +361,7 @@ public extension RemoteRootCodecs {
 }
 
 public extension RemoteRootCodecs {
-  static let procedureU2EWorkflowAgentChatU2EResult: RemoteRootCodec<ProcedureworkflowAgentChatResult_350a19ed30> = .init(id: "procedure.workflowAgentChat.result", schema: RemoteSchemas.schema_350a19ed30bb6b81)
+  static let procedureU2EWorkflowAgentChatU2EResult: RemoteRootCodec<ProcedureworkflowAgentChatResult_039f0a59e6> = .init(id: "procedure.workflowAgentChat.result", schema: RemoteSchemas.schema_039f0a59e6701876)
 }
 
 public extension RemoteRootCodecs {

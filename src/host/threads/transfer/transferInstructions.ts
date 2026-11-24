@@ -87,6 +87,13 @@ function transcriptRow(item: PersistedRuntimeItem): TranscriptRow | null {
             conversation: true,
           }
         : null;
+    case "model_switch":
+      return typeof payload?.fromModel === "string" && typeof payload.toModel === "string"
+        ? {
+            text: `[Model switched: ${payload.fromModel} → ${payload.toModel}]`,
+            conversation: true,
+          }
+        : null;
     case "command_execution":
       return typeof payload?.command === "string" && payload.command
         ? { text: head(`Ran: ${payload.command}`, ACTIVITY_MAX_CHARS), conversation: false }

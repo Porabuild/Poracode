@@ -41,7 +41,7 @@ class RichContentAndSnapshotFixtureTest {
         val items = RichContentDecoder.decodePersistedItems(fixture.getValue("runtimeItems"))!!
         val turns = RichSnapshotMapping.decodeCompletedTurns(fixture.getValue("completedTurns"))!!
 
-        assertEquals(6, items.size)
+        assertEquals(8, items.size)
         assertEquals(2, items.count { it.parentItemId == "rich-parent-tool" })
         assertEquals("Starting review.", items[1].streams["assistant_text"])
         assertTrue(RichContentDecoder.decodeMessageContent(items.first().payload)!!.single() is RichContentBlock.Text)

@@ -37,6 +37,9 @@ import {
   requireBackendStateStore,
 } from "./desktopAppState";
 
+const MAIN_WINDOW_ACTION_READY_TIMEOUT_MS = 15_000;
+const mainWindowReadyWaiters = new Set<() => void>();
+
 function captureRendererProcessGone(
   details: RenderProcessGoneDetails,
   featureArea: "browser" | "quick-composer" | "renderer",
@@ -65,6 +68,81 @@ function isCloseToTrayEnabled(): boolean {
   } catch {
     return false;
   }
+}
+
+/** Tell the out-of-process backend whether a live main BrowserWindow exists. */
+export function syncRendererWindowPresence(): void {
+  const present = Boolean(desktopApp.mainWindow && !desktopApp.mainWindow.isDestroyed());
+  // Best-effort and additive: a same-build backend child that predates this
+  // service rejects it before any effect, and presence then keeps its default
+  // (no window) until the next restart or window event reports again.
+  void desktopApp.backendHostClient
+    ?.callService("setRendererWindowPresent", { present })
+    .catch(() => undefined);
+}
+
+/** Wake waiters blocked on the main renderer's startup-ready ping. */
+export function notifyMainWindowReady(): void {
+  if (mainWindowReadyWaiters.size === 0) return;
+  const waiters = [...mainWindowReadyWaiters];
+  mainWindowReadyWaiters.clear();
+  for (const resolve of waiters) resolve();
+}
+
+/**
+ * Ensure a ready main BrowserWindow for renderer-brokered desktop actions
+ * (thread transfer, memory sync, experiment workflow, provider login). When
+ * no main window exists yet, lazily creates the window (hidden or visible per
+ * action) and waits for the renderer's ready signal before returning.
+ */
+export async function ensureReadyMainWindowForDesktopAction(options: {
+  show: boolean;
+  timeoutMs?: number;
+}): Promise<BrowserWindow | null> {
+  if (desktopApp.isQuitting) return null;
+  const existing = desktopApp.mainWindow;
+  if (existing && !existing.isDestroyed()) {
+    if (options.show) showAndFocusWindow(existing);
+    const ready =
+      (desktopApp.quickComposerLifecycle?.isMainReady() ?? true) &&
+      !(existing.webContents.isLoadingMainFrame?.() ?? false);
+    if (ready) return existing;
+  }
+  const window = ensureMainWindow(options.show);
+  const isReadyNow = (): boolean =>
+    !window.isDestroyed() &&
+    desktopApp.mainWindow === window &&
+    (desktopApp.quickComposerLifecycle?.isMainReady() ?? true) &&
+    !(window.webContents.isLoadingMainFrame?.() ?? false);
+  if (isReadyNow()) {
+    if (options.show) showAndFocusWindow(window);
+    return window;
+  }
+  const timeoutMs = options.timeoutMs ?? MAIN_WINDOW_ACTION_READY_TIMEOUT_MS;
+  const ready = await new Promise<boolean>((resolve) => {
+    let settled = false;
+    const finish = (ok: boolean): void => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      mainWindowReadyWaiters.delete(onReady);
+      window.removeListener("closed", onClosed);
+      resolve(ok);
+    };
+    const onReady = (): void => {
+      finish(isReadyNow());
+    };
+    const onClosed = (): void => {
+      finish(false);
+    };
+    const timer = setTimeout(() => finish(false), timeoutMs);
+    timer.unref?.();
+    mainWindowReadyWaiters.add(onReady);
+    window.once("closed", onClosed);
+  });
+  if (!ready || window.isDestroyed() || desktopApp.mainWindow !== window) return null;
+  if (options.show) showAndFocusWindow(window);
+  return window;
 }
 
 /**
@@ -114,13 +192,10 @@ export function flushTrayThreadOpen(): void {
 }
 
 /**
- * Flush remote thread commands that arrived while no renderer window was
- * mounted. The renderer store applies (and persists) them exactly like live
- * mirrors; arrival order is preserved. TODO(Lane 1B, BackendDesktopServices):
- * once the backend applies thread commands DB-direct when it has no renderer
- * window (its `hasRendererWindow` is currently hardcoded `true`), commands
- * stop arriving here while zero-window and this queue stays permanently
- * empty — remove it then.
+ * Flush remote thread commands that arrived during the brief window between
+ * BrowserWindow creation and the renderer's `main-ready` signal. Arrival order
+ * is preserved; when no main window exists, commands are applied directly on
+ * the host and never enter this queue.
  */
 export function flushPendingThreadCommands(): void {
   const window = desktopApp.mainWindow;
@@ -140,6 +215,7 @@ export function ensureMainWindow(
   desktopApp.quickComposerLifecycle?.markMainNotReady();
   desktopApp.mainWindow = createMainAppWindow(showOnReady, stateOverride);
   desktopApp.browserPanelManager?.bindHost(desktopApp.mainWindow);
+  syncRendererWindowPresence();
   return desktopApp.mainWindow;
 }
 
@@ -332,7 +408,10 @@ function createMainAppWindow(showOnReady = true, stateOverride?: ShellStateStore
       const wasMainWindow = desktopApp.mainWindow === window;
       if (wasMainWindow) {
         desktopApp.mainWindow = null;
+        desktopApp.pendingThreadCommands.length = 0;
         desktopApp.quickComposerLifecycle?.markMainNotReady();
+        notifyMainWindowReady();
+        syncRendererWindowPresence();
         closeLifecycle.handleClosed();
       }
     },

@@ -1,16 +1,31 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { IPC_EVENT_CHANNELS } from "@/shared/ipc";
 import type { RemoteThreadCommand } from "@/shared/contracts";
-import type { BackendNativeRequest } from "@/shared/backendHostProtocol";
+import type { BackendNativeEvent, BackendNativeRequest } from "@/shared/backendHostProtocol";
 import type { closeLocalPort, listLocalPorts } from "@/host/localPorts";
 
 const hoisted = vi.hoisted(() => ({
   clientOptions: null as Record<string, unknown> | null,
-  ensureMainWindow: vi.fn<() => void>(),
+  ensureReadyMainWindowForDesktopAction: vi.fn<(options: { show: boolean }) => Promise<unknown>>(
+    async () => null,
+  ),
   openThreadFromTray: vi.fn<() => void>(),
+  syncRendererWindowPresence: vi.fn<() => void>(),
   listLocalPorts: vi.fn<typeof listLocalPorts>(),
   closeLocalPort: vi.fn<typeof closeLocalPort>(),
   openExternal: vi.fn<(url: string) => Promise<void>>(),
+  readSharedSettingsFile: vi.fn<() => { notificationSound: boolean }>(() => ({
+    notificationSound: true,
+  })),
+  showUserNotificationFallback: vi.fn<(...args: unknown[]) => boolean>(() => true),
+  requestDesktopMemorySync: vi.fn<(...args: unknown[]) => Promise<unknown>>(async () => ({
+    type: "not-started",
+    message: "unavailable",
+  })),
+  requestDesktopProviderLogin: vi.fn<(...args: unknown[]) => Promise<unknown>>(async () => ({
+    type: "not-started",
+    message: "unavailable",
+  })),
 }));
 
 vi.mock("electron", () => ({
@@ -24,6 +39,9 @@ vi.mock("electron", () => ({
 vi.mock("@/host/localPorts", () => ({
   listLocalPorts: hoisted.listLocalPorts,
   closeLocalPort: hoisted.closeLocalPort,
+}));
+vi.mock("@/host/sharedSettingsFile", () => ({
+  readSharedSettingsFile: hoisted.readSharedSettingsFile,
 }));
 
 vi.mock("./sleepInhibitor", () => ({
@@ -55,9 +73,16 @@ vi.mock("./backend/desktopBackendInitialize", () => ({
   buildDesktopBackendInitialize: vi.fn<() => void>(),
 }));
 
+vi.mock("./backend/desktopActionBroker", () => ({
+  requestDesktopExperiment: vi.fn<() => Promise<unknown>>(async () => null),
+  requestDesktopMemorySync: hoisted.requestDesktopMemorySync,
+  requestDesktopProviderLogin: hoisted.requestDesktopProviderLogin,
+}));
+
 vi.mock("./desktopAppWindows", () => ({
-  ensureMainWindow: hoisted.ensureMainWindow,
+  ensureReadyMainWindowForDesktopAction: hoisted.ensureReadyMainWindowForDesktopAction,
   openThreadFromTray: hoisted.openThreadFromTray,
+  syncRendererWindowPresence: hoisted.syncRendererWindowPresence,
 }));
 
 vi.mock("./desktopAppShell", () => ({
@@ -73,7 +98,7 @@ vi.mock("./diagnostics/sentry", () => ({
 
 vi.mock("./osNotifications", () => ({
   showOsNotification: vi.fn<() => void>(),
-  showUserNotificationFallback: vi.fn<() => void>(),
+  showUserNotificationFallback: hoisted.showUserNotificationFallback,
 }));
 
 vi.mock("./window/sideChatWindows", () => ({
@@ -162,31 +187,38 @@ it("opens URLs from live port rows and forwards the exact identity for close", a
 describe("dispatch-thread-command", () => {
   beforeEach(() => {
     hoisted.clientOptions = null;
-    hoisted.ensureMainWindow.mockClear();
+    hoisted.ensureReadyMainWindowForDesktopAction.mockClear();
     hoisted.openThreadFromTray.mockClear();
+    hoisted.syncRendererWindowPresence.mockClear();
     desktopApp.mainWindow = null;
+    desktopApp.quickComposerLifecycle = null;
     desktopApp.pendingThreadCommands.length = 0;
     desktopApp.isQuitting = false;
   });
 
-  it("queues the command and creates the hidden window on demand with no main window", () => {
+  it("returns false without waking or queueing when no main window exists", () => {
+    createHost();
+
+    expect(dispatchThreadCommand()).toBe(false);
+    expect(desktopApp.pendingThreadCommands).toEqual([]);
+    expect(hoisted.ensureReadyMainWindowForDesktopAction).not.toHaveBeenCalled();
+  });
+
+  it("queues commands while the main window exists but is still booting", () => {
+    const send = vi.fn<() => void>();
+    desktopApp.mainWindow = {
+      isDestroyed: () => false,
+      webContents: { send },
+    } as never;
+    desktopApp.quickComposerLifecycle = { isMainReady: () => false } as never;
     createHost();
 
     expect(dispatchThreadCommand()).toBe(true);
+    expect(send).not.toHaveBeenCalled();
     expect(desktopApp.pendingThreadCommands).toEqual([PAYLOAD]);
-    expect(hoisted.ensureMainWindow).toHaveBeenCalledExactlyOnceWith(false);
   });
 
-  it("queues without creating the window while the app is quitting", () => {
-    desktopApp.isQuitting = true;
-    createHost();
-
-    expect(dispatchThreadCommand()).toBe(true);
-    expect(desktopApp.pendingThreadCommands).toEqual([PAYLOAD]);
-    expect(hoisted.ensureMainWindow).not.toHaveBeenCalled();
-  });
-
-  it("sends directly to a live window when the queue is empty", () => {
+  it("sends directly to a live ready window when the queue is empty", () => {
     const send = vi.fn<() => void>();
     desktopApp.mainWindow = {
       isDestroyed: () => false,
@@ -197,6 +229,81 @@ describe("dispatch-thread-command", () => {
     expect(dispatchThreadCommand()).toBe(true);
     expect(send).toHaveBeenCalledWith(IPC_EVENT_CHANNELS.remoteThreadCommand, PAYLOAD);
     expect(desktopApp.pendingThreadCommands).toEqual([]);
-    expect(hoisted.ensureMainWindow).not.toHaveBeenCalled();
+  });
+});
+
+describe("zero-window fallback behavior", () => {
+  beforeEach(() => {
+    hoisted.clientOptions = null;
+    hoisted.showUserNotificationFallback.mockClear();
+    hoisted.readSharedSettingsFile.mockReset().mockReturnValue({ notificationSound: true });
+    hoisted.ensureReadyMainWindowForDesktopAction.mockReset().mockResolvedValue(null);
+    hoisted.requestDesktopMemorySync.mockClear();
+    hoisted.requestDesktopProviderLogin.mockClear();
+    hoisted.syncRendererWindowPresence.mockClear();
+    desktopApp.mainWindow = null;
+    desktopApp.poracodePaths = { settingsPath: "/tmp/settings.json" } as never;
+  });
+
+  it("honors notificationSound setting in zero-window user-notification fallback", () => {
+    createHost();
+    const onNativeEvent = hoisted.clientOptions?.onNativeEvent as (
+      event: BackendNativeEvent,
+    ) => void;
+    const notification = {
+      threadId: "t1",
+      category: "done" as const,
+      projectName: "Proj",
+      threadTitle: "Title",
+      status: "finished" as const,
+    };
+
+    hoisted.readSharedSettingsFile.mockReturnValueOnce({ notificationSound: true });
+    onNativeEvent({ type: "user-notification", notification });
+    expect(hoisted.showUserNotificationFallback).toHaveBeenLastCalledWith(
+      notification,
+      expect.any(Function),
+      hoisted.openThreadFromTray,
+      { silent: false },
+    );
+
+    hoisted.readSharedSettingsFile.mockReturnValueOnce({ notificationSound: false });
+    onNativeEvent({ type: "user-notification", notification });
+    expect(hoisted.showUserNotificationFallback).toHaveBeenLastCalledWith(
+      notification,
+      expect.any(Function),
+      hoisted.openThreadFromTray,
+      { silent: true },
+    );
+  });
+
+  it("wakes the main window lazily (hidden vs visible) for desktop-brokered actions", async () => {
+    const fakeWindow = { isDestroyed: () => false };
+    hoisted.ensureReadyMainWindowForDesktopAction.mockResolvedValue(fakeWindow);
+    createHost();
+    const nativeRequest = hoisted.clientOptions?.handleNativeRequest as (
+      request: BackendNativeRequest,
+    ) => Promise<unknown>;
+
+    await nativeRequest({ operation: "memory-sync", payload: { version: 1 } as never });
+    expect(hoisted.ensureReadyMainWindowForDesktopAction).toHaveBeenCalledWith({ show: false });
+    expect(hoisted.requestDesktopMemorySync).toHaveBeenCalledWith(fakeWindow, { version: 1 });
+
+    await nativeRequest({
+      operation: "provider-login",
+      payload: { version: 1, provider: "claude" } as never,
+    });
+    expect(hoisted.ensureReadyMainWindowForDesktopAction).toHaveBeenCalledWith({ show: true });
+    expect(hoisted.requestDesktopProviderLogin).toHaveBeenCalledWith(fakeWindow, {
+      version: 1,
+      provider: "claude",
+    });
+  });
+
+  it("re-syncs renderer window presence after backend host reset", () => {
+    createHost();
+    const onReset = hoisted.clientOptions?.onReset as () => void;
+    onReset();
+    expect(hoisted.syncRendererWindowPresence).toHaveBeenCalledOnce();
   });
 });

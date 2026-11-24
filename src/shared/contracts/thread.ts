@@ -326,6 +326,24 @@ export const startThreadPayloadSchema = z
      */
     providerSwitch: providerSwitchSchema.optional(),
     /**
+     * The model that answered this thread's previous turn, when the client
+     * can still tell from its stored items (the latest `model_switch`
+     * divider, else the model recorded on the latest user message). The
+     * supervisor seeds its per-session baseline with it so a switch made
+     * while the thread was stopped still records a `model_switch` divider
+     * ahead of this launch's prompt. Optional and additive: older hosts
+     * strip it, and a launch that omits it simply starts a fresh baseline.
+     */
+    previousTurnModel: z.string().min(1).optional(),
+    /**
+     * Renderer-allocated id for the `model_switch` divider the chat pane has
+     * already painted optimistically ahead of this launch's prompt. The
+     * supervisor reuses it for its own divider so per-id dedupe keeps the
+     * painted position. Only set alongside `previousTurnModel` when it
+     * differs from `config.model`.
+     */
+    modelSwitchItemId: z.string().min(1).optional(),
+    /**
      * Set when the launch reads its context from a thread mention in its own
      * prompt — a forked chat thread (see `buildForkMentionLaunchInput`). If the
      * session cannot resolve `read_thread`, no mention is readable, so the
@@ -389,6 +407,8 @@ export const sendThreadInputPortableSchema = z.object({
   config: threadConfigSchema,
   /** See {@link startThreadPayloadSchema.userMessageItemId}. */
   userMessageItemId: z.string().min(1).optional(),
+  /** See {@link startThreadPayloadSchema.modelSwitchItemId}. */
+  modelSwitchItemId: z.string().min(1).optional(),
   /** See {@link startThreadPayloadSchema.questionAnswer}. */
   questionAnswer: questionAnswerItemPayloadSchema.optional(),
   /** Per-turn client context. See {@link turnClientContextSchema}. */

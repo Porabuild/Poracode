@@ -711,6 +711,95 @@ describe("runtimeEventSlice.applyRuntimeEvent", () => {
     });
   });
 
+  it("keeps a background agent row that was never observed live", () => {
+    // A client that attaches mid-run, or a thread whose rows were evicted,
+    // reads the row back from storage while the host session still tracks it.
+    store.getState().hydrateThreadRuntimeItems("t1", [
+      {
+        id: "sub:background-run",
+        type: "tool_call",
+        state: "updated",
+        payload: {
+          name: "Agent",
+          status: "running",
+          isSubAgent: true,
+          subAgentBackground: true,
+        },
+        streams: {},
+      },
+      {
+        // Written by a build without the marker: nothing vouches for its run.
+        id: "sub:legacy-run",
+        type: "tool_call",
+        state: "updated",
+        payload: { name: "Task", status: "running", isSubAgent: true },
+        streams: {},
+      },
+    ]);
+
+    store
+      .getState()
+      .reconcileStaleSubAgents("t1", { preserveObservedLive: true, preserveCrossagent: true });
+
+    const items = store.getState().runtimeItemsByIdByThread["t1"] ?? {};
+    expect(items["sub:background-run"]).toMatchObject({
+      state: "updated",
+      payload: { status: "running", subAgentBackground: true },
+    });
+    expect(items["sub:legacy-run"]).toMatchObject({
+      state: "completed",
+      payload: {
+        status: "error",
+        result: { error: "Interrupted: agent session ended before completion." },
+      },
+    });
+  });
+
+  it("terminates a background agent row once its session ended", () => {
+    store.getState().hydrateThreadRuntimeItems("t1", [
+      {
+        id: "sub:background-ended",
+        type: "tool_call",
+        state: "updated",
+        payload: { name: "Agent", status: "running", isSubAgent: true, subAgentBackground: true },
+        streams: {},
+      },
+    ]);
+
+    store.getState().reconcileStaleSubAgents("t1", { sessionEnded: true });
+
+    expect(store.getState().runtimeItemsByIdByThread["t1"]?.["sub:background-ended"]).toMatchObject(
+      {
+        state: "completed",
+        payload: {
+          status: "error",
+          result: { error: "Interrupted: agent session ended before completion." },
+        },
+      },
+    );
+  });
+
+  it("terminates a background agent row on a forced sweep", () => {
+    store.getState().hydrateThreadRuntimeItems("t1", [
+      {
+        id: "sub:background-reset",
+        type: "tool_call",
+        state: "updated",
+        payload: { name: "Agent", status: "running", isSubAgent: true, subAgentBackground: true },
+        streams: {},
+      },
+    ]);
+
+    store.getState().reconcileAllStaleSubAgents({ force: true });
+
+    expect(store.getState().runtimeItemsByIdByThread["t1"]?.["sub:background-reset"]).toMatchObject(
+      {
+        state: "completed",
+        payload: { status: "error" },
+      },
+    );
+  });
+
   it("keeps a live-observed Crossagent row across item eviction and rehydration", () => {
     apply("t1", {
       type: "item.started",

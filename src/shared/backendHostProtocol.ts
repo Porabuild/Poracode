@@ -110,6 +110,9 @@ import type { ManagedLoopbackBootstrap } from "./managedLoopback";
 // payload. Previous initialize/start envelopes, including empty env, remain
 // valid; this ordering fix requires no wire-version change.
 // LAN enablement is an additive same-build desktop procedure; the hop stays compatible.
+// `setRendererWindowPresent` is additive too: a same-build child that predates it
+// rejects the request before any effect and the caller treats delivery as
+// best-effort, so presence keeps its previous behavior without a version bump.
 // Optional diagnostic format 1 adds only safe causes and bundle source frames.
 // Old message-only events remain valid; old readers ignore the new detail.
 // Public remote/native contracts and persisted state do not change.
@@ -285,6 +288,7 @@ export interface BackendServiceProcedureMap extends BackendSettingsProcedureMap 
   getProfileIdentity: { payload: Record<string, never>; result: ProfileIdentityResponse };
   setProfileIdentity: { payload: ProfileIdentity; result: ProfileIdentityResponse };
   updateStatusChanged: { payload: { status: RemoteHostUpdateStatus | null }; result: void };
+  setRendererWindowPresent: { payload: { present: boolean }; result: void };
 }
 
 export const BACKEND_SERVICE_PROCEDURE_NAMES = [
@@ -321,6 +325,7 @@ export const BACKEND_SERVICE_PROCEDURE_NAMES = [
   "getProfileIdentity",
   "setProfileIdentity",
   "updateStatusChanged",
+  "setRendererWindowPresent",
 ] as const satisfies readonly (keyof BackendServiceProcedureMap)[];
 
 export type BackendServiceProcedureName = keyof BackendServiceProcedureMap;

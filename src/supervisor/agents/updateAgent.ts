@@ -354,7 +354,7 @@ async function fetchRegistryJson(
   }
 }
 
-async function fetchNpmLatestVersion(pkg: string): Promise<string | undefined> {
+export async function fetchNpmLatestVersion(pkg: string): Promise<string | undefined> {
   const data = (await fetchRegistryJson(
     `https://registry.npmjs.org/${encodeURIComponent(pkg)}/latest`,
     "application/json",

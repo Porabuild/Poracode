@@ -33,7 +33,9 @@ import { friendlyError } from "@/shared/messages";
 import { hasSendablePromptContent } from "@/shared/promptContent";
 import {
   allocateInitialUserMessageItemId,
+  appendOptimisticInitialInput,
   appendOptimisticInitialUserMessage,
+  previousTurnModelForThread,
 } from "./optimisticThreadInput";
 export { appendOptimisticInitialUserMessage } from "./optimisticThreadInput";
 import { captureThreadPromptSubmitted, captureThreadStarted } from "@/renderer/analytics/posthog";
@@ -89,6 +91,10 @@ export async function performInitialThreadLaunch(input: {
   prompt: string;
   segments?: PromptSegment[];
   userMessageItemId?: string;
+  /** Optimistic `model_switch` divider already painted for this launch's prompt. */
+  modelSwitchItemId?: string;
+  /** Model that answered the previous turn, seeding the supervisor baseline. */
+  previousTurnModel?: string;
   questionAnswer?: QuestionAnswerItemPayload;
   providerSwitch?: PendingLaunchProviderSwitch;
   mentionHandoff?: true;
@@ -176,12 +182,24 @@ async function performInitialThreadLaunchPending(
     host && !providerSwitch && !resumableSessionRef
       ? peekPendingThreadLaunch(thread.id)
       : undefined;
+  // Read the previous turn's model before the local paint below adds this
+  // launch's own rows: it seeds the supervisor's model-switch baseline for
+  // threads this host has not run since startup.
+  const previousTurnModel =
+    input.previousTurnModel ??
+    (!providerSwitch && presentation === "gui" && hasSendablePromptContent(prompt, segments)
+      ? previousTurnModelForThread(thread.id)
+      : undefined);
+  const paintedInitialInput =
+    userMessageItemId === undefined && !providerSwitch && !retainedReplay?.replay?.userMessageItemId
+      ? appendOptimisticInitialInput(thread, prompt, segments)
+      : undefined;
   const optimisticUserMessageItemId =
     userMessageItemId ??
     (providerSwitch
       ? allocateInitialUserMessageItemId(thread, prompt, segments)
-      : (retainedReplay?.replay?.userMessageItemId ??
-        appendOptimisticInitialUserMessage(thread, prompt, segments)));
+      : (retainedReplay?.replay?.userMessageItemId ?? paintedInitialInput?.userMessageItemId));
+  const modelSwitchItemId = input.modelSwitchItemId ?? paintedInitialInput?.modelSwitch?.itemId;
   if (optimisticUserMessageItemId)
     notePendingThreadInputMessage(thread.id, optimisticUserMessageItemId);
   if (optimisticUserMessageItemId && !providerSwitch) {
@@ -226,6 +244,8 @@ async function performInitialThreadLaunchPending(
     ...(resumableSessionRef ? { sessionRef: resumableSessionRef } : {}),
     ...(thread.presentationMode ? { presentationMode: thread.presentationMode } : {}),
     ...(optimisticUserMessageItemId ? { userMessageItemId: optimisticUserMessageItemId } : {}),
+    ...(previousTurnModel ? { previousTurnModel } : {}),
+    ...(modelSwitchItemId ? { modelSwitchItemId } : {}),
     ...(input.questionAnswer ? { questionAnswer: input.questionAnswer } : {}),
     ...(providerSwitch ? { providerSwitch } : {}),
     ...(input.mentionHandoff ? { mentionHandoff: true as const } : {}),

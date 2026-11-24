@@ -20,7 +20,7 @@ public enum RouteenvironmentU2DLegacyResponseU2DHostMode_d1d1696e7d: String, Cod
   case `helper` = "helper"
 }
 
-public typealias RouteenvironmentU2DLegacyResponseU2DProtocolVersion_8d7cbafc0e = Double
+public typealias RouteenvironmentU2DLegacyResponseU2DProtocolVersion_c246cc4137 = Double
 
 public enum RouteenvironmentU2DLegacyResponseU2DToolPresentationU2DOptionU2D1U2DItemTypesU2DItemU2DPresentationU2DBodyProjectionU2DConditionsU2DItemU2DPathU2DItem_ed6b68dea9: Codable, Sendable {
   case option1(String)

@@ -13,6 +13,7 @@ import { FileChange } from "./FileChange";
 import { ImageGroup } from "./ImageGroup";
 import { ImageView } from "./ImageView";
 import { PlanItem } from "./PlanItem";
+import { ModelSwitchRow } from "./ModelSwitchRow";
 import { ProviderHandoffRow } from "./ProviderHandoffRow";
 import { QuestionAnswer } from "./QuestionAnswer";
 import { Reasoning } from "./Reasoning";
@@ -159,6 +160,8 @@ function renderItem(
       return <WebSearchItem item={item} />;
     case "provider_handoff":
       return <ProviderHandoffRow threadId={threadId} item={item} />;
+    case "model_switch":
+      return <ModelSwitchRow threadId={threadId} item={item} />;
     case "error":
       return null;
     default:

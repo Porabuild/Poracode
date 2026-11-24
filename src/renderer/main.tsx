@@ -18,6 +18,7 @@ import {
   isIgnorableWindowError,
 } from "./rendererGlobalErrors";
 import { reloadForStaleBuild } from "./staleBuildRecovery";
+import { loadWindowRoot } from "./windowRoot";
 import { installKeyboardFieldFocus } from "./theme/keyboardFieldFocus";
 import { bootstrapAppThemeFromCache } from "./theme/applyAppTheme";
 import { bootstrapAppLocaleFromCache } from "./i18n/i18n";
@@ -197,7 +198,7 @@ reactRoot = createRoot(root, {
 // registration used to sit behind the app chunk as an eager dependency, adding
 // another transform waterfall before React could mount.
 logRendererBootstrap("starting app, provider, and locale imports");
-const appModulePromise = import("./app").then((module) => {
+const appModulePromise = loadWindowRoot(readBridge().windowKind).then((module) => {
   logRendererBootstrap("app module resolved");
   return module;
 });

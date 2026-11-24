@@ -99,6 +99,7 @@ internal fun RichChatLoadedTranscript(
     }
     CompositionLocalProvider(
         LocalRichChatFileActions provides fileActions,
+        LocalRichChatModelLabels provides remember(agentStatus) { richChatModelLabels(agentStatus) },
     ) {
         timelineContent(Modifier.fillMaxSize())
     }

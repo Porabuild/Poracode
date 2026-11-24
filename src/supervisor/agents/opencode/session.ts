@@ -1,6 +1,10 @@
 import { rememberOpenCodeSessionDatabase } from "./database";
 import { awaitOpenCodeActivation } from "./readiness";
-import { openCodeSnapshotEvents, readOpenCodeRecovery } from "./recovery";
+import {
+  openCodeSnapshotEvents,
+  readOpenCodeRecovery,
+  readOpenCodeSessionFailure,
+} from "./recovery";
 /**
  * OpenCode structured session.
  *
@@ -32,6 +36,7 @@ import type {
   ThreadServerRequestId,
   ThreadStatus,
 } from "@/shared/contracts";
+import { parseContextWindowTokens } from "@/shared/contextWindow";
 import {
   createKnownSessionRef,
   type AgentLaunchOptions,
@@ -54,22 +59,28 @@ import { subscribeOpenCodeServerEvents, waitForOpenCodeServerEvents } from "./ev
 import {
   closeOpenCodeItems,
   createOpenCodeMapperState,
-  mapOpenCodeEvent,
   readOpenCodeEventSessionID,
+  setOpenCodeContextWindowTokens,
   settleOpenCodeTurnIfActive,
   setOpenCodeSessionId,
   steerOpenCodeTurn,
   type OpenCodeMapperState,
 } from "./eventMapping";
+import { readOpenCodeContextWindowTokens } from "./contextWindow";
 import { classifyOpenCodeError, isOpenCodeConnectionLoss } from "./opencodeErrors";
 import { openCodeFormRequestId, openCodePermissionRequestId } from "./requestPayloads";
 import { buildOpenCodePromptPayload } from "./promptText";
 import { buildOpenCodeSessionPermissions } from "./permissions";
-import { modelRefKey, parseOpenCodeModelRef } from "./model";
+import { modelCatalogKey, modelRefKey, parseOpenCodeModelRef } from "./model";
 import { parseFormAnswer, parsePermissionReply } from "./requestResponses";
 import { readOpenCodeMessages, rollbackOpenCodeMessages, toThreadHistoryEntries } from "./history";
 import { OpenCodeSubagents } from "./subagents";
-import { openCodeGoalCommand, readOpenCodeGoalState, resolveOpenCodeGoalStatePath } from "./goals";
+import {
+  openCodeGoalCommand,
+  readOpenCodeGoalState,
+  readOpenCodeNativeGoal,
+  resolveOpenCodeGoalStatePath,
+} from "./goals";
 import {
   mapOpenCodeAgents,
   mapOpenCodeCommands,
@@ -80,6 +91,9 @@ import {
 
 /** Tolerance for server-vs-supervisor clock skew when filtering replayed events. */
 const OPENCODE_EVENT_CLOCK_TOLERANCE_MS = 5 * 60 * 1000;
+
+/** The catalog answers locally; a slow reply must never hold a turn's prompt. */
+const OPENCODE_CONTEXT_WINDOW_TIMEOUT_MS = 15_000;
 
 interface PendingPermission {
   kind: "permission";
@@ -115,6 +129,10 @@ export class OpenCodeSession implements StructuredSessionHandle {
   private currentConfig: ThreadConfig | undefined;
   /** Composite key of the model/variant last applied via `switchModel`. */
   private appliedModelKey: string | undefined;
+  /** Catalog key (`providerID/modelID`) of the announced context window. */
+  private contextWindowModelKey: string | undefined;
+  /** Orders overlapping window lookups; only the newest result may announce. */
+  private contextWindowGeneration = 0;
   private appliedPermissionsKey: string | undefined;
   private appliedAgent: string | undefined;
   private selectedAgent: string | undefined;
@@ -132,6 +150,9 @@ export class OpenCodeSession implements StructuredSessionHandle {
   private goalStateTimer: ReturnType<typeof setInterval> | undefined;
   private goalStatePath: Promise<string | undefined> | undefined;
   private readingGoalState = false;
+  private fetchingNativeGoal = false;
+  /** Set once the server answers the native goal RPC with an error (pre-2.2.1 servers). */
+  private nativeGoalUnsupported = false;
   private readonly goalControlWaiters = new Set<{
     matches: (payload: GoalItemPayload) => boolean;
     resolve: () => void;
@@ -211,6 +232,9 @@ export class OpenCodeSession implements StructuredSessionHandle {
       this.refreshSlashCommands(acquired, readiness);
     }
     await readiness;
+    // Announce the model's own window before the first step sample. Non-blocking:
+    // a display-only catalog read must not delay opening the thread.
+    void this.applyContextWindow(config);
 
     const resumeSessionId =
       sessionRef?.providerSessionId ?? this.input.sessionRef?.providerSessionId;
@@ -387,13 +411,23 @@ export class OpenCodeSession implements StructuredSessionHandle {
     await this.waitForSlashCommands();
     const acquired = this.requireAcquired();
     const sessionID = this.requireSessionId();
-    const commandName = this.mapperState.goals.commandName;
+    // A native goal is controlled through the built-in `goal` command, never
+    // through the plugin's (possibly renamed) command.
+    const commandName =
+      this.mapperState.goals.currentSource === "native"
+        ? this.slashCommands.some((command) => command.id === "goal")
+          ? "goal"
+          : undefined
+        : this.mapperState.goals.commandName;
     if (!commandName) {
       throw new Error("The goal plugin command is unavailable in this session.");
     }
     await waitForOpenCodeServerEvents(acquired.client);
+    // `pause_goal` belongs to the prevalentWare plugin; a native goal pauses
+    // through its own `/goal pause` even when the plugin is also installed.
     const pauseCommand =
       control.action === "pause" &&
+      this.mapperState.goals.currentSource !== "native" &&
       this.slashCommands.some((command) => command.id === "pause_goal");
     const reflected = Promise.withResolvers<void>();
     const waiter = {
@@ -428,6 +462,7 @@ export class OpenCodeSession implements StructuredSessionHandle {
       await Promise.race([request, reflected.promise]);
       admitted = true;
       await this.refreshGoalState();
+      await this.fetchNativeGoal();
     } finally {
       this.goalControlWaiters.delete(waiter);
     }
@@ -467,11 +502,29 @@ export class OpenCodeSession implements StructuredSessionHandle {
 
   async interruptTurn(): Promise<void> {
     if (!this.acquired || !this.sessionId) return;
+    const client = this.acquired.client;
+    // Taken before the parent is interrupted: once the parent reports it, the
+    // agents are settled and forgotten, and they would never be interrupted.
+    const agents = this.subagents.heldSessionIds();
     try {
-      await this.acquired.client.session.interrupt({ sessionID: this.sessionId });
+      await client.session.interrupt({ sessionID: this.sessionId });
     } catch {
       // Best-effort — the server may already be torn down.
     }
+    // The server interrupts only the session it is given, and OpenCode's own
+    // terminal client stops a thread without touching its background
+    // subagents (it offers a separate interrupt per subagent). Poracode has
+    // no per-agent control, so Stop ends the agents too; otherwise they keep
+    // working after their rows were settled as cancelled.
+    await Promise.all(
+      agents.map(async (sessionID) => {
+        try {
+          await client.session.interrupt({ sessionID });
+        } catch {
+          // Best-effort per agent: one refusal must not spare the others.
+        }
+      }),
+    );
   }
 
   forceCompleteTurn(): void {
@@ -645,6 +698,11 @@ export class OpenCodeSession implements StructuredSessionHandle {
         const hasGoals =
           this.mapperState.goals.commandName ||
           plugins.data.some((plugin) => plugin.id === "local.goal-mode.server");
+        if (hasGoals) {
+          // A fresh discovery (attach or reacquire) re-probes native goal support.
+          this.nativeGoalUnsupported = false;
+          void this.fetchNativeGoal();
+        }
         if (!this.goalStateTimer && hasGoals) {
           this.goalStateTimer = setInterval(() => void this.refreshGoalState(), 1000);
           this.goalStateTimer.unref();
@@ -698,8 +756,46 @@ export class OpenCodeSession implements StructuredSessionHandle {
       this.requireAcquired().database,
     );
     this.sessionId = id;
-    if (this.goalStateTimer) void this.refreshGoalState();
+    if (this.goalStateTimer) {
+      void this.refreshGoalState();
+      void this.fetchNativeGoal();
+    }
     this.launchOptions = { ...this.launchOptions, resumeThreadId: id };
+  }
+
+  /**
+   * Fetch the session's built-in goal once; `rpc.opencode.goal.changed`
+   * events keep it current afterwards. Servers without the native goal RPC
+   * reject the call, which marks it unsupported until the next discovery.
+   */
+  private async fetchNativeGoal(): Promise<void> {
+    if (
+      this.disposed ||
+      !this.sessionId ||
+      !this.acquired ||
+      this.nativeGoalUnsupported ||
+      this.fetchingNativeGoal
+    )
+      return;
+    this.fetchingNativeGoal = true;
+    const sessionID = this.sessionId;
+    const acquired = this.acquired;
+    try {
+      const goal = await readOpenCodeNativeGoal(acquired.client, this.directory, sessionID);
+      if (goal === undefined) {
+        this.nativeGoalUnsupported = true;
+        return;
+      }
+      if (!this.disposed && this.sessionId === sessionID && this.acquired === acquired)
+        this.emitRuntimeEvents(this.mapperState.goals.mapNative(goal, sessionID));
+    } catch (error) {
+      // A timeout or abort says nothing about support; only an answered-and-
+      // rejected RPC latches until the next discovery or reconnect.
+      if (!(error instanceof Error) || !/^(TimeoutError|AbortError)$/.test(error.name))
+        this.nativeGoalUnsupported = true;
+    } finally {
+      this.fetchingNativeGoal = false;
+    }
   }
 
   private async refreshGoalState(): Promise<void> {
@@ -786,18 +882,74 @@ export class OpenCodeSession implements StructuredSessionHandle {
   ): Promise<void> {
     const model = parseOpenCodeModelRef(config.model, config.effort);
     if (!model) return;
+    const windowKey = modelCatalogKey(model);
     const key = modelRefKey(model);
-    if (key === this.appliedModelKey) return;
-    await acquired.client.session.switchModel({ sessionID, model });
-    this.appliedModelKey = key;
+    if (key !== this.appliedModelKey) {
+      await acquired.client.session.switchModel({ sessionID, model });
+      this.appliedModelKey = key;
+      // A window announced for a different model is meaningless now. Clearing it
+      // stops later samples from stamping the old model's limit; the dock keeps
+      // the last reported window until the new one lands.
+      if (this.contextWindowModelKey !== windowKey) {
+        this.contextWindowModelKey = undefined;
+        setOpenCodeContextWindowTokens(this.mapperState, undefined);
+      }
+    }
+    // Display-only: the catalog read never holds the prompt behind it.
+    if (this.contextWindowModelKey !== windowKey) void this.applyContextWindow(config);
+  }
+
+  /**
+   * Resolve the session model's context window from the V2 catalog and publish
+   * it, falling back to the thread's configured context size when the catalog
+   * has no answer. Display-only: a failure never fails a turn, and a superseded
+   * lookup is dropped so a late reply cannot describe a model the session has
+   * already left.
+   */
+  private async applyContextWindow(config: ThreadConfig): Promise<void> {
+    const model = parseOpenCodeModelRef(config.model, config.effort);
+    if (!this.isGui || !model) return;
+    const acquired = this.acquired;
+    if (!acquired) return;
+    const windowKey = modelCatalogKey(model);
+    const generation = ++this.contextWindowGeneration;
+    let catalogTokens: number | undefined;
+    try {
+      catalogTokens = await readOpenCodeContextWindowTokens(
+        acquired.client,
+        this.directory,
+        windowKey,
+        AbortSignal.timeout(OPENCODE_CONTEXT_WINDOW_TIMEOUT_MS),
+      );
+    } catch (error) {
+      if (!this.disposed) console.warn("[opencode] context window lookup failed:", error);
+    }
+    if (
+      this.disposed ||
+      this.acquired !== acquired ||
+      generation !== this.contextWindowGeneration
+    ) {
+      return;
+    }
+    // Only a catalog value describes the model; the configured size is the
+    // thread's own intent, used when the catalog cannot answer for it.
+    if (catalogTokens !== undefined) this.contextWindowModelKey = windowKey;
+    this.emitRuntimeEvents(
+      setOpenCodeContextWindowTokens(
+        this.mapperState,
+        catalogTokens ?? parseContextWindowTokens(config.contextSize ?? ""),
+      ),
+    );
   }
 
   private sessionRefUpdate(): { sessionRef: SessionRef } | Record<string, never> {
     return this.sessionId ? { sessionRef: createKnownSessionRef(this.sessionId) } : {};
   }
 
-  private cancelPendingRequests(): void {
-    for (const requestId of this.pendingRequests.keys()) {
+  /** Resolve the pending server requests of one session, or of all of them. */
+  private cancelPendingRequests(sessionID?: string): void {
+    for (const [requestId, request] of this.pendingRequests) {
+      if (sessionID !== undefined && request.sessionID !== sessionID) continue;
       this.cancelledRequestIds.add(requestId);
       this.emitRuntimeEvents([
         {
@@ -807,8 +959,8 @@ export class OpenCodeSession implements StructuredSessionHandle {
           outcome: "cancelled",
         },
       ]);
+      this.pendingRequests.delete(requestId);
     }
-    this.pendingRequests.clear();
   }
 
   private pendingRequestStatus(): { status: ThreadStatus; attention: ThreadAttention } | undefined {
@@ -871,6 +1023,18 @@ export class OpenCodeSession implements StructuredSessionHandle {
       if (this.disposed || acquired !== this.acquired) return;
       for (const event of openCodeSnapshotEvents(sessionID, snapshot.messages))
         this.handleSseEvent(event);
+      // A child the server no longer runs has ended the run its launch row tracks.
+      if (sessionID !== this.sessionId)
+        this.emitRuntimeEvents(
+          this.subagents.reconcile(sessionID, {
+            active: snapshot.active,
+            outcome: snapshot.outcome,
+            error:
+              snapshot.outcome === "failed"
+                ? readOpenCodeSessionFailure(snapshot.messages)
+                : undefined,
+          }),
+        );
       const pending = new Set<string>();
       for (const permission of snapshot.permissions) {
         const id = openCodePermissionRequestId(permission.id);
@@ -927,6 +1091,10 @@ export class OpenCodeSession implements StructuredSessionHandle {
     // `session.inbox.enqueued` echo can arrive after recovery, and clearing
     // here would mint a duplicate user row for the same prompt.
     this.recoveredBefore = recoveredBefore;
+    // Goal changes published while the stream was down were missed; a failed
+    // probe on the dead stream must not latch support off for this one.
+    this.nativeGoalUnsupported = false;
+    void this.fetchNativeGoal();
   }
 
   private startServerExitRecovery(): void {
@@ -975,6 +1143,8 @@ export class OpenCodeSession implements StructuredSessionHandle {
     this.appliedPermissionsKey = undefined;
     this.appliedModelKey = undefined;
     this.appliedAgent = undefined;
+    this.contextWindowModelKey = undefined;
+    setOpenCodeContextWindowTokens(this.mapperState, undefined);
     await previous?.dispose().catch((error) => {
       console.warn("[opencode] failed to dispose previous session:", error);
     });
@@ -1061,10 +1231,8 @@ export class OpenCodeSession implements StructuredSessionHandle {
       return;
     }
 
-    // Canonical events first: the status handler's defensive turn settle must
-    // observe the mapper's own lifecycle output, not race it.
-    const canonical = mapOpenCodeEvent(event, state);
-    if (canonical.length > 0) this.emitRuntimeEvents(canonical);
+    // Rows first: the status handler's defensive turn settle must observe the
+    // mapper's own lifecycle output, not race it.
     this.emitRuntimeEvents(this.subagents.map(event));
 
     this.handleRequestLifecycleEvent(event);
@@ -1127,12 +1295,14 @@ export class OpenCodeSession implements StructuredSessionHandle {
         // execution event was dropped by the beta stream.
         const settled = settleOpenCodeTurnIfActive(this.mapperState, "completed");
         if (settled.length > 0) this.emitRuntimeEvents(settled);
-        if (
-          event.type === "session.execution.interrupted" ||
-          event.type === "session.execution.failed"
-        ) {
+        // An interrupted parent takes its background agents with it (Stop
+        // interrupts them too). A failed parent leaves them running, so their
+        // rows keep tracking the runs and only the parent's own requests close.
+        if (event.type === "session.execution.interrupted") {
           this.emitRuntimeEvents(this.subagents.close());
           this.cancelPendingRequests();
+        } else if (event.type === "session.execution.failed") {
+          this.cancelPendingRequests(this.sessionId);
         }
         this.emitUpdate({
           ...(this.pendingRequestStatus() ?? { status: "idle", attention: "none" }),

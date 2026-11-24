@@ -263,6 +263,7 @@
     <string name="rich_chat_handoff_fork">会話をフォーク</string>
     <string name="rich_chat_handoff_prompt">新しいプロバイダーに次に行うことを伝える…</string>
     <string name="rich_chat_handoff_switch">切り替え</string>
+    <string name="rich_chat_model_switched">モデルを %1$s から %2$s に切り替えました</string>
     <string name="rich_chat_html_visual_title">HTMLプレビュー</string>
     <string name="rich_chat_html_visual_source">ソース</string>
     <string name="rich_chat_html_visual_preview">プレビュー</string>
