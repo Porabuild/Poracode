@@ -1,7 +1,6 @@
 import { msg } from "@lingui/core/macro";
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { AgentInstanceConfig } from "@/shared/contracts";
-import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import type { NativeAgentProfileSupport } from "./agentRegistryNative";
 
 /**
@@ -45,7 +44,6 @@ export const cursorProfileSupport: NativeAgentProfileSupport = {
     displayName,
     environment: { CURSOR_API_KEY: { value: field, sensitive: true } },
   }),
-  onCreated: ({ profileKind }) => {
-    useSharedSettings.getState().setAgentSetting(profileKind, "structuredRuntime", "sdk");
-  },
+  onCreated: ({ profileKind, settingsHost }) =>
+    settingsHost.setAgentSetting(profileKind, "structuredRuntime", "sdk"),
 };

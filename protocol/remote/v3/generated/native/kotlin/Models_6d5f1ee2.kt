@@ -375,22 +375,7 @@ data class RoutethreadU2DCommandRequestU2DOptionU2D12_09765c7778(
 }
 
 @Serializable
-enum class RoutethreadU2DCommandRequestU2DOptionU2D13U2DKind_53ceafeed2 {
+enum class RoutethreadU2DCommandRequestU2DOptionU2D13U2DAction_e9d06fff5d {
     @SerialName("archive") ARCHIVE,
-}
-
-@Serializable
-data class RoutethreadU2DCommandRequestU2DOptionU2D13_431be1ab7e(
-    @SerialName("kind") val kind: RoutethreadU2DCommandRequestU2DOptionU2D13U2DKind_53ceafeed2,
-) {
-    companion object {
-        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
-            RemoteFieldDescriptor("kind", "RoutethreadU2DCommandRequestU2DOptionU2D13U2DKind_53ceafeed2", true, false, null, null, null, null, null, null, null, null, listOf()),
-        ), listOf())
-    }
-}
-
-@Serializable
-enum class RoutethreadU2DCommandRequestU2DOptionU2D14U2DKind_c7bfc39efc {
-    @SerialName("unarchive") UNARCHIVE,
+    @SerialName("delete") DELETE,
 }

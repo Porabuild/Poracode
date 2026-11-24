@@ -84,6 +84,10 @@ export interface DesktopRemoteAccessControllerOptions {
       field: F,
       compute: (current: SharedSettings) => SharedSettings[F] | undefined,
     ): Promise<SettingsMutationResult>;
+    editSettingsFields<F extends keyof SharedSettings>(
+      fields: readonly F[],
+      compute: (current: SharedSettings) => Pick<SharedSettings, F>,
+    ): Promise<SettingsMutationResult>;
   };
   readonly notifyRemoteAccessPairingChanged: (info: RemoteAccessPairingInfo) => void;
   /** Publish a project-set change through the composition's membership flow

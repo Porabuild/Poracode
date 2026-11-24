@@ -12,10 +12,14 @@ import { readBridge } from "@/renderer/bridge";
 import { friendlyError } from "@/shared/messages";
 import { Input, Select } from "@/renderer/components/common";
 import { runAgentLoginCommand } from "@/renderer/actions/agentLoginActions";
-import { flushSharedSettings, useSharedSettings } from "@/renderer/state/sharedSettingsStore";
-import { currentWslDistros } from "@/renderer/utils/acpRegistryAuth";
 import { AgentProfileList } from "../../../views/SettingsOverlay/parts/AgentProfileList";
-import { useAgentSettingsHost } from "../settings/AgentSettingsHostContext";
+import {
+  rediscoverHostAgents,
+  useAgentSettingsHost,
+  useHostAgentInstance,
+  useHostAgentInstances,
+  type AgentSettingsHost,
+} from "../settings/AgentSettingsHostContext";
 import type { NativeAgentProfileSupport } from "../../../views/SettingsOverlay/parts/agentRegistryNative";
 import {
   devinCloudDefaultsFormFromConfig,
@@ -36,11 +40,11 @@ import {
 } from "./profileConfigUi";
 import { DevinCloudChatSetup } from "./cloudProfileSettings";
 
-function refreshDevinProfile(kind?: string): void {
+function refreshDevinProfile(settingsHost: AgentSettingsHost, kind?: string): void {
   window.setTimeout(() => {
-    void readBridge()
-      .refreshAgentStatuses(currentWslDistros(), kind ? { agentKinds: [kind] } : undefined)
-      .catch((error) => toast.danger(friendlyError(error)));
+    void rediscoverHostAgents(settingsHost, kind).catch((error) =>
+      toast.danger(friendlyError(error)),
+    );
   }, 50);
 }
 
@@ -53,7 +57,7 @@ function refreshDevinProfile(kind?: string): void {
  */
 function DevinProfileRowSubtitle(props: { instance: AgentInstanceConfig }) {
   const { t } = useLingui();
-  const instances = useSharedSettings((s) => s.agentInstances);
+  const instances = useHostAgentInstances();
   const view = devinProfileConfigView(props.instance.config);
   if (view.status === "unsupported-format") {
     return (
@@ -159,6 +163,7 @@ function DevinProfileSignInRow(props: {
   statuses: readonly AgentStatus[];
 }) {
   const { t } = useLingui();
+  const settingsHost = useAgentSettingsHost();
   const [pendingKind, setPendingKind] = useState<string | undefined>();
   if (props.authKind === "native-default") {
     return (
@@ -190,6 +195,7 @@ function DevinProfileSignInRow(props: {
   // a second sign-in button here would duplicate those. This slot is the
   // fallback for the not-installed page, where the generic rows are absent.
   if (props.statuses.some((status) => status.installed)) return null;
+  if (settingsHost.isRemote) return null;
   const pending = props.statuses.filter(
     (status) => typeof status.loginCommand === "string" && status.authState !== "authenticated",
   );
@@ -202,7 +208,7 @@ function DevinProfileSignInRow(props: {
       command: status.loginCommand,
       onCommandComplete: () => {
         setPendingKind(undefined);
-        refreshDevinProfile(status.kind);
+        refreshDevinProfile(settingsHost, status.kind);
       },
     });
     if (!opened) setPendingKind(undefined);
@@ -245,15 +251,15 @@ export function DevinProfileProviderSettings(props: {
   instanceId: string;
   statuses: readonly AgentStatus[];
 }) {
-  const { canManageProfiles } = useAgentSettingsHost();
-  const instance = useSharedSettings((s) =>
-    canManageProfiles ? s.agentInstances?.[props.instanceId] : undefined,
-  );
-  if (!canManageProfiles || !instance || instance.driver !== DEVIN_PROFILE_DRIVER) return null;
+  const settingsHost = useAgentSettingsHost();
+  const instance = useHostAgentInstance(props.instanceId);
+  if (!settingsHost.canManageProfiles || !instance || instance.driver !== DEVIN_PROFILE_DRIVER) {
+    return null;
+  }
   const view = devinProfileConfigView(instance.config);
   return (
     <DevinProfileEditor
-      key={instance.id}
+      key={`${settingsHost.key}:${instance.id}`}
       instance={instance}
       view={view}
       statuses={props.statuses}
@@ -267,8 +273,8 @@ function DevinProfileEditor(props: {
   statuses: readonly AgentStatus[];
 }) {
   const { t } = useLingui();
-  const setAgentInstance = useSharedSettings((s) => s.setAgentInstance);
-  const instances = useSharedSettings((s) => s.agentInstances);
+  const settingsHost = useAgentSettingsHost();
+  const instances = useHostAgentInstances();
   const profileKind = `${DEVIN_PROFILE_DRIVER}:${props.instance.id}`;
   const raw = props.view.raw;
   const storedAuthKind: AuthKind =
@@ -335,6 +341,7 @@ function DevinProfileEditor(props: {
   // and are carried untouched.
   const cloudSetupInvalid = runtimeTarget === "cloud" && devinCloudFormIssues(cloud).length > 0;
   const canSave =
+    settingsHost.isOnline &&
     trimmedName.length > 0 &&
     selectedOwnerKnown &&
     !ownerReferenceUnresolved &&
@@ -377,26 +384,24 @@ function DevinProfileEditor(props: {
   const save = () => {
     if (!canSave) return;
     setSaving(true);
-    const previous = props.instance;
+    const candidateConfig = devinProfileConfigPatch(raw, form);
     const candidate: AgentInstanceConfig = {
       ...props.instance,
       displayName: trimmedName,
-      config: devinProfileConfigPatch(raw, form),
+      config: candidateConfig,
     };
     const persist = async () => {
-      setAgentInstance(candidate);
-      // Required flush: the store's write queue swallows host rejections, so
-      // the flush must fail loudly when the host refused the write (the
-      // shared-login dependency guard, a validation error, an IPC failure)
-      // instead of resolving into fake saved state.
-      await flushSharedSettings({ requireSuccess: true });
+      const savedFromHost = await settingsHost.updateProfile(props.instance.id, {
+        displayName: trimmedName,
+        config: candidateConfig,
+      });
       // Read-back stays as extra proof on top: compare what the host actually
       // holds — the display name plus a collision-free canonical fingerprint
       // of both configs parsed through the authoritative shared parser
-      // (unknown fields included, key order irrelevant). Anything that does
-      // not compare exactly rolls the candidate back.
-      const persisted = await readBridge().getSharedSettings();
-      const savedInstance = persisted.agentInstances?.[props.instance.id];
+      // (unknown fields included, key order irrelevant).
+      const savedInstance = settingsHost.isRemote
+        ? savedFromHost
+        : (await readBridge().getSharedSettings()).agentInstances?.[props.instance.id];
       const savedView =
         savedInstance !== undefined ? devinProfileConfigView(savedInstance.config) : undefined;
       const candidateView = devinProfileConfigView(candidate.config);
@@ -409,23 +414,27 @@ function DevinProfileEditor(props: {
         devinProfileConfigFingerprint(savedView.config) ===
           devinProfileConfigFingerprint(candidateView.config);
       if (!confirmed) {
+        if (!settingsHost.isRemote) {
+          await settingsHost
+            .updateProfile(props.instance.id, {
+              ...(props.instance.displayName !== undefined
+                ? { displayName: props.instance.displayName }
+                : {}),
+              config: props.instance.config,
+            })
+            .catch(() => undefined);
+        }
         throw new Error(
           t`Devin profile changes were not confirmed by the host; the editor rolled back to the stored settings.`,
         );
       }
       // Status refresh only after the save is actually confirmed: the
       // supervisor rebuilds its registry from the settings file on flush.
-      await readBridge().refreshAgentStatuses(currentWslDistros(), {
-        agentKinds: [profileKind],
-      });
+      await rediscoverHostAgents(settingsHost, profileKind);
       toast.success(t`Devin ${trimmedName || displayLabel} profile saved.`);
     };
     void persist()
-      .catch(async (error: unknown) => {
-        setAgentInstance(previous);
-        // The rollback write re-queues the stored instance; drain it
-        // best-effort so store and host converge even if this flush fails too.
-        await flushSharedSettings().catch(() => undefined);
+      .catch((error: unknown) => {
         toast.danger(friendlyError(error));
       })
       .finally(() => setSaving(false));

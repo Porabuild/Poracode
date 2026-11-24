@@ -1,5 +1,25 @@
 import { createContext, useContext, type ReactNode } from "react";
-import type { Project, RefreshAgentScope } from "@/shared/contracts";
+import { msg } from "@lingui/core/macro";
+import { assertAgentProfileDependencies } from "@/shared/agentProfileDependencies";
+import {
+  agentProfileKind,
+  type AgentInstanceConfig,
+  type CreateProfilePayload,
+  type Project,
+  type RefreshAgentScope,
+  type SetProfileEnvironmentPayload,
+} from "@/shared/contracts";
+import type { RemoteAgentProfilesCommandResult } from "@/shared/remote/contract/routeSchemas";
+import { readBridge } from "@/renderer/bridge";
+import { i18n } from "@/renderer/i18n/i18n";
+import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
+import { remoteConnectionKey } from "@/renderer/state/remoteServers/types";
+import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
+import { currentWslDistros } from "@/renderer/utils/acpRegistryAuth";
+import {
+  commandPairedHostProfiles,
+  usePairedHostProfiles,
+} from "@/renderer/state/pairedHostProfiles";
 import { editPairedHostSettings, usePairedHostSettings } from "@/renderer/state/pairedHostSettings";
 import { flushSharedSettings, useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import {
@@ -11,6 +31,17 @@ import type { IpcProcedurePayload, IpcProcedureResult } from "@/shared/ipc";
 
 const EMPTY_AGENT_SETTINGS: Record<string, boolean | string> = Object.freeze({});
 const EMPTY_HIDDEN_MODELS: Record<string, string[]> = Object.freeze({});
+const EMPTY_AGENT_INSTANCES: Record<string, AgentInstanceConfig> = Object.freeze({});
+
+/** The committed profile a command must return for the editor to re-seed. */
+function requiredProfile(
+  result: RemoteAgentProfilesCommandResult,
+  instanceId: string,
+): AgentInstanceConfig {
+  const instance = result.profiles[instanceId] ?? result.instance;
+  if (!instance) throw new Error(i18n._(msg`The host did not return the agent profile.`));
+  return instance;
+}
 
 /**
  * Host-scoped transport, capability flags, and settings mutations for the
@@ -33,9 +64,11 @@ export interface AgentSettingsHost {
   readonly isRemote: boolean;
   /** True when the addressed host can accept live procedure calls and writes. */
   readonly isOnline: boolean;
+  /** True when this connection may mutate the host (paired viewers cannot). */
+  readonly canWrite: boolean;
   /** Representative project on the selected machine for terminal login/install overlays. */
   readonly machineProject: Project | undefined;
-  /** Multi-profile creation/editing uses main-local secret sealing; local host only. */
+  /** True when the active host supports creating, editing, and removing agent profiles. */
   readonly canManageProfiles: boolean;
   /** Keychain-backed secret settings (`setAgentSecretSetting`) are local host only. */
   readonly canEditSecrets: boolean;
@@ -62,6 +95,18 @@ export interface AgentSettingsHost {
   setAgentDisabled(agentKind: string, disabled: boolean): void | Promise<void>;
   /** Updates hidden model lists on the active host in one patch. */
   setHiddenModels(updates: ReadonlyMap<string, readonly string[]>): void | Promise<void>;
+  /** Creates a new agent profile on the active host, sealing any supplied secrets on-host. */
+  createProfile(payload: CreateProfilePayload): Promise<AgentInstanceConfig>;
+  /** Updates a profile's non-secret metadata or config on the active host. */
+  updateProfile(
+    instanceId: string,
+    patch: { displayName?: string; config?: unknown; enabled?: boolean },
+    options?: { flush?: boolean },
+  ): Promise<AgentInstanceConfig>;
+  /** Seals and persists a profile's environment variables on the active host. */
+  setProfileEnvironment(payload: SetProfileEnvironmentPayload): Promise<AgentInstanceConfig>;
+  /** Removes a profile and all profile-scoped settings from the active host. */
+  removeProfile(instanceId: string): Promise<void>;
 }
 
 const AgentSettingsHostContext = createContext<AgentSettingsHost | undefined>(undefined);
@@ -149,19 +194,22 @@ export function updateHostHiddenModels(
 export function createAgentSettingsHost(params: {
   host: AgentManagementHost;
   isOnline: boolean;
+  canWrite?: boolean;
   machineProject?: Project;
   wslDistros: readonly string[];
 }): AgentSettingsHost {
   const { host, isOnline, machineProject, wslDistros } = params;
   const connectionKey = host.connectionKey;
   const isRemote = host.isRemote && connectionKey !== undefined;
+  const canWrite = params.canWrite ?? true;
   const shared = {
     key: host.key,
     connectionKey: isRemote ? connectionKey : undefined,
     isRemote,
     isOnline,
+    canWrite,
     machineProject,
-    canManageProfiles: !isRemote,
+    canManageProfiles: !isRemote || canWrite,
     canEditSecrets: !isRemote,
     callProcedure: <Name extends AgentHostProcedureName>(
       procedure: Name,
@@ -184,6 +232,65 @@ export function createAgentSettingsHost(params: {
       setAgentDisabled: (agentKind, disabled) => {
         useSharedSettings.getState().setAgentDisabled(agentKind, disabled);
       },
+      createProfile: async (payload) => {
+        const instance = await readBridge().createProfile(payload);
+        useSharedSettings.getState().setAgentInstance(instance);
+        return instance;
+      },
+      updateProfile: async (instanceId, patch, options) => {
+        const store = useSharedSettings.getState();
+        const previous = store.agentInstances[instanceId];
+        if (!previous) throw new Error(i18n._(msg`Agent profile not found.`));
+        const candidate: AgentInstanceConfig = {
+          ...previous,
+          ...(patch.displayName !== undefined ? { displayName: patch.displayName } : {}),
+          ...(patch.config !== undefined ? { config: patch.config } : {}),
+          ...(patch.enabled !== undefined ? { enabled: patch.enabled } : {}),
+        };
+        store.setAgentInstance(candidate);
+        if (options?.flush === false) return candidate;
+        try {
+          await flushSharedSettings({ requireSuccess: true });
+          return candidate;
+        } catch (error) {
+          useSharedSettings.getState().setAgentInstance(previous);
+          await flushSharedSettings().catch(() => undefined);
+          throw error;
+        }
+      },
+      setProfileEnvironment: async (payload) => {
+        const instance = await readBridge().setProfileEnvironment(payload);
+        useSharedSettings.getState().setAgentInstance(instance);
+        return instance;
+      },
+      removeProfile: async (instanceId) => {
+        const snapshot = useSharedSettings.getState();
+        const existing = snapshot.agentInstances[instanceId];
+        if (!existing) throw new Error(i18n._(msg`Agent profile not found.`));
+        const { [instanceId]: _removed, ...remaining } = snapshot.agentInstances;
+        assertAgentProfileDependencies(snapshot.agentInstances, remaining);
+        try {
+          snapshot.removeAgentInstance(instanceId);
+          await flushSharedSettings({ requireSuccess: true });
+        } catch (error) {
+          useSharedSettings.setState({
+            agentInstances: snapshot.agentInstances,
+            providerConfigs: snapshot.providerConfigs,
+            providerModelPreferences: snapshot.providerModelPreferences,
+            hiddenModels: snapshot.hiddenModels,
+            agentSettings: snapshot.agentSettings,
+            lastPresentationModeByAgent: snapshot.lastPresentationModeByAgent,
+            disabledAgents: snapshot.disabledAgents,
+            favoriteModels: snapshot.favoriteModels,
+            recentModels: snapshot.recentModels,
+            providerOrder: snapshot.providerOrder,
+          });
+          throw error;
+        }
+        useAgentStatusesStore
+          .getState()
+          .removeAgentStatus(agentProfileKind(existing.driver, existing.id));
+      },
     };
   }
 
@@ -204,6 +311,34 @@ export function createAgentSettingsHost(params: {
             : list.filter((kind) => kind !== agentKind),
         };
       }),
+    createProfile: async (payload) =>
+      requiredProfile(
+        await commandPairedHostProfiles(connectionKey, { kind: "create", payload }),
+        payload.id,
+      ),
+    updateProfile: async (instanceId, patch) =>
+      requiredProfile(
+        await commandPairedHostProfiles(connectionKey, {
+          kind: "update",
+          instanceId,
+          ...(patch.displayName !== undefined ? { displayName: patch.displayName } : {}),
+          ...(patch.config !== undefined ? { config: patch.config } : {}),
+          ...(patch.enabled !== undefined ? { enabled: patch.enabled } : {}),
+        }),
+        instanceId,
+      ),
+    setProfileEnvironment: async (payload) =>
+      requiredProfile(
+        await commandPairedHostProfiles(connectionKey, {
+          kind: "set-environment",
+          instanceId: payload.instanceId,
+          environment: payload.environment,
+        }),
+        payload.instanceId,
+      ),
+    removeProfile: async (instanceId) => {
+      await commandPairedHostProfiles(connectionKey, { kind: "remove", instanceId });
+    },
   };
 }
 
@@ -247,6 +382,50 @@ export function useHostHiddenModels(): Readonly<Record<string, string[]>> {
   const local = useSharedSettings((state) => (isRemote ? EMPTY_HIDDEN_MODELS : state.hiddenModels));
   const remote = usePairedHostSettings(isRemote ? host.connectionKey : undefined);
   return isRemote ? (remote?.settings?.hiddenModels ?? EMPTY_HIDDEN_MODELS) : local;
+}
+
+/** Whether the selected paired connection grants host mutations. */
+export function useRemoteHostCanWrite(connectionKey: string | undefined): boolean {
+  return useRemoteServersStore((state) => {
+    if (!connectionKey) return true;
+    const server = state.servers.find(
+      (candidate) => remoteConnectionKey(candidate) === connectionKey,
+    );
+    return server?.scopes.includes("session:operate") ?? false;
+  });
+}
+
+/**
+ * Re-detect agents on the active host. The managed host also sweeps the local
+ * WSL distros; a paired host discovers them itself.
+ */
+export function rediscoverHostAgents(
+  settingsHost: AgentSettingsHost,
+  kind?: string,
+): ReturnType<AgentSettingsHost["rediscoverAgents"]> {
+  return settingsHost.rediscoverAgents(
+    settingsHost.isRemote ? undefined : currentWslDistros(),
+    kind ? { agentKinds: [kind] } : undefined,
+  );
+}
+
+/** Reactive `agentInstances` scoped to the active host; never leaks local profiles remotely. */
+export function useHostAgentInstances(): Readonly<Record<string, AgentInstanceConfig>> {
+  const host = useContext(AgentSettingsHostContext);
+  const isRemote = host?.isRemote === true;
+  const local = useSharedSettings((state) =>
+    isRemote ? EMPTY_AGENT_INSTANCES : state.agentInstances,
+  );
+  const remote = usePairedHostProfiles(isRemote ? host.connectionKey : undefined);
+  return isRemote ? (remote?.profiles ?? EMPTY_AGENT_INSTANCES) : local;
+}
+
+/** Reactive single `agentInstances[instanceId]` scoped to the active host. */
+export function useHostAgentInstance(
+  instanceId: string | undefined,
+): AgentInstanceConfig | undefined {
+  const instances = useHostAgentInstances();
+  return instanceId ? instances[instanceId] : undefined;
 }
 
 /** True when the active host's settings document is loaded and writable. */

@@ -30,8 +30,9 @@ export const NATIVE_BINDINGS_MAX_FILE_LINES = 450 as const;
 export const NATIVE_BINDINGS_MAX_FILE_BYTES = 512_000 as const;
 export const NATIVE_BINDINGS_MAX_LINE_LENGTH = 32_768 as const;
 /** The JSON manifest is metadata rather than a source shard, so it is exempt
- * from the 450-line source limit but has explicit byte and line-length bounds. */
-export const NATIVE_BINDINGS_MANIFEST_MAX_BYTES = 65_536 as const;
+ * from the 450-line source limit but has explicit byte and line-length bounds.
+ * Additive contract routes grow it independently of the generated sources. */
+export const NATIVE_BINDINGS_MANIFEST_MAX_BYTES = 131_072 as const;
 export const NATIVE_BINDINGS_MANIFEST_MAX_LINE_LENGTH = 256 as const;
 
 function lineCount(contents: string): number {
@@ -225,8 +226,8 @@ export function buildNativeBindingOutput(rawIr: unknown, manifest: unknown): Nat
       },
     },
   };
-  // V5's JSON shape and readers stay valid; a smaller indentation removes
-  // redundant metadata bytes without relaxing its existing 64 KB/line bounds.
+  // V5's JSON shape and readers stay valid; one-space indentation keeps the
+  // metadata manifest compact while source shards keep their own bounds.
   // All wire/hash canonicalization retains the default two-space encoding.
   const manifestContents = canonicalize(nativeManifest, 1);
   assertContentBounds(

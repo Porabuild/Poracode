@@ -5,13 +5,17 @@ import { Trans, useLingui } from "@lingui/react/macro";
 import { Check, ChevronRight, Plus, RefreshCw, Trash2, X } from "lucide-react";
 import { agentProfileKind, type AgentInstanceConfig, type AgentStatus } from "@/shared/contracts";
 import { friendlyError } from "@/shared/messages";
-import { assertAgentProfileDependencies } from "@/shared/agentProfileDependencies";
-import { readBridge } from "@/renderer/bridge";
 import { ConfirmDialog, Input, PixelLoader } from "@/renderer/components/common";
-import { useAgentSettingsHost } from "@/renderer/components/providers/settings/AgentSettingsHostContext";
-import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
-import { flushSharedSettings, useSharedSettings } from "@/renderer/state/sharedSettingsStore";
-import { currentWslDistros } from "@/renderer/utils/acpRegistryAuth";
+import {
+  rediscoverHostAgents,
+  useAgentSettingsHost,
+  useHostAgentInstances,
+} from "@/renderer/components/providers/settings/AgentSettingsHostContext";
+import {
+  refreshPairedHostProfilesNow,
+  usePairedHostProfiles,
+} from "@/renderer/state/pairedHostProfiles";
+import { flushSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import type { NativeAgentProfileSupport } from "./agentRegistryNative";
 import { isDuplicateProfileName, uniqueProfileId } from "./profileIds";
 
@@ -44,10 +48,12 @@ function AgentProfileListBody(props: {
 }) {
   const { profiles: support } = props;
   const { t } = useLingui();
-  const agentInstances = useSharedSettings((state) => state.agentInstances);
-  const setAgentInstance = useSharedSettings((state) => state.setAgentInstance);
-  const removeAgentInstance = useSharedSettings((state) => state.removeAgentInstance);
-  const removeAgentStatus = useAgentStatusesStore((state) => state.removeAgentStatus);
+  const settingsHost = useAgentSettingsHost();
+  const agentInstances = useHostAgentInstances();
+  const remoteProfiles = usePairedHostProfiles(
+    settingsHost.isRemote ? settingsHost.connectionKey : undefined,
+  );
+  const profilesUnavailable = settingsHost.isRemote && remoteProfiles?.error !== undefined;
   const [isAdding, setIsAdding] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [pendingKind, setPendingKind] = useState<string | undefined>();
@@ -78,6 +84,8 @@ function AgentProfileListBody(props: {
       ? t(support.field.placeholder)
       : "";
   const canSubmit =
+    settingsHost.isOnline &&
+    !profilesUnavailable &&
     trimmedName.length > 0 &&
     !isDuplicate &&
     (support.field?.required !== true || newField.trim().length > 0);
@@ -94,11 +102,12 @@ function AgentProfileListBody(props: {
     if (isAdding) nameInputRef.current?.focus();
   }, [isAdding]);
 
-  const refreshProfiles = (kind?: string) =>
-    readBridge().refreshAgentStatuses(
-      currentWslDistros(),
-      kind ? { agentKinds: [kind] } : undefined,
-    );
+  const refreshProfiles = (kind?: string) => {
+    if (settingsHost.isRemote && settingsHost.connectionKey) {
+      refreshPairedHostProfilesNow(settingsHost.connectionKey);
+    }
+    return rediscoverHostAgents(settingsHost, kind);
+  };
 
   const addProfile = async () => {
     if (!canSubmit || isSaving) return;
@@ -106,10 +115,11 @@ function AgentProfileListBody(props: {
     const id = uniqueProfileId(displayName, agentInstances);
     const kind = agentProfileKind(support.driver, id);
     setIsSaving(true);
+    setPendingKind(kind);
     try {
-      // `createProfile` seals the payload in the main process, so a credential
-      // entered here never rides the renderer's plaintext settings flush.
-      const instance = await readBridge().createProfile(
+      // `createProfile` seals the payload on the host, so a credential
+      // entered here never rides a plaintext settings flush.
+      const instance = await settingsHost.createProfile(
         support.createPayload({
           id,
           displayName,
@@ -118,15 +128,19 @@ function AgentProfileListBody(props: {
             : newField.trim(),
         }),
       );
-      setPendingKind(kind);
-      setAgentInstance(instance);
-      support.onCreated?.({ profileKind: kind, instance, statuses: props.statuses ?? [] });
+      const onCreatedResult = support.onCreated?.({
+        profileKind: kind,
+        instance,
+        statuses: props.statuses ?? [],
+        settingsHost,
+      });
+      if (onCreatedResult) await onCreatedResult;
       closeAddForm();
       toast.success(t`Profile ${displayName} added.`);
       try {
-        // Flush before refreshing so the supervisor's registry rebuild reads
-        // any settings the provider pinned in `onCreated`.
-        await flushSharedSettings();
+        // Flush local settings before refreshing so the supervisor's registry
+        // rebuild reads any settings the provider pinned in `onCreated`.
+        if (!settingsHost.isRemote) await flushSharedSettings();
         await refreshProfiles(kind);
         props.onOpenProfile?.(kind);
       } catch (error) {
@@ -135,6 +149,7 @@ function AgentProfileListBody(props: {
         setPendingKind(undefined);
       }
     } catch (error) {
+      setPendingKind(undefined);
       toast.danger(friendlyError(error));
     } finally {
       setIsSaving(false);
@@ -143,36 +158,15 @@ function AgentProfileListBody(props: {
 
   const removeProfile = async (instance: AgentInstanceConfig) => {
     const kind = agentProfileKind(support.driver, instance.id);
-    if (removingKind) return;
+    if (removingKind || !settingsHost.isOnline) return;
     setRemovingKind(kind);
     try {
-      // `removeAgentInstance` strips the instance plus every profile-scoped
-      // slice (`agentSettings`, `providerOrder`, favorites, …) in one store
-      // update; snapshot them so a failed flush can restore the exact
-      // pre-removal state instead of a half-deleted profile.
-      const snapshot = useSharedSettings.getState();
       try {
-        const { [instance.id]: _removed, ...remaining } = snapshot.agentInstances;
-        assertAgentProfileDependencies(snapshot.agentInstances, remaining);
-        removeAgentInstance(instance.id);
-        await flushSharedSettings({ requireSuccess: true });
+        await settingsHost.removeProfile(instance.id);
       } catch (error) {
-        useSharedSettings.setState({
-          agentInstances: snapshot.agentInstances,
-          providerConfigs: snapshot.providerConfigs,
-          providerModelPreferences: snapshot.providerModelPreferences,
-          hiddenModels: snapshot.hiddenModels,
-          agentSettings: snapshot.agentSettings,
-          lastPresentationModeByAgent: snapshot.lastPresentationModeByAgent,
-          disabledAgents: snapshot.disabledAgents,
-          favoriteModels: snapshot.favoriteModels,
-          recentModels: snapshot.recentModels,
-          providerOrder: snapshot.providerOrder,
-        });
         toast.danger(friendlyError(error));
         return;
       }
-      removeAgentStatus(kind);
       try {
         await refreshProfiles();
       } catch {
@@ -208,6 +202,7 @@ function AgentProfileListBody(props: {
           size="sm"
           variant="ghost"
           className="h-7 min-h-7 gap-1 px-2 text-[11px]"
+          isDisabled={!settingsHost.isOnline}
           onPress={() =>
             void refreshProfiles().catch((error) => toast.danger(friendlyError(error)))
           }
@@ -217,7 +212,11 @@ function AgentProfileListBody(props: {
         </Button>
       </div>
 
-      {listed.length === 0 && !isAdding ? (
+      {profilesUnavailable ? (
+        <p role="status" className="py-2 text-xs text-muted">
+          <Trans>Settings unavailable</Trans>
+        </p>
+      ) : listed.length === 0 && !isAdding ? (
         <p className="py-2 text-xs text-muted">
           <Trans>No additional profiles.</Trans>
         </p>
@@ -265,7 +264,7 @@ function AgentProfileListBody(props: {
                   size="sm"
                   variant="ghost"
                   className="h-7 w-7 min-w-7 text-danger"
-                  isDisabled={isPending}
+                  isDisabled={isPending || !settingsHost.isOnline || profilesUnavailable}
                   onPress={() => setConfirmRemoval(instance)}
                 >
                   <Trash2 className="size-3.5" />
@@ -352,6 +351,7 @@ function AgentProfileListBody(props: {
           size="sm"
           variant="ghost"
           className="mt-2 h-7 min-h-7 gap-1 px-2 text-[11px]"
+          isDisabled={!settingsHost.isOnline || profilesUnavailable}
           onPress={() => setIsAdding(true)}
         >
           <Plus className="size-3" />

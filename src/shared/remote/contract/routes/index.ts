@@ -65,6 +65,8 @@ const MANIFEST_ROUTE_IDS = [
   "mcp-settings-read",
   "mcp-settings-command",
   "mcp-settings-operation",
+  "agent-profiles-read",
+  "agent-profiles-command",
   "memory-catalog",
   "memory-sync",
   "schedules-read",

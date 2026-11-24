@@ -41,6 +41,10 @@ public extension RemoteSchemas {
 }
 
 public extension RemoteSchemas {
+  static let schema_70ab564010eb05b0 = RemoteSchema(type: "string", literals: [.string("remove-threads")], unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
   static let schema_70c198324af8bd9f = RemoteSchema(type: "object", required: Set(["received"]), properties: ["received": RemoteSchemas.schema_56aa0e45cbdce0d0], additionalAllowed: true, unknownPolicy: .strip)
 }
 
@@ -182,6 +186,10 @@ public extension RemoteSchemas {
 
 public extension RemoteSchemas {
   static let schema_75bcf0cf295f1752 = RemoteSchema(type: "string", minLength: 1, maxLength: 120, unknownPolicy: .strip, semanticIds: ["schedule.cron", "string.trim"], transformIds: ["string.trim"])
+}
+
+public extension RemoteSchemas {
+  static let schema_75c2889f6a998c9a = RemoteSchema(type: "object", additionalSchema: RemoteSchemas.schema_2bbb36b09a956713, propertyNames: RemoteSchemas.schema_76ba6b1ee1436f68, unknownPolicy: .strip)
 }
 
 public extension RemoteSchemas {

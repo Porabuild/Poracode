@@ -3,14 +3,16 @@ import { Button, toast } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { Download, KeyRound, RefreshCw, Trash2 } from "lucide-react";
 import { runAgentInstallCommand } from "@/renderer/actions/agentLoginActions";
-import { readBridge } from "@/renderer/bridge";
 import { Input, PixelLoader } from "@/renderer/components/common";
 import {
   cursorSdkPackageEnvKey,
   reserveCursorSdkPackage,
   useCursorSdkPackageOperations,
 } from "@/renderer/components/providers/cursor/sdkPackageOperation";
-import { useAgentSettingsHost } from "@/renderer/components/providers/settings/AgentSettingsHostContext";
+import {
+  useAgentSettingsHost,
+  useHostAgentInstance,
+} from "@/renderer/components/providers/settings/AgentSettingsHostContext";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import {
@@ -274,45 +276,42 @@ function SdkApiKeyRow(props: {
 }) {
   const { t } = useLingui();
   const settingsHost = useAgentSettingsHost();
-  const canEditSecrets = settingsHost.canEditSecrets;
+  const canEditKey = props.profileInstanceId
+    ? settingsHost.canManageProfiles && settingsHost.isOnline
+    : settingsHost.canEditSecrets;
   const savedAgentSettings = useSharedSettings((state) =>
-    canEditSecrets ? state.agentSettings[props.agentKind] : undefined,
-  );
-  const profileInstance = useSharedSettings((state) =>
-    canEditSecrets && props.profileInstanceId
-      ? state.agentInstances[props.profileInstanceId]
+    !props.profileInstanceId && settingsHost.canEditSecrets
+      ? state.agentSettings[props.agentKind]
       : undefined,
   );
+  const profileInstance = useHostAgentInstance(props.profileInstanceId);
   const setAgentSecretSetting = useSharedSettings((state) => state.setAgentSecretSetting);
-  const setAgentInstance = useSharedSettings((state) => state.setAgentInstance);
   const [apiKey, setApiKey] = useState("");
   // A stored key is shown as a mask, matching the ACP credential fields. Typing
   // starts a replacement; the mask returns when the field is left empty.
   const [isEditing, setIsEditing] = useState(false);
   const [pending, setPending] = useState(false);
-  const hasSavedApiKey =
-    canEditSecrets &&
-    (props.profileInstanceId
-      ? typeof profileInstance?.environment?.CURSOR_API_KEY?.value === "string" &&
-        profileInstance.environment.CURSOR_API_KEY.value.length > 0
-      : typeof savedAgentSettings?.sdkApiKey === "string" &&
-        savedAgentSettings.sdkApiKey.length > 0);
-  const canEditApiKey =
-    canEditSecrets && (props.profileInstanceId !== undefined || props.isInstalled);
+  const hasSavedApiKey = props.profileInstanceId
+    ? settingsHost.canManageProfiles &&
+      typeof profileInstance?.environment?.CURSOR_API_KEY?.value === "string" &&
+      profileInstance.environment.CURSOR_API_KEY.value.length > 0
+    : settingsHost.canEditSecrets &&
+      typeof savedAgentSettings?.sdkApiKey === "string" &&
+      savedAgentSettings.sdkApiKey.length > 0;
+  const canEditApiKey = canEditKey && (props.profileInstanceId !== undefined || props.isInstalled);
   const isMasked = hasSavedApiKey && !isEditing;
 
   const saveApiKey = async () => {
     const value = apiKey.trim();
-    if (!canEditSecrets || !value || pending) return;
+    if (!canEditKey || !value || pending) return;
     setPending(true);
     try {
       if (props.profileInstanceId) {
-        // Sealed in the main process; the same path Claude profiles use.
-        const instance = await readBridge().setProfileEnvironment({
+        // Sealed on the target host; the same path Claude profiles use.
+        await settingsHost.setProfileEnvironment({
           instanceId: props.profileInstanceId,
           environment: { CURSOR_API_KEY: { value, sensitive: true } },
         });
-        setAgentInstance(instance);
       } else {
         await setAgentSecretSetting(props.agentKind, "sdkApiKey", value);
       }
@@ -336,7 +335,7 @@ function SdkApiKeyRow(props: {
   };
 
   const clearApiKey = async () => {
-    if (!canEditSecrets || !hasSavedApiKey || pending) return;
+    if (!canEditKey || !hasSavedApiKey || pending) return;
     setPending(true);
     try {
       await setAgentSecretSetting(props.agentKind, "sdkApiKey", "");

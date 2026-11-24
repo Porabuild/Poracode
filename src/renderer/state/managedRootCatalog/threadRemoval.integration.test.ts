@@ -9,6 +9,7 @@ import {
 import { deleteWorktreeGroup } from "@/renderer/actions/worktreeActions";
 import { useAppStore } from "@/renderer/state/appStore";
 import { invalidateThreadRuntimeHydration } from "@/renderer/state/chatRuntimePersister";
+import { getManagedParentAuthorityState } from "@/renderer/state/remoteServers/managedLoopbackOwner";
 import {
   activate,
   rootThreads,
@@ -145,15 +146,17 @@ it("opens a cold GUI thread while done worktrees are being removed, even when on
     },
   });
   await vi.waitFor(() => expect(rootThreads()).toHaveLength(9));
+  await vi.waitFor(() => expect(getManagedParentAuthorityState().status).toBe("ready"));
   useAppStore.getState().openHome();
 
   const cleanup = Promise.withResolvers<void>();
   const fetchImpl = globalThis.fetch;
-  const removals: string[] = [];
+  const removals: Array<{ path: string; body: unknown }> = [];
   vi.spyOn(globalThis, "fetch").mockImplementation(async (url, init) => {
     const path = new URL(String(url)).pathname;
     if (path.startsWith("/api/threads/done-") && path.endsWith("/command")) {
-      removals.push(path);
+      const rawBody = typeof init?.body === "string" ? init.body : undefined;
+      removals.push({ path, body: rawBody ? (JSON.parse(rawBody) as unknown) : undefined });
       await cleanup.promise;
     }
     return fetchImpl(url, init);
@@ -163,6 +166,12 @@ it("opens a cold GUI thread while done worktrees are being removed, even when on
     deleteThreadsAndOwnedWorktrees(rootThreads().filter((thread) => thread.done));
     expect(doneIds.every((threadId) => threadRow(threadId)?.archived)).toBe(true);
     await vi.waitFor(() => expect(removals).toHaveLength(1));
+    expect(removals[0]?.body).toMatchObject({
+      kind: "remove-threads",
+      action: "delete",
+      removeOwnedWorktrees: true,
+      threadIds: doneIds,
+    });
 
     openThread("t-1");
     await vi.waitFor(() => {
@@ -173,7 +182,7 @@ it("opens a cold GUI thread while done worktrees are being removed, even when on
     expect(toastDanger).not.toHaveBeenCalled();
   } finally {
     cleanup.resolve();
-    await vi.waitFor(() => expect(removals).toHaveLength(8));
+    await vi.waitFor(() => expect(removals).toHaveLength(1));
     await vi.waitFor(() => expect(rootThreads()).toHaveLength(2));
     await vi.waitFor(() => expect(toastDanger).toHaveBeenCalledWith(failure));
   }

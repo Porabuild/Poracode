@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useLingui } from "@lingui/react/macro";
 import { Archive, ChevronDown, Trash2 } from "lucide-react";
 import type { Project } from "@/shared/contracts";
-import { archiveThread, deleteThreadsAndOwnedWorktrees } from "@/renderer/actions/threadActions";
+import { archiveThreads, deleteThreadsAndOwnedWorktrees } from "@/renderer/actions/threadActions";
 import { Button } from "@/renderer/components/common/Button";
 import { ConfirmationPopover } from "@/renderer/components/common/ConfirmationPopover";
 import { SidebarButton } from "@/renderer/components/common/SidebarButton";
@@ -36,10 +36,8 @@ function DoneSectionLabel(props: { row: Extract<SidebarRow, { kind: "section-lab
   const actionLabel = isArchive ? t`Archive done threads` : t`Delete done threads`;
 
   const removeDoneThreads = () => {
-    for (const thread of row.doneThreads) {
-      if (isArchive) archiveThread(thread.id);
-    }
-    if (!isArchive) deleteThreadsAndOwnedWorktrees(row.doneThreads);
+    if (isArchive) archiveThreads(row.doneThreads);
+    else deleteThreadsAndOwnedWorktrees(row.doneThreads);
     setIsOpen(false);
   };
 

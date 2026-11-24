@@ -43,11 +43,6 @@ data class RouteexperimentU2DCommandPath_84af3e9751(
 }
 
 @Serializable
-enum class RouteexperimentU2DCommandRequestU2DOptionU2D1U2DKind_1f45188862 {
-    @SerialName("create") CREATE,
-}
-
-@Serializable
 enum class RouteexperimentU2DCommandRequestU2DOptionU2D1U2DRecordU2DCandidatesU2DItemU2DWorktreeState_a8b4490d4a {
     @SerialName("pending") PENDING,
     @SerialName("owned") OWNED,
@@ -248,13 +243,13 @@ data class RouteexperimentU2DCommandRequestU2DOptionU2D1U2DThreadsU2DItem_26dd48
 
 @Serializable
 data class RouteexperimentU2DCommandRequestU2DOptionU2D1_045e333a69(
-    @SerialName("kind") val kind: RouteexperimentU2DCommandRequestU2DOptionU2D1U2DKind_1f45188862,
+    @SerialName("kind") val kind: RouteagentU2DProfilesU2DCommandRequestU2DOptionU2D1U2DKind_1f45188862,
     @SerialName("record") val record: RouteexperimentU2DCommandRequestU2DOptionU2D1U2DRecord_1be5ac91cc,
     @SerialName("threads") val threads: List<RouteexperimentU2DCommandRequestU2DOptionU2D1U2DThreadsU2DItem_26dd48aa90>,
 ) {
     companion object {
         val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
-            RemoteFieldDescriptor("kind", "RouteexperimentU2DCommandRequestU2DOptionU2D1U2DKind_1f45188862", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("kind", "RouteagentU2DProfilesU2DCommandRequestU2DOptionU2D1U2DKind_1f45188862", true, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("record", "RouteexperimentU2DCommandRequestU2DOptionU2D1U2DRecord_1be5ac91cc", true, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("threads", "List<RouteexperimentU2DCommandRequestU2DOptionU2D1U2DThreadsU2DItem_26dd48aa90>", true, false, null, null, null, null, 2, 8, null, null, listOf()),
         ), listOf())

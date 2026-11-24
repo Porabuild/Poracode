@@ -1,6 +1,18 @@
 // GENERATED FILE. Do not edit by hand.
 import Foundation
 public extension RemoteRootCodecs {
+  static let routeU2ECatalogU2DMembershipU2EResponse: RemoteRootCodec<RoutecatalogU2DMembershipResponse_afbf6761fa> = .init(id: "route.catalog-membership.response", schema: RemoteSchemas.schema_afbf6761fa459396)
+}
+
+public extension RemoteRootCodecs {
+  static let routeU2EConversationU2DSearchU2EQuery: RemoteRootCodec<RouteconversationU2DSearchQuery_07b9b9802d> = .init(id: "route.conversation-search.query", schema: RemoteSchemas.schema_07b9b9802d46bf6b)
+}
+
+public extension RemoteRootCodecs {
+  static let routeU2EConversationU2DSearchU2EResponse: RemoteRootCodec<RouteconversationU2DSearchResponse_ca8d08ed24> = .init(id: "route.conversation-search.response", schema: RemoteSchemas.schema_ca8d08ed24dcae50)
+}
+
+public extension RemoteRootCodecs {
   static let routeU2EDeviceU2DActionU2EPath: RemoteRootCodec<RoutedeviceU2DActionPath_eef64882a7> = .init(id: "route.device-action.path", schema: RemoteSchemas.schema_eef64882a7b017fb)
 }
 

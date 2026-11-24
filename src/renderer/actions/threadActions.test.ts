@@ -84,9 +84,13 @@ vi.mock("@/renderer/state/threadPromptIndex", () => ({
   readThreadPromptIndex: vi.fn<() => Promise<null>>(async () => null),
 }));
 
-vi.mock("@/renderer/actions/worktreeActions", () => ({
-  deleteWorktreeGroup,
-}));
+vi.mock("@/renderer/actions/worktreeActions", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/renderer/actions/worktreeActions")>();
+  return {
+    ...actual,
+    deleteWorktreeGroup,
+  };
+});
 
 vi.mock("@/renderer/state/chatRuntimePersister", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/renderer/state/chatRuntimePersister")>();

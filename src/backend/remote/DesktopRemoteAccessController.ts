@@ -5,6 +5,7 @@ import { ensureHomeProjectRow } from "@/host/schedules/homeProject";
 import type { RemoteAccessTailscaleStatus, StartTailscaleResult } from "@/shared/ipc";
 import { buildRemoteGitTargetInterests } from "@/shared/gitStateInterestPolicy";
 import type { SharedSettings } from "@/shared/settings";
+import { createRemoteAgentProfilesGateway } from "@/host/remote/RemoteAgentProfilesGateway";
 import { createRemoteMcpSettingsGateway } from "@/host/remote/RemoteMcpSettingsGateway";
 import { ThreadNotificationPublisher } from "@/host/remote/ThreadNotificationPublisher";
 import { getRemoteAccessPairingInfo } from "@/host/remote/pairingInfo";
@@ -151,6 +152,12 @@ export function createDesktopRemoteAccessController(
     projectsChanged: () => options.notifyProjectStateChanged(dbGetProjects()),
   });
 
+  const agentProfiles = createRemoteAgentProfilesGateway({
+    readSettings: () => readSharedSettingsFile(options.paths.settingsPath),
+    editSettingsFields: (fields, compute) =>
+      options.settingsWrites.editSettingsFields(fields, compute),
+  });
+
   /** Defensive read-time normalization; the setter rejects invalid input. */
   const normalizeAdvertisedUrlSetting = (raw: string): string | undefined => {
     const trimmed = raw.trim();
@@ -257,6 +264,7 @@ export function createDesktopRemoteAccessController(
     retirements,
     pushStore,
     mcpSettings,
+    agentProfiles,
     commitSettingsPatch,
     isCurrentStartAttempt,
     stopMdnsAdvertiser,

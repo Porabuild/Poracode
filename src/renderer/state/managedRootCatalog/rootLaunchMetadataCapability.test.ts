@@ -12,6 +12,7 @@ vi.mock("@/renderer/hostTransport/loopbackHttpWsTransport", () => ({
 }));
 
 import {
+  managedRootSupportsBulkThreadRemoval,
   managedRootSupportsProjectCommandResults,
   managedRootSupportsFlatThreadReorder,
   managedRootSupportsThreadLaunchMetadata,
@@ -170,5 +171,25 @@ describe("managed-root launch-metadata capability", () => {
     descriptor.resolve({ capabilities: { flatThreadReorder: { versions: [1] } } });
     await expect(supported).resolves.toBe(false);
     await expect(managedRootSupportsFlatThreadReorder()).resolves.toBe(false);
+  });
+
+  it("gates bulkThreadRemoval on version 1 and discards retired activations", async () => {
+    transport.activation = {
+      seq: 21,
+      client: {
+        environment: async () => ({
+          capabilities: { bulkThreadRemoval: { versions: [1] } },
+        }),
+      },
+    };
+    await expect(managedRootSupportsBulkThreadRemoval()).resolves.toBe(true);
+
+    const pending = Promise.withResolvers<unknown>();
+    transport.activation = { seq: 22, client: { environment: () => pending.promise } };
+    const retired = managedRootSupportsBulkThreadRemoval();
+    activate({ versions: [] });
+    pending.resolve({ capabilities: { bulkThreadRemoval: { versions: [1] } } });
+    await expect(retired).resolves.toBe(false);
+    await expect(managedRootSupportsBulkThreadRemoval()).resolves.toBe(false);
   });
 });

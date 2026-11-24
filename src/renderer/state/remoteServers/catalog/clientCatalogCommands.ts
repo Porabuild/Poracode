@@ -33,6 +33,7 @@ export async function sendClientThreadCommand(
 ): Promise<void> {
   if (
     command.kind === "delete-worktree-group" ||
+    command.kind === "remove-threads" ||
     command.kind === "delete" ||
     command.kind === "archive"
   ) {

@@ -11,7 +11,7 @@ import {
   type SkillMarketplaceResult,
   type SkillScanResult,
 } from "@/shared/contracts";
-import { readBridge } from "@/renderer/bridge";
+import { installMarketplaceSkillForHost, listSkillMarketplaceForHost } from "./skillHostBridge";
 import { Button, PixelLoader, Select, ToggleSwitch } from "@/renderer/components/common";
 import { skillTargetRequest, type SkillTarget } from "./skillTargets";
 
@@ -43,6 +43,7 @@ export function SkillMarketplaceModal(props: {
   target: SkillTarget;
   targetLabel: string;
   scan: SkillScanResult;
+  connectionKey?: string;
   onInstalled: () => Promise<void>;
 }) {
   const { i18n, t } = useLingui();
@@ -88,12 +89,11 @@ export function SkillMarketplaceModal(props: {
   useEffect(() => {
     if (!props.isOpen) return;
     let active = true;
-    void readBridge()
-      .listSkillMarketplace({
-        marketplace,
-        sort: "rank",
-        ...(remoteQuery ? { query: remoteQuery } : {}),
-      })
+    void listSkillMarketplaceForHost(props.connectionKey, {
+      marketplace,
+      sort: "rank",
+      ...(remoteQuery ? { query: remoteQuery } : {}),
+    })
       .then((result) => {
         if (active) setCatalog(result);
       })
@@ -106,7 +106,7 @@ export function SkillMarketplaceModal(props: {
     return () => {
       active = false;
     };
-  }, [marketplace, props.isOpen, remoteQuery]);
+  }, [marketplace, props.connectionKey, props.isOpen, remoteQuery]);
 
   const currentCatalog = catalog?.marketplace === marketplace ? catalog : undefined;
   const skills = currentCatalog?.skills ?? [];
@@ -145,7 +145,7 @@ export function SkillMarketplaceModal(props: {
   const install = async (skill: MarketplaceSkill) => {
     setInstalling(skill.id);
     try {
-      await readBridge().installMarketplaceSkill({
+      await installMarketplaceSkillForHost(props.connectionKey, {
         marketplace: skill.marketplace,
         marketplaceSkillId: skill.id,
         destinationScope: props.target.scope,

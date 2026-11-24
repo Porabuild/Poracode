@@ -654,6 +654,16 @@ export const deleteWorktreeGroupCommandSchema = z.object({
   threadIds: z.array(z.string().min(1)).min(1),
 });
 
+// Bulk archive or delete of multiple threads on the owning host in one request.
+// Gate on capabilities.bulkThreadRemoval v1; older hosts reject the kind.
+export const removeThreadsCommandSchema = z.object({
+  kind: z.literal("remove-threads"),
+  threadId: z.string().min(1),
+  threadIds: z.array(z.string().min(1)).min(1),
+  action: z.enum(["archive", "delete"]),
+  removeOwnedWorktrees: z.boolean().optional(),
+});
+
 /** Host thread commands shared by the interactive clients and app controls. */
 export const reorderProjectThreadsCommandSchema = z.object({
   kind: z.literal("reorder"),
@@ -816,6 +826,7 @@ export const remoteThreadCommandSchema = z.discriminatedUnion("kind", [
     isNewWorktree: z.boolean().optional(),
   }),
   deleteWorktreeGroupCommandSchema,
+  removeThreadsCommandSchema,
   z.object({ kind: z.literal("archive"), threadId: z.string().min(1) }),
   z.object({ kind: z.literal("unarchive"), threadId: z.string().min(1) }),
   z.object({ kind: z.literal("delete"), threadId: z.string().min(1) }),

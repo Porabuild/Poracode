@@ -7,7 +7,7 @@ import type {
   ClaudeProfileInstanceConfig,
   ClaudeProfileModel,
 } from "@/shared/contracts";
-import { isEncryptedSecret } from "@/shared/secretFormat";
+import { isEncryptedSecret, isRedactedSecret } from "@/shared/secretFormat";
 import { slugifyProfileName } from "../../../views/SettingsOverlay/parts/profileIds";
 
 export {
@@ -266,7 +266,10 @@ export function rowsFromEnvironment(
 ): EnvRow[] {
   return Object.entries(environment ?? {}).map(([key, variable]) => {
     const sensitive = variable.sensitive === true;
-    const sealed = sensitive && isEncryptedSecret(variable.value) ? variable.value : undefined;
+    const sealed =
+      sensitive && (isEncryptedSecret(variable.value) || isRedactedSecret(variable.value))
+        ? variable.value
+        : undefined;
     return {
       rowId: nextRowId(),
       key,

@@ -6,10 +6,12 @@ import { useProductViewTracking } from "@/renderer/analytics/useProductViewTrack
 import { isRemoteSession } from "@/renderer/bridge";
 import { useAppStore } from "@/renderer/state/appStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
-import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
+import { useHostAgentStatusPools } from "@/renderer/hooks/useHostAgentStatuses";
+import { agentManagementHostForMachine } from "@/renderer/components/providers/settings/agentManagementHost";
 import {
   useAgentsScopeMachines,
   useMachines,
+  useSelectedMachine,
   type MachineDescriptor,
 } from "@/renderer/state/machines";
 import { PageLayout } from "@/renderer/components/layout/PageLayout";
@@ -135,6 +137,10 @@ function renderSection(
   mcpMachine: MachineDescriptor | undefined,
 ): ReactNode {
   let section: ReactNode;
+  // A paired host is reached through its own client; this client's bridge host
+  // (including a remote client's host) answers the local path.
+  const machineConnectionKey =
+    mcpMachine?.ref.host === "remote" ? mcpMachine.ref.desktopId : undefined;
   if (activeSection === "acpRegistry") {
     section = (
       <AcpRegistrySettings onOpenAgentSettings={(kind) => onSectionChange(`agents:${kind}`)} />
@@ -153,14 +159,33 @@ function renderSection(
   } else if (activeSection === "archived") {
     section = <ArchivedThreadsSettings {...archiveScope} />;
   } else if (activeSection === "plugins") {
-    // A paired host is reached through its own client; this client's bridge
-    // host (including a remote client's host) answers the local path.
-    const connectionKey = mcpMachine?.ref.host === "remote" ? mcpMachine.ref.desktopId : undefined;
     section = (
       <PluginsSettings
         key={mcpMachine?.id ?? "local"}
-        {...(connectionKey ? { connectionKey } : {})}
+        {...(machineConnectionKey ? { connectionKey: machineConnectionKey } : {})}
         {...(mcpMachine?.platform ? { hostPlatform: mcpMachine.platform } : {})}
+      />
+    );
+  } else if (activeSection === "skills" && !isRemoteSession()) {
+    section = (
+      <SkillsSettings
+        key={mcpMachine?.id ?? "local"}
+        {...(machineConnectionKey ? { connectionKey: machineConnectionKey } : {})}
+        {...(mcpMachine?.platform ? { hostPlatform: mcpMachine.platform } : {})}
+      />
+    );
+  } else if (activeSection === "ai" && !isRemoteSession()) {
+    section = (
+      <AISettings
+        key={mcpMachine?.id ?? "local"}
+        {...(mcpMachine?.desktopId ? { connectionKey: mcpMachine.desktopId } : {})}
+      />
+    );
+  } else if (activeSection === "import" && !isRemoteSession()) {
+    section = (
+      <ImportSettings
+        key={mcpMachine?.id ?? "local"}
+        {...(machineConnectionKey ? { connectionKey: machineConnectionKey } : {})}
       />
     );
   } else if (activeSection === "mcpServers") {
@@ -367,18 +392,23 @@ export function SettingsOverlay(props: { onClose: () => void; onBack?: () => voi
     return () => cancelAnimationFrame(raf);
   }, [scrollTarget]);
 
-  const agentStatuses = useAgentStatusesStore((s) => s.agentStatuses);
-  const wslAgentStatuses = useAgentStatusesStore((s) => s.wslAgentStatuses);
+  const isMachineScopedSection =
+    activeSection === "agentsGeneral" ||
+    activeSection === "acpRegistry" ||
+    activeSection.startsWith("agents:");
+  const selectedMachine = useSelectedMachine();
+  const agentsConnectionKey =
+    isMachineScopedSection || activeSection === "agents"
+      ? agentManagementHostForMachine(selectedMachine).connectionKey
+      : undefined;
+  const { windows: agentStatuses, wsl: wslAgentStatuses } =
+    useHostAgentStatusPools(agentsConnectionKey);
   const installedAgents = getSettingsInstalledAgents(agentStatuses, wslAgentStatuses);
   const attentionAgentKinds = new Set(
     [...agentStatuses, ...wslAgentStatuses]
       .filter(agentStatusNeedsAuthAttention)
       .map((status) => status.kind),
   );
-  const isMachineScopedSection =
-    activeSection === "agentsGeneral" ||
-    activeSection === "acpRegistry" ||
-    activeSection.startsWith("agents:");
   const machines = useMachines();
   const projectMachines = useAgentsScopeMachines(machines);
   const hosts = machines.filter((machine) => machine.ref.env.kind === "native");
@@ -394,7 +424,11 @@ export function SettingsOverlay(props: { onClose: () => void; onBack?: () => voi
       activeSection === "worktrees" ||
       activeSection === "search" ||
       activeSection === "threads" ||
-      (!remoteSession && activeSection === "memory")) &&
+      (!remoteSession &&
+        (activeSection === "memory" ||
+          activeSection === "skills" ||
+          activeSection === "ai" ||
+          activeSection === "import"))) &&
     (scopedMachines.length > 1 || (scopedMachines.length === 1 && !mcpMachine));
   const scopeBar =
     activeSection === "archived" ? (
