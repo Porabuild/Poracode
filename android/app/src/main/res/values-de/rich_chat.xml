@@ -263,6 +263,7 @@
     <string name="rich_chat_handoff_fork">Konversation abzweigen</string>
     <string name="rich_chat_handoff_prompt">Sage dem neuen Anbieter, was als Nächstes zu tun ist…</string>
     <string name="rich_chat_handoff_switch">Wechseln</string>
+    <string name="rich_chat_model_switched">Modell von %1$s zu %2$s gewechselt</string>
     <string name="rich_chat_html_visual_title">HTML-Vorschau</string>
     <string name="rich_chat_html_visual_source">Quelltext</string>
     <string name="rich_chat_html_visual_preview">Vorschau</string>

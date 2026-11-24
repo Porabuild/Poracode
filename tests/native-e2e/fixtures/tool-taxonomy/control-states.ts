@@ -84,6 +84,13 @@ export const CONTROL_PAYLOAD_CASES: readonly TaxonomyCase[] = [
     { groupEligible: false },
   ),
   itemCase(
+    "model_switch",
+    "model_switch",
+    { fromModel: "fixture-model-a", toModel: "fixture-model-b", at: "2026-10-01T00:00:00Z" },
+    "other",
+    { groupEligible: false },
+  ),
+  itemCase(
     "reasoning",
     "reasoning",
     { summary: "fixture thought" },

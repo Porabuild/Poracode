@@ -66,7 +66,7 @@ describe("RemoteClientTransport writer generation header (remote 13)", () => {
     );
     // The constant itself is the settled wire contract.
     expect(REMOTE_PROTOCOL_VERSION_HEADER).toBe("x-poracode-protocol-version");
-    expect(REMOTE_PROTOCOL_VERSION_HEADER_VALUE).toBe("14");
+    expect(REMOTE_PROTOCOL_VERSION_HEADER_VALUE).toBe("15");
   });
 
   it("attaches the generation to authenticated GET requests", async () => {

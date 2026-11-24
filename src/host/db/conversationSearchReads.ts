@@ -18,7 +18,11 @@ import { CONVERSATION_SEARCH_INDEX_GENERATION } from "./conversationSearchSchema
 
 export const SEARCH_INDEX_BATCH_ITEMS = 32;
 // Final-reply eligibility is read-time; every completed message is already indexed.
-const FINAL_REPLY_CONTROL_TYPES = [...RUNTIME_PAGE_HIDDEN_TYPES, "provider_handoff"];
+const FINAL_REPLY_CONTROL_TYPES = [
+  ...RUNTIME_PAGE_HIDDEN_TYPES,
+  "provider_handoff",
+  "model_switch",
+];
 
 export interface SearchIndexDocument {
   threadId: string;

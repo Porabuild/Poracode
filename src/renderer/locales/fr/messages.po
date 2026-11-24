@@ -18437,6 +18437,10 @@ msgstr "Changer d'espace de travail"
 msgid "Switched from {fromLabel} to {toLabel}"
 msgstr "Basculé de {fromLabel} vers {toLabel}"
 
+#: src/renderer/components/thread/ChatPane/parts/items/ModelSwitchRow.tsx
+msgid "Switched model from {fromLabel} to {toLabel}"
+msgstr "Modèle basculé de {fromLabel} vers {toLabel}"
+
 #: src/renderer/views/PullRequestsOverlay/detail/header/usePrCheckout.ts
 msgid "Switched to {headBranch}"
 msgstr "Basculé vers {headBranch}"

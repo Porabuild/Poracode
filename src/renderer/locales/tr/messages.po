@@ -18438,6 +18438,10 @@ msgstr "Çalışma alanını değiştir"
 msgid "Switched from {fromLabel} to {toLabel}"
 msgstr "{fromLabel} sağlayıcısından {toLabel} sağlayıcısına geçildi"
 
+#: src/renderer/components/thread/ChatPane/parts/items/ModelSwitchRow.tsx
+msgid "Switched model from {fromLabel} to {toLabel}"
+msgstr "Model {fromLabel} yerine {toLabel} olarak değiştirildi"
+
 #: src/renderer/views/PullRequestsOverlay/detail/header/usePrCheckout.ts
 msgid "Switched to {headBranch}"
 msgstr "{headBranch} dalına geçildi"

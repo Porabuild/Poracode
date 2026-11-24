@@ -112,6 +112,7 @@ struct ToolPresentationEnvironment: ViewModifier {
     content
       .environment(\.richChatProviderLabels, Dictionary(providers.map { ($0.kind, $0.label) },
         uniquingKeysWith: { first, _ in first }))
+      .environment(\.richChatModelLabels, richChatModelLabels(from: providers))
       .environment(\.toolPresentationCatalog, catalog)
       .environment(\.transcriptDisclosures, disclosures)
       .environment(\.runtimeItemHeadings, owned ? headings : nil)

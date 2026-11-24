@@ -441,6 +441,36 @@ describe.skipIf(!sqliteAvailable)("runtimeItems incremental persistence", () => 
     expect(dbGetLatestThreadRuntimeAnchorItemId("thread-1")).toBe("assistant-1");
   });
 
+  it("persists a model switch divider and keeps it out of the turn anchor", async () => {
+    dbApplyThreadRuntimeEvents("thread-1", [
+      {
+        type: "item.started",
+        threadId: "thread-1",
+        itemId: "assistant-1",
+        itemType: "assistant_message",
+        payload: { content: [{ kind: "text", text: "Answer from the first model" }] },
+      },
+      { type: "item.completed", threadId: "thread-1", itemId: "assistant-1" },
+      {
+        type: "item.started",
+        threadId: "thread-1",
+        itemId: "switch-1",
+        itemType: "model_switch",
+        payload: {
+          fromModel: "model-a",
+          toModel: "model-b",
+          at: "2026-08-29T00:00:00.000Z",
+        },
+      },
+      { type: "item.completed", threadId: "thread-1", itemId: "switch-1" },
+    ]);
+
+    const items = await dbGetThreadRuntimeItems("thread-1");
+    expect(items.map((item) => item.type)).toEqual(["assistant_message", "model_switch"]);
+    expect(items.at(-1)?.payload).toMatchObject({ fromModel: "model-a", toModel: "model-b" });
+    expect(dbGetLatestThreadRuntimeAnchorItemId("thread-1")).toBe("assistant-1");
+  });
+
   it("does not use a goal item as a completed-turn anchor", async () => {
     await dbReplaceThreadRuntimeItems("thread-1", [
       {

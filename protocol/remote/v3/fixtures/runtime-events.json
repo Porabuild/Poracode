@@ -165,5 +165,21 @@
     "type": "error",
     "threadId": "thread-fixture-001",
     "message": "Fixture error"
+  },
+  {
+    "type": "item.started",
+    "threadId": "thread-fixture-001",
+    "itemId": "item-fixture-model-switch",
+    "itemType": "model_switch",
+    "payload": {
+      "fromModel": "fixture-model-a",
+      "toModel": "fixture-model-b",
+      "at": "2026-08-12T10:01:30.000Z"
+    }
+  },
+  {
+    "type": "item.completed",
+    "threadId": "thread-fixture-001",
+    "itemId": "item-fixture-model-switch"
   }
 ]

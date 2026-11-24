@@ -16,7 +16,9 @@ enum RichChatResumePlanner {
     "launching", "working", "needs_approval", "needs_reply",
   ]
   /// Rows that are not the agent's own work on the turn.
-  private static let nonOutputItemTypes: Set<String> = [RichItemType.error, "provider_handoff"]
+  private static let nonOutputItemTypes: Set<String> = [
+    RichItemType.error, RichItemType.providerHandoff, RichItemType.modelSwitch,
+  ]
 
   static func isInterrupted(_ thread: RemoteThread?) -> Bool {
     guard let marker = thread?.interruptedTurn else { return false }

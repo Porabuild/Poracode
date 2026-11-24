@@ -112,13 +112,13 @@ sealed interface ProcedureworkflowAgentChatResultU2DItemPresentations_ef4fe17bb3
 }
 
 @Serializable
-data class ProcedureworkflowAgentChatResult_350a19ed30(
-    @SerialName("events") val events: List<ProceduresubagentSubscribeResultU2DHistoryU2DItem_9262f6553e>,
+data class ProcedureworkflowAgentChatResult_039f0a59e6(
+    @SerialName("events") val events: List<ProceduresubagentSubscribeResultU2DHistoryU2DItem_db70082117>,
     @SerialName("itemPresentations") val itemPresentations: RemoteField<ProcedureworkflowAgentChatResultU2DItemPresentations_ef4fe17bb3> = RemoteField.Missing,
 ) {
     companion object {
         val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
-            RemoteFieldDescriptor("events", "List<ProceduresubagentSubscribeResultU2DHistoryU2DItem_9262f6553e>", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("events", "List<ProceduresubagentSubscribeResultU2DHistoryU2DItem_db70082117>", true, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("itemPresentations", "ProcedureworkflowAgentChatResultU2DItemPresentations_ef4fe17bb3", false, false, null, null, null, null, null, null, null, null, listOf()),
         ), listOf())
     }

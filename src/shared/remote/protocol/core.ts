@@ -48,7 +48,13 @@ import { gitStatePatchSchema } from "../../gitState";
 // no request/response discriminator meaning changes, so no version bump.
 // GitHub polling adds an opt-in read procedure and optional project status.
 // Old snapshots stay valid; native Git state entries preserve unknown fields.
-export const PORACODE_REMOTE_PROTOCOL_VERSION = 14;
+// v15 adds the `model_switch` canonical runtime item type. Older generated
+// bindings decode item types through a closed enum, so exact-match pairing
+// must prevent a v14 client from receiving snapshots containing the new
+// literal. The optional `previousTurnModel` start field and the optional
+// user-message `model` payload field ride along additively: old hosts strip
+// them and simply never record a model-switch divider.
+export const PORACODE_REMOTE_PROTOCOL_VERSION = 15;
 // Optional provider-usage ringLayouts adds display metadata only: v14 readers
 // ignore unknown fields, and new readers accept previous responses without it.
 // Optional Crossagents visibility preferences are additive within v14. Old

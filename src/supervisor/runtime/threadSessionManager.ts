@@ -440,6 +440,8 @@ export class ThreadSessionManager {
           requestedItemId,
           emitOptions,
         ),
+      noteTurnModel: (threadId, model, noteOptions) =>
+        this.structuredTurnQueue.noteTurnModel(threadId, model, noteOptions),
       emitProviderHandoff: (threadId, fromAgentKind, toAgentKind, requestedItemId) =>
         this.structuredTurnQueue.emitProviderHandoff(
           threadId,
@@ -686,12 +688,21 @@ export class ThreadSessionManager {
     // the same item id so the replacement session cannot duplicate it.
     const pending = session.pendingSteer;
     if (!pending) return;
+    // Note the steered turn's model before painting it, so a model-switch
+    // divider lands ahead of the message; the restart below re-notes the
+    // same model as a no-op.
+    if (session.presentationMode === "gui" && pending.prompt.length > 0) {
+      this.structuredTurnQueue.noteTurnModel(session.threadId, pending.config.model);
+    }
     const userMessageItemId = this.structuredTurnQueue.emitOptimisticUserMessage(
       session.threadId,
       pending.prompt,
       pending.displaySegments ?? pending.segments,
       pending.userMessageItemId,
-      ...(pending.questionAnswer ? ([{ questionAnswer: pending.questionAnswer }] as const) : []),
+      {
+        ...(pending.questionAnswer ? { questionAnswer: pending.questionAnswer } : {}),
+        ...(pending.config.model.trim() ? { model: pending.config.model } : {}),
+      },
     );
     const turn: QueuedStructuredTurn = { ...pending, userMessageItemId };
     const admission = this.steerCoordinator.takePendingSteerAdmission(session);
@@ -1596,6 +1607,7 @@ export class ThreadSessionManager {
         ...(effectiveSegments ? { segments: effectiveSegments } : {}),
         ...(payload.segments ? { displaySegments: payload.segments } : {}),
         ...(payload.userMessageItemId ? { userMessageItemId: payload.userMessageItemId } : {}),
+        ...(payload.modelSwitchItemId ? { modelSwitchItemId: payload.modelSwitchItemId } : {}),
         ...(payload.questionAnswer ? { questionAnswer: payload.questionAnswer } : {}),
         ...(inlineInstructions ? { inlineInstructions } : {}),
         ...(turnContext ? { turnContext } : {}),

@@ -41,6 +41,10 @@ public extension RemoteSchemas {
 }
 
 public extension RemoteSchemas {
+  static let schema_1caa7842d12d0d9e = RemoteSchema(type: "object", required: Set(["history"]), properties: ["history": RemoteSchemas.schema_d61b8c82caefd0af], additionalAllowed: true, unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
   static let schema_1ce2b8f166790746 = RemoteSchema(type: "object", required: Set(["session"]), properties: ["session": RemoteSchemas.schema_f0ec1e30fb464ad3], additionalAllowed: true, unknownPolicy: .strip)
 }
 

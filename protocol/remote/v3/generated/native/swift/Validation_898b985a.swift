@@ -61,6 +61,10 @@ public extension RemoteSchemas {
 }
 
 public extension RemoteSchemas {
+  static let schema_039f0a59e6701876 = RemoteSchema(type: "object", required: Set(["events"]), properties: ["events": RemoteSchemas.schema_d61b8c82caefd0af, "itemPresentations": RemoteSchemas.schema_ef4fe17bb351986a], additionalAllowed: true, unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
   static let schema_03b0a880c77f4089 = RemoteSchema(type: "object", required: Set(["watch"]), properties: ["watch": RemoteSchemas.schema_5093c62d05bf0072], additionalAllowed: true, unknownPolicy: .strip)
 }
 

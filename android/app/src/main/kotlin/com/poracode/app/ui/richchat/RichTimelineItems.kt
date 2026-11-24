@@ -142,6 +142,7 @@ internal fun RichTimelineItem(
             RichAssistantContent(item, text, runtime)
             actions()
         }
+        RichItemTypes.MODEL_SWITCH -> RichModelSwitchRow(item)
         else -> Column(modifier) {
             RichActivityRow(item, text, runtime)
             if (canMutate && (item.id in revertableItemIds || trailingActions != null)) actions()

@@ -3945,14 +3945,22 @@
           "x-poracode-unknownFields": "strip"
         },
         "__schema31": {
-          "const": true,
-          "type": "boolean"
+          "minLength": 1,
+          "type": "string"
         },
         "__schema32": {
           "minLength": 1,
           "type": "string"
         },
         "__schema33": {
+          "const": true,
+          "type": "boolean"
+        },
+        "__schema34": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "__schema35": {
           "additionalProperties": true,
           "properties": {
             "browserFocus": {
@@ -4397,7 +4405,7 @@
           "$ref": "#/$defs/__schema2"
         },
         "clientContext": {
-          "$ref": "#/$defs/__schema33"
+          "$ref": "#/$defs/__schema35"
         },
         "config": {
           "$ref": "#/$defs/__schema4"
@@ -4409,7 +4417,7 @@
           "$ref": "#/$defs/__schema26"
         },
         "initialInstructions": {
-          "$ref": "#/$defs/__schema32"
+          "$ref": "#/$defs/__schema34"
         },
         "initialSize": {
           "$ref": "#/$defs/__schema13"
@@ -4421,10 +4429,16 @@
           "$ref": "#/$defs/__schema16"
         },
         "mentionHandoff": {
-          "$ref": "#/$defs/__schema31"
+          "$ref": "#/$defs/__schema33"
+        },
+        "modelSwitchItemId": {
+          "$ref": "#/$defs/__schema32"
         },
         "presentationMode": {
           "$ref": "#/$defs/__schema15"
+        },
+        "previousTurnModel": {
+          "$ref": "#/$defs/__schema31"
         },
         "projectLocation": {
           "$ref": "#/$defs/__schema1"
@@ -39652,14 +39666,22 @@
           "x-poracode-unknownFields": "strip"
         },
         "__schema31": {
-          "const": true,
-          "type": "boolean"
+          "minLength": 1,
+          "type": "string"
         },
         "__schema32": {
           "minLength": 1,
           "type": "string"
         },
         "__schema33": {
+          "const": true,
+          "type": "boolean"
+        },
+        "__schema34": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "__schema35": {
           "additionalProperties": true,
           "properties": {
             "browserFocus": {
@@ -40104,7 +40126,7 @@
           "$ref": "#/$defs/__schema2"
         },
         "clientContext": {
-          "$ref": "#/$defs/__schema33"
+          "$ref": "#/$defs/__schema35"
         },
         "config": {
           "$ref": "#/$defs/__schema4"
@@ -40116,7 +40138,7 @@
           "$ref": "#/$defs/__schema26"
         },
         "initialInstructions": {
-          "$ref": "#/$defs/__schema32"
+          "$ref": "#/$defs/__schema34"
         },
         "initialSize": {
           "$ref": "#/$defs/__schema13"
@@ -40128,10 +40150,16 @@
           "$ref": "#/$defs/__schema16"
         },
         "mentionHandoff": {
-          "$ref": "#/$defs/__schema31"
+          "$ref": "#/$defs/__schema33"
+        },
+        "modelSwitchItemId": {
+          "$ref": "#/$defs/__schema32"
         },
         "presentationMode": {
           "$ref": "#/$defs/__schema15"
+        },
+        "previousTurnModel": {
+          "$ref": "#/$defs/__schema31"
         },
         "projectLocation": {
           "$ref": "#/$defs/__schema1"
@@ -40394,6 +40422,7 @@
                       "web_search",
                       "question_answer",
                       "provider_handoff",
+                      "model_switch",
                       "error"
                     ],
                     "type": "string"
@@ -42365,6 +42394,7 @@
                       "web_search",
                       "question_answer",
                       "provider_handoff",
+                      "model_switch",
                       "error"
                     ],
                     "type": "string"
@@ -51460,7 +51490,7 @@
           "type": "string"
         },
         "protocolVersion": {
-          "const": 14,
+          "const": 15,
           "type": "number"
         },
         "toolPresentation": {
@@ -53996,7 +54026,7 @@
           "type": "string"
         },
         "protocolVersion": {
-          "const": 14,
+          "const": 15,
           "type": "number"
         },
         "toolPresentation": {
@@ -80019,6 +80049,7 @@
                                 "web_search",
                                 "question_answer",
                                 "provider_handoff",
+                                "model_switch",
                                 "error"
                               ],
                               "type": "string"
@@ -86046,6 +86077,10 @@
           "type": "object",
           "x-poracode-unknownFields": "strip"
         },
+        "modelSwitchItemId": {
+          "minLength": 1,
+          "type": "string"
+        },
         "prompt": {
           "type": "string"
         },
@@ -87084,11 +87119,19 @@
           "const": true,
           "type": "boolean"
         },
+        "modelSwitchItemId": {
+          "minLength": 1,
+          "type": "string"
+        },
         "presentationMode": {
           "enum": [
             "terminal",
             "gui"
           ],
+          "type": "string"
+        },
+        "previousTurnModel": {
+          "minLength": 1,
           "type": "string"
         },
         "projectLocation": {
@@ -90641,7 +90684,7 @@
     "webSocketClientMessages": 11,
     "webSocketServerMessages": 12
   },
-  "manifestHash": "sha256:19f4a08ede24abc0be2f2824381a01fb4e83d71e9380cc3113f6725a5fc75732",
-  "protocolVersion": 14,
-  "sourceHash": "sha256:01c532cdb8f6e36b2e66624265da010dc6a802a32d705323d2681e897244fc10"
+  "manifestHash": "sha256:32f18d452576b054c3a72bda354c78e8b77f2503b5a9a3493b177a5b70c67c16",
+  "protocolVersion": 15,
+  "sourceHash": "sha256:930439453dced6a441430ce60d498f758bb9aa9455eddd71d283b26373058a4c"
 }

@@ -205,10 +205,6 @@ public extension RemoteSchemas {
 }
 
 public extension RemoteSchemas {
-  static let schema_4a5ba059d38b8eac = RemoteSchema(type: "array", items: RemoteSchemas.schema_94a8055a7bc1b620, unknownPolicy: .strip)
-}
-
-public extension RemoteSchemas {
   static let schema_4a927b60e49ddae0 = RemoteSchema(type: "object", required: Set(["pairing"]), properties: ["pairing": RemoteSchemas.schema_3f3680e5774b47dd], additionalAllowed: true, unknownPolicy: .strip)
 }
 

@@ -4,7 +4,10 @@
       "id": "rich-user-1",
       "type": "user_message",
       "state": "completed",
-      "payload": { "content": [{ "kind": "text", "text": "Review the fixture." }] },
+      "payload": {
+        "content": [{ "kind": "text", "text": "Review the fixture." }],
+        "model": "fixture-model-a"
+      },
       "streams": {}
     },
     {
@@ -48,6 +51,27 @@
       "state": "completed",
       "payload": { "content": [{ "kind": "text", "text": "Review complete." }] },
       "streams": { "assistant_text": "Review complete." }
+    },
+    {
+      "id": "rich-model-switch-1",
+      "type": "model_switch",
+      "state": "completed",
+      "payload": {
+        "fromModel": "fixture-model-a",
+        "toModel": "fixture-model-b",
+        "at": "2026-08-12T10:01:30.000Z"
+      },
+      "streams": {}
+    },
+    {
+      "id": "rich-user-2",
+      "type": "user_message",
+      "state": "completed",
+      "payload": {
+        "content": [{ "kind": "text", "text": "Continue with the other model." }],
+        "model": "fixture-model-b"
+      },
+      "streams": {}
     }
   ],
   "completedTurns": [

@@ -18437,6 +18437,10 @@ msgstr "切换工作区"
 msgid "Switched from {fromLabel} to {toLabel}"
 msgstr "已从 {fromLabel} 切换到 {toLabel}"
 
+#: src/renderer/components/thread/ChatPane/parts/items/ModelSwitchRow.tsx
+msgid "Switched model from {fromLabel} to {toLabel}"
+msgstr "已将模型从 {fromLabel} 切换到 {toLabel}"
+
 #: src/renderer/views/PullRequestsOverlay/detail/header/usePrCheckout.ts
 msgid "Switched to {headBranch}"
 msgstr "已切换到 {headBranch}"

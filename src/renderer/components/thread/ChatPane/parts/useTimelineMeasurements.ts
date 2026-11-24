@@ -159,6 +159,7 @@ function isRemountStableSnapshotItem(
     case "plan":
     case "question_answer":
     case "provider_handoff":
+    case "model_switch":
     case "error":
       return true;
     default:

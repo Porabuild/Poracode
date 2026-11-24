@@ -445,8 +445,9 @@ final class RuntimeEventReducerTests: XCTestCase {
             RuntimeEventReducer.apply(event: event, to: &items)
         }
         // started creates; updated/completed/delta apply; error synthesizes one completed item.
-        // (item.updated/completed/delta never fabricate missing items.)
-        XCTAssertEqual(items.count, 2)
+        // (item.updated/completed/delta never fabricate missing items.) The
+        // model_switch divider persists as the third item.
+        XCTAssertEqual(items.count, 3)
         let assistant = try XCTUnwrap(items.first(where: { $0.id == "item-fixture-assistant" }))
         XCTAssertEqual(assistant.state, "completed")
         XCTAssertEqual(assistant.streams["assistant_text"], "Fixture response")
