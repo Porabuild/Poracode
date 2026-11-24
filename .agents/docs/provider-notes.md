@@ -321,6 +321,25 @@ validating the version. The minimum CLI is `OPENCODE2_MIN_VERSION`
   Completed provider message IDs prevent duplicate rows, and authoritative final
   text replaces divergent partial text. Child sessions attach through native
   subagent tool metadata and do not change the parent turn's lifecycle.
+- **Background subagents:** the native `subagent` call returns as soon as the
+  child session is started (`session.tool.success` carries `metadata: {
+  sessionID, status: "running" }`); only the child's own
+  `session.execution.succeeded|failed|interrupted` events say when its run
+  ends (audited in the 2.4.1 CLI; its terminal UI derives status the same way).
+  `OpenCodeSubagents` therefore holds the launch row open, publishing it as
+  running with `subAgentBackground: true` and no result, until the child's run
+  ends, and then completes it with the child's last step as the result. The
+  marker tells clients the host settles the row itself, so a copy read back
+  from storage is not treated as an orphan of a dead session
+  (`staleSubAgents.ts`); for the same reason every teardown settles held rows
+  before the session is fenced. A call that already waited for its child — a
+  child whose run ended before the call returned; `metadata.status:
+  "completed"` is kept as a defensive guard the 2.4.1 tool never sends —
+  completes at once with the report. On reconnect the server's active-session
+  list and recorded outcome settle a child whose terminal event was missed.
+  Interrupting the parent also interrupts the held children: the server
+  interrupts only the session it is given, while a failed parent leaves them
+  running and tracked.
 - **GUI controls:** model and variant selection, built-in Plan mode, primary
   agent commands, native commands and skills, attachment URI references,
   structured forms and permissions, Stop and native steering, compaction,

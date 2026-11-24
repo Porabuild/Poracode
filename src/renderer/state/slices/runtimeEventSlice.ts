@@ -20,7 +20,11 @@ import {
   applyRuntimeEventBatchesToState,
   mergeCompletedTurns,
 } from "./runtimeEventReducer";
-import { markLiveCrossagentItems, terminateStaleSubAgentItems } from "./staleSubAgents";
+import {
+  markLiveCrossagentItems,
+  terminateStaleSubAgentItems,
+  type StaleSubAgentReconcileOptions,
+} from "./staleSubAgents";
 import { hydrateRuntimeStream } from "./runtimeStreamRetention";
 import type { RuntimeChatItem } from "./runtimeChatItem";
 import {
@@ -170,14 +174,11 @@ export interface RuntimeEventSlice {
    * supervisor session down (provider switch, backend supervisor reset).
    * `preserveCrossagent` keeps unobserved Crossagent rows too, for data
    * sources whose host settles orphaned runs itself (see terminateStaleSubAgentItems).
+   * Background agent rows stay running unless `sessionEnded` or `force` is set.
    */
   reconcileStaleSubAgents(
     threadId: string,
-    options?: {
-      readonly preserveObservedLive?: boolean;
-      readonly force?: boolean;
-      readonly preserveCrossagent?: boolean;
-    },
+    options?: Readonly<StaleSubAgentReconcileOptions>,
   ): void;
   /**
    * `reconcileStaleSubAgents` for every thread with items in memory, in one
@@ -186,12 +187,11 @@ export interface RuntimeEventSlice {
    * by the caller before this runs. `matchesThread` scopes the sweep (a local
    * backend reset must not touch remote-host threads, whose hosts live on).
    */
-  reconcileAllStaleSubAgents(options?: {
-    readonly preserveObservedLive?: boolean;
-    readonly force?: boolean;
-    readonly preserveCrossagent?: boolean;
-    readonly matchesThread?: (threadId: string) => boolean;
-  }): void;
+  reconcileAllStaleSubAgents(
+    options?: Readonly<
+      StaleSubAgentReconcileOptions & { matchesThread?: (threadId: string) => boolean }
+    >,
+  ): void;
   /** Replace the persisted item list for a thread (used during DB hydration). */
   hydrateThreadRuntimeItems(threadId: string, items: RuntimeChatItem[]): void;
   /** Prepend an older persisted page while preserving newer live items. */

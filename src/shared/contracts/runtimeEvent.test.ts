@@ -427,6 +427,19 @@ describe("item payload schemas", () => {
     ).toBe(false);
   });
 
+  it("toolCallPayload carries the optional background agent marker", () => {
+    const background = {
+      name: "Agent",
+      status: "running",
+      isSubAgent: true,
+      subAgentBackground: true,
+    };
+    expect(toolCallPayloadSchema.parse(roundTrip(background))).toEqual(background);
+    // A row persisted before the marker existed stays valid without it.
+    const legacy = { name: "Task", status: "running", isSubAgent: true };
+    expect(toolCallPayloadSchema.parse(structuredClone(legacy))).toEqual(legacy);
+  });
+
   it("webSearchPayload requires query", () => {
     expect(webSearchPayloadSchema.parse({ query: "hello", resultCount: 5 })).toEqual({
       query: "hello",

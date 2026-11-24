@@ -152,6 +152,41 @@ describe("delegated-agent terminal snapshot reconciliation", () => {
     expect(items().message!.streams.assistant_text).toBe("newer live text");
   });
 
+  it("keeps a running background agent row that an idle thread's snapshot carries", () => {
+    const idle = { ...thread, status: "idle" as const, attention: "none" as const };
+    useAppStore.setState({ threads: [idle] });
+    apply({
+      snapshotSeq: 50,
+      thread: idle,
+      completedTurns: [],
+      contextUsage: null,
+      updatedAt: idle.updatedAt,
+      runtimeItems: [
+        {
+          id: "background",
+          type: "tool_call",
+          state: "updated",
+          payload: { name: "Agent", status: "running", isSubAgent: true, subAgentBackground: true },
+          streams: {},
+        },
+        {
+          // Persisted by a build without the marker: nothing vouches for its run.
+          id: "legacy",
+          type: "tool_call",
+          state: "updated",
+          payload: { name: "Task", status: "running", isSubAgent: true },
+          streams: {},
+        },
+      ],
+    });
+    const reconciled = useAppStore.getState().runtimeItemsByIdByThread[thread.id]!;
+    expect(reconciled.background).toMatchObject({
+      state: "updated",
+      payload: { status: "running", subAgentBackground: true },
+    });
+    expect(reconciled.legacy).toMatchObject({ state: "completed", payload: { status: "error" } });
+  });
+
   it.each([
     {
       name: "ordinary tool",

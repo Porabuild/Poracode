@@ -157,6 +157,38 @@ it("desktop hydration never reads the browser cache", async () => {
   expect(seam.bridge.dbGetThreadRuntimeItemsPage).toHaveBeenCalledTimes(1);
 });
 
+it("keeps a host-settled background agent row running through desktop hydration", async () => {
+  seam.browser = false;
+  const id = select(fixture());
+  seam.bridge.dbGetThreadRuntimeItemsPage.mockResolvedValue({
+    items: [
+      {
+        id: "background-run",
+        type: "tool_call",
+        state: "updated",
+        payload: { name: "Agent", status: "running", isSubAgent: true, subAgentBackground: true },
+        streams: {},
+      },
+      {
+        // Persisted by a build without the marker: nothing vouches for its run.
+        id: "legacy-run",
+        type: "tool_call",
+        state: "updated",
+        payload: { name: "Task", status: "running", isSubAgent: true },
+        streams: {},
+      },
+    ],
+    nextCursor: null,
+  } as never);
+  await hydrateThreadRuntimeItems(id);
+  const items = useAppStore.getState().runtimeItemsByIdByThread[id] ?? {};
+  expect(items["background-run"]).toMatchObject({
+    state: "updated",
+    payload: { status: "running", subAgentBackground: true },
+  });
+  expect(items["legacy-run"]).toMatchObject({ state: "completed", payload: { status: "error" } });
+});
+
 it("reset hydration cannot be overwritten by a late cached snapshot", async () => {
   const snapshot = fixture(),
     id = select(snapshot);

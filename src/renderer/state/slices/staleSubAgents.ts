@@ -25,6 +25,18 @@ import type { RuntimeChatItem } from "./runtimeEventSlice";
  */
 const liveObservedCrossagentItems = new Set<string>();
 
+export interface StaleSubAgentReconcileOptions {
+  preserveObservedLive?: boolean;
+  force?: boolean;
+  preserveCrossagent?: boolean;
+  /**
+   * The thread's agent session is known to be gone (it exited, or its status
+   * turned inactive). The background agent rows that session settled are
+   * orphans from here on, so a fallback may terminate them too.
+   */
+  sessionEnded?: boolean;
+}
+
 function liveObservedKey(threadId: string, itemId: string): string {
   return `${threadId}\u0000${itemId}`;
 }
@@ -120,17 +132,27 @@ export function terminateSubAgentItem(item: RuntimeChatItem): RuntimeChatItem {
 export function terminateStaleSubAgentItems(
   threadId: string,
   items: Readonly<Record<string, RuntimeChatItem>>,
-  options?: {
-    preserveObservedLive?: boolean;
-    force?: boolean;
-    preserveCrossagent?: boolean;
-  },
+  options?: StaleSubAgentReconcileOptions,
 ): Record<string, RuntimeChatItem> | undefined {
   let nextItems: Record<string, RuntimeChatItem> | undefined;
   for (const [id, item] of Object.entries(items)) {
     if (options?.preserveObservedLive === true && item.observedLive === true) continue;
     if (!isStaleSubAgentItem(item)) continue;
     const payload = item.payload as ToolCallPayload | undefined;
+    // A background agent row (`subAgentBackground`) belongs to a session that
+    // outlives the turn which launched it: the host settles the row itself
+    // when the agent's work ends, at session teardown, and in the boot and
+    // supervisor reset sweeps. A client that reads such a row back from
+    // storage cannot tell a live run from a leftover by the thread's status,
+    // so a reconcile that only suspects an orphan leaves it running. Only one
+    // that knows better — `sessionEnded`, or `force` for a session already
+    // torn down — terminates it as a fallback.
+    if (
+      options?.sessionEnded !== true &&
+      options?.force !== true &&
+      payload?.subAgentBackground === true
+    )
+      continue;
     if (
       options?.force !== true &&
       payload?.isCrossagent === true &&

@@ -693,9 +693,15 @@ export function createSupervisorEventReducer(
         // running. Crossagent runs are supervisor-owned and keep working
         // through parent errors; their rows survive here and end only on the
         // authoritative settle tile (or on force-terminated paths like
-        // provider switch).
+        // provider switch). Background agent rows survive an error too: only
+        // `inactive` means the session that settles them is gone.
         if (event.status === "inactive" || event.status === "error") {
-          useAppStore.getState().reconcileStaleSubAgents(event.threadId);
+          useAppStore
+            .getState()
+            .reconcileStaleSubAgents(
+              event.threadId,
+              event.status === "inactive" ? { sessionEnded: true } : undefined,
+            );
         }
         if (!isThreadTurnActive(event.status)) {
           boundSettledThreadRuntimeWindows([event.threadId]);
@@ -734,7 +740,9 @@ export function createSupervisorEventReducer(
       }
       case "thread-exited":
         useAppStore.getState().markThreadExited(event.threadId);
-        useAppStore.getState().reconcileStaleSubAgents(event.threadId);
+        useAppStore.getState().reconcileStaleSubAgents(event.threadId, {
+          sessionEnded: true,
+        });
         useAppStore.getState().clearAllPendingSteer(event.threadId);
         boundSettledThreadRuntimeWindows([event.threadId]);
         options?.sideEffects?.onThreadExited?.({

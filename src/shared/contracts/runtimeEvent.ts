@@ -372,6 +372,16 @@ export const toolCallPayloadSchema = z.object({
   isSubAgent: z.boolean().optional(),
   subAgentStatus: subAgentStatusSchema.optional(),
   /**
+   * The host session owns this row's completion: the agent keeps working after
+   * the call that launched it returned and after the turn that made the call,
+   * and the host settles the row when that work ends. Reading such a row back
+   * from storage therefore says nothing about whether its run ended, so a
+   * reconcile that only suspects an orphan leaves it running; only one that
+   * knows the session ended may terminate it. Optional and additive: rows
+   * written before it existed have no marker and keep the orphan reconcile.
+   */
+  subAgentBackground: z.boolean().optional(),
+  /**
    * This agent row CONTINUES an earlier run instead of launching a new agent —
    * e.g. Claude Code's `SendMessage` resuming a completed sub-agent from its
    * transcript, or a Crossagents follow-up that continues a completed run's

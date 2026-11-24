@@ -115,6 +115,25 @@ describe.skipIf(!sqliteAvailable)("delegated-agent boot settle (real SQLite)", (
     for (const item of items(THREAD_B).values()) expect(item.state).toBe("started");
   });
 
+  it("settles a background agent row with the interruption notice", () => {
+    // The shape a held OpenCode launch row has in storage while its agent
+    // runs: no result yet, so the sweep's notice can become the result.
+    applyThreadRuntimeEventsNow(THREAD_A, [
+      started(THREAD_A, "background", {
+        name: "Agent",
+        status: "running",
+        isSubAgent: true,
+        subAgentBackground: true,
+        progress: { stepCount: 3 },
+      }),
+    ]);
+    expect(settleOrphanedDelegatedAgentRuns()).toMatchObject({ threads: 1, items: 1 });
+    expect(items(THREAD_A).get("background")).toMatchObject({
+      state: "completed",
+      payload: { status: "error", result: { error: INTERRUPTION } },
+    });
+  });
+
   it("preserves externalized images when settling an orphaned delegated tool", () => {
     const image = `data:image/png;base64,${Buffer.alloc(9 * 1024).toString("base64")}`;
     applyThreadRuntimeEventsNow(THREAD_A, [
