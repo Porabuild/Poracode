@@ -16,8 +16,9 @@ vi.mock("@/renderer/actions/experimentActions", () => ({
   discardExperiment: discardExperimentMock,
 }));
 vi.mock("@/renderer/actions/threadActions", () => ({
-  archiveThread: vi.fn<(id: string) => void>(),
-  toggleMarkThreadDone: vi.fn<(id: string) => void>(),
+  archiveThreads: vi.fn<(threads: readonly Thread[]) => void>(),
+  deleteThreads: vi.fn<(threads: readonly Thread[]) => void>(),
+  markThreadDone: vi.fn<(id: string) => void>(),
 }));
 vi.mock("@/renderer/utils/shellUtils", () => ({
   closeThreads: vi.fn<(ids: string[]) => Promise<void>>(async () => undefined),

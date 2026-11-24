@@ -51725,6 +51725,19 @@
                   "type": "object",
                   "x-poracode-unknownFields": "strip"
                 },
+                "bulkThreadRemoval": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "versions": {
+                      "$ref": "#/$defs/__schema0"
+                    }
+                  },
+                  "required": [
+                    "versions"
+                  ],
+                  "type": "object",
+                  "x-poracode-unknownFields": "strip"
+                },
                 "catalogMutations": {
                   "additionalProperties": true,
                   "properties": {
@@ -54411,6 +54424,19 @@
                   "x-poracode-unknownFields": "strip"
                 },
                 "browserForward": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "versions": {
+                      "$ref": "#/$defs/__schema0"
+                    }
+                  },
+                  "required": [
+                    "versions"
+                  ],
+                  "type": "object",
+                  "x-poracode-unknownFields": "strip"
+                },
+                "bulkThreadRemoval": {
                   "additionalProperties": true,
                   "properties": {
                     "versions": {
@@ -80500,6 +80526,10 @@
               "type": "string"
             },
             "__schema12": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "__schema13": {
               "enum": [
                 "before",
                 "after"
@@ -81587,6 +81617,39 @@
             {
               "additionalProperties": true,
               "properties": {
+                "action": {
+                  "enum": [
+                    "archive",
+                    "delete"
+                  ],
+                  "type": "string"
+                },
+                "kind": {
+                  "const": "remove-threads",
+                  "type": "string"
+                },
+                "removeOwnedWorktrees": {
+                  "type": "boolean"
+                },
+                "threadIds": {
+                  "items": {
+                    "$ref": "#/$defs/__schema11"
+                  },
+                  "minItems": 1,
+                  "type": "array"
+                }
+              },
+              "required": [
+                "kind",
+                "threadIds",
+                "action"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
+            },
+            {
+              "additionalProperties": true,
+              "properties": {
                 "kind": {
                   "const": "archive",
                   "type": "string"
@@ -81634,7 +81697,7 @@
                   "type": "string"
                 },
                 "placement": {
-                  "$ref": "#/$defs/__schema12"
+                  "$ref": "#/$defs/__schema13"
                 },
                 "projectId": {
                   "minLength": 1,
@@ -81646,7 +81709,7 @@
                 },
                 "threadIds": {
                   "items": {
-                    "$ref": "#/$defs/__schema11"
+                    "$ref": "#/$defs/__schema12"
                   },
                   "minItems": 1,
                   "type": "array"
@@ -81670,7 +81733,7 @@
                   "type": "string"
                 },
                 "placement": {
-                  "$ref": "#/$defs/__schema12"
+                  "$ref": "#/$defs/__schema13"
                 },
                 "projectId": {
                   "minLength": 1,
@@ -95303,7 +95366,7 @@
     "void-envelope.omit-result",
     "void-result.omit-field"
   ],
-  "sourceHash": "sha256:930439453dced6a441430ce60d498f758bb9aa9455eddd71d283b26373058a4c",
+  "sourceHash": "sha256:dfa33d8d7a622eac49553df6905580997b986d4757694a8f8f2fce351a315854",
   "unknownObjectFields": "ignore",
   "webSocket": {
     "clientMessages": [

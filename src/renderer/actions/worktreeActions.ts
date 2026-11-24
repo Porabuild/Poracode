@@ -2,7 +2,7 @@ import { toast } from "@heroui/react";
 import { msg } from "@lingui/core/macro";
 import { buildWorktreeLocation } from "@/shared/worktree";
 import { errorDetail } from "@/shared/messages";
-import type { Project } from "@/shared/contracts";
+import type { Project, Thread } from "@/shared/contracts";
 import { RemoteClientError } from "@/shared/remote/client";
 import { readBridge } from "@/renderer/bridge";
 import { i18n } from "@/renderer/i18n/i18n";
@@ -152,6 +152,53 @@ export function dismissWorktreeUi(worktreePath: string): void {
   if (filesPanelContext?.worktreePath === worktreePath) {
     panelStore.setFilesPanelContext(null);
     useFileEditorStore.getState().clearSession();
+  }
+}
+
+export interface OwnedWorktreeGroup {
+  readonly projectId: string;
+  readonly worktreePath: string;
+  readonly threadIds: readonly string[];
+}
+
+/**
+ * Identify worktrees whose every visible thread in `allThreads` belongs to
+ * `targetThreads`. Used when bulk-removing threads with owned worktrees.
+ */
+export function collectOwnedWorktrees(
+  targetThreads: readonly Thread[],
+  allThreads: readonly Thread[],
+): OwnedWorktreeGroup[] {
+  const targetIds = new Set(targetThreads.map((thread) => thread.id));
+  const owned = new Map<string, OwnedWorktreeGroup>();
+  for (const thread of targetThreads) {
+    if (!thread.worktreePath) continue;
+    const key = `${thread.projectId}\0${thread.worktreePath}`;
+    if (owned.has(key)) continue;
+    const siblings = allThreads.filter(
+      (candidate) =>
+        candidate.projectId === thread.projectId && candidate.worktreePath === thread.worktreePath,
+    );
+    if (siblings.length > 0 && siblings.every((candidate) => targetIds.has(candidate.id))) {
+      owned.set(key, {
+        projectId: thread.projectId,
+        worktreePath: thread.worktreePath,
+        threadIds: siblings.map((candidate) => candidate.id),
+      });
+    }
+  }
+  return [...owned.values()];
+}
+
+export function cleanupRemovedWorktreeUi(
+  worktrees: ReadonlyArray<{ readonly projectId: string; readonly worktreePath: string }>,
+): void {
+  if (worktrees.length === 0) return;
+  const projects = useAppStore.getState().projects;
+  for (const { projectId, worktreePath } of worktrees) {
+    const project = projects.find((entry) => entry.id === projectId);
+    if (project) cancelQueuedWorktreeSetup(project, worktreePath);
+    dismissWorktreeUi(worktreePath);
   }
 }
 

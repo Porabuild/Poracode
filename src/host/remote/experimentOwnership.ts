@@ -232,6 +232,7 @@ export function assertRemoteThreadCommandExperimentSafe(command: RemoteThreadCom
       threadIds = [command.threadId];
       break;
     case "delete-worktree-group":
+    case "remove-threads":
       threadIds = command.threadIds;
       break;
     default:

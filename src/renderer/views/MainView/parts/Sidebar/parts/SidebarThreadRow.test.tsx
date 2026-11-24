@@ -9,7 +9,7 @@ import { isSidebarGroupCollapsed, type SidebarRow } from "./sidebarProjectRows";
 import { SidebarThreadRow } from "./SidebarThreadRow";
 
 const threadActions = vi.hoisted(() => ({
-  archiveThread: vi.fn<(threadId: string) => void>(),
+  archiveThreads: vi.fn<(threads: readonly Thread[]) => void>(),
   deleteThreadsAndOwnedWorktrees: vi.fn<(threads: readonly Thread[]) => void>(),
 }));
 
@@ -128,7 +128,7 @@ describe("SidebarThreadRow Done section toggle", () => {
 
 describe("SidebarThreadRow Done section action", () => {
   beforeEach(() => {
-    threadActions.archiveThread.mockReset();
+    threadActions.archiveThreads.mockReset();
     threadActions.deleteThreadsAndOwnedWorktrees.mockReset();
     useSharedSettings.setState({ threadRemoveAction: "archive" });
   });
@@ -147,11 +147,14 @@ describe("SidebarThreadRow Done section action", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
     expect(screen.queryByText("All threads in Done will be archived.")).not.toBeInTheDocument();
-    expect(threadActions.archiveThread).not.toHaveBeenCalled();
+    expect(threadActions.archiveThreads).not.toHaveBeenCalled();
 
     fireEvent.click(trigger);
     fireEvent.click(screen.getByRole("button", { name: "Archive" }));
-    expect(threadActions.archiveThread.mock.calls).toEqual([["done-1"], ["done-2"]]);
+    expect(threadActions.archiveThreads).toHaveBeenCalledWith([
+      expect.objectContaining({ id: "done-1" }),
+      expect.objectContaining({ id: "done-2" }),
+    ]);
     expect(threadActions.deleteThreadsAndOwnedWorktrees).not.toHaveBeenCalled();
   });
 
@@ -169,7 +172,7 @@ describe("SidebarThreadRow Done section action", () => {
       expect.objectContaining({ id: "done-1" }),
       expect.objectContaining({ id: "done-2" }),
     ]);
-    expect(threadActions.archiveThread).not.toHaveBeenCalled();
+    expect(threadActions.archiveThreads).not.toHaveBeenCalled();
   });
 
   it("removes a worktree owned only by one done thread", () => {

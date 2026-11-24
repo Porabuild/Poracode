@@ -25,6 +25,10 @@ import {
   environmentAdvertisesCatalogMutations,
   noteCatalogMutationsCapability,
 } from "@/renderer/state/remote/catalogMutationsCapability";
+import {
+  environmentAdvertisesBulkThreadRemoval,
+  noteBulkThreadRemovalCapability,
+} from "@/renderer/state/remote/bulkThreadRemovalCapability";
 import { forgetHistoryBaselines } from "@/renderer/state/historyBaselines";
 import { purgeRecentHistoryForConnection } from "@/renderer/browser/recentHistoryCache";
 import { refreshSlashCommandCatalogs } from "./slashCommandCatalogs";
@@ -243,6 +247,10 @@ export function createPairingActions(deps: PairingActionDeps) {
     noteProjectCommandResultsCapability(
       connectionId,
       environmentAdvertisesProjectCommandResults(environment),
+    );
+    noteBulkThreadRemovalCapability(
+      connectionId,
+      environmentAdvertisesBulkThreadRemoval(environment),
     );
     // Narrow catalog mutations (the paired sidebar's reorder intents) are the
     // same kind of per-connection descriptor fact: recorded at pairing so the

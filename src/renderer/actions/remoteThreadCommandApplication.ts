@@ -14,7 +14,11 @@ import {
   toggleStarThread,
   cleanupDoneThread,
 } from "./threadActions";
-import { forgetRemovedWorktreeGroup } from "./worktreeActions";
+import {
+  cleanupRemovedWorktreeUi,
+  collectOwnedWorktrees,
+  forgetRemovedWorktreeGroup,
+} from "./worktreeActions";
 import { primeWorktreeGitState, showHostWorktreeSetupTerminal } from "./worktreeLaunchActions";
 import { applyRemoteThreadStartCommand } from "./remoteStartCommandActions";
 import { applyRemoteSetGroupCommand } from "./remoteGroupCommandActions";
@@ -39,6 +43,27 @@ export function applyForwardedRemoteThreadCommand(command: RemoteThreadCommand):
   runHostOriginatedManagedRootMutation(() => {
     if (command.kind === "delete-worktree-group") {
       forgetRemovedWorktreeGroup(command.projectId, command.worktreePath, command.threadIds);
+      return;
+    }
+    if (command.kind === "remove-threads") {
+      if (command.action === "archive") {
+        for (const threadId of command.threadIds) {
+          applyForwardedRemoteThreadCommand({ kind: "archive", threadId });
+        }
+        return;
+      }
+      const targetIds = new Set(command.threadIds);
+      const currentThreads = useAppStore.getState().threads;
+      const removedWorktrees = command.removeOwnedWorktrees
+        ? collectOwnedWorktrees(
+            currentThreads.filter((thread) => targetIds.has(thread.id)),
+            currentThreads,
+          )
+        : [];
+      for (const threadId of command.threadIds) {
+        deleteThread(threadId);
+      }
+      cleanupRemovedWorktreeUi(removedWorktrees);
       return;
     }
     if (command.kind === "prepare-worktree") {

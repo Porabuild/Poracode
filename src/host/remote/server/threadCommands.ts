@@ -394,6 +394,132 @@ export async function applyRemoteThreadCommand(
       else await remove();
       return false;
     }
+    case "remove-threads": {
+      if (command.threadIds[0] !== command.threadId) {
+        throw new RemoteHttpError(
+          "invalid_request",
+          "Bulk thread removal anchor must be the first thread id.",
+          400,
+        );
+      }
+      const uniqueIds = [...new Set(command.threadIds)];
+      if (uniqueIds.length !== command.threadIds.length) {
+        throw new RemoteHttpError(
+          "invalid_request",
+          "Bulk thread removal contains duplicate thread ids.",
+          400,
+        );
+      }
+      const targetIdSet = new Set(uniqueIds);
+      const runBulkRemove = async () => {
+        if (command.action === "archive") {
+          const existing = dbGetThreads().filter((thread) => targetIdSet.has(thread.id));
+          await Promise.all(existing.map((thread) => closeThreadBestEffort(ctx, thread.id)));
+          const latestThreads = dbGetThreads();
+          for (const thread of latestThreads) {
+            if (!targetIdSet.has(thread.id)) continue;
+            dbUpsertThread(
+              applyThreadMetadataCommand(thread, { kind: "archive", threadId: thread.id }),
+              sortOrderForThread(latestThreads, thread.id),
+            );
+          }
+          return;
+        }
+        dbAssertNoRunningCheckpointRevert(uniqueIds);
+        await Promise.all(uniqueIds.map((threadId) => closeThreadBestEffort(ctx, threadId)));
+        const deletedIds = new Set<string>();
+        const skippedIds = new Set<string>();
+        let firstWorktreeError: Error | undefined;
+        if (command.removeOwnedWorktrees) {
+          const currentThreads = dbGetThreads();
+          const projectCache = new Map<string, Project | null>();
+          const getProject = (projectId: string) => {
+            if (!projectCache.has(projectId)) projectCache.set(projectId, dbGetProject(projectId));
+            return projectCache.get(projectId) ?? null;
+          };
+          const worktreeGroups = new Map<
+            string,
+            {
+              projectId: string;
+              worktreePath: string;
+              normalizedPath: string;
+              isWindows: boolean;
+            }
+          >();
+          for (const thread of currentThreads) {
+            if (!targetIdSet.has(thread.id) || !thread.worktreePath) continue;
+            const project = getProject(thread.projectId);
+            if (!project) continue;
+            const isWindows = project.location.kind === "windows";
+            const normalizedPath = normalizeWorktreePathForComparison(
+              thread.worktreePath,
+              isWindows,
+            );
+            const key = `${thread.projectId}\0${normalizedPath}`;
+            if (!worktreeGroups.has(key)) {
+              worktreeGroups.set(key, {
+                projectId: thread.projectId,
+                worktreePath: thread.worktreePath,
+                normalizedPath,
+                isWindows,
+              });
+            }
+          }
+          for (const {
+            projectId,
+            worktreePath,
+            normalizedPath,
+            isWindows,
+          } of worktreeGroups.values()) {
+            const siblings = dbGetThreads().filter(
+              (candidate) =>
+                candidate.projectId === projectId &&
+                candidate.worktreePath !== undefined &&
+                normalizeWorktreePathForComparison(candidate.worktreePath, isWindows) ===
+                  normalizedPath,
+            );
+            if (
+              siblings.length === 0 ||
+              !siblings.every((candidate) => targetIdSet.has(candidate.id))
+            ) {
+              continue;
+            }
+            const siblingIds = siblings.map((candidate) => candidate.id);
+            const worktreeBranch = siblings.find(
+              (candidate) => candidate.worktreeBranch,
+            )?.worktreeBranch;
+            try {
+              await removeHostWorktree(ctx, {
+                projectId,
+                worktreePath,
+                ...(worktreeBranch ? { worktreeBranch } : {}),
+                expectedThreadIds: siblingIds,
+              });
+              for (const siblingId of siblingIds) {
+                dbDeleteThread(siblingId);
+                deletedIds.add(siblingId);
+              }
+            } catch (error) {
+              firstWorktreeError ??= error instanceof Error ? error : new Error(String(error));
+              for (const siblingId of siblingIds) skippedIds.add(siblingId);
+            }
+          }
+        }
+        for (const threadId of uniqueIds) {
+          if (skippedIds.has(threadId) || deletedIds.has(threadId)) continue;
+          dbDeleteThread(threadId);
+          deletedIds.add(threadId);
+        }
+        if (firstWorktreeError !== undefined) {
+          if (deletedIds.size > 0) ctx.publishThreadsChanged([...deletedIds]);
+          throw firstWorktreeError;
+        }
+      };
+      if (ctx.options.runThreadMutation)
+        await withThreadMutationCustody(ctx.options.runThreadMutation, uniqueIds, runBulkRemove);
+      else await runBulkRemove();
+      return false;
+    }
   }
 }
 

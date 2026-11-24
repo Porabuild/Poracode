@@ -1,4 +1,5 @@
 import {
+  hostSupportsBulkThreadRemoval,
   hostSupportsExperiments,
   hostSupportsFlatThreadReorder,
   hostSupportsProjectCommandResults,
@@ -37,6 +38,7 @@ interface ManagedRootDescriptorVerdicts {
   readonly projectCommandResults: boolean;
   readonly flatThreadReorder: boolean;
   readonly experiments: boolean;
+  readonly bulkThreadRemoval: boolean;
 }
 
 const UNSUPPORTED: ManagedRootDescriptorVerdicts = {
@@ -44,6 +46,7 @@ const UNSUPPORTED: ManagedRootDescriptorVerdicts = {
   projectCommandResults: false,
   flatThreadReorder: false,
   experiments: false,
+  bulkThreadRemoval: false,
 };
 
 let cached: { readonly seq: number; readonly verdicts: ManagedRootDescriptorVerdicts } | null =
@@ -77,6 +80,9 @@ async function managedRootDescriptorVerdicts(): Promise<ManagedRootDescriptorVer
               descriptor.capabilities?.flatThreadReorder,
             ),
             experiments: hostSupportsExperiments(descriptor.capabilities?.experiments),
+            bulkThreadRemoval: hostSupportsBulkThreadRemoval(
+              descriptor.capabilities?.bulkThreadRemoval,
+            ),
           };
         } catch {
           return UNSUPPORTED;
@@ -113,6 +119,10 @@ export async function managedRootSupportsFlatThreadReorder(): Promise<boolean> {
  */
 export async function managedRootSupportsExperiments(): Promise<boolean> {
   return (await managedRootDescriptorVerdicts()).experiments;
+}
+
+export async function managedRootSupportsBulkThreadRemoval(): Promise<boolean> {
+  return (await managedRootDescriptorVerdicts()).bulkThreadRemoval;
 }
 
 /** Test-only: drop the cached/fresh activation verdicts. */

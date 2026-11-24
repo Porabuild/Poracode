@@ -41,6 +41,10 @@ public extension RemoteSchemas {
 }
 
 public extension RemoteSchemas {
+  static let schema_70ab564010eb05b0 = RemoteSchema(type: "string", literals: [.string("remove-threads")], unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
   static let schema_70c198324af8bd9f = RemoteSchema(type: "object", required: Set(["received"]), properties: ["received": RemoteSchemas.schema_56aa0e45cbdce0d0], additionalAllowed: true, unknownPolicy: .strip)
 }
 
