@@ -114,42 +114,54 @@ export class SessionRuntimeLifecycle {
   private bindStructuredSession(session: SessionRuntime): void {
     const actualAdapter = session.adapter;
     const handle = session.structuredSession;
-    handle?.setListener({
-      onClose: () => {
-        // Transport close is the structured side's confirmed retirement.
-        session.structuredRetired = true;
-        // A structured-only session's logical retirement is its transport
-        // close; release the slot here. When a PTY also backs this session,
-        // retirement requires both owned effects (the close path kills the
-        // PTY next and the PTY exit cannot release alone).
-        if (!session.pty || session.ptyExited === true) {
-          session.resourceLease?.confirmExit();
-          this.context.onResourceLeaseRelease?.(session);
-        }
-        if (!this.canHandleStructuredEvent(session)) return;
-        this.handleStructuredSessionClosed(session);
-      },
-      onError: (errorMessage) => {
-        if (!this.canHandleStructuredEvent(session)) return;
-        this.context.failStructuredSession(session, errorMessage);
-      },
-      onUpdate: (update) => {
-        if (!this.canHandleStructuredEvent(session)) return;
-        this.handleStructuredUpdate(session, update);
-      },
-      onRuntimeEvent: (event) => {
-        if (!this.canHandleStructuredEvent(session)) return;
-        if (session.structuredSession === handle) this.context.observeLiveRequest?.(handle, event);
-        this.handleStructuredRuntimeEvent(
-          session,
-          captureRuntimePayloadOrigin(event, actualAdapter.runtimePayloadFormatOwnerKey),
-        );
-      },
-      onVoiceEvent: (event) => {
-        if (!this.canHandleStructuredEvent(session)) return;
-        this.context.emit({ type: "thread-voice", threadId: session.threadId, event });
-      },
-    });
+    if (!handle) return;
+    // Providers can synchronously replay buffered session-open hydration events
+    // (goals, plans, subagent snapshots) inside setListener before publishing
+    // their initial idle sync. Those pre-turn replays must not clear startup
+    // idle suppression ahead of the upcoming startTurn().
+    let replayingInitialBind = true;
+    try {
+      handle.setListener({
+        onClose: () => {
+          // Transport close is the structured side's confirmed retirement.
+          session.structuredRetired = true;
+          // A structured-only session's logical retirement is its transport
+          // close; release the slot here. When a PTY also backs this session,
+          // retirement requires both owned effects (the close path kills the
+          // PTY next and the PTY exit cannot release alone).
+          if (!session.pty || session.ptyExited === true) {
+            session.resourceLease?.confirmExit();
+            this.context.onResourceLeaseRelease?.(session);
+          }
+          if (!this.canHandleStructuredEvent(session)) return;
+          this.handleStructuredSessionClosed(session);
+        },
+        onError: (errorMessage) => {
+          if (!this.canHandleStructuredEvent(session)) return;
+          this.context.failStructuredSession(session, errorMessage);
+        },
+        onUpdate: (update) => {
+          if (!this.canHandleStructuredEvent(session)) return;
+          this.handleStructuredUpdate(session, update);
+        },
+        onRuntimeEvent: (event) => {
+          if (!this.canHandleStructuredEvent(session)) return;
+          if (session.structuredSession === handle)
+            this.context.observeLiveRequest?.(handle, event);
+          this.handleStructuredRuntimeEvent(
+            session,
+            captureRuntimePayloadOrigin(event, actualAdapter.runtimePayloadFormatOwnerKey),
+            { suppressIdleRelease: replayingInitialBind },
+          );
+        },
+        onVoiceEvent: (event) => {
+          if (!this.canHandleStructuredEvent(session)) return;
+          this.context.emit({ type: "thread-voice", threadId: session.threadId, event });
+        },
+      });
+    } finally {
+      replayingInitialBind = false;
+    }
   }
 
   private handleStructuredUpdate(session: SessionRuntime, update: StructuredSessionUpdate): void {
@@ -248,8 +260,13 @@ export class SessionRuntimeLifecycle {
     }
   }
 
-  private handleStructuredRuntimeEvent(session: SessionRuntime, event: RuntimeEvent): void {
+  private handleStructuredRuntimeEvent(
+    session: SessionRuntime,
+    event: RuntimeEvent,
+    options?: { suppressIdleRelease?: boolean },
+  ): void {
     if (
+      !options?.suppressIdleRelease &&
       session.suppressInitialStructuredIdle === true &&
       shouldReleaseInitialStructuredIdleSuppression(event)
     ) {

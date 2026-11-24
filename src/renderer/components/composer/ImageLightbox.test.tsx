@@ -1461,4 +1461,96 @@ describe("lightbox thumbnail strip", () => {
     expect(requested.some((path) => path.includes("item-2"))).toBe(false);
     cache.dispose();
   });
+
+  it("swipes horizontally between images on touch without dismissing and ignores swipe while zoomed", () => {
+    const onClose = vi.fn<() => void>();
+    const { rerender } = render(
+      <ImageLightboxView
+        images={[
+          { src: "data:image/png;base64,ONE", alt: "one.png" },
+          { src: "data:image/png;base64,TWO", alt: "two.png" },
+        ]}
+        initialIndex={0}
+        onClose={onClose}
+      />,
+    );
+    const stage = document.body.querySelector<HTMLElement>(".poracode-image-lightbox__stage")!;
+    stage.setPointerCapture = () => undefined;
+    stage.releasePointerCapture = () => undefined;
+    stage.hasPointerCapture = () => true;
+
+    expect(screen.getByText("1 / 2")).toBeInTheDocument();
+
+    fireEvent.pointerDown(stage, {
+      pointerId: 1,
+      pointerType: "touch",
+      clientX: 240,
+      clientY: 200,
+    });
+    fireEvent.pointerMove(stage, {
+      pointerId: 1,
+      pointerType: "touch",
+      clientX: 140,
+      clientY: 205,
+    });
+    fireEvent.pointerUp(stage, { pointerId: 1, pointerType: "touch", clientX: 140, clientY: 205 });
+    fireEvent.click(stage);
+    expect(screen.getByText("2 / 2")).toBeInTheDocument();
+    expect(onClose).not.toHaveBeenCalled();
+
+    // A mid-swipe image replacement clears any in-progress swipe offset.
+    fireEvent.pointerDown(stage, {
+      pointerId: 2,
+      pointerType: "touch",
+      clientX: 240,
+      clientY: 200,
+    });
+    fireEvent.pointerMove(stage, {
+      pointerId: 2,
+      pointerType: "touch",
+      clientX: 180,
+      clientY: 200,
+    });
+    expect(screen.getByRole("img", { name: "two.png" }).style.transform).toContain("-60px");
+    rerender(
+      <ImageLightboxView
+        images={[
+          { src: "data:image/png;base64,ONE", alt: "one.png" },
+          { src: "data:image/png;base64,THREE", alt: "three.png" },
+        ]}
+        initialIndex={0}
+        onClose={onClose}
+      />,
+    );
+    expect(screen.getByRole("img", { name: "three.png" }).style.transform).toBe(
+      "translate3d(0px, 0px, 0px) scale(1)",
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Zoom in" }));
+    fireEvent.pointerDown(stage, {
+      pointerId: 3,
+      pointerType: "touch",
+      clientX: 140,
+      clientY: 200,
+    });
+    fireEvent.pointerMove(stage, {
+      pointerId: 3,
+      pointerType: "touch",
+      clientX: 260,
+      clientY: 200,
+    });
+    fireEvent.pointerUp(stage, { pointerId: 3, pointerType: "touch", clientX: 260, clientY: 200 });
+    expect(screen.getByText("2 / 2")).toBeInTheDocument();
+
+    // A fresh tap on the stage still dismisses the lightbox.
+    fireEvent.pointerDown(stage, {
+      pointerId: 4,
+      pointerType: "touch",
+      clientX: 20,
+      clientY: 20,
+    });
+    fireEvent.pointerUp(stage, { pointerId: 4, pointerType: "touch", clientX: 20, clientY: 20 });
+    fireEvent.click(stage);
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
 });

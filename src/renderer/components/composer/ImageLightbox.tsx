@@ -330,9 +330,12 @@ export function ImageLightboxView(props: {
   const previewSrc = current?.src === selected?.src ? current?.previewSrc : undefined;
   const currentImageKey =
     current && !isVideo ? (previewSrc ?? imageKey(current) ?? current.src) : undefined;
+  const goPrevious = () => setIndex((prev) => (prev > 0 ? prev - 1 : images.length - 1));
+  const goNext = () => setIndex((prev) => (prev < images.length - 1 ? prev + 1 : 0));
   const {
     scale,
     pan,
+    swipeX,
     animate,
     stageRef,
     imageRef,
@@ -345,7 +348,10 @@ export function ImageLightboxView(props: {
     onPointerCancel,
     onLostPointerCapture,
     onClickCapture,
-  } = useImageLightboxZoom(currentImageKey);
+  } = useImageLightboxZoom(
+    currentImageKey,
+    images.length > 1 ? { onPrevious: goPrevious, onNext: goNext } : undefined,
+  );
 
   useEffect(() => {
     if (resource && !resolvedSrc) resource.request();
@@ -447,7 +453,7 @@ export function ImageLightboxView(props: {
           aria-label={t`Previous image`}
           onClick={(e) => {
             e.stopPropagation();
-            setIndex((prev) => (prev > 0 ? prev - 1 : images.length - 1));
+            goPrevious();
           }}
         >
           <ChevronLeft className="size-6" />
@@ -478,7 +484,7 @@ export function ImageLightboxView(props: {
             src={previewSrc && decodedSrc !== current.src ? previewSrc : current.src}
             alt={current.alt ?? ""}
             style={{
-              transform: `translate3d(${pan.x}px, ${pan.y}px, 0) scale(${scale})`,
+              transform: `translate3d(${pan.x + swipeX}px, ${pan.y}px, 0) scale(${scale})`,
               ...(animate ? {} : { transition: "none" }),
               ...(previewSrc && current.width && current.height
                 ? {
@@ -504,7 +510,7 @@ export function ImageLightboxView(props: {
           aria-label={t`Next image`}
           onClick={(e) => {
             e.stopPropagation();
-            setIndex((prev) => (prev < images.length - 1 ? prev + 1 : 0));
+            goNext();
           }}
         >
           <ChevronRight className="size-6" />

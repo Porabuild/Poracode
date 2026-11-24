@@ -197,7 +197,7 @@ export function StickyPrompt({
   return (
     <div
       ref={wrapperRef}
-      className="pointer-events-none absolute inset-x-0 top-0 z-10 overflow-hidden pb-3 pt-2 [scrollbar-gutter:stable]"
+      className="poracode-sticky-prompt pointer-events-none absolute inset-x-0 top-0 z-10 overflow-hidden pb-3 pt-2 [scrollbar-gutter:stable]"
     >
       <div ref={barRef} className="mx-auto flex w-full max-w-[920px]">
         <Button
@@ -209,7 +209,7 @@ export function StickyPrompt({
             if (index >= 0) onScrollToEntry(index);
             else onJumpToPrompt(stickyItemId);
           }}
-          className={`${floatingGlassSurfaceClass} ${floatingGlassBubbleClass} pointer-events-auto h-7 w-full min-w-0 justify-start rounded-full px-3 text-muted transition-colors hover:text-foreground`}
+          className={`poracode-sticky-prompt__button ${floatingGlassSurfaceClass} ${floatingGlassBubbleClass} pointer-events-auto h-7 w-full min-w-0 justify-start rounded-full px-3 text-muted transition-colors hover:text-foreground`}
         >
           <span className="min-w-0 truncate text-[length:var(--lc-chat-font-size-meta)]">
             {hasChipPiece(previewPieces) ? <InlinePromptPieces pieces={previewPieces} /> : preview}

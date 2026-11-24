@@ -396,7 +396,17 @@ export class MuseMspStructuredSession implements StructuredSessionHandle {
     options?: StartTurnOptions,
   ): Promise<void | StructuredTurnResult> {
     const sessionId = this.requireSessionId();
-    await this.applyConfig(config);
+    // Transition to working before config sync so applyConfig() and server
+    // session/modelChanged notifications never echo the previous turn's settled
+    // idle or error status after the supervisor already marked this turn working.
+    this.status = "working";
+    this.attention = "working";
+    try {
+      await this.applyConfig(config);
+    } catch (error) {
+      if (!this.disposed) this.refreshWorkingState();
+      throw error;
+    }
     if (state.interrupted || this.disposed) return this.settleInterruptedStart();
     if (isMuseCompactCommand(prompt)) {
       await this.compactSession(sessionId);
@@ -410,8 +420,6 @@ export class MuseMspStructuredSession implements StructuredSessionHandle {
     if (state.interrupted || this.disposed) return this.settleInterruptedStart();
     const commandId = mintMspCommandId();
     this.pendingUserItems.set(commandId, options?.userMessageItemId ?? `user-${commandId}`);
-    this.status = "working";
-    this.attention = "working";
     this.publishUpdate();
     try {
       const result = await this.client.request("turn/start", {
