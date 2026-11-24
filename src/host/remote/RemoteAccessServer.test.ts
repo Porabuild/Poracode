@@ -277,10 +277,12 @@ async function flushQueuedControlWrites(): Promise<void> {
 function createTestServer(options: RemoteAccessServerOptions): RemoteAccessServer {
   return new RemoteAccessServer({
     ...options,
-    callSupervisor: (name, payload) =>
+    callSupervisor: (name, payload, callOptions) =>
       name === "getThreadSnapshots"
         ? (Promise.resolve([]) as ReturnType<RemoteAccessServerOptions["callSupervisor"]>)
-        : options.callSupervisor(name, payload),
+        : callOptions === undefined
+          ? options.callSupervisor(name, payload)
+          : options.callSupervisor(name, payload, callOptions),
   });
 }
 
@@ -6656,7 +6658,11 @@ describe("RemoteAccessServer", () => {
       "removeExperimentWorktrees",
       expect.objectContaining({ projectLocation: project.location }),
     );
-    expect(callSupervisor).toHaveBeenCalledWith("closeThread", { threadId: "thread-1" });
+    expect(callSupervisor).toHaveBeenCalledWith(
+      "closeThreadConfirmed",
+      { threadId: "thread-1" },
+      { requestTimeoutMs: expect.any(Number) },
+    );
     expect(dbDeleteProject).toHaveBeenCalledWith(project.id);
     // Exact-id removal: the recorded experiment ids go through the dedicated
     // helper (raw per-record splice) instead of a whole-map dbSetState write.
