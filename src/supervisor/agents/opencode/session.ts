@@ -32,6 +32,7 @@ import type {
   ThreadServerRequestId,
   ThreadStatus,
 } from "@/shared/contracts";
+import { parseContextWindowTokens } from "@/shared/contextWindow";
 import {
   createKnownSessionRef,
   type AgentLaunchOptions,
@@ -56,16 +57,18 @@ import {
   createOpenCodeMapperState,
   mapOpenCodeEvent,
   readOpenCodeEventSessionID,
+  setOpenCodeContextWindowTokens,
   settleOpenCodeTurnIfActive,
   setOpenCodeSessionId,
   steerOpenCodeTurn,
   type OpenCodeMapperState,
 } from "./eventMapping";
+import { readOpenCodeContextWindowTokens } from "./contextWindow";
 import { classifyOpenCodeError, isOpenCodeConnectionLoss } from "./opencodeErrors";
 import { openCodeFormRequestId, openCodePermissionRequestId } from "./requestPayloads";
 import { buildOpenCodePromptPayload } from "./promptText";
 import { buildOpenCodeSessionPermissions } from "./permissions";
-import { modelRefKey, parseOpenCodeModelRef } from "./model";
+import { modelCatalogKey, modelRefKey, parseOpenCodeModelRef } from "./model";
 import { parseFormAnswer, parsePermissionReply } from "./requestResponses";
 import { readOpenCodeMessages, rollbackOpenCodeMessages, toThreadHistoryEntries } from "./history";
 import { OpenCodeSubagents } from "./subagents";
@@ -85,6 +88,9 @@ import {
 
 /** Tolerance for server-vs-supervisor clock skew when filtering replayed events. */
 const OPENCODE_EVENT_CLOCK_TOLERANCE_MS = 5 * 60 * 1000;
+
+/** The catalog answers locally; a slow reply must never hold a turn's prompt. */
+const OPENCODE_CONTEXT_WINDOW_TIMEOUT_MS = 15_000;
 
 interface PendingPermission {
   kind: "permission";
@@ -120,6 +126,10 @@ export class OpenCodeSession implements StructuredSessionHandle {
   private currentConfig: ThreadConfig | undefined;
   /** Composite key of the model/variant last applied via `switchModel`. */
   private appliedModelKey: string | undefined;
+  /** Catalog key (`providerID/modelID`) of the announced context window. */
+  private contextWindowModelKey: string | undefined;
+  /** Orders overlapping window lookups; only the newest result may announce. */
+  private contextWindowGeneration = 0;
   private appliedPermissionsKey: string | undefined;
   private appliedAgent: string | undefined;
   private selectedAgent: string | undefined;
@@ -219,6 +229,9 @@ export class OpenCodeSession implements StructuredSessionHandle {
       this.refreshSlashCommands(acquired, readiness);
     }
     await readiness;
+    // Announce the model's own window before the first step sample. Non-blocking:
+    // a display-only catalog read must not delay opening the thread.
+    void this.applyContextWindow(config);
 
     const resumeSessionId =
       sessionRef?.providerSessionId ?? this.input.sessionRef?.providerSessionId;
@@ -848,10 +861,64 @@ export class OpenCodeSession implements StructuredSessionHandle {
   ): Promise<void> {
     const model = parseOpenCodeModelRef(config.model, config.effort);
     if (!model) return;
+    const windowKey = modelCatalogKey(model);
     const key = modelRefKey(model);
-    if (key === this.appliedModelKey) return;
-    await acquired.client.session.switchModel({ sessionID, model });
-    this.appliedModelKey = key;
+    if (key !== this.appliedModelKey) {
+      await acquired.client.session.switchModel({ sessionID, model });
+      this.appliedModelKey = key;
+      // A window announced for a different model is meaningless now. Clearing it
+      // stops later samples from stamping the old model's limit; the dock keeps
+      // the last reported window until the new one lands.
+      if (this.contextWindowModelKey !== windowKey) {
+        this.contextWindowModelKey = undefined;
+        setOpenCodeContextWindowTokens(this.mapperState, undefined);
+      }
+    }
+    // Display-only: the catalog read never holds the prompt behind it.
+    if (this.contextWindowModelKey !== windowKey) void this.applyContextWindow(config);
+  }
+
+  /**
+   * Resolve the session model's context window from the V2 catalog and publish
+   * it, falling back to the thread's configured context size when the catalog
+   * has no answer. Display-only: a failure never fails a turn, and a superseded
+   * lookup is dropped so a late reply cannot describe a model the session has
+   * already left.
+   */
+  private async applyContextWindow(config: ThreadConfig): Promise<void> {
+    const model = parseOpenCodeModelRef(config.model, config.effort);
+    if (!this.isGui || !model) return;
+    const acquired = this.acquired;
+    if (!acquired) return;
+    const windowKey = modelCatalogKey(model);
+    const generation = ++this.contextWindowGeneration;
+    let catalogTokens: number | undefined;
+    try {
+      catalogTokens = await readOpenCodeContextWindowTokens(
+        acquired.client,
+        this.directory,
+        windowKey,
+        AbortSignal.timeout(OPENCODE_CONTEXT_WINDOW_TIMEOUT_MS),
+      );
+    } catch (error) {
+      if (!this.disposed) console.warn("[opencode] context window lookup failed:", error);
+    }
+    if (
+      this.disposed ||
+      this.acquired !== acquired ||
+      generation !== this.contextWindowGeneration
+    ) {
+      return;
+    }
+    // Only a catalog value describes the model; the configured size is the
+    // thread's own intent, used when the catalog cannot answer for it.
+    if (catalogTokens !== undefined) this.contextWindowModelKey = windowKey;
+    this.emitRuntimeEvents(
+      setOpenCodeContextWindowTokens(
+        this.mapperState,
+        catalogTokens ?? parseContextWindowTokens(config.contextSize ?? ""),
+      ),
+    );
   }
 
   private sessionRefUpdate(): { sessionRef: SessionRef } | Record<string, never> {
@@ -1041,6 +1108,8 @@ export class OpenCodeSession implements StructuredSessionHandle {
     this.appliedPermissionsKey = undefined;
     this.appliedModelKey = undefined;
     this.appliedAgent = undefined;
+    this.contextWindowModelKey = undefined;
+    setOpenCodeContextWindowTokens(this.mapperState, undefined);
     await previous?.dispose().catch((error) => {
       console.warn("[opencode] failed to dispose previous session:", error);
     });

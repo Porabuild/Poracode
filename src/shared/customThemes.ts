@@ -27,7 +27,7 @@ export const themePaletteSchema = z.object({
   composer: hexColorSchema.optional(),
   /** Give the docked sidebar its own fill instead of the content background. */
   sidebarFill: z.boolean().optional(),
-  /** Selected sidebar row fill; defaults to the shared foreground wash. */
+  /** Selected sidebar row fill; defaults to a foreground wash in light mode or the derived raised surface in dark mode. */
   sidebarRowActive: hexColorSchema.optional(),
 });
 

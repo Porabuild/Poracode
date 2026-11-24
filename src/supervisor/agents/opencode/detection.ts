@@ -11,6 +11,7 @@ import { OPENCODE_MIN_VERSION, parseOpenCodeVersion, supportsOpenCodeVersion } f
 import { availableOpenCodeCatalog } from "./catalogAvailability";
 import { acquireOpenCodeServer, resolveOpenCodeSessionDirectory } from "./client";
 import { mapOpenCodeAgents, mapOpenCodeCommands, mapOpenCodeSkills } from "./commands";
+import { readOpenCodeContextLimit } from "./model";
 import {
   buildOpenCodeStatusFromIntegrations,
   readOpenCodeIntegrations,
@@ -261,14 +262,12 @@ export async function probeOpenCodeInventory(
         models: available.models.map((model) => {
           const id = `${model.providerID}/${model.id}`;
           const name = model.name.trim();
-          const contextLimit = model.limit.context;
+          const contextLimit = readOpenCodeContextLimit(model);
           return {
             id,
             label: name.length > 0 ? name : id,
             variants: model.variants.map((variant) => variant.id),
-            ...(Number.isFinite(contextLimit) && contextLimit > 0
-              ? { contextLimit: Math.trunc(contextLimit) }
-              : {}),
+            ...(contextLimit !== undefined ? { contextLimit } : {}),
           };
         }),
         providers: available.providers.map((provider) => ({

@@ -79,6 +79,7 @@ export const MANAGED_THEME_VARS = [
   "--separator",
   "--sidebar-background",
   "--sidebar-panel-background",
+  "--sidebar-row-hover",
   "--sidebar-row-active",
   "--sidebar-row-active-override",
   "--content-background",
@@ -166,9 +167,16 @@ export function buildVariant(spec: ThemeSpec, mode: "light" | "dark"): ThemeVari
     "--separator": fade(border, 75),
     "--sidebar-background": sidebar,
     "--sidebar-panel-background": spec.sidebarFill ? sidebar : content,
-    // Resolve the base wash here; referring back to --row-active would cycle
-    // when a sidebar scopes --row-active to this token.
-    "--sidebar-row-active": spec.sidebarRowActive ?? fade(fg, mode === "light" ? 11 : 20),
+    // Sidebar hover stays a translucent foreground wash so translucent
+    // sidebars keep the material visible; dark lifts it one step above the
+    // selected fill so the two states remain distinguishable.
+    "--sidebar-row-hover": fade(fg, mode === "light" ? 6 : 9),
+    // Resolve the selected fill here; referring back to --row-active would
+    // cycle when a sidebar scopes --row-active to this token. Dark uses the
+    // same derived raised fill as cards/composer unless the palette authors
+    // an explicit selected-row color, which still takes precedence.
+    "--sidebar-row-active":
+      spec.sidebarRowActive ?? (mode === "light" ? fade(fg, 11) : mix(surface, 92, fg)),
     // Explicit authored fills also take precedence over the glass-sidebar wash.
     "--sidebar-row-active-override": spec.sidebarRowActive ?? "",
     "--content-background": content,
