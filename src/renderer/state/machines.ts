@@ -239,19 +239,36 @@ export function useMachines(): MachineDescriptor[] {
  * matters because an attention row ("Needs attention on …") can scope the page
  * to a machine with no project; the pill must show that scope instead of
  * snapping it back, and the overlay's bottom padding reads the same list.
+ *
+ * Callers with their own selection state (such as Crews) pass `selectedId` so
+ * they keep their own active scope without leaking Agents' selection.
  */
 export function useAgentsScopeMachines(
   machines: readonly MachineDescriptor[],
+  selectedId?: string,
 ): MachineDescriptor[] {
   const key = useAppStore((state) => buildActiveProjectMachinesKey(state.projects));
-  const selectedMachineId = useMachineSelectionStore((state) => state.selectedMachineId);
+  const storeSelectedMachineId = useMachineSelectionStore((state) => state.selectedMachineId);
+  const effectiveSelectedId = selectedId ?? storeSelectedMachineId;
   const activeIds = new Set(parseActiveProjectMachinesKey(key));
   return machines.filter(
     (machine) =>
       machine.id === LOCAL_NATIVE_MACHINE_KEY ||
-      machine.id === selectedMachineId ||
-      activeIds.has(machine.id),
+      machine.id === effectiveSelectedId ||
+      activeIds.has(scopeActiveId(machine)),
   );
+}
+
+/**
+ * The id a machine's active projects are keyed by. A remote client lists its
+ * bound host as the local entries (the only ones carrying a `desktopId`), but
+ * that host's mirrored projects are stamped with its remote id, so its distros
+ * are looked up under that id instead of being dropped as projectless.
+ */
+function scopeActiveId(machine: MachineDescriptor): string {
+  return machine.ref.host === "local" && machine.desktopId !== undefined
+    ? machineKey({ host: "remote", desktopId: machine.desktopId, env: machine.ref.env })
+    : machine.id;
 }
 
 /**

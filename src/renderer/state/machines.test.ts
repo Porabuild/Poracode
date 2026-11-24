@@ -190,4 +190,22 @@ describe("useAgentsScopeMachines", () => {
       "local/wsl:Ubuntu",
     ]);
   });
+
+  it("respects an explicit selectedId without leaking the Agents selection", () => {
+    useWslDistroListStore.setState({ distros: ["Ubuntu", "Debian"], loadedFor: "local" });
+    useRemoteServersStore.setState({ servers: [mac], runtime: {} });
+    useAppStore.setState({
+      projects: [
+        project({
+          id: "remote",
+          location: { kind: "posix", path: "/srv/repo", remoteServerId: "mac" },
+        }),
+      ],
+    });
+    useMachineSelectionStore.setState({ selectedMachineId: "local/wsl:Debian" });
+
+    const { result } = renderHook(() => useAgentsScopeMachines(useMachines(), "local"));
+
+    expect(result.current.map((machine) => machine.id)).toEqual(["local", "remote:mac"]);
+  });
 });

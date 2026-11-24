@@ -411,9 +411,10 @@ export function SettingsOverlay(props: { onClose: () => void; onBack?: () => voi
   );
   const machines = useMachines();
   const projectMachines = useAgentsScopeMachines(machines);
+  const crewsMachines = useAgentsScopeMachines(machines, crewsMachineId);
   const hosts = machines.filter((machine) => machine.ref.env.kind === "native");
   const crewScope = activeSection === "crews";
-  const scopedMachines = crewScope ? machines : hosts;
+  const scopedMachines = crewScope ? crewsMachines : hosts;
   const scopedMachineId = crewScope ? crewsMachineId : mcpMachineId;
   const mcpMachine = scopedMachines.find((machine) => machine.id === scopedMachineId);
   const showMcpHostBar =

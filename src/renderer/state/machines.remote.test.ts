@@ -11,6 +11,7 @@ import {
   type MachineDescriptor,
 } from "./machines";
 import { useRemoteServersStore } from "./remoteServersStore";
+import { projectRemoteProject } from "./remoteProjection";
 import { useSettingsHostStore } from "./settingsHostStore";
 
 const session = vi.hoisted(() => ({ remote: true }));
@@ -118,5 +119,36 @@ describe("useAgentsScopeMachines", () => {
     // The bridge host's own project keys to the local entry; the other paired
     // host keeps its remote id. Both projectless hosts are dropped.
     expect(result.current.map((machine) => machine.id)).toEqual(["local", "remote:pc"]);
+  });
+
+  it("keeps the bridge host's WSL distros that host its own active projects", () => {
+    bound.host = host("pc", "PC");
+    useRemoteServersStore.setState({
+      servers: [host("pc", "PC"), host("mac", "Mac")],
+      runtime: {},
+    });
+    useWslDistroListStore.setState({ distros: ["Debian", "Ubuntu"], loadedFor: "pc" });
+    useAppStore.setState({
+      projects: [
+        // Mirrored projects of the bridge host are stamped with its remote id,
+        // while the host itself is listed as the local entries.
+        projectRemoteProject("pc", {
+          id: "ubuntu",
+          name: "Ubuntu project",
+          createdAt: "2026-11-21T00:00:00.000Z",
+          location: {
+            kind: "wsl",
+            distro: "Ubuntu",
+            linuxPath: "/repo",
+            uncPath: "\\\\wsl$\\Ubuntu\\repo",
+          },
+        }),
+      ],
+    });
+
+    const { result } = renderHook(() => useAgentsScopeMachines(useMachines()));
+
+    // Debian hosts no project and Mac hosts none, so neither is offered.
+    expect(result.current.map((machine) => machine.id)).toEqual(["local", "local/wsl:Ubuntu"]);
   });
 });
