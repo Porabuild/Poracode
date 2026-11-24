@@ -217,7 +217,7 @@ export function ThreadDraftView(props: {
     : (composerDraftStorage()?.selection("project", project.id) ?? suppliedLastDraftConfig);
   const implicitMcpServers = useImplicitMcpServers();
   const gitBranch = useGitStore((s) => s.statuses[project.id]?.branch);
-  const settingsHost = isRemoteSession() ? undefined : project.remoteServerId;
+  const settingsHost = isRemoteSession() ? undefined : project.location.remoteServerId;
   const disabledAgents = useHostSetting(settingsHost, "disabledAgents");
   const crewMachineKey = machineKeyForLocation(project.location);
   const { crews: savedCrews, upsertCrew } = useCrewLibrary(crewMachineKey);
