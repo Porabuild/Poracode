@@ -17,7 +17,7 @@ import type {
 import type { SharedSettings } from "@/shared/settings";
 import { readBridge, isRemoteSession } from "@/renderer/bridge";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
-import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
+import { useHostSetting } from "@/renderer/state/pairedHostSettings";
 import { crewModelLabelOf } from "./crewComposerModel";
 import {
   statusToMenuProvider,
@@ -178,10 +178,10 @@ export function useCrewHelperOptions(machineKey?: string): CrewHelperOptions {
     : host
       ? pools.windows
       : nativeStatuses;
-  const disabledAgents = useSharedSettings((state) => state.disabledAgents);
-  const hiddenModels = useSharedSettings((state) => state.hiddenModels);
-  const crossagentPausedProviders = useSharedSettings((state) => state.crossagentPausedProviders);
-  const crossagentHiddenModels = useSharedSettings((state) => state.crossagentHiddenModels);
+  const disabledAgents = useHostSetting(host, "disabledAgents");
+  const hiddenModels = useHostSetting(host, "hiddenModels");
+  const crossagentPausedProviders = useHostSetting(host, "crossagentPausedProviders");
+  const crossagentHiddenModels = useHostSetting(host, "crossagentHiddenModels");
   const remote = isRemoteSession() || host !== undefined || distro !== undefined;
   const routingInputs = [
     nativeStatuses,

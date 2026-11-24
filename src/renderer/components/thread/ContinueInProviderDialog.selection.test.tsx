@@ -478,7 +478,8 @@ describe("ContinueInProviderDialog target family selection", () => {
   it("dismisses the dialog before opening Crews settings from the roster", () => {
     useSharedSettings.setState({ crews: [nightShift] } as never);
     const onClose = vi.fn<() => void>();
-    const openSettingsSection = vi.fn<(section: string, anchor?: string) => void>();
+    const openSettingsSection =
+      vi.fn<(section: string, anchor?: string, machineId?: string) => void>();
     const original = usePanelStore.getState().openSettingsSection;
     usePanelStore.setState({ openSettingsSection } as never);
     try {
@@ -488,7 +489,7 @@ describe("ContinueInProviderDialog target family selection", () => {
       act(() => roster().onEditInSettings());
 
       expect(onClose).toHaveBeenCalledTimes(1);
-      expect(openSettingsSection).toHaveBeenCalledWith("crews", "crews.crew-1");
+      expect(openSettingsSection).toHaveBeenCalledWith("crews", "crews.crew-1", "local");
     } finally {
       usePanelStore.setState({ openSettingsSection: original } as never);
     }

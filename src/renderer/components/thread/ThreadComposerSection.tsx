@@ -24,7 +24,12 @@ import { friendlyError } from "@/shared/messages";
 import { sendTerminalInput } from "../terminal/terminalInputQueue";
 import type { FollowUpBehavior } from "@/shared/settings";
 import { useThreadFollowUpQueue } from "@/renderer/state/threadFollowUpQueueStore";
-import { agentStatusForPresentation, hasSelectableReasoning } from "@/shared/agentSelection";
+import {
+  agentStatusForPresentation,
+  filterHiddenModels,
+  hasSelectableReasoning,
+  withModelVisible,
+} from "@/shared/agentSelection";
 import {
   canonicalProviderModelId,
   composerCapabilitiesForSession,
@@ -33,7 +38,7 @@ import {
   changeThreadConfig,
   clearThreadPendingSteer,
 } from "@/renderer/actions/threadRuntimeActions";
-import { openMcpServersSettings } from "@/renderer/actions/panelActions";
+import { openCrewsSettings, openMcpServersSettings } from "@/renderer/actions/panelActions";
 import { trackThreadAttachmentImport } from "@/renderer/actions/threadWindowActions";
 import { modelVisibilityKey } from "@/renderer/components/common/ProviderModelMenu/parts/providerIdentity";
 import { AttachmentBar } from "../composer/AttachmentBar";
@@ -618,16 +623,16 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
         ? s.worktreeStatuses[thread.worktreePath]?.branch
         : s.statuses[thread.projectId]?.branch),
   );
-  const hiddenModelIds = useSharedSettings(
-    (s) =>
-      s.hiddenModels[
-        modelVisibilityKey(
-          thread.agentKind,
-          presentationMode,
-          effectiveAgentStatus?.capabilities.runtimeLabel,
-        )
-      ],
+  const hiddenModelsKey = modelVisibilityKey(
+    thread.agentKind,
+    presentationMode,
+    effectiveAgentStatus?.capabilities.runtimeLabel,
   );
+  const hiddenModels = useHostSetting(
+    isRemoteSession() ? undefined : remoteDesktopId,
+    "hiddenModels",
+  );
+  const hiddenModelIds = hiddenModels[hiddenModelsKey];
   const modelPreferences = useSharedSettings((s) => s.providerModelPreferences[thread.agentKind]);
   const setProviderModelPreference = useSharedSettings((s) => s.setProviderModelPreference);
   const crewMachineKey = machineKeyForLocation(projectLocation);
@@ -716,7 +721,11 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
               kind: thread.agentKind,
               label: effectiveAgentStatus.label,
               ...(effectiveAgentStatus.icon ? { icon: effectiveAgentStatus.icon } : {}),
-              capabilities: effectiveAgentStatus.capabilities,
+              capabilities: withModelVisible(
+                filterHiddenModels(effectiveAgentStatus.capabilities, hiddenModelIds),
+                effectiveAgentStatus.capabilities,
+                lead.model,
+              ),
               presentationMode: "gui" as const,
             },
           ],
@@ -732,6 +741,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
           ...(crewHelperNote ? { helperNote: crewHelperNote } : {}),
           onBindingChange: (next: ThreadCrewBinding) =>
             changeThreadConfig(thread.id, { ...thread.config, crew: next }),
+          onEditInSettings: () => openCrewsSettings(binding.crewId, crewMachineKey),
           onLeadChange: (next: CrewMemberSelection) => {
             if (next.agentKind !== lead.agentKind) {
               useContinueInProviderStore.getState().request(thread.id);

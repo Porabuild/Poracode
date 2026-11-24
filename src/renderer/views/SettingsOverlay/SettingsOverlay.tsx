@@ -269,6 +269,7 @@ export function SettingsOverlay(props: { onClose: () => void; onBack?: () => voi
   const settingsDestinations = useSettingsShortcutDestinations();
   const requestedSection = usePanelStore((s) => s.settingsSection);
   const requestedAnchor = usePanelStore((s) => s.settingsAnchor);
+  const requestedMachineId = usePanelStore((s) => s.settingsMachineId);
   const clearSettingsSection = usePanelStore((s) => s.clearSettingsSection);
   const setActiveSettingsSection = usePanelStore((s) => s.setActiveSettingsSection);
   const [activeSection, setActiveSection] = useState<SettingsSection>(
@@ -289,7 +290,11 @@ export function SettingsOverlay(props: { onClose: () => void; onBack?: () => voi
   const [archiveMachineId, setArchiveMachineId] = useState(LOCAL_ARCHIVE_MACHINE_ID);
   const remoteSession = isRemoteSession();
   const [mcpMachineId, setMcpMachineId] = useState(LOCAL_NATIVE_MACHINE_KEY);
-  const [crewsMachineId, setCrewsMachineId] = useState(LOCAL_NATIVE_MACHINE_KEY);
+  const [crewsMachineId, setCrewsMachineId] = useState(
+    requestedSection === "crews" && requestedMachineId
+      ? requestedMachineId
+      : LOCAL_NATIVE_MACHINE_KEY,
+  );
   const firstServer = useRemoteServersStore((state) => state.servers[0]);
   const chooseSettingsHost = useSettingsHostStore((state) => state.choose);
   const selectedDesktop = useSettingsHostServer() ?? firstServer;
@@ -315,11 +320,21 @@ export function SettingsOverlay(props: { onClose: () => void; onBack?: () => voi
   // render phase can read it.
   const [prevRequestedSection, setPrevRequestedSection] = useState(requestedSection);
   const [prevRequestedAnchor, setPrevRequestedAnchor] = useState(requestedAnchor);
+  const [prevRequestedMachineId, setPrevRequestedMachineId] = useState(requestedMachineId);
   const [hadInitialRequest, setHadInitialRequest] = useState(requestedSection !== null);
-  if (prevRequestedSection !== requestedSection || prevRequestedAnchor !== requestedAnchor) {
+  if (
+    prevRequestedSection !== requestedSection ||
+    prevRequestedAnchor !== requestedAnchor ||
+    prevRequestedMachineId !== requestedMachineId
+  ) {
     setPrevRequestedSection(requestedSection);
     setPrevRequestedAnchor(requestedAnchor);
+    setPrevRequestedMachineId(requestedMachineId);
     if (requestedSection) {
+      if (requestedMachineId) {
+        if (requestedSection === "crews") setCrewsMachineId(requestedMachineId);
+        else setMcpMachineId(requestedMachineId);
+      }
       setScrollTarget((prev) =>
         requestedAnchor ? { anchor: requestedAnchor, token: (prev?.token ?? 0) + 1 } : null,
       );
