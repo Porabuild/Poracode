@@ -70,13 +70,8 @@ vi.mock("@/renderer/components/ui/provider", () => ({
 vi.mock("@/renderer/components/composer/ImageLightbox", () => ({
   ImageLightboxHost: () => null,
 }));
-vi.mock("@/renderer/hooks/useAppHydration", () => ({
-  useAppHydration: () => ({
-    initialLoading: false,
-    runtimeSnapshotsReady: true,
-    storeHydrated: true,
-    loadT0: 0,
-  }),
+vi.mock("@/renderer/windowApps/useQuickComposerHydration", () => ({
+  useQuickComposerHydration: () => ({ initialLoading: false }),
 }));
 vi.mock("@/renderer/analytics/useProductViewTracking", () => ({
   useStandaloneWindowViewTracking: () => undefined,

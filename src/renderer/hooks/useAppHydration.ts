@@ -8,6 +8,10 @@ import {
   isCompactClientRuntimeSurface,
 } from "@/renderer/clientRuntime";
 import { captureRendererException } from "@/renderer/diagnostics/sentry";
+import {
+  getAppStoreHydrationSnapshot,
+  subscribeToAppStoreHydration,
+} from "@/renderer/state/appStoreHydration";
 import { useAppStore } from "@/renderer/state/appStore";
 import {
   getRunningExperimentCandidateIds,
@@ -38,19 +42,6 @@ function scheduleIdle(work: () => void): IdleCallbackHandle {
   }
   const timeoutId = setTimeout(work, 2000);
   return { cancel: () => clearTimeout(timeoutId) };
-}
-
-function subscribeToAppStoreHydration(listener: () => void): () => void {
-  const unsubscribeHydrate = useAppStore.persist.onHydrate(listener);
-  const unsubscribeFinishHydration = useAppStore.persist.onFinishHydration(listener);
-  return () => {
-    unsubscribeHydrate();
-    unsubscribeFinishHydration();
-  };
-}
-
-function getAppStoreHydrationSnapshot(): boolean {
-  return useAppStore.persist.hasHydrated();
 }
 
 export function useAppHydration(

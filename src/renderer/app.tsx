@@ -87,11 +87,6 @@ const BrowserExtractWindowApp = lazy(() =>
     default: module.BrowserExtractWindowApp,
   })),
 );
-const QuickComposerWindowApp = lazy(() =>
-  import("@/renderer/windowApps/QuickComposerWindowApp").then((module) => ({
-    default: module.QuickComposerWindowApp,
-  })),
-);
 const SideChatWindowApp = lazy(() =>
   import("@/renderer/windowApps/SideChatWindowApp").then((module) => ({
     default: module.SideChatWindowApp,
@@ -115,7 +110,6 @@ const ThreadWindowApp = lazy(() =>
 export const STARTUP_RECOVERY_TIMEOUT_MS = 15_000;
 const windowKind = readBridge().windowKind;
 const isBrowserExtractWindow = windowKind === "browserExtract";
-const isQuickComposerWindow = windowKind === "quickComposer";
 const isMainWindow = windowKind === "main";
 const unsubscribeSideChatWindows = readBridge().onSideChatWindowsChanged?.((event) => {
   applyNativeSideChatOwnership(event, isMainWindow);
@@ -464,13 +458,6 @@ export function App() {
     return (
       <Suspense>
         <BrowserExtractWindowApp />
-      </Suspense>
-    );
-  }
-  if (isQuickComposerWindow) {
-    return (
-      <Suspense>
-        <QuickComposerWindowApp />
       </Suspense>
     );
   }
