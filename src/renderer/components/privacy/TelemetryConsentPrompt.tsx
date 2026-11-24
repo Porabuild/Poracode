@@ -7,6 +7,7 @@ import { PORACODE_TELEMETRY_DOC_URL } from "@/shared/communityLinks";
 import { isRemoteSession, readBridge } from "@/renderer/bridge";
 import { isBrowserClientRuntime } from "@/renderer/clientRuntime";
 import { ToggleSwitch } from "@/renderer/components/common";
+import { useAppStore } from "@/renderer/state/appStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { isWelcomeSeen } from "@/renderer/state/welcomeGateStore";
 import { isTelemetryHardDisabled } from "@/renderer/analytics/telemetryConsentState";
@@ -86,6 +87,11 @@ export function TelemetryConsentPrompt() {
   const hydrated = useSharedSettings((s) => s.sharedSettingsHydrated);
   const consentDecided = useSharedSettings((s) => s.privacy?.consentDecided ?? false);
   const setTelemetryConsent = useSharedSettings((s) => s.setTelemetryConsent);
+  // When a thread or draft is open, its bottom-docked composer owns the
+  // bottom-right; lift the card so the composer's send row stays usable.
+  const viewHasComposer = useAppStore(
+    (s) => s.view.kind === "draft" || s.view.kind === "thread" || s.view.kind === "experiment",
+  );
   const [dismissed, setDismissed] = useState(false);
   // First-launch users answer on the welcome screen instead; this prompt is
   // for installs that already saw it (welcome seen at mount).
@@ -141,8 +147,11 @@ export function TelemetryConsentPrompt() {
       // A passive ask must not steal focus from the user's work; announce it
       // politely instead. Settings -> Privacy remains the explicit path.
       aria-live="polite"
-      data-telemetry-consent-prompt=""
-      className="m-page-edge-action fixed right-4 bottom-[calc(1rem+env(safe-area-inset-bottom))] z-40 flex w-[380px] max-w-[calc(100vw-2rem)] flex-col gap-3 rounded-4xl border border-[var(--hairline)] bg-overlay p-4 shadow-overlay"
+      className={`m-page-edge-action fixed right-4 ${
+        viewHasComposer
+          ? "bottom-[calc(10rem+env(safe-area-inset-bottom))]"
+          : "bottom-[calc(1rem+env(safe-area-inset-bottom))]"
+      } z-40 flex w-[380px] max-w-[calc(100vw-2rem)] flex-col gap-3 rounded-4xl border border-[var(--hairline)] bg-overlay p-4 shadow-overlay`}
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 space-y-1">

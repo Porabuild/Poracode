@@ -3783,13 +3783,6 @@ html[data-compact-layout] .m-page-edge-action {
   right: var(--m-page-inline);
 }
 
-/* Lift the telemetry consent card above a bottom-docked composer so its send
-   row stays clickable while the opt-in decision is pending. Without a composer
-   (Home, settings) the card stays at the bottom-right corner. */
-body:has([data-poracode-composer]) [data-telemetry-consent-prompt] {
-  bottom: calc(10rem + env(safe-area-inset-bottom));
-}
-
 /* The compact header already names the active settings section. Keep the body
    focused on the controls and use a denser type/spacing rhythm than desktop. */
 .m-settings__body .settings-page__header:not(:has(.settings-page__actions)) {
