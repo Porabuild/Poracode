@@ -21,6 +21,8 @@ Match the canonical dialog look — do not restyle. Reference: `CreatePrModal`, 
 - **Form / input dialogs:** HeroUI `Modal` (`Modal.Backdrop` → `Container` → `Dialog`), kept compact (`Dialog` `sm:max-w-[~460px]`, `Modal.Body className="p-4"` with inner `gap-3`). Include a `Modal.CloseTrigger`.
 - **Footer buttons:** Cancel is a muted ghost — `<Button slot="close" variant="ghost" className="text-muted">Cancel</Button>`. The confirm action is the white tertiary — `variant="tertiary"`. Do not use `variant="primary"` for the action in these dialogs.
 - **Destructive confirms:** use the shared `ConfirmDialog` (`AlertDialog`) with `confirmVariant="danger"`; its Cancel is `variant="tertiary"` by convention.
+- **Phone-width (compact) layout:** every `Modal` and `AlertDialog` fills the viewport — header and footer stay pinned, the body scrolls, corners are square — through the one shared rule in `src/renderer/components/common/mobileModals.css`. It reaches any `Dialog` that is a direct child of its `Container`, whatever desktop size or width cap the dialog passes, so add no compact sizing, padding, or radius classes to an individual dialog. Pinned by `mobileModals.chromium.test.tsx` (`bun run test:browser`).
+- That rule follows the compact-layout marker (`html[data-compact-layout]`), not the viewport width. Electron never enters the compact layout, so a narrow desktop window keeps the centered card, and emulating phone metrics on the Electron app proves nothing about phones: check compact behavior in a web or PWA client at a phone width.
 - Keep dialog body height stable — avoid controls that appear/disappear as the user types (fold previews into an existing control rather than adding a conditional line).
 
 ## Code Organization (Renderer)

@@ -527,6 +527,20 @@ async function pluginsSectionDeepDive(client) {
     );
     return { pluginsScreenshotPath };
   } finally {
+    // An enable toggle makes the host announce a plugin inventory change, and the renderer drops
+    // its plugin list until the rescan returns. The package is still missing when this cleanup
+    // runs right after the second toggle, so wait for the list instead of skipping the restore.
+    await waitForValue(
+      () =>
+        evaluate(
+          client,
+          `Object.values(window.__poracodeDev.stores.plugins.getState().pluginsByScope)
+            .flat()
+            .some((candidate) => candidate.name === ${JSON.stringify(pluginId)})`,
+        ),
+      Boolean,
+      "Browser Tools plugin to be listed again after the toggle",
+    );
     await evaluate(
       client,
       `(() => {
