@@ -2138,12 +2138,12 @@ describe("App", () => {
       projectId: "project-1",
       worktreePaths: ["C:\\Users\\demo\\.poracode\\worktrees\\repo-12345678\\feature-x"],
     });
-    expect(bridge.getGitStatus).toHaveBeenCalledWith({
-      projectLocation: {
-        kind: "windows",
-        path: "C:\\Users\\demo\\.poracode\\worktrees\\repo-12345678\\feature-x",
-      },
-    });
+    await waitFor(() =>
+      expect(bridge.gitWorktreeStatusBatch).toHaveBeenCalledWith({
+        projectLocation: { kind: "windows", path: "C:\\repo" },
+        worktreePaths: ["C:\\Users\\demo\\.poracode\\worktrees\\repo-12345678\\feature-x"],
+      }),
+    );
     await waitFor(() => {
       expect(refresh).toHaveBeenCalledWith(
         expect.objectContaining({ id: "project-1" }),

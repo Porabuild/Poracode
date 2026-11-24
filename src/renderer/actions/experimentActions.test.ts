@@ -135,7 +135,7 @@ const mocks = vi.hoisted(() => ({
       (project: unknown, path: string, branch?: string, ownerToken?: string) => Promise<boolean>
     >(),
   prepareWorktreeRemoval: vi.fn<(project: unknown, path: string) => Promise<void>>(),
-  primeWorktreeGitState: vi.fn<(project: unknown, path: string) => Promise<void>>(),
+  primeWorktreeGitStates: vi.fn<(project: unknown, paths: readonly string[]) => Promise<void>>(),
   runWorktreeSetupScript:
     vi.fn<
       (
@@ -177,7 +177,7 @@ vi.mock("./worktreeActions", () => ({
   prepareWorktreeRemoval: mocks.prepareWorktreeRemoval,
 }));
 vi.mock("./worktreeLaunchActions", () => ({
-  primeWorktreeGitState: mocks.primeWorktreeGitState,
+  primeWorktreeGitStates: mocks.primeWorktreeGitStates,
   runWorktreeSetupScript: mocks.runWorktreeSetupScript,
 }));
 vi.mock("@/renderer/state/gitRefresh", () => ({
@@ -295,6 +295,7 @@ describe("experimentActions", () => {
     useSharedSettings.setState({ disabledAgents: [], titleGenProvider: "disabled" });
     useThreadLiveWorkflowStore.setState({ liveThreadIds: new Set<string>() });
     mocks.runWorktreeSetupScript.mockReset().mockResolvedValue(undefined);
+    mocks.primeWorktreeGitStates.mockReset().mockResolvedValue(undefined);
     mocks.bridge.gitListBranches.mockResolvedValue({
       current: "main",
       branches: [{ name: "main", current: true, commit: BASE_COMMIT, isRemote: false }],
@@ -923,6 +924,10 @@ describe("experimentActions", () => {
       claude: "opus · Claude",
     });
     expect(mocks.performInitialThreadLaunch).toHaveBeenCalledTimes(2);
+    expect(mocks.primeWorktreeGitStates).toHaveBeenCalledExactlyOnceWith(project, [
+      "/repo/one",
+      "/repo/two",
+    ]);
     expect(
       mocks.performInitialThreadLaunch.mock.calls.map(
         (call) => (call[0] as { thread: Thread }).thread.worktreePath,
@@ -1116,6 +1121,131 @@ describe("experimentActions", () => {
         ),
     ).toMatchObject({ worktreeState: "pending" });
     expect(useAppStore.getState().threads).toHaveLength(3);
+  });
+
+  it("removes failed candidates in one bulk command before rolling back", async () => {
+    let worktrees: Array<{ path: string; branch: string }> = [];
+    const owners = new Map<string, string>();
+    mocks.bridge.createExperimentWorktrees.mockImplementationOnce(async (payload) => {
+      worktrees = payload.candidates
+        .map((candidate: any, index: number) => ({
+          path: `/repo/${index}`,
+          branch: candidate.branch,
+        }))
+        .slice(0, 1);
+      for (const candidate of payload.candidates) {
+        owners.set(candidate.branch, candidate.ownerToken);
+      }
+      return {
+        candidates: payload.candidates.map((candidate: any, index: number) =>
+          index === 0
+            ? { ...candidate, path: "/repo/0" }
+            : { ...candidate, error: `creation failed ${index}` },
+        ),
+      };
+    });
+    mocks.bridge.gitListWorktrees.mockImplementation(async () => ({ worktrees }));
+    mocks.bridge.gitGetWorktreeOwner.mockImplementation(async (payload) => ({
+      ownerToken: owners.get((payload as { branch: string }).branch) ?? null,
+    }));
+    const payloads: Array<{ candidates: Array<{ threadId: string }> }> = [];
+    mocks.bridge.removeExperimentWorktrees.mockImplementation(async (payload) => {
+      payloads.push(payload);
+      return { candidates: payload.candidates.map((candidate: any) => ({ ...candidate })) };
+    });
+
+    await expect(
+      launchExperiment({
+        projectId: project.id,
+        prompt: "Implement it",
+        baseBranch: "main",
+        candidates: [
+          { agentKind: "codex", config: { model: "gpt-5" }, presentationMode: "gui" },
+          { agentKind: "claude", config: { model: "opus" }, presentationMode: "terminal" },
+          { agentKind: "grok", config: { model: "grok-4" }, presentationMode: "terminal" },
+        ],
+      }),
+    ).resolves.toBeNull();
+
+    expect(payloads[0]?.candidates).toHaveLength(2);
+    expect(payloads[1]?.candidates).toHaveLength(1);
+    expect(mocks.performInitialThreadLaunch).not.toHaveBeenCalled();
+  });
+
+  it("keeps the experiment recoverable when the bulk cleanup host call fails", async () => {
+    let worktrees: Array<{ path: string; branch: string }> = [];
+    const owners = new Map<string, string>();
+    mocks.bridge.createExperimentWorktrees.mockImplementationOnce(async (payload) => {
+      worktrees = payload.candidates
+        .map((candidate: any, index: number) => ({
+          path: `/repo/${index}`,
+          branch: candidate.branch,
+        }))
+        .slice(0, 1);
+      for (const candidate of payload.candidates) {
+        owners.set(candidate.branch, candidate.ownerToken);
+      }
+      return {
+        candidates: payload.candidates.map((candidate: any, index: number) =>
+          index === 0
+            ? { ...candidate, path: "/repo/0" }
+            : { ...candidate, error: `creation failed ${index}` },
+        ),
+      };
+    });
+    mocks.bridge.gitListWorktrees.mockImplementation(async () => ({ worktrees }));
+    mocks.bridge.gitGetWorktreeOwner.mockImplementation(async (payload) => ({
+      ownerToken: owners.get((payload as { branch: string }).branch) ?? null,
+    }));
+    mocks.bridge.removeExperimentWorktrees.mockRejectedValue(new Error("supervisor unavailable"));
+
+    const id = await launchExperiment({
+      projectId: project.id,
+      prompt: "Implement it",
+      baseBranch: "main",
+      candidates: [
+        { agentKind: "codex", config: { model: "gpt-5" }, presentationMode: "gui" },
+        { agentKind: "claude", config: { model: "opus" }, presentationMode: "terminal" },
+        { agentKind: "grok", config: { model: "grok-4" }, presentationMode: "terminal" },
+      ],
+    });
+
+    expect(id).toBeTruthy();
+    expect(mocks.bridge.removeExperimentWorktrees).toHaveBeenCalledTimes(2);
+    expect(useExperimentStore.getState().experiments[id!]?.candidates).toHaveLength(3);
+    expect(useAppStore.getState().threads).toHaveLength(3);
+    expect(useAppStore.getState().threads.every((thread) => thread.status === "error")).toBe(true);
+    expect(mocks.performInitialThreadLaunch).not.toHaveBeenCalled();
+    expect(mocks.authority.sendExperimentCommand).toHaveBeenCalledWith(
+      expect.objectContaining({ kind: "replace" }),
+      expect.objectContaining({ commandId: expect.any(String) }),
+    );
+  });
+
+  it("leaves candidates in place when the worktree list cannot be verified", async () => {
+    mocks.bridge.createExperimentWorktrees.mockImplementationOnce(async (payload) => ({
+      candidates: payload.candidates.map((candidate: any, index: number) =>
+        index === 2
+          ? { ...candidate, error: "creation failed" }
+          : { ...candidate, path: `/repo/${index}` },
+      ),
+    }));
+    mocks.bridge.gitListWorktrees.mockRejectedValue(new Error("git unavailable"));
+
+    const id = await launchExperiment({
+      projectId: project.id,
+      prompt: "Implement it",
+      baseBranch: "main",
+      candidates: [
+        { agentKind: "codex", config: { model: "gpt-5" }, presentationMode: "gui" },
+        { agentKind: "claude", config: { model: "opus" }, presentationMode: "terminal" },
+        { agentKind: "grok", config: { model: "grok-4" }, presentationMode: "terminal" },
+      ],
+    });
+
+    expect(id).toBeTruthy();
+    expect(mocks.bridge.removeExperimentWorktrees).not.toHaveBeenCalled();
+    expect(mocks.prepareWorktreeRemoval).not.toHaveBeenCalled();
   });
 
   it("stops cleanly when the base branches cannot be loaded", async () => {
@@ -1680,6 +1810,49 @@ describe("experimentActions", () => {
     expect(mocks.performWorktreeRemoval).toHaveBeenCalledTimes(2);
     expect(useExperimentStore.getState().experiments["experiment-1"]).toBeUndefined();
     expect(useAppStore.getState().threads).toEqual([]);
+  });
+
+  it("asks the host to remove discard worktrees when the worktree list cannot be read", async () => {
+    useAppStore.setState((state) => ({
+      ...state,
+      threads: [
+        makeThread("thread-1", "/repo/one", "poracode/one"),
+        makeThread("thread-2", "/repo/two", "poracode/two"),
+      ],
+    }));
+    useExperimentStore.getState().addExperiment(experiment());
+    mocks.bridge.gitListWorktrees.mockRejectedValue(new Error("git unavailable"));
+    mocks.bridge.removeExperimentWorktrees.mockImplementation(async (payload) => ({
+      candidates: payload.candidates.map((candidate: any) => ({ ...candidate })),
+    }));
+
+    await expect(discardExperiment("experiment-1")).resolves.toBe(true);
+
+    expect(mocks.bridge.removeExperimentWorktrees).toHaveBeenCalledOnce();
+    const payload = mocks.bridge.removeExperimentWorktrees.mock.calls[0]![0] as {
+      candidates: Array<{ worktreePath?: string }>;
+    };
+    expect(payload.candidates.every((candidate) => candidate.worktreePath === undefined)).toBe(
+      true,
+    );
+    expect(useExperimentStore.getState().experiments["experiment-1"]).toBeUndefined();
+  });
+
+  it("keeps the experiment when the host refuses discard cleanup", async () => {
+    useAppStore.setState((state) => ({
+      ...state,
+      threads: [
+        makeThread("thread-1", "/repo/one", "poracode/one"),
+        makeThread("thread-2", "/repo/two", "poracode/two"),
+      ],
+    }));
+    useExperimentStore.getState().addExperiment(experiment());
+    mocks.bridge.removeExperimentWorktrees.mockRejectedValue(new Error("supervisor unavailable"));
+
+    await expect(discardExperiment("experiment-1")).resolves.toBe(false);
+
+    expect(useExperimentStore.getState().experiments["experiment-1"]).toBeDefined();
+    expect(useAppStore.getState().threads).toHaveLength(2);
   });
 
   it("projects the removal only after the host confirms it and discard cleanup finishes", async () => {

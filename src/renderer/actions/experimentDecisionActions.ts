@@ -654,7 +654,15 @@ export async function discardExperiment(experimentId: string): Promise<boolean> 
   // Close sessions and remove the local worktrees first, then let the host
   // confirm the retirement + record/row deletion. A host refusal leaves every
   // local row and the durable record intact.
-  const cleanupResults = await cleanupExperimentCandidates(project, experiment.candidates);
+  let cleanupResults: boolean[];
+  try {
+    cleanupResults = await cleanupExperimentCandidates(project, experiment.candidates);
+  } catch (error) {
+    // The worktrees could not be verified or the host refused the cleanup:
+    // keep the durable record so the retry path stays available.
+    toast.danger(friendlyError(error));
+    return false;
+  }
   const cleanupComplete = cleanupResults.every(Boolean);
   try {
     await commitManagedExperimentRemoval(experimentId, "delete");

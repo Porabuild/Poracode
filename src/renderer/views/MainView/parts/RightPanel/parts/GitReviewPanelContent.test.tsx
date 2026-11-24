@@ -1,26 +1,47 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
-import type { Project, ProjectLocation } from "@/shared/contracts";
+import type { Project, ProjectLocation, Thread } from "@/shared/contracts";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useAppStore } from "@/renderer/state/appStore";
+import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { GitReviewPanelContent } from "./GitReviewPanelContent";
+
+const threadActions = vi.hoisted(() => ({
+  archiveThreads: vi.fn<(threads: readonly Thread[]) => void>(),
+}));
+
+vi.mock("@/renderer/actions/threadActions", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/renderer/actions/threadActions")>()),
+  archiveThreads: threadActions.archiveThreads,
+}));
 
 vi.mock("@/renderer/components/common/PixelLoader", () => ({
   PixelLoader: () => <span>loading</span>,
 }));
 
 const gitPanelProps = vi.hoisted(() => ({
-  current: null as { statusKey?: string; locationOverride?: ProjectLocation } | null,
+  current: null as {
+    statusKey?: string;
+    locationOverride?: ProjectLocation;
+    onRemove?: () => void;
+  } | null,
 }));
 
 vi.mock("@/renderer/views/GitReviewOverlay/parts/GitReviewPanel", async () => {
   const React = await vi.importActual<typeof import("react")>("react");
   return {
-    GitReviewPanel: (props: { statusKey?: string; locationOverride?: ProjectLocation }) => {
+    GitReviewPanel: (props: {
+      statusKey?: string;
+      locationOverride?: ProjectLocation;
+      onRemove?: () => void;
+    }) => {
       gitPanelProps.current = props;
       const [value, setValue] = React.useState("");
       return (
         <div>
           <div data-testid="status-key">{props.statusKey ?? "main"}</div>
+          <button type="button" onClick={props.onRemove}>
+            remove worktree
+          </button>
           <input
             aria-label="Commit message"
             value={value}
@@ -40,9 +61,49 @@ describe("GitReviewPanelContent", () => {
     location: { kind: "windows", path: "C:\\repo" },
   };
 
+  const makeThread = (id: string, worktreePath: string): Thread => ({
+    id,
+    projectId: project.id,
+    title: id,
+    agentKind: "codex",
+    config: { model: "gpt-5.4" },
+    status: "idle",
+    attention: "none",
+    canResumeWithConfig: false,
+    worktreePath,
+    worktreeBranch: "feature/x",
+    archived: false,
+    done: false,
+    starred: false,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  });
+
   beforeEach(() => {
     gitPanelProps.current = null;
+    threadActions.archiveThreads.mockReset();
     useAppStore.setState({ projects: [project], threads: [] });
+  });
+
+  it("archives every worktree sibling with one bulk action", async () => {
+    const worktreePath = "C:\\repo-a";
+    const threads = [makeThread("t1", worktreePath), makeThread("t2", worktreePath)];
+    useAppStore.setState({ projects: [project], threads });
+    useSharedSettings.setState({ threadRemoveAction: "archive" });
+    const onClose = vi.fn<() => void>();
+
+    render(
+      <GitReviewPanelContent
+        gitPanelContext={{ projectId: project.id, worktreePath }}
+        onClose={onClose}
+        onExpandToOverlay={() => undefined}
+      />,
+    );
+
+    fireEvent.click(await screen.findByRole("button", { name: "remove worktree" }));
+
+    expect(onClose).toHaveBeenCalledOnce();
+    expect(threadActions.archiveThreads).toHaveBeenCalledExactlyOnceWith(threads);
   });
 
   it("remounts git review state when switching worktrees", async () => {

@@ -15,6 +15,7 @@ import { readProjectEnvironmentLabel } from "@/renderer/state/projectGroups/envi
 import {
   renameProject,
   setProjectPluginOverride,
+  setProjectPluginOverrides,
   updateProjectIcon,
   updateProjectScripts,
   updateProjectSearchSettings,
@@ -197,13 +198,13 @@ export function setProjectPluginOverridesEverywhere(
   overrides: Readonly<Record<string, boolean>>,
 ): void {
   applyToProjectEnvironments(projectId, (row) => {
-    const names = new Set([...Object.keys(row.pluginOverrides ?? {}), ...Object.keys(overrides)]);
-    for (const name of names) {
-      setProjectPluginOverride(
-        row.id,
-        name,
-        Object.hasOwn(overrides, name) ? overrides[name]! : null,
-      );
+    // One whole-map write per environment: a loop of per-key writes would
+    // fire K commands and let later keys race earlier snapshots.
+    const merged = { ...(row.pluginOverrides ?? {}) };
+    for (const name of Object.keys(merged)) {
+      if (!Object.hasOwn(overrides, name)) delete merged[name];
     }
+    for (const [name, enabled] of Object.entries(overrides)) merged[name] = enabled;
+    setProjectPluginOverrides(row.id, merged);
   });
 }

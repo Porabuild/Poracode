@@ -22,6 +22,7 @@ import { useFileEditorStore } from "@/renderer/state/fileEditorStore";
 import { useGitStore } from "@/renderer/state/gitStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import { useExperimentStore } from "@/renderer/state/experimentStore";
+import { closeThreads } from "@/renderer/utils/shellUtils";
 import { entityHost, intentHost } from "@/renderer/state/entityHost";
 import { isRemoteProjectUnreachable } from "@/renderer/state/remoteServers/reachability";
 import {
@@ -171,14 +172,31 @@ export function setProjectPluginOverride(
   const project = useAppStore.getState().projects.find((candidate) => candidate.id === projectId);
   if (!project) return;
   const { [pluginName]: _, ...rest } = project.pluginOverrides ?? {};
-  const pluginOverrides = enabled === null ? rest : { ...rest, [pluginName]: enabled };
-  if (areToolOverridesEqual(pluginOverrides, project.pluginOverrides ?? {})) return;
-  const apply = () =>
-    useAppStore.getState().updateProjectPluginOverrides(projectId, pluginOverrides);
+  setProjectPluginOverrides(
+    projectId,
+    enabled === null ? rest : { ...rest, [pluginName]: enabled },
+  );
+}
+
+/**
+ * Replace a project's whole plugin override map in one host write. Callers
+ * that reconcile every switch between linked environments must not send one
+ * command per plugin name: the per-key writes race each other and each one
+ * carries the full map anyway.
+ */
+export function setProjectPluginOverrides(
+  projectId: string,
+  pluginOverrides: Readonly<Record<string, boolean>>,
+): void {
+  const project = useAppStore.getState().projects.find((candidate) => candidate.id === projectId);
+  if (!project) return;
+  const next = { ...pluginOverrides };
+  if (areToolOverridesEqual(next, project.pluginOverrides ?? {})) return;
+  const apply = () => useAppStore.getState().updateProjectPluginOverrides(projectId, next);
   if (
     dispatchHostProjectMutation(
       project,
-      { pluginOverrides: nonEmptyPluginOverrides(pluginOverrides) ?? null },
+      { pluginOverrides: nonEmptyPluginOverrides(next) ?? null },
       apply,
     )
   )
@@ -406,11 +424,10 @@ async function deleteProjectAsync(projectId: string): Promise<void> {
     // The host cascades its threads and broadcasts membership; its catalog
     // removes the rows. This client's own surfaces close once the host
     // confirmed the removal.
-    const threadIds = projectThreadIds(projectId);
     try {
       await presentProjectRemoval(project, async () => {
         await host.runProjectCommand({ kind: "remove", projectId: host.hostId });
-        closeProjectSurfaces(projectId, threadIds);
+        closeProjectSurfaces(projectId);
       });
     } catch (error) {
       toast.danger(friendlyError(error));
@@ -418,32 +435,17 @@ async function deleteProjectAsync(projectId: string): Promise<void> {
     return;
   }
   // A removal the host already applied, mirrored into this client.
-  const threadIds = projectThreadIds(projectId);
   useAppStore.getState().deleteProject(projectId);
   useExperimentStore.getState().removeProjectExperiments(projectId);
-  closeProjectSurfaces(projectId, threadIds);
+  closeProjectSurfaces(projectId);
 }
 
-function projectThreadIds(projectId: string): string[] {
-  return useAppStore
-    .getState()
-    .threads.filter((thread) => thread.projectId === projectId)
-    .map((thread) => thread.id);
-}
-
-/** Closes this client's sessions, panels and caches for a removed project. */
-function closeProjectSurfaces(projectId: string, threadIds: readonly string[]): void {
-  for (const threadId of threadIds) {
-    void readBridge()
-      .closeThread({ threadId })
-      .catch(() => undefined);
-  }
+/** Closes this client's dev-terminal tabs, panels and caches for a removed project. */
+function closeProjectSurfaces(projectId: string): void {
+  // The owning host already retired every project thread with the removal
+  // command, so re-sending one close per thread only adds round trips.
   const termStore = useDevTerminalStore.getState();
-  for (const tabId of termStore.removeTabsForProject(projectId)) {
-    void readBridge()
-      .closeThread({ threadId: tabId })
-      .catch(() => undefined);
-  }
+  void closeThreads(termStore.removeTabsForProject(projectId));
   if (termStore.source === "project" && termStore.activeProjectId === projectId) {
     termStore.closePanel();
   }

@@ -267,6 +267,7 @@ describe.skipIf(!sqliteAvailable)("experiment authority lifecycle (real sqlite)"
           timeline.push("close_await_started");
           await closeGate;
         }
+        return { confirmed: true };
       },
       deleteProject: (projectId) => {
         timeline.push("delete_project");
