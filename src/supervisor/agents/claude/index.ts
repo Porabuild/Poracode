@@ -35,7 +35,12 @@ import {
   claudeExtraArgsPosition,
   rewriteClaudeLaunchArgsForConfig,
 } from "./argv";
-import { claudeContextWindowEnv } from "./contextWindow";
+import {
+  claudeContextSizeCapabilities,
+  claudeContextWindowEnv,
+  CLAUDE_LONG_CONTEXT_SIZES,
+  isClaudeExternalLongContextModel,
+} from "./contextWindow";
 import { claudeCapabilities, claudeDetectionSpec, probeClaudeStatus } from "./detection";
 import { probeClaudeCapabilities } from "./probe";
 import { claudeSkillInvocationFor, claudeSkillText, leadingSkill } from "./skillPrompt";
@@ -121,6 +126,11 @@ function resolveInstanceEnv(
  * Profile effort lists keep `ultracode` as a permission rather than a tier: an
  * allow-list without it hides the ultracode toggle, and a per-model list with
  * it offers the toggle for that external model.
+ *
+ * A picker-only external model never reaches SDK discovery, so an id that
+ * declares a 1M maximum (`[1m]`) is given the working windows discovery would
+ * derive for it: the provider's configured windows, resolved from
+ * `agentSettings`.
  */
 export function overrideProfileCapabilities(
   base: AgentCapability,
@@ -128,6 +138,7 @@ export function overrideProfileCapabilities(
   efforts: readonly string[] | undefined,
   defaultEffort: string | undefined,
   modelEfforts: Readonly<Record<string, readonly string[]>> | undefined,
+  agentSettings?: Record<string, boolean | string>,
 ): AgentCapability {
   const keep = (list: readonly string[], allowed: ReadonlySet<string>) =>
     list.filter((effort) => allowed.has(effort));
@@ -157,14 +168,31 @@ export function overrideProfileCapabilities(
   if (models && models.length > 0) {
     const merged = new Map(caps.models.map((model) => [model.id, model]));
     const configuredIds = new Set<string>();
+    // Discovery already answered for a model it lists; keep that answer.
+    const seededContextSizes: Record<string, string[]> = {};
     for (const model of models) {
       const id = model.id.trim();
       if (!id || configuredIds.has(id)) continue;
       configuredIds.add(id);
       // Explicit profile labels take precedence over SDK alias display names.
       merged.set(id, { id, label: model.label?.trim() || id });
+      if (isClaudeExternalLongContextModel(id) && !caps.modelContextSizes?.[id]) {
+        seededContextSizes[id] = CLAUDE_LONG_CONTEXT_SIZES;
+      }
     }
     caps = { ...caps, models: [...merged.values()] };
+    if (Object.keys(seededContextSizes).length > 0) {
+      caps = {
+        ...caps,
+        ...claudeContextSizeCapabilities(
+          {
+            ...caps,
+            modelContextSizes: { ...caps.modelContextSizes, ...seededContextSizes },
+          },
+          agentSettings,
+        ),
+      };
+    }
   }
 
   if (defaultEffort && caps.efforts.includes(defaultEffort)) {
@@ -389,6 +417,7 @@ export function createClaudeAdapter(options: ClaudeAdapterOptions = {}): AgentAd
           options.efforts,
           options.defaultEffort,
           options.modelEfforts,
+          ctx?.agentSettings,
         ),
       };
     },

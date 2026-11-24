@@ -17701,8 +17701,8 @@ msgid "Single pass"
 msgstr "단일 실행"
 
 #: src/renderer/components/providers/claude/ContextWindowSettings.tsx
-msgid "Sizes shown for 1M Claude models. Choose any size from 100k to 1M; new chats default to 1M when available."
-msgstr "1M Claude 모델에 표시되는 크기입니다. 100k에서 1M 사이의 크기를 선택하세요. 새 채팅은 가능한 경우 기본적으로 1M을 사용합니다."
+msgid "Sizes shown for models with a 1M context window, including external profile models whose id ends in [1m]. Choose any size from 100k to 1M; new chats default to 1M when available."
+msgstr "1M 컨텍스트 창이 있는 모델(ID가 [1m]으로 끝나는 외부 프로필 모델 포함)에 표시되는 크기입니다. 100k에서 1M 사이의 크기를 선택하세요. 새 채팅은 가능한 경우 기본적으로 1M을 사용합니다."
 
 #: src/renderer/components/providers/settings/CodexProviderSettings.tsx
 msgid "Sizes shown in the Codex composer. Compaction starts automatically at 95% of the selected window. New chats default to 400k when that size is in the list."

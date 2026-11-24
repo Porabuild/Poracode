@@ -70,7 +70,8 @@ function makeSpawnedProcess(): SpawnedProcess {
   } as unknown as SpawnedProcess;
 }
 
-function createProbeQuery(): Query {
+/** `init` layers fields over the init message a bare CLI returns. */
+function createProbeQuery(init: Record<string, unknown> = {}): Query {
   let closed = false;
   return {
     async next(): Promise<IteratorResult<SDKMessage>> {
@@ -94,6 +95,7 @@ function createProbeQuery(): Query {
     applyFlagSettings: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
     initializationResult: vi.fn<() => Promise<unknown>>().mockResolvedValue({
       commands: [{ name: "help", description: "Show help" }],
+      ...init,
     }),
     supportedCommands: vi.fn<() => Promise<unknown[]>>().mockResolvedValue([]),
     supportedModels: vi.fn<() => Promise<unknown[]>>().mockResolvedValue([]),
@@ -268,14 +270,18 @@ describe("claudeCapabilitiesFromSdkModels", () => {
     }
   });
 
-  it("does not offer long-context limits for 200k Claude models or custom profile IDs", () => {
+  it("keeps 200k Claude models fixed and makes an external [1m] id a selectable window", () => {
     const capabilities = claudeCapabilitiesFromSdkModels([
       { value: "claude-sonnet-4-5", displayName: "Sonnet 4.5", description: "" },
       { value: "glm-5.2[1m]", displayName: "GLM", description: "" },
+      { value: "kimi-for-coding", displayName: "Kimi", description: "" },
     ]);
     expect(capabilities?.modelContextSizes?.["claude-sonnet-4-5"]).toEqual(["200k"]);
     expect(capabilities?.models).toContainEqual({ id: "glm-5.2[1m]", label: "GLM" });
-    expect(capabilities?.modelContextSizes?.["glm-5.2[1m]"]).toEqual(["1m"]);
+    // The [1m] id is the provider's 1M variant: a working window to choose.
+    expect(capabilities?.modelContextSizes?.["glm-5.2[1m]"]).toEqual(["400k", "1m"]);
+    // An external id without the suffix keeps its fixed window.
+    expect(capabilities?.modelContextSizes?.["kimi-for-coding"]).toEqual(["1m"]);
   });
 
   it("maps the Claude Code 2.1.219 Opus 5 capability payload", () => {
@@ -364,6 +370,22 @@ describe("Claude SDK probe process handling", () => {
     });
     expect(result?.contextSizes).toContainEqual({ id: "512k", label: "512k" });
     expect(result?.modelContextSizes?.["claude-fable-5-1"]).toEqual(["400k", "512k", "1m"]);
+  });
+
+  it("offers saved custom windows to an external [1m] model the SDK lists", async () => {
+    mockSdk.query.mockReturnValue(
+      createProbeQuery({
+        // The profile names the external model in a default slot, so the SDK lists it.
+        models: [{ value: "opus", resolvedModel: "glm-5.3-flash[1m]", displayName: "GLM" }],
+      }),
+    );
+    const result = await probeClaudeCapabilities({
+      location: { kind: "posix", path: "/tmp" },
+      executablePath: "claude",
+      agentSettings: { contextWindows: '["400k","600k","1m"]' },
+    });
+    expect(result?.modelContextSizes?.["glm-5.3-flash[1m]"]).toEqual(["1m", "600k", "400k"]);
+    expect(result?.contextSizes).toContainEqual({ id: "600k", label: "600k" });
   });
 
   it("opts the probe into the CLI's artifact commands unless the env or profile opts out", async () => {

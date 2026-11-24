@@ -21,7 +21,24 @@ export const CLAUDE_LONG_CONTEXT_SIZES = [CLAUDE_DEFAULT_CONTEXT_SIZE, "1m"];
 
 export const CLAUDE_CONTEXT_WINDOWS_SETTING_KEY = "contextWindows";
 
-/** User windows apply only to models already declaring configurable long context. */
+/**
+ * An external provider's real model id ending in `[1m]` (e.g. z.ai
+ * `glm-5.4[1m]`) declares a 1M maximum window — the same standing as a Claude
+ * model's 1M variant. Its working window is selectable up to that maximum
+ * while the id itself is still sent verbatim.
+ */
+export function isClaudeExternalLongContextModel(model: string): boolean {
+  return claudeContextManagedModelId(model) === undefined && /\[1m\]$/i.test(model.trim());
+}
+
+/**
+ * User windows apply only to models already declaring configurable long
+ * context: an entry equal to `CLAUDE_LONG_CONTEXT_SIZES` means "working window
+ * selectable up to 1M", for Claude's own 1M models and an external `[1m]` one
+ * alike. The first entry is the per-model default: 400k for Claude's models,
+ * but the widest configured window for an external one, which ran at its full
+ * window before smaller ones became selectable.
+ */
 export function claudeContextSizeCapabilities(
   capabilities: Pick<AgentCapability, "modelContextSizes" | "contextSizes">,
   agentSettings?: Record<string, boolean | string>,
@@ -37,13 +54,18 @@ export function claudeContextSizeCapabilities(
   );
   const orderedWindows = orderContextWindows(windows, CLAUDE_DEFAULT_CONTEXT_SIZE);
   const ids = orderedWindows.map((window) => window.id);
+  const widestFirstIds = orderedWindows
+    .toSorted((left, right) => right.tokens - left.tokens)
+    .map((window) => window.id);
   const labels = new Map(
     orderedWindows.map((window) => [window.id, { id: window.id, label: window.label }]),
   );
   labels.set("200k", { id: "200k", label: "200k" });
   const modelContextSizes = Object.fromEntries(
     Object.entries(capabilities.modelContextSizes ?? {}).map(([id, sizes]) => {
-      if (sizes.includes("1m") && sizes.includes("400k")) return [id, ids];
+      if (sizes.includes("1m") && sizes.includes("400k")) {
+        return [id, isClaudeExternalLongContextModel(id) ? widestFirstIds : ids];
+      }
       for (const size of sizes) {
         const option = (capabilities.contextSizes ?? CLAUDE_CONTEXT_SIZES).find(
           (entry) => entry.id === size,
