@@ -56,7 +56,13 @@ describe("custom theme application", () => {
     expect(vars["--composer-surface"]).toBe(vars["--content-surface-fill"]);
     expect(vars["--field-background"]).toContain("transparent");
     expect(vars["--sidebar-panel-background"]).toBe(THEME_SPECS[0]!.dark.content);
-    // A literal wash avoids --row-active -> --sidebar-row-active -> --row-active cycles.
+    // Without an authored override, the selected sidebar row uses the same
+    // raised fill as the composer/cards; hover stays a lighter transparent wash.
+    expect(vars["--sidebar-row-active"]).toBe(vars["--surface-secondary"]);
+    expect(vars["--sidebar-row-hover"]).toContain("transparent");
+    expect(vars["--sidebar-row-hover"]).toContain(" 9%,");
+    expect(buildVariant(THEME_SPECS[0]!.light, "light")["--sidebar-row-hover"]).toContain(" 6%,");
+    // A literal expression avoids --row-active -> --sidebar-row-active -> --row-active cycles.
     expect(vars["--sidebar-row-active"]).not.toContain("var(--row-active)");
   });
   it("restores a saved theme before mount and caches its background for the next launch", () => {
