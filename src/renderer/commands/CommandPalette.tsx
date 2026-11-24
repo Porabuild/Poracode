@@ -109,7 +109,7 @@ export function CommandPalette() {
         <Modal.Dialog
           aria-label={t`Search`}
           data-overlay-surface
-          className={`flex w-full max-w-[720px] max-h-[min(720px,82dvh)] flex-col overflow-hidden rounded-2xl border border-[var(--hairline-strong)] bg-background p-0 shadow-2xl ${draggingThread ? "pointer-events-none" : ""}`}
+          className={`flex w-full max-w-[720px] max-h-[min(720px,82dvh)] flex-col overflow-hidden rounded-2xl border border-[var(--hairline)] bg-background p-0 shadow-2xl ${draggingThread ? "pointer-events-none" : ""}`}
         >
           {isOpen ? <SearchPaletteContent /> : null}
         </Modal.Dialog>
@@ -403,7 +403,7 @@ function SearchPaletteContent() {
               size="sm"
               variant={category === item.id ? "secondary" : "ghost"}
               aria-pressed={category === item.id}
-              className="h-7 shrink-0 gap-1.5 rounded-lg px-2.5 text-xs font-normal [&_svg]:size-3"
+              className="h-7 shrink-0 gap-1.5 rounded-full px-3 text-xs font-normal [&_svg]:size-3"
               onPress={() => selectCategory(item.id)}
             >
               {item.id === "files" && fileSearch.loading ? (
