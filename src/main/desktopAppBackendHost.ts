@@ -9,6 +9,7 @@ import { ipcMain, shell } from "electron";
 import type { Project, Thread } from "@/shared/contracts";
 import { IPC_EVENT_CHANNELS, IPC_WINDOW_CHANNELS } from "@/shared/ipc";
 import { closeLocalPort, listLocalPorts } from "@/host/localPorts";
+import { readSharedSettingsFile } from "@/host/sharedSettingsFile";
 import type {
   BackendBrowserEvent,
   BackendNativeEvent,
@@ -28,7 +29,11 @@ import {
 } from "./backend/desktopActionBroker";
 import { buildDesktopBackendInitialize } from "./backend/desktopBackendInitialize";
 import { BackendStateStore } from "./backend/BackendStateStore";
-import { ensureMainWindow, openThreadFromTray } from "./desktopAppWindows";
+import {
+  ensureReadyMainWindowForDesktopAction,
+  openThreadFromTray,
+  syncRendererWindowPresence,
+} from "./desktopAppWindows";
 import { getSideChatWindows } from "./window/sideChatWindows";
 import { getThreadWindows } from "./window/threadWindows";
 import {
@@ -75,6 +80,15 @@ export interface DesktopBackendHost {
   preloadShellState(): Promise<void>;
 }
 
+function readNotificationSoundEnabled(): boolean {
+  if (!desktopApp.poracodePaths) return true;
+  try {
+    return readSharedSettingsFile(desktopApp.poracodePaths.settingsPath).notificationSound;
+  } catch {
+    return true;
+  }
+}
+
 function createNativeRequestHandler(
   getBackendHost: () => BackendHostClient,
   deps: DesktopBackendHostDeps,
@@ -82,34 +96,41 @@ function createNativeRequestHandler(
   return (request) => {
     switch (request.operation) {
       case "thread-transfer":
-        return requestDesktopThreadTransfer(desktopApp.mainWindow, request.payload);
+        return ensureReadyMainWindowForDesktopAction({ show: false }).then((window) =>
+          requestDesktopThreadTransfer(window, request.payload),
+        );
       case "memory-sync":
-        return requestDesktopMemorySync(desktopApp.mainWindow, request.payload);
+        return ensureReadyMainWindowForDesktopAction({ show: false }).then((window) =>
+          requestDesktopMemorySync(window, request.payload),
+        );
       case "experiment-workflow":
-        return requestDesktopExperiment(desktopApp.mainWindow, request.payload);
+        return ensureReadyMainWindowForDesktopAction({ show: false }).then((window) =>
+          requestDesktopExperiment(window, request.payload),
+        );
       case "provider-login":
-        return requestDesktopProviderLogin(desktopApp.mainWindow, request.payload);
+        return ensureReadyMainWindowForDesktopAction({ show: true }).then((window) =>
+          requestDesktopProviderLogin(window, request.payload),
+        );
       case "dispatch-thread-command": {
         const window = desktopApp.mainWindow;
-        if (!window || window.isDestroyed() || desktopApp.pendingThreadCommands.length > 0) {
-          // Zero-window (tray/hidden): queue instead of dropping. The
-          // backend currently reports hasRendererWindow:true even with
-          // no window (BackendDesktopServices hardcodes it; Lane 1B
-          // owns that file), so its callers believe delivery happened —
-          // the queue makes that true by flushing on the next ready
-          // window (see flushPendingThreadCommands). Also queue while a
-          // flush is still pending: a command arriving between
-          // window-created and renderer-main-ready must not overtake an
-          // already-queued earlier command.
+        if (!window || window.isDestroyed()) {
+          // Zero-window desktop: do not wake a hidden BrowserWindow. The host
+          // already applied the command to SQLite and a future window will
+          // hydrate fresh from the database.
+          return false;
+        }
+        const mainReady = desktopApp.quickComposerLifecycle?.isMainReady() ?? true;
+        if (!mainReady || desktopApp.pendingThreadCommands.length > 0) {
+          // Window exists and is still booting (or an earlier command is
+          // queued): preserve ordering until `flushPendingThreadCommands` runs
+          // on `main-ready`.
           if (desktopApp.pendingThreadCommands.length >= PENDING_THREAD_COMMAND_LIMIT) {
             desktopApp.pendingThreadCommands.shift();
-            captureMainException(
-              new Error("Overflowed the zero-window remote thread command queue."),
-              { "poracode.feature_area": "remote-access" },
-            );
+            captureMainException(new Error("Overflowed the startup remote thread command queue."), {
+              "poracode.feature_area": "remote-access",
+            });
           }
           desktopApp.pendingThreadCommands.push(request.payload);
-          if ((!window || window.isDestroyed()) && !desktopApp.isQuitting) ensureMainWindow(false);
           return true;
         }
         window.webContents.send(IPC_EVENT_CHANNELS.remoteThreadCommand, request.payload);
@@ -230,6 +251,7 @@ function createNativeEventHandler(trayFeed: DesktopTrayFeed): (event: BackendNat
           event.notification,
           () => desktopApp.mainWindow,
           openThreadFromTray,
+          { silent: !readNotificationSoundEnabled() },
         );
         return;
       }
@@ -262,6 +284,7 @@ export function createDesktopBackendHost(deps: DesktopBackendHostDeps): DesktopB
     // only emits transitions, so main's working set is cleared here — a
     // restart can never leave a stale active flag behind.
     resetThreadActivity();
+    syncRendererWindowPresence();
     for (const window of [
       desktopApp.mainWindow,
       desktopApp.quickComposerWindow,

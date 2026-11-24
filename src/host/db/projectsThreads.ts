@@ -318,16 +318,17 @@ export function dbUpsertThread(
  * `dbUpsertThread`, which rewrites the whole row). Only rows not already done
  * flip, so an explicit un-done by the user is never reversed by a late event.
  */
-export function dbSetThreadsDone(threadIds: readonly string[], doneAt: string): void {
-  if (threadIds.length === 0) return;
-  getSqlite()
+export function dbSetThreadsDone(threadIds: readonly string[], doneAt: string): number {
+  if (threadIds.length === 0) return 0;
+  const result = getSqlite()
     .prepare(
       `UPDATE threads
-       SET done = 1, done_at = ?, updated_at = ?
+       SET done = 1, done_at = ?, starred = 0, updated_at = ?
        WHERE done = 0 AND id IN (${threadIds.map(() => "?").join(", ")})`,
     )
     .run(doneAt, doneAt, ...threadIds);
-  notifyProjectThreadDataChanged();
+  if (result.changes > 0) notifyProjectThreadDataChanged();
+  return result.changes;
 }
 
 /** Monotonically advance `updated_at` on host-side user activity without rewriting other columns. */

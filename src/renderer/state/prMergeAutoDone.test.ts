@@ -1,14 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { PrData, Project, Thread } from "@/shared/contracts";
-import type { PrWatchMergedEvent } from "@/shared/ipc";
 import { useAppStore } from "./appStore";
+import { useGitReadModelStore } from "./gitReadModelStore";
 import { useGitStore } from "./gitStore";
 import { useSharedSettings } from "./sharedSettingsStore";
 import { startPrMergeAutoDone } from "./prMergeAutoDone";
 
 const markThreadDoneMock = vi.fn<(threadId: string) => void>();
 const syncMergedPrBaseMock = vi.fn<(projectId: string, pr: PrData) => Promise<void>>();
-let prWatchMergedListener: ((event: PrWatchMergedEvent) => void) | undefined;
 
 vi.mock("@/renderer/actions/threadActions", () => ({
   markThreadDone: (threadId: string) => markThreadDoneMock(threadId),
@@ -66,20 +65,13 @@ describe("prMergeAutoDone", () => {
       configurable: true,
       value: {
         platform: "darwin",
-        onPrWatchMerged: vi.fn<(listener: (event: PrWatchMergedEvent) => void) => () => void>(
-          (listener) => {
-            prWatchMergedListener = listener;
-            return () => {
-              prWatchMergedListener = undefined;
-            };
-          },
-        ),
         dbSetState: vi
           .fn<(key: string, value: string) => Promise<void>>()
           .mockResolvedValue(undefined),
       },
     });
     useGitStore.setState({ prData: {} });
+    useGitReadModelStore.getState().reset();
     useAppStore.setState({ projects: [project], threads: [thread], view: { kind: "home" } });
     useSharedSettings.setState({ autoMarkDoneOnPrMerge: true });
     stop = startPrMergeAutoDone();
@@ -98,30 +90,26 @@ describe("prMergeAutoDone", () => {
     expect(syncMergedPrBaseMock).toHaveBeenCalledWith("p1", mergedPr);
   });
 
-  it("marks the thread done when the background watcher publishes its merge", () => {
-    useGitStore.getState().setPrData("/repo-wt", openPr);
-    prWatchMergedListener?.({
-      projectId: "p1",
-      prNumber: 7,
-      worktreePath: "/repo-wt",
-    });
-
-    expect(markThreadDoneMock).toHaveBeenCalledExactlyOnceWith("t1");
-    expect(syncMergedPrBaseMock).toHaveBeenCalledWith("p1", openPr);
-  });
-
-  it("releases the background merge listener when stopped", () => {
-    expect(prWatchMergedListener).toBeDefined();
-
-    stop();
-    stop = () => {};
-
-    expect(prWatchMergedListener).toBeUndefined();
-  });
-
   it("ignores a PR that is already merged the first time it is seen", () => {
     useGitStore.getState().setPrData("/repo-wt", mergedPr);
     expect(markThreadDoneMock).not.toHaveBeenCalled();
+  });
+
+  it("leaves PRs the host read model owns to the host merge lifecycle", () => {
+    useGitReadModelStore.setState({
+      pullRequests: {
+        "h\u0000p1\u00007": {
+          ref: { hostId: "h", projectId: "p1", prNumber: 7 },
+          data: mergedPr,
+          freshness: {},
+        },
+      },
+    });
+    useGitStore.getState().setPrData("/repo-wt", openPr);
+    useGitStore.getState().setPrData("/repo-wt", mergedPr);
+
+    expect(markThreadDoneMock).not.toHaveBeenCalled();
+    expect(syncMergedPrBaseMock).not.toHaveBeenCalled();
   });
 
   it("leaves threads alone while the setting is off", () => {

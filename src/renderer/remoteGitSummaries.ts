@@ -3,13 +3,15 @@ import { useAppStore } from "@/renderer/state/appStore";
 import { useGitStore } from "@/renderer/state/gitStore";
 import { resolvePrKey } from "@/renderer/state/gitSelectors";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
-import type { RemoteGitSummaries, RemoteThreadGitSummary } from "@/shared/remote";
+import type { RemoteGitSummaries } from "@/shared/remote";
+import { toRemoteThreadGitSummary } from "@/shared/remote/gitSummaries";
 
 /**
- * Mirrors compact per-thread git/PR summaries to the main process so paired
- * browser clients can show diff stats and PR status. The renderer is the only
- * holder of live git state (`gitStore`, fed by the git watchers), so this is a
- * renderer→main push, debounced and deduplicated.
+ * Mirrors compact per-thread git/PR summaries to the host so paired browser
+ * clients can show diff stats and PR status for checkouts the host
+ * `GitStateService` does not cover yet. The host merges these as supplemental
+ * entries (its own projection takes precedence) and drops them once no desktop
+ * window is mounted. Debounced and deduplicated.
  */
 
 const PUBLISH_DEBOUNCE_MS = 500;
@@ -25,26 +27,7 @@ function buildSummaries(): RemoteGitSummaries {
       : git.statuses[thread.projectId];
     if (!status) continue;
     const pr = git.prData[resolvePrKey(thread.projectId, thread.worktreePath)] ?? null;
-    const summary: RemoteThreadGitSummary = {
-      isRepo: status.isRepo,
-      branch: status.branch,
-      totalInsertions: status.totalInsertions,
-      totalDeletions: status.totalDeletions,
-      ahead: status.ahead,
-      behind: status.behind,
-      pr:
-        pr === null
-          ? null
-          : {
-              number: pr.number,
-              state: pr.state,
-              title: pr.title,
-              url: pr.url,
-              isDraft: pr.isDraft,
-              ...(pr.checksStatus ? { checksStatus: pr.checksStatus } : {}),
-            },
-    };
-    summaries[thread.id] = summary;
+    summaries[thread.id] = toRemoteThreadGitSummary(status, pr);
   }
   return summaries;
 }

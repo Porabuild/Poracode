@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
+import type { GitFileChange, GitStatusResult } from "./contracts";
 import {
   applyGitStatePatch,
+  mergedPrBasePullRemote,
   emptyGitStateSnapshot,
   gitProjectKey,
   gitTargetKey,
@@ -109,5 +111,46 @@ describe("applyGitStatePatch", () => {
     });
     expect(removed.pullRequests[prKey]).toBeUndefined();
     expect(removed.pullRequestKeyByBranch[branchKey]).toBeUndefined();
+  });
+});
+
+describe("merged PR base pull eligibility", () => {
+  const change = (path: string): GitFileChange => ({
+    path,
+    status: "modified",
+    staged: false,
+    insertions: 1,
+    deletions: 0,
+  });
+  const status = (overrides: Partial<GitStatusResult> = {}): GitStatusResult => ({
+    isRepo: true,
+    branch: "main",
+    tracking: "origin/main",
+    hasRemote: true,
+    remoteInfo: null,
+    ahead: 0,
+    behind: 1,
+    staged: [],
+    unstaged: [],
+    totalInsertions: 0,
+    totalDeletions: 0,
+    ...overrides,
+  });
+
+  it("pulls the tracked remote only from a clean base checkout with nothing unpushed", () => {
+    expect(mergedPrBasePullRemote(status(), "main")).toBe("origin");
+  });
+
+  it.each([
+    ["another branch", { branch: "feature" }],
+    ["no remote", { hasRemote: false }],
+    ["no tracking", { tracking: "" }],
+    ["unpushed commits", { ahead: 1 }],
+    ["staged changes", { staged: [change("a.ts")] }],
+    ["unstaged changes", { unstaged: [change("b.ts")] }],
+    ["a merge in progress", { mergeInProgress: true }],
+    ["tracking without a remote separator", { tracking: "main" }],
+  ])("declines %s", (_label, overrides) => {
+    expect(mergedPrBasePullRemote(status(overrides), "main")).toBeNull();
   });
 });

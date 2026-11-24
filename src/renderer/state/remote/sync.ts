@@ -71,9 +71,7 @@ import {
   createHostHistoryRecovery,
   type HostHistoryRecovery,
 } from "./reducers/hostHistoryRecovery";
-import { recordRuntimeUsage } from "../usageRecorder";
-import { hostRunsOnThisMachine } from "../hostLocality";
-import { hasOwnWindow, recordsUsageInThisWindow } from "../auxiliaryThreadWindows";
+import { hasOwnWindow } from "../auxiliaryThreadWindows";
 import { isHistoryIncorporated } from "../historyBaselines";
 
 /**
@@ -730,17 +728,6 @@ function liveReducer(): SupervisorEventReducer {
     onAgentStatusEvent: (event) =>
       applyAgentStatusSupervisorEvent(event, { deferFirstLaunchBulk: true }),
     isHistoryIncorporated,
-    afterApply: (batches, { threadMetadata }) => {
-      for (const { threadId, events } of batches) {
-        // Usage is captured on the machine whose provider accounts run the
-        // thread; a host on another machine records its own.
-        if (
-          hostRunsOnThisMachine(threadMetadata.find((thread) => thread.id === threadId)) &&
-          recordsUsageInThisWindow(threadId)
-        )
-          recordRuntimeUsage(threadId, events, threadMetadata);
-      }
-    },
   }));
 }
 

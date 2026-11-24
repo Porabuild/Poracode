@@ -12,6 +12,12 @@ import { findThreadWindow } from "./window/threadWindows";
 // notification until it is closed, fails, or is clicked.
 const liveNotifications = new Set<Notification>();
 
+export interface OsNotificationOptions {
+  /** Whether to suppress the OS notification sound. Defaults to true when a
+   * mounted renderer plays its own sound; zero-window fallbacks pass `!soundEnabled`. */
+  silent?: boolean;
+}
+
 /**
  * Show an OS notification from the main process. This uses Electron's native
  * Notification API, which — unlike the renderer's Web Notification API — is not
@@ -24,6 +30,7 @@ export function showOsNotification(
   payload: ShowNotificationPayload,
   getMainWindow: () => BrowserWindow | null,
   openThread?: (threadId: string) => void,
+  options?: OsNotificationOptions,
 ): boolean {
   if (!Notification.isSupported()) return false;
   // The user is already looking at this thread in its own window.
@@ -34,9 +41,9 @@ export function showOsNotification(
     notification = new Notification({
       title: payload.title,
       body: payload.body,
-      // The renderer plays its own notification sound; keep the OS notification
-      // silent so the two don't double up.
-      silent: true,
+      // The renderer plays its own notification sound when mounted; keep OS
+      // notifications silent by default so the two don't double up.
+      silent: options?.silent ?? true,
     });
   } catch {
     return false;
@@ -88,6 +95,7 @@ export function showUserNotificationFallback(
   notification: UserNotification,
   getMainWindow: () => BrowserWindow | null,
   openThread?: (threadId: string) => void,
+  options?: OsNotificationOptions,
 ): boolean {
   return showOsNotification(
     {
@@ -97,6 +105,7 @@ export function showUserNotificationFallback(
     },
     getMainWindow,
     openThread,
+    options,
   );
 }
 

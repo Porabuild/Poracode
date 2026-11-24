@@ -23,6 +23,7 @@ import {
   extractBrowserToWindow,
   finishQuickComposerDismiss,
   flushPendingThreadCommands,
+  notifyMainWindowReady,
   flushTrayThreadOpen,
   openThreadFromTray,
   injectBrowserToMain,
@@ -105,6 +106,7 @@ export function registerDesktopIpc(deps: DesktopIpcDeps): void {
     if (!window || window !== desktopApp.mainWindow || window.isDestroyed()) return;
     notifyRendererStartupReady(window.webContents);
     desktopApp.quickComposerLifecycle?.handleMainReady();
+    notifyMainWindowReady();
     flushTrayThreadOpen();
     flushPendingThreadCommands();
   });
