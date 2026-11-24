@@ -127,8 +127,10 @@ export function openMemorySettings(): void {
   usePanelStore.getState().openSettingsSection("memory");
 }
 
-export function openCrewsSettings(crewId?: string): void {
-  usePanelStore.getState().openSettingsSection("crews", crewId ? `crews.${crewId}` : undefined);
+export function openCrewsSettings(crewId?: string, machineId?: string): void {
+  usePanelStore
+    .getState()
+    .openSettingsSection("crews", crewId ? `crews.${crewId}` : undefined, machineId);
 }
 
 function openUsagePanelSurface(toggle = true): void {

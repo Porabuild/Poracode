@@ -3,6 +3,7 @@ package com.poracode.app.ui.crews
 import com.poracode.app.model.AgentStatusEntry
 import com.poracode.app.model.settings.HostSettingsPatch
 import com.poracode.app.model.settings.HostSettingsSnapshot
+import com.poracode.app.ui.components.ModelVisibility
 import java.util.UUID
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
@@ -172,13 +173,44 @@ data class SavedCrew(
             agents: List<AgentStatusEntry>,
             defaultName: String,
             defaultRoleLabel: String,
+            hiddenModels: JsonObject? = null,
+            crossagentHiddenModels: JsonObject? = null,
             nowMillis: Long = System.currentTimeMillis(),
         ): SavedCrew? {
             val installed = agents.filter { it.installed }
-            val primary = installed.firstOrNull() ?: return null
-            val primaryModel = firstModelId(primary) ?: return null
-            val helper = installed.getOrNull(1) ?: primary
-            val helperModel = firstModelId(helper) ?: primaryModel
+            val primary = installed.firstOrNull { agent ->
+                val hidden = ModelVisibility.hiddenModelIds(
+                    agent.capabilities,
+                    hiddenModels,
+                    agent.kind,
+                    ModelVisibility.declaredGuiVariant(agent),
+                )
+                firstVisibleModelId(agent, hidden) != null
+            } ?: return null
+            val primaryHidden = ModelVisibility.hiddenModelIds(
+                primary.capabilities,
+                hiddenModels,
+                primary.kind,
+                ModelVisibility.declaredGuiVariant(primary),
+            )
+            val primaryModel = firstVisibleModelId(primary, primaryHidden) ?: return null
+            val helper = installed.firstOrNull { agent ->
+                agent.kind != primary.kind &&
+                    firstVisibleModelId(
+                        agent,
+                        ModelVisibility.helperHiddenModelIds(
+                            hiddenModels,
+                            crossagentHiddenModels,
+                            agent.kind,
+                        ),
+                    ) != null
+            } ?: primary
+            val helperHidden = ModelVisibility.helperHiddenModelIds(
+                hiddenModels,
+                crossagentHiddenModels,
+                helper.kind,
+            )
+            val helperModel = firstVisibleModelId(helper, helperHidden) ?: return null
             return SavedCrew(
                 id = "crew-${UUID.randomUUID().toString().take(8)}",
                 name = defaultName,
@@ -201,6 +233,18 @@ data class SavedCrew(
             }
     }
 }
+
+/** Raw model choices minus hidden ids, with an existing selection re-admitted. */
+internal fun visibleAgentModelOptions(
+    agent: AgentStatusEntry,
+    hidden: Set<String>,
+    currentModel: String? = null,
+): List<Pair<String, String>> =
+    agentModelOptions(agent).filter { (id, _) -> id !in hidden || id == currentModel }
+
+/** First catalog model this crew surface offers, or null when none remains. */
+internal fun firstVisibleModelId(agent: AgentStatusEntry, hidden: Set<String>): String? =
+    visibleAgentModelOptions(agent, hidden).firstOrNull()?.first
 
 internal fun agentModelOptions(agent: AgentStatusEntry): List<Pair<String, String>> =
     (agent.capabilities["models"] as? JsonArray).orEmpty().mapNotNull { item ->

@@ -137,6 +137,7 @@ export function installDevBridge(): void {
         projectSettingsSection: null,
         settingsSection: null,
         settingsAnchor: null,
+        settingsMachineId: null,
         createProjectModalOpen: false,
         cloneProjectModalOpen: false,
         remoteFolderPickerConnectionKey: null,

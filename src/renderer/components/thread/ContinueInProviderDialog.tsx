@@ -17,7 +17,7 @@ import { resolveLaunchPluginOverrides } from "@/shared/contracts";
 import { Button } from "@/renderer/components/common/Button";
 import { PixelLoader } from "@/renderer/components/common/PixelLoader";
 import { modelVisibilityKey } from "@/renderer/components/common/ProviderModelMenu/parts/providerIdentity";
-import { readBridge } from "@/renderer/bridge";
+import { isRemoteSession, readBridge } from "@/renderer/bridge";
 import { useAgentSlashCommandCatalog } from "@/renderer/hooks/useAgentSlashCommandCatalog";
 import { ThreadComposer } from "./ThreadComposer";
 import { isPlanModeControl } from "../providers/composerControlBuilders";
@@ -110,6 +110,7 @@ import {
 import { supportsUsableFastMode } from "./threadDraftViewHelpers";
 import { useAppStore } from "@/renderer/state/appStore";
 import { hostRunsOnThisMachine } from "@/renderer/state/hostLocality";
+import { useHostSetting } from "@/renderer/state/pairedHostSettings";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useCrewLibrary } from "@/renderer/state/crewLibrary";
 import { machineKeyForLocation } from "@/shared/machines";
@@ -179,7 +180,10 @@ export function ContinueInProviderDialog(props: {
   const crossagentSelectionUsage = useSharedSettings((s) => s.crossagentSelectionUsage);
   const crossagentRoutingOverrides = useSharedSettings((s) => s.crossagentRoutingOverrides);
   const favoriteModels = useSharedSettings((s) => s.favoriteModels);
-  const allHiddenModels = useSharedSettings((s) => s.hiddenModels);
+  const allHiddenModels = useHostSetting(
+    isRemoteSession() ? undefined : thread.remoteServerId,
+    "hiddenModels",
+  );
   // App-wide per-provider draft settings — the same source the draft composer
   // resolves from, so the permission/model posture a user last set for a
   // provider shows up here too, not only when that provider happens to be the
@@ -481,7 +485,7 @@ export function ContinueInProviderDialog(props: {
         onEditInSettings: () => {
           // Settings sit behind the modal — dismiss it first.
           handleCancel();
-          openCrewsSettings(launchCrew.crewId);
+          openCrewsSettings(launchCrew.crewId, crewMachineKey);
         },
       }
     : undefined;
@@ -804,9 +808,8 @@ export function ContinueInProviderDialog(props: {
   const supportsTargetGuiMode = otherAgents.some((agent) => supportsPresentation(agent, "gui"));
 
   // --- Extraction config (source provider) ---
-  const hiddenModelIds = useSharedSettings(
-    (s) => s.hiddenModels[modelVisibilityKey(thread.agentKind, sourcePresentationMode)],
-  );
+  const hiddenModelIds =
+    allHiddenModels[modelVisibilityKey(thread.agentKind, sourcePresentationMode)];
   const filteredSourceCaps = sourceRuntimeStatus
     ? filterHiddenModels(sourceRuntimeStatus.capabilities, hiddenModelIds)
     : undefined;

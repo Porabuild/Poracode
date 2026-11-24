@@ -31,22 +31,17 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.poracode.app.R
-import com.poracode.app.model.AgentStatusEntry
 import com.poracode.app.model.settings.HostSettingsPatch
 import com.poracode.app.session.replay.HostReplayCacheUi
 import com.poracode.app.session.settings.SettingsHostInformationEntry
 import com.poracode.app.session.settings.SettingsInformationSlot
 import com.poracode.app.ui.components.EmptyStateView
+import com.poracode.app.ui.components.ModelVisibility
 import com.poracode.app.ui.components.PoracodeActionButton
 import com.poracode.app.ui.components.PoracodeButtonVariant
 import com.poracode.app.ui.components.PoracodeCard
-import com.poracode.app.ui.components.PoracodeChoiceOption
-import com.poracode.app.ui.components.PoracodeChoiceSection
 import com.poracode.app.ui.components.PoracodeIconButton
 import com.poracode.app.ui.components.PoracodeSheet
-import com.poracode.app.ui.components.PoracodeSheetDivider
-import com.poracode.app.ui.components.PoracodeTextField
-import com.poracode.app.ui.components.PoracodeToggleRow
 import com.poracode.app.ui.settings.SettingsFailure
 import com.poracode.app.ui.settings.SettingsLoading
 import com.poracode.app.ui.settings.SettingsMutationState
@@ -55,6 +50,7 @@ import com.poracode.app.ui.theme.PoracodeIcons
 import com.poracode.app.ui.theme.PoracodeTextStyles
 import com.poracode.app.ui.theme.PoracodeTheme
 import java.util.UUID
+import kotlinx.serialization.json.JsonObject
 
 internal val LocalSavedCrews = staticCompositionLocalOf<List<SavedCrew>> { emptyList() }
 
@@ -69,6 +65,8 @@ internal fun CrewsSettingsPane(
     modifier: Modifier = Modifier,
 ) {
     val snapshot = entry?.settings
+    val hiddenModels = snapshot?.settings?.get("hiddenModels") as? JsonObject
+    val crossagentHiddenModels = snapshot?.settings?.get("crossagentHiddenModels") as? JsonObject
     val loading = SettingsInformationSlot.Settings in entry?.loading.orEmpty()
     val failure = entry?.failures?.get(SettingsInformationSlot.Settings)
     if (snapshot == null && failure == null && access.canRead) {
@@ -82,6 +80,28 @@ internal fun CrewsSettingsPane(
             .filter { it.installed }
     }
     val canWrite = access.canWrite && !mutation.settingsSaving
+    val canCreateCrew = remember(agents, hiddenModels, crossagentHiddenModels) {
+        val hasVisibleLead = agents.any { agent ->
+            val hidden = ModelVisibility.hiddenModelIds(
+                agent.capabilities,
+                hiddenModels,
+                agent.kind,
+                ModelVisibility.declaredGuiVariant(agent),
+            )
+            firstVisibleModelId(agent, hidden) != null
+        }
+        val hasVisibleHelper = agents.any { agent ->
+            firstVisibleModelId(
+                agent,
+                ModelVisibility.helperHiddenModelIds(
+                    hiddenModels,
+                    crossagentHiddenModels,
+                    agent.kind,
+                ),
+            ) != null
+        }
+        hasVisibleLead && hasVisibleHelper
+    }
     var editing by remember { mutableStateOf<SavedCrew?>(null) }
     var isCreating by remember { mutableStateOf(false) }
 
@@ -115,9 +135,15 @@ internal fun CrewsSettingsPane(
                     label = stringResource(R.string.crews_new),
                     icon = PoracodeIcons.Add,
                     variant = PoracodeButtonVariant.Tonal,
-                    enabled = canWrite && crews.size < SavedCrew.MAX_SAVED_CREWS && agents.isNotEmpty(),
+                    enabled = canWrite && crews.size < SavedCrew.MAX_SAVED_CREWS && canCreateCrew,
                     onClick = {
-                        SavedCrew.createDefault(agents, defaultCrewName, defaultRoleName)?.let {
+                        SavedCrew.createDefault(
+                            agents,
+                            defaultCrewName,
+                            defaultRoleName,
+                            hiddenModels,
+                            crossagentHiddenModels,
+                        )?.let {
                             editing = it
                             isCreating = true
                         }
@@ -170,6 +196,8 @@ internal fun CrewsSettingsPane(
         SavedCrewEditorSheet(
             initial = target,
             agents = agents,
+            hiddenModels = hiddenModels,
+            crossagentHiddenModels = crossagentHiddenModels,
             onDismiss = { editing = null },
             onSave = { updated ->
                 val stamped = updated.copy(updatedAt = System.currentTimeMillis())
@@ -247,178 +275,6 @@ private fun SavedCrewCard(
             }
             TextButton(onClick = onDelete, enabled = canWrite) {
                 Text(stringResource(R.string.thread_lifecycle_delete), color = colors.danger)
-            }
-        }
-    }
-}
-
-@Composable
-internal fun SavedCrewEditorSheet(
-    initial: SavedCrew,
-    agents: List<AgentStatusEntry>,
-    onDismiss: () -> Unit,
-    onSave: (SavedCrew) -> Unit,
-) {
-    var draft by remember(initial) { mutableStateOf(initial) }
-    val installedAgents = remember(agents) { agents.filter { it.installed } }
-    val leadAgent = installedAgents.firstOrNull { it.kind == draft.lead.agentKind } ?: installedAgents.firstOrNull()
-    val leadModels = remember(leadAgent) { leadAgent?.let(::agentModelOptions).orEmpty() }
-    val defaultRoleLabel = stringResource(R.string.crews_default_role)
-
-    PoracodeSheet(
-        onDismissRequest = onDismiss,
-        title = stringResource(R.string.crews_edit),
-    ) {
-        Column(
-            Modifier
-                .fillMaxWidth()
-                .heightIn(max = 540.dp)
-                .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            PoracodeTextField(
-                value = draft.name,
-                onValueChange = { draft = draft.copy(name = it.take(SavedCrew.MAX_NAME_LENGTH)) },
-                label = { Text(stringResource(R.string.crews_name_label)) },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
-            )
-            if (installedAgents.isNotEmpty()) {
-                PoracodeChoiceSection(
-                    label = stringResource(R.string.rich_chat_crew_lead),
-                    options = installedAgents.map { PoracodeChoiceOption(it.kind, it.label) },
-                    selectedId = draft.lead.agentKind,
-                    onSelect = { kind ->
-                        val nextAgent = installedAgents.firstOrNull { it.kind == kind }
-                        val nextModel = nextAgent?.let(SavedCrew::firstModelId) ?: draft.lead.model
-                        draft = draft.copy(lead = draft.lead.copy(agentKind = kind, model = nextModel))
-                    },
-                )
-            }
-            if (leadModels.size > 1) {
-                PoracodeChoiceSection(
-                    label = stringResource(R.string.crews_lead_model),
-                    options = leadModels.take(8).map { (id, label) -> PoracodeChoiceOption(id, label) },
-                    selectedId = draft.lead.model,
-                    onSelect = { model -> draft = draft.copy(lead = draft.lead.copy(model = model)) },
-                )
-            }
-            PoracodeChoiceSection(
-                label = stringResource(R.string.crews_policy),
-                options = listOf(
-                    PoracodeChoiceOption(CrewPolicy.CrewOnly.wireValue, stringResource(R.string.rich_chat_crew_policy_only)),
-                    PoracodeChoiceOption(CrewPolicy.CrewFirst.wireValue, stringResource(R.string.rich_chat_crew_policy_first)),
-                ),
-                selectedId = draft.policy.wireValue,
-                onSelect = { draft = draft.copy(policy = CrewPolicy.fromWire(it)) },
-            )
-            PoracodeSheetDivider()
-            draft.roles.forEachIndexed { index, role ->
-                val roleAgent = installedAgents.firstOrNull { it.kind == role.selection.agentKind }
-                    ?: installedAgents.firstOrNull()
-                val roleModels = roleAgent?.let(::agentModelOptions).orEmpty()
-                PoracodeCard {
-                    Row(
-                        Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        PoracodeTextField(
-                            value = role.label,
-                            onValueChange = { nextLabel ->
-                                draft = draft.copy(
-                                    roles = draft.roles.mapIndexed { i, r ->
-                                        if (i == index) r.copy(label = nextLabel.take(32)) else r
-                                    },
-                                )
-                            },
-                            label = { Text(stringResource(R.string.crews_role_label)) },
-                            singleLine = true,
-                            modifier = Modifier.weight(1f),
-                        )
-                        if (draft.roles.size > 1) {
-                            PoracodeIconButton(
-                                icon = PoracodeIcons.Delete,
-                                contentDescription = stringResource(R.string.thread_lifecycle_delete),
-                                tint = PoracodeTheme.colors.danger,
-                                onClick = {
-                                    draft = draft.copy(roles = draft.roles.filterIndexed { i, _ -> i != index })
-                                },
-                            )
-                        }
-                    }
-                    if (installedAgents.size > 1) {
-                        PoracodeChoiceSection(
-                            label = stringResource(R.string.crews_role_agent),
-                            options = installedAgents.map { PoracodeChoiceOption(it.kind, it.label) },
-                            selectedId = role.selection.agentKind,
-                            onSelect = { kind ->
-                                val nextAgent = installedAgents.firstOrNull { it.kind == kind }
-                                val nextModel = nextAgent?.let(SavedCrew::firstModelId) ?: role.selection.model
-                                draft = draft.copy(
-                                    roles = draft.roles.mapIndexed { i, r ->
-                                        if (i == index) r.copy(selection = r.selection.copy(agentKind = kind, model = nextModel))
-                                        else r
-                                    },
-                                )
-                            },
-                        )
-                    }
-                    if (roleModels.size > 1) {
-                        PoracodeChoiceSection(
-                            label = stringResource(R.string.crews_role_model),
-                            options = roleModels.take(6).map { (id, label) -> PoracodeChoiceOption(id, label) },
-                            selectedId = role.selection.model,
-                            onSelect = { model ->
-                                draft = draft.copy(
-                                    roles = draft.roles.mapIndexed { i, r ->
-                                        if (i == index) r.copy(selection = r.selection.copy(model = model)) else r
-                                    },
-                                )
-                            },
-                        )
-                    }
-                    PoracodeToggleRow(
-                        label = stringResource(R.string.rich_chat_crew_no_edits),
-                        checked = role.noEdits,
-                        onCheckedChange = { checked ->
-                            draft = draft.copy(
-                                roles = draft.roles.mapIndexed { i, r ->
-                                    if (i == index) r.copy(noEdits = checked) else r
-                                },
-                            )
-                        },
-                    )
-                }
-            }
-            if (draft.roles.size < SavedCrew.MAX_ROLES && installedAgents.isNotEmpty()) {
-                OutlinedButton(
-                    onClick = {
-                        val fallback = installedAgents.first()
-                        val model = SavedCrew.firstModelId(fallback) ?: draft.lead.model
-                        draft = draft.copy(
-                            roles = draft.roles + SavedCrewRole(
-                                label = defaultRoleLabel,
-                                selection = CrewMemberSelection(fallback.kind, model),
-                            ),
-                        )
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Text(stringResource(R.string.crews_add_role))
-                }
-            }
-            Row(
-                Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
-            ) {
-                TextButton(onClick = onDismiss) { Text(stringResource(R.string.git_cancel)) }
-                FilledTonalButton(
-                    onClick = { onSave(draft) },
-                    enabled = draft.isValid,
-                ) {
-                    Text(stringResource(R.string.workspace_save))
-                }
             }
         }
     }

@@ -91,6 +91,7 @@ describe("CrewsSettings", () => {
       crews: [],
       providerConfigs: {},
       hiddenModels: {},
+      providerOrder: [],
       disabledAgents: [],
       crossagentPausedProviders: [],
       crossagentHiddenModels: {},
@@ -106,6 +107,129 @@ describe("CrewsSettings", () => {
     expect(helperOptions.defaultSelectionFor).toHaveBeenCalledWith(
       expect.objectContaining({ agentKind: "codex", model: "codex-model" }),
     );
+  });
+
+  it("hides disabled models from the crew lead picker", async () => {
+    useAgentStatusesStore.setState({
+      agentStatuses: [
+        {
+          ...leadStatus,
+          capabilities: {
+            ...capabilities,
+            models: [...capabilities.models, { id: "codex-hidden", label: "Codex Hidden" }],
+          },
+        },
+      ],
+      wslAgentStatuses: [],
+    });
+    useSharedSettings.setState({
+      hiddenModels: { codex: ["codex-hidden"] },
+      crews: [
+        {
+          id: "crew-work",
+          name: "Work",
+          lead: { agentKind: "codex", model: "codex-model", effort: "low" },
+          roles: [
+            {
+              id: "sidekick",
+              label: "Sidekick",
+              selection: { agentKind: "codex", model: "codex-model", effort: "low" },
+            },
+          ],
+          policy: "crew-only",
+          updatedAt: 1,
+        },
+      ],
+    });
+    renderWithI18n(<CrewsSettings />);
+    fireEvent.click(screen.getByRole("button", { name: "Edit Work" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Model for Lead" }));
+    const listbox = await screen.findByRole("listbox", { name: "Models" });
+    expect(within(listbox).queryByText("Codex Hidden")).toBeNull();
+    expect(within(listbox).getByText("Codex Model")).toBeInTheDocument();
+  });
+
+  it("keeps a hidden current lead model labeled in the crew editor", async () => {
+    useAgentStatusesStore.setState({
+      agentStatuses: [
+        {
+          ...leadStatus,
+          capabilities: {
+            ...capabilities,
+            models: [
+              { id: "codex-model", label: "Codex Model" },
+              { id: "codex-5", label: "Codex Five" },
+              { id: "codex-hidden", label: "Codex Hidden" },
+            ],
+          },
+        },
+      ],
+      wslAgentStatuses: [],
+    });
+    useSharedSettings.setState({
+      hiddenModels: { codex: ["codex-5", "codex-hidden"] },
+      crews: [
+        {
+          id: "crew-work",
+          name: "Work",
+          lead: { agentKind: "codex", model: "codex-5", effort: "low" },
+          roles: [
+            {
+              id: "sidekick",
+              label: "Sidekick",
+              selection: { agentKind: "codex", model: "codex-model", effort: "low" },
+            },
+          ],
+          policy: "crew-only",
+          updatedAt: 1,
+        },
+      ],
+    });
+    renderWithI18n(<CrewsSettings />);
+    fireEvent.click(screen.getByRole("button", { name: "Edit Work" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Model for Lead" }));
+    const listbox = await screen.findByRole("listbox", { name: "Models" });
+    expect(within(listbox).queryByText("Codex Hidden")).toBeNull();
+    expect(within(listbox).getByText("Codex Five")).toBeInTheDocument();
+    expect(within(listbox).getByText("Codex Model")).toBeInTheDocument();
+  });
+
+  it("disables New crew when every installed lead model is hidden", () => {
+    useSharedSettings.setState({ hiddenModels: { codex: ["codex-model"] } });
+    renderWithI18n(<CrewsSettings />);
+    expect(document.querySelector('button[aria-label="New crew"]')).toBeDisabled();
+  });
+
+  it("skips a lead provider whose models are all hidden", async () => {
+    useAgentStatusesStore.setState({
+      agentStatuses: [
+        leadStatus,
+        {
+          ...leadStatus,
+          kind: "claude",
+          label: "Claude",
+          capabilities: {
+            ...capabilities,
+            models: [{ id: "claude-model", label: "Claude Model" }],
+          },
+        },
+      ],
+      wslAgentStatuses: [],
+    });
+    useSharedSettings.setState({
+      hiddenModels: { codex: ["codex-model"] },
+      providerOrder: ["codex", "claude"],
+    });
+    renderWithI18n(<CrewsSettings />);
+    const newCrew = document.querySelector('button[aria-label="New crew"]')!;
+    expect(newCrew).not.toBeDisabled();
+    fireEvent.click(newCrew);
+    fireEvent.click(await screen.findByRole("option", { name: /^Blank crew/u }));
+    await waitFor(() => expect(useSharedSettings.getState().crews).toHaveLength(1));
+    expect(useSharedSettings.getState().crews[0]?.lead).toMatchObject({
+      agentKind: "claude",
+      model: "claude-model",
+    });
   });
 
   it("creates valid template crews, duplicates with a new id, and deletes after confirmation", async () => {

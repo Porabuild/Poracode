@@ -369,7 +369,7 @@ describe("CrewRosterPanel", () => {
     renderWithI18n(<CrewRosterPanel model={makeModel()} onClose={onClose} />);
     fireEvent.click(screen.getByRole("button", { name: "Edit crews in settings" }));
     expect(onClose).toHaveBeenCalledTimes(1);
-    expect(openSettingsSection).toHaveBeenCalledWith("crews", expect.anything());
+    expect(openSettingsSection).toHaveBeenCalledWith("crews", "crews.crew-review", undefined);
   });
   it("closes the open roster when Settings opens from elsewhere", async () => {
     usePanelStore.setState({ settingsOpen: false });

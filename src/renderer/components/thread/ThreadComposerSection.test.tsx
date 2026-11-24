@@ -350,6 +350,7 @@ describe("ThreadComposerSection", () => {
       collapseTerminalComposer: false,
       followUpBehavior: "steer",
       disabledBuiltInMcpServers: {},
+      hiddenModels: {},
     });
     useThreadTodoDockStore.setState({
       defaultCollapsed: false,
@@ -470,6 +471,90 @@ describe("ThreadComposerSection", () => {
       expect(screen.getByTestId("control-kinds")).toHaveTextContent("crew");
       expect(screen.getByTestId("crew-open-signal")).not.toHaveTextContent("");
     });
+  });
+
+  it("hides disabled models from the active Crew lead picker", () => {
+    const status: AgentStatus = {
+      ...codexGuiStatus,
+      capabilities: {
+        ...codexGuiStatus.capabilities,
+        models: [
+          { id: "gpt-5.4", label: "5.4" },
+          { id: "gpt-hidden", label: "Hidden" },
+        ],
+      },
+    };
+    const crew = {
+      version: 1 as const,
+      policy: "crew-only" as const,
+      roles: [
+        {
+          id: "sidekick",
+          label: "Sidekick",
+          selection: { agentKind: "codex", model: "gpt-5.4", effort: "low" },
+        },
+      ],
+    };
+    const thread = { ...guiThread, config: { ...guiThread.config, model: "gpt-5.4", crew } };
+    useSharedSettings.setState({ hiddenModels: { codex: ["gpt-hidden"] } });
+    useAppStore.setState({
+      threads: [thread],
+      runtimeLaunchConfigByThreadId: {
+        [thread.id]: { model: thread.config.model, crossagentMcp: true },
+      },
+    });
+    renderComposer({ thread, agentStatus: status });
+    const controls = composerControlsSpy.mock.lastCall?.[0] as ComposerControl[] | undefined;
+    const crewControl = controls?.find((control) => control.kind === "crew");
+    if (crewControl?.kind !== "crew") throw new Error("Crew control missing");
+    expect(
+      crewControl.model.leadProviders.flatMap((provider) =>
+        provider.capabilities.models.map((model) => model.id),
+      ),
+    ).toEqual(["gpt-5.4"]);
+  });
+
+  it("keeps a hidden current Crew lead selectable with its catalog label", () => {
+    const status: AgentStatus = {
+      ...codexGuiStatus,
+      capabilities: {
+        ...codexGuiStatus.capabilities,
+        models: [
+          { id: "gpt-5.4", label: "5.4" },
+          { id: "gpt-current", label: "Current Catalog Label" },
+          { id: "gpt-hidden", label: "Hidden Model" },
+        ],
+      },
+    };
+    const crew = {
+      version: 1 as const,
+      policy: "crew-only" as const,
+      roles: [
+        {
+          id: "sidekick",
+          label: "Sidekick",
+          selection: { agentKind: "codex", model: "gpt-current", effort: "low" },
+        },
+      ],
+    };
+    const thread = {
+      ...guiThread,
+      config: { ...guiThread.config, model: "gpt-current", crew },
+    };
+    useSharedSettings.setState({ hiddenModels: { codex: ["gpt-current", "gpt-hidden"] } });
+    useAppStore.setState({
+      threads: [thread],
+      runtimeLaunchConfigByThreadId: {
+        [thread.id]: { model: thread.config.model, crossagentMcp: true },
+      },
+    });
+    renderComposer({ thread, agentStatus: status });
+    const controls = composerControlsSpy.mock.lastCall?.[0] as ComposerControl[] | undefined;
+    const crewControl = controls?.find((control) => control.kind === "crew");
+    if (crewControl?.kind !== "crew") throw new Error("Crew control missing");
+    const models = crewControl.model.leadProviders[0]!.capabilities.models;
+    expect(models.map((model) => model.id)).toEqual(["gpt-5.4", "gpt-current"]);
+    expect(models.find((model) => model.id === "gpt-current")?.label).toBe("Current Catalog Label");
   });
 
   it("applies a different-model same-provider saved Crew pick in one normalized config write", () => {

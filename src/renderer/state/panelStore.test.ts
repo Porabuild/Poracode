@@ -54,6 +54,38 @@ it("defaults the right panel to follow the focused thread", () => {
   expect(initialPanelState.rightPanelFollowsThread).toBe(true);
 });
 
+describe("settings deep links", () => {
+  beforeEach(resetPanelStore);
+  afterEach(resetPanelStore);
+
+  it("carries a machine hint and clears it with the consumed request", () => {
+    const panel = usePanelStore.getState();
+    panel.openSettingsSection("crews", "crews.crew-1", "remote:mac");
+    expect(usePanelStore.getState()).toMatchObject({
+      settingsSection: "crews",
+      settingsAnchor: "crews.crew-1",
+      settingsMachineId: "remote:mac",
+    });
+    panel.clearSettingsSection();
+    expect(usePanelStore.getState()).toMatchObject({
+      settingsSection: null,
+      settingsAnchor: null,
+      settingsMachineId: null,
+    });
+  });
+
+  it("reopens the same section when only the machine hint changes", () => {
+    const panel = usePanelStore.getState();
+    panel.openSettingsSection("crews", "crews.crew-1", "local");
+    panel.openSettingsSection("crews", "crews.crew-1", "remote:mac");
+    expect(usePanelStore.getState()).toMatchObject({
+      settingsOpen: true,
+      settingsSection: "crews",
+      settingsMachineId: "remote:mac",
+    });
+  });
+});
+
 describe("device tab session context", () => {
   beforeEach(resetPanelStore);
   afterEach(resetPanelStore);

@@ -351,7 +351,11 @@ describe("SettingsOverlay", () => {
     useRemoteServersStore.setState({ servers: [], runtime: {} });
     useSettingsHostStore.setState({ desktopId: null });
     __resetBrowserBridgeForTest();
-    usePanelStore.setState({ settingsSection: null, settingsAnchor: null });
+    usePanelStore.setState({
+      settingsSection: null,
+      settingsAnchor: null,
+      settingsMachineId: null,
+    });
   });
 
   it("offers a host picker on Plugins so a paired machine's packages can be managed", () => {
@@ -1328,5 +1332,43 @@ describe("SettingsOverlay", () => {
     fireEvent.click(screen.getByRole("button", { name: "Crews" }));
     expect(screen.getByTestId("crews-host")).toHaveAttribute("data-crews-machine", "local");
     expect(screen.queryByTestId("machine-select")).not.toBeInTheDocument();
+  });
+
+  it("opens Crews scoped to the host named by a cross-section deep link", () => {
+    useRemoteServersStore.setState({
+      servers: [
+        {
+          connectionId: "mac",
+          desktopId: "mac",
+          label: "MacBook",
+          endpoint: "https://mac.example",
+          accessToken: "tok",
+          scopes: ["session:read", "session:operate"],
+          platform: "darwin",
+        },
+      ],
+      runtime: {
+        mac: {
+          status: "online",
+          projects: [],
+          threads: [],
+          agentStatuses: { windows: [], wsl: [], updatedAt: "2026-11-24T00:00:00.000Z" },
+        },
+      },
+    });
+    appState.projects = [
+      {
+        id: "mac-project",
+        name: "Mac project",
+        createdAt: "2026-11-24T00:00:00.000Z",
+        remoteServerId: "mac",
+        location: { kind: "posix", path: "/Users/me/repo", remoteServerId: "mac" },
+      },
+    ];
+    usePanelStore.getState().openSettingsSection("crews", "crews.crew-1", "remote:mac");
+
+    render(<SettingsOverlay onClose={() => undefined} />);
+
+    expect(screen.getByTestId("crews-host")).toHaveAttribute("data-crews-machine", "remote:mac");
   });
 });

@@ -12,16 +12,18 @@ import type {
   ThreadPresentationMode,
 } from "@/shared/contracts";
 import { HOME_PROJECT_NAME, isHomeProject } from "@/shared/homeScope";
-import { readBridge } from "@/renderer/bridge";
+import { isRemoteSession, readBridge } from "@/renderer/bridge";
 import { resolveNewThreadMcpConfig } from "@/shared/contracts";
 import { useImplicitMcpServers } from "@/renderer/components/composer/implicitMcpServers";
 import { getConfigNormalizer } from "@/renderer/components/providers/providerComposer";
 import { composerRuntimeRequirement } from "@/renderer/components/providers/composerRuntimeRequirement";
 import { useGitStore } from "@/renderer/state/gitStore";
+import { openCrewsSettings } from "@/renderer/actions/panelActions";
 import { PixelLoader } from "@/renderer/components/common/PixelLoader";
 import { modelVisibilityKey } from "@/renderer/components/common/ProviderModelMenu/parts/providerIdentity";
 import type { ProviderModelSelectionIntent } from "@/renderer/components/common/ProviderModelMenu/parts/types";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
+import { useHostSetting } from "@/renderer/state/pairedHostSettings";
 import { useCrewLibrary } from "@/renderer/state/crewLibrary";
 import type { DraftContent } from "@/renderer/state/slices/types";
 import { useAppStore } from "@/renderer/state/appStore";
@@ -215,7 +217,8 @@ export function ThreadDraftView(props: {
     : (composerDraftStorage()?.selection("project", project.id) ?? suppliedLastDraftConfig);
   const implicitMcpServers = useImplicitMcpServers();
   const gitBranch = useGitStore((s) => s.statuses[project.id]?.branch);
-  const disabledAgents = useSharedSettings((s) => s.disabledAgents);
+  const settingsHost = isRemoteSession() ? undefined : project.location.remoteServerId;
+  const disabledAgents = useHostSetting(settingsHost, "disabledAgents");
   const crewMachineKey = machineKeyForLocation(project.location);
   const { crews: savedCrews, upsertCrew } = useCrewLibrary(crewMachineKey);
   const helperOptions = useCrewHelperOptions(crewMachineKey);
@@ -1003,18 +1006,17 @@ export function ThreadDraftView(props: {
     setProviderConfig,
   ]);
 
-  const hiddenModelIds = useSharedSettings((s) =>
-    selectedAgent
-      ? s.hiddenModels[
-          modelVisibilityKey(
-            selectedAgent.kind,
-            presentationMode,
-            selectedAgentForConfig?.capabilities.runtimeLabel,
-          )
-        ]
-      : undefined,
-  );
-  const allHiddenModels = useSharedSettings((s) => s.hiddenModels);
+  const hiddenModels = useHostSetting(settingsHost, "hiddenModels");
+  const hiddenModelIds = selectedAgent
+    ? hiddenModels[
+        modelVisibilityKey(
+          selectedAgent.kind,
+          presentationMode,
+          selectedAgentForConfig?.capabilities.runtimeLabel,
+        )
+      ]
+    : undefined;
+  const allHiddenModels = hiddenModels;
   const selectedAgentFilteredCapabilities = useMemo(
     () =>
       selectedAgentForConfig
@@ -1522,6 +1524,7 @@ export function ThreadDraftView(props: {
           isDraft: true,
           isDisabled: false,
           onBindingChange: (binding: ThreadCrewBinding) => commitDraftCrew(binding),
+          onEditInSettings: () => openCrewsSettings(draftCrew.crewId, crewMachineKey),
           onLeadChange: (selection: CrewMemberSelection) => {
             if (
               selection.agentKind !== draftLead.agentKind ||
