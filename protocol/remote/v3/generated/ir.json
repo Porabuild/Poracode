@@ -16323,6 +16323,37 @@
                     "items": {
                       "additionalProperties": true,
                       "properties": {
+                        "breakdown": {
+                          "items": {
+                            "additionalProperties": true,
+                            "properties": {
+                              "currency": {
+                                "type": "string"
+                              },
+                              "label": {
+                                "type": "string"
+                              },
+                              "limit": {
+                                "minimum": 0,
+                                "type": "number"
+                              },
+                              "tokens": {
+                                "minimum": 0,
+                                "type": "number"
+                              },
+                              "used": {
+                                "minimum": 0,
+                                "type": "number"
+                              }
+                            },
+                            "required": [
+                              "label"
+                            ],
+                            "type": "object",
+                            "x-poracode-unknownFields": "strip"
+                          },
+                          "type": "array"
+                        },
                         "currency": {
                           "type": "string"
                         },
@@ -37167,6 +37198,37 @@
                     "items": {
                       "additionalProperties": true,
                       "properties": {
+                        "breakdown": {
+                          "items": {
+                            "additionalProperties": true,
+                            "properties": {
+                              "currency": {
+                                "type": "string"
+                              },
+                              "label": {
+                                "type": "string"
+                              },
+                              "limit": {
+                                "minimum": 0,
+                                "type": "number"
+                              },
+                              "tokens": {
+                                "minimum": 0,
+                                "type": "number"
+                              },
+                              "used": {
+                                "minimum": 0,
+                                "type": "number"
+                              }
+                            },
+                            "required": [
+                              "label"
+                            ],
+                            "type": "object",
+                            "x-poracode-unknownFields": "strip"
+                          },
+                          "type": "array"
+                        },
                         "currency": {
                           "type": "string"
                         },
@@ -69747,6 +69809,37 @@
                     "items": {
                       "additionalProperties": true,
                       "properties": {
+                        "breakdown": {
+                          "items": {
+                            "additionalProperties": true,
+                            "properties": {
+                              "currency": {
+                                "type": "string"
+                              },
+                              "label": {
+                                "type": "string"
+                              },
+                              "limit": {
+                                "minimum": 0,
+                                "type": "number"
+                              },
+                              "tokens": {
+                                "minimum": 0,
+                                "type": "number"
+                              },
+                              "used": {
+                                "minimum": 0,
+                                "type": "number"
+                              }
+                            },
+                            "required": [
+                              "label"
+                            ],
+                            "type": "object",
+                            "x-poracode-unknownFields": "strip"
+                          },
+                          "type": "array"
+                        },
                         "currency": {
                           "type": "string"
                         },
@@ -95768,7 +95861,7 @@
     "void-envelope.omit-result",
     "void-result.omit-field"
   ],
-  "sourceHash": "sha256:856e914733bb78c203fad9abc7bce1bfe624f592c69d34a4d84afe2ea8518d57",
+  "sourceHash": "sha256:6a584faee494e702ea62f017efa2a2f792da2bfa95721d6627da87aabb14ecee",
   "unknownObjectFields": "ignore",
   "webSocket": {
     "clientMessages": [

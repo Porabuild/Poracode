@@ -28,6 +28,7 @@ import { EditProfileDialog } from "@/renderer/views/ProfileOverlay/parts/EditPro
 import { ShareDialog } from "@/renderer/views/ProfileOverlay/parts/ShareDialog";
 import { formatCompact } from "@/renderer/views/ProfileOverlay/format";
 import { CostHistory } from "@/renderer/views/ProfileOverlay/parts/CostHistory";
+import { ProfileAccountBillingCycles } from "@/renderer/views/ProfileOverlay/parts/AccountBillingCycles";
 
 /** Token-weighted bars show compact counts (e.g. "2.8M"); spread when by-tokens. */
 const tokenFormat = { formatValue: formatCompact };
@@ -306,12 +307,21 @@ export function ProfileSettings() {
               </div>
             )}
             {tab === "costs" && (
-              <div key="costs" role="tabpanel" aria-label={t`Costs`} className={tabMotionClass}>
+              <div
+                key="costs"
+                role="tabpanel"
+                aria-label={t`Costs`}
+                className={`@container flex min-w-0 flex-col gap-6 ${tabMotionClass}`}
+              >
                 <CostHistory
                   stats={tokens?.costs}
                   loading={tokensLoading && !tokens?.costs}
                   locale={i18n.locale}
                   allDevices={data.selection.scope === "all" && data.devices.length > 1}
+                />
+                <ProfileAccountBillingCycles
+                  selection={data.selection}
+                  currentDeviceId={data.currentDeviceId}
                 />
               </div>
             )}

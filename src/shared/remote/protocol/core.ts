@@ -60,6 +60,10 @@ import { gitStatePatchSchema } from "../../gitState";
 export const PORACODE_REMOTE_PROTOCOL_VERSION = 15;
 // Optional provider-usage ringLayouts adds display metadata only: v14 readers
 // ignore unknown fields, and new readers accept previous responses without it.
+// Optional UsageWindow.breakdown adds additive per-model/sub-bucket display
+// metadata within v15: older wire readers ignore unknown fields, and new
+// readers accept payloads without it (on-disk cache invalidation is tracked by
+// USAGE_CACHE_VERSION).
 // Optional Crossagents visibility preferences are additive within v14. Old
 // hosts omit them; browser sync sends edits only after observing those keys.
 // Older readers strip them, and unrelated sparse patches never inject defaults.

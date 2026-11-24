@@ -30,7 +30,12 @@ vi.mock("@/renderer/components/providers/ProviderIcon", () => ({
   ProviderIcon: () => <span />,
 }));
 
-vi.mock("@/renderer/views/ProfileOverlay/useProfileData", () => ({
+vi.mock("@/renderer/components/providers/useProviderUsageHydration", () => ({
+  useProviderUsageHydration: vi.fn<(enabled?: boolean) => void>(),
+}));
+
+vi.mock("@/renderer/views/ProfileOverlay/useProfileData", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/renderer/views/ProfileOverlay/useProfileData")>()),
   useProfileData: (): ProfileData => {
     const [selection, setSelection] = useState<ProfileSelection>({
       scope: "device",

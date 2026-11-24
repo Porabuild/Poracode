@@ -34,8 +34,15 @@ export function formatTokens(count: number | undefined): string {
   return String(Math.round(count));
 }
 
-function formatCount(count: number): string {
+export function formatCount(count: number): string {
   return new Intl.NumberFormat(undefined, { maximumFractionDigits: 0 }).format(Math.round(count));
+}
+
+/** Compact percentage share for additive breakdowns (e.g. "<0.1%", "4.4%", "50%"). */
+export function formatPercentShare(fraction: number): string {
+  const pct = fraction * 100;
+  if (pct > 0 && pct < 0.1) return "<0.1%";
+  return `${pct >= 10 ? Math.round(pct) : Math.round(pct * 10) / 10}%`;
 }
 
 /** Format a provider credit balance as currency or whole credits. */

@@ -400,8 +400,11 @@ msgstr "{0} пропущено"
 
 #. placeholder {0}: formatTokens(reported.tokens.total)
 #. placeholder {0}: formatTokens(snapshot.tokens.total)
+#. placeholder {0}: formatTokens(tokens.total)
 #: src/renderer/components/providers/UsageCostLine.tsx
+#: src/renderer/components/providers/UsageWindowBars.tsx
 #: src/renderer/components/thread/ThreadDetailsDocks.tsx
+#: src/renderer/views/ProfileOverlay/parts/AccountBillingCycles.tsx
 msgid "{0} tokens"
 msgstr "{0} токенов"
 
@@ -873,6 +876,11 @@ msgstr "© {currentYear} Serhii Vecherenko. Все права защищены."
 msgid "+{0}"
 msgstr "+{0}"
 
+#. placeholder {0}: hidden.length
+#: src/renderer/components/providers/UsageWindowBars.tsx
+msgid "+{0} more"
+msgstr "ещё +{0}"
+
 #: src/renderer/views/PullRequestsOverlay/timeline/TimelineEventPhrase.tsx
 msgid "<0/> changed the base branch"
 msgstr "<0/> изменил(а) базовую ветку"
@@ -1134,6 +1142,10 @@ msgstr "Прервать слияние"
 msgid "About"
 msgstr "О программе"
 
+#: src/renderer/views/ProfileOverlay/parts/AccountBillingCycles.tsx
+msgid "About account billing cycles"
+msgstr "О расчётных циклах аккаунтов"
+
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 msgid "About cost breakdown"
 msgstr "О разбивке затрат"
@@ -1182,6 +1194,10 @@ msgstr "Инспектор доступности"
 msgid "Account"
 msgstr "Аккаунт"
 
+#: src/renderer/views/ProfileOverlay/parts/AccountBillingCycles.tsx
+msgid "Account billing cycles"
+msgstr "Расчётные циклы аккаунтов"
+
 #: src/renderer/components/plugins/PluginServiceAccounts.tsx
 msgid "Account changes apply to new threads."
 msgstr "Изменения аккаунтов применяются к новым тредам."
@@ -1202,6 +1218,10 @@ msgstr "Параметры аккаунта"
 #: src/renderer/components/providers/devin/profileSettings.tsx
 msgid "Account sharing and launch defaults."
 msgstr "Общий доступ к аккаунту и параметры запуска по умолчанию."
+
+#: src/renderer/views/ProfileOverlay/parts/AccountBillingCycles.tsx
+msgid "Account-wide · current cycle"
+msgstr "Весь аккаунт · текущий цикл"
 
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 #: src/renderer/views/PullRequestsOverlay/list/PrListMenuSections.tsx
@@ -2666,6 +2686,10 @@ msgstr "Лучше (Whisper base)"
 msgid "Better status updates while agents run."
 msgstr "Более качественные обновления статуса во время работы агентов."
 
+#: src/renderer/views/ProfileOverlay/parts/AccountBillingCycles.tsx
+msgid "Billed spend"
+msgstr "Выставленные расходы"
+
 #: src/renderer/views/PullRequestsOverlay/changes/FileKindIcon.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Binary"
@@ -2991,6 +3015,7 @@ msgstr "кэш"
 msgid "Cache hit"
 msgstr "Попадание в кэш"
 
+#: src/renderer/views/ProfileOverlay/parts/AccountBillingCycles.tsx
 #: src/renderer/views/ProfileOverlay/parts/costBreakdown.ts
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 msgid "Cache read"
@@ -3000,6 +3025,7 @@ msgstr "Чтение кеша"
 msgid "Cache savings"
 msgstr "Экономия на кэше"
 
+#: src/renderer/views/ProfileOverlay/parts/AccountBillingCycles.tsx
 #: src/renderer/views/ProfileOverlay/parts/costBreakdown.ts
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 msgid "Cache write"
@@ -9346,6 +9372,7 @@ msgstr "Инициализировать репозиторий"
 msgid "Inner display"
 msgstr "Внутренний экран"
 
+#: src/renderer/views/ProfileOverlay/parts/AccountBillingCycles.tsx
 #: src/renderer/views/ProfileOverlay/parts/costBreakdown.ts
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 msgid "Input"
@@ -10146,6 +10173,10 @@ msgstr "Предпросмотр в реальном времени недост
 #: src/renderer/components/thread/LiveStreamCapacityAlert.tsx
 msgid "Live updates are paused for {droppedRuntimeThreadCount, plural, one {# thread} other {# threads}} because this window exceeds the {MANAGED_ITEM_INTERESTS_MAX}-thread live streaming limit. Close or reopen a thread to resume the paused ones."
 msgstr "Живые обновления приостановлены для {droppedRuntimeThreadCount, plural, one {# треда} few {# тредов} many {# тредов} other {# треда}}, потому что это окно превышает предел в {MANAGED_ITEM_INTERESTS_MAX} тредов живой трансляции. Закройте или откройте заново тред, чтобы возобновить приостановленные."
+
+#: src/renderer/views/ProfileOverlay/parts/AccountBillingCycles.tsx
+msgid "Live usage reported by connected provider accounts for their active billing cycle. Includes activity outside Poracode and is kept separate from ledger totals above."
+msgstr "Текущее использование, сообщаемое подключёнными аккаунтами провайдеров за активный расчётный цикл. Включает активность вне Poracode и отображается отдельно от итогов журнала выше."
 
 #: src/renderer/components/composer/LiveVoiceControls.tsx
 msgid "Live voice"
@@ -13263,6 +13294,7 @@ msgstr "Внешний экран"
 msgid "Outlook"
 msgstr "Outlook"
 
+#: src/renderer/views/ProfileOverlay/parts/AccountBillingCycles.tsx
 #: src/renderer/views/ProfileOverlay/parts/costBreakdown.ts
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 msgid "Output"
@@ -15603,6 +15635,10 @@ msgstr "Сбросить масштаб"
 #: src/renderer/components/newsLine/useNewsLineItems.tsx
 msgid "resets in {countdown}"
 msgstr "сброс через {countdown}"
+
+#: src/renderer/views/ProfileOverlay/parts/AccountBillingCycles.tsx
+msgid "Resets in {resetLabel}"
+msgstr "Сброс через {resetLabel}"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserHost.tsx
 msgid "Resize browser drawer"

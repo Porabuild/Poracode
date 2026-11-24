@@ -338,8 +338,8 @@ val RemoteRootCodecs.procedureU2EGetNativeMcpSetupU2EResult: RemoteRootCodec<Pro
 val RemoteRootCodecs.procedureU2EGetProviderUsageU2ERequest: RemoteRootCodec<ProceduregetProviderUsageRequest_f2b9759b60>
     get() = RemoteRootCodec("procedure.getProviderUsage.request", serializer<ProceduregetProviderUsageRequest_f2b9759b60>(), schema_f2b9759b60404656)
 
-val RemoteRootCodecs.procedureU2EGetProviderUsageU2EResult: RemoteRootCodec<ProceduregetProviderUsageResult_4c22b67e11>
-    get() = RemoteRootCodec("procedure.getProviderUsage.result", serializer<ProceduregetProviderUsageResult_4c22b67e11>(), schema_4c22b67e111cba1f)
+val RemoteRootCodecs.procedureU2EGetProviderUsageU2EResult: RemoteRootCodec<ProceduregetProviderUsageResult_bf64eabed7>
+    get() = RemoteRootCodec("procedure.getProviderUsage.result", serializer<ProceduregetProviderUsageResult_bf64eabed7>(), schema_bf64eabed7a187d3)
 
 val RemoteRootCodecs.procedureU2EGetThreadFollowUpQueueU2ERequest: RemoteRootCodec<ProcedurecancelExtractContextRequest_09b78d9c1d>
     get() = RemoteRootCodec("procedure.getThreadFollowUpQueue.request", serializer<ProcedurecancelExtractContextRequest_09b78d9c1d>(), schema_09b78d9c1d4c3a6b)

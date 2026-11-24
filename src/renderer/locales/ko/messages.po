@@ -400,8 +400,11 @@ msgstr "{0}개 건너뜀"
 
 #. placeholder {0}: formatTokens(reported.tokens.total)
 #. placeholder {0}: formatTokens(snapshot.tokens.total)
+#. placeholder {0}: formatTokens(tokens.total)
 #: src/renderer/components/providers/UsageCostLine.tsx
+#: src/renderer/components/providers/UsageWindowBars.tsx
 #: src/renderer/components/thread/ThreadDetailsDocks.tsx
+#: src/renderer/views/ProfileOverlay/parts/AccountBillingCycles.tsx
 msgid "{0} tokens"
 msgstr "{0} 토큰"
 
@@ -873,6 +876,11 @@ msgstr "© {currentYear} Serhii Vecherenko. 모든 권리 보유."
 msgid "+{0}"
 msgstr "+{0}"
 
+#. placeholder {0}: hidden.length
+#: src/renderer/components/providers/UsageWindowBars.tsx
+msgid "+{0} more"
+msgstr "+{0}개 더"
+
 #: src/renderer/views/PullRequestsOverlay/timeline/TimelineEventPhrase.tsx
 msgid "<0/> changed the base branch"
 msgstr "<0/>님이 베이스 브랜치를 변경했습니다"
@@ -1134,6 +1142,10 @@ msgstr "병합 중단"
 msgid "About"
 msgstr "정보"
 
+#: src/renderer/views/ProfileOverlay/parts/AccountBillingCycles.tsx
+msgid "About account billing cycles"
+msgstr "계정 결제 주기 정보"
+
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 msgid "About cost breakdown"
 msgstr "비용 내역 안내"
@@ -1182,6 +1194,10 @@ msgstr "접근성 검사기"
 msgid "Account"
 msgstr "계정"
 
+#: src/renderer/views/ProfileOverlay/parts/AccountBillingCycles.tsx
+msgid "Account billing cycles"
+msgstr "계정 결제 주기"
+
 #: src/renderer/components/plugins/PluginServiceAccounts.tsx
 msgid "Account changes apply to new threads."
 msgstr "계정 변경 사항은 새 스레드에 적용됩니다."
@@ -1202,6 +1218,10 @@ msgstr "계정 옵션"
 #: src/renderer/components/providers/devin/profileSettings.tsx
 msgid "Account sharing and launch defaults."
 msgstr "계정 공유 및 시작 기본 설정입니다."
+
+#: src/renderer/views/ProfileOverlay/parts/AccountBillingCycles.tsx
+msgid "Account-wide · current cycle"
+msgstr "계정 전체 · 현재 주기"
 
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 #: src/renderer/views/PullRequestsOverlay/list/PrListMenuSections.tsx
@@ -2666,6 +2686,10 @@ msgstr "Better (위스퍼 베이스)"
 msgid "Better status updates while agents run."
 msgstr "에이전트 실행 중 더 나은 상태 업데이트"
 
+#: src/renderer/views/ProfileOverlay/parts/AccountBillingCycles.tsx
+msgid "Billed spend"
+msgstr "청구된 사용액"
+
 #: src/renderer/views/PullRequestsOverlay/changes/FileKindIcon.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Binary"
@@ -2991,6 +3015,7 @@ msgstr "캐시"
 msgid "Cache hit"
 msgstr "캐시 적중률"
 
+#: src/renderer/views/ProfileOverlay/parts/AccountBillingCycles.tsx
 #: src/renderer/views/ProfileOverlay/parts/costBreakdown.ts
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 msgid "Cache read"
@@ -3000,6 +3025,7 @@ msgstr "캐시 읽기"
 msgid "Cache savings"
 msgstr "캐시 절감액"
 
+#: src/renderer/views/ProfileOverlay/parts/AccountBillingCycles.tsx
 #: src/renderer/views/ProfileOverlay/parts/costBreakdown.ts
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 msgid "Cache write"
@@ -9346,6 +9372,7 @@ msgstr "저장소 초기화"
 msgid "Inner display"
 msgstr "안쪽 디스플레이"
 
+#: src/renderer/views/ProfileOverlay/parts/AccountBillingCycles.tsx
 #: src/renderer/views/ProfileOverlay/parts/costBreakdown.ts
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 msgid "Input"
@@ -10146,6 +10173,10 @@ msgstr "실시간 미리보기를 사용할 수 없습니다. 다시 시도하�
 #: src/renderer/components/thread/LiveStreamCapacityAlert.tsx
 msgid "Live updates are paused for {droppedRuntimeThreadCount, plural, one {# thread} other {# threads}} because this window exceeds the {MANAGED_ITEM_INTERESTS_MAX}-thread live streaming limit. Close or reopen a thread to resume the paused ones."
 msgstr "이 창이 {MANAGED_ITEM_INTERESTS_MAX}개 스레드 실시간 스트리밍 한도를 초과하여 {droppedRuntimeThreadCount, plural, other {#개 스레드}}의 실시간 업데이트가 일시중지되었습니다. 스레드를 닫거나 다시 열면 일시중지된 업데이트가 재개됩니다."
+
+#: src/renderer/views/ProfileOverlay/parts/AccountBillingCycles.tsx
+msgid "Live usage reported by connected provider accounts for their active billing cycle. Includes activity outside Poracode and is kept separate from ledger totals above."
+msgstr "연결된 공급자 계정이 현재 결제 주기에 대해 보고한 실시간 사용량입니다. Poracode 외부의 활동도 포함되며 위의 기록 합계와 별도로 표시됩니다."
 
 #: src/renderer/components/composer/LiveVoiceControls.tsx
 msgid "Live voice"
@@ -13263,6 +13294,7 @@ msgstr "바깥쪽 디스플레이"
 msgid "Outlook"
 msgstr "Outlook"
 
+#: src/renderer/views/ProfileOverlay/parts/AccountBillingCycles.tsx
 #: src/renderer/views/ProfileOverlay/parts/costBreakdown.ts
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 msgid "Output"
@@ -15603,6 +15635,10 @@ msgstr "확대/축소 재설정"
 #: src/renderer/components/newsLine/useNewsLineItems.tsx
 msgid "resets in {countdown}"
 msgstr "{countdown} 후 초기화"
+
+#: src/renderer/views/ProfileOverlay/parts/AccountBillingCycles.tsx
+msgid "Resets in {resetLabel}"
+msgstr "{resetLabel} 후 초기화"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserHost.tsx
 msgid "Resize browser drawer"

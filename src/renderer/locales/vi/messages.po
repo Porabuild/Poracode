@@ -400,8 +400,11 @@ msgstr "{0} đã bỏ qua"
 
 #. placeholder {0}: formatTokens(reported.tokens.total)
 #. placeholder {0}: formatTokens(snapshot.tokens.total)
+#. placeholder {0}: formatTokens(tokens.total)
 #: src/renderer/components/providers/UsageCostLine.tsx
+#: src/renderer/components/providers/UsageWindowBars.tsx
 #: src/renderer/components/thread/ThreadDetailsDocks.tsx
+#: src/renderer/views/ProfileOverlay/parts/AccountBillingCycles.tsx
 msgid "{0} tokens"
 msgstr "{0} mã thông báo"
 
@@ -873,6 +876,11 @@ msgstr "© {currentYear} Serhii Vecherenko. Mọi quyền được bảo lưu."
 msgid "+{0}"
 msgstr "+{0}"
 
+#. placeholder {0}: hidden.length
+#: src/renderer/components/providers/UsageWindowBars.tsx
+msgid "+{0} more"
+msgstr "+{0} mục khác"
+
 #: src/renderer/views/PullRequestsOverlay/timeline/TimelineEventPhrase.tsx
 msgid "<0/> changed the base branch"
 msgstr "<0/> đã đổi nhánh cơ sở"
@@ -1134,6 +1142,10 @@ msgstr "Hủy bỏ hợp nhất"
 msgid "About"
 msgstr "Giới thiệu"
 
+#: src/renderer/views/ProfileOverlay/parts/AccountBillingCycles.tsx
+msgid "About account billing cycles"
+msgstr "Về chu kỳ thanh toán tài khoản"
+
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 msgid "About cost breakdown"
 msgstr "Về phân tích chi phí"
@@ -1182,6 +1194,10 @@ msgstr "Trình kiểm tra trợ năng"
 msgid "Account"
 msgstr "Tài khoản"
 
+#: src/renderer/views/ProfileOverlay/parts/AccountBillingCycles.tsx
+msgid "Account billing cycles"
+msgstr "Chu kỳ thanh toán tài khoản"
+
 #: src/renderer/components/plugins/PluginServiceAccounts.tsx
 msgid "Account changes apply to new threads."
 msgstr "Thay đổi tài khoản áp dụng cho các luồng mới."
@@ -1202,6 +1218,10 @@ msgstr "Tùy chọn tài khoản"
 #: src/renderer/components/providers/devin/profileSettings.tsx
 msgid "Account sharing and launch defaults."
 msgstr "Chia sẻ tài khoản và thiết lập khởi chạy mặc định."
+
+#: src/renderer/views/ProfileOverlay/parts/AccountBillingCycles.tsx
+msgid "Account-wide · current cycle"
+msgstr "Toàn tài khoản · chu kỳ hiện tại"
 
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 #: src/renderer/views/PullRequestsOverlay/list/PrListMenuSections.tsx
@@ -2666,6 +2686,10 @@ msgstr "Tốt hơn (Whisper base)"
 msgid "Better status updates while agents run."
 msgstr "Cập nhật trạng thái tốt hơn trong khi tác nhân chạy."
 
+#: src/renderer/views/ProfileOverlay/parts/AccountBillingCycles.tsx
+msgid "Billed spend"
+msgstr "Chi phí đã lập hóa đơn"
+
 #: src/renderer/views/PullRequestsOverlay/changes/FileKindIcon.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Binary"
@@ -2991,6 +3015,7 @@ msgstr "bộ nhớ đệm"
 msgid "Cache hit"
 msgstr "Tỷ lệ trúng đệm"
 
+#: src/renderer/views/ProfileOverlay/parts/AccountBillingCycles.tsx
 #: src/renderer/views/ProfileOverlay/parts/costBreakdown.ts
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 msgid "Cache read"
@@ -3000,6 +3025,7 @@ msgstr "Đọc bộ nhớ đệm"
 msgid "Cache savings"
 msgstr "Tiết kiệm bộ nhớ đệm"
 
+#: src/renderer/views/ProfileOverlay/parts/AccountBillingCycles.tsx
 #: src/renderer/views/ProfileOverlay/parts/costBreakdown.ts
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 msgid "Cache write"
@@ -9346,6 +9372,7 @@ msgstr "Khởi tạo kho lưu trữ"
 msgid "Inner display"
 msgstr "Màn hình trong"
 
+#: src/renderer/views/ProfileOverlay/parts/AccountBillingCycles.tsx
 #: src/renderer/views/ProfileOverlay/parts/costBreakdown.ts
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 msgid "Input"
@@ -10146,6 +10173,10 @@ msgstr "Không thể xem trước trực tiếp. Hãy thử lại hoặc dùng �
 #: src/renderer/components/thread/LiveStreamCapacityAlert.tsx
 msgid "Live updates are paused for {droppedRuntimeThreadCount, plural, one {# thread} other {# threads}} because this window exceeds the {MANAGED_ITEM_INTERESTS_MAX}-thread live streaming limit. Close or reopen a thread to resume the paused ones."
 msgstr "Cập nhật trực tiếp bị tạm dừng cho {droppedRuntimeThreadCount, plural, other {# luồng}} vì cửa sổ này vượt quá giới hạn {MANAGED_ITEM_INTERESTS_MAX} luồng phát trực tiếp. Hãy đóng hoặc mở lại một luồng để tiếp tục các luồng bị tạm dừng."
+
+#: src/renderer/views/ProfileOverlay/parts/AccountBillingCycles.tsx
+msgid "Live usage reported by connected provider accounts for their active billing cycle. Includes activity outside Poracode and is kept separate from ledger totals above."
+msgstr "Mức sử dụng trực tiếp do các tài khoản nhà cung cấp đã kết nối báo cáo cho chu kỳ thanh toán hiện tại. Bao gồm cả hoạt động ngoài Poracode và được tách riêng khỏi tổng sổ ghi ở trên."
 
 #: src/renderer/components/composer/LiveVoiceControls.tsx
 msgid "Live voice"
@@ -13263,6 +13294,7 @@ msgstr "Màn hình ngoài"
 msgid "Outlook"
 msgstr "Outlook"
 
+#: src/renderer/views/ProfileOverlay/parts/AccountBillingCycles.tsx
 #: src/renderer/views/ProfileOverlay/parts/costBreakdown.ts
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 msgid "Output"
@@ -15603,6 +15635,10 @@ msgstr "Đặt lại mức thu phóng"
 #: src/renderer/components/newsLine/useNewsLineItems.tsx
 msgid "resets in {countdown}"
 msgstr "đặt lại sau {countdown}"
+
+#: src/renderer/views/ProfileOverlay/parts/AccountBillingCycles.tsx
+msgid "Resets in {resetLabel}"
+msgstr "Đặt lại sau {resetLabel}"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserHost.tsx
 msgid "Resize browser drawer"
