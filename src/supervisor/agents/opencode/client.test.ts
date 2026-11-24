@@ -62,9 +62,11 @@ function makeHandle(baseUrl: string, password = "server-password") {
 function makeClientStub(): OpenCodeClient {
   return {
     session: { get: vi.fn<() => Promise<object>>().mockResolvedValue({ id: "existing" }) },
-    mcp: {
-      add: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
-      remove: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+    experimental: {
+      mcp: {
+        add: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+        remove: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+      },
     },
   } as unknown as OpenCodeClient;
 }
@@ -258,7 +260,7 @@ describe("acquireOpenCodeServer", () => {
 
     // Disposing sibling removes linear immediately because the server stays up for remaining leases.
     await sibling.dispose({ closeServerIfIdle: true });
-    expect(client.mcp.remove).toHaveBeenCalledWith({
+    expect(client.experimental.mcp.remove).toHaveBeenCalledWith({
       server: "linear",
       location: { directory: "/repo" },
     });
@@ -291,16 +293,16 @@ describe("acquireOpenCodeServer", () => {
     // When disposing the only lease holding `browser` while the server stays warm,
     // `browser` is removed before releaseLease.
     await first.dispose();
-    expect(client.mcp.remove).toHaveBeenCalledExactlyOnceWith({
+    expect(client.experimental.mcp.remove).toHaveBeenCalledExactlyOnceWith({
       server: "browser",
       location: { directory: "/repo" },
     });
     expect(second.getDirectoryMcpNames()).toEqual(["linear"]);
 
     // Final closeServerIfIdle shuts the server down directly without redundant mcp.remove RPCs.
-    vi.mocked(client.mcp.remove).mockClear();
+    vi.mocked(client.experimental.mcp.remove).mockClear();
     await second.dispose({ closeServerIfIdle: true });
-    expect(client.mcp.remove).not.toHaveBeenCalled();
+    expect(client.experimental.mcp.remove).not.toHaveBeenCalled();
     expect(sharedHandle.dispose).toHaveBeenCalledOnce();
   });
 
@@ -605,7 +607,7 @@ describe("acquireOpenCodeServer", () => {
       ],
     });
 
-    expect(client.mcp.add).toHaveBeenNthCalledWith(1, {
+    expect(client.experimental.mcp.add).toHaveBeenNthCalledWith(1, {
       server: "browser",
       location: { directory: "/repo" },
       config: {
@@ -615,7 +617,7 @@ describe("acquireOpenCodeServer", () => {
         timeout: { execution: 30_000 },
       },
     });
-    expect(client.mcp.add).toHaveBeenNthCalledWith(2, {
+    expect(client.experimental.mcp.add).toHaveBeenNthCalledWith(2, {
       server: "memory",
       location: { directory: "/repo" },
       config: {
@@ -625,12 +627,12 @@ describe("acquireOpenCodeServer", () => {
         timeout: { execution: 10_000 },
       },
     });
-    expect(client.mcp.add).toHaveBeenNthCalledWith(3, {
+    expect(client.experimental.mcp.add).toHaveBeenNthCalledWith(3, {
       server: "legacy",
       location: { directory: "/repo" },
       config: { type: "remote", url: "http://127.0.0.1:9402/sse", timeout: { execution: 30_000 } },
     });
-    expect(client.mcp.remove).not.toHaveBeenCalled();
+    expect(client.experimental.mcp.remove).not.toHaveBeenCalled();
 
     await acquired.dispose();
   });
@@ -651,8 +653,8 @@ describe("acquireOpenCodeServer", () => {
       projectLocation: { kind: "posix", path: "/repo" },
     });
 
-    expect(oneShotClient.mcp.add).not.toHaveBeenCalled();
-    expect(oneShotClient.mcp.remove).not.toHaveBeenCalled();
+    expect(oneShotClient.experimental.mcp.add).not.toHaveBeenCalled();
+    expect(oneShotClient.experimental.mcp.remove).not.toHaveBeenCalled();
 
     await settings.dispose();
     await oneShot.dispose();
@@ -674,7 +676,7 @@ describe("acquireOpenCodeServer", () => {
       mcpServers: [],
     });
 
-    expect(client.mcp.add).toHaveBeenCalledExactlyOnceWith(
+    expect(client.experimental.mcp.add).toHaveBeenCalledExactlyOnceWith(
       expect.objectContaining({ location: { directory: "/repo-a" } }),
     );
 
@@ -698,13 +700,13 @@ describe("acquireOpenCodeServer", () => {
     });
     await acquired.updateMcpServers([remoteMcp("browser", "http://127.0.0.1:9321/mcp")]);
 
-    expect(client.mcp.remove).toHaveBeenCalledExactlyOnceWith({
+    expect(client.experimental.mcp.remove).toHaveBeenCalledExactlyOnceWith({
       server: "memory",
       location: { directory: "/repo" },
     });
     // The surviving server's config is unchanged, so only the initial
     // acquire's two adds were ever issued.
-    expect(client.mcp.add).toHaveBeenCalledTimes(2);
+    expect(client.experimental.mcp.add).toHaveBeenCalledTimes(2);
     expect(handle.dispose).not.toHaveBeenCalled();
 
     await acquired.dispose();
@@ -724,8 +726,8 @@ describe("acquireOpenCodeServer", () => {
     await acquired.updateMcpServers([remoteMcp("browser", "http://127.0.0.1:9399/mcp")]);
     await acquired.updateMcpServers([]);
 
-    expect(client.mcp.add).toHaveBeenCalledTimes(2);
-    expect(client.mcp.remove).toHaveBeenCalledExactlyOnceWith({
+    expect(client.experimental.mcp.add).toHaveBeenCalledTimes(2);
+    expect(client.experimental.mcp.remove).toHaveBeenCalledExactlyOnceWith({
       server: "browser",
       location: { directory: "/repo" },
     });
@@ -736,12 +738,14 @@ describe("acquireOpenCodeServer", () => {
   it("serializes concurrent MCP updates for the same location", async () => {
     const handle = makeHandle("http://127.0.0.1:4700");
     const client = {
-      mcp: {
-        add: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
-        remove: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+      experimental: {
+        mcp: {
+          add: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+          remove: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+        },
       },
     } as unknown as OpenCodeClient & {
-      mcp: { add: ReturnType<typeof vi.fn<() => Promise<void>>> };
+      experimental: { mcp: { add: ReturnType<typeof vi.fn<() => Promise<void>>> } };
     };
     let markStarted!: () => void;
     let releaseAdd!: () => void;
@@ -751,7 +755,7 @@ describe("acquireOpenCodeServer", () => {
     const blockedAdd = new Promise<void>((resolve) => {
       releaseAdd = resolve;
     });
-    vi.mocked(client.mcp.add).mockImplementationOnce(async () => {
+    vi.mocked(client.experimental.mcp.add).mockImplementationOnce(async () => {
       markStarted();
       await blockedAdd;
     });
@@ -768,13 +772,13 @@ describe("acquireOpenCodeServer", () => {
 
     // The clear is queued behind the in-flight add, so nothing is removed yet.
     await Promise.resolve();
-    expect(client.mcp.remove).not.toHaveBeenCalled();
+    expect(client.experimental.mcp.remove).not.toHaveBeenCalled();
 
     releaseAdd();
     const first = await firstPromise;
     await secondPromise;
 
-    expect(client.mcp.remove).toHaveBeenCalledExactlyOnceWith({
+    expect(client.experimental.mcp.remove).toHaveBeenCalledExactlyOnceWith({
       server: "browser",
       location: { directory: "/repo" },
     });
@@ -791,7 +795,7 @@ describe("acquireOpenCodeServer", () => {
       mcpServers: [],
     });
     const delayed = Promise.withResolvers<void>();
-    vi.mocked(client.mcp.add)
+    vi.mocked(client.experimental.mcp.add)
       .mockImplementationOnce(() => delayed.promise)
       .mockRejectedValueOnce(new Error("invalid config"));
     const updating = acquired.updateMcpServers([
@@ -799,17 +803,16 @@ describe("acquireOpenCodeServer", () => {
       remoteMcp("b", "http://localhost/b"),
     ]);
     const failed = updating.catch((error: unknown) => error);
-    await vi.waitFor(() => expect(client.mcp.add).toHaveBeenCalledTimes(2));
+    await vi.waitFor(() => expect(client.experimental.mcp.add).toHaveBeenCalledTimes(2));
     const clearing = acquired.updateMcpServers([]);
     await Promise.resolve();
-    expect(client.mcp.remove).not.toHaveBeenCalled();
+    expect(client.experimental.mcp.remove).not.toHaveBeenCalled();
     delayed.resolve();
     expect(await failed).toEqual(new Error("invalid config"));
     await clearing;
-    expect(vi.mocked(client.mcp.remove).mock.calls.map(([input]) => input.server)).toEqual([
-      "a",
-      "b",
-    ]);
+    expect(
+      vi.mocked(client.experimental.mcp.remove).mock.calls.map(([input]) => input.server),
+    ).toEqual(["a", "b"]);
     await acquired.dispose();
   });
 
@@ -823,13 +826,15 @@ describe("acquireOpenCodeServer", () => {
       projectLocation: { kind: "posix", path: "/repo" },
       mcpServers: servers,
     });
-    vi.mocked(client.mcp.remove)
+    vi.mocked(client.experimental.mcp.remove)
       .mockResolvedValueOnce(undefined)
       .mockRejectedValueOnce(new Error("remove failed"));
     await expect(acquired.updateMcpServers([])).rejects.toThrow("remove failed");
-    vi.mocked(client.mcp.add).mockClear();
+    vi.mocked(client.experimental.mcp.add).mockClear();
     await acquired.updateMcpServers(servers);
-    expect(vi.mocked(client.mcp.add).mock.calls.map(([input]) => input.server)).toEqual(["a", "b"]);
+    expect(
+      vi.mocked(client.experimental.mcp.add).mock.calls.map(([input]) => input.server),
+    ).toEqual(["a", "b"]);
     await acquired.dispose();
   });
 
@@ -838,8 +843,12 @@ describe("acquireOpenCodeServer", () => {
     const secondHandle = makeHandle("http://127.0.0.1:4097");
     const firstAdd = vi.fn<() => Promise<void>>().mockRejectedValue(new Error("fetch failed"));
     const secondAdd = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
-    const firstClient = { mcp: { add: firstAdd, remove: vi.fn<() => Promise<void>>() } };
-    const secondClient = { mcp: { add: secondAdd, remove: vi.fn<() => Promise<void>>() } };
+    const firstClient = {
+      experimental: { mcp: { add: firstAdd, remove: vi.fn<() => Promise<void>>() } },
+    };
+    const secondClient = {
+      experimental: { mcp: { add: secondAdd, remove: vi.fn<() => Promise<void>>() } },
+    };
 
     mocks.spawnOpenCodeServer.mockReturnValueOnce(firstHandle).mockReturnValueOnce(secondHandle);
     mocks.makeOpenCodeClient.mockReturnValueOnce(firstClient).mockReturnValueOnce(secondClient);

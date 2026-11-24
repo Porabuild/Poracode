@@ -272,7 +272,7 @@ async function addMcpServers(
 ): Promise<void> {
   await settleMcpOperations(
     Object.entries(servers).map(([server, config]) =>
-      client.mcp.add({ server, location: { directory }, config }),
+      client.experimental.mcp.add({ server, location: { directory }, config }),
     ),
   );
 }
@@ -285,7 +285,7 @@ async function removeMcpServers(
   // Let revocation failures propagate: the caller must not advance the managed
   // fingerprint while a removed server may still be active.
   await settleMcpOperations(
-    names.map((server) => client.mcp.remove({ server, location: { directory } })),
+    names.map((server) => client.experimental.mcp.remove({ server, location: { directory } })),
   );
 }
 

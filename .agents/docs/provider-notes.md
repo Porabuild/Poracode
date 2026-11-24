@@ -282,16 +282,18 @@ folder. Qoder and Qwen remain unqualified — the test account could not run
 any model; Qwen additionally does not advertise
 `sessionCapabilities.close`.
 
-## OpenCode 2 (`opencode2`)
+## OpenCode 2 (`opencode`)
 
-A separate built-in provider from OpenCode 1. It installs `@opencode/cli` with
-npm `--prefix "$HOME/.opencode2"` (Windows: `$env:USERPROFILE/.opencode2`) so the
-V1 executable is preserved. The real binary is `bin/opencode.exe`;
-`opencode2.cjs` is only a migration notice, which the resolver unwraps before
-validating the version. The minimum CLI is `OPENCODE2_MIN_VERSION`
-(`src/supervisor/agents/opencode2/binary.ts`), kept in step with the
-`@opencode/client` version in `package.json` and the install commands in
-`src/renderer/components/providers/opencode2/installCommands.ts`.
+The OpenCode provider runs the OpenCode 2 CLI, qualified against 2.4.1. It
+installs `@opencode/cli` with npm `--prefix "$HOME/.opencode2"` (Windows:
+`$env:USERPROFILE/.opencode2`) so a V1 executable stays in place; the legacy
+1.x `opencode-ai` package is recognized only to be refused as unsupported. The
+real binary is `bin/opencode.exe`. Upgrading an older install can leave
+`opencode2.cjs` behind as a migration notice, which the resolver unwraps before
+validating the version. The minimum CLI is
+`OPENCODE_MIN_VERSION` (`src/supervisor/agents/opencode/binary.ts`), kept in
+step with the `@opencode/client` version in `package.json` and the install
+commands in `src/renderer/components/providers/opencode/installCommands.ts`.
 
 - **Native accounts and sessions:** uses the CLI's normal database selection,
   including a user-supplied `OPENCODE_DB`. OpenCode stores credentials in
@@ -312,7 +314,11 @@ validating the version. The minimum CLI is `OPENCODE2_MIN_VERSION`
 - **Server:** the pooled runtime starts
   `serve --hostname=127.0.0.1 --port=0 --print-logs`, reads its URL and
   generated Basic-auth password, and redacts readiness credentials from
-  diagnostics. Catalog reads wait for the first published plugin inventory.
+  diagnostics. Catalog reads wait for the first published plugin inventory:
+  since 2.4.0 the server no longer holds model and provider reads for plugin
+  activation, so that poll is what makes them complete. Dynamic MCP servers
+  are registered through `client.experimental.mcp.add` and `.remove`; the
+  un-prefixed aliases are deprecated for removal in the next client minor.
   Client types live behind `clientTypes.ts`; the ESM-only client is dynamically
   imported by the supervisor.
 - **Events:** `event.subscribe` is live-tail only. Admission waits for the first
@@ -352,6 +358,22 @@ validating the version. The minimum CLI is `OPENCODE2_MIN_VERSION`
   per-subagent interrupt), while a failed parent leaves them running and
   tracked. Reverting turns closes the rows those turns still hold as
   cancelled and stops tracking their agents; it does not interrupt them.
+- **Tool rows:** a wire name that is an identifier gets a readable title at
+  the provider boundary. A Code Mode `execute` call is titled `Execute`, and
+  once it finishes the title adds the tool paths its script invoked, read from
+  the finished call's `metadata.toolCalls`; the title stays fixed while the row
+  runs, because a shimmering row must not change its text. A model-invoked
+  `skill` call becomes the canonical skill row (`name: "Skill"`, `args.skill`).
+  The goal plugin's tools (`GOAL_TOOL_TITLES` in `goals.ts`, which also decides
+  whose result may carry a goal), `todowrite`, `generate_image`, and
+  `generate_video` get plain titles. `question` is titled `Question` and stays
+  visible: this adapter emits no `question_answer` row, so the tool row's
+  arguments and result are the only record of the exchange. Compaction emits the
+  shared `ContextCompaction` row; one that does not finish stays a visible
+  failed `Compaction failed` row. History is never rewritten: rows persisted by
+  earlier releases keep the names they were stored with. Not titled: MCP tools
+  called directly (`<server>_<tool>`, which happens when `execute` is denied)
+  and dotted Code Mode paths a model calls at the top level.
 - **GUI controls:** model and variant selection, built-in Plan mode, primary
   agent commands, native commands and skills, attachment URI references,
   structured forms and permissions, Stop and native steering, compaction,
@@ -375,7 +397,9 @@ validating the version. The minimum CLI is `OPENCODE2_MIN_VERSION`
   status cache and the renderer's persisted capability cache. Runtime
   `content.delta.replace` carries authoritative stream snapshots, and the remote
   protocol version gate stops older peers from appending them as deltas. Wire
-  compatibility is enforced at detection and server acquisition.
+  compatibility is enforced at detection and server acquisition: an
+  installation older than the pinned client is refused with the
+  unsupported-version message, which points to provider settings.
 
 ## Command Code
 

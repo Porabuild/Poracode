@@ -3,7 +3,7 @@ import { dirname as posixDirname } from "node:path/posix";
 import type { ProjectLocation, ThreadConfig } from "@/shared/contracts";
 import { buildAgentCommand, DEFAULT_WSL_EXEC_PATH, getWslCommand, type CommandSpec } from "../base";
 
-// The opencode TUI (verified against 0.0.0-beta-19500) only accepts
+// The opencode TUI (verified against 2.4.1's `--help`) only accepts
 // `--continue`, `--session`, `--prompt`, `--auto`, `--server`, and
 // `--standalone` at launch. There is no `--model` and no `--agent` flag on the
 // default command (both exist only on `opencode run`), so model, effort, and

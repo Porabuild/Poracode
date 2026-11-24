@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { readSessionFileText, readWslLoginShellCommandOutputAsync } from "../base";
 import {
+  GOAL_TOOL_TITLES,
   OpenCodeGoals,
   openCodeGoalCommand,
   readOpenCodeGoalState,
@@ -63,6 +64,21 @@ describe("OpenCode goal plugin projection", () => {
     expect(goals.map(snapshot, "ses-1")).toEqual([]);
     expect(goals.toolResult("unrelated", JSON.stringify({ goal: snapshot }), "ses-1")).toEqual([]);
     expect(goals.toolResult("get_goal", "not json", "ses-1")).toEqual([]);
+  });
+
+  it("reads a goal from every goal-state tool, and never from a listing tool", () => {
+    // Each tool reports against its own live goal: one "no goal" report
+    // clears it, and a repeated report is deduplicated.
+    const clears = (name: string) => {
+      const goals = createGoals();
+      goals.map(snapshot, "ses-1");
+      return goals.toolResult(name, JSON.stringify({ goal: null }), "ses-1").length > 0;
+    };
+    // A listing that reports no goal of its own must not clear the live one.
+    const unread = ["list_all_goals", "get_goal_history", "unrelated", "constructor"];
+    const stateTools = Object.keys(GOAL_TOOL_TITLES).filter((name) => !unread.includes(name));
+    expect(unread.filter((name) => clears(name))).toEqual([]);
+    expect(stateTools.filter((name) => !clears(name))).toEqual([]);
   });
 
   it("updates one goal through pause, resume, limits, completion and clear", () => {

@@ -32,9 +32,11 @@ interface OpenCodeHintEntry extends HintEntry {
 // alone. Validated against the live 0.0.0-beta-19500 TUI: while a turn runs
 // the status bar shows "esc interrupt" (no "to" — unlike the V1 TUI's
 // "esc to interrupt"), and the idle footer keeps the "ctrl+p commands"
-// keybind cluster. The approval-prompt patterns are still unverified against
-// a live V2 prompt (the TUI never asked in observation) and follow the V1
-// wording.
+// keybind cluster. Re-checked on the live 2.4.1 TUI: its new default design
+// paints the idle footer as `shift+tab agents` and `ctrl+p commands`, and
+// its busy footer still reads `esc interrupt`. The approval-prompt patterns
+// are still unverified against a live V2 prompt (the TUI never asked in
+// observation) and follow the V1 wording.
 const OPENCODE_HINTS: OpenCodeHintEntry[] = [
   {
     re: /\[y\/n\]|\(y\/N\)|\(Y\/n\)|Allow\s+.*\?|Approve\s+.*\?/i,

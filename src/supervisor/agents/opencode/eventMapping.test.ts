@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { RuntimeEvent } from "@/shared/contracts";
+import { isVisibleRuntimeItem } from "@/shared/runtimeItemVisibility";
+import { isAskUserQuestionToolName } from "@/shared/toolCallClassification";
 import type { V2Event } from "./clientTypes";
 import {
   closeOpenCodeItems,
@@ -870,5 +872,145 @@ describe("mapOpenCodeEvent", () => {
       { type: "item.completed", threadId: "thread-1", itemId: "user-steer" },
     ]);
     expect(state.turnActive).toBe(true);
+  });
+});
+
+describe("OpenCode tool rows for identifier-named native tools", () => {
+  const toolEvent = (type: string, id: string, data: Record<string, unknown>) =>
+    event(type, { sessionID: SESSION, assistantMessageID: ASSISTANT, id, ...data });
+
+  it("renders a model-invoked skill load as the canonical skill row", () => {
+    const state = stateFor();
+    // Before the input streams the row is announced under the shared skill name.
+    const started = mapAll(state, [
+      toolEvent("session.tool.input.started", "call-skill", { name: "skill" }),
+    ]);
+    expect(started[0]).toMatchObject({
+      type: "item.started",
+      itemType: "tool_call",
+      payload: { name: "Skill", status: "running" },
+    });
+    expect((started[0] as { payload: Record<string, unknown> }).payload).not.toHaveProperty("args");
+    const events = mapAll(state, [
+      toolEvent("session.tool.input.ended", "call-skill", {
+        text: JSON.stringify({ id: "gh-cli" }),
+      }),
+      toolEvent("session.tool.success", "call-skill", {
+        content: [{ type: "text", text: "<skill_content>" }],
+        metadata: { name: "gh-cli", directory: "/skills/gh-cli" },
+      }),
+    ]);
+    expect(events[0]).toMatchObject({
+      type: "item.updated",
+      payload: {
+        name: "Skill",
+        title: "Skill: gh-cli",
+        args: { skill: "gh-cli", id: "gh-cli" },
+      },
+    });
+    expect(events.at(-1)).toMatchObject({
+      type: "item.completed",
+      payload: { name: "Skill", title: "Skill: gh-cli", status: "success" },
+    });
+  });
+
+  it("titles a Code Mode call with the tools its script invoked once it finishes", () => {
+    const state = stateFor();
+    const [started] = mapAll(state, [
+      toolEvent("session.tool.input.started", "call-exec", { name: "execute" }),
+    ]);
+    expect(started).toMatchObject({
+      payload: { name: "Execute", status: "running" },
+    });
+    // A running row's title must stay stable while it shimmers, so live
+    // metadata never renames it; progress the row can show still applies.
+    const progress = mapAll(state, [
+      toolEvent("session.tool.progress", "call-exec", {
+        metadata: { toolCalls: [{ tool: "poracode.gh_get_pr", status: "completed" }] },
+      }),
+      toolEvent("session.tool.progress", "call-exec", {
+        metadata: {
+          description: "calling poracode.git_status",
+          toolCalls: [
+            { tool: "poracode.gh_get_pr", status: "completed" },
+            { tool: "poracode.git_status", status: "running" },
+          ],
+        },
+      }),
+    ]);
+    expect(progress).toEqual([
+      expect.objectContaining({
+        type: "item.updated",
+        payload: expect.objectContaining({
+          name: "Execute",
+          progress: { description: "calling poracode.git_status" },
+        }),
+      }),
+    ]);
+    const settled = mapAll(state, [
+      toolEvent("session.tool.success", "call-exec", {
+        content: [{ type: "text", text: '{"ok":true}' }],
+        metadata: {
+          toolCalls: [
+            { tool: "poracode.gh_get_pr", status: "completed" },
+            { tool: "search", status: "completed" },
+            { tool: "poracode.read_thread", status: "completed" },
+            { tool: "poracode.git_status", status: "completed" },
+            { tool: "search", status: "completed" },
+            { tool: "poracode.list_threads", status: "error" },
+          ],
+          truncated: false,
+        },
+      }),
+    ]);
+    // Repeated paths count once; the fourth and later calls fold into "+N".
+    expect(settled.map((entry) => entry.type)).toEqual(["item.updated", "item.completed"]);
+    expect(settled.at(-1)).toMatchObject({
+      type: "item.completed",
+      payload: {
+        name: "Execute: poracode.gh_get_pr, search, poracode.read_thread +2",
+        title: "Execute: poracode.gh_get_pr, search, poracode.read_thread +2",
+        status: "success",
+        result: '{"ok":true}',
+      },
+    });
+  });
+
+  it("titles a failed Code Mode call from its final metadata", () => {
+    const state = stateFor();
+    mapAll(state, [toolEvent("session.tool.input.started", "call-exec", { name: "execute" })]);
+    const settled = mapAll(state, [
+      toolEvent("session.tool.failed", "call-exec", {
+        error: { type: "test", message: "script failed" },
+        metadata: { toolCalls: [{ tool: "search", status: "error" }], error: true },
+      }),
+    ]);
+    expect(settled.at(-1)).toMatchObject({
+      type: "item.completed",
+      payload: { name: "Execute: search", status: "error", errorMessage: "script failed" },
+    });
+  });
+
+  it("keeps the question tool row, which is the only record of the exchange", () => {
+    const state = stateFor();
+    // No `question_answer` row is emitted for OpenCode forms, so the row may
+    // not take a spelling the shared pane hides behind the question form.
+    const [, completed] = mapAll(state, [
+      toolEvent("session.tool.input.started", "call-q", { name: "question" }),
+      toolEvent("session.tool.success", "call-q", {
+        content: [{ type: "text", text: "answered" }],
+      }),
+    ]);
+    const payload = (completed as { payload: Record<string, unknown> }).payload;
+    expect(payload).toMatchObject({ name: "Question", title: "Question" });
+    expect(isAskUserQuestionToolName(payload.name)).toBe(false);
+    expect(
+      isVisibleRuntimeItem({
+        type: "tool_call",
+        state: "completed",
+        payload,
+        streams: {},
+      }),
+    ).toBe(true);
   });
 });

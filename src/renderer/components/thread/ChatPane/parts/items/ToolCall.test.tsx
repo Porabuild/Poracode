@@ -134,6 +134,113 @@ describe("ToolCall — Claude View (Read) rich rendering", () => {
   });
 });
 
+describe("ToolCall — titled identifier-named tools", () => {
+  it("titles a script row with what it called and keeps its code and result", async () => {
+    const item: RuntimeChatItem = {
+      id: "toolu_execute",
+      type: "tool_call",
+      state: "completed",
+      streams: {},
+      payload: {
+        name: "Execute: poracode.git_commit, search",
+        title: "Execute: poracode.git_commit, search",
+        status: "success",
+        args: { code: "return 1" },
+        result: '{"ok":true}',
+      },
+    };
+
+    render(
+      <AppProvider>
+        <ToolCall item={item} />
+      </AppProvider>,
+    );
+
+    // The shared header renders a "Verb: detail" title as "Verb · detail".
+    expect(getDisclosureTrigger().textContent).toContain("Execute · poracode.git_commit, search");
+
+    fireEvent.click(getDisclosureTrigger());
+
+    await waitFor(() => expect(findSectionHeader("args")).not.toBeNull());
+    expect(findSectionHeader("result")).not.toBeNull();
+  });
+
+  it("labels a skill row from its skill argument", () => {
+    const item: RuntimeChatItem = {
+      id: "toolu_skill",
+      type: "tool_call",
+      state: "completed",
+      streams: {},
+      payload: {
+        name: "Skill",
+        status: "success",
+        args: { skill: "gh-cli", id: "gh-cli" },
+        result: "<skill_content>",
+      },
+    };
+
+    render(
+      <AppProvider>
+        <ToolCall item={item} />
+      </AppProvider>,
+    );
+
+    expect(getDisclosureTrigger().textContent).toContain("Skill · gh-cli");
+  });
+
+  it("renders the canonical compaction row, and keeps a failed one an ordinary row", () => {
+    const compaction = (
+      state: "started" | "updated" | "completed",
+      payload: Record<string, unknown>,
+    ): RuntimeChatItem => ({ id: "compact", type: "tool_call", state, streams: {}, payload });
+
+    const running = render(
+      <AppProvider>
+        <ToolCall
+          item={compaction("updated", {
+            name: "ContextCompaction",
+            status: "running",
+            args: { trigger: "auto" },
+          })}
+        />
+      </AppProvider>,
+    );
+    expect(document.body.textContent).toContain("Compacting context");
+    expect(document.querySelector('[data-slot="disclosure-trigger"]')).toBeNull();
+    running.unmount();
+
+    const done = render(
+      <AppProvider>
+        <ToolCall
+          item={compaction("completed", {
+            name: "ContextCompaction",
+            status: "success",
+            args: { trigger: "auto" },
+          })}
+        />
+      </AppProvider>,
+    );
+    expect(document.body.textContent).toContain("Context compacted");
+    done.unmount();
+
+    render(
+      <AppProvider>
+        <ToolCall
+          item={compaction("completed", {
+            name: "Compaction failed",
+            status: "error",
+            args: { trigger: "auto" },
+            result: "boom",
+          })}
+        />
+      </AppProvider>,
+    );
+    // A compaction that did not finish must never read as a completed one.
+    expect(document.body.textContent).not.toContain("Context compacted");
+    expect(getDisclosureTrigger().textContent).toContain("Compaction failed");
+  });
+});
+
 function getDisclosureTrigger(): HTMLElement {
   const trigger = document.querySelector('[data-slot="disclosure-trigger"]');
   if (!(trigger instanceof HTMLElement)) {

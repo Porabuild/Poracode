@@ -55,8 +55,8 @@ export const opencodeDefaultCapabilities: AgentCapability = {
   defaultApprovalPolicy: "yolo",
   bypassPermissions: { approvalPolicy: "yolo" },
   // Dynamic per-thread MCP toggles: enabled servers are registered on the
-  // pooled directory client via mcp.add / mcp.remove and isolated per session
-  // using session permissions + _meta["ai.opencode/sessionID"].
+  // pooled directory client and isolated per session using session
+  // permissions + _meta["ai.opencode/sessionID"].
   mcpScope: { terminal: "launch", gui: "always" },
   // Crossagents calls from pooled sessions are routed by the trusted
   // provider session id, so every directory/session shares one MCP credential.

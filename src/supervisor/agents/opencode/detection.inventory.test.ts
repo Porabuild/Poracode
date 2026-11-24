@@ -17,8 +17,8 @@ afterEach(() => vi.restoreAllMocks());
 
 describe("OpenCode catalog discovery", () => {
   it.each([
-    { version: "2.0.26", pathField: "location" },
-    { version: "2.0.26", pathField: "path" },
+    { version: "2.4.1", pathField: "location" },
+    { version: "2.4.1", pathField: "path" },
   ])("discovers providers and models on $version", async ({ version, pathField }) => {
     const model = {
       providerID: "upstream",
@@ -152,7 +152,7 @@ it("refreshes models and capability metadata after a configured provider disconn
   const ctx = {
     location: { kind: "posix" as const, path: "/repo" },
     executablePath: "opencode",
-    version: "2.0.26",
+    version: "2.4.1",
   };
   expect((await openCodeDetectionSpec.capabilitiesProbe?.(ctx))?.models).toHaveLength(2);
   connected = false;

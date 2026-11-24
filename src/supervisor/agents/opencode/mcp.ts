@@ -1,11 +1,11 @@
 import type { ResolvedMcpServer } from "@/shared/contracts";
-import type { McpAddInput } from "./clientTypes";
+import type { ExperimentalMcpAddInput } from "./clientTypes";
 
 /**
- * Server config accepted by `client.mcp.add`, using `disabled?` and a
- * per-phase timeout object.
+ * Server config accepted by `client.experimental.mcp.add`, using `disabled?`
+ * and a per-phase timeout object.
  */
-export type OpenCodeMcpServerConfig = McpAddInput["config"];
+export type OpenCodeMcpServerConfig = ExperimentalMcpAddInput["config"];
 
 /** OpenCode attaches this native identity to MCP calls, including Code Mode. */
 export function readOpenCodeMcpSessionId(
@@ -16,8 +16,8 @@ export function readOpenCodeMcpSessionId(
 }
 
 /**
- * Project Poracode's provider-neutral MCP descriptors into the OpenCode
- * dynamic `mcp.add` shape.
+ * Project Poracode's provider-neutral MCP descriptors into the shape
+ * OpenCode's dynamic MCP server endpoint accepts.
  *
  * Poracode's single per-server `timeoutMs` maps to the `execution` phase — it
  * is the tool-call budget the user configures, and the startup/catalog phases

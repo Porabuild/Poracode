@@ -1269,7 +1269,7 @@ describe("AcpRegistrySettings", () => {
       "curl -fsSL https://claude.ai/install.sh | bash",
     );
     expect(entries.get("claude")?.installCommand(wslProject)).not.toContain("brew install");
-    expect(entries.get("opencode")?.installCommand(wslProject)).toContain("@opencode/cli@^2.0.26");
+    expect(entries.get("opencode")?.installCommand(wslProject)).toContain("@opencode/cli@^2.4.1");
     expect(entries.get("opencode")?.installCommand(wslProject)).not.toContain("brew install");
     expect(entries.get("antigravity")?.installCommand(wslProject)).toContain(
       "curl -fsSL https://antigravity.google/cli/install.sh -o",
@@ -1314,9 +1314,7 @@ describe("AcpRegistrySettings", () => {
       expect(entries.get("claude")?.installCommand(macProject)).toContain(
         "brew install --cask claude-code",
       );
-      expect(entries.get("opencode")?.installCommand(macProject)).toContain(
-        "@opencode/cli@^2.0.26",
-      );
+      expect(entries.get("opencode")?.installCommand(macProject)).toContain("@opencode/cli@^2.4.1");
       const geminiMacInstall = entries.get("gemini")?.installCommand(macProject);
       expect(geminiMacInstall).toContain("npm install -g @google/gemini-cli");
       expect(geminiMacInstall).toContain("brew install gemini-cli");

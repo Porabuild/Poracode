@@ -166,6 +166,16 @@ describe("deriveToolDisplay", () => {
     expect(display.Icon).toBe(Sparkles);
   });
 
+  it("labels a canonical skill row from its `skill` argument", () => {
+    const display = deriveToolDisplay(
+      // The row the adapter announces before the skill's input streams.
+      makePayload({ name: "Skill", args: { skill: "gh-cli", id: "gh-cli" } }),
+    );
+
+    expect(display.title).toBe("Skill: gh-cli");
+    expect(display.Icon).toBe(Sparkles);
+  });
+
   it("includes line ranges for read tools that provide offsets", () => {
     const display = deriveToolDisplay(
       makePayload({
