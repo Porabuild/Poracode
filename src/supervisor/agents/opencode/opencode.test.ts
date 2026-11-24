@@ -422,8 +422,8 @@ describe("createOpenCodeAdapter", () => {
         args: expect.arrayContaining([
           expect.stringContaining(
             envKind === "windows"
-              ? 'npm install --ignore-scripts --include=optional --prefix "$env:USERPROFILE/.opencode2" "@opencode/cli@^2.0.26"'
-              : 'npm install --ignore-scripts --include=optional --prefix "$HOME/.opencode2" "@opencode/cli@^2.0.26"',
+              ? 'npm install --ignore-scripts --include=optional --prefix "$env:USERPROFILE/.opencode2" "@opencode/cli@^2.4.1"'
+              : 'npm install --ignore-scripts --include=optional --prefix "$HOME/.opencode2" "@opencode/cli@^2.4.1"',
           ),
         ]),
       });

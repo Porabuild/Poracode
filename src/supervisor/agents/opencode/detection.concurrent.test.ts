@@ -21,7 +21,7 @@ function probeContext(location: ProjectLocation): DetectProbeCtx {
   return {
     location,
     executablePath: "opencode",
-    version: "2.0.26",
+    version: "2.4.1",
   };
 }
 

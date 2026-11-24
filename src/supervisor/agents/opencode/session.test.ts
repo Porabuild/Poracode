@@ -94,9 +94,11 @@ function makeClient(): OpenCodeClient {
       list: vi.fn<() => Promise<unknown>>().mockResolvedValue([]),
       reply: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
     },
-    mcp: {
-      add: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
-      remove: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+    experimental: {
+      mcp: {
+        add: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+        remove: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+      },
     },
   } as unknown as OpenCodeClient;
 }
