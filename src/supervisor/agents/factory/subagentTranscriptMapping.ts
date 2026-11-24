@@ -1,4 +1,5 @@
 import type { SessionNotification } from "@agentclientprotocol/sdk";
+import { extractToolCallContentText } from "../acp/canonicalMapping/contentExtraction";
 import { PORACODE_ACP_PARENT_TOOL_CALL_ID_META_KEY } from "../acp/canonicalMapping/subagents";
 
 export function mapFactoryTranscriptRecord(
@@ -84,17 +85,27 @@ export function isFactoryTaskTool(update: Record<string, unknown>): boolean {
 export function factoryBackgroundTaskSessionId(
   update: Record<string, unknown>,
 ): string | undefined {
-  const output = update.rawOutput;
-  const text =
-    (typeof output === "string" ? output : factoryString(factoryRecord(output).text)) ??
-    (Array.isArray(update.content)
-      ? update.content
-          .map((entry) => factoryRecord(factoryRecord(entry).content).text)
-          .filter((value): value is string => typeof value === "string")
-          .join("\n")
-      : undefined);
+  const text = factoryTaskResultText(update);
   if (!text?.startsWith("Task launched in background.")) return undefined;
   return /^session_id:\s*(\S+)\s*$/mu.exec(text)?.[1];
+}
+
+/**
+ * Droid's ACP translator replaces the child's background launch receipt with a
+ * display-only `Running in background` status on the still-running Task row.
+ * It is not subagent progress, so the transcript bridge keeps the row open but
+ * drops the payload before the generic ACP mapper can surface it as a label.
+ */
+export function isFactoryBackgroundTaskStatus(update: Record<string, unknown>): boolean {
+  return factoryTaskResultText(update)?.trim() === "Running in background";
+}
+
+function factoryTaskResultText(update: Record<string, unknown>): string | undefined {
+  const output = update.rawOutput;
+  return (
+    (typeof output === "string" ? output : factoryString(factoryRecord(output).text)) ??
+    extractToolCallContentText(update.content)
+  );
 }
 
 export function factoryRecord(value: unknown): Record<string, unknown> {
