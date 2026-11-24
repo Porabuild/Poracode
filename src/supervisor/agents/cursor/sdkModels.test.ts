@@ -265,7 +265,7 @@ describe("cursorSdkCapabilitiesFromModels", () => {
     ).toEqual({ id: "default" });
   });
 
-  it("groups first-party Grok with Cursor Models, not the API Other Models pool", () => {
+  it("groups Cursor pool families with Cursor Models and every other vendor, known or not, with Other models", () => {
     const capabilities = cursorSdkCapabilitiesFromModels([
       { id: "composer-2.5", displayName: "Composer 2.5" },
       { id: "grok-4.6", displayName: "Cursor Grok 4.6" },
@@ -274,6 +274,8 @@ describe("cursorSdkCapabilitiesFromModels", () => {
       { id: "gemini-3.7-flash", displayName: "Gemini 3.7 Flash" },
       { id: "muse-wonder", displayName: "Muse Wonder" },
       { id: "muse-spark-1.3", displayName: "Muse Spark 1.3" },
+      { id: "deepseek-v41-flash-1017", displayName: "DeepSeek V4.1 Flash 1017" },
+      { id: "new-vendor-model", displayName: "New Vendor Model" },
     ]);
 
     expect(capabilities.modelSubProvider).toEqual({
@@ -284,6 +286,8 @@ describe("cursorSdkCapabilitiesFromModels", () => {
       "gemini-3.7-flash": "other",
       "muse-wonder": "other",
       "muse-spark-1.3": "other",
+      "deepseek-v41-flash-1017": "other",
+      "new-vendor-model": "other",
     });
   });
 
