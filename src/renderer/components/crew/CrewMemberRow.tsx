@@ -2,6 +2,7 @@ import { useLingui } from "@lingui/react/macro";
 import { ArrowLeftRight, PencilOff, SlidersHorizontal, Zap } from "lucide-react";
 import { ToggleButton, Tooltip } from "@heroui/react";
 import { CrewRolePill } from "./CrewRolePill";
+import { useCompactLayout } from "@/renderer/adaptiveLayout";
 import { ProviderModelMenu } from "@/renderer/components/common/ProviderModelMenu/ProviderModelMenu";
 import { distinctSubProviderLabel } from "@/renderer/components/common/ProviderModelMenu";
 import { modelFamilyMemberDisplay } from "@/renderer/components/common/ProviderModelMenu/parts/modelFamilyDisplay";
@@ -231,11 +232,51 @@ export function CrewMemberRow(props: {
   );
 
   const rolePill = <CrewRolePill role={role} isLead={isLead} leadLabel={t`Lead`} />;
+  // The compact layout gives every button a 44px touch target (styles.css), so
+  // a row with a reasoning label cannot keep the two 16px lines of a desktop
+  // row: the name and the role take one line, the label and the controls the
+  // next. Without a label the row stays on a single, taller line.
+  const compact = useCompactLayout();
+  const stacked = compact && (reasoningControl !== null || noEditsIcon !== null);
+  const nameLine = (
+    <span
+      className={`${
+        subProviderLabel
+          ? "grid min-w-0 max-w-full grid-cols-[minmax(0,max-content)_minmax(0,1fr)] items-center gap-x-0.5"
+          : "flex min-w-0 max-w-full items-center"
+      } ${selectedModel ? "text-foreground" : "text-muted"}`}
+    >
+      {modelButton}
+      {subProviderLabel ? (
+        <span title={subProviderLabel} className="min-w-0 truncate text-[9px] leading-4 text-muted">
+          {subProviderLabel}
+        </span>
+      ) : null}
+    </span>
+  );
+  const reasoningLine = (
+    <span className="flex min-w-0 max-w-full items-center gap-1">
+      {reasoningControl}
+      {noEditsIcon}
+    </span>
+  );
 
   return (
     <>
-      <div className="grid min-h-12 grid-cols-[8px_14px_minmax(0,1fr)_auto] grid-rows-2 items-center gap-x-2 gap-y-1 py-1">
-        <span className="col-start-1 row-span-2 flex size-2 items-center justify-center">
+      <div
+        className={
+          stacked
+            ? "grid grid-cols-[8px_14px_minmax(0,1fr)_auto] grid-rows-[minmax(44px,auto)_minmax(44px,auto)] items-center gap-x-2 py-1"
+            : compact
+              ? "grid grid-cols-[8px_14px_minmax(0,1fr)_auto] grid-rows-[minmax(44px,auto)] items-center gap-x-2 py-1"
+              : "grid min-h-12 grid-cols-[8px_14px_minmax(0,1fr)_auto] grid-rows-2 items-center gap-x-2 gap-y-1 py-1"
+        }
+      >
+        <span
+          className={`col-start-1 ${
+            compact ? "row-start-1" : "row-span-2"
+          } flex size-2 items-center justify-center`}
+        >
           {props.isEdited ? (
             <Tooltip delay={0}>
               <Tooltip.Trigger aria-label={t`Changed for this thread`}>
@@ -250,36 +291,48 @@ export function CrewMemberRow(props: {
           {...(provider?.icon ? { icon: provider.icon } : {})}
           fallbackLabel={provider?.label ?? selection.agentKind}
           tone="inactive"
-          className="col-start-2 row-span-2 size-3.5 shrink-0"
+          className={`col-start-2 size-3.5 shrink-0 ${compact ? "row-start-1" : "row-span-2"}`}
         />
-        <div className="col-start-3 row-span-2 grid min-w-0 grid-rows-2 gap-0">
-          <span
-            className={`${
-              subProviderLabel
-                ? "grid min-w-0 max-w-full grid-cols-[minmax(0,max-content)_minmax(0,1fr)] items-center gap-x-0.5"
-                : "flex min-w-0 max-w-full items-center"
-            } ${selectedModel ? "text-foreground" : "text-muted"}`}
-          >
-            {modelButton}
-            {subProviderLabel ? (
-              <span
-                title={subProviderLabel}
-                className="min-w-0 truncate text-[9px] leading-4 text-muted"
-              >
-                {subProviderLabel}
-              </span>
-            ) : null}
-          </span>
-          <span className="flex min-w-0 max-w-full items-center gap-1">
-            {reasoningControl}
-            {noEditsIcon}
-          </span>
-        </div>
-        <span className="col-start-4 row-span-2 flex items-center justify-end gap-1">
-          {rolePill}
-          {fastToggle}
-          {trailing}
-        </span>
+        {stacked ? (
+          <>
+            <span className="col-start-3 row-start-1 flex min-w-0 max-w-full items-center">
+              {nameLine}
+            </span>
+            <span className="col-start-3 row-start-2 flex min-w-0 max-w-full items-center">
+              {reasoningLine}
+            </span>
+            <span className="col-start-4 row-start-1 flex items-center justify-end">
+              {rolePill}
+            </span>
+            <span className="col-start-4 row-start-2 flex items-center justify-end gap-1">
+              {fastToggle}
+              {trailing}
+            </span>
+          </>
+        ) : compact ? (
+          <>
+            <span className="col-start-3 row-start-1 flex min-w-0 max-w-full items-center">
+              {nameLine}
+            </span>
+            <span className="col-start-4 row-start-1 flex items-center justify-end gap-1">
+              {rolePill}
+              {fastToggle}
+              {trailing}
+            </span>
+          </>
+        ) : (
+          <>
+            <div className="col-start-3 row-span-2 grid min-w-0 grid-rows-2 gap-0">
+              {nameLine}
+              {reasoningLine}
+            </div>
+            <span className="col-start-4 row-span-2 flex items-center justify-end gap-1">
+              {rolePill}
+              {fastToggle}
+              {trailing}
+            </span>
+          </>
+        )}
       </div>
       {props.isEditing && role ? (
         <CrewRoleDetails
