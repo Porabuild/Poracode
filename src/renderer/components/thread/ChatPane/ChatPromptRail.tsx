@@ -6,6 +6,7 @@ import { floatingGlassSurfaceClass } from "@/renderer/components/layout/floating
 import { useAppStore } from "@/renderer/state/appStore";
 import { useChatFindStore } from "@/renderer/state/chatFindStore";
 import type { ChatTimelineEntry } from "./chatPaneSelectors";
+import { stripSelectorPayloads } from "./parts/items/SelectorBadge";
 import { forwardWheelToScroller } from "./forwardWheelToScroller";
 import {
   buildRailPrompts,
@@ -357,7 +358,7 @@ function PromptPreviewCard({
   );
 }
 
-/** One-line text for a prompt the host described: whitespace collapsed. */
+/** One-line text for a prompt the host described: selector payloads dropped, whitespace collapsed. */
 function previewFromHostText(text: string): string {
-  return text.replace(/\s+/g, " ").trim();
+  return stripSelectorPayloads(text).replace(/\s+/g, " ").trim();
 }

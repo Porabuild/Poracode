@@ -1250,7 +1250,7 @@ describe.skipIf(!sqliteAvailable)("runtimeItems incremental persistence", () => 
     expect((await dbGetLatestThreadGoalItem("thread-1"))?.id).toBe("goal-new");
   });
 
-  it("lists every top-level prompt in order with a truncated first text block", async () => {
+  it("lists every top-level prompt in order with truncated preview text", async () => {
     const userMessage = (id: string, content: unknown[], parentItemId?: string) => ({
       id,
       type: "user_message" as const,
@@ -1282,6 +1282,85 @@ describe.skipIf(!sqliteAvailable)("runtimeItems incremental persistence", () => 
     expect(index.prompts[2]?.text).toBe("");
     const positions = index.prompts.map((prompt) => prompt.position);
     expect(positions).toEqual([...positions].sort((a, b) => a - b));
+  });
+
+  it("mirrors the loaded preview for chip-led and attachment-only prompts", async () => {
+    const userMessage = (id: string, content: unknown[]) => ({
+      id,
+      type: "user_message" as const,
+      state: "completed" as const,
+      payload: { content },
+      streams: {},
+    });
+    await dbReplaceThreadRuntimeItems("thread-1", [
+      userMessage("skill-led", [
+        { kind: "skill", name: "finalize", invocation: "$finalize" },
+        { kind: "text", text: " " },
+      ]),
+      userMessage("skill-and-text", [
+        { kind: "skill", name: "finalize", invocation: "$finalize" },
+        { kind: "text", text: " the release" },
+      ]),
+      userMessage("plugin-skill", [
+        { kind: "skill", name: "x", invocation: "$x", pluginName: "plug" },
+        { kind: "text", text: " now" },
+      ]),
+      userMessage("mentions", [
+        { kind: "text", text: "see " },
+        { kind: "thread", threadId: "t1", title: "Other work" },
+        { kind: "mcp", name: "browser" },
+        { kind: "file", path: "/src/a.ts", source: "mention" },
+      ]),
+      userMessage("diff-comment", [
+        {
+          kind: "diff_comment",
+          path: "src/a.ts",
+          lineNumber: 12,
+          side: "new",
+          staged: false,
+          body: " Fix this ",
+        },
+      ]),
+      userMessage("attachment-only", [{ kind: "image", name: "shot.png", source: "attachment" }]),
+      userMessage("attachment-path-only", [
+        { kind: "file", path: "/tmp/report.pdf", source: "attachment" },
+      ]),
+      userMessage("blank-text-attachment", [
+        { kind: "text", text: " " },
+        { kind: "image", name: "a.png", source: "attachment" },
+      ]),
+      userMessage("skill-long-text", [
+        { kind: "skill", name: "finalize", invocation: "$finalize" },
+        { kind: "text", text: "x".repeat(500) },
+      ]),
+      userMessage("nbsp-text-attachment", [
+        { kind: "text", text: " " },
+        { kind: "image", name: "ide.png", source: "attachment" },
+      ]),
+      userMessage("empty-name-then-named", [
+        { kind: "image", name: "", path: "/tmp/a.png", source: "attachment" },
+        { kind: "image", name: "b.png", source: "attachment" },
+      ]),
+      userMessage("empty-name-only", [
+        { kind: "image", name: "", path: "/tmp/a.png", source: "attachment" },
+      ]),
+    ]);
+
+    const index = await dbGetThreadPromptIndex("thread-1");
+    expect(index.prompts.map((entry) => [entry.itemId, entry.text])).toEqual([
+      ["skill-led", "$finalize "],
+      ["skill-and-text", "$finalize the release"],
+      ["plugin-skill", "@plug now"],
+      ["mentions", "see @Other work@browser/src/a.ts"],
+      ["diff-comment", "Review comment on src/a.ts:+12 (unstaged):\nFix this"],
+      ["attachment-only", "shot.png"],
+      ["attachment-path-only", "report.pdf"],
+      ["blank-text-attachment", "a.png"],
+      ["skill-long-text", `$finalize${"x".repeat(291)}`],
+      ["nbsp-text-attachment", "ide.png"],
+      ["empty-name-then-named", "b.png"],
+      ["empty-name-only", ""],
+    ]);
   });
 
   it("keeps the newest prompts in order and reports when older ones were left out", async () => {
