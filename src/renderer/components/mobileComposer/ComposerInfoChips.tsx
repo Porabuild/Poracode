@@ -23,6 +23,7 @@ import { ThreadGoalDock } from "@/renderer/components/thread/ThreadGoalDock";
 import { ThreadAuthRequiredDock } from "@/renderer/components/thread/ThreadAuthRequiredDock";
 import { ThreadBackgroundTasksDock } from "@/renderer/components/thread/ThreadBackgroundTasksDock";
 import { useThreadBackgroundTasks } from "@/renderer/components/thread/useThreadDocksSummary";
+import { useComposerBubbleSlotStore } from "@/renderer/state/composerBubbleSlotStore";
 import { useThreadBackgroundTasksDockStore } from "@/renderer/state/threadBackgroundTasksDockStore";
 import { ThreadTodoDock } from "@/renderer/components/thread/ThreadTodoDock";
 import {
@@ -88,6 +89,7 @@ export function ComposerInfoChips(props: {
 }) {
   const { t } = useLingui();
   const { threadId, projectLocation, contextSummary, hidden } = props;
+  const setSlot = useComposerBubbleSlotStore((s) => s.setSlot);
   const [openChip, setOpenChip] = useState<ChipKey | null>(null);
   const [closingChip, setClosingChip] = useState<ChipKey | null>(null);
   const [exitingChips, setExitingChips] = useState<readonly ChipDescriptor[]>([]);
@@ -257,9 +259,8 @@ export function ComposerInfoChips(props: {
       chips.find((item) => item.key === key) ?? exitingChips.find((item) => item.key === key);
     return chip ? [chip] : [];
   });
-  if (renderedChips.length === 0 && !props.leading && !props.trailing && !props.usageThread) {
-    return null;
-  }
+  const hasChipContent =
+    renderedChips.length > 0 || Boolean(props.leading || props.trailing || props.usageThread);
 
   const renderedChip = openChip ?? closingChip;
   const open = renderedChips.find((chip) => chip.key === renderedChip) ?? null;
@@ -339,7 +340,12 @@ export function ComposerInfoChips(props: {
   const panelLabel = panelKey === "usage" ? t`Usage` : open?.label;
 
   return (
-    <div ref={containerRef} className="m-thread-chips" data-hidden={hidden || undefined}>
+    <div
+      ref={containerRef}
+      className="m-thread-chips"
+      data-hidden={hidden || undefined}
+      data-has-chips={hasChipContent || undefined}
+    >
       {panelKey && panelLabel ? (
         <div
           key={panelKey}
@@ -412,12 +418,19 @@ export function ComposerInfoChips(props: {
       <div className="m-chip-row">
         {props.leading}
         {leadingChips.map(renderChipButton)}
-        {trailing || authChip ? (
-          <div className="m-chip-row__trailing">
-            {trailing}
-            {authChip ? renderChipButton(authChip) : null}
-          </div>
-        ) : null}
+        <div className="m-chip-row__trailing">
+          <div
+            ref={(el) => {
+              if (!el) return;
+              setSlot("control", threadId, el);
+              return () => setSlot("control", threadId, null);
+            }}
+            data-composer-bubble-slot="control"
+            className="m-chip-row__scroll-slot"
+          />
+          {trailing}
+          {authChip ? renderChipButton(authChip) : null}
+        </div>
       </div>
     </div>
   );

@@ -392,9 +392,9 @@ describe("MuseMspStructuredSession", () => {
     const start = session.startTurn("Reply with exactly SIDEKICK_OK.", config);
     try {
       await vi.waitFor(() => expect(request).toHaveBeenCalledWith("turn/start", expect.anything()));
-      // Applying config publishes an idle snapshot before command admission.
-      // Consumers must wait for the native turn's terminal event to settle it.
-      expect(updates[0]?.status).toBe("idle");
+      // Transitioning to working before config sync avoids echoing a prior
+      // idle or error snapshot ahead of command admission.
+      expect(updates[0]?.status).toBe("working");
       expect(runtimeEvents).not.toContainEqual(expect.objectContaining({ type: "turn.completed" }));
       admitted.resolve({ turnId: "turn-1", status: "accepted", disposition: "started" });
       await start;
@@ -427,6 +427,46 @@ describe("MuseMspStructuredSession", () => {
     } finally {
       admitted.resolve({ turnId: "turn-1", status: "accepted", disposition: "started" });
       await start;
+      await session.dispose();
+    }
+  });
+
+  it("transitions to working before syncing config after a failed turn", async () => {
+    const { session, updates } = await createSession();
+    try {
+      await session.openThread(config);
+      request.mockImplementation(async (method) => {
+        if (method === "turn/start") {
+          return { turnId: "turn-1", status: "accepted", disposition: "started" };
+        }
+        if (method === "model/list") {
+          return { providerId: "muse-provider", models: [{ modelId: "muse-next" }] };
+        }
+        if (method === "session/setModel") {
+          notificationHandler?.("session/modelChanged", {
+            sessionId: "session-1",
+            model: { modelId: "muse-next" },
+          });
+          return { status: "accepted" };
+        }
+        return { status: "accepted" };
+      });
+
+      await session.startTurn("first", config);
+      notificationHandler?.("turn/completed", {
+        sessionId: "session-1",
+        turnId: "turn-1",
+        terminal: "failed",
+        error: "previous failure",
+      });
+      expect(updates.at(-1)?.status).toBe("error");
+
+      updates.length = 0;
+      await session.startTurn("retry", { ...config, model: "muse-next" });
+
+      expect(updates.length).toBeGreaterThan(0);
+      expect(updates.every((update) => update.status === "working")).toBe(true);
+    } finally {
       await session.dispose();
     }
   });

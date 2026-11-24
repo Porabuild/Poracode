@@ -492,6 +492,31 @@ describe("SessionRuntimeLifecycle", () => {
     expect(harness.mocks.append).toHaveBeenCalled();
   });
 
+  it("keeps initial idle suppression when setListener replays buffered hydration events", () => {
+    const harness = createHarness({
+      session: { suppressInitialStructuredIdle: true },
+    });
+    harness.mocks.setListener.mockImplementation((listener) => {
+      listener.onRuntimeEvent?.({
+        type: "item.started",
+        threadId: harness.session.threadId,
+        itemId: "goal-1",
+        itemType: "goal",
+        payload: { objective: "Ship PWA fixes", status: "active" },
+      });
+      listener.onUpdate({ status: "idle", attention: "none" });
+    });
+
+    harness.lifecycle.attach(harness.session);
+
+    expect(harness.session.suppressInitialStructuredIdle).toBe(true);
+    expect(harness.mocks.updateState).not.toHaveBeenCalled();
+    expect(harness.mocks.append).toHaveBeenCalledWith(
+      harness.session.threadId,
+      expect.objectContaining({ itemId: "goal-1" }),
+    );
+  });
+
   it("emits state for a config-only working update", () => {
     const harness = createHarness();
     harness.lifecycle.attach(harness.session);

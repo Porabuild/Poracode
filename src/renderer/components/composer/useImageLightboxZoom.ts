@@ -14,6 +14,13 @@ const DOUBLE_CLICK_SCALE = 2;
 const WHEEL_LINE_HEIGHT_PX = 16;
 const WHEEL_ZOOM_RATE = 0.002;
 const CLICK_SUPPRESS_DISTANCE = 4;
+const SWIPE_LOCK_DISTANCE = 10;
+const SWIPE_COMMIT_DISTANCE = 48;
+const SWIPE_HORIZONTAL_RATIO = 1.2;
+
+function isHorizontalSwipe(dx: number, dy: number, minDistance: number): boolean {
+  return Math.abs(dx) >= minDistance && Math.abs(dx) > Math.abs(dy) * SWIPE_HORIZONTAL_RATIO;
+}
 
 type Point = { x: number; y: number };
 
@@ -25,6 +32,7 @@ interface ZoomState {
 
 interface PointerEntry {
   pointerId: number;
+  pointerType: string;
   x: number;
   y: number;
   startX: number;
@@ -32,6 +40,11 @@ interface PointerEntry {
   imageKey: string;
   resetRevision: number;
   captureTarget: HTMLElement;
+}
+
+export interface LightboxSwipeHandlers {
+  onPrevious: () => void;
+  onNext: () => void;
 }
 
 interface NativeGestureEvent extends Event {
@@ -111,18 +124,30 @@ function readGestureScale(value: unknown): number | null {
  * updater so React batching cannot drop increments. Toolbar and double-click
  * zoom use the same clamped math but keep the CSS transition.
  */
-export function useImageLightboxZoom(currentImageKey: string | undefined) {
+export function useImageLightboxZoom(
+  currentImageKey: string | undefined,
+  swipe?: LightboxSwipeHandlers,
+) {
   const [zoom, setZoom] = useState<ZoomState>({
     scale: MIN_SCALE,
     pan: { x: 0, y: 0 },
     animate: true,
   });
+  const [swipeX, setSwipeX] = useState(0);
+  const [swipeImageKey, setSwipeImageKey] = useState(currentImageKey);
+  if (swipeImageKey !== currentImageKey) {
+    setSwipeImageKey(currentImageKey);
+    if (swipeX !== 0) setSwipeX(0);
+  }
   const [resetRevision, setResetRevision] = useState(0);
   const stageRef = useRef<HTMLDivElement>(null);
   const imageRef = useRef<HTMLImageElement>(null);
   const pointersRef = useRef(new Map<number, PointerEntry>());
   const nativeGestureRef = useRef<NativeGestureState | null>(null);
   const suppressClickRef = useRef(false);
+  const preserveClickSuppressionRef = useRef(false);
+  const hadMultiTouchRef = useRef(false);
+  const swipeLockedRef = useRef(false);
 
   useEffect(() => {
     function handleResize() {
@@ -235,7 +260,13 @@ export function useImageLightboxZoom(currentImageKey: string | undefined) {
     const imageKeyForEffect = currentImageKey;
     const revisionForEffect = resetRevision;
     nativeGestureRef.current = null;
-    suppressClickRef.current = false;
+    swipeLockedRef.current = false;
+    hadMultiTouchRef.current = false;
+    if (preserveClickSuppressionRef.current) {
+      preserveClickSuppressionRef.current = false;
+    } else {
+      suppressClickRef.current = false;
+    }
     return () => {
       const owned = [...pointers.values()].filter(
         (entry) =>
@@ -262,6 +293,7 @@ export function useImageLightboxZoom(currentImageKey: string | undefined) {
   }
 
   function resetZoom() {
+    setSwipeX(0);
     setResetRevision((revision) => revision + 1);
     setZoom({ scale: MIN_SCALE, pan: { x: 0, y: 0 }, animate: true });
   }
@@ -287,7 +319,11 @@ export function useImageLightboxZoom(currentImageKey: string | undefined) {
   }
 
   function onPointerDown(event: ReactPointerEvent<HTMLDivElement>) {
-    if (pointersRef.current.size === 0) suppressClickRef.current = false;
+    if (pointersRef.current.size === 0) {
+      suppressClickRef.current = false;
+      hadMultiTouchRef.current = false;
+      swipeLockedRef.current = false;
+    }
     const image = imageRef.current;
     if (!image) return;
     const isTouch = event.pointerType === "touch";
@@ -296,6 +332,7 @@ export function useImageLightboxZoom(currentImageKey: string | undefined) {
     captureTarget.setPointerCapture(event.pointerId);
     pointersRef.current.set(event.pointerId, {
       pointerId: event.pointerId,
+      pointerType: event.pointerType,
       x: event.clientX,
       y: event.clientY,
       startX: event.clientX,
@@ -304,7 +341,14 @@ export function useImageLightboxZoom(currentImageKey: string | undefined) {
       resetRevision,
       captureTarget,
     });
-    if (pointersRef.current.size >= 2) suppressClickRef.current = true;
+    if (pointersRef.current.size >= 2) {
+      suppressClickRef.current = true;
+      hadMultiTouchRef.current = true;
+      if (swipeLockedRef.current) {
+        swipeLockedRef.current = false;
+        setSwipeX(0);
+      }
+    }
     setZoom((previous) => (previous.animate ? { ...previous, animate: false } : previous));
     if (!isTouch) event.preventDefault();
   }
@@ -361,6 +405,20 @@ export function useImageLightboxZoom(currentImageKey: string | undefined) {
       return;
     }
     if (!moved) return;
+    if (
+      entry.pointerType === "touch" &&
+      !hadMultiTouchRef.current &&
+      zoom.scale <= MIN_SCALE &&
+      swipe
+    ) {
+      const totalX = event.clientX - entry.startX;
+      const totalY = event.clientY - entry.startY;
+      if (swipeLockedRef.current || isHorizontalSwipe(totalX, totalY, SWIPE_LOCK_DISTANCE)) {
+        swipeLockedRef.current = true;
+        setSwipeX(totalX);
+      }
+      return;
+    }
     const deltaX = event.clientX - previousX;
     const deltaY = event.clientY - previousY;
     setZoom((previous) => ({
@@ -375,17 +433,50 @@ export function useImageLightboxZoom(currentImageKey: string | undefined) {
     }));
   }
 
-  function endPointer(event: ReactPointerEvent<HTMLDivElement>) {
+  function finishPointer(event: ReactPointerEvent<HTMLDivElement>, allowSwipeCommit: boolean) {
     const entry = pointersRef.current.get(event.pointerId);
     if (!entry) return;
     pointersRef.current.delete(event.pointerId);
     if (entry.captureTarget.hasPointerCapture(event.pointerId)) {
       entry.captureTarget.releasePointerCapture(event.pointerId);
     }
+    const wasSwiping = swipeLockedRef.current;
+    if (pointersRef.current.size === 0) {
+      swipeLockedRef.current = false;
+      hadMultiTouchRef.current = false;
+    }
+    if (!wasSwiping) return;
+    setSwipeX(0);
+    setZoom((previous) => (previous.animate ? previous : { ...previous, animate: true }));
+    if (
+      !allowSwipeCommit ||
+      !swipe ||
+      zoom.scale > MIN_SCALE ||
+      entry.imageKey !== (currentImageKey ?? "") ||
+      entry.resetRevision !== resetRevision
+    ) {
+      return;
+    }
+    const totalX = event.clientX - entry.startX;
+    const totalY = event.clientY - entry.startY;
+    if (isHorizontalSwipe(totalX, totalY, SWIPE_COMMIT_DISTANCE)) {
+      preserveClickSuppressionRef.current = true;
+      if (totalX < 0) swipe.onNext();
+      else swipe.onPrevious();
+    }
+  }
+
+  function onPointerUp(event: ReactPointerEvent<HTMLDivElement>) {
+    finishPointer(event, true);
+  }
+
+  function endPointer(event: ReactPointerEvent<HTMLDivElement>) {
+    finishPointer(event, false);
   }
 
   function onClickCapture(event: ReactMouseEvent<HTMLDivElement>) {
     if (!suppressClickRef.current) return;
+    suppressClickRef.current = false;
     event.preventDefault();
     event.stopPropagation();
   }
@@ -393,7 +484,8 @@ export function useImageLightboxZoom(currentImageKey: string | undefined) {
   return {
     scale: zoom.scale,
     pan: zoom.pan,
-    animate: zoom.animate,
+    swipeX,
+    animate: zoom.animate && swipeX === 0,
     stageRef,
     imageRef,
     zoomBy,
@@ -401,7 +493,7 @@ export function useImageLightboxZoom(currentImageKey: string | undefined) {
     onDoubleClick,
     onPointerDown,
     onPointerMove,
-    onPointerUp: endPointer,
+    onPointerUp,
     onPointerCancel: endPointer,
     onLostPointerCapture: endPointer,
     onClickCapture,
