@@ -1,5 +1,5 @@
 import Module from "node:module";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import type { SentryEventLike } from "@/shared/diagnostics/sentryPrivacy";
@@ -313,6 +313,13 @@ describe("supervisor Sentry policy", () => {
     const dataDir = mkdtempSync(join(process.cwd(), "tmp", "sentry-policy-"));
     process.env.SENTRY_DSN = "https://public@example.test/1";
     process.env.PORACODE_DATA_DIR = dataDir;
+    writeFileSync(
+      join(dataDir, "settings.json"),
+      JSON.stringify({
+        privacy: { productAnalytics: false, crashReports: true, consentDecided: true },
+      }),
+    );
+
     try {
       const reporter = await import("./sentry");
       expect(reporter.initializeSupervisorSentry({ appVersion: "test", isDev: false })).toBe(true);
@@ -652,6 +659,13 @@ describe("supervisor Sentry event admission", () => {
     mkdirSync("tmp", { recursive: true });
     const directory = mkdtempSync(join(process.cwd(), "tmp", "sentry-supervisor-"));
     process.env.PORACODE_DATA_DIR = directory;
+    writeFileSync(
+      join(directory, "settings.json"),
+      JSON.stringify({
+        privacy: { productAnalytics: false, crashReports: true, consentDecided: true },
+      }),
+    );
+
     process.env.SENTRY_DSN = "https://public@example.test/1";
 
     const moduleLoader = Module as unknown as {

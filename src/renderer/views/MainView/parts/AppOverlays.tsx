@@ -40,6 +40,7 @@ import { useBrowserPanelStore } from "@/renderer/state/browserPanelStore";
 import type { UsageLoginConfirmationAction } from "@/shared/contracts";
 import { WelcomeOverlay } from "@/renderer/views/WelcomeOverlay";
 import { WhatsNewOverlay } from "@/renderer/views/WhatsNewOverlay";
+import { TelemetryConsentPrompt } from "@/renderer/components/privacy/TelemetryConsentPrompt";
 import { useLoginTerminalStore } from "@/renderer/state/loginTerminalStore";
 import { findExperimentByWorktree } from "@/renderer/state/experimentStore";
 import { BrowserRemoteConnectionGate } from "./BrowserRemoteConnectionGate";
@@ -116,6 +117,7 @@ export function AppOverlays() {
     <>
       <WelcomeOverlay />
       <WhatsNewOverlay />
+      <TelemetryConsentPrompt />
       <AgentDiscoveryOverlay />
       {forkSourceThreadId ? (
         <Suspense fallback={null}>

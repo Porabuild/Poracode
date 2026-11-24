@@ -236,6 +236,7 @@ const bridge: ElectronHostBridge = {
   nodeVersion: process.versions.node,
   posthogEnableDev: resolveArgBoolean("--lc-posthog-enable-dev="),
   posthogEnabled: resolveArgValue("--lc-posthog-enabled=") !== "0",
+  telemetryHardDisabled: resolveArgBoolean("--lc-telemetry-hard-disabled="),
   posthogHost: resolveArgValue("--lc-posthog-host="),
   posthogKey: resolveArgValue("--lc-posthog-key="),
   sentryEnabled: resolveSentryEnabled(),

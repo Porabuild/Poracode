@@ -2,6 +2,10 @@
 // helpers, attach-mode startup, and managed ready path.
 import { app, type BrowserWindow } from "electron";
 import { resolvePoracodeChannel } from "@/shared/channel";
+import {
+  isProductAnalyticsDisabledByEnv,
+  isTelemetryHardDisabledByEnv,
+} from "@/shared/telemetryConsent";
 import type { PoracodePaths } from "@/shared/poracodePaths";
 import type { RemoteThreadCommand } from "@/shared/contracts";
 import type { ThreadOpenRequestedEvent } from "@/shared/ipc";
@@ -29,7 +33,8 @@ export const isDev = Boolean(process.env.VITE_DEV_SERVER_URL);
 export const channel = resolvePoracodeChannel();
 export const baseDirOverride = process.env.PORACODE_BASE_DIR;
 
-export const posthogEnabled = process.env.POSTHOG_ENABLED !== "0";
+export const telemetryHardDisabled = isTelemetryHardDisabledByEnv(process.env);
+export const posthogEnabled = !isProductAnalyticsDisabledByEnv(process.env);
 export const posthogKey = posthogEnabled ? (process.env.POSTHOG_KEY ?? "").trim() : "";
 export const posthogHost = (process.env.POSTHOG_HOST ?? "").trim();
 export const posthogEnableDev = process.env.POSTHOG_ENABLE_DEV === "1";

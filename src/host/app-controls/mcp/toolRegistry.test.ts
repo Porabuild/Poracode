@@ -1927,6 +1927,7 @@ describe("Poracode app control tools — settings", () => {
     "computerUseLockedUseDimDisplay",
     "disabledBuiltInMcpServers",
     "disabledBuiltInMcpTools",
+    "privacy",
   ])("update_settings protects %s user opt-in", async (key) => {
     const { ctx, settingsWrite } = context({ settings: settingsWithSecret() });
     await expect(dispatchTool("update_settings", { patch: { [key]: true } }, ctx)).rejects.toThrow(

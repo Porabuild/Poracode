@@ -1153,6 +1153,10 @@ msgstr "使用量について"
 msgid "Accent"
 msgstr "アクセント"
 
+#: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
+msgid "Accept all"
+msgstr "すべて受け入れる"
+
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/mergeConflict/codeLensProvider.ts
 msgid "Accept Both Changes"
 msgstr "両方の変更を受け入れる"
@@ -1938,6 +1942,10 @@ msgstr "アプリがバックグラウンドにある間、ブラウザに通知
 msgid "Allow the main agent to interrupt running sub-agents with interrupt_agent."
 msgstr "メインエージェントが interrupt_agent で実行中のサブエージェントを中断できるようにします。"
 
+#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
+#~ msgid "Allowlisted feature-use events (provider, public model family, bucketed counts and durations) under a random installation ID, with IP and location capture disabled."
+#~ msgstr "ランダムなインストール ID の下での許可された機能利用イベント（プロバイダー、公開モデルファミリー、バケット化された件数と所要時間）。IP と位置情報の収集は無効です。"
+
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Already configured"
 msgstr "設定済み"
@@ -1981,6 +1989,10 @@ msgstr "エージェントが説明と変更内容を読み取り、質問に回
 msgid "An agent is fixing this PR."
 msgstr "エージェントがこのPRを修正しています。"
 
+#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
+msgid "An environment variable on this machine keeps both options off."
+msgstr "このマシンの環境変数により、両オプションはオフのままになります。"
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "An expected worktree owner requires a branch"
 msgstr "想定するワークツリー所有者にはブランチが必要です"
@@ -1996,6 +2008,17 @@ msgstr "調査担当が根本原因を突き止め、修正担当が回帰テス
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "An MCP server with this name already exists."
 msgstr "この名前のMCPサーバーはすでに存在します。"
+
+#: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
+#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
+msgid "Anonymous feature-use events. No prompts, code, or location."
+msgstr "匿名の機能利用イベント。プロンプト、コード、位置情報は含みません。"
+
+#: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
+#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Anonymous product analytics"
+msgstr "匿名のプロダクト分析"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Another automation is already using this conversation."
@@ -3194,6 +3217,10 @@ msgstr "コンテキストサイズを {contextLabel} に変更しますか?"
 msgid "Change home"
 msgstr "ホームを変更"
 
+#: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
+#~ msgid "Change or turn off either anytime in Settings → Privacy."
+#~ msgstr "「設定 → プライバシー」でいつでも変更・オフにできます。"
+
 #: src/renderer/views/PullRequestsOverlay/timeline/TimelineTab.tsx
 msgid "Change order"
 msgstr "並び順を変更"
@@ -3813,6 +3840,7 @@ msgstr "クローン作成中…"
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/newsLine/NewsHighlightCard.tsx
 #: src/renderer/components/plugins/PluginCatalogBrowser.tsx
+#: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
 #: src/renderer/components/providers/opencode/OpenCodePluginsSettings.tsx
 #: src/renderer/components/providers/settings/ModelProvidersSettings.tsx
 #: src/renderer/components/skills/SkillViewModal.tsx
@@ -5209,6 +5237,17 @@ msgstr "対象範囲"
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 msgid "Coverage across reported currencies"
 msgstr "報告された通貨全体のカバー範囲"
+
+#: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
+#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
+msgid "Crash diagnostics with personal data removed."
+msgstr "個人データを含まないクラッシュ診断。"
+
+#: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
+#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Crash reports"
+msgstr "クラッシュレポート"
 
 #: src/renderer/components/thread/ChatPane/parts/items/FileChange.tsx
 #: src/renderer/components/workspace/WorkspaceNameDialog.tsx
@@ -7301,6 +7340,10 @@ msgstr "毎時"
 msgid "Every hour at {0} minutes past"
 msgstr "毎時{0}分"
 
+#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
+msgid "Exactly what is collected, and how to turn it off."
+msgstr "収集される内容とオフにする方法。"
+
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServerProjectList.tsx
 msgid "Exclude from sync"
@@ -7707,6 +7750,10 @@ msgstr "お気に入り"
 #: src/renderer/components/common/ProviderModelMenu/parts/crewPickerItems.ts
 msgid "Favorites"
 msgstr "お気に入り"
+
+#: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
+#~ msgid "Feature-use events under a random installation ID. No prompts or code."
+#~ msgstr "ランダムなインストール ID の下での機能利用イベント。プロンプトやコードは含みません。"
 
 #: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
 msgid "Feedback"
@@ -8661,6 +8708,10 @@ msgstr "ハートビートを実行できません。"
 msgid "Heartbeats can continue making changes while you're away. Set hard limits below."
 msgstr "離席中もハートビートが変更を続ける場合があります。以下で厳格な上限を設定してください。"
 
+#: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
+msgid "Help improve Poracode?"
+msgstr "Poracode の改善に協力しますか？"
+
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Help me create a schedule. Ask for any missing details, then use the Poracode schedule controls to create it for me."
 msgstr "スケジュール作成を手伝ってください。不足している詳細を確認し、Poracodeのスケジュール操作を使って作成してください。"
@@ -9339,6 +9390,10 @@ msgstr "検査"
 msgid "Inspect canonical runtime items"
 msgstr "正規のランタイム項目を検査する"
 
+#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
+#~ msgid "Inspect the exact sanitized events captured on this device during this session."
+#~ msgstr "このセッションでこのデバイス上にて取得された、サニタイズ済みの正確なイベントを確認できます。"
+
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "Inspect threads and terminal panes, and drive git, pull requests, and schedules."
 msgstr "スレッドとターミナルパネルを確認し、git、プルリクエスト、スケジュールを操作します。"
@@ -9528,6 +9583,10 @@ msgstr "このホストに Xcode と iOS Simulator ランタイムをインス�
 #: src/renderer/components/plugins/ComputerUsePluginSettings.tsx
 msgid "Installation couldn't be verified, so it was rolled back. Nothing was changed."
 msgstr "インストールを検証できなかったため、元に戻しました。何も変更されていません。"
+
+#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
+#~ msgid "Installation ID"
+#~ msgstr "インストール ID"
 
 #: src/renderer/components/plugins/ComputerUsePluginSettings.tsx
 #: src/renderer/components/plugins/PluginCatalogDetail.tsx
@@ -11848,6 +11907,10 @@ msgstr "エージェントがインストールされていません。"
 msgid "No AI commits, PRs, or conflict resolutions tracked yet."
 msgstr "AIによるコミット、PR、競合解決はまだ記録されていません。"
 
+#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
+#~ msgid "No analytics events have been captured this session."
+#~ msgstr "このセッションでは分析イベントは取得されていません。"
+
 #: src/renderer/components/providers/settings/ModelProviderManager.tsx
 msgid "No API key stored; native authentication may apply."
 msgstr "APIキーは保存されていません。ネイティブ認証が使用される場合があります。"
@@ -12348,6 +12411,10 @@ msgstr "このデバイスに対応するブラウザ プロファイルが見�
 msgid "No tags — the entry stops influencing tag affinity."
 msgstr "タグなし — このエントリーはタグ親和性に影響しなくなります。"
 
+#: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
+msgid "No thanks"
+msgstr "いいえ、結構です"
+
 #: src/renderer/views/HomeView.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "No threads yet."
@@ -12386,6 +12453,10 @@ msgstr "なし"
 #: src/renderer/views/ExperimentView/ExperimentView.tsx
 msgid "None of these agents can run the AI comparison."
 msgstr "これらのエージェントはいずれも AI 比較を実行できません。"
+
+#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
+#~ msgid "None yet. One is created only if you turn analytics on."
+#~ msgstr "まだありません。分析をオンにした場合にのみ作成されます。"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitDiffContent/GitDiffContent.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
@@ -13106,6 +13177,10 @@ msgstr "オペレーター"
 msgid "Optional"
 msgstr "任意"
 
+#: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
+msgid "Optional and off by default. Poracode sends no telemetry unless you turn it on here or in Settings → Privacy."
+msgstr "任意で、デフォルトはオフです。ここ、または「設定 → プライバシー」でオンにしない限り、Poracode はテレメトリを送信しません。"
+
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PlanReviewModal.tsx
 msgid "Optional comments on the plan as a whole"
 msgstr "プラン全体についての任意のコメント"
@@ -13791,6 +13866,14 @@ msgstr "Poracode とエージェントはリモートマシン上で実行され
 msgid "Poracode briefly unlocks this Mac for an active Computer Use turn, covers every display while it works, and locks it again when the turn ends. Any key press or pointer movement on this Mac locks it immediately. Installing needs a one-time administrator approval. On a Mac managed by your organization, check with IT first."
 msgstr "Poracode は、実行中のコンピュータ操作のターンのためにこの Mac のロックを一時的に解除し、作業中はすべてのディスプレイを覆い、ターンが終わると再びロックします。この Mac でキーを押したりポインタを動かしたりすると、すぐにロックされます。インストールには一度だけ管理者の承認が必要です。組織が管理している Mac では、事前に IT 部門に確認してください。"
 
+#: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
+#~ msgid "Poracode can send anonymous product analytics and scrubbed crash reports. Both are off until you opt in, and neither includes prompts, code, file names, or terminal output."
+#~ msgstr "Poracode は匿名のプロダクト分析とサニタイズ済みクラッシュレポートを送信できます。どちらもオプトインするまでオフで、プロンプト、コード、ファイル名、ターミナル出力は含みません。"
+
+#: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
+msgid "Poracode can send anonymous usage analytics and crash reports. No prompts, code, file names, or terminal output."
+msgstr "Poracode は匿名の利用分析とクラッシュレポートを送信できます。プロンプト、コード、ファイル名、ターミナル出力は含みません。"
+
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "Poracode could not create this plugin's data folder."
 msgstr "Poracode はこのプラグインのデータフォルダを作成できませんでした。"
@@ -13856,6 +13939,14 @@ msgstr "Poracode のみ"
 #: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
 msgid "Poracode remembers preferences and corrections across providers. Capture runs after a turn finishes. A daily pass merges them. Skills learned from repeated work stay as suggestions until you approve them."
 msgstr "Poracode はプロバイダをまたいで好みと修正を覚えます。取り込みはターン終了後に始まります。1 日 1 回の処理でまとめます。繰り返した作業から学んだスキルは、承認するまで提案のままです。"
+
+#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
+#~ msgid "Poracode sends no telemetry unless you opt in. Prompts, code, file names, and terminal output are never included. Turning a stream off stops sending immediately and drops anything still queued."
+#~ msgstr "オプトインしない限り、Poracode はテレメトリを送信しません。プロンプト、コード、ファイル名、ターミナル出力が含まれることは決してありません。ストリームをオフにすると送信は直ちに止まり、キューに残っている内容は破棄されます。"
+
+#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
+msgid "Poracode sends nothing unless you turn it on. No prompts, code, or file names — ever."
+msgstr "オンにしない限り、Poracode は何も送信しません。プロンプト、コード、ファイル名は決して含みません。"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Poracode SSH runtime manifest is missing or invalid: {path}"
@@ -14100,10 +14191,13 @@ msgid "Print"
 msgstr "印刷"
 
 #: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
 msgid "Privacy"
 msgstr "プライバシー"
 
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
+#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
 msgid "Privacy Policy"
 msgstr "プライバシーポリシー"
 
@@ -15473,6 +15567,10 @@ msgstr "チェックリストをリセット"
 msgid "Reset context windows"
 msgstr "コンテキストウィンドウをリセット"
 
+#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
+#~ msgid "Reset ID"
+#~ msgstr "ID をリセット"
+
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
 msgid "Reset inputs"
 msgstr "入力値をリセット"
@@ -16318,6 +16416,10 @@ msgstr "新しい Crew として保存:"
 msgid "Save changes"
 msgstr "変更を保存"
 
+#: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
+msgid "Save choices"
+msgstr "選択を保存"
+
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Save Claude profile"
 msgstr "Claude プロフィールを保存"
@@ -16544,6 +16646,14 @@ msgstr "一番下までスクロール"
 #: src/renderer/components/thread/ChatPane/StickyPrompt.tsx
 msgid "Scroll to prompt: {preview}"
 msgstr "プロンプトまでスクロール: {preview}"
+
+#: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
+#~ msgid "Scrubbed crash diagnostics with paths and secrets removed."
+#~ msgstr "パスとシークレットを除去したクラッシュ診断。"
+
+#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
+#~ msgid "Scrubbed crash diagnostics with paths, secrets, and personal data removed before anything is sent."
+#~ msgstr "サニタイズ済みクラッシュ診断：パス、シークレット、個人データは送信前に除去されます。"
 
 #: src/renderer/views/SettingsOverlay/parts/cursorRuntimeInstall.ts
 msgid "SDK installed"
@@ -16773,6 +16883,10 @@ msgstr "秒"
 #: src/renderer/components/plugins/pluginCategories.ts
 msgid "Security"
 msgstr "セキュリティ"
+
+#: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
+msgid "See exactly what is collected"
+msgstr "収集される内容を正確に確認"
 
 #: src/renderer/components/newsLine/featureCatalog.ts
 msgid "See how"
@@ -17345,6 +17459,10 @@ msgstr "ターミナルパネルの表示を切り替え"
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/MobileFileEditorActions.tsx
 msgid "Show preview"
 msgstr "プレビューを表示"
+
+#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
+#~ msgid "Show recent events"
+#~ msgstr "最近のイベントを表示"
 
 #: src/renderer/components/thread/ThreadView.tsx
 msgid "Show runtime debug panel"
@@ -18620,6 +18738,18 @@ msgstr "ティール"
 msgid "Team"
 msgstr "チーム"
 
+#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
+msgid "Telemetry details"
+msgstr "テレメトリの詳細"
+
+#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
+msgid "Telemetry doc"
+msgstr "テレメトリ文書"
+
+#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
+#~ msgid "Telemetry is disabled by an environment variable on this machine, so both options below stay off regardless of these switches."
+#~ msgstr "このマシンでは環境変数によりテレメトリが無効化されているため、これらのスイッチに関係なく下の両オプションはオフのままになります。"
+
 #. placeholder {0}: selectedAgent?.label ?? targetProviderFallback
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 msgid "Tell {0} what to do next..."
@@ -19016,6 +19146,10 @@ msgstr "検出結果は利用できなくなりました。"
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The fork's saved conversation is unavailable."
 msgstr "分岐に保存された会話を利用できません。"
+
+#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
+#~ msgid "The full event catalog, data handling, and environment opt-outs."
+#~ msgstr "完全なイベントカタログ、データの取り扱い、環境によるオプトアウト。"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The GitHub account \"{login}\" belongs to {host}, which does not match this project's GitHub remote."
@@ -21972,6 +22106,10 @@ msgstr "[PR の作成] ボタンのデフォルトの機能: ダイアログを�
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "What this server provides"
 msgstr "このサーバーが提供する機能"
+
+#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
+#~ msgid "What would be sent"
+#~ msgstr "送信される内容"
 
 #: src/renderer/components/common/FeedbackDialog.tsx
 msgid "What would you like to see?"

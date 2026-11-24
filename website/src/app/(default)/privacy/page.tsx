@@ -47,8 +47,8 @@ export default function PrivacyPage() {
             <p>
               Poracode is one application across Electron, browsers, installed PWAs, and native
               shells. Browser and native clients connect to a Poracode host that you control. The
-              app may send the privacy-bounded product analytics and crash diagnostics described
-              below when they are configured. Poracode does not show ads or sell personal
+              app sends no telemetry unless you opt in to the privacy-bounded product analytics or
+              crash diagnostics described below. Poracode does not show ads or sell personal
               information. This policy also explains the limited services used by the Poracode
               website and optional push notifications.
             </p>
@@ -140,17 +140,24 @@ export default function PrivacyPage() {
             </h2>
             <div className="space-y-3">
               <p>
-                When configured for a release, Poracode sends allowlisted product events to PostHog
-                using anonymous installation and session identifiers. Events describe feature use,
-                app and platform versions, and bucketed counts or durations. Person profiles are
-                disabled, and events do not include prompts, file content, terminal output, or
-                project and thread names or identifiers.
+                Poracode sends no telemetry unless you opt in. If you turn on anonymous product
+                analytics in Settings → Privacy, the desktop app sends allowlisted events to PostHog
+                using a random installation identifier generated on your device. Events describe
+                feature use, app and platform versions, and bucketed counts or durations. Person
+                profiles and IP/location capture are disabled, and events never include prompts,
+                file content, terminal output, token counts, or project and thread names or
+                identifiers. You can turn analytics off at any time in Settings → Privacy; turning
+                it off stops sending immediately. Environment variables
+                (PORACODE_TELEMETRY_ENABLED=0 or DO_NOT_TRACK=1) disable every stream regardless of
+                the in-app switches.
               </p>
               <p>
-                Configured releases may send scrubbed crash diagnostics to Sentry. Default personal
-                information, screenshots, breadcrumbs, and performance traces are disabled. The
-                public Poracode website uses Vercel Analytics and Speed Insights to understand
-                aggregate site usage and performance.
+                If you separately opt in to crash reports, configured releases may send scrubbed
+                crash diagnostics to Sentry. Default personal information, screenshots, breadcrumbs,
+                and performance traces are disabled, and paths, secrets, and other identifying
+                values are stripped before sending. The complete telemetry catalog is published in
+                the project documentation. The public Poracode website uses Vercel Analytics and
+                Speed Insights to understand aggregate site usage and performance.
               </p>
             </div>
           </section>

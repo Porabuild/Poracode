@@ -24,6 +24,31 @@ const validCrew = {
   ],
 };
 
+describe("shared settings privacy consent", () => {
+  it("migrates pre-consent settings files to telemetry off and undecided", () => {
+    const normalized = normalizeSharedSettings({ themeMode: "light" });
+    expect(normalized.privacy).toEqual({
+      productAnalytics: false,
+      crashReports: false,
+      consentDecided: false,
+    });
+    expect(defaultSharedSettings.privacy).toEqual(normalized.privacy);
+  });
+
+  it("round-trips an explicit opt-in and fails closed on malformed values", () => {
+    const optedIn = { productAnalytics: true, crashReports: true, consentDecided: true };
+    expect(normalizeSharedSettings({ privacy: optedIn }).privacy).toEqual(optedIn);
+    expect(
+      normalizeSharedSettings({ privacy: { productAnalytics: "yes", crashReports: 1 } }).privacy,
+    ).toEqual({ productAnalytics: false, crashReports: false, consentDecided: false });
+    expect(normalizeSharedSettings({ privacy: { crashReports: true } }).privacy).toEqual({
+      productAnalytics: false,
+      crashReports: true,
+      consentDecided: false,
+    });
+  });
+});
+
 describe("shared settings crews", () => {
   it("reads pre-shortcut crews and model history and round-trips optional picker metadata", () => {
     const legacy = {

@@ -144,6 +144,27 @@ describe("posthog product analytics privacy", () => {
     });
   });
 
+  it("drops raw library counts and durations and keeps privacy directives", () => {
+    expect(
+      sanitizeProductAnalyticsProperties({
+        $geoip_disable: true,
+        $ip: null,
+        duration_bucket: "1m_5m",
+        duration_ms: 123_456,
+        project_count: 42,
+        project_count_bucket: "gt_10",
+        thread_count: 7,
+        thread_count_bucket: "4_10",
+      }),
+    ).toEqual({
+      $geoip_disable: true,
+      $ip: null,
+      duration_bucket: "1m_5m",
+      project_count_bucket: "gt_10",
+      thread_count_bucket: "4_10",
+    });
+  });
+
   it("buckets durations and counts", () => {
     expect(bucketDurationMs(500)).toBe("lt_10s");
     expect(bucketDurationMs(70_000)).toBe("1m_5m");

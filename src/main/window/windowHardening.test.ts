@@ -141,6 +141,7 @@ describe("renderer termination intent wiring", () => {
       channel: "stable" as const,
       posthogEnableDev: false,
       posthogEnabled: false,
+      telemetryHardDisabled: false,
       posthogHost: "",
       posthogKey: "",
       sentryEnabled: false,

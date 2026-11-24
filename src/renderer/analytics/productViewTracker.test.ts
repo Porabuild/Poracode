@@ -52,7 +52,6 @@ describe("product view tracker", () => {
     tracker.finish();
     expect(capture).toHaveBeenLastCalledWith("app.view_duration", {
       duration_bucket: "lt_10s",
-      duration_ms: 2_500,
       view_kind: "home",
     });
   });
@@ -100,7 +99,6 @@ describe("product view tracker", () => {
 
     expect(capture).toHaveBeenLastCalledWith("app.view_duration", {
       duration_bucket: "lt_10s",
-      duration_ms: 2_000,
       view_kind: "home",
     });
   });

@@ -1,5 +1,5 @@
 import Module from "node:module";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type * as SentryCore from "@sentry/core";
@@ -27,16 +27,26 @@ const sentryMock = vi.hoisted(() => ({
     (options: Record<string, unknown> & { beforeSend: (event: never) => unknown }) => void
   >(),
   setContext: vi.fn<(name: string, value: Record<string, unknown>) => void>(),
+  makeElectronTransport: vi.fn<() => unknown>(),
 }));
 
 const originalDsn = process.env.SENTRY_DSN;
 const originalDevOverride = process.env.SENTRY_ENABLE_DEV;
 let directory: string;
 
+let consentedSettingsPath: string;
+
 beforeEach(() => {
   mkdirSync("tmp", { recursive: true });
   directory = mkdtempSync(join(process.cwd(), "tmp", "sentry-main-"));
   electronMock.app.getPath.mockReturnValue(directory);
+  consentedSettingsPath = join(directory, "settings.json");
+  writeFileSync(
+    consentedSettingsPath,
+    JSON.stringify({
+      privacy: { productAnalytics: false, crashReports: true, consentDecided: true },
+    }),
+  );
 });
 
 afterEach(() => {
@@ -66,6 +76,7 @@ describe("main Sentry configuration", () => {
       appVersion: "test",
       isDev: true,
       channel: "stable" as const,
+      settingsPath: consentedSettingsPath,
     };
     expect(isSentryConfigured(options)).toBe(false);
     expect(initializeMainSentry(options)).toBe(false);
@@ -82,9 +93,14 @@ describe("captureMainException", () => {
     const loadSpy = vi.spyOn(moduleLoader, "_load");
     try {
       process.env.SENTRY_DSN = " ";
-      expect(initializeMainSentry({ appVersion: "test", isDev: false, channel: "nightly" })).toBe(
-        false,
-      );
+      expect(
+        initializeMainSentry({
+          appVersion: "test",
+          isDev: false,
+          channel: "nightly",
+          settingsPath: consentedSettingsPath,
+        }),
+      ).toBe(false);
 
       captureMainException(new Error("updater failed"), { "poracode.feature_area": "update" });
 
@@ -113,9 +129,14 @@ describe("main Sentry event admission", () => {
       );
 
     try {
-      expect(initializeMainSentry({ appVersion: "test", isDev: false, channel: "stable" })).toBe(
-        true,
-      );
+      expect(
+        initializeMainSentry({
+          appVersion: "test",
+          isDev: false,
+          channel: "stable",
+          settingsPath: consentedSettingsPath,
+        }),
+      ).toBe(true);
       const beforeSend = sentryMock.init.mock.calls[0]?.[0].beforeSend;
       expect(beforeSend).toBeDefined();
       const event = {
@@ -137,7 +158,12 @@ describe("main Sentry event admission", () => {
       expect(beforeSend!(event as never)).not.toBeNull();
       expect(beforeSend!(event as never)).toBeNull();
       expect(
-        initializeMainSentry({ appVersion: "test-next", isDev: false, channel: "stable" }),
+        initializeMainSentry({
+          appVersion: "test-next",
+          isDev: false,
+          channel: "stable",
+          settingsPath: consentedSettingsPath,
+        }),
       ).toBe(true);
       const restarted = sentryMock.init.mock.calls.at(-1)?.[0].beforeSend;
       expect(restarted!(event as never)).toBeNull();
@@ -224,11 +250,33 @@ describe("main Sentry event admission", () => {
     const eventsAfterBeforeSend: Array<Record<string, unknown>> = [];
 
     try {
-      expect(initializeMainSentry({ appVersion: "test", isDev: false, channel: "stable" })).toBe(
-        true,
-      );
+      expect(
+        initializeMainSentry({
+          appVersion: "test",
+          isDev: false,
+          channel: "stable",
+          settingsPath: consentedSettingsPath,
+        }),
+      ).toBe(true);
       const sentryOptions = sentryMock.init.mock.calls.at(-1)?.[0];
       expect(sentryOptions).toBeDefined();
+      // Release-health sessions and client reports bypass beforeSend, and the
+      // default offline transport replays queued envelopes at startup; all
+      // three must stay off so the consent gate is the only egress control.
+      expect(sentryOptions!.sendClientReports).toBe(false);
+      expect(sentryOptions!.transport).toBe(sentryMock.makeElectronTransport);
+      const filteredIntegrations = (
+        sentryOptions!.integrations as (
+          integrations: Array<{ name: string }>,
+        ) => Array<{ name: string }>
+      )([
+        { name: "MainProcessSession" },
+        { name: "BrowserWindowSession" },
+        { name: "SentryMinidump" },
+      ]);
+      expect(filteredIntegrations.map((integration) => integration.name)).toEqual([
+        "SentryMinidump",
+      ]);
       expect(sentryOptions!.dataCollection).toMatchObject({
         userInfo: false,
         cookies: false,

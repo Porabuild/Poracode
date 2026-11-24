@@ -6,8 +6,11 @@ import {
   type ProductAnalyticsProperties,
 } from "@/shared/analytics/posthogPrivacy";
 import { useAppStore } from "@/renderer/state/appStore";
+import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
+import { isProductAnalyticsConsented } from "./telemetryConsentState";
 import {
   captureProductEvent,
+  clearProductAnalyticsBuffer,
   configureProductAnalytics,
   flushProductAnalytics,
 } from "./productAnalytics";
@@ -56,8 +59,8 @@ function appSummaryProperties(): ProductAnalyticsProperties {
   const state = useAppStore.getState();
   const worktreeCount = new Set(state.threads.flatMap((thread) => thread.worktreePath ?? [])).size;
   return {
-    project_count: state.projects.length,
-    thread_count: state.threads.length,
+    project_count_bucket: bucketCount(state.projects.length),
+    thread_count_bucket: bucketCount(state.threads.length),
     worktree_count_bucket: bucketCount(worktreeCount),
   };
 }
@@ -132,7 +135,6 @@ function installStoreSubscriptions(): () => void {
             ...threadProductProperties(thread),
             attention: thread.attention,
             duration_bucket: bucketDurationMs(durationMs),
-            duration_ms: durationMs,
             outcome: outcomeForStatus(thread.status),
             status: thread.status,
           });
@@ -162,14 +164,36 @@ function installStoreSubscriptions(): () => void {
 }
 
 export function installProductAnalytics(): () => void {
-  if (!configureProductAnalytics()) return () => {};
-  const unsubscribe = installStoreSubscriptions();
-  const intervalId = window.setInterval(() => {
-    void flushProductAnalytics();
-  }, FLUSH_INTERVAL_MS);
+  // Consent can arrive after startup (settings hydration, the first-run
+  // choice, or a Settings toggle), so installation follows the live privacy
+  // setting instead of deciding once at launch. The client also re-checks
+  // consent per capture/flush and drops its buffer the moment it is revoked.
+  let stopTracking: (() => void) | null = null;
+  let intervalId: number | null = null;
+
+  const start = () => {
+    if (stopTracking || !configureProductAnalytics()) return;
+    stopTracking = installStoreSubscriptions();
+    intervalId = window.setInterval(() => {
+      void flushProductAnalytics();
+    }, FLUSH_INTERVAL_MS);
+  };
+  const stop = () => {
+    clearProductAnalyticsBuffer();
+    stopTracking?.();
+    stopTracking = null;
+    if (intervalId !== null) window.clearInterval(intervalId);
+    intervalId = null;
+  };
+  const sync = () => {
+    if (isProductAnalyticsConsented()) start();
+    else stop();
+  };
+
+  sync();
+  const unsubscribe = useSharedSettings.subscribe(sync);
   return () => {
     unsubscribe();
-    window.clearInterval(intervalId);
-    void flushProductAnalytics();
+    stop();
   };
 }

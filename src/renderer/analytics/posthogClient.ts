@@ -27,12 +27,20 @@ export interface PostHogClientDependencies {
   createSessionId: () => string;
   now: () => string;
   fetch: typeof fetch;
+  /**
+   * Live consent check, consulted on every capture and flush so turning
+   * analytics off in Settings stops sending immediately (and drops anything
+   * still buffered) without an app restart.
+   */
+  isConsentGranted: () => boolean;
 }
 
 export interface PostHogClient {
   configure: () => boolean;
   capture: (event: ProductAnalyticsEventName, properties?: ProductAnalyticsProperties) => void;
   flush: () => Promise<void>;
+  /** Drops every buffered event; called when consent is revoked. */
+  clearBuffer: () => void;
 }
 
 export function createPostHogClient(dependencies: PostHogClientDependencies): PostHogClient {
@@ -43,14 +51,22 @@ export function createPostHogClient(dependencies: PostHogClientDependencies): Po
   const buffer: BufferedProductEvent[] = [];
   let flushPromise: Promise<void> | null = null;
 
+  const clearBuffer = (): void => {
+    buffer.length = 0;
+  };
+
   const configure = (): boolean => {
     config = dependencies.resolveConfig();
-    if (!config.enabled) return false;
+    if (!config.enabled || !dependencies.isConsentGranted()) return false;
     installId ??= dependencies.resolveInstallId();
     return installId.length > 0;
   };
 
   const ensureConfig = (): PostHogClientConfig | null => {
+    if (!dependencies.isConsentGranted()) {
+      clearBuffer();
+      return null;
+    }
     if (!config && !configure()) return null;
     if (!config?.enabled || !installId) return null;
     return config;
@@ -105,7 +121,8 @@ export function createPostHogClient(dependencies: PostHogClientDependencies): Po
       }
       return true;
     } catch {
-      buffer.unshift(...batch);
+      // Do not resurrect events after a revocation that landed mid-flight.
+      if (dependencies.isConsentGranted()) buffer.unshift(...batch);
       if (buffer.length > MAX_BUFFERED_EVENTS) {
         buffer.splice(MAX_BUFFERED_EVENTS);
       }
@@ -130,5 +147,5 @@ export function createPostHogClient(dependencies: PostHogClientDependencies): Po
     await flushPromise;
   };
 
-  return { capture, configure, flush };
+  return { capture, clearBuffer, configure, flush };
 }
