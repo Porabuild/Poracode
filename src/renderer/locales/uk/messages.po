@@ -3060,6 +3060,7 @@ msgstr "Цей вибір моделі не можна використовув�
 #: src/renderer/views/PullRequestsOverlay/parts/SubmitReviewPopover.tsx
 #: src/renderer/views/PullRequestsOverlay/summary/DescriptionCard.tsx
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+#: src/renderer/views/SettingsOverlay/parts/CrewsSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/HexSetupDialog.tsx
@@ -3824,6 +3825,7 @@ msgstr "Клонування…"
 #: src/renderer/views/ProfileOverlay/parts/CostModelDialog.tsx
 #: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
 #: src/renderer/views/SchedulesView/parts/ScheduleRunDetails.tsx
+#: src/renderer/views/SettingsOverlay/parts/CrewsSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
 #: src/renderer/views/SettingsOverlay/parts/HexSetupDialog.tsx
 msgid "Close"
@@ -6570,7 +6572,6 @@ msgstr "готово"
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectFilter.tsx
 #: src/renderer/views/PullRequestsOverlay/summary/LabelPicker.tsx
 #: src/renderer/views/PullRequestsOverlay/summary/ReviewerPicker.tsx
-#: src/renderer/views/SettingsOverlay/parts/CrewsSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Done"
@@ -16287,6 +16288,7 @@ msgstr "Насиченість та яскравість"
 #: src/renderer/views/PullRequestsOverlay/parts/PrCommentBody.tsx
 #: src/renderer/views/PullRequestsOverlay/parts/PrEditSheet.tsx
 #: src/renderer/views/PullRequestsOverlay/summary/DescriptionCard.tsx
+#: src/renderer/views/SettingsOverlay/parts/CrewsSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/MemoryEditorDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx

@@ -14,8 +14,6 @@ import { useCrewHelperOptions } from "@/renderer/components/crew/crewHelperOptio
 import {
   addRole,
   crewModelLabelOf,
-  isLeadEdited,
-  isRoleEdited,
   removeRole,
   saveAsNewCrew,
   updateRole,
@@ -42,15 +40,36 @@ import {
   crewBindingFromSavedCrew,
   canLeadCrew,
   MAX_CREW_ROLES,
+  MAX_SAVED_CREWS,
+  normalizeCrewRoles,
+  savedCrewSchema,
   type CrewMemberSelection,
   type SavedCrew,
   type ThreadCrewBinding,
 } from "@/shared/crew";
 import { SettingsPage } from "./SettingsForm";
 
+function draftBindingOf(draft: SavedCrew): ThreadCrewBinding {
+  return {
+    version: CREW_BINDING_VERSION,
+    crewId: draft.id,
+    ...(draft.name ? { name: draft.name } : {}),
+    policy: draft.policy,
+    roles: draft.roles,
+  };
+}
+
+function prepareSavedCrew(draft: SavedCrew): SavedCrew | undefined {
+  const name = draft.name.trim();
+  const roles = normalizeCrewRoles(draft.roles);
+  if (roles.length !== draft.roles.length || roles.length === 0) return undefined;
+  const parsed = savedCrewSchema.safeParse({ ...draft, name, roles });
+  return parsed.success ? parsed.data : undefined;
+}
+
 export function CrewsSettings({ machineKey }: { machineKey?: string }) {
   const { t } = useLingui();
-  const { crews, upsertCrew, deleteCrew, ready } = useCrewLibrary(machineKey);
+  const { crews, saveCrew, deleteCrew, ready } = useCrewLibrary(machineKey);
   const machine = machineKey ? parseMachineKey(machineKey) : undefined;
   const pools = useHostAgentStatusPools(machine?.host === "remote" ? machine.desktopId : undefined);
   const distro = machine?.env.kind === "wsl" ? machine.env.distro : undefined;
@@ -59,7 +78,7 @@ export function CrewsSettings({ machineKey }: { machineKey?: string }) {
     : pools.windows;
   const providerOrder = useSharedSettings((state) => state.providerOrder);
   const helperOptions = useCrewHelperOptions(machineKey);
-  const [editorCrewId, setEditorCrewId] = useState<string | undefined>();
+  const [editorCrew, setEditorCrew] = useState<SavedCrew | undefined>();
   const [deleteTarget, setDeleteTarget] = useState<SavedCrew | undefined>();
   const installed = getSettingsInstalledAgents(statuses, []).sort((left, right) => {
     const leftIndex = providerOrder.indexOf(left.kind);
@@ -79,7 +98,6 @@ export function CrewsSettings({ machineKey }: { machineKey?: string }) {
     filterAgent: (agent) =>
       canLeadCrew(capabilitiesForPresentation(agent.capabilities, "gui"), "gui"),
   });
-  const editingCrew = crews.find((crew) => crew.id === editorCrewId);
   const templateOptions = CREW_TEMPLATE_DESCRIPTORS.map((template) => ({
     id: template.id,
     label: t(template.name),
@@ -103,13 +121,14 @@ export function CrewsSettings({ machineKey }: { machineKey?: string }) {
   // what createFromTemplate can build.
   const newCrewLead = defaultLeadSelection();
   const newCrewHelper = newCrewLead ? helperOptions.defaultSelectionFor(newCrewLead) : undefined;
+  const canAddCrew = ready && crews.length < MAX_SAVED_CREWS;
 
   function createFromTemplate(templateId: string) {
     const template = CREW_TEMPLATE_DESCRIPTORS.find((entry) => entry.id === templateId);
-    if (!template || !newCrewLead || !newCrewHelper) return;
+    if (!template || !newCrewLead || !newCrewHelper || !canAddCrew) return;
     // Read-only roles default to another provider when one is available, so a
     // review or exploration gets a second model's view. The editor opens next
-    // so the user assigns the models they want.
+    // so the user assigns the models they want before saving.
     const otherHelper = helperOptions.providers
       .filter((provider) => provider.kind !== newCrewHelper.agentKind)
       .flatMap((provider) => {
@@ -126,17 +145,15 @@ export function CrewsSettings({ machineKey }: { machineKey?: string }) {
       policy: template.policy,
       roles,
     };
-    const saved = saveAsNewCrew(t(template.name), binding, newCrewLead);
-    upsertCrew(saved);
-    setEditorCrewId(saved.id);
+    setEditorCrew(saveAsNewCrew(t(template.name), binding, newCrewLead));
   }
 
   function duplicate(crew: SavedCrew) {
+    if (!canAddCrew) return;
     const suffix = " copy";
     const name = `${crew.name.slice(0, 40 - suffix.length).trimEnd()}${suffix}`;
     const copy = saveAsNewCrew(name, crewBindingFromSavedCrew(crew), crew.lead);
-    upsertCrew(copy);
-    setEditorCrewId(copy.id);
+    setEditorCrew(copy);
   }
 
   function confirmDelete() {
@@ -156,7 +173,7 @@ export function CrewsSettings({ machineKey }: { machineKey?: string }) {
           icon={<Plus className="size-4" />}
           options={templateOptions}
           buttonVariant="tertiary"
-          isDisabled={!ready || !newCrewHelper}
+          isDisabled={!canAddCrew || !newCrewHelper}
           onChange={(template) => createFromTemplate(template)}
         />
       }
@@ -182,7 +199,7 @@ export function CrewsSettings({ machineKey }: { machineKey?: string }) {
                   <button
                     type="button"
                     className="min-w-0 flex-1 rounded text-left"
-                    onClick={() => setEditorCrewId(crew.id)}
+                    onClick={() => setEditorCrew(crew)}
                   >
                     <span className="flex min-w-0 items-center gap-2">
                       <span className="truncate text-sm font-medium text-foreground">
@@ -250,12 +267,13 @@ export function CrewsSettings({ machineKey }: { machineKey?: string }) {
                   </button>
                   <ThreadDockIconButton
                     label={t`Edit ${crew.name}`}
-                    onPress={() => setEditorCrewId(crew.id)}
+                    onPress={() => setEditorCrew(crew)}
                   >
                     <Pencil className="size-3.5" />
                   </ThreadDockIconButton>
                   <ThreadDockIconButton
                     label={t`Duplicate ${crew.name}`}
+                    isDisabled={!canAddCrew}
                     onPress={() => duplicate(crew)}
                   >
                     <Copy className="size-3.5" />
@@ -273,15 +291,16 @@ export function CrewsSettings({ machineKey }: { machineKey?: string }) {
           </ContentSurface>
         )}
       </div>
-      {editingCrew ? (
+      {editorCrew ? (
         <CrewEditorModal
-          key={editingCrew.id}
-          crew={editingCrew}
+          key={editorCrew.id}
+          crew={editorCrew}
           helperOptions={helperOptions}
           leadProviders={leadProviders}
           roleTemplates={roleTemplates}
-          onUpsert={upsertCrew}
-          onClose={() => setEditorCrewId(undefined)}
+          canSave={ready}
+          onSave={saveCrew}
+          onClose={() => setEditorCrew(undefined)}
         />
       ) : null}
       <ConfirmDialog
@@ -301,19 +320,24 @@ function CrewEditorModal(props: {
   helperOptions: ReturnType<typeof useCrewHelperOptions>;
   leadProviders: CrewRosterModel["leadProviders"];
   roleTemplates: CrewRosterModel["roleTemplates"];
-  onUpsert: (crew: SavedCrew) => void;
+  canSave: boolean;
+  /** Resolves true once the machine that owns the crew library holds the saved crew. */
+  onSave: (crew: SavedCrew) => Promise<boolean>;
   onClose: () => void;
 }) {
   const { t } = useLingui();
-  const { crew, helperOptions, onUpsert } = props;
+  const { helperOptions } = props;
+  const [draft, setDraft] = useState<SavedCrew>(props.crew);
+  const [saving, setSaving] = useState(false);
   const [editingRoleId, setEditingRoleId] = useState<string | undefined>();
   const [infoOpen, setInfoOpen] = useState(false);
-  const binding = crewBindingFromSavedCrew(crew);
-  const defaultHelper = helperOptions.defaultSelectionFor(crew.lead);
+  const binding = draftBindingOf(draft);
+  const defaultHelper = helperOptions.defaultSelectionFor(draft.lead);
+  const preparedCrew = prepareSavedCrew(draft);
   const model: CrewRosterModel = {
     binding,
-    lead: crew.lead,
-    savedCrew: crew,
+    lead: draft.lead,
+    savedCrew: draft,
     helperOptions,
     roleTemplates: props.roleTemplates,
     leadProviders: props.leadProviders,
@@ -323,17 +347,32 @@ function CrewEditorModal(props: {
     isDisabled: false,
     showFallbacks: true,
     onBindingChange: (next: ThreadCrewBinding) =>
-      onUpsert({ ...crew, policy: next.policy, roles: next.roles }),
-    onLeadChange: (lead: CrewMemberSelection) => onUpsert({ ...crew, lead }),
-    onSaveToCrew: onUpsert,
-    onSaveAsNewCrew: onUpsert,
+      setDraft((current) => ({ ...current, policy: next.policy, roles: next.roles })),
+    onLeadChange: (lead: CrewMemberSelection) => setDraft((current) => ({ ...current, lead })),
+    onSaveToCrew: (next: SavedCrew) => setDraft(next),
+    onSaveAsNewCrew: (next: SavedCrew) => setDraft(next),
   };
 
+  function handleSave() {
+    if (!props.canSave || !preparedCrew || saving) return;
+    setSaving(true);
+    // A paired host takes the write asynchronously. Close only once it holds the
+    // crew, so a refused write leaves the draft here to fix and save again.
+    void props.onSave(preparedCrew).then((saved) => {
+      if (saved) props.onClose();
+      else setSaving(false);
+    });
+  }
+
+  // While a paired host takes the write, no close route can drop the draft. Once
+  // that host is gone its answer never comes, so the user may leave.
+  const waitingForHost = saving && props.canSave;
+
   return (
-    <Modal.Backdrop isOpen onOpenChange={(open) => !open && props.onClose()}>
+    <Modal.Backdrop isOpen onOpenChange={(open) => !open && !waitingForHost && props.onClose()}>
       <Modal.Container placement="center" scroll="inside" size="md">
         <Modal.Dialog className="sm:max-w-xl">
-          <Modal.CloseTrigger />
+          <Modal.CloseTrigger isDisabled={waitingForHost} aria-label={t`Close`} />
           <Modal.Header>
             <div className="flex items-center gap-1">
               <Modal.Heading>{t`Edit crew`}</Modal.Heading>
@@ -379,11 +418,13 @@ function CrewEditorModal(props: {
               <span className="text-[11px] text-muted">{t`Name`}</span>
               <Input
                 aria-label={t`Crew name`}
-                value={crew.name}
+                value={draft.name}
                 maxLength={40}
                 variant="secondary"
                 className="h-8 min-w-0 text-sm font-semibold"
-                onChange={(event) => onUpsert({ ...crew, name: event.target.value })}
+                onChange={(event) =>
+                  setDraft((current) => ({ ...current, name: event.target.value }))
+                }
               />
             </div>
             <LightballTabs
@@ -395,8 +436,8 @@ function CrewEditorModal(props: {
                   icon: <LockOpen className="size-3.5" />,
                 },
               ]}
-              active={crew.policy}
-              onChange={(policy) => onUpsert({ ...crew, policy })}
+              active={draft.policy}
+              onChange={(policy) => setDraft((current) => ({ ...current, policy }))}
               ariaLabel={t`Crew policy`}
               className="w-fit"
               shape="rounded"
@@ -404,55 +445,60 @@ function CrewEditorModal(props: {
             <ContentSurface className="overflow-hidden px-1.5 py-1">
               <CrewMemberRow
                 model={model}
-                selection={crew.lead}
+                selection={draft.lead}
                 isLead
-                isEdited={isLeadEdited(crew.lead, crew)}
+                isEdited={false}
                 isEditing={false}
                 onEditToggle={() => {}}
-                onSelectionChange={(lead) => onUpsert({ ...crew, lead })}
+                onSelectionChange={(lead) => setDraft((current) => ({ ...current, lead }))}
                 onRoleChange={() => {}}
                 onRemoveRole={() => {}}
               />
               <Separator className="my-1 h-px w-full bg-border/70" />
-              {crew.roles.map((role) => (
+              {draft.roles.map((role) => (
                 <CrewMemberRow
                   key={role.id}
                   model={model}
                   role={role}
                   selection={role.selection}
                   isLead={false}
-                  isEdited={isRoleEdited(role, crew)}
+                  isEdited={false}
                   isEditing={editingRoleId === role.id}
                   onEditToggle={() =>
                     setEditingRoleId((current) => (current === role.id ? undefined : role.id))
                   }
-                  onSelectionChange={(selection) => {
-                    const roles = crew.roles.map((entry) =>
-                      entry.id === role.id ? { ...entry, selection } : entry,
-                    );
-                    onUpsert({ ...crew, roles });
-                  }}
-                  onRoleChange={(patch) => {
-                    const next = updateRole(binding, role.id, patch);
-                    onUpsert({ ...crew, roles: next.roles });
-                  }}
-                  onRemoveRole={() =>
-                    onUpsert({
-                      ...crew,
-                      roles: removeRole(binding, role.id).roles,
+                  onSelectionChange={(selection) =>
+                    setDraft((current) => ({
+                      ...current,
+                      roles: current.roles.map((entry) =>
+                        entry.id === role.id ? { ...entry, selection } : entry,
+                      ),
+                    }))
+                  }
+                  onRoleChange={(patch) =>
+                    setDraft((current) => {
+                      const next = updateRole(draftBindingOf(current), role.id, patch);
+                      return { ...current, roles: next.roles };
                     })
                   }
+                  onRemoveRole={() => {
+                    setDraft((current) => ({
+                      ...current,
+                      roles: removeRole(draftBindingOf(current), role.id).roles,
+                    }));
+                    setEditingRoleId((current) => (current === role.id ? undefined : current));
+                  }}
                 />
               ))}
               <Button
                 size="sm"
                 variant="ghost"
                 className="mt-0.5 h-7 w-full justify-start gap-1.5 px-1.5 text-xs text-muted hover:text-foreground"
-                isDisabled={!model.defaultHelper || crew.roles.length >= MAX_CREW_ROLES}
+                isDisabled={!model.defaultHelper || draft.roles.length >= MAX_CREW_ROLES}
                 onPress={() => {
                   if (!model.defaultHelper) return;
                   const result = addRole(binding, model.roleTemplates, model.defaultHelper);
-                  onUpsert({ ...crew, roles: result.binding.roles });
+                  setDraft((current) => ({ ...current, roles: result.binding.roles }));
                   if (result.roleId) setEditingRoleId(result.roleId);
                 }}
               >
@@ -462,8 +508,16 @@ function CrewEditorModal(props: {
             </ContentSurface>
           </Modal.Body>
           <Modal.Footer>
-            <Button slot="close" variant="ghost" onPress={props.onClose}>
-              <Trans>Done</Trans>
+            <Button slot="close" variant="ghost" className="text-muted" isDisabled={waitingForHost}>
+              <Trans>Cancel</Trans>
+            </Button>
+            <Button
+              variant="tertiary"
+              isPending={saving}
+              isDisabled={!props.canSave || !preparedCrew}
+              onPress={handleSave}
+            >
+              <Trans>Save</Trans>
             </Button>
           </Modal.Footer>
         </Modal.Dialog>
