@@ -150,7 +150,7 @@ async function performThreadInputSubmitPending(
         payload: {
           content: buildPromptContentBlocks(prompt, segments),
           ...(questionAnswer ? { questionAnswer } : {}),
-          ...(thread.config.model.trim() ? { model: thread.config.model } : {}),
+          ...(thread.config.model?.trim() ? { model: thread.config.model } : {}),
           clientInputDelivery: "pending",
         },
       });
@@ -169,7 +169,7 @@ async function performThreadInputSubmitPending(
       payload: {
         content: buildPromptContentBlocks(prompt, segments),
         ...(questionAnswer ? { questionAnswer } : {}),
-        ...(thread.config.model.trim() ? { model: thread.config.model } : {}),
+        ...(thread.config.model?.trim() ? { model: thread.config.model } : {}),
         clientInputDelivery: "pending",
       },
     });

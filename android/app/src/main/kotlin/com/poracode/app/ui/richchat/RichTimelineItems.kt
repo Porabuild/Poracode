@@ -33,7 +33,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -50,8 +49,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -71,7 +68,6 @@ import com.poracode.app.chat.RichThreadState
 import com.poracode.app.chat.RichTimeline
 import com.poracode.app.chat.RichTimelineEntry
 import com.poracode.app.chat.RichVisibleTimelineNode
-import com.poracode.app.model.AgentStatusEntry
 import com.poracode.app.session.richchat.RichChatSessionRuntime
 import com.poracode.app.ui.components.PoracodeIconButton
 import com.poracode.app.ui.theme.GeistMono
@@ -81,61 +77,6 @@ import com.poracode.app.ui.theme.PoracodeTextStyles
 import com.poracode.app.ui.theme.PoracodeRadius
 import com.poracode.app.ui.theme.PoracodeTheme
 import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.serialization.json.JsonArray
-import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.JsonPrimitive
-
-/** Model id → display label from the thread provider's GUI model catalog. */
-internal val LocalRichChatModelLabels = compositionLocalOf<Map<String, String>> { emptyMap() }
-
-internal fun richChatModelLabels(agentStatus: AgentStatusEntry?): Map<String, String> {
-    val capabilities = agentStatus?.capabilities ?: return emptyMap()
-    val labels = linkedMapOf<String, String>()
-    val catalogs = listOfNotNull(
-        capabilities["models"] as? JsonArray,
-        ((capabilities["presentationCapabilities"] as? JsonObject)?.get("gui") as? JsonObject)
-            ?.get("models") as? JsonArray,
-    )
-    for (catalog in catalogs) {
-        for (entry in catalog) {
-            val item = entry as? JsonObject ?: continue
-            val id = (item["id"] as? JsonPrimitive)?.takeIf { it.isString }?.content ?: continue
-            val label = (item["label"] as? JsonPrimitive)?.takeIf { it.isString }?.content ?: continue
-            labels.putIfAbsent(id, label)
-        }
-    }
-    return labels
-}
-
-private fun JsonObject.stringValue(key: String): String? =
-    (this[key] as? JsonPrimitive)?.takeIf { it.isString }?.content
-
-/** Quiet divider line where the thread's answering model changed. */
-@Composable
-private fun RichModelSwitchRow(item: RichRuntimeItem) {
-    val payload = item.payload as? JsonObject ?: return
-    val from = payload.stringValue("fromModel")?.takeIf { it.isNotEmpty() } ?: return
-    val to = payload.stringValue("toModel")?.takeIf { it.isNotEmpty() } ?: return
-    val labels = LocalRichChatModelLabels.current
-    val colors = PoracodeTheme.colors
-    val text = stringResource(R.string.rich_chat_model_switched, labels[from] ?: from, labels[to] ?: to)
-    Row(
-        Modifier
-            .fillMaxWidth()
-            .testTag("native-e2e.transcript.model-switch")
-            .semantics { contentDescription = text }
-            .padding(horizontal = 12.dp, vertical = 2.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
-    ) {
-        Icon(PoracodeIcons.SwapHoriz, contentDescription = null, modifier = Modifier.size(12.dp), tint = colors.muted)
-        Text(
-            text,
-            style = PoracodeTextStyles.rowDescription.copy(fontStyle = FontStyle.Italic),
-            color = colors.muted,
-        )
-    }
-}
 
 @Composable
 internal fun RichTimelineItem(

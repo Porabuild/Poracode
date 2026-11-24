@@ -149,7 +149,8 @@ class RuntimeEventReducerTest {
                 RuntimeEventReducer.apply(event, items)
             }
         }
-        assertEquals(1, items.size)
+        assertEquals(2, items.size)
+        assertEquals("model_switch", items[1].type)
         assertEquals("completed", items[0].state)
         assertEquals("Fixture response", items[0].streams["assistant_text"])
         assertEquals("Fixture response", RuntimeEventReducer.extractTranscriptText(items[0]))

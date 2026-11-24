@@ -48,7 +48,7 @@ export function previousTurnModelForThread(threadId: string): string | undefined
  * of the prompt. Returns undefined when the model is unchanged or unknown.
  */
 export function paintOptimisticModelSwitch(thread: Thread): OptimisticModelSwitch | undefined {
-  const toModel = thread.config.model.trim();
+  const toModel = thread.config.model?.trim();
   if (!toModel) return undefined;
   const fromModel = previousTurnModelForThread(thread.id);
   if (!fromModel || fromModel === toModel) return undefined;
@@ -133,7 +133,7 @@ export function appendOptimisticInitialInput(
     itemType: "user_message",
     payload: {
       content: buildPromptContentBlocks(prompt, segments),
-      ...(thread.config.model.trim() ? { model: thread.config.model } : {}),
+      ...(thread.config.model?.trim() ? { model: thread.config.model } : {}),
     },
   });
   store.applyRuntimeEvent(thread.id, {
@@ -189,7 +189,7 @@ export function beginOptimisticThreadInput(
     payload: {
       content: buildPromptContentBlocks(prompt, segments),
       ...(questionAnswer ? { questionAnswer } : {}),
-      ...(thread.config.model.trim() ? { model: thread.config.model } : {}),
+      ...(thread.config.model?.trim() ? { model: thread.config.model } : {}),
       clientInputDelivery: "pending",
     },
   });
