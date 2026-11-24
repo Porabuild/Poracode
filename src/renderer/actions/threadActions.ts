@@ -27,7 +27,8 @@ import { findExperimentByThreadId, useExperimentStore } from "@/renderer/state/e
 import { useDevTerminalStore } from "@/renderer/state/devTerminalStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import { isApplyingHostOriginatedManagedRootMutation } from "@/renderer/state/managedRootCatalog/rootCatalogCommands";
-import { entityHost, intentHost } from "@/renderer/state/entityHost";
+import { entityHost, intentHost, type EntityHost } from "@/renderer/state/entityHost";
+import { presentThreadRemoval } from "@/renderer/state/threadRemovalPresentation";
 import { isRemoteProjectUnreachable } from "@/renderer/state/remoteServers/reachability";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useSidebarUiStore } from "@/renderer/state/sidebarUiStore";
@@ -56,7 +57,11 @@ import {
 } from "./threadWindowActions";
 import { getCurrentProjectId } from "./currentProject";
 import { switchWorkspaceForProject } from "./workspaceActions";
-import { deleteWorktreeGroup } from "./worktreeActions";
+import {
+  cleanupRemovedWorktreeUi,
+  collectOwnedWorktrees,
+  deleteWorktreeGroup,
+} from "./worktreeActions";
 import {
   catalogEditPatch,
   applyCatalogPatchFields,
@@ -917,10 +922,15 @@ export function deleteThread(threadId: string, worktreePath?: string, projectId?
   deleteWorktreeGroup(project.id, worktreePath, [threadId], () => deleteThreadOnly(threadId));
 }
 
-export function deleteThreadsAndOwnedWorktrees(threads: readonly Thread[]): void {
-  const selectedThreadIds = new Set(threads.map((thread) => thread.id));
+function deleteThreadsAndOwnedWorktreesLegacy(threads: readonly Thread[]): void {
   const allThreads = useAppStore.getState().threads;
-  const deletedWorktrees = new Set<string>();
+  const ownedByKey = new Map(
+    collectOwnedWorktrees(threads, allThreads).map((entry) => [
+      `${entry.projectId}\0${entry.worktreePath}`,
+      entry,
+    ]),
+  );
+  const handledWorktrees = new Set<string>();
 
   for (const thread of threads) {
     if (!thread.worktreePath) {
@@ -929,26 +939,179 @@ export function deleteThreadsAndOwnedWorktrees(threads: readonly Thread[]): void
     }
 
     const worktreeKey = `${thread.projectId}\0${thread.worktreePath}`;
-    if (deletedWorktrees.has(worktreeKey)) continue;
-
-    const siblings = allThreads.filter(
-      (candidate) =>
-        candidate.projectId === thread.projectId && candidate.worktreePath === thread.worktreePath,
-    );
-    if (siblings.every((candidate) => selectedThreadIds.has(candidate.id))) {
-      deletedWorktrees.add(worktreeKey);
-      deleteWorktreeGroup(
-        thread.projectId,
-        thread.worktreePath,
-        siblings.map((candidate) => candidate.id),
-        () => {
-          for (const sibling of siblings) deleteThreadOnly(sibling.id);
-        },
-      );
-    } else {
+    const owned = ownedByKey.get(worktreeKey);
+    if (!owned) {
       deleteThread(thread.id);
+      continue;
     }
+    if (handledWorktrees.has(worktreeKey)) continue;
+    handledWorktrees.add(worktreeKey);
+    deleteWorktreeGroup(owned.projectId, owned.worktreePath, [...owned.threadIds], () => {
+      for (const siblingId of owned.threadIds) deleteThreadOnly(siblingId);
+    });
   }
+}
+
+function dispatchLegacyThreadRemovalBatch(
+  threads: readonly Thread[],
+  action: "archive" | "delete",
+  removeOwnedWorktrees: boolean,
+): void {
+  if (action === "archive") {
+    for (const thread of threads) archiveThread(thread.id);
+    return;
+  }
+  if (removeOwnedWorktrees) {
+    deleteThreadsAndOwnedWorktreesLegacy(threads);
+    return;
+  }
+  for (const thread of threads) deleteThread(thread.id);
+}
+
+function dispatchBulkHostThreadRemoval(
+  host: EntityHost,
+  threads: readonly Thread[],
+  action: "archive" | "delete",
+  removeOwnedWorktrees: boolean,
+): void {
+  const store = useAppStore.getState();
+  const hostThreads: Thread[] = [];
+  const hostThreadIds: string[] = [];
+  const persistedProvisioningIds: string[] = [];
+
+  for (const thread of threads) {
+    const isProvisioning =
+      action === "delete" && store.provisioningWorktreeThreadIds[thread.id] === true;
+    if (isProvisioning) {
+      const pendingLaunch = peekPendingThreadLaunch(thread.id);
+      const persistedProvisioning =
+        pendingLaunch?.metadataCreated === true ||
+        pendingLaunch?.metadataCreationUncertain === true;
+      if (!persistedProvisioning) {
+        store.deleteThread(thread.id);
+        continue;
+      }
+    }
+    const hostId = host.hostThreadId(thread.id);
+    if (!hostId) continue;
+    if (isProvisioning) persistedProvisioningIds.push(thread.id);
+    hostThreads.push(thread);
+    hostThreadIds.push(hostId);
+  }
+
+  if (hostThreads.length === 0) return;
+  if (hostThreads.length === 1) {
+    dispatchLegacyThreadRemovalBatch(hostThreads, action, removeOwnedWorktrees);
+    return;
+  }
+
+  const provisioningRemovals = persistedProvisioningIds.map((threadId) => {
+    const removal = Promise.withResolvers<boolean>();
+    trackPendingThreadRemoval(threadId, removal.promise);
+    return removal;
+  });
+  const viewThreadIds = hostThreads.map((thread) => thread.id);
+  const releases = viewThreadIds.map((threadId) => host.pinThread(threadId));
+  void presentThreadRemoval(viewThreadIds, () =>
+    host.sendThreadCommand({
+      kind: "remove-threads",
+      threadId: hostThreadIds[0]!,
+      threadIds: hostThreadIds,
+      action,
+      ...(action === "delete" && removeOwnedWorktrees ? { removeOwnedWorktrees: true } : {}),
+    }),
+  )
+    .then(() => {
+      if (action === "archive") {
+        for (const threadId of viewThreadIds) closeOwnThreadWindow(threadId);
+        return;
+      }
+      const ownedWorktrees = removeOwnedWorktrees
+        ? collectOwnedWorktrees(hostThreads, useAppStore.getState().threads)
+        : [];
+      for (const thread of hostThreads) {
+        useNativeVisualUiStore
+          .getState()
+          .forgetThread(readNativeVisualHostId(thread), thread.remoteId ?? thread.id);
+        dropPendingThreadLaunch(thread.id);
+        void readBridge()
+          .closeSideChatPanel?.(thread.id)
+          .catch((error: unknown) => toast.danger(friendlyError(error)));
+        dismissThreadWindow(thread.id);
+      }
+      host.removeConfirmedThreads(viewThreadIds);
+      for (const removal of provisioningRemovals) removal.resolve(true);
+      cleanupRemovedWorktreeUi(ownedWorktrees);
+    })
+    .catch((error) => {
+      for (const removal of provisioningRemovals) removal.resolve(false);
+      toast.danger(friendlyError(error));
+    })
+    .finally(() => {
+      for (const release of releases) release();
+    });
+}
+
+function removeThreads(
+  threads: readonly Thread[],
+  action: "archive" | "delete",
+  removeOwnedWorktrees: boolean,
+): void {
+  const seen = new Set<string>();
+  const eligible: Thread[] = [];
+  for (const thread of threads) {
+    if (seen.has(thread.id) || findExperimentByThreadId(thread.id)) continue;
+    seen.add(thread.id);
+    eligible.push(thread);
+  }
+  if (eligible.length === 0) return;
+
+  const localThreads: Thread[] = [];
+  const byHost = new Map<string, { host: EntityHost; threads: Thread[] }>();
+  for (const thread of eligible) {
+    const host = intentHost(thread);
+    if (!host) {
+      localThreads.push(thread);
+      continue;
+    }
+    const key = host.kind === "managed" ? "managed" : `paired:${host.connectionKey ?? ""}`;
+    const existing = byHost.get(key);
+    if (existing) existing.threads.push(thread);
+    else byHost.set(key, { host, threads: [thread] });
+  }
+
+  if (localThreads.length > 0) {
+    dispatchLegacyThreadRemovalBatch(localThreads, action, removeOwnedWorktrees);
+  }
+
+  for (const { host, threads: hostThreads } of byHost.values()) {
+    if (hostThreads.length <= 1) {
+      dispatchLegacyThreadRemovalBatch(hostThreads, action, removeOwnedWorktrees);
+      continue;
+    }
+    const dispatch = (supported: boolean) => {
+      if (supported) dispatchBulkHostThreadRemoval(host, hostThreads, action, removeOwnedWorktrees);
+      else dispatchLegacyThreadRemovalBatch(hostThreads, action, removeOwnedWorktrees);
+    };
+    const support = host.supportsBulkThreadRemoval();
+    if (typeof support === "boolean") {
+      dispatch(support);
+      continue;
+    }
+    void support.then(dispatch, () => dispatch(false));
+  }
+}
+
+export function archiveThreads(threads: readonly Thread[]): void {
+  removeThreads(threads, "archive", false);
+}
+
+export function deleteThreads(threads: readonly Thread[]): void {
+  removeThreads(threads, "delete", false);
+}
+
+export function deleteThreadsAndOwnedWorktrees(threads: readonly Thread[]): void {
+  removeThreads(threads, "delete", true);
 }
 
 /**

@@ -23,6 +23,8 @@ import {
   sendManagedRootThreadCommand,
 } from "./managedRootCatalog/rootCatalogCommands";
 import { applyRootCatalogThreadRows } from "./managedRootCatalog/rootCatalogRows";
+import { managedRootSupportsBulkThreadRemoval } from "./managedRootCatalog/rootLaunchMetadataCapability";
+import { hostSupportsBulkThreadRemovalForConnection } from "./remote/bulkThreadRemovalCapability";
 import {
   isProjectedRemoteEntityId,
   projectRemoteThread,
@@ -110,6 +112,8 @@ export interface EntityHost {
     command: RemoteThreadCommand,
     options?: { readonly commandId?: string },
   ): Promise<void>;
+  /** Whether this host accepts `remove-threads` (`capabilities.bulkThreadRemoval` v1). */
+  supportsBulkThreadRemoval(): boolean | Promise<boolean>;
   /** Sends one project intent, then lets the host's catalog catch up. */
   runProjectCommand(
     command: RemoteProjectCommand,
@@ -229,6 +233,7 @@ function pairedHost(desktopId: string, hostId: string): EntityHost {
     // The store's command entry already schedules the catalog refresh.
     sendThreadCommand: (command, ...options) =>
       store().sendThreadCommand(desktopId, command, ...options),
+    supportsBulkThreadRemoval: () => hostSupportsBulkThreadRemovalForConnection(desktopId),
     runProjectCommand: async (command, ...options) => {
       await store().runProjectCommand(desktopId, command, ...options);
     },
@@ -330,6 +335,18 @@ function managedHost(hostId: string): EntityHost {
       } finally {
         refreshManagedRootCatalogSoon();
       }
+    },
+    supportsBulkThreadRemoval: () => {
+      const parent = getManagedParentAuthorityState();
+      if (
+        activation &&
+        parent.status === "ready" &&
+        parent.authority.client === activation.client &&
+        parent.authority.bulkThreadRemoval !== undefined
+      ) {
+        return parent.authority.bulkThreadRemoval;
+      }
+      return managedRootSupportsBulkThreadRemoval();
     },
     runProjectCommand: async (command, ...options) => {
       try {

@@ -51557,6 +51557,19 @@
               "type": "object",
               "x-poracode-unknownFields": "strip"
             },
+            "bulkThreadRemoval": {
+              "additionalProperties": true,
+              "properties": {
+                "versions": {
+                  "$ref": "#/$defs/__schema0"
+                }
+              },
+              "required": [
+                "versions"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
+            },
             "catalogMutations": {
               "additionalProperties": true,
               "properties": {
@@ -54081,6 +54094,19 @@
               "x-poracode-unknownFields": "strip"
             },
             "browserForward": {
+              "additionalProperties": true,
+              "properties": {
+                "versions": {
+                  "$ref": "#/$defs/__schema0"
+                }
+              },
+              "required": [
+                "versions"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
+            },
+            "bulkThreadRemoval": {
               "additionalProperties": true,
               "properties": {
                 "versions": {
@@ -77118,6 +77144,10 @@
           "type": "string"
         },
         "__schema12": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "__schema13": {
           "enum": [
             "before",
             "after"
@@ -78205,6 +78235,39 @@
         {
           "additionalProperties": true,
           "properties": {
+            "action": {
+              "enum": [
+                "archive",
+                "delete"
+              ],
+              "type": "string"
+            },
+            "kind": {
+              "const": "remove-threads",
+              "type": "string"
+            },
+            "removeOwnedWorktrees": {
+              "type": "boolean"
+            },
+            "threadIds": {
+              "items": {
+                "$ref": "#/$defs/__schema11"
+              },
+              "minItems": 1,
+              "type": "array"
+            }
+          },
+          "required": [
+            "kind",
+            "threadIds",
+            "action"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        },
+        {
+          "additionalProperties": true,
+          "properties": {
             "kind": {
               "const": "archive",
               "type": "string"
@@ -78252,7 +78315,7 @@
               "type": "string"
             },
             "placement": {
-              "$ref": "#/$defs/__schema12"
+              "$ref": "#/$defs/__schema13"
             },
             "projectId": {
               "minLength": 1,
@@ -78264,7 +78327,7 @@
             },
             "threadIds": {
               "items": {
-                "$ref": "#/$defs/__schema11"
+                "$ref": "#/$defs/__schema12"
               },
               "minItems": 1,
               "type": "array"
@@ -78288,7 +78351,7 @@
               "type": "string"
             },
             "placement": {
-              "$ref": "#/$defs/__schema12"
+              "$ref": "#/$defs/__schema13"
             },
             "projectId": {
               "minLength": 1,
@@ -91056,5 +91119,5 @@
   },
   "manifestHash": "sha256:d497d2d7a7342cb2f7d21370f6abb514ec08f9024ffa152546cbb2b4da7735c2",
   "protocolVersion": 15,
-  "sourceHash": "sha256:44eb1792ece9df2088e58795ba84689d1f8eaa71dd7b804e904ffb5d0ccbd854"
+  "sourceHash": "sha256:856e914733bb78c203fad9abc7bce1bfe624f592c69d34a4d84afe2ea8518d57"
 }

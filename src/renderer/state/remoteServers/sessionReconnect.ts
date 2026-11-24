@@ -32,6 +32,11 @@ import {
   forgetCatalogMutationsCapability,
   noteCatalogMutationsCapability,
 } from "@/renderer/state/remote/catalogMutationsCapability";
+import {
+  environmentAdvertisesBulkThreadRemoval,
+  forgetBulkThreadRemovalCapability,
+  noteBulkThreadRemovalCapability,
+} from "@/renderer/state/remote/bulkThreadRemovalCapability";
 import { readBridge } from "@/renderer/bridge";
 import { i18n } from "@/renderer/i18n/i18n";
 import { remoteThreadId } from "@/renderer/state/remoteProjection";
@@ -354,6 +359,10 @@ export function createSessionReconnectActions(deps: SessionReconnectActionDeps) 
         connectionKey,
         environmentAdvertisesProjectCommandResults(environment),
       );
+      noteBulkThreadRemovalCapability(
+        connectionKey,
+        environmentAdvertisesBulkThreadRemoval(environment),
+      );
       // Narrow catalog mutations (reorder / workspace / draft config) ride the
       // same descriptor fact: a host that does not advertise them keeps the
       // paired sidebar's intents local instead of receiving a command it
@@ -653,6 +662,7 @@ export function createSessionReconnectActions(deps: SessionReconnectActionDeps) 
         forgetRuntimeHistoryNoticesCapability(key);
         forgetBoundedCatalogChangesCapability(key);
         forgetProjectCommandResultsCapability(key);
+        forgetBulkThreadRemovalCapability(key);
         forgetCatalogMutationsCapability(key);
         clearThreadHistoryNoticesForAuthority(key);
         // Its on-device recent tails go with it; the generation bump above

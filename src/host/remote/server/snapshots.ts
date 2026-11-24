@@ -27,6 +27,7 @@ import {
   REMOTE_CONVERSATION_SNAPSHOTS_VERSION,
   REMOTE_PROJECT_COMMAND_RESULTS_VERSION,
   REMOTE_EXPERIMENTS_VERSION,
+  REMOTE_BULK_THREAD_REMOVAL_VERSION,
   REMOTE_STANDARD_SCOPES,
   remoteAgentStatusesSchema,
   remoteEnvironmentDescriptorSchema,
@@ -211,6 +212,9 @@ export function descriptor(ctx: RemoteServerContext): RemoteEnvironmentDescripto
       ...(ctx.options.experimentAuthority
         ? { experiments: { versions: [REMOTE_EXPERIMENTS_VERSION] } }
         : {}),
+      bulkThreadRemoval: {
+        versions: [REMOTE_BULK_THREAD_REMOVAL_VERSION],
+      },
     },
   });
 }

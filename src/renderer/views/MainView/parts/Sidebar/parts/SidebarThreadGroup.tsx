@@ -19,7 +19,7 @@ import {
   discardExperiment,
   renameExperimentWithAuthority,
 } from "@/renderer/actions/experimentActions";
-import { archiveThread, deleteThread, markThreadDone } from "@/renderer/actions/threadActions";
+import { archiveThreads, deleteThreads, markThreadDone } from "@/renderer/actions/threadActions";
 import { useAppStore } from "@/renderer/state/appStore";
 import { dispatchThreadGroupIntents } from "@/renderer/state/managedRootCatalog/rootCatalogIntents";
 import { useExperimentStore } from "@/renderer/state/experimentStore";
@@ -66,16 +66,10 @@ export function SidebarThreadGroup(props: {
       if (!discardPending) setDiscardConfirmOpen(true);
       return;
     }
-    const threadIds = entry.group.threads.map((thread) => thread.id);
-    for (const thread of entry.group.threads) {
-      if (threadRemoveAction === "archive") {
-        archiveThread(thread.id);
-      }
-    }
-    if (threadRemoveAction === "delete") {
-      for (const threadId of threadIds) {
-        deleteThread(threadId);
-      }
+    if (threadRemoveAction === "archive") {
+      archiveThreads(entry.group.threads);
+    } else if (threadRemoveAction === "delete") {
+      deleteThreads(entry.group.threads);
     }
     clearThreadGroup(groupKey);
   };
@@ -176,9 +170,7 @@ export function SidebarThreadGroup(props: {
               }
             }
             if (key === "archive-all") {
-              for (const thread of entry.group.threads) {
-                archiveThread(thread.id);
-              }
+              archiveThreads(entry.group.threads);
               clearThreadGroup(groupKey);
             }
             if (key === "ungroup-all") {

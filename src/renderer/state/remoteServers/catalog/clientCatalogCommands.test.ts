@@ -27,7 +27,7 @@ it("shares removal capacity across environment endpoints on the same HTTP origin
   expect(fetchImpl).toHaveBeenCalledTimes(2);
 });
 
-it.each(["delete", "archive", "delete-worktree-group"] as const)(
+it.each(["delete", "archive", "delete-worktree-group", "remove-threads"] as const)(
   "keeps foreground commands available during queued %s requests and continues after failure",
   async (kind) => {
     const cleanup = Promise.withResolvers<void>();
@@ -50,15 +50,24 @@ it.each(["delete", "archive", "delete-worktree-group"] as const)(
     const secondClient = new RemoteDesktopClient(client.endpoint, "token", fetchImpl);
     const commands = Array.from({ length: 8 }, (_, index): RemoteThreadCommand => {
       const threadId = `done-${index}`;
-      return kind === "delete-worktree-group"
-        ? {
-            kind,
-            threadId,
-            projectId: "project",
-            worktreePath: `/wt/${index}`,
-            threadIds: [threadId],
-          }
-        : { kind, threadId };
+      if (kind === "delete-worktree-group") {
+        return {
+          kind,
+          threadId,
+          projectId: "project",
+          worktreePath: `/wt/${index}`,
+          threadIds: [threadId],
+        };
+      }
+      if (kind === "remove-threads") {
+        return {
+          kind,
+          threadId,
+          threadIds: [threadId, `${threadId}-b`],
+          action: "archive",
+        };
+      }
+      return { kind, threadId };
     });
     const first = sendClientThreadCommand(client, commands[0]!, { commandId: "removal-0" });
     const refused = first.catch((error: unknown) => error);

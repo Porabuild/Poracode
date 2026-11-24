@@ -54,6 +54,9 @@ import { gitStatePatchSchema } from "../../gitState";
 // literal. The optional `previousTurnModel` start field and the optional
 // user-message `model` payload field ride along additively: old hosts strip
 // them and simply never record a model-switch divider.
+// `bulkThreadRemoval` v1 is capability-negotiated before its `remove-threads`
+// command is sent; optional capability metadata is ignored by older readers
+// and older hosts reject the unknown command kind before any effect.
 export const PORACODE_REMOTE_PROTOCOL_VERSION = 15;
 // Optional provider-usage ringLayouts adds display metadata only: v14 readers
 // ignore unknown fields, and new readers accept previous responses without it.
@@ -391,6 +394,27 @@ export const remoteExperimentsCapabilitySchema = z.object({
 });
 export type RemoteExperimentsCapability = z.infer<typeof remoteExperimentsCapabilitySchema>;
 
+/**
+ * Bulk thread removal (`remove-threads` on the existing thread-command route).
+ * Version 1 accepts an array of thread ids to archive or delete (optionally
+ * removing worktrees exclusively owned by those threads) in one host request.
+ * Clients gate on this capability and fall back to per-thread commands for
+ * older hosts that do not advertise it.
+ */
+export const REMOTE_BULK_THREAD_REMOVAL_VERSION = 1 as const;
+export const remoteBulkThreadRemovalCapabilitySchema = z.object({
+  versions: remoteCapabilityVersionsSchema,
+});
+export type RemoteBulkThreadRemovalCapability = z.infer<
+  typeof remoteBulkThreadRemovalCapabilitySchema
+>;
+
+export function hostSupportsBulkThreadRemoval(
+  capability: { readonly versions: readonly number[] } | undefined,
+): boolean {
+  return capability?.versions.includes(REMOTE_BULK_THREAD_REMOVAL_VERSION) === true;
+}
+
 export const remoteEnvironmentCapabilitiesSchema = z.object({
   /** Device workspace v1. Optional so pre-feature readers strip it safely. */
   deviceWorkspace: z
@@ -431,6 +455,7 @@ export const remoteEnvironmentCapabilitiesSchema = z.object({
   threadLaunchMetadata: remoteThreadLaunchMetadataCapabilitySchema.optional(),
   projectCommandResults: remoteProjectCommandResultsCapabilitySchema.optional(),
   experiments: remoteExperimentsCapabilitySchema.optional(),
+  bulkThreadRemoval: remoteBulkThreadRemovalCapabilitySchema.optional(),
 });
 export type RemoteEnvironmentCapabilities = z.infer<typeof remoteEnvironmentCapabilitiesSchema>;
 

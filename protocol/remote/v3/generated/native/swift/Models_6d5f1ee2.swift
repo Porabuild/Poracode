@@ -444,7 +444,3 @@ public struct RoutethreadU2DCommandRequestU2DOptionU2D12_09765c7778: Codable, Se
     case worktreePath = "worktreePath"
   }
 }
-
-public enum RoutethreadU2DCommandRequestU2DOptionU2D13U2DKind_53ceafeed2: String, Codable, Sendable {
-  case `archive` = "archive"
-}

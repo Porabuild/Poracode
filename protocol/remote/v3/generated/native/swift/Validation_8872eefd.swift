@@ -1,6 +1,10 @@
 // GENERATED FILE. Do not edit by hand.
 import Foundation
 public extension RemoteSchemas {
+  static let schema_632568cf23c893da = RemoteSchema(type: "object", required: Set(["projectLocation"]), properties: ["includeRemote": RemoteSchemas.schema_a6ba34cd39bf30c5, "projectLocation": RemoteSchemas.schema_080f9cc154af9e27], additionalAllowed: true, unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
   static let schema_6350bebbf3d13115 = RemoteSchema(type: "string", minLength: 1, maxLength: 24, unknownPolicy: .strip)
 }
 
@@ -70,6 +74,10 @@ public extension RemoteSchemas {
 
 public extension RemoteSchemas {
   static let schema_65955df8384777ba = RemoteSchema(type: "object", required: Set(["agentKind", "projectLocation", "prompt"]), properties: ["agentKind": RemoteSchemas.schema_36fea325bf1aca70, "language": RemoteSchemas.schema_36fea325bf1aca70, "projectLocation": RemoteSchemas.schema_080f9cc154af9e27, "prompt": RemoteSchemas.schema_36fea325bf1aca70, "selection": RemoteSchemas.schema_32c3720f649f40a1], additionalAllowed: true, unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
+  static let schema_65b6b00dc35d2b27 = RemoteSchema(type: "object", required: Set(["action", "kind", "threadIds"]), properties: ["action": RemoteSchemas.schema_e9d06fff5d247f24, "kind": RemoteSchemas.schema_70ab564010eb05b0, "removeOwnedWorktrees": RemoteSchemas.schema_feeb8bb50144d96d, "threadIds": RemoteSchemas.schema_0c6254245418ba4c], additionalAllowed: true, unknownPolicy: .strip)
 }
 
 public extension RemoteSchemas {

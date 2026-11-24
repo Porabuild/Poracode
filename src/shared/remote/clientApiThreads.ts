@@ -724,7 +724,11 @@ export abstract class RemoteClientThreadsApi extends RemoteClientHostApi {
       options.commandId ?? (command.kind === "start" ? `thread-start:${threadId}` : undefined);
     await this.requestJson(`/api/threads/${encodeURIComponent(threadId)}/command`, {
       method: "POST",
-      ...(command.kind === "start" ? { timeoutMs: THREAD_START_REMOTE_REQUEST_TIMEOUT_MS } : {}),
+      ...(command.kind === "start"
+        ? { timeoutMs: THREAD_START_REMOTE_REQUEST_TIMEOUT_MS }
+        : command.kind === "remove-threads"
+          ? { timeoutMs: LONG_REMOTE_REQUEST_TIMEOUT_MS }
+          : {}),
       ...(commandId !== undefined
         ? {
             mutation: true,

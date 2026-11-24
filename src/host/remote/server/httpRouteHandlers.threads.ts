@@ -414,7 +414,9 @@ export const THREAD_ROUTE_HANDLERS: Pick<HttpRouteHandlerTable, ThreadRouteId> =
             ctx.publishThreadsChanged(reorderedThreadIds(command));
           } else {
             ctx.publishThreadsChanged(
-              command.kind === "delete-worktree-group" ? command.threadIds : [command.threadId],
+              command.kind === "delete-worktree-group" || command.kind === "remove-threads"
+                ? command.threadIds
+                : [command.threadId],
             );
           }
         }

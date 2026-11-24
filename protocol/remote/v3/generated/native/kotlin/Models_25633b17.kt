@@ -197,10 +197,10 @@ sealed interface RouteenvironmentU2DLegacyResponseU2DToolPresentation_b5b89821db
 }
 
 @Serializable
-data class RouteenvironmentU2DLegacyResponse_d5a9669008(
+data class RouteenvironmentU2DLegacyResponse_517a60d6d9(
     @SerialName("appVersion") val appVersion: String,
     @SerialName("auth") val auth: RouteenvironmentU2DLegacyResponseU2DAuth_2a8bc62fab,
-    @SerialName("capabilities") val capabilities: RemoteField<RouteenvironmentU2DLegacyResponseU2DCapabilities_54d35c19b9> = RemoteField.Missing,
+    @SerialName("capabilities") val capabilities: RemoteField<RouteenvironmentU2DLegacyResponseU2DCapabilities_5eb4390357> = RemoteField.Missing,
     @SerialName("desktopId") val desktopId: String,
     @SerialName("endpoints") val endpoints: RouteenvironmentU2DLegacyResponseU2DEndpoints_17c2b8a253,
     @SerialName("hostMode") val hostMode: RemoteField<RouteenvironmentU2DLegacyResponseU2DHostMode_d1d1696e7d> = RemoteField.Missing,
@@ -213,7 +213,7 @@ data class RouteenvironmentU2DLegacyResponse_d5a9669008(
         val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
             RemoteFieldDescriptor("appVersion", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("auth", "RouteenvironmentU2DLegacyResponseU2DAuth_2a8bc62fab", true, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("capabilities", "RouteenvironmentU2DLegacyResponseU2DCapabilities_54d35c19b9", false, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("capabilities", "RouteenvironmentU2DLegacyResponseU2DCapabilities_5eb4390357", false, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("desktopId", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("endpoints", "RouteenvironmentU2DLegacyResponseU2DEndpoints_17c2b8a253", true, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("hostMode", "RouteenvironmentU2DLegacyResponseU2DHostMode_d1d1696e7d", false, false, null, null, null, null, null, null, null, null, listOf()),
