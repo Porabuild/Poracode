@@ -266,13 +266,19 @@ export type PersistedRuntimePage = z.infer<typeof persistedRuntimePageSchema>;
 
 /** Newest prompts one index read returns; older ones are reported as `truncated`. */
 export const PROMPT_INDEX_MAX_PROMPTS = 2_000;
-/** Characters of a prompt's first text block the host returns (SQL `substr` counts characters). */
+/** Characters of a prompt's preview text the host returns (SQL `substr` counts characters). */
 export const PROMPT_INDEX_TEXT_LENGTH = 300;
 
 /**
  * The top-level user prompts of a thread in transcript order, without loading
  * the transcript: enough to draw and navigate the prompt rail over history that
- * paging has not reached yet. `text` is the first text block, truncated.
+ * paging has not reached yet. `text` mirrors the loaded prompt preview —
+ * inline chip tokens included, an attachment-only prompt previewing as its
+ * first attachment's name — truncated. Browser-selector payloads are not
+ * stripped in this string (SQLite cannot); the renderer drops them when
+ * displaying, and a diff-comment prompt's embedded newline is collapsed the
+ * same way. Same wire shape as the earlier first-text-block extraction, so
+ * older hosts and clients stay compatible: they only ever display the text.
  */
 export const persistedPromptIndexSchema = z.object({
   prompts: z

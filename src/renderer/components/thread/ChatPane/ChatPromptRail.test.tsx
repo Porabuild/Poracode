@@ -248,6 +248,33 @@ describe("ChatPromptRail", () => {
     ]);
   });
 
+  it("drops browser selector payloads from host-described preview text", async () => {
+    readThreadPromptIndex.mockResolvedValue({
+      prompts: [
+        {
+          itemId: "old-1",
+          position: 0,
+          text: 'Make this red\n```lc-selector\n{"selector":"#x"}\n```',
+        },
+        { itemId: "prompt-1", position: 4, text: "First question" },
+        { itemId: "prompt-2", position: 6, text: "Second question" },
+      ],
+      truncated: false,
+    });
+    const { scroller } = createScroller();
+    render(railElement(scroller));
+    await act(async () => {
+      await vi.runAllTimersAsync();
+    });
+    await flushIndex();
+
+    expect(tickLabels()).toEqual([
+      "Scroll to prompt: Make this red",
+      "Scroll to prompt: First question",
+      "Scroll to prompt: Second question",
+    ]);
+  });
+
   it("draws one tick per prompt and marks the one the last visible row answers", async () => {
     const { scroller, scrollTo } = createScroller();
     await renderRail(scroller);

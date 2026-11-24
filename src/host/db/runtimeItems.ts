@@ -407,8 +407,9 @@ export function dbGetLatestThreadGoalItem(threadId: string): Promise<PersistedRu
 
 /**
  * Fenced read of the newest top-level user prompts in transcript order. Only
- * the first text block is read, by path and truncated in SQL, so the result is
- * bounded by prompt count and a block's body (an inline image) is never copied.
+ * the fields a preview needs are read, by path and truncated in SQL, so the
+ * result is bounded by prompt count and a block's body (an inline image) is
+ * never copied.
  */
 export function dbGetThreadPromptIndex(threadId: string): Promise<PersistedPromptIndex> {
   return readThreadWithFence(threadId, () =>
@@ -416,29 +417,98 @@ export function dbGetThreadPromptIndex(threadId: string): Promise<PersistedPromp
   );
 }
 
-/** Synchronous committed-prefix read. Only call behind a held fence. */
+/**
+ * SQL fragment for one preview field of the content block json_each is
+ * visiting as `alias`, read by path so a block body is never copied.
+ */
+function promptBlockField(alias: string, field: string): string {
+  return `json_extract(thread_runtime_items.payload, '$.content[' || ${alias}.key || '].${field}')`;
+}
+
+/**
+ * Synchronous committed-prefix read. Only call behind a held fence. The
+ * aggregate `ORDER BY` needs SQLite 3.44+; the bundled better-sqlite3 ships
+ * 3.53, and an older paired host's failure degrades to no index client-side.
+ */
 export function dbReadThreadPromptIndex(
   threadId: string,
   maxPrompts: number = PROMPT_INDEX_MAX_PROMPTS,
 ): PersistedPromptIndex {
   const sqlite = getSqlite();
   return readRuntimeSnapshot(sqlite, () => {
+    const field = (name: string) => promptBlockField("block", name);
+    const attachmentField = (name: string) => promptBlockField("attachment", name);
+    const attachmentPath = `replace(COALESCE(${attachmentField("path")}, ''), '\\', '/')`;
+    // The whitespace JS `trim` covers (ASCII plus Unicode spaces), so a
+    // prompt of only those characters falls back to its attachment here too.
+    const whitespace =
+      "char(9, 10, 11, 12, 13, 32, 160, 5760, " +
+      "8192, 8193, 8194, 8195, 8196, 8197, 8198, 8199, 8200, 8201, 8232, 8233, " +
+      "8239, 8287, 12288, 65279)";
     // One extra row tells whether older prompts were left out.
     const rows = sqlite
       .prepare(
         `SELECT item_id, position,
            COALESCE((
-             SELECT substr(
-               json_extract(thread_runtime_items.payload, '$.content[' || block.key || '].text'),
-               1, ?)
-             FROM json_each(thread_runtime_items.payload, '$.content') AS block
-             -- A payload whose content is not an array (a string, an object) must
-             -- yield no preview rather than make the whole read fail; CASE keeps
-             -- the path lookup from being evaluated for it.
-             WHERE CASE WHEN json_type(thread_runtime_items.payload, '$.content') = 'array'
-               THEN json_extract(thread_runtime_items.payload, '$.content[' || block.key || '].kind')
-             END = 'text'
-             LIMIT 1
+             SELECT CASE
+               WHEN trim(preview.text, ${whitespace}) = ''
+                 THEN COALESCE(preview.attachment, '')
+               ELSE preview.text END
+             FROM (
+               SELECT
+                 substr(COALESCE(group_concat(
+                   -- The tokens mirror buildUserPromptText, so chip-led prompts
+                   -- (a skill invocation with only whitespace text) preview
+                   -- the same loaded and indexed.
+                   CASE ${field("kind")}
+                     WHEN 'text' THEN substr(COALESCE(${field("text")}, ''), 1, ?)
+                     WHEN 'skill' THEN CASE
+                       WHEN COALESCE(${field("pluginName")}, '') <> ''
+                         THEN '@' || ${field("pluginName")}
+                       ELSE COALESCE(${field("invocation")}, '') END
+                     WHEN 'mcp' THEN '@' || COALESCE(${field("name")}, '')
+                     WHEN 'thread' THEN '@' || CASE
+                       WHEN COALESCE(${field("title")}, '') <> '' THEN ${field("title")}
+                       ELSE COALESCE(${field("threadId")}, '') END
+                     WHEN 'diff_comment' THEN substr(
+                       'Review comment on ' || COALESCE(${field("path")}, '')
+                       || ':' || CASE WHEN ${field("side")} = 'old' THEN '-' ELSE '+' END
+                       || COALESCE(${field("lineNumber")}, '')
+                       || ' (' || CASE WHEN ${field("staged")} THEN 'staged' ELSE 'unstaged' END
+                       || '):' || char(10)
+                       || trim(COALESCE(${field("body")}, ''), ${whitespace}), 1, ?)
+                     WHEN 'file' THEN CASE
+                       WHEN ${field("source")} = 'attachment' THEN ''
+                       ELSE substr(COALESCE(${field("path")}, ''), 1, ?) END
+                     ELSE ''
+                   END, '' ORDER BY block.key), ''), 1, ?) AS text,
+                 -- A prompt without inline text previews as its first named
+                 -- attachment, like the loaded preview does.
+                 (SELECT substr(display, 1, ?)
+                  FROM (
+                    -- Like the loaded preview (name ?? basename of path), so
+                    -- an empty-string name is kept (and then skipped below),
+                    -- not replaced by the path's file name.
+                    SELECT CASE
+                      WHEN ${attachmentField("name")} IS NOT NULL
+                        THEN ${attachmentField("name")}
+                      ELSE replace(${attachmentPath},
+                        rtrim(${attachmentPath}, replace(${attachmentPath}, '/', ' ')), '')
+                    END AS display
+                    FROM json_each(thread_runtime_items.payload, '$.content') AS attachment
+                    WHERE json_type(thread_runtime_items.payload, '$.content') = 'array'
+                      AND ${attachmentField("kind")} IN ('image', 'file')
+                      AND ${attachmentField("source")} = 'attachment'
+                    ORDER BY attachment.key
+                  )
+                  WHERE display <> ''
+                  LIMIT 1) AS attachment
+               FROM json_each(thread_runtime_items.payload, '$.content') AS block
+               -- A payload whose content is not an array must yield no preview
+               -- rather than make the whole read fail; the aggregate over zero
+               -- rows is NULL and COALESCE turns it into empty text.
+               WHERE json_type(thread_runtime_items.payload, '$.content') = 'array'
+             ) AS preview
            ), '') AS text
          FROM thread_runtime_items
          WHERE thread_id = ? AND type = 'user_message' AND parent_item_id IS NULL
@@ -446,7 +516,15 @@ export function dbReadThreadPromptIndex(
          ORDER BY position DESC
          LIMIT ?`,
       )
-      .all(PROMPT_INDEX_TEXT_LENGTH, threadId, maxPrompts + 1) as Array<{
+      .all(
+        PROMPT_INDEX_TEXT_LENGTH,
+        PROMPT_INDEX_TEXT_LENGTH,
+        PROMPT_INDEX_TEXT_LENGTH,
+        PROMPT_INDEX_TEXT_LENGTH,
+        PROMPT_INDEX_TEXT_LENGTH,
+        threadId,
+        maxPrompts + 1,
+      ) as Array<{
       item_id: string;
       position: number;
       text: string;
