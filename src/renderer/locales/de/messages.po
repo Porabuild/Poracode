@@ -17701,8 +17701,8 @@ msgid "Single pass"
 msgstr "Einzeldurchlauf"
 
 #: src/renderer/components/providers/claude/ContextWindowSettings.tsx
-msgid "Sizes shown for 1M Claude models. Choose any size from 100k to 1M; new chats default to 1M when available."
-msgstr "Größen für Claude-Modelle mit 1M Kontext. Wähle eine beliebige Größe von 100k bis 1M; neue Chats verwenden standardmäßig 1M, sofern verfügbar."
+msgid "Sizes shown for models with a 1M context window, including external profile models whose id ends in [1m]. Choose any size from 100k to 1M; new chats default to 1M when available."
+msgstr "Größen für Modelle mit 1M Kontextfenster, einschließlich externer Profilmodelle, deren ID auf [1m] endet. Wähle eine beliebige Größe von 100k bis 1M; neue Chats verwenden standardmäßig 1M, sofern verfügbar."
 
 #: src/renderer/components/providers/settings/CodexProviderSettings.tsx
 msgid "Sizes shown in the Codex composer. Compaction starts automatically at 95% of the selected window. New chats default to 400k when that size is in the list."

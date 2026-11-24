@@ -39,8 +39,8 @@ export function ClaudeContextWindowSettings(props: { agentKind: string; wslDistr
       invalidSizeMessage={t`Enter a size between 100k and 1m.`}
       description={
         <Trans>
-          Sizes shown for 1M Claude models. Choose any size from 100k to 1M; new chats default to 1M
-          when available.
+          Sizes shown for models with a 1M context window, including external profile models whose
+          id ends in [1m]. Choose any size from 100k to 1M; new chats default to 1M when available.
         </Trans>
       }
     />
