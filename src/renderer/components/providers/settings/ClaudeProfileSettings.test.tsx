@@ -135,8 +135,10 @@ vi.mock("@/renderer/state/sharedSettingsStore", () => {
 });
 
 vi.mock("@/renderer/state/agentStatusesStore", () => ({
-  useAgentStatusesStore: (selector: (state: typeof statusState) => unknown) =>
-    selector(statusState),
+  useAgentStatusesStore: Object.assign(
+    (selector: (state: typeof statusState) => unknown) => selector(statusState),
+    { getState: () => statusState },
+  ),
 }));
 
 import { ClaudeProfileProviderSettings, ClaudeProfileSettings } from "./ClaudeProfileSettings";

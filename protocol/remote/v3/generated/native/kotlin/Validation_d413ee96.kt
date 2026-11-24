@@ -189,6 +189,10 @@ internal val schema_75bcf0cf295f1752: RemoteSchema by lazy {
     RemoteSchema(type = "string", minLength = 1, maxLength = 120, unknownPolicy = RemoteUnknownFieldPolicy.STRIP, semanticIds = listOf("schedule.cron", "string.trim"), transformIds = listOf("string.trim"))
 }
 
+internal val schema_75c2889f6a998c9a: RemoteSchema by lazy {
+    RemoteSchema(type = "object", additionalSchema = schema_2bbb36b09a956713, propertyNames = schema_76ba6b1ee1436f68, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
+}
+
 internal val schema_75d835115fd0d1f9: RemoteSchema by lazy {
     RemoteSchema(type = "string", literals = listOf(JsonPrimitive("plan")), unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }

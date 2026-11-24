@@ -10,15 +10,17 @@ import {
   type ClaudeProfileInstanceConfig,
 } from "@/shared/contracts";
 import { CLAUDE_PROFILE_EFFORT_CHOICES } from "@/shared/agents/claudeEfforts";
-import { readBridge } from "@/renderer/bridge";
 import { i18n } from "@/renderer/i18n/i18n";
 import { Input } from "@/renderer/components/common";
 import { formatEffortLabel } from "@/renderer/components/thread/threadDraftViewHelpers";
-import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
-import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
-import { currentWslDistros } from "@/renderer/utils/acpRegistryAuth";
+import { useHostAgentStatusPools } from "@/renderer/hooks/useHostAgentStatuses";
 import { AgentProfileList } from "../../../views/SettingsOverlay/parts/AgentProfileList";
-import { useAgentSettingsHost } from "./AgentSettingsHostContext";
+import {
+  rediscoverHostAgents,
+  useAgentSettingsHost,
+  useHostAgentInstance,
+  type AgentSettingsHost,
+} from "./AgentSettingsHostContext";
 import type { NativeAgentProfileSupport } from "../../../views/SettingsOverlay/parts/agentRegistryNative";
 import {
   applyPresetEnvRows,
@@ -54,15 +56,13 @@ const EMPTY_EFFORT_SELECTION = new Set<string>();
 // render as well as run in event handlers.
 let profileRowIdCounter = 0;
 
-function refreshClaudeProfile(kind?: string): void {
+function refreshClaudeProfile(settingsHost: AgentSettingsHost, kind?: string): void {
   window.setTimeout(() => {
-    void readBridge()
-      .refreshAgentStatuses(currentWslDistros(), kind ? { agentKinds: [kind] } : undefined)
-      .catch((error) =>
-        toast.danger(
-          error instanceof Error ? error.message : i18n._(msg`Unable to refresh Claude profiles.`),
-        ),
-      );
+    void rediscoverHostAgents(settingsHost, kind).catch((error) =>
+      toast.danger(
+        error instanceof Error ? error.message : i18n._(msg`Unable to refresh Claude profiles.`),
+      ),
+    );
   }, 50);
 }
 
@@ -208,18 +208,22 @@ function PresetMenu(props: { onApply: (preset: ProfilePreset) => void }) {
  * nothing for an unknown / non-Claude id.
  */
 export function ClaudeProfileProviderSettings(props: { instanceId: string }) {
-  const { canManageProfiles } = useAgentSettingsHost();
-  const instance = useSharedSettings((s) =>
-    canManageProfiles ? s.agentInstances?.[props.instanceId] : undefined,
-  );
-  if (!canManageProfiles || !instance || instance.driver !== "claude") return null;
+  const settingsHost = useAgentSettingsHost();
+  const instance = useHostAgentInstance(props.instanceId);
+  if (!settingsHost.canManageProfiles || !instance || instance.driver !== "claude") return null;
   let config: ClaudeProfileInstanceConfig;
   try {
     config = parseClaudeProfileInstanceConfig(instance.config);
   } catch {
     return null;
   }
-  return <ClaudeProfileEditor key={instance.id} instance={instance} config={config} />;
+  return (
+    <ClaudeProfileEditor
+      key={`${settingsHost.key}:${instance.id}`}
+      instance={instance}
+      config={config}
+    />
+  );
 }
 
 function ClaudeProfileEditor(props: {
@@ -227,21 +231,19 @@ function ClaudeProfileEditor(props: {
   config: ClaudeProfileInstanceConfig;
 }) {
   const { t } = useLingui();
-  const setAgentInstance = useSharedSettings((s) => s.setAgentInstance);
-  const setHiddenModels = useSharedSettings((s) => s.setHiddenModels);
+  const settingsHost = useAgentSettingsHost();
   const profileKind = claudeProfileKind(props.instance.id);
-  const profileStatus = useAgentStatusesStore(
-    (s) =>
-      s.agentStatuses.find((status) => status.kind === profileKind) ??
-      s.wslAgentStatuses.find((status) => status.kind === profileKind),
-  );
+  const statusPools = useHostAgentStatusPools(settingsHost.connectionKey);
+  const profileStatus =
+    statusPools.windows.find((status) => status.kind === profileKind) ??
+    statusPools.wsl.find((status) => status.kind === profileKind);
   const nextRowId = () => `r${(profileRowIdCounter += 1)}`;
 
   // Local editor state is seeded once from props; the editor is keyed by
-  // instance id so it re-seeds when a different profile takes its place. The
-  // save handler re-seeds from the sealed instance it gets back (re-masking
-  // secrets) — it does not resync to unrelated external store updates, which
-  // would clobber the user's in-progress edits.
+  // host + instance id so it re-seeds when a different profile or machine
+  // takes its place. The save handler re-seeds from the sealed/redacted
+  // instance it gets back (re-masking secrets) — it does not resync to
+  // unrelated external store updates, which would clobber in-progress edits.
   const [name, setName] = useState(props.instance.displayName ?? props.instance.id);
   const [configDir, setConfigDir] = useState(props.config.configDir);
   const [envRows, setEnvRows] = useState<EnvRow[]>(() =>
@@ -258,7 +260,8 @@ function ClaudeProfileEditor(props: {
   const displayLabel = props.instance.displayName ?? props.instance.id;
   const trimmedName = name.trim();
   const trimmedConfigDir = configDir.trim();
-  const canSave = trimmedName.length > 0 && trimmedConfigDir.length > 0 && !saving;
+  const canSave =
+    settingsHost.isOnline && trimmedName.length > 0 && trimmedConfigDir.length > 0 && !saving;
   // Per-model effort pickers only offer tiers enabled at the profile level. This
   // is invariant across rows, so compute it once instead of inside the row map.
   const allowedTiers = CLAUDE_PROFILE_EFFORT_CHOICES.filter((tier) => selectedEfforts.has(tier));
@@ -303,12 +306,22 @@ function ClaudeProfileEditor(props: {
     );
     setSelectedEfforts(nextEfforts);
     setModelRows(nextModelRows);
-    setAgentInstance({ ...props.instance, config });
-    setHiddenModels(
-      profileKind,
-      currentModelIds.filter((id) => id !== "auto" && !presetModelIds.has(id)),
+    const hiddenIds = currentModelIds.filter((id) => id !== "auto" && !presetModelIds.has(id));
+    const updatePromise = settingsHost.updateProfile(
+      props.instance.id,
+      { config },
+      { flush: false },
     );
-    refreshClaudeProfile(profileKind);
+    const hiddenPromise = settingsHost.setHiddenModels(new Map([[profileKind, hiddenIds]]));
+    void Promise.all([updatePromise, hiddenPromise])
+      .then(() => refreshClaudeProfile(settingsHost, profileKind))
+      .catch((error) =>
+        toast.danger(
+          error instanceof Error
+            ? error.message
+            : t`Unable to save Claude ${displayLabel} profile.`,
+        ),
+      );
   };
 
   const updateModelRow = (rowId: string, patch: Partial<ModelRow>) =>
@@ -341,14 +354,18 @@ function ClaudeProfileEditor(props: {
       ...(props.config.defaultEffort ? { defaultEffort: props.config.defaultEffort } : {}),
       ...(modelEfforts ? { modelEfforts } : {}),
     };
-    // Seal sensitive env in main first (returns the instance with sealed env),
-    // then persist the non-secret config through the store.
-    void readBridge()
+    // Seal sensitive env on the host first (returns the instance with
+    // sealed/redacted env), then persist the non-secret config.
+    void settingsHost
       .setProfileEnvironment({ instanceId: props.instance.id, environment })
-      .then((updated) => {
-        setAgentInstance({ ...updated, displayName: trimmedName, config });
+      .then(async (updated) => {
+        await settingsHost.updateProfile(
+          props.instance.id,
+          { displayName: trimmedName, config },
+          { flush: false },
+        );
         setEnvRows(rowsFromEnvironment(updated.environment, nextRowId));
-        refreshClaudeProfile(claudeProfileKind(props.instance.id));
+        refreshClaudeProfile(settingsHost, claudeProfileKind(props.instance.id));
         toast.success(t`Claude ${trimmedName || displayLabel} profile saved.`);
       })
       .catch((error) =>

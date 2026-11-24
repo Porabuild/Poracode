@@ -53,6 +53,7 @@ import {
 } from "@/host/remote/push";
 import { RemoteAccessServer, type RemoteAccessServerInfo } from "@/host/remote/RemoteAccessServer";
 import { RemoteBrowserGateway } from "@/host/remote/RemoteBrowserGateway";
+import type { RemoteAgentProfilesGateway } from "@/host/remote/RemoteAgentProfilesGateway";
 import type { RemoteMcpSettingsGateway } from "@/host/remote/RemoteMcpSettingsGateway";
 import { createRemoteAuditLog } from "@/host/remote/server/auditLog";
 import {
@@ -96,6 +97,7 @@ export interface DesktopRemoteAccessStartContext {
   readonly retirements: RemoteAccessRetirements;
   readonly pushStore: PushRegistrationStore;
   readonly mcpSettings: RemoteMcpSettingsGateway;
+  readonly agentProfiles: RemoteAgentProfilesGateway;
   readonly commitSettingsPatch: (patch: {
     [K in keyof SharedSettings]?: SharedSettings[K] | undefined;
   }) => Promise<SharedSettings>;
@@ -121,6 +123,7 @@ export async function performDesktopRemoteAccessStart(
     retirements,
     pushStore,
     mcpSettings,
+    agentProfiles,
     commitSettingsPatch,
     isCurrentStartAttempt,
     stopMdnsAdvertiser,
@@ -366,6 +369,8 @@ export async function performDesktopRemoteAccessStart(
         update: async (patch) => pickRemoteSettings(await commitSettingsPatch(patch)),
         readMcpServers: () => mcpSettings.read(),
         commandMcpServers: (command) => mcpSettings.command(command),
+        readAgentProfiles: () => agentProfiles.read(),
+        commandAgentProfiles: (command) => agentProfiles.command(command),
         resolveScope: (scope) => mcpSettings.resolveScope(scope),
         resolveServer: (scope, serverId) => mcpSettings.resolveServer(scope, serverId),
       },

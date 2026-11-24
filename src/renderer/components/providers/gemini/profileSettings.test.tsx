@@ -114,8 +114,10 @@ vi.mock("@/renderer/state/appStore", () => ({
 }));
 
 vi.mock("@/renderer/state/agentStatusesStore", () => ({
-  useAgentStatusesStore: (selector: (state: typeof statusState) => unknown) =>
-    selector(statusState),
+  useAgentStatusesStore: Object.assign(
+    (selector: (state: typeof statusState) => unknown) => selector(statusState),
+    { getState: () => statusState },
+  ),
 }));
 
 import {
@@ -181,7 +183,7 @@ describe("GeminiProfileSettings", () => {
         config: { homeDir: "~/.poracode/gemini-profiles/work" },
       }),
     );
-    expect(toastMock.success).toHaveBeenCalledWith("Profile Work added.");
+    await vi.waitFor(() => expect(toastMock.success).toHaveBeenCalledWith("Profile Work added."));
   });
 
   it("lists a profile with its home dir and opens its page", () => {

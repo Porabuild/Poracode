@@ -15,6 +15,7 @@ import { msg } from "@/shared/messages";
 import { SettingsWriteRefusedError } from "@/backend/settings/settingsCompatWrites";
 import { projectNotesWriteBodySchema } from "@/shared/remote/contract/routeBodies";
 import {
+  remoteAgentProfilesCommandSchema,
   remoteMcpSettingsCommandSchema,
   remoteMcpSettingsOperationSchema,
 } from "@/shared/remote/contract/routeSchemas";
@@ -93,6 +94,8 @@ type SessionRouteId =
   | "mcp-settings-read"
   | "mcp-settings-command"
   | "mcp-settings-operation"
+  | "agent-profiles-read"
+  | "agent-profiles-command"
   | "memory-catalog"
   | "memory-sync";
 
@@ -450,6 +453,31 @@ export const SESSION_ROUTE_HANDLERS: Pick<HttpRouteHandlerTable, SessionRouteId>
         return;
       }
     }
+  },
+
+  "agent-profiles-read": async ({ ctx, req, res }) => {
+    const gateway = ctx.requireSettingsGateway();
+    if (!gateway.readAgentProfiles) {
+      throw new RemoteHttpError(
+        "agent_profiles_unavailable",
+        "Agent profile settings are not available on this host.",
+        501,
+      );
+    }
+    await writeCompressedJsonResponse(req, res, 200, gateway.readAgentProfiles());
+  },
+
+  "agent-profiles-command": async ({ ctx, req, res }) => {
+    const gateway = ctx.requireSettingsGateway();
+    if (!gateway.commandAgentProfiles) {
+      throw new RemoteHttpError(
+        "agent_profiles_unavailable",
+        "Agent profile settings are not available on this host.",
+        501,
+      );
+    }
+    const command = remoteAgentProfilesCommandSchema.parse(await readJsonBody(req));
+    await writeCompressedJsonResponse(req, res, 200, await gateway.commandAgentProfiles(command));
   },
 
   "memory-catalog": async ({ req, res }) => {

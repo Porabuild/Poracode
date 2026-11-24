@@ -1672,6 +1672,10 @@ msgstr "Агент зараз вимкнено"
 msgid "Agent not found"
 msgstr "Агента не знайдено"
 
+#: src/renderer/components/providers/settings/AgentSettingsHostContext.tsx
+msgid "Agent profile not found."
+msgstr "Профіль агента не знайдено."
+
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
@@ -4641,6 +4645,7 @@ msgstr "Помилка підключення"
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/mcp/RemoteMcpOauthDialog.tsx
 #: src/renderer/components/mcp/RemoteMcpServersManager.tsx
+#: src/renderer/state/pairedHostProfiles.ts
 #: src/renderer/state/pairedHostSettings.ts
 #: src/renderer/state/remoteServers/snapshotProjection.ts
 msgid "Connection failed."
@@ -10115,6 +10120,7 @@ msgstr "Завантажити збережені нотатки"
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentMessageList.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/RemoteBrowserMirror.tsx
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+#: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
@@ -17084,6 +17090,8 @@ msgstr "Налаштування"
 msgid "Settings aren't available yet, so your changes couldn't be saved. Please try again."
 msgstr "Налаштування ще недоступні, тому не вдалося зберегти ваші зміни. Спробуйте ще раз."
 
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileList.tsx
+#: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SearchSettings.tsx
@@ -19068,6 +19076,10 @@ msgstr "Не вдалося прочитати сповіщення про іс�
 #: src/renderer/actions/clientDraftSubmission.ts
 msgid "The host accepted this message, but local recovery cleanup failed. Check the thread before retrying."
 msgstr "Хост прийняв повідомлення, але не вдалося видалити локальну копію для відновлення. Перевірте тред перед повторною спробою."
+
+#: src/renderer/components/providers/settings/AgentSettingsHostContext.tsx
+msgid "The host did not return the agent profile."
+msgstr "Хост не повернув профіль агента."
 
 #: src/renderer/views/PullRequestsOverlay/summary/LabelPicker.tsx
 msgid "The host has more labels than are listed here."

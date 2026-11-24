@@ -246,6 +246,13 @@ const remoteClientMock = vi.hoisted(() => ({
   agentSlashCommands: vi.fn<(kind: string) => Promise<{ kind: string; commands: never[] }>>(),
   settings: vi.fn<() => Promise<RemoteSettings>>(),
   updateSettings: vi.fn<(patch: RemoteSettingsPatch) => Promise<RemoteSettings>>(),
+  agentProfiles: vi.fn<() => Promise<Record<string, AgentInstanceConfig>>>(),
+  commandAgentProfiles: vi.fn<
+    (command: Record<string, unknown>) => Promise<{
+      profiles: Record<string, AgentInstanceConfig>;
+      instance?: AgentInstanceConfig;
+    }>
+  >(),
 }));
 
 vi.mock("@/renderer/state/remoteServersStore", async () => {
@@ -329,12 +336,28 @@ function seedRemoteMachine(params: {
   status?: "online" | "offline";
   agentStatuses: AgentStatus[];
   remoteSettings?: RemoteSettings;
+  remoteProfiles?: Record<string, AgentInstanceConfig>;
 }) {
   let stored = params.remoteSettings ?? makeRemoteSettings();
+  let storedProfiles: Record<string, AgentInstanceConfig> = { ...(params.remoteProfiles ?? {}) };
   remoteClientMock.settings.mockImplementation(async () => stored);
   remoteClientMock.updateSettings.mockImplementation(async (patch) => {
     stored = { ...stored, ...patch } as RemoteSettings;
     return stored;
+  });
+  remoteClientMock.agentProfiles.mockImplementation(async () => ({ ...storedProfiles }));
+  remoteClientMock.commandAgentProfiles.mockImplementation(async (command) => {
+    if (command.kind === "create") {
+      const payload = command.payload as AgentInstanceConfig;
+      storedProfiles = { ...storedProfiles, [payload.id]: payload };
+      return { profiles: { ...storedProfiles }, instance: payload };
+    }
+    if (command.kind === "remove") {
+      const { [command.instanceId as string]: _removed, ...rest } = storedProfiles;
+      storedProfiles = rest;
+      return { profiles: { ...storedProfiles } };
+    }
+    return { profiles: { ...storedProfiles } };
   });
   useRemoteServersStore.setState({
     servers: [
@@ -345,7 +368,7 @@ function seedRemoteMachine(params: {
         endpoint: "https://conn-1.test",
         accessToken: "token",
         platform: "darwin",
-        scopes: [],
+        scopes: ["session:read", "session:operate"],
       },
     ],
     runtime: {
@@ -497,15 +520,16 @@ describe("SingleAgentSettings remote host support", () => {
     expect(sharedSettingsState.setAgentDisabled).not.toHaveBeenCalled();
   });
 
-  it("reads and writes AgentSettingRow via remote paired host settings and hides local profile creation", async () => {
+  it("reads and writes AgentSettingRow and multi-profile settings via the remote paired host without leaking local profiles", async () => {
     sharedSettingsState.agentSettings = {
       claude: { skipPermissions: true },
     };
     sharedSettingsState.agentInstances = {
-      "claude:work": {
-        id: "claude:work",
+      "local-only": {
+        id: "local-only",
         driver: "claude",
-        displayName: "Work",
+        displayName: "Local Only",
+        config: { configDir: "~/.claude-local" },
       },
     };
 
@@ -536,6 +560,14 @@ describe("SingleAgentSettings remote host support", () => {
       remoteSettings: makeRemoteSettings({
         agentSettings: { claude: { skipPermissions: false } },
       }),
+      remoteProfiles: {
+        "remote-work": {
+          id: "remote-work",
+          driver: "claude",
+          displayName: "Remote Work",
+          config: { configDir: "~/.claude-remote-work" },
+        },
+      },
     });
 
     render(<SingleAgentSettings agentKind="claude" />);
@@ -544,8 +576,26 @@ describe("SingleAgentSettings remote host support", () => {
     await waitFor(() => expect(settingSwitch).not.toBeDisabled());
     expect(settingSwitch).not.toBeChecked();
 
-    // Local multi-profile management is hidden on remote hosts.
-    expect(screen.queryByRole("button", { name: /Add profile/i })).not.toBeInTheDocument();
+    // Remote host profiles are shown; local-only profiles never leak into the remote view.
+    expect(await screen.findByText("Remote Work")).toBeInTheDocument();
+    expect(screen.queryByText("Local Only")).not.toBeInTheDocument();
+
+    // Adding a profile sends a remote agent-profiles command rather than touching local storage.
+    fireEvent.click(screen.getByRole("button", { name: /Add profile/i }));
+    fireEvent.change(screen.getByLabelText("New profile name"), {
+      target: { value: "Remote Staging" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Create profile" }));
+    await waitFor(() =>
+      expect(remoteClientMock.commandAgentProfiles).toHaveBeenCalledWith({
+        kind: "create",
+        payload: expect.objectContaining({
+          driver: "claude",
+          id: "remote-staging",
+          displayName: "Remote Staging",
+        }),
+      }),
+    );
 
     fireEvent.click(settingSwitch);
     await waitFor(() =>

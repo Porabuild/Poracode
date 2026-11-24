@@ -5,6 +5,15 @@ import kotlinx.serialization.*
 import kotlinx.serialization.descriptors.*
 import kotlinx.serialization.encoding.*
 import kotlinx.serialization.json.*
+val RemoteRootCodecs.routeU2EThreadU2DTurnsU2EQuery: RemoteRootCodec<RoutethreadU2DTurnsQuery_cab926bfae>
+    get() = RemoteRootCodec("route.thread-turns.query", serializer<RoutethreadU2DTurnsQuery_cab926bfae>(), schema_cab926bfae4fdbf9)
+
+val RemoteRootCodecs.routeU2EThreadU2DTurnsU2EResponse: RemoteRootCodec<RoutethreadU2DTurnsResponse_1f8c0bbd10>
+    get() = RemoteRootCodec("route.thread-turns.response", serializer<RoutethreadU2DTurnsResponse_1f8c0bbd10>(), schema_1f8c0bbd106d043e)
+
+val RemoteRootCodecs.routeU2ETokenU2DExchangeU2ERequest: RemoteRootCodec<RoutetokenU2DExchangeRequest_39bc2baf33>
+    get() = RemoteRootCodec("route.token-exchange.request", serializer<RoutetokenU2DExchangeRequest_39bc2baf33>(), schema_39bc2baf33179ca7)
+
 val RemoteRootCodecs.routeU2ETokenU2DExchangeU2EResponse: RemoteRootCodec<RoutetokenU2DExchangeResponse_22f14841c0>
     get() = RemoteRootCodec("route.token-exchange.response", serializer<RoutetokenU2DExchangeResponse_22f14841c0>(), schema_22f14841c064490b)
 

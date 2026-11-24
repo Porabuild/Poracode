@@ -624,6 +624,24 @@
     },
     {
       "auth": "bearer",
+      "id": "agent-profiles-read",
+      "method": "GET",
+      "path": "/api/settings/agent-profiles",
+      "scopes": [
+        "session:read"
+      ]
+    },
+    {
+      "auth": "bearer",
+      "id": "agent-profiles-command",
+      "method": "POST",
+      "path": "/api/settings/agent-profiles/command",
+      "scopes": [
+        "session:operate"
+      ]
+    },
+    {
+      "auth": "bearer",
       "id": "memory-catalog",
       "method": "POST",
       "path": "/api/memory/catalog",

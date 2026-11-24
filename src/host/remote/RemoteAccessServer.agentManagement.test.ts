@@ -19,7 +19,10 @@ afterEach(async () => {
   await Promise.all(servers.splice(0).map((server) => server.dispose()));
 });
 
-async function fixture(preset: "viewer" | "operator") {
+async function fixture(
+  preset: "viewer" | "operator",
+  settings?: RemoteAccessServerOptions["settings"],
+) {
   const callSupervisor = vi.fn<RemoteAccessServerOptions["callSupervisor"]>(
     async () => ({}) as never,
   );
@@ -31,6 +34,7 @@ async function fixture(preset: "viewer" | "operator") {
     port: 0,
     tls: null,
     callSupervisor,
+    ...(settings ? { settings } : {}),
   });
   servers.push(server);
   const info = await server.start();
@@ -57,7 +61,7 @@ async function fixture(preset: "viewer" | "operator") {
       },
       body: JSON.stringify({ procedure, payload }),
     });
-  return { call, callSupervisor };
+  return { call, callSupervisor, httpBaseUrl: info.httpBaseUrl, token };
 }
 
 describe("authenticated host agent management", () => {
@@ -372,5 +376,105 @@ describe("authenticated host agent management", () => {
     expect(response.status).toBe(403);
     await expect(response.json()).resolves.toMatchObject({ error: { code: "missing_scope" } });
     expect(callSupervisor.mock.calls.some(([name]) => name === "refreshAgentStatuses")).toBe(false);
+  });
+
+  it("enforces scopes and dispatches agent-profiles-read and agent-profiles-command", async () => {
+    const readAgentProfiles = vi.fn<
+      NonNullable<NonNullable<RemoteAccessServerOptions["settings"]>["readAgentProfiles"]>
+    >(() => ({
+      profiles: {
+        work: {
+          id: "work",
+          driver: "codex",
+          displayName: "Work",
+          config: { homeDir: "~/.codex-work" },
+        },
+      },
+    }));
+    const commandAgentProfiles = vi.fn<
+      NonNullable<NonNullable<RemoteAccessServerOptions["settings"]>["commandAgentProfiles"]>
+    >(async () => ({
+      profiles: {
+        work: {
+          id: "work",
+          driver: "codex",
+          displayName: "Work Renamed",
+          config: { homeDir: "~/.codex-work" },
+        },
+      },
+      instance: {
+        id: "work",
+        driver: "codex",
+        displayName: "Work Renamed",
+        config: { homeDir: "~/.codex-work" },
+      },
+    }));
+    const settingsGateway = {
+      read: () => ({}) as never,
+      update: async () => ({}) as never,
+      readMcpServers: () => ({ servers: {} }),
+      commandMcpServers: async () => ({ servers: {} }),
+      resolveScope: () => undefined,
+      resolveServer: () => undefined,
+      readAgentProfiles,
+      commandAgentProfiles,
+    } as unknown as NonNullable<RemoteAccessServerOptions["settings"]>;
+
+    const viewer = await fixture("viewer", settingsGateway);
+    const viewerRead = await fetch(new URL("/api/settings/agent-profiles", viewer.httpBaseUrl), {
+      headers: { authorization: `Bearer ${viewer.token}` },
+    });
+    expect(viewerRead.status).toBe(200);
+    await expect(viewerRead.json()).resolves.toEqual(readAgentProfiles());
+
+    const viewerWrite = await fetch(
+      new URL("/api/settings/agent-profiles/command", viewer.httpBaseUrl),
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          authorization: `Bearer ${viewer.token}`,
+          [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
+        },
+        body: JSON.stringify({
+          kind: "update",
+          instanceId: "work",
+          displayName: "Work Renamed",
+        }),
+      },
+    );
+    expect(viewerWrite.status).toBe(403);
+    expect(commandAgentProfiles).not.toHaveBeenCalled();
+
+    const operator = await fixture("operator", settingsGateway);
+    const opWrite = await fetch(
+      new URL("/api/settings/agent-profiles/command", operator.httpBaseUrl),
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          authorization: `Bearer ${operator.token}`,
+          [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
+        },
+        body: JSON.stringify({
+          kind: "update",
+          instanceId: "work",
+          displayName: "Work Renamed",
+        }),
+      },
+    );
+    expect(opWrite.status).toBe(200);
+    expect(commandAgentProfiles).toHaveBeenCalledWith({
+      kind: "update",
+      instanceId: "work",
+      displayName: "Work Renamed",
+    });
+
+    const unconfigured = await fixture("operator");
+    const unavailable = await fetch(
+      new URL("/api/settings/agent-profiles", unconfigured.httpBaseUrl),
+      { headers: { authorization: `Bearer ${unconfigured.token}` } },
+    );
+    expect(unavailable.status).toBe(503);
   });
 });

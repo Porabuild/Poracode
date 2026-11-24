@@ -25,6 +25,7 @@ import { useMachines, useSelectedMachine } from "@/renderer/state/machines";
 import { buildWslProjectDistrosKey } from "@/renderer/state/projectKeys";
 import { useProviderUsage } from "@/renderer/state/providerUsageStore";
 import { isWindows } from "@/renderer/bridge";
+import { usePairedHostProfiles } from "@/renderer/state/pairedHostProfiles";
 import { usePairedHostSettings } from "@/renderer/state/pairedHostSettings";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import {
@@ -52,6 +53,7 @@ import {
 import {
   AgentSettingsHostProvider,
   createAgentSettingsHost,
+  useRemoteHostCanWrite,
 } from "@/renderer/components/providers/settings/AgentSettingsHostContext";
 import { SettingsPage } from "../SettingsForm";
 import { NATIVE_AGENT_REGISTRY_ENTRIES } from "../agentRegistryNative";
@@ -148,16 +150,25 @@ export function SingleAgentSettings(props: {
   const localIsWindows = isWindows();
   // Instance-scoped kind of any multi-profile provider (`claude:work`).
   const profileKindParts = parseAgentProfileKind(props.agentKind);
-  const profileInstance = useSharedSettings((s) =>
-    Object.values(s.agentInstances).find(
-      (instance) => `${instance.driver}:${instance.id}` === props.agentKind,
-    ),
-  );
   const selectedMachine = useSelectedMachine();
   const machines = useMachines();
   const isRemoteMachine = selectedMachine.ref.host === "remote";
   const isMachineOnline = selectedMachine.status === "online";
   const agentHost = agentManagementHostForMachine(selectedMachine);
+  const isRemoteHost = agentHost.isRemote;
+  const remoteHostProfiles = usePairedHostProfiles(agentHost.connectionKey);
+  const localProfileInstance = useSharedSettings((s) =>
+    isRemoteHost
+      ? undefined
+      : Object.values(s.agentInstances).find(
+          (instance) => `${instance.driver}:${instance.id}` === props.agentKind,
+        ),
+  );
+  const profileInstance = isRemoteHost
+    ? Object.values(remoteHostProfiles?.profiles ?? {}).find(
+        (instance) => `${instance.driver}:${instance.id}` === props.agentKind,
+      )
+    : localProfileInstance;
   const { scoped: machineStatuses, othersNeedingAttention } = useMachineScopedStatuses(
     props.agentKind,
     selectedMachine,
@@ -198,7 +209,6 @@ export function SingleAgentSettings(props: {
   // Header and capabilities fall back to any machine's install so the page
   // stays usable while the selected machine has nothing detected yet.
   const agent = installedStatuses[0] ?? installedAnywhere[0] ?? machineStatuses[0];
-  const isRemoteHost = agentHost.isRemote;
   const remoteHostSettings = usePairedHostSettings(agentHost.connectionKey);
   const localDisabled = useSharedSettings((s) =>
     isRemoteHost ? false : s.disabledAgents.includes(props.agentKind),
@@ -209,8 +219,7 @@ export function SingleAgentSettings(props: {
   const isDisabled =
     (isRemoteHost
       ? (remoteHostSettings?.settings?.disabledAgents?.includes(props.agentKind) ?? false)
-      : localDisabled) ||
-    (!isRemoteHost && profileInstance?.enabled === false);
+      : localDisabled) || profileInstance?.enabled === false;
   const installedRegistryRecord =
     useHostRegistryInstalledAgents(agentHost)[extractAcpGenericInstanceId(props.agentKind) ?? ""];
   const projectWslDistros = wslProjectDistrosKey ? wslProjectDistrosKey.split("\0") : [];
@@ -246,15 +255,17 @@ export function SingleAgentSettings(props: {
     machineStatuses,
   );
   const distrosForMachineKey = distrosForMachine.join("\0");
+  const canWrite = useRemoteHostCanWrite(agentHost.connectionKey);
   const settingsHost = useMemo(
     () =>
       createAgentSettingsHost({
         host: agentHost,
         isOnline: isMachineOnline,
+        canWrite,
         ...(machineProject ? { machineProject } : {}),
         wslDistros: distrosForMachineKey ? distrosForMachineKey.split("\0") : [],
       }),
-    [agentHost, isMachineOnline, machineProject, distrosForMachineKey],
+    [agentHost, canWrite, isMachineOnline, machineProject, distrosForMachineKey],
   );
   const handleSetAgentDisabled = (agentKind: string, disabled: boolean) => {
     void (async () => {
@@ -403,7 +414,6 @@ export function SingleAgentSettings(props: {
     // provider registry, so this holds for every multi-profile provider.
     const ProfilePanel = providerEntry?.settingsPanel;
     if (
-      !isRemoteHost &&
       profileKindParts &&
       profileInstance?.driver === profileKindParts.driver &&
       providerEntry?.profiles &&
@@ -411,8 +421,8 @@ export function SingleAgentSettings(props: {
     ) {
       // Profile kinds can lack an *installed* root status while a runtime
       // variant (e.g. @cursor/sdk) is usable; hand over whatever detection
-      // produced so the panel shows truthful install/auth states.
-      const profileStatuses = [...agentStatuses, ...wslAgentStatuses].filter(
+      // produced on the active host so the panel shows truthful install/auth states.
+      const profileStatuses = [...hostPools.windows, ...hostPools.wsl].filter(
         (candidate) => candidate.kind === props.agentKind,
       );
       const providerLabel =
@@ -435,7 +445,7 @@ export function SingleAgentSettings(props: {
         </AgentSettingsHostProvider>
       );
     }
-    if (!isRemoteHost && profileInstance)
+    if (profileInstance)
       return (
         <SettingsPage
           title={profileInstance.displayName ?? profileInstance.id}

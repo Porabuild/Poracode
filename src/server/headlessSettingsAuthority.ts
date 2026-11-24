@@ -7,6 +7,10 @@ import { SettingsAuthority } from "@/backend/settings/SettingsAuthority";
 import { SettingsCompatWriter } from "@/backend/settings/settingsCompatWrites";
 import type { OwnedHostRuntime } from "@/backend/ownership/HostOwnerController";
 import {
+  createRemoteAgentProfilesGateway,
+  type RemoteAgentProfilesGateway,
+} from "@/host/remote/RemoteAgentProfilesGateway";
+import {
   createRemoteMcpSettingsGateway,
   type RemoteMcpSettingsGateway,
 } from "@/host/remote/RemoteMcpSettingsGateway";
@@ -48,6 +52,8 @@ export interface HeadlessSettingsComposition {
     update(patch: RemoteSettingsPatch): Promise<RemoteSettings>;
     readMcpServers(): { servers: McpServer[] };
     commandMcpServers: RemoteMcpSettingsGateway["command"];
+    readAgentProfiles: RemoteAgentProfilesGateway["read"];
+    commandAgentProfiles: RemoteAgentProfilesGateway["command"];
   };
   /** Push-coordinator projection of the committed settings. */
   pushSettings(): { enabled: boolean; redactContent: boolean };
@@ -97,6 +103,10 @@ export async function composeHeadlessSettingsAuthority(
     writeProject: options.writeProject,
     projectsChanged: options.projectsChanged,
   });
+  const agentProfiles = createRemoteAgentProfilesGateway({
+    readSettings: options.readSettings,
+    editSettingsFields: (fields, compute) => writes.editSettingsFields(fields, compute),
+  });
   return {
     editPreferences: (compute) => writes.editPreferences(compute),
     editSettingsField: (field, compute) => writes.editSettingsField(field, compute),
@@ -111,6 +121,8 @@ export async function composeHeadlessSettingsAuthority(
       update: async (patch) => pickRemoteSettings(await writes.commitCompatPatch(patch)),
       readMcpServers: () => mcp.read(),
       commandMcpServers: (command) => mcp.command(command),
+      readAgentProfiles: () => agentProfiles.read(),
+      commandAgentProfiles: (command) => agentProfiles.command(command),
       resolveScope: (scope) => mcp.resolveScope(scope),
       resolveServer: (scope, serverId) => mcp.resolveServer(scope, serverId),
     }),

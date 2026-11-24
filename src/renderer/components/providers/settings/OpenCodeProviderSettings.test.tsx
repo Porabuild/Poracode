@@ -84,6 +84,7 @@ function makeRemoteHost(overrides?: Partial<AgentSettingsHost>) {
     isOnline: true,
     machineProject,
     canManageProfiles: false,
+    canWrite: true,
     canEditSecrets: false,
     callProcedure,
     rediscoverAgents,
@@ -91,6 +92,10 @@ function makeRemoteHost(overrides?: Partial<AgentSettingsHost>) {
     saveAgentSettings: vi.fn<AgentSettingsHost["saveAgentSettings"]>(async () => undefined),
     setAgentDisabled: vi.fn<AgentSettingsHost["setAgentDisabled"]>(),
     setHiddenModels: vi.fn<AgentSettingsHost["setHiddenModels"]>(),
+    createProfile: vi.fn<AgentSettingsHost["createProfile"]>(),
+    updateProfile: vi.fn<AgentSettingsHost["updateProfile"]>(),
+    setProfileEnvironment: vi.fn<AgentSettingsHost["setProfileEnvironment"]>(),
+    removeProfile: vi.fn<AgentSettingsHost["removeProfile"]>(),
     ...overrides,
   };
   return { host, callProcedure, rediscoverAgents, machineProject };

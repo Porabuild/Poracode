@@ -128,6 +128,22 @@ async function fixture(options: {
           revisions: {},
         };
       },
+      editSettingsFields: async (fields, compute) => {
+        const next = compute(h.settings);
+        const settings = { ...h.settings } as Record<string, unknown>;
+        for (const field of fields) {
+          if (next[field] === undefined) delete settings[field];
+          else settings[field] = next[field];
+        }
+        h.settings = settings as SharedSettings;
+        return {
+          status: "committed",
+          authorityId: "00000000-0000-4000-8000-000000000000",
+          sequence: 0,
+          changes: [],
+          revisions: {},
+        };
+      },
     },
     notifyRemoteAccessPairingChanged() {},
     notifyProjectStateChanged() {},

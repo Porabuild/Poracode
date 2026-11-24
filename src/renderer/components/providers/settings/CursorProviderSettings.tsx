@@ -3,12 +3,10 @@ import type { ReactNode } from "react";
 import { RadioGroup, toast } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { useProviderUsage } from "@/renderer/state/providerUsageStore";
-import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import {
   cursorProfileKind,
   extractCursorProfileInstanceId,
   type AgentCapability,
-  type AgentInstanceConfig,
   type AgentStatus,
   type AuthState,
 } from "@/shared/contracts";
@@ -21,13 +19,12 @@ import { CursorSdkRuntimeSetup } from "../../../views/SettingsOverlay/parts/Curs
 import { cursorRuntimeInstallState } from "../../../views/SettingsOverlay/parts/cursorRuntimeInstall";
 import {
   useAgentSettingsHost,
+  useHostAgentInstances,
   useHostAgentSettingValues,
   useHostSettingsReady,
 } from "./AgentSettingsHostContext";
 
 type CursorStructuredRuntime = "acp" | "sdk";
-
-const EMPTY_AGENT_INSTANCES: Record<string, AgentInstanceConfig> = Object.freeze({});
 
 function readStructuredRuntime(
   settings: Readonly<Record<string, boolean | string>> | undefined,
@@ -60,9 +57,7 @@ export function CursorProviderSettings(props: {
   const profileInstanceId = extractCursorProfileInstanceId(agentKind);
   const savedAgentSettings = useHostAgentSettingValues(agentKind);
   const ready = useHostSettingsReady();
-  const agentInstances = useSharedSettings((state) =>
-    settingsHost.canManageProfiles ? state.agentInstances : EMPTY_AGENT_INSTANCES,
-  );
+  const agentInstances = useHostAgentInstances();
   const cursorProfileKinds = Object.values(agentInstances)
     .filter((instance) => instance.driver === "cursor" && instance.enabled !== false)
     .map((instance) => cursorProfileKind(instance.id));

@@ -14,14 +14,14 @@
     "jsonProcedureResults": 127,
     "procedures": 194,
     "replayableEventTypes": 17,
-    "routes": 126,
+    "routes": 128,
     "runtimeEventTypes": 16,
     "voidProcedureResults": 67,
     "webSocketClientMessages": 11,
     "webSocketServerMessages": 12
   },
   "manifestFormatVersion": 1,
-  "manifestHash": "sha256:32f18d452576b054c3a72bda354c78e8b77f2503b5a9a3493b177a5b70c67c16",
+  "manifestHash": "sha256:d497d2d7a7342cb2f7d21370f6abb514ec08f9024ffa152546cbb2b4da7735c2",
   "portableTransformIds": [
     "agent-settings.strip-sensitive",
     "push.routing.client-connection-id.lowercase",
@@ -45094,6 +45094,408 @@
   ],
   "protocolVersion": 15,
   "routes": [
+    {
+      "auth": "bearer",
+      "id": "agent-profiles-command",
+      "method": "POST",
+      "path": "/api/settings/agent-profiles/command",
+      "request": {
+        "bodyKind": "json",
+        "jsonSchema": {
+          "$defs": {
+            "__schema0": {
+              "maxLength": 120,
+              "minLength": 1,
+              "pattern": "^[a-z0-9][a-z0-9_\\-:.]*$",
+              "type": "string"
+            },
+            "__schema1": {
+              "additionalProperties": true,
+              "properties": {
+                "sensitive": {
+                  "type": "boolean"
+                },
+                "value": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "value"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
+            }
+          },
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "oneOf": [
+            {
+              "additionalProperties": true,
+              "properties": {
+                "kind": {
+                  "const": "create",
+                  "type": "string"
+                },
+                "payload": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "config": {},
+                    "displayName": {
+                      "maxLength": 120,
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "driver": {
+                      "maxLength": 64,
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "environment": {
+                      "additionalProperties": {
+                        "$ref": "#/$defs/__schema1"
+                      },
+                      "propertyNames": {
+                        "maxLength": 200,
+                        "minLength": 1,
+                        "type": "string"
+                      },
+                      "type": "object"
+                    },
+                    "id": {
+                      "$ref": "#/$defs/__schema0"
+                    }
+                  },
+                  "required": [
+                    "driver",
+                    "id",
+                    "displayName"
+                  ],
+                  "type": "object",
+                  "x-poracode-unknownFields": "strip"
+                }
+              },
+              "required": [
+                "kind",
+                "payload"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
+            },
+            {
+              "additionalProperties": true,
+              "properties": {
+                "config": {},
+                "displayName": {
+                  "maxLength": 120,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "enabled": {
+                  "type": "boolean"
+                },
+                "instanceId": {
+                  "$ref": "#/$defs/__schema0"
+                },
+                "kind": {
+                  "const": "update",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "instanceId"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
+            },
+            {
+              "additionalProperties": true,
+              "properties": {
+                "environment": {
+                  "additionalProperties": {
+                    "$ref": "#/$defs/__schema1"
+                  },
+                  "propertyNames": {
+                    "maxLength": 200,
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "type": "object"
+                },
+                "instanceId": {
+                  "$ref": "#/$defs/__schema0"
+                },
+                "kind": {
+                  "const": "set-environment",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "instanceId",
+                "environment"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
+            },
+            {
+              "additionalProperties": true,
+              "properties": {
+                "instanceId": {
+                  "$ref": "#/$defs/__schema0"
+                },
+                "kind": {
+                  "const": "remove",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "instanceId"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
+            }
+          ]
+        }
+      },
+      "response": {
+        "jsonSchema": {
+          "$defs": {
+            "__schema0": {
+              "maxLength": 120,
+              "minLength": 1,
+              "pattern": "^[a-z0-9][a-z0-9_\\-:.]*$",
+              "type": "string"
+            },
+            "__schema1": {
+              "additionalProperties": true,
+              "properties": {
+                "accentColor": {
+                  "type": "string"
+                },
+                "authAcknowledged": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "native": {
+                      "type": "boolean"
+                    },
+                    "wsl": {
+                      "additionalProperties": {
+                        "type": "boolean"
+                      },
+                      "propertyNames": {
+                        "type": "string"
+                      },
+                      "type": "object"
+                    }
+                  },
+                  "type": "object",
+                  "x-poracode-unknownFields": "strip"
+                },
+                "config": {},
+                "displayName": {
+                  "maxLength": 120,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "driver": {
+                  "maxLength": 64,
+                  "minLength": 1,
+                  "pattern": "^[a-z0-9][a-z0-9_\\-:.]*$",
+                  "type": "string"
+                },
+                "enabled": {
+                  "type": "boolean"
+                },
+                "environment": {
+                  "additionalProperties": {
+                    "additionalProperties": true,
+                    "properties": {
+                      "sensitive": {
+                        "type": "boolean"
+                      },
+                      "value": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "value"
+                    ],
+                    "type": "object",
+                    "x-poracode-unknownFields": "strip"
+                  },
+                  "propertyNames": {
+                    "type": "string"
+                  },
+                  "type": "object"
+                },
+                "icon": {
+                  "type": "string"
+                },
+                "id": {
+                  "$ref": "#/$defs/__schema0"
+                },
+                "version": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "driver"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
+            }
+          },
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "additionalProperties": true,
+          "properties": {
+            "instance": {
+              "$ref": "#/$defs/__schema1"
+            },
+            "profiles": {
+              "additionalProperties": {
+                "$ref": "#/$defs/__schema1"
+              },
+              "propertyNames": {
+                "$ref": "#/$defs/__schema0"
+              },
+              "type": "object"
+            }
+          },
+          "required": [
+            "profiles"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        },
+        "status": 200,
+        "wireKind": "json"
+      },
+      "scopes": [
+        "session:operate"
+      ]
+    },
+    {
+      "auth": "bearer",
+      "id": "agent-profiles-read",
+      "method": "GET",
+      "path": "/api/settings/agent-profiles",
+      "request": {
+        "bodyKind": "empty"
+      },
+      "response": {
+        "jsonSchema": {
+          "$defs": {
+            "__schema0": {
+              "maxLength": 120,
+              "minLength": 1,
+              "pattern": "^[a-z0-9][a-z0-9_\\-:.]*$",
+              "type": "string"
+            }
+          },
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "additionalProperties": true,
+          "properties": {
+            "profiles": {
+              "additionalProperties": {
+                "additionalProperties": true,
+                "properties": {
+                  "accentColor": {
+                    "type": "string"
+                  },
+                  "authAcknowledged": {
+                    "additionalProperties": true,
+                    "properties": {
+                      "native": {
+                        "type": "boolean"
+                      },
+                      "wsl": {
+                        "additionalProperties": {
+                          "type": "boolean"
+                        },
+                        "propertyNames": {
+                          "type": "string"
+                        },
+                        "type": "object"
+                      }
+                    },
+                    "type": "object",
+                    "x-poracode-unknownFields": "strip"
+                  },
+                  "config": {},
+                  "displayName": {
+                    "maxLength": 120,
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "driver": {
+                    "maxLength": 64,
+                    "minLength": 1,
+                    "pattern": "^[a-z0-9][a-z0-9_\\-:.]*$",
+                    "type": "string"
+                  },
+                  "enabled": {
+                    "type": "boolean"
+                  },
+                  "environment": {
+                    "additionalProperties": {
+                      "additionalProperties": true,
+                      "properties": {
+                        "sensitive": {
+                          "type": "boolean"
+                        },
+                        "value": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "value"
+                      ],
+                      "type": "object",
+                      "x-poracode-unknownFields": "strip"
+                    },
+                    "propertyNames": {
+                      "type": "string"
+                    },
+                    "type": "object"
+                  },
+                  "icon": {
+                    "type": "string"
+                  },
+                  "id": {
+                    "$ref": "#/$defs/__schema0"
+                  },
+                  "version": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "driver"
+                ],
+                "type": "object",
+                "x-poracode-unknownFields": "strip"
+              },
+              "propertyNames": {
+                "$ref": "#/$defs/__schema0"
+              },
+              "type": "object"
+            }
+          },
+          "required": [
+            "profiles"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        },
+        "status": 200,
+        "wireKind": "json"
+      },
+      "scopes": [
+        "session:read"
+      ]
+    },
     {
       "auth": "bearer",
       "id": "agent-slash-commands",
@@ -95303,7 +95705,7 @@
     "void-envelope.omit-result",
     "void-result.omit-field"
   ],
-  "sourceHash": "sha256:930439453dced6a441430ce60d498f758bb9aa9455eddd71d283b26373058a4c",
+  "sourceHash": "sha256:44eb1792ece9df2088e58795ba84689d1f8eaa71dd7b804e904ffb5d0ccbd854",
   "unknownObjectFields": "ignore",
   "webSocket": {
     "clientMessages": [

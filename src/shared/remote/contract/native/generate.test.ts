@@ -130,27 +130,28 @@ describe("remote v3 native binding generator", () => {
         // `dayProviders`, `dayModels`) add three structural types while keeping older peers valid.
         // Remote agent settings allowlists 10 additive desktop procedures (config defaults,
         // native MCP/hook setup, agent plugins, credentials, model providers) with 4 semantic validators.
+        // Remote agent profile management adds agent-profiles-read and agent-profiles-command.
         // Agent-plugin packages gained additive optional latestVersion/updating fields.
         // Protocol 15 adds the model_switch item type and the optional
         // previousTurnModel/model start+payload fields; both authority hashes
-        // move and the native mirrors re-chunk (two fewer files per platform).
-        sourceHash: "sha256:930439453dced6a441430ce60d498f758bb9aa9455eddd71d283b26373058a4c",
-        manifestHash: "sha256:32f18d452576b054c3a72bda354c78e8b77f2503b5a9a3493b177a5b70c67c16",
+        // move and the native mirrors re-chunk.
+        sourceHash: "sha256:44eb1792ece9df2088e58795ba84689d1f8eaa71dd7b804e904ffb5d0ccbd854",
+        manifestHash: "sha256:d497d2d7a7342cb2f7d21370f6abb514ec08f9024ffa152546cbb2b4da7735c2",
         counts: {
-          routes: 126,
+          routes: 128,
           procedures: 194,
           voidProcedureResults: 67,
           jsonProcedureResults: 127,
           webSocketClientVariants: 11,
           // 11 shared + the desktop-internal `desktop-event` frame (V5 plan 2.5).
           webSocketServerVariants: 12,
-          schemaRoots: 619,
-          structuralTypes: 1626,
+          schemaRoots: 622,
+          structuralTypes: 1641,
           semanticValidators: 31,
           // Content-defined shards (emitterCommon.shardDeclarations) average
           // ~200 lines, so a contract change rewrites only nearby files.
-          swiftFiles: 181,
-          kotlinFiles: 151,
+          swiftFiles: 182,
+          kotlinFiles: 152,
           stateMachines: 5,
         },
       });
@@ -420,7 +421,7 @@ describe("remote v3 native binding generator", () => {
       const output = outputForAuthority().files;
       for (const language of ["swift", "kotlin"] as const) {
         const adapters = rootAdapters(graph, language);
-        expect(adapters).toHaveLength(619);
+        expect(adapters).toHaveLength(622);
         expect(
           adapters
             .map((adapter) => adapter.id)

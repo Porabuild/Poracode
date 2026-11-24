@@ -10,17 +10,21 @@ import {
   type AgentInstanceConfig,
   type CodexProfileInstanceConfig,
 } from "@/shared/contracts";
+import { friendlyError } from "@/shared/messages";
 import { ConfirmDialog, Input } from "@/renderer/components/common";
-import { readBridge } from "@/renderer/bridge";
 import { useAppStore } from "@/renderer/state/appStore";
-import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
-import { currentWslDistros } from "@/renderer/utils/acpRegistryAuth";
+import { remoteOwner } from "@/renderer/state/remoteProjection";
 import { AgentProfileList } from "@/renderer/views/SettingsOverlay/parts/AgentProfileList";
 import type {
   NativeAgentProfileSupport,
   NativeAgentSettingsPanelProps,
 } from "@/renderer/views/SettingsOverlay/parts/agentRegistryNative";
-import { useAgentSettingsHost } from "@/renderer/components/providers/settings/AgentSettingsHostContext";
+import {
+  rediscoverHostAgents,
+  useAgentSettingsHost,
+  useHostAgentInstance,
+  type AgentSettingsHost,
+} from "@/renderer/components/providers/settings/AgentSettingsHostContext";
 import { CodexProviderSettings } from "@/renderer/components/providers/settings/CodexProviderSettings";
 
 /**
@@ -38,15 +42,13 @@ export function defaultCodexHomeDir(profileId: string): string {
   return `~/.poracode/codex-profiles/${profileId}`;
 }
 
-function refreshCodexProfile(kind?: string): void {
+function refreshCodexProfile(settingsHost: AgentSettingsHost, kind?: string): void {
   window.setTimeout(() => {
-    void readBridge()
-      .refreshAgentStatuses(currentWslDistros(), kind ? { agentKinds: [kind] } : undefined)
-      .catch((error) =>
-        toast.danger(
-          error instanceof Error ? error.message : i18n._(msg`Unable to refresh Codex profiles.`),
-        ),
-      );
+    void rediscoverHostAgents(settingsHost, kind).catch((error) =>
+      toast.danger(
+        error instanceof Error ? error.message : i18n._(msg`Unable to refresh Codex profiles.`),
+      ),
+    );
   }, 50);
 }
 
@@ -57,18 +59,22 @@ function refreshCodexProfile(kind?: string): void {
  * unknown / non-Codex id — the generic page chrome still shows install/auth.
  */
 export function CodexProfileProviderSettings(props: { instanceId: string }) {
-  const { canManageProfiles } = useAgentSettingsHost();
-  const instance = useSharedSettings((s) =>
-    canManageProfiles ? s.agentInstances?.[props.instanceId] : undefined,
-  );
-  if (!canManageProfiles || !instance || instance.driver !== "codex") return null;
+  const settingsHost = useAgentSettingsHost();
+  const instance = useHostAgentInstance(props.instanceId);
+  if (!settingsHost.canManageProfiles || !instance || instance.driver !== "codex") return null;
   let config: CodexProfileInstanceConfig;
   try {
     config = parseCodexProfileInstanceConfig(instance.config);
   } catch {
     return null;
   }
-  return <CodexProfileEditor key={instance.id} instance={instance} config={config} />;
+  return (
+    <CodexProfileEditor
+      key={`${settingsHost.key}:${instance.id}`}
+      instance={instance}
+      config={config}
+    />
+  );
 }
 
 function CodexProfileEditor(props: {
@@ -76,14 +82,20 @@ function CodexProfileEditor(props: {
   config: CodexProfileInstanceConfig;
 }) {
   const { t } = useLingui();
-  const setAgentInstance = useSharedSettings((s) => s.setAgentInstance);
+  const settingsHost = useAgentSettingsHost();
   const profileKind = codexProfileKind(props.instance.id);
   // Archived threads count too: they can still be restored and resumed.
   const hasThreads = useAppStore((s) =>
-    s.threads.some((thread) => thread.agentKind === profileKind),
+    s.threads.some(
+      (thread) =>
+        thread.agentKind === profileKind &&
+        (settingsHost.isRemote
+          ? remoteOwner(thread)?.desktopId === settingsHost.connectionKey
+          : remoteOwner(thread) === undefined),
+    ),
   );
-  // Seeded once from props; the editor is keyed by instance id so it re-seeds
-  // when a different profile takes its place.
+  // Seeded once from props; the editor is keyed by host + instance id so it
+  // re-seeds when switching profiles or machines.
   const [name, setName] = useState(props.instance.displayName ?? props.instance.id);
   const [homeDir, setHomeDir] = useState(props.config.homeDir);
   const [confirmHomeChange, setConfirmHomeChange] = useState(false);
@@ -94,7 +106,8 @@ function CodexProfileEditor(props: {
   const dirty =
     trimmedName !== (props.instance.displayName ?? props.instance.id) ||
     trimmedHomeDir !== props.config.homeDir;
-  const canSave = trimmedName.length > 0 && trimmedHomeDir.length > 0 && dirty;
+  const canSave =
+    settingsHost.isOnline && trimmedName.length > 0 && trimmedHomeDir.length > 0 && dirty;
   // A thread resumes from the rollout files in the home it ran under, so
   // moving the home strands every existing thread's session.
   const strandsThreads = hasThreads && trimmedHomeDir !== props.config.homeDir;
@@ -102,9 +115,15 @@ function CodexProfileEditor(props: {
   const commit = () => {
     if (!canSave) return;
     const config: CodexProfileInstanceConfig = { homeDir: trimmedHomeDir };
-    setAgentInstance({ ...props.instance, displayName: trimmedName, config });
-    refreshCodexProfile(profileKind);
-    toast.success(t`Codex ${trimmedName || displayLabel} profile saved.`);
+    void settingsHost
+      .updateProfile(props.instance.id, { displayName: trimmedName, config }, { flush: false })
+      .then(() => {
+        refreshCodexProfile(settingsHost, profileKind);
+        toast.success(t`Codex ${trimmedName || displayLabel} profile saved.`);
+      })
+      .catch((error) => {
+        toast.danger(friendlyError(error));
+      });
   };
 
   const save = () => {

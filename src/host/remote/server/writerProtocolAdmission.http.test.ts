@@ -385,11 +385,11 @@ describe.skipIf(!sqliteAvailable)("remote15 writer-generation admission", () => 
 
   it("declares the generation flag only on bearer-gated non-procedure routes", () => {
     const declared = REMOTE_HTTP_ROUTES.filter((route) => route.requiresCurrentProtocol === true);
-    // Registry-classification completeness guard: the contract pins 56 direct
+    // Registry-classification completeness guard: the contract pins 57 direct
     // writer routes and four schedule reads with extended closed enums. All are bearer-gated with
     // dispatcher-owned scope resolution, so the dispatcher's post-auth check
     // ordering holds for every declared route.
-    expect(declared).toHaveLength(60);
+    expect(declared).toHaveLength(61);
     expect(declared.filter((route) => route.method === "GET")).toHaveLength(4);
     expect(declared.filter((route) => route.method === "DELETE")).toHaveLength(1);
     for (const route of declared) {

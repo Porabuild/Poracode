@@ -115,8 +115,10 @@ vi.mock("@/renderer/state/appStore", () => ({
 }));
 
 vi.mock("@/renderer/state/agentStatusesStore", () => ({
-  useAgentStatusesStore: (selector: (state: typeof statusState) => unknown) =>
-    selector(statusState),
+  useAgentStatusesStore: Object.assign(
+    (selector: (state: typeof statusState) => unknown) => selector(statusState),
+    { getState: () => statusState },
+  ),
 }));
 
 import {
@@ -180,7 +182,7 @@ describe("CodexProfileSettings", () => {
         config: { homeDir: "~/.poracode/codex-profiles/work" },
       }),
     );
-    expect(toastMock.success).toHaveBeenCalledWith("Profile Work added.");
+    await vi.waitFor(() => expect(toastMock.success).toHaveBeenCalledWith("Profile Work added."));
   });
 
   it.each([
@@ -268,10 +270,10 @@ describe("CodexProfileProviderSettings", () => {
       ...codexProfile(),
       config: { homeDir: "~/.codex-work" },
     });
-    expect(toastMock.success).toHaveBeenCalledWith("Codex Work profile saved.");
-    await vi.waitFor(() =>
-      expect(refreshAgentStatusesMock).toHaveBeenCalledWith([], { agentKinds: ["codex:work"] }),
-    );
+    await vi.waitFor(() => {
+      expect(toastMock.success).toHaveBeenCalledWith("Codex Work profile saved.");
+      expect(refreshAgentStatusesMock).toHaveBeenCalledWith([], { agentKinds: ["codex:work"] });
+    });
   });
 });
 

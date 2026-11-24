@@ -1,8 +1,13 @@
 import { z } from "zod";
+import type { AgentInstanceConfig } from "../contracts/agentInstance";
 import type { McpServer } from "../contracts/mcpServer";
 import {
+  remoteAgentProfilesCommandResultSchema,
+  remoteAgentProfilesReadResultSchema,
   remoteMcpSettingsOperationResultSchema,
   remoteMcpSettingsReadResultSchema,
+  type RemoteAgentProfilesCommand,
+  type RemoteAgentProfilesCommandResult,
   type RemoteMcpSettingsCommand,
   type RemoteMcpSettingsOperation,
 } from "./contract/routeSchemas";
@@ -530,6 +535,28 @@ export abstract class RemoteClientHostApi extends RemoteClientDevicePreviewApi {
       "MCP settings command",
     );
     return result.servers;
+  }
+
+  async agentProfiles(): Promise<Record<string, AgentInstanceConfig>> {
+    const result = parseResponse(
+      remoteAgentProfilesReadResultSchema,
+      await this.requestJson("/api/settings/agent-profiles"),
+      "agent profiles",
+    );
+    return result.profiles;
+  }
+
+  async commandAgentProfiles(
+    command: RemoteAgentProfilesCommand,
+  ): Promise<RemoteAgentProfilesCommandResult> {
+    return parseResponse(
+      remoteAgentProfilesCommandResultSchema,
+      await this.requestJson("/api/settings/agent-profiles/command", {
+        method: "POST",
+        body: command,
+      }),
+      "agent profiles command",
+    );
   }
 
   async operateMcpServer(operation: RemoteMcpSettingsOperation) {

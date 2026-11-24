@@ -4,11 +4,14 @@ import { Check } from "lucide-react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { friendlyError } from "@/shared/messages";
 import { Input, PixelLoader } from "@/renderer/components/common";
-import { flushSharedSettings, useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { CursorRuntimeCardRow } from "../../../views/SettingsOverlay/parts/CursorRuntimeCard";
 import { CursorProfileApiKeySetup } from "../../../views/SettingsOverlay/parts/CursorSdkRuntimeSetup";
 import { isDuplicateProfileName } from "../../../views/SettingsOverlay/parts/profileIds";
-import { useAgentSettingsHost } from "./AgentSettingsHostContext";
+import {
+  useAgentSettingsHost,
+  useHostAgentInstance,
+  useHostAgentInstances,
+} from "./AgentSettingsHostContext";
 
 /**
  * A Cursor profile's own identity: the name every surface labels it with, and
@@ -35,16 +38,15 @@ function CursorProfileIdentityBody(props: {
   refreshStatus: () => Promise<unknown>;
 }) {
   const { t } = useLingui();
-  const instance = useSharedSettings((state) => state.agentInstances[props.profileInstanceId]);
-  const agentInstances = useSharedSettings((state) => state.agentInstances);
-  const setAgentInstance = useSharedSettings((state) => state.setAgentInstance);
+  const settingsHost = useAgentSettingsHost();
+  const instance = useHostAgentInstance(props.profileInstanceId);
+  const agentInstances = useHostAgentInstances();
   const savedName = instance?.displayName ?? props.profileInstanceId;
   const [name, setName] = useState(savedName);
   const [pending, setPending] = useState(false);
 
-  // Re-seed when the settings page switches to a different profile, or when the
-  // saved name changes out-of-band (another window, the MCP tool). Derived
-  // from `savedName`, so adjust during render.
+  // Re-seed when the settings page switches to a different profile or machine,
+  // or when the saved name changes out-of-band (another window, the MCP tool).
   const [prevSavedName, setPrevSavedName] = useState(savedName);
   if (prevSavedName !== savedName) {
     setPrevSavedName(savedName);
@@ -56,21 +58,24 @@ function CursorProfileIdentityBody(props: {
     (candidate) => candidate.driver === "cursor",
   );
   const isDuplicate = isDuplicateProfileName(trimmed, cursorInstances, props.profileInstanceId);
-  const canSave = trimmed.length > 0 && trimmed !== savedName && !isDuplicate && !pending;
+  const canSave =
+    settingsHost.isOnline &&
+    trimmed.length > 0 &&
+    trimmed !== savedName &&
+    !isDuplicate &&
+    !pending;
 
   const saveName = async () => {
     if (!canSave || !instance) return;
     setPending(true);
     const previous = instance;
     try {
-      setAgentInstance({ ...instance, displayName: trimmed });
+      await settingsHost.updateProfile(props.profileInstanceId, { displayName: trimmed });
       // The adapter builds its label from `displayName`, so the sidebar and
       // model picker only pick the new name up after a detection refresh.
-      await flushSharedSettings();
       await props.refreshStatus();
       toast.success(t`Cursor profile renamed.`);
     } catch (error) {
-      setAgentInstance(previous);
       setName(previous.displayName ?? props.profileInstanceId);
       toast.danger(friendlyError(error));
     } finally {
