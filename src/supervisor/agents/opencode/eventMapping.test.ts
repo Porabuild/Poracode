@@ -5,6 +5,7 @@ import {
   closeOpenCodeItems,
   createOpenCodeMapperState,
   mapOpenCodeEvent,
+  setOpenCodeContextWindowTokens,
   setOpenCodeSessionId,
   steerOpenCodeTurn,
 } from "./eventMapping";
@@ -365,6 +366,30 @@ describe("mapOpenCodeEvent", () => {
         state,
       ),
     ).toEqual([]);
+  });
+
+  it("announces the model window once and stamps it on later step samples", () => {
+    const state = stateFor();
+
+    expect(setOpenCodeContextWindowTokens(state, 1_000_000)).toEqual([
+      { type: "context.updated", threadId: "thread-1", usage: { maxTokens: 1_000_000 } },
+    ]);
+    // Unchanged and cleared windows emit nothing: a cleared value just stops
+    // stamping the old model onto samples while the new window resolves.
+    expect(setOpenCodeContextWindowTokens(state, 1_000_000)).toEqual([]);
+    expect(setOpenCodeContextWindowTokens(state, undefined)).toEqual([]);
+
+    setOpenCodeContextWindowTokens(state, 1_000_000);
+    const events = mapAll(state, [
+      event("session.step.ended", {
+        sessionID: SESSION,
+        assistantMessageID: ASSISTANT,
+        tokens: { input: 10, output: 1, reasoning: 0, cache: { read: 0, write: 0 } },
+      }),
+    ]);
+    expect(events.find((entry) => entry.type === "context.updated")).toMatchObject({
+      usage: { usedTokens: 11, maxTokens: 1_000_000 },
+    });
   });
 
   it("reports step usage once per step and feeds the context dock", () => {

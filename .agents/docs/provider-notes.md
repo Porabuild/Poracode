@@ -320,7 +320,14 @@ validating the version. The minimum CLI is `OPENCODE2_MIN_VERSION`
   permissions, and active-session state before admitting another prompt.
   Completed provider message IDs prevent duplicate rows, and authoritative final
   text replaces divergent partial text. Child sessions attach through native
-  subagent tool metadata and do not change the parent turn's lifecycle.
+  subagent tool metadata and do not change the parent turn's lifecycle. The
+  stream reports token counts but never the window they fill, so the session
+  resolves `limit.context` from the V2 catalog (falling back to the thread's
+  configured context size when the catalog is unavailable or omits the model)
+  and stamps it on every `context.updated`, plus one window-only update when it
+  opens or switches model; otherwise the dock inherits whatever window a
+  previous provider reported on a handed-off thread. The read is display-only
+  and never holds a prompt.
 - **GUI controls:** model and variant selection, built-in Plan mode, primary
   agent commands, native commands and skills, attachment URI references,
   structured forms and permissions, Stop and native steering, compaction,
