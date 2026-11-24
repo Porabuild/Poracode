@@ -1,11 +1,21 @@
 import { describe, expect, it } from "vitest";
-import { normalizeWslListOutput, parseWslUncPath, toWslUncPath } from "./wsl";
+import { isInternalWslDistro, normalizeWslListOutput, parseWslUncPath, toWslUncPath } from "./wsl";
 
 describe("wsl helpers", () => {
   it("normalizes WSL distro output that contains NUL characters", () => {
     expect(normalizeWslListOutput("U\u0000b\u0000u\u0000n\u0000t\u0000u\u0000\r\n\u0000")).toEqual([
       "Ubuntu",
     ]);
+  });
+
+  it("filters internal Docker Desktop WSL distros from normalized lists", () => {
+    expect(isInternalWslDistro("docker-desktop")).toBe(true);
+    expect(isInternalWslDistro("docker-desktop-data")).toBe(true);
+    expect(isInternalWslDistro("Docker-Desktop")).toBe(true);
+    expect(isInternalWslDistro("Ubuntu")).toBe(false);
+    expect(
+      normalizeWslListOutput("Ubuntu\r\ndocker-desktop\r\ndocker-desktop-data\r\nDebian\r\n"),
+    ).toEqual(["Ubuntu", "Debian"]);
   });
 
   it("builds a UNC path for a WSL project", () => {

@@ -16,7 +16,12 @@ import {
   useProviderUpdates,
   type ProviderUpdateEntry,
 } from "../../../components/providers/settings/useProviderUpdates";
-import { machineIdForStatus, useMachines, useSelectedMachine } from "@/renderer/state/machines";
+import {
+  machineIdForStatus,
+  useAgentsScopeMachines,
+  useMachines,
+  useSelectedMachine,
+} from "@/renderer/state/machines";
 import { localMachineKey } from "@/shared/machines";
 import { effectiveProviderOrder } from "@/shared/machineSettings";
 
@@ -195,7 +200,7 @@ export function ModelOrderSection(props: { onOpenAgentSettings: (kind: string) =
   const setMachineProviderOrder = useSharedSettings((s) => s.setMachineProviderOrder);
   const lockProviderOrderToMachine = useSharedSettings((s) => s.lockProviderOrderToMachine);
 
-  const machines = useMachines();
+  const machines = useAgentsScopeMachines(useMachines());
   const selectedMachine = useSelectedMachine();
   const pools = useHostAgentStatusPools(
     agentManagementHostForMachine(selectedMachine).connectionKey,

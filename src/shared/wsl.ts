@@ -1,5 +1,17 @@
 import type { ProjectLocation } from "./contracts";
 
+const INTERNAL_WSL_DISTROS = new Set(["docker-desktop", "docker-desktop-data"]);
+
+/**
+ * Docker Desktop registers internal WSL2 VMs (`docker-desktop`,
+ * `docker-desktop-data`) in the Lxss registry. They are not user Linux
+ * environments and should never be offered as WSL targets or probed for
+ * provider credentials.
+ */
+export function isInternalWslDistro(name: string): boolean {
+  return INTERNAL_WSL_DISTROS.has(name.trim().toLowerCase());
+}
+
 export function stripNulChars(value: string): string {
   return value.split("\0").join("");
 }
@@ -8,7 +20,7 @@ export function normalizeWslListOutput(raw: string): string[] {
   return stripNulChars(raw)
     .split(/\r?\n/g)
     .map((line) => line.trim())
-    .filter((line) => line.length > 0);
+    .filter((line) => line.length > 0 && !isInternalWslDistro(line));
 }
 
 export function toWslUncPath(distro: string, linuxPath: string): string {

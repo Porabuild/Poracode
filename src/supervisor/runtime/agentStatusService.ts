@@ -24,6 +24,7 @@ import type { SupervisorEvent } from "@/shared/ipc";
 import { effectiveAgentSettings, effectiveDisabledAgents } from "@/shared/machineSettings";
 import { localMachineKey, type AgentEnv } from "@/shared/machines";
 import { normalizeSharedSettings } from "@/shared/settings";
+import { isInternalWslDistro } from "@/shared/wsl";
 import {
   getWindowsSystemCommand,
   invalidateExecutablePathCache,
@@ -301,7 +302,7 @@ export function parseWslRegistryDistributionNames(stdout: string): string[] {
   for (const line of stdout.split(/\r?\n/g)) {
     const match = line.match(/^\s*DistributionName\s+REG_\w+\s+(.+?)\s*$/u);
     const name = match?.[1]?.trim();
-    if (!name || seen.has(name)) continue;
+    if (!name || isInternalWslDistro(name) || seen.has(name)) continue;
     seen.add(name);
     names.push(name);
   }

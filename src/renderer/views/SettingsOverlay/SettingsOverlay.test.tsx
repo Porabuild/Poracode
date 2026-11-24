@@ -175,6 +175,13 @@ vi.mock("./parts/PluginsSettings", () => ({
     <div data-testid="plugin-host" data-plugin-host={props.connectionKey ?? "local"} />
   ),
 }));
+vi.mock("./parts/CrewsSettings", () => ({
+  CrewsSettings: (props: { machineKey?: string }) => (
+    <div data-testid="crews-host" data-crews-machine={props.machineKey ?? "local"}>
+      Crews
+    </div>
+  ),
+}));
 
 const profileMounts = vi.hoisted(() => ({ count: 0 }));
 vi.mock("./parts/ProfileSettings", async () => {
@@ -268,7 +275,10 @@ vi.mock("./parts/SingleAgentSettings", () => ({
 
 import { SettingsOverlay, settingsSectionProductProperties } from "./SettingsOverlay";
 import { usePanelStore } from "@/renderer/state/panelStore";
+import { useMachineSelectionStore } from "@/renderer/state/machineSelectionStore";
+import { useWslDistroListStore } from "@/renderer/state/machines";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
+import type { RemoteServerRecord, RemoteServerRuntime } from "@/renderer/state/remoteServers/types";
 import { useSettingsHostStore } from "@/renderer/state/settingsHostStore";
 import { __resetBrowserBridgeForTest } from "@/renderer/state/remoteServers/browserBridge";
 
@@ -303,6 +313,10 @@ describe("SettingsOverlay", () => {
     resetClientRuntimeForTest();
     vi.unstubAllGlobals();
     resetAdaptiveLayoutForTest();
+    appState.projects = [];
+    useWslDistroListStore.setState({ distros: [], loadedFor: null });
+    useMachineSelectionStore.setState({ selectedMachineId: "local" });
+    useRemoteServersStore.setState({ servers: [], runtime: {} });
     Reflect.deleteProperty(HTMLElement.prototype, "scrollIntoView");
   });
 
@@ -1241,5 +1255,78 @@ describe("SettingsOverlay", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Import" }));
     expect(screen.getByTestId("import-host")).toHaveAttribute("data-import-host", "remote-mac");
+  });
+
+  it("excludes WSL distros and remote machines without active projects from the Crews env selector", () => {
+    const paired = (desktopId: string, label: string): RemoteServerRecord => ({
+      connectionId: desktopId,
+      desktopId,
+      label,
+      endpoint: `https://${desktopId}.example`,
+      accessToken: "tok",
+      scopes: ["session:read", "session:operate"],
+      platform: "darwin",
+    });
+    const online: RemoteServerRuntime = {
+      status: "online",
+      projects: [],
+      threads: [],
+      agentStatuses: { windows: [], wsl: [], updatedAt: "2026-11-24T00:00:00.000Z" },
+    };
+    useWslDistroListStore.setState({
+      distros: ["Ubuntu", "docker-desktop", "Debian"],
+      loadedFor: "local",
+    });
+    useRemoteServersStore.setState({
+      servers: [paired("mac", "MacBook"), paired("studio", "Studio")],
+      runtime: { mac: online, studio: online },
+    });
+    appState.projects = [
+      {
+        id: "mac-project",
+        name: "Mac project",
+        createdAt: "2026-11-24T00:00:00.000Z",
+        remoteServerId: "mac",
+        location: { kind: "posix", path: "/Users/me/repo", remoteServerId: "mac" },
+      },
+      // Disabled WSL project must not add Ubuntu to the selector.
+      {
+        id: "ubuntu-disabled",
+        name: "Ubuntu disabled",
+        disabled: true,
+        createdAt: "2026-11-24T00:00:00.000Z",
+        location: {
+          kind: "wsl",
+          distro: "Ubuntu",
+          linuxPath: "/home/me/repo",
+          uncPath: "\\\\wsl$\\Ubuntu\\home\\me\\repo",
+        },
+      },
+    ];
+
+    render(<SettingsOverlay onClose={() => undefined} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Crews" }));
+    const select = screen.getByTestId("machine-select");
+    const labels = within(select)
+      .getAllByRole("button")
+      .map((button) => button.textContent);
+    expect(labels).toEqual(["Local", "MacBook"]);
+
+    fireEvent.click(within(select).getByRole("button", { name: "MacBook" }));
+    expect(screen.getByTestId("crews-host")).toHaveAttribute("data-crews-machine", "remote:mac");
+  });
+
+  it("hides the Crews env selector when no non-local environment has an active project", () => {
+    useWslDistroListStore.setState({
+      distros: ["Ubuntu", "docker-desktop"],
+      loadedFor: "local",
+    });
+
+    render(<SettingsOverlay onClose={() => undefined} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Crews" }));
+    expect(screen.getByTestId("crews-host")).toHaveAttribute("data-crews-machine", "local");
+    expect(screen.queryByTestId("machine-select")).not.toBeInTheDocument();
   });
 });

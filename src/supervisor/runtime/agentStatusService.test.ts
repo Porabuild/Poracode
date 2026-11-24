@@ -137,6 +137,12 @@ HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Lxss\\{222}
 
 HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Lxss\\{333}
     DistributionName    REG_SZ    Ubuntu
+
+HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Lxss\\{444}
+    DistributionName    REG_SZ    docker-desktop
+
+HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Lxss\\{555}
+    DistributionName    REG_SZ    docker-desktop-data
 `),
     ).toEqual(["Ubuntu", "Debian"]);
   });
