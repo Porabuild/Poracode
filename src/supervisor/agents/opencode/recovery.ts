@@ -1,6 +1,17 @@
 import type { OpenCodeClient, SessionMessageInfo, V2Event } from "./clientTypes";
 import { readOpenCodeMessages } from "./history";
 
+/** The server's own failure text for a session whose latest failed step reported one. */
+export function readOpenCodeSessionFailure(
+  messages: readonly SessionMessageInfo[],
+): string | undefined {
+  for (let index = messages.length - 1; index >= 0; index -= 1) {
+    const message = messages[index];
+    if (message?.type === "assistant" && message.error) return message.error.message;
+  }
+  return undefined;
+}
+
 /** Snapshots are authoritative; incomplete text is repaired by its eventual ended event. */
 export function openCodeSnapshotEvents(
   sessionID: string,

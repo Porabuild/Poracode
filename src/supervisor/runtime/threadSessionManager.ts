@@ -2296,6 +2296,12 @@ export class ThreadSessionManager {
       return { confirmed };
     }
 
+    // A retired session reports nothing more, so anything it leaves open
+    // would strand as running in storage and in every client. Close its turn
+    // locally first — the close-out the Stop watchdog and a provider switch
+    // apply — while its events are still admitted.
+    existing.structuredSession?.forceCompleteTurn?.();
+    this.runtimeEventRouter.flush();
     fenceSessionForRetirement(existing, this.outputPipeline);
     this.rememberRemovedThread(payload.threadId);
     this.steerCoordinator.onSessionClosing(existing);

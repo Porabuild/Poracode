@@ -8,7 +8,7 @@
  * type-specific fields (`command`, `path`, `query`) layered on top.
  */
 
-import type { CanonicalItemType } from "@/shared/contracts";
+import type { CanonicalItemType, SubAgentStatus } from "@/shared/contracts";
 import { isChatVideoSource } from "@/shared/chatVideo";
 import { isUserAttachmentImageReadPayload } from "@/shared/inlineImagePayload";
 import { readNonNegativeInteger } from "../contextUsage";
@@ -30,6 +30,17 @@ export interface OpenCodeToolItemState {
   result: unknown;
   images: string[] | undefined;
   errorMessage: string | undefined;
+  /**
+   * True while a subagent launch row is held open past its own call because
+   * the child session is still working (see `OpenCodeSubagents`). The call
+   * itself has settled, so `status` keeps protecting the row from the mapper's
+   * dangling-tool cleanup; only the published payload reads as running.
+   */
+  held?: boolean;
+  /** True once the row is known to track a child session that works on its own. */
+  background?: boolean;
+  /** Lifecycle of the subagent a launch row tracks, once its run ended. */
+  subAgentStatus?: SubAgentStatus;
 }
 
 export function createOpenCodeToolItem(itemId: string, toolName: string): OpenCodeToolItemState {
@@ -78,12 +89,15 @@ export function openCodeToolPayload(tool: OpenCodeToolItemState): Record<string,
   });
   const base: Record<string, unknown> = {
     name: title,
-    status: tool.status,
+    status: tool.held ? "running" : tool.status,
     ...(title !== tool.name ? { title } : {}),
     ...(kind ? { kind } : {}),
     ...(locations ? { locations } : {}),
     ...(input !== undefined ? { args: input } : {}),
-    ...(tool.result !== undefined ? { result: tool.result } : {}),
+    // A held launch row publishes no result: its call's text is addressed to
+    // the model, and whatever interrupts the row must be able to leave its own
+    // notice as the result.
+    ...(tool.result !== undefined && !tool.held ? { result: tool.result } : {}),
     ...(!suppressUserAttachmentImages && tool.images && tool.images.length > 0
       ? { images: tool.images }
       : {}),
@@ -115,10 +129,21 @@ export function openCodeToolPayload(tool: OpenCodeToolItemState): Record<string,
   if (tool.itemType === "web_search") {
     return { ...base, query: readOpenCodeString(input, "query", "q", "url") ?? "" };
   }
-  if (["task", "subagent"].includes(tool.name.trim().toLowerCase())) {
-    return { ...base, name: "Agent", isSubAgent: true };
+  if (isDelegatedLaunch(tool.name)) {
+    return {
+      ...base,
+      name: "Agent",
+      isSubAgent: true,
+      ...(tool.background ? { subAgentBackground: true } : {}),
+      ...(tool.subAgentStatus ? { subAgentStatus: tool.subAgentStatus } : {}),
+    };
   }
   return base;
+}
+
+/** Native tool names that start a child session (`task` is the V1 spelling). */
+export function isDelegatedLaunch(toolName: string): boolean {
+  return ["task", "subagent"].includes(toolName.trim().toLowerCase());
 }
 
 /**

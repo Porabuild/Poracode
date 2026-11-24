@@ -2789,7 +2789,7 @@ msgstr "Перенесите свои беседы с CLI-агентами в Po
 msgid "Browse"
 msgstr "Обзор"
 
-#: src/renderer/components/providers/opencode/OpenCodePluginCards.tsx
+#: src/renderer/components/providers/opencode/OpenCodePluginManager.tsx
 msgid "Browse ecosystem"
 msgstr "Обзор экосистемы"
 
@@ -4359,10 +4359,6 @@ msgstr "Коммуникации"
 #: src/renderer/components/plugins/PluginDetail.tsx
 msgid "Community"
 msgstr "Сообщество"
-
-#: src/renderer/components/providers/opencode/OpenCodePluginCards.tsx
-msgid "Community plugin; compatibility depends on your OpenCode version."
-msgstr "Плагин сообщества; совместимость зависит от вашей версии OpenCode."
 
 #: src/renderer/components/providers/muse/index.tsx
 msgid "Compact the conversation context"
@@ -7708,10 +7704,6 @@ msgstr "Избранное"
 msgid "Favorites"
 msgstr "Избранное"
 
-#: src/renderer/components/providers/opencode/OpenCodePluginCards.tsx
-msgid "Featured"
-msgstr "Рекомендуемые"
-
 #: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
 msgid "Feedback"
 msgstr "Обратная связь"
@@ -9353,7 +9345,6 @@ msgstr "установки"
 
 #: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/components/plugins/PluginMarketplace.tsx
-#: src/renderer/components/providers/opencode/OpenCodePluginCards.tsx
 #: src/renderer/components/providers/opencode/OpenCodePluginManager.tsx
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 #: src/renderer/components/thread/DraftHookInstallProposal.tsx
@@ -13072,10 +13063,6 @@ msgstr "Открывайте, проверяйте и управляйте си�
 msgid "OpenCode"
 msgstr "OpenCode"
 
-#: src/renderer/components/providers/opencode/OpenCodePluginCards.tsx
-msgid "OpenCode Goal Plugin"
-msgstr "Плагин OpenCode Goal"
-
 #: src/renderer/components/providers/opencode/OpenCodePluginsSettings.tsx
 msgid "OpenCode plugins"
 msgstr "Плагины OpenCode"
@@ -13577,10 +13564,6 @@ msgstr "разрешение"
 msgid "Permission"
 msgstr "Разрешение"
 
-#: src/renderer/components/providers/opencode/OpenCodePluginCards.tsx
-msgid "Persistent goals, budgets, and automatic continuation with /goal."
-msgstr "Постоянные цели, бюджеты и автоматическое продолжение через /goal."
-
 #: src/renderer/components/providers/devin/cloudProfileSettings.tsx
 msgid "Persona (optional)"
 msgstr "Персона (необязательно)"
@@ -13714,10 +13697,6 @@ msgstr "Звук уведомления"
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "Plugin"
 msgstr "Плагин"
-
-#: src/renderer/components/providers/opencode/OpenCodePluginCards.tsx
-msgid "Plugin details"
-msgstr "Сведения о плагине"
 
 #: src/renderer/components/plugins/PluginMarketplace.tsx
 msgid "Plugin folder"
@@ -15700,7 +15679,6 @@ msgstr "Только использование, сохранённое на э�
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 #: src/renderer/components/mcp/RemoteMcpServersManager.tsx
 #: src/renderer/components/plugins/PluginMarketplace.tsx
-#: src/renderer/components/providers/opencode/OpenCodePluginCards.tsx
 #: src/renderer/components/skills/SkillsManager.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/MarkdownVideo.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/useHistoryItemDetails.tsx
@@ -21129,6 +21107,7 @@ msgstr "Обновите {label}, чтобы переносить треды м�
 msgid "Update all ({outdatedCount})"
 msgstr "Обновить все ({outdatedCount})"
 
+#: src/renderer/components/providers/opencode/OpenCodePluginCards.tsx
 #: src/renderer/components/thread/ThreadAgentUpdateDock.tsx
 msgid "Update available"
 msgstr "Доступно обновление"
@@ -21243,6 +21222,7 @@ msgstr "Обновлено {0}"
 msgid "Updated {formattedUpdatedAt}"
 msgstr "Обновлено {formattedUpdatedAt}"
 
+#: src/renderer/components/providers/opencode/OpenCodePluginCards.tsx
 #: src/renderer/components/thread/ThreadAgentUpdateDock.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
@@ -21285,7 +21265,9 @@ msgstr "Обновление выполняется в этом терминал
 msgid "Updating providers ({0} of {1} complete)"
 msgstr "Обновление провайдеров (завершено {0} из {1})"
 
+#. placeholder {0}: pkg.latestVersion
 #. placeholder {0}: update.targetVersion
+#: src/renderer/components/providers/opencode/OpenCodePluginCards.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 msgid "Updating to v{0}"
 msgstr "Обновление до v{0}"

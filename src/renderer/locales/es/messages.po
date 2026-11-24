@@ -2789,7 +2789,7 @@ msgstr "Trae tus conversaciones con agentes de CLI a Poracode"
 msgid "Browse"
 msgstr "Examinar"
 
-#: src/renderer/components/providers/opencode/OpenCodePluginCards.tsx
+#: src/renderer/components/providers/opencode/OpenCodePluginManager.tsx
 msgid "Browse ecosystem"
 msgstr "Explorar el ecosistema"
 
@@ -4359,10 +4359,6 @@ msgstr "Comunicación"
 #: src/renderer/components/plugins/PluginDetail.tsx
 msgid "Community"
 msgstr "Comunidad"
-
-#: src/renderer/components/providers/opencode/OpenCodePluginCards.tsx
-msgid "Community plugin; compatibility depends on your OpenCode version."
-msgstr "Plugin de la comunidad; la compatibilidad depende de tu versión de OpenCode."
 
 #: src/renderer/components/providers/muse/index.tsx
 msgid "Compact the conversation context"
@@ -7708,10 +7704,6 @@ msgstr "Favorito"
 msgid "Favorites"
 msgstr "Favoritos"
 
-#: src/renderer/components/providers/opencode/OpenCodePluginCards.tsx
-msgid "Featured"
-msgstr "Destacados"
-
 #: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
 msgid "Feedback"
 msgstr "Comentarios"
@@ -9353,7 +9345,6 @@ msgstr "instalación"
 
 #: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/components/plugins/PluginMarketplace.tsx
-#: src/renderer/components/providers/opencode/OpenCodePluginCards.tsx
 #: src/renderer/components/providers/opencode/OpenCodePluginManager.tsx
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 #: src/renderer/components/thread/DraftHookInstallProposal.tsx
@@ -13072,10 +13063,6 @@ msgstr "Abre, inspecciona y controla simuladores de iOS (incluido el iPhone Duo 
 msgid "OpenCode"
 msgstr "OpenCode"
 
-#: src/renderer/components/providers/opencode/OpenCodePluginCards.tsx
-msgid "OpenCode Goal Plugin"
-msgstr "Plugin OpenCode Goal"
-
 #: src/renderer/components/providers/opencode/OpenCodePluginsSettings.tsx
 msgid "OpenCode plugins"
 msgstr "Plugins de OpenCode"
@@ -13577,10 +13564,6 @@ msgstr "permiso"
 msgid "Permission"
 msgstr "Permiso"
 
-#: src/renderer/components/providers/opencode/OpenCodePluginCards.tsx
-msgid "Persistent goals, budgets, and automatic continuation with /goal."
-msgstr "Objetivos persistentes, presupuestos y continuación automática con /goal."
-
 #: src/renderer/components/providers/devin/cloudProfileSettings.tsx
 msgid "Persona (optional)"
 msgstr "Persona (opcional)"
@@ -13714,10 +13697,6 @@ msgstr "Reproducir sonido de notificación"
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "Plugin"
 msgstr "Plugin"
-
-#: src/renderer/components/providers/opencode/OpenCodePluginCards.tsx
-msgid "Plugin details"
-msgstr "Detalles del plugin"
 
 #: src/renderer/components/plugins/PluginMarketplace.tsx
 msgid "Plugin folder"
@@ -15700,7 +15679,6 @@ msgstr "Solo el uso conservado en este host."
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 #: src/renderer/components/mcp/RemoteMcpServersManager.tsx
 #: src/renderer/components/plugins/PluginMarketplace.tsx
-#: src/renderer/components/providers/opencode/OpenCodePluginCards.tsx
 #: src/renderer/components/skills/SkillsManager.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/MarkdownVideo.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/useHistoryItemDetails.tsx
@@ -21129,6 +21107,7 @@ msgstr "Actualiza {label} para mover hilos entre máquinas."
 msgid "Update all ({outdatedCount})"
 msgstr "Actualizar todo ({outdatedCount})"
 
+#: src/renderer/components/providers/opencode/OpenCodePluginCards.tsx
 #: src/renderer/components/thread/ThreadAgentUpdateDock.tsx
 msgid "Update available"
 msgstr "Actualización disponible"
@@ -21243,6 +21222,7 @@ msgstr "Actualizado {0}"
 msgid "Updated {formattedUpdatedAt}"
 msgstr "Actualizado {formattedUpdatedAt}"
 
+#: src/renderer/components/providers/opencode/OpenCodePluginCards.tsx
 #: src/renderer/components/thread/ThreadAgentUpdateDock.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
@@ -21285,7 +21265,9 @@ msgstr "Actualizando en este terminal. Se cerrará al finalizar."
 msgid "Updating providers ({0} of {1} complete)"
 msgstr "Actualizando proveedores ({0} de {1} completados)"
 
+#. placeholder {0}: pkg.latestVersion
 #. placeholder {0}: update.targetVersion
+#: src/renderer/components/providers/opencode/OpenCodePluginCards.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 msgid "Updating to v{0}"
 msgstr "Actualizando a v{0}"

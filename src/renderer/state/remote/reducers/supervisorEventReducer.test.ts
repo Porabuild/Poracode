@@ -129,6 +129,20 @@ describe("supervisorEventReducer — shared core semantics", () => {
         crossagentStatus: "running",
       },
     });
+    // An error state does not retire the session that settles background
+    // agent rows, so theirs keep tracking their runs.
+    useAppStore.getState().applyRuntimeEvent("thread-1", {
+      type: "item.started",
+      threadId: "thread-1",
+      itemId: "background-sub",
+      itemType: "tool_call",
+      payload: {
+        name: "Agent",
+        status: "running",
+        isSubAgent: true,
+        subAgentBackground: true,
+      },
+    });
 
     reducer.dispatch({
       type: "thread-state",
@@ -143,9 +157,67 @@ describe("supervisorEventReducer — shared core semantics", () => {
       state: "completed",
       payload: { status: "error" },
     });
+    expect(items["background-sub"]).toMatchObject({
+      state: "started",
+      payload: { status: "running", subAgentBackground: true },
+    });
     expect(items["cross-run"]).toMatchObject({
       payload: { status: "running", crossagentStatus: "running" },
     });
+  });
+
+  it("on thread-state inactive, settles a background agent row its session held", () => {
+    useAppStore.getState().applyRuntimeEvent("thread-1", {
+      type: "item.started",
+      threadId: "thread-1",
+      itemId: "background-sub",
+      itemType: "tool_call",
+      payload: {
+        name: "Agent",
+        status: "running",
+        isSubAgent: true,
+        subAgentBackground: true,
+      },
+    });
+
+    reducer.dispatch({
+      type: "thread-state",
+      threadId: "thread-1",
+      status: "inactive",
+      attention: "none",
+      canResumeWithConfig: true,
+    });
+
+    expect(
+      useAppStore.getState().runtimeItemsByIdByThread["thread-1"]?.["background-sub"],
+    ).toMatchObject({
+      state: "completed",
+      payload: {
+        status: "error",
+        result: { error: "Interrupted: agent session ended before completion." },
+      },
+    });
+  });
+
+  it("on thread-exited, settles a background agent row its session still tracked", () => {
+    useAppStore.getState().applyRuntimeEvent("thread-1", {
+      type: "item.started",
+      threadId: "thread-1",
+      itemId: "background-sub",
+      itemType: "tool_call",
+      payload: {
+        name: "Agent",
+        status: "running",
+        isSubAgent: true,
+        subAgentBackground: true,
+      },
+    });
+
+    reducer.dispatch({ type: "thread-exited", threadId: "thread-1", exitCode: 0 });
+
+    expect(
+      useAppStore.getState().runtimeItemsByIdByThread["thread-1"]?.["background-sub"],
+    ).toMatchObject({ state: "completed", payload: { status: "error" } });
   });
 
   it("drains a thread's pending deltas before a non-runtime event touches its row", () => {

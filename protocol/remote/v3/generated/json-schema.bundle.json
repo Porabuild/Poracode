@@ -30077,6 +30077,10 @@
                 "minLength": 1,
                 "type": "string"
               },
+              "latestVersion": {
+                "minLength": 1,
+                "type": "string"
+              },
               "outdated": {
                 "type": "boolean"
               },
@@ -30096,6 +30100,9 @@
                 "type": "string"
               },
               "terminal": {
+                "type": "boolean"
+              },
+              "updating": {
                 "type": "boolean"
               },
               "version": {
@@ -90679,5 +90686,5 @@
   },
   "manifestHash": "sha256:32f18d452576b054c3a72bda354c78e8b77f2503b5a9a3493b177a5b70c67c16",
   "protocolVersion": 15,
-  "sourceHash": "sha256:c0a3a454f62592e739969b24d4fcb30c6ddbec52cc3e06974056dc9ff78fc076"
+  "sourceHash": "sha256:930439453dced6a441430ce60d498f758bb9aa9455eddd71d283b26373058a4c"
 }

@@ -2789,7 +2789,7 @@ msgstr "Đưa các cuộc trò chuyện với tác nhân CLI hiện có vào Por
 msgid "Browse"
 msgstr "Duyệt"
 
-#: src/renderer/components/providers/opencode/OpenCodePluginCards.tsx
+#: src/renderer/components/providers/opencode/OpenCodePluginManager.tsx
 msgid "Browse ecosystem"
 msgstr "Khám phá hệ sinh thái"
 
@@ -4359,10 +4359,6 @@ msgstr "Giao tiếp"
 #: src/renderer/components/plugins/PluginDetail.tsx
 msgid "Community"
 msgstr "Cộng đồng"
-
-#: src/renderer/components/providers/opencode/OpenCodePluginCards.tsx
-msgid "Community plugin; compatibility depends on your OpenCode version."
-msgstr "Plugin cộng đồng; khả năng tương thích phụ thuộc vào phiên bản OpenCode của bạn."
 
 #: src/renderer/components/providers/muse/index.tsx
 msgid "Compact the conversation context"
@@ -7708,10 +7704,6 @@ msgstr "Yêu thích"
 msgid "Favorites"
 msgstr "Yêu thích"
 
-#: src/renderer/components/providers/opencode/OpenCodePluginCards.tsx
-msgid "Featured"
-msgstr "Nổi bật"
-
 #: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
 msgid "Feedback"
 msgstr "Phản hồi"
@@ -9353,7 +9345,6 @@ msgstr "cài đặt"
 
 #: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/components/plugins/PluginMarketplace.tsx
-#: src/renderer/components/providers/opencode/OpenCodePluginCards.tsx
 #: src/renderer/components/providers/opencode/OpenCodePluginManager.tsx
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 #: src/renderer/components/thread/DraftHookInstallProposal.tsx
@@ -13072,10 +13063,6 @@ msgstr "Mở, kiểm tra và điều khiển Trình mô phỏng iOS (bao gồm i
 msgid "OpenCode"
 msgstr "OpenCode"
 
-#: src/renderer/components/providers/opencode/OpenCodePluginCards.tsx
-msgid "OpenCode Goal Plugin"
-msgstr "Plugin OpenCode Goal"
-
 #: src/renderer/components/providers/opencode/OpenCodePluginsSettings.tsx
 msgid "OpenCode plugins"
 msgstr "Plugin OpenCode"
@@ -13577,10 +13564,6 @@ msgstr "sự cho phép"
 msgid "Permission"
 msgstr "Quyền"
 
-#: src/renderer/components/providers/opencode/OpenCodePluginCards.tsx
-msgid "Persistent goals, budgets, and automatic continuation with /goal."
-msgstr "Mục tiêu bền vững, ngân sách và tự động tiếp tục với /goal."
-
 #: src/renderer/components/providers/devin/cloudProfileSettings.tsx
 msgid "Persona (optional)"
 msgstr "Persona (tùy chọn)"
@@ -13714,10 +13697,6 @@ msgstr "Phát âm thanh thông báo"
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "Plugin"
 msgstr "Plugin"
-
-#: src/renderer/components/providers/opencode/OpenCodePluginCards.tsx
-msgid "Plugin details"
-msgstr "Chi tiết plugin"
 
 #: src/renderer/components/plugins/PluginMarketplace.tsx
 msgid "Plugin folder"
@@ -15700,7 +15679,6 @@ msgstr "Chỉ mức sử dụng được lưu trên máy chủ này."
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 #: src/renderer/components/mcp/RemoteMcpServersManager.tsx
 #: src/renderer/components/plugins/PluginMarketplace.tsx
-#: src/renderer/components/providers/opencode/OpenCodePluginCards.tsx
 #: src/renderer/components/skills/SkillsManager.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/MarkdownVideo.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/useHistoryItemDetails.tsx
@@ -21129,6 +21107,7 @@ msgstr "Hãy cập nhật {label} để chuyển luồng giữa các máy."
 msgid "Update all ({outdatedCount})"
 msgstr "Cập nhật tất cả ({outdatedCount})"
 
+#: src/renderer/components/providers/opencode/OpenCodePluginCards.tsx
 #: src/renderer/components/thread/ThreadAgentUpdateDock.tsx
 msgid "Update available"
 msgstr "Đã có bản cập nhật"
@@ -21243,6 +21222,7 @@ msgstr "Đã cập nhật {0}"
 msgid "Updated {formattedUpdatedAt}"
 msgstr "Đã cập nhật {formattedUpdatedAt}"
 
+#: src/renderer/components/providers/opencode/OpenCodePluginCards.tsx
 #: src/renderer/components/thread/ThreadAgentUpdateDock.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
@@ -21285,7 +21265,9 @@ msgstr "Đang cập nhật trong terminal này. Sẽ đóng khi hoàn tất."
 msgid "Updating providers ({0} of {1} complete)"
 msgstr "Đang cập nhật nhà cung cấp (hoàn tất {0}/{1})"
 
+#. placeholder {0}: pkg.latestVersion
 #. placeholder {0}: update.targetVersion
+#: src/renderer/components/providers/opencode/OpenCodePluginCards.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 msgid "Updating to v{0}"
 msgstr "Đang cập nhật lên v{0}"

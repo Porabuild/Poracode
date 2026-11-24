@@ -6,41 +6,47 @@ public enum ProceduremanageAgentPluginsResultU2DPackagesU2DItemU2DStatus_0488c0e
   case `configured` = "configured"
 }
 
-public struct ProceduremanageAgentPluginsResultU2DPackagesU2DItem_a1fd91a863: Codable, Sendable, RemoteModelMetadata {
+public struct ProceduremanageAgentPluginsResultU2DPackagesU2DItem_e5b87d3305: Codable, Sendable, RemoteModelMetadata {
   public var id: RemoteField<String> = .missing
+  public var latestVersion: RemoteField<String> = .missing
   public var outdated: Bool
   public var server: Bool
   public var status: ProceduremanageAgentPluginsResultU2DPackagesU2DItemU2DStatus_0488c0e7c6
   public var target: String
   public var terminal: Bool
+  public var updating: RemoteField<Bool> = .missing
   public var version: RemoteField<String> = .missing
   public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .strip
   public static let fields: [RemoteFieldDescriptor] = [
     .init(wireName: "id", typeName: "String", required: false, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "latestVersion", typeName: "String", required: false, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "outdated", typeName: "Bool", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "server", typeName: "Bool", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "status", typeName: "ProceduremanageAgentPluginsResultU2DPackagesU2DItemU2DStatus_0488c0e7c6", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "target", typeName: "String", required: true, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "terminal", typeName: "Bool", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "updating", typeName: "Bool", required: false, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "version", typeName: "String", required: false, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
   ]
   public static let semanticValidatorIds: [String] = []
   private enum CodingKeys: String, CodingKey {
     case id = "id"
+    case latestVersion = "latestVersion"
     case outdated = "outdated"
     case server = "server"
     case status = "status"
     case target = "target"
     case terminal = "terminal"
+    case updating = "updating"
     case version = "version"
   }
 }
 
-public struct ProceduremanageAgentPluginsResult_940863a47c: Codable, Sendable, RemoteModelMetadata {
-  public var packages: [ProceduremanageAgentPluginsResultU2DPackagesU2DItem_a1fd91a863]
+public struct ProceduremanageAgentPluginsResult_50c013e0fb: Codable, Sendable, RemoteModelMetadata {
+  public var packages: [ProceduremanageAgentPluginsResultU2DPackagesU2DItem_e5b87d3305]
   public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .strip
   public static let fields: [RemoteFieldDescriptor] = [
-    .init(wireName: "packages", typeName: "[ProceduremanageAgentPluginsResultU2DPackagesU2DItem_a1fd91a863]", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "packages", typeName: "[ProceduremanageAgentPluginsResultU2DPackagesU2DItem_e5b87d3305]", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
   ]
   public static let semanticValidatorIds: [String] = []
   private enum CodingKeys: String, CodingKey {
@@ -441,9 +447,4 @@ public struct ProcedurepluginAccountsRequestU2DOptionU2D2_f277d5baa2: Codable, S
     try container.encode(pluginName, forKey: .pluginName)
     try container.encode(serverName, forKey: .serverName)
   }
-}
-
-public enum ProcedurepluginAccountsRequestU2DOptionU2D3U2DAction_12d1900fc0: String, Codable, Sendable {
-  case `select` = "select"
-  case `logout` = "logout"
 }

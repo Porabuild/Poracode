@@ -130,10 +130,11 @@ describe("remote v3 native binding generator", () => {
         // `dayProviders`, `dayModels`) add three structural types while keeping older peers valid.
         // Remote agent settings allowlists 10 additive desktop procedures (config defaults,
         // native MCP/hook setup, agent plugins, credentials, model providers) with 4 semantic validators.
+        // Agent-plugin packages gained additive optional latestVersion/updating fields.
         // Protocol 15 adds the model_switch item type and the optional
         // previousTurnModel/model start+payload fields; both authority hashes
         // move and the native mirrors re-chunk (two fewer files per platform).
-        sourceHash: "sha256:c0a3a454f62592e739969b24d4fcb30c6ddbec52cc3e06974056dc9ff78fc076",
+        sourceHash: "sha256:930439453dced6a441430ce60d498f758bb9aa9455eddd71d283b26373058a4c",
         manifestHash: "sha256:32f18d452576b054c3a72bda354c78e8b77f2503b5a9a3493b177a5b70c67c16",
         counts: {
           routes: 126,

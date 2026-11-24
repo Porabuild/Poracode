@@ -31045,6 +31045,10 @@
                     "minLength": 1,
                     "type": "string"
                   },
+                  "latestVersion": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
                   "outdated": {
                     "type": "boolean"
                   },
@@ -31064,6 +31068,9 @@
                     "type": "string"
                   },
                   "terminal": {
+                    "type": "boolean"
+                  },
+                  "updating": {
                     "type": "boolean"
                   },
                   "version": {
@@ -95296,7 +95303,7 @@
     "void-envelope.omit-result",
     "void-result.omit-field"
   ],
-  "sourceHash": "sha256:c0a3a454f62592e739969b24d4fcb30c6ddbec52cc3e06974056dc9ff78fc076",
+  "sourceHash": "sha256:930439453dced6a441430ce60d498f758bb9aa9455eddd71d283b26373058a4c",
   "unknownObjectFields": "ignore",
   "webSocket": {
     "clientMessages": [

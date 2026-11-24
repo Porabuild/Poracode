@@ -332,13 +332,21 @@ export function applyThreadSnapshot(
     // capability ("I settle orphaned Crossagent rows"), which is a wire
     // change; until then only hydration from the local backend is exempt
     // (chatRuntimePersister's preserveCrossagent).
+    // A thread whose snapshot status is `inactive` has no session left to
+    // settle the background agent rows it held, so a copy of one in this
+    // snapshot is an orphan after all. Only the snapshot's own status counts.
+    // By here it is the resident row's status too, or it is newer than the
+    // resident row (the live frames of a cold read are still held behind it,
+    // so the metadata sync left the resident row alone): a resident
+    // `inactive` can then be what the thread was before it was relaunched
+    // with agents now running.
     if (!threadActive) {
-      state.reconcileStaleSubAgents(
-        threadId,
-        options.preserveCrossagentRows
+      state.reconcileStaleSubAgents(threadId, {
+        ...(options.preserveCrossagentRows
           ? { preserveObservedLive: true, preserveCrossagent: true }
-          : undefined,
-      );
+          : {}),
+        ...(snapshot.thread.status === "inactive" ? { sessionEnded: true as const } : {}),
+      });
     }
   } else if (options.fromServer && !options.preserveRuntimeHistory) {
     if (!snapshotStale) mergeTerminalDelegatedAgentItems(threadId, snapshotItems);

@@ -83,6 +83,15 @@ describe("theme presets", () => {
     }
   });
 
+  it("aligns dark selected sidebar rows with raised surfaces while keeping hover a lighter wash", () => {
+    for (const preset of APP_THEME_PRESETS) {
+      expect(preset.dark["--sidebar-row-active"]).toBe(preset.dark["--surface-secondary"]);
+      expect(preset.dark["--sidebar-row-hover"]).toContain("transparent");
+      expect(preset.dark["--sidebar-row-hover"]).toContain(" 9%,");
+      expect(preset.light["--sidebar-row-hover"]).toContain(" 6%,");
+    }
+  });
+
   it("uses a translucent foreground wash for fields so they step cleanly from any surface", () => {
     for (const preset of APP_THEME_PRESETS) {
       for (const mode of ["light", "dark"] as const) {

@@ -1,7 +1,12 @@
 import { Button } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
-import { readBridge } from "@/renderer/bridge";
+import { PixelLoader } from "@/renderer/components/common";
 import type { AgentPluginPackage } from "@/shared/contracts";
+
+/** Installed versions can be commit hashes; show those the way OpenCode does. */
+export function displayPluginVersion(version: string): string {
+  return /^(?:[a-f0-9]{40}|[a-f0-9]{64})$/i.test(version) ? version.slice(0, 7) : `v${version}`;
+}
 
 export function OpenCodePluginRow({
   pkg,
@@ -20,13 +25,19 @@ export function OpenCodePluginRow({
   onRemove: () => void;
 }) {
   const { t } = useLingui();
+  const isUpdating = updating || pkg.updating === true;
   return (
     <div className="flex items-center justify-between gap-3 py-2">
       <div className="min-w-0">
         <p className="break-all text-sm font-medium text-foreground">
           {pkg.target}
-          {pkg.version ? (
-            <span className="ml-2 font-mono text-[11px] font-normal text-muted">{pkg.version}</span>
+          {pkg.version || pkg.latestVersion ? (
+            <span className="ml-2 font-mono text-[11px] font-normal text-muted">
+              {pkg.version ? displayPluginVersion(pkg.version) : ""}
+              {pkg.latestVersion
+                ? `${pkg.version ? " → " : ""}${displayPluginVersion(pkg.latestVersion)}`
+                : ""}
+            </span>
           ) : null}
         </p>
         <p className="text-xs text-muted">
@@ -51,6 +62,12 @@ export function OpenCodePluginRow({
               · <Trans>Terminal</Trans>
             </>
           ) : null}
+          {pkg.outdated && !isUpdating ? (
+            <>
+              {" "}
+              · <Trans>Update available</Trans>
+            </>
+          ) : null}
         </p>
         {!pkg.server && pkg.terminal ? (
           <p className="text-xs text-muted">
@@ -58,13 +75,21 @@ export function OpenCodePluginRow({
           </p>
         ) : null}
       </div>
-      <div className="flex shrink-0 gap-1">
-        {pkg.outdated ? (
+      <div className="flex shrink-0 items-center gap-1">
+        {isUpdating ? (
+          <span role="status" className="flex items-center gap-1.5 px-2 text-xs text-muted">
+            <PixelLoader size="xs" />
+            {pkg.latestVersion ? (
+              <Trans>Updating to v{pkg.latestVersion}</Trans>
+            ) : (
+              <Trans>Updating</Trans>
+            )}
+          </span>
+        ) : pkg.outdated ? (
           <Button
             size="sm"
             variant="secondary"
             isDisabled={busy}
-            isPending={updating}
             onPress={onUpdate}
             aria-label={t`Update ${pkg.target}`}
           >
@@ -75,83 +100,13 @@ export function OpenCodePluginRow({
           size="sm"
           variant="tertiary"
           className="text-danger"
-          isDisabled={busy}
+          isDisabled={busy || isUpdating}
           isPending={removing}
           onPress={onRemove}
           aria-label={t`Remove ${pkg.target}`}
         >
+          {removing ? <PixelLoader size="xs" /> : null}
           <Trans>Remove</Trans>
-        </Button>
-      </div>
-    </div>
-  );
-}
-export function OpenCodeFeaturedPlugin({
-  status,
-  disabled,
-  pending,
-  onInstall,
-}: {
-  status: AgentPluginPackage["status"] | undefined;
-  disabled: boolean;
-  pending: boolean;
-  onInstall: () => void;
-}) {
-  return (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between gap-2">
-        <p className="text-xs font-medium text-foreground">
-          <Trans>Featured</Trans>
-        </p>
-        <Button
-          size="sm"
-          variant="tertiary"
-          className="h-7 min-h-7 px-2 text-xs"
-          onPress={() => void readBridge().openExternal("https://opencode.ai/docs/ecosystem/")}
-        >
-          <Trans>Browse ecosystem</Trans>
-        </Button>
-      </div>
-      <div className="flex items-start justify-between gap-3">
-        <div className="space-y-1 text-xs">
-          <p className="font-medium text-foreground">
-            <Trans>OpenCode Goal Plugin</Trans>
-          </p>
-          <p className="text-muted">
-            <Trans>Persistent goals, budgets, and automatic continuation with /goal.</Trans>
-          </p>
-          <p className="text-muted">
-            <Trans>Community plugin; compatibility depends on your OpenCode version.</Trans>
-          </p>
-          <Button
-            size="sm"
-            variant="tertiary"
-            className="h-7 min-h-7 px-2 text-xs"
-            onPress={() =>
-              void readBridge().openExternal(
-                "https://github.com/prevalentWare/opencode-goal-plugin#opencode-2-beta",
-              )
-            }
-          >
-            <Trans>Plugin details</Trans>
-          </Button>
-        </div>
-        <Button
-          size="sm"
-          variant="secondary"
-          isDisabled={disabled || (status !== undefined && status !== "failed")}
-          isPending={pending}
-          onPress={onInstall}
-        >
-          {status === "failed" ? (
-            <Trans>Retry</Trans>
-          ) : status === "configured" ? (
-            <Trans>Configured</Trans>
-          ) : status === "active" ? (
-            <Trans>Installed</Trans>
-          ) : (
-            <Trans>Install</Trans>
-          )}
         </Button>
       </div>
     </div>

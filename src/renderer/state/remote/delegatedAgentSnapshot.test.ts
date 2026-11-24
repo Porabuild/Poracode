@@ -73,11 +73,12 @@ function snapshot(payload: ToolCallPayload, seq = 50): RemoteThreadSnapshot {
 
 function apply(
   incoming: RemoteThreadSnapshot,
-  options: { fromServer?: boolean; seen?: number; current?: boolean } = {},
+  options: { fromServer?: boolean; seen?: number; current?: boolean; held?: boolean } = {},
 ): void {
   applyThreadSnapshot(incoming, {
     fromServer: options.fromServer ?? true,
     lastSeenEventSeq: options.seen ?? 45,
+    ...(options.held ? { runtimeFramesHeld: true } : {}),
     committedPrefix: {
       threadId: thread.id,
       snapshotSeq: incoming.snapshotSeq,
@@ -150,6 +151,109 @@ describe("delegated-agent terminal snapshot reconciliation", () => {
     apply(snapshot({ name: "Task", isSubAgent: true, status: "error" }), options);
     expect(items().delegated).toBe(before);
     expect(items().message!.streams.assistant_text).toBe("newer live text");
+  });
+
+  it("ends a running background agent row once its thread's session is gone", () => {
+    const inactive = { ...thread, status: "inactive" as const, attention: "none" as const };
+    useAppStore.setState({ threads: [inactive] });
+    apply({
+      snapshotSeq: 50,
+      thread: inactive,
+      completedTurns: [],
+      contextUsage: null,
+      updatedAt: inactive.updatedAt,
+      runtimeItems: [
+        {
+          id: "background",
+          type: "tool_call",
+          state: "updated",
+          payload: { name: "Agent", status: "running", isSubAgent: true, subAgentBackground: true },
+          streams: {},
+        },
+      ],
+    });
+    expect(useAppStore.getState().runtimeItemsByIdByThread[thread.id]?.background).toMatchObject({
+      state: "completed",
+      payload: {
+        status: "error",
+        result: { error: "Interrupted: agent session ended before completion." },
+      },
+    });
+  });
+
+  it("keeps a running background agent row when only the resident row's status is stale", () => {
+    // The client last saw this thread closed. It was relaunched elsewhere and
+    // its agents are running; a cold open's live frames are still held behind
+    // the read, so the snapshot has not refreshed the resident row's status.
+    const inactive = { ...thread, status: "inactive" as const, attention: "none" as const };
+    const live = { ...thread, status: "idle" as const, attention: "none" as const };
+    useAppStore.setState({ threads: [inactive] });
+    apply(
+      {
+        snapshotSeq: 50,
+        thread: live,
+        completedTurns: [],
+        contextUsage: null,
+        updatedAt: live.updatedAt,
+        runtimeItems: [
+          {
+            id: "background",
+            type: "tool_call",
+            state: "updated",
+            payload: {
+              name: "Agent",
+              status: "running",
+              isSubAgent: true,
+              subAgentBackground: true,
+            },
+            streams: {},
+          },
+        ],
+      },
+      { seen: 60, held: true },
+    );
+    expect(useAppStore.getState().runtimeItemsByIdByThread[thread.id]?.background).toMatchObject({
+      state: "updated",
+      payload: { status: "running", subAgentBackground: true },
+    });
+    expect(useAppStore.getState().threads.find((entry) => entry.id === thread.id)?.status).toBe(
+      "inactive",
+    );
+  });
+
+  it("keeps a running background agent row that an idle thread's snapshot carries", () => {
+    const idle = { ...thread, status: "idle" as const, attention: "none" as const };
+    useAppStore.setState({ threads: [idle] });
+    apply({
+      snapshotSeq: 50,
+      thread: idle,
+      completedTurns: [],
+      contextUsage: null,
+      updatedAt: idle.updatedAt,
+      runtimeItems: [
+        {
+          id: "background",
+          type: "tool_call",
+          state: "updated",
+          payload: { name: "Agent", status: "running", isSubAgent: true, subAgentBackground: true },
+          streams: {},
+        },
+        {
+          // Persisted by a build without the marker: nothing vouches for its run.
+          id: "legacy",
+          type: "tool_call",
+          state: "updated",
+          payload: { name: "Task", status: "running", isSubAgent: true },
+          streams: {},
+        },
+      ],
+    });
+    const reconciled = useAppStore.getState().runtimeItemsByIdByThread[thread.id]!;
+    expect(reconciled.background).toMatchObject({
+      state: "updated",
+      payload: { status: "running", subAgentBackground: true },
+    });
+    expect(reconciled.legacy).toMatchObject({ state: "completed", payload: { status: "error" } });
   });
 
   it.each([

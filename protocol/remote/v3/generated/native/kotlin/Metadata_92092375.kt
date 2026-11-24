@@ -13,7 +13,7 @@ object RemoteContractMetadata {
     const val protocolVersion = 15
     const val bindingFormatVersion = 2
     const val generatorVersion = 7
-    const val sourceHash = "sha256:c0a3a454f62592e739969b24d4fcb30c6ddbec52cc3e06974056dc9ff78fc076"
+    const val sourceHash = "sha256:930439453dced6a441430ce60d498f758bb9aa9455eddd71d283b26373058a4c"
     const val manifestHash = "sha256:32f18d452576b054c3a72bda354c78e8b77f2503b5a9a3493b177a5b70c67c16"
     val validationBoundary = RemoteValidationBoundary.ROOT_CODEC_ONLY
     val generatedModelSerializationSemantics = RemoteGeneratedSerializerSemantics.NON_VALIDATING_REPRESENTATION_ONLY
@@ -293,7 +293,7 @@ object RemoteContractMetadata {
         RemoteProcedureDescriptor("logoutAcpAgent", "session:operate", "desktop", "omitted", "ProcedurelogoutAcpAgentRequest_afbd186700", "RemoteUnit"),
         RemoteProcedureDescriptor("lspStart", "session:operate", "projectLocation", "omitted", "ProcedurelspStartRequest_0fbb6754fb", "RemoteUnit"),
         RemoteProcedureDescriptor("manageAgentCredentials", "session:operate", "desktop", "json", "ProceduremanageAgentCredentialsRequest_ca5c527c98", "ProceduremanageAgentCredentialsResult_65ec808e7a"),
-        RemoteProcedureDescriptor("manageAgentPlugins", "session:operate", "desktop", "json", "ProceduremanageAgentPluginsRequest_c61abfd0f3", "ProceduremanageAgentPluginsResult_940863a47c"),
+        RemoteProcedureDescriptor("manageAgentPlugins", "session:operate", "desktop", "json", "ProceduremanageAgentPluginsRequest_c61abfd0f3", "ProceduremanageAgentPluginsResult_50c013e0fb"),
         RemoteProcedureDescriptor("manageModelProviders", "session:operate", "desktop", "json", "ProceduremanageModelProvidersRequest_925f63aff8", "ProceduremanageModelProvidersResult_7fdba00683"),
         RemoteProcedureDescriptor("moveProjectEntry", "session:operate", "projectLocation", "omitted", "ProceduremoveProjectEntryRequest_47c3f1ae81", "RemoteUnit"),
         RemoteProcedureDescriptor("pauseThreadFollowUps", "session:operate", "thread", "omitted", "ProcedurepauseThreadFollowUpsRequest_d42717fff2", "RemoteUnit"),
