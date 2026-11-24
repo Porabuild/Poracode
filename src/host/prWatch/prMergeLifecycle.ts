@@ -301,8 +301,12 @@ export class PrMergeLifecycleService {
   private isExperimentThreadSafe(threadId: string): boolean {
     try {
       return this.options.isExperimentThread?.(threadId) === true;
-    } catch {
-      return false;
+    } catch (error) {
+      // The experiment reader fails closed on unreadable state. Without a
+      // verified answer a thread must never be auto-marked done: it could be an
+      // experiment candidate.
+      this.options.reportError?.(error);
+      return true;
     }
   }
 

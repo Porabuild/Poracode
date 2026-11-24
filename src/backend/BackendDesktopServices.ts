@@ -855,6 +855,8 @@ export class BackendDesktopServices {
         return undefined as BackendServiceResult<Name>;
       case "setRendererWindowPresent":
         this.rendererWindowPresent = (payload as { present: boolean }).present;
+        // Renderer-pushed summaries are only refreshed while a window polls.
+        if (!this.rendererWindowPresent) this.durable.gitSummaries.clearSupplementalSummaries();
         return undefined as BackendServiceResult<Name>;
     }
   }

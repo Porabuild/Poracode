@@ -255,12 +255,25 @@ export class RuntimeUsageRecorder {
 
   observeSupervisorEvent(event: SupervisorEvent): void {
     if (this.disposed) return;
-    if (event.type === "thread-runtime-events") {
-      this.observeRuntimeEvents(event.threadId, event.events);
-      return;
-    }
-    if (event.type === "thread-exited" || event.type === "thread-reset") {
-      this.turnStartByThread.delete(event.threadId);
+    // The supervisor emits runtime events in three envelope shapes: one event,
+    // one thread's batch, or several threads' batches per tick. All three carry
+    // usage facts, and message/turn frames are commonly single events.
+    switch (event.type) {
+      case "thread-runtime-event":
+        this.observeRuntimeEvents(event.threadId, [event.event]);
+        return;
+      case "thread-runtime-events":
+        this.observeRuntimeEvents(event.threadId, event.events);
+        return;
+      case "thread-runtime-events-multi":
+        for (const batch of event.batches) this.observeRuntimeEvents(batch.threadId, batch.events);
+        return;
+      case "thread-exited":
+      case "thread-reset":
+        this.turnStartByThread.delete(event.threadId);
+        return;
+      default:
+        return;
     }
   }
 

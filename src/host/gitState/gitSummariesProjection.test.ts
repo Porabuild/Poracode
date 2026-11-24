@@ -262,4 +262,57 @@ describe("HostGitSummariesController", () => {
 
     controller.dispose();
   });
+
+  it("caches the projection for remote catalog reads and invalidates it on change", () => {
+    const getThreads = vi.fn<() => Thread[]>(() => [makeThread({ id: "t-1", projectId: "p-1" })]);
+    const controller = new HostGitSummariesController({
+      hostId: "host-1",
+      getSnapshot: () => emptyGitStateSnapshot(),
+      getThreads,
+      onPublish: () => undefined,
+      debounceMs: 250,
+    });
+
+    controller.getSummaries();
+    controller.getSummaries();
+    expect(getThreads).toHaveBeenCalledOnce();
+
+    controller.notifyChanged();
+    controller.getSummaries();
+    expect(getThreads).toHaveBeenCalledTimes(2);
+
+    controller.dispose();
+  });
+
+  it("drops renderer-pushed summaries when no desktop window is mounted", () => {
+    const hostId = "host-1";
+    const snapshot = emptyGitStateSnapshot();
+    const published: RemoteGitSummaries[] = [];
+    const controller = new HostGitSummariesController({
+      hostId,
+      getSnapshot: () => snapshot,
+      getThreads: () => [makeThread({ id: "t-1", projectId: "p-1" })],
+      onPublish: (summaries) => published.push(summaries),
+    });
+
+    // A mounted window polls t-1 and publishes a summary the host does not own yet.
+    controller.setSupplementalSummaries({
+      "t-1": {
+        isRepo: true,
+        branch: "window-polled",
+        totalInsertions: 2,
+        totalDeletions: 1,
+        ahead: 0,
+        behind: 0,
+        pr: null,
+      },
+    });
+    expect(published.at(-1)?.["t-1"]?.branch).toBe("window-polled");
+
+    // The window is gone: its stale poll must not keep feeding remote clients.
+    controller.clearSupplementalSummaries();
+    expect(published.at(-1)).toEqual({});
+
+    controller.dispose();
+  });
 });

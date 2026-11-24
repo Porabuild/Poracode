@@ -1,7 +1,7 @@
 import { homedir } from "node:os";
 import {
   assertRemoteGitMutationExperimentSafe,
-  readPersistedExperiments,
+  isExperimentCandidateThread,
 } from "@/host/remote/experimentOwnership";
 import { msg } from "@/shared/messages";
 import { joinRuntimeShutdown } from "./joinRuntimeShutdown";
@@ -310,9 +310,16 @@ export class BackendDurableServices {
       getProject: dbGetProject,
       getProjects: dbGetProjects,
       onPatch: (patch) => {
-        this.gitSummaries.notifyChanged();
-        this.prMergeLifecycle.handleGitPatch(patch);
+        // Deliver the authoritative patch first: the host-side projections are
+        // derived work and must never withhold a patch from remote clients or
+        // a mounted renderer when a database read fails.
         options.onGitPatch(patch);
+        try {
+          this.prMergeLifecycle.handleGitPatch(patch);
+        } catch (error) {
+          options.reportError?.(error);
+        }
+        this.gitSummaries.notifyChanged();
       },
       beginWorktreeObservation: (projectId) => {
         const observation = dbBeginWorktreeObservation(projectId);
@@ -343,10 +350,7 @@ export class BackendDurableServices {
       gitPull: (payload) => supervisor.call("gitPull", payload),
       refreshProjectAfterSync: (projectId) =>
         this.gitStateService.refreshProject(projectId, { afterMutation: true }),
-      isExperimentThread: (threadId) =>
-        readPersistedExperiments().some((experiment) =>
-          experiment.candidates.some((candidate) => candidate.threadId === threadId),
-        ),
+      isExperimentThread: isExperimentCandidateThread,
       closeThreadConfirmed: (threadId) => this.closeThreadConfirmed(threadId),
       markThreadDoneInDb: (threadId, doneAt) => dbSetThreadsDone([threadId], doneAt) > 0,
       publishThreadsChanged: (threadIds) => {

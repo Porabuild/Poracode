@@ -2,6 +2,7 @@ import { isThreadTurnActive, type PrData, type Thread } from "@/shared/contracts
 import { markThreadDone } from "@/renderer/actions/threadActions";
 import { useAppStore } from "./appStore";
 import { buildBranchNamePrKey, buildBranchPrKey } from "./gitSelectors";
+import { useGitReadModelStore } from "./gitReadModelStore";
 import { useGitStore } from "./gitStore";
 import { syncMergedPrBase } from "./prMergeBaseSync";
 import { useSharedSettings } from "./sharedSettingsStore";
@@ -18,6 +19,19 @@ import { useSharedSettings } from "./sharedSettingsStore";
 const pendingThreadIds = new Set<string>();
 
 type PrDataMap = Record<string, PrData | null>;
+
+/**
+ * True when the host's git read model tracks this PR. The host merge lifecycle
+ * owns auto-done and base sync for it, so the renderer fallback must not repeat
+ * them when the same merge reaches the legacy `gitStore` through the host
+ * projection or the PR-watch status sync.
+ */
+function hostOwnsPr(projectId: string, prNumber: number): boolean {
+  for (const entry of Object.values(useGitReadModelStore.getState().pullRequests)) {
+    if (entry.ref.projectId === projectId && entry.ref.prNumber === prNumber) return true;
+  }
+  return false;
+}
 
 /** PR keys that just went from a known non-merged state to merged. */
 function collectFreshlyMerged(
@@ -48,7 +62,8 @@ function syncObservedBases(merged: ReadonlyArray<{ key: string; pr: PrData }>): 
           item.key === buildBranchPrKey(project.id) ||
           item.key.startsWith(`${buildBranchNamePrKey(project.id, "")}`),
       )?.id;
-    if (projectId) void syncMergedPrBase(projectId, item.pr);
+    if (projectId && !hostOwnsPr(projectId, item.pr.number))
+      void syncMergedPrBase(projectId, item.pr);
   }
 }
 
@@ -71,9 +86,12 @@ function settleThread(thread: Thread | undefined): void {
   markThreadDone(thread.id);
 }
 
-function settleWorktreeThreads(prKeys: ReadonlySet<string>): void {
+function settleWorktreeThreads(merged: ReadonlyArray<{ key: string; pr: PrData }>): void {
+  const prByKey = new Map(merged.map((item) => [item.key, item.pr]));
   for (const thread of useAppStore.getState().threads) {
-    if (thread.worktreePath && prKeys.has(thread.worktreePath)) settleThread(thread);
+    const pr = thread.worktreePath ? prByKey.get(thread.worktreePath) : undefined;
+    if (!pr || hostOwnsPr(thread.projectId, pr.number)) continue;
+    settleThread(thread);
   }
 }
 
@@ -97,7 +115,7 @@ export function startPrMergeAutoDone(): () => void {
     if (merged.length === 0) return;
     syncObservedBases(merged);
     if (!useSharedSettings.getState().autoMarkDoneOnPrMerge) return;
-    settleWorktreeThreads(new Set(merged.map((item) => item.key)));
+    settleWorktreeThreads(merged);
   });
 
   const unsubscribeThreads = useAppStore.subscribe((state, prev) => {

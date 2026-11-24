@@ -5,20 +5,10 @@ import {
   pullRequestBranchKey,
   type GitStateSnapshot,
 } from "@/shared/gitState";
-import type { RemoteGitSummaries, RemoteThreadGitSummary } from "@/shared/remote";
+import type { RemoteGitSummaries } from "@/shared/remote";
+import { toRemoteThreadGitSummary } from "@/shared/remote/gitSummaries";
 
 const DEFAULT_DEBOUNCE_MS = 500;
-
-function toRemotePrSummary(pr: PrData): NonNullable<RemoteThreadGitSummary["pr"]> {
-  return {
-    number: pr.number,
-    state: pr.state,
-    title: pr.title,
-    url: pr.url,
-    isDraft: pr.isDraft,
-    ...(pr.checksStatus ? { checksStatus: pr.checksStatus } : {}),
-  };
-}
 
 /**
  * Projects the host's authoritative `GitStateSnapshot` plus persisted threads
@@ -62,15 +52,7 @@ export function buildRemoteGitSummaries(
       }
     }
 
-    summaries[thread.id] = {
-      isRepo: status.isRepo,
-      branch: status.branch,
-      totalInsertions: status.totalInsertions,
-      totalDeletions: status.totalDeletions,
-      ahead: status.ahead,
-      behind: status.behind,
-      pr: prData ? toRemotePrSummary(prData) : null,
-    };
+    summaries[thread.id] = toRemoteThreadGitSummary(status, prData);
   }
   return summaries;
 }
@@ -93,13 +75,24 @@ export interface HostGitSummariesControllerOptions {
  */
 export class HostGitSummariesController {
   private supplementalSummaries: RemoteGitSummaries = {};
+  private cachedSummaries: RemoteGitSummaries | null = null;
   private lastPublishedSerialized = "";
   private timer: ReturnType<typeof setTimeout> | null = null;
   private disposed = false;
 
   constructor(private readonly options: HostGitSummariesControllerOptions) {}
 
+  /**
+   * The current projection. Cached until a git-state, thread, or supplemental
+   * change invalidates it: remote catalog pages read this on every page, and a
+   * full thread read plus projection per page is unbounded work.
+   */
   getSummaries(): RemoteGitSummaries {
+    this.cachedSummaries ??= this.buildSummaries();
+    return this.cachedSummaries;
+  }
+
+  private buildSummaries(): RemoteGitSummaries {
     const threads = this.options.getThreads();
     const hostSummaries = buildRemoteGitSummaries(
       this.options.hostId,
@@ -125,12 +118,17 @@ export class HostGitSummariesController {
   setSupplementalSummaries(summaries: RemoteGitSummaries): void {
     if (this.disposed) return;
     this.supplementalSummaries = summaries;
+    this.cachedSummaries = null;
     this.publishNow();
   }
 
   /** Schedules a debounced projection refresh after a `GitStateService` or thread change. */
   notifyChanged(): void {
-    if (this.disposed || this.timer !== null) return;
+    if (this.disposed) return;
+    // Invalidate now: a catalog read between this change and the debounced
+    // broadcast must not serve the previous projection.
+    this.cachedSummaries = null;
+    if (this.timer !== null) return;
     const delay = this.options.debounceMs ?? DEFAULT_DEBOUNCE_MS;
     this.timer = setTimeout(() => {
       this.timer = null;
@@ -140,8 +138,21 @@ export class HostGitSummariesController {
     this.timer.unref?.();
   }
 
+  /**
+   * Drop renderer-pushed summaries when no desktop window is mounted. They are
+   * refreshed only while a window polls, so retaining them would serve stale
+   * branch/PR data for threads the host `GitStateService` does not cover.
+   */
+  clearSupplementalSummaries(): void {
+    if (this.disposed || Object.keys(this.supplementalSummaries).length === 0) return;
+    this.supplementalSummaries = {};
+    this.cachedSummaries = null;
+    this.publishNow();
+  }
+
   dispose(): void {
     this.disposed = true;
+    this.cachedSummaries = null;
     if (this.timer !== null) {
       clearTimeout(this.timer);
       this.timer = null;

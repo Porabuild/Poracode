@@ -91,7 +91,6 @@ vi.mock("@/host/db", () => ({
   dbBeginWorktreeObservation: vi.fn<() => object>(() => ({})),
   dbSelectPurgeCandidateThreadIds: vi.fn<() => string[]>(() => []),
   dbSetThreadsDone: vi.fn<() => number>(() => 0),
-  dbIsExperimentThread: vi.fn<() => boolean>(() => false),
   dbUpdateScheduleRun: vi.fn<() => undefined>(),
   dbUpsertThread: vi.fn<() => undefined>(),
   onThreadsDeleted: vi.fn<(listener: (threadIds: readonly string[]) => void) => () => void>(

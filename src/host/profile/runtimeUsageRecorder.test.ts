@@ -310,3 +310,66 @@ describe("RuntimeUsageRecorder", () => {
     ]);
   });
 });
+
+describe("RuntimeUsageRecorder runtime envelopes", () => {
+  it("records a single-event envelope and keeps the turn duration", () => {
+    const h = createHarness([makeThread("t1", "codex")], 1_000);
+    h.recorder.observeSupervisorEvent({
+      type: "thread-runtime-event",
+      threadId: "t1",
+      event: { type: "turn.started", threadId: "t1", turnId: "turn-1" },
+    });
+    h.setNow(4_500);
+    h.recorder.observeSupervisorEvent({
+      type: "thread-runtime-event",
+      threadId: "t1",
+      event: { type: "turn.completed", threadId: "t1", turnId: "turn-1", state: "completed" },
+    });
+    h.recorder.flush();
+
+    expect(h.emitted("turn")).toEqual([
+      expect.objectContaining({ provider: "codex", value: 3_500 }),
+    ]);
+  });
+
+  it("records every thread in a multi-thread tick envelope", () => {
+    const h = createHarness([makeThread("a", "codex"), makeThread("b", "claude")]);
+    h.recorder.observeSupervisorEvent({
+      type: "thread-runtime-events-multi",
+      batches: [
+        {
+          threadId: "a",
+          events: [
+            {
+              type: "item.started",
+              threadId: "a",
+              itemId: "a-user",
+              itemType: "user_message",
+              payload: {},
+            },
+          ],
+        },
+        {
+          threadId: "b",
+          events: [
+            {
+              type: "item.started",
+              threadId: "b",
+              itemId: "b-user",
+              itemType: "user_message",
+              payload: {},
+            },
+          ],
+        },
+      ],
+    });
+    h.recorder.flush();
+
+    expect(
+      h
+        .emitted("message")
+        .map((event) => event.provider)
+        .sort(),
+    ).toEqual(["claude", "codex"]);
+  });
+});

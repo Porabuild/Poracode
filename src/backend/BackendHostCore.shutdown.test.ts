@@ -112,3 +112,56 @@ it("does not close the database when child termination cannot be confirmed", asy
   expect(() => host.closeDatabase()).toThrow("before supervisor work has joined");
   expect(state.close).not.toHaveBeenCalled();
 });
+
+it("records canonical runtime usage before the database closes", async () => {
+  const db = await import("@/host/db");
+  const appendUsage = vi.mocked(db.dbAppendUsageEvents);
+  const getThread = vi.mocked(db.dbGetThread);
+  appendUsage.mockClear();
+  getThread.mockReturnValue({
+    id: "t1",
+    projectId: "p1",
+    title: "Thread",
+    agentKind: "codex",
+    config: { model: "test-model" },
+    presentationMode: "gui",
+    status: "working",
+    attention: "working",
+    canResumeWithConfig: false,
+    archived: false,
+    done: false,
+    starred: false,
+    createdAt: "2026-01-01T00:00:00.000Z",
+    updatedAt: "2026-01-01T00:00:00.000Z",
+  } as never);
+
+  const host = new BackendHostCore({
+    baseDir: "/fixture",
+    dbPath: "/fixture/state.sqlite",
+    supervisor: {
+      appVersion: "test",
+      isDev: false,
+      supervisorPath: "/fixture/supervisor.cjs",
+      wslHelpersDir: "/fixture/wsl",
+      secretStorageKey: "fixture",
+    },
+    onEvent: vi.fn<(event: SupervisorEvent) => void>(),
+    onReset: vi.fn<() => void>(),
+  });
+  state.options?.onEvent({
+    type: "thread-runtime-events",
+    threadId: "t1",
+    events: [{ type: "turn.completed", threadId: "t1", turnId: "turn-1", state: "completed" }],
+  } as never);
+
+  await host.dispose();
+
+  expect(state.close).toHaveBeenCalledOnce();
+  expect(appendUsage).toHaveBeenCalledOnce();
+  expect(appendUsage.mock.calls[0]?.[0]).toEqual([
+    expect.objectContaining({ kind: "turn", provider: "codex", model: "test-model" }),
+  ]);
+  expect(appendUsage.mock.invocationCallOrder[0]).toBeLessThan(
+    state.close.mock.invocationCallOrder[0]!,
+  );
+});

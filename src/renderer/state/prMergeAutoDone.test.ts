@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { PrData, Project, Thread } from "@/shared/contracts";
 import { useAppStore } from "./appStore";
+import { useGitReadModelStore } from "./gitReadModelStore";
 import { useGitStore } from "./gitStore";
 import { useSharedSettings } from "./sharedSettingsStore";
 import { startPrMergeAutoDone } from "./prMergeAutoDone";
@@ -70,6 +71,7 @@ describe("prMergeAutoDone", () => {
       },
     });
     useGitStore.setState({ prData: {} });
+    useGitReadModelStore.getState().reset();
     useAppStore.setState({ projects: [project], threads: [thread], view: { kind: "home" } });
     useSharedSettings.setState({ autoMarkDoneOnPrMerge: true });
     stop = startPrMergeAutoDone();
@@ -91,6 +93,23 @@ describe("prMergeAutoDone", () => {
   it("ignores a PR that is already merged the first time it is seen", () => {
     useGitStore.getState().setPrData("/repo-wt", mergedPr);
     expect(markThreadDoneMock).not.toHaveBeenCalled();
+  });
+
+  it("leaves PRs the host read model owns to the host merge lifecycle", () => {
+    useGitReadModelStore.setState({
+      pullRequests: {
+        "h\u0000p1\u00007": {
+          ref: { hostId: "h", projectId: "p1", prNumber: 7 },
+          data: mergedPr,
+          freshness: {},
+        },
+      },
+    });
+    useGitStore.getState().setPrData("/repo-wt", openPr);
+    useGitStore.getState().setPrData("/repo-wt", mergedPr);
+
+    expect(markThreadDoneMock).not.toHaveBeenCalled();
+    expect(syncMergedPrBaseMock).not.toHaveBeenCalled();
   });
 
   it("leaves threads alone while the setting is off", () => {

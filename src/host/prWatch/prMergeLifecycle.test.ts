@@ -10,6 +10,7 @@ import type {
 import {
   emptyGitStateSnapshot,
   gitTargetKey,
+  pullRequestBranchKey,
   pullRequestKey,
   type GitStateSnapshot,
 } from "@/shared/gitState";
@@ -121,6 +122,7 @@ function createHarness(initialThreads: Thread[] = [makeThread()], autoMarkDoneOn
   const publishThreadsChanged = vi.fn<(ids: readonly string[]) => void>();
   const sendThreadCommand = vi.fn<(command: RemoteThreadCommand) => boolean>(() => true);
   const isExperimentThread = vi.fn<(threadId: string) => boolean>(() => false);
+  const reportError = vi.fn<(error: unknown) => void>();
 
   const service = new PrMergeLifecycleService({
     hostId: HOST_ID,
@@ -137,6 +139,7 @@ function createHarness(initialThreads: Thread[] = [makeThread()], autoMarkDoneOn
     markThreadDoneInDb,
     publishThreadsChanged,
     sendThreadCommand,
+    reportError,
     now: () => "2026-02-01T00:00:00.000Z",
   });
 
@@ -156,6 +159,7 @@ function createHarness(initialThreads: Thread[] = [makeThread()], autoMarkDoneOn
     publishThreadsChanged,
     sendThreadCommand,
     isExperimentThread,
+    reportError,
   };
 }
 
@@ -317,5 +321,123 @@ describe("PrMergeLifecycleService", () => {
     await h.service.dispose();
 
     expect(h.markThreadDoneInDb).not.toHaveBeenCalled();
+  });
+
+  it("never auto-marks a possible experiment thread done when the experiment read fails", async () => {
+    const h = createHarness();
+    const readError = new Error("experiment store unreadable");
+    h.isExperimentThread.mockImplementation(() => {
+      throw readError;
+    });
+
+    h.service.handlePrMerged(makeWatch());
+    await vi.waitFor(() => expect(h.reportError).toHaveBeenCalledWith(readError));
+    await h.service.dispose();
+
+    expect(h.markThreadDoneInDb).not.toHaveBeenCalled();
+    expect(h.publishThreadsChanged).not.toHaveBeenCalled();
+  });
+
+  it("keeps a thread deferred when the session close is unconfirmed and the turn still runs", async () => {
+    const h = createHarness();
+    h.closeThreadConfirmed.mockResolvedValue(false);
+    h.threads.set("t1", makeThread({ status: "working" }));
+
+    h.service.handlePrMerged(makeWatch());
+    // It was mid-turn, so this merged while the turn ran.
+    h.service.observeSupervisorEvent({
+      type: "thread-state",
+      threadId: "t1",
+      status: "idle",
+      attention: "none",
+      canResumeWithConfig: false,
+    });
+    // The supervisor row still says the turn is active: the close was not
+    // confirmed, so the thread must not be marked done yet.
+    h.threads.set("t1", makeThread({ status: "working" }));
+    h.service.observeSupervisorEvent({
+      type: "thread-state",
+      threadId: "t1",
+      status: "idle",
+      attention: "none",
+      canResumeWithConfig: false,
+    });
+    await vi.waitFor(() => expect(h.closeThreadConfirmed).toHaveBeenCalled());
+    expect(h.markThreadDoneInDb).not.toHaveBeenCalled();
+
+    h.threads.set("t1", makeThread({ status: "idle" }));
+    h.service.observeSupervisorEvent({
+      type: "thread-state",
+      threadId: "t1",
+      status: "idle",
+      attention: "none",
+      canResumeWithConfig: false,
+    });
+    await vi.waitFor(() => expect(h.markThreadDoneInDb).toHaveBeenCalledOnce());
+    await h.service.dispose();
+  });
+
+  it("does not broadcast or mirror set-done when the database row did not change", async () => {
+    const h = createHarness();
+    h.markThreadDoneInDb.mockReturnValue(false);
+
+    h.service.handlePrMerged(makeWatch());
+    await vi.waitFor(() => expect(h.markThreadDoneInDb).toHaveBeenCalledOnce());
+    await h.service.dispose();
+
+    expect(h.publishThreadsChanged).not.toHaveBeenCalled();
+    expect(h.sendThreadCommand).not.toHaveBeenCalled();
+  });
+
+  it("settles a deferred thread when its supervisor session exits", async () => {
+    const h = createHarness([makeThread({ status: "working" })]);
+    h.service.handlePrMerged(makeWatch());
+    expect(h.markThreadDoneInDb).not.toHaveBeenCalled();
+
+    h.threads.set("t1", makeThread({ status: "working" }));
+    h.service.observeSupervisorEvent({
+      type: "thread-exited",
+      threadId: "t1",
+      exitCode: 0,
+    });
+
+    await vi.waitFor(() => expect(h.markThreadDoneInDb).toHaveBeenCalledOnce());
+    await h.service.dispose();
+  });
+
+  it("matches a branch-linked PR when the thread has no PR number", async () => {
+    const h = createHarness([makeThread({ prNumber: undefined })]);
+    const prKey = pullRequestKey({ hostId: HOST_ID, projectId: "p1", prNumber: 42 });
+    h.setSnapshot({
+      ...emptyGitStateSnapshot(),
+      pullRequestKeyByBranch: {
+        ...emptyGitStateSnapshot().pullRequestKeyByBranch,
+        [pullRequestBranchKey({ hostId: HOST_ID, projectId: "p1" }, "feat/x")]: prKey,
+      },
+    });
+
+    h.service.handleGitPatch({
+      revision: 1,
+      pullRequests: {
+        [prKey]: {
+          ref: { hostId: HOST_ID, projectId: "p1", prNumber: 42 },
+          data: makePr({ state: "open" }),
+          freshness: { core: "2026-01-01T00:00:00.000Z" },
+        },
+      },
+    });
+    h.service.handleGitPatch({
+      revision: 2,
+      pullRequests: {
+        [prKey]: {
+          ref: { hostId: HOST_ID, projectId: "p1", prNumber: 42 },
+          data: makePr({ state: "merged" }),
+          freshness: { core: "2026-01-01T00:01:00.000Z" },
+        },
+      },
+    });
+
+    await vi.waitFor(() => expect(h.markThreadDoneInDb).toHaveBeenCalledOnce());
+    await h.service.dispose();
   });
 });

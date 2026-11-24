@@ -5,6 +5,11 @@ const mocks = vi.hoisted(() => ({
   onProjectThreadDataChanged: vi.fn<() => () => void>(() => () => {}),
   durableOptions: [] as Array<Record<string, unknown>>,
   durableInstances: [] as Array<{
+    gitSummaries: {
+      getSummaries: ReturnType<typeof vi.fn<() => Record<string, never>>>;
+      setSupplementalSummaries: ReturnType<typeof vi.fn>;
+      clearSupplementalSummaries: ReturnType<typeof vi.fn<() => void>>;
+    };
     deviceWorkspace: { preparePreview: ReturnType<typeof vi.fn<() => Promise<void>>> };
     startIngress: ReturnType<typeof vi.fn<() => Promise<void>>>;
     startBackgroundServices: ReturnType<typeof vi.fn<() => void>>;
@@ -85,6 +90,11 @@ vi.mock("./BackendDurableServices", () => ({
     scheduleService = {};
     prWatchService = {};
     gitStateService = {};
+    gitSummaries = {
+      getSummaries: vi.fn<() => Record<string, never>>(() => ({})),
+      setSupplementalSummaries: vi.fn<(summaries: Record<string, never>) => void>(),
+      clearSupplementalSummaries: vi.fn<() => void>(),
+    };
     projectWatchLeases = { durable: "project-watch-leases" };
     startIngress = vi.fn<() => Promise<void>>(() => Promise.resolve());
     constructor(durableOptions: Record<string, unknown>) {
@@ -335,6 +345,20 @@ describe("BackendDesktopServices settings notifications", () => {
 describe("BackendDesktopServices supervisor reset", () => {
   beforeEach(() => {
     mocks.createDesktopRemoteAccessController.mockClear();
+  });
+
+  it("reports renderer presence and drops supplemental summaries once no window remains", async () => {
+    const services = new BackendDesktopServices(options(true));
+    const durable = mocks.durableInstances.at(-1)!;
+    const hasRendererWindow = mocks.durableOptions.at(-1)?.hasRendererWindow as () => boolean;
+
+    await services.call("setRendererWindowPresent", { present: true });
+    expect(hasRendererWindow()).toBe(true);
+    expect(durable.gitSummaries.clearSupplementalSummaries).not.toHaveBeenCalled();
+
+    await services.call("setRendererWindowPresent", { present: false });
+    expect(hasRendererWindow()).toBe(false);
+    expect(durable.gitSummaries.clearSupplementalSummaries).toHaveBeenCalledOnce();
   });
 
   it("forwards supervisor reset to the desktop remote controller", () => {

@@ -385,7 +385,14 @@ export class BackendHostCore {
             // refusal. Publication uses only the accepted envelope/prefix.
             this.persistenceProducerControl?.acknowledgeCanonicalFlow(event);
             if (outcome.kind !== "withhold") {
-              this.runtimeUsageRecorder.observeSupervisorEvent(outcome.event);
+              // Usage capture is best-effort telemetry: a database read failure
+              // inside it must never withhold an already-persisted event from
+              // every client.
+              try {
+                this.runtimeUsageRecorder.observeSupervisorEvent(outcome.event);
+              } catch (error) {
+                console.error("[backend] runtime usage capture failed:", error);
+              }
               if (outcome.event.type === "thread-reset")
                 this.delegatedAgentRecovery?.forget(outcome.event.threadId);
               options.onEvent(outcome.event);
@@ -425,7 +432,11 @@ export class BackendHostCore {
         // path must obey the same private-field erasure as flow1 persistence.
         (event) => {
           const sanitized = stripRuntimePayloadOriginMetadata(event);
-          this.runtimeUsageRecorder.observeSupervisorEvent(sanitized);
+          try {
+            this.runtimeUsageRecorder.observeSupervisorEvent(sanitized);
+          } catch (error) {
+            console.error("[backend] runtime usage capture failed:", error);
+          }
           options.onEvent(sanitized);
         },
       );
@@ -1100,7 +1111,10 @@ export class BackendHostCore {
     if (!this.supervisorJoined)
       throw new Error("Cannot close the database before supervisor work has joined.");
     this.terminalScrollbackPersistence.flush();
-    this.runtimeUsageRecorder.dispose();
+    // Buffered usage must reach the database before it closes. The recorder
+    // stays live through the close: a failed close keeps the handle open and
+    // writable, so later events still record until shutdown is retried.
+    this.runtimeUsageRecorder.flush();
     // Runs the runtime persistence drain hook. When accepted events remain
     // uncommitted the hook throws a typed error, `closeDatabase` keeps the
     // handle open (its documented failed-hook contract), and the report is
@@ -1115,6 +1129,7 @@ export class BackendHostCore {
       );
       throw error;
     }
+    this.runtimeUsageRecorder.dispose();
     this.databaseOpen = false;
     this.preparedDatabaseWriteAdmission = null;
     this.persistenceProducerControl?.dispose();

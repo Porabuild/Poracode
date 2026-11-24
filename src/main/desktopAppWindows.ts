@@ -73,6 +73,9 @@ function isCloseToTrayEnabled(): boolean {
 /** Tell the out-of-process backend whether a live main BrowserWindow exists. */
 export function syncRendererWindowPresence(): void {
   const present = Boolean(desktopApp.mainWindow && !desktopApp.mainWindow.isDestroyed());
+  // Best-effort and additive: a same-build backend child that predates this
+  // service rejects it before any effect, and presence then keeps its default
+  // (no window) until the next restart or window event reports again.
   void desktopApp.backendHostClient
     ?.callService("setRendererWindowPresent", { present })
     .catch(() => undefined);
