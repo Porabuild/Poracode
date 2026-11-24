@@ -36,7 +36,10 @@ let directory: string;
 
 let consentedSettingsPath: string;
 
+let restoreTelemetryEnv: (() => void) | null = null;
+
 beforeEach(() => {
+  restoreTelemetryEnv = clearTelemetryEnv();
   mkdirSync("tmp", { recursive: true });
   directory = mkdtempSync(join(process.cwd(), "tmp", "sentry-main-"));
   electronMock.app.getPath.mockReturnValue(directory);
@@ -50,6 +53,8 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  restoreTelemetryEnv?.();
+  restoreTelemetryEnv = null;
   if (originalDsn === undefined) {
     delete process.env.SENTRY_DSN;
   } else {
@@ -66,6 +71,27 @@ afterEach(() => {
   electronMock.crashReporter.start.mockClear();
   rmSync(directory, { recursive: true, force: true });
 });
+
+// GitHub Actions (and other CI) export CI=true, which production code now
+// treats as a telemetry hard-off. Tests that exercise Sentry initialization
+// must control these variables explicitly instead of inheriting the runner's.
+const TELEMETRY_ENV_KEYS = [
+  "CI",
+  "DO_NOT_TRACK",
+  "PORACODE_TELEMETRY_ENABLED",
+  "PORACODE_CRASH_REPORTS_ENABLED",
+] as const;
+
+function clearTelemetryEnv(): () => void {
+  const saved = TELEMETRY_ENV_KEYS.map((key) => process.env[key]);
+  for (const key of TELEMETRY_ENV_KEYS) delete process.env[key];
+  return () => {
+    TELEMETRY_ENV_KEYS.forEach((key, index) => {
+      if (saved[index] === undefined) delete process.env[key];
+      else process.env[key] = saved[index];
+    });
+  };
+}
 
 describe("main Sentry configuration", () => {
   it("cannot be enabled by a local development override", () => {
