@@ -1,4 +1,4 @@
-interface OpenCodeModelRef {
+export interface OpenCodeModelRef {
   providerID: string;
   id: string;
   variant?: string;
@@ -28,4 +28,21 @@ export function modelRefKey(model: OpenCodeModelRef): string {
   return model.variant
     ? `${model.providerID}/${model.id}@${model.variant}`
     : `${model.providerID}/${model.id}`;
+}
+
+/** Catalog identity of a model, independent of its reasoning-effort variant. */
+export function modelCatalogKey(model: Pick<OpenCodeModelRef, "providerID" | "id">): string {
+  return `${model.providerID}/${model.id}`;
+}
+
+/**
+ * The catalog's `limit.context` as a usable token count. Absent, zero, and
+ * non-finite windows are not a context window; every reader must agree on that.
+ */
+export function readOpenCodeContextLimit(
+  model: { limit?: { context?: number } | undefined } | undefined,
+): number | undefined {
+  const context = model?.limit?.context;
+  if (typeof context !== "number" || !Number.isFinite(context) || context <= 0) return undefined;
+  return Math.trunc(context);
 }
