@@ -537,6 +537,25 @@ describe("OpenCode native child sessions", () => {
     ).toContainEqual(expect.objectContaining({ type: "item.completed", itemId: parentItemId }));
   });
 
+  it("still reads as a failure when recovery finds no failure text", () => {
+    const { children, parentItemId } = fixture();
+    children.map(linkEvent());
+    children.map(launchSucceeded());
+    expect(
+      children.reconcile("child", { active: false, outcome: "failed", error: undefined }),
+    ).toContainEqual(
+      expect.objectContaining({
+        type: "item.completed",
+        itemId: parentItemId,
+        payload: expect.objectContaining({
+          status: "error",
+          subAgentStatus: "failed",
+          result: "OpenCode session error",
+        }),
+      }),
+    );
+  });
+
   it("reports the server's own failure text for a run recovery finds failed", () => {
     const { children, parentItemId } = fixture();
     children.map(linkEvent());
@@ -661,6 +680,101 @@ describe("OpenCode native child sessions", () => {
         result: "The subagent is working in the background (sessionID: child).",
       },
     });
+  });
+
+  it("holds a continued launch whose earlier run ended when its progress event is missing", () => {
+    const { root, children } = fixture();
+    children.map(linkEvent());
+    children.map(launchSucceeded());
+    children.map(
+      event("session.text.ended", {
+        sessionID: "child",
+        assistantMessageID: "first-report",
+        ordinal: 0,
+        text: "First round",
+      }),
+    );
+    children.map(event("session.execution.succeeded", { sessionID: "child" }));
+    const [nextParent] = mapOpenCodeEvent(
+      event("session.tool.input.started", {
+        sessionID: "parent",
+        assistantMessageID: "next-message",
+        id: "next-tool",
+        name: "subagent",
+      }),
+      root,
+    );
+    if (nextParent?.type !== "item.started") throw new Error("missing continuation parent");
+    // No session.tool.progress for the second call: the earlier run's end
+    // must not read as though this call had waited for it.
+    const followedUp = children.map(
+      launchSucceeded("child", "next-tool", undefined, "next-message"),
+    );
+    expect(followedUp).not.toContainEqual(expect.objectContaining({ type: "item.completed" }));
+    expect(followedUp).toContainEqual(
+      expect.objectContaining({
+        type: "item.updated",
+        itemId: nextParent.itemId,
+        payload: expect.objectContaining({ status: "running", subAgentBackground: true }),
+      }),
+    );
+    expect(children.heldSessionIds()).toEqual(["child"]);
+    children.map(
+      event("session.text.ended", {
+        sessionID: "child",
+        assistantMessageID: "second-report",
+        ordinal: 0,
+        text: "Second round",
+      }),
+    );
+    expect(
+      children.map(event("session.execution.succeeded", { sessionID: "child" })),
+    ).toContainEqual(
+      expect.objectContaining({
+        type: "item.completed",
+        itemId: nextParent.itemId,
+        payload: expect.objectContaining({ subAgentStatus: "completed", result: "Second round" }),
+      }),
+    );
+  });
+
+  it("does not pass an earlier run's report off as a later run's result", () => {
+    const { root, children } = fixture();
+    children.map(linkEvent());
+    children.map(launchSucceeded());
+    children.map(
+      event("session.text.ended", {
+        sessionID: "child",
+        assistantMessageID: "first-report",
+        ordinal: 0,
+        text: "First round",
+      }),
+    );
+    children.map(event("session.execution.succeeded", { sessionID: "child" }));
+    mapOpenCodeEvent(
+      event("session.tool.input.started", {
+        sessionID: "parent",
+        assistantMessageID: "next-message",
+        id: "next-tool",
+        name: "subagent",
+      }),
+      root,
+    );
+    children.map(linkEvent("child", "next-tool", "parent", "next-message"));
+    children.map(launchSucceeded("child", "next-tool", undefined, "next-message"));
+    // The second run writes nothing before it ends.
+    children.map(event("session.execution.started", { sessionID: "child" }));
+    expect(
+      children.map(event("session.execution.succeeded", { sessionID: "child" })),
+    ).toContainEqual(
+      expect.objectContaining({
+        type: "item.completed",
+        payload: expect.objectContaining({
+          subAgentStatus: "completed",
+          result: "The subagent is working in the background (sessionID: child).",
+        }),
+      }),
+    );
   });
 
   it("completes a launch at once when the server names no child session", () => {

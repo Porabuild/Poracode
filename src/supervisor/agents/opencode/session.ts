@@ -471,17 +471,28 @@ export class OpenCodeSession implements StructuredSessionHandle {
   async interruptTurn(): Promise<void> {
     if (!this.acquired || !this.sessionId) return;
     const client = this.acquired.client;
+    // Taken before the parent is interrupted: once the parent reports it, the
+    // agents are settled and forgotten, and they would never be interrupted.
+    const agents = this.subagents.heldSessionIds();
     try {
       await client.session.interrupt({ sessionID: this.sessionId });
-      // The server interrupts only the session it is given. Its own terminal
-      // client interrupts background subagents separately, so Stop has to do
-      // the same: otherwise the agents keep working after their rows were
-      // settled as cancelled.
-      for (const sessionID of this.subagents.heldSessionIds())
-        await client.session.interrupt({ sessionID });
     } catch {
       // Best-effort — the server may already be torn down.
     }
+    // The server interrupts only the session it is given, and OpenCode's own
+    // terminal client stops a thread without touching its background
+    // subagents (it offers a separate interrupt per subagent). Poracode has
+    // no per-agent control, so Stop ends the agents too; otherwise they keep
+    // working after their rows were settled as cancelled.
+    await Promise.all(
+      agents.map(async (sessionID) => {
+        try {
+          await client.session.interrupt({ sessionID });
+        } catch {
+          // Best-effort per agent: one refusal must not spare the others.
+        }
+      }),
+    );
   }
 
   forceCompleteTurn(): void {
@@ -889,7 +900,10 @@ export class OpenCodeSession implements StructuredSessionHandle {
           this.subagents.reconcile(sessionID, {
             active: snapshot.active,
             outcome: snapshot.outcome,
-            error: readOpenCodeSessionFailure(snapshot.messages),
+            error:
+              snapshot.outcome === "failed"
+                ? readOpenCodeSessionFailure(snapshot.messages)
+                : undefined,
           }),
         );
       const pending = new Set<string>();

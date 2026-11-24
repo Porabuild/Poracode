@@ -114,7 +114,12 @@ export class OpenCodeSubagents {
     );
     if (completion < 0 || tool.subAgentStatus !== undefined) return canonical;
     const child = this.ensure(childID);
-    if (child.runEnded) return this.waitedLaunch(canonical, child, tool);
+    // The call waited only when the ended run is its own: the child was last
+    // linked to this call, or to no launch yet. A run that ended under an
+    // earlier launch — a follow-up continuing the same child — says nothing
+    // about this call, which starts a new one.
+    if (child.runEnded && (child.parentTool === undefined || child.parentTool === tool))
+      return this.waitedLaunch(canonical, child, tool);
     // A later call that continues the same child supersedes the row of the
     // run it joined; that row must not stay running behind the new one.
     const superseded = child.held === tool ? [] : this.finish(child, "completed");
@@ -219,6 +224,7 @@ export class OpenCodeSubagents {
     switch (event.type) {
       case "session.execution.started":
         child.runEnded = false;
+        delete child.report;
         return [];
       case "session.execution.succeeded":
         child.runEnded = true;
@@ -263,8 +269,8 @@ export class OpenCodeSubagents {
       // The server's own failure text reads as prose; a run Poracode cut short
       // carries the catalog message so the renderer localizes it.
       tool.result =
-        outcome === "failed" && error
-          ? error
+        outcome === "failed"
+          ? (error ?? readSessionError(undefined))
           : { error: error ?? msg("runtime.delegatedAgentInterrupted") };
     }
     return [

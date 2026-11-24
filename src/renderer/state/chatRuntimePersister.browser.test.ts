@@ -189,6 +189,32 @@ it("keeps a host-settled background agent row running through desktop hydration"
   expect(items["legacy-run"]).toMatchObject({ state: "completed", payload: { status: "error" } });
 });
 
+it("ends a background agent row at hydration once its thread has no session", async () => {
+  seam.browser = false;
+  const snapshot = fixture();
+  const id = select({ ...snapshot, thread: { ...snapshot.thread, status: "inactive" } });
+  seam.bridge.dbGetThreadRuntimeItemsPage.mockResolvedValue({
+    items: [
+      {
+        id: "background-run",
+        type: "tool_call",
+        state: "updated",
+        payload: { name: "Agent", status: "running", isSubAgent: true, subAgentBackground: true },
+        streams: {},
+      },
+    ],
+    nextCursor: null,
+  } as never);
+  await hydrateThreadRuntimeItems(id);
+  expect(useAppStore.getState().runtimeItemsByIdByThread[id]?.["background-run"]).toMatchObject({
+    state: "completed",
+    payload: {
+      status: "error",
+      result: { error: "Interrupted: agent session ended before completion." },
+    },
+  });
+});
+
 it("reset hydration cannot be overwritten by a late cached snapshot", async () => {
   const snapshot = fixture(),
     id = select(snapshot);

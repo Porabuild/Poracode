@@ -1037,6 +1037,104 @@ describe("OpenCodeSession", () => {
     await harness.session.dispose();
   });
 
+  it("still interrupts the agents when the parent reports its interruption first", async () => {
+    const harness = await makeSession();
+    launchBackgroundSubagent(harness);
+    const interrupted: string[] = [];
+    vi.mocked(harness.client.session.interrupt).mockImplementation(async ({ sessionID }) => {
+      interrupted.push(sessionID);
+      // The server can deliver the parent's interrupted event before the RPC
+      // resolves; that settles the rows and forgets the agents.
+      if (sessionID === "ses_new")
+        harness.subscription!.onEvent(
+          event("session.execution.interrupted", { sessionID: "ses_new", reason: "user" }),
+        );
+      return { interrupted: true };
+    });
+    await harness.session.interruptTurn();
+    expect(interrupted.sort()).toEqual(["ses_child", "ses_new"]);
+    await harness.session.dispose();
+  });
+
+  it("keeps interrupting the other agents when one interrupt is refused", async () => {
+    const harness = await makeSession();
+    const send = harness.subscription!.onEvent;
+    for (const [call, child] of [
+      ["call", "ses_child"],
+      ["call-2", "ses_child-2"],
+    ] as const) {
+      send(
+        event("session.tool.input.started", {
+          sessionID: "ses_new",
+          assistantMessageID: "m",
+          id: call,
+          name: "subagent",
+        }),
+      );
+      send(event("session.created", { sessionID: child, parentID: "ses_new" }));
+      send(
+        event("session.tool.success", {
+          sessionID: "ses_new",
+          assistantMessageID: "m",
+          id: call,
+          content: [{ type: "text", text: "working in the background" }],
+          metadata: { sessionID: child, status: "running" },
+          executed: true,
+        }),
+      );
+    }
+    const interrupted: string[] = [];
+    vi.mocked(harness.client.session.interrupt).mockImplementation(async ({ sessionID }) => {
+      interrupted.push(sessionID);
+      if (sessionID === "ses_child") throw new Error("Session not found");
+      return { interrupted: true };
+    });
+    await harness.session.interruptTurn();
+    expect(interrupted.sort()).toEqual(["ses_child", "ses_child-2", "ses_new"]);
+    await harness.session.dispose();
+  });
+
+  it("keeps the interruption notice for a run recovery finds interrupted", async () => {
+    const harness = await makeSession();
+    const launchRow = launchBackgroundSubagent(harness);
+    vi.mocked(harness.client.session.active).mockResolvedValue({});
+    vi.mocked(harness.client.session.get).mockImplementation(async ({ sessionID }) =>
+      sessionID === "ses_child"
+        ? ({ id: "ses_child", outcome: "interrupted" } as never)
+        : ({ id: "ses_resume" } as never),
+    );
+    vi.mocked(harness.client.message.list).mockImplementation(
+      async ({ sessionID }) =>
+        ({
+          data:
+            sessionID === "ses_child"
+              ? // An earlier step of the child failed; the run itself was interrupted.
+                [
+                  {
+                    id: "c1",
+                    type: "assistant",
+                    time: { created: 1 },
+                    error: { type: "provider_error", message: "Stale step failure" },
+                    content: [],
+                  },
+                ]
+              : [],
+          cursor: {},
+        }) as never,
+    );
+    await harness.subscription!.onReconnect();
+    expect(launchCompletions(harness, launchRow.itemId)).toEqual([
+      expect.objectContaining({
+        payload: expect.objectContaining({
+          status: "error",
+          subAgentStatus: "cancelled",
+          result: { error: "Interrupted: agent session ended before completion." },
+        }),
+      }),
+    ]);
+    await harness.session.dispose();
+  });
+
   it("keeps tracking background subagents when the parent's execution fails", async () => {
     const harness = await makeSession();
     const launchRow = launchBackgroundSubagent(harness);
