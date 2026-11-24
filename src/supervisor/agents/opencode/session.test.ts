@@ -380,6 +380,101 @@ describe("OpenCodeSession", () => {
     }
   });
 
+  it("hydrates the built-in goal through its RPC and follows its change events", async () => {
+    const native = {
+      id: "goal-native",
+      objective: "Native objective",
+      status: "active",
+      rounds: 1,
+      maxRounds: 50,
+      boot: "boot-1",
+      updatedAt: 1_700_000_000_000,
+    };
+    const call = vi.fn<() => Promise<unknown>>().mockResolvedValue({ output: native });
+    const command = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
+    const client = makeClientWith({
+      // The plugin is installed under a renamed command; native controls must
+      // still dispatch through the built-in `goal` command, not `mission`.
+      "config.get": vi.fn<() => Promise<unknown>>().mockResolvedValue([
+        {
+          type: "document",
+          info: {
+            plugins: [
+              {
+                package: "@prevalentware/opencode-goal-plugin",
+                options: { command_name: "mission" },
+              },
+            ],
+          },
+        },
+      ]),
+      "command.list": vi.fn<() => Promise<unknown>>().mockResolvedValue({
+        data: [{ name: "goal" }, { name: "mission" }, { name: "pause_goal" }],
+      }),
+      "session.command": command,
+    });
+    (client as unknown as Record<string, unknown>).rpc = { call };
+    const h = await makeSession({ client });
+    try {
+      await vi.waitFor(() =>
+        expect(h.events).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({
+              type: "item.started",
+              itemType: "goal",
+              payload: expect.objectContaining({
+                objective: "Native objective",
+                status: "active",
+                iterations: 1,
+                availableActions: ["pause", "clear"],
+              }),
+            }),
+          ]),
+        ),
+      );
+      expect(call).toHaveBeenCalledWith(
+        expect.objectContaining({ rpcID: "opencode.goal", method: "get" }),
+        expect.anything(),
+      );
+      h.subscription?.onEvent(
+        event("rpc.opencode.goal.changed", {
+          sessionID: "ses_new",
+          goal: { ...native, status: "paused", rounds: 2, updatedAt: 1_700_000_060_000 },
+        }),
+      );
+      expect(h.events).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            type: "item.updated",
+            payload: expect.objectContaining({ status: "paused", iterations: 2 }),
+          }),
+        ]),
+      );
+      // The plugin state-file poll reporting "no goal" must not clear the native goal.
+      const before = h.events.length;
+      mocks.readOpenCodeGoalState.mockResolvedValue(null);
+      await h.session.controlGoal({ action: "pause" }).catch(() => undefined);
+      // A native goal pauses through `/goal pause`, never the plugin's pause_goal.
+      expect(command).toHaveBeenLastCalledWith({
+        sessionID: "ses_new",
+        name: "goal",
+        text: "pause",
+      });
+      expect(
+        h.events
+          .slice(before)
+          .some(
+            (entry) =>
+              "payload" in entry &&
+              (entry.payload as { action?: string } | undefined)?.action === "cleared",
+          ),
+      ).toBe(false);
+    } finally {
+      await h.session.dispose();
+      mocks.readOpenCodeGoalState.mockResolvedValue(undefined);
+    }
+  });
+
   it("does not expose goal commands without a plugin or create a model prompt on failure", async () => {
     const h = await makeSession();
     try {

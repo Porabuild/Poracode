@@ -5,10 +5,9 @@ import type { AgentPluginPackage, ManageAgentPluginsPayload } from "@/shared/con
 import { agentEnvKey, type AgentEnv } from "@/shared/machines";
 import { ConfirmDialog, PixelLoader } from "@/renderer/components/common";
 import { LightballTabs } from "@/renderer/components/common/LightballTabs";
+import { readBridge } from "@/renderer/bridge";
 import { useAgentSettingsHost } from "@/renderer/components/providers/settings/AgentSettingsHostContext";
-import { OpenCodePluginRow, OpenCodeFeaturedPlugin } from "./OpenCodePluginCards";
-
-const GOAL_PACKAGE = "@prevalentware/opencode-goal-plugin";
+import { OpenCodePluginRow } from "./OpenCodePluginCards";
 
 type PluginAction = ManageAgentPluginsPayload["action"];
 /** The single in-flight operation, so only its own button shows a spinner. */
@@ -94,9 +93,45 @@ export function OpenCodePluginManager({ agentKind, env }: { agentKind: string; e
     }
   };
   const removingTarget = removing?.target ?? "";
-  const goal = packages.find(
-    (pkg) => pkg.target === GOAL_PACKAGE || pkg.target.startsWith(`${GOAL_PACKAGE}@`),
-  );
+  const anyUpdating = packages.some((pkg) => pkg.updating);
+
+  // An update started elsewhere (or outliving the host's wait) keeps its
+  // `updating` flag until the server finishes; poll quietly so the row's
+  // spinner resolves into the new version without a manual refresh. `list`
+  // carries no latestVersion, so preserve the one a `check` resolved.
+  useEffect(() => {
+    if (!anyUpdating || busy || !settingsHost.isOnline) return;
+    let active = true;
+    let inFlight = false;
+    const tick = () => {
+      if (!active || inFlight) return;
+      inFlight = true;
+      void settingsHost
+        .callProcedure("manageAgentPlugins", { agentKind, env, action: "list" })
+        .then((result) => {
+          if (!active) return;
+          setPackages((previous) =>
+            result.packages.map((pkg) => {
+              if (pkg.latestVersion) return pkg;
+              const latestVersion = previous.find(
+                (entry) => entry.target === pkg.target,
+              )?.latestVersion;
+              return latestVersion ? { ...pkg, latestVersion } : pkg;
+            }),
+          );
+        })
+        .catch(() => undefined)
+        .finally(() => {
+          inFlight = false;
+        });
+    };
+    const timer = setInterval(tick, 3000);
+    return () => {
+      active = false;
+      clearInterval(timer);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- host & environment identity are stable across status refreshes.
+  }, [anyUpdating, busy, settingsHost.key, settingsHost.isOnline, agentKind, environmentKey]);
 
   return (
     <div className="space-y-4" data-plugin-manager>
@@ -128,6 +163,7 @@ export function OpenCodePluginManager({ agentKind, env }: { agentKind: string; e
               isPending={isPending("list")}
               onPress={() => void run("list")}
             >
+              {isPending("list") ? <PixelLoader size="xs" /> : null}
               <Trans>Refresh</Trans>
             </Button>
             <Button
@@ -139,6 +175,7 @@ export function OpenCodePluginManager({ agentKind, env }: { agentKind: string; e
               aria-label={t`Check agent plugin updates`}
               onPress={() => void run("check")}
             >
+              {isPending("check") ? <PixelLoader size="xs" /> : null}
               <Trans>Check for updates</Trans>
             </Button>
           </div>
@@ -178,7 +215,7 @@ export function OpenCodePluginManager({ agentKind, env }: { agentKind: string; e
               <OpenCodePluginRow
                 key={pkg.target}
                 pkg={pkg}
-                busy={disabled}
+                busy={disabled || anyUpdating}
                 updating={isPending("update", pkg.target)}
                 removing={isPending("remove", pkg.target)}
                 onUpdate={() => void run("update", pkg.target)}
@@ -189,15 +226,19 @@ export function OpenCodePluginManager({ agentKind, env }: { agentKind: string; e
         </div>
       ) : (
         <div role="tabpanel" aria-label={t`Discover`} className="space-y-4">
-          <OpenCodeFeaturedPlugin
-            status={goal?.status}
-            disabled={disabled || !loaded}
-            pending={isPending("install", GOAL_PACKAGE)}
-            onInstall={() => void run("install", GOAL_PACKAGE)}
-          />
+          <div className="flex items-center justify-end">
+            <Button
+              size="sm"
+              variant="tertiary"
+              className="h-7 min-h-7 px-2 text-xs"
+              onPress={() => void readBridge().openExternal("https://opencode.ai/docs/ecosystem/")}
+            >
+              <Trans>Browse ecosystem</Trans>
+            </Button>
+          </div>
 
           <form
-            className="flex items-end gap-2 border-t border-border/10 pt-4"
+            className="flex items-end gap-2"
             onSubmit={(event) => {
               event.preventDefault();
               if (!disabled && target.trim()) void run("install", target.trim());
@@ -221,6 +262,7 @@ export function OpenCodePluginManager({ agentKind, env }: { agentKind: string; e
               isDisabled={disabled || !target.trim()}
               isPending={isPending("install", target.trim())}
             >
+              {isPending("install", target.trim()) ? <PixelLoader size="xs" /> : null}
               <Trans>Install</Trans>
             </Button>
           </form>

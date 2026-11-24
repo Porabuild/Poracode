@@ -19,8 +19,12 @@ export const agentPluginPackageSchema = z.object({
   target: z.string().min(1),
   id: z.string().min(1).optional(),
   version: z.string().min(1).optional(),
+  /** Registry version an update would install, resolved on an explicit update check. */
+  latestVersion: z.string().min(1).optional(),
   status: z.enum(["active", "failed", "configured"]),
   outdated: z.boolean(),
+  /** The provider is applying an update to this package right now. */
+  updating: z.boolean().optional(),
   server: z.boolean(),
   terminal: z.boolean(),
 });

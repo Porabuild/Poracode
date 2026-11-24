@@ -69,7 +69,12 @@ import { modelRefKey, parseOpenCodeModelRef } from "./model";
 import { parseFormAnswer, parsePermissionReply } from "./requestResponses";
 import { readOpenCodeMessages, rollbackOpenCodeMessages, toThreadHistoryEntries } from "./history";
 import { OpenCodeSubagents } from "./subagents";
-import { openCodeGoalCommand, readOpenCodeGoalState, resolveOpenCodeGoalStatePath } from "./goals";
+import {
+  openCodeGoalCommand,
+  readOpenCodeGoalState,
+  readOpenCodeNativeGoal,
+  resolveOpenCodeGoalStatePath,
+} from "./goals";
 import {
   mapOpenCodeAgents,
   mapOpenCodeCommands,
@@ -132,6 +137,9 @@ export class OpenCodeSession implements StructuredSessionHandle {
   private goalStateTimer: ReturnType<typeof setInterval> | undefined;
   private goalStatePath: Promise<string | undefined> | undefined;
   private readingGoalState = false;
+  private fetchingNativeGoal = false;
+  /** Set once the server answers the native goal RPC with an error (pre-2.2.1 servers). */
+  private nativeGoalUnsupported = false;
   private readonly goalControlWaiters = new Set<{
     matches: (payload: GoalItemPayload) => boolean;
     resolve: () => void;
@@ -387,13 +395,23 @@ export class OpenCodeSession implements StructuredSessionHandle {
     await this.waitForSlashCommands();
     const acquired = this.requireAcquired();
     const sessionID = this.requireSessionId();
-    const commandName = this.mapperState.goals.commandName;
+    // A native goal is controlled through the built-in `goal` command, never
+    // through the plugin's (possibly renamed) command.
+    const commandName =
+      this.mapperState.goals.currentSource === "native"
+        ? this.slashCommands.some((command) => command.id === "goal")
+          ? "goal"
+          : undefined
+        : this.mapperState.goals.commandName;
     if (!commandName) {
       throw new Error("The goal plugin command is unavailable in this session.");
     }
     await waitForOpenCodeServerEvents(acquired.client);
+    // `pause_goal` belongs to the prevalentWare plugin; a native goal pauses
+    // through its own `/goal pause` even when the plugin is also installed.
     const pauseCommand =
       control.action === "pause" &&
+      this.mapperState.goals.currentSource !== "native" &&
       this.slashCommands.some((command) => command.id === "pause_goal");
     const reflected = Promise.withResolvers<void>();
     const waiter = {
@@ -428,6 +446,7 @@ export class OpenCodeSession implements StructuredSessionHandle {
       await Promise.race([request, reflected.promise]);
       admitted = true;
       await this.refreshGoalState();
+      await this.fetchNativeGoal();
     } finally {
       this.goalControlWaiters.delete(waiter);
     }
@@ -645,6 +664,11 @@ export class OpenCodeSession implements StructuredSessionHandle {
         const hasGoals =
           this.mapperState.goals.commandName ||
           plugins.data.some((plugin) => plugin.id === "local.goal-mode.server");
+        if (hasGoals) {
+          // A fresh discovery (attach or reacquire) re-probes native goal support.
+          this.nativeGoalUnsupported = false;
+          void this.fetchNativeGoal();
+        }
         if (!this.goalStateTimer && hasGoals) {
           this.goalStateTimer = setInterval(() => void this.refreshGoalState(), 1000);
           this.goalStateTimer.unref();
@@ -698,8 +722,46 @@ export class OpenCodeSession implements StructuredSessionHandle {
       this.requireAcquired().database,
     );
     this.sessionId = id;
-    if (this.goalStateTimer) void this.refreshGoalState();
+    if (this.goalStateTimer) {
+      void this.refreshGoalState();
+      void this.fetchNativeGoal();
+    }
     this.launchOptions = { ...this.launchOptions, resumeThreadId: id };
+  }
+
+  /**
+   * Fetch the session's built-in goal once; `rpc.opencode.goal.changed`
+   * events keep it current afterwards. Servers without the native goal RPC
+   * reject the call, which marks it unsupported until the next discovery.
+   */
+  private async fetchNativeGoal(): Promise<void> {
+    if (
+      this.disposed ||
+      !this.sessionId ||
+      !this.acquired ||
+      this.nativeGoalUnsupported ||
+      this.fetchingNativeGoal
+    )
+      return;
+    this.fetchingNativeGoal = true;
+    const sessionID = this.sessionId;
+    const acquired = this.acquired;
+    try {
+      const goal = await readOpenCodeNativeGoal(acquired.client, this.directory, sessionID);
+      if (goal === undefined) {
+        this.nativeGoalUnsupported = true;
+        return;
+      }
+      if (!this.disposed && this.sessionId === sessionID && this.acquired === acquired)
+        this.emitRuntimeEvents(this.mapperState.goals.mapNative(goal, sessionID));
+    } catch (error) {
+      // A timeout or abort says nothing about support; only an answered-and-
+      // rejected RPC latches until the next discovery or reconnect.
+      if (!(error instanceof Error) || !/^(TimeoutError|AbortError)$/.test(error.name))
+        this.nativeGoalUnsupported = true;
+    } finally {
+      this.fetchingNativeGoal = false;
+    }
   }
 
   private async refreshGoalState(): Promise<void> {
@@ -927,6 +989,10 @@ export class OpenCodeSession implements StructuredSessionHandle {
     // `session.inbox.enqueued` echo can arrive after recovery, and clearing
     // here would mint a duplicate user row for the same prompt.
     this.recoveredBefore = recoveredBefore;
+    // Goal changes published while the stream was down were missed; a failed
+    // probe on the dead stream must not latch support off for this one.
+    this.nativeGoalUnsupported = false;
+    void this.fetchNativeGoal();
   }
 
   private startServerExitRecovery(): void {

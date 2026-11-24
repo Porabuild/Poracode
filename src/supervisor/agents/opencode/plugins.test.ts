@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { PluginInfo } from "./clientTypes";
 
 const mocks = vi.hoisted(() => ({
@@ -20,8 +20,10 @@ vi.mock("./terminalPluginConfig", () => ({ readOpenCodeTerminalPackages: mocks.t
 import {
   listNativeOpenCodePlugins,
   manageOpenCodePlugins,
+  npmPackageName,
   openCodeNativePlugins,
   openCodePluginPackages,
+  resolveNpmLatestVersion,
   validateOpenCodePluginTarget,
 } from "./plugins";
 
@@ -176,6 +178,72 @@ describe("OpenCode native plugin manager", () => {
     await expect(listNativeOpenCodePlugins({ envKind: "posix" })).resolves.toEqual([]);
     expect(mocks.acquire).not.toHaveBeenCalled();
   });
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
+
+it("carries the server updating flag and waits for an update to finish", async () => {
+  const updating: PluginInfo = {
+    ...plugin,
+    source: {
+      type: "package",
+      target: "@vendor/goal",
+      version: "1.2.3",
+      outdated: true,
+      updating: true,
+    },
+  };
+  const updated: PluginInfo = {
+    ...plugin,
+    source: { type: "package", target: "@vendor/goal", version: "1.3.0" },
+  };
+  expect(openCodePluginPackages([updating])[0]).toMatchObject({ updating: true });
+  const { list } = setup();
+  list
+    .mockResolvedValueOnce({ data: [updating] })
+    .mockResolvedValueOnce({ data: [updating] })
+    .mockResolvedValueOnce({ data: [updated] });
+  const result = await manageOpenCodePlugins({
+    env: { kind: "native" },
+    action: "update",
+    target: "@vendor/goal",
+  });
+  expect(result.packages).toEqual([
+    expect.objectContaining({ target: "@vendor/goal", version: "1.3.0", outdated: false }),
+  ]);
+  expect(list).toHaveBeenCalledTimes(3);
+});
+
+it("resolves the version an update would install from the npm registry on check", async () => {
+  setup();
+  const fetchMock = vi.fn<typeof fetch>().mockResolvedValue({
+    ok: true,
+    json: async () => ({ version: "1.3.0" }),
+  } as Response);
+  vi.stubGlobal("fetch", fetchMock);
+  const result = await manageOpenCodePlugins({ env: { kind: "native" }, action: "check" });
+  expect(result.packages).toEqual([
+    expect.objectContaining({ version: "1.2.3", latestVersion: "1.3.0" }),
+  ]);
+  expect(fetchMock).toHaveBeenCalledWith(
+    "https://registry.npmjs.org/%40vendor%2Fgoal/latest",
+    expect.anything(),
+  );
+});
+
+it("only resolves latest versions for plain npm targets", async () => {
+  expect(npmPackageName("@vendor/goal@1.2.3")).toBe("@vendor/goal");
+  expect(npmPackageName("goal-plugin")).toBe("goal-plugin");
+  expect(npmPackageName("https://example.com/goal.git")).toBeUndefined();
+  expect(npmPackageName("git@github.com:vendor/goal.git")).toBeUndefined();
+  expect(npmPackageName("github:vendor/goal")).toBeUndefined();
+  expect(npmPackageName("./local/goal")).toBeUndefined();
+  const fetchMock = vi.fn<typeof fetch>();
+  vi.stubGlobal("fetch", fetchMock);
+  await expect(resolveNpmLatestVersion("https://example.com/goal.git")).resolves.toBeUndefined();
+  expect(fetchMock).not.toHaveBeenCalled();
 });
 
 it("waits for the native watcher to remove a package before returning", async () => {

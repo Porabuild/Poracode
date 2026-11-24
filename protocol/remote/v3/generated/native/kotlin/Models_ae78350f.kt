@@ -13,35 +13,39 @@ enum class ProceduremanageAgentPluginsResultU2DPackagesU2DItemU2DStatus_0488c0e7
 }
 
 @Serializable
-data class ProceduremanageAgentPluginsResultU2DPackagesU2DItem_a1fd91a863(
+data class ProceduremanageAgentPluginsResultU2DPackagesU2DItem_e5b87d3305(
     @SerialName("id") val id: RemoteField<String> = RemoteField.Missing,
+    @SerialName("latestVersion") val latestVersion: RemoteField<String> = RemoteField.Missing,
     @SerialName("outdated") val outdated: Boolean,
     @SerialName("server") val server: Boolean,
     @SerialName("status") val status: ProceduremanageAgentPluginsResultU2DPackagesU2DItemU2DStatus_0488c0e7c6,
     @SerialName("target") val target: String,
     @SerialName("terminal") val terminal: Boolean,
+    @SerialName("updating") val updating: RemoteField<Boolean> = RemoteField.Missing,
     @SerialName("version") val version: RemoteField<String> = RemoteField.Missing,
 ) {
     companion object {
         val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
             RemoteFieldDescriptor("id", "String", false, false, null, null, 1, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("latestVersion", "String", false, false, null, null, 1, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("outdated", "Boolean", true, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("server", "Boolean", true, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("status", "ProceduremanageAgentPluginsResultU2DPackagesU2DItemU2DStatus_0488c0e7c6", true, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("target", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("terminal", "Boolean", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("updating", "Boolean", false, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("version", "String", false, false, null, null, 1, null, null, null, null, null, listOf()),
         ), listOf())
     }
 }
 
 @Serializable
-data class ProceduremanageAgentPluginsResult_940863a47c(
-    @SerialName("packages") val packages: List<ProceduremanageAgentPluginsResultU2DPackagesU2DItem_a1fd91a863>,
+data class ProceduremanageAgentPluginsResult_50c013e0fb(
+    @SerialName("packages") val packages: List<ProceduremanageAgentPluginsResultU2DPackagesU2DItem_e5b87d3305>,
 ) {
     companion object {
         val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
-            RemoteFieldDescriptor("packages", "List<ProceduremanageAgentPluginsResultU2DPackagesU2DItem_a1fd91a863>", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("packages", "List<ProceduremanageAgentPluginsResultU2DPackagesU2DItem_e5b87d3305>", true, false, null, null, null, null, null, null, null, null, listOf()),
         ), listOf())
     }
 }

@@ -4,7 +4,7 @@ import type { GoalItemPayload, ProjectLocation, RuntimeEvent } from "@/shared/co
 import { readSessionFileText, readWslLoginShellCommandOutputAsync } from "../base";
 import { startGoalItemEvents, updateGoalItemEvents } from "../goalRuntime";
 import { newItemId } from "../contextUsage";
-import type { ConfigGetOutput } from "./clientTypes";
+import type { ConfigGetOutput, OpenCodeClient } from "./clientTypes";
 import { parseOpenCodeJsonRecord, readOpenCodeRecord } from "./readers";
 
 const statuses = {
@@ -17,19 +17,62 @@ const statuses = {
   cancelled: "cancelled",
 } as const;
 
-/** The goal plugin owns persistence; Poracode only projects its snapshots. */
+type GoalSource = "plugin" | "native";
+
+/**
+ * Goal owners keep persistence; Poracode only projects their snapshots. Two
+ * owners exist: the prevalentWare goal plugin (state file + tools) and
+ * OpenCode 2.2.1+'s built-in `/goal` (RPC `opencode.goal` + change events).
+ * A cleared report from one owner must never erase the other's live goal.
+ */
 export class OpenCodeGoals {
   revision = 0;
   commandName: string | undefined;
   private itemId: string | undefined;
   private fingerprint: string | undefined;
   private updatedAt = 0;
+  private source: GoalSource | undefined;
 
   constructor(private readonly threadId: string) {}
 
+  /** Which goal owner produced the currently projected goal, if any. */
+  get currentSource(): GoalSource | undefined {
+    return this.source;
+  }
+
   map(raw: unknown, sessionID: string): RuntimeEvent[] {
+    return this.apply(raw, sessionID, "plugin");
+  }
+
+  /**
+   * Project a native goal state (`{id, objective, status, reason?, rounds,
+   * maxRounds, updatedAt}`), normalized to the plugin snapshot shape. Native
+   * timestamps are epoch milliseconds; canonical goal timestamps are seconds.
+   */
+  mapNative(raw: unknown, sessionID: string): RuntimeEvent[] {
+    if (raw === undefined || raw === null) return this.apply(raw, sessionID, "native");
+    const goal = readOpenCodeRecord(raw);
+    if (!goal) return [];
+    const updatedAt = goal.updatedAt;
+    return this.apply(
+      {
+        ...goal,
+        id: typeof goal.id === "string" && goal.id ? `native:${goal.id}` : goal.id,
+        autoTurns: goal.rounds,
+        stopReason: goal.reason,
+        ...(typeof updatedAt === "number" && updatedAt > 1e11
+          ? { updatedAt: updatedAt / 1000 }
+          : {}),
+      },
+      sessionID,
+      "native",
+    );
+  }
+
+  private apply(raw: unknown, sessionID: string, source: GoalSource): RuntimeEvent[] {
     if (raw === undefined) return [];
     if (raw === null) {
+      if (this.source !== undefined && this.source !== source) return [];
       const itemId = this.itemId ?? newItemId("opencode-goal");
       if (this.fingerprint === "cleared") return [];
       const events = this.itemId
@@ -38,6 +81,7 @@ export class OpenCodeGoals {
       this.itemId = undefined;
       this.fingerprint = "cleared";
       this.updatedAt = 0;
+      this.source = source;
       this.revision += 1;
       return events;
     }
@@ -73,11 +117,14 @@ export class OpenCodeGoals {
       objective: goal.objective,
       status,
       providerThreadId: sessionID,
+      // The plugin command also edits the objective; native /goal does not.
       availableActions: !this.commandName
         ? []
         : terminal
           ? ["clear"]
-          : ["edit", status === "active" ? "pause" : "resume", "clear"],
+          : source === "native"
+            ? [status === "active" ? "pause" : "resume", "clear"]
+            : ["edit", status === "active" ? "pause" : "resume", "clear"],
       ...(goal.tokenBudget === null || number("tokenBudget") !== undefined
         ? { tokenBudget: goal.tokenBudget as number | null }
         : {}),
@@ -99,6 +146,7 @@ export class OpenCodeGoals {
     if (!starts && this.fingerprint === fingerprint) return [];
     this.fingerprint = fingerprint;
     this.itemId = itemId;
+    this.source = source;
     this.updatedAt = updatedAt ?? this.updatedAt;
     this.revision += 1;
     if (!starts) return updateGoalItemEvents(this.threadId, itemId, payload);
@@ -119,6 +167,35 @@ export class OpenCodeGoals {
     const record = typeof result === "string" ? parseOpenCodeJsonRecord(result) : undefined;
     return this.map(record?.goal, sessionID);
   }
+}
+
+/** RPC id of OpenCode's built-in goal plugin (2.2.1+). */
+export const OPENCODE_NATIVE_GOAL_RPC_ID = "opencode.goal";
+/** SSE event type the built-in goal plugin publishes on every goal write. */
+export const OPENCODE_NATIVE_GOAL_CHANGED_EVENT = "rpc.opencode.goal.changed";
+
+/**
+ * Read the session's native goal through the goal RPC. Returns the goal (or
+ * null when none is set); `undefined` when the client has no RPC transport.
+ * Servers without the native goal plugin reject the call — callers treat a
+ * rejection as "unsupported" and stop asking.
+ */
+export async function readOpenCodeNativeGoal(
+  client: OpenCodeClient,
+  directory: string,
+  sessionID: string,
+): Promise<unknown> {
+  if (typeof client.rpc?.call !== "function") return undefined;
+  const result = await client.rpc.call(
+    {
+      rpcID: OPENCODE_NATIVE_GOAL_RPC_ID,
+      method: "get",
+      input: { sessionID },
+      location: { directory },
+    },
+    { signal: AbortSignal.timeout(10_000) },
+  );
+  return result && typeof result === "object" && "output" in result ? result.output : undefined;
 }
 
 export function openCodeGoalCommand(

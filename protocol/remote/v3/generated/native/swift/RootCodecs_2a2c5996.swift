@@ -69,7 +69,7 @@ public extension RemoteRootCodecs {
 }
 
 public extension RemoteRootCodecs {
-  static let procedureU2EManageAgentPluginsU2EResult: RemoteRootCodec<ProceduremanageAgentPluginsResult_940863a47c> = .init(id: "procedure.manageAgentPlugins.result", schema: RemoteSchemas.schema_940863a47ce0d148)
+  static let procedureU2EManageAgentPluginsU2EResult: RemoteRootCodec<ProceduremanageAgentPluginsResult_50c013e0fb> = .init(id: "procedure.manageAgentPlugins.result", schema: RemoteSchemas.schema_50c013e0fba2aefa)
 }
 
 public extension RemoteRootCodecs {
