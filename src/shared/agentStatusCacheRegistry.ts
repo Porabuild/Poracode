@@ -3,6 +3,7 @@
 import { claudeStatusCachePolicy } from "@/supervisor/agents/claude/statusCache";
 import { codexStatusCachePolicy } from "@/supervisor/agents/codex/statusCache";
 import { commandCodeStatusCachePolicy } from "@/supervisor/agents/commandcode/statusCache";
+import { cursorStatusCachePolicy } from "@/supervisor/agents/cursor/statusCache";
 import { devinStatusCachePolicy } from "@/supervisor/agents/devin/statusCache";
 import { geminiStatusCachePolicy } from "@/supervisor/agents/gemini/statusCache";
 import { kimiStatusCachePolicy } from "@/supervisor/agents/kimi/statusCache";
@@ -13,6 +14,7 @@ const policies = [
   claudeStatusCachePolicy,
   codexStatusCachePolicy,
   commandCodeStatusCachePolicy,
+  cursorStatusCachePolicy,
   devinStatusCachePolicy,
   geminiStatusCachePolicy,
   kimiStatusCachePolicy,

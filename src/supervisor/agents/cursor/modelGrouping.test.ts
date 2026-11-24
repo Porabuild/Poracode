@@ -15,6 +15,8 @@ describe("cursorModelGroup", () => {
     ["grok-4.6-fast", "cursor"],
     ["grok-4.6[effort=high,fast=true]", "cursor"],
     ["composer-3", "cursor"],
+    ["grok-4.7", "cursor"],
+    ["composer-2", "cursor"],
     ["gpt-5.6-sol", "other"],
     ["gpt-5.6-luna", "other"],
     ["claude-opus-5", "other"],
@@ -29,13 +31,16 @@ describe("cursorModelGroup", () => {
     ["muse-spark-1.3-fast", "other"],
     ["muse-wonder[effort=high,fast=true]", "other"],
     ["Muse-Spark-1.3", "other"],
+    ["deepseek-v41-flash-1017", "other"],
+    ["deepseek-v4-flash-high", "other"],
+    ["new-vendor-model", "other"],
   ] as const)("%s → %s", (modelId, group) => {
     expect(cursorModelGroup(modelId)).toBe(group);
   });
 });
 
 describe("cursorModelGrouping", () => {
-  it("keeps unknown Cursor ids in Cursor Models and third-party vendors in Other", () => {
+  it("groups Cursor pool families under Cursor Models and every other id under Other models", () => {
     expect(
       cursorModelGrouping([
         { id: "composer-2.5", label: "Composer 2.5" },
@@ -43,6 +48,8 @@ describe("cursorModelGrouping", () => {
         { id: "gpt-5.6-luna", label: "GPT-5.6 Luna" },
         { id: "muse-wonder", label: "Muse Wonder" },
         { id: "muse-spark-1.3", label: "Muse Spark 1.3" },
+        { id: "deepseek-v41-flash-1017", label: "DeepSeek V4.1 Flash 1017" },
+        { id: "new-vendor-model", label: "New Vendor Model" },
       ]),
     ).toEqual({
       subProviders: [
@@ -55,6 +62,8 @@ describe("cursorModelGrouping", () => {
         "gpt-5.6-luna": "other",
         "muse-wonder": "other",
         "muse-spark-1.3": "other",
+        "deepseek-v41-flash-1017": "other",
+        "new-vendor-model": "other",
       },
     });
   });
