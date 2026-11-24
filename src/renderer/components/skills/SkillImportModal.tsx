@@ -9,7 +9,7 @@ import type {
   SkillImportMode,
   SkillScanResult,
 } from "@/shared/contracts";
-import { readBridge } from "@/renderer/bridge";
+import { importSkillsForHost, resolveSkillHostPlatform } from "./skillHostBridge";
 import { Button, Select } from "@/renderer/components/common";
 import {
   GLOBAL_MCP_DESTINATION_ID,
@@ -33,6 +33,8 @@ interface SkillImportModalProps {
   wslDistros: readonly string[];
   sourceTarget: SkillTarget;
   defaultDestinationId: string;
+  connectionKey?: string;
+  hostPlatform?: string;
   onImported: () => Promise<void>;
 }
 
@@ -56,6 +58,9 @@ export function SkillImportModal(props: SkillImportModalProps) {
     destinationTarget.project?.location,
     undefined,
     destinationTarget.wslDistro,
+    undefined,
+    undefined,
+    props.connectionKey,
   );
   const destinationScan =
     destinationTarget.id === props.sourceTarget.id ? props.scan : destinationSkills.scan;
@@ -148,7 +153,7 @@ export function SkillImportModal(props: SkillImportModalProps) {
     if (!canImport) return;
     setImporting(true);
     try {
-      await readBridge().importSkills({
+      await importSkillsForHost(props.connectionKey, {
         skills: selectedSkills.map((skill) => ({
           sourcePath: skill.absolutePath,
           ...skillTargetRequest(destinationTarget),
@@ -178,7 +183,7 @@ export function SkillImportModal(props: SkillImportModalProps) {
     }
   };
 
-  const hostGlobalLabel = t(hostGlobalScopeLabel(readBridge().platform));
+  const hostGlobalLabel = t(hostGlobalScopeLabel(resolveSkillHostPlatform(props.hostPlatform)));
   const destinationLabel =
     destinationTarget.project?.name ?? destinationTarget.wslDistro ?? hostGlobalLabel;
   const canLink =

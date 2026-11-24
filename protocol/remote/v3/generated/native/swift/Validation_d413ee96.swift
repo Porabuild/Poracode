@@ -189,6 +189,10 @@ public extension RemoteSchemas {
 }
 
 public extension RemoteSchemas {
+  static let schema_75c2889f6a998c9a = RemoteSchema(type: "object", additionalSchema: RemoteSchemas.schema_2bbb36b09a956713, propertyNames: RemoteSchemas.schema_76ba6b1ee1436f68, unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
   static let schema_75d835115fd0d1f9 = RemoteSchema(type: "string", literals: [.string("plan")], unknownPolicy: .strip)
 }
 

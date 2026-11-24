@@ -2,13 +2,18 @@ import { useEffect, useState } from "react";
 import { Checkbox, toast } from "@heroui/react";
 import { plural } from "@lingui/core/macro";
 import { Plural, Trans, useLingui } from "@lingui/react/macro";
-import type { ImportSessionFacets, ImportableSession } from "@/shared/contracts";
+import type {
+  ImportSessionFacets,
+  ImportableSession,
+  ListImportableSessionsResult,
+} from "@/shared/contracts";
 import { friendlyError } from "@/shared/messages";
 import { isRemoteSession, readBridge } from "@/renderer/bridge";
 import { Button, Input, PixelLoader, Select } from "@/renderer/components/common";
-import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
+import { useHostAgentStatusPools } from "@/renderer/hooks/useHostAgentStatuses";
 import { useAppStore } from "@/renderer/state/appStore";
 import { remoteConnectionKey } from "@/renderer/state/remoteServers/types";
+import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { useSettingsHostServer } from "@/renderer/state/settingsHostStore";
 import { isHomeProject } from "@/shared/homeScope";
 import {
@@ -37,20 +42,22 @@ function folderName(path: string): string {
 }
 
 /** Lists CLI conversations found on disk and turns the chosen ones into threads. */
-export function ImportSessionsPanel() {
+export function ImportSessionsPanel(props: { connectionKey?: string } = {}) {
   const { t } = useLingui();
-  // Sessions are listed from, and imported into, the host this client is
-  // bound to: a browser client's bound host, else the desktop's managed host
-  // (no key). Only that host's projects and threads apply.
+  // Sessions are listed from, and imported into, the addressed host: an explicit
+  // paired connectionKey on desktop, a browser client's bound host, else the
+  // desktop's managed host (no key). Only that host's projects and threads apply.
   const settingsHost = useSettingsHostServer();
-  const hostKey = isRemoteSession() && settingsHost ? remoteConnectionKey(settingsHost) : undefined;
+  const hostKey =
+    props.connectionKey ??
+    (isRemoteSession() && settingsHost ? remoteConnectionKey(settingsHost) : undefined);
   const allProjects = useAppStore((state) => state.projects);
   const allThreads = useAppStore((state) => state.threads);
   const projects = allProjects.filter(
     (project) => project.remoteServerId === hostKey && !isHomeProject(project),
   );
   const threads = hostThreads(allThreads, hostKey);
-  const agentStatuses = useAgentStatusesStore((state) => state.agentStatuses);
+  const { windows: agentStatuses } = useHostAgentStatusPools(props.connectionKey);
   const [sessions, setSessions] = useState<ImportableSession[]>([]);
   const [facets, setFacets] = useState(EMPTY_FACETS);
   const [truncated, setTruncated] = useState(false);
@@ -67,17 +74,34 @@ export function ImportSessionsPanel() {
     return () => clearTimeout(handle);
   }, [filters.query]);
 
-  const scanKey = JSON.stringify([filters.agentKind, filters.folder, debouncedQuery]);
+  const scanKey = JSON.stringify([
+    props.connectionKey ?? "",
+    filters.agentKind,
+    filters.folder,
+    debouncedQuery,
+  ]);
   const rescanning = scannedFor !== scanKey;
 
   useEffect(() => {
     let cancelled = false;
-    void readBridge()
-      .listImportableSessions({
-        ...(filters.agentKind === ALL ? {} : { agentKind: filters.agentKind }),
-        ...(filters.folder === ALL ? {} : { cwd: filters.folder }),
-        ...(debouncedQuery.trim() ? { query: debouncedQuery } : {}),
-      })
+    const payload = {
+      ...(filters.agentKind === ALL ? {} : { agentKind: filters.agentKind }),
+      ...(filters.folder === ALL ? {} : { cwd: filters.folder }),
+      ...(debouncedQuery.trim() ? { query: debouncedQuery } : {}),
+    };
+    const request: Promise<ListImportableSessionsResult> = props.connectionKey
+      ? useRemoteServersStore
+          .getState()
+          .withClient(
+            props.connectionKey,
+            (client) =>
+              client.callRemoteProcedure(
+                "listImportableSessions",
+                payload,
+              ) as Promise<ListImportableSessionsResult>,
+          )
+      : readBridge().listImportableSessions(payload);
+    void request
       .then((result) => {
         if (cancelled || result.superseded) return;
         setSessions(result.sessions);
@@ -99,7 +123,7 @@ export function ImportSessionsPanel() {
     return () => {
       cancelled = true;
     };
-  }, [filters.agentKind, filters.folder, debouncedQuery, scanKey]);
+  }, [filters.agentKind, filters.folder, debouncedQuery, props.connectionKey, scanKey]);
 
   if (scannedFor === undefined) {
     return (

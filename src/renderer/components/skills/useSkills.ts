@@ -8,6 +8,7 @@ import type {
   ThreadPresentationMode,
 } from "@/shared/contracts";
 import { readBridge } from "@/renderer/bridge";
+import { scanSkillsForHost } from "./skillHostBridge";
 import {
   resolveLocalizedPluginSkill,
   useLocalizedPluginCatalog,
@@ -59,16 +60,15 @@ function requestSkillScan(
   requestKey: string,
   payload: ScanSkillsPayload,
   reusePending: boolean,
+  connectionKey?: string,
 ): Promise<SkillScanResult> {
   const pending = pendingScans.get(requestKey);
   if (reusePending && pending) return pending;
 
-  const request = readBridge()
-    .scanSkills(payload)
-    .then((result) => {
-      if (pendingScans.get(requestKey) === request) scanCache.set(requestKey, result);
-      return result;
-    });
+  const request = scanSkillsForHost(connectionKey, payload).then((result) => {
+    if (pendingScans.get(requestKey) === request) scanCache.set(requestKey, result);
+    return result;
+  });
   pendingScans.set(requestKey, request);
   const clearPending = () => {
     if (pendingScans.get(requestKey) === request) pendingScans.delete(requestKey);
@@ -83,10 +83,11 @@ export function useSkills(
   wslDistro?: string,
   presentationMode?: ThreadPresentationMode,
   pluginOverrides?: Readonly<Record<string, boolean>>,
+  connectionKey?: string,
 ) {
   const installedPlugins = useSharedSettings((state) => state.installedPlugins);
   const pluginRevision = usePlugins((state) => state.revision);
-  const requestKey = `${agentKind ?? ""}\0${wslDistro ?? ""}\0${presentationMode ?? ""}\0${projectLocation ? JSON.stringify(projectLocation) : ""}\0${pluginSkillScanKey(installedPlugins)}\0${pluginRevision}\0${pluginOverridesScanKey(pluginOverrides)}`;
+  const requestKey = `${connectionKey ?? ""}\0${agentKind ?? ""}\0${wslDistro ?? ""}\0${presentationMode ?? ""}\0${projectLocation ? JSON.stringify(projectLocation) : ""}\0${pluginSkillScanKey(installedPlugins)}\0${pluginRevision}\0${pluginOverridesScanKey(pluginOverrides)}`;
   const cachedScan = currentScanCache(pluginRevision).get(requestKey);
   const [scanState, setScanState] = useState<
     | {
@@ -114,6 +115,7 @@ export function useSkills(
           ...(pluginOverrides ? { pluginOverrides: { ...pluginOverrides } } : {}),
         },
         reusePending,
+        connectionKey,
       );
       if (runRef.current === run) setScanState({ requestKey, result });
     } catch (nextError) {

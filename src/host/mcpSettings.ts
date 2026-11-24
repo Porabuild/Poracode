@@ -1,7 +1,8 @@
 import { mcpServerSchema, type McpServer, type McpTransport } from "@/shared/contracts/mcpServer";
+import { REDACTED_SECRET_VALUE } from "@/shared/secretFormat";
 
 /** Placeholder substituted for every secret-bearing value returned by get_settings. */
-export const REDACTED_VALUE = "«redacted»";
+export const REDACTED_VALUE = REDACTED_SECRET_VALUE;
 
 export function containsMcpRedaction(transport: McpTransport): boolean {
   return JSON.stringify(transport).includes(REDACTED_VALUE);

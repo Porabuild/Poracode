@@ -7,8 +7,9 @@ import type { ModelFamilyConfig } from "@/shared/modelFamilySelection";
 import { modelFamilyForModel } from "@/shared/modelFamilySelection";
 import type { ModelSelection } from "@/shared/selectionBinding.schemas";
 import { SELECTION_AXES } from "@/shared/selectionBinding";
-import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
+import { useHostAgentStatusPools } from "@/renderer/hooks/useHostAgentStatuses";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
+import type { RemoteSettings, RemoteSettingsPatch } from "@/shared/remote";
 import { capabilitiesForPresentation } from "@/shared/agentSelection";
 import {
   buildModelPickerControls,
@@ -41,11 +42,16 @@ import {
 } from "@/renderer/utils/utilitySelection";
 import {
   createUtilityPresetSetter,
+  editUtilityPreset,
+  readUtilityPreset,
   setUtilityPresentation,
+  utilityPresetFields,
   utilitySettingsKeys,
+  type UtilityDomain,
 } from "./utilityPreset";
-import { TuxIcon } from "@/renderer/components/common";
+import { PixelLoader, TuxIcon } from "@/renderer/components/common";
 import { SettingsPage } from "./SettingsForm";
+import { useScopedHostSettings, type SettingsHostTarget } from "./useScopedHostSettings";
 
 export { createUtilityPresetSetter } from "./utilityPreset";
 
@@ -402,65 +408,202 @@ export function PresentationModeToggle(props: {
   );
 }
 
-export function AISettings() {
+/** The host patch for one deliberate utility-preset edit. */
+export function remoteUtilityPatch(input: {
+  current: RemoteSettings;
+  domain: UtilityDomain;
+  wsl: boolean;
+  presentation: ThreadPresentationMode | undefined;
+  provider: string;
+  model: string;
+  effort: string;
+  fast: boolean;
+  edit: UtilityPresetEdit;
+}): RemoteSettingsPatch | undefined {
+  const keys = utilitySettingsKeys(input.domain, input.wsl);
+  const stored = readUtilityPreset(input.current, keys);
+  const selection = editUtilityPreset(
+    stored,
+    {
+      provider: input.provider,
+      model: input.model,
+      effort: input.effort,
+      fast: input.fast,
+    },
+    input.edit,
+    input.presentation,
+  );
+  return selection ? utilityPresetFields(keys, input.provider, selection) : undefined;
+}
+
+/** Retarget the conflict resolver's owner and revoke its stale binding. */
+export function remotePresentationPatch(input: {
+  current: RemoteSettings;
+  wsl: boolean;
+  mode: ThreadPresentationMode;
+}): RemoteSettingsPatch | undefined {
+  const key = input.wsl
+    ? "wslConflictResolverPresentationMode"
+    : "conflictResolverPresentationMode";
+  if (input.current[key] === input.mode) return undefined;
+  const keys = utilitySettingsKeys("conflictResolver", input.wsl);
+  const stored = readUtilityPreset(input.current, keys);
+  const selection = editUtilityPreset(stored, stored, { kind: "presentation" }, input.mode);
+  const patch: RemoteSettingsPatch = { [key]: input.mode };
+  if (selection !== undefined) {
+    Object.assign(patch, utilityPresetFields(keys, stored.provider, selection));
+  }
+  return patch;
+}
+
+export function AISettings(props: SettingsHostTarget = {}) {
   const { t } = useLingui();
   const [envKind, setEnvKind] = useState<EnvKind>("windows");
+  const host = useScopedHostSettings(props);
 
-  const agentStatuses = useAgentStatusesStore((s) => s.agentStatuses);
-  const wslAgentStatuses = useAgentStatusesStore((s) => s.wslAgentStatuses);
+  const { windows: agentStatuses, wsl: wslAgentStatuses } = useHostAgentStatusPools(
+    props.connectionKey,
+  );
   const hasWsl = wslAgentStatuses.length > 0;
   const activeStatuses = envKind === "wsl" ? wslAgentStatuses : agentStatuses;
   const wsl = envKind === "wsl";
 
-  const titleGenSelection = useSharedSettings((s) =>
+  const localTitleGenSelection = useSharedSettings((s) =>
     wsl ? s.wslTitleGenSelection : s.titleGenSelection,
   );
-  const titleGenProvider = useSharedSettings((s) =>
+  const localTitleGenProvider = useSharedSettings((s) =>
     wsl ? s.wslTitleGenProvider : s.titleGenProvider,
   );
-  const titleGenModel = useSharedSettings((s) => (wsl ? s.wslTitleGenModel : s.titleGenModel));
-  const titleGenEffort = useSharedSettings((s) => (wsl ? s.wslTitleGenEffort : s.titleGenEffort));
-  const titleGenFast = useSharedSettings((s) => (wsl ? s.wslTitleGenFast : s.titleGenFast));
+  const localTitleGenModel = useSharedSettings((s) => (wsl ? s.wslTitleGenModel : s.titleGenModel));
+  const localTitleGenEffort = useSharedSettings((s) =>
+    wsl ? s.wslTitleGenEffort : s.titleGenEffort,
+  );
+  const localTitleGenFast = useSharedSettings((s) => (wsl ? s.wslTitleGenFast : s.titleGenFast));
   const setTitleGenConfig = useSharedSettings((s) =>
     wsl ? s.setWslTitleGenConfig : s.setTitleGenConfig,
   );
 
-  const commitGenSelection = useSharedSettings((s) =>
+  const localCommitGenSelection = useSharedSettings((s) =>
     wsl ? s.wslCommitGenSelection : s.commitGenSelection,
   );
-  const commitGenProvider = useSharedSettings((s) =>
+  const localCommitGenProvider = useSharedSettings((s) =>
     wsl ? s.wslCommitGenProvider : s.commitGenProvider,
   );
-  const commitGenModel = useSharedSettings((s) => (wsl ? s.wslCommitGenModel : s.commitGenModel));
-  const commitGenEffort = useSharedSettings((s) =>
+  const localCommitGenModel = useSharedSettings((s) =>
+    wsl ? s.wslCommitGenModel : s.commitGenModel,
+  );
+  const localCommitGenEffort = useSharedSettings((s) =>
     wsl ? s.wslCommitGenEffort : s.commitGenEffort,
   );
-  const commitGenFast = useSharedSettings((s) => (wsl ? s.wslCommitGenFast : s.commitGenFast));
+  const localCommitGenFast = useSharedSettings((s) => (wsl ? s.wslCommitGenFast : s.commitGenFast));
   const setCommitGenConfig = useSharedSettings((s) =>
     wsl ? s.setWslCommitGenConfig : s.setCommitGenConfig,
   );
 
-  const conflictResolverSelection = useSharedSettings((s) =>
+  const localConflictResolverSelection = useSharedSettings((s) =>
     wsl ? s.wslConflictResolverSelection : s.conflictResolverSelection,
   );
-  const conflictResolverProvider = useSharedSettings((s) =>
+  const localConflictResolverProvider = useSharedSettings((s) =>
     wsl ? s.wslConflictResolverProvider : s.conflictResolverProvider,
   );
-  const conflictResolverModel = useSharedSettings((s) =>
+  const localConflictResolverModel = useSharedSettings((s) =>
     wsl ? s.wslConflictResolverModel : s.conflictResolverModel,
   );
-  const conflictResolverEffort = useSharedSettings((s) =>
+  const localConflictResolverEffort = useSharedSettings((s) =>
     wsl ? s.wslConflictResolverEffort : s.conflictResolverEffort,
   );
-  const conflictResolverFast = useSharedSettings((s) =>
+  const localConflictResolverFast = useSharedSettings((s) =>
     wsl ? s.wslConflictResolverFast : s.conflictResolverFast,
   );
   const setConflictResolverConfig = useSharedSettings((s) =>
     wsl ? s.setWslConflictResolverConfig : s.setConflictResolverConfig,
   );
-  const conflictResolverPresentationMode = useSharedSettings((s) =>
+  const localConflictResolverPresentationMode = useSharedSettings((s) =>
     wsl ? s.wslConflictResolverPresentationMode : s.conflictResolverPresentationMode,
   );
+
+  const titleKeys = utilitySettingsKeys("titleGen", wsl);
+  const commitKeys = utilitySettingsKeys("commitGen", wsl);
+  const conflictKeys = utilitySettingsKeys("conflictResolver", wsl);
+
+  const remoteSettings = host.remote ? host.settings : undefined;
+  const remoteTitle = remoteSettings ? readUtilityPreset(remoteSettings, titleKeys) : undefined;
+  const remoteCommit = remoteSettings ? readUtilityPreset(remoteSettings, commitKeys) : undefined;
+  const remoteConflict = remoteSettings
+    ? readUtilityPreset(remoteSettings, conflictKeys)
+    : undefined;
+
+  const titleGenSelection = host.remote ? remoteTitle?.selection : localTitleGenSelection;
+  const titleGenProvider = host.remote ? (remoteTitle?.provider ?? "auto") : localTitleGenProvider;
+  const titleGenModel = host.remote ? (remoteTitle?.model ?? "") : localTitleGenModel;
+  const titleGenEffort = host.remote ? (remoteTitle?.effort ?? "") : localTitleGenEffort;
+  const titleGenFast = host.remote ? (remoteTitle?.fast ?? false) : localTitleGenFast;
+
+  const commitGenSelection = host.remote ? remoteCommit?.selection : localCommitGenSelection;
+  const commitGenProvider = host.remote
+    ? (remoteCommit?.provider ?? "auto")
+    : localCommitGenProvider;
+  const commitGenModel = host.remote ? (remoteCommit?.model ?? "") : localCommitGenModel;
+  const commitGenEffort = host.remote ? (remoteCommit?.effort ?? "") : localCommitGenEffort;
+  const commitGenFast = host.remote ? (remoteCommit?.fast ?? false) : localCommitGenFast;
+
+  const conflictResolverSelection = host.remote
+    ? remoteConflict?.selection
+    : localConflictResolverSelection;
+  const conflictResolverProvider = host.remote
+    ? (remoteConflict?.provider ?? "auto")
+    : localConflictResolverProvider;
+  const conflictResolverModel = host.remote
+    ? (remoteConflict?.model ?? "")
+    : localConflictResolverModel;
+  const conflictResolverEffort = host.remote
+    ? (remoteConflict?.effort ?? "")
+    : localConflictResolverEffort;
+  const conflictResolverFast = host.remote
+    ? (remoteConflict?.fast ?? false)
+    : localConflictResolverFast;
+  const conflictResolverPresentationMode: ThreadPresentationMode = host.remote
+    ? ((wsl
+        ? remoteSettings?.wslConflictResolverPresentationMode
+        : remoteSettings?.conflictResolverPresentationMode) ?? "gui")
+    : localConflictResolverPresentationMode;
+
+  const updateRemoteDomain = (
+    domain: UtilityDomain,
+    presentation: ThreadPresentationMode | undefined,
+    provider: string,
+    model: string,
+    effort: string,
+    fast: boolean,
+    edit: UtilityPresetEdit,
+  ) => {
+    if (!remoteSettings) return;
+    // Compose over the owner's latest document, not the render-time snapshot:
+    // a second quick edit must not revert the first.
+    host.update((current) =>
+      remoteUtilityPatch({
+        current,
+        domain,
+        wsl,
+        presentation,
+        provider,
+        model,
+        effort,
+        fast,
+        edit,
+      }),
+    );
+  };
+
+  const remotePresetSetter =
+    (domain: UtilityDomain, presentation: ThreadPresentationMode | undefined) =>
+    (provider: string, model: string, effort: string, fast: boolean, edit: UtilityPresetEdit) =>
+      updateRemoteDomain(domain, presentation, provider, model, effort, fast, edit);
+
+  const updateRemotePresentation = (mode: ThreadPresentationMode) => {
+    if (!remoteSettings) return;
+    host.update((current) => remotePresentationPatch({ current, wsl, mode }));
+  };
 
   return (
     <SettingsPage
@@ -491,78 +634,112 @@ export function AISettings() {
         ) : null
       }
     >
-      <GenConfigSection
-        anchorId="ai.titleGeneration"
-        heading={t`Title Generation`}
-        allowDisabled
-        requireOneShot
-        description={t`Generates short titles for new threads.`}
-        defaultsHint={getTitleGenDefaultsHint()}
-        agentStatuses={activeStatuses}
-        selection={titleGenSelection}
-        provider={titleGenProvider}
-        model={titleGenModel}
-        effort={titleGenEffort}
-        fast={titleGenFast}
-        resolve={resolveTitleGenConfig}
-        getCandidates={getTitleGenCandidates}
-        onConfigChange={createUtilityPresetSetter({
-          keys: utilitySettingsKeys("titleGen", wsl),
-          presentation: ONE_SHOT_UTILITY_PRESENTATION,
-          setScalars: setTitleGenConfig,
-        })}
-      />
-
-      <GenConfigSection
-        anchorId="ai.commitMessageGeneration"
-        heading={t`Commit Message Generation`}
-        requireOneShot
-        description={t`Generates commit messages from staged changes.`}
-        defaultsHint={getCommitGenDefaultsHint()}
-        agentStatuses={activeStatuses}
-        selection={commitGenSelection}
-        provider={commitGenProvider}
-        model={commitGenModel}
-        effort={commitGenEffort}
-        fast={commitGenFast}
-        resolve={resolveCommitGenConfig}
-        getCandidates={getCommitGenCandidates}
-        onConfigChange={createUtilityPresetSetter({
-          keys: utilitySettingsKeys("commitGen", wsl),
-          presentation: ONE_SHOT_UTILITY_PRESENTATION,
-          setScalars: setCommitGenConfig,
-        })}
-      />
-
-      <GenConfigSection
-        anchorId="ai.conflictResolver"
-        heading={t`Conflict Resolver`}
-        description={t`Resolves merge conflicts during rebase or merge.`}
-        defaultsHint={getConflictResolverDefaultsHint()}
-        agentStatuses={activeStatuses}
-        selection={conflictResolverSelection}
-        provider={conflictResolverProvider}
-        model={conflictResolverModel}
-        effort={conflictResolverEffort}
-        fast={conflictResolverFast}
-        resolve={resolveConflictResolverConfig}
-        getCandidates={getConflictResolverCandidates}
-        onConfigChange={createUtilityPresetSetter({
-          keys: utilitySettingsKeys("conflictResolver", wsl),
-          // The conflict resolver's existing declaration: the target
-          // presentation is its presentation-mode setting.
-          presentation: conflictResolverPresentationMode,
-          setScalars: setConflictResolverConfig,
-        })}
-        presentationMode={conflictResolverPresentationMode}
-        extraControls={
-          <PresentationModeToggle
-            ariaLabel={t`Open conflict resolver in`}
-            value={conflictResolverPresentationMode}
-            onChange={(mode) => setUtilityPresentation(wsl, mode)}
+      {host.remote && host.loading ? (
+        <div
+          role="status"
+          aria-label={t`Loading`}
+          className="flex items-center justify-center py-6"
+        >
+          <PixelLoader />
+        </div>
+      ) : host.remote && !remoteSettings ? (
+        <p role="status">
+          <Trans>Settings unavailable</Trans>
+        </p>
+      ) : (
+        <>
+          <GenConfigSection
+            anchorId="ai.titleGeneration"
+            heading={t`Title Generation`}
+            allowDisabled
+            requireOneShot
+            description={t`Generates short titles for new threads.`}
+            defaultsHint={getTitleGenDefaultsHint()}
+            agentStatuses={activeStatuses}
+            isReadOnly={host.remote && !host.canWrite}
+            selection={titleGenSelection}
+            provider={titleGenProvider}
+            model={titleGenModel}
+            effort={titleGenEffort}
+            fast={titleGenFast}
+            resolve={resolveTitleGenConfig}
+            getCandidates={getTitleGenCandidates}
+            onConfigChange={
+              host.remote
+                ? remotePresetSetter("titleGen", ONE_SHOT_UTILITY_PRESENTATION)
+                : createUtilityPresetSetter({
+                    keys: titleKeys,
+                    presentation: ONE_SHOT_UTILITY_PRESENTATION,
+                    setScalars: setTitleGenConfig,
+                  })
+            }
           />
-        }
-      />
+
+          <GenConfigSection
+            anchorId="ai.commitMessageGeneration"
+            heading={t`Commit Message Generation`}
+            requireOneShot
+            description={t`Generates commit messages from staged changes.`}
+            defaultsHint={getCommitGenDefaultsHint()}
+            agentStatuses={activeStatuses}
+            isReadOnly={host.remote && !host.canWrite}
+            selection={commitGenSelection}
+            provider={commitGenProvider}
+            model={commitGenModel}
+            effort={commitGenEffort}
+            fast={commitGenFast}
+            resolve={resolveCommitGenConfig}
+            getCandidates={getCommitGenCandidates}
+            onConfigChange={
+              host.remote
+                ? remotePresetSetter("commitGen", ONE_SHOT_UTILITY_PRESENTATION)
+                : createUtilityPresetSetter({
+                    keys: commitKeys,
+                    presentation: ONE_SHOT_UTILITY_PRESENTATION,
+                    setScalars: setCommitGenConfig,
+                  })
+            }
+          />
+
+          <GenConfigSection
+            anchorId="ai.conflictResolver"
+            heading={t`Conflict Resolver`}
+            description={t`Resolves merge conflicts during rebase or merge.`}
+            defaultsHint={getConflictResolverDefaultsHint()}
+            agentStatuses={activeStatuses}
+            isReadOnly={host.remote && !host.canWrite}
+            selection={conflictResolverSelection}
+            provider={conflictResolverProvider}
+            model={conflictResolverModel}
+            effort={conflictResolverEffort}
+            fast={conflictResolverFast}
+            resolve={resolveConflictResolverConfig}
+            getCandidates={getConflictResolverCandidates}
+            onConfigChange={
+              host.remote
+                ? remotePresetSetter("conflictResolver", conflictResolverPresentationMode)
+                : createUtilityPresetSetter({
+                    keys: conflictKeys,
+                    // The conflict resolver's existing declaration: the target
+                    // presentation is its presentation-mode setting.
+                    presentation: conflictResolverPresentationMode,
+                    setScalars: setConflictResolverConfig,
+                  })
+            }
+            presentationMode={conflictResolverPresentationMode}
+            extraControls={
+              <PresentationModeToggle
+                ariaLabel={t`Open conflict resolver in`}
+                value={conflictResolverPresentationMode}
+                isDisabled={host.remote && !host.canWrite}
+                onChange={(mode) =>
+                  host.remote ? updateRemotePresentation(mode) : setUtilityPresentation(wsl, mode)
+                }
+              />
+            }
+          />
+        </>
+      )}
     </SettingsPage>
   );
 }

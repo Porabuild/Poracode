@@ -1,5 +1,10 @@
 import { z } from "zod";
 import {
+  agentInstanceConfigMapSchema,
+  agentInstanceConfigSchema,
+  agentInstanceEnvVarSchema,
+  agentInstanceIdSchema,
+  createProfilePayloadSchema,
   profileIdentitySchema,
   profileStatsRequestSchema,
   mcpOauthBeginResultSchema,
@@ -234,6 +239,44 @@ export const remoteMcpSettingsOperationResultSchema = z.discriminatedUnion("kind
 export type RemoteMcpSettingsScope = z.infer<typeof remoteMcpSettingsScopeSchema>;
 export type RemoteMcpSettingsCommand = z.infer<typeof remoteMcpSettingsCommandSchema>;
 export type RemoteMcpSettingsOperation = z.infer<typeof remoteMcpSettingsOperationSchema>;
+
+export const remoteAgentProfilesReadResultSchema = z.object({
+  profiles: agentInstanceConfigMapSchema,
+});
+
+export const remoteAgentProfilesCommandResultSchema = z.object({
+  profiles: agentInstanceConfigMapSchema,
+  instance: agentInstanceConfigSchema.optional(),
+});
+
+export const remoteAgentProfilesCommandSchema = z.discriminatedUnion("kind", [
+  z.object({
+    kind: z.literal("create"),
+    payload: createProfilePayloadSchema,
+  }),
+  z.object({
+    kind: z.literal("update"),
+    instanceId: agentInstanceIdSchema,
+    displayName: z.string().min(1).max(120).optional(),
+    config: z.unknown().optional(),
+    enabled: z.boolean().optional(),
+  }),
+  z.object({
+    kind: z.literal("set-environment"),
+    instanceId: agentInstanceIdSchema,
+    environment: z.record(z.string().min(1).max(200), agentInstanceEnvVarSchema),
+  }),
+  z.object({
+    kind: z.literal("remove"),
+    instanceId: agentInstanceIdSchema,
+  }),
+]);
+
+export type RemoteAgentProfilesReadResult = z.infer<typeof remoteAgentProfilesReadResultSchema>;
+export type RemoteAgentProfilesCommand = z.infer<typeof remoteAgentProfilesCommandSchema>;
+export type RemoteAgentProfilesCommandResult = z.infer<
+  typeof remoteAgentProfilesCommandResultSchema
+>;
 
 export const prWatchReadQuerySchema = decodedPrWatchReadQuerySchema;
 

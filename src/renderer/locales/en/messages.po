@@ -1672,6 +1672,10 @@ msgstr "Agent is currently disabled"
 msgid "Agent not found"
 msgstr "Agent not found"
 
+#: src/renderer/components/providers/settings/AgentSettingsHostContext.tsx
+msgid "Agent profile not found."
+msgstr "Agent profile not found."
+
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
@@ -4641,6 +4645,7 @@ msgstr "Connection error"
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/mcp/RemoteMcpOauthDialog.tsx
 #: src/renderer/components/mcp/RemoteMcpServersManager.tsx
+#: src/renderer/state/pairedHostProfiles.ts
 #: src/renderer/state/pairedHostSettings.ts
 #: src/renderer/state/remoteServers/snapshotProjection.ts
 msgid "Connection failed."
@@ -10115,6 +10120,7 @@ msgstr "Load saved notes"
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentMessageList.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/RemoteBrowserMirror.tsx
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+#: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
@@ -17084,6 +17090,8 @@ msgstr "Settings"
 msgid "Settings aren't available yet, so your changes couldn't be saved. Please try again."
 msgstr "Settings aren't available yet, so your changes couldn't be saved. Please try again."
 
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileList.tsx
+#: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SearchSettings.tsx
@@ -19068,6 +19076,10 @@ msgstr "The history notice could not be read from the server."
 #: src/renderer/actions/clientDraftSubmission.ts
 msgid "The host accepted this message, but local recovery cleanup failed. Check the thread before retrying."
 msgstr "The host accepted this message, but local recovery cleanup failed. Check the thread before retrying."
+
+#: src/renderer/components/providers/settings/AgentSettingsHostContext.tsx
+msgid "The host did not return the agent profile."
+msgstr "The host did not return the agent profile."
 
 #: src/renderer/views/PullRequestsOverlay/summary/LabelPicker.tsx
 msgid "The host has more labels than are listed here."

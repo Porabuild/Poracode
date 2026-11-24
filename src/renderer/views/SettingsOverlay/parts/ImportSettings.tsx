@@ -2,7 +2,7 @@ import { Trans } from "@lingui/react/macro";
 import { ImportSessionsPanel } from "@/renderer/components/sessionImport/ImportSessionsPanel";
 
 /** Settings → Import: every discovered session across agents and profiles. */
-export function ImportSettings() {
+export function ImportSettings(props: { connectionKey?: string }) {
   return (
     <div className="flex flex-col gap-4 border-t border-border/10 pt-4">
       <div>
@@ -16,7 +16,9 @@ export function ImportSettings() {
           </Trans>
         </p>
       </div>
-      <ImportSessionsPanel />
+      <ImportSessionsPanel
+        {...(props.connectionKey ? { connectionKey: props.connectionKey } : {})}
+      />
     </div>
   );
 }

@@ -13,11 +13,13 @@ import {
 } from "@/shared/contracts";
 import { friendlyError } from "@/shared/messages";
 import { ConfirmDialog, Input } from "@/renderer/components/common";
-import { readBridge } from "@/renderer/bridge";
 import { useAppStore } from "@/renderer/state/appStore";
-import { flushSharedSettings, useSharedSettings } from "@/renderer/state/sharedSettingsStore";
-import { currentWslDistros } from "@/renderer/utils/acpRegistryAuth";
-import { useAgentSettingsHost } from "@/renderer/components/providers/settings/AgentSettingsHostContext";
+import { remoteOwner } from "@/renderer/state/remoteProjection";
+import {
+  rediscoverHostAgents,
+  useAgentSettingsHost,
+  useHostAgentInstance,
+} from "@/renderer/components/providers/settings/AgentSettingsHostContext";
 import { AgentProfileList } from "@/renderer/views/SettingsOverlay/parts/AgentProfileList";
 import type {
   NativeAgentProfileSupport,
@@ -43,11 +45,9 @@ export function defaultGeminiHomeDir(profileId: string): string {
  * unknown / non-Gemini id — the generic page chrome still shows install/auth.
  */
 export function GeminiProfileProviderSettings(props: { instanceId: string }) {
-  const { canManageProfiles } = useAgentSettingsHost();
-  const instance = useSharedSettings((s) =>
-    canManageProfiles ? s.agentInstances?.[props.instanceId] : undefined,
-  );
-  if (!canManageProfiles || !instance || instance.driver !== "gemini") return null;
+  const settingsHost = useAgentSettingsHost();
+  const instance = useHostAgentInstance(props.instanceId);
+  if (!settingsHost.canManageProfiles || !instance || instance.driver !== "gemini") return null;
   let parsedConfig: GeminiProfileInstanceConfig | undefined;
   let invalidConfig = false;
   try {
@@ -58,7 +58,7 @@ export function GeminiProfileProviderSettings(props: { instanceId: string }) {
   const config = parsedConfig ?? { homeDir: defaultGeminiHomeDir(instance.id) };
   return (
     <GeminiProfileEditor
-      key={instance.id}
+      key={`${settingsHost.key}:${instance.id}`}
       instance={instance}
       config={config}
       invalidConfig={invalidConfig}
@@ -72,10 +72,16 @@ function GeminiProfileEditor(props: {
   invalidConfig: boolean;
 }) {
   const { t } = useLingui();
-  const setAgentInstance = useSharedSettings((s) => s.setAgentInstance);
+  const settingsHost = useAgentSettingsHost();
   const profileKind = geminiProfileKind(props.instance.id);
   const hasThreads = useAppStore((s) =>
-    s.threads.some((thread) => thread.agentKind === profileKind),
+    s.threads.some(
+      (thread) =>
+        thread.agentKind === profileKind &&
+        (settingsHost.isRemote
+          ? remoteOwner(thread)?.desktopId === settingsHost.connectionKey
+          : remoteOwner(thread) === undefined),
+    ),
   );
   const [name, setName] = useState(props.instance.displayName ?? props.instance.id);
   const [homeDir, setHomeDir] = useState(props.config.homeDir);
@@ -89,31 +95,28 @@ function GeminiProfileEditor(props: {
     props.invalidConfig ||
     trimmedName !== (props.instance.displayName ?? props.instance.id) ||
     trimmedHomeDir !== props.config.homeDir;
-  const canSave = trimmedName.length > 0 && trimmedHomeDir.length > 0 && dirty && !saving;
+  const canSave =
+    settingsHost.isOnline &&
+    trimmedName.length > 0 &&
+    trimmedHomeDir.length > 0 &&
+    dirty &&
+    !saving;
   const strandsThreads =
     !props.invalidConfig && hasThreads && trimmedHomeDir !== props.config.homeDir;
 
   const commit = () => {
     if (!canSave) return;
     setSaving(true);
-    const previous = props.instance;
-    const candidate: AgentInstanceConfig = {
-      ...props.instance,
-      displayName: trimmedName,
-      config: { homeDir: trimmedHomeDir },
-    };
     const persist = async () => {
-      setAgentInstance(candidate);
-      await flushSharedSettings({ requireSuccess: true });
-      await readBridge().refreshAgentStatuses(currentWslDistros(), {
-        agentKinds: [profileKind],
+      await settingsHost.updateProfile(props.instance.id, {
+        displayName: trimmedName,
+        config: { homeDir: trimmedHomeDir },
       });
+      await rediscoverHostAgents(settingsHost, profileKind);
       toast.success(t`Gemini ${trimmedName || displayLabel} profile saved.`);
     };
     void persist()
-      .catch(async (error: unknown) => {
-        setAgentInstance(previous);
-        await flushSharedSettings().catch(() => undefined);
+      .catch((error: unknown) => {
         toast.danger(friendlyError(error));
       })
       .finally(() => setSaving(false));

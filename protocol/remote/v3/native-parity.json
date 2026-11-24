@@ -1697,6 +1697,58 @@
         }
       },
       {
+        "id": "agent-profiles-read",
+        "scopes": ["session:read"],
+        "batch": "settings-integrations",
+        "note": "The host returns redacted multi-profile agent instance definitions; sensitive environment values never leave the host. Desktop/web remote settings use it while native iOS and Android adoption remains planned.",
+        "ios": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": []
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": []
+          }
+        }
+      },
+      {
+        "id": "agent-profiles-command",
+        "scopes": ["session:operate"],
+        "batch": "settings-integrations",
+        "note": "Redaction-preserving create, update, environment sealing, and removal for multi-profile agent instances on a paired host. Desktop/web remote settings use it while native iOS and Android adoption remains planned.",
+        "ios": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": []
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": []
+          }
+        }
+      },
+      {
         "id": "memory-catalog",
         "scopes": ["session:operate"],
         "batch": "settings-integrations",

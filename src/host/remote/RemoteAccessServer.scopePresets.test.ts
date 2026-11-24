@@ -213,14 +213,16 @@ function splitBearerRoutes() {
 // Run triage/cancellation and device actions each add one operator-only route.
 // Duo creation adds one more operator-only route; viewers must not create devices.
 // Memory catalog management and sync both require operator scope.
-const EXPECTED_MUTATING_ROUTE_COUNT = 64;
+// Agent profile commands are operator-only; the profiles read is session:read.
+const EXPECTED_MUTATING_ROUTE_COUNT = 65;
 // 21 pre-B4 + the three additive B4 read routes (project-list,
 // catalog-membership, thread-turns) + B1 thread-runtime-gap + the experiment
 // state read, plus file-media mint/release/renew (owned read grants only), all
 // session:read and non-mutating, plus the automation snapshot and result inbox.
 // Device leases, inspection and previews add fourteen viewing routes.
 // Advisory item headings add one display-only, session:read POST.
-const EXPECTED_VIEWER_READABLE_ROUTE_COUNT = 52;
+// The agent-profiles read is session:read.
+const EXPECTED_VIEWER_READABLE_ROUTE_COUNT = 53;
 
 /** The split must be an exact, disjoint partition of the bearer registry:
  * the partition itself is derived, so a route can only ever land in one

@@ -20,6 +20,7 @@ import {
   LOCAL_AGENT_MANAGEMENT_HOST,
   type AgentManagementHost,
 } from "../../../components/providers/settings/agentManagementHost";
+import type { AgentSettingsHost } from "../../../components/providers/settings/AgentSettingsHostContext";
 import { claudeProfileSupport } from "../../../components/providers/settings/ClaudeProfileSettings";
 import { ClaudeAgentSettingsPanel } from "@/renderer/components/providers/claude/AgentSettingsPanel";
 import {
@@ -117,7 +118,8 @@ export interface NativeAgentProfileSupport {
     profileKind: string;
     instance: AgentInstanceConfig;
     statuses: readonly AgentStatus[];
-  }) => void;
+    settingsHost: AgentSettingsHost;
+  }) => void | Promise<void>;
 }
 
 export interface NativeAgentRegistryEntry {
