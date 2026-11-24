@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { DEFAULT_TELEMETRY_CONSENT } from "./telemetryConsent";
 import { defaultMemorySettings, memorySettingsSchema } from "./memory";
 import {
   settingsStringListSchema,
@@ -270,6 +271,20 @@ const usageSettingsSchema = z.object({
   selectedRingGroups: z.record(z.string(), z.string()).default({}),
 });
 export type UsageSettings = z.infer<typeof usageSettingsSchema>;
+
+const privacySettingsSchema = z.object({
+  /**
+   * Allowlisted product analytics events (docs/TELEMETRY.md). Opt-in: the
+   * default keeps every install that never answered the first-run choice
+   * silent, including settings files written before this field existed.
+   */
+  productAnalytics: z.boolean().default(false),
+  /** Scrubbed crash diagnostics. Opt-in, independent of product analytics. */
+  crashReports: z.boolean().default(false),
+  /** The first-run telemetry choice was shown and answered (either way). */
+  consentDecided: z.boolean().default(false),
+});
+export type PrivacySettings = z.infer<typeof privacySettingsSchema>;
 
 export const DEFAULT_USAGE_ENABLED_PROVIDER_IDS = ["claude", "codex"] as const;
 const DEFAULT_USAGE_ENABLED_PROVIDER_ID_SET = new Set<string>(DEFAULT_USAGE_ENABLED_PROVIDER_IDS);
@@ -838,6 +853,8 @@ export const sharedSettingsSchema = z.object({
   audio: audioSettingsSchema,
   /** Provider usage tracking (auto-refresh cadence, per-provider opt-out, cost). */
   usage: usageSettingsSchema,
+  /** Telemetry consent (product analytics + crash reports). Opt-in; see docs/TELEMETRY.md. */
+  privacy: privacySettingsSchema.default(DEFAULT_TELEMETRY_CONSENT),
   /**
    * Supervisor execution-slot bounds. Each value is a nonnegative finite safe
    * integer with no arbitrary ceiling; `0` is explicitly unlimited and is the
@@ -1035,6 +1052,7 @@ export const defaultSharedSettings: SharedSettings = {
     collapsedProviders: [],
     selectedRingGroups: {},
   },
+  privacy: { ...DEFAULT_TELEMETRY_CONSENT },
   hostResourceAdmission: { ...DEFAULT_HOST_RESOURCE_ADMISSION_SETTINGS },
   crossagentRoutingGuide: "",
   memory: defaultMemorySettings,

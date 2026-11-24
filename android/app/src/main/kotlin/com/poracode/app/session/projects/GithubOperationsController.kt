@@ -89,7 +89,6 @@ class GithubOperationsController(
         listOf(
             GithubProcedure.CheckAvailable,
             GithubProcedure.ListPullRequests,
-            GithubProcedure.ListPrs,
         ),
     ) { entry, results ->
         val available = results.getValue(GithubProcedure.CheckAvailable)
@@ -143,7 +142,6 @@ class GithubOperationsController(
         read(
             target,
             listOf(
-                GithubProcedure.GetPrForBranch,
                 GithubProcedure.GetPrDetails,
                 GithubProcedure.GetPrChecks,
                 GithubProcedure.GetPrFiles,
@@ -151,7 +149,6 @@ class GithubOperationsController(
                 GithubProcedure.GetPrReviewComments,
             ),
             mapOf(
-                GithubProcedure.GetPrForBranch to mapOf("branch" to json(branch)),
                 GithubProcedure.GetPrChecks to mapOf("branch" to json(branch)),
                 GithubProcedure.GetPrDetails to mapOf("prNumber" to json(number)),
                 GithubProcedure.GetPrFiles to mapOf("prNumber" to json(number)),

@@ -38,6 +38,20 @@ describe("Claude custom context-window catalog", () => {
     expect(capabilities.contextSizes).toContainEqual({ id: "512k", label: "512k" });
   });
 
+  it("offers the configured windows to an external [1m] model, widest first", () => {
+    const capabilities = claudeContextSizeCapabilities(
+      { modelContextSizes: { "glm-5.4[1m]": ["400k", "1m"], "glm-4.5-air": ["1m"] } },
+      { contextWindows: '["200k","400k","600k","1m"]' },
+    );
+    // It ran at its full window before smaller ones became selectable, so the
+    // widest stays its default where Claude's own models default to 400k.
+    expect(capabilities.modelContextSizes).toEqual({
+      "glm-5.4[1m]": ["1m", "600k", "400k", "200k"],
+      "glm-4.5-air": ["1m"],
+    });
+    expect(capabilities.contextSizes).toContainEqual({ id: "600k", label: "600k" });
+  });
+
   it("reads old settings without a window list and falls back from invalid saved values", () => {
     for (const settings of [undefined, { unrelated: true }, { contextWindows: '["99k","2m"]' }]) {
       expect(

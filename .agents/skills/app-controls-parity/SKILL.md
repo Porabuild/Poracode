@@ -142,3 +142,9 @@ Thread transfer uses established desktop client grants for both hosts. The
 standalone host does not own the browser's paired connections. Native clients
 can open transferred threads through their existing paired catalog.
 Window placement, pane focus, and local draft editing are client actions.
+
+Telemetry consent (`privacy` in shared settings) is deliberately user-only:
+`update_settings` refuses the key so an agent can never grant or revoke
+analytics/crash-report consent. There is no MCP counterpart by design; the
+controls live in Settings → Privacy and the first-run choice (see
+`docs/TELEMETRY.md`).

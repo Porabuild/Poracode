@@ -9,6 +9,7 @@ type Writer = (...args: unknown[]) => void;
 const writers = vi.hoisted(() => ({
   renameProject: vi.fn<Writer>(),
   setProjectPluginOverride: vi.fn<Writer>(),
+  setProjectPluginOverrides: vi.fn<Writer>(),
   updateProjectIcon: vi.fn<Writer>(),
   updateProjectScripts: vi.fn<Writer>(),
   updateProjectSearchSettings: vi.fn<Writer>(),
@@ -223,10 +224,9 @@ describe("projectGroupActions", () => {
       ],
     });
     setProjectPluginOverridesEverywhere("pc", { y: false });
-    expect(writers.setProjectPluginOverride.mock.calls).toEqual([
-      ["pc", "y", false],
-      [MAC, "x", null],
-      [MAC, "y", false],
+    expect(writers.setProjectPluginOverrides.mock.calls).toEqual([
+      ["pc", { y: false }],
+      [MAC, { y: false }],
     ]);
   });
 

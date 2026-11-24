@@ -34,11 +34,11 @@ import {
 import { requestGeneratedTitle } from "@/renderer/utils/titleGen";
 import {
   detachThreadFromWorktree,
-  removeExperimentCandidateWorktree,
+  removeExperimentCandidateWorktrees,
 } from "./experimentWorktreeActions";
 import { performInitialThreadLaunch } from "./threadLaunchActions";
 import { isRemoteCommandOutcomeUncertainError } from "./threadCommandOutcomeActions";
-import { primeWorktreeGitState, runWorktreeSetupScript } from "./worktreeLaunchActions";
+import { primeWorktreeGitStates, runWorktreeSetupScript } from "./worktreeLaunchActions";
 import { worktreePlacementPayload } from "./worktreePlacement";
 
 export interface ExperimentCandidateSpec {
@@ -375,15 +375,26 @@ export async function launchExperiment(input: LaunchExperimentInput): Promise<st
   const preparedIds = new Set<string>(prepared.map((candidate) => candidate.threadId));
   const failedPlans = plans.filter((plan) => !preparedIds.has(plan.threadId));
   const cleanedIds = new Set<string>();
-  let failedPlanCleanupComplete = true;
-  for (const plan of failedPlans) {
-    if (await removeExperimentCandidateWorktree(project, candidateRecord(plan))) {
-      detachThreadFromWorktree(plan.threadId);
-      cleanedIds.add(plan.threadId);
-    } else {
-      failedPlanCleanupComplete = false;
-    }
-  }
+  /** One bulk removal for a candidate set; only confirmed removals detach. */
+  const removeCandidates = async (candidates: readonly ExperimentCandidate[]): Promise<boolean> => {
+    const removed = await removeExperimentCandidateWorktrees(project, candidates, {
+      requireVerifiedList: true,
+      tolerateFailure: true,
+    });
+    let complete = true;
+    candidates.forEach((candidate, index) => {
+      if (!removed[index]) {
+        complete = false;
+        return;
+      }
+      detachThreadFromWorktree(candidate.threadId);
+      cleanedIds.add(candidate.threadId);
+    });
+    return complete;
+  };
+  const failedPlanCleanupComplete =
+    failedPlans.length === 0 ||
+    (await removeCandidates(failedPlans.map((plan) => candidateRecord(plan))));
 
   const cleanupRows = (): ExperimentCandidateRowUpdate[] =>
     plans.flatMap((plan): ExperimentCandidateRowUpdate[] => {
@@ -403,14 +414,11 @@ export async function launchExperiment(input: LaunchExperimentInput): Promise<st
 
   if (prepared.length < 2 || !failedPlanCleanupComplete) {
     let cleanupComplete = failedPlanCleanupComplete;
-    for (const candidate of prepared) {
-      const record = candidateRecord(candidate, candidate.worktreePath, "owned");
-      if (await removeExperimentCandidateWorktree(project, record)) {
-        detachThreadFromWorktree(candidate.threadId);
-        cleanedIds.add(candidate.threadId);
-      } else {
-        cleanupComplete = false;
-      }
+    if (prepared.length > 0) {
+      const removedAll = await removeCandidates(
+        prepared.map((candidate) => candidateRecord(candidate, candidate.worktreePath, "owned")),
+      );
+      cleanupComplete = cleanupComplete && removedAll;
     }
     for (const plan of plans) {
       useAppStore.getState().updateThreadRuntime(plan.threadId, {
@@ -503,10 +511,13 @@ export async function launchExperiment(input: LaunchExperimentInput): Promise<st
   }
   const setupScript = project.scripts?.setupScript;
   let confirmedLaunches = 0;
+  void primeWorktreeGitStates(
+    project,
+    prepared.map((candidate) => candidate.worktreePath),
+  );
   await Promise.all(
     preparedThreads.map(async (thread, index) => {
       const candidate = prepared[index]!;
-      void primeWorktreeGitState(project, candidate.worktreePath);
       try {
         await performInitialThreadLaunch({
           thread,

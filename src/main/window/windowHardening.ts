@@ -254,6 +254,7 @@ interface RendererArgumentsOptions {
   channel: PoracodeChannel;
   posthogEnableDev: boolean;
   posthogEnabled: boolean;
+  telemetryHardDisabled: boolean;
   posthogHost: string;
   posthogKey: string;
   sentryEnabled: boolean;
@@ -269,6 +270,7 @@ export function buildRendererAdditionalArguments(options: RendererArgumentsOptio
     `--lc-channel=${options.channel}`,
     `--lc-posthog-enable-dev=${options.posthogEnableDev ? "1" : "0"}`,
     `--lc-posthog-enabled=${options.posthogEnabled ? "1" : "0"}`,
+    `--lc-telemetry-hard-disabled=${options.telemetryHardDisabled ? "1" : "0"}`,
     // PostHog project keys are browser/client keys, not secrets; the renderer must send them.
     `--lc-posthog-host=${encodeURIComponent(options.posthogHost)}`,
     `--lc-posthog-key=${encodeURIComponent(options.posthogKey)}`,

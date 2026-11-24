@@ -198,6 +198,7 @@ desktopApp.sentryEnabled = initializeMainSentry({
   appVersion: app.getVersion(),
   isDev,
   channel,
+  settingsPath: desktopApp.poracodePaths?.settingsPath ?? null,
 });
 
 // Fallback global handlers so a stray throw in any main-process callback

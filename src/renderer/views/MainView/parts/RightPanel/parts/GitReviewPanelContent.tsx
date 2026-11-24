@@ -5,7 +5,7 @@ import { findExperimentByWorktree } from "@/renderer/state/experimentStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { PixelLoader } from "@/renderer/components/common/PixelLoader";
 import { resolveWorktreeBranch } from "@/renderer/utils/gitHelpers";
-import { archiveThread } from "@/renderer/actions/threadActions";
+import { archiveThreads } from "@/renderer/actions/threadActions";
 import { deleteWorktreeGroup } from "@/renderer/actions/worktreeActions";
 import { DeferredGitReviewPanel } from "@/renderer/deferredFeatures";
 
@@ -90,7 +90,7 @@ export function GitReviewPanelContent(props: {
                   .getState()
                   .threads.filter((t) => t.worktreePath === wtPath);
                 if (action === "archive") {
-                  for (const sib of siblings) archiveThread(sib.id);
+                  archiveThreads(siblings);
                 } else {
                   deleteWorktreeGroup(
                     projectId,

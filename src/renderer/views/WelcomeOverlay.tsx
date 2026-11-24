@@ -7,7 +7,11 @@ import { loadHomeScopeLocation } from "@/renderer/actions/projectActions";
 import { hasClientCapability, isBrowserClientRuntime } from "@/renderer/clientRuntime";
 import { useAppStore } from "@/renderer/state/appStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
-import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
+import {
+  useSharedSettings,
+  whenSharedSettingsHydrated,
+} from "@/renderer/state/sharedSettingsStore";
+import { isTelemetryHardDisabled } from "@/renderer/analytics/telemetryConsentState";
 import {
   isWelcomeSeen,
   useWelcomeGateStore,
@@ -17,6 +21,7 @@ import { writeStoredBoolean } from "@/renderer/utils/localStorage";
 import { BrandWordmark } from "@/renderer/components/common/BrandWordmark";
 import { WelcomeAppIcon } from "@/renderer/components/common/WelcomeAppIcon";
 import { CreateProjectMenu } from "@/renderer/views/MainView/parts/CreateProject/CreateProjectMenu";
+import { WelcomeTelemetryChoices } from "@/renderer/components/privacy/TelemetryConsentPrompt";
 import { WELCOME_BACKGROUND_CODE } from "./welcomeBackgroundCode";
 
 // The intro reveal fully settles ~3.2s after mount — the CTA buttons carry the
@@ -35,6 +40,15 @@ export function WelcomeOverlay() {
 
   const homeScopeEnabled = useSharedSettings((state) => state.homeScopeEnabled);
   const setHomeScopeEnabled = useSharedSettings((state) => state.setHomeScopeEnabled);
+  const setTelemetryConsent = useSharedSettings((state) => state.setTelemetryConsent);
+  // Seed from any stored choice so re-showing the welcome never presents an
+  // existing opt-in as off (the store cache may still be pre-hydration here).
+  const [telemetryAnalytics, setTelemetryAnalytics] = useState(
+    () => useSharedSettings.getState().privacy?.productAnalytics ?? false,
+  );
+  const [telemetryCrashReports, setTelemetryCrashReports] = useState(
+    () => useSharedSettings.getState().privacy?.crashReports ?? false,
+  );
   const openDraft = useAppStore((state) => state.openDraft);
   const browserClient = isBrowserClientRuntime();
   // Browser clients have no local backend: there is no local home scope or
@@ -91,6 +105,23 @@ export function WelcomeOverlay() {
   }
 
   function dismissWelcome() {
+    // Leaving the welcome screen records its telemetry switches, so the
+    // standalone consent prompt never follows it. The welcome renders before
+    // settings hydration, and the initial read would overwrite a choice made
+    // in that window — so record after hydration, and only when no decision
+    // exists yet (never clobber a stored opt-in, never record a choice the
+    // remote welcome never rendered).
+    if (localBackend) {
+      const choice = {
+        productAnalytics: telemetryAnalytics,
+        crashReports: telemetryCrashReports,
+      };
+      void whenSharedSettingsHydrated().then(() => {
+        if (!useSharedSettings.getState().privacy?.consentDecided) {
+          setTelemetryConsent(choice);
+        }
+      });
+    }
     writeStoredBoolean(WELCOME_SEEN_STORAGE_KEY, true);
     setWelcomeSeen(true);
     // The user is moving on — let deferred startup work (agent detection) run
@@ -244,6 +275,21 @@ export function WelcomeOverlay() {
               </Button>
             )}
           </div>
+
+          {localBackend && !isTelemetryHardDisabled() ? (
+            <div
+              className={`poracode-welcome-reveal poracode-welcome-reveal-2 flex w-full justify-center transition-all delay-150 duration-700 ${
+                visible ? "translate-y-0 opacity-100" : "translate-y-3 opacity-0"
+              }`}
+            >
+              <WelcomeTelemetryChoices
+                productAnalytics={telemetryAnalytics}
+                crashReports={telemetryCrashReports}
+                onProductAnalyticsChange={setTelemetryAnalytics}
+                onCrashReportsChange={setTelemetryCrashReports}
+              />
+            </div>
+          ) : null}
         </div>
       </div>
     </div>

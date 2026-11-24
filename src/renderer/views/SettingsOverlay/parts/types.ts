@@ -10,6 +10,7 @@ export const SETTINGS_SECTIONS = [
   "git",
   "worktrees",
   "notifications",
+  "privacy",
   "ai",
   "acpRegistry",
   "agentsGeneral",

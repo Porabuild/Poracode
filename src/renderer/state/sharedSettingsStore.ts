@@ -213,6 +213,12 @@ interface SharedSettingsState extends SharedSettings {
     key: K,
     value: SharedSettings["usage"][K],
   ) => void;
+  setPrivacySetting: <K extends keyof SharedSettings["privacy"]>(
+    key: K,
+    value: SharedSettings["privacy"][K],
+  ) => void;
+  /** Records the first-run telemetry choice and both stream decisions at once. */
+  setTelemetryConsent: (consent: { productAnalytics: boolean; crashReports: boolean }) => void;
   /**
    * Update one supervisor host execution-slot bound. Each value is a
    * nonnegative finite **safe** integer with no ceiling; `0` stays explicitly
@@ -1093,6 +1099,18 @@ export const useSharedSettings = create<SharedSettingsState>()((set, get) => ({
     set({ usage: { ...current, [key]: value } });
     persistSettings(selectSharedSettings(get()));
   },
+  setPrivacySetting: (key, value) => {
+    const current = get().privacy;
+    if (current[key] === value) return;
+    // Touching a privacy toggle is itself a decision, so the first-run
+    // prompt never reappears after a Settings change.
+    set({ privacy: { ...current, [key]: value, consentDecided: true } });
+    persistSettings(selectSharedSettings(get()));
+  },
+  setTelemetryConsent: (consent) => {
+    set({ privacy: { ...consent, consentDecided: true } });
+    persistSettings(selectSharedSettings(get()));
+  },
   setHostResourceAdmissionSetting: (key, value) => {
     if (!Number.isSafeInteger(value) || value < 0) return;
     const current = get().hostResourceAdmission;
@@ -1491,6 +1509,7 @@ function selectSharedSettings(state: SharedSettingsState): SharedSettingsInput {
     browser: state.browser,
     audio: state.audio,
     usage: state.usage,
+    privacy: state.privacy,
     hostResourceAdmission: state.hostResourceAdmission,
     crossagentRoutingGuide: state.crossagentRoutingGuide,
   };

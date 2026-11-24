@@ -17,7 +17,11 @@ import {
 import { CLAUDE_EFFORT_TIERS } from "@/shared/agents/claudeEfforts";
 import type { AgentCapability } from "@/shared/contracts";
 import type { ModelInfo } from "@anthropic-ai/claude-agent-sdk";
-import { claudeContextManagedModelId, CLAUDE_LONG_CONTEXT_SIZES } from "./contextWindow";
+import {
+  claudeContextManagedModelId,
+  CLAUDE_LONG_CONTEXT_SIZES,
+  isClaudeExternalLongContextModel,
+} from "./contextWindow";
 
 export {
   claudeDefaultHiddenModels,
@@ -255,11 +259,14 @@ export function claudeCapabilitiesFromSdkModels(
           (parsed.family === "sonnet" && parsed.version >= 4.6) ||
           (parsed.family === "haiku" && parsed.version >= 5.5) ||
           /\[1m\]$/i.test(rawId));
-      modelContextSizes[modelId] = supportsLongContext
-        ? CLAUDE_LONG_CONTEXT_SIZES
-        : nativeId
-          ? ["200k"]
-          : ["1m"];
+      // An external `[1m]` id is the provider's 1M variant: a selectable
+      // working window, not a fixed one.
+      modelContextSizes[modelId] =
+        supportsLongContext || isClaudeExternalLongContextModel(resolvedId)
+          ? CLAUDE_LONG_CONTEXT_SIZES
+          : nativeId
+            ? ["200k"]
+            : ["1m"];
     }
 
     if (sdkModel.supportsFastMode === true) {

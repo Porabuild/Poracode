@@ -378,6 +378,119 @@ describe("ChatPromptOverlays", () => {
     expect(screen.getByRole("button", { name: "Scroll to prompt: Prompt" })).toBeVisible();
   });
 
+  it("keeps the warm preview when the prompt leaves the loaded tail and the host index has no text for it", async () => {
+    readThreadPromptIndex.mockResolvedValue({
+      prompts: [{ itemId: "prompt-1", position: 0, text: " " }],
+      truncated: false,
+    });
+    const { scroller, setEntries, scrollTo } = createScroller();
+    const skillPrompt: RuntimeChatItem = {
+      ...message("prompt-1", "user_message", "$finalize the release"),
+      payload: {
+        content: [
+          {
+            kind: "skill",
+            name: "finalize",
+            invocation: "$finalize",
+            provider: "fixture",
+            scope: "project",
+          },
+          { kind: "text", text: " the release" },
+        ],
+      } as never,
+    };
+    setItems([
+      skillPrompt,
+      message("reply-1", "assistant_message", "First answer"),
+      message("prompt-2", "user_message", "Second question"),
+      message("reply-2", "assistant_message", "Working on it"),
+      message("reply-2b", "assistant_message", "Final second answer"),
+    ]);
+    const view = renderHost(scroller);
+    await settle();
+
+    scrollTo(ROW_HEIGHT);
+    const warmButton = stickyButton("Scroll to prompt: $finalize the release");
+    expect(warmButton).toBeVisible();
+    expect(warmButton!.querySelector(".poracode-slash-chip")).toBeInTheDocument();
+
+    // A remote snapshot replaces the warm items with a tail that starts
+    // mid-turn; the (older) host index has no preview text for the prompt.
+    const tailEntries: ChatTimelineEntry[] = [{ kind: "item", id: "reply-1" }];
+    setItems([message("reply-1", "assistant_message", "First answer")]);
+    setEntries(tailEntries);
+    view.rerender(
+      <AppProvider>
+        <OverlaysHost scroller={scroller} entries={tailEntries} onParentRender={noopParentRender} />
+      </AppProvider>,
+    );
+    scrollTo(0);
+    await settle();
+
+    const retained = stickyButton("Scroll to prompt: $finalize the release");
+    expect(retained).toBeVisible();
+    expect(retained!.querySelector(".poracode-slash-chip")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Scroll to prompt: Prompt" }),
+    ).not.toBeInTheDocument();
+
+    // Viewing a different unloaded turn must not reuse the first prompt's
+    // retained preview: it falls back to the placeholder.
+    readThreadPromptIndex.mockResolvedValue({
+      prompts: [
+        { itemId: "prompt-1", position: 0, text: " " },
+        { itemId: "prompt-2", position: 2, text: " " },
+      ],
+      truncated: false,
+    });
+    cache.delete(THREAD_ID);
+    const secondTurn: ChatTimelineEntry[] = [{ kind: "item", id: "reply-2" }];
+    setItems([message("reply-2", "assistant_message", "Working on it")]);
+    setEntries(secondTurn);
+    view.rerender(
+      <AppProvider>
+        <OverlaysHost scroller={scroller} entries={secondTurn} onParentRender={noopParentRender} />
+      </AppProvider>,
+    );
+    scrollTo(0);
+    await settle();
+
+    expect(stickyButton("Scroll to prompt: Prompt")).toBeVisible();
+    expect(
+      screen.queryByRole("button", { name: "Scroll to prompt: $finalize the release" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("stays hidden without a prompt index even when the prompt was loaded before", async () => {
+    readThreadPromptIndex.mockResolvedValue(null);
+    const { scroller, setEntries, scrollTo } = createScroller();
+    const view = renderHost(scroller);
+    await settle();
+
+    scrollTo(ROW_HEIGHT);
+    expect(stickyButton("Scroll to prompt: First question")).toBeVisible();
+
+    // The remote snapshot drops the prompt and the host has no index at all:
+    // without an index the bar cannot name an unloaded prompt, so it hides.
+    const tailEntries: ChatTimelineEntry[] = [{ kind: "item", id: "reply-1" }];
+    setItems([message("reply-1", "assistant_message", "First answer")]);
+    setEntries(tailEntries);
+    view.rerender(
+      <AppProvider>
+        <OverlaysHost scroller={scroller} entries={tailEntries} onParentRender={noopParentRender} />
+      </AppProvider>,
+    );
+    scrollTo(0);
+    await settle();
+
+    expect(
+      screen.queryByRole("button", { name: "Scroll to prompt: First question" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Scroll to prompt: Prompt" }),
+    ).not.toBeInTheDocument();
+  });
+
   it("resolves measured indices directly and remaps ids when the timeline changes", async () => {
     const { scroller, scrollTo, setEntries } = createScroller();
     const entries: ChatTimelineEntry[] = Array.from({ length: 2000 }, (_, index) => ({

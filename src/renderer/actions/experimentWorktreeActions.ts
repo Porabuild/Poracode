@@ -5,7 +5,7 @@ import { readBridge } from "@/renderer/bridge";
 import { i18n } from "@/renderer/i18n/i18n";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useExperimentStore } from "@/renderer/state/experimentStore";
-import { performWorktreeRemoval, prepareWorktreeRemoval } from "./worktreeActions";
+import { prepareWorktreeRemoval } from "./worktreeActions";
 
 export function detachThreadFromWorktree(threadId: string): void {
   useAppStore.setState((state) => ({
@@ -101,15 +101,6 @@ export async function resolveCandidateWorktreePath(
   return worktree?.path;
 }
 
-async function assertCandidateWorktreeOwner(
-  project: Project,
-  candidate: ExperimentCandidate,
-): Promise<void> {
-  if (!(await candidateWorktreeOwnerMatches(project, candidate))) {
-    throw new Error(i18n._(msg`The experiment candidate worktree is unavailable.`));
-  }
-}
-
 async function candidateWorktreeOwnerMatches(
   project: Project,
   candidate: ExperimentCandidate,
@@ -121,101 +112,36 @@ async function candidateWorktreeOwnerMatches(
   return ownerToken === candidate.worktreeOwnerToken;
 }
 
-async function removeOwnedCandidateBranch(
+async function assertCandidateWorktreeOwner(
   project: Project,
   candidate: ExperimentCandidate,
-): Promise<boolean> {
-  try {
-    if (!(await candidateWorktreeOwnerMatches(project, candidate))) return true;
-    await readBridge().gitDeleteBranch({
-      projectLocation: project.location,
-      branch: candidate.worktreeBranch,
-      force: true,
-      expectedOwnerToken: candidate.worktreeOwnerToken,
-    });
-    return true;
-  } catch (error) {
-    console.warn("[experiment] failed to remove candidate branch", error);
-    return false;
+): Promise<void> {
+  if (!(await candidateWorktreeOwnerMatches(project, candidate))) {
+    throw new Error(i18n._(msg`The experiment candidate worktree is unavailable.`));
   }
 }
 
-export async function removeExperimentCandidateWorktree(
-  project: Project,
-  candidate: ExperimentCandidate,
-): Promise<boolean> {
-  const worktreeState = candidate.worktreeState;
-  if (worktreeState === "removed") return true;
-  if (worktreeState === "pending") {
-    try {
-      const { worktrees } = await readBridge().gitListWorktrees({
-        projectLocation: project.location,
-      });
-      const recordedPath = candidate.worktreePath
-        ? normalizeWorktreePathForComparison(
-            candidate.worktreePath,
-            project.location.kind === "windows",
-          )
-        : undefined;
-      const registeredAtRecordedPath = recordedPath
-        ? worktrees.find(
-            (worktree) =>
-              normalizeWorktreePathForComparison(
-                worktree.path,
-                project.location.kind === "windows",
-              ) === recordedPath,
-          )
-        : undefined;
-      if (
-        registeredAtRecordedPath &&
-        registeredAtRecordedPath.branch !== candidate.worktreeBranch
-      ) {
-        return false;
-      }
-      const branchWorktree = worktrees.find(
-        (worktree) => worktree.branch === candidate.worktreeBranch,
-      );
-      if (branchWorktree) {
-        if (!(await candidateWorktreeOwnerMatches(project, candidate))) return false;
-        return performWorktreeRemoval(
-          project,
-          branchWorktree.path,
-          candidate.worktreeBranch,
-          candidate.worktreeOwnerToken,
-        );
-      }
-      return removeOwnedCandidateBranch(project, candidate);
-    } catch (error) {
-      console.warn("[experiment] failed to inspect pending candidate worktree", error);
-      return false;
-    }
-  }
-  let worktreePath: string | undefined;
-  try {
-    worktreePath = await resolveCandidateWorktreePath(project, candidate);
-  } catch (error) {
-    console.warn("[experiment] failed to resolve candidate worktree", error);
-    return false;
-  }
-  if (worktreePath) {
-    return performWorktreeRemoval(
-      project,
-      worktreePath,
-      candidate.worktreeBranch,
-      candidate.worktreeOwnerToken,
-    );
-  }
-  return removeOwnedCandidateBranch(project, candidate);
+export interface RemoveExperimentCandidateWorktreesOptions {
+  /**
+   * Refuse to ask the host without a verified registered-worktree list. The
+   * launch rollback needs preparation (cleanup script, dismissed panels)
+   * before a directory disappears; a host-delegated removal cannot guarantee it.
+   */
+  readonly requireVerifiedList?: boolean;
+  /** Convert host/transport failures into per-candidate false results. */
+  readonly tolerateFailure?: boolean;
 }
 
 export async function removeExperimentCandidateWorktrees(
   project: Project,
   candidates: readonly ExperimentCandidate[],
+  options: RemoveExperimentCandidateWorktreesOptions = {},
 ): Promise<boolean[]> {
+  const removed = candidates.map((candidate) => candidate.worktreeState === "removed");
   const active = candidates
     .map((candidate, index) => ({ candidate, index }))
     .filter(({ candidate }) => candidate.worktreeState !== "removed");
-  if (active.length === 0) return candidates.map(() => true);
+  if (active.length === 0) return removed;
 
   const knownWorktrees = await readBridge()
     .gitListWorktrees({ projectLocation: project.location })
@@ -224,6 +150,7 @@ export async function removeExperimentCandidateWorktrees(
       console.warn("[experiment] failed to verify candidate worktrees before cleanup", error);
       return undefined;
     });
+  if (!knownWorktrees && options.requireVerifiedList) return removed;
   const preparedResults = await Promise.all(
     active.map(async ({ candidate, index }) => {
       if (!knownWorktrees) return { candidate, index, path: undefined };
@@ -242,20 +169,34 @@ export async function removeExperimentCandidateWorktrees(
   const prepared = preparedResults.filter(
     (item): item is NonNullable<(typeof preparedResults)[number]> => item !== null,
   );
-  await Promise.all(
-    prepared.map(({ path }) => (path ? prepareWorktreeRemoval(project, path) : Promise.resolve())),
-  );
-  const removed = candidates.map((candidate) => candidate.worktreeState === "removed");
   if (prepared.length === 0) return removed;
-  const result = await readBridge().removeExperimentWorktrees({
-    projectLocation: project.location,
-    candidates: prepared.map(({ candidate, path }) => ({
-      threadId: candidate.threadId,
-      branch: candidate.worktreeBranch,
-      ownerToken: candidate.worktreeOwnerToken,
-      ...(path ? { worktreePath: path } : {}),
-    })),
-  });
+  try {
+    await Promise.all(
+      prepared.map(({ path }) =>
+        path ? prepareWorktreeRemoval(project, path) : Promise.resolve(),
+      ),
+    );
+  } catch (error) {
+    console.warn("[experiment] failed to prepare candidate worktrees for removal", error);
+    if (!options.tolerateFailure) throw error;
+    return removed;
+  }
+  const result = await readBridge()
+    .removeExperimentWorktrees({
+      projectLocation: project.location,
+      candidates: prepared.map(({ candidate, path }) => ({
+        threadId: candidate.threadId,
+        branch: candidate.worktreeBranch,
+        ownerToken: candidate.worktreeOwnerToken,
+        ...(path ? { worktreePath: path } : {}),
+      })),
+    })
+    .catch((error: unknown) => {
+      console.warn("[experiment] failed to remove candidate worktrees", error);
+      if (!options.tolerateFailure) throw error;
+      return null;
+    });
+  if (!result) return removed;
   result.candidates.forEach((candidate, resultIndex) => {
     const originalIndex = prepared[resultIndex]!.index;
     removed[originalIndex] = !candidate.error;

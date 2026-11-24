@@ -154,6 +154,10 @@ Stable releases before 2.0.0 do not include these archives; until a 2.x stable r
 2. Install the AI agent CLIs you want to use (e.g., [Claude Code](https://docs.anthropic.com/en/docs/claude-code), [Gemini CLI](https://github.com/google-gemini/gemini-cli), [Codex](https://github.com/openai/codex)).
 3. Open Poracode, add your project, and start orchestrating.
 
+## Privacy
+
+No telemetry unless you opt in. Full stop. Product analytics and crash reports are separate, off-by-default opt-ins in Settings → Privacy, with environment-variable overrides (`PORACODE_TELEMETRY_ENABLED=0`, `DO_NOT_TRACK=1`) for managed machines. The complete catalog of what can be sent — and what never is — lives in [docs/TELEMETRY.md](docs/TELEMETRY.md).
+
 ## Contributing
 
 Contributions are welcome! Please open an [issue](https://github.com/Porabuild/Poracode/issues) first to discuss what you'd like to change.

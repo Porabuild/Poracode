@@ -19,11 +19,21 @@ import type {
   RemoteProjectCommandResult,
 } from "@/shared/remote";
 import { msg } from "@/shared/messages";
+import { mapWithConcurrency } from "@/shared/concurrency";
 import { parseProjectIcon } from "@/shared/projectIcon";
 import { parseWslUncPath } from "@/shared/wsl";
 import type { DbProjectReorderOutcome, CatalogIntentCommittedSignal } from "@/host/db";
 import { REDACTED_VALUE, restoreRedactedTransport } from "@/host/mcpSettings";
 import { RemoteHttpError } from "./auth";
+
+/** Project removal retires sessions in small waves, not one supervisor burst. */
+const PROJECT_REMOVAL_CLOSE_CONCURRENCY = 8;
+
+/**
+ * Bound each project-removal close so a pending thread start cannot hold the
+ * destructive command past the client's request timeout.
+ */
+export const PROJECT_REMOVAL_CLOSE_TIMEOUT_MS = 5_000;
 
 /**
  * Dependencies for {@link applyRemoteProjectCommand}, injected so the handler
@@ -83,8 +93,8 @@ export interface RemoteProjectCommandDeps {
     lastDraftConfig: ProjectDraftConfig | null,
     onCommitted?: CatalogIntentCommittedSignal,
   ): boolean;
-  /** Best-effort PTY/session teardown for a thread; failures are ignored. */
-  closeThread(threadId: string): Promise<void>;
+  /** Confirmed PTY/session teardown; an unconfirmed result is retried once. */
+  closeThread(threadId: string): Promise<{ readonly confirmed: boolean }>;
   /** Delegates to the supervisor's `cloneRepo` procedure. */
   cloneRepo(input: {
     parentLocation: ProjectLocation;
@@ -467,10 +477,19 @@ export async function applyRemoteProjectCommand(
       const release = deps.beginProjectRemoval(command.projectId);
       try {
         await deps.removeProjectExperiments(project);
-        // Tear down running sessions before the cascade drops their rows.
-        for (const threadId of deps.listProjectThreadIds(command.projectId)) {
-          await deps.closeThread(threadId).catch(() => undefined);
-        }
+        // Tear down running sessions before the cascade drops their rows. A
+        // close that cannot confirm retirement gets one bounded retry so the
+        // execution slot is not stranded after the thread row disappears.
+        await mapWithConcurrency(
+          deps.listProjectThreadIds(command.projectId),
+          PROJECT_REMOVAL_CLOSE_CONCURRENCY,
+          async (threadId) => {
+            const close = () => deps.closeThread(threadId).catch(() => undefined);
+            const first = await close();
+            if (first?.confirmed) return;
+            await close();
+          },
+        );
         deps.deleteProject(command.projectId);
       } finally {
         release();

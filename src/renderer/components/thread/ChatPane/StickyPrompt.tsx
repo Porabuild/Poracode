@@ -1,5 +1,5 @@
 import { Button } from "@heroui/react";
-import { useLayoutEffect, useRef } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { useLingui } from "@lingui/react/macro";
 import { useShallow } from "zustand/react/shallow";
 import type { MessageItemPayload } from "@/shared/contracts";
@@ -13,6 +13,7 @@ import {
   hasChipPiece,
   inlinePiecesFromContent,
   inlinePiecesFromText,
+  type PromptInlinePiece,
 } from "@/renderer/components/promptChips/promptInlinePieces";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useChatFindStore } from "@/renderer/state/chatFindStore";
@@ -99,16 +100,46 @@ export function StickyPrompt({
   const payload = promptItem
     ? getRuntimeItemPayload<MessageItemPayload>(promptItem, "user_message")
     : undefined;
-  const preview = payload
+  const freshPreview = payload
     ? buildUserPromptPreview(payload.content)
     : indexedPrompt
-      ? (buildUserPromptPreview([{ kind: "text", text: indexedPrompt.text }]) ?? t`Prompt`)
+      ? buildUserPromptPreview([{ kind: "text", text: indexedPrompt.text }])
       : null;
-  const previewPieces = payload
+  const freshPieces = payload
     ? compactInlinePieces(inlinePiecesFromContent(payload.content))
     : indexedPrompt
       ? compactInlinePieces(inlinePiecesFromText(indexedPrompt.text))
       : [];
+  // A warm thread first shows the loaded preview; a remote snapshot can then
+  // drop the prompt from the loaded tail, leaving only the host index — whose
+  // older form has no text for chip-led prompts. Keep the last real preview
+  // per prompt instead of switching the bar to the placeholder. Keyed by
+  // thread and item: a reused component must not show another thread's
+  // preview, and scrolling away and back must not lose it.
+  const [lastPreviews, setLastPreviews] = useState<
+    ReadonlyMap<string, { preview: string; pieces: PromptInlinePiece[] }>
+  >(new Map());
+  const retentionKey = stickyItemId === null ? null : `${threadId}:${stickyItemId}`;
+  if (retentionKey !== null && freshPreview !== null) {
+    const current = lastPreviews.get(retentionKey);
+    if (
+      !current ||
+      current.preview !== freshPreview ||
+      JSON.stringify(current.pieces) !== JSON.stringify(freshPieces)
+    ) {
+      const next = new Map(lastPreviews);
+      next.set(retentionKey, { preview: freshPreview, pieces: freshPieces });
+      while (next.size > 32) {
+        const oldest = next.keys().next().value;
+        if (oldest === undefined) break;
+        next.delete(oldest);
+      }
+      setLastPreviews(next);
+    }
+  }
+  const retained = freshPreview === null ? lastPreviews.get(retentionKey ?? "") : undefined;
+  const preview = freshPreview ?? retained?.preview ?? (indexedPrompt ? t`Prompt` : null);
+  const previewPieces = retained ? retained.pieces : freshPieces;
 
   useLayoutEffect(() => {
     if (!scrollElement || stickyItemId === null || preview === null || !isEnabled || isFindOpen)

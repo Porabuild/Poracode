@@ -60,6 +60,34 @@ class GithubOperationsControllerTest {
     }
 
     @Test
+    fun refreshAndSelectionRequestOnlyTheProceduresTheyConsume() = runTest {
+        val gateway = FakeGithubGateway()
+        val controller = GithubOperationsController(MutableStateFlow(lease()), gateway)
+        val target = target()
+
+        assertTrue(controller.refresh(target) is ProjectOperationResult.Success)
+        assertEquals(
+            listOf(GithubProcedure.CheckAvailable, GithubProcedure.ListPullRequests),
+            gateway.reads,
+        )
+
+        gateway.reads.clear()
+        assertTrue(
+            controller.selectPullRequest(target, 7, "feature/x") is ProjectOperationResult.Success,
+        )
+        assertEquals(
+            listOf(
+                GithubProcedure.GetPrDetails,
+                GithubProcedure.GetPrChecks,
+                GithubProcedure.GetPrFiles,
+                GithubProcedure.GetPrDiff,
+                GithubProcedure.GetPrReviewComments,
+            ),
+            gateway.reads,
+        )
+    }
+
+    @Test
     fun destructiveMutationRequiresConfirmationAndThenRunsOnce() = runTest {
         val gateway = FakeGithubGateway()
         val controller = GithubOperationsController(MutableStateFlow(lease()), gateway)
@@ -125,12 +153,16 @@ internal class FakeGithubGateway(
     ) -> JsonElement = { _, _, _ -> buildJsonObject {} },
 ) : GithubOperationsGateway {
     var mutations = 0
+    val reads = mutableListOf<GithubProcedure>()
 
     override suspend fun read(
         lease: ProjectHostLease,
         target: ProjectWorkspaceTarget,
         request: GithubOperationRequest,
-    ) = readHandler(lease, target, request)
+    ): JsonElement {
+        reads += request.procedure
+        return readHandler(lease, target, request)
+    }
 
     override suspend fun mutate(
         lease: ProjectHostLease,

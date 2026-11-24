@@ -1,6 +1,8 @@
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { createPersistentSentryEventLimiter } from "@/host/diagnostics/sentryEventLedger";
+import { createCrashReportConsentGate } from "@/host/diagnostics/crashReportConsent";
+import { isCrashReportsDisabledByEnv } from "@/shared/telemetryConsent";
 import { poracodeBaseDirFromEnv, resolvePoracodePaths } from "@/shared/poracodePaths";
 import {
   prepareSentryEvent,
@@ -255,7 +257,11 @@ function buildBaseTags(options: SupervisorSentryOptions): PoracodeDiagnosticTags
 
 export function initializeSupervisorSentry(options: SupervisorSentryOptions): boolean {
   const dsn = readSentryDsn();
-  if (!dsn || !shouldEnableSentryReporting(dsn, options.isDev)) {
+  if (
+    !dsn ||
+    !shouldEnableSentryReporting(dsn, options.isDev) ||
+    isCrashReportsDisabledByEnv(process.env)
+  ) {
     return false;
   }
 
@@ -265,10 +271,12 @@ export function initializeSupervisorSentry(options: SupervisorSentryOptions): bo
   }
 
   const paths = resolvePoracodePaths(poracodeBaseDirFromEnv() ?? join(homedir(), ".poracode"));
+  const crashReportsConsented = createCrashReportConsentGate(paths.settingsPath);
   const shouldSendSupervisorSentryEvent = createPersistentSentryEventLimiter(
     join(paths.cacheDir, "sentry", "event-budget.json"),
   );
   Sentry.init({
+    sendClientReports: false,
     dsn,
     release: `poracode@${options.appVersion}`,
     environment: readSentryEnvironment(options),
@@ -284,6 +292,7 @@ export function initializeSupervisorSentry(options: SupervisorSentryOptions): bo
       tags: buildBaseTags(options),
     },
     beforeSend(event) {
+      if (!crashReportsConsented()) return null;
       const prepared = prepareSentryEvent(event as unknown as SentryEventLike);
       return prepared && shouldSendSupervisorSentryEvent(prepared)
         ? (prepared as unknown as typeof event)

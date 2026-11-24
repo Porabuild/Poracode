@@ -318,6 +318,28 @@ describe("Claude SDK working-window selection", () => {
     },
   );
 
+  it.each([
+    ["200k", "200000"],
+    ["400k", "400000"],
+    ["600k", "600000"],
+    ["1m", "1000000"],
+  ])(
+    "keeps an external [1m] id verbatim under a %s working window",
+    async (contextSize, tokens) => {
+      const fake = createClaudeTestQuery();
+      sdk.query.mockReturnValue(fake.runtime);
+      // The id is the provider's 1M variant; the selected window only sets the limit.
+      const selected = { ...config, model: "glm-5.4[1m]", contextSize };
+      const session = await createSession(selected);
+      await session.openThread(selected);
+      expect(sdk.query.mock.calls[0]?.[0].options).toMatchObject({
+        model: "glm-5.4[1m]",
+        env: { CLAUDE_CODE_AUTO_COMPACT_WINDOW: tokens },
+      });
+      await session.dispose();
+    },
+  );
+
   it("changes the window before the first prompt without resuming nonexistent history", async () => {
     const original = createClaudeTestQuery();
     const replacement = createClaudeTestQuery();

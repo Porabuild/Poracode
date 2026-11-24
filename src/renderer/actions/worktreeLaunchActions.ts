@@ -46,17 +46,33 @@ export function createWorktree(
 }
 
 export async function primeWorktreeGitState(project: Project, worktreePath: string): Promise<void> {
-  const worktreePaths = [
-    ...new Set([...getProjectActiveWorktreePaths(project.id), worktreePath]),
-  ].sort();
+  await primeWorktreeGitStates(project, [worktreePath]);
+}
+
+/**
+ * Prime several new worktrees with one watch registration and one batched
+ * status read. A candidate launch calls this once instead of sending the same
+ * watch payload (and one status read) per worktree.
+ */
+export async function primeWorktreeGitStates(
+  project: Project,
+  worktreePaths: readonly string[],
+): Promise<void> {
+  const targets = [...new Set(worktreePaths.filter(Boolean))];
+  if (targets.length === 0) return;
+  const watched = [...new Set([...getProjectActiveWorktreePaths(project.id), ...targets])].sort();
   const watchWorktrees = readBridge()
-    .gitWatchWorktrees({ projectId: project.id, worktreePaths })
+    .gitWatchWorktrees({ projectId: project.id, worktreePaths: watched })
     .catch(() => undefined);
   if (project.location.kind === "wsl") return;
   await watchWorktrees;
   void readBridge()
-    .getGitStatus({ projectLocation: buildWorktreeLocation(project.location, worktreePath) })
-    .then((status) => useGitStore.getState().setWorktreeStatus(worktreePath, status))
+    .gitWorktreeStatusBatch({ projectLocation: project.location, worktreePaths: targets })
+    .then((batch) => {
+      if (Object.keys(batch.statuses).length > 0) {
+        useGitStore.getState().setWorktreeStatuses(batch.statuses);
+      }
+    })
     .catch(() => undefined);
 }
 

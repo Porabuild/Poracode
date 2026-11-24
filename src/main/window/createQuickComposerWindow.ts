@@ -35,6 +35,7 @@ export interface CreateQuickComposerWindowOptions {
   appVersion: string;
   posthogEnableDev: boolean;
   posthogEnabled: boolean;
+  telemetryHardDisabled: boolean;
   posthogHost: string;
   posthogKey: string;
   sentryEnabled: boolean;
@@ -122,6 +123,7 @@ export function createQuickComposerWindow(
         channel: options.channel,
         posthogEnableDev: options.posthogEnableDev,
         posthogEnabled: options.posthogEnabled,
+        telemetryHardDisabled: options.telemetryHardDisabled,
         posthogHost: options.posthogHost,
         posthogKey: options.posthogKey,
         sentryEnabled: options.sentryEnabled,
