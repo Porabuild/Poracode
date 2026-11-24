@@ -32,6 +32,7 @@ import { GeneralSettings } from "./parts/GeneralSettings";
 import { GitSettings } from "./parts/GitSettings";
 import { WorktreeSettings } from "./parts/WorktreeSettings";
 import { NotificationSettings } from "./parts/NotificationSettings";
+import { PrivacySettings } from "./parts/PrivacySettings";
 import { AISettings } from "./parts/AISettings";
 import { AcpRegistrySettings } from "./parts/AcpRegistrySettings";
 import { AgentsGeneralSettings } from "./parts/AgentsGeneralSettings";
@@ -88,6 +89,7 @@ const SECTION_VIEWS: Partial<Record<SettingsSection, () => ReactNode>> = {
   appearance: () => <AppearanceSettings />,
   terminal: () => <TerminalSettings />,
   notifications: () => <NotificationSettings />,
+  privacy: () => <PrivacySettings />,
   ai: () => <AISettings />,
   remoteAccess: () => <RemoteAccessSettings />,
   remoteServers: () => <RemoteServersSettings />,

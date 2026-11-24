@@ -1154,6 +1154,10 @@ msgstr "Über die Nutzung"
 msgid "Accent"
 msgstr "Akzent"
 
+#: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
+msgid "Accept all"
+msgstr "Alle akzeptieren"
+
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/mergeConflict/codeLensProvider.ts
 msgid "Accept Both Changes"
 msgstr "Beide Änderungen übernehmen"
@@ -1939,6 +1943,10 @@ msgstr "Erlaube dem Browser, Benachrichtigungen anzuzeigen, während die App im 
 msgid "Allow the main agent to interrupt running sub-agents with interrupt_agent."
 msgstr "Erlaubt dem Hauptagenten, laufende Subagenten mit interrupt_agent zu unterbrechen."
 
+#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
+#~ msgid "Allowlisted feature-use events (provider, public model family, bucketed counts and durations) under a random installation ID, with IP and location capture disabled."
+#~ msgstr "Zugelassene Ereignisse zur Funktionsnutzung (Anbieter, öffentliche Modellfamilie, gruppierte Zählwerte und Dauern) unter einer zufälligen Installations-ID, ohne Erfassung von IP und Standort."
+
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Already configured"
 msgstr "Bereits konfiguriert"
@@ -1982,6 +1990,10 @@ msgstr "Ein Agent kann die Beschreibung und die Änderungen lesen und deine Frag
 msgid "An agent is fixing this PR."
 msgstr "Ein Agent behebt diesen PR."
 
+#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
+msgid "An environment variable on this machine keeps both options off."
+msgstr "Eine Umgebungsvariable auf diesem Computer hält beide Optionen aus."
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "An expected worktree owner requires a branch"
 msgstr "Ein erwarteter Worktree-Eigentümer erfordert einen Branch"
@@ -1997,6 +2009,17 @@ msgstr "Ein Ermittler findet die Ursache, ein Fixer liefert die Korrektur mit ei
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "An MCP server with this name already exists."
 msgstr "Ein MCP-Server mit diesem Namen ist bereits vorhanden."
+
+#: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
+#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
+msgid "Anonymous feature-use events. No prompts, code, or location."
+msgstr "Anonyme Ereignisse zur Funktionsnutzung. Keine Prompts, kein Code, kein Standort."
+
+#: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
+#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Anonymous product analytics"
+msgstr "Anonyme Produktanalyse"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Another automation is already using this conversation."
@@ -3195,6 +3218,10 @@ msgstr "Kontextgröße auf {contextLabel} ändern?"
 msgid "Change home"
 msgstr "Home ändern"
 
+#: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
+#~ msgid "Change or turn off either anytime in Settings → Privacy."
+#~ msgstr "Jederzeit in Einstellungen → Datenschutz ändern oder deaktivieren."
+
 #: src/renderer/views/PullRequestsOverlay/timeline/TimelineTab.tsx
 msgid "Change order"
 msgstr "Reihenfolge ändern"
@@ -3814,6 +3841,7 @@ msgstr "Klonen…"
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/newsLine/NewsHighlightCard.tsx
 #: src/renderer/components/plugins/PluginCatalogBrowser.tsx
+#: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
 #: src/renderer/components/providers/opencode/OpenCodePluginsSettings.tsx
 #: src/renderer/components/providers/settings/ModelProvidersSettings.tsx
 #: src/renderer/components/skills/SkillViewModal.tsx
@@ -5210,6 +5238,17 @@ msgstr "Abdeckung"
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 msgid "Coverage across reported currencies"
 msgstr "Abdeckung der gemeldeten Währungen"
+
+#: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
+#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
+msgid "Crash diagnostics with personal data removed."
+msgstr "Absturzdiagnosen ohne personenbezogene Daten."
+
+#: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
+#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Crash reports"
+msgstr "Absturzberichte"
 
 #: src/renderer/components/thread/ChatPane/parts/items/FileChange.tsx
 #: src/renderer/components/workspace/WorkspaceNameDialog.tsx
@@ -7302,6 +7341,10 @@ msgstr "Jede Stunde"
 msgid "Every hour at {0} minutes past"
 msgstr "Jede Stunde {0} Minuten nach der vollen Stunde"
 
+#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
+msgid "Exactly what is collected, and how to turn it off."
+msgstr "Genau, was erfasst wird und wie du es deaktivierst."
+
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServerProjectList.tsx
 msgid "Exclude from sync"
@@ -7708,6 +7751,10 @@ msgstr "Favorit"
 #: src/renderer/components/common/ProviderModelMenu/parts/crewPickerItems.ts
 msgid "Favorites"
 msgstr "Favoriten"
+
+#: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
+#~ msgid "Feature-use events under a random installation ID. No prompts or code."
+#~ msgstr "Ereignisse zur Funktionsnutzung unter einer zufälligen Installations-ID. Keine Prompts oder Code."
 
 #: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
 msgid "Feedback"
@@ -8662,6 +8709,10 @@ msgstr "Die Heartbeat-Ausführung ist nicht verfügbar."
 msgid "Heartbeats can continue making changes while you're away. Set hard limits below."
 msgstr "Heartbeats können weiterhin Änderungen vornehmen, während Sie nicht da sind. Legen Sie unten feste Grenzen fest."
 
+#: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
+msgid "Help improve Poracode?"
+msgstr "Hilf mit, Poracode zu verbessern?"
+
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Help me create a schedule. Ask for any missing details, then use the Poracode schedule controls to create it for me."
 msgstr "Hilf mir, einen Zeitplan zu erstellen. Frage nach fehlenden Details und erstelle ihn dann mit den Poracode-Zeitplansteuerungen für mich."
@@ -9340,6 +9391,10 @@ msgstr "Untersuchen"
 msgid "Inspect canonical runtime items"
 msgstr "Überprüfen Sie kanonische Laufzeitelemente"
 
+#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
+#~ msgid "Inspect the exact sanitized events captured on this device during this session."
+#~ msgstr "Sieh dir die genauen bereinigten Ereignisse an, die in dieser Sitzung auf diesem Gerät erfasst wurden."
+
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "Inspect threads and terminal panes, and drive git, pull requests, and schedules."
 msgstr "Threads und Terminal-Bereiche prüfen sowie Git, Pull Requests und Zeitpläne steuern."
@@ -9529,6 +9584,10 @@ msgstr "Installiere Xcode und eine iOS-Simulatorlaufzeit auf diesem Host."
 #: src/renderer/components/plugins/ComputerUsePluginSettings.tsx
 msgid "Installation couldn't be verified, so it was rolled back. Nothing was changed."
 msgstr "Die Installation konnte nicht überprüft werden und wurde daher zurückgesetzt. Es wurde nichts geändert."
+
+#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
+#~ msgid "Installation ID"
+#~ msgstr "Installations-ID"
 
 #: src/renderer/components/plugins/ComputerUsePluginSettings.tsx
 #: src/renderer/components/plugins/PluginCatalogDetail.tsx
@@ -11850,6 +11909,10 @@ msgstr "Keine Agenten installiert."
 msgid "No AI commits, PRs, or conflict resolutions tracked yet."
 msgstr "Noch keine KI-Commits, PRs oder Konfliktlösungen erfasst."
 
+#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
+#~ msgid "No analytics events have been captured this session."
+#~ msgstr "In dieser Sitzung wurden keine Analyseereignisse erfasst."
+
 #: src/renderer/components/providers/settings/ModelProviderManager.tsx
 msgid "No API key stored; native authentication may apply."
 msgstr "Kein API-Schlüssel gespeichert; native Authentifizierung kann verfügbar sein."
@@ -12350,6 +12413,10 @@ msgstr "Auf diesem Gerät wurden keine unterstützten Browserprofile gefunden."
 msgid "No tags — the entry stops influencing tag affinity."
 msgstr "Keine Tags – der Eintrag beeinflusst die Tag-Affinität nicht mehr."
 
+#: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
+msgid "No thanks"
+msgstr "Nein, danke"
+
 #: src/renderer/views/HomeView.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "No threads yet."
@@ -12388,6 +12455,10 @@ msgstr "Keine"
 #: src/renderer/views/ExperimentView/ExperimentView.tsx
 msgid "None of these agents can run the AI comparison."
 msgstr "Keiner dieser Agenten kann den KI-Vergleich ausführen."
+
+#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
+#~ msgid "None yet. One is created only if you turn analytics on."
+#~ msgstr "Noch keine. Eine ID wird nur erstellt, wenn du die Analyse aktivierst."
 
 #: src/renderer/views/GitReviewOverlay/parts/GitDiffContent/GitDiffContent.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
@@ -13108,6 +13179,10 @@ msgstr "Operator"
 msgid "Optional"
 msgstr "Optional"
 
+#: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
+msgid "Optional and off by default. Poracode sends no telemetry unless you turn it on here or in Settings → Privacy."
+msgstr "Optional und standardmäßig aus. Poracode sendet keine Telemetrie, solange du sie nicht hier oder in Einstellungen → Datenschutz aktivierst."
+
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PlanReviewModal.tsx
 msgid "Optional comments on the plan as a whole"
 msgstr "Optionale Anmerkungen zum Plan insgesamt"
@@ -13793,6 +13868,14 @@ msgstr "Poracode und Ihre Agenten werden auf dem Remotecomputer ausgeführt. SSH
 msgid "Poracode briefly unlocks this Mac for an active Computer Use turn, covers every display while it works, and locks it again when the turn ends. Any key press or pointer movement on this Mac locks it immediately. Installing needs a one-time administrator approval. On a Mac managed by your organization, check with IT first."
 msgstr "Poracode entsperrt diesen Mac kurz für einen aktiven Computernutzungs-Durchgang, deckt dabei alle Bildschirme ab und sperrt ihn wieder, wenn der Durchgang endet. Jeder Tastendruck und jede Zeigerbewegung an diesem Mac sperrt ihn sofort. Die Installation erfordert eine einmalige Administratorfreigabe. Auf einem Mac, der von deiner Organisation verwaltet wird, sprich vorher mit der IT."
 
+#: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
+#~ msgid "Poracode can send anonymous product analytics and scrubbed crash reports. Both are off until you opt in, and neither includes prompts, code, file names, or terminal output."
+#~ msgstr "Poracode kann anonyme Produktanalysen und bereinigte Absturzberichte senden. Beides ist aus, bis du zustimmst, und beides enthält keine Prompts, keinen Code, keine Dateinamen und keine Terminalausgaben."
+
+#: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
+msgid "Poracode can send anonymous usage analytics and crash reports. No prompts, code, file names, or terminal output."
+msgstr "Poracode kann anonyme Nutzungsanalysen und Absturzberichte senden. Keine Prompts, kein Code, keine Dateinamen, keine Terminalausgaben."
+
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "Poracode could not create this plugin's data folder."
 msgstr "Poracode konnte den Datenordner dieses Plugins nicht anlegen."
@@ -13858,6 +13941,14 @@ msgstr "Nur Poracode"
 #: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
 msgid "Poracode remembers preferences and corrections across providers. Capture runs after a turn finishes. A daily pass merges them. Skills learned from repeated work stay as suggestions until you approve them."
 msgstr "Poracode merkt sich Vorlieben und Korrekturen über alle Anbieter hinweg. Die Aufnahme startet, nachdem ein Zug fertig ist. Ein täglicher Durchgang führt sie zusammen. Skills aus wiederholter Arbeit bleiben Vorschläge, bis du sie freigibst."
+
+#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
+#~ msgid "Poracode sends no telemetry unless you opt in. Prompts, code, file names, and terminal output are never included. Turning a stream off stops sending immediately and drops anything still queued."
+#~ msgstr "Poracode sendet keine Telemetrie, solange du nicht zustimmst. Prompts, Code, Dateinamen und Terminalausgaben sind nie enthalten. Das Deaktivieren stoppt den Versand sofort und verwirft alles noch Ausstehende."
+
+#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
+msgid "Poracode sends nothing unless you turn it on. No prompts, code, or file names — ever."
+msgstr "Poracode sendet nichts, solange du es nicht aktivierst. Prompts, Code oder Dateinamen — niemals."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Poracode SSH runtime manifest is missing or invalid: {path}"
@@ -14102,10 +14193,13 @@ msgid "Print"
 msgstr "Drucken"
 
 #: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
 msgid "Privacy"
 msgstr "Datenschutz"
 
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
+#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
 msgid "Privacy Policy"
 msgstr "Datenschutzrichtlinie"
 
@@ -15475,6 +15569,10 @@ msgstr "Checkliste zurücksetzen"
 msgid "Reset context windows"
 msgstr "Kontextfenster zurücksetzen"
 
+#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
+#~ msgid "Reset ID"
+#~ msgstr "ID zurücksetzen"
+
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
 msgid "Reset inputs"
 msgstr "Eingaben zurücksetzen"
@@ -16320,6 +16418,10 @@ msgstr "Als neue Crew speichern:"
 msgid "Save changes"
 msgstr "Änderungen speichern"
 
+#: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
+msgid "Save choices"
+msgstr "Auswahl speichern"
+
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Save Claude profile"
 msgstr "Claude-Profil speichern"
@@ -16546,6 +16648,14 @@ msgstr "Nach unten scrollen"
 #: src/renderer/components/thread/ChatPane/StickyPrompt.tsx
 msgid "Scroll to prompt: {preview}"
 msgstr "Zum Prompt scrollen: {preview}"
+
+#: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
+#~ msgid "Scrubbed crash diagnostics with paths and secrets removed."
+#~ msgstr "Bereinigte Absturzdiagnosen ohne Pfade und Geheimnisse."
+
+#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
+#~ msgid "Scrubbed crash diagnostics with paths, secrets, and personal data removed before anything is sent."
+#~ msgstr "Bereinigte Absturzdiagnosen: Pfade, Geheimnisse und personenbezogene Daten werden vor dem Senden entfernt."
 
 #: src/renderer/views/SettingsOverlay/parts/cursorRuntimeInstall.ts
 msgid "SDK installed"
@@ -16775,6 +16885,10 @@ msgstr "Sekunden"
 #: src/renderer/components/plugins/pluginCategories.ts
 msgid "Security"
 msgstr "Sicherheit"
+
+#: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
+msgid "See exactly what is collected"
+msgstr "Genau ansehen, was erfasst wird"
 
 #: src/renderer/components/newsLine/featureCatalog.ts
 msgid "See how"
@@ -17347,6 +17461,10 @@ msgstr "Terminal-Panel ein- oder ausblenden"
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/MobileFileEditorActions.tsx
 msgid "Show preview"
 msgstr "Vorschau anzeigen"
+
+#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
+#~ msgid "Show recent events"
+#~ msgstr "Letzte Ereignisse anzeigen"
 
 #: src/renderer/components/thread/ThreadView.tsx
 msgid "Show runtime debug panel"
@@ -18622,6 +18740,18 @@ msgstr "Petrol"
 msgid "Team"
 msgstr "Team"
 
+#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
+msgid "Telemetry details"
+msgstr "Telemetrie-Details"
+
+#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
+msgid "Telemetry doc"
+msgstr "Telemetrie-Doku"
+
+#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
+#~ msgid "Telemetry is disabled by an environment variable on this machine, so both options below stay off regardless of these switches."
+#~ msgstr "Telemetrie ist auf diesem Computer durch eine Umgebungsvariable deaktiviert, sodass beide Optionen unten unabhängig von diesen Schaltern aus bleiben."
+
 #. placeholder {0}: selectedAgent?.label ?? targetProviderFallback
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 msgid "Tell {0} what to do next..."
@@ -19018,6 +19148,10 @@ msgstr "Das Ergebnis ist nicht mehr verfügbar."
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The fork's saved conversation is unavailable."
 msgstr "Der gespeicherte Verlauf der Abzweigung ist nicht verfügbar."
+
+#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
+#~ msgid "The full event catalog, data handling, and environment opt-outs."
+#~ msgstr "Der vollständige Ereigniskatalog, die Datenbehandlung und Umgebungs-Opt-outs."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The GitHub account \"{login}\" belongs to {host}, which does not match this project's GitHub remote."
@@ -21974,6 +22108,10 @@ msgstr "Was die Schaltfläche „PR erstellen“ standardmäßig bewirkt: Öffne
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "What this server provides"
 msgstr "Was dieser Server bereitstellt"
+
+#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
+#~ msgid "What would be sent"
+#~ msgstr "Was gesendet würde"
 
 #: src/renderer/components/common/FeedbackDialog.tsx
 msgid "What would you like to see?"

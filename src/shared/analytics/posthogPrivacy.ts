@@ -32,7 +32,17 @@ export type ProductAnalyticsValue = string | number | boolean | null;
 export type ProductAnalyticsProperties = Record<string, ProductAnalyticsValue | undefined>;
 
 const ALLOWED_EVENT_NAMES = new Set<string>(PRODUCT_ANALYTICS_EVENT_NAMES);
-const ALLOWED_PROPERTY_KEYS = new Set([
+
+/**
+ * Every property key an event may carry. Exported so docs/TELEMETRY.md and its
+ * sync test enumerate exactly what can leave the machine. Library-scale
+ * counts (projects, threads, worktrees) and all durations ship only as
+ * coarse buckets — raw `project_count`/`thread_count`/`duration_ms` keys are
+ * deliberately absent so precise scale and timing cannot be reconstructed.
+ */
+export const PRODUCT_ANALYTICS_PROPERTY_KEYS = [
+  "$geoip_disable",
+  "$ip",
   "$process_person_profile",
   "$insert_id",
   "$session_id",
@@ -52,7 +62,6 @@ const ALLOWED_PROPERTY_KEYS = new Set([
   "computer_use",
   "crossagent_mcp",
   "duration_bucket",
-  "duration_ms",
   "electron",
   "effort",
   "enabled",
@@ -79,7 +88,7 @@ const ALLOWED_PROPERTY_KEYS = new Set([
   "permission_level",
   "platform",
   "presentation",
-  "project_count",
+  "project_count_bucket",
   "provider",
   "prompt_length_bucket",
   "prompt_kind",
@@ -98,13 +107,15 @@ const ALLOWED_PROPERTY_KEYS = new Set([
   "surface_lane",
   "text_segment_count",
   "thinking",
-  "thread_count",
+  "thread_count_bucket",
   "thread_segment_count",
   "view_kind",
   "winner_source",
   "work_mode",
   "worktree_count_bucket",
-]);
+] as const;
+
+const ALLOWED_PROPERTY_KEYS = new Set<string>(PRODUCT_ANALYTICS_PROPERTY_KEYS);
 const SENSITIVE_KEY_PATTERN =
   /(?:account|api[-_]?key|authorization|branch|cmd|code|command|commit|cookie|cwd|diff|email|env|file(?:name)?|home|ip|key|message|output|password|path|project(?:_?id|_?name)?|prompt|query|remote|repo|repository|secret|terminal_output|token|url|user|username|worktree(?:_?path|_?branch)?)/i;
 

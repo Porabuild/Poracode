@@ -1,6 +1,8 @@
 import { app } from "electron";
 import { join } from "node:path";
 import { createPersistentSentryEventLimiter } from "@/host/diagnostics/sentryEventLedger";
+import { createCrashReportConsentGate } from "@/host/diagnostics/crashReportConsent";
+import { isCrashReportsDisabledByEnv } from "@/shared/telemetryConsent";
 import type { PoracodeChannel } from "@/shared/channel";
 import {
   sentryDataCollection,
@@ -16,6 +18,10 @@ import { prepareMainSentryEvent } from "./mainEvent";
 import { buildErrorCauseTags } from "@/shared/diagnostics/errorCause";
 
 const DISABLED_INTEGRATIONS = new Set([
+  // Release-health sessions bypass beforeSend, so they must never start:
+  // the per-event consent gate below cannot stop them.
+  "BrowserWindowSession",
+  "MainProcessSession",
   "ChildProcess",
   "Console",
   "ContextLines",
@@ -37,6 +43,8 @@ export type MainSentryOptions = {
   appVersion: string;
   isDev: boolean;
   channel: PoracodeChannel;
+  /** Shared settings file holding crash-report consent; null fails closed. */
+  settingsPath?: string | null;
 };
 
 function loadMainSentry(): MainSentryModule | null {
@@ -71,7 +79,10 @@ function readSentryEnvironment(options: MainSentryOptions): string {
 }
 
 function shouldEnableSentry(options: MainSentryOptions): boolean {
-  return shouldEnableSentryReporting(readSentryDsn(), options.isDev);
+  return (
+    shouldEnableSentryReporting(readSentryDsn(), options.isDev) &&
+    !isCrashReportsDisabledByEnv(process.env)
+  );
 }
 
 function buildBaseTags(options: MainSentryOptions): PoracodeDiagnosticTags {
@@ -102,10 +113,17 @@ export function initializeMainSentry(options: MainSentryOptions): boolean {
     return false;
   }
 
+  const crashReportsConsented = createCrashReportConsentGate(options.settingsPath);
   const shouldSendMainSentryEvent = createPersistentSentryEventLimiter(
     join(app.getPath("userData"), "sentry", "event-budget.json"),
   );
   Sentry.init({
+    // The default Electron transport queues envelopes on disk and replays
+    // them at startup without re-running beforeSend, which would resurrect
+    // events captured before an opt-out (or before this consent flow
+    // existed). The plain net transport sends or drops in-process only.
+    transport: Sentry.makeElectronTransport,
+    sendClientReports: false,
     dsn,
     release: `poracode@${options.appVersion}`,
     environment: readSentryEnvironment(options),
@@ -124,6 +142,9 @@ export function initializeMainSentry(options: MainSentryOptions): boolean {
       return null;
     },
     beforeSend(event) {
+      // Consent is checked per event (native minidumps included, they enter
+      // through captureEvent) so opting out stops sending without a restart.
+      if (!crashReportsConsented()) return null;
       const prepared = prepareMainSentryEvent(
         event as unknown as SentryEventLike,
         process.platform,

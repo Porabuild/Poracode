@@ -4,6 +4,7 @@ import type {
 } from "@/shared/analytics/posthogPrivacy";
 import { readBridge } from "@/renderer/bridge";
 import { createPostHogClient, type PostHogClientConfig } from "./posthogClient";
+import { isProductAnalyticsConsented } from "./telemetryConsentState";
 
 const INSTALL_ID_STORAGE_KEY = "poracode-posthog-anonymous-id";
 
@@ -57,6 +58,10 @@ function resolveInstallId(): string {
 function buildBaseProperties(sessionId: string): ProductAnalyticsProperties {
   const bridge = readBridge();
   return {
+    // PostHog must not derive IP or geo-location from the request, and must
+    // not build a person profile around the anonymous install id.
+    $geoip_disable: true,
+    $ip: null,
     $process_person_profile: false,
     app_version: bridge.appVersion,
     arch: bridge.arch,
@@ -78,6 +83,7 @@ const client = createPostHogClient({
   createSessionId: () => crypto.randomUUID(),
   now: () => new Date().toISOString(),
   fetch: (input, init) => fetch(input, init),
+  isConsentGranted: isProductAnalyticsConsented,
 });
 
 export function configureProductAnalytics(): boolean {
@@ -93,4 +99,9 @@ export function captureProductEvent(
 
 export function flushProductAnalytics(): Promise<void> {
   return client.flush();
+}
+
+/** Drops buffered events immediately; used when analytics is turned off. */
+export function clearProductAnalyticsBuffer(): void {
+  client.clearBuffer();
 }

@@ -478,6 +478,20 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingsSearchEntry[] = [
 
   // Notifications
   {
+    section: "privacy",
+    anchor: "privacy.productAnalytics",
+    title: msg`Anonymous product analytics`,
+    keywords: "telemetry posthog tracking opt in opt out usage data",
+    desktopOnly: true,
+  },
+  {
+    section: "privacy",
+    anchor: "privacy.crashReports",
+    title: msg`Crash reports`,
+    keywords: "telemetry sentry diagnostics opt in opt out",
+    desktopOnly: true,
+  },
+  {
     section: "notifications",
     anchor: "notifications.enableNotifications",
     title: msg`Enable notifications`,

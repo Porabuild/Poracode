@@ -121,6 +121,7 @@ describe("quick composer window", () => {
       appVersion: "1.0.0",
       posthogEnableDev: false,
       posthogEnabled: false,
+      telemetryHardDisabled: false,
       posthogHost: "",
       posthogKey: "",
       sentryEnabled: false,

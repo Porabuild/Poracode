@@ -1,5 +1,5 @@
 import Module from "node:module";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import type { SentryEventLike } from "@/shared/diagnostics/sentryPrivacy";
@@ -273,6 +273,27 @@ function expectTransient(operation: string, error: Error, errorClass: string): v
   });
 }
 
+// GitHub Actions (and other CI) export CI=true, which production code now
+// treats as a telemetry hard-off. Tests that exercise Sentry initialization
+// must control these variables explicitly instead of inheriting the runner's.
+const TELEMETRY_ENV_KEYS = [
+  "CI",
+  "DO_NOT_TRACK",
+  "PORACODE_TELEMETRY_ENABLED",
+  "PORACODE_CRASH_REPORTS_ENABLED",
+] as const;
+
+function clearTelemetryEnv(): () => void {
+  const saved = TELEMETRY_ENV_KEYS.map((key) => process.env[key]);
+  for (const key of TELEMETRY_ENV_KEYS) delete process.env[key];
+  return () => {
+    TELEMETRY_ENV_KEYS.forEach((key, index) => {
+      if (saved[index] === undefined) delete process.env[key];
+      else process.env[key] = saved[index];
+    });
+  };
+}
+
 describe("supervisor Sentry policy", () => {
   it("sends safe reasons through the actual capture and beforeSend path", async () => {
     vi.resetModules();
@@ -309,10 +330,18 @@ describe("supervisor Sentry policy", () => {
       );
     const previousDsn = process.env.SENTRY_DSN;
     const previousDataDir = process.env.PORACODE_DATA_DIR;
+    const restoreTelemetryEnv = clearTelemetryEnv();
     mkdirSync("tmp", { recursive: true });
     const dataDir = mkdtempSync(join(process.cwd(), "tmp", "sentry-policy-"));
     process.env.SENTRY_DSN = "https://public@example.test/1";
     process.env.PORACODE_DATA_DIR = dataDir;
+    writeFileSync(
+      join(dataDir, "settings.json"),
+      JSON.stringify({
+        privacy: { productAnalytics: false, crashReports: true, consentDecided: true },
+      }),
+    );
+
     try {
       const reporter = await import("./sentry");
       expect(reporter.initializeSupervisorSentry({ appVersion: "test", isDev: false })).toBe(true);
@@ -343,6 +372,7 @@ describe("supervisor Sentry policy", () => {
       expect(events).toHaveLength(2);
       expect(events[1]?.tags).toMatchObject({ "poracode.cause_type": "type-error" });
     } finally {
+      restoreTelemetryEnv();
       spy.mockRestore();
       if (previousDsn === undefined) delete process.env.SENTRY_DSN;
       else process.env.SENTRY_DSN = previousDsn;
@@ -649,9 +679,17 @@ describe("supervisor Sentry event admission", () => {
     sentryMock.setContext.mockReset();
     const originalDsn = process.env.SENTRY_DSN;
     const originalDataDir = process.env.PORACODE_DATA_DIR;
+    const restoreTelemetryEnv = clearTelemetryEnv();
     mkdirSync("tmp", { recursive: true });
     const directory = mkdtempSync(join(process.cwd(), "tmp", "sentry-supervisor-"));
     process.env.PORACODE_DATA_DIR = directory;
+    writeFileSync(
+      join(directory, "settings.json"),
+      JSON.stringify({
+        privacy: { productAnalytics: false, crashReports: true, consentDecided: true },
+      }),
+    );
+
     process.env.SENTRY_DSN = "https://public@example.test/1";
 
     const moduleLoader = Module as unknown as {
@@ -694,6 +732,7 @@ describe("supervisor Sentry event admission", () => {
       );
       expect(ledger.processEvents).toHaveLength(3);
     } finally {
+      restoreTelemetryEnv();
       loadSpy.mockRestore();
       if (originalDsn === undefined) {
         delete process.env.SENTRY_DSN;

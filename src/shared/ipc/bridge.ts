@@ -90,6 +90,8 @@ export type PoracodeBridge = PoracodeInvokeBridge & {
   nodeVersion: string;
   posthogEnableDev: boolean;
   posthogEnabled: boolean;
+  /** Env hard-off (PORACODE_TELEMETRY_ENABLED=0 / DO_NOT_TRACK / CI) wins over consent. */
+  telemetryHardDisabled: boolean;
   posthogHost: string;
   posthogKey: string;
   sentryEnabled: boolean;

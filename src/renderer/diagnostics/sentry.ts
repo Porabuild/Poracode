@@ -1,5 +1,6 @@
 import * as Sentry from "@sentry/electron/renderer";
 import { readBridge } from "@/renderer/bridge";
+import { isCrashReportsConsented } from "@/renderer/analytics/telemetryConsentState";
 import { buildErrorCauseTags } from "@/shared/diagnostics/errorCause";
 import {
   buildRuntimeDiagnosticTags,
@@ -100,6 +101,7 @@ export function initializeRendererSentry(): boolean {
   }
 
   Sentry.init({
+    sendClientReports: false,
     dataCollection: sentryDataCollection,
     beforeSendLog: () => null,
     beforeSendMetric: () => null,
@@ -113,6 +115,7 @@ export function initializeRendererSentry(): boolean {
       return null;
     },
     beforeSend(event) {
+      if (!isCrashReportsConsented()) return null;
       // Electron forwards renderer envelopes to main, where the process budget runs once.
       return prepareRendererSentryEvent(event as unknown as SentryEventLike) as unknown as
         | typeof event

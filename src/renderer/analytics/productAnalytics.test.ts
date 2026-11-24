@@ -14,10 +14,17 @@ const bridge = vi.hoisted(() => ({
   posthogHost: "https://posthog.test///",
   posthogKey: "phc_test",
   sentryEnabled: false,
+  telemetryHardDisabled: false,
 }));
 
 vi.mock("@/renderer/bridge", () => ({
   readBridge: () => bridge,
+}));
+
+const consentState = vi.hoisted(() => ({ granted: true }));
+
+vi.mock("./telemetryConsentState", () => ({
+  isProductAnalyticsConsented: () => consentState.granted,
 }));
 
 import {
@@ -29,6 +36,7 @@ import {
 describe("renderer product analytics adapter", () => {
   beforeEach(() => {
     localStorage.clear();
+    consentState.granted = true;
   });
 
   afterEach(() => {
@@ -61,9 +69,23 @@ describe("renderer product analytics adapter", () => {
         channel: "stable",
         platform: "darwin",
         provider: "codex",
+        $geoip_disable: true,
+        $ip: null,
         $insert_id: expect.any(String),
         $session_id: expect.any(String),
       },
     });
+  });
+
+  it("stays silent until the user opts in", async () => {
+    consentState.granted = false;
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(new Response("{}", { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    expect(configureProductAnalytics()).toBe(false);
+    captureProductEvent("thread.started", { provider: "codex" });
+    await flushProductAnalytics();
+
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });

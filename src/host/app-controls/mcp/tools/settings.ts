@@ -19,7 +19,8 @@ export { REDACTED_VALUE, redactMcpServer, restoreRedactedTransport };
  * values — it is edited only through add/update/remove_mcp_server.
  * `computerUseLockedUse` lets a Computer Use turn unlock the Mac, so an agent
  * must never grant it to itself; only the user turns it on in Settings. The
- * remaining keys are supervisor-managed.
+ * `privacy` key holds telemetry consent, which an agent must never grant or
+ * revoke on the user's behalf. The remaining keys are supervisor-managed.
  */
 const PROTECTED_SETTINGS_KEYS: ReadonlySet<string> = new Set([
   "agentInstances",
@@ -34,6 +35,7 @@ const PROTECTED_SETTINGS_KEYS: ReadonlySet<string> = new Set([
   "installedPlugins",
   "disabledBuiltInMcpServers",
   "disabledBuiltInMcpTools",
+  "privacy",
 ]);
 
 const settingsFieldSchema = sharedSettingsSchema.keyof();

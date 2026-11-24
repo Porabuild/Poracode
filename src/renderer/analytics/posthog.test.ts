@@ -14,7 +14,11 @@ function parseBatchBody(
 }
 
 describe("posthog product analytics sender", () => {
-  function createClient(config: PostHogClientConfig, fetchMock: typeof fetch) {
+  function createClient(
+    config: PostHogClientConfig,
+    fetchMock: typeof fetch,
+    isConsentGranted: () => boolean = () => true,
+  ) {
     let eventIndex = 0;
     return createPostHogClient({
       resolveConfig: () => config,
@@ -24,6 +28,7 @@ describe("posthog product analytics sender", () => {
       createSessionId: () => "session-id",
       now: () => "2026-07-09T00:00:00.000Z",
       fetch: fetchMock,
+      isConsentGranted,
     });
   }
 
@@ -32,6 +37,28 @@ describe("posthog product analytics sender", () => {
     host: "https://posthog.test",
     enabled: true,
   };
+
+  it("does not send without consent and drops the buffer when consent is revoked", async () => {
+    let consented = false;
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(new Response("{}", { status: 200 }));
+    const client = createClient(enabledConfig, fetchMock, () => consented);
+
+    client.capture("thread.started", { provider: "codex" });
+    await client.flush();
+    expect(fetchMock).not.toHaveBeenCalled();
+
+    consented = true;
+    client.capture("thread.started", { provider: "codex" });
+
+    consented = false;
+    await client.flush();
+    expect(fetchMock).not.toHaveBeenCalled();
+
+    // Re-consenting must not resurrect the dropped event.
+    consented = true;
+    await client.flush();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
 
   it("does not send when PostHog is disabled", async () => {
     const fetchMock = vi.fn<typeof fetch>();

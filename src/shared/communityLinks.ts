@@ -1,5 +1,6 @@
 /** Public Poracode community destinations shared by About and the news line. */
 export const PORACODE_REPO_URL = "https://github.com/Porabuild/Poracode";
+export const PORACODE_TELEMETRY_DOC_URL = `${PORACODE_REPO_URL}/blob/master/docs/TELEMETRY.md`;
 export const PORACODE_X_URL = "https://x.com/poracode";
 export const CREATOR_X_URL = "https://x.com/serg_vecher";
 

@@ -282,6 +282,7 @@ const remoteBridgeOverrides = {
   nodeVersion: "",
   posthogEnableDev: false,
   posthogEnabled: false,
+  telemetryHardDisabled: false,
   posthogHost: "",
   posthogKey: "",
   sentryEnabled: false,

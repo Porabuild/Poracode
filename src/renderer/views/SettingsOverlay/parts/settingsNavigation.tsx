@@ -22,6 +22,7 @@ import {
   QrCode,
   Search,
   Server,
+  ShieldCheck,
   Settings2,
   Sparkles,
   Brain,
@@ -48,6 +49,7 @@ export interface SettingsDestination {
 // hides them and instead surfaces "Models" in place of the Agents tree. Single
 // source of truth for both the collapsed icon rail and the expanded list.
 const DESKTOP_ONLY_SECTIONS = new Set<SettingsSection>([
+  "privacy",
   "search",
   "threads",
   "shortcuts",
@@ -92,6 +94,7 @@ export function useSettingsNavigation() {
         { id: "appearance", icon: <Palette className="size-4" />, label: t`Appearance` },
         { id: "audio", icon: <Mic className="size-4" />, label: t`Audio` },
         { id: "notifications", icon: <Bell className="size-4" />, label: t`Notifications` },
+        { id: "privacy", icon: <ShieldCheck className="size-4" />, label: t`Privacy` },
         { id: "shortcuts", icon: <Keyboard className="size-4" />, label: t`Shortcuts` },
       ],
     },

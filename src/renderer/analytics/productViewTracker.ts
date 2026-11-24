@@ -81,7 +81,6 @@ export function createProductViewTracker(
       dependencies.capture(active.definition.durationEvent, {
         ...active.definition.properties,
         duration_bucket: bucketDurationMs(active.visibleDurationMs),
-        duration_ms: active.visibleDurationMs,
       });
     }
     active = null;
