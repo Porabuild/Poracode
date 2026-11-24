@@ -67,7 +67,7 @@ vi.mock("@/renderer/state/sharedSettingsStore", () => ({
 vi.mock("@/renderer/state/remoteServersStore", () => ({
   useRemoteServersStore: Object.assign(
     (selector: (state: typeof remoteStoreState) => unknown) => selector(remoteStoreState),
-    { getState: () => remoteStoreState },
+    { getState: () => remoteStoreState, subscribe: () => () => undefined },
   ),
 }));
 
@@ -77,6 +77,10 @@ vi.mock("@/renderer/state/remoteServers/browserBridge", () => ({
 
 vi.mock("@/renderer/components/providers/ProviderIcon", () => ({
   ProviderIcon: () => <span />,
+}));
+
+vi.mock("@/renderer/components/providers/useProviderUsageHydration", () => ({
+  useProviderUsageHydration: vi.fn<(enabled?: boolean) => void>(),
 }));
 
 function sampleCore(deviceId: string, label: string, prompts: number): ProfileCoreStats {
