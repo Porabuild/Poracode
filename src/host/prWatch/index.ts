@@ -38,4 +38,5 @@ export {
   type PrWatchStore,
   type PrWatchWorkContext,
 } from "./PrWatchService";
+export { PrMergeLifecycleService, type PrMergeLifecycleServiceOptions } from "./prMergeLifecycle";
 export { buildPrWatchExecutionDeps, type PrWatchExecutionParams } from "./watchExecution";

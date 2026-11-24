@@ -1,5 +1,8 @@
 import { homedir } from "node:os";
-import { assertRemoteGitMutationExperimentSafe } from "@/host/remote/experimentOwnership";
+import {
+  assertRemoteGitMutationExperimentSafe,
+  readPersistedExperiments,
+} from "@/host/remote/experimentOwnership";
 import { msg } from "@/shared/messages";
 import { joinRuntimeShutdown } from "./joinRuntimeShutdown";
 import { DeviceWorkspaceService } from "@/host/devices/DeviceWorkspaceService";
@@ -17,6 +20,7 @@ import {
   dbPatchScheduleRuntime,
   dbGetThreads,
   dbInsertScheduleRun,
+  dbSetThreadsDone,
   dbInterruptScheduleRuns,
   dbListThreadIds,
   dbBeginWorktreeObservation,
@@ -36,11 +40,17 @@ import type { AppControlsMcpIngressDeps } from "@/host/app-controls/AppControlsM
 import { ensureHomeProjectWithPublish } from "@/host/app-controls/ingressDeps";
 import type { SupervisorCall } from "@/host/app-controls/supervisorCaller";
 import { ProjectActionService } from "@/host/app-controls/projectActions";
-import { createGitStateExecutor, GitStateService, ProjectWatchLeases } from "@/host/gitState";
+import {
+  createGitStateExecutor,
+  GitStateService,
+  HostGitSummariesController,
+  ProjectWatchLeases,
+} from "@/host/gitState";
 import { ForgeActivityService } from "@/host/forgeActivity";
 import {
   buildPrWatchExecutionDeps,
   createDevicePrWatchService,
+  PrMergeLifecycleService,
   type PrWatchService,
 } from "@/host/prWatch";
 import {
@@ -61,6 +71,7 @@ import { isThreadTurnActive } from "@/shared/contracts";
 import { gitProjectKey, type GitStatePatch } from "@/shared/gitState";
 import { repoIdentityKey } from "@/shared/repoIdentity";
 import type { SupervisorEvent } from "@/shared/ipc";
+import type { RemoteGitSummaries } from "@/shared/remote";
 import type { RemoteForgeActivityEvent } from "@/shared/remote/protocol/forgeActivity";
 import type { SharedSettings } from "@/shared/settings";
 import type { SettingsMutationResult, SettingsOwnerEdit } from "@/shared/settingsTransactions";
@@ -142,13 +153,14 @@ export interface BackendDurableServicesOptions {
    */
   attachmentsDir?: string;
   deviceHubRoot?: string;
-  hasRendererWindow: boolean;
+  hasRendererWindow: boolean | (() => boolean);
   openThreadInUi(threadId: string): boolean;
   notifyUser: AppControlsMcpIngressDeps["notifyUser"];
   checkForUpdate: AppControlsMcpIngressDeps["checkForUpdate"];
   onPrMerged?(watch: PrWatch): void;
   onPrObserved?(watch: PrWatch, pr: PrData, details?: PrDetails): void;
   onGitPatch(patch: GitStatePatch): void;
+  onGitSummariesChanged?(summaries: RemoteGitSummaries): void;
   /** Out-of-band trigger for clients to re-read forge state after an agent changed it. */
   onForgeActivity?(event: RemoteForgeActivityEvent): void;
   reportError?(error: unknown): void;
@@ -164,7 +176,9 @@ export class BackendDurableServices {
   readonly scheduleCoordinator: ScheduleRunCoordinator;
   readonly scheduleService: ScheduleService;
   readonly prWatchService: PrWatchService;
+  readonly prMergeLifecycle: PrMergeLifecycleService;
   readonly gitStateService: GitStateService;
+  readonly gitSummaries: HostGitSummariesController;
   readonly forgeActivityService: ForgeActivityService;
   /** Per-owner leases on the supervisor's shared project watcher. Lives with
    * the durable host so remote-server replacement and supervisor resets keep
@@ -295,7 +309,11 @@ export class BackendDurableServices {
       executor: createGitStateExecutor((name, payload) => supervisor.call(name, payload)),
       getProject: dbGetProject,
       getProjects: dbGetProjects,
-      onPatch: options.onGitPatch,
+      onPatch: (patch) => {
+        this.gitSummaries.notifyChanged();
+        this.prMergeLifecycle.handleGitPatch(patch);
+        options.onGitPatch(patch);
+      },
       beginWorktreeObservation: (projectId) => {
         const observation = dbBeginWorktreeObservation(projectId);
         return (worktrees) => {
@@ -305,6 +323,38 @@ export class BackendDurableServices {
           return true;
         };
       },
+    });
+    this.gitSummaries = new HostGitSummariesController({
+      hostId: options.hostId,
+      getSnapshot: () => this.gitStateService.getSnapshot(),
+      getThreads: dbGetThreads,
+      onPublish: (summaries) => {
+        options.onGitSummariesChanged?.(summaries);
+      },
+    });
+    this.prMergeLifecycle = new PrMergeLifecycleService({
+      hostId: options.hostId,
+      getProject: dbGetProject,
+      getThread: dbGetThread,
+      getThreads: dbGetThreads,
+      getGitSnapshot: () => this.gitStateService.getSnapshot(),
+      getSharedSettings: options.getSharedSettings,
+      getGitStatus: (payload) => supervisor.call("getGitStatus", payload),
+      gitPull: (payload) => supervisor.call("gitPull", payload),
+      refreshProjectAfterSync: (projectId) =>
+        this.gitStateService.refreshProject(projectId, { afterMutation: true }),
+      isExperimentThread: (threadId) =>
+        readPersistedExperiments().some((experiment) =>
+          experiment.candidates.some((candidate) => candidate.threadId === threadId),
+        ),
+      closeThreadConfirmed: (threadId) => this.closeThreadConfirmed(threadId),
+      markThreadDoneInDb: (threadId, doneAt) => dbSetThreadsDone([threadId], doneAt) > 0,
+      publishThreadsChanged: (threadIds) => {
+        options.publishThreadsChanged?.(threadIds);
+        this.gitSummaries.notifyChanged();
+      },
+      sendThreadCommand: options.sendThreadCommand,
+      ...(options.reportError ? { reportError: options.reportError } : {}),
     });
     this.forgeActivityService = new ForgeActivityService({
       getThread: dbGetThread,
@@ -394,8 +444,12 @@ export class BackendDurableServices {
           return undefined;
         }
       },
-      ...(options.onPrMerged ? { onPrMerged: options.onPrMerged } : {}),
+      onPrMerged: (watch) => {
+        this.prMergeLifecycle.handlePrMerged(watch);
+        options.onPrMerged?.(watch);
+      },
       onPrObserved: (watch, pr, details) => {
+        this.prMergeLifecycle.handlePrObserved(watch, pr);
         options.onPrObserved?.(watch, pr, details);
         this.gitStateService.applyObservedPullRequest(watch, pr, details);
       },
@@ -484,7 +538,10 @@ export class BackendDurableServices {
       getAppInfo: () => ({
         version: options.appVersion,
         platform: process.platform,
-        hasRendererWindow: options.hasRendererWindow,
+        hasRendererWindow:
+          typeof options.hasRendererWindow === "function"
+            ? options.hasRendererWindow()
+            : options.hasRendererWindow,
       }),
       supervisor: createAppControlsSupervisorCaller(callAppControlsSupervisor),
       emitRemoteThreadCommand: options.emitRemoteThreadCommand ?? options.sendThreadCommand,
@@ -822,6 +879,7 @@ export class BackendDurableServices {
     this.appControls.observeSupervisorEvent(event);
     this.scheduleCoordinator.observeSupervisorEvent(event);
     this.prWatchService.observeSupervisorEvent(event);
+    this.prMergeLifecycle.observeSupervisorEvent(event);
     this.forgeActivityService.observeSupervisorEvent(event);
     this.gitStateService.observeSupervisorEvent(event);
     return false;
@@ -875,8 +933,12 @@ export class BackendDurableServices {
         () => this.scheduleService.dispose(),
         () => this.scheduleCoordinator.dispose(),
         () => this.prWatchService.dispose(),
+        () => this.prMergeLifecycle.dispose(),
         () => Promise.resolve(this.forgeActivityService.dispose()),
-        () => this.gitStateService.dispose(),
+        () => {
+          this.gitSummaries.dispose();
+          return this.gitStateService.dispose();
+        },
         () => this.projectWatchLeases.dispose(),
         () => {
           this.projectActions.reset();

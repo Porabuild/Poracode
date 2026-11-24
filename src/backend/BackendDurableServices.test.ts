@@ -90,6 +90,8 @@ vi.mock("@/host/db", () => ({
   dbReconcileProjectWorktrees: vi.fn<() => string[]>(() => []),
   dbBeginWorktreeObservation: vi.fn<() => object>(() => ({})),
   dbSelectPurgeCandidateThreadIds: vi.fn<() => string[]>(() => []),
+  dbSetThreadsDone: vi.fn<() => number>(() => 0),
+  dbIsExperimentThread: vi.fn<() => boolean>(() => false),
   dbUpdateScheduleRun: vi.fn<() => undefined>(),
   dbUpsertThread: vi.fn<() => undefined>(),
   onThreadsDeleted: vi.fn<(listener: (threadIds: readonly string[]) => void) => () => void>(
@@ -127,36 +129,51 @@ vi.mock("@/host/app-controls", () => ({
   createAppControlsSupervisorCaller: (call: unknown) => call,
 }));
 
-vi.mock("@/host/gitState", async (importOriginal) => ({
-  // The real lease registry, so its supervisor wiring is asserted end to end.
-  ProjectWatchLeases: (await importOriginal<typeof import("@/host/gitState")>()).ProjectWatchLeases,
-  createGitStateExecutor: () => ({}),
-  GitStateService: class {
-    constructor(options: GitStateServiceOptions) {
-      mocks.gitStateOptions = options;
-    }
-    start = () => {};
-    dispose = () => {};
-    observeSupervisorEvent = () => {};
-    applyObservedPullRequest = () => {};
-    refreshTarget = async () => {};
-    refreshProjectPullRequests = async () => {};
-  },
-}));
+vi.mock("@/host/gitState", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/host/gitState")>();
+  return {
+    // The real lease registry and git-summary projection controller.
+    ProjectWatchLeases: actual.ProjectWatchLeases,
+    HostGitSummariesController: actual.HostGitSummariesController,
+    createGitStateExecutor: () => ({}),
+    GitStateService: class {
+      constructor(options: GitStateServiceOptions) {
+        mocks.gitStateOptions = options;
+      }
+      start = () => {};
+      dispose = () => {};
+      observeSupervisorEvent = () => {};
+      applyObservedPullRequest = () => {};
+      refreshTarget = async () => {};
+      refreshProjectPullRequests = async () => {};
+      getSnapshot = () => ({
+        revision: 0,
+        projects: {},
+        targets: {},
+        pullRequests: {},
+        pullRequestKeyByBranch: {},
+      });
+    },
+  };
+});
 
-vi.mock("@/host/prWatch", () => ({
-  buildPrWatchExecutionDeps: () => ({}),
-  createDevicePrWatchService: (options: {
-    retireObsoleteLaunchThread(watch: PrWatch, threadId: string): Promise<boolean>;
-  }) => {
-    mocks.retireWatchThread = options.retireObsoleteLaunchThread;
-    return {
-      start: () => {},
-      dispose: () => {},
-      observeSupervisorEvent: () => {},
-    };
-  },
-}));
+vi.mock("@/host/prWatch", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/host/prWatch")>();
+  return {
+    PrMergeLifecycleService: actual.PrMergeLifecycleService,
+    buildPrWatchExecutionDeps: () => ({}),
+    createDevicePrWatchService: (options: {
+      retireObsoleteLaunchThread(watch: PrWatch, threadId: string): Promise<boolean>;
+    }) => {
+      mocks.retireWatchThread = options.retireObsoleteLaunchThread;
+      return {
+        start: () => {},
+        dispose: () => {},
+        observeSupervisorEvent: () => {},
+      };
+    },
+  };
+});
 
 vi.mock("@/host/schedules", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/host/schedules")>();

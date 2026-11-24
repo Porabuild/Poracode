@@ -27,7 +27,6 @@ import {
   deriveTurnTiming,
   type TurnCloseUpdate,
 } from "./threadTurnHelpers";
-import { recordThreadStarted } from "../usageRecorder";
 import { hasOwnWindow } from "../auxiliaryThreadWindows";
 import { keepAlivePatch, removeKeepAliveId } from "./paneCacheSlice";
 import type { SliceCreator } from "./shared";
@@ -402,8 +401,6 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set, get) => ({
     // so catalog and history projection can restore it.
     pinRemoteHomeThreadWorkspace(thread, thread.workspaceId);
 
-    // Durable "thread started" usage fact (survives later delete/archive).
-    recordThreadStarted(thread);
     // Central managed-root create intent: the managed desktop records that this
     // unprojected row still needs a host create+launch (or an explicit
     // exemption). See managedRootCatalog/rootCreateIntent.ts.

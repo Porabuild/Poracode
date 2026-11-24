@@ -77,7 +77,6 @@ import {
   composeHeadlessSettingsAuthority,
   type HeadlessSettingsComposition,
 } from "./headlessSettingsAuthority";
-import { createHeadlessPrMergeEffect } from "./headlessPrWatchMerge";
 import { composeHostServices } from "@/host/hostServices/composeHostServices";
 import { ensureHomeProjectRow } from "@/host/schedules/homeProject";
 import type { SshConnectionManager } from "@/host/ssh/SshConnectionManager";
@@ -588,14 +587,9 @@ export async function composeHeadlessRemoteHost(
       editPreferences: (compute) => settings.editPreferences(compute),
       commitOwnerSettingsEdits: (edits) => settings.commitOwnerEdits(edits),
       assertCanPersistSecrets: () => runtime.credentialCapabilities.assertCanPersistSecrets(),
-      // Durable auto-done effect the desktop renderer performs from `pr-watch-merged`.
-      onPrMerged: createHeadlessPrMergeEffect({
-        getSharedSettings,
-        publishThreadsChanged: (threadIds) => {
-          serverRef?.publishThreadsChanged(threadIds);
-        },
-        ...(options.reportError ? { reportError: options.reportError } : {}),
-      }),
+      onGitSummariesChanged: (summaries) => {
+        serverRef?.publishSupervisorEvent({ type: "remote-git-summaries", summaries });
+      },
       sendThreadCommand: () => false,
       publishProjectsChanged: publishHeadlessProjectsChanged,
       publishThreadsChanged: (threadIds) => {
@@ -737,6 +731,7 @@ export async function composeHeadlessRemoteHost(
       schedules: scheduleService,
       prWatches: prWatchService,
       gitState: gitStateService,
+      gitSummaries: () => durableServices?.gitSummaries.getSummaries() ?? {},
       projectWatches: projectWatchLeases,
       pushRegistrations: {
         webPublicKey,

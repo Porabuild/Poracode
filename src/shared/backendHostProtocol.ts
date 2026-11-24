@@ -285,6 +285,7 @@ export interface BackendServiceProcedureMap extends BackendSettingsProcedureMap 
   getProfileIdentity: { payload: Record<string, never>; result: ProfileIdentityResponse };
   setProfileIdentity: { payload: ProfileIdentity; result: ProfileIdentityResponse };
   updateStatusChanged: { payload: { status: RemoteHostUpdateStatus | null }; result: void };
+  setRendererWindowPresent: { payload: { present: boolean }; result: void };
 }
 
 export const BACKEND_SERVICE_PROCEDURE_NAMES = [
@@ -321,6 +322,7 @@ export const BACKEND_SERVICE_PROCEDURE_NAMES = [
   "getProfileIdentity",
   "setProfileIdentity",
   "updateStatusChanged",
+  "setRendererWindowPresent",
 ] as const satisfies readonly (keyof BackendServiceProcedureMap)[];
 
 export type BackendServiceProcedureName = keyof BackendServiceProcedureMap;

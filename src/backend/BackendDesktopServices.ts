@@ -120,6 +120,7 @@ export class BackendDesktopServices {
   private readonly settings: BackendSettingsAccess;
   private readonly administration: DesktopHostAdministration | null;
   private updateStatus: RemoteHostUpdateStatus | null = null;
+  private rendererWindowPresent = false;
 
   constructor(private readonly options: BackendDesktopServicesOptions) {
     const { initialize, host } = options;
@@ -341,14 +342,7 @@ export class BackendDesktopServices {
         if (!custody) throw new Error("Plugin credentials require active desktop data custody.");
         custody.assertActive();
       },
-      // TODO(Gates 2-3 Batch 1, Lane 1B — S2.1): this is hardcoded `true`, so
-      // app-controls reports a renderer window even in tray/hidden mode and
-      // callers believe zero-window thread-command mirrors were delivered.
-      // Main now queues those commands until a window is ready
-      // (flushPendingThreadCommands) as the interim fix; when this becomes a
-      // real window signal (and/or the backend applies commands DB-direct
-      // zero-window), main's queue can be removed.
-      hasRendererWindow: true,
+      hasRendererWindow: () => this.rendererWindowPresent,
       openThreadInUi: (threadId) => {
         // Fire-and-forget: the durable side only needs the acknowledgment.
         // Without an explicit settlement a rejection would escape as an
@@ -389,6 +383,9 @@ export class BackendDesktopServices {
       onGitPatch: (patch) => {
         this.remote?.getServer()?.publishSupervisorEvent({ type: "remote-git-state", patch });
         options.emitNativeEvent({ type: "git-state-changed", patch });
+      },
+      onGitSummariesChanged: (summaries) => {
+        this.remote?.updateGitSummaries(summaries);
       },
       onForgeActivity: (event) => {
         this.remote?.getServer()?.publishSupervisorEvent(event);
@@ -490,6 +487,7 @@ export class BackendDesktopServices {
           deviceWorkspace: this.durable.deviceWorkspace,
           prWatchService: this.durable.prWatchService,
           gitStateService: this.durable.gitStateService,
+          getGitSummaries: () => this.durable.gitSummaries.getSummaries(),
           projectWatchLeases: this.durable.projectWatchLeases,
           updates: {
             currentVersion: () => initialize.supervisor.appVersion,
@@ -780,7 +778,9 @@ export class BackendDesktopServices {
         return { revoked } as BackendServiceResult<Name>;
       }
       case "publishRemoteGitSummaries":
-        this.remote?.updateGitSummaries((payload as { summaries: never }).summaries);
+        this.durable.gitSummaries.setSupplementalSummaries(
+          (payload as { summaries: never }).summaries,
+        );
         return undefined as BackendServiceResult<Name>;
       case "getAutomationsSnapshot":
         return this.durable.scheduleService.snapshot(
@@ -852,6 +852,9 @@ export class BackendDesktopServices {
         return setProfileIdentityResponse(payload as never) as BackendServiceResult<Name>;
       case "updateStatusChanged":
         this.updateStatus = (payload as { status: RemoteHostUpdateStatus | null }).status;
+        return undefined as BackendServiceResult<Name>;
+      case "setRendererWindowPresent":
+        this.rendererWindowPresent = (payload as { present: boolean }).present;
         return undefined as BackendServiceResult<Name>;
     }
   }

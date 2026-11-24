@@ -86,6 +86,19 @@ describe("showOsNotification", () => {
     expect(notification.show).toHaveBeenCalledOnce();
   });
 
+  it("honors explicit silent: false when requested", () => {
+    const win = createFakeWindow();
+    const shown = showOsNotification(
+      { title: "Project", body: "Body", threadId: "t1" },
+      () => win as never,
+      undefined,
+      { silent: false },
+    );
+
+    expect(shown).toBe(true);
+    expect(notificationState.instances[0]!.options.silent).toBe(false);
+  });
+
   it("focuses the window and requests opening the notification thread when clicked", () => {
     const win = createFakeWindow();
     showOsNotification({ title: "Project", body: "Body", threadId: "t1" }, () => win as never);
@@ -199,7 +212,7 @@ describe("showOsNotification", () => {
 });
 
 describe("showUserNotificationFallback", () => {
-  it("forwards openThread to the OS notification", () => {
+  it("forwards openThread and sound options to the OS notification", () => {
     const openThread = vi.fn<(threadId: string) => void>();
     const shown = showUserNotificationFallback(
       {
@@ -211,9 +224,11 @@ describe("showUserNotificationFallback", () => {
       },
       () => null,
       openThread,
+      { silent: false },
     );
 
     expect(shown).toBe(true);
+    expect(notificationState.instances[0]!.options.silent).toBe(false);
     notificationState.instances[0]!.emit("click");
     expect(openThread).toHaveBeenCalledExactlyOnceWith("t9");
   });

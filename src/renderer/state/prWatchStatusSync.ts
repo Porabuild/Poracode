@@ -4,21 +4,19 @@ import { readBridge } from "@/renderer/bridge";
 import { useAppStore } from "./appStore";
 import { buildBranchNamePrKey, buildBranchPrKey } from "./gitSelectors";
 import { useGitStore } from "./gitStore";
-import { syncMergedPrBase } from "./prMergeBaseSync";
 
 /**
  * Keeps the git store's PR snapshot in step with the PR-watch loop.
  *
- * A watched PR is polled in the main process, not by the renderer's own refresh
+ * A watched PR is polled in the backend host, not by the renderer's own refresh
  * cycle: the pending-PR poll only follows PRs whose checks are still running, so
  * once checks turn green nothing re-reads the PR until the next periodic remote
  * fetch (minutes later). An auto-merge lands inside that window, which left the
  * sidebar badge and git panel showing a green *open* PR for a PR that was
  * already merged — visibly at odds with the thread the same merge marked done.
  *
- * The watch loop refetches the PR every tick anyway, so this just writes what it
- * saw into every key that addresses this PR. Both stores dedupe equal values, so
- * an unchanged poll costs no re-render.
+ * Base-branch fast-forward pulls on merge are owned by `PrMergeLifecycleService`
+ * on the host; this listener only keeps the renderer's `gitStore` cache current.
  */
 
 /** Every prData key that addresses this PR: worktree paths, branch name, project branch. */
@@ -38,7 +36,6 @@ function collectPrKeys(event: PrWatchStatusEvent): Set<string> {
 }
 
 function applyPrWatchStatus(event: PrWatchStatusEvent): void {
-  if (event.pr.state === "merged") void syncMergedPrBase(event.projectId, event.pr);
   const gitStore = useGitStore.getState();
   const updates: Record<string, PrData> = {};
   for (const key of collectPrKeys(event)) {

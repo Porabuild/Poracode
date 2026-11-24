@@ -10,6 +10,7 @@ import type {
   ProjectLocation,
 } from "@/shared/contracts";
 import { friendlyError, isPullDirtyWorktreeError, msg } from "@/shared/messages";
+import { mergedPrBasePullRemote } from "@/shared/gitState";
 import { readBridge } from "@/renderer/bridge";
 import { captureRendererException } from "@/renderer/diagnostics/sentry";
 import { i18n } from "@/renderer/i18n/i18n";
@@ -119,24 +120,12 @@ export async function pullMergedPrBaseIfPossible(
 ): Promise<void> {
   try {
     const status = await readBridge().getGitStatus({ projectLocation, detail: "summary" });
-    if (
-      status.branch !== baseBranch ||
-      !status.hasRemote ||
-      !status.tracking ||
-      status.ahead > 0 ||
-      status.staged.length > 0 ||
-      status.unstaged.length > 0 ||
-      status.mergeInProgress
-    ) {
-      return;
-    }
-
-    const separator = status.tracking.indexOf("/");
-    if (separator <= 0) return;
+    const remote = mergedPrBasePullRemote(status, baseBranch);
+    if (!remote) return;
     await runGitSyncCommand({
       command: "pull",
       projectLocation,
-      remote: status.tracking.slice(0, separator),
+      remote,
     });
   } catch (error) {
     console.warn("[git] post-merge pull skipped", error);

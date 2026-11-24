@@ -21,6 +21,29 @@ export interface GitTargetRef extends GitProjectRef {
   readonly worktreePath?: string | undefined;
 }
 
+/**
+ * The remote a merged pull request's base checkout can be fast-forwarded from,
+ * or null when pulling could surprise the user: the checkout is on another
+ * branch, has no remote tracking, has unpushed commits, is dirty, or is in a
+ * merge. Shared by the host merge lifecycle and the renderer's own merge paths
+ * so a window that merges a PR and the host observing that merge agree.
+ */
+export function mergedPrBasePullRemote(status: GitStatusResult, baseBranch: string): string | null {
+  if (
+    status.branch !== baseBranch ||
+    !status.hasRemote ||
+    !status.tracking ||
+    status.ahead > 0 ||
+    status.staged.length > 0 ||
+    status.unstaged.length > 0 ||
+    status.mergeInProgress
+  ) {
+    return null;
+  }
+  const separator = status.tracking.indexOf("/");
+  return separator > 0 ? status.tracking.slice(0, separator) : null;
+}
+
 export interface PullRequestRef extends GitProjectRef {
   readonly prNumber: number;
 }

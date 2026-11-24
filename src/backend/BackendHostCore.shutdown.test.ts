@@ -31,7 +31,9 @@ vi.mock("@/host/db", () => ({
   setRuntimePersistenceInFlightWindowBytes: vi.fn<(bytes: number | null) => void>(),
   dbAppendThreadTerminalOutput: vi.fn<() => void>(),
   dbClearThreadTerminalScrollback: vi.fn<() => void>(),
+  dbAppendUsageEvents: vi.fn<() => void>(),
   dbGetProjects: vi.fn<() => { id: string }[]>(() => []),
+  dbGetThread: vi.fn<() => null>(() => null),
   dbUpsertProject: vi.fn<() => void>(),
 }));
 vi.mock("@/host/remote/server/runtimePersistence", () => ({

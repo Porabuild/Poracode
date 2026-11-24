@@ -43,6 +43,7 @@ function fakeWindow() {
     restore: () => {},
     show: () => {},
     focus: () => {},
+    on: () => {},
     webContents: { on: () => {}, send: vi.fn<(channel: string, payload: unknown) => void>() },
   };
 }
