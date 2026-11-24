@@ -13,12 +13,14 @@ object RemoteContractMetadata {
     const val protocolVersion = 14
     const val bindingFormatVersion = 2
     const val generatorVersion = 7
-    const val sourceHash = "sha256:304f017a89b237fa49935567a5df0dd994ee7b0d85914d6a71f40341e3b4e704"
-    const val manifestHash = "sha256:19f4a08ede24abc0be2f2824381a01fb4e83d71e9380cc3113f6725a5fc75732"
+    const val sourceHash = "sha256:13dc2b96108b6cd5b4439ceec2d8a30aa34c6cd144170365dc7fb08743038e66"
+    const val manifestHash = "sha256:0f81ac0cc02c279c908b92bcda3ea498c7aa42395ce932ac881cc905789024f0"
     val validationBoundary = RemoteValidationBoundary.ROOT_CODEC_ONLY
     val generatedModelSerializationSemantics = RemoteGeneratedSerializerSemantics.NON_VALIDATING_REPRESENTATION_ONLY
     val portableTransformIds = listOf("agent-settings.strip-sensitive", "push.routing.client-connection-id.lowercase", "string.trim")
     val routes = listOf(
+        RemoteRouteDescriptor("agent-profiles-command", "POST", "/api/settings/agent-profiles/command", "bearer", listOf("session:operate"), "json", "json", 200, "RouteagentU2DProfilesU2DCommandRequest_35421c706b", "RouteagentU2DProfilesU2DCommandResponse_504e56daa5", listOf()),
+        RemoteRouteDescriptor("agent-profiles-read", "GET", "/api/settings/agent-profiles", "bearer", listOf("session:read"), "empty", "json", 200, "RemoteUnit", "RouteagentU2DProfilesU2DReadResponse_c97404be97", listOf()),
         RemoteRouteDescriptor("agent-slash-commands", "GET", "/api/agents/{kind}/slash-commands", "bearer", listOf("session:read"), "empty", "json", 200, "RemoteUnit", "RouteagentU2DSlashU2DCommandsResponse_d50d163800", listOf()),
         RemoteRouteDescriptor("agent-statuses", "GET", "/api/agent-statuses", "bearer", listOf("session:read"), "empty", "json", 200, "RemoteUnit", "RouteagentU2DStatusesResponse_0170ad7cfc", listOf(RemoteQueryParameterDescriptor("slashCommands", "0-or-1", true, false))),
         RemoteRouteDescriptor("attachment-upload", "POST", "/api/files/attachment", "bearer", listOf("session:operate"), "raw-upload", "json", 200, "ByteArray", "ProcedurecloneRepoResult_6a0c18e639", listOf(RemoteQueryParameterDescriptor("threadId", "string", false, false), RemoteQueryParameterDescriptor("name", "string", false, false))),

@@ -117,8 +117,10 @@ const flushSharedSettingsMock = vi.hoisted(() =>
   vi.fn<(options?: { requireSuccess?: boolean }) => Promise<void>>(),
 );
 vi.mock("@/renderer/state/sharedSettingsStore", () => ({
-  useSharedSettings: (selector: (state: typeof settingsState) => unknown) =>
-    selector(settingsState),
+  useSharedSettings: Object.assign(
+    (selector: (state: typeof settingsState) => unknown) => selector(settingsState),
+    { getState: () => settingsState },
+  ),
   flushSharedSettings: flushSharedSettingsMock,
 }));
 

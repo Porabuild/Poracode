@@ -5,6 +5,14 @@ import { Box, ChevronDown, Download, Plus, RefreshCw, Search, Store, Trash2 } fr
 import { Plural, Trans, useLingui } from "@lingui/react/macro";
 import type { SkillEntry } from "@/shared/contracts";
 import { readBridge } from "@/renderer/bridge";
+import { useAppStore } from "@/renderer/state/appStore";
+import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
+import { isHomeProject } from "@/shared/homeScope";
+import {
+  deleteSkillForHost,
+  resolveSkillHostPlatform,
+  setSkillEnabledForHost,
+} from "./skillHostBridge";
 import {
   Button,
   ConfirmDialog,
@@ -41,11 +49,17 @@ type StatusFilter = "all" | "enabled" | "disabled";
 export function SkillsManager(props: {
   projects: readonly McpProjectDestination[];
   defaultDestinationId?: string;
+  connectionKey?: string;
+  hostPlatform?: string;
 }) {
   const { t } = useLingui();
   const createActionKey = "skill:create-draft";
   const creating = useRendererActionStore((state) => !!state.pending[createActionKey]);
   const localizedPlugins = useLocalizedPluginCatalog();
+  const platform = resolveSkillHostPlatform(props.hostPlatform);
+  const remoteWslStatuses = useRemoteServersStore((state) =>
+    props.connectionKey ? state.runtime[props.connectionKey]?.agentStatuses?.wsl : undefined,
+  );
   const [destinationId, setDestinationId] = useState(
     props.defaultDestinationId ?? GLOBAL_MCP_DESTINATION_ID,
   );
@@ -55,7 +69,11 @@ export function SkillsManager(props: {
       ...props.projects.flatMap((project) =>
         project.location.kind === "wsl" ? [project.location.distro] : [],
       ),
-      ...discoveredWslDistros,
+      ...(props.connectionKey
+        ? (remoteWslStatuses ?? []).flatMap((status) =>
+            status.envDistro ? [status.envDistro] : [],
+          )
+        : discoveredWslDistros),
     ]),
   ];
   const target = resolveSkillTarget(destinationId, props.projects);
@@ -63,6 +81,9 @@ export function SkillsManager(props: {
     target.project?.location,
     undefined,
     target.wslDistro,
+    undefined,
+    undefined,
+    props.connectionKey,
   );
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
@@ -73,7 +94,7 @@ export function SkillsManager(props: {
   const [viewingSkill, setViewingSkill] = useState<SkillEntry>();
 
   useEffect(() => {
-    if (readBridge().platform !== "win32") return;
+    if (props.connectionKey || platform !== "win32") return;
     let active = true;
     void readBridge()
       .listWslDistros()
@@ -84,7 +105,7 @@ export function SkillsManager(props: {
     return () => {
       active = false;
     };
-  }, []);
+  }, [platform, props.connectionKey]);
 
   const normalizedQuery = query.trim().toLowerCase();
   const targetSkills = (scan?.skills ?? []).filter((skill) => skill.scope === target.scope);
@@ -169,7 +190,7 @@ export function SkillsManager(props: {
 
   const setEnabled = (skill: SkillEntry, enabled: boolean) =>
     runMutation(skill, () =>
-      readBridge().setSkillEnabled({
+      setSkillEnabledForHost(props.connectionKey, {
         absolutePath: skill.absolutePath,
         enabled,
         ...skillTargetRequest(target),
@@ -181,7 +202,7 @@ export function SkillsManager(props: {
     if (!skill) return;
     setPendingDelete(undefined);
     await runMutation(skill, () =>
-      readBridge().deleteSkill({
+      deleteSkillForHost(props.connectionKey, {
         absolutePath: skill.absolutePath,
         ...skillTargetRequest(target),
       }),
@@ -193,13 +214,21 @@ export function SkillsManager(props: {
     { id: "enabled", label: t`Enabled` },
     { id: "disabled", label: t`Disabled` },
   ];
-  const platform = readBridge().platform;
   const hostGlobalLabel = t(hostGlobalScopeLabel(platform));
   const targetLabel = target.project?.name ?? target.wslDistro ?? hostGlobalLabel;
 
   const createSkill = async (targetId: string) => {
     const createTarget = resolveSkillTarget(targetId, props.projects);
-    const project = createTarget.project ?? (await ensureHomeScopeProject().catch(() => undefined));
+    const project =
+      createTarget.project ??
+      (props.connectionKey
+        ? (useAppStore
+            .getState()
+            .projects.find(
+              (candidate) =>
+                candidate.remoteServerId === props.connectionKey && isHomeProject(candidate),
+            ) ?? props.projects[0])
+        : await ensureHomeScopeProject().catch(() => undefined));
     if (!project) {
       toast.warning(t`Add a project before creating a skill.`);
       return;
@@ -233,6 +262,8 @@ export function SkillsManager(props: {
           wslDistros={wslDistros}
           sourceTarget={target}
           defaultDestinationId={destinationId}
+          {...(props.connectionKey ? { connectionKey: props.connectionKey } : {})}
+          {...(props.hostPlatform ? { hostPlatform: props.hostPlatform } : {})}
           onImported={reload}
         />
       ) : null}
@@ -243,6 +274,7 @@ export function SkillsManager(props: {
           target={target}
           targetLabel={targetLabel}
           scan={scan}
+          {...(props.connectionKey ? { connectionKey: props.connectionKey } : {})}
           onInstalled={reload}
         />
       ) : null}
@@ -252,6 +284,8 @@ export function SkillsManager(props: {
           displayName={viewingSkillDisplayName ?? viewingSkill.name}
           {...(target.project ? { projectLocation: target.project.location } : {})}
           {...(target.wslDistro ? { wslDistro: target.wslDistro } : {})}
+          {...(props.connectionKey ? { connectionKey: props.connectionKey } : {})}
+          {...(props.hostPlatform ? { hostPlatform: props.hostPlatform } : {})}
           onClose={() => setViewingSkill(undefined)}
           onSaved={() => void reload()}
         />
@@ -405,7 +439,9 @@ export function SkillsManager(props: {
           provider copies. Its files are preserved so you can enable it again.
         </Trans>
       </p>
-      {!target.wslDistro && (!target.project || projectHostRunsOnThisMachine(target.project)) ? (
+      {!props.connectionKey &&
+      !target.wslDistro &&
+      (!target.project || projectHostRunsOnThisMachine(target.project)) ? (
         <MemorySkillSuggestions
           {...(target.project ? { projectId: target.project.id } : {})}
           onApproved={() => void reload()}

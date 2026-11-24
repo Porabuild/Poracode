@@ -3,7 +3,11 @@ import { Modal } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { ProjectLocation, SkillEntry } from "@/shared/contracts";
 import { toWslUncPath } from "@/shared/wsl";
-import { readBridge } from "@/renderer/bridge";
+import {
+  readExternalFileForHost,
+  resolveSkillHostPlatform,
+  writeExternalFileForHost,
+} from "./skillHostBridge";
 import { Button, PixelLoader } from "@/renderer/components/common";
 import { MarkdownPreview } from "@/renderer/views/FileEditorOverlay/parts/MarkdownPreview";
 
@@ -36,6 +40,8 @@ export function SkillViewModal(props: {
   displayName: string;
   projectLocation?: ProjectLocation;
   wslDistro?: string;
+  connectionKey?: string;
+  hostPlatform?: string;
   onClose: () => void;
   onSaved?: () => void;
 }) {
@@ -53,6 +59,7 @@ export function SkillViewModal(props: {
   // content/error/raw reset happens during render, the file read stays in the
   // effect below and only settles through async callbacks.
   const skillContentKey = [
+    props.connectionKey ?? "",
     props.skill.skillFilePath,
     props.skill.absolutePath,
     props.wslDistro ?? "",
@@ -72,46 +79,49 @@ export function SkillViewModal(props: {
 
   useEffect(() => {
     let active = true;
-    const bridge = readBridge();
     const projectLocation = viewProjectLocation(
       props.skill.absolutePath,
-      bridge.platform,
+      resolveSkillHostPlatform(props.hostPlatform),
       props.projectLocation,
       props.wslDistro,
     );
-    void bridge
-      .readExternalFile({
-        projectLocation,
-        absolutePath: props.skill.skillFilePath,
-      })
-      .then(
-        (result) => {
-          if (!active) return;
-          if (result.status === "ready" && result.content !== undefined) {
-            setContent(result.content);
-            if (typeof result.modifiedAtMs === "number") setModifiedAtMs(result.modifiedAtMs);
-          } else {
-            setError(true);
-          }
-        },
-        () => {
-          if (active) setError(true);
-        },
-      );
+    void readExternalFileForHost(props.connectionKey, {
+      projectLocation,
+      absolutePath: props.skill.skillFilePath,
+    }).then(
+      (result) => {
+        if (!active) return;
+        if (result.status === "ready" && result.content !== undefined) {
+          setContent(result.content);
+          if (typeof result.modifiedAtMs === "number") setModifiedAtMs(result.modifiedAtMs);
+        } else {
+          setError(true);
+        }
+      },
+      () => {
+        if (active) setError(true);
+      },
+    );
     return () => {
       active = false;
     };
-  }, [props.projectLocation, props.skill.absolutePath, props.skill.skillFilePath, props.wslDistro]);
+  }, [
+    props.connectionKey,
+    props.hostPlatform,
+    props.projectLocation,
+    props.skill.absolutePath,
+    props.skill.skillFilePath,
+    props.wslDistro,
+  ]);
 
   async function save() {
     if (saving || content === undefined || modifiedAtMs === undefined) return;
     setSaving(true);
-    const bridge = readBridge();
     try {
-      const result = await bridge.writeExternalFile({
+      const result = await writeExternalFileForHost(props.connectionKey, {
         projectLocation: viewProjectLocation(
           props.skill.absolutePath,
-          bridge.platform,
+          resolveSkillHostPlatform(props.hostPlatform),
           props.projectLocation,
           props.wslDistro,
         ),

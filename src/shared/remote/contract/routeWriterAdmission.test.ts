@@ -14,6 +14,7 @@ import { REMOTE_HTTP_ROUTES } from "./routes";
  * deliberately not claimed here.
  */
 const DECLARED_WRITER_ROUTES = [
+  "agent-profiles-command",
   "device-action",
   "device-adopt-session",
   "device-create-duo",
@@ -100,7 +101,7 @@ const READ_CLASS_POST_ROUTES = [
 describe("route writer-generation admission declarations", () => {
   it("declares the direct writers and reads with new closed schedule variants", () => {
     const declared = REMOTE_HTTP_ROUTES.filter((route) => route.requiresCurrentProtocol);
-    expect(declared).toHaveLength(60);
+    expect(declared).toHaveLength(61);
     expect(declared.map((route) => route.id).sort()).toEqual([...DECLARED_WRITER_ROUTES].sort());
   });
 

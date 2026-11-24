@@ -7,6 +7,7 @@ import type { ListImportableSessionsPayload } from "@/shared/contracts";
 import { createCodexSessionImport } from "@/supervisor/agents/codex/sessionImport";
 import { SessionImportScanner } from "@/supervisor/sessionImport/scanner";
 import { useAppStore } from "@/renderer/state/appStore";
+import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import { ImportSessionsPanel } from "./ImportSessionsPanel";
 
@@ -50,9 +51,12 @@ beforeEach(() => {
   );
 });
 
+const originalWithClient = useRemoteServersStore.getState().withClient;
+
 afterEach(() => {
   rmSync(home, { recursive: true, force: true });
   useAppStore.setState({ threads: [], projects: [] });
+  useRemoteServersStore.setState({ withClient: originalWithClient });
 });
 
 describe("ImportSessionsPanel", () => {
@@ -73,5 +77,34 @@ describe("ImportSessionsPanel", () => {
     expect(match).not.toBeDisabled();
     fireEvent.click(match);
     expect(screen.getByRole("button", { name: "Import 1 session" })).not.toBeDisabled();
+  });
+
+  it("lists sessions through the selected paired host", async () => {
+    const callRemoteProcedure = vi.fn<
+      (
+        procedure: string,
+        payload: unknown,
+      ) => Promise<{
+        sessions: never[];
+        facets: { agentKinds: never[]; folders: never[] };
+        truncated: boolean;
+      }>
+    >(async () => ({
+      sessions: [],
+      facets: { agentKinds: [], folders: [] },
+      truncated: false,
+    }));
+    useRemoteServersStore.setState({
+      withClient: async (key, run) => {
+        expect(key).toBe("remote-mac");
+        return run({ callRemoteProcedure } as never);
+      },
+    });
+
+    render(<ImportSessionsPanel connectionKey="remote-mac" />);
+
+    expect(await screen.findByText("No importable sessions found on this computer.")).toBeTruthy();
+    expect(callRemoteProcedure).toHaveBeenCalledWith("listImportableSessions", {});
+    expect(scan.list).not.toHaveBeenCalled();
   });
 });

@@ -57,6 +57,10 @@ public extension RemoteSchemas {
 }
 
 public extension RemoteSchemas {
+  static let schema_504e56daa51b991f = RemoteSchema(type: "object", required: Set(["profiles"]), properties: ["instance": RemoteSchemas.schema_b6587f8e609b1452, "profiles": RemoteSchemas.schema_444f48ad16efccca], additionalAllowed: true, unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
   static let schema_505ae61467accdeb = RemoteSchema(type: "object", required: Set(["checkpoint"]), properties: ["checkpoint": RemoteSchemas.schema_09b66dd237e8c823], additionalAllowed: true, unknownPolicy: .strip)
 }
 

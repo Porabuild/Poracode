@@ -13,9 +13,17 @@ import relationTerminal from "@/shared/fixtures/selection-binding-v1/relation-te
 import { modelFamilySelectionSchema } from "@/shared/contracts/agent";
 import type { AgentStatus, ThreadPresentationMode } from "@/shared/contracts";
 import type { ModelSelection } from "@/shared/selectionBinding.schemas";
+import { pickRemoteSettings } from "@/shared/remote";
+import { defaultSharedSettings } from "@/shared/settings";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { ONE_SHOT_UTILITY_PRESENTATION } from "@/renderer/utils/utilitySelection";
-import { AISettings, GenConfigSection, createUtilityPresetSetter } from "./AISettings";
+import {
+  AISettings,
+  GenConfigSection,
+  createUtilityPresetSetter,
+  remotePresentationPatch,
+  remoteUtilityPatch,
+} from "./AISettings";
 
 const terminalRelation = modelFamilySelectionSchema.parse(relationTerminal.relation);
 const member = "lead-a+sidekick-b";
@@ -644,5 +652,46 @@ describe("utility section event wiring", () => {
     expect(
       useSharedSettings.getState().wslConflictResolverSelection?.selectionBinding,
     ).toBeUndefined();
+  });
+});
+
+describe("remote AI helper patches", () => {
+  it("writes the WSL key set and canonical tuple for a host patch", () => {
+    const patch = remoteUtilityPatch({
+      current: pickRemoteSettings(defaultSharedSettings),
+      domain: "titleGen",
+      wsl: true,
+      presentation: ONE_SHOT_UTILITY_PRESENTATION,
+      provider: "devin:profile-1",
+      model: member,
+      effort: "",
+      fast: false,
+      edit: { kind: "model" },
+    });
+    expect(patch).toMatchObject({
+      wslTitleGenProvider: "devin:profile-1",
+      wslTitleGenModel: member,
+      wslTitleGenSelection: { model: member, effort: "", fast: false },
+    });
+    expect(patch).not.toHaveProperty("titleGenProvider");
+  });
+
+  it("revokes the conflict resolver binding when the host presentation retargets", () => {
+    const patch = remotePresentationPatch({
+      current: {
+        ...pickRemoteSettings(defaultSharedSettings),
+        conflictResolverProvider: "devin:profile-1",
+        conflictResolverModel: member,
+        conflictResolverEffort: "",
+        conflictResolverFast: false,
+        conflictResolverPresentationMode: "terminal",
+        conflictResolverSelection: tupleWithRecord(),
+      },
+      wsl: false,
+      mode: "gui",
+    });
+    expect(patch?.conflictResolverPresentationMode).toBe("gui");
+    expect(patch?.conflictResolverSelection?.selectionBinding).toBeUndefined();
+    expect(patch?.conflictResolverProvider).toBe("devin:profile-1");
   });
 });

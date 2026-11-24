@@ -57,7 +57,7 @@ const UI_DISPOSITIONS = [
 ] as const;
 
 const EXPECTED_COUNTS = {
-  httpRoutes: 126,
+  httpRoutes: 128,
   procedures: 194,
   webSocketClientMessages: 11,
   // 10 shared + the desktop-internal `desktop-event` frame (V5 plan 2.5).
@@ -267,6 +267,14 @@ const PLANNED_ABSENCE_TOKENS: Record<
   "local-image-ticket": [
     { platform: "ios", token: "LocalImageTicket" },
     { platform: "android", token: "LocalImageTicket" },
+  ],
+  "agent-profiles-read": [
+    { platform: "ios", token: "/api/settings/agent-profiles" },
+    { platform: "android", token: "/api/settings/agent-profiles" },
+  ],
+  "agent-profiles-command": [
+    { platform: "ios", token: "/api/settings/agent-profiles/command" },
+    { platform: "android", token: "/api/settings/agent-profiles/command" },
   ],
   getAgentConfigDefaults: [
     { platform: "ios", token: "getAgentConfigDefaults" },

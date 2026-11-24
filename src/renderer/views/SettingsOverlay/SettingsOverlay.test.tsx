@@ -153,7 +153,22 @@ vi.mock("./parts/GeneralSettings", () => ({
 }));
 
 vi.mock("./parts/ImportSettings", () => ({
-  ImportSettings: () => <div>Import sessions</div>,
+  ImportSettings: (props: { connectionKey?: string }) => (
+    <div data-testid="import-host" data-import-host={props.connectionKey ?? "local"}>
+      Import sessions
+    </div>
+  ),
+}));
+vi.mock("./parts/SkillsSettings", () => ({
+  SkillsSettings: (props: { connectionKey?: string; hostPlatform?: string }) => (
+    <div
+      data-testid="skills-host"
+      data-skills-host={props.connectionKey ?? "local"}
+      data-skills-platform={props.hostPlatform ?? ""}
+    >
+      Skills
+    </div>
+  ),
 }));
 vi.mock("./parts/PluginsSettings", () => ({
   PluginsSettings: (props: { connectionKey?: string }) => (
@@ -195,7 +210,11 @@ vi.mock("./parts/NotificationSettings", () => ({
 }));
 
 vi.mock("./parts/AISettings", () => ({
-  AISettings: () => <div>AI Helpers</div>,
+  AISettings: (props: { connectionKey?: string }) => (
+    <div data-testid="ai-host" data-ai-host={props.connectionKey ?? "local"}>
+      AI Helpers
+    </div>
+  ),
 }));
 
 vi.mock("./parts/AcpRegistrySettings", () => ({
@@ -1182,5 +1201,45 @@ describe("SettingsOverlay", () => {
 
     fireEvent.change(input, { target: { value: "" } });
     expect(screen.getByRole("button", { name: "Audio" })).toBeInTheDocument();
+  });
+
+  it("exposes the remote machine selector and passes connectionKey for Skills, AI Helpers, and Import", () => {
+    useRemoteServersStore.setState({
+      servers: [
+        {
+          connectionId: "remote-mac",
+          desktopId: "remote-mac",
+          label: "Mac Studio",
+          endpoint: "https://mac.example",
+          accessToken: "tok",
+          scopes: ["session:read", "session:operate", "projects:manage"],
+          platform: "darwin",
+        },
+      ],
+      runtime: {
+        "remote-mac": {
+          status: "online",
+          projects: [],
+          threads: [],
+          agentStatuses: { windows: [], wsl: [], updatedAt: "2026-11-24T00:00:00.000Z" },
+        },
+      },
+    });
+
+    render(<SettingsOverlay onClose={() => undefined} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Skills" }));
+    expect(screen.getByTestId("skills-host")).toHaveAttribute("data-skills-host", "local");
+    fireEvent.click(
+      within(screen.getByTestId("machine-select")).getByRole("button", { name: "Mac Studio" }),
+    );
+    expect(screen.getByTestId("skills-host")).toHaveAttribute("data-skills-host", "remote-mac");
+    expect(screen.getByTestId("skills-host")).toHaveAttribute("data-skills-platform", "darwin");
+
+    fireEvent.click(screen.getByRole("button", { name: "AI Helpers" }));
+    expect(screen.getByTestId("ai-host")).toHaveAttribute("data-ai-host", "remote-mac");
+
+    fireEvent.click(screen.getByRole("button", { name: "Import" }));
+    expect(screen.getByTestId("import-host")).toHaveAttribute("data-import-host", "remote-mac");
   });
 });

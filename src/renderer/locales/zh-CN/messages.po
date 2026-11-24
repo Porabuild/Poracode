@@ -1672,6 +1672,10 @@ msgstr "代理当前已禁用"
 msgid "Agent not found"
 msgstr "未找到代理"
 
+#: src/renderer/components/providers/settings/AgentSettingsHostContext.tsx
+msgid "Agent profile not found."
+msgstr "未找到代理配置。"
+
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
@@ -4645,6 +4649,7 @@ msgstr "连接错误"
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/mcp/RemoteMcpOauthDialog.tsx
 #: src/renderer/components/mcp/RemoteMcpServersManager.tsx
+#: src/renderer/state/pairedHostProfiles.ts
 #: src/renderer/state/pairedHostSettings.ts
 #: src/renderer/state/remoteServers/snapshotProjection.ts
 msgid "Connection failed."
@@ -10124,6 +10129,7 @@ msgstr "加载已保存的笔记"
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentMessageList.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/RemoteBrowserMirror.tsx
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+#: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
@@ -17105,6 +17111,8 @@ msgstr "设置"
 msgid "Settings aren't available yet, so your changes couldn't be saved. Please try again."
 msgstr "设置尚不可用，因此无法保存您的更改。请重试。"
 
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileList.tsx
+#: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SearchSettings.tsx
@@ -19085,6 +19093,10 @@ msgstr "无法从服务器读取历史记录通知。"
 #: src/renderer/actions/clientDraftSubmission.ts
 msgid "The host accepted this message, but local recovery cleanup failed. Check the thread before retrying."
 msgstr "主机已接受此消息，但未能清理本地恢复副本。请检查会话后再重试。"
+
+#: src/renderer/components/providers/settings/AgentSettingsHostContext.tsx
+msgid "The host did not return the agent profile."
+msgstr "主机未返回代理配置。"
 
 #: src/renderer/views/PullRequestsOverlay/summary/LabelPicker.tsx
 msgid "The host has more labels than are listed here."

@@ -3,10 +3,10 @@
   "contract": "poracode.remote",
   "protocolVersion": 14,
   "bindingFormatVersion": 2,
-  "manifestHash": "sha256:35321444d754d70729acb3c2a5dc159507ee2d665b44e0c8a2fc510bd8181c1b",
-  "keyCount": 376,
+  "manifestHash": "sha256:476984bf3dd5a3648f69e373d6b381c58e6d6b64f1064275afb341218c252ff7",
+  "keyCount": 378,
   "counts": {
-    "route": 126,
+    "route": 128,
     "procedure": 194,
     "ws-client": 11,
     "ws-server": 12,
@@ -857,6 +857,14 @@
     "replay:wsl-agent-statuses": {
       "kind": "replay",
       "id": "wsl-agent-statuses"
+    },
+    "route:agent-profiles-command": {
+      "kind": "route",
+      "id": "agent-profiles-command"
+    },
+    "route:agent-profiles-read": {
+      "kind": "route",
+      "id": "agent-profiles-read"
     },
     "route:agent-slash-commands": {
       "kind": "route",

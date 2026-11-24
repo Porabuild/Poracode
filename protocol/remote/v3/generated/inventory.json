@@ -7,13 +7,13 @@
     "jsonProcedureResults": 127,
     "procedures": 194,
     "replayableEventTypes": 17,
-    "routes": 126,
+    "routes": 128,
     "runtimeEventTypes": 16,
     "voidProcedureResults": 67,
     "webSocketClientMessages": 11,
     "webSocketServerMessages": 12
   },
-  "manifestHash": "sha256:19f4a08ede24abc0be2f2824381a01fb4e83d71e9380cc3113f6725a5fc75732",
+  "manifestHash": "sha256:0f81ac0cc02c279c908b92bcda3ea498c7aa42395ce932ac881cc905789024f0",
   "protocolVersion": 14,
-  "sourceHash": "sha256:304f017a89b237fa49935567a5df0dd994ee7b0d85914d6a71f40341e3b4e704"
+  "sourceHash": "sha256:13dc2b96108b6cd5b4439ceec2d8a30aa34c6cd144170365dc7fb08743038e66"
 }

@@ -9,6 +9,13 @@
 /** Marker prefix for AES-256-GCM sealed values produced by `encryptSecret`. */
 export const SECRET_PREFIX = "lc-safe:v1:";
 
+/** Placeholder substituted for secret-bearing values sent across remote read boundaries. */
+export const REDACTED_SECRET_VALUE = "«redacted»";
+
 export function isEncryptedSecret(value: string): boolean {
   return value.startsWith(SECRET_PREFIX);
+}
+
+export function isRedactedSecret(value: string): boolean {
+  return value === REDACTED_SECRET_VALUE;
 }

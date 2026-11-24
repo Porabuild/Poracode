@@ -389,6 +389,18 @@ public extension RemoteRootCodecs {
 }
 
 public extension RemoteRootCodecs {
+  static let routeU2EAgentU2DProfilesU2DCommandU2ERequest: RemoteRootCodec<RouteagentU2DProfilesU2DCommandRequest_35421c706b> = .init(id: "route.agent-profiles-command.request", schema: RemoteSchemas.schema_35421c706b792d4c)
+}
+
+public extension RemoteRootCodecs {
+  static let routeU2EAgentU2DProfilesU2DCommandU2EResponse: RemoteRootCodec<RouteagentU2DProfilesU2DCommandResponse_504e56daa5> = .init(id: "route.agent-profiles-command.response", schema: RemoteSchemas.schema_504e56daa51b991f)
+}
+
+public extension RemoteRootCodecs {
+  static let routeU2EAgentU2DProfilesU2DReadU2EResponse: RemoteRootCodec<RouteagentU2DProfilesU2DReadResponse_c97404be97> = .init(id: "route.agent-profiles-read.response", schema: RemoteSchemas.schema_c97404be97c79ac0)
+}
+
+public extension RemoteRootCodecs {
   static let routeU2EAgentU2DSlashU2DCommandsU2EPath: RemoteRootCodec<RouteagentU2DSlashU2DCommandsPath_626533cdf1> = .init(id: "route.agent-slash-commands.path", schema: RemoteSchemas.schema_626533cdf183bb99)
 }
 
@@ -434,16 +446,4 @@ public extension RemoteRootCodecs {
 
 public extension RemoteRootCodecs {
   static let routeU2ECatalogU2DMembershipU2ERequest: RemoteRootCodec<RoutecatalogU2DMembershipRequest_2b8805d864> = .init(id: "route.catalog-membership.request", schema: RemoteSchemas.schema_2b8805d864582a03)
-}
-
-public extension RemoteRootCodecs {
-  static let routeU2ECatalogU2DMembershipU2EResponse: RemoteRootCodec<RoutecatalogU2DMembershipResponse_afbf6761fa> = .init(id: "route.catalog-membership.response", schema: RemoteSchemas.schema_afbf6761fa459396)
-}
-
-public extension RemoteRootCodecs {
-  static let routeU2EConversationU2DSearchU2EQuery: RemoteRootCodec<RouteconversationU2DSearchQuery_07b9b9802d> = .init(id: "route.conversation-search.query", schema: RemoteSchemas.schema_07b9b9802d46bf6b)
-}
-
-public extension RemoteRootCodecs {
-  static let routeU2EConversationU2DSearchU2EResponse: RemoteRootCodec<RouteconversationU2DSearchResponse_ca8d08ed24> = .init(id: "route.conversation-search.response", schema: RemoteSchemas.schema_ca8d08ed24dcae50)
 }

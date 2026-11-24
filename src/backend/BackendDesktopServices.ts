@@ -468,6 +468,8 @@ export class BackendDesktopServices {
           settingsWrites: {
             commitCompatPatch: (patch) => this.settings.commitCompatPatch(patch),
             editSettingsField: (field, compute) => this.settings.editSettingsField(field, compute),
+            editSettingsFields: (fields, compute) =>
+              this.settings.editSettingsFields(fields, compute),
           },
           notifyRemoteAccessPairingChanged: (info) =>
             options.emitNativeEvent({ type: "remote-access-pairing-changed", info }),

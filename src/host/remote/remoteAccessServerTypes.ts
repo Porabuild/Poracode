@@ -50,6 +50,9 @@ import type {
   ScheduledTaskRun,
 } from "@/shared/contracts";
 import type {
+  RemoteAgentProfilesCommand,
+  RemoteAgentProfilesCommandResult,
+  RemoteAgentProfilesReadResult,
   RemoteMcpSettingsCommand,
   RemoteMcpSettingsScope,
 } from "@/shared/remote/contract/routeSchemas";
@@ -613,6 +616,10 @@ export interface RemoteAccessServerOptions {
     update(patch: RemoteSettingsPatch): RemoteSettings | Promise<RemoteSettings>;
     readMcpServers(): { servers: McpServer[] };
     commandMcpServers(command: RemoteMcpSettingsCommand): Promise<{ servers: McpServer[] }>;
+    readAgentProfiles?(): RemoteAgentProfilesReadResult;
+    commandAgentProfiles?(
+      command: RemoteAgentProfilesCommand,
+    ): Promise<RemoteAgentProfilesCommandResult>;
     resolveScope(scope: RemoteMcpSettingsScope): {
       servers: McpServer[];
       projectLocation?: ProjectLocation;

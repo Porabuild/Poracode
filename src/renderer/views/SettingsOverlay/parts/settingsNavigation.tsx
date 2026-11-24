@@ -54,7 +54,6 @@ const DESKTOP_ONLY_SECTIONS = new Set<SettingsSection>([
   "remoteAccess",
   "remoteServers",
   "agents",
-  "skills",
   "mcpServers",
   "plugins",
   "browser",

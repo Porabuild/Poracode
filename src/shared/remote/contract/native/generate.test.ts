@@ -130,23 +130,24 @@ describe("remote v3 native binding generator", () => {
         // `dayProviders`, `dayModels`) add three structural types while keeping older peers valid.
         // Remote agent settings allowlists 10 additive desktop procedures (config defaults,
         // native MCP/hook setup, agent plugins, credentials, model providers) with 4 semantic validators.
-        sourceHash: "sha256:304f017a89b237fa49935567a5df0dd994ee7b0d85914d6a71f40341e3b4e704",
-        manifestHash: "sha256:19f4a08ede24abc0be2f2824381a01fb4e83d71e9380cc3113f6725a5fc75732",
+        // Remote agent profile management adds agent-profiles-read and agent-profiles-command.
+        sourceHash: "sha256:13dc2b96108b6cd5b4439ceec2d8a30aa34c6cd144170365dc7fb08743038e66",
+        manifestHash: "sha256:0f81ac0cc02c279c908b92bcda3ea498c7aa42395ce932ac881cc905789024f0",
         counts: {
-          routes: 126,
+          routes: 128,
           procedures: 194,
           voidProcedureResults: 67,
           jsonProcedureResults: 127,
           webSocketClientVariants: 11,
           // 11 shared + the desktop-internal `desktop-event` frame (V5 plan 2.5).
           webSocketServerVariants: 12,
-          schemaRoots: 619,
-          structuralTypes: 1626,
+          schemaRoots: 622,
+          structuralTypes: 1641,
           semanticValidators: 31,
           // Content-defined shards (emitterCommon.shardDeclarations) average
           // ~200 lines, so a contract change rewrites only nearby files.
-          swiftFiles: 183,
-          kotlinFiles: 153,
+          swiftFiles: 184,
+          kotlinFiles: 154,
           stateMachines: 5,
         },
       });
@@ -416,7 +417,7 @@ describe("remote v3 native binding generator", () => {
       const output = outputForAuthority().files;
       for (const language of ["swift", "kotlin"] as const) {
         const adapters = rootAdapters(graph, language);
-        expect(adapters).toHaveLength(619);
+        expect(adapters).toHaveLength(622);
         expect(
           adapters
             .map((adapter) => adapter.id)
