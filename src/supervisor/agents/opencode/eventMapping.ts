@@ -20,7 +20,7 @@ import { OpenCodeOperations } from "./operations";
  */
 
 import { OpenCodeCompaction } from "./compaction";
-import { OpenCodeGoals } from "./goals";
+import { OPENCODE_NATIVE_GOAL_CHANGED_EVENT, OpenCodeGoals } from "./goals";
 import type { PromptSegment, RuntimeEvent } from "@/shared/contracts";
 import { buildPromptContentBlocks } from "@/shared/promptContent";
 import {
@@ -327,6 +327,13 @@ export function mapOpenCodeEvent(event: V2Event, state: OpenCodeMapperState): Ru
   if (operation) return operation;
   const compactionEvents = state.compaction.map(event);
   if (compactionEvents) return compactionEvents;
+
+  // The built-in goal plugin publishes every goal write on the shared stream.
+  if (event.type === OPENCODE_NATIVE_GOAL_CHANGED_EVENT) {
+    const data = readOpenCodeRecord(event.data);
+    if (!data || !Object.hasOwn(data, "goal")) return [];
+    return state.goals.mapNative(data.goal, readOpenCodeEventSessionID(event) ?? "");
+  }
 
   switch (event.type) {
     // ── Turn lifecycle ──────────────────────────────────────────────────

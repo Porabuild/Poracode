@@ -3,7 +3,7 @@
   "contract": "poracode.remote",
   "protocolVersion": 14,
   "bindingFormatVersion": 2,
-  "manifestHash": "sha256:35321444d754d70729acb3c2a5dc159507ee2d665b44e0c8a2fc510bd8181c1b",
+  "manifestHash": "sha256:353c76d8ff2cc4212c682700de0cc8a77d90b188c5ad4bf2689ee85a5918876f",
   "keyCount": 376,
   "counts": {
     "route": 126,

@@ -2789,7 +2789,7 @@ msgstr "Mevcut CLI aracı konuşmalarınızı Poracode'a taşıyın"
 msgid "Browse"
 msgstr "Gözat"
 
-#: src/renderer/components/providers/opencode/OpenCodePluginCards.tsx
+#: src/renderer/components/providers/opencode/OpenCodePluginManager.tsx
 msgid "Browse ecosystem"
 msgstr "Ekosisteme göz at"
 
@@ -4359,10 +4359,6 @@ msgstr "İletişim"
 #: src/renderer/components/plugins/PluginDetail.tsx
 msgid "Community"
 msgstr "Topluluk"
-
-#: src/renderer/components/providers/opencode/OpenCodePluginCards.tsx
-msgid "Community plugin; compatibility depends on your OpenCode version."
-msgstr "Topluluk eklentisi; uyumluluk OpenCode sürümünüze bağlıdır."
 
 #: src/renderer/components/providers/muse/index.tsx
 msgid "Compact the conversation context"
@@ -7708,10 +7704,6 @@ msgstr "Favori"
 msgid "Favorites"
 msgstr "Favoriler"
 
-#: src/renderer/components/providers/opencode/OpenCodePluginCards.tsx
-msgid "Featured"
-msgstr "Öne çıkanlar"
-
 #: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
 msgid "Feedback"
 msgstr "Geri bildirim"
@@ -9353,7 +9345,6 @@ msgstr "yükle"
 
 #: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/components/plugins/PluginMarketplace.tsx
-#: src/renderer/components/providers/opencode/OpenCodePluginCards.tsx
 #: src/renderer/components/providers/opencode/OpenCodePluginManager.tsx
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 #: src/renderer/components/thread/DraftHookInstallProposal.tsx
@@ -13072,10 +13063,6 @@ msgstr "Panelde iOS Simülatörlerini (katlanabilir iPhone Duo dahil) ve Android
 msgid "OpenCode"
 msgstr "OpenCode"
 
-#: src/renderer/components/providers/opencode/OpenCodePluginCards.tsx
-msgid "OpenCode Goal Plugin"
-msgstr "OpenCode Goal Eklentisi"
-
 #: src/renderer/components/providers/opencode/OpenCodePluginsSettings.tsx
 msgid "OpenCode plugins"
 msgstr "OpenCode eklentileri"
@@ -13577,10 +13564,6 @@ msgstr "izin"
 msgid "Permission"
 msgstr "İzin"
 
-#: src/renderer/components/providers/opencode/OpenCodePluginCards.tsx
-msgid "Persistent goals, budgets, and automatic continuation with /goal."
-msgstr "/goal ile kalıcı hedefler, bütçeler ve otomatik devam."
-
 #: src/renderer/components/providers/devin/cloudProfileSettings.tsx
 msgid "Persona (optional)"
 msgstr "Persona (isteğe bağlı)"
@@ -13714,10 +13697,6 @@ msgstr "Bildirim sesini çal"
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "Plugin"
 msgstr "Eklenti"
-
-#: src/renderer/components/providers/opencode/OpenCodePluginCards.tsx
-msgid "Plugin details"
-msgstr "Eklenti ayrıntıları"
 
 #: src/renderer/components/plugins/PluginMarketplace.tsx
 msgid "Plugin folder"
@@ -15700,7 +15679,6 @@ msgstr "Yalnızca bu sunucuda saklanan kullanım."
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 #: src/renderer/components/mcp/RemoteMcpServersManager.tsx
 #: src/renderer/components/plugins/PluginMarketplace.tsx
-#: src/renderer/components/providers/opencode/OpenCodePluginCards.tsx
 #: src/renderer/components/skills/SkillsManager.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/MarkdownVideo.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/useHistoryItemDetails.tsx
@@ -21125,6 +21103,7 @@ msgstr "İleti dizilerini makineler arasında taşımak için {label} uygulamas�
 msgid "Update all ({outdatedCount})"
 msgstr "Tümünü güncelle ({outdatedCount})"
 
+#: src/renderer/components/providers/opencode/OpenCodePluginCards.tsx
 #: src/renderer/components/thread/ThreadAgentUpdateDock.tsx
 msgid "Update available"
 msgstr "Güncelleme mevcut"
@@ -21239,6 +21218,7 @@ msgstr "{0} güncellendi"
 msgid "Updated {formattedUpdatedAt}"
 msgstr "Güncellendi {formattedUpdatedAt}"
 
+#: src/renderer/components/providers/opencode/OpenCodePluginCards.tsx
 #: src/renderer/components/thread/ThreadAgentUpdateDock.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
@@ -21281,7 +21261,9 @@ msgstr "Bu terminalde güncelleniyor. Tamamlandığında kapanır."
 msgid "Updating providers ({0} of {1} complete)"
 msgstr "Sağlayıcılar güncelleniyor ({1} güncellemeden {0} tanesi tamamlandı)"
 
+#. placeholder {0}: pkg.latestVersion
 #. placeholder {0}: update.targetVersion
+#: src/renderer/components/providers/opencode/OpenCodePluginCards.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 msgid "Updating to v{0}"
 msgstr "v{0} sürümüne güncelleniyor"

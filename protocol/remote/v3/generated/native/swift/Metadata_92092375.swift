@@ -8,7 +8,7 @@ public enum RemoteContractMetadata {
   public static let protocolVersion = 14
   public static let bindingFormatVersion = 2
   public static let generatorVersion = 7
-  public static let sourceHash = "sha256:304f017a89b237fa49935567a5df0dd994ee7b0d85914d6a71f40341e3b4e704"
+  public static let sourceHash = "sha256:01c532cdb8f6e36b2e66624265da010dc6a802a32d705323d2681e897244fc10"
   public static let manifestHash = "sha256:19f4a08ede24abc0be2f2824381a01fb4e83d71e9380cc3113f6725a5fc75732"
   public static let validationBoundary: RemoteValidationBoundary = .rootCodecOnly
   public static let generatedModelCodableSemantics: RemoteGeneratedSerializerSemantics = .nonValidatingRepresentationOnly
@@ -288,7 +288,7 @@ public enum RemoteContractMetadata {
     .init(name: "logoutAcpAgent", scope: "session:operate", owner: "desktop", resultKind: "omitted", requestType: "ProcedurelogoutAcpAgentRequest_afbd186700", resultType: "RemoteUnit"),
     .init(name: "lspStart", scope: "session:operate", owner: "projectLocation", resultKind: "omitted", requestType: "ProcedurelspStartRequest_0fbb6754fb", resultType: "RemoteUnit"),
     .init(name: "manageAgentCredentials", scope: "session:operate", owner: "desktop", resultKind: "json", requestType: "ProceduremanageAgentCredentialsRequest_ca5c527c98", resultType: "ProceduremanageAgentCredentialsResult_65ec808e7a"),
-    .init(name: "manageAgentPlugins", scope: "session:operate", owner: "desktop", resultKind: "json", requestType: "ProceduremanageAgentPluginsRequest_c61abfd0f3", resultType: "ProceduremanageAgentPluginsResult_940863a47c"),
+    .init(name: "manageAgentPlugins", scope: "session:operate", owner: "desktop", resultKind: "json", requestType: "ProceduremanageAgentPluginsRequest_c61abfd0f3", resultType: "ProceduremanageAgentPluginsResult_50c013e0fb"),
     .init(name: "manageModelProviders", scope: "session:operate", owner: "desktop", resultKind: "json", requestType: "ProceduremanageModelProvidersRequest_925f63aff8", resultType: "ProceduremanageModelProvidersResult_7fdba00683"),
     .init(name: "moveProjectEntry", scope: "session:operate", owner: "projectLocation", resultKind: "omitted", requestType: "ProceduremoveProjectEntryRequest_47c3f1ae81", resultType: "RemoteUnit"),
     .init(name: "pauseThreadFollowUps", scope: "session:operate", owner: "thread", resultKind: "omitted", requestType: "ProcedurepauseThreadFollowUpsRequest_d42717fff2", resultType: "RemoteUnit"),

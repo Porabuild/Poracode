@@ -12,6 +12,7 @@ import {
   type AgentEnvContext,
   type AgentNativePlugin,
 } from "../base";
+import { fetchNpmLatestVersion } from "../updateAgent";
 import { resolveOpenCodeBinary } from "./binary";
 import { acquireOpenCodeServer } from "./client";
 import type { PluginInfo } from "./clientTypes";
@@ -105,10 +106,48 @@ export function openCodePluginPackages(plugins: PluginInfo[]): AgentPluginPackag
             ...(plugin.source.version ? { version: plugin.source.version } : {}),
             status: plugin.state.status,
             outdated: plugin.source.outdated === true,
+            ...(plugin.source.updating ? { updating: true } : {}),
             server: plugin.features.server === true,
             terminal: plugin.features.tui === true,
           },
         ],
+  );
+}
+
+/** Plain npm package name for a plugin target, or undefined for Git/file/URL targets. */
+export function npmPackageName(target: string): string | undefined {
+  // Anything with a scheme, host, or SSH separator is not an npm name; without
+  // this, `git@github.com:vendor/goal.git` strips to the unrelated `git` package.
+  if (target.includes(":")) return undefined;
+  const name = stripNpmPackageVersionSpecifier(target);
+  return /^(@[a-z0-9][a-z0-9._-]*\/)?[a-z0-9][a-z0-9._-]*$/i.test(name) ? name : undefined;
+}
+
+/**
+ * The OpenCode server flags outdated packages but never reports the version
+ * an update would install. Resolve it from the npm registry (best effort:
+ * undefined on any failure) so the UI can show what Update will deliver.
+ */
+export async function resolveNpmLatestVersion(target: string): Promise<string | undefined> {
+  const name = npmPackageName(target);
+  return name ? fetchNpmLatestVersion(name) : undefined;
+}
+
+async function withLatestVersions(packages: AgentPluginPackage[]): Promise<AgentPluginPackage[]> {
+  const latestByName = new Map<string, Promise<string | undefined>>();
+  return Promise.all(
+    packages.map(async (pkg) => {
+      if (!pkg.outdated) return pkg;
+      const name = npmPackageName(pkg.target);
+      if (!name) return pkg;
+      let latest = latestByName.get(name);
+      if (!latest) {
+        latest = fetchNpmLatestVersion(name);
+        latestByName.set(name, latest);
+      }
+      const latestVersion = await latest;
+      return latestVersion && latestVersion !== pkg.version ? { ...pkg, latestVersion } : pkg;
+    }),
   );
 }
 
@@ -151,14 +190,18 @@ export async function manageOpenCodePlugins(
       }
       const acquired = await acquireOpenCodeServer({ projectLocation: location });
       try {
-        const options = { signal: AbortSignal.timeout(60_000) };
-        await awaitOpenCodeActivation(acquired.client, undefined, options);
+        // One options object per call: a shared 60s abort signal would
+        // already be spent by the update wait's later reads.
+        await awaitOpenCodeActivation(acquired.client, undefined, {
+          signal: AbortSignal.timeout(60_000),
+        });
         if (input.action === "update")
           await acquired.client.plugin.update(
             { targets: [validateOpenCodePluginTarget(input.target ?? "")] },
-            options,
+            { signal: AbortSignal.timeout(60_000) },
           );
         const readPackages = async () => {
+          const options = { signal: AbortSignal.timeout(60_000) };
           const result =
             input.action === "check"
               ? await acquired.client.plugin.check(undefined, options)
@@ -173,6 +216,31 @@ export async function manageOpenCodePlugins(
           ];
         };
         let packages = await readPackages();
+        if (input.action === "update") {
+          // `plugin.update` only starts the server-side update; the package
+          // stays flagged `updating` until the new version is in place. Keep
+          // this operation pending so the caller sees the finished version
+          // instead of an unchanged list that looks like a no-op. The flag is
+          // raised asynchronously, so also accept a version change, and give
+          // the flag a short grace period to appear before concluding.
+          const target = validateOpenCodePluginTarget(input.target ?? "");
+          const beforeVersion = packages.find((pkg) => pkg.target === target)?.version;
+          const startedAt = Date.now();
+          const deadline = startedAt + 120_000;
+          let seenUpdating = packages.some((pkg) => pkg.target === target && pkg.updating);
+          for (;;) {
+            const pkg = packages.find((entry) => entry.target === target);
+            if (!pkg) break;
+            if (pkg.updating) seenUpdating = true;
+            else if (seenUpdating) break;
+            else if (pkg.version && beforeVersion && pkg.version !== beforeVersion) break;
+            else if (Date.now() - startedAt >= 1000) break;
+            if (Date.now() >= deadline) break;
+            await new Promise((resolve) => setTimeout(resolve, 500));
+            packages = await readPackages();
+          }
+        }
+        if (input.action === "check") packages = await withLatestVersions(packages);
         if (input.action === "install" || input.action === "remove") {
           // Config watching is asynchronous even after the native CLI has exited.
           // Keep the operation pending until this location sees the changed package.

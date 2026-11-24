@@ -5,6 +5,10 @@ import kotlinx.serialization.*
 import kotlinx.serialization.descriptors.*
 import kotlinx.serialization.encoding.*
 import kotlinx.serialization.json.*
+internal val schema_9063020a6c5ad8b3: RemoteSchema by lazy {
+    RemoteSchema(type = "string", literals = listOf(JsonPrimitive("navigate")), unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
+}
+
 internal val schema_9083db8e32ed061a: RemoteSchema by lazy {
     RemoteSchema(type = "string", literals = listOf(JsonPrimitive("release")), unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
@@ -119,10 +123,6 @@ internal val schema_93ea7778107ef974: RemoteSchema by lazy {
 
 internal val schema_93f8fa8787f246fe: RemoteSchema by lazy {
     RemoteSchema(type = "string", literals = listOf(JsonPrimitive("set-draft-config")), unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
-}
-
-internal val schema_940863a47ce0d148: RemoteSchema by lazy {
-    RemoteSchema(type = "object", required = setOf("packages"), properties = mapOf("packages" to schema_2039f004e1d20419), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
 
 internal val schema_941a12a3ce0aadca: RemoteSchema by lazy {
