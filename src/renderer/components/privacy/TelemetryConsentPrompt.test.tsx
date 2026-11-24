@@ -42,6 +42,52 @@ describe("TelemetryConsentPrompt", () => {
     seedPrivacy({ productAnalytics: false, crashReports: false, consentDecided: false });
   });
 
+  it("leaves the rest of the app interactive and does not steal focus", () => {
+    const { rerender } = render(<button type="button">Keep working</button>);
+    const keepWorking = screen.getByRole("button", { name: "Keep working" });
+    keepWorking.focus();
+
+    rerender(
+      <>
+        <button type="button">Keep working</button>
+        <TelemetryConsentPrompt />
+      </>,
+    );
+
+    const prompt = screen.getByRole("dialog", { name: "Help improve Poracode?" });
+    expect(prompt).toHaveAttribute("aria-modal", "false");
+    expect(keepWorking.closest('[aria-hidden="true"], [inert]')).toBeNull();
+    expect(document.activeElement).toBe(keepWorking);
+  });
+
+  it("dismisses on Escape without recording consent", () => {
+    render(<TelemetryConsentPrompt />);
+    const close = screen.getByRole("button", { name: "Close" });
+    close.focus();
+    fireEvent.keyDown(close, { key: "Escape" });
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(useSharedSettings.getState().privacy).toEqual({
+      productAnalytics: false,
+      crashReports: false,
+      consentDecided: false,
+    });
+  });
+
+  it("closing postpones the decision without recording consent", () => {
+    const first = render(<TelemetryConsentPrompt />);
+    fireEvent.click(screen.getByRole("button", { name: "Close" }));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(useSharedSettings.getState().privacy).toEqual({
+      productAnalytics: false,
+      crashReports: false,
+      consentDecided: false,
+    });
+
+    first.unmount();
+    render(<TelemetryConsentPrompt />);
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+  });
+
   it("Accept all turns both streams on and records the decision", () => {
     render(<TelemetryConsentPrompt />);
     fireEvent.click(screen.getByRole("button", { name: "Accept all" }));
