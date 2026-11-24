@@ -289,7 +289,7 @@ describe("CrewsSettings", () => {
       ],
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "Duplicate Board v2" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Duplicate Board v2" }));
     await screen.findByRole("dialog");
     expect(useSharedSettings.getState().crews).toHaveLength(1);
     expect(screen.getByRole("textbox", { name: "Crew name" })).toHaveValue("Board v2 copy");
@@ -301,7 +301,7 @@ describe("CrewsSettings", () => {
     expect(duplicate.name).toBe("Board v2 copy");
     expect(duplicate.id).not.toBe(original.id);
 
-    fireEvent.click(screen.getByRole("button", { name: "Delete Board v2 copy" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Delete Board v2 copy" }));
     const dialog = await screen.findByRole("alertdialog");
     fireEvent.click(within(dialog).getByRole("button", { name: "Delete" }));
     await waitFor(() =>
@@ -339,7 +339,7 @@ describe("CrewsSettings", () => {
       policy: "crew-first",
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "Edit WoCrew 1" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Edit WoCrew 1" }));
     await screen.findByRole("dialog");
     fireEvent.change(screen.getByRole("textbox", { name: "Crew name" }), {
       target: { value: "Work Crew 1" },
@@ -352,7 +352,7 @@ describe("CrewsSettings", () => {
       policy: "crew-first",
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "Edit WoCrew 1" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Edit WoCrew 1" }));
     await screen.findByRole("dialog");
     expect(screen.getByRole("textbox", { name: "Crew name" })).toHaveValue("WoCrew 1");
     fireEvent.change(screen.getByRole("textbox", { name: "Crew name" }), {
@@ -363,7 +363,7 @@ describe("CrewsSettings", () => {
     expect(useSharedSettings.getState().crews[0]?.name).toBe("WoCrew 1");
 
     // Cancelling a duplicate via the X button does not persist the copy.
-    fireEvent.click(screen.getByRole("button", { name: "Duplicate WoCrew 1" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Duplicate WoCrew 1" }));
     await screen.findByRole("dialog");
     fireEvent.click(screen.getByRole("button", { name: "Close" }));
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
@@ -382,7 +382,7 @@ describe("CrewsSettings", () => {
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
 
     const upsertSpy = vi.spyOn(useSharedSettings.getState(), "upsertCrew");
-    fireEvent.click(screen.getByRole("button", { name: "Edit WoCrew 1" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Edit WoCrew 1" }));
     await screen.findByRole("dialog");
 
     const nameInput = screen.getByRole("textbox", { name: "Crew name" }) as HTMLInputElement;
