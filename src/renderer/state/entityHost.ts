@@ -336,7 +336,18 @@ function managedHost(hostId: string): EntityHost {
         refreshManagedRootCatalogSoon();
       }
     },
-    supportsBulkThreadRemoval: () => managedRootSupportsBulkThreadRemoval(),
+    supportsBulkThreadRemoval: () => {
+      const parent = getManagedParentAuthorityState();
+      if (
+        activation &&
+        parent.status === "ready" &&
+        parent.authority.client === activation.client &&
+        parent.authority.bulkThreadRemoval !== undefined
+      ) {
+        return parent.authority.bulkThreadRemoval;
+      }
+      return managedRootSupportsBulkThreadRemoval();
+    },
     runProjectCommand: async (command, ...options) => {
       try {
         await sendManagedRootProjectCommand(command, ...options);

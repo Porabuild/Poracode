@@ -135,7 +135,10 @@ describe("remote v3 native binding generator", () => {
         // Protocol 15 adds the model_switch item type and the optional
         // previousTurnModel/model start+payload fields; both authority hashes
         // move and the native mirrors re-chunk.
-        sourceHash: "sha256:44eb1792ece9df2088e58795ba84689d1f8eaa71dd7b804e904ffb5d0ccbd854",
+        // Bulk thread removal adds the remove-threads command schema and
+        // bulkThreadRemoval capability, moving the source hash and adding three
+        // structural types while re-chunking Swift into one fewer shard.
+        sourceHash: "sha256:856e914733bb78c203fad9abc7bce1bfe624f592c69d34a4d84afe2ea8518d57",
         manifestHash: "sha256:d497d2d7a7342cb2f7d21370f6abb514ec08f9024ffa152546cbb2b4da7735c2",
         counts: {
           routes: 128,
@@ -146,11 +149,11 @@ describe("remote v3 native binding generator", () => {
           // 11 shared + the desktop-internal `desktop-event` frame (V5 plan 2.5).
           webSocketServerVariants: 12,
           schemaRoots: 622,
-          structuralTypes: 1641,
+          structuralTypes: 1644,
           semanticValidators: 31,
           // Content-defined shards (emitterCommon.shardDeclarations) average
           // ~200 lines, so a contract change rewrites only nearby files.
-          swiftFiles: 182,
+          swiftFiles: 181,
           kotlinFiles: 152,
           stateMachines: 5,
         },

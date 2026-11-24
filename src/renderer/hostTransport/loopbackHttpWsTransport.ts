@@ -46,6 +46,7 @@ import {
   noteManagedLoopbackBoundedCatalogChangesVerdict,
   __resetBoundedCatalogChangesCapabilityForTest,
 } from "@/renderer/state/remote/boundedCatalogChangesCapability";
+import { environmentAdvertisesBulkThreadRemoval } from "@/renderer/state/remote/bulkThreadRemovalCapability";
 import { isBoundedCatalogControllerConfigured } from "@/renderer/state/remoteServers/catalog/boundedCatalogController";
 import {
   isPassthroughRemoteProcedure,
@@ -481,6 +482,7 @@ async function runManagedParentDescriptorResolution(
         hostDesktopId: descriptor.desktopId,
         endpoint: activation.endpoint,
         sshEnvironments: descriptor.capabilities?.sshEnvironments !== undefined,
+        bulkThreadRemoval: environmentAdvertisesBulkThreadRemoval(descriptor),
         scopes: [...REMOTE_OPERATOR_SCOPES],
         client: activation.client,
         accessToken: () => activation.intake.getAccessToken() ?? undefined,

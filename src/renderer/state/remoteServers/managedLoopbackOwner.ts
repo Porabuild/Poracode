@@ -69,6 +69,7 @@ export interface ManagedParentAuthority {
   readonly ref: { readonly kind: "managed"; readonly hostDesktopId: string };
   readonly endpoint: string;
   readonly sshEnvironments: boolean;
+  readonly bulkThreadRemoval?: boolean;
   readonly generation: number;
   readonly scopes: readonly RemoteAccessScope[];
   readonly client: RemoteDesktopClient;
@@ -130,6 +131,7 @@ export function publishManagedParentAuthority(input: {
   readonly hostDesktopId: string;
   readonly endpoint: string;
   readonly sshEnvironments: boolean;
+  readonly bulkThreadRemoval?: boolean;
   readonly scopes: readonly RemoteAccessScope[];
   readonly client: RemoteDesktopClient;
   readonly accessToken: () => string | undefined;
@@ -146,6 +148,9 @@ export function publishManagedParentAuthority(input: {
     ref: { kind: "managed", hostDesktopId: input.hostDesktopId },
     endpoint: input.endpoint,
     sshEnvironments: input.sshEnvironments,
+    ...(input.bulkThreadRemoval !== undefined
+      ? { bulkThreadRemoval: input.bulkThreadRemoval }
+      : {}),
     generation: authorityGeneration,
     scopes: input.scopes,
     client: input.client,
