@@ -87,7 +87,7 @@ function makeDeps(overrides?: Partial<RemoteProjectCommandDeps>) {
     reorderProject,
     setProjectWorkspace,
     setProjectLastDraftConfig,
-    closeThread: vi.fn<RemoteProjectCommandDeps["closeThread"]>(async () => {}),
+    closeThread: vi.fn<RemoteProjectCommandDeps["closeThread"]>(async () => ({ confirmed: true })),
     cloneRepo: vi.fn<RemoteProjectCommandDeps["cloneRepo"]>(async () => ({
       path: "/repos/cloned",
     })),
@@ -270,7 +270,9 @@ describe("applyRemoteProjectCommand", () => {
   });
 
   it("removes a project after closing its threads", async () => {
-    const closeThread = vi.fn<RemoteProjectCommandDeps["closeThread"]>(async () => {});
+    const closeThread = vi.fn<RemoteProjectCommandDeps["closeThread"]>(async () => ({
+      confirmed: true,
+    }));
     const { deps, projects } = makeDeps({
       closeThread,
       listProjectThreadIds: () => ["t1", "t2"],
@@ -288,6 +290,63 @@ describe("applyRemoteProjectCommand", () => {
     expect(result.kind).toBe("complete");
     if (result.kind !== "complete") throw new Error("expected a complete legacy outcome");
     expect(result.projects).toHaveLength(0);
+  });
+
+  it("closes every project thread concurrently", async () => {
+    const started: string[] = [];
+    const gates = new Map<string, (result: { confirmed: boolean }) => void>();
+    const closeThread = vi.fn<RemoteProjectCommandDeps["closeThread"]>(
+      (threadId) =>
+        new Promise<{ confirmed: boolean }>((resolve) => {
+          started.push(threadId);
+          gates.set(threadId, resolve);
+        }),
+    );
+    const { deps, projects } = makeDeps({
+      closeThread,
+      listProjectThreadIds: () => ["t1", "t2"],
+    });
+    projects.push({
+      id: "p1",
+      name: "x",
+      location: { kind: "posix", path: "/x" },
+      createdAt: "2026-01-01T00:00:00.000Z",
+    });
+
+    const removal = applyRemoteProjectCommand({ kind: "remove", projectId: "p1" }, deps);
+
+    // Both closes start before either settles, so one slow provider cannot
+    // hold the other thread's retirement behind it.
+    await vi.waitFor(() => expect(started).toEqual(["t1", "t2"]));
+    expect(projects).toHaveLength(1);
+    for (const resolve of gates.values()) resolve({ confirmed: true });
+    await removal;
+    expect(projects).toHaveLength(0);
+  });
+
+  it("gives an unconfirmed retirement one retry before deleting the project", async () => {
+    const attempts = new Map<string, number>();
+    const closeThread = vi.fn<RemoteProjectCommandDeps["closeThread"]>(async (threadId) => {
+      const count = (attempts.get(threadId) ?? 0) + 1;
+      attempts.set(threadId, count);
+      return { confirmed: threadId === "t2" || count > 1 };
+    });
+    const { deps, projects } = makeDeps({
+      closeThread,
+      listProjectThreadIds: () => ["t1", "t2"],
+    });
+    projects.push({
+      id: "p1",
+      name: "x",
+      location: { kind: "posix", path: "/x" },
+      createdAt: "2026-01-01T00:00:00.000Z",
+    });
+
+    await applyRemoteProjectCommand({ kind: "remove", projectId: "p1" }, deps);
+
+    expect(attempts.get("t1")).toBe(2);
+    expect(attempts.get("t2")).toBe(1);
+    expect(projects).toHaveLength(0);
   });
 
   it("updates project settings without replacing its location or identity", async () => {
@@ -695,6 +754,7 @@ describe("applyRemoteProjectCommand", () => {
     const calls: string[] = [];
     const closeThread = vi.fn<RemoteProjectCommandDeps["closeThread"]>(async () => {
       calls.push("close-thread");
+      return { confirmed: true };
     });
     const removeProjectExperiments = vi.fn<RemoteProjectCommandDeps["removeProjectExperiments"]>(
       async () => {
@@ -726,7 +786,9 @@ describe("applyRemoteProjectCommand", () => {
   });
 
   it("keeps the project when experiment cleanup fails", async () => {
-    const closeThread = vi.fn<RemoteProjectCommandDeps["closeThread"]>(async () => {});
+    const closeThread = vi.fn<RemoteProjectCommandDeps["closeThread"]>(async () => ({
+      confirmed: true,
+    }));
     const { deps, projects, deleteProject } = makeDeps({
       closeThread,
       removeProjectExperiments: async () => {

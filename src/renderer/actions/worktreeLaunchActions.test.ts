@@ -1,8 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { Project } from "@/shared/contracts";
+import type { GitStatusResult, Project } from "@/shared/contracts";
 import type { SupervisorEvent } from "@/shared/ipc";
 import { worktreeScriptShellId } from "@/shared/worktreeScriptShell";
+import { useAppStore } from "@/renderer/state/appStore";
 import { useDevTerminalStore } from "@/renderer/state/devTerminalStore";
+import { useGitStore } from "@/renderer/state/gitStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { clearEagerShellStart, wasShellStartedEagerly } from "@/renderer/utils/shellUtils";
 import { closeExitedShell } from "./terminalTabActions";
@@ -10,6 +12,9 @@ import { closeExitedShell } from "./terminalTabActions";
 const bridge = vi.hoisted(() => ({
   gitAddWorktree:
     vi.fn<(payload: unknown) => Promise<{ path: string; changesTransferred?: boolean }>>(),
+  gitWatchWorktrees: vi.fn<(payload: unknown) => Promise<void>>(),
+  gitWorktreeStatusBatch:
+    vi.fn<(payload: unknown) => Promise<{ statuses: Record<string, unknown> }>>(),
   startShell: vi.fn<(payload: unknown) => Promise<void>>(),
   onSupervisorEvent: vi.fn<(handler: (event: unknown) => void) => () => void>(),
   writeTerminal: vi.fn<(payload: { threadId: string; data: string }) => Promise<void>>(),
@@ -35,6 +40,7 @@ vi.mock("./worktreePlacement", () => ({
 
 import {
   createWorktree,
+  primeWorktreeGitStates,
   runWorktreeSetupScript,
   showHostWorktreeSetupTerminal,
 } from "./worktreeLaunchActions";
@@ -90,6 +96,73 @@ describe("createWorktree", () => {
       transferUncommitted: false,
       keepChangesInSource: false,
     });
+  });
+});
+
+describe("primeWorktreeGitStates", () => {
+  const posixProject = {
+    ...project,
+    location: { kind: "posix", path: "/repo" },
+  } satisfies Project;
+  const status = {
+    isRepo: true,
+    branch: "poracode/one",
+    tracking: "",
+    hasRemote: false,
+    remoteInfo: null,
+    ahead: 0,
+    behind: 0,
+    staged: [],
+    unstaged: [],
+    totalInsertions: 0,
+    totalDeletions: 0,
+  } satisfies GitStatusResult;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    useAppStore.setState({ projects: [posixProject], threads: [] });
+    useGitStore.setState({ worktreeStatuses: {} });
+    bridge.gitWatchWorktrees.mockResolvedValue(undefined);
+    bridge.gitWorktreeStatusBatch.mockResolvedValue({
+      statuses: { "/repo/one": status, "/repo/two": status },
+    });
+  });
+
+  it("watches and reads every target in one batch and ignores duplicates", async () => {
+    await primeWorktreeGitStates(posixProject, ["/repo/one", "/repo/two", "/repo/one"]);
+
+    expect(bridge.gitWatchWorktrees).toHaveBeenCalledExactlyOnceWith({
+      projectId: posixProject.id,
+      worktreePaths: ["/repo/one", "/repo/two"],
+    });
+    await vi.waitFor(() =>
+      expect(bridge.gitWorktreeStatusBatch).toHaveBeenCalledExactlyOnceWith({
+        projectLocation: posixProject.location,
+        worktreePaths: ["/repo/one", "/repo/two"],
+      }),
+    );
+    expect(useGitStore.getState().worktreeStatuses).toMatchObject({
+      "/repo/one": { branch: "poracode/one" },
+      "/repo/two": { branch: "poracode/one" },
+    });
+  });
+
+  it("skips the status read for a WSL project", async () => {
+    await primeWorktreeGitStates(
+      {
+        ...project,
+        location: {
+          kind: "wsl",
+          distro: "Ubuntu",
+          linuxPath: "/repo",
+          uncPath: "\\\\wsl$\\Ubuntu\\repo",
+        },
+      },
+      ["/repo/one"],
+    );
+
+    expect(bridge.gitWatchWorktrees).toHaveBeenCalledOnce();
+    expect(bridge.gitWorktreeStatusBatch).not.toHaveBeenCalled();
   });
 });
 

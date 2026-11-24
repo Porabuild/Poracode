@@ -150,9 +150,7 @@ export function buildSharedAppControlsIngressDeps(
         updateProject: (project) => dbUpdateProject(project),
         deleteProject: (projectId) => dbDeleteProject(projectId),
         closeThread: (threadId) =>
-          call("closeThread", { threadId })
-            .then(() => undefined)
-            .catch(() => undefined),
+          call("closeThreadConfirmed", { threadId }).catch(() => ({ confirmed: false })),
         cloneRepo: (input) => call("cloneRepo", input),
         makeDirectory: (path) => {
           mkdirSync(path);

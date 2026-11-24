@@ -20,6 +20,7 @@ import * as bridgeRuntime from "@/renderer/bridge";
 import {
   saveProjectMcpServers,
   setProjectDisabled,
+  setProjectPluginOverrides,
   isFolderChangeBlockedByRunningThread,
   relocateProject,
   updateProjectGhAccount,
@@ -117,6 +118,37 @@ describe("remote project actions", () => {
     confirmProjectRemoval(project.id);
   });
 
+  it("does not re-close project threads after the host removal", async () => {
+    const closeThread = vi.fn<(payload: { threadId: string }) => Promise<void>>(
+      async () => undefined,
+    );
+    const readBridge = vi.spyOn(bridgeRuntime, "readBridge").mockReturnValue({
+      closeThread,
+    } as unknown as ReturnType<typeof bridgeRuntime.readBridge>);
+    try {
+      for (const prompt of ["first", "second"]) {
+        useAppStore.getState().createThread({
+          projectId: project.id,
+          agentKind: "codex",
+          config: { model: "test" },
+          prompt,
+        });
+      }
+      expect(useAppStore.getState().threads).toHaveLength(2);
+
+      deleteProject(project.id);
+
+      await vi.waitFor(() => expect(useAppStore.getState().projects).toEqual([]));
+      expect(runProjectCommand).toHaveBeenCalledExactlyOnceWith("desktop-1", {
+        kind: "remove",
+        projectId: "remote-project",
+      });
+      expect(closeThread).not.toHaveBeenCalled();
+    } finally {
+      readBridge.mockRestore();
+    }
+  });
+
   it("keeps authoritative absence final when a held local removal subsequently refuses", async () => {
     let reject!: (error: Error) => void;
     runProjectCommand.mockImplementationOnce(
@@ -187,6 +219,24 @@ describe("remote project actions", () => {
       kind: "update",
       projectId: "remote-project",
       patch: { scripts },
+    });
+  });
+
+  it("writes a project's whole plugin override map in one host command", async () => {
+    useAppStore.setState({
+      projects: [{ ...project, pluginOverrides: { browser: true, memory: false } }],
+    });
+
+    setProjectPluginOverrides(project.id, { browser: false, github: true });
+
+    expect(runProjectCommand).toHaveBeenCalledExactlyOnceWith("desktop-1", {
+      kind: "update",
+      projectId: "remote-project",
+      patch: { pluginOverrides: { browser: false, github: true } },
+    });
+    expect(useAppStore.getState().projects[0]?.pluginOverrides).toEqual({
+      browser: false,
+      github: true,
     });
   });
 

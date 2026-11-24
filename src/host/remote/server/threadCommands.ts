@@ -47,7 +47,7 @@ import {
   assertRemoteThreadStartExperimentSafe,
   discardPersistedProjectExperiments,
 } from "../experimentOwnership";
-import { applyRemoteProjectCommand } from "../projectCommands";
+import { applyRemoteProjectCommand, PROJECT_REMOVAL_CLOSE_TIMEOUT_MS } from "../projectCommands";
 import type { RemoteServerContext } from "./context";
 import {
   prepareHostWorktree,
@@ -127,7 +127,12 @@ export function runProjectCommand(
       upsertProject: (project, sortOrder) => dbUpsertProject(project, sortOrder),
       updateProject: (project) => dbUpdateProject(project),
       deleteProject: (projectId) => dbDeleteProject(projectId),
-      closeThread: (threadId) => closeThreadBestEffort(ctx, threadId),
+      closeThread: (threadId) =>
+        ctx.options.callSupervisor(
+          "closeThreadConfirmed",
+          { threadId },
+          { requestTimeoutMs: PROJECT_REMOVAL_CLOSE_TIMEOUT_MS },
+        ),
       cloneRepo: (input) => ctx.options.callSupervisor("cloneRepo", input),
       makeDirectory: (path) => {
         mkdirSync(path);
