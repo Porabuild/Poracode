@@ -1,6 +1,10 @@
 import { rememberOpenCodeSessionDatabase } from "./database";
 import { awaitOpenCodeActivation } from "./readiness";
-import { openCodeSnapshotEvents, readOpenCodeRecovery } from "./recovery";
+import {
+  openCodeSnapshotEvents,
+  readOpenCodeRecovery,
+  readOpenCodeSessionFailure,
+} from "./recovery";
 /**
  * OpenCode structured session.
  *
@@ -55,7 +59,6 @@ import { subscribeOpenCodeServerEvents, waitForOpenCodeServerEvents } from "./ev
 import {
   closeOpenCodeItems,
   createOpenCodeMapperState,
-  mapOpenCodeEvent,
   readOpenCodeEventSessionID,
   setOpenCodeContextWindowTokens,
   settleOpenCodeTurnIfActive,
@@ -480,11 +483,29 @@ export class OpenCodeSession implements StructuredSessionHandle {
 
   async interruptTurn(): Promise<void> {
     if (!this.acquired || !this.sessionId) return;
+    const client = this.acquired.client;
+    // Taken before the parent is interrupted: once the parent reports it, the
+    // agents are settled and forgotten, and they would never be interrupted.
+    const agents = this.subagents.heldSessionIds();
     try {
-      await this.acquired.client.session.interrupt({ sessionID: this.sessionId });
+      await client.session.interrupt({ sessionID: this.sessionId });
     } catch {
       // Best-effort — the server may already be torn down.
     }
+    // The server interrupts only the session it is given, and OpenCode's own
+    // terminal client stops a thread without touching its background
+    // subagents (it offers a separate interrupt per subagent). Poracode has
+    // no per-agent control, so Stop ends the agents too; otherwise they keep
+    // working after their rows were settled as cancelled.
+    await Promise.all(
+      agents.map(async (sessionID) => {
+        try {
+          await client.session.interrupt({ sessionID });
+        } catch {
+          // Best-effort per agent: one refusal must not spare the others.
+        }
+      }),
+    );
   }
 
   forceCompleteTurn(): void {
@@ -863,8 +884,10 @@ export class OpenCodeSession implements StructuredSessionHandle {
     return this.sessionId ? { sessionRef: createKnownSessionRef(this.sessionId) } : {};
   }
 
-  private cancelPendingRequests(): void {
-    for (const requestId of this.pendingRequests.keys()) {
+  /** Resolve the pending server requests of one session, or of all of them. */
+  private cancelPendingRequests(sessionID?: string): void {
+    for (const [requestId, request] of this.pendingRequests) {
+      if (sessionID !== undefined && request.sessionID !== sessionID) continue;
       this.cancelledRequestIds.add(requestId);
       this.emitRuntimeEvents([
         {
@@ -874,8 +897,8 @@ export class OpenCodeSession implements StructuredSessionHandle {
           outcome: "cancelled",
         },
       ]);
+      this.pendingRequests.delete(requestId);
     }
-    this.pendingRequests.clear();
   }
 
   private pendingRequestStatus(): { status: ThreadStatus; attention: ThreadAttention } | undefined {
@@ -938,6 +961,18 @@ export class OpenCodeSession implements StructuredSessionHandle {
       if (this.disposed || acquired !== this.acquired) return;
       for (const event of openCodeSnapshotEvents(sessionID, snapshot.messages))
         this.handleSseEvent(event);
+      // A child the server no longer runs has ended the run its launch row tracks.
+      if (sessionID !== this.sessionId)
+        this.emitRuntimeEvents(
+          this.subagents.reconcile(sessionID, {
+            active: snapshot.active,
+            outcome: snapshot.outcome,
+            error:
+              snapshot.outcome === "failed"
+                ? readOpenCodeSessionFailure(snapshot.messages)
+                : undefined,
+          }),
+        );
       const pending = new Set<string>();
       for (const permission of snapshot.permissions) {
         const id = openCodePermissionRequestId(permission.id);
@@ -1130,10 +1165,8 @@ export class OpenCodeSession implements StructuredSessionHandle {
       return;
     }
 
-    // Canonical events first: the status handler's defensive turn settle must
-    // observe the mapper's own lifecycle output, not race it.
-    const canonical = mapOpenCodeEvent(event, state);
-    if (canonical.length > 0) this.emitRuntimeEvents(canonical);
+    // Rows first: the status handler's defensive turn settle must observe the
+    // mapper's own lifecycle output, not race it.
     this.emitRuntimeEvents(this.subagents.map(event));
 
     this.handleRequestLifecycleEvent(event);
@@ -1196,12 +1229,14 @@ export class OpenCodeSession implements StructuredSessionHandle {
         // execution event was dropped by the beta stream.
         const settled = settleOpenCodeTurnIfActive(this.mapperState, "completed");
         if (settled.length > 0) this.emitRuntimeEvents(settled);
-        if (
-          event.type === "session.execution.interrupted" ||
-          event.type === "session.execution.failed"
-        ) {
+        // An interrupted parent takes its background agents with it (Stop
+        // interrupts them too). A failed parent leaves them running, so their
+        // rows keep tracking the runs and only the parent's own requests close.
+        if (event.type === "session.execution.interrupted") {
           this.emitRuntimeEvents(this.subagents.close());
           this.cancelPendingRequests();
+        } else if (event.type === "session.execution.failed") {
+          this.cancelPendingRequests(this.sessionId);
         }
         this.emitUpdate({
           ...(this.pendingRequestStatus() ?? { status: "idle", attention: "none" }),

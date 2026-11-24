@@ -238,6 +238,49 @@ function remoteMcp(name: string, url: string, disabledTools?: string[]): Resolve
   };
 }
 
+/** Launch a subagent whose call returns at once while its child keeps working. */
+function launchBackgroundSubagent(harness: Harness) {
+  const send = harness.subscription!.onEvent;
+  send(
+    event("session.tool.input.started", {
+      sessionID: "ses_new",
+      assistantMessageID: "m",
+      id: "call",
+      name: "subagent",
+    }),
+  );
+  send(
+    event("session.tool.called", {
+      sessionID: "ses_new",
+      assistantMessageID: "m",
+      id: "call",
+      input: { description: "Review" },
+      executed: true,
+    }),
+  );
+  send(event("session.created", { sessionID: "ses_child", parentID: "ses_new" }));
+  send(
+    event("session.tool.success", {
+      sessionID: "ses_new",
+      assistantMessageID: "m",
+      id: "call",
+      content: [{ type: "text", text: "working in the background" }],
+      metadata: { sessionID: "ses_child", status: "running" },
+      executed: true,
+    }),
+  );
+  const launchRow = harness.events.find(
+    (entry) =>
+      entry.type === "item.started" &&
+      (entry.payload as { isSubAgent?: boolean } | undefined)?.isSubAgent === true,
+  );
+  if (launchRow?.type !== "item.started") throw new Error("missing launch row");
+  return launchRow;
+}
+
+const launchCompletions = (harness: Harness, itemId: string) =>
+  harness.events.filter((entry) => entry.type === "item.completed" && entry.itemId === itemId);
+
 describe("OpenCodeSession", () => {
   afterEach(clearOpenCodeSessionDatabases);
 
@@ -861,6 +904,349 @@ describe("OpenCodeSession", () => {
     expect(harness.client.permission.reply).toHaveBeenCalledWith(
       expect.objectContaining({ sessionID: "child", requestID: "child-approval" }),
     );
+    await harness.session.dispose();
+  });
+
+  it("keeps a background subagent row running until its child session finishes", async () => {
+    const harness = await makeSession();
+    const launchRow = launchBackgroundSubagent(harness);
+    const send = harness.subscription!.onEvent;
+    send(
+      event("session.step.ended", {
+        sessionID: "ses_new",
+        assistantMessageID: "m",
+        finish: "stop",
+      }),
+    );
+    send(event("session.execution.succeeded", { sessionID: "ses_new" }));
+    // The parent's turn is over; the launch row still tracks the child's run.
+    expect(launchCompletions(harness, launchRow.itemId)).toEqual([]);
+    expect(harness.events).toContainEqual(
+      expect.objectContaining({
+        type: "item.updated",
+        itemId: launchRow.itemId,
+        payload: expect.objectContaining({ status: "running", isSubAgent: true }),
+      }),
+    );
+    const idleUpdates = harness.updates.filter((update) => update.status === "idle").length;
+    send(
+      event("session.tool.input.started", {
+        sessionID: "ses_child",
+        assistantMessageID: "c",
+        id: "cread",
+        name: "read",
+      }),
+    );
+    send(
+      event("session.text.ended", {
+        sessionID: "ses_child",
+        assistantMessageID: "c2",
+        ordinal: 0,
+        text: "Report",
+      }),
+    );
+    expect(launchCompletions(harness, launchRow.itemId)).toEqual([]);
+    send(event("session.execution.succeeded", { sessionID: "ses_child" }));
+    expect(launchCompletions(harness, launchRow.itemId)).toEqual([
+      expect.objectContaining({
+        payload: expect.objectContaining({
+          isSubAgent: true,
+          status: "success",
+          subAgentStatus: "completed",
+          result: "Report",
+          progress: expect.objectContaining({ stepCount: 2, lastToolName: "read" }),
+        }),
+      }),
+    ]);
+    // The child's lifecycle leaves the thread's own status alone.
+    expect(harness.updates.filter((update) => update.status === "idle")).toHaveLength(idleUpdates);
+    await harness.session.dispose();
+  });
+
+  it("settles a background subagent row after reconnect once its child stopped running", async () => {
+    const harness = await makeSession();
+    const launchRow = launchBackgroundSubagent(harness);
+    vi.mocked(harness.client.session.active).mockResolvedValue({});
+    vi.mocked(harness.client.session.get).mockImplementation(async ({ sessionID }) =>
+      sessionID === "ses_child"
+        ? ({ id: "ses_child", outcome: "succeeded" } as never)
+        : ({ id: "ses_resume" } as never),
+    );
+    vi.mocked(harness.client.message.list).mockImplementation(
+      async ({ sessionID }) =>
+        ({
+          data:
+            sessionID === "ses_new"
+              ? [
+                  {
+                    id: "m",
+                    type: "assistant",
+                    time: { created: 1 },
+                    content: [
+                      {
+                        type: "tool",
+                        id: "call",
+                        name: "subagent",
+                        state: {
+                          status: "completed",
+                          input: { description: "Review" },
+                          content: [{ type: "text", text: "working in the background" }],
+                          metadata: { sessionID: "ses_child", status: "running" },
+                        },
+                      },
+                    ],
+                  },
+                ]
+              : sessionID === "ses_child"
+                ? [
+                    {
+                      id: "c2",
+                      type: "assistant",
+                      time: { created: 1, completed: 2 },
+                      content: [{ type: "text", text: "Report" }],
+                    },
+                  ]
+                : [],
+          cursor: {},
+        }) as never,
+    );
+    await harness.subscription!.onReconnect();
+    expect(launchCompletions(harness, launchRow.itemId)).toEqual([
+      expect.objectContaining({
+        payload: expect.objectContaining({ subAgentStatus: "completed", result: "Report" }),
+      }),
+    ]);
+    await harness.session.dispose();
+  });
+
+  it("cancels a background subagent row still running when its turn is force-completed", async () => {
+    const harness = await makeSession();
+    const launchRow = launchBackgroundSubagent(harness);
+    harness.events.length = 0;
+    harness.session.forceCompleteTurn();
+    expect(launchCompletions(harness, launchRow.itemId)).toEqual([
+      expect.objectContaining({
+        payload: expect.objectContaining({
+          status: "error",
+          subAgentStatus: "cancelled",
+          result: { error: "Interrupted: agent session ended before completion." },
+        }),
+      }),
+    ]);
+    expect(harness.session.ownsProviderSession("ses_child")).toBe(false);
+    await harness.session.dispose();
+  });
+
+  it("interrupts the background subagents it still tracks when the thread is interrupted", async () => {
+    const harness = await makeSession();
+    launchBackgroundSubagent(harness);
+    await harness.session.interruptTurn();
+    expect(harness.client.session.interrupt).toHaveBeenCalledWith({ sessionID: "ses_new" });
+    expect(harness.client.session.interrupt).toHaveBeenCalledWith({ sessionID: "ses_child" });
+    await harness.session.dispose();
+  });
+
+  it("still interrupts the agents when the parent reports its interruption first", async () => {
+    const harness = await makeSession();
+    launchBackgroundSubagent(harness);
+    const interrupted: string[] = [];
+    vi.mocked(harness.client.session.interrupt).mockImplementation(async ({ sessionID }) => {
+      interrupted.push(sessionID);
+      // The server can deliver the parent's interrupted event before the RPC
+      // resolves; that settles the rows and forgets the agents.
+      if (sessionID === "ses_new")
+        harness.subscription!.onEvent(
+          event("session.execution.interrupted", { sessionID: "ses_new", reason: "user" }),
+        );
+      return { interrupted: true };
+    });
+    await harness.session.interruptTurn();
+    expect(interrupted.sort()).toEqual(["ses_child", "ses_new"]);
+    await harness.session.dispose();
+  });
+
+  it("keeps interrupting the other agents when one interrupt is refused", async () => {
+    const harness = await makeSession();
+    const send = harness.subscription!.onEvent;
+    for (const [call, child] of [
+      ["call", "ses_child"],
+      ["call-2", "ses_child-2"],
+    ] as const) {
+      send(
+        event("session.tool.input.started", {
+          sessionID: "ses_new",
+          assistantMessageID: "m",
+          id: call,
+          name: "subagent",
+        }),
+      );
+      send(event("session.created", { sessionID: child, parentID: "ses_new" }));
+      send(
+        event("session.tool.success", {
+          sessionID: "ses_new",
+          assistantMessageID: "m",
+          id: call,
+          content: [{ type: "text", text: "working in the background" }],
+          metadata: { sessionID: child, status: "running" },
+          executed: true,
+        }),
+      );
+    }
+    const interrupted: string[] = [];
+    vi.mocked(harness.client.session.interrupt).mockImplementation(async ({ sessionID }) => {
+      interrupted.push(sessionID);
+      if (sessionID === "ses_child") throw new Error("Session not found");
+      return { interrupted: true };
+    });
+    await harness.session.interruptTurn();
+    expect(interrupted.sort()).toEqual(["ses_child", "ses_child-2", "ses_new"]);
+    await harness.session.dispose();
+  });
+
+  it("keeps the interruption notice for a run recovery finds interrupted", async () => {
+    const harness = await makeSession();
+    const launchRow = launchBackgroundSubagent(harness);
+    vi.mocked(harness.client.session.active).mockResolvedValue({});
+    vi.mocked(harness.client.session.get).mockImplementation(async ({ sessionID }) =>
+      sessionID === "ses_child"
+        ? ({ id: "ses_child", outcome: "interrupted" } as never)
+        : ({ id: "ses_resume" } as never),
+    );
+    vi.mocked(harness.client.message.list).mockImplementation(
+      async ({ sessionID }) =>
+        ({
+          data:
+            sessionID === "ses_child"
+              ? // An earlier step of the child failed; the run itself was interrupted.
+                [
+                  {
+                    id: "c1",
+                    type: "assistant",
+                    time: { created: 1 },
+                    error: { type: "provider_error", message: "Stale step failure" },
+                    content: [],
+                  },
+                ]
+              : [],
+          cursor: {},
+        }) as never,
+    );
+    await harness.subscription!.onReconnect();
+    expect(launchCompletions(harness, launchRow.itemId)).toEqual([
+      expect.objectContaining({
+        payload: expect.objectContaining({
+          status: "error",
+          subAgentStatus: "cancelled",
+          result: { error: "Interrupted: agent session ended before completion." },
+        }),
+      }),
+    ]);
+    await harness.session.dispose();
+  });
+
+  it("keeps tracking background subagents when the parent's execution fails", async () => {
+    const harness = await makeSession();
+    const launchRow = launchBackgroundSubagent(harness);
+    const send = harness.subscription!.onEvent;
+    send(
+      event("session.execution.failed", {
+        sessionID: "ses_new",
+        error: { message: "Parent provider error" },
+      }),
+    );
+    // The server keeps the child sessions running; their rows must keep tracking.
+    expect(launchCompletions(harness, launchRow.itemId)).toEqual([]);
+    expect(harness.session.ownsProviderSession("ses_child")).toBe(true);
+    send(
+      event("session.text.ended", {
+        sessionID: "ses_child",
+        assistantMessageID: "c2",
+        ordinal: 0,
+        text: "Report",
+      }),
+    );
+    send(event("session.execution.succeeded", { sessionID: "ses_child" }));
+    expect(launchCompletions(harness, launchRow.itemId)).toEqual([
+      expect.objectContaining({
+        payload: expect.objectContaining({ subAgentStatus: "completed", result: "Report" }),
+      }),
+    ]);
+    await harness.session.dispose();
+  });
+
+  it("settles background subagents as cancelled when the parent's execution is interrupted", async () => {
+    const harness = await makeSession();
+    const launchRow = launchBackgroundSubagent(harness);
+    harness.subscription!.onEvent(
+      event("session.execution.interrupted", { sessionID: "ses_new", reason: "user" }),
+    );
+    expect(launchCompletions(harness, launchRow.itemId)).toEqual([
+      expect.objectContaining({
+        payload: expect.objectContaining({ status: "error", subAgentStatus: "cancelled" }),
+      }),
+    ]);
+    expect(harness.session.ownsProviderSession("ses_child")).toBe(false);
+    await harness.session.dispose();
+  });
+
+  it("reports a failed child run with the server's own failure text after reconnect", async () => {
+    const harness = await makeSession();
+    const launchRow = launchBackgroundSubagent(harness);
+    vi.mocked(harness.client.session.active).mockResolvedValue({});
+    vi.mocked(harness.client.session.get).mockImplementation(async ({ sessionID }) =>
+      sessionID === "ses_child"
+        ? ({ id: "ses_child", outcome: "failed" } as never)
+        : ({ id: "ses_resume" } as never),
+    );
+    vi.mocked(harness.client.message.list).mockImplementation(
+      async ({ sessionID }) =>
+        ({
+          data:
+            sessionID === "ses_new"
+              ? [
+                  {
+                    id: "m",
+                    type: "assistant",
+                    time: { created: 1 },
+                    content: [
+                      {
+                        type: "tool",
+                        id: "call",
+                        name: "subagent",
+                        state: {
+                          status: "completed",
+                          input: { description: "Review" },
+                          content: [{ type: "text", text: "working in the background" }],
+                          metadata: { sessionID: "ses_child", status: "running" },
+                        },
+                      },
+                    ],
+                  },
+                ]
+              : sessionID === "ses_child"
+                ? [
+                    {
+                      id: "c2",
+                      type: "assistant",
+                      time: { created: 1 },
+                      error: { type: "provider_error", message: "Rate limit reached" },
+                      content: [],
+                    },
+                  ]
+                : [],
+          cursor: {},
+        }) as never,
+    );
+    await harness.subscription!.onReconnect();
+    expect(launchCompletions(harness, launchRow.itemId)).toEqual([
+      expect.objectContaining({
+        payload: expect.objectContaining({
+          status: "error",
+          subAgentStatus: "failed",
+          result: "Rate limit reached",
+        }),
+      }),
+    ]);
     await harness.session.dispose();
   });
 

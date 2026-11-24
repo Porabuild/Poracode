@@ -459,9 +459,13 @@ export function mapOpenCodeEvent(event: V2Event, state: OpenCodeMapperState): Ru
     case "session.tool.success": {
       const message = ensureOpenCodeMessageState(state, event.data.assistantMessageID);
       const tool = ensureOpenCodeToolItem(message, event.data.id);
-      tool.status = "success";
-      applyOpenCodeToolContent(tool, event.data.content);
-      applyOpenCodeToolMetadata(tool, event.data.metadata);
+      // A subagent launch row keeps the outcome of the run it tracked. Stream
+      // recovery replays the call's own success, which must not overwrite it.
+      if (tool.subAgentStatus === undefined) {
+        tool.status = "success";
+        applyOpenCodeToolContent(tool, event.data.content);
+        applyOpenCodeToolMetadata(tool, event.data.metadata);
+      }
       return [
         openCodeToolItemUpdate(state, tool),
         openCodeToolItemCompleted(state, tool),
@@ -960,7 +964,7 @@ function closeOpenCodeStep(
 
 // ── Error helpers ─────────────────────────────────────────────────────
 
-function readSessionError(error: unknown): string {
+export function readSessionError(error: unknown): string {
   if (typeof error === "string" && error.length > 0) return error;
   const record = readOpenCodeRecord(error);
   if (!record) return "OpenCode session error";

@@ -328,6 +328,30 @@ validating the version. The minimum CLI is `OPENCODE2_MIN_VERSION`
   opens or switches model; otherwise the dock inherits whatever window a
   previous provider reported on a handed-off thread. The read is display-only
   and never holds a prompt.
+- **Background subagents:** the native `subagent` call returns as soon as the
+  child session is started (`session.tool.success` carries `metadata: {
+  sessionID, status: "running" }`); only the child's own
+  `session.execution.succeeded|failed|interrupted` events say when its run
+  ends (audited in the 2.4.1 CLI; its terminal UI derives status the same way).
+  `OpenCodeSubagents` therefore holds the launch row open, publishing it as
+  running with `subAgentBackground: true` and no result, until the child's run
+  ends, and then completes it with the child's last step as the result. The
+  marker tells clients the host settles the row itself, so a copy read back
+  from storage is not treated as an orphan of a dead session
+  (`staleSubAgents.ts`); for the same reason every teardown settles held rows
+  before the session is fenced. A call that already waited for its child — a
+  child whose run ended while it was linked to that call, or before any call
+  was linked to it; `metadata.status: "completed"` is kept as a defensive
+  guard the 2.4.1 tool never sends — completes at once with the report. A
+  call that continues a child whose earlier run ended under another call is
+  held for the new run. On reconnect the server's active-session list and
+  recorded outcome settle a child whose terminal event was missed.
+  Interrupting the parent also interrupts the held children (verified against
+  2.4.1: the server interrupts only the session it is given, and its terminal
+  client's Stop leaves background subagents running behind a separate
+  per-subagent interrupt), while a failed parent leaves them running and
+  tracked. Reverting turns closes the rows those turns still hold as
+  cancelled and stops tracking their agents; it does not interrupt them.
 - **GUI controls:** model and variant selection, built-in Plan mode, primary
   agent commands, native commands and skills, attachment URI references,
   structured forms and permissions, Stop and native steering, compaction,

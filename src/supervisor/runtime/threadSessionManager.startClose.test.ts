@@ -583,6 +583,57 @@ describe("ThreadSessionManager Windows shells", () => {
   });
 });
 
+describe("retirement closes the turn locally first", () => {
+  it("publishes what the session settles before its events are fenced", async () => {
+    const structured = createStructuredSession(Promise.resolve());
+    const adapter = createAdapter("fixture", structured);
+    const events: SupervisorEvent[] = [];
+    const manager = createManager("fixture", adapter, (event) => events.push(event));
+    await manager.startThread({
+      threadId: "settled-close",
+      agentKind: "fixture",
+      projectLocation: { kind: "posix", path: process.cwd() },
+      config: { model: "fixture/model" },
+      prompt: "Explain the code",
+      initialSize: { cols: 80, rows: 24 },
+      presentationMode: "gui",
+    });
+    const session = manager.sessions.get("settled-close")!;
+    const listener = vi.mocked(structured.setListener).mock.calls.at(-1)![0];
+    // A session that holds background agent rows settles them here; a fenced
+    // session's later events never reach storage.
+    const forceCompleteTurn = vi.fn<() => void>(() => {
+      listener.onRuntimeEvent?.({
+        type: "item.completed",
+        threadId: session.threadId,
+        itemId: "held-agent",
+        payload: {
+          name: "Agent",
+          isSubAgent: true,
+          subAgentBackground: true,
+          status: "error",
+          subAgentStatus: "cancelled",
+        },
+      });
+    });
+    structured.forceCompleteTurn = forceCompleteTurn;
+    vi.mocked(structured.dispose).mockImplementation(async () => listener.onClose());
+    await manager.closeThread({ threadId: session.threadId });
+    const settled = events.findIndex(
+      (event) =>
+        event.type === "thread-runtime-event" &&
+        event.event.type === "item.completed" &&
+        event.event.itemId === "held-agent",
+    );
+    const inactive = events.findIndex(
+      (event) => event.type === "thread-state" && event.status === "inactive",
+    );
+    expect(forceCompleteTurn).toHaveBeenCalledOnce();
+    expect(settled).toBeGreaterThanOrEqual(0);
+    expect(inactive).toBeGreaterThan(settled);
+  });
+});
+
 describe("ThreadSessionManager reopen", () => {
   it("keeps another client's live runtime even when the caller has stale config", async () => {
     const structured = createStructuredSession(Promise.resolve());
