@@ -87,4 +87,23 @@ describe("ThreadSettings", () => {
     expect(confirmation).toBeChecked();
     expect(shouldConfirmThreadDelete()).toBe(true);
   });
+
+  it("keeps the confirmation switch on when the opt-out cannot be stored", () => {
+    setConfirmThreadDelete(true);
+    const setItem = vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+      throw new DOMException("The quota has been exceeded.", "QuotaExceededError");
+    });
+    try {
+      render(<ThreadSettings />);
+      const confirmation = screen.getByRole("switch", {
+        name: "Confirm before deleting threads",
+      });
+      expect(confirmation).toBeChecked();
+      fireEvent.click(confirmation);
+      expect(confirmation).toBeChecked();
+      expect(shouldConfirmThreadDelete()).toBe(true);
+    } finally {
+      setItem.mockRestore();
+    }
+  });
 });

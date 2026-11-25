@@ -1,5 +1,6 @@
 import { create } from "zustand";
-import { createJSONStorage, persist } from "zustand/middleware";
+import { persist } from "zustand/middleware";
+import { createBestEffortJsonStorage } from "@/renderer/utils/bestEffortJsonStorage";
 import type { ProjectGroupOverrides } from "./projectGroups";
 
 const PERSIST_KEY = "poracode-project-groups";
@@ -41,7 +42,7 @@ export const useProjectGroupStore = create<ProjectGroupState>()(
     {
       name: PERSIST_KEY,
       version: 1,
-      storage: createJSONStorage(() => localStorage),
+      storage: createBestEffortJsonStorage(),
       partialize: (state) => ({ manualGroups: state.manualGroups, lastUsedAt: state.lastUsedAt }),
       // v1 is the first format, and persist only calls this for another
       // version. A payload from an unversioned or future build carries no

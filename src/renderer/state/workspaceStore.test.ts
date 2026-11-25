@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { DEFAULT_WORKSPACE_ICONS, DEFAULT_WORKSPACE_NAMES } from "@/shared/contracts";
 import { HOME_PROJECT_ID } from "@/shared/homeScope";
 import { useAppStore } from "./appStore";
@@ -167,5 +167,19 @@ describe("compactWorkspaceFilter", () => {
     useWorkspaceStore.getState().setCompactWorkspaceFilter(null);
     expect(useWorkspaceStore.getState().compactWorkspaceFilter).toBeNull();
     expect(useWorkspaceStore.getState().activeWorkspaceId).toBe("b");
+  });
+
+  it("keeps the update when the persist write is rejected", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const setItem = vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+      throw new DOMException("The quota has been exceeded.", "QuotaExceededError");
+    });
+    try {
+      expect(() => useWorkspaceStore.getState().setCompactWorkspaceFilter("b")).not.toThrow();
+      expect(useWorkspaceStore.getState().compactWorkspaceFilter).toBe("b");
+    } finally {
+      setItem.mockRestore();
+      warn.mockRestore();
+    }
   });
 });

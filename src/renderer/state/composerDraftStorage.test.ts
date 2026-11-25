@@ -1,5 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
+import {
+  registerLocalStoragePressureRelief,
+  resetLocalStoragePressureReliefsForTest,
+} from "@/renderer/utils/localStorage";
 import { createComposerDraftStorage } from "./composerDraftStorage";
 import type { DraftContent } from "./slices/types";
 
@@ -26,6 +30,7 @@ describe("composer draft checkpoints", () => {
     vi.useRealTimers();
     localStorage.clear();
     vi.restoreAllMocks();
+    resetLocalStoragePressureReliefsForTest();
   });
 
   it("recovers serialized text and durable attachments in a new client instance", () => {
@@ -152,5 +157,51 @@ describe("composer draft checkpoints", () => {
     store.save("thread", "valid", content);
     store.flush();
     expect(Object.keys(store.load("thread"))).toEqual(["valid"]);
+  });
+
+  it("makes room from disposable caches and retries a draft rejected by the quota", () => {
+    const disposable = "poracode-git-cache-v3:branches:old";
+    localStorage.setItem(disposable, "x".repeat(200_000));
+    const original = Storage.prototype.setItem;
+    vi.spyOn(Storage.prototype, "setItem").mockImplementation(function (
+      this: Storage,
+      name,
+      value,
+    ) {
+      // The origin stays full until the disposable cache entry is gone.
+      if (localStorage.getItem(disposable) !== null)
+        throw new DOMException("The quota has been exceeded.", "QuotaExceededError");
+      original.call(this, name, value);
+    });
+    const relieved = vi.fn<() => number>(() => {
+      localStorage.removeItem(disposable);
+      return 400_000;
+    });
+    registerLocalStoragePressureRelief(relieved);
+    const failed = vi.fn<() => void>();
+    window.addEventListener("poracode:composer-draft-save-failed", failed);
+    const store = createComposerDraftStorage(localStorage, window);
+    store.save("thread", "one", content);
+    store.flush();
+    expect(relieved).toHaveBeenCalledTimes(1);
+    expect(failed).not.toHaveBeenCalled();
+    expect(localStorage.getItem('poracode-composer-draft-v2:["thread","one"]')).not.toBeNull();
+    expect(store.load("thread").one?.segments).toEqual(content.segments);
+  });
+
+  it("still reports the failure when nothing disposable can be freed", () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+      throw new DOMException("The quota has been exceeded.", "QuotaExceededError");
+    });
+    const failed = vi.fn<() => void>();
+    window.addEventListener("poracode:composer-draft-save-failed", failed);
+    const store = createComposerDraftStorage(localStorage, window);
+    store.save("thread", "one", content);
+    store.flush();
+    expect(failed).toHaveBeenCalledTimes(1);
+    expect(localStorage.getItem('poracode-composer-draft-v2:["thread","one"]')).toBeNull();
+    // The unsent text stays available to the composer.
+    expect(store.currentDraft("thread", "one")?.segments).toEqual(content.segments);
   });
 });

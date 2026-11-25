@@ -1,7 +1,7 @@
 import type React from "react";
 import type { RefObject } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { readStoredNumber } from "@/renderer/utils/localStorage";
+import { readStoredNumber, writeStoredString } from "@/renderer/utils/localStorage";
 import { beginPanelResize, endPanelResize } from "@/renderer/state/panelResizeSignal";
 
 // Wide enough to fit a Home-row suffix button (terminal icon) plus a few
@@ -163,19 +163,19 @@ export function useResizablePanels(
   );
 
   useEffect(() => {
-    localStorage.setItem("poracode-sidebar-width", String(sidebarWidth));
+    writeStoredString("poracode-sidebar-width", String(sidebarWidth));
   }, [sidebarWidth]);
 
   useEffect(() => {
-    localStorage.setItem("poracode-panel-width", String(panelWidth));
+    writeStoredString("poracode-panel-width", String(panelWidth));
   }, [panelWidth]);
 
   useEffect(() => {
-    localStorage.setItem("poracode-panel-height", String(panelHeight));
+    writeStoredString("poracode-panel-height", String(panelHeight));
   }, [panelHeight]);
 
   useEffect(() => {
-    localStorage.setItem("poracode-git-panel-width", String(gitPanelWidth));
+    writeStoredString("poracode-git-panel-width", String(gitPanelWidth));
   }, [gitPanelWidth]);
 
   // Ends an in-flight resize (teardown + persist final size). Called on unmount

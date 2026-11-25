@@ -168,6 +168,23 @@ describe("sharedSettingsStore", () => {
     expect(barrierFinished).toBe(true);
   });
 
+  it("keeps the owner write when the local settings cache cannot be stored", async () => {
+    const setSharedSettings = vi.fn<(settings: SharedSettings) => Promise<void>>(() =>
+      Promise.resolve(),
+    );
+    window.poracode = { setSharedSettings } as unknown as typeof window.poracode;
+    const setItem = vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+      throw new DOMException("The quota has been exceeded.", "QuotaExceededError");
+    });
+    try {
+      expect(() => useSharedSettings.getState().setThemeMode("dark")).not.toThrow();
+    } finally {
+      setItem.mockRestore();
+    }
+    await waitForPendingSharedSettings();
+    expect(setSharedSettings).toHaveBeenCalledOnce();
+  });
+
   it("rejects an explicit persistence confirmation when the queued host write failed", async () => {
     let rejectWrite!: (error: unknown) => void;
     const refusal = new Error("Profile dependency is unavailable");

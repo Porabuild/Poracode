@@ -69,3 +69,56 @@ export function readStoredJson(key: string): unknown {
 export function writeStoredJson(key: string, value: unknown): void {
   writeStoredString(key, JSON.stringify(value));
 }
+
+export function removeStoredKey(key: string): void {
+  try {
+    localStorage.removeItem(key);
+  } catch {
+    /* ignore */
+  }
+}
+
+const QUOTA_ERROR_NAMES = new Set(["QuotaExceededError", "NS_ERROR_DOM_QUOTA_REACHED"]);
+
+/** True for the storage error browsers throw when a write does not fit the origin's quota. */
+export function isQuotaExceededError(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "name" in error &&
+    QUOTA_ERROR_NAMES.has(String((error as { name: unknown }).name))
+  );
+}
+
+type PressureRelief = (minBytes: number) => number;
+const pressureReliefs = new Set<PressureRelief>();
+
+/**
+ * Registers how a disposable cache gives up room. `relieveLocalStoragePressure`
+ * asks it to free at least `minBytes`; a cache that keeps timestamps gives up
+ * its oldest data first. It returns the bytes it freed.
+ */
+export function registerLocalStoragePressureRelief(relief: PressureRelief): void {
+  pressureReliefs.add(relief);
+}
+
+/**
+ * Makes room for an essential write (unsent composer text) that the origin
+ * quota rejected, by asking every registered disposable cache to free at least
+ * `minBytes`. Returns the bytes reportedly freed; 0 means nothing is disposable.
+ */
+export function relieveLocalStoragePressure(minBytes: number): number {
+  let freed = 0;
+  for (const relief of pressureReliefs) {
+    try {
+      freed += Math.max(0, relief(minBytes) || 0);
+    } catch {
+      /* One unavailable cache must not block the others. */
+    }
+  }
+  return freed;
+}
+
+export function resetLocalStoragePressureReliefsForTest(): void {
+  pressureReliefs.clear();
+}

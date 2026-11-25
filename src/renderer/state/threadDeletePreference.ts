@@ -1,3 +1,5 @@
+import { removeStoredKey, writeStoredString } from "@/renderer/utils/localStorage";
+
 // Kept at the historical key so an existing opt-out survives the upgrade from
 // the three-way "thread only / thread + worktree" dialog to a single confirm.
 const PREF_KEY = "poracode-delete-worktree-pref";
@@ -10,6 +12,6 @@ export function shouldConfirmThreadDelete(): boolean {
 }
 
 export function setConfirmThreadDelete(confirm: boolean): void {
-  if (confirm) localStorage.removeItem(PREF_KEY);
-  else localStorage.setItem(PREF_KEY, "thread-and-worktree");
+  if (confirm) removeStoredKey(PREF_KEY);
+  else writeStoredString(PREF_KEY, "thread-and-worktree");
 }

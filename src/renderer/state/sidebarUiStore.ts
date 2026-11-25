@@ -1,5 +1,6 @@
 import { create } from "zustand";
-import { createJSONStorage, persist } from "zustand/middleware";
+import { persist } from "zustand/middleware";
+import { createBestEffortJsonStorage } from "@/renderer/utils/bestEffortJsonStorage";
 import {
   isSidebarGroupCollapsed,
   SIDEBAR_THREAD_LIST_PAGE_SIZE,
@@ -162,7 +163,7 @@ export const useSidebarUiStore = create<SidebarUiState>()(
     {
       name: PERSIST_KEY,
       version: 1,
-      storage: createJSONStorage(() => localStorage),
+      storage: createBestEffortJsonStorage(),
       // Worktree collapse, "See more" limits, and inline rename are
       // session-scoped by design.
       partialize: (state) => ({

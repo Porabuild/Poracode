@@ -14,6 +14,7 @@ import {
 import type { DraftContent } from "./slices/types";
 import { mergeDraftContent } from "./projectReferences";
 import { registerClientDraftCloseFlusher } from "./composerDrafts/clientDraftWindows";
+import { isQuotaExceededError, relieveLocalStoragePressure } from "@/renderer/utils/localStorage";
 import {
   CLIENT_DRAFT_JOURNAL_PREFIX,
   readClientDraftJournals,
@@ -161,6 +162,7 @@ export function createComposerDraftStorage(storage: Storage, lifecycle: Window) 
   function writePending(
     backup?: (record: import("./composerDrafts/clientDraftDatabase").ClientDraftSubmission) => void,
     onlyName?: string,
+    pressureRelieved = false,
   ) {
     if (onlyName === undefined) stopTimer();
     const indexedJournals = journalIndex(readClientDraftJournals(storage));
@@ -202,6 +204,17 @@ export function createComposerDraftStorage(storage: Storage, lifecycle: Window) 
           assetPaths(previous?.content).filter((path) => !retained.has(path)),
         );
       } catch (error) {
+        // Unsent text outranks disposable caches: make room and retry once.
+        if (!pressureRelieved && isQuotaExceededError(error)) {
+          if (relieveLocalStoragePressure(reliefBytes(name, record)) > 0) {
+            try {
+              writePending(backup, name, true);
+            } catch (retryError) {
+              failure ??= retryError;
+            }
+            continue;
+          }
+        }
         failure ??= error;
         if (record && record.revision > 0 && backup) {
           backup(
@@ -241,13 +254,29 @@ export function createComposerDraftStorage(storage: Storage, lifecycle: Window) 
     }
     if (pending.size === 0) stopTimer();
   }
+  /** Room a draft asks disposable caches for: its record, its close-time journal, and headroom. */
+  function reliefBytes(name: string, record: StoredRecord | null): number {
+    return Math.max((name.length + (record ? JSON.stringify(record).length : 0)) * 4, 64 * 1024);
+  }
   function flush() {
     // Do this before the first await: lifecycle events cannot keep an IDB
     // transaction alive after the page is torn down.
+    let pressureRelieved = false;
+    const journal = (name: string, record: StoredRecord | null) =>
+      writeClientDraftJournal(storage, writerId, name, observed.get(name) ?? null, record);
     try {
       if (typeof indexedDB !== "undefined")
-        for (const [name, record] of pending)
-          writeClientDraftJournal(storage, writerId, name, observed.get(name) ?? null, record);
+        for (const [name, record] of pending) {
+          try {
+            journal(name, record);
+          } catch (error) {
+            if (pressureRelieved || !isQuotaExceededError(error)) throw error;
+            // Unsent text outranks disposable caches: make room and retry once.
+            pressureRelieved = true;
+            if (relieveLocalStoragePressure(reliefBytes(name, record)) > 0) journal(name, record);
+            else throw error;
+          }
+        }
     } catch (error) {
       report(error);
     }
