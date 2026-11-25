@@ -204,7 +204,7 @@ export function ThreadSettings(props: SettingsHostTarget) {
             isSelected={confirmThreadDelete}
             onChange={(selected) => {
               setConfirmThreadDelete(selected);
-              setConfirmThreadDeleteState(selected);
+              setConfirmThreadDeleteState(shouldConfirmThreadDelete());
             }}
           />
         </SettingRow>

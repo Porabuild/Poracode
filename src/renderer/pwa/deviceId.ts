@@ -1,3 +1,5 @@
+import { writeStoredString } from "@/renderer/utils/localStorage";
+
 const DEVICE_ID_STORAGE_KEY = "poracode.browser.push-device-id.v1";
 const LEGACY_DATABASE_NAME = "lightcode-mobile";
 const LEGACY_PREFERENCE_KEY = "pushDeviceId";
@@ -36,7 +38,7 @@ async function createOrReadDeviceId(): Promise<string> {
   const stored = localStorage.getItem(DEVICE_ID_STORAGE_KEY);
   if (stored) return stored;
   const deviceId = (await readLegacyDeviceId()) ?? crypto.randomUUID();
-  localStorage.setItem(DEVICE_ID_STORAGE_KEY, deviceId);
+  writeStoredString(DEVICE_ID_STORAGE_KEY, deviceId);
   return deviceId;
 }
 

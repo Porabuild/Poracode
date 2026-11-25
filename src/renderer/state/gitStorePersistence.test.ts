@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { resetLocalStoragePressureReliefsForTest } from "@/renderer/utils/localStorage";
 import type { GitCacheState } from "./gitStorePersistence";
 
 const prefix = "poracode-git-cache-v3:";
@@ -47,6 +48,7 @@ describe("Git startup cache", () => {
     vi.resetModules();
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-11-13T00:00:00Z"));
+    resetLocalStoragePressureReliefsForTest();
   });
 
   afterEach(() => {
@@ -100,6 +102,10 @@ describe("Git startup cache", () => {
     const attempts = write.mock.calls.length;
     cache.persistGitCache(initial);
     expect(write).toHaveBeenCalledTimes(attempts);
+    // Keys a failed migration rolled back are not stored, so they free nothing.
+    const { relieveLocalStoragePressure } = await import("@/renderer/utils/localStorage");
+    expect(relieveLocalStoragePressure(1024)).toBe(0);
+    expect(localStorage.length).toBe(1);
   });
 
   it("preserves released cache lifetime across unrelated updates", async () => {
@@ -288,5 +294,49 @@ describe("Git startup cache", () => {
     expect(localStorage.length).toBeGreaterThan(0);
     cache.clearGitCache();
     expect(localStorage.length).toBe(0);
+  });
+
+  it("gives up its oldest entries when an essential write runs out of room", async () => {
+    const cache = await import("./gitStorePersistence");
+    // The module reset above gives the cache a fresh localStorage helper module.
+    const { relieveLocalStoragePressure } = await import("@/renderer/utils/localStorage");
+    cache.loadGitCache();
+    cache.persistGitCache(state());
+    vi.advanceTimersByTime(day);
+    const newer = { ...state(), statuses: { project: { ...status, ahead: 1 } } };
+    cache.persistGitCache(newer);
+    const oldestKeys = [
+      `${prefix}ghAvailable:project`,
+      `${prefix}worktreeStatuses:${worktree.path}`,
+      `${prefix}prData:${worktree.path}`,
+      `${prefix}prData:__branch:project`,
+    ];
+    const oldestBytes = oldestKeys.reduce(
+      (sum, key) => sum + (key.length + (localStorage.getItem(key)?.length ?? 0)) * 2,
+      0,
+    );
+    expect(relieveLocalStoragePressure(oldestBytes)).toBeGreaterThanOrEqual(oldestBytes);
+    // Only the entries written a day earlier are gone; the newest status stays.
+    expect(localStorage.getItem(`${prefix}statuses:project`)).not.toBeNull();
+    expect(cache.loadGitCache().statuses).toEqual({ project: { ...status, ahead: 1 } });
+    // The newest record is only given up when the request needs its room.
+    expect(relieveLocalStoragePressure(1024)).toBeGreaterThan(0);
+    expect(localStorage.getItem(`${prefix}statuses:project`)).toBeNull();
+  });
+
+  it("does not rewrite an evicted entry until its value changes", async () => {
+    const cache = await import("./gitStorePersistence");
+    const { relieveLocalStoragePressure } = await import("@/renderer/utils/localStorage");
+    cache.loadGitCache();
+    const initial = state();
+    cache.persistGitCache(initial);
+    expect(relieveLocalStoragePressure(64 * 1024)).toBeGreaterThan(0);
+    expect(localStorage.length).toBe(0);
+    const write = vi.spyOn(Storage.prototype, "setItem");
+    cache.persistGitCache(initial);
+    expect(write).not.toHaveBeenCalled();
+    cache.persistGitCache({ ...initial, statuses: { project: { ...status, ahead: 1 } } });
+    expect(write).toHaveBeenCalledTimes(1);
+    expect(write.mock.calls[0]?.[0]).toBe(`${prefix}statuses:project`);
   });
 });

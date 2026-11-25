@@ -11,6 +11,7 @@ import {
   gitWorktreeInfoSchema,
 } from "@/shared/contracts/gitResults";
 import { prDataSchema } from "@/shared/contracts/githubResults";
+import { registerLocalStoragePressureRelief } from "@/renderer/utils/localStorage";
 
 const schemas = {
   statuses: gitStatusResultSchema,
@@ -62,6 +63,26 @@ let migrationFailed = false;
 function storageKey(field: Field, key: string): string {
   return `${PREFIX}${field}:${key}`;
 }
+
+// The browser quota, not an arbitrary cap, bounds this disposable cache (see
+// the v3 note above). When an essential write runs out of room, the oldest
+// entries give way first; an evicted key stays out until its value changes.
+registerLocalStoragePressureRelief((minBytes) => {
+  let freed = 0;
+  const oldest = [...entries].sort((a, b) => a[1].ts - b[1].ts);
+  for (const [key] of oldest) {
+    if (freed >= minBytes) break;
+    try {
+      const raw = localStorage.getItem(key);
+      localStorage.removeItem(key);
+      if (raw !== null) freed += (key.length + raw.length) * 2;
+    } catch {
+      break;
+    }
+    entries.delete(key);
+  }
+  return freed;
+});
 
 function discardLegacyCache(): void {
   const raw = localStorage.getItem(LEGACY_KEY);
