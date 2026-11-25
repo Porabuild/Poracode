@@ -1,3 +1,5 @@
+import { removeStoredKey, writeStoredString } from "@/renderer/utils/localStorage";
+
 // Renderer-local opt-out for the "context size change reloads the session"
 // confirmation. Absent (the default for every existing profile) means ask;
 // the only stored value is the explicit opt-out, so no migration is needed.
@@ -9,6 +11,6 @@ export function shouldConfirmContextSizeReload(): boolean {
 }
 
 export function setConfirmContextSizeReload(confirm: boolean): void {
-  if (confirm) localStorage.removeItem(PREF_KEY);
-  else localStorage.setItem(PREF_KEY, OPT_OUT);
+  if (confirm) removeStoredKey(PREF_KEY);
+  else writeStoredString(PREF_KEY, OPT_OUT);
 }

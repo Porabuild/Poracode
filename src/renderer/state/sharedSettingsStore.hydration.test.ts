@@ -371,6 +371,36 @@ describe("sharedSettingsStore hydration authority", () => {
     expect(bridge.setSharedSettings.mock.calls[0]?.[0]).toMatchObject({ themeMode: "dark" });
   });
 
+  it("keeps write authority when the renderer cache cannot be stored", async () => {
+    const bridge = installBridge("electron", () =>
+      Promise.resolve(normalizeSharedSettings({ themeMode: "light" })),
+    );
+    const setItem = vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+      throw new DOMException("The quota has been exceeded.", "QuotaExceededError");
+    });
+    const { useSharedSettings } = await loadFreshStore();
+    await vi.waitFor(() => expect(useSharedSettings.getState().sharedSettingsHydrated).toBe(true));
+    setItem.mockRestore();
+
+    useSharedSettings.getState().setThemeMode("dark");
+    await vi.waitFor(() => expect(bridge.setSharedSettings).toHaveBeenCalledTimes(1));
+    expect(bridge.setSharedSettings.mock.calls[0]?.[0]).toMatchObject({ themeMode: "dark" });
+  });
+
+  it("surfaces a rejected device-local write instead of dropping the change", async () => {
+    const { useSharedSettings } = await loadFreshStore();
+    const setItem = vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+      throw new DOMException("The quota has been exceeded.", "QuotaExceededError");
+    });
+    try {
+      expect(() => useSharedSettings.getState().setThemeMode("light")).toThrow(
+        expect.objectContaining({ name: "QuotaExceededError" }),
+      );
+    } finally {
+      setItem.mockRestore();
+    }
+  });
+
   it("does not let a late successful read roll back an accepted local edit made after a whole owner push", async () => {
     const read = deferred<SharedSettings>();
     const bridge = installBridge("electron", () => read.promise);

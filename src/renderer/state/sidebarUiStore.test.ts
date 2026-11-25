@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useSidebarUiStore } from "./sidebarUiStore";
 
 type State = ReturnType<typeof useSidebarUiStore.getState>;
@@ -105,6 +105,20 @@ describe("toggleFooterCollapsed", () => {
     expect(useSidebarUiStore.getState().footerCollapsed).toBe(true);
     useSidebarUiStore.getState().toggleFooterCollapsed();
     expect(useSidebarUiStore.getState().footerCollapsed).toBe(false);
+  });
+
+  it("keeps the update when the persist write is rejected", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const setItem = vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+      throw new DOMException("The quota has been exceeded.", "QuotaExceededError");
+    });
+    try {
+      expect(() => useSidebarUiStore.getState().toggleFooterCollapsed()).not.toThrow();
+      expect(useSidebarUiStore.getState().footerCollapsed).toBe(true);
+    } finally {
+      setItem.mockRestore();
+      warn.mockRestore();
+    }
   });
 });
 

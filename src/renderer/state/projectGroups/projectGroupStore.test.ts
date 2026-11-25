@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useProjectGroupStore } from "./projectGroupStore";
 
 const KEY = "poracode-project-groups";
@@ -57,5 +57,19 @@ describe("projectGroupStore", () => {
     expect(Object.keys(recent)).toHaveLength(200);
     expect(recent.p0).toBeUndefined();
     expect(recent.p204).toBe(204);
+  });
+
+  it("keeps the update when the persist write is rejected", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const setItem = vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+      throw new DOMException("The quota has been exceeded.", "QuotaExceededError");
+    });
+    try {
+      expect(() => useProjectGroupStore.getState().markProjectUsed("p1", 5)).not.toThrow();
+      expect(useProjectGroupStore.getState().lastUsedAt).toEqual({ p1: 5 });
+    } finally {
+      setItem.mockRestore();
+      warn.mockRestore();
+    }
   });
 });

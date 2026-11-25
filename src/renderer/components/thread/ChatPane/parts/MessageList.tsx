@@ -23,6 +23,7 @@ import { captureProductEvent } from "@/renderer/analytics/productAnalytics";
 import { readBridge } from "@/renderer/bridge";
 import { formatElapsed } from "@/renderer/utils/formatTime";
 import { isIosTouchScroll } from "@/renderer/utils/iosScroll";
+import { writeStoredString } from "@/renderer/utils/localStorage";
 import { useAppStore } from "@/renderer/state/appStore";
 import {
   getRuntimeItemPayload,
@@ -528,7 +529,7 @@ export function MessageList({
       .then((performed) => {
         if (!performed) return;
         if (dontAskAgain) {
-          localStorage.setItem(SKIP_REVERT_CONFIRM_PREF_KEY, "1");
+          writeStoredString(SKIP_REVERT_CONFIRM_PREF_KEY, "1");
         }
         setPendingRevert(null);
         setDontAskAgain(false);

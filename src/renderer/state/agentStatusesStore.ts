@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { createJSONStorage, persist } from "zustand/middleware";
+import { persist } from "zustand/middleware";
 import {
   areAgentSlashCommandsEqual,
   areAgentPresentationRuntimeFieldsEqual,
@@ -10,6 +10,7 @@ import {
 } from "@/shared/contracts";
 import type { AgentStatusSupervisorEvent } from "@/shared/ipc";
 import { decodeAgentStatusCache } from "@/shared/agentStatusCache";
+import { createBestEffortJsonStorage } from "@/renderer/utils/bestEffortJsonStorage";
 import { isTestingOnboardingSkipped } from "./welcomeGateStore";
 
 export type AgentDiscoveryScope =
@@ -243,6 +244,37 @@ function buildStatusUpdatePatch(
   return { ...listPatch, ...loadedPatch, ...discoveryPatch };
 }
 
+function omitSlashCommands(capabilities: AgentStatus["capabilities"]): AgentStatus["capabilities"] {
+  const { slashCommands: _omitted, ...rest } = capabilities;
+  return rest;
+}
+
+/**
+ * Drop lazily fetched slash-command catalogs before a status is persisted.
+ * They are the dominant status payload bulk (full skill descriptions per agent
+ * kind) and this snapshot is not their source: the managed host's launch
+ * `getAgentStatuses` RPC and the paired host's lazy `loadAgentSlashCommands`
+ * refill them. Persisted, they crowd the localStorage quota that drafts share.
+ */
+function withoutSlashCommands(status: AgentStatus): AgentStatus {
+  let runtimeVariants = status.runtimeVariants;
+  for (const [name, variant] of Object.entries(status.runtimeVariants ?? {})) {
+    if (variant.capabilities?.slashCommands === undefined) continue;
+    runtimeVariants = {
+      ...runtimeVariants,
+      [name]: { ...variant, capabilities: omitSlashCommands(variant.capabilities) },
+    };
+  }
+  const capabilities = status.capabilities;
+  const stripsCatalog = capabilities?.slashCommands !== undefined;
+  if (!stripsCatalog && runtimeVariants === status.runtimeVariants) return status;
+  return {
+    ...status,
+    ...(stripsCatalog ? { capabilities: omitSlashCommands(capabilities!) } : {}),
+    ...(runtimeVariants ? { runtimeVariants } : {}),
+  };
+}
+
 export const useAgentStatusesStore = create<AgentStatusesStore>()(
   persist(
     (set, get) => ({
@@ -429,7 +461,7 @@ export const useAgentStatusesStore = create<AgentStatusesStore>()(
       // icons — are in the store on the very first paint, before the async
       // getAgentStatuses RPC resolves. The RPC still runs on launch and
       // overwrites this with fresh results via hydrateFromCache.
-      storage: createJSONStorage(() => localStorage),
+      storage: createBestEffortJsonStorage(),
       merge: (persisted, current) => {
         const previous = (persisted ?? {}) as Partial<AgentStatusesStore>;
         return {
@@ -440,9 +472,10 @@ export const useAgentStatusesStore = create<AgentStatusesStore>()(
       },
       // Persist resolved statuses, their loaded flags, and discovery history.
       // Discovery interaction fields are session-scoped and reset each launch.
+      // Slash-command catalogs are stripped; the host refills them.
       partialize: (state) => ({
-        agentStatuses: state.agentStatuses,
-        wslAgentStatuses: state.wslAgentStatuses,
+        agentStatuses: state.agentStatuses.map(withoutSlashCommands),
+        wslAgentStatuses: state.wslAgentStatuses.map(withoutSlashCommands),
         windowsLoaded: state.windowsLoaded,
         wslLoaded: state.wslLoaded,
         hasCompletedDiscovery: state.hasCompletedDiscovery,

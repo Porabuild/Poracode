@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { createJSONStorage, persist } from "zustand/middleware";
+import { persist } from "zustand/middleware";
 import {
   DEFAULT_WORKSPACE_ICONS,
   DEFAULT_WORKSPACE_NAMES,
@@ -8,6 +8,7 @@ import {
 import { useAppStore } from "./appStore";
 import { useSharedSettings, whenSharedSettingsHydrated } from "./sharedSettingsStore";
 import { isBrowserClientRuntime } from "@/renderer/clientRuntime";
+import { createBestEffortJsonStorage } from "@/renderer/utils/bestEffortJsonStorage";
 import { isHomeProjectId } from "@/shared/homeScope";
 import { useRemoteServersStore } from "./remoteServersStore";
 import { pinRemoteProjectWorkspaces } from "./remoteServers/workspaceFilings";
@@ -74,7 +75,7 @@ export const useWorkspaceStore = create<WorkspaceUiState>()(
       // written before it existed. A v1 payload stays valid, so bumping would
       // only throw away the user's active workspace for no gain.
       version: 1,
-      storage: createJSONStorage(() => localStorage),
+      storage: createBestEffortJsonStorage(),
     },
   ),
 );

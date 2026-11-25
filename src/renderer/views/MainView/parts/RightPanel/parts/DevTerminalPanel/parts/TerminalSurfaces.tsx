@@ -6,6 +6,7 @@ import { useAppStore } from "@/renderer/state/appStore";
 import { entityHost } from "@/renderer/state/entityHost";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useThreadOutputStore } from "@/renderer/state/threadOutputStore";
+import { writeStoredString } from "@/renderer/utils/localStorage";
 import type { TerminalSize } from "@/shared/contracts";
 
 const SPLIT_MIN_PERCENT = 15;
@@ -81,7 +82,7 @@ export function TerminalSurfaces(props: {
   }, [splitPercent]);
 
   useEffect(() => {
-    localStorage.setItem(SPLIT_STORAGE_KEY, String(splitPercent));
+    writeStoredString(SPLIT_STORAGE_KEY, String(splitPercent));
   }, [splitPercent]);
 
   useEffect(() => {

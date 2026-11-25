@@ -79,6 +79,7 @@ import {
   type MachineScopeMode,
   type MachineScopeModes,
 } from "@/shared/machineSettings";
+import { writeStoredJson } from "@/renderer/utils/localStorage";
 
 const STORAGE_KEY = "poracode-shared-settings";
 
@@ -361,14 +362,26 @@ function drainSharedSettingsWrites(): void {
   });
 }
 
+/**
+ * Stores the renderer's snapshot. While an owner already holds the change it
+ * is only a cache, and a full quota must not cancel or block that write.
+ * Without an owner this storage is the only durable copy, so a failed write
+ * keeps surfacing instead of dropping the change.
+ */
+function writeSettingsCache(settings: SharedSettingsInput, ownerHasIt: boolean): void {
+  if (ownerHasIt) writeStoredJson(STORAGE_KEY, settings);
+  else localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+}
+
 function persistSettings(settings: SharedSettingsInput): void {
   if (typeof window === "undefined") {
     return;
   }
 
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+  const ownerWrite = hasBridge() && settingsWritesAdmitted();
+  writeSettingsCache(settings, ownerWrite);
 
-  if (hasBridge() && settingsWritesAdmitted()) {
+  if (ownerWrite) {
     // Whole-document writes must stay ordered. Coalesce changes that arrive
     // while one write is in flight so a slower older IPC call can never land
     // after the newest settings and resurrect stale plugin/provider state.
@@ -449,7 +462,7 @@ function cacheSettingsSnapshot(settings: SharedSettingsInput): void {
     return;
   }
 
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+  writeSettingsCache(settings, hasBridge());
 }
 
 function providerDraftConfigEqual(
@@ -1586,7 +1599,7 @@ if (!hasBridge()) {
         ...admitted,
         sharedSettingsHydrated: true,
       }));
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(admitted));
+      writeStoredJson(STORAGE_KEY, admitted);
       admitInitialRead();
     } catch (error) {
       // A refused read is never authority: the refusal is preserved so a

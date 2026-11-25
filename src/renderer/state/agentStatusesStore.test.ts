@@ -408,6 +408,129 @@ describe("persisted agent status cache", () => {
     expect(persisted).not.toHaveProperty("wslRevision");
   });
 
+  it("does not persist slash-command catalogs", () => {
+    const catalog = [{ id: "review", label: "Review", description: "Review the diff." }];
+    const base = makeStatus().capabilities;
+    const status = makeStatus({
+      kind: "claude",
+      label: "Claude Code",
+      capabilities: { ...base, slashCommands: catalog },
+      runtimeVariants: {
+        gui: {
+          presentationMode: "gui",
+          installed: true,
+          authState: "authenticated",
+          authUsesProviderLogin: false,
+          capabilities: { ...base, slashCommands: catalog },
+        },
+      },
+    });
+    useAgentStatusesStore.getState().setAgentStatuses([status]);
+    // The live store keeps the catalogs for the composer.
+    expect(useAgentStatusesStore.getState().agentStatuses[0]).toBe(status);
+    const persisted = useAgentStatusesStore.persist.getOptions().partialize!(
+      useAgentStatusesStore.getState(),
+    ) as ReturnType<typeof useAgentStatusesStore.getState>;
+    expect(persisted.agentStatuses[0]?.capabilities.slashCommands).toBeUndefined();
+    expect(persisted.agentStatuses[0]?.capabilities.models).toEqual(base.models);
+    expect(
+      persisted.agentStatuses[0]?.runtimeVariants?.gui?.capabilities.slashCommands,
+    ).toBeUndefined();
+    const stored = localStorage.getItem("poracode-agent-statuses-v1")!;
+    expect(stored).not.toContain("slashCommands");
+    expect(JSON.parse(stored).state.agentStatuses[0].kind).toBe("claude");
+  });
+
+  it("keeps persisting when a stored status carries no capabilities", () => {
+    const bare = {
+      kind: "claude",
+      label: "Claude Code",
+      installed: true,
+      authState: "authenticated",
+    } as unknown as AgentStatus;
+    expect(() => useAgentStatusesStore.getState().setAgentStatuses([bare])).not.toThrow();
+    const persisted = useAgentStatusesStore.persist.getOptions().partialize!(
+      useAgentStatusesStore.getState(),
+    ) as ReturnType<typeof useAgentStatusesStore.getState>;
+    expect(persisted.agentStatuses).toEqual([bare]);
+    expect(localStorage.getItem("poracode-agent-statuses-v1")).toContain("Claude Code");
+  });
+
+  it("loads a pre-upgrade snapshot with catalogs and rewrites it without them", async () => {
+    // v80 snapshots written before catalogs were stripped must still load.
+    const catalog = [{ id: "review", label: "Review", description: "x".repeat(2000) }];
+    const legacy = makeStatus({
+      kind: "claude",
+      label: "Claude Code",
+      capabilities: { ...makeStatus().capabilities, slashCommands: catalog },
+    });
+    const legacySnapshot = JSON.stringify({
+      version: 80,
+      state: {
+        agentStatuses: [legacy],
+        wslAgentStatuses: [],
+        windowsLoaded: true,
+        wslLoaded: true,
+        hasCompletedDiscovery: true,
+      },
+    });
+    localStorage.setItem("poracode-agent-statuses-v1", legacySnapshot);
+    await useAgentStatusesStore.persist.rehydrate();
+    expect(useAgentStatusesStore.getState()).toMatchObject({
+      agentStatuses: [legacy],
+      windowsLoaded: true,
+      wslLoaded: true,
+      hasCompletedDiscovery: true,
+    });
+    useAgentStatusesStore.getState().setAgentStatuses([legacy]);
+    const stored = localStorage.getItem("poracode-agent-statuses-v1")!;
+    expect(stored.length).toBeLessThan(legacySnapshot.length);
+    expect(stored).not.toContain("slashCommands");
+    expect(JSON.parse(stored).version).toBe(80);
+    expect(JSON.parse(stored).state.agentStatuses[0].label).toBe("Claude Code");
+  });
+
+  it("keeps working when localStorage rejects the status write", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const setItem = vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+      throw new DOMException("The quota has been exceeded.", "QuotaExceededError");
+    });
+    try {
+      const status = makeStatus({ kind: "claude", label: "Claude Code" });
+      expect(() => useAgentStatusesStore.getState().setAgentStatuses([status])).not.toThrow();
+      expect(useAgentStatusesStore.getState().agentStatuses).toEqual([status]);
+      expect(warn).toHaveBeenCalledTimes(1);
+    } finally {
+      setItem.mockRestore();
+      warn.mockRestore();
+    }
+  });
+
+  it("stays the same size across a long session of catalog-bearing updates", () => {
+    const catalog = [{ id: "review", label: "Review", description: "x".repeat(2000) }];
+    const base = makeStatus().capabilities;
+    const a = makeStatus({
+      kind: "claude",
+      label: "Claude Code",
+      capabilities: { ...base, slashCommands: catalog },
+    });
+    const b = makeStatus({
+      kind: "codex",
+      label: "Codex",
+      capabilities: { ...base, slashCommands: catalog },
+    });
+    useAgentStatusesStore.getState().setAgentStatuses([a, b]);
+    const stored = () => localStorage.getItem("poracode-agent-statuses-v1") ?? "";
+    const firstSize = stored().length;
+    for (let index = 0; index < 1000; index += 1) {
+      useAgentStatusesStore.getState().setAgentStatuses(index % 2 === 0 ? [b] : [a, b]);
+      expect(stored().length).toBeLessThanOrEqual(firstSize);
+    }
+    expect(stored().length).toBe(firstSize);
+    expect(firstSize).toBeLessThan(2000);
+    expect(stored()).not.toContain("slashCommands");
+  });
+
   it("migrates v65 persisted statuses with 1M as the Claude default window", async () => {
     const staleClaude = makeStatus({
       kind: "claude",

@@ -21,4 +21,14 @@ describe("browser push device id", () => {
     expect(second).toBe("00000000-0000-4000-8000-000000000001");
     expect(randomUUID).toHaveBeenCalledOnce();
   });
+
+  it("answers with a session identity when the id cannot be stored", async () => {
+    vi.spyOn(crypto, "randomUUID").mockReturnValue("00000000-0000-4000-8000-000000000002");
+    vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+      throw new DOMException("The quota has been exceeded.", "QuotaExceededError");
+    });
+    await expect(getOrCreateBrowserDeviceId()).resolves.toBe(
+      "00000000-0000-4000-8000-000000000002",
+    );
+  });
 });
