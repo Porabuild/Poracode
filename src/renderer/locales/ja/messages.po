@@ -6156,6 +6156,14 @@ msgstr "デザインとメディア"
 msgid "Design and creativity"
 msgstr "デザインとクリエイティビティ"
 
+#: src/renderer/components/crew/crewRoleTemplates.ts
+msgid "Designer"
+msgstr "デザイナー"
+
+#: src/renderer/components/crew/crewRoleTemplates.ts
+msgid "Designs and builds UI from the design system and platform guidelines, verifies it in the running app with screenshots, and reports the changes with evidence."
+msgstr "デザインシステムとプラットフォームのガイドラインに沿ってUIを設計・実装し、実行中のアプリでスクリーンショットにより検証して、変更点を根拠とともに報告します。"
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Desktop endpoint"
 msgstr "デスクトップエンドポイント"
@@ -21567,6 +21575,10 @@ msgstr "「+」を使用して直接ペアリングするか、SSH 経由でリ�
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Use 2 to 6 attempts and delays between 1 and 3600 seconds."
 msgstr "試行回数は 2～6 回、待機時間は 1～3600 秒にしてください。"
+
+#: src/renderer/components/crew/CrewRoleDetails.tsx
+msgid "Use a predefined role"
+msgstr "定義済みのロールを使用"
 
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Use a run limit between 1 and 100, or leave it empty."

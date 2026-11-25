@@ -505,12 +505,14 @@ function CrewEditorModal(props: {
                       ),
                     }))
                   }
-                  onRoleChange={(patch) =>
+                  onRoleChange={(patch) => {
                     setDraft((current) => {
                       const next = updateRole(draftBindingOf(current), role.id, patch);
                       return { ...current, roles: next.roles };
-                    })
-                  }
+                    });
+                    // A predefined role replaces the id; keep its details expanded.
+                    if (patch.id && patch.id !== role.id) setEditingRoleId(patch.id);
+                  }}
                   onRemoveRole={() => {
                     setDraft((current) => ({
                       ...current,

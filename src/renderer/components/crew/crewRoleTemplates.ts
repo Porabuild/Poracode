@@ -47,6 +47,12 @@ export const CREW_ROLE_TEMPLATE_DESCRIPTORS: readonly CrewRoleTemplateDescriptor
     tone: "builder",
   },
   {
+    id: "designer",
+    label: msg`Designer`,
+    brief: msg`Designs and builds UI from the design system and platform guidelines, verifies it in the running app with screenshots, and reports the changes with evidence.`,
+    tone: "builder",
+  },
+  {
     id: "reviewer",
     label: msg`Reviewer`,
     brief: msg`Reads the full diff and the code it touches, runs targeted checks, and reports bugs, regressions and missing tests by file and line.`,

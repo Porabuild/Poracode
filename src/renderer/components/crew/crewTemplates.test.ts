@@ -71,6 +71,16 @@ describe("crew templates", () => {
     },
   );
 
+  it("offers Designer right after Builder as an implementing role", () => {
+    const ids = CREW_ROLE_TEMPLATE_DESCRIPTORS.map((role) => role.id);
+    expect(ids.indexOf("designer")).toBe(ids.indexOf("builder") + 1);
+    expect(CREW_ROLE_TEMPLATE_DESCRIPTORS.find((role) => role.id === "designer")).toMatchObject({
+      label: { message: "Designer" },
+      tone: "builder",
+    });
+    expect(crewRoleTone({ id: "designer" }, false)).toBe("builder");
+  });
+
   it("gives every ready role a brief and pairs the read-only review board with a sidekick", () => {
     expect(CREW_ROLE_TEMPLATE_DESCRIPTORS.every((role) => role.brief)).toBe(true);
     expect(CREW_TEMPLATE_DESCRIPTORS.find((template) => template.id === "review")?.roles).toEqual([

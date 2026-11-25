@@ -278,4 +278,21 @@ final class CrewModelsTests: XCTestCase {
     XCTAssertFalse(HomeCrewRestore.holdsLaunch(hasConfiguredConfiguration: false,
       crewsLoadPending: true, remembered: nil))
   }
+
+  @MainActor
+  func testDesignerTemplateSitsAfterBuilderAndSharesTheImplementerSlot() {
+    let ids = CrewTemplates.roles.map(\.id)
+    XCTAssertEqual(ids.firstIndex(of: "designer"), ids.firstIndex(of: "builder").map { $0 + 1 })
+    let designer = CrewTemplates.roles.first { $0.id == "designer" }
+    XCTAssertEqual(designer?.englishLabel, "Designer")
+    XCTAssertEqual(designer?.builder, true)
+    XCTAssertEqual(designer?.englishBrief.isEmpty, false)
+    // A crew that already has Builder is not offered a second implementer.
+    let builder = CrewTemplates.roles.first { $0.id == "builder" }!
+    let selection = CrewMemberSelection(agentKind: "alpha", model: "model-pro")
+    let binding = ThreadCrewBinding(policy: .crewOnly, roles: [builder.role(selection: selection)])
+    let (next, roleID) = CrewTemplates.addingRole(to: binding, selection: selection)
+    XCTAssertEqual(roleID, "reviewer")
+    XCTAssertEqual(next.roles.map(\.id), ["builder", "reviewer"])
+  }
 }

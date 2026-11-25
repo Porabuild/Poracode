@@ -520,6 +520,31 @@ describe("CrewsSettings", () => {
     });
   });
 
+  it("applies a predefined role in the editor, keeping the role's helper model", async () => {
+    renderWithI18n(<CrewsSettings />);
+    fireEvent.click(document.querySelector('button[aria-label="New crew"]')!);
+    fireEvent.click(await screen.findByRole("option", { name: /^Lead \+ Sidekick/u }));
+    await screen.findByRole("dialog");
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(useSharedSettings.getState().crews).toHaveLength(1));
+
+    fireEvent.click(await screen.findByRole("button", { name: "Edit Lead + Sidekick" }));
+    await screen.findByRole("dialog");
+    fireEvent.click(screen.getByRole("button", { name: "Role details" }));
+    fireEvent.click(screen.getByRole("button", { name: "Use a predefined role" }));
+    fireEvent.click(await screen.findByRole("option", { name: /^Designer/u }));
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+
+    expect(useSharedSettings.getState().crews[0]?.roles[0]).toMatchObject({
+      id: "designer",
+      label: "Designer",
+      brief:
+        "Designs and builds UI from the design system and platform guidelines, verifies it in the running app with screenshots, and reports the changes with evidence.",
+      selection: { agentKind: "claude", model: "claude-model" },
+    });
+  });
+
   it("persists edited roles and caps fallbacks at three on save", async () => {
     renderWithI18n(<CrewsSettings />);
     fireEvent.click(document.querySelector('button[aria-label="New crew"]')!);

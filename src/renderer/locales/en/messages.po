@@ -6157,6 +6157,14 @@ msgstr "Design & media"
 msgid "Design and creativity"
 msgstr "Design and creativity"
 
+#: src/renderer/components/crew/crewRoleTemplates.ts
+msgid "Designer"
+msgstr "Designer"
+
+#: src/renderer/components/crew/crewRoleTemplates.ts
+msgid "Designs and builds UI from the design system and platform guidelines, verifies it in the running app with screenshots, and reports the changes with evidence."
+msgstr "Designs and builds UI from the design system and platform guidelines, verifies it in the running app with screenshots, and reports the changes with evidence."
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Desktop endpoint"
 msgstr "Desktop endpoint"
@@ -21569,6 +21577,10 @@ msgstr "Use + to pair directly or connect to a remote machine over SSH."
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Use 2 to 6 attempts and delays between 1 and 3600 seconds."
 msgstr "Use 2 to 6 attempts and delays between 1 and 3600 seconds."
+
+#: src/renderer/components/crew/CrewRoleDetails.tsx
+msgid "Use a predefined role"
+msgstr "Use a predefined role"
 
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Use a run limit between 1 and 100, or leave it empty."

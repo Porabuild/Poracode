@@ -1,14 +1,22 @@
 import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 import type { AgentCapability } from "@/shared/contracts";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import type { CrewHelperOptions } from "./crewHelperOptions";
 import type { CrewRosterModel } from "./crewComposerModel";
-import { MAX_CREW_ROLES } from "@/shared/crew";
+import { MAX_CREW_ROLES, threadCrewBinding } from "@/shared/crew";
 import type { CrewMemberSelection, CrewRole, SavedCrew, ThreadCrewBinding } from "@/shared/crew";
 import { CrewRosterMenu } from "./CrewRosterMenu";
 import { CrewRosterPanel } from "./CrewRosterPanel";
 import { renderWithI18n } from "@/renderer/testUtils/i18n";
+
+/** Types character by character through the controlled input, like a keyboard. */
+function typeChars(input: HTMLInputElement, text: string) {
+  for (const character of text) {
+    fireEvent.change(input, { target: { value: input.value + character } });
+  }
+}
 
 const selection: CrewMemberSelection = {
   agentKind: "codex",
@@ -164,6 +172,107 @@ describe("CrewRosterPanel", () => {
     const added = onBindingChange.mock.lastCall![0];
     view.rerender(<CrewRosterPanel model={{ ...model, binding: added }} />);
     expect(await screen.findByRole("textbox", { name: "Role name" })).toHaveValue("Builder");
+  });
+
+  it("keeps spaces in role text fields inside the roster menu", async () => {
+    const base = makeModel();
+    // Mirror the live-thread path: the roster reads its binding back through
+    // threadCrewBinding, which trims/collapses role text on every render.
+    function Harness() {
+      const [binding, setBinding] = useState(base.binding);
+      return (
+        <CrewRosterMenu
+          model={{
+            ...base,
+            binding,
+            onBindingChange: (next) => setBinding(threadCrewBinding({ crew: next }) ?? next),
+          }}
+        />
+      );
+    }
+    renderWithI18n(<Harness />);
+    fireEvent.click(screen.getByRole("button", { name: "Crew members" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Role details" }));
+
+    const name = (await screen.findByRole("textbox", { name: "Role name" })) as HTMLInputElement;
+    typeChars(name, " team");
+    expect(name.value).toBe("Scout team");
+    // A space that is currently trailing text must stay visible while the
+    // field is focused; the persisted binding trims it on blur.
+    typeChars(name, " ");
+    expect(name.value).toBe("Scout team ");
+    typeChars(name, "copy");
+    expect(name.value).toBe("Scout team copy");
+
+    const brief = screen.getByRole("textbox", { name: "When to use" }) as HTMLInputElement;
+    typeChars(brief, " now");
+    expect(brief.value).toBe("Explores code and docs now");
+
+    // Space reaches the field as text, and caret keys stay native.
+    expect(fireEvent.keyDown(name, { key: " " })).toBe(true);
+    for (const key of ["ArrowLeft", "ArrowRight", "Home", "End"]) {
+      expect(fireEvent.keyDown(brief, { key })).toBe(true);
+      expect(brief.value).toBe("Explores code and docs now");
+    }
+  });
+
+  it("applies a predefined role to an existing role, keeping its profile and parallel count", async () => {
+    const base = makeModel();
+    const onBindingChange = vi.fn<(next: ThreadCrewBinding) => void>();
+    const customized: CrewRole = { ...role, parallel: 2, fallbacks: [selection] };
+    function Harness() {
+      const [binding, setBinding] = useState({ ...base.binding, roles: [customized] });
+      return (
+        <CrewRosterPanel
+          model={{
+            ...base,
+            binding,
+            onBindingChange: (next) => {
+              onBindingChange(next);
+              setBinding(next);
+            },
+          }}
+        />
+      );
+    }
+    renderWithI18n(<Harness />);
+    fireEvent.click(screen.getByRole("button", { name: "Role details" }));
+    fireEvent.click(screen.getByRole("button", { name: "Use a predefined role" }));
+    fireEvent.click(await screen.findByRole("option", { name: /^Reviewer/u }));
+
+    expect(onBindingChange.mock.lastCall?.[0].roles[0]).toMatchObject({
+      id: "reviewer",
+      label: "Reviewer",
+      brief: "Reviews diffs and finds bugs",
+      selection: role.selection,
+      parallel: 2,
+      fallbacks: [selection],
+    });
+    // The template has no read-only flag, so the old one is cleared.
+    expect(onBindingChange.mock.lastCall?.[0].roles[0]?.noEdits).toBeUndefined();
+    // The replaced role stays open for editing.
+    expect(await screen.findByRole("textbox", { name: "Role name" })).toHaveValue("Reviewer");
+  });
+
+  it("excludes templates already used by other roles from the predefined list", async () => {
+    const base = makeModel();
+    const other: CrewRole = {
+      id: "reviewer",
+      label: "Reviewer",
+      selection: { agentKind: "codex", model: "gpt-5.5", effort: "low" },
+    };
+    renderWithI18n(
+      <CrewRosterPanel model={makeModel({ binding: { ...base.binding, roles: [role, other] } })} />,
+    );
+    fireEvent.click(screen.getAllByRole("button", { name: "Role details" })[0]!);
+    fireEvent.click(screen.getByRole("button", { name: "Use a predefined role" }));
+    const listbox = await screen.findByRole("listbox", { name: "Options" });
+
+    expect(within(listbox).queryByText("Reviewer")).toBeNull();
+    // The role's own template stays listed.
+    expect(within(listbox).getByText("Scout")).toBeInTheDocument();
+    expect(within(listbox).getByText("Builder")).toBeInTheDocument();
+    expect(within(listbox).getByText("Helper")).toBeInTheDocument();
   });
 
   it("disables Add role when no helper models are offered", () => {

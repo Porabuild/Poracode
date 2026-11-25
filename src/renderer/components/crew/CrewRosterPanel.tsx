@@ -258,9 +258,11 @@ export function CrewRosterPanel(props: {
             onSelectionChange={(selection) =>
               model.onBindingChange(updateRole(model.binding, role.id, { selection }))
             }
-            onRoleChange={(patch) =>
-              model.onBindingChange(updateRole(model.binding, role.id, patch))
-            }
+            onRoleChange={(patch) => {
+              model.onBindingChange(updateRole(model.binding, role.id, patch));
+              // A predefined role replaces the id; keep its details expanded.
+              if (patch.id && patch.id !== role.id) setEditingRoleId(patch.id);
+            }}
             onRemoveRole={() => {
               model.onBindingChange(removeRole(model.binding, role.id));
               setEditingRoleId(undefined);

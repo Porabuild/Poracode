@@ -212,6 +212,28 @@ describe("crewComposerModel", () => {
     expect(addRole(fromTemplate("explore"), readyTemplates, helper).roleId).toBe("builder");
   });
 
+  it("keeps the implementing slot single so Designer never duplicates Builder", () => {
+    const fromTemplate = (templateId: string): ThreadCrewBinding => ({
+      version: 1,
+      policy: "crew-only",
+      roles: crewRolesFromTemplate(
+        CREW_TEMPLATE_DESCRIPTORS.find((template) => template.id === templateId)!,
+        readyTemplates,
+        () => helper,
+      ),
+    });
+    // Builder is the first unused implementer; Designer shares that one slot.
+    const builder = addRole(fromTemplate("explore"), readyTemplates, helper);
+    expect(builder.roleId).toBe("builder");
+    expect(addRole(builder.binding, readyTemplates, helper).roleId).toBe("reviewer");
+    // A crew that already chose Designer also skips Builder.
+    const designer = newCrewBinding(
+      helper,
+      readyTemplates.find((role) => role.id === "designer")!,
+    );
+    expect(addRole(designer, readyTemplates, helper).roleId).toBe("reviewer");
+  });
+
   it("resets and saves existing or new crews with trimmed names", () => {
     expect(resetBinding(saved)).toMatchObject({ crewId: "ship", name: "Ship crew" });
     expect(saveToCrew(saved, setPolicy(binding, "crew-first"), saved.lead, 2)).toMatchObject({

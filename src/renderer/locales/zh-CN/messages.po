@@ -6157,6 +6157,14 @@ msgstr "设计与媒体"
 msgid "Design and creativity"
 msgstr "设计与创意"
 
+#: src/renderer/components/crew/crewRoleTemplates.ts
+msgid "Designer"
+msgstr "设计师"
+
+#: src/renderer/components/crew/crewRoleTemplates.ts
+msgid "Designs and builds UI from the design system and platform guidelines, verifies it in the running app with screenshots, and reports the changes with evidence."
+msgstr "依据设计系统和平台规范设计并构建界面，在运行中的应用里用截图验证，并附上证据报告改动。"
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Desktop endpoint"
 msgstr "桌面端点"
@@ -21568,6 +21576,10 @@ msgstr "使用 + 直接配对，或通过 SSH 连接到远程计算机。"
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Use 2 to 6 attempts and delays between 1 and 3600 seconds."
 msgstr "请设置 2 到 6 次尝试，延迟为 1 到 3600 秒。"
+
+#: src/renderer/components/crew/CrewRoleDetails.tsx
+msgid "Use a predefined role"
+msgstr "使用预设角色"
 
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Use a run limit between 1 and 100, or leave it empty."
