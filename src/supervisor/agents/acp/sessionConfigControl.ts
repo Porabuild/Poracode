@@ -21,10 +21,8 @@
  * authoritative: the write only confirms what the agent reports back.
  */
 
-import type {
-  ClientSideConnection,
-  SetSessionConfigOptionResponse,
-} from "@agentclientprotocol/sdk";
+import type { SetSessionConfigOptionResponse } from "@agentclientprotocol/sdk/unstable";
+import type { AcpClientConnection } from "./clientConnection";
 import type { ThreadConfig } from "@/shared/contracts";
 import { toErrorMessage } from "@/shared/errorMessage";
 import { assertBoundedJson } from "@/shared/jsonBounds";
@@ -90,7 +88,7 @@ export type AcpUnlistedSelectValueGuard = (
 ) => boolean;
 
 export interface AcpLiveConfigControlOptions {
-  connection: ClientSideConnection;
+  connection: AcpClientConnection;
   configSync: AcpSessionConfigSync;
   /** Single config writer shared with `applyTurnConfig`. */
   configWrites: ConfigWriteLock;

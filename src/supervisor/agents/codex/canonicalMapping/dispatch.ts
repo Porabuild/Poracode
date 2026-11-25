@@ -122,49 +122,73 @@ export function mapCodexNotification(
     const turnState = readTurnState(method, params);
     const turnFailed =
       turnState === "interrupted" || turnState === "failed" || turnState === "cancelled";
-    if (state.openAssistantItemId) {
-      events.push({
-        type: "item.completed",
-        threadId,
-        itemId: state.openAssistantItemId,
-      });
-      delete state.openAssistantItemId;
+    const assistantIds = new Set<string>();
+    if (state.openAssistantItemId && (turnSettled || state.assistantItemTurnId === turnId)) {
+      assistantIds.add(state.openAssistantItemId);
     }
-    if (state.turnPlanItemId) {
-      events.push({
-        type: "item.completed",
-        threadId,
-        itemId: state.turnPlanItemId,
-      });
-      delete state.turnPlanItemId;
-    }
+    const ownedAssistantId = state.openAssistantItemsByTurn.get(turnId);
+    if (ownedAssistantId) assistantIds.add(ownedAssistantId);
     if (turnSettled) {
-      // Codex can leave items open without their completion notification
-      // (a reasoning item with no visible summary, file changes, MCP/tool
-      // calls, or a command running when the user interrupts the turn).
-      // Finish them before dropping their mappings, or the persisted rows
-      // shimmer forever. On a clean turn completion, command_execution is
-      // exempt: unified exec background commands may legitimately outlive
-      // the turn and complete later. On an interrupted/failed turn, settle the
-      // visible command immediately; the native process may still finish later.
-      for (const [codexItemId, itemType] of state.itemTypeMap) {
-        if (itemType === "assistant_message" || itemType === "plan") {
-          continue;
-        }
-        if (itemType === "command_execution") {
-          const ownerTurnId = state.itemTurnIdMap.get(codexItemId);
-          if (!turnFailed || (ownerTurnId && ownerTurnId !== turnId)) continue;
-        }
-        const itemId = state.itemIdMap.get(codexItemId);
-        if (!itemId) continue;
-        state.settledItemIds.add(codexItemId);
-        events.push({
-          type: "item.completed",
-          threadId,
-          itemId,
-          ...(turnFailed && itemType !== "reasoning" ? { payload: { status: "error" } } : {}),
-        });
+      for (const itemId of state.openAssistantItemsByTurn.values()) assistantIds.add(itemId);
+    }
+    for (const itemId of assistantIds) {
+      events.push({ type: "item.completed", threadId, itemId });
+    }
+    for (const [ownerTurnId, itemId] of state.openAssistantItemsByTurn) {
+      if (assistantIds.has(itemId) || turnSettled) {
+        state.openAssistantItemsByTurn.delete(ownerTurnId);
       }
+    }
+    if (state.openAssistantItemId && assistantIds.has(state.openAssistantItemId)) {
+      delete state.openAssistantItemId;
+      if (state.assistantItemTurnId === turnId || turnSettled) delete state.assistantItemTurnId;
+    }
+
+    const planIds = new Set<string>();
+    if (state.turnPlanItemId && (turnSettled || state.planItemTurnId === turnId)) {
+      planIds.add(state.turnPlanItemId);
+    }
+    const ownedPlanId = state.planItemsByTurn.get(turnId);
+    if (ownedPlanId) planIds.add(ownedPlanId);
+    if (turnSettled) {
+      for (const itemId of state.planItemsByTurn.values()) planIds.add(itemId);
+    }
+    for (const itemId of planIds) {
+      events.push({ type: "item.completed", threadId, itemId });
+    }
+    for (const [ownerTurnId, itemId] of state.planItemsByTurn) {
+      if (planIds.has(itemId) || turnSettled) state.planItemsByTurn.delete(ownerTurnId);
+    }
+    if (state.turnPlanItemId && planIds.has(state.turnPlanItemId)) {
+      delete state.turnPlanItemId;
+      if (state.planItemTurnId === turnId || turnSettled) delete state.planItemTurnId;
+    }
+    // Codex can leave items open without their completion notification (a
+    // reasoning item with no visible summary, file changes, MCP/tool calls, or
+    // a command running when the user interrupts the turn). Finish them before
+    // dropping their mappings, or the persisted rows shimmer forever. When a
+    // sibling turn is still active, settle only the completing turn's items;
+    // unowned legacy items wait for the thread-wide settle. Command rows that
+    // were running are settled on failed/interrupted turns but keep their
+    // mapping so a late native completion reports the real exit status.
+    for (const [codexItemId, itemType] of state.itemTypeMap) {
+      if (itemType === "assistant_message" || itemType === "plan") {
+        continue;
+      }
+      const ownerTurnId = state.itemTurnIdMap.get(codexItemId);
+      if (!turnSettled && ownerTurnId !== turnId) continue;
+      if (itemType === "command_execution") {
+        if (!turnFailed || (ownerTurnId && ownerTurnId !== turnId)) continue;
+      }
+      const itemId = state.itemIdMap.get(codexItemId);
+      if (!itemId) continue;
+      state.settledItemIds.add(codexItemId);
+      events.push({
+        type: "item.completed",
+        threadId,
+        itemId,
+        ...(turnFailed && itemType !== "reasoning" ? { payload: { status: "error" } } : {}),
+      });
     }
     const errorMessage = turnState === "failed" ? readCodexErrorMessage(params) : undefined;
     if (errorMessage) {
@@ -184,6 +208,10 @@ export function mapCodexNotification(
     });
     if (turnSettled) {
       delete state.currentTurnId;
+      delete state.assistantItemTurnId;
+      delete state.planItemTurnId;
+      state.openAssistantItemsByTurn.clear();
+      state.planItemsByTurn.clear();
       // Unified exec commands can keep running even after the turn is interrupted.
       // Preserve those mappings so late output and completion notifications
       // continue updating the original row instead of opening a blank command.
@@ -197,6 +225,19 @@ export function mapCodexNotification(
       state.fileChangeOutputMap.clear();
       state.fileChangePathMap.clear();
       state.reasoningSummaryIndexMap.clear();
+    } else {
+      if (state.currentTurnId === turnId) delete state.currentTurnId;
+      for (const [codexItemId, itemType] of state.itemTypeMap) {
+        if (itemType === "command_execution") continue;
+        if (state.itemTurnIdMap.get(codexItemId) !== turnId) continue;
+        state.itemIdMap.delete(codexItemId);
+        state.itemTypeMap.delete(codexItemId);
+        state.itemTurnIdMap.delete(codexItemId);
+        state.commandOutputSeenSet.delete(codexItemId);
+        state.fileChangeOutputMap.delete(codexItemId);
+        state.fileChangePathMap.delete(codexItemId);
+        state.reasoningSummaryIndexMap.delete(codexItemId);
+      }
     }
     return events;
   }
@@ -228,23 +269,38 @@ export function mapCodexNotification(
   if (method === "turn/plan/updated") {
     const steps = readCodexPlanSteps(params);
     if (steps.length === 0) return [];
-    if (!state.turnPlanItemId) {
-      state.turnPlanItemId = newItemId("plan");
+    const turnId = readTurnId(params) ?? state.currentTurnId;
+    let planItemId = turnId ? state.planItemsByTurn.get(turnId) : undefined;
+    if (!planItemId && state.turnPlanItemId && (!turnId || state.planItemTurnId === turnId)) {
+      planItemId = state.turnPlanItemId;
+    }
+    if (!planItemId) {
+      planItemId = newItemId("plan");
+      state.turnPlanItemId = planItemId;
+      if (turnId) {
+        state.planItemTurnId = turnId;
+        state.planItemsByTurn.set(turnId, planItemId);
+      }
       return [
         {
           type: "item.started",
           threadId,
-          itemId: state.turnPlanItemId,
+          itemId: planItemId,
           itemType: "plan",
           payload: { steps },
         },
       ];
     }
+    state.turnPlanItemId = planItemId;
+    if (turnId) {
+      state.planItemTurnId = turnId;
+      state.planItemsByTurn.set(turnId, planItemId);
+    }
     return [
       {
         type: "item.updated",
         threadId,
-        itemId: state.turnPlanItemId,
+        itemId: planItemId,
         payload: { steps },
       },
     ];
@@ -305,7 +361,13 @@ export function mapCodexNotification(
     state.itemTypeMap.set(codexItemId, itemType);
     const turnId = readTurnId(params) ?? state.currentTurnId;
     if (turnId) state.itemTurnIdMap.set(codexItemId, turnId);
-    if (itemType === "assistant_message") state.openAssistantItemId = internalId;
+    if (itemType === "assistant_message") {
+      state.openAssistantItemId = internalId;
+      if (turnId) {
+        state.assistantItemTurnId = turnId;
+        state.openAssistantItemsByTurn.set(turnId, internalId);
+      }
+    }
     const events: RuntimeEvent[] = [
       {
         type: "item.started",
@@ -401,10 +463,21 @@ export function mapCodexNotification(
       return events;
     }
     const itemType = state.itemTypeMap.get(codexItemId) ?? canonicalTypeFor(item.type ?? item.kind);
+    const ownerTurnId = state.itemTurnIdMap.get(codexItemId);
     state.itemIdMap.delete(codexItemId);
     state.itemTypeMap.delete(codexItemId);
     state.itemTurnIdMap.delete(codexItemId);
-    if (state.openAssistantItemId === internalId) delete state.openAssistantItemId;
+    if (state.openAssistantItemId === internalId) {
+      delete state.openAssistantItemId;
+      delete state.assistantItemTurnId;
+    }
+    if (
+      ownerTurnId &&
+      itemType === "assistant_message" &&
+      state.openAssistantItemsByTurn.get(ownerTurnId) === internalId
+    ) {
+      state.openAssistantItemsByTurn.delete(ownerTurnId);
+    }
     const events: RuntimeEvent[] = [];
     if (itemType === "assistant_message" || itemType === "user_message") {
       const finalText = extractMessageText(item);
@@ -431,6 +504,10 @@ export function mapCodexNotification(
         ...(wasSettled ? { replace: true } : {}),
       });
     }
+    // A late native completion is the process's own outcome. Since targeted
+    // termination now kills stopped unified-exec commands, a failure is
+    // truthful; on older servers a success is equally truthful evidence that
+    // Stop did not kill the process.
     const completedPayload = buildCompletedPayload(itemType, item, wslDistro);
     events.push({
       type: "item.completed",
@@ -470,7 +547,13 @@ export function mapCodexNotification(
       state.itemTypeMap.set(codexItemId, itemType);
       const turnId = readTurnId(params) ?? state.currentTurnId;
       if (turnId) state.itemTurnIdMap.set(codexItemId, turnId);
-      if (itemType === "assistant_message") state.openAssistantItemId = internalId;
+      if (itemType === "assistant_message") {
+        state.openAssistantItemId = internalId;
+        if (turnId) {
+          state.assistantItemTurnId = turnId;
+          state.openAssistantItemsByTurn.set(turnId, internalId);
+        }
+      }
       opened.push({
         type: "item.started",
         threadId,

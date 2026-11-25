@@ -180,9 +180,15 @@ export class CodexAppServerConnection {
     return this.remoteThreadChannels.get(remoteThreadId) === channelId;
   }
 
-  request(channelId: string, method: string, params: unknown, timeoutMs: number): Promise<unknown> {
+  request(
+    channelId: string,
+    method: string,
+    params: unknown,
+    timeoutMs: number,
+    options?: { retryOnOverload?: boolean },
+  ): Promise<unknown> {
     if (method !== "initialize") {
-      return this.requestWithRetry(channelId, method, params, timeoutMs);
+      return this.requestWithRetry(channelId, method, params, timeoutMs, options);
     }
     this.initializePromise ??= this.requestWithRetry(channelId, method, params, timeoutMs).catch(
       (error: unknown) => {
@@ -280,6 +286,7 @@ export class CodexAppServerConnection {
     method: string,
     params: unknown,
     timeoutMs: number,
+    options?: { retryOnOverload?: boolean },
   ): Promise<unknown> {
     for (let attempt = 0; ; attempt += 1) {
       try {
@@ -288,6 +295,7 @@ export class CodexAppServerConnection {
         if (
           !(error instanceof CodexRpcResponseError) ||
           error.code !== SERVER_OVERLOADED_ERROR_CODE ||
+          options?.retryOnOverload === false ||
           attempt >= MAX_OVERLOAD_RETRIES
         ) {
           throw error;
@@ -567,8 +575,9 @@ export class CodexAppServerRpc {
     method: M,
     params: CodexClientRequestMap[M]["params"],
     timeoutMs = 30_000,
+    options?: { retryOnOverload?: boolean },
   ): Promise<CodexClientRequestMap[M]["result"]> {
-    return this.connection.request(this.channelId, method, params, timeoutMs) as Promise<
+    return this.connection.request(this.channelId, method, params, timeoutMs, options) as Promise<
       CodexClientRequestMap[M]["result"]
     >;
   }

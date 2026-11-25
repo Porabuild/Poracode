@@ -11,7 +11,7 @@
  * stays focused on lifecycle and mapping state.
  */
 
-import type { ToolKind } from "@agentclientprotocol/sdk";
+import type { ToolKind } from "@agentclientprotocol/sdk/unstable";
 
 export interface TranscriptToolCall {
   name: string;
@@ -28,6 +28,7 @@ export interface TranscriptStep {
   input_tokens?: number;
   output_tokens?: number;
   cache_read_tokens?: number;
+  exit_code?: number;
   tool_calls?: TranscriptToolCall[];
 }
 
@@ -75,6 +76,7 @@ export function parseTranscriptSteps(raw: string): TranscriptStep[] {
       ...(typeof rec.cache_read_tokens === "number"
         ? { cache_read_tokens: rec.cache_read_tokens }
         : {}),
+      ...(typeof rec.exit_code === "number" ? { exit_code: rec.exit_code } : {}),
       ...(toolCalls ? { tool_calls: toolCalls } : {}),
     });
   }

@@ -1,4 +1,4 @@
-import type { ContentBlock, InitializeResponse } from "@agentclientprotocol/sdk";
+import type { ContentBlock, InitializeResponse } from "@agentclientprotocol/sdk/unstable";
 
 /**
  * Non-interrupting steering over ACP, declared by the provider. ACP allows one

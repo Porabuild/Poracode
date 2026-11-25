@@ -4,7 +4,7 @@ import {
   type ContentBlock,
   type InitializeRequest,
   type SessionUpdate,
-} from "@agentclientprotocol/sdk";
+} from "@agentclientprotocol/sdk/unstable";
 import type { RuntimeEvent } from "@/shared/contracts";
 import { toErrorMessage } from "@/shared/errorMessage";
 

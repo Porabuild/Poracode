@@ -23,7 +23,7 @@ import {
   type TerminalOutputResponse,
   type WaitForTerminalExitRequest,
   type WaitForTerminalExitResponse,
-} from "@agentclientprotocol/sdk";
+} from "@agentclientprotocol/sdk/unstable";
 import type { ProjectLocation } from "@/shared/contracts";
 import { terminateChildProcessTree } from "@/shared/processTree";
 import {

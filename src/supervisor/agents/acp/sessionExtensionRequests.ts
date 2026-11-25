@@ -14,7 +14,7 @@
  * Vendor wire names live in provider handlers; nothing here learns one.
  */
 
-import { RequestError } from "@agentclientprotocol/sdk";
+import { RequestError } from "@agentclientprotocol/sdk/unstable";
 import { assertBoundedJson } from "@/shared/jsonBounds";
 import type {
   AcpExtensionRequestContext,

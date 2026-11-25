@@ -624,6 +624,29 @@ describe("PiRpcSession (mock pi --mode rpc)", () => {
       ]),
     );
     await disposeSettledSession(session, events, updates);
+    expect(updates.filter((update) => update.slashCommands !== undefined).at(-1)).toMatchObject({
+      status: "error",
+      errorMessage: "MOCK_PROVIDER_ERROR",
+    });
+  });
+
+  it("clears a persisted provider error when the next turn succeeds", async () => {
+    const { session, events, updates } = await createSession();
+    await session.startTurn("FAIL please", { model: "mock/model", effort: "off" });
+    await waitFor(events, () =>
+      updates.some(
+        (update) =>
+          update.slashCommands !== undefined &&
+          update.status === "error" &&
+          update.errorMessage === "MOCK_PROVIDER_ERROR",
+      ),
+    );
+
+    await session.startTurn("ECHO recovered", { model: "mock/model", effort: "off" });
+    await disposeSettledSession(session, events, updates);
+    const finalUpdate = updates.filter((update) => update.slashCommands !== undefined).at(-1);
+    expect(finalUpdate).toMatchObject({ status: "idle" });
+    expect(finalUpdate?.errorMessage).toBeUndefined();
   });
 
   it.each([

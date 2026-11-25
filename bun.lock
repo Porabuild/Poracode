@@ -5,7 +5,7 @@
     "": {
       "name": "poracode",
       "dependencies": {
-        "@agentclientprotocol/sdk": "1.4.0",
+        "@agentclientprotocol/sdk": "2.12.0",
         "@anthropic-ai/claude-agent-sdk": "0.3.311",
         "@chenglou/pretext": "^1.0.0",
         "@dnd-kit/abstract": "^0.5.3",
@@ -205,7 +205,6 @@
     "@expo/hub-client@1.12.2": "patches/@expo%2Fhub-client@1.12.2.patch",
     "@legendapp/list@3.3.3": "patches/@legendapp__list@3.3.3.patch",
     "micromark-extension-math-extended@3.2.2": "patches/micromark-extension-math-extended@3.2.2.patch",
-    "@agentclientprotocol/sdk@1.4.0": "patches/@agentclientprotocol__sdk@1.4.0.patch",
     "monaco-editor@0.57.0": "patches/monaco-editor@0.57.0.patch",
     "bun@1.4.4-canary.20261109.1": "patches/bun@1.4.4-canary.20261109.1.patch",
   },
@@ -352,7 +351,7 @@
 
     "@adobe/react-spectrum-workflow": ["@adobe/react-spectrum-workflow@2.3.5", "", { "peerDependencies": { "react": "^16.8.0 || ^17.0.0-rc.1 || ^18.0.0 || ^19.0.0", "react-dom": "^16.8.0 || ^17.0.0-rc.1 || ^18.0.0 || ^19.0.0" } }, "sha512-b53VIPwPWKb/T5gzE3qs+QlGP5gVrw/LnWV3xMksDU+CRl3rzOKUwxIGiZO8ICyYh1WiyqY4myGlPU/nAynBUg=="],
 
-    "@agentclientprotocol/sdk": ["@agentclientprotocol/sdk@1.4.0", "", { "peerDependencies": { "zod": "^3.25.0 || ^4.0.0" } }, "sha512-/eufudw+aFY1LKLolT6yFE6UMmYRl7fMJ/DEONSIyR6wI3slHWITBsANRGqXEY8FRzqUxwh7QEaGiZHcJPVThg=="],
+    "@agentclientprotocol/sdk": ["@agentclientprotocol/sdk@2.12.0", "", { "peerDependencies": { "@modelcontextprotocol/server": "^2.4.0", "zod": "^3.25.76 || ^4.0.0" }, "optionalPeers": ["@modelcontextprotocol/server"] }, "sha512-nSkamfY4Lw9/AVBU5G5V9p82ScXhANDMBybQwcPH/9+euUtZm04/VFUMaLj4gLFEXxQEy+QP1VQiKgSRbYVIPg=="],
 
     "@alloc/quick-lru": ["@alloc/quick-lru@5.3.0", "", {}, "sha512-U4+70Pc5ZS9osnCBCE5Jha/ciHM+Yp+CNMNC/7HvYbNRk1Ldd+f7qO65W5qfhu/TCv+/ozljlXXe9Nj8419DMA=="],
 

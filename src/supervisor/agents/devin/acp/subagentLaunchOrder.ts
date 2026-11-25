@@ -1,4 +1,4 @@
-import type { SessionNotification } from "@agentclientprotocol/sdk";
+import type { SessionNotification } from "@agentclientprotocol/sdk/unstable";
 import type { AcpExternalSessionUpdateSource, AcpStructuredSession } from "../../acp/session";
 import { record } from "../acpRecord";
 

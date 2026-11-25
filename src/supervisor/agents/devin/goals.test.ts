@@ -1,5 +1,5 @@
 import type { RuntimeEvent } from "@/shared/contracts";
-import type { SessionNotification } from "@agentclientprotocol/sdk";
+import type { SessionNotification } from "@agentclientprotocol/sdk/unstable";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   createAcpMapperState,

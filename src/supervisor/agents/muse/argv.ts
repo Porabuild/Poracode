@@ -41,6 +41,8 @@ export function buildMuseConfigFlags(config: ThreadConfig): string[] {
   const policy = config.approvalPolicy;
   if (policy === "bypassPermissions" || policy === "yolo") {
     args.push("--yolo");
+  } else if (policy === "read-only") {
+    args.push("--permission-profile", ":read-only");
   } else if (policy && MUSE_APPROVAL_MODES.has(policy)) {
     args.push("--approval-mode", policy);
   }

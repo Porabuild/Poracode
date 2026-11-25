@@ -1,4 +1,7 @@
-import type { RequestPermissionRequest, SessionNotification } from "@agentclientprotocol/sdk";
+import type {
+  RequestPermissionRequest,
+  SessionNotification,
+} from "@agentclientprotocol/sdk/unstable";
 import type { ThreadConfig } from "@/shared/contracts";
 import type { AcpSelectBooleanConfigBinding } from "../acp/modelConfigOptions";
 import type { AcpPromptSteering } from "../acp/promptSteering";

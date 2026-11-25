@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type { ClientSideConnection } from "@agentclientprotocol/sdk";
+import type { AcpClientConnection } from "../acp/clientConnection";
 import type { ThreadConfig } from "@/shared/contracts";
 import { AcpSessionConfigSync } from "../acp/sessionConfigSync";
 import { GROK_AUTOMATION_RULES, buildGrokAcpArgs, buildGrokArgs } from "./argv";
@@ -134,7 +134,7 @@ describe("resolveGrokAcpModel", () => {
       request: vi.fn<() => Promise<void>>(async () => undefined),
     };
     const sync = new AcpSessionConfigSync(
-      connection as unknown as ClientSideConnection,
+      connection as unknown as AcpClientConnection,
       undefined,
       resolveGrokAcpModel,
     );

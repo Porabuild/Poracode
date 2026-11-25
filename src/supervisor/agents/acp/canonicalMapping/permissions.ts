@@ -3,7 +3,10 @@
  * `request.opened` events.
  */
 
-import type { CreateElicitationRequest, RequestPermissionRequest } from "@agentclientprotocol/sdk";
+import type {
+  CreateElicitationRequest,
+  RequestPermissionRequest,
+} from "@agentclientprotocol/sdk/unstable";
 import type {
   CanonicalRequestType,
   PermissionRequestDetails,

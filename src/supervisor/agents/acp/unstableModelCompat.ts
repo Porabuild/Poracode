@@ -13,7 +13,7 @@
  * `"model"`-category config option. The Copilot per-model effort probe also
  * drives model switches through `session/set_model`. The wire protocol itself
  * is unchanged — the SDK just no longer types it and the
- * `ClientSideConnection` passes responses through without stripping unknown
+ * `AcpClientConnection` passes responses through without stripping unknown
  * fields — so this module re-declares the removed shapes locally (with safe
  * `unknown` narrowing, mirroring the existing `configOptions` pattern) and
  * sends the removed request through the SDK's raw `request()` escape hatch.
@@ -26,7 +26,7 @@
  * config option in `configOptions`.
  */
 
-import type { ClientSideConnection } from "@agentclientprotocol/sdk";
+import type { AcpClientConnection } from "./clientConnection";
 
 /** Mirror of the removed pre-1.0 `ModelInfo` schema type. */
 export type UnstableModelInfo = {
@@ -74,7 +74,7 @@ export function readUnstableModelState(value: unknown): UnstableSessionModelStat
 /**
  * Read the unstable `models` field from a `session/new` / `session/load`
  * response. The 1.x SDK no longer types the field, but agents that still
- * emit it reach us untouched (`ClientSideConnection` does not strip unknown
+ * emit it reach us untouched (`AcpClientConnection` does not strip unknown
  * response fields), so narrow it safely from `unknown`.
  */
 export function readUnstableSessionModels(
@@ -105,7 +105,7 @@ export function readUnstableInitializeModels(meta: unknown): UnstableSessionMode
  * a `RequestError` (method-not-found on agents that dropped the method).
  */
 export async function setUnstableSessionModel(
-  connection: ClientSideConnection,
+  connection: AcpClientConnection,
   params: { sessionId: string; modelId: string },
 ): Promise<void> {
   await connection.request(UNSTABLE_SET_SESSION_MODEL_METHOD, params);

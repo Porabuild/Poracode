@@ -1,4 +1,4 @@
-import type { RequestPermissionRequest } from "@agentclientprotocol/sdk";
+import type { RequestPermissionRequest } from "@agentclientprotocol/sdk/unstable";
 import { describe, expect, it } from "vitest";
 import {
   buildAcpQuestionPermissionAnswerEvents,

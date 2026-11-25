@@ -55,8 +55,14 @@ const MUSE_MODEL_IDS: string[] = MUSE_STATIC_MODELS.map((model) => model.id);
 export const MUSE_EFFORTS = ["none", "minimal", "low", "medium", "high", "xhigh", "ultra"] as const;
 
 // Muse approval modes: untrusted | on-request | never (CLI default on-request).
-// `--yolo` is the true full bypass (approval + sandbox + trust) and is the
-// bypassPermissions target.
+// The CLI's `untrusted` maps to MSP `promptUnmatched`, which asks only for
+// actions no permission rule covers; the host's workspace filesystem authority
+// already covers project-root writes, so it is not a per-write approval gate.
+// Poracode's stricter `read-only` policy uses Muse's native permission profile
+// when the probed host advertises it; the static fallback omits it rather than
+// advertising a posture older hosts cannot enforce. `--yolo` is the true full bypass
+// (approval + sandbox + trust) and is the bypassPermissions target.
+const MUSE_READ_ONLY_APPROVAL_POLICY = { id: "read-only", label: "Read-only" } as const;
 const MUSE_APPROVAL_POLICIES = [
   { id: "untrusted", label: "Untrusted" },
   { id: "on-request", label: "On Request" },
@@ -417,6 +423,9 @@ export const museDetectionSpec: DetectionSpec = {
       authLogoutSupported: true,
       ...(skillCommands ? { slashCommands: skillCommands } : {}),
       ...(overlay ?? {}),
+      ...(catalog?.readOnlyPermissionProfile
+        ? { approvalPolicies: [MUSE_READ_ONLY_APPROVAL_POLICY, ...MUSE_APPROVAL_POLICIES] }
+        : {}),
       mcpScope: {
         terminal: help?.ok && museHelpSupportsConfigFlag(helpText) ? "launch" : "none",
         gui: catalog?.sessionMcpSupported === true ? "launch" : "none",

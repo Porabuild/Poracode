@@ -9,7 +9,7 @@
  * this case, so a "does the file exist yet?" read gets an answer instead of a
  * hard failure.
  */
-import { RequestError } from "@agentclientprotocol/sdk";
+import { RequestError } from "@agentclientprotocol/sdk/unstable";
 
 /** Node errnos that mean "this path does not resolve to a file". */
 const NOT_FOUND_CODES = new Set(["ENOENT", "ENOTDIR"]);

@@ -1,4 +1,4 @@
-import type { SessionNotification } from "@agentclientprotocol/sdk";
+import type { SessionNotification } from "@agentclientprotocol/sdk/unstable";
 import { PORACODE_ACP_GOAL_META_KEY, type AcpCanonicalGoalUpdate } from "../acp/canonicalMapping";
 import {
   buildCanonicalAcpSubagentInput,

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { CreateElicitationRequest } from "@agentclientprotocol/sdk";
+import type { CreateElicitationRequest } from "@agentclientprotocol/sdk/unstable";
 import type { CreateStructuredSessionInput } from "../base";
 import { AcpStructuredSession } from "./session";
 import { createAcpStructuredSession } from "./sessionFactory";
@@ -94,7 +94,7 @@ describe("createAcpStructuredSession baseSpawnEnv merge", () => {
   it("forwards provider-owned permission request normalization", () => {
     const create = spyOnCreate();
     const permissionRequestTransform = (
-      request: import("@agentclientprotocol/sdk").RequestPermissionRequest,
+      request: import("@agentclientprotocol/sdk/unstable").RequestPermissionRequest,
     ) => request;
     createAcpStructuredSession({ command: "test-agent", args: [] }, makeInput(), {
       permissionRequestTransform,

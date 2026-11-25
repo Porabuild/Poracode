@@ -11,7 +11,7 @@
  * leaking Qwen-specific checks into the shared mapper.
  */
 
-import type { SessionNotification } from "@agentclientprotocol/sdk";
+import type { SessionNotification } from "@agentclientprotocol/sdk/unstable";
 import { PORACODE_ACP_GOAL_META_KEY, type AcpCanonicalGoalUpdate } from "../acp/canonicalMapping";
 import {
   createAcpSubagentCoordinator,

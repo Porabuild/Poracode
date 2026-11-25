@@ -1,6 +1,6 @@
-import { access, mkdtemp, readFile, rm } from "node:fs/promises";
+import { access, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AgentInstanceConfig, ProjectLocation } from "@/shared/contracts";
@@ -223,6 +223,96 @@ describe("Antigravity official ACP runtime", () => {
       );
     } finally {
       await session!.dispose();
+    }
+  }, 30_000);
+
+  it("goes idle from the parent transcript when the server publishes no turn signal", async () => {
+    // agy_acp_server 1.4.1+ logs STATE_WAITING_FOR_TASKS at debug level, so at
+    // default verbosity the stderr signal never arrives (verified on 1.5.2).
+    // The fixture reproduces that wire; the waiting state is on disk instead.
+    const root = await mkdtemp(join(tmpdir(), "poracode-antigravity-acp-hold-"));
+    roots.push(root);
+    // The bridge resolves ~/.gemini/antigravity-acp/brain from the home dir.
+    const homeKeys = process.platform === "win32" ? ["USERPROFILE"] : ["HOME"];
+    const previousHome = homeKeys.map((key) => [key, process.env[key]] as const);
+    for (const key of homeKeys) process.env[key] = root;
+    const adapter = createAntigravityAcpRuntime(
+      acpInstance({ FAKE_BACKGROUND_HOLD_MS: "12000", FAKE_BACKGROUND_HOLD_NO_SIGNAL: "1" }),
+    )!;
+    const session = await adapter.createStructuredSession?.({
+      threadId: "antigravity-bg-hold-transcript",
+      projectLocation: projectLocation(),
+      config: { model: "gemini-pro" },
+      presentationMode: "gui",
+    });
+    expect(session).toBeDefined();
+    const sessionListener = listener();
+    session!.setListener(sessionListener);
+    try {
+      await session!.activate?.();
+      await session!.openThread?.({ model: "gemini-pro" });
+      session!
+        .startTurn?.("run the server in the background", { model: "gemini-pro" })
+        .catch(() => undefined);
+      // The recorded 1.5.2 waiting shape for the fixture's session id.
+      const transcript = join(
+        root,
+        ".gemini",
+        "antigravity-acp",
+        "brain",
+        "fake-session-1",
+        ".system_generated",
+        "logs",
+        "transcript_full.jsonl",
+      );
+      await mkdir(dirname(transcript), { recursive: true });
+      await writeFile(
+        transcript,
+        [
+          {
+            step_index: 0,
+            type: "USER_INPUT",
+            status: "DONE",
+            content: "run the server in the background",
+          },
+          {
+            step_index: 1,
+            type: "PLANNER_RESPONSE",
+            status: "DONE",
+            tool_calls: [{ name: "run_command", args: { CommandLine: "node server.js" } }],
+          },
+          { step_index: 2, type: "RUN_COMMAND", status: "RUNNING", content: "started" },
+          {
+            step_index: 3,
+            type: "PLANNER_RESPONSE",
+            status: "DONE",
+            content: "Started the task in the background.",
+          },
+        ]
+          .map((step) => `${JSON.stringify(step)}\n`)
+          .join(""),
+      );
+      // Held by the transcript detector (~2.5 s), long before the 12 s prompt resolves.
+      await vi.waitFor(
+        () => {
+          expect(sessionListener.onUpdate).toHaveBeenCalledWith({
+            status: "idle",
+            attention: "none",
+          });
+        },
+        { timeout: 8_000 },
+      );
+      const completedTurns = () =>
+        sessionListener.onRuntimeEvent.mock.calls
+          .map(([event]) => event as { type?: string })
+          .filter((event) => event.type === "turn.completed");
+      expect(completedTurns()).toHaveLength(1);
+    } finally {
+      await session!.dispose();
+      for (const [key, value] of previousHome) {
+        if (value === undefined) delete process.env[key];
+        else process.env[key] = value;
+      }
     }
   }, 30_000);
 

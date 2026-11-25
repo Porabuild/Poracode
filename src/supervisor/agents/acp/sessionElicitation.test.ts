@@ -1,4 +1,4 @@
-import type { CreateElicitationRequest } from "@agentclientprotocol/sdk";
+import type { CreateElicitationRequest } from "@agentclientprotocol/sdk/unstable";
 import { describe, expect, it } from "vitest";
 import {
   buildAcpElicitationAnswerEvents,

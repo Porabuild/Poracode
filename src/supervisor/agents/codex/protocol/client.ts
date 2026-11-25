@@ -15,6 +15,10 @@ import type {
   McpServerRefreshResponse,
   ThreadCompactStartParams,
   ThreadCompactStartResponse,
+  ThreadBackgroundTerminalsListParams,
+  ThreadBackgroundTerminalsListResponse,
+  ThreadBackgroundTerminalsTerminateParams,
+  ThreadBackgroundTerminalsTerminateResponse,
   ThreadForkParams,
   ThreadForkResponse,
   ThreadGoalClearParams,
@@ -65,6 +69,10 @@ export type {
   SkillsListResponse,
   ThreadCompactStartParams,
   ThreadCompactStartResponse,
+  ThreadBackgroundTerminalsListParams,
+  ThreadBackgroundTerminalsListResponse,
+  ThreadBackgroundTerminalsTerminateParams,
+  ThreadBackgroundTerminalsTerminateResponse,
   ThreadForkParams,
   ThreadForkResponse,
   ThreadGoalClearParams,
@@ -109,6 +117,14 @@ export interface CodexClientRequestMap {
   "thread/compact/start": {
     params: ThreadCompactStartParams;
     result: ThreadCompactStartResponse;
+  };
+  "thread/backgroundTerminals/list": {
+    params: ThreadBackgroundTerminalsListParams;
+    result: ThreadBackgroundTerminalsListResponse;
+  };
+  "thread/backgroundTerminals/terminate": {
+    params: ThreadBackgroundTerminalsTerminateParams;
+    result: ThreadBackgroundTerminalsTerminateResponse;
   };
   "thread/settings/update": {
     params: ThreadSettingsUpdateParams;

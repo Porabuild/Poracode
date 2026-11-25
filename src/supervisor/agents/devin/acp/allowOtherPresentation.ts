@@ -1,7 +1,7 @@
 import {
   CreateElicitationRequest as AcpCreateElicitationRequest,
   type CreateElicitationRequest,
-} from "@agentclientprotocol/sdk";
+} from "@agentclientprotocol/sdk/unstable";
 
 /**
  * Vendor flag on the one qualified custom-answer elicitation.

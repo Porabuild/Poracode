@@ -1,4 +1,7 @@
-import type { RequestPermissionRequest, RequestPermissionResponse } from "@agentclientprotocol/sdk";
+import type {
+  RequestPermissionRequest,
+  RequestPermissionResponse,
+} from "@agentclientprotocol/sdk/unstable";
 import type { RuntimeEvent } from "@/shared/contracts";
 import { isAskUserQuestionToolName } from "@/shared/toolCallClassification";
 import { chosenOptionIds } from "../questionAnswers";

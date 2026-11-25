@@ -24,6 +24,13 @@ describe("buildMuseConfigFlags", () => {
     }
   });
 
+  it("maps read-only to the native permission profile", () => {
+    const args = buildMuseConfigFlags({ approvalPolicy: "read-only" } as never);
+    expect(args).toEqual(["--trust-workspace", "--permission-profile", ":read-only"]);
+    expect(args).not.toContain("--disable-write");
+    expect(args).not.toContain("--approval-mode");
+  });
+
   it("maps yolo / bypassPermissions to --yolo", () => {
     for (const policy of ["yolo", "bypassPermissions"] as const) {
       const args = buildMuseConfigFlags({ approvalPolicy: policy } as any);

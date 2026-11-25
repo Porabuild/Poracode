@@ -1,4 +1,5 @@
-import type { ClientSideConnection, SessionUpdate } from "@agentclientprotocol/sdk";
+import type { SessionUpdate } from "@agentclientprotocol/sdk/unstable";
+import type { AcpClientConnection } from "./clientConnection";
 import type { ThreadConfig } from "@/shared/contracts";
 import { describe, expect, it, vi } from "vitest";
 import { resolveAcpMode, resolveModelConfigValue } from "./sessionConfig";
@@ -75,7 +76,7 @@ function makeConfigSync(
       .fn<(method: string, params: { sessionId: string; modelId: string }) => Promise<unknown>>()
       .mockResolvedValue(undefined),
   };
-  const sync = new AcpSessionConfigSync(connection as unknown as ClientSideConnection);
+  const sync = new AcpSessionConfigSync(connection as unknown as AcpClientConnection);
   sync.rememberOptions(
     overrides.availableModeIds ?? ["default", "plan", "yolo", "autoEdit", "autopilot"],
     configOptions,
@@ -148,9 +149,8 @@ describe("queued configuration ownership", () => {
 describe("AcpSessionConfigSync", () => {
   it("uses the declared mode resolver for initial and subsequent turns", async () => {
     const { connection } = makeConfigSync();
-    const sync = new AcpSessionConfigSync(
-      connection as unknown as ClientSideConnection,
-      (config) => (config.mode === "plan" ? "planning" : "unrestricted"),
+    const sync = new AcpSessionConfigSync(connection as unknown as AcpClientConnection, (config) =>
+      config.mode === "plan" ? "planning" : "unrestricted",
     );
     sync.rememberOptions(["planning", "unrestricted"], []);
     await sync.applyTurnConfig("session-1", { model: "", mode: "agent" }, undefined);
@@ -677,7 +677,7 @@ describe("AcpSessionConfigSync", () => {
   it("rejects an unadvertised strict selection before changing mode or using legacy model RPC", async () => {
     const { connection } = makeConfigSync();
     const sync = new AcpSessionConfigSync(
-      connection as unknown as ClientSideConnection,
+      connection as unknown as AcpClientConnection,
       undefined,
       undefined,
       { strictConfigSelection: true },
@@ -701,7 +701,7 @@ describe("AcpSessionConfigSync", () => {
   it("rejects a stale permission policy instead of admitting a prompt in the old mode", async () => {
     const { connection } = makeConfigSync();
     const sync = new AcpSessionConfigSync(
-      connection as unknown as ClientSideConnection,
+      connection as unknown as AcpClientConnection,
       () => undefined,
       undefined,
       { strictConfigSelection: true },
@@ -721,7 +721,7 @@ describe("AcpSessionConfigSync", () => {
   it("rejects an unsupported reasoning level and leaves the confirmed level visible", async () => {
     const { connection } = makeConfigSync();
     const sync = new AcpSessionConfigSync(
-      connection as unknown as ClientSideConnection,
+      connection as unknown as AcpClientConnection,
       undefined,
       undefined,
       { strictConfigSelection: true },
@@ -742,7 +742,7 @@ describe("AcpSessionConfigSync", () => {
     const { connection } = makeConfigSync();
     connection.setSessionConfigOption.mockResolvedValue({ configOptions: [modelSelectOption()] });
     const sync = new AcpSessionConfigSync(
-      connection as unknown as ClientSideConnection,
+      connection as unknown as AcpClientConnection,
       undefined,
       undefined,
       { strictConfigSelection: true },
@@ -759,7 +759,7 @@ describe("AcpSessionConfigSync", () => {
     const { connection } = makeConfigSync();
     connection.setSessionConfigOption.mockRejectedValue(new Error("model rejected"));
     const sync = new AcpSessionConfigSync(
-      connection as unknown as ClientSideConnection,
+      connection as unknown as AcpClientConnection,
       undefined,
       undefined,
       { strictConfigSelection: true },
@@ -790,7 +790,7 @@ describe("AcpSessionConfigSync", () => {
     const { connection } = makeConfigSync({ configOptions: initialOptions });
     connection.setSessionConfigOption.mockResolvedValueOnce({ configOptions: afterModelOptions });
     const syncStrict = new AcpSessionConfigSync(
-      connection as unknown as ClientSideConnection,
+      connection as unknown as AcpClientConnection,
       undefined,
       undefined,
       { strictConfigSelection: true },
@@ -828,7 +828,7 @@ describe("AcpSessionConfigSync", () => {
       configOptions: [modelSelectOption("model-b")],
     });
     const syncStrict = new AcpSessionConfigSync(
-      connection as unknown as ClientSideConnection,
+      connection as unknown as AcpClientConnection,
       undefined,
       undefined,
       { strictConfigSelection: true },
@@ -867,7 +867,7 @@ describe("AcpSessionConfigSync", () => {
         configOptions: [modelSelectOption("model-b"), thoughtLevelOption("thought-new", "high")],
       });
     const syncStrict = new AcpSessionConfigSync(
-      connection as unknown as ClientSideConnection,
+      connection as unknown as AcpClientConnection,
       undefined,
       undefined,
       { strictConfigSelection: true },
@@ -899,7 +899,7 @@ describe("AcpSessionConfigSync", () => {
       configOptions: [modelSelectOption("opaque-high")],
     });
     const sync = new AcpSessionConfigSync(
-      connection as unknown as ClientSideConnection,
+      connection as unknown as AcpClientConnection,
       undefined,
       resolver as never,
       {
@@ -946,7 +946,7 @@ describe("AcpSessionConfigSync", () => {
       configOptions: [modelSelectOption("model-b")],
     });
     const syncStrict = new AcpSessionConfigSync(
-      connection as unknown as ClientSideConnection,
+      connection as unknown as AcpClientConnection,
       undefined,
       undefined,
       { strictConfigSelection: true },
@@ -994,7 +994,7 @@ describe("AcpSessionConfigSync", () => {
     const { connection } = makeConfigSync({ configOptions: initialOptions });
     connection.setSessionConfigOption.mockResolvedValueOnce({ configOptions: toggleTarget });
     const syncStrict = new AcpSessionConfigSync(
-      connection as unknown as ClientSideConnection,
+      connection as unknown as AcpClientConnection,
       undefined,
       undefined,
       { strictConfigSelection: true },
@@ -1034,7 +1034,7 @@ describe("AcpSessionConfigSync", () => {
     });
     const seenOptions: unknown[] = [];
     const sync = new AcpSessionConfigSync(
-      connection as unknown as ClientSideConnection,
+      connection as unknown as AcpClientConnection,
       undefined,
       undefined,
       {
@@ -1079,7 +1079,7 @@ describe("AcpSessionConfigSync", () => {
       configOptions: [modelSelectOption("model-b")],
     });
     const sync = new AcpSessionConfigSync(
-      connection as unknown as ClientSideConnection,
+      connection as unknown as AcpClientConnection,
       undefined,
       undefined,
       { strictConfigSelection: true, modelCarriesEffort: () => false },
@@ -1107,7 +1107,7 @@ describe("AcpSessionConfigSync", () => {
       configOptions: [modelSelectOption("model-b")],
     });
     const syncStrict = new AcpSessionConfigSync(
-      connection as unknown as ClientSideConnection,
+      connection as unknown as AcpClientConnection,
       undefined,
       undefined,
       { strictConfigSelection: true },
@@ -1139,7 +1139,7 @@ describe("AcpSessionConfigSync", () => {
       });
     const proof = vi.fn<() => boolean>(() => true);
     const syncStrict = new AcpSessionConfigSync(
-      connection as unknown as ClientSideConnection,
+      connection as unknown as AcpClientConnection,
       undefined,
       undefined,
       { strictConfigSelection: true, modelCarriesEffort: proof },
@@ -1547,7 +1547,7 @@ it("uses a provider resolver for effort-only changes to opaque model variants", 
     value: "opaque-high-fast",
   }));
   const sync = new AcpSessionConfigSync(
-    connection as unknown as ClientSideConnection,
+    connection as unknown as AcpClientConnection,
     undefined,
     resolver,
   );
@@ -1645,7 +1645,7 @@ describe("AcpSessionConfigSync — provider config-options normalizer", () => {
   function normalizingSync(normalizer: (options: readonly unknown[]) => readonly unknown[]) {
     const { connection } = makeConfigSync();
     const sync = new AcpSessionConfigSync(
-      connection as unknown as ClientSideConnection,
+      connection as unknown as AcpClientConnection,
       undefined,
       undefined,
       {},
@@ -1858,7 +1858,7 @@ describe("inventory ingestion notifications", () => {
       request: vi.fn<() => Promise<unknown>>(),
     };
     const sync = new AcpSessionConfigSync(
-      connection as unknown as ClientSideConnection,
+      connection as unknown as AcpClientConnection,
       resolveAcpMode,
       resolveModelConfigValue,
       {},
@@ -1926,7 +1926,7 @@ describe("AcpSessionConfigSync — declared fast binding", () => {
         .mockResolvedValue(undefined),
     };
     const sync = new AcpSessionConfigSync(
-      connection as unknown as ClientSideConnection,
+      connection as unknown as AcpClientConnection,
       undefined,
       undefined,
       behavior,

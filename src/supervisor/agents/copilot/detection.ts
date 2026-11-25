@@ -1,6 +1,7 @@
 import { spawn } from "node:child_process";
 import { Readable, Writable } from "node:stream";
-import { ClientSideConnection, ndJsonStream, PROTOCOL_VERSION } from "@agentclientprotocol/sdk";
+import { ndJsonStream, PROTOCOL_VERSION } from "@agentclientprotocol/sdk/unstable";
+import { connectAcpClient } from "../acp/clientConnection";
 import type { AgentCapability, ProjectLocation } from "@/shared/contracts";
 import { terminateChildProcessTree } from "@/shared/processTree";
 import { assertAgentLaunchAllowed } from "@/supervisor/agentLaunchGuard";
@@ -115,16 +116,13 @@ async function probeCopilotModelEfforts(
     Writable.toWeb(child.stdin!) as WritableStream<Uint8Array>,
     Readable.toWeb(child.stdout!) as ReadableStream<Uint8Array>,
   );
-  const connection = new ClientSideConnection(
-    () => ({
-      requestPermission: () => Promise.resolve({ outcome: { outcome: "cancelled" as const } }),
-      sessionUpdate: (params) => {
-        updates.push(params.update);
-        return Promise.resolve();
-      },
-    }),
-    stream,
-  );
+  const connection = connectAcpClient(stream, {
+    requestPermission: () => Promise.resolve({ outcome: { outcome: "cancelled" as const } }),
+    sessionUpdate: (params) => {
+      updates.push(params.update);
+      return Promise.resolve();
+    },
+  });
 
   let timeout: NodeJS.Timeout | undefined;
   let abortProbe: (() => void) | undefined;

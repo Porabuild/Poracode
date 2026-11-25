@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { SessionNotification } from "@agentclientprotocol/sdk";
+import type { SessionNotification } from "@agentclientprotocol/sdk/unstable";
 import { createAcpMapperState, mapAcpSessionUpdate } from "../acp/canonicalMapping";
 import { PORACODE_ACP_PARENT_TOOL_CALL_ID_META_KEY } from "../acp/canonicalMapping/subagents";
 import { PORACODE_ACP_USAGE_BREAKDOWN_META_KEY } from "../acp/canonicalMapping/usageMeta";

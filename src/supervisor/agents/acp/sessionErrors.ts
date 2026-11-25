@@ -1,4 +1,4 @@
-import { RequestError } from "@agentclientprotocol/sdk";
+import { RequestError } from "@agentclientprotocol/sdk/unstable";
 import type { RuntimeErrorReason, RuntimeEvent } from "@/shared/contracts";
 import type { UsageTokenCategories } from "@/shared/contracts/costHistory";
 import {

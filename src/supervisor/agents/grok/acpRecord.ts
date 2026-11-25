@@ -6,7 +6,7 @@
  * unknown and narrow it here rather than trusting the SDK types.
  */
 
-import type { SessionNotification } from "@agentclientprotocol/sdk";
+import type { SessionNotification } from "@agentclientprotocol/sdk/unstable";
 
 export function plainRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value)

@@ -18,7 +18,7 @@
  * can still label itself `Web search: <query>`.
  */
 
-import type { SessionNotification } from "@agentclientprotocol/sdk";
+import type { SessionNotification } from "@agentclientprotocol/sdk/unstable";
 import { plainRecord, readString, withUpdate } from "./acpRecord";
 
 /** `rawInput.variant` Grok stamps on every backend web-search tool call. */

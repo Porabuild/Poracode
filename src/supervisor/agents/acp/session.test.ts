@@ -7,7 +7,7 @@ import {
   RequestError,
   type RequestPermissionRequest,
   type SessionNotification,
-} from "@agentclientprotocol/sdk";
+} from "@agentclientprotocol/sdk/unstable";
 import type { CreateStructuredSessionInput } from "../base";
 import type { ThreadConfig } from "@/shared/contracts";
 import {
@@ -3907,6 +3907,105 @@ describe("ACP turn config sync", () => {
       await secondTurn;
       expect(connection.prompt).toHaveBeenCalledTimes(2);
       expect(listener.onUpdate).toHaveBeenLastCalledWith({ status: "idle", attention: "none" });
+    });
+  });
+
+  describe("prompt held open for background work (provider-declared hold)", () => {
+    function heldPromptSession() {
+      return makeConfigSyncSession();
+    }
+
+    function startHeldTurn(harness: ReturnType<typeof makeConfigSyncSession>) {
+      let resolvePrompt!: (result: { stopReason: string }) => void;
+      harness.connection.prompt.mockReturnValueOnce(
+        new Promise((resolve) => {
+          resolvePrompt = resolve;
+        }),
+      );
+      const turn = harness.session.startTurn("run the dev server in the background", {
+        model: "model-a",
+        effort: "low",
+        mode: "agent",
+        approvalPolicy: "default",
+      });
+      return { turn, resolvePrompt: (result: { stopReason: string }) => resolvePrompt(result) };
+    }
+
+    it("completes the turn and goes idle when the provider declares the hold", async () => {
+      const { connection, listener, session } = heldPromptSession();
+      const { turn, resolvePrompt } = startHeldTurn({ connection, listener, session });
+      await vi.waitFor(() => expect(connection.prompt).toHaveBeenCalledOnce());
+
+      // The recorded 1.5.2 wire: a plain exec row, no `WaitMsBeforeAsync`.
+      session.handleSessionUpdate({
+        update: {
+          sessionUpdate: "tool_call",
+          toolCallId: "session-1:2",
+          title: "sleep 119",
+          kind: "execute",
+          status: "in_progress",
+          rawInput: { command_line: "sleep 119", working_dir: "/w" },
+        },
+      });
+      session.handleSessionUpdate({
+        update: {
+          sessionUpdate: "agent_message_chunk",
+          content: { type: "text", text: "The task is running in the background." },
+        },
+      });
+      session.holdTurnForBackgroundWork();
+
+      expect(listener.onUpdate).toHaveBeenLastCalledWith({ status: "idle", attention: "none" });
+      const events = () =>
+        listener.onRuntimeEvent.mock.calls.map(
+          ([event]) => event as { type?: string; state?: string; itemId?: string },
+        );
+      expect(events().filter((event) => event.type === "turn.completed")).toEqual([
+        expect.objectContaining({ state: "completed" }),
+      ]);
+      const commandItemId = listener.onRuntimeEvent.mock.calls
+        .map(([event]) => event as { type?: string; itemType?: string; itemId?: string })
+        .find(
+          (event) => event.type === "item.started" && event.itemType === "command_execution",
+        )?.itemId;
+      expect(commandItemId).toBeDefined();
+      expect(
+        events().some((event) => event.type === "item.completed" && event.itemId === commandItemId),
+      ).toBe(false);
+
+      // The task's real terminal update lands later, out of band, on the
+      // original row — without repainting working.
+      session.handleSessionUpdate({
+        update: {
+          sessionUpdate: "tool_call_update",
+          toolCallId: "session-1:2",
+          status: "completed",
+          rawOutput: { exitCode: 0, combinedOutput: "" },
+        },
+      });
+      expect(
+        events().some((event) => event.type === "item.completed" && event.itemId === commandItemId),
+      ).toBe(true);
+      expect(listener.onUpdate).toHaveBeenLastCalledWith({ status: "idle", attention: "none" });
+
+      resolvePrompt({ stopReason: "end_turn" });
+      await turn;
+      expect(events().filter((event) => event.type === "turn.completed")).toHaveLength(1);
+      expect(listener.onUpdate).toHaveBeenLastCalledWith({ status: "idle", attention: "none" });
+    });
+
+    it("ignores the hold when no runtime turn is open", () => {
+      const { listener, session } = makeConfigSyncSession();
+      listener.onUpdate.mockClear();
+      listener.onRuntimeEvent.mockClear();
+
+      session.holdTurnForBackgroundWork();
+
+      expect(listener.onUpdate).not.toHaveBeenCalled();
+      const completed = listener.onRuntimeEvent.mock.calls
+        .map(([event]) => event as { type?: string })
+        .filter((event) => event.type === "turn.completed");
+      expect(completed).toHaveLength(0);
     });
   });
 

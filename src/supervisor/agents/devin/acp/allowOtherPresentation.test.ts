@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   CreateElicitationRequest as AcpCreateElicitationRequest,
   type CreateElicitationRequest,
-} from "@agentclientprotocol/sdk";
+} from "@agentclientprotocol/sdk/unstable";
 import { normalizeAcpElicitationResponse } from "../../acp/sessionElicitation";
 import { makeConfigSyncSession } from "../../acp/sessionTestFixture";
 import { projectQualifiedAllowOtherPresentation } from "./allowOtherPresentation";

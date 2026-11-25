@@ -1,4 +1,4 @@
-import type { AuthMethod } from "@agentclientprotocol/sdk";
+import type { AuthMethod } from "@agentclientprotocol/sdk/unstable";
 import { describe, expect, it, vi } from "vitest";
 import type { ProjectLocation } from "@/shared/contracts";
 import {

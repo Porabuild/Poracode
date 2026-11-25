@@ -1,4 +1,4 @@
-import type { ClientSideConnection } from "@agentclientprotocol/sdk";
+import type { AcpClientConnection } from "./clientConnection";
 import type { ThreadConfig } from "@/shared/contracts";
 import { describe, expect, it, vi } from "vitest";
 import {
@@ -87,7 +87,7 @@ function makeControl(
       }),
   };
   const configSync = new AcpSessionConfigSync(
-    connection as unknown as ClientSideConnection,
+    connection as unknown as AcpClientConnection,
     undefined,
     undefined,
     {},
@@ -100,7 +100,7 @@ function makeControl(
     reconciled: [] as Array<ThreadConfig | undefined>,
   };
   const control = new AcpLiveConfigControl({
-    connection: connection as unknown as ClientSideConnection,
+    connection: connection as unknown as AcpClientConnection,
     configSync,
     configWrites: configSync.configWrites,
     getOwner: () => ({ ...owner }),
@@ -589,7 +589,7 @@ describe("AcpLiveConfigControl — normalizer lanes", () => {
         })),
     };
     const configSync = new AcpSessionConfigSync(
-      connection as unknown as ClientSideConnection,
+      connection as unknown as AcpClientConnection,
       undefined,
       undefined,
       {},
@@ -608,7 +608,7 @@ describe("AcpLiveConfigControl — normalizer lanes", () => {
       reconciled: [] as Array<ThreadConfig | undefined>,
     };
     const control = new AcpLiveConfigControl({
-      connection: connection as unknown as ClientSideConnection,
+      connection: connection as unknown as AcpClientConnection,
       configSync,
       configWrites: configSync.configWrites,
       getOwner: () => ({

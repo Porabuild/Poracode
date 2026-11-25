@@ -10,7 +10,7 @@ import type {
   CreateElicitationResponse,
   RequestPermissionRequest,
   SessionNotification,
-} from "@agentclientprotocol/sdk";
+} from "@agentclientprotocol/sdk/unstable";
 import type { ProjectLocation } from "@/shared/contracts";
 import type { CommandSpec } from "../base";
 import { buildAcpInitializeRequest } from "./session";
@@ -507,7 +507,8 @@ describe("acquireSharedAcpProcess", () => {
     const second = await acquireAttached(scope, command);
     const sessionA = await openNewSession(first.lease);
     await openNewSession(second.lease);
-    void prompt(first.lease, sessionA, "hang");
+    // The process is torn down below; 2.x then rejects the pending prompt.
+    void prompt(first.lease, sessionA, "hang").catch(() => undefined);
     await waitForPrompts(promptMarker, [[sessionA, "hang"]]);
     // The member still reports agent work (for example a cancel the agent
     // ignored): a failed close must escalate to killing the process.

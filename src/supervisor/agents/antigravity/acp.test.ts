@@ -1,4 +1,4 @@
-import { RequestError } from "@agentclientprotocol/sdk";
+import { RequestError } from "@agentclientprotocol/sdk/unstable";
 import { describe, expect, it } from "vitest";
 import type { AgentStatus } from "@/shared/contracts";
 import { agentStatusForPresentation } from "@/shared/agentSelection";

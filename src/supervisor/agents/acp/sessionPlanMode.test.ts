@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { SessionUpdate } from "@agentclientprotocol/sdk";
+import type { SessionUpdate } from "@agentclientprotocol/sdk/unstable";
 import { AcpPlanModeToolTracker } from "./sessionPlanMode";
 
 function toolCall(fields: Record<string, unknown>): SessionUpdate {

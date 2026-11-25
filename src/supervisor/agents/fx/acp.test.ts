@@ -1,4 +1,7 @@
-import type { RequestPermissionRequest, SessionNotification } from "@agentclientprotocol/sdk";
+import type {
+  RequestPermissionRequest,
+  SessionNotification,
+} from "@agentclientprotocol/sdk/unstable";
 import { describe, expect, it } from "vitest";
 import { createAcpMapperState, mapAcpPermissionRequest } from "../acp/canonicalMapping";
 import {

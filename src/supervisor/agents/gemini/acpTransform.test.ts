@@ -2,7 +2,10 @@ import { existsSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync 
 import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import type { RequestPermissionRequest, SessionNotification } from "@agentclientprotocol/sdk";
+import type {
+  RequestPermissionRequest,
+  SessionNotification,
+} from "@agentclientprotocol/sdk/unstable";
 import {
   createAcpMapperState,
   mapAcpPermissionRequest,

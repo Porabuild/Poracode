@@ -1,4 +1,4 @@
-import { RequestError } from "@agentclientprotocol/sdk";
+import { RequestError } from "@agentclientprotocol/sdk/unstable";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ProjectLocation, ThreadConfig } from "@/shared/contracts";
 import { AcpStructuredSession } from "../acp/session";

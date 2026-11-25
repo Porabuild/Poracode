@@ -7,7 +7,7 @@
  * notifications consumed by the provider-agnostic mapper.
  */
 
-import type { SessionNotification } from "@agentclientprotocol/sdk";
+import type { SessionNotification } from "@agentclientprotocol/sdk/unstable";
 import {
   PORACODE_ACP_DETACHED_SUBAGENT_ACTIVITY_META_KEY,
   PORACODE_ACP_DETACHED_SUBAGENT_META_KEY,

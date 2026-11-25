@@ -34,6 +34,7 @@
  *                                  logs STATE_WAITING_FOR_TASKS to stderr, and only
  *                                  resolves (after the terminal tool_call_update)
  *                                  N ms later
+ *   FAKE_BACKGROUND_HOLD_NO_SIGNAL "1" -> same, but never log the stderr diagnostic (what recent server builds do at default verbosity)
  *   FAKE_PROMPT_MARKER             path written when session/prompt arrives
  *   FAKE_CANCEL_MARKER             path written when session/cancel arrives
  *   FAKE_STDERR_TEXT               diagnostic text written once at startup
@@ -319,11 +320,13 @@ rl.on("line", (line) => {
         // The real server logs the trajectory-state diagnostic tens of ms
         // after the final stdout frame; keep that ordering so the reply is
         // fully streamed before the wait signal lands.
-        setTimeout(() => {
-          process.stderr.write(
-            'I0831 14:08:16.659332 1 local_connection.py:521] RAW WS MSG: {"trajectoryStateUpdate":{"trajectoryId":"fake-session-1", "state":"STATE_WAITING_FOR_TASKS"}, "seqNum":"17"}\n',
-          );
-        }, 100);
+        if (env.FAKE_BACKGROUND_HOLD_NO_SIGNAL !== "1") {
+          setTimeout(() => {
+            process.stderr.write(
+              'I0831 14:08:16.659332 1 local_connection.py:521] RAW WS MSG: {"trajectoryStateUpdate":{"trajectoryId":"fake-session-1", "state":"STATE_WAITING_FOR_TASKS"}, "seqNum":"17"}\n',
+            );
+          }, 100);
+        }
         setTimeout(() => {
           if (pendingPromptId === undefined) return;
           notifySessionUpdate({

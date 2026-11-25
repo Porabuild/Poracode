@@ -9,7 +9,7 @@
  */
 import { appendFileSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
-import type { SessionNotification } from "@agentclientprotocol/sdk";
+import type { SessionNotification } from "@agentclientprotocol/sdk/unstable";
 import { resolvePoracodePaths } from "@/shared/poracodePaths";
 
 const ACP_LOG_MODE = (() => {

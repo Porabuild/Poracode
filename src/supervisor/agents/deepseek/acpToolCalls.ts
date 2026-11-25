@@ -27,7 +27,11 @@
  * added to `rawInput`.
  */
 
-import type { SessionNotification, ToolCallLocation, ToolKind } from "@agentclientprotocol/sdk";
+import type {
+  SessionNotification,
+  ToolCallLocation,
+  ToolKind,
+} from "@agentclientprotocol/sdk/unstable";
 
 type ToolInput = Record<string, unknown>;
 

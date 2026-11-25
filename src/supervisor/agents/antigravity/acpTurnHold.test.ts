@@ -1,5 +1,12 @@
-import { describe, expect, it } from "vitest";
-import { parseAntigravityAcpTurnSignal } from "./acpTurnHold";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { SessionNotification } from "@agentclientprotocol/sdk/unstable";
+import type { TranscriptStep } from "./acpSubagentTranscripts";
+import {
+  AntigravityTurnHoldDetector,
+  isAntigravityBackgroundWaitTranscript,
+  parseAntigravityAcpTurnSignal,
+  type AntigravityTurnHoldOptions,
+} from "./acpTurnHold";
 
 // Lines captured verbatim from agy_acp_server_20260818_01_RC01 stderr.
 const WAITING_LINE =
@@ -39,5 +46,272 @@ describe("parseAntigravityAcpTurnSignal", () => {
       ),
     ).toBeUndefined();
     expect(parseAntigravityAcpTurnSignal("")).toBeUndefined();
+  });
+});
+
+describe("isAntigravityBackgroundWaitTranscript", () => {
+  const WAITING: TranscriptStep[] = [
+    {
+      step_index: 1,
+      type: "PLANNER_RESPONSE",
+      status: "DONE",
+      tool_calls: [{ name: "run_command", args: {} }],
+    },
+    { step_index: 2, type: "RUN_COMMAND", status: "RUNNING", content: "started" },
+    { step_index: 3, type: "PLANNER_RESPONSE", status: "DONE", content: "STARTED" },
+  ];
+
+  it("accepts a finished text-only reply over a still-running step", () => {
+    expect(isAntigravityBackgroundWaitTranscript(WAITING)).toBe(true);
+  });
+
+  it("rejects a reply whose planner step still calls tools", () => {
+    expect(isAntigravityBackgroundWaitTranscript(WAITING.slice(0, 1))).toBe(false);
+  });
+
+  it("rejects a transcript whose last step is not a planner reply", () => {
+    expect(
+      isAntigravityBackgroundWaitTranscript([WAITING[0]!, WAITING[1]!, WAITING[2]!].slice(0, 2)),
+    ).toBe(false);
+  });
+
+  it("rejects a transcript with no running earlier step", () => {
+    expect(
+      isAntigravityBackgroundWaitTranscript([
+        WAITING[0]!,
+        { step_index: 2, type: "RUN_COMMAND", status: "DONE", content: "started" },
+        WAITING[2]!,
+      ]),
+    ).toBe(false);
+  });
+
+  it("rejects an empty reply and an empty transcript", () => {
+    expect(
+      isAntigravityBackgroundWaitTranscript([
+        WAITING[0]!,
+        WAITING[1]!,
+        { ...WAITING[2]!, content: "  " },
+      ]),
+    ).toBe(false);
+    expect(isAntigravityBackgroundWaitTranscript([])).toBe(false);
+  });
+});
+
+describe("AntigravityTurnHoldDetector", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  const WAITING: TranscriptStep[] = [
+    {
+      step_index: 1,
+      type: "PLANNER_RESPONSE",
+      status: "DONE",
+      tool_calls: [{ name: "run_command", args: {} }],
+    },
+    { step_index: 2, type: "RUN_COMMAND", status: "RUNNING", content: "started" },
+    { step_index: 3, type: "PLANNER_RESPONSE", status: "DONE", content: "STARTED" },
+  ];
+
+  function makeDetector(steps: TranscriptStep[] | undefined, options?: AntigravityTurnHoldOptions) {
+    const hold = vi.fn<() => void>();
+    let current = steps;
+    const readSteps = vi.fn<() => Promise<TranscriptStep[] | undefined>>(async () => current);
+    const detector = new AntigravityTurnHoldDetector(
+      hold,
+      { readSteps },
+      { pollIntervalMs: 100, settleMs: 300, ...options },
+    );
+    return {
+      detector,
+      hold,
+      readSteps,
+      setSteps: (next: TranscriptStep[] | undefined) => {
+        current = next;
+      },
+    };
+  }
+
+  const cmd = (id: string) =>
+    ({
+      sessionId: "s",
+      update: {
+        sessionUpdate: "tool_call",
+        toolCallId: id,
+        title: "sleep 119",
+        kind: "execute",
+        status: "in_progress",
+        rawInput: {},
+      },
+    }) as SessionNotification;
+
+  it("holds after the settle period while a tool call is open", async () => {
+    const { detector, hold } = makeDetector(WAITING);
+    detector.onTurnStart();
+    detector.onSessionUpdate(cmd("s:2"));
+    await vi.advanceTimersByTimeAsync(100);
+    expect(hold).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(300);
+    expect(hold).toHaveBeenCalledOnce();
+  });
+
+  it("does not hold while the planner step still calls tools", async () => {
+    const { detector, hold } = makeDetector(WAITING.slice(0, 1));
+    detector.onTurnStart();
+    detector.onSessionUpdate(cmd("s:2"));
+    await vi.advanceTimersByTimeAsync(2000);
+    expect(hold).not.toHaveBeenCalled();
+  });
+
+  it("does not hold without a running earlier step", async () => {
+    const { detector, hold } = makeDetector([
+      WAITING[0]!,
+      { step_index: 2, type: "RUN_COMMAND", status: "DONE", content: "started" },
+      WAITING[2]!,
+    ]);
+    detector.onTurnStart();
+    detector.onSessionUpdate(cmd("s:2"));
+    await vi.advanceTimersByTimeAsync(2000);
+    expect(hold).not.toHaveBeenCalled();
+  });
+
+  it("does not poll while no tool call is open", async () => {
+    const { detector, hold, readSteps } = makeDetector(WAITING);
+    detector.onTurnStart();
+    await vi.advanceTimersByTimeAsync(2000);
+    expect(readSteps).not.toHaveBeenCalled();
+    expect(hold).not.toHaveBeenCalled();
+  });
+
+  it("stops checking once the tool call closes on the wire", async () => {
+    const { detector, hold } = makeDetector(WAITING);
+    detector.onTurnStart();
+    detector.onSessionUpdate(cmd("s:2"));
+    await vi.advanceTimersByTimeAsync(100);
+    detector.onSessionUpdate({
+      sessionId: "s",
+      update: {
+        sessionUpdate: "tool_call_update",
+        toolCallId: "s:2",
+        status: "completed",
+        rawOutput: { exitCode: 0, combinedOutput: "" },
+      },
+    });
+    await vi.advanceTimersByTimeAsync(2000);
+    expect(hold).not.toHaveBeenCalled();
+  });
+
+  it("does not hold when the last tool closes while the transcript read is in flight", async () => {
+    const hold = vi.fn<() => void>();
+    let resolveRead!: (steps: TranscriptStep[]) => void;
+    const readSteps = vi.fn<() => Promise<TranscriptStep[] | undefined>>(
+      () =>
+        new Promise((resolve) => {
+          resolveRead = resolve;
+        }),
+    );
+    const detector = new AntigravityTurnHoldDetector(
+      hold,
+      { readSteps },
+      { pollIntervalMs: 100, settleMs: 300 },
+    );
+    detector.onTurnStart();
+    detector.onSessionUpdate(cmd("s:2"));
+    await vi.advanceTimersByTimeAsync(100);
+    detector.onSessionUpdate({
+      sessionId: "s",
+      update: {
+        sessionUpdate: "tool_call_update",
+        toolCallId: "s:2",
+        status: "completed",
+        rawOutput: { exitCode: 0, combinedOutput: "" },
+      },
+    });
+    resolveRead(WAITING);
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(hold).not.toHaveBeenCalled();
+  });
+
+  it("re-arms when a new turn opens a tool while the old read is in flight", async () => {
+    let reads = 0;
+    let release!: () => void;
+    let entered!: () => void;
+    const ready = new Promise<void>((resolve) => {
+      entered = resolve;
+    });
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const readSteps = vi.fn<() => Promise<TranscriptStep[]>>(async () => {
+      reads += 1;
+      if (reads === 1) {
+        entered();
+        await gate;
+      }
+      return [] as TranscriptStep[];
+    });
+    const detector = new AntigravityTurnHoldDetector(
+      () => {},
+      { readSteps },
+      { pollIntervalMs: 5, settleMs: 0 },
+    );
+    detector.onTurnStart();
+    detector.onSessionUpdate(cmd("s:2"));
+    await vi.advanceTimersByTimeAsync(5);
+    await ready;
+    detector.onTurnEnd();
+    detector.onTurnStart();
+    detector.onSessionUpdate(cmd("s:3"));
+    release();
+    await vi.advanceTimersByTimeAsync(30);
+    expect(reads).toBeGreaterThanOrEqual(2);
+    detector.dispose();
+  });
+
+  it("holds at most once per turn and re-arms on the next turn", async () => {
+    const { detector, hold, setSteps } = makeDetector(WAITING);
+    detector.onTurnStart();
+    detector.onSessionUpdate(cmd("s:2"));
+    await vi.advanceTimersByTimeAsync(400);
+    expect(hold).toHaveBeenCalledOnce();
+    await vi.advanceTimersByTimeAsync(2000);
+    expect(hold).toHaveBeenCalledOnce();
+
+    setSteps([
+      WAITING[0]!,
+      { step_index: 4, type: "RUN_COMMAND", status: "RUNNING", content: "restarted" },
+      { step_index: 5, type: "PLANNER_RESPONSE", status: "DONE", content: "RESTARTED" },
+    ]);
+    detector.onTurnEnd();
+    detector.onTurnStart();
+    detector.onSessionUpdate(cmd("s:9"));
+    await vi.advanceTimersByTimeAsync(500);
+    expect(hold).toHaveBeenCalledTimes(2);
+  });
+
+  it("does nothing before a turn starts and after dispose", async () => {
+    const { detector, hold, readSteps } = makeDetector(WAITING);
+    detector.onSessionUpdate(cmd("s:2"));
+    await vi.advanceTimersByTimeAsync(2000);
+    expect(readSteps).not.toHaveBeenCalled();
+    expect(hold).not.toHaveBeenCalled();
+
+    detector.onTurnStart();
+    detector.onSessionUpdate(cmd("s:3"));
+    detector.dispose();
+    await vi.advanceTimersByTimeAsync(2000);
+    expect(hold).not.toHaveBeenCalled();
+  });
+
+  it("treats an unreadable transcript as not waiting", async () => {
+    const { detector, hold } = makeDetector(undefined);
+    detector.onTurnStart();
+    detector.onSessionUpdate(cmd("s:2"));
+    await vi.advanceTimersByTimeAsync(2000);
+    expect(hold).not.toHaveBeenCalled();
   });
 });

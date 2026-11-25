@@ -1,5 +1,5 @@
 import type { GoalItemPayload, ThreadTitleCommand } from "@/shared/contracts";
-import type { SessionNotification } from "@agentclientprotocol/sdk";
+import type { SessionNotification } from "@agentclientprotocol/sdk/unstable";
 import { record } from "./acpRecord";
 import { PORACODE_ACP_GOAL_META_KEY } from "../acp/canonicalMapping/goals";
 import { PORACODE_ACP_NEW_ASSISTANT_ITEM_META_KEY } from "../acp/canonicalMapping/subagents";

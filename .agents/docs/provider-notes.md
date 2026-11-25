@@ -33,17 +33,60 @@ update surfaces compare both installed versions with their independent latest
 sources, and one action updates whichever runtimes are stale.
 
 Antigravity's background-task text and held-prompt handling are the worked
-example in [Provider Isolation](agent-adapters.md#worked-example). Subagent
-launches (`invoke_subagent` and `browser_subagent`) are bridged in
-`src/supervisor/agents/antigravity/acpSubagents.ts`: `agy_acp_server` strips
-`invoke_subagent` arguments and omits child/completion updates on the ACP wire,
-so the adapter tails `~/.gemini/antigravity-acp/brain/<conversationId>/.system_generated/logs/transcript_full.jsonl`
+example in [Provider Isolation](agent-adapters.md#worked-example). The server
+was last qualified against `agy_acp_server` 1.5.2 on a recorded wire and
+transcripts (2026-11-25; 1.4.1-1.5.0 share the shape). It is never pinned: the
+registry artifact installs whatever the public ACP registry publishes.
+
+**Turn hold.** `agy_acp_server` keeps `session/prompt` open until every
+background task exits. From 1.4.1 its only stderr boundary
+(`RAW WS MSG: {"trajectoryStateUpdate":{..."STATE_WAITING_FOR_TASKS"}...}`) is
+debug-level and absent at the default verbosity, so the primary detector in
+`antigravity/acpTurnHold.ts` reads the waiting state from the parent
+transcript: the latest step is a finished, text-only `PLANNER_RESPONSE` while
+an earlier step is still `RUNNING`, sustained for `settleMs` with a tool call
+open on the wire. It reaches the shared hold through
+`AcpStructuredSession.holdTurnForBackgroundWork()`; `stderrTurnSignalParser`
+stays as a second, exact signal. Do not launch the server with `--debug` to
+bring the line back: debug output logs request headers including an API key,
+and about 380 KB per process start.
+
+**Subagents.** The protocol's stable subagent sessions (`subagent_update`, ACP
+v1, 2026-11-20) are not implemented by `agy_acp_server` through 1.5.2, and the
+shared client does not advertise `clientCapabilities.subagents`. Antigravity's
+own launches (`invoke_subagent` and `browser_subagent`) are bridged in
+`src/supervisor/agents/antigravity/acpSubagents.ts`. The wire carries the launch
+as a `tool_call` titled `Running invoke_subagent` with empty `rawInput`, closes
+it within milliseconds with a receipt, and forwards the child's tool calls on
+the parent session untagged; ids are `<conversationId>:<stepIndex>`. The specs,
+the child's text and its report are never on the wire, so the adapter tails
+`~/.gemini/antigravity-acp/brain/<conversationId>/.system_generated/logs/transcript_full.jsonl`
 through `AcpExternalSessionUpdateSource` and `AcpSubagentCoordinator`.
-Interception requires a title-identical, fresh planner call in the transcript
-(never a positional or stale match), replayed `session/load` history is left
-untouched, and cards settle on turn end: immediately on cancel/failure, or
-after `turnEndSettleMs` of transcript quiet once the turn completed — late
-reports genuinely land after `end_turn`, so the wait is bounded, not zero.
+Interception requires a fresh planner call whose `toolSummary`, `toolAction` or
+name equals the wire title, or whose name matches its `Running <name>` form
+(never a positional or stale match), and the receipt and the wire rows of a
+tracked child are dropped so they do not render as top-level duplicates. When
+the launch itself needs approval, the server first announces it as a pending
+`tool_call` whose `rawInput` carries the spec; the cards are then added beside
+the launch row, which cannot become a card. Replayed `session/load` history is
+left untouched, and cards settle on turn
+end: immediately on cancel/failure, or after `turnEndSettleMs` of transcript
+quiet once the turn completed - late reports genuinely land after `end_turn`,
+so the wait is bounded, not zero.
+
+**Background-task reports.** 1.5.2 reports a finished task to the planner as a
+`<SYSTEM_MESSAGE>` beginning `Task id "<id>/task-N" finished with result:`; the
+`# Background Task Update` prose that `antigravity/acpTaskNotifications.ts`
+parses did not appear in 39 real 1.5.2 sessions, so that parser and the
+`WaitMsBeforeAsync` launch marker are inert there (not yet reworked).
+
+**Settings.** Over ACP the server exposes exactly three session config options
+(`model`, `thinking_level`, `mode`), which the composer renders dynamically. It
+also accepts a per-session built-in tool filter and system prompt under
+`_meta.antigravity` (`enabledTools`, `disabledTools`, `eagerMcpServers`,
+`systemPrompt`); Poracode sends none of them. The engine's `run_workflow`
+built-in is never referenced by the server, and no orchestrator or swarm mode
+exists in it.
 
 ## Claude
 

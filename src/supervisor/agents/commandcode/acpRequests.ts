@@ -1,4 +1,4 @@
-import type { RequestPermissionRequest } from "@agentclientprotocol/sdk";
+import type { RequestPermissionRequest } from "@agentclientprotocol/sdk/unstable";
 
 /**
  * Native ACP asks one question at a time via requestPermission, with plain

@@ -22,6 +22,7 @@ class ScriptedServeHost implements MuseMspTransport {
   listener: MuseMspTransportListener | undefined;
   private listIndex = 0;
   private readonly catalogs: ReadonlyArray<Record<string, unknown>>;
+  permissionProfiles: Record<string, unknown>[] = [];
   constructor(
     catalog: Record<string, unknown> | ReadonlyArray<Record<string, unknown>>,
     private readonly failHandshake = false,
@@ -50,7 +51,8 @@ class ScriptedServeHost implements MuseMspTransport {
     if (this.neverAnswer) return;
     if (!("method" in message)) return;
     const { method } = message;
-    if (method !== "initialize" && method !== "model/list") return;
+    if (method !== "initialize" && method !== "model/list" && method !== "permissionProfile/list")
+      return;
     const id = "id" in message ? message.id : undefined;
     if (method === "initialize" && typeof id === "number") {
       if (this.failHandshake) {
@@ -79,6 +81,14 @@ class ScriptedServeHost implements MuseMspTransport {
     } else if (method === "model/list" && typeof id === "number") {
       const result = this.catalogForList();
       queueMicrotask(() => this.listener?.onMessage({ jsonrpc: "2.0", id, result }));
+    } else if (method === "permissionProfile/list" && typeof id === "number") {
+      queueMicrotask(() =>
+        this.listener?.onMessage({
+          jsonrpc: "2.0",
+          id,
+          result: { profiles: this.permissionProfiles },
+        }),
+      );
     }
     // `initialized` and anything else need no answer.
   }
@@ -136,6 +146,7 @@ function spawnHostFor(
 describe("probeMuseModelCatalog", () => {
   it("maps the live catalog and passes serve args through", async () => {
     const { host, calls, spawnHost } = spawnHostFor(LIVE_CATALOG);
+    host.permissionProfiles = [{ profileId: ":read-only", available: false }];
     const result = await probeMuseModelCatalog(location, {
       executablePath: "/usr/bin/muse",
       probeEnv: { MUSE_NO_AUTO_UPDATE: "1" },
@@ -156,6 +167,7 @@ describe("probeMuseModelCatalog", () => {
       providerId: "meta",
       profileId: null,
       sessionMcpSupported: false,
+      readOnlyPermissionProfile: ":read-only",
     });
     // Spawned the ephemeral trusted host with the resolved binary + probe env.
     const [spawnLocation, spawnOptions] = calls[0]!.args as [
@@ -174,9 +186,12 @@ describe("probeMuseModelCatalog", () => {
       "initialized",
       "model/list",
       "model/list",
+      "permissionProfile/list",
     ]);
     expect(host.written[0]).toMatchObject({
-      params: { capabilities: { requestedCapabilities: ["sessionMcp"] } },
+      params: {
+        capabilities: { experimentalApi: true, requestedCapabilities: ["sessionMcp"] },
+      },
     });
   });
 

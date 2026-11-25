@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { LoadSessionResponse, SessionConfigOption } from "@agentclientprotocol/sdk";
+import type { LoadSessionResponse, SessionConfigOption } from "@agentclientprotocol/sdk/unstable";
 import * as promptContent from "./sessionContentBlocks";
 import {
   createReplaySession,

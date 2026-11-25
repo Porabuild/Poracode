@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type { ClientSideConnection } from "@agentclientprotocol/sdk";
+import type { AcpClientConnection } from "./clientConnection";
 import {
   readUnstableInitializeModels,
   readUnstableSessionModels,
@@ -89,7 +89,7 @@ describe("setUnstableSessionModel", () => {
     const request = vi
       .fn<(method: string, params: { sessionId: string; modelId: string }) => Promise<unknown>>()
       .mockResolvedValue({});
-    const connection = { request } as unknown as ClientSideConnection;
+    const connection = { request } as unknown as AcpClientConnection;
 
     await setUnstableSessionModel(connection, { sessionId: "s-1", modelId: "m-2" });
 

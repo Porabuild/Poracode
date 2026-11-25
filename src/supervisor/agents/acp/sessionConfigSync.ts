@@ -1,4 +1,5 @@
-import type { ClientSideConnection, SessionUpdate } from "@agentclientprotocol/sdk";
+import type { SessionUpdate } from "@agentclientprotocol/sdk/unstable";
+import type { AcpClientConnection } from "./clientConnection";
 import { isThreadConfigEqual, type ThreadConfig } from "@/shared/contracts";
 import { toErrorMessage } from "@/shared/errorMessage";
 import { msg } from "@/shared/messages";
@@ -136,7 +137,7 @@ export class AcpSessionConfigSync {
   readonly configWrites = new ConfigWriteLock();
 
   constructor(
-    private readonly connection: ClientSideConnection,
+    private readonly connection: AcpClientConnection,
     private readonly resolveMode: typeof resolveAcpMode = resolveAcpMode,
     private readonly resolveModelConfig: typeof resolveModelConfigValue = resolveModelConfigValue,
     private readonly behavior: AcpConfigSyncBehavior = {},

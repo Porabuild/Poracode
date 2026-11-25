@@ -147,6 +147,8 @@ export class PiRpcSession implements StructuredSessionHandle {
   /** Latest visible extension status item for each Pi plugin-defined status key. */
   private readonly extensionStatusItemIds = new Map<string, string>();
   private turnErrorMessage: string | undefined;
+  private lastTurnFailed = false;
+  private lastErrorMessage: string | undefined;
   private currentConfig: ThreadConfig;
   /** Pi assigns its session id asynchronously; do not publish a placeholder. */
   private sessionRef: ReturnType<typeof createKnownSessionRef> | undefined;
@@ -383,6 +385,8 @@ export class PiRpcSession implements StructuredSessionHandle {
     this.interruptRequested = false;
     this.agentStarted = false;
     this.turnErrorMessage = undefined;
+    this.lastTurnFailed = false;
+    this.lastErrorMessage = undefined;
     this.assistantItemId = undefined;
     this.reasoningItemId = undefined;
     this.openToolItems.clear();
@@ -901,7 +905,11 @@ export class PiRpcSession implements StructuredSessionHandle {
     });
     this.currentTurnId = undefined;
     this.interruptRequested = false;
-    this.publishUpdate(state === "failed" ? "error" : "idle", "none");
+    this.publishUpdate(
+      state === "failed" ? "error" : "idle",
+      "none",
+      state === "failed" ? this.turnErrorMessage : undefined,
+    );
     this.resolveTurnCompletion?.();
     this.resolveTurnCompletion = undefined;
     void this.publishContextUsage();
@@ -1042,11 +1050,13 @@ export class PiRpcSession implements StructuredSessionHandle {
         });
       }
     }
+    const persistFailure = !this.currentTurnId && this.lastTurnFailed;
     this.listener.onUpdate({
-      status: this.currentTurnId ? "working" : "idle",
+      status: this.currentTurnId ? "working" : persistFailure ? "error" : "idle",
       attention: this.pendingDialogs.size > 0 ? "needs_reply" : "none",
       config: this.currentConfig,
       ...(this.sessionRef ? { sessionRef: this.sessionRef } : {}),
+      ...(persistFailure && this.lastErrorMessage ? { errorMessage: this.lastErrorMessage } : {}),
       slashCommands: commands,
     });
   }
@@ -1056,6 +1066,8 @@ export class PiRpcSession implements StructuredSessionHandle {
     attention: "none" | "needs_reply",
     error?: string,
   ): void {
+    if (status === "error") this.lastTurnFailed = true;
+    if (error) this.lastErrorMessage = error;
     this.listener.onUpdate({
       status,
       attention,

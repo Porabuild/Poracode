@@ -14807,6 +14807,7 @@ msgid "Read the Terminal panel attached to this worktree and report what it is p
 msgstr "Lisez le panneau Terminal de cet arbre de travail et rapportez ce qu'il affiche."
 
 #: src/renderer/components/crew/CrewRoleDetails.tsx
+#: src/renderer/components/providers/codex/index.tsx
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 #: src/renderer/components/thread/ThreadDraftView.tsx

@@ -16,10 +16,8 @@ import { writeFile } from "node:fs/promises";
 import { isDeepStrictEqual } from "node:util";
 import { Readable, Writable } from "node:stream";
 import {
-  ClientSideConnection,
   RequestError,
   type AnyMessage,
-  type Client,
   type CompleteElicitationNotification,
   type ContentBlock,
   type CreateElicitationRequest,
@@ -43,7 +41,12 @@ import {
   type WaitForTerminalExitRequest,
   type WriteTextFileRequest,
   type WriteTextFileResponse,
-} from "@agentclientprotocol/sdk";
+} from "@agentclientprotocol/sdk/unstable";
+import {
+  connectAcpClient,
+  type AcpClientConnection,
+  type AcpClientHandlers,
+} from "./clientConnection";
 import type {
   AgentSlashCommand,
   BackgroundTask,
@@ -531,7 +534,7 @@ export class AcpStructuredSession implements StructuredSessionHandle {
   private readonly acpToolCallIdToItemId = new Map<string, string>();
   private readonly child: ChildProcess | undefined;
   private readonly sharedLease: AcpSharedProcessLease | undefined;
-  private readonly connection: ClientSideConnection;
+  private readonly connection: AcpClientConnection;
   private readonly cwd: string;
   private readonly projectLocation: ProjectLocation;
   private readonly additionalDirectories: readonly ProjectLocation[];
@@ -914,7 +917,7 @@ export class AcpStructuredSession implements StructuredSessionHandle {
 
   private constructor(
     child: ChildProcess | undefined,
-    connection: ClientSideConnection,
+    connection: AcpClientConnection,
     projectLocation: ProjectLocation,
     cwd: string,
     threadId: string,
@@ -1195,11 +1198,9 @@ export class AcpStructuredSession implements StructuredSessionHandle {
       onBeforeWrite: (message) => session.endHistoryReplay(message),
     });
 
-    const connection = new ClientSideConnection(
-      // The SDK invokes `toClient` eagerly during construction — before
-      // `session` is assigned — so the handlers resolve it lazily per call.
-      (_agent): Client => AcpStructuredSession.acpClient(() => session),
+    const connection = connectAcpClient(
       stream,
+      AcpStructuredSession.acpClient(() => session),
     );
 
     session = new AcpStructuredSession(
@@ -1300,7 +1301,7 @@ export class AcpStructuredSession implements StructuredSessionHandle {
    * pooled shared processes. `getSession` resolves lazily because the
    * dedicated path's SDK invokes `toClient` before the session object exists.
    */
-  private static acpClient(getSession: () => AcpStructuredSession): Client {
+  private static acpClient(getSession: () => AcpStructuredSession): AcpClientHandlers {
     return {
       requestPermission(params: RequestPermissionRequest) {
         return getSession().handlePermissionRequest(params);
@@ -1350,7 +1351,7 @@ export class AcpStructuredSession implements StructuredSessionHandle {
   }
 
   /** This session's agent→client handlers for a shared-process member slot. */
-  private buildClient(): Client {
+  private buildClient(): AcpClientHandlers {
     return AcpStructuredSession.acpClient(() => this);
   }
 
@@ -3127,6 +3128,18 @@ export class AcpStructuredSession implements StructuredSessionHandle {
   attachExternalSessionUpdateSource(source: AcpExternalSessionUpdateSource): void {
     this.externalSessionUpdateSources ??= new Set();
     this.externalSessionUpdateSources.add(source);
+  }
+
+  /**
+   * Provider-declared turn hold. Completes the open runtime turn while
+   * `session/prompt` stays unresolved because detached background work is
+   * still running - the same effect as `stderrTurnSignalParser` returning
+   * `"background-wait"`, for an agent that publishes that boundary where a
+   * stderr line parser cannot reach. A no-op when no runtime turn is open, the
+   * turn is being interrupted, or the agent already surfaced an error.
+   */
+  holdTurnForBackgroundWork(): void {
+    this.completeTurnForBackgroundWait();
   }
 
   private notifyExternalSourcesTurnEnd(state: "completed" | "cancelled" | "failed"): void {
