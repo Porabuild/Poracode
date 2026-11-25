@@ -7763,8 +7763,9 @@ html[data-compact-layout]
 }
 
 /* Inner actions stay inside the shared compact line and are centered by the
-   0.25rem insets. Applies during [data-collapsing] too, and the base rule
-   below transitions the size/radius, so the button morphs into the circle
+   0.3125rem insets ((42px line - 32px action) / 2; the bubble's 1px border
+   sits outside that line). Applies during [data-collapsing] too, and the base
+   rule below transitions the size/radius, so the button morphs into the circle
    with the collapse tween instead of snapping at pin release. */
 /* Extra .m-compose-bubble hop outranks the toolbar-chip transition rule
    (`.poracode-composer-toolbar > .flex.shrink-0 > *`), which would otherwise
@@ -8000,8 +8001,8 @@ html[data-compact-layout]
   .poracode-composer-shell
   .poracode-composer-toolbar {
   position: absolute;
-  right: 0.25rem;
-  bottom: 0.25rem;
+  right: 0.3125rem;
+  bottom: 0.3125rem;
   z-index: 3;
   display: flex;
   height: auto !important;
@@ -8055,15 +8056,15 @@ html[data-compact-layout] .m-thread-compose-dock .poracode-composer-toolbar {
 }
 
 /* The expanded toolbar holds the send 0.6rem (its compact row padding) off
-   the shell's bottom-right corner; the pinned layout uses the pill's 0.25rem
-   inset. Position flips can't transition, so run the 0.35rem settle during the
-   second half of collapse — the button glides the last few px into the corner
-   while the compact shell fades back in.
+   the shell's bottom-right corner; the pinned layout uses the pill's 0.3125rem
+   inset. Position flips can't transition, so run the 0.2875rem settle during
+   the second half of collapse — the button glides the last few px into the
+   corner while the compact shell fades back in.
    Higher specificity than the [data-expanded] toolbar-enter rule so it owns
    the toolbar's animation for the collapse window. */
 @keyframes m-thread-send-settle {
   from {
-    transform: translate(-0.35rem, -0.35rem);
+    transform: translate(-0.2875rem, -0.2875rem);
   }
   to {
     transform: none;
@@ -8097,8 +8098,8 @@ html[data-compact-layout]
   .poracode-composer-shell
   .poracode-composer-toolbar {
   position: absolute;
-  right: 0.25rem;
-  bottom: 0.25rem;
+  right: 0.3125rem;
+  bottom: 0.3125rem;
   left: auto;
   z-index: 3;
   display: flex;
@@ -8255,11 +8256,14 @@ html[data-compact-layout]
    below. */
 .m-compose-summary {
   position: absolute;
-  top: 0;
+  /* Bottom-anchor one control line, like the shell it labels. The bubble's 1px
+     border insets its padding box, so a control-height box pinned to the top
+     edge ran 1px past it and centered the chips 1px low. */
+  bottom: 0;
   right: 1rem;
   z-index: 1;
   display: flex;
-  height: var(--m-floating-control-height);
+  height: var(--m-floating-control-line-height);
   align-items: center;
   gap: 0.5rem;
   overflow: hidden;

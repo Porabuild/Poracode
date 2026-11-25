@@ -157,6 +157,32 @@ describe("base control styles", () => {
     }
   });
 
+  it("centers the compact pill's pinned action and summary on its one control line", () => {
+    // The pill is a 44px border box with a 1px border, so its padding box is
+    // the 42px control line. A control-height summary pinned to the top edge
+    // and a 32px action 0.25rem off the shell corner both rode 1px low.
+    const summary = ruleFor(".m-compose-summary");
+    expect(summary).toContain("bottom: 0;");
+    expect(summary).toContain("height: var(--m-floating-control-line-height);");
+    expect(summary).not.toMatch(/\btop:/);
+    // (42px - 32px) / 2 = 5px on both axes keeps the circle concentric with
+    // the pill's rounded end.
+    for (const state of ["[data-input-has-content]", "[data-thread-working]"]) {
+      const pinned = styles.match(
+        new RegExp(
+          `\\.m-thread-compose-dock[^{}\\n]*${state.replace("[", "\\[")}[^{}]*?\\.poracode-composer-toolbar\\s*\\{([^}]+)\\}`,
+        ),
+      )?.[1];
+      if (!pinned) throw new Error(`Missing pinned toolbar rule for ${state}`);
+      expect(pinned).toContain("right: 0.3125rem;");
+      expect(pinned).toContain("bottom: 0.3125rem;");
+    }
+    // 0.6rem expanded row padding - 0.3125rem pinned inset.
+    expect(styles).toMatch(
+      /@keyframes m-thread-send-settle\s*\{\s*from\s*\{\s*transform:\s*translate\(-0\.2875rem, -0\.2875rem\);/,
+    );
+  });
+
   it("avoids whole-app invalidation from compact descendant exclusions", () => {
     expect(styles).not.toContain(":not(:has(.poracode-composer-shell))");
     expect(styles).not.toContain(":not(:has(.poracode-composer-send))");
