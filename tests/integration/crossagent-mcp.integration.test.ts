@@ -58,29 +58,34 @@ describe("Crossagents MCP (live)", () => {
       },
     });
 
-    const spawnable: SpawnableAgent[] = [];
-    for (const adapter of [claude, opencode]) {
-      if (!adapter) continue;
-      spawnable.push({
-        provider: { value: adapter.kind, label: adapter.label },
-        models: adapter.capabilities.models.map((m) => ({
-          value: m.id,
-          label: m.label,
-          reasoning: { values: [] },
-        })),
-        reasoningOptions: [],
-        defaultModel: adapter.capabilities.models[0]?.id ?? "haiku",
-        permissions: {
-          options: [{ value: "full-access", label: "Full access" }],
-          default: "full-access",
-        },
-        execution: "structured",
+    // Adapter capabilities are mutated by detectInstall(). Snapshot them when
+    // the MCP caller asks, not once before detection, or dynamically probed
+    // providers such as OpenCode appear to have no models at all.
+    const spawnableAgents = (): SpawnableAgent[] =>
+      [claude, opencode].flatMap((adapter) => {
+        if (!adapter) return [];
+        return [
+          {
+            provider: { value: adapter.kind, label: adapter.label },
+            models: adapter.capabilities.models.map((m) => ({
+              value: m.id,
+              label: m.label,
+              reasoning: { values: [] },
+            })),
+            reasoningOptions: [],
+            defaultModel: adapter.capabilities.models[0]?.id ?? "haiku",
+            permissions: {
+              options: [{ value: "full-access", label: "Full access" }],
+              default: "full-access",
+            },
+            execution: "structured" as const,
+          },
+        ];
       });
-    }
 
     ingress = new CrossagentMcpIngress({
       runManager,
-      getSpawnableAgents: async () => spawnable,
+      getSpawnableAgents: async () => spawnableAgents(),
       getRoutingGuide: () => ROUTING_GUIDE,
     });
     await ingress.start();
