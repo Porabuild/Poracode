@@ -1540,8 +1540,7 @@ msgstr "Dodaj zdalne repozytorium"
 msgid "Add remote connection"
 msgstr "Dodaj połączenie zdalne"
 
-#: src/renderer/components/crew/CrewRosterPanel.tsx
-#: src/renderer/views/SettingsOverlay/parts/CrewsSettings.tsx
+#: src/renderer/components/crew/AddCrewRoleMenu.tsx
 msgid "Add role"
 msgstr "Dodaj rolę"
 
@@ -11257,6 +11256,10 @@ msgstr "Model dodany do ulubionych"
 #: src/renderer/components/crew/CrewMemberRow.tsx
 msgid "Model for {memberLabel}"
 msgstr "Model dla {memberLabel}"
+
+#: src/renderer/components/crew/AddCrewRoleMenu.tsx
+msgid "Model for the new role"
+msgstr "Model dla nowej roli"
 
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Model id"

@@ -15,7 +15,7 @@ import {
 } from "react";
 import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import { toast } from "@heroui/react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import type { AgentStatus, Project, ThreadConfig } from "@/shared/contracts";
 import type { RemoteDesktopClient } from "@/shared/remote/client";
@@ -4085,6 +4085,34 @@ describe("ThreadDraftView", () => {
   });
 });
 
+const leadRestoreCrew = (lead: SavedCrew["lead"]): SavedCrew => ({
+  id: "crew-lead-restore",
+  name: "Night shift",
+  lead,
+  roles: [
+    {
+      id: "builder",
+      label: "Builder",
+      selection: { agentKind: "codex", model: "gpt-5.4-mini", effort: "low" },
+    },
+  ],
+  policy: "crew-only",
+  updatedAt: 1,
+});
+
+const leadRestoreBinding = (crew: SavedCrew): ThreadCrewBinding => ({
+  version: 1,
+  crewId: crew.id,
+  name: crew.name,
+  policy: crew.policy,
+  roles: crew.roles,
+});
+
+const crewLeadOf = (controls: ComposerControl[]) => {
+  const crewControl = controls.find((control) => control.kind === "crew");
+  return crewControl?.kind === "crew" ? crewControl.model.lead : undefined;
+};
+
 describe("ThreadDraftView model family drafts", () => {
   // A toy relation with the same shape the provider compiles from its native
   // catalog: model-bound (encoded) coordinates on the Terminal surface, a
@@ -5311,6 +5339,645 @@ describe("ThreadDraftView model family drafts", () => {
         crew: { crewId: savedCrew.id },
       });
     });
+  });
+
+  it("restores the saved Crew's lead into a new draft after a thread-local lead edit", async () => {
+    const savedCrew = leadRestoreCrew({ agentKind: "codex", model: "gpt-5.4", effort: "high" });
+    const lastDraftConfig = {
+      agentKind: "codex",
+      model: "gpt-5.4",
+      effort: "low",
+      mode: "agent" as const,
+      crew: leadRestoreBinding(savedCrew),
+    };
+    useAppStore.setState({ projects: [project] });
+    useSharedSettings.setState({
+      crews: [savedCrew],
+      lastPresentationModeByAgent: { codex: "gui" },
+      providerModelPreferences: { codex: { "gpt-5.4": { effort: "low" } } },
+    });
+    render(
+      <ThreadDraftView
+        project={project}
+        agentStatuses={[dualModeCodexStatus]}
+        lastDraftConfig={lastDraftConfig}
+        onStart={() => {}}
+      />,
+    );
+    const controls = () =>
+      (composerSpy.mock.lastCall?.[0] as { controls: ComposerControl[] } | undefined)?.controls ??
+      [];
+    await waitFor(() => {
+      expect(crewLeadOf(controls())).toMatchObject({
+        agentKind: "codex",
+        model: "gpt-5.4",
+        effort: "high",
+      });
+      expect(useAppStore.getState().projects[0]?.lastDraftConfig).toMatchObject({
+        agentKind: "codex",
+        model: "gpt-5.4",
+        effort: "high",
+        crew: { crewId: savedCrew.id },
+      });
+    });
+  });
+
+  it("keeps a lead edit made after the saved Crew was restored", async () => {
+    const savedCrew = leadRestoreCrew({ agentKind: "codex", model: "gpt-5.4", effort: "high" });
+    const lastDraftConfig = {
+      agentKind: "codex",
+      model: "gpt-5.4",
+      effort: "low",
+      mode: "agent" as const,
+      crew: leadRestoreBinding(savedCrew),
+    };
+    useAppStore.setState({ projects: [project] });
+    useSharedSettings.setState({
+      crews: [savedCrew],
+      lastPresentationModeByAgent: { codex: "gui" },
+      providerModelPreferences: { codex: { "gpt-5.4": { effort: "low" } } },
+    });
+    render(
+      <ThreadDraftView
+        project={project}
+        agentStatuses={[dualModeCodexStatus]}
+        lastDraftConfig={lastDraftConfig}
+        onStart={() => {}}
+      />,
+    );
+    const controls = () =>
+      (composerSpy.mock.lastCall?.[0] as { controls: ComposerControl[] } | undefined)?.controls ??
+      [];
+    await waitFor(() => expect(crewLeadOf(controls())?.effort).toBe("high"));
+    const control = controls().find((candidate) => candidate.kind === "crew");
+    if (control?.kind !== "crew") throw new Error("Missing crew control");
+    act(() => control.model.onLeadChange({ agentKind: "codex", model: "gpt-5.4", effort: "low" }));
+    await act(async () => {});
+    await waitFor(() => expect(crewLeadOf(controls())?.effort).toBe("low"));
+  });
+
+  it("restores the saved Crew's lead provider into a new draft", async () => {
+    const claudeGuiStatus: AgentStatus = {
+      kind: "claude",
+      label: "Claude",
+      installed: true,
+      authState: "authenticated",
+      capabilities: {
+        models: [{ id: "opus-5.5", label: "Opus 5.5" }],
+        efforts: ["low", "high"],
+        modelEfforts: { "opus-5.5": ["low", "high"] },
+        modes: ["agent"],
+        approvalPolicies: [],
+        sandboxModes: [],
+        supportsResume: true,
+        supportsDirectInput: true,
+        liveInputMode: "server",
+        presentationMode: "gui",
+        presentationModes: ["gui"],
+        mcpScope: { gui: "launch", terminal: "none" },
+        settingDefs: [],
+      },
+    };
+    const codexGuiStatus: AgentStatus = {
+      ...dualModeCodexStatus,
+      capabilities: {
+        ...dualModeCodexStatus.capabilities,
+        mcpScope: { gui: "launch", terminal: "none" },
+      },
+    };
+    const savedCrew = {
+      ...leadRestoreCrew({ agentKind: "claude", model: "opus-5.5", effort: "high", fast: false }),
+      id: "crew-lead-provider-restore",
+    };
+    const lastDraftConfig = {
+      agentKind: "codex",
+      model: "gpt-5.4",
+      effort: "low",
+      fast: true,
+      mode: "agent" as const,
+      crew: leadRestoreBinding(savedCrew),
+    };
+    useAppStore.setState({ projects: [project] });
+    useSharedSettings.setState({
+      crews: [savedCrew],
+      lastPresentationModeByAgent: { codex: "gui", claude: "gui" },
+    });
+    render(
+      <ThreadDraftView
+        project={project}
+        agentStatuses={[codexGuiStatus, claudeGuiStatus]}
+        lastDraftConfig={lastDraftConfig}
+        onStart={() => {}}
+      />,
+    );
+    await waitFor(() => {
+      expect(useAppStore.getState().projects[0]?.lastDraftConfig).toMatchObject({
+        agentKind: "claude",
+        model: "opus-5.5",
+        effort: "high",
+        fast: false,
+        crew: { crewId: savedCrew.id },
+      });
+    });
+  });
+
+  it("keeps a cross-provider automatic restore silent when the target family cannot hold the saved draft", async () => {
+    const dangerSpy = vi
+      .spyOn(toast, "danger")
+      .mockImplementation(() => undefined as unknown as ReturnType<typeof toast.danger>);
+    onTestFinished(() => dangerSpy.mockRestore());
+    const kimiLeadStatus: AgentStatus = {
+      ...crossTargetAgentStatus,
+      capabilities: {
+        ...crossTargetAgentStatus.capabilities,
+        mcpScope: { gui: "launch", terminal: "none" },
+      },
+    };
+    const codexGuiStatus: AgentStatus = {
+      ...dualModeCodexStatus,
+      capabilities: {
+        ...dualModeCodexStatus.capabilities,
+        mcpScope: { gui: "launch", terminal: "none" },
+      },
+    };
+    const savedCrew = {
+      ...leadRestoreCrew({ agentKind: "kimi", model: "tf-alt", effort: "high" }),
+      id: "crew-cross-family-restore",
+    };
+    const lastDraftConfig = {
+      agentKind: "codex",
+      model: "gpt-5.4",
+      effort: "low",
+      mode: "agent" as const,
+      crew: leadRestoreBinding(savedCrew),
+    };
+    useAppStore.setState({ projects: [project] });
+    useSharedSettings.setState({
+      crews: [savedCrew],
+      lastPresentationModeByAgent: { codex: "gui" },
+      // The target provider's remembered draft carries a thinking carrier the
+      // encoded target relation cannot represent, so the atomic family
+      // resolution must refuse the saved member.
+      providerConfigs: {
+        kimi: {
+          model: "plain-fast",
+          effort: "",
+          fast: false,
+          thinking: true,
+          mode: "agent",
+          approvalPolicy: "default",
+          sandboxMode: "",
+        },
+      },
+    });
+    render(
+      <ThreadDraftView
+        project={project}
+        agentStatuses={[codexGuiStatus, kimiLeadStatus]}
+        lastDraftConfig={lastDraftConfig}
+        onStart={() => {}}
+      />,
+    );
+    const controls = () =>
+      (composerSpy.mock.lastCall?.[0] as { controls: ComposerControl[] } | undefined)?.controls ??
+      [];
+    await waitFor(() => expect(controls().some((control) => control.kind === "crew")).toBe(true));
+    await act(async () => {});
+    await act(async () => {});
+
+    // The automatic restore is not a user edit: the cross-provider refusal stays
+    // silent, and the remembered draft is left untouched.
+    expect(dangerSpy).not.toHaveBeenCalled();
+    expect(useAppStore.getState().projects[0]?.lastDraftConfig).toMatchObject({
+      agentKind: "codex",
+      model: "gpt-5.4",
+      crew: { crewId: savedCrew.id },
+    });
+  });
+
+  it("keeps the remembered lead when a saved Crew's lead is unavailable", async () => {
+    const warningSpy = vi
+      .spyOn(toast, "warning")
+      .mockImplementation(() => undefined as unknown as ReturnType<typeof toast.warning>);
+    const savedCrew = leadRestoreCrew({
+      agentKind: "codex",
+      model: "missing-model",
+      effort: "high",
+    });
+    const lastDraftConfig = {
+      agentKind: "codex",
+      model: "gpt-5.4",
+      effort: "low",
+      mode: "agent" as const,
+      crew: leadRestoreBinding(savedCrew),
+    };
+    useAppStore.setState({ projects: [project] });
+    useSharedSettings.setState({
+      crews: [savedCrew],
+      lastPresentationModeByAgent: { codex: "gui" },
+      providerModelPreferences: { codex: { "gpt-5.4": { effort: "low" } } },
+    });
+    render(
+      <ThreadDraftView
+        project={project}
+        agentStatuses={[dualModeCodexStatus]}
+        lastDraftConfig={lastDraftConfig}
+        onStart={() => {}}
+      />,
+    );
+    const controls = () =>
+      (composerSpy.mock.lastCall?.[0] as { controls: ComposerControl[] } | undefined)?.controls ??
+      [];
+    await waitFor(() => {
+      expect(crewLeadOf(controls())).toEqual({
+        agentKind: "codex",
+        model: "gpt-5.4",
+        effort: "low",
+      });
+      expect(useAppStore.getState().projects[0]?.lastDraftConfig?.effort).toBe("low");
+    });
+    expect(warningSpy).not.toHaveBeenCalled();
+    warningSpy.mockRestore();
+  });
+
+  it("restores the saved Crew's lead after settings hydration replays a remembered lead edit", async () => {
+    const savedCrew = leadRestoreCrew({ agentKind: "codex", model: "gpt-5.4", effort: "high" });
+    const lastDraftConfig = {
+      agentKind: "codex",
+      model: "gpt-5.4",
+      effort: "low",
+      mode: "agent" as const,
+      crew: leadRestoreBinding(savedCrew),
+    };
+    useAppStore.setState({ projects: [project] });
+    useSharedSettings.setState({
+      crews: [savedCrew],
+      lastPresentationModeByAgent: { codex: "gui" },
+      sharedSettingsHydrated: false,
+      providerConfigs: {},
+      providerModelPreferences: {},
+    });
+    render(
+      <ThreadDraftView
+        project={project}
+        agentStatuses={[dualModeCodexStatus]}
+        lastDraftConfig={lastDraftConfig}
+        onStart={() => {}}
+      />,
+    );
+    const controls = () =>
+      (composerSpy.mock.lastCall?.[0] as { controls: ComposerControl[] } | undefined)?.controls ??
+      [];
+    await waitFor(() => expect(controls().some((control) => control.kind === "crew")).toBe(true));
+
+    act(() => {
+      useSharedSettings.setState({
+        sharedSettingsHydrated: true,
+        providerModelPreferences: { codex: { "gpt-5.4": { effort: "low" } } },
+      });
+    });
+
+    await waitFor(() => expect(crewLeadOf(controls())?.effort).toBe("high"));
+  });
+
+  it("restores the saved Crew's lead once its model is in the catalog", async () => {
+    const savedCrew = leadRestoreCrew({
+      agentKind: "codex",
+      model: "gpt-5.4-late",
+      effort: "high",
+    });
+    const lastDraftConfig = {
+      agentKind: "codex",
+      model: "gpt-5.4",
+      effort: "low",
+      mode: "agent" as const,
+      crew: leadRestoreBinding(savedCrew),
+    };
+    const initialStatus: AgentStatus = {
+      ...dualModeCodexStatus,
+      capabilities: {
+        ...dualModeCodexStatus.capabilities,
+        models: [{ id: "gpt-5.4", label: "5.4" }],
+      },
+    };
+    const withLateModel: AgentStatus = {
+      ...dualModeCodexStatus,
+      capabilities: {
+        ...dualModeCodexStatus.capabilities,
+        models: [
+          { id: "gpt-5.4", label: "5.4" },
+          { id: "gpt-5.4-late", label: "5.4 Late" },
+        ],
+      },
+    };
+    useAppStore.setState({ projects: [project] });
+    useSharedSettings.setState({
+      crews: [savedCrew],
+      lastPresentationModeByAgent: { codex: "gui" },
+      providerModelPreferences: { codex: { "gpt-5.4": { effort: "low" } } },
+    });
+    const view = render(
+      <ThreadDraftView
+        project={project}
+        agentStatuses={[initialStatus]}
+        lastDraftConfig={lastDraftConfig}
+        onStart={() => {}}
+      />,
+    );
+    const controls = () =>
+      (composerSpy.mock.lastCall?.[0] as { controls: ComposerControl[] } | undefined)?.controls ??
+      [];
+    await waitFor(() => expect(crewLeadOf(controls())?.model).toBe("gpt-5.4"));
+
+    view.rerender(
+      <ThreadDraftView
+        project={project}
+        agentStatuses={[withLateModel]}
+        lastDraftConfig={lastDraftConfig}
+        onStart={() => {}}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(crewLeadOf(controls())).toMatchObject({
+        agentKind: "codex",
+        model: "gpt-5.4-late",
+        effort: "high",
+      });
+    });
+  });
+
+  it("restores the saved Crew's lead after the draft switches to Chat", async () => {
+    const savedCrew = leadRestoreCrew({ agentKind: "codex", model: "gpt-5.4", effort: "high" });
+    const lastDraftConfig = {
+      agentKind: "codex",
+      model: "gpt-5.4",
+      effort: "low",
+      mode: "agent" as const,
+      crew: leadRestoreBinding(savedCrew),
+    };
+    const terminalOnlyCrewStatus: AgentStatus = {
+      ...dualModeCodexStatus,
+      capabilities: {
+        ...dualModeCodexStatus.capabilities,
+        mcpScope: { gui: "launch", terminal: "none" },
+      },
+    };
+    useAppStore.setState({ projects: [project] });
+    useSharedSettings.setState({
+      crews: [savedCrew],
+      lastPresentationModeByAgent: { codex: "terminal" },
+      providerModelPreferences: { codex: { "gpt-5.4": { effort: "low" } } },
+    });
+    render(
+      <ThreadDraftView
+        project={project}
+        agentStatuses={[terminalOnlyCrewStatus]}
+        lastDraftConfig={lastDraftConfig}
+        onStart={() => {}}
+      />,
+    );
+    const controls = () =>
+      (composerSpy.mock.lastCall?.[0] as { controls: ComposerControl[] } | undefined)?.controls ??
+      [];
+    await waitFor(() => {
+      expect(screen.getByRole("tab", { name: "Chat" })).toBeInTheDocument();
+      expect(controls().some((control) => control.kind === "crew")).toBe(false);
+      expect(useAppStore.getState().projects[0]?.lastDraftConfig?.effort).toBe("low");
+    });
+
+    fireEvent.click(screen.getByRole("tab", { name: "Chat" }));
+
+    await waitFor(() => expect(crewLeadOf(controls())?.effort).toBe("high"));
+  });
+
+  it("keeps following the saved Crew's roster after restoring its lead", async () => {
+    const savedCrew = leadRestoreCrew({ agentKind: "codex", model: "gpt-5.4", effort: "high" });
+    const lastDraftConfig = {
+      agentKind: "codex",
+      model: "gpt-5.4",
+      effort: "low",
+      mode: "agent" as const,
+      crew: leadRestoreBinding(savedCrew),
+    };
+    useAppStore.setState({ projects: [project] });
+    useSharedSettings.setState({
+      crews: [savedCrew],
+      lastPresentationModeByAgent: { codex: "gui" },
+      providerModelPreferences: { codex: { "gpt-5.4": { effort: "low" } } },
+    });
+    render(
+      <ThreadDraftView
+        project={project}
+        agentStatuses={[dualModeCodexStatus]}
+        lastDraftConfig={lastDraftConfig}
+        onStart={() => {}}
+      />,
+    );
+    const controls = () =>
+      (composerSpy.mock.lastCall?.[0] as { controls: ComposerControl[] } | undefined)?.controls ??
+      [];
+    await waitFor(() => expect(crewLeadOf(controls())?.effort).toBe("high"));
+
+    act(() => {
+      useSharedSettings.setState({
+        crews: [
+          {
+            ...savedCrew,
+            roles: [
+              ...savedCrew.roles,
+              {
+                id: "reviewer",
+                label: "Reviewer",
+                selection: { agentKind: "codex", model: "gpt-5.4", effort: "low" },
+              },
+            ],
+          },
+        ],
+      });
+    });
+
+    await waitFor(() => {
+      const crewControl = controls().find((control) => control.kind === "crew");
+      expect(
+        crewControl?.kind === "crew" && crewControl.model.binding.roles.map((role) => role.id),
+      ).toEqual(["builder", "reviewer"]);
+    });
+  });
+
+  it("applies a later saved lead change to an unedited draft", async () => {
+    const savedCrew = leadRestoreCrew({ agentKind: "codex", model: "gpt-5.4", effort: "high" });
+    const lastDraftConfig = {
+      agentKind: "codex",
+      model: "gpt-5.4",
+      effort: "low",
+      mode: "agent" as const,
+      crew: leadRestoreBinding(savedCrew),
+    };
+    useAppStore.setState({ projects: [project] });
+    useSharedSettings.setState({
+      crews: [savedCrew],
+      lastPresentationModeByAgent: { codex: "gui" },
+      providerModelPreferences: { codex: { "gpt-5.4": { effort: "low" } } },
+    });
+    render(
+      <ThreadDraftView
+        project={project}
+        agentStatuses={[dualModeCodexStatus]}
+        lastDraftConfig={lastDraftConfig}
+        onStart={() => {}}
+      />,
+    );
+    const controls = () =>
+      (composerSpy.mock.lastCall?.[0] as { controls: ComposerControl[] } | undefined)?.controls ??
+      [];
+    await waitFor(() => expect(crewLeadOf(controls())?.effort).toBe("high"));
+
+    act(() => {
+      useSharedSettings.setState({
+        crews: [{ ...savedCrew, lead: { ...savedCrew.lead, effort: "medium" } }],
+      });
+    });
+
+    await waitFor(() => expect(crewLeadOf(controls())?.effort).toBe("medium"));
+  });
+
+  it("restores the saved Crew's lead over a remembered model change and keeps it", async () => {
+    const savedCrew = leadRestoreCrew({ agentKind: "codex", model: "gpt-5.4", effort: "high" });
+    useAppStore.setState({ projects: [project] });
+    useSharedSettings.setState({
+      crews: [savedCrew],
+      lastPresentationModeByAgent: { codex: "gui" },
+      providerConfigs: { codex: { model: "gpt-5.4-mini", effort: "low", mode: "agent" } },
+    });
+    render(
+      <ThreadDraftView
+        project={project}
+        agentStatuses={[dualModeCodexStatus]}
+        lastDraftConfig={{
+          agentKind: "codex",
+          model: "gpt-5.4-mini",
+          mode: "agent" as const,
+          crew: leadRestoreBinding(savedCrew),
+        }}
+        onStart={() => {}}
+      />,
+    );
+    const controls = () =>
+      (composerSpy.mock.lastCall?.[0] as { controls: ComposerControl[] } | undefined)?.controls ??
+      [];
+    await waitFor(() => {
+      expect(crewLeadOf(controls())).toMatchObject({ model: "gpt-5.4", effort: "high" });
+    });
+
+    await act(async () => {});
+    await act(async () => {});
+
+    expect(crewLeadOf(controls())).toMatchObject({ model: "gpt-5.4", effort: "high" });
+  });
+
+  it("restores the saved Crew's lead once when the model cannot hold a saved carrier", async () => {
+    const savedCrew = leadRestoreCrew({ agentKind: "codex", model: "gpt-5.4", effort: "ultra" });
+    const lastDraftConfig = {
+      agentKind: "codex",
+      model: "gpt-5.4",
+      effort: "low",
+      mode: "agent" as const,
+      crew: leadRestoreBinding(savedCrew),
+    };
+    useAppStore.setState({ projects: [project] });
+    useSharedSettings.setState({
+      crews: [savedCrew],
+      lastPresentationModeByAgent: { codex: "gui" },
+      providerModelPreferences: { codex: { "gpt-5.4": { effort: "low" } } },
+    });
+    render(
+      <ThreadDraftView
+        project={project}
+        agentStatuses={[dualModeCodexStatus]}
+        lastDraftConfig={lastDraftConfig}
+        onStart={() => {}}
+      />,
+    );
+    const controls = () =>
+      (composerSpy.mock.lastCall?.[0] as { controls: ComposerControl[] } | undefined)?.controls ??
+      [];
+    await waitFor(() => {
+      expect(crewLeadOf(controls())).toMatchObject({ model: "gpt-5.4", effort: "high" });
+    });
+  });
+
+  it("keeps the remembered lead and keeps following the saved Crew when its lead cannot be picked", async () => {
+    const dangerSpy = vi
+      .spyOn(toast, "danger")
+      .mockImplementation(() => undefined as unknown as ReturnType<typeof toast.danger>);
+    onTestFinished(() => dangerSpy.mockRestore());
+    const savedCrew = leadRestoreCrew({
+      agentKind: "devin",
+      model: "f-alpha-x-high",
+      effort: "high",
+    });
+    const lastDraftConfig = {
+      agentKind: "devin",
+      model: "f-alpha-x-low",
+      mode: "agent" as const,
+      thinking: true,
+      crew: leadRestoreBinding(savedCrew),
+    };
+    const terminalCrewStatus: AgentStatus = {
+      ...familyAgentStatus,
+      capabilities: {
+        ...familyAgentStatus.capabilities,
+        mcpScope: { gui: "launch", terminal: "launch" },
+      },
+    };
+    useAppStore.setState({ projects: [project] });
+    useSharedSettings.setState({
+      crews: [savedCrew],
+      lastPresentationModeByAgent: { devin: "terminal" },
+    });
+    render(
+      <ThreadDraftView
+        project={project}
+        agentStatuses={[terminalCrewStatus]}
+        lastDraftConfig={lastDraftConfig}
+        onStart={() => {}}
+      />,
+    );
+    const controls = () =>
+      (composerSpy.mock.lastCall?.[0] as { controls: ComposerControl[] } | undefined)?.controls ??
+      [];
+    await waitFor(() => expect(crewLeadOf(controls())?.model).toBe("f-alpha-x-low"));
+    // The automatic restore is not a user edit: a lead the family cannot hold
+    // stays a visible difference instead of a "That combination isn't available".
+    expect(dangerSpy).not.toHaveBeenCalled();
+
+    act(() => {
+      useSharedSettings.setState({
+        crews: [
+          {
+            ...savedCrew,
+            roles: [
+              ...savedCrew.roles,
+              {
+                id: "reviewer",
+                label: "Reviewer",
+                selection: { agentKind: "devin", model: "f-alpha-x-low", effort: "low" },
+              },
+            ],
+          },
+        ],
+      });
+    });
+
+    await waitFor(() => {
+      const crewControl = controls().find((control) => control.kind === "crew");
+      expect(
+        crewControl?.kind === "crew" && crewControl.model.binding.roles.map((role) => role.id),
+      ).toEqual(["builder", "reviewer"]);
+    });
+    // Following the crew's later version re-attempts the restore, still silently.
+    expect(dangerSpy).not.toHaveBeenCalled();
   });
 
   it.each([

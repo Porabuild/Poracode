@@ -39,10 +39,42 @@ const helperOptions = vi.hoisted(() => {
     settingDefs: [],
   };
   const providers = [
-    { kind: "codex", label: "Codex", capabilities },
-    { kind: "claude", label: "Claude", capabilities },
-    { kind: "gemini", label: "Gemini", capabilities },
-    { kind: "qwen", label: "Qwen", capabilities },
+    {
+      kind: "codex",
+      label: "Codex",
+      capabilities: {
+        ...capabilities,
+        models: [{ id: "codex-model", label: "Codex Model" }],
+        modelEfforts: { "codex-model": ["low", "high"] },
+      },
+    },
+    {
+      kind: "claude",
+      label: "Claude",
+      capabilities: {
+        ...capabilities,
+        models: [{ id: "claude-model", label: "Claude Model" }],
+        modelEfforts: { "claude-model": ["low", "high"] },
+      },
+    },
+    {
+      kind: "gemini",
+      label: "Gemini",
+      capabilities: {
+        ...capabilities,
+        models: [{ id: "gemini-model", label: "Gemini Model" }],
+        modelEfforts: { "gemini-model": ["low", "high"] },
+      },
+    },
+    {
+      kind: "qwen",
+      label: "Qwen",
+      capabilities: {
+        ...capabilities,
+        models: [{ id: "qwen-model", label: "Qwen Model" }],
+        modelEfforts: { "qwen-model": ["low", "high"] },
+      },
+    },
   ];
   return {
     providers,
@@ -416,10 +448,18 @@ describe("CrewsSettings", () => {
     expect(screen.getByRole("button", { name: "Save" })).toBeEnabled();
 
     // Duplicate role names disable Save instead of silently dropping a role.
-    fireEvent.click(screen.getByRole("button", { name: "Add role" }));
+    // The profile picker adds nothing until a model is picked.
+    fireEvent.click(screen.getByRole("button", { name: "Model for the new role" }));
+    const listbox = await screen.findByRole("listbox", { name: "Models" });
+    expect(screen.getAllByRole("textbox", { name: "Role name", hidden: true })).toHaveLength(1);
+    expect(screen.getByRole("textbox", { name: "Role name", hidden: true })).toHaveValue(
+      "Code Reviewer",
+    );
+    fireEvent.click(within(listbox).getByText("Codex Model").closest('[role="option"]')!);
     const addedRoleNameInput = (await screen.findByRole("textbox", {
       name: "Role name",
     })) as HTMLInputElement;
+    await waitFor(() => expect(addedRoleNameInput.value).toBe("Builder"));
     fireEvent.change(addedRoleNameInput, { target: { value: "code reviewer" } });
     expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
     fireEvent.change(addedRoleNameInput, { target: { value: "Builder" } });
@@ -432,7 +472,10 @@ describe("CrewsSettings", () => {
       name: "Work Crew 1",
       roles: [
         expect.objectContaining({ label: "Code Reviewer" }),
-        expect.objectContaining({ label: "Builder" }),
+        expect.objectContaining({
+          label: "Builder",
+          selection: { agentKind: "codex", model: "codex-model", effort: "low" },
+        }),
       ],
     });
     upsertSpy.mockRestore();

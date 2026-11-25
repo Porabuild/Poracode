@@ -298,16 +298,22 @@ export function applyDefaultControlTiers(control: ComposerControl): ComposerCont
  * rejection when the complete tuple has no member (a raced edit, or a hole in
  * the relation). The common composer controls and the provider-registered
  * family selectors both dispatch through this so an unavailable edit never
- * silently saves nothing and never invents a substitute.
+ * silently saves nothing and never invents a substitute. An automatic restore
+ * passes `showFailureToast: false`: no one edited, so a remembered draft that
+ * cannot hold the saved tuple stays a visible difference instead of a
+ * user-facing rejection.
  */
 export function resolveModelSelectionEdit(
   capabilities: AgentCapability,
   config: ModelFamilyConfig | undefined,
   edit: ModelSelectionEdit,
+  options?: { showFailureToast?: boolean },
 ): ModelPickerConfigPatch | null {
   const patch = applyModelSelectionEdit(capabilities, config, edit);
   if (patch === null) {
-    toast.danger(i18n._(msg`That combination isn’t available`));
+    if (options?.showFailureToast !== false) {
+      toast.danger(i18n._(msg`That combination isn’t available`));
+    }
     return null;
   }
   // Mirrors `patchConfigForModelChange`: a member change that leaves Fast

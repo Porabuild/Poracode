@@ -103,6 +103,7 @@ import {
   savedCrewFor,
 } from "@/renderer/components/crew/crewComposerModel";
 import { useCrewHelperOptions } from "@/renderer/components/crew/crewHelperOptions";
+import { useSavedCrewLead } from "@/renderer/components/crew/useSavedCrewLead";
 import {
   ThreadDraftCompactHeader,
   ThreadDraftDropIndicators,
@@ -447,6 +448,7 @@ export function ThreadDraftView(props: {
   >({});
   const initialLastDraftConfigRef = useRef(lastDraftConfig);
   const hasLocalConfigEditRef = useRef(false);
+  const crewLeadRestoredRef = useRef(false);
   const pendingClientSelectionRef = useRef<AgentStatus["kind"] | undefined>(undefined);
   const hasLocalContextEditRef = useRef(false);
   effectiveAgentKindRef.current = effectiveAgentKind;
@@ -789,6 +791,8 @@ export function ThreadDraftView(props: {
     }
     if (selectedAgentForConfig.capabilities.models.length === 0) return;
     if (hasLocalConfigEditRef.current) return;
+    // A draft put on its saved crew's lead keeps it: the per-model preference does not apply.
+    if (crewLeadRestoredRef.current) return;
 
     const settings = useSharedSettings.getState();
     providerConfigsRef.current = Object.fromEntries(
@@ -872,6 +876,9 @@ export function ThreadDraftView(props: {
     if (selectedAgentForConfig.capabilities.models.length === 0) {
       return;
     }
+    // A draft put on its saved crew's lead keeps it until edited: the remembered
+    // config does not restore over it.
+    if (crewLeadRestoredRef.current && !hasLocalConfigEditRef.current) return;
     const initialLastDraftConfig = initialLastDraftConfigRef.current;
     const hasInitialProjectDraft =
       initialLastDraftConfig?.agentKind === effectiveAgentKind &&
@@ -1132,6 +1139,7 @@ export function ThreadDraftView(props: {
       crewOverride?: ThreadCrewBinding | null,
     ) => void
   >(() => undefined);
+  // Returns false when nothing was committed: a missing provider or a refused family edit.
   const latestProviderModelChangeRef = useRef<
     (
       next: {
@@ -1145,9 +1153,11 @@ export function ThreadDraftView(props: {
         effort?: string;
         fast?: boolean;
         contextSize?: string;
+        /** An automatic saved-crew restore, not a user edit: keep a refusal silent. */
+        suppressFailureToast?: boolean;
       },
-    ) => void
-  >(() => undefined);
+    ) => boolean
+  >(() => false);
   const onConfigPatch = (
     patch: Partial<ThreadConfig>,
     origin?: ComposerSelectionOrigin,
@@ -1233,7 +1243,7 @@ export function ThreadDraftView(props: {
     },
     overrides,
   ) => {
-    if (!selectedAgent || !selectedAgentForConfig) return;
+    if (!selectedAgent || !selectedAgentForConfig) return false;
     hasLocalConfigEditRef.current = true;
     // Workflow mode is chosen per model, like the native composers.
     setWorkflows(false);
@@ -1242,7 +1252,7 @@ export function ThreadDraftView(props: {
       : (nextPresentationMode ?? presentationMode);
     if (nextKind !== selectedAgent.kind) {
       const targetAgent = installedAgents.find((agent) => agent.kind === nextKind);
-      if (!targetAgent) return;
+      if (!targetAgent) return false;
       const targetAgentForConfig = agentWithCapabilities(targetAgent, targetPresentationMode);
 
       // An explicit cross-provider row is honored atomically at the TARGET
@@ -1277,10 +1287,12 @@ export function ThreadDraftView(props: {
           selectionIntent === "family"
             ? { kind: "family", model: nextModel }
             : { kind: "model", model: nextModel },
+          { showFailureToast: !overrides?.suppressFailureToast },
         );
         if (patch === null) {
-          familyTransitionFailureToast();
-          return;
+          // An automatic restore is not a user edit: a refusal stays silent.
+          if (!overrides?.suppressFailureToast) familyTransitionFailureToast();
+          return false;
         }
         targetRelation =
           selectionIntent === "family"
@@ -1332,6 +1344,7 @@ export function ThreadDraftView(props: {
         ),
         overrides?.crew,
       );
+      return true;
     } else {
       const picked = normalizeProviderModelConfig(
         selectedAgentForConfig.kind,
@@ -1346,7 +1359,7 @@ export function ThreadDraftView(props: {
         if (transition !== undefined) {
           if (transition === null) {
             familyTransitionFailureToast();
-            return;
+            return false;
           }
           applyFamilySurfaceTransition(
             selectedAgent,
@@ -1354,7 +1367,7 @@ export function ThreadDraftView(props: {
             transition,
             overrides?.crew,
           );
-          return;
+          return true;
         }
         retargetPresentation(targetPresentationMode);
       }
@@ -1376,6 +1389,7 @@ export function ThreadDraftView(props: {
           selectionIntent === "family"
             ? { kind: "family", model: targetModel }
             : { kind: "model", model: targetModel },
+          { showFailureToast: !overrides?.suppressFailureToast },
         );
         // An empty family retain still reaches the reduction so a stale record
         // can drop; only a family row may mint.
@@ -1391,8 +1405,9 @@ export function ThreadDraftView(props: {
             selectionIntent === "family" ? { kind: "family-resolved" } : { kind: "raw-pick" },
             overrides?.crew,
           );
+          return true;
         }
-        return;
+        return false;
       }
       const modelPreference = resolveProviderModelPreference(
         effectiveAgentKind as AgentStatus["kind"],
@@ -1424,6 +1439,7 @@ export function ThreadDraftView(props: {
         undefined,
         overrides?.crew,
       );
+      return true;
     }
   };
 
@@ -1445,6 +1461,22 @@ export function ThreadDraftView(props: {
   const draftLeadCanLead = Boolean(
     selectedAgentForConfig && canLeadCrew(selectedAgentForConfig.capabilities, presentationMode),
   );
+  const activeSavedCrew = savedCrewFor(draftCrew, savedCrews);
+  const applySavedCrew = useSavedCrewLead({
+    activeSavedCrew,
+    lead: draftLead,
+    leadProviders,
+    presentationMode,
+    canFollow:
+      !isIsolatedSelection &&
+      sharedSettingsHydrated &&
+      draftLeadCanLead &&
+      Boolean(model) &&
+      Boolean(selectedAgentForConfig?.capabilities.models.length),
+    hasLocalEditRef: hasLocalConfigEditRef,
+    restoredRef: crewLeadRestoredRef,
+    pickRef: latestProviderModelChangeRef,
+  });
   const crewsOffered = presentationMode === "gui" || draftLeadCanLead;
   const defaultHelper = draftLead ? helperOptions.defaultSelectionFor(draftLead) : undefined;
   const modelLabelOf = (selection: CrewMemberSelection) =>
@@ -1467,29 +1499,16 @@ export function ThreadDraftView(props: {
     }
     const saved = savedCrews.find((crew) => crew.id === choice.crewId);
     if (!saved) return;
-    const binding = crewBindingFromSavedCrew(saved);
-    const target = leadProviders.find((provider) => provider.kind === saved.lead.agentKind);
-    const targetModel = target?.capabilities.models.find(
-      (candidate) => candidate.id === saved.lead.model,
-    );
-    if (!target || !targetModel || !canLeadCrew(target.capabilities, presentationMode)) {
-      commitDraftCrew(binding);
+    // A lead the family resolver refuses stays silent, as before.
+    if (applySavedCrew(saved) === "unavailable") {
+      commitDraftCrew(crewBindingFromSavedCrew(saved));
+      const target = leadProviders.find((provider) => provider.kind === saved.lead.agentKind);
       toast.warning(
         i18n._(
           msg`${target?.label ?? saved.lead.agentKind} isn't available, so ${modelLabelOf(draftLead)} stays the lead.`,
         ),
       );
-      return;
     }
-    latestProviderModelChangeRef.current(
-      { agentKind: saved.lead.agentKind, model: saved.lead.model, presentationMode },
-      {
-        crew: binding,
-        effort: saved.lead.effort ?? "",
-        fast: saved.lead.fast ?? false,
-        ...(saved.lead.contextSize ? { contextSize: saved.lead.contextSize } : {}),
-      },
-    );
   }
   const crewSection = crewsOffered
     ? {
@@ -1505,7 +1524,6 @@ export function ThreadDraftView(props: {
         onSelect: handleDraftCrewChoice,
       }
     : undefined;
-  const activeSavedCrew = savedCrewFor(draftCrew, savedCrews);
   const crewRoster =
     draftCrew && draftLead && crewsOffered
       ? {

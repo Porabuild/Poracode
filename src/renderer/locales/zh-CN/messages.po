@@ -1540,8 +1540,7 @@ msgstr "添加远程仓库"
 msgid "Add remote connection"
 msgstr "添加远程连接"
 
-#: src/renderer/components/crew/CrewRosterPanel.tsx
-#: src/renderer/views/SettingsOverlay/parts/CrewsSettings.tsx
+#: src/renderer/components/crew/AddCrewRoleMenu.tsx
 msgid "Add role"
 msgstr "添加角色"
 
@@ -11256,6 +11255,10 @@ msgstr "已将模型添加到收藏夹"
 #: src/renderer/components/crew/CrewMemberRow.tsx
 msgid "Model for {memberLabel}"
 msgstr "{memberLabel} 的模型"
+
+#: src/renderer/components/crew/AddCrewRoleMenu.tsx
+msgid "Model for the new role"
+msgstr "新角色的模型"
 
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Model id"

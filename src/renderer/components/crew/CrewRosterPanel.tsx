@@ -1,22 +1,13 @@
 import { useEffect, useState } from "react";
 import { useLingui } from "@lingui/react/macro";
-import {
-  Check,
-  LayoutTemplate,
-  Lock,
-  LockOpen,
-  Plus,
-  RotateCcw,
-  Save,
-  Settings2,
-} from "lucide-react";
+import { Check, LayoutTemplate, Lock, LockOpen, RotateCcw, Save, Settings2 } from "lucide-react";
 import { Separator } from "@heroui/react";
-import { Button } from "@/renderer/components/common/Button";
 import { Input } from "@/renderer/components/common/Input";
 import { OptionMenu } from "@/renderer/components/common/OptionMenu";
 import { ThreadDockIconButton } from "@/renderer/components/thread/ThreadDockUI";
 import { openCrewsSettings } from "@/renderer/actions/panelActions";
 import { MAX_CREW_ROLES, crewBindingFromSavedCrew } from "@/shared/crew";
+import type { CrewMemberSelection } from "@/shared/crew";
 import {
   addRole,
   isCrewEdited,
@@ -31,6 +22,7 @@ import {
   updateRole,
 } from "./crewComposerModel";
 import { CrewMemberRow } from "./CrewMemberRow";
+import { AddCrewRoleMenu } from "./AddCrewRoleMenu";
 import type { CrewRosterModel } from "./crewComposerModel";
 import { CREW_TEMPLATE_DESCRIPTORS, crewRolesFromTemplate } from "./crewTemplates";
 
@@ -105,10 +97,8 @@ export function CrewRosterPanel(props: {
     setEditingName(false);
   }
 
-  function handleAddRole() {
-    const defaultHelper = model.defaultHelper;
-    if (!defaultHelper || model.binding.roles.length >= MAX_CREW_ROLES) return;
-    const result = addRole(model.binding, model.roleTemplates, defaultHelper);
+  function handleAddRole(selection: CrewMemberSelection) {
+    const result = addRole(model.binding, model.roleTemplates, selection);
     if (!result.roleId) return;
     model.onBindingChange(result.binding);
     setEditingRoleId(result.roleId);
@@ -277,18 +267,12 @@ export function CrewRosterPanel(props: {
             }}
           />
         ))}
-        <Button
-          variant="ghost"
-          size="sm"
-          className="mt-1 h-7 w-full justify-start gap-1.5 px-1.5 text-xs text-muted hover:text-foreground"
-          isDisabled={
-            model.isDisabled || !model.defaultHelper || model.binding.roles.length >= MAX_CREW_ROLES
-          }
-          onPress={handleAddRole}
-        >
-          <Plus className="size-3.5" />
-          {t`Add role`}
-        </Button>
+        <AddCrewRoleMenu
+          providers={model.helperOptions.providers}
+          isDisabled={model.isDisabled || model.binding.roles.length >= MAX_CREW_ROLES}
+          selectionFor={model.helperOptions.selectionFor}
+          onAdd={handleAddRole}
+        />
       </div>
     </section>
   );

@@ -96,6 +96,38 @@ describe("crewComposerModel", () => {
     expect(isLeadEdited({ ...saved.lead, effort: undefined }, saved)).toBe(true);
     expect(isCrewEdited({ ...binding, policy: "crew-first" }, saved.lead, saved)).toBe(true);
     expect(isCrewEdited(binding, saved.lead, undefined)).toBe(false);
+    expect(isLeadEdited({ ...saved.lead, fast: false }, saved)).toBe(false);
+    expect(isLeadEdited({ ...saved.lead, fast: true }, saved)).toBe(true);
+    const savedFastOff = { ...saved, lead: { ...saved.lead, fast: false as const } };
+    expect(isLeadEdited(saved.lead, savedFastOff)).toBe(false);
+    expect(
+      isRoleEdited(
+        { ...binding.roles[0]!, selection: { ...binding.roles[0]!.selection, fast: false } },
+        saved,
+      ),
+    ).toBe(false);
+    expect(
+      isRoleEdited(
+        { ...binding.roles[0]!, selection: { ...binding.roles[0]!.selection, fast: true } },
+        saved,
+      ),
+    ).toBe(true);
+    const savedWithFallback = {
+      ...saved,
+      roles: [{ ...saved.roles[0]!, fallbacks: [helper] }],
+    };
+    expect(
+      isRoleEdited(
+        { ...binding.roles[0]!, fallbacks: [{ ...helper, fast: false }] },
+        savedWithFallback,
+      ),
+    ).toBe(false);
+    expect(
+      isRoleEdited(
+        { ...binding.roles[0]!, fallbacks: [{ ...helper, fast: true }] },
+        savedWithFallback,
+      ),
+    ).toBe(true);
   });
 
   it("creates, adds, edits and removes role bindings within limits", () => {

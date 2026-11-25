@@ -1540,8 +1540,7 @@ msgstr "리모트 추가"
 msgid "Add remote connection"
 msgstr "원격 연결 추가"
 
-#: src/renderer/components/crew/CrewRosterPanel.tsx
-#: src/renderer/views/SettingsOverlay/parts/CrewsSettings.tsx
+#: src/renderer/components/crew/AddCrewRoleMenu.tsx
 msgid "Add role"
 msgstr "역할 추가"
 
@@ -11257,6 +11256,10 @@ msgstr "모델을 즐겨찾기에 추가함"
 #: src/renderer/components/crew/CrewMemberRow.tsx
 msgid "Model for {memberLabel}"
 msgstr "{memberLabel} 모델"
+
+#: src/renderer/components/crew/AddCrewRoleMenu.tsx
+msgid "Model for the new role"
+msgstr "새 역할 모델"
 
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Model id"

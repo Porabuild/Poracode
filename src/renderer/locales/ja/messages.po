@@ -1539,8 +1539,7 @@ msgstr "リモートの追加"
 msgid "Add remote connection"
 msgstr "リモート接続を追加"
 
-#: src/renderer/components/crew/CrewRosterPanel.tsx
-#: src/renderer/views/SettingsOverlay/parts/CrewsSettings.tsx
+#: src/renderer/components/crew/AddCrewRoleMenu.tsx
 msgid "Add role"
 msgstr "役割を追加"
 
@@ -11255,6 +11254,10 @@ msgstr "モデルをお気に入りに追加しました"
 #: src/renderer/components/crew/CrewMemberRow.tsx
 msgid "Model for {memberLabel}"
 msgstr "{memberLabel} のモデル"
+
+#: src/renderer/components/crew/AddCrewRoleMenu.tsx
+msgid "Model for the new role"
+msgstr "新しいロールのモデル"
 
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Model id"

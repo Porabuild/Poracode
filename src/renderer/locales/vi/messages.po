@@ -1540,8 +1540,7 @@ msgstr "Thêm remote"
 msgid "Add remote connection"
 msgstr "Thêm kết nối từ xa"
 
-#: src/renderer/components/crew/CrewRosterPanel.tsx
-#: src/renderer/views/SettingsOverlay/parts/CrewsSettings.tsx
+#: src/renderer/components/crew/AddCrewRoleMenu.tsx
 msgid "Add role"
 msgstr "Thêm vai trò"
 
@@ -11257,6 +11256,10 @@ msgstr "Đã thêm mô hình vào mục yêu thích"
 #: src/renderer/components/crew/CrewMemberRow.tsx
 msgid "Model for {memberLabel}"
 msgstr "Mô hình cho {memberLabel}"
+
+#: src/renderer/components/crew/AddCrewRoleMenu.tsx
+msgid "Model for the new role"
+msgstr "Mô hình cho vai trò mới"
 
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Model id"

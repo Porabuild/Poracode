@@ -1540,8 +1540,7 @@ msgstr "Uzak Depo Ekle"
 msgid "Add remote connection"
 msgstr "Uzak bağlantı ekle"
 
-#: src/renderer/components/crew/CrewRosterPanel.tsx
-#: src/renderer/views/SettingsOverlay/parts/CrewsSettings.tsx
+#: src/renderer/components/crew/AddCrewRoleMenu.tsx
 msgid "Add role"
 msgstr "Rol ekle"
 
@@ -11257,6 +11256,10 @@ msgstr "Model favorilere eklendi"
 #: src/renderer/components/crew/CrewMemberRow.tsx
 msgid "Model for {memberLabel}"
 msgstr "{memberLabel} için model"
+
+#: src/renderer/components/crew/AddCrewRoleMenu.tsx
+msgid "Model for the new role"
+msgstr "Yeni rol için model"
 
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Model id"

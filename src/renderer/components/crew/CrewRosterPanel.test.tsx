@@ -4,6 +4,7 @@ import type { AgentCapability } from "@/shared/contracts";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import type { CrewHelperOptions } from "./crewHelperOptions";
 import type { CrewRosterModel } from "./crewComposerModel";
+import { MAX_CREW_ROLES } from "@/shared/crew";
 import type { CrewMemberSelection, CrewRole, SavedCrew, ThreadCrewBinding } from "@/shared/crew";
 import { CrewRosterMenu } from "./CrewRosterMenu";
 import { CrewRosterPanel } from "./CrewRosterPanel";
@@ -129,28 +130,68 @@ describe("CrewRosterPanel", () => {
     expect(screen.getAllByLabelText("Changed for this thread").length).toBeGreaterThan(0);
   });
 
-  it("adds the first unused template when a helper selection is available", async () => {
-    const base = makeModel();
+  it("adds the picked profile as the next unused template and opens it for editing", async () => {
+    const onBindingChange = vi.fn<(next: ThreadCrewBinding) => void>();
     const model = makeModel({
-      binding: {
-        ...base.binding,
-        roles: [role],
-      },
-      defaultHelper: { agentKind: "claude", model: "opus-5.5", effort: "low" },
-      onBindingChange: vi.fn<(next: ThreadCrewBinding) => void>(),
+      // One provider keeps the picked row unique in the menu.
+      helperOptions: { ...helperOptions, providers: helperOptions.providers.slice(0, 1) },
+      onBindingChange,
     });
-    renderWithI18n(<CrewRosterPanel model={model} />);
-    fireEvent.click(screen.getByRole("button", { name: "Add role" }));
-    await waitFor(() => {
-      expect(model.onBindingChange).toHaveBeenCalledWith(
+    const view = renderWithI18n(<CrewRosterPanel model={model} />);
+
+    // Opening the picker is not a pick: no role is added by the trigger alone.
+    fireEvent.click(screen.getByRole("button", { name: "Model for the new role" }));
+    const listbox = await screen.findByRole("listbox", { name: "Models" });
+    expect(onBindingChange).not.toHaveBeenCalled();
+
+    // The added role uses exactly the picked profile's selection.
+    fireEvent.click(within(listbox).getByText("Opus 5.5").closest('[role="option"]')!);
+    await waitFor(() =>
+      expect(onBindingChange).toHaveBeenCalledWith(
         expect.objectContaining({
           roles: expect.arrayContaining([
             expect.objectContaining({ id: "scout" }),
-            expect.objectContaining({ id: "builder" }),
+            expect.objectContaining({
+              id: "builder",
+              selection: { agentKind: "codex", model: "opus-5.5", effort: "low" },
+            }),
           ]),
         }),
-      );
+      ),
+    );
+
+    // The new role opens in editing mode, as before.
+    const added = onBindingChange.mock.lastCall![0];
+    view.rerender(<CrewRosterPanel model={{ ...model, binding: added }} />);
+    expect(await screen.findByRole("textbox", { name: "Role name" })).toHaveValue("Builder");
+  });
+
+  it("disables Add role when no helper models are offered", () => {
+    const provider = helperOptions.providers[0]!;
+    const model = makeModel({
+      helperOptions: {
+        ...helperOptions,
+        providers: [{ ...provider, capabilities: { ...capability, models: [] } }],
+      },
     });
+    renderWithI18n(<CrewRosterPanel model={model} />);
+    expect(screen.getByRole("button", { name: "Model for the new role" })).toBeDisabled();
+  });
+
+  it("disables Add role at the role limit or on a disabled roster", () => {
+    const roles = Array.from({ length: MAX_CREW_ROLES }, (_, index): CrewRole => ({
+      id: `role-${index}`,
+      label: `Role ${index}`,
+      selection,
+    }));
+    const base = makeModel();
+    const view = renderWithI18n(
+      <CrewRosterPanel model={makeModel({ binding: { ...base.binding, roles } })} />,
+    );
+    expect(screen.getByRole("button", { name: "Model for the new role" })).toBeDisabled();
+
+    view.rerender(<CrewRosterPanel model={makeModel({ isDisabled: true })} />);
+    expect(screen.getByRole("button", { name: "Model for the new role" })).toBeDisabled();
   });
 
   it("keeps Lead Fast on the toolbar state and requests handoff on active threads", () => {
@@ -380,6 +421,31 @@ describe("CrewRosterPanel", () => {
     await waitFor(() =>
       expect(screen.queryByRole("button", { name: "Model for Lead" })).toBeNull(),
     );
+  });
+
+  it("does not mark the lead changed when it only carries Fast off", () => {
+    const savedNoFast: SavedCrew = {
+      ...savedCrew,
+      lead: { agentKind: "codex", model: "gpt-5.5", effort: "high" },
+    };
+    renderWithI18n(<CrewRosterPanel model={makeModel({ savedCrew: savedNoFast })} />);
+
+    expect(screen.queryByLabelText("Changed for this thread")).toBeNull();
+    expect(screen.getByRole("button", { name: "Reset to Review board" })).toBeDisabled();
+  });
+
+  it("still marks the lead changed when it carries Fast on", () => {
+    const savedNoFast: SavedCrew = {
+      ...savedCrew,
+      lead: { agentKind: "codex", model: "gpt-5.5", effort: "high" },
+    };
+    renderWithI18n(
+      <CrewRosterPanel
+        model={makeModel({ savedCrew: savedNoFast, lead: { ...selection, fast: true } })}
+      />,
+    );
+
+    expect(screen.getAllByLabelText("Changed for this thread").length).toBeGreaterThan(0);
   });
 });
 
