@@ -24,7 +24,7 @@
  * so the id is remembered when the tool is first announced and resolved when
  * that id reports a terminal status.
  */
-import type { SessionUpdate } from "@agentclientprotocol/sdk";
+import type { SessionUpdate } from "@agentclientprotocol/sdk/unstable";
 import {
   extractToolCallContentText,
   isAcpEnterPlanModeTool,

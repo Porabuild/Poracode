@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type { InitializeResponse } from "@agentclientprotocol/sdk";
+import type { InitializeResponse } from "@agentclientprotocol/sdk/unstable";
 import type { ThreadConfig } from "@/shared/contracts";
 import { makeConfigSyncSession } from "../../acp/sessionTestFixture";
 import { DEVIN_ACP_PROMPT_STEERING, devinAcpPromptUsageSampleId } from "./promptSteering";

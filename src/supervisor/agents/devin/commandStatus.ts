@@ -1,4 +1,4 @@
-import type { SessionNotification } from "@agentclientprotocol/sdk";
+import type { SessionNotification } from "@agentclientprotocol/sdk/unstable";
 import { record } from "./acpRecord";
 import { withAcpCommandStatus } from "../acp/canonicalMapping/commandStatus";
 

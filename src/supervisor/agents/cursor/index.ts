@@ -1,5 +1,5 @@
 import { cursorMcpLaunch } from "./mcp";
-import { RequestError } from "@agentclientprotocol/sdk";
+import { RequestError } from "@agentclientprotocol/sdk/unstable";
 import type { AgentInstanceConfig, AgentStatus, PromptSegment } from "@/shared/contracts";
 import { cursorProfileKind } from "@/shared/contracts";
 import { DiagnosticError } from "@/shared/diagnostics/sentryPolicy";

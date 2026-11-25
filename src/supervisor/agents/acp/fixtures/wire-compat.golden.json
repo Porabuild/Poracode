@@ -1,0 +1,3415 @@
+{
+  "$comment": "Recorded against @agentclientprotocol/sdk 1.4.0 (patched). See clientWireCompat.test.ts.",
+  "scenarios": {
+    "full-all-extensions": {
+      "calls": [
+        {
+          "method": "initialize",
+          "params": {
+            "protocolVersion": 1,
+            "clientInfo": {
+              "name": "poracode",
+              "version": "0.1.0"
+            },
+            "clientCapabilities": {
+              "fs": {
+                "readTextFile": true,
+                "writeTextFile": true
+              },
+              "elicitation": {
+                "form": {},
+                "url": {}
+              },
+              "terminal": true
+            }
+          }
+        },
+        {
+          "method": "authenticate",
+          "params": {
+            "methodId": "oauth-personal"
+          }
+        },
+        {
+          "method": "newSession",
+          "params": {
+            "cwd": "/w",
+            "mcpServers": []
+          }
+        },
+        {
+          "method": "loadSession",
+          "params": {
+            "sessionId": "s-1",
+            "cwd": "/w"
+          }
+        },
+        {
+          "method": "resumeSession",
+          "params": {
+            "sessionId": "s-1",
+            "cwd": "/w"
+          }
+        },
+        {
+          "method": "prompt",
+          "params": {
+            "sessionId": "s-1",
+            "prompt": [
+              {
+                "type": "text",
+                "text": "hello"
+              }
+            ]
+          }
+        },
+        {
+          "method": "setSessionConfigOption",
+          "params": {
+            "sessionId": "s-1",
+            "configId": "flag",
+            "value": true
+          }
+        },
+        {
+          "method": "setSessionMode",
+          "params": {
+            "sessionId": "s-1",
+            "modeId": "default"
+          }
+        },
+        {
+          "method": "cancel",
+          "params": {
+            "sessionId": "s-1"
+          }
+        },
+        {
+          "method": "extMethod vendor/echo",
+          "params": {
+            "a": 1
+          }
+        },
+        {
+          "method": "closeSession",
+          "params": {
+            "sessionId": "s-1"
+          }
+        },
+        {
+          "method": "deleteSession",
+          "params": {
+            "sessionId": "s-1"
+          }
+        }
+      ],
+      "wireOrder": [
+        "initialize",
+        "authenticate",
+        "session/new",
+        "session/load",
+        "session/resume",
+        "session/prompt",
+        "session/set_config_option",
+        "session/set_mode",
+        "session/cancel",
+        "vendor/echo",
+        "session/close",
+        "session/delete"
+      ],
+      "agentSaw": {
+        "vendor/ask#1": {
+          "jsonrpc": "2.0",
+          "id": "vendor/ask#1",
+          "result": {
+            "echo": {
+              "q": "ping",
+              "extra": [1, 2]
+            }
+          }
+        },
+        "vendor/unknown2#1": {
+          "jsonrpc": "2.0",
+          "id": "vendor/unknown2#1",
+          "result": {
+            "echo": {}
+          }
+        },
+        "fs/read_text_file#2": {
+          "jsonrpc": "2.0",
+          "id": "fs/read_text_file#2",
+          "error": {
+            "code": -32602,
+            "message": "Invalid params",
+            "data": {
+              "_errors": [],
+              "path": {
+                "_errors": ["Invalid input: expected string, received undefined"]
+              }
+            }
+          }
+        },
+        "fs/write_text_file#1": {
+          "jsonrpc": "2.0",
+          "id": "fs/write_text_file#1",
+          "result": {
+            "bytesWritten": 3
+          }
+        },
+        "fs/read_text_file#1": {
+          "jsonrpc": "2.0",
+          "id": "fs/read_text_file#1",
+          "result": {
+            "content": "l3\nl4"
+          }
+        },
+        "terminal/create#1": {
+          "jsonrpc": "2.0",
+          "id": "terminal/create#1",
+          "result": {
+            "id": "t1"
+          }
+        },
+        "terminal/output#1": {
+          "jsonrpc": "2.0",
+          "id": "terminal/output#1",
+          "result": {
+            "output": "out",
+            "truncated": false
+          }
+        },
+        "terminal/wait_for_exit#1": {
+          "jsonrpc": "2.0",
+          "id": "terminal/wait_for_exit#1",
+          "result": {
+            "exitStatus": {
+              "exitCode": 0,
+              "signal": null
+            }
+          }
+        },
+        "terminal/release#1": {
+          "jsonrpc": "2.0",
+          "id": "terminal/release#1",
+          "result": {}
+        },
+        "terminal/kill#1": {
+          "jsonrpc": "2.0",
+          "id": "terminal/kill#1",
+          "result": {}
+        },
+        "session/request_permission#1": {
+          "jsonrpc": "2.0",
+          "id": "session/request_permission#1",
+          "result": {
+            "outcome": {
+              "outcome": "selected",
+              "optionId": "allow"
+            }
+          }
+        },
+        "elicitation/create#1": {
+          "jsonrpc": "2.0",
+          "id": "elicitation/create#1",
+          "error": {
+            "code": -32602,
+            "message": "Invalid params",
+            "data": {
+              "_errors": [],
+              "mode": {
+                "_errors": [
+                  "Invalid input: expected \"form\"",
+                  "Invalid input: expected \"url\"",
+                  "Invalid input: expected string, received undefined"
+                ]
+              },
+              "elicitationId": {
+                "_errors": ["Invalid input: expected string, received undefined"]
+              },
+              "url": {
+                "_errors": ["Invalid input: expected string, received undefined"]
+              }
+            }
+          }
+        },
+        "vendor/throw_plain#1": {
+          "jsonrpc": "2.0",
+          "id": "vendor/throw_plain#1",
+          "error": {
+            "code": -32603,
+            "message": "Internal error",
+            "data": {
+              "details": "boom"
+            }
+          }
+        },
+        "vendor/throw_request_error#1": {
+          "jsonrpc": "2.0",
+          "id": "vendor/throw_request_error#1",
+          "error": {
+            "code": -32000,
+            "message": "custom failure",
+            "data": {
+              "detail": 1
+            }
+          }
+        },
+        "vendor/return_undefined#1": {
+          "jsonrpc": "2.0",
+          "id": "vendor/return_undefined#1",
+          "result": null
+        }
+      },
+      "handlerCalls": [
+        {
+          "handler": "sessionUpdate",
+          "method": "session/update",
+          "params": {
+            "sessionId": "s-unsolicited",
+            "update": {
+              "content": {
+                "text": "unsolicited",
+                "type": "text"
+              },
+              "sessionUpdate": "agent_message_chunk"
+            },
+            "_meta": {
+              "vendor": {
+                "deep": {
+                  "x": 1
+                }
+              }
+            }
+          }
+        },
+        {
+          "handler": "extNotification",
+          "method": "vendor/progress",
+          "params": {
+            "n": 1
+          }
+        },
+        {
+          "handler": "extMethod",
+          "method": "vendor/ask",
+          "params": {
+            "q": "ping",
+            "extra": [1, 2]
+          }
+        },
+        {
+          "handler": "extMethod",
+          "method": "vendor/unknown2",
+          "params": {}
+        },
+        {
+          "handler": "sessionUpdate",
+          "method": "session/update",
+          "params": {
+            "sessionId": "s-1",
+            "update": {
+              "content": {
+                "text": "Hello",
+                "type": "text"
+              },
+              "sessionUpdate": "agent_message_chunk"
+            }
+          }
+        },
+        {
+          "handler": "sessionUpdate",
+          "method": "session/update",
+          "params": {
+            "sessionId": "s-1",
+            "update": {
+              "content": {
+                "text": "thinking",
+                "type": "text"
+              },
+              "sessionUpdate": "agent_thought_chunk"
+            }
+          }
+        },
+        {
+          "handler": "sessionUpdate",
+          "method": "session/update",
+          "params": {
+            "sessionId": "s-1",
+            "update": {
+              "toolCallId": "c-1",
+              "title": "run",
+              "kind": "execute",
+              "status": "in_progress",
+              "rawInput": {
+                "command": "echo"
+              },
+              "sessionUpdate": "tool_call"
+            },
+            "_meta": {
+              "poracode/x": 1,
+              "vendor": {
+                "k": [1]
+              }
+            }
+          }
+        },
+        {
+          "handler": "sessionUpdate",
+          "method": "session/update",
+          "params": {
+            "sessionId": "s-1",
+            "update": {
+              "toolCallId": "c-1",
+              "status": "completed",
+              "rawOutput": {
+                "exitCode": 0
+              },
+              "sessionUpdate": "tool_call_update"
+            }
+          }
+        },
+        {
+          "handler": "readTextFile",
+          "method": "fs/read_text_file",
+          "params": {
+            "sessionId": "s-1",
+            "path": "/x",
+            "line": 3,
+            "limit": 2
+          }
+        },
+        {
+          "handler": "sessionUpdate",
+          "method": "session/update",
+          "params": {
+            "sessionId": "s-1",
+            "update": {
+              "used": 1234,
+              "size": 1000,
+              "sessionUpdate": "usage_update"
+            }
+          }
+        },
+        {
+          "handler": "sessionUpdate",
+          "method": "session/update",
+          "params": {
+            "sessionId": "s-1",
+            "update": {
+              "content": {
+                "text": "user",
+                "type": "text"
+              },
+              "sessionUpdate": "user_message_chunk"
+            }
+          }
+        },
+        {
+          "handler": "sessionUpdate",
+          "method": "session/update",
+          "params": {
+            "sessionId": "s-1",
+            "update": {
+              "entries": [
+                {
+                  "content": "step",
+                  "priority": "medium",
+                  "status": "pending"
+                }
+              ],
+              "sessionUpdate": "plan"
+            }
+          }
+        },
+        {
+          "handler": "sessionUpdate",
+          "method": "session/update",
+          "params": {
+            "sessionId": "s-1",
+            "update": {
+              "availableCommands": [
+                {
+                  "name": "plan",
+                  "description": "d"
+                }
+              ],
+              "sessionUpdate": "available_commands_update"
+            }
+          }
+        },
+        {
+          "handler": "sessionUpdate",
+          "method": "session/update",
+          "params": {
+            "sessionId": "s-1",
+            "update": {
+              "currentModeId": "default",
+              "sessionUpdate": "current_mode_update"
+            }
+          }
+        },
+        {
+          "handler": "sessionUpdate",
+          "method": "session/update",
+          "params": {
+            "sessionId": "s-1",
+            "update": {
+              "sessionUpdate": "session_info_update"
+            }
+          }
+        },
+        {
+          "handler": "writeTextFile",
+          "method": "fs/write_text_file",
+          "params": {
+            "sessionId": "s-1",
+            "path": "/x",
+            "content": "abc"
+          }
+        },
+        {
+          "handler": "createTerminal",
+          "method": "terminal/create",
+          "params": {
+            "sessionId": "s-1",
+            "command": "echo"
+          }
+        },
+        {
+          "handler": "terminalOutput",
+          "method": "terminal/output",
+          "params": {
+            "sessionId": "s-1",
+            "terminalId": "t1"
+          }
+        },
+        {
+          "handler": "waitForTerminalExit",
+          "method": "terminal/wait_for_exit",
+          "params": {
+            "sessionId": "s-1",
+            "terminalId": "t1"
+          }
+        },
+        {
+          "handler": "releaseTerminal",
+          "method": "terminal/release",
+          "params": {
+            "sessionId": "s-1",
+            "terminalId": "t1"
+          }
+        },
+        {
+          "handler": "killTerminal",
+          "method": "terminal/kill",
+          "params": {
+            "sessionId": "s-1",
+            "terminalId": "t1"
+          }
+        },
+        {
+          "handler": "requestPermission",
+          "method": "session/request_permission",
+          "params": {
+            "sessionId": "s-1",
+            "toolCall": {
+              "toolCallId": "c-1",
+              "kind": "execute",
+              "title": "T",
+              "rawInput": {}
+            },
+            "options": [
+              {
+                "optionId": "allow",
+                "name": "Allow",
+                "kind": "allow_once"
+              }
+            ]
+          }
+        },
+        {
+          "handler": "extMethod",
+          "method": "vendor/throw_plain",
+          "params": {}
+        },
+        {
+          "handler": "extMethod",
+          "method": "vendor/throw_request_error",
+          "params": {}
+        },
+        {
+          "handler": "extMethod",
+          "method": "vendor/return_undefined",
+          "params": {}
+        }
+      ],
+      "handlerSettled": ["session/update", "fs/read_text_file"],
+      "outcomes": [
+        {
+          "method": "initialize",
+          "status": "resolved",
+          "value": {
+            "protocolVersion": 1,
+            "agentCapabilities": {
+              "loadSession": true,
+              "promptCapabilities": {
+                "image": true,
+                "audio": true,
+                "embeddedContext": true
+              },
+              "mcpCapabilities": {
+                "http": true,
+                "sse": true
+              },
+              "sessionCapabilities": {
+                "list": {},
+                "resume": {},
+                "close": {},
+                "configOptions": {},
+                "fork": {
+                  "notAShape": true
+                },
+                "vendorCapability": 1
+              },
+              "auth": {
+                "logout": {}
+              },
+              "_meta": {
+                "vendor": {
+                  "anything": [
+                    1,
+                    2,
+                    {
+                      "a": null
+                    }
+                  ]
+                }
+              }
+            },
+            "authMethods": [
+              {
+                "id": "oauth-personal",
+                "name": "Personal",
+                "description": "x",
+                "_meta": {
+                  "vendor": 1
+                }
+              }
+            ],
+            "agentInfo": {
+              "name": "wire-compat",
+              "version": "0.0.0"
+            },
+            "_meta": {
+              "vendor": {
+                "tier": 1
+              }
+            },
+            "vendorTopLevel": {
+              "unknown": "field",
+              "nested": {
+                "deep": [1, 2, 3]
+              }
+            }
+          }
+        },
+        {
+          "method": "authenticate",
+          "status": "resolved",
+          "value": {}
+        },
+        {
+          "method": "newSession",
+          "status": "resolved",
+          "value": {
+            "sessionId": "s-1",
+            "modes": {
+              "availableModes": [
+                {
+                  "id": "default",
+                  "name": "Default"
+                }
+              ],
+              "currentModeId": "default"
+            },
+            "models": {
+              "availableModels": [
+                {
+                  "modelId": "m-1",
+                  "name": "M1",
+                  "isDefault": true
+                }
+              ]
+            },
+            "configOptions": [
+              {
+                "id": "model",
+                "name": "Model",
+                "category": "model",
+                "type": "select",
+                "currentValue": "m-1",
+                "options": [
+                  {
+                    "value": "m-1",
+                    "name": "M1"
+                  }
+                ],
+                "vendorField": 1
+              },
+              {
+                "id": "flag",
+                "name": "Flag",
+                "category": "other",
+                "type": "boolean",
+                "currentValue": null,
+                "options": []
+              }
+            ],
+            "_meta": {
+              "vendor": {
+                "alias": "x"
+              }
+            },
+            "extraResultField": {
+              "kept": true
+            }
+          }
+        },
+        {
+          "method": "loadSession",
+          "status": "resolved",
+          "value": {
+            "sessionId": "s-1"
+          }
+        },
+        {
+          "method": "resumeSession",
+          "status": "resolved",
+          "value": {
+            "sessionId": "s-1",
+            "_meta": {
+              "vendor": 1
+            }
+          }
+        },
+        {
+          "method": "prompt",
+          "status": "resolved",
+          "value": {
+            "stopReason": "end_turn",
+            "usage": {
+              "totalTokens": 10,
+              "inputTokens": 5,
+              "outputTokens": 5,
+              "thoughtTokens": 0,
+              "cachedReadTokens": 0,
+              "cachedWriteTokens": 0
+            },
+            "extraField": {
+              "kept": true
+            }
+          }
+        },
+        {
+          "method": "setSessionConfigOption",
+          "status": "resolved",
+          "value": {
+            "configOptions": [
+              {
+                "id": "model",
+                "name": "Model",
+                "category": "model",
+                "type": "select",
+                "currentValue": "m-1",
+                "options": [
+                  {
+                    "value": "m-1",
+                    "name": "M1"
+                  }
+                ],
+                "vendorField": 1
+              },
+              {
+                "id": "flag",
+                "name": "Flag",
+                "category": "other",
+                "type": "boolean",
+                "currentValue": null,
+                "options": []
+              }
+            ],
+            "_meta": {
+              "vendor": 1
+            }
+          }
+        },
+        {
+          "method": "setSessionMode",
+          "status": "resolved",
+          "value": {}
+        },
+        {
+          "method": "cancel",
+          "status": "resolved"
+        },
+        {
+          "method": "extMethod vendor/echo",
+          "status": "resolved",
+          "value": {
+            "echo": {
+              "a": 1
+            },
+            "extra": true
+          }
+        },
+        {
+          "method": "closeSession",
+          "status": "rejected",
+          "error": {
+            "name": "RequestError",
+            "message": "Session not found",
+            "code": -32002,
+            "data": {
+              "detail": "gone"
+            }
+          }
+        },
+        {
+          "method": "deleteSession",
+          "status": "rejected",
+          "error": {
+            "name": "RequestError",
+            "message": "Session not found",
+            "code": -32002
+          }
+        }
+      ],
+      "closed": {
+        "status": "resolved"
+      }
+    },
+    "full-stray-response": {
+      "calls": [
+        {
+          "method": "initialize",
+          "params": {
+            "protocolVersion": 1,
+            "clientInfo": {
+              "name": "poracode",
+              "version": "0.1.0"
+            },
+            "clientCapabilities": {
+              "fs": {
+                "readTextFile": true,
+                "writeTextFile": true
+              },
+              "elicitation": {
+                "form": {},
+                "url": {}
+              },
+              "terminal": true
+            }
+          }
+        },
+        {
+          "method": "authenticate",
+          "params": {
+            "methodId": "oauth-personal"
+          }
+        },
+        {
+          "method": "newSession",
+          "params": {
+            "cwd": "/w",
+            "mcpServers": []
+          }
+        },
+        {
+          "method": "loadSession",
+          "params": {
+            "sessionId": "s-1",
+            "cwd": "/w"
+          }
+        },
+        {
+          "method": "resumeSession",
+          "params": {
+            "sessionId": "s-1",
+            "cwd": "/w"
+          }
+        },
+        {
+          "method": "prompt",
+          "params": {
+            "sessionId": "s-1",
+            "prompt": [
+              {
+                "type": "text",
+                "text": "hello"
+              }
+            ]
+          }
+        },
+        {
+          "method": "setSessionConfigOption",
+          "params": {
+            "sessionId": "s-1",
+            "configId": "flag",
+            "value": true
+          }
+        },
+        {
+          "method": "setSessionMode",
+          "params": {
+            "sessionId": "s-1",
+            "modeId": "default"
+          }
+        },
+        {
+          "method": "cancel",
+          "params": {
+            "sessionId": "s-1"
+          }
+        },
+        {
+          "method": "extMethod vendor/echo",
+          "params": {
+            "a": 1
+          }
+        },
+        {
+          "method": "closeSession",
+          "params": {
+            "sessionId": "s-1"
+          }
+        },
+        {
+          "method": "deleteSession",
+          "params": {
+            "sessionId": "s-1"
+          }
+        }
+      ],
+      "wireOrder": [
+        "initialize",
+        "authenticate",
+        "session/new",
+        "session/load",
+        "session/resume",
+        "session/prompt",
+        "session/set_config_option",
+        "session/set_mode",
+        "session/cancel",
+        "vendor/echo",
+        "session/close",
+        "session/delete"
+      ],
+      "agentSaw": {
+        "vendor/ask#1": {
+          "jsonrpc": "2.0",
+          "id": "vendor/ask#1",
+          "result": {
+            "echo": {
+              "q": "ping",
+              "extra": [1, 2]
+            }
+          }
+        },
+        "vendor/unknown2#1": {
+          "jsonrpc": "2.0",
+          "id": "vendor/unknown2#1",
+          "result": {
+            "echo": {}
+          }
+        },
+        "fs/read_text_file#2": {
+          "jsonrpc": "2.0",
+          "id": "fs/read_text_file#2",
+          "error": {
+            "code": -32602,
+            "message": "Invalid params",
+            "data": {
+              "_errors": [],
+              "path": {
+                "_errors": ["Invalid input: expected string, received undefined"]
+              }
+            }
+          }
+        },
+        "fs/read_text_file#1": {
+          "jsonrpc": "2.0",
+          "id": "fs/read_text_file#1",
+          "result": {
+            "content": "l3\nl4"
+          }
+        },
+        "fs/write_text_file#1": {
+          "jsonrpc": "2.0",
+          "id": "fs/write_text_file#1",
+          "result": {
+            "bytesWritten": 3
+          }
+        },
+        "terminal/create#1": {
+          "jsonrpc": "2.0",
+          "id": "terminal/create#1",
+          "result": {
+            "id": "t1"
+          }
+        },
+        "terminal/output#1": {
+          "jsonrpc": "2.0",
+          "id": "terminal/output#1",
+          "result": {
+            "output": "out",
+            "truncated": false
+          }
+        },
+        "terminal/wait_for_exit#1": {
+          "jsonrpc": "2.0",
+          "id": "terminal/wait_for_exit#1",
+          "result": {
+            "exitStatus": {
+              "exitCode": 0,
+              "signal": null
+            }
+          }
+        },
+        "terminal/release#1": {
+          "jsonrpc": "2.0",
+          "id": "terminal/release#1",
+          "result": {}
+        },
+        "terminal/kill#1": {
+          "jsonrpc": "2.0",
+          "id": "terminal/kill#1",
+          "result": {}
+        },
+        "session/request_permission#1": {
+          "jsonrpc": "2.0",
+          "id": "session/request_permission#1",
+          "result": {
+            "outcome": {
+              "outcome": "selected",
+              "optionId": "allow"
+            }
+          }
+        },
+        "elicitation/create#1": {
+          "jsonrpc": "2.0",
+          "id": "elicitation/create#1",
+          "error": {
+            "code": -32602,
+            "message": "Invalid params",
+            "data": {
+              "_errors": [],
+              "mode": {
+                "_errors": [
+                  "Invalid input: expected \"form\"",
+                  "Invalid input: expected \"url\"",
+                  "Invalid input: expected string, received undefined"
+                ]
+              },
+              "elicitationId": {
+                "_errors": ["Invalid input: expected string, received undefined"]
+              },
+              "url": {
+                "_errors": ["Invalid input: expected string, received undefined"]
+              }
+            }
+          }
+        },
+        "vendor/throw_plain#1": {
+          "jsonrpc": "2.0",
+          "id": "vendor/throw_plain#1",
+          "error": {
+            "code": -32603,
+            "message": "Internal error",
+            "data": {
+              "details": "boom"
+            }
+          }
+        },
+        "vendor/throw_request_error#1": {
+          "jsonrpc": "2.0",
+          "id": "vendor/throw_request_error#1",
+          "error": {
+            "code": -32000,
+            "message": "custom failure",
+            "data": {
+              "detail": 1
+            }
+          }
+        },
+        "vendor/return_undefined#1": {
+          "jsonrpc": "2.0",
+          "id": "vendor/return_undefined#1",
+          "result": null
+        }
+      },
+      "handlerCalls": [
+        {
+          "handler": "sessionUpdate",
+          "method": "session/update",
+          "params": {
+            "sessionId": "s-unsolicited",
+            "update": {
+              "content": {
+                "text": "unsolicited",
+                "type": "text"
+              },
+              "sessionUpdate": "agent_message_chunk"
+            },
+            "_meta": {
+              "vendor": {
+                "deep": {
+                  "x": 1
+                }
+              }
+            }
+          }
+        },
+        {
+          "handler": "extNotification",
+          "method": "vendor/progress",
+          "params": {
+            "n": 1
+          }
+        },
+        {
+          "handler": "extMethod",
+          "method": "vendor/ask",
+          "params": {
+            "q": "ping",
+            "extra": [1, 2]
+          }
+        },
+        {
+          "handler": "extMethod",
+          "method": "vendor/unknown2",
+          "params": {}
+        },
+        {
+          "handler": "sessionUpdate",
+          "method": "session/update",
+          "params": {
+            "sessionId": "s-1",
+            "update": {
+              "content": {
+                "text": "Hello",
+                "type": "text"
+              },
+              "sessionUpdate": "agent_message_chunk"
+            }
+          }
+        },
+        {
+          "handler": "sessionUpdate",
+          "method": "session/update",
+          "params": {
+            "sessionId": "s-1",
+            "update": {
+              "content": {
+                "text": "thinking",
+                "type": "text"
+              },
+              "sessionUpdate": "agent_thought_chunk"
+            }
+          }
+        },
+        {
+          "handler": "sessionUpdate",
+          "method": "session/update",
+          "params": {
+            "sessionId": "s-1",
+            "update": {
+              "toolCallId": "c-1",
+              "title": "run",
+              "kind": "execute",
+              "status": "in_progress",
+              "rawInput": {
+                "command": "echo"
+              },
+              "sessionUpdate": "tool_call"
+            },
+            "_meta": {
+              "poracode/x": 1,
+              "vendor": {
+                "k": [1]
+              }
+            }
+          }
+        },
+        {
+          "handler": "sessionUpdate",
+          "method": "session/update",
+          "params": {
+            "sessionId": "s-1",
+            "update": {
+              "toolCallId": "c-1",
+              "status": "completed",
+              "rawOutput": {
+                "exitCode": 0
+              },
+              "sessionUpdate": "tool_call_update"
+            }
+          }
+        },
+        {
+          "handler": "readTextFile",
+          "method": "fs/read_text_file",
+          "params": {
+            "sessionId": "s-1",
+            "path": "/x",
+            "line": 3,
+            "limit": 2
+          }
+        },
+        {
+          "handler": "sessionUpdate",
+          "method": "session/update",
+          "params": {
+            "sessionId": "s-1",
+            "update": {
+              "used": 1234,
+              "size": 1000,
+              "sessionUpdate": "usage_update"
+            }
+          }
+        },
+        {
+          "handler": "sessionUpdate",
+          "method": "session/update",
+          "params": {
+            "sessionId": "s-1",
+            "update": {
+              "content": {
+                "text": "user",
+                "type": "text"
+              },
+              "sessionUpdate": "user_message_chunk"
+            }
+          }
+        },
+        {
+          "handler": "sessionUpdate",
+          "method": "session/update",
+          "params": {
+            "sessionId": "s-1",
+            "update": {
+              "entries": [
+                {
+                  "content": "step",
+                  "priority": "medium",
+                  "status": "pending"
+                }
+              ],
+              "sessionUpdate": "plan"
+            }
+          }
+        },
+        {
+          "handler": "sessionUpdate",
+          "method": "session/update",
+          "params": {
+            "sessionId": "s-1",
+            "update": {
+              "availableCommands": [
+                {
+                  "name": "plan",
+                  "description": "d"
+                }
+              ],
+              "sessionUpdate": "available_commands_update"
+            }
+          }
+        },
+        {
+          "handler": "sessionUpdate",
+          "method": "session/update",
+          "params": {
+            "sessionId": "s-1",
+            "update": {
+              "currentModeId": "default",
+              "sessionUpdate": "current_mode_update"
+            }
+          }
+        },
+        {
+          "handler": "sessionUpdate",
+          "method": "session/update",
+          "params": {
+            "sessionId": "s-1",
+            "update": {
+              "sessionUpdate": "session_info_update"
+            }
+          }
+        },
+        {
+          "handler": "writeTextFile",
+          "method": "fs/write_text_file",
+          "params": {
+            "sessionId": "s-1",
+            "path": "/x",
+            "content": "abc"
+          }
+        },
+        {
+          "handler": "createTerminal",
+          "method": "terminal/create",
+          "params": {
+            "sessionId": "s-1",
+            "command": "echo"
+          }
+        },
+        {
+          "handler": "terminalOutput",
+          "method": "terminal/output",
+          "params": {
+            "sessionId": "s-1",
+            "terminalId": "t1"
+          }
+        },
+        {
+          "handler": "waitForTerminalExit",
+          "method": "terminal/wait_for_exit",
+          "params": {
+            "sessionId": "s-1",
+            "terminalId": "t1"
+          }
+        },
+        {
+          "handler": "releaseTerminal",
+          "method": "terminal/release",
+          "params": {
+            "sessionId": "s-1",
+            "terminalId": "t1"
+          }
+        },
+        {
+          "handler": "killTerminal",
+          "method": "terminal/kill",
+          "params": {
+            "sessionId": "s-1",
+            "terminalId": "t1"
+          }
+        },
+        {
+          "handler": "requestPermission",
+          "method": "session/request_permission",
+          "params": {
+            "sessionId": "s-1",
+            "toolCall": {
+              "toolCallId": "c-1",
+              "kind": "execute",
+              "title": "T",
+              "rawInput": {}
+            },
+            "options": [
+              {
+                "optionId": "allow",
+                "name": "Allow",
+                "kind": "allow_once"
+              }
+            ]
+          }
+        },
+        {
+          "handler": "extMethod",
+          "method": "vendor/throw_plain",
+          "params": {}
+        },
+        {
+          "handler": "extMethod",
+          "method": "vendor/throw_request_error",
+          "params": {}
+        },
+        {
+          "handler": "extMethod",
+          "method": "vendor/return_undefined",
+          "params": {}
+        }
+      ],
+      "handlerSettled": ["session/update", "fs/read_text_file"],
+      "outcomes": [
+        {
+          "method": "initialize",
+          "status": "resolved",
+          "value": {
+            "protocolVersion": 1,
+            "agentCapabilities": {
+              "loadSession": true,
+              "promptCapabilities": {
+                "image": true,
+                "audio": true,
+                "embeddedContext": true
+              },
+              "mcpCapabilities": {
+                "http": true,
+                "sse": true
+              },
+              "sessionCapabilities": {
+                "list": {},
+                "resume": {},
+                "close": {},
+                "configOptions": {},
+                "fork": {
+                  "notAShape": true
+                },
+                "vendorCapability": 1
+              },
+              "auth": {
+                "logout": {}
+              },
+              "_meta": {
+                "vendor": {
+                  "anything": [
+                    1,
+                    2,
+                    {
+                      "a": null
+                    }
+                  ]
+                }
+              }
+            },
+            "authMethods": [
+              {
+                "id": "oauth-personal",
+                "name": "Personal",
+                "description": "x",
+                "_meta": {
+                  "vendor": 1
+                }
+              }
+            ],
+            "agentInfo": {
+              "name": "wire-compat",
+              "version": "0.0.0"
+            },
+            "_meta": {
+              "vendor": {
+                "tier": 1
+              }
+            },
+            "vendorTopLevel": {
+              "unknown": "field",
+              "nested": {
+                "deep": [1, 2, 3]
+              }
+            }
+          }
+        },
+        {
+          "method": "authenticate",
+          "status": "resolved",
+          "value": {}
+        },
+        {
+          "method": "newSession",
+          "status": "resolved",
+          "value": {
+            "sessionId": "s-1",
+            "modes": {
+              "availableModes": [
+                {
+                  "id": "default",
+                  "name": "Default"
+                }
+              ],
+              "currentModeId": "default"
+            },
+            "models": {
+              "availableModels": [
+                {
+                  "modelId": "m-1",
+                  "name": "M1",
+                  "isDefault": true
+                }
+              ]
+            },
+            "configOptions": [
+              {
+                "id": "model",
+                "name": "Model",
+                "category": "model",
+                "type": "select",
+                "currentValue": "m-1",
+                "options": [
+                  {
+                    "value": "m-1",
+                    "name": "M1"
+                  }
+                ],
+                "vendorField": 1
+              },
+              {
+                "id": "flag",
+                "name": "Flag",
+                "category": "other",
+                "type": "boolean",
+                "currentValue": null,
+                "options": []
+              }
+            ],
+            "_meta": {
+              "vendor": {
+                "alias": "x"
+              }
+            },
+            "extraResultField": {
+              "kept": true
+            }
+          }
+        },
+        {
+          "method": "loadSession",
+          "status": "resolved",
+          "value": {
+            "sessionId": "s-1"
+          }
+        },
+        {
+          "method": "resumeSession",
+          "status": "resolved",
+          "value": {
+            "sessionId": "s-1",
+            "_meta": {
+              "vendor": 1
+            }
+          }
+        },
+        {
+          "method": "prompt",
+          "status": "resolved",
+          "value": {
+            "stopReason": "end_turn",
+            "usage": {
+              "totalTokens": 10,
+              "inputTokens": 5,
+              "outputTokens": 5,
+              "thoughtTokens": 0,
+              "cachedReadTokens": 0,
+              "cachedWriteTokens": 0
+            },
+            "extraField": {
+              "kept": true
+            }
+          }
+        },
+        {
+          "method": "setSessionConfigOption",
+          "status": "resolved",
+          "value": {
+            "configOptions": [
+              {
+                "id": "model",
+                "name": "Model",
+                "category": "model",
+                "type": "select",
+                "currentValue": "m-1",
+                "options": [
+                  {
+                    "value": "m-1",
+                    "name": "M1"
+                  }
+                ],
+                "vendorField": 1
+              },
+              {
+                "id": "flag",
+                "name": "Flag",
+                "category": "other",
+                "type": "boolean",
+                "currentValue": null,
+                "options": []
+              }
+            ],
+            "_meta": {
+              "vendor": 1
+            }
+          }
+        },
+        {
+          "method": "setSessionMode",
+          "status": "resolved",
+          "value": {}
+        },
+        {
+          "method": "cancel",
+          "status": "resolved"
+        },
+        {
+          "method": "extMethod vendor/echo",
+          "status": "resolved",
+          "value": {
+            "echo": {
+              "a": 1
+            },
+            "extra": true
+          }
+        },
+        {
+          "method": "closeSession",
+          "status": "resolved",
+          "value": {}
+        },
+        {
+          "method": "deleteSession",
+          "status": "rejected",
+          "error": {
+            "name": "RequestError",
+            "message": "Session not found",
+            "code": -32002
+          }
+        }
+      ],
+      "closed": {
+        "status": "resolved"
+      }
+    },
+    "minimal-core-extensions": {
+      "calls": [
+        {
+          "method": "initialize",
+          "params": {
+            "protocolVersion": 1,
+            "clientInfo": {
+              "name": "poracode",
+              "version": "0.1.0"
+            },
+            "clientCapabilities": {
+              "fs": {
+                "readTextFile": true,
+                "writeTextFile": true
+              },
+              "elicitation": {
+                "form": {},
+                "url": {}
+              },
+              "terminal": true
+            }
+          }
+        },
+        {
+          "method": "authenticate",
+          "params": {
+            "methodId": "oauth-personal"
+          }
+        },
+        {
+          "method": "newSession",
+          "params": {
+            "cwd": "/w",
+            "mcpServers": []
+          }
+        },
+        {
+          "method": "loadSession",
+          "params": {
+            "sessionId": "s-1",
+            "cwd": "/w"
+          }
+        },
+        {
+          "method": "resumeSession",
+          "params": {
+            "sessionId": "s-1",
+            "cwd": "/w"
+          }
+        },
+        {
+          "method": "prompt",
+          "params": {
+            "sessionId": "s-1",
+            "prompt": [
+              {
+                "type": "text",
+                "text": "hello"
+              }
+            ]
+          }
+        },
+        {
+          "method": "setSessionConfigOption",
+          "params": {
+            "sessionId": "s-1",
+            "configId": "flag",
+            "value": true
+          }
+        },
+        {
+          "method": "setSessionMode",
+          "params": {
+            "sessionId": "s-1",
+            "modeId": "default"
+          }
+        },
+        {
+          "method": "cancel",
+          "params": {
+            "sessionId": "s-1"
+          }
+        },
+        {
+          "method": "extMethod vendor/echo",
+          "params": {
+            "a": 1
+          }
+        },
+        {
+          "method": "closeSession",
+          "params": {
+            "sessionId": "s-1"
+          }
+        },
+        {
+          "method": "deleteSession",
+          "params": {
+            "sessionId": "s-1"
+          }
+        }
+      ],
+      "wireOrder": [
+        "initialize",
+        "authenticate",
+        "session/new",
+        "session/load",
+        "session/resume",
+        "session/prompt",
+        "session/set_config_option",
+        "session/set_mode",
+        "session/cancel",
+        "vendor/echo",
+        "session/close",
+        "session/delete"
+      ],
+      "agentSaw": {
+        "vendor/ask#1": {
+          "jsonrpc": "2.0",
+          "id": "vendor/ask#1",
+          "result": {
+            "echo": {
+              "q": "ping",
+              "extra": [1, 2]
+            }
+          }
+        },
+        "vendor/unknown2#1": {
+          "jsonrpc": "2.0",
+          "id": "vendor/unknown2#1",
+          "result": {
+            "echo": {}
+          }
+        },
+        "fs/read_text_file#1": {
+          "jsonrpc": "2.0",
+          "id": "fs/read_text_file#1",
+          "result": null
+        },
+        "fs/read_text_file#2": {
+          "jsonrpc": "2.0",
+          "id": "fs/read_text_file#2",
+          "error": {
+            "code": -32602,
+            "message": "Invalid params",
+            "data": {
+              "_errors": [],
+              "path": {
+                "_errors": ["Invalid input: expected string, received undefined"]
+              }
+            }
+          }
+        },
+        "fs/write_text_file#1": {
+          "jsonrpc": "2.0",
+          "id": "fs/write_text_file#1",
+          "result": {}
+        },
+        "terminal/create#1": {
+          "jsonrpc": "2.0",
+          "id": "terminal/create#1",
+          "result": null
+        },
+        "terminal/output#1": {
+          "jsonrpc": "2.0",
+          "id": "terminal/output#1",
+          "result": null
+        },
+        "terminal/wait_for_exit#1": {
+          "jsonrpc": "2.0",
+          "id": "terminal/wait_for_exit#1",
+          "result": null
+        },
+        "terminal/release#1": {
+          "jsonrpc": "2.0",
+          "id": "terminal/release#1",
+          "result": {}
+        },
+        "terminal/kill#1": {
+          "jsonrpc": "2.0",
+          "id": "terminal/kill#1",
+          "result": {}
+        },
+        "session/request_permission#1": {
+          "jsonrpc": "2.0",
+          "id": "session/request_permission#1",
+          "result": {
+            "outcome": {
+              "outcome": "selected",
+              "optionId": "allow"
+            }
+          }
+        },
+        "elicitation/create#1": {
+          "jsonrpc": "2.0",
+          "id": "elicitation/create#1",
+          "error": {
+            "code": -32601,
+            "message": "\"Method not found\": elicitation/create",
+            "data": {
+              "method": "elicitation/create"
+            }
+          }
+        },
+        "vendor/throw_plain#1": {
+          "jsonrpc": "2.0",
+          "id": "vendor/throw_plain#1",
+          "error": {
+            "code": -32603,
+            "message": "Internal error",
+            "data": {
+              "details": "boom"
+            }
+          }
+        },
+        "vendor/throw_request_error#1": {
+          "jsonrpc": "2.0",
+          "id": "vendor/throw_request_error#1",
+          "error": {
+            "code": -32000,
+            "message": "custom failure",
+            "data": {
+              "detail": 1
+            }
+          }
+        },
+        "vendor/return_undefined#1": {
+          "jsonrpc": "2.0",
+          "id": "vendor/return_undefined#1",
+          "result": null
+        }
+      },
+      "handlerCalls": [
+        {
+          "handler": "sessionUpdate",
+          "method": "session/update",
+          "params": {
+            "sessionId": "s-unsolicited",
+            "update": {
+              "content": {
+                "text": "unsolicited",
+                "type": "text"
+              },
+              "sessionUpdate": "agent_message_chunk"
+            },
+            "_meta": {
+              "vendor": {
+                "deep": {
+                  "x": 1
+                }
+              }
+            }
+          }
+        },
+        {
+          "handler": "extNotification",
+          "method": "vendor/progress",
+          "params": {
+            "n": 1
+          }
+        },
+        {
+          "handler": "extMethod",
+          "method": "vendor/ask",
+          "params": {
+            "q": "ping",
+            "extra": [1, 2]
+          }
+        },
+        {
+          "handler": "extMethod",
+          "method": "vendor/unknown2",
+          "params": {}
+        },
+        {
+          "handler": "sessionUpdate",
+          "method": "session/update",
+          "params": {
+            "sessionId": "s-1",
+            "update": {
+              "content": {
+                "text": "Hello",
+                "type": "text"
+              },
+              "sessionUpdate": "agent_message_chunk"
+            }
+          }
+        },
+        {
+          "handler": "sessionUpdate",
+          "method": "session/update",
+          "params": {
+            "sessionId": "s-1",
+            "update": {
+              "content": {
+                "text": "thinking",
+                "type": "text"
+              },
+              "sessionUpdate": "agent_thought_chunk"
+            }
+          }
+        },
+        {
+          "handler": "sessionUpdate",
+          "method": "session/update",
+          "params": {
+            "sessionId": "s-1",
+            "update": {
+              "toolCallId": "c-1",
+              "title": "run",
+              "kind": "execute",
+              "status": "in_progress",
+              "rawInput": {
+                "command": "echo"
+              },
+              "sessionUpdate": "tool_call"
+            },
+            "_meta": {
+              "poracode/x": 1,
+              "vendor": {
+                "k": [1]
+              }
+            }
+          }
+        },
+        {
+          "handler": "sessionUpdate",
+          "method": "session/update",
+          "params": {
+            "sessionId": "s-1",
+            "update": {
+              "toolCallId": "c-1",
+              "status": "completed",
+              "rawOutput": {
+                "exitCode": 0
+              },
+              "sessionUpdate": "tool_call_update"
+            }
+          }
+        },
+        {
+          "handler": "sessionUpdate",
+          "method": "session/update",
+          "params": {
+            "sessionId": "s-1",
+            "update": {
+              "used": 1234,
+              "size": 1000,
+              "sessionUpdate": "usage_update"
+            }
+          }
+        },
+        {
+          "handler": "sessionUpdate",
+          "method": "session/update",
+          "params": {
+            "sessionId": "s-1",
+            "update": {
+              "content": {
+                "text": "user",
+                "type": "text"
+              },
+              "sessionUpdate": "user_message_chunk"
+            }
+          }
+        },
+        {
+          "handler": "sessionUpdate",
+          "method": "session/update",
+          "params": {
+            "sessionId": "s-1",
+            "update": {
+              "entries": [
+                {
+                  "content": "step",
+                  "priority": "medium",
+                  "status": "pending"
+                }
+              ],
+              "sessionUpdate": "plan"
+            }
+          }
+        },
+        {
+          "handler": "sessionUpdate",
+          "method": "session/update",
+          "params": {
+            "sessionId": "s-1",
+            "update": {
+              "availableCommands": [
+                {
+                  "name": "plan",
+                  "description": "d"
+                }
+              ],
+              "sessionUpdate": "available_commands_update"
+            }
+          }
+        },
+        {
+          "handler": "sessionUpdate",
+          "method": "session/update",
+          "params": {
+            "sessionId": "s-1",
+            "update": {
+              "currentModeId": "default",
+              "sessionUpdate": "current_mode_update"
+            }
+          }
+        },
+        {
+          "handler": "sessionUpdate",
+          "method": "session/update",
+          "params": {
+            "sessionId": "s-1",
+            "update": {
+              "sessionUpdate": "session_info_update"
+            }
+          }
+        },
+        {
+          "handler": "requestPermission",
+          "method": "session/request_permission",
+          "params": {
+            "sessionId": "s-1",
+            "toolCall": {
+              "toolCallId": "c-1",
+              "kind": "execute",
+              "title": "T",
+              "rawInput": {}
+            },
+            "options": [
+              {
+                "optionId": "allow",
+                "name": "Allow",
+                "kind": "allow_once"
+              }
+            ]
+          }
+        },
+        {
+          "handler": "extMethod",
+          "method": "vendor/throw_plain",
+          "params": {}
+        },
+        {
+          "handler": "extMethod",
+          "method": "vendor/throw_request_error",
+          "params": {}
+        },
+        {
+          "handler": "extMethod",
+          "method": "vendor/return_undefined",
+          "params": {}
+        }
+      ],
+      "handlerSettled": ["session/update"],
+      "outcomes": [
+        {
+          "method": "initialize",
+          "status": "resolved",
+          "value": {
+            "protocolVersion": 1
+          }
+        },
+        {
+          "method": "authenticate",
+          "status": "resolved",
+          "value": {}
+        },
+        {
+          "method": "newSession",
+          "status": "resolved",
+          "value": {
+            "sessionId": "s-1",
+            "modes": {
+              "availableModes": [
+                {
+                  "id": "default",
+                  "name": "Default"
+                }
+              ],
+              "currentModeId": "default"
+            },
+            "models": {
+              "availableModels": [
+                {
+                  "modelId": "m-1",
+                  "name": "M1",
+                  "isDefault": true
+                }
+              ]
+            },
+            "configOptions": [
+              {
+                "id": "model",
+                "name": "Model",
+                "category": "model",
+                "type": "select",
+                "currentValue": "m-1",
+                "options": [
+                  {
+                    "value": "m-1",
+                    "name": "M1"
+                  }
+                ],
+                "vendorField": 1
+              },
+              {
+                "id": "flag",
+                "name": "Flag",
+                "category": "other",
+                "type": "boolean",
+                "currentValue": null,
+                "options": []
+              }
+            ],
+            "_meta": {
+              "vendor": {
+                "alias": "x"
+              }
+            },
+            "extraResultField": {
+              "kept": true
+            }
+          }
+        },
+        {
+          "method": "loadSession",
+          "status": "resolved",
+          "value": {
+            "sessionId": "s-1"
+          }
+        },
+        {
+          "method": "resumeSession",
+          "status": "resolved",
+          "value": {
+            "sessionId": "s-1",
+            "_meta": {
+              "vendor": 1
+            }
+          }
+        },
+        {
+          "method": "prompt",
+          "status": "resolved",
+          "value": {
+            "stopReason": "end_turn",
+            "usage": {
+              "totalTokens": 10,
+              "inputTokens": 5,
+              "outputTokens": 5,
+              "thoughtTokens": 0,
+              "cachedReadTokens": 0,
+              "cachedWriteTokens": 0
+            },
+            "extraField": {
+              "kept": true
+            }
+          }
+        },
+        {
+          "method": "setSessionConfigOption",
+          "status": "resolved",
+          "value": {
+            "configOptions": [
+              {
+                "id": "model",
+                "name": "Model",
+                "category": "model",
+                "type": "select",
+                "currentValue": "m-1",
+                "options": [
+                  {
+                    "value": "m-1",
+                    "name": "M1"
+                  }
+                ],
+                "vendorField": 1
+              },
+              {
+                "id": "flag",
+                "name": "Flag",
+                "category": "other",
+                "type": "boolean",
+                "currentValue": null,
+                "options": []
+              }
+            ],
+            "_meta": {
+              "vendor": 1
+            }
+          }
+        },
+        {
+          "method": "setSessionMode",
+          "status": "resolved",
+          "value": {}
+        },
+        {
+          "method": "cancel",
+          "status": "resolved"
+        },
+        {
+          "method": "extMethod vendor/echo",
+          "status": "resolved",
+          "value": {
+            "echo": {
+              "a": 1
+            },
+            "extra": true
+          }
+        },
+        {
+          "method": "closeSession",
+          "status": "resolved",
+          "value": {}
+        },
+        {
+          "method": "deleteSession",
+          "status": "rejected",
+          "error": {
+            "name": "RequestError",
+            "message": "Session not found",
+            "code": -32002
+          }
+        }
+      ],
+      "closed": {
+        "status": "resolved"
+      }
+    },
+    "minimal-core-no-extensions": {
+      "calls": [
+        {
+          "method": "initialize",
+          "params": {
+            "protocolVersion": 1,
+            "clientInfo": {
+              "name": "poracode",
+              "version": "0.1.0"
+            },
+            "clientCapabilities": {
+              "fs": {
+                "readTextFile": true,
+                "writeTextFile": true
+              },
+              "elicitation": {
+                "form": {},
+                "url": {}
+              },
+              "terminal": true
+            }
+          }
+        },
+        {
+          "method": "authenticate",
+          "params": {
+            "methodId": "oauth-personal"
+          }
+        },
+        {
+          "method": "newSession",
+          "params": {
+            "cwd": "/w",
+            "mcpServers": []
+          }
+        },
+        {
+          "method": "loadSession",
+          "params": {
+            "sessionId": "s-1",
+            "cwd": "/w"
+          }
+        },
+        {
+          "method": "resumeSession",
+          "params": {
+            "sessionId": "s-1",
+            "cwd": "/w"
+          }
+        },
+        {
+          "method": "prompt",
+          "params": {
+            "sessionId": "s-1",
+            "prompt": [
+              {
+                "type": "text",
+                "text": "hello"
+              }
+            ]
+          }
+        },
+        {
+          "method": "setSessionConfigOption",
+          "params": {
+            "sessionId": "s-1",
+            "configId": "flag",
+            "value": true
+          }
+        },
+        {
+          "method": "setSessionMode",
+          "params": {
+            "sessionId": "s-1",
+            "modeId": "default"
+          }
+        },
+        {
+          "method": "cancel",
+          "params": {
+            "sessionId": "s-1"
+          }
+        },
+        {
+          "method": "extMethod vendor/echo",
+          "params": {
+            "a": 1
+          }
+        },
+        {
+          "method": "closeSession",
+          "params": {
+            "sessionId": "s-1"
+          }
+        },
+        {
+          "method": "deleteSession",
+          "params": {
+            "sessionId": "s-1"
+          }
+        }
+      ],
+      "wireOrder": [
+        "initialize",
+        "authenticate",
+        "session/new",
+        "session/load",
+        "session/resume",
+        "session/prompt",
+        "session/set_config_option",
+        "session/set_mode",
+        "session/cancel",
+        "vendor/echo",
+        "session/close",
+        "session/delete"
+      ],
+      "agentSaw": {
+        "vendor/ask#1": {
+          "jsonrpc": "2.0",
+          "id": "vendor/ask#1",
+          "error": {
+            "code": -32601,
+            "message": "\"Method not found\": vendor/ask",
+            "data": {
+              "method": "vendor/ask"
+            }
+          }
+        },
+        "vendor/unknown2#1": {
+          "jsonrpc": "2.0",
+          "id": "vendor/unknown2#1",
+          "error": {
+            "code": -32601,
+            "message": "\"Method not found\": vendor/unknown2",
+            "data": {
+              "method": "vendor/unknown2"
+            }
+          }
+        },
+        "fs/read_text_file#1": {
+          "jsonrpc": "2.0",
+          "id": "fs/read_text_file#1",
+          "result": null
+        },
+        "fs/read_text_file#2": {
+          "jsonrpc": "2.0",
+          "id": "fs/read_text_file#2",
+          "error": {
+            "code": -32602,
+            "message": "Invalid params",
+            "data": {
+              "_errors": [],
+              "path": {
+                "_errors": ["Invalid input: expected string, received undefined"]
+              }
+            }
+          }
+        },
+        "fs/write_text_file#1": {
+          "jsonrpc": "2.0",
+          "id": "fs/write_text_file#1",
+          "result": {}
+        },
+        "terminal/create#1": {
+          "jsonrpc": "2.0",
+          "id": "terminal/create#1",
+          "result": null
+        },
+        "terminal/output#1": {
+          "jsonrpc": "2.0",
+          "id": "terminal/output#1",
+          "result": null
+        },
+        "terminal/wait_for_exit#1": {
+          "jsonrpc": "2.0",
+          "id": "terminal/wait_for_exit#1",
+          "result": null
+        },
+        "terminal/release#1": {
+          "jsonrpc": "2.0",
+          "id": "terminal/release#1",
+          "result": {}
+        },
+        "terminal/kill#1": {
+          "jsonrpc": "2.0",
+          "id": "terminal/kill#1",
+          "result": {}
+        },
+        "session/request_permission#1": {
+          "jsonrpc": "2.0",
+          "id": "session/request_permission#1",
+          "result": {
+            "outcome": {
+              "outcome": "selected",
+              "optionId": "allow"
+            }
+          }
+        },
+        "elicitation/create#1": {
+          "jsonrpc": "2.0",
+          "id": "elicitation/create#1",
+          "error": {
+            "code": -32601,
+            "message": "\"Method not found\": elicitation/create",
+            "data": {
+              "method": "elicitation/create"
+            }
+          }
+        },
+        "vendor/throw_plain#1": {
+          "jsonrpc": "2.0",
+          "id": "vendor/throw_plain#1",
+          "error": {
+            "code": -32601,
+            "message": "\"Method not found\": vendor/throw_plain",
+            "data": {
+              "method": "vendor/throw_plain"
+            }
+          }
+        },
+        "vendor/throw_request_error#1": {
+          "jsonrpc": "2.0",
+          "id": "vendor/throw_request_error#1",
+          "error": {
+            "code": -32601,
+            "message": "\"Method not found\": vendor/throw_request_error",
+            "data": {
+              "method": "vendor/throw_request_error"
+            }
+          }
+        },
+        "vendor/return_undefined#1": {
+          "jsonrpc": "2.0",
+          "id": "vendor/return_undefined#1",
+          "error": {
+            "code": -32601,
+            "message": "\"Method not found\": vendor/return_undefined",
+            "data": {
+              "method": "vendor/return_undefined"
+            }
+          }
+        }
+      },
+      "handlerCalls": [
+        {
+          "handler": "sessionUpdate",
+          "method": "session/update",
+          "params": {
+            "sessionId": "s-unsolicited",
+            "update": {
+              "content": {
+                "text": "unsolicited",
+                "type": "text"
+              },
+              "sessionUpdate": "agent_message_chunk"
+            },
+            "_meta": {
+              "vendor": {
+                "deep": {
+                  "x": 1
+                }
+              }
+            }
+          }
+        },
+        {
+          "handler": "sessionUpdate",
+          "method": "session/update",
+          "params": {
+            "sessionId": "s-1",
+            "update": {
+              "content": {
+                "text": "Hello",
+                "type": "text"
+              },
+              "sessionUpdate": "agent_message_chunk"
+            }
+          }
+        },
+        {
+          "handler": "sessionUpdate",
+          "method": "session/update",
+          "params": {
+            "sessionId": "s-1",
+            "update": {
+              "content": {
+                "text": "thinking",
+                "type": "text"
+              },
+              "sessionUpdate": "agent_thought_chunk"
+            }
+          }
+        },
+        {
+          "handler": "sessionUpdate",
+          "method": "session/update",
+          "params": {
+            "sessionId": "s-1",
+            "update": {
+              "toolCallId": "c-1",
+              "title": "run",
+              "kind": "execute",
+              "status": "in_progress",
+              "rawInput": {
+                "command": "echo"
+              },
+              "sessionUpdate": "tool_call"
+            },
+            "_meta": {
+              "poracode/x": 1,
+              "vendor": {
+                "k": [1]
+              }
+            }
+          }
+        },
+        {
+          "handler": "sessionUpdate",
+          "method": "session/update",
+          "params": {
+            "sessionId": "s-1",
+            "update": {
+              "toolCallId": "c-1",
+              "status": "completed",
+              "rawOutput": {
+                "exitCode": 0
+              },
+              "sessionUpdate": "tool_call_update"
+            }
+          }
+        },
+        {
+          "handler": "sessionUpdate",
+          "method": "session/update",
+          "params": {
+            "sessionId": "s-1",
+            "update": {
+              "used": 1234,
+              "size": 1000,
+              "sessionUpdate": "usage_update"
+            }
+          }
+        },
+        {
+          "handler": "sessionUpdate",
+          "method": "session/update",
+          "params": {
+            "sessionId": "s-1",
+            "update": {
+              "content": {
+                "text": "user",
+                "type": "text"
+              },
+              "sessionUpdate": "user_message_chunk"
+            }
+          }
+        },
+        {
+          "handler": "sessionUpdate",
+          "method": "session/update",
+          "params": {
+            "sessionId": "s-1",
+            "update": {
+              "entries": [
+                {
+                  "content": "step",
+                  "priority": "medium",
+                  "status": "pending"
+                }
+              ],
+              "sessionUpdate": "plan"
+            }
+          }
+        },
+        {
+          "handler": "sessionUpdate",
+          "method": "session/update",
+          "params": {
+            "sessionId": "s-1",
+            "update": {
+              "availableCommands": [
+                {
+                  "name": "plan",
+                  "description": "d"
+                }
+              ],
+              "sessionUpdate": "available_commands_update"
+            }
+          }
+        },
+        {
+          "handler": "sessionUpdate",
+          "method": "session/update",
+          "params": {
+            "sessionId": "s-1",
+            "update": {
+              "currentModeId": "default",
+              "sessionUpdate": "current_mode_update"
+            }
+          }
+        },
+        {
+          "handler": "sessionUpdate",
+          "method": "session/update",
+          "params": {
+            "sessionId": "s-1",
+            "update": {
+              "sessionUpdate": "session_info_update"
+            }
+          }
+        },
+        {
+          "handler": "requestPermission",
+          "method": "session/request_permission",
+          "params": {
+            "sessionId": "s-1",
+            "toolCall": {
+              "toolCallId": "c-1",
+              "kind": "execute",
+              "title": "T",
+              "rawInput": {}
+            },
+            "options": [
+              {
+                "optionId": "allow",
+                "name": "Allow",
+                "kind": "allow_once"
+              }
+            ]
+          }
+        }
+      ],
+      "handlerSettled": ["session/update"],
+      "outcomes": [
+        {
+          "method": "initialize",
+          "status": "resolved",
+          "value": {
+            "protocolVersion": 1
+          }
+        },
+        {
+          "method": "authenticate",
+          "status": "resolved",
+          "value": {}
+        },
+        {
+          "method": "newSession",
+          "status": "resolved",
+          "value": {
+            "sessionId": "s-1",
+            "modes": {
+              "availableModes": [
+                {
+                  "id": "default",
+                  "name": "Default"
+                }
+              ],
+              "currentModeId": "default"
+            },
+            "models": {
+              "availableModels": [
+                {
+                  "modelId": "m-1",
+                  "name": "M1",
+                  "isDefault": true
+                }
+              ]
+            },
+            "configOptions": [
+              {
+                "id": "model",
+                "name": "Model",
+                "category": "model",
+                "type": "select",
+                "currentValue": "m-1",
+                "options": [
+                  {
+                    "value": "m-1",
+                    "name": "M1"
+                  }
+                ],
+                "vendorField": 1
+              },
+              {
+                "id": "flag",
+                "name": "Flag",
+                "category": "other",
+                "type": "boolean",
+                "currentValue": null,
+                "options": []
+              }
+            ],
+            "_meta": {
+              "vendor": {
+                "alias": "x"
+              }
+            },
+            "extraResultField": {
+              "kept": true
+            }
+          }
+        },
+        {
+          "method": "loadSession",
+          "status": "resolved",
+          "value": {
+            "sessionId": "s-1"
+          }
+        },
+        {
+          "method": "resumeSession",
+          "status": "resolved",
+          "value": {
+            "sessionId": "s-1",
+            "_meta": {
+              "vendor": 1
+            }
+          }
+        },
+        {
+          "method": "prompt",
+          "status": "resolved",
+          "value": {
+            "stopReason": "end_turn",
+            "usage": {
+              "totalTokens": 10,
+              "inputTokens": 5,
+              "outputTokens": 5,
+              "thoughtTokens": 0,
+              "cachedReadTokens": 0,
+              "cachedWriteTokens": 0
+            },
+            "extraField": {
+              "kept": true
+            }
+          }
+        },
+        {
+          "method": "setSessionConfigOption",
+          "status": "resolved",
+          "value": {
+            "configOptions": [
+              {
+                "id": "model",
+                "name": "Model",
+                "category": "model",
+                "type": "select",
+                "currentValue": "m-1",
+                "options": [
+                  {
+                    "value": "m-1",
+                    "name": "M1"
+                  }
+                ],
+                "vendorField": 1
+              },
+              {
+                "id": "flag",
+                "name": "Flag",
+                "category": "other",
+                "type": "boolean",
+                "currentValue": null,
+                "options": []
+              }
+            ],
+            "_meta": {
+              "vendor": 1
+            }
+          }
+        },
+        {
+          "method": "setSessionMode",
+          "status": "resolved",
+          "value": {}
+        },
+        {
+          "method": "cancel",
+          "status": "resolved"
+        },
+        {
+          "method": "extMethod vendor/echo",
+          "status": "resolved",
+          "value": {
+            "echo": {
+              "a": 1
+            },
+            "extra": true
+          }
+        },
+        {
+          "method": "closeSession",
+          "status": "resolved",
+          "value": {}
+        },
+        {
+          "method": "deleteSession",
+          "status": "rejected",
+          "error": {
+            "name": "RequestError",
+            "message": "Session not found",
+            "code": -32002
+          }
+        }
+      ],
+      "closed": {
+        "status": "resolved"
+      }
+    },
+    "odd-exit-while-pending": {
+      "calls": [
+        {
+          "method": "initialize",
+          "params": {
+            "protocolVersion": 1,
+            "clientInfo": {
+              "name": "poracode",
+              "version": "0.1.0"
+            },
+            "clientCapabilities": {
+              "fs": {
+                "readTextFile": true,
+                "writeTextFile": true
+              },
+              "elicitation": {
+                "form": {},
+                "url": {}
+              },
+              "terminal": true
+            }
+          }
+        },
+        {
+          "method": "authenticate",
+          "params": {
+            "methodId": "oauth-personal"
+          }
+        },
+        {
+          "method": "newSession",
+          "params": {
+            "cwd": "/w",
+            "mcpServers": []
+          }
+        },
+        {
+          "method": "loadSession",
+          "params": {
+            "sessionId": "s-1",
+            "cwd": "/w"
+          }
+        },
+        {
+          "method": "resumeSession",
+          "params": {
+            "sessionId": "s-1",
+            "cwd": "/w"
+          }
+        },
+        {
+          "method": "prompt",
+          "params": {
+            "sessionId": "s-1",
+            "prompt": [
+              {
+                "type": "text",
+                "text": "hello"
+              }
+            ]
+          }
+        }
+      ],
+      "wireOrder": [
+        "initialize",
+        "authenticate",
+        "session/new",
+        "session/load",
+        "session/resume",
+        "session/prompt"
+      ],
+      "agentSaw": {
+        "vendor/ask#1": {
+          "jsonrpc": "2.0",
+          "id": "vendor/ask#1",
+          "result": {
+            "echo": {
+              "q": "ping",
+              "extra": [1, 2]
+            }
+          }
+        },
+        "vendor/unknown2#1": {
+          "jsonrpc": "2.0",
+          "id": "vendor/unknown2#1",
+          "result": {
+            "echo": {}
+          }
+        },
+        "fs/read_text_file#2": {
+          "jsonrpc": "2.0",
+          "id": "fs/read_text_file#2",
+          "error": {
+            "code": -32602,
+            "message": "Invalid params",
+            "data": {
+              "_errors": [],
+              "path": {
+                "_errors": ["Invalid input: expected string, received undefined"]
+              }
+            }
+          }
+        },
+        "fs/read_text_file#1": {
+          "jsonrpc": "2.0",
+          "id": "fs/read_text_file#1",
+          "result": {
+            "content": "l3\nl4"
+          }
+        },
+        "fs/write_text_file#1": {
+          "jsonrpc": "2.0",
+          "id": "fs/write_text_file#1",
+          "result": {
+            "bytesWritten": 3
+          }
+        },
+        "terminal/create#1": {
+          "jsonrpc": "2.0",
+          "id": "terminal/create#1",
+          "result": {
+            "id": "t1"
+          }
+        },
+        "terminal/output#1": {
+          "jsonrpc": "2.0",
+          "id": "terminal/output#1",
+          "result": {
+            "output": "out",
+            "truncated": false
+          }
+        },
+        "terminal/wait_for_exit#1": {
+          "jsonrpc": "2.0",
+          "id": "terminal/wait_for_exit#1",
+          "result": {
+            "exitStatus": {
+              "exitCode": 0,
+              "signal": null
+            }
+          }
+        },
+        "terminal/release#1": {
+          "jsonrpc": "2.0",
+          "id": "terminal/release#1",
+          "result": {}
+        },
+        "terminal/kill#1": {
+          "jsonrpc": "2.0",
+          "id": "terminal/kill#1",
+          "result": {}
+        },
+        "session/request_permission#1": {
+          "jsonrpc": "2.0",
+          "id": "session/request_permission#1",
+          "result": {
+            "outcome": {
+              "outcome": "selected",
+              "optionId": "allow"
+            }
+          }
+        },
+        "elicitation/create#1": {
+          "jsonrpc": "2.0",
+          "id": "elicitation/create#1",
+          "error": {
+            "code": -32602,
+            "message": "Invalid params",
+            "data": {
+              "_errors": [],
+              "mode": {
+                "_errors": [
+                  "Invalid input: expected \"form\"",
+                  "Invalid input: expected \"url\"",
+                  "Invalid input: expected string, received undefined"
+                ]
+              },
+              "elicitationId": {
+                "_errors": ["Invalid input: expected string, received undefined"]
+              },
+              "url": {
+                "_errors": ["Invalid input: expected string, received undefined"]
+              }
+            }
+          }
+        },
+        "vendor/throw_plain#1": {
+          "jsonrpc": "2.0",
+          "id": "vendor/throw_plain#1",
+          "error": {
+            "code": -32603,
+            "message": "Internal error",
+            "data": {
+              "details": "boom"
+            }
+          }
+        },
+        "vendor/throw_request_error#1": {
+          "jsonrpc": "2.0",
+          "id": "vendor/throw_request_error#1",
+          "error": {
+            "code": -32000,
+            "message": "custom failure",
+            "data": {
+              "detail": 1
+            }
+          }
+        },
+        "vendor/return_undefined#1": {
+          "jsonrpc": "2.0",
+          "id": "vendor/return_undefined#1",
+          "result": null
+        }
+      },
+      "handlerCalls": [
+        {
+          "handler": "sessionUpdate",
+          "method": "session/update",
+          "params": {
+            "sessionId": "s-unsolicited",
+            "update": {
+              "content": {
+                "text": "unsolicited",
+                "type": "text"
+              },
+              "sessionUpdate": "agent_message_chunk"
+            },
+            "_meta": {
+              "vendor": {
+                "deep": {
+                  "x": 1
+                }
+              }
+            }
+          }
+        },
+        {
+          "handler": "extNotification",
+          "method": "vendor/progress",
+          "params": {
+            "n": 1
+          }
+        },
+        {
+          "handler": "extMethod",
+          "method": "vendor/ask",
+          "params": {
+            "q": "ping",
+            "extra": [1, 2]
+          }
+        },
+        {
+          "handler": "extMethod",
+          "method": "vendor/unknown2",
+          "params": {}
+        },
+        {
+          "handler": "sessionUpdate",
+          "method": "session/update",
+          "params": {
+            "sessionId": "s-1",
+            "update": {
+              "content": {
+                "text": "Hello",
+                "type": "text"
+              },
+              "sessionUpdate": "agent_message_chunk"
+            }
+          }
+        },
+        {
+          "handler": "sessionUpdate",
+          "method": "session/update",
+          "params": {
+            "sessionId": "s-1",
+            "update": {
+              "content": {
+                "text": "thinking",
+                "type": "text"
+              },
+              "sessionUpdate": "agent_thought_chunk"
+            }
+          }
+        },
+        {
+          "handler": "sessionUpdate",
+          "method": "session/update",
+          "params": {
+            "sessionId": "s-1",
+            "update": {
+              "toolCallId": "c-1",
+              "title": "run",
+              "kind": "execute",
+              "status": "in_progress",
+              "rawInput": {
+                "command": "echo"
+              },
+              "sessionUpdate": "tool_call"
+            },
+            "_meta": {
+              "poracode/x": 1,
+              "vendor": {
+                "k": [1]
+              }
+            }
+          }
+        },
+        {
+          "handler": "sessionUpdate",
+          "method": "session/update",
+          "params": {
+            "sessionId": "s-1",
+            "update": {
+              "toolCallId": "c-1",
+              "status": "completed",
+              "rawOutput": {
+                "exitCode": 0
+              },
+              "sessionUpdate": "tool_call_update"
+            }
+          }
+        },
+        {
+          "handler": "readTextFile",
+          "method": "fs/read_text_file",
+          "params": {
+            "sessionId": "s-1",
+            "path": "/x",
+            "line": 3,
+            "limit": 2
+          }
+        },
+        {
+          "handler": "sessionUpdate",
+          "method": "session/update",
+          "params": {
+            "sessionId": "s-1",
+            "update": {
+              "used": 1234,
+              "size": 1000,
+              "sessionUpdate": "usage_update"
+            }
+          }
+        },
+        {
+          "handler": "sessionUpdate",
+          "method": "session/update",
+          "params": {
+            "sessionId": "s-1",
+            "update": {
+              "content": {
+                "text": "user",
+                "type": "text"
+              },
+              "sessionUpdate": "user_message_chunk"
+            }
+          }
+        },
+        {
+          "handler": "sessionUpdate",
+          "method": "session/update",
+          "params": {
+            "sessionId": "s-1",
+            "update": {
+              "entries": [
+                {
+                  "content": "step",
+                  "priority": "medium",
+                  "status": "pending"
+                }
+              ],
+              "sessionUpdate": "plan"
+            }
+          }
+        },
+        {
+          "handler": "sessionUpdate",
+          "method": "session/update",
+          "params": {
+            "sessionId": "s-1",
+            "update": {
+              "availableCommands": [
+                {
+                  "name": "plan",
+                  "description": "d"
+                }
+              ],
+              "sessionUpdate": "available_commands_update"
+            }
+          }
+        },
+        {
+          "handler": "sessionUpdate",
+          "method": "session/update",
+          "params": {
+            "sessionId": "s-1",
+            "update": {
+              "currentModeId": "default",
+              "sessionUpdate": "current_mode_update"
+            }
+          }
+        },
+        {
+          "handler": "sessionUpdate",
+          "method": "session/update",
+          "params": {
+            "sessionId": "s-1",
+            "update": {
+              "sessionUpdate": "session_info_update"
+            }
+          }
+        },
+        {
+          "handler": "writeTextFile",
+          "method": "fs/write_text_file",
+          "params": {
+            "sessionId": "s-1",
+            "path": "/x",
+            "content": "abc"
+          }
+        },
+        {
+          "handler": "createTerminal",
+          "method": "terminal/create",
+          "params": {
+            "sessionId": "s-1",
+            "command": "echo"
+          }
+        },
+        {
+          "handler": "terminalOutput",
+          "method": "terminal/output",
+          "params": {
+            "sessionId": "s-1",
+            "terminalId": "t1"
+          }
+        },
+        {
+          "handler": "waitForTerminalExit",
+          "method": "terminal/wait_for_exit",
+          "params": {
+            "sessionId": "s-1",
+            "terminalId": "t1"
+          }
+        },
+        {
+          "handler": "releaseTerminal",
+          "method": "terminal/release",
+          "params": {
+            "sessionId": "s-1",
+            "terminalId": "t1"
+          }
+        },
+        {
+          "handler": "killTerminal",
+          "method": "terminal/kill",
+          "params": {
+            "sessionId": "s-1",
+            "terminalId": "t1"
+          }
+        },
+        {
+          "handler": "requestPermission",
+          "method": "session/request_permission",
+          "params": {
+            "sessionId": "s-1",
+            "toolCall": {
+              "toolCallId": "c-1",
+              "kind": "execute",
+              "title": "T",
+              "rawInput": {}
+            },
+            "options": [
+              {
+                "optionId": "allow",
+                "name": "Allow",
+                "kind": "allow_once"
+              }
+            ]
+          }
+        },
+        {
+          "handler": "extMethod",
+          "method": "vendor/throw_plain",
+          "params": {}
+        },
+        {
+          "handler": "extMethod",
+          "method": "vendor/throw_request_error",
+          "params": {}
+        },
+        {
+          "handler": "extMethod",
+          "method": "vendor/return_undefined",
+          "params": {}
+        }
+      ],
+      "handlerSettled": ["session/update", "fs/read_text_file"],
+      "outcomes": [
+        {
+          "method": "initialize",
+          "status": "resolved",
+          "value": {
+            "protocolVersion": "1-b vendor",
+            "junk": [1, null, "x"],
+            "agentCapabilities": null,
+            "authMethods": "not-a-list"
+          }
+        },
+        {
+          "method": "authenticate",
+          "status": "resolved",
+          "value": {}
+        },
+        {
+          "method": "newSession",
+          "status": "resolved",
+          "value": {
+            "sessionId": "s-1",
+            "modes": {
+              "availableModes": [
+                {
+                  "id": "default",
+                  "name": "Default"
+                }
+              ],
+              "currentModeId": "default"
+            },
+            "models": {
+              "availableModels": [
+                {
+                  "modelId": "m-1",
+                  "name": "M1",
+                  "isDefault": true
+                }
+              ]
+            },
+            "configOptions": [
+              {
+                "id": "model",
+                "name": "Model",
+                "category": "model",
+                "type": "select",
+                "currentValue": "m-1",
+                "options": [
+                  {
+                    "value": "m-1",
+                    "name": "M1"
+                  }
+                ],
+                "vendorField": 1
+              },
+              {
+                "id": "flag",
+                "name": "Flag",
+                "category": "other",
+                "type": "boolean",
+                "currentValue": null,
+                "options": []
+              }
+            ],
+            "_meta": {
+              "vendor": {
+                "alias": "x"
+              }
+            },
+            "extraResultField": {
+              "kept": true
+            }
+          }
+        },
+        {
+          "method": "loadSession",
+          "status": "resolved",
+          "value": {
+            "sessionId": "s-1"
+          }
+        },
+        {
+          "method": "resumeSession",
+          "status": "resolved",
+          "value": {
+            "sessionId": "s-1",
+            "_meta": {
+              "vendor": 1
+            }
+          }
+        },
+        {
+          "method": "prompt",
+          "status": "rejected",
+          "error": {
+            "name": "Error",
+            "message": "ACP connection closed"
+          }
+        }
+      ],
+      "closed": {
+        "status": "resolved"
+      }
+    }
+  }
+}

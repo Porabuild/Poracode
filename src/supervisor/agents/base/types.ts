@@ -244,6 +244,21 @@ export interface StructuredSessionHandle {
   steerContext?(text: string): Promise<void>;
   /** Authoritative provider-reported background work still live in this session. */
   getBackgroundTasks?(): readonly BackgroundTask[];
+  /**
+   * True while the provider admits other work the user's targeted interrupt did
+   * not ask to stop. The force-stop watchdog must not dispose the shared
+   * session while such a sibling is live; it re-arms instead. Providers with
+   * one turn per session omit this and keep the default force-stop behavior.
+   */
+  hasUninterruptedActiveTurns?(): boolean;
+  /**
+   * True while a user-targeted interrupt is still in flight or its targeted
+   * turn remains active. False means Stop reached a terminal provider state;
+   * any remaining work belongs to a sibling and the watchdog must release the
+   * interrupt request instead of disposing the shared session. Providers
+   * without concurrent turns omit this and keep the default force-stop path.
+   */
+  hasUnsettledInterruptedTurns?(): boolean;
   interruptTurn?(): Promise<void>;
   controlGoal?(control: ThreadGoalControl): Promise<void>;
   /** Negotiate live audio on this structured thread without launching another agent. */
@@ -475,8 +490,8 @@ export interface CreateStructuredSessionInput {
    * The default is the request unchanged.
    */
   acpElicitationPresentation?: (
-    request: import("@agentclientprotocol/sdk").CreateElicitationRequest,
-  ) => import("@agentclientprotocol/sdk").CreateElicitationRequest;
+    request: import("@agentclientprotocol/sdk/unstable").CreateElicitationRequest,
+  ) => import("@agentclientprotocol/sdk/unstable").CreateElicitationRequest;
   /**
    * MCP transports relayed optimistically: included in the first
    * `session/new` / `session/load` attempt and dropped from the retry set if
@@ -495,8 +510,8 @@ export type AcpEmptyResponseErrorResolver = (input: {
 }) => Error | undefined;
 
 export type AcpSessionUpdateTransform = (
-  notification: import("@agentclientprotocol/sdk").SessionNotification,
-) => import("@agentclientprotocol/sdk").SessionNotification;
+  notification: import("@agentclientprotocol/sdk/unstable").SessionNotification,
+) => import("@agentclientprotocol/sdk/unstable").SessionNotification;
 
 export type AcpExtensionSessionUpdateTransform = (
   method: string,
@@ -505,12 +520,12 @@ export type AcpExtensionSessionUpdateTransform = (
     request: (method: string, params: Record<string, unknown>) => Promise<Record<string, unknown>>;
   },
 ) =>
-  | import("@agentclientprotocol/sdk").SessionNotification
-  | readonly import("@agentclientprotocol/sdk").SessionNotification[]
+  | import("@agentclientprotocol/sdk/unstable").SessionNotification
+  | readonly import("@agentclientprotocol/sdk/unstable").SessionNotification[]
   | undefined
   | Promise<
-      | import("@agentclientprotocol/sdk").SessionNotification
-      | readonly import("@agentclientprotocol/sdk").SessionNotification[]
+      | import("@agentclientprotocol/sdk/unstable").SessionNotification
+      | readonly import("@agentclientprotocol/sdk/unstable").SessionNotification[]
       | undefined
     >;
 

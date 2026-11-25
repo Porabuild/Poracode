@@ -53,7 +53,7 @@
  * streams as unformatted text.
  */
 
-import type { SessionNotification } from "@agentclientprotocol/sdk";
+import type { SessionNotification } from "@agentclientprotocol/sdk/unstable";
 import type { BackgroundTask, CanonicalItemType, RuntimeEvent } from "@/shared/contracts";
 import {
   BACKGROUND_TASK_COMPLETED_HEADING,

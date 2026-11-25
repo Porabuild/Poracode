@@ -18,6 +18,7 @@ const initialize = vi.hoisted(() =>
         clientName: string,
         clientVersion: string,
         requestedCapabilities?: readonly string[],
+        options?: { experimentalApi?: boolean },
       ) => Promise<{
         schema: { version: number; fingerprint: string };
         grantedCapabilities: string[];
@@ -110,7 +111,13 @@ function sessionRecord(sessionId = "session-1"): Record<string, unknown> {
   return { sessionId, activeTurnId: null };
 }
 
-async function createSession(overrides: Partial<CreateStructuredSessionInput> = {}) {
+async function createSession(
+  overrides: Partial<CreateStructuredSessionInput> = {},
+  respond?: (
+    method: string,
+    params?: Record<string, unknown>,
+  ) => Promise<Record<string, unknown> | undefined> | Record<string, unknown> | undefined,
+) {
   const runtimeEvents: RuntimeEvent[] = [];
   const updates: StructuredSessionUpdate[] = [];
   const errors: string[] = [];
@@ -121,7 +128,12 @@ async function createSession(overrides: Partial<CreateStructuredSessionInput> = 
     transport: {},
     hostCookie: "test-host-cookie",
   });
-  request.mockImplementation(async (method) => {
+  request.mockImplementation(async (method, params) => {
+    const custom = await respond?.(method, params);
+    if (custom !== undefined) return custom;
+    if (method === "permissionProfile/list") {
+      return { profiles: [{ profileId: ":read-only", available: true }] };
+    }
     if (method === "session/start" || method === "session/resume") {
       return { session: sessionRecord() };
     }
@@ -174,6 +186,101 @@ function appControlsMcpFixture(): ResolvedMcpServer[] {
 }
 
 describe("MuseMspStructuredSession", () => {
+  it("activates read-only with experimentalApi and starts the exact permission profile", async () => {
+    const readOnly = { ...config, approvalPolicy: "read-only" as const };
+    const { session } = await createSession({ config: readOnly });
+
+    await session.openThread(readOnly);
+
+    expect(initialize).toHaveBeenCalledWith("poracode", "1.0.0", undefined, {
+      experimentalApi: true,
+    });
+    expect(request).toHaveBeenCalledWith("permissionProfile/list", {});
+    expect(request).toHaveBeenCalledWith(
+      "session/start",
+      expect.objectContaining({
+        approvalMode: "promptUnmatched",
+        permissionProfile: ":read-only",
+      }),
+    );
+  });
+
+  it.each([
+    ["absent", []],
+    ["unavailable", [{ profileId: ":read-only", available: false }]],
+  ])("refuses read-only activation when the profile is %s", async (_label, profiles) => {
+    const readOnly = { ...config, approvalPolicy: "read-only" as const };
+    await expect(
+      createSession({ config: readOnly }, (method) =>
+        method === "permissionProfile/list" ? { profiles } : undefined,
+      ),
+    ).rejects.toThrow(/read-only permission profile/);
+  });
+
+  it("refuses to open a read-only thread when activation did not admit the profile", async () => {
+    const { session } = await createSession();
+    await expect(session.openThread({ ...config, approvalPolicy: "read-only" })).rejects.toThrow(
+      /read-only permission profile/,
+    );
+  });
+
+  it("rejects approval transitions into or out of read-only before setApprovalMode", async () => {
+    const readOnly = { ...config, approvalPolicy: "read-only" as const };
+    const locked = await createSession({ config: readOnly });
+    await locked.session.openThread(readOnly);
+    request.mockClear();
+    await expect(
+      locked.session.startTurn("hello", { ...readOnly, approvalPolicy: "on-request" }),
+    ).rejects.toThrow(/fixed when the session launches/);
+    expect(request).not.toHaveBeenCalledWith("session/setApprovalMode", expect.anything());
+    expect(request).not.toHaveBeenCalledWith("turn/start", expect.anything());
+
+    const open = await createSession();
+    await open.session.openThread(config);
+    request.mockClear();
+    await expect(
+      open.session.startTurn("hello", { ...config, approvalPolicy: "read-only" }),
+    ).rejects.toThrow(/fixed when the session launches/);
+    expect(request).not.toHaveBeenCalledWith("session/setApprovalMode", expect.anything());
+    expect(request).not.toHaveBeenCalledWith("turn/start", expect.anything());
+  });
+
+  it("keeps read-only when the host echoes promptUnmatched after the profile launch", async () => {
+    const readOnly = { ...config, approvalPolicy: "read-only" as const };
+    const { session, updates } = await createSession({ config: readOnly });
+    await session.openThread(readOnly);
+    updates.length = 0;
+
+    notificationHandler?.("session/approvalModeChanged", {
+      sessionId: "session-1",
+      mode: "onRequest",
+    });
+
+    expect(updates.at(-1)?.config?.approvalPolicy).toBe("read-only");
+  });
+
+  it("keeps read-only policy when a durable resume reports promptUnmatched", async () => {
+    const readOnly = { ...config, approvalPolicy: "read-only" as const };
+    const { session } = await createSession(
+      {
+        config: readOnly,
+        sessionRef: { providerSessionId: "session-1", discoveredAt: "2026-11-17T00:00:00.000Z" },
+      },
+      (method) =>
+        method === "session/resume"
+          ? {
+              session: { ...sessionRecord(), approvalMode: { mode: "promptUnmatched" } },
+            }
+          : undefined,
+    );
+
+    await expect(session.openThread(readOnly)).resolves.toBe("session-1");
+    expect(request).toHaveBeenCalledWith(
+      "session/resume",
+      expect.objectContaining({ permissionProfile: ":read-only" }),
+    );
+  });
+
   it("repairs legacy control rows without replaying them as agent invocations", async () => {
     const { session, runtimeEvents } = await createSession({
       sessionRef: { providerSessionId: "session-1", discoveredAt: "2026-11-17T00:00:00.000Z" },
@@ -1390,6 +1497,24 @@ describe("MuseMspStructuredSession", () => {
     await session.openThread(config);
     notificationHandler?.("approval/requested", approvalNotification);
     await Promise.resolve();
+    expect(request).not.toHaveBeenCalledWith("approval/decide", expect.anything());
+    expect(runtimeEvents).toContainEqual(
+      expect.objectContaining({ type: "request.opened", requestId: "approval-auto" }),
+    );
+  });
+
+  it("opens untrusted as prompt-unmatched and still surfaces host approvals", async () => {
+    const untrustedConfig = { ...config, approvalPolicy: "untrusted" };
+    const { session, runtimeEvents } = await createSession({ config: untrustedConfig });
+    await session.openThread(untrustedConfig);
+    expect(request).toHaveBeenCalledWith(
+      "session/start",
+      expect.objectContaining({ approvalMode: "promptUnmatched" }),
+    );
+    notificationHandler?.("approval/requested", approvalNotification);
+    await Promise.resolve();
+    // Poracode never auto-decides under ask policies. The host simply does not
+    // raise an approval for writes its built-in workspace authority covers.
     expect(request).not.toHaveBeenCalledWith("approval/decide", expect.anything());
     expect(runtimeEvents).toContainEqual(
       expect.objectContaining({ type: "request.opened", requestId: "approval-auto" }),

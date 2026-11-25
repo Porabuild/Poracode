@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { ClientSideConnection, type AnyMessage } from "@agentclientprotocol/sdk";
+import type { AnyMessage } from "@agentclientprotocol/sdk/unstable";
+import { connectAcpClient } from "./clientConnection";
 import {
   humanizeAcpModeName,
   humanizeModelId,
@@ -30,12 +31,12 @@ describe("ACP authentication compatibility", () => {
     const outgoing = new TransformStream<AnyMessage>();
     const writer = incoming.writable.getWriter();
     const reader = outgoing.readable.getReader();
-    const connection = new ClientSideConnection(
-      () => ({
+    const connection = connectAcpClient(
+      { readable: incoming.readable, writable: outgoing.writable },
+      {
         sessionUpdate: async () => {},
         requestPermission: async () => ({ outcome: { outcome: "cancelled" } }),
-      }),
-      { readable: incoming.readable, writable: outgoing.writable },
+      },
     );
     try {
       const initialized = connection.initialize({ protocolVersion: 1, clientCapabilities: {} });

@@ -1,4 +1,4 @@
-import { RequestError, type SessionNotification } from "@agentclientprotocol/sdk";
+import { RequestError, type SessionNotification } from "@agentclientprotocol/sdk/unstable";
 import type { AgentCapability, AgentInstanceConfig, AgentStatus } from "@/shared/contracts";
 import { capabilitiesForPresentation } from "@/shared/agentSelection";
 import { resolveUnrestrictedPermissionConfig } from "@/shared/agents/unrestrictedPermissions";
@@ -11,7 +11,7 @@ import {
   transformAntigravitySubagentSessionUpdate,
 } from "./acpSubagents";
 import { transformAntigravityBackgroundToolCall } from "./acpTaskNotifications";
-import { parseAntigravityAcpTurnSignal } from "./acpTurnHold";
+import { attachAntigravityTurnHold, parseAntigravityAcpTurnSignal } from "./acpTurnHold";
 
 const ANTIGRAVITY_ACP_PROBE_TIMEOUT_MS = 60_000;
 /** Personal Google OAuth is the default Chat sign-in; keep it first in the picker. */
@@ -131,11 +131,13 @@ export function createAntigravityAcpRuntime(
     textStreamExtension: createAntigravityAcpExtension(),
     sessionUpdateTransform: transformAntigravitySessionUpdate,
     attachSession: (session, input) => {
-      attachAntigravitySubagentBridge(session, input.projectLocation);
+      const bridge = attachAntigravitySubagentBridge(session, input.projectLocation);
+      attachAntigravityTurnHold(session, { readSteps: () => bridge.readParentTranscriptSteps() });
     },
     // agy_acp_server holds session/prompt open until every background task
-    // exits; the only end-of-reply boundary it publishes is a stderr
-    // diagnostic. See ./acpTurnHold.ts.
+    // exits. The transcript detector attached above is the primary
+    // end-of-reply boundary; this stderr diagnostic is the second, exact when
+    // the server emits it. See ./acpTurnHold.ts.
     stderrTurnSignalParser: parseAntigravityAcpTurnSignal,
     isDroppedSessionError: isAntigravityDroppedSessionError,
   });

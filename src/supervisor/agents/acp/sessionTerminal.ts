@@ -1,4 +1,4 @@
-import type { TerminalExitStatus } from "@agentclientprotocol/sdk";
+import type { TerminalExitStatus } from "@agentclientprotocol/sdk/unstable";
 
 export type AcpTerminalRecord = {
   kill: () => void;

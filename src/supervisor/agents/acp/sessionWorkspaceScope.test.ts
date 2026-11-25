@@ -10,7 +10,7 @@ import {
   type CreateTerminalRequest,
   type ReadTextFileRequest,
   type WriteTextFileRequest,
-} from "@agentclientprotocol/sdk";
+} from "@agentclientprotocol/sdk/unstable";
 import type { ProjectLocation } from "@/shared/contracts";
 import { makeConfigSyncSession } from "./sessionTestFixture";
 import { snapshotAcpAdditionalDirectories } from "./sessionWorkspaceRoots";

@@ -2,7 +2,7 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
-import type { SessionNotification } from "@agentclientprotocol/sdk";
+import type { SessionNotification } from "@agentclientprotocol/sdk/unstable";
 import { createAcpMapperState, mapAcpSessionUpdate } from "../acp/canonicalMapping";
 import { makeConfigSyncSession } from "../acp/sessionTestFixture";
 import type { AcpSessionConfigSync } from "../acp/sessionConfigSync";

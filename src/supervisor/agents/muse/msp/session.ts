@@ -143,6 +143,18 @@ function workspaceRoot(input: CreateStructuredSessionInput): string {
 }
 
 /** Structured Muse Code GUI session backed by the installed `muse serve` MSP host. */
+function readOnlyPermissionProfileId(result: Record<string, unknown>): string | undefined {
+  const profiles = Array.isArray(result["profiles"]) ? result["profiles"] : [];
+  for (const raw of profiles) {
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) continue;
+    const row = raw as Record<string, unknown>;
+    const id = row["profileId"];
+    if (typeof id !== "string") continue;
+    if ((id === ":read-only" || id === "read-only") && row["available"] !== false) return id;
+  }
+  return undefined;
+}
+
 export class MuseMspStructuredSession implements StructuredSessionHandle {
   private pendingTurnStartState: { interrupted: boolean } | undefined;
   readonly launchOptions;
@@ -180,6 +192,8 @@ export class MuseMspStructuredSession implements StructuredSessionHandle {
   private readonly sessionMcpServers;
   /** Whether the host granted `sessionMcp` at initialize. */
   private sessionMcpGranted = false;
+  /** Exact host-catalog profile id admitted for this session's read-only launch. */
+  private readOnlyPermissionProfile: string | undefined;
   private constructor(
     private readonly input: CreateStructuredSessionInput,
     private readonly child: ChildProcess,
@@ -270,18 +284,41 @@ export class MuseMspStructuredSession implements StructuredSessionHandle {
     // Per-session MCP config sits behind the grantable `sessionMcp`
     // capability; hosts that predate it simply never grant it, and the
     // session then starts without an MCP config instead of failing.
-    const result = await this.client.initialize(
-      "poracode",
-      "1.0.0",
-      this.sessionMcpServers ? ["sessionMcp"] : undefined,
-    );
+    const usesReadOnlyProfile = this.currentConfig.approvalPolicy === "read-only";
+    const requestedCapabilities = this.sessionMcpServers ? ["sessionMcp"] : undefined;
+    const result = usesReadOnlyProfile
+      ? await this.client.initialize("poracode", "1.0.0", requestedCapabilities, {
+          experimentalApi: true,
+        })
+      : await this.client.initialize("poracode", "1.0.0", requestedCapabilities);
     assertMspSchemaVersion(result.schema.version);
     this.sessionMcpGranted = result.grantedCapabilities.includes("sessionMcp");
+    if (usesReadOnlyProfile) {
+      let profiles: Record<string, unknown>;
+      try {
+        profiles = await this.client.request("permissionProfile/list", {});
+      } catch {
+        throw new Error(
+          "Muse read-only permissions require a host with the read-only permission profile",
+        );
+      }
+      this.readOnlyPermissionProfile = readOnlyPermissionProfileId(profiles);
+      if (!this.readOnlyPermissionProfile) {
+        throw new Error(
+          "Muse read-only permissions require a host with the read-only permission profile",
+        );
+      }
+    }
     this.activated = true;
   }
 
   async openThread(config: ThreadConfig, sessionRef = this.input.sessionRef): Promise<string> {
     if (!this.activated) throw new Error("Muse MSP session is not initialized.");
+    if (config.approvalPolicy === "read-only" && !this.readOnlyPermissionProfile) {
+      throw new Error(
+        "Muse read-only permissions require a host with the read-only permission profile",
+      );
+    }
     this.currentConfig = config;
     const resumeId = sessionRef?.providerSessionId;
     // Session MCP servers live only in this host process's session runtime,
@@ -297,6 +334,9 @@ export class MuseMspStructuredSession implements StructuredSessionHandle {
           // Snapshot, not items: no transcript replay, but the folded view
           // state carries the retained goal/todo blocks (see below).
           history: "snapshot",
+          ...(this.currentConfig.approvalPolicy === "read-only" && this.readOnlyPermissionProfile
+            ? { permissionProfile: this.readOnlyPermissionProfile }
+            : {}),
           ...sessionConfig,
         })
       : await this.client.request("session/start", {
@@ -305,6 +345,9 @@ export class MuseMspStructuredSession implements StructuredSessionHandle {
           modelId: config.model,
           ...(await this.resolveModelProviderId(config.model)),
           approvalMode: toMspApprovalMode(config.approvalPolicy),
+          ...(config.approvalPolicy === "read-only" && this.readOnlyPermissionProfile
+            ? { permissionProfile: this.readOnlyPermissionProfile }
+            : {}),
           ...sessionConfig,
         });
     const session = recordOf(result["session"]);
@@ -343,7 +386,10 @@ export class MuseMspStructuredSession implements StructuredSessionHandle {
       this.currentConfig = {
         ...config,
         model: stringValue(session?.["modelId"]) ?? config.model,
-        approvalPolicy: approvalPolicyFromMspMode(approvalMode?.["mode"], config.approvalPolicy),
+        approvalPolicy:
+          config.approvalPolicy === "read-only"
+            ? "read-only"
+            : approvalPolicyFromMspMode(approvalMode?.["mode"], config.approvalPolicy),
       };
       await this.applyConfig(config);
     }
@@ -861,6 +907,14 @@ export class MuseMspStructuredSession implements StructuredSessionHandle {
       });
     }
     if (config.approvalPolicy !== this.currentConfig.approvalPolicy) {
+      const crossesReadOnly =
+        (config.approvalPolicy === "read-only") !==
+        (this.currentConfig.approvalPolicy === "read-only");
+      if (crossesReadOnly) {
+        throw new Error(
+          "Muse read-only permissions are fixed when the session launches; start a new thread to change them",
+        );
+      }
       await this.client.request("session/setApprovalMode", {
         commandId: mintMspCommandId(),
         sessionId,
@@ -971,10 +1025,10 @@ export class MuseMspStructuredSession implements StructuredSessionHandle {
       case "session/approvalModeChanged":
         this.currentConfig = {
           ...this.currentConfig,
-          approvalPolicy: approvalPolicyFromMspMode(
-            params["mode"],
-            this.currentConfig.approvalPolicy,
-          ),
+          approvalPolicy:
+            this.currentConfig.approvalPolicy === "read-only" && this.readOnlyPermissionProfile
+              ? "read-only"
+              : approvalPolicyFromMspMode(params["mode"], this.currentConfig.approvalPolicy),
         };
         this.publishUpdate();
         return;

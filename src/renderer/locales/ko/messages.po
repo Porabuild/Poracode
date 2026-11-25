@@ -14808,6 +14808,7 @@ msgid "Read the Terminal panel attached to this worktree and report what it is p
 msgstr "이 작업 트리의 터미널 패널을 읽고 출력 내용을 보고합니다."
 
 #: src/renderer/components/crew/CrewRoleDetails.tsx
+#: src/renderer/components/providers/codex/index.tsx
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 #: src/renderer/components/thread/ThreadDraftView.tsx

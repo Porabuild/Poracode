@@ -2,7 +2,11 @@
  * Dispatch an ACP `SessionNotification` to zero-or-more canonical events.
  */
 
-import type { ContentBlock, SessionNotification, SessionUpdate } from "@agentclientprotocol/sdk";
+import type {
+  ContentBlock,
+  SessionNotification,
+  SessionUpdate,
+} from "@agentclientprotocol/sdk/unstable";
 import type { CanonicalContentBlock, RuntimeEvent } from "@/shared/contracts";
 import { isChatVideoSource } from "@/shared/chatVideo";
 import {

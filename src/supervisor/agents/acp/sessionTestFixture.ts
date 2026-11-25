@@ -4,7 +4,7 @@ import type {
   PromptCapabilities,
   RequestPermissionRequest,
   SessionNotification,
-} from "@agentclientprotocol/sdk";
+} from "@agentclientprotocol/sdk/unstable";
 import type { ProjectLocation, ThreadConfig } from "@/shared/contracts";
 import {
   AcpStructuredSession,
@@ -36,6 +36,7 @@ export type TestableAcpSession = {
   activate(): Promise<void>;
   interruptTurn(): Promise<void>;
   forceCompleteTurn(): void;
+  holdTurnForBackgroundWork(): void;
   dispose(): Promise<void>;
   resolveServerRequest(requestId: string, response: unknown): Promise<void>;
   handlePermissionRequest(params: RequestPermissionRequest): Promise<unknown>;
@@ -72,7 +73,7 @@ export function makeConfigSyncSession(
     initializeMeta?: Record<string, unknown>;
     clientCapabilitiesMeta?: Record<string, unknown>;
     agentPromptCapabilities?: PromptCapabilities;
-    agentSessionCapabilities?: import("@agentclientprotocol/sdk").SessionCapabilities;
+    agentSessionCapabilities?: import("@agentclientprotocol/sdk/unstable").SessionCapabilities;
     agentLoadSession?: boolean;
     behavior?: AcpSessionBehavior;
     textStreamExtension?: AcpTextStreamExtension;

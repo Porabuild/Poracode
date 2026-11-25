@@ -1,4 +1,4 @@
-import type { SessionNotification } from "@agentclientprotocol/sdk";
+import type { SessionNotification } from "@agentclientprotocol/sdk/unstable";
 import { PORACODE_ACP_SUBAGENT_PROGRESS_META_KEY } from "../acp/canonicalMapping";
 import type { AcpExternalSessionUpdateSource, AcpStructuredSession } from "../acp/session";
 import { withAcpSubagentParent } from "../acp/subagentCoordinator";

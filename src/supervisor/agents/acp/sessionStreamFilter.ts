@@ -2,7 +2,7 @@
  * Filters applied to the raw ndjson stream between us and the ACP agent
  * process, before any message reaches the SDK connection.
  */
-import { ndJsonStream, type SessionNotification } from "@agentclientprotocol/sdk";
+import { ndJsonStream, type SessionNotification } from "@agentclientprotocol/sdk/unstable";
 
 /**
  * ACP stdio is newline-delimited JSON, but some agents occasionally print a

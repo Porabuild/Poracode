@@ -24,7 +24,7 @@
  *  - It is pure (no IO, no state) and never throws.
  */
 
-import type { SessionNotification } from "@agentclientprotocol/sdk";
+import type { SessionNotification } from "@agentclientprotocol/sdk/unstable";
 import { buildLineUnifiedDiff } from "@/shared/lineUnifiedDiff";
 
 export function transformCursorAcpSessionUpdate(

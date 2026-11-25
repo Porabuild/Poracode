@@ -372,6 +372,14 @@ describe("resolveApprovalPolicyValue", () => {
     expect(resolveApprovalPolicyValue(agent, "auto_edit")).toBe("auto_edit");
   });
 
+  it("preserves an explicit read-only selection when the catalog stops advertising it", () => {
+    const agent = agentWith({ approvalPolicies: guiPolicies, defaultApprovalPolicy: "never" });
+    expect(resolveApprovalPolicyValue(agent, "read-only")).toBe("read-only");
+    expect(resolveApprovalPolicyValue(agentWith({ approvalPolicies: [] }), "read-only")).toBe(
+      "read-only",
+    );
+  });
+
   it("falls back to the declared default when the saved policy belongs to another runtime", () => {
     // Antigravity's `agy` CLI names full bypass `yolo`; its Chat runtime calls
     // the same posture `never`. Carrying `yolo` through left the composer with

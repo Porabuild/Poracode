@@ -146,12 +146,17 @@ export class MuseMspClient {
     clientName: string,
     clientVersion: string,
     requestedCapabilities?: readonly string[],
+    options?: { experimentalApi?: boolean },
   ): Promise<MspInitializeResult> {
+    const capabilities = {
+      ...(options?.experimentalApi === true ? { experimentalApi: true } : {}),
+      ...(requestedCapabilities && requestedCapabilities.length > 0
+        ? { requestedCapabilities: [...requestedCapabilities] }
+        : {}),
+    };
     const result = await this.request("initialize", {
       clientInfo: { name: clientName, version: clientVersion },
-      ...(requestedCapabilities && requestedCapabilities.length > 0
-        ? { capabilities: { requestedCapabilities: [...requestedCapabilities] } }
-        : {}),
+      ...(Object.keys(capabilities).length > 0 ? { capabilities } : {}),
     });
     this.notify("initialized");
     return parseMspInitializeResult(result);

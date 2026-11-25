@@ -3,6 +3,7 @@ import { toMspApprovalMode, buildMuseServeArgs } from "./argv";
 
 describe("toMspApprovalMode", () => {
   it.each([
+    ["read-only", "promptUnmatched"],
     ["untrusted", "promptUnmatched"],
     ["on-request", "onRequest"],
     ["never", "allowAll"],
@@ -12,6 +13,20 @@ describe("toMspApprovalMode", () => {
     ["something-new", "onRequest"],
   ])("maps %s to %s", (policy, expected) => {
     expect(toMspApprovalMode(policy)).toBe(expected);
+  });
+
+  it("keeps untrusted as prompt-unmatched authority rather than a workspace-write gate", () => {
+    // The host's built-in workspace filesystem authority already covers
+    // project-root writes, so `untrusted` does not prompt for them. It is not
+    // an allow-all mode either: the approval policy and sandbox both stay on.
+    expect(toMspApprovalMode("untrusted")).toBe("promptUnmatched");
+    expect(buildMuseServeArgs("untrusted")).toEqual(["serve", "--trust-workspace"]);
+  });
+
+  it("keeps read-only session-scoped instead of fixing a partial host write posture", () => {
+    expect(buildMuseServeArgs("read-only")).toEqual(["serve", "--trust-workspace"]);
+    expect(buildMuseServeArgs("read-only")).not.toContain("--disable-write");
+    expect(toMspApprovalMode("read-only")).toBe("promptUnmatched");
   });
 });
 

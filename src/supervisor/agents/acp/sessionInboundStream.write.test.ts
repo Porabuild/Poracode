@@ -1,4 +1,4 @@
-import type { AnyMessage } from "@agentclientprotocol/sdk";
+import type { AnyMessage } from "@agentclientprotocol/sdk/unstable";
 import { describe, expect, it, vi } from "vitest";
 import { createAcpInboundStream } from "./sessionInboundStream";
 

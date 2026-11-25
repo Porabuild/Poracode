@@ -20,6 +20,8 @@ export interface MuseProbedCatalog {
   providerId: string;
   profileId: string | null;
   sessionMcpSupported?: boolean;
+  /** Exact catalog id for Muse's native read-only posture when this host admits it. */
+  readOnlyPermissionProfile?: string;
 }
 
 export interface ProbeMuseModelCatalogOptions {
@@ -78,6 +80,26 @@ async function delayMs(ms: number, signal?: AbortSignal): Promise<void> {
     };
     signal.addEventListener("abort", onAbort, { once: true });
   });
+}
+
+/** Read the catalog id exactly; the `:read-only` spelling is host-owned wire data. */
+async function probeReadOnlyPermissionProfile(client: MuseMspClient): Promise<string | undefined> {
+  try {
+    const result = await client.request("permissionProfile/list", {}, 2_000);
+    const profiles = Array.isArray(result["profiles"]) ? result["profiles"] : [];
+    for (const raw of profiles) {
+      if (!raw || typeof raw !== "object" || Array.isArray(raw)) continue;
+      const row = raw as Record<string, unknown>;
+      const id = row["profileId"];
+      if (typeof id !== "string") continue;
+      // The ephemeral probe host marks every profile unavailable (`ephemeralFixed`);
+      // presence in its catalog is still proof that this binary speaks the profile API.
+      if (id === ":read-only" || id === "read-only") return id;
+    }
+  } catch {
+    // Older hosts omit the experimental profile API; detection simply hides the preset.
+  }
+  return undefined;
 }
 
 /**
@@ -149,6 +171,7 @@ export async function probeMuseModelCatalog(
         options.clientName ?? "poracode_probe",
         options.clientVersion ?? "1.0.0",
         ["sessionMcp"],
+        { experimentalApi: true },
       );
       // The pin is advisory (schema is additive-open): warn on drift so a
       // silently incompatible host is visible in logs, but keep probing.
@@ -166,7 +189,12 @@ export async function probeMuseModelCatalog(
         ...(options.signal ? { signal: options.signal } : {}),
         settleMs: options.settleMs ?? MUSE_CATALOG_SETTLE_MS,
       });
-      return { ...catalog, sessionMcpSupported: init.grantedCapabilities.includes("sessionMcp") };
+      const readOnlyPermissionProfile = await probeReadOnlyPermissionProfile(client!);
+      return {
+        ...catalog,
+        sessionMcpSupported: init.grantedCapabilities.includes("sessionMcp"),
+        ...(readOnlyPermissionProfile ? { readOnlyPermissionProfile } : {}),
+      };
     })();
 
     const abortPromise = options.signal

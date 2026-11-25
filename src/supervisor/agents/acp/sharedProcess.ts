@@ -6,10 +6,8 @@ import { tmpdir } from "node:os";
 import { delimiter, join } from "node:path";
 import { Readable, Writable } from "node:stream";
 import {
-  ClientSideConnection,
   RequestError,
   type AnyMessage,
-  type Client,
   type CompleteElicitationNotification,
   type CreateElicitationRequest,
   type CreateElicitationResponse,
@@ -17,7 +15,12 @@ import {
   type InitializeResponse,
   type RequestPermissionRequest,
   type SessionNotification,
-} from "@agentclientprotocol/sdk";
+} from "@agentclientprotocol/sdk/unstable";
+import {
+  connectAcpClient,
+  type AcpClientConnection,
+  type AcpClientHandlers,
+} from "./clientConnection";
 import { awaitProcessTermination } from "@/shared/awaitProcessTermination";
 import { toErrorMessage } from "@/shared/errorMessage";
 import type { CommandSpec } from "../base";
@@ -30,7 +33,7 @@ import { ACP_STDOUT_QUEUED_BYTES, createAcpInboundStream } from "./sessionInboun
  * `initialize` handshake serves every member, and each member lease owns one
  * ACP session (`session/new`, `session/load`, `session/resume`) on top of the
  * shared transport. The router below is the single agent→client `Client` the
- * process's `ClientSideConnection` sees; it attributes every inbound message
+ * process's client connection sees; it attributes every inbound message
  * to the member that owns the addressed `sessionId` (or, for unaddressed
  * extension traffic, per the configured policy) and fans process-wide signals
  * (stderr, transport close, outbound writes) out to every attached member.
@@ -92,7 +95,7 @@ export interface AcpSharedProcessPrepare {
 
 /** Per-session callbacks the shared transport delivers to one lease holder. */
 export interface AcpSharedProcessMember {
-  readonly client: Client;
+  readonly client: AcpClientHandlers;
   onTransportClosed(exitCode: number | null): void;
   onStderr(text: string): void;
   onBeforeWrite(message: AnyMessage): void;
@@ -108,7 +111,7 @@ export interface AcpSharedProcessMember {
 
 /** One member's hold on a shared ACP process: one connection view, one session. */
 export interface AcpSharedProcessLease {
-  readonly connection: ClientSideConnection;
+  readonly connection: AcpClientConnection;
   readonly initialized: Promise<InitializeResponse>;
   /** Register this lease's session callbacks. Exactly once, before any open. */
   attach(member: AcpSharedProcessMember): void;
@@ -216,9 +219,9 @@ class SharedAcpProcessEntry {
   private prepared:
     | { readonly env?: Readonly<Record<string, string>>; cleanup(): Promise<void> }
     | undefined;
-  private connection: ClientSideConnection | undefined;
+  private connection: AcpClientConnection | undefined;
   private initialized: Promise<InitializeResponse> | undefined;
-  private readonly router: Client;
+  private readonly router: AcpClientHandlers;
 
   private readonly ready: Promise<void>;
   private resolveReady!: () => void;
@@ -318,7 +321,7 @@ class SharedAcpProcessEntry {
       const stream = createAcpInboundStream(toAgent, fromAgent, {
         onBeforeWrite: (message) => this.onBeforeWrite(message),
       });
-      this.connection = new ClientSideConnection((_agent) => this.router, stream);
+      this.connection = connectAcpClient(stream, this.router);
       this.initialized = this.connection.initialize(this.spec.initializeRequest);
       void this.initialized.then(
         (result) => {
@@ -888,7 +891,7 @@ class SharedAcpProcessEntry {
     return false;
   }
 
-  private buildRouter(): Client {
+  private buildRouter(): AcpClientHandlers {
     return {
       requestPermission: (params: RequestPermissionRequest) =>
         this.dispatchSessionRequest(params, "session/request_permission", (member) =>

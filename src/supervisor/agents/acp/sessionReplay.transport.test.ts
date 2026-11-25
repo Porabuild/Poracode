@@ -1,7 +1,8 @@
 import { type ChildProcess } from "node:child_process";
 import { EventEmitter } from "node:events";
 import { PassThrough, Readable, Writable } from "node:stream";
-import { ClientSideConnection, PROTOCOL_VERSION, type AnyMessage } from "@agentclientprotocol/sdk";
+import { PROTOCOL_VERSION, type AnyMessage } from "@agentclientprotocol/sdk/unstable";
+import type { AcpClientConnection } from "./clientConnection";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { RuntimeEvent } from "@/shared/contracts";
 import type { StructuredSessionUpdate } from "../base";
@@ -123,7 +124,7 @@ async function transportSession(method: "load" | "resume") {
     { kind: "windows", path: "C:\\repo" },
     "transport-thread",
   );
-  const connection = (session as unknown as { connection: ClientSideConnection }).connection;
+  const connection = (session as unknown as { connection: AcpClientConnection }).connection;
   const listener = {
     onClose: vi.fn<() => void>(),
     onError: vi.fn<(message: string) => void>(),

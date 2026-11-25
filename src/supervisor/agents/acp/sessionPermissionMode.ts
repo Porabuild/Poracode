@@ -3,7 +3,7 @@
  * agent advertises, plus the synthetic-permission-request auto-approve helper
  * used when an agent has no native mode for the requested policy.
  */
-import type { RequestPermissionRequest } from "@agentclientprotocol/sdk";
+import type { RequestPermissionRequest } from "@agentclientprotocol/sdk/unstable";
 import { normalizeAcpModeId } from "./probe";
 
 function acpModeKey(modeId: string): string {

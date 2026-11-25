@@ -15,6 +15,10 @@ export interface CodexMapperState {
   currentTurnId?: string;
   /** Open assistant_message item id, if any (closed on `turn/completed`). */
   openAssistantItemId?: string;
+  /** Turn that opened {@link openAssistantItemId}, so a sibling turn cannot close it. */
+  assistantItemTurnId?: string;
+  /** Open assistant rows by owning turn (concurrent turns can each have one). */
+  openAssistantItemsByTurn: Map<string, string>;
   /** Map Codex `itemId` → our internal item id. */
   itemIdMap: Map<string, string>;
   /** Map Codex `itemId` → canonical type, for routing deltas + completions. */
@@ -43,6 +47,10 @@ export interface CodexMapperState {
   goalObjective?: string;
   /** Current plan item sourced from `turn/plan/updated` notifications. */
   turnPlanItemId?: string;
+  /** Turn that created {@link turnPlanItemId}. */
+  planItemTurnId?: string;
+  /** Plan rows by owning turn, so a sibling completion cannot close the wrong one. */
+  planItemsByTurn: Map<string, string>;
   /**
    * Codex `contextCompaction` item id → internal row id. Survives turn
    * completion: auto-compaction runs in its own internal turn.
@@ -58,6 +66,8 @@ export function createCodexMapperState(threadId: string): CodexMapperState {
     itemIdMap: new Map(),
     itemTypeMap: new Map(),
     itemTurnIdMap: new Map(),
+    openAssistantItemsByTurn: new Map(),
+    planItemsByTurn: new Map(),
     settledItemIds: new Set(),
     commandOutputSeenSet: new Set(),
     fileChangeOutputMap: new Map(),

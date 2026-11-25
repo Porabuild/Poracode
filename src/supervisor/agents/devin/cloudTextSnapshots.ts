@@ -1,4 +1,4 @@
-import type { SessionNotification } from "@agentclientprotocol/sdk";
+import type { SessionNotification } from "@agentclientprotocol/sdk/unstable";
 import { PORACODE_ACP_TEXT_STREAM_META_KEY } from "../acp/canonicalMapping/textStreamSnapshots";
 
 const record = (value: unknown): Record<string, unknown> =>

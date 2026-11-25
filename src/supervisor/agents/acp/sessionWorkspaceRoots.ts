@@ -1,6 +1,6 @@
 import { stat } from "node:fs/promises";
 import { posix, win32 } from "node:path";
-import type { SessionCapabilities } from "@agentclientprotocol/sdk";
+import type { SessionCapabilities } from "@agentclientprotocol/sdk/unstable";
 import { projectLocationSchema, type ProjectLocation } from "@/shared/contracts";
 import {
   MAX_WORKSPACE_DIRECTORY_ENTRIES,

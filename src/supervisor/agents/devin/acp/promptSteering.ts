@@ -1,4 +1,4 @@
-import type { PromptResponse } from "@agentclientprotocol/sdk";
+import type { PromptResponse } from "@agentclientprotocol/sdk/unstable";
 
 import type { AcpPromptSteering } from "../../acp/promptSteering";
 import { record } from "../acpRecord";

@@ -1,9 +1,9 @@
 import {
-  ClientSideConnection,
   type AnyMessage,
   type CreateElicitationRequest,
   type RequestPermissionRequest,
-} from "@agentclientprotocol/sdk";
+} from "@agentclientprotocol/sdk/unstable";
+import { connectAcpClient } from "./clientConnection";
 import { describe, expect, it, vi } from "vitest";
 import type { RuntimeEvent, ThreadConfig } from "@/shared/contracts";
 import { createAcpMapperState } from "./canonicalMapping";
@@ -605,14 +605,14 @@ describe("AcpSessionRequests elicitations", () => {
     const outgoing = new TransformStream<AnyMessage>();
     const writer = incoming.writable.getWriter();
     const reader = outgoing.readable.getReader();
-    const connection = new ClientSideConnection(
-      () => ({
+    const connection = connectAcpClient(
+      { readable: incoming.readable, writable: outgoing.writable },
+      {
         requestPermission: (params) => requests.requestPermission(params),
         sessionUpdate: async () => {},
         createElicitation: (params) => requests.createElicitation(params),
         completeElicitation: (params) => requests.completeElicitation(params),
-      }),
-      { readable: incoming.readable, writable: outgoing.writable },
+      },
     );
     try {
       await writer.write({

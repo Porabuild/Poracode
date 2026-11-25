@@ -8,7 +8,7 @@
  * by the provider-agnostic ACP mapper and never reaches the renderer.
  */
 
-import type { SessionNotification } from "@agentclientprotocol/sdk";
+import type { SessionNotification } from "@agentclientprotocol/sdk/unstable";
 import { ACP_CANONICAL_GOAL_INPUT_KEY } from "../acp/canonicalMapping/goal";
 
 export function transformQoderAcpSessionUpdate(

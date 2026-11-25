@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type { PromptResponse } from "@agentclientprotocol/sdk";
+import type { PromptResponse } from "@agentclientprotocol/sdk/unstable";
 import type { ThreadConfig } from "@/shared/contracts";
 import type { AcpPromptSteering } from "./promptSteering";
 import { makeConfigSyncSession } from "./sessionTestFixture";

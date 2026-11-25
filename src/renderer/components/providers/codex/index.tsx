@@ -60,6 +60,14 @@ registerGuiSlashCommands(PROVIDER_KIND, {
   resolveLocalAction: resolveStandardLocalSlashAction,
 });
 
+/**
+ * Permission presets combine Codex's independent sandbox and approval layers.
+ * `on-request` prompts only for actions that need to leave the sandbox (or
+ * that the provider otherwise flags); `workspace-write` already permits
+ * project-root edits, so "Ask for approval" does not gate an ordinary
+ * workspace write. The separate read-only preset is the strict write gate:
+ * writes have to leave the sandbox and therefore request approval.
+ */
 const CODEX_PERMISSION_PRESETS = [
   {
     id: "default-permissions",
@@ -76,6 +84,14 @@ const CODEX_PERMISSION_PRESETS = [
     approvalPolicies: ["on-request"],
     approvalsReviewer: "user",
     sandboxModes: ["workspace-write"],
+  },
+  {
+    id: "read-only",
+    label: msg`Read-only`,
+    hint: msg`Prompts`,
+    approvalPolicies: ["on-request"],
+    approvalsReviewer: "user",
+    sandboxModes: ["read-only"],
   },
   {
     id: "auto-review",

@@ -4,7 +4,7 @@ import {
   createAcpInboundStream,
   AcpInboundFrameLimitError,
 } from "./sessionInboundStream";
-import { ndJsonStream, type AnyMessage } from "@agentclientprotocol/sdk";
+import { ndJsonStream, type AnyMessage } from "@agentclientprotocol/sdk/unstable";
 import { filterAcpInboundNoise, filterAcpStdoutNonJsonLines } from "./sessionStreamFilter";
 
 const encoder = new TextEncoder();

@@ -6,7 +6,7 @@ import {
   type CreateElicitationResponse,
   type RequestPermissionRequest,
   type RequestPermissionResponse,
-} from "@agentclientprotocol/sdk";
+} from "@agentclientprotocol/sdk/unstable";
 import type {
   RequestOutcome,
   RuntimeEvent,

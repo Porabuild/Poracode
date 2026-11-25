@@ -23,7 +23,11 @@ import {
   type CodexAppServerRpc,
   type CodexAppServerRpcListener,
 } from "./appServerRpc";
-import { createCodexMapperState, CodexUsageScopeTracker } from "./canonicalMapping";
+import {
+  createCodexMapperState,
+  CodexUsageScopeTracker,
+  mapCodexNotification,
+} from "./canonicalMapping";
 import type { CodexThreadStatus } from "./acpProtocol";
 import type { OscNotification, OscTitle } from "@/shared/osc";
 import type { RuntimeEvent, ToolCallPayload } from "@/shared/contracts";
@@ -1110,6 +1114,10 @@ describe("CodexStructuredSession", () => {
     session["currentConfig"] = { model: "gpt-5.4" };
     session["seenErrorMessages"] = new Set<string>();
     session["activeTurnIds"] = new Set<string>();
+    session["interruptedTurnIds"] = new Set<string>();
+    session["interruptRequestedTurnIds"] = new Set<string>();
+    session["interruptedTurnCleanupRuns"] = new Set<string>();
+    session["activeInterruptRequests"] = 0;
     session["resumeActiveStatusSuppressionUntil"] = new Map();
     session["rpc"] = {
       claimThread: () => {},
@@ -1295,6 +1303,36 @@ describe("CodexStructuredSession", () => {
     expect(state.itemTurnIdMap.get("background")).toBe("previous-turn");
     expect(state.settledItemIds.has("foreground")).toBe(true);
     expect(state.settledItemIds.has("background")).toBe(false);
+  });
+
+  it("preserves a force-completed command's late native success outcome", () => {
+    const structuredSession = makeStructuredSession([]);
+    const state = createCodexMapperState("local-thread");
+    const events: RuntimeEvent[] = [];
+    Object.assign(structuredSession, {
+      mapperState: state,
+      activeTurnId: "current-turn",
+      listener: { onRuntimeEvent: (event: RuntimeEvent) => events.push(event) },
+    });
+    state.itemIdMap.set("stopped", "stopped");
+    state.itemTypeMap.set("stopped", "command_execution");
+    state.itemTurnIdMap.set("stopped", "current-turn");
+
+    structuredSession.forceCompleteTurn();
+    dispatchNotification(structuredSession, {
+      jsonrpc: "2.0",
+      method: "item/completed",
+      params: {
+        item: { id: "stopped", type: "commandExecution", status: "completed", exitCode: 0 },
+      },
+    });
+
+    expect(events.at(-1)).toMatchObject({
+      type: "item.completed",
+      itemId: "stopped",
+      payload: { status: "success", exitCode: 0 },
+    });
+    expect(state.itemIdMap.has("stopped")).toBe(false);
   });
 
   it("merges tracked and authoritative active provider turns during dispose", async () => {
@@ -1530,6 +1568,405 @@ describe("CodexStructuredSession", () => {
     expect((structuredSession as unknown as Record<string, unknown>)["activeTurnId"]).toBe(
       "turn-live",
     );
+  });
+
+  it("targets only the interrupted turn's exact command items during Stop cleanup", async () => {
+    const requests: Array<{ method: string; params: Record<string, unknown>; timeoutMs?: number }> =
+      [];
+    const structuredSession = makeStructuredSession([]);
+    const state = createCodexMapperState("local-thread");
+    state.itemIdMap.set("cmd-owned", "row-owned");
+    state.itemIdMap.set("cmd-other", "row-other");
+    state.itemTypeMap.set("cmd-owned", "command_execution");
+    state.itemTypeMap.set("cmd-other", "command_execution");
+    state.itemTurnIdMap.set("cmd-owned", "turn-1");
+    state.itemTurnIdMap.set("cmd-other", "turn-2");
+    Object.assign(structuredSession, {
+      mapperState: state,
+      activeTurnId: "turn-1",
+      activeTurnIds: new Set(["turn-1"]),
+      interruptedTurnIds: new Set(["turn-1"]),
+      interruptRequestedTurnIds: new Set<string>(),
+      interruptedTurnCleanupRuns: new Set<string>(),
+      activeInterruptRequests: 0,
+    });
+    (structuredSession as unknown as Record<string, unknown>)["rpc"] = {
+      claimThread: () => {},
+      ownsThread: () => true,
+      request: (method: string, params: Record<string, unknown>, timeoutMs?: number) => {
+        requests.push({ method, params, ...(timeoutMs ? { timeoutMs } : {}) });
+        if (method === "turn/interrupt") return Promise.resolve({});
+        if (method === "thread/backgroundTerminals/list") {
+          if (!params.cursor) {
+            return Promise.resolve({
+              data: [
+                { itemId: "cmd-owned", processId: "proc-owned" },
+                { itemId: "cmd-other", processId: "proc-other" },
+                { itemId: "cmd-foreign", processId: "proc-foreign" },
+              ],
+              nextCursor: "page-2",
+            });
+          }
+          return Promise.resolve({
+            data: [{ itemId: "cmd-owned", processId: "proc-owned" }],
+            nextCursor: null,
+          });
+        }
+        if (method === "thread/backgroundTerminals/terminate") {
+          return Promise.resolve({ terminated: true });
+        }
+        return Promise.resolve({});
+      },
+    };
+
+    await structuredSession.interruptTurn();
+
+    const listParams = requests
+      .filter((request) => request.method === "thread/backgroundTerminals/list")
+      .map((request) => request.params);
+    expect(listParams).toEqual([
+      { threadId: "provider-thread", limit: 100 },
+      { threadId: "provider-thread", limit: 100, cursor: "page-2" },
+    ]);
+    expect(
+      requests.filter((request) => request.method === "thread/backgroundTerminals/terminate"),
+    ).toEqual([
+      {
+        method: "thread/backgroundTerminals/terminate",
+        params: { threadId: "provider-thread", processId: "proc-owned" },
+        timeoutMs: expect.any(Number),
+      },
+    ]);
+    expect(state.itemIdMap.get("cmd-owned")).toBe("row-owned");
+  });
+
+  it("rejects a repeated background-terminal cursor instead of looping", async () => {
+    const requests: Array<{ method: string; params: Record<string, unknown> }> = [];
+    const structuredSession = makeStructuredSession([]);
+    const state = createCodexMapperState("local-thread");
+    state.itemIdMap.set("cmd", "row");
+    state.itemTypeMap.set("cmd", "command_execution");
+    state.itemTurnIdMap.set("cmd", "turn-1");
+    Object.assign(structuredSession, {
+      mapperState: state,
+      activeTurnId: "turn-1",
+      activeTurnIds: new Set(["turn-1"]),
+      interruptedTurnIds: new Set(["turn-1"]),
+      interruptRequestedTurnIds: new Set<string>(),
+      interruptedTurnCleanupRuns: new Set<string>(),
+      activeInterruptRequests: 0,
+    });
+    (structuredSession as unknown as Record<string, unknown>)["rpc"] = {
+      claimThread: () => {},
+      ownsThread: () => true,
+      request: (method: string, params: Record<string, unknown>) => {
+        requests.push({ method, params });
+        if (method === "turn/interrupt") return Promise.resolve({});
+        if (method === "thread/backgroundTerminals/list") {
+          return Promise.resolve({
+            data: [{ itemId: "cmd", processId: "proc" }],
+            nextCursor: "same-cursor",
+          });
+        }
+        if (method === "thread/backgroundTerminals/terminate") {
+          return Promise.resolve({ terminated: true });
+        }
+        return Promise.resolve({});
+      },
+    };
+
+    await structuredSession.interruptTurn();
+
+    expect(
+      requests.filter((request) => request.method === "thread/backgroundTerminals/list"),
+    ).toHaveLength(2);
+    expect(
+      requests.filter((request) => request.method === "thread/backgroundTerminals/terminate"),
+    ).toHaveLength(1);
+  });
+
+  it("keeps Stop successful when background-terminal cleanup is unsupported", async () => {
+    const structuredSession = makeStructuredSession([]);
+    const state = createCodexMapperState("local-thread");
+    state.itemIdMap.set("cmd", "row");
+    state.itemTypeMap.set("cmd", "command_execution");
+    state.itemTurnIdMap.set("cmd", "turn-1");
+    Object.assign(structuredSession, {
+      mapperState: state,
+      activeTurnId: "turn-1",
+      activeTurnIds: new Set(["turn-1"]),
+      interruptedTurnIds: new Set(["turn-1"]),
+      interruptRequestedTurnIds: new Set<string>(),
+      interruptedTurnCleanupRuns: new Set<string>(),
+      activeInterruptRequests: 0,
+    });
+    const requests: string[] = [];
+    (structuredSession as unknown as Record<string, unknown>)["rpc"] = {
+      claimThread: () => {},
+      ownsThread: () => true,
+      request: (method: string) => {
+        requests.push(method);
+        if (method === "turn/interrupt") return Promise.resolve({});
+        if (
+          method === "thread/backgroundTerminals/list" ||
+          method === "thread/backgroundTerminals/terminate"
+        ) {
+          return Promise.reject(new CodexRpcResponseError("Method not found", -32601));
+        }
+        return Promise.resolve({});
+      },
+    };
+
+    await expect(structuredSession.interruptTurn()).resolves.toBeUndefined();
+
+    expect(requests).toContain("thread/backgroundTerminals/list");
+    expect(requests).not.toContain("thread/backgroundTerminals/terminate");
+  });
+
+  it("does not retarget an interrupt onto a known sibling turn", async () => {
+    const requests: Array<{ method: string; params: Record<string, unknown> }> = [];
+    const structuredSession = makeStructuredSession([]);
+    Object.assign(structuredSession, {
+      activeTurnId: "turn-a",
+      activeTurnIds: new Set(["turn-a", "turn-b"]),
+    });
+    (structuredSession as unknown as Record<string, unknown>)["rpc"] = {
+      claimThread: () => {},
+      ownsThread: () => true,
+      request: (method: string, params: Record<string, unknown>) => {
+        requests.push({ method, params });
+        if (method === "turn/interrupt" && params.turnId === "turn-a") {
+          return Promise.reject(new Error("expected active turn id turn-b but found turn-a"));
+        }
+        return Promise.resolve({});
+      },
+    };
+
+    await structuredSession.interruptTurn();
+
+    expect(requests).toEqual([
+      { method: "turn/interrupt", params: { threadId: "provider-thread", turnId: "turn-a" } },
+    ]);
+  });
+
+  it("stops cleanup after another session claims the provider thread", async () => {
+    const requests: string[] = [];
+    const structuredSession = makeStructuredSession([]);
+    const state = createCodexMapperState("local-thread");
+    state.itemIdMap.set("cmd", "row");
+    state.itemTypeMap.set("cmd", "command_execution");
+    state.itemTurnIdMap.set("cmd", "turn-1");
+    let owns = true;
+    Object.assign(structuredSession, {
+      mapperState: state,
+      activeTurnId: "turn-1",
+      activeTurnIds: new Set(["turn-1"]),
+      interruptedTurnIds: new Set(["turn-1"]),
+      interruptRequestedTurnIds: new Set<string>(),
+      interruptedTurnCleanupRuns: new Set<string>(),
+      activeInterruptRequests: 0,
+    });
+    (structuredSession as unknown as Record<string, unknown>)["rpc"] = {
+      claimThread: () => {},
+      ownsThread: () => owns,
+      request: (method: string) => {
+        requests.push(method);
+        if (method === "thread/backgroundTerminals/list") {
+          owns = false;
+          return Promise.resolve({
+            data: [{ itemId: "cmd", processId: "proc" }],
+            nextCursor: null,
+          });
+        }
+        return Promise.resolve({ terminated: true });
+      },
+    };
+
+    await structuredSession.interruptTurn();
+
+    expect(requests).toEqual(["turn/interrupt", "thread/backgroundTerminals/list"]);
+  });
+
+  it("settles both A and B plan maps on force completion", () => {
+    const structuredSession = makeStructuredSession([]);
+    const state = createCodexMapperState("local-thread");
+    const events: RuntimeEvent[] = [];
+    const plan = (turnId: string) =>
+      mapCodexNotification(
+        "turn/plan/updated",
+        { turnId, plan: [{ step: "plan", status: "inProgress" }] },
+        state,
+      )[0] as { type: string; itemId: string };
+    const a = plan("turn-a");
+    const b = plan("turn-b");
+    const aAgain = plan("turn-a");
+    expect(aAgain).toMatchObject({ type: "item.updated", itemId: a.itemId });
+    Object.assign(structuredSession, {
+      mapperState: state,
+      activeTurnId: "turn-a",
+      listener: { onRuntimeEvent: (event: RuntimeEvent) => events.push(event) },
+    });
+
+    structuredSession.forceCompleteTurn();
+
+    expect(events.filter((event) => event.type === "item.completed")).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ itemId: a.itemId }),
+        expect.objectContaining({ itemId: b.itemId }),
+      ]),
+    );
+  });
+
+  it("catches a command item that registers after the interrupt request", async () => {
+    const structuredSession = makeStructuredSession([]);
+    const state = createCodexMapperState("local-thread");
+    Object.assign(structuredSession, {
+      mapperState: state,
+      activeTurnId: "turn-1",
+      activeTurnIds: new Set(["turn-1"]),
+      interruptedTurnIds: new Set(["turn-1"]),
+      interruptRequestedTurnIds: new Set<string>(),
+      interruptedTurnCleanupRuns: new Set<string>(),
+      activeInterruptRequests: 0,
+    });
+    const terminated: string[] = [];
+    (structuredSession as unknown as Record<string, unknown>)["rpc"] = {
+      claimThread: () => {},
+      ownsThread: () => true,
+      request: (method: string, params: Record<string, unknown>) => {
+        if (method === "turn/interrupt") {
+          setTimeout(() => {
+            state.itemIdMap.set("late-cmd", "late-row");
+            state.itemTypeMap.set("late-cmd", "command_execution");
+            state.itemTurnIdMap.set("late-cmd", "turn-1");
+          }, 20);
+          return Promise.resolve({});
+        }
+        if (method === "thread/backgroundTerminals/list") {
+          return Promise.resolve({
+            data: [{ itemId: "late-cmd", processId: "late-proc" }],
+            nextCursor: null,
+          });
+        }
+        if (method === "thread/backgroundTerminals/terminate") {
+          terminated.push(String(params.processId));
+          return Promise.resolve({ terminated: true });
+        }
+        return Promise.resolve({});
+      },
+    };
+
+    await structuredSession.interruptTurn();
+
+    expect(terminated).toEqual(["late-proc"]);
+  });
+
+  it("does not terminate a candidate that completed naturally during the scan", async () => {
+    const structuredSession = makeStructuredSession([]);
+    const state = createCodexMapperState("local-thread");
+    state.itemIdMap.set("cmd", "row");
+    state.itemTypeMap.set("cmd", "command_execution");
+    state.itemTurnIdMap.set("cmd", "turn-1");
+    Object.assign(structuredSession, {
+      mapperState: state,
+      activeTurnId: "turn-1",
+      activeTurnIds: new Set(["turn-1"]),
+      interruptedTurnIds: new Set(["turn-1"]),
+      interruptRequestedTurnIds: new Set<string>(),
+      interruptedTurnCleanupRuns: new Set<string>(),
+      activeInterruptRequests: 0,
+    });
+    const methods: string[] = [];
+    (structuredSession as unknown as Record<string, unknown>)["rpc"] = {
+      claimThread: () => {},
+      ownsThread: () => true,
+      request: (method: string) => {
+        methods.push(method);
+        if (method === "turn/interrupt") return Promise.resolve({});
+        if (method === "thread/backgroundTerminals/list") {
+          // Native completion wins the race between list and terminate.
+          state.itemIdMap.delete("cmd");
+          state.itemTypeMap.delete("cmd");
+          state.itemTurnIdMap.delete("cmd");
+          return Promise.resolve({
+            data: [{ itemId: "cmd", processId: "proc" }],
+            nextCursor: null,
+          });
+        }
+        return Promise.resolve({ terminated: true });
+      },
+    };
+
+    await structuredSession.interruptTurn();
+
+    expect(methods).not.toContain("thread/backgroundTerminals/terminate");
+  });
+
+  it("treats an unsupported terminate method as nonfatal", async () => {
+    const structuredSession = makeStructuredSession([]);
+    const state = createCodexMapperState("local-thread");
+    state.itemIdMap.set("cmd", "row");
+    state.itemTypeMap.set("cmd", "command_execution");
+    state.itemTurnIdMap.set("cmd", "turn-1");
+    Object.assign(structuredSession, {
+      mapperState: state,
+      activeTurnId: "turn-1",
+      activeTurnIds: new Set(["turn-1"]),
+      interruptedTurnIds: new Set(["turn-1"]),
+      interruptRequestedTurnIds: new Set<string>(),
+      interruptedTurnCleanupRuns: new Set<string>(),
+      activeInterruptRequests: 0,
+    });
+    const methods: string[] = [];
+    (structuredSession as unknown as Record<string, unknown>)["rpc"] = {
+      claimThread: () => {},
+      ownsThread: () => true,
+      request: (method: string) => {
+        methods.push(method);
+        if (method === "turn/interrupt") return Promise.resolve({});
+        if (method === "thread/backgroundTerminals/list") {
+          return Promise.resolve({
+            data: [{ itemId: "cmd", processId: "proc" }],
+            nextCursor: null,
+          });
+        }
+        return Promise.reject(new CodexRpcResponseError("Method not found", -32601));
+      },
+    };
+
+    await expect(structuredSession.interruptTurn()).resolves.toBeUndefined();
+
+    expect(methods).toContain("thread/backgroundTerminals/terminate");
+  });
+
+  it("does no thread-wide cleanup when no tracked command belongs to the interrupted turn", async () => {
+    const structuredSession = makeStructuredSession([]);
+    const state = createCodexMapperState("local-thread");
+    state.itemIdMap.set("sibling", "sibling-row");
+    state.itemTypeMap.set("sibling", "command_execution");
+    state.itemTurnIdMap.set("sibling", "turn-2");
+    Object.assign(structuredSession, {
+      mapperState: state,
+      activeTurnId: "turn-1",
+      activeTurnIds: new Set(["turn-1"]),
+      interruptedTurnIds: new Set(["turn-1"]),
+      interruptRequestedTurnIds: new Set<string>(),
+      interruptedTurnCleanupRuns: new Set<string>(),
+      activeInterruptRequests: 0,
+    });
+    const requests: string[] = [];
+    (structuredSession as unknown as Record<string, unknown>)["rpc"] = {
+      claimThread: () => {},
+      ownsThread: () => true,
+      request: (method: string) => {
+        requests.push(method);
+        return Promise.resolve({});
+      },
+    };
+
+    await structuredSession.interruptTurn();
+
+    expect(requests).toEqual(["turn/interrupt"]);
   });
 
   it("does not drop the live turn id when a previous turn completes late", async () => {
@@ -2841,6 +3278,10 @@ describe("CodexStructuredSession", () => {
     session["currentThreadStatus"] = { type: "idle" };
     session["seenErrorMessages"] = new Set<string>();
     session["activeTurnIds"] = new Set<string>();
+    session["interruptedTurnIds"] = new Set<string>();
+    session["interruptRequestedTurnIds"] = new Set<string>();
+    session["interruptedTurnCleanupRuns"] = new Set<string>();
+    session["activeInterruptRequests"] = 0;
     session["resumeActiveStatusSuppressionUntil"] = new Map();
     session["bufferedRuntimeEvents"] = [];
     const subAgentRouter = new CodexSubAgentRouter("local-thread");
@@ -3329,6 +3770,10 @@ describe("CodexStructuredSession", () => {
     session["currentThreadStatus"] = { type: "idle" };
     session["seenErrorMessages"] = new Set<string>();
     session["activeTurnIds"] = new Set<string>();
+    session["interruptedTurnIds"] = new Set<string>();
+    session["interruptRequestedTurnIds"] = new Set<string>();
+    session["interruptedTurnCleanupRuns"] = new Set<string>();
+    session["activeInterruptRequests"] = 0;
     session["bufferedRuntimeEvents"] = [];
     session["resumeActiveStatusSuppressionUntil"] = new Map();
     session["rpc"] = {
@@ -3456,6 +3901,10 @@ describe("CodexStructuredSession", () => {
     session["currentThreadStatus"] = { type: "idle" };
     session["seenErrorMessages"] = new Set<string>();
     session["activeTurnIds"] = new Set<string>();
+    session["interruptedTurnIds"] = new Set<string>();
+    session["interruptRequestedTurnIds"] = new Set<string>();
+    session["interruptedTurnCleanupRuns"] = new Set<string>();
+    session["activeInterruptRequests"] = 0;
     session["bufferedRuntimeEvents"] = [];
     session["resumeActiveStatusSuppressionUntil"] = new Map();
     session["rpc"] = {
@@ -3538,6 +3987,10 @@ describe("CodexStructuredSession", () => {
     session["currentThreadStatus"] = { type: "active", activeFlags: [] };
     session["seenErrorMessages"] = new Set<string>();
     session["activeTurnIds"] = new Set<string>();
+    session["interruptedTurnIds"] = new Set<string>();
+    session["interruptRequestedTurnIds"] = new Set<string>();
+    session["interruptedTurnCleanupRuns"] = new Set<string>();
+    session["activeInterruptRequests"] = 0;
     session["bufferedRuntimeEvents"] = [];
     session["resumeActiveStatusSuppressionUntil"] = new Map();
     session["listener"] = {
@@ -3585,6 +4038,10 @@ describe("CodexStructuredSession", () => {
     session["currentThreadStatus"] = { type: "active", activeFlags: [] };
     session["seenErrorMessages"] = new Set<string>();
     session["activeTurnIds"] = new Set<string>();
+    session["interruptedTurnIds"] = new Set<string>();
+    session["interruptRequestedTurnIds"] = new Set<string>();
+    session["interruptedTurnCleanupRuns"] = new Set<string>();
+    session["activeInterruptRequests"] = 0;
     session["bufferedRuntimeEvents"] = [];
     session["resumeActiveStatusSuppressionUntil"] = new Map();
     session["listener"] = {
@@ -3863,11 +4320,23 @@ describe("Codex skills", () => {
 });
 
 describe("mapCodexRequirements", () => {
-  it("only offers approval policies accepted by the current app-server schema", () => {
+  it("offers the restored untrusted approval policy by default", () => {
+    // Current Codex releases accept `untrusted` again (live probe: thread/start
+    // succeeds), so the composer must not hide the capability.
     expect(mapCodexRequirements(null).approvalPolicies?.map((policy) => policy.id)).toEqual([
       "on-request",
       "never",
       "untrusted",
+    ]);
+  });
+
+  it("still labels a managed requirement that explicitly allows a policy", () => {
+    expect(
+      mapCodexRequirements({ allowedApprovalPolicies: ["on-request", "untrusted"] })
+        .approvalPolicies,
+    ).toEqual([
+      { id: "on-request", label: "On Request" },
+      { id: "untrusted", label: "Untrusted" },
     ]);
   });
 });

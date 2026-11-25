@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { SessionNotification } from "@agentclientprotocol/sdk";
+import type { SessionNotification } from "@agentclientprotocol/sdk/unstable";
 import type { RuntimeEvent } from "@/shared/contracts";
 import { createAcpMapperState, mapAcpSessionUpdate } from "../canonicalMapping";
 import { resetMapperForTurnEnd } from "./state";

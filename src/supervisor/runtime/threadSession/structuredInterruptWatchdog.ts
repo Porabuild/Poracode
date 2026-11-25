@@ -90,9 +90,25 @@ export class StructuredInterruptWatchdog {
     if (session.status !== "working" || !session.structuredTurnInterruptRequested) {
       return;
     }
+    const interruptedSession = session.structuredSession;
+    if (interruptedSession?.hasUnsettledInterruptedTurns?.() === false) {
+      // The targeted turn settled. A sibling may still own `working`, but the
+      // user's Stop request is complete and must not keep blocking repeated
+      // Stop or force-dispose that unrelated work.
+      this.clearStructuredInterruptWatchdog(session);
+      session.structuredTurnInterruptRequested = false;
+      return;
+    }
+    if (interruptedSession?.hasUninterruptedActiveTurns?.() === true) {
+      // A provider that admits concurrent turns can acknowledge the targeted
+      // interrupt while a sibling legitimately continues. Disposing the shared
+      // session would kill that sibling, so wait for either the interrupted
+      // target to settle or the sibling to finish.
+      this.armStructuredInterruptWatchdog(session);
+      return;
+    }
     this.clearStructuredInterruptWatchdog(session);
     session.structuredTurnInterruptRequested = false;
-    const interruptedSession = session.structuredSession;
     interruptedSession?.forceCompleteTurn?.();
     session.ignoreExit = true;
     retireStructuredSessionState(session);

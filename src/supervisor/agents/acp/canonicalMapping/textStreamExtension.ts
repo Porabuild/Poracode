@@ -12,7 +12,7 @@
  * shared `AcpMapperState` carries no provider-shaped fields.
  */
 
-import type { SessionUpdate } from "@agentclientprotocol/sdk";
+import type { SessionUpdate } from "@agentclientprotocol/sdk/unstable";
 import type { CanonicalItemType, RuntimeEvent } from "@/shared/contracts";
 import type { AcpMapperState } from "./state";
 

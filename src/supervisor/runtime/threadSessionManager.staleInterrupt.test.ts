@@ -238,6 +238,50 @@ describe("ThreadSessionManager structured stale-interrupt watchdog", () => {
     );
   });
 
+  it("does not dispose a shared session while an uninterrupted sibling turn is active", async () => {
+    let hasSibling = true;
+    const structuredSession = createStructuredSession({
+      hasUninterruptedActiveTurns: () => hasSibling,
+    });
+    const adapter = createAdapter(structuredSession);
+    const { manager } = createManager(adapter);
+    const session = createWorkingSession(adapter, structuredSession);
+    manager.sessions.set(THREAD_ID, session);
+
+    await manager.interruptThread({ threadId: THREAD_ID });
+    vi.advanceTimersByTime(STRUCTURED_INTERRUPT_FORCE_STOP_MS + 1);
+
+    expect(structuredSession.dispose).not.toHaveBeenCalled();
+    expect(structuredSession.forceCompleteTurn).not.toHaveBeenCalled();
+    expect(session.structuredInterruptWatchdog).toBeDefined();
+    expect(session.status).toBe("working");
+
+    hasSibling = false;
+    vi.advanceTimersByTime(STRUCTURED_INTERRUPT_FORCE_STOP_MS + 1);
+    expect(structuredSession.dispose).toHaveBeenCalledTimes(1);
+    expect(session.status).toBe("idle");
+  });
+
+  it("releases the interrupt request when the targeted turn settles while a sibling continues", async () => {
+    const structuredSession = createStructuredSession({
+      hasUninterruptedActiveTurns: () => true,
+      hasUnsettledInterruptedTurns: () => false,
+    });
+    const adapter = createAdapter(structuredSession);
+    const { manager } = createManager(adapter);
+    const session = createWorkingSession(adapter, structuredSession);
+    manager.sessions.set(THREAD_ID, session);
+
+    await manager.interruptThread({ threadId: THREAD_ID });
+    vi.advanceTimersByTime(STRUCTURED_INTERRUPT_FORCE_STOP_MS + 1);
+
+    expect(structuredSession.dispose).not.toHaveBeenCalled();
+    expect(structuredSession.forceCompleteTurn).not.toHaveBeenCalled();
+    expect(session.structuredInterruptWatchdog).toBeUndefined();
+    expect(session.structuredTurnInterruptRequested).toBe(false);
+    expect(session.status).toBe("working");
+  });
+
   it("does not force-stop once the turn has left `working` (cancel honored)", async () => {
     const structuredSession = createStructuredSession();
     const adapter = createAdapter(structuredSession);

@@ -1,4 +1,4 @@
-import { RequestError, type AnyMessage, type Stream } from "@agentclientprotocol/sdk";
+import { RequestError, type AnyMessage, type Stream } from "@agentclientprotocol/sdk/unstable";
 
 /** ACP `diff` updates carry full old/new text and may repeat cumulative edits;
  * a dozen ~0.9 MB catalogs can reach ~22 MiB. This is separate from the 8 MiB

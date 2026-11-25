@@ -1,8 +1,17 @@
-import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { createHash } from "node:crypto";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  utimesSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { AcpRegistryListResult } from "@/shared/contracts";
+import { acpRegistryListResultSchema, type AcpRegistryListResult } from "@/shared/contracts";
 import { REGISTRY_INSTALL_PROBE_TIMEOUT_MS } from "./acp-generic";
 
 const probeAcpGenericInstanceMock = vi.hoisted(() =>
@@ -75,13 +84,18 @@ vi.mock("./acp-generic", async (importOriginal) => {
   };
 });
 
+import { lock } from "proper-lockfile";
 import {
+  ACP_REGISTRY_RECOVERY_PREFIX,
+  ACP_REGISTRY_STAGING_PREFIX,
   autoUpdateAcpRegistryAgents,
   backfillAcpRegistryAgentIcons,
   cacheLocalAcpRegistryIcons,
+  fetchAcpRegistry,
   installAcpRegistryAgent,
   persistAcpRegistrySettingsMigrations,
   readAcpRegistrySettings,
+  rememberArchiveDigests,
   removeAcpRegistryAgent,
   repairAcpRegistryInstallLayouts,
   setAcpGenericAgentAuthAcknowledged,
@@ -89,6 +103,7 @@ import {
   updateAcpRegistryAgent,
   wslAcpRegistryAgentInstallDir,
 } from "./acpRegistry";
+import { PENDING_DELETE_PREFIX, pruneAcpRegistryPendingDeletes } from "./acpRegistryInstallDir";
 import { isEncryptedSecret } from "../secretStorage";
 import { fileSettingsTarget } from "../runtime/supervisorSettingsWriter.testFixtures";
 
@@ -153,6 +168,26 @@ describe("ACP registry installs", () => {
     process.platform === "darwin" ? "darwin" : process.platform === "win32" ? "windows" : "linux"
   }-${process.arch === "arm64" ? "aarch64" : "x86_64"}`;
 
+  /** A parsed registry whose raw manifest published `digest` for the native binary target. */
+  function registryWithDigest(version: string, digest: unknown): AcpRegistryListResult {
+    const raw = antigravityRegistry(version) as unknown as {
+      agents: [{ distribution: { binary: Record<string, Record<string, unknown>> } }];
+    };
+    raw.agents[0]!.distribution.binary[nativeTarget]!.sha256 = digest;
+    const registry = acpRegistryListResultSchema.parse(raw);
+    rememberArchiveDigests(registry, raw);
+    return registry;
+  }
+
+  function expectFailedInstallIsClean(dir: string, settingsPath: string): void {
+    const versionDir = join(dir, "acp-registry", "antigravity-acp", "1.0.0");
+    expect(
+      existsSync(versionDir) ? readdirSync(versionDir).filter((name) => name.endsWith(".zip")) : [],
+    ).toEqual([]);
+    expect(existsSync(join(versionDir, "bin"))).toBe(false);
+    expect(readAcpRegistrySettings(settingsPath).agentInstances["antigravity-acp"]).toBeUndefined();
+  }
+
   function antigravityRegistry(version: string): AcpRegistryListResult {
     return {
       version: "1.0.0",
@@ -213,6 +248,342 @@ describe("ACP registry installs", () => {
           },
         },
       );
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("installs an archive whose digest matches the registry manifest", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "poracode-antigravity-acp-sha-"));
+    const settingsPath = join(dir, "settings.json");
+    const digest = createHash("sha256")
+      .update(new Uint8Array([1]))
+      .digest("hex");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response(new Uint8Array([1]), { status: 200 })),
+    );
+    try {
+      const installed = await installAcpRegistryAgent({
+        agentId: "antigravity-acp",
+        baseDir: dir,
+        ...fileSettingsTarget(settingsPath),
+        iconsDir: join(dir, "acp-icons"),
+        registry: registryWithDigest("1.0.0", digest),
+        adapterKind: "antigravity",
+        installKind: "first-class",
+      });
+
+      expect(installed).toMatchObject([
+        {
+          id: "antigravity-acp",
+          version: "1.0.0",
+          adapterKind: "antigravity",
+          installKind: "first-class",
+          installations: { native: { version: "1.0.0", target: nativeTarget } },
+        },
+      ]);
+      expect(readAcpRegistrySettings(settingsPath).agentInstances["antigravity-acp"]).toMatchObject(
+        {
+          driver: "acp-generic",
+          config: { environmentCommands: { native: { version: "1.0.0" } } },
+        },
+      );
+
+      // An uppercase digest is the same digest.
+      const upperDir = mkdtempSync(join(tmpdir(), "poracode-antigravity-acp-sha-upper-"));
+      const upperSettings = join(upperDir, "settings.json");
+      const upperInstalled = await installAcpRegistryAgent({
+        agentId: "antigravity-acp",
+        baseDir: upperDir,
+        ...fileSettingsTarget(upperSettings),
+        iconsDir: join(upperDir, "acp-icons"),
+        registry: registryWithDigest("1.0.0", digest.toUpperCase()),
+        adapterKind: "antigravity",
+        installKind: "first-class",
+      });
+      expect(upperInstalled).toMatchObject([{ id: "antigravity-acp", version: "1.0.0" }]);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("preserves a preexisting same-version install when a staged archive fails verification", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "poracode-antigravity-acp-sha-preserve-"));
+    const settingsPath = join(dir, "settings.json");
+    const cmd = process.platform === "win32" ? "agy_acp_server.exe" : "agy_acp_server.par";
+    const binDir = join(dir, "acp-registry", "antigravity-acp", "1.0.0", "bin");
+    const existingCommand = join(binDir, cmd);
+    mkdirSync(binDir, { recursive: true });
+    writeFileSync(existingCommand, "previously installed artifact");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response(new Uint8Array([1]), { status: 200 })),
+    );
+    try {
+      await expect(
+        installAcpRegistryAgent({
+          agentId: "antigravity-acp",
+          baseDir: dir,
+          ...fileSettingsTarget(settingsPath),
+          iconsDir: join(dir, "acp-icons"),
+          registry: registryWithDigest("1.0.0", "0".repeat(64)),
+          adapterKind: "antigravity",
+          installKind: "first-class",
+        }),
+      ).rejects.toThrow(/SHA-256 mismatch/);
+
+      expect(readFileSync(existingCommand, "utf8")).toBe("previously installed artifact");
+      const versionDir = join(dir, "acp-registry", "antigravity-acp", "1.0.0");
+      expect(
+        readdirSync(versionDir).filter(
+          (name) => name.startsWith(ACP_REGISTRY_STAGING_PREFIX) || name.endsWith(".zip"),
+        ),
+      ).toEqual([]);
+      expect(
+        readAcpRegistrySettings(settingsPath).agentInstances["antigravity-acp"],
+      ).toBeUndefined();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("serializes concurrent installs on the shared version destination", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "poracode-acp-install-lock-"));
+    const settingsPath = join(dir, "settings.json");
+    const versionDir = join(dir, "acp-registry", "antigravity-acp", "1.0.0");
+    mkdirSync(versionDir, { recursive: true });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response(new Uint8Array([1]), { status: 200 })),
+    );
+    const release = await lock(versionDir, { realpath: false, stale: 120_000 });
+    let settled = false;
+    try {
+      const pending = installAcpRegistryAgent({
+        agentId: "antigravity-acp",
+        baseDir: dir,
+        ...fileSettingsTarget(settingsPath),
+        iconsDir: join(dir, "acp-icons"),
+        registry: registryWithDigest("1.0.0", "0".repeat(64)),
+        adapterKind: "antigravity",
+        installKind: "first-class",
+      }).finally(() => {
+        settled = true;
+      });
+      const observed = pending.catch((error: unknown) => error);
+      await new Promise((resolve) => setTimeout(resolve, 250));
+      expect(settled).toBe(false);
+      await release();
+      await expect(observed).resolves.toBeInstanceOf(Error);
+    } finally {
+      await release().catch(() => {});
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("never sweeps active staging or recovery directories", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "poracode-acp-scratch-sweep-"));
+    const versionDir = join(dir, "acp-registry", "antigravity-acp", "1.0.0");
+    const stagingDir = join(versionDir, `${ACP_REGISTRY_STAGING_PREFIX}active`);
+    const recoveryDir = join(versionDir, `${ACP_REGISTRY_RECOVERY_PREFIX}backup-bin-active`);
+    const pendingDir = join(versionDir, `${PENDING_DELETE_PREFIX}bin-stale`);
+    mkdirSync(stagingDir, { recursive: true });
+    mkdirSync(recoveryDir, { recursive: true });
+    mkdirSync(pendingDir, { recursive: true });
+
+    await pruneAcpRegistryPendingDeletes(dir);
+
+    expect(existsSync(stagingDir)).toBe(true);
+    expect(existsSync(recoveryDir)).toBe(true);
+    expect(existsSync(pendingDir)).toBe(false);
+  });
+
+  it("restores an orphaned newest recovery backup before downloading", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "poracode-acp-recovery-"));
+    const settingsPath = join(dir, "settings.json");
+    const cmd = process.platform === "win32" ? "agy_acp_server.exe" : "agy_acp_server.par";
+    const versionDir = join(dir, "acp-registry", "antigravity-acp", "1.0.0");
+    const backupDir = join(versionDir, `${ACP_REGISTRY_RECOVERY_PREFIX}backup-bin-orphan`);
+    mkdirSync(backupDir, { recursive: true });
+    writeFileSync(join(backupDir, cmd), "recovered install");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response(new Uint8Array([1]), { status: 200 })),
+    );
+    try {
+      await expect(
+        installAcpRegistryAgent({
+          agentId: "antigravity-acp",
+          baseDir: dir,
+          ...fileSettingsTarget(settingsPath),
+          iconsDir: join(dir, "acp-icons"),
+          registry: registryWithDigest("1.0.0", "0".repeat(64)),
+          adapterKind: "antigravity",
+          installKind: "first-class",
+        }),
+      ).rejects.toThrow(/SHA-256 mismatch/);
+
+      expect(readFileSync(join(versionDir, "bin", cmd), "utf8")).toBe("recovered install");
+      expect(existsSync(backupDir)).toBe(false);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("age-sweeps abandoned scratch trees but leaves young ones", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "poracode-acp-scratch-age-"));
+    const settingsPath = join(dir, "settings.json");
+    const cmd = process.platform === "win32" ? "agy_acp_server.exe" : "agy_acp_server.par";
+    const versionDir = join(dir, "acp-registry", "antigravity-acp", "1.0.0");
+    const binDir = join(versionDir, "bin");
+    mkdirSync(binDir, { recursive: true });
+    writeFileSync(join(binDir, cmd), "existing install");
+    const staleStaging = join(versionDir, `${ACP_REGISTRY_STAGING_PREFIX}stale`);
+    const youngStaging = join(versionDir, `${ACP_REGISTRY_STAGING_PREFIX}young`);
+    const staleBackup = join(versionDir, `${ACP_REGISTRY_RECOVERY_PREFIX}backup-bin-stale`);
+    for (const path of [staleStaging, youngStaging, staleBackup]) {
+      mkdirSync(path, { recursive: true });
+    }
+    const old = new Date(Date.now() - 60 * 60 * 1000);
+    utimesSync(staleStaging, old, old);
+    utimesSync(staleBackup, old, old);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response(new Uint8Array([1]), { status: 200 })),
+    );
+    try {
+      await expect(
+        installAcpRegistryAgent({
+          agentId: "antigravity-acp",
+          baseDir: dir,
+          ...fileSettingsTarget(settingsPath),
+          iconsDir: join(dir, "acp-icons"),
+          registry: registryWithDigest("1.0.0", "0".repeat(64)),
+          adapterKind: "antigravity",
+          installKind: "first-class",
+        }),
+      ).rejects.toThrow(/SHA-256 mismatch/);
+
+      expect(existsSync(staleStaging)).toBe(false);
+      expect(existsSync(staleBackup)).toBe(false);
+      expect(existsSync(youngStaging)).toBe(true);
+      expect(readFileSync(join(binDir, cmd), "utf8")).toBe("existing install");
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("refuses an archive whose digest does not match the registry manifest", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "poracode-antigravity-acp-sha-bad-"));
+    const settingsPath = join(dir, "settings.json");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response(new Uint8Array([1]), { status: 200 })),
+    );
+    try {
+      await expect(
+        installAcpRegistryAgent({
+          agentId: "antigravity-acp",
+          baseDir: dir,
+          ...fileSettingsTarget(settingsPath),
+          iconsDir: join(dir, "acp-icons"),
+          registry: registryWithDigest("1.0.0", "0".repeat(64)),
+          adapterKind: "antigravity",
+          installKind: "first-class",
+        }),
+      ).rejects.toThrow(/SHA-256 mismatch/);
+
+      expectFailedInstallIsClean(dir, settingsPath);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("refuses an archive whose published digest is malformed", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "poracode-antigravity-acp-sha-malformed-"));
+    const settingsPath = join(dir, "settings.json");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response(new Uint8Array([1]), { status: 200 })),
+    );
+    try {
+      await expect(
+        installAcpRegistryAgent({
+          agentId: "antigravity-acp",
+          baseDir: dir,
+          ...fileSettingsTarget(settingsPath),
+          iconsDir: join(dir, "acp-icons"),
+          registry: registryWithDigest("1.0.0", "abc"),
+          adapterKind: "antigravity",
+          installKind: "first-class",
+        }),
+      ).rejects.toThrow(/malformed sha256/);
+
+      expectFailedInstallIsClean(dir, settingsPath);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("verifies only a registry that carried its digests", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "poracode-antigravity-acp-sha-unremembered-"));
+    const settingsPath = join(dir, "settings.json");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response(new Uint8Array([1]), { status: 200 })),
+    );
+    try {
+      const raw = antigravityRegistry("1.0.0") as unknown as {
+        agents: [{ distribution: { binary: Record<string, Record<string, unknown>> } }];
+      };
+      raw.agents[0]!.distribution.binary[nativeTarget]!.sha256 = "0".repeat(64);
+      const registry = acpRegistryListResultSchema.parse(raw);
+
+      const installed = await installAcpRegistryAgent({
+        agentId: "antigravity-acp",
+        baseDir: dir,
+        ...fileSettingsTarget(settingsPath),
+        iconsDir: join(dir, "acp-icons"),
+        registry,
+        adapterKind: "antigravity",
+        installKind: "first-class",
+      });
+
+      expect(installed).toMatchObject([{ id: "antigravity-acp", version: "1.0.0" }]);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("verifies archives installed from fetchAcpRegistry", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "poracode-antigravity-acp-sha-fetch-"));
+    const settingsPath = join(dir, "settings.json");
+    const raw = antigravityRegistry("1.0.0") as unknown as {
+      agents: [{ distribution: { binary: Record<string, Record<string, unknown>> } }];
+    };
+    raw.agents[0]!.distribution.binary[nativeTarget]!.sha256 = "0".repeat(64);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: unknown) =>
+        String(input).endsWith("/registry.json")
+          ? new Response(JSON.stringify(raw), { status: 200 })
+          : new Response(new Uint8Array([1]), { status: 200 }),
+      ),
+    );
+    try {
+      const registry = await fetchAcpRegistry();
+      await expect(
+        installAcpRegistryAgent({
+          agentId: "antigravity-acp",
+          baseDir: dir,
+          ...fileSettingsTarget(settingsPath),
+          iconsDir: join(dir, "acp-icons"),
+          registry,
+          adapterKind: "antigravity",
+          installKind: "first-class",
+        }),
+      ).rejects.toThrow(/SHA-256 mismatch/);
     } finally {
       vi.unstubAllGlobals();
     }

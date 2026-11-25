@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { RequestError } from "@agentclientprotocol/sdk";
+import { RequestError } from "@agentclientprotocol/sdk/unstable";
 import { DiagnosticError } from "@/shared/diagnostics/sentryPolicy";
 import { classifySupervisorIpcFailure } from "@/supervisor/diagnostics/sentry";
 

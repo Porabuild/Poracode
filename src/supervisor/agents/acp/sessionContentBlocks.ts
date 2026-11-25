@@ -2,7 +2,7 @@
  * Convert Poracode `PromptSegment[]` + prompt text into ACP `ContentBlock[]`.
  */
 import { open } from "node:fs/promises";
-import type { ContentBlock, PromptCapabilities } from "@agentclientprotocol/sdk";
+import type { ContentBlock, PromptCapabilities } from "@agentclientprotocol/sdk/unstable";
 import type { ProjectLocation, PromptSegment } from "@/shared/contracts";
 import { isAudioPath, isImagePath, isSvgPath } from "@/shared/promptContent";
 import { wslLinuxToHostFsPath } from "@/shared/wsl";

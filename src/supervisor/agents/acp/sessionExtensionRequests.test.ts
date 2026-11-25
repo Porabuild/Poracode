@@ -1,4 +1,4 @@
-import { RequestError } from "@agentclientprotocol/sdk";
+import { RequestError } from "@agentclientprotocol/sdk/unstable";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AcpExtensionRequestContext } from "../base/types";
 import {

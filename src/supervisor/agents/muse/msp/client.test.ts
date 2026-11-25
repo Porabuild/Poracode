@@ -111,6 +111,27 @@ describe("MuseMspClient", () => {
     client.dispose();
   });
 
+  it("requests the experimental API when read-only qualification opts in", async () => {
+    const transport = new FakeTransport();
+    const client = new MuseMspClient(transport, 1_000);
+    const pending = client.initialize("poracode", "1.0.0", undefined, { experimentalApi: true });
+    expect(transport.written[0]).toMatchObject({
+      method: "initialize",
+      params: { capabilities: { experimentalApi: true } },
+    });
+    transport.deliver({
+      jsonrpc: "2.0",
+      id: 1,
+      result: {
+        serverInfo: { name: "muse", version: "1.4.25" },
+        schema: { fingerprint: "fp", version: 1 },
+        capabilities: { experimentalApi: true },
+      },
+    });
+    await expect(pending).resolves.toMatchObject({ schema: { version: 1 } });
+    client.dispose();
+  });
+
   it("routes concurrent responses by id and surfaces error kinds", async () => {
     const transport = new FakeTransport();
     const client = new MuseMspClient(transport, 1_000);

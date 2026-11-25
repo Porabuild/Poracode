@@ -2,7 +2,7 @@ import { lstat, realpath } from "node:fs/promises";
 import { homedir } from "node:os";
 import { posix, win32 } from "node:path";
 import { pathToFileURL } from "node:url";
-import { RequestError } from "@agentclientprotocol/sdk";
+import { RequestError } from "@agentclientprotocol/sdk/unstable";
 import type { ProjectLocation } from "@/shared/contracts";
 import { isHomeScopeLocation } from "@/shared/homeScope";
 import { mimeForPath } from "@/shared/promptContent";

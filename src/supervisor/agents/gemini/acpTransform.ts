@@ -1,7 +1,10 @@
 import { readFileSync, realpathSync, statSync } from "node:fs";
 import { homedir } from "node:os";
 import path, { join } from "node:path";
-import type { RequestPermissionRequest, SessionNotification } from "@agentclientprotocol/sdk";
+import type {
+  RequestPermissionRequest,
+  SessionNotification,
+} from "@agentclientprotocol/sdk/unstable";
 import type { ProjectLocation } from "@/shared/contracts";
 import { getWslLocationHostFsPath, wslLinuxToHostFsPath } from "@/shared/wsl";
 import {

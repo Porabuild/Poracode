@@ -12,15 +12,14 @@ import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { Readable, Writable } from "node:stream";
 import {
-  ClientSideConnection,
   ndJsonStream,
   PROTOCOL_VERSION,
-  type Client,
   type AuthMethod,
   type AuthMethodAgent,
   type SessionNotification,
   type SessionMode,
-} from "@agentclientprotocol/sdk";
+} from "@agentclientprotocol/sdk/unstable";
+import { connectAcpClient, type AcpClientConnection } from "./clientConnection";
 import type {
   AgentEnvVarAuthMethod,
   AgentSlashCommand,
@@ -583,7 +582,7 @@ export async function probeAcpCapabilities(
   let child: ReturnType<typeof spawn> | undefined;
   let lifetime: ChildProcessLifetime | undefined;
   let abortProbe: (() => void) | undefined;
-  let connection: ClientSideConnection | undefined;
+  let connection: AcpClientConnection | undefined;
   let probeSessionId: string | undefined;
   let probeSessionCleanup: "delete" | "close" | undefined;
   let cleanupReserveMs = 0;
@@ -696,29 +695,26 @@ export async function probeAcpCapabilities(
     const fromAgent = Readable.toWeb(child.stdout!) as ReadableStream<Uint8Array>;
     const stream = ndJsonStream(toAgent, filterAcpStdoutNonJsonLines(fromAgent));
 
-    connection = new ClientSideConnection(
-      () => ({
-        requestPermission: () => Promise.resolve({ outcome: { outcome: "cancelled" as const } }),
-        sessionUpdate: (params: SessionNotification) => {
-          if (params.update.sessionUpdate === "available_commands_update") {
-            rememberSlashCommands(mapAcpSlashCommands(params.update.availableCommands));
+    connection = connectAcpClient(stream, {
+      requestPermission: () => Promise.resolve({ outcome: { outcome: "cancelled" as const } }),
+      sessionUpdate: (params: SessionNotification) => {
+        if (params.update.sessionUpdate === "available_commands_update") {
+          rememberSlashCommands(mapAcpSlashCommands(params.update.availableCommands));
+        }
+        if (
+          params.update.sessionUpdate === "config_option_update" &&
+          Array.isArray(params.update.configOptions)
+        ) {
+          const remaining: ConfigOptionsWaiter[] = [];
+          for (const waiter of configOptionsWaiters.splice(0)) {
+            if (!waiter(params.update.configOptions)) remaining.push(waiter);
           }
-          if (
-            params.update.sessionUpdate === "config_option_update" &&
-            Array.isArray(params.update.configOptions)
-          ) {
-            const remaining: ConfigOptionsWaiter[] = [];
-            for (const waiter of configOptionsWaiters.splice(0)) {
-              if (!waiter(params.update.configOptions)) remaining.push(waiter);
-            }
-            configOptionsWaiters.push(...remaining);
-          }
-          return Promise.resolve();
-        },
-        extNotification: () => Promise.resolve(),
-      }),
-      stream,
-    );
+          configOptionsWaiters.push(...remaining);
+        }
+        return Promise.resolve();
+      },
+      extNotification: () => Promise.resolve(),
+    });
 
     const initResult = await runWithinProbeBudget(
       connection.initialize({
@@ -1110,8 +1106,9 @@ export async function authenticateAcpAgent(
       await spawnReady;
       const toAgent = Writable.toWeb(child!.stdin) as WritableStream<Uint8Array>;
       const fromAgent = Readable.toWeb(child!.stdout) as ReadableStream<Uint8Array>;
-      const connection = new ClientSideConnection(
-        (_agent): Client => ({
+      const connection = connectAcpClient(
+        ndJsonStream(toAgent, filterAcpStdoutNonJsonLines(fromAgent)),
+        {
           requestPermission() {
             throw new Error("ACP auth did not request permission support.");
           },
@@ -1121,8 +1118,7 @@ export async function authenticateAcpAgent(
           extNotification() {
             return Promise.resolve();
           },
-        }),
-        ndJsonStream(toAgent, filterAcpStdoutNonJsonLines(fromAgent)),
+        },
       );
       const initResult = await connection.initialize({
         protocolVersion: PROTOCOL_VERSION,
@@ -1205,8 +1201,9 @@ export async function logoutAcpAgent(
         await spawnReady;
         const toAgent = Writable.toWeb(child!.stdin) as WritableStream<Uint8Array>;
         const fromAgent = Readable.toWeb(child!.stdout) as ReadableStream<Uint8Array>;
-        const connection = new ClientSideConnection(
-          (_agent): Client => ({
+        const connection = connectAcpClient(
+          ndJsonStream(toAgent, filterAcpStdoutNonJsonLines(fromAgent)),
+          {
             requestPermission() {
               throw new Error("ACP logout did not request permission support.");
             },
@@ -1216,8 +1213,7 @@ export async function logoutAcpAgent(
             extNotification() {
               return Promise.resolve();
             },
-          }),
-          ndJsonStream(toAgent, filterAcpStdoutNonJsonLines(fromAgent)),
+          },
         );
         const initResult = await connection.initialize({
           protocolVersion: PROTOCOL_VERSION,

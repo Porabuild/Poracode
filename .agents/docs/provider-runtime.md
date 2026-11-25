@@ -141,6 +141,44 @@ transports do not deliver extension notifications. A vendor stop notification
 must not complete the foreground turn a second time; the standard prompt result
 owns completion.
 
+### Client connection
+
+Every ACP transport, dedicated or shared, talks to the agent through
+`acp/clientConnection.ts` (`connectAcpClient`), built on
+`@agentclientprotocol/sdk/unstable`: the full ACP v1 surface, which Poracode
+needs for `configOptions` on session setup and `usage` on prompt responses. The
+default entrypoint is stable-only and does not type those.
+
+The module is the SDK 1.x `ClientSideConnection` behaviour rebuilt on the 2.x
+app API, kept identical because it is what every agent, old or current, talks
+to. Known client methods are validated against the SDK schema before our
+handlers run, with unknown fields stripped. A known method without an
+implementation answers `{}` or an empty result and never reaches the extension
+handlers. Anything else goes to `extMethod` / `extNotification`, or is answered
+"method not found" or ignored. Responses come back as sent. Three rules keep
+that true on 2.x, each documented at its definition:
+
+- `DELIVERED_SESSION_UPDATE_KINDS` drops the six update kinds 2.x accepts and
+  1.x rejected (`notice`, `cursor_update`, `prompt_suggestions_update`,
+  `session_message`, `session_message_chunk`, `subagent_update`), some of which
+  arrive outside a prompt turn. Delivering one is a product decision: add it
+  here together with its mapping.
+- `relaxLegacyClientRequest` restores the tolerance 1.x had for seven optional
+  params on `fs/read_text_file` and `terminal/create` that 2.x rejects.
+- `-32002` on `session/close` / `session/delete` now resolves instead of
+  rejecting. The SDK applies it and offers no opt-out.
+
+Pending requests are rejected when the connection closes, as before. A caller
+that starts a request without awaiting it still gets no unhandled rejection:
+the module keeps the guard the 1.x SDK put on every outbound promise, which
+2.x applies only to its own response promise. A promise a caller derives itself
+(for example from an `async` wrapper) is not covered and must be caught there.
+
+`clientWireCompat.test.ts` replays a scripted agent against a recording made
+with the 1.x SDK (`fixtures/wire-compat.golden.json`) and fails on any
+difference beyond the one above. Re-record it only for a reviewed behaviour
+change, never to make an SDK upgrade pass.
+
 ## MCP
 
 ### Terminal MCP launch integration

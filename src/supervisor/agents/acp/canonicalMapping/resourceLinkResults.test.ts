@@ -1,4 +1,4 @@
-import type { SessionNotification } from "@agentclientprotocol/sdk";
+import type { SessionNotification } from "@agentclientprotocol/sdk/unstable";
 import { describe, expect, it } from "vitest";
 import { createAcpMapperState, mapAcpSessionUpdate } from "../canonicalMapping";
 

@@ -1,4 +1,5 @@
-import type { AnyMessage, ClientSideConnection, SessionUpdate } from "@agentclientprotocol/sdk";
+import type { AnyMessage, SessionUpdate } from "@agentclientprotocol/sdk/unstable";
+import type { AcpClientConnection } from "./clientConnection";
 import { vi } from "vitest";
 import type { RuntimeEvent, SessionRef, ThreadConfig } from "@/shared/contracts";
 import type { StructuredSessionUpdate } from "../base";
@@ -50,17 +51,17 @@ export function replayActivityUpdates(
 /** Exercise the real session lifecycle without spawning a transport or provider. */
 export function createReplaySession(method: "load" | "resume") {
   const promptReply = vi
-    .fn<ClientSideConnection["prompt"]>()
+    .fn<AcpClientConnection["prompt"]>()
     .mockResolvedValue({ stopReason: "end_turn" });
   const connection = {
-    loadSession: vi.fn<ClientSideConnection["loadSession"]>().mockResolvedValue({}),
-    resumeSession: vi.fn<ClientSideConnection["resumeSession"]>().mockResolvedValue({}),
-    setSessionMode: vi.fn<ClientSideConnection["setSessionMode"]>().mockResolvedValue({}),
+    loadSession: vi.fn<AcpClientConnection["loadSession"]>().mockResolvedValue({}),
+    resumeSession: vi.fn<AcpClientConnection["resumeSession"]>().mockResolvedValue({}),
+    setSessionMode: vi.fn<AcpClientConnection["setSessionMode"]>().mockResolvedValue({}),
     setSessionConfigOption: vi
-      .fn<ClientSideConnection["setSessionConfigOption"]>()
+      .fn<AcpClientConnection["setSessionConfigOption"]>()
       .mockResolvedValue({ configOptions: [] }),
     request: vi.fn<(method: string, params: unknown) => Promise<unknown>>().mockResolvedValue({}),
-    prompt: vi.fn<ClientSideConnection["prompt"]>().mockImplementation((params) => {
+    prompt: vi.fn<AcpClientConnection["prompt"]>().mockImplementation((params) => {
       // Model the stream's actual synchronous dispatch callback, then the peer reply.
       (session as unknown as { endHistoryReplay(message: AnyMessage): void }).endHistoryReplay({
         jsonrpc: "2.0",
@@ -70,7 +71,7 @@ export function createReplaySession(method: "load" | "resume") {
       });
       return promptReply(params);
     }),
-    cancel: vi.fn<ClientSideConnection["cancel"]>().mockResolvedValue(undefined),
+    cancel: vi.fn<AcpClientConnection["cancel"]>().mockResolvedValue(undefined),
   };
   const listener = {
     onClose: vi.fn<() => void>(),

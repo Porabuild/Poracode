@@ -37,7 +37,7 @@
  * ANY terminal Agent update, not only ones already known to be background.
  */
 
-import type { SessionNotification } from "@agentclientprotocol/sdk";
+import type { SessionNotification } from "@agentclientprotocol/sdk/unstable";
 import { findSelectConfigOption } from "../acp/sessionConfig";
 import { findThoughtLevelConfigOption } from "../acp/thoughtLevel";
 import {

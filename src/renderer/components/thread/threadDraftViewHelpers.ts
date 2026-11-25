@@ -204,6 +204,10 @@ export { formatEffortLabel } from "@/renderer/components/common/effortLabel";
  */
 export function resolveApprovalPolicyValue(agent: AgentStatus, preferred?: string): string {
   const policies = agent.capabilities.approvalPolicies;
+  // A restrictive read-only selection must fail closed when a probe or provider
+  // update stops advertising it. Substituting the provider default could turn a
+  // deliberate no-write launch into an unrestricted one.
+  if (preferred === "read-only") return preferred;
   if (policies.length === 0) {
     return preferred &&
       (preferred === agent.capabilities.defaultApprovalPolicy ||

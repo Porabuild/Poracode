@@ -822,6 +822,14 @@ supervisor artifacts, because npm-staged externals do not apply pnpm patches.
 Old deployed helpers remain flow1 peers with no source capability advertised;
 no database, remote wire, or procedure-map bump is required at this stage.
 
+The 1.4.0 dispatch-observer patch was removed with the upgrade to
+`@agentclientprotocol/sdk` 2.12.0 (2026-11-25). No production code used the
+observer, and SDK 2.0 removed the `ClientSideConnection` class it extended.
+The wire behaviour the 1.x wrapper gave agents now lives in
+`src/supervisor/agents/acp/clientConnection.ts`, held to a recording made
+against 1.4.0 by `clientWireCompat.test.ts`. The ACP protocol version stays
+v1; no persisted, remote wire, or procedure-map change.
+
 Managed desktop image resolution is a renderer custody change. Host-held image
 references already reach the desktop over its HTTP/WS loopback data plane;
 canonical SQLite payloads and the reference/ticket wire shape stay unchanged.

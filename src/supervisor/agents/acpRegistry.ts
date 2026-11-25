@@ -1,8 +1,21 @@
 import { execFile } from "node:child_process";
+import { lock } from "proper-lockfile";
+import { randomUUID } from "node:crypto";
 import { homedir } from "node:os";
-import { copyFileSync, chmodSync, existsSync, mkdirSync, readFileSync } from "node:fs";
+import {
+  copyFileSync,
+  chmodSync,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  readdirSync,
+  renameSync,
+  rmSync,
+  statSync,
+} from "node:fs";
 import { basename, dirname, join } from "node:path";
 import { promisify } from "node:util";
+import { z } from "zod";
 import {
   acpGenericKind,
   acpRegistryListResultSchema,
@@ -25,7 +38,7 @@ import {
   pickAntigravityAcpAliasMigratedFields,
   type SharedSettings,
 } from "@/shared/settings";
-import { downloadToFile } from "../runtime/download";
+import { downloadToFile, verifySha256 } from "../runtime/download";
 import {
   decryptSecret,
   encryptSecret,
@@ -63,6 +76,16 @@ import { toWslUncPath } from "@/shared/wsl";
 const execFileAsync = promisify(execFile);
 
 const ACP_REGISTRY_URL = "https://cdn.agentclientprotocol.com/registry/v1/latest/registry.json";
+
+/**
+ * Scratch names that are NOT pending-delete entries. The shared sweeper only
+ * matches `PENDING_DELETE_PREFIX`, so it can never remove an in-flight staging
+ * tree or the only recovery backup during a crash window.
+ */
+export const ACP_REGISTRY_STAGING_PREFIX = ".acp-staging-";
+export const ACP_REGISTRY_RECOVERY_PREFIX = ".acp-recovery-";
+/** Young scratch trees may belong to another installer in this process tree. */
+const ACP_REGISTRY_SCRATCH_STALE_MS = 10 * 60 * 1000;
 
 export function wslAcpRegistryAgentInstallDir(
   distro: string,
@@ -177,7 +200,10 @@ export async function fetchAcpRegistry(): Promise<AcpRegistryListResult> {
   if (!response.ok) {
     throw new Error(`Failed to fetch ACP registry: HTTP ${response.status}`);
   }
-  return acpRegistryListResultSchema.parse(await response.json());
+  const raw = await response.json();
+  const registry = acpRegistryListResultSchema.parse(raw);
+  rememberArchiveDigests(registry, raw);
+  return registry;
 }
 
 /**
@@ -583,6 +609,154 @@ function resolveInstalledCommandPath(installDir: string, cmd: string): string {
   return join(installDir, ...cmd.replace(/^\.\//, "").split("/"));
 }
 
+/**
+ * Archive digests the registry publishes. They matter only while an archive is
+ * being installed, so they are read from the raw manifest and kept here rather
+ * than added to the shared contract that clients and the generated native
+ * bindings are built from. `null` marks a digest that is present but malformed.
+ * Keyed by the parsed target, so only a registry that went through
+ * `rememberArchiveDigests` (in production: `fetchAcpRegistry`) is verified.
+ */
+const archiveDigests = new WeakMap<object, string | null>();
+
+const registryBinaryTargetsSchema = z.object({
+  distribution: z
+    .object({
+      binary: z
+        .record(z.string(), z.object({ sha256: z.unknown().optional() }).passthrough())
+        .optional(),
+    })
+    .passthrough()
+    .optional(),
+});
+
+/** Records every digest the raw manifest publishes for this registry's binary targets. */
+export function rememberArchiveDigests(registry: AcpRegistryListResult, raw: unknown): void {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return;
+  const rawAgents = (raw as { agents?: unknown }).agents;
+  if (!Array.isArray(rawAgents)) return;
+  registry.agents.forEach((agent, index) => {
+    const parsed = registryBinaryTargetsSchema.safeParse(rawAgents[index]);
+    if (!parsed.success) return;
+    for (const [targetName, target] of Object.entries(agent.distribution.binary ?? {})) {
+      const digest = parsed.data.distribution?.binary?.[targetName]?.sha256;
+      if (digest === undefined) continue;
+      archiveDigests.set(
+        target,
+        typeof digest === "string" && /^[0-9a-fA-F]{64}$/.test(digest)
+          ? digest.toLowerCase()
+          : null,
+      );
+    }
+  });
+}
+
+/**
+ * Verify a staged registry archive against the digest the manifest publishes,
+ * before anything from it is extracted or run.
+ */
+async function verifyArchiveChecksum(
+  archivePath: string,
+  expected: string,
+  subject: string,
+): Promise<void> {
+  try {
+    await verifySha256(archivePath, expected);
+  } catch {
+    throw new Error(`${subject} archive SHA-256 mismatch`);
+  }
+}
+
+/**
+ * A crash between publishing the recovery backup and renaming the staged tree
+ * can leave no final install. Restore the newest matching backup before doing
+ * any download work. When the final path exists, an active publish (or a
+ * complete install) owns it; leave recovery state untouched.
+ */
+function recoverOrphanedInstall(installDir: string): void {
+  if (existsSync(installDir)) return;
+  const parent = dirname(installDir);
+  const prefix = `${ACP_REGISTRY_RECOVERY_PREFIX}backup-${basename(installDir)}-`;
+  let entries: string[];
+  try {
+    entries = readdirSync(parent);
+  } catch {
+    return;
+  }
+  const backups = entries
+    .filter((entry) => entry.startsWith(prefix))
+    .map((entry) => {
+      const path = join(parent, entry);
+      try {
+        return { path, mtimeMs: statSync(path).mtimeMs };
+      } catch {
+        return undefined;
+      }
+    })
+    .filter((entry): entry is { path: string; mtimeMs: number } => entry !== undefined)
+    .sort((left, right) => right.mtimeMs - left.mtimeMs);
+  if (backups.length > 0) renameSync(backups[0]!.path, installDir);
+}
+
+/** Age-based sweep for abandoned scratch trees; never touches young trees. */
+function cleanupStaleInstallScratch(versionDir: string): void {
+  let entries: string[];
+  try {
+    entries = readdirSync(versionDir);
+  } catch {
+    return;
+  }
+  const cutoff = Date.now() - ACP_REGISTRY_SCRATCH_STALE_MS;
+  for (const entry of entries) {
+    if (
+      !entry.startsWith(ACP_REGISTRY_STAGING_PREFIX) &&
+      !entry.startsWith(ACP_REGISTRY_RECOVERY_PREFIX)
+    ) {
+      continue;
+    }
+    const path = join(versionDir, entry);
+    try {
+      if (statSync(path).mtimeMs > cutoff) continue;
+      rmSync(path, { recursive: true, force: true });
+    } catch {
+      // Another installer may own it, or a handle is still locked.
+    }
+  }
+}
+
+/**
+ * Publish a fully verified/extracted staging tree beside the final path.
+ * The previous install is only moved aside after the staged tree is ready;
+ * a failed publish restores it, so the working artifact is never pre-deleted.
+ */
+function publishStagedInstall(stagingInstallDir: string, installDir: string): void {
+  const backupDir = join(
+    dirname(installDir),
+    `${ACP_REGISTRY_RECOVERY_PREFIX}backup-${basename(installDir)}-${process.pid}-${randomUUID()}`,
+  );
+  const hadExisting = existsSync(installDir);
+  if (hadExisting) renameSync(installDir, backupDir);
+  try {
+    renameSync(stagingInstallDir, installDir);
+  } catch (error) {
+    if (hadExisting) {
+      try {
+        renameSync(backupDir, installDir);
+      } catch {
+        // Keep the backup rather than deleting the only working copy.
+      }
+    }
+    throw error;
+  }
+  if (hadExisting) {
+    try {
+      rmSync(backupDir, { recursive: true, force: true });
+    } catch {
+      // Locked leftovers are swept as pending-delete entries on next launch.
+    }
+  }
+}
+
 async function binaryInstance(
   agent: AcpRegistryAgent,
   baseDir: string,
@@ -595,45 +769,100 @@ async function binaryInstance(
   }
 
   const rootDir = join(baseDir, ACP_REGISTRY_INSTALL_DIR, agent.id, agent.version);
+  const stagingName = `${ACP_REGISTRY_STAGING_PREFIX}${process.pid}-${randomUUID()}`;
   let installDir: string;
   let commandPath: string;
   let linuxInstallDir: string | undefined;
+  let stagingRoot: string;
+  let stagingInstallDir: string;
+  let stagingCommandPath: string;
+  let stagingLinuxInstallDir: string | undefined;
   if (installTarget.kind === "wsl") {
     const home = await resolveWslHomeDirectoryAsync(installTarget.distro);
     if (!home) throw new Error(`Unable to resolve home directory for WSL ${installTarget.distro}`);
     linuxInstallDir = `${home}/.poracode/${ACP_REGISTRY_INSTALL_DIR}/${agent.id}/${agent.version}/bin`;
     installDir = toWslUncPath(installTarget.distro, linuxInstallDir);
     commandPath = `${linuxInstallDir}/${target.cmd.replace(/^\.\//, "")}`;
+    stagingLinuxInstallDir = `${home}/.poracode/${ACP_REGISTRY_INSTALL_DIR}/${agent.id}/${agent.version}/${stagingName}/bin`;
+    stagingRoot = toWslUncPath(
+      installTarget.distro,
+      `${home}/.poracode/${ACP_REGISTRY_INSTALL_DIR}/${agent.id}/${agent.version}/${stagingName}`,
+    );
+    stagingInstallDir = toWslUncPath(installTarget.distro, stagingLinuxInstallDir);
+    stagingCommandPath = `${stagingLinuxInstallDir}/${target.cmd.replace(/^\.\//, "")}`;
   } else {
     installDir = join(rootDir, "bin");
     commandPath = resolveInstalledCommandPath(installDir, target.cmd);
+    stagingRoot = join(rootDir, stagingName);
+    stagingInstallDir = join(stagingRoot, "bin");
+    stagingCommandPath = resolveInstalledCommandPath(stagingInstallDir, target.cmd);
   }
-  await removeAcpRegistryInstallDir(installDir);
-  mkdirSync(installDir, { recursive: true });
 
-  const archiveName = archiveFileName(target.archive);
-  const archivePath = join(rootDir, archiveName);
-  await downloadToFile(target.archive, archivePath);
-  await extractArchive(archivePath, installDir);
+  const archivePath = join(stagingRoot, archiveFileName(target.archive));
+  const versionDir = dirname(installDir);
+  mkdirSync(versionDir, { recursive: true });
+  const releaseInstallLock = await lock(versionDir, {
+    realpath: false,
+    stale: 120_000,
+    update: 10_000,
+    retries: { retries: 20, factor: 1.5, minTimeout: 100, maxTimeout: 1000 },
+  });
+  try {
+    // Serialized per version destination: a second installer cannot age-sweep
+    // or publish while this one owns recovery, staging, or publication.
+    recoverOrphanedInstall(installDir);
+    cleanupStaleInstallScratch(versionDir);
+    try {
+      // Never touch the existing install until the staged tree is verified and
+      // fully extracted: a failed download/checksum/extract leaves it intact.
+      mkdirSync(stagingInstallDir, { recursive: true });
+      await downloadToFile(target.archive, archivePath);
+      const digest = archiveDigests.get(target);
+      if (digest === null) {
+        throw new Error(
+          `${agent.name} ${agent.version} has a malformed sha256 in the registry manifest`,
+        );
+      }
+      if (digest !== undefined) {
+        await verifyArchiveChecksum(archivePath, digest, `${agent.name} ${agent.version}`);
+      }
+      await extractArchive(archivePath, stagingInstallDir);
 
-  const readableCommandPath =
-    installTarget.kind === "wsl"
-      ? resolveInstalledCommandPath(installDir, target.cmd)
-      : commandPath;
-  if (!existsSync(readableCommandPath)) {
-    copyFileSync(archivePath, readableCommandPath);
+      const readableCommandPath = resolveInstalledCommandPath(stagingInstallDir, target.cmd);
+      if (!existsSync(readableCommandPath)) {
+        copyFileSync(archivePath, readableCommandPath);
+      }
+      if (installTarget.kind === "wsl" && stagingLinuxInstallDir) {
+        // Extraction through Windows into the distro drops mode bits. Repair the
+        // staged tree before publishing so a failed repair never damages the
+        // existing install either.
+        const [chmod] = await batchWslCommandsAsync(installTarget.distro, [
+          wslInstallLayoutRepairScript(stagingLinuxInstallDir),
+        ]);
+        if (!chmod?.ok) throw new Error(`Unable to mark ${agent.name} executable in WSL`);
+      } else if (process.platform !== "win32") {
+        chmodSync(stagingCommandPath, 0o755);
+      }
+
+      publishStagedInstall(stagingInstallDir, installDir);
+    } catch (error) {
+      try {
+        rmSync(stagingRoot, { recursive: true, force: true });
+      } catch {
+        // A locked staging tree is safe to leave for the age-based sweep.
+      }
+      throw error;
+    }
+  } finally {
+    await releaseInstallLock().catch(() => {
+      // A stale lock is reclaimed by proper-lockfile on the next install.
+    });
   }
-  if (installTarget.kind === "wsl" && linuxInstallDir) {
-    // The archive is extracted by Windows tooling into the distro, which drops
-    // every mode bit (0644). Servers spawn bundled helpers from the same dir,
-    // so the whole `bin/` tree must be executable, not just the command
-    // (ACP_REGISTRY_INSTALL_LAYOUT_VERSION 2).
-    const [chmod] = await batchWslCommandsAsync(installTarget.distro, [
-      wslInstallLayoutRepairScript(linuxInstallDir),
-    ]);
-    if (!chmod?.ok) throw new Error(`Unable to mark ${agent.name} executable in WSL`);
-  } else if (process.platform !== "win32") {
-    chmodSync(commandPath, 0o755);
+
+  try {
+    rmSync(stagingRoot, { recursive: true, force: true });
+  } catch {
+    // The published tree was renamed out; only the archive may remain.
   }
 
   const command: AcpGenericCommandConfig = {

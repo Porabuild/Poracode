@@ -80,7 +80,7 @@ import { CodexContextWindowReload } from "./contextWindowReload";
 import { forkCodexThread, resumeCodexThread } from "./threadResume";
 import { readCodexTurnSummaries } from "./threadTurnSummaries";
 import { isStaleCodexTurnCompletion, nextCodexInterruptTurnId } from "./turnInterrupt";
-import { readRecord } from "./canonicalMapping/readers";
+import { readRecord, readTurnState } from "./canonicalMapping/readers";
 import { isPoracodeAttachmentPath } from "@/shared/inlineImagePayload";
 import { readCodexImageViewPreview } from "./canonicalMapping/toolExtraction";
 import { CodexAsyncQuestionAttention } from "./asyncQuestionAttention";
@@ -93,6 +93,13 @@ function sleep(ms: number): Promise<void> {
     setTimeout(resolve, ms);
   });
 }
+
+/** Targeted Stop cleanup: list pages, scan offsets, and per-RPC wait bounds. */
+const BACKGROUND_TERMINAL_LIST_LIMIT = 100;
+const BACKGROUND_TERMINAL_MAX_PAGES = 4;
+const BACKGROUND_TERMINAL_SCAN_DELAYS_MS = [0, 75, 200] as const;
+const BACKGROUND_TERMINAL_CLEANUP_BUDGET_MS = 1_200;
+const BACKGROUND_TERMINAL_RPC_WAIT_MS = 350;
 
 // A `thread/status/changed → systemError` notification carries no message, so
 // we surface a generic fallback. But Codex often follows it with a specific
@@ -264,6 +271,12 @@ export class CodexStructuredSession implements StructuredSessionHandle {
    * server reports an authoritative idle status.
    */
   private readonly activeTurnIds = new Set<string>();
+  /** Native terminal evidence that a turn was interrupted/cancelled; gates destructive cleanup. */
+  private readonly interruptedTurnIds = new Set<string>();
+  /** User/dispose interrupt targets, including requests still awaiting their RPC response. */
+  private readonly interruptRequestedTurnIds = new Set<string>();
+  private readonly interruptedTurnCleanupRuns = new Set<string>();
+  private activeInterruptRequests = 0;
   private currentSlashCommands: AgentSlashCommand[] | undefined;
   private currentBaseSlashCommands: AgentSlashCommand[] = [];
   private currentSkillSlashCommands: AgentSlashCommand[] = [];
@@ -1147,6 +1160,25 @@ export class CodexStructuredSession implements StructuredSessionHandle {
     return this.liveVoice.disconnect(connectionId);
   }
 
+  hasUninterruptedActiveTurns(): boolean {
+    const activeTurnIds = new Set(this.activeTurnIds);
+    if (this.activeTurnId) activeTurnIds.add(this.activeTurnId);
+    for (const turnId of activeTurnIds) {
+      if (!this.interruptRequestedTurnIds.has(turnId)) return true;
+    }
+    return false;
+  }
+
+  hasUnsettledInterruptedTurns(): boolean {
+    if (this.activeInterruptRequests > 0) return true;
+    const activeTurnIds = new Set(this.activeTurnIds);
+    if (this.activeTurnId) activeTurnIds.add(this.activeTurnId);
+    for (const turnId of activeTurnIds) {
+      if (this.interruptRequestedTurnIds.has(turnId)) return true;
+    }
+    return false;
+  }
+
   async interruptTurn(): Promise<void> {
     if (this.isDisposed) {
       return;
@@ -1158,7 +1190,7 @@ export class CodexStructuredSession implements StructuredSessionHandle {
       return;
     }
 
-    await this.interruptActiveTurn(threadId, this.activeTurnId);
+    await this.interruptActiveTurn(threadId, this.activeTurnId, undefined, () => true, true);
   }
 
   forceCompleteTurn(): void {
@@ -1167,7 +1199,13 @@ export class CodexStructuredSession implements StructuredSessionHandle {
     const turnId = this.activeTurnId ?? state.currentTurnId;
     const itemIds = new Map<string, string | undefined>();
     if (state.openAssistantItemId) itemIds.set(state.openAssistantItemId, "assistant_message");
+    for (const itemId of state.openAssistantItemsByTurn.values()) {
+      itemIds.set(itemId, "assistant_message");
+    }
     if (state.turnPlanItemId) itemIds.set(state.turnPlanItemId, "plan");
+    for (const itemId of state.planItemsByTurn.values()) {
+      itemIds.set(itemId, "plan");
+    }
     for (const [codexItemId, itemId] of state.itemIdMap) {
       const ownerTurnId = state.itemTurnIdMap.get(codexItemId);
       if (
@@ -1212,7 +1250,11 @@ export class CodexStructuredSession implements StructuredSessionHandle {
     state.fileChangePathMap.clear();
     state.reasoningSummaryIndexMap.clear();
     delete state.openAssistantItemId;
+    delete state.assistantItemTurnId;
+    state.openAssistantItemsByTurn.clear();
     delete state.turnPlanItemId;
+    delete state.planItemTurnId;
+    state.planItemsByTurn.clear();
     delete state.currentTurnId;
     this.emitRuntimeEvents(events);
   }
@@ -1223,7 +1265,7 @@ export class CodexStructuredSession implements StructuredSessionHandle {
     }
     const turnId = this.activeTurnId;
     this.pendingTurnInterrupt = false;
-    return this.interruptActiveTurn(threadId, turnId);
+    return this.interruptActiveTurn(threadId, turnId, undefined, () => true, true);
   }
 
   private async interruptActiveTurn(
@@ -1231,22 +1273,212 @@ export class CodexStructuredSession implements StructuredSessionHandle {
     turnId: string,
     timeoutMs?: number,
     canRetry: () => boolean = () => true,
+    cleanupInterruptedCommands = false,
   ): Promise<void> {
+    let interruptedTurnId = turnId;
+    let retargeted = false;
+    let acknowledged = false;
+    this.activeInterruptRequests += 1;
+    this.interruptRequestedTurnIds.add(turnId);
     try {
-      await this.rpc.request("turn/interrupt", { threadId, turnId }, timeoutMs);
-    } catch (error) {
-      const retryTurnId = nextCodexInterruptTurnId(turnId, error);
-      if (!retryTurnId) {
-        throw error;
+      try {
+        await this.rpc.request("turn/interrupt", { threadId, turnId }, timeoutMs);
+      } catch (error) {
+        const retryTurnId = nextCodexInterruptTurnId(turnId, error);
+        if (!retryTurnId) {
+          throw error;
+        }
+        if (!canRetry()) {
+          return;
+        }
+        // A mismatch can name another concurrently admitted turn. Retrying that
+        // id would interrupt the sibling the user did not stop, so only retarget
+        // an id this session does not already know as separate live work.
+        if (retryTurnId !== turnId && this.activeTurnIds.has(retryTurnId)) {
+          return;
+        }
+        this.activeTurnIds.delete(turnId);
+        this.activeTurnIds.add(retryTurnId);
+        this.activeTurnId = retryTurnId;
+        this.interruptRequestedTurnIds.delete(turnId);
+        this.interruptRequestedTurnIds.add(retryTurnId);
+        await this.rpc.request("turn/interrupt", { threadId, turnId: retryTurnId }, timeoutMs);
+        interruptedTurnId = retryTurnId;
+        retargeted = true;
       }
-      if (!canRetry()) {
-        return;
+      acknowledged = true;
+      if (cleanupInterruptedCommands && !retargeted) {
+        try {
+          await this.cleanupInterruptedUnifiedExec(threadId, interruptedTurnId);
+        } catch {
+          // Cleanup is best effort; the interrupt itself already succeeded.
+        }
       }
-      this.activeTurnIds.delete(turnId);
-      this.activeTurnIds.add(retryTurnId);
-      this.activeTurnId = retryTurnId;
-      await this.rpc.request("turn/interrupt", { threadId, turnId: retryTurnId }, timeoutMs);
+    } finally {
+      if (!acknowledged) {
+        this.interruptRequestedTurnIds.delete(turnId);
+        this.interruptedTurnCleanupRuns.delete(`${threadId}\u0000${interruptedTurnId}`);
+        this.interruptRequestedTurnIds.delete(interruptedTurnId);
+      }
+      this.activeInterruptRequests -= 1;
     }
+  }
+
+  /**
+   * `turn/interrupt` acknowledges the turn but leaves unified-exec processes
+   * running. Terminate only the background-terminal rows whose exact item id
+   * is still a tracked command owned by this turn. The list can race
+   * `item/started`, so candidates are recomputed after every page/fetch and
+   * each scan. Everything here is best effort: unsupported methods, timeouts,
+   * and malformed pages are nonfatal to Stop.
+   */
+  private async cleanupInterruptedUnifiedExec(threadId: string, turnId: string): Promise<void> {
+    const runKey = `${threadId}\u0000${turnId}`;
+    if (this.interruptedTurnCleanupRuns.has(runKey)) return;
+    this.interruptedTurnCleanupRuns.add(runKey);
+    try {
+      await this.cleanupInterruptedUnifiedExecOnce(threadId, turnId);
+    } finally {
+      this.interruptedTurnCleanupRuns.delete(runKey);
+    }
+  }
+
+  private async cleanupInterruptedUnifiedExecOnce(threadId: string, turnId: string): Promise<void> {
+    const startedAt = Date.now();
+    const deadline = startedAt + BACKGROUND_TERMINAL_CLEANUP_BUDGET_MS;
+    const terminatedRows = new Set<string>();
+    const terminatedItemIds = new Set<string>();
+    for (const delayMs of BACKGROUND_TERMINAL_SCAN_DELAYS_MS) {
+      const targetAt = startedAt + delayMs;
+      if (Date.now() >= deadline) return;
+      const waitMs = targetAt - Date.now();
+      if (waitMs > 0) {
+        await sleep(Math.min(waitMs, deadline - Date.now()));
+      }
+      if (this.isDisposed || Date.now() >= deadline) return;
+      if (!this.rpc.ownsThread(threadId) || this.remoteThreadId !== threadId) return;
+      if (!this.interruptRequestedTurnIds.has(turnId)) return;
+      if (!this.interruptedTurnIds.has(turnId)) continue;
+      const candidates = this.commandCandidatesForTurn(turnId);
+      if (candidates.size === 0) continue;
+      if ([...candidates].every((itemId) => terminatedItemIds.has(itemId))) continue;
+      const rows = await this.listBackgroundTerminals(threadId, deadline);
+      if (!rows) continue;
+      const currentCandidates = this.commandCandidatesForTurn(turnId);
+      for (const row of rows) {
+        if (!currentCandidates.has(row.itemId) || terminatedItemIds.has(row.itemId)) continue;
+        const key = `${row.itemId}\u0000${row.processId}`;
+        if (terminatedRows.has(key)) continue;
+        // Rows can complete or the session can retire while earlier kills are
+        // awaited; never send a destructive write against a stale snapshot.
+        if (
+          this.isDisposed ||
+          !this.rpc.ownsThread(threadId) ||
+          this.remoteThreadId !== threadId ||
+          !this.interruptRequestedTurnIds.has(turnId) ||
+          !this.interruptedTurnIds.has(turnId) ||
+          !this.commandCandidatesForTurn(turnId).has(row.itemId)
+        ) {
+          continue;
+        }
+        if (await this.terminateBackgroundTerminal(threadId, row.processId, deadline)) {
+          terminatedRows.add(key);
+          terminatedItemIds.add(row.itemId);
+        }
+      }
+    }
+  }
+
+  /** Tracked command item ids owned by the interrupted turn (never by text/PID). */
+  private commandCandidatesForTurn(turnId: string): Set<string> {
+    const candidates = new Set<string>();
+    const state = this.mapperState;
+    if (!state) return candidates;
+    for (const [codexItemId, itemType] of state.itemTypeMap) {
+      if (itemType !== "command_execution") continue;
+      if (state.itemTurnIdMap.get(codexItemId) !== turnId) continue;
+      if (!state.itemIdMap.has(codexItemId)) continue;
+      candidates.add(codexItemId);
+    }
+    return candidates;
+  }
+
+  private async listBackgroundTerminals(
+    threadId: string,
+    deadline: number,
+  ): Promise<Array<{ itemId: string; processId: string }> | undefined> {
+    const rows: Array<{ itemId: string; processId: string }> = [];
+    const seenCursors = new Set<string>();
+    let cursor: string | undefined;
+    for (let page = 0; page < BACKGROUND_TERMINAL_MAX_PAGES; page += 1) {
+      const result = await this.requestWithinBackgroundBudget(
+        "thread/backgroundTerminals/list",
+        {
+          threadId,
+          limit: BACKGROUND_TERMINAL_LIST_LIMIT,
+          ...(cursor ? { cursor } : {}),
+        },
+        deadline,
+      );
+      if (!result) return rows.length > 0 ? rows : undefined;
+      if (!Array.isArray(result.data)) break;
+      for (const rawRow of result.data) {
+        const row = readRecord(rawRow);
+        if (!row || typeof row.itemId !== "string" || typeof row.processId !== "string") continue;
+        if (!row.itemId || !row.processId) continue;
+        rows.push({ itemId: row.itemId, processId: row.processId });
+      }
+      const nextCursor = result.nextCursor;
+      if (nextCursor === null || nextCursor === undefined) break;
+      // Reject invalid or repeated cursors instead of looping on a broken page.
+      if (typeof nextCursor !== "string" || nextCursor.trim().length === 0) break;
+      if (seenCursors.has(nextCursor)) break;
+      seenCursors.add(nextCursor);
+      cursor = nextCursor;
+    }
+    return rows;
+  }
+
+  private async terminateBackgroundTerminal(
+    threadId: string,
+    processId: string,
+    deadline: number,
+  ): Promise<boolean> {
+    const result = await this.requestWithinBackgroundBudget(
+      "thread/backgroundTerminals/terminate",
+      { threadId, processId },
+      deadline,
+    );
+    return result?.terminated === true;
+  }
+
+  private async requestWithinBackgroundBudget<M extends keyof CodexClientRequestMap>(
+    method: M,
+    params: CodexClientRequestMap[M]["params"],
+    deadline: number,
+  ): Promise<CodexClientRequestMap[M]["result"] | undefined> {
+    const remaining = deadline - Date.now();
+    if (remaining <= 0) return undefined;
+    const waitMs = Math.min(BACKGROUND_TERMINAL_RPC_WAIT_MS, remaining);
+    return await new Promise<CodexClientRequestMap[M]["result"] | undefined>((resolve) => {
+      const timer = setTimeout(() => resolve(undefined), waitMs);
+      try {
+        this.rpc.request(method, params, waitMs, { retryOnOverload: false }).then(
+          (result) => {
+            clearTimeout(timer);
+            resolve(result);
+          },
+          () => {
+            clearTimeout(timer);
+            // Unsupported method, provider shutdown, timeout: cleanup is best effort.
+            resolve(undefined);
+          },
+        );
+      } catch {
+        clearTimeout(timer);
+        resolve(undefined);
+      }
+    });
   }
 
   async rollbackThread(numTurns: number, config?: ThreadConfig): Promise<ThreadHistory> {
@@ -1695,6 +1927,17 @@ export class CodexStructuredSession implements StructuredSessionHandle {
       return;
     }
 
+    if (method === "turn/completed" || method === "turn/aborted") {
+      const terminalTurnId = readTurnId(params);
+      const terminalState = readTurnState(method, params);
+      if (terminalTurnId && (terminalState === "interrupted" || terminalState === "cancelled")) {
+        this.interruptedTurnIds.add(terminalTurnId);
+        const terminalThreadId = readNotificationThreadId(params, this.remoteThreadId);
+        if (terminalThreadId && this.interruptRequestedTurnIds.has(terminalTurnId)) {
+          void this.cleanupInterruptedUnifiedExec(terminalThreadId, terminalTurnId).catch(() => {});
+        }
+      }
+    }
     if (this.applyMainTurnLifecycle(method, params, suppressResumeReplay)) {
       return;
     }

@@ -6,7 +6,7 @@
  */
 import { stat } from "node:fs/promises";
 import { wslLinuxToHostFsPath } from "@/shared/wsl";
-import { RequestError, type TerminalExitStatus } from "@agentclientprotocol/sdk";
+import { RequestError, type TerminalExitStatus } from "@agentclientprotocol/sdk/unstable";
 import type { ProjectLocation } from "@/shared/contracts";
 import { processEnvRecord } from "@/supervisor/processEnv";
 import {

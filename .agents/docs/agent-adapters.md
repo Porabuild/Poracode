@@ -166,10 +166,14 @@ or the user's Stop, never for a timeout that could complete it silently.
 
 Its server also holds `session/prompt` unresolved while background tasks run, so
 the stop reason arrives only when every task exits — never, for a dev server.
-The only boundary it publishes is a stderr diagnostic, so the provider declares
-`stderrTurnSignalParser` (`antigravity/acpTurnHold.ts`). The shared session reads
-it as a capability — "this agent reports end-of-reply out of band while holding
-the prompt" — completes the runtime turn at the signal, keeps still-running
+The provider detects that boundary in `antigravity/acpTurnHold.ts` and declares
+it to the shared session either way the agent publishes it:
+`stderrTurnSignalParser` when it is a stderr line, or
+`AcpStructuredSession.holdTurnForBackgroundWork()` when a provider-owned
+`AcpExternalSessionUpdateSource` observes it elsewhere (Antigravity's primary
+detector reads the parent transcript). The shared session reads both as a
+capability — "this agent reports end-of-reply out of band while holding the
+prompt" — completes the runtime turn at the signal, keeps still-running
 command rows open as detached items for their late updates, and adopts the held
 prompt's eventual resolution silently.
 

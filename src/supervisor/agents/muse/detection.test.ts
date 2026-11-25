@@ -259,6 +259,41 @@ describe("museDetectionSpec", () => {
     },
   );
 
+  it("advertises read-only only when the probed host catalog carries it", async () => {
+    probeMuseModelCatalogMock.mockResolvedValueOnce({
+      models: [{ id: "muse-spark-1.3", label: "Muse Spark 1.3", isDefault: true }],
+      source: "providerCatalog",
+      providerId: "meta",
+      profileId: null,
+      readOnlyPermissionProfile: ":read-only",
+    });
+    const supported = await museDetectionSpec.capabilitiesProbe?.({
+      location: { kind: "posix", path: "/tmp" },
+      executablePath: "/usr/bin/muse",
+    });
+    expect(supported?.approvalPolicies?.map((policy) => policy.id)).toEqual([
+      "read-only",
+      "untrusted",
+      "on-request",
+      "never",
+      "yolo",
+    ]);
+
+    probeMuseModelCatalogMock.mockResolvedValueOnce({
+      models: [{ id: "muse-spark-1.3", label: "Muse Spark 1.3", isDefault: true }],
+      source: "providerCatalog",
+      providerId: "meta",
+      profileId: null,
+    });
+    const unsupported = await museDetectionSpec.capabilitiesProbe?.({
+      location: { kind: "posix", path: "/tmp" },
+      executablePath: "/usr/bin/muse",
+    });
+    expect((unsupported?.approvalPolicies ?? []).map((policy) => policy.id)).not.toContain(
+      "read-only",
+    );
+  });
+
   it("uses the live catalog as the authoritative model list", async () => {
     probeMuseModelCatalogMock.mockResolvedValueOnce({
       models: [

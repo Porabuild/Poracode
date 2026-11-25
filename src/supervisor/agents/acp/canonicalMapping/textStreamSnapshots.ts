@@ -38,7 +38,11 @@
  * emitted events reuse the already-deployed `content.delta` `replace` flag.
  */
 
-import type { ContentBlock, SessionNotification, SessionUpdate } from "@agentclientprotocol/sdk";
+import type {
+  ContentBlock,
+  SessionNotification,
+  SessionUpdate,
+} from "@agentclientprotocol/sdk/unstable";
 import type { RuntimeEvent } from "@/shared/contracts";
 import { getExtensionStore } from "./textStreamExtension";
 import {
