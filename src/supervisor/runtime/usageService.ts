@@ -54,7 +54,8 @@ import { providerUsageResponse } from "./usageRingPresentation";
 // v16 refreshes Devin snapshots that omitted exhausted quota windows.
 // v17 refreshes Gemini snapshots that now include paidTier/credits and token refresh.
 // v18 refreshes Cursor snapshots with split Cursor Models/API spend, stringified pooled limits, breakdowns, and cycle tokens.
-const USAGE_CACHE_VERSION = 18;
+// v19 refreshes Cursor snapshots whose API dollars or on-demand percent used combined/personal spend instead of the split API and pooled team scopes.
+const USAGE_CACHE_VERSION = 19;
 // Ring layouts are response-only and recomputed from current descriptors and
 // settings; they do not require cache invalidation.
 /** The full default provider set, from the package catalog (single source of truth). */

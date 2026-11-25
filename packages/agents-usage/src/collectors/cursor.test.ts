@@ -137,7 +137,12 @@ describe("collectCursor cookie", () => {
     "splits Cursor Models and API spend via aggregated usage events for legacy plans (API key: %s)",
     async (apiKey) => {
       const token = `header.${Buffer.from(JSON.stringify({ sub: "github|fixture-user", email: "work@example.com" })).toString("base64url")}.sig`;
-      const requests: Array<{ url: string; method?: string; body?: string }> = [];
+      const requests: Array<{
+        url: string;
+        method?: string;
+        body?: string;
+        authorization?: string;
+      }> = [];
       const aggregatedBody = {
         aggregations: [
           { modelIntent: "cursor-model-a", tier: 2, totalCents: 70677.27911 },
@@ -145,7 +150,9 @@ describe("collectCursor cookie", () => {
         ],
       };
       const host: HostPort = {
-        now: () => NOW,
+        // Inside the fixture's November 2026 billing cycle, so aggregated usage
+        // is requested through the current moment rather than the future reset.
+        now: () => 1_795_608_000_000,
         credentials: {
           getOAuthToken: async () => ({ accessToken: token, accountId: "fixture-user" }),
           getSecret: async () => undefined,
@@ -156,6 +163,7 @@ describe("collectCursor cookie", () => {
               url: req.url,
               ...(req.method ? { method: req.method } : {}),
               ...(req.body ? { body: req.body } : {}),
+              ...(req.headers?.Authorization ? { authorization: req.headers.Authorization } : {}),
             });
             const bodies: Record<string, unknown> = {
               [CURSOR_API_KEY_EXCHANGE_ENDPOINT]: { accessToken: token },
@@ -212,9 +220,10 @@ describe("collectCursor cookie", () => {
       const aggReq = requests.find((req) => req.url === CURSOR_AGGREGATED_USAGE_ENDPOINT);
       expect(aggReq?.method).toBe("POST");
       expect(JSON.parse(aggReq?.body ?? "{}")).toEqual({
-        startDate: 1_793_734_540_000,
-        endDate: 1_796_326_540_000,
+        startDate: "1793734540000",
+        endDate: "1795608000000",
       });
+      expect(aggReq?.authorization).toBe(`Bearer ${token}`);
 
       expect(snap.windows.find((w) => w.id === "cursor-auto")).toMatchObject({
         usedPercent: 67.41428571428571,
@@ -226,17 +235,17 @@ describe("collectCursor cookie", () => {
         usedPercent: 100,
         currency: "USD",
         used: 183.62,
-        limit: 20,
       });
+      expect(snap.windows.find((w) => w.id === "cursor-api")?.limit).toBeUndefined();
       const onDemand = snap.windows.find((w) => w.id === "extra-usage");
       expect(onDemand).toMatchObject({
         label: "On-demand",
         unit: "usd",
         currency: "USD",
-        used: 1020.42,
+        used: 1051.85,
         limit: 1050,
       });
-      expect(onDemand?.usedPercent).toBeCloseTo(97.18, 2);
+      expect(onDemand?.usedPercent).toBe(100);
     },
   );
 });
@@ -361,7 +370,7 @@ describe("parseCursorUsage", () => {
     expect(snap.windows.map((w) => w.id)).toEqual(["cursor-auto", "cursor-api"]);
   });
 
-  it("maps usage-summary to Auto / API windows with API spend + reset", () => {
+  it("maps usage-summary to Auto / API windows with reset but without inventing API spend", () => {
     const body = {
       billingCycleEnd: "1719600000000",
       membershipType: "pro",
@@ -390,15 +399,15 @@ describe("parseCursorUsage", () => {
     expect(auto.resetsAt).toBe(1_719_600_000_000);
     const api = snap.windows.find((w) => w.id === "cursor-api")!;
     expect(api.usedPercent).toBeCloseTo(37.4);
-    expect(api.used).toBeCloseTo(93.47);
-    expect(api.limit).toBeCloseTo(250);
+    expect(api.used).toBeUndefined();
+    expect(api.limit).toBeUndefined();
     expect(api.resetsAt).toBe(1_719_600_000_000);
   });
 
-  it("treats breakdown.total as real spend against the vendor plan limit", () => {
+  it("does not attribute combined breakdown.total spend to API", () => {
     // Live payload: used/limit clamp at included $20 while breakdown.total is
-    // real spend ($20 included + $8.75 bonus = $28.75). API % is a separate
-    // meter — do not invent limit = spend / percent ($28.75 / 55% ≈ $52).
+    // combined Cursor Models + API spend ($20 included + $8.75 bonus = $28.75).
+    // Without aggregated per-model rows there is no honest API dollar split.
     const body = {
       membershipType: "pro",
       individualUsage: {
@@ -415,12 +424,12 @@ describe("parseCursorUsage", () => {
     const snap = parseCursorUsage(body, {}, NOW);
     const api = snap.windows.find((w) => w.id === "cursor-api")!;
     expect(api.usedPercent).toBeCloseTo(55.07);
-    expect(api.used).toBeCloseTo(28.75);
-    expect(api.limit).toBeCloseTo(20);
+    expect(api.used).toBeUndefined();
+    expect(api.limit).toBeUndefined();
   });
 
-  it("keeps plan dollars when they disagree with API percent (no breakdown)", () => {
-    // Clamped plan price $20/$20; API bar can still be 44% of a different pool.
+  it("omits plan dollars when they cannot be split by model", () => {
+    // Clamped plan price $20/$20 is combined usage, not API spend or an API cap.
     const body = {
       membershipType: "pro",
       individualUsage: {
@@ -430,13 +439,13 @@ describe("parseCursorUsage", () => {
     const snap = parseCursorUsage(body, {}, NOW);
     const api = snap.windows.find((w) => w.id === "cursor-api")!;
     expect(api.usedPercent).toBe(44);
-    expect(api.used).toBeCloseTo(20);
-    expect(api.limit).toBeCloseTo(20);
+    expect(api.used).toBeUndefined();
+    expect(api.limit).toBeUndefined();
   });
 
-  it("shows overspend past the plan limit without inventing a percent-derived ceiling", () => {
-    // User case: ~$35.61 total cost, $20 Pro included, API bar ~4.5%.
-    // Old math: $35.61 / 0.04555 ≈ $782 nonsense allowance.
+  it("does not show combined overspend as API spend", () => {
+    // User case: ~$35.61 combined cost, $20 Pro included, API bar ~4.5%.
+    // Dollars stay hidden unless aggregated events identify the API portion.
     const body = {
       membershipType: "pro",
       individualUsage: {
@@ -452,18 +461,18 @@ describe("parseCursorUsage", () => {
     const snap = parseCursorUsage(body, {}, NOW);
     const api = snap.windows.find((w) => w.id === "cursor-api")!;
     expect(api.usedPercent).toBeCloseTo(4.555);
-    expect(api.used).toBeCloseTo(35.61);
-    expect(api.limit).toBeCloseTo(20);
+    expect(api.used).toBeUndefined();
+    expect(api.limit).toBeUndefined();
   });
 
-  it("keeps the vendor limit when the dollars already agree with the percent", () => {
+  it("does not use the vendor plan price as an API limit even when the ratio agrees", () => {
     const body = {
       individualUsage: { plan: { used: 9347, limit: 25000, apiPercentUsed: 37.39 } },
     };
     const snap = parseCursorUsage(body, {}, NOW);
     const api = snap.windows.find((w) => w.id === "cursor-api")!;
-    expect(api.used).toBeCloseTo(93.47);
-    expect(api.limit).toBeCloseTo(250);
+    expect(api.used).toBeUndefined();
+    expect(api.limit).toBeUndefined();
   });
 
   it("separates Cursor Models and API spend using aggregated event tiers", () => {
@@ -496,7 +505,7 @@ describe("parseCursorUsage", () => {
     const api = snap.windows.find((w) => w.id === "cursor-api")!;
     expect(api.currency).toBe("USD");
     expect(api.used).toBe(183.62);
-    expect(api.limit).toBe(20);
+    expect(api.limit).toBeUndefined();
   });
 
   it("falls back to autoBucketModels when aggregated rows omit tier", () => {
@@ -525,7 +534,6 @@ describe("parseCursorUsage", () => {
     expect(snap.windows.find((w) => w.id === "cursor-api")).toMatchObject({
       currency: "USD",
       used: 4.5,
-      limit: 20,
     });
   });
 
@@ -557,11 +565,10 @@ describe("parseCursorUsage", () => {
     expect(snap.windows.find((w) => w.id === "cursor-api")).toMatchObject({
       currency: "USD",
       used: 0,
-      limit: 20,
     });
   });
 
-  it("omits Cursor Models spend when only API models were used, and falls back when aggregated is unusable", () => {
+  it("omits Cursor Models spend when only API models were used, and omits dollars when aggregated is unusable", () => {
     const apiOnly = parseCursorUsage(
       {
         individualUsage: {
@@ -596,7 +603,8 @@ describe("parseCursorUsage", () => {
       { aggregated: { aggregations: [] } },
     );
     expect(emptyAgg.windows.find((w) => w.id === "cursor-auto")?.used).toBeUndefined();
-    expect(emptyAgg.windows.find((w) => w.id === "cursor-api")?.used).toBeCloseTo(28.75);
+    expect(emptyAgg.windows.find((w) => w.id === "cursor-api")?.used).toBeUndefined();
+    expect(emptyAgg.windows.find((w) => w.id === "cursor-api")?.limit).toBeUndefined();
   });
 
   it("adds an on-demand window when enabled", () => {
@@ -616,7 +624,7 @@ describe("parseCursorUsage", () => {
     expect(onDemand?.usedPercent).toBeCloseTo(25);
   });
 
-  it("uses team on-demand limit when individual on-demand limit is null", () => {
+  it("uses team on-demand usage and limit when individual on-demand limit is null", () => {
     const snap = parseCursorUsage(
       {
         membershipType: "enterprise",
@@ -632,9 +640,9 @@ describe("parseCursorUsage", () => {
       NOW,
     );
     const onDemand = snap.windows.find((w) => w.id === "extra-usage")!;
-    expect(onDemand.used).toBeCloseTo(1020.42);
+    expect(onDemand.used).toBeCloseTo(1051.85);
     expect(onDemand.limit).toBeCloseTo(1050);
-    expect(onDemand.usedPercent).toBeCloseTo(97.18, 2);
+    expect(onDemand.usedPercent).toBe(100);
   });
 
   it("shows on-demand when it is enabled but unused", () => {
@@ -685,9 +693,9 @@ describe("parseCursorUsage", () => {
       NOW,
     );
     const onDemand = snap.windows.find((w) => w.id === "extra-usage")!;
-    expect(onDemand.used).toBeCloseTo(1020.42);
+    expect(onDemand.used).toBeCloseTo(1051.85);
     expect(onDemand.limit).toBeCloseTo(1050);
-    expect(onDemand.usedPercent).toBeCloseTo(97.18, 2);
+    expect(onDemand.usedPercent).toBe(100);
   });
 
   it.each([{ totalSpend: 0, pooledLimit: 75000 }, { pooledLimit: 75000 }])(
@@ -706,11 +714,54 @@ describe("parseCursorUsage", () => {
     { totalSpend: 500 },
     { totalSpend: 500, pooledLimit: 0 },
     { totalSpend: 500, pooledLimit: "0" },
-    { totalSpend: 500, individualLimit: 0, pooledLimit: 75000 },
-    { totalSpend: 500, individualLimit: "0", pooledLimit: "75000" },
   ])("hides period spend without an allowance: %j", (spendLimitUsage) => {
     const snap = parseCursorUsage({ spendLimitUsage }, {}, NOW);
     expect(snap.windows.find((w) => w.id === "extra-usage")).toBeUndefined();
+  });
+
+  it.each([0, "0"])(
+    "uses the pooled team allowance when the individual cap is zero (%j)",
+    (individualLimit) => {
+      const snap = parseCursorUsage(
+        {
+          spendLimitUsage: {
+            totalSpend: 500,
+            individualLimit,
+            individualUsed: 500,
+            pooledLimit: 75000,
+            pooledUsed: 750,
+          },
+        },
+        {},
+        NOW,
+      );
+      expect(snap.windows.find((w) => w.id === "extra-usage")).toMatchObject({
+        used: 7.5,
+        limit: 750,
+        usedPercent: 1,
+      });
+    },
+  );
+
+  it("honors an explicit user-scoped spend limit without mixing in pooled usage", () => {
+    const snap = parseCursorUsage(
+      {
+        spendLimitUsage: {
+          limitType: "user",
+          totalSpend: 105185,
+          individualLimit: 100000,
+          individualUsed: 102042,
+          pooledLimit: "105000",
+          pooledUsed: 105185,
+        },
+      },
+      {},
+      NOW,
+    );
+    expect(snap.windows.find((w) => w.id === "extra-usage")).toMatchObject({
+      used: 1020.42,
+      limit: 1000,
+    });
   });
 
   it("honors disabled on-demand despite period allowance and past spend", () => {
@@ -757,11 +808,11 @@ describe("parseCursorPeriodUsage", () => {
     expect(auto.usedPercent).toBeCloseTo(2.65);
     const api = snap.windows.find((w) => w.id === "cursor-api")!;
     expect(api.usedPercent).toBeCloseTo(55.07);
-    expect(api.used).toBeCloseTo(28.75);
-    expect(api.limit).toBeCloseTo(20);
+    expect(api.used).toBeUndefined();
+    expect(api.limit).toBeUndefined();
   });
 
-  it("uses the plan-info allowance instead of the period default", () => {
+  it("does not use the plan-info allowance as an API cap", () => {
     const snap = parseCursorPeriodUsage(
       {
         planUsage: {
@@ -777,8 +828,8 @@ describe("parseCursorPeriodUsage", () => {
       12000,
     );
     const api = snap.windows.find((w) => w.id === "cursor-api")!;
-    expect(api.used).toBeCloseTo(113);
-    expect(api.limit).toBeCloseTo(120);
+    expect(api.used).toBeUndefined();
+    expect(api.limit).toBeUndefined();
   });
 
   it("adds an on-demand bar from period spend-limit usage", () => {
@@ -850,16 +901,16 @@ describe("parseCursorPeriodUsage", () => {
     });
     expect(snap.windows.find((w) => w.id === "cursor-api")).toMatchObject({
       used: 183.62,
-      limit: 20,
       currency: "USD",
     });
+    expect(snap.windows.find((w) => w.id === "cursor-api")?.limit).toBeUndefined();
     const onDemand = snap.windows.find((w) => w.id === "extra-usage")!;
     expect(onDemand).toMatchObject({
       label: "On-demand",
-      used: 1020.42,
+      used: 1051.85,
       limit: 1050,
     });
-    expect(onDemand.usedPercent).toBeCloseTo(97.18, 2);
+    expect(onDemand.usedPercent).toBe(100);
     expect(snap.windows.find((w) => w.id === "cursor-auto")?.breakdown).toEqual([
       { label: "cursor-a", used: 706.77, currency: "USD" },
     ]);
@@ -881,6 +932,7 @@ describe("collectCursorFromApiKey", () => {
 
   it("exchanges the user API key then reads period usage for that account", async () => {
     const urls: string[] = [];
+    const bodies: Array<string | undefined> = [];
     const authorizations: Array<string | undefined> = [];
     const host: HostPort = {
       now: () => NOW,
@@ -891,6 +943,7 @@ describe("collectCursorFromApiKey", () => {
       http: {
         request: async (req) => {
           urls.push(req.url);
+          bodies.push(req.body);
           authorizations.push(req.headers?.Authorization);
           if (req.url === CURSOR_API_KEY_EXCHANGE_ENDPOINT) {
             return {
@@ -935,12 +988,14 @@ describe("collectCursorFromApiKey", () => {
       CURSOR_PLAN_INFO_ENDPOINT,
     ]);
     expect(authorizations[0]).toBe("Bearer crsr_work");
+    expect(JSON.parse(bodies[1] ?? "{}")).toEqual({ includePooledUsage: true });
     expect(snap.providerId).toBe("cursor:work");
     expect(snap.status).toBe("ok");
     expect(snap.plan).toBe("Cursor Enterprise");
     expect(snap.authenticatedAs).toBe("work@example.com");
     expect(snap.windows.find((w) => w.id === "cursor-auto")?.usedPercent).toBe(34);
-    expect(snap.windows.find((w) => w.id === "cursor-api")?.limit).toBeCloseTo(120);
+    expect(snap.windows.find((w) => w.id === "cursor-api")?.used).toBeUndefined();
+    expect(snap.windows.find((w) => w.id === "cursor-api")?.limit).toBeUndefined();
   });
 
   it("maps a thrown usage request to an error snapshot", async () => {
@@ -1134,7 +1189,7 @@ describe("Cursor window breakdowns and cycle tokens", () => {
     expect(snap.windows.find((w) => w.id === "extra-usage")?.breakdown).toBeUndefined();
   });
 
-  it("falls back to plan API spend when any positive-spend row cannot be classified", () => {
+  it("omits API dollars when any positive-spend row cannot be classified", () => {
     const snap = parseCursorUsage(
       {
         membershipType: "enterprise",
@@ -1155,7 +1210,7 @@ describe("Cursor window breakdowns and cycle tokens", () => {
         aggregated: {
           aggregations: [
             { modelIntent: "grok-fast", tier: 2, totalCents: 50000 },
-            // No tier and no autoBucketModels -> unclassified positive spend must fall back.
+            // No tier and no autoBucketModels -> unclassified positive spend invalidates the split.
             { modelIntent: "unknown-model", totalCents: 15000 },
           ],
         },
@@ -1163,10 +1218,11 @@ describe("Cursor window breakdowns and cycle tokens", () => {
     );
 
     expect(snap.windows.find((w) => w.id === "cursor-auto")?.used).toBeUndefined();
-    expect(snap.windows.find((w) => w.id === "cursor-api")?.used).toBeCloseTo(908.14);
+    expect(snap.windows.find((w) => w.id === "cursor-api")?.used).toBeUndefined();
+    expect(snap.windows.find((w) => w.id === "cursor-api")?.limit).toBeUndefined();
   });
 
-  it("retains proto3-omitted zero-cent rows with tokens alongside priced rows, and falls back when no row has spend", () => {
+  it("retains proto3-omitted zero-cent rows with tokens alongside priced rows, and omits dollars when no row has spend", () => {
     const withPricedRow = parseCursorUsage(
       {
         membershipType: "pro",
@@ -1233,6 +1289,7 @@ describe("Cursor window breakdowns and cycle tokens", () => {
       },
     );
     expect(withoutAnySpend.windows.find((w) => w.id === "cursor-auto")?.used).toBeUndefined();
-    expect(withoutAnySpend.windows.find((w) => w.id === "cursor-api")?.used).toBeCloseTo(15);
+    expect(withoutAnySpend.windows.find((w) => w.id === "cursor-api")?.used).toBeUndefined();
+    expect(withoutAnySpend.windows.find((w) => w.id === "cursor-api")?.limit).toBeUndefined();
   });
 });

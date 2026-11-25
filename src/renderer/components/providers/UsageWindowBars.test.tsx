@@ -45,10 +45,10 @@ describe("UsageWindowBars", () => {
       {
         id: "extra-usage",
         label: "On-demand",
-        usedPercent: 97.18,
+        usedPercent: 100,
         unit: "usd",
         currency: "USD",
-        used: 1020.42,
+        used: 1051.85,
         limit: 1050,
         breakdown: [
           { label: "Personal", used: 1020.42, currency: "USD" },

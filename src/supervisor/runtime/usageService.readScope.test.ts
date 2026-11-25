@@ -93,7 +93,7 @@ function fixture(
   };
   const emit = vi.fn<(event: SupervisorEvent) => void>();
   const cache = JSON.stringify({
-    version: 18,
+    version: 19,
     snapshots: ids.map((id) => snapshot(id)),
     profileIdentities: Object.fromEntries(ids.map((id) => [id, `source:${id}`])),
   });

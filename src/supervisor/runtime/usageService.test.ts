@@ -105,7 +105,7 @@ describe("UsageService", () => {
     }
   });
 
-  it.each([4, 6, 7, 8, 9, 10, 11, 12, 14, 15])(
+  it.each([4, 6, 7, 8, 9, 10, 11, 12, 14, 15, 18])(
     "discards snapshots from obsolete collector cache version %i",
     async (version) => {
       const cachePath = tempCachePath();
@@ -161,7 +161,7 @@ describe("UsageService", () => {
     expect(await service.getProviderUsage({})).toEqual({ snapshots: [], fromCache: false });
     expect((await service.refreshProviderUsage({ force: true })).snapshots).toEqual([fresh]);
     expect(JSON.parse(readFileSync(cachePath, "utf8"))).toMatchObject({
-      version: 18,
+      version: 19,
       snapshots: [fresh],
     });
     service.stop();
@@ -597,7 +597,7 @@ describe("UsageService", () => {
     writeFileSync(
       cachePath,
       JSON.stringify({
-        version: 18,
+        version: 19,
         snapshots: [{ providerId: "fixture", status: "ok", windows: [], fetchedAt: NOW - 600_000 }],
       }),
     );
@@ -1004,7 +1004,7 @@ describe("UsageService", () => {
       credits: { balance: 20 },
       fetchedAt: NOW - 6 * 60 * 60_000,
     };
-    writeFileSync(cachePath, JSON.stringify({ version: 18, snapshots: [previous] }));
+    writeFileSync(cachePath, JSON.stringify({ version: 19, snapshots: [previous] }));
     let failed = true;
     const options = {
       emit: () => {},
@@ -1210,12 +1210,12 @@ describe("UsageService", () => {
     }
   });
 
-  it("discards stale v17 Cursor cache entries when booting with v18", async () => {
+  it("discards stale v18 Cursor cache entries when booting with v19", async () => {
     const cachePath = tempCachePath();
     writeFileSync(
       cachePath,
       JSON.stringify({
-        version: 17,
+        version: 18,
         snapshots: [
           {
             providerId: "cursor:work",
