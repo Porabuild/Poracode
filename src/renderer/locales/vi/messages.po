@@ -1540,8 +1540,7 @@ msgstr "Thêm remote"
 msgid "Add remote connection"
 msgstr "Thêm kết nối từ xa"
 
-#: src/renderer/components/crew/CrewRosterPanel.tsx
-#: src/renderer/views/SettingsOverlay/parts/CrewsSettings.tsx
+#: src/renderer/components/crew/AddCrewRoleMenu.tsx
 msgid "Add role"
 msgstr "Thêm vai trò"
 
@@ -6157,6 +6156,14 @@ msgstr "Thiết kế và phương tiện"
 #: src/renderer/components/plugins/pluginCategories.ts
 msgid "Design and creativity"
 msgstr "Thiết kế và sáng tạo"
+
+#: src/renderer/components/crew/crewRoleTemplates.ts
+msgid "Designer"
+msgstr "Nhà thiết kế"
+
+#: src/renderer/components/crew/crewRoleTemplates.ts
+msgid "Designs and builds UI from the design system and platform guidelines, verifies it in the running app with screenshots, and reports the changes with evidence."
+msgstr "Thiết kế và xây dựng giao diện theo hệ thống thiết kế và hướng dẫn nền tảng, xác minh bằng ảnh chụp trong ứng dụng đang chạy và báo cáo thay đổi kèm bằng chứng."
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Desktop endpoint"
@@ -11258,6 +11265,10 @@ msgstr "Đã thêm mô hình vào mục yêu thích"
 #: src/renderer/components/crew/CrewMemberRow.tsx
 msgid "Model for {memberLabel}"
 msgstr "Mô hình cho {memberLabel}"
+
+#: src/renderer/components/crew/AddCrewRoleMenu.tsx
+msgid "Model for the new role"
+msgstr "Mô hình cho vai trò mới"
 
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Model id"
@@ -21566,6 +21577,10 @@ msgstr "Dùng + để ghép nối trực tiếp hoặc kết nối với máy t�
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Use 2 to 6 attempts and delays between 1 and 3600 seconds."
 msgstr "Dùng từ 2 đến 6 lần thử và thời gian chờ từ 1 đến 3600 giây."
+
+#: src/renderer/components/crew/CrewRoleDetails.tsx
+msgid "Use a predefined role"
+msgstr "Dùng vai trò có sẵn"
 
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Use a run limit between 1 and 100, or leave it empty."

@@ -96,6 +96,38 @@ describe("crewComposerModel", () => {
     expect(isLeadEdited({ ...saved.lead, effort: undefined }, saved)).toBe(true);
     expect(isCrewEdited({ ...binding, policy: "crew-first" }, saved.lead, saved)).toBe(true);
     expect(isCrewEdited(binding, saved.lead, undefined)).toBe(false);
+    expect(isLeadEdited({ ...saved.lead, fast: false }, saved)).toBe(false);
+    expect(isLeadEdited({ ...saved.lead, fast: true }, saved)).toBe(true);
+    const savedFastOff = { ...saved, lead: { ...saved.lead, fast: false as const } };
+    expect(isLeadEdited(saved.lead, savedFastOff)).toBe(false);
+    expect(
+      isRoleEdited(
+        { ...binding.roles[0]!, selection: { ...binding.roles[0]!.selection, fast: false } },
+        saved,
+      ),
+    ).toBe(false);
+    expect(
+      isRoleEdited(
+        { ...binding.roles[0]!, selection: { ...binding.roles[0]!.selection, fast: true } },
+        saved,
+      ),
+    ).toBe(true);
+    const savedWithFallback = {
+      ...saved,
+      roles: [{ ...saved.roles[0]!, fallbacks: [helper] }],
+    };
+    expect(
+      isRoleEdited(
+        { ...binding.roles[0]!, fallbacks: [{ ...helper, fast: false }] },
+        savedWithFallback,
+      ),
+    ).toBe(false);
+    expect(
+      isRoleEdited(
+        { ...binding.roles[0]!, fallbacks: [{ ...helper, fast: true }] },
+        savedWithFallback,
+      ),
+    ).toBe(true);
   });
 
   it("creates, adds, edits and removes role bindings within limits", () => {
@@ -178,6 +210,28 @@ describe("crewComposerModel", () => {
 
     // Without an implementing role, Builder is still offered first.
     expect(addRole(fromTemplate("explore"), readyTemplates, helper).roleId).toBe("builder");
+  });
+
+  it("keeps the implementing slot single so Designer never duplicates Builder", () => {
+    const fromTemplate = (templateId: string): ThreadCrewBinding => ({
+      version: 1,
+      policy: "crew-only",
+      roles: crewRolesFromTemplate(
+        CREW_TEMPLATE_DESCRIPTORS.find((template) => template.id === templateId)!,
+        readyTemplates,
+        () => helper,
+      ),
+    });
+    // Builder is the first unused implementer; Designer shares that one slot.
+    const builder = addRole(fromTemplate("explore"), readyTemplates, helper);
+    expect(builder.roleId).toBe("builder");
+    expect(addRole(builder.binding, readyTemplates, helper).roleId).toBe("reviewer");
+    // A crew that already chose Designer also skips Builder.
+    const designer = newCrewBinding(
+      helper,
+      readyTemplates.find((role) => role.id === "designer")!,
+    );
+    expect(addRole(designer, readyTemplates, helper).roleId).toBe("reviewer");
   });
 
   it("resets and saves existing or new crews with trimmed names", () => {

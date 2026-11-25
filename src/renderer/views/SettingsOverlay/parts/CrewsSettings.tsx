@@ -25,6 +25,7 @@ import {
   crewRolesFromTemplate,
 } from "@/renderer/components/crew/crewTemplates";
 import { CrewMemberRow } from "@/renderer/components/crew/CrewMemberRow";
+import { AddCrewRoleMenu } from "@/renderer/components/crew/AddCrewRoleMenu";
 import { CrewRolePill } from "@/renderer/components/crew/CrewRolePill";
 import { formatEffortLabel } from "@/renderer/components/thread/threadDraftViewHelpers";
 import { ThreadDockIconButton } from "@/renderer/components/thread/ThreadDockUI";
@@ -504,12 +505,14 @@ function CrewEditorModal(props: {
                       ),
                     }))
                   }
-                  onRoleChange={(patch) =>
+                  onRoleChange={(patch) => {
                     setDraft((current) => {
                       const next = updateRole(draftBindingOf(current), role.id, patch);
                       return { ...current, roles: next.roles };
-                    })
-                  }
+                    });
+                    // A predefined role replaces the id; keep its details expanded.
+                    if (patch.id && patch.id !== role.id) setEditingRoleId(patch.id);
+                  }}
                   onRemoveRole={() => {
                     setDraft((current) => ({
                       ...current,
@@ -519,21 +522,16 @@ function CrewEditorModal(props: {
                   }}
                 />
               ))}
-              <Button
-                size="sm"
-                variant="ghost"
-                className="mt-0.5 h-7 w-full justify-start gap-1.5 px-1.5 text-xs text-muted hover:text-foreground"
-                isDisabled={!model.defaultHelper || draft.roles.length >= MAX_CREW_ROLES}
-                onPress={() => {
-                  if (!model.defaultHelper) return;
-                  const result = addRole(binding, model.roleTemplates, model.defaultHelper);
+              <AddCrewRoleMenu
+                providers={helperOptions.providers}
+                isDisabled={draft.roles.length >= MAX_CREW_ROLES}
+                selectionFor={helperOptions.selectionFor}
+                onAdd={(selection) => {
+                  const result = addRole(binding, model.roleTemplates, selection);
                   setDraft((current) => ({ ...current, roles: result.binding.roles }));
                   if (result.roleId) setEditingRoleId(result.roleId);
                 }}
-              >
-                <Plus className="size-3.5" />
-                <Trans>Add role</Trans>
-              </Button>
+              />
             </ContentSurface>
           </Modal.Body>
           <Modal.Footer>

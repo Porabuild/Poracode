@@ -1540,8 +1540,7 @@ msgstr "Додати віддалений репозиторій"
 msgid "Add remote connection"
 msgstr "Додати віддалене підключення"
 
-#: src/renderer/components/crew/CrewRosterPanel.tsx
-#: src/renderer/views/SettingsOverlay/parts/CrewsSettings.tsx
+#: src/renderer/components/crew/AddCrewRoleMenu.tsx
 msgid "Add role"
 msgstr "Додати роль"
 
@@ -6157,6 +6156,14 @@ msgstr "Дизайн та медіа"
 #: src/renderer/components/plugins/pluginCategories.ts
 msgid "Design and creativity"
 msgstr "Дизайн і творчість"
+
+#: src/renderer/components/crew/crewRoleTemplates.ts
+msgid "Designer"
+msgstr "Дизайнер"
+
+#: src/renderer/components/crew/crewRoleTemplates.ts
+msgid "Designs and builds UI from the design system and platform guidelines, verifies it in the running app with screenshots, and reports the changes with evidence."
+msgstr "Проєктує та збирає інтерфейс за дизайн-системою і правилами платформи, перевіряє його скриншотами в запущеному застосунку та повідомляє про зміни з доказами."
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Desktop endpoint"
@@ -11258,6 +11265,10 @@ msgstr "Модель додано до обраного"
 #: src/renderer/components/crew/CrewMemberRow.tsx
 msgid "Model for {memberLabel}"
 msgstr "Модель для {memberLabel}"
+
+#: src/renderer/components/crew/AddCrewRoleMenu.tsx
+msgid "Model for the new role"
+msgstr "Модель для нової ролі"
 
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Model id"
@@ -21566,6 +21577,10 @@ msgstr "Скористайтеся +, щоб створити пару безп�
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Use 2 to 6 attempts and delays between 1 and 3600 seconds."
 msgstr "Укажіть від 2 до 6 спроб і затримки від 1 до 3600 секунд."
+
+#: src/renderer/components/crew/CrewRoleDetails.tsx
+msgid "Use a predefined role"
+msgstr "Використати попередньо визначену роль"
 
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Use a run limit between 1 and 100, or leave it empty."

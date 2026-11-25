@@ -18,10 +18,41 @@ extension HomeQuickComposeView {
       leadInstanceID: composerAgentInstanceID)
   }
 
+  /// True while the first saved-crews load is still in flight for a fresh draft
+  /// that carries a remembered (unsaved) crew binding. Send waits because the
+  /// launch would otherwise start that stale crew before reconciliation. A
+  /// failed load is not a pending one: a later refresh retries it instead of
+  /// blocking Send forever.
+  var savedCrewRestorePending: Bool {
+    let state = draft.crews.state
+    return HomeCrewRestore.holdsLaunch(
+      hasConfiguredConfiguration: draft.configuredConfiguration != nil,
+      crewsLoadPending: state == .idle || state == .loading,
+      remembered: ThreadCrewBinding(wire: effectiveConfiguration?.crew))
+  }
+
   func loadCrews() async {
     guard ownsCurrentConnection, !session.state.liveLifecycle.isInBackground else { return }
     draft.crews.activate(session.currentSettingsHostSelection)
     await draft.crews.load()
+    reconcileSavedCrew()
+  }
+
+  /// The remembered project draft's Crew binding is not authoritative once the
+  /// saved crews load: a still-unedited draft follows the saved crew's roster
+  /// and lead. A user edit wins, an unavailable lead stays untouched, and a
+  /// later load after a late catalog or settings pass can still reconcile. The
+  /// open roster owns its own snapshot, so reconciling under it would let its
+  /// Done write that snapshot back over the corrected draft.
+  private func reconcileSavedCrew() {
+    guard ownsCurrentConnection, draft.selector != .crew,
+      let saved = HomeCrewRestore.savedCrew(
+        for: ThreadCrewBinding(wire: effectiveConfiguration?.crew),
+        in: draft.crews.crews,
+        currentLead: currentCrewLead,
+        hasConfiguredConfiguration: draft.configuredConfiguration != nil)
+    else { return }
+    _ = applyCrew(saved.binding, lead: saved.lead)
   }
 
   var orderedCrews: [SavedCrew] {

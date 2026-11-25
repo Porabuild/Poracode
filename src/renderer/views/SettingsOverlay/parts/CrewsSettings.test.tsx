@@ -39,10 +39,42 @@ const helperOptions = vi.hoisted(() => {
     settingDefs: [],
   };
   const providers = [
-    { kind: "codex", label: "Codex", capabilities },
-    { kind: "claude", label: "Claude", capabilities },
-    { kind: "gemini", label: "Gemini", capabilities },
-    { kind: "qwen", label: "Qwen", capabilities },
+    {
+      kind: "codex",
+      label: "Codex",
+      capabilities: {
+        ...capabilities,
+        models: [{ id: "codex-model", label: "Codex Model" }],
+        modelEfforts: { "codex-model": ["low", "high"] },
+      },
+    },
+    {
+      kind: "claude",
+      label: "Claude",
+      capabilities: {
+        ...capabilities,
+        models: [{ id: "claude-model", label: "Claude Model" }],
+        modelEfforts: { "claude-model": ["low", "high"] },
+      },
+    },
+    {
+      kind: "gemini",
+      label: "Gemini",
+      capabilities: {
+        ...capabilities,
+        models: [{ id: "gemini-model", label: "Gemini Model" }],
+        modelEfforts: { "gemini-model": ["low", "high"] },
+      },
+    },
+    {
+      kind: "qwen",
+      label: "Qwen",
+      capabilities: {
+        ...capabilities,
+        models: [{ id: "qwen-model", label: "Qwen Model" }],
+        modelEfforts: { "qwen-model": ["low", "high"] },
+      },
+    },
   ];
   return {
     providers,
@@ -416,10 +448,18 @@ describe("CrewsSettings", () => {
     expect(screen.getByRole("button", { name: "Save" })).toBeEnabled();
 
     // Duplicate role names disable Save instead of silently dropping a role.
-    fireEvent.click(screen.getByRole("button", { name: "Add role" }));
+    // The profile picker adds nothing until a model is picked.
+    fireEvent.click(screen.getByRole("button", { name: "Model for the new role" }));
+    const listbox = await screen.findByRole("listbox", { name: "Models" });
+    expect(screen.getAllByRole("textbox", { name: "Role name", hidden: true })).toHaveLength(1);
+    expect(screen.getByRole("textbox", { name: "Role name", hidden: true })).toHaveValue(
+      "Code Reviewer",
+    );
+    fireEvent.click(within(listbox).getByText("Codex Model").closest('[role="option"]')!);
     const addedRoleNameInput = (await screen.findByRole("textbox", {
       name: "Role name",
     })) as HTMLInputElement;
+    await waitFor(() => expect(addedRoleNameInput.value).toBe("Builder"));
     fireEvent.change(addedRoleNameInput, { target: { value: "code reviewer" } });
     expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
     fireEvent.change(addedRoleNameInput, { target: { value: "Builder" } });
@@ -432,7 +472,10 @@ describe("CrewsSettings", () => {
       name: "Work Crew 1",
       roles: [
         expect.objectContaining({ label: "Code Reviewer" }),
-        expect.objectContaining({ label: "Builder" }),
+        expect.objectContaining({
+          label: "Builder",
+          selection: { agentKind: "codex", model: "codex-model", effort: "low" },
+        }),
       ],
     });
     upsertSpy.mockRestore();
@@ -474,6 +517,31 @@ describe("CrewsSettings", () => {
         { id: "builder", label: "Builder" },
         { id: "reviewer", label: "Reviewer", noEdits: true },
       ],
+    });
+  });
+
+  it("applies a predefined role in the editor, keeping the role's helper model", async () => {
+    renderWithI18n(<CrewsSettings />);
+    fireEvent.click(document.querySelector('button[aria-label="New crew"]')!);
+    fireEvent.click(await screen.findByRole("option", { name: /^Lead \+ Sidekick/u }));
+    await screen.findByRole("dialog");
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(useSharedSettings.getState().crews).toHaveLength(1));
+
+    fireEvent.click(await screen.findByRole("button", { name: "Edit Lead + Sidekick" }));
+    await screen.findByRole("dialog");
+    fireEvent.click(screen.getByRole("button", { name: "Role details" }));
+    fireEvent.click(screen.getByRole("button", { name: "Use a predefined role" }));
+    fireEvent.click(await screen.findByRole("option", { name: /^Designer/u }));
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+
+    expect(useSharedSettings.getState().crews[0]?.roles[0]).toMatchObject({
+      id: "designer",
+      label: "Designer",
+      brief:
+        "Designs and builds UI from the design system and platform guidelines, verifies it in the running app with screenshots, and reports the changes with evidence.",
+      selection: { agentKind: "claude", model: "claude-model" },
     });
   });
 

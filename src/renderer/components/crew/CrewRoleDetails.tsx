@@ -1,5 +1,6 @@
+import { useState } from "react";
 import { useLingui } from "@lingui/react/macro";
-import { Plus, Trash2, X } from "lucide-react";
+import { LayoutTemplate, Plus, Trash2, X } from "lucide-react";
 import { Button } from "@/renderer/components/common/Button";
 import { Input } from "@/renderer/components/common/Input";
 import { OptionMenu } from "@/renderer/components/common/OptionMenu";
@@ -21,8 +22,9 @@ export function CrewRoleDetails(props: {
   role: CrewRole;
   canRemove: boolean;
   onRoleChange: (patch: {
+    id?: string;
     label?: string;
-    brief?: string;
+    brief?: string | undefined;
     noEdits?: true | undefined;
     parallel?: number;
     fallbacks?: CrewRole["fallbacks"];
@@ -32,6 +34,22 @@ export function CrewRoleDetails(props: {
   const { t } = useLingui();
   const { model, role } = props;
   const fallbacks = role.fallbacks ?? [];
+  // The roster's live-thread binding is re-normalized on every render, which
+  // trims a trailing space. A local buffer keeps the text exactly as typed
+  // while the field is focused; blur snaps back to the persisted value.
+  const [labelDraft, setLabelDraft] = useState<string | null>(null);
+  const [briefDraft, setBriefDraft] = useState<string | null>(null);
+  const usedTemplateIds = new Set(
+    model.binding.roles
+      .filter((candidate) => candidate.id !== role.id)
+      .map((candidate) => candidate.id),
+  );
+  const roleTemplates = model.roleTemplates.filter((template) => !usedTemplateIds.has(template.id));
+  const templateOptions = roleTemplates.map((template) => ({
+    id: template.id,
+    label: template.label,
+    ...(template.brief ? { hint: template.brief } : {}),
+  }));
 
   return (
     <div className="ml-6 flex flex-col gap-2 py-1.5">
@@ -41,10 +59,45 @@ export function CrewRoleDetails(props: {
           <Input
             aria-label={t`Role name`}
             maxLength={24}
-            value={role.label}
-            onChange={(event) => props.onRoleChange({ label: event.target.value })}
+            value={labelDraft ?? role.label}
+            onFocus={() => setLabelDraft(role.label)}
+            onChange={(event) => {
+              setLabelDraft(event.target.value);
+              props.onRoleChange({ label: event.target.value });
+            }}
+            onBlur={() => setLabelDraft(null)}
+            onKeyDown={(event) => {
+              // The roster is a menu surface; keep Space from being treated as
+              // menu activation while a native text field owns the key.
+              if (event.key === " ") event.stopPropagation();
+            }}
             variant="secondary"
             className="h-7 min-w-0 text-xs"
+          />
+        </div>
+        <div className="shrink-0 pb-0.5">
+          <OptionMenu
+            value={role.id}
+            placeholder={t`Use a predefined role`}
+            tooltip={t`Use a predefined role`}
+            icon={<LayoutTemplate className="size-3.5" />}
+            iconOnly
+            options={templateOptions}
+            buttonVariant="ghost"
+            isDisabled={model.isDisabled || templateOptions.length === 0}
+            className="size-7 min-h-7 min-w-7 shrink-0"
+            onChange={(templateId) => {
+              const template = model.roleTemplates.find((candidate) => candidate.id === templateId);
+              if (!template) return;
+              // Keep the role's selection, parallel count and fallbacks; only
+              // the template identity and its text/read-only flag change.
+              props.onRoleChange({
+                id: template.id,
+                label: template.label,
+                brief: template.brief,
+                noEdits: template.noEdits,
+              });
+            }}
           />
         </div>
         <div className="flex shrink-0 flex-col gap-1">
@@ -76,8 +129,16 @@ export function CrewRoleDetails(props: {
         <Input
           aria-label={t`When to use`}
           maxLength={160}
-          value={role.brief ?? ""}
-          onChange={(event) => props.onRoleChange({ brief: event.target.value })}
+          value={briefDraft ?? role.brief ?? ""}
+          onFocus={() => setBriefDraft(role.brief ?? "")}
+          onChange={(event) => {
+            setBriefDraft(event.target.value);
+            props.onRoleChange({ brief: event.target.value });
+          }}
+          onBlur={() => setBriefDraft(null)}
+          onKeyDown={(event) => {
+            if (event.key === " ") event.stopPropagation();
+          }}
           variant="secondary"
           className="h-7 min-w-0 text-xs"
         />

@@ -223,7 +223,7 @@ extension HomeQuickComposeView {
 
   var startButton: some View {
     HomeComposerStartButton(
-      canStart: canStart,
+      canStart: canStart && !savedCrewRestorePending,
       isBusy: draft.lifecycle.isBusy || draft.preparingWorktree,
       start: start
     )

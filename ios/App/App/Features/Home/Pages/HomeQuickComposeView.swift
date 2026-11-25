@@ -157,7 +157,12 @@ struct HomeQuickComposeView: View {
         if destination != .model { draft.modelSearch = "" }
         if destination == .add { Task { await loadComposerTools(servers: true) } }
         if destination == .model || destination == .crew { Task { await reloadComposerSettings() } }
-        if previous == .crew && destination == nil { draft.crewRoster = nil }
+        if previous == .crew && destination == nil {
+          draft.crewRoster = nil
+          // Reconciliation skips while the roster is open; a load pass after it
+          // closes re-attempts it without waiting for another settings change.
+          Task { await reloadComposerSettings() }
+        }
       }
       .onChange(of: draft.photoItem) { _, item in
         guard isCurrentPresentation, ownsCurrentConnection, let item else { return }

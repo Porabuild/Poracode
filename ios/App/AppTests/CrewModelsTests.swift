@@ -204,4 +204,95 @@ final class CrewModelsTests: XCTestCase {
     let future = Data(#"{"version":3,"defaultFastEnabled":true,"providers":{"fixture":{"order":0,"defaultFastEnabled":false}}}"#.utf8)
     XCTAssertNil(ProviderUIRegistry.decode(future))
   }
+
+  @MainActor
+  func testCrewInspectorTreatsFastOffAndNoFastCarrierAsTheSameSelection() {
+    let saved = CrewMemberSelection(agentKind: "alpha", model: "model-pro", effort: "high")
+    XCTAssertTrue(CrewInspectorCard.same(.init(agentKind: "alpha", model: "model-pro", effort: "high", fast: false), saved))
+    XCTAssertTrue(CrewInspectorCard.same(saved, .init(agentKind: "alpha", model: "model-pro", effort: "high", fast: false)))
+    XCTAssertFalse(CrewInspectorCard.same(.init(agentKind: "alpha", model: "model-pro", effort: "high", fast: true), saved))
+    XCTAssertFalse(CrewInspectorCard.same(saved, .init(agentKind: "alpha", model: "model-pro", effort: "high", fast: true)))
+  }
+
+  @MainActor
+  func testFreshHomeDraftReconcilesItsRememberedCrewToTheSavedRosterAndLead() {
+    let saved = saved()
+    let stale = ThreadCrewBinding(crewID: saved.id, name: "Old name", policy: .crewFirst,
+      roles: [.init(id: "reviewer", label: "Reviewer",
+        selection: .init(agentKind: "alpha", model: "model-old"))])
+    let reconciled = HomeCrewRestore.savedCrew(for: stale, in: [saved],
+      currentLead: .init(agentKind: "alpha", model: "model-old", effort: "low"),
+      hasConfiguredConfiguration: false)
+    XCTAssertEqual(reconciled, saved)
+  }
+
+  @MainActor
+  func testConfiguredHomeDraftNeverOverwritesItsUserEditedSelection() {
+    let saved = saved()
+    let stale = ThreadCrewBinding(crewID: saved.id, name: "Old name", policy: .crewOnly,
+      roles: [.init(id: "reviewer", label: "Reviewer",
+        selection: .init(agentKind: "alpha", model: "model-old"))])
+    XCTAssertNil(HomeCrewRestore.savedCrew(for: stale, in: [saved],
+      currentLead: .init(agentKind: "alpha", model: "model-old"),
+      hasConfiguredConfiguration: true))
+  }
+
+  @MainActor
+  func testMatchingCrewLeadAndBindingNeedNoReconciliationIncludingAbsentFast() {
+    let saved = saved()
+    // saved.lead carries fast: false; an absent remembered Fast is equivalent.
+    let lead = CrewMemberSelection(agentKind: saved.lead.agentKind, model: saved.lead.model,
+      effort: saved.lead.effort)
+    XCTAssertNil(HomeCrewRestore.savedCrew(for: saved.binding, in: [saved],
+      currentLead: lead, hasConfiguredConfiguration: false))
+    // A stale roster still adopts the saved binding when the lead already matches.
+    let stale = ThreadCrewBinding(crewID: saved.id, name: saved.name, policy: saved.policy,
+      roles: [.init(id: "reviewer", label: "Reviewer", selection: lead)])
+    XCTAssertEqual(HomeCrewRestore.savedCrew(for: stale, in: [saved],
+      currentLead: lead, hasConfiguredConfiguration: false), saved)
+    // No remembered binding or no matching saved crew is a no-op.
+    XCTAssertNil(HomeCrewRestore.savedCrew(for: nil, in: [saved], currentLead: lead,
+      hasConfiguredConfiguration: false))
+    XCTAssertNil(HomeCrewRestore.savedCrew(
+      for: ThreadCrewBinding(crewID: "missing", roles: saved.roles), in: [saved],
+      currentLead: lead, hasConfiguredConfiguration: false))
+  }
+
+  @MainActor
+  func testFreshCrewBoundDraftHoldsLaunchOnlyWhileCrewsArePending() {
+    let binding = ThreadCrewBinding(crewID: "crew-one", roles: [
+      .init(id: "reviewer", label: "Reviewer",
+        selection: .init(agentKind: "alpha", model: "model-pro")),
+    ])
+    // A fresh draft waits only while the saved-crews load has not finished.
+    XCTAssertTrue(HomeCrewRestore.holdsLaunch(hasConfiguredConfiguration: false,
+      crewsLoadPending: true, remembered: binding))
+    XCTAssertFalse(HomeCrewRestore.holdsLaunch(hasConfiguredConfiguration: false,
+      crewsLoadPending: false, remembered: binding))
+    // A user-edited draft never waits, even before the crews load.
+    XCTAssertFalse(HomeCrewRestore.holdsLaunch(hasConfiguredConfiguration: true,
+      crewsLoadPending: true, remembered: binding))
+    // A crew-less remembered selection never waits.
+    XCTAssertFalse(HomeCrewRestore.holdsLaunch(hasConfiguredConfiguration: false,
+      crewsLoadPending: true, remembered: ThreadCrewBinding(roles: binding.roles)))
+    XCTAssertFalse(HomeCrewRestore.holdsLaunch(hasConfiguredConfiguration: false,
+      crewsLoadPending: true, remembered: nil))
+  }
+
+  @MainActor
+  func testDesignerTemplateSitsAfterBuilderAndSharesTheImplementerSlot() {
+    let ids = CrewTemplates.roles.map(\.id)
+    XCTAssertEqual(ids.firstIndex(of: "designer"), ids.firstIndex(of: "builder").map { $0 + 1 })
+    let designer = CrewTemplates.roles.first { $0.id == "designer" }
+    XCTAssertEqual(designer?.englishLabel, "Designer")
+    XCTAssertEqual(designer?.builder, true)
+    XCTAssertEqual(designer?.englishBrief.isEmpty, false)
+    // A crew that already has Builder is not offered a second implementer.
+    let builder = CrewTemplates.roles.first { $0.id == "builder" }!
+    let selection = CrewMemberSelection(agentKind: "alpha", model: "model-pro")
+    let binding = ThreadCrewBinding(policy: .crewOnly, roles: [builder.role(selection: selection)])
+    let (next, roleID) = CrewTemplates.addingRole(to: binding, selection: selection)
+    XCTAssertEqual(roleID, "reviewer")
+    XCTAssertEqual(next.roles.map(\.id), ["builder", "reviewer"])
+  }
 }

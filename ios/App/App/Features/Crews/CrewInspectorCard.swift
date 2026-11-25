@@ -92,7 +92,7 @@ struct CrewInspectorCard: View {
   }
 
   static func same(_ left: CrewMemberSelection, _ right: CrewMemberSelection) -> Bool {
-    left.agentKind == right.agentKind && left.model == right.model && left.fast == right.fast
+    left.agentKind == right.agentKind && left.model == right.model && (left.fast == true) == (right.fast == true)
       && (left.effort ?? "") == (right.effort ?? "") && (left.contextSize ?? "") == (right.contextSize ?? "")
   }
 

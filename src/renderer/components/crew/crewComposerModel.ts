@@ -89,7 +89,8 @@ function sameSelection(left: CrewMemberSelection, right: CrewMemberSelection): b
     left.agentKind === right.agentKind &&
     left.model === right.model &&
     sameEffort(left.effort, right.effort) &&
-    left.fast === right.fast &&
+    // Fast off and no Fast carrier are the same selection.
+    (left.fast === true) === (right.fast === true) &&
     (left.contextSize || undefined) === (right.contextSize || undefined)
   );
 }

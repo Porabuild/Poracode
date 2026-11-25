@@ -1540,8 +1540,7 @@ msgstr "Ajouter un dépôt distant"
 msgid "Add remote connection"
 msgstr "Ajouter une connexion distante"
 
-#: src/renderer/components/crew/CrewRosterPanel.tsx
-#: src/renderer/views/SettingsOverlay/parts/CrewsSettings.tsx
+#: src/renderer/components/crew/AddCrewRoleMenu.tsx
 msgid "Add role"
 msgstr "Ajouter un rôle"
 
@@ -6157,6 +6156,14 @@ msgstr "Design et médias"
 #: src/renderer/components/plugins/pluginCategories.ts
 msgid "Design and creativity"
 msgstr "Design et créativité"
+
+#: src/renderer/components/crew/crewRoleTemplates.ts
+msgid "Designer"
+msgstr "Designer"
+
+#: src/renderer/components/crew/crewRoleTemplates.ts
+msgid "Designs and builds UI from the design system and platform guidelines, verifies it in the running app with screenshots, and reports the changes with evidence."
+msgstr "Conçoit l’interface selon le design system et les règles de la plateforme, la vérifie par captures dans l’app et rapporte les changements avec preuves."
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Desktop endpoint"
@@ -11257,6 +11264,10 @@ msgstr "Modèle ajouté aux favoris"
 #: src/renderer/components/crew/CrewMemberRow.tsx
 msgid "Model for {memberLabel}"
 msgstr "Modèle pour {memberLabel}"
+
+#: src/renderer/components/crew/AddCrewRoleMenu.tsx
+msgid "Model for the new role"
+msgstr "Modèle pour le nouveau rôle"
 
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Model id"
@@ -21565,6 +21576,10 @@ msgstr "Utilisez + pour effectuer un appairage direct ou vous connecter à une m
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Use 2 to 6 attempts and delays between 1 and 3600 seconds."
 msgstr "Utilisez 2 à 6 tentatives et des délais de 1 à 3600 secondes."
+
+#: src/renderer/components/crew/CrewRoleDetails.tsx
+msgid "Use a predefined role"
+msgstr "Utiliser un rôle prédéfini"
 
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Use a run limit between 1 and 100, or leave it empty."

@@ -167,6 +167,172 @@
         }
       }
     },
+    "Designer": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Designer"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Designer"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diseñador"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Designer"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "デザイナー"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "디자이너"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Projektant"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Designer"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Дизайнер"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tasarımcı"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Дизайнер"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nhà thiết kế"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "设计师"
+          }
+        }
+      }
+    },
+    "Designs and builds UI from the design system and platform guidelines, verifies it in the running app with screenshots, and reports the changes with evidence.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Designs and builds UI from the design system and platform guidelines, verifies it in the running app with screenshots, and reports the changes with evidence."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Entwirft und baut UI nach Designsystem und Plattformrichtlinien, prüft sie mit Screenshots in der laufenden App und meldet die Änderungen mit Belegen."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diseña y construye la interfaz según el sistema de diseño y las guías de la plataforma, la verifica con capturas en la app y reporta los cambios con evidencia."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Conçoit et construit l'interface selon le design system et les règles de la plateforme, la vérifie par captures dans l'app et rapporte les changements avec preuves."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "デザインシステムとプラットフォームのガイドラインに沿ってUIを設計・実装し、実行中のアプリでスクリーンショットにより検証して、変更点を根拠とともに報告します。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "디자인 시스템과 플랫폼 가이드라인에 맞춰 UI를 설계하고 구현하며, 실행 중인 앱에서 스크린샷으로 검증하고 변경 사항을 근거와 함께 보고합니다."
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Projektuje i buduje interfejs zgodnie z systemem designu i wytycznymi platformy, weryfikuje go zrzutami ekranu w działającej aplikacji i raportuje zmiany z dowodami."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Projeta e constrói a interface seguindo o design system e as diretrizes da plataforma, verifica com capturas no app em execução e relata as mudanças com evidências."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Проектирует и собирает интерфейс по дизайн-системе и правилам платформы, проверяет его скриншотами в запущенном приложении и сообщает об изменениях с доказательствами."
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Arayüzü tasarım sistemi ve platform yönergelerine göre tasarlar ve uygular, çalışan uygulamada ekran görüntüleriyle doğrular ve değişiklikleri kanıtlarla bildirir."
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Проєктує та збирає інтерфейс за дизайн-системою і правилами платформи, перевіряє його скриншотами в запущеному застосунку та повідомляє про зміни з доказами."
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Thiết kế và xây dựng giao diện theo hệ thống thiết kế và hướng dẫn nền tảng, xác minh bằng ảnh chụp trong ứng dụng đang chạy và báo cáo thay đổi kèm bằng chứng."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "依据设计系统和平台规范设计并构建界面，在运行中的应用里用截图验证，并附上证据报告改动。"
+          }
+        }
+      }
+    },
     "Reviewer": {
       "extractionState": "manual",
       "localizations": {

@@ -1540,8 +1540,7 @@ msgstr "리모트 추가"
 msgid "Add remote connection"
 msgstr "원격 연결 추가"
 
-#: src/renderer/components/crew/CrewRosterPanel.tsx
-#: src/renderer/views/SettingsOverlay/parts/CrewsSettings.tsx
+#: src/renderer/components/crew/AddCrewRoleMenu.tsx
 msgid "Add role"
 msgstr "역할 추가"
 
@@ -6157,6 +6156,14 @@ msgstr "디자인 및 미디어"
 #: src/renderer/components/plugins/pluginCategories.ts
 msgid "Design and creativity"
 msgstr "디자인 및 창의성"
+
+#: src/renderer/components/crew/crewRoleTemplates.ts
+msgid "Designer"
+msgstr "디자이너"
+
+#: src/renderer/components/crew/crewRoleTemplates.ts
+msgid "Designs and builds UI from the design system and platform guidelines, verifies it in the running app with screenshots, and reports the changes with evidence."
+msgstr "디자인 시스템과 플랫폼 가이드라인에 맞춰 UI를 설계하고 구현하며, 실행 중인 앱에서 스크린샷으로 검증하고 변경 사항을 근거와 함께 보고합니다."
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Desktop endpoint"
@@ -11258,6 +11265,10 @@ msgstr "모델을 즐겨찾기에 추가함"
 #: src/renderer/components/crew/CrewMemberRow.tsx
 msgid "Model for {memberLabel}"
 msgstr "{memberLabel} 모델"
+
+#: src/renderer/components/crew/AddCrewRoleMenu.tsx
+msgid "Model for the new role"
+msgstr "새 역할 모델"
 
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Model id"
@@ -21566,6 +21577,10 @@ msgstr "+를 사용해 직접 페어링하거나 SSH를 통해 원격 컴퓨터�
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Use 2 to 6 attempts and delays between 1 and 3600 seconds."
 msgstr "시도 횟수는 2~6회, 대기 시간은 1~3600초로 설정하세요."
+
+#: src/renderer/components/crew/CrewRoleDetails.tsx
+msgid "Use a predefined role"
+msgstr "미리 정의된 역할 사용"
 
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Use a run limit between 1 and 100, or leave it empty."

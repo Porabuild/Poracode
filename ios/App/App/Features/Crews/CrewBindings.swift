@@ -110,3 +110,31 @@ extension SettingsDocument {
     return (crews ?? []).compactMap(SavedCrew.init(wire:)).filter { ids.insert($0.id).inserted }
   }
 }
+
+/// The saved crew a fresh Home draft follows. A remembered project draft keeps
+/// the binding and the lead from the draft that was never saved; once the saved
+/// crews load, the saved version is authoritative. A configured (user-edited)
+/// draft is never reconciled, and a lead that already matches needs no write
+/// (`CrewInspectorCard.same` equates absent Fast with false).
+@MainActor
+enum HomeCrewRestore {
+  /// Whether Send must wait for the first saved-crews load. A fresh draft whose
+  /// effective configuration still carries the remembered crew binding would
+  /// otherwise launch that unsaved-leak crew before `reconcileSavedCrew` runs.
+  /// Crew-less drafts and user-edited drafts never wait.
+  static func holdsLaunch(
+    hasConfiguredConfiguration: Bool, crewsLoadPending: Bool, remembered: ThreadCrewBinding?
+  ) -> Bool {
+    !hasConfiguredConfiguration && crewsLoadPending && remembered?.crewID != nil
+  }
+
+  static func savedCrew(
+    for remembered: ThreadCrewBinding?, in savedCrews: [SavedCrew],
+    currentLead: CrewMemberSelection?, hasConfiguredConfiguration: Bool
+  ) -> SavedCrew? {
+    guard !hasConfiguredConfiguration, let remembered, let crewID = remembered.crewID,
+      let saved = savedCrews.first(where: { $0.id == crewID }) else { return nil }
+    let leadMatches = currentLead.map { CrewInspectorCard.same($0, saved.lead) } == true
+    return leadMatches && remembered == saved.binding ? nil : saved
+  }
+}
