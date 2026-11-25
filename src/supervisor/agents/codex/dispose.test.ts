@@ -19,6 +19,10 @@ function setup(active = true) {
     currentThreadStatus: { type: "idle" },
     activeTurnId: active ? "turn-child" : undefined,
     activeTurnIds: new Set(active ? ["turn-child"] : []),
+    interruptedTurnIds: new Set<string>(),
+    interruptRequestedTurnIds: new Set<string>(),
+    interruptedTurnCleanupRuns: new Set<string>(),
+    activeInterruptRequests: 0,
     releaseAppServer: release,
     rpc: { ownsThread: () => true, request, dispose: rpcDispose },
   }) as CodexStructuredSession;
