@@ -12,11 +12,11 @@ import type { UsageSnapshot, UsageTokens, UsageWindow, UsageWindowBreakdownItem 
  *   { used (cents), limit (cents), breakdown { included, bonus, total },
  *     totalPercentUsed, autoPercentUsed, apiPercentUsed } + billingCycleEnd +
  *   membershipType. Surfaced as Cursor Models (`autoPercentUsed`) and API
- *   windows. When `/api/dashboard/get-aggregated-usage-events` is available for
+ *   windows. When `DashboardService/GetAggregatedUsageEvents` is available for
  *   the active billing cycle, included API-equivalent spend, per-model
  *   breakdowns, and cycle token counts are split across Cursor Models (tier 2 /
- *   `autoBucketModels`) and API (tier 1) instead of attributing combined plan
- *   spend to API alone.
+ *   `autoBucketModels`) and API (tier 1). Without those rows the plan's combined
+ *   dollars are not attributed to API alone.
  */
 
 export const CURSOR_USAGE_ENDPOINT = "https://cursor.com/api/usage-summary";
@@ -25,7 +25,7 @@ export const CURSOR_SHARED_USAGE_ENDPOINT =
 export const CURSOR_BILLING_USAGE_ENDPOINT =
   "https://cursor.com/api/dashboard/v2/usage-status?scope=user";
 export const CURSOR_AGGREGATED_USAGE_ENDPOINT =
-  "https://cursor.com/api/dashboard/get-aggregated-usage-events";
+  "https://api2.cursor.sh/aiserver.v1.DashboardService/GetAggregatedUsageEvents";
 /**
  * cursor-agent exchanges a User API key (`crsr_…`) for a short-lived session
  * JWT through this endpoint, then reads DashboardService over api2. Cursor
@@ -62,12 +62,16 @@ interface CursorSpendLimitUsage {
   pooledUsed?: NumericValue;
   individualLimit?: NumericValue;
   pooledLimit?: NumericValue;
+  /** `user` means an individual cap; `team` means the pooled team cap is authoritative. */
+  limitType?: string;
 }
 interface CursorUsageSummary {
   billingCycleStart?: string;
   billingCycleEnd?: string;
   membershipType?: string;
   isUnlimited?: boolean;
+  /** Present on some usage-summary payloads when the spend policy is user- or team-scoped. */
+  limitType?: string;
   individualUsage?: { plan?: CursorPlanUsage; onDemand?: CursorOnDemand };
   teamUsage?: { onDemand?: CursorOnDemand };
   spendLimitUsage?: CursorSpendLimitUsage;
@@ -187,7 +191,7 @@ interface ParsedAggregatedUsage {
  * `autoBucketModels`) and API / Other Models (`tier === 1` or outside
  * `autoBucketModels`), capturing per-model breakdowns and cycle token totals.
  * Returns undefined when the payload is absent, empty, or has no classifiable
- * rows so callers fall back to `apiDollars(plan)`.
+ * rows so callers leave dollar amounts unsplit rather than guessing.
  */
 function parseAggregatedUsage(
   aggregated: unknown,
@@ -302,38 +306,43 @@ function parseAggregatedUsage(
   };
 }
 
-/**
- * Cursor plan dollars vs API percent are different meters:
- *
- * - `used`/`limit` clamp at the nominal plan price (e.g. $20/$20) and can
- *   understate real spend once bonus credit is consumed.
- * - `breakdown.total` is credits *consumed* (included + bonus spend), not the
- *   allowance — treating it as the limit was CodexBar regression #240.
- * - `apiPercentUsed` drives the bar / "% by reset" pace; it is not a fraction
- *   of the plan dollar cap. Deriving `limit = spend / apiPercent` invents a
- *   nonsense ceiling (e.g. $35.61 / $775 at 4.5%) that is neither spend nor
- *   the Pro included allowance.
- *
- * Surface honest money: real spend over the vendor plan limit. The bar may
- * then disagree with the dollar ratio — that is correct; they measure different
- * things.
- */
-function apiDollars(plan: CursorPlanUsage): { used?: number; limit?: number } {
-  const reportedUsed = centsToUsd(plan.used);
-  const reportedLimit = centsToUsd(plan.limit);
-  const breakdownTotal = centsToUsd(plan.breakdown?.total);
-  const spend =
-    breakdownTotal !== undefined && breakdownTotal > (reportedUsed ?? 0)
-      ? breakdownTotal
-      : reportedUsed;
+interface OnDemandScope {
+  used: number;
+  limit?: number;
+}
 
-  if (spend === undefined) {
-    return reportedLimit !== undefined && reportedLimit > 0 ? { limit: reportedLimit } : {};
+function hasPositiveLimit(limit: number | undefined): boolean {
+  return limit !== undefined && limit > 0;
+}
+
+function hasOnDemandScope(scope: OnDemandScope): boolean {
+  return scope.used > 0 || hasPositiveLimit(scope.limit);
+}
+
+/**
+ * Select one on-demand scope as a unit. Cursor's individual and pooled team
+ * meters are not interchangeable: pooled spend must pair with the pooled cap,
+ * and personal spend with the personal cap. When the payload does not declare
+ * `limitType`, a positive pooled cap means the shared team budget is the
+ * authoritative meter.
+ */
+function selectOnDemandScope(
+  limitType: string | undefined,
+  individual: OnDemandScope,
+  pooled: OnDemandScope,
+): OnDemandScope | undefined {
+  const normalized = limitType?.trim().toLowerCase();
+  const individualValid = hasOnDemandScope(individual);
+  const pooledValid = hasOnDemandScope(pooled);
+  if ((normalized === "team" || normalized === "pooled") && pooledValid) return pooled;
+  if ((normalized === "user" || normalized === "individual") && individualValid) {
+    return individual;
   }
-  return {
-    used: spend,
-    ...(reportedLimit !== undefined && reportedLimit > 0 ? { limit: reportedLimit } : {}),
-  };
+  if (pooledValid && hasPositiveLimit(pooled.limit)) return pooled;
+  if (individualValid && hasPositiveLimit(individual.limit)) return individual;
+  if (pooledValid && pooled.used > 0) return pooled;
+  if (individualValid) return individual;
+  return pooledValid ? pooled : undefined;
 }
 
 function buildOnDemandBreakdown(
@@ -376,22 +385,30 @@ function onDemandDollars(
   const onDemand = summary.individualUsage?.onDemand;
   if (onDemand?.enabled === false) return undefined;
   if (onDemand?.enabled === true) {
-    const used = centsToUsd(onDemand.used) ?? 0;
     const individualLimit = centsToUsd(onDemand.limit);
     const teamOnDemand =
       summary.teamUsage?.onDemand?.enabled === false ? undefined : summary.teamUsage?.onDemand;
-    const teamUsed = centsToUsd(teamOnDemand?.used);
     const teamLimit = centsToUsd(teamOnDemand?.limit);
-    const limit =
-      individualLimit !== undefined && individualLimit > 0
-        ? individualLimit
-        : teamLimit !== undefined && teamLimit > 0
-          ? teamLimit
-          : undefined;
-    const breakdown = buildOnDemandBreakdown(used, individualLimit, teamUsed, teamLimit);
+    const individualUsed = centsToUsd(onDemand.used) ?? 0;
+    const teamUsed = teamOnDemand ? (centsToUsd(teamOnDemand.used) ?? 0) : undefined;
+    const individual: OnDemandScope = {
+      used: individualUsed,
+      ...(individualLimit !== undefined ? { limit: individualLimit } : {}),
+    };
+    const pooled: OnDemandScope = {
+      used: teamUsed ?? 0,
+      ...(teamLimit !== undefined ? { limit: teamLimit } : {}),
+    };
+    const selected =
+      selectOnDemandScope(
+        summary.limitType ?? summary.spendLimitUsage?.limitType,
+        individual,
+        pooled,
+      ) ?? individual;
+    const breakdown = buildOnDemandBreakdown(individualUsed, individualLimit, teamUsed, teamLimit);
     return {
-      used,
-      ...(limit !== undefined ? { limit } : {}),
+      used: selected.used,
+      ...(selected.limit !== undefined && selected.limit > 0 ? { limit: selected.limit } : {}),
       ...(breakdown ? { breakdown } : {}),
     };
   }
@@ -399,18 +416,33 @@ function onDemandDollars(
   const spend = summary.spendLimitUsage;
   const individualLimit = centsToUsd(spend?.individualLimit);
   const pooledLimit = centsToUsd(spend?.pooledLimit);
-  const limit = individualLimit !== undefined ? individualLimit : pooledLimit;
-  if (limit === undefined || limit <= 0) return undefined;
-  const individualUsed = centsToUsd(spend?.individualUsed);
-  const pooledUsed = centsToUsd(spend?.pooledUsed ?? spend?.totalSpend);
-  const used = individualUsed ?? pooledUsed ?? 0;
+  const totalUsed = centsToUsd(spend?.totalSpend);
+  const individualUsed = centsToUsd(spend?.individualUsed) ?? totalUsed ?? 0;
+  const pooledUsed = centsToUsd(spend?.pooledUsed) ?? totalUsed ?? 0;
+  const selected = selectOnDemandScope(
+    spend?.limitType ?? summary.limitType,
+    {
+      used: individualUsed,
+      ...(individualLimit !== undefined ? { limit: individualLimit } : {}),
+    },
+    {
+      used: pooledUsed,
+      ...(pooledLimit !== undefined ? { limit: pooledLimit } : {}),
+    },
+  );
+  const selectedLimit = selected?.limit;
+  if (!selected || selectedLimit === undefined || selectedLimit <= 0) return undefined;
   const breakdown = buildOnDemandBreakdown(
-    individualUsed,
+    centsToUsd(spend?.individualUsed),
     individualLimit,
-    pooledUsed,
+    centsToUsd(spend?.pooledUsed ?? spend?.totalSpend),
     pooledLimit,
   );
-  return { used, limit, ...(breakdown ? { breakdown } : {}) };
+  return {
+    used: selected.used,
+    limit: selectedLimit,
+    ...(breakdown ? { breakdown } : {}),
+  };
 }
 
 /** billingCycleEnd may be unix seconds/ms (as a string) or ISO-8601. */
@@ -533,22 +565,18 @@ export function parseCursorUsage(
     });
   }
 
+  // Cursor plan dollars are combined Cursor Models + API spend, while
+  // `apiPercentUsed` is a separate utilization meter. The nominal plan price is
+  // not an API cap, so unsplit plan dollars must not be presented as API spend.
   const apiPercent = clampPercent(plan.apiPercentUsed);
   if (apiPercent !== undefined) {
-    const planApiDollars = apiDollars(plan);
-    const dollars = aggregated
-      ? {
-          used: aggregated.apiUsd,
-          ...(planApiDollars.limit !== undefined ? { limit: planApiDollars.limit } : {}),
-        }
-      : planApiDollars;
     windows.push({
       id: "cursor-api",
       label: "API",
       usedPercent: apiPercent,
       unit: "percent",
       currency: "USD",
-      ...dollars,
+      ...(aggregated ? { used: aggregated.apiUsd } : {}),
       ...(aggregated && aggregated.apiBreakdown.length > 0
         ? { breakdown: aggregated.apiBreakdown }
         : {}),
@@ -652,6 +680,7 @@ export async function collectCursor(
   const additional = await collectCursorAdditionalUsage(
     host,
     cookieValue,
+    token.accessToken,
     (parsed ?? {}) as CursorUsageSummary,
   );
   return parseCursorUsage(parsed, account, now, additional);
@@ -660,10 +689,12 @@ export async function collectCursor(
 /** Optional dashboard reads use the same account as the primary usage request. */
 async function collectCursorAdditionalUsage(
   host: HostPort,
-  cookieValue: string,
+  cookieValue: string | undefined,
+  accessToken: string | undefined,
   cycle?: { billingCycleStart?: string; billingCycleEnd?: string },
 ): Promise<{ shared?: unknown; billing?: unknown; aggregated?: unknown }> {
-  async function read(url: string, method: "GET" | "POST", body?: string): Promise<unknown> {
+  async function readWeb(url: string, method: "GET" | "POST"): Promise<unknown> {
+    if (!cookieValue) return undefined;
     try {
       const res = await host.http.request({
         url,
@@ -673,7 +704,7 @@ async function collectCursorAdditionalUsage(
           "Content-Type": "application/json",
           Origin: "https://cursor.com",
         },
-        ...(method === "POST" ? { body: body ?? "{}" } : {}),
+        ...(method === "POST" ? { body: "{}" } : {}),
         timeoutMs: 5_000,
       });
       return res.status >= 200 && res.status < 300 ? JSON.parse(res.body) : undefined;
@@ -681,25 +712,42 @@ async function collectCursorAdditionalUsage(
       return undefined;
     }
   }
-  const shared = await read(CURSOR_SHARED_USAGE_ENDPOINT, "POST");
+
+  async function readAggregated(startDate: number, endDate: number): Promise<unknown> {
+    if (!accessToken) return undefined;
+    try {
+      const res = await host.http.request({
+        url: CURSOR_AGGREGATED_USAGE_ENDPOINT,
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+          "Connect-Protocol-Version": "1",
+        },
+        // Connect JSON represents int64 timestamps as strings. The dashboard's
+        // current-cycle view ends at now, not at the future billing-cycle end.
+        body: JSON.stringify({ startDate: String(startDate), endDate: String(endDate) }),
+        timeoutMs: 5_000,
+      });
+      return res.status >= 200 && res.status < 300 ? JSON.parse(res.body) : undefined;
+    } catch {
+      return undefined;
+    }
+  }
+
+  const shared = await readWeb(CURSOR_SHARED_USAGE_ENDPOINT, "POST");
   if ((shared as CursorSharedUsage | undefined)?.isUnified === true) {
-    const billing = await read(CURSOR_BILLING_USAGE_ENDPOINT, "GET");
+    const billing = await readWeb(CURSOR_BILLING_USAGE_ENDPOINT, "GET");
     return { shared, billing };
   }
   const startDate = toResetMs(cycle?.billingCycleStart);
-  const endDate = toResetMs(cycle?.billingCycleEnd);
-  const aggregated =
-    startDate !== undefined
-      ? await read(
-          CURSOR_AGGREGATED_USAGE_ENDPOINT,
-          "POST",
-          JSON.stringify({
-            startDate,
-            ...(endDate !== undefined ? { endDate } : {}),
-          }),
-        )
-      : undefined;
-  return { shared, ...(aggregated !== undefined ? { aggregated } : {}) };
+  const cycleEnd = toResetMs(cycle?.billingCycleEnd);
+  const endDate = cycleEnd !== undefined ? Math.min(cycleEnd, host.now()) : host.now();
+  const aggregated = startDate !== undefined ? await readAggregated(startDate, endDate) : undefined;
+  return {
+    ...(shared !== undefined ? { shared } : {}),
+    ...(aggregated !== undefined ? { aggregated } : {}),
+  };
 }
 
 interface CursorPeriodPlanUsage {
@@ -792,12 +840,13 @@ async function postCursorJson(
   host: HostPort,
   url: string,
   headers: Record<string, string>,
+  body = "{}",
 ): Promise<HttpResponse> {
   return host.http.request({
     method: "POST",
     url,
     headers,
-    body: "{}",
+    body,
     timeoutMs: 15_000,
   });
 }
@@ -892,7 +941,12 @@ async function collectCursorFromApiKeyUnchecked(
 
   const headers = cursorDashboardHeaders(accessToken);
   const [usageRes, planRes] = await Promise.all([
-    postCursorJson(host, CURSOR_PERIOD_USAGE_ENDPOINT, headers),
+    postCursorJson(
+      host,
+      CURSOR_PERIOD_USAGE_ENDPOINT,
+      headers,
+      JSON.stringify({ includePooledUsage: true }),
+    ),
     postCursorJson(host, CURSOR_PLAN_INFO_ENDPOINT, headers).catch(() => undefined),
   ]);
   const usageFailure = httpFailureSnapshot(providerId, now, usageRes.status);
@@ -929,9 +983,12 @@ async function collectCursorFromApiKeyUnchecked(
 
   const { email, userId } = accountFromJwt(accessToken);
   const cookieValue = userId ? `${encodeURIComponent(userId)}%3A%3A${accessToken}` : undefined;
-  const additional = cookieValue
-    ? await collectCursorAdditionalUsage(host, cookieValue, (usageBody ?? {}) as CursorPeriodUsage)
-    : undefined;
+  const additional = await collectCursorAdditionalUsage(
+    host,
+    cookieValue,
+    accessToken,
+    (usageBody ?? {}) as CursorPeriodUsage,
+  );
   return parseCursorPeriodUsage(
     usageBody,
     {

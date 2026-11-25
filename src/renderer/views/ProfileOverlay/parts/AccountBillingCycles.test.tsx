@@ -94,17 +94,16 @@ describe("AccountBillingCycles", () => {
             unit: "percent",
             currency: "USD",
             used: 183.62,
-            limit: 20,
             resetsAt: now + 8 * 86_400_000,
             breakdown: [{ label: "api-high", used: 183.62, currency: "USD", tokens: 358_515_700 }],
           },
           {
             id: "extra-usage",
             label: "On-demand",
-            usedPercent: 97.18,
+            usedPercent: 100,
             unit: "usd",
             currency: "USD",
-            used: 1020.42,
+            used: 1051.85,
             limit: 1050,
             resetsAt: now + 8 * 86_400_000,
             breakdown: [
@@ -220,17 +219,13 @@ describe("ProfileAccountBillingCycles", () => {
     providerId: "cursor",
     status: "ok",
     fetchedAt: now,
-    windows: [
-      { id: "cursor-api", label: "API", usedPercent: 50, unit: "usd", used: 10, limit: 20 },
-    ],
+    windows: [{ id: "cursor-api", label: "API", usedPercent: 50, unit: "usd", used: 10 }],
   };
   const workCursorSnap: UsageSnapshot = {
     providerId: "cursor:work",
     status: "ok",
     fetchedAt: now,
-    windows: [
-      { id: "cursor-api", label: "API", usedPercent: 90, unit: "usd", used: 18, limit: 20 },
-    ],
+    windows: [{ id: "cursor-api", label: "API", usedPercent: 90, unit: "usd", used: 18 }],
   };
 
   it("hydrates local usage and filters strictly per-account without leaking sibling instances", () => {
