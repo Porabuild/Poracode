@@ -22,6 +22,13 @@ export const floatingGlassBubbleClass = "poracode-floating-chrome--bubble";
 export const floatingGlassBubbleActiveClass = "poracode-floating-chrome--bubble-active";
 
 /**
+ * Elevated bubble treatment for a single persistent control floating over a
+ * dense page (rather than a quiet cluster of composer bubbles). It keeps the
+ * same frosted material and geometry, but firms up the edge and ambient shadow.
+ */
+export const floatingGlassBubbleElevatedClass = "poracode-floating-chrome--bubble-elevated";
+
+/**
  * The composer-bubble base. Any new small control floating over content (a
  * pill, selector, or icon button) starts from one of these two shapes and adds
  * only its own padding, color, and placement, so every bubble shares the

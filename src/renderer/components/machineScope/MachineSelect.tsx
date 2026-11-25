@@ -1,7 +1,10 @@
 import { useLingui } from "@lingui/react/macro";
 import { Select, type SelectOption } from "@/renderer/components/common";
 import { useResponsiveMenu } from "@/renderer/components/common/ResponsiveMenuSurface";
-import { floatingBubblePillClass } from "@/renderer/components/layout/floatingGlass";
+import {
+  floatingBubblePillClass,
+  floatingGlassBubbleElevatedClass,
+} from "@/renderer/components/layout/floatingGlass";
 import { MachineIcon, machineOptionLabel } from "@/renderer/components/common/MachineIcon";
 import type { MachineDescriptor } from "@/renderer/state/machines";
 
@@ -13,7 +16,7 @@ import type { MachineDescriptor } from "@/renderer/state/machines";
  * (`> span`, so no class-name escaping) inherits the pill's type scale rather
  * than the form field's.
  */
-const machineScopeTriggerClass = `${floatingBubblePillClass} min-w-36 ps-2.5 pe-7 py-0 [&>span]:text-xs`;
+const machineScopeTriggerClass = `${floatingBubblePillClass} ${floatingGlassBubbleElevatedClass} min-w-36 ps-2.5 pe-7 py-0 [&>span]:text-xs`;
 
 /**
  * The floating pill treatment, except on the compact sheet surface, which
