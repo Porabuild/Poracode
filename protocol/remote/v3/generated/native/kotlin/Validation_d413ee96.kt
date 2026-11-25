@@ -61,6 +61,10 @@ internal val schema_711e84b2a6817609: RemoteSchema by lazy {
     RemoteSchema(type = "object", required = setOf("reviewers", "truncated"), properties = mapOf("reviewers" to schema_1d261f6c634ca0b3, "truncated" to schema_feeb8bb50144d96d), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
 
+internal val schema_714864208ed5dad7: RemoteSchema by lazy {
+    RemoteSchema(type = "object", required = setOf("id", "label", "usedPercent"), properties = mapOf("breakdown" to schema_8b53a94d53ef37f5, "currency" to schema_bf0b727f7b1c6d07, "id" to schema_29b52750e42441f8, "label" to schema_bf0b727f7b1c6d07, "limit" to schema_f696f11685898ba7, "resetsAt" to schema_56aa0e45cbdce0d0, "unit" to schema_c263982707afed92, "used" to schema_f696f11685898ba7, "usedPercent" to schema_a581e67cd137ad59), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
+}
+
 internal val schema_71a61af1695a9802: RemoteSchema by lazy {
     RemoteSchema(unionKind = "oneOf", options = listOf(schema_ced55d8893218e84, schema_ac3c47c48ccf5bc6, schema_37c5f2164832811e, schema_174bab0c7c772746, schema_134ccbcdbce97927, schema_f6f6c60cfab9884a, schema_c215a52302a1f428), unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }

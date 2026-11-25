@@ -138,7 +138,8 @@ describe("remote v3 native binding generator", () => {
         // Bulk thread removal adds the remove-threads command schema and
         // bulkThreadRemoval capability, moving the source hash and adding three
         // structural types while re-chunking Swift into one fewer shard.
-        sourceHash: "sha256:856e914733bb78c203fad9abc7bce1bfe624f592c69d34a4d84afe2ea8518d57",
+        // Optional UsageWindow.breakdown adds one structural type and moves the source hash.
+        sourceHash: "sha256:6a584faee494e702ea62f017efa2a2f792da2bfa95721d6627da87aabb14ecee",
         manifestHash: "sha256:d497d2d7a7342cb2f7d21370f6abb514ec08f9024ffa152546cbb2b4da7735c2",
         counts: {
           routes: 128,
@@ -149,7 +150,7 @@ describe("remote v3 native binding generator", () => {
           // 11 shared + the desktop-internal `desktop-event` frame (V5 plan 2.5).
           webSocketServerVariants: 12,
           schemaRoots: 622,
-          structuralTypes: 1644,
+          structuralTypes: 1645,
           semanticValidators: 31,
           // Content-defined shards (emitterCommon.shardDeclarations) average
           // ~200 lines, so a contract change rewrites only nearby files.

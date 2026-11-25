@@ -400,8 +400,11 @@ msgstr "{0} 项已跳过"
 
 #. placeholder {0}: formatTokens(reported.tokens.total)
 #. placeholder {0}: formatTokens(snapshot.tokens.total)
+#. placeholder {0}: formatTokens(tokens.total)
 #: src/renderer/components/providers/UsageCostLine.tsx
+#: src/renderer/components/providers/UsageWindowBars.tsx
 #: src/renderer/components/thread/ThreadDetailsDocks.tsx
+#: src/renderer/views/ProfileOverlay/parts/AccountBillingCycles.tsx
 msgid "{0} tokens"
 msgstr "{0} 令牌"
 
@@ -873,6 +876,11 @@ msgstr "©{currentYear} Serhii Vecherenko。版权所有。"
 msgid "+{0}"
 msgstr "+{0}"
 
+#. placeholder {0}: hidden.length
+#: src/renderer/components/providers/UsageWindowBars.tsx
+msgid "+{0} more"
+msgstr "另外 +{0} 项"
+
 #: src/renderer/views/PullRequestsOverlay/timeline/TimelineEventPhrase.tsx
 msgid "<0/> changed the base branch"
 msgstr "<0/> 更改了基础分支"
@@ -1134,6 +1142,10 @@ msgstr "中止合并"
 msgid "About"
 msgstr "关于"
 
+#: src/renderer/views/ProfileOverlay/parts/AccountBillingCycles.tsx
+msgid "About account billing cycles"
+msgstr "关于账号计费周期"
+
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 msgid "About cost breakdown"
 msgstr "关于成本明细"
@@ -1182,6 +1194,10 @@ msgstr "无障碍检查器"
 msgid "Account"
 msgstr "帐户"
 
+#: src/renderer/views/ProfileOverlay/parts/AccountBillingCycles.tsx
+msgid "Account billing cycles"
+msgstr "账号计费周期"
+
 #: src/renderer/components/plugins/PluginServiceAccounts.tsx
 msgid "Account changes apply to new threads."
 msgstr "账户更改将应用于新线程。"
@@ -1202,6 +1218,10 @@ msgstr "账户选项"
 #: src/renderer/components/providers/devin/profileSettings.tsx
 msgid "Account sharing and launch defaults."
 msgstr "账户共享和启动默认设置。"
+
+#: src/renderer/views/ProfileOverlay/parts/AccountBillingCycles.tsx
+msgid "Account-wide · current cycle"
+msgstr "整个账号 · 当前周期"
 
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 #: src/renderer/views/PullRequestsOverlay/list/PrListMenuSections.tsx
@@ -2666,6 +2686,10 @@ msgstr "更好（Whisper base）"
 msgid "Better status updates while agents run."
 msgstr "代理运行时更好的状态更新。"
 
+#: src/renderer/views/ProfileOverlay/parts/AccountBillingCycles.tsx
+msgid "Billed spend"
+msgstr "账单支出"
+
 #: src/renderer/views/PullRequestsOverlay/changes/FileKindIcon.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Binary"
@@ -2991,6 +3015,7 @@ msgstr "缓存"
 msgid "Cache hit"
 msgstr "缓存命中率"
 
+#: src/renderer/views/ProfileOverlay/parts/AccountBillingCycles.tsx
 #: src/renderer/views/ProfileOverlay/parts/costBreakdown.ts
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 msgid "Cache read"
@@ -3000,6 +3025,7 @@ msgstr "缓存读取"
 msgid "Cache savings"
 msgstr "缓存节省"
 
+#: src/renderer/views/ProfileOverlay/parts/AccountBillingCycles.tsx
 #: src/renderer/views/ProfileOverlay/parts/costBreakdown.ts
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 msgid "Cache write"
@@ -9347,6 +9373,7 @@ msgstr "初始化存储库"
 msgid "Inner display"
 msgstr "内屏"
 
+#: src/renderer/views/ProfileOverlay/parts/AccountBillingCycles.tsx
 #: src/renderer/views/ProfileOverlay/parts/costBreakdown.ts
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 msgid "Input"
@@ -10147,6 +10174,10 @@ msgstr "实时预览不可用。请重试或使用快照。"
 #: src/renderer/components/thread/LiveStreamCapacityAlert.tsx
 msgid "Live updates are paused for {droppedRuntimeThreadCount, plural, one {# thread} other {# threads}} because this window exceeds the {MANAGED_ITEM_INTERESTS_MAX}-thread live streaming limit. Close or reopen a thread to resume the paused ones."
 msgstr "由于此窗口超过了 {MANAGED_ITEM_INTERESTS_MAX} 个线程的实时流式传输上限，{droppedRuntimeThreadCount, plural, other {# 个线程}}的实时更新已暂停。关闭或重新打开线程即可恢复暂停的更新。"
+
+#: src/renderer/views/ProfileOverlay/parts/AccountBillingCycles.tsx
+msgid "Live usage reported by connected provider accounts for their active billing cycle. Includes activity outside Poracode and is kept separate from ledger totals above."
+msgstr "由已连接的服务商账号报告的当前计费周期实时用量。包含 Poracode 之外的使用记录，并与上方本地账本总计分开显示。"
 
 #: src/renderer/components/composer/LiveVoiceControls.tsx
 msgid "Live voice"
@@ -13263,6 +13294,7 @@ msgstr "外屏"
 msgid "Outlook"
 msgstr "Outlook"
 
+#: src/renderer/views/ProfileOverlay/parts/AccountBillingCycles.tsx
 #: src/renderer/views/ProfileOverlay/parts/costBreakdown.ts
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 msgid "Output"
@@ -15603,6 +15635,10 @@ msgstr "重置缩放"
 #: src/renderer/components/newsLine/useNewsLineItems.tsx
 msgid "resets in {countdown}"
 msgstr "{countdown} 后重置"
+
+#: src/renderer/views/ProfileOverlay/parts/AccountBillingCycles.tsx
+msgid "Resets in {resetLabel}"
+msgstr "{resetLabel} 后重置"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserHost.tsx
 msgid "Resize browser drawer"

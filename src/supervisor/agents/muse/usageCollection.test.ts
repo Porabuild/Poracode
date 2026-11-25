@@ -237,7 +237,7 @@ describe("Muse usage source custody", () => {
     expect(f.getOAuthToken).not.toHaveBeenCalled();
     expect(f.request).toHaveBeenCalledTimes(2);
     expect(JSON.parse(readFileSync(f.cachePath, "utf8"))).toMatchObject({
-      version: 17,
+      version: 18,
       snapshots: refreshed.snapshots,
     });
     expect(readFileSync(f.cachePath, "utf8")).not.toContain("llm_sess=test");

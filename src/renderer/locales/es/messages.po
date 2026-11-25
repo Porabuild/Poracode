@@ -400,8 +400,11 @@ msgstr "{0} omitidas"
 
 #. placeholder {0}: formatTokens(reported.tokens.total)
 #. placeholder {0}: formatTokens(snapshot.tokens.total)
+#. placeholder {0}: formatTokens(tokens.total)
 #: src/renderer/components/providers/UsageCostLine.tsx
+#: src/renderer/components/providers/UsageWindowBars.tsx
 #: src/renderer/components/thread/ThreadDetailsDocks.tsx
+#: src/renderer/views/ProfileOverlay/parts/AccountBillingCycles.tsx
 msgid "{0} tokens"
 msgstr "{0} tokens"
 
@@ -873,6 +876,11 @@ msgstr "© {currentYear} Serhii Vecherenko. Todos los derechos reservados."
 msgid "+{0}"
 msgstr "+{0}"
 
+#. placeholder {0}: hidden.length
+#: src/renderer/components/providers/UsageWindowBars.tsx
+msgid "+{0} more"
+msgstr "+{0} más"
+
 #: src/renderer/views/PullRequestsOverlay/timeline/TimelineEventPhrase.tsx
 msgid "<0/> changed the base branch"
 msgstr "<0/> cambió la rama base"
@@ -1134,6 +1142,10 @@ msgstr "Cancelar fusión"
 msgid "About"
 msgstr "Acerca de"
 
+#: src/renderer/views/ProfileOverlay/parts/AccountBillingCycles.tsx
+msgid "About account billing cycles"
+msgstr "Acerca de los ciclos de facturación de cuentas"
+
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 msgid "About cost breakdown"
 msgstr "Acerca del desglose de costes"
@@ -1182,6 +1194,10 @@ msgstr "Inspector de accesibilidad"
 msgid "Account"
 msgstr "Cuenta"
 
+#: src/renderer/views/ProfileOverlay/parts/AccountBillingCycles.tsx
+msgid "Account billing cycles"
+msgstr "Ciclos de facturación de cuentas"
+
 #: src/renderer/components/plugins/PluginServiceAccounts.tsx
 msgid "Account changes apply to new threads."
 msgstr "Los cambios de cuenta se aplican a los hilos nuevos."
@@ -1202,6 +1218,10 @@ msgstr "Opciones de cuenta"
 #: src/renderer/components/providers/devin/profileSettings.tsx
 msgid "Account sharing and launch defaults."
 msgstr "Uso compartido de cuentas y valores predeterminados de inicio."
+
+#: src/renderer/views/ProfileOverlay/parts/AccountBillingCycles.tsx
+msgid "Account-wide · current cycle"
+msgstr "Toda la cuenta · ciclo actual"
 
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 #: src/renderer/views/PullRequestsOverlay/list/PrListMenuSections.tsx
@@ -2666,6 +2686,10 @@ msgstr "Mejor (Whisper base)"
 msgid "Better status updates while agents run."
 msgstr "Mejores actualizaciones de estado mientras los agentes se ejecutan."
 
+#: src/renderer/views/ProfileOverlay/parts/AccountBillingCycles.tsx
+msgid "Billed spend"
+msgstr "Gasto facturado"
+
 #: src/renderer/views/PullRequestsOverlay/changes/FileKindIcon.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Binary"
@@ -2991,6 +3015,7 @@ msgstr "caché"
 msgid "Cache hit"
 msgstr "Aciertos de caché"
 
+#: src/renderer/views/ProfileOverlay/parts/AccountBillingCycles.tsx
 #: src/renderer/views/ProfileOverlay/parts/costBreakdown.ts
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 msgid "Cache read"
@@ -3000,6 +3025,7 @@ msgstr "Lectura de caché"
 msgid "Cache savings"
 msgstr "Ahorro de caché"
 
+#: src/renderer/views/ProfileOverlay/parts/AccountBillingCycles.tsx
 #: src/renderer/views/ProfileOverlay/parts/costBreakdown.ts
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 msgid "Cache write"
@@ -9347,6 +9373,7 @@ msgstr "Inicializar repositorio"
 msgid "Inner display"
 msgstr "Pantalla interior"
 
+#: src/renderer/views/ProfileOverlay/parts/AccountBillingCycles.tsx
 #: src/renderer/views/ProfileOverlay/parts/costBreakdown.ts
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 msgid "Input"
@@ -10147,6 +10174,10 @@ msgstr "La vista previa en directo no está disponible. Reinténtalo o usa captu
 #: src/renderer/components/thread/LiveStreamCapacityAlert.tsx
 msgid "Live updates are paused for {droppedRuntimeThreadCount, plural, one {# thread} other {# threads}} because this window exceeds the {MANAGED_ITEM_INTERESTS_MAX}-thread live streaming limit. Close or reopen a thread to resume the paused ones."
 msgstr "Las actualizaciones en vivo están en pausa para {droppedRuntimeThreadCount, plural, one {# hilo} other {# hilos}} porque esta ventana supera el límite de {MANAGED_ITEM_INTERESTS_MAX} hilos en transmisión en vivo. Cierra o vuelve a abrir un hilo para reanudar los que están en pausa."
+
+#: src/renderer/views/ProfileOverlay/parts/AccountBillingCycles.tsx
+msgid "Live usage reported by connected provider accounts for their active billing cycle. Includes activity outside Poracode and is kept separate from ledger totals above."
+msgstr "Uso en vivo reportado por las cuentas de proveedores conectadas para su ciclo de facturación activo. Incluye actividad fuera de Poracode y se mantiene separado de los totales del registro anteriores."
 
 #: src/renderer/components/composer/LiveVoiceControls.tsx
 msgid "Live voice"
@@ -13264,6 +13295,7 @@ msgstr "Pantalla exterior"
 msgid "Outlook"
 msgstr "Outlook"
 
+#: src/renderer/views/ProfileOverlay/parts/AccountBillingCycles.tsx
 #: src/renderer/views/ProfileOverlay/parts/costBreakdown.ts
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 msgid "Output"
@@ -15604,6 +15636,10 @@ msgstr "Restablecer zoom"
 #: src/renderer/components/newsLine/useNewsLineItems.tsx
 msgid "resets in {countdown}"
 msgstr "se restablece en {countdown}"
+
+#: src/renderer/views/ProfileOverlay/parts/AccountBillingCycles.tsx
+msgid "Resets in {resetLabel}"
+msgstr "Se reinicia en {resetLabel}"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserHost.tsx
 msgid "Resize browser drawer"

@@ -57,6 +57,10 @@ public extension RemoteSchemas {
 }
 
 public extension RemoteSchemas {
+  static let schema_714864208ed5dad7 = RemoteSchema(type: "object", required: Set(["id", "label", "usedPercent"]), properties: ["breakdown": RemoteSchemas.schema_8b53a94d53ef37f5, "currency": RemoteSchemas.schema_bf0b727f7b1c6d07, "id": RemoteSchemas.schema_29b52750e42441f8, "label": RemoteSchemas.schema_bf0b727f7b1c6d07, "limit": RemoteSchemas.schema_f696f11685898ba7, "resetsAt": RemoteSchemas.schema_56aa0e45cbdce0d0, "unit": RemoteSchemas.schema_c263982707afed92, "used": RemoteSchemas.schema_f696f11685898ba7, "usedPercent": RemoteSchemas.schema_a581e67cd137ad59], additionalAllowed: true, unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
   static let schema_71a61af1695a9802 = RemoteSchema(unionKind: "oneOf", options: [RemoteSchemas.schema_ced55d8893218e84, RemoteSchemas.schema_ac3c47c48ccf5bc6, RemoteSchemas.schema_37c5f2164832811e, RemoteSchemas.schema_174bab0c7c772746, RemoteSchemas.schema_134ccbcdbce97927, RemoteSchemas.schema_f6f6c60cfab9884a, RemoteSchemas.schema_c215a52302a1f428], unknownPolicy: .strip)
 }
 

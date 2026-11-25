@@ -50,6 +50,22 @@ export type UsageWindowId =
 export const usageUnitSchema = z.enum(["percent", "tokens", "requests", "credits", "usd"]);
 export type UsageUnit = z.infer<typeof usageUnitSchema>;
 
+/**
+ * Per-model or sub-bucket breakdown item for a usage window (e.g. individual
+ * model spend/tokens inside an included quota pool, or personal vs team-pooled
+ * spend). Surfaced in window tooltips and Profile billing details.
+ */
+export const usageWindowBreakdownItemSchema = z.object({
+  label: z.string(),
+  used: z.number().nonnegative().optional(),
+  limit: z.number().nonnegative().optional(),
+  /** ISO 4217 currency for `used`/`limit` when monetary. */
+  currency: z.string().optional(),
+  /** Optional token count consumed by this item within the window. */
+  tokens: z.number().nonnegative().optional(),
+});
+export type UsageWindowBreakdownItem = z.infer<typeof usageWindowBreakdownItemSchema>;
+
 /** A single rate-limit / quota window the provider reports (5h, weekly, ...). */
 export const usageWindowSchema = z.object({
   id: usageWindowIdSchema,
@@ -63,6 +79,8 @@ export const usageWindowSchema = z.object({
   unit: usageUnitSchema.optional(),
   /** ISO 4217 currency for `used`/`limit` when `unit` is "usd". */
   currency: z.string().optional(),
+  /** Optional per-model or sub-bucket breakdown; additive display metadata. */
+  breakdown: z.array(usageWindowBreakdownItemSchema).optional(),
 });
 export type UsageWindow = z.infer<typeof usageWindowSchema>;
 

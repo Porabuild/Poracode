@@ -162,11 +162,7 @@ export function tokenTypeSegments(totals: ProfileCostTotals): readonly CostShare
   ];
 }
 
-export function formatPercentShare(fraction: number): string {
-  const pct = fraction * 100;
-  if (pct > 0 && pct < 0.1) return "<0.1%";
-  return `${pct >= 10 ? Math.round(pct) : Math.round(pct * 10) / 10}%`;
-}
+export { formatPercentShare } from "@/renderer/components/providers/usageFormat";
 
 export interface ChartPoint {
   readonly x: number;

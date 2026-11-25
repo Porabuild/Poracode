@@ -12,6 +12,7 @@ import { z } from "zod";
 export type {
   UsageSnapshot,
   UsageWindow,
+  UsageWindowBreakdownItem,
   UsageWindowId,
   UsageStatus,
   UsageUnit,

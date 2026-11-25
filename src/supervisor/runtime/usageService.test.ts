@@ -161,7 +161,7 @@ describe("UsageService", () => {
     expect(await service.getProviderUsage({})).toEqual({ snapshots: [], fromCache: false });
     expect((await service.refreshProviderUsage({ force: true })).snapshots).toEqual([fresh]);
     expect(JSON.parse(readFileSync(cachePath, "utf8"))).toMatchObject({
-      version: 17,
+      version: 18,
       snapshots: [fresh],
     });
     service.stop();
@@ -597,7 +597,7 @@ describe("UsageService", () => {
     writeFileSync(
       cachePath,
       JSON.stringify({
-        version: 17,
+        version: 18,
         snapshots: [{ providerId: "fixture", status: "ok", windows: [], fetchedAt: NOW - 600_000 }],
       }),
     );
@@ -1004,7 +1004,7 @@ describe("UsageService", () => {
       credits: { balance: 20 },
       fetchedAt: NOW - 6 * 60 * 60_000,
     };
-    writeFileSync(cachePath, JSON.stringify({ version: 17, snapshots: [previous] }));
+    writeFileSync(cachePath, JSON.stringify({ version: 18, snapshots: [previous] }));
     let failed = true;
     const options = {
       emit: () => {},
@@ -1203,6 +1203,60 @@ describe("UsageService", () => {
     });
     try {
       const res = await service.getProviderUsage({ providerIds: ["gemini"] });
+      expect(res.fromCache).toBe(false);
+      expect(res.snapshots).toEqual([]);
+    } finally {
+      service.stop();
+    }
+  });
+
+  it("discards stale v17 Cursor cache entries when booting with v18", async () => {
+    const cachePath = tempCachePath();
+    writeFileSync(
+      cachePath,
+      JSON.stringify({
+        version: 17,
+        snapshots: [
+          {
+            providerId: "cursor:work",
+            status: "ok",
+            plan: "Cursor Team",
+            windows: [
+              { id: "cursor-auto", label: "Cursor Models", usedPercent: 67.41, unit: "percent" },
+              {
+                id: "cursor-api",
+                label: "API",
+                usedPercent: 100,
+                unit: "percent",
+                currency: "USD",
+                used: 908.14,
+                limit: 20,
+              },
+            ],
+            fetchedAt: NOW,
+          },
+        ],
+      }),
+    );
+    const service = new UsageService({
+      emit: () => {},
+      cachePath,
+      host: makeHost({}),
+      providerIds: ["cursor:work"],
+      localCollectors: [
+        {
+          id: "cursor:work",
+          collect: async (nowMs) => ({
+            providerId: "cursor:work",
+            status: "ok",
+            windows: [],
+            fetchedAt: nowMs,
+          }),
+        },
+      ],
+    });
+    try {
+      const res = await service.getProviderUsage({ providerIds: ["cursor:work"] });
       expect(res.fromCache).toBe(false);
       expect(res.snapshots).toEqual([]);
     } finally {
