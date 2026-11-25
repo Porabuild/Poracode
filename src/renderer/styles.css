@@ -4107,6 +4107,21 @@ html .poracode-floating-chrome.poracode-floating-chrome--bubble {
 html .poracode-floating-chrome.poracode-floating-chrome--bubble:hover {
   border-color: color-mix(in oklab, var(--foreground) 5%, transparent);
 }
+/* A lone persistent scope selector sits over dense settings rows rather than
+   beside other composer bubbles, so it carries the same frosted material one
+   elevation step higher: slightly more lifted glass, a firmer hairline, and a
+   deeper ambient shadow. The blur itself stays inherited from the platform
+   floating-chrome rule above. */
+html .poracode-floating-chrome.poracode-floating-chrome--bubble-elevated {
+  background-color: color-mix(in oklab, var(--composer-surface) 76%, transparent);
+  border-color: color-mix(in oklab, var(--foreground) 7%, transparent);
+  box-shadow:
+    0 1px 2px rgb(0 0 0 / 0.16),
+    0 8px 24px rgb(0 0 0 / 0.26);
+}
+html .poracode-floating-chrome.poracode-floating-chrome--bubble-elevated:hover {
+  border-color: color-mix(in oklab, var(--foreground) 10%, transparent);
+}
 /* Bubble whose panel is open: the sidebar Git badge idiom (`bg-accent/15
    hover:bg-accent/25`) — a violet-steered theme wash over the same translucent
    composer layer, so the open state reads as selected, not just lit. The glyph

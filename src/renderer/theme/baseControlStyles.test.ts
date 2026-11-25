@@ -83,6 +83,15 @@ describe("base control styles", () => {
     );
   });
 
+  it("elevates a lone floating scope bubble without losing the frosted material", () => {
+    expect(styles).toMatch(
+      /html \.poracode-floating-chrome\.poracode-floating-chrome--bubble-elevated\s*\{[^}]*background-color:\s*color-mix\(in oklab, var\(--composer-surface\) 76%, transparent\);[^}]*border-color:\s*color-mix\(in oklab, var\(--foreground\) 7%, transparent\);[^}]*box-shadow:\s*0 1px 2px rgb\(0 0 0 \/ 0\.16\),\s*0 8px 24px rgb\(0 0 0 \/ 0\.26\);/s,
+    );
+    expect(styles).toMatch(
+      /html \.poracode-floating-chrome\.poracode-floating-chrome--bubble-elevated:hover\s*\{[^}]*border-color:\s*color-mix\(in oklab, var\(--foreground\) 10%, transparent\);/s,
+    );
+  });
+
   it("lets the auto-focused draft composer become GPU-idle", () => {
     expect(ruleFor(".poracode-composer-border-glow::before")).not.toContain("animation:");
     expect(
