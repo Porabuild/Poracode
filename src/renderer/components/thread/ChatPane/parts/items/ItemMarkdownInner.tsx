@@ -6,6 +6,7 @@ import {
   cloneElement,
   isValidElement,
   useMemo,
+  useState,
   type ComponentProps,
   type ReactElement,
   type ReactNode,
@@ -167,34 +168,60 @@ interface ItemMarkdownInnerProps {
 export default function ItemMarkdownInner({ text }: ItemMarkdownInnerProps) {
   const actions = useChatPaneActions();
   const rootNames = actions?.projectRootNames;
+  const projectLocation = actions?.projectLocation;
   // Escape the React Compiler: the plugin tuple captures `rootNames`, which
   // the compiler conservatively re-creates each render. Streaming chats
   // re-render on every chunk, so anchor the array to `rootNames` identity.
+  // Streamdown's outer memo compares data-* passthrough props but ignores
+  // plugin identity, so an unchanged reply keeps blocks parsed under the
+  // previous path context. The full serialized context stays in the parser
+  // cache only; a small revision in the data attribute invalidates that memo
+  // when the project location or the root names actually change, and Block
+  // then sees the new remarkPlugins and reparses without resetting streaming
+  // or block identity. Keeping paths and root names out of the DOM avoids
+  // exposing worktree paths, remote ids and every root filename per message.
   // eslint-disable-next-line react-hooks/preserve-manual-memoization -- intentional escape hatch
-  const remarkPlugins = useMemo<RemarkPlugins>(
-    () => [
-      remarkGfm,
-      chatRemarkMath,
-      [
-        remarkAutolinkProjectPaths,
-        {
-          cacheKey: JSON.stringify({
-            projectLocation: actions?.projectLocation ?? null,
-            rootNames: rootNames ? [...rootNames].sort() : null,
-          }),
-          parsePathRef: (token: string) => {
-            const ref = parseChatPathRef(token, rootNames);
-            const projectLocation = actions?.projectLocation;
-            if (ref || !projectLocation) return ref;
-            const normalized = normalizeChatProjectPath(token, projectLocation);
-            return normalized === token ? null : parseChatPathRef(normalized, rootNames);
+  const { remarkPlugins, pathContextKey } = useMemo<{
+    remarkPlugins: RemarkPlugins;
+    pathContextKey: string;
+  }>(() => {
+    const cacheKey = JSON.stringify({
+      projectLocation: projectLocation ?? null,
+      rootNames: rootNames ? [...rootNames].sort() : null,
+    });
+    return {
+      pathContextKey: cacheKey,
+      remarkPlugins: [
+        remarkGfm,
+        chatRemarkMath,
+        [
+          remarkAutolinkProjectPaths,
+          {
+            cacheKey,
+            parsePathRef: (token: string) => {
+              const ref = parseChatPathRef(token, rootNames);
+              if (ref || !projectLocation) return ref;
+              const normalized = normalizeChatProjectPath(token, projectLocation);
+              return normalized === token ? null : parseChatPathRef(normalized, rootNames);
+            },
           },
-        },
+        ],
+        [remarkStrongTextRuns, STRONG_TEXT_RUN_OPTIONS],
       ],
-      [remarkStrongTextRuns, STRONG_TEXT_RUN_OPTIONS],
-    ],
-    [actions, rootNames],
-  );
+    };
+  }, [projectLocation, rootNames]);
+  // Render-phase guarded update: bump only when the path context changes, so
+  // unrelated actions and text updates keep the same DOM and selection.
+  const [pathContextRevision, setPathContextRevision] = useState({
+    key: pathContextKey,
+    revision: 0,
+  });
+  if (pathContextRevision.key !== pathContextKey) {
+    setPathContextRevision({
+      key: pathContextKey,
+      revision: pathContextRevision.revision + 1,
+    });
+  }
   const mediaLocation = actions?.mediaLocation ?? actions?.projectLocation;
   const projectRoot =
     actions?.markdownImageRoot ?? (mediaLocation ? getProjectFsPath(mediaLocation) : undefined);
@@ -219,11 +246,15 @@ export default function ItemMarkdownInner({ text }: ItemMarkdownInnerProps) {
     <div className="lc-chat-markdown prose max-w-none text-[length:var(--lc-chat-font-size)] leading-snug text-foreground prose-headings:text-[length:var(--lc-chat-font-size)] prose-p:text-[length:var(--lc-chat-font-size)] prose-p:whitespace-pre-wrap prose-li:text-[length:var(--lc-chat-font-size)] prose-pre:my-2 prose-pre:rounded prose-pre:border-0 prose-pre:bg-foreground/10 prose-pre:px-[0.5em] prose-pre:py-[0.25em] prose-pre:font-mono prose-pre:text-[0.875em] prose-pre:leading-snug prose-pre:whitespace-pre-wrap prose-pre:break-words prose-pre:overflow-x-hidden prose-code:before:content-none prose-code:after:content-none prose-a:text-foreground prose-a:no-underline prose-a:text-[length:inherit] hover:prose-a:underline hover:prose-a:decoration-1 prose-a:underline-offset-2">
       {ordinaryProse ? (
         // Match Streamdown's single-paragraph wrapper, including its margin rules.
-        <div className="space-y-4 whitespace-normal [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
+        <div
+          data-markdown-path-context={pathContextRevision.revision}
+          className="space-y-4 whitespace-normal [&>*:first-child]:mt-0 [&>*:last-child]:mb-0"
+        >
           <p>{markdownText}</p>
         </div>
       ) : (
         <Streamdown
+          data-markdown-path-context={pathContextRevision.revision}
           remarkPlugins={remarkPlugins}
           rehypePlugins={REHYPE_PLUGINS}
           components={MD_COMPONENTS}
