@@ -21,6 +21,8 @@ export function buildCodexThreadOverrides(
     mcpServers?: readonly ResolvedMcpServer[];
     nativeMcpNames?: readonly string[];
     detectedSidecars?: DetectedCodexBundledSidecars;
+    /** Let Codex use the model server's own window instead of Poracode's cloud defaults. */
+    useServerDefaultContext?: boolean;
   },
 ): ThreadConfigOverrides {
   const mcpConfig = options?.mcpServers
@@ -52,7 +54,7 @@ export function buildCodexThreadOverrides(
     config: {
       ...(config.effort ? { model_reasoning_effort: config.effort } : {}),
       model_reasoning_summary: "auto",
-      ...codexContextWindowOverrides(config.contextSize),
+      ...(options?.useServerDefaultContext ? {} : codexContextWindowOverrides(config.contextSize)),
       ...bundledSidecarConfig,
       ...mcpConfig,
     },

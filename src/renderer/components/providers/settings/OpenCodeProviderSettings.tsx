@@ -1,3 +1,4 @@
+import { OpenCodeLocalModelsSettings } from "@/renderer/components/providers/opencode/OpenCodeLocalModelsSettings";
 import { OpenCodePluginsSettings } from "@/renderer/components/providers/opencode/OpenCodePluginsSettings";
 import { Trans } from "@lingui/react/macro";
 import type { AgentStatus } from "@/shared/contracts";
@@ -28,6 +29,8 @@ export function OpenCodeProviderSettings(props: {
           <Trans>Connect the AI providers OpenCode can use and sign out of them here.</Trans>
         }
       />
+
+      <OpenCodeLocalModelsSettings agentKind={agentKind} statuses={statuses} />
 
       <OpenCodePluginsSettings agentKind={agentKind} statuses={statuses} />
     </>

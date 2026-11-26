@@ -596,6 +596,57 @@ describe("writeScriptToShellThenExitOnSuccess", () => {
     expect(supervisorHandlers).toHaveLength(0);
   });
 
+  it("distinguishes marker completion from a bare shell exit for detailed callers", () => {
+    const onCommandCompletion = vi.fn<(exitCode: number, source: string) => void>();
+    writeScriptToShellThenExitOnSuccess(
+      "shell:detailed-marker",
+      "echo hi",
+      "posix",
+      () => {},
+      undefined,
+      undefined,
+      { onOutput: () => {}, onReset: () => {}, onCommandCompletion },
+    );
+
+    emit({
+      type: "thread-output",
+      threadId: "shell:detailed-marker",
+      data: "$ ",
+      outputLength: 2,
+      terminalInstanceId: "gen-test",
+    });
+    settlePrompt();
+    const token = /poracode-shell-complete=([^:]+):/u.exec(lastWrite())?.[1];
+    const marker = `\u001B]777;poracode-shell-complete=${token}:0\u0007`;
+    emit({
+      type: "thread-output",
+      threadId: "shell:detailed-marker",
+      data: marker,
+      outputLength: marker.length,
+      terminalInstanceId: "gen-test",
+    });
+    emit({ type: "thread-exited", threadId: "shell:detailed-marker", exitCode: 0 });
+
+    expect(onCommandCompletion).toHaveBeenCalledExactlyOnceWith(0, "marker");
+  });
+
+  it("reports a bare shell exit separately so callers do not treat it as command success", () => {
+    const onCommandCompletion = vi.fn<(exitCode: number, source: string) => void>();
+    writeScriptToShellThenExitOnSuccess(
+      "shell:detailed-exit",
+      "echo hi",
+      "posix",
+      () => {},
+      undefined,
+      undefined,
+      { onOutput: () => {}, onReset: () => {}, onCommandCompletion },
+    );
+
+    emit({ type: "thread-exited", threadId: "shell:detailed-exit", exitCode: 0 });
+
+    expect(onCommandCompletion).toHaveBeenCalledExactlyOnceWith(0, "exit");
+  });
+
   it("wraps Windows completion scripts in try/catch/finally so terminating errors still emit completion", () => {
     const onExit = vi.fn<(exitCode: number | null) => void>();
     const onCommandComplete = vi.fn<(exitCode: number) => void>();
@@ -738,6 +789,7 @@ describe("writeScriptToShellThenExitOnSuccess", () => {
       token: string;
       onCommandComplete: ReturnType<typeof vi.fn<(exitCode: number) => void>>;
       onOutput: ReturnType<typeof vi.fn<(output: string) => void>>;
+      onSnapshot: ReturnType<typeof vi.fn<(snapshot: { data: string }) => void>>;
       onExit: ReturnType<typeof vi.fn<(exitCode: number | null) => void>>;
     }
 
@@ -749,6 +801,7 @@ describe("writeScriptToShellThenExitOnSuccess", () => {
       const onExit = vi.fn<(exitCode: number | null) => void>();
       const onCommandComplete = vi.fn<(exitCode: number) => void>();
       const onOutput = vi.fn<(output: string) => void>();
+      const onSnapshot = vi.fn<(snapshot: { data: string }) => void>();
       writeScriptToShellThenExitOnSuccess(
         shellId,
         "npm ci",
@@ -756,7 +809,7 @@ describe("writeScriptToShellThenExitOnSuccess", () => {
         onExit,
         onCommandComplete,
         desktopId,
-        { onOutput, onReset: () => undefined },
+        { onOutput, onReset: () => undefined, onSnapshot },
       );
 
       deliverReady(sender, { data: "$ " });
@@ -765,7 +818,7 @@ describe("writeScriptToShellThenExitOnSuccess", () => {
       expect(bridge.writeTerminal).toHaveBeenCalledTimes(1);
       const token = /poracode-shell-complete=([^:]+):/u.exec(lastWrite())?.[1];
       expect(token).toBeTruthy();
-      return { sender, token: token!, onCommandComplete, onOutput, onExit };
+      return { sender, token: token!, onCommandComplete, onOutput, onSnapshot, onExit };
     }
 
     /** Simulates a reconnect: a new sender identity re-arms the watch, and the
@@ -805,6 +858,22 @@ describe("writeScriptToShellThenExitOnSuccess", () => {
       // …and history never re-executes the command.
       expect(bridge.writeTerminal).toHaveBeenCalledTimes(1);
       expect(started.onExit).not.toHaveBeenCalled();
+    });
+
+    it("delivers the reconnect baseline to output handlers before completion scanning", () => {
+      const started = startWrittenCommand();
+      started.onSnapshot.mockClear();
+      const tail = `$ npm warn deprecated\u001B]777;poracode-shell-complete=${started.token}:0\u0007`;
+
+      reconnect(tail, "running");
+
+      expect(started.onSnapshot).toHaveBeenCalledExactlyOnceWith(
+        expect.objectContaining({ data: tail }),
+      );
+      expect(started.onSnapshot.mock.invocationCallOrder[0]).toBeLessThan(
+        started.onCommandComplete.mock.invocationCallOrder[0]!,
+      );
+      expect(started.onCommandComplete).toHaveBeenCalledWith(0);
     });
 
     it("recovers from a retained exited baseline", () => {

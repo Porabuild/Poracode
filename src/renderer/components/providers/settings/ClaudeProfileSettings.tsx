@@ -7,11 +7,15 @@ import {
   claudeProfileKind,
   parseClaudeProfileInstanceConfig,
   type AgentInstanceConfig,
+  type AgentStatus,
   type ClaudeProfileInstanceConfig,
 } from "@/shared/contracts";
 import { CLAUDE_PROFILE_EFFORT_CHOICES } from "@/shared/agents/claudeEfforts";
+import { ollamaModelInventory } from "@/shared/agents/ollamaModelInventory";
 import { i18n } from "@/renderer/i18n/i18n";
 import { Input } from "@/renderer/components/common";
+import { ContentSurface } from "@/renderer/components/common/ContentSurface";
+import { OllamaContextSetting } from "./OllamaContextSetting";
 import { formatEffortLabel } from "@/renderer/components/thread/threadDraftViewHelpers";
 import { useHostAgentStatusPools } from "@/renderer/hooks/useHostAgentStatuses";
 import { AgentProfileList } from "../../../views/SettingsOverlay/parts/AgentProfileList";
@@ -24,6 +28,7 @@ import {
 import type { NativeAgentProfileSupport } from "../../../views/SettingsOverlay/parts/agentRegistryNative";
 import {
   applyPresetEnvRows,
+  claudeLocalProfileCreatePayload,
   cleanModels,
   defaultConfigDir,
   effortsConfigFromSelection,
@@ -217,12 +222,78 @@ export function ClaudeProfileProviderSettings(props: { instanceId: string }) {
   } catch {
     return null;
   }
+  if (config.local) {
+    return <ClaudeLocalProfileDetails instance={instance} route={config.local} />;
+  }
   return (
     <ClaudeProfileEditor
       key={`${settingsHost.key}:${instance.id}`}
       instance={instance}
       config={config}
     />
+  );
+}
+
+function ClaudeLocalProfileDetails(props: {
+  instance: AgentInstanceConfig;
+  route: NonNullable<ClaudeProfileInstanceConfig["local"]>;
+}) {
+  const { t } = useLingui();
+  const settingsHost = useAgentSettingsHost();
+  const rawConfig =
+    typeof props.instance.config === "object" && props.instance.config !== null
+      ? (props.instance.config as Record<string, unknown>)
+      : {};
+  const rawLocal =
+    typeof rawConfig.local === "object" && rawConfig.local !== null
+      ? (rawConfig.local as Record<string, unknown>)
+      : {};
+  return (
+    <ContentSurface className="space-y-2 p-3">
+      <div>
+        <p className="text-sm font-medium text-foreground">
+          <Trans>Local model profile</Trans>
+        </p>
+        <p className="text-xs text-muted">
+          <Trans>
+            The provider runtime pins this endpoint and model for every session. Manage or remove
+            the profile from the Claude Code page.
+          </Trans>
+        </p>
+      </div>
+      <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1 text-xs">
+        <dt className="text-muted">{t`Server`}</dt>
+        <dd className="min-w-0 break-all font-mono text-foreground">{props.route.endpoint}</dd>
+        <dt className="text-muted">{t`Model`}</dt>
+        <dd className="min-w-0 break-all font-mono text-foreground">
+          {props.route.baseModel ?? props.route.model}
+        </dd>
+        <dt className="text-muted">{t`Profile`}</dt>
+        <dd className="min-w-0 break-all text-foreground">
+          {props.instance.displayName ?? props.instance.id}
+        </dd>
+      </dl>
+      <OllamaContextSetting
+        instanceId={props.instance.id}
+        profileKind={claudeProfileKind(props.instance.id)}
+        endpoint={props.route.endpoint}
+        declaredEndpoint={claudeProfileSupport.addProfile?.local?.ollamaEndpoint ?? ""}
+        baseModel={props.route.baseModel ?? props.route.model}
+        contextLength={props.route.contextLength}
+        applyContext={async (next) => {
+          const { baseModel: _baseModel, contextLength: _contextLength, ...route } = rawLocal;
+          const local = {
+            ...route,
+            model: next.model,
+            ...(next.baseModel ? { baseModel: next.baseModel } : {}),
+            ...(next.contextLength ? { contextLength: next.contextLength } : {}),
+          };
+          await settingsHost.updateProfile(props.instance.id, {
+            config: { ...rawConfig, local },
+          });
+        }}
+      />
+    </ContentSurface>
   );
 }
 
@@ -623,13 +694,18 @@ function ClaudeProfileEditor(props: {
  * Claude profiles are distinguished by their config directory, and optionally
  * point at an external provider through their env vars.
  */
-function ClaudeProfileConfigDir(props: { instance: AgentInstanceConfig }) {
+function ClaudeProfileSubtitle(props: { instance: AgentInstanceConfig }) {
   let config: ClaudeProfileInstanceConfig | undefined;
   try {
     config = parseClaudeProfileInstanceConfig(props.instance.config);
   } catch {
     // Malformed records are skipped by the supervisor too; show the id only.
     config = undefined;
+  }
+  if (config?.local) {
+    return (
+      <span className="truncate font-mono">{config.local.baseModel ?? config.local.model}</span>
+    );
   }
   return (
     <span className="flex items-center gap-1.5">
@@ -651,12 +727,27 @@ export const claudeProfileSupport: NativeAgentProfileSupport = {
       (z.ai, …). Open a profile to configure its env vars, models, and effort.
     </Trans>
   ),
+  addProfile: {
+    label: msg`Claude Code`,
+    order: 1,
+    local: {
+      ollamaEndpoint: "http://127.0.0.1:11434",
+      createPayload: claudeLocalProfileCreatePayload,
+      modelSuggestions: ollamaModelInventory,
+      modelHint: (
+        <Trans>
+          Claude Code sends Anthropic Messages requests to this URL and owns its own config
+          directory. Do not append <code>/v1</code>; Claude adds the request path itself.
+        </Trans>
+      ),
+    },
+  },
   field: {
     ariaLabel: msg`New Claude profile config directory`,
     // Live default shown as the placeholder and used verbatim when left empty.
     placeholderFor: (name) => defaultConfigDir(name),
   },
-  RowSubtitle: ClaudeProfileConfigDir,
+  RowSubtitle: ClaudeProfileSubtitle,
   removalBody: (profileName) => (
     <Trans>
       Removing {profileName} drops its Poracode settings — env vars, models, and effort. Its config
@@ -672,7 +763,18 @@ export const claudeProfileSupport: NativeAgentProfileSupport = {
 };
 
 export function ClaudeProfileSettings(props: {
+  statuses?: readonly AgentStatus[] | undefined;
+  suggestionStatuses?: readonly AgentStatus[] | undefined;
+  workspaceIsClientDevice?: boolean | undefined;
   onOpenProfile?: ((profileKind: string) => void) | undefined;
 }) {
-  return <AgentProfileList profiles={claudeProfileSupport} onOpenProfile={props.onOpenProfile} />;
+  return (
+    <AgentProfileList
+      profiles={claudeProfileSupport}
+      {...(props.statuses ? { statuses: props.statuses } : {})}
+      {...(props.suggestionStatuses ? { suggestionStatuses: props.suggestionStatuses } : {})}
+      workspaceIsClientDevice={props.workspaceIsClientDevice}
+      onOpenProfile={props.onOpenProfile}
+    />
+  );
 }

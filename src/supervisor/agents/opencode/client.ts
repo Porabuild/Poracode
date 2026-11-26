@@ -37,9 +37,13 @@ export function resolveOpenCodeSessionDirectory(location: ProjectLocation): stri
   }
 }
 
-function poolKey(location: ProjectLocation, database: OpenCodeDatabase): string {
+function poolKey(
+  location: ProjectLocation,
+  database: OpenCodeDatabase,
+  profileKey?: string,
+): string {
   const runtime = location.kind === "wsl" ? `wsl:${location.distro}` : location.kind;
-  return `${runtime}:${database}`;
+  return `${runtime}:${database}:${profileKey ?? ""}`;
 }
 
 function mcpFingerprint(servers: Record<string, OpenCodeMcpServerConfig>): string {
@@ -183,15 +187,15 @@ async function waitForOpenCodeReachable(baseUrl: string, authorization: string):
 async function spawnAndWire(
   projectLocation: ProjectLocation,
   database: OpenCodeDatabase,
+  profileEnv?: Record<string, string>,
 ): Promise<ServerSnapshot> {
   const resolvedExecPath = await resolveOpenCodeBinary(projectLocation);
   if (!resolvedExecPath)
     throw new Error("OpenCode is not installed or its executable is unavailable.");
-  const command = buildOpenCodeServerCommand(
-    projectLocation,
-    resolvedExecPath,
-    database === "legacy-isolated" ? OPENCODE_LEGACY_DATABASE_ENV : {},
-  );
+  const command = buildOpenCodeServerCommand(projectLocation, resolvedExecPath, {
+    ...(database === "legacy-isolated" ? OPENCODE_LEGACY_DATABASE_ENV : {}),
+    ...profileEnv,
+  });
   const handle = spawnOpenCodeServer(command);
 
   try {
@@ -223,14 +227,20 @@ export interface AcquireOpenCodeServerInput {
   /** Resume pre-upgrade sessions without copying or replacing their conversations. */
   resumeSessionId?: string;
   database?: OpenCodeDatabase;
+  /** Isolated provider config/DB identity for an OpenCode profile. */
+  profile?: { key: string; env: Record<string, string> };
 }
 
 const terminalRetirements = new Map<string, Promise<void>>();
 
-function terminalRetirementKey(location: ProjectLocation, sessionID: string): string {
+function terminalRetirementKey(
+  location: ProjectLocation,
+  sessionID: string,
+  profileKey?: string,
+): string {
   // Database resolution and directory changes must not bypass a session's
   // previous interrupt. Native and legacy sessions share this fence.
-  return JSON.stringify([poolKey(location, "native"), sessionID]);
+  return JSON.stringify([poolKey(location, "native", profileKey), sessionID]);
 }
 
 /** Fence a successor before the old TUI's asynchronous interrupt can reach it. */
@@ -238,6 +248,7 @@ export function retireOpenCodeTerminalServer(
   location: ProjectLocation,
   sessionID: string | undefined,
   acquired: AcquiredOpenCodeServer,
+  profileKey?: string,
 ): Promise<void> {
   const cleanup = async () => {
     try {
@@ -252,7 +263,7 @@ export function retireOpenCodeTerminalServer(
     }
   };
   if (!sessionID) return cleanup();
-  const key = terminalRetirementKey(location, sessionID);
+  const key = terminalRetirementKey(location, sessionID, profileKey);
   const retirement = (terminalRetirements.get(key) ?? Promise.resolve()).then(cleanup);
   const settled = retirement.then(
     () => undefined,
@@ -374,14 +385,28 @@ export async function acquireOpenCodeServer(
   input: AcquireOpenCodeServerInput,
 ): Promise<AcquiredOpenCodeServer> {
   if (input.resumeSessionId) {
-    const key = terminalRetirementKey(input.projectLocation, input.resumeSessionId);
+    const key = terminalRetirementKey(
+      input.projectLocation,
+      input.resumeSessionId,
+      input.profile?.key,
+    );
     let retirement;
     while ((retirement = terminalRetirements.get(key))) await retirement;
   }
   const acquired = await acquireResolvedOpenCodeServer(input);
+  // A private profile owns a single endpoint and database. The base account's
+  // legacy credential import/revoke path must never touch it, and a profile
+  // acquisition must not mark the base runtime's compatibility state.
+  if (input.profile) return acquired;
   try {
     await synchronizeOpenCodeCredentials(input.projectLocation, acquired, (database) =>
-      acquireOpenCodeServerInner({ projectLocation: input.projectLocation, database }, true),
+      acquireOpenCodeServerInner(
+        {
+          projectLocation: input.projectLocation,
+          database,
+        },
+        true,
+      ),
     );
     return acquired;
   } catch (error) {
@@ -423,6 +448,14 @@ async function acquireResolvedOpenCodeServer(
   const known = sessionID
     ? cachedOpenCodeSessionDatabase(input.projectLocation, sessionID)
     : undefined;
+  // Private profiles never probe or fall back to the legacy database: their
+  // database is created fresh under their own identity.
+  if (input.profile) {
+    return acquireOpenCodeServerInner(
+      { ...input, database: input.database ?? known ?? "native" },
+      true,
+    );
+  }
   if (input.database || known || !sessionID)
     return acquireOpenCodeServerInner(
       { ...input, database: input.database ?? known ?? "native" },
@@ -455,11 +488,11 @@ async function acquireOpenCodeServerInner(
   retryMcpConnectionLoss: boolean,
 ): Promise<AcquiredOpenCodeServer> {
   const database = input.database ?? "native";
-  const key = poolKey(input.projectLocation, database);
+  const key = poolKey(input.projectLocation, database, input.profile?.key);
   let entry = pool.get(key);
 
   if (!entry) {
-    const ready = spawnAndWire(input.projectLocation, database);
+    const ready = spawnAndWire(input.projectLocation, database, input.profile?.env);
     const createdEntry: PoolEntry = {
       ready,
       locationMcp: new Map(),

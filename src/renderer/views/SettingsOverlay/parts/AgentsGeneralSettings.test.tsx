@@ -8,6 +8,7 @@ import {
   useAgentStatusesStore,
 } from "@/renderer/state/agentStatusesStore";
 import { AgentDiscoveryOverlay } from "@/renderer/components/thread/AgentDiscoveryOverlay";
+import { agentProfileHarnesses } from "./agentProfileHarnesses";
 import { AgentsGeneralSettings as AgentsGeneralSettingsView } from "./AgentsGeneralSettings";
 
 function AgentsGeneralSettings() {
@@ -37,7 +38,12 @@ vi.mock("@/renderer/components/providers/settings/agentManagementHost", async (i
     };
   },
 }));
-vi.mock("@/renderer/bridge", () => ({ readBridge: () => mocks }));
+vi.mock("@/renderer/bridge", () => ({
+  readBridge: () => mocks,
+  isMac: () => false,
+  isWindows: () => false,
+  isRemoteSession: () => false,
+}));
 vi.mock("@heroui/react", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@heroui/react")>()),
   toast: { danger: mocks.danger },
@@ -79,6 +85,31 @@ describe("Agents General discovery", () => {
     expect(mocks.host).toHaveBeenCalledWith(machine);
     expect(screen.getByRole("heading", { name: "Agents · General" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Refresh detected agents" }).textContent).toBe("");
+  });
+
+  it("launches the shared Add profile dialog from Agents General", () => {
+    render(<AgentsGeneralSettings />);
+    fireEvent.click(screen.getByRole("button", { name: "Add profile" }));
+
+    expect(mocks.host).toHaveBeenCalledWith(machine);
+    expect(screen.getByRole("heading", { name: "Add profile" })).toBeInTheDocument();
+    expect(screen.getByLabelText("New profile name")).toBeInTheDocument();
+    expect(screen.getAllByText("OpenCode").length).toBeGreaterThan(0);
+    expect(agentProfileHarnesses().map((harness) => harness.driver)).toEqual([
+      "opencode",
+      "claude",
+      "codex",
+    ]);
+    // A capable harness starts on its local route; agent-default stays one
+    // radio away.
+    expect(screen.getByRole("tab", { name: "Local Ollama" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    expect(screen.getByRole("tab", { name: "Agent default" })).toHaveAttribute(
+      "aria-selected",
+      "false",
+    );
   });
 
   it("shows background progress, opens results, and keeps discovery alive after leaving Settings", async () => {

@@ -1300,6 +1300,42 @@ describe("AppControlsMcpIngress", () => {
     });
     expect(settings.agentInstances[instanceId]).toBeUndefined();
     expect(settings.providerOrder).toEqual(["another-provider"]);
+
+    const openCodeId = "mcp-opencode-local";
+    const openCodeConfig = {
+      connection: "local",
+      endpoint: "http://127.0.0.1:11434/v1",
+      model: "poracode-ctx-88000-0123456789ab-0123456789abcdef",
+      baseModel: "inkling-2-mini:latest",
+      contextLength: 88000,
+    };
+    await expect(
+      profiles({
+        action: "create",
+        driver: "opencode",
+        id: openCodeId,
+        displayName: "Local",
+        config: openCodeConfig,
+      }),
+    ).resolves.toMatchObject({ payload: { saved: true, instanceId: openCodeId } });
+    expect(settings.agentInstances[openCodeId]?.config).toEqual(openCodeConfig);
+    await expect(
+      profiles({
+        action: "create",
+        driver: "opencode",
+        id: "mcp-opencode-invalid",
+        displayName: "Invalid",
+        config: {
+          connection: "local",
+          endpoint: "not-a-url",
+          model: "m",
+        },
+      }),
+    ).resolves.toMatchObject({
+      isError: true,
+      error: expect.stringMatching(/URL|invalid|too small/i),
+    });
+    expect(settings.agentInstances["mcp-opencode-invalid"]).toBeUndefined();
   });
 
   it("lists live reply tokens and forwards typed replies to the owning supervisor", async () => {

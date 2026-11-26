@@ -1096,6 +1096,32 @@ html[data-app-unfocused] .poracode-welcome-ring::after {
   }
 }
 
+/* Agent-profile form tabs sit on the same field wash as the inputs in those
+   dialogs; HeroUI keeps the selected pill on its own --segment surface. */
+.tabs__list-container.agent-profile-tablist {
+  background-color: var(--field-background);
+}
+
+/* On the compact phone layout these dialogs fill the viewport, so stretch
+   their tab rails across the form instead of hugging the labels. HeroUI's
+   horizontal list is already `width: max-content; min-width: 100%` with each
+   tab at `width: 100%`, so the wider track divides into equal columns; labels
+   too long for their share keep the max-content row inside the scroller
+   instead of overflowing the modal. Desktop keeps the natural content width. */
+html[data-compact-layout] .tabs__list-container.agent-profile-tablist {
+  width: 100%;
+}
+
+/* HeroUI's desktop tab label is a step larger than the surrounding form
+   labels. Use the shared text-xs scale on desktop; the existing max-sm size
+   keeps compact labels at their smaller 10px without enlarging them. */
+@media (min-width: 40rem) {
+  .tabs__list-container.agent-profile-tablist .tabs__tab {
+    font-size: var(--text-xs);
+    line-height: var(--text-xs--line-height);
+  }
+}
+
 /* HeroUI sets `.tooltip__trigger { display: inline-block }`, which inherits
    line-height from the surrounding text and adds descender space below
    block-level children (e.g. svg). That makes triggers wrapping an icon render

@@ -267,6 +267,9 @@ export function applyCreateProfile(
   if (!displayName) {
     throw new Error("Agent profiles require a name.");
   }
+  if (payload.config !== undefined) {
+    agentProfileDriver(payload.driver)?.validateConfig?.(payload.config);
+  }
   const created: AgentInstanceConfig = {
     id: payload.id,
     driver: payload.driver,

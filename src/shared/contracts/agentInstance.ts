@@ -1,4 +1,6 @@
 import { z } from "zod";
+import { claudeLocalProfileRouteSchema } from "../agents/claude/localProfile";
+import { codexLocalProfileRouteSchema } from "../agents/codex/localProfile";
 
 /**
  * Driver / instance model for user-registered agents.
@@ -196,6 +198,12 @@ export const claudeProfileInstanceConfigSchema = z.object({
   modelEfforts: z
     .record(z.string().min(1).max(200), z.array(z.string().min(1).max(40)).max(20))
     .optional(),
+  /**
+   * A local Anthropic-compatible route. When present, the provider runtime
+   * owns the endpoint, credential shadowing, model aliases, and the single
+   * selectable model; stored environment values cannot override them.
+   */
+  local: claudeLocalProfileRouteSchema.optional(),
 });
 export type ClaudeProfileInstanceConfig = z.infer<typeof claudeProfileInstanceConfigSchema>;
 
@@ -212,6 +220,12 @@ export const codexProfileInstanceConfigSchema = z.object({
    * target runtime environment (native home or WSL home).
    */
   homeDir: z.string().min(1),
+  /**
+   * A local OpenAI-compatible route. When present, the runtime registers the
+   * private provider through scoped launch overrides and pins its single model;
+   * the user's `CODEX_HOME`/`config.toml` is never rewritten.
+   */
+  local: codexLocalProfileRouteSchema.optional(),
 });
 export type CodexProfileInstanceConfig = z.infer<typeof codexProfileInstanceConfigSchema>;
 

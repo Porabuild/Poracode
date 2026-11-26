@@ -107,7 +107,9 @@ Provider installation and hooks use the supervisor's existing registry,
 updater and hook operations.
 Provider profiles use the settings owner's guarded writes, the app's
 environment sealing and dependency validation, and atomic removal of
-profile-scoped settings.
+profile-scoped settings. Local provider configs use the same action. Ollama
+downloads and context-variant preparation remain UI workflows using the
+authorized host terminal, and native profile management is planned.
 
 Project composer settings use `get_project` and `set_project_draft_config`
 over the host's narrow catalog command. `list_installed_agents` projects

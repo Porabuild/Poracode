@@ -3,6 +3,9 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   poracodeBaseDirFromEnv,
+  poracodeManagedProfileDir,
+  poracodeManagedProfileNamespace,
+  poracodeManagedProfileStem,
   resolvePoracodeBaseDir,
   resolvePoracodePaths,
 } from "./poracodePaths";
@@ -49,5 +52,22 @@ describe("poracodePaths", () => {
       packageInstallPinsPath: join(baseDir, "package-install-pins.json"),
       acpIconsDir: join(baseDir, "cache", "acp-icons"),
     });
+  });
+
+  it("namespaces managed profile homes and DB stems by host data root", () => {
+    const desktop = { PORACODE_DATA_DIR: "/Users/me/.poracode" };
+    const nightly = { PORACODE_DATA_DIR: "/Users/me/.poracode-nightly" };
+    expect(poracodeManagedProfileNamespace(desktop)).not.toBe(
+      poracodeManagedProfileNamespace(nightly),
+    );
+    expect(poracodeManagedProfileDir("claude-profiles", "work", desktop)).toContain(
+      "/claude-profiles/",
+    );
+    expect(poracodeManagedProfileDir("claude-profiles", "work", desktop)).not.toBe(
+      poracodeManagedProfileDir("claude-profiles", "work", nightly),
+    );
+    expect(poracodeManagedProfileStem("opencode-profile", "work", desktop)).not.toBe(
+      poracodeManagedProfileStem("opencode-profile", "work", nightly),
+    );
   });
 });

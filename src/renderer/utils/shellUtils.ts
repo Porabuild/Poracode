@@ -264,6 +264,8 @@ export function appendExitOnSuccess(
  * {@link runShellScriptToCompletion} this keeps the shell visible and never
  * times out, so long installs are not cut short.
  */
+export type ShellCommandCompletionSource = "marker" | "exit" | "write-error";
+
 export function writeScriptToShellThenExitOnSuccess(
   shellId: string,
   script: string,
@@ -271,12 +273,21 @@ export function writeScriptToShellThenExitOnSuccess(
   onExit: (exitCode: number | null) => void,
   onCommandComplete?: (exitCode: number) => void,
   remoteServerId?: string,
-  outputHandlers?: { onOutput: (output: string) => void; onReset: () => void },
+  outputHandlers?: {
+    onOutput: (output: string) => void;
+    onReset: () => void;
+    /** Authoritative terminal snapshot, delivered before completion scanning. */
+    onSnapshot?: (snapshot: { data: string }) => void;
+    onCommandCompletion?: (exitCode: number, source: ShellCommandCompletionSource) => void;
+  },
 ): () => void {
   const command = normalizeShellScript(script);
   // Nothing meaningful to run — leave the (caller-guarded) shell untouched.
   if (!command) return () => undefined;
-  const completionToken = onCommandComplete ? createShellCompletionToken() : undefined;
+  const completionToken =
+    onCommandComplete || outputHandlers?.onCommandCompletion
+      ? createShellCompletionToken()
+      : undefined;
   const data = `${
     completionToken
       ? buildScriptWithCompletion(script, locationKind, completionToken)
@@ -288,15 +299,16 @@ export function writeScriptToShellThenExitOnSuccess(
     ? new CommandCompletionParser(shellCompletionMarker(completionToken))
     : null;
   let detach: () => void = () => undefined;
-  const reportCommandComplete = (exitCode: number) => {
+  const reportCommandComplete = (exitCode: number, source: ShellCommandCompletionSource) => {
     if (commandCompleted) return;
     commandCompleted = true;
     onCommandComplete?.(exitCode);
+    outputHandlers?.onCommandCompletion?.(exitCode, source);
   };
   const scanCompletion = (output: string, replace = false) => {
     if (commandCompleted || !completion) return;
     const exitCode = replace ? completion.replace(output) : completion.push(output);
-    if (exitCode !== null) reportCommandComplete(exitCode);
+    if (exitCode !== null) reportCommandComplete(exitCode, "marker");
   };
   detach = createRoutedShellSession({
     shellId,
@@ -312,9 +324,12 @@ export function writeScriptToShellThenExitOnSuccess(
       outputHandlers?.onOutput(output);
       scanCompletion(output);
     },
-    onSnapshot: (snapshot) => scanCompletion(snapshot.data, true),
+    onSnapshot: (snapshot) => {
+      outputHandlers?.onSnapshot?.(snapshot);
+      scanCompletion(snapshot.data, true);
+    },
     onExited: (exitCode) => {
-      reportCommandComplete(exitCode ?? -1);
+      reportCommandComplete(exitCode ?? -1, "exit");
       onExit(exitCode);
     },
     onWriteError: (error) => {
@@ -322,7 +337,7 @@ export function writeScriptToShellThenExitOnSuccess(
         `[shellUtils] Unable to write command to shell ${shellId}:`,
         error instanceof Error ? error.message : error,
       );
-      reportCommandComplete(-1);
+      reportCommandComplete(-1, "write-error");
     },
   });
   return detach;

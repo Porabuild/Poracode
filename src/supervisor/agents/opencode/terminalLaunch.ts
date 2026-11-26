@@ -18,6 +18,7 @@ import type { V2Event } from "./clientTypes";
 import { openCodeSessionDatabaseEnv } from "./database";
 import { subscribeOpenCodeServerEvents } from "./eventHub";
 import { buildOpenCodeSessionPermissions } from "./permissions";
+import type { OpenCodeProfileRuntime } from "./profileConfig";
 
 export type OpenCodeTerminalStatusListener = (change: {
   status: ThreadStatus;
@@ -110,12 +111,15 @@ export async function buildOpenCodeTerminalLaunch(
   sessionId: string | undefined,
   mcpServers: readonly ResolvedMcpServer[] = [],
   onStatusUpdate?: OpenCodeTerminalStatusListener,
+  profile?: OpenCodeProfileRuntime,
 ): Promise<AgentArgvSpec> {
   const databaseEnv = openCodeSessionDatabaseEnv(location, sessionId);
+  const profileLease = profile ? { key: profile.key, env: await profile.env(location) } : undefined;
   const acquired = await acquireOpenCodeServer({
     projectLocation: location,
     mcpServers,
     ...(sessionId ? { resumeSessionId: sessionId } : {}),
+    ...(profileLease ? { profile: profileLease } : {}),
   });
   let unsubscribeDirectoryMcp: (() => void) | undefined;
   let unsubscribeEvents: (() => void) | undefined;
@@ -166,7 +170,7 @@ export async function buildOpenCodeTerminalLaunch(
       args: ["--server", acquired.baseUrl, ...buildOpenCodeArgs(config, prompt, sessionId)],
       // The V2 TUI reads OPENCODE_PASSWORD for an explicit --server. Keep it
       // out of argv and release the lease only when the PTY's cleanup runs.
-      env: { ...databaseEnv, OPENCODE_PASSWORD: password },
+      env: { ...databaseEnv, ...(profileLease?.env ?? {}), OPENCODE_PASSWORD: password },
       preferShell: true,
       cleanup: () => {
         cleanedUp = true;
@@ -174,7 +178,12 @@ export async function buildOpenCodeTerminalLaunch(
         unsubscribeDirectoryMcp = undefined;
         unsubscribeEvents?.();
         unsubscribeEvents = undefined;
-        return (retirement ??= retireOpenCodeTerminalServer(location, sessionId, acquired));
+        return (retirement ??= retireOpenCodeTerminalServer(
+          location,
+          sessionId,
+          acquired,
+          profileLease?.key,
+        ));
       },
       ...(sessionId ? { sessionRef: createKnownSessionRef(sessionId) } : {}),
     };
@@ -182,7 +191,7 @@ export async function buildOpenCodeTerminalLaunch(
     cleanedUp = true;
     unsubscribeDirectoryMcp?.();
     unsubscribeEvents?.();
-    await retireOpenCodeTerminalServer(location, sessionId, acquired);
+    await retireOpenCodeTerminalServer(location, sessionId, acquired, profileLease?.key);
     throw error;
   }
 }

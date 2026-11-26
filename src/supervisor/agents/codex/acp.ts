@@ -64,6 +64,10 @@ import {
 import type { CodexClientRequestMap } from "./protocol";
 import { acquireCodexAppServer } from "./serverPool";
 import {
+  pinCodexLocalThreadConfig,
+  type CodexLocalProfileRoute,
+} from "@/shared/agents/codex/localProfile";
+import {
   detectConfiguredCodexBundledSidecars,
   type DetectedCodexBundledSidecars,
 } from "./bundledSidecars";
@@ -243,6 +247,7 @@ export class CodexStructuredSession implements StructuredSessionHandle {
   private readonly mcpServers: readonly ResolvedMcpServer[];
   private readonly nativeMcpNames: readonly string[];
   private readonly detectedSidecars: DetectedCodexBundledSidecars | undefined;
+  private readonly localRoute: CodexLocalProfileRoute | undefined;
   private readonly releaseAppServer: () => void;
   private listener: StructuredSessionListener | undefined;
   private isDisposed = false;
@@ -329,6 +334,7 @@ export class CodexStructuredSession implements StructuredSessionHandle {
     wslDistro?: string,
     nativeMcpNames: readonly string[] = [],
     detectedSidecars?: DetectedCodexBundledSidecars,
+    localRoute?: CodexLocalProfileRoute,
   ) {
     this.rpc = rpc;
     this.liveVoice = new CodexLiveVoice(
@@ -342,6 +348,7 @@ export class CodexStructuredSession implements StructuredSessionHandle {
     this.mcpServers = mcpServers;
     this.nativeMcpNames = nativeMcpNames;
     this.detectedSidecars = detectedSidecars;
+    this.localRoute = localRoute;
     this.releaseAppServer = releaseAppServer;
     this.wslDistro = wslDistro;
     this.launchOptions = {
@@ -350,12 +357,20 @@ export class CodexStructuredSession implements StructuredSessionHandle {
   }
 
   private buildThreadOverrides(config: ThreadConfig) {
-    return buildCodexThreadOverrides(config, {
+    return buildCodexThreadOverrides(this.configForLocalRoute(config), {
       projectLocation: this.projectLocation,
       mcpServers: this.mcpServers,
       nativeMcpNames: this.nativeMcpNames,
       ...(this.detectedSidecars ? { detectedSidecars: this.detectedSidecars } : {}),
+      ...(this.localRoute && this.localRoute.contextLength === undefined
+        ? { useServerDefaultContext: true }
+        : {}),
     });
+  }
+
+  /** A local profile has one model and no cloud effort/fast carriers. */
+  private configForLocalRoute(config: ThreadConfig): ThreadConfig {
+    return this.localRoute ? pinCodexLocalThreadConfig(config, this.localRoute) : config;
   }
 
   private ensureMapperState(): CodexMapperState {
@@ -639,6 +654,7 @@ export class CodexStructuredSession implements StructuredSessionHandle {
   static async create(
     input: CreateStructuredSessionInput,
     wslExecPath?: string,
+    local?: CodexLocalProfileRoute,
   ): Promise<CodexStructuredSession> {
     const [nativeMcpNames, detectedSidecars] = await Promise.all([
       readCodexNativeMcpNames(
@@ -649,7 +665,7 @@ export class CodexStructuredSession implements StructuredSessionHandle {
       ),
       detectConfiguredCodexBundledSidecars(input.projectLocation, input.env),
     ]);
-    const acquired = await acquireCodexAppServer(input, wslExecPath, nativeMcpNames);
+    const acquired = await acquireCodexAppServer(input, wslExecPath, nativeMcpNames, local);
     const wslDistro =
       input.projectLocation.kind === "wsl" ? input.projectLocation.distro : undefined;
     const rpc = new CodexAppServerRpc(acquired.connection, input.threadId);
@@ -662,6 +678,7 @@ export class CodexStructuredSession implements StructuredSessionHandle {
       wslDistro,
       nativeMcpNames,
       detectedSidecars,
+      local,
     );
     session.attachRpcHandlers();
 
@@ -715,6 +732,7 @@ export class CodexStructuredSession implements StructuredSessionHandle {
   }
 
   async openThread(config: ThreadConfig, sessionRef?: SessionRef): Promise<string> {
+    config = this.configForLocalRoute(config);
     const goalHydration: { ready?: Promise<void> } = {};
     this.goalHydration = goalHydration;
     // `mode` does not exist on `thread/start` or `thread/resume`; plan mode is
@@ -901,6 +919,7 @@ export class CodexStructuredSession implements StructuredSessionHandle {
     segments?: PromptSegment[],
     options?: StartTurnOptions,
   ): Promise<void | StructuredTurnResult> {
+    config = this.configForLocalRoute(config);
     this.applyTurnConfig(config);
     // New user turn clears any sticky error from a previous failed turn, along
     // with the per-turn error dedupe state and any pending fallback timer.
@@ -1035,6 +1054,7 @@ export class CodexStructuredSession implements StructuredSessionHandle {
     segments?: PromptSegment[],
     options?: StartTurnOptions,
   ): Promise<void | StructuredTurnResult> {
+    config = this.configForLocalRoute(config);
     // Goal slash-commands keep their control-flow semantics (goal RPC +
     // settle accounting); delivering them as literal steer text would hand
     // "/goal pause" to the model instead of pausing the goal.
@@ -1145,14 +1165,15 @@ export class CodexStructuredSession implements StructuredSessionHandle {
     )
       throw new Error(msg("voice.unavailable"));
     const threadId = this.remoteThreadId;
+    const voiceConfig = this.configForLocalRoute(input.config);
     return this.liveVoice.connect(threadId, input.connectionId, input.offerSdp, async () => {
       await this.rpc.request("thread/settings/update", {
         threadId,
-        ...buildCodexTurnSettingsOverrides(input.config),
+        ...buildCodexTurnSettingsOverrides(voiceConfig),
       });
       if (this.isDisposed || this.remoteThreadId !== threadId)
         throw new Error(msg("voice.cancelled"));
-      this.applyTurnConfig(input.config);
+      this.applyTurnConfig(voiceConfig);
     });
   }
 

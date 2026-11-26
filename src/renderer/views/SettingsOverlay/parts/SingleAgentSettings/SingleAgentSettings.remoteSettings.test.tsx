@@ -33,7 +33,8 @@ const toastMock = vi.hoisted(() => ({
   success: vi.fn<(message: string) => void>(),
 }));
 
-vi.mock("@heroui/react", () => {
+vi.mock("@heroui/react", async (importOriginal) => {
+  const { ComboBox, ListBox, Tabs } = await importOriginal<typeof import("@heroui/react")>();
   function Button(props: {
     children?: ReactNode;
     "aria-label"?: string;
@@ -131,17 +132,6 @@ vi.mock("@heroui/react", () => {
     Body: Wrapper,
     Footer: Wrapper,
   });
-  const Tabs = Object.assign(Wrapper, {
-    ListContainer: Wrapper,
-    List: Wrapper,
-    Tab: (props: { children?: ReactNode; id?: string }) => (
-      <button type="button" role="tab">
-        {props.children}
-      </button>
-    ),
-    Indicator: () => null,
-    Panel: Wrapper,
-  });
   const Card = Object.assign(Wrapper, {
     Header: Wrapper,
     Title: Wrapper,
@@ -152,6 +142,9 @@ vi.mock("@heroui/react", () => {
     Button,
     Card,
     Checkbox,
+    ComboBox,
+    ListBox,
+    Tabs,
     Disclosure,
     Input: (props: {
       "aria-label"?: string;
@@ -170,7 +163,6 @@ vi.mock("@heroui/react", () => {
     Modal,
     Popover,
     Switch,
-    Tabs,
     Tooltip,
     toast: toastMock,
     useMediaQuery: () => true,
@@ -582,10 +574,11 @@ describe("SingleAgentSettings remote host support", () => {
 
     // Adding a profile sends a remote agent-profiles command rather than touching local storage.
     fireEvent.click(screen.getByRole("button", { name: /Add profile/i }));
+    fireEvent.click(screen.getByRole("tab", { name: "Agent default" }));
     fireEvent.change(screen.getByLabelText("New profile name"), {
       target: { value: "Remote Staging" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Create profile" }));
+    fireEvent.click(screen.getByRole("button", { name: "Create" }));
     await waitFor(() =>
       expect(remoteClientMock.commandAgentProfiles).toHaveBeenCalledWith({
         kind: "create",

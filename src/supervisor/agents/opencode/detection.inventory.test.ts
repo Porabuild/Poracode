@@ -13,7 +13,10 @@ vi.mock("./client", () => ({
 
 import { openCodeDetectionSpec } from "./detection";
 
-afterEach(() => vi.restoreAllMocks());
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});
 
 describe("OpenCode catalog discovery", () => {
   it.each([
@@ -83,6 +86,72 @@ describe("OpenCode catalog discovery", () => {
     expect(acquire).toHaveBeenCalledOnce();
     expect(dispose).toHaveBeenCalledExactlyOnceWith({ closeServerIfIdle: true });
   });
+});
+
+it("reports a credential-free local inventory as available without a connected provider", async () => {
+  const localModel = {
+    providerID: "ollama",
+    id: "inkling-2-mini:latest",
+    modelID: "inkling-2-mini:latest",
+    name: "inkling-2-mini:latest",
+    enabled: true,
+    variants: [],
+    limit: { context: 1_048_576 },
+  };
+  const cloudModel = {
+    ...localModel,
+    providerID: "openrouter",
+    name: "Cloud model",
+  };
+  const fetch = vi.fn<typeof globalThis.fetch>().mockImplementation(async (input) => {
+    const url = new URL(String(input));
+    const data =
+      url.pathname === "/api/provider"
+        ? [
+            {
+              id: "ollama",
+              name: "Ollama",
+              activation: "enabled",
+              package: "@opencode/ai/providers/openai-compatible",
+              settings: { baseURL: "http://127.0.0.1:11434/v1" },
+            },
+            {
+              id: "openrouter",
+              name: "OpenRouter",
+              integrationID: "openrouter",
+              activation: "enabled",
+              package: "@opencode/ai/providers/openrouter",
+            },
+          ]
+        : url.pathname === "/api/model"
+          ? [localModel, cloudModel]
+          : url.pathname === "/api/model/default"
+            ? null
+            : url.pathname === "/api/plugin"
+              ? [{ source: { type: "builtin" }, state: { status: "active" } }]
+              : url.pathname === "/api/integration"
+                ? [{ id: "openrouter", name: "OpenRouter", connections: [] }]
+                : [];
+    return Response.json({ location: { directory: "/repo" }, data });
+  });
+  acquire.mockResolvedValue({
+    client: OpenCode.make({ baseUrl: "http://localhost:4096", fetch }),
+    dispose: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+  } as unknown as AcquiredOpenCodeServer);
+  const ctx = {
+    location: { kind: "posix" as const, path: "/repo" },
+    executablePath: "opencode",
+    version: "2.4.1",
+  };
+  const [capabilities, status] = await Promise.all([
+    openCodeDetectionSpec.capabilitiesProbe?.(ctx),
+    openCodeDetectionSpec.statusProbe?.(ctx),
+  ]);
+  expect(capabilities?.models).toEqual([
+    { id: "ollama/inkling-2-mini:latest", label: "inkling-2-mini:latest" },
+  ]);
+  expect(capabilities?.subProviders).toEqual([{ id: "ollama", label: "Ollama" }]);
+  expect(status).toEqual({ authState: "authenticated" });
 });
 
 it("refreshes models and capability metadata after a configured provider disconnects", async () => {

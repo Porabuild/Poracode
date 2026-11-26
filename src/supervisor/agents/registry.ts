@@ -30,7 +30,7 @@ import { createGeminiAdapter, createGeminiProfileAdapter } from "./gemini";
 import { createGrokAdapter } from "./grok";
 import { createKimiAdapter } from "./kimi";
 import { createMuseAdapter } from "./muse";
-import { createOpenCodeAdapter } from "./opencode";
+import { createOpenCodeAdapter, createOpenCodeProfileAdapter } from "./opencode";
 import { createPiAdapter } from "./pi";
 import { createQoderAdapter } from "./qoder";
 import { createQwenAdapter } from "./qwen";
@@ -134,6 +134,7 @@ export function buildAgentRegistryEntries(
   > = {
     claude: createClaudeProfileAdapter,
     codex: createCodexProfileAdapter,
+    opencode: createOpenCodeProfileAdapter,
     cursor: createCursorProfileAdapter,
     devin: createDevinProfileAdapter,
     gemini: createGeminiProfileAdapter,

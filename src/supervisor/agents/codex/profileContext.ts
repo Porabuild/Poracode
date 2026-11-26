@@ -13,6 +13,7 @@ import { ensureWslDirectory } from "../plugin/installerBase";
 import { codexDetectionSpec } from "./detection";
 import type { CodexPluginDiscoveryHome } from "./nativePlugins";
 import { getCodexPluginPaths, type CodexHomeOverlay } from "./plugin/install";
+import type { CodexLocalProfileRoute } from "@/shared/agents/codex/localProfile";
 
 export interface CodexAdapterOptions {
   /** Instance-scoped agent kind (`codex:<id>`) for a profile. */
@@ -26,6 +27,8 @@ export interface CodexAdapterOptions {
    * against the target runtime (native home or WSL home).
    */
   homeDir?: string;
+  /** Local OpenAI-compatible route for this profile. */
+  local?: CodexLocalProfileRoute;
 }
 
 /**
@@ -72,7 +75,13 @@ export function createCodexProfileContext(options: CodexAdapterOptions) {
     location: ProjectLocation,
   ): Promise<Record<string, string> | undefined> => {
     const home = await profileHome(location);
-    return home ? { CODEX_HOME: home, ...BLANKED_HOST_CREDENTIALS } : undefined;
+    return home
+      ? {
+          CODEX_HOME: home,
+          ...BLANKED_HOST_CREDENTIALS,
+          ...(options.local ? { CODEX_OAUTH_TOKEN: "" } : {}),
+        }
+      : undefined;
   };
   const withProfileEnv = async <T extends { env?: Record<string, string> }>(
     spec: T,

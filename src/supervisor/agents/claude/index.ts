@@ -8,10 +8,19 @@ import type {
   ClaudeProfileModel,
   ProjectLocation,
   PromptSegment,
+  ThreadConfig,
 } from "@/shared/contracts";
 import { claudeProfileKind, parseClaudeProfileInstanceConfig } from "@/shared/contracts";
 import { inlinePromptSegmentText } from "@/shared/promptContent";
 import { CLAUDE_ULTRACODE_ID } from "@/shared/agents/claudeEfforts";
+import {
+  claudeLocalProfileEnv,
+  claudeManagedLocalProfileDir,
+  clampClaudeLocalCapabilities,
+  type ClaudeLocalProfileRoute,
+} from "@/shared/agents/claude/localProfile";
+import { poracodeManagedProfileNamespace } from "@/shared/poracodePaths";
+import { contextWindowIdFromTokens } from "@/shared/contextWindowOptions";
 import {
   assertOneShotControlsMapped,
   brailleSpinnerOscTitleHint,
@@ -83,17 +92,28 @@ interface ClaudeAdapterOptions {
   defaultEffort?: string;
   /** Per-model effort choices for external-provider model ids. */
   modelEfforts?: Record<string, string[]>;
+  /**
+   * Typed local route. Its env is rebuilt on every lane and merged after any
+   * stored environment, so a user profile cannot override the endpoint or
+   * inherit ambient cloud credentials/headers.
+   */
+  local?: ClaudeLocalProfileRoute;
 }
 
 async function profileEnvForLocation(
   configDir: string | undefined,
   customEnv: Record<string, string> | undefined,
   location: ProjectLocation,
+  local?: ClaudeLocalProfileRoute,
 ): Promise<Record<string, string> | undefined> {
-  // customEnv already has its empty keys filtered out (resolveInstanceEnv).
-  // CLAUDE_CONFIG_DIR is set last so the profile's identity always wins over a
-  // user-supplied override of the same key.
-  const env: Record<string, string> = { ...customEnv };
+  // Stored env is user-owned for ordinary profiles. A typed local route is
+  // applied after it and before the config directory, so endpoint, credential
+  // shadows, and model aliases always win while CLAUDE_CONFIG_DIR keeps the
+  // profile's identity.
+  const env: Record<string, string> = {
+    ...customEnv,
+    ...(local ? claudeLocalProfileEnv(local) : {}),
+  };
   if (configDir?.trim()) {
     env.CLAUDE_CONFIG_DIR = await resolveTildePath(configDir, location);
   }
@@ -232,12 +252,15 @@ export function createClaudeProfileAdapter(instance: AgentInstanceConfig): Agent
   return createClaudeAdapter({
     kind: claudeProfileKind(instance.id),
     label: `Claude ${profileLabel}`,
-    configDir: cfg.configDir,
+    configDir: cfg.local
+      ? claudeManagedLocalProfileDir(instance.id, poracodeManagedProfileNamespace())
+      : cfg.configDir,
     ...(customEnv ? { customEnv } : {}),
     ...(cfg.models && cfg.models.length > 0 ? { models: cfg.models } : {}),
     ...(cfg.efforts && cfg.efforts.length > 0 ? { efforts: cfg.efforts } : {}),
     ...(cfg.defaultEffort ? { defaultEffort: cfg.defaultEffort } : {}),
     ...(cfg.modelEfforts ? { modelEfforts: cfg.modelEfforts } : {}),
+    ...(cfg.local ? { local: cfg.local } : {}),
   });
 }
 
@@ -245,14 +268,30 @@ export function createClaudeAdapter(options: ClaudeAdapterOptions = {}): AgentAd
   const kind = options.kind ?? claudeDetectionSpec.kind;
   const label = options.label ?? claudeDetectionSpec.label;
   const profileEnv = (location: ProjectLocation) =>
-    profileEnvForLocation(options.configDir, options.customEnv, location);
-  const capabilities = overrideProfileCapabilities(
-    claudeCapabilities,
-    options.models,
-    options.efforts,
-    options.defaultEffort,
-    options.modelEfforts,
-  );
+    profileEnvForLocation(options.configDir, options.customEnv, location, options.local);
+  const pinConfigForLocalRoute = (config: ThreadConfig): ThreadConfig => {
+    if (!options.local) return config;
+    const { effort: _effort, fast: _fast, ...rest } = config;
+    return {
+      ...rest,
+      model: options.local.model,
+      ...(options.local.contextLength !== undefined
+        ? { contextSize: contextWindowIdFromTokens(options.local.contextLength) }
+        : {}),
+    };
+  };
+  const capabilities = (() => {
+    const overridden = overrideProfileCapabilities(
+      claudeCapabilities,
+      options.models,
+      options.efforts,
+      options.defaultEffort,
+      options.modelEfforts,
+    );
+    return options.local
+      ? clampClaudeLocalCapabilities(overridden, options.local.model)
+      : overridden;
+  })();
 
   /**
    * The one-shot lane's native effort/Fast argv mapping — `--effort` and the
@@ -284,16 +323,16 @@ export function createClaudeAdapter(options: ClaudeAdapterOptions = {}): AgentAd
   ) {
     if (!prompt) return undefined;
     // --no-session-persistence keeps title/commit/PR-summary calls out of
-    // the `/resume` picker. --fallback-model auto-degrades to Haiku if the
-    // primary is overloaded so async title generation does not silently
-    // fail when the API throttles.
+    // the `/resume` picker. Ordinary profiles keep the Haiku fallback so async
+    // title generation degrades instead of failing under throttling. A local
+    // route has exactly one model; a cloud fallback would send the local
+    // endpoint a model id it does not serve.
     const args = [
       "-p",
       prompt,
       "--model",
       model,
-      "--fallback-model",
-      "haiku",
+      ...(options.local ? [] : ["--fallback-model", "haiku"]),
       "--no-session-persistence",
       ...extraArgs,
     ];
@@ -305,6 +344,57 @@ export function createClaudeAdapter(options: ClaudeAdapterOptions = {}): AgentAd
       stdin: "",
       ...(env ? { env } : {}),
     };
+  }
+
+  // Read-only and text-only lanes keep every isolation flag in one list so the
+  // local and cloud branches cannot drift apart.
+  const readOnlyOneShotArgs = [
+    "--safe-mode",
+    "--restricted",
+    "--disable-slash-commands",
+    "--tools",
+    "Read,Glob,Grep",
+    "--permission-mode",
+    "plan",
+    "--allowedTools",
+    "Read,Glob,Grep",
+    "--disallowedTools",
+    "Bash,Edit,Write,NotebookEdit,WebFetch,WebSearch,Task,Skill,mcp__*",
+    "--mcp-config",
+    JSON.stringify({ mcpServers: {} }),
+    "--strict-mcp-config",
+  ];
+  const textOnlyOneShotArgs = [
+    "--safe-mode",
+    "--tools",
+    "",
+    "--mcp-config",
+    JSON.stringify({ mcpServers: {} }),
+    "--strict-mcp-config",
+  ];
+
+  /**
+   * Map a checked one-shot selection onto the route's carriers. A local route
+   * serves one model and no cloud effort/Fast; its legacy empty/false carriers
+   * are inactive, while real values refuse before the command is built.
+   */
+  function resolveClaudeOneShotRoute(
+    selection: ReturnType<typeof resolveCheckedOneShotBuilderSelection>,
+  ): { model: string; effort: string | undefined; fast: boolean | undefined } {
+    if (!options.local) {
+      assertOneShotControlsMapped(selection, { effort: true, fast: true });
+      return { model: selection.model, effort: selection.effort, fast: selection.fast };
+    }
+    if (selection.model !== options.local.model) {
+      throw new Error(
+        `This local profile serves only "${options.local.model}", not "${selection.model}".`,
+      );
+    }
+    assertOneShotControlsMapped(selection, {
+      effort: { inactive: [""] },
+      fast: { inactive: [false] },
+    });
+    return { model: options.local.model, effort: undefined, fast: undefined };
   }
 
   return {
@@ -405,25 +495,40 @@ export function createClaudeAdapter(options: ClaudeAdapterOptions = {}): AgentAd
               },
             };
       const status = await detectAgentInstall(ctx, spec);
+      const overridden = overrideProfileCapabilities(
+        status.capabilities,
+        options.models,
+        options.efforts,
+        options.defaultEffort,
+        options.modelEfforts,
+        ctx?.agentSettings,
+      );
+      const identity = options.local ? { ...status } : status;
+      if (options.local) {
+        delete identity.providerMetadata;
+        delete identity.loginCommand;
+        delete identity.loginCommandDisplay;
+        delete identity.authMethods;
+        delete identity.authLogoutSupported;
+      }
       return {
-        ...status,
+        ...identity,
         kind,
         label,
+        // A local route says nothing about the base account; it is usable
+        // without one and never reports the base identity.
+        ...(options.local ? { authState: "authenticated" as const } : {}),
         // Re-assert the profile overrides on top of whatever the probe returned,
         // so the model list / effort allow-list always wins.
-        capabilities: overrideProfileCapabilities(
-          status.capabilities,
-          options.models,
-          options.efforts,
-          options.defaultEffort,
-          options.modelEfforts,
-          ctx?.agentSettings,
-        ),
+        capabilities: options.local
+          ? clampClaudeLocalCapabilities(overridden, options.local.model)
+          : overridden,
       };
     },
     async buildLaunchArgv(location, config, prompt, _sessionRef, launchOptions) {
       const assignedId = randomUUID();
-      const args = buildClaudeArgs(config, prompt, undefined, assignedId);
+      const pinnedConfig = pinConfigForLocalRoute(config);
+      const args = buildClaudeArgs(pinnedConfig, prompt, undefined, assignedId);
       const mcp = await claudeMcpLaunch(location, launchOptions?.mcpServers);
       args.splice(
         claudeExtraArgsPosition(args, prompt),
@@ -431,7 +536,7 @@ export function createClaudeAdapter(options: ClaudeAdapterOptions = {}): AgentAd
         ...claudeNativeChromeArgs(location, launchOptions?.agentSettings),
         ...mcp.args,
       );
-      const env = claudeContextWindowEnv(config.contextSize, await profileEnv(location));
+      const env = claudeContextWindowEnv(pinnedConfig.contextSize, await profileEnv(location));
       return {
         ...mcp,
         binary: "claude",
@@ -441,7 +546,8 @@ export function createClaudeAdapter(options: ClaudeAdapterOptions = {}): AgentAd
       };
     },
     async buildResumeArgv(location, config, prompt, sessionRef, launchOptions) {
-      const args = buildClaudeArgs(config, prompt, sessionRef.providerSessionId);
+      const pinnedConfig = pinConfigForLocalRoute(config);
+      const args = buildClaudeArgs(pinnedConfig, prompt, sessionRef.providerSessionId);
       const mcp = await claudeMcpLaunch(location, launchOptions?.mcpServers);
       args.splice(
         claudeExtraArgsPosition(args, prompt),
@@ -449,18 +555,25 @@ export function createClaudeAdapter(options: ClaudeAdapterOptions = {}): AgentAd
         ...claudeNativeChromeArgs(location, launchOptions?.agentSettings),
         ...mcp.args,
       );
-      const env = claudeContextWindowEnv(config.contextSize, await profileEnv(location));
+      const env = claudeContextWindowEnv(pinnedConfig.contextSize, await profileEnv(location));
       return { ...mcp, binary: "claude", args, ...(env ? { env } : {}) };
     },
     extraArgsPosition: claudeExtraArgsPosition,
-    rewriteLaunchArgsForConfig: rewriteClaudeLaunchArgsForConfig,
+    rewriteLaunchArgsForConfig: options.local
+      ? (args, config, location) =>
+          rewriteClaudeLaunchArgsForConfig(args, pinConfigForLocalRoute(config), location)
+      : rewriteClaudeLaunchArgsForConfig,
     createInitialSessionRef() {
       return undefined;
     },
     async createStructuredSession(input: CreateStructuredSessionInput) {
       if (input.presentationMode !== "gui") return undefined;
       const env = await profileEnv(input.projectLocation);
-      return ClaudeSdkSession.create({ ...input, ...(env ? { env } : {}) });
+      return ClaudeSdkSession.create({
+        ...input,
+        ...(options.local ? { config: pinConfigForLocalRoute(input.config) } : {}),
+        ...(env ? { env } : {}),
+      });
     },
     async buildAcpLogoutCommand(ctx) {
       const location = detectProbeLocation(ctx);
@@ -499,38 +612,21 @@ export function createClaudeAdapter(options: ClaudeAdapterOptions = {}): AgentAd
     spoofsIterm2StatusEnv: true,
     oscHintsDeferToHookPlugin: true,
     workingSilenceTimeoutMs: null,
-    defaultOneShotModel: "haiku",
+    defaultOneShotModel: options.local?.model ?? "haiku",
     async buildOneShotCommand(model, effort, prompt, location, fast, oneShotOptions) {
+      // Positionals and the shared selection must agree before any effect.
       const selection = resolveCheckedOneShotBuilderSelection(
         { model, effort, fast },
         oneShotOptions,
       );
-      // Both carriers map natively through claudeControlArgs below.
-      assertOneShotControlsMapped(selection, { effort: true, fast: true });
+      const route = resolveClaudeOneShotRoute(selection);
       return buildClaudeOneShotCommand(
-        model,
-        effort,
+        route.model,
+        route.effort,
         prompt,
         location,
-        fast,
-        oneShotOptions?.readOnlyWorkspace
-          ? [
-              "--safe-mode",
-              "--restricted",
-              "--disable-slash-commands",
-              "--tools",
-              "Read,Glob,Grep",
-              "--permission-mode",
-              "plan",
-              "--allowedTools",
-              "Read,Glob,Grep",
-              "--disallowedTools",
-              "Bash,Edit,Write,NotebookEdit,WebFetch,WebSearch,Task,Skill,mcp__*",
-              "--mcp-config",
-              JSON.stringify({ mcpServers: {} }),
-              "--strict-mcp-config",
-            ]
-          : [],
+        route.fast,
+        oneShotOptions?.readOnlyWorkspace ? readOnlyOneShotArgs : [],
       );
     },
     async buildTextOnlyOneShotCommand(model, effort, prompt, location, fast, oneShotOptions) {
@@ -538,23 +634,35 @@ export function createClaudeAdapter(options: ClaudeAdapterOptions = {}): AgentAd
         { model, effort, fast },
         oneShotOptions,
       );
-      // Same native carrier mapping as the general lane.
-      assertOneShotControlsMapped(selection, { effort: true, fast: true });
-      return buildClaudeOneShotCommand(model, effort, prompt, location, fast, [
-        "--safe-mode",
-        "--tools",
-        "",
-        "--mcp-config",
-        JSON.stringify({ mcpServers: {} }),
-        "--strict-mcp-config",
-      ]);
+      const route = resolveClaudeOneShotRoute(selection);
+      return buildClaudeOneShotCommand(
+        route.model,
+        route.effort,
+        prompt,
+        location,
+        route.fast,
+        textOnlyOneShotArgs,
+      );
     },
     async buildContextExtractionCommand(sessionRef, location, model, oneShotOptions) {
       const selection = resolveCheckedOneShotResumeSelection(model, oneShotOptions);
-      // The resume print run consumes the same native effort/Fast mapping as
-      // the one-shot lane; every other present carrier refuses before the
-      // command is built.
-      assertOneShotControlsMapped(selection, { effort: true, fast: true });
+      const local = options.local;
+      if (local) {
+        if (selection.model !== local.model) {
+          throw new Error(
+            `This local profile serves only "${local.model}", not "${selection.model}".`,
+          );
+        }
+        assertOneShotControlsMapped(selection, {
+          effort: { inactive: [""] },
+          fast: { inactive: [false] },
+        });
+      } else {
+        // The resume print run consumes the same native effort/Fast mapping as
+        // the one-shot lane; every other present carrier refuses before the
+        // command is built.
+        assertOneShotControlsMapped(selection, { effort: true, fast: true });
+      }
       // The resumed session is read-only here; --no-session-persistence
       // prevents the extraction turn from being written back to disk.
       const args = [
@@ -562,9 +670,9 @@ export function createClaudeAdapter(options: ClaudeAdapterOptions = {}): AgentAd
         "--resume",
         sessionRef.providerSessionId,
         "--model",
-        model ?? "haiku",
+        local?.model ?? model ?? "haiku",
         "--no-session-persistence",
-        ...claudeControlArgs(selection.effort, selection.fast),
+        ...(local ? [] : claudeControlArgs(selection.effort, selection.fast)),
       ];
       const env = await profileEnv(location);
       return {

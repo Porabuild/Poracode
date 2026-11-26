@@ -28,6 +28,7 @@ const runAgentLoginCommandMock = vi.hoisted(() =>
 );
 vi.mock("@/renderer/actions/agentLoginActions", () => ({
   runAgentLoginCommand: runAgentLoginCommandMock,
+  runAgentInstallCommand: vi.fn<() => boolean>(() => true),
 }));
 
 const bridge = vi.hoisted(() => ({

@@ -21,6 +21,10 @@ import {
 import { resolveCodexWindowsLaunchBinary } from "./windowsExecutable";
 import { codexAgentSettingOverrideArgs } from "@/shared/agents/codexAgentSettings";
 import { codexContextWindowOverrides } from "@/shared/agents/codexContextWindows";
+import {
+  codexLocalProfileArgs,
+  type CodexLocalProfileRoute,
+} from "@/shared/agents/codex/localProfile";
 import { buildCodexMcp } from "./mcpConfig";
 import { readCodexNativeMcpNames } from "./nativeMcp";
 import { isCodexAgentsConfigSupported } from "./agentsConfigSupport";
@@ -41,6 +45,7 @@ interface BuildCodexArgsOptions {
   launchOptions?: AgentLaunchOptions;
   mcpArgs?: string[];
   bundledSidecarArgs?: string[];
+  local?: CodexLocalProfileRoute;
 }
 
 function buildCodexArgs(opts: BuildCodexArgsOptions): string[] {
@@ -52,6 +57,7 @@ function buildCodexArgs(opts: BuildCodexArgsOptions): string[] {
     launchOptions,
     mcpArgs,
     bundledSidecarArgs,
+    local,
   } = opts;
   const args: string[] = [];
 
@@ -70,27 +76,35 @@ function buildCodexArgs(opts: BuildCodexArgsOptions): string[] {
     "suppress_unstable_features_warning=true",
   );
 
+  if (local) args.push(...codexLocalProfileArgs(local));
+
   args.push(...(mcpArgs ?? []));
   args.push(...codexAgentSettingOverrideArgs(launchOptions?.agentSettings, supportsAgentsConfig));
 
   if (!launchOptions?.suppressResumeConfigOverrides) {
-    if (config.model) {
-      args.push("-m", config.model);
+    if (local) {
+      // A local profile has exactly one model; cloud aliases and effort/fast
+      // carriers from an existing thread never reach its endpoint.
+      args.push("-m", local.model);
+    } else {
+      if (config.model) {
+        args.push("-m", config.model);
+      }
+      if (config.effort) {
+        args.push("-c", `model_reasoning_effort="${config.effort}"`);
+      }
+      if (config.fast) {
+        // Codex's `service_tier="fast"` selects the priority lane on supported models.
+        args.push("-c", 'service_tier="fast"');
+      }
+      const contextWindow = codexContextWindowOverrides(config.contextSize);
+      args.push(
+        "-c",
+        `model_context_window=${contextWindow.model_context_window}`,
+        "-c",
+        `model_auto_compact_token_limit=${contextWindow.model_auto_compact_token_limit}`,
+      );
     }
-    if (config.effort) {
-      args.push("-c", `model_reasoning_effort="${config.effort}"`);
-    }
-    if (config.fast) {
-      // Codex's `service_tier="fast"` selects the priority lane on supported models.
-      args.push("-c", 'service_tier="fast"');
-    }
-    const contextWindow = codexContextWindowOverrides(config.contextSize);
-    args.push(
-      "-c",
-      `model_context_window=${contextWindow.model_context_window}`,
-      "-c",
-      `model_auto_compact_token_limit=${contextWindow.model_auto_compact_token_limit}`,
-    );
     if (config.approvalPolicy) {
       args.push("-a", config.approvalPolicy);
     }
@@ -137,6 +151,7 @@ export async function buildCodexArgvFor(
   sessionRef?: SessionRef,
   launchOptions?: AgentLaunchOptions,
   env?: Record<string, string>,
+  local?: CodexLocalProfileRoute,
 ): Promise<AgentArgvSpec> {
   const binary = resolveCodexWindowsLaunchBinary(location) ?? "codex";
   const mcpServers = launchOptions?.mcpServers ?? [];
@@ -162,6 +177,7 @@ export async function buildCodexArgvFor(
     ...(launchOptions ? { launchOptions } : {}),
     mcpArgs,
     bundledSidecarArgs,
+    ...(local ? { local } : {}),
   };
   // When the structured session owns thread lifecycle, the TUI resumes the
   // server-created thread. Config is controlled by the server, not the CLI.
@@ -214,6 +230,8 @@ export async function buildCodexAppServerCommand(
      * after the MCP env so a profile's identity always wins.
      */
     env?: Record<string, string>;
+    /** Local provider route; scoped `-c` args, never a config-file write. */
+    local?: CodexLocalProfileRoute;
   },
 ): Promise<CommandSpec> {
   const wslExecPath = options?.wslExecPath;
@@ -235,6 +253,7 @@ export async function buildCodexAppServerCommand(
       options?.agentSettings,
       isCodexAgentsConfigSupported(location),
     ),
+    ...(options?.local ? codexLocalProfileArgs(options.local) : []),
     // Older CLIs tolerate config overrides; no global config mutation.
     "-c",
     "features.realtime_conversation=true",

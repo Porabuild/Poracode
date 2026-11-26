@@ -24,6 +24,14 @@ beforeEach(() => {
   mocks.remove.mockReset().mockResolvedValue(undefined);
 });
 
+it("counts verified local inventory as availability without inventing a connected provider", () => {
+  expect(buildOpenCodeStatusFromIntegrations([], [], true)).toEqual({
+    authState: "authenticated",
+  });
+  expect(buildOpenCodeStatusFromIntegrations([], [], false)).toEqual({ authState: "missing" });
+  expect(buildOpenCodeStatusFromIntegrations([])).toEqual({ authState: "missing" });
+});
+
 it("shows removable legacy OAuth rows without reporting native authentication", async () => {
   mocks.legacy.mockResolvedValue([
     {

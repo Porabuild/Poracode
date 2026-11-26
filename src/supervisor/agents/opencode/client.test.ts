@@ -102,6 +102,36 @@ describe("acquireOpenCodeServer", () => {
     vi.useRealTimers();
   });
 
+  it("skips credential compatibility and the legacy database for private profiles", async () => {
+    mocks.spawnOpenCodeServer.mockReturnValue(makeHandle("http://127.0.0.1:4310"));
+    const { acquireOpenCodeServer } = await import("./client");
+    const { synchronizeOpenCodeCredentials, revokeOpenCodeCredential } =
+      await import("./credentialCompatibility");
+    const profile = {
+      key: "poracode-profile:work",
+      env: {
+        OPENCODE_CONFIG_CONTENT: "{}",
+        OPENCODE_CONFIG_DIR: "/home/user/.poracode/opencode-profiles/work",
+        OPENCODE_DB: "opencode-profile-work.db",
+      },
+    };
+    const acquired = await acquireOpenCodeServer({
+      projectLocation: { kind: "posix", path: "/repo" },
+      profile,
+      resumeSessionId: "missing-session",
+    });
+    expect(acquired.database).toBe("native");
+    expect(mocks.spawnOpenCodeServer).toHaveBeenCalledOnce();
+    expect(mocks.buildOpenCodeServerCommand).toHaveBeenCalledWith(
+      { kind: "posix", path: "/repo" },
+      "opencode",
+      profile.env,
+    );
+    expect(synchronizeOpenCodeCredentials).not.toHaveBeenCalled();
+    expect(revokeOpenCodeCredential).not.toHaveBeenCalled();
+    await acquired.dispose();
+  });
+
   it("uses the native credential/session database for new acquisitions", async () => {
     mocks.spawnOpenCodeServer.mockReturnValue(makeHandle("http://127.0.0.1:4300"));
     const { acquireOpenCodeServer } = await import("./client");

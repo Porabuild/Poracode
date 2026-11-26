@@ -7,16 +7,14 @@ import { agentProfileKind, type AgentInstanceConfig, type AgentStatus } from "@/
 import { friendlyError } from "@/shared/messages";
 import { ConfirmDialog, Input, PixelLoader } from "@/renderer/components/common";
 import {
-  rediscoverHostAgents,
   useAgentSettingsHost,
   useHostAgentInstances,
 } from "@/renderer/components/providers/settings/AgentSettingsHostContext";
-import {
-  refreshPairedHostProfilesNow,
-  usePairedHostProfiles,
-} from "@/renderer/state/pairedHostProfiles";
+import { usePairedHostProfiles } from "@/renderer/state/pairedHostProfiles";
 import { flushSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import type { NativeAgentProfileSupport } from "./agentRegistryNative";
+import { AgentProfileDialog } from "./AgentProfileDialog";
+import { refreshAgentProfiles } from "./agentProfileCreate";
 import { isDuplicateProfileName, uniqueProfileId } from "./profileIds";
 
 /**
@@ -35,6 +33,9 @@ export function AgentProfileList(props: {
   profiles: NativeAgentProfileSupport;
   /** The base provider's detected statuses, forwarded to `onCreated`. */
   statuses?: readonly AgentStatus[] | undefined;
+  /** Host/env-wide statuses for local-model suggestions across providers. */
+  suggestionStatuses?: readonly AgentStatus[] | undefined;
+  workspaceIsClientDevice?: boolean | undefined;
   onOpenProfile?: ((profileKind: string) => void) | undefined;
 }) {
   if (!useAgentSettingsHost().canManageProfiles) return null;
@@ -44,6 +45,8 @@ export function AgentProfileList(props: {
 function AgentProfileListBody(props: {
   profiles: NativeAgentProfileSupport;
   statuses?: readonly AgentStatus[] | undefined;
+  suggestionStatuses?: readonly AgentStatus[] | undefined;
+  workspaceIsClientDevice?: boolean | undefined;
   onOpenProfile?: ((profileKind: string) => void) | undefined;
 }) {
   const { profiles: support } = props;
@@ -103,10 +106,7 @@ function AgentProfileListBody(props: {
   }, [isAdding]);
 
   const refreshProfiles = (kind?: string) => {
-    if (settingsHost.isRemote && settingsHost.connectionKey) {
-      refreshPairedHostProfilesNow(settingsHost.connectionKey);
-    }
-    return rediscoverHostAgents(settingsHost, kind);
+    return refreshAgentProfiles(settingsHost, kind);
   };
 
   const addProfile = async () => {
@@ -274,7 +274,24 @@ function AgentProfileListBody(props: {
           );
         })}
 
-        {isAdding ? (
+        {isAdding && support.addProfile ? (
+          <AgentProfileDialog
+            harnesses={[{ driver: support.driver, label: support.addProfile.label, support }]}
+            initialDriver={support.driver}
+            settingsHost={settingsHost}
+            agentInstances={agentInstances}
+            statuses={props.suggestionStatuses ?? props.statuses ?? []}
+            workspaceIsClientDevice={props.workspaceIsClientDevice}
+            onDismiss={closeAddForm}
+            onCreated={(kind) => {
+              void refreshProfiles(kind)
+                .then(() => props.onOpenProfile?.(kind))
+                .catch((error) => toast.danger(friendlyError(error)));
+            }}
+          />
+        ) : null}
+
+        {isAdding && !support.addProfile ? (
           <ContentSurface className="p-3">
             <div
               className={`grid items-center gap-2 ${support.field ? "grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)_auto]" : "grid-cols-[minmax(0,1fr)_auto]"}`}
@@ -345,7 +362,7 @@ function AgentProfileListBody(props: {
         ) : null}
       </div>
 
-      {!isAdding ? (
+      {!isAdding || support.addProfile ? (
         <Button
           ref={addButtonRef}
           size="sm"
