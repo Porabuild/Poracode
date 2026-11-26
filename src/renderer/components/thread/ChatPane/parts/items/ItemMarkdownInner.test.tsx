@@ -360,6 +360,45 @@ describe("ItemMarkdownInner", () => {
     );
   });
 
+  it("re-resolves path chips for an unchanged reply when project roots arrive", () => {
+    const projectLocation = { kind: "windows", path: "E:\\work\\app" } as const;
+    const text =
+      "* **Changed.** [recording-actions.ts](src/recording-actions.ts)\n\n" +
+      "Then run src/recording-actions.ts to verify.";
+    const unresolved = makeActions({
+      projectLocation,
+      projectRootNames: new Set<string>(),
+    });
+    const resolved = makeActions({
+      projectLocation,
+      projectRootNames: new Set(["src"]),
+    });
+    const view = (actions: ChatPaneActions) => (
+      <AppProvider>
+        <ChatPaneActionsContext.Provider value={actions}>
+          <ItemMarkdownInner text={text} />
+        </ChatPaneActionsContext.Provider>
+      </AppProvider>
+    );
+    const { container, rerender } = render(view(unresolved));
+    expect(container.querySelector(".poracode-inline-path-chip")).toBeNull();
+
+    rerender(view(resolved));
+
+    const chips = [...container.querySelectorAll("button.poracode-inline-path-chip")];
+    expect(chips).toHaveLength(2);
+    for (const chip of chips) {
+      expect(chip.querySelector("img.poracode-inline-path-chip__icon")).not.toBeNull();
+      expect(chip).toHaveAttribute("title", "src/recording-actions.ts");
+    }
+    for (const chip of chips) fireEvent.click(chip);
+    expect(resolved.openProjectRelativePath).toHaveBeenCalledTimes(2);
+    expect(resolved.openProjectRelativePath).toHaveBeenCalledWith(
+      "src/recording-actions.ts",
+      undefined,
+    );
+  });
+
   it("leaves slash prose as text when no project can verify folders", () => {
     const homeActions: ChatPaneActions = {
       openProjectRelativePath: vi.fn<(path: string, lineNumber?: number) => Promise<void>>(),
