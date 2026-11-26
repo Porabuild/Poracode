@@ -16,6 +16,8 @@ import {
   PROTOCOL_VERSION,
   type AuthMethod,
   type AuthMethodAgent,
+  type InitializeResponse,
+  type PromptResponse,
   type SessionNotification,
   type SessionMode,
 } from "@agentclientprotocol/sdk/unstable";
@@ -125,6 +127,43 @@ export interface AcpProbeResult {
   modes?: ThreadMode[];
   approvalPolicies?: Array<{ id: string; label: string }>;
   slashCommands?: AgentSlashCommand[];
+  /** Provider-owned result from an optional utility session (never inferred). */
+  utilityResult?: unknown;
+}
+
+/** The native command that owns the utility session, for cleanup after exit. */
+export interface AcpUtilityCommand {
+  command: string;
+  args: string[];
+  env?: Record<string, string>;
+  cwd?: string;
+}
+
+/** One provider-neutral read-only session on the same ACP process. */
+export interface AcpUtilitySessionContext {
+  connection: AcpClientConnection;
+  initialize: InitializeResponse;
+  sessionId: string;
+  slashCommands?: readonly AgentSlashCommand[];
+  command: AcpUtilityCommand;
+  /** Send one prompt on this exact session, bounded by the probe deadline. */
+  prompt(text: string, timeoutMs?: number): Promise<PromptResponse>;
+}
+
+export interface AcpUtilityCleanupContext {
+  sessionId: string;
+  command: AcpUtilityCommand;
+}
+
+export interface AcpUtilitySession {
+  /** Decided from InitializeResponse before session/new. */
+  qualifies?(initialize: InitializeResponse): boolean;
+  /** Observe same-session notifications while this utility runs. */
+  onSessionUpdate?(notification: SessionNotification): void;
+  /** Runs after newSession; probe returns without capability/model sweeps. */
+  run(context: AcpUtilitySessionContext): Promise<unknown | undefined>;
+  /** Runs after the provider process is retired, for provider-owned artifacts. */
+  cleanupAfterProcess?(context: AcpUtilityCleanupContext): Promise<void>;
 }
 
 type AcpConfigOptionLike = {
@@ -556,6 +595,11 @@ export async function probeAcpCapabilities(
     /** Match the execution boundary of a runtime without host terminal access. */
     terminalCapability?: boolean;
     /**
+     * Provider-neutral read-only utility session. Qualifies from initialize,
+     * runs after newSession, and returns before capability/model sweeps.
+     */
+    utilitySession?: AcpUtilitySession;
+    /**
      * Per-model thought-level / model_config sweep budget. Defaults to the
      * shared 300ms cap so a wedged `set_config_option` cannot stall detection.
      */
@@ -585,9 +629,17 @@ export async function probeAcpCapabilities(
   let connection: AcpClientConnection | undefined;
   let probeSessionId: string | undefined;
   let probeSessionCleanup: "delete" | "close" | undefined;
+  let utilityCleanupContext: AcpUtilityCleanupContext | undefined;
+  let processRetired = true;
   let cleanupReserveMs = 0;
   const ownedProcessGroup = process.platform !== "win32";
   const probeResult: AcpProbeResult = {};
+  const utilityCommand: AcpUtilityCommand = {
+    command,
+    args,
+    ...(options?.env ? { env: options.env } : {}),
+    ...(options?.processCwd ? { cwd: options.processCwd } : {}),
+  };
 
   if (signal?.aborted) return undefined;
 
@@ -711,6 +763,11 @@ export async function probeAcpCapabilities(
           }
           configOptionsWaiters.push(...remaining);
         }
+        try {
+          options?.utilitySession?.onSessionUpdate?.(params);
+        } catch {
+          // A provider-owned utility observer must not break the probe.
+        }
         return Promise.resolve();
       },
       extNotification: () => Promise.resolve(),
@@ -761,6 +818,10 @@ export async function probeAcpCapabilities(
       initializeModels = readUnstableInitializeModels(initResult._meta);
     }
 
+    if (options?.utilitySession?.qualifies?.(initResult) === false) {
+      return probeResult;
+    }
+
     // Non-spec compatibility fallback for agents that still expose
     // commands during initialize instead of session/update.
     const rawCommands = (initResult as { commands?: AcpAvailableCommandLike[] }).commands;
@@ -768,9 +829,11 @@ export async function probeAcpCapabilities(
       latestSlashCommands = mapAcpSlashCommands(rawCommands);
     }
 
-    const preferredAuthMethodId = options?.authenticateMethodIds?.find((id) =>
-      initResult.authMethods?.some((method) => method.id === id),
-    );
+    const preferredAuthMethodId = options?.utilitySession
+      ? undefined
+      : options?.authenticateMethodIds?.find((id) =>
+          initResult.authMethods?.some((method) => method.id === id),
+        );
     if (options?.sessionProbe === "initialize-only") return probeResult;
     if (preferredAuthMethodId) {
       try {
@@ -810,6 +873,14 @@ export async function probeAcpCapabilities(
       throw err;
     }
     probeSessionId = result.sessionId;
+    if (options?.utilitySession) {
+      // Set custody immediately: an abort during command advertisement must
+      // still reach provider cleanup once the process is retired.
+      utilityCleanupContext = {
+        sessionId: probeSessionId,
+        command: utilityCommand,
+      };
+    }
     // An available-commands update is a full snapshot. Keep the latest one
     // throughout the grace window because agents may publish built-ins first
     // and append skills after their async discovery completes.
@@ -827,6 +898,35 @@ export async function probeAcpCapabilities(
         ...(newSessionMeta as Record<string, unknown>),
       };
     }
+
+    if (options?.utilitySession) {
+      if (!connection) return probeResult;
+      const utilityConnection = connection;
+      const utilitySession = options.utilitySession;
+      const utilitySessionId = probeSessionId;
+      try {
+        const utilityResult = await utilitySession.run({
+          connection: utilityConnection,
+          initialize: initResult,
+          sessionId: utilitySessionId,
+          ...(latestSlashCommands !== undefined ? { slashCommands: latestSlashCommands } : {}),
+          command: utilityCommand,
+          prompt: (text, maxMs) =>
+            runWithinProbeBudget(
+              utilityConnection.prompt({
+                sessionId: utilitySessionId,
+                prompt: [{ type: "text", text }],
+              }),
+              maxMs,
+            ),
+        });
+        if (utilityResult !== undefined) probeResult.utilityResult = utilityResult;
+      } catch {
+        // A utility source fails closed: no model fallback or auth prompt.
+      }
+      return probeResult;
+    }
+
     // Unstable pre-1.0 model list (see unstableModelCompat.ts). Cursor exposes
     // it on session/new while Grok 0.2.x exposes it on initialize._meta. Read
     // only after newSession succeeds so a cached initialize list cannot make a
@@ -1051,7 +1151,35 @@ export async function probeAcpCapabilities(
       }
       terminateChildProcessTree(child, { ownedProcessGroup });
     }
+    const cleanupAfterProcess = options?.utilitySession?.cleanupAfterProcess;
+    if (
+      cleanupAfterProcess &&
+      utilityCleanupContext &&
+      child &&
+      child.exitCode === null &&
+      child.signalCode === null
+    ) {
+      // Provider cleanup must only run after the process that owned the
+      // session files is retired. Bound the wait so a wedged child cannot
+      // hold the probe slot forever; an unretired process leaves cleanup to
+      // its owner rather than deleting files under a live writer.
+      const exitedChild = child;
+      processRetired = await new Promise<boolean>((resolve) => {
+        const timer = setTimeout(() => resolve(false), 1_000);
+        exitedChild.once("exit", () => {
+          clearTimeout(timer);
+          resolve(true);
+        });
+      });
+    }
     if (lifetime) await lifetime.stop();
+    if (processRetired && utilityCleanupContext && cleanupAfterProcess) {
+      try {
+        await cleanupAfterProcess(utilityCleanupContext);
+      } catch {
+        // Provider-owned cleanup is best-effort after the process is retired.
+      }
+    }
   }
 }
 

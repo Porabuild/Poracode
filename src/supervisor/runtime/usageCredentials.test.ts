@@ -1,8 +1,39 @@
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
+import { usageSecretsPath } from "@/shared/usageSecretStore";
 import { parseClaudeCredentials } from "./claudeCredentials";
 import { parseCodexAuth } from "./codexCredentials";
 import { parseCommandCodeAuth, parseCommandCodeEnv } from "./commandCodeCredentials";
 import { copilotCredentialTargetFromConfig } from "./copilotCredentials";
+import { createNativeCredentialStore } from "./usageCredentials";
+
+it("retires only the copied Antigravity usage grant from the pre-upgrade store", async () => {
+  const directory = mkdtempSync(join(tmpdir(), "poracode-usage-credential-upgrade-"));
+  try {
+    const path = usageSecretsPath(directory);
+    const preserved = {
+      antigravity: { unrelated: "sealed-sibling" },
+      grok: { cookie: "sealed-cookie" },
+    };
+    writeFileSync(
+      path,
+      JSON.stringify({
+        ...preserved,
+        antigravity: { ...preserved.antigravity, "acp-credentials-v1": "sealed-legacy-grant" },
+      }),
+    );
+
+    const store = createNativeCredentialStore(directory);
+    expect(JSON.parse(readFileSync(path, "utf8"))).toEqual(preserved);
+    await expect(store.getSecret("antigravity", "acp-credentials-v1")).resolves.toBeUndefined();
+    createNativeCredentialStore(directory);
+    expect(JSON.parse(readFileSync(path, "utf8"))).toEqual(preserved);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
 
 describe("parseClaudeCredentials", () => {
   it("extracts the OAuth bundle from a credentials file", () => {

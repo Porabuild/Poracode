@@ -8,6 +8,7 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import type {
   AgentKind,
+  AgentStatus,
   CaptureExperimentSnapshotPayload,
   CaptureExperimentSnapshotResult,
   CloneRepoPayload,
@@ -715,6 +716,7 @@ export class SupervisorRuntime {
       settingsPath: this.settingsPath,
       localCollectors: createLocalUsageCollectors({
         getActiveAntigravityWslDistros: () => this.getActiveAntigravityWslDistros(),
+        getUsageRuntime: (agentKind) => this.getUsageRuntime(agentKind),
       }),
     });
     this.usageService.startAutoRefresh();
@@ -977,6 +979,28 @@ export class SupervisorRuntime {
       if (session.projectLocation.kind === "wsl") distros.add(session.projectLocation.distro);
     }
     return [...distros];
+  }
+
+  /** Actual detected runtime for supervisor-local quota collectors. */
+  private async getUsageRuntime(
+    agentKind: AgentKind,
+  ): Promise<{ status: AgentStatus; adapter: AgentAdapter } | undefined> {
+    const adapter = this.adapters.get(agentKind);
+    if (!adapter) return undefined;
+    const { windows, wsl } = await this.agentStatusService.getAgentStatuses({
+      wslDistros: this.getActiveAntigravityWslDistros(),
+    });
+    const statuses = [...windows, ...wsl].filter((entry) => entry.kind === agentKind);
+    const usable = statuses.find((status) => {
+      const variants = Object.values(status.runtimeVariants ?? {});
+      if (variants.length > 0) {
+        return variants.some(
+          (variant) => variant.installed && variant.authState === "authenticated",
+        );
+      }
+      return status.installed && status.authState === "authenticated";
+    });
+    return usable ? { status: usable, adapter } : undefined;
   }
 
   async gitRemoveWorktree(payload: GitRemoveWorktreePayload): Promise<void> {

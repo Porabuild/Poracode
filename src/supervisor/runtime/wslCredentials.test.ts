@@ -29,11 +29,7 @@ vi.mock("../agents/base", () => ({
     batchWslCommandsAsyncMock(distro, commands),
 }));
 
-import {
-  readAntigravityAcpCredsFromWsl,
-  readClaudeCredsFromWsl,
-  setWslCredentialProjectScope,
-} from "./wslCredentials";
+import { readClaudeCredsFromWsl, setWslCredentialProjectScope } from "./wslCredentials";
 
 type ExecFileCallback = (err: Error | null, result: { stdout: string; stderr: string }) => void;
 
@@ -89,15 +85,5 @@ describe("wslCredentials project-scope gate", () => {
     distrosListed(["Ubuntu"]);
     batchWslCommandsAsyncMock.mockResolvedValue([{ ok: true, stdout: "token-json" }]);
     await expect(readClaudeCredsFromWsl()).resolves.toBe("token-json");
-  });
-
-  it("reads persisted Antigravity ACP credentials from a watched WSL context", async () => {
-    setWslCredentialProjectScope(() => true);
-    distrosListed(["Ubuntu"]);
-    batchWslCommandsAsyncMock.mockResolvedValue([{ ok: true, stdout: "acp-token-json" }]);
-    await expect(readAntigravityAcpCredsFromWsl()).resolves.toBe("acp-token-json");
-    expect(batchWslCommandsAsyncMock).toHaveBeenCalledWith("Ubuntu", [
-      "cat $HOME/.gemini/antigravity-acp/acp_token.json 2>/dev/null",
-    ]);
   });
 });

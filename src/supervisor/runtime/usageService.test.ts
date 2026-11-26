@@ -67,6 +67,54 @@ afterEach(() => {
 });
 
 describe("UsageService", () => {
+  it("aborts an in-flight local collection on stop and commits no late result", async () => {
+    let seenSignal: AbortSignal | undefined;
+    let finish!: (snapshot: UsageSnapshot) => void;
+    const collect = vi.fn<LocalUsageCollector["collect"]>(
+      (nowMs, _host, signal) =>
+        new Promise<UsageSnapshot>((resolve) => {
+          seenSignal = signal;
+          finish = resolve;
+          signal?.addEventListener(
+            "abort",
+            () =>
+              resolve({
+                providerId: "antigravity",
+                status: "app-not-running",
+                windows: [],
+                fetchedAt: nowMs,
+              }),
+            { once: true },
+          );
+        }),
+    );
+    const service = new UsageService({
+      emit: () => {},
+      cachePath: tempCachePath(),
+      providerIds: ["antigravity"],
+      profileSources: () => [],
+      localCollectors: [{ id: "antigravity", collect }],
+    });
+
+    try {
+      const refresh = service.refreshProviderUsage({ providerIds: ["antigravity"] });
+      await vi.waitFor(() => expect(collect).toHaveBeenCalledOnce());
+      service.stop();
+      finish({
+        providerId: "antigravity",
+        status: "ok",
+        windows: [{ id: "antigravity:gemini:weekly", label: "Gemini · Weekly", usedPercent: 1 }],
+        fetchedAt: NOW,
+      });
+
+      await expect(refresh).resolves.toEqual({ snapshots: [], fromCache: false });
+      expect(seenSignal?.aborted).toBe(true);
+      expect((await service.getProviderUsage({})).snapshots).toEqual([]);
+    } finally {
+      service.stop();
+    }
+  });
+
   it("publishes successful startup usage after a transient connection failure", async () => {
     const fetchMock = vi
       .fn<typeof fetch>()
@@ -136,6 +184,57 @@ describe("UsageService", () => {
     },
   );
 
+  it("discards pre-upgrade Antigravity cloud quota when no live source is available", async () => {
+    const cachePath = tempCachePath();
+    writeFileSync(
+      cachePath,
+      JSON.stringify({
+        version: 19,
+        snapshots: [
+          {
+            providerId: "antigravity",
+            status: "ok",
+            windows: [
+              { id: "antigravity:gemini:weekly", label: "Gemini · Weekly", usedPercent: 34 },
+            ],
+            fetchedAt: NOW,
+          },
+        ],
+      }),
+    );
+    const local: UsageSnapshot = {
+      providerId: "antigravity",
+      status: "app-not-running",
+      windows: [],
+      fetchedAt: NOW,
+    };
+    const service = new UsageService({
+      emit: () => {},
+      cachePath,
+      host: makeHost({}),
+      providerIds: ["antigravity"],
+      localCollectors: [{ id: "antigravity", collect: async () => local }],
+      profileSources: () => [],
+    });
+    try {
+      expect(await service.getProviderUsage({ providerIds: ["antigravity"] })).toEqual({
+        snapshots: [],
+        fromCache: false,
+      });
+      const refreshed = await service.refreshProviderUsage({
+        providerIds: ["antigravity"],
+        force: true,
+      });
+      expect(refreshed.snapshots).toEqual([local]);
+      expect(JSON.parse(readFileSync(cachePath, "utf8"))).toMatchObject({
+        version: 20,
+        snapshots: [local],
+      });
+    } finally {
+      service.stop();
+    }
+  });
+
   it.each([12, 13, 14])("recollects windows instead of serving a v%s snapshot", async (version) => {
     const cachePath = tempCachePath();
     writeFileSync(
@@ -161,7 +260,7 @@ describe("UsageService", () => {
     expect(await service.getProviderUsage({})).toEqual({ snapshots: [], fromCache: false });
     expect((await service.refreshProviderUsage({ force: true })).snapshots).toEqual([fresh]);
     expect(JSON.parse(readFileSync(cachePath, "utf8"))).toMatchObject({
-      version: 19,
+      version: 20,
       snapshots: [fresh],
     });
     service.stop();
@@ -597,7 +696,7 @@ describe("UsageService", () => {
     writeFileSync(
       cachePath,
       JSON.stringify({
-        version: 19,
+        version: 20,
         snapshots: [{ providerId: "fixture", status: "ok", windows: [], fetchedAt: NOW - 600_000 }],
       }),
     );
@@ -1004,7 +1103,7 @@ describe("UsageService", () => {
       credits: { balance: 20 },
       fetchedAt: NOW - 6 * 60 * 60_000,
     };
-    writeFileSync(cachePath, JSON.stringify({ version: 19, snapshots: [previous] }));
+    writeFileSync(cachePath, JSON.stringify({ version: 20, snapshots: [previous] }));
     let failed = true;
     const options = {
       emit: () => {},
@@ -1210,7 +1309,7 @@ describe("UsageService", () => {
     }
   });
 
-  it("discards stale v18 Cursor cache entries when booting with v19", async () => {
+  it("discards stale v18 Cursor cache entries", async () => {
     const cachePath = tempCachePath();
     writeFileSync(
       cachePath,

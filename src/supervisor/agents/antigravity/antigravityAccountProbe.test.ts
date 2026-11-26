@@ -2,8 +2,17 @@ import { describe, expect, it, vi } from "vitest";
 import {
   antigravityAccountFromUserStatus,
   probeAntigravityAccount,
-  type AntigravityAccountProbeDeps,
 } from "./antigravityAccountProbe";
+import { GET_USER_STATUS, queryLs } from "./antigravityLanguageServer";
+import { resolveAntigravityLsEndpoints } from "./antigravityProcessScan";
+
+vi.mock("./antigravityLanguageServer", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./antigravityLanguageServer")>()),
+  queryLs: vi.fn<typeof queryLs>(),
+}));
+vi.mock("./antigravityProcessScan", () => ({
+  resolveAntigravityLsEndpoints: vi.fn<typeof resolveAntigravityLsEndpoints>(),
+}));
 
 describe("antigravityAccountFromUserStatus", () => {
   it("maps email + plan from a GetUserStatus body", () => {
@@ -31,69 +40,29 @@ describe("antigravityAccountFromUserStatus", () => {
 });
 
 describe("probeAntigravityAccount", () => {
-  const account = { authenticatedAs: "user@example.com", plan: "Google AI Pro" };
-
-  function makeDeps(
-    overrides: Partial<AntigravityAccountProbeDeps> = {},
-  ): AntigravityAccountProbeDeps {
-    return {
-      readRunningAccount: vi
-        .fn<AntigravityAccountProbeDeps["readRunningAccount"]>()
-        .mockResolvedValue(undefined),
-      spawnAndReadAccount: vi
-        .fn<AntigravityAccountProbeDeps["spawnAndReadAccount"]>()
-        .mockResolvedValue(undefined),
-      ...overrides,
-    };
-  }
-
-  it("reuses a running language server without spawning", async () => {
-    const deps = makeDeps({
-      readRunningAccount: vi
-        .fn<AntigravityAccountProbeDeps["readRunningAccount"]>()
-        .mockResolvedValue(account),
+  it("resolves account metadata from an already-running language server", async () => {
+    vi.mocked(resolveAntigravityLsEndpoints).mockResolvedValue({
+      ports: [1234, 1235],
+      csrfTokens: [],
     });
-
-    const result = await probeAntigravityAccount({ executablePath: "agy", allowSpawn: true }, deps);
-
-    expect(result).toEqual(account);
-    expect(deps.spawnAndReadAccount).not.toHaveBeenCalled();
-  });
-
-  it("spawns agy when no LS is running and spawning is allowed", async () => {
-    const deps = makeDeps({
-      spawnAndReadAccount: vi
-        .fn<AntigravityAccountProbeDeps["spawnAndReadAccount"]>()
-        .mockResolvedValue(account),
+    vi.mocked(queryLs)
+      .mockReset()
+      .mockRejectedValueOnce(new Error("closed"))
+      .mockResolvedValueOnce({
+        userStatus: { email: "user@example.com", userTier: { name: "Google AI Pro" } },
+      });
+    await expect(probeAntigravityAccount(["Ubuntu"])).resolves.toEqual({
+      authenticatedAs: "user@example.com",
+      plan: "Google AI Pro",
     });
-
-    const result = await probeAntigravityAccount(
-      { executablePath: "/path/to/agy", allowSpawn: true },
-      deps,
-    );
-
-    expect(result).toEqual(account);
-    expect(deps.spawnAndReadAccount).toHaveBeenCalledWith("/path/to/agy");
+    expect(resolveAntigravityLsEndpoints).toHaveBeenCalledWith(["Ubuntu"]);
+    expect(queryLs).toHaveBeenLastCalledWith(1235, GET_USER_STATUS, []);
   });
 
-  it("never spawns when allowSpawn is false (signed-out / passive-only)", async () => {
-    const deps = makeDeps();
-
-    const result = await probeAntigravityAccount(
-      { executablePath: "/path/to/agy", allowSpawn: false },
-      deps,
-    );
-
-    expect(result).toBeUndefined();
-    expect(deps.spawnAndReadAccount).not.toHaveBeenCalled();
-  });
-
-  it("never spawns when there is no executable path to launch", async () => {
-    const deps = makeDeps();
-
-    const result = await probeAntigravityAccount({ allowSpawn: true }, deps);
-
-    expect(result).toBeUndefined();
-    expect(deps.spawnAndReadAccount).not.toHaveBeenCalled();
+  it("returns unknown account metadata when no language server is running", async () => {
+    vi.mocked(resolveAntigravityLsEndpoints).mockResolvedValue({ ports: [], csrfTokens: [] });
+    vi.mocked(queryLs).mockClear();
+    await expect(probeAntigravityAccount()).resolves.toBeUndefined();
+    expect(queryLs).not.toHaveBeenCalled();
   });
 });

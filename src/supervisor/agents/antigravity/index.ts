@@ -147,15 +147,8 @@ export function createAntigravityAdapter(acpInstance?: AgentInstanceConfig): Age
       return merged;
     },
 
-    async resolveAccount({ status, wslDistros }) {
-      // Spawning `agy` is only safe once the user is signed in (the config-dir
-      // probe's soft signal) — a never-authenticated spawn would drop into the
-      // interactive OAuth flow. Otherwise restrict to reusing a running LS.
-      return probeAntigravityAccount({
-        ...(status?.executablePath ? { executablePath: status.executablePath } : {}),
-        wslDistros,
-        allowSpawn: status?.authState === "authenticated",
-      });
+    resolveAccount({ wslDistros }) {
+      return probeAntigravityAccount(wslDistros);
     },
 
     buildLaunchArgv(location, config, prompt) {

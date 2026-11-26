@@ -3,8 +3,7 @@ import type { UsageWindow } from "../types";
 
 /**
  * Antigravity quota parsing, shared by the supervisor's local language-server
- * scanner (`antigravityUsageScanner.ts`) and Cloud Code collector
- * (`antigravityCloudUsage.ts`).
+ * scanner (`antigravityUsageScanner.ts`).
  *
  * Antigravity exposes a `RetrieveUserQuotaSummary` RPC (and `agy -p "/usage"`
  * CLI output) that reports model quota groups — such as "Gemini Models",
@@ -184,27 +183,42 @@ function antigravityCadenceInfo(
 }
 
 /**
- * Pull the `groups` array out of a `RetrieveUserQuotaSummary` or
+ * The container holding the `groups` array in a `RetrieveUserQuotaSummary` or
  * `agy -p "/usage" --output-format json` body, tolerant of nesting.
  */
-function quotaSummaryGroups(body: unknown): Record<string, unknown>[] {
-  if (!body || typeof body !== "object") return [];
+function quotaSummaryContainer(body: unknown): Record<string, unknown> | undefined {
+  if (!body || typeof body !== "object") return undefined;
   const root = body as Record<string, unknown>;
   const command =
     root.command && typeof root.command === "object"
       ? (root.command as Record<string, unknown>)
       : undefined;
-  const container =
-    root.response && typeof root.response === "object"
-      ? (root.response as Record<string, unknown>)
-      : command?.data && typeof command.data === "object"
-        ? (command.data as Record<string, unknown>)
-        : root.data && typeof root.data === "object"
-          ? (root.data as Record<string, unknown>)
-          : root;
-  const groups = container.groups;
+  return root.response && typeof root.response === "object"
+    ? (root.response as Record<string, unknown>)
+    : command?.data && typeof command.data === "object"
+      ? (command.data as Record<string, unknown>)
+      : root.data && typeof root.data === "object"
+        ? (root.data as Record<string, unknown>)
+        : root;
+}
+
+/**
+ * Pull the `groups` array out of a quota-summary body, tolerant of nesting.
+ */
+function quotaSummaryGroups(body: unknown): Record<string, unknown>[] {
+  const groups = quotaSummaryContainer(body)?.groups;
   if (!Array.isArray(groups)) return [];
   return groups.filter((g): g is Record<string, unknown> => !!g && typeof g === "object");
+}
+
+/**
+ * True when a quota-summary body carries the groups array the parser accepts,
+ * including a genuine empty array, at the same nesting levels used by
+ * {@link antigravityQuotaSummaryWindows} (`response`, `command.data`, `data`, or
+ * the root). Lets callers reject an unrelated 2xx JSON object.
+ */
+export function hasAntigravityQuotaSummaryGroups(body: unknown): boolean {
+  return Array.isArray(quotaSummaryContainer(body)?.groups);
 }
 
 /**

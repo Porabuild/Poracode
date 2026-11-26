@@ -139,10 +139,11 @@ export function builtInUsageProviderDescriptors(): UsageProviderDescriptor[] {
  * Most providers are HTTP collectors registered in `registry.ts`. Several are
  * collected supervisor-side because they need process / SQLite access the pure
  * HTTP registry can't do — they have a descriptor here but no package collector:
- * `antigravity` prefers its local language server and falls back to Cloud Code
- * with official ACP credentials, while `opencode` needs the supervisor to read
- * the CLI's local `auth.json` Go key (direct `/zen/go/v1/usage` endpoint) plus
- * the opencode.ai cookie session for the Zen balance. Go quota meters come from
+ * `antigravity` reads signed-in CLI/ACP quota or its already-running local
+ * language server, while `opencode` needs the supervisor to read the CLI's
+ * local `auth.json` Go key
+ * (direct `/zen/go/v1/usage` endpoint) plus the opencode.ai cookie session for
+ * the Zen balance. Go quota meters come from
  * the API key first, the web session as fallback — never from local
  * `opencode.db` spend. `fx` runs `fx usage --json` supervisor-side.
  */
@@ -154,6 +155,12 @@ export const LOCAL_USAGE_PROVIDER_DESCRIPTORS: readonly UsageProviderDescriptor[
     mechanism: "cli-jsonrpc",
     needsLogin: false,
     windowIds: [],
+    // Signed-in CLI/ACP probes are heavier than HTTP collectors; keep explicit
+    // per-provider settings authoritative.
+    refreshPolicy: {
+      defaultIntervalMinutes: 15,
+      rateLimitBackoffMs: [15, 30, 60].map((minutes) => minutes * 60_000),
+    },
   },
   {
     id: "opencode",

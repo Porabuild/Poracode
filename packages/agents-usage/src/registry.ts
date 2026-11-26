@@ -91,8 +91,9 @@ const QODER_COLLECTOR: UsageCollector = {
   collect: collectQoder,
 };
 
-// Antigravity is collected supervisor-side from its local language server
-// (LS-only), not here; see src/supervisor/runtime/antigravityUsageScanner.ts.
+// The supervisor collects Antigravity quota from its running language server
+// or a native runtime report. See
+// src/supervisor/agents/antigravity/antigravityUsageScanner.ts.
 
 const BUILT_IN: UsageCollector[] = [
   { descriptor: BUILT_IN_USAGE_PROVIDER_DESCRIPTORS.devin, collect: collectDevin },

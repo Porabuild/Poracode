@@ -1,5 +1,6 @@
-import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { existsSync, readFileSync } from "node:fs";
+import { join } from "node:path";
+import { writeFileAtomic } from "./atomicFile";
 import { decryptSecret, encryptSecret } from "./secretStorage";
 
 /**
@@ -36,10 +37,7 @@ function readAll(path: string): SecretsFile {
 }
 
 function writeAll(path: string, data: SecretsFile): void {
-  mkdirSync(dirname(path), { recursive: true });
-  const tmp = `${path}.tmp`;
-  writeFileSync(tmp, JSON.stringify(data), { encoding: "utf8", mode: 0o600 });
-  renameSync(tmp, path);
+  writeFileAtomic(path, JSON.stringify(data), { mode: 0o600 });
 }
 
 /** Seal and persist a provider secret. */
@@ -66,6 +64,7 @@ export function clearUsageSecret(cacheDir: string, providerId: string, key?: str
   if (key === undefined) {
     delete data[providerId];
   } else {
+    if (!Object.hasOwn(data[providerId], key)) return;
     const bucket = { ...data[providerId] };
     delete bucket[key];
     if (Object.keys(bucket).length === 0) delete data[providerId];
